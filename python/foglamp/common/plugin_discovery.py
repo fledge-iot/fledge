@@ -64,16 +64,16 @@ class PluginDiscovery(object):
 
     @classmethod
     def fetch_c_plugins_installed(cls, plugin_type):
-        libraries = utils.find_c_plugin_libs(plugin_type)
+        libs = utils.find_c_plugin_libs(plugin_type)
         configs = []
-        for l in libraries:
+        for l in libs:
             jdoc = utils.get_plugin_info(l)
-            plugin_config = {'name': l,
-                             'type': plugin_type,
-                             'description': jdoc['config']['plugin']['description'],
-                             'version': jdoc['version']
-                             }
-            if plugin_config is not None:
+            if jdoc is not None:
+                plugin_config = {'name': l,
+                                 'type': plugin_type,
+                                 'description': jdoc['config']['plugin']['description'],
+                                 'version': jdoc['version']
+                                 }
                 configs.append(plugin_config)
         return configs
 

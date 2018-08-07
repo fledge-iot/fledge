@@ -17,7 +17,7 @@ def get_plugin_info(name):
         res = out.decode("utf-8")
         jdoc = json.loads(res)
     except (OSError, subprocess.CalledProcessError, Exception) as ex:
-        _logger.exception("C Plugin get info failed due to {}".format(str(ex)))
+        _logger.exception("C plugin get info failed due to %s", ex)
         return {}
     else:
         return jdoc
@@ -29,6 +29,7 @@ def _find_c_lib(name):
             # C-binary file
             if fname.endswith(name + '.so'):
                 return os.path.join(path, fname)
+    return None
 
 
 def _find_c_util(name):
@@ -37,13 +38,14 @@ def _find_c_util(name):
             # C-utility file
             if fname == name:
                 return os.path.join(path, fname)
+    return None
 
 
 def find_c_plugin_libs(direction):
     libraries = []
     # FIXME: Duplicate binaries found only in case "make",
-    # follow_links=False by default in os.walk() should ignore such symbolic links but tight now its not working
-    for root, dirs, files in os.walk(_FOGLAMP_ROOT):
+    # follow_links=False by default in os.walk() should ignore such symbolic links but right now its not working
+    for root, dirs, files in os.walk(_FOGLAMP_ROOT, followlinks=False):
         for name in dirs:
             if 'plugins' in name:
                 p = os.path.join(root, name) + "/" + direction

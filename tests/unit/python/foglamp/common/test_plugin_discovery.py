@@ -143,7 +143,7 @@ class TestPluginDiscovery:
             yield TestPluginDiscovery.mock_c_south_folders
 
         mock_get_folders = mocker.patch.object(PluginDiscovery, "get_plugin_folders", return_value=next(mock_folders()))
-        mock_get_c_folders = mocker.patch.object(PluginDiscovery, "get_c_plugin_folders", return_value=next(mock_c_folders()))
+        mock_get_c_folders = mocker.patch.object(utils, "find_c_plugin_libs", return_value=next(mock_c_folders()))
         mock_get_plugin_config = mocker.patch.object(PluginDiscovery, "get_plugin_config", side_effect=TestPluginDiscovery.mock_plugins_config)
         mock_get_c_plugin_config = mocker.patch.object(utils, "get_plugin_info", side_effect=TestPluginDiscovery.mock_c_plugins_config)
 
@@ -168,7 +168,7 @@ class TestPluginDiscovery:
 
         mock_get_folders = mocker.patch.object(PluginDiscovery, "get_plugin_folders", return_value=next(mock_folders()))
         mock_get_plugin_config = mocker.patch.object(PluginDiscovery, "get_plugin_config", side_effect=TestPluginDiscovery.mock_plugins_north_config)
-        mock_get_c_folders = mocker.patch.object(PluginDiscovery, "get_c_plugin_folders", return_value=next(mock_c_folders()))
+        mock_get_c_folders = mocker.patch.object(utils, "find_c_plugin_libs", return_value=next(mock_c_folders()))
         mock_get_c_plugin_config = mocker.patch.object(utils, "get_plugin_info", side_effect=TestPluginDiscovery.mock_c_plugins_north_config)
 
         plugins = PluginDiscovery.get_plugins_installed("north")
@@ -192,7 +192,7 @@ class TestPluginDiscovery:
 
         mock_get_folders = mocker.patch.object(PluginDiscovery, "get_plugin_folders", return_value=next(mock_folders()))
         mock_get_plugin_config = mocker.patch.object(PluginDiscovery, "get_plugin_config", side_effect=TestPluginDiscovery.mock_plugins_south_config)
-        mock_get_c_folders = mocker.patch.object(PluginDiscovery, "get_c_plugin_folders", return_value=next(mock_c_folders()))
+        mock_get_c_folders = mocker.patch.object(utils, "find_c_plugin_libs", return_value=next(mock_c_folders()))
         mock_get_c_plugin_config = mocker.patch.object(utils, "get_plugin_info", side_effect=TestPluginDiscovery.mock_c_plugins_south_config)
 
         plugins = PluginDiscovery.get_plugins_installed("south")
@@ -231,19 +231,6 @@ class TestPluginDiscovery:
 
         plugin_folders = PluginDiscovery.get_plugin_folders("north")
         assert TestPluginDiscovery.mock_north_folders == plugin_folders
-
-    def test_get_c_plugin_folders(self, mocker):
-        @asyncio.coroutine
-        def mock_folders():
-            listdir = copy.deepcopy(TestPluginDiscovery.mock_c_north_folders)
-            listdir.extend(["utils", "storage", "common"])
-            yield listdir
-
-        mock_os_listdir = mocker.patch.object(os, "listdir", return_value=next(mock_folders()))
-        mock_os_isdir = mocker.patch.object(os.path, "isdir", return_value=True)
-
-        plugin_folders = PluginDiscovery.get_c_plugin_folders("north")
-        assert TestPluginDiscovery.mock_c_north_folders == plugin_folders
 
     def test_get_plugin_config(self):
         mock_plugin_info = {

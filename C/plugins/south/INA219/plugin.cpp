@@ -73,6 +73,25 @@ string	address, range;
 	}
 	if (config->itemExists("range"))
 	{
+		INA219_CONFIGURATION conf = CONF_32V_2A;
+		range = config->getValue("range");
+		if (range.compare("32V2A") == 0)
+		{
+			conf = CONF_32V_2A;
+		}
+		else if (range.compare("32V1A") == 0)
+		{
+			conf = CONF_32V_1A;
+		}
+		else if (range.compare("16V400mA") == 0)
+		{
+			conf = CONF_16V_400MA;
+		}
+		ina219->configure(conf);
+	}
+	else
+	{
+		ina219->configure(CONF_32V_2A);
 	}
 
 	if (config->itemExists("asset"))

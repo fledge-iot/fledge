@@ -79,6 +79,7 @@ uint16_t config = 0;
                     INA219_CONFIG_MODE_SANDBVOLT_CONTINUOUS;
 		break;
         case CONF_32V_2A:
+	default:
 		m_calValue = 4096;
 		m_powerMultiplier = 2;
 		m_currentDivider = 10;

@@ -5,7 +5,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 #include <south_service.h>
 #include <management_api.h>
@@ -19,6 +19,7 @@
 #include <ingest.h>
 #include <iostream>
 #include <defaults.h>
+#include <filter_plugin.h>
 
 extern int makeDaemon(void);
 
@@ -172,6 +173,8 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		} catch (ConfigItemNotFound e) {
 			logger->info("Defaulting to inline defaults for south configuration");
 		}
+
+		// Instantiate the Ingest class
 		Ingest ingest(storage, timeout, threshold);
 
 		try {
@@ -181,7 +184,17 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		} catch (ConfigItemNotFound e) {
 			logger->info("Defaulting to inline default for poll interval");
 		}
-		while (! m_shutdown)
+
+		// Load filter plugins and set them in the Ingest class
+		if (!this->loadFilters(m_name, ingest))
+		{
+			string errMsg("'" + m_name + "' plugin: failed loading filter plugins.");
+			Logger::getLogger()->fatal((errMsg + " Exiting.").c_str());
+			throw runtime_error(errMsg);
+		}
+
+		// Get and ingest data
+		while (!m_shutdown)
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(m_pollInterval));
 			Reading reading = southPlugin->poll();
@@ -218,7 +231,7 @@ bool SouthService::loadPlugin()
 			return false;
 		}
 		string plugin = m_config.getValue("plugin");
-		logger->info("Load south plugin %s.", plugin.c_str());
+		logger->info("Loading south plugin %s.", plugin.c_str());
 		PLUGIN_HANDLE handle;
 		if ((handle = manager->loadPlugin(plugin, PLUGIN_TYPE_SOUTH)) != NULL)
 		{
@@ -226,7 +239,10 @@ bool SouthService::loadPlugin()
 			DefaultConfigCategory defConfig(plugin, manager->getInfo(handle)->config);
 			addConfigDefaults(defConfig);
 			defConfig.setDescription(m_config.getDescription());
-			m_mgtClient->addCategory(defConfig);
+
+			// Create/Update category name (we pass keep_original_items=true)
+			m_mgtClient->addCategory(defConfig, true);
+
 			// Must now relaod the configuration to obtain any items added from
 			// the plugin
 			m_config = m_mgtClient->getCategory(m_name);
@@ -281,5 +297,93 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 	{
 		defaultConfig.addItem(defaults[i].name, defaults[i].description,
 			defaults[i].type, defaults[i].value, defaults[i].value);	
+	}
+}
+
+/**
+ * Load filter plugins
+ *
+ * Filters found in configuration are loaded
+ * and adde to the Ingest class instance
+ *
+ * @param categoryName	Configuration category name
+ * @param ingest	The Ingest class reference
+ *			Filters are added to m_filters member
+ * @return true		True if all filters ihave been loaded
+ *			or not existing filters.
+ *			False for errors.
+ */
+bool SouthService::loadFilters(const string& categoryName,
+			       Ingest& ingest)
+{
+	// Try to load filters:
+	if (!FilterPlugin::loadFilters(categoryName,
+				       ingest.m_filters,
+				       m_mgtClient))
+	{
+		// Return false on any error
+		return false;
+	}
+
+	if (ingest.m_filters.size())
+	{
+		// We have some filters: set up the filter pipeline
+		this->setupFiltersPipeline(ingest);
+	}
+
+	return true;
+}
+
+/**
+ * Set the filterPipeline in the Ingest class
+ * 
+ * This method calls the the method "plugin_init" for all loadade filters.
+ * Up to date filter configurations and Ingest filtering methods
+ * are passed to "plugin_init"
+ *
+ * @param ingest	The ingest class
+ */
+void SouthService::setupFiltersPipeline(const Ingest& ingest) const
+{                       
+	for (auto it = ingest.m_filters.begin(); it != ingest.m_filters.end(); ++it)
+	{
+		string filterCategoryName = m_name;
+		filterCategoryName.append("_");
+		filterCategoryName += (*it)->getName();
+		filterCategoryName.append("Filter");
+
+		ConfigCategory updatedCfg;
+		vector<string> children;
+        
+		try
+		{
+			// Fetch up to date filter configuration
+			updatedCfg = m_mgtClient->getCategory(filterCategoryName);
+
+			// Add filter category name under service/process config name
+			children.push_back(filterCategoryName);
+			m_mgtClient->addChildCategories(m_name, children);
+		}
+		// TODO catch specific exceptions
+		catch (...)
+		{       
+			throw;      
+		}                   
+       
+		// Iterate the load filters set in the Ingest class m_filters member 
+		if ((it + 1) != ingest.m_filters.end())
+		{
+			// Set next filter pointer as OUTPUT_HANDLE
+			(*it)->init(updatedCfg,
+				    (OUTPUT_HANDLE *)(*(it + 1)),
+				    Ingest::passToOnwardFilter);
+		}
+		else
+		{
+			// Set the Ingest class pointer as OUTPUT_HANDLE
+			(*it)->init(updatedCfg,
+				    (OUTPUT_HANDLE *)&ingest,
+				    Ingest::useFilteredData);
+		}
 	}
 }

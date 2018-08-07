@@ -7,7 +7,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 
 #include <logger.h>
@@ -15,6 +15,8 @@
 #include <service_handler.h>
 #include <management_client.h>
 #include <config_category.h>
+#include <ingest.h>
+#include <filter_plugin.h>
 
 #define SERVICE_NAME  "FogLAMP South"
 
@@ -26,21 +28,27 @@
 class SouthService : public ServiceHandler {
 	public:
 		SouthService(const std::string& name);
-		void 			start(std::string& coreAddress, unsigned short corePort);
-		void 			stop();
-		void			shutdown();
-		void			configChange(const std::string&, const std::string&);
+		void 				start(std::string& coreAddress,
+						      unsigned short corePort);
+		void 				stop();
+		void				shutdown();
+		void				configChange(const std::string&,
+						const std::string&);
 	private:
-		void			addConfigDefaults(DefaultConfigCategory& defaults);
-		bool 			loadPlugin();
-		SouthPlugin		*southPlugin;
-		const std::string&	m_name;
-		Logger        		*logger;
-		bool			m_shutdown;
-		ConfigCategory		m_config;
-		ManagementClient	*m_mgtClient;
-		unsigned long		m_pollInterval;
-		unsigned int		m_threshold;
-		unsigned long		m_timeout;
+		void				addConfigDefaults(DefaultConfigCategory& defaults);
+		bool 				loadPlugin();
+		bool 				loadFilters(const std::string& categoryName,
+							    Ingest& ingest) const;
+		void				setupFiltersPipeline(const Ingest& ingest) const;
+	private:
+		SouthPlugin			*southPlugin;
+		const std::string&		m_name;
+		Logger        			*logger;
+		bool				m_shutdown;
+		ConfigCategory			m_config;
+		ManagementClient		*m_mgtClient;
+		unsigned long			m_pollInterval;
+		unsigned int			m_threshold;
+		unsigned long			m_timeout;
 };
 #endif

@@ -314,7 +314,7 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
  *			False for errors.
  */
 bool SouthService::loadFilters(const string& categoryName,
-			       Ingest& ingest)
+			       Ingest& ingest) const
 {
 	// Try to load filters:
 	if (!FilterPlugin::loadFilters(categoryName,
@@ -325,11 +325,8 @@ bool SouthService::loadFilters(const string& categoryName,
 		return false;
 	}
 
-	if (ingest.m_filters.size())
-	{
-		// We have some filters: set up the filter pipeline
-		this->setupFiltersPipeline(ingest);
-	}
+	// Set up the filter pipeline
+	this->setupFiltersPipeline(ingest);
 
 	return true;
 }

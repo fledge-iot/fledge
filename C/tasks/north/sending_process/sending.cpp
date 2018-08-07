@@ -534,22 +534,27 @@ const map<string, string>& SendingProcess::fetchConfiguration(const std::string&
 
 		if (plugin_name != PLUGIN_UNDEFINED) {
 
-			// Create types category, with "default" values only
-			string configTypes("{ ");
-			configTypes.append(this->m_plugin->config()[string(PLUGIN_TYPES_KEY)]);
-			configTypes += " }";
+			const map<const string, const string>& plugin_cfg_map = this->m_plugin->config();
+			if (plugin_cfg_map.find(string(PLUGIN_TYPES_KEY)) != plugin_cfg_map.end()) {
+				// Create types category, with "default" values only
+				string configTypes("{ ");
+				configTypes.append(this->m_plugin->config()[string(PLUGIN_TYPES_KEY)]);
+				configTypes += " }";
 
-			DefaultConfigCategory types(string(PLUGIN_TYPES_KEY), configTypes);
-			category.setDescription(CATEGORY_OMF_TYPES_DESCRIPTION);
+				DefaultConfigCategory types(string(PLUGIN_TYPES_KEY), configTypes);
+				category.setDescription(CATEGORY_OMF_TYPES_DESCRIPTION);  // should be types.setDescription?
 
-			if (!this->getManagementClient()->addCategory(types, true)) {
-				string errMsg("Failure creating/updating configuration key '");
-				errMsg.append(PLUGIN_TYPES_KEY);
-				errMsg += "'";
+				if (!this->getManagementClient()->addCategory(types, true)) {
+					string errMsg("Failure creating/updating configuration key '");
+					errMsg.append(PLUGIN_TYPES_KEY);
+					errMsg += "'";
 
-				Logger::getLogger()->fatal(errMsg.c_str());
-				throw runtime_error(errMsg);
+					Logger::getLogger()->fatal(errMsg.c_str());
+					throw runtime_error(errMsg);
+				}
 			}
+			else
+				Logger::getLogger()->debug("%s:%d : key '%s' missing from plugin config map, valid originally for OMF north plugin only", __FUNCTION__, __LINE__, PLUGIN_TYPES_KEY);
 		}
 
 		// Get the category with values and defaults

@@ -36,6 +36,9 @@ class Reading {
 		// Return AssetName
 		const std::string		getAssetName() const;
 
+		// Return UUID/key
+		const std::string		getUuid() const;
+
 		// Return Reading datapoints
 		const std::vector<Datapoint *>	getReadingData() const;
 

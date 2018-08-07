@@ -10,6 +10,7 @@
 #include <ina219.h>
 #include <wiringPiI2C.h>
 #include <reading.h>
+#include <logger.h>
 
 using namespace std;
 
@@ -21,7 +22,7 @@ INA219::INA219(int address) : m_address(address)
 }
 
 /**
- * Destructor for the modbus interface
+ * Destructor for the ina219 interface
  */
 INA219::~INA219()
 {
@@ -51,6 +52,7 @@ uint16_t config = 0;
 
 	if ((m_fd = wiringPiI2CSetup(m_address)) == -1)
 	{
+		Logger::getLogger()->error("Unable to initialise I2C");
 		return;
 	}
 

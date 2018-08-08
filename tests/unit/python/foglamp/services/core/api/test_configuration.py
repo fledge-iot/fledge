@@ -219,7 +219,7 @@ class TestConfiguration:
             with patch.object(c_mgr, 'set_category_item_value_entry', side_effect=ValueError) as patch_set_entry:
                 resp = await client.put('/foglamp/category/{}/{}'.format(category_name, item_name), data=json.dumps(payload))
                 assert 404 == resp.status
-                assert "No detail found for the category_name: {} and config_item: {}".format(category_name, item_name) == resp.reason
+                assert resp.reason is None
             patch_set_entry.assert_called_once_with(category_name, item_name, payload['value'])
 
     async def test_delete_config_item(self, client, category_name='rest_api', item_name='http_port'):

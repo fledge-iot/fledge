@@ -21,7 +21,7 @@ using namespace std;
 /**
  * Plugin specific default configuration
  */
-#define PLUGIN_DEFAULT_CONFIG 	"\"plugin\": {\"description\": \"HTTP North C Plugin\", \"type\": \"string\", \"default\": \"http\"}, " \
+#define PLUGIN_DEFAULT_CONFIG 	"\"plugin\": {\"description\": \"HTTP North C Plugin\", \"type\": \"string\", \"default\": \"http-north\"}, " \
 			"\"URL\": { " \
 				"\"description\": \"The URL of the HTTP Connector to send data to\", " \
 				"\"type\": \"string\", " \
@@ -29,15 +29,9 @@ using namespace std;
 			"\"HttpTimeout\": { " \
 				"\"description\": \"Timeout in seconds for the HTTP operations with the HTTP Connector Relay\", " \
 				"\"type\": \"integer\", \"default\": \"10\" }, " \
-			"\"MaxRetries\": { " \
-				"\"description\": \"Max number of retries for the communication with the HTTP Connector Relay\", " \
-				"\"type\": \"integer\", \"default\": \"3\" }, " \
-			"\"RetrySleepTime\": { " \
-        			"\"description\": \"Seconds between each retry for the communication with the HTTP Connector Relay, " \
-                       		"NOTE : the time is doubled at each attempt.\", \"type\": \"integer\", \"default\": \"1\" }, " \
-			"\"StaticData\": { " \
-				"\"description\": \"Static data to include in each sensor reading sent to upstream FogLAMP.\", " \
-				"\"type\": \"string\", \"default\": \"Location: Palo Alto, Company: Dianomic\" }, " \
+			"\"verifySSL\": { " \
+        			"\"description\": \"Verify SSL certificate\", " \
+				"\"type\": \"boolean\", \"default\": \"False\" }, " \
 			"\"applyFilter\": { " \
         			"\"description\": \"Whether to apply filter before processing the data\", " \
 				"\"type\": \"boolean\", \"default\": \"False\" }, " \

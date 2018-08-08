@@ -243,7 +243,7 @@ bool SouthService::loadPlugin()
 			// Deal with registering and fetching the configuration
 			DefaultConfigCategory defConfig(m_name, manager->getInfo(handle)->config);
 			addConfigDefaults(defConfig);
-			defConfig.setDescription(m_config.getDescription());
+			defConfig.setDescription(m_name);	// TODO We do not have access to the description
 
 			// Create/Update category name (we pass keep_original_items=true)
 			m_mgtClient->addCategory(defConfig, true);

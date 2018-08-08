@@ -103,9 +103,8 @@ Reading	INA219::takeReading()
 vector<Datapoint *>	points;
 
 	double shuntVolts  = wiringPiI2CReadReg16(m_fd, INA219_REG_SHUNTVOLTAGE) * 0.01;
-	DatapointValue value1(shuntVolts);
-	points.push_back(new Datapoint("shuntVoltage", value1));
-	double volts  = wiringPiI2CReadReg16(m_fd, INA219_REG_BUSVOLTAGE) * 0.001;
+	double busVolts  = wiringPiI2CReadReg16(m_fd, INA219_REG_BUSVOLTAGE) * 0.001;
+	double volts = busVolts + (shuntVolts / 1000);
 	DatapointValue value2(volts);
 	points.push_back(new Datapoint("voltage", value2));
 	wiringPiI2CWriteReg16(m_fd, INA219_REG_CALIBRATION, m_calValue);

@@ -18,3 +18,12 @@ To make ina219 plugin run the commands:
   cmake ..
   make
 
+Readings
+========
+
+The asset coe is controlled via a configuration options, the asset will
+return three data points per readings
+::
+  voltage - The voltage across the load (V)
+  current - The current the load is taking (mA)
+  power - The power the load is consuming (mW)

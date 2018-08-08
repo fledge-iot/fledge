@@ -27,10 +27,11 @@ include_directories(../../../../../C/thirdparty/Simple-Web-Server)
 
 file(GLOB common_sources "../../../../../C/common/*.cpp")
 file(GLOB plugin_common_sources "../../../../../C/plugins/common/*.cpp")
+file(GLOB services_common_sources "../../../../../C/services/common/*.cpp")
 file(GLOB unittests "*.cpp")
  
 # Link runTests with what we want to test and the GTest and pthread library
-add_executable(RunTests ${common_sources} ${plugin_common_sources} ${unittests})
+add_executable(RunTests ${common_sources} ${plugin_common_sources} ${services_common_sources} ${unittests})
 target_link_libraries(RunTests ${GTEST_LIBRARIES} pthread)
 target_link_libraries(RunTests  ${Boost_LIBRARIES})
 target_link_libraries(RunTests  ${UUIDLIB})

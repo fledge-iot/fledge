@@ -417,19 +417,26 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name, const Value& item
 		throw new ConfigMalformed();
 	}
 	if (item.HasMember("type"))
-		m_type = item["type"].GetString();
-	else
-		m_type = "";
-	if (item.HasMember("description"))
-		m_description = item["description"].GetString();
-	else
-		m_description = "";
-	if (item.HasMember("value") && item["value"].IsString())
 	{
-		m_value = item["value"].GetString();
-		m_itemType = StringItem;
+		m_type = item["type"].GetString();
 	}
-	else if (item.HasMember("value") && item["value"].IsObject())
+	else
+	{
+		m_type = "";
+	}
+
+	if (item.HasMember("description"))
+	{
+		m_description = item["description"].GetString();
+	}
+	else
+	{
+		m_description = "";
+	}
+
+	// Item "value" can be an escaped JSON string, so check m_type JSON as well
+	if (item.HasMember("value") &&
+	    ((item["value"].IsObject() || m_type.compare("JSON") == 0)))
 	{
 		rapidjson::StringBuffer strbuf;
 		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
@@ -437,16 +444,19 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name, const Value& item
 		m_value = strbuf.GetString();
 		m_itemType = JsonItem;
 	}
+	else if (item.HasMember("value") && item["value"].IsString())
+	{
+		m_value = item["value"].GetString();
+		m_itemType = StringItem;
+	}
 	else
 	{
 		m_value = "";
 	}
-	if (item.HasMember("default") && item["default"].IsString())
-	{
-		m_default = item["default"].GetString();
-		m_itemType = StringItem;
-	}
-	else if (item.HasMember("default") && item["default"].IsObject())
+
+	// Item "default" can be an escaped JSON string, so check m_type JSON as well
+	if (item.HasMember("default") &&
+	    ((item["default"].IsObject() || m_type.compare("JSON") == 0)))
 	{
 		rapidjson::StringBuffer strbuf;
 		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
@@ -454,8 +464,15 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name, const Value& item
 		m_default = strbuf.GetString();
 		m_itemType = JsonItem;
 	}
+	else if (item.HasMember("default") && item["default"].IsString())
+	{
+		m_default = item["default"].GetString();
+		m_itemType = StringItem;
+	}
 	else
+	{
 		m_default = "";
+	}
 }
 
 /**

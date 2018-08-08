@@ -19,8 +19,27 @@ using namespace std;
 using namespace rapidjson;
 
 /**
+ * Construct a reading set from a vector<Reading *> pointer
+ * NOTE: readings are copied into m_readings
+ *
+ * @param readings	The  vector<Reading *> pointer
+ *			of readings to be copied
+ *			into m_readings vector
+ */
+ReadingSet::ReadingSet(vector<Reading *>* readings)
+{
+	m_count = readings->size();
+	for (auto it = readings->begin(); it != readings->end(); ++it)
+	{
+		m_readings.push_back(*it);
+	}
+}
+
+/**
  * Construct a reading set from a JSON document returned from
  * the FogLAMP storage service.
+ *
+ * @param json	The JSON document (as string) with readings data
  */
 ReadingSet::ReadingSet(const std::string& json)
 {

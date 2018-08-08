@@ -5,7 +5,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 #include <ingest.h>
 #include <reading.h>
@@ -39,13 +39,18 @@ static void ingestThread(Ingest *ingest)
  * @param timeout	Maximum time before sending a queue of readings in milliseconds
  * @param threshold	Length of queue before sending readings
  */
-Ingest::Ingest(StorageClient& storage, unsigned long timeout, unsigned int threshold) :
-			m_storage(storage), m_timeout(timeout), m_queueSizeThreshold(threshold)
+Ingest::Ingest(StorageClient& storage,
+		unsigned long timeout,
+		unsigned int threshold) :
+			m_storage(storage),
+			m_timeout(timeout),
+			m_queueSizeThreshold(threshold)
 {
 	m_running = true;
 	m_queue = new vector<Reading *>();
 	m_thread = new thread(ingestThread, this);
 	m_logger = Logger::getLogger();
+	m_data = NULL;
 }
 
 /**
@@ -64,6 +69,10 @@ Ingest::~Ingest()
 	processQueue();
 	delete m_queue;
 	delete m_thread;
+	delete m_data;
+
+	// Cleanup filters
+	FilterPlugin::cleanupFilters(m_filters);
 }
 
 /**
@@ -109,31 +118,112 @@ void Ingest::waitForQueue()
  */
 void Ingest::processQueue()
 {
-vector<Reading *> *savedQ, *newQ;
 bool requeue = false;
 
-	newQ = new vector<Reading *>();
 	// Block of code to execute holding the mutex
 	{
 		lock_guard<mutex> guard(m_qMutex);
-		savedQ = m_queue;
-		m_queue = newQ;
+		m_data = m_queue;
 	}
-	if ((!savedQ->empty()) &&
-			m_storage.readingAppend(*savedQ) == false && requeue == true)
+
+	ReadingSet* readingSet = NULL;
+
+	// NOTE:
+	// this first implementation with filters
+	// create a ReadingSet from m_data readings if we have filters.
+	// This means data being copied.
+	//
+	// This will be changed with next commits.
+	if (m_filters.size())
+	{
+		auto it = m_filters.begin();
+		readingSet = new ReadingSet(m_data);
+		// Pass readingSet to filter chain
+		(*it)->ingest(readingSet);		
+	}
+
+	/**
+	 * 'm_data' vector is ready to be sent to storage service.
+	 *
+	 * Note: m_data might contain:
+	 * - Readings set by the configured service "plugin" 
+	 * OR
+	 * - filtered readings by filter plugins in 'readingSet' object:
+	 *	1- values only
+	 *	2- some readings removed
+	 *	3- New set of readings
+	 */
+	if ((!m_data->empty()) &&
+			m_storage.readingAppend(*m_data) == false && requeue == true)
 	{
 		m_logger->error("Failed to write readings to storage layer, buffering");
 		lock_guard<mutex> guard(m_qMutex);
-		m_queue->insert(m_queue->cbegin(), savedQ->begin(), savedQ->end());
+		m_queue->insert(m_queue->cbegin(),
+				m_data->begin(),
+				m_data->end());
 	}
 	else
 	{
-		for (vector<Reading *>::iterator it = savedQ->begin();
-						 it != savedQ->end(); ++it)
+		// Data sent to sorage service
+		if (!readingSet)
 		{
-			Reading *reading = *it;
-			delete(reading);
+			// Data not filtered: remove the Readings in the vector
+			for (vector<Reading *>::iterator it = m_data->begin();
+							 it != m_data->end(); ++it)
+			{
+				Reading *reading = *it;
+				delete reading;
+			}
 		}
+		else
+		{
+			// Filtered data
+			// Remove reading set (it contains copy of m_data)
+			delete readingSet;
+		}
+
+		// We can remove current queued data
+		delete m_queue;
+		// Prepare the queue
+		m_queue = new vector<Reading *>();
 	}
-	delete savedQ;
+}
+
+/**
+ * Pass the current readings set to the next filter in the pipeline
+ *
+ * Note:
+ * This routine must be passed to all filters "plugin_init" except the last one
+ *
+ * Static method
+ *
+ * @param outHandle     Pointer to next filter
+ * @param readings      Current readings set
+ */
+void Ingest::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
+				READINGSET *readingSet)
+{
+	// Get next filter in the pipeline
+	FilterPlugin *next = (FilterPlugin *)outHandle;
+	// Pass readings to next filter
+	next->ingest(readingSet);
+}
+
+/**
+ * Use the current input readings (they have been filtered
+ * by all filters)
+ *
+ * Note:
+ * This routine must be passed to last filter "plugin_init" only
+ *
+ * Static method
+ *
+ * @param outHandle     Pointer to Ingest class instance
+ * @param readingSet    Filtered reading set being added to Ingest::m_data
+ */
+void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
+			     READINGSET *readingSet)
+{
+	Ingest* ingest = (Ingest *)outHandle;
+	ingest->m_data = ((ReadingSet *)readingSet)->getAllReadingsPtr();
 }

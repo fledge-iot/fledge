@@ -164,15 +164,29 @@ bool requeue = false;
 	}
 	else
 	{
-		// Remove reading set (it contains copy of m_data
-		delete readingSet;
+		// Data sent to sorage service
+		if (!readingSet)
+		{
+			// Data not filtered: remove the Readings in the vector
+			for (vector<Reading *>::iterator it = m_data->begin();
+							 it != m_data->end(); ++it)
+			{
+				Reading *reading = *it;
+				delete reading;
+			}
+		}
+		else
+		{
+			// Filtered data
+			// Remove reading set (it contains copy of m_data)
+			delete readingSet;
+		}
 
-		// We can remove current queued 
+		// We can remove current queued data
 		delete m_queue;
 		// Prepare the queue
 		m_queue = new vector<Reading *>();
 	}
-
 }
 
 /**

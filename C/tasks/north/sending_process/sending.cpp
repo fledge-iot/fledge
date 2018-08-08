@@ -557,7 +557,7 @@ const map<string, string>& SendingProcess::fetchConfiguration(const std::string&
 				}
 			}
 			else
-				Logger::getLogger()->debug("%s:%d : key '%s' missing from plugin config map, valid originally for OMF north plugin only", __FUNCTION__, __LINE__, PLUGIN_TYPES_KEY);
+				Logger::getLogger()->debug("Key '%s' missing from plugin config map (required for OMF north plugin only at the moment)", PLUGIN_TYPES_KEY);
 		}
 
 		// Get the category with values and defaults

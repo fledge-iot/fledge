@@ -89,7 +89,7 @@ const string& getReadingString(const Reading& reading);
  */
 PLUGIN_INFORMATION *plugin_info()
 {
-	Logger::getLogger()->info("################# http north %s:%d", __FUNCTION__, __LINE__);
+	Logger::getLogger()->info("http-north C plugin: %s", __FUNCTION__);
 	return &info;
 }
 
@@ -109,6 +109,7 @@ const map<const string, const string>& plugin_config()
  */
 PLUGIN_HANDLE plugin_init(map<string, string>&& configData)
 {
+	Logger::getLogger()->info("http-north C plugin: %s", __FUNCTION__);
 	/**
 	 * Handle the HTTP(S) parameters here
 	 */
@@ -148,6 +149,7 @@ PLUGIN_HANDLE plugin_init(map<string, string>&& configData)
 
 	connector_info->path = path;
 	connector_info->proto = protocol;
+	Logger::getLogger()->info("HTTP plugin configured: URL='%s' ", url.c_str());
 
 	return (PLUGIN_HANDLE) (connector_info);
 }
@@ -171,7 +173,7 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
  */
 void plugin_shutdown(PLUGIN_HANDLE handle)
 {
-	Logger::getLogger()->info("################# http north %s:%d", __FUNCTION__, __LINE__);
+	Logger::getLogger()->info("http-north C plugin: %s", __FUNCTION__);
 	CONNECTOR_INFO *connInfo = (CONNECTOR_INFO *) handle;
 	delete connInfo->sender;
 	delete connInfo;
@@ -186,7 +188,7 @@ const string& getReadingString(const Reading& reading)
 	m_value.append("{\"timestamp\" : \"" + reading.getAssetDateTime(Reading::FMT_STANDARD) + "Z" + "\"");
 	m_value.append(",\"asset\" : \"" + reading.getAssetName() + "\"");
 	m_value.append(",\"key\" : \"" + reading.getUuid() + "\"");
-	m_value.append(",\"reading\" : {");
+	m_value.append(",\"readings\" : {");
 
 	// Get reading data
 	const vector<Datapoint*> data = reading.getReadingData();
@@ -235,18 +237,18 @@ uint32_t sendToServer(const vector<Reading *>& readings, CONNECTOR_INFO *connInf
 		int res = connInfo->sender->sendRequest("POST", connInfo->path, readingData, jsonData.str());
 		if (res != 200 && res != 204 && res != 201)
 		{
-			Logger::getLogger()->error("Sending JSON readings data error: %d", res);
+			Logger::getLogger()->error("http-north C plugin: Sending JSON readings HTTP(S) error: %d", res);
 			return 0;
 		}
 
-		Logger::getLogger()->error("http-north C plugin: Successfully sent %d readings", readings.size());
+		Logger::getLogger()->info("http-north C plugin: Successfully sent %d readings", readings.size());
 
 		// Return number of sent readings to the caller
 		return readings.size();
 	}
 	catch (const std::exception& e)
 	{
-		Logger::getLogger()->error("Sending JSON data error: %s", e.what());
+		Logger::getLogger()->error("http-north C plugin: Sending JSON data exception: %s", e.what());
 		return 0;
 	}
 }

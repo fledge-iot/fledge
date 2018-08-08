@@ -16,17 +16,3 @@ UPDATE foglamp.scheduled_processes SET name = 'SEND_PR_4', script = '["tasks/nor
 UPDATE foglamp.schedules SET process_name = 'SEND_PR_1' WHERE process_name = 'North Readings to PI';
 UPDATE foglamp.schedules SET process_name = 'SEND_PR_2' WHERE process_name = 'North Statistics to PI';
 UPDATE foglamp.schedules SET process_name = 'SEND_PR_4' WHERE process_name = 'North Readings to OCS';
-
-DELETE from foglamp.destinations;
-DELETE from foglamp.streams;
-
-INSERT INTO foglamp.destinations ( id, description )
-       VALUES ( 1, 'OMF' );
-INSERT INTO foglamp.streams ( id, destination_id, description, last_object )
-       VALUES ( 1, 1, 'OMF north', 0 );
-
-INSERT INTO foglamp.streams ( id, destination_id, description, last_object )
-       VALUES ( 2, 1, 'FogLAMP statistics into PI', 0 );
-
-INSERT INTO foglamp.destinations( id, description ) VALUES ( 3, 'OCS' );
-INSERT INTO foglamp.streams( id, destination_id, description, last_object ) VALUES ( 4, 3, 'OCS north', 0 );

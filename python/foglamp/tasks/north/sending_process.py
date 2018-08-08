@@ -643,7 +643,15 @@ class SendingProcess(FoglampProcess):
             SendingProcess._logger.error(_MESSAGES_LIST["e000029"].format(ex))
 
     async def _get_stream_id(self, config_stream_id, destination_id):
-        async def get_rows(description):
+        async def get_rows_from_stream_id(stream_id):
+            payload = payload_builder.PayloadBuilder() \
+                .SELECT("id", "description", "active") \
+                .WHERE(['id', '=', stream_id]) \
+                .payload()
+            streams = await self._storage_async.query_tbl_with_payload("streams", payload)
+            return streams['rows']
+
+        async def get_rows_from_name(description):
             payload = payload_builder.PayloadBuilder() \
                 .SELECT("id", "description", "active") \
                 .WHERE(['description', '=', description]) \
@@ -651,29 +659,38 @@ class SendingProcess(FoglampProcess):
             streams = await self._storage_async.query_tbl_with_payload("streams", payload)
             return streams['rows']
 
-        async def add_stream(destination_id, description):
-            payload = payload_builder.PayloadBuilder() \
-                .INSERT(destination_id=destination_id,
-                        description=description) \
-                .payload()
-            await self._storage_async.insert_into_tbl("streams", payload)
-            rows = await get_rows(description=self._name)
-            return rows[0]['id']
+        async def add_stream(config_stream_id, destination_id, description):
+            if config_stream_id:
+                payload = payload_builder.PayloadBuilder() \
+                    .INSERT(id=config_stream_id,
+                            destination_id=destination_id,
+                            description=description) \
+                    .payload()
+                await self._storage_async.insert_into_tbl("streams", payload)
+                rows = await get_rows_from_stream_id(stream_id=config_stream_id)
+            else:
+                # If an user is upgrading FogLamp, then it has got existing data in streams and destinations table but
+                # no entry in configuration for streams_id and destinations_id for this process_name. Hence it must
+                # check if an entry is already there for this process_name in streams table.
+                rows = await get_rows_from_name(description=self._name)
+                if len(rows) == 0:
+                    payload = payload_builder.PayloadBuilder() \
+                        .INSERT(destination_id=destination_id,
+                                description=description) \
+                        .payload()
+                    await self._storage_async.insert_into_tbl("streams", payload)
+                    rows = await get_rows_from_name(description=self._name)
+            return rows[0]['id'], rows[0]['active']
 
         stream_id = None
         try:
-            rows = await get_rows(description=self._name)
+            rows = await get_rows_from_stream_id(config_stream_id)
             if len(rows) == 0:
-                stream_id = await add_stream(destination_id, self._name)
-                stream_id_valid = True
+                stream_id, stream_id_valid = await add_stream(config_stream_id, destination_id, self._name)
             elif len(rows) > 1:
                 raise ValueError(_MESSAGES_LIST["e000013"].format(stream_id))
             else:
                 stream_id = rows[0]['id']
-                if config_stream_id != stream_id:
-                    SendingProcess._logger.info(
-                        "Mismatch in config_stream_id:{} and streams table streams_id: {}".format(config_stream_id, stream_id))
-                    stream_id_valid = False
                 if rows[0]['active'] == 't':
                     stream_id_valid = True
                 else:

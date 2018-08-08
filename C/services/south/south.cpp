@@ -135,6 +135,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 
 		// Create an empty South category if one doesn't exist
 		DefaultConfigCategory southConfig(string("South"), string("{}"));
+		southConfig.setDescription("South");
 		m_mgtClient->addCategory(southConfig, true);
 
 		m_config = m_mgtClient->getCategory(m_name);

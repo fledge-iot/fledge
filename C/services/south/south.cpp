@@ -133,6 +133,10 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		ServiceRecord record(m_name, "Southbound", "http", "localhost", 0, managementListener);
 		m_mgtClient = new ManagementClient(coreAddress, corePort);
 
+		// Create an empty South category if one doesn't exist
+		DefaultConfigCategory southConfig(string("South"), string("{}"));
+		m_mgtClient->addCategory(southConfig, true);
+
 		m_config = m_mgtClient->getCategory(m_name);
 		if (!loadPlugin())
 		{
@@ -236,14 +240,17 @@ bool SouthService::loadPlugin()
 		if ((handle = manager->loadPlugin(plugin, PLUGIN_TYPE_SOUTH)) != NULL)
 		{
 			// Deal with registering and fetching the configuration
-			DefaultConfigCategory defConfig(plugin, manager->getInfo(handle)->config);
+			DefaultConfigCategory defConfig(m_name, manager->getInfo(handle)->config);
 			addConfigDefaults(defConfig);
 			defConfig.setDescription(m_config.getDescription());
 
 			// Create/Update category name (we pass keep_original_items=true)
 			m_mgtClient->addCategory(defConfig, true);
+			vector<string> children;
+			children.push_back(m_name);
+			m_mgtClient->addChildCategories(string("South"), children);
 
-			// Must now relaod the configuration to obtain any items added from
+			// Must now reload the configuration to obtain any items added from
 			// the plugin
 			m_config = m_mgtClient->getCategory(m_name);
 			

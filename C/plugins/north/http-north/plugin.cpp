@@ -83,7 +83,6 @@ const string& getReadingString(const Reading& reading);
  */
 PLUGIN_INFORMATION *plugin_info()
 {
-	Logger::getLogger()->info("http-north C plugin: %s", __FUNCTION__);
 	return &info;
 }
 
@@ -104,6 +103,7 @@ const map<const string, const string>& plugin_config()
 PLUGIN_HANDLE plugin_init(map<string, string>&& configData)
 {
 	Logger::getLogger()->info("http-north C plugin: %s", __FUNCTION__);
+
 	/**
 	 * Handle the HTTP(S) parameters here
 	 */
@@ -114,7 +114,6 @@ PLUGIN_HANDLE plugin_init(map<string, string>&& configData)
 	/**
 	 * Extract host, port, path from URL
 	 */
-
 	size_t findProtocol = url.find_first_of(":");
 	string protocol = url.substr(0,findProtocol);
 
@@ -130,7 +129,6 @@ PLUGIN_HANDLE plugin_init(map<string, string>&& configData)
 	 * Allocate the HTTP(S) handler for "Hostname : port",
 	 * connect_timeout and request_timeout.
 	 */
-
 	string hostAndPort(hostName + ":" + port);	
 
 	CONNECTOR_INFO *connector_info = new CONNECTOR_INFO;
@@ -139,7 +137,10 @@ PLUGIN_HANDLE plugin_init(map<string, string>&& configData)
 	else if (protocol == string("https"))
 		connector_info->sender = new SimpleHttps(hostAndPort, timeout, timeout);
 	else
+	{
+		Logger::getLogger()->error("Didn't find http/https prefix in URL='%s', cannot proceed", url.c_str());
 		throw new exception();
+	}
 
 	connector_info->path = path;
 	connector_info->proto = protocol;

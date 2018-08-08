@@ -193,6 +193,11 @@ bool FilterPlugin::loadFilters(const string& categoryName,
 			{
 				const Value& filterList = theFilters[JSON_CONFIG_PIPELINE_ELEM];
 
+				if (!filterList.Size())
+				{
+					// Empty array, just return true
+					return true;
+				}
 				// Prepare printable list of filters
 				StringBuffer buffer;
 				Writer<StringBuffer> writer(buffer);
@@ -243,6 +248,9 @@ bool FilterPlugin::loadFilters(const string& categoryName,
 
 					// Create/Update filter category
 					DefaultConfigCategory filterDefConfig(filterCategoryName, filterConfig);
+					string filterDescription = "Configuration of '" + itr->first;
+					filterDescription += "' filter for plugin '" + categoryName + "'";
+					filterDefConfig.setDescription(filterDescription);
 
 					if (!manager->addCategory(filterDefConfig, true))
 					{

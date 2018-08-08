@@ -77,7 +77,7 @@ class ConfigCategory {
 	protected:
 		class CategoryItem {
 			public:
-				enum ItemType { StringItem, JsonItem };
+				enum ItemType { StringItem, JsonItem, BoolItem, NumberItem, DoubleItem };
 				CategoryItem(const std::string& name, const rapidjson::Value& item);
 				CategoryItem(const std::string& name, const std::string& description,
 							const std::string& type, const std::string def,
@@ -87,6 +87,9 @@ class ConfigCategory {
 				// Return only "default" items
 				std::string	defaultToJSON() const;
 				std::string	escape(const std::string& str) const;
+				std::string	unescape(const std::string& subject) const;
+
+			public:
 				std::string 	m_name;
 				std::string 	m_type;
 				std::string 	m_default;

@@ -171,6 +171,16 @@ const string Reading::getAssetName() const
 }
 
 /**
+ * Return the asset name of the reading
+ *
+ * @return string	The asset name
+ */
+const string Reading::getUuid() const
+{
+	return m_uuid;
+}
+
+/**
  * Return the set of data points in the reading
  *
  * @return vector<Datapoint*>	The datapoints in the reading

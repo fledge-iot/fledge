@@ -417,45 +417,136 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name, const Value& item
 		throw new ConfigMalformed();
 	}
 	if (item.HasMember("type"))
+	{
 		m_type = item["type"].GetString();
+	}
 	else
+	{
 		m_type = "";
+	}
+
 	if (item.HasMember("description"))
+	{
 		m_description = item["description"].GetString();
+	}
 	else
+	{
 		m_description = "";
-	if (item.HasMember("value") && item["value"].IsString())
+	}
+
+	// Item "value" can be an escaped JSON string, so check m_type JSON as well
+	if (item.HasMember("value") &&
+	    ((item["value"].IsObject() || m_type.compare("JSON") == 0)))
+	{
+		rapidjson::StringBuffer strbuf;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
+		item["value"].Accept(writer);
+		m_value = item["value"].IsObject() ?
+			  // use current string
+			  strbuf.GetString() :
+			  // Unescape the string
+			  this->unescape(strbuf.GetString());
+		m_itemType = JsonItem;
+	}
+	// Item "value" is a Bool or m_type is boolean
+	else if (item.HasMember("value") &&
+		 (item["value"].IsBool() || m_type.compare("boolean") == 0))
+	{
+		m_value = !item["value"].IsBool() ?
+			  // use string value
+			  item["value"].GetString() :
+			  // use bool value
+			  item["value"].GetBool() ? "true" : "false";	
+		
+		m_itemType = BoolItem;
+	}
+	// Item "value" is just a string
+	else if (item.HasMember("value") && item["value"].IsString())
 	{
 		m_value = item["value"].GetString();
 		m_itemType = StringItem;
 	}
-	else if (item.HasMember("value") && item["value"].IsObject())
+	// Item "value" is a Double
+	else if (item.HasMember("value") && item["value"].IsDouble())
 	{
 		rapidjson::StringBuffer strbuf;
 		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
 		item["value"].Accept(writer);
 		m_value = strbuf.GetString();
-		m_itemType = JsonItem;
+		m_itemType = DoubleItem;
 	}
+	// Item "value" is a Number
+	else if (item.HasMember("value") && item["value"].IsNumber())
+	{
+		// Don't check Uint/Int/Long etc: just get the string value
+		rapidjson::StringBuffer strbuf;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
+		item["value"].Accept(writer);
+		m_value = strbuf.GetString();
+		m_itemType = NumberItem;
+	}
+	// Item "value" has an unknwon type so far: set empty string
 	else
 	{
 		m_value = "";
 	}
-	if (item.HasMember("default") && item["default"].IsString())
+
+	// Item "default" can be an escaped JSON string, so check m_type JSON as well
+	if (item.HasMember("default") &&
+	    ((item["default"].IsObject() || m_type.compare("JSON") == 0)))
+	{
+		rapidjson::StringBuffer strbuf;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
+		item["default"].Accept(writer);
+		m_default = item["default"].IsObject() ?
+			  // use current string
+			  strbuf.GetString() :
+			  // Unescape the string
+			  this->unescape(strbuf.GetString());
+		m_itemType = JsonItem;
+	}
+	// Item "default" is a Bool or m_type is boolean
+	else if (item.HasMember("default") &&
+		 (item["default"].IsBool() || m_type.compare("boolean") == 0))
+	{
+		m_default = !item["default"].IsBool() ?
+			    // use string value
+			    item["default"].GetString() :
+			    // use bool value
+			    item["default"].GetBool() ? "true" : "false";	
+		
+		m_itemType = BoolItem;
+	}
+	// Item "default" is just a string
+	else if (item.HasMember("default") && item["default"].IsString())
 	{
 		m_default = item["default"].GetString();
 		m_itemType = StringItem;
 	}
-	else if (item.HasMember("default") && item["default"].IsObject())
+	// Item "default" is a Double
+	else if (item.HasMember("default") && item["default"].IsDouble())
 	{
 		rapidjson::StringBuffer strbuf;
 		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
 		item["default"].Accept(writer);
 		m_default = strbuf.GetString();
-		m_itemType = JsonItem;
+		m_itemType = DoubleItem;
+	}
+	// Item "default" is a Number
+	else if (item.HasMember("default") && item["default"].IsNumber())
+	{
+		// Don't check Uint/Int/Long etc: just get the string value
+		rapidjson::StringBuffer strbuf;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
+		item["default"].Accept(writer);
+		m_default = strbuf.GetString();
+		m_itemType = NumberItem;
 	}
 	else
+	// Item "default" has an unknwon type so far: set empty string
+	{
 		m_default = "";
+	}
 }
 
 /**
@@ -597,4 +688,37 @@ string ConfigCategory::itemToJSON(const string& itemName) const
 	convert << "}";
         
 	return convert.str();
+}
+
+/**
+ * Return unescaped version of a JSON string
+ *
+ * Routine removes \" inside the string
+ * and leading and trailing "
+ *
+ * @param subject	Input string
+ * @return		Unescaped string
+ */
+std::string ConfigCategory::CategoryItem::unescape(const std::string& subject) const
+{
+	size_t pos = 0;
+	string replace("");
+	string json = subject;
+
+	// Replace '\"' with '"'
+        while ((pos = json.find("\\\"", pos)) != std::string::npos)
+        {
+                json.replace(pos, 1, "");
+        }
+	// Remove leading '"'
+	if (json[0] == '\"')
+	{
+		json.erase(0, 1);
+	}
+	// Remove trainling '"'
+	if (json[json.length() - 1] == '\"')
+	{
+		json.erase(json.length() - 1, 1);
+	}
+        return json;
 }

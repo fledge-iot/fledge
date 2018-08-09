@@ -360,6 +360,63 @@ bool ConfigCategory::isJSON(const string& name) const
 }
 
 /**
+ * Return if the configuration item is a Bool item
+ *
+ * @param name		The name of the item to test
+ * @return bool		True if the item is a Bool type
+ * @throws exception	If the item was not found in the configuration category
+ */
+bool ConfigCategory::isBool(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return m_items[i]->m_itemType == CategoryItem::BoolItem;
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
+ * Return if the configuration item is a Numeric item
+ *
+ * @param name		The name of the item to test
+ * @return bool		True if the item is a Numeric type
+ * @throws exception	If the item was not found in the configuration category
+ */
+bool ConfigCategory::isNumber(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return m_items[i]->m_itemType == CategoryItem::NumberItem;
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
+ * Return if the configuration item is a Double item
+ *
+ * @param name		The name of the item to test
+ * @return bool		True if the item is a Double type
+ * @throws exception	If the item was not found in the configuration category
+ */
+bool ConfigCategory::isDouble(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return m_items[i]->m_itemType == CategoryItem::DoubleItem;
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
  * Set the description for the configuration category
  *
  * @param description	The configuration category description
@@ -574,12 +631,15 @@ ostringstream convert;
 	convert << "\"" << m_name << "\" : { ";
 	convert << "\"description\" : \"" << m_description << "\", ";
 	convert << "\"type\" : \"" << m_type << "\", ";
-	if (m_itemType == StringItem)
+	if (m_itemType == StringItem ||
+	    m_itemType == BoolItem)
 	{
 		convert << "\"value\" : \"" << m_value << "\", ";
 		convert << "\"default\" : \"" << m_default << "\" }";
 	}
-	else if (m_itemType == JsonItem)
+	else if (m_itemType == JsonItem ||
+		 m_itemType == NumberItem ||
+		 m_itemType == DoubleItem)
 	{
 		convert << "\"value\" : " << m_value << ", ";
 		convert << "\"default\" : " << m_default << " }";
@@ -597,11 +657,25 @@ ostringstream convert;
 	convert << "\"" << m_name << "\" : { ";
 	convert << "\"description\" : \"" << m_description << "\", ";
 	convert << "\"type\" : \"" << m_type << "\", ";
-	if (m_itemType == StringItem)
+	if (m_itemType == StringItem ||
+	    m_itemType == BoolItem)
 	{
 		convert << "\"default\" : \"" << m_default << "\" }";
 	}
-	else if (m_itemType == JsonItem)
+	/**
+	 * NOTE:
+	 * These data types must be all escaped.
+	 * "default" items in the DefaultConfigCategory class are sent to
+	 * ConfigurationManager interface which requires string values only:
+	 *
+	 * examples:
+	 * we must use "100" not 100
+	 * and for JSON
+	 * "{\"pipeline\":[\"scale\"]}" not {"pipeline":["scale"]}
+	 */
+	else if (m_itemType == JsonItem ||
+		 m_itemType == NumberItem ||
+		 m_itemType == DoubleItem)
 	{
 		convert << "\"default\" : \"" << escape(m_default) << "\" }";
 	}

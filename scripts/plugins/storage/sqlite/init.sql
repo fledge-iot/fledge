@@ -622,6 +622,13 @@ INSERT INTO foglamp.configuration ( key, description, value )
               ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that OMF North Plugin will load" } } '
             );
 
+-- North_Readings_to_HTTP - for readings
+INSERT INTO foglamp.configuration ( key, description, value )
+     VALUES ( 'North_Readings_to_HTTP',
+              'HTTP North Plugin - C Code',
+              ' { "plugin" : { "type" : "string", "value" : "http-north", "default" : "http-north", "description" : "Module that HTTP North Plugin will load" } } '
+            );
+
 -- dht11 - South plugin for DHT11 - C
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'dht11',
@@ -663,6 +670,7 @@ INSERT INTO foglamp.statistics ( key, description, value, previous_value )
             ( 'BUFFERED',             'Readings currently in the FogLAMP buffer', 0, 0 ),
             ( 'NORTH_READINGS_TO_PI', 'Readings sent to historian', 0, 0 ),
             ( 'NORTH_STATISTICS_TO_PI', 'Statistics sent to historian', 0, 0 ),
+            ( 'NORTH_READINGS_TO_HTTP', 'Readings sent to HTTP', 0, 0 ),
             ( 'North Readings to PI', 'Readings sent to the historian', 0, 0 ),
             ( 'North Statistics to PI','Statistics data sent to the historian', 0, 0 ),
             ( 'North Readings to OCS','Readings sent to OCS', 0, 0 ),
@@ -699,6 +707,10 @@ INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Reading
 --
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North_Readings_to_PI',   '["tasks/north_c"]' );
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North_Statistics_to_PI', '["tasks/north_c"]' );
+
+-- North Tasks - C code
+--
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North_Readings_to_HTTP',   '["tasks/north_c"]' );
 
 -- South Tasks - C code
 --
@@ -826,6 +838,18 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 'f'                                     -- disabled
               );
 
+-- Readings to HTTP - C Code
+INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
+                                schedule_time, schedule_interval, exclusive, enabled )
+       VALUES ( 'ccdf1ef8-7e02-11e8-adc0-fa7ae01bb3bc', -- id
+                'HTTP_North_C',                         -- schedule_name
+                'North_Readings_to_HTTP',               -- process_name
+                3,                                      -- schedule_type (interval)
+                NULL,                                   -- schedule_time
+                '00:00:30',                             -- schedule_interval
+                't',                                    -- exclusive
+                'f'                                     -- disabled
+              );
 
 -- DHT11 sensor south plugin - C Code
 INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,

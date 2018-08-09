@@ -1974,6 +1974,11 @@ class TestConfigurationManager:
         ("URL", "http://localhost", True),
         ("URL", "http://0.0.0.0:8081", True),
         ("URL", "http://fe80::4", True),
+        ("URL", "https://pi-server:5460/ingress/messages", True),
+        ("URL", "https://dat-a.osisoft.com/api/omf", True),
+        ("URL", "coap://host", True),
+        ("URL", "coap://host.co.in", True),
+        ("URL", "coaps://host:6683", True),
         ("password", "not implemented", None),
         ("X509 certificate", "not implemented", None)
     ])

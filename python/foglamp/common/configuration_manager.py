@@ -807,9 +807,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             return _str_to_ipaddress(_value)
         elif _type == 'URL':
             regex = re.compile(
-                r'^(?:http)s?://'  # http:// or https://
-                r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|'  # domain
-                r'localhost|'  # localhost...
+                r'^(?:http|coap)s?://'  # http:// or https:// or coap:// or coaps://
+                r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9]\.)?)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|'  # domain
                 r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|'  # ipv4
                 r'\[?[A-F0-9]*:[A-F0-9:]+\]?)'  # ipv6
                 r'(?::\d+)?'  # optional port

@@ -23,7 +23,7 @@ using namespace std;
 /**
  * Default configuration
  */
-#define CONFIG  "{\"plugin\" : { \"description\" : \"DHT11 plugin\", " \
+#define CONFIG  "{\"plugin\" : { \"description\" : \"DHT11 C south plugin\", " \
                         "\"type\" : \"string\", \"default\" : \"foglamp-dht11\" }, " \
                 "\"asset\" : { \"description\" : \"Asset name\", "\
                         "\"type\" : \"string\", \"default\" : \"dht11\" }, " \

@@ -67,6 +67,9 @@ class ConfigCategory {
 		std::string			getDefault(const std::string& name) const;
 		bool				isString(const std::string& name) const;
 		bool				isJSON(const std::string& name) const;
+		bool				isBool(const std::string& name) const;
+		bool				isNumber(const std::string& name) const;
+		bool				isDouble(const std::string& name) const;
 		std::string			toJSON() const;
 		std::string			itemsToJSON() const;
 		ConfigCategory& 		operator=(ConfigCategory const& rhs);

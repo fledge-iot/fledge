@@ -138,14 +138,32 @@ ConfigCategory::ConfigCategory(const string& name, const string& json) : m_name(
 	doc.Parse(json.c_str());
 	if (doc.HasParseError())
 	{
-		Logger::getLogger()->error("Configuration parse error in category %s, %s: %s at %d",
+		Logger::getLogger()->error("Configuration parse error in category '%s', %s: %s at %d",
 			name.c_str(), json.c_str(),
 			GetParseError_En(doc.GetParseError()), (unsigned)doc.GetErrorOffset());
 		throw new ConfigMalformed();
 	}
+	
 	for (Value::ConstMemberIterator itr = doc.MemberBegin(); itr != doc.MemberEnd(); ++itr)
 	{
-		m_items.push_back(new CategoryItem(itr->name.GetString(), itr->value));
+		try
+		{
+			m_items.push_back(new CategoryItem(itr->name.GetString(), itr->value));
+		}
+		catch (exception* e)
+		{
+			Logger::getLogger()->error("Configuration parse error in category '%s' item '%s', %s: %s",
+				name.c_str(),
+				itr->name.GetString(),
+				json.c_str(),
+				e->what());
+			delete e;
+			throw ConfigMalformed();
+		}
+		catch (...)
+		{
+			throw;
+		}
 	}
 }
 
@@ -465,8 +483,13 @@ ostringstream convert;
 
 /**
  * Constructor for a configuration item
+ * @param name	The category item name
+ * @param item	The item object to add
+ * @throw	ConfigMalformed exception
+ * @throw	runtime_error exception
  */
-ConfigCategory::CategoryItem::CategoryItem(const string& name, const Value& item)
+ConfigCategory::CategoryItem::CategoryItem(const string& name,
+					   const Value& item)
 {
 	m_name = name;
 	if (! item.IsObject())
@@ -503,6 +526,21 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name, const Value& item
 			  strbuf.GetString() :
 			  // Unescape the string
 			  this->unescape(strbuf.GetString());
+
+		// If it's not a real eject, check the string buffer it is:
+		if (!item["value"].IsObject())
+		{
+			Document check;
+			check.Parse(m_value.c_str());
+			if (check.HasParseError())
+			{
+				throw new runtime_error(GetParseError_En(check.GetParseError()));
+			}
+			if (!check.IsObject())
+			{
+				throw new runtime_error("'value' JSON property is not an object");
+			}
+		}
 		m_itemType = JsonItem;
 	}
 	// Item "value" is a Bool or m_type is boolean
@@ -560,6 +598,21 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name, const Value& item
 			  strbuf.GetString() :
 			  // Unescape the string
 			  this->unescape(strbuf.GetString());
+
+		// If it's not a real eject, check the string buffer it is:
+		if (!item["default"].IsObject())
+		{
+			Document check;
+			check.Parse(m_default.c_str());
+			if (check.HasParseError())
+			{
+				throw new runtime_error(GetParseError_En(check.GetParseError()));
+			}
+			if (!check.IsObject())
+			{
+				throw new runtime_error("'default' JSON property is not an object");
+			}
+		}
 		m_itemType = JsonItem;
 	}
 	// Item "default" is a Bool or m_type is boolean

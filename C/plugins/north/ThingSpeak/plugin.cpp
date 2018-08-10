@@ -131,7 +131,7 @@ PLUGIN_HANDLE plugin_init(map<string, string>&& configData)
 	doc.Parse(fields.c_str());
 	if (!doc.HasParseError())
 	{
-		if (!doc.HasElement("elements"))
+		if (!doc.HasMember("elements"))
 		{
 			Logger::getLogger()->fatal("ThingSpeak plugin fields JSON document is missing \"elements\" property");
 			throw exception();

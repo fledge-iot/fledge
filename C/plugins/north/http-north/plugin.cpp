@@ -39,6 +39,8 @@ using namespace std;
 				"\"description\": \"JQ formatted filter to apply (applicable if applyFilter is True)\", " \
 				"\"type\": \"string\", \"default\": \".[]\" }"
 
+#define PLUGIN_DEFAULT_CONFIG_INFO "{" PLUGIN_DEFAULT_CONFIG "}"
+
 /**
  * The HTTP north plugin interface
  */
@@ -53,7 +55,7 @@ static PLUGIN_INFORMATION info = {
 	0,			// Flags
 	PLUGIN_TYPE_NORTH,	// Type
 	"1.0.0",		// Interface version
-	PLUGIN_DEFAULT_CONFIG   // Configuration
+	PLUGIN_DEFAULT_CONFIG_INFO   // Configuration
 };
 
 static const map<const string, const string> plugin_configuration = {

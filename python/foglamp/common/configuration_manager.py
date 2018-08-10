@@ -231,15 +231,17 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
     async def _read_all_groups(self, root, children):
         async def nested_children(child):
+            # Recursively find children
             if not child:
                 return
-            grand_children = await self.get_category_child(child["key"])
-            if len(grand_children) == 0:
-                return
+            next_children = await self.get_category_child(child["key"])
+            if len(next_children) == 0:
+                child.update({"children": []})
             else:
-                child.update({"children": grand_children})
-                for next_grand_child in child["children"]:
-                    await nested_children(next_grand_child)
+                child.update({"children": next_children})
+                # call for each child
+                for next_child in child["children"]:
+                    await nested_children(next_child)
 
         # SELECT key, description FROM configuration
         payload = PayloadBuilder().SELECT("key", "description").payload()

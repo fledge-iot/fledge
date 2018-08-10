@@ -1997,7 +1997,8 @@ class TestConfigurationManager:
         ("URL", "blah"),
         ("URL", "example.com"),
         ("URL", "123:80")
-        # TODO: result.netloc for some regex, but that will be very limited
+        # TODO: can not use urlopen hence we may want to check
+        # result.netloc with some regex, but limited
         # ("URL", "http://somevalue.a"),
         # ("URL", "http://25.25.25. :80"),
         # ("URL", "http://25.25.25.25: 80"),

@@ -21,8 +21,7 @@ using namespace std;
 /**
  * Plugin specific default configuration
  */
-#define PLUGIN_DEFAULT_CONFIG 	"\"plugin\": {\"description\": \"HTTP North C Plugin\", \"type\": \"string\", \"default\": \"http-north\"}, " \
-			"\"URL\": { " \
+#define PLUGIN_DEFAULT_CONFIG "\"URL\": { " \
 				"\"description\": \"The URL of the HTTP Connector to send data to\", " \
 				"\"type\": \"string\", " \
 				"\"default\": \"http://localhost:6683/sensor-reading\" }, " \
@@ -39,7 +38,9 @@ using namespace std;
 				"\"description\": \"JQ formatted filter to apply (applicable if applyFilter is True)\", " \
 				"\"type\": \"string\", \"default\": \".[]\" }"
 
-#define PLUGIN_DEFAULT_CONFIG_INFO "{" PLUGIN_DEFAULT_CONFIG "}"
+#define HTTP_NORTH_PLUGIN_DESC "\"plugin\": {\"description\": \"HTTP North C Plugin\", \"type\": \"string\", \"default\": \"http-north\"}"
+
+#define PLUGIN_DEFAULT_CONFIG_INFO "{" HTTP_NORTH_PLUGIN_DESC ", " PLUGIN_DEFAULT_CONFIG "}"
 
 /**
  * The HTTP north plugin interface

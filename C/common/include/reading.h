@@ -35,10 +35,13 @@ class Reading {
 		void				addDatapoint(Datapoint *value);
 		std::string			toJSON() const;
 		// Return AssetName
-		const std::string		getAssetName() const;
-
+		const std::string&              getAssetName() const { return m_asset; };
+		// Return UUID
+		const std::string&              getUuid() const { return m_uuid; };
 		// Return Reading datapoints
-		const std::vector<Datapoint *>	getReadingData() const;
+		const std::vector<Datapoint *>	getReadingData() const { return m_values; };
+		// Return refrerence to Reading datapoints
+		std::vector<Datapoint *>&	getReadingData() { return m_values; };
 
 		typedef enum dateTimeFormat { FMT_DEFAULT, FMT_STANDARD, FMT_ISO8601 } readingTimeFormat;
 

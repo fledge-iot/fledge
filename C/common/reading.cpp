@@ -167,23 +167,3 @@ ostringstream assetTime;
 	}
 
 }
-
-/**
- * Return the asset name of the reading
- *
- * @return string	The asset name
- */
-const string Reading::getAssetName() const
-{
-	return m_asset;
-}
-
-/**
- * Return the set of data points in the reading
- *
- * @return vector<Datapoint*>	The datapoints in the reading
- */
-const vector<Datapoint *> Reading::getReadingData() const
-{
-	return m_values;
-}

@@ -14,6 +14,7 @@ include_directories(include ../../../plugins/filter/common/include ../../../serv
 
 # Create shared library
 add_library(${PROJECT_NAME} SHARED ${SOURCES} ${plugin_common_src})
+target_link_libraries(${PROJECT_NAME} -lssl -lcrypto)
 set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION 1)
 
 # Install library

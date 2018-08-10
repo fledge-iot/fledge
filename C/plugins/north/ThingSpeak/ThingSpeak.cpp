@@ -35,7 +35,6 @@ ThingSpeak::~ThingSpeak()
 bool
 ThingSpeak::addField(const string& asset, const string& datapoint)
 {
-printf("Add %s, %s\n", asset.c_str(), datapoint.c_str());
 	m_fields.push_back(pair<string, string>(asset, datapoint));
 	return true;
 }
@@ -103,6 +102,14 @@ ostringstream	payload;
 		{
 			continue;
 		}
+		/*
+		 * At least one of the readings datapoints are required
+		 * from this reading, now traverse the readings and extract
+		 * the datapoints that are required.
+		 *
+		 * We output the date once for all the datapoints that are
+		 * valid and then output each of the fields.
+		 */
 		bool outputDate = false;
 		vector<Datapoint *> datapoints = (*it)->getReadingData();
 		for (auto dit = datapoints.cbegin(); dit != datapoints.cend();
@@ -148,14 +155,12 @@ ostringstream	payload;
 	int errorCode;
 	if ((errorCode = m_https->sendRequest("POST", url, m_headers, payload.str())) == 200 || errorCode == 202)
 	{
-printf("Payload: %s\n", payload.str().c_str());
 		return readings.size();
 	}
 	else
 	{
 
 		Logger::getLogger()->error("Failed to send to ThingSpeak %s, errorCode %d", url, errorCode);
-printf("Payload: %s\n", payload.str().c_str());
 		return 0;
 	}
 }

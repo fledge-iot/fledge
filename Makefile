@@ -28,11 +28,17 @@ CMAKE_FILE             := $(CURRENT_DIR)/CMakeLists.txt
 CMAKE_BUILD_DIR        := cmake_build
 CMAKE_GEN_MAKEFILE     := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/Makefile
 CMAKE_SERVICES_DIR     := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/services
+CMAKE_TASKS_DIR        := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/tasks
 CMAKE_STORAGE_BINARY   := $(CMAKE_SERVICES_DIR)/storage/storage
+CMAKE_SOUTH_BINARY     := $(CMAKE_SERVICES_DIR)/south/south
+CMAKE_NORTH_BINARY     := $(CMAKE_TASKS_DIR)/north/sending_process/sending_process
 CMAKE_PLUGINS_DIR      := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/plugins
 DEV_SERVICES_DIR       := $(CURRENT_DIR)/services
+DEV_TASKS_DIR          := $(CURRENT_DIR)/tasks
 SYMLINK_PLUGINS_DIR    := $(CURRENT_DIR)/plugins
 SYMLINK_STORAGE_BINARY := $(DEV_SERVICES_DIR)/storage
+SYMLINK_SOUTH_BINARY   := $(DEV_SERVICES_DIR)/south
+SYMLINK_NORTH_BINARY   := $(DEV_TASKS_DIR)/sending_process
 
 # PYTHON BUILD DIRS/FILES
 PYTHON_SRC_DIR := python
@@ -75,6 +81,7 @@ SOUTH_C_SCRIPT_SRC          := scripts/services/south_c
 STORAGE_SERVICE_SCRIPT_SRC  := scripts/services/storage
 STORAGE_SCRIPT_SRC          := scripts/storage
 NORTH_SCRIPT_SRC            := scripts/tasks/north
+NORTH_C_SCRIPT_SRC          := scripts/tasks/north_c
 PURGE_SCRIPT_SRC            := scripts/tasks/purge
 STATISTICS_SCRIPT_SRC       := scripts/tasks/statistics
 BACKUP_SRC                  := scripts/tasks/backup
@@ -105,7 +112,7 @@ PACKAGE_NAME=FogLAMP
 # generally prepare the development tree to allow for core to be run
 default : apply_version \
 	generate_selfcertificate \
-	c_build $(SYMLINK_STORAGE_BINARY) $(SYMLINK_PLUGINS_DIR) \
+	c_build $(SYMLINK_STORAGE_BINARY) $(SYMLINK_SOUTH_BINARY) $(SYMLINK_NORTH_BINARY) $(SYMLINK_PLUGINS_DIR) \
 	python_build python_requirements_user
 
 apply_version :
@@ -191,9 +198,21 @@ $(CMAKE_BUILD_DIR) :
 $(SYMLINK_STORAGE_BINARY) : $(DEV_SERVICES_DIR)
 	$(LN) $(CMAKE_STORAGE_BINARY) $(SYMLINK_STORAGE_BINARY)
 
+# create symlink to south binary
+$(SYMLINK_SOUTH_BINARY) : $(DEV_SERVICES_DIR)
+	$(LN) $(CMAKE_SOUTH_BINARY) $(SYMLINK_SOUTH_BINARY)
+
 # create services dir
 $(DEV_SERVICES_DIR) :
 	$(MKDIR_PATH) $(DEV_SERVICES_DIR)
+
+# create symlink to sending_process binary
+$(SYMLINK_NORTH_BINARY) : $(DEV_TASKS_DIR)
+	$(LN) $(CMAKE_NORTH_BINARY) $(SYMLINK_NORTH_BINARY)
+
+# create tasks dir
+$(DEV_TASKS_DIR) :
+	$(MKDIR_PATH) $(DEV_TASKS_DIR)
 
 # create symlink for plugins dir
 $(SYMLINK_PLUGINS_DIR) :
@@ -242,6 +261,7 @@ scripts_install : $(SCRIPTS_INSTALL_DIR) \
 	install_south_c_script \
 	install_storage_service_script \
 	install_north_script \
+	install_north_c_script \
 	install_purge_script \
 	install_statistics_script \
 	install_storage_script \
@@ -283,6 +303,9 @@ install_storage_service_script : $(SCRIPT_SERVICES_INSTALL_DIR) $(STORAGE_SERVIC
 
 install_north_script : $(SCRIPT_TASKS_INSTALL_DIR) $(NORTH_SCRIPT_SRC)
 	$(CP) $(NORTH_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
+
+install_north_c_script : $(SCRIPT_TASKS_INSTALL_DIR) $(NORTH_C_SCRIPT_SRC)
+	$(CP) $(NORTH_C_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
 
 install_purge_script : $(SCRIPT_TASKS_INSTALL_DIR) $(PURGE_SCRIPT_SRC)
 	$(CP) $(PURGE_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)

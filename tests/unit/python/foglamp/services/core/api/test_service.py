@@ -298,3 +298,5 @@ class TestService:
                     assert 'scheduled_processes' == args[0]
                     p = json.loads(args[1])
                     assert {'name': 'furnace4', 'script': '["services/south"]'} == p
+
+# TODO add negative tests and C type plugin add service tests

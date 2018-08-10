@@ -37,7 +37,7 @@ using namespace rapidjson;
 			"\"write_api_key\": { " \
 				"\"description\": \"The write_api_key supplied by ThingSpeak for this channel\", " \
 				"\"type\": \"string\", \"default\": \"\" }, " \
-			"\"fields\": { " \
+			"\"fields\": \"{ " \
 				"\"description\": \"The fields to send ThingSpeak\", " \
 				"\"type\": \"JSON\", \"default\": \"{ " \
 				    "\"elements\":[" \
@@ -76,10 +76,6 @@ PLUGIN_INFORMATION *plugin_info()
 }
 
 static const map<const string, const string> plugin_configuration = {
-					{
-						"XXX",
-						"XXX"
-					},
 					{
 						"PLUGIN",
 						string(PLUGIN_DEFAULT_CONFIG)
@@ -135,11 +131,21 @@ PLUGIN_HANDLE plugin_init(map<string, string>&& configData)
 	doc.Parse(fields.c_str());
 	if (!doc.HasParseError())
 	{
+		if (!doc.HasElement("elements"))
+		{
+			Logger::getLogger()->fatal("ThingSpeak plugin fields JSON document is missing \"elements\" property");
+			throw exception();
+		}
 		for (Value::ConstValueIterator itr = doc["elements"].Begin();
                                                 itr != doc["elements"].End(); ++itr)
 		{
 			thingSpeak->addField((*itr)["asset"].GetString(),(*itr)["reading"].GetString());
 		}
+	}
+	else
+	{
+		Logger::getLogger()->fatal("ThingSpeak plugin fields JSON document is badly formed");
+		throw exception();
 	}
 
 	Logger::getLogger()->info("ThingSpeak plugin configured: URL=%s, "

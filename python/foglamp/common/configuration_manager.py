@@ -5,6 +5,7 @@
 # FOGLAMP_END
 
 from importlib import import_module
+from urllib.parse import urlparse
 import copy
 import json
 import inspect
@@ -25,7 +26,8 @@ __version__ = "${VERSION}"
 _logger = logger.setup(__name__)
 
 # MAKE UPPER_CASE
-_valid_type_strings = sorted(['boolean', 'integer', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password', 'JSON'])
+_valid_type_strings = sorted(['boolean', 'integer', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password', 'JSON',
+                              'URL', 'enumeration'])
 
 
 class ConfigurationManagerSingleton(object):
@@ -139,9 +141,27 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             for entry_name, entry_val in item_val.items():
                 if type(entry_name) is not str:
                     raise TypeError('entry_name must be a string for item_name {}'.format(item_name))
-                if type(entry_val) is not str:
-                    raise TypeError(
-                        'entry_val must be a string for item_name {} and entry_name {}'.format(item_name, entry_name))
+
+                # Validate enumeration type and mandatory options item_name
+                if 'type' in item_val and get_entry_val("type") == 'enumeration':
+                    if 'options' not in item_val:
+                        raise KeyError('options required for enumeration type')
+                    if entry_name == 'options':
+                        if type(entry_val) is not list:
+                            raise TypeError('entry_val must be a list for item_name {} and entry_name {}'.format(item_name, entry_name))
+                        if not entry_val:
+                            raise ValueError('entry_val cannot be empty list for item_name {} and entry_name {}'.format(item_name, entry_name))
+                        if get_entry_val("default") not in entry_val:
+                            raise ValueError('entry_val does not exist in options list for item_name {} and entry_name {}'.format(item_name, entry_name))
+                        else:
+                            d = {entry_name: entry_val}
+                            expected_item_entries.update(d)
+                    else:
+                        if type(entry_val) is not str:
+                            raise TypeError('entry_val must be a string for item_name {} and entry_name {}'.format(item_name, entry_name))
+                else:
+                    if type(entry_val) is not str:
+                        raise TypeError('entry_val must be a string for item_name {} and entry_name {}'.format(item_name, entry_name))
 
                 # If Entry item exists in optional list, then update expected item entries
                 if entry_name in optional_item_entries:
@@ -423,8 +443,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             if storage_value_entry == new_value_entry:
                 return
 
-            if self._validate_type_value(storage_value_entry['type'], new_value_entry) is False:
-                raise TypeError('Unrecognized value name for item_name {}'.format(item_name))
+            # Special case for enumeration field type handling
+            if storage_value_entry['type'] == 'enumeration':
+                if new_value_entry == '':
+                    raise ValueError('entry_val cannot be empty')
+                if new_value_entry not in storage_value_entry['options']:
+                    raise ValueError('new value does not exist in options enum')
+            else:
+                if self._validate_type_value(storage_value_entry['type'], new_value_entry) is False:
+                    raise TypeError('Unrecognized value name for item_name {}'.format(item_name))
 
             new_value_entry = self._clean(storage_value_entry['type'], new_value_entry)
             await self._update_value_val(category_name, item_name, new_value_entry)
@@ -800,6 +827,12 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             return Utils.is_json(_value)
         elif _type == 'IPv4' or _type == 'IPv6':
             return _str_to_ipaddress(_value)
+        elif _type == 'URL':
+            try:
+                result = urlparse(_value)
+                return True if all([result.scheme, result.netloc]) else False
+            except:
+                return False
 
     def _clean(self, item_type, item_val):
         if item_type == 'boolean':

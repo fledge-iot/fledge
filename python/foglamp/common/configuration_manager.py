@@ -229,7 +229,20 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             category_info.append((row['key'], row['description']))
         return category_info
 
-    async def _read_all_groups(self, root):
+    async def _read_all_groups(self, root, children):
+        async def nested_children(child):
+            # Recursively find children
+            if not child:
+                return
+            next_children = await self.get_category_child(child["key"])
+            if len(next_children) == 0:
+                child.update({"children": []})
+            else:
+                child.update({"children": next_children})
+                # call for each child
+                for next_child in child["children"]:
+                    await nested_children(next_child)
+
         # SELECT key, description FROM configuration
         payload = PayloadBuilder().SELECT("key", "description").payload()
         all_categories = await self._storage.query_tbl_with_payload('configuration', payload)
@@ -247,6 +260,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 list_not_root.append((row["key"], row["description"]))
             else:
                 list_root.append((row["key"], row["description"]))
+        if children:
+            tree = []
+            for k, v in list_root if root is True else list_not_root:
+                tree.append({"key": k, "description": v, "children": []})
+
+            for branch in tree:
+                await nested_children(branch)
+
+            return tree
 
         return list_root if root else list_not_root
 
@@ -318,20 +340,22 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             err_response = ex.error
             raise ValueError(err_response)
 
-    async def get_all_category_names(self, root=None):
+    async def get_all_category_names(self, root=None, children=False):
         """Get all category names in the FogLAMP system
 
         Args:
             root: If true then select all keys from categories table and then filter out
                   that are children of another category. So the root categories are those
                   entries in configuration table that do not appear in distinct child in category_children
-                  If false then it will return distinct child in category_childreb
+                  If false then it will return distinct child in category_children
                   If root is None then it will return all categories
+            children: If true then it will return nested array of children of that category
+                      If false then it will return categories on the basis of root value
         Return Values:
                     a list of tuples (string category_name, string category_description)
         """
         try:
-            info = await self._read_all_groups(root) if root is not None else await self._read_all_category_names()
+            info = await self._read_all_groups(root, children) if root is not None else await self._read_all_category_names()
             return info
         except:
             _logger.exception(

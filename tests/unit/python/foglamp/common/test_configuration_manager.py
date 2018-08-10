@@ -1108,7 +1108,7 @@ class TestConfigurationManager:
         with patch.object(ConfigurationManager, '_read_all_groups', return_value=async_mock('bla')) as readpatch:
             ret_val = await c_mgr.get_all_category_names(root=value)
             assert 'bla' == ret_val
-        readpatch.assert_called_once_with(value)
+        readpatch.assert_called_once_with(value, False)
 
     @pytest.mark.asyncio
     async def test_get_all_category_names_bad(self, reset_singleton):
@@ -1306,7 +1306,7 @@ class TestConfigurationManager:
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result) as query_tbl_patch:
-            ret_val = await c_mgr._read_all_groups(root=value)
+            ret_val = await c_mgr._read_all_groups(root=value, children=False)
             assert expected_result == ret_val
         assert 2 == query_tbl_patch.call_count
 
@@ -1997,7 +1997,8 @@ class TestConfigurationManager:
         ("URL", "blah"),
         ("URL", "example.com"),
         ("URL", "123:80")
-        # TODO: result.netloc for some regex, but that will be very limited
+        # TODO: can not use urlopen hence we may want to check
+        # result.netloc with some regex, but limited
         # ("URL", "http://somevalue.a"),
         # ("URL", "http://25.25.25. :80"),
         # ("URL", "http://25.25.25.25: 80"),

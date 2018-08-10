@@ -1,4 +1,11 @@
 #!/bin/sh
+set -e
+#set -x
+
+#
+# This is the shell script wrapper for running C unit tests
+#
+
 cd $FOGLAMP_ROOT/tests/unit/C
 if [ ! -d results ] ; then
 	mkdir results

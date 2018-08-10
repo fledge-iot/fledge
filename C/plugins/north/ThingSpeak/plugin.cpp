@@ -19,8 +19,10 @@
 #include <simple_https.h>
 #include <config_category.h>
 #include <storage_client.h>
+#include <rapidjson/document.h>
 
 using namespace std;
+using namespace rapidjson;
 
 /**
  * Plugin specific default configuration
@@ -31,10 +33,18 @@ using namespace std;
 				"\"default\": \"https://api.thingspeak.com/channels\" }, " \
 			"\"channelId\": { " \
 				"\"description\": \"The channel id for this thingSpeak channel\", " \
-				"\"type\": \"integer\", \"default\": \"\" }, " \
+				"\"type\": \"string\", \"default\": \"0\" }, " \
 			"\"write_api_key\": { " \
 				"\"description\": \"The write_api_key supplied by ThingSpeak for this channel\", " \
-				"\"type\": \"string\", \"default\": \"\" }"
+				"\"type\": \"string\", \"default\": \"\" }, " \
+			"\"fields\": { " \
+				"\"description\": \"The fields to send ThingSpeak\", " \
+				"\"type\": \"JSON\", \"default\": \"{ " \
+				    "\"elements\":[" \
+				    "{ \"asset\":\"sinusoid\"," \
+				    "\"reading\":\"sinusoid\"}" \
+				"]}\" }"
+		
 
 #define THINGSPEAK_PLUGIN_DESC "\"plugin\": {\"description\": \"ThingSpeak North\", \"type\": \"string\", \"default\": \"thingspeak\"}"
 
@@ -93,11 +103,44 @@ const map<const string, const string>& plugin_config()
 PLUGIN_HANDLE plugin_init(map<string, string>&& configData)
 {
 	ConfigCategory configCategory("cfg", configData["GLOBAL_CONFIGURATION"]);
+	if (! configCategory.itemExists("URL"))
+	{
+		Logger::getLogger()->fatal("ThingSpeak plugin must have a URL defined for the ThinkSpeak API");
+		throw exception();
+	}
 	string url = configCategory.getValue("URL");
-	int channel = atoi(configCategory.getValue("channel").c_str());
-	string apiKey = configCategory.getValue("apiKey");
+	if (! configCategory.itemExists("channelId"))
+	{
+		Logger::getLogger()->fatal("ThingSpeak plugin must have a channel ID defined");
+		throw exception();
+	}
+	int channel = atoi(configCategory.getValue("channelId").c_str());
+	if (! configCategory.itemExists("fields"))
+	{
+		Logger::getLogger()->fatal("ThingSpeak plugin must have a field list defined");
+		throw exception();
+	}
+	string apiKey = configCategory.getValue("write_api_key");
 
 	ThingSpeak *thingSpeak = new ThingSpeak(url, channel, apiKey);
+	thingSpeak->connect();
+
+	if (! configCategory.itemExists("fields"))
+	{
+		Logger::getLogger()->fatal("ThingSpeak plugin must have a field list defined");
+		throw exception();
+	}
+	string fields = configCategory.getValue("fields");
+	Document doc;
+	doc.Parse(fields.c_str());
+	if (!doc.HasParseError())
+	{
+		for (Value::ConstValueIterator itr = doc["elements"].Begin();
+                                                itr != doc["elements"].End(); ++itr)
+		{
+			thingSpeak->addField((*itr)["asset"].GetString(),(*itr)["reading"].GetString());
+		}
+	}
 
 	Logger::getLogger()->info("ThingSpeak plugin configured: URL=%s, "
 				  "apiKey=%s, ChannelId=%d",

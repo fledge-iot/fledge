@@ -21,11 +21,14 @@ class ThingSpeak
 		~ThingSpeak();
 		void		connect();
 		uint32_t	send(const std::vector<Reading *> readings);
+		bool		addField(const std::string& asset, const std::string& datapoint);
 	private:
 		SimpleHttps	*m_https;
 		std::string	m_url;
 		std::string	m_apiKey;
 		int		m_channel;
+		std::vector<std::pair<const std::string, const std::string>>
+				m_fields;
 		std::vector<std::pair<std::string, std::string>>
 				m_headers;
 };

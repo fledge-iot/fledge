@@ -26,28 +26,48 @@ ThingSpeak::~ThingSpeak()
 	}
 }
 
+/**
+ * Add an asset and datapoint to send as a ThingSpeak field
+ *
+ * @param asset	The asset name to select
+ * @param datapoint	The datapoint within the asset
+ */
+bool
+ThingSpeak::addField(const string& asset, const string& datapoint)
+{
+printf("Add %s, %s\n", asset.c_str(), datapoint.c_str());
+	m_fields.push_back(pair<string, string>(asset, datapoint));
+	return true;
+}
+
+/**
+ * Create the HTTPS connection to the ThingSpeak API
+ */
 void
 ThingSpeak::connect()
 {
 	/**
-	 * Extract host, port, path from URL
+	 * Extract host and port from URL
 	 */
 	size_t findProtocol = m_url.find_first_of(":");
 	string protocol = m_url.substr(0,findProtocol);
 
 	string tmpUrl = m_url.substr(findProtocol + 3);
 	size_t findPort = tmpUrl.find_first_of(":");
-	string hostName = tmpUrl.substr(0, findPort);
-
 	size_t findPath = tmpUrl.find_first_of("/");
-	string port = tmpUrl.substr(findPort + 1 , findPath - findPort -1);
-	string path = tmpUrl.substr(findPath);
-
-	/**
-	 * Allocate the HTTPS handler for "Hostname : port"
-	 */
-	string hostAndPort(hostName + ":" + port);
-	m_https  = new SimpleHttps(hostAndPort);
+	string port, hostName;
+	if (findPort == string::npos)
+	{
+		hostName = tmpUrl.substr(0, findPath);
+		m_https  = new SimpleHttps(hostName);
+	}
+	else
+	{
+		hostName = tmpUrl.substr(0, findPort);
+		port = tmpUrl.substr(findPort + 1 , findPath - findPort -1);
+		string hostAndPort(hostName + ":" + port);
+		m_https  = new SimpleHttps(hostAndPort);
+	}
 }
 
 /**
@@ -64,40 +84,78 @@ ostringstream	payload;
 	payload << "{ ";
 	payload << "\"write_api_key\":\"" << m_apiKey << "\",";
 	payload << "\"updates\":[";
+	bool	first = true;
 	for (auto it = readings.cbegin(); it != readings.cend(); ++it)
 	{
-		if (it != readings.cbegin())
+		string assetName = (*it)->getAssetName();
+		bool found = false;
+		int fieldIdx;
+		// First do a pass and see if any data points of this asset are included
+		for (fieldIdx = 0; fieldIdx < m_fields.size(); fieldIdx++)
 		{
-			payload << ",";
+			if (m_fields[fieldIdx].first.compare(assetName) == 0)
+			{
+				found = true;
+				break;
+			}
 		}
-		payload << "{ \"created_at\": \"";
-		payload << (*it)->getAssetDateTime() << "\",";
+		if (!found)
+		{
+			continue;
+		}
+		bool outputDate = false;
 		vector<Datapoint *> datapoints = (*it)->getReadingData();
 		for (auto dit = datapoints.cbegin(); dit != datapoints.cend();
 					++dit)
 		{
-			if (dit != datapoints.cbegin())
+			string name = (*dit)->getName();
+			for (int fieldIdx = 0; fieldIdx < m_fields.size(); fieldIdx++)
 			{
-				payload << ",";
+				if (m_fields[fieldIdx].first.compare(assetName) == 0 &&
+					m_fields[fieldIdx].second.compare(name) == 0)
+				{
+					if (outputDate == false)
+					{
+						if (first == false)
+						{
+							payload << ",";
+						}
+						first = false;
+						outputDate = true;
+						payload << "{ \"created_at\": \"";
+						payload << (*it)->getAssetDateTime(Reading::FMT_ISO8601) << "\",";
+					}
+					else
+					{
+						payload << ",";
+					}
+					payload << "\"field" << fieldIdx + 1;
+					payload << "\" : " << (*dit)->getData().toString();
+				}
 			}
-			payload << (*dit)->toJSONProperty();
 		}
-		payload << "}";
+		if (outputDate == true)
+		{
+			payload << "}";
+		}
 	}
+	payload << "]}";
 
 	char url[100];
 	snprintf(url, sizeof(url), "%s/%d/bulk_update.json", m_url.c_str(),
 			m_channel);
 
 	int errorCode;
-	if ((errorCode = m_https->sendRequest("POST", url, m_headers, payload.str())) == 200)
+	if ((errorCode = m_https->sendRequest("POST", url, m_headers, payload.str())) == 200 || errorCode == 202)
 	{
+printf("Payload: %s\n", payload.str().c_str());
 		return readings.size();
 	}
 	else
 	{
 
 		Logger::getLogger()->error("Failed to send to ThingSpeak %s, errorCode %d", url, errorCode);
+printf("Payload: %s\n", payload.str().c_str());
 		return 0;
 	}
 }

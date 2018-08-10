@@ -5,11 +5,11 @@
 # FOGLAMP_END
 
 from importlib import import_module
+from urllib.parse import urlparse
 import copy
 import json
 import inspect
 import ipaddress
-import re
 
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.storage_client import StorageClientAsync
@@ -806,14 +806,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         elif _type == 'IPv4' or _type == 'IPv6':
             return _str_to_ipaddress(_value)
         elif _type == 'URL':
-            regex = re.compile(
-                r'^(?:http|coap)s?://'  # http:// or https:// or coap:// or coaps://
-                r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9]\.)?)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|'  # domain
-                r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|'  # ipv4
-                r'\[?[A-F0-9]*:[A-F0-9:]+\]?)'  # ipv6
-                r'(?::\d+)?'  # optional port
-                r'(?:/?|[/?]\S+)$', re.IGNORECASE)
-            return re.match(regex, _value) is not None
+            try:
+                result = urlparse(_value)
+                return True if all([result.scheme, result.netloc]) else False
+            except:
+                return False
 
     def _clean(self, item_type, item_val):
         if item_type == 'boolean':

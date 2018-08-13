@@ -30,6 +30,9 @@ curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/schedule/${SCHED
 
 # Waits until the OMF plugin has created the default configurations
 ${TEST_BASEDIR}/bash/wait_creation_cfg.bash "${SENDING_PROCESS_DATA}/producerToken"
+if [[ "$?" != "0" ]]; then
+    exit 1
+fi
 
 # Configures FogLAMP with the required settings
 curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/${SENDING_PROCESS_DATA}/URL           -d '{ "value" : "https://'${PI_SERVER}':'${PI_SERVER_PORT}'/ingress/messages"}'

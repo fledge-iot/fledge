@@ -29,15 +29,15 @@ CMAKE_BUILD_DIR        := cmake_build
 CMAKE_GEN_MAKEFILE     := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/Makefile
 CMAKE_SERVICES_DIR     := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/services
 CMAKE_TASKS_DIR        := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/tasks
-CMAKE_STORAGE_BINARY   := $(CMAKE_SERVICES_DIR)/storage/storage
-CMAKE_SOUTH_BINARY     := $(CMAKE_SERVICES_DIR)/south/south
+CMAKE_STORAGE_BINARY   := $(CMAKE_SERVICES_DIR)/storage/foglamp.services.storage
+CMAKE_SOUTH_BINARY     := $(CMAKE_SERVICES_DIR)/south/foglamp.services.south
 CMAKE_NORTH_BINARY     := $(CMAKE_TASKS_DIR)/north/sending_process/sending_process
 CMAKE_PLUGINS_DIR      := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/plugins
 DEV_SERVICES_DIR       := $(CURRENT_DIR)/services
 DEV_TASKS_DIR          := $(CURRENT_DIR)/tasks
 SYMLINK_PLUGINS_DIR    := $(CURRENT_DIR)/plugins
-SYMLINK_STORAGE_BINARY := $(DEV_SERVICES_DIR)/storage
-SYMLINK_SOUTH_BINARY   := $(DEV_SERVICES_DIR)/south
+SYMLINK_STORAGE_BINARY := $(DEV_SERVICES_DIR)/foglamp.services.storage
+SYMLINK_SOUTH_BINARY   := $(DEV_SERVICES_DIR)/foglamp.services.south
 SYMLINK_NORTH_BINARY   := $(DEV_TASKS_DIR)/sending_process
 
 # PYTHON BUILD DIRS/FILES

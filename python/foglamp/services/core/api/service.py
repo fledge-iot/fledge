@@ -123,8 +123,7 @@ async def add_service(request):
         except ImportError as ex:
             # Checking for C-type plugins
             script = '["services/south_c"]' if service_type == 'south' else '["services/north_c"]'
-            plugin_info = apiutils.get_plugin_info(plugin)
-            plugin_config = plugin_info['config']
+            plugin_config = apiutils.get_plugin_info(plugin)
             if not plugin_config:
                 raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}". {}'.format(plugin, plugin_module_path, str(ex)))
         except Exception as ex:

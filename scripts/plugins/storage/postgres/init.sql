@@ -746,7 +746,13 @@ CREATE TABLE foglamp.category_children (
        CONSTRAINT config_children_pkey PRIMARY KEY (parent, child) );
 
 -- Create the asset_tracker table
--- will add after sqlite sql review and similarly downgrade/upgrade scripts
+CREATE TABLE foglamp.asset_tracker (
+       asset         character(50)          NOT NULL,
+       event         character varying(50)  NOT NULL,
+       service       character varying(255) NOT NULL,
+       foglamp       character varying(50)  NOT NULL,
+       plugin        character varying(50)  NOT NULL,
+       ts            timestamp(6) with time zone NOT NULL DEFAULT now() );
 
 -- Grants to foglamp schema
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA foglamp TO PUBLIC;

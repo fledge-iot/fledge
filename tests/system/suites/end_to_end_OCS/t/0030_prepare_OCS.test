@@ -16,6 +16,9 @@ curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/schedule/${SCHED
 
 # Waits until the OCS plugin has created the default configurations
 ${TEST_BASEDIR}/bash/wait_creation_cfg.bash "${SENDING_PROCESS_OCS_DATA}/producerToken"
+if [[ "$?" != "0" ]]; then
+    exit 1
+fi
 
 
 # Configures FogLAMP with the required settings

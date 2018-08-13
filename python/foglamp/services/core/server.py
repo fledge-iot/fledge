@@ -1070,8 +1070,13 @@ class Server:
 
         return web.json_response({"interests": interests})
 
+    # change and track are empty methods required for mgt_route binding only
     @classmethod
     async def change(cls, request):
+        pass
+
+    @classmethod
+    async def track(cls, request):
         pass
 
     @classmethod

@@ -276,3 +276,8 @@ class Server(FoglampMicroservice):
             raise web.HTTPInternalServerError('Data retreival error in plugin {} during reconfigure'.format(self._name))
 
         return web.json_response({"south": "change"})
+
+    async def track(self, request):
+        """implementation of abstract method form foglamp.common.microservice.
+        """
+        _LOGGER.info('Asset tracker for South plugin {}'.format(self._name))

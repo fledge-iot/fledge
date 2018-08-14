@@ -247,6 +247,8 @@ bool SouthService::loadPlugin()
 
 			// Create/Update category name (we pass keep_original_items=true)
 			m_mgtClient->addCategory(defConfig, true);
+
+			// Add this service under 'South' parent category
 			vector<string> children;
 			children.push_back(m_name);
 			m_mgtClient->addChildCategories(string("South"), children);
@@ -317,9 +319,10 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
  * @param categoryName	Configuration category name
  * @param ingest	The Ingest class reference
  *			Filters are added to m_filters member
- * @return true		True if all filters ihave been loaded
- *			or not existing filters.
  *			False for errors.
+ * @return		True if filters were loaded and initialised
+ *			or there are no filters
+ *			False with load/init errors
  */
 bool SouthService::loadFilters(const string& categoryName,
 			       Ingest& ingest) const
@@ -334,9 +337,7 @@ bool SouthService::loadFilters(const string& categoryName,
 	}
 
 	// Set up the filter pipeline
-	this->setupFiltersPipeline(ingest);
-
-	return true;
+	return this->setupFiltersPipeline(ingest);
 }
 
 /**
@@ -347,9 +348,14 @@ bool SouthService::loadFilters(const string& categoryName,
  * are passed to "plugin_init"
  *
  * @param ingest	The ingest class
+ * @return 		True on success,
+ *			False otherwise.
+ * @thown		Any caught exception
  */
-void SouthService::setupFiltersPipeline(const Ingest& ingest) const
-{                       
+bool SouthService::setupFiltersPipeline(const Ingest& ingest) const
+{
+	bool initErrors = false;
+	string errMsg = "'plugin_init' failed for filter '";
 	for (auto it = ingest.m_filters.begin(); it != ingest.m_filters.end(); ++it)
 	{
 		string filterCategoryName = m_name;
@@ -374,21 +380,41 @@ void SouthService::setupFiltersPipeline(const Ingest& ingest) const
 		{       
 			throw;      
 		}                   
-       
+
 		// Iterate the load filters set in the Ingest class m_filters member 
 		if ((it + 1) != ingest.m_filters.end())
 		{
 			// Set next filter pointer as OUTPUT_HANDLE
-			(*it)->init(updatedCfg,
+			if (!(*it)->init(updatedCfg,
 				    (OUTPUT_HANDLE *)(*(it + 1)),
-				    Ingest::passToOnwardFilter);
+				    Ingest::passToOnwardFilter))
+			{
+				errMsg += (*it)->getName() + "'";
+				initErrors = true;
+				break;
+			}
 		}
 		else
 		{
 			// Set the Ingest class pointer as OUTPUT_HANDLE
-			(*it)->init(updatedCfg,
-				    (OUTPUT_HANDLE *)&ingest,
-				    Ingest::useFilteredData);
+			if (!(*it)->init(updatedCfg,
+					 (OUTPUT_HANDLE *)&ingest,
+					 Ingest::useFilteredData))
+			{
+				errMsg += (*it)->getName() + "'";
+				initErrors = true;
+				break;
+			}
 		}
 	}
+
+	if (initErrors)
+	{
+		// Failure
+		logger->fatal("%s error: %s", SERVICE_NAME, errMsg.c_str());
+		return false;
+	}
+
+	//Success
+	return true;
 }

@@ -37,13 +37,13 @@ using namespace rapidjson;
 			"\"write_api_key\": { " \
 				"\"description\": \"The write_api_key supplied by ThingSpeak for this channel\", " \
 				"\"type\": \"string\", \"default\": \"\" }, " \
-			"\"fields\": \"{ " \
+			"\"fields\": { " \
 				"\"description\": \"The fields to send ThingSpeak\", " \
-				"\"type\": \"JSON\", \"default\": \"{ " \
+				"\"type\": \"JSON\", \"default\": { " \
 				    "\"elements\":[" \
 				    "{ \"asset\":\"sinusoid\"," \
 				    "\"reading\":\"sinusoid\"}" \
-				"]}\" }"
+				"]} }"
 		
 
 #define THINGSPEAK_PLUGIN_DESC "\"plugin\": {\"description\": \"ThingSpeak North\", \"type\": \"string\", \"default\": \"thingspeak\"}"

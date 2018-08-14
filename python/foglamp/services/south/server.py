@@ -283,8 +283,8 @@ class Server(FoglampMicroservice):
         _LOGGER.info('Asset tracker for South plugin {}'.format(self._name))
 
         try:
-            # FIXME: asset, service with real values
-            payload = {"asset": "AirIntake", "event": "Ingest", "service": "PT100_In1", "plugin": self._name}
+            # FIXME: asset with real value
+            payload = {"asset": "AirIntake", "event": "Ingest", "service": self._name, "plugin": self._plugin_handle['plugin']['value']}
             # TODO: If a record already exists with the same (asset + event + service + plugin)
             # no new record will be added and move ahead silently
             # FogLAMP service itself, this is added by the asset tracking module not by POST track method

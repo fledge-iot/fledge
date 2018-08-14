@@ -306,6 +306,9 @@ CREATE TABLE foglamp.statistics_history (
 CREATE UNIQUE INDEX statistics_history_ix1
     ON statistics_history (key, history_ts);
 
+CREATE INDEX statistics_history_ix2
+    ON statistics_history (key);
+
 -- Resources table
 -- A resource and be anything that is available or can be done in FogLAMP. Examples:
 -- - Access to assets

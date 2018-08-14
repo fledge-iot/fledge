@@ -1,2 +1,1 @@
--- Remove asset_tracker table
-DROP TABLE IF EXISTS foglamp.asset_tracker;
+DROP INDEX statistics_history_ix2;

@@ -273,11 +273,23 @@ class Server(FoglampMicroservice):
             pass
         except exceptions.DataRetrievalError:
             _LOGGER.exception('Data retrieval error in plugin {} during reconfigure'.format(self._name))
-            raise web.HTTPInternalServerError('Data retreival error in plugin {} during reconfigure'.format(self._name))
+            raise web.HTTPInternalServerError('Data retrieval error in plugin {} during reconfigure'.format(self._name))
 
         return web.json_response({"south": "change"})
 
     async def track(self, request):
-        """implementation of abstract method form foglamp.common.microservice.
+        """ implementation from abstract method form foglamp.common.microservice.
         """
         _LOGGER.info('Asset tracker for South plugin {}'.format(self._name))
+
+        try:
+            # FIXME: asset, service with real values
+            payload = {"asset": "AirIntake", "event": "Ingest", "service": "PT100_In1", "plugin": self._name}
+            # TODO: If a record already exists with the same (asset + event + service + plugin)
+            # no new record will be added and move ahead silently
+            # FogLAMP service itself, this is added by the asset tracking module not by POST track method
+            self._core_microservice_management_client.create_asset_tracker_event(payload)
+        except KeyError:
+            message = self._MESSAGES_LIST['e000004'].format(self._name)
+            _LOGGER.error(message)
+            raise

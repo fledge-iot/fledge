@@ -95,7 +95,7 @@ def setup(app):
     browser.setup(app)
 
     # asset tracker
-    app.router.add_route('GET', '/foglamp/track', asset_tracker.get_asset_tracker)
+    app.router.add_route('GET', '/foglamp/track', asset_tracker.get_asset_tracker_events)
 
     # Statistics - As per doc
     app.router.add_route('GET', '/foglamp/statistics', api_statistics.get_statistics)

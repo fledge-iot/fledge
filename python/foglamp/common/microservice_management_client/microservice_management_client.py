@@ -320,17 +320,15 @@ class MicroserviceManagementClient(object):
         response = json.loads(res)
         return response
 
-    def create_asset_tracker(self, asset_tracker_data):
+    def create_asset_tracker_event(self, asset_event):
         """
 
-        :param asset_tracker_data
-               e.g. '{"asset": "AirIntake", "event": "Ingest", "service": "PT100_In1", "foglamp": "Booth1", "plugin": "PT100"}'
+        :param asset_event
+               e.g. {"asset": "AirIntake", "event": "Ingest", "service": "PT100_In1", "plugin": "PT100"}
         :return:
         """
-        data = json.loads(asset_tracker_data)
         url = '/foglamp/track'
-
-        self._management_client_conn.request(method='POST', url=url, body=json.dumps(data))
+        self._management_client_conn.request(method='POST', url=url, body=json.dumps(asset_event))
         r = self._management_client_conn.getresponse()
         if r.status in range(400, 500):
             _logger.error("Client error code: %d, Reason: %s", r.status, r.reason)

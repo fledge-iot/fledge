@@ -25,6 +25,12 @@
 #include <logger.h>
 #include <time.h>
 #include <unistd.h>
+#define DO_PROFILE	1
+#if DO_PROFILE
+#include <profile.h>
+
+QueryProfile profiler(10);
+#endif
 
 /**
  * SQLite3 storage plugin for FogLAMP
@@ -36,6 +42,10 @@ using namespace rapidjson;
 #define CONNECT_ERROR_THRESHOLD		5*60	// 5 minutes
 
 #define MAX_RETRIES			10	// Maximum no. of retries when a lock is encountered
+#if DO_PROFILE
+unsigned long retryStats[MAX_RETRIES] = { 0,0,0,0,0,0,0,0,0,0 };
+unsigned long numStatements = 0;
+#endif
 
 #define _DB_NAME              "/foglamp.sqlite"
 #define _FOGLAMP_ROOT_PATH    "/usr/local/foglamp"
@@ -2569,13 +2579,35 @@ int Connection::SQLexec(sqlite3 *db, const char *sql, int (*callback)(void*,int,
 int retries = 0, rc;
 
 	do {
+#if DO_PROFILE
+		ProfileItem *prof = new ProfileItem(sql);
+#endif
 		rc = sqlite3_exec(db, sql, callback, cbArg, errmsg);
+#if DO_PROFILE
+		prof->complete();
+		profiler.insert(prof);
+#endif
 		retries++;
 		if (rc == SQLITE_LOCKED || rc == SQLITE_BUSY)
 		{
 			usleep(retries * 1000);	// sleep retries milliseconds
 		}
 	} while (retries < MAX_RETRIES && (rc == SQLITE_LOCKED || rc == SQLITE_BUSY));
+#if DO_PROFILE
+	retryStats[retries-1]++;
+	if (++numStatements > 1000)
+	{
+		Logger *log = Logger::getLogger();
+		log->info("Storage layer statement retry profile");
+		for (int i = 0; i < MAX_RETRIES-1; i++)
+		{
+			log->info("%2d: %d", i, retryStats[i]);
+			retryStats[i] = 0;
+		}
+		log->info("Too many retries: %d", retryStats[MAX_RETRIES-1]);
+		numStatements = 0;
+	}
+#endif
 
 	if (rc == SQLITE_LOCKED)
 	{

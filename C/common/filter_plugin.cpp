@@ -70,7 +70,7 @@ PLUGIN_HANDLE FilterPlugin::init(const ConfigCategory& config,
 	m_instance = this->pluginInit(&config,
 				      outHandle,
 				      outputFunc);
-	return &m_instance;
+	return (m_instance ? &m_instance : NULL);
 }
 
 /**

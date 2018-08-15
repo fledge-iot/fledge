@@ -96,6 +96,49 @@ class TestConfiguration:
                 assert result == json_response
             patch_get_all_items.assert_called_once_with(root=False)
 
+    async def test_get_categories_with_root_and_children(self, client):
+        d = [{'children': [{'key': 'rest_api',
+                            'description': 'REST API'},
+                           {'key': 'Security',
+                            'description': 'Microservices Security'},
+                           {'key': 'service', 'description': 'FogLAMP Service'}],
+              'key': 'General', 'description': 'General'},
+             {'children': [], 'key': 'test', 'description': 'test'}]
+
+        async def async_mock():
+            return d
+
+        result = {'categories': d}
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(c_mgr, 'get_all_category_names', return_value=async_mock()) as patch_get_all_items:
+                resp = await client.get('/foglamp/category?root=true&children=true')
+                assert 200 == resp.status
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert result == json_response
+            patch_get_all_items.assert_called_once_with(root=True, children=True)
+
+    async def test_get_categories_with_non_root_and_children(self, client):
+        d = [{'children': [], 'key': 'General', 'description': 'General'},
+             {'children': [], 'key': 'test', 'description': 'test'}]
+
+        async def async_mock():
+            return d
+
+        result = {'categories': d}
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(c_mgr, 'get_all_category_names', return_value=async_mock()) as patch_get_all_items:
+                resp = await client.get('/foglamp/category?root=false&children=true')
+                assert 200 == resp.status
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert result == json_response
+            patch_get_all_items.assert_called_once_with(root=False, children=True)
+
     async def test_get_category_not_found(self, client, category_name='blah'):
         async def async_mock():
             return None
@@ -219,7 +262,7 @@ class TestConfiguration:
             with patch.object(c_mgr, 'set_category_item_value_entry', side_effect=ValueError) as patch_set_entry:
                 resp = await client.put('/foglamp/category/{}/{}'.format(category_name, item_name), data=json.dumps(payload))
                 assert 404 == resp.status
-                assert "No detail found for the category_name: {} and config_item: {}".format(category_name, item_name) == resp.reason
+                assert resp.reason is None
             patch_set_entry.assert_called_once_with(category_name, item_name, payload['value'])
 
     async def test_delete_config_item(self, client, category_name='rest_api', item_name='http_port'):

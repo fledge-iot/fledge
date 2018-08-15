@@ -42,19 +42,24 @@ async def get_categories(request):
             the list of known categories in the configuration database
 
     :Example:
-            curl -X GET http://localhost:8081/foglamp/category
-            curl -X GET http://localhost:8081/foglamp/category?root=true
+            curl -sX GET http://localhost:8081/foglamp/category
+            curl -sX GET http://localhost:8081/foglamp/category?root=true
+            curl -sX GET 'http://localhost:8081/foglamp/category?root=true&children=true'
     """
-    # TODO: make it optimized and elegant
     cf_mgr = ConfigurationManager(connect.get_storage_async())
 
     if 'root' in request.query and request.query['root'].lower() in ['true', 'false']:
         is_root = True if request.query['root'].lower() == 'true' else False
-        categories = await cf_mgr.get_all_category_names(root=is_root)
+        # to get nested categories, if children is true
+        is_children = True if 'children' in request.query and request.query['children'].lower() == 'true' else False
+        if is_children:
+            categories_json = await cf_mgr.get_all_category_names(root=is_root, children=is_children)
+        else:
+            categories = await cf_mgr.get_all_category_names(root=is_root)
+            categories_json = [{"key": c[0], "description": c[1]} for c in categories]
     else:
         categories = await cf_mgr.get_all_category_names()
-        
-    categories_json = [{"key": c[0], "description": c[1]} for c in categories]
+        categories_json = [{"key": c[0], "description": c[1]} for c in categories]
 
     return web.json_response({'categories': categories_json})
 
@@ -201,10 +206,10 @@ async def set_configuration_item(request):
 
     try:
         await cf_mgr.set_category_item_value_entry(category_name, config_item, value)
-    except ValueError:
-        raise web.HTTPNotFound(reason="No detail found for the category_name: {} and config_item: {}".format(category_name, config_item))
+    except ValueError as ex:
+        raise web.HTTPNotFound(reason=ex)
     except TypeError as ex:
-        raise web.HTTPBadRequest(reason=str(ex))
+        raise web.HTTPBadRequest(reason=ex)
 
     result = await cf_mgr.get_category_item(category_name, config_item)
     if result is None:

@@ -16,6 +16,7 @@
 
 #define DEFAULT_DATE_TIME_FORMAT      "%Y-%m-%d %H:%M:%S"
 #define COMBINED_DATE_STANDARD_FORMAT "%Y-%m-%dT%H:%M:%S"
+#define ISO8601_DATE_TIME_FORMAT      "%Y-%m-%d %H:%M:%S +0000"
 #define DATE_TIME_BUFFER_LEN          52
 
 /**
@@ -42,10 +43,10 @@ class Reading {
 		// Return refrerence to Reading datapoints
 		std::vector<Datapoint *>&	getReadingData() { return m_values; };
 
-		typedef enum dateTimeFormat { FMT_DEFAULT, FMT_STANDARD } readingTimeFormat;
+		typedef enum dateTimeFormat { FMT_DEFAULT, FMT_STANDARD, FMT_ISO8601 } readingTimeFormat;
 
 		// Return Reading asset time
-		const std::string getAssetDateTime(readingTimeFormat datetimeFmt = FMT_DEFAULT) const;
+		const std::string getAssetDateTime(readingTimeFormat datetimeFmt = FMT_DEFAULT, bool addMs = true) const;
 
 	protected:
 		Reading() {};
@@ -58,7 +59,9 @@ class Reading {
 		std::string			m_uuid;
 		// Supported date time formats for 'm_timestamp'
 		std::vector<std::string>	m_dateTypes = { DEFAULT_DATE_TIME_FORMAT,
-								COMBINED_DATE_STANDARD_FORMAT 								    };
+								COMBINED_DATE_STANDARD_FORMAT,
+								ISO8601_DATE_TIME_FORMAT
+								};
 };
 #endif
 

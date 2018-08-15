@@ -186,7 +186,7 @@ PLUGIN_HANDLE plugin_init(map<string, string>&& configData)
  * Send Readings data to historian server
  */
 uint32_t plugin_send(const PLUGIN_HANDLE handle,
-		     const vector<Reading *> readings)
+		     const vector<Reading *>& readings)
 {
 	return connector_info.omf->sendToServer(readings);
 }

@@ -128,7 +128,7 @@ ostringstream convert;
  * @param dateFormat    Format: FMT_DEFAULT or FMT_STANDARD
  * @return              The formatted datetime string
  */
-const string Reading::getAssetDateTime(readingTimeFormat dateFormat) const
+const string Reading::getAssetDateTime(readingTimeFormat dateFormat, bool addMS) const
 {
 char date_time[DATE_TIME_BUFFER_LEN];
 char micro_s[10];
@@ -148,14 +148,22 @@ ostringstream assetTime;
 		      m_dateTypes[dateFormat].c_str(),
                       timeinfo);
 
-        // Add microseconds
-        snprintf(micro_s,
-                 sizeof(micro_s),
-                 ".%06lu",
-                 m_timestamp.tv_usec);
+	if (dateFormat != FMT_ISO8601 && addMS)
+	{
+		// Add microseconds
+		snprintf(micro_s,
+			 sizeof(micro_s),
+			 ".%06lu",
+			 m_timestamp.tv_usec);
 
-        // Add date_time + microseconds
-        assetTime << date_time << micro_s;
+		// Add date_time + microseconds
+		assetTime << date_time << micro_s;
 
-	return assetTime.str();
+		return assetTime.str();
+	}
+	else
+	{
+		return string(date_time);
+	}
+
 }

@@ -304,9 +304,9 @@ class TestServicesSouthServer:
         assert 2 == log_info.call_count
         assert 4 == log_exception.call_count
         calls = [call('Max retries exhausted in starting South plugin: test'),
-                 call('Failed to poll for plugin test, retry count: 2'),
+                 call('Failed to poll for plugin test'),
                  call('Max retries exhausted in starting South plugin: test'),
-                 call('Failed to poll for plugin test, retry count: 2')]
+                 call('Failed to poll for plugin test')]
         log_exception.assert_has_calls(calls, any_order=True)
 
     @pytest.mark.asyncio

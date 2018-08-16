@@ -25,12 +25,6 @@
 #include <logger.h>
 #include <time.h>
 #include <unistd.h>
-#define DO_PROFILE	1
-#if DO_PROFILE
-#include <profile.h>
-
-QueryProfile profiler(10);
-#endif
 
 /**
  * SQLite3 storage plugin for FogLAMP
@@ -42,7 +36,20 @@ using namespace rapidjson;
 #define CONNECT_ERROR_THRESHOLD		5*60	// 5 minutes
 
 #define MAX_RETRIES			10	// Maximum no. of retries when a lock is encountered
+
+/*
+ * The following allows for conditional inclusion of code that tracks the top queries
+ * run by the storage plugin and the numebr of times a particular statement has to
+ * be retried because of the database being busy./
+ */
+#define DO_PROFILE	0
 #if DO_PROFILE
+#include <profile.h>
+
+#define	TOP_N_STATEMENTS		10	// Number of statements to report in top n
+#define RETRY_REPORT_THRESHOLD		1000	// Report retry statistics every X calls
+
+QueryProfile profiler(TOP_N_STATEMENTS);
 unsigned long retryStats[MAX_RETRIES] = { 0,0,0,0,0,0,0,0,0,0 };
 unsigned long numStatements = 0;
 #endif
@@ -798,7 +805,7 @@ SQLBuffer	jsonConstraints;
 		logSQL("CommonRetrive", query);
 
 		// Prepare the SQL statement and get the result set
-		rc = SQLprepare(dbHandle, query, -1, &stmt, NULL);
+		rc = sqlite3_prepare_v2(dbHandle, query, -1, &stmt, NULL);
 
 		// Release memory for 'query' var
 		delete[] query;
@@ -1461,7 +1468,7 @@ int retrieve;
 	logSQL("ReadingsFetch", sqlbuffer);
 	sqlite3_stmt *stmt;
 	// Prepare the SQL statement and get the result set
-	if (SQLprepare(dbHandle,
+	if (sqlite3_prepare_v2(dbHandle,
 			       sqlbuffer,
 			       -1,
 			       &stmt,
@@ -2595,63 +2602,7 @@ int retries = 0, rc;
 	} while (retries < MAX_RETRIES && (rc == SQLITE_LOCKED || rc == SQLITE_BUSY));
 #if DO_PROFILE
 	retryStats[retries-1]++;
-	if (++numStatements > 1000)
-	{
-		Logger *log = Logger::getLogger();
-		log->info("Storage layer statement retry profile");
-		for (int i = 0; i < MAX_RETRIES-1; i++)
-		{
-			log->info("%2d: %d", i, retryStats[i]);
-			retryStats[i] = 0;
-		}
-		log->info("Too many retries: %d", retryStats[MAX_RETRIES-1]);
-		numStatements = 0;
-	}
-#endif
-
-	if (rc == SQLITE_LOCKED)
-	{
-		Logger::getLogger()->error("Database still locked after maximum retries");
-	}
-	if (rc == SQLITE_BUSY)
-	{
-		Logger::getLogger()->error("Database still busy after maximum retries");
-	}
-
-	return rc;
-}
-
-/**
- * Execute a SQLite prepared statement with a retry
- *
- * @param db	Database handle
- * @param sql	The SQL statement
- * @param len	Length of SQL statement
- * @param statement	The statement handle
- * @param tail		Unsent port of statement
- */
-int Connection::SQLprepare(sqlite3 *db, const char *sql, int len, sqlite3_stmt **statement, const char **tail)
-{
-int retries = 0, rc;
-
-	do {
-#if DO_PROFILE
-		ProfileItem *prof = new ProfileItem(sql);
-#endif
-		rc = sqlite3_prepare_v2(db, sql, len, statement, tail);
-#if DO_PROFILE
-		prof->complete();
-		profiler.insert(prof);
-#endif
-		retries++;
-		if (rc == SQLITE_LOCKED || rc == SQLITE_BUSY)
-		{
-			usleep(retries * 1000);	// sleep retries milliseconds
-		}
-	} while (retries < MAX_RETRIES && (rc == SQLITE_LOCKED || rc == SQLITE_BUSY));
-#if DO_PROFILE
-	retryStats[retries-1]++;
-	if (++numStatements > 1000)
+	if (++numStatements > RETRY_REPORT_THRESHOLD - 1)
 	{
 		Logger *log = Logger::getLogger();
 		log->info("Storage layer statement retry profile");

@@ -20,7 +20,7 @@ using namespace std;
 
 
 #define CONFIG	"{\"plugin\" : { \"description\" : \"Dummy C south plugin\", " \
-			"\"type\" : \"string\", \"default\" : \"foglamp-dummy\" } } "
+			"\"type\" : \"string\", \"default\" : \"dummy\" } } "
 		  
 /**
  * The Dummy plugin interface

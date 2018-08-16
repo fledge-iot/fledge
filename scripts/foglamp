@@ -279,7 +279,7 @@ foglamp_kill() {
     fi
 
     # Kill the services processes
-    list_to_kill=`ps -ef | grep 'services/storage --address' | grep -v 'grep' | awk '{print $2}'`
+    list_to_kill=`ps -ef | grep 'foglamp.services' | grep -v 'grep' | awk '{print $2}'`
     if [[ "${list_to_kill}" != "" ]]
     then
         echo ${list_to_kill} | xargs kill -9
@@ -399,19 +399,17 @@ foglamp_status() {
                 # Show Services
                 foglamp_log "info" "=== FogLAMP services:" "outonly" "pretty"
                 foglamp_log "info" "foglamp.services.core" "outonly" "pretty"
-                ps -ef | grep "$FOGLAMP_ROOT//services/storage" | grep -v 'grep' | awk '{print "foglamp.services.storage " $9 " " $10}' || true
-                ps -ef | grep "$FOGLAMP_ROOT//services/south" | grep -v 'grep' | awk '{print "foglamp.services.south " $9 " " $10}' || true
-                ps -ef | grep "$FOGLAMP_ROOT//services/north" | grep -v 'grep' | awk '{print "foglamp.services.north " $9 " " $10}' || true
-                ps -ef | grep -o 'python3 -m foglamp.services.south.*' | grep -o 'foglamp.services.south.*' | grep -v 'foglamp.services.south\.\*' || true
-                ps -ef | grep -o 'python3 -m foglamp.services.north.*' | grep -o 'foglamp.services.north.*' | grep -v 'foglamp.services.north\.\*' || true
+                ps -ef | grep "foglamp.services.storage" | grep -v 'grep' | grep -v awk | awk '{print "foglamp.services.storage " $9 " " $10}' || true
+                ps -ef | grep "foglamp.services.south" |grep python3| grep -v 'grep' | awk '{print "foglamp.services.south " $11 " " $12 " " $13}' || true
+                ps -ef | grep "foglamp.services.south" |grep -v python3| grep -v 'grep' | grep -v awk | awk '{print "foglamp.services.south " $9 " " $10 " " $11}' || true
+                ps -ef | grep "foglamp.services.north" | grep -v 'grep' | grep -v awk | awk '{print "foglamp.services.north " $9 " " $10}' || true
 
                 # Show Tasks
                 foglamp_log "info" "=== FogLAMP tasks:" "outonly" "pretty"
                 ps -ef | grep -o 'python3 -m foglamp.tasks.*' | grep -o 'foglamp.tasks.*' | grep -v 'foglamp.tasks\.\*' || true
 
                 # Show Tasks in C code
-                # TODO: improve the mechanism for the recognition of the C tasks
-                ps -ef | grep -o './tasks.*' | grep -o 'tasks.*' | grep -v '.*\.\*'
+                ps -ef | grep 'foglamp.tasks.' | grep -v python3 | grep -v grep | grep -v awk | awk '{print "$8 $9 $10"}' || true
             fi
             ;;
         *)

@@ -183,11 +183,15 @@ class Server(FoglampMicroservice):
             except KeyError as ex:
                 try_count = 2
                 _LOGGER.exception('Key error plugin {} : {}'.format(self._name, str(ex)))
-            except (Exception, RuntimeError, exceptions.QuietError, exceptions.DataRetrievalError) as ex:
+            except exceptions.QuietError:
+                try_count = 2
+                await asyncio.sleep(_TIME_TO_WAIT_BEFORE_RETRY)
+            except (Exception, RuntimeError, exceptions.DataRetrievalError) as ex:
                 try_count = 2
                 _LOGGER.error('Failed to poll for plugin {}'.format(self._name))
                 _LOGGER.debug('Exception poll plugin {}'.format(str(ex)))
                 await asyncio.sleep(_TIME_TO_WAIT_BEFORE_RETRY)
+
         _LOGGER.exception('Max retries exhausted in starting South plugin: {}'.format(self._name))
 
     def run(self):

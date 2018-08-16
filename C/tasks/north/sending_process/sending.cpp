@@ -665,8 +665,9 @@ const map<string, string>& SendingProcess::fetchConfiguration(const std::string&
  * Load filter plugins for the given configuration
  *
  * @param categoryName	The sending process category name
- * @return 		True if filters were loaded or no filter at all
- *			False otherwise
+ * @return 		True if filters were loaded and initialised
+ *			or there are no filters
+ *			False with load/init errors
  */
 bool SendingProcess::loadFilters(const string& categoryName)
 {
@@ -686,9 +687,7 @@ bool SendingProcess::loadFilters(const string& categoryName)
 	}
 
 	// We have some filters: set up the filter pipeline
-	this->setupFiltersPipeline();
-
-	return true;
+	return this->setupFiltersPipeline();
 }
 
 /**
@@ -774,9 +773,16 @@ const unsigned long* SendingProcess::getLoadBufferIndexPtr() const
  * Set up the filter pipeline
  * by calling the "plugin_init" method with the right OUTPUT_HANDLE function
  * and OUTPUT_HANDLE pointer
+ *
+ * @return 		True on success,
+ *			False otherwise.
+ * @thown		Any caught exception
  */
-void SendingProcess::setupFiltersPipeline() const
+bool SendingProcess::setupFiltersPipeline() const
 {
+	bool initErrors = false;
+	string errMsg = "'plugin_init' failed for filter '";
+
 	for (auto it = m_filters.begin(); it != m_filters.end(); ++it)
 	{
 		string filterCategoryName = this->getName();
@@ -805,17 +811,39 @@ void SendingProcess::setupFiltersPipeline() const
 		if ((it + 1) != m_filters.end())
 		{
 			// Set next filter pointer as OUTPUT_HANDLE
-			(*it)->init(updatedCfg,
+			if (!(*it)->init(updatedCfg,
 				    (OUTPUT_HANDLE *)(*(it + 1)),
-				    this->passToOnwardFilter);
+				    this->passToOnwardFilter))
+			{
+				errMsg += (*it)->getName() + "'";
+				initErrors = true;
+				break;
+			}
 		}
 		else
 		{
 			// Set load buffer index pointer as OUTPUT_HANDLE
 			const unsigned long* bufferIndex = this->getLoadBufferIndexPtr();
-			(*it)->init(updatedCfg,
+			if (!(*it)->init(updatedCfg,
 				    (OUTPUT_HANDLE *)(bufferIndex),
-				    this->useFilteredData);
+				    this->useFilteredData))
+			{
+				errMsg += (*it)->getName() + "'";
+				initErrors = true;
+				break;
+			}
 		}
 	}
+
+	if (initErrors)
+	{
+		// Failure
+		m_logger->fatal("%s error: %s",
+				LOG_SERVICE_NAME,
+				errMsg.c_str());
+		return false;
+	}
+
+	//Success
+	return true;
 }

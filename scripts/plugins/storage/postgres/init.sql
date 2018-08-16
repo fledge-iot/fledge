@@ -477,7 +477,7 @@ CREATE TABLE foglamp.statistics_history (
        ts          timestamp(6) with time zone NOT NULL DEFAULT now(),                                        -- Timestamp, updated at every change
        CONSTRAINT statistics_history_pkey PRIMARY KEY (key, history_ts) );
 
-CREATE UNIQUE INDEX statistics_history_ix2
+CREATE INDEX statistics_history_ix2
     ON foglamp.statistics_history(key);
 
 

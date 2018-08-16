@@ -143,7 +143,7 @@ class Server(FoglampMicroservice):
                 self._task_main = asyncio.ensure_future(self._exec_plugin_poll())
         except asyncio.CancelledError:
             pass
-        except exceptions.QuietError:
+        except (exceptions.QuietError, exceptions.DataRetrievalError):
             _LOGGER.exception('Data retrieval error in plugin {}'.format(self._name))
         except (Exception, KeyError) as ex:
             if error is None:
@@ -183,9 +183,9 @@ class Server(FoglampMicroservice):
             except KeyError as ex:
                 try_count = 2
                 _LOGGER.exception('Key error plugin {} : {}'.format(self._name, str(ex)))
-            except (Exception, RuntimeError, exceptions.QuietError) as ex:
+            except (Exception, RuntimeError, exceptions.QuietError, exceptions.DataRetrievalError) as ex:
                 try_count = 2
-                _LOGGER.exception('Failed to poll for plugin {}'.format(self._name))
+                _LOGGER.error('Failed to poll for plugin {}'.format(self._name))
                 _LOGGER.debug('Exception poll plugin {}'.format(str(ex)))
                 await asyncio.sleep(_TIME_TO_WAIT_BEFORE_RETRY)
         _LOGGER.exception('Max retries exhausted in starting South plugin: {}'.format(self._name))

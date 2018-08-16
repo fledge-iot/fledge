@@ -25,7 +25,7 @@ class AssetTracker(object):
     _storage = None
 
     _registered_asset_records = None
-    """ Set of row for asset_event already in the storage tables """
+    """ Set of rows for asset_tracker already in the storage tables """
 
     def __init__(self, storage=None):
         if self._storage is None:
@@ -34,6 +34,8 @@ class AssetTracker(object):
             self._storage = storage
 
     async def load_asset_records(self):
+        """ Fetch all asset_tracker records from database """
+
         self._registered_asset_records = []
         try:
             payload = PayloadBuilder().SELECT("asset", "event", "service", "plugin").payload()
@@ -41,12 +43,22 @@ class AssetTracker(object):
             for row in results['rows']:
                 self._registered_asset_records.append(row)
         except Exception as ex:
-            _logger.exception('Failed to retrieve asset event keys, %s', str(ex))
+            _logger.exception('Failed to retrieve asset records, %s', str(ex))
 
     async def add_asset_record(self, *,  asset, event, service, plugin):
+        """
+        Args:
+             asset: asset code of the record
+             event: event the record is recording, one of a set of possible events including Ingest, Egress, Filter
+             service: The name of the service that made the entry
+             plugin: The name of the plugin, that has been loaded by the service.
+        """
+        # If (asset + event + service + plugin) row combination exists in _find_registered_asset_record then return
         if self._find_registered_asset_record(asset, event, service, plugin) is True:
             return
 
+        # The name of the FogLAMP this entry has come from.
+        # This is defined as the service name and configured as part of the general configuration of FogLAMP.
         cfg_manager = ConfigurationManager(self._storage)
         config = await cfg_manager.get_category_item(category_name='service', item_name='name')
         try:
@@ -64,6 +76,6 @@ class AssetTracker(object):
         return True
 
     def _find_registered_asset_record(self, asset, event, service, plugin):
+        """ To check the asset records in _registered_asset_records if exists true otherwise false """
         d = {"asset": asset, "event": event, "service": service, "plugin": plugin}
         return d in self._registered_asset_records
-

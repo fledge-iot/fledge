@@ -563,6 +563,11 @@ class Ingest(object):
 
         list_size = len(readings_list)
 
+        # asset tracker checking
+        payload = {"asset": asset, "event": "Ingest", "service": cls._parent_service._name,
+                   "plugin": cls._parent_service._plugin_handle['plugin']['value']}
+        cls._parent_service._core_microservice_management_client.create_asset_tracker_event(payload)
+
         # _LOGGER.debug('Add readings list index: %s size: %s', cls._current_readings_list_index, list_size)
 
         if list_size == 1:

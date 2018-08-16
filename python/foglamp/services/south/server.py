@@ -278,18 +278,4 @@ class Server(FoglampMicroservice):
         return web.json_response({"south": "change"})
 
     async def track(self, request):
-        """ implementation from abstract method form foglamp.common.microservice.
-        """
-        _LOGGER.info('Asset tracker for South plugin {}'.format(self._name))
-
-        try:
-            # FIXME: asset with real value
-            payload = {"asset": "AirIntake", "event": "Ingest", "service": self._name, "plugin": self._plugin_handle['plugin']['value']}
-            # TODO: If a record already exists with the same (asset + event + service + plugin)
-            # no new record will be added and move ahead silently
-            # FogLAMP service itself, this is added by the asset tracking module not by POST track method
-            self._core_microservice_management_client.create_asset_tracker_event(payload)
-        except KeyError:
-            message = self._MESSAGES_LIST['e000004'].format(self._name)
-            _LOGGER.error(message)
-            raise
+        pass

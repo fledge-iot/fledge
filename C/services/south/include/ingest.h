@@ -66,7 +66,7 @@ private:
 	std::vector<Reading *>*		m_data;
 	unsigned int			m_newReadings; // new readings since last update to statistics table
 	unsigned int			m_discardedReadings; // discarded readings since last update to statistics table
-	std::string				m_readingsAssetName; // asset name extracted from the Reading object
+	std::string			m_readingsAssetName; // asset name extracted from the Reading object
 };
 
 #endif

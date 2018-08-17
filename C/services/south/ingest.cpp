@@ -30,14 +30,14 @@ static void ingestThread(Ingest *ingest)
 
 /**
  * Create a row for given assetName in statistics DB table, if not present already
- * The key checked/created in the table is "SOUTH_STATS_FROM_<assetName>"
+ * The key checked/created in the table is "SOUTH_READINGS_FROM_<assetName>"
  * 
  * @param assetName     Asset name for the plugin that is sending readings
  */
 int Ingest::CreateStatsDbEntry(const string& assetName)
 {
 	// Prepare foglamp.statistics update
-	string statistics_key = "south_stats_from_" + assetName;
+	string statistics_key = "south_readings_from_" + assetName;
 	for (auto & c: statistics_key) c = toupper(c);
 	
 	// SELECT * FROM foglamp.configuration WHERE key = categoryName
@@ -50,7 +50,6 @@ int Ingest::CreateStatsDbEntry(const string& assetName)
 	{
 		// Query via storage client
 		result = m_storage.queryTable("statistics", qKey);
-		//m_logger->info("%s:%d : Queried statistics table with Query='%s', rowCount=%d", __FUNCTION__, __LINE__, qKey.toJSON().c_str(), result->rowCount());
 
 		if (!result->rowCount())
 		{
@@ -65,8 +64,8 @@ int Ingest::CreateStatsDbEntry(const string& assetName)
 			// Do the insert
 			if (!m_storage.insertTable("statistics", newStatsEntry))
 			{
-				return -1;
 				m_logger->error("%s:%d : Insert new row into statistics table failed, newStatsEntry='%s'", __FUNCTION__, __LINE__, newStatsEntry.toJSON().c_str());
+				return -1;
 			}
 			else
 				m_logger->info("%s:%d : Inserted new row into statistics table, newStatsEntry='%s'", __FUNCTION__, __LINE__, newStatsEntry.toJSON().c_str());
@@ -74,6 +73,7 @@ int Ingest::CreateStatsDbEntry(const string& assetName)
 	}
 	catch (...)
 	{
+		m_logger->error("%s:%d : Unable to create new row in statistics table with key='%s'", __FUNCTION__, __LINE__, statistics_key.c_str());
 		return -1;
 	}
 	return 0;
@@ -114,7 +114,7 @@ void Ingest::updateStats()
 		if (m_newReadings)
 			{
 			// Prepare foglamp.statistics update
-			key = "South_stats_from_" + m_readingsAssetName;
+			key = "South_readings_from_" + m_readingsAssetName;
 			for (auto & c: key) c = toupper(c);
 
 			// Prepare "WHERE key = name
@@ -296,10 +296,7 @@ bool requeue = false;
 		firstReading = (*it);
 		m_readingsAssetName=firstReading->getAssetName();
 		}
-		
-	/*m_logger->info("%s:%d, m_data->size()=%d, m_data[0]->getAssetName()=%s", __FUNCTION__, __LINE__,
-						m_data->size(), firstReading?firstReading->getAssetName().c_str() : "N.A."); */
-
+	
 	ReadingSet* readingSet = NULL;
 
 	// NOTE:

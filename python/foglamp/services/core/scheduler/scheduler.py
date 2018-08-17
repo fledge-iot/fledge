@@ -970,7 +970,8 @@ class Scheduler(object):
             psch.day = sch.day
             psch.process_name = sch.process_name
             psch.schedule_type = sch.schedule_type
-            psch.group = get_children[sch.name] if sch.name in get_children else ""
+            # TODO: After scheduler bug is fixed, change process_name to name
+            psch.group = get_children[sch.process_name] if sch.process_name in get_children else ""
             schedules.append(psch)
 
         return schedules

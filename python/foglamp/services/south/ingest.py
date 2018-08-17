@@ -112,6 +112,9 @@ class Ingest(object):
     _max_readings_insert_batch_reconnect_wait_seconds = 10
     """The maximum number of seconds to wait before reconnecting to storage when inserting readings"""
 
+    _last_event_payload = dict()
+    """The last event payload for asset tracker"""
+
     # Configuration (end)
 
     @classmethod
@@ -190,6 +193,8 @@ class Ingest(object):
             ['value'])
         cls._max_readings_insert_batch_reconnect_wait_seconds = int(
             config['max_readings_insert_batch_reconnect_wait_seconds']['value'])
+
+        cls._last_event_payload = dict()
 
     @classmethod
     async def start(cls, parent):
@@ -562,6 +567,14 @@ class Ingest(object):
         readings_list.append(read)
 
         list_size = len(readings_list)
+
+        # asset tracker checking
+        payload = {"asset": asset, "event": "Ingest", "service": cls._parent_service._name,
+                   "plugin": cls._parent_service._plugin_handle['plugin']['value']}
+
+        if payload != cls._last_event_payload:
+            cls._parent_service._core_microservice_management_client.create_asset_tracker_event(payload)
+            cls._last_event_payload = payload
 
         # _LOGGER.debug('Add readings list index: %s size: %s', cls._current_readings_list_index, list_size)
 

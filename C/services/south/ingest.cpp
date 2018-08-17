@@ -30,14 +30,14 @@ static void ingestThread(Ingest *ingest)
 
 /**
  * Create a row for given assetName in statistics DB table, if not present already
- * The key checked/created in the table is "SOUTH_READINGS_FROM_<assetName>"
+ * The key checked/created in the table is "INGEST_<assetName>"
  * 
  * @param assetName     Asset name for the plugin that is sending readings
  */
-int Ingest::CreateStatsDbEntry(const string& assetName)
+int Ingest::createStatsDbEntry(const string& assetName)
 {
 	// Prepare foglamp.statistics update
-	string statistics_key = "south_readings_from_" + assetName;
+	string statistics_key = "INGEST_" + assetName;
 	for (auto & c: statistics_key) c = toupper(c);
 	
 	// SELECT * FROM foglamp.configuration WHERE key = categoryName
@@ -104,7 +104,7 @@ void Ingest::updateStats()
 	
 	if (m_newReadings==0 && m_discardedReadings==0) return; // nothing to update, possible spurious wakeup
 
-	CreateStatsDbEntry(m_readingsAssetName);
+	createStatsDbEntry(m_readingsAssetName);
 
 	string key;
 	const Condition conditionStat(Equals);
@@ -114,7 +114,7 @@ void Ingest::updateStats()
 		if (m_newReadings)
 			{
 			// Prepare foglamp.statistics update
-			key = "South_readings_from_" + m_readingsAssetName;
+			key = "INGEST_" + m_readingsAssetName;
 			for (auto & c: key) c = toupper(c);
 
 			// Prepare "WHERE key = name

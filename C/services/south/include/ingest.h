@@ -38,7 +38,7 @@ public:
 	void		processQueue();
 	void		waitForQueue();
 	void		updateStats(void);
-	int 		CreateStatsDbEntry(const std::string& assetName);
+	int 		createStatsDbEntry(const std::string& assetName);
 
 	static void	passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 					   READINGSET* readings);

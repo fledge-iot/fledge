@@ -54,7 +54,8 @@ class AssetTracker(object):
              plugin: The name of the plugin, that has been loaded by the service.
         """
         # If (asset + event + service + plugin) row combination exists in _find_registered_asset_record then return
-        if self._find_registered_asset_record(asset, event, service, plugin) is True:
+        d = {"asset": asset, "event": event, "service": service, "plugin": plugin}
+        if d in self._registered_asset_records:
             return
 
         # The name of the FogLAMP this entry has come from.
@@ -72,10 +73,5 @@ class AssetTracker(object):
         except StorageServerError as ex:
             err_response = ex.error
             raise ValueError(err_response)
-
-        return True
-
-    def _find_registered_asset_record(self, asset, event, service, plugin):
-        """ To check the asset records in _registered_asset_records if exists true otherwise false """
-        d = {"asset": asset, "event": event, "service": service, "plugin": plugin}
-        return d in self._registered_asset_records
+        else:
+            return True

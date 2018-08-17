@@ -1102,6 +1102,8 @@ class Server:
             raise web.HTTPBadRequest(reason=str(ex))
         except ValueError as ex:
             raise web.HTTPNotFound(reason=str(ex))
+        except Exception as ex:
+            raise web.HTTPInternalServerError(reason=ex)
 
         return web.json_response(result)
 

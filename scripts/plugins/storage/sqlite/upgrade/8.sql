@@ -1,5 +1,5 @@
 -- Create TABLE for asset_tracker
-CREATE TABLE foglamp.asset_tracker (
+CREATE TABLE IF NOT EXISTS foglamp.asset_tracker (
        id            integer          PRIMARY KEY AUTOINCREMENT,
        asset         character(50)    NOT NULL,
        event         character varying(50) NOT NULL,

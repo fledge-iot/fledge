@@ -40,6 +40,7 @@ from foglamp.services.core.service_registry.monitor import Monitor
 from foglamp.services.common.service_announcer import ServiceAnnouncer
 from foglamp.services.core.user_model import User
 from foglamp.common.storage_client import payload_builder
+from foglamp.services.core.asset_tracker.asset_tracker import AssetTracker
 
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach, Massimiliano Pinto"
@@ -190,6 +191,9 @@ class Server:
 
     _pidfile = None
     """ The PID file name """
+
+    _asset_tracker = None
+    """ Asset tracker """
 
     service_app, service_server, service_server_handler = None, None, None
     core_app, core_server, core_server_handler = None, None, None
@@ -542,6 +546,11 @@ class Server:
             raise
 
     @classmethod
+    async def _start_asset_tracker(cls):
+        cls._asset_tracker = AssetTracker(cls._storage_client_async)
+        await cls._asset_tracker.load_asset_records()
+
+    @classmethod
     def _start_core(cls, loop=None):
         _logger.info("start core")
 
@@ -615,6 +624,9 @@ class Server:
 
             # Create the configuration category parents
             loop.run_until_complete(cls._config_parents())
+
+            # Start asset tracker
+            loop.run_until_complete(cls._start_asset_tracker())
 
             # Everything is complete in the startup sequence, write the audit log entry
             cls._audit = AuditLogger(cls._storage_client_async)
@@ -1070,9 +1082,30 @@ class Server:
 
         return web.json_response({"interests": interests})
 
+    # change and track are empty methods required for mgt_route binding only
     @classmethod
     async def change(cls, request):
         pass
+
+    @classmethod
+    async def track(cls, request):
+        data = await request.json()
+        if not isinstance(data, dict):
+            raise ValueError('Data payload must be a dictionary')
+
+        try:
+            result = await cls._asset_tracker.add_asset_record(asset=data.get("asset"),
+                                                          plugin=data.get("plugin"),
+                                                          service=data.get("service"),
+                                                          event=data.get("event"))
+        except (TypeError, StorageServerError) as ex:
+            raise web.HTTPBadRequest(reason=str(ex))
+        except ValueError as ex:
+            raise web.HTTPNotFound(reason=str(ex))
+        except Exception as ex:
+            raise web.HTTPInternalServerError(reason=ex)
+
+        return web.json_response(result)
 
     @classmethod
     async def get_configuration_categories(cls, request):

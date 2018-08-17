@@ -110,6 +110,18 @@ class TestSchedules:
 
     async def test_get_schedules(self, client):
         async def mock_coro():
+            class PseudoSchedule(object):
+                schedule_id = None
+                name = None
+                exclusive = True
+                enabled = False
+                repeat = None
+                time = None
+                day = None
+                process_name = None
+                schedule_type = None
+                group = None
+
             schedules = []
             schedule = StartUpSchedule()
             schedule.schedule_id = "1"
@@ -120,17 +132,30 @@ class TestSchedules:
             schedule.repeat = timedelta(seconds=30)
             schedule.time = None
             schedule.day = None
-            schedules.append(schedule)
+
+            psch = PseudoSchedule()
+            psch.schedule_id = schedule.schedule_id
+            psch.name = schedule.name
+            psch.exclusive = schedule.exclusive
+            psch.enabled = schedule.enabled
+            psch.repeat = schedule.repeat
+            psch.time = schedule.time
+            psch.day = schedule.day
+            psch.process_name = schedule.process_name
+            psch.schedule_type = schedule.schedule_type
+            psch.group = ""
+            schedules.append(psch)
+
             return schedules
 
-        with patch.object(server.Server.scheduler, 'get_schedules', return_value=mock_coro()):
+        with patch.object(server.Server.scheduler, 'get_schedules', return_value=asyncio.ensure_future(mock_coro())):
             resp = await client.get('/foglamp/schedule')
             assert 200 == resp.status
             result = await resp.text()
             json_response = json.loads(result)
             assert {'schedules': [
                 {'name': 'foo', 'day': None, 'type': 'STARTUP', 'processName': 'bar',
-                 'time': 0, 'id': '1', 'exclusive': True, 'enabled': True, 'repeat': 30.0}
+                 'time': 0, 'id': '1', 'exclusive': True, 'enabled': True, 'repeat': 30.0, 'group': ''}
             ]} == json_response
 
     async def test_get_schedule(self, client):

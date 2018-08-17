@@ -297,7 +297,8 @@ async def get_schedules(request):
             'time': (sch.time.hour * 60 * 60 + sch.time.minute * 60 + sch.time.second) if sch.time else 0,
             'day': sch.day,
             'exclusive': sch.exclusive,
-            'enabled': sch.enabled
+            'enabled': sch.enabled,
+            'group': sch.group
         })
 
     return web.json_response({'schedules': schedules})

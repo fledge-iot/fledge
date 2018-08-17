@@ -601,6 +601,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         return response
 
+    async def get_all_children_with_parent(self):
+        get_children = {}
+        payload = PayloadBuilder().SELECT("parent", "child").payload()
+        results = await self._storage.query_tbl_with_payload('category_children', payload)
+
+        for row in results['rows']:
+            get_children.update({row["child"]: row["parent"]})
+        return get_children
+
     async def get_category_child(self, category_name):
         """Get the list of categories that are children of a given category.
 

@@ -38,6 +38,8 @@ async def mock_process():
 @pytest.allure.story("scheduler")
 class TestScheduler:
     async def scheduler_fixture(self, mocker):
+        async def mock_coro():
+            return {}
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
@@ -48,6 +50,7 @@ class TestScheduler:
         mocker.patch.object(scheduler, '_wait_for_task_completion', return_value=asyncio.ensure_future(mock_task()))
         mocker.patch.object(scheduler, '_terminate_child_processes')
         mocker.patch.object(asyncio, 'create_subprocess_exec', return_value=asyncio.ensure_future(mock_process()))
+        mocker.patch.object(ConfigurationManager, 'get_all_children_with_parent', return_value=asyncio.ensure_future(mock_coro()))
 
         await scheduler._get_schedules()
 

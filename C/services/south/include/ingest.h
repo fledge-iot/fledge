@@ -16,7 +16,6 @@
 #include <thread>
 #include <chrono>
 #include <mutex>
-#include <atomic>
 #include <condition_variable>
 #include <filter_plugin.h>
 
@@ -67,7 +66,7 @@ private:
 	std::vector<Reading *>*		m_data;
 	unsigned int			m_newReadings; // new readings since last update to statistics table
 	unsigned int			m_discardedReadings; // discarded readings since last update to statistics table
-	std::string			m_readingsAssetName; // asset name extracted from the Reading object received from plugin
+	std::string				m_readingsAssetName; // asset name extracted from the Reading object
 };
 
 #endif

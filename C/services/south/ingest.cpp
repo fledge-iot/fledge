@@ -69,7 +69,7 @@ int Ingest::CreateStatsDbEntry(const string& assetName)
 				m_logger->error("%s:%d : Insert new row into statistics table failed, newStatsEntry='%s'", __FUNCTION__, __LINE__, newStatsEntry.toJSON().c_str());
 			}
 			else
-				m_logger->info("%s:%d : Insert new row into statistics table succeeded, newStatsEntry='%s'", __FUNCTION__, __LINE__, newStatsEntry.toJSON().c_str());
+				m_logger->info("%s:%d : Inserted new row into statistics table, newStatsEntry='%s'", __FUNCTION__, __LINE__, newStatsEntry.toJSON().c_str());
 		}
 	}
 	catch (...)
@@ -355,7 +355,6 @@ bool requeue = false;
 			for (vector<Reading *>::iterator it = m_data->begin();
 							 it != m_data->end(); ++it)
 			{
-				//m_logger->info("%s:%d, Data was not filtered, delete original readings vector of size %d", __FUNCTION__, __LINE__, m_data->size());
 				Reading *reading = *it;
 				delete reading;
 			}
@@ -363,7 +362,6 @@ bool requeue = false;
 		else
 		{
 			// Filtered data
-			m_logger->info("%s:%d, Data was filtered, delete the readingSet of size %d", __FUNCTION__, __LINE__, readingSet->getCount());
 			// Remove reading set (it contains copy of m_data)
 			delete readingSet;
 		}
@@ -374,7 +372,6 @@ bool requeue = false;
 		m_queue = new vector<Reading *>();
 	}
 
-	//m_logger->info("%s:%d, Done with readings, signalling to statsThread", __FUNCTION__, __LINE__);
 	// Signal stats thread to update stats
 	lock_guard<mutex> guard(m_statsMutex);
 	m_statsCv.notify_all();

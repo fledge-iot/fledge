@@ -668,3 +668,63 @@ class TestMicroserviceManagementClient:
                 log_error.assert_called_once_with(msg, status_code, 'this is the reason')
             response_patch.assert_called_once_with()
         request_patch.assert_called_once_with(method='DELETE', url='/foglamp/service/category/TEST/blah/value')
+
+    def test_create_asset_tracker_event(self):
+        microservice_management_host = 'host1'
+        microservice_management_port = 1
+        ms_mgt_client = MicroserviceManagementClient(
+            microservice_management_host, microservice_management_port)
+        response_mock = MagicMock(type=HTTPResponse)
+        undecoded_data_mock = MagicMock()
+        response_mock.read.return_value = undecoded_data_mock
+        test_dict = json.dumps({
+            'asset': 'AirIntake',
+            'event': 'Ingest',
+            'service': 'PT100_In1',
+            'plugin': 'PT100'
+        })
+
+        undecoded_data_mock.decode.return_value = test_dict
+        response_mock.status = 200
+        with patch.object(HTTPConnection, 'request') as request_patch:
+            with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
+                ret_value = ms_mgt_client.create_asset_tracker_event(test_dict)
+                assert json.loads(test_dict) == ret_value
+            response_patch.assert_called_once_with()
+        args, kwargs = request_patch.call_args_list[0]
+        assert 'POST' == kwargs['method']
+        assert '/foglamp/track' == kwargs['url']
+        assert test_dict == json.loads(kwargs['body'])
+
+    @pytest.mark.parametrize("status_code, host", [(450, 'Client'), (550, 'Server')])
+    def test_create_asset_tracker_event_exception(self, status_code, host):
+        microservice_management_host = 'host1'
+        microservice_management_port = 1
+        ms_mgt_client = MicroserviceManagementClient(
+            microservice_management_host, microservice_management_port)
+        response_mock = MagicMock(type=HTTPResponse)
+        undecoded_data_mock = MagicMock()
+        test_dict = json.dumps({
+            'asset': 'AirIntake',
+            'event': 'Ingest',
+            'service': 'PT100_In1',
+            'plugin': 'PT100'
+        })
+        undecoded_data_mock.decode.return_value = test_dict
+        response_mock.read.return_value = undecoded_data_mock
+        response_mock.status = status_code
+        response_mock.reason = 'this is the reason'
+        with patch.object(HTTPConnection, 'request') as request_patch:
+            with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
+                with patch.object(_logger, "error") as log_error:
+                    with pytest.raises(Exception) as excinfo:
+                        ms_mgt_client.create_asset_tracker_event(test_dict)
+                    assert excinfo.type is client_exceptions.MicroserviceManagementClientError
+                assert 1 == log_error.call_count
+                msg = '{} error code: %d, Reason: %s'.format(host)
+                log_error.assert_called_once_with(msg, status_code, 'this is the reason')
+            response_patch.assert_called_once_with()
+        args, kwargs = request_patch.call_args_list[0]
+        assert 'POST' == kwargs['method']
+        assert '/foglamp/track' == kwargs['url']
+        assert test_dict == json.loads(kwargs['body'])

@@ -81,6 +81,8 @@ class TestFoglampMicroservice:
                 pass
             async def shutdown(self):
                 pass
+            async def track(self):
+                pass
 
         with patch.object(asyncio, 'get_event_loop', return_value=loop):
             with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
@@ -127,6 +129,8 @@ class TestFoglampMicroservice:
                 pass
             async def shutdown(self):
                 pass
+            async def track(self):
+                pass
 
         with patch.object(asyncio, 'get_event_loop', return_value=loop):
             with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
@@ -156,6 +160,8 @@ class TestFoglampMicroservice:
             async def change(self):
                 pass
             async def shutdown(self):
+                pass
+            async def track(self):
                 pass
 
         with patch.object(asyncio, 'get_event_loop', return_value=loop):

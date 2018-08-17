@@ -23,15 +23,20 @@ _logger = logger.setup(__name__)
 class AssetTracker(object):
 
     _storage = None
+    """Storage client async"""
+
+    foglamp_svc_name = None
+    """FogLAMP service name"""
 
     _registered_asset_records = None
-    """ Set of rows for asset_tracker already in the storage tables """
+    """Set of rows for asset_tracker already in the storage tables"""
 
     def __init__(self, storage=None):
         if self._storage is None:
             if not isinstance(storage, StorageClientAsync):
                 raise TypeError('Must be a valid Async Storage object')
             self._storage = storage
+            self.foglamp_svc_name = ''
 
     async def load_asset_records(self):
         """ Fetch all asset_tracker records from database """
@@ -60,10 +65,14 @@ class AssetTracker(object):
 
         # The name of the FogLAMP this entry has come from.
         # This is defined as the service name and configured as part of the general configuration of FogLAMP.
-        cfg_manager = ConfigurationManager(self._storage)
-        config = await cfg_manager.get_category_item(category_name='service', item_name='name')
+        # it will only change on restart! Later we may want to fix it via callback mechanism
+        if len(self.foglamp_svc_name) == 0:
+            cfg_manager = ConfigurationManager(self._storage)
+            svc_config = await cfg_manager.get_category_item(category_name='service', item_name='name')
+            self.foglamp_svc_name = svc_config['value']
+
         try:
-            payload = PayloadBuilder().INSERT(asset=asset, event=event, service=service, plugin=plugin, foglamp=config['value']).payload()
+            payload = PayloadBuilder().INSERT(asset=asset, event=event, service=service, plugin=plugin, foglamp=self.foglamp_svc_name).payload()
             result = await self._storage.insert_into_tbl('asset_tracker', payload)
             response = result['response']
             d = {"asset": asset, "event": event, "service": service, "plugin": plugin}

@@ -231,8 +231,6 @@ Ingest::~Ingest()
 	delete m_statsThread;
 	delete m_data;
 
-	m_logger->info("%s:%d", __FUNCTION__, __LINE__);
-
 	// Cleanup filters
 	FilterPlugin::cleanupFilters(m_filters);
 }
@@ -281,11 +279,13 @@ void Ingest::waitForQueue()
 void Ingest::processQueue()
 {
 bool requeue = false;
+vector<Reading *>* newQ = new vector<Reading *>();
 
 	// Block of code to execute holding the mutex
 	{
 		lock_guard<mutex> guard(m_qMutex);
 		m_data = m_queue;
+		m_queue = newQ;
 	}
 
 	vector<Reading *>::iterator it;
@@ -299,12 +299,8 @@ bool requeue = false;
 	
 	ReadingSet* readingSet = NULL;
 
-	// NOTE:
-	// this first implementation with filters
-	// create a ReadingSet from m_data readings if we have filters.
-	// This means data being copied.
-	//
-	// This will be changed with next commits.
+	// Create a ReadingSet from m_data readings if we have filters.
+	// ReadingSet has same reading pointers as in m_data.
 	if (m_filters.size())
 	{
 		auto it = m_filters.begin();
@@ -330,6 +326,8 @@ bool requeue = false;
 	{
 		m_logger->error("Failed to write readings to storage layer, buffering");
 		lock_guard<mutex> guard(m_qMutex);
+
+		// BUffer current data in m_data
 		m_queue->insert(m_queue->cbegin(),
 				m_data->begin(),
 				m_data->end());
@@ -359,14 +357,15 @@ bool requeue = false;
 		else
 		{
 			// Filtered data
-			// Remove reading set (it contains copy of m_data)
+			// Remove reading set (and m_data reading pointers)
 			delete readingSet;
 		}
+	}
 
-		// We can remove current queued data
-		delete m_queue;
-		// Prepare the queue
-		m_queue = new vector<Reading *>();
+	// No filtering: remove m_data pointer
+	if (!readingSet)
+	{
+		delete m_data;
 	}
 
 	// Signal stats thread to update stats
@@ -410,6 +409,9 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 			     READINGSET *readingSet)
 {
 	Ingest* ingest = (Ingest *)outHandle;
+	// Free current ingest->m_data pointer
+	delete ingest->m_data;
+	// Set new data pointer
 	ingest->m_data = ((ReadingSet *)readingSet)->getAllReadingsPtr();
 }
 

@@ -276,6 +276,9 @@ class Server(FoglampMicroservice):
             pass
         except exceptions.DataRetrievalError:
             _LOGGER.exception('Data retrieval error in plugin {} during reconfigure'.format(self._name))
-            raise web.HTTPInternalServerError('Data retreival error in plugin {} during reconfigure'.format(self._name))
+            raise web.HTTPInternalServerError('Data retrieval error in plugin {} during reconfigure'.format(self._name))
 
         return web.json_response({"south": "change"})
+
+    async def track(self, request):
+        pass

@@ -231,11 +231,11 @@ python_build : $(PYTHON_SETUP_FILE)
 
 # install python requirements without --user 
 python_requirements : $(PYTHON_REQUIREMENTS_FILE)
-	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) --no-cache-dir
+	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE)
 
 # install python requirements for user
 python_requirements_user : $(PYTHON_REQUIREMENTS_FILE)
-	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) $(PIP_USER_FLAG) --no-cache-dir
+	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) $(PIP_USER_FLAG)
 
 # create python install dir
 $(PYTHON_INSTALL_DIR) :

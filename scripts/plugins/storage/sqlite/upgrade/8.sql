@@ -9,5 +9,5 @@ CREATE TABLE foglamp.asset_tracker (
        ts            DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')) );
 
 -- Create INDEX for asset_tracker
-CREATE INDEX asset_tracker_ix1 ON foglamp.asset_tracker (asset);
-CREATE INDEX asset_tracker_ix2 ON foglamp.asset_tracker (service);
+CREATE INDEX asset_tracker_ix1 ON asset_tracker (asset);
+CREATE INDEX asset_tracker_ix2 ON asset_tracker (service);

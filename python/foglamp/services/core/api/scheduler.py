@@ -339,6 +339,84 @@ async def get_schedule(request):
         raise web.HTTPNotFound(reason=str(ex))
 
 
+async def enable_schedule_with_name(request):
+    """
+    curl -X PUT http://localhost:8081/foglamp/schedule/enable -d {'schedule_name': ' sch name'}
+
+    :param request: {'schedule_name': ' sch name'} or {'schedule_id': 'uuid of schedule'}
+    :return:
+    """
+    try:
+        data = await request.json()
+
+        sch_name = data.get('schedule_name', None)
+        sch_id = data.get('schedule_id', None)
+
+        if not sch_name and not sch_id:
+            raise web.HTTPBadRequest(reason='Schedule name or ID is required')
+
+        if sch_name and not sch_id:
+            storage_client = connect.get_storage_async()
+            payload = PayloadBuilder().SELECT("id").WHERE(['schedule_name', '=', sch_name]).payload()
+            result = await storage_client.query_tbl_with_payload('schedules', payload)
+
+            if int(result['count']):
+                sch_id = result['rows'][0]['id']
+
+        assert uuid.UUID(sch_id)
+        status, reason = await server.Server.scheduler.enable_schedule(uuid.UUID(sch_id))
+
+        schedule = {
+            'scheduleId': sch_id,
+            'status': status,
+            'message': reason
+        }
+
+    except (ValueError, ScheduleNotFoundError) as ex:
+        raise web.HTTPNotFound(reason=str(ex))
+    else:
+        return web.json_response(schedule)
+
+
+async def disable_schedule_with_name(request):
+    """
+    curl -X PUT http://localhost:8081/foglamp/schedule/enable -d {'schedule_name': ' sch name'}
+
+    :param request: {'schedule_name': ' sch name'} or {'schedule_id': 'uuid of schedule'}
+    :return:
+    """
+    try:
+        data = await request.json()
+
+        sch_name = data.get('schedule_name', None)
+        sch_id = data.get('schedule_id', None)
+
+        if not sch_name and not sch_id:
+            raise web.HTTPBadRequest(reason='Schedule name or ID is required')
+
+        if sch_name and not sch_id:
+            storage_client = connect.get_storage_async()
+            payload = PayloadBuilder().SELECT("id").WHERE(['schedule_name', '=', sch_name]).payload()
+            result = await storage_client.query_tbl_with_payload('schedules', payload)
+
+            if int(result['count']):
+                sch_id = result['rows'][0]['id']
+
+        assert uuid.UUID(sch_id)
+        status, reason = await server.Server.scheduler.disable_schedule(uuid.UUID(sch_id))
+
+        schedule = {
+            'scheduleId': sch_id,
+            'status': status,
+            'message': reason
+        }
+
+    except (ValueError, ScheduleNotFoundError) as ex:
+        raise web.HTTPNotFound(reason=str(ex))
+    else:
+        return web.json_response(schedule)
+
+
 async def enable_schedule(request):
     """
     Enable the given schedule from schedules table

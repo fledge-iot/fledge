@@ -341,9 +341,9 @@ async def get_schedule(request):
 
 async def enable_schedule_with_name(request):
     """
-    curl -X PUT http://localhost:8081/foglamp/schedule/enable -d {'schedule_name': ' sch name'}
+    curl -X PUT http://localhost:8081/foglamp/schedule/enable  -d '{"schedule_name": "a schedule name"}'
 
-    :param request: {'schedule_name': ' sch name'} or {'schedule_id': 'uuid of schedule'}
+    :param request: {"schedule_name": "sinusoid"} or {"schedule_id": "uuid of schedule"}
     :return:
     """
     try:
@@ -380,9 +380,9 @@ async def enable_schedule_with_name(request):
 
 async def disable_schedule_with_name(request):
     """
-    curl -X PUT http://localhost:8081/foglamp/schedule/enable -d {'schedule_name': ' sch name'}
+    curl -X PUT http://localhost:8081/foglamp/schedule/disable -d '{"schedule_name": "a schedule name"}'
 
-    :param request: {'schedule_name': ' sch name'} or {'schedule_id': 'uuid of schedule'}
+    :param request: {"schedule_name": "sinusoid"} or {"schedule_id": "uuid of schedule"}
     :return:
     """
     try:

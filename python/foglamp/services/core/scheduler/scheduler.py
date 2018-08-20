@@ -942,15 +942,6 @@ class Scheduler(object):
         if not self._ready:
             raise NotReadyError()
 
-        """ To fetch North/South group of a schedule:
-            1. Fetch plugins list with North/South info from plugin_discovery module.
-            2. Fetch plugin name from configuration table from category = schedule's process_name. 
-            3. Locate schedule's plugin name in plugins_discovery module's list to determine North/South group.
-        """
-        plugins_list = {}
-        for p in PluginDiscovery.get_plugins_installed():
-            plugins_list[p["name"]] = p["type"]
-
         class PseudoSchedule(object):
             schedule_id = None
             name = None
@@ -962,8 +953,6 @@ class Scheduler(object):
             process_name = None
             schedule_type = None
             group = None
-
-        cfg_manager = ConfigurationManager(self._storage_async)
 
         schedules = []
 
@@ -979,10 +968,14 @@ class Scheduler(object):
             psch.day = sch.day
             psch.process_name = sch.process_name
             psch.schedule_type = sch.schedule_type
-            # TODO: After scheduler bug is fixed, change process_name to name
-            get_cfg = await cfg_manager.get_category_all_items(category_name=sch.process_name)
-            if get_cfg is not None:
-                psch.group = plugins_list[get_cfg['plugin']['value']].capitalize() if get_cfg['plugin']['value'] in plugins_list else ""
+            get_args = self._process_scripts[sch.process_name]
+            if 'tasks/north' in get_args or 'tasks/north_c' in get_args:
+                psch.group = 'North'
+            elif 'services/south' in get_args or 'services/south_c' in get_args:
+                psch.group = 'South'
+            else:
+                psch.group = ""
+
             schedules.append(psch)
 
         return schedules

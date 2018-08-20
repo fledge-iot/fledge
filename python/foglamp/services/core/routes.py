@@ -19,6 +19,7 @@ from foglamp.services.core.api import support
 from foglamp.services.core.api import plugin_discovery
 from foglamp.services.core.api import task
 from foglamp.services.core.api import asset_tracker
+from foglamp.services.core.api import north
 
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
@@ -90,6 +91,9 @@ def setup(app):
     # Service
     app.router.add_route('POST', '/foglamp/service', service.add_service)
     app.router.add_route('GET', '/foglamp/service', service.get_health)
+
+    # North
+    app.router.add_route('GET', '/foglamp/north', north.get_north_schedules)
 
     # assets
     browser.setup(app)

@@ -140,8 +140,11 @@ class TestOMF:
                     )
                 },
                 "destination_type": {"value": "1"},
-                'sending_process_instance': MagicMock(spec=SendingProcess)
-            }
+                'sending_process_instance': MagicMock(spec=SendingProcess),
+                "formatNumber": {"value": "float64"},
+                "formatInteger": {"value": "int64"},
+
+        }
 
         config_default_omf_types = omf.CONFIG_DEFAULT_OMF_TYPES
         config_default_omf_types["type-id"]["value"] = "0001"
@@ -572,7 +575,7 @@ class TestOmfNorthPlugin:
                             'id': '0001_pressure_typename_measurement',
                             'properties': {
                                 'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
-                                'pressure': {'type': 'number'}
+                                'pressure': {'type': 'number', 'format': 'float64'}
                             },
                             'type': 'object'
                          }
@@ -613,7 +616,7 @@ class TestOmfNorthPlugin:
                                 'id': '0002_luxometer_typename_measurement',
                                 'properties': {
                                     'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
-                                    'lux': {'type': 'integer'}
+                                    'lux': {'type': 'integer', 'format': 'int64'}
                                 },
                                 'type': 'object'
                             }
@@ -683,7 +686,12 @@ class TestOmfNorthPlugin:
         """
 
         fixture_omf_north._config_omf_types = {"type-id": {"value": p_type_id}}
-        fixture_omf_north._config = {"StaticData": p_static_data}
+
+        fixture_omf_north._config = {}
+        fixture_omf_north._config["StaticData"] = p_static_data
+        fixture_omf_north._config["formatNumber"] = "float64"
+        fixture_omf_north._config["formatInteger"] = "int64"
+
 
         with patch.object(
                             fixture_omf_north,

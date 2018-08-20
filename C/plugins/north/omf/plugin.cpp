@@ -44,12 +44,20 @@ using namespace std;
 			"\"StaticData\": { " \
 				"\"description\": \"Static data to include in each sensor reading sent to OMF.\", " \
 				"\"type\": \"string\", \"default\": \"Location: Palo Alto, Company: Dianomic\" }, " \
+			"\"formatNumber\": { " \
+        			"\"description\": \"OMF format property to apply to the type Number\", " \
+				"\"type\": \"string\", \"default\": \"float64\" }, " \
+			"\"formatInteger\": { " \
+        			"\"description\": \"OMF format property to apply to the type Integer\", " \
+				"\"type\": \"string\", \"default\": \"int64\" }, " \
 			"\"applyFilter\": { " \
         			"\"description\": \"Whether to apply filter before processing the data\", " \
 				"\"type\": \"boolean\", \"default\": \"False\" }, " \
 			"\"filterRule\": { " \
 				"\"description\": \"JQ formatted filter to apply (applicable if applyFilter is True)\", " \
 				"\"type\": \"string\", \"default\": \".[]\" }"
+
+
 
 #define OMF_PLUGIN_DESC "\"plugin\": {\"description\": \"OMF North C Plugin\", \"type\": \"string\", \"default\": \"omf\"}"
 
@@ -133,6 +141,9 @@ PLUGIN_HANDLE plugin_init(map<string, string>&& configData)
 	unsigned int timeout = atoi(configCategory.getValue("OMFHttpTimeout").c_str());
 	string producerToken = configCategory.getValue("producerToken");
 
+	string formatNumber = configCategory.getValue("formatNumber");
+	string formatInteger = configCategory.getValue("formatInteger");
+
 	/**
 	 * Handle the OMF_TYPES parameters here
 	 */
@@ -168,6 +179,9 @@ PLUGIN_HANDLE plugin_init(map<string, string>&& configData)
 				     path,
 				     typesId,
 				     producerToken);
+
+	connector_info.omf->setFormatType(OMF_TYPE_FLOAT, formatNumber);
+	connector_info.omf->setFormatType(OMF_TYPE_INTEGER, formatInteger);
 
 	Logger::getLogger()->info("OMF plugin configured: URL=%s, "
 				  "producerToken=%s, OMF_types_id=%s",

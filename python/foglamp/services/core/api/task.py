@@ -178,6 +178,8 @@ async def add_task(request):
                                              category_description=category_desc,
                                              category_value=plugin_config,
                                              keep_original_items=True)
+            await config_mgr.create_category(task_type.capitalize(), {}, task_type.capitalize(), True)
+            await config_mgr.create_child_category(task_type.capitalize(), [name])
         except Exception as ex:
             await revert_scheduled_processes(storage, plugin)  # Revert scheduled_process entry
             raise web.HTTPInternalServerError(reason='Failed to create plugin configuration. {}'.format(str(ex)))

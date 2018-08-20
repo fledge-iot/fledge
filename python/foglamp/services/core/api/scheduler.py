@@ -366,7 +366,12 @@ async def enable_schedule_with_name(request):
             if int(result['count']):
                 sch_id = result['rows'][0]['id']
 
-        assert uuid.UUID(sch_id)
+        if sch_id:
+            try:
+                assert uuid.UUID(sch_id)
+            except ValueError as ex:
+                raise web.HTTPNotFound(reason="No Schedule with ID {}".format(sch_id))
+
         status, reason = await server.Server.scheduler.enable_schedule(uuid.UUID(sch_id))
 
         schedule = {
@@ -375,7 +380,7 @@ async def enable_schedule_with_name(request):
             'message': reason
         }
 
-    except (ValueError, ScheduleNotFoundError) as e:
+    except (KeyError, ValueError, ScheduleNotFoundError) as e:
         raise web.HTTPNotFound(reason=str(e))
     except Exception as ex:
         raise web.HTTPException(reason=str(ex))
@@ -408,7 +413,12 @@ async def disable_schedule_with_name(request):
             if int(result['count']):
                 sch_id = result['rows'][0]['id']
 
-        assert uuid.UUID(sch_id)
+        if sch_id:
+            try:
+                assert uuid.UUID(sch_id)
+            except ValueError as ex:
+                raise web.HTTPNotFound(reason="No Schedule with ID {}".format(sch_id))
+
         status, reason = await server.Server.scheduler.disable_schedule(uuid.UUID(sch_id))
 
         schedule = {
@@ -417,7 +427,7 @@ async def disable_schedule_with_name(request):
             'message': reason
         }
 
-    except (ValueError, ScheduleNotFoundError) as e:
+    except (KeyError, ValueError, ScheduleNotFoundError) as e:
         raise web.HTTPNotFound(reason=str(e))
     except Exception as ex:
         raise web.HTTPException(reason=str(ex))

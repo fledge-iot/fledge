@@ -2044,8 +2044,6 @@ class TestSendingProcess:
             ),
         ]
     )
-    # FIXME:
-    @pytest.mark.this
     @pytest.mark.asyncio
     async def test_task_send_data_error(
                                             self,

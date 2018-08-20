@@ -38,7 +38,6 @@ using namespace rapidjson;
 #define MAX_RETRIES			10	// Maximum no. of retries for a DB lock
 
 #define _DB_NAME              "/foglamp.sqlite"
-#define _FOGLAMP_ROOT_PATH    "/usr/local/foglamp"
 
 #define F_TIMEH24_S     "%H:%M:%S"
 #define F_DATEH24_S     "%Y-%m-%d %H:%M:%S"
@@ -283,10 +282,6 @@ bool retCode;
  */
 Connection::Connection()
 {
-	string dbPath;
-	const char *rootDir = getenv("FOGLAMP_ROOT");
-	const char *dataDir = getenv("FOGLAMP_DATA");
-
 	/**
 	 * Create IN MEMORY database for "readings" table: set empty file
 	 */

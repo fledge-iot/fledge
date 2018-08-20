@@ -121,14 +121,15 @@ class TestServicesSouthServer:
 
         ingest_start = mocker.patch.object(Ingest, 'start', return_value=mock_coro())
         log_exception = mocker.patch.object(South._LOGGER, "exception")
+        log_error = mocker.patch.object(South._LOGGER, "error")
         log_info = mocker.patch.object(South._LOGGER, "info")
 
-        return cat_get, south_server, ingest_start, log_exception, log_info
+        return cat_get, south_server, ingest_start, log_exception, log_error, log_info
 
     @pytest.mark.asyncio
     async def test__start_async_plugin(self, mocker, loop):
         # GIVEN
-        cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
+        cat_get, south_server, ingest_start, log_exception, log_error, log_info = self.south_fixture(mocker)
         mock_plugin = MagicMock()
         attrs = copy.deepcopy(plugin_attrs)
         attrs['plugin_info.return_value']['mode'] = 'async'
@@ -169,7 +170,7 @@ class TestServicesSouthServer:
     @pytest.mark.asyncio
     async def test__start_async_plugin_bad_plugin_name(self, mocker, loop):
         # GIVEN
-        cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
+        cat_get, south_server, ingest_start, log_exception, log_error, log_info = self.south_fixture(mocker)
         mocker.patch.object(south_server, '_stop', return_value=mock_coro())
         sys.modules['foglamp.plugins.south.test.test'] = None
 
@@ -188,7 +189,7 @@ class TestServicesSouthServer:
     @pytest.mark.asyncio
     async def test__start_async_plugin_bad_plugin_type(self, mocker, loop):
         # GIVEN
-        cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
+        cat_get, south_server, ingest_start, log_exception, log_error, log_info = self.south_fixture(mocker)
         mocker.patch.object(south_server, '_stop', return_value=mock_coro())
         mock_plugin = MagicMock()
         attrs = copy.deepcopy(plugin_attrs)
@@ -211,7 +212,7 @@ class TestServicesSouthServer:
     @pytest.mark.asyncio
     async def test__start_poll_plugin(self, loop, mocker):
         # GIVEN
-        cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
+        cat_get, south_server, ingest_start, log_exception, log_error, log_info = self.south_fixture(mocker)
         # Mocking _stop() required as we are testing poll_plugin indirectly
         mocker.patch.object(south_server, '_stop', return_value=mock_coro())
         mock_plugin = MagicMock()
@@ -229,13 +230,13 @@ class TestServicesSouthServer:
         assert 1 == ingest_start.call_count
         ingest_start.assert_called_with(south_server)
         assert 1 == log_info.call_count
-        assert 1 == log_exception.call_count
+        assert 1 == log_error.call_count
         assert south_server._task_main.done() is False  # because of exception occurred
 
     @pytest.mark.asyncio
     async def test__exec_plugin_async(self, loop, mocker):
         # GIVEN
-        cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
+        cat_get, south_server, ingest_start, log_exception, log_error, log_info = self.south_fixture(mocker)
         mock_plugin = MagicMock()
         attrs = copy.deepcopy(plugin_attrs)
         attrs['plugin_info.return_value']['mode'] = 'async'
@@ -257,7 +258,7 @@ class TestServicesSouthServer:
     @pytest.mark.asyncio
     async def test__exec_plugin_poll(self, loop, mocker):
         # GIVEN
-        cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
+        cat_get, south_server, ingest_start, log_exception, log_error, log_info = self.south_fixture(mocker)
         # Mocking _stop() required as we are testing poll_plugin indirectly
         mocker.patch.object(south_server, '_stop', return_value=mock_coro())
         mock_plugin = MagicMock()
@@ -283,7 +284,7 @@ class TestServicesSouthServer:
     @pytest.mark.asyncio
     async def test__exec_plugin_poll_exceed_retries(self, loop, mocker):
         # GIVEN
-        cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
+        cat_get, south_server, ingest_start, log_exception, log_error, log_info = self.south_fixture(mocker)
         mocker.patch.object(south_server, '_stop', return_value=mock_coro())
         mock_plugin = MagicMock()
         attrs = copy.deepcopy(plugin_attrs)
@@ -302,11 +303,10 @@ class TestServicesSouthServer:
         # THEN
         # Count is 2 and 4 because above method is executed twice
         assert 2 == log_info.call_count
-        assert 4 == log_exception.call_count
+        assert 2 == log_exception.call_count
+        assert 2 == log_error.call_count
         calls = [call('Max retries exhausted in starting South plugin: test'),
-                 call('Failed to poll for plugin test, retry count: 2'),
-                 call('Max retries exhausted in starting South plugin: test'),
-                 call('Failed to poll for plugin test, retry count: 2')]
+                 call('Max retries exhausted in starting South plugin: test')]
         log_exception.assert_has_calls(calls, any_order=True)
 
     @pytest.mark.asyncio
@@ -317,7 +317,7 @@ class TestServicesSouthServer:
     @pytest.mark.asyncio
     async def test__stop(self, loop, mocker):
         # GIVEN
-        cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
+        cat_get, south_server, ingest_start, log_exception, log_error, log_info = self.south_fixture(mocker)
         mocker.patch.object(Ingest, 'stop', return_value=mock_coro())
         mock_plugin = MagicMock()
         attrs = copy.deepcopy(plugin_attrs)
@@ -343,7 +343,7 @@ class TestServicesSouthServer:
     @pytest.mark.asyncio
     async def test__stop_plugin_stop_error(self, loop, mocker):
         # GIVEN
-        cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
+        cat_get, south_server, ingest_start, log_exception, log_error, log_info = self.south_fixture(mocker)
         mocker.patch.object(Ingest, 'stop', return_value=mock_coro())
         mock_plugin = MagicMock()
         attrs = copy.deepcopy(plugin_attrs)
@@ -370,7 +370,7 @@ class TestServicesSouthServer:
     @pytest.mark.asyncio
     async def test_shutdown(self, loop, mocker):
         # GIVEN
-        cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
+        cat_get, south_server, ingest_start, log_exception, log_error, log_info = self.south_fixture(mocker)
         mocker.patch.object(south_server, '_stop', return_value=mock_coro())
         mocker.patch.object(south_server, 'unregister_service_with_core', return_value=True)
 
@@ -384,7 +384,7 @@ class TestServicesSouthServer:
     @pytest.mark.asyncio
     async def test_shutdown_error(self, loop, mocker):
         # GIVEN
-        cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
+        cat_get, south_server, ingest_start, log_exception, log_error, log_info = self.south_fixture(mocker)
         mocker.patch.object(south_server, '_stop', return_value=mock_coro(), side_effect=RuntimeError)
         mocker.patch.object(south_server, 'unregister_service_with_core', return_value=True)
 
@@ -402,7 +402,7 @@ class TestServicesSouthServer:
     @pytest.mark.asyncio
     async def test_change(self, loop, mocker):
         # GIVEN
-        cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
+        cat_get, south_server, ingest_start, log_exception, log_error, log_info = self.south_fixture(mocker)
         mock_plugin = MagicMock()
         attrs = copy.deepcopy(plugin_attrs)
         attrs['plugin_info.return_value']['mode'] = 'async'
@@ -426,7 +426,7 @@ class TestServicesSouthServer:
     async def test_change_error(self, loop, mocker):
         # GIVEN
         from foglamp.services.south import exceptions
-        cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
+        cat_get, south_server, ingest_start, log_exception, log_error, log_info = self.south_fixture(mocker)
         mock_plugin = MagicMock()
         attrs = copy.deepcopy(plugin_attrs)
         attrs['plugin_info.return_value']['mode'] = 'async'

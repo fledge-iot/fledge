@@ -559,11 +559,24 @@ CREATE TABLE foglamp.backups (
 -- FogLAMP DB version: keeps the schema version id
 CREATE TABLE foglamp.version (id CHAR(10));
 
--- Create the cnfiguration category_children table
+-- Create the configuration category_children table
 CREATE TABLE foglamp.category_children (
        parent	character varying(255)	NOT NULL,
        child	character varying(255)	NOT NULL,
        CONSTRAINT config_children_pkey PRIMARY KEY (parent, child) );
+
+-- Create the asset_tracker table
+CREATE TABLE foglamp.asset_tracker (
+       id            integer          PRIMARY KEY AUTOINCREMENT,
+       asset         character(50)    NOT NULL,
+       event         character varying(50) NOT NULL,
+       service       character varying(255) NOT NULL,
+       foglamp       character varying(50) NOT NULL,
+       plugin        character varying(50) NOT NULL,
+       ts            DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')) );
+
+CREATE INDEX asset_tracker_ix1 ON asset_tracker (asset);
+CREATE INDEX asset_tracker_ix2 ON asset_tracker (service);
 
 ----------------------------------------------------------------------
 -- Initialization phase - DML

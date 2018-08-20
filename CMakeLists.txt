@@ -28,3 +28,8 @@ add_subdirectory(C/plugins/north/ThingSpeak)
 add_subdirectory(C/plugins/north/http-north)
 add_subdirectory(C/plugins/utils)
 add_subdirectory(C/plugins/filter/scale)
+# Add Python 2.7 filter
+find_library(FoundPython_2.7 NAMES python2.7 python27)
+if (FoundPython_2.7)
+	add_subdirectory(C/plugins/filter/python27)
+endif()

@@ -28,6 +28,9 @@ class mServiceThing(FoglampMicroservice):
     async def change(self, request):
         pass
 
+    async def track(self, request):
+        pass
+
     def run(self):
         pass
 

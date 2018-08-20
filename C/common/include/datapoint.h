@@ -136,6 +136,16 @@ class DatapointValue {
 			}
 		};
 
+		/**
+		 * Return int value
+		 */
+		int toInt() const { return m_value.i; };
+		/**
+		 * Return double  value
+		 */
+		double toDouble() const { return m_value.f; };
+
+		// Supported Data Tag Types
 		typedef enum DatapointTag { T_STRING, T_INTEGER, T_FLOAT } dataTagType;
 
 		/**

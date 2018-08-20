@@ -25,6 +25,7 @@
 #include <logger.h>
 #include <time.h>
 #include <unistd.h>
+#include <utils.h>
 
 /**
  * SQLite3 storage plugin for FogLAMP
@@ -38,7 +39,6 @@ using namespace rapidjson;
 #define MAX_RETRIES			10	// Maximum no. of retries when a lock is encountered
 
 #define _DB_NAME              "/foglamp.sqlite"
-#define _FOGLAMP_ROOT_PATH    "/usr/local/foglamp"
 
 #define F_TIMEH24_S     "%H:%M:%S"
 #define F_DATEH24_S     "%Y-%m-%d %H:%M:%S"
@@ -283,8 +283,6 @@ bool retCode;
 Connection::Connection()
 {
 	string dbPath;
-	const char *rootDir = getenv("FOGLAMP_ROOT");
-	const char *dataDir = getenv("FOGLAMP_DATA");
 	const char *defaultConnection = getenv("DEFAULT_SQLITE_DB_FILE");
 
 	m_logSQL = false;
@@ -292,16 +290,7 @@ Connection::Connection()
 	if (defaultConnection == NULL)
 	{
 		// Set DB base path
-		dbPath = (rootDir == NULL ? _FOGLAMP_ROOT_PATH : rootDir);
-		if (dataDir == NULL)
-		{
-			dbPath += "/data";
-		}
-		else
-		{
-			dbPath = dataDir;
-		}
-
+		dbPath = getDataDir();
 		// Add the filename
 		dbPath += _DB_NAME;
 	}

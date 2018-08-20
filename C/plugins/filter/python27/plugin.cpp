@@ -18,10 +18,10 @@
 #include <filter_plugin.h>
 #include <filter.h>
 #include <reading_set.h>
+#include <utils.h>
 
 #include <Python.h>
 
-#define FOGLAMP_ROOT_PATH    "/usr/local/foglamp"
 // Relative path to FOGLAMP_DATA
 #define PYTHON_FILTERS_PATH "/filters"
 #define FILTER_NAME "Python27"
@@ -112,18 +112,9 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 	// Embedded Python 2.7 initialisation
         Py_Initialize();
 
-	const char* rootDir = getenv("FOGLAMP_ROOT");
-	const char* dataDir = getenv("FOGLAMP_DATA");
-	string filtersPath;
-	if (!dataDir)
-	{
-		filtersPath = (rootDir == NULL ? FOGLAMP_ROOT_PATH : rootDir);
-		filtersPath += "/data";
-	}
-	else
-	{
-		filtersPath = dataDir;
-	}
+	// Get FogLAMP Data dir
+	string filtersPath = getDataDir();
+	// Add filters dir
 	filtersPath += PYTHON_FILTERS_PATH;
 
 	// Set Python path for embedded Python 2.7

@@ -43,15 +43,14 @@ async def _get_north_schedules():
     schedule_list = await server.Server.scheduler.get_schedules()
     for sch in schedule_list:
         if sch.group.upper() == 'NORTH':
-            # FIXME: time is also needed?
             schedules.append({
                 'id': str(sch.schedule_id),
                 'name': sch.name,
                 'processName': sch.process_name,
                 'repeat': sch.repeat.total_seconds() if sch.repeat else 0,
-                'time': (sch.time.hour * 60 * 60 + sch.time.minute * 60 + sch.time.second) if sch.time else 0,
                 'day': sch.day,
-                'enabled': sch.enabled
+                'enabled': sch.enabled,
+                'exclusive': sch.exclusive
             })
 
     return schedules

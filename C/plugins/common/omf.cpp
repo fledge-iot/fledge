@@ -456,11 +456,22 @@ const std::string OMF::createTypeData(const Reading& reading) const
 	 */
 	for (vector<Datapoint*>::const_iterator it = data.begin(); it != data.end(); ++it)
 	{
+	        string omfType = omfTypes[((*it)->getData()).getType()];
+		string format = OMF::getFormatType(omfType);
+
 		// Add datapoint Name
 		tData.append("\"" + (*it)->getName() + "\"");
 		tData.append(": {\"type\": \"");
 		// Add datapoint Type
-		tData.append(omfTypes[((*it)->getData()).getType()]);
+		tData.append(omfType);
+
+		// Applies a format if it is defined
+		if (! format.empty() ) {
+
+			tData.append("\", \"format\": \"");
+			tData.append(format);
+		}
+
 		tData.append("\"}, ");
 	}
 
@@ -678,3 +689,41 @@ bool OMF::getCreatedTypes(const string& key)
 {
 	return m_createdTypes[key];
 }
+
+/**
+ * Get from m_formatTypes map the key (OMF type + OMF format)
+ *
+ * @param key    The OMF type for which the format is requested
+ * @return       The defined OMF format for the requested type
+ *
+ */
+std::string OMF::getFormatType(const string &key) const
+{
+        string value;
+
+        try
+        {
+                auto pos = m_formatTypes.find(key);
+                value = pos->second;
+        }
+        catch (const std::exception& e)
+        {
+                Logger::getLogger()->error("Unable to find the OMF format for the type :" + key + ": - error: %s", e.what());
+        }
+
+        return value;
+}
+
+/**
+ * Add the key (OMF type + OMF format) into a map
+ *
+ * @param key    The OMF type, key of the map
+ * @param value  The OMF format to set for the specific OMF type
+ *
+ */
+void OMF::setFormatType(const string &key, string &value)
+{
+
+	m_formatTypes[key] = value;
+}
+

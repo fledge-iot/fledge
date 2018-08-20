@@ -5,7 +5,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch, Massimiliano Pinto
+ * Author: Mark Riddoch, Massimiliano Pinto, Amandeep Singh Arora
  */
 #include <ingest.h>
 #include <reading.h>
@@ -49,6 +49,156 @@ void Ingest::PopulateAssetTrackingCache(ManagementClient *m_mgtClient)
 }
 
 /**
+ * Create a row for given assetName in statistics DB table, if not present already
+ * The key checked/created in the table is "INGEST_<assetName>"
+ * 
+ * @param assetName     Asset name for the plugin that is sending readings
+ */
+int Ingest::createStatsDbEntry(const string& assetName)
+{
+	// Prepare foglamp.statistics update
+	string statistics_key = "INGEST_" + assetName;
+	for (auto & c: statistics_key) c = toupper(c);
+	
+	// SELECT * FROM foglamp.configuration WHERE key = categoryName
+	const Condition conditionKey(Equals);
+	Where *wKey = new Where("key", conditionKey, statistics_key);
+	Query qKey(wKey);
+
+	ResultSet* result = 0;
+	try
+	{
+		// Query via storage client
+		result = m_storage.queryTable("statistics", qKey);
+
+		if (!result->rowCount())
+		{
+			// Prepare insert values for insertTable
+			InsertValues newStatsEntry;
+			newStatsEntry.push_back(InsertValue("key", statistics_key));
+			newStatsEntry.push_back(InsertValue("description", string("Readings received from asset ")+assetName));
+			// Set "value" field for insert using the JSON document object
+			newStatsEntry.push_back(InsertValue("value", 0));
+			newStatsEntry.push_back(InsertValue("previous_value", 0));
+
+			// Do the insert
+			if (!m_storage.insertTable("statistics", newStatsEntry))
+			{
+				m_logger->error("%s:%d : Insert new row into statistics table failed, newStatsEntry='%s'", __FUNCTION__, __LINE__, newStatsEntry.toJSON().c_str());
+				return -1;
+			}
+			else
+				m_logger->info("%s:%d : Inserted new row into statistics table, newStatsEntry='%s'", __FUNCTION__, __LINE__, newStatsEntry.toJSON().c_str());
+		}
+	}
+	catch (...)
+	{
+		m_logger->error("%s:%d : Unable to create new row in statistics table with key='%s'", __FUNCTION__, __LINE__, statistics_key.c_str());
+		return -1;
+	}
+	return 0;
+}
+
+/**
+ * Thread to update statistics table in DB
+ */
+static void statsThread(Ingest *ingest)
+{
+	while (ingest->running())
+	{
+		ingest->updateStats();
+	}
+}
+
+ /**
+ * Update statistics for this south service. Successfully processed 
+ * readings are reflected against plugin asset name and READINGS keys.
+ * Discarded readings stats are updated against DISCARDED key.
+ */
+void Ingest::updateStats()
+{
+	unique_lock<mutex> lck(m_statsMutex);
+	m_statsCv.wait(lck);
+	Logger::getLogger()->info("%s:%d : stats thread: wakeup from sleep, now updating stats, m_newReadings=%d, m_discardedReadings=%d, m_readingsAssetName='%s'",
+								__FUNCTION__, __LINE__, m_newReadings, m_discardedReadings, m_readingsAssetName.c_str());
+	
+	if (m_newReadings==0 && m_discardedReadings==0) return; // nothing to update, possible spurious wakeup
+
+	createStatsDbEntry(m_readingsAssetName);
+
+	string key;
+	const Condition conditionStat(Equals);
+	
+	try
+		{
+		if (m_newReadings)
+			{
+			// Prepare foglamp.statistics update
+			key = "INGEST_" + m_readingsAssetName;
+			for (auto & c: key) c = toupper(c);
+
+			// Prepare "WHERE key = name
+			Where wPluginStat("key", conditionStat, key);
+
+			// Prepare value = value + inc
+			ExpressionValues updateValue;
+			updateValue.push_back(Expression("value", "+", (int) m_newReadings));
+
+			//Logger::getLogger()->info("%s:%d : Updating DB now, getNewReadings()=%d", __FUNCTION__, __LINE__, m_newReadings);
+			// Perform UPDATE foglamp.statistics SET value = value + x WHERE key = 'name'
+			int rv = m_storage.updateTable("statistics", updateValue, wPluginStat);
+			
+			if (rv<0)
+				Logger::getLogger()->info("%s:%d : Update DB failed, rv=%d", __FUNCTION__, __LINE__, rv);
+
+			// Update READINGS row
+			key = "READINGS";
+
+			// Prepare "WHERE key = name
+			Where wPluginStat2("key", conditionStat, key);
+
+			// Perform UPDATE foglamp.statistics SET value = value + x WHERE key = 'name'
+			rv = m_storage.updateTable("statistics", updateValue, wPluginStat2);
+			
+			if (rv<0)
+				Logger::getLogger()->info("%s:%d : Update DB failed, rv=%d", __FUNCTION__, __LINE__, rv);
+			else
+				{
+				m_newReadings=0;
+				}
+
+			}
+		
+		if (m_discardedReadings)
+			{
+			// Update DISCARDED row
+			key = "DISCARDED";
+
+			// Prepare "WHERE key = name
+			Where wPluginStat("key", conditionStat, key);
+
+			// Prepare value = value + inc
+			ExpressionValues updateValue;
+			updateValue.push_back(Expression("value", "+", (int) m_discardedReadings));
+
+			// Perform UPDATE foglamp.statistics SET value = value + x WHERE key = 'name'
+			int rv = m_storage.updateTable("statistics", updateValue, wPluginStat);
+			
+			if (rv<0)
+				Logger::getLogger()->info("%s:%d : Update DB failed, rv=%d", __FUNCTION__, __LINE__, rv);
+			else
+				{
+				m_discardedReadings=0;
+				}
+			}
+		}
+	catch (...)
+		{
+		Logger::getLogger()->info("%s:%d : Statistics table update failed, will retry on next iteration", __FUNCTION__, __LINE__);
+		}
+}
+
+/**
  * Construct an Ingest class to handle the readings queue.
  * A seperate thread is used to send the readings to the
  * storage layer based on time. This thread in created in
@@ -72,14 +222,21 @@ Ingest::Ingest(StorageClient& storage,
 			m_pluginName(pluginName),
 			m_mgtClient(m_mgtClient)
 {
+	
 	m_running = true;
 	m_queue = new vector<Reading *>();
 	m_thread = new thread(ingestThread, this);
+	m_statsThread = new thread(statsThread, this);
 	m_logger = Logger::getLogger();
 	m_data = NULL;
+	m_newReadings = 0;
+	m_discardedReadings = 0;
+	m_readingsAssetName = "unknown";
 
 	// populate asset tracking cache
 	PopulateAssetTrackingCache(m_mgtClient);
+
+	m_logger->info("%s:%d : timeout=%d, threshold=%d", __FUNCTION__, __LINE__, timeout, threshold);
 }
 
 /**
@@ -96,8 +253,12 @@ Ingest::~Ingest()
 	m_running = false;
 	m_thread->join();
 	processQueue();
+	m_statsThread->join();
+	updateStats();
 	delete m_queue;
 	delete m_thread;
+	delete m_statsThread;
+	delete m_data;
 
 	// Cleanup filters
 	FilterPlugin::cleanupFilters(m_filters);
@@ -156,6 +317,15 @@ vector<Reading *>* newQ = new vector<Reading *>();
 		m_queue = newQ;
 	}
 
+	vector<Reading *>::iterator it;
+	Reading *firstReading = NULL;
+	if(!m_data->empty())
+		{
+		it = m_data->begin();
+		firstReading = (*it);
+		m_readingsAssetName=firstReading->getAssetName();
+		}
+	
 	ReadingSet* readingSet = NULL;
 
 	// Create a ReadingSet from m_data readings if we have filters.
@@ -165,7 +335,7 @@ vector<Reading *>* newQ = new vector<Reading *>();
 		auto it = m_filters.begin();
 		readingSet = new ReadingSet(m_data);
 		// Pass readingSet to filter chain
-		(*it)->ingest(readingSet);		
+		(*it)->ingest(readingSet);
 	}
 
 	/**
@@ -179,9 +349,9 @@ vector<Reading *>* newQ = new vector<Reading *>();
 	 *	2- some readings removed
 	 *	3- New set of readings
 	 */
+	int rv;
 	if ((!m_data->empty()) &&
-	    m_storage.readingAppend(*m_data) == false &&
-	    requeue == true)
+			(rv = m_storage.readingAppend(*m_data)) == false && requeue == true)
 	{
 		m_logger->error("Failed to write readings to storage layer, buffering");
 		lock_guard<mutex> guard(m_qMutex);
@@ -190,9 +360,18 @@ vector<Reading *>* newQ = new vector<Reading *>();
 		m_queue->insert(m_queue->cbegin(),
 				m_data->begin(),
 				m_data->end());
+		// Is it possible that some of the readings are stored in DB, and others are not?
 	}
 	else
 	{
+		if (!m_data->empty() && rv==false) // m_data had some (possibly filtered) readings, but they couldn't be sent successfully to storage service
+			{
+			m_logger->info("%s:%d, Couldn't send %d readings to storage service", __FUNCTION__, __LINE__, m_data->size());
+			m_discardedReadings += m_data->size();
+			}
+		else
+			m_newReadings += m_data->size();
+		
 		// Data sent to sorage service
 		if (!readingSet)
 		{
@@ -217,6 +396,10 @@ vector<Reading *>* newQ = new vector<Reading *>();
 	{
 		delete m_data;
 	}
+
+	// Signal stats thread to update stats
+	lock_guard<mutex> guard(m_statsMutex);
+	m_statsCv.notify_all();
 }
 
 /**
@@ -260,3 +443,4 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 	// Set new data pointer
 	ingest->m_data = ((ReadingSet *)readingSet)->getAllReadingsPtr();
 }
+

@@ -410,3 +410,94 @@ string ManagementClient::addChildCategories(const string& parentCategory,
 		throw;
 	}
 }
+
+/**
+ * Get the asset tracking tuples
+ *
+ * @return			JSON string with all asset tracking tuples
+ */
+std::string ManagementClient::getAssetTrackingTuples() const
+{
+	try {
+		string url = "/foglamp/track";
+		auto res = m_client->request("GET", url.c_str());
+		Document doc;
+		string response = res->content.string();
+		doc.Parse(response.c_str());
+		if (doc.HasParseError())
+		{
+			m_logger->error("Failed to parse result of fetch asset tracking tuples: %s\n",
+					response.c_str());
+			throw new exception();
+		}
+		else if (doc.HasMember("track"))
+		{
+			m_logger->error("Failed to fetch asset tracking tuples: %s.",
+				doc["track"].GetString());
+			throw new exception();
+		}
+		else
+		{
+			return response;
+		}
+	} catch (const SimpleWeb::system_error &e) {
+		m_logger->error("Get config categories failed %s.", e.what());
+		throw;
+	}
+}
+
+/**
+ * Add a new asset tracking tuple
+ *
+ * @param service	Service name
+ * @param plugin	Plugin name
+ * @param asset		Asset name
+ * @param event		Event type
+ * @return		whether operation was successful
+
+ */
+bool ManagementClient::addAssetTrackingTuple(const std::string& service, 
+					const std::string& plugin, const std::string& asset, const std::string& event)
+{
+	ostringstream convert;
+
+	try {
+		convert << "{ \"service\" : \"" << service << "\", ";
+		convert << "{ \"plugin\" : \"" << plugin << "\", ";
+		convert << "{ \"asset\" : \"" << asset << "\", ";
+		//convert << "{ \"foglamp\" : \"" << foglamp << "\", ";
+		convert << "\"event\" : \"" << event << "\" }";
+		auto res = m_client->request("POST", "/foglamp/track", convert.str());
+		Document doc;
+		string content = res->content.string();
+		doc.Parse(content.c_str());
+		if (doc.HasParseError())
+		{
+			m_logger->error("Failed to parse result of asset tracking tuple addition: %s\n",
+					content.c_str());
+			return false;
+		}
+		if (doc.HasMember("foglamp"))
+		{
+			const char *reg_id = doc["foglamp"].GetString();
+			m_logger->info("Added asset tracking tuple successfully");
+			return true;
+		}
+		else if (doc.HasMember("message"))
+		{
+			m_logger->error("Failed to add asset tracking tuple: %s.",
+				doc["message"].GetString());
+		}
+		else
+		{
+			m_logger->error("Failed to add asset tracking tuple: %s.",
+					content.c_str());
+		}
+	} catch (const SimpleWeb::system_error &e) {
+				m_logger->error("Failed to add asset tracking tuple: %s.", e.what());
+				return false;
+		}
+		return false;
+
+}
+

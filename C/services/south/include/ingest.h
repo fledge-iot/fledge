@@ -30,7 +30,10 @@ class Ingest {
 public:
 	Ingest(StorageClient& storage,
 		unsigned long timeout,
-		unsigned int threshold);
+		unsigned int threshold,
+		const std::string& serviceName,
+		const std::string& pluginName,
+		ManagementClient *m_mgtClient);
 	~Ingest();
 
 	void		ingest(const Reading& reading);
@@ -51,6 +54,9 @@ private:
 	unsigned long			m_timeout;
 	unsigned int			m_queueSizeThreshold;
 	bool				m_running;
+	std::string& 		m_serviceName;
+	std::string& 		m_pluginName;
+	ManagementClient		*m_mgtClient;
 	// New data: queued
 	std::vector<Reading *>*		m_queue;
 	std::mutex			m_qMutex;

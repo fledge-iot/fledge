@@ -36,6 +36,11 @@ class ManagementClient {
                                                              const std::string& itemValue) const;
 		std::string		addChildCategories(const std::string& parentCategory,
 							   const std::vector<std::string>& children) const;
+		std::string ManagementClient::getAssetTrackingTuples() const;
+		std::string ManagementClient::addAssetTrackingTuple(const std::string& service, 
+																const std::string& plugin, 
+																const std::string& asset, 
+																const std::string& event);
 
 private:
 		HttpClient				*m_client;

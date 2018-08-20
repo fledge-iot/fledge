@@ -29,6 +29,26 @@ static void ingestThread(Ingest *ingest)
 }
 
 /**
+ * Fetch all asset tracking tuples from DB and populate local cache
+ *
+ * @param m_mgtClient	Management client handle
+ */
+void Ingest::PopulateAssetTrackingCache(ManagementClient *m_mgtClient)
+{
+	string tuplesString;
+
+	try {
+		tuplesString = m_mgtClient->getAssetTrackingTuples();
+		}
+	catch (...)
+		{
+		m_logger->error("Failed to populate asset tracking tuples' cache");
+		return;
+		}
+	m_logger->info("tuplesString='%s' ", tuplesString);
+}
+
+/**
  * Construct an Ingest class to handle the readings queue.
  * A seperate thread is used to send the readings to the
  * storage layer based on time. This thread in created in
@@ -41,16 +61,25 @@ static void ingestThread(Ingest *ingest)
  */
 Ingest::Ingest(StorageClient& storage,
 		unsigned long timeout,
-		unsigned int threshold) :
+		unsigned int threshold
+		const std::string& serviceName,
+		const std::string& pluginName,
+		ManagementClient *m_mgtClient) :
 			m_storage(storage),
 			m_timeout(timeout),
-			m_queueSizeThreshold(threshold)
+			m_queueSizeThreshold(threshold),
+			m_serviceName(serviceName),
+			m_pluginName(pluginName),
+			m_mgtClient(m_mgtClient)
 {
 	m_running = true;
 	m_queue = new vector<Reading *>();
 	m_thread = new thread(ingestThread, this);
 	m_logger = Logger::getLogger();
 	m_data = NULL;
+
+	// populate asset tracking cache
+	PopulateAssetTrackingCache(m_mgtClient);
 }
 
 /**

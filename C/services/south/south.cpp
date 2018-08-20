@@ -170,17 +170,20 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 						storageRecord.getPort());
 		unsigned int threshold = 100;
 		unsigned long timeout = 5000;
+		std::string pluginName;
 		try {
 			if (m_config.itemExists("bufferThreshold"))
 				threshold = (unsigned int)atoi(m_config.getValue("bufferThreshold").c_str());
 			if (m_config.itemExists("maxSendLatency"))
 				timeout = (unsigned long)atoi(m_config.getValue("maxSendLatency").c_str());
+			if (m_config.itemExists("plugin"))
+				pluginName = m_config.getValue("plugin");
 		} catch (ConfigItemNotFound e) {
 			logger->info("Defaulting to inline defaults for south configuration");
 		}
 
 		// Instantiate the Ingest class
-		Ingest ingest(storage, timeout, threshold);
+		Ingest ingest(storage, timeout, threshold, m_name, pluginName, m_mgtClient);
 
 		try {
 			m_pollInterval = 500;

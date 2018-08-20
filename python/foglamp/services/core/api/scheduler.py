@@ -30,6 +30,8 @@ _help = """
     | GET PUT DELETE  | /foglamp/schedule/{schedule_id}                           |
     | PUT             | /foglamp/schedule/{schedule_id}/enable                    |
     | PUT             | /foglamp/schedule/{schedule_id}/disable                   |
+    | PUT             | /foglamp/schedule/enable                                  |
+    | PUT             | /foglamp/schedule/disable                                 |
     | POST            | /foglamp/schedule/start/{schedule_id}                     |
     | GET             | /foglamp/schedule/type                                    |
 
@@ -340,7 +342,8 @@ async def get_schedule(request):
 
 
 async def enable_schedule_with_name(request):
-    """
+    """ Enables the schedule for given schedule_name or schedule_id in request payload
+
     curl -X PUT http://localhost:8081/foglamp/schedule/enable  -d '{"schedule_name": "a schedule name"}'
 
     :param request: {"schedule_name": "sinusoid"} or {"schedule_id": "uuid of schedule"}
@@ -372,14 +375,17 @@ async def enable_schedule_with_name(request):
             'message': reason
         }
 
-    except (ValueError, ScheduleNotFoundError) as ex:
-        raise web.HTTPNotFound(reason=str(ex))
+    except (ValueError, ScheduleNotFoundError) as e:
+        raise web.HTTPNotFound(reason=str(e))
+    except Exception as ex:
+        raise web.HTTPException(reason=str(ex))
     else:
         return web.json_response(schedule)
 
 
 async def disable_schedule_with_name(request):
-    """
+    """ Disable the schedule for given schedule_name or schedule_id in request payload
+
     curl -X PUT http://localhost:8081/foglamp/schedule/disable -d '{"schedule_name": "a schedule name"}'
 
     :param request: {"schedule_name": "sinusoid"} or {"schedule_id": "uuid of schedule"}
@@ -411,8 +417,10 @@ async def disable_schedule_with_name(request):
             'message': reason
         }
 
-    except (ValueError, ScheduleNotFoundError) as ex:
-        raise web.HTTPNotFound(reason=str(ex))
+    except (ValueError, ScheduleNotFoundError) as e:
+        raise web.HTTPNotFound(reason=str(e))
+    except Exception as ex:
+        raise web.HTTPException(reason=str(ex))
     else:
         return web.json_response(schedule)
 

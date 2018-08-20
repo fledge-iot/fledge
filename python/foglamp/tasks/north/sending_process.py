@@ -26,6 +26,7 @@ import datetime
 import signal
 import json
 import uuid
+import ast
 import copy
 
 import foglamp.plugins.north.common.common as plugin_common
@@ -84,7 +85,10 @@ _MESSAGES_LIST = {
     "e000027": "Required argument '--address' is missing - command line |{0}|",
     "e000028": "cannot complete the fetch operation - error details |{0}|",
     "e000029": "an error occurred  during the teardown operation - error details |{0}|",
-    "e000030": "unable to create parent configurtion category",
+    "e000030": "unable to create parent configuration category",
+    "e000031": "unable to convert in memory data structure related to the readings data "
+               "- error details |{0}|",
+
 }
 """ Messages used for Information, Warning and Error notice """
 
@@ -471,6 +475,7 @@ class SendingProcess(FoglampProcess):
             for row in raw_data:
                 # Converts values to the proper types, for example "180.2" to float 180.2
                 payload = row['reading']
+
                 for key in list(payload.keys()):
                     value = payload[key]
                     payload[key] = plugin_common.convert_to_type(value)
@@ -484,7 +489,7 @@ class SendingProcess(FoglampProcess):
                 }
                 converted_data.append(new_row)
         except Exception as e:
-            SendingProcess._logger.error(_MESSAGES_LIST["e000022"].format(str(e)))
+            SendingProcess._logger.error(_MESSAGES_LIST["e000031"].format(str(e)))
             raise e
         return converted_data
 
@@ -914,6 +919,7 @@ class SendingProcess(FoglampProcess):
 
 
 if __name__ == "__main__":
+
     loop = asyncio.get_event_loop()
     sp = SendingProcess(loop)
     loop.run_until_complete(sp.run())

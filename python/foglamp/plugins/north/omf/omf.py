@@ -134,6 +134,16 @@ _CONFIG_DEFAULT_OMF = {
         "description": "JQ formatted filter to apply (only applicable if applyFilter is True)",
         "type": "string",
         "default": ".[]"
+    },
+    "formatNumber": {
+        "description": "OMF format property to apply to the type Number",
+        "type": "string",
+        "default": "float64"
+    },
+    "formatInteger": {
+        "description": "OMF format property to apply to the type Integer",
+        "type": "string",
+        "default": "int64"
     }
 }
 
@@ -344,6 +354,9 @@ def plugin_init(data):
     _config['OMFHttpTimeout'] = int(data['OMFHttpTimeout']['value'])
 
     _config['StaticData'] = ast.literal_eval(data['StaticData']['value'])
+
+    _config['formatNumber'] = data['formatNumber']['value']
+    _config['formatInteger'] = data['formatInteger']['value']
 
     # TODO: compare instance fetching via inspect vs as param passing
     # import inspect
@@ -589,9 +602,29 @@ class OmfNorthPlugin(object):
             "isindex": True
         }
         omf_type[typename][1]["id"] = type_id + "_" + typename + "_measurement"
+
+        # Applies configured format property for the specific type
         for item in asset_data:
             item_type = plugin_common.evaluate_type(asset_data[item])
-            omf_type[typename][1]["properties"][item] = {"type": item_type}
+
+            self._logger.debug(
+                "func |{func}| - item_type |{type}| - formatInteger |{int}| - formatNumber |{float}| ".format(
+                            func="_create_omf_type_automatic",
+                            type=item_type,
+                            int=self._config['formatInteger'],
+                            float=self._config['formatNumber']))
+
+            # Handles OMF format property to force the proper OCS type, especially for handling decimal numbers
+            if item_type == "integer":
+
+                omf_type[typename][1]["properties"][item] = {"type": item_type,
+                                                             "format": self._config['formatInteger']}
+            elif item_type == "number":
+                omf_type[typename][1]["properties"][item] = {"type": item_type,
+                                                             "format": self._config['formatNumber']}
+            else:
+                omf_type[typename][1]["properties"][item] = {"type": item_type}
+
         if _log_debug_level == 3:
             self._logger.debug("_create_omf_type_automatic - sensor_id |{0}| - omf_type |{1}| ".format(sensor_id, str(omf_type)))
 

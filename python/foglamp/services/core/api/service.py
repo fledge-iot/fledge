@@ -161,8 +161,6 @@ async def add_service(request):
                                              category_description=category_desc,
                                              category_value=plugin_config,
                                              keep_original_items=True)
-            await config_mgr.create_category(service_type.capitalize(), {}, service_type.capitalize(), True)
-            await config_mgr.create_child_category(service_type.capitalize(), [name])
         except Exception as ex:
             await revert_scheduled_processes(storage, plugin)  # Revert scheduled_process entry
             raise web.HTTPInternalServerError(reason='Failed to create plugin configuration. {}'.format(str(ex)))

@@ -29,6 +29,7 @@ from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
 from foglamp.services.common import utils
+from foglamp.common.plugin_discovery import PluginDiscovery
 
 __author__ = "Terris Linenbach, Amarendra K Sinha, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
@@ -941,6 +942,15 @@ class Scheduler(object):
         if not self._ready:
             raise NotReadyError()
 
+        """ To fetch North/South group of a schedule:
+            1. Fetch plugins list with North/South info from plugin_discovery module.
+            2. Fetch plugin name from configuration table from category = schedule's process_name. 
+            3. Locate schedule's plugin name in plugins_discovery module's list to determine North/South group.
+        """
+        plugins_list = {}
+        for p in PluginDiscovery.get_plugins_installed():
+            plugins_list[p["name"]] = p["type"]
+
         class PseudoSchedule(object):
             schedule_id = None
             name = None
@@ -954,7 +964,6 @@ class Scheduler(object):
             group = None
 
         cfg_manager = ConfigurationManager(self._storage_async)
-        get_children = await cfg_manager.get_all_children_with_parent()
 
         schedules = []
 
@@ -971,7 +980,9 @@ class Scheduler(object):
             psch.process_name = sch.process_name
             psch.schedule_type = sch.schedule_type
             # TODO: After scheduler bug is fixed, change process_name to name
-            psch.group = get_children[sch.process_name] if sch.process_name in get_children else ""
+            get_cfg = await cfg_manager.get_category_all_items(category_name=sch.process_name)
+            if get_cfg is not None:
+                psch.group = plugins_list[get_cfg['plugin']['value']].capitalize() if get_cfg['plugin']['value'] in plugins_list else ""
             schedules.append(psch)
 
         return schedules

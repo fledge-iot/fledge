@@ -7,7 +7,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch, Massimiliano Pinto
+ * Author: Mark Riddoch, Massimiliano Pinto, Amandeep Singh Arora
  */
 #include <storage_client.h>
 #include <reading.h>
@@ -37,6 +37,8 @@ public:
 	bool		running();
 	void		processQueue();
 	void		waitForQueue();
+	void		updateStats(void);
+	int 		createStatsDbEntry(const std::string& assetName);
 
 	static void	passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 					   READINGSET* readings);
@@ -54,11 +56,17 @@ private:
 	// New data: queued
 	std::vector<Reading *>*		m_queue;
 	std::mutex			m_qMutex;
+	std::mutex			m_statsMutex;
 	std::thread*			m_thread;
+	std::thread*			m_statsThread;
 	Logger*				m_logger;
 	std::condition_variable		m_cv;
+	std::condition_variable		m_statsCv;
 	// Data ready to be filtered/sent
 	std::vector<Reading *>*		m_data;
+	unsigned int			m_newReadings; // new readings since last update to statistics table
+	unsigned int			m_discardedReadings; // discarded readings since last update to statistics table
+	std::string			m_readingsAssetName; // asset name extracted from the Reading object
 };
 
 #endif

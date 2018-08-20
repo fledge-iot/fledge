@@ -100,7 +100,7 @@ class TestOCS:
                 "destination_type": {"value": "3"},
                 'sending_process_instance': MagicMock(spec=SendingProcess),
                 "formatNumber": {"value": "float64"},
-                "formatInteger": {"value": "int32"},
+                "formatInteger": {"value": "int64"},
 
         }
 
@@ -148,7 +148,7 @@ class TestOCS:
                 'sending_process_instance': MagicMock(spec=SendingProcess),
 
                 "formatNumber": {"value": "float64"},
-                "formatInteger": {"value": "int32"},
+                "formatInteger": {"value": "int64"},
             },
 
             # Bad case 2 - OMFMaxRetry, bad value expected an int it is a string
@@ -173,7 +173,7 @@ class TestOCS:
                 'sending_process_instance': MagicMock(spec=SendingProcess),
 
                 "formatNumber": {"value": "float64"},
-                "formatInteger": {"value": "int32"},
+                "formatInteger": {"value": "int64"},
             },
 
             # Bad case 3- formatNumber not defined
@@ -197,7 +197,7 @@ class TestOCS:
     
                 'sending_process_instance': MagicMock(spec=SendingProcess),
     
-                "formatInteger": {"value": "int32"}
+                "formatInteger": {"value": "int64"}
             },
 
         
@@ -452,7 +452,7 @@ class TestOCSNorthPlugin:
                                         'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
                                         'lux': {
                                                 'type': 'integer',
-                                                'format': 'int32'
+                                                'format': 'int64'
                                         }
                                     },
                                     'type': 'object'
@@ -482,7 +482,7 @@ class TestOCSNorthPlugin:
         fixture_ocs_north._config = {}
         fixture_ocs_north._config["StaticData"] = p_static_data
         fixture_ocs_north._config["formatNumber"] = "float64"
-        fixture_ocs_north._config["formatInteger"] = "int32"
+        fixture_ocs_north._config["formatInteger"] = "int64"
 
         with patch.object(fixture_ocs_north,
                           'send_in_memory_data_to_picromf',

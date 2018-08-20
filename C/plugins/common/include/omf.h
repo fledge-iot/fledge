@@ -66,6 +66,12 @@ class OMF
 		uint32_t sendToServer(const Reading* reading,
 				      bool skipSentDataTypes = true);
 
+		// Set saved OMF formats
+		void setFormatType(const std::string &key, std::string &value);
+
+		// Get saved OMF formats
+		std::string getFormatType(const std::string &key) const;
+
 	private:
 		/**
 		 * Builds the HTTP header to send
@@ -111,13 +117,21 @@ class OMF
 		// Set saved dataType
 		bool setCreatedTypes(const std::string& key);
 
-        private:
+	private:
 		const std::string		m_path;
 		const std::string		m_typeId;
 		const std::string		m_producerToken;
 		std::map<std::string, bool>	m_createdTypes;
 
-		// Vector with OMF_TYPES
+		// Define the OMF format to use for each type
+		// the format will not be applied if the string is empty
+                std::map<const std::string, std::string> m_formatTypes {
+			{OMF_TYPE_STRING, ""},
+			{OMF_TYPE_INTEGER,"int64"},
+			{OMF_TYPE_FLOAT,  "float64"}
+		};
+
+    		// Vector with OMF_TYPES
 		const std::vector<std::string> omfTypes = { OMF_TYPE_STRING,
 							    OMF_TYPE_INTEGER,
 							    OMF_TYPE_FLOAT };

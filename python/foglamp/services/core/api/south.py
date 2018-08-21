@@ -25,6 +25,52 @@ _help = """
 """
 
 
+async def _get_tracked_services(storage_client):
+    sr_list = list()
+    try:
+        payload = PayloadBuilder().SELECT("service").payload()
+        result = await storage_client.query_tbl_with_payload('asset_tracker', payload)
+
+        services_with_assets = result['rows']
+        try:
+            southbound_services = ServiceRegistry.get(s_type="Southbound")
+        except DoesNotExist:
+            southbound_services = []
+
+        def get_svc(name):
+            return next((ss for ss in southbound_services if ss._name == name), None)
+
+        for ss in southbound_services:
+            sr_list.append(
+                {
+                    'name': ss._name,
+                    'address': ss._address,
+                    'management_port': ss._management_port,
+                    'service_port': ss._port,
+                    'protocol': ss._protocol,
+                    'status': ServiceRecord.Status(int(ss._status)).name.lower(),
+                    'assets': await _get_tracked_assets_and_readings(storage_client, ss._name)
+                })
+        for swa in services_with_assets:
+            south_svc = get_svc(swa["service"])
+            if not south_svc:
+                sr_list.append(
+                    {
+                        'name': swa["service"],
+                        'address': '',
+                        'management_port': '',
+                        'service_port': '',
+                        'protocol': '',
+                        'status': '',
+                        'assets': await _get_tracked_assets_and_readings(storage_client, swa["service"])
+
+                    })
+    except:
+        raise
+    else:
+        return {'services': sr_list}
+
+
 async def _get_tracked_assets_and_readings(storage_client, svc_name):
     asset_json = []
     payload = PayloadBuilder().SELECT("asset").WHERE(['service', '=', svc_name]).payload()
@@ -46,30 +92,6 @@ async def _get_tracked_assets_and_readings(storage_client, svc_name):
         return asset_json
 
 
-async def _get_southbound_service_records():
-    storage_client = connect.get_storage_async()
-    sr_list = list()
-    try:
-        svc_records = ServiceRegistry.get(s_type="Southbound")
-    except DoesNotExist:
-        pass
-    else:
-        for service_record in svc_records:
-            sr_list.append(
-                {
-                    'name': service_record._name,
-                    'address': service_record._address,
-                    'management_port': service_record._management_port,
-                    'service_port': service_record._port,
-                    'protocol': service_record._protocol,
-                    'status': ServiceRecord.Status(int(service_record._status)).name.lower(),
-                    'assets': await _get_tracked_assets_and_readings(storage_client, service_record._name)
-                })
-
-    recs = {'services': sr_list}
-    return recs
-
-
 async def get_south_services(request):
     """
     Args:
@@ -81,5 +103,6 @@ async def get_south_services(request):
     :Example:
             curl -X GET http://localhost:8081/foglamp/south
     """
-    response = await _get_southbound_service_records()
+    storage_client = connect.get_storage_async()
+    response = await _get_tracked_services(storage_client)
     return web.json_response(response)

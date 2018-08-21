@@ -382,8 +382,6 @@ async def enable_schedule_with_name(request):
 
     except (KeyError, ValueError, ScheduleNotFoundError) as e:
         raise web.HTTPNotFound(reason=str(e))
-    except Exception as ex:
-        raise web.HTTPException(reason=str(ex))
     else:
         return web.json_response(schedule)
 
@@ -429,8 +427,6 @@ async def disable_schedule_with_name(request):
 
     except (KeyError, ValueError, ScheduleNotFoundError) as e:
         raise web.HTTPNotFound(reason=str(e))
-    except Exception as ex:
-        raise web.HTTPException(reason=str(ex))
     else:
         return web.json_response(schedule)
 

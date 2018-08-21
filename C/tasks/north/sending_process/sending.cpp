@@ -785,11 +785,7 @@ bool SendingProcess::setupFiltersPipeline() const
 
 	for (auto it = m_filters.begin(); it != m_filters.end(); ++it)
 	{
-		string filterCategoryName = this->getName();
-		filterCategoryName.append("_");
-		filterCategoryName += (*it)->getName();
-		filterCategoryName.append("Filter");
-
+		string filterCategoryName = (*it)->getName();
 		ConfigCategory updatedCfg;
 		vector<string> children;
 

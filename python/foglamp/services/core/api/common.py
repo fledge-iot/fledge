@@ -76,9 +76,7 @@ async def ping(request):
     def services_health_litmus_test():
         all_svc_status = [ServiceRecord.Status(int(service_record._status)).name.upper()
                           for service_record in ServiceRegistry.all()]
-        if 'DOWN' in all_svc_status:
-            return 'red'
-        elif 'FAILED' in all_svc_status:
+        if 'FAILED' in all_svc_status:
             return 'red'
         elif 'UNRESPONSIVE' in all_svc_status:
             return 'amber'

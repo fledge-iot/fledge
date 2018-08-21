@@ -77,6 +77,10 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/schedule/{schedule_id}', api_scheduler.get_schedule)
     app.router.add_route('PUT', '/foglamp/schedule/{schedule_id}/enable', api_scheduler.enable_schedule)
     app.router.add_route('PUT', '/foglamp/schedule/{schedule_id}/disable', api_scheduler.disable_schedule)
+
+    app.router.add_route('PUT', '/foglamp/schedule/enable', api_scheduler.enable_schedule_with_name)
+    app.router.add_route('PUT', '/foglamp/schedule/disable', api_scheduler.disable_schedule_with_name)
+
     app.router.add_route('POST', '/foglamp/schedule/start/{schedule_id}', api_scheduler.start_schedule)
     app.router.add_route('PUT', '/foglamp/schedule/{schedule_id}', api_scheduler.update_schedule)
     app.router.add_route('DELETE', '/foglamp/schedule/{schedule_id}', api_scheduler.delete_schedule)

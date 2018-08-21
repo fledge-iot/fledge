@@ -122,7 +122,11 @@ class FoglampMicroservice(FoglampProcess):
         pass
 
     @abstractmethod
-    async def track(self, request):
+    async def get_track(self, request):
+        pass
+
+    @abstractmethod
+    async def add_track(self, request):
         pass
 
     async def ping(self, request):

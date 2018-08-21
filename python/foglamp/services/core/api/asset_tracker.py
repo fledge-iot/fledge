@@ -36,7 +36,6 @@ async def get_asset_tracker_events(request):
             curl -X GET http://localhost:8081/foglamp/track?event=XXX
             curl -X GET http://localhost:8081/foglamp/track?service=XXX
     """
-    # TODO: limit, offset?
     payload = PayloadBuilder().SELECT("asset", "event", "service", "foglamp", "plugin", "ts") \
         .ALIAS("return", ("ts", 'timestamp')).FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")) \
         .WHERE(['1', '=', 1])

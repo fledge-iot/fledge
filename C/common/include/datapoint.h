@@ -13,7 +13,6 @@
 #include <sstream>
 #include <iomanip>
 #include <cfloat>
-#include <iomanip>
 
 /**
  * Class to hold an actual reading value.

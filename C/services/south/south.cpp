@@ -358,11 +358,7 @@ bool SouthService::setupFiltersPipeline(const Ingest& ingest) const
 	string errMsg = "'plugin_init' failed for filter '";
 	for (auto it = ingest.m_filters.begin(); it != ingest.m_filters.end(); ++it)
 	{
-		string filterCategoryName = m_name;
-		filterCategoryName.append("_");
-		filterCategoryName += (*it)->getName();
-		filterCategoryName.append("Filter");
-
+		string filterCategoryName = (*it)->getName();
 		ConfigCategory updatedCfg;
 		vector<string> children;
         

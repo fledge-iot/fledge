@@ -16,6 +16,7 @@ import uuid
 import os
 import subprocess
 import signal
+import copy
 from typing import List
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common import logger
@@ -940,10 +941,41 @@ class Scheduler(object):
         if not self._ready:
             raise NotReadyError()
 
+        class PseudoSchedule(object):
+            schedule_id = None
+            name = None
+            exclusive = True
+            enabled = False
+            repeat = None
+            time = None
+            day = None
+            process_name = None
+            schedule_type = None
+            group = None
+
         schedules = []
 
         for (schedule_id, schedule_row) in self._schedules.items():
-            schedules.append(self._schedule_row_to_schedule(schedule_id, schedule_row))
+            sch = self._schedule_row_to_schedule(schedule_id, schedule_row)
+            psch = PseudoSchedule()
+            psch.schedule_id = sch.schedule_id
+            psch.name = sch.name
+            psch.exclusive = sch.exclusive
+            psch.enabled = sch.enabled
+            psch.repeat = sch.repeat
+            psch.time = sch.time
+            psch.day = sch.day
+            psch.process_name = sch.process_name
+            psch.schedule_type = sch.schedule_type
+            get_args = self._process_scripts[sch.process_name]
+            if 'tasks/north' in get_args or 'tasks/north_c' in get_args:
+                psch.group = 'North'
+            elif 'services/south' in get_args or 'services/south_c' in get_args:
+                psch.group = 'South'
+            else:
+                psch.group = ""
+
+            schedules.append(psch)
 
         return schedules
 

@@ -669,6 +669,61 @@ class TestMicroserviceManagementClient:
             response_patch.assert_called_once_with()
         request_patch.assert_called_once_with(method='DELETE', url='/foglamp/service/category/TEST/blah/value')
 
+    def test_get_asset_tracker_event(self):
+        microservice_management_host = 'host1'
+        microservice_management_port = 1
+        ms_mgt_client = MicroserviceManagementClient(
+            microservice_management_host, microservice_management_port)
+        response_mock = MagicMock(type=HTTPResponse)
+        undecoded_data_mock = MagicMock()
+        response_mock.read.return_value = undecoded_data_mock
+        test_dict = {
+            "track": [
+                {
+                    "asset": "sinusoid",
+                    "foglamp": "FogLAMP",
+                    "plugin": "sinusoid",
+                    "service": "sine",
+                    "timestamp": "2018-08-21 16:58:45.118",
+                    "event": "Ingest"
+                }
+            ]
+        }
+
+        undecoded_data_mock.decode.return_value = json.dumps(test_dict)
+        response_mock.status = 200
+        with patch.object(HTTPConnection, 'request') as request_patch:
+            with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
+                ret_value = ms_mgt_client.get_asset_tracker_events()
+            response_patch.assert_called_once_with()
+        request_patch.assert_called_once_with(method='GET', url='/foglamp/track')
+        assert test_dict == ret_value
+
+    @pytest.mark.parametrize("status_code, host", [(450, 'Client'), (550, 'Server')])
+    def test_get_asset_tracker_event_client_err(self, status_code, host):
+        microservice_management_host = 'host1'
+        microservice_management_port = 1
+        ms_mgt_client = MicroserviceManagementClient(
+            microservice_management_host, microservice_management_port)
+        response_mock = MagicMock(type=HTTPResponse)
+        undecoded_data_mock = MagicMock()
+        response_mock.read.return_value = undecoded_data_mock
+        undecoded_data_mock.decode.return_value = json.dumps(
+            {'track': []})
+        response_mock.status = status_code
+        response_mock.reason = 'this is the reason'
+        with patch.object(HTTPConnection, 'request') as request_patch:
+            with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
+                with patch.object(_logger, "error") as log_error:
+                    with pytest.raises(Exception) as excinfo:
+                        ms_mgt_client.get_asset_tracker_events()
+                        assert excinfo.type is client_exceptions.MicroserviceManagementClientError
+                assert 1 == log_error.call_count
+                msg = '{} error code: %d, Reason: %s'.format(host)
+                log_error.assert_called_once_with(msg, status_code, 'this is the reason')
+            response_patch.assert_called_once_with()
+        request_patch.assert_called_once_with(method='GET', url='/foglamp/track')
+
     def test_create_asset_tracker_event(self):
         microservice_management_host = 'host1'
         microservice_management_port = 1

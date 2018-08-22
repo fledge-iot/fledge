@@ -24,13 +24,37 @@
 
 // Relative path to FOGLAMP_DATA
 #define PYTHON_FILTERS_PATH "/filters"
-#define FILTER_NAME "Python27"
-// No trailing ".py" is required for the module name
-#define SCRIPT_FILE "readings_filter"
-// Filter method has same name as module one
-#define DEFAULT_FILTER_METHOD SCRIPT_FILE
+#define FILTER_NAME "python27"
+
+/**
+ * The Python 2.7 script module to load is set in
+ * 'script' config item and it doesn't need the trailing .py
+ *
+ * Example:
+ * if filename is 'readings_filter.py', just set 'readings_filter'
+ * via FogLAMP configuration managewr
+ *
+ * Note:
+ * Python 2.7 filter code needs two methods.
+ *
+ * One is the filtering method to call which must have
+ * the same as the script name: it can not be changed.
+ * The second one is the configuration entry point
+ * method 'set_filter_config': it can not be changed
+ *
+ * Example: readings_filter.py
+ *
+ * expected two methods:
+ * - set_filter_config(configuration) // Input is a string
+ *   It sets the configuration internally as dict
+ *
+ * - readings_filter(readings) // Input is a dict
+ *   It returns a dict with filtered input data
+ */
+
 // Filter configuration method
 #define DEFAULT_FILTER_CONFIG_METHOD "set_filter_config"
+// Filter default configuration
 #define DEFAULT_CONFIG "{\"plugin\" : { \"description\" : \"Python 2.7 filter plugin\", " \
                        		"\"type\" : \"string\", " \
 				"\"default\" : \"" FILTER_NAME "\" }, " \
@@ -43,7 +67,7 @@
 				"\"default\" : {}}, " \
 			"\"script\" : {\"description\" : \"Python 2.7 module to load.\", " \
 				"\"type\": \"string\", " \
-				"\"default\": \"" SCRIPT_FILE "\"} }"
+				"\"default\": \"""\"} }"
 using namespace std;
 
 // Python 2.7 loaded filter module handle
@@ -107,6 +131,32 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 						  outHandle,
 						  output);
 
+	// Check whether we have a Python 2.7 script file to import
+	if (handle->getConfig().itemExists("script"))
+	{
+		pythonScript = handle->getConfig().getValue("script");
+	}
+	else
+	{
+		pythonScript = string("");
+	}
+	if (pythonScript.empty())
+	{
+		// Do nothing
+		Logger::getLogger()->warn("Filter '%s', "
+					  "called without a Python 2.7 script. "
+					  "Check 'script' item in '%s' configuration. "
+					  "Filter has been disabled.",
+					  FILTER_NAME,
+					  handle->getConfig().getName().c_str());
+
+		// Force disable
+		handle->disableFilter();
+
+		// Return filter handle
+		return (PLUGIN_HANDLE)handle;
+	}
+		
 	// Embedded Python 2.7 program name
         Py_SetProgramName((char *)config->getName().c_str());
 	// Embedded Python 2.7 initialisation
@@ -126,16 +176,6 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 	// Remove temp object
 	Py_CLEAR(pPath);
 
-	// Load Python module (xyz.py)
-	if (handle->getConfig().itemExists("script"))
-	{
-		pythonScript = handle->getConfig().getValue("script");
-	}
-	else
-	{
-		pythonScript = SCRIPT_FILE;
-	}
-
 	// Set scrip tname
 	PyObject* pName = PyString_FromString(pythonScript.c_str());
 
@@ -153,9 +193,10 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 		{
 			logErrorMessage();
 		}
-		Logger::getLogger()->fatal("Filter '%s', cannot import Python 2.7 script "
-					   "'%s' from '%s'",
+		Logger::getLogger()->fatal("Filter '%s' (%s), cannot import Python 2.7 script "
+					   "'%s.py' from '%s'",
 					   FILTER_NAME,
+					   handle->getConfig().getName().c_str(),
 					   pythonScript.c_str(),
 					   filtersPath.c_str());
 
@@ -163,8 +204,10 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 		return NULL;
 	}
 
-	// Fetch fileter method in loaded object
-	pFunc = PyObject_GetAttrString(pModule, DEFAULT_FILTER_METHOD);
+	// NOTE:
+	// Filter method to call is the same as filter name
+	// Fetch filter method in loaded object
+	pFunc = PyObject_GetAttrString(pModule, pythonScript.c_str());
 
 	if (!PyCallable_Check(pFunc))
         {
@@ -174,10 +217,11 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 			logErrorMessage();
 		}
 
-		Logger::getLogger()->fatal("%s error: cannot find Python 2.7 method "
-					   "'%s' in loaded module '%s'",
+		Logger::getLogger()->fatal("Filter %s (%s) error: cannot find Python 2.7 method "
+					   "'%s' in loaded module '%s.py'",
 					   FILTER_NAME,
-					   DEFAULT_FILTER_METHOD,
+					   handle->getConfig().getName().c_str(),
+					   pythonScript.c_str(),
 					   pythonScript.c_str());
 		Py_CLEAR(pModule);
 		Py_CLEAR(pFunc);
@@ -285,9 +329,10 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 	if (!readingsList)
 	{
 		// Errors while creating Python 2.7 filter input object
-		Logger::getLogger()->error("Filter '%s', script '%s', "
+		Logger::getLogger()->error("Filter '%s' (%s), script '%s', "
 					   "create filter data error, action: %s",
 					   FILTER_NAME,
+					   filter->getConfig().getName().c_str(),
 					   pythonScript.c_str(),
 					  "pass unfiltered data onwards");
 
@@ -310,9 +355,10 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 	if (!pReturn)
 	{
 		// Errors while getting result object
-		Logger::getLogger()->error("Filter '%s', script '%s', "
+		Logger::getLogger()->error("Filter '%s' (%s), script '%s', "
 					   "filter error, action: %s",
 					   FILTER_NAME,
+					   filter->getConfig().getName().c_str(),
 					   pythonScript.c_str(),
 					   "pass unfiltered data onwards");
 

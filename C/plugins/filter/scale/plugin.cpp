@@ -114,10 +114,6 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 		scaleFactor = strtod(SCALE_FACTOR, NULL);
 	}
 
-	Logger::getLogger()->info("filter %s is using configuration value 'factor' = %f",
-				  FILTER_NAME,
-				  scaleFactor);
-
 	// 1- We might need to transform the inout readings set: example
 	// ReadingSet* newReadings = scale_readings(scaleFactor, readingSet);
 
@@ -139,11 +135,11 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 			// If INTEGER or FLOAT do the change
 			if (value.getType() == DatapointValue::T_INTEGER)
 			{
-				value.setValue((int)(atoi(value.toString().c_str()) * scaleFactor));
+				value.setValue((int)(value.toInt() * scaleFactor));
 			}
 			else if (value.getType() == DatapointValue::T_FLOAT)
 			{
-				value.setValue(atof(value.toString().c_str()) * scaleFactor);
+				value.setValue(value.toDouble() * scaleFactor);
 			}
 			else
 			{

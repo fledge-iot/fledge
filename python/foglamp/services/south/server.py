@@ -280,5 +280,9 @@ class Server(FoglampMicroservice):
 
         return web.json_response({"south": "change"})
 
-    async def track(self, request):
+    # get_track and add_track are empty methods required for mgt_route binding only
+    async def get_track(self, request):
+        pass
+
+    async def add_track(self, request):
         pass

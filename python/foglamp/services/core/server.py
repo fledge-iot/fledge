@@ -1099,15 +1099,15 @@ class Server:
 
         try:
             result = await cls._asset_tracker.add_asset_record(asset=data.get("asset"),
-                                                          plugin=data.get("plugin"),
-                                                          service=data.get("service"),
-                                                          event=data.get("event"))
+                                                               plugin=data.get("plugin"),
+                                                               service=data.get("service"),
+                                                               event=data.get("event"))
         except (TypeError, StorageServerError) as ex:
             raise web.HTTPBadRequest(reason=str(ex))
         except ValueError as ex:
             raise web.HTTPNotFound(reason=str(ex))
         except Exception as ex:
-            raise web.HTTPInternalServerError(reason=ex)
+            raise web.HTTPException(reason=ex)
 
         return web.json_response(result)
 

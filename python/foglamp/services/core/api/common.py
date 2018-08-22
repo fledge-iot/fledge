@@ -109,11 +109,8 @@ async def get_stats(req):
         v = [s['value'] for s in stats if s['key'] == k]
         return int(v[0])
 
-    def filter_sent_stat():
-        return sum([int(s['value']) for s in stats if s['key'].upper().startswith('NORTH')])
-
     data_read = filter_stat('READINGS')
-    data_sent = filter_sent_stat()
+    data_sent = filter_stat('Readings Sent')
     data_purged = filter_stat('PURGED')
 
     return data_read, data_sent, data_purged

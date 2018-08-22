@@ -39,7 +39,7 @@ Install the following prerequisites to run a System tests suite ::
 
    apt-get install jq
 
-Also, foglamp must have::
+Also, foglamp must have:
 
    1. All dependencies |installed|
    2. |build|

@@ -25,6 +25,7 @@ class FogLampFilter{
 				getName() const { return m_name; };
 		bool		isEnabled() const { return m_enabled; };
 		ConfigCategory& getConfig() { return m_config; };
+		void		disableFilter() { m_enabled = false; };
 	public:
 		OUTPUT_HANDLE*	m_data;
 		OUTPUT_STREAM	m_func;

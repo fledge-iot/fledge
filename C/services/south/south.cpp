@@ -103,6 +103,17 @@ pid_t pid;
 }
 
 /**
+ * Callback called by south plugin to ingest readings into FogLAMP
+ *
+ * @param ingest	The ingest class to use
+ * @param reading	The Reading to ingest
+ */
+void doIngest(Ingest *ingest, Reading reading)
+{
+	ingest->ingest(reading);
+}
+
+/**
  * Constructor for the south service
  */
 SouthService::SouthService(const string& myName) : m_name(myName), m_shutdown(false), m_pollInterval(1000)
@@ -199,11 +210,22 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		}
 
 		// Get and ingest data
-		while (!m_shutdown)
+		if (! southPlugin->isAsync())
 		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(m_pollInterval));
-			Reading reading = southPlugin->poll();
-			ingest.ingest(reading);
+			while (!m_shutdown)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(m_pollInterval));
+				Reading reading = southPlugin->poll();
+				ingest.ingest(reading);
+			}
+		}
+		else
+		{
+			southPlugin->registerIngest((INGEST_CB)doIngest, &ingest);
+			while (!m_shutdown)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			}
 		}
 
 		// Clean shutdown, unregister the storage service

@@ -632,32 +632,32 @@ DELETE FROM foglamp.configuration;
 -- North plugins
 
 -- North_Readings_to_PI - OMF Translator for readings
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'North_Readings_to_PI',
-              'OMF North Plugin - C Code',
-              ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that OMF North Plugin will load" } } '
-            );
+--INSERT INTO foglamp.configuration ( key, description, value )
+--     VALUES ( 'North_Readings_to_PI',
+--              'OMF North Plugin - C Code',
+--              ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that OMF North Plugin will load" } } '
+--            );
 
 -- North_Readings_to_HTTP - for readings
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'North_Readings_to_HTTP',
-              'HTTP North Plugin - C Code',
-              ' { "plugin" : { "type" : "string", "value" : "http-north", "default" : "http-north", "description" : "Module that HTTP North Plugin will load" } } '
-            );
+--INSERT INTO foglamp.configuration ( key, description, value )
+--     VALUES ( 'North_Readings_to_HTTP',
+--              'HTTP North Plugin - C Code',
+--              ' { "plugin" : { "type" : "string", "value" : "http-north", "default" : "http-north", "description" : "Module that HTTP North Plugin will load" } } '
+--            );
 
 -- dht11 - South plugin for DHT11 - C
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'dht11',
-              'DHT11 South C Plugin',
-              ' { "plugin" : { "type" : "string", "value" : "dht11", "default" : "dht11", "description" : "Module that DHT11 South Plugin will load" } } '
-            );
+--INSERT INTO foglamp.configuration ( key, description, value )
+--     VALUES ( 'dht11',
+--              'DHT11 South C Plugin',
+--              ' { "plugin" : { "type" : "string", "value" : "dht11", "default" : "dht11", "description" : "Module that DHT11 South Plugin will load" } } '
+--            );
 
 -- North_Statistics_to_PI - OMF Translator for statistics
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'North_Statistics_to_PI',
-              'OMF North Plugin - C Code',
-              ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that OMF North Plugin will load" } } '
-            );
+--INSERT INTO foglamp.configuration ( key, description, value )
+--     VALUES ( 'North_Statistics_to_PI',
+--              'OMF North Plugin - C Code',
+--              ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that OMF North Plugin will load" } } '
+--            );
 
 -- North Readings to PI - OMF Translator for readings
 INSERT INTO foglamp.configuration ( key, description, value )

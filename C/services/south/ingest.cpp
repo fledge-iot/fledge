@@ -35,8 +35,6 @@ static void ingestThread(Ingest *ingest)
  */
 void Ingest::populateAssetTrackingCache(ManagementClient *m_mgtClient)
 {
-	//string& tuplesString;
-
 	try {
 		std::vector<AssetTrackingTuple*>& vec = m_mgtClient->getAssetTrackingTuples();
 		for (AssetTrackingTuple* & rec : vec)
@@ -44,6 +42,7 @@ void Ingest::populateAssetTrackingCache(ManagementClient *m_mgtClient)
 			if (rec->m_serviceName != m_serviceName || rec->m_pluginName != m_pluginName || rec->m_eventName != "Ingest")
 				{
 				m_logger->info("Service/plugin/event name mismatch; NOT adding asset tracker tuple to cache: '%s'", rec->assetToString().c_str());
+				delete rec;
 				continue;
 				}
 			assetTrackerTuplesCache.insert(rec);
@@ -62,12 +61,11 @@ void Ingest::populateAssetTrackingCache(ManagementClient *m_mgtClient)
  * Check local cache for a given asset tracking tuple
  *
  * @param tuple		Tuple to find in cache
- * @return bool		Returns whether tuple is present in cache
+ * @return			Returns whether tuple is present in cache
  */
 bool Ingest::checkAssetTrackingCache(AssetTrackingTuple& tuple)
 {
 	AssetTrackingTuple *ptr = &tuple;
-	//auto &it = assetTrackerTuplesCache.find(ptr);
 	std::unordered_set<AssetTrackingTuple*>::const_iterator it = assetTrackerTuplesCache.find(ptr);
 	if (it == assetTrackerTuplesCache.end())
 		{
@@ -75,10 +73,7 @@ bool Ingest::checkAssetTrackingCache(AssetTrackingTuple& tuple)
 		return false;
 		}
 	else
-		{
-		//m_logger->info("checkAssetTrackingCache(): Tuple found in cache: '%s'", tuple.assetToString().c_str());
 		return true;
-		}
 }
 
 /**
@@ -92,7 +87,7 @@ void Ingest::addAssetTrackingTuple(AssetTrackingTuple& tuple)
 	if (it == assetTrackerTuplesCache.end())
 		{
 		m_logger->info("addAssetTrackingTuple(): Tuple not found in cache: '%s', adding now.", tuple.assetToString().c_str());\
-		bool rv = m_mgtClient->addAssetTrackingTuple(tuple.m_serviceName,tuple.m_pluginName,tuple.m_assetName,"Ingest");
+		bool rv = m_mgtClient->addAssetTrackingTuple(tuple.m_serviceName, tuple.m_pluginName, tuple.m_assetName, "Ingest");
 		if (rv) // insert into cache only if DB operation succeeded
 			{
 			AssetTrackingTuple *ptr = new AssetTrackingTuple(tuple);
@@ -100,11 +95,8 @@ void Ingest::addAssetTrackingTuple(AssetTrackingTuple& tuple)
 			}
 		}
 	else
-		{
 		m_logger->info("addAssetTrackingTuple(): Tuple already found in cache: '%s', not adding again", tuple.assetToString().c_str());
-		}
 }
-
 
 /**
  * Create a row for given assetName in statistics DB table, if not present already
@@ -178,7 +170,7 @@ void Ingest::updateStats()
 	unique_lock<mutex> lck(m_statsMutex);
 	m_statsCv.wait(lck);
 	/*Logger::getLogger()->info("%s:%d : stats thread: wakeup from sleep, now updating stats, m_newReadings=%d, m_discardedReadings=%d, m_readingsAssetName='%s'",
-								__FUNCTION__, __LINE__, m_newReadings, m_discardedReadings, m_readingsAssetName.c_str());
+				__FUNCTION__, __LINE__, m_newReadings, m_discardedReadings, m_readingsAssetName.c_str());
 	*/
 	
 	if (m_newReadings==0 && m_discardedReadings==0) return; // nothing to update, possible spurious wakeup
@@ -395,8 +387,6 @@ vector<Reading *>* newQ = new vector<Reading *>();
 			addAssetTrackingTuple(tuple);
 			m_logger->info("processQueue(): Added new asset tracking tuple seen during readings' ingest: %s", tuple.assetToString().c_str());
 			}
-		//else
-			//m_logger->info("processQueue(): Asset tracking tuple already exists in cache: %s", tuple.assetToString().c_str());
 	}
 	
 	ReadingSet* readingSet = NULL;

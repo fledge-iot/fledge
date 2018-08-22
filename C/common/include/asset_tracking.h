@@ -34,11 +34,6 @@ public:
 		return ( x.m_serviceName==m_serviceName && x.m_pluginName==m_pluginName && x.m_assetName==m_assetName && x.m_eventName==m_eventName);
 	}
 
-	/*bool operator==(const AssetTrackingTuple* x) const
-	{
-		return ( x->m_serviceName==m_serviceName && x->m_pluginName==m_pluginName && x->m_assetName==m_assetName && x->m_eventName==m_eventName);
-	}*/
-
 	AssetTrackingTuple(const std::string& service, const std::string& plugin, 
 								 const std::string& asset, const std::string& event) :
 									m_serviceName(service), m_pluginName(plugin), 

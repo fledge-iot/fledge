@@ -39,9 +39,9 @@ class ManagementClient {
 							   const std::vector<std::string>& children) const;
 		std::vector<AssetTrackingTuple*>&	getAssetTrackingTuples() const;
 		bool addAssetTrackingTuple(const std::string& service, 
-													const std::string& plugin, 
-													const std::string& asset, 
-													const std::string& event);
+												const std::string& plugin, 
+												const std::string& asset, 
+												const std::string& event);
 
 private:
 		HttpClient				*m_client;

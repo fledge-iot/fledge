@@ -415,7 +415,7 @@ string ManagementClient::addChildCategories(const string& parentCategory,
 /**
  * Get the asset tracking tuples
  *
- * @return			JSON string with all asset tracking tuples
+ * @return		A vector of pointers to AssetTrackingTuple objects allocated on heap
  */
 std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples() const
 {
@@ -427,21 +427,15 @@ std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples() con
 		Document doc;
 		string response = res->content.string();
 		m_logger->info("GET /foglamp/track: response='%s'", response.c_str());
-		/*string response("{\"track\": [{\"foglamp\": \"FogLAMP\", \"event\": \"Ingest\", \"asset\": \"sinusoid_asset\", \"timestamp\": \"2018-08-20 12:20:47.063\", \"plugin\": \"sinusoid_plugin\", \"service\": \"sinusoid_service\"}," \
-							"{\"foglamp\": \"FogLAMP\", \"event\": \"Egress\", \"asset\": \"sinusoid_2_asset\", \"timestamp\": \"2018-08-20 12:20:47.063\", \"plugin\": \"sinusoid_2_plugin\", \"service\": \"sinusoid_2_service\"}]}");
-		m_logger->info("2. Faked response='%s' ", response.c_str());
-		*/
 		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
-			m_logger->info("%s:%d", __FUNCTION__, __LINE__);
 			m_logger->error("Failed to parse result of fetch asset tracking tuples: %s\n",
 					response.c_str());
 			throw new exception();
 		}
 		else if (doc.HasMember("message"))
 		{
-			m_logger->info("%s:%d", __FUNCTION__, __LINE__);
 			m_logger->error("Failed to fetch asset tracking tuples: %s.",
 				doc["message"].GetString());
 			throw new exception();
@@ -486,7 +480,6 @@ std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples() con
  * @param asset		Asset name
  * @param event		Event type
  * @return		whether operation was successful
-
  */
 bool ManagementClient::addAssetTrackingTuple(const std::string& service, 
 					const std::string& plugin, const std::string& asset, const std::string& event)
@@ -497,9 +490,7 @@ bool ManagementClient::addAssetTrackingTuple(const std::string& service,
 		convert << "{ \"service\" : \"" << service << "\", ";
 		convert << " \"plugin\" : \"" << plugin << "\", ";
 		convert << " \"asset\" : \"" << asset << "\", ";
-		//convert << "{ \"foglamp\" : \"" << foglamp << "\", ";
 		convert << " \"event\" : \"" << event << "\" }";
-		m_logger->info("POST /foglamp/track: request='%s' ", convert.str().c_str());
 		
 		auto res = m_client->request("POST", "/foglamp/track", convert.str());
 		Document doc;
@@ -533,6 +524,5 @@ bool ManagementClient::addAssetTrackingTuple(const std::string& service,
 				return false;
 		}
 		return false;
-
 }
 

@@ -1,5 +1,22 @@
 #!/bin/bash
 
+# Declares used variables
+declare TEST_BASEDIR
+declare SUITE_BASEDIR
+declare FOGLAMP_SERVER
+declare FOGLAMP_PORT
+declare SCHEDULE_ID_OMF_PLUGIN
+declare RESULT_DIR
+declare TEST_NAME
+declare SENDING_PROCESS_DATA
+declare PI_SERVER
+declare PI_SERVER_PORT
+declare OMF_PRODUCER_TOKEN
+declare OMF_TYPE_ID
+
+# Reads configuration setting
+source ${SUITE_BASEDIR}/suite.cfg
+
 $TEST_BASEDIR/bash/exec_any_foglamp_command.bash start                                                                  1>>"${RESULT_DIR}/${TEST_NAME}_out.temp" 2>>"${RESULT_DIR}/${TEST_NAME}_err.temp"
 
 $TEST_BASEDIR/bash/wait_foglamp_status.bash RUNNING                                                                     1>>"${RESULT_DIR}/${TEST_NAME}_out.temp" 2>>"${RESULT_DIR}/${TEST_NAME}_err.temp"
@@ -9,4 +26,10 @@ $TEST_BASEDIR/bash/check_foglamp_status.bash > ${RESULT_DIR}/$TEST_NAME.temp 2>&
 # Grab the 1st line and remove all digits (version #), spaces and dots
 head -n1 ${RESULT_DIR}/$TEST_NAME.temp | tr -d '[0-9]. '
 
+# Checks if the FogLAMP server is reachable
+curl -s -X GET http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/ > /dev/null 2>&1
+if [[ "$?" != "0" ]]; then
 
+    echo "ERROR : FogLAMP server not reachable, server:port -${FOGLAMP_SERVER}:${FOGLAMP_PORT}-."
+    exit 1
+fi

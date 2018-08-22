@@ -30,9 +30,9 @@ Install the following prerequisites to run a System tests suite ::
 
 Also, foglamp must have:
 
-   1. All dependencies [installed](https://github.com/foglamp/FogLAMP#build-prerequisites).
-   2.  [build](url) (https://github.com/foglamp/FogLAMP#build) 
-   3. and FogLAMP_ROOT must be [set](https://github.com/foglamp/FogLAMP#testing-foglamp-from-your-development-environment)
+   1. All dependencies <a href="https://github.com/foglamp/FogLAMP#build-prerequisites" target="_blank">installed</a>
+   2. <a href="https://github.com/foglamp/FogLAMP#build" target="_blank">build</a>
+   3. and FogLAMP_ROOT must be <a href="https://github.com/foglamp/FogLAMP#testing-foglamp-from-your-development-environment" target="_blank">set</a>
 
 
 Test Execution

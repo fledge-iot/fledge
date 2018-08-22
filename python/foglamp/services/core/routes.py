@@ -19,11 +19,8 @@ from foglamp.services.core.api import support
 from foglamp.services.core.api import plugin_discovery
 from foglamp.services.core.api import task
 from foglamp.services.core.api import asset_tracker
-<<<<<<< HEAD
 from foglamp.services.core.api import south
-=======
 from foglamp.services.core.api import north
->>>>>>> origin/north
 
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"

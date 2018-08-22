@@ -16,8 +16,11 @@
 #include <thread>
 #include <chrono>
 #include <mutex>
+#include <sstream>
+#include <unordered_set>
 #include <condition_variable>
 #include <filter_plugin.h>
+#include <asset_tracking.h>
 
 /**
  * The ingest class is used to ingest asset readings.
@@ -33,7 +36,7 @@ public:
 		unsigned int threshold,
 		const std::string& serviceName,
 		const std::string& pluginName,
-		ManagementClient *m_mgtClient);
+		ManagementClient *m_mgmtClient);
 	~Ingest();
 
 	void		ingest(const Reading& reading);
@@ -48,6 +51,9 @@ public:
 	static void	useFilteredData(OUTPUT_HANDLE *outHandle,
 					READINGSET* readings);
 
+	void 		populateAssetTrackingCache(ManagementClient *m_mgtClient);
+	void 		checkAssetTrackingCache(AssetTrackingTuple& tuple);
+
 public:
 	std::vector<FilterPlugin *>	m_filters;
 
@@ -56,8 +62,8 @@ private:
 	unsigned long			m_timeout;
 	unsigned int			m_queueSizeThreshold;
 	bool				m_running;
-	std::string& 		m_serviceName;
-	std::string& 		m_pluginName;
+	std::string 		m_serviceName;
+	std::string 		m_pluginName;
 	ManagementClient		*m_mgtClient;
 	// New data: queued
 	std::vector<Reading *>*		m_queue;
@@ -73,6 +79,8 @@ private:
 	unsigned int			m_newReadings; // new readings since last update to statistics table
 	unsigned int			m_discardedReadings; // discarded readings since last update to statistics table
 	std::string			m_readingsAssetName; // asset name extracted from the Reading object
+	
+	std::unordered_set<AssetTrackingTuple*, std::hash<AssetTrackingTuple*>, AssetTrackingTuplePtrEqual>   assetTrackerTuplesCache;
 };
 
 #endif

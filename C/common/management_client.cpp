@@ -13,6 +13,7 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <asset_tracking.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -416,34 +417,84 @@ string ManagementClient::addChildCategories(const string& parentCategory,
  *
  * @return			JSON string with all asset tracking tuples
  */
-std::string ManagementClient::getAssetTrackingTuples() const
+std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples() const
 {
+	std::vector<AssetTrackingTuple*> *vec = new std::vector<AssetTrackingTuple*>();
+	
 	try {
 		string url = "/foglamp/track";
 		auto res = m_client->request("GET", url.c_str());
 		Document doc;
-		string response = res->content.string();
+		string response1 = res->content.string();
+		m_logger->info("1. GET /foglamp/track: actual response='%s'", response1.c_str());
+		string response("{\"track\": [{\"foglamp\": \"FogLAMP\", \"event\": \"Ingest\", \"asset\": \"sinusoid_asset\", \"timestamp\": \"2018-08-20 12:20:47.063\", \"plugin\": \"sinusoid_plugin\", \"service\": \"sinusoid_service\"}," \
+							"{\"foglamp\": \"FogLAMP\", \"event\": \"Egress\", \"asset\": \"sinusoid_2_asset\", \"timestamp\": \"2018-08-20 12:20:47.063\", \"plugin\": \"sinusoid_2_plugin\", \"service\": \"sinusoid_2_service\"}]}");
+		m_logger->info("2. Faked response='%s' ", response.c_str());
 		doc.Parse(response.c_str());
+		m_logger->info("3. doc.Parse() done");
 		if (doc.HasParseError())
 		{
+			m_logger->info("%s:%d", __FUNCTION__, __LINE__);
 			m_logger->error("Failed to parse result of fetch asset tracking tuples: %s\n",
 					response.c_str());
 			throw new exception();
 		}
-		else if (doc.HasMember("track"))
+		else if (doc.HasMember("message"))
 		{
+			m_logger->info("%s:%d", __FUNCTION__, __LINE__);
 			m_logger->error("Failed to fetch asset tracking tuples: %s.",
-				doc["track"].GetString());
+				doc["message"].GetString());
 			throw new exception();
 		}
 		else
 		{
-			return response;
+			m_logger->info("%s:%d", __FUNCTION__, __LINE__);
+#if 0
+			string *temp = new string(doc["track"].GetString());
+			m_logger->info("%s:%d", __FUNCTION__, __LINE__);
+			m_logger->info("4. returning track array='%s'", temp->c_str());
+			m_logger->info("%s:%d", __FUNCTION__, __LINE__);
+			string &t = *temp;
+			m_logger->info("%s:%d", __FUNCTION__, __LINE__);
+#endif
+
+			const rapidjson::Value& trackArray = doc["track"];
+			if (trackArray.IsArray())
+			{
+				m_logger->info("%s:%d", __FUNCTION__, __LINE__);
+				// Process every row and create the AssetTrackingTuple object
+				for (auto& rec : trackArray.GetArray())
+				{
+					m_logger->info("%s:%d", __FUNCTION__, __LINE__);
+					if (!rec.IsObject())
+					{
+						throw runtime_error("Expected asset tracker tuple to be an object");
+					}
+					m_logger->info("%s:%d", __FUNCTION__, __LINE__);
+					AssetTrackingTuple *tuple = new AssetTrackingTuple(rec["service"].GetString(), rec["plugin"].GetString(), rec["asset"].GetString(), rec["event"].GetString());
+					m_logger->info("%s:%d", __FUNCTION__, __LINE__);
+					vec->push_back(tuple);
+					m_logger->info("%s:%d", __FUNCTION__, __LINE__);
+				}
+			}
+			else
+			{
+				throw runtime_error("Expected array of rows in asset track tuples array");
+			}
+			m_logger->info("%s:%d", __FUNCTION__, __LINE__);
+
+			return (*vec);
 		}
 	} catch (const SimpleWeb::system_error &e) {
-		m_logger->error("Get config categories failed %s.", e.what());
-		throw;
+		m_logger->info("%s:%d", __FUNCTION__, __LINE__);
+		m_logger->error("Fetch/parse of asset tracking tuples failed: %s.", e.what());
+		//throw;
 	}
+	catch (...) {
+		m_logger->info("%s:%d", __FUNCTION__, __LINE__);
+		m_logger->error("Some other exception");
+	}
+	m_logger->info("%s:%d", __FUNCTION__, __LINE__);
 }
 
 /**

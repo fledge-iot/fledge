@@ -33,20 +33,46 @@ static void ingestThread(Ingest *ingest)
  *
  * @param m_mgtClient	Management client handle
  */
-void Ingest::PopulateAssetTrackingCache(ManagementClient *m_mgtClient)
+void Ingest::populateAssetTrackingCache(ManagementClient *m_mgtClient)
 {
-	string tuplesString;
+	//string& tuplesString;
 
 	try {
-		tuplesString = m_mgtClient->getAssetTrackingTuples();
+		std::vector<AssetTrackingTuple*>& vec = m_mgtClient->getAssetTrackingTuples();
+		for (AssetTrackingTuple* & rec : vec)
+			{
+			assetTrackerTuplesCache.insert(rec);
+			m_logger->info("Added asset tracker tuple to cache: '%s'", rec->assetToString().c_str());
+			}
+		delete (&vec);
 		}
 	catch (...)
 		{
 		m_logger->error("Failed to populate asset tracking tuples' cache");
 		return;
 		}
-	m_logger->info("tuplesString='%s' ", tuplesString);
 }
+
+/**
+ * Check local cache for a given asset tracking tuple
+ *
+ * @param tuple		Tuple to find in cache
+ */
+void Ingest::checkAssetTrackingCache(AssetTrackingTuple& tuple)
+{
+	AssetTrackingTuple *ptr = &tuple;
+	//auto &it = assetTrackerTuplesCache.find(ptr);
+	std::unordered_set<AssetTrackingTuple*>::const_iterator it = assetTrackerTuplesCache.find(ptr);
+	if (it == assetTrackerTuplesCache.end())
+		{
+		m_logger->info("Tuple not found in cache: '%s'", tuple.assetToString().c_str());
+		}
+	else
+		{
+		m_logger->info("Tuple found in cache: '%s'", tuple.assetToString().c_str());
+		}
+}
+
 
 /**
  * Create a row for given assetName in statistics DB table, if not present already
@@ -211,16 +237,16 @@ void Ingest::updateStats()
  */
 Ingest::Ingest(StorageClient& storage,
 		unsigned long timeout,
-		unsigned int threshold
+		unsigned int threshold,
 		const std::string& serviceName,
 		const std::string& pluginName,
-		ManagementClient *m_mgtClient) :
+		ManagementClient *m_mgmtClient) :
 			m_storage(storage),
 			m_timeout(timeout),
 			m_queueSizeThreshold(threshold),
 			m_serviceName(serviceName),
 			m_pluginName(pluginName),
-			m_mgtClient(m_mgtClient)
+			m_mgtClient(m_mgmtClient)
 {
 	
 	m_running = true;
@@ -234,7 +260,15 @@ Ingest::Ingest(StorageClient& storage,
 	m_readingsAssetName = "unknown";
 
 	// populate asset tracking cache
-	PopulateAssetTrackingCache(m_mgtClient);
+	populateAssetTrackingCache(m_mgtClient);
+
+	AssetTrackingTuple tuple1("dummy_service", "dummy_plugin", "dummy_asset", "Ingest");
+	AssetTrackingTuple tuple2("sinusoid_service", "sinusoid_plugin", "sinusoid_asset", "Ingest");
+
+	checkAssetTrackingCache(tuple1);
+	checkAssetTrackingCache(tuple2);
+
+	//m_mgtClient->addAssetTrackingTuple("dummy_service", "dummy_plugin", "dummy_asset", "Ingest");
 
 	m_logger->info("%s:%d : timeout=%d, threshold=%d", __FUNCTION__, __LINE__, timeout, threshold);
 }

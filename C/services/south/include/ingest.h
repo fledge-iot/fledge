@@ -52,7 +52,8 @@ public:
 					READINGSET* readings);
 
 	void 		populateAssetTrackingCache(ManagementClient *m_mgtClient);
-	void 		checkAssetTrackingCache(AssetTrackingTuple& tuple);
+	bool 		checkAssetTrackingCache(AssetTrackingTuple& tuple);
+	void 		addAssetTrackingTuple(AssetTrackingTuple& tuple);
 
 public:
 	std::vector<FilterPlugin *>	m_filters;

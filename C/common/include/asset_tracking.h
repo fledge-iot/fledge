@@ -25,7 +25,7 @@ public:
 	std::string assetToString()
 	{
 		std::ostringstream o;
-		o << "service: " << m_serviceName << ", plugin:" << m_pluginName << ", asset:" << m_assetName << ", event:" << m_eventName;
+		o << "service:" << m_serviceName << ", plugin:" << m_pluginName << ", asset:" << m_assetName << ", event:" << m_eventName;
 		return o.str();
 	}
 

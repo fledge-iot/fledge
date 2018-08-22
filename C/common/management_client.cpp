@@ -425,13 +425,13 @@ std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples() con
 		string url = "/foglamp/track";
 		auto res = m_client->request("GET", url.c_str());
 		Document doc;
-		string response1 = res->content.string();
-		m_logger->info("1. GET /foglamp/track: actual response='%s'", response1.c_str());
-		string response("{\"track\": [{\"foglamp\": \"FogLAMP\", \"event\": \"Ingest\", \"asset\": \"sinusoid_asset\", \"timestamp\": \"2018-08-20 12:20:47.063\", \"plugin\": \"sinusoid_plugin\", \"service\": \"sinusoid_service\"}," \
+		string response = res->content.string();
+		m_logger->info("GET /foglamp/track: response='%s'", response.c_str());
+		/*string response("{\"track\": [{\"foglamp\": \"FogLAMP\", \"event\": \"Ingest\", \"asset\": \"sinusoid_asset\", \"timestamp\": \"2018-08-20 12:20:47.063\", \"plugin\": \"sinusoid_plugin\", \"service\": \"sinusoid_service\"}," \
 							"{\"foglamp\": \"FogLAMP\", \"event\": \"Egress\", \"asset\": \"sinusoid_2_asset\", \"timestamp\": \"2018-08-20 12:20:47.063\", \"plugin\": \"sinusoid_2_plugin\", \"service\": \"sinusoid_2_service\"}]}");
 		m_logger->info("2. Faked response='%s' ", response.c_str());
+		*/
 		doc.Parse(response.c_str());
-		m_logger->info("3. doc.Parse() done");
 		if (doc.HasParseError())
 		{
 			m_logger->info("%s:%d", __FUNCTION__, __LINE__);
@@ -448,53 +448,34 @@ std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples() con
 		}
 		else
 		{
-			m_logger->info("%s:%d", __FUNCTION__, __LINE__);
-#if 0
-			string *temp = new string(doc["track"].GetString());
-			m_logger->info("%s:%d", __FUNCTION__, __LINE__);
-			m_logger->info("4. returning track array='%s'", temp->c_str());
-			m_logger->info("%s:%d", __FUNCTION__, __LINE__);
-			string &t = *temp;
-			m_logger->info("%s:%d", __FUNCTION__, __LINE__);
-#endif
-
 			const rapidjson::Value& trackArray = doc["track"];
 			if (trackArray.IsArray())
 			{
-				m_logger->info("%s:%d", __FUNCTION__, __LINE__);
 				// Process every row and create the AssetTrackingTuple object
 				for (auto& rec : trackArray.GetArray())
 				{
-					m_logger->info("%s:%d", __FUNCTION__, __LINE__);
 					if (!rec.IsObject())
 					{
 						throw runtime_error("Expected asset tracker tuple to be an object");
 					}
-					m_logger->info("%s:%d", __FUNCTION__, __LINE__);
 					AssetTrackingTuple *tuple = new AssetTrackingTuple(rec["service"].GetString(), rec["plugin"].GetString(), rec["asset"].GetString(), rec["event"].GetString());
-					m_logger->info("%s:%d", __FUNCTION__, __LINE__);
 					vec->push_back(tuple);
-					m_logger->info("%s:%d", __FUNCTION__, __LINE__);
 				}
 			}
 			else
 			{
 				throw runtime_error("Expected array of rows in asset track tuples array");
 			}
-			m_logger->info("%s:%d", __FUNCTION__, __LINE__);
 
 			return (*vec);
 		}
 	} catch (const SimpleWeb::system_error &e) {
-		m_logger->info("%s:%d", __FUNCTION__, __LINE__);
 		m_logger->error("Fetch/parse of asset tracking tuples failed: %s.", e.what());
 		//throw;
 	}
 	catch (...) {
-		m_logger->info("%s:%d", __FUNCTION__, __LINE__);
 		m_logger->error("Some other exception");
 	}
-	m_logger->info("%s:%d", __FUNCTION__, __LINE__);
 }
 
 /**
@@ -514,13 +495,16 @@ bool ManagementClient::addAssetTrackingTuple(const std::string& service,
 
 	try {
 		convert << "{ \"service\" : \"" << service << "\", ";
-		convert << "{ \"plugin\" : \"" << plugin << "\", ";
-		convert << "{ \"asset\" : \"" << asset << "\", ";
+		convert << " \"plugin\" : \"" << plugin << "\", ";
+		convert << " \"asset\" : \"" << asset << "\", ";
 		//convert << "{ \"foglamp\" : \"" << foglamp << "\", ";
-		convert << "\"event\" : \"" << event << "\" }";
+		convert << " \"event\" : \"" << event << "\" }";
+		m_logger->info("POST /foglamp/track: request='%s' ", convert.str().c_str());
+		
 		auto res = m_client->request("POST", "/foglamp/track", convert.str());
 		Document doc;
 		string content = res->content.string();
+		m_logger->info("POST /foglamp/track: response='%s' ", content.c_str());
 		doc.Parse(content.c_str());
 		if (doc.HasParseError())
 		{

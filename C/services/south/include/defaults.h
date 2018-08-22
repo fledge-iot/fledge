@@ -17,7 +17,7 @@ static struct {
 	const char	*value;
 } defaults[] = {
 	{ "pollInterval",	"Wait time between polls of the device (ms)",	"integer", "1000" },
-	{ "maxSendLatency",	"Maximum time to spend filler buffer before sending", "integer", "5000" },
+	{ "maxSendLatency",	"Maximum time to spend filling buffer before sending", "integer", "5000" },
 	{ "bufferThreshold",	"Number of readings to buffer before sending", "integer", "100" },
 	{ NULL, NULL, NULL, NULL }
 };

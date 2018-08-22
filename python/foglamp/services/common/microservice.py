@@ -74,8 +74,7 @@ class FoglampMicroservice(FoglampProcess):
                 "keep_original_items": True
             })
             self._core_microservice_management_client.create_configuration_category(config_payload)
-            # TODO: Uncomment below line and remove this TODO post merger of FOGL-1432
-            # self._core_microservice_management_client.create_child_category("General", ["Security"])
+            self._core_microservice_management_client.create_child_category("General", ["Security"])
             config = self._core_microservice_management_client.get_configuration_category(category_name=category)
             is_local_services = True if config['local_services']['value'].lower() == 'true' else False
             host = '127.0.0.1' if is_local_services is True else '0.0.0.0'
@@ -120,6 +119,14 @@ class FoglampMicroservice(FoglampProcess):
 
     @abstractmethod
     async def change(self, request):
+        pass
+
+    @abstractmethod
+    async def get_track(self, request):
+        pass
+
+    @abstractmethod
+    async def add_track(self, request):
         pass
 
     async def ping(self, request):

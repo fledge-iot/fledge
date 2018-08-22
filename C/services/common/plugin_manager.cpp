@@ -1,11 +1,11 @@
 /*
- * FogLAMP storage service.
+ * FogLAMP plugin manager.
  *
- * Copyright (c) 2017 OSisoft, LLC
+ * Copyright (c) 2017, 2018 OSisoft, LLC
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 #include <plugin_manager.h>
 #include <cstdio>
@@ -48,7 +48,7 @@ char          buf[128];
 
   if (pluginNames.find(name) != pluginNames.end())
   {
-    if (type.compare(pluginTypes.find(name)->first))
+    if (type.compare(pluginTypes.find(name)->second))
     {
       logger->error("Plugin %s is already loaded but not the expected type %s\n",
         name.c_str(), type.c_str());
@@ -66,9 +66,16 @@ char          buf[128];
     char *home = getenv("FOGLAMP_ROOT");
     if (home)
     {
-        snprintf(buf, sizeof(buf), "%s/plugins/%s/%s/lib%s.so", home, type.c_str(), name.c_str(), name.c_str());
+        snprintf(buf,
+                 sizeof(buf),
+                 "%s/plugins/%s/%s/lib%s.so",
+                 home,
+                 type.c_str(),
+                 name.c_str(),
+                 name.c_str());
     }
   }
+
   if ((hndl = dlopen(buf, RTLD_LAZY)) != NULL)
   {
     func_t infoEntry = (func_t)dlsym(hndl, "plugin_info");
@@ -92,12 +99,15 @@ char          buf[128];
 
     plugins.push_back(hndl);
     pluginNames[name] = hndl;
-    pluginTypes[name] = hndl;
+    pluginTypes[name] = type;
     pluginInfo[hndl] = info;
   }
   else
   {
-    logger->error("PluginManager: Failed to load plugin %s.", name.c_str());
+    logger->error("PluginManager: Failed to load plugin %s in %s: %s.",
+                  name.c_str(),
+                  buf,
+                  dlerror());
   }
 
   return hndl;

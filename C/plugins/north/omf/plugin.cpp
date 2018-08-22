@@ -44,12 +44,24 @@ using namespace std;
 			"\"StaticData\": { " \
 				"\"description\": \"Static data to include in each sensor reading sent to OMF.\", " \
 				"\"type\": \"string\", \"default\": \"Location: Palo Alto, Company: Dianomic\" }, " \
+			"\"formatNumber\": { " \
+        			"\"description\": \"OMF format property to apply to the type Number\", " \
+				"\"type\": \"string\", \"default\": \"float64\" }, " \
+			"\"formatInteger\": { " \
+        			"\"description\": \"OMF format property to apply to the type Integer\", " \
+				"\"type\": \"string\", \"default\": \"int64\" }, " \
 			"\"applyFilter\": { " \
         			"\"description\": \"Whether to apply filter before processing the data\", " \
 				"\"type\": \"boolean\", \"default\": \"False\" }, " \
 			"\"filterRule\": { " \
 				"\"description\": \"JQ formatted filter to apply (applicable if applyFilter is True)\", " \
 				"\"type\": \"string\", \"default\": \".[]\" }"
+
+
+
+#define OMF_PLUGIN_DESC "\"plugin\": {\"description\": \"OMF North C Plugin\", \"type\": \"string\", \"default\": \"omf\"}"
+
+#define PLUGIN_DEFAULT_CONFIG_INFO "{" OMF_PLUGIN_DESC ", " PLUGIN_DEFAULT_CONFIG "}"
 
 /**
  * The OMF plugin interface
@@ -60,12 +72,12 @@ extern "C" {
  * The C API plugin information structure
  */
 static PLUGIN_INFORMATION info = {
-	"OMF",			// Name
-	"1.0.0",		// Version
-	0,			// Flags
-	PLUGIN_TYPE_NORTH,	// Type
-	"1.0.0",		// Interface version
-	PLUGIN_DEFAULT_CONFIG   // Configuration
+	"OMF",				// Name
+	"1.0.0",			// Version
+	0,				// Flags
+	PLUGIN_TYPE_NORTH,		// Type
+	"1.0.0",			// Interface version
+	PLUGIN_DEFAULT_CONFIG_INFO   // Configuration
 };
 
 static const string omf_types_default_config =
@@ -129,6 +141,9 @@ PLUGIN_HANDLE plugin_init(map<string, string>&& configData)
 	unsigned int timeout = atoi(configCategory.getValue("OMFHttpTimeout").c_str());
 	string producerToken = configCategory.getValue("producerToken");
 
+	string formatNumber = configCategory.getValue("formatNumber");
+	string formatInteger = configCategory.getValue("formatInteger");
+
 	/**
 	 * Handle the OMF_TYPES parameters here
 	 */
@@ -165,6 +180,9 @@ PLUGIN_HANDLE plugin_init(map<string, string>&& configData)
 				     typesId,
 				     producerToken);
 
+	connector_info.omf->setFormatType(OMF_TYPE_FLOAT, formatNumber);
+	connector_info.omf->setFormatType(OMF_TYPE_INTEGER, formatInteger);
+
 	Logger::getLogger()->info("OMF plugin configured: URL=%s, "
 				  "producerToken=%s, OMF_types_id=%s",
 				  url.c_str(),
@@ -182,7 +200,7 @@ PLUGIN_HANDLE plugin_init(map<string, string>&& configData)
  * Send Readings data to historian server
  */
 uint32_t plugin_send(const PLUGIN_HANDLE handle,
-		     const vector<Reading *> readings)
+		     const vector<Reading *>& readings)
 {
 	return connector_info.omf->sendToServer(readings);
 }

@@ -281,9 +281,10 @@ ConfigCategories ManagementClient::getCategories() const
  * Return the content of the named category by calling the
  * management API of the FogLAMP core.
  *
- * @param categoryName	The name of the categpry to return
+ * @param  categoryName		The name of the categpry to return
  * @return ConfigCategory	The configuration category
- * @throw	exception	If the category does not exist or theresult can not be parsed
+ * @throw  exception		If the category does not exist or
+ *				the result can not be parsed
  */
 ConfigCategory ManagementClient::getCategory(const string& categoryName) const
 {
@@ -355,6 +356,57 @@ string ManagementClient::setCategoryItemValue(const string& categoryName,
 		}
 	} catch (const SimpleWeb::system_error &e) {
 		m_logger->error("Get config category failed %s.", e.what());
+		throw;
+	}
+}
+
+/**
+ * Add child categories to a (parent) category
+ *
+ * @param parentCategory	The given category name
+ * @param children		Categories to add under parent
+ * @return			JSON string with current child categories
+ * @throw			std::exception
+ */
+string ManagementClient::addChildCategories(const string& parentCategory,
+					    const vector<string>& children) const
+{
+	try {
+		string url = "/foglamp/service/category/" + parentCategory + "/children";
+		string payload = "{ \"children\" : [";
+
+		for (auto it = children.begin(); it != children.end(); ++it)
+		{
+			payload += "\"" + (*it)+ "\"";
+			if ((it + 1) != children.end())
+			{
+				 payload += ", ";
+			}
+		}
+		payload += "] }";
+		auto res = m_client->request("POST", url.c_str(), payload);
+		string response = res->content.string();
+		Document doc;
+		doc.Parse(response.c_str());
+		if (doc.HasParseError() || !doc.HasMember("children"))
+		{
+			m_logger->error("Failed to parse result of adding child categories: %s",
+					response.c_str());
+			throw new exception();
+		}
+		else if (doc.HasMember("message"))
+		{
+			m_logger->error("Failed to add child categories: %s.",
+					doc["message"].GetString());
+			throw new exception();
+		}
+		else
+		{
+			return response;
+		}
+	}
+	catch (const SimpleWeb::system_error &e) {
+		m_logger->error("Add child categories failed %s.", e.what());
 		throw;
 	}
 }

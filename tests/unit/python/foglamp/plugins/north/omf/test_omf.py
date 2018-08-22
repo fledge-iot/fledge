@@ -139,12 +139,19 @@ class TestOMF:
                         }
                     )
                 },
+                "destination_type": {"value": "1"},
+                'sending_process_instance': MagicMock(spec=SendingProcess),
+                "formatNumber": {"value": "float64"},
+                "formatInteger": {"value": "int64"},
 
-                'sending_process_instance': MagicMock(spec=SendingProcess)
-            }
+        }
 
         config_default_omf_types = omf.CONFIG_DEFAULT_OMF_TYPES
         config_default_omf_types["type-id"]["value"] = "0001"
+        data["debug_level"] = None
+        data["log_performance"] = None
+        data["destination_id"] = 1
+        data["stream_id"] = 1
 
         with patch.object(data['sending_process_instance'], '_fetch_configuration',
                           return_value=config_default_omf_types):
@@ -568,7 +575,7 @@ class TestOmfNorthPlugin:
                             'id': '0001_pressure_typename_measurement',
                             'properties': {
                                 'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
-                                'pressure': {'type': 'number'}
+                                'pressure': {'type': 'number', 'format': 'float64'}
                             },
                             'type': 'object'
                          }
@@ -609,7 +616,7 @@ class TestOmfNorthPlugin:
                                 'id': '0002_luxometer_typename_measurement',
                                 'properties': {
                                     'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
-                                    'lux': {'type': 'integer'}
+                                    'lux': {'type': 'integer', 'format': 'int64'}
                                 },
                                 'type': 'object'
                             }
@@ -679,7 +686,12 @@ class TestOmfNorthPlugin:
         """
 
         fixture_omf_north._config_omf_types = {"type-id": {"value": p_type_id}}
-        fixture_omf_north._config = {"StaticData": p_static_data}
+
+        fixture_omf_north._config = {}
+        fixture_omf_north._config["StaticData"] = p_static_data
+        fixture_omf_north._config["formatNumber"] = "float64"
+        fixture_omf_north._config["formatInteger"] = "int64"
+
 
         with patch.object(
                             fixture_omf_north,

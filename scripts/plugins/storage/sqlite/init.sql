@@ -306,6 +306,9 @@ CREATE TABLE foglamp.statistics_history (
 CREATE UNIQUE INDEX statistics_history_ix1
     ON statistics_history (key, history_ts);
 
+CREATE INDEX statistics_history_ix2
+    ON statistics_history (key);
+
 -- Resources table
 -- A resource and be anything that is available or can be done in FogLAMP. Examples:
 -- - Access to assets
@@ -556,11 +559,24 @@ CREATE TABLE foglamp.backups (
 -- FogLAMP DB version: keeps the schema version id
 CREATE TABLE foglamp.version (id CHAR(10));
 
--- Create the cnfiguration category_children table
+-- Create the configuration category_children table
 CREATE TABLE foglamp.category_children (
        parent	character varying(255)	NOT NULL,
        child	character varying(255)	NOT NULL,
        CONSTRAINT config_children_pkey PRIMARY KEY (parent, child) );
+
+-- Create the asset_tracker table
+CREATE TABLE foglamp.asset_tracker (
+       id            integer          PRIMARY KEY AUTOINCREMENT,
+       asset         character(50)    NOT NULL,
+       event         character varying(50) NOT NULL,
+       service       character varying(255) NOT NULL,
+       foglamp       character varying(50) NOT NULL,
+       plugin        character varying(50) NOT NULL,
+       ts            DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')) );
+
+CREATE INDEX asset_tracker_ix1 ON asset_tracker (asset);
+CREATE INDEX asset_tracker_ix2 ON asset_tracker (service);
 
 ----------------------------------------------------------------------
 -- Initialization phase - DML
@@ -622,6 +638,13 @@ INSERT INTO foglamp.configuration ( key, description, value )
               ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that OMF North Plugin will load" } } '
             );
 
+-- North_Readings_to_HTTP - for readings
+INSERT INTO foglamp.configuration ( key, description, value )
+     VALUES ( 'North_Readings_to_HTTP',
+              'HTTP North Plugin - C Code',
+              ' { "plugin" : { "type" : "string", "value" : "http-north", "default" : "http-north", "description" : "Module that HTTP North Plugin will load" } } '
+            );
+
 -- dht11 - South plugin for DHT11 - C
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'dht11',
@@ -640,37 +663,37 @@ INSERT INTO foglamp.configuration ( key, description, value )
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'North Readings to PI',
               'OMF North Plugin',
-              ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that OMF North Plugin will load" } } '
+              '{"plugin": {"description": "OMF North Plugin", "type": "string", "default": "omf", "value": "omf"}, "source": {"description": "Source of data to be sent on the stream. May be either readings, statistics or audit.", "type": "string", "default": "readings", "value": "readings"}}'
             );
 
 -- North Statistics to PI - OMF Translator for statistics
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'North Statistics to PI',
               'OMF North Statistics Plugin',
-              ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that OMF North Statistics Plugin will load" } } '
+              '{"plugin": {"description": "OMF North Plugin", "type": "string", "default": "omf", "value": "omf"}, "source": {"description": "Source of data to be sent on the stream. May be either readings, statistics or audit.", "type": "string", "default": "statistics", "value": "statistics"}}'
             );
-
 
 -- North Readings to OCS - OSIsoft Cloud Services plugin for readings
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'North Readings to OCS',
               'OCS North Plugin',
-              ' { "plugin" : { "type" : "string", "value" : "ocs", "default" : "ocs", "description" : "Module that OCS North Plugin will load" } } '
+              '{"plugin": {"description": "OCS North Plugin", "type": "string", "default": "ocs", "value": "ocs"}, "source": {"description": "Source of data to be sent on the stream. May be either readings, statistics or audit.", "type": "string", "default": "readings", "value": "readings"}}'
             );
 
 -- Statistics
 INSERT INTO foglamp.statistics ( key, description, value, previous_value )
-     VALUES ( 'READINGS',               'Readings received by FogLAMP since startup', 0, 0 ),
-            ( 'BUFFERED',               'Readings currently in FogLAMP buffer', 0, 0 ),
-            ( 'NORTH_READINGS_TO_PI',   'Readings sent to historian', 0, 0 ),
+     VALUES ( 'READINGS',             'Readings received by FogLAMP', 0, 0 ),
+            ( 'BUFFERED',             'Readings currently in the FogLAMP buffer', 0, 0 ),
+            ( 'NORTH_READINGS_TO_PI', 'Readings sent to historian', 0, 0 ),
             ( 'NORTH_STATISTICS_TO_PI', 'Statistics sent to historian', 0, 0 ),
-            ( 'SENT_1',                 'Readings sent to historian', 0, 0 ),
-            ( 'SENT_2',                 'FogLAMP statistics data sent to historian', 0, 0 ),
-            ( 'SENT_4',                 'Readings sent to OCS', 0, 0 ),
-            ( 'UNSENT',                 'Readings filtered out in the send process', 0, 0 ),
-            ( 'PURGED',                 'Readings removed from buffer by purge process', 0, 0 ),
-            ( 'UNSNPURGED',             'Readings that were purged from the buffer before being sent', 0, 0 ),
-            ( 'DISCARDED',              'Readings discarded by the South Service before being  placed in the buffer. This may be due to an error in the readings themselves.', 0, 0 );
+            ( 'NORTH_READINGS_TO_HTTP', 'Readings sent to HTTP', 0, 0 ),
+            ( 'North Readings to PI', 'Readings sent to the historian', 0, 0 ),
+            ( 'North Statistics to PI','Statistics data sent to the historian', 0, 0 ),
+            ( 'North Readings to OCS','Readings sent to OCS', 0, 0 ),
+            ( 'UNSENT',               'Readings filtered out in the send process', 0, 0 ),
+            ( 'PURGED',               'Readings removed from the buffer by the purge process', 0, 0 ),
+            ( 'UNSNPURGED',           'Readings that were purged from the buffer before being sent', 0, 0 ),
+            ( 'DISCARDED',            'Readings discarded by the South Service before being  placed in the buffer. This may be due to an error in the readings themselves.', 0, 0 );
 
 --
 -- Scheduled processes
@@ -692,14 +715,18 @@ INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('restore', '["tas
 
 -- North Tasks
 --
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Readings to PI',   '["tasks/north", "--stream_id", "1", "--debug_level", "1"]' );
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Readings to OCS',  '["tasks/north", "--stream_id", "4", "--debug_level", "1"]' );
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Statistics to PI', '["tasks/north", "--stream_id", "2", "--debug_level", "1"]' );
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Readings to PI',   '["tasks/north"]' );
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Statistics to PI', '["tasks/north"]' );
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Readings to OCS',  '["tasks/north"]' );
 
 -- North Tasks - C code
 --
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North_Readings_to_PI',   '["tasks/north_c"]' );
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North_Statistics_to_PI', '["tasks/north_c"]' );
+
+-- North Tasks - C code
+--
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North_Readings_to_HTTP',   '["tasks/north_c"]' );
 
 -- South Tasks - C code
 --
@@ -827,6 +854,18 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 'f'                                     -- disabled
               );
 
+-- Readings to HTTP - C Code
+INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
+                                schedule_time, schedule_interval, exclusive, enabled )
+       VALUES ( 'ccdf1ef8-7e02-11e8-adc0-fa7ae01bb3bc', -- id
+                'HTTP_North_C',                         -- schedule_name
+                'North_Readings_to_HTTP',               -- process_name
+                3,                                      -- schedule_type (interval)
+                NULL,                                   -- schedule_time
+                '00:00:30',                             -- schedule_interval
+                't',                                    -- exclusive
+                'f'                                     -- disabled
+              );
 
 -- DHT11 sensor south plugin - C Code
 INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
@@ -854,20 +893,6 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 'f'                                   -- disabled
               );
 
--- Readings OMF to OCS
-INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
-                                schedule_time, schedule_interval, exclusive, enabled )
-       VALUES ( '5d7fed92-fb9a-11e7-8c3f-9a214cf093ae', -- id
-                'OMF to OCS north',                     -- schedule_name
-                'North Readings to OCS',                -- process_name
-                3,                                      -- schedule_type (interval)
-                NULL,                                   -- schedule_time
-                '00:00:30',                             -- schedule_interval
-                't',                                   -- exclusive
-                'f'                                   -- disabled
-              );
-
-
 -- Statistics OMF to PI
 INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                                 schedule_time, schedule_interval, exclusive, enabled )
@@ -881,21 +906,15 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 'f'                                   -- disabled
               );
 
-
---
--- Configuration for North Plugins OMF
---
-
--- Readings to OMF to PI
-INSERT INTO foglamp.destinations ( id, description )
-       VALUES ( 1, 'OMF' );
-INSERT INTO foglamp.streams ( id, destination_id, description, last_object )
-       VALUES ( 1, 1, 'OMF north', 0 );
-
--- Stats to OMF to PI
-INSERT INTO foglamp.streams ( id, destination_id, description, last_object )
-       VALUES ( 2, 1, 'FogLAMP statistics into PI', 0 );
-
--- Readings to OMF to OCS
-INSERT INTO foglamp.destinations( id, description ) VALUES ( 3, 'OCS' );
-INSERT INTO foglamp.streams( id, destination_id, description, last_object ) VALUES ( 4, 3, 'OCS north', 0 );
+-- Readings OMF to OCS
+INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
+                                schedule_time, schedule_interval, exclusive, enabled )
+       VALUES ( '5d7fed92-fb9a-11e7-8c3f-9a214cf093ae', -- id
+                'OMF to OCS north',                     -- schedule_name
+                'North Readings to OCS',                -- process_name
+                3,                                      -- schedule_type (interval)
+                NULL,                                   -- schedule_time
+                '00:00:30',                             -- schedule_interval
+                't',                                   -- exclusive
+                'f'                                   -- disabled
+              );

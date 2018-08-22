@@ -31,6 +31,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+
 # LOG configuration
 _LOG_LEVEL_DEBUG = 10
 _LOG_LEVEL_INFO = 20
@@ -63,6 +64,8 @@ MESSAGES_LIST = {
 # Defines what and the level of details for logging
 _log_debug_level = 0
 _log_performance = False
+_stream_id = None
+_destination_id = None
 
 # Configurations retrieved from the Configuration Manager
 _config_omf_types = {}
@@ -131,6 +134,16 @@ _CONFIG_DEFAULT_OMF = {
         "description": "JQ formatted filter to apply (only applicable if applyFilter is True)",
         "type": "string",
         "default": ".[]"
+    },
+    "formatNumber": {
+        "description": "OMF format property to apply to the type Number",
+        "type": "string",
+        "default": "float64"
+    },
+    "formatInteger": {
+        "description": "OMF format property to apply to the type Integer",
+        "type": "string",
+        "default": "int64"
     }
 }
 
@@ -310,10 +323,16 @@ def plugin_init(data):
     global _config_omf_types
     global _logger
     global _recreate_omf_objects
+    global _log_debug_level, _log_performance, _stream_id, _destination_id
+
+    _log_debug_level = data['debug_level']
+    _log_performance = data['log_performance']
+    _stream_id = data['stream_id']
+    _destination_id = data['destination_id']
 
     try:
         # note : _module_name is used as __name__ refers to the Sending Proces
-        logger_name = _MODULE_NAME + "_" + str(data['stream_id']['value'])
+        logger_name = _MODULE_NAME + "_" + str(_stream_id)
 
         _logger = \
             logger.setup(logger_name, destination=_LOGGER_DESTINATION) if _log_debug_level == 0 else\
@@ -335,6 +354,10 @@ def plugin_init(data):
     _config['OMFHttpTimeout'] = int(data['OMFHttpTimeout']['value'])
 
     _config['StaticData'] = ast.literal_eval(data['StaticData']['value'])
+
+    _config['formatNumber'] = data['formatNumber']['value']
+    _config['formatInteger'] = data['formatInteger']['value']
+
     # TODO: compare instance fetching via inspect vs as param passing
     # import inspect
     # _config['sending_process_instance'] = inspect.currentframe().f_back.f_locals['self']
@@ -579,9 +602,29 @@ class OmfNorthPlugin(object):
             "isindex": True
         }
         omf_type[typename][1]["id"] = type_id + "_" + typename + "_measurement"
+
+        # Applies configured format property for the specific type
         for item in asset_data:
             item_type = plugin_common.evaluate_type(asset_data[item])
-            omf_type[typename][1]["properties"][item] = {"type": item_type}
+
+            self._logger.debug(
+                "func |{func}| - item_type |{type}| - formatInteger |{int}| - formatNumber |{float}| ".format(
+                            func="_create_omf_type_automatic",
+                            type=item_type,
+                            int=self._config['formatInteger'],
+                            float=self._config['formatNumber']))
+
+            # Handles OMF format property to force the proper OCS type, especially for handling decimal numbers
+            if item_type == "integer":
+
+                omf_type[typename][1]["properties"][item] = {"type": item_type,
+                                                             "format": self._config['formatInteger']}
+            elif item_type == "number":
+                omf_type[typename][1]["properties"][item] = {"type": item_type,
+                                                             "format": self._config['formatNumber']}
+            else:
+                omf_type[typename][1]["properties"][item] = {"type": item_type}
+
         if _log_debug_level == 3:
             self._logger.debug("_create_omf_type_automatic - sensor_id |{0}| - omf_type |{1}| ".format(sensor_id, str(omf_type)))
 

@@ -369,7 +369,7 @@ async def enable_schedule_with_name(request):
         if sch_id:
             try:
                 assert uuid.UUID(sch_id)
-            except ValueError as ex:
+            except (TypeError, ValueError):
                 raise web.HTTPNotFound(reason="No Schedule with ID {}".format(sch_id))
 
         status, reason = await server.Server.scheduler.enable_schedule(uuid.UUID(sch_id))
@@ -414,7 +414,7 @@ async def disable_schedule_with_name(request):
         if sch_id:
             try:
                 assert uuid.UUID(sch_id)
-            except ValueError as ex:
+            except (TypeError, ValueError):
                 raise web.HTTPNotFound(reason="No Schedule with ID {}".format(sch_id))
 
         status, reason = await server.Server.scheduler.disable_schedule(uuid.UUID(sch_id))

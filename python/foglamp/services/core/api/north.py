@@ -72,12 +72,10 @@ async def get_north_schedules(request):
         stats = await _get_sent_stats()
 
         for sch in north_schedules:
-            # FIXME: sch.name vs sch.processName?
-            stat = next((s for s in stats if s["key"] == sch["name"]), None)
+            stat = next((s for s in stats if s["key"] == sch["processName"]), None)
             if stat:
                 sch["sent"] = stat["value"]
             else:
-                # FIXME: what if no key && schedule match in statistics found
                 sch["sent"] = -1
 
     except (KeyError, ValueError) as e:  # Handles KeyError of _get_sent_stats

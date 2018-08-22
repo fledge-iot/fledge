@@ -3,28 +3,45 @@
 # Reads configuration setting
 source ${SUITE_BASEDIR}/suite.cfg
 
+
+# Redirects std out/err for all the following commands
+exec 7>&1                                      # Backups stdout
+exec 8>&1                                      # Backups stderr
+exec 1>>"${RESULT_DIR}/${TEST_NAME}_out.temp"
+exec 2>>"${RESULT_DIR}/${TEST_NAME}_err.temp"
+
+
 # Enables the OCS plugin
-curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/schedule/${SCHEDULE_ID_OCS_PLUGIN} -d '{ "enabled" : true }' &>>  ${RESULT_DIR}/${TEST_NAME}.1.temp
+curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/schedule/${SCHEDULE_ID_OCS_PLUGIN} -d '{ "enabled" : true }'
 
 # Waits until the OCS plugin has created the default configurations
-${TEST_BASEDIR}/bash/wait_creation_cfg.bash "SEND_PR_4/producerToken"
+${TEST_BASEDIR}/bash/wait_creation_cfg.bash "${SENDING_PROCESS_OCS_DATA}/producerToken"
+if [[ "$?" != "0" ]]; then
+    exit 1
+fi
+
 
 # Configures FogLAMP with the required settings
-curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/SEND_PR_4/tenant_id -d '{ "value" : "'${OCS_TENANT}'" }' &>>  ${RESULT_DIR}/${TEST_NAME}.1.temp
-curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/SEND_PR_4/client_id -d '{ "value" : "'${OCS_CLIENT_ID}'" }' &>>  ${RESULT_DIR}/${TEST_NAME}.1.temp
-curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/SEND_PR_4/client_secret -d '{ "value" : "'${OCS_CLIENT_SECRET}'" }' &>>  ${RESULT_DIR}/${TEST_NAME}.1.temp
-curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/SEND_PR_4/namespace -d '{ "value" : "'${OCS_NAMESPACE}'" }' &>>  ${RESULT_DIR}/${TEST_NAME}.1.temp
+curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/"${SENDING_PROCESS_OCS_DATA}"/tenant_id -d '{ "value" : "'${OCS_TENANT}'" }'
+curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/"${SENDING_PROCESS_OCS_DATA}"/client_id -d '{ "value" : "'${OCS_CLIENT_ID}'" }'
+curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/"${SENDING_PROCESS_OCS_DATA}"/client_secret -d '{ "value" : "'${OCS_CLIENT_SECRET}'" }'
+curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/"${SENDING_PROCESS_OCS_DATA}"/namespace -d '{ "value" : "'${OCS_NAMESPACE}'" }'
 
-curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/OCS_TYPES/type-id -d '{ "value" : "'${OCS_TYPE_ID}'" }' &>>  ${RESULT_DIR}/${TEST_NAME}.1.temp
-curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/SEND_PR_4/producerToken -d '{ "value" : "'${OCS_TOKEN}'" }' &>>  ${RESULT_DIR}/${TEST_NAME}.1.temp
+curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/OCS_TYPES/type-id -d '{ "value" : "'${OCS_TYPE_ID}'" }'
+curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/"${SENDING_PROCESS_OCS_DATA}"/producerToken -d '{ "value" : "'${OCS_TOKEN}'" }'
 
 # Initializes OCS cleaning all the content of the defined OCS NameSpace
-python3 $TEST_BASEDIR/python/ocs_clean_namespace.py $@              &>>  ${RESULT_DIR}/${TEST_NAME}.1.temp
-# Retrieves the list of the Streams to ensure it is empty
-python3 $TEST_BASEDIR/python/ocs_read_streams_list.py $@
+python3 $TEST_BASEDIR/python/ocs_clean_namespace.py $@
 
 # Restarts FogLAMP to ensure the new configurations are used
-${TEST_BASEDIR}/bash/exec_any_foglamp_command.bash stop  > /dev/null 2>&1
+${TEST_BASEDIR}/bash/exec_any_foglamp_command.bash stop
+
+# Restore stdout/stderr
+exec 1>&7
+exec 2>&8
+
+# Retrieves the list of the Streams to ensure it is empty
+python3 $TEST_BASEDIR/python/ocs_read_streams_list.py $@
 
 ${TEST_BASEDIR}/bash/exec_any_foglamp_command.bash start > ${RESULT_DIR}/${TEST_NAME}.2.temp 2>&1
 tail  -n1 ${RESULT_DIR}/${TEST_NAME}.2.temp

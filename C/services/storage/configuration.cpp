@@ -19,7 +19,7 @@
 static const char *defaultConfiguration =
 " { \"plugin\" : { \"value\" : \"sqlite\", \"description\" : \"The main storage plugin to load\"},"
 " \"readingPlugin\" : { \"value\" : \"\", \"description\" : \"The storage plugin to load for readings data. If blank the main storage plugin is used.\"},"
-" \"threads\" : { \"value\" : \"1\", \"description\" : \"The number of threads to run\" },"
+" \"threads\" : { \"value\" : \"4\", \"description\" : \"The number of threads to run\" },"
 " \"managedStatus\" : { \"value\" : \"false\", \"description\" : \"Control if FogLAMP should manage the storage provider\" },"
 " \"port\" : { \"value\" : \"0\", \"description\" : \"The port to listen on\" },"
 " \"managementPort\" : { \"value\" : \"0\", \"description\" : \"The management port to listen on.\" } }";

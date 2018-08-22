@@ -24,7 +24,7 @@ Running FogLAMP System tests
 Test Prerequisites
 ------------------
 
-Install the following prerequisites to run a System tests suite ::
+Install foglamp (dev mode) and foglamp dependencies, and set FOGLAMP_ROOT ::
 
     apt-get install jq
 
@@ -32,7 +32,7 @@ Install the following prerequisites to run a System tests suite ::
 Test Execution
 --------------
 
-The complete documentation os the System test suite is available as this page |System Test Utility and Suites|.
+The complete documentation on the System test suite is available as this page |System Test Utility and Suites|.
 
 Some tests suite, ``end_to_end_PI`` and ``end_to_end_OCS``, requires some information to be executed
 like for example the PI-Server or the OCS account that should be used.

@@ -121,7 +121,6 @@ class TestSchedules:
             schedule.time = None
             schedule.day = None
             schedules.append(schedule)
-
             return schedules
 
         with patch.object(server.Server.scheduler, 'get_schedules', return_value=mock_coro()):

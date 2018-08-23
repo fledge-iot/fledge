@@ -1,0 +1,1 @@
+Waits until either the requested plug is loaded or the timeout is reached.

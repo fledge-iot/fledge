@@ -329,6 +329,7 @@ class SendingProcess(FoglampProcess):
             key = self.statistics_key
             _stats = await statistics.create_statistics(self._storage_async)
             await _stats.update(key, num_sent)
+            await _stats.update(self.master_statistics_key, num_sent)
         except Exception:
             _message = _MESSAGES_LIST["e000010"]
             SendingProcess._logger.error(_message)
@@ -732,6 +733,41 @@ class SendingProcess(FoglampProcess):
             raise e
         return statistics_key
 
+    async def _get_master_statistics_key(self):
+        async def get_rows(key):
+            payload = payload_builder.PayloadBuilder() \
+                .SELECT("key", "description") \
+                .WHERE(['key', '=', key]) \
+                .LIMIT(1) \
+                .payload()
+            statistics = await self._storage_async.query_tbl_with_payload("statistics", payload)
+            return statistics['rows']
+
+        async def add_statistics(key, description):
+            payload = payload_builder.PayloadBuilder() \
+                .INSERT(key=key, description=description) \
+                .payload()
+            await self._storage_async.insert_into_tbl("statistics", payload)
+            rows = await get_rows(key=key)
+            return rows[0]['key']
+
+        try:
+            if self._config['source'] == 'readings':
+                key='Readings Sent'
+                description='Readings Sent North'
+            elif self._config['source'] == 'statistics':
+                key='Statistics Sent'
+                description='Statistics Sent North'
+            elif self._config['source'] == 'audit':
+                key='Audit Sent'
+                description='Statistics Sent North'
+            rows = await get_rows(key=key)
+            master_statistics_key = await add_statistics(key=key, description=description) if len(rows) == 0 else rows[0]['key']
+        except Exception as e:
+            SendingProcess._logger.error("Unable to fetch master statistics key for {} | {}".format(self._name, str(e)))
+            raise e
+        return master_statistics_key
+
     def _is_north_valid(self):
         """ Checks if the north has adequate characteristics to be used for sending of the data"""
         north_ok = False
@@ -819,6 +855,7 @@ class SendingProcess(FoglampProcess):
             if is_stream_valid is False:
                 raise ValueError("Error in Stream Id for Sending Process {}".format(self._name))
             self.statistics_key = await self._get_statistics_key()
+            self.master_statistics_key = await self._get_master_statistics_key()
 
             # update configuration with the new destination_id and stream_id
             self._core_microservice_management_client.update_configuration_item(

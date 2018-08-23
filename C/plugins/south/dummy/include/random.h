@@ -17,6 +17,6 @@ class Random {
 		~Random();
 		Reading		takeReading();
 	private:
-		int		m_lastValue;
+		long		m_lastValue;
 };
 #endif

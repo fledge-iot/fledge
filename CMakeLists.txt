@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 2.8.8)
 project (FogLAMP)
 
-option(BUILD_C_PLUGINS "Build C++ Plugins" OFF)
+option(BUILD_C_PLUGINS "Build C++ Plugins" ON)
 
 set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 

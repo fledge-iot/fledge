@@ -2247,6 +2247,9 @@ class TestSendingProcess:
         async def mock_stat_key():
             return "sp"
 
+        async def mock_master_stat_key():
+            return 'Readings Sent'
+
         with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
@@ -2263,10 +2266,11 @@ class TestSendingProcess:
 
         with patch.object(sp, '_get_stream_id', return_value=mock_stream()) as mocked_get_stream_id:
             with patch.object(sp, '_get_statistics_key', return_value=mock_stat_key()) as mocked_get_statistics_key:
-                with patch.object(sp._core_microservice_management_client, 'update_configuration_item'):
-                    with patch.object(sp, '_retrieve_configuration'):
-                        with patch.object(sp, '_plugin_load') as mocked_plugin_load:
-                            result = await sp._start()
+                with patch.object(sp, '_get_master_statistics_key', return_value=mock_master_stat_key()):
+                    with patch.object(sp._core_microservice_management_client, 'update_configuration_item'):
+                        with patch.object(sp, '_retrieve_configuration'):
+                            with patch.object(sp, '_plugin_load') as mocked_plugin_load:
+                                result = await sp._start()
 
         assert not result
         assert not mocked_plugin_load.called
@@ -2279,6 +2283,9 @@ class TestSendingProcess:
 
         async def mock_stat_key():
             return "sp"
+
+        async def mock_master_stat_key():
+            return 'Readings Sent'
 
         with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
@@ -2297,11 +2304,12 @@ class TestSendingProcess:
         with patch.object(sp._core_microservice_management_client, 'update_configuration_item'):
             with patch.object(sp, '_get_stream_id', return_value=mock_stream()) as mocked_get_stream_id:
                 with patch.object(sp, '_get_statistics_key', return_value=mock_stat_key()) as mocked_get_statistics_key:
-                    with patch.object(sp, '_retrieve_configuration'):
-                        with patch.object(sp, '_plugin_load') as mocked_plugin_load:
-                            with patch.object(sp._plugin, 'plugin_info') as mocked_plugin_info:
-                                with patch.object(sp, '_is_north_valid', return_value=False) as mocked_is_north_valid:
-                                    result = await sp._start()
+                    with patch.object(sp, '_get_master_statistics_key', return_value=mock_master_stat_key()):
+                        with patch.object(sp, '_retrieve_configuration'):
+                            with patch.object(sp, '_plugin_load') as mocked_plugin_load:
+                                with patch.object(sp._plugin, 'plugin_info') as mocked_plugin_info:
+                                    with patch.object(sp, '_is_north_valid', return_value=False) as mocked_is_north_valid:
+                                        result = await sp._start()
 
         assert not result
         assert mocked_plugin_load.called
@@ -2317,6 +2325,9 @@ class TestSendingProcess:
         async def mock_stat_key():
             return "sp"
 
+        async def mock_master_stat_key():
+            return 'Readings Sent'
+
         with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
@@ -2334,12 +2345,13 @@ class TestSendingProcess:
         with patch.object(sp._core_microservice_management_client, 'update_configuration_item'):
             with patch.object(sp, '_get_stream_id', return_value=mock_stream()) as mocked_get_stream_id:
                 with patch.object(sp, '_get_statistics_key', return_value=mock_stat_key()) as mocked_get_statistics_key:
-                    with patch.object(sp, '_retrieve_configuration') as mocked_retrieve_configuration:
-                        with patch.object(sp, '_plugin_load') as mocked_plugin_load:
-                            with patch.object(sp._plugin, 'plugin_info') as mocked_plugin_info:
-                                with patch.object(sp, '_is_north_valid', return_value=True) as mocked_is_north_valid:
-                                    with patch.object(sp._plugin, 'plugin_init') as mocked_plugin_init:
-                                        result = await sp._start()
+                    with patch.object(sp, '_get_master_statistics_key', return_value=mock_master_stat_key()):
+                        with patch.object(sp, '_retrieve_configuration') as mocked_retrieve_configuration:
+                            with patch.object(sp, '_plugin_load') as mocked_plugin_load:
+                                with patch.object(sp._plugin, 'plugin_info') as mocked_plugin_info:
+                                    with patch.object(sp, '_is_north_valid', return_value=True) as mocked_is_north_valid:
+                                        with patch.object(sp._plugin, 'plugin_init') as mocked_plugin_init:
+                                            result = await sp._start()
 
         assert result
         # mocked_is_stream_id_valid.called_with(STREAM_ID)

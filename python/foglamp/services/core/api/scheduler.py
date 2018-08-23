@@ -30,6 +30,8 @@ _help = """
     | GET PUT DELETE  | /foglamp/schedule/{schedule_id}                           |
     | PUT             | /foglamp/schedule/{schedule_id}/enable                    |
     | PUT             | /foglamp/schedule/{schedule_id}/disable                   |
+    | PUT             | /foglamp/schedule/enable                                  |
+    | PUT             | /foglamp/schedule/disable                                 |
     | POST            | /foglamp/schedule/start/{schedule_id}                     |
     | GET             | /foglamp/schedule/type                                    |
 
@@ -337,6 +339,96 @@ async def get_schedule(request):
         return web.json_response(schedule)
     except (ValueError, ScheduleNotFoundError) as ex:
         raise web.HTTPNotFound(reason=str(ex))
+
+
+async def enable_schedule_with_name(request):
+    """ Enables the schedule for given schedule_name or schedule_id in request payload
+
+    curl -X PUT http://localhost:8081/foglamp/schedule/enable  -d '{"schedule_name": "a schedule name"}'
+
+    :param request: {"schedule_name": "sinusoid"} or {"schedule_id": "uuid of schedule"}
+    :return:
+    """
+    try:
+        data = await request.json()
+
+        sch_name = data.get('schedule_name', None)
+        sch_id = data.get('schedule_id', None)
+
+        if not sch_name and not sch_id:
+            raise web.HTTPBadRequest(reason='Schedule name or ID is required')
+
+        if sch_name and not sch_id:
+            storage_client = connect.get_storage_async()
+            payload = PayloadBuilder().SELECT("id").WHERE(['schedule_name', '=', sch_name]).payload()
+            result = await storage_client.query_tbl_with_payload('schedules', payload)
+
+            if int(result['count']):
+                sch_id = result['rows'][0]['id']
+
+        if sch_id:
+            try:
+                assert uuid.UUID(sch_id)
+            except (TypeError, ValueError):
+                raise web.HTTPNotFound(reason="No Schedule with ID {}".format(sch_id))
+
+        status, reason = await server.Server.scheduler.enable_schedule(uuid.UUID(sch_id))
+
+        schedule = {
+            'scheduleId': sch_id,
+            'status': status,
+            'message': reason
+        }
+
+    except (KeyError, ValueError, ScheduleNotFoundError) as e:
+        raise web.HTTPNotFound(reason=str(e))
+    else:
+        return web.json_response(schedule)
+
+
+async def disable_schedule_with_name(request):
+    """ Disable the schedule for given schedule_name or schedule_id in request payload
+
+    curl -X PUT http://localhost:8081/foglamp/schedule/disable -d '{"schedule_name": "a schedule name"}'
+
+    :param request: {"schedule_name": "sinusoid"} or {"schedule_id": "uuid of schedule"}
+    :return:
+    """
+    try:
+        data = await request.json()
+
+        sch_name = data.get('schedule_name', None)
+        sch_id = data.get('schedule_id', None)
+
+        if not sch_name and not sch_id:
+            raise web.HTTPBadRequest(reason='Schedule name or ID is required')
+
+        if sch_name and not sch_id:
+            storage_client = connect.get_storage_async()
+            payload = PayloadBuilder().SELECT("id").WHERE(['schedule_name', '=', sch_name]).payload()
+            result = await storage_client.query_tbl_with_payload('schedules', payload)
+
+            if int(result['count']):
+                sch_id = result['rows'][0]['id']
+
+        if sch_id:
+            try:
+                assert uuid.UUID(sch_id)
+            except (TypeError, ValueError):
+                raise web.HTTPNotFound(reason="No Schedule with ID {}".format(sch_id))
+
+        status, reason = await server.Server.scheduler.disable_schedule(uuid.UUID(sch_id))
+
+        schedule = {
+            'scheduleId': sch_id,
+            'status': status,
+            'message': reason
+        }
+
+    except (KeyError, ValueError, ScheduleNotFoundError) as e:
+        raise web.HTTPNotFound(reason=str(e))
+    else:
+        return web.json_response(schedule)
 
 
 async def enable_schedule(request):

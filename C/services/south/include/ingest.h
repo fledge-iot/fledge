@@ -38,7 +38,7 @@ public:
 		unsigned int threshold,
 		const std::string& serviceName,
 		const std::string& pluginName,
-		ManagementClient *m_mgmtClient);
+		ManagementClient *mgmtClient);
 	~Ingest();
 
 	void		ingest(const Reading& reading);

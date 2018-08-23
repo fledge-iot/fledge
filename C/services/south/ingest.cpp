@@ -33,10 +33,10 @@ static void ingestThread(Ingest *ingest)
  *
  * @param m_mgtClient	Management client handle
  */
-void Ingest::populateAssetTrackingCache(ManagementClient *m_mgtClient)
+void Ingest::populateAssetTrackingCache(ManagementClient *mgtClient)
 {
 	try {
-		std::vector<AssetTrackingTuple*>& vec = m_mgtClient->getAssetTrackingTuples(m_serviceName);
+		std::vector<AssetTrackingTuple*>& vec = mgtClient->getAssetTrackingTuples(m_serviceName);
 		for (AssetTrackingTuple* & rec : vec)
 			{
 			if (rec->m_pluginName != m_pluginName || rec->m_eventName != "Ingest")
@@ -86,7 +86,7 @@ void Ingest::addAssetTrackingTuple(AssetTrackingTuple& tuple)
 	std::unordered_set<AssetTrackingTuple*>::const_iterator it = assetTrackerTuplesCache.find(&tuple);
 	if (it == assetTrackerTuplesCache.end())
 		{
-		m_logger->info("addAssetTrackingTuple(): Tuple not found in cache: '%s', adding now.", tuple.assetToString().c_str());\
+		m_logger->info("addAssetTrackingTuple(): Tuple not found in cache: '%s', adding now.", tuple.assetToString().c_str());
 		bool rv = m_mgtClient->addAssetTrackingTuple(tuple.m_serviceName, tuple.m_pluginName, tuple.m_assetName, "Ingest");
 		if (rv) // insert into cache only if DB operation succeeded
 			{
@@ -265,13 +265,13 @@ Ingest::Ingest(StorageClient& storage,
 		unsigned int threshold,
 		const std::string& serviceName,
 		const std::string& pluginName,
-		ManagementClient *m_mgmtClient) :
+		ManagementClient *mgmtClient) :
 			m_storage(storage),
 			m_timeout(timeout),
 			m_queueSizeThreshold(threshold),
 			m_serviceName(serviceName),
 			m_pluginName(pluginName),
-			m_mgtClient(m_mgmtClient)
+			m_mgtClient(mgmtClient)
 {
 	
 	m_running = true;
@@ -286,8 +286,6 @@ Ingest::Ingest(StorageClient& storage,
 
 	// populate asset tracking cache
 	populateAssetTrackingCache(m_mgtClient);
-
-	m_logger->info("%s:%d : timeout=%d, threshold=%d", __FUNCTION__, __LINE__, timeout, threshold);
 }
 
 /**

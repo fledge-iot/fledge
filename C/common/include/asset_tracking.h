@@ -14,6 +14,12 @@
 #include <sstream>
 #include <unordered_set>
 
+/**
+ * The AssetTrackingTuple class is used to represent an asset
+ * tracking tuple. Hash function and == operator are defined for
+ * this class and pointer to this class that would be required
+ * to create an unordered_set of this class.
+ */
 class AssetTrackingTuple {
 
 public:
@@ -29,7 +35,7 @@ public:
 		return o.str();
 	}
 
-	bool operator==(const AssetTrackingTuple& x) const
+	inline bool operator==(const AssetTrackingTuple& x) const
 	{
 		return ( x.m_serviceName==m_serviceName && x.m_pluginName==m_pluginName && x.m_assetName==m_assetName && x.m_eventName==m_eventName);
 	}

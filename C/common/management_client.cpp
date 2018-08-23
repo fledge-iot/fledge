@@ -426,7 +426,7 @@ std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples(const
 		auto res = m_client->request("GET", url.c_str());
 		Document doc;
 		string response = res->content.string();
-		m_logger->info("GET /foglamp/track?service=%s: response='%s'", serviceName.c_str(), response.c_str());
+		//m_logger->info("GET /foglamp/track?service=%s: response='%s'", serviceName.c_str(), response.c_str());
 		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{

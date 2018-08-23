@@ -40,11 +40,7 @@ async def add_task(request):
         "schedule_day": 0,
         "schedule_time": 0,
         "schedule_repeat": 30,
-        "schedule_enabled": true,
-        "cmd_params": {
-            "stream_id": "1",
-            "debug_level": "1"
-        }
+        "schedule_enabled": true
      }'
     """
 
@@ -178,6 +174,9 @@ async def add_task(request):
                                              category_description=category_desc,
                                              category_value=plugin_config,
                                              keep_original_items=True)
+            # Create the parent category for all North tasks
+            await config_mgr.create_category("North", {}, 'North tasks', True)
+            await config_mgr.create_child_category("North", [name])
         except Exception as ex:
             await revert_scheduled_processes(storage, plugin)  # Revert scheduled_process entry
             raise web.HTTPInternalServerError(reason='Failed to create plugin configuration. {}'.format(str(ex)))

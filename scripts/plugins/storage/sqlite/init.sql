@@ -660,25 +660,25 @@ DELETE FROM foglamp.configuration;
 --            );
 
 -- North Readings to PI - OMF Translator for readings
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'North Readings to PI',
-              'OMF North Plugin',
-              '{"plugin": {"description": "OMF North Plugin", "type": "string", "default": "omf", "value": "omf"}, "source": {"description": "Source of data to be sent on the stream. May be either readings, statistics or audit.", "type": "string", "default": "readings", "value": "readings"}}'
-            );
+--INSERT INTO foglamp.configuration ( key, description, value )
+--     VALUES ( 'North Readings to PI',
+--              'OMF North Plugin',
+--              '{"plugin": {"description": "OMF North Plugin", "type": "string", "default": "omf", "value": "omf"}, "source": {"description": "Source of data to be sent on the stream. May be either readings, statistics or audit.", "type": "string", "default": "readings", "value": "readings"}}'
+--            );
 
 -- North Statistics to PI - OMF Translator for statistics
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'North Statistics to PI',
-              'OMF North Statistics Plugin',
-              '{"plugin": {"description": "OMF North Plugin", "type": "string", "default": "omf", "value": "omf"}, "source": {"description": "Source of data to be sent on the stream. May be either readings, statistics or audit.", "type": "string", "default": "statistics", "value": "statistics"}}'
-            );
+--INSERT INTO foglamp.configuration ( key, description, value )
+--     VALUES ( 'North Statistics to PI',
+--              'OMF North Statistics Plugin',
+--              '{"plugin": {"description": "OMF North Plugin", "type": "string", "default": "omf", "value": "omf"}, "source": {"description": "Source of data to be sent on the stream. May be either readings, statistics or audit.", "type": "string", "default": "statistics", "value": "statistics"}}'
+--            );
 
 -- North Readings to OCS - OSIsoft Cloud Services plugin for readings
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'North Readings to OCS',
-              'OCS North Plugin',
-              '{"plugin": {"description": "OCS North Plugin", "type": "string", "default": "ocs", "value": "ocs"}, "source": {"description": "Source of data to be sent on the stream. May be either readings, statistics or audit.", "type": "string", "default": "readings", "value": "readings"}}'
-            );
+--INSERT INTO foglamp.configuration ( key, description, value )
+--     VALUES ( 'North Readings to OCS',
+--              'OCS North Plugin',
+--              '{"plugin": {"description": "OCS North Plugin", "type": "string", "default": "ocs", "value": "ocs"}, "source": {"description": "Source of data to be sent on the stream. May be either readings, statistics or audit.", "type": "string", "default": "readings", "value": "readings"}}'
+--            );
 
 -- Statistics
 INSERT INTO foglamp.statistics ( key, description, value, previous_value )

@@ -77,7 +77,7 @@ TEST(OMF_transation, OneReading)
 	Reading lab("lab", new Datapoint("device", value));
 
 	// Add another datapoint
-	DatapointValue id(3001);
+	DatapointValue id((long) 3001);
 	lab.addDatapoint(new Datapoint("id", id));
 
 	// Create the OMF Json data

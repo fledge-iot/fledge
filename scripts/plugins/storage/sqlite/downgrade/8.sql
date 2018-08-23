@@ -1,6 +1,3 @@
-
-rth plugins
-
 -- North_Readings_to_PI - OMF Translator for readings
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'North_Readings_to_PI',

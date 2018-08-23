@@ -124,7 +124,7 @@ class TestSchedules:
 
             return schedules
 
-        with patch.object(server.Server.scheduler, 'get_schedules', return_value=asyncio.ensure_future(mock_coro())):
+        with patch.object(server.Server.scheduler, 'get_schedules', return_value=mock_coro()):
             resp = await client.get('/foglamp/schedule')
             assert 200 == resp.status
             result = await resp.text()

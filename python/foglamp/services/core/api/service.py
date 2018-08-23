@@ -161,6 +161,9 @@ async def add_service(request):
                                              category_description=category_desc,
                                              category_value=plugin_config,
                                              keep_original_items=True)
+            # Create the parent category for all South services
+            await config_mgr.create_category("South", {}, 'South services', True)
+            await config_mgr.create_child_category("South", [name])
         except Exception as ex:
             await revert_scheduled_processes(storage, plugin)  # Revert scheduled_process entry
             raise web.HTTPInternalServerError(reason='Failed to create plugin configuration. {}'.format(str(ex)))

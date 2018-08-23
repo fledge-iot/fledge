@@ -21,7 +21,8 @@ def setup(app, obj, is_core=False):
     app.router.add_route('GET', '/foglamp/service/ping', obj.ping)
     app.router.add_route('POST', '/foglamp/service/shutdown', obj.shutdown)
     app.router.add_route('POST', '/foglamp/change', obj.change)
-    app.router.add_route('POST', '/foglamp/track', obj.track)
+    app.router.add_route('GET', '/foglamp/track', obj.get_track)
+    app.router.add_route('POST', '/foglamp/track', obj.add_track)
 
     if is_core:
         # Configuration

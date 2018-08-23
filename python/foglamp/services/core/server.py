@@ -41,7 +41,7 @@ from foglamp.services.common.service_announcer import ServiceAnnouncer
 from foglamp.services.core.user_model import User
 from foglamp.common.storage_client import payload_builder
 from foglamp.services.core.asset_tracker.asset_tracker import AssetTracker
-
+from foglamp.services.core.api import asset_tracker as asset_tracker_api
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
@@ -1082,28 +1082,32 @@ class Server:
 
         return web.json_response({"interests": interests})
 
-    # change and track are empty methods required for mgt_route binding only
     @classmethod
     async def change(cls, request):
         pass
 
     @classmethod
-    async def track(cls, request):
+    async def get_track(cls, request):
+        res = await asset_tracker_api.get_asset_tracker_events(request)
+        return res
+
+    @classmethod
+    async def add_track(cls, request):
         data = await request.json()
         if not isinstance(data, dict):
             raise ValueError('Data payload must be a dictionary')
 
         try:
             result = await cls._asset_tracker.add_asset_record(asset=data.get("asset"),
-                                                          plugin=data.get("plugin"),
-                                                          service=data.get("service"),
-                                                          event=data.get("event"))
+                                                               plugin=data.get("plugin"),
+                                                               service=data.get("service"),
+                                                               event=data.get("event"))
         except (TypeError, StorageServerError) as ex:
             raise web.HTTPBadRequest(reason=str(ex))
         except ValueError as ex:
             raise web.HTTPNotFound(reason=str(ex))
         except Exception as ex:
-            raise web.HTTPInternalServerError(reason=ex)
+            raise web.HTTPException(reason=ex)
 
         return web.json_response(result)
 
@@ -1134,7 +1138,7 @@ class Server:
 
     @classmethod
     async def update_configuration_item(cls, request):
-        res =await conf_api.set_configuration_item(request)
+        res = await conf_api.set_configuration_item(request)
         return res
 
     @classmethod

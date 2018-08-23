@@ -24,7 +24,7 @@ set -e
 #
 USAGE="Usage: `basename ${0}` {start|stop|status|reset|kill|help|version}"
 
-# Remove any toekn cache left over from a previous execution
+# Remove any token cache left over from a previous execution
 rm -f ~/.foglamp_token
 
 # Check FOGLAMP_ROOT

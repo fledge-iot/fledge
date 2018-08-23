@@ -255,6 +255,7 @@ void Ingest::updateStats()
  * storage layer based on time. This thread in created in
  * the constructor and will terminate when the destructor
  * is called.
+ * TODO - try to reduce the number of arguments in c'tor
  *
  * @param storage	The storage client to use
  * @param timeout	Maximum time before sending a queue of readings in milliseconds

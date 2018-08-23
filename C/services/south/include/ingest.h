@@ -22,6 +22,8 @@
 #include <filter_plugin.h>
 #include <asset_tracking.h>
 
+#define SERVICE_NAME  "FogLAMP South"
+
 /**
  * The ingest class is used to ingest asset readings.
  * It maintains a queue of readings to be sent to storage,
@@ -46,6 +48,8 @@ public:
 	void		updateStats(void);
 	int 		createStatsDbEntry(const std::string& assetName);
 
+	bool		loadFilters(const std::string& categoryName);
+	bool		setupFiltersPipeline() const;
 	static void	passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 					   READINGSET* readings);
 	static void	useFilteredData(OUTPUT_HANDLE *outHandle,

@@ -466,6 +466,110 @@ vector<Reading *>* newQ = new vector<Reading *>();
 }
 
 /**
+ * Load filter plugins
+ *
+ * Filters found in configuration are loaded
+ * and adde to the Ingest class instance
+ *
+ * @param categoryName	Configuration category name
+ * @param ingest	The Ingest class reference
+ *			Filters are added to m_filters member
+ *			False for errors.
+ * @return		True if filters were loaded and initialised
+ *			or there are no filters
+ *			False with load/init errors
+ */
+bool Ingest::loadFilters(const string& categoryName)
+{
+	// Try to load filters:
+	if (!FilterPlugin::loadFilters(categoryName,
+				       m_filters,
+				       m_mgtClient))
+	{
+		// Return false on any error
+		return false;
+	}
+
+	// Set up the filter pipeline
+	return setupFiltersPipeline();
+}
+
+/**
+ * Set the filterPipeline in the Ingest class
+ * 
+ * This method calls the the method "plugin_init" for all loadade filters.
+ * Up to date filter configurations and Ingest filtering methods
+ * are passed to "plugin_init"
+ *
+ * @param ingest	The ingest class
+ * @return 		True on success,
+ *			False otherwise.
+ * @thown		Any caught exception
+ */
+bool Ingest::setupFiltersPipeline() const
+{
+	bool initErrors = false;
+	string errMsg = "'plugin_init' failed for filter '";
+	for (auto it = m_filters.begin(); it != m_filters.end(); ++it)
+	{
+		string filterCategoryName = (*it)->getName();
+		ConfigCategory updatedCfg;
+		vector<string> children;
+        
+		try
+		{
+			// Fetch up to date filter configuration
+			updatedCfg = m_mgtClient->getCategory(filterCategoryName);
+
+			// Add filter category name under service/process config name
+			children.push_back(filterCategoryName);
+			m_mgtClient->addChildCategories(m_serviceName, children);
+		}
+		// TODO catch specific exceptions
+		catch (...)
+		{       
+			throw;      
+		}                   
+
+		// Iterate the load filters set in the Ingest class m_filters member 
+		if ((it + 1) != m_filters.end())
+		{
+			// Set next filter pointer as OUTPUT_HANDLE
+			if (!(*it)->init(updatedCfg,
+				    (OUTPUT_HANDLE *)(*(it + 1)),
+				    Ingest::passToOnwardFilter))
+			{
+				errMsg += (*it)->getName() + "'";
+				initErrors = true;
+				break;
+			}
+		}
+		else
+		{
+			// Set the Ingest class pointer as OUTPUT_HANDLE
+			if (!(*it)->init(updatedCfg,
+					 (OUTPUT_HANDLE *)this,
+					 Ingest::useFilteredData))
+			{
+				errMsg += (*it)->getName() + "'";
+				initErrors = true;
+				break;
+			}
+		}
+	}
+
+	if (initErrors)
+	{
+		// Failure
+		m_logger->fatal("%s error: %s", SERVICE_NAME, errMsg.c_str());
+		return false;
+	}
+
+	//Success
+	return true;
+}
+
+/**
  * Pass the current readings set to the next filter in the pipeline
  *
  * Note:

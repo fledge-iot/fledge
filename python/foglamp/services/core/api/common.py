@@ -106,8 +106,19 @@ async def get_stats(req):
     stats = json.loads(res.body.decode())
 
     def filter_stat(k):
-        v = [s['value'] for s in stats if s['key'] == k]
-        return int(v[0])
+
+        """
+        there is no statistics about 'Readings Sent' at the start of FogLAMP
+        so the specific exception is caught and 0 is returned to avoid the error 'index out of range'
+        calling the API ping.
+        """
+        try:
+            v = [s['value'] for s in stats if s['key'] == k]
+            value = int(v[0])
+        except IndexError:
+            value = 0
+
+        return value
 
     data_read = filter_stat('READINGS')
     data_sent = filter_stat('Readings Sent')

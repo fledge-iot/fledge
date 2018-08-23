@@ -10,7 +10,7 @@ import asyncio
 import json
 from aiohttp import web
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, call
 from foglamp.services.core import routes
 from foglamp.services.core import connect
 from foglamp.common.storage_client.storage_client import StorageClientAsync
@@ -127,13 +127,15 @@ class TestService:
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
                     with patch.object(storage_client_mock, 'insert_into_tbl', return_value=async_mock()) as insert_table_patch:
                         with patch.object(c_mgr, 'create_category', return_value=None) as patch_create_cat:
-                            resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
-                            assert 500 == resp.status
-                            assert 'Internal Server Error' == resp.reason
-                        assert 0 == patch_create_cat.call_count
+                            with patch.object(c_mgr, 'create_child_category', return_value=async_mock(None)) as patch_create_child_cat:
+                                resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
+                                assert 500 == resp.status
+                                assert 'Internal Server Error' == resp.reason
+                            assert 0 == patch_create_cat.call_count
 
-    async def test_add_task(self, client):
-        async def async_mock(return_value):
+    async def test_add_task1(self, client):
+        @asyncio.coroutine
+        def async_mock(return_value):
             return return_value
 
         async def async_mock_get_schedule():
@@ -201,22 +203,25 @@ class TestService:
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
                     with patch.object(storage_client_mock, 'insert_into_tbl', return_value=async_mock_insert()) as insert_table_patch:
                         with patch.object(c_mgr, 'create_category', return_value=async_mock(None)) as patch_create_cat:
-                            with patch.object(server.Server.scheduler, 'save_schedule', return_value=async_mock("")) as patch_save_schedule:
-                                with patch.object(server.Server.scheduler, 'get_schedule_by_name', return_value=async_mock_get_schedule()) as patch_get_schedule:
-                                    resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
-                                    server.Server.scheduler = None
-                                    assert 200 == resp.status
-                                    result = await resp.text()
-                                    json_response = json.loads(result)
-                                    assert {'id': '2129cc95-c841-441a-ad39-6469a87dbc8b', 'name': 'north bound'} == json_response
-                                patch_get_schedule.assert_called_once_with(data['name'])
-                            patch_save_schedule.called_once_with()
-                        patch_create_cat.assert_called_once_with(category_name=data['name'], category_description=description, category_value=val, keep_original_items=True)
+                            with patch.object(c_mgr, 'create_child_category', return_value=async_mock(None)) as patch_create_child_cat:
+                                with patch.object(server.Server.scheduler, 'save_schedule', return_value=async_mock("")) as patch_save_schedule:
+                                    with patch.object(server.Server.scheduler, 'get_schedule_by_name', return_value=async_mock_get_schedule()) as patch_get_schedule:
+                                        resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
+                                        server.Server.scheduler = None
+                                        assert 200 == resp.status
+                                        result = await resp.text()
+                                        json_response = json.loads(result)
+                                        assert {'id': '2129cc95-c841-441a-ad39-6469a87dbc8b', 'name': 'north bound'} == json_response
+                                    patch_get_schedule.assert_called_once_with(data['name'])
+                                patch_save_schedule.called_once_with()
+                            calls = [call(category_description='North OMF plugin', category_name='north bound', category_value={'plugin': {'description': 'North OMF plugin', 'default': 'omf', 'type': 'string'}}, keep_original_items=True),
+ call('North', {}, 'North tasks', True)]
+                            patch_create_cat.assert_has_calls(calls)
 
-                    args, kwargs = insert_table_patch.call_args
-                    assert 'scheduled_processes' == args[0]
-                    p = json.loads(args[1])
-                    assert p['name'] == 'north bound'
-                    assert p['script'] in ['["tasks/north", "--stream_id=1", "--debug_level=1"]','["tasks/north", "--debug_level=1", "--stream_id=1"]']
+                        args, kwargs = insert_table_patch.call_args
+                        assert 'scheduled_processes' == args[0]
+                        p = json.loads(args[1])
+                        assert p['name'] == 'north bound'
+                        assert p['script'] in ['["tasks/north", "--stream_id=1", "--debug_level=1"]','["tasks/north", "--debug_level=1", "--stream_id=1"]']
 
     # TODO: Add test for negative scenarios

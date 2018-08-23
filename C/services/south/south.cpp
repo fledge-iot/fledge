@@ -222,6 +222,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		else
 		{
 			southPlugin->registerIngest((INGEST_CB)doIngest, &ingest);
+			southPlugin->start();
 			while (!m_shutdown)
 			{
 				std::this_thread::sleep_for(std::chrono::milliseconds(50));

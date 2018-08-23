@@ -14,13 +14,16 @@
 #include <opc/ua/node.h>
 #include <opc/ua/subscription.h>
 #include <reading.h>
+#include <logger.h>
+
+class OpcUaClient;
 
 class OPCUA
 {
 	public:
 		OPCUA(const std::string& url);
 		~OPCUA();
-		void		addSubscription(const std::string& parent, const std::string& child);
+		void		addSubscription(const std::string& parent);
 		void		setAssetName(const std::string& name);
 		void		start();
 		void		stop();
@@ -32,11 +35,27 @@ class OPCUA
 				}
 
 	private:
-		std::vector<std::pair<std::string, std::string> >	m_subscriptions;
+		std::vector<std::string>	m_subscriptions;
 		std::string			m_url;
 		std::string			m_asset;
 		OpcUa::UaClient			*m_client;
 		void				(*m_ingest)(void *, Reading);
 		void				*m_data;
+		OpcUaClient			*m_subClient;
+};
+
+class OpcUaClient : public OpcUa::SubscriptionHandler
+{ 
+	public:
+	  	OpcUaClient(OPCUA *opcua) : m_opcua(opcua) {};
+		void DataChange(uint32_t handle, const OpcUa::Node & node, const OpcUa::Variant & val, OpcUa::AttributeId attr) override
+		{ 
+			std::vector<Datapoint *>	points;
+			DatapointValue value(val.ToString());
+			points.push_back(new Datapoint(node.GetId().GetStringIdentifier(), value));
+			m_opcua->ingest(points);
+		};
+	private:
+		OPCUA		*m_opcua;
 };
 #endif

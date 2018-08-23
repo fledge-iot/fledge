@@ -32,7 +32,7 @@ using namespace std;
 		"\"url\" : { \"description\" : \"URL of the OPC UA Server\", "\
 			"\"type\" : \"string\", \"default\" : \"opc.tcp://mark.local:53530/OPCUA/SimulationServer\" }, " \
 		"\"subscription\" : { \"description\" : \"Variable to observe changes in\", " \
-			"\"type\" : \"JSON\", \"default\" : \"{ \\\"subscriptions\\\" : [ { \\\"5:Simulation\\\": \\\"5:Sawtooth1\\\"} ] }\" } "\
+			"\"type\" : \"JSON\", \"default\" : \"{ \\\"subscriptions\\\" : [  \\\"5:Simulation\\\" ] }\" } " \
 			"}"
 
 /**
@@ -57,7 +57,6 @@ static PLUGIN_INFORMATION info = {
  */
 PLUGIN_INFORMATION *plugin_info()
 {
-	Logger::getLogger()->error("OPCUA return config %s", CONFIG);
 	return &info;
 }
 
@@ -69,6 +68,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory *config)
 OPCUA	*opcua;
 string	url;
 
+
 	if (config->itemExists("url"))
 	{
 		url = config->getValue("url");
@@ -79,6 +79,7 @@ string	url;
 		Logger::getLogger()->fatal("UPC UA plugin is missing a URL");
 		throw exception();
 	}
+
 
 	if (config->itemExists("asset"))
 	{
@@ -97,15 +98,15 @@ string	url;
 	{
 		if (doc.HasMember("subscriptions") && doc["subscriptions"].IsArray())
 		{
-			for (rapidjson::Value::ConstMemberIterator itr = doc["subscriptions"].MemberBegin();
-                                                itr != doc["subscriptions"].MemberEnd(); ++itr)
+			const rapidjson::Value& subs = doc["subscriptions"];
+			for (rapidjson::SizeType i = 0; i < subs.Size(); i++)
                         {
-                                opcua->addSubscription(itr->name.GetString(), itr->value.GetString());
+                                opcua->addSubscription(subs[i].GetString());
                         }
 		}
 		else
 		{
-			Logger::getLogger()->fatal("UPC UA plugin is missing a subscroptions array");
+			Logger::getLogger()->fatal("UPC UA plugin is missing a subscriptions array");
 			throw exception();
 		}
 	}
@@ -119,6 +120,7 @@ string	url;
 void plugin_start(PLUGIN_HANDLE *handle)
 {
 OPCUA *opcua = (OPCUA *)handle;
+
 
 	if (!handle)
 		return;

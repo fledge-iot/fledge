@@ -13,21 +13,6 @@
 
 using namespace std;
 
-class SubClient : public OpcUa::SubscriptionHandler
-{ 
-	public:
-	  	SubClient(OPCUA *opcua) : m_opcua(opcua) {};
-		void DataChange(uint32_t handle, const OpcUa::Node & node, const OpcUa::Variant & val, OpcUa::AttributeId attr) override
-		{ 
-			vector<Datapoint *>	points;
-			DatapointValue value(val.ToString());
-			points.push_back(new Datapoint(node.GetId().GetStringIdentifier(), value));
-			m_opcua->ingest(points);
-		};
-	private:
-		OPCUA		*m_opcua;
-};
-
 /**
  * Constructor for the opcua plugin
  */
@@ -40,6 +25,7 @@ OPCUA::OPCUA(const string& url) : m_url(url)
  */
 OPCUA::~OPCUA()
 {
+	delete m_subClient;
 }
 
 /**
@@ -57,12 +43,18 @@ OPCUA::setAssetName(const std::string& asset)
  * Add a subscription parent node to the list
  */
 void
-OPCUA::addSubscription(const string& parent, const string& child)
+OPCUA::addSubscription(const string& parent)
 {
-	m_subscriptions.push_back(pair<string, string>({parent, child}));
-
+	m_subscriptions.push_back(parent);
 }
 
+/**
+ * Starts the plugin
+ *
+ * We register with the OPC UA server, retrieve all the objects under the parent
+ * to which we are subscribing and start the process to enable OPC UA to send us
+ * change notifications for those items.
+ */
 void
 OPCUA::start()
 {
@@ -71,18 +63,31 @@ OPCUA::start()
 
 	OpcUa::Node root = m_client->GetRootNode();
 
-	SubClient sclt(this);
-	OpcUa::Subscription::SharedPtr sub = m_client->CreateSubscription(100, sclt);
-	for (pair<string, string> item : m_subscriptions)
+	m_subClient = new OpcUaClient(this);
+	OpcUa::Subscription::SharedPtr sub = m_client->CreateSubscription(100, *m_subClient);
+
+	/* For every parent object we subscribe to fidn it's children and
+	 * add an OPC UA subscription for data changed events.
+	 */
+	for (string parent : m_subscriptions)
 	{
-		vector<string> varPath({"Objects", item.first, item.second});
-		OpcUa::Node myvar = root.GetChild(varPath);
-		sub->SubscribeDataChange(myvar);
+		vector<string> varpath({"Objects", parent});
+		OpcUa::Node parentNode = root.GetChild(varpath);
+		for (OpcUa::Node child : parentNode.GetChildren())
+		{
+			string childName = child.GetId().GetStringIdentifier();
+			vector<string> childpath({"Objects", parent, childName});
+			OpcUa::Node subvar = root.GetChild(childpath);
+			sub->SubscribeDataChange(subvar);
+		}
 	}
 }
 
 /**
- * Take a reading from the opcua
+ * Called when a data changed event is received. This calls back to the south service
+ * and adds the points to the readings queue to send.
+ *
+ * @param points	The points in the reading we must create
  */
 void OPCUA::ingest(vector<Datapoint *>	points)
 {

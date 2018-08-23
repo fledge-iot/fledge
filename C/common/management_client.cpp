@@ -417,16 +417,16 @@ string ManagementClient::addChildCategories(const string& parentCategory,
  *
  * @return		A vector of pointers to AssetTrackingTuple objects allocated on heap
  */
-std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples() const
+std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples(const std::string serviceName) const
 {
 	std::vector<AssetTrackingTuple*> *vec = new std::vector<AssetTrackingTuple*>();
 	
 	try {
-		string url = "/foglamp/track";
+		string url = "/foglamp/track?service="+serviceName;
 		auto res = m_client->request("GET", url.c_str());
 		Document doc;
 		string response = res->content.string();
-		m_logger->info("GET /foglamp/track: response='%s'", response.c_str());
+		m_logger->info("GET /foglamp/track?service=%s: response='%s'", serviceName.c_str(), response.c_str());
 		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{

@@ -36,12 +36,12 @@ static void ingestThread(Ingest *ingest)
 void Ingest::populateAssetTrackingCache(ManagementClient *m_mgtClient)
 {
 	try {
-		std::vector<AssetTrackingTuple*>& vec = m_mgtClient->getAssetTrackingTuples();
+		std::vector<AssetTrackingTuple*>& vec = m_mgtClient->getAssetTrackingTuples(m_serviceName);
 		for (AssetTrackingTuple* & rec : vec)
 			{
-			if (rec->m_serviceName != m_serviceName || rec->m_pluginName != m_pluginName || rec->m_eventName != "Ingest")
+			if (rec->m_pluginName != m_pluginName || rec->m_eventName != "Ingest")
 				{
-				m_logger->info("Service/plugin/event name mismatch; NOT adding asset tracker tuple to cache: '%s'", rec->assetToString().c_str());
+				m_logger->info("Plugin/event name mismatch; NOT adding asset tracker tuple to cache: '%s'", rec->assetToString().c_str());
 				delete rec;
 				continue;
 				}

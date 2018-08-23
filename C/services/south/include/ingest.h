@@ -63,8 +63,8 @@ private:
 	unsigned long			m_timeout;
 	unsigned int			m_queueSizeThreshold;
 	bool				m_running;
-	std::string 		m_serviceName;
-	std::string 		m_pluginName;
+	std::string 			m_serviceName;
+	std::string 			m_pluginName;
 	ManagementClient		*m_mgtClient;
 	// New data: queued
 	std::vector<Reading *>*		m_queue;

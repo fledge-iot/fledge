@@ -161,7 +161,12 @@ async def add_service(request):
                                              category_description=category_desc,
                                              category_value=plugin_config,
                                              keep_original_items=True)
+            # Create the parent category for all South services
+            await config_mgr.create_category("South", {}, "South microservices", True)
+            await config_mgr.create_child_category("South", [name])
         except Exception as ex:
+            await revert_configuration(storage, name)  # Revert configuration entry
+            await revert_parent_child_configuration(storage, name)
             await revert_scheduled_processes(storage, plugin)  # Revert scheduled_process entry
             raise web.HTTPInternalServerError(reason='Failed to create plugin configuration. {}'.format(str(ex)))
 
@@ -180,10 +185,12 @@ async def add_service(request):
             schedule = await server.Server.scheduler.get_schedule_by_name(name)
         except StorageServerError as ex:
             await revert_configuration(storage, name)  # Revert configuration entry
+            await revert_parent_child_configuration(storage, name)
             await revert_scheduled_processes(storage, name)  # Revert scheduled_process entry
             raise web.HTTPInternalServerError(reason='Failed to created schedule. {}'.format(ex.error))
         except Exception as ins_ex:
             await revert_configuration(storage, name)  # Revert configuration entry
+            await revert_parent_child_configuration(storage, name)
             await revert_scheduled_processes(storage, name)  # Revert scheduled_process entry
             raise web.HTTPInternalServerError(reason='Failed to created schedule. {}'.format(str(ins_ex)))
 
@@ -213,3 +220,8 @@ async def revert_scheduled_processes(storage, process_name):
 async def revert_configuration(storage, key):
     payload = PayloadBuilder().WHERE(['key', '=', key]).payload()
     await storage.delete_from_tbl('configuration', payload)
+
+
+async def revert_parent_child_configuration(storage, key):
+    payload = PayloadBuilder().WHERE(['parent', '=', "South"]).AND_WHERE(['child', '=', key]).payload()
+    await storage.delete_from_tbl('category_children', payload)

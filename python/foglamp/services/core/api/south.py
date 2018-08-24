@@ -11,6 +11,7 @@ from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.services.core.service_registry.exceptions import DoesNotExist
 from foglamp.services.core import connect
+from foglamp.common.configuration_manager import ConfigurationManager
 
 
 __author__ = "Praveen Garg"
@@ -25,22 +26,18 @@ _help = """
 """
 
 
-async def _get_tracked_services(storage_client):
+async def _services_with_assets(storage_client, south_services):
     sr_list = list()
     try:
-        payload = PayloadBuilder().SELECT("service").payload()
-        result = await storage_client.query_tbl_with_payload('asset_tracker', payload)
-
-        services_with_assets = result['rows']
         try:
-            southbound_services = ServiceRegistry.get(s_type="Southbound")
+            services_from_registry = ServiceRegistry.get(s_type="Southbound")
         except DoesNotExist:
-            southbound_services = []
+            services_from_registry = []
 
         def get_svc(name):
-            return next((ss for ss in southbound_services if ss._name == name), None)
+            return next((svc for svc in services_from_registry if svc._name == name), None)
 
-        for ss in southbound_services:
+        for ss in services_from_registry:
             sr_list.append(
                 {
                     'name': ss._name,
@@ -51,24 +48,24 @@ async def _get_tracked_services(storage_client):
                     'status': ServiceRecord.Status(int(ss._status)).name.lower(),
                     'assets': await _get_tracked_assets_and_readings(storage_client, ss._name)
                 })
-        for swa in services_with_assets:
-            south_svc = get_svc(swa["service"])
+        for _s in south_services:
+            south_svc = get_svc(_s)
             if not south_svc:
                 sr_list.append(
                     {
-                        'name': swa["service"],
+                        'name': _s,
                         'address': '',
                         'management_port': '',
                         'service_port': '',
                         'protocol': '',
                         'status': '',
-                        'assets': await _get_tracked_assets_and_readings(storage_client, swa["service"])
+                        'assets': await _get_tracked_assets_and_readings(storage_client, _s)
 
                     })
     except:
         raise
     else:
-        return {'services': sr_list}
+        return sr_list
 
 
 async def _get_tracked_assets_and_readings(storage_client, svc_name):
@@ -98,11 +95,18 @@ async def get_south_services(request):
         request:
 
     Returns:
-            list of all registered services having type "Southbound"
+            list of all south services with tracked assets and readings count
 
     :Example:
             curl -X GET http://localhost:8081/foglamp/south
     """
     storage_client = connect.get_storage_async()
-    response = await _get_tracked_services(storage_client)
-    return web.json_response(response)
+    cf_mgr = ConfigurationManager(storage_client)
+    try:
+        south_cat = await cf_mgr.get_category_child("South")
+        south_categories = [nc["key"] for nc in south_cat]
+    except ValueError:
+        return web.json_response({'services': []})
+
+    response = await _services_with_assets(storage_client, south_categories)
+    return web.json_response({'services': response})

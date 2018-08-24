@@ -99,11 +99,10 @@ def setup(app):
     app.router.add_route('POST', '/foglamp/service', service.add_service)
     app.router.add_route('GET', '/foglamp/service', service.get_health)
 
-    # North
-    app.router.add_route('GET', '/foglamp/north', north.get_north_schedules)
-
     # South
     app.router.add_route('GET', '/foglamp/south', south.get_south_services)
+    # North
+    app.router.add_route('GET', '/foglamp/north', north.get_north_schedules)
 
     # assets
     browser.setup(app)

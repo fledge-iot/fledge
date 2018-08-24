@@ -23,6 +23,7 @@ from foglamp.services.core.api import south
 from foglamp.services.core.api import north
 from foglamp.services.core.api import filters
 
+
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"

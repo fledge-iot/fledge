@@ -636,12 +636,6 @@ DELETE FROM foglamp.configuration;
 INSERT INTO foglamp.statistics ( key, description, value, previous_value )
      VALUES ( 'READINGS',             'Readings received by FogLAMP', 0, 0 ),
             ( 'BUFFERED',             'Readings currently in the FogLAMP buffer', 0, 0 ),
-            ( 'NORTH_READINGS_TO_PI', 'Readings sent to historian', 0, 0 ),
-            ( 'NORTH_STATISTICS_TO_PI', 'Statistics sent to historian', 0, 0 ),
-            ( 'NORTH_READINGS_TO_HTTP', 'Readings sent to HTTP', 0, 0 ),
-            ( 'North Readings to PI', 'Readings sent to the historian', 0, 0 ),
-            ( 'North Statistics to PI','Statistics data sent to the historian', 0, 0 ),
-            ( 'North Readings to OCS','Readings sent to OCS', 0, 0 ),
             ( 'UNSENT',               'Readings filtered out in the send process', 0, 0 ),
             ( 'PURGED',               'Readings removed from the buffer by the purge process', 0, 0 ),
             ( 'UNSNPURGED',           'Readings that were purged from the buffer before being sent', 0, 0 ),

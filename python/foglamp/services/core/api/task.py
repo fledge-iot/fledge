@@ -40,11 +40,7 @@ async def add_task(request):
         "schedule_day": 0,
         "schedule_time": 0,
         "schedule_repeat": 30,
-        "schedule_enabled": true,
-        "cmd_params": {
-            "stream_id": "1",
-            "debug_level": "1"
-        }
+        "schedule_enabled": true
      }'
     """
 
@@ -178,7 +174,12 @@ async def add_task(request):
                                              category_description=category_desc,
                                              category_value=plugin_config,
                                              keep_original_items=True)
+            # Create the parent category for all North tasks
+            await config_mgr.create_category("North", {}, 'North tasks', True)
+            await config_mgr.create_child_category("North", [name])
         except Exception as ex:
+            await revert_configuration(storage, name)  # Revert configuration entry
+            await revert_parent_child_configuration(storage, name)
             await revert_scheduled_processes(storage, plugin)  # Revert scheduled_process entry
             raise web.HTTPInternalServerError(reason='Failed to create plugin configuration. {}'.format(str(ex)))
 
@@ -202,10 +203,12 @@ async def add_task(request):
             schedule = await server.Server.scheduler.get_schedule_by_name(name)
         except StorageServerError as ex:
             await revert_configuration(storage, name)  # Revert configuration entry
+            await revert_parent_child_configuration(storage, name)
             await revert_scheduled_processes(storage, name)  # Revert scheduled_process entry
             raise web.HTTPInternalServerError(reason='Failed to created schedule. {}'.format(ex.error))
         except Exception as ins_ex:
             await revert_configuration(storage, name)  # Revert configuration entry
+            await revert_parent_child_configuration(storage, name)
             await revert_scheduled_processes(storage, name)  # Revert scheduled_process entry
             raise web.HTTPInternalServerError(reason='Failed to created schedule. {}'.format(str(ins_ex)))
 
@@ -235,3 +238,8 @@ async def revert_scheduled_processes(storage, process_name):
 async def revert_configuration(storage, key):
     payload = PayloadBuilder().WHERE(['key', '=', key]).payload()
     await storage.delete_from_tbl('configuration', payload)
+
+
+async def revert_parent_child_configuration(storage, key):
+    payload = PayloadBuilder().WHERE(['parent', '=', "North"]).AND_WHERE(['child', '=', key]).payload()
+    await storage.delete_from_tbl('category_children', payload)

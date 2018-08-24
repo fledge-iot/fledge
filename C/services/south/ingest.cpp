@@ -29,6 +29,76 @@ static void ingestThread(Ingest *ingest)
 }
 
 /**
+ * Fetch all asset tracking tuples from DB and populate local cache
+ *
+ * @param m_mgtClient	Management client handle
+ */
+void Ingest::populateAssetTrackingCache(ManagementClient *mgtClient)
+{
+	try {
+		std::vector<AssetTrackingTuple*>& vec = mgtClient->getAssetTrackingTuples(m_serviceName);
+		for (AssetTrackingTuple* & rec : vec)
+			{
+			if (rec->m_pluginName != m_pluginName || rec->m_eventName != "Ingest")
+				{
+				m_logger->info("Plugin/event name mismatch; NOT adding asset tracker tuple to cache: '%s'", rec->assetToString().c_str());
+				delete rec;
+				continue;
+				}
+			assetTrackerTuplesCache.insert(rec);
+			m_logger->info("Added asset tracker tuple to cache: '%s'", rec->assetToString().c_str());
+			}
+		delete (&vec);
+		}
+	catch (...)
+		{
+		m_logger->error("Failed to populate asset tracking tuples' cache");
+		return;
+		}
+}
+
+/**
+ * Check local cache for a given asset tracking tuple
+ *
+ * @param tuple		Tuple to find in cache
+ * @return			Returns whether tuple is present in cache
+ */
+bool Ingest::checkAssetTrackingCache(AssetTrackingTuple& tuple)
+{
+	AssetTrackingTuple *ptr = &tuple;
+	std::unordered_set<AssetTrackingTuple*>::const_iterator it = assetTrackerTuplesCache.find(ptr);
+	if (it == assetTrackerTuplesCache.end())
+		{
+		m_logger->info("checkAssetTrackingCache(): Tuple not found in cache: '%s'", tuple.assetToString().c_str());
+		return false;
+		}
+	else
+		return true;
+}
+
+/**
+ * Add asset tracking tuple via microservice management API and in cache
+ *
+ * @param tuple		New tuple to add in DB and in cache
+ */
+void Ingest::addAssetTrackingTuple(AssetTrackingTuple& tuple)
+{
+	std::unordered_set<AssetTrackingTuple*>::const_iterator it = assetTrackerTuplesCache.find(&tuple);
+	if (it == assetTrackerTuplesCache.end())
+		{
+		m_logger->info("addAssetTrackingTuple(): Tuple not found in cache: '%s', adding now.", tuple.assetToString().c_str());
+		bool rv = m_mgtClient->addAssetTrackingTuple(tuple.m_serviceName, tuple.m_pluginName, tuple.m_assetName, "Ingest");
+		if (rv) // insert into cache only if DB operation succeeded
+			{
+			AssetTrackingTuple *ptr = new AssetTrackingTuple(tuple);
+			assetTrackerTuplesCache.insert(ptr);
+			}
+		}
+	else
+		m_logger->info("addAssetTrackingTuple(): Tuple already found in cache: '%s', not adding again", tuple.assetToString().c_str());
+}
+
+/**
  * Create a row for given assetName in statistics DB table, if not present already
  * The key checked/created in the table is "INGEST_<assetName>"
  * 
@@ -99,8 +169,9 @@ void Ingest::updateStats()
 {
 	unique_lock<mutex> lck(m_statsMutex);
 	m_statsCv.wait(lck);
-	Logger::getLogger()->info("%s:%d : stats thread: wakeup from sleep, now updating stats, m_newReadings=%d, m_discardedReadings=%d, m_readingsAssetName='%s'",
-								__FUNCTION__, __LINE__, m_newReadings, m_discardedReadings, m_readingsAssetName.c_str());
+	/*Logger::getLogger()->info("%s:%d : stats thread: wakeup from sleep, now updating stats, m_newReadings=%d, m_discardedReadings=%d, m_readingsAssetName='%s'",
+				__FUNCTION__, __LINE__, m_newReadings, m_discardedReadings, m_readingsAssetName.c_str());
+	*/
 	
 	if (m_newReadings==0 && m_discardedReadings==0) return; // nothing to update, possible spurious wakeup
 
@@ -176,7 +247,6 @@ void Ingest::updateStats()
 		{
 		Logger::getLogger()->info("%s:%d : Statistics table update failed, will retry on next iteration", __FUNCTION__, __LINE__);
 		}
-	
 }
 
 /**
@@ -185,6 +255,7 @@ void Ingest::updateStats()
  * storage layer based on time. This thread in created in
  * the constructor and will terminate when the destructor
  * is called.
+ * TODO - try to reduce the number of arguments in c'tor
  *
  * @param storage	The storage client to use
  * @param timeout	Maximum time before sending a queue of readings in milliseconds
@@ -192,10 +263,16 @@ void Ingest::updateStats()
  */
 Ingest::Ingest(StorageClient& storage,
 		unsigned long timeout,
-		unsigned int threshold) :
+		unsigned int threshold,
+		const std::string& serviceName,
+		const std::string& pluginName,
+		ManagementClient *mgmtClient) :
 			m_storage(storage),
 			m_timeout(timeout),
-			m_queueSizeThreshold(threshold)
+			m_queueSizeThreshold(threshold),
+			m_serviceName(serviceName),
+			m_pluginName(pluginName),
+			m_mgtClient(mgmtClient)
 {
 	
 	m_running = true;
@@ -207,7 +284,9 @@ Ingest::Ingest(StorageClient& storage,
 	m_newReadings = 0;
 	m_discardedReadings = 0;
 	m_readingsAssetName = "unknown";
-	m_logger->info("%s:%d : timeout=%d, threshold=%d", __FUNCTION__, __LINE__, timeout, threshold);
+
+	// populate asset tracking cache
+	populateAssetTrackingCache(m_mgtClient);
 }
 
 /**
@@ -296,6 +375,18 @@ vector<Reading *>* newQ = new vector<Reading *>();
 		firstReading = (*it);
 		m_readingsAssetName=firstReading->getAssetName();
 		}
+
+	// check if this requires addition of a new asset tracker tuple
+	for (vector<Reading *>::iterator it = m_data->begin(); it != m_data->end(); ++it)
+	{
+		Reading *reading = *it;
+		AssetTrackingTuple tuple(m_serviceName, m_pluginName, reading->getAssetName(), "Ingest");
+		if (!checkAssetTrackingCache(tuple))
+			{
+			addAssetTrackingTuple(tuple);
+			m_logger->info("processQueue(): Added new asset tracking tuple seen during readings' ingest: %s", tuple.assetToString().c_str());
+			}
+	}
 	
 	ReadingSet* readingSet = NULL;
 
@@ -371,6 +462,110 @@ vector<Reading *>* newQ = new vector<Reading *>();
 	// Signal stats thread to update stats
 	lock_guard<mutex> guard(m_statsMutex);
 	m_statsCv.notify_all();
+}
+
+/**
+ * Load filter plugins
+ *
+ * Filters found in configuration are loaded
+ * and adde to the Ingest class instance
+ *
+ * @param categoryName	Configuration category name
+ * @param ingest	The Ingest class reference
+ *			Filters are added to m_filters member
+ *			False for errors.
+ * @return		True if filters were loaded and initialised
+ *			or there are no filters
+ *			False with load/init errors
+ */
+bool Ingest::loadFilters(const string& categoryName)
+{
+	// Try to load filters:
+	if (!FilterPlugin::loadFilters(categoryName,
+				       m_filters,
+				       m_mgtClient))
+	{
+		// Return false on any error
+		return false;
+	}
+
+	// Set up the filter pipeline
+	return setupFiltersPipeline();
+}
+
+/**
+ * Set the filterPipeline in the Ingest class
+ * 
+ * This method calls the the method "plugin_init" for all loadade filters.
+ * Up to date filter configurations and Ingest filtering methods
+ * are passed to "plugin_init"
+ *
+ * @param ingest	The ingest class
+ * @return 		True on success,
+ *			False otherwise.
+ * @thown		Any caught exception
+ */
+bool Ingest::setupFiltersPipeline() const
+{
+	bool initErrors = false;
+	string errMsg = "'plugin_init' failed for filter '";
+	for (auto it = m_filters.begin(); it != m_filters.end(); ++it)
+	{
+		string filterCategoryName = (*it)->getName();
+		ConfigCategory updatedCfg;
+		vector<string> children;
+        
+		try
+		{
+			// Fetch up to date filter configuration
+			updatedCfg = m_mgtClient->getCategory(filterCategoryName);
+
+			// Add filter category name under service/process config name
+			children.push_back(filterCategoryName);
+			m_mgtClient->addChildCategories(m_serviceName, children);
+		}
+		// TODO catch specific exceptions
+		catch (...)
+		{       
+			throw;      
+		}                   
+
+		// Iterate the load filters set in the Ingest class m_filters member 
+		if ((it + 1) != m_filters.end())
+		{
+			// Set next filter pointer as OUTPUT_HANDLE
+			if (!(*it)->init(updatedCfg,
+				    (OUTPUT_HANDLE *)(*(it + 1)),
+				    Ingest::passToOnwardFilter))
+			{
+				errMsg += (*it)->getName() + "'";
+				initErrors = true;
+				break;
+			}
+		}
+		else
+		{
+			// Set the Ingest class pointer as OUTPUT_HANDLE
+			if (!(*it)->init(updatedCfg,
+					 (OUTPUT_HANDLE *)this,
+					 Ingest::useFilteredData))
+			{
+				errMsg += (*it)->getName() + "'";
+				initErrors = true;
+				break;
+			}
+		}
+	}
+
+	if (initErrors)
+	{
+		// Failure
+		m_logger->fatal("%s error: %s", SERVICE_NAME, errMsg.c_str());
+		return false;
+	}
+
+	//Success
+	return true;
 }
 
 /**

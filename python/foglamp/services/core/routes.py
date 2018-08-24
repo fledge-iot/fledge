@@ -21,6 +21,7 @@ from foglamp.services.core.api import task
 from foglamp.services.core.api import asset_tracker
 from foglamp.services.core.api import south
 from foglamp.services.core.api import north
+from foglamp.services.core.api import filters
 
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
@@ -149,6 +150,10 @@ def setup(app):
 
     # Task
     app.router.add_route('POST', '/foglamp/scheduled/task', task.add_task)
+
+    # Filters 
+    app.router.add_route('POST', '/foglamp/filter', filters.create_filter)
+    app.router.add_route('PUT', '/foglamp/filter/{service_name}/pipeline', filters.add_filters_pipeline)
 
     # enable cors support
     enable_cors(app)

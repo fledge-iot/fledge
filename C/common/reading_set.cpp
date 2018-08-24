@@ -168,7 +168,7 @@ JSONReading::JSONReading(const Value& json)
 			}
 			else
 			{
-				value = new DatapointValue(m.GetInt64());
+				value = new DatapointValue((long) m.GetInt64());
 			}
 			this->addDatapoint(new Datapoint("value",*value));
 			delete value;
@@ -223,7 +223,7 @@ JSONReading::JSONReading(const Value& json)
 						}
 						else
 						{
-							value = new DatapointValue(m.value.GetInt64());
+							value = new DatapointValue((long) m.value.GetInt64());
 						}
 						this->addDatapoint(new Datapoint(m.name.GetString(),
 										 *value));

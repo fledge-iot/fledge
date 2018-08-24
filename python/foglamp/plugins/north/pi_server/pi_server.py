@@ -41,7 +41,7 @@ _LOGGER_LEVEL = _LOG_LEVEL_WARNING
 _LOGGER_DESTINATION = logger.SYSLOG
 _logger = None
 
-_MODULE_NAME = "omf_north"
+_MODULE_NAME = "pi_server_north"
 
 # Messages used for Information, Warning and Error notice
 MESSAGES_LIST = {
@@ -82,12 +82,12 @@ _MESSAGES_LIST = {
     "e000000": "general error.",
 }
 # Configuration related to the OMF North
-_CONFIG_CATEGORY_DESCRIPTION = 'OMF North Plugin'
+_CONFIG_CATEGORY_DESCRIPTION = 'PI-Server North Plugin'
 _CONFIG_DEFAULT_OMF = {
     'plugin': {
-        'description': 'OMF North Plugin',
+        'description': 'Server North Plugin',
         'type': 'string',
-        'default': 'omf'
+        'default': 'pi_server'
     },
     "URL": {
         "description": "URL of PI Connector to send data to",
@@ -97,7 +97,7 @@ _CONFIG_DEFAULT_OMF = {
     "producerToken": {
         "description": "Producer token for this FogLAMP stream",
         "type": "string",
-        "default": "omf_north_0001"
+        "default": "pi_server_north_0001"
     },
     "OMFMaxRetry": {
         "description": "Max number of retries for communication with the OMF PI Connector Relay",

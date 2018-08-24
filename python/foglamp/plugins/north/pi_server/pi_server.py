@@ -408,7 +408,7 @@ async def plugin_send(data, raw_data, stream_id):
     config_category_name = data['_CONFIG_CATEGORY_NAME']
     type_id = _config_omf_types['type-id']['value']
 
-    omf_north = OmfNorthPlugin(data['sending_process_instance'], data, _config_omf_types, _logger)
+    omf_north = PIServerNorthPlugin(data['sending_process_instance'], data, _config_omf_types, _logger)
 
     try:
         # Alloc the in memory buffer
@@ -458,7 +458,7 @@ def plugin_reconfigure():
     pass
 
 
-class OmfNorthPlugin(object):
+class PIServerNorthPlugin(object):
     """ North OMF North Plugin """
 
     def __init__(self, sending_process_instance, config, config_omf_types, _logger):
@@ -504,9 +504,9 @@ class OmfNorthPlugin(object):
                                                                     item=omf_created_objects))
         # Extracts only the asset_code column
         rows = []
+        return rows
         for row in omf_created_objects['rows']:
             rows.append(row['asset_code'])
-        return rows
 
     async def _flag_created_omf_type(self, configuration_key, type_id, asset_code):
         """ Stores into the Storage layer the successfully creation of the type into PICROMF.

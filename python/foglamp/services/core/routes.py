@@ -19,6 +19,7 @@ from foglamp.services.core.api import support
 from foglamp.services.core.api import plugin_discovery
 from foglamp.services.core.api import task
 from foglamp.services.core.api import asset_tracker
+from foglamp.services.core.api import north
 from foglamp.services.core.api import south
 from foglamp.services.core.api import filters
 
@@ -100,6 +101,8 @@ def setup(app):
 
     # South
     app.router.add_route('GET', '/foglamp/south', south.get_south_services)
+    # North
+    app.router.add_route('GET', '/foglamp/north', north.get_north_schedules)
 
     # assets
     browser.setup(app)

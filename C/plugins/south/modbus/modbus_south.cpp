@@ -86,7 +86,7 @@ vector<Datapoint *>	points;
 		uint8_t	coilValue;
 		if (modbus_read_bits(m_modbus, m_coils[i]->m_registerNo, 1, &coilValue) == 1)
 		{
-			DatapointValue value(coilValue);
+			DatapointValue value((long)coilValue);
 			points.push_back(new Datapoint(m_coils[i]->m_name, value));
 		}
 		else if (errno = EPIPE)
@@ -99,7 +99,7 @@ vector<Datapoint *>	points;
 		uint8_t	inputValue;
 		if (modbus_read_input_bits(m_modbus, m_inputs[i]->m_registerNo, 1, &inputValue) == 1)
 		{
-			DatapointValue value(inputValue);
+			DatapointValue value((long)inputValue);
 			points.push_back(new Datapoint(m_inputs[i]->m_name, value));
 		}
 		else if (errno = EPIPE)
@@ -112,7 +112,7 @@ vector<Datapoint *>	points;
 		uint16_t	regValue;
 		if (modbus_read_registers(m_modbus, m_registers[i]->m_registerNo, 1, &regValue) == 1)
 		{
-			DatapointValue value(regValue);
+			DatapointValue value((long)regValue);
 			points.push_back(new Datapoint(m_registers[i]->m_name, value));
 		}
 		else if (errno = EPIPE)
@@ -125,7 +125,7 @@ vector<Datapoint *>	points;
 		uint16_t	regValue;
 		if (modbus_read_input_registers(m_modbus, m_inputRegisters[i]->m_registerNo, 1, &regValue) == 1)
 		{
-			DatapointValue value(regValue);
+			DatapointValue value((long)regValue);
 			points.push_back(new Datapoint(m_inputRegisters[i]->m_name, value));
 		}
 		else if (errno = EPIPE)

@@ -296,7 +296,7 @@ class TestService:
                                     patch_get_schedule.assert_called_once_with(data['name'])
                                 patch_save_schedule.called_once_with()
                                 calls = [call(category_description='Modbus RTU plugin', category_name='furnace4', category_value={'plugin': {'description': 'Modbus RTU plugin', 'type': 'string', 'default': 'dht11'}}, keep_original_items=True),
- call('South', {}, 'South microservices', True)]
+                                         call('South', {}, 'South microservices', True)]
                             patch_create_cat.assert_has_calls(calls)
 
                         args, kwargs = insert_table_patch.call_args

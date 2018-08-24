@@ -5,7 +5,6 @@ declare TEST_BASEDIR
 declare SUITE_BASEDIR
 declare FOGLAMP_SERVER
 declare FOGLAMP_PORT
-declare SCHEDULE_ID_OMF_PLUGIN
 declare RESULT_DIR
 declare TEST_NAME
 declare SENDING_PROCESS_DATA
@@ -26,7 +25,25 @@ exec 2>>"${RESULT_DIR}/${TEST_NAME}_err.temp"
 
 
 # Enables the OMF plugin
-curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/schedule/${SCHEDULE_ID_OMF_PLUGIN} -d '{ "enabled" : true }'
+bash -c "cat > ${TMP_FILE_ADD_NORTH_READINGS}" << 'EOF'
+        {
+            "name": "North Readings to PI",
+            "plugin": "omf",
+            "type": "north",
+            "schedule_type": 3,
+            "schedule_day": 0,
+            "schedule_time": 0,
+            "schedule_repeat": 30,
+            "schedule_enabled": true,
+            "cmd_params": {
+                "stream_id": "1",
+                "debug_level": "1"
+            }
+         }
+EOF
+
+curl -X POST http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/scheduled/task -d@${TMP_FILE_ADD_NORTH_READINGS}
+
 
 # Waits until the OMF plugin has created the default configurations
 ${TEST_BASEDIR}/bash/wait_creation_cfg.bash "${SENDING_PROCESS_DATA}/producerToken"

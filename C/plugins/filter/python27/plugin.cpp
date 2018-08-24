@@ -560,7 +560,7 @@ static vector<Reading *>* getFilteredReadings(PyObject* filteredData)
 			DatapointValue* dataPoint;
 			if (PyInt_Check(dValue) || PyLong_Check(dValue))
 			{
-				dataPoint = new DatapointValue((int)PyInt_AsUnsignedLongMask(dValue));
+				dataPoint = new DatapointValue((long)PyInt_AsUnsignedLongMask(dValue));
 			}
 			else if (PyFloat_Check(dValue))
 			{

@@ -16,8 +16,13 @@
 #include <thread>
 #include <chrono>
 #include <mutex>
+#include <sstream>
+#include <unordered_set>
 #include <condition_variable>
 #include <filter_plugin.h>
+#include <asset_tracking.h>
+
+#define SERVICE_NAME  "FogLAMP South"
 
 /**
  * The ingest class is used to ingest asset readings.
@@ -30,7 +35,10 @@ class Ingest {
 public:
 	Ingest(StorageClient& storage,
 		unsigned long timeout,
-		unsigned int threshold);
+		unsigned int threshold,
+		const std::string& serviceName,
+		const std::string& pluginName,
+		ManagementClient *mgmtClient);
 	~Ingest();
 
 	void		ingest(const Reading& reading);
@@ -40,10 +48,16 @@ public:
 	void		updateStats(void);
 	int 		createStatsDbEntry(const std::string& assetName);
 
+	bool		loadFilters(const std::string& categoryName);
+	bool		setupFiltersPipeline() const;
 	static void	passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 					   READINGSET* readings);
 	static void	useFilteredData(OUTPUT_HANDLE *outHandle,
 					READINGSET* readings);
+
+	void 		populateAssetTrackingCache(ManagementClient *m_mgtClient);
+	bool 		checkAssetTrackingCache(AssetTrackingTuple& tuple);
+	void 		addAssetTrackingTuple(AssetTrackingTuple& tuple);
 
 public:
 	std::vector<FilterPlugin *>	m_filters;
@@ -53,6 +67,9 @@ private:
 	unsigned long			m_timeout;
 	unsigned int			m_queueSizeThreshold;
 	bool				m_running;
+	std::string 			m_serviceName;
+	std::string 			m_pluginName;
+	ManagementClient		*m_mgtClient;
 	// New data: queued
 	std::vector<Reading *>*		m_queue;
 	std::mutex			m_qMutex;
@@ -67,6 +84,8 @@ private:
 	unsigned int			m_newReadings; // new readings since last update to statistics table
 	unsigned int			m_discardedReadings; // discarded readings since last update to statistics table
 	std::string			m_readingsAssetName; // asset name extracted from the Reading object
+	
+	std::unordered_set<AssetTrackingTuple*, std::hash<AssetTrackingTuple*>, AssetTrackingTuplePtrEqual>   assetTrackerTuplesCache;
 };
 
 #endif

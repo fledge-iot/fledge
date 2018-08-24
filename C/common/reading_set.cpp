@@ -160,9 +160,19 @@ JSONReading::JSONReading(const Value& json)
 		    m.IsInt64() ||
 		    m.IsUint64())
 		{
-			DatapointValue value(m.GetInt());
-			this->addDatapoint(new Datapoint("value",
-							 value));
+			DatapointValue* value;
+			if (m.IsInt() ||
+			    m.IsUint() )
+			{
+				value = new DatapointValue((long) m.GetInt());
+			}
+			else
+			{
+				value = new DatapointValue((long) m.GetInt64());
+			}
+			this->addDatapoint(new Datapoint("value",*value));
+			delete value;
+
 		}
 		else if (m.IsDouble())
 		{
@@ -204,9 +214,20 @@ JSONReading::JSONReading(const Value& json)
 					    m.value.IsInt64() ||
 					    m.value.IsUint64())
 					{
-						DatapointValue value(m.value.GetInt());
+
+						DatapointValue* value;
+						if (m.value.IsInt() ||
+						    m.value.IsUint() )
+						{
+							value = new DatapointValue((long) m.value.GetInt());
+						}
+						else
+						{
+							value = new DatapointValue((long) m.value.GetInt64());
+						}
 						this->addDatapoint(new Datapoint(m.name.GetString(),
-										 value));
+										 *value));
+						delete value;
 						break;
 					}
 					else if (m.value.IsDouble())

@@ -15,7 +15,18 @@ declare PI_SERVER_PORT
 declare OMF_PRODUCER_TOKEN
 declare OMF_TYPE_ID
 
+# Reads configuration setting
+source ${SUITE_BASEDIR}/suite.cfg
+
 $TEST_BASEDIR/bash/exec_any_foglamp_command.bash start > ${RESULT_DIR}/$TEST_NAME.temp 2>&1
 tail -n1 ${RESULT_DIR}/$TEST_NAME.temp
 
 $TEST_BASEDIR/bash/wait_foglamp_status.bash RUNNING                                                                     1>>"${RESULT_DIR}/${TEST_NAME}_out.temp" 2>>"${RESULT_DIR}/${TEST_NAME}_err.temp"
+
+# Checks if the FogLAMP server is reachable
+curl -s -X GET http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/ > /dev/null 2>&1
+if [[ "$?" != "0" ]]; then
+
+    echo "ERROR : FogLAMP server not reachable, server:port -${FOGLAMP_SERVER}:${FOGLAMP_PORT}-."
+    exit 1
+fi

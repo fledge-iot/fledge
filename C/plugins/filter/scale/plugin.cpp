@@ -135,7 +135,7 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 			// If INTEGER or FLOAT do the change
 			if (value.getType() == DatapointValue::T_INTEGER)
 			{
-				value.setValue((int)(value.toInt() * scaleFactor));
+				value.setValue((long)(value.toInt() * scaleFactor));
 			}
 			else if (value.getType() == DatapointValue::T_FLOAT)
 			{

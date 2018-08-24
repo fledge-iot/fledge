@@ -12,7 +12,25 @@ exec 2>>"${RESULT_DIR}/${TEST_NAME}_err.temp"
 
 
 # Enables the OCS plugin
-curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/schedule/${SCHEDULE_ID_OCS_PLUGIN} -d '{ "enabled" : true }'
+bash -c "cat > ${TMP_FILE_ADD_NORTH_OCS_READINGS}" << 'EOF'
+        {
+            "name": "North Readings to OCS",
+            "plugin": "ocs",
+            "type": "north",
+            "schedule_type": 3,
+            "schedule_day": 0,
+            "schedule_time": 0,
+            "schedule_repeat": 30,
+            "schedule_enabled": true,
+            "cmd_params": {
+                "stream_id": "1",
+                "debug_level": "1"
+            }
+         }
+EOF
+
+curl -X POST http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/scheduled/task -d@${TMP_FILE_ADD_NORTH_OCS_READINGS}
+
 
 # Waits until the OCS plugin has created the default configurations
 ${TEST_BASEDIR}/bash/wait_creation_cfg.bash "${SENDING_PROCESS_OCS_DATA}/producerToken"
@@ -20,6 +38,10 @@ if [[ "$?" != "0" ]]; then
     exit 1
 fi
 
+${TEST_BASEDIR}/bash/wait_creation_cfg.bash "OCS_TYPES/type-id"
+if [[ "$?" != "0" ]]; then
+    exit 1
+fi
 
 # Configures FogLAMP with the required settings
 curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/"${SENDING_PROCESS_OCS_DATA}"/tenant_id -d '{ "value" : "'${OCS_TENANT}'" }'

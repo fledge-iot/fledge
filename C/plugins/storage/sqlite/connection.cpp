@@ -36,14 +36,16 @@ using namespace rapidjson;
 
 #define CONNECT_ERROR_THRESHOLD		5*60	// 5 minutes
 
-#define MAX_RETRIES			10	// Maximum no. of retries when a lock is encountered
+#define MAX_RETRIES			20	// Maximum no. of retries when a lock is encountered
+#define RETRY_BACKOFF			2000	// Multipier to backoff DB retry on lock
 
 /*
  * The following allows for conditional inclusion of code that tracks the top queries
  * run by the storage plugin and the numebr of times a particular statement has to
  * be retried because of the database being busy./
  */
-#define DO_PROFILE	0
+#define DO_PROFILE		0
+#define DO_PROFILE_RETRIES	0
 #if DO_PROFILE
 #include <profile.h>
 
@@ -2586,13 +2588,14 @@ int retries = 0, rc;
 		retries++;
 		if (rc == SQLITE_LOCKED || rc == SQLITE_BUSY)
 		{
-			usleep(retries * 1000);	// sleep retries milliseconds
+			usleep(retries * RETRY_BACKOFF);	// sleep retries milliseconds
 		}
 	} while (retries < MAX_RETRIES && (rc == SQLITE_LOCKED || rc == SQLITE_BUSY));
-#if DO_PROFILE
+#if DO_PROFILE_RETRIES
 	retryStats[retries-1]++;
 	if (++numStatements > RETRY_REPORT_THRESHOLD - 1)
 	{
+		numStatements = 0;
 		Logger *log = Logger::getLogger();
 		log->info("Storage layer statement retry profile");
 		for (int i = 0; i < MAX_RETRIES-1; i++)
@@ -2601,7 +2604,7 @@ int retries = 0, rc;
 			retryStats[i] = 0;
 		}
 		log->info("Too many retries: %d", retryStats[MAX_RETRIES-1]);
-		numStatements = 0;
+		retryStats[MAX_RETRIES-1] = 0;
 	}
 #endif
 
@@ -2633,13 +2636,14 @@ int retries = 0, rc;
 		retries++;
 		if (rc == SQLITE_LOCKED || rc == SQLITE_BUSY)
 		{
-			usleep(retries * 1000);	// sleep retries milliseconds
+			usleep(retries * RETRY_BACKOFF);	// sleep retries milliseconds
 		}
 	} while (retries < MAX_RETRIES && (rc == SQLITE_LOCKED || rc == SQLITE_BUSY));
-#if DO_PROFILE
+#if DO_PROFILE_RETRIES
 	retryStats[retries-1]++;
 	if (++numStatements > 1000)
 	{
+		numStatements = 0;
 		Logger *log = Logger::getLogger();
 		log->info("Storage layer statement retry profile");
 		for (int i = 0; i < MAX_RETRIES-1; i++)
@@ -2648,7 +2652,7 @@ int retries = 0, rc;
 			retryStats[i] = 0;
 		}
 		log->info("Too many retries: %d", retryStats[MAX_RETRIES-1]);
-		numStatements = 0;
+		retryStats[MAX_RETRIES-1] = 0;
 	}
 #endif
 

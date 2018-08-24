@@ -504,9 +504,10 @@ class PIServerNorthPlugin(object):
                                                                     item=omf_created_objects))
         # Extracts only the asset_code column
         rows = []
-        return rows
         for row in omf_created_objects['rows']:
             rows.append(row['asset_code'])
+
+        return rows
 
     async def _flag_created_omf_type(self, configuration_key, type_id, asset_code):
         """ Stores into the Storage layer the successfully creation of the type into PICROMF.

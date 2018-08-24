@@ -91,5 +91,7 @@ OPCUA::start()
  */
 void OPCUA::ingest(vector<Datapoint *>	points)
 {
-	(*m_ingest)(m_data, Reading(m_asset, points));
+string asset = m_asset + " " + points[0]->getName();
+
+	(*m_ingest)(m_data, Reading(asset, points));
 }

@@ -43,7 +43,7 @@ using namespace rapidjson;
  * run by the storage plugin and the numebr of times a particular statement has to
  * be retried because of the database being busy./
  */
-#define DO_PROFILE	0
+#define DO_PROFILE	1
 #if DO_PROFILE
 #include <profile.h>
 

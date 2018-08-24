@@ -225,6 +225,9 @@ CREATE INDEX fki_readings_fk1
 CREATE INDEX readings_ix1
     ON readings (read_key);
 
+CREATE INDEX readings_ix2
+    ON readings (asset_code);
+
 -- Destinations table
 -- Multiple destinations are allowed, for example multiple PI servers.
 CREATE TABLE foglamp.destinations (

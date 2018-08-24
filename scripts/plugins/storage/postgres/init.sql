@@ -393,6 +393,10 @@ CREATE INDEX readings_ix1
     ON foglamp.readings USING btree (read_key);
 
 
+CREATE INDEX readings_ix2
+    ON foglamp.readings USING btree (asset_code);
+
+
 -- Destinations table
 -- Multiple destinations are allowed, for example multiple PI servers.
 CREATE TABLE foglamp.destinations (

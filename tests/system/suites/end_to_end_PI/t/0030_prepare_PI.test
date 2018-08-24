@@ -17,21 +17,36 @@ declare OMF_TYPE_ID
 # Reads configuration setting
 source ${SUITE_BASEDIR}/suite.cfg
 
+
+# Redirects std out/err for all the following commands
+exec 7>&1                                      # Backups stdout
+exec 8>&1                                      # Backups stderr
+exec 1>>"${RESULT_DIR}/${TEST_NAME}_out.temp"
+exec 2>>"${RESULT_DIR}/${TEST_NAME}_err.temp"
+
+
 # Enables the OMF plugin
-curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/schedule/${SCHEDULE_ID_OMF_PLUGIN} -d '{ "enabled" : true }' &>>  ${RESULT_DIR}/${TEST_NAME}.1.temp
+curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/schedule/${SCHEDULE_ID_OMF_PLUGIN} -d '{ "enabled" : true }'
 
 # Waits until the OMF plugin has created the default configurations
 ${TEST_BASEDIR}/bash/wait_creation_cfg.bash "${SENDING_PROCESS_DATA}/producerToken"
+if [[ "$?" != "0" ]]; then
+    exit 1
+fi
 
 # Configures FogLAMP with the required settings
-curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/${SENDING_PROCESS_DATA}/URL           -d '{ "value" : "https://'${PI_SERVER}':'${PI_SERVER_PORT}'/ingress/messages"}' &>>  ${RESULT_DIR}/${TEST_NAME}.1.temp
-curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/${SENDING_PROCESS_DATA}/producerToken -d '{ "value" : "'${OMF_PRODUCER_TOKEN}'" }'                                    &>>  ${RESULT_DIR}/${TEST_NAME}.1.temp
-curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/OMF_TYPES/type-id                     -d '{ "value" : "'${OMF_TYPE_ID}'" }'                                           &>>  ${RESULT_DIR}/${TEST_NAME}.1.temp
+curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/${SENDING_PROCESS_DATA}/URL           -d '{ "value" : "https://'${PI_SERVER}':'${PI_SERVER_PORT}'/ingress/messages"}'
+curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/${SENDING_PROCESS_DATA}/producerToken -d '{ "value" : "'${OMF_PRODUCER_TOKEN}'" }'
+curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/OMF_TYPES/type-id                     -d '{ "value" : "'${OMF_TYPE_ID}'" }'
 
 # Restarts FogLAMP to ensure the new configurations are used
 ${TEST_BASEDIR}/bash/exec_any_foglamp_command.bash stop  > /dev/null 2>&1
 
-$TEST_BASEDIR/bash/wait_foglamp_status.bash STOPPED                                                                     1>>"${RESULT_DIR}/${TEST_NAME}_out.temp" 2>>"${RESULT_DIR}/${TEST_NAME}_err.temp"
+$TEST_BASEDIR/bash/wait_foglamp_status.bash STOPPED
+
+# Restore stdout/stderr
+exec 1>&7
+exec 2>&8
 
 ${TEST_BASEDIR}/bash/exec_any_foglamp_command.bash start > ${RESULT_DIR}/${TEST_NAME}.2.temp 2>&1
 tail  -n1 ${RESULT_DIR}/${TEST_NAME}.2.temp

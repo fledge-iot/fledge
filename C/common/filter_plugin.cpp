@@ -192,12 +192,12 @@ bool FilterPlugin::loadFilters(const string& categoryName,
 			else
 			{
 				const Value& filterList = theFilters[JSON_CONFIG_PIPELINE_ELEM];
-
 				if (!filterList.Size())
 				{
 					// Empty array, just return true
 					return true;
 				}
+
 				// Prepare printable list of filters
 				StringBuffer buffer;
 				Writer<StringBuffer> writer(buffer);
@@ -213,7 +213,17 @@ bool FilterPlugin::loadFilters(const string& categoryName,
 				// Try loading all filter plugins: abort on any error
 				for (Value::ConstValueIterator itr = filterList.Begin(); itr != filterList.End(); ++itr)
 				{
-					string filterName = itr->GetString();
+					// Get "plugin" item fromn filterCategoryName
+					string filterCategoryName = itr->GetString();
+					ConfigCategory filterDetails = manager->getCategory(filterCategoryName);
+					if (!filterDetails.itemExists("plugin"))
+					{
+						string errMsg("loadFilters: 'plugin' item not found ");
+						errMsg += "in " + filterCategoryName + " category";
+						Logger::getLogger()->fatal(errMsg.c_str());
+						throw runtime_error(errMsg);
+					}
+					string filterName = filterDetails.getValue("plugin");
 					PLUGIN_HANDLE filterHandle;
 					// Load filter plugin only: we don't call any plugin method right now
 					filterHandle = FilterPlugin::loadFilterPlugin(filterName);
@@ -225,9 +235,9 @@ bool FilterPlugin::loadFilters(const string& categoryName,
 					}
 					else
 					{
-						// Save filter handler
+						// Save filter handler: key is filterCategoryName
 						filterInfo.push_back(pair<string,PLUGIN_HANDLE>
-								     (filterName, filterHandle));
+								     (filterCategoryName, filterHandle));
 					}
 				}
 
@@ -238,16 +248,11 @@ bool FilterPlugin::loadFilters(const string& categoryName,
 				     itr != filterInfo.end();
 				     ++itr)
 				{
-					// Create/Update valid load filter categories only
-					string filterCategoryName = categoryName;
-					filterCategoryName.append("_");
-					filterCategoryName += itr->first;
-					filterCategoryName.append("Filter");
-					// Get plugin information
+					// Get plugin default configuration
 					string filterConfig = pluginManager->getInfo(itr->second)->config;
 
-					// Create/Update filter category
-					DefaultConfigCategory filterDefConfig(filterCategoryName, filterConfig);
+					// Update filter category items
+					DefaultConfigCategory filterDefConfig(itr->first, filterConfig);
 					string filterDescription = "Configuration of '" + itr->first;
 					filterDescription += "' filter for plugin '" + categoryName + "'";
 					filterDefConfig.setDescription(filterDescription);

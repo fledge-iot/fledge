@@ -320,6 +320,21 @@ class MicroserviceManagementClient(object):
         response = json.loads(res)
         return response
 
+    def get_asset_tracker_events(self):
+        url = '/foglamp/track'
+        self._management_client_conn.request(method='GET', url=url)
+        r = self._management_client_conn.getresponse()
+        if r.status in range(400, 500):
+            _logger.error("Client error code: %d, Reason: %s", r.status, r.reason)
+            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
+        if r.status in range(500, 600):
+            _logger.error("Server error code: %d, Reason: %s", r.status, r.reason)
+            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
+        res = r.read().decode()
+        self._management_client_conn.close()
+        response = json.loads(res)
+        return response
+
     def create_asset_tracker_event(self, asset_event):
         """
 

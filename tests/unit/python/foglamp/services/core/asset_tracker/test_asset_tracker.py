@@ -51,6 +51,7 @@ class TestAssetTracker:
         cfg_manager = ConfigurationManager(storage_client_mock)
         asset_tracker._registered_asset_records = []
         payload = {"plugin": "sinusoid", "asset": "sinusoid", "event": "Ingest", "foglamp": "FogLAMP", "service": "sine"}
+
         async def mock_coro():
             return {"default": "FogLAMP", "value": "FogLAMP", "type": "string", "description": "Name of this FogLAMP service"}
 
@@ -60,7 +61,7 @@ class TestAssetTracker:
         with patch.object(cfg_manager, 'get_category_item', return_value=mock_coro()) as patch_get_cat_item:
             with patch.object(asset_tracker._storage, 'insert_into_tbl', return_value=mock_coro2()) as patch_insert_tbl:
                 result = await asset_tracker.add_asset_record(asset='sinusoid', event='Ingest', service='sine', plugin='sinusoid')
-                assert result is True
+                assert payload == result
             args, kwargs = patch_insert_tbl.call_args
             assert 'asset_tracker' == args[0]
             assert payload == json.loads(args[1])

@@ -14,6 +14,8 @@
 #include <sys/time.h>
 #include <logger.h>
 
+#define	TIME_BUCKETS	20
+#define BUCKET_SIZE	5
 class ProfileItem
 {
 	public:
@@ -42,6 +44,10 @@ class QueryProfile
 		QueryProfile(int samples) : m_samples(samples) { time(&m_lastReport); };
 		void	insert(ProfileItem *item)
 			{
+				int b = item->getDuration() / BUCKET_SIZE;
+				if (b >= TIME_BUCKETS)
+					b = TIME_BUCKETS - 1;
+				m_buckets[b++];
 				if (m_items.size() == m_samples)
 				{
 					int minIndex = 1;
@@ -77,10 +83,19 @@ class QueryProfile
 		int				m_samples;
 		std::vector<ProfileItem *>	m_items;
 		time_t				m_lastReport;
+		unsigned int			m_buckets[TIME_BUCKETS];
 		void	report()
 			{
 				Logger *logger = Logger::getLogger();
 				logger->info("Storage profile report");
+				logger->info(" < %3d mS %d", BUCKET_SIZE, m_buckets[0]);
+				for (int j = 1; j < TIME_BUCKETS - 1; j++)
+				{
+					logger->info("%3d-%3d mS %d",
+						j * BUCKET_SIZE, (j + 1) * BUCKET_SIZE,
+						m_buckets[j]);
+				}
+				logger->info(" > %3d mS %d", BUCKET_SIZE * TIME_BUCKETS, m_buckets[TIME_BUCKETS-1]);
 				for (int i = 0; i < m_items.size(); i++)
 				{
 					logger->info("%ld mS, %s\n",

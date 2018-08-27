@@ -87,17 +87,20 @@ _CONFIG_DEFAULT_OMF = {
     'plugin': {
         'description': 'Server North Plugin',
         'type': 'string',
-        'default': 'pi_server'
+        'default': 'pi_server',
+        'readonly': 'true'
     },
     "URL": {
         "description": "URL of PI Connector to send data to",
         "type": "string",
-        "default": "https://pi-server:5460/ingress/messages"
+        "default": "https://pi-server:5460/ingress/messages",
+        "order": "1"
     },
     "producerToken": {
         "description": "Producer token for this FogLAMP stream",
         "type": "string",
-        "default": "pi_server_north_0001"
+        "default": "pi_server_north_0001",
+        "order": "2"
     },
     "OMFMaxRetry": {
         "description": "Max number of retries for communication with the OMF PI Connector Relay",

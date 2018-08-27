@@ -34,3 +34,8 @@ class DataSendError(NorthPluginException):
     def __init__(self, reason):
         super(DataSendError, self).__init__(reason)
         self.reason = reason
+
+
+class URLPostError(Exception):
+    """ Unable to fetch from the HTTP server """	    """ Unable to post to the HTTP server """
+    pass

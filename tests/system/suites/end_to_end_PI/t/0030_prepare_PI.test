@@ -24,11 +24,11 @@ exec 1>>"${RESULT_DIR}/${TEST_NAME}_out.temp"
 exec 2>>"${RESULT_DIR}/${TEST_NAME}_err.temp"
 
 
-# Enables the OMF plugin
+# Enables the pi_server plugin
 bash -c "cat > ${TMP_FILE_ADD_NORTH_READINGS}" << 'EOF'
         {
             "name": "North Readings to PI",
-            "plugin": "omf",
+            "plugin": "pi_server",
             "type": "north",
             "schedule_type": 3,
             "schedule_day": 0,

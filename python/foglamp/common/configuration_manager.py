@@ -451,7 +451,14 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         None
         """
         try:
-            return await self._read_item_val(category_name, item_name)
+            if category_name in self._cacheManager:
+                if item_name not in self._cacheManager.cache[category_name]['value']:
+                    return None
+                return self._cacheManager.cache[category_name]['value'][item_name]
+            cat_item = await self._read_item_val(category_name, item_name)
+            if cat_item is not None:
+                self._cacheManager.update(category_name, cat_item)
+            return cat_item
         except:
             _logger.exception(
                 'Unable to get category item based on category_name %s and item_name %s', category_name, item_name)
@@ -496,14 +503,24 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         None
         """
         try:
-            # get storage_value_entry and compare against new_value_value with its type, update if different
-            storage_value_entry = await self._read_item_val(category_name, item_name)
-            # check for category_name and item_name combination existence in storage
-            if storage_value_entry is None:
-                raise ValueError("No detail found for the category_name: {} and item_name: {}"
-                                 .format(category_name, item_name))
-            if storage_value_entry == new_value_entry:
-                return
+            storage_value_entry = None
+            if category_name in self._cacheManager:
+                if item_name not in self._cacheManager.cache[category_name]['value']:
+                    raise ValueError("No detail found for the category_name: {} and item_name: {}"
+                                     .format(category_name, item_name))
+                storage_value_entry = self._cacheManager.cache[category_name]['value'][item_name]
+
+                if storage_value_entry['value'] == new_value_entry:
+                    return
+            else:
+                # get storage_value_entry and compare against new_value_value with its type, update if different
+                storage_value_entry = await self._read_item_val(category_name, item_name)
+                # check for category_name and item_name combination existence in storage
+                if storage_value_entry is None:
+                    raise ValueError("No detail found for the category_name: {} and item_name: {}"
+                                     .format(category_name, item_name))
+                if storage_value_entry == new_value_entry:
+                    return
 
             # Special case for enumeration field type handling
             if storage_value_entry['type'] == 'enumeration':
@@ -517,6 +534,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
             new_value_entry = self._clean(storage_value_entry['type'], new_value_entry)
             await self._update_value_val(category_name, item_name, new_value_entry)
+            if self._cacheManager.cache:
+                self._cacheManager.cache[category_name]['value'][item_name]['value'] = new_value_entry
         except:
             _logger.exception(
                 'Unable to set item value entry based on category_name %s and item_name %s and value_item_entry %s',

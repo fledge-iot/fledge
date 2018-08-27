@@ -85,7 +85,7 @@ _MESSAGES_LIST = {
 _CONFIG_CATEGORY_DESCRIPTION = 'PI-Server North Plugin'
 _CONFIG_DEFAULT_OMF = {
     'plugin': {
-        'description': 'Server North Plugin',
+        'description': 'PI-Server North Plugin',
         'type': 'string',
         'default': 'pi_server',
         'readonly': 'true'

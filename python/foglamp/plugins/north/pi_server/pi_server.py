@@ -82,10 +82,10 @@ _MESSAGES_LIST = {
     "e000000": "general error.",
 }
 # Configuration related to the OMF North
-_CONFIG_CATEGORY_DESCRIPTION = 'PI-Server North Plugin'
+_CONFIG_CATEGORY_DESCRIPTION = 'PI Server North Plugin'
 _CONFIG_DEFAULT_OMF = {
     'plugin': {
-        'description': 'PI-Server North Plugin',
+        'description': 'PI Server North Plugin',
         'type': 'string',
         'default': 'pi_server',
         'readonly': 'true'

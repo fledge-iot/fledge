@@ -24,7 +24,7 @@ import foglamp.plugins.north.common.common as plugin_common
 import foglamp.plugins.north.common.exceptions as plugin_exceptions
 from foglamp.common import logger
 
-import foglamp.plugins.north.omf.omf as omf
+import foglamp.plugins.north.pi_server.pi_server as pi_server
 
 # Module information
 __author__ = "Stefano Simonelli"
@@ -185,9 +185,9 @@ _CONFIG_DEFAULT_OMF = {
 _CONFIG_CATEGORY_OMF_TYPES_NAME = 'OCS_TYPES'
 _CONFIG_CATEGORY_OMF_TYPES_DESCRIPTION = 'Configuration of OCS types'
 
-_CONFIG_DEFAULT_OMF_TYPES = omf.CONFIG_DEFAULT_OMF_TYPES
+_CONFIG_DEFAULT_OMF_TYPES = pi_server.CONFIG_DEFAULT_OMF_TYPES
 
-_OMF_TEMPLATE_TYPE = omf.OMF_TEMPLATE_TYPE
+_OMF_TEMPLATE_TYPE = pi_server.OMF_TEMPLATE_TYPE
 
 
 def _performance_log(_function):
@@ -399,9 +399,9 @@ async def plugin_send(data, raw_data, stream_id):
     type_id = _config_omf_types['type-id']['value']
 
     # Sets globals for the OMF module
-    omf._logger = _logger
-    omf._log_debug_level = _log_debug_level
-    omf._log_performance = _log_performance
+    pi_server._logger = _logger
+    pi_server._log_debug_level = _log_debug_level
+    pi_server._log_performance = _log_performance
 
     ocs_north = OCSNorthPlugin(data['sending_process_instance'], data, _config_omf_types, _logger)
 
@@ -463,7 +463,7 @@ def plugin_reconfigure():
     pass
 
 
-class OCSNorthPlugin(omf.OmfNorthPlugin):
+class OCSNorthPlugin(pi_server.PIServerNorthPlugin):
     """ North OCS North Plugin """
 
     def __init__(self, sending_process_instance, config, config_omf_types,  _logger):

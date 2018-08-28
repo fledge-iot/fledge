@@ -353,8 +353,6 @@ def plugin_init(data):
     _config['URL'] = data['URL']['value']
     _config['producerToken'] = data['producerToken']['value']
     _config['OMFMaxRetry'] = int(data['OMFMaxRetry']['value'])
-    # FIXME:
-    _config['OMFMaxRetry'] = 1
     _config['OMFRetrySleepTime'] = int(data['OMFRetrySleepTime']['value'])
     _config['OMFHttpTimeout'] = int(data['OMFHttpTimeout']['value'])
 
@@ -414,9 +412,6 @@ async def plugin_send(data, raw_data, stream_id):
     type_id = _config_omf_types['type-id']['value']
 
     omf_north = PIServerNorthPlugin(data['sending_process_instance'], data, _config_omf_types, _logger)
-
-    # FIXME:
-
 
     # Alloc the in memory buffer
     buffer_size = len(raw_data)

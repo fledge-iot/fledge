@@ -31,14 +31,14 @@ _valid_type_strings = sorted(['boolean', 'integer', 'string', 'IPv4', 'IPv6', 'X
                               'URL', 'enumeration'])
 
 
-class CachedConfiguration(object):
-    """Cached Configuration Manager"""
+class ConfigurationCache(object):
+    """Configuration Cache Manager"""
 
     MAX_CACHE_SIZE = 10
 
     def __init__(self):
         """
-        cache: value dictionary as per category_name
+        cache: value stored in dictionary as per category_name
         max_cache_size: Hold the 10 recently requested categories in the cache
         hit: number of times an item is read from the cache
         miss: number of times an item was not found in the cache and a read of the storage layer was required
@@ -50,20 +50,26 @@ class CachedConfiguration(object):
 
     def __contains__(self, category_name):
         """Returns True or False depending on whether or not the key is in the cache
-        and update the hit and data_accessed value only If True"""
+        and update the hit and data_accessed"""
         if category_name in self.cache:
-            current_hit = self.cache[category_name]['hit']
+            try:
+                current_hit = self.cache[category_name]['hit']
+            except KeyError:
+                current_hit = 0
+
+            self.hit += 1
             self.cache[category_name].update({'date_accessed': datetime.datetime.now(), 'hit': current_hit + 1})
             return True
+        self.miss += 1
         return False
 
-    def update(self, category_name, category):
+    def update(self, category_name, category_val):
         """Update the cache dictionary and remove the oldest item"""
         if category_name not in self.cache and len(self.cache) >= self.max_cache_size:
             self.remove_oldest()
 
-        self.cache[category_name] = {'date_accessed': datetime.datetime.now(), 'value': category, 'hit': self.hit, 'miss': self.miss}
-        _logger.info("Updated Cache %s", self.cache)
+        self.cache[category_name] = {'date_accessed': datetime.datetime.now(), 'value': category_val}
+        _logger.info("Updated Configuration Cache %s", self.cache)
 
     def remove_oldest(self):
         """Remove the entry that has the oldest accessed date"""
@@ -131,7 +137,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         if self._registered_interests is None:
             self._registered_interests = {}
         if self._cacheManager is None:
-            self._cacheManager = CachedConfiguration()
+            self._cacheManager = ConfigurationCache()
 
     async def _run_callbacks(self, category_name):
         callbacks = self._registered_interests.get(category_name)
@@ -265,6 +271,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                               value=category_val).payload()
             result = await self._storage.insert_into_tbl("configuration", payload)
             response = result['response']
+            self._cacheManager.update(category_name, category_val)
         except KeyError:
             raise ValueError(result['message'])
         except StorageServerError as ex:

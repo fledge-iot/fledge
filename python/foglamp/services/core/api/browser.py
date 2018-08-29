@@ -54,6 +54,7 @@ def setup(app):
     """ Add the routes for the API endpoints supported by the data browser """
     app.router.add_route('GET', '/foglamp/asset', asset_counts)
     app.router.add_route('GET', '/foglamp/asset/{asset_code}', asset)
+    app.router.add_route('GET', '/foglamp/asset/{asset_code}/summary', asset_all_readings_summary)
     app.router.add_route('GET', '/foglamp/asset/{asset_code}/{reading}', asset_reading)
     app.router.add_route('GET', '/foglamp/asset/{asset_code}/{reading}/summary', asset_summary)
     app.router.add_route('GET', '/foglamp/asset/{asset_code}/{reading}/series', asset_averages)
@@ -101,7 +102,7 @@ async def asset_counts(request):
            json result on basis of SELECT asset_code, count(*) FROM readings GROUP BY asset_code;
 
     :Example:
-            curl -X GET http://localhost:8081/foglamp/asset
+            curl -sX GET http://localhost:8081/foglamp/asset
     """
     payload = PayloadBuilder().AGGREGATE(["count", "*"]).ALIAS("aggregate", ("*", "count", "count"))\
         .GROUP_BY("asset_code").payload()
@@ -130,9 +131,9 @@ async def asset(request):
           json result on basis of SELECT TO_CHAR(user_ts, '__TIMESTAMP_FMT') as "timestamp", (reading)::jsonFROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0;
 
     :Example:
-            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity
-            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity?limit=1
-            curl -X GET "http://localhost:8081/foglamp/asset/fogbench%2Fhumidity?limit=1&skip=1"
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity?limit=1
+            curl -sX GET "http://localhost:8081/foglamp/asset/fogbench_humidity?limit=1&skip=1"
     """
     asset_code = request.match_info.get('asset_code', '')
     _select = PayloadBuilder().SELECT(("reading", "user_ts")).ALIAS("return", ("user_ts", "timestamp")). \
@@ -181,10 +182,10 @@ async def asset_reading(request):
            json result on basis of SELECT TO_CHAR(user_ts, '__TIMESTAMP_FMT') as "timestamp", reading->>'reading' FROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0;
 
     :Example:
-            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature
-            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature?limit=1
-            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature?skip=10
-            curl -X GET "http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature?limit=1&skip=10"
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/temperature
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/temperature?limit=1
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/temperature?skip=10
+            curl -sX GET "http://localhost:8081/foglamp/asset/fogbench_humidity/temperature?limit=1&skip=10"
     """
     asset_code = request.match_info.get('asset_code', '')
     reading = request.match_info.get('reading', '')
@@ -212,6 +213,43 @@ async def asset_reading(request):
     return web.json_response(response)
 
 
+async def asset_all_readings_summary(request):
+    """ Browse all the assets for which we have recorded readings and
+    return a summary for all sensors values for an asset code. The values that are
+    returned are the min, max and average values of the sensor.
+
+    :Example:
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/summary
+    """
+    try:
+        # Get readings from asset_code
+        asset_code = request.match_info.get('asset_code', '')
+        payload = PayloadBuilder().SELECT("reading").WHERE(["asset_code", "=", asset_code]).payload()
+        _readings = connect.get_readings_async()
+        results = await _readings.query(payload)
+        # Find keys in readings
+        reading_keys = list(results['rows'][0]['reading'].keys())
+        response = []
+        for reading in reading_keys:
+            _aggregate = PayloadBuilder().AGGREGATE(["min", ["reading", reading]],
+                                                    ["max", ["reading", reading]],
+                                                    ["avg", ["reading", reading]])\
+                .ALIAS('aggregate', ('reading', 'min', 'min'),
+                       ('reading', 'max', 'max'),
+                       ('reading', 'avg', 'average')).chain_payload()
+            _where = PayloadBuilder(_aggregate).WHERE(["asset_code", "=", asset_code]).chain_payload()
+            _and_where = where_clause(request, _where)
+            payload = PayloadBuilder(_and_where).payload()
+            results = await _readings.query(payload)
+            response.append({reading: results['rows'][0]})
+    except KeyError:
+        raise web.HTTPBadRequest(reason=results['message'])
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason=ex)
+    else:
+        return web.json_response(response)
+
+
 async def asset_summary(request):
     """ Browse all the assets for which we have recorded readings and
     return a summary for a particular sensor. The values that are
@@ -235,7 +273,7 @@ async def asset_summary(request):
            json result on basis of SELECT MIN(reading->>'reading'), MAX(reading->>'reading'), AVG((reading->>'reading')::float) FROM readings WHERE asset_code = 'asset_code';
 
     :Example:
-            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/summary
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/temperature/summary
     """
     asset_code = request.match_info.get('asset_code', '')
     reading = request.match_info.get('reading', '')
@@ -295,14 +333,14 @@ async def asset_averages(request):
             ORDER BY timestamp DESC;
 
     :Example:
-            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series
-            curl -X GET "http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series?limit=1&skip=1"
-            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series?hours=1
-            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series?minutes=60
-            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series?seconds=3600
-            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series?group=seconds
-            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series?group=minutes
-            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series?group=hours
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/temperature/series
+            curl -sX GET "http://localhost:8081/foglamp/asset/fogbench_humidity/temperature/series?limit=1&skip=1"
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/temperature/series?hours=1
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/temperature/series?minutes=60
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/temperature/series?seconds=3600
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/temperature/series?group=seconds
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/temperature/series?group=minutes
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/temperature/series?group=hours
     """
     asset_code = request.match_info.get('asset_code', '')
     reading = request.match_info.get('reading', '')

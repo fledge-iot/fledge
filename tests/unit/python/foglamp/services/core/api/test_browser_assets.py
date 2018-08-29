@@ -70,7 +70,7 @@ class TestBrowserAssets:
         return loop.run_until_complete(test_client(app))
 
     def test_routes_count(self, app):
-        assert 5 == len(app.router.resources())
+        assert 6 == len(app.router.resources())
 
     def test_routes_info(self, app):
         for index, route in enumerate(app.router.routes()):
@@ -88,14 +88,19 @@ class TestBrowserAssets:
             elif index == 2:
                 assert "GET" == route.method
                 assert type(route.resource) is DynamicResource
+                assert "/foglamp/asset/{asset_code}/summary" == res_info["formatter"]
+                assert str(route.handler).startswith("<function asset_all_readings_summary")
+            elif index == 3:
+                assert "GET" == route.method
+                assert type(route.resource) is DynamicResource
                 assert "/foglamp/asset/{asset_code}/{reading}" == res_info["formatter"]
                 assert str(route.handler).startswith("<function asset_reading")
-            elif index == 3:
+            elif index == 4:
                 assert "GET" == route.method
                 assert type(route.resource) is DynamicResource
                 assert "/foglamp/asset/{asset_code}/{reading}/summary" == res_info["formatter"]
                 assert str(route.handler).startswith("<function asset_summary")
-            elif index == 4:
+            elif index == 5:
                 assert "GET" == route.method
                 assert type(route.resource) is DynamicResource
                 assert "/foglamp/asset/{asset_code}/{reading}/series" == res_info["formatter"]

@@ -65,7 +65,6 @@ MESSAGES_LIST = {
 _log_debug_level = 0
 _log_performance = False
 _stream_id = None
-_destination_id = None
 
 # Configurations retrieved from the Configuration Manager
 _config_omf_types = {}
@@ -326,12 +325,11 @@ def plugin_init(data):
     global _config_omf_types
     global _logger
     global _recreate_omf_objects
-    global _log_debug_level, _log_performance, _stream_id, _destination_id
+    global _log_debug_level, _log_performance, _stream_id
 
     _log_debug_level = data['debug_level']
     _log_performance = data['log_performance']
     _stream_id = data['stream_id']
-    _destination_id = data['destination_id']
 
     try:
         # note : _module_name is used as __name__ refers to the Sending Proces

@@ -248,11 +248,6 @@ class SendingProcess(FoglampProcess):
             "type": "integer",
             "default": "10"
         },
-        "destination_id": {
-            "description": "Destination ID",
-            "type": "integer",
-            "default": "1"
-        },
         "stream_id": {
             "description": "Stream ID",
             "type": "integer",
@@ -648,7 +643,7 @@ class SendingProcess(FoglampProcess):
         except Exception as ex:
             SendingProcess._logger.error(_MESSAGES_LIST["e000029"].format(ex))
 
-    async def _get_stream_id(self, config_stream_id, destination_id):
+    async def _get_stream_id(self, config_stream_id):
         async def get_rows_from_stream_id(stream_id):
             payload = payload_builder.PayloadBuilder() \
                 .SELECT("id", "description", "active") \
@@ -665,24 +660,22 @@ class SendingProcess(FoglampProcess):
             streams = await self._storage_async.query_tbl_with_payload("streams", payload)
             return streams['rows']
 
-        async def add_stream(config_stream_id, destination_id, description):
+        async def add_stream(config_stream_id, description):
             if config_stream_id:
                 payload = payload_builder.PayloadBuilder() \
                     .INSERT(id=config_stream_id,
-                            destination_id=destination_id,
                             description=description) \
                     .payload()
                 await self._storage_async.insert_into_tbl("streams", payload)
                 rows = await get_rows_from_stream_id(stream_id=config_stream_id)
             else:
-                # If an user is upgrading FogLamp, then it has got existing data in streams and destinations table but
-                # no entry in configuration for streams_id and destinations_id for this process_name. Hence it must
+                # If an user is upgrading FogLamp, then it has got existing data in streams table but
+                # no entry in configuration for streams_id for this process_name. Hence it must
                 # check if an entry is already there for this process_name in streams table.
                 rows = await get_rows_from_name(description=self._name)
                 if len(rows) == 0:
                     payload = payload_builder.PayloadBuilder() \
-                        .INSERT(destination_id=destination_id,
-                                description=description) \
+                        .INSERT(description=description) \
                         .payload()
                     await self._storage_async.insert_into_tbl("streams", payload)
                     rows = await get_rows_from_name(description=self._name)
@@ -692,7 +685,7 @@ class SendingProcess(FoglampProcess):
         try:
             rows = await get_rows_from_stream_id(config_stream_id)
             if len(rows) == 0:
-                stream_id, stream_id_valid = await add_stream(config_stream_id, destination_id, self._name)
+                stream_id, stream_id_valid = await add_stream(config_stream_id, self._name)
             elif len(rows) > 1:
                 raise ValueError(_MESSAGES_LIST["e000013"].format(stream_id))
             else:
@@ -830,7 +823,6 @@ class SendingProcess(FoglampProcess):
             self._config['memory_buffer_size'] = int(_config_from_manager['memory_buffer_size']['value'])
             _config_from_manager['_CONFIG_CATEGORY_NAME'] = cat_name
             self._config["stream_id"] = int(_config_from_manager['stream_id']['value'])
-            self._config["destination_id"] = int(_config_from_manager['destination_id']['value'])
             self._config_from_manager = _config_from_manager
         except Exception:
             SendingProcess._logger.error(_MESSAGES_LIST["e000003"])
@@ -849,19 +841,14 @@ class SendingProcess(FoglampProcess):
                                          cat_config=self._CONFIG_DEFAULT,
                                          cat_keep_original=True)
 
-            # Fetch destination_id and stream_id
-            self._destination_id = self._config["destination_id"]  # always 1 for now
-            self._stream_id, is_stream_valid = await self._get_stream_id(self._config["stream_id"], self._destination_id)
+            # Fetch stream_id
+            self._stream_id, is_stream_valid = await self._get_stream_id(self._config["stream_id"])
             if is_stream_valid is False:
                 raise ValueError("Error in Stream Id for Sending Process {}".format(self._name))
             self.statistics_key = await self._get_statistics_key()
             self.master_statistics_key = await self._get_master_statistics_key()
 
-            # update configuration with the new destination_id and stream_id
-            self._core_microservice_management_client.update_configuration_item(
-                                                category_name=self._name,
-                                                config_item="destination_id",
-                                                category_data=json.dumps({"value": str(self._destination_id)}))
+            # update configuration with the new stream_id
             self._core_microservice_management_client.update_configuration_item(
                                                 category_name=self._name,
                                                 config_item="stream_id",
@@ -881,9 +868,8 @@ class SendingProcess(FoglampProcess):
                                                      cat_keep_original=True)
                         data = self._config_from_manager
 
-                        # Append stream_id, destination_id etc to payload to be send to the plugin init
+                        # Append stream_id etc to payload to be send to the plugin init
                         data['stream_id'] = self._stream_id
-                        data['destination_id'] = self._destination_id
                         data['debug_level'] = self._debug_level
                         data['log_performance'] = self._log_performance
                         data.update({'sending_process_instance': self})

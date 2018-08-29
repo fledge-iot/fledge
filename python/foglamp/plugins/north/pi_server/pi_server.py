@@ -41,7 +41,7 @@ _LOGGER_LEVEL = _LOG_LEVEL_WARNING
 _LOGGER_DESTINATION = logger.SYSLOG
 _logger = None
 
-_MODULE_NAME = "omf_north"
+_MODULE_NAME = "pi_server_north"
 
 # Messages used for Information, Warning and Error notice
 MESSAGES_LIST = {
@@ -82,12 +82,12 @@ _MESSAGES_LIST = {
     "e000000": "general error.",
 }
 # Configuration related to the OMF North
-_CONFIG_CATEGORY_DESCRIPTION = 'OMF North Plugin'
+_CONFIG_CATEGORY_DESCRIPTION = 'PI Server North Plugin'
 _CONFIG_DEFAULT_OMF = {
     'plugin': {
-        'description': 'OMF North Plugin',
+        'description': 'PI Server North Plugin',
         'type': 'string',
-        'default': 'omf',
+        'default': 'pi_server',
         'readonly': 'true'
     },
     "URL": {
@@ -99,7 +99,7 @@ _CONFIG_DEFAULT_OMF = {
     "producerToken": {
         "description": "Producer token for this FogLAMP stream",
         "type": "string",
-        "default": "omf_north_0001",
+        "default": "pi_server_north_0001",
         "order": "2"
     },
     "OMFMaxRetry": {
@@ -411,7 +411,7 @@ async def plugin_send(data, raw_data, stream_id):
     config_category_name = data['_CONFIG_CATEGORY_NAME']
     type_id = _config_omf_types['type-id']['value']
 
-    omf_north = OmfNorthPlugin(data['sending_process_instance'], data, _config_omf_types, _logger)
+    omf_north = PIServerNorthPlugin(data['sending_process_instance'], data, _config_omf_types, _logger)
 
     try:
         # Alloc the in memory buffer
@@ -461,7 +461,7 @@ def plugin_reconfigure():
     pass
 
 
-class OmfNorthPlugin(object):
+class PIServerNorthPlugin(object):
     """ North OMF North Plugin """
 
     def __init__(self, sending_process_instance, config, config_omf_types, _logger):
@@ -509,6 +509,7 @@ class OmfNorthPlugin(object):
         rows = []
         for row in omf_created_objects['rows']:
             rows.append(row['asset_code'])
+
         return rows
 
     async def _flag_created_omf_type(self, configuration_key, type_id, asset_code):

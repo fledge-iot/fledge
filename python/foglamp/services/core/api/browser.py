@@ -12,7 +12,9 @@ Supports a number of REST API:
   http://<address>/foglamp/asset
      - Return a summary count of all asset readings
   http://<address>/foglamp/asset/{asset_code}
-    - Return a set of asset readings for the given asset 
+    - Return a set of asset readings for the given asset
+  http://<address>/foglamp/asset/{asset_code}/summary
+    - Return a set of the summary of all sensors values for the given asset
   http://<address>/foglamp/asset/{asset_code}/{reading}
     - Return a set of sensor readings for the specified asset and sensor
   http://<address>/foglamp/asset/{asset_code}/{reading}/summary
@@ -227,6 +229,10 @@ async def asset_all_readings_summary(request):
         payload = PayloadBuilder().SELECT("reading").WHERE(["asset_code", "=", asset_code]).payload()
         _readings = connect.get_readings_async()
         results = await _readings.query(payload)
+        if not results['rows']:
+            raise web.HTTPNotFound(reason="{} asset_code not found".format(asset_code))
+
+        # TODO: FOGL-1768 when support available from storage layer then avoid multiple calls
         # Find keys in readings
         reading_keys = list(results['rows'][0]['reading'].keys())
         response = []
@@ -242,10 +248,10 @@ async def asset_all_readings_summary(request):
             payload = PayloadBuilder(_and_where).payload()
             results = await _readings.query(payload)
             response.append({reading: results['rows'][0]})
-    except KeyError:
-        raise web.HTTPBadRequest(reason=results['message'])
-    except Exception as ex:
-        raise web.HTTPInternalServerError(reason=ex)
+    except KeyError as ex:
+        raise web.HTTPNotFound(reason=ex)
+    except (TypeError, ValueError) as ex:
+        raise web.HTTPBadRequest(reason=ex)
     else:
         return web.json_response(response)
 

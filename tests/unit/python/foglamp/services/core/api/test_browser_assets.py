@@ -212,3 +212,38 @@ class TestBrowserAssets:
             args, kwargs = query_patch.call_args
             assert json.loads(payload) == json.loads(args[0])
             query_patch.assert_called_once_with(args[0])
+
+    async def test_asset_all_readings_summary_when_no_asset_code_found(self, client):
+        readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
+        with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
+            with patch.object(readings_storage_client_mock, 'query', return_value=mock_coro({'count': 0, 'rows': []})) as query_patch:
+                resp = await client.get('foglamp/asset/fogbench_humidity/summary')
+                assert 404 == resp.status
+                assert 'fogbench_humidity asset_code not found' == resp.reason
+            query_patch.assert_called_once_with('{"return": ["reading"], "where": {"column": "asset_code", "condition": "=", "value": "fogbench_humidity"}}')
+
+    async def test_asset_all_readings_summary(self, client):
+        @asyncio.coroutine
+        def q_result(*args):
+            if payload1 == args[0]:
+                return {'rows': [{'reading': {'humidity': 20}}], 'count': 1}
+            if payload2 == args[0]:
+                return {'count': 1, 'rows': [{'min': 13.0, 'max': 83.0, 'average': 33.5}]}
+
+        payload1 = {"return": ["reading"],
+                    "where": {"column": "asset_code", "condition": "=", "value": "fogbench_humidity"}}
+        payload2 = {
+            "aggregate": [{"operation": "min", "json": {"properties": "humidity", "column": "reading"}, "alias": "min"},
+                          {"operation": "max", "json": {"properties": "humidity", "column": "reading"}, "alias": "max"},
+                          {"operation": "avg", "json": {"properties": "humidity", "column": "reading"},
+                           "alias": "average"}],
+            "where": {"column": "asset_code", "condition": "=", "value": "fogbench_humidity"}}
+
+        readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
+        with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
+            with patch.object(readings_storage_client_mock, 'query', side_effect=[q_result(payload1), q_result(payload2)]):
+                resp = await client.get('foglamp/asset/fogbench_humidity/summary')
+                assert 200 == resp.status
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert [{'humidity': {'average': 33.5, 'max': 83.0, 'min': 13.0}}] == json_response

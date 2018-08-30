@@ -10,6 +10,7 @@ to send the reading data to a PI Server (or Connector) using the OSIsoft OMF for
 PICROMF = PI Connector Relay OMF"""
 
 import aiohttp
+import asyncio
 
 from datetime import datetime
 import sys
@@ -795,7 +796,7 @@ class PIServerNorthPlugin(object):
                         status_code = resp.status
                         text = await resp.text()
 
-            except Exception as ex:
+            except (TimeoutError, asyncio.TimeoutError) as ex:
 
                 # The conversion to a string of the exception TimeoutError produces an empty string,
                 # so it forces a proper message
@@ -806,6 +807,14 @@ class PIServerNorthPlugin(object):
 
                 _message = plugin_common.MESSAGES_LIST["e000024"].format(self._config['URL'], details)
                 _error = plugin_exceptions.URLConnectionError(_message)
+
+            except Exception as ex:
+
+                details = str(ex)
+
+                _message = plugin_common.MESSAGES_LIST["e000024"].format(self._config['URL'], details)
+                _error = plugin_exceptions.URLConnectionError(_message)
+
             else:
                 # Evaluate the HTTP status codes
                 if not str(status_code).startswith('2'):
@@ -819,7 +828,7 @@ class PIServerNorthPlugin(object):
                     text))
 
             if _error:
-                time.sleep(sleep_time)
+                await asyncio.sleep(sleep_time)
                 num_retry += 1
                 sleep_time *= 2
             else:

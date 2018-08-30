@@ -237,13 +237,18 @@ class TestBrowserAssets:
                           {"operation": "max", "json": {"properties": "humidity", "column": "reading"}, "alias": "max"},
                           {"operation": "avg", "json": {"properties": "humidity", "column": "reading"},
                            "alias": "average"}],
-            "where": {"column": "asset_code", "condition": "=", "value": "fogbench_humidity"}}
+            "where": {"column": "asset_code", "condition": "=", "value": "fogbench_humidity"}, "limit": 20}
 
         readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
         with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
-            with patch.object(readings_storage_client_mock, 'query', side_effect=[q_result(payload1), q_result(payload2)]):
+            with patch.object(readings_storage_client_mock, 'query', side_effect=[q_result(payload1), q_result(payload2)]) as patch_query:
                 resp = await client.get('foglamp/asset/fogbench_humidity/summary')
                 assert 200 == resp.status
                 r = await resp.text()
                 json_response = json.loads(r)
                 assert [{'humidity': {'average': 33.5, 'max': 83.0, 'min': 13.0}}] == json_response
+            assert 2 == patch_query.call_count
+            args0, kwargs0 = patch_query.call_args_list[0]
+            args1, kwargs1 = patch_query.call_args_list[1]
+            assert '{"return": ["reading"], "where": {"column": "asset_code", "condition": "=", "value": "fogbench_humidity"}}' in args0
+            assert '{"aggregate": [{"operation": "min", "json": {"properties": "humidity", "column": "reading"}, "alias": "min"}, {"operation": "max", "json": {"properties": "humidity", "column": "reading"}, "alias": "max"}, {"operation": "avg", "json": {"properties": "humidity", "column": "reading"}, "alias": "average"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench_humidity"}, "limit": 20}' in args1

@@ -228,7 +228,6 @@ async def asset_all_readings_summary(request):
             curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/summary
             curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/summary?seconds=60
             curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/summary?limit=10
-            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/summary?skip=1
     """
     try:
         # Get readings from asset_code

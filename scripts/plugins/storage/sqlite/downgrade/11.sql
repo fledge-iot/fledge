@@ -1,5 +1,3 @@
--- Destinations table
--- Multiple destinations are allowed, for example multiple PI servers.
 CREATE TABLE foglamp.destinations (
     id            INTEGER                     PRIMARY KEY AUTOINCREMENT,                  -- Sequence ID
     type          smallint                    NOT NULL DEFAULT 1,                         -- Enum : 1: OMF, 2: Elasticsearch

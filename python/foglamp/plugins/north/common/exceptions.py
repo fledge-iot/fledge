@@ -36,6 +36,6 @@ class DataSendError(NorthPluginException):
         self.reason = reason
 
 
-class URLPostError(Exception):
-    """ Unable to fetch from the HTTP server """	    """ Unable to post to the HTTP server """
+class URLConnectionError(Exception):
+    """ Unable to connect to the server """
     pass

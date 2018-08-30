@@ -415,7 +415,7 @@ async def plugin_send(data, raw_data, stream_id):
 
     # Alloc the in memory buffer
     buffer_size = len(raw_data)
-    data_to_send = [None for x in range(buffer_size)]
+    data_to_send = [None for _ in range(buffer_size)]
 
     is_data_available, new_position, num_sent = omf_north.transform_in_memory_data(data_to_send, raw_data)
 
@@ -805,13 +805,13 @@ class PIServerNorthPlugin(object):
                     details = str(ex)
 
                 _message = plugin_common.MESSAGES_LIST["e000024"].format(self._config['URL'], details)
-                _error = plugin_exceptions.URLPostError(_message)
+                _error = plugin_exceptions.URLConnectionError(_message)
             else:
                 # Evaluate the HTTP status codes
                 if not str(status_code).startswith('2'):
                     _tmp_text = "status code " + str(status_code) + " - " + text
                     _message = plugin_common.MESSAGES_LIST["e000024"].format(self._config['URL'], _tmp_text)
-                    _error = plugin_exceptions.URLPostError(_message)
+                    _error = plugin_exceptions.URLConnectionError(_message)
 
                 self._logger.debug("message type |{0}| response: |{1}| |{2}| ".format(
                     message_type,

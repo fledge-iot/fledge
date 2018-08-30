@@ -75,7 +75,6 @@ class AssetTracker(object):
             payload = PayloadBuilder().INSERT(asset=asset, event=event, service=service, plugin=plugin, foglamp=self.foglamp_svc_name).payload()
             result = await self._storage.insert_into_tbl('asset_tracker', payload)
             response = result['response']
-            d = {"asset": asset, "event": event, "service": service, "plugin": plugin}
             self._registered_asset_records.append(d)
         except KeyError:
             raise ValueError(result['message'])
@@ -83,5 +82,7 @@ class AssetTracker(object):
             err_response = ex.error
             raise ValueError(err_response)
         else:
-            d.update({"foglamp": self.foglamp_svc_name})
-            return d
+            import copy
+            result = copy.deepcopy(d)
+            result.update({"foglamp": self.foglamp_svc_name})
+            return result

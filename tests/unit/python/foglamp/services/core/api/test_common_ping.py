@@ -69,7 +69,6 @@ async def test_ping_http_allow_ping_true(test_server, test_client, loop):
     with patch.object(middleware._logger, 'info') as logger_info:
         with patch.object(connect, 'get_storage_async', return_value=mockedStorageClientAsync):
             with patch.object(mockedStorageClientAsync, 'query_tbl_with_payload', return_value=mock_coro()) as query_patch:
-                with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat:
                     app = web.Application(loop=loop, middlewares=[middleware.optional_auth_middleware])
                     # fill route table
                     routes.setup(app)
@@ -89,7 +88,6 @@ async def test_ping_http_allow_ping_true(test_server, test_client, loop):
                     assert 100 == content_dict["dataSent"]
                     assert 1 == content_dict["dataPurged"]
                     assert content_dict["authenticationOptional"] is True
-                mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
             query_patch.assert_called_once_with('statistics', payload)
         log_params = 'Received %s request for %s', 'GET', '/foglamp/ping'
         logger_info.assert_called_once_with(*log_params)
@@ -119,7 +117,6 @@ async def test_ping_http_allow_ping_false(test_server, test_client, loop):
     with patch.object(middleware._logger, 'info') as logger_info:
         with patch.object(connect, 'get_storage_async', return_value=mockedStorageClientAsync):
             with patch.object(mockedStorageClientAsync, 'query_tbl_with_payload', return_value=mock_coro()) as query_patch:
-                with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat:
                     app = web.Application(loop=loop, middlewares=[middleware.optional_auth_middleware])
                     # fill route table
                     routes.setup(app)
@@ -139,7 +136,6 @@ async def test_ping_http_allow_ping_false(test_server, test_client, loop):
                     assert 100 == content_dict["dataSent"]
                     assert 1 == content_dict["dataPurged"]
                     assert content_dict["authenticationOptional"] is True
-                mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
             query_patch.assert_called_once_with('statistics', payload)
         log_params = 'Received %s request for %s', 'GET', '/foglamp/ping'
         logger_info.assert_called_once_with(*log_params)
@@ -264,7 +260,6 @@ async def test_ping_https_allow_ping_true(test_server, ssl_ctx, test_client, loo
     with patch.object(middleware._logger, 'info') as logger_info:
         with patch.object(connect, 'get_storage_async', return_value=mockedStorageClientAsync):
             with patch.object(mockedStorageClientAsync, 'query_tbl_with_payload', return_value=mock_coro()) as query_patch:
-                with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat:
                     app = web.Application(loop=loop, middlewares=[middleware.optional_auth_middleware])
                     # fill route table
                     routes.setup(app)
@@ -298,7 +293,6 @@ async def test_ping_https_allow_ping_true(test_server, ssl_ctx, test_client, loo
                     assert 100 == content_dict["dataSent"]
                     assert 1 == content_dict["dataPurged"]
                     assert content_dict["authenticationOptional"] is True
-                mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
             query_patch.assert_called_once_with('statistics', payload)
         logger_info.assert_called_once_with('Received %s request for %s', 'GET', '/foglamp/ping')
 
@@ -327,7 +321,6 @@ async def test_ping_https_allow_ping_false(test_server, ssl_ctx, test_client, lo
     with patch.object(middleware._logger, 'info') as logger_info:
         with patch.object(connect, 'get_storage_async', return_value=mockedStorageClientAsync):
             with patch.object(mockedStorageClientAsync, 'query_tbl_with_payload', return_value=mock_coro()) as query_patch:
-                with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat:
                     app = web.Application(loop=loop, middlewares=[middleware.optional_auth_middleware])
                     # fill route table
                     routes.setup(app)
@@ -354,7 +347,6 @@ async def test_ping_https_allow_ping_false(test_server, ssl_ctx, test_client, lo
                     s = resp.request_info.url.human_repr()
                     assert "https" == s[:5]
                     assert 200 == resp.status
-                mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
             query_patch.assert_called_once_with('statistics', payload)
         logger_info.assert_called_once_with('Received %s request for %s', 'GET', '/foglamp/ping')
 

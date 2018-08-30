@@ -121,14 +121,6 @@ class FoglampMicroservice(FoglampProcess):
     async def change(self, request):
         pass
 
-    @abstractmethod
-    async def get_track(self, request):
-        pass
-
-    @abstractmethod
-    async def add_track(self, request):
-        pass
-
     async def ping(self, request):
         """ health check
     

@@ -798,20 +798,12 @@ class PIServerNorthPlugin(object):
 
             except (TimeoutError, asyncio.TimeoutError) as ex:
 
-                # The conversion to a string of the exception TimeoutError produces an empty string,
-                # so it forces a proper message
-                if str(ex) == "":
-                    details = type(ex).__name__
-                else:
-                    details = str(ex)
-
-                _message = plugin_common.MESSAGES_LIST["e000024"].format(self._config['URL'], details)
+                _message = plugin_common.MESSAGES_LIST["e000024"].format(self._config['URL'], "connection Timeout")
                 _error = plugin_exceptions.URLConnectionError(_message)
 
             except Exception as ex:
 
                 details = str(ex)
-
                 _message = plugin_common.MESSAGES_LIST["e000024"].format(self._config['URL'], details)
                 _error = plugin_exceptions.URLConnectionError(_message)
 

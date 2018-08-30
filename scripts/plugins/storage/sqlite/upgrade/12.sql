@@ -3,7 +3,7 @@ DROP INDEX IF EXISTS foglamp.fki_streams_fk1;
 
 -- Drops destination_id field from the table
 DROP TABLE IF EXISTS foglamp.streams_old;
-ALTER TABLE foglamp.streams RENAME TO foglamp.streams_old;
+ALTER TABLE foglamp.streams RENAME TO streams_old;
 
 CREATE TABLE foglamp.streams (
     id            INTEGER                      PRIMARY KEY AUTOINCREMENT,         -- Sequence ID

@@ -11,12 +11,13 @@ INSERT INTO foglamp.destinations ( id, description )
        VALUES (0, 'none' );
 
 -- Add the constraint to the the table
+BEGIN TRANSACTION;
 DROP TABLE IF EXISTS foglamp.streams_old;
 ALTER TABLE foglamp.streams RENAME TO streams_old;
 
 CREATE TABLE foglamp.streams (
     id            INTEGER                      PRIMARY KEY AUTOINCREMENT,         -- Sequence ID
-    destination_id integer                     NOT NULL DEFAULT 0,                -- FK to foglamp.destinations
+    destination_id integer                     NOT NULL,                          -- FK to foglamp.destinations
     description    character varying(255)      NOT NULL DEFAULT '',               -- A brief description of the stream entry
     properties     JSON                        NOT NULL DEFAULT '{}',             -- A generic set of properties
     object_stream  JSON                        NOT NULL DEFAULT '{}',             -- Definition of what must be streamed
@@ -47,6 +48,6 @@ INSERT INTO foglamp.streams
         FROM foglamp.streams_old;
 
 DROP TABLE foglamp.streams_old;
+COMMIT;
 
 CREATE INDEX fki_streams_fk1 ON streams (destination_id);
-

@@ -2,6 +2,7 @@ DROP TABLE IF EXISTS foglamp.destinations;
 DROP INDEX IF EXISTS foglamp.fki_streams_fk1;
 
 -- Drops destination_id field from the table
+BEGIN TRANSACTION;
 DROP TABLE IF EXISTS foglamp.streams_old;
 ALTER TABLE foglamp.streams RENAME TO streams_old;
 
@@ -32,3 +33,4 @@ INSERT INTO foglamp.streams
         FROM foglamp.streams_old;
 
 DROP TABLE foglamp.streams_old;
+COMMIT;

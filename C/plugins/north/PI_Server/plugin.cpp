@@ -22,6 +22,8 @@
 
 using namespace std;
 
+#define PLUGIN_NAME "PI_Server"
+
 /**
  * Plugin specific default configuration
  */
@@ -59,7 +61,7 @@ using namespace std;
 
 
 
-#define OMF_PLUGIN_DESC "\"plugin\": {\"description\": \"PI Server North C Plugin\", \"type\": \"string\", \"default\": \"PI_Server\"}"
+#define OMF_PLUGIN_DESC "\"plugin\": {\"description\": \"PI Server North C Plugin\", \"type\": \"string\", \"default\": \"" PLUGIN_NAME "\"}"
 
 #define PLUGIN_DEFAULT_CONFIG_INFO "{" OMF_PLUGIN_DESC ", " PLUGIN_DEFAULT_CONFIG "}"
 
@@ -72,7 +74,7 @@ extern "C" {
  * The C API plugin information structure
  */
 static PLUGIN_INFORMATION info = {
-	"PI Server",		        // Name
+	PLUGIN_NAME,		        // Name
 	"1.0.0",			// Version
 	0,				// Flags
 	PLUGIN_TYPE_NORTH,		// Type
@@ -183,8 +185,9 @@ PLUGIN_HANDLE plugin_init(map<string, string>&& configData)
 	connector_info.omf->setFormatType(OMF_TYPE_FLOAT, formatNumber);
 	connector_info.omf->setFormatType(OMF_TYPE_INTEGER, formatInteger);
 
-	Logger::getLogger()->info("PI Server plugin configured: URL=%s, "
+	Logger::getLogger()->info("%s plugin configured: URL=%s, "
 				  "producerToken=%s, OMF_types_id=%s",
+				  PLUGIN_NAME,
 				  url.c_str(),
 				  producerToken.c_str(),
 				  typesId.c_str());

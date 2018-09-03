@@ -109,7 +109,7 @@ class TestOMF:
     def test_plugin_info(self):
 
         assert pi_server.plugin_info() == {
-            'name': "OMF North",
+            'name': "PI Server North",
             'version': "1.0.0",
             'type': "north",
             'interface': "1.0",

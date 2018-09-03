@@ -360,9 +360,9 @@ class TestSendingProcess:
             assert SendingProcess._logger.error.called
 
     @pytest.mark.parametrize("plugin_file, plugin_type, plugin_name, expected_result", [
-        ("pi_server", "north", "OMF North", True),
+        ("pi_server", "north", "PI Server North", True),
         ("pi_server", "north", "Empty North Plugin", False),
-        ("pi_server", "south", "OMF North", False)
+        ("pi_server", "south", "PI Server North", False)
     ])
     async def test_is_north_valid(self,  plugin_file, plugin_type, plugin_name, expected_result, event_loop):
         """Tests the possible cases of the function is_north_valid """
@@ -2133,7 +2133,7 @@ class TestSendingProcess:
 
     @pytest.mark.parametrize("plugin_file, plugin_type, plugin_name", [
         ("empty",      "north", "Empty North Plugin"),
-        ("pi_server",  "north", "OMF North"),
+        ("pi_server",  "north", "PI Server North"),
         ("ocs",        "north", "OCS North")
     ])
     @pytest.mark.this

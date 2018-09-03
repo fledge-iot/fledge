@@ -47,10 +47,10 @@ class QueryProfile
 				int b = item->getDuration() / BUCKET_SIZE;
 				if (b >= TIME_BUCKETS)
 					b = TIME_BUCKETS - 1;
-				m_buckets[b++];
+				m_buckets[b]++;
 				if (m_items.size() == m_samples)
 				{
-					int minIndex = 1;
+					int minIndex = 0;
 					unsigned long minDuration = m_items[0]->getDuration();
 					for (int i = 1; i < m_items.size(); i++)
 					{

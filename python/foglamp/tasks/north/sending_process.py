@@ -198,7 +198,7 @@ class SendingProcess(FoglampProcess):
     """ The amount of time the fetch operation will sleep if there are no more data to load or in case of an error """
     TASK_SEND_SLEEP = 0.5
     """ The amount of time the sending operation will sleep in case of an error """
-    TASK_SLEEP_MAX_INCREMENTS = 4
+    TASK_SLEEP_MAX_INCREMENTS = 7
     """ Maximum number of increments for the sleep handling, the amount of time is doubled at every sleep """
     TASK_SEND_UPDATE_POSITION_MAX = 10
     """ the position is updated after the specified numbers of interactions of the sending task """

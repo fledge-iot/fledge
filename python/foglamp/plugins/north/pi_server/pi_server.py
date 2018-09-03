@@ -90,16 +90,20 @@ _CONFIG_DEFAULT_OMF = {
         'default': 'pi_server',
         'readonly': 'true'
     },
+    # FIXME:
     "URL": {
         "description": "URL of PI Connector to send data to",
         "type": "string",
-        "default": "https://pi-server:5460/ingress/messages",
+        #"default": "https://pi-server:5460/ingress/messages",
+        "default": "https://WIN-4M7ODKB0RH2:5460/ingress/messages",
         "order": "1"
     },
+    # FIXME:
     "producerToken": {
         "description": "Producer token for this FogLAMP stream",
         "type": "string",
-        "default": "pi_server_north_0001",
+        #"default": "pi_server_north_0001",
+        "default": "uid=5ced49c3-3a55-40e7-983f-c6cdcd5c5fd1&crt=20180620084136279&sig=GaWXZ1I4Toje3Ly9Z6/wGZ+eC6bC0Njd9bFpv3Un4QI=",
         "order": "2"
     },
     "OMFMaxRetry": {
@@ -147,7 +151,19 @@ _CONFIG_DEFAULT_OMF = {
         "description": "OMF format property to apply to the type Integer",
         "type": "string",
         "default": "int64"
-    }
+    },
+    # FIXME:
+    "errorToIgnore": {
+        "description": "FIXME",
+        "type": "JSON",
+        "default": json.dumps(
+            [
+                {'id': 400, 'message': 'Invalid value type for the property'},
+                {'id': 400, 'message': 'Redefinition of the type with the same ID is not allowed'}
+            ]
+        )
+    },
+
 }
 
 # Configuration related to the OMF Types
@@ -357,6 +373,9 @@ def plugin_init(data):
     _config['OMFHttpTimeout'] = int(data['OMFHttpTimeout']['value'])
 
     _config['StaticData'] = ast.literal_eval(data['StaticData']['value'])
+    # FIXME:
+    _config['errorToIgnore'] = ast.literal_eval(data['errorToIgnore']['value'])
+
 
     _config['formatNumber'] = data['formatNumber']['value']
     _config['formatInteger'] = data['formatInteger']['value']
@@ -805,9 +824,17 @@ class PIServerNorthPlugin(object):
             else:
                 # Evaluate the HTTP status codes
                 if not str(status_code).startswith('2'):
-                    tmp_text = str(status_code) + " " + text
-                    _message = plugin_common.MESSAGES_LIST["e000024"].format(tmp_text)
-                    _error = plugin_exceptions.URLFetchError(_message)
+
+                    # FIXME:
+                    if any(tmp_item['id'] == status_code and tmp_item['message'] in text  for tmp_item in self._config['errorToIgnore']):
+
+                        # Error logged and ignored
+                        self._logger.warning(plugin_common.MESSAGES_LIST["e000032"].format(status_code, text, omf_data_json))
+                        _error = ""
+                    else:
+                        tmp_text = str(status_code) + " " + text
+                        _message = plugin_common.MESSAGES_LIST["e000024"].format(tmp_text)
+                        _error = plugin_exceptions.URLFetchError(_message)
 
                 self._logger.debug("message type |{0}| response: |{1}| |{2}| ".format(
                                                                                 message_type,

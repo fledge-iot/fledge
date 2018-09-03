@@ -87,7 +87,7 @@ _MESSAGES_LIST = {
     "e000029": "an error occurred  during the teardown operation - error details |{0}|",
     "e000030": "unable to create parent configuration category",
     "e000031": "unable to convert in memory data structure related to the readings data "
-               "- error details |{0}|",
+               "- error details |{0}| - row |{1}|",
 
 }
 """ Messages used for Information, Warning and Error notice """
@@ -228,20 +228,22 @@ class SendingProcess(FoglampProcess):
             "type": "string",
             "default": "readings"
         },
+        # FIXME:
         "blockSize": {
             "description": "Bytes to send in each transmission",
             "type": "integer",
-            "default": "500"
+            "default": "13"
         },
         "sleepInterval": {
             "description": "Time in seconds to wait between duration checks",
             "type": "integer",
             "default": "1"
         },
+        # FIXME:
         'plugin': {
             'description': 'The name of the translator to use to translate the readings into the output format and send them.',
             'type': 'string',
-            'default': 'omf'
+            'default': 'pi_server'
         },
         "memory_buffer_size": {
             "description": "Number of elements of blockSize size to be buffered in memory",
@@ -472,8 +474,9 @@ class SendingProcess(FoglampProcess):
     @staticmethod
     def _transform_in_memory_data_readings(raw_data):
         converted_data = []
-        try:
-            for row in raw_data:
+        for row in raw_data:
+
+            try:
                 # Converts values to the proper types, for example "180.2" to float 180.2
                 payload = row['reading']
 
@@ -489,9 +492,10 @@ class SendingProcess(FoglampProcess):
                     'user_ts': timestamp
                 }
                 converted_data.append(new_row)
-        except Exception as e:
-            SendingProcess._logger.error(_MESSAGES_LIST["e000031"].format(str(e)))
-            raise e
+
+            except Exception as e:
+                SendingProcess._logger.error(_MESSAGES_LIST["e000031"].format(str(e), row))
+
         return converted_data
 
     async def _load_data_into_memory_readings(self, last_object_id):

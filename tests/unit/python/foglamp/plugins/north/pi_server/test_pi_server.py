@@ -21,7 +21,7 @@ import aiohttp
 from unittest.mock import patch, MagicMock, ANY
 
 from foglamp.tasks.north.sending_process import SendingProcess
-from foglamp.plugins.north.omf import omf
+from foglamp.plugins.north.pi_server import pi_server
 import foglamp.tasks.north.sending_process as module_sp
 
 from foglamp.common.storage_client import payload_builder
@@ -38,10 +38,10 @@ def fixture_omf(event_loop):
 
     _omf = MagicMock()
 
-    omf._logger = MagicMock(spec=logging)
-    omf._config_omf_types = {"type-id": {"value": "0001"}}
+    pi_server._logger = MagicMock(spec=logging)
+    pi_server._config_omf_types = {"type-id": {"value": "0001"}}
 
-    return omf
+    return pi_server
 
 # noinspection PyProtectedMember
 @pytest.fixture
@@ -54,7 +54,7 @@ def fixture_omf_north(event_loop):
 
     _logger = MagicMock(spec=logging)
 
-    omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, _logger)
+    omf_north = pi_server.PIServerNorthPlugin(sending_process_instance, config, config_omf_types, _logger)
 
     omf_north._sending_process_instance._storage_async = MagicMock(spec=StorageClientAsync)
 
@@ -108,18 +108,18 @@ class TestOMF:
 
     def test_plugin_info(self):
 
-        assert omf.plugin_info() == {
+        assert pi_server.plugin_info() == {
             'name': "OMF North",
             'version': "1.0.0",
             'type': "north",
             'interface': "1.0",
-            'config': omf._CONFIG_DEFAULT_OMF
+            'config': pi_server._CONFIG_DEFAULT_OMF
         }
 
     def test_plugin_init_good(self):
         """Tests plugin_init using a good set of values"""
 
-        omf._logger = MagicMock()
+        pi_server._logger = MagicMock()
 
         # Used to check the conversions
         data = {
@@ -146,7 +146,7 @@ class TestOMF:
 
         }
 
-        config_default_omf_types = omf.CONFIG_DEFAULT_OMF_TYPES
+        config_default_omf_types = pi_server.CONFIG_DEFAULT_OMF_TYPES
         config_default_omf_types["type-id"]["value"] = "0001"
         data["debug_level"] = None
         data["log_performance"] = None
@@ -155,7 +155,7 @@ class TestOMF:
 
         with patch.object(data['sending_process_instance'], '_fetch_configuration',
                           return_value=config_default_omf_types):
-            config = omf.plugin_init(data)
+            config = pi_server.plugin_init(data)
 
         assert config['_CONFIG_CATEGORY_NAME'] == module_sp.SendingProcess._CONFIG_CATEGORY_NAME
         assert config['URL'] == "test_URL"
@@ -216,10 +216,10 @@ class TestOMF:
     def test_plugin_init_bad(self, data):
         """Tests plugin_init using an invalid set of values"""
 
-        omf._logger = MagicMock()
+        pi_server._logger = MagicMock()
 
         with pytest.raises(Exception):
-            omf.plugin_init(data)
+            pi_server.plugin_init(data)
 
     @pytest.mark.parametrize(
         "ret_transform_in_memory_data, "
@@ -271,15 +271,15 @@ class TestOMF:
         if ret_transform_in_memory_data[0]:
             # data_available
 
-            with patch.object(fixture_omf.OmfNorthPlugin,
+            with patch.object(fixture_omf.PIServerNorthPlugin,
                               'transform_in_memory_data',
                               return_value=ret_transform_in_memory_data):
 
-                with patch.object(fixture_omf.OmfNorthPlugin,
+                with patch.object(fixture_omf.PIServerNorthPlugin,
                                   'create_omf_objects',
                                   return_value=mock_async_call()
                                   ) as patched_create_omf_objects:
-                    with patch.object(fixture_omf.OmfNorthPlugin,
+                    with patch.object(fixture_omf.PIServerNorthPlugin,
                                       'send_in_memory_data_to_picromf',
                                       return_value=mock_async_call()
                                       ) as patched_send_in_memory_data_to_picromf:
@@ -295,7 +295,7 @@ class TestOMF:
         else:
             # no data_available
 
-            with patch.object(fixture_omf.OmfNorthPlugin,
+            with patch.object(fixture_omf.PIServerNorthPlugin,
                               'transform_in_memory_data',
                               return_value=ret_transform_in_memory_data):
 
@@ -341,22 +341,22 @@ class TestOMF:
         data = MagicMock()
 
 
-        with patch.object(fixture_omf.OmfNorthPlugin,
+        with patch.object(fixture_omf.PIServerNorthPlugin,
                           'transform_in_memory_data',
                           return_value=ret_transform_in_memory_data
                           ) as patched_transform_in_memory_data:
 
-            with patch.object(fixture_omf.OmfNorthPlugin,
+            with patch.object(fixture_omf.PIServerNorthPlugin,
                               'create_omf_objects',
                               return_value=mock_async_call()
                               ) as patched_create_omf_objects:
 
-                with patch.object(fixture_omf.OmfNorthPlugin,
+                with patch.object(fixture_omf.PIServerNorthPlugin,
                                   'send_in_memory_data_to_picromf',
                                   side_effect=KeyError('mocked object generated an exception')
                                   ) as patched_send_in_memory_data_to_picromf:
 
-                    with patch.object(fixture_omf.OmfNorthPlugin,
+                    with patch.object(fixture_omf.PIServerNorthPlugin,
                                       'deleted_omf_types_already_created',
                                       return_value=mock_async_call()
                                       ) as patched_deleted_omf_types_already_created:
@@ -375,18 +375,18 @@ class TestOMF:
 
     def test_plugin_shutdown(self):
 
-        omf._logger = MagicMock()
+        pi_server._logger = MagicMock()
         data = []
-        omf.plugin_shutdown([data])
+        pi_server.plugin_shutdown([data])
 
     def test_plugin_reconfigure(self):
 
-        omf._logger = MagicMock()
-        omf.plugin_reconfigure()
+        pi_server._logger = MagicMock()
+        pi_server.plugin_reconfigure()
 
 
-class TestOmfNorthPlugin:
-    """Unit tests related to OmfNorthPlugin, methods used internally to the plugin"""
+class TestPIServerNorthPlugin:
+    """Unit tests related to PIServerNorthPlugin, methods used internally to the plugin"""
 
     @pytest.mark.parametrize(
         "p_configuration_key, "
@@ -528,7 +528,7 @@ class TestOmfNorthPlugin:
         config_omf_types = []
         logger = MagicMock()
 
-        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
+        omf_north = pi_server.PIServerNorthPlugin(sending_process_instance, config, config_omf_types, logger)
 
         generated_typename = omf_north._generate_omf_typename_automatic(p_asset_code)
 
@@ -1089,18 +1089,18 @@ class TestOmfNorthPlugin:
         """ Tests the validation of the configurations retrieved from the Configuration Manager
             handled by _validate_configuration """
 
-        omf._logger = MagicMock()
+        pi_server._logger = MagicMock()
 
         data = {p_key: {'value': p_value}}
 
         if expected == "good":
-            assert not omf._logger.error.called
+            assert not pi_server._logger.error.called
 
         elif expected == "exception":
             with pytest.raises(ValueError):
-                omf._validate_configuration(data)
+                pi_server._validate_configuration(data)
 
-            assert omf._logger.error.called
+            assert pi_server._logger.error.called
 
     @pytest.mark.parametrize(
         "p_key, "
@@ -1123,18 +1123,18 @@ class TestOmfNorthPlugin:
         """ Tests the validation of the configurations retrieved from the Configuration Manager
             related to the OMF types """
 
-        omf._logger = MagicMock()
+        pi_server._logger = MagicMock()
 
         data = {p_key: {'value': p_value}}
 
         if expected == "good":
-            assert not omf._logger.error.called
+            assert not pi_server._logger.error.called
 
         elif expected == "exception":
             with pytest.raises(ValueError):
-                omf._validate_configuration_omf_type(data)
+                pi_server._validate_configuration_omf_type(data)
 
-            assert omf._logger.error.called
+            assert pi_server._logger.error.called
 
     @pytest.mark.parametrize(
         "p_test_data ",

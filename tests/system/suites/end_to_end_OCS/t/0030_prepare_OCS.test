@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+declare TMP_FILE_ADD_NORTH_OCS_READINGS
+
 # Reads configuration setting
 source ${SUITE_BASEDIR}/suite.cfg
 

@@ -34,3 +34,8 @@ class DataSendError(NorthPluginException):
     def __init__(self, reason):
         super(DataSendError, self).__init__(reason)
         self.reason = reason
+
+
+class URLConnectionError(Exception):
+    """ Unable to connect to the server """
+    pass

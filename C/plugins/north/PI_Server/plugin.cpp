@@ -1,5 +1,5 @@
 /*
- * FogLAMP OMF north plugin.
+ * FogLAMP PI Server north plugin.
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -22,6 +22,8 @@
 
 using namespace std;
 
+#define PLUGIN_NAME "PI_Server"
+
 /**
  * Plugin specific default configuration
  */
@@ -42,7 +44,7 @@ using namespace std;
         			"\"description\": \"Seconds between each retry for the communication with the OMF PI Connector Relay, " \
                        		"NOTE : the time is doubled at each attempt.\", \"type\": \"integer\", \"default\": \"1\" }, " \
 			"\"StaticData\": { " \
-				"\"description\": \"Static data to include in each sensor reading sent to OMF.\", " \
+				"\"description\": \"Static data to include in each sensor reading sent to the PI Server.\", " \
 				"\"type\": \"string\", \"default\": \"Location: Palo Alto, Company: Dianomic\" }, " \
 			"\"formatNumber\": { " \
         			"\"description\": \"OMF format property to apply to the type Number\", " \
@@ -59,12 +61,12 @@ using namespace std;
 
 
 
-#define OMF_PLUGIN_DESC "\"plugin\": {\"description\": \"OMF North C Plugin\", \"type\": \"string\", \"default\": \"omf\"}"
+#define OMF_PLUGIN_DESC "\"plugin\": {\"description\": \"PI Server North C Plugin\", \"type\": \"string\", \"default\": \"" PLUGIN_NAME "\"}"
 
 #define PLUGIN_DEFAULT_CONFIG_INFO "{" OMF_PLUGIN_DESC ", " PLUGIN_DEFAULT_CONFIG "}"
 
 /**
- * The OMF plugin interface
+ * The PI Server plugin interface
  */
 extern "C" {
 
@@ -72,12 +74,12 @@ extern "C" {
  * The C API plugin information structure
  */
 static PLUGIN_INFORMATION info = {
-	"OMF",				// Name
+	PLUGIN_NAME,		        // Name
 	"1.0.0",			// Version
 	0,				// Flags
 	PLUGIN_TYPE_NORTH,		// Type
 	"1.0.0",			// Interface version
-	PLUGIN_DEFAULT_CONFIG_INFO   // Configuration
+	PLUGIN_DEFAULT_CONFIG_INFO      // Configuration
 };
 
 static const string omf_types_default_config =
@@ -134,7 +136,7 @@ const map<const string, const string>& plugin_config()
 PLUGIN_HANDLE plugin_init(map<string, string>&& configData)
 {
 	/**
-	 * Handle the OMF parameters here
+	 * Handle the PI Server parameters here
 	 */
 	ConfigCategory configCategory("cfg", configData["GLOBAL_CONFIGURATION"]);
 	string url = configCategory.getValue("URL");
@@ -174,7 +176,7 @@ PLUGIN_HANDLE plugin_init(map<string, string>&& configData)
 	string hostAndPort(hostName + ":" + port);	
 	connector_info.sender = new SimpleHttps(hostAndPort, timeout, timeout);
 
-	// Allocate the OMF data protocol
+	// Allocate the PI Server data protocol
 	connector_info.omf = new OMF(*connector_info.sender,
 				     path,
 				     typesId,
@@ -183,8 +185,9 @@ PLUGIN_HANDLE plugin_init(map<string, string>&& configData)
 	connector_info.omf->setFormatType(OMF_TYPE_FLOAT, formatNumber);
 	connector_info.omf->setFormatType(OMF_TYPE_INTEGER, formatInteger);
 
-	Logger::getLogger()->info("OMF plugin configured: URL=%s, "
+	Logger::getLogger()->info("%s plugin configured: URL=%s, "
 				  "producerToken=%s, OMF_types_id=%s",
+				  PLUGIN_NAME,
 				  url.c_str(),
 				  producerToken.c_str(),
 				  typesId.c_str());

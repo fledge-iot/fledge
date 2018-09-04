@@ -10,6 +10,7 @@ to send the reading data to a PI Server (or Connector) using the OSIsoft OMF for
 PICROMF = PI Connector Relay OMF"""
 
 import aiohttp
+import asyncio
 
 from datetime import datetime
 import sys
@@ -260,7 +261,7 @@ def _performance_log(_function):
 
 def plugin_info():
     return {
-        'name': "OMF North",
+        'name': "PI Server North",
         'version': "1.0.0",
         'type': "north",
         'interface': "1.0",
@@ -413,33 +414,29 @@ async def plugin_send(data, raw_data, stream_id):
 
     omf_north = PIServerNorthPlugin(data['sending_process_instance'], data, _config_omf_types, _logger)
 
-    try:
-        # Alloc the in memory buffer
-        buffer_size = len(raw_data)
-        data_to_send = [None for x in range(buffer_size)]
+    # Alloc the in memory buffer
+    buffer_size = len(raw_data)
+    data_to_send = [None for _ in range(buffer_size)]
 
-        is_data_available, new_position, num_sent = omf_north.transform_in_memory_data(data_to_send, raw_data)
+    is_data_available, new_position, num_sent = omf_north.transform_in_memory_data(data_to_send, raw_data)
 
-        if is_data_available:
+    if is_data_available:
 
-            await omf_north.create_omf_objects(raw_data, config_category_name, type_id)
+        await omf_north.create_omf_objects(raw_data, config_category_name, type_id)
 
-            try:
-                await omf_north.send_in_memory_data_to_picromf("Data", data_to_send)
+        try:
+            await omf_north.send_in_memory_data_to_picromf("Data", data_to_send)
 
-            except Exception as ex:
-                # Forces the recreation of PIServer's objects on the first error occurred
-                if _recreate_omf_objects:
-                    await omf_north.deleted_omf_types_already_created(config_category_name, type_id)
-                    _recreate_omf_objects = False
-                    _logger.debug("{0} - Forces objects recreation ".format("plugin_send"))
-                raise ex
-            else:
-                is_data_sent = True
+        except Exception as ex:
+            # Forces the recreation of PIServer's objects on the first error occurred
+            if _recreate_omf_objects:
+                await omf_north.deleted_omf_types_already_created(config_category_name, type_id)
+                _recreate_omf_objects = False
+                _logger.debug("{0} - Forces objects recreation ".format("plugin_send"))
+            raise ex
+        else:
+            is_data_sent = True
 
-    except Exception as ex:
-        _logger.exception(plugin_common.MESSAGES_LIST["e000031"].format(ex))
-        raise
     return is_data_sent, new_position, num_sent
 
 
@@ -799,28 +796,37 @@ class PIServerNorthPlugin(object):
                         status_code = resp.status
                         text = await resp.text()
 
-            except Exception as e:
-                _error = Exception(plugin_common.MESSAGES_LIST["e000024"].format(e))
-                _message = plugin_common.MESSAGES_LIST["e000024"].format(e)
+            except (TimeoutError, asyncio.TimeoutError) as ex:
+
+                _message = plugin_common.MESSAGES_LIST["e000024"].format(self._config['URL'], "connection Timeout")
+                _error = plugin_exceptions.URLConnectionError(_message)
+
+            except Exception as ex:
+
+                details = str(ex)
+                _message = plugin_common.MESSAGES_LIST["e000024"].format(self._config['URL'], details)
+                _error = plugin_exceptions.URLConnectionError(_message)
+
             else:
                 # Evaluate the HTTP status codes
                 if not str(status_code).startswith('2'):
-                    tmp_text = str(status_code) + " " + text
-                    _message = plugin_common.MESSAGES_LIST["e000024"].format(tmp_text)
-                    _error = plugin_exceptions.URLFetchError(_message)
+                    _tmp_text = "status code " + str(status_code) + " - " + text
+                    _message = plugin_common.MESSAGES_LIST["e000024"].format(self._config['URL'], _tmp_text)
+                    _error = plugin_exceptions.URLConnectionError(_message)
 
                 self._logger.debug("message type |{0}| response: |{1}| |{2}| ".format(
-                                                                                message_type,
-                                                                                status_code,
-                                                                                text))
+                    message_type,
+                    status_code,
+                    text))
+
             if _error:
-                time.sleep(sleep_time)
+                await asyncio.sleep(sleep_time)
                 num_retry += 1
                 sleep_time *= 2
             else:
                 break
+
         if _error:
-            self._logger.warning(_message)
             raise _error
 
     @_performance_log

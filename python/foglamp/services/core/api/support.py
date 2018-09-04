@@ -23,6 +23,8 @@ __DEFAULT_LIMIT = 20
 __DEFAULT_OFFSET = 0
 __DEFAULT_LOG_TYPE = 'FogLAMP'
 __GET_SYSLOG_CMD_TEMPLATE = "grep '{}\[' {} | head -n {} | tail -n {}"
+__GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE = "grep '{}\[' -i -e error -e fail {} | head -n {} | tail -n {}"
+__GET_SYSLOG_CMD_WITH_WARNING_TEMPLATE = "grep '{}\[' -i -e error -e fail -e warning {} | head -n {} | tail -n {}"
 __GET_SYSLOG_TOTAL_MATCHED_LINES = "grep '{}\[' {} | wc -l"
 
 
@@ -100,6 +102,7 @@ async def get_syslog_entries(request):
         curl -X GET "http://localhost:8081/foglamp/syslog?limit=5"
         curl -X GET "http://localhost:8081/foglamp/syslog?offset=5"
         curl -X GET "http://localhost:8081/foglamp/syslog?source=storage"
+        curl -X GET "http://localhost:8081/foglamp/syslog?level=error"
         curl -X GET "http://localhost:8081/foglamp/syslog?limit=5&source=storage"
         curl -X GET "http://localhost:8081/foglamp/syslog?limit=5&offset=5&source=storage"
     """
@@ -133,7 +136,15 @@ async def get_syslog_entries(request):
         tot_lines = int(t[0].decode())
 
         # Get filtered lines
-        cmd = __GET_SYSLOG_CMD_TEMPLATE.format(valid_source[source.lower()], _SYSLOG_FILE, tot_lines - offset, limit)
+        template = __GET_SYSLOG_CMD_TEMPLATE
+        if 'level' in request.query and request.query['level'] != '':
+            level = request.query['level'].lower()
+            if level == 'error':
+                template = __GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE
+            elif level == 'warning':
+                template = __GET_SYSLOG_CMD_WITH_WARNING_TEMPLATE
+
+        cmd = template.format(valid_source[source.lower()], _SYSLOG_FILE, tot_lines - offset, limit)
         a = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
         c = [b.decode() for b in a]  # Since "a" contains return value in bytes, convert it to string
     except (OSError, Exception) as ex:

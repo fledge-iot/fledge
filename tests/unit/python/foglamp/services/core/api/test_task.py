@@ -133,7 +133,7 @@ class TestService:
                                 assert 'Internal Server Error' == resp.reason
                             assert 0 == patch_create_cat.call_count
 
-    async def test_add_task1(self, client):
+    async def test_add_task(self, client):
         @asyncio.coroutine
         def async_mock(return_value):
             return return_value
@@ -186,18 +186,11 @@ class TestService:
                 "schedule_day": 0,
                 "schedule_time": 0,
                 "schedule_repeat": 30,
-                "schedule_enabled": True,
-                "cmd_params": {
-                    "stream_id": "1",
-                    "debug_level": "1"
-                }
+                "schedule_enabled": True
         }
-        description = "North OMF plugin"
 
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        val = {'plugin': {'description': 'North OMF plugin', 'type': 'string', 'default': 'omf'}}
-
         with patch('builtins.__import__', return_value=mock):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
@@ -214,14 +207,15 @@ class TestService:
                                         assert {'id': '2129cc95-c841-441a-ad39-6469a87dbc8b', 'name': 'north bound'} == json_response
                                     patch_get_schedule.assert_called_once_with(data['name'])
                                 patch_save_schedule.called_once_with()
-                            calls = [call(category_description='North OMF plugin', category_name='north bound', category_value={'plugin': {'description': 'North OMF plugin', 'default': 'omf', 'type': 'string'}}, keep_original_items=True),
- call('North', {}, 'North tasks', True)]
-                            patch_create_cat.assert_has_calls(calls)
-
-                        args, kwargs = insert_table_patch.call_args
-                        assert 'scheduled_processes' == args[0]
-                        p = json.loads(args[1])
-                        assert p['name'] == 'north bound'
-                        assert p['script'] in ['["tasks/north", "--stream_id=1", "--debug_level=1"]','["tasks/north", "--debug_level=1", "--stream_id=1"]']
+                            patch_create_child_cat.assert_called_once_with('North', ['north bound'])
+                        calls = [call(category_description='North OMF plugin', category_name='north bound',
+                                      category_value={'plugin': {'description': 'North OMF plugin', 'default': 'omf', 'type': 'string'}}, keep_original_items=True),
+                                 call('North', {}, 'North tasks', True)]
+                        patch_create_cat.assert_has_calls(calls)
+                    args, kwargs = insert_table_patch.call_args
+                    assert 'scheduled_processes' == args[0]
+                    p = json.loads(args[1])
+                    assert p['name'] == 'north bound'
+                    assert p['script'] == '["tasks/north"]'
 
     # TODO: Add test for negative scenarios

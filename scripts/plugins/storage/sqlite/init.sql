@@ -228,23 +228,11 @@ CREATE INDEX readings_ix1
 CREATE INDEX readings_ix2
     ON readings (asset_code);
 
--- Destinations table
--- Multiple destinations are allowed, for example multiple PI servers.
-CREATE TABLE foglamp.destinations (
-    id            INTEGER                     PRIMARY KEY AUTOINCREMENT,                  -- Sequence ID
-    type          smallint                    NOT NULL DEFAULT 1,                         -- Enum : 1: OMF, 2: Elasticsearch
-    description   character varying(255)      NOT NULL DEFAULT '',                        -- A brief description of the destination entry
-    properties    JSON                        NOT NULL DEFAULT '{ "streaming" : "all" }', -- A generic set of properties
-    active_window JSON                        NOT NULL DEFAULT '[ "always" ]',            -- The window of operations
-    active        boolean                     NOT NULL DEFAULT 't',                       -- When false, all streams to this destination stop and are inactive
-    ts            DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')));         -- Creation or last update
-
 
 -- Streams table
 -- List of the streams to the Cloud.
 CREATE TABLE foglamp.streams (
     id            INTEGER                      PRIMARY KEY AUTOINCREMENT,         -- Sequence ID
-    destination_id integer                     NOT NULL,                          -- FK to foglamp.destinations
     description    character varying(255)      NOT NULL DEFAULT '',               -- A brief description of the stream entry
     properties     JSON                        NOT NULL DEFAULT '{}',             -- A generic set of properties
     object_stream  JSON                        NOT NULL DEFAULT '{}',             -- Definition of what must be streamed
@@ -253,14 +241,8 @@ CREATE TABLE foglamp.streams (
     active_window  JSON                        NOT NULL DEFAULT '{}',             -- The window of operations
     active         boolean                     NOT NULL DEFAULT 't',              -- When false, all data to this stream stop and are inactive
     last_object    bigint                      NOT NULL DEFAULT 0,                -- The ID of the last object streamed (asset or reading, depending on the object_stream)
-    ts             DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')), -- Creation or last update
-    CONSTRAINT streams_fk1 FOREIGN KEY (destination_id)
-    REFERENCES destinations (id) MATCH SIMPLE
-            ON UPDATE NO ACTION
-            ON DELETE NO ACTION );
+    ts             DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime'))); -- Creation or last update
 
-CREATE INDEX fki_streams_fk1
-    ON streams (destination_id);
 
 -- Configuration table
 -- The configuration in JSON format.
@@ -311,6 +293,9 @@ CREATE UNIQUE INDEX statistics_history_ix1
 
 CREATE INDEX statistics_history_ix2
     ON statistics_history (key);
+
+CREATE INDEX statistics_history_ix3
+    ON statistics_history (history_ts);
 
 -- Resources table
 -- A resource and be anything that is available or can be done in FogLAMP. Examples:

@@ -10,6 +10,7 @@ import copy
 import json
 import inspect
 import ipaddress
+import datetime
 
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.storage_client import StorageClientAsync
@@ -28,6 +29,62 @@ _logger = logger.setup(__name__)
 # MAKE UPPER_CASE
 _valid_type_strings = sorted(['boolean', 'integer', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password', 'JSON',
                               'URL', 'enumeration'])
+
+
+class ConfigurationCache(object):
+    """Configuration Cache Manager"""
+
+    MAX_CACHE_SIZE = 10
+
+    def __init__(self):
+        """
+        cache: value stored in dictionary as per category_name
+        max_cache_size: Hold the 10 recently requested categories in the cache
+        hit: number of times an item is read from the cache
+        miss: number of times an item was not found in the cache and a read of the storage layer was required
+        """
+        self.cache = {}
+        self.max_cache_size = self.MAX_CACHE_SIZE
+        self.hit = 0
+        self.miss = 0
+
+    def __contains__(self, category_name):
+        """Returns True or False depending on whether or not the key is in the cache
+        and update the hit and data_accessed"""
+        if category_name in self.cache:
+            try:
+                current_hit = self.cache[category_name]['hit']
+            except KeyError:
+                current_hit = 0
+
+            self.hit += 1
+            self.cache[category_name].update({'date_accessed': datetime.datetime.now(), 'hit': current_hit + 1})
+            return True
+        self.miss += 1
+        return False
+
+    def update(self, category_name, category_val):
+        """Update the cache dictionary and remove the oldest item"""
+        if category_name not in self.cache and len(self.cache) >= self.max_cache_size:
+            self.remove_oldest()
+
+        self.cache[category_name] = {'date_accessed': datetime.datetime.now(), 'value': category_val}
+        _logger.info("Updated Configuration Cache %s", self.cache)
+
+    def remove_oldest(self):
+        """Remove the entry that has the oldest accessed date"""
+        oldest_entry = None
+        for category_name in self.cache:
+            if oldest_entry is None:
+                oldest_entry = category_name
+            elif self.cache[category_name]['date_accessed'] < self.cache[oldest_entry]['date_accessed']:
+                oldest_entry = category_name
+        self.cache.pop(oldest_entry)
+
+    @property
+    def size(self):
+        """Return the size of the cache"""
+        return len(self.cache)
 
 
 class ConfigurationManagerSingleton(object):
@@ -69,6 +126,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
     _storage = None
     _registered_interests = None
+    _cacheManager = None
 
     def __init__(self, storage=None):
         ConfigurationManagerSingleton.__init__(self)
@@ -78,6 +136,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             self._storage = storage
         if self._registered_interests is None:
             self._registered_interests = {}
+        if self._cacheManager is None:
+            self._cacheManager = ConfigurationCache()
 
     async def _run_callbacks(self, category_name):
         callbacks = self._registered_interests.get(category_name)
@@ -211,6 +271,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                               value=category_val).payload()
             result = await self._storage.insert_into_tbl("configuration", payload)
             response = result['response']
+            self._cacheManager.update(category_name, category_val)
         except KeyError:
             raise ValueError(result['message'])
         except StorageServerError as ex:
@@ -334,6 +395,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 WHERE(["key", "=", category_name]).payload()
             result = await self._storage.update_tbl("configuration", payload)
             response = result['response']
+            if self._cacheManager.cache:
+                self._cacheManager.cache[category_name]['value'] = category_val
         except KeyError:
             raise ValueError(result['message'])
         except StorageServerError as ex:
@@ -373,7 +436,13 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         None
         """
         try:
-            return await self._read_category_val(category_name)
+            if category_name in self._cacheManager:
+                return self._cacheManager.cache[category_name]['value']
+
+            cat = await self._read_category_val(category_name)
+            if cat is not None:
+                self._cacheManager.update(category_name, cat)
+            return cat
         except:
             _logger.exception(
                 'Unable to get all category names based on category_name %s', category_name)
@@ -391,7 +460,14 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         None
         """
         try:
-            return await self._read_item_val(category_name, item_name)
+            if category_name in self._cacheManager:
+                if item_name not in self._cacheManager.cache[category_name]['value']:
+                    return None
+                return self._cacheManager.cache[category_name]['value'][item_name]
+            cat_item = await self._read_item_val(category_name, item_name)
+            if cat_item is not None:
+                self._cacheManager.update(category_name, cat_item)
+            return cat_item
         except:
             _logger.exception(
                 'Unable to get category item based on category_name %s and item_name %s', category_name, item_name)
@@ -436,14 +512,24 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         None
         """
         try:
-            # get storage_value_entry and compare against new_value_value with its type, update if different
-            storage_value_entry = await self._read_item_val(category_name, item_name)
-            # check for category_name and item_name combination existence in storage
-            if storage_value_entry is None:
-                raise ValueError("No detail found for the category_name: {} and item_name: {}"
-                                 .format(category_name, item_name))
-            if storage_value_entry == new_value_entry:
-                return
+            storage_value_entry = None
+            if category_name in self._cacheManager:
+                if item_name not in self._cacheManager.cache[category_name]['value']:
+                    raise ValueError("No detail found for the category_name: {} and item_name: {}"
+                                     .format(category_name, item_name))
+                storage_value_entry = self._cacheManager.cache[category_name]['value'][item_name]
+
+                if storage_value_entry['value'] == new_value_entry:
+                    return
+            else:
+                # get storage_value_entry and compare against new_value_value with its type, update if different
+                storage_value_entry = await self._read_item_val(category_name, item_name)
+                # check for category_name and item_name combination existence in storage
+                if storage_value_entry is None:
+                    raise ValueError("No detail found for the category_name: {} and item_name: {}"
+                                     .format(category_name, item_name))
+                if storage_value_entry == new_value_entry:
+                    return
 
             # Special case for enumeration field type handling
             if storage_value_entry['type'] == 'enumeration':
@@ -457,6 +543,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
             new_value_entry = self._clean(storage_value_entry['type'], new_value_entry)
             await self._update_value_val(category_name, item_name, new_value_entry)
+            if self._cacheManager.cache:
+                self._cacheManager.cache[category_name]['value'][item_name]['value'] = new_value_entry
         except:
             _logger.exception(
                 'Unable to set item value entry based on category_name %s and item_name %s and value_item_entry %s',

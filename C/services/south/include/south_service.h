@@ -37,9 +37,6 @@ class SouthService : public ServiceHandler {
 	private:
 		void				addConfigDefaults(DefaultConfigCategory& defaults);
 		bool 				loadPlugin();
-		bool 				loadFilters(const std::string& categoryName,
-							    Ingest& ingest) const;
-		bool				setupFiltersPipeline(const Ingest& ingest) const;
 	private:
 		SouthPlugin			*southPlugin;
 		const std::string&		m_name;

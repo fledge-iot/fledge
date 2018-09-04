@@ -41,6 +41,7 @@ docs/.cache/
 /plugins
 /python_build_dir
 /services
+/tasks
 
 # Error Logs
 *.err

@@ -20,6 +20,9 @@ from foglamp.services.core.api import plugin_discovery
 from foglamp.services.core.api import task
 from foglamp.services.core.api import asset_tracker
 from foglamp.services.core.api import south
+from foglamp.services.core.api import north
+from foglamp.services.core.api import filters
+
 
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
@@ -62,7 +65,8 @@ def setup(app):
     app.router.add_route('DELETE', '/foglamp/category/{category_name}/parent', api_configuration.delete_parent_category)
     app.router.add_route('GET', '/foglamp/category/{category_name}/{config_item}', api_configuration.get_category_item)
     app.router.add_route('PUT', '/foglamp/category/{category_name}/{config_item}', api_configuration.set_configuration_item)
-    app.router.add_route('POST', '/foglamp/category/{category_name}/{config_item}', api_configuration.add_configuration_item)
+    # TODO: Remove add config item once its confirmed
+    # app.router.add_route('POST', '/foglamp/category/{category_name}/{config_item}', api_configuration.add_configuration_item)
     app.router.add_route('DELETE', '/foglamp/category/{category_name}/{config_item}/value', api_configuration.delete_configuration_item_value)
 
     # Scheduler
@@ -98,6 +102,9 @@ def setup(app):
 
     # South
     app.router.add_route('GET', '/foglamp/south', south.get_south_services)
+
+    # North
+    app.router.add_route('GET', '/foglamp/north', north.get_north_schedules)
 
     # assets
     browser.setup(app)
@@ -145,6 +152,10 @@ def setup(app):
 
     # Task
     app.router.add_route('POST', '/foglamp/scheduled/task', task.add_task)
+
+    # Filters 
+    app.router.add_route('POST', '/foglamp/filter', filters.create_filter)
+    app.router.add_route('PUT', '/foglamp/filter/{service_name}/pipeline', filters.add_filters_pipeline)
 
     # enable cors support
     enable_cors(app)

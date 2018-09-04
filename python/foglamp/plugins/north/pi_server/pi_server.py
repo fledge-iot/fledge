@@ -10,6 +10,7 @@ to send the reading data to a PI Server (or Connector) using the OSIsoft OMF for
 PICROMF = PI Connector Relay OMF"""
 
 import aiohttp
+import asyncio
 
 from datetime import datetime
 import sys
@@ -41,7 +42,7 @@ _LOGGER_LEVEL = _LOG_LEVEL_WARNING
 _LOGGER_DESTINATION = logger.SYSLOG
 _logger = None
 
-_MODULE_NAME = "omf_north"
+_MODULE_NAME = "pi_server_north"
 
 # Messages used for Information, Warning and Error notice
 MESSAGES_LIST = {
@@ -65,7 +66,6 @@ MESSAGES_LIST = {
 _log_debug_level = 0
 _log_performance = False
 _stream_id = None
-_destination_id = None
 
 # Configurations retrieved from the Configuration Manager
 _config_omf_types = {}
@@ -82,22 +82,25 @@ _MESSAGES_LIST = {
     "e000000": "general error.",
 }
 # Configuration related to the OMF North
-_CONFIG_CATEGORY_DESCRIPTION = 'OMF North Plugin'
+_CONFIG_CATEGORY_DESCRIPTION = 'PI Server North Plugin'
 _CONFIG_DEFAULT_OMF = {
     'plugin': {
-        'description': 'OMF North Plugin',
+        'description': 'PI Server North Plugin',
         'type': 'string',
-        'default': 'omf'
+        'default': 'pi_server',
+        'readonly': 'true'
     },
     "URL": {
         "description": "URL of PI Connector to send data to",
         "type": "string",
-        "default": "https://pi-server:5460/ingress/messages"
+        "default": "https://pi-server:5460/ingress/messages",
+        "order": "1"
     },
     "producerToken": {
         "description": "Producer token for this FogLAMP stream",
         "type": "string",
-        "default": "omf_north_0001"
+        "default": "pi_server_north_0001",
+        "order": "2"
     },
     "OMFMaxRetry": {
         "description": "Max number of retries for communication with the OMF PI Connector Relay",
@@ -257,7 +260,7 @@ def _performance_log(_function):
 
 def plugin_info():
     return {
-        'name': "OMF North",
+        'name': "PI Server North",
         'version': "1.0.0",
         'type': "north",
         'interface': "1.0",
@@ -323,12 +326,11 @@ def plugin_init(data):
     global _config_omf_types
     global _logger
     global _recreate_omf_objects
-    global _log_debug_level, _log_performance, _stream_id, _destination_id
+    global _log_debug_level, _log_performance, _stream_id
 
     _log_debug_level = data['debug_level']
     _log_performance = data['log_performance']
     _stream_id = data['stream_id']
-    _destination_id = data['destination_id']
 
     try:
         # note : _module_name is used as __name__ refers to the Sending Proces
@@ -408,35 +410,31 @@ async def plugin_send(data, raw_data, stream_id):
     config_category_name = data['_CONFIG_CATEGORY_NAME']
     type_id = _config_omf_types['type-id']['value']
 
-    omf_north = OmfNorthPlugin(data['sending_process_instance'], data, _config_omf_types, _logger)
+    omf_north = PIServerNorthPlugin(data['sending_process_instance'], data, _config_omf_types, _logger)
 
-    try:
-        # Alloc the in memory buffer
-        buffer_size = len(raw_data)
-        data_to_send = [None for x in range(buffer_size)]
+    # Alloc the in memory buffer
+    buffer_size = len(raw_data)
+    data_to_send = [None for _ in range(buffer_size)]
 
-        is_data_available, new_position, num_sent = omf_north.transform_in_memory_data(data_to_send, raw_data)
+    is_data_available, new_position, num_sent = omf_north.transform_in_memory_data(data_to_send, raw_data)
 
-        if is_data_available:
+    if is_data_available:
 
-            await omf_north.create_omf_objects(raw_data, config_category_name, type_id)
+        await omf_north.create_omf_objects(raw_data, config_category_name, type_id)
 
-            try:
-                await omf_north.send_in_memory_data_to_picromf("Data", data_to_send)
+        try:
+            await omf_north.send_in_memory_data_to_picromf("Data", data_to_send)
 
-            except Exception as ex:
-                # Forces the recreation of PIServer's objects on the first error occurred
-                if _recreate_omf_objects:
-                    await omf_north.deleted_omf_types_already_created(config_category_name, type_id)
-                    _recreate_omf_objects = False
-                    _logger.debug("{0} - Forces objects recreation ".format("plugin_send"))
-                raise ex
-            else:
-                is_data_sent = True
+        except Exception as ex:
+            # Forces the recreation of PIServer's objects on the first error occurred
+            if _recreate_omf_objects:
+                await omf_north.deleted_omf_types_already_created(config_category_name, type_id)
+                _recreate_omf_objects = False
+                _logger.debug("{0} - Forces objects recreation ".format("plugin_send"))
+            raise ex
+        else:
+            is_data_sent = True
 
-    except Exception as ex:
-        _logger.exception(plugin_common.MESSAGES_LIST["e000031"].format(ex))
-        raise
     return is_data_sent, new_position, num_sent
 
 
@@ -458,7 +456,7 @@ def plugin_reconfigure():
     pass
 
 
-class OmfNorthPlugin(object):
+class PIServerNorthPlugin(object):
     """ North OMF North Plugin """
 
     def __init__(self, sending_process_instance, config, config_omf_types, _logger):
@@ -506,6 +504,7 @@ class OmfNorthPlugin(object):
         rows = []
         for row in omf_created_objects['rows']:
             rows.append(row['asset_code'])
+
         return rows
 
     async def _flag_created_omf_type(self, configuration_key, type_id, asset_code):
@@ -795,28 +794,37 @@ class OmfNorthPlugin(object):
                         status_code = resp.status
                         text = await resp.text()
 
-            except Exception as e:
-                _error = Exception(plugin_common.MESSAGES_LIST["e000024"].format(e))
-                _message = plugin_common.MESSAGES_LIST["e000024"].format(e)
+            except (TimeoutError, asyncio.TimeoutError) as ex:
+
+                _message = plugin_common.MESSAGES_LIST["e000024"].format(self._config['URL'], "connection Timeout")
+                _error = plugin_exceptions.URLConnectionError(_message)
+
+            except Exception as ex:
+
+                details = str(ex)
+                _message = plugin_common.MESSAGES_LIST["e000024"].format(self._config['URL'], details)
+                _error = plugin_exceptions.URLConnectionError(_message)
+
             else:
                 # Evaluate the HTTP status codes
                 if not str(status_code).startswith('2'):
-                    tmp_text = str(status_code) + " " + text
-                    _message = plugin_common.MESSAGES_LIST["e000024"].format(tmp_text)
-                    _error = plugin_exceptions.URLFetchError(_message)
+                    _tmp_text = "status code " + str(status_code) + " - " + text
+                    _message = plugin_common.MESSAGES_LIST["e000024"].format(self._config['URL'], _tmp_text)
+                    _error = plugin_exceptions.URLConnectionError(_message)
 
                 self._logger.debug("message type |{0}| response: |{1}| |{2}| ".format(
-                                                                                message_type,
-                                                                                status_code,
-                                                                                text))
+                    message_type,
+                    status_code,
+                    text))
+
             if _error:
-                time.sleep(sleep_time)
+                await asyncio.sleep(sleep_time)
                 num_retry += 1
                 sleep_time *= 2
             else:
                 break
+
         if _error:
-            self._logger.warning(_message)
             raise _error
 
     @_performance_log

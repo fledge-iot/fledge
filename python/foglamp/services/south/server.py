@@ -279,10 +279,3 @@ class Server(FoglampMicroservice):
             raise web.HTTPInternalServerError('Data retrieval error in plugin {} during reconfigure'.format(self._name))
 
         return web.json_response({"south": "change"})
-
-    # get_track and add_track are empty methods required for mgt_route binding only
-    async def get_track(self, request):
-        pass
-
-    async def add_track(self, request):
-        pass

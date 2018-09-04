@@ -109,7 +109,7 @@ class TestOMF:
     def test_plugin_info(self):
 
         assert pi_server.plugin_info() == {
-            'name': "OMF North",
+            'name': "PI Server North",
             'version': "1.0.0",
             'type': "north",
             'interface': "1.0",
@@ -1290,19 +1290,16 @@ class TestPIServerNorthPlugin:
         # To avoid the wait time
         with patch.object(time, 'sleep', return_value=True):
 
-            with patch.object(fixture_omf_north._logger, 'warning', return_value=True) as patched_logger:
+            with patch.object(aiohttp.ClientSession,
+                              'post',
+                              return_value=MockAiohttpClientSessionError()
+                              ) as patched_aiohttp:
 
-                with patch.object(aiohttp.ClientSession,
-                                  'post',
-                                  return_value=MockAiohttpClientSessionError()
-                                  ) as patched_aiohttp:
-
-                    # Tests the raising of the exception
-                    with pytest.raises(Exception):
-                        await fixture_omf_north.send_in_memory_data_to_picromf("Type", p_test_data)
+                # Tests the raising of the exception
+                with pytest.raises(Exception):
+                    await fixture_omf_north.send_in_memory_data_to_picromf("Type", p_test_data)
 
         assert patched_aiohttp.call_count == max_retry
-        assert patched_logger.called
 
     @pytest.mark.parametrize(
         "p_data_origin, "

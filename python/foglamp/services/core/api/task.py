@@ -13,6 +13,7 @@ from foglamp.services.core import connect
 from foglamp.services.core.scheduler.entities import Schedule, TimedSchedule, IntervalSchedule, ManualSchedule
 from foglamp.common.storage_client.exceptions import StorageServerError
 from foglamp.common import utils
+from foglamp.services.core.api import utils as apiutils
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -31,7 +32,7 @@ async def add_task(request):
     Create a new task to run a specific plugin
 
     :Example:
-     curl -X POST http://localhost:8081/foglamp/scheduled/task -d 
+     curl -X POST http://localhost:8081/foglamp/scheduled/task -d
      '{
         "name": "North Readings to PI",
         "plugin": "omf",
@@ -59,8 +60,6 @@ async def add_task(request):
         schedule_repeat = data.get('schedule_repeat', None)
         enabled = data.get('schedule_enabled', None)
 
-        cmd_params = data.get('cmd_params', None)
-
         if name is None:
             raise web.HTTPBadRequest(reason='Missing name property in payload.')
         if plugin is None:
@@ -73,9 +72,6 @@ async def add_task(request):
             raise web.HTTPBadRequest(reason='Invalid plugin property in payload.')
         if task_type not in ['north']:
             raise web.HTTPBadRequest(reason='Only north type is supported.')
-        if cmd_params is not None:
-            if not isinstance(cmd_params, dict):
-                raise web.HTTPBadRequest(reason='cmd_params must be a dict.')
 
         if schedule_type is None:
             raise web.HTTPBadRequest(reason='schedule_type is mandatory')
@@ -128,17 +124,24 @@ async def add_task(request):
         try:
             # "plugin_module_path" is fixed by design. It is MANDATORY to keep the plugin in the exactly similar named
             # folder, within the plugin_module_path.
+            # if multiple plugin with same name are found, then python plugin import will be tried first
             plugin_module_path = "foglamp.plugins.{}".format(task_type)
             import_file_name = "{path}.{dir}.{file}".format(path=plugin_module_path, dir=plugin, file=plugin)
             _plugin = __import__(import_file_name, fromlist=[''])
 
+            script = '["tasks/north"]'
             # Fetch configuration from the configuration defined in the plugin
             plugin_info = _plugin.plugin_info()
             plugin_config = plugin_info['config']
         except ImportError as ex:
-            raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}". {}'.format(plugin, plugin_module_path, str(ex)))
+            # Checking for C-type plugins
+            script = '["tasks/north_c"]'
+            plugin_info = apiutils.get_plugin_info(plugin)
+            plugin_config = plugin_info['config']
+            if not plugin_config:
+                raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}". {}'.format(plugin, plugin_module_path, str(ex)))
         except Exception as ex:
-            raise web.HTTPInternalServerError(reason='Failed to create plugin configuration. {}'.format(str(ex)))
+            raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration. {}'.format(str(ex)))
 
         storage = connect.get_storage_async()
 
@@ -153,9 +156,6 @@ async def add_task(request):
             raise web.HTTPBadRequest(reason='A schedule with that name already exists')
 
         # Now first create the scheduled process entry for the new task
-        cmdln_params = [', "--{}={}"'.format(i, v) for i, v in cmd_params.items()] if cmd_params is not None and len(cmd_params) > 0 else []
-        cmdln_params_str = "".join(cmdln_params)
-        script = '["tasks/{}"{}]'.format(task_type, cmdln_params_str)
         payload = PayloadBuilder().INSERT(name=name, script=script).payload()
         try:
             res = await storage.insert_into_tbl("scheduled_processes", payload)

@@ -44,7 +44,7 @@ using namespace rapidjson;
  * run by the storage plugin and the numebr of times a particular statement has to
  * be retried because of the database being busy./
  */
-#define DO_PROFILE		1
+#define DO_PROFILE		0
 #define DO_PROFILE_RETRIES	0
 #if DO_PROFILE
 #include <profile.h>
@@ -1505,7 +1505,7 @@ Document	document;
 SQLBuffer	sql;
 // Extra constraints to add to where clause
 SQLBuffer	jsonConstraints;
-bool		isAggregate = true;
+bool		isAggregate = false;
 
 	try {
 		if (dbHandle == NULL)
@@ -1700,7 +1700,7 @@ bool		isAggregate = true;
 		int rc;
 		sqlite3_stmt *stmt;
 
-		logSQL("CommonRetrive", query);
+		logSQL("ReadingsRetrive", query);
 
 		// Prepare the SQL statement and get the result set
 		rc = sqlite3_prepare_v2(dbHandle, query, -1, &stmt, NULL);
@@ -1784,7 +1784,7 @@ long numReadings = 0;
 	{
 		// Get number of unsent rows we are about to remove
 		SQLBuffer unsentBuffer;
-		unsentBuffer.append("SELECT count(*) FROM foglamp.readings WHERE  user_ts < datetime('now', '-");
+		unsentBuffer.append("SELECT count(ROWID) FROM foglamp.readings WHERE  user_ts < datetime('now', '-");
 		unsentBuffer.append(age);
 		unsentBuffer.append(" hours', 'localtime') AND id > ");
 		unsentBuffer.append(sent);
@@ -1852,7 +1852,7 @@ long numReadings = 0;
 	unsigned int deletedRows = sqlite3_changes(dbHandle);
 
 	SQLBuffer retainedBuffer;
-	retainedBuffer.append("SELECT count(*) FROM foglamp.readings WHERE id > ");
+	retainedBuffer.append("SELECT count(ROWID) FROM foglamp.readings WHERE id > ");
 	retainedBuffer.append(sent);
 	retainedBuffer.append(';');
 	const char *query_r = retainedBuffer.coalesce();
@@ -1882,7 +1882,7 @@ long numReadings = 0;
 	int readings_num = 0;
 	// Exec query and get result in 'readings_num' via 'countCallback'
 	rc = SQLexec(dbHandle,
-		     "SELECT count(*) FROM foglamp.readings",
+		     "SELECT count(ROWID) FROM foglamp.readings where asset_code = asset_code",
 		     countCallback,
 	  	     &readings_num,
 		     &zErrMsg);

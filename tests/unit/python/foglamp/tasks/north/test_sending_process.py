@@ -360,9 +360,9 @@ class TestSendingProcess:
             assert SendingProcess._logger.error.called
 
     @pytest.mark.parametrize("plugin_file, plugin_type, plugin_name, expected_result", [
-        ("pi_server", "north", "OMF North", True),
+        ("pi_server", "north", "PI Server North", True),
         ("pi_server", "north", "Empty North Plugin", False),
-        ("pi_server", "south", "OMF North", False)
+        ("pi_server", "south", "PI Server North", False)
     ])
     async def test_is_north_valid(self,  plugin_file, plugin_type, plugin_name, expected_result, event_loop):
         """Tests the possible cases of the function is_north_valid """
@@ -2133,7 +2133,7 @@ class TestSendingProcess:
 
     @pytest.mark.parametrize("plugin_file, plugin_type, plugin_name", [
         ("empty",      "north", "Empty North Plugin"),
-        ("pi_server",  "north", "OMF North"),
+        ("pi_server",  "north", "PI Server North"),
         ("ocs",        "north", "OCS North")
     ])
     @pytest.mark.this
@@ -2178,8 +2178,7 @@ class TestSendingProcess:
                     "memory_buffer_size": {"value": "10"},
                     "sleepInterval": {"value": "10"},
                     "plugin": {"value": "omf"},
-                    "stream_id": {"value": "1"},
-                    "destination_id": {"value": "1"}
+                    "stream_id": {"value": "1"}
                 },
                 # expected_config
                 {
@@ -2190,8 +2189,7 @@ class TestSendingProcess:
                     "memory_buffer_size": 10,
                     "sleepInterval": 10,
                     "plugin": "omf",
-                    "stream_id": 1,
-                    "destination_id": 1
+                    "stream_id": 1
                 },
             ),
         ]
@@ -2220,7 +2218,6 @@ class TestSendingProcess:
         assert sp._config['sleepInterval'] == expected_config['sleepInterval']
         assert sp._config['plugin'] == expected_config['plugin']
         assert sp._config['stream_id'] == expected_config['stream_id']
-        assert sp._config['destination_id'] == expected_config['destination_id']
 
     @pytest.mark.skip(reason="Stream ID tests no longer valid")
     async def test_start_stream_not_valid(self, event_loop):
@@ -2261,7 +2258,6 @@ class TestSendingProcess:
         sp._plugin = MagicMock()
         sp._config['plugin'] = MagicMock()
         sp._config['enable'] = False
-        sp._config['destination_id'] = 1
         sp._config['stream_id'] = 1
         sp._config_from_manager = {}
 
@@ -2298,7 +2294,6 @@ class TestSendingProcess:
         sp._plugin = MagicMock()
         sp._config['plugin'] = MagicMock()
         sp._config['enable'] = True
-        sp._config['destination_id'] = 1
         sp._config['stream_id'] = 1
         sp._config_from_manager = {}
 
@@ -2339,7 +2334,6 @@ class TestSendingProcess:
         sp._plugin = MagicMock()
         sp._config['plugin'] = MagicMock()
         sp._config['enable'] = True
-        sp._config['destination_id'] = 1
         sp._config['stream_id'] = 1
         sp._config_from_manager = {}
 

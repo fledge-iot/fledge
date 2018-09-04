@@ -28,7 +28,6 @@
 
 // Default values for the creation of a new stream,
 // the description is derived from the parameter --name
-#define NEW_STREAM_DESTINATION 1
 #define NEW_STREAM_LAST_OBJECT 0
 
 using namespace std;
@@ -443,7 +442,6 @@ int SendingProcess::createNewStream()
         int streamId = 0;
 
         InsertValues streamValues;
-        streamValues.push_back(InsertValue("destination_id", NEW_STREAM_DESTINATION));
         streamValues.push_back(InsertValue("description",    this->getName()));
         streamValues.push_back(InsertValue("last_object",    NEW_STREAM_LAST_OBJECT));
 
@@ -491,7 +489,6 @@ bool SendingProcess::createStream(int streamId)
 
 	InsertValues streamValues;
 	streamValues.push_back(InsertValue("id",             streamId));
-	streamValues.push_back(InsertValue("destination_id", NEW_STREAM_DESTINATION));
 	streamValues.push_back(InsertValue("description",    this->getName()));
 	streamValues.push_back(InsertValue("last_object",    NEW_STREAM_LAST_OBJECT));
 

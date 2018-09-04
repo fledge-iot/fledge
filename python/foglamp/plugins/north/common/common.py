@@ -33,7 +33,7 @@ MESSAGES_LIST = {
     "e000021": "cannot complete the preparation of the in memory structure.",
     "e000022": "unable to extend the memory structure with new data.",
     "e000023": "cannot prepare sensor information for the destination - error details |{0}|",
-    "e000024": "an error occurred during the request to the destination - error details |{0}|",
+    "e000024": "an error occurred during the request to the destination - server address |{0}| - error details |{1}|",
 
     "e000030": "cannot update the reached position.",
     "e000031": "cannot complete the sending operation - error details |{0}|",

@@ -44,7 +44,7 @@ using namespace rapidjson;
  * run by the storage plugin and the numebr of times a particular statement has to
  * be retried because of the database being busy./
  */
-#define DO_PROFILE		0
+#define DO_PROFILE		1
 #define DO_PROFILE_RETRIES	0
 #if DO_PROFILE
 #include <profile.h>
@@ -1495,6 +1495,246 @@ int retrieve;
 }
 
 /**
+ * Perform a query against the readings table
+ *
+ */
+bool Connection::retrieveReadings(const string& condition, string& resultSet)
+{
+// Default template parameter uses UTF8 and MemoryPoolAllocator.
+Document	document;
+SQLBuffer	sql;
+// Extra constraints to add to where clause
+SQLBuffer	jsonConstraints;
+bool		isAggregate = true;
+
+	try {
+		if (dbHandle == NULL)
+		{
+			raiseError("retrieve", "No SQLite 3 db connection available");
+			return false;
+		}
+
+		if (condition.empty())
+		{
+			sql.append("SELECT * FROM foglamp.readings");
+		}
+		else
+		{
+			if (document.Parse(condition.c_str()).HasParseError())
+			{
+				raiseError("retrieve", "Failed to parse JSON payload");
+				return false;
+			}
+			if (document.HasMember("aggregate"))
+			{
+				isAggregate = true;
+				sql.append("SELECT ");
+				if (document.HasMember("modifier"))
+				{
+					sql.append(document["modifier"].GetString());
+					sql.append(' ');
+				}
+				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints))
+				{
+					return false;
+				}
+				sql.append(" FROM foglamp.");
+			}
+			else if (document.HasMember("return"))
+			{
+				int col = 0;
+				Value& columns = document["return"];
+				if (! columns.IsArray())
+				{
+					raiseError("retrieve", "The property return must be an array");
+					return false;
+				}
+				sql.append("SELECT ");
+				if (document.HasMember("modifier"))
+				{
+					sql.append(document["modifier"].GetString());
+					sql.append(' ');
+				}
+				for (Value::ConstValueIterator itr = columns.Begin(); itr != columns.End(); ++itr)
+				{
+					if (col)
+						sql.append(", ");
+					if (!itr->IsObject())	// Simple column name
+					{
+						sql.append(itr->GetString());
+					}
+					else
+					{
+						if (itr->HasMember("column"))
+						{
+							if (! (*itr)["column"].IsString())
+							{
+								raiseError("rerieve",
+									   "column must be a string");
+								return false;
+							}
+							if (itr->HasMember("format"))
+							{
+								if (! (*itr)["format"].IsString())
+								{
+									raiseError("rerieve",
+										   "format must be a string");
+									return false;
+								}
+
+								// SQLite 3 date format.
+								string new_format;
+								applyColumnDateFormat((*itr)["format"].GetString(),
+										      (*itr)["column"].GetString(),
+										      new_format, true);
+								// Add the formatted column or use it as is
+								sql.append(new_format);
+							}
+							else if (itr->HasMember("timezone"))
+							{
+								if (! (*itr)["timezone"].IsString())
+								{
+									raiseError("rerieve",
+										   "timezone must be a string");
+									return false;
+								}
+								// SQLite3 doesnt support time zone formatting
+								if (strcasecmp((*itr)["timezone"].GetString(), "utc") != 0)
+								{
+									raiseError("retrieve",
+										   "SQLite3 plugin does not support timezones in qeueries");
+									return false;
+								}
+								else
+								{
+									sql.append("strftime('%Y-%m-%d %H:%M:%f', ");
+									sql.append((*itr)["column"].GetString());
+									sql.append(", 'utc')");
+									sql.append(" AS ");
+									sql.append((*itr)["column"].GetString());
+								}
+							}
+							else
+							{
+								sql.append((*itr)["column"].GetString());
+							}
+							sql.append(' ');
+						}
+						else if (itr->HasMember("json"))
+						{
+							const Value& json = (*itr)["json"];
+							if (! returnJson(json, sql, jsonConstraints))
+								return false;
+						}
+						else
+						{
+							raiseError("retrieve",
+								   "return object must have either a column or json property");
+							return false;
+						}
+
+						if (itr->HasMember("alias"))
+						{
+							sql.append(" AS \"");
+							sql.append((*itr)["alias"].GetString());
+							sql.append('"');
+						}
+					}
+					col++;
+				}
+				sql.append(" FROM foglamp.");
+			}
+			else
+			{
+				sql.append("SELECT ");
+				if (document.HasMember("modifier"))
+				{
+					sql.append(document["modifier"].GetString());
+					sql.append(' ');
+				}
+				sql.append(" * FROM foglamp.");
+			}
+			sql.append("readings");
+			if (document.HasMember("where"))
+			{
+				sql.append(" WHERE ");
+			 
+				if (document.HasMember("where"))
+				{
+					if (!jsonWhereClause(document["where"], sql))
+					{
+						return false;
+					}
+				}
+				else
+				{
+					raiseError("retrieve",
+						   "JSON does not contain where clause");
+					return false;
+				}
+				if (! jsonConstraints.isEmpty())
+				{
+					sql.append(" AND ");
+                                        const char *jsonBuf =  jsonConstraints.coalesce();
+                                        sql.append(jsonBuf);
+                                        delete[] jsonBuf;
+				}
+			}
+			else if (isAggregate)
+			{
+				/*
+				 * Performance improvement: force sqlite to use an index
+				 * if we are doing an aggregate and have no where clause.
+				 */
+				sql.append(" WHERE asset_code = asset_code");
+			}
+			if (!jsonModifiers(document, sql))
+			{
+				return false;
+			}
+		}
+		sql.append(';');
+
+		const char *query = sql.coalesce();
+		char *zErrMsg = NULL;
+		int rc;
+		sqlite3_stmt *stmt;
+
+		logSQL("CommonRetrive", query);
+
+		// Prepare the SQL statement and get the result set
+		rc = sqlite3_prepare_v2(dbHandle, query, -1, &stmt, NULL);
+
+		// Release memory for 'query' var
+		delete[] query;
+
+		if (rc != SQLITE_OK)
+		{
+			raiseError("retrieve", sqlite3_errmsg(dbHandle));
+			return false;
+		}
+
+		// Call result set mapping
+		rc = mapResultSet(stmt, resultSet);
+
+		// Delete result set
+		sqlite3_finalize(stmt);
+
+		// Check result set mapping errors
+		if (rc != SQLITE_DONE)
+		{
+			raiseError("retrieve", sqlite3_errmsg(dbHandle));
+			// Failure
+			return false;
+		}
+		// Success
+		return true;
+	} catch (exception e) {
+		raiseError("retrieve", "Internal error: %s", e.what());
+	}
+}
+
+/**
  * Purge readings from the reading table
  */
 unsigned int  Connection::purgeReadings(unsigned long age,
@@ -1695,7 +1935,15 @@ bool Connection::jsonAggregates(const Value& payload,
 		sql.append('(');
 		if (aggregates.HasMember("column"))
 		{
-			sql.append(aggregates["column"].GetString());
+			string col = aggregates["column"].GetString();
+			if (col.compare("*") == 0)	// Faster to count ROWID rather than *
+			{
+				sql.append("ROWID");
+			}
+			else
+			{
+				sql.append(col);
+			}
 		}
 		else if (aggregates.HasMember("json"))
 		{

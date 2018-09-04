@@ -38,7 +38,7 @@ MESSAGES_LIST = {
     "e000030": "cannot update the reached position.",
     "e000031": "cannot complete the sending operation - error details |{0}|",
     "e000032": "an error occurred during the request to the destination, the error is ignored "
-               "- status code |{0}| - error details |{1}| - message|{2}|",
+               "- status code |{0}| - error details |{1}|",
 }
 
 

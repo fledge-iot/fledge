@@ -77,7 +77,7 @@ _MESSAGES_LIST = {
     "e000020": "cannot update the reached position - error details |{0}|",
     "e000021": "cannot complete the sending operation - error details |{0}|",
     "e000022": "unable to convert in memory data structure related to the statistics data "
-               "- error details |{0}|",
+               "- error details |{0}| - row |{1}|",
     "e000023": "cannot complete the initialization - error details |{0}|",
     "e000024": "unable to log the operation in the Storage Layer - error details |{0}|",
     "e000025": "Required argument '--name' is missing - command line |{0}|",
@@ -436,8 +436,8 @@ class SendingProcess(FoglampProcess):
     @staticmethod
     def _transform_in_memory_data_statistics(raw_data):
         converted_data = []
-        try:
-            for row in raw_data:
+        for row in raw_data:
+            try:
                 timestamp = apply_date_format(row['ts'])  # Adds timezone UTC
                 asset_code = row['key'].strip()
                 new_row = {
@@ -448,9 +448,10 @@ class SendingProcess(FoglampProcess):
                     'user_ts': timestamp,
                 }
                 converted_data.append(new_row)
-        except Exception as e:
-            SendingProcess._logger.error(_MESSAGES_LIST["e000022"].format(str(e)))
-            raise e
+
+            except Exception as e:
+                SendingProcess._logger.error(_MESSAGES_LIST["e000022"].format(str(e), row))
+
         return converted_data
 
     async def _load_data_into_memory_statistics(self, last_object_id):

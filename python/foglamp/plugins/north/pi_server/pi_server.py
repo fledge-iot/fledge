@@ -153,8 +153,9 @@ _CONFIG_DEFAULT_OMF = {
         "default": "int64"
     },
     # FIXME:
-    "errorToIgnore": {
-        "description": "FIXME",
+    "notBlockingErrors": {
+        "description": "These errors are considered not blocking in the communication with the PI Server,"
+                       " the sending operation will proceed with the next block of data if one of these is encountered",
         "type": "JSON",
         "default": json.dumps(
             [
@@ -374,7 +375,7 @@ def plugin_init(data):
 
     _config['StaticData'] = ast.literal_eval(data['StaticData']['value'])
     # FIXME:
-    _config['errorToIgnore'] = ast.literal_eval(data['errorToIgnore']['value'])
+    _config['notBlockingErrors'] = ast.literal_eval(data['notBlockingErrors']['value'])
 
 
     _config['formatNumber'] = data['formatNumber']['value']
@@ -826,10 +827,11 @@ class PIServerNorthPlugin(object):
                 if not str(status_code).startswith('2'):
 
                     # FIXME:
-                    if any(tmp_item['id'] == status_code and tmp_item['message'] in text  for tmp_item in self._config['errorToIgnore']):
+                    if any(_['id'] == status_code and _['message'] in text for _ in self._config['notBlockingErrors']):
 
-                        # Error logged and ignored
-                        self._logger.warning(plugin_common.MESSAGES_LIST["e000032"].format(status_code, text, omf_data_json))
+                        # The error encountered is in the list of not blocking
+                        # the sending operation will proceed with the next block of data
+                        self._logger.warning(plugin_common.MESSAGES_LIST["e000032"].format(status_code, text))
                         _error = ""
                     else:
                         tmp_text = str(status_code) + " " + text

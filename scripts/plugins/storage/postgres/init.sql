@@ -105,13 +105,6 @@ CREATE SEQUENCE foglamp.assets_id_seq
     MAXVALUE 9223372036854775807
     CACHE 1;
 
-CREATE SEQUENCE foglamp.destinations_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
 CREATE SEQUENCE foglamp.links_id_seq
     INCREMENT 1
     START 1
@@ -397,24 +390,10 @@ CREATE INDEX readings_ix2
     ON foglamp.readings USING btree (asset_code);
 
 
--- Destinations table
--- Multiple destinations are allowed, for example multiple PI servers.
-CREATE TABLE foglamp.destinations (
-       id            integer                     NOT NULL DEFAULT nextval('foglamp.destinations_id_seq'::regclass),   -- Sequence ID
-       type          smallint                    NOT NULL DEFAULT 1,                                                  -- Enum : 1: OMF, 2: Elasticsearch
-       description   character varying(255)      NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default", -- A brief description of the destination entry
-       properties    jsonb                       NOT NULL DEFAULT '{ "streaming" : "all" }'::jsonb,                   -- A generic set of properties
-       active_window jsonb                       NOT NULL DEFAULT '[ "always" ]'::jsonb,                              -- The window of operations
-       active        boolean                     NOT NULL DEFAULT true,                                               -- When false, all streams to this destination stop and are inactive
-       ts            timestamp(6) with time zone NOT NULL DEFAULT now(),                                              -- Creation or last update
-       CONSTRAINT destination_pkey PRIMARY KEY (id) );
-
-
 -- Streams table
 -- List of the streams to the Cloud.
 CREATE TABLE foglamp.streams (
        id             integer                     NOT NULL DEFAULT nextval('foglamp.streams_id_seq'::regclass),         -- Sequence ID
-       destination_id integer                     NOT NULL,                                                             -- FK to foglamp.destinations
        description    character varying(255)      NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default",  -- A brief description of the stream entry
        properties     jsonb                       NOT NULL DEFAULT '{}'::jsonb,                                         -- A generic set of properties
        object_stream  jsonb                       NOT NULL DEFAULT '{}'::jsonb,                                         -- Definition of what must be streamed
@@ -424,14 +403,7 @@ CREATE TABLE foglamp.streams (
        active         boolean                     NOT NULL DEFAULT true,                                                -- When false, all data to this stream stop and are inactive
        last_object    bigint                      NOT NULL DEFAULT 0,                                                   -- The ID of the last object streamed (asset or reading, depending on the object_stream)
        ts             timestamp(6) with time zone NOT NULL DEFAULT now(),                                               -- Creation or last update
-       CONSTRAINT strerams_pkey PRIMARY KEY (id),
-       CONSTRAINT streams_fk1 FOREIGN KEY (destination_id)
-       REFERENCES foglamp.destinations (id) MATCH SIMPLE
-               ON UPDATE NO ACTION
-               ON DELETE NO ACTION );
-
-CREATE INDEX fki_streams_fk1
-    ON foglamp.streams USING btree (destination_id);
+       CONSTRAINT strerams_pkey PRIMARY KEY (id));
 
 
 -- Configuration table
@@ -490,6 +462,8 @@ CREATE TABLE foglamp.statistics_history (
 CREATE INDEX statistics_history_ix2
     ON foglamp.statistics_history(key);
 
+CREATE INDEX statistics_history_ix3
+    ON foglamp.statistics_history (history_ts);
 
 -- Resources table
 -- A resource and be anything that is available or can be done in FogLAMP. Examples:

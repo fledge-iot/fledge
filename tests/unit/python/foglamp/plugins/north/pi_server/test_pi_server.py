@@ -143,6 +143,7 @@ class TestOMF:
                 'sending_process_instance': MagicMock(spec=SendingProcess),
                 "formatNumber": {"value": "float64"},
                 "formatInteger": {"value": "int64"},
+                "notBlockingErrors": {"value": "{'id': 400, 'message': 'none'}"}
 
         }
 
@@ -1286,6 +1287,7 @@ class TestPIServerNorthPlugin:
         fixture_omf_north._config["OMFRetrySleepTime"] = 1
         fixture_omf_north._config["OMFHttpTimeout"] = 1
         fixture_omf_north._config["OMFMaxRetry"] = max_retry
+        fixture_omf_north._config["notBlockingErrors"] = [{'id': 400, 'message': 'none'}]
 
         # To avoid the wait time
         with patch.object(time, 'sleep', return_value=True):

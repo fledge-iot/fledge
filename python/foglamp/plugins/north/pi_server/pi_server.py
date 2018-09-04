@@ -162,7 +162,8 @@ _CONFIG_DEFAULT_OMF = {
                 {'id': 400, 'message': 'Invalid value type for the property'},
                 {'id': 400, 'message': 'Redefinition of the type with the same ID is not allowed'}
             ]
-        )
+        ),
+        "readonly": "true"
     },
 
 }

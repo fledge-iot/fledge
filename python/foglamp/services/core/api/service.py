@@ -71,7 +71,7 @@ async def add_service(request):
     Create a new service to run a specific plugin
 
     :Example:
-             curl -X POST http://localhost:8081/foglamp/service -d '{"name": "DHT 11", "type": "south", "plugin": "dht11", "enabled": true}'
+             curl -X POST http://localhost:8081/foglamp/service -d '{"name": "DHT 11", "plugin": "dht11", "type": "south", "process_name": "south", "enabled": true}'
     """
 
     try:
@@ -83,6 +83,7 @@ async def add_service(request):
         plugin = data.get('plugin', None)
         service_type = data.get('type', None)
         enabled = data.get('enabled', None)
+        process_name = data.get('process_name', None)
 
         if name is None:
             raise web.HTTPBadRequest(reason='Missing name property in payload.')
@@ -90,6 +91,8 @@ async def add_service(request):
             raise web.HTTPBadRequest(reason='Missing plugin property in payload.')
         if service_type is None:
             raise web.HTTPBadRequest(reason='Missing type property in payload.')
+        if process_name is None:
+            raise web.HTTPBadRequest(reason='Missing process_name property in payload.')
         if utils.check_reserved(name) is False:
             raise web.HTTPBadRequest(reason='Invalid name property in payload.')
         if utils.check_reserved(plugin) is False:
@@ -133,24 +136,22 @@ async def add_service(request):
         storage = connect.get_storage_async()
 
         # Check that the process name is not already registered
-        count = await check_scheduled_processes(storage, name)
-        if count != 0:
-            raise web.HTTPBadRequest(reason='A service with that name already exists')
+        count = await check_scheduled_processes(storage, process_name)
+        if count == 0:
+            # Now first create the scheduled process entry for the new service
+            payload = PayloadBuilder().INSERT(name=process_name, script=script).payload()
+            try:
+                res = await storage.insert_into_tbl("scheduled_processes", payload)
+            except StorageServerError as ex:
+                err_response = ex.error
+                raise web.HTTPInternalServerError(reason='Failed to created scheduled process. {}'.format(err_response))
+            except Exception as ins_ex:
+                raise web.HTTPInternalServerError(reason='Failed to created scheduled process. {}'.format(str(ins_ex)))
 
         # Check that the schedule name is not already registered
         count = await check_schedules(storage, name)
         if count != 0:
             raise web.HTTPBadRequest(reason='A schedule with that name already exists')
-
-        # Now first create the scheduled process entry for the new service
-        payload = PayloadBuilder().INSERT(name=name, script=script).payload()
-        try:
-            res = await storage.insert_into_tbl("scheduled_processes", payload)
-        except StorageServerError as ex:
-            err_response = ex.error
-            raise web.HTTPInternalServerError(reason='Failed to created scheduled process. {}'.format(err_response))
-        except Exception as ins_ex:
-            raise web.HTTPInternalServerError(reason='Failed to created scheduled process. {}'.format(str(ins_ex)))
 
         # If successful then create a configuration entry from plugin configuration
         try:
@@ -167,14 +168,13 @@ async def add_service(request):
         except Exception as ex:
             await revert_configuration(storage, name)  # Revert configuration entry
             await revert_parent_child_configuration(storage, name)
-            await revert_scheduled_processes(storage, plugin)  # Revert scheduled_process entry
             raise web.HTTPInternalServerError(reason='Failed to create plugin configuration. {}'.format(str(ex)))
 
         # If all successful then lastly add a schedule to run the new service at startup
         try:
             schedule = StartUpSchedule()
             schedule.name = name
-            schedule.process_name = name
+            schedule.process_name = process_name
             schedule.repeat = datetime.timedelta(0)
             schedule.exclusive = True
             #  if "enabled" is supplied, it gets activated in save_schedule() via is_enabled flag
@@ -186,12 +186,10 @@ async def add_service(request):
         except StorageServerError as ex:
             await revert_configuration(storage, name)  # Revert configuration entry
             await revert_parent_child_configuration(storage, name)
-            await revert_scheduled_processes(storage, name)  # Revert scheduled_process entry
             raise web.HTTPInternalServerError(reason='Failed to created schedule. {}'.format(ex.error))
         except Exception as ins_ex:
             await revert_configuration(storage, name)  # Revert configuration entry
             await revert_parent_child_configuration(storage, name)
-            await revert_scheduled_processes(storage, name)  # Revert scheduled_process entry
             raise web.HTTPInternalServerError(reason='Failed to created schedule. {}'.format(str(ins_ex)))
 
         return web.json_response({'name': name, 'id': str(schedule.schedule_id)})
@@ -210,11 +208,6 @@ async def check_schedules(storage, schedule_name):
     payload = PayloadBuilder().SELECT("schedule_name").WHERE(['schedule_name', '=', schedule_name]).payload()
     result = await storage.query_tbl_with_payload('schedules', payload)
     return result['count']
-
-
-async def revert_scheduled_processes(storage, process_name):
-    payload = PayloadBuilder().WHERE(['name', '=', process_name]).payload()
-    await storage.delete_from_tbl('scheduled_processes', payload)
 
 
 async def revert_configuration(storage, key):

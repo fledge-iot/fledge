@@ -88,6 +88,7 @@ _MESSAGES_LIST = {
     "e000030": "unable to create parent configuration category",
     "e000031": "unable to convert in memory data structure related to the readings data "
                "- error details |{0}| - row |{1}|",
+    "e000032": "asset code not defined - row |{0}|",
 
 }
 """ Messages used for Information, Warning and Error notice """
@@ -433,14 +434,19 @@ class SendingProcess(FoglampProcess):
             try:
                 timestamp = apply_date_format(row['ts'])  # Adds timezone UTC
                 asset_code = row['key'].strip()
-                new_row = {
-                    'id': row['id'],
-                    'asset_code': asset_code,
-                    'read_key': str(uuid.uuid4()),
-                    'reading': {'value': row['value']},
-                    'user_ts': timestamp,
-                }
-                converted_data.append(new_row)
+
+                # Skips row having undefined asset_code
+                if asset_code != "":
+                    new_row = {
+                        'id': row['id'],
+                        'asset_code': asset_code,
+                        'read_key': str(uuid.uuid4()),
+                        'reading': {'value': row['value']},
+                        'user_ts': timestamp,
+                    }
+                    converted_data.append(new_row)
+                else:
+                    SendingProcess._logger.warning(_MESSAGES_LIST["e000032"].format(row))
 
             except Exception as e:
                 SendingProcess._logger.warning(_MESSAGES_LIST["e000022"].format(str(e), row))
@@ -471,21 +477,28 @@ class SendingProcess(FoglampProcess):
         for row in raw_data:
 
             try:
-                # Converts values to the proper types, for example "180.2" to float 180.2
-                payload = row['reading']
 
-                for key in list(payload.keys()):
-                    value = payload[key]
-                    payload[key] = plugin_common.convert_to_type(value)
-                timestamp = apply_date_format(row['user_ts'])  # Adds timezone UTC
-                new_row = {
-                    'id': row['id'],
-                    'asset_code': row['asset_code'],
-                    'read_key': row['read_key'],
-                    'reading': payload,
-                    'user_ts': timestamp
-                }
-                converted_data.append(new_row)
+                asset_code = row['asset_code'].replace(" ", "")
+
+                # Skips row having undefined asset_code
+                if asset_code != "":
+                    # Converts values to the proper types, for example "180.2" to float 180.2
+                    payload = row['reading']
+
+                    for key in list(payload.keys()):
+                        value = payload[key]
+                        payload[key] = plugin_common.convert_to_type(value)
+                    timestamp = apply_date_format(row['user_ts'])  # Adds timezone UTC
+                    new_row = {
+                        'id': row['id'],
+                        'asset_code': asset_code,
+                        'read_key': row['read_key'],
+                        'reading': payload,
+                        'user_ts': timestamp
+                    }
+                    converted_data.append(new_row)
+                else:
+                    SendingProcess._logger.warning(_MESSAGES_LIST["e000032"].format(row))
 
             except Exception as e:
                 SendingProcess._logger.warning(_MESSAGES_LIST["e000031"].format(str(e), row))

@@ -297,7 +297,7 @@ ConfigCategory ManagementClient::getCategory(const string& categoryName) const
 		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
-			m_logger->error("Failed to parse result of fetching configuration category: %s\n",
+			m_logger->error("Failed to parse result of fetching configuration category for %s: %s\n", categoryName.c_str(),
 					response.c_str());
 			throw new exception();
 		}

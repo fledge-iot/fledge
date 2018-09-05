@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 2.8.8)
 project (FogLAMP)
 
-option(BUILD_C_PLUGINS "Build C++ Plugins" OFF)
+option(BUILD_C_PLUGINS "Build C++ Plugins" ON)
 
 set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 
@@ -25,6 +25,10 @@ if (BUILD_C_PLUGINS)
 	find_library(Modbus modbus)
 	if (Modbus)
 		add_subdirectory(C/plugins/south/modbus)
+	endif()
+	find_library(FREEOPCUA opcuaclient PATHS ~/freeopcua/build/lib)
+	if (FREEOPCUA)
+		add_subdirectory(C/plugins/south/opcua)
 	endif()
 	add_subdirectory(C/plugins/north/PI_Server)
 	add_subdirectory(C/plugins/north/ThingSpeak)

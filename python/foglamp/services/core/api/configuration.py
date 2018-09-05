@@ -201,6 +201,8 @@ async def set_configuration_item(request):
 
     try:
         value = data['value']
+        if not isinstance(value, str):
+            raise web.HTTPBadRequest(reason='{} should be a string literal, in double quotes'.format(value))
     except KeyError:
         raise web.HTTPBadRequest(reason='Missing required value for {}'.format(config_item))
 

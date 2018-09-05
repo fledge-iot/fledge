@@ -25,6 +25,7 @@ from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.web import middleware
 from foglamp.common.storage_client.exceptions import *
 from foglamp.common.storage_client.storage_client import StorageClientAsync
+from foglamp.common.storage_client.storage_client import ReadingsStorageClientAsync
 
 from foglamp.services.core import routes as admin_routes
 from foglamp.services.core.api import configuration as conf_api
@@ -179,6 +180,9 @@ class Server:
 
     _storage_client_async = None
     """ Async Storage client to storage service """
+
+    _readings_client_async = None
+    """ Async Readings client to storage service """
 
     _configuration_manager = None
     """ Instance of configuration manager (singleton) """
@@ -405,6 +409,11 @@ class Server:
                 cls._storage_client_async = StorageClientAsync(cls._host, cls.core_management_port, svc=storage_service)
             except (service_registry_exceptions.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable, Exception) as ex:
                 await asyncio.sleep(5)
+        while cls._readings_client_async is None:
+            try:
+                cls._readings_client_async = ReadingsStorageClientAsync(cls._host, cls.core_management_port, svc=storage_service)
+            except (service_registry_exceptions.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable, Exception) as ex:
+                await asyncio.sleep(5)
 
     @classmethod
     def _start_app(cls, loop, app, host, port, ssl_ctx=None):
@@ -501,7 +510,7 @@ class Server:
         total_count_payload = payload_builder.PayloadBuilder().AGGREGATE(["count", "*"]).ALIAS("aggregate", (
                                 "*", "count", "count")).payload()
         result = loop.run_until_complete(
-            cls._storage_client_async.query_tbl_with_payload('readings', total_count_payload))
+            cls._readings_client_async.query(total_count_payload))
         total_count = result['rows'][0]['count']
 
         if (total_count == 0):

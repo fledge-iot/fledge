@@ -25,6 +25,8 @@ __DEFAULT_LOG_TYPE = 'FogLAMP'
 __GET_SYSLOG_CMD_TEMPLATE = "grep '{}\[' {} | head -n {} | tail -n {}"
 __GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE = "grep '{}\[' -i -e error -e fail {} | head -n {} | tail -n {}"
 __GET_SYSLOG_CMD_WITH_WARNING_TEMPLATE = "grep '{}\[' -i -e error -e fail -e warning {} | head -n {} | tail -n {}"
+__GET_SYSLOG_ERROR_MATCHED_LINES = "grep '{}\[' -i -e error -e fail {} | wc -l"
+__GET_SYSLOG_WARNING_MATCHED_LINES = "grep '{}\[' -i -e error -e fail -e warning {} | wc -l"
 __GET_SYSLOG_TOTAL_MATCHED_LINES = "grep '{}\[' {} | wc -l"
 
 
@@ -130,27 +132,30 @@ async def get_syslog_entries(request):
         raise web.HTTPBadRequest(reason="{} is not a valid source".format(source))
 
     try:
-        # Get total lines
-        cmd = __GET_SYSLOG_TOTAL_MATCHED_LINES.format(valid_source[source.lower()], _SYSLOG_FILE)
-        t = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
-        tot_lines = int(t[0].decode())
 
         # Get filtered lines
         template = __GET_SYSLOG_CMD_TEMPLATE
+        lines = __GET_SYSLOG_TOTAL_MATCHED_LINES
         if 'level' in request.query and request.query['level'] != '':
             level = request.query['level'].lower()
             if level == 'error':
                 template = __GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE
+                lines = __GET_SYSLOG_ERROR_MATCHED_LINES
             elif level == 'warning':
                 template = __GET_SYSLOG_CMD_WITH_WARNING_TEMPLATE
+                lines = __GET_SYSLOG_WARNING_MATCHED_LINES
 
-        cmd = template.format(valid_source[source.lower()], _SYSLOG_FILE, tot_lines - offset, limit)
+        # Get total lines
+        cmd = lines.format(valid_source[source.lower()], _SYSLOG_FILE)
+        t = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
+        total_lines = int(t[0].decode())
+        cmd = template.format(valid_source[source.lower()], _SYSLOG_FILE, total_lines - offset, limit)
         a = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
         c = [b.decode() for b in a]  # Since "a" contains return value in bytes, convert it to string
     except (OSError, Exception) as ex:
         raise web.HTTPException(reason=str(ex))
 
-    return web.json_response({'logs': c, 'count': tot_lines})
+    return web.json_response({'logs': c, 'count': total_lines})
 
 
 def _get_support_dir():

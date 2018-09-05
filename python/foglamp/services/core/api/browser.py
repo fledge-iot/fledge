@@ -219,15 +219,12 @@ async def asset_all_readings_summary(request):
     """ Browse all the assets for which we have recorded readings and
     return a summary for all sensors values for an asset code. The values that are
     returned are the min, max and average values of the sensor.
-    The number of records return is default to a small number (20), this may be changed by supplying
-    the query parameter ?limit=xx&skip=xx
     Only one of hour, minutes or seconds should be supplied, if more than one time unit
     then the smallest unit will be picked
 
     :Example:
             curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/summary
             curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/summary?seconds=60
-            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/summary?limit=10
     """
     try:
         # Get readings from asset_code
@@ -251,8 +248,7 @@ async def asset_all_readings_summary(request):
                        ('reading', 'avg', 'average')).chain_payload()
             _where = PayloadBuilder(_aggregate).WHERE(["asset_code", "=", asset_code]).chain_payload()
             _and_where = where_clause(request, _where)
-            _limit_skip_payload = prepare_limit_skip_payload(request, _and_where)
-            payload = PayloadBuilder(_limit_skip_payload).payload()
+            payload = PayloadBuilder(_and_where).payload()
             results = await _readings.query(payload)
             response.append({reading: results['rows'][0]})
     except (KeyError, IndexError) as ex:

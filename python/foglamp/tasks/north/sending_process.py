@@ -473,6 +473,14 @@ class SendingProcess(FoglampProcess):
 
     @staticmethod
     def _transform_in_memory_data_readings(raw_data):
+        """ Applies the transformation/validation required to have a standard data set.
+        Note:
+            Python is not able to automatically convert a string containing a number starting with 0
+            to a dictionary, like for example :
+                '{"value":02}'
+            so these rows will generate an exception and will be skipped.
+        """
+
         converted_data = []
         for row in raw_data:
 

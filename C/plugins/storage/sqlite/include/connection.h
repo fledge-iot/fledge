@@ -27,6 +27,8 @@ class Connection {
 		int		appendReadings(const char *readings);
 		bool		fetchReadings(unsigned long id, unsigned int blksize,
 						std::string& resultSet);
+		bool		retrieveReadings(const std::string& condition,
+					std::string& resultSet);
 		unsigned int	purgeReadings(unsigned long age, unsigned int flags,
 						unsigned long sent, std::string& results);
 		long		tableSize(const std::string& table);

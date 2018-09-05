@@ -70,7 +70,7 @@ ostringstream convert;
 	convert << "\"management_port\" : " << m_managementPort;
 	if (m_port)
 	{
-		convert << ", \"service_port\" : " << m_port << " ";
+		convert << ",\"service_port\" : " << m_port << " ";
 	}
 	convert << "}";
 

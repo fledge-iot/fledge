@@ -219,12 +219,17 @@ async def asset_all_readings_summary(request):
     """ Browse all the assets for which we have recorded readings and
     return a summary for all sensors values for an asset code. The values that are
     returned are the min, max and average values of the sensor.
+
     Only one of hour, minutes or seconds should be supplied, if more than one time unit
     then the smallest unit will be picked
+
+    The number of records return is default to a small number (20), this may be changed by supplying
+    the query parameter ?limit=xx&skip=xx and it will not respect when datetime units is supplied
 
     :Example:
             curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/summary
             curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/summary?seconds=60
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/summary?limit=10
     """
     try:
         # Get readings from asset_code
@@ -239,16 +244,20 @@ async def asset_all_readings_summary(request):
         # Find keys in readings
         reading_keys = list(results['rows'][0]['reading'].keys())
         response = []
+        _where = PayloadBuilder().WHERE(["asset_code", "=", asset_code]).chain_payload()
+        if 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
+            _and_where = where_clause(request, _where)
+        else:
+            _and_where = prepare_limit_skip_payload(request, _where)
+
         for reading in reading_keys:
-            _aggregate = PayloadBuilder().AGGREGATE(["min", ["reading", reading]],
+            _aggregate = PayloadBuilder(_and_where).AGGREGATE(["min", ["reading", reading]],
                                                     ["max", ["reading", reading]],
                                                     ["avg", ["reading", reading]])\
                 .ALIAS('aggregate', ('reading', 'min', 'min'),
                        ('reading', 'max', 'max'),
                        ('reading', 'avg', 'average')).chain_payload()
-            _where = PayloadBuilder(_aggregate).WHERE(["asset_code", "=", asset_code]).chain_payload()
-            _and_where = where_clause(request, _where)
-            payload = PayloadBuilder(_and_where).payload()
+            payload = PayloadBuilder(_aggregate).payload()
             results = await _readings.query(payload)
             response.append({reading: results['rows'][0]})
     except (KeyError, IndexError) as ex:

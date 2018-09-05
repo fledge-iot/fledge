@@ -228,14 +228,18 @@ class TestConfiguration:
                 patch_get_cat_item.assert_called_once_with(category_name, item_name)
             patch_set_entry.assert_called_once_with(category_name, item_name, payload['value'])
 
-    async def test_set_config_item_bad_request(self, client, category_name='rest_api', item_name='http_port'):
-        payload = {"valu": '8082'}
+    @pytest.mark.parametrize("payload, message", [
+        ({"valu": '8082'}, "Missing required value for http_port"),
+        ({"valu": 8082}, "Missing required value for http_port"),
+        ({"value": 8082}, "8082 should be a string literal, in double quotes")
+    ])
+    async def test_set_config_item_bad_request(self, client, payload, message, category_name='rest_api', item_name='http_port'):
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             resp = await client.put('/foglamp/category/{}/{}'.format(category_name, item_name),
                                     data=json.dumps(payload))
             assert 400 == resp.status
-            assert 'Missing required value for {}'.format(item_name) == resp.reason
+            assert message == resp.reason
 
     async def test_set_config_item_not_found(self, client, category_name='rest_api', item_name='http_port'):
         async def async_mock():

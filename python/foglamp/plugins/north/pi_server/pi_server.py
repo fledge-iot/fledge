@@ -90,20 +90,16 @@ _CONFIG_DEFAULT_OMF = {
         'default': 'pi_server',
         'readonly': 'true'
     },
-    # FIXME:
     "URL": {
         "description": "URL of PI Connector to send data to",
         "type": "string",
-        #"default": "https://pi-server:5460/ingress/messages",
-        "default": "https://WIN-4M7ODKB0RH2:5460/ingress/messages",
+        "default": "https://pi-server:5460/ingress/messages",
         "order": "1"
     },
-    # FIXME:
     "producerToken": {
         "description": "Producer token for this FogLAMP stream",
         "type": "string",
-        #"default": "pi_server_north_0001",
-        "default": "uid=5ced49c3-3a55-40e7-983f-c6cdcd5c5fd1&crt=20180620084136279&sig=GaWXZ1I4Toje3Ly9Z6/wGZ+eC6bC0Njd9bFpv3Un4QI=",
+        "default": "pi_server_north_0001",
         "order": "2"
     },
     "OMFMaxRetry": {
@@ -152,7 +148,6 @@ _CONFIG_DEFAULT_OMF = {
         "type": "string",
         "default": "int64"
     },
-    # FIXME:
     "notBlockingErrors": {
         "description": "These errors are considered not blocking in the communication with the PI Server,"
                        " the sending operation will proceed with the next block of data if one of these is encountered",
@@ -374,7 +369,6 @@ def plugin_init(data):
     _config['OMFHttpTimeout'] = int(data['OMFHttpTimeout']['value'])
 
     _config['StaticData'] = ast.literal_eval(data['StaticData']['value'])
-    # FIXME:
     _config['notBlockingErrors'] = ast.literal_eval(data['notBlockingErrors']['value'])
 
 
@@ -830,7 +824,6 @@ class PIServerNorthPlugin(object):
                 # Evaluate the HTTP status codes
                 if not str(status_code).startswith('2'):
 
-                    # FIXME:
                     if any(_['id'] == status_code and _['message'] in text for _ in self._config['notBlockingErrors']):
 
                         # The error encountered is in the list of not blocking

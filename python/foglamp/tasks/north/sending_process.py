@@ -228,18 +228,16 @@ class SendingProcess(FoglampProcess):
             "type": "string",
             "default": "readings"
         },
-        # FIXME:
         "blockSize": {
             "description": "Bytes to send in each transmission",
             "type": "integer",
-            "default": "13"
+            "default": "500"
         },
         "sleepInterval": {
             "description": "Time in seconds to wait between duration checks",
             "type": "integer",
             "default": "1"
         },
-        # FIXME:
         'plugin': {
             'description': 'The name of the translator to use to translate the readings into the output format and send them.',
             'type': 'string',
@@ -445,7 +443,7 @@ class SendingProcess(FoglampProcess):
                 converted_data.append(new_row)
 
             except Exception as e:
-                SendingProcess._logger.error(_MESSAGES_LIST["e000022"].format(str(e), row))
+                SendingProcess._logger.warning(_MESSAGES_LIST["e000022"].format(str(e), row))
 
         return converted_data
 
@@ -490,7 +488,7 @@ class SendingProcess(FoglampProcess):
                 converted_data.append(new_row)
 
             except Exception as e:
-                SendingProcess._logger.error(_MESSAGES_LIST["e000031"].format(str(e), row))
+                SendingProcess._logger.warning(_MESSAGES_LIST["e000031"].format(str(e), row))
 
         return converted_data
 

@@ -231,7 +231,7 @@ class TestConfiguration:
     @pytest.mark.parametrize("payload, message", [
         ({"valu": '8082'}, "Missing required value for http_port"),
         ({"valu": 8082}, "Missing required value for http_port"),
-        ({"value": 8082}, "8082 should be passed in double quotes")
+        ({"value": 8082}, "8082 should be a string literal, in double quotes")
     ])
     async def test_set_config_item_bad_request(self, client, payload, message, category_name='rest_api', item_name='http_port'):
         storage_client_mock = MagicMock(StorageClientAsync)

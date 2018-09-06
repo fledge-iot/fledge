@@ -77,7 +77,7 @@ _MESSAGES_LIST = {
     "e000020": "cannot update the reached position - error details |{0}|",
     "e000021": "cannot complete the sending operation - error details |{0}|",
     "e000022": "unable to convert in memory data structure related to the statistics data "
-               "- error details |{0}|",
+               "- error details |{0}| - row |{1}|",
     "e000023": "cannot complete the initialization - error details |{0}|",
     "e000024": "unable to log the operation in the Storage Layer - error details |{0}|",
     "e000025": "Required argument '--name' is missing - command line |{0}|",
@@ -87,7 +87,8 @@ _MESSAGES_LIST = {
     "e000029": "an error occurred  during the teardown operation - error details |{0}|",
     "e000030": "unable to create parent configuration category",
     "e000031": "unable to convert in memory data structure related to the readings data "
-               "- error details |{0}|",
+               "- error details |{0}| - row |{1}|",
+    "e000032": "asset code not defined - row |{0}|",
 
 }
 """ Messages used for Information, Warning and Error notice """
@@ -241,7 +242,7 @@ class SendingProcess(FoglampProcess):
         'plugin': {
             'description': 'The name of the translator to use to translate the readings into the output format and send them.',
             'type': 'string',
-            'default': 'omf'
+            'default': 'pi_server'
         },
         "memory_buffer_size": {
             "description": "Number of elements of blockSize size to be buffered in memory",
@@ -429,21 +430,27 @@ class SendingProcess(FoglampProcess):
     @staticmethod
     def _transform_in_memory_data_statistics(raw_data):
         converted_data = []
-        try:
-            for row in raw_data:
+        for row in raw_data:
+            try:
                 timestamp = apply_date_format(row['ts'])  # Adds timezone UTC
                 asset_code = row['key'].strip()
-                new_row = {
-                    'id': row['id'],
-                    'asset_code': asset_code,
-                    'read_key': str(uuid.uuid4()),
-                    'reading': {'value': row['value']},
-                    'user_ts': timestamp,
-                }
-                converted_data.append(new_row)
-        except Exception as e:
-            SendingProcess._logger.error(_MESSAGES_LIST["e000022"].format(str(e)))
-            raise e
+
+                # Skips row having undefined asset_code
+                if asset_code != "":
+                    new_row = {
+                        'id': row['id'],
+                        'asset_code': asset_code,
+                        'read_key': str(uuid.uuid4()),
+                        'reading': {'value': row['value']},
+                        'user_ts': timestamp,
+                    }
+                    converted_data.append(new_row)
+                else:
+                    SendingProcess._logger.warning(_MESSAGES_LIST["e000032"].format(row))
+
+            except Exception as e:
+                SendingProcess._logger.warning(_MESSAGES_LIST["e000022"].format(str(e), row))
+
         return converted_data
 
     async def _load_data_into_memory_statistics(self, last_object_id):
@@ -466,27 +473,44 @@ class SendingProcess(FoglampProcess):
 
     @staticmethod
     def _transform_in_memory_data_readings(raw_data):
-        converted_data = []
-        try:
-            for row in raw_data:
-                # Converts values to the proper types, for example "180.2" to float 180.2
-                payload = row['reading']
+        """ Applies the transformation/validation required to have a standard data set.
+        Note:
+            Python is not able to automatically convert a string containing a number starting with 0
+            to a dictionary (using the eval also), like for example :
+                '{"value":02}'
+            so these rows will generate an exception and will be skipped.
+        """
 
-                for key in list(payload.keys()):
-                    value = payload[key]
-                    payload[key] = plugin_common.convert_to_type(value)
-                timestamp = apply_date_format(row['user_ts'])  # Adds timezone UTC
-                new_row = {
-                    'id': row['id'],
-                    'asset_code': row['asset_code'],
-                    'read_key': row['read_key'],
-                    'reading': payload,
-                    'user_ts': timestamp
-                }
-                converted_data.append(new_row)
-        except Exception as e:
-            SendingProcess._logger.error(_MESSAGES_LIST["e000031"].format(str(e)))
-            raise e
+        converted_data = []
+        for row in raw_data:
+
+            try:
+
+                asset_code = row['asset_code'].replace(" ", "")
+
+                # Skips row having undefined asset_code
+                if asset_code != "":
+                    # Converts values to the proper types, for example "180.2" to float 180.2
+                    payload = row['reading']
+
+                    for key in list(payload.keys()):
+                        value = payload[key]
+                        payload[key] = plugin_common.convert_to_type(value)
+                    timestamp = apply_date_format(row['user_ts'])  # Adds timezone UTC
+                    new_row = {
+                        'id': row['id'],
+                        'asset_code': asset_code,
+                        'read_key': row['read_key'],
+                        'reading': payload,
+                        'user_ts': timestamp
+                    }
+                    converted_data.append(new_row)
+                else:
+                    SendingProcess._logger.warning(_MESSAGES_LIST["e000032"].format(row))
+
+            except Exception as e:
+                SendingProcess._logger.warning(_MESSAGES_LIST["e000031"].format(str(e), row))
+
         return converted_data
 
     async def _load_data_into_memory_readings(self, last_object_id):

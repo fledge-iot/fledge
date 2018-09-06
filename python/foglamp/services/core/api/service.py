@@ -83,7 +83,6 @@ async def add_service(request):
         plugin = data.get('plugin', None)
         service_type = data.get('type', None)
         enabled = data.get('enabled', None)
-        process_name = data.get('process_name', None)
 
         if name is None:
             raise web.HTTPBadRequest(reason='Missing name property in payload.')
@@ -91,8 +90,6 @@ async def add_service(request):
             raise web.HTTPBadRequest(reason='Missing plugin property in payload.')
         if service_type is None:
             raise web.HTTPBadRequest(reason='Missing type property in payload.')
-        if process_name is None:
-            raise web.HTTPBadRequest(reason='Missing process_name property in payload.')
         if utils.check_reserved(name) is False:
             raise web.HTTPBadRequest(reason='Invalid name property in payload.')
         if utils.check_reserved(plugin) is False:
@@ -123,11 +120,13 @@ async def add_service(request):
             # Fetch configuration from the configuration defined in the plugin
             plugin_info = _plugin.plugin_info()
             plugin_config = plugin_info['config']
+            process_name = 'south'
         except ImportError as ex:
             # Checking for C-type plugins
             script = '["services/south_c"]' if service_type == 'south' else '["services/north_c"]'
             plugin_info = apiutils.get_plugin_info(plugin)
             plugin_config = plugin_info['config']
+            process_name = 'south_c'
             if not plugin_config:
                 raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}". {}'.format(plugin, plugin_module_path, str(ex)))
         except Exception as ex:

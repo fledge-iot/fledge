@@ -117,23 +117,23 @@ class TestService:
         ('"blah"', 404, "Data payload must be a dictionary"''),
         ('{}', 400, "Missing name property in payload."),
         ('{"name": "test"}', 400, "Missing plugin property in payload."),
-        ('{"name": "a;b", "plugin": "dht11", "process_name": "south", "type": "south"}', 400, "Invalid name property in payload."),
-        ('{"name": "test", "plugin": "dht@11", "process_name": "south", "type": "south"}', 400, "Invalid plugin property in payload."),
-        ('{"name": "test", "plugin": "dht11", "type": "south", "process_name": "south", "enabled": "blah"}', 400,
+        ('{"name": "a;b", "plugin": "dht11", "type": "south"}', 400, "Invalid name property in payload."),
+        ('{"name": "test", "plugin": "dht@11", "type": "south"}', 400, "Invalid plugin property in payload."),
+        ('{"name": "test", "plugin": "dht11", "type": "south", "enabled": "blah"}', 400,
          'Only "true", "false", true, false are allowed for value of enabled.'),
-        ('{"name": "test", "plugin": "dht11", "type": "south", "process_name": "south", "enabled": "t"}', 400,
+        ('{"name": "test", "plugin": "dht11", "type": "south", "enabled": "t"}', 400,
          'Only "true", "false", true, false are allowed for value of enabled.'),
-        ('{"name": "test", "plugin": "dht11", "type": "south", "process_name": "south", "enabled": "True"}', 400,
+        ('{"name": "test", "plugin": "dht11", "type": "south", "enabled": "True"}', 400,
          'Only "true", "false", true, false are allowed for value of enabled.'),
-        ('{"name": "test", "plugin": "dht11", "type": "south", "process_name": "south", "enabled": "False"}', 400,
+        ('{"name": "test", "plugin": "dht11", "type": "south", "enabled": "False"}', 400,
          'Only "true", "false", true, false are allowed for value of enabled.'),
-        ('{"name": "test", "plugin": "dht11", "type": "south", "process_name": "south", "enabled": "1"}', 400,
+        ('{"name": "test", "plugin": "dht11", "type": "south", "enabled": "1"}', 400,
          'Only "true", "false", true, false are allowed for value of enabled.'),
-        ('{"name": "test", "plugin": "dht11", "type": "south", "process_name": "south", "enabled": "0"}', 400,
+        ('{"name": "test", "plugin": "dht11", "type": "south", "enabled": "0"}', 400,
          'Only "true", "false", true, false are allowed for value of enabled.'),
         ('{"name": "test", "plugin": "dht11"}', 400, "Missing type property in payload."),
-        ('{"name": "test", "plugin": "dht11", "process_name": "south", "type": "blah"}', 400, "Only south type is supported."),
-        ('{"name": "test", "plugin": "dht11", "process_name": "south", "type": "North"}', 406, "north type is not supported for the time being.")
+        ('{"name": "test", "plugin": "dht11", "type": "blah"}', 400, "Only south type is supported."),
+        ('{"name": "test", "plugin": "dht11", "type": "North"}', 406, "north type is not supported for the time being.")
     ])
     async def test_add_service_with_bad_params(self, client, code, payload, message):
         resp = await client.post('/foglamp/service', data=payload)
@@ -141,10 +141,10 @@ class TestService:
         assert message == resp.reason
 
     # async def test_dupe_process_name_add_service(self, client):
-    #     data = {"name": "furnace4", "type": "south", "process_name": "south", "plugin": "dht11"}
+    #     data = {"name": "furnace4", "type": "south", "plugin": "dht11"}
     #
     #     async def async_mock():
-    #         expected = {'count': 1, 'rows': [{'name': 'furnace4'}]}
+    #         expected = {'count': 1, 'rows': [{'name': 'south'}]}
     #         return expected
     #
     #     storage_client_mock = MagicMock(StorageClientAsync)
@@ -157,10 +157,10 @@ class TestService:
     #             args, kwargs = query_table_patch.call_args
     #             assert 'scheduled_processes' == args[0]
     #             p = json.loads(args[1])
-    #             assert {"return": ["name"], "where": {"column": "name", "condition": "=", "value": "furnace4"}} == p
+    #             assert {"return": ["name"], "where": {"column": "name", "condition": "=", "value": "south"}} == p
 
     async def test_insert_scheduled_process_exception_add_service(self, client):
-        data = {"name": "furnace4", "type": "south", "process_name": "south", "plugin": "dht11"}
+        data = {"name": "furnace4", "type": "south", "plugin": "dht11"}
 
         @asyncio.coroutine
         def async_mock():
@@ -171,18 +171,14 @@ class TestService:
         with patch('builtins.__import__', side_effect=MagicMock()):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=async_mock()) as query_table_patch:
-                    with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=[async_mock(), Exception()]) as insert_table_patch:
+                    with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=Exception()) as insert_table_patch:
                         resp = await client.post('/foglamp/service', data=json.dumps(data))
                         assert 500 == resp.status
-                        assert 'Internal Server Error' == resp.reason
-                    # args, kwargs = insert_table_patch.call_args
-                    # assert 'scheduled_processes' == args[0]
-                    # p1 = json.loads(args[1])
-                    # assert {'name': 'furnace4', 'script': '["services/north"]'} == p1
+                        assert 'Failed to created scheduled process. ' == resp.reason
                 args1, kwargs1 = query_table_patch.call_args
-                assert 'schedules' == args1[0]
+                assert 'scheduled_processes' == args1[0]
                 p2 = json.loads(args1[1])
-                assert {'return': ['schedule_name'], 'where': {'column': 'schedule_name', 'condition': '=', 'value': 'furnace4'}} == p2
+                assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=', 'value': 'south'}} == p2
 
     async def test_dupe_schedule_name_add_service(self, client):
         def q_result(*arg):
@@ -190,7 +186,7 @@ class TestService:
             payload = arg[1]
 
             if table == 'scheduled_processes':
-                assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=', 'value': 'furnace4'}} == json.loads(payload)
+                assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=', 'value': 'south'}} == json.loads(payload)
                 return {'count': 0, 'rows': []}
             if table == 'schedules':
                 assert {'return': ['schedule_name'], 'where': {'column': 'schedule_name', 'condition': '=', 'value': 'furnace4'}} == json.loads(payload)
@@ -201,7 +197,7 @@ class TestService:
             expected = {'rows_affected': 1, "response": "inserted"}
             return expected
 
-        data = {"name": "furnace4", "type": "south", "process_name": "south", "plugin": "dht11"}
+        data = {"name": "furnace4", "type": "south", "plugin": "dht11"}
         description = '{} service configuration'.format(data['name'])
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
@@ -217,11 +213,11 @@ class TestService:
                                 assert 'Internal Server Error' == resp.reason
                             assert 0 == patch_create_cat.call_count
 
-    p1 = '{"name": "furnace4", "type": "south", "process_name": "south", "plugin": "dht11"}'
-    p2 = '{"name": "furnace4", "type": "south", "process_name": "south", "plugin": "dht11", "enabled": false}'
-    p3 = '{"name": "furnace4", "type": "south", "process_name": "south", "plugin": "dht11", "enabled": true}'
-    p4 = '{"name": "furnace4", "type": "south", "process_name": "south", "plugin": "dht11", "enabled": "true"}'
-    p5 = '{"name": "furnace4", "type": "south", "process_name": "south", "plugin": "dht11", "enabled": "false"}'
+    p1 = '{"name": "furnace4", "type": "south", "plugin": "dht11"}'
+    p2 = '{"name": "furnace4", "type": "south", "plugin": "dht11", "enabled": false}'
+    p3 = '{"name": "furnace4", "type": "south", "plugin": "dht11", "enabled": true}'
+    p4 = '{"name": "furnace4", "type": "south", "plugin": "dht11", "enabled": "true"}'
+    p5 = '{"name": "furnace4", "type": "south", "plugin": "dht11", "enabled": "false"}'
 
     @pytest.mark.parametrize("payload", [p1, p2, p3, p4, p5])
     async def test_add_service(self, client, payload):

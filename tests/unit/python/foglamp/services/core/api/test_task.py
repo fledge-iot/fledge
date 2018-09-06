@@ -49,34 +49,16 @@ class TestService:
         ({}, 400, 'Missing name property in payload.'),
         ({"name": "test"}, 400, "Missing plugin property in payload."),
         ({"name": "test", "plugin": "omf"}, 400, 'Missing type property in payload.'),
-        ({"name": "test", "plugin": "omf", "type": "north", "process_name": "north", "schedule_type": 3}, 400, 'schedule_repeat None is required for INTERVAL schedule_type.'),
-        ({"name": "test", "plugin": "omf", "type": "north", "process_name": "north", "schedule_type": 1}, 400, 'schedule_type cannot be STARTUP: 1')
+        ({"name": "test", "plugin": "omf", "type": "north", "schedule_type": 3}, 400, 'schedule_repeat None is required for INTERVAL schedule_type.'),
+        ({"name": "test", "plugin": "omf", "type": "north", "schedule_type": 1}, 400, 'schedule_type cannot be STARTUP: 1')
     ])
     async def test_add_task_with_bad_params(self, client, code, payload, message):
         resp = await client.post('/foglamp/scheduled/task', data=json.dumps(payload))
         assert code == resp.status
         assert message == resp.reason
 
-    # async def test_dupe_process_name_add_task(self, client):
-    #     data = {"process_name": "north", "name": "north bound", "type": "north", "schedule_type": 3, "plugin": "omf", "schedule_repeat": 30}
-    #     async def async_mock():
-    #         expected = {'count': 1, 'rows': [{'name': 'north bound'}]}
-    #         return expected
-    #
-    #     storage_client_mock = MagicMock(StorageClientAsync)
-    #     with patch('builtins.__import__', side_effect=MagicMock()):
-    #         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-    #             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=async_mock()) as query_table_patch:
-    #                 resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
-    #                 assert 400 == resp.status
-    #                 assert 'A task with that name already exists' == resp.reason
-    #             args, kwargs = query_table_patch.call_args
-    #             assert 'scheduled_processes' == args[0]
-    #             p = json.loads(args[1])
-    #             assert {"return": ["name"], "where": {"column": "name", "condition": "=", "value": "north bound"}} == p
-
     async def test_insert_scheduled_process_exception_add_task(self, client):
-        data = {"process_name": "north", "name": "north bound", "type": "north", "schedule_type": 3, "plugin": "omf", "schedule_repeat": 30}
+        data = {"name": "north bound", "type": "north", "schedule_type": 3, "plugin": "omf", "schedule_repeat": 30}
 
         @asyncio.coroutine
         def async_mock():
@@ -87,18 +69,14 @@ class TestService:
         with patch('builtins.__import__', side_effect=MagicMock()):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=async_mock()) as query_table_patch:
-                    with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=[async_mock(), Exception()]) as insert_table_patch:
+                    with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=Exception()) as insert_table_patch:
                         resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
                         assert 500 == resp.status
-                        assert 'Internal Server Error' == resp.reason
-                    # args, kwargs = insert_table_patch.call_args
-                    # assert 'scheduled_processes' == args[0]
-                    # p1 = json.loads(args[1])
-                    # assert {'name': 'north bound', 'script': '["services/north"]'} == p1
+                        assert 'Failed to created scheduled process. ' == resp.reason
                 args1, kwargs1 = query_table_patch.call_args
-                assert 'schedules' == args1[0]
+                assert 'scheduled_processes' == args1[0]
                 p2 = json.loads(args1[1])
-                assert {'return': ['schedule_name'], 'where': {'column': 'schedule_name', 'condition': '=', 'value': 'north bound'}} == p2
+                assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=', 'value': 'north'}} == p2
 
     async def test_dupe_schedule_name_add_task(self, client):
         def q_result(*arg):
@@ -106,7 +84,7 @@ class TestService:
             payload = arg[1]
 
             if table == 'scheduled_processes':
-                assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=', 'value': 'north bound'}} == json.loads(payload)
+                assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=', 'value': 'north'}} == json.loads(payload)
                 return {'count': 0, 'rows': []}
             if table == 'schedules':
                 assert {'return': ['schedule_name'], 'where': {'column': 'schedule_name', 'condition': '=', 'value': 'north bound'}} == json.loads(payload)
@@ -117,7 +95,7 @@ class TestService:
             expected = {'rows_affected': 1, "response": "inserted"}
             return expected
 
-        data = {"process_name": "north", "name": "north bound", "plugin": "omf", "type": "north", "schedule_type": 3, "schedule_repeat": 30}
+        data = {"name": "north bound", "plugin": "omf", "type": "north", "schedule_type": 3, "schedule_repeat": 30}
         description = '{} service configuration'.format(data['name'])
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
@@ -182,7 +160,6 @@ class TestService:
                 "name": "north bound",
                 "plugin": "omf",
                 "type": "north",
-                "process_name": "north",
                 "schedule_type": 3,
                 "schedule_day": 0,
                 "schedule_time": 0,

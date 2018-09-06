@@ -15,6 +15,7 @@ import logging
 import pytest
 import json
 import time
+import ast
 
 import aiohttp
 
@@ -64,6 +65,25 @@ def fixture_omf_north(event_loop):
 async def mock_async_call(p1=ANY):
     """ mocks a generic async function """
     return p1
+
+
+class MockAiohttpClientSession(MagicMock):
+    """" mock the aiohttp.ClientSession context manager """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.code = args[0]
+        self.text = args[1]
+
+    async def __aenter__(self):
+        mock_response = MagicMock(spec=aiohttp.ClientResponse)
+        mock_response.status = self.code
+        mock_response.text.side_effect = [mock_async_call(self.text)]
+
+        return mock_response
+
+    async def __aexit__(self, *args):
+        return None
 
 
 class MockAiohttpClientSessionSuccess(MagicMock):
@@ -1172,6 +1192,76 @@ class TestPIServerNorthPlugin:
             await fixture_omf_north.send_in_memory_data_to_picromf("Type", p_test_data)
 
         assert patched_aiohttp.called
+        assert patched_aiohttp.call_count == 1
+
+    @pytest.mark.parametrize(
+        "p_is_error, "
+        "p_code, "
+        "p_text, "
+        "p_test_data ",
+        [
+            (
+                False,
+                400, 'Invalid value type for the property',
+                {'dummy': 'dummy'}
+            ),
+            (
+                False,
+                400, 'Redefinition of the type with the same ID is not allowed',
+                {'dummy': 'dummy'}
+            ),
+            (
+                True,
+                400, 'None',
+                {'dummy': 'dummy'}
+            ),
+            (
+                True,
+                404, 'None',
+                {'dummy': 'dummy'}
+            ),
+            (
+                True,
+                404, 'Invalid value type for the property',
+                {'dummy': 'dummy'}
+            ),
+
+        ]
+    )
+    @pytest.mark.asyncio
+    async def test_send_in_memory_data_to_picromf_success_not_blocking_error(
+                                                self,
+                                                p_is_error,
+                                                p_code,
+                                                p_text,
+                                                p_test_data,
+                                                fixture_omf_north):
+        """ Unit test for - send_in_memory_data_to_picromf
+            test cases of blocking error (exception raised) and not blocking error
+        """
+
+        fixture_omf_north._config = dict(producerToken="dummy_producerToken")
+        fixture_omf_north._config["URL"] = "dummy_URL"
+        fixture_omf_north._config["OMFRetrySleepTime"] = 1
+        fixture_omf_north._config["OMFHttpTimeout"] = 1
+        fixture_omf_north._config["OMFMaxRetry"] = 1
+
+        fixture_omf_north._config["notBlockingErrors"] = ast.literal_eval(pi_server._CONFIG_DEFAULT_OMF["notBlockingErrors"]["default"])
+
+        with patch.object(aiohttp.ClientSession,
+                          'post',
+                          return_value=MockAiohttpClientSession(p_code, p_text)
+                          ) as patched_aiohttp:
+            if p_is_error:
+                # blocking error (exception raised)
+                with pytest.raises(Exception):
+                    await fixture_omf_north.send_in_memory_data_to_picromf("Data", p_test_data)
+            else:
+                # not blocking error, operation terminated successfully
+                await fixture_omf_north.send_in_memory_data_to_picromf("Data", p_test_data)
+
+        assert patched_aiohttp.called
+        # as OMFMaxRetry is set to 1
         assert patched_aiohttp.call_count == 1
 
     @pytest.mark.parametrize(

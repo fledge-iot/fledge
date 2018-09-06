@@ -642,7 +642,6 @@ class TestSendingProcess:
             ),
         ]
     )
-    @pytest.mark.this
     async def test_transform_in_memory_data_readings_error(self, event_loop, p_rows):
         """ Unit test for - _transform_in_memory_data_readings - tests error cases/handling """
 
@@ -2218,7 +2217,6 @@ class TestSendingProcess:
         ("pi_server",  "north", "PI Server North"),
         ("ocs",        "north", "OCS North")
     ])
-    @pytest.mark.this
     async def test_standard_plugins(self, plugin_file, plugin_type, plugin_name, event_loop):
         """Tests if the standard plugins are available and loadable and if they have the required methods """
 

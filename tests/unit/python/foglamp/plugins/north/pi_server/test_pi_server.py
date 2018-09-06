@@ -637,7 +637,7 @@ class TestPIServerNorthPlugin:
                                 'id': '0002_luxometer_typename_measurement',
                                 'properties': {
                                     'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
-                                    'lux': {'type': 'integer', 'format': 'int64'}
+                                    'lux': {'type': 'number', 'format': 'float64'}
                                 },
                                 'type': 'object'
                             }
@@ -692,6 +692,7 @@ class TestPIServerNorthPlugin:
         ]
     )
     @pytest.mark.asyncio
+    @pytest.mark.this
     async def test_create_omf_type_automatic(
                                                 self,
                                                 p_test_data,

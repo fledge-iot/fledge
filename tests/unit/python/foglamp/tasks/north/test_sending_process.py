@@ -1793,10 +1793,12 @@ class TestSendingProcess:
         SendingProcess._logger = MagicMock(spec=logging)
         sp._audit = MagicMock(spec=AuditLogger)
         sp._stream_id = 1
+        sp._payload_events = []
 
         # Configures properly the SendingProcess, enabling JQFilter
         sp._config = {
-            'memory_buffer_size': p_buffer_size
+            'memory_buffer_size': p_buffer_size,
+            'plugin': 'pi_server'
         }
 
         sp._config_from_manager = {
@@ -1821,17 +1823,17 @@ class TestSendingProcess:
 
             with patch.object(sp._plugin, 'plugin_send',
                               side_effect=[asyncio.ensure_future(mock_send_rows(x)) for x in range(0, len(p_send_result))]):
+                with patch.object(sp._core_microservice_management_client, 'create_asset_tracker_event'):
+                    task_id = asyncio.ensure_future(sp._task_send_data())
 
-                task_id = asyncio.ensure_future(sp._task_send_data())
+                    # Lets the _task_fetch_data to run for a while
+                    await asyncio.sleep(3)
+    
+                    # Tear down
+                    sp._task_send_data_run = False
+                    sp._task_fetch_data_sem.release()
 
-                # Lets the _task_fetch_data to run for a while
-                await asyncio.sleep(3)
-
-                # Tear down
-                sp._task_send_data_run = False
-                sp._task_fetch_data_sem.release()
-
-                await task_id
+                    await task_id
 
         expected_new_last_object_id = p_send_result[len(p_send_result) - 1]["new_last_object_id"]
 
@@ -1973,10 +1975,12 @@ class TestSendingProcess:
         SendingProcess._logger = MagicMock(spec=logging)
         sp._audit = MagicMock(spec=AuditLogger)
         sp._stream_id = 1
+        sp._payload_events = []
 
         # Configures properly the SendingProcess, enabling JQFilter
         sp._config = {
-            'memory_buffer_size': p_buffer_size
+            'memory_buffer_size': p_buffer_size,
+            'plugin': 'pi_server'
         }
 
         sp._config_from_manager = {
@@ -2006,33 +2010,33 @@ class TestSendingProcess:
                     sp._plugin,
                     'plugin_send',
                     side_effect=[asyncio.ensure_future(mock_send_rows(x)) for x in range(0, len(p_send_result))]):
+                with patch.object(sp._core_microservice_management_client, 'create_asset_tracker_event'):
+                    task_id = asyncio.ensure_future(sp._task_send_data())
 
-                task_id = asyncio.ensure_future(sp._task_send_data())
+                    # Lets the _task_fetch_data to run for a while
+                    await asyncio.sleep(3)
 
-                # Lets the _task_fetch_data to run for a while
-                await asyncio.sleep(3)
+                    # THEN - Step 1
+                    expected_new_last_object_id = p_rows_step1[len(p_rows_step1) - 1][0]["id"]
 
-                # THEN - Step 1
-                expected_new_last_object_id = p_rows_step1[len(p_rows_step1) - 1][0]["id"]
+                    assert sp._memory_buffer == expected_buffer
+                    patched_update_position_reached.assert_called_with(
+                                                                       expected_new_last_object_id,
+                                                                       expected_num_sent_step1)
 
-                assert sp._memory_buffer == expected_buffer
-                patched_update_position_reached.assert_called_with(
-                                                                   expected_new_last_object_id,
-                                                                   expected_num_sent_step1)
+                    # Fills the buffer - step 1
+                    for x in range(len(p_rows_step2)):
+                        sp._memory_buffer[x] = p_rows_step2[x]
 
-                # Fills the buffer - step 1
-                for x in range(len(p_rows_step2)):
-                    sp._memory_buffer[x] = p_rows_step2[x]
+                    # let handle step 2
+                    sp._task_fetch_data_sem.release()
+                    await asyncio.sleep(3)
 
-                # let handle step 2
-                sp._task_fetch_data_sem.release()
-                await asyncio.sleep(3)
+                    # Tear down
+                    sp._task_send_data_run = False
+                    sp._task_fetch_data_sem.release()
 
-                # Tear down
-                sp._task_send_data_run = False
-                sp._task_fetch_data_sem.release()
-
-                await task_id
+                    await task_id
 
         # THEN - Step 2
         expected_new_last_object_id = p_rows_step2[len(p_rows_step2) - 1][0]["id"]
@@ -2144,8 +2148,10 @@ class TestSendingProcess:
             return p_send_result[x]["data_sent"], p_send_result[x]["new_last_object_id"], p_send_result[x]["num_sent"]
 
         # Configures properly the SendingProcess, enabling JQFilter
+        fixture_sp._payload_events = []
         fixture_sp._config = {
-            'memory_buffer_size': p_buffer_size
+            'memory_buffer_size': p_buffer_size,
+            'plugin': 'pi_server'
         }
 
         # Allocates the in memory buffer
@@ -2166,18 +2172,18 @@ class TestSendingProcess:
                             'plugin_send',
                             side_effect=[
                                 asyncio.ensure_future(mock_send_rows(x)) for x in range(0, len(p_send_result))]):
+                        with patch.object(fixture_sp._core_microservice_management_client, 'create_asset_tracker_event'):
+                            with pytest.raises(RuntimeError):
+                                task_id = asyncio.ensure_future(fixture_sp._task_send_data())
 
-                        with pytest.raises(RuntimeError):
-                            task_id = asyncio.ensure_future(fixture_sp._task_send_data())
+                                # Lets the _task_fetch_data to run for a while
+                                await asyncio.sleep(3)
 
-                            # Lets the _task_fetch_data to run for a while
-                            await asyncio.sleep(3)
+                                # Tear down
+                                fixture_sp._task_send_data_run = False
+                                fixture_sp._task_fetch_data_sem.release()
 
-                            # Tear down
-                            fixture_sp._task_send_data_run = False
-                            fixture_sp._task_fetch_data_sem.release()
-
-                            await task_id
+                                await task_id
 
         # THEN - Checks log and audit are called in case of en error and the in memory buffer is as expected
         assert patched_logger.called

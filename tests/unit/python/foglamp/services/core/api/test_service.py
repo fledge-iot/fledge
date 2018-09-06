@@ -140,25 +140,6 @@ class TestService:
         assert code == resp.status
         assert message == resp.reason
 
-    # async def test_dupe_process_name_add_service(self, client):
-    #     data = {"name": "furnace4", "type": "south", "plugin": "dht11"}
-    #
-    #     async def async_mock():
-    #         expected = {'count': 1, 'rows': [{'name': 'south'}]}
-    #         return expected
-    #
-    #     storage_client_mock = MagicMock(StorageClientAsync)
-    #     with patch('builtins.__import__', side_effect=MagicMock()):
-    #         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-    #             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=async_mock()) as query_table_patch:
-    #                 resp = await client.post('/foglamp/service', data=json.dumps(data))
-    #                 assert 400 == resp.status
-    #                 assert 'A service with that name already exists' == resp.reason
-    #             args, kwargs = query_table_patch.call_args
-    #             assert 'scheduled_processes' == args[0]
-    #             p = json.loads(args[1])
-    #             assert {"return": ["name"], "where": {"column": "name", "condition": "=", "value": "south"}} == p
-
     async def test_insert_scheduled_process_exception_add_service(self, client):
         data = {"name": "furnace4", "type": "south", "plugin": "dht11"}
 

@@ -28,8 +28,6 @@ class Plugin {
   protected:
     PLUGIN_HANDLE handle;
     PluginManager *manager;
-
-  private:
     PLUGIN_INFORMATION *info;
 };
 

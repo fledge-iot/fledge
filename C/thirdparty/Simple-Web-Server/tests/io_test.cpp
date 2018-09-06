@@ -64,6 +64,23 @@ int main() {
 
     *response << "HTTP/1.1 200 OK\r\nContent-Length: " << content.length() << "\r\n\r\n"
               << content;
+
+    assert(!request->remote_endpoint_address().empty());
+    assert(request->remote_endpoint_port() != 0);
+  };
+
+  server.resource["^/string/dup$"]["POST"] = [](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
+    auto content = request->content.string();
+
+    // Send content twice, before it has a chance to be written to the socket.
+    *response << "HTTP/1.1 200 OK\r\nContent-Length: " << (content.length() * 2) << "\r\n\r\n"
+              << content;
+    response->send();
+    *response << content;
+    response->send();
+
+    assert(!request->remote_endpoint_address().empty());
+    assert(request->remote_endpoint_port() != 0);
   };
 
   server.resource["^/string2$"]["POST"] = [](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
@@ -121,6 +138,14 @@ int main() {
     response->write(request->query_string);
   };
 
+  server.resource["^/chunked$"]["POST"] = [](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
+    assert(request->path == "/chunked");
+
+    assert(request->content.string() == "SimpleWeb in\r\n\r\nchunks.");
+
+    response->write("6\r\nSimple\r\n3\r\nWeb\r\nE\r\n in\r\n\r\nchunks.\r\n0\r\n\r\n", {{"Transfer-Encoding", "chunked"}});
+  };
+
   thread server_thread([&server]() {
     // Start server
     server.start();
@@ -150,7 +175,6 @@ int main() {
     }
 
     {
-      stringstream output;
       auto r = client.request("POST", "/string", "A string");
       assert(SimpleWeb::status_code(r->status_code) == SimpleWeb::StatusCode::success_ok);
       assert(r->content.string() == "A string");
@@ -193,6 +217,15 @@ int main() {
     }
 
     {
+      // Test rapid calls to Response::send
+      stringstream output;
+      stringstream content("A string\n");
+      auto r = client.request("POST", "/string/dup", content);
+      output << r->content.rdbuf();
+      assert(output.str() == "A string\nA string\n");
+    }
+
+    {
       stringstream output;
       auto r = client.request("GET", "/info", "", {{"Test Parameter", "test value"}});
       output << r->content.rdbuf();
@@ -204,6 +237,10 @@ int main() {
       auto r = client.request("GET", "/match/123");
       output << r->content.rdbuf();
       assert(output.str() == "123");
+    }
+    {
+      auto r = client.request("POST", "/chunked", "6\r\nSimple\r\n3\r\nWeb\r\nE\r\n in\r\n\r\nchunks.\r\n0\r\n\r\n", {{"Transfer-Encoding", "chunked"}});
+      assert(r->content.string() == "SimpleWeb in\r\n\r\nchunks.");
     }
   }
   {
@@ -437,6 +474,4 @@ int main() {
     assert(client_catch);
     io_service->stop();
   }
-
-  return 0;
 }

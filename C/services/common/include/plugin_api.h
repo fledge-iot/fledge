@@ -32,6 +32,7 @@ typedef void * PLUGIN_HANDLE;
  */
 #define SP_COMMON       0x0001
 #define SP_READINGS     0x0002
+#define SP_ASYNC	0x0004
  
 /**
  * Plugin types

@@ -17,9 +17,8 @@ namespace SimpleWeb {
   public:
     Client(const std::string &server_port_path, bool verify_certificate = true, const std::string &cert_file = std::string(),
            const std::string &private_key_file = std::string(), const std::string &verify_file = std::string())
-        // TODO : tlsv1 is required for the integration with the PI Server
-        // : ClientBase<HTTPS>::ClientBase(server_port_path, 443), context(asio::ssl::context::tlsv12) {
         : ClientBase<HTTPS>::ClientBase(server_port_path, 443), context(asio::ssl::context::tlsv1) {
+	// NB Set tlsv1 rather than tlsv12 for compatibility with PI Connector Relay
       if(cert_file.size() > 0 && private_key_file.size() > 0) {
         context.use_certificate_chain_file(cert_file);
         context.use_private_key_file(private_key_file, asio::ssl::context::pem);
@@ -72,24 +71,28 @@ namespace SimpleWeb {
                   write_stream << "CONNECT " + host_port + " HTTP/1.1\r\n"
                                << "Host: " << host_port << "\r\n\r\n";
                   session->connection->set_timeout(this->config.timeout_connect);
-                  asio::async_write(session->connection->socket->next_layer(), *write_buffer, [this, session, write_buffer](const error_code &ec, size_t /*bytes_transferred*/) {
+                  asio::async_write(session->connection->socket->next_layer(), *write_buffer, [this, session, write_buffer](const error_code &ec, std::size_t /*bytes_transferred*/) {
                     session->connection->cancel_timeout();
                     auto lock = session->connection->handler_runner->continue_lock();
                     if(!lock)
                       return;
                     if(!ec) {
-                      std::shared_ptr<Response> response(new Response());
+                      std::shared_ptr<Response> response(new Response(this->config.max_response_streambuf_size));
                       session->connection->set_timeout(this->config.timeout_connect);
-                      asio::async_read_until(session->connection->socket->next_layer(), response->content_buffer, "\r\n\r\n", [this, session, response](const error_code &ec, size_t /*bytes_transferred*/) {
+                      asio::async_read_until(session->connection->socket->next_layer(), response->streambuf, "\r\n\r\n", [this, session, response](const error_code &ec, std::size_t /*bytes_transferred*/) {
                         session->connection->cancel_timeout();
                         auto lock = session->connection->handler_runner->continue_lock();
                         if(!lock)
                           return;
+                        if((!ec || ec == asio::error::not_found) && response->streambuf.size() == response->streambuf.max_size()) {
+                          session->callback(session->connection, make_error_code::make_error_code(errc::message_size));
+                          return;
+                        }
                         if(!ec) {
                           if(!ResponseMessage::parse(response->content, response->http_version, response->status_code, response->header))
                             session->callback(session->connection, make_error_code::make_error_code(errc::protocol_error));
                           else {
-                            if(response->status_code.empty() || response->status_code.compare(0, 3, "200") != 0)
+                            if(response->status_code.compare(0, 3, "200") != 0)
                               session->callback(session->connection, make_error_code::make_error_code(errc::permission_denied));
                             else
                               this->handshake(session);

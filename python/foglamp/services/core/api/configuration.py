@@ -8,8 +8,7 @@ from aiohttp import web
 import urllib.parse
 from foglamp.services.core import connect
 from foglamp.common.configuration_manager import ConfigurationManager
-from foglamp.common.storage_client.payload_builder import PayloadBuilder
-from foglamp.common.audit_logger import AuditLogger
+
 
 __author__ = "Amarendra K. Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"

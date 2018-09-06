@@ -692,7 +692,6 @@ class TestPIServerNorthPlugin:
         ]
     )
     @pytest.mark.asyncio
-    @pytest.mark.this
     async def test_create_omf_type_automatic(
                                                 self,
                                                 p_test_data,

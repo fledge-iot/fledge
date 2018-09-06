@@ -476,7 +476,7 @@ class SendingProcess(FoglampProcess):
         """ Applies the transformation/validation required to have a standard data set.
         Note:
             Python is not able to automatically convert a string containing a number starting with 0
-            to a dictionary, like for example :
+            to a dictionary (using the eval also), like for example :
                 '{"value":02}'
             so these rows will generate an exception and will be skipped.
         """

@@ -572,6 +572,88 @@ class TestSendingProcess:
         assert generated_rows == expected_rows
 
     @pytest.mark.parametrize(
+        "p_rows, ",
+        [
+            (
+                # reading - missing
+                [
+                    {
+                        "id": 1,
+                        "asset_code": "test_asset_code",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "user_ts": "16/04/2018 16:32:55"
+                    }
+                ]
+            ),
+            (
+                [
+                    {
+                        "id": 1,
+                        "asset_code": "test_asset_code",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "reading": '',
+                        "user_ts": "16/04/2018 16:32:55"
+                    }
+                ]
+            ),
+            (
+                [
+                    {
+                        "id": 1,
+                        "asset_code": "test_asset_code",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "reading": '{"value"',
+                        "user_ts": "16/04/2018 16:32:55"
+                    }
+                ]
+            ),
+            (
+                [
+                    {
+                        "id": 2,
+                        "asset_code": "test_asset_code",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "reading": '{"value":02}',
+                        "user_ts": "16/04/2018 16:32:55"
+                    }
+                ]
+            ),
+            (
+                [
+                    {
+                        "id": 2,
+                        "asset_code": "test_asset_code",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "reading": 100,
+                        "user_ts": "16/04/2018 16:32:55"
+                    }
+                ]
+            ),
+            (
+                [
+                    {
+                        "id": 2,
+                        "asset_code": "test_asset_code",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "reading": "none",
+                        "user_ts": "16/04/2018 16:32:55"
+                    }
+                ]
+            ),
+        ]
+    )
+    @pytest.mark.this
+    async def test_transform_in_memory_data_readings_error(self, event_loop, p_rows):
+        """ Unit test for - _transform_in_memory_data_readings - tests error cases/handling """
+
+        SendingProcess._logger = MagicMock(spec=logging)
+
+        with patch.object(SendingProcess._logger, 'warning') as patched_logger:
+            SendingProcess._transform_in_memory_data_readings(p_rows)
+
+        assert patched_logger.called
+
+    @pytest.mark.parametrize(
         "p_rows, "
         "expected_rows, ",
         [

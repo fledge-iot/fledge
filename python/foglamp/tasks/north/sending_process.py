@@ -371,6 +371,15 @@ class SendingProcess(FoglampProcess):
                             await asyncio.sleep(sleep_time)
 
                         if data_sent:
+                            # asset tracker checking
+                            for _reads in self._memory_buffer[self._memory_buffer_send_idx]:
+                                payload = {"asset": _reads['asset_code'], "event": "Egress", "service": self._name,
+                                           "plugin": self._config['plugin']}
+                                if payload not in self._tracked_assets:
+                                    self._core_microservice_management_client.create_asset_tracker_event(
+                                        payload)
+                                    self._tracked_assets.append(payload)
+
                             db_update = True
                             update_last_object_id = new_last_object_id
                             tot_num_sent = tot_num_sent + num_sent
@@ -928,6 +937,10 @@ class SendingProcess(FoglampProcess):
             SendingProcess._logger.error(_message)
             await self._audit.failure(self._AUDIT_CODE, {"error - on start": _message})
             raise
+
+        # The list of unique reading payload for asset tracker
+        self._tracked_assets = []
+
         return exec_sending_process
 
     async def run(self):

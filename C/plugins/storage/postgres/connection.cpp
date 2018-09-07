@@ -1564,7 +1564,7 @@ bool Connection::jsonWhereClause(const Value& whereClause, SQLBuffer& sql)
 		} else if (whereClause["value"].IsString())
 		{
 			sql.append('\'');
-			sql.append(whereClause["value"].GetString());
+			sql.append(escape(whereClause["value"].GetString()));
 			sql.append('\'');
 		}
 	}

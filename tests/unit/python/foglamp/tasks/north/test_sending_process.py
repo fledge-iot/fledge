@@ -572,6 +572,87 @@ class TestSendingProcess:
         assert generated_rows == expected_rows
 
     @pytest.mark.parametrize(
+        "p_rows, ",
+        [
+            (
+                # reading - missing
+                [
+                    {
+                        "id": 1,
+                        "asset_code": "test_asset_code",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "user_ts": "16/04/2018 16:32:55"
+                    }
+                ]
+            ),
+            (
+                [
+                    {
+                        "id": 1,
+                        "asset_code": "test_asset_code",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "reading": '',
+                        "user_ts": "16/04/2018 16:32:55"
+                    }
+                ]
+            ),
+            (
+                [
+                    {
+                        "id": 1,
+                        "asset_code": "test_asset_code",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "reading": '{"value"',
+                        "user_ts": "16/04/2018 16:32:55"
+                    }
+                ]
+            ),
+            (
+                [
+                    {
+                        "id": 2,
+                        "asset_code": "test_asset_code",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "reading": '{"value":02}',
+                        "user_ts": "16/04/2018 16:32:55"
+                    }
+                ]
+            ),
+            (
+                [
+                    {
+                        "id": 2,
+                        "asset_code": "test_asset_code",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "reading": 100,
+                        "user_ts": "16/04/2018 16:32:55"
+                    }
+                ]
+            ),
+            (
+                [
+                    {
+                        "id": 2,
+                        "asset_code": "test_asset_code",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "reading": "none",
+                        "user_ts": "16/04/2018 16:32:55"
+                    }
+                ]
+            ),
+        ]
+    )
+    async def test_transform_in_memory_data_readings_error(self, event_loop, p_rows):
+        """ Unit test for - _transform_in_memory_data_readings - tests error cases/handling """
+
+        SendingProcess._logger = MagicMock(spec=logging)
+
+        with patch.object(SendingProcess._logger, 'warning') as patched_logger:
+            SendingProcess._transform_in_memory_data_readings(p_rows)
+
+        assert patched_logger.called
+
+    @pytest.mark.parametrize(
         "p_rows, "
         "expected_rows, ",
         [
@@ -1712,10 +1793,12 @@ class TestSendingProcess:
         SendingProcess._logger = MagicMock(spec=logging)
         sp._audit = MagicMock(spec=AuditLogger)
         sp._stream_id = 1
+        sp._tracked_assets = []
 
         # Configures properly the SendingProcess, enabling JQFilter
         sp._config = {
-            'memory_buffer_size': p_buffer_size
+            'memory_buffer_size': p_buffer_size,
+            'plugin': 'pi_server'
         }
 
         sp._config_from_manager = {
@@ -1740,17 +1823,17 @@ class TestSendingProcess:
 
             with patch.object(sp._plugin, 'plugin_send',
                               side_effect=[asyncio.ensure_future(mock_send_rows(x)) for x in range(0, len(p_send_result))]):
+                with patch.object(sp._core_microservice_management_client, 'create_asset_tracker_event'):
+                    task_id = asyncio.ensure_future(sp._task_send_data())
 
-                task_id = asyncio.ensure_future(sp._task_send_data())
+                    # Lets the _task_fetch_data to run for a while
+                    await asyncio.sleep(3)
+    
+                    # Tear down
+                    sp._task_send_data_run = False
+                    sp._task_fetch_data_sem.release()
 
-                # Lets the _task_fetch_data to run for a while
-                await asyncio.sleep(3)
-
-                # Tear down
-                sp._task_send_data_run = False
-                sp._task_fetch_data_sem.release()
-
-                await task_id
+                    await task_id
 
         expected_new_last_object_id = p_send_result[len(p_send_result) - 1]["new_last_object_id"]
 
@@ -1892,10 +1975,12 @@ class TestSendingProcess:
         SendingProcess._logger = MagicMock(spec=logging)
         sp._audit = MagicMock(spec=AuditLogger)
         sp._stream_id = 1
+        sp._tracked_assets = []
 
         # Configures properly the SendingProcess, enabling JQFilter
         sp._config = {
-            'memory_buffer_size': p_buffer_size
+            'memory_buffer_size': p_buffer_size,
+            'plugin': 'pi_server'
         }
 
         sp._config_from_manager = {
@@ -1925,33 +2010,33 @@ class TestSendingProcess:
                     sp._plugin,
                     'plugin_send',
                     side_effect=[asyncio.ensure_future(mock_send_rows(x)) for x in range(0, len(p_send_result))]):
+                with patch.object(sp._core_microservice_management_client, 'create_asset_tracker_event'):
+                    task_id = asyncio.ensure_future(sp._task_send_data())
 
-                task_id = asyncio.ensure_future(sp._task_send_data())
+                    # Lets the _task_fetch_data to run for a while
+                    await asyncio.sleep(3)
 
-                # Lets the _task_fetch_data to run for a while
-                await asyncio.sleep(3)
+                    # THEN - Step 1
+                    expected_new_last_object_id = p_rows_step1[len(p_rows_step1) - 1][0]["id"]
 
-                # THEN - Step 1
-                expected_new_last_object_id = p_rows_step1[len(p_rows_step1) - 1][0]["id"]
+                    assert sp._memory_buffer == expected_buffer
+                    patched_update_position_reached.assert_called_with(
+                                                                       expected_new_last_object_id,
+                                                                       expected_num_sent_step1)
 
-                assert sp._memory_buffer == expected_buffer
-                patched_update_position_reached.assert_called_with(
-                                                                   expected_new_last_object_id,
-                                                                   expected_num_sent_step1)
+                    # Fills the buffer - step 1
+                    for x in range(len(p_rows_step2)):
+                        sp._memory_buffer[x] = p_rows_step2[x]
 
-                # Fills the buffer - step 1
-                for x in range(len(p_rows_step2)):
-                    sp._memory_buffer[x] = p_rows_step2[x]
+                    # let handle step 2
+                    sp._task_fetch_data_sem.release()
+                    await asyncio.sleep(3)
 
-                # let handle step 2
-                sp._task_fetch_data_sem.release()
-                await asyncio.sleep(3)
+                    # Tear down
+                    sp._task_send_data_run = False
+                    sp._task_fetch_data_sem.release()
 
-                # Tear down
-                sp._task_send_data_run = False
-                sp._task_fetch_data_sem.release()
-
-                await task_id
+                    await task_id
 
         # THEN - Step 2
         expected_new_last_object_id = p_rows_step2[len(p_rows_step2) - 1][0]["id"]
@@ -2063,8 +2148,10 @@ class TestSendingProcess:
             return p_send_result[x]["data_sent"], p_send_result[x]["new_last_object_id"], p_send_result[x]["num_sent"]
 
         # Configures properly the SendingProcess, enabling JQFilter
+        fixture_sp._tracked_assets = []
         fixture_sp._config = {
-            'memory_buffer_size': p_buffer_size
+            'memory_buffer_size': p_buffer_size,
+            'plugin': 'pi_server'
         }
 
         # Allocates the in memory buffer
@@ -2085,18 +2172,18 @@ class TestSendingProcess:
                             'plugin_send',
                             side_effect=[
                                 asyncio.ensure_future(mock_send_rows(x)) for x in range(0, len(p_send_result))]):
+                        with patch.object(fixture_sp._core_microservice_management_client, 'create_asset_tracker_event'):
+                            with pytest.raises(RuntimeError):
+                                task_id = asyncio.ensure_future(fixture_sp._task_send_data())
 
-                        with pytest.raises(RuntimeError):
-                            task_id = asyncio.ensure_future(fixture_sp._task_send_data())
+                                # Lets the _task_fetch_data to run for a while
+                                await asyncio.sleep(3)
 
-                            # Lets the _task_fetch_data to run for a while
-                            await asyncio.sleep(3)
+                                # Tear down
+                                fixture_sp._task_send_data_run = False
+                                fixture_sp._task_fetch_data_sem.release()
 
-                            # Tear down
-                            fixture_sp._task_send_data_run = False
-                            fixture_sp._task_fetch_data_sem.release()
-
-                            await task_id
+                                await task_id
 
         # THEN - Checks log and audit are called in case of en error and the in memory buffer is as expected
         assert patched_logger.called
@@ -2136,7 +2223,6 @@ class TestSendingProcess:
         ("pi_server",  "north", "PI Server North"),
         ("ocs",        "north", "OCS North")
     ])
-    @pytest.mark.this
     async def test_standard_plugins(self, plugin_file, plugin_type, plugin_name, event_loop):
         """Tests if the standard plugins are available and loadable and if they have the required methods """
 

@@ -26,8 +26,6 @@ import datetime
 import signal
 import json
 import uuid
-import ast
-import copy
 
 import foglamp.plugins.north.common.common as plugin_common
 from foglamp.common.parser import Parser
@@ -40,7 +38,7 @@ from foglamp.common.process import FoglampProcess
 from foglamp.common import logger
 
 __author__ = "Stefano Simonelli, Massimiliano Pinto, Mark Riddoch, Amarendra K Sinha"
-__copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
+__copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
@@ -52,6 +50,7 @@ _MESSAGES_LIST = {
     "i000002": "Execution completed.",
     "i000003": _MODULE_NAME + " disabled.",
     "i000004": "no data will be sent, the stream id is disabled - stream id |{0}|",
+    "i000005": "plugin undefined, execution terminated",
     # Warning / Error messages
     "e000000": "general error",
     "e000001": "cannot start the logger - error details |{0}|",
@@ -77,7 +76,7 @@ _MESSAGES_LIST = {
     "e000020": "cannot update the reached position - error details |{0}|",
     "e000021": "cannot complete the sending operation - error details |{0}|",
     "e000022": "unable to convert in memory data structure related to the statistics data "
-               "- error details |{0}|",
+               "- error details |{0}| - row |{1}|",
     "e000023": "cannot complete the initialization - error details |{0}|",
     "e000024": "unable to log the operation in the Storage Layer - error details |{0}|",
     "e000025": "Required argument '--name' is missing - command line |{0}|",
@@ -87,7 +86,8 @@ _MESSAGES_LIST = {
     "e000029": "an error occurred  during the teardown operation - error details |{0}|",
     "e000030": "unable to create parent configuration category",
     "e000031": "unable to convert in memory data structure related to the readings data "
-               "- error details |{0}|",
+               "- error details |{0}| - row |{1}|",
+    "e000032": "asset code not defined - row |{0}|",
 
 }
 """ Messages used for Information, Warning and Error notice """
@@ -225,8 +225,9 @@ class SendingProcess(FoglampProcess):
         },
         "source": {
             "description": "Source of data to be sent on the stream. May be either readings or statistics.",
-            "type": "string",
-            "default": "readings"
+            "type": "enumeration",
+            "default": "readings",
+            "options": [ "readings", "statistics" ]
         },
         "blockSize": {
             "description": "Bytes to send in each transmission",
@@ -238,20 +239,10 @@ class SendingProcess(FoglampProcess):
             "type": "integer",
             "default": "1"
         },
-        'plugin': {
-            'description': 'The name of the translator to use to translate the readings into the output format and send them.',
-            'type': 'string',
-            'default': 'omf'
-        },
         "memory_buffer_size": {
             "description": "Number of elements of blockSize size to be buffered in memory",
             "type": "integer",
             "default": "10"
-        },
-        "stream_id": {
-            "description": "Stream ID",
-            "type": "integer",
-            "default": "0"
         }
     }
 
@@ -380,6 +371,15 @@ class SendingProcess(FoglampProcess):
                             await asyncio.sleep(sleep_time)
 
                         if data_sent:
+                            # asset tracker checking
+                            for _reads in self._memory_buffer[self._memory_buffer_send_idx]:
+                                payload = {"asset": _reads['asset_code'], "event": "Egress", "service": self._name,
+                                           "plugin": self._config['plugin']}
+                                if payload not in self._tracked_assets:
+                                    self._core_microservice_management_client.create_asset_tracker_event(
+                                        payload)
+                                    self._tracked_assets.append(payload)
+
                             db_update = True
                             update_last_object_id = new_last_object_id
                             tot_num_sent = tot_num_sent + num_sent
@@ -429,21 +429,27 @@ class SendingProcess(FoglampProcess):
     @staticmethod
     def _transform_in_memory_data_statistics(raw_data):
         converted_data = []
-        try:
-            for row in raw_data:
+        for row in raw_data:
+            try:
                 timestamp = apply_date_format(row['ts'])  # Adds timezone UTC
                 asset_code = row['key'].strip()
-                new_row = {
-                    'id': row['id'],
-                    'asset_code': asset_code,
-                    'read_key': str(uuid.uuid4()),
-                    'reading': {'value': row['value']},
-                    'user_ts': timestamp,
-                }
-                converted_data.append(new_row)
-        except Exception as e:
-            SendingProcess._logger.error(_MESSAGES_LIST["e000022"].format(str(e)))
-            raise e
+
+                # Skips row having undefined asset_code
+                if asset_code != "":
+                    new_row = {
+                        'id': row['id'],
+                        'asset_code': asset_code,
+                        'read_key': str(uuid.uuid4()),
+                        'reading': {'value': row['value']},
+                        'user_ts': timestamp,
+                    }
+                    converted_data.append(new_row)
+                else:
+                    SendingProcess._logger.warning(_MESSAGES_LIST["e000032"].format(row))
+
+            except Exception as e:
+                SendingProcess._logger.warning(_MESSAGES_LIST["e000022"].format(str(e), row))
+
         return converted_data
 
     async def _load_data_into_memory_statistics(self, last_object_id):
@@ -466,27 +472,44 @@ class SendingProcess(FoglampProcess):
 
     @staticmethod
     def _transform_in_memory_data_readings(raw_data):
-        converted_data = []
-        try:
-            for row in raw_data:
-                # Converts values to the proper types, for example "180.2" to float 180.2
-                payload = row['reading']
+        """ Applies the transformation/validation required to have a standard data set.
+        Note:
+            Python is not able to automatically convert a string containing a number starting with 0
+            to a dictionary (using the eval also), like for example :
+                '{"value":02}'
+            so these rows will generate an exception and will be skipped.
+        """
 
-                for key in list(payload.keys()):
-                    value = payload[key]
-                    payload[key] = plugin_common.convert_to_type(value)
-                timestamp = apply_date_format(row['user_ts'])  # Adds timezone UTC
-                new_row = {
-                    'id': row['id'],
-                    'asset_code': row['asset_code'],
-                    'read_key': row['read_key'],
-                    'reading': payload,
-                    'user_ts': timestamp
-                }
-                converted_data.append(new_row)
-        except Exception as e:
-            SendingProcess._logger.error(_MESSAGES_LIST["e000031"].format(str(e)))
-            raise e
+        converted_data = []
+        for row in raw_data:
+
+            try:
+
+                asset_code = row['asset_code'].replace(" ", "")
+
+                # Skips row having undefined asset_code
+                if asset_code != "":
+                    # Converts values to the proper types, for example "180.2" to float 180.2
+                    payload = row['reading']
+
+                    for key in list(payload.keys()):
+                        value = payload[key]
+                        payload[key] = plugin_common.convert_to_type(value)
+                    timestamp = apply_date_format(row['user_ts'])  # Adds timezone UTC
+                    new_row = {
+                        'id': row['id'],
+                        'asset_code': asset_code,
+                        'read_key': row['read_key'],
+                        'reading': payload,
+                        'user_ts': timestamp
+                    }
+                    converted_data.append(new_row)
+                else:
+                    SendingProcess._logger.warning(_MESSAGES_LIST["e000032"].format(row))
+
+            except Exception as e:
+                SendingProcess._logger.warning(_MESSAGES_LIST["e000031"].format(str(e), row))
+
         return converted_data
 
     async def _load_data_into_memory_readings(self, last_object_id):
@@ -819,10 +842,19 @@ class SendingProcess(FoglampProcess):
             self._config['source'] = _config_from_manager['source']['value']
             self._config['blockSize'] = int(_config_from_manager['blockSize']['value'])
             self._config['sleepInterval'] = float(_config_from_manager['sleepInterval']['value'])
-            self._config['plugin'] = _config_from_manager['plugin']['value']
+
+            if 'plugin' in _config_from_manager:
+                self._config['plugin'] = _config_from_manager['plugin']['value']
+
             self._config['memory_buffer_size'] = int(_config_from_manager['memory_buffer_size']['value'])
             _config_from_manager['_CONFIG_CATEGORY_NAME'] = cat_name
-            self._config["stream_id"] = int(_config_from_manager['stream_id']['value'])
+
+            if 'stream_id' in _config_from_manager:
+                self._config["stream_id"] = int(_config_from_manager['stream_id']['value'])
+            else:
+                # Sets stream_id as not defined
+                self._config["stream_id"] = 0
+
             self._config_from_manager = _config_from_manager
         except Exception:
             SendingProcess._logger.error(_MESSAGES_LIST["e000003"])
@@ -848,41 +880,56 @@ class SendingProcess(FoglampProcess):
             self.statistics_key = await self._get_statistics_key()
             self.master_statistics_key = await self._get_master_statistics_key()
 
-            # update configuration with the new stream_id
-            self._core_microservice_management_client.update_configuration_item(
-                                                category_name=self._name,
-                                                config_item="stream_id",
-                                                category_data=json.dumps({"value": str(self._stream_id)}))
+            # updates configuration with the new stream_id
+            stream_id_config = {
+                    "stream_id": {
+                        "description": "Stream ID",
+                        "type": "integer",
+                        "default": str(self._stream_id)
+                    }
+            }
+
+            self._retrieve_configuration(cat_name=self._name,
+                                         cat_desc=self._CONFIG_CATEGORY_DESCRIPTION,
+                                         cat_config=stream_id_config,
+                                         cat_keep_original=True)
 
             exec_sending_process = self._config['enable']
 
             if self._config['enable']:
-                self._plugin_load()
-                self._plugin_info = self._plugin.plugin_info()
-                if self._is_north_valid():
-                    try:
-                        # Fetch plugin configuration
-                        self._retrieve_configuration(cat_name=self._name,
-                                                     cat_desc=self._CONFIG_CATEGORY_DESCRIPTION,
-                                                     cat_config=self._plugin_info['config'],
-                                                     cat_keep_original=True)
-                        data = self._config_from_manager
 
-                        # Append stream_id etc to payload to be send to the plugin init
-                        data['stream_id'] = self._stream_id
-                        data['debug_level'] = self._debug_level
-                        data['log_performance'] = self._log_performance
-                        data.update({'sending_process_instance': self})
-                        self._plugin_handle = self._plugin.plugin_init(data)
-                    except Exception as e:
-                        _message = _MESSAGES_LIST["e000018"].format(self._config['plugin'])
-                        SendingProcess._logger.error(_message)
-                        raise PluginInitialiseFailed(e)
+                # Checks if the plug is defined if not end the execution
+                if 'plugin' in self._config:
+                    self._plugin_load()
+                    self._plugin_info = self._plugin.plugin_info()
+                    if self._is_north_valid():
+                        try:
+                            # Fetch plugin configuration
+                            self._retrieve_configuration(cat_name=self._name,
+                                                         cat_desc=self._CONFIG_CATEGORY_DESCRIPTION,
+                                                         cat_config=self._plugin_info['config'],
+                                                         cat_keep_original=True)
+                            data = self._config_from_manager
+
+                            # Append stream_id etc to payload to be send to the plugin init
+                            data['stream_id'] = self._stream_id
+                            data['debug_level'] = self._debug_level
+                            data['log_performance'] = self._log_performance
+                            data.update({'sending_process_instance': self})
+                            self._plugin_handle = self._plugin.plugin_init(data)
+                        except Exception as e:
+                            _message = _MESSAGES_LIST["e000018"].format(self._config['plugin'])
+                            SendingProcess._logger.error(_message)
+                            raise PluginInitialiseFailed(e)
+                    else:
+                        exec_sending_process = False
+                        _message = _MESSAGES_LIST["e000015"].format(self._plugin_info['type'],
+                                                                    self._plugin_info['name'])
+                        SendingProcess._logger.warning(_message)
                 else:
+                    SendingProcess._logger.info(_MESSAGES_LIST["i000005"])
                     exec_sending_process = False
-                    _message = _MESSAGES_LIST["e000015"].format(self._plugin_info['type'],
-                                                                self._plugin_info['name'])
-                    SendingProcess._logger.warning(_message)
+
             else:
                 SendingProcess._logger.info(_MESSAGES_LIST["i000003"])
         except (ValueError, Exception) as _ex:
@@ -890,6 +937,10 @@ class SendingProcess(FoglampProcess):
             SendingProcess._logger.error(_message)
             await self._audit.failure(self._AUDIT_CODE, {"error - on start": _message})
             raise
+
+        # The list of unique reading payload for asset tracker
+        self._tracked_assets = []
+
         return exec_sending_process
 
     async def run(self):

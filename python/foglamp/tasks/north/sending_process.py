@@ -226,8 +226,9 @@ class SendingProcess(FoglampProcess):
         },
         "source": {
             "description": "Source of data to be sent on the stream. May be either readings or statistics.",
-            "type": "string",
-            "default": "readings"
+            "type": "enumeration",
+            "default": "readings",
+            "options": [ "readings", "statistics" ]
         },
         "blockSize": {
             "description": "Bytes to send in each transmission",

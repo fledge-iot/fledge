@@ -631,8 +631,13 @@ class PIServerNorthPlugin(object):
             # Handles OMF format property to force the proper OCS type, especially for handling decimal numbers
             if item_type == "integer":
 
-                omf_type[typename][1]["properties"][item] = {"type": item_type,
-                                                             "format": self._config['formatInteger']}
+                # Forces the creation of integer as number
+                omf_type[typename][1]["properties"][item] = {"type":  "number",
+                                                             "format": self._config['formatNumber']}
+
+                #
+                # omf_type[typename][1]["properties"][item] = {"type": item_type,
+                #                                              "format": self._config['formatInteger']}
             elif item_type == "number":
                 omf_type[typename][1]["properties"][item] = {"type": item_type,
                                                              "format": self._config['formatNumber']}

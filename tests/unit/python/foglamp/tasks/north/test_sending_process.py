@@ -1793,7 +1793,7 @@ class TestSendingProcess:
         SendingProcess._logger = MagicMock(spec=logging)
         sp._audit = MagicMock(spec=AuditLogger)
         sp._stream_id = 1
-        sp._payload_events = []
+        sp._tracked_assets = []
 
         # Configures properly the SendingProcess, enabling JQFilter
         sp._config = {
@@ -1975,7 +1975,7 @@ class TestSendingProcess:
         SendingProcess._logger = MagicMock(spec=logging)
         sp._audit = MagicMock(spec=AuditLogger)
         sp._stream_id = 1
-        sp._payload_events = []
+        sp._tracked_assets = []
 
         # Configures properly the SendingProcess, enabling JQFilter
         sp._config = {
@@ -2148,7 +2148,7 @@ class TestSendingProcess:
             return p_send_result[x]["data_sent"], p_send_result[x]["new_last_object_id"], p_send_result[x]["num_sent"]
 
         # Configures properly the SendingProcess, enabling JQFilter
-        fixture_sp._payload_events = []
+        fixture_sp._tracked_assets = []
         fixture_sp._config = {
             'memory_buffer_size': p_buffer_size,
             'plugin': 'pi_server'

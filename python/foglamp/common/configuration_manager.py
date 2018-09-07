@@ -395,8 +395,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 WHERE(["key", "=", category_name]).payload()
             result = await self._storage.update_tbl("configuration", payload)
             response = result['response']
-            if self._cacheManager.cache:
+            if category_name in self._cacheManager.cache:
                 self._cacheManager.cache[category_name]['value'] = category_val
+            else:
+                self._cacheManager.cache.update({category_name: {"value": category_val}})
         except KeyError:
             raise ValueError(result['message'])
         except StorageServerError as ex:

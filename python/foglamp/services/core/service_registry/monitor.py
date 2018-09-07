@@ -38,7 +38,7 @@ class Monitor(object):
     _logger = None
 
     def __init__(self):
-        self._logger = logger.setup(__name__, level=20)
+        self._logger = logger.setup(__name__)
 
         self._monitor_loop_task = None  # type: asyncio.Task
         """Task for :meth:`_monitor_loop`, to ensure it has finished"""

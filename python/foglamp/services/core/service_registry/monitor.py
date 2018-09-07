@@ -95,10 +95,14 @@ class Monitor(object):
                             res = json.loads(text)
                             if res["uptime"] is None:
                                 raise ValueError('res.uptime is None')
-                except aiohttp.client_exceptions.ClientError as ex:
+                except (asyncio.TimeoutError, aiohttp.client_exceptions.ServerTimeoutError) as ex:
                     service_record._status = ServiceRecord.Status.Unresponsive
                     check_count[service_record._id] += 1
-                    self._logger.info("ClientError: %s, %s", str(ex), service_record.__repr__())
+                    self._logger.info("ServerTimeoutError: %s, %s", str(ex), service_record.__repr__())
+                except aiohttp.client_exceptions.ClientConnectorError as ex:
+                    service_record._status = ServiceRecord.Status.Unresponsive
+                    check_count[service_record._id] += 1
+                    self._logger.info("ClientConnectorError: %s, %s", str(ex), service_record.__repr__())
                 except ValueError as ex:
                     service_record._status = ServiceRecord.Status.Unresponsive
                     check_count[service_record._id] += 1

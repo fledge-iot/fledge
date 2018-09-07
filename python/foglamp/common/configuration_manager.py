@@ -923,6 +923,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 return True if all([result.scheme, result.netloc]) else False
             except:
                 return False
+        elif _type == 'string':
+            return isinstance(_value, str)
+
 
     def _clean(self, item_type, item_val):
         if item_type == 'boolean':

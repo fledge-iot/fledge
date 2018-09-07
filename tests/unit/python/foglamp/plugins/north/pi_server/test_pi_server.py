@@ -637,7 +637,7 @@ class TestPIServerNorthPlugin:
                                 'id': '0002_luxometer_typename_measurement',
                                 'properties': {
                                     'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
-                                    'lux': {'type': 'integer', 'format': 'int64'}
+                                    'lux': {'type': 'number', 'format': 'float64'}
                                 },
                                 'type': 'object'
                             }

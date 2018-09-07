@@ -451,8 +451,8 @@ class TestOCSNorthPlugin:
                                     'properties': {
                                         'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
                                         'lux': {
-                                                'type': 'integer',
-                                                'format': 'int64'
+                                                'type': 'number',
+                                                'format': 'float64'
                                         }
                                     },
                                     'type': 'object'

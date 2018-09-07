@@ -147,7 +147,20 @@ _CONFIG_DEFAULT_OMF = {
         "description": "OMF format property to apply to the type Integer",
         "type": "string",
         "default": "int64"
-    }
+    },
+    "notBlockingErrors": {
+        "description": "These errors are considered not blocking in the communication with the PI Server,"
+                       " the sending operation will proceed with the next block of data if one of these is encountered",
+        "type": "JSON",
+        "default": json.dumps(
+            [
+                {'id': 400, 'message': 'Invalid value type for the property'},
+                {'id': 400, 'message': 'Redefinition of the type with the same ID is not allowed'}
+            ]
+        ),
+        "readonly": "true"
+    },
+
 }
 
 # Configuration related to the OMF Types
@@ -356,6 +369,8 @@ def plugin_init(data):
     _config['OMFHttpTimeout'] = int(data['OMFHttpTimeout']['value'])
 
     _config['StaticData'] = ast.literal_eval(data['StaticData']['value'])
+    _config['notBlockingErrors'] = ast.literal_eval(data['notBlockingErrors']['value'])
+
 
     _config['formatNumber'] = data['formatNumber']['value']
     _config['formatInteger'] = data['formatInteger']['value']
@@ -616,8 +631,13 @@ class PIServerNorthPlugin(object):
             # Handles OMF format property to force the proper OCS type, especially for handling decimal numbers
             if item_type == "integer":
 
-                omf_type[typename][1]["properties"][item] = {"type": item_type,
-                                                             "format": self._config['formatInteger']}
+                # Forces the creation of integer as number
+                omf_type[typename][1]["properties"][item] = {"type":  "number",
+                                                             "format": self._config['formatNumber']}
+
+                #
+                # omf_type[typename][1]["properties"][item] = {"type": item_type,
+                #                                              "format": self._config['formatInteger']}
             elif item_type == "number":
                 omf_type[typename][1]["properties"][item] = {"type": item_type,
                                                              "format": self._config['formatNumber']}
@@ -808,9 +828,17 @@ class PIServerNorthPlugin(object):
             else:
                 # Evaluate the HTTP status codes
                 if not str(status_code).startswith('2'):
-                    _tmp_text = "status code " + str(status_code) + " - " + text
-                    _message = plugin_common.MESSAGES_LIST["e000024"].format(self._config['URL'], _tmp_text)
-                    _error = plugin_exceptions.URLConnectionError(_message)
+
+                    if any(_['id'] == status_code and _['message'] in text for _ in self._config['notBlockingErrors']):
+
+                        # The error encountered is in the list of not blocking
+                        # the sending operation will proceed with the next block of data
+                        self._logger.warning(plugin_common.MESSAGES_LIST["e000032"].format(status_code, text))
+                        _error = ""
+                    else:
+                        _tmp_text = "status code " + str(status_code) + " - " + text
+                        _message = plugin_common.MESSAGES_LIST["e000024"].format(self._config['URL'], _tmp_text)
+                        _error = plugin_exceptions.URLConnectionError(_message)
 
                 self._logger.debug("message type |{0}| response: |{1}| |{2}| ".format(
                     message_type,

@@ -798,12 +798,11 @@ SQLBuffer	jsonConstraints;
 		// Prepare the SQL statement and get the result set
 		rc = sqlite3_prepare_v2(dbHandle, query, -1, &stmt, NULL);
 
-		// Release memory for 'query' var
-		delete[] query;
-
 		if (rc != SQLITE_OK)
 		{
 			raiseError("retrieve", sqlite3_errmsg(dbHandle));
+			Logger::getLogger()->error("SQL statement: %s", query);
+			delete[] query;
 			return false;
 		}
 
@@ -817,9 +816,14 @@ SQLBuffer	jsonConstraints;
 		if (rc != SQLITE_DONE)
 		{
 			raiseError("retrieve", sqlite3_errmsg(dbHandle));
+			Logger::getLogger()->error("SQL statement: %s", query);
+			delete[] query;
 			// Failure
 			return false;
 		}
+
+		// Release memory for 'query' var
+		delete[] query;
 		// Success
 		return true;
 	} catch (exception e) {
@@ -901,18 +905,20 @@ int		col = 0;
 		     NULL,
 		     &zErrMsg);
 
-	// Release memory for 'query' var
-	delete[] query;
-
 	// Check exec result
 	if (rc == SQLITE_OK )
 	{
-		// Success
+		// Success. Release memory for 'query' var
+		delete[] query;
 		return sqlite3_changes(dbHandle);
 	}
 
 	raiseError("insert", zErrMsg);
+	Logger::getLogger()->error("SQL statement: %s", query);
 	sqlite3_free(zErrMsg);
+
+	// Release memory for 'query' var
+	delete[] query;
 
 	// Failure
 	return -1;
@@ -1213,18 +1219,21 @@ int		col = 0;
 		     NULL,
 		     NULL,
 		     &zErrMsg);
-	// Release memory for 'query' var
-	delete[] query;
 
 	// Check result code
 	if (rc != SQLITE_OK)
 	{
 		raiseError("update", zErrMsg);
 		sqlite3_free(zErrMsg);
+		Logger::getLogger()->error("SQL statement: %s", query);
+		// Release memory for 'query' var
+		delete[] query;
 		return -1;
 	}
 	else
 	{
+		// Release memory for 'query' var
+		delete[] query;
 		update = sqlite3_changes(dbHandle);
 		if (update == 0)
 		{
@@ -1292,19 +1301,20 @@ SQLBuffer	sql;
 		     NULL,
 		     &zErrMsg);
 
-	// Release memory for 'query' var
-	delete[] query;
 
 	// Check result code
 	if (rc == SQLITE_OK)
 	{
-		// Success
+		// Success. Release memory for 'query' var
+		delete[] query;
         	return sqlite3_changes(dbHandle);
 	}
 	else
 	{
  		raiseError("delete", zErrMsg);
-		sqlite3_free(zErrMsg);	
+		sqlite3_free(zErrMsg);
+		Logger::getLogger()->error("SQL statement: %s", query);
+		delete[] query;
 
 		// Failure
 		return -1;
@@ -2559,7 +2569,7 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 		} else if (whereClause["value"].IsString())
 		{
 			sql.append('\'');
-			sql.append(whereClause["value"].GetString());
+			sql.append(escape(whereClause["value"].GetString()));
 			sql.append('\'');
 		}
 	}

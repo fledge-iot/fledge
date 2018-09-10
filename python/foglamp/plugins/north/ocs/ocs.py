@@ -161,17 +161,17 @@ _CONFIG_DEFAULT_OMF = {
         "default": "30",
         "order": "13"
     },
-    "formatNumber": {
-        "description": "OMF format property to apply to the type Number",
-        "type": "string",
-        "default": "float64",
-        "order": "14"
-    },
     "formatInteger": {
         "description": "OMF format property to apply to the type Integer",
         "type": "string",
         "default": "int64",
         "order": "15"
+    },
+    "formatNumber": {
+        "description": "OMF format property to apply to the type Number",
+        "type": "string",
+        "default": "float64",
+        "order": "14"
     },
     "namespace": {
         "description": "Specifies the OCS namespace where the information are stored and "

@@ -177,7 +177,13 @@ _CONFIG_DEFAULT_OMF = {
         "description": "OMF format property to apply to the type Integer",
         "type": "string",
         "default": "int64"
-    }
+    },
+    "source": {
+        "description": "Source of data to be sent on the stream.",
+        "type": "enumeration",
+        "default": "readings",
+        "options": ["readings"]
+    },
 }
 
 # Configuration related to the OMF Types

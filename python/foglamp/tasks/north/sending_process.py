@@ -223,12 +223,6 @@ class SendingProcess(FoglampProcess):
             "type": "integer",
             "default": "60"
         },
-        "source": {
-            "description": "Source of data to be sent on the stream. May be either readings or statistics.",
-            "type": "enumeration",
-            "default": "readings",
-            "options": [ "readings", "statistics" ]
-        },
         "blockSize": {
             "description": "Bytes to send in each transmission",
             "type": "integer",
@@ -254,7 +248,6 @@ class SendingProcess(FoglampProcess):
         self._config = {
             'enable': self._CONFIG_DEFAULT['enable']['default'],
             'duration': int(self._CONFIG_DEFAULT['duration']['default']),
-            'source': self._CONFIG_DEFAULT['source']['default'],
             'blockSize': int(self._CONFIG_DEFAULT['blockSize']['default']),
             'sleepInterval': float(self._CONFIG_DEFAULT['sleepInterval']['default']),
             'memory_buffer_size': int(self._CONFIG_DEFAULT['memory_buffer_size']['default']),
@@ -839,7 +832,10 @@ class SendingProcess(FoglampProcess):
             # Retrieves the configurations and apply the related conversions
             self._config['enable'] = True if _config_from_manager['enable']['value'].upper() == 'TRUE' else False
             self._config['duration'] = int(_config_from_manager['duration']['value'])
-            self._config['source'] = _config_from_manager['source']['value']
+
+            if 'source' in _config_from_manager:
+                self._config['source'] = _config_from_manager['source']['value']
+
             self._config['blockSize'] = int(_config_from_manager['blockSize']['value'])
             self._config['sleepInterval'] = float(_config_from_manager['sleepInterval']['value'])
 

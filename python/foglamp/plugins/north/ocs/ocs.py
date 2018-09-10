@@ -97,18 +97,21 @@ _CONFIG_DEFAULT_OMF = {
     'plugin': {
         'description': 'OCS North Plugin',
         'type': 'string',
-        'default': 'ocs'
+        'default': 'ocs',
+        'readonly': 'true'
     },
     "URL": {
         "description": "The URL of OCS (OSIsoft Cloud Services) ",
         "type": "string",
-        "default": "https://dat-a.osisoft.com/api/omf"
+        "default": "https://dat-a.osisoft.com/api/omf",
+        "order": "1"
     },
     "producerToken": {
         "description": "The producer token used to authenticate as a valid publisher and "
                        "required to ingest data into OCS using OMF.",
         "type": "string",
-        "default": "ocs_north_0001"
+        "default": "ocs_north_0001",
+        "order": "2"
     },
     "namespace": {
         "description": "Specifies the OCS namespace where the information are stored and "
@@ -133,20 +136,12 @@ _CONFIG_DEFAULT_OMF = {
       "type": "string",
       "default": "ocs_client_secret"
     },
-    "OMFMaxRetry": {
-        "description": "Max number of retries for the communication with the OMF PI Connector Relay",
-        "type": "integer",
-        "default": "5"
-    },
-    "OMFRetrySleepTime": {
-        "description": "Seconds between each retry for the communication with the OMF PI Connector Relay",
-        "type": "integer",
-        "default": "1"
-    },
-    "OMFHttpTimeout": {
-        "description": "Timeout in seconds for the HTTP operations with the OMF PI Connector Relay",
-        "type": "integer",
-        "default": "30"
+    "source": {
+        "description": "Source of data to be sent on the stream.",
+        "type": "enumeration",
+        "default": "readings",
+        "options": ["readings"],
+        "order": "3"
     },
     "StaticData": {
         "description": "Static data to include in each sensor reading sent to OMF.",
@@ -156,34 +151,52 @@ _CONFIG_DEFAULT_OMF = {
                 "Location": "Palo Alto",
                 "Company": "Dianomic"
             }
-        )
+        ),
+        "order": "4"
     },
     "applyFilter": {
         "description": "Whether to apply filter before processing the data",
         "type": "boolean",
-        "default": "False"
+        "default": "False",
+        "order": "5"
     },
     "filterRule": {
         "description": "JQ formatted filter to apply (applicable if applyFilter is True)",
         "type": "string",
-        "default": ".[]"
+        "default": ".[]",
+        "order": "6"
+    },
+    "OMFRetrySleepTime": {
+        "description": "Seconds between each retry for the communication with the OMF PI Connector Relay",
+        "type": "integer",
+        "default": "1",
+        "order": "9"
+    },
+    "OMFMaxRetry": {
+        "description": "Max number of retries for the communication with the OMF PI Connector Relay",
+        "type": "integer",
+        "default": "5",
+        "order": "10"
+    },
+    "OMFHttpTimeout": {
+        "description": "Timeout in seconds for the HTTP operations with the OMF PI Connector Relay",
+        "type": "integer",
+        "default": "30",
+        "order": "13"
     },
     "formatNumber": {
         "description": "OMF format property to apply to the type Number",
         "type": "string",
-        "default": "float64"
+        "default": "float64",
+        "order": "14"
     },
     "formatInteger": {
         "description": "OMF format property to apply to the type Integer",
         "type": "string",
-        "default": "int64"
+        "default": "int64",
+        "order": "15"
     },
-    "source": {
-        "description": "Source of data to be sent on the stream.",
-        "type": "enumeration",
-        "default": "readings",
-        "options": ["readings"]
-    },
+
 }
 
 # Configuration related to the OMF Types

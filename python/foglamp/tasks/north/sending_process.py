@@ -886,7 +886,8 @@ class SendingProcess(FoglampProcess):
                     "stream_id": {
                         "description": "Stream ID",
                         "type": "integer",
-                        "default": str(self._stream_id)
+                        "default": str(self._stream_id),
+                        "readonly": "true"
                     }
             }
 

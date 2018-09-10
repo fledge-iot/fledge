@@ -113,29 +113,6 @@ _CONFIG_DEFAULT_OMF = {
         "default": "ocs_north_0001",
         "order": "2"
     },
-    "namespace": {
-        "description": "Specifies the OCS namespace where the information are stored and "
-                       "it is used for the interaction with the OCS API.",
-        "type": "string",
-        "default": "ocs_namespace_0001"
-    },
-    "tenant_id": {
-      "description": "Tenant id associated to the specific OCS account.",
-      "type": "string",
-      "default": "ocs_tenant_id"
-    },
-    "client_id": {
-      "description": "Client id associated to the specific OCS account, "
-                     "it is used to authenticate the source for using the OCS API.",
-      "type": "string",
-      "default": "ocs_client_id"
-    },
-    "client_secret": {
-      "description": "Client secret associated to the specific OCS account, "
-                     "it is used to authenticate the source for using the OCS API.",
-      "type": "string",
-      "default": "ocs_client_secret"
-    },
     "source": {
         "description": "Source of data to be sent on the stream.",
         "type": "enumeration",
@@ -196,7 +173,45 @@ _CONFIG_DEFAULT_OMF = {
         "default": "int64",
         "order": "15"
     },
-
+    "namespace": {
+        "description": "Specifies the OCS namespace where the information are stored and "
+                       "it is used for the interaction with the OCS API.",
+        "type": "string",
+        "default": "ocs_namespace_0001",
+        "order": "16"
+    },
+    "tenant_id": {
+        "description": "Tenant id associated to the specific OCS account.",
+        "type": "string",
+        "default": "ocs_tenant_id",
+        "order": "17"
+    },
+    "client_id": {
+        "description": "Client id associated to the specific OCS account, "
+                       "it is used to authenticate the source for using the OCS API.",
+        "type": "string",
+        "default": "ocs_client_id",
+        "order": "18"
+    },
+    "client_secret": {
+        "description": "Client secret associated to the specific OCS account, "
+                       "it is used to authenticate the source for using the OCS API.",
+        "type": "string",
+        "default": "ocs_client_secret",
+        "order": "19"
+    },
+    "notBlockingErrors": {
+        "description": "These errors are considered not blocking in the communication with the PI Server,"
+                       " the sending operation will proceed with the next block of data if one of these is encountered",
+        "type": "JSON",
+        "default": json.dumps(
+            [
+                {'id': 400, 'message': 'Invalid value type for the property'},
+                {'id': 400, 'message': 'Redefinition of the type with the same ID is not allowed'}
+            ]
+        ),
+        "readonly": "true"
+    },
 }
 
 # Configuration related to the OMF Types

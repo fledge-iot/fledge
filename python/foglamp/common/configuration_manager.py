@@ -545,8 +545,13 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
             new_value_entry = self._clean(storage_value_entry['type'], new_value_entry)
             await self._update_value_val(category_name, item_name, new_value_entry)
-            if self._cacheManager.cache:
-                self._cacheManager.cache[category_name]['value'][item_name]['value'] = new_value_entry
+            # always get value from storage
+            cat_item = await self._read_item_val(category_name, item_name)
+            if category_name in self._cacheManager.cache:
+                if item_name in self._cacheManager.cache[category_name]['value']:
+                    self._cacheManager.cache[category_name]['value'][item_name]['value'] = cat_item['value']
+                else:
+                    self._cacheManager.cache[category_name]['value'].update({item_name: cat_item['value']})
         except:
             _logger.exception(
                 'Unable to set item value entry based on category_name %s and item_name %s and value_item_entry %s',
@@ -925,6 +930,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 return True if all([result.scheme, result.netloc]) else False
             except:
                 return False
+        elif _type == 'string':
+            return isinstance(_value, str)
+
 
     def _clean(self, item_type, item_val):
         if item_type == 'boolean':

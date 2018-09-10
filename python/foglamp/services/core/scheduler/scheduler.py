@@ -297,7 +297,7 @@ class Scheduler(object):
         args_to_exec = args.copy()
         args_to_exec.append("--port={}".format(self._core_management_port))
         args_to_exec.append("--address=127.0.0.1")
-        args_to_exec.append("--name={}".format(schedule.process_name))
+        args_to_exec.append("--name={}".format(schedule.name))
 
         task_process = self._TaskProcess()
         task_process.start_time = time.time()

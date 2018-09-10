@@ -26,8 +26,6 @@ import datetime
 import signal
 import json
 import uuid
-import ast
-import copy
 
 import foglamp.plugins.north.common.common as plugin_common
 from foglamp.common.parser import Parser
@@ -40,7 +38,7 @@ from foglamp.common.process import FoglampProcess
 from foglamp.common import logger
 
 __author__ = "Stefano Simonelli, Massimiliano Pinto, Mark Riddoch, Amarendra K Sinha"
-__copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
+__copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
@@ -52,6 +50,7 @@ _MESSAGES_LIST = {
     "i000002": "Execution completed.",
     "i000003": _MODULE_NAME + " disabled.",
     "i000004": "no data will be sent, the stream id is disabled - stream id |{0}|",
+    "i000005": "plugin undefined, execution terminated",
     # Warning / Error messages
     "e000000": "general error",
     "e000001": "cannot start the logger - error details |{0}|",
@@ -240,20 +239,10 @@ class SendingProcess(FoglampProcess):
             "type": "integer",
             "default": "1"
         },
-        'plugin': {
-            'description': 'The name of the translator to use to translate the readings into the output format and send them.',
-            'type': 'string',
-            'default': 'pi_server'
-        },
         "memory_buffer_size": {
             "description": "Number of elements of blockSize size to be buffered in memory",
             "type": "integer",
             "default": "10"
-        },
-        "stream_id": {
-            "description": "Stream ID",
-            "type": "integer",
-            "default": "0"
         }
     }
 
@@ -853,10 +842,19 @@ class SendingProcess(FoglampProcess):
             self._config['source'] = _config_from_manager['source']['value']
             self._config['blockSize'] = int(_config_from_manager['blockSize']['value'])
             self._config['sleepInterval'] = float(_config_from_manager['sleepInterval']['value'])
-            self._config['plugin'] = _config_from_manager['plugin']['value']
+
+            if 'plugin' in _config_from_manager:
+                self._config['plugin'] = _config_from_manager['plugin']['value']
+
             self._config['memory_buffer_size'] = int(_config_from_manager['memory_buffer_size']['value'])
             _config_from_manager['_CONFIG_CATEGORY_NAME'] = cat_name
-            self._config["stream_id"] = int(_config_from_manager['stream_id']['value'])
+
+            if 'stream_id' in _config_from_manager:
+                self._config["stream_id"] = int(_config_from_manager['stream_id']['value'])
+            else:
+                # Sets stream_id as not defined
+                self._config["stream_id"] = 0
+
             self._config_from_manager = _config_from_manager
         except Exception:
             SendingProcess._logger.error(_MESSAGES_LIST["e000003"])
@@ -882,41 +880,56 @@ class SendingProcess(FoglampProcess):
             self.statistics_key = await self._get_statistics_key()
             self.master_statistics_key = await self._get_master_statistics_key()
 
-            # update configuration with the new stream_id
-            self._core_microservice_management_client.update_configuration_item(
-                                                category_name=self._name,
-                                                config_item="stream_id",
-                                                category_data=json.dumps({"value": str(self._stream_id)}))
+            # updates configuration with the new stream_id
+            stream_id_config = {
+                    "stream_id": {
+                        "description": "Stream ID",
+                        "type": "integer",
+                        "default": str(self._stream_id)
+                    }
+            }
+
+            self._retrieve_configuration(cat_name=self._name,
+                                         cat_desc=self._CONFIG_CATEGORY_DESCRIPTION,
+                                         cat_config=stream_id_config,
+                                         cat_keep_original=True)
 
             exec_sending_process = self._config['enable']
 
             if self._config['enable']:
-                self._plugin_load()
-                self._plugin_info = self._plugin.plugin_info()
-                if self._is_north_valid():
-                    try:
-                        # Fetch plugin configuration
-                        self._retrieve_configuration(cat_name=self._name,
-                                                     cat_desc=self._CONFIG_CATEGORY_DESCRIPTION,
-                                                     cat_config=self._plugin_info['config'],
-                                                     cat_keep_original=True)
-                        data = self._config_from_manager
 
-                        # Append stream_id etc to payload to be send to the plugin init
-                        data['stream_id'] = self._stream_id
-                        data['debug_level'] = self._debug_level
-                        data['log_performance'] = self._log_performance
-                        data.update({'sending_process_instance': self})
-                        self._plugin_handle = self._plugin.plugin_init(data)
-                    except Exception as e:
-                        _message = _MESSAGES_LIST["e000018"].format(self._config['plugin'])
-                        SendingProcess._logger.error(_message)
-                        raise PluginInitialiseFailed(e)
+                # Checks if the plug is defined if not end the execution
+                if 'plugin' in self._config:
+                    self._plugin_load()
+                    self._plugin_info = self._plugin.plugin_info()
+                    if self._is_north_valid():
+                        try:
+                            # Fetch plugin configuration
+                            self._retrieve_configuration(cat_name=self._name,
+                                                         cat_desc=self._CONFIG_CATEGORY_DESCRIPTION,
+                                                         cat_config=self._plugin_info['config'],
+                                                         cat_keep_original=True)
+                            data = self._config_from_manager
+
+                            # Append stream_id etc to payload to be send to the plugin init
+                            data['stream_id'] = self._stream_id
+                            data['debug_level'] = self._debug_level
+                            data['log_performance'] = self._log_performance
+                            data.update({'sending_process_instance': self})
+                            self._plugin_handle = self._plugin.plugin_init(data)
+                        except Exception as e:
+                            _message = _MESSAGES_LIST["e000018"].format(self._config['plugin'])
+                            SendingProcess._logger.error(_message)
+                            raise PluginInitialiseFailed(e)
+                    else:
+                        exec_sending_process = False
+                        _message = _MESSAGES_LIST["e000015"].format(self._plugin_info['type'],
+                                                                    self._plugin_info['name'])
+                        SendingProcess._logger.warning(_message)
                 else:
+                    SendingProcess._logger.info(_MESSAGES_LIST["i000005"])
                     exec_sending_process = False
-                    _message = _MESSAGES_LIST["e000015"].format(self._plugin_info['type'],
-                                                                self._plugin_info['name'])
-                    SendingProcess._logger.warning(_message)
+
             else:
                 SendingProcess._logger.info(_MESSAGES_LIST["i000003"])
         except (ValueError, Exception) as _ex:

@@ -71,7 +71,7 @@ async def add_service(request):
     Create a new service to run a specific plugin
 
     :Example:
-             curl -X POST http://localhost:8081/foglamp/service -d '{"name": "DHT 11", "plugin": "dht11", "type": "south", "process_name": "south", "enabled": true}'
+             curl -X POST http://localhost:8081/foglamp/service -d '{"name": "DHT 11", "plugin": "dht11", "type": "south", "enabled": true}'
     """
 
     try:

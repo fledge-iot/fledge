@@ -35,7 +35,7 @@ async def add_task(request):
      curl -X POST http://localhost:8081/foglamp/scheduled/task -d
      '{
         "name": "North Readings to PI",
-        "plugin": "omf",
+        "plugin": "pi_server",
         "type": "north",
         "schedule_type": 3,
         "schedule_day": 0,

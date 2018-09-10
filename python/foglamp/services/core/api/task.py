@@ -35,7 +35,7 @@ async def add_task(request):
      curl -X POST http://localhost:8081/foglamp/scheduled/task -d
      '{
         "name": "North Readings to PI",
-        "plugin": "omf",
+        "plugin": "pi_server",
         "type": "north",
         "schedule_type": 3,
         "schedule_day": 0,
@@ -133,11 +133,13 @@ async def add_task(request):
             # Fetch configuration from the configuration defined in the plugin
             plugin_info = _plugin.plugin_info()
             plugin_config = plugin_info['config']
+            process_name = 'north'
         except ImportError as ex:
             # Checking for C-type plugins
             script = '["tasks/north_c"]'
             plugin_info = apiutils.get_plugin_info(plugin)
             plugin_config = plugin_info['config']
+            process_name = 'north_c'
             if not plugin_config:
                 raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}". {}'.format(plugin, plugin_module_path, str(ex)))
         except Exception as ex:
@@ -146,24 +148,21 @@ async def add_task(request):
         storage = connect.get_storage_async()
 
         # Check that the process name is not already registered
-        count = await check_scheduled_processes(storage, name)
-        if count != 0:
-            raise web.HTTPBadRequest(reason='A task with that name already exists')
+        count = await check_scheduled_processes(storage, process_name)
+        if count == 0:  # Create the scheduled process entry for the new task
+            payload = PayloadBuilder().INSERT(name=process_name, script=script).payload()
+            try:
+                res = await storage.insert_into_tbl("scheduled_processes", payload)
+            except StorageServerError as ex:
+                err_response = ex.error
+                raise web.HTTPInternalServerError(reason='Failed to created scheduled process. {}'.format(err_response))
+            except Exception as ins_ex:
+                raise web.HTTPInternalServerError(reason='Failed to created scheduled process. {}'.format(str(ins_ex)))
 
         # Check that the schedule name is not already registered
         count = await check_schedules(storage, name)
         if count != 0:
             raise web.HTTPBadRequest(reason='A schedule with that name already exists')
-
-        # Now first create the scheduled process entry for the new task
-        payload = PayloadBuilder().INSERT(name=name, script=script).payload()
-        try:
-            res = await storage.insert_into_tbl("scheduled_processes", payload)
-        except StorageServerError as ex:
-            err_response = ex.error
-            raise web.HTTPInternalServerError(reason='Failed to created scheduled process. {}'.format(err_response))
-        except Exception as ins_ex:
-            raise web.HTTPInternalServerError(reason='Failed to created scheduled process. {}'.format(str(ins_ex)))
 
         # If successful then create a configuration entry from plugin configuration
         try:
@@ -180,7 +179,6 @@ async def add_task(request):
         except Exception as ex:
             await revert_configuration(storage, name)  # Revert configuration entry
             await revert_parent_child_configuration(storage, name)
-            await revert_scheduled_processes(storage, plugin)  # Revert scheduled_process entry
             raise web.HTTPInternalServerError(reason='Failed to create plugin configuration. {}'.format(str(ex)))
 
         # If all successful then lastly add a schedule to run the new task at startup
@@ -189,7 +187,7 @@ async def add_task(request):
                        IntervalSchedule() if schedule_type == Schedule.Type.INTERVAL else \
                        ManualSchedule()
             schedule.name = name
-            schedule.process_name = name
+            schedule.process_name = process_name
             schedule.day = schedule_day
             m, s = divmod(schedule_time if schedule_time is not None else 0, 60)
             h, m = divmod(m, 60)
@@ -204,12 +202,10 @@ async def add_task(request):
         except StorageServerError as ex:
             await revert_configuration(storage, name)  # Revert configuration entry
             await revert_parent_child_configuration(storage, name)
-            await revert_scheduled_processes(storage, name)  # Revert scheduled_process entry
             raise web.HTTPInternalServerError(reason='Failed to created schedule. {}'.format(ex.error))
         except Exception as ins_ex:
             await revert_configuration(storage, name)  # Revert configuration entry
             await revert_parent_child_configuration(storage, name)
-            await revert_scheduled_processes(storage, name)  # Revert scheduled_process entry
             raise web.HTTPInternalServerError(reason='Failed to created schedule. {}'.format(str(ins_ex)))
 
         return web.json_response({'name': name, 'id': str(schedule.schedule_id)})
@@ -228,11 +224,6 @@ async def check_schedules(storage, schedule_name):
     payload = PayloadBuilder().SELECT("schedule_name").WHERE(['schedule_name', '=', schedule_name]).payload()
     result = await storage.query_tbl_with_payload('schedules', payload)
     return result['count']
-
-
-async def revert_scheduled_processes(storage, process_name):
-    payload = PayloadBuilder().WHERE(['name', '=', process_name]).payload()
-    await storage.delete_from_tbl('scheduled_processes', payload)
 
 
 async def revert_configuration(storage, key):

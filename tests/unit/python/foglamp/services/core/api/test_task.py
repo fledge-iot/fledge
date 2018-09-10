@@ -57,24 +57,6 @@ class TestService:
         assert code == resp.status
         assert message == resp.reason
 
-    async def test_dupe_process_name_add_task(self, client):
-        data = {"name": "north bound", "type": "north", "schedule_type": 3, "plugin": "omf", "schedule_repeat": 30}
-        async def async_mock():
-            expected = {'count': 1, 'rows': [{'name': 'north bound'}]}
-            return expected
-
-        storage_client_mock = MagicMock(StorageClientAsync)
-        with patch('builtins.__import__', side_effect=MagicMock()):
-            with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=async_mock()) as query_table_patch:
-                    resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
-                    assert 400 == resp.status
-                    assert 'A task with that name already exists' == resp.reason
-                args, kwargs = query_table_patch.call_args
-                assert 'scheduled_processes' == args[0]
-                p = json.loads(args[1])
-                assert {"return": ["name"], "where": {"column": "name", "condition": "=", "value": "north bound"}} == p
-
     async def test_insert_scheduled_process_exception_add_task(self, client):
         data = {"name": "north bound", "type": "north", "schedule_type": 3, "plugin": "omf", "schedule_repeat": 30}
 
@@ -90,15 +72,11 @@ class TestService:
                     with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=Exception()) as insert_table_patch:
                         resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
                         assert 500 == resp.status
-                        assert 'Internal Server Error' == resp.reason
-                    # args, kwargs = insert_table_patch.call_args
-                    # assert 'scheduled_processes' == args[0]
-                    # p1 = json.loads(args[1])
-                    # assert {'name': 'north bound', 'script': '["services/north"]'} == p1
+                        assert 'Failed to created scheduled process. ' == resp.reason
                 args1, kwargs1 = query_table_patch.call_args
-                assert 'schedules' == args1[0]
+                assert 'scheduled_processes' == args1[0]
                 p2 = json.loads(args1[1])
-                assert {'return': ['schedule_name'], 'where': {'column': 'schedule_name', 'condition': '=', 'value': 'north bound'}} == p2
+                assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=', 'value': 'north'}} == p2
 
     async def test_dupe_schedule_name_add_task(self, client):
         def q_result(*arg):
@@ -106,7 +84,7 @@ class TestService:
             payload = arg[1]
 
             if table == 'scheduled_processes':
-                assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=', 'value': 'north bound'}} == json.loads(payload)
+                assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=', 'value': 'north'}} == json.loads(payload)
                 return {'count': 0, 'rows': []}
             if table == 'schedules':
                 assert {'return': ['schedule_name'], 'where': {'column': 'schedule_name', 'condition': '=', 'value': 'north bound'}} == json.loads(payload)
@@ -149,7 +127,7 @@ class TestService:
             payload = arg[1]
 
             if table == 'scheduled_processes':
-                assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=', 'value': 'north bound'}} == json.loads(payload)
+                assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=', 'value': 'north'}} == json.loads(payload)
                 return {'count': 0, 'rows': []}
             if table == 'schedules':
                 assert {'return': ['schedule_name'], 'where': {'column': 'schedule_name', 'condition': '=', 'value': 'north bound'}} == json.loads(payload)
@@ -215,7 +193,7 @@ class TestService:
                     args, kwargs = insert_table_patch.call_args
                     assert 'scheduled_processes' == args[0]
                     p = json.loads(args[1])
-                    assert p['name'] == 'north bound'
+                    assert p['name'] == 'north'
                     assert p['script'] == '["tasks/north"]'
 
     # TODO: Add test for negative scenarios

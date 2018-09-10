@@ -160,6 +160,12 @@ _CONFIG_DEFAULT_OMF = {
         ),
         "readonly": "true"
     },
+    "source": {
+        "description": "Source of data to be sent on the stream. May be either readings or statistics.",
+        "type": "enumeration",
+        "default": "readings",
+        "options": ["readings", "statistics"]
+    },
 
 }
 

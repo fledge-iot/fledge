@@ -102,21 +102,12 @@ _CONFIG_DEFAULT_OMF = {
         "default": "pi_server_north_0001",
         "order": "2"
     },
-    "OMFMaxRetry": {
-        "description": "Max number of retries for communication with the OMF PI Connector Relay",
-        "type": "integer",
-        "default": "3"
-    },
-    "OMFRetrySleepTime": {
-        "description": "Seconds between each retry for communication with the OMF PI Connector Relay. "
-                       "This time is doubled at each attempt.",
-        "type": "integer",
-        "default": "1"
-    },
-    "OMFHttpTimeout": {
-        "description": "Timeout in seconds for HTTP operations with the OMF PI Connector Relay",
-        "type": "integer",
-        "default": "10"
+    "source": {
+        "description": "Source of data to be sent on the stream. May be either readings or statistics.",
+        "type": "enumeration",
+        "default": "readings",
+        "options": ["readings", "statistics"],
+        "order": "3"
     },
     "StaticData": {
         "description": "Static data to include in each sensor reading sent via OMF",
@@ -126,27 +117,51 @@ _CONFIG_DEFAULT_OMF = {
                 "Location": "Palo Alto",
                 "Company": "Dianomic"
             }
-        )
+        ),
+        "order": "4"
     },
     "applyFilter": {
         "description": "Should filter be applied before processing the data?",
         "type": "boolean",
-        "default": "False"
+        "default": "False",
+        "order": "5"
     },
     "filterRule": {
         "description": "JQ formatted filter to apply (only applicable if applyFilter is True)",
         "type": "string",
-        "default": ".[]"
+        "default": ".[]",
+        "order": "6"
     },
-    "formatNumber": {
-        "description": "OMF format property to apply to the type Number",
-        "type": "string",
-        "default": "float64"
+    "OMFRetrySleepTime": {
+        "description": "Seconds between each retry for communication with the OMF PI Connector Relay. "
+                       "This time is doubled at each attempt.",
+        "type": "integer",
+        "default": "1",
+        "order": "9"
+    },
+    "OMFMaxRetry": {
+        "description": "Max number of retries for communication with the OMF PI Connector Relay",
+        "type": "integer",
+        "default": "3",
+        "order": "10"
+    },
+    "OMFHttpTimeout": {
+        "description": "Timeout in seconds for HTTP operations with the OMF PI Connector Relay",
+        "type": "integer",
+        "default": "10",
+        "order": "13"
     },
     "formatInteger": {
         "description": "OMF format property to apply to the type Integer",
         "type": "string",
-        "default": "int64"
+        "default": "int64",
+        "order": "14"
+    },
+    "formatNumber": {
+        "description": "OMF format property to apply to the type Number",
+        "type": "string",
+        "default": "float64",
+        "order": "15"
     },
     "notBlockingErrors": {
         "description": "These errors are considered not blocking in the communication with the PI Server,"
@@ -159,12 +174,6 @@ _CONFIG_DEFAULT_OMF = {
             ]
         ),
         "readonly": "true"
-    },
-    "source": {
-        "description": "Source of data to be sent on the stream. May be either readings or statistics.",
-        "type": "enumeration",
-        "default": "readings",
-        "options": ["readings", "statistics"]
     },
 
 }

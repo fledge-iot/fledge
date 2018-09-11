@@ -12,6 +12,7 @@ import time
 import uuid
 from typing import List, Union
 import json
+import copy
 from foglamp.common import logger
 from foglamp.common import statistics
 from foglamp.common.storage_client.exceptions import StorageServerError
@@ -354,12 +355,19 @@ class Ingest(object):
             while True:
                 try:
                     payload = dict()
-                    payload['readings'] = readings_list
+                    payload['readings'] = copy.deepcopy(readings_list)
                     batch_size = len(payload['readings'])
                     # _LOGGER.debug('Begin insert: Queue index: %s Batch size: %s', list_index, batch_size)
                     try:
                         await cls.readings_storage_async.append(json.dumps(payload))
                         cls._readings_stats += batch_size
+                        for reading_item in payload['readings']:
+                            # Increment the count of received readings to be used for statistics update
+                            if reading_item['asset_code'].upper() in cls._sensor_stats:
+                                cls._sensor_stats[reading_item['asset_code'].upper()] += 1
+                            else:
+                                cls._sensor_stats[reading_item['asset_code'].upper()] = 1
+
                     except StorageServerError as ex:
                         err_response = ex.error
                         # if key error in next, it will be automatically in parent except block
@@ -548,12 +556,6 @@ class Ingest(object):
             await cls._readings_lists_not_full.wait()
             if cls._stop:
                 raise RuntimeError('The South Service is stopping')
-
-        # Increment the count of received readings to be used for statistics update
-        if asset.upper() in cls._sensor_stats:
-            cls._sensor_stats[asset.upper()] += 1
-        else:
-            cls._sensor_stats[asset.upper()] = 1
 
         list_index = cls._current_readings_list_index
         readings_list = cls._readings_lists[list_index]

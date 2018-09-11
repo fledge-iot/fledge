@@ -409,7 +409,7 @@ foglamp_status() {
                 ps -ef | grep -o 'python3 -m foglamp.tasks.*' | grep -o 'foglamp.tasks.*' | grep -v 'foglamp.tasks\.\*' || true
 
                 # Show Tasks in C code
-                ps -ef | grep 'foglamp.tasks.' | grep -v python3 | grep -v grep | grep -v awk | awk '{print "$8 $9 $10"}' || true
+                ps -ef | grep './tasks.' | grep -v python3 | grep -v grep | grep -v awk | awk '{print substr($8, 3, length($8))" "$9" "$10 }' || true
             fi
             ;;
         *)

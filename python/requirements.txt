@@ -1,9 +1,9 @@
 
 # Common - REST interface
-aiohttp==3.2.1
+aiohttp==3.4.4
 aiohttp_cors==0.7.0
 cchardet==2.1.1
-pyjwt==1.6.0
+pyjwt==1.6.4
 
 # Transformation of data, Apply JqFilter
-pyjq==2.1.0
+pyjq==2.2.0

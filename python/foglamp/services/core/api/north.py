@@ -80,7 +80,7 @@ async def get_north_schedules(request):
         stats = await _get_sent_stats(storage_client)
 
         for sch in north_schedules:
-            stat = next((s for s in stats if s["key"] == sch["processName"]), None)
+            stat = next((s for s in stats if s["key"] == sch["name"]), None)
             sch["sent"] = stat["value"] if stat else -1
 
     except (KeyError, ValueError) as e:  # Handles KeyError of _get_sent_stats

@@ -178,8 +178,7 @@ class Server(FoglampMicroservice):
                                                                   readings=data['readings']))
                 # pollInterval is expressed in milliseconds
                 if int(self._plugin_handle['pollInterval']['value']) <= 0:
-                    _LOGGER.exception('Plugin {} pollInterval has incorrect value "{}", default choosen as 1000 ms'.
-                                      format(self._name, self._plugin_handle['pollInterval']['value']))
+                    _LOGGER.warning('Plugin {} pollInterval must be greater than 0, defaulting to 1000 ms'.format(self._name))
                     self._plugin_handle['pollInterval']['value'] = '1000'
                 sleep_seconds = int(self._plugin_handle['pollInterval']['value']) / 1000.0
                 await asyncio.sleep(sleep_seconds)

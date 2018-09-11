@@ -225,7 +225,21 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		else
 		{
 			southPlugin->registerIngest((INGEST_CB)doIngest, &ingest);
-			southPlugin->start();
+			bool started = false;
+			int backoff = 1000;
+			while (started == false && m_shutdown == false)
+			{
+				try {
+					southPlugin->start();
+					started = true;
+				} catch (...) {
+					std::this_thread::sleep_for(std::chrono::milliseconds(backoff));
+					if (backoff < 60000)
+					{
+						backoff *= 2;
+					}
+				}
+			}
 			while (!m_shutdown)
 			{
 				std::this_thread::sleep_for(std::chrono::milliseconds(1000));

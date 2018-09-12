@@ -1156,7 +1156,7 @@ class Scheduler(object):
         schedule_type = None
         try:
             for key in list(self._task_processes.keys()):
-                if self._task_processes[key].schedule.process_name == service_name:
+                if self._task_processes[key].schedule.name == service_name:
                     task_id = key
                     break
             if task_id is None:

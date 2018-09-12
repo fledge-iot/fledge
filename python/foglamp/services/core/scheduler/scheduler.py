@@ -1100,7 +1100,7 @@ class Scheduler(object):
 
         # Add process to self._process_scripts if not present.
         try:
-            assert self._process_scripts[schedule.process_name]
+            if schedule.process_name not in self._process_scripts: raise KeyError
         except KeyError:
             select_payload = PayloadBuilder().WHERE(['name', '=', schedule.process_name]).payload()
             try:
@@ -1231,7 +1231,7 @@ class Scheduler(object):
             schedule = task_process.schedule
             if schedule.type == Schedule.Type.STARTUP:  # If schedule is a service e.g. South services
                 try:
-                    found_services = ServiceRegistry.get(name=schedule.process_name)
+                    found_services = ServiceRegistry.get(name=schedule.name)
                     service = found_services[0]
                     if await utils.ping_service(service) is True:
                         # Shutdown will take care of unregistering the service from core

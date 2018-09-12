@@ -22,13 +22,12 @@ _SYSLOG_FILE = '/var/log/syslog'
 __DEFAULT_LIMIT = 20
 __DEFAULT_OFFSET = 0
 __DEFAULT_LOG_TYPE = 'FogLAMP'
-__GET_SYSLOG_CMD_TEMPLATE = "grep '{}\[' {} | head -n {} | tail -n {}"
-__GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE = "grep '{}\[' -i -e error -e fail {} | head -n {} | tail -n {}"
-__GET_SYSLOG_CMD_WITH_WARNING_TEMPLATE = "grep '{}\[' -i -e error -e fail -e warning {} | head -n {} | tail -n {}"
-__GET_SYSLOG_ERROR_MATCHED_LINES = "grep '{}\[' -i -e error -e fail {} | wc -l"
-__GET_SYSLOG_WARNING_MATCHED_LINES = "grep '{}\[' -i -e error -e fail -e warning {} | wc -l"
-__GET_SYSLOG_TOTAL_MATCHED_LINES = "grep '{}\[' {} | wc -l"
-
+__GET_SYSLOG_CMD_TEMPLATE = "grep -a '{}\[' {} | head -n {} | tail -n {}"
+__GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE = "grep -a '{}\[' {} | grep -a -E -i 'error' | head -n {} | tail -n {}"
+__GET_SYSLOG_CMD_WITH_WARNING_TEMPLATE = "grep -a '{}\[' {} | grep -a -E -i '(error|warning)' | head -n {} | tail -n {}"
+__GET_SYSLOG_ERROR_MATCHED_LINES = "grep -a '{}\[' {} | grep -a -E -i 'error' | wc -l"
+__GET_SYSLOG_WARNING_MATCHED_LINES = "grep -a '{}\[' {} | grep -a -E -i '(error|warning)' | wc -l"
+__GET_SYSLOG_TOTAL_MATCHED_LINES = "grep -a '{}\[' {} | wc -l"
 
 _help = """
     -------------------------------------------------------------------------------

@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS log_ix2;
+DROP INDEX IF EXISTS tasks_ix1;

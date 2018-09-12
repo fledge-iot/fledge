@@ -205,6 +205,9 @@ ALTER SEQUENCE foglamp.log_id_seq OWNED BY foglamp.log.id;
 CREATE INDEX log_ix1
     ON foglamp.log USING btree (code, ts, level);
 
+CREATE INDEX log_ix2
+    ON foglamp.log(ts);
+
 
 -- Asset status
 -- List of status an asset can have.
@@ -692,6 +695,9 @@ CREATE TABLE foglamp.tasks (
   REFERENCES foglamp.scheduled_processes ( name ) MATCH SIMPLE
              ON UPDATE NO ACTION
              ON DELETE NO ACTION );
+
+CREATE INDEX tasks_ix1
+   ON foglamp.tasks(process_name, start_time);
 
 
 -- Tracks types already created into PI Server

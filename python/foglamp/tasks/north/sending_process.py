@@ -216,27 +216,32 @@ class SendingProcess(FoglampProcess):
         "enable": {
             "description": "Enable execution of the sending process",
             "type": "boolean",
-            "default": "True"
+            "default": "True",
+            "readonly": "true"
         },
         "duration": {
             "description": "Time in seconds the sending process should run",
             "type": "integer",
-            "default": "60"
+            "default": "60",
+            "order": "7"
         },
         "blockSize": {
             "description": "Bytes to send in each transmission",
             "type": "integer",
-            "default": "500"
+            "default": "500",
+            "order": "8"
         },
         "sleepInterval": {
             "description": "Time in seconds to wait between duration checks",
             "type": "integer",
-            "default": "1"
+            "default": "1",
+            "order": "11"
         },
         "memory_buffer_size": {
             "description": "Number of elements of blockSize size to be buffered in memory",
             "type": "integer",
-            "default": "10"
+            "default": "10",
+            "order": "12"
         }
     }
 
@@ -686,8 +691,8 @@ class SendingProcess(FoglampProcess):
                 rows = await get_rows_from_stream_id(stream_id=config_stream_id)
             else:
                 # If an user is upgrading FogLamp, then it has got existing data in streams table but
-                # no entry in configuration for streams_id for this process_name. Hence it must
-                # check if an entry is already there for this process_name in streams table.
+                # no entry in configuration for streams_id for this schedule name. Hence it must
+                # check if an entry is already there for this schedule name in streams table.
                 rows = await get_rows_from_name(description=self._name)
                 if len(rows) == 0:
                     payload = payload_builder.PayloadBuilder() \
@@ -881,7 +886,8 @@ class SendingProcess(FoglampProcess):
                     "stream_id": {
                         "description": "Stream ID",
                         "type": "integer",
-                        "default": str(self._stream_id)
+                        "default": str(self._stream_id),
+                        "readonly": "true"
                     }
             }
 

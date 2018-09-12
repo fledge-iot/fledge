@@ -74,6 +74,10 @@ CREATE TABLE foglamp.log (
 CREATE INDEX log_ix1
     ON log(code, ts, level);
 
+-- Index to make GUI response faster
+CREATE INDEX log_ix2
+    ON log(ts);
+
 -- Asset status
 -- List of status an asset can have.
 CREATE TABLE foglamp.asset_status (
@@ -513,6 +517,9 @@ CREATE TABLE foglamp.tasks (
   REFERENCES fscheduled_processes ( name ) MATCH SIMPLE
              ON UPDATE NO ACTION
              ON DELETE NO ACTION );
+
+CREATE INDEX tasks_ix1
+    ON tasks(process_name, start_time);
 
 
 -- Tracks types already created into PI Server

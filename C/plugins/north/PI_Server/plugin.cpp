@@ -27,41 +27,52 @@ using namespace std;
 /**
  * Plugin specific default configuration
  */
-#define PLUGIN_DEFAULT_CONFIG "\"URL\": { " \
+#define PLUGIN_DEFAULT_CONFIG \
+			"\"URL\": { " \
 				"\"description\": \"The URL of the PI Connector to send data to\", " \
 				"\"type\": \"string\", " \
-				"\"default\": \"https://pi-server:5460/ingress/messages\" }, " \
+				"\"default\": \"https://pi-server:5460/ingress/messages\", " \
+				"\"order\": \"1\" }, " \
 			"\"producerToken\": { " \
 				"\"description\": \"The producer token that represents this FogLAMP stream\", " \
-				"\"type\": \"string\", \"default\": \"omf_north_0001\" }, " \
-			"\"OMFHttpTimeout\": { " \
-				"\"description\": \"Timeout in seconds for the HTTP operations with the OMF PI Connector Relay\", " \
-				"\"type\": \"integer\", \"default\": \"10\" }, " \
-			"\"OMFMaxRetry\": { " \
-				"\"description\": \"Max number of retries for the communication with the OMF PI Connector Relay\", " \
-				"\"type\": \"integer\", \"default\": \"3\" }, " \
-			"\"OMFRetrySleepTime\": { " \
-        			"\"description\": \"Seconds between each retry for the communication with the OMF PI Connector Relay, " \
-                       		"NOTE : the time is doubled at each attempt.\", \"type\": \"integer\", \"default\": \"1\" }, " \
+				"\"type\": \"string\", \"default\": \"omf_north_0001\", " \
+				"\"order\": \"2\" }, " \
 			"\"StaticData\": { " \
 				"\"description\": \"Static data to include in each sensor reading sent to the PI Server.\", " \
-				"\"type\": \"string\", \"default\": \"Location: Palo Alto, Company: Dianomic\" }, " \
-			"\"formatNumber\": { " \
-        			"\"description\": \"OMF format property to apply to the type Number\", " \
-				"\"type\": \"string\", \"default\": \"float64\" }, " \
-			"\"formatInteger\": { " \
-        			"\"description\": \"OMF format property to apply to the type Integer\", " \
-				"\"type\": \"string\", \"default\": \"int64\" }, " \
+				"\"type\": \"string\", \"default\": \"Location: Palo Alto, Company: Dianomic\", " \
+				"\"order\": \"4\" }, " \
 			"\"applyFilter\": { " \
         			"\"description\": \"Whether to apply filter before processing the data\", " \
-				"\"type\": \"boolean\", \"default\": \"False\" }, " \
+				"\"type\": \"boolean\", \"default\": \"False\", " \
+				"\"order\": \"5\" }, " \
 			"\"filterRule\": { " \
 				"\"description\": \"JQ formatted filter to apply (applicable if applyFilter is True)\", " \
-				"\"type\": \"string\", \"default\": \".[]\" }"
+				"\"type\": \"string\", \"default\": \".[]\", " \
+				"\"order\": \"6\" }, " \
+			"\"OMFRetrySleepTime\": { " \
+        			"\"description\": \"Seconds between each retry for the communication with the OMF PI Connector Relay, " \
+                       		"NOTE : the time is doubled at each attempt.\", \"type\": \"integer\", \"default\": \"1\", " \
+				"\"order\": \"9\" }, " \
+			"\"OMFMaxRetry\": { " \
+				"\"description\": \"Max number of retries for the communication with the OMF PI Connector Relay\", " \
+				"\"type\": \"integer\", \"default\": \"3\", " \
+				"\"order\": \"10\" }, " \
+			"\"OMFHttpTimeout\": { " \
+				"\"description\": \"Timeout in seconds for the HTTP operations with the OMF PI Connector Relay\", " \
+				"\"type\": \"integer\", \"default\": \"10\", " \
+				"\"order\": \"13\" }, " \
+			"\"formatInteger\": { " \
+        			"\"description\": \"OMF format property to apply to the type Integer\", " \
+				"\"type\": \"string\", \"default\": \"int64\", " \
+				"\"order\": \"14\" }, " \
+			"\"formatNumber\": { " \
+        			"\"description\": \"OMF format property to apply to the type Number\", " \
+				"\"type\": \"string\", \"default\": \"float64\", " \
+				"\"order\": \"15\" } "
 
 
 
-#define OMF_PLUGIN_DESC "\"plugin\": {\"description\": \"PI Server North C Plugin\", \"type\": \"string\", \"default\": \"" PLUGIN_NAME "\"}"
+#define OMF_PLUGIN_DESC "\"plugin\": {\"description\": \"PI Server North C Plugin\", \"type\": \"string\", \"default\": \"" PLUGIN_NAME "\", \"readonly\": \"True\"}"
 
 #define PLUGIN_DEFAULT_CONFIG_INFO "{" OMF_PLUGIN_DESC ", " PLUGIN_DEFAULT_CONFIG "}"
 

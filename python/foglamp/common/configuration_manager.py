@@ -167,14 +167,22 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         # keep_original_items = TRUE keep items in category_val_storage not in category_val_new
         category_val_storage_copy = copy.deepcopy(category_val_storage)
         category_val_new_copy = copy.deepcopy(category_val_new)
+        deprecated_items = []
         for item_name_new, item_val_new in category_val_new_copy.items():
             item_val_storage = category_val_storage_copy.get(item_name_new)
             if item_val_storage is not None:
                 item_val_new['value'] = item_val_storage.get('value')
                 category_val_storage_copy.pop(item_name_new)
+            if "deprecated" in item_val_new:
+                deprecated_items.append(item_name_new)
+
+        for item in deprecated_items:
+            category_val_new_copy.pop(item)
+
         if keep_original_items:
             for item_name_storage, item_val_storage in category_val_storage_copy.items():
                 category_val_new_copy[item_name_storage] = item_val_storage
+
         return category_val_new_copy
 
     async def _validate_category_val(self, category_val, set_value_val_from_default_val=True):
@@ -188,7 +196,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             if type(item_val) is not dict:
                 raise TypeError('item_value must be a dict for item_name {}'.format(item_name))
 
-            optional_item_entries = {'readonly': 0, 'order': 0, 'length': 0, 'maximum': 0, 'minimum': 0}
+            optional_item_entries = {'readonly': 0, 'order': 0, 'length': 0, 'maximum': 0, 'minimum': 0, 'deprecated': 0}
             expected_item_entries = {'description': 0, 'default': 0, 'type': 0}
 
             if require_entry_value:
@@ -228,6 +236,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     if entry_name == 'readonly':
                         if self._validate_type_value('boolean', entry_val) is False:
                             raise ValueError('Unrecognized value for item_name {}'.format(entry_name))
+                    elif entry_name == 'deprecated':
+                        if entry_val != 'true':
+                            raise ValueError('Unrecognized value for item_name {}'.format(entry_name))
                     else:
                         if self._validate_type_value('integer', entry_val) is False:
                             raise ValueError('Unrecognized value for item_name {}'.format(entry_name))
@@ -256,6 +267,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 raise ValueError('Unrecognized value for item_name {}'.format(item_name))
             if 'readonly' in item_val:
                 item_val['readonly'] = self._clean('boolean', item_val['readonly'])
+            if 'deprecated' in item_val:
+                item_val['deprecated'] = self._clean('boolean', item_val['deprecated'])
 
             if set_value_val_from_default_val:
                 item_val['default'] = self._clean(item_val['type'], item_val['default'])
@@ -265,13 +278,22 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
     async def _create_new_category(self, category_name, category_val, category_description):
         try:
+            if isinstance(category_val, dict):
+                new_category_val = copy.deepcopy(category_val)
+                # Remove "deprecated" items from a new category configuration
+                for i, v in category_val.items():
+                    if 'deprecated' in v:
+                        new_category_val.pop(i)
+            else:
+                new_category_val = category_val
+
             audit = AuditLogger(self._storage)
-            await audit.information('CONAD', {'name': category_name, 'category': category_val})
+            await audit.information('CONAD', {'name': category_name, 'category': new_category_val})
             payload = PayloadBuilder().INSERT(key=category_name, description=category_description,
-                                              value=category_val).payload()
+                                              value=new_category_val).payload()
             result = await self._storage.insert_into_tbl("configuration", payload)
             response = result['response']
-            self._cacheManager.update(category_name, category_val)
+            self._cacheManager.update(category_name, new_category_val)
         except KeyError:
             raise ValueError(result['message'])
         except StorageServerError as ex:

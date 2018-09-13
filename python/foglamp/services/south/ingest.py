@@ -343,9 +343,12 @@ class Ingest(object):
                     payload = dict()
                     payload['readings'] = copy.deepcopy(readings_list)
                     batch_size = len(payload['readings'])
+                    # insert_start_time = time.time()
                     # _LOGGER.debug('Begin insert: Queue index: %s Batch size: %s', list_index, batch_size)
                     try:
                         await cls.readings_storage_async.append(json.dumps(payload))
+                        # insert_end_time = time.time()
+                        # _LOGGER.debug('Inserted %s records in time %s', batch_size, insert_end_time - insert_start_time)
                         cls._readings_stats += batch_size
                         for reading_item in payload['readings']:
                             # Increment the count of received readings to be used for statistics update
@@ -381,17 +384,20 @@ class Ingest(object):
                         _LOGGER.warning('Insert failed: Queue index: %s Batch size: %s', list_index, batch_size)
                         break
 
-            await cls._update_statistics()
+            await cls._write_statistics()
 
             del readings_list[:batch_size]
 
             if not lists_not_full.is_set():
                 lists_not_full.set()
 
+            # insert_end_time = time.time()
+            # _LOGGER.debug('Inserted %s records + stat in time %s', batch_size, insert_end_time - insert_start_time)
+
         _LOGGER.info('Insert readings loop stopped')
 
     @classmethod
-    async def _update_statistics(cls):
+    async def _write_statistics(cls):
         """Periodically commits collected readings statistics"""
 
         stats = await statistics.create_statistics(cls.storage_async)

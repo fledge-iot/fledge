@@ -12,6 +12,7 @@ import time
 import uuid
 from typing import List, Union
 import json
+import copy
 from foglamp.common import logger
 from foglamp.common import statistics
 from foglamp.common.storage_client.exceptions import StorageServerError
@@ -222,9 +223,6 @@ class Ingest(object):
                             'to %s', cls._readings_buffer_size,
                             cls._readings_list_size * cls._max_concurrent_readings_inserts)
 
-        # Start asyncio tasks
-        cls._write_statistics_task = asyncio.ensure_future(cls._write_statistics())
-
         cls._last_insert_time = 0
 
         cls._insert_readings_wait_tasks = []
@@ -270,17 +268,6 @@ class Ingest(object):
         cls._readings_list_batch_size_reached = None
         cls._readings_list_not_empty = None
         cls._readings_lists_not_full = None
-
-        # Write statistics
-        if cls._write_statistics_sleep_task is not None:
-            cls._write_statistics_sleep_task.cancel()
-            cls._write_statistics_sleep_task = None
-
-        try:
-            await cls._write_statistics_task
-            cls._write_statistics_task = None
-        except Exception:
-            _LOGGER.exception('An exception was raised by Ingest._write_statistics')
 
         cls._started = False
 
@@ -354,12 +341,22 @@ class Ingest(object):
             while True:
                 try:
                     payload = dict()
-                    payload['readings'] = readings_list
+                    payload['readings'] = copy.deepcopy(readings_list)
                     batch_size = len(payload['readings'])
+                    # insert_start_time = time.time()
                     # _LOGGER.debug('Begin insert: Queue index: %s Batch size: %s', list_index, batch_size)
                     try:
                         await cls.readings_storage_async.append(json.dumps(payload))
+                        # insert_end_time = time.time()
+                        # _LOGGER.debug('Inserted %s records in time %s', batch_size, insert_end_time - insert_start_time)
                         cls._readings_stats += batch_size
+                        for reading_item in payload['readings']:
+                            # Increment the count of received readings to be used for statistics update
+                            if reading_item['asset_code'].upper() in cls._sensor_stats:
+                                cls._sensor_stats[reading_item['asset_code'].upper()] += 1
+                            else:
+                                cls._sensor_stats[reading_item['asset_code'].upper()] = 1
+
                     except StorageServerError as ex:
                         err_response = ex.error
                         # if key error in next, it will be automatically in parent except block
@@ -387,17 +384,21 @@ class Ingest(object):
                         _LOGGER.warning('Insert failed: Queue index: %s Batch size: %s', list_index, batch_size)
                         break
 
+            await cls._write_statistics()
+
             del readings_list[:batch_size]
 
             if not lists_not_full.is_set():
                 lists_not_full.set()
+
+            # insert_end_time = time.time()
+            # _LOGGER.debug('Inserted %s records + stat in time %s', batch_size, insert_end_time - insert_start_time)
 
         _LOGGER.info('Insert readings loop stopped')
 
     @classmethod
     async def _write_statistics(cls):
         """Periodically commits collected readings statistics"""
-        _LOGGER.info('South statistics writer started')
 
         stats = await statistics.create_statistics(cls.storage_async)
 
@@ -407,50 +408,33 @@ class Ingest(object):
                                           'discarded before being  placed in the buffer. This may be due to some '
                                           'error in the readings themselves.')
 
-        while not cls._stop:
-            # stop() calls _write_statistics_sleep_task.cancel().
-            # Tracking _write_statistics_sleep_task separately is cleaner than canceling
-            # this entire coroutine because allowing storage activity to be
-            # interrupted will result in strange behavior.
-            cls._write_statistics_sleep_task = asyncio.ensure_future(
-                asyncio.sleep(cls._write_statistics_frequency_seconds))
+        readings = cls._readings_stats
+        cls._readings_stats = 0
 
-            try:
-                await cls._write_statistics_sleep_task
-            except asyncio.CancelledError:
-                pass
-            finally:
-                cls._write_statistics_sleep_task = None
+        try:
+            await stats.update('READINGS', readings)
+        except Exception as ex:
+            cls._readings_stats += readings
+            _LOGGER.exception('An error occurred while writing readings statistics, %s', str(ex))
 
-            readings = cls._readings_stats
-            cls._readings_stats = 0
+        readings = cls._discarded_readings_stats
+        cls._discarded_readings_stats = 0
 
-            try:
-                asyncio.ensure_future(stats.update('READINGS', readings))
-            except Exception as ex:
-                cls._readings_stats += readings
-                _LOGGER.exception('An error occurred while writing readings statistics, %s', str(ex))
+        try:
+            await stats.update('DISCARDED', readings)
+        except Exception as ex:
+            cls._discarded_readings_stats += readings
+            _LOGGER.exception('An error occurred while writing discarded statistics, Error: %s', str(ex))
 
-            readings = cls._discarded_readings_stats
-            cls._discarded_readings_stats = 0
-
-            try:
-                asyncio.ensure_future(stats.update('DISCARDED', readings))
-            except Exception as ex:
-                cls._discarded_readings_stats += readings
-                _LOGGER.exception('An error occurred while writing discarded statistics, Error: %s', str(ex))
-
-            """ Register the statistics keys as this may be the first time the key has come into existence """
-            for key in cls._sensor_stats:
-                description = 'Readings received by FogLAMP since startup for sensor {}'.format(key)
-                await stats.register(key, description)
-            try:
-                asyncio.ensure_future(stats.add_update(cls._sensor_stats))
-                cls._sensor_stats = {}
-            except Exception as ex:
-                _LOGGER.exception('An error occurred while writing sensor statistics, Error: %s', str(ex))
-
-        _LOGGER.info('South statistics writer stopped')
+        """ Register the statistics keys as this may be the first time the key has come into existence """
+        for key in cls._sensor_stats:
+            description = 'Readings received by FogLAMP since startup for sensor {}'.format(key)
+            await stats.register(key, description)
+        try:
+            await stats.add_update(cls._sensor_stats)
+            cls._sensor_stats = {}
+        except Exception as ex:
+            _LOGGER.exception('An error occurred while writing sensor statistics, Error: %s', str(ex))
 
     @classmethod
     def is_available(cls) -> bool:
@@ -548,12 +532,6 @@ class Ingest(object):
             await cls._readings_lists_not_full.wait()
             if cls._stop:
                 raise RuntimeError('The South Service is stopping')
-
-        # Increment the count of received readings to be used for statistics update
-        if asset.upper() in cls._sensor_stats:
-            cls._sensor_stats[asset.upper()] += 1
-        else:
-            cls._sensor_stats[asset.upper()] = 1
 
         list_index = cls._current_readings_list_index
         readings_list = cls._readings_lists[list_index]

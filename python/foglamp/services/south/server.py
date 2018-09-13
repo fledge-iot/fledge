@@ -219,6 +219,8 @@ class Server(FoglampMicroservice):
         try:
             await Ingest.stop()
             _LOGGER.info('Stopped the Ingest server.')
+        except asyncio.CancelledError:
+            pass
         except Exception as ex:
             _LOGGER.exception('Unable to stop the Ingest server. %s', str(ex))
             raise ex

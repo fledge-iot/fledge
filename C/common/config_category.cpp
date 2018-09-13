@@ -730,11 +730,12 @@ ostringstream convert;
 	convert << "\"description\" : \"" << m_description << "\", ";
 	convert << "\"type\" : \"" << m_type << "\", ";
 
-	if (m_order != "")
+	if (!m_order.empty())
 	{
 		convert << "\"order\" : \"" << m_order << "\", ";
 	}
-	if (m_readonly != "")
+
+	if (!m_readonly.empty())
 	{
 		convert << "\"readonly\" : \"" << m_readonly << "\", ";
 	}

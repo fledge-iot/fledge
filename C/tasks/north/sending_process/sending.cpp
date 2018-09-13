@@ -44,7 +44,7 @@ static map<string, string> globalConfiguration = {};
 static const string sendingDefaultConfig =
 	"\"enable\": {"
 		"\"description\": \"A switch that can be used to enable or disable execution of "
-		"the sending process.\", \"type\": \"boolean\", \"default\": \"True\" , \"readonly\": \"true\"  },"
+		"the sending process.\", \"type\": \"boolean\", \"default\": \"true\" , \"readonly\": \"true\"  },"
 	"\"source\": {"
 		"\"description\": \"Defines the source of the data to be sent on the stream, "
 		"this may be one of either readings, statistics or audit.\", \"type\": \"string\", "

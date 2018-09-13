@@ -98,6 +98,8 @@ class ConfigCategory {
 				std::string 	m_default;
 				std::string 	m_value;
 				std::string 	m_description;
+				std::string 	m_order;
+				std::string 	m_readonly;
 				ItemType	m_itemType;
 		};
 		std::vector<CategoryItem *>	m_items;

@@ -691,8 +691,8 @@ class SendingProcess(FoglampProcess):
                 rows = await get_rows_from_stream_id(stream_id=config_stream_id)
             else:
                 # If an user is upgrading FogLamp, then it has got existing data in streams table but
-                # no entry in configuration for streams_id for this process_name. Hence it must
-                # check if an entry is already there for this process_name in streams table.
+                # no entry in configuration for streams_id for this schedule name. Hence it must
+                # check if an entry is already there for this schedule name in streams table.
                 rows = await get_rows_from_name(description=self._name)
                 if len(rows) == 0:
                     payload = payload_builder.PayloadBuilder() \

@@ -168,7 +168,8 @@ static void statsThread(Ingest *ingest)
 void Ingest::updateStats()
 {
 	unique_lock<mutex> lck(m_statsMutex);
-	m_statsCv.wait(lck);
+	if (m_running) // don't wait on condition variable if plugin/ingest is being shutdown
+		m_statsCv.wait(lck);
 	/*Logger::getLogger()->info("%s:%d : stats thread: wakeup from sleep, now updating stats, m_newReadings=%d, m_discardedReadings=%d, m_readingsAssetName='%s'",
 				__FUNCTION__, __LINE__, m_newReadings, m_discardedReadings, m_readingsAssetName.c_str());
 	*/

@@ -326,7 +326,6 @@ class TestIngest:
 
         # THEN
         assert 1 == len(Ingest._readings_lists[0])
-        assert 1 == Ingest._sensor_stats['PUMP1']
 
     @pytest.mark.asyncio
     async def test_add_readings_if_stop(self, mocker):
@@ -520,4 +519,3 @@ class TestIngest:
         # THEN
         assert 1 == len(Ingest._readings_lists[0])
         assert 1 == len(Ingest._readings_lists[1])
-        assert 2 == Ingest._sensor_stats['PUMP1']

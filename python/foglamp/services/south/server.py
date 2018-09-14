@@ -161,9 +161,16 @@ class Server(FoglampMicroservice):
         """
         _LOGGER.info('Started South Plugin: {}'.format(self._name))
         try_count = 1
+        
+        # pollInterval is expressed in milliseconds
+        if int(self._plugin_handle['pollInterval']['value']) <= 0:
+            _LOGGER.warning('Plugin {} pollInterval must be greater than 0, defaulting to 1000 ms'.format(self._name))
+            self._plugin_handle['pollInterval']['value'] = '1000'
+        sleep_seconds = int(self._plugin_handle['pollInterval']['value']) / 1000.0
+        
         while self._plugin and try_count <= _MAX_RETRY_POLL:
             try:
-                data = self._plugin.plugin_poll(self._plugin_handle)
+                data = await asyncio.sleep(sleep_seconds, result=self._plugin.plugin_poll(self._plugin_handle))
                 if len(data) > 0:
                     if isinstance(data, list):
                         for reading in data:
@@ -176,12 +183,8 @@ class Server(FoglampMicroservice):
                                                                   timestamp=data['timestamp'],
                                                                   key=data['key'],
                                                                   readings=data['readings']))
-                # pollInterval is expressed in milliseconds
-                if int(self._plugin_handle['pollInterval']['value']) <= 0:
-                    _LOGGER.warning('Plugin {} pollInterval must be greater than 0, defaulting to 1000 ms'.format(self._name))
-                    self._plugin_handle['pollInterval']['value'] = '1000'
-                sleep_seconds = int(self._plugin_handle['pollInterval']['value']) / 1000.0
-                await asyncio.sleep(sleep_seconds)
+            except asyncio.CancelledError:
+                pass
             except KeyError as ex:
                 try_count = 2
                 _LOGGER.exception('Key error plugin {} : {}'.format(self._name, str(ex)))
@@ -193,8 +196,6 @@ class Server(FoglampMicroservice):
                 _LOGGER.error('Failed to poll for plugin {}'.format(self._name))
                 _LOGGER.debug('Exception poll plugin {}'.format(str(ex)))
                 await asyncio.sleep(_TIME_TO_WAIT_BEFORE_RETRY)
-
-        _LOGGER.exception('Max retries exhausted in starting South plugin: {}'.format(self._name))
 
     def run(self):
         """Starts the South Microservice

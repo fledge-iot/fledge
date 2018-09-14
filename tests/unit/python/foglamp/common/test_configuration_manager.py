@@ -658,6 +658,50 @@ class TestConfigurationManager:
         assert test_config_new is not test_config_storage
 
     @pytest.mark.asyncio
+    async def test__merge_category_vals_deprecated(self, reset_singleton):
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        test_config_new = {
+            "test_item_name1": {
+                "description": "test description val storage1",
+                "type": "string",
+                "default": "test default val storage1",
+                "value": "test value val storage1",
+                "deprecated": "true"
+            },
+            "test_item_name2": {
+                "description": "test description val2",
+                "type": "string",
+                "default": "test default val2",
+                "value": "test value val2"
+            },
+        }
+        test_config_storage = {
+            "test_item_name1": {
+                "description": "test description val storage1",
+                "type": "string",
+                "default": "test default val storage1",
+                "value": "test value val storage1"
+            },
+            "test_item_name2": {
+                "description": "test description val storage2",
+                "type": "string",
+                "default": "test default val storage2",
+                "value": "test value val storage2"
+            },
+        }
+        expected_new_value = {
+            "test_item_name2": {
+                "description": "test description val2",
+                "type": "string",
+                "default": "test default val2",
+                "value": "test value val storage2"
+            },
+        }
+        c_return_value = await c_mgr._merge_category_vals(test_config_new, test_config_storage, keep_original_items=True)
+        assert expected_new_value == c_return_value
+
+    @pytest.mark.asyncio
     async def test__merge_category_vals_no_mutual_items_ignore_original(self, reset_singleton):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
@@ -1237,6 +1281,60 @@ class TestConfigurationManager:
             auditinfopatch.assert_called_once_with('CONAD', {'category': category_val, 'name': category_name})
         storage_client_mock.insert_into_tbl.assert_called_once_with(
             'configuration', None)
+
+    @pytest.mark.asyncio
+    async def test_create_new_category_deprecated(self, reset_singleton):
+        @asyncio.coroutine
+        def mock_coro():
+            return {'response': [{
+                                    'category_name': 'catname',
+                                    'category_val': 'catval',
+                                    'description': 'catdesc'
+                    }]
+            }
+
+        async def async_mock(return_value):
+            return return_value
+
+        category_name = 'catname'
+        category_val = {
+            "test_item_name1": {
+                "description": "test description val1",
+                "type": "string",
+                "default": "test default val1",
+                "deprecated": "true"
+            },
+            "test_item_name2": {
+                "description": "test description val2",
+                "type": "string",
+                "default": "test default val2"
+            },
+
+        }
+        category_val_actual = {
+            "test_item_name2": {
+                "description": "test description val2",
+                "type": "string",
+                "default": "test default val2"
+            },
+        }
+
+        category_description = 'catdesc'
+
+        attrs = {"insert_into_tbl.return_value": mock_coro()}
+        storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
+        c_mgr = ConfigurationManager(storage_client_mock)
+
+        with patch.object(AuditLogger, '__init__', return_value=None):
+            with patch.object(AuditLogger, 'information', return_value=async_mock(None)) as auditinfopatch:
+                with patch.object(PayloadBuilder, '__init__', return_value=None):
+                    with patch.object(PayloadBuilder, 'INSERT', return_value=PayloadBuilder) as pbinsertpatch:
+                        with patch.object(PayloadBuilder, 'payload', return_value=None) as pbpayloadpatch:
+                            await c_mgr._create_new_category(category_name, category_val, category_description)
+                        pbpayloadpatch.assert_called_once_with()
+                    pbinsertpatch.assert_called_once_with(description=category_description, key=category_name, value=category_val_actual)
+            auditinfopatch.assert_called_once_with('CONAD', {'category': category_val_actual, 'name': category_name})
+        storage_client_mock.insert_into_tbl.assert_called_once_with('configuration', None)
 
     @pytest.mark.asyncio
     async def test__read_all_category_names_1_row(self, reset_singleton):

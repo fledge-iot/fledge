@@ -197,6 +197,8 @@ class Server(FoglampMicroservice):
                 _LOGGER.debug('Exception poll plugin {}'.format(str(ex)))
                 await asyncio.sleep(_TIME_TO_WAIT_BEFORE_RETRY)
 
+        _LOGGER.warning('Stopped all polling tasks for plugin: {}'.format(self._name))
+
     def run(self):
         """Starts the South Microservice
         """
@@ -233,7 +235,7 @@ class Server(FoglampMicroservice):
             for task_pending in pending:
                 task_pending.cancel()
             await asyncio.sleep(2)
-        except (asyncio.CancelledError, exceptions.DataRetrievalError):
+        except asyncio.CancelledError:
             pass
 
         # This deactivates event loop and

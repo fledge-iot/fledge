@@ -44,24 +44,24 @@ static map<string, string> globalConfiguration = {};
 static const string sendingDefaultConfig =
 	"\"enable\": {"
 		"\"description\": \"A switch that can be used to enable or disable execution of "
-		"the sending process.\", \"type\": \"boolean\", \"default\": \"True\" },"
-	"\"duration\": {"
-		"\"description\": \"How long the sending process should run (in seconds) before stopping.\", "
-		"\"type\": \"integer\", \"default\": \"60\" }, "
+		"the sending process.\", \"type\": \"boolean\", \"default\": \"true\" , \"readonly\": \"true\"  },"
 	"\"source\": {"
 		"\"description\": \"Defines the source of the data to be sent on the stream, "
 		"this may be one of either readings, statistics or audit.\", \"type\": \"string\", "
-		"\"default\": \"readings\" }, "
+		"\"default\": \"readings\", \"order\": \"3\"  }, "
+	"\"duration\": {"
+		"\"description\": \"How long the sending process should run (in seconds) before stopping.\", "
+		"\"type\": \"integer\", \"default\": \"60\" , \"order\": \"7\" }, "
 	"\"blockSize\": {"
 		"\"description\": \"The size of a block of readings to send in each transmission.\", "
-		"\"type\": \"integer\", \"default\": \"500\" }, "
+		"\"type\": \"integer\", \"default\": \"500\", \"order\": \"8\"   }, "
 	"\"sleepInterval\": {"
 		"\"description\": \"A period of time, expressed in seconds, "
 		"to wait between attempts to send readings when there are no "
-		"readings to be sent.\", \"type\": \"integer\", \"default\": \"1\" }, "
+		"readings to be sent.\", \"type\": \"integer\", \"default\": \"1\", \"order\": \"11\"   }, "
 	"\"streamId\": {"
 		"\"description\": \"Identifies the specific stream to handle and the related information,"
-		" among them the ID of the last object streamed.\", \"type\": \"integer\", \"default\": \"0\" }";
+		" among them the ID of the last object streamed.\", \"type\": \"integer\", \"default\": \"0\", \"readonly\": \"true\"   }";
 
 
 volatile std::sig_atomic_t signalReceived = 0;

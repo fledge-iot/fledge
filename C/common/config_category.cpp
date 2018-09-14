@@ -514,6 +514,24 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		m_description = "";
 	}
 
+	if (item.HasMember("order"))
+	{
+		m_order = item["order"].GetString();
+	}
+	else
+	{
+		m_order = "";
+	}
+
+	if (item.HasMember("readonly"))
+	{
+		m_readonly = item["readonly"].GetString();
+	}
+	else
+	{
+		m_readonly = "";
+	}
+
 	// Item "value" can be an escaped JSON string, so check m_type JSON as well
 	if (item.HasMember("value") &&
 	    ((item["value"].IsObject() || m_type.compare("JSON") == 0)))
@@ -684,6 +702,7 @@ ostringstream convert;
 	convert << "\"" << m_name << "\" : { ";
 	convert << "\"description\" : \"" << m_description << "\", ";
 	convert << "\"type\" : \"" << m_type << "\", ";
+
 	if (m_itemType == StringItem ||
 	    m_itemType == BoolItem)
 	{
@@ -710,6 +729,18 @@ ostringstream convert;
 	convert << "\"" << m_name << "\" : { ";
 	convert << "\"description\" : \"" << m_description << "\", ";
 	convert << "\"type\" : \"" << m_type << "\", ";
+
+	if (!m_order.empty())
+	{
+		convert << "\"order\" : \"" << m_order << "\", ";
+	}
+
+	if (!m_readonly.empty())
+	{
+		convert << "\"readonly\" : \"" << m_readonly << "\", ";
+	}
+
+
 	if (m_itemType == StringItem ||
 	    m_itemType == BoolItem)
 	{

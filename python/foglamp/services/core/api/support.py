@@ -21,14 +21,14 @@ _FOGLAMP_ROOT = os.getenv("FOGLAMP_ROOT", default='/usr/local/foglamp')
 _SYSLOG_FILE = '/var/log/syslog'
 __DEFAULT_LIMIT = 20
 __DEFAULT_OFFSET = 0
-__DEFAULT_LOG_TYPE = 'FogLAMP'
-__GET_SYSLOG_CMD_TEMPLATE = "grep '{}\[' {} | head -n {} | tail -n {}"
-__GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE = "grep '{}\[' -i -e error -e fail {} | head -n {} | tail -n {}"
-__GET_SYSLOG_CMD_WITH_WARNING_TEMPLATE = "grep '{}\[' -i -e error -e fail -e warning {} | head -n {} | tail -n {}"
-__GET_SYSLOG_ERROR_MATCHED_LINES = "grep '{}\[' -i -e error -e fail {} | wc -l"
-__GET_SYSLOG_WARNING_MATCHED_LINES = "grep '{}\[' -i -e error -e fail -e warning {} | wc -l"
-__GET_SYSLOG_TOTAL_MATCHED_LINES = "grep '{}\[' {} | wc -l"
+__DEFAULT_LOG_SOURCE = 'FogLAMP'
+__GET_SYSLOG_CMD_TEMPLATE = "grep -a -E '({})\[' {} | head -n {} | tail -n {}"
+__GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE = "grep -a -E '({})\[' {} | grep -a -E -i 'error' | head -n {} | tail -n {}"
+__GET_SYSLOG_CMD_WITH_WARNING_TEMPLATE = "grep -a -E '({})\[' {} | grep -a -E -i '(error|warning)' | head -n {} | tail -n {}"
 
+__GET_SYSLOG_TOTAL_MATCHED_LINES = "grep -a -E '({})\[' {} | wc -l"
+__GET_SYSLOG_ERROR_MATCHED_LINES = "grep -a -E '({})\[' {} | grep -a -E -i 'error' | wc -l"
+__GET_SYSLOG_WARNING_MATCHED_LINES = "grep -a -E '({})\[' {} | grep -a -E -i '(error|warning)' | wc -l"
 
 _help = """
     -------------------------------------------------------------------------------
@@ -124,15 +124,14 @@ async def get_syslog_entries(request):
         raise web.HTTPBadRequest(reason="Offset must be a positive integer OR Zero")
 
     try:
-        source = request.query['source'] if 'source' in request.query and request.query['source'] != '' else __DEFAULT_LOG_TYPE
-        if source.lower() not in ['foglamp', 'storage', 'foglamp storage']:
+        source = request.query['source'] if 'source' in request.query and request.query['source'] != '' else __DEFAULT_LOG_SOURCE
+        if source.lower() not in ['foglamp', 'storage']:
             raise ValueError
-        valid_source = {'foglamp': "FogLAMP", 'storage': 'Storage', 'foglamp storage': 'FogLAMP Storage'}
+        valid_source = {'foglamp': "FogLAMP|FogLAMP Storage", 'storage': 'FogLAMP Storage'}
     except ValueError:
         raise web.HTTPBadRequest(reason="{} is not a valid source".format(source))
 
     try:
-
         # Get filtered lines
         template = __GET_SYSLOG_CMD_TEMPLATE
         lines = __GET_SYSLOG_TOTAL_MATCHED_LINES

@@ -233,7 +233,12 @@ class Server(FoglampMicroservice):
             # Cancel all pending asyncio tasks after a timeout occurs
             done, pending = await asyncio.wait(asyncio.Task.all_tasks(), timeout=_CLEAR_PENDING_TASKS_TIMEOUT)
             for task_pending in pending:
-                task_pending.cancel()
+                try:
+                     task_pending.cancel()
+                     # Now, await task  to execute it's cancellation.
+                     # Cancelled task raises asyncio.CancelledError:
+                except asyncio.CancelledError:
+                    pass
             await asyncio.sleep(2)
         except asyncio.CancelledError:
             pass

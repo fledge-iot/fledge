@@ -17,7 +17,7 @@ def get_plugin_info(name):
         res = out.decode("utf-8")
         jdoc = json.loads(res)
     except (OSError, subprocess.CalledProcessError, Exception) as ex:
-        _logger.exception("C plugin get info failed due to %s", ex)
+        _logger.exception("%s C plugin get info failed due to %s", name, ex)
         return {}
     else:
         return jdoc

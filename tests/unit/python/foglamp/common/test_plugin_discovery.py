@@ -9,7 +9,8 @@ import os
 import copy
 from unittest.mock import MagicMock, patch
 import pytest
-from foglamp.common.plugin_discovery import PluginDiscovery
+
+from foglamp.common.plugin_discovery import PluginDiscovery, _logger
 from foglamp.services.core.api import utils
 
 __author__ = "Amarendra K Sinha, Ashish Jabble "
@@ -258,3 +259,63 @@ class TestPluginDiscovery:
             #       assert expected == actual is not working
             import json
             assert json.loads(expected) == json.loads(actual)
+
+    @pytest.mark.parametrize("info, exc_count", [
+        ({}, 0),
+        ({"interface": "1.0.0", "version": "1.0.0", "type": "south", "name": "Random", "config": "(null)"}, 1),
+        ({"interface": "1.0.0", "version": "1.0.0", "type": "south", "name": "Random", "config": {}}, 1)
+    ])
+    def test_bad_fetch_c_south_plugin_installed(self, info, exc_count):
+        with patch.object(_logger, "exception") as patch_log_exc:
+            with patch.object(utils, "find_c_plugin_libs", return_value=["Random"]) as patch_plugin_lib:
+                with patch.object(utils, "get_plugin_info",  return_value=info) as patch_plugin_info:
+                    PluginDiscovery.fetch_c_plugins_installed("south")
+                patch_plugin_info.assert_called_once_with('Random')
+            patch_plugin_lib.assert_called_once_with('south')
+            assert exc_count == patch_log_exc.call_count
+
+    @pytest.mark.parametrize("info, exc_count", [
+        ({}, 0),
+        ({"interface": "1.0.0", "version": "1.0.0", "type": "north", "name": "PI_Server", "config": "(null)"}, 1),
+        ({"interface": "1.0.0", "version": "1.0.0", "type": "north", "name": "PI_Server", "config": {}}, 1)
+    ])
+    def test_bad_fetch_c_north_plugin_installed(self, info, exc_count):
+        with patch.object(_logger, "exception") as patch_log_exc:
+            with patch.object(utils, "find_c_plugin_libs", return_value=["PI_Server"]) as patch_plugin_lib:
+                with patch.object(utils, "get_plugin_info", return_value=info) as patch_plugin_info:
+                    PluginDiscovery.fetch_c_plugins_installed("north")
+                patch_plugin_info.assert_called_once_with('PI_Server')
+            patch_plugin_lib.assert_called_once_with('north')
+            assert exc_count == patch_log_exc.call_count
+
+    @pytest.mark.parametrize("exc_name, log_exc_name, msg", [
+        (ImportError, "error", 'Plugin "modbus" import problem from path "foglamp.plugins.south".'),
+        (Exception, "exception", 'Plugin "modbus" raised exception "" while fetching config')
+    ])
+    def test_bad_get_south_plugin_config(self, exc_name, log_exc_name, msg):
+        mock = MagicMock()
+        attrs = {"plugin_info.side_effect": exc_name}
+        mock.configure_mock(**attrs)
+
+        with patch.object(_logger, log_exc_name) as patch_log_exc:
+            with patch('builtins.__import__', return_value=mock):
+                PluginDiscovery.get_plugin_config("modbus", "south")
+        assert 1 == patch_log_exc.call_count
+        args, kwargs = patch_log_exc.call_args
+        assert msg in args[0]
+
+    @pytest.mark.parametrize("exc_name, log_exc_name, msg", [
+        (ImportError, "error", 'Plugin "http" import problem from path "foglamp.plugins.north".'),
+        (Exception, "exception", 'Plugin "http" raised exception "" while fetching config')
+    ])
+    def test_bad_get_north_plugin_config(self, exc_name, log_exc_name, msg):
+        mock = MagicMock()
+        attrs = {"plugin_info.side_effect": exc_name}
+        mock.configure_mock(**attrs)
+
+        with patch.object(_logger, log_exc_name) as patch_log_exc:
+            with patch('builtins.__import__', return_value=mock):
+                PluginDiscovery.get_plugin_config("http", "north")
+        assert 1 == patch_log_exc.call_count
+        args, kwargs = patch_log_exc.call_args
+        assert msg in args[0]

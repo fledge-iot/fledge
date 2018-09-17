@@ -235,11 +235,9 @@ class Server(FoglampMicroservice):
             for task_pending in pending:
                 try:
                      task_pending.cancel()
-                     # Now, await task  to execute it's cancellation.
-                     # Cancelled task raises asyncio.CancelledError:
                 except asyncio.CancelledError:
                     pass
-            await asyncio.sleep(2)
+            await asyncio.sleep(1.0)
         except asyncio.CancelledError:
             pass
 

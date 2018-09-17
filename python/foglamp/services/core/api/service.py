@@ -5,17 +5,20 @@
 # FOGLAMP_END
 
 import datetime
+
 from aiohttp import web
+
+from foglamp.common import utils
+from foglamp.common import logger
 from foglamp.common.service_record import ServiceRecord
-from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
+from foglamp.common.storage_client.exceptions import StorageServerError
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.services.core import server
 from foglamp.services.core import connect
-from foglamp.services.core.scheduler.entities import StartUpSchedule
-from foglamp.common.storage_client.exceptions import StorageServerError
-from foglamp.common import utils
 from foglamp.services.core.api import utils as apiutils
+from foglamp.services.core.scheduler.entities import StartUpSchedule
+from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 
 __author__ = "Mark Riddoch, Ashwin Gopalakrishnan, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -28,6 +31,7 @@ _help = """
     -------------------------------------------------------------------------------
 """
 
+_logger = logger.setup()
 
 #################################
 #  Service
@@ -77,7 +81,7 @@ async def add_service(request):
     try:
         data = await request.json()
         if not isinstance(data, dict):
-            raise ValueError('Data payload must be a dictionary')
+            raise ValueError('Data payload must be a valid JSON')
 
         name = data.get('name', None)
         plugin = data.get('plugin', None)
@@ -128,11 +132,18 @@ async def add_service(request):
             plugin_config = plugin_info['config']
             process_name = 'south_c'
             if not plugin_config:
-                raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}". {}'.format(plugin, plugin_module_path, str(ex)))
+                _logger.exception("Plugin %s import problem from path %s. %s", plugin, plugin_module_path, str(ex))
+                raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}".'.format(plugin, plugin_module_path))
         except Exception as ex:
-            raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration. {}'.format(str(ex)))
+            _logger.exception("Failed to fetch plugin configuration. %s", str(ex))
+            raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration')
 
         storage = connect.get_storage_async()
+
+        # Check that the schedule name is not already registered
+        count = await check_schedules(storage, name)
+        if count != 0:
+            raise web.HTTPBadRequest(reason='A service with this name already exists.')
 
         # Check that the process name is not already registered
         count = await check_scheduled_processes(storage, process_name)
@@ -143,14 +154,11 @@ async def add_service(request):
                 res = await storage.insert_into_tbl("scheduled_processes", payload)
             except StorageServerError as ex:
                 err_response = ex.error
-                raise web.HTTPInternalServerError(reason='Failed to created scheduled process. {}'.format(err_response))
-            except Exception as ins_ex:
-                raise web.HTTPInternalServerError(reason='Failed to created scheduled process. {}'.format(str(ins_ex)))
-
-        # Check that the schedule name is not already registered
-        count = await check_schedules(storage, name)
-        if count != 0:
-            raise web.HTTPBadRequest(reason='A schedule with that name already exists')
+                _logger.exception("Failed to create scheduled process. %s", err_response)
+                raise web.HTTPInternalServerError(reason='Failed to create service.')
+            except Exception as ex:
+                _logger.exception("Failed to create scheduled process. %s", ex)
+                raise web.HTTPInternalServerError(reason='Failed to create service.')
 
         # If successful then create a configuration entry from plugin configuration
         try:
@@ -167,7 +175,8 @@ async def add_service(request):
         except Exception as ex:
             await revert_configuration(storage, name)  # Revert configuration entry
             await revert_parent_child_configuration(storage, name)
-            raise web.HTTPInternalServerError(reason='Failed to create plugin configuration. {}'.format(str(ex)))
+            _logger.exception("Failed to create plugin configuration. %s", str(ex))
+            raise web.HTTPInternalServerError(reason='Failed to create plugin configuration.')
 
         # If all successful then lastly add a schedule to run the new service at startup
         try:
@@ -185,16 +194,18 @@ async def add_service(request):
         except StorageServerError as ex:
             await revert_configuration(storage, name)  # Revert configuration entry
             await revert_parent_child_configuration(storage, name)
-            raise web.HTTPInternalServerError(reason='Failed to created schedule. {}'.format(ex.error))
-        except Exception as ins_ex:
+            _logger.exception("Failed to create schedule. %s", ex.error)
+            raise web.HTTPInternalServerError(reason='Failed to create service.')
+        except Exception as ex:
             await revert_configuration(storage, name)  # Revert configuration entry
             await revert_parent_child_configuration(storage, name)
-            raise web.HTTPInternalServerError(reason='Failed to created schedule. {}'.format(str(ins_ex)))
+            _logger.exception("Failed to create service. %s", ex.error)
+            raise web.HTTPInternalServerError(reason='Failed to create service.')
 
+    except ValueError as e:
+        raise web.HTTPNotFound(reason=str(e))
+    else:
         return web.json_response({'name': name, 'id': str(schedule.schedule_id)})
-
-    except ValueError as ex:
-        raise web.HTTPNotFound(reason=str(ex))
 
 
 async def check_scheduled_processes(storage, process_name):

@@ -1598,6 +1598,10 @@ class TestConfigurationManager:
         category_description = 'catdesc'
         category_val = 'catval'
 
+        @asyncio.coroutine
+        def mock_coro2():
+            return category_val
+
         attrs = {"update_tbl.return_value": mock_coro()}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
         c_mgr = ConfigurationManager(storage_client_mock)
@@ -1606,10 +1610,11 @@ class TestConfigurationManager:
             with patch.object(PayloadBuilder, 'SET', return_value=PayloadBuilder) as pbsetpatch:
                 with patch.object(PayloadBuilder, 'WHERE', return_value=PayloadBuilder) as pbwherepatch:
                     with patch.object(PayloadBuilder, 'payload', return_value=None) as pbpayloadpatch:
-                        await c_mgr._update_category(category_name, category_val, category_description)
-                    pbpayloadpatch.assert_called_once_with()
-                pbwherepatch.assert_called_once_with(["key", "=", category_name])
-            pbsetpatch.assert_called_once_with(description='catdesc', value='catval')
+                        with patch.object(c_mgr, '_read_category_val', return_value=mock_coro2()) as readpatch:
+                            await c_mgr._update_category(category_name, category_val, category_description)
+                        pbpayloadpatch.assert_called_once_with()
+                    pbwherepatch.assert_called_once_with(["key", "=", category_name])
+                pbsetpatch.assert_called_once_with(description='catdesc', value='catval')
         storage_client_mock.update_tbl.assert_called_once_with('configuration', None)
 
     @pytest.mark.asyncio

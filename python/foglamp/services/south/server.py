@@ -21,8 +21,8 @@ __version__ = "${VERSION}"
 
 _LOGGER = logger.setup(__name__)
 _MAX_RETRY_POLL = 3
-_TIME_TO_WAIT_BEFORE_RETRY = 2
-_CLEAR_PENDING_TASKS_TIMEOUT = 5
+_TIME_TO_WAIT_BEFORE_RETRY = 1
+_CLEAR_PENDING_TASKS_TIMEOUT = 3
 
 
 class Server(FoglampMicroservice):
@@ -168,6 +168,7 @@ class Server(FoglampMicroservice):
             _LOGGER.warning('Plugin {} pollInterval must be greater than 0, defaulting to {} ms'.format(
                 self._name, self._plugin_handle['pollInterval']['value']))
         sleep_seconds = int(self._plugin_handle['pollInterval']['value']) / 1000.0
+        _TIME_TO_WAIT_BEFORE_RETRY = sleep_seconds
 
         while self._plugin and try_count <= _MAX_RETRY_POLL:
             try:

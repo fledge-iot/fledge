@@ -67,14 +67,18 @@ class PluginDiscovery(object):
         libs = utils.find_c_plugin_libs(plugin_type)
         configs = []
         for l in libs:
-            jdoc = utils.get_plugin_info(l)
-            if jdoc is not None:
-                plugin_config = {'name': l,
-                                 'type': plugin_type,
-                                 'description': jdoc['config']['plugin']['description'],
-                                 'version': jdoc['version']
-                                 }
-                configs.append(plugin_config)
+            try:
+                jdoc = utils.get_plugin_info(l)
+                if bool(jdoc):
+                    plugin_config = {'name': l,
+                                     'type': plugin_type,
+                                     'description': jdoc['config']['plugin']['description'],
+                                     'version': jdoc['version']
+                                     }
+                    configs.append(plugin_config)
+            except Exception as ex:
+                _logger.exception(ex)
+
         return configs
 
     @classmethod

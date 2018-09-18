@@ -233,12 +233,12 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
                 # If Entry item exists in optional list, then update expected item entries
                 if entry_name in optional_item_entries:
-                    if entry_name == 'readonly':
+                    if entry_name == 'readonly' or entry_name == 'deprecated':
                         if self._validate_type_value('boolean', entry_val) is False:
                             raise ValueError('Unrecognized value for item_name {}'.format(entry_name))
-                    elif entry_name == 'deprecated':
-                        if entry_val != 'true':
-                            raise ValueError('Unrecognized value for item_name {}'.format(entry_name))
+                        if entry_name == 'deprecated':
+                            if entry_val.lower() != 'true':
+                                raise ValueError('Unrecognized value for item_name {}'.format(entry_name))
                     else:
                         if self._validate_type_value('integer', entry_val) is False:
                             raise ValueError('Unrecognized value for item_name {}'.format(entry_name))

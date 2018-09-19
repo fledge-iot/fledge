@@ -173,7 +173,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             if item_val_storage is not None:
                 item_val_new['value'] = item_val_storage.get('value')
                 category_val_storage_copy.pop(item_name_new)
-            if "deprecated" in item_val_new:
+            if "deprecated" in item_val_new and item_val_new['deprecated'] == 'true':
                 deprecated_items.append(item_name_new)
 
         for item in deprecated_items:
@@ -236,9 +236,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     if entry_name == 'readonly' or entry_name == 'deprecated':
                         if self._validate_type_value('boolean', entry_val) is False:
                             raise ValueError('Unrecognized value for item_name {}'.format(entry_name))
-                        if entry_name == 'deprecated':
-                            if entry_val.lower() != 'true':
-                                raise ValueError("[deprecated] attribute can be set to [true] only")
                     else:
                         if self._validate_type_value('integer', entry_val) is False:
                             raise ValueError('Unrecognized value for item_name {}'.format(entry_name))
@@ -282,7 +279,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 new_category_val = copy.deepcopy(category_val)
                 # Remove "deprecated" items from a new category configuration
                 for i, v in category_val.items():
-                    if 'deprecated' in v:
+                    if 'deprecated' in v and v['deprecated'] == 'true':
                         new_category_val.pop(i)
             else:
                 new_category_val = category_val

@@ -160,7 +160,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     raise AttributeError('Callback module {} run method must be a coroutine function'.format(callback))
                 await cb.run(category_name)
 
-    async def _merge_category_vals(self, category_val_new, category_val_storage, keep_original_items):
+    async def _merge_category_vals(self, category_val_new, category_val_storage, keep_original_items, category_name=None):
         # preserve all value_vals from category_val_storage
         # use items in category_val_new not in category_val_storage
         # keep_original_items = FALSE ignore items in category_val_storage not in category_val_new
@@ -174,6 +174,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 item_val_new['value'] = item_val_storage.get('value')
                 category_val_storage_copy.pop(item_name_new)
             if "deprecated" in item_val_new and item_val_new['deprecated'] == 'true':
+                audit = AuditLogger(self._storage)
+                audit_details = {'category': category_name, 'item': item_name_new, 'oldValue': item_val_new['value'],
+                                 'newValue': 'deprecated'}
+                await audit.information('CONCH', audit_details)
                 deprecated_items.append(item_name_new)
 
         for item in deprecated_items:
@@ -666,7 +670,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 # if validating category from storage succeeds, merge new and storage
                 else:
                     category_val_prepared = await self._merge_category_vals(category_val_prepared, category_val_storage,
-                                                                            keep_original_items)
+                                                                            keep_original_items, category_name)
                     if json.dumps(category_val_prepared, sort_keys=True) == json.dumps(category_val_storage,
                                                                                        sort_keys=True):
                         return

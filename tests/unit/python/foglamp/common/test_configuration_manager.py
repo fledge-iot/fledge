@@ -622,7 +622,7 @@ class TestConfigurationManager:
             excinfo.value)
 
     @pytest.mark.asyncio
-    async def test__merge_category_vals_same_items_different_values(self, reset_singleton):
+    async def test__merge_category_vals_same_items_different_values(self, reset_singleton, mocker):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         test_config_new = {
@@ -641,7 +641,11 @@ class TestConfigurationManager:
                 "value": "test value val storage"
             },
         }
-        c_return_value = await c_mgr._merge_category_vals(test_config_new, test_config_storage, keep_original_items=True)
+
+        mocker.patch.object(AuditLogger, '__init__', return_value=None)
+        mocker.patch.object(AuditLogger, 'information', return_value=asyncio.sleep(.1))
+
+        c_return_value = await c_mgr._merge_category_vals(test_config_new, test_config_storage, keep_original_items=True, category_name='test')
         assert isinstance(c_return_value, dict)
         assert len(c_return_value) is 1
         test_item_val = c_return_value.get("test_item_name")
@@ -658,7 +662,7 @@ class TestConfigurationManager:
         assert test_config_new is not test_config_storage
 
     @pytest.mark.asyncio
-    async def test__merge_category_vals_deprecated(self, reset_singleton):
+    async def test__merge_category_vals_deprecated(self, reset_singleton, mocker):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         test_config_new = {
@@ -698,11 +702,14 @@ class TestConfigurationManager:
                 "value": "test value val storage2"
             },
         }
-        c_return_value = await c_mgr._merge_category_vals(test_config_new, test_config_storage, keep_original_items=True)
+        mocker.patch.object(AuditLogger, '__init__', return_value=None)
+        mocker.patch.object(AuditLogger, 'information', return_value=asyncio.sleep(.1))
+
+        c_return_value = await c_mgr._merge_category_vals(test_config_new, test_config_storage, keep_original_items=True, category_name='test')
         assert expected_new_value == c_return_value
 
     @pytest.mark.asyncio
-    async def test__merge_category_vals_no_mutual_items_ignore_original(self, reset_singleton):
+    async def test__merge_category_vals_no_mutual_items_ignore_original(self, reset_singleton, mocker):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         test_config_new = {
@@ -721,7 +728,11 @@ class TestConfigurationManager:
                 "value": "test value val storage"
             },
         }
-        c_return_value = await c_mgr._merge_category_vals(test_config_new, test_config_storage, keep_original_items=False)
+
+        mocker.patch.object(AuditLogger, '__init__', return_value=None)
+        mocker.patch.object(AuditLogger, 'information', return_value=asyncio.sleep(.1))
+
+        c_return_value = await c_mgr._merge_category_vals(test_config_new, test_config_storage, keep_original_items=False, category_name='test')
         assert isinstance(c_return_value, dict)
         # ignore "test_item_name_storage" and include "test_item_name"
         assert len(c_return_value) is 1
@@ -737,7 +748,7 @@ class TestConfigurationManager:
         assert test_config_new is not test_config_storage
 
     @pytest.mark.asyncio
-    async def test__merge_category_vals_no_mutual_items_include_original(self, reset_singleton):
+    async def test__merge_category_vals_no_mutual_items_include_original(self, reset_singleton, mocker):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         test_config_new = {
@@ -756,7 +767,11 @@ class TestConfigurationManager:
                 "value": "test value val storage"
             },
         }
-        c_return_value = await c_mgr._merge_category_vals(test_config_new, test_config_storage, keep_original_items=True)
+
+        mocker.patch.object(AuditLogger, '__init__', return_value=None)
+        mocker.patch.object(AuditLogger, 'information', return_value=asyncio.sleep(.1))
+
+        c_return_value = await c_mgr._merge_category_vals(test_config_new, test_config_storage, keep_original_items=True, category_name='test')
         assert isinstance(c_return_value, dict)
         # include "test_item_name_storage" and "test_item_name"
         assert len(c_return_value) is 2
@@ -845,7 +860,7 @@ class TestConfigurationManager:
                             await c_mgr.create_category('catname', 'catvalue', 'catdesc')
                         updatepatch.assert_not_called()
                     callbackpatch.assert_not_called()
-                mergepatch.assert_called_once_with({}, {}, False)
+                mergepatch.assert_called_once_with({}, {}, False, 'catname')
             readpatch.assert_called_once_with('catname')
         valpatch.assert_has_calls([call('catvalue', True), call({}, False)])
 
@@ -865,7 +880,7 @@ class TestConfigurationManager:
                             await c_mgr.create_category('catname', 'catvalue', 'catdesc')
                         updatepatch.assert_called_once_with('catname', {'bla': 'bla'}, 'catdesc')
                     callbackpatch.assert_called_once_with('catname')
-                mergepatch.assert_called_once_with({}, {}, False)
+                mergepatch.assert_called_once_with({}, {}, False, 'catname')
             readpatch.assert_called_once_with('catname')
         valpatch.assert_has_calls([call('catvalue', True), call({}, False)])
 
@@ -887,7 +902,7 @@ class TestConfigurationManager:
                                     await c_mgr.create_category('catname', 'catvalue', 'catdesc')
                                 updatepatch.assert_called_once_with('catname', {'bla': 'bla'}, 'catdesc')
                             callbackpatch.assert_not_called()
-                        mergepatch.assert_called_once_with({}, {}, False)
+                        mergepatch.assert_called_once_with({}, {}, False, 'catname')
                     readpatch.assert_called_once_with('catname')
             valpatch.assert_has_calls([call('catvalue', True), call({}, False)])
         assert 1 == log_exc.call_count

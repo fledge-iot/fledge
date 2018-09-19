@@ -27,7 +27,7 @@ __version__ = "${VERSION}"
 _logger = logger.setup(__name__)
 
 # MAKE UPPER_CASE
-_valid_type_strings = sorted(['boolean', 'integer', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password', 'JSON',
+_valid_type_strings = sorted(['boolean', 'integer', 'float', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password', 'JSON',
                               'URL', 'enumeration'])
 
 
@@ -908,6 +908,14 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             else:
                 return True
 
+        def _str_to_float(item_val):
+            try:
+                _value = float(item_val)
+            except ValueError:
+                return False
+            else:
+                return True
+
         def _str_to_ipaddress(item_val):
             try:
                 return ipaddress.ip_address(item_val)
@@ -918,6 +926,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             return _str_to_bool(_value)
         elif _type == 'integer':
             return _str_to_int(_value)
+        elif _type == 'float':
+            return _str_to_float(_value)
         elif _type == 'JSON':
             if isinstance(_value, dict):
                 return True
@@ -937,5 +947,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
     def _clean(self, item_type, item_val):
         if item_type == 'boolean':
             return item_val.lower()
+        elif item_type == 'float':
+            return float(item_val)
 
         return item_val

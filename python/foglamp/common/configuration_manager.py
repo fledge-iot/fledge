@@ -238,7 +238,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                             raise ValueError('Unrecognized value for item_name {}'.format(entry_name))
                         if entry_name == 'deprecated':
                             if entry_val.lower() != 'true':
-                                raise ValueError('Unrecognized value for item_name {}'.format(entry_name))
+                                raise ValueError("[deprecated] attribute can be set to [true] only")
                     else:
                         if self._validate_type_value('integer', entry_val) is False:
                             raise ValueError('Unrecognized value for item_name {}'.format(entry_name))

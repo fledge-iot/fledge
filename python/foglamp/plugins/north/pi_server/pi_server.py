@@ -837,7 +837,7 @@ class PIServerNorthPlugin(object):
                 # For local server simulation
                 # msg_header.update({'content-type': 'application/json'})
 
-                self._logger.info("SEND requested with compression: %s started at: %s", str(USE_COMPRESSION), datetime.now().isoformat())
+                self._logger.warning("SEND requested with compression: %s started at: %s", str(USE_COMPRESSION), datetime.now().isoformat())
                 async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
                     async with session.post(
                                             url=self._config['URL'],
@@ -861,7 +861,7 @@ class PIServerNorthPlugin(object):
                 _error = plugin_exceptions.URLConnectionError(_message)
 
             else:
-                self._logger.info("PI Server responded with status: %s received at: %s", str(status_code),
+                self._logger.warning("PI Server responded with status: %s received at: %s", str(status_code),
                                   datetime.now().isoformat())
                 # Evaluate the HTTP status codes
                 if not str(status_code).startswith('2'):

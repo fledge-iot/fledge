@@ -837,7 +837,7 @@ class PIServerNorthPlugin(object):
                 # For local server simulation
                 # msg_header.update({'content-type': 'application/json'})
 
-                self._logger.warning("SEND requested with compression: %s started at: %s", str(USE_COMPRESSION), datetime.now().isoformat())
+                self._logger.warning("SEND requested with compression: %s started at: %s", str(use_compression), datetime.now().isoformat())
                 async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
                     async with session.post(
                                             url=self._config['URL'],

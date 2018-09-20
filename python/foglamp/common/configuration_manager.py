@@ -948,6 +948,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         if item_type == 'boolean':
             return item_val.lower()
         elif item_type == 'float':
-            return float(item_val)
+            return str(float(item_val))
 
         return item_val

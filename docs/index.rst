@@ -9,6 +9,7 @@ Welcome to FogLAMP's documentation!
 
 .. toctree::
 
+    quick_start
     01_introduction
     02_foglamp_at_a_glance
     03_getting_started

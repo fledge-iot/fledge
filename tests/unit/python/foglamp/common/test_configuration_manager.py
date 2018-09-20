@@ -30,8 +30,8 @@ class TestConfigurationManager:
         ConfigurationManagerSingleton._shared_state = {}
 
     def test_supported_validate_type_strings(self):
-        assert 10 == len(_valid_type_strings)
-        assert ['IPv4', 'IPv6', 'JSON', 'URL', 'X509 certificate', 'boolean', 'enumeration', 'integer', 'password', 'string'] == _valid_type_strings
+        assert 11 == len(_valid_type_strings)
+        assert ['IPv4', 'IPv6', 'JSON', 'URL', 'X509 certificate', 'boolean', 'enumeration', 'float', 'integer', 'password', 'string'] == _valid_type_strings
 
     def test_constructor_no_storage_client_defined_no_storage_client_passed(
             self, reset_singleton):
@@ -2074,6 +2074,18 @@ class TestConfigurationManager:
         ("boolean", "false", True),
         ("boolean", "true", True),
         ("integer", "123", True),
+        ("float", "123456", True),
+        ("float", "0", True),
+        ("float", "NaN", True),
+        ("float", "123.456", True),
+        ("float", "123.E4", True),
+        ("float", ".1", True),
+        ("float", "6.523e-07", True),
+        ("float", "6e7777", True),
+        ("float", "1.79e+308", True),
+        ("float", "infinity", True),
+        ("float", "0E0", True),
+        ("float", "+1e1", True),
         ("IPv4", "127.0.0.1", ipaddress.IPv4Address('127.0.0.1')),
         ("IPv6", "2001:db8::", ipaddress.IPv6Address('2001:db8::')),
         ("JSON", {}, True),  # allow a dict
@@ -2108,6 +2120,22 @@ class TestConfigurationManager:
         assert result == c_mgr._validate_type_value(item_type, item_val)
 
     @pytest.mark.parametrize("item_type, item_val", [
+        ("float", ""),
+        ("float", "nana"),
+        ("float", "1,234"),
+        ("float", "NULL"),
+        ("float", ",1"),
+        ("float", "123.EE4"),
+        ("float", "12.34.56"),
+        ("float", "1,234"),
+        ("float", "#12"),
+        ("float", "12%"),
+        ("float", "x86E0"),
+        ("float", "86-5"),
+        ("float", "True"),
+        ("float", "+1e1.3"),
+        ("float", "-+1"),
+        ("float", "(1)"),
         ("boolean", "blah"),
         ("JSON", "Blah"),
         ("JSON", True),

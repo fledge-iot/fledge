@@ -216,7 +216,7 @@ class SendingProcess(FoglampProcess):
         "enable": {
             "description": "Enable execution of the sending process",
             "type": "boolean",
-            "default": "True",
+            "default": "true",
             "readonly": "true"
         },
         "duration": {

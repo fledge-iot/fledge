@@ -11,7 +11,7 @@ PICROMF = PI Connector Relay OMF"""
 
 import aiohttp
 import asyncio
-
+import gzip
 from datetime import datetime
 import sys
 import copy
@@ -108,6 +108,11 @@ _CONFIG_DEFAULT_OMF = {
         "default": "readings",
         "options": ["readings", "statistics"],
         "order": "3"
+    },
+    "compression": {
+        "description": "Compress message body",
+        "type": "boolean",
+        "default": "false",
     },
     "StaticData": {
         "description": "Static data to include in each sensor reading sent via OMF",
@@ -386,9 +391,10 @@ def plugin_init(data):
     _config['StaticData'] = ast.literal_eval(data['StaticData']['value'])
     _config['notBlockingErrors'] = ast.literal_eval(data['notBlockingErrors']['value'])
 
-
     _config['formatNumber'] = data['formatNumber']['value']
     _config['formatInteger'] = data['formatInteger']['value']
+
+    _config['compression'] = data['compression']['value']
 
     # TODO: compare instance fetching via inspect vs as param passing
     # import inspect
@@ -818,11 +824,25 @@ class PIServerNorthPlugin(object):
         while num_retry <= self._config['OMFMaxRetry']:
             _error = False
             try:
+                use_compression = True if self._config['compression']['value'].upper() == 'TRUE' else False
+                if use_compression:
+                    msg_body = gzip.compress(bytes(omf_data_json, 'utf-8'))
+                    msg_header.update({'compression': 'gzip'})
+                    # CHECK if this is required?
+                    # https://docs.aiohttp.org/en/stable/client_advanced.html#uploading-pre-compressed-data
+                    msg_header.update({'Content-Encoding': 'gzip'})
+                else:
+                    msg_body = omf_data_json
+
+                # For local server simulation
+                # msg_header.update({'content-type': 'application/json'})
+
+                self._logger.info("SEND requested with compression: %s started at: %s", str(USE_COMPRESSION), datetime.now().isoformat())
                 async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
                     async with session.post(
                                             url=self._config['URL'],
                                             headers=msg_header,
-                                            data=omf_data_json,
+                                            data=msg_body,
                                             timeout=self._config['OMFHttpTimeout']
                                             ) as resp:
 
@@ -841,6 +861,8 @@ class PIServerNorthPlugin(object):
                 _error = plugin_exceptions.URLConnectionError(_message)
 
             else:
+                self._logger.info("PI Server responded with status: %s received at: %s", str(status_code),
+                                  datetime.now().isoformat())
                 # Evaluate the HTTP status codes
                 if not str(status_code).startswith('2'):
 

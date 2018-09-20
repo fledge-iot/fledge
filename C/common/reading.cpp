@@ -81,16 +81,13 @@ char	uuid_str[37];
 	struct tm tm;
 	strptime(ts.c_str(), COMBINED_DATE_STANDARD_FORMAT, &tm);
 	m_timestamp.tv_sec = mktime(&tm);
-	char *ptr = ts.c_str();
+	const char *ptr = ts.c_str();
 	while (*ptr && *ptr != '.')
 		ptr++;
 	if (ptr)
 	{
 		ptr++;
-		char *endptr = ptr;
-		while (*endptr && *endptr != 'Z')
-			endptr++;
-		m_timestamp.tv_usec = strtol(ptr, endptr, 10);
+		m_timestamp.tv_usec = strtol(ptr, NULL, 10);
 	}
 }
 

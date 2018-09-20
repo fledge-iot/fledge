@@ -12,7 +12,6 @@ PICROMF = PI Connector Relay OMF"""
 import aiohttp
 import asyncio
 import gzip
-from datetime import datetime
 import sys
 import copy
 import ast
@@ -837,7 +836,7 @@ class PIServerNorthPlugin(object):
                 # For local server simulation
                 # msg_header.update({'content-type': 'application/json'})
 
-                self._logger.warning("SEND requested with compression: %s started at: %s", str(use_compression), datetime.now().isoformat())
+                self._logger.warning("SEND requested with compression: %s started at: %s", str(use_compression), datetime.datetime.now().isoformat())
                 async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
                     async with session.post(
                                             url=self._config['URL'],
@@ -862,7 +861,7 @@ class PIServerNorthPlugin(object):
 
             else:
                 self._logger.warning("PI Server responded with status: %s received at: %s", str(status_code),
-                                  datetime.now().isoformat())
+                                     datetime.datetime.now().isoformat())
                 # Evaluate the HTTP status codes
                 if not str(status_code).startswith('2'):
 

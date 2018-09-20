@@ -824,7 +824,7 @@ class PIServerNorthPlugin(object):
         while num_retry <= self._config['OMFMaxRetry']:
             _error = False
             try:
-                use_compression = True if self._config['compression']['value'].upper() == 'TRUE' else False
+                use_compression = True if self._config['compression'].upper() == 'TRUE' else False
                 if use_compression:
                     msg_body = gzip.compress(bytes(omf_data_json, 'utf-8'))
                     msg_header.update({'compression': 'gzip'})

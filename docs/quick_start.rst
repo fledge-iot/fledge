@@ -68,7 +68,7 @@ To check what packages have been installed, ssh into your host system and use th
 Starting and stopping FogLAMP
 =============================
 
-FogLAMP administration is performed using the “FogLAMP” command line utility.  You must first ssh into the host system.  The FogLAMP utility is installed by default in /usr/local/foglamp/bin.
+FogLAMP administration is performed using the “foglamp” command line utility.  You must first ssh into the host system.  The FogLAMP utility is installed by default in /usr/local/foglamp/bin.
 
 The following command options are available:
 
@@ -92,14 +92,14 @@ Help
 
 For example, to start the FogLAMP system, open a session to the FogLAMP device and type::
 
-/usr/local/FogLAMP/bin/FogLAMP start
+/usr/local/FogLAMP/bin/foglamp start
 
 Troubleshooting FogLAMP
 #######################
 
 FogLAMP logs status and error messages to syslog.  To troubleshoot a FogLAMP installation using this information, open a session to the FogLAMP server and type::
 
-  grep -a 'FogLAMP' /var/log/syslog | tail -n 20
+  grep -a 'foglamp' /var/log/syslog | tail -n 20
 
 Running the FogLAMP GUI
 =======================

@@ -111,7 +111,7 @@ _CONFIG_DEFAULT_OMF = {
     "compression": {
         "description": "Compress message body",
         "type": "boolean",
-        "default": "false",
+        "default": "true",
     },
     "StaticData": {
         "description": "Static data to include in each sensor reading sent via OMF",

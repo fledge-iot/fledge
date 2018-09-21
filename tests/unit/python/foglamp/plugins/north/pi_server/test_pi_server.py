@@ -164,7 +164,7 @@ class TestPiServer:
                 "formatNumber": {"value": "float64"},
                 "formatInteger": {"value": "int64"},
                 "notBlockingErrors": {"value": "{'id': 400, 'message': 'none'}"},
-                "compression": {"value": "false"}
+                "compression": {"value": "true"}
 
         }
 

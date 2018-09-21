@@ -22,7 +22,11 @@ Installing FogLAMP
 
 FogLAMP is extremely lightweight and can run on inexpensive edge devices, sensors and actuator boards.  For the purposes of this manual, we assume that all services are running on a Raspberry Pi running the Raspbian operating system. Be sure your system has plenty of storage available for data readings. 
 
-If your system does not have Raspbian pre-installed, you can find instructions on downloading and installing it at https://www.raspberrypi.org/downloads/raspbian/
+If your system does not have Raspbian pre-installed, you can find instructions on downloading and installing it at https://www.raspberrypi.org/downloads/raspbian/.  After installing Raspbian, ensure you have the latest updates by executing the following commands on your FogLAMP server::
+
+  sudo apt-get update
+  sudo apt-get upgrade
+  sudo apt-get update
 
 You can obtain FogLAMP in two ways:
 
@@ -59,7 +63,7 @@ Checking package installation
 
 To check what packages have been installed, ssh into your host system and use the dpkg command::
 
-  dpkg -l | grep 'FogLAMP'
+  dpkg -l | grep 'foglamp'
 
 Starting and stopping FogLAMP
 =============================

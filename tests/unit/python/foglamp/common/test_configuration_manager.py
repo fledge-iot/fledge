@@ -344,7 +344,7 @@ class TestConfigurationManager:
         assert "100" == test_item_val.get("length")
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("config, item_name", [
+    @pytest.mark.parametrize("config, item_name, message", [
         ({
              "test_item_name": {
                  "description": "test description val",
@@ -352,7 +352,7 @@ class TestConfigurationManager:
                  "default": "test default val",
                  "readonly": "unexpected",
              },
-         }, "readonly"),
+         }, "readonly", "boolean"),
         ({
              "test_item_name": {
                  "description": "test description val",
@@ -360,15 +360,39 @@ class TestConfigurationManager:
                  "default": "test default val",
                  "order": "unexpected",
              },
-         }, "order")
+         }, "order", "an integer"),
+        ({
+             "test_item_name": {
+                 "description": "test description val",
+                 "type": "string",
+                 "default": "test default val",
+                 "length": "unexpected",
+             },
+         }, "length", "an integer"),
+        ({
+             "test_item_name": {
+                 "description": "test description val",
+                 "type": "float",
+                 "default": "test default val",
+                 "minimum": "unexpected",
+             },
+         }, "minimum", "an integer or float"),
+        ({
+             "test_item_name": {
+                 "description": "test description val",
+                 "type": "integer",
+                 "default": "test default val",
+                 "maximum": "unexpected",
+             },
+         }, "maximum", "an integer or float"),
     ])
-    async def test__validate_category_val_optional_attributes_unrecognized_entry_name(self, config, item_name):
+    async def test__validate_category_val_optional_attributes_unrecognized_entry_name(self, config, item_name, message):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with pytest.raises(Exception) as excinfo:
             await c_mgr._validate_category_val(category_val=config, set_value_val_from_default_val=True)
         assert excinfo.type is ValueError
-        assert "Unrecognized value for item_name {}".format(item_name) == str(excinfo.value)
+        assert "Entry value must be {} for item name {}".format(message, item_name) == str(excinfo.value)
 
     @pytest.mark.asyncio
     async def test__validate_category_val_config_without_value_use_value_val(self):

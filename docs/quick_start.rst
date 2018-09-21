@@ -20,7 +20,9 @@ Services can easily be developed and incorporated into the FogLAMP framework. Th
 Installing FogLAMP
 ==================
 
-FogLAMP is extremely lightweight and can run on inexpensive edge devices, sensors and actuator boards.  For the purposes of this manual, we assume that all services are running on a Raspberry Pi running the Raspbian operating system.
+FogLAMP is extremely lightweight and can run on inexpensive edge devices, sensors and actuator boards.  For the purposes of this manual, we assume that all services are running on a Raspberry Pi running the Raspbian operating system. Be sure your system has plenty of storage available for data readings. 
+
+If your system does not have Raspbian pre-installed, you can find instructions on downloading and installing it at https://www.raspberrypi.org/downloads/raspbian/
 
 You can obtain FogLAMP in two ways:
 
@@ -46,9 +48,11 @@ The key packages to install are the FogLAMP core and the FogLAMP User Interface:
   sudo apt -y install ./foglamp-1.4.0-armhf.deb
   sudo apt -y install ./foglamp-gui-1.4.0-dev.deb
 
-You will need to install one of more South plugins to acquire data.  You can either do this now or when you are adding the data source.
+You will need to install one of more South plugins to acquire data.  You can either do this now or when you are adding the data source. For example, to install the plugin for the Sense HAT sensor board, type: 
 
-You may also need to install one or more North plugins to transmit data.  However, support for OSIsoft PI and OCS have already been included with the FogLAMP core package.
+  sudo apt -y install ./foglamp-south-sensehat-1.0-armhf.deb
+
+You may also need to install one or more North plugins to transmit data.  Support for OSIsoft PI and OCS are included with the FogLAMP core package, so you don't need to install anything more if you are sending data to only these systems.
 
 Checking package installation
 #############################
@@ -98,6 +102,10 @@ Running the FogLAMP GUI
 
 FogLAMP offers an easy-to-use, browser-based GUI.  To access the GUI, open your browser and enter the IP address of the FogLAMP server into the address bar.  This will display the FogLAMP dashboard.
 
+You can easily use the FogLAMP UI to monitor multiple FogLAMP servers.  To view and manage a different server, click "Settings" in the left menu bar. In the "Connection Setup" pane, enter the IP address and port number for the new server you wish to manage.  Click the "Set the URL & Restart" button to switch the UI to the new server.
+
+If you are managing a very lightweight server or one that is connected via a slow network link, you may want to reduce the UI update frequency to minimize load on the server and network.  You can adjust this rate in the "GUI Settings" pane of the Settings screen.  While the graph rate and ping rate can be adjusted individually, in general you should set them to the same value.
+
 FogLAMP Dashboard
 #################
 
@@ -128,7 +136,11 @@ The South Services screen displays the status of all data sources in the FogLAMP
 Adding Data Sources
 ###################
 
-To add a data source, click on “Add+” in the upper right of the South Services screen.  FogLAMP will display a series of 3 screens to add the data source: 
+To add a data source, you will first need to install the plugin for that sensor type.  If you have not already done this, open a terminal session to your FogLAMP server.  Download the package for the plugin and enter:
+
+  sudo apt -y install PackageName
+  
+Once the plugin is installed return to the FogLAMP GUI and click on “Add+” in the upper right of the South Services screen.  FogLAMP will display a series of 3 screens to add the data source: 
 
 1. The first screen will ask you to select the plugin for the data source from the list of installed plugins.  If you do not see the plugin you need, refer to the Installing FogLAMP section of this manual.  In addition, this screen allows you to specify a display name for the data source.
 2. The second screen allows you to configure the plugin and the data assets it will provide.  Note that every data asset in FogLAMP must have a unique name.  If you have multiple sensors using the same plugin, modify the asset names on this screen so they are unique. (Some plugins allow you to specify an asset name prefix that will apply to all the asset names for that sensor.)  Refer to the individual plugin documentation for descriptions of the fields on this screen.  If you modify any of the configuration fields, click on the “save” button to save them.
@@ -185,57 +197,35 @@ In the FogLAMP user interface, now create a new North instance and select the �
 The second screen will request the following information:
 
 - Basic Information
-   - URL: The Relay Ingress URL provided by Pi (under “more” in the status pane)
-   - producerToken: The Producer Token provided by Pi (under “more” in the status pane)
-- Static Data: Data to include in every reading sent to Pi.  For example, you can use this to specify the location of the devices being monitored by the FogLAMP server.
-   - Data Filtering
-   - applyFilter: Set to True if you are using a filter rule, false if not.
-   - filterRule: A JQ formatted filter that determines which readings to send to Pi
+   - **URL:** The Relay Ingress URL provided by Pi (under “more” in the status pane)
+   - **producerToken:** The Producer Token provided by Pi (under “more” in the status pane)
+   - **Static Data:** Data to include in every reading sent to Pi.  For example, you can use this to specify the location of the devices being monitored by the FogLAMP server.
+- Data Filtering
+   - **applyFilter:** Set to True if you are using a filter rule, false if not.
+   - **filterRule:** A JQ formatted filter that determines which readings to send to Pi
 - Connection management (These should only be changed with guidance from support)
-   - OMFHttpTimeout: Number of seconds to wait before FogLAMP will time out an HTTP connection attempt
-   - OMFRetrySleepTime: Number of seconds to wait before retrying the HTTP connection (FogLAMP doubles this time after each failed attempt).
-   - OMFMaxRetry: Maximum number of times to retry connecting to the Pi server
+   - **OMFHttpTimeout:** Number of seconds to wait before FogLAMP will time out an HTTP connection attempt
+   - **OMFRetrySleepTime:** Number of seconds to wait before retrying the HTTP connection (FogLAMP doubles this time after each failed attempt).
+   - **OMFMaxRetry:** Maximum number of times to retry connecting to the Pi server
 - Other (Rarely changed)
-   - formatInteger: Used to match FogLAMP data types to the data type configured in PI
-      - formatNumber: Used to match FogLAMP data types to the data type configured in PI
+   - **formatInteger:** Used to match FogLAMP data types to the data type configured in PI
+   - **formatNumber:** Used to match FogLAMP data types to the data type configured in PI
 
-Administering the FogLAMP Server
-================================
 
-Purging Old Data
-################
-
-FogLAMP buffers South Services readings in a local database and periodically forwards them to North Services.  Old readings should be periodically purged from this database to free space for new readings.
-
-If the buffered data exceeds the maximum storage available on the FogLAMP server, BAD THNGS WILL HAPPEN??!!
-
-To configure the purge function, click “Configuration” in the left menu bar. Select “Utilities” from the dropdown and then “Purge the readings table”.  You can set the following options:
-
-Size
-  Purge any data (starting with the oldest) that would cause the database to exceed this size (in kilobytes)
-Age
-  Purge all data older than this value (in hours?)
-retainUnsent
-  Regardless of the values of size and age, do not purge any data that has not yet been sent to at least one North interface
-
-By default, Pi purges old data once per hour.  To configure this, click “Scheduled Tasks” from the left menu bar. Click the edit icon next to the “purge” entry  in the Schedules table.
-
-Under “Repeat (Interval)”, set the new interval in full days in the left box and the hours, minutes and seconds (in HH:MM:SS format) in the right box 
-
-By changing Type to “Timed”, you can also schedule the day and time when the first instance of the purge will occur. After this, purges will repeat after each specified interval. IS THIS TRUE?
-
-If you don’t want data to be purged automatically, set the Type to “Manual”. Be sure to manually start a purge before storage on the FogLAMP system is full.
-
-Ensure that the “Exclusive” and “Enabled” boxes are checked and click “Save” to schedule purges
-
-Backing up and Restoring Readings
+Backing up and Restoring FogLAMP
 =================================
 
-TBD
+You can make a complete backup of all FogLAMP data and configuration.  To do this, click on "Backup & Restore" in the left menu bar. This screen will show a list of all backups on the system and the time they were created.
+To make a new backup, click the "Backup" button in the upper right corner of the screen.  You will briefly see a "Running" indicator in the lower left of the screen.  After a period of time, the new backup will appear in the list.  You may need to click the refresh button in the upper left of the screen to refresh the list.
+You can restore, delete or download any backup simply by clicking the appropriate button next to the backup in the list.
 
-Troubleshooting and Support
-===========================
+Troubleshooting and Support Information
+=======================================
 
-FogLAMP keep detailed logs of system events for both auditing and troubleshooting use… What are these logs really for? What’s the difference?
+FogLAMP keep detailed logs of system events for both auditing and troubleshooting use.  To access them, click "Logs" in the left menu bar.  There are three logs in the system:
 
-If you have a service contract for your FogLAMP system, your support technician may ask you to send system data (?) to facilitate troubleshooting an issue.  To do this, click on “Support” in the left menu and then “Request New” in the upper right of the screen.  This will create an archive of information.  Click download to retrieve this archive to your system so you can email it to the technician.
+  - **Audit:** Tracks all configuration changes and data uploads performed on the FogLAMP system.
+  - **System:** All events and scheduled tasks and their status.
+  - **Tasks:** The most recent scheduled tasks that have run and their status
+
+If you have a service contract for your FogLAMP system, your support technician may ask you to send system data to facilitate troubleshooting an issue.  To do this, click on “Support” in the left menu and then “Request New” in the upper right of the screen.  This will create an archive of information.  Click download to retrieve this archive to your system so you can email it to the technician.

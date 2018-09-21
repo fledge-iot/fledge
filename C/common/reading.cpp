@@ -13,6 +13,7 @@
 #include <sstream>
 #include <iostream>
 #include <uuid/uuid.h>
+#include <time.h>
 
 using namespace std;
 
@@ -34,6 +35,13 @@ char	uuid_str[37];
 	m_uuid = string(uuid_str);
 	// Store seconds and microseconds
 	gettimeofday(&m_timestamp, NULL);
+	// We now need to allow for the timezone difference as mktime is returning
+	// In the local timezone
+	time_t	now = time(NULL);
+	struct tm local = *localtime(&now);
+	struct tm utc = *gmtime(&now);
+
+	m_timestamp.tv_sec -= 3600 * (local.tm_hour - utc.tm_hour);
 }
 
 /**
@@ -57,6 +65,13 @@ char	uuid_str[37];
 	m_uuid = string(uuid_str);
 	// Store seconds and microseconds
 	gettimeofday(&m_timestamp, NULL);
+	// We now need to allow for the timezone difference as mktime is returning
+	// In the local timezone
+	time_t	now = time(NULL);
+	struct tm local = *localtime(&now);
+	struct tm utc = *gmtime(&now);
+
+	m_timestamp.tv_sec -= 3600 * (local.tm_hour - utc.tm_hour);
 }
 
 /**
@@ -89,6 +104,13 @@ char	uuid_str[37];
 		ptr++;
 		m_timestamp.tv_usec = strtol(ptr, NULL, 10);
 	}
+	// We now need to allow for the timezone difference as mktime is returning
+	// In the local timezone
+	time_t	now = time(NULL);
+	struct tm local = *localtime(&now);
+	struct tm utc = *gmtime(&now);
+
+	m_timestamp.tv_sec -= 3600 * (local.tm_hour - utc.tm_hour);
 }
 
 /**
@@ -135,6 +157,11 @@ ostringstream convert;
 	convert << "\", \"read_key\" : \"";
 	convert << m_uuid;
 	convert << "\", \"user_ts\" : \"";
+
+	// Add date_time with microseconds + timezone UTC:
+	// YYYY-MM-DD HH24:MM:SS.MS+00:00
+	convert << Reading::getAssetDateTime(FMT_DEFAULT) << "+00:00";
+	convert << "\", \"ts\" : \"";
 
 	// Add date_time with microseconds + timezone UTC:
 	// YYYY-MM-DD HH24:MM:SS.MS+00:00

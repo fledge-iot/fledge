@@ -211,6 +211,7 @@ FogLAMP buffers South Services readings in a local database and periodically for
 If the buffered data exceeds the maximum storage available on the FogLAMP server, BAD THNGS WILL HAPPEN??!!
 
 To configure the purge function, click “Configuration” in the left menu bar. Select “Utilities” from the dropdown and then “Purge the readings table”.  You can set the following options:
+
 Size
   Purge any data (starting with the oldest) that would cause the database to exceed this size (in kilobytes)
 Age

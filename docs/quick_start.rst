@@ -163,8 +163,7 @@ Adding Data Destinations
 
 To add a data destination, click on “Create North Instance+” in the upper right of the North Services screen.  FogLAMP will display a series of 3 screens to add the data destination:
 
-1. The first screen will ask you to select the plugin for the data destination from the list of installed plugins.  If you do not see the plugin you need, refer to the Installing FogLAMP section of this manual.  In addition, this screen allows you to specify a display name for the data destination. 
-In addition, you can specify how frequently data will be forwarded to the destination in days, hours, minutes and seconds.  Enter the number of days in the interval in the left box and the number of hours, minutes and seconds in format HH:MM:SS in the right box.
+1. The first screen will ask you to select the plugin for the data destination from the list of installed plugins.  If you do not see the plugin you need, refer to the Installing FogLAMP section of this manual.  In addition, this screen allows you to specify a display name for the data destination. In addition, you can specify how frequently data will be forwarded to the destination in days, hours, minutes and seconds.  Enter the number of days in the interval in the left box and the number of hours, minutes and seconds in format HH:MM:SS in the right box.
 2. The second screen allows you to configure the plugin and the data assets it will send.  Refer to the individual plugin documentation for descriptions of the fields on this screen.  If you modify any of the configuration fields, click on the “save” button to save them.
 3. The final screen loads the plugin.  You can specify whether it will be enabled immediately for data sending or to await enabling in the future.
 

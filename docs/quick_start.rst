@@ -1,5 +1,14 @@
 .. Images
 .. |dashboard| image:: images/dashboard.JPG
+.. |south_services| image:: images/south_services.JPG
+.. |south_service_config| image:: images/south_service_config.JPG 
+.. |north_services| image:: images/north_services.JPG
+.. |north_services| image:: images/north_services.JPG
+.. |pi_plugin_config| image:: images/pi_plugin_config.JPG
+.. |settings| image:: images/settings.JPG
+.. |backup| image:: images/backup.JPG
+.. |support| image:: images/support.JPG
+.. |viewing_data| image:: images/viewing_data.JPG
 
 *****************
 Quick Start Guide
@@ -55,7 +64,7 @@ The key packages to install are the FogLAMP core and the FogLAMP User Interface:
   sudo apt -y install ./foglamp-1.4.0-armhf.deb
   sudo apt -y install ./foglamp-gui-1.4.0-dev.deb
 
-You will need to install one of more South plugins to acquire data.  You can either do this now or when you are adding the data source. For example, to install the plugin for the Sense HAT sensor board, type: 
+You will need to install one of more South plugins to acquire data.  You can either do this now or when you are adding the data source. For example, to install the plugin for the Sense HAT sensor board, type:: 
 
   sudo apt -y install ./foglamp-south-sensehat-1.0-armhf.deb
 
@@ -75,23 +84,12 @@ FogLAMP administration is performed using the “foglamp” command line utility
 
 The following command options are available:
 
-Start
-  Start the FogLAMP system
-
-Stop
-  Stop the FogLAMP system
-
-Status
-  Lists currently running FogLAMP services and tasks
-
-Reset
-  Delete all data and configuration and return FogLAMP to factory settings
-
-Kill
-  Kill FogLAMP services that have not correctly responded to Stop
-
-Help
-  Describe FogLAMP options
+  - **Start:** Start the FogLAMP system
+  - **Stop:** Stop the FogLAMP system
+  - **Status:** Lists currently running FogLAMP services and tasks
+  - **Reset:** Delete all data and configuration and return FogLAMP to factory settings
+  - **Kill:** Kill FogLAMP services that have not correctly responded to Stop
+  - **Help:** Describe FogLAMP options
 
 For example, to start the FogLAMP system, open a session to the FogLAMP device and type::
 
@@ -123,21 +121,18 @@ This screen provides an overview of FogLAMP operations.  You can customize the i
 
 You can choose to view a graph of any of the sensor reading being collected by the FogLAMP system.  In addition, you can view graphs of the following system-wide information:
 
-Readings
-  The total number of data readings collected by FogLAMP since system boot
-Buffered
-  The number of data readings currently stored by the system
-Discarded
-  Number of data readings discarded before being buffered (due to data errors, for example)
-Unsent
-  Number of data readings that were not sent successfully
-Purged
-  The total number of data readings that have been purged from the system
-Unsnpurged
-  The number of data readings that were purged without being sent to a North service.
+  - **Readings:** The total number of data readings collected by FogLAMP since system boot
+  - **Buffered:** The number of data readings currently stored by the system
+  - **Discarded:** Number of data readings discarded before being buffered (due to data errors, for example)
+  - **Unsent:** Number of data readings that were not sent successfully
+  - **Purged:** The total number of data readings that have been purged from the system
+  - **Unsnpurged:** The number of data readings that were purged without being sent to a North service.
 
 Managing Data Sources
 =====================
++------------------+
+| |south_services| |
++------------------+
 
 Data sources are managed from the South Services screen.  To access this screen, click on “South” from the menu bar on the left side of any screen.
 
@@ -146,7 +141,7 @@ The South Services screen displays the status of all data sources in the FogLAMP
 Adding Data Sources
 ###################
 
-To add a data source, you will first need to install the plugin for that sensor type.  If you have not already done this, open a terminal session to your FogLAMP server.  Download the package for the plugin and enter:
+To add a data source, you will first need to install the plugin for that sensor type.  If you have not already done this, open a terminal session to your FogLAMP server.  Download the package for the plugin and enter::
 
   sudo apt -y install PackageName
   
@@ -158,6 +153,9 @@ Once the plugin is installed return to the FogLAMP GUI and click on “Add+” i
 
 Configuring Data Sources
 ########################
++------------------------+
+| |south_service_config| |
++------------------------+
 
 To modify the configuration of a data source, click on its name in the South Services screen. This will display a list of all parameters available for that data source.  If you make any changes, click on the “save” button in the top panel to save the new configuration.  Click on the “x” button in the upper right corner to return to the South Services screen.
 
@@ -168,6 +166,9 @@ To enable or disable a data source, click on its name in the South Services scre
 
 Viewing Data
 ############
++----------------+
+| |viewing_data| |
++----------------+
 
 You can inspect all the data buffered by the FogLAMP system on the Assets page.  To access this page, click on “Assets & Readings” from the left-side menu bar.
 
@@ -175,6 +176,9 @@ This screen will display a list of every data asset in the system.  By clicking 
 
 Sending Data to Other Systems
 =============================
++------------------+
+| |north_services| |
++------------------+
 
 Data destinations are managed from the North Services screen.  To access this screen, click on “North” from the menu bar on the left side of any screen.
 
@@ -201,6 +205,9 @@ To enable or disable a data source, click on its name in the North Services scre
 
 Using the FogLAMP PI plugin
 ###########################
++--------------------+
+| |pi_plugin_config| |
++--------------------+
 
 OSISoft Pi systems are one of the most common destinations for FogLAMP data.  To send data to a Pi server, first create a new OMF application in the Pi Relay Data Connection Manager.  Connect the new application to the OMF Connector Relay.
 In the FogLAMP user interface, now create a new North instance and select the “pi_server” plugin on the first screen.
@@ -224,6 +231,9 @@ The second screen will request the following information:
 
 Backing up and Restoring FogLAMP
 =================================
++----------+
+| |backup| |
++----------+
 
 You can make a complete backup of all FogLAMP data and configuration.  To do this, click on "Backup & Restore" in the left menu bar. This screen will show a list of all backups on the system and the time they were created.
 To make a new backup, click the "Backup" button in the upper right corner of the screen.  You will briefly see a "Running" indicator in the lower left of the screen.  After a period of time, the new backup will appear in the list.  You may need to click the refresh button in the upper left of the screen to refresh the list.
@@ -231,6 +241,9 @@ You can restore, delete or download any backup simply by clicking the appropriat
 
 Troubleshooting and Support Information
 =======================================
++-----------+
+| |support| |
++-----------+
 
 FogLAMP keep detailed logs of system events for both auditing and troubleshooting use.  To access them, click "Logs" in the left menu bar.  There are three logs in the system:
 

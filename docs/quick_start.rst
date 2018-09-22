@@ -1,3 +1,6 @@
+.. Images
+.. |dashboard| image:: images/dashboard.JPG
+
 *****************
 Quick Start Guide
 *****************
@@ -112,6 +115,9 @@ If you are managing a very lightweight server or one that is connected via a slo
 
 FogLAMP Dashboard
 #################
++-------------+
+| |dashboard| |
++-------------+
 
 This screen provides an overview of FogLAMP operations.  You can customize the information and time frames displayed on this screen using the drop-down menus in the upper right corner.  The information you select will be displayed in a series of graphs.
 

@@ -122,7 +122,7 @@ async def add_task(request):
                 raise web.HTTPBadRequest(reason='schedule_repeat {} must be an integer.'.format(schedule_repeat))
 
         if enabled is not None:
-            if enabled not in ['t', 'f', 'true', 'false']:
+            if enabled not in ['t', 'f', 'true', 'false', 1, 0]:
                 raise web.HTTPBadRequest(reason='Only "t", "f", "true", "false" are allowed for value of enabled.')
         is_enabled = True if ((type(enabled) is str and enabled.lower() in ['t', 'true']) or (
             (type(enabled) is bool and enabled is True))) else False

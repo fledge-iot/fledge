@@ -34,7 +34,7 @@ def _find_c_lib(name):
 
 
 def _find_c_util(name):
-    for path, subdirs, files in os.walk(_lib_path):
+    for path, subdirs, files in os.walk(_FOGLAMP_ROOT):
         for fname in files:
             # C-utility file
             if fname == name:

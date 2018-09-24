@@ -789,9 +789,9 @@ class Server:
     async def poll_microservices(cls):
         """ poll microservice shutdown endpoint for non core micro-services"""
         try:
-            found_services = ServiceRegistry.get()
             shutdown_threshold = 0
             while True:
+                found_services = ServiceRegistry.get()
                 services_to_stop = list()
                 for fs in found_services:
                     if fs._name in ("FogLAMP Storage", "FogLAMP Core"):

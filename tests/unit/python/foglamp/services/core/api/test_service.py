@@ -144,6 +144,10 @@ class TestService:
         data = {"name": "furnace4", "type": "south", "plugin": "dht11"}
 
         @asyncio.coroutine
+        def q_result(*arg):
+            return {'count': 0, 'rows': []}
+
+        @asyncio.coroutine
         def async_mock():
             expected = {'count': 0, 'rows': []}
             return expected
@@ -151,8 +155,8 @@ class TestService:
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch('builtins.__import__', side_effect=MagicMock()):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=async_mock()) as query_table_patch:
-                    with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=Exception()) as insert_table_patch:
+                with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result) as query_table_patch:
+                    with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=Exception()):
                         resp = await client.post('/foglamp/service', data=json.dumps(data))
                         assert 500 == resp.status
                         assert 'Failed to create service.' == resp.reason

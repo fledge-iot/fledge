@@ -61,22 +61,27 @@ class TestService:
         data = {"name": "north bound", "type": "north", "schedule_type": 3, "plugin": "omf", "schedule_repeat": 30}
 
         @asyncio.coroutine
-        def async_mock():
-            expected = {'count': 0, 'rows': []}
-            return expected
+        def q_result(*arg):
+            table = arg[0]
+            payload = arg[1]
+
+            if table == 'scheduled_processes':
+                assert {'return': ['name'],
+                        'where': {'column': 'name', 'condition': '=', 'value': 'north'}} == json.loads(payload)
+                return {'count': 0, 'rows': []}
+            if table == 'schedules':
+                assert {'return': ['schedule_name'],
+                        'where': {'column': 'schedule_name', 'condition': '=', 'value': 'north bound'}} == json.loads(payload)
+                return {'count': 0, 'rows': []}
 
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch('builtins.__import__', side_effect=MagicMock()):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=async_mock()) as query_table_patch:
-                    with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=Exception()) as insert_table_patch:
+                with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
+                    with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=Exception()):
                         resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
                         assert 500 == resp.status
-                        assert 'Failed to created scheduled process. ' == resp.reason
-                args1, kwargs1 = query_table_patch.call_args
-                assert 'scheduled_processes' == args1[0]
-                p2 = json.loads(args1[1])
-                assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=', 'value': 'north'}} == p2
+                        assert 'Failed to create north instance.' == resp.reason
 
     async def test_dupe_schedule_name_add_task(self, client):
         def q_result(*arg):
@@ -103,9 +108,9 @@ class TestService:
         with patch('builtins.__import__', side_effect=MagicMock()):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
-                    with patch.object(storage_client_mock, 'insert_into_tbl', return_value=async_mock()) as insert_table_patch:
+                    with patch.object(storage_client_mock, 'insert_into_tbl', return_value=async_mock()):
                         with patch.object(c_mgr, 'create_category', return_value=None) as patch_create_cat:
-                            with patch.object(c_mgr, 'create_child_category', return_value=async_mock(None)) as patch_create_child_cat:
+                            with patch.object(c_mgr, 'create_child_category', return_value=async_mock(None)):
                                 resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
                                 assert 500 == resp.status
                                 assert 'Internal Server Error' == resp.reason

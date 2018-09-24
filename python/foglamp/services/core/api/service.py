@@ -153,11 +153,10 @@ async def add_service(request):
             try:
                 res = await storage.insert_into_tbl("scheduled_processes", payload)
             except StorageServerError as ex:
-                err_response = ex.error
-                _logger.exception("Failed to create scheduled process. %s", err_response)
+                _logger.exception("Failed to create scheduled process. %s", ex.error)
                 raise web.HTTPInternalServerError(reason='Failed to create service.')
             except Exception as ex:
-                _logger.exception("Failed to create scheduled process. %s", ex)
+                _logger.exception("Failed to create scheduled process. %s", str(ex))
                 raise web.HTTPInternalServerError(reason='Failed to create service.')
 
         # If successful then create a configuration entry from plugin configuration
@@ -199,11 +198,11 @@ async def add_service(request):
         except Exception as ex:
             await revert_configuration(storage, name)  # Revert configuration entry
             await revert_parent_child_configuration(storage, name)
-            _logger.exception("Failed to create service. %s", ex.error)
+            _logger.exception("Failed to create service. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to create service.')
 
     except ValueError as e:
-        raise web.HTTPNotFound(reason=str(e))
+        raise web.HTTPBadRequest(reason=str(e))
     else:
         return web.json_response({'name': name, 'id': str(schedule.schedule_id)})
 

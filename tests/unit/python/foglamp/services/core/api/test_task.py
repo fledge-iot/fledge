@@ -45,7 +45,7 @@ class TestService:
         return loop.run_until_complete(test_client(app))
 
     @pytest.mark.parametrize("payload, code, message", [
-        ("blah", 500, "Data payload must be a dictionary"),
+        ("blah", 400, "Data payload must be a valid JSON"),
         ({}, 400, 'Missing name property in payload.'),
         ({"name": "test"}, 400, "Missing plugin property in payload."),
         ({"name": "test", "plugin": "omf"}, 400, 'Missing type property in payload.'),
@@ -196,4 +196,4 @@ class TestService:
                     assert p['name'] == 'north'
                     assert p['script'] == '["tasks/north"]'
 
-    # TODO: Add test for negative scenarios
+# TODO: Add test for negative scenarios

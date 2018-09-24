@@ -114,7 +114,7 @@ class TestService:
         assert 6 == log_patch_info.call_count
 
     @pytest.mark.parametrize("payload, code, message", [
-        ('"blah"', 404, "Data payload must be a dictionary"''),
+        ('"blah"', 400, "Data payload must be a valid JSON"''),
         ('{}', 400, "Missing name property in payload."),
         ('{"name": "test"}', 400, "Missing plugin property in payload."),
         ('{"name": "a;b", "plugin": "dht11", "type": "south"}', 400, "Invalid name property in payload."),
@@ -155,7 +155,7 @@ class TestService:
                     with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=Exception()) as insert_table_patch:
                         resp = await client.post('/foglamp/service', data=json.dumps(data))
                         assert 500 == resp.status
-                        assert 'Failed to created scheduled process. ' == resp.reason
+                        assert 'Failed to create service.' == resp.reason
                 args1, kwargs1 = query_table_patch.call_args
                 assert 'scheduled_processes' == args1[0]
                 p2 = json.loads(args1[1])
@@ -281,4 +281,4 @@ class TestService:
                         p = json.loads(args[1])
                         assert {'name': 'south', 'script': '["services/south"]'} == p
 
-# TODO add negative tests and C type plugin add service tests
+# TODO:  add negative tests and C type plugin add service tests

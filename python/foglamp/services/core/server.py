@@ -678,11 +678,10 @@ class Server:
             # stop the scheduler
             await cls._stop_scheduler()
 
-            # I assume it will be by scheduler
             await cls.stop_microservices()
 
-            # poll microservices for shutdown
-            await cls.poll_microservices()
+            # poll microservices for unregister
+            await cls.poll_microservices_unregister()
 
             # stop monitor
             await cls.stop_service_monitor()
@@ -786,7 +785,7 @@ class Server:
                     raise
 
     @classmethod
-    async def poll_microservices(cls):
+    async def poll_microservices_unregister(cls):
         """ poll microservice shutdown endpoint for non core micro-services"""
         try:
             shutdown_threshold = 0

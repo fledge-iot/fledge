@@ -252,17 +252,17 @@ class Server(FoglampMicroservice):
     async def shutdown(self, request):
         """implementation of abstract method form foglamp.common.microservice.
         """
-        async def do_shutdown():
+        async def do_shutdown(loop):
             _LOGGER.info('Stopping South Service plugin {}'.format(self._name))
             try:
-                await self._stop(asyncio.get_event_loop())
+                await self._stop(loop)
                 self.unregister_service_with_core(self._microservice_id)
             except Exception as ex:
                 _LOGGER.exception('Error in stopping South Service plugin {}, {}'.format(self._name, str(ex)))
                 raise web.HTTPInternalServerError(reason=str(ex))
 
         def schedule_shutdown(loop):
-            asyncio.ensure_future(do_shutdown(), loop=loop)
+            asyncio.ensure_future(do_shutdown(loop), loop=loop)
 
         try:
             loop = asyncio.get_event_loop()

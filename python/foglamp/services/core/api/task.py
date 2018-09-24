@@ -122,9 +122,9 @@ async def add_task(request):
                 raise web.HTTPBadRequest(reason='schedule_repeat {} must be an integer.'.format(schedule_repeat))
 
         if enabled is not None:
-            if enabled not in ['t', 'f', 'true', 'false', 1, 0]:
-                raise web.HTTPBadRequest(reason='Only "t", "f", "true", "false" are allowed for value of enabled.')
-        is_enabled = True if ((type(enabled) is str and enabled.lower() in ['t', 'true']) or (
+            if enabled not in ['true', 'false', True, False]:
+                raise web.HTTPBadRequest(reason='Only "true", "false", true, false are allowed for value of enabled.')
+        is_enabled = True if ((type(enabled) is str and enabled.lower() in ['true']) or (
             (type(enabled) is bool and enabled is True))) else False
 
         # Check if a valid plugin has been provided
@@ -168,8 +168,7 @@ async def add_task(request):
             try:
                 res = await storage.insert_into_tbl("scheduled_processes", payload)
             except StorageServerError as ex:
-                err_response = ex.error
-                _logger.exception("Failed to create scheduled process. %s", err_response)
+                _logger.exception("Failed to create scheduled process. %s", ex.error)
                 raise web.HTTPInternalServerError(reason='Failed to create north instance.')
             except Exception as ex:
                 _logger.exception("Failed to create scheduled process. %s", ex)

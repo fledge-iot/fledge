@@ -44,11 +44,11 @@
    
 .. |sensehat 1.1.0| raw:: html
 
-   <a href="https://s3.amazonaws.com/foglamp/debian/foglamp-south-sensehat-1.1.0-armhf.deb">sensehat v1.4.0</a>
+   <a href="https://s3.amazonaws.com/foglamp/debian/foglamp-south-sensehat-1.1.0-armhf.deb">sensehat v1.1.0</a>
 
 .. |sinusoid 1.1.0| raw:: html
 
-   <a href="https://s3.amazonaws.com/foglamp/debian/foglamp-south-sinusoid-1.1.0.deb">sinusoid v1.4.0</a>
+   <a href="https://s3.amazonaws.com/foglamp/debian/foglamp-south-sinusoid-1.1.0.deb">sinusoid v1.1.0</a>
 
    
 *********

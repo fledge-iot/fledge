@@ -5,7 +5,6 @@
 # FOGLAMP_END
 
 
-import builtins
 import asyncio
 import json
 from aiohttp import web
@@ -15,12 +14,12 @@ from foglamp.services.core import routes
 from foglamp.services.core import connect
 from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
-from foglamp.services.core.interest_registry.interest_registry import InterestRegistry
 from foglamp.services.core import server
 from foglamp.services.core.scheduler.scheduler import Scheduler
 from foglamp.services.core.scheduler.entities import Schedule, TimedSchedule, TimedSchedule, \
     IntervalSchedule, ManualSchedule
 from foglamp.common.configuration_manager import ConfigurationManager
+from foglamp.services.core.api.service import _logger
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -77,44 +76,34 @@ class TestService:
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch('builtins.__import__', side_effect=MagicMock()):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
-                    with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=Exception()):
-                        resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
-                        assert 500 == resp.status
-                        assert 'Failed to create north instance.' == resp.reason
+                with patch.object(_logger, 'exception') as ex_logger:
+                    with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
+                        with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=Exception()):
+                            resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
+                            assert 500 == resp.status
+                            assert 'Failed to create north instance.' == resp.reason
+                    assert 1 == ex_logger.call_count
 
     async def test_dupe_schedule_name_add_task(self, client):
+
+        @asyncio.coroutine
         def q_result(*arg):
             table = arg[0]
             payload = arg[1]
 
-            if table == 'scheduled_processes':
-                assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=', 'value': 'north'}} == json.loads(payload)
-                return {'count': 0, 'rows': []}
             if table == 'schedules':
                 assert {'return': ['schedule_name'], 'where': {'column': 'schedule_name', 'condition': '=', 'value': 'north bound'}} == json.loads(payload)
                 return {'count': 1, 'rows': [{'schedule_name': 'schedule_name'}]}
 
-        @asyncio.coroutine
-        def async_mock():
-            expected = {'rows_affected': 1, "response": "inserted"}
-            return expected
-
         data = {"name": "north bound", "plugin": "omf", "type": "north", "schedule_type": 3, "schedule_repeat": 30}
-        description = '{} service configuration'.format(data['name'])
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        val = {'plugin': {'default': data['plugin'], 'description': 'Python module name of the plugin to load', 'type': 'string'}}
         with patch('builtins.__import__', side_effect=MagicMock()):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
-                    with patch.object(storage_client_mock, 'insert_into_tbl', return_value=async_mock()):
-                        with patch.object(c_mgr, 'create_category', return_value=None) as patch_create_cat:
-                            with patch.object(c_mgr, 'create_child_category', return_value=async_mock(None)):
-                                resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
-                                assert 500 == resp.status
-                                assert 'Internal Server Error' == resp.reason
-                            assert 0 == patch_create_cat.call_count
+                    resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
+                    assert 400 == resp.status
+                    assert 'A north instance with this name already exists' == resp.reason
 
     async def test_add_task(self, client):
         @asyncio.coroutine

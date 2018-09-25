@@ -27,8 +27,6 @@ INSTALLED_DIR=$(dirname ${CURRENT_VERSION_FILE})
 # Get new version path as dirname of THIS_VERSION_FILE var
 NEW_VERSION_DIR=$(dirname ${THIS_VERSION_FILE})
 
-#echo "Checking installed foglamp in [${INSTALLED_DIR}] and new installing version [${NEW_VERSION_DIR}]"
-
 # Include common code
 if [ ! "${FOGLAMP_ROOT}" ]; then
     # Use source path
@@ -157,6 +155,11 @@ else
 fi
 
 PLUGIN_TO_USE=`get_storage_plugin`
+RET_CODE=$?
+if [ "${RET_CODE}" -ne 0 ]; then
+    echo "Error: get_storage_plugin call failed."
+    exit 1
+fi
 
 ###
 # Check for required files done

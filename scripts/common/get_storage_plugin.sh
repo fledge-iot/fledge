@@ -16,14 +16,17 @@
 ## limitations under the License.
 ##--------------------------------------------------------------------
 
-
 __author__="Massimiliano Pinto"
 __version__="1.0"
 
-
 # Get the storage database plugin from the Storage microservice cache file
 get_storage_plugin() {
-
+if [ "${FOGLAMP_ROOT}" ]; then
     $FOGLAMP_ROOT/scripts/services/storage --plugin | cut -d' ' -f1
-
+elif [ -x scripts/services/storage ]; then
+    scripts/services/storage --plugin | cut -d' ' -f1
+else
+    logger "Unable to find FogLAMP storage script."
+    exit 1
+fi
 }

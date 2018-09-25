@@ -270,10 +270,8 @@ class Server(FoglampMicroservice):
             return web.json_response({
                 "message": "http://{}:{}/foglamp/service/shutdown".format(
                     self._microservice_management_host, self._microservice_management_port)})
-        except TimeoutError as err:
-            raise web.HTTPInternalServerError(reason=str(err))
         except Exception as ex:
-            raise web.HTTPException(reason=str(ex))
+            raise web.HTTPInternalServerError(reason=str(ex))
 
     async def change(self, request):
         """implementation of abstract method form foglamp.common.microservice.

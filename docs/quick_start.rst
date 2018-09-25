@@ -1,7 +1,7 @@
 .. Images
 .. |dashboard| image:: images/dashboard.JPG
 .. |south_services| image:: images/south_services.JPG
-.. |south_service_config| image:: images/south_service_config.JPG 
+.. |south_service_config| image:: images/south_service_config.JPG
 .. |north_services| image:: images/north_services.JPG
 .. |north_services| image:: images/north_services.JPG
 .. |pi_plugin_config| image:: images/pi_plugin_config.JPG
@@ -17,7 +17,7 @@ Quick Start Guide
 Introduction to FogLAMP
 =======================
 
-FogLAMP is an open sensor-to-cloud data fabric for the Internet of Things (IoT) that connects people and systems to the information they need to operate their business.  It provides a scalable, secure, robust infrastructure for collecting data from sensors, processing data at the edge and transporting data to historian and other management systems. FogLAMP can operate over the unreliable, intermittent and low bandwidth connections often found in IoT applications. 
+FogLAMP is an open sensor-to-cloud data fabric for the Internet of Things (IoT) that connects people and systems to the information they need to operate their business.  It provides a scalable, secure, robust infrastructure for collecting data from sensors, processing data at the edge and transporting data to historian and other management systems. FogLAMP can operate over the unreliable, intermittent and low bandwidth connections often found in IoT applications.
 
 FogLAMP is implemented as a collection of microservices which include:
 
@@ -27,12 +27,12 @@ FogLAMP is implemented as a collection of microservices which include:
 - North services: Transmit data to librarians and other systems
 - Edge data processing applications
 
-Services can easily be developed and incorporated into the FogLAMP framework. The FogLAMP Developers Guide describes how to do this.
+Services can easily be developed and incorporated into the FogLAMP framework. The FogLAMP Developers Guides describe how to do this.
 
 Installing FogLAMP
 ==================
 
-FogLAMP is extremely lightweight and can run on inexpensive edge devices, sensors and actuator boards.  For the purposes of this manual, we assume that all services are running on a Raspberry Pi running the Raspbian operating system. Be sure your system has plenty of storage available for data readings. 
+FogLAMP is extremely lightweight and can run on inexpensive edge devices, sensors and actuator boards.  For the purposes of this manual, we assume that all services are running on a Raspberry Pi running the Raspbian operating system. Be sure your system has plenty of storage available for data readings.
 
 If your system does not have Raspbian pre-installed, you can find instructions on downloading and installing it at https://www.raspberrypi.org/downloads/raspbian/.  After installing Raspbian, ensure you have the latest updates by executing the following commands on your FogLAMP server::
 
@@ -42,7 +42,7 @@ If your system does not have Raspbian pre-installed, you can find instructions o
 
 You can obtain FogLAMP in two ways:
 
-- Dianomic Systems offers pre-built, certified binaries of FogLAMP for Debian using either Intel or ARM architectures. This is the recommended method, especially for new users. You can download these from https://FogLAMP.readthedocs.io/en/master/92_downloads.html.   
+- Dianomic Systems offers pre-built, certified binaries of FogLAMP for Debian using either Intel or ARM architectures. This is the recommended method, especially for new users. You can download these from https://FogLAMP.readthedocs.io/en/master/92_downloads.html.
 - As source code from https://github.com/foglamp/.  Instructions for downloading and building FogLAMP source code can be found in the FogLAMP Developer’s Guide
 
 In general, FogLAMP installation will require the following packages:
@@ -58,13 +58,13 @@ Installing FogLAMP packages
 SSH into the system that will host FogLAMP services. For each FogLAMP package that you choose to install, type the following command::
 
   sudo apt -y install PackageName
-    
+
 The key packages to install are the FogLAMP core and the FogLAMP User Interface::
 
   sudo apt -y install ./foglamp-1.4.0-armhf.deb
   sudo apt -y install ./foglamp-gui-1.4.0-dev.deb
 
-You will need to install one of more South plugins to acquire data.  You can either do this now or when you are adding the data source. For example, to install the plugin for the Sense HAT sensor board, type:: 
+You will need to install one of more South plugins to acquire data.  You can either do this now or when you are adding the data source. For example, to install the plugin for the Sense HAT sensor board, type::
 
   sudo apt -y install ./foglamp-south-sensehat-1.0-armhf.deb
 
@@ -144,8 +144,8 @@ Adding Data Sources
 To add a data source, you will first need to install the plugin for that sensor type.  If you have not already done this, open a terminal session to your FogLAMP server.  Download the package for the plugin and enter::
 
   sudo apt -y install PackageName
-  
-Once the plugin is installed return to the FogLAMP GUI and click on “Add+” in the upper right of the South Services screen.  FogLAMP will display a series of 3 screens to add the data source: 
+
+Once the plugin is installed return to the FogLAMP GUI and click on “Add+” in the upper right of the South Services screen.  FogLAMP will display a series of 3 screens to add the data source:
 
 1. The first screen will ask you to select the plugin for the data source from the list of installed plugins.  If you do not see the plugin you need, refer to the Installing FogLAMP section of this manual.  In addition, this screen allows you to specify a display name for the data source.
 2. The second screen allows you to configure the plugin and the data assets it will provide.  Note that every data asset in FogLAMP must have a unique name.  If you have multiple sensors using the same plugin, modify the asset names on this screen so they are unique. (Some plugins allow you to specify an asset name prefix that will apply to all the asset names for that sensor.)  Refer to the individual plugin documentation for descriptions of the fields on this screen.  If you modify any of the configuration fields, click on the “save” button to save them.

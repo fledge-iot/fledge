@@ -9,7 +9,6 @@ Welcome to FogLAMP's documentation!
 
 .. toctree::
 
-<<<<<<< HEAD
     quick_start
     foglamp_architecture
     plugin_developers_guide/index

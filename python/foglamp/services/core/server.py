@@ -79,9 +79,6 @@ class Server:
     _service_description = 'FogLAMP REST Services'
     """ The description of this FogLAMP service """
 
-    _service_shutdown_threshold = 20
-    """ Shutdown threshold in seconds """
-
     _SERVICE_DEFAULT_CONFIG = {
         'name': {
             'description': 'Name of this FogLAMP service',
@@ -784,7 +781,7 @@ class Server:
         try:
             shutdown_threshold = 0
             found_services = ServiceRegistry.get()
-            cls._service_shutdown_threshold = 5 * (len(found_services) - 2)
+            _service_shutdown_threshold = 5 * (len(found_services) - 2)
             while True:
                 services_to_stop = list()
                 for fs in found_services:
@@ -797,12 +794,12 @@ class Server:
                     _logger.info("All microservices, except Core and Storage, have been shutdown.")
                     return
                 shutdown_threshold += 1
-                if shutdown_threshold > cls._service_shutdown_threshold:
+                if shutdown_threshold > _service_shutdown_threshold:
                     for fs in services_to_stop:
                         # TODO: Find pid and kill the microservice process
-                        _logger.warning("Microservices:%s status: %s has NOT been shutdown. Kill it...", fs._name, fs._status)
+                        _logger.error("Microservices:%s status: %s has NOT been shutdown. Kill it...", fs._name, fs._status)
                     return
-                await asyncio.sleep(1)
+                await asyncio.sleep(5)
                 found_services = ServiceRegistry.get()
         except service_registry_exceptions.DoesNotExist:
             pass

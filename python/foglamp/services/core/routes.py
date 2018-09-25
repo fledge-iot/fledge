@@ -16,6 +16,13 @@ from foglamp.services.core.api import update
 from foglamp.services.core.api import service
 from foglamp.services.core.api import certificate_store
 from foglamp.services.core.api import support
+from foglamp.services.core.api import plugin_discovery
+from foglamp.services.core.api import task
+from foglamp.services.core.api import asset_tracker
+from foglamp.services.core.api import south
+from foglamp.services.core.api import north
+from foglamp.services.core.api import filters
+
 
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
@@ -26,6 +33,7 @@ __version__ = "${VERSION}"
 def setup(app):
     app.router.add_route('GET', '/foglamp/ping', api_common.ping)
     app.router.add_route('PUT', '/foglamp/shutdown', api_common.shutdown)
+    app.router.add_route('PUT', '/foglamp/restart', api_common.restart)
 
     # user
     app.router.add_route('GET', '/foglamp/user', auth.get_user)
@@ -51,6 +59,10 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/category', api_configuration.get_categories)
     app.router.add_route('POST', '/foglamp/category', api_configuration.create_category)
     app.router.add_route('GET', '/foglamp/category/{category_name}', api_configuration.get_category)
+    app.router.add_route('POST', '/foglamp/category/{category_name}/children', api_configuration.create_child_category)
+    app.router.add_route('GET', '/foglamp/category/{category_name}/children', api_configuration.get_child_category)
+    app.router.add_route('DELETE', '/foglamp/category/{category_name}/children/{child_category}', api_configuration.delete_child_category)
+    app.router.add_route('DELETE', '/foglamp/category/{category_name}/parent', api_configuration.delete_parent_category)
     app.router.add_route('GET', '/foglamp/category/{category_name}/{config_item}', api_configuration.get_category_item)
     app.router.add_route('PUT', '/foglamp/category/{category_name}/{config_item}', api_configuration.set_configuration_item)
     app.router.add_route('POST', '/foglamp/category/{category_name}/{config_item}', api_configuration.add_configuration_item)
@@ -68,6 +80,10 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/schedule/{schedule_id}', api_scheduler.get_schedule)
     app.router.add_route('PUT', '/foglamp/schedule/{schedule_id}/enable', api_scheduler.enable_schedule)
     app.router.add_route('PUT', '/foglamp/schedule/{schedule_id}/disable', api_scheduler.disable_schedule)
+
+    app.router.add_route('PUT', '/foglamp/schedule/enable', api_scheduler.enable_schedule_with_name)
+    app.router.add_route('PUT', '/foglamp/schedule/disable', api_scheduler.disable_schedule_with_name)
+
     app.router.add_route('POST', '/foglamp/schedule/start/{schedule_id}', api_scheduler.start_schedule)
     app.router.add_route('PUT', '/foglamp/schedule/{schedule_id}', api_scheduler.update_schedule)
     app.router.add_route('DELETE', '/foglamp/schedule/{schedule_id}', api_scheduler.delete_schedule)
@@ -83,7 +99,17 @@ def setup(app):
     app.router.add_route('POST', '/foglamp/service', service.add_service)
     app.router.add_route('GET', '/foglamp/service', service.get_health)
 
+    # South
+    app.router.add_route('GET', '/foglamp/south', south.get_south_services)
+
+    # North
+    app.router.add_route('GET', '/foglamp/north', north.get_north_schedules)
+
+    # assets
     browser.setup(app)
+
+    # asset tracker
+    app.router.add_route('GET', '/foglamp/track', asset_tracker.get_asset_tracker_events)
 
     # Statistics - As per doc
     app.router.add_route('GET', '/foglamp/statistics', api_statistics.get_statistics)
@@ -101,6 +127,7 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/backup/status', backup_restore.get_backup_status)
     app.router.add_route('GET', '/foglamp/backup/{backup_id}', backup_restore.get_backup_details)
     app.router.add_route('DELETE', '/foglamp/backup/{backup_id}', backup_restore.delete_backup)
+    app.router.add_route('GET', '/foglamp/backup/{backup_id}/download', backup_restore.get_backup_download)
     app.router.add_route('PUT', '/foglamp/backup/{backup_id}/restore', backup_restore.restore_backup)
 
     # Package Update on demand
@@ -118,6 +145,16 @@ def setup(app):
 
     # Get Syslog
     app.router.add_route('GET', '/foglamp/syslog', support.get_syslog_entries)
+
+    # Get Plugin
+    app.router.add_route('GET', '/foglamp/plugins/installed', plugin_discovery.get_plugins_installed)
+
+    # Task
+    app.router.add_route('POST', '/foglamp/scheduled/task', task.add_task)
+
+    # Filters 
+    app.router.add_route('POST', '/foglamp/filter', filters.create_filter)
+    app.router.add_route('PUT', '/foglamp/filter/{service_name}/pipeline', filters.add_filters_pipeline)
 
     # enable cors support
     enable_cors(app)

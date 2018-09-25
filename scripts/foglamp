@@ -24,7 +24,7 @@ set -e
 #
 USAGE="Usage: `basename ${0}` {start|stop|status|reset|kill|help|version}"
 
-# Remove any toekn cache left over from a previous execution
+# Remove any token cache left over from a previous execution
 rm -f ~/.foglamp_token
 
 # Check FOGLAMP_ROOT
@@ -43,6 +43,12 @@ if [[ ! -d "${FOGLAMP_ROOT}" ]]; then
     echo "export FOGLAMP_ROOT=<basedir>"
     exit 1
 fi
+
+# Check/set LD_LIBRARY_PATH
+libPathSet=0
+libdir=${FOGLAMP_ROOT}/lib; [ -d ${libdir} ] && LD_LIBRARY_PATH=$(echo $LD_LIBRARY_PATH | sed "s|${libdir}||g") && export LD_LIBRARY_PATH=${libdir}:${LD_LIBRARY_PATH} && libPathSet=1
+libdir=${FOGLAMP_ROOT}/cmake_build/C/lib; [ -d ${libdir} ] && LD_LIBRARY_PATH=$(echo $LD_LIBRARY_PATH | sed "s|${libdir}||g") && export LD_LIBRARY_PATH=${libdir}:${LD_LIBRARY_PATH} && libPathSet=1
+[ "$libPathSet" -eq "0" ] && echo "Unable to set/update LD_LIBRARY_PATH to include path of Foglamp shared libraries: check whether ${FOGLAMP_ROOT}/lib or ${FOGLAMP_ROOT}/cmake_build/C/lib exists" && exit 1
 
 
 ##########
@@ -265,7 +271,7 @@ foglamp_kill() {
         exit 1
     fi
 
-    # Kill the python processes
+    # Kills the python processes
     list_to_kill=`ps -ef | grep 'python3 -m foglamp' | grep -v 'grep' | grep -v 'backup_restore' | awk '{print $2}'`
     if [[ "${list_to_kill}" != "" ]]
     then
@@ -273,7 +279,22 @@ foglamp_kill() {
     fi
 
     # Kill the services processes
-    list_to_kill=`ps -ef | grep 'services/storage --address' | grep -v 'grep' | awk '{print $2}'`
+    list_to_kill=`ps -ef | grep 'foglamp.services' | grep -v 'grep' | awk '{print $2}'`
+    if [[ "${list_to_kill}" != "" ]]
+    then
+        echo ${list_to_kill} | xargs kill -9
+    fi
+
+    # Kill FogLAMP tasks - parent tasks
+    list_to_kill=`ps -ef | grep '/bin/sh tasks' | grep -v 'grep' | awk '{print $2}'`
+    if [[ "${list_to_kill}" != "" ]]
+    then
+        echo ${list_to_kill} | xargs kill -9
+    fi
+
+    # Kill FogLAMP tasks - child tasks
+    # TODO: improve the mechanism for the recognition of the C tasks
+    list_to_kill=`ps -ef | grep './tasks' | grep -v 'grep' | awk '{print $2}'`
     if [[ "${list_to_kill}" != "" ]]
     then
         echo ${list_to_kill} | xargs kill -9
@@ -378,15 +399,17 @@ foglamp_status() {
                 # Show Services
                 foglamp_log "info" "=== FogLAMP services:" "outonly" "pretty"
                 foglamp_log "info" "foglamp.services.core" "outonly" "pretty"
-                ps -ef | grep "$FOGLAMP_ROOT//services/storage" | grep -v 'grep' | awk '{print "foglamp.services.storage " $9 " " $10}' || true
-                ps -ef | grep "$FOGLAMP_ROOT//services/south" | grep -v 'grep' | awk '{print "foglamp.services.south " $9 " " $10}' || true
-                ps -ef | grep "$FOGLAMP_ROOT//services/north" | grep -v 'grep' | awk '{print "foglamp.services.north " $9 " " $10}' || true
-                ps -ef | grep -o 'python3 -m foglamp.services.south.*' | grep -o 'foglamp.services.south.*' | grep -v 'foglamp.services.south\.\*' || true
-                ps -ef | grep -o 'python3 -m foglamp.services.north.*' | grep -o 'foglamp.services.north.*' | grep -v 'foglamp.services.north\.\*' || true
+                ps -ef | grep "foglamp.services.storage" | grep -v 'grep' | grep -v awk | awk '{print "foglamp.services.storage " $9 " " $10}' || true
+                ps -ef | grep "foglamp.services.south" |grep python3| grep -v 'grep' | awk '{print "foglamp.services.south " $11 " " $12 " " $13}' || true
+                ps -ef | grep "foglamp.services.south" |grep -v python3| grep -v 'grep' | grep -v awk | awk '{print "foglamp.services.south " $9 " " $10 " " $11}' || true
+                ps -ef | grep "foglamp.services.north" | grep -v 'grep' | grep -v awk | awk '{print "foglamp.services.north " $9 " " $10}' || true
 
                 # Show Tasks
                 foglamp_log "info" "=== FogLAMP tasks:" "outonly" "pretty"
                 ps -ef | grep -o 'python3 -m foglamp.tasks.*' | grep -o 'foglamp.tasks.*' | grep -v 'foglamp.tasks\.\*' || true
+
+                # Show Tasks in C code
+                ps -ef | grep './tasks.' | grep -v python3 | grep -v grep | grep -v awk | awk '{print substr($8, 3, length($8))" "$9" "$10 }' || true
             fi
             ;;
         *)

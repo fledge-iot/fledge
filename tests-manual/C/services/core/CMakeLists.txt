@@ -25,15 +25,22 @@ include_directories(../../../../C/services/core/include)
 include_directories(../../../../C/thirdparty/rapidjson/include)
 include_directories(../../../../C/thirdparty/Simple-Web-Server)
 
-file(GLOB test_sources "../../../../C/services/core/*.cpp")
+file(GLOB core_services "../../../../C/services/core/*.cpp")
 file(GLOB common_services "../../../../C/services/common/*.cpp")
 file(GLOB common_sources "../../../../C/common/*.cpp")
-file(GLOB unittests "*.cpp")
+file(GLOB unittests "test_*.cpp")
  
 # Link runTests with what we want to test and the GTest and pthread library
-add_executable(RunTests ${test_sources} ${common_services} ${common_sources} ${unittests})
+add_executable(RunTests ${core_services} ${common_services} ${common_sources} "main.cpp" ${unittests})
 target_link_libraries(RunTests ${GTEST_LIBRARIES} pthread)
 target_link_libraries(RunTests  ${Boost_LIBRARIES})
 target_link_libraries(RunTests  ${UUIDLIB})
 target_link_libraries(RunTests  ${COMMONLIB})
 
+# Create C++ FogLAMP Core executable
+add_executable(foglamp-core core_server.cpp ${core_services} ${common_services} ${common_sources})
+target_link_libraries(foglamp-core ${Boost_LIBRARIES})
+target_link_libraries(foglamp-core ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(foglamp-core ${UUIDLIB})
+target_link_libraries(foglamp-core ${COMMONLIB})
+target_link_libraries(foglamp-core -lssl -lcrypto)

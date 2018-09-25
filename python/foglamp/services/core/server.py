@@ -25,6 +25,7 @@ from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.web import middleware
 from foglamp.common.storage_client.exceptions import *
 from foglamp.common.storage_client.storage_client import StorageClientAsync
+from foglamp.common.storage_client.storage_client import ReadingsStorageClientAsync
 
 from foglamp.services.core import routes as admin_routes
 from foglamp.services.core.api import configuration as conf_api
@@ -40,7 +41,8 @@ from foglamp.services.core.service_registry.monitor import Monitor
 from foglamp.services.common.service_announcer import ServiceAnnouncer
 from foglamp.services.core.user_model import User
 from foglamp.common.storage_client import payload_builder
-
+from foglamp.services.core.asset_tracker.asset_tracker import AssetTracker
+from foglamp.services.core.api import asset_tracker as asset_tracker_api
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
@@ -179,6 +181,9 @@ class Server:
     _storage_client_async = None
     """ Async Storage client to storage service """
 
+    _readings_client_async = None
+    """ Async Readings client to storage service """
+
     _configuration_manager = None
     """ Instance of configuration manager (singleton) """
 
@@ -190,6 +195,9 @@ class Server:
 
     _pidfile = None
     """ The PID file name """
+
+    _asset_tracker = None
+    """ Asset tracker """
 
     service_app, service_server, service_server_handler = None, None, None
     core_app, core_server, core_server_handler = None, None, None
@@ -401,6 +409,11 @@ class Server:
                 cls._storage_client_async = StorageClientAsync(cls._host, cls.core_management_port, svc=storage_service)
             except (service_registry_exceptions.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable, Exception) as ex:
                 await asyncio.sleep(5)
+        while cls._readings_client_async is None:
+            try:
+                cls._readings_client_async = ReadingsStorageClientAsync(cls._host, cls.core_management_port, svc=storage_service)
+            except (service_registry_exceptions.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable, Exception) as ex:
+                await asyncio.sleep(5)
 
     @classmethod
     def _start_app(cls, loop, app, host, port, ssl_ctx=None):
@@ -493,6 +506,60 @@ class Server:
             sys.exit(1)
 
     @classmethod
+    def _check_readings_table(cls, loop):
+        total_count_payload = payload_builder.PayloadBuilder().AGGREGATE(["count", "*"]).ALIAS("aggregate", (
+                                "*", "count", "count")).payload()
+        result = loop.run_until_complete(
+            cls._readings_client_async.query(total_count_payload))
+        total_count = result['rows'][0]['count']
+
+        if (total_count == 0):
+            _logger.info("'foglamp.readings' table is empty, force reset of 'foglamp.streams' last_objects")
+
+            # Get total count of streams
+            result = loop.run_until_complete(
+                cls._storage_client_async.query_tbl_with_payload('streams', total_count_payload))
+            total_streams_count = result['rows'][0]['count']
+
+            # If streams table is non empty, then initialize it
+            if (total_streams_count != 0):
+                payload = payload_builder.PayloadBuilder().SET(last_object=0, ts='now()').payload()
+                loop.run_until_complete(cls._storage_client_async.update_tbl("streams", payload))
+        else:
+            _logger.info("'foglamp.readings' has " + str(
+                total_count) + " rows, 'foglamp.streams' last_objects reset is not required")
+
+    @classmethod
+    async def _config_parents(cls):
+        # Create the parent category for all general configuration categories
+        try:
+            await cls._configuration_manager.create_category("General", {}, 'General', True)
+            await cls._configuration_manager.create_child_category("General", ["service", "rest_api"])
+        except KeyError:
+            _logger.error('Failed to create General parent configuration category for service')
+            raise
+
+        # Create the parent category for all advanced configuration categories
+        try:
+            await cls._configuration_manager.create_category("Advanced", {}, 'Advanced', True)
+            await cls._configuration_manager.create_child_category("Advanced", ["SMNTR", "SCHEDULER"])
+        except KeyError:
+            _logger.error('Failed to create Advanced parent configuration category for service')
+            raise
+
+        # Create the parent category for all Utilities configuration categories
+        try:
+            await cls._configuration_manager.create_category("Utilities", {}, "Utilities", True)
+        except KeyError:
+            _logger.error('Failed to create Utilities parent configuration category for task')
+            raise
+
+    @classmethod
+    async def _start_asset_tracker(cls):
+        cls._asset_tracker = AssetTracker(cls._storage_client_async)
+        await cls._asset_tracker.load_asset_records()
+
+    @classmethod
     def _start_core(cls, loop=None):
         _logger.info("start core")
 
@@ -511,15 +578,7 @@ class Server:
             loop.run_until_complete(cls._get_storage_client())
 
             # If readings table is empty, set last_object of all streams to 0
-            total_count_payload = payload_builder.PayloadBuilder().AGGREGATE(["count", "*"]).ALIAS("aggregate", ("*", "count", "count")).payload()
-            result = loop.run_until_complete(cls._storage_client_async.query_tbl_with_payload('readings', total_count_payload))
-            total_count = result['rows'][0]['count']
-            if (total_count == 0):
-                _logger.info("'foglamp.readings' table is empty, force reset of 'foglamp.streams' last_objects")
-                payload = payload_builder.PayloadBuilder().SET(last_object=0, ts='now()').payload()
-                loop.run_until_complete(cls._storage_client_async.update_tbl("streams", payload))
-            else:
-                _logger.info("'foglamp.readings' has " + str(total_count) + " rows, 'foglamp.streams' last_objects reset is not required")    
+            cls._check_readings_table(loop)
 
             # obtain configuration manager and interest registry
             cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
@@ -571,6 +630,12 @@ class Server:
             # registering now only when service_port is ready to listen the request
             # TODO: if ssl then register with protocol https
             cls._register_core(host, cls.core_management_port, service_server_port)
+
+            # Create the configuration category parents
+            loop.run_until_complete(cls._config_parents())
+
+            # Start asset tracker
+            loop.run_until_complete(cls._start_asset_tracker())
 
             # Everything is complete in the startup sequence, write the audit log entry
             cls._audit = AuditLogger(cls._storage_client_async)
@@ -878,7 +943,6 @@ class Server:
             curl -X POST http://localhost:<core mgt port>/foglamp/service/shutdown
         """
         try:
-
             await cls._stop()
             loop = request.loop
             # allow some time
@@ -888,6 +952,27 @@ class Server:
 
             return web.json_response({'message': 'FogLAMP stopped successfully. '
                                                  'Wait for few seconds for process cleanup.'})
+        except TimeoutError as err:
+            raise web.HTTPInternalServerError(reason=str(err))
+        except Exception as ex:
+            raise web.HTTPException(reason=str(ex))
+
+    @classmethod
+    async def restart(cls, request):
+        """ Restart the core microservice and its components """
+        try:
+            await cls._stop()
+            loop = request.loop
+            # allow some time
+            await asyncio.sleep(2.0, loop=loop)
+            _logger.info("Stopping the FogLAMP Core event loop. Good Bye!")
+            loop.stop()
+
+            python3 = sys.executable
+            os.execl(python3, python3, *sys.argv)
+
+            return web.json_response({'message': 'FogLAMP stopped successfully. '
+                                                 'Wait for few seconds for restart.'})
         except TimeoutError as err:
             raise web.HTTPInternalServerError(reason=str(err))
         except Exception as ex:
@@ -1011,6 +1096,31 @@ class Server:
         pass
 
     @classmethod
+    async def get_track(cls, request):
+        res = await asset_tracker_api.get_asset_tracker_events(request)
+        return res
+
+    @classmethod
+    async def add_track(cls, request):
+        data = await request.json()
+        if not isinstance(data, dict):
+            raise ValueError('Data payload must be a dictionary')
+
+        try:
+            result = await cls._asset_tracker.add_asset_record(asset=data.get("asset"),
+                                                               plugin=data.get("plugin"),
+                                                               service=data.get("service"),
+                                                               event=data.get("event"))
+        except (TypeError, StorageServerError) as ex:
+            raise web.HTTPBadRequest(reason=str(ex))
+        except ValueError as ex:
+            raise web.HTTPNotFound(reason=str(ex))
+        except Exception as ex:
+            raise web.HTTPException(reason=ex)
+
+        return web.json_response(result)
+
+    @classmethod
     async def get_configuration_categories(cls, request):
         res = await conf_api.get_categories(request)
         return res
@@ -1018,6 +1128,11 @@ class Server:
     @classmethod
     async def create_configuration_category(cls, request):
         res = await conf_api.create_category(request)
+        return res
+
+    @classmethod
+    async def create_child_category(cls, request):
+        res = await conf_api.create_child_category(request)
         return res
 
     @classmethod
@@ -1032,7 +1147,7 @@ class Server:
 
     @classmethod
     async def update_configuration_item(cls, request):
-        res =await conf_api.set_configuration_item(request)
+        res = await conf_api.set_configuration_item(request)
         return res
 
     @classmethod

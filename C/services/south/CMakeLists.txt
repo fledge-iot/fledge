@@ -5,6 +5,9 @@ set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra -Wsign-conversion")
 set(DLLIB -ldl)
 set(UUIDLIB -luuid)
+set(COMMON_LIB -lcommon-lib)
+set(SERVICE_COMMON_LIB -lservices-common-lib)
+set(EXEC foglamp.services.south)
 
 include_directories(. include ../../thirdparty/Simple-Web-Server ../../thirdparty/rapidjson/include  ../common/include ../../common/include)
 
@@ -26,20 +29,22 @@ if(APPLE)
 endif()
 
 file(GLOB south_src "*.cpp")
-file(GLOB services_src "../common/*.cpp")
-file(GLOB common_src "../../common/*.cpp")
 
-add_executable(south ${south_src} ${common_src} ${services_src})
-target_link_libraries(south ${Boost_LIBRARIES})
-target_link_libraries(south ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries(south ${DLLIB})
-target_link_libraries(south ${UUIDLIB})
+link_directories(${PROJECT_BINARY_DIR}/../../lib)
 
-install(TARGETS south RUNTIME DESTINATION foglamp/services)
+add_executable(${EXEC} ${south_src} ${common_src} ${services_src})
+target_link_libraries(${EXEC} ${Boost_LIBRARIES})
+target_link_libraries(${EXEC} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(${EXEC} ${DLLIB})
+target_link_libraries(${EXEC} ${UUIDLIB})
+target_link_libraries(${EXEC} ${COMMON_LIB})
+target_link_libraries(${EXEC} ${SERVICE_COMMON_LIB})
+
+install(TARGETS ${EXEC} RUNTIME DESTINATION foglamp/services)
 
 if(MSYS) #TODO: Is MSYS true when MSVC is true?
-    target_link_libraries(south ws2_32 wsock32)
+    target_link_libraries(${EXEC} ws2_32 wsock32)
     if(OPENSSL_FOUND)
-        target_link_libraries(south ws2_32 wsock32)
+        target_link_libraries(${EXEC} ws2_32 wsock32)
     endif()
 endif()

@@ -297,7 +297,7 @@ class Scheduler(object):
         args_to_exec = args.copy()
         args_to_exec.append("--port={}".format(self._core_management_port))
         args_to_exec.append("--address=127.0.0.1")
-        args_to_exec.append("--name={}".format(schedule.process_name))
+        args_to_exec.append("--name={}".format(schedule.name))
 
         task_process = self._TaskProcess()
         task_process.start_time = time.time()
@@ -1100,7 +1100,7 @@ class Scheduler(object):
 
         # Add process to self._process_scripts if not present.
         try:
-            assert self._process_scripts[schedule.process_name]
+            if schedule.process_name not in self._process_scripts: raise KeyError
         except KeyError:
             select_payload = PayloadBuilder().WHERE(['name', '=', schedule.process_name]).payload()
             try:
@@ -1156,7 +1156,7 @@ class Scheduler(object):
         schedule_type = None
         try:
             for key in list(self._task_processes.keys()):
-                if self._task_processes[key].schedule.process_name == service_name:
+                if self._task_processes[key].schedule.name == service_name:
                     task_id = key
                     break
             if task_id is None:
@@ -1231,7 +1231,7 @@ class Scheduler(object):
             schedule = task_process.schedule
             if schedule.type == Schedule.Type.STARTUP:  # If schedule is a service e.g. South services
                 try:
-                    found_services = ServiceRegistry.get(name=schedule.process_name)
+                    found_services = ServiceRegistry.get(name=schedule.name)
                     service = found_services[0]
                     if await utils.ping_service(service) is True:
                         # Shutdown will take care of unregistering the service from core

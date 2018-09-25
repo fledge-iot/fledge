@@ -7,7 +7,7 @@ using namespace std;
 
 TEST(ReadingTest, IntValue)
 {
-	DatapointValue value(10);
+	DatapointValue value((long) 10);
 	Reading reading(string("test1"), new Datapoint("x", value));
 	string json = reading.toJSON();
 	ASSERT_NE(json.find(string("\"asset_code\" : \"test1\"")), 0);

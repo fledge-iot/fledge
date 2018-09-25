@@ -5,6 +5,9 @@ set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra -Wsign-conversion")
 set(DLLIB -ldl)
 set(UUIDLIB -luuid)
+set(COMMON_LIB -lcommon-lib)
+set(SERVICE_COMMON_LIB -lservices-common-lib)
+set(PLUGINS_COMMON_LIB -lplugins-common-lib)
 
 include_directories(. include ../../../thirdparty/Simple-Web-Server ../../../thirdparty/rapidjson/include  ../../../common/include ../../../services/common/include ../../../plugins/common/include)
 
@@ -26,16 +29,19 @@ if(APPLE)
 endif()
 
 file(GLOB sending_process_src "*.cpp")
-file(GLOB services_src "../../../services/common/*.cpp")
-file(GLOB common_src "../../../common/*.cpp")
-file(GLOB plugin_common_src "../../../plugins/common/*.cpp")
 
-add_executable(sending_process ${sending_process_src} ${common_src} ${services_src} ${plugin_common_src})
+link_directories(${PROJECT_BINARY_DIR}/../../../lib)
+
+add_executable(sending_process ${sending_process_src})
 target_link_libraries(sending_process ${Boost_LIBRARIES})
 target_link_libraries(sending_process ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(sending_process ${DLLIB})
 target_link_libraries(sending_process ${UUIDLIB})
 target_link_libraries(sending_process -lssl -lcrypto)
+
+target_link_libraries(${PROJECT_NAME} ${COMMON_LIB})
+target_link_libraries(${PROJECT_NAME} ${SERVICE_COMMON_LIB})
+target_link_libraries(${PROJECT_NAME} ${PLUGINS_COMMON_LIB})
 
 install(TARGETS sending_process RUNTIME DESTINATION foglamp/tasks)
 

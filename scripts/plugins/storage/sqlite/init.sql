@@ -74,6 +74,10 @@ CREATE TABLE foglamp.log (
 CREATE INDEX log_ix1
     ON log(code, ts, level);
 
+-- Index to make GUI response faster
+CREATE INDEX log_ix2
+    ON log(ts);
+
 -- Asset status
 -- List of status an asset can have.
 CREATE TABLE foglamp.asset_status (
@@ -225,23 +229,14 @@ CREATE INDEX fki_readings_fk1
 CREATE INDEX readings_ix1
     ON readings (read_key);
 
--- Destinations table
--- Multiple destinations are allowed, for example multiple PI servers.
-CREATE TABLE foglamp.destinations (
-    id            INTEGER                     PRIMARY KEY AUTOINCREMENT,                  -- Sequence ID
-    type          smallint                    NOT NULL DEFAULT 1,                         -- Enum : 1: OMF, 2: Elasticsearch
-    description   character varying(255)      NOT NULL DEFAULT '',                        -- A brief description of the destination entry
-    properties    JSON                        NOT NULL DEFAULT '{ "streaming" : "all" }', -- A generic set of properties
-    active_window JSON                        NOT NULL DEFAULT '[ "always" ]',            -- The window of operations
-    active        boolean                     NOT NULL DEFAULT 't',                       -- When false, all streams to this destination stop and are inactive
-    ts            DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')));         -- Creation or last update
+CREATE INDEX readings_ix2
+    ON readings (asset_code);
 
 
 -- Streams table
 -- List of the streams to the Cloud.
 CREATE TABLE foglamp.streams (
     id            INTEGER                      PRIMARY KEY AUTOINCREMENT,         -- Sequence ID
-    destination_id integer                     NOT NULL,                          -- FK to foglamp.destinations
     description    character varying(255)      NOT NULL DEFAULT '',               -- A brief description of the stream entry
     properties     JSON                        NOT NULL DEFAULT '{}',             -- A generic set of properties
     object_stream  JSON                        NOT NULL DEFAULT '{}',             -- Definition of what must be streamed
@@ -250,14 +245,8 @@ CREATE TABLE foglamp.streams (
     active_window  JSON                        NOT NULL DEFAULT '{}',             -- The window of operations
     active         boolean                     NOT NULL DEFAULT 't',              -- When false, all data to this stream stop and are inactive
     last_object    bigint                      NOT NULL DEFAULT 0,                -- The ID of the last object streamed (asset or reading, depending on the object_stream)
-    ts             DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')), -- Creation or last update
-    CONSTRAINT streams_fk1 FOREIGN KEY (destination_id)
-    REFERENCES destinations (id) MATCH SIMPLE
-            ON UPDATE NO ACTION
-            ON DELETE NO ACTION );
+    ts             DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime'))); -- Creation or last update
 
-CREATE INDEX fki_streams_fk1
-    ON streams (destination_id);
 
 -- Configuration table
 -- The configuration in JSON format.
@@ -305,6 +294,12 @@ CREATE TABLE foglamp.statistics_history (
 
 CREATE UNIQUE INDEX statistics_history_ix1
     ON statistics_history (key, history_ts);
+
+CREATE INDEX statistics_history_ix2
+    ON statistics_history (key);
+
+CREATE INDEX statistics_history_ix3
+    ON statistics_history (history_ts);
 
 -- Resources table
 -- A resource and be anything that is available or can be done in FogLAMP. Examples:
@@ -523,6 +518,9 @@ CREATE TABLE foglamp.tasks (
              ON UPDATE NO ACTION
              ON DELETE NO ACTION );
 
+CREATE INDEX tasks_ix1
+    ON tasks(process_name, start_time);
+
 
 -- Tracks types already created into PI Server
 CREATE TABLE foglamp.omf_created_objects (
@@ -556,6 +554,24 @@ CREATE TABLE foglamp.backups (
 -- FogLAMP DB version: keeps the schema version id
 CREATE TABLE foglamp.version (id CHAR(10));
 
+-- Create the configuration category_children table
+CREATE TABLE foglamp.category_children (
+       parent	character varying(255)	NOT NULL,
+       child	character varying(255)	NOT NULL,
+       CONSTRAINT config_children_pkey PRIMARY KEY (parent, child) );
+
+-- Create the asset_tracker table
+CREATE TABLE foglamp.asset_tracker (
+       id            integer          PRIMARY KEY AUTOINCREMENT,
+       asset         character(50)    NOT NULL,
+       event         character varying(50) NOT NULL,
+       service       character varying(255) NOT NULL,
+       foglamp       character varying(50) NOT NULL,
+       plugin        character varying(50) NOT NULL,
+       ts            DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')) );
+
+CREATE INDEX asset_tracker_ix1 ON asset_tracker (asset);
+CREATE INDEX asset_tracker_ix2 ON asset_tracker (service);
 
 ----------------------------------------------------------------------
 -- Initialization phase - DML
@@ -608,41 +624,14 @@ INSERT INTO foglamp.log_codes ( code, description )
 DELETE FROM foglamp.configuration;
 
 
--- North plugins
-
--- SEND_PR_1 - OMF Translator for readings
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'SEND_PR_1',
-              'OMF North Plugin',
-              ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that OMF North Plugin will load" } } '
-            );
-
--- SEND_PR_2 - OMF Translator for statistics
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'SEND_PR_2',
-              'OMF North Statistics Plugin',
-              ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that OMF North Statistics Plugin will load" } } '
-            );
-
-
--- SEND_PR_4 - OSIsoft Cloud Services plugin for readings
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'SEND_PR_4',
-              'OCS North Plugin',
-              ' { "plugin" : { "type" : "string", "value" : "ocs", "default" : "ocs", "description" : "Module that OCS North Plugin will load" } } '
-            );
-
 -- Statistics
 INSERT INTO foglamp.statistics ( key, description, value, previous_value )
-     VALUES ( 'READINGS',   'Readings received by FogLAMP since startup', 0, 0 ),
-            ( 'BUFFERED',   'Readings currently in FogLAMP buffer', 0, 0 ),
-            ( 'SENT_1',     'Readings sent to historian', 0, 0 ),
-            ( 'SENT_2',     'FogLAMP statistics data sent to historian', 0, 0 ),
-            ( 'SENT_4',     'Readings sent to OCS', 0, 0 ),
-            ( 'UNSENT',     'Readings filtered out in the send process', 0, 0 ),
-            ( 'PURGED',     'Readings removed from buffer by purge process', 0, 0 ),
-            ( 'UNSNPURGED', 'Readings that were purged from the buffer before being sent', 0, 0 ),
-            ( 'DISCARDED',  'Readings discarded by the South Service before being  placed in the buffer. This may be due to an error in the readings themselves.', 0, 0 );
+     VALUES ( 'READINGS',             'Readings received by FogLAMP', 0, 0 ),
+            ( 'BUFFERED',             'Readings currently in the FogLAMP buffer', 0, 0 ),
+            ( 'UNSENT',               'Readings filtered out in the send process', 0, 0 ),
+            ( 'PURGED',               'Readings removed from the buffer by the purge process', 0, 0 ),
+            ( 'UNSNPURGED',           'Readings that were purged from the buffer before being sent', 0, 0 ),
+            ( 'DISCARDED',            'Readings discarded by the South Service before being  placed in the buffer. This may be due to an error in the readings themselves.', 0, 0 );
 
 --
 -- Scheduled processes
@@ -661,13 +650,6 @@ INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'certificate c
 --
 INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('backup',  '["tasks/backup"]'  );
 INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('restore', '["tasks/restore"]' );
-
--- North Tasks
---
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Readings to PI',   '["tasks/north", "--stream_id", "1", "--debug_level", "1"]' );
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Readings to OCS',  '["tasks/north", "--stream_id", "4", "--debug_level", "1"]' );
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Statistics to PI', '["tasks/north", "--stream_id", "2", "--debug_level", "1"]' );
-
 
 --
 -- Schedules
@@ -760,65 +742,3 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 't',                                   -- exclusive
                 't'                                    -- enabled
               );
-
--- North Tasks
---
-
--- Readings OMF to PI
-INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
-                                schedule_time, schedule_interval, exclusive, enabled )
-       VALUES ( '2b614d26-760f-11e7-b5a5-be2e44b06b34', -- id
-                'OMF to PI north',                      -- schedule_name
-                'North Readings to PI',                 -- process_name
-                3,                                      -- schedule_type (interval)
-                NULL,                                   -- schedule_time
-                '00:00:30',                             -- schedule_interval
-                't',                                   -- exclusive
-                'f'                                   -- disabled
-              );
-
--- Readings OMF to OCS
-INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
-                                schedule_time, schedule_interval, exclusive, enabled )
-       VALUES ( '5d7fed92-fb9a-11e7-8c3f-9a214cf093ae', -- id
-                'OMF to OCS north',                     -- schedule_name
-                'North Readings to OCS',                -- process_name
-                3,                                      -- schedule_type (interval)
-                NULL,                                   -- schedule_time
-                '00:00:30',                             -- schedule_interval
-                't',                                   -- exclusive
-                'f'                                   -- disabled
-              );
-
-
--- Statistics OMF to PI
-INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
-                                schedule_time, schedule_interval, exclusive, enabled )
-       VALUES ( '1d7c327e-7dae-11e7-bb31-be2e44b06b34', -- id
-                'Stats OMF to PI north',                -- schedule_name
-                'North Statistics to PI',               -- process_name
-                3,                                      -- schedule_type (interval)
-                NULL,                                   -- schedule_time
-                '00:00:30',                             -- schedule_interval
-                't',                                   -- exclusive
-                'f'                                   -- disabled
-              );
-
-
---
--- Configuration for North Plugins OMF
---
-
--- Readings to OMF to PI
-INSERT INTO foglamp.destinations ( id, description )
-       VALUES ( 1, 'OMF' );
-INSERT INTO foglamp.streams ( id, destination_id, description, last_object )
-       VALUES ( 1, 1, 'OMF north', 0 );
-
--- Stats to OMF to PI
-INSERT INTO foglamp.streams ( id, destination_id, description, last_object )
-       VALUES ( 2, 1, 'FogLAMP statistics into PI', 0 );
-
--- Readings to OMF to OCS
-INSERT INTO foglamp.destinations( id, description ) VALUES ( 3, 'OCS' );
-INSERT INTO foglamp.streams( id, destination_id, description, last_object ) VALUES ( 4, 3, 'OCS north', 0 );

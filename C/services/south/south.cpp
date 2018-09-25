@@ -5,7 +5,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 #include <south_service.h>
 #include <management_api.h>
@@ -19,6 +19,7 @@
 #include <ingest.h>
 #include <iostream>
 #include <defaults.h>
+#include <filter_plugin.h>
 
 extern int makeDaemon(void);
 
@@ -102,6 +103,17 @@ pid_t pid;
 }
 
 /**
+ * Callback called by south plugin to ingest readings into FogLAMP
+ *
+ * @param ingest	The ingest class to use
+ * @param reading	The Reading to ingest
+ */
+void doIngest(Ingest *ingest, Reading reading)
+{
+	ingest->ingest(reading);
+}
+
+/**
  * Constructor for the south service
  */
 SouthService::SouthService(const string& myName) : m_name(myName), m_shutdown(false), m_pollInterval(1000)
@@ -131,6 +143,11 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		unsigned short managementListener = management.getListenerPort();
 		ServiceRecord record(m_name, "Southbound", "http", "localhost", 0, managementListener);
 		m_mgtClient = new ManagementClient(coreAddress, corePort);
+
+		// Create an empty South category if one doesn't exist
+		DefaultConfigCategory southConfig(string("South"), string("{}"));
+		southConfig.setDescription("South");
+		m_mgtClient->addCategory(southConfig, true);
 
 		m_config = m_mgtClient->getCategory(m_name);
 		if (!loadPlugin())
@@ -164,24 +181,69 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 						storageRecord.getPort());
 		unsigned int threshold = 100;
 		unsigned long timeout = 5000;
+		std::string pluginName;
 		try {
-			threshold = (unsigned int)atoi(m_config.getValue("bufferThreshold").c_str());
-			timeout = (unsigned long)atoi(m_config.getValue("maxSendLatency").c_str());
+			if (m_config.itemExists("bufferThreshold"))
+				threshold = (unsigned int)atoi(m_config.getValue("bufferThreshold").c_str());
+			if (m_config.itemExists("maxSendLatency"))
+				timeout = (unsigned long)atoi(m_config.getValue("maxSendLatency").c_str());
+			if (m_config.itemExists("plugin"))
+				pluginName = m_config.getValue("plugin");
 		} catch (ConfigItemNotFound e) {
 			logger->info("Defaulting to inline defaults for south configuration");
 		}
-		Ingest ingest(storage, timeout, threshold);
+
+		// Instantiate the Ingest class
+		Ingest ingest(storage, timeout, threshold, m_name, pluginName, m_mgtClient);
 
 		try {
-			m_pollInterval = (unsigned long)atoi(m_config.getValue("pollInterval").c_str());
+			m_pollInterval = 500;
+			if (m_config.itemExists("pollInterval"))
+				m_pollInterval = (unsigned long)atoi(m_config.getValue("pollInterval").c_str());
 		} catch (ConfigItemNotFound e) {
 			logger->info("Defaulting to inline default for poll interval");
 		}
-		while (! m_shutdown)
+
+		// Load filter plugins and set them in the Ingest class
+		if (!ingest.loadFilters(m_name))
 		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(m_pollInterval));
-			Reading reading = southPlugin->poll();
-			ingest.ingest(reading);
+			string errMsg("'" + m_name + "' plugin: failed loading filter plugins.");
+			Logger::getLogger()->fatal((errMsg + " Exiting.").c_str());
+			throw runtime_error(errMsg);
+		}
+
+		// Get and ingest data
+		if (! southPlugin->isAsync())
+		{
+			while (!m_shutdown)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(m_pollInterval));
+				Reading reading = southPlugin->poll();
+				ingest.ingest(reading);
+			}
+		}
+		else
+		{
+			southPlugin->registerIngest((INGEST_CB)doIngest, &ingest);
+			bool started = false;
+			int backoff = 1000;
+			while (started == false && m_shutdown == false)
+			{
+				try {
+					southPlugin->start();
+					started = true;
+				} catch (...) {
+					std::this_thread::sleep_for(std::chrono::milliseconds(backoff));
+					if (backoff < 60000)
+					{
+						backoff *= 2;
+					}
+				}
+			}
+			while (!m_shutdown)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+			}
 		}
 
 		// Clean shutdown, unregister the storage service
@@ -214,16 +276,24 @@ bool SouthService::loadPlugin()
 			return false;
 		}
 		string plugin = m_config.getValue("plugin");
-		logger->info("Load south plugin %s.", plugin.c_str());
+		logger->info("Loading south plugin %s.", plugin.c_str());
 		PLUGIN_HANDLE handle;
 		if ((handle = manager->loadPlugin(plugin, PLUGIN_TYPE_SOUTH)) != NULL)
 		{
 			// Deal with registering and fetching the configuration
-			DefaultConfigCategory defConfig(plugin, manager->getInfo(handle)->config);
+			DefaultConfigCategory defConfig(m_name, manager->getInfo(handle)->config);
 			addConfigDefaults(defConfig);
-			defConfig.setDescription(m_config.getDescription());
-			m_mgtClient->addCategory(defConfig);
-			// Must now relaod the configuration to obtain any items added from
+			defConfig.setDescription(m_name);	// TODO We do not have access to the description
+
+			// Create/Update category name (we pass keep_original_items=true)
+			m_mgtClient->addCategory(defConfig, true);
+
+			// Add this service under 'South' parent category
+			vector<string> children;
+			children.push_back(m_name);
+			m_mgtClient->addChildCategories(string("South"), children);
+
+			// Must now reload the configuration to obtain any items added from
 			// the plugin
 			m_config = m_mgtClient->getCategory(m_name);
 			
@@ -279,3 +349,4 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 			defaults[i].type, defaults[i].value, defaults[i].value);	
 	}
 }
+

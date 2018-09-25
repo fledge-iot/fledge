@@ -27,11 +27,17 @@ class Connection {
 		int		appendReadings(const char *readings);
 		bool		fetchReadings(unsigned long id, unsigned int blksize,
 						std::string& resultSet);
+		bool		retrieveReadings(const std::string& condition,
+					std::string& resultSet);
 		unsigned int	purgeReadings(unsigned long age, unsigned int flags,
 						unsigned long sent, std::string& results);
 		long		tableSize(const std::string& table);
 		void		setTrace(bool);
 	private:
+		int 		SQLexec(sqlite3 *db, const char *sql,
+					int (*callback)(void*,int,char**,char**),
+					void *cbArg, char **errmsg);
+		int		SQLstep(sqlite3_stmt *statement);
 		bool		m_logSQL;
 		void		raiseError(const char *operation, const char *reason,...);
 		sqlite3		*dbHandle;

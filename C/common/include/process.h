@@ -25,7 +25,9 @@ class FogLampProcess
 		StorageClient*          getStorageClient() const;
 		ManagementClient*	getManagementClient() const;
 		Logger			*getLogger() const;
-		time_t			getStartTime() const { return m_stime; };
+    		std::string	    	getName() const { return m_name; };
+
+	    	time_t			getStartTime() const { return m_stime; };
 
 	protected:
 		std::string getArgValue(const std::string& name) const;

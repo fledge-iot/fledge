@@ -5,6 +5,8 @@ set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra -Wsign-conversion")
 set(DLLIB -ldl)
 set(UUIDLIB -luuid)
+set(COMMON_LIB -lcommon-lib)
+set(SERVICE_COMMON_LIB -lservices-common-lib)
 
 include_directories(. include ../../thirdparty/Simple-Web-Server ../../thirdparty/rapidjson/include  ../common/include ../../common/include)
 
@@ -26,16 +28,18 @@ if(APPLE)
 endif()
 
 file(GLOB core_src "*.cpp")
-file(GLOB service_common_src "../common/*.cpp")
-file(GLOB common_src "../../common/*.cpp")
+
+link_directories(${PROJECT_BINARY_DIR}/../../lib)
 
 # Create static library
-add_library(core ${core_src} ${services_src} ${common_src})
+add_library(core ${core_src})
 target_link_libraries(core ${Boost_LIBRARIES})
 target_link_libraries(core ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(core ${DLLIB})
 target_link_libraries(core ${UUIDLIB})
 target_link_libraries(core -lssl -lcrypto)
+target_link_libraries(core ${COMMON_LIB})
+target_link_libraries(core ${SERVICE_COMMON_LIB})
 
 if(MSYS) #TODO: Is MSYS true when MSVC is true?
     target_link_libraries(storage ws2_32 wsock32)

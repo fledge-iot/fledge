@@ -12,7 +12,9 @@ Supports a number of REST API:
   http://<address>/foglamp/asset
      - Return a summary count of all asset readings
   http://<address>/foglamp/asset/{asset_code}
-    - Return a set of asset readings for the given asset 
+    - Return a set of asset readings for the given asset
+  http://<address>/foglamp/asset/{asset_code}/summary
+    - Return a set of the summary of all sensors values for the given asset
   http://<address>/foglamp/asset/{asset_code}/{reading}
     - Return a set of sensor readings for the specified asset and sensor
   http://<address>/foglamp/asset/{asset_code}/{reading}/summary
@@ -29,8 +31,9 @@ Supports a number of REST API:
     minutes=x   Limit the data returned to be less than x minutes old
     hours=x     Limit the data returned to be less than x hours old
 
-  Note seconds, minutes and hours can not be combined in a URL. If they are then only seconds
+  Note: seconds, minutes and hours can not be combined in a URL. If they are then only seconds
   will have an effect.
+  Note: if datetime units are supplied then limit will not respect i.e mutually exclusive
 """
 
 from aiohttp import web
@@ -54,6 +57,7 @@ def setup(app):
     """ Add the routes for the API endpoints supported by the data browser """
     app.router.add_route('GET', '/foglamp/asset', asset_counts)
     app.router.add_route('GET', '/foglamp/asset/{asset_code}', asset)
+    app.router.add_route('GET', '/foglamp/asset/{asset_code}/summary', asset_all_readings_summary)
     app.router.add_route('GET', '/foglamp/asset/{asset_code}/{reading}', asset_reading)
     app.router.add_route('GET', '/foglamp/asset/{asset_code}/{reading}/summary', asset_summary)
     app.router.add_route('GET', '/foglamp/asset/{asset_code}/{reading}/series', asset_averages)
@@ -101,9 +105,9 @@ async def asset_counts(request):
            json result on basis of SELECT asset_code, count(*) FROM readings GROUP BY asset_code;
 
     :Example:
-            curl -X GET http://localhost:8081/foglamp/asset
+            curl -sX GET http://localhost:8081/foglamp/asset
     """
-    payload = PayloadBuilder().AGGREGATE(["count", "*"]).ALIAS("aggregate", ("*", "count", "count"))\
+    payload = PayloadBuilder().AGGREGATE(["count", "*"]).ALIAS("aggregate", ("*", "count", "count")) \
         .GROUP_BY("asset_code").payload()
 
     results = {}
@@ -114,36 +118,36 @@ async def asset_counts(request):
         asset_json = [{"count": r['count'], "assetCode": r['asset_code']} for r in response]
     except KeyError:
         raise web.HTTPBadRequest(reason=results['message'])
-    except Exception as ex:
-        raise web.HTTPException(reason=str(ex))
-
-    return web.json_response(asset_json)
+    else:
+        return web.json_response(asset_json)
 
 
 async def asset(request):
     """ Browse a particular asset for which we have recorded readings and
     return a readings with timestamps for the asset. The number of readings
     return is defaulted to a small number (20), this may be changed by supplying
-    the query parameter ?limit=xx&skip=xx
+    the query parameter ?limit=xx&skip=xx and it will not respect when datetime units is supplied
 
     Returns:
           json result on basis of SELECT TO_CHAR(user_ts, '__TIMESTAMP_FMT') as "timestamp", (reading)::jsonFROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0;
 
     :Example:
-            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity
-            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity?limit=1
-            curl -X GET "http://localhost:8081/foglamp/asset/fogbench%2Fhumidity?limit=1&skip=1"
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity?limit=1
+            curl -sX GET "http://localhost:8081/foglamp/asset/fogbench_humidity?limit=1&skip=1"
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity?seconds=60
     """
     asset_code = request.match_info.get('asset_code', '')
     _select = PayloadBuilder().SELECT(("reading", "user_ts")).ALIAS("return", ("user_ts", "timestamp")). \
         FORMAT("return", ("user_ts", __TIMESTAMP_FMT)).chain_payload()
     _where = PayloadBuilder(_select).WHERE(["asset_code", "=", asset_code]).chain_payload()
-    _and_where = where_clause(request, _where)
+    if 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
+        _and_where = where_clause(request, _where)
+    else:
+        # Add the order by and limit, offset clause
+        _and_where = prepare_limit_skip_payload(request, _where)
 
-    # Add the order by and limit, offset clause
-    _limit_skip_payload = prepare_limit_skip_payload(request, _and_where)
-    payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["user_ts", "desc"]).payload()
-
+    payload = PayloadBuilder(_and_where).ORDER_BY(["user_ts", "desc"]).payload()
     results = {}
     try:
         _readings = connect.get_readings_async()
@@ -151,17 +155,15 @@ async def asset(request):
         response = results['rows']
     except KeyError:
         raise web.HTTPBadRequest(reason=results['message'])
-    except Exception as ex:
-        raise web.HTTPException(reason=str(ex))
-
-    return web.json_response(response)
+    else:
+        return web.json_response(response)
 
 
 async def asset_reading(request):
     """ Browse a particular sensor value of a particular asset for which we have recorded readings and
     return the timestamp and reading value for that sensor. The number of rows returned
     is limited to a small number, this number may be altered by use of
-    the query parameter limit=xxx&skip=xxx.
+    the query parameter limit=xxx&skip=xxx and it will not respect when datetime units is supplied
 
     The readings returned can also be time limited by use of the query
     parameter seconds=sss. This defines a number of seconds that the reading
@@ -181,23 +183,26 @@ async def asset_reading(request):
            json result on basis of SELECT TO_CHAR(user_ts, '__TIMESTAMP_FMT') as "timestamp", reading->>'reading' FROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0;
 
     :Example:
-            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature
-            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature?limit=1
-            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature?skip=10
-            curl -X GET "http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature?limit=1&skip=10"
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/temperature
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/temperature?limit=1
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/temperature?skip=10
+            curl -sX GET "http://localhost:8081/foglamp/asset/fogbench_humidity/temperature?limit=1&skip=10"
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/temperature?minutes=60
     """
     asset_code = request.match_info.get('asset_code', '')
     reading = request.match_info.get('reading', '')
 
-    _select = PayloadBuilder().SELECT(("user_ts", ["reading", reading]))\
-        .ALIAS("return", ("user_ts", "timestamp"), ("reading", reading))\
+    _select = PayloadBuilder().SELECT(("user_ts", ["reading", reading])) \
+        .ALIAS("return", ("user_ts", "timestamp"), ("reading", reading)) \
         .FORMAT("return", ("user_ts", __TIMESTAMP_FMT)).chain_payload()
     _where = PayloadBuilder(_select).WHERE(["asset_code", "=", asset_code]).chain_payload()
-    _and_where = where_clause(request, _where)
+    if 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
+        _and_where = where_clause(request, _where)
+    else:
+        # Add the order by and limit, offset clause
+        _and_where = prepare_limit_skip_payload(request, _where)
 
-    # Add the order by and limit, offset clause
-    _limit_skip_payload = prepare_limit_skip_payload(request, _and_where)
-    payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["user_ts", "desc"]).payload()
+    payload = PayloadBuilder(_and_where).ORDER_BY(["user_ts", "desc"]).payload()
 
     results = {}
     try:
@@ -206,10 +211,62 @@ async def asset_reading(request):
         response = results['rows']
     except KeyError:
         raise web.HTTPBadRequest(reason=results['message'])
-    except Exception as ex:
-        raise web.HTTPException(reason=str(ex))
+    else:
+        return web.json_response(response)
 
-    return web.json_response(response)
+
+async def asset_all_readings_summary(request):
+    """ Browse all the assets for which we have recorded readings and
+    return a summary for all sensors values for an asset code. The values that are
+    returned are the min, max and average values of the sensor.
+
+    Only one of hour, minutes or seconds should be supplied, if more than one time unit
+    then the smallest unit will be picked
+
+    The number of records return is default to a small number (20), this may be changed by supplying
+    the query parameter ?limit=xx&skip=xx and it will not respect when datetime units is supplied
+
+    :Example:
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/summary
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/summary?seconds=60
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/summary?limit=10
+    """
+    try:
+        # Get readings from asset_code
+        asset_code = request.match_info.get('asset_code', '')
+        payload = PayloadBuilder().SELECT("reading").WHERE(["asset_code", "=", asset_code]).payload()
+        _readings = connect.get_readings_async()
+        results = await _readings.query(payload)
+        if not results['rows']:
+            raise web.HTTPNotFound(reason="{} asset_code not found".format(asset_code))
+
+        # TODO: FOGL-1768 when support available from storage layer then avoid multiple calls
+        # Find keys in readings
+        reading_keys = list(results['rows'][0]['reading'].keys())
+        response = []
+        _where = PayloadBuilder().WHERE(["asset_code", "=", asset_code]).chain_payload()
+        if 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
+            _and_where = where_clause(request, _where)
+        else:
+            # Add limit, offset clause
+            _and_where = prepare_limit_skip_payload(request, _where)
+
+        for reading in reading_keys:
+            _aggregate = PayloadBuilder(_and_where).AGGREGATE(["min", ["reading", reading]],
+                                                              ["max", ["reading", reading]],
+                                                              ["avg", ["reading", reading]]) \
+                .ALIAS('aggregate', ('reading', 'min', 'min'),
+                       ('reading', 'max', 'max'),
+                       ('reading', 'avg', 'average')).chain_payload()
+            payload = PayloadBuilder(_aggregate).payload()
+            results = await _readings.query(payload)
+            response.append({reading: results['rows'][0]})
+    except (KeyError, IndexError) as ex:
+        raise web.HTTPNotFound(reason=ex)
+    except (TypeError, ValueError) as ex:
+        raise web.HTTPBadRequest(reason=ex)
+    else:
+        return web.json_response(response)
 
 
 async def asset_summary(request):
@@ -235,12 +292,12 @@ async def asset_summary(request):
            json result on basis of SELECT MIN(reading->>'reading'), MAX(reading->>'reading'), AVG((reading->>'reading')::float) FROM readings WHERE asset_code = 'asset_code';
 
     :Example:
-            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/summary
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/temperature/summary
     """
     asset_code = request.match_info.get('asset_code', '')
     reading = request.match_info.get('reading', '')
     _aggregate = PayloadBuilder().AGGREGATE(["min", ["reading", reading]], ["max", ["reading", reading]],
-                                            ["avg", ["reading", reading]])\
+                                            ["avg", ["reading", reading]]) \
         .ALIAS('aggregate', ('reading', 'min', 'min'), ('reading', 'max', 'max'),
                ('reading', 'avg', 'average')).chain_payload()
     _where = PayloadBuilder(_aggregate).WHERE(["asset_code", "=", asset_code]).chain_payload()
@@ -255,10 +312,8 @@ async def asset_summary(request):
         response = results['rows'][0]
     except KeyError:
         raise web.HTTPBadRequest(reason=results['message'])
-    except Exception as ex:
-        raise web.HTTPException(reason=str(ex))
-
-    return web.json_response({reading: response})
+    else:
+        return web.json_response({reading: response})
 
 
 async def asset_averages(request):
@@ -295,14 +350,14 @@ async def asset_averages(request):
             ORDER BY timestamp DESC;
 
     :Example:
-            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series
-            curl -X GET "http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series?limit=1&skip=1"
-            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series?hours=1
-            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series?minutes=60
-            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series?seconds=3600
-            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series?group=seconds
-            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series?group=minutes
-            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series?group=hours
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/temperature/series
+            curl -sX GET "http://localhost:8081/foglamp/asset/fogbench_humidity/temperature/series?limit=1&skip=1"
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/temperature/series?hours=1
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/temperature/series?minutes=60
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/temperature/series?seconds=3600
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/temperature/series?group=seconds
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/temperature/series?group=minutes
+            curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/temperature/series?group=hours
     """
     asset_code = request.match_info.get('asset_code', '')
     reading = request.match_info.get('reading', '')
@@ -321,20 +376,21 @@ async def asset_averages(request):
             raise web.HTTPBadRequest(reason="{} is not a valid group".format(_group))
 
     _aggregate = PayloadBuilder().AGGREGATE(["min", ["reading", reading]], ["max", ["reading", reading]],
-                                            ["avg", ["reading", reading]])\
+                                            ["avg", ["reading", reading]]) \
         .ALIAS('aggregate', ('reading', 'min', 'min'), ('reading', 'max', 'max'),
                ('reading', 'avg', 'average')).chain_payload()
     _where = PayloadBuilder(_aggregate).WHERE(["asset_code", "=", asset_code]).chain_payload()
-    _and_where = where_clause(request, _where)
 
-    # Add the GROUP BY
-    _group = PayloadBuilder(_and_where).GROUP_BY("user_ts").ALIAS("group", ("user_ts", "timestamp"))\
+    if 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
+        _and_where = where_clause(request, _where)
+    else:
+        # Add LIMIT, OFFSET
+        _and_where = prepare_limit_skip_payload(request, _where)
+
+    # Add the GROUP BY and ORDER BY timestamp DESC
+    _group = PayloadBuilder(_and_where).GROUP_BY("user_ts").ALIAS("group", ("user_ts", "timestamp")) \
         .FORMAT("group", ("user_ts", ts_restraint)).chain_payload()
-
-    # Add LIMIT, OFFSET, ORDER BY timestamp DESC
-    _limit_skip_payload = prepare_limit_skip_payload(request, _group)
-    payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["user_ts", "desc"]).payload()
-
+    payload = PayloadBuilder(_group).ORDER_BY(["user_ts", "desc"]).payload()
     results = {}
     try:
         _readings = connect.get_readings_async()
@@ -342,10 +398,8 @@ async def asset_averages(request):
         response = results['rows']
     except KeyError:
         raise web.HTTPBadRequest(reason=results['message'])
-    except Exception as ex:
-        raise web.HTTPException(reason=str(ex))
-
-    return web.json_response(response)
+    else:
+        return web.json_response(response)
 
 
 def where_clause(request, where):

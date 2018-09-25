@@ -22,7 +22,6 @@ Statistics reported by Purge process are:
     -> Remaining readings
     All these statistics are inserted into the log table
 """
-import asyncio
 import time
 
 from foglamp.common.audit_logger import AuditLogger
@@ -83,6 +82,14 @@ class Purge(FoglampProcess):
         await cfg_manager.create_category(self._CONFIG_CATEGORY_NAME,
                                           self._DEFAULT_PURGE_CONFIG,
                                           self._CONFIG_CATEGORY_DESCRIPTION)
+
+        # Create the child category for purge
+        try:
+            await cfg_manager.create_child_category("Utilities", [self._CONFIG_CATEGORY_NAME])
+        except KeyError:
+            self._logger.error("Failed to create child category for purge process")
+            raise
+
         return await cfg_manager.get_category_all_items(self._CONFIG_CATEGORY_NAME)
 
     async def purge_data(self, config):
@@ -97,17 +104,22 @@ class Purge(FoglampProcess):
         start_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
 
         payload = PayloadBuilder().AGGREGATE(["count", "*"]).payload()
-        result = await self._storage_async.query_tbl_with_payload("readings", payload)
+        result = await self._readings_storage_async.query(payload)
         total_count = result['rows'][0]['count_*']
-
         payload = PayloadBuilder().AGGREGATE(["min", "last_object"]).payload()
         result = await self._storage_async.query_tbl_with_payload("streams", payload)
-        last_id = result["rows"][0]["min_last_object"] if result["count"] == 1 else 0
-
-        flag = "purge" if config['retainUnsent']['value'] == "False" else "retain"
+        last_object = result["rows"][0]["min_last_object"]
+        if result["count"] == 1:
+            # FIXME: Remove below check when fix from storage layer
+            # Below check is required as If no streams entry exists in DB storage layer returns response as below:
+            # {'rows': [{'min_last_object': ''}], 'count': 1}
+            # BTW it should return integer i.e 0 not in string
+            last_id = 0 if last_object == '' else last_object
+        else:
+            last_id = 0
+        flag = "purge" if config['retainUnsent']['value'].lower() == "false" else "retain"
         try:
             if int(config['age']['value']) != 0:
-
                 result = await self._readings_storage_async.purge(age=config['age']['value'], sent_id=last_id, flag=flag)
 
                 total_count = result['readings']

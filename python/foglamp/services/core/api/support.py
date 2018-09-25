@@ -21,10 +21,14 @@ _FOGLAMP_ROOT = os.getenv("FOGLAMP_ROOT", default='/usr/local/foglamp')
 _SYSLOG_FILE = '/var/log/syslog'
 __DEFAULT_LIMIT = 20
 __DEFAULT_OFFSET = 0
-__DEFAULT_LOG_TYPE = 'FogLAMP'
-__GET_SYSLOG_CMD_TEMPLATE = "grep '{}\[' {} | head -n {} | tail -n {}"
-__GET_SYSLOG_TOTAL_MATCHED_LINES = "grep '{}\[' {} | wc -l"
+__DEFAULT_LOG_SOURCE = 'FogLAMP'
+__GET_SYSLOG_CMD_TEMPLATE = "grep -a -E '({})\[' {} | head -n {} | tail -n {}"
+__GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE = "grep -a -E '({})\[' {} | grep -a -E -i 'error' | head -n {} | tail -n {}"
+__GET_SYSLOG_CMD_WITH_WARNING_TEMPLATE = "grep -a -E '({})\[' {} | grep -a -E -i '(error|warning)' | head -n {} | tail -n {}"
 
+__GET_SYSLOG_TOTAL_MATCHED_LINES = "grep -a -E '({})\[' {} | wc -l"
+__GET_SYSLOG_ERROR_MATCHED_LINES = "grep -a -E '({})\[' {} | grep -a -E -i 'error' | wc -l"
+__GET_SYSLOG_WARNING_MATCHED_LINES = "grep -a -E '({})\[' {} | grep -a -E -i '(error|warning)' | wc -l"
 
 _help = """
     -------------------------------------------------------------------------------
@@ -100,6 +104,7 @@ async def get_syslog_entries(request):
         curl -X GET "http://localhost:8081/foglamp/syslog?limit=5"
         curl -X GET "http://localhost:8081/foglamp/syslog?offset=5"
         curl -X GET "http://localhost:8081/foglamp/syslog?source=storage"
+        curl -X GET "http://localhost:8081/foglamp/syslog?level=error"
         curl -X GET "http://localhost:8081/foglamp/syslog?limit=5&source=storage"
         curl -X GET "http://localhost:8081/foglamp/syslog?limit=5&offset=5&source=storage"
     """
@@ -119,27 +124,37 @@ async def get_syslog_entries(request):
         raise web.HTTPBadRequest(reason="Offset must be a positive integer OR Zero")
 
     try:
-        source = request.query['source'] if 'source' in request.query and request.query['source'] != '' else __DEFAULT_LOG_TYPE
-        if source.lower() not in ['foglamp', 'storage', 'foglamp storage']:
+        source = request.query['source'] if 'source' in request.query and request.query['source'] != '' else __DEFAULT_LOG_SOURCE
+        if source.lower() not in ['foglamp', 'storage']:
             raise ValueError
-        valid_source = {'foglamp': "FogLAMP", 'storage': 'Storage', 'foglamp storage': 'FogLAMP Storage'}
+        valid_source = {'foglamp': "FogLAMP|FogLAMP Storage", 'storage': 'FogLAMP Storage'}
     except ValueError:
         raise web.HTTPBadRequest(reason="{} is not a valid source".format(source))
 
     try:
-        # Get total lines
-        cmd = __GET_SYSLOG_TOTAL_MATCHED_LINES.format(valid_source[source.lower()], _SYSLOG_FILE)
-        t = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
-        tot_lines = int(t[0].decode())
-
         # Get filtered lines
-        cmd = __GET_SYSLOG_CMD_TEMPLATE.format(valid_source[source.lower()], _SYSLOG_FILE, tot_lines - offset, limit)
+        template = __GET_SYSLOG_CMD_TEMPLATE
+        lines = __GET_SYSLOG_TOTAL_MATCHED_LINES
+        if 'level' in request.query and request.query['level'] != '':
+            level = request.query['level'].lower()
+            if level == 'error':
+                template = __GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE
+                lines = __GET_SYSLOG_ERROR_MATCHED_LINES
+            elif level == 'warning':
+                template = __GET_SYSLOG_CMD_WITH_WARNING_TEMPLATE
+                lines = __GET_SYSLOG_WARNING_MATCHED_LINES
+
+        # Get total lines
+        cmd = lines.format(valid_source[source.lower()], _SYSLOG_FILE)
+        t = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
+        total_lines = int(t[0].decode())
+        cmd = template.format(valid_source[source.lower()], _SYSLOG_FILE, total_lines - offset, limit)
         a = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
         c = [b.decode() for b in a]  # Since "a" contains return value in bytes, convert it to string
     except (OSError, Exception) as ex:
         raise web.HTTPException(reason=str(ex))
 
-    return web.json_response({'logs': c, 'count': tot_lines})
+    return web.json_response({'logs': c, 'count': total_lines})
 
 
 def _get_support_dir():

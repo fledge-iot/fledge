@@ -70,7 +70,7 @@ class TestBrowserAssets:
         return loop.run_until_complete(test_client(app))
 
     def test_routes_count(self, app):
-        assert 5 == len(app.router.resources())
+        assert 6 == len(app.router.resources())
 
     def test_routes_info(self, app):
         for index, route in enumerate(app.router.routes()):
@@ -88,14 +88,19 @@ class TestBrowserAssets:
             elif index == 2:
                 assert "GET" == route.method
                 assert type(route.resource) is DynamicResource
+                assert "/foglamp/asset/{asset_code}/summary" == res_info["formatter"]
+                assert str(route.handler).startswith("<function asset_all_readings_summary")
+            elif index == 3:
+                assert "GET" == route.method
+                assert type(route.resource) is DynamicResource
                 assert "/foglamp/asset/{asset_code}/{reading}" == res_info["formatter"]
                 assert str(route.handler).startswith("<function asset_reading")
-            elif index == 3:
+            elif index == 4:
                 assert "GET" == route.method
                 assert type(route.resource) is DynamicResource
                 assert "/foglamp/asset/{asset_code}/{reading}/summary" == res_info["formatter"]
                 assert str(route.handler).startswith("<function asset_summary")
-            elif index == 4:
+            elif index == 5:
                 assert "GET" == route.method
                 assert type(route.resource) is DynamicResource
                 assert "/foglamp/asset/{asset_code}/{reading}/series" == res_info["formatter"]
@@ -186,13 +191,13 @@ class TestBrowserAssets:
         ('?limit=5', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 5, "sort": {"column": "user_ts", "direction": "desc"}}'),
         ('?skip=1', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 20, "skip": 1, "sort": {"column": "user_ts", "direction": "desc"}}'),
         ('?limit=5&skip=1', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 5, "skip": 1, "sort": {"column": "user_ts", "direction": "desc"}}'),
-        ('?seconds=3600', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 3600}}, "limit": 20, "sort": {"column": "user_ts", "direction": "desc"}}'),
-        ('?minutes=20', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 1200}}, "limit": 20, "sort": {"column": "user_ts", "direction": "desc"}}'),
-        ('?hours=3', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 10800}}, "limit": 20, "sort": {"column": "user_ts", "direction": "desc"}}'),
-        ('?seconds=60&minutes=10', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 60}}, "limit": 20, "sort": {"column": "user_ts", "direction": "desc"}}'),
-        ('?seconds=600&hours=1', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 600}}, "limit": 20, "sort": {"column": "user_ts", "direction": "desc"}}'),
-        ('?minutes=20&hours=1', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 1200}}, "limit": 20, "sort": {"column": "user_ts", "direction": "desc"}}'),
-        ('?seconds=10&minutes=10&hours=1', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 10}}, "limit": 20, "sort": {"column": "user_ts", "direction": "desc"}}')
+        ('?seconds=3600', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 3600}}, "sort": {"column": "user_ts", "direction": "desc"}}'),
+        ('?minutes=20', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 1200}}, "sort": {"column": "user_ts", "direction": "desc"}}'),
+        ('?hours=3', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 10800}}, "sort": {"column": "user_ts", "direction": "desc"}}'),
+        ('?seconds=60&minutes=10', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 60}}, "sort": {"column": "user_ts", "direction": "desc"}}'),
+        ('?seconds=600&hours=1', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 600}}, "sort": {"column": "user_ts", "direction": "desc"}}'),
+        ('?minutes=20&hours=1', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 1200}}, "sort": {"column": "user_ts", "direction": "desc"}}'),
+        ('?seconds=10&minutes=10&hours=1', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 10}}, "sort": {"column": "user_ts", "direction": "desc"}}')
     ])
     async def test_limit_skip_time_units_payload(self, client, request_params, payload):
         readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
@@ -207,3 +212,44 @@ class TestBrowserAssets:
             args, kwargs = query_patch.call_args
             assert json.loads(payload) == json.loads(args[0])
             query_patch.assert_called_once_with(args[0])
+
+    async def test_asset_all_readings_summary_when_no_asset_code_found(self, client):
+        readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
+        with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
+            with patch.object(readings_storage_client_mock, 'query', return_value=mock_coro({'count': 0, 'rows': []})) as query_patch:
+                resp = await client.get('foglamp/asset/fogbench_humidity/summary')
+                assert 404 == resp.status
+                assert 'fogbench_humidity asset_code not found' == resp.reason
+            query_patch.assert_called_once_with('{"return": ["reading"], "where": {"column": "asset_code", "condition": "=", "value": "fogbench_humidity"}}')
+
+    async def test_asset_all_readings_summary(self, client):
+        @asyncio.coroutine
+        def q_result(*args):
+            if payload1 == args[0]:
+                return {'rows': [{'reading': {'humidity': 20}}], 'count': 1}
+            if payload2 == args[0]:
+                return {'count': 1, 'rows': [{'min': 13.0, 'max': 83.0, 'average': 33.5}]}
+
+        payload1 = {"return": ["reading"],
+                    "where": {"column": "asset_code", "condition": "=", "value": "fogbench_humidity"}}
+        payload2 = {
+            "aggregate": [{"operation": "min", "json": {"properties": "humidity", "column": "reading"}, "alias": "min"},
+                          {"operation": "max", "json": {"properties": "humidity", "column": "reading"}, "alias": "max"},
+                          {"operation": "avg", "json": {"properties": "humidity", "column": "reading"},
+                           "alias": "average"}],
+            "where": {"column": "asset_code", "condition": "=", "value": "fogbench_humidity"}, "limit": 20}
+
+        readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
+        with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
+            with patch.object(readings_storage_client_mock, 'query', side_effect=[q_result(payload1), q_result(payload2)]) as patch_query:
+                resp = await client.get('foglamp/asset/fogbench_humidity/summary')
+                assert 200 == resp.status
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert [{'humidity': {'average': 33.5, 'max': 83.0, 'min': 13.0}}] == json_response
+            assert 2 == patch_query.call_count
+            args0, kwargs0 = patch_query.call_args_list[0]
+            args1, kwargs1 = patch_query.call_args_list[1]
+            assert '{"return": ["reading"], "where": {"column": "asset_code", "condition": "=", "value": "fogbench_humidity"}}' in args0
+            # FIXME: ordering issue and add tests for datetimeunits request param
+            # assert '{"aggregate": [{"operation": "min", "json": {"column": "reading", "properties": "humidity"}, "alias": "min"}, {"operation": "max", "json": {"column": "reading", "properties": "humidity"}, "alias": "max"}, {"operation": "avg", "json": {"column": "reading", "properties": "humidity"}, "alias": "average"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench_humidity"}, "limit": 20}' in args1

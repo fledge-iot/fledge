@@ -36,6 +36,11 @@ SouthPlugin::SouthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category) :
 				manager->resolveSymbol(handle, "plugin_reconfigure");
   	pluginShutdownPtr = (void (*)(PLUGIN_HANDLE))
 				manager->resolveSymbol(handle, "plugin_shutdown");
+	if (isAsync())
+	{
+  		pluginRegisterPtr = (void (*)(PLUGIN_HANDLE, INGEST_CB cb, void *data))
+				manager->resolveSymbol(handle, "plugin_register_ingest");
+	}
 }
 
 /**
@@ -69,4 +74,9 @@ void SouthPlugin::reconfigure(string& newConfig)
 void SouthPlugin::shutdown()
 {
 	return this->pluginShutdownPtr(instance);
+}
+
+void SouthPlugin::registerIngest(INGEST_CB cb, void *data)
+{
+	return this->pluginRegisterPtr(instance, cb, data);
 }

@@ -13,6 +13,7 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <asset_tracking.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -247,7 +248,7 @@ ostringstream convert;
 /**
  * Get the set of all categories from the core micro service.
  */
-ConfigCategories ManagementClient::getCategories()
+ConfigCategories ManagementClient::getCategories() const
 {
 	try {
 		string url = "/foglamp/service/category";
@@ -281,11 +282,12 @@ ConfigCategories ManagementClient::getCategories()
  * Return the content of the named category by calling the
  * management API of the FogLAMP core.
  *
- * @param categoryName	The name of the categpry to return
+ * @param  categoryName		The name of the categpry to return
  * @return ConfigCategory	The configuration category
- * @throw	exception	If the category does not exist or theresult can not be parsed
+ * @throw  exception		If the category does not exist or
+ *				the result can not be parsed
  */
-ConfigCategory ManagementClient::getCategory(const string& categoryName)
+ConfigCategory ManagementClient::getCategory(const string& categoryName) const
 {
 	try {
 		string url = "/foglamp/service/category/" + categoryName;
@@ -295,7 +297,7 @@ ConfigCategory ManagementClient::getCategory(const string& categoryName)
 		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
-			m_logger->error("Failed to parse result of fetching configuration category: %s\n",
+			m_logger->error("Failed to parse result of fetching configuration category for %s: %s\n", categoryName.c_str(),
 					response.c_str());
 			throw new exception();
 		}
@@ -314,3 +316,213 @@ ConfigCategory ManagementClient::getCategory(const string& categoryName)
 		throw;
 	}
 }
+
+/**
+ * Set a category configuration item value
+ *
+ * @param categoryName  The given category name
+ * @param itemName      The given item name
+ * @param itemValue     The item value to set
+ * @return              JSON string of the updated
+ *                      category item
+ * @throw               std::exception
+ */
+string ManagementClient::setCategoryItemValue(const string& categoryName,
+					      const string& itemName,
+					      const string& itemValue) const
+{
+	try {
+		string url = "/foglamp/service/category/" + categoryName + "/" + itemName;
+		string payload = "{ \"value\" : \"" + itemValue + "\" }";
+
+		auto res = m_client->request("PUT", url.c_str(), payload);
+		Document doc;
+		string response = res->content.string();
+		doc.Parse(response.c_str());
+		if (doc.HasParseError())
+		{
+			m_logger->error("Failed to parse result of setting configuration category item value: %s",
+					response.c_str());
+			throw new exception();
+		}
+		else if (doc.HasMember("message"))
+		{
+			m_logger->error("Failed to set configuration category item value: %s.",
+					doc["message"].GetString());
+			throw new exception();
+		}
+		else
+		{
+			return response;
+		}
+	} catch (const SimpleWeb::system_error &e) {
+		m_logger->error("Get config category failed %s.", e.what());
+		throw;
+	}
+}
+
+/**
+ * Add child categories to a (parent) category
+ *
+ * @param parentCategory	The given category name
+ * @param children		Categories to add under parent
+ * @return			JSON string with current child categories
+ * @throw			std::exception
+ */
+string ManagementClient::addChildCategories(const string& parentCategory,
+					    const vector<string>& children) const
+{
+	try {
+		string url = "/foglamp/service/category/" + parentCategory + "/children";
+		string payload = "{ \"children\" : [";
+
+		for (auto it = children.begin(); it != children.end(); ++it)
+		{
+			payload += "\"" + (*it)+ "\"";
+			if ((it + 1) != children.end())
+			{
+				 payload += ", ";
+			}
+		}
+		payload += "] }";
+		auto res = m_client->request("POST", url.c_str(), payload);
+		string response = res->content.string();
+		Document doc;
+		doc.Parse(response.c_str());
+		if (doc.HasParseError() || !doc.HasMember("children"))
+		{
+			m_logger->error("Failed to parse result of adding child categories: %s",
+					response.c_str());
+			throw new exception();
+		}
+		else if (doc.HasMember("message"))
+		{
+			m_logger->error("Failed to add child categories: %s.",
+					doc["message"].GetString());
+			throw new exception();
+		}
+		else
+		{
+			return response;
+		}
+	}
+	catch (const SimpleWeb::system_error &e) {
+		m_logger->error("Add child categories failed %s.", e.what());
+		throw;
+	}
+}
+
+/**
+ * Get the asset tracking tuples
+ *
+ * @return		A vector of pointers to AssetTrackingTuple objects allocated on heap
+ */
+std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples(const std::string serviceName) const
+{
+	std::vector<AssetTrackingTuple*> *vec = new std::vector<AssetTrackingTuple*>();
+	
+	try {
+		string url = "/foglamp/track?service="+serviceName;
+		auto res = m_client->request("GET", url.c_str());
+		Document doc;
+		string response = res->content.string();
+		//m_logger->info("GET /foglamp/track?service=%s: response='%s'", serviceName.c_str(), response.c_str());
+		doc.Parse(response.c_str());
+		if (doc.HasParseError())
+		{
+			m_logger->error("Failed to parse result of fetch asset tracking tuples: %s\n",
+					response.c_str());
+			throw new exception();
+		}
+		else if (doc.HasMember("message"))
+		{
+			m_logger->error("Failed to fetch asset tracking tuples: %s.",
+				doc["message"].GetString());
+			throw new exception();
+		}
+		else
+		{
+			const rapidjson::Value& trackArray = doc["track"];
+			if (trackArray.IsArray())
+			{
+				// Process every row and create the AssetTrackingTuple object
+				for (auto& rec : trackArray.GetArray())
+				{
+					if (!rec.IsObject())
+					{
+						throw runtime_error("Expected asset tracker tuple to be an object");
+					}
+					AssetTrackingTuple *tuple = new AssetTrackingTuple(rec["service"].GetString(), rec["plugin"].GetString(), rec["asset"].GetString(), rec["event"].GetString());
+					vec->push_back(tuple);
+				}
+			}
+			else
+			{
+				throw runtime_error("Expected array of rows in asset track tuples array");
+			}
+
+			return (*vec);
+		}
+	} catch (const SimpleWeb::system_error &e) {
+		m_logger->error("Fetch/parse of asset tracking tuples failed: %s.", e.what());
+		//throw;
+	}
+	catch (...) {
+		m_logger->error("Some other exception");
+	}
+}
+
+/**
+ * Add a new asset tracking tuple
+ *
+ * @param service	Service name
+ * @param plugin	Plugin name
+ * @param asset		Asset name
+ * @param event		Event type
+ * @return		whether operation was successful
+ */
+bool ManagementClient::addAssetTrackingTuple(const std::string& service, 
+					const std::string& plugin, const std::string& asset, const std::string& event)
+{
+	ostringstream convert;
+
+	try {
+		convert << "{ \"service\" : \"" << service << "\", ";
+		convert << " \"plugin\" : \"" << plugin << "\", ";
+		convert << " \"asset\" : \"" << asset << "\", ";
+		convert << " \"event\" : \"" << event << "\" }";
+		
+		auto res = m_client->request("POST", "/foglamp/track", convert.str());
+		Document doc;
+		string content = res->content.string();
+		m_logger->info("POST /foglamp/track: response='%s' ", content.c_str());
+		doc.Parse(content.c_str());
+		if (doc.HasParseError())
+		{
+			m_logger->error("Failed to parse result of asset tracking tuple addition: %s\n",
+					content.c_str());
+			return false;
+		}
+		if (doc.HasMember("foglamp"))
+		{
+			const char *reg_id = doc["foglamp"].GetString();
+			m_logger->info("Added asset tracking tuple successfully");
+			return true;
+		}
+		else if (doc.HasMember("message"))
+		{
+			m_logger->error("Failed to add asset tracking tuple: %s.",
+				doc["message"].GetString());
+		}
+		else
+		{
+			m_logger->error("Failed to add asset tracking tuple: %s.",
+					content.c_str());
+		}
+	} catch (const SimpleWeb::system_error &e) {
+				m_logger->error("Failed to add asset tracking tuple: %s.", e.what());
+				return false;
+		}
+		return false;
+}
+

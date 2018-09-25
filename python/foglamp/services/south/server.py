@@ -28,14 +28,7 @@ _CLEAR_PENDING_TASKS_TIMEOUT = 5
 class Server(FoglampMicroservice):
     """" Implements the South Microservice """
 
-    # Configuration handled through the Configuration Manager
-    _DEFAULT_CONFIG = {
-        'management_host': {
-            'description': 'Management host',
-            'type': 'string',
-            'default': '127.0.0.1',
-        }
-    }
+    _DEFAULT_CONFIG = {}  # South Server configuration which will get updated with process configuration from DB.
 
     _PLUGIN_MODULE_PATH = "foglamp.plugins.south"
 
@@ -48,6 +41,7 @@ class Server(FoglampMicroservice):
                    "- plugin name |{0}| plugin type |{1}|",
         "e000002": "Unable to obtain configuration of module for plugin |{0}|",
         "e000003": "Unable to load module |{0}| for South plugin |{1}| - error details |{0}|",
+        "e000004": "Unable to create south configuration category"
     }
     """ Messages used for Information, Warning and Error notice """
 
@@ -65,7 +59,7 @@ class Server(FoglampMicroservice):
     _task_main = None
 
     def __init__(self):
-        super().__init__(self._DEFAULT_CONFIG)
+        super().__init__()
 
     async def _start(self, loop) -> None:
         error = None
@@ -99,6 +93,15 @@ class Server(FoglampMicroservice):
                 message = self._MESSAGES_LIST['e000003'].format(plugin_module_name, self._name, str(ex))
                 _LOGGER.error(message)
                 raise
+            # Create the parent category for all south service
+            try:
+                parent_payload = json.dumps({"key": "South", "description": "South microservices", "value": {},
+                                             "children": [self._name], "keep_original_items": True})
+                self._core_microservice_management_client.create_configuration_category(parent_payload)
+            except KeyError:
+                message = self._MESSAGES_LIST['e000004'].format(self._name)
+                _LOGGER.error(message)
+                raise
 
             # Plugin initialization
             self._plugin_info = self._plugin.plugin_info()
@@ -130,7 +133,6 @@ class Server(FoglampMicroservice):
                 raise exceptions.InvalidPluginTypeError()
 
             self._plugin_handle = self._plugin.plugin_init(config)
-
             await Ingest.start(self)
 
             # Executes the requested plugin type
@@ -140,7 +142,7 @@ class Server(FoglampMicroservice):
                 self._task_main = asyncio.ensure_future(self._exec_plugin_poll())
         except asyncio.CancelledError:
             pass
-        except exceptions.DataRetrievalError:
+        except (exceptions.QuietError, exceptions.DataRetrievalError):
             _LOGGER.exception('Data retrieval error in plugin {}'.format(self._name))
         except (Exception, KeyError) as ex:
             if error is None:
@@ -175,17 +177,23 @@ class Server(FoglampMicroservice):
                                                                   key=data['key'],
                                                                   readings=data['readings']))
                 # pollInterval is expressed in milliseconds
+                if int(self._plugin_handle['pollInterval']['value']) <= 0:
+                    _LOGGER.warning('Plugin {} pollInterval must be greater than 0, defaulting to 1000 ms'.format(self._name))
+                    self._plugin_handle['pollInterval']['value'] = '1000'
                 sleep_seconds = int(self._plugin_handle['pollInterval']['value']) / 1000.0
                 await asyncio.sleep(sleep_seconds)
-                # If successful, then set retry count back to 1, meaning that
-                # only in case of 3 successive failures, exit.
-                try_count = 1
             except KeyError as ex:
+                try_count = 2
                 _LOGGER.exception('Key error plugin {} : {}'.format(self._name, str(ex)))
-            except (Exception, RuntimeError, exceptions.DataRetrievalError) as ex:
-                try_count += 1
-                _LOGGER.exception('Failed to poll for plugin {}, retry count: {}'.format(self._name, try_count))
+            except exceptions.QuietError:
+                try_count = 2
                 await asyncio.sleep(_TIME_TO_WAIT_BEFORE_RETRY)
+            except (Exception, RuntimeError, exceptions.DataRetrievalError) as ex:
+                try_count = 2
+                _LOGGER.error('Failed to poll for plugin {}'.format(self._name))
+                _LOGGER.debug('Exception poll plugin {}'.format(str(ex)))
+                await asyncio.sleep(_TIME_TO_WAIT_BEFORE_RETRY)
+
         _LOGGER.exception('Max retries exhausted in starting South plugin: {}'.format(self._name))
 
     def run(self):
@@ -211,6 +219,8 @@ class Server(FoglampMicroservice):
         try:
             await Ingest.stop()
             _LOGGER.info('Stopped the Ingest server.')
+        except asyncio.CancelledError:
+            pass
         except Exception as ex:
             _LOGGER.exception('Unable to stop the Ingest server. %s', str(ex))
             raise ex
@@ -270,6 +280,6 @@ class Server(FoglampMicroservice):
             pass
         except exceptions.DataRetrievalError:
             _LOGGER.exception('Data retrieval error in plugin {} during reconfigure'.format(self._name))
-            raise web.HTTPInternalServerError('Data retreival error in plugin {} during reconfigure'.format(self._name))
+            raise web.HTTPInternalServerError('Data retrieval error in plugin {} during reconfigure'.format(self._name))
 
         return web.json_response({"south": "change"})

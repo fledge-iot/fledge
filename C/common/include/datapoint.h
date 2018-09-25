@@ -11,6 +11,8 @@
  */
 #include <string>
 #include <sstream>
+#include <iomanip>
+#include <cfloat>
 
 /**
  * Class to hold an actual reading value.
@@ -31,7 +33,7 @@ class DatapointValue {
 		/**
  		 * Construct with an integer value
 		 */
-		DatapointValue(const int value)
+		DatapointValue(const long value)
 		{
 			m_value.i = value;
 			m_type = T_INTEGER;
@@ -97,19 +99,32 @@ class DatapointValue {
 			return *this;
 		};
 
+		void setValue(long value)
+		{
+			m_value.i = value;
+		}
+
+		void setValue(double value)
+		{
+			m_value.f = value;
+		}
+
 		/**
 		 * Return the value as a string
 		 */
 		std::string	toString() const
 		{
 			std::ostringstream ss;
+
 			switch (m_type)
 			{
 			case T_INTEGER:
 				ss << m_value.i;
 				return ss.str();
 			case T_FLOAT:
+			        ss << std::setprecision(DBL_DIG);
 				ss << m_value.f;
+
 				return ss.str();
 			case T_STRING:
 			default:
@@ -120,6 +135,16 @@ class DatapointValue {
 			}
 		};
 
+		/**
+		 * Return long value
+		 */
+		long toInt() const { return m_value.i; };
+		/**
+		 * Return double  value
+		 */
+		double toDouble() const { return m_value.f; };
+
+		// Supported Data Tag Types
 		typedef enum DatapointTag { T_STRING, T_INTEGER, T_FLOAT } dataTagType;
 
 		/**
@@ -132,7 +157,7 @@ class DatapointValue {
 	private:
 		union data_t {
 			std::string	*str;
-			int		i;
+			long		i;
 			double		f;
 			} m_value;
 		DatapointTag	m_type;
@@ -174,9 +199,14 @@ class Datapoint {
 		{
 			return m_value;
 		}
+		// Return reference to Datapoint value
+		DatapointValue& getData()
+		{
+			return m_value;
+		}
 	private:
 		const std::string	m_name;
-		const DatapointValue	m_value;
+		DatapointValue		m_value;
 };
 #endif
 

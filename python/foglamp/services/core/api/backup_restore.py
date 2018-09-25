@@ -6,13 +6,16 @@
 
 """Backup and Restore Rest API support"""
 
+import os
 import sys
-
+import tarfile
+from pathlib import Path
 from aiohttp import web
 from enum import IntEnum
 from collections import OrderedDict
 
 from foglamp.services.core import connect
+from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA
 
 if 'foglamp.plugins.storage.common.backup' not in sys.modules:
     from foglamp.plugins.storage.common.backup import Backup
@@ -22,7 +25,7 @@ if 'foglamp.plugins.storage.common.restore' not in sys.modules:
 
 from foglamp.plugins.storage.common import exceptions
 
-__author__ = "Vaibhav Singhal"
+__author__ = "Vaibhav Singhal, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -34,6 +37,7 @@ _help = """
     ------------------------------------------------------------------------------------
     | GET, POST       | /foglamp/backup                                                |
     | GET, DELETE     | /foglamp/backup/{backup-id}                                    |
+    | GET             | /foglamp/backup/{backup-id}/download                           |
     | PUT             | /foglamp/backup/{backup-id}/restore                            |
     | GET             | /foglamp/backup/status                                         |
     ------------------------------------------------------------------------------------
@@ -142,6 +146,43 @@ async def get_backup_details(request):
         raise web.HTTPException(reason=(str(ex)))
 
     return web.json_response(resp)
+
+
+async def get_backup_download(request):
+    """ Download back up file by id
+
+    :Example:
+        wget -O foglamp-backup-1.tar.gz http://localhost:8081/foglamp/backup/1/download
+
+    """
+    backup_id = request.match_info.get('backup_id', None)
+    try:
+        backup_id = int(backup_id)
+        backup = Backup(connect.get_storage_async())
+        backup_json = await backup.get_backup_details(backup_id)
+
+        # Strip filename from backup path
+        file_name_path = str(backup_json["file_name"]).split('data/backup/')
+        file_name = str(file_name_path[1])
+        dir_name = _FOGLAMP_DATA + '/backup/' if _FOGLAMP_DATA else _FOGLAMP_ROOT + "/data/backup/"
+        source = dir_name + file_name
+
+        # Create tar file
+        t = tarfile.open(source + ".tar.gz", "w:gz")
+        t.add(source, arcname=os.path.basename(source))
+        t.close()
+
+        # Path of tar.gz file
+        gz_path = Path(source + ".tar.gz")
+
+    except ValueError:
+        raise web.HTTPBadRequest(reason='Invalid backup id')
+    except exceptions.DoesNotExist:
+        raise web.HTTPNotFound(reason='Backup id {} does not exist'.format(backup_id))
+    except Exception as ex:
+        raise web.HTTPException(reason=(str(ex)))
+
+    return web.FileResponse(path=gz_path)
 
 
 async def delete_backup(request):

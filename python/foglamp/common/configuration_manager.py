@@ -5,13 +5,17 @@
 # FOGLAMP_END
 
 from importlib import import_module
+from urllib.parse import urlparse
 import copy
 import json
 import inspect
+import ipaddress
+import datetime
 
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.common.storage_client.exceptions import StorageServerError
+from foglamp.common.storage_client.utils import Utils
 from foglamp.common import logger
 from foglamp.common.audit_logger import AuditLogger
 
@@ -23,7 +27,64 @@ __version__ = "${VERSION}"
 _logger = logger.setup(__name__)
 
 # MAKE UPPER_CASE
-_valid_type_strings = sorted(['boolean', 'integer', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password', 'JSON'])
+_valid_type_strings = sorted(['boolean', 'integer', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password', 'JSON',
+                              'URL', 'enumeration'])
+
+
+class ConfigurationCache(object):
+    """Configuration Cache Manager"""
+
+    MAX_CACHE_SIZE = 10
+
+    def __init__(self):
+        """
+        cache: value stored in dictionary as per category_name
+        max_cache_size: Hold the 10 recently requested categories in the cache
+        hit: number of times an item is read from the cache
+        miss: number of times an item was not found in the cache and a read of the storage layer was required
+        """
+        self.cache = {}
+        self.max_cache_size = self.MAX_CACHE_SIZE
+        self.hit = 0
+        self.miss = 0
+
+    def __contains__(self, category_name):
+        """Returns True or False depending on whether or not the key is in the cache
+        and update the hit and data_accessed"""
+        if category_name in self.cache:
+            try:
+                current_hit = self.cache[category_name]['hit']
+            except KeyError:
+                current_hit = 0
+
+            self.hit += 1
+            self.cache[category_name].update({'date_accessed': datetime.datetime.now(), 'hit': current_hit + 1})
+            return True
+        self.miss += 1
+        return False
+
+    def update(self, category_name, category_val):
+        """Update the cache dictionary and remove the oldest item"""
+        if category_name not in self.cache and len(self.cache) >= self.max_cache_size:
+            self.remove_oldest()
+
+        self.cache[category_name] = {'date_accessed': datetime.datetime.now(), 'value': category_val}
+        _logger.info("Updated Configuration Cache %s", self.cache)
+
+    def remove_oldest(self):
+        """Remove the entry that has the oldest accessed date"""
+        oldest_entry = None
+        for category_name in self.cache:
+            if oldest_entry is None:
+                oldest_entry = category_name
+            elif self.cache[category_name]['date_accessed'] < self.cache[oldest_entry]['date_accessed']:
+                oldest_entry = category_name
+        self.cache.pop(oldest_entry)
+
+    @property
+    def size(self):
+        """Return the size of the cache"""
+        return len(self.cache)
 
 
 class ConfigurationManagerSingleton(object):
@@ -65,6 +126,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
     _storage = None
     _registered_interests = None
+    _cacheManager = None
 
     def __init__(self, storage=None):
         ConfigurationManagerSingleton.__init__(self)
@@ -74,6 +136,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             self._storage = storage
         if self._registered_interests is None:
             self._registered_interests = {}
+        if self._cacheManager is None:
+            self._cacheManager = ConfigurationCache()
 
     async def _run_callbacks(self, category_name):
         callbacks = self._registered_interests.get(category_name)
@@ -123,33 +187,80 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 raise TypeError('item_name must be a string')
             if type(item_val) is not dict:
                 raise TypeError('item_value must be a dict for item_name {}'.format(item_name))
+
+            optional_item_entries = {'readonly': 0, 'order': 0, 'length': 0, 'maximum': 0, 'minimum': 0}
             expected_item_entries = {'description': 0, 'default': 0, 'type': 0}
+
             if require_entry_value:
                 expected_item_entries['value'] = 0
+
+            def get_entry_val(k):
+                v = [val for name, val in item_val.items() if name == k]
+                return v[0]
+
             for entry_name, entry_val in item_val.items():
                 if type(entry_name) is not str:
                     raise TypeError('entry_name must be a string for item_name {}'.format(item_name))
-                if type(entry_val) is not str:
-                    raise TypeError(
-                        'entry_val must be a string for item_name {} and entry_name {}'.format(item_name, entry_name))
+
+                # Validate enumeration type and mandatory options item_name
+                if 'type' in item_val and get_entry_val("type") == 'enumeration':
+                    if 'options' not in item_val:
+                        raise KeyError('options required for enumeration type')
+                    if entry_name == 'options':
+                        if type(entry_val) is not list:
+                            raise TypeError('entry_val must be a list for item_name {} and entry_name {}'.format(item_name, entry_name))
+                        if not entry_val:
+                            raise ValueError('entry_val cannot be empty list for item_name {} and entry_name {}'.format(item_name, entry_name))
+                        if get_entry_val("default") not in entry_val:
+                            raise ValueError('entry_val does not exist in options list for item_name {} and entry_name {}'.format(item_name, entry_name))
+                        else:
+                            d = {entry_name: entry_val}
+                            expected_item_entries.update(d)
+                    else:
+                        if type(entry_val) is not str:
+                            raise TypeError('entry_val must be a string for item_name {} and entry_name {}'.format(item_name, entry_name))
+                else:
+                    if type(entry_val) is not str:
+                        raise TypeError('entry_val must be a string for item_name {} and entry_name {}'.format(item_name, entry_name))
+
+                # If Entry item exists in optional list, then update expected item entries
+                if entry_name in optional_item_entries:
+                    if entry_name == 'readonly':
+                        if self._validate_type_value('boolean', entry_val) is False:
+                            raise ValueError('Unrecognized value for item_name {}'.format(entry_name))
+                    else:
+                        if self._validate_type_value('integer', entry_val) is False:
+                            raise ValueError('Unrecognized value for item_name {}'.format(entry_name))
+
+                    d = {entry_name: entry_val}
+                    expected_item_entries.update(d)
+
                 num_entries = expected_item_entries.get(entry_name)
                 if set_value_val_from_default_val and entry_name == 'value':
-                    raise ValueError(
-                        'Specifying value_name and value_val for item_name {} is not allowed if desired behavior is to use default_val as value_val'.format(
-                            item_name))
+                    raise ValueError('Specifying value_name and value_val for item_name {} is not allowed if '
+                                     'desired behavior is to use default_val as value_val'.format(item_name))
                 if num_entries is None:
                     raise ValueError('Unrecognized entry_name {} for item_name {}'.format(entry_name, item_name))
                 if entry_name == 'type':
                     if entry_val not in _valid_type_strings:
                         raise ValueError(
-                            'Invalid entry_val for entry_name "type" for item_name {}. valid: {}'.format(item_name,
-                                                                                                         _valid_type_strings))
+                            'Invalid entry_val for entry_name "type" for item_name {}. valid: {}'.format(
+                                item_name, _valid_type_strings))
                 expected_item_entries[entry_name] = 1
             for needed_key, needed_value in expected_item_entries.items():
                 if needed_value == 0:
                     raise ValueError('Missing entry_name {} for item_name {}'.format(needed_key, item_name))
+
+            # validate data type value
+            if self._validate_type_value(get_entry_val("type"), get_entry_val("default")) is False:
+                raise ValueError('Unrecognized value for item_name {}'.format(item_name))
+            if 'readonly' in item_val:
+                item_val['readonly'] = self._clean('boolean', item_val['readonly'])
+
             if set_value_val_from_default_val:
+                item_val['default'] = self._clean(item_val['type'], item_val['default'])
                 item_val['value'] = item_val['default']
+
         return category_val_copy
 
     async def _create_new_category(self, category_name, category_val, category_description):
@@ -160,6 +271,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                               value=category_val).payload()
             result = await self._storage.insert_into_tbl("configuration", payload)
             response = result['response']
+            self._cacheManager.update(category_name, category_val)
         except KeyError:
             raise ValueError(result['message'])
         except StorageServerError as ex:
@@ -177,6 +289,49 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         for row in results['rows']:
             category_info.append((row['key'], row['description']))
         return category_info
+
+    async def _read_all_groups(self, root, children):
+        async def nested_children(child):
+            # Recursively find children
+            if not child:
+                return
+            next_children = await self.get_category_child(child["key"])
+            if len(next_children) == 0:
+                child.update({"children": []})
+            else:
+                child.update({"children": next_children})
+                # call for each child
+                for next_child in child["children"]:
+                    await nested_children(next_child)
+
+        # SELECT key, description FROM configuration
+        payload = PayloadBuilder().SELECT("key", "description").payload()
+        all_categories = await self._storage.query_tbl_with_payload('configuration', payload)
+
+        # SELECT DISTINCT child FROM category_children
+        unique_category_children_payload = PayloadBuilder().SELECT("child").DISTINCT(["child"]).payload()
+        unique_category_children = await self._storage.query_tbl_with_payload('category_children', unique_category_children_payload)
+
+        list_child = [row['child'] for row in unique_category_children['rows']]
+        list_root = []
+        list_not_root = []
+
+        for row in all_categories['rows']:
+            if row["key"] in list_child:
+                list_not_root.append((row["key"], row["description"]))
+            else:
+                list_root.append((row["key"], row["description"]))
+        if children:
+            tree = []
+            for k, v in list_root if root is True else list_not_root:
+                tree.append({"key": k, "description": v, "children": []})
+
+            for branch in tree:
+                await nested_children(branch)
+
+            return tree
+
+        return list_root if root else list_not_root
 
     async def _read_category_val(self, category_name):
         # SELECT configuration.key, configuration.description, configuration.value,
@@ -220,11 +375,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             # UPDATE foglamp.configuration
             # SET value = jsonb_set(value, '{retainUnsent,value}', '"12"')
             # WHERE key='PURGE_READ'
-            payload = PayloadBuilder().SELECT("key", "description", "ts", "value")\
-                .JSON_PROPERTY(("value", [item_name, "value"], new_value_val))\
-                .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS"))\
+            payload = PayloadBuilder().SELECT("key", "description", "ts", "value") \
+                .JSON_PROPERTY(("value", [item_name, "value"], new_value_val)) \
+                .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")) \
                 .WHERE(["key", "=", category_name]).payload()
-
             await self._storage.update_tbl("configuration", payload)
             audit = AuditLogger(self._storage)
             audit_details = {'category': category_name, 'item': item_name, 'oldValue': old_value, 'newValue': new_value_val}
@@ -241,21 +395,33 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 WHERE(["key", "=", category_name]).payload()
             result = await self._storage.update_tbl("configuration", payload)
             response = result['response']
+            if category_name in self._cacheManager.cache:
+                self._cacheManager.cache[category_name]['value'] = category_val
+            else:
+                self._cacheManager.cache.update({category_name: {"value": category_val}})
         except KeyError:
             raise ValueError(result['message'])
         except StorageServerError as ex:
             err_response = ex.error
             raise ValueError(err_response)
 
-    async def get_all_category_names(self):
+    async def get_all_category_names(self, root=None, children=False):
         """Get all category names in the FogLAMP system
 
+        Args:
+            root: If true then select all keys from categories table and then filter out
+                  that are children of another category. So the root categories are those
+                  entries in configuration table that do not appear in distinct child in category_children
+                  If false then it will return distinct child in category_children
+                  If root is None then it will return all categories
+            children: If true then it will return nested array of children of that category
+                      If false then it will return categories on the basis of root value
         Return Values:
-        a list of tuples (string category_name, string category_description)
-        None
+                    a list of tuples (string category_name, string category_description)
         """
         try:
-            return await self._read_all_category_names()
+            info = await self._read_all_groups(root, children) if root is not None else await self._read_all_category_names()
+            return info
         except:
             _logger.exception(
                 'Unable to read all category names')
@@ -272,7 +438,13 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         None
         """
         try:
-            return await self._read_category_val(category_name)
+            if category_name in self._cacheManager:
+                return self._cacheManager.cache[category_name]['value']
+
+            cat = await self._read_category_val(category_name)
+            if cat is not None:
+                self._cacheManager.update(category_name, cat)
+            return cat
         except:
             _logger.exception(
                 'Unable to get all category names based on category_name %s', category_name)
@@ -290,7 +462,14 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         None
         """
         try:
-            return await self._read_item_val(category_name, item_name)
+            if category_name in self._cacheManager:
+                if item_name not in self._cacheManager.cache[category_name]['value']:
+                    return None
+                return self._cacheManager.cache[category_name]['value'][item_name]
+            cat_item = await self._read_item_val(category_name, item_name)
+            if cat_item is not None:
+                self._cacheManager.update(category_name, cat_item)
+            return cat_item
         except:
             _logger.exception(
                 'Unable to get category item based on category_name %s and item_name %s', category_name, item_name)
@@ -335,15 +514,44 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         None
         """
         try:
-            # get storage_value_entry and compare against new_value_value, update if different
-            storage_value_entry = await self._read_value_val(category_name, item_name)
-            # check for category_name and item_name combination existence in storage
-            if storage_value_entry is None:
-                raise ValueError("No detail found for the category_name: {} and item_name: {}"
-                                 .format(category_name, item_name))
-            if storage_value_entry == new_value_entry:
-                return
+            storage_value_entry = None
+            if category_name in self._cacheManager:
+                if item_name not in self._cacheManager.cache[category_name]['value']:
+                    raise ValueError("No detail found for the category_name: {} and item_name: {}"
+                                     .format(category_name, item_name))
+                storage_value_entry = self._cacheManager.cache[category_name]['value'][item_name]
+
+                if storage_value_entry['value'] == new_value_entry:
+                    return
+            else:
+                # get storage_value_entry and compare against new_value_value with its type, update if different
+                storage_value_entry = await self._read_item_val(category_name, item_name)
+                # check for category_name and item_name combination existence in storage
+                if storage_value_entry is None:
+                    raise ValueError("No detail found for the category_name: {} and item_name: {}"
+                                     .format(category_name, item_name))
+                if storage_value_entry == new_value_entry:
+                    return
+
+            # Special case for enumeration field type handling
+            if storage_value_entry['type'] == 'enumeration':
+                if new_value_entry == '':
+                    raise ValueError('entry_val cannot be empty')
+                if new_value_entry not in storage_value_entry['options']:
+                    raise ValueError('new value does not exist in options enum')
+            else:
+                if self._validate_type_value(storage_value_entry['type'], new_value_entry) is False:
+                    raise TypeError('Unrecognized value name for item_name {}'.format(item_name))
+
+            new_value_entry = self._clean(storage_value_entry['type'], new_value_entry)
             await self._update_value_val(category_name, item_name, new_value_entry)
+            # always get value from storage
+            cat_item = await self._read_item_val(category_name, item_name)
+            if category_name in self._cacheManager.cache:
+                if item_name in self._cacheManager.cache[category_name]['value']:
+                    self._cacheManager.cache[category_name]['value'][item_name]['value'] = cat_item['value']
+                else:
+                    self._cacheManager.cache[category_name]['value'].update({item_name: cat_item['value']})
         except:
             _logger.exception(
                 'Unable to set item value entry based on category_name %s and item_name %s and value_item_entry %s',
@@ -455,6 +663,178 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             raise
         return None
 
+    async def _read_all_child_category_names(self, category_name):
+        _children = []
+        payload = PayloadBuilder().SELECT("parent", "child").WHERE(["parent", "=", category_name]).payload()
+        results = await self._storage.query_tbl_with_payload('category_children', payload)
+        for row in results['rows']:
+            _children.append(row)
+
+        return _children
+
+    async def _read_child_info(self, child_list):
+        info = []
+        for item in child_list:
+            payload = PayloadBuilder().SELECT("key", "description").WHERE(["key", "=", item['child']]).payload()
+            results = await self._storage.query_tbl_with_payload('configuration', payload)
+            for row in results['rows']:
+                info.append(row)
+
+        return info
+
+    async def _create_child(self, category_name, child):
+        # FIXME: Handle the case if re-create same data, it throws UNIQUE constraint failed
+        try:
+            payload = PayloadBuilder().INSERT(parent=category_name, child=child).payload()
+            result = await self._storage.insert_into_tbl("category_children", payload)
+            response = result['response']
+        except KeyError:
+            raise ValueError(result['message'])
+        except StorageServerError as ex:
+            err_response = ex.error
+            raise ValueError(err_response)
+
+        return response
+
+    async def get_category_child(self, category_name):
+        """Get the list of categories that are children of a given category.
+
+        Keyword Arguments:
+        category_name -- name of the category (required)
+
+        Return Values:
+        JSON
+        """
+        category = await self._read_category_val(category_name)
+        if category is None:
+            raise ValueError('No such {} category exist'.format(category_name))
+
+        try:
+            child_cat_names = await self._read_all_child_category_names(category_name)
+            return await self._read_child_info(child_cat_names)
+        except:
+            _logger.exception(
+                'Unable to read all child category names')
+            raise
+
+    async def create_child_category(self, category_name, children):
+        """Create a new child category in the database.
+
+        Keyword Arguments:
+        category_name -- name of the category (required)
+        children -- an array of child categories
+
+        Return Values:
+        JSON
+        """
+        def diff(lst1, lst2):
+            return [v for v in lst2 if v not in lst1]
+
+        if not isinstance(category_name, str):
+            raise TypeError('category_name must be a string')
+
+        if not isinstance(children, list):
+            raise TypeError('children must be a list')
+
+        try:
+            category = await self._read_category_val(category_name)
+            if category is None:
+                raise ValueError('No such {} category exist'.format(category_name))
+
+            for child in children:
+                category = await self._read_category_val(child)
+                if category is None:
+                    raise ValueError('No such {} child exist'.format(child))
+
+            # Read children from storage
+            _existing_children = await self._read_all_child_category_names(category_name)
+            children_from_storage = [item['child'] for item in _existing_children]
+            # Diff in existing children and requested children
+            new_children = diff(children_from_storage, children)
+            for a_new_child in new_children:
+                result = await self._create_child(category_name, a_new_child)
+                children_from_storage.append(a_new_child)
+
+            return {"children": children_from_storage}
+
+            # TODO: [TO BE DECIDED] - Audit Trail Entry
+        except KeyError:
+            raise ValueError(result['message'])
+
+    async def delete_child_category(self, category_name, child_category):
+        """Delete a parent-child relationship
+
+        Keyword Arguments:
+        category_name -- name of the category (required)
+        child_category -- child name
+
+        Return Values:
+        JSON
+        """
+        if not isinstance(category_name, str):
+            raise TypeError('category_name must be a string')
+
+        if not isinstance(child_category, str):
+            raise TypeError('child_category must be a string')
+
+        category = await self._read_category_val(category_name)
+        if category is None:
+            raise ValueError('No such {} category exist'.format(category_name))
+
+        child = await self._read_category_val(child_category)
+        if child is None:
+            raise ValueError('No such {} child exist'.format(child_category))
+
+        try:
+            payload = PayloadBuilder().WHERE(["parent", "=", category_name]).AND_WHERE(["child", "=", child_category]).payload()
+            result = await self._storage.delete_from_tbl("category_children", payload)
+
+            if result['response'] == 'deleted':
+                child_dict = await self._read_all_child_category_names(category_name)
+                _children = []
+                for item in child_dict:
+                    _children.append(item['child'])
+
+            # TODO: Shall we write audit trail code entry here? log_code?
+
+        except KeyError:
+            raise ValueError(result['message'])
+        except StorageServerError as ex:
+            err_response = ex.error
+            raise ValueError(err_response)
+
+        return _children
+
+    async def delete_parent_category(self, category_name):
+        """Delete a parent-child relationship for a parent
+
+        Keyword Arguments:
+        category_name -- name of the category (required)
+
+        Return Values:
+        JSON
+        """
+        if not isinstance(category_name, str):
+            raise TypeError('category_name must be a string')
+
+        category = await self._read_category_val(category_name)
+        if category is None:
+            raise ValueError('No such {} category exist'.format(category_name))
+
+        try:
+            payload = PayloadBuilder().WHERE(["parent", "=", category_name]).payload()
+            result = await self._storage.delete_from_tbl("category_children", payload)
+            response = result["response"]
+            # TODO: Shall we write audit trail code entry here? log_code?
+
+        except KeyError:
+            raise ValueError(result['message'])
+        except StorageServerError as ex:
+            err_response = ex.error
+            raise ValueError(err_response)
+
+        return result
+
     def register_interest(self, category_name, callback):
         """Registers an interest in any changes to the category_value associated with category_name
 
@@ -515,192 +895,47 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 if len(self._registered_interests[category_name]) == 0:
                     del self._registered_interests[category_name]
 
-# async def _main(storage_client):
-#
-#     # lifecycle of a component's configuration
-#     # start component
-#     # 1. create a configuration that does not exist - use all default values
-#     # 2. read the configuration back in (cache locally for reuse)
-#     # update config while system is up
-#     # 1. a user updates the "value" entry of an item to non-default value
-#     #    (callback is not implemented to update/notify component once change to config is made)
-#     # restart component
-#     # 1. create/update a configuration that already exists (merge)
-#     # 2. read the configuration back in (cache locally for reuse)
-#
-#     """
-#     # content of foglamp.callback.py
-#     # example only - delete before merge to develop
-#
-#     def run(category_name):
-#         print('callback1 for category_name {}'.format(category_name))
-#     """
-#
-#     """
-#     # content of foglamp.callback2.py
-#     # example only - delete before merge to develop
-#
-#     def run(category_name):
-#         print('callback2 for category_name {}'.format(category_name))
-#     """
-#     cf = ConfigurationManager(storage_client)
-#
-#     sample_json = {
-#         "port": {
-#             "description": "Port to listen on",
-#             "default": "5683",
-#             "type": "integer"
-#         },
-#         "url": {
-#             "description": "URL to accept data on",
-#             "default": "sensor/reading-values",
-#             "type": "string"
-#         },
-#         "certificate": {
-#             "description": "X509 certificate used to identify ingress interface",
-#             "default": "47676565",
-#             "type": "X509 certificate"
-#         }
-#     }
-#
-#     print("test create_category")
-#     # print(sample_json)
-#     await cf.create_category('CATEG', sample_json, 'CATEG_DESCRIPTION')
-#     #print(sample_json)
-#
-#     print("test register category")
-#     print(cf._registered_interests)
-#     cf.register_interest('CATEG', 'foglamp.callback')
-#     print(cf._registered_interests)
-#     cf.register_interest('CATEG', 'foglamp.callback2')
-#     print(cf._registered_interests)
-#
-#     cf.register_interest('CATEG', 'foglamp.callback3')
-#     print(cf._registered_interests)
-#     cf.unregister_interest('CATEG', 'foglamp.callback3')
-#     print(cf._registered_interests)
-#
-#     print("register interest in None- throw ValueError")
-#     try:
-#         cf.register_interest(None, 'foglamp.callback2')
-#     except ValueError as err:
-#         print(err)
-#     print(cf._registered_interests)
-#
-#
-#     print("test get_all_category_names")
-#     names_list = await cf.get_all_category_names()
-#     for row in names_list:
-#         # tuple
-#         print(row)
-#
-#     print("test get_category_all_items")
-#     json = await cf.get_category_all_items('CATEG')
-#     print(json)
-#     print(type(json))
-#
-#     print("test get_category_item")
-#     json = await cf.get_category_item('CATEG', "url")
-#     print(json)
-#     print(type(json))
-#
-#     print("test get_category_item_value")
-#     string_result = await cf.get_category_item_value_entry('CATEG', "url")
-#     print(string_result)
-#     print(type(string_result))
-#
-#     print("test create_category - same values - should be ignored")
-#     # print(sample_json)
-#     await cf.create_category('CATEG', sample_json, 'CATEG_DESCRIPTION')
-#     # print(sample_json)
-#
-#     sample_json = {
-#         "url": {
-#             "description": "URL to accept data on",
-#             "default": "sensor/reading-values",
-#             "type": "string"
-#         },
-#         "port": {
-#             "description": "Port to listen on",
-#             "default": "5683",
-#             "type": "integer"
-#         },
-#         "certificate": {
-#             "description": "X509 certificate used to identify ingress interface",
-#             "default": "47676565",
-#             "type": "X509 certificate"
-#         }
-#     }
-#
-#     print("test create_category - same values different order- should be ignored")
-#     print(sample_json)
-#     await cf.create_category('CATEG', sample_json, 'CATEG_DESCRIPTION')
-#     print(sample_json)
-#
-#     print("test set_category_item_value_entry")
-#     await cf.set_category_item_value_entry('CATEG', "url", "blablabla")
-#
-#     print("test set_category_item_value_entry - same value, update should be ignored")
-#     await cf.set_category_item_value_entry('CATEG', "url", "blablabla")
-#
-#     print("test get_category_item_value")
-#     string_result = await cf.get_category_item_value_entry('CATEG', "url")
-#     print(string_result)
-#     print(type(string_result))
-#
-#     print("test create_category second run. add port2, add url2, keep certificate, drop old port and old url")
-#     sample_json = {
-#         "port2": {
-#             "description": "Port to listen on",
-#             "default": "5683",
-#             "type": "integer"
-#         },
-#         "url2": {
-#             "description": "URL to accept data on",
-#             "default": "sensor/reading-values",
-#             "type": "string"
-#         },
-#         "certificate": {
-#             "description": "X509 certificate used to identify ingress interface",
-#             "default": "47676565",
-#             "type": "X509 certificate"
-#         }
-#     }
-#     await cf.create_category('CATEG', sample_json, 'CATEG_DESCRIPTION')
-#
-#     print("test get_all_items")
-#     json = await cf.get_category_all_items('CATEG')
-#     print(json)
-#     print(type(json))
-#
-#     print("test create_category third run(keep_original_items). add port2, add url2, keep certificate, drop old port and old url")
-#     sample_json = {
-#         "port3": {
-#             "description": "Port to listen on",
-#             "default": "5683",
-#             "type": "integer"
-#         },
-#         "url3": {
-#             "description": "URL to accept data on",
-#             "default": "sensor/reading-values",
-#             "type": "string"
-#         },
-#         "certificate": {
-#             "description": "X509 certificate used to identify ingress interface",
-#             "default": "47676565",
-#             "type": "X509 certificate"
-#         }
-#     }
-#     await cf.create_category('CATEG', sample_json, 'CATEG_DESCRIPTION', True)
-#
-#     print("test get_all_items")
-#     json = await cf.get_category_all_items('CATEG')
-#     print(json)
-#     print(type(json))
-#
-# if __name__ == '__main__':
-#     import asyncio
-#     loop = asyncio.get_event_loop()
-#     # storage client object
-#     _storage = StorageClientAsync(core_management_host="0.0.0.0", core_management_port=44511, svc=None)
-#     loop.run_until_complete(_main(_storage))
+    def _validate_type_value(self, _type, _value):
+        # TODO: Not implemented for password and X509 certificate type
+        def _str_to_bool(item_val):
+            return item_val.lower() in ("true", "false")
+
+        def _str_to_int(item_val):
+            try:
+                _value = int(item_val)
+            except ValueError:
+                return False
+            else:
+                return True
+
+        def _str_to_ipaddress(item_val):
+            try:
+                return ipaddress.ip_address(item_val)
+            except ValueError:
+                return False
+
+        if _type == 'boolean':
+            return _str_to_bool(_value)
+        elif _type == 'integer':
+            return _str_to_int(_value)
+        elif _type == 'JSON':
+            if isinstance(_value, dict):
+                return True
+            return Utils.is_json(_value)
+        elif _type == 'IPv4' or _type == 'IPv6':
+            return _str_to_ipaddress(_value)
+        elif _type == 'URL':
+            try:
+                result = urlparse(_value)
+                return True if all([result.scheme, result.netloc]) else False
+            except:
+                return False
+        elif _type == 'string':
+            return isinstance(_value, str)
+
+
+    def _clean(self, item_type, item_val):
+        if item_type == 'boolean':
+            return item_val.lower()
+
+        return item_val

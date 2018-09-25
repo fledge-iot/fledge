@@ -313,6 +313,8 @@ class TestIngest:
         Ingest._started = True
         mocker.patch.object(Ingest, "_write_statistics", return_value=mock_coro())
         mocker.patch.object(Ingest, "_insert_readings", return_value=mock_coro())
+        mocker.patch.object(MicroserviceManagementClient, "__init__", return_value=None)
+        mocker.patch.object(MicroserviceManagementClient, "create_asset_tracker_event", return_value=None)
         assert 0 == len(Ingest._readings_lists[0])
         assert 'PUMP1' not in list(Ingest._sensor_stats.keys())
 
@@ -324,7 +326,6 @@ class TestIngest:
 
         # THEN
         assert 1 == len(Ingest._readings_lists[0])
-        assert 1 == Ingest._sensor_stats['PUMP1']
 
     @pytest.mark.asyncio
     async def test_add_readings_if_stop(self, mocker):
@@ -498,6 +499,9 @@ class TestIngest:
         Ingest._started = True
         mocker.patch.object(Ingest, "_write_statistics", return_value=mock_coro())
         mocker.patch.object(Ingest, "_insert_readings", return_value=mock_coro())
+        mocker.patch.object(MicroserviceManagementClient, "__init__", return_value=None)
+        mocker.patch.object(MicroserviceManagementClient, "create_asset_tracker_event", return_value=None)
+
         assert 0 == len(Ingest._readings_lists[0])
         assert 'PUMP1' not in list(Ingest._sensor_stats.keys())
 
@@ -515,4 +519,3 @@ class TestIngest:
         # THEN
         assert 1 == len(Ingest._readings_lists[0])
         assert 1 == len(Ingest._readings_lists[1])
-        assert 2 == Ingest._sensor_stats['PUMP1']

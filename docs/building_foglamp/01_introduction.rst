@@ -19,7 +19,7 @@ What Is FogLAMP?
 
 FogLAMP is an open source platform for the **Internet of Things** and an
 essential component in **Fog Computing**.  It uses a modular
-**microservices architecture** including sensor data collection, storage, processing and forwarding to historians, Enterprise systems and Cloud-based services. FogLAMP can run in highly available, stand alone, unattended environments that assume unreliable network connectivity.  
+**microservices architecture** including sensor data collection, storage, processing and forwarding to historians, Enterprise systems and Cloud-based services. FogLAMP can run in highly available, stand alone, unattended environments that assume unreliable network connectivity.
 
 By providing a modular and distributable framework under an open source Apache v2 license, FogLAMP is the best platform to manage the data infrastructure for IoT. The modules can be distributed in any layer - Edge, Fog and Cloud - and they act together to provide scalability, elasticity and resilience.
 
@@ -41,7 +41,7 @@ In practical terms, this means that:
 
 - Intra-layer communication and data exchange:
 
-  - At the **Edge**, microservices are installed on devices, sensors and actuators. 
+  - At the **Edge**, microservices are installed on devices, sensors and actuators.
   - In the **Fog**, data is collected and aggregated in gateways and regional servers.
   - In the **Cloud**, data is distributed and analysed on multiple servers, such as Big Data Systems and Data Historians.
 
@@ -49,7 +49,7 @@ In practical terms, this means that:
 
   - From **Edge to Fog**, data is retrieved from multiple sensors and devices and it is aggregated on resilient and highly available middle servers and gateways, either in traditional Data Historians and in the new edge of Machine Learning systems.
   - From **Fog to Edge**, configuration information, metadata and other valuable data is transferred to sensors and devices.
-  - From **Fog to Cloud**, the data collected and optionally transformed is transferred to more powerful distributed Cloud and Enterprise systems. 
+  - From **Fog to Cloud**, the data collected and optionally transformed is transferred to more powerful distributed Cloud and Enterprise systems.
   - From **Cloud to Fog**, results of complex analysis and other valuable information are sent to the designated gateways and middle servers that will interact with the Edge.
 
 - Intra-layer service distribution:
@@ -92,41 +92,3 @@ In a nutshell, these are main features of FogLAMP:
 - Discoverable and cluster-based.
 - Based on APIs (RESTful and non-RESTful) to communicate with sensors and other devices, to interact with user applications, to manage the platform and to be integrated with a Cloud or Data Center-based data infrastructure.
 - Hardened with default secure communication that can be optionally relaxed.
-
-
-FogLAMP vs Other Software
-=========================
-
-FogLAMP can solve many problems and facilitate the design and implementation of many IoT projects. That said, it is absolutely important that architects and developers have a clear idea of what to expect from FogLAMP and when it is a good fit or when other products may be a better option.
-
-In this section, we compare FogLAMP to some other options. We have clearly prepared this section to the best of our knowledge, we welcome feedback from anybody filing an issue to the `FogLAMP project on GitHub`_.
-
-
-Open Source Platforms
----------------------
-
-EdgeX Foundry
-^^^^^^^^^^^^^
-
-EdgeX Foundry is a vendor-neutral project launched under the Linux Foundation.  EdgeX and FogLAMP share the same concepts of microservice architecture and plugins, security and hardware agnostic platform, but the objective is significantly different. 
-At a closer look, the two projects are complementary and it is up to the systems and data architects to contemplate one or both projects together. The main objective of EdgeX Foundry is to build a standardized Edge computing infrastructure, whilst FogLAMP is focused on data management in the broadest definition of Fog, i.e. covering several layers from the Edge up to the Cloud. Furthermore, FogLAMP does not strictly provide control over Edge devices: there are indeed options of bi-directionality so that administrators, manual or automatic mode, can modify the configuration of software running on devices, but the goal is always related to the acquisition of data coming from the Edge, and any control is executed by integrating FogLAMP with external comp nents. Regarding EdgeX, cases focus on the control and operations of Edge devices. For this reason, is it fair to say that an IoT architect may consider to implement data management and acquisition with FogLAMP and integrate FogLAMP data check and analysis via the internal REST API with services provided by EdgeX to control the Edge devices.
-
-In a nutshell, if your objective is to use a comprehensive Edge platform to control your IoT environment, you should consider EdgeX. If you are looking for a platform that can handle data management, collection, storage and forward connected to other systems, you should consider FogLAMP.
-
-
-Kura
-^^^^
-
-Kura is an open source project developed under the IoT initiative in the Eclipse Foundation. It is Java-based and hardware platform agnostic. Plugins and bundles are implemented with `OSGi <https://www.osgi.org/>`_. The objective of Kura is similar to FogLAMP, i.e. data is collected, managed, transformed, analyzed and forwarded. The key difference resides in the choice of the platform and the solution: Kura is entirely Java-based, while FogLAMP, due to the microservice application, is language and platform agnostic.
-
-
-Closed Source Platforms
------------------------
-
-FogHorn
-^^^^^^^
-
-The FogHorn platform is focused on Machine Learning applied at the Edge and consequently at controlling Edge devices. It also has its own set of tools and SDK that are used to manage the whole process of collecting and analyzing data, then implementing ML algorithms. The memory footprint for the smallest implementation starts at 256MB of memory and it appears to have no microservice distribution. 
-
-Putting the obvious difference between open and closed source aside, FogHorn and FogLAMP are designed to accomplish similar goals but in a different way. FogHorn is very specialized in handling and using ML algorithms. FogLAMP provides a platform for ML, but it does not implement it: it is up to the user to select their favorite ML library and implementation and integrate it in FogLAMP.
-

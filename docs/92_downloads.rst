@@ -26,69 +26,31 @@
 
    <a href="https://github.com/foglamp/storage-postgres" target="_blank">https://github.com/foglamp/storage-postgres</a>
 
-.. |intel 1.0| raw:: html
+.. |intel 1.4.0 Ubuntu 16.04| raw:: html
 
-   <a href="https://s3.amazonaws.com/foglamp/snaps/x86_64/foglamp_1.0_amd64.snap">v1.0</a>
+   <a href="https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-1.4.0-x86_64_ubuntu_16_04.deb">v1.4.0 Ubuntu 16.04</a>
 
-.. |intel 1.1| raw:: html
+.. |intel 1.4.0 Ubuntu 18.04| raw:: html
 
-   <a href="https://s3.amazonaws.com/foglamp/snaps/x86_64/foglamp_1.1_amd64.snap">v1.1</a>
+   <a href="https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-1.4.0-x86_64_ubuntu_18_04.deb">v1.4.0 Ubuntu 18.04</a>
 
-.. |intel 1.1.1| raw:: html
+.. |arm 1.4.0| raw:: html
 
-   <a href="https://s3.amazonaws.com/foglamp/snaps/x86_64/foglamp_1.1.1_amd64.snap">v1.1.1</a>
+   <a href="https://s3.amazonaws.com/foglamp/debian/armhf/foglamp-1.4.0-armhf.deb">v1.4.0 ARM</a>
 
-.. |intel 1.2| raw:: html
+.. |gui 1.4.0| raw:: html
 
-   <a href="https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-1.2-x86_64.deb">v1.2</a>
+   <a href="https://s3.amazonaws.com/foglamp/debian/foglamp-gui-1.4.0.deb">v1.4.0</a>
+   
+.. |sensehat 1.1.0| raw:: html
 
-.. |intel 1.3 Ubuntu 16.04| raw:: html
+   <a href="https://s3.amazonaws.com/foglamp/debian/foglamp-south-sensehat-1.1.0-armhf.deb">sensehat v1.1.0</a>
 
-   <a href="https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-1.3-x86_64_ubuntu_16_04.deb">v1.3 Ubuntu 16.04</a>
+.. |sinusoid 1.1.0| raw:: html
 
-.. |intel 1.3 Ubuntu 18.04| raw:: html
+   <a href="https://s3.amazonaws.com/foglamp/debian/foglamp-south-sinusoid-1.1.0.deb">sinusoid v1.1.0</a>
 
-   <a href="https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-1.3-x86_64_ubuntu_18_04.deb">v1.3 Ubuntu 18.04</a>
-
-.. |intel 1.3.1 Ubuntu 16.04| raw:: html
-
-   <a href="https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-1.3.1-x86_64_ubuntu_16_04.deb">v1.3.1 Ubuntu 16.04</a>
-
-.. |intel 1.3.1 Ubuntu 18.04| raw:: html
-
-   <a href="https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-1.3.1-x86_64_ubuntu_18_04.deb">v1.3.1 Ubuntu 18.04</a>
-
-.. |arm 1.0| raw:: html
-
-   <a href="https://s3.amazonaws.com/foglamp/snaps/armhf/foglamp_1.0_armhf.snap">v1.0</a>
-
-.. |arm 1.1| raw:: html
-
-   <a href="https://s3.amazonaws.com/foglamp/snaps/armhf/foglamp_1.1_armhf.snap">v1.1</a>
-
-.. |arm 1.1.1| raw:: html
-
-   <a href="https://s3.amazonaws.com/foglamp/snaps/armhf/foglamp_1.1.1_armhf.snap">v1.1.1</a>
-
-.. |arm 1.2| raw:: html
-
-   <a href="https://s3.amazonaws.com/foglamp/debian/armhf/foglamp-1.2-armhf.deb">v1.2</a>
-
-.. |arm 1.3| raw:: html
-
-   <a href="https://s3.amazonaws.com/foglamp/debian/armhf/foglamp-1.3-armhf.deb">v1.3</a>
-
-.. |arm 1.3.1| raw:: html
-
-   <a href="https://s3.amazonaws.com/foglamp/debian/armhf/foglamp-1.3.1-armhf.deb">v1.3.1</a>
-
-.. |arm-envphat 1.2| raw:: html
-
-   <a href="https://s3.amazonaws.com/foglamp/debian/armhf/foglamp-south-envirophat-1.2-armhf.deb">v1.2</a>
-
-.. =============================================
-
-
+   
 *********
 Downloads
 *********
@@ -113,34 +75,23 @@ We have created Debian for Intel and ARM architectures. The packages have been t
 FogLAMP Debian Packages for Intel
 ---------------------------------
 
-- |intel 1.3.1 Ubuntu 16.04| - Released 2018-07-13
-- |intel 1.3.1 Ubuntu 18.04| - Released 2018-07-13
+- |intel 1.4.0 Ubuntu 16.04|
+- |intel 1.4.0 Ubuntu 18.04|
 
 
 FogLAMP Debian Packages for ARM
 -------------------------------
 
-- |arm 1.3.1| - Released 2018-07-13
+- |arm 1.4.0|
 
 
-Snap Packages
-=============
-
-Snap packages have been put on hold. You can still download packages up to version 1.1.1.
-
-Snaps for Intel
----------------
-
-- |intel 1.1.1| - Released 2018-01-18
-- |intel 1.1| - Released 2018-01-09
-- |intel 1.0| - Released 2017-12-11
+FogLAMP GUI Debian Package
+--------------------------
+- |gui 1.4.0|
 
 
-Snaps for ARM
--------------
-
-- |arm 1.1.1| - Released 2018-01-18
-- |arm 1.1| - Released 2018-01-09
-- |arm 1.0| - Released 2017-12-11
-
+FogLAMP South Plugin Debian Packages
+------------------------------------
+- |sensehat 1.1.0|
+- |sinusoid 1.1.0|
 

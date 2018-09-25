@@ -21,8 +21,8 @@ __version__ = "${VERSION}"
 
 _LOGGER = logger.setup(__name__)
 _MAX_RETRY_POLL = 3
-_TIME_TO_WAIT_BEFORE_RETRY = 2
-_CLEAR_PENDING_TASKS_TIMEOUT = 5
+_TIME_TO_WAIT_BEFORE_RETRY = 1
+_CLEAR_PENDING_TASKS_TIMEOUT = 3
 
 
 class Server(FoglampMicroservice):
@@ -161,6 +161,15 @@ class Server(FoglampMicroservice):
         """
         _LOGGER.info('Started South Plugin: {}'.format(self._name))
         try_count = 1
+
+        # pollInterval is expressed in milliseconds
+        if int(self._plugin_handle['pollInterval']['value']) <= 0:
+            self._plugin_handle['pollInterval']['value'] = '1000'
+            _LOGGER.warning('Plugin {} pollInterval must be greater than 0, defaulting to {} ms'.format(
+                self._name, self._plugin_handle['pollInterval']['value']))
+        sleep_seconds = int(self._plugin_handle['pollInterval']['value']) / 1000.0
+        _TIME_TO_WAIT_BEFORE_RETRY = sleep_seconds
+
         while self._plugin and try_count <= _MAX_RETRY_POLL:
             try:
                 data = self._plugin.plugin_poll(self._plugin_handle)
@@ -176,12 +185,9 @@ class Server(FoglampMicroservice):
                                                                   timestamp=data['timestamp'],
                                                                   key=data['key'],
                                                                   readings=data['readings']))
-                # pollInterval is expressed in milliseconds
-                if int(self._plugin_handle['pollInterval']['value']) <= 0:
-                    _LOGGER.warning('Plugin {} pollInterval must be greater than 0, defaulting to 1000 ms'.format(self._name))
-                    self._plugin_handle['pollInterval']['value'] = '1000'
-                sleep_seconds = int(self._plugin_handle['pollInterval']['value']) / 1000.0
                 await asyncio.sleep(sleep_seconds)
+            except asyncio.CancelledError:
+                pass
             except KeyError as ex:
                 try_count = 2
                 _LOGGER.exception('Key error plugin {} : {}'.format(self._name, str(ex)))
@@ -194,7 +200,7 @@ class Server(FoglampMicroservice):
                 _LOGGER.debug('Exception poll plugin {}'.format(str(ex)))
                 await asyncio.sleep(_TIME_TO_WAIT_BEFORE_RETRY)
 
-        _LOGGER.exception('Max retries exhausted in starting South plugin: {}'.format(self._name))
+        _LOGGER.warning('Stopped all polling tasks for plugin: {}'.format(self._name))
 
     def run(self):
         """Starts the South Microservice
@@ -230,9 +236,12 @@ class Server(FoglampMicroservice):
             # Cancel all pending asyncio tasks after a timeout occurs
             done, pending = await asyncio.wait(asyncio.Task.all_tasks(), timeout=_CLEAR_PENDING_TASKS_TIMEOUT)
             for task_pending in pending:
-                task_pending.cancel()
-            await asyncio.sleep(2)
-        except (asyncio.CancelledError, exceptions.DataRetrievalError):
+                try:
+                     task_pending.cancel()
+                except asyncio.CancelledError:
+                    pass
+            await asyncio.sleep(1.0)
+        except asyncio.CancelledError:
             pass
 
         # This deactivates event loop and

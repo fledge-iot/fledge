@@ -27,7 +27,7 @@ __version__ = "${VERSION}"
 _logger = logger.setup(__name__)
 
 # MAKE UPPER_CASE
-_valid_type_strings = sorted(['boolean', 'integer', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password', 'JSON',
+_valid_type_strings = sorted(['boolean', 'integer', 'float', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password', 'JSON',
                               'URL', 'enumeration'])
 
 
@@ -160,21 +160,33 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     raise AttributeError('Callback module {} run method must be a coroutine function'.format(callback))
                 await cb.run(category_name)
 
-    async def _merge_category_vals(self, category_val_new, category_val_storage, keep_original_items):
+    async def _merge_category_vals(self, category_val_new, category_val_storage, keep_original_items, category_name=None):
         # preserve all value_vals from category_val_storage
         # use items in category_val_new not in category_val_storage
         # keep_original_items = FALSE ignore items in category_val_storage not in category_val_new
         # keep_original_items = TRUE keep items in category_val_storage not in category_val_new
         category_val_storage_copy = copy.deepcopy(category_val_storage)
         category_val_new_copy = copy.deepcopy(category_val_new)
+        deprecated_items = []
         for item_name_new, item_val_new in category_val_new_copy.items():
             item_val_storage = category_val_storage_copy.get(item_name_new)
             if item_val_storage is not None:
                 item_val_new['value'] = item_val_storage.get('value')
                 category_val_storage_copy.pop(item_name_new)
+            if "deprecated" in item_val_new and item_val_new['deprecated'] == 'true':
+                audit = AuditLogger(self._storage)
+                audit_details = {'category': category_name, 'item': item_name_new, 'oldValue': item_val_new['value'],
+                                 'newValue': 'deprecated'}
+                await audit.information('CONCH', audit_details)
+                deprecated_items.append(item_name_new)
+
+        for item in deprecated_items:
+            category_val_new_copy.pop(item)
+
         if keep_original_items:
             for item_name_storage, item_val_storage in category_val_storage_copy.items():
                 category_val_new_copy[item_name_storage] = item_val_storage
+
         return category_val_new_copy
 
     async def _validate_category_val(self, category_val, set_value_val_from_default_val=True):
@@ -188,7 +200,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             if type(item_val) is not dict:
                 raise TypeError('item_value must be a dict for item_name {}'.format(item_name))
 
-            optional_item_entries = {'readonly': 0, 'order': 0, 'length': 0, 'maximum': 0, 'minimum': 0}
+            optional_item_entries = {'readonly': 0, 'order': 0, 'length': 0, 'maximum': 0, 'minimum': 0, 'deprecated': 0}
             expected_item_entries = {'description': 0, 'default': 0, 'type': 0}
 
             if require_entry_value:
@@ -225,12 +237,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
                 # If Entry item exists in optional list, then update expected item entries
                 if entry_name in optional_item_entries:
-                    if entry_name == 'readonly':
+                    if entry_name == 'readonly' or entry_name == 'deprecated':
                         if self._validate_type_value('boolean', entry_val) is False:
-                            raise ValueError('Unrecognized value for item_name {}'.format(entry_name))
+                            raise ValueError('Entry value must be boolean for item name {}'.format(entry_name))
+                    elif entry_name == 'minimum' or entry_name == 'maximum':
+                        if (self._validate_type_value('integer', entry_val) or self._validate_type_value('float', entry_val)) is False:
+                            raise ValueError('Entry value must be an integer or float for item name {}'.format(entry_name))
                     else:
                         if self._validate_type_value('integer', entry_val) is False:
-                            raise ValueError('Unrecognized value for item_name {}'.format(entry_name))
+                            raise ValueError('Entry value must be an integer for item name {}'.format(entry_name))
 
                     d = {entry_name: entry_val}
                     expected_item_entries.update(d)
@@ -256,6 +271,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 raise ValueError('Unrecognized value for item_name {}'.format(item_name))
             if 'readonly' in item_val:
                 item_val['readonly'] = self._clean('boolean', item_val['readonly'])
+            if 'deprecated' in item_val:
+                item_val['deprecated'] = self._clean('boolean', item_val['deprecated'])
 
             if set_value_val_from_default_val:
                 item_val['default'] = self._clean(item_val['type'], item_val['default'])
@@ -265,13 +282,22 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
     async def _create_new_category(self, category_name, category_val, category_description):
         try:
+            if isinstance(category_val, dict):
+                new_category_val = copy.deepcopy(category_val)
+                # Remove "deprecated" items from a new category configuration
+                for i, v in category_val.items():
+                    if 'deprecated' in v and v['deprecated'] == 'true':
+                        new_category_val.pop(i)
+            else:
+                new_category_val = category_val
+
             audit = AuditLogger(self._storage)
-            await audit.information('CONAD', {'name': category_name, 'category': category_val})
+            await audit.information('CONAD', {'name': category_name, 'category': new_category_val})
             payload = PayloadBuilder().INSERT(key=category_name, description=category_description,
-                                              value=category_val).payload()
+                                              value=new_category_val).payload()
             result = await self._storage.insert_into_tbl("configuration", payload)
             response = result['response']
-            self._cacheManager.update(category_name, category_val)
+            self._cacheManager.update(category_name, new_category_val)
         except KeyError:
             raise ValueError(result['message'])
         except StorageServerError as ex:
@@ -395,10 +421,12 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 WHERE(["key", "=", category_name]).payload()
             result = await self._storage.update_tbl("configuration", payload)
             response = result['response']
+            # Re-read category from DB
+            new_category_val_db = await self._read_category_val(category_name)
             if category_name in self._cacheManager.cache:
-                self._cacheManager.cache[category_name]['value'] = category_val
+                self._cacheManager.cache[category_name]['value'] = new_category_val_db
             else:
-                self._cacheManager.cache.update({category_name: {"value": category_val}})
+                self._cacheManager.cache.update({category_name: {"value": new_category_val_db}})
         except KeyError:
             raise ValueError(result['message'])
         except StorageServerError as ex:
@@ -645,7 +673,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 # if validating category from storage succeeds, merge new and storage
                 else:
                     category_val_prepared = await self._merge_category_vals(category_val_prepared, category_val_storage,
-                                                                            keep_original_items)
+                                                                            keep_original_items, category_name)
                     if json.dumps(category_val_prepared, sort_keys=True) == json.dumps(category_val_storage,
                                                                                        sort_keys=True):
                         return
@@ -908,6 +936,14 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             else:
                 return True
 
+        def _str_to_float(item_val):
+            try:
+                _value = float(item_val)
+            except ValueError:
+                return False
+            else:
+                return True
+
         def _str_to_ipaddress(item_val):
             try:
                 return ipaddress.ip_address(item_val)
@@ -918,6 +954,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             return _str_to_bool(_value)
         elif _type == 'integer':
             return _str_to_int(_value)
+        elif _type == 'float':
+            return _str_to_float(_value)
         elif _type == 'JSON':
             if isinstance(_value, dict):
                 return True
@@ -937,5 +975,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
     def _clean(self, item_type, item_val):
         if item_type == 'boolean':
             return item_val.lower()
+        elif item_type == 'float':
+            return str(float(item_val))
 
         return item_val

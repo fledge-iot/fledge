@@ -36,11 +36,11 @@
 
 .. |arm 1.4.0| raw:: html
 
-   <a href="https://s3.amazonaws.com/foglamp/debian/armhf/foglamp-1.4.0-armhf.deb">v1.4.0</a>
+   <a href="https://s3.amazonaws.com/foglamp/debian/armhf/foglamp-1.4.0-armhf.deb">v1.4.0 ARM</a>
 
 .. |gui 1.4.0| raw:: html
 
-   <a href="https://s3.amazonaws.com/foglamp/debian/foglamp-gui-1.4.0.deb">v1.4.0</a>
+   <a href="https://s3.amazonaws.com/foglamp/debian/foglamp-gui-1.4.0.deb">vGUI 1.4.0</a>
    
 .. |sensehat 1.1.0| raw:: html
 

@@ -87,6 +87,7 @@ async def add_service(request):
         plugin = data.get('plugin', None)
         service_type = data.get('type', None)
         enabled = data.get('enabled', None)
+        config = data.get('config', None)
 
         if name is None:
             raise web.HTTPBadRequest(reason='Missing name property in payload.')
@@ -111,6 +112,9 @@ async def add_service(request):
         is_enabled = True if ((type(enabled) is str and enabled.lower() in ['true']) or (
             (type(enabled) is bool and enabled is True))) else False
 
+        storage = connect.get_storage_async()
+        config_mgr = ConfigurationManager(storage)
+
         # Check if a valid plugin has been provided
         try:
             # "plugin_module_path" is fixed by design. It is MANDATORY to keep the plugin in the exactly similar named
@@ -123,12 +127,22 @@ async def add_service(request):
             script = '["services/south"]' if service_type == 'south' else '["services/north"]'
             # Fetch configuration from the configuration defined in the plugin
             plugin_info = _plugin.plugin_info()
+            if config is not None:
+                if not isinstance(config, dict):
+                    raise ValueError('Config must be a JSON object')
+                # merge plugin_info with new config
+                plugin_info['config'].update(config)
             plugin_config = plugin_info['config']
             process_name = 'south'
         except ImportError as ex:
             # Checking for C-type plugins
             script = '["services/south_c"]' if service_type == 'south' else '["services/north_c"]'
             plugin_info = apiutils.get_plugin_info(plugin)
+            if config is not None:
+                if not isinstance(config, dict):
+                    raise ValueError('Config must be a JSON object')
+                # merge plugin_info with new config
+                plugin_info['config'].update(config)
             plugin_config = plugin_info['config']
             process_name = 'south_c'
             if not plugin_config:
@@ -137,8 +151,6 @@ async def add_service(request):
         except Exception as ex:
             _logger.exception("Failed to fetch plugin configuration. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration')
-
-        storage = connect.get_storage_async()
 
         # Check that the schedule name is not already registered
         count = await check_schedules(storage, name)
@@ -163,7 +175,6 @@ async def add_service(request):
         try:
             # Create a configuration category from the configuration defined in the plugin
             category_desc = plugin_config['plugin']['description']
-            config_mgr = ConfigurationManager(storage)
             await config_mgr.create_category(category_name=name,
                                              category_description=category_desc,
                                              category_value=plugin_config,

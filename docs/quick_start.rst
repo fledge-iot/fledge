@@ -9,6 +9,10 @@
 .. |backup| image:: images/backup.JPG
 .. |support| image:: images/support.JPG
 .. |viewing_data| image:: images/viewing_data.JPG
+.. |PI_connect| image:: images/PI_connect.JPG
+.. |PI_connectors| image:: images/PI_connectors.JPG
+.. |PI_token| image:: images/PI_token.JPG
+
 
 *****************
 Quick Start Guide
@@ -205,19 +209,30 @@ To enable or disable a data source, click on its name in the North Services scre
 
 Using the FogLAMP PI plugin
 ###########################
-+--------------------+
-| |pi_plugin_config| |
-+--------------------+
 
 OSISoft PI systems are one of the most common destinations for FogLAMP data.  To send data to a PI server, open and sign into the PI Relay Data Connection Manager.  
 
++-----------------+
+| |PI_connectors| |
++-----------------+
 
 To add a new connector for the FogLAMP system, click on the drop down menu to the right of "Connectors" and select "Add an OMF application".  Add and save the requested configuration information.
 
++--------------+
+| |PI_connect| |
++--------------+
+
 Connect the new application to the OMF Connector Relay by selecting the new FogLAMP application, clicking the check box for the OMF Connector Relay and then clicking "Save Configuration".
+
++------------+
+| |PI_token| |
++------------+
 
 Finally, select on the new FogLAMP application. Click "More" at the bottom of the Configuration panel. Make note of the Producer Token and Relay Ingress URL. 
 
++--------------------+
+| |pi_plugin_config| |
++--------------------+
 
 In the FogLAMP user interface, now create a new North instance and select the “pi_server” plugin on the first screen.
 The second screen will request the following information:

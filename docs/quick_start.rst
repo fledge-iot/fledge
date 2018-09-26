@@ -9,9 +9,9 @@
 .. |backup| image:: images/backup.JPG
 .. |support| image:: images/support.JPG
 .. |viewing_data| image:: images/viewing_data.JPG
-.. |PI_connect| image:: images/PI_connect.JPG
-.. |PI_connectors| image:: images/PI_connectors.JPG
-.. |PI_token| image:: images/PI_token.JPG
+.. |PI_connect| image:: images/PI_connect.jpg
+.. |PI_connectors| image:: images/PI_connectors.jpg
+.. |PI_token| image:: images/PI_token.jpg
 
 
 *****************
@@ -228,14 +228,14 @@ Connect the new application to the OMF Connector Relay by selecting the new FogL
 | |PI_token| |
 +------------+
 
-Finally, select on the new FogLAMP application. Click "More" at the bottom of the Configuration panel. Make note of the Producer Token and Relay Ingress URL. 
+Finally, select the new FogLAMP application. Click "More" at the bottom of the Configuration panel. Make note of the Producer Token and Relay Ingress URL. 
+
+Now go to the FogLAMP user interface, create a new North instance and select the “pi_server” plugin on the first screen.
+The second screen will request the following information:
 
 +--------------------+
 | |pi_plugin_config| |
 +--------------------+
-
-In the FogLAMP user interface, now create a new North instance and select the “pi_server” plugin on the first screen.
-The second screen will request the following information:
 
 - Basic Information
    - **URL:** The Relay Ingress URL provided by PI 

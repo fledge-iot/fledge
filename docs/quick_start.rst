@@ -9,6 +9,10 @@
 .. |backup| image:: images/backup.JPG
 .. |support| image:: images/support.JPG
 .. |viewing_data| image:: images/viewing_data.JPG
+.. |PI_connect| image:: images/PI_connect.jpg
+.. |PI_connectors| image:: images/PI_connectors.jpg
+.. |PI_token| image:: images/PI_token.jpg
+
 
 *****************
 Quick Start Guide
@@ -24,10 +28,10 @@ FogLAMP is implemented as a collection of microservices which include:
 - Core services, including security, monitoring, and storage
 - Data transformation and alerting services
 - South services: Collect data from sensors and other FogLAMP systems
-- North services: Transmit data to librarians and other systems
+- North services: Transmit data to historians and other systems
 - Edge data processing applications
 
-Services can easily be developed and incorporated into the FogLAMP framework. The FogLAMP Developers Guides describe how to do this.
+Services can easily be developed and incorporated into the FogLAMP framework. The FogLAMP Developer Guides describe how to do this.
 
 Installing FogLAMP
 ==================
@@ -93,7 +97,7 @@ The following command options are available:
 
 For example, to start the FogLAMP system, open a session to the FogLAMP device and type::
 
-/usr/local/FogLAMP/bin/foglamp start
+/usr/local/foglamp/bin/foglamp start
 
 Troubleshooting FogLAMP
 #######################
@@ -190,7 +194,7 @@ Adding Data Destinations
 To add a data destination, click on “Create North Instance+” in the upper right of the North Services screen.  FogLAMP will display a series of 3 screens to add the data destination:
 
 1. The first screen will ask you to select the plugin for the data destination from the list of installed plugins.  If you do not see the plugin you need, refer to the Installing FogLAMP section of this manual.  In addition, this screen allows you to specify a display name for the data destination. In addition, you can specify how frequently data will be forwarded to the destination in days, hours, minutes and seconds.  Enter the number of days in the interval in the left box and the number of hours, minutes and seconds in format HH:MM:SS in the right box.
-2. The second screen allows you to configure the plugin and the data assets it will send.  Refer to the individual plugin documentation for descriptions of the fields on this screen.  If you modify any of the configuration fields, click on the “save” button to save them.
+2. The second screen allows you to configure the plugin and the data assets it will send.  See the section below for specifics of configuring a PI, EDS or OCS destination.
 3. The final screen loads the plugin.  You can specify whether it will be enabled immediately for data sending or to await enabling in the future.
 
 Configuring Data Destinations
@@ -205,25 +209,45 @@ To enable or disable a data source, click on its name in the North Services scre
 
 Using the FogLAMP PI plugin
 ###########################
+
+OSISoft PI systems are one of the most common destinations for FogLAMP data.  To send data to a PI server, open and sign into the PI Relay Data Connection Manager.
+
++-----------------+
+| |PI_connectors| |
++-----------------+
+
+To add a new connector for the FogLAMP system, click on the drop down menu to the right of "Connectors" and select "Add an OMF application".  Add and save the requested configuration information.
+
++--------------+
+| |PI_connect| |
++--------------+
+
+Connect the new application to the OMF Connector Relay by selecting the new FogLAMP application, clicking the check box for the OMF Connector Relay and then clicking "Save Configuration".
+
++------------+
+| |PI_token| |
++------------+
+
+Finally, select the new FogLAMP application. Click "More" at the bottom of the Configuration panel. Make note of the Producer Token and Relay Ingress URL.
+
+Now go to the FogLAMP user interface, create a new North instance and select the “pi_server” plugin on the first screen.
+The second screen will request the following information:
+
 +--------------------+
 | |pi_plugin_config| |
 +--------------------+
 
-OSISoft Pi systems are one of the most common destinations for FogLAMP data.  To send data to a Pi server, first create a new OMF application in the Pi Relay Data Connection Manager.  Connect the new application to the OMF Connector Relay.
-In the FogLAMP user interface, now create a new North instance and select the “pi_server” plugin on the first screen.
-The second screen will request the following information:
-
 - Basic Information
-   - **URL:** The Relay Ingress URL provided by Pi (under “more” in the status pane)
-   - **producerToken:** The Producer Token provided by Pi (under “more” in the status pane)
-   - **Static Data:** Data to include in every reading sent to Pi.  For example, you can use this to specify the location of the devices being monitored by the FogLAMP server.
+   - **URL:** The Relay Ingress URL provided by PI
+   - **producerToken:** The Producer Token provided by PI
+   - **Static Data:** Data to include in every reading sent to PI.  For example, you can use this to specify the location of the devices being monitored by the FogLAMP server.
 - Data Filtering
    - **applyFilter:** Set to True if you are using a filter rule, false if not.
-   - **filterRule:** A JQ formatted filter that determines which readings to send to Pi
+   - **filterRule:** A JQ formatted filter that determines which readings to send to PI
 - Connection management (These should only be changed with guidance from support)
    - **OMFHttpTimeout:** Number of seconds to wait before FogLAMP will time out an HTTP connection attempt
    - **OMFRetrySleepTime:** Number of seconds to wait before retrying the HTTP connection (FogLAMP doubles this time after each failed attempt).
-   - **OMFMaxRetry:** Maximum number of times to retry connecting to the Pi server
+   - **OMFMaxRetry:** Maximum number of times to retry connecting to the PI server
 - Other (Rarely changed)
    - **formatInteger:** Used to match FogLAMP data types to the data type configured in PI
    - **formatNumber:** Used to match FogLAMP data types to the data type configured in PI

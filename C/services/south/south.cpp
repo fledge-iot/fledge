@@ -8,9 +8,8 @@
  * Author: Mark Riddoch, Massimiliano Pinto
  */
 
-//#include <sys/timerfd.h>
-//#include <time.h>
-//#include <unistd.h>
+#include <sys/timerfd.h>
+#include <time.h>
 #include <stdint.h>
 #include <south_service.h>
 #include <management_api.h>
@@ -223,7 +222,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		{
 			int fd = createTimerFd(m_pollInterval * 1000); // interval to be passed is in usecs
 			if (fd >= 0)
-				logger->info("Created timer FD for %u usecs", m_pollInterval * 1000);
+				logger->info("Created timer FD with interval of %u usecs", m_pollInterval * 1000);
 			else
 			{
 				logger->fatal("Could not create timer FD");
@@ -411,33 +410,33 @@ static int createTimerFd(unsigned int usecs)
 	new_value.it_value.tv_sec = now.tv_sec;
 	new_value.it_value.tv_nsec = now.tv_nsec + usecs*1000;
 	if (new_value.it_value.tv_nsec >= 1000000000)
-		{
+	{
 		new_value.it_value.tv_sec += new_value.it_value.tv_nsec/1000000000;
 		new_value.it_value.tv_nsec %= 1000000000;
-		}
+	}
 	
 	new_value.it_interval.tv_sec = 0;
 	new_value.it_interval.tv_nsec = usecs*1000;
 	if (new_value.it_interval.tv_nsec >= 1000000000)
-		{
+	{
 		new_value.it_interval.tv_sec += new_value.it_interval.tv_nsec/1000000000;
 		new_value.it_interval.tv_nsec %= 1000000000;
-		}
+	}
 	
 	errno=0;
 	fd = timerfd_create(CLOCK_REALTIME, 0);
 	if (fd == -1)
-		{
+	{
 		Logger::getLogger()->error("timerfd_create failed, errno=%d (%s)", errno, strerror(errno));
-	    return fd;
-		}
+		return fd;
+	}
 
 	if (timerfd_settime(fd, TFD_TIMER_ABSTIME, &new_value, NULL) == -1)
-		{
+	{
 	    Logger::getLogger()->error("timerfd_settime failed, errno=%d (%s)", errno, strerror(errno));
 	    close (fd);
-	    return -1;
-		}
+		return -1;
+	}
 
 	return fd;
 }

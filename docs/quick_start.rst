@@ -93,7 +93,7 @@ The following command options are available:
 
 For example, to start the FogLAMP system, open a session to the FogLAMP device and type::
 
-/usr/local/FogLAMP/bin/foglamp start
+/usr/local/foglamp/bin/foglamp start
 
 Troubleshooting FogLAMP
 #######################
@@ -209,21 +209,30 @@ Using the FogLAMP PI plugin
 | |pi_plugin_config| |
 +--------------------+
 
-OSISoft Pi systems are one of the most common destinations for FogLAMP data.  To send data to a Pi server, first create a new OMF application in the Pi Relay Data Connection Manager.  Connect the new application to the OMF Connector Relay.
+OSISoft PI systems are one of the most common destinations for FogLAMP data.  To send data to a PI server, open and sign into the PI Relay Data Connection Manager.  
+
+
+To add a new connector for the FogLAMP system, click on the drop down menu to the right of "Connectors" and select "Add an OMF application".  Add and save the requested configuration information.
+
+Connect the new application to the OMF Connector Relay by selecting the new FogLAMP application, clicking the check box for the OMF Connector Relay and then clicking "Save Configuration".
+
+Finally, select on the new FogLAMP application. Click "More" at the bottom of the Configuration panel. Make note of the Producer Token and Relay Ingress URL. 
+
+
 In the FogLAMP user interface, now create a new North instance and select the “pi_server” plugin on the first screen.
 The second screen will request the following information:
 
 - Basic Information
-   - **URL:** The Relay Ingress URL provided by Pi (under “more” in the status pane)
-   - **producerToken:** The Producer Token provided by Pi (under “more” in the status pane)
-   - **Static Data:** Data to include in every reading sent to Pi.  For example, you can use this to specify the location of the devices being monitored by the FogLAMP server.
+   - **URL:** The Relay Ingress URL provided by PI 
+   - **producerToken:** The Producer Token provided by PI
+   - **Static Data:** Data to include in every reading sent to PI.  For example, you can use this to specify the location of the devices being monitored by the FogLAMP server.
 - Data Filtering
    - **applyFilter:** Set to True if you are using a filter rule, false if not.
-   - **filterRule:** A JQ formatted filter that determines which readings to send to Pi
+   - **filterRule:** A JQ formatted filter that determines which readings to send to PI
 - Connection management (These should only be changed with guidance from support)
    - **OMFHttpTimeout:** Number of seconds to wait before FogLAMP will time out an HTTP connection attempt
    - **OMFRetrySleepTime:** Number of seconds to wait before retrying the HTTP connection (FogLAMP doubles this time after each failed attempt).
-   - **OMFMaxRetry:** Maximum number of times to retry connecting to the Pi server
+   - **OMFMaxRetry:** Maximum number of times to retry connecting to the PI server
 - Other (Rarely changed)
    - **formatInteger:** Used to match FogLAMP data types to the data type configured in PI
    - **formatNumber:** Used to match FogLAMP data types to the data type configured in PI

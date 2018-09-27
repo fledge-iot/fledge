@@ -255,10 +255,31 @@ class TestPluginDiscovery:
         with patch('builtins.__import__', return_value=mock):
             actual = PluginDiscovery.get_plugin_config("modbus", "south")
             expected = TestPluginDiscovery.mock_plugins_south_config[0]
-            # TODO: Investigate why import json at module top is not working and also why
-            #       assert expected == actual is not working
-            import json
-            assert json.loads(expected) == json.loads(actual)
+            assert expected == actual
+
+    def test_bad_get_plugin_config(self):
+        mock_plugin_info = {
+                'name': "HTTP",
+                'version': "1.0.0",
+                'type': "north",
+                'interface': "1.0.0",
+                'config': {
+                            'plugin': {
+                                'description': "HTTP north plugin",
+                                'type': 'string',
+                                'default': 'http-north'
+                            }
+                }
+        }
+
+        mock = MagicMock()
+        attrs = {"plugin_info.side_effect": [mock_plugin_info]}
+        mock.configure_mock(**attrs)
+        with patch.object(_logger, "warning") as patch_log_warn:
+            with patch('builtins.__import__', return_value=mock):
+                actual = PluginDiscovery.get_plugin_config("http-north", "south")
+                assert actual is None
+        patch_log_warn.assert_called_once_with('Plugin http-north is discarded due to invalid type')
 
     @pytest.mark.parametrize("info, exc_count", [
         ({}, 0),

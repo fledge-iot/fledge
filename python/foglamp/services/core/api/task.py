@@ -14,7 +14,6 @@ from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.exceptions import StorageServerError
 
-
 from foglamp.services.core import server
 from foglamp.services.core import connect
 from foglamp.services.core.scheduler.entities import Schedule, TimedSchedule, IntervalSchedule, ManualSchedule
@@ -139,12 +138,20 @@ async def add_task(request):
             script = '["tasks/north"]'
             # Fetch configuration from the configuration defined in the plugin
             plugin_info = _plugin.plugin_info()
+            if plugin_info['type'] != task_type:
+                msg = "Plugin of {} type is not supported".format(plugin_info['type'])
+                _logger.exception(msg)
+                return web.HTTPBadRequest(reason=msg)
             plugin_config = plugin_info['config']
             process_name = 'north'
         except ImportError as ex:
             # Checking for C-type plugins
             script = '["tasks/north_c"]'
             plugin_info = apiutils.get_plugin_info(plugin)
+            if plugin_info['type'] != task_type:
+                msg = "Plugin of {} type is not supported".format(plugin_info['type'])
+                _logger.exception(msg)
+                return web.HTTPBadRequest(reason=msg)
             plugin_config = plugin_info['config']
             process_name = 'north_c'
             if not plugin_config:

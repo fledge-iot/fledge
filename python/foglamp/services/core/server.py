@@ -771,7 +771,7 @@ class Server:
                 try:
                     response = json.loads(result)
                     response['message']
-                    _logger.info("Shutdown scheduled for %s service %s at %s", svc._type, svc._name, response['message'])
+                    _logger.info("Shutdown scheduled for %s service %s. %s", svc._type, svc._name, response['message'])
                 except KeyError:
                     raise
 
@@ -793,12 +793,13 @@ class Server:
                 if len(services_to_stop) == 0:
                     _logger.info("All microservices, except Core and Storage, have been shutdown.")
                     return
-                shutdown_threshold += 1
+
                 if shutdown_threshold > _service_shutdown_threshold:
                     for fs in services_to_stop:
                         # TODO: Find pid and kill the microservice process
-                        _logger.error("Microservices:%s status: %s has NOT been shutdown. Kill it...", fs._name, fs._status)
+                        _logger.error("Microservice:%s status: %s has NOT been shutdown. Kill it...", fs._name, fs._status)
                     return
+                shutdown_threshold += 5
                 await asyncio.sleep(5)
                 found_services = ServiceRegistry.get()
         except service_registry_exceptions.DoesNotExist:

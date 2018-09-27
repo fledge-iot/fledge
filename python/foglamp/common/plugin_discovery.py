@@ -94,12 +94,15 @@ class PluginDiscovery(object):
 
             # Fetch configuration from the configuration defined in the plugin
             plugin_info = _plugin.plugin_info()
-            plugin_config = {
-                'name': plugin_info['config']['plugin']['default'],
-                'type': plugin_info['type'],
-                'description': plugin_info['config']['plugin']['description'],
-                'version': plugin_info['version']
-            }
+            if plugin_info['type'] == plugin_type:
+                plugin_config = {
+                    'name': plugin_info['config']['plugin']['default'],
+                    'type': plugin_info['type'],
+                    'description': plugin_info['config']['plugin']['description'],
+                    'version': plugin_info['version']
+                }
+            else:
+                _logger.warning("Plugin {} is discarded due to invalid type".format(plugin_dir))
         except ImportError as ex:
             _logger.error('Plugin "{}" import problem from path "{}". {}'.format(plugin_dir, plugin_module_path, str(ex)))
         except Exception as ex:

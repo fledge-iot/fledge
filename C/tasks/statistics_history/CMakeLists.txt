@@ -4,7 +4,7 @@ project (statistics_history)
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra -Wsign-conversion")
 set(UUIDLIB -luuid)
-set(COMMON_LIB -lcommon-lib)
+set(COMMON_LIB common-lib)
 
 include_directories(. include ../../thirdparty/Simple-Web-Server ../../thirdparty/rapidjson/include  ../../common/include)
 

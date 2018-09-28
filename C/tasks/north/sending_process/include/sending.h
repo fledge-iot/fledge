@@ -83,6 +83,7 @@ class SendingProcess : public FogLampProcess
 									     const std::string& plugin_name);
 		bool			loadFilters(const std::string& pluginName);
 		bool			setupFiltersPipeline() const;
+		void			updateStatistics(void);
 
 		// Make private the copy constructor and operator=
 		SendingProcess(const SendingProcess &);

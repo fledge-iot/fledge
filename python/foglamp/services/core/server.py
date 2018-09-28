@@ -780,8 +780,9 @@ class Server:
         """ poll microservice shutdown endpoint for non core micro-services"""
         try:
             shutdown_threshold = 0
+            secs_per_service = 5
             found_services = ServiceRegistry.get()
-            _service_shutdown_threshold = 5 * (len(found_services) - 2)
+            _service_shutdown_threshold = secs_per_service * (len(found_services) - 2)
             while True:
                 services_to_stop = list()
                 for fs in found_services:
@@ -793,13 +794,13 @@ class Server:
                 if len(services_to_stop) == 0:
                     _logger.info("All microservices, except Core and Storage, have been shutdown.")
                     return
-                shutdown_threshold += 1
                 if shutdown_threshold > _service_shutdown_threshold:
                     for fs in services_to_stop:
                         # TODO: Find pid and kill the microservice process
                         _logger.error("Microservices:%s status: %s has NOT been shutdown. Kill it...", fs._name, fs._status)
                     return
-                await asyncio.sleep(5)
+                await asyncio.sleep(secs_per_service*2)
+                shutdown_threshold += secs_per_service
                 found_services = ServiceRegistry.get()
         except service_registry_exceptions.DoesNotExist:
             pass

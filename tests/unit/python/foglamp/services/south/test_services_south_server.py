@@ -433,7 +433,7 @@ class TestServicesSouthServer:
 
         # WHEN
         from aiohttp.web_exceptions import HTTPInternalServerError
-        with pytest.raises(TypeError):
+        with pytest.raises(HTTPInternalServerError):
             await south_server.shutdown(request=None)
 
         # THEN

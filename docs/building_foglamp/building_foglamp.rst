@@ -27,9 +27,9 @@
 .. =============================================
 
 
-***************
-Getting Started
-***************
+****************
+Building FogLAMP
+****************
 
 Let's get started! In this chapter we will see where to find and how to build, install and run FogLAMP for the first time.
 
@@ -69,8 +69,8 @@ Build Pre-Requisites
 
 FogLAMP is currently based on C/C++ and Python code. The packages needed to build and run FogLAMP are:
 
-- autoconf 
-- automake 
+- autoconf
+- automake
 - avahi-daemon
 - build-essential
 - cmake
@@ -83,7 +83,7 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
 - libssl-dev
 - libpq-dev
 - libsqlite3-dev
-- libtool 
+- libtool
 - make
 - postgresql
 - python3-dbus
@@ -175,7 +175,7 @@ The git repository created on your local machine, creates several branches. More
 - The **develop** branch is the current working branch used by our developers. The branch contains the latest version and features, but it may be unstable and there may be issues in the code. You may consider to use this branch if you are curious to see one of the latest features we are working on, but you should not use this branch in production.
 - The branches with versions **majorID.minorID**, such as *1.0* or *1.4*, contain the code of that specific version. You may use one of these branches if you need to check the code used in those versions.
 - The branches with name **FOGL-XXXX**, where 'XXXX' is a sequence number, are working branches used by developers and contributors to add features, fix issues, modify and release code and documentation of FogLAMP. Those branches are free for you to see and learn from the work of the contributors.
- 
+
 Note that the default branch is *develop*.
 
 Once you have cloned the FogLAMP project, in order to check the branches available, use the ``git branch`` command:
@@ -231,7 +231,7 @@ Move to the *FogLAMP* project directory, type the ``make`` comand and let the ma
   $
 
 
-Depending on the version of Ubuntu or other Linux distribution you are using, you may have found some issues. For example, there is a bug in the GCC compiler that raises a warning under specific circumstances. The output of the build will be something like: 
+Depending on the version of Ubuntu or other Linux distribution you are using, you may have found some issues. For example, there is a bug in the GCC compiler that raises a warning under specific circumstances. The output of the build will be something like:
 
 .. code-block:: console
 
@@ -386,7 +386,7 @@ Easy, you have learnt ``foglamp start`` and ``foglamp status``, simply type ``fo
   FogLAMP stopped.
   $
 
-|br| |br| 
+|br| |br|
 As a next step, let's install FogLAMP!
 
 
@@ -448,7 +448,7 @@ Encoding and collations may differ, depending on the choices made when you insta
 .. code-block:: console
 
   $ sudo -u postgres createuser -d <foglamp_user>
- 
+
 The *-d* argument is important because the user will need to create the FogLAMP database.
 
 Finally, you should now be able to see the list of the available databases from your current user:
@@ -492,7 +492,7 @@ Pre-requisites on CentOS are similar to the ones on other distributions, but the
 - bzip2
 - jq
 
-This is the complete list of the commands to execute and the installed packages in CentoOS 17.4.1708. 
+This is the complete list of the commands to execute and the installed packages in CentoOS 17.4.1708.
 
 .. code-block:: console
 
@@ -525,7 +525,7 @@ FogLAMP, requires C++ 5.4, CentOS 7 provides version 4.8. These are the commands
   make -j$(nproc)
   sudo make install
 
-At the end of the procedure, the system will have two versions of GCC installed: 
+At the end of the procedure, the system will have two versions of GCC installed:
 
 - GCC 4.8, installed in /usr/bin and /usr/lib64
 - GCC 5.4, installed in /usr/local/bin and /usr/local/lib64
@@ -613,7 +613,7 @@ In order to use the new version, you need to create two symbolic links in the ``
   sudo ln -s pip3.5 pip3
 
 
-Installing SQLite3 
+Installing SQLite3
 ------------------
 
 FogLAMP requires SQLite version 3.11 or later, CentOS provides an old version of SQLite. We must download SQLite, compile it and install it. The steps are:
@@ -636,7 +636,7 @@ Building FogLAMP
 
 We are finally ready to install FogLAMP, but we need to apply some little changes to the code and the make files. These changes will be removed in the future, but for the moment they are necessary to complete the procedure.
 
-First, clone the Github repository with the usual command: |br| ``git clone https://github.com/foglamp/FogLAMP.git`` |br| The project should have been added to your machine under the *FogLAMP* directory. 
+First, clone the Github repository with the usual command: |br| ``git clone https://github.com/foglamp/FogLAMP.git`` |br| The project should have been added to your machine under the *FogLAMP* directory.
 
 We need to apply these changes to *C/plugins/storage/postgres/CMakeLists.txt*:
 
@@ -689,7 +689,7 @@ Finally, in *python/foglamp/services/common/avahi.py*, comment these lines:
 
 
 You are now ready to execute the ``make`` command, as described here_.
- 
+
 
 Further Notes
 -------------

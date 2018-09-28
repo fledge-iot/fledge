@@ -1,7 +1,7 @@
-.. Administrators and Users Guide
+.. REST API Developers Guide
 
 ********************************
-Administrators' and Users' Guide
+REST API Developers Guide
 ********************************
 
 .. toctree::
@@ -9,5 +9,3 @@ Administrators' and Users' Guide
     01_REST
     02_RESTadmin
     03_RESTuser
-    04_utilities
-    05_tasks

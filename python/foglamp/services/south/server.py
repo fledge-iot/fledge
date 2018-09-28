@@ -266,12 +266,13 @@ class Server(FoglampMicroservice):
 
         try:
             loop = asyncio.get_event_loop()
-            loop.call_later(1, schedule_shutdown, loop)
+            loop.call_soon_threadsafe(schedule_shutdown, loop)
+        except Exception as ex:
+            raise web.HTTPInternalServerError(reason=str(ex))
+        else:
             return web.json_response({
                 "message": "http://{}:{}/foglamp/service/shutdown".format(
                     self._microservice_management_host, self._microservice_management_port)})
-        except Exception as ex:
-            raise web.HTTPInternalServerError(reason=str(ex))
 
     async def change(self, request):
         """implementation of abstract method form foglamp.common.microservice.

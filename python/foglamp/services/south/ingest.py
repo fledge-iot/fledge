@@ -22,7 +22,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_LOGGER = logger.setup(__name__)  # type: logging.Logger
+_LOGGER = logger.setup(__name__, level=20)  # type: logging.Logger
 _MAX_ATTEMPTS = 2
 
 # _LOGGER = logger.setup(__name__, level=logging.DEBUG)  # type: logging.Logger
@@ -210,6 +210,13 @@ class Ingest(object):
 
         await cls._read_config()
 
+        # Auto adjust queue size in case plugin's 'dataPointsPerSec' value exceeds default queue size
+        try:
+            cls._readings_insert_batch_size = max(cls._readings_insert_batch_size,
+                                                  int(cls._parent_service.config['dataPointsPerSec']['value']))
+        except KeyError:
+            pass
+
         cls._readings_list_size = int(cls._readings_buffer_size / (
             cls._max_concurrent_readings_inserts))
 
@@ -238,6 +245,8 @@ class Ingest(object):
 
         cls._insert_readings_task = asyncio.ensure_future(cls._insert_readings())
         cls._readings_lists_not_full = asyncio.Event()
+
+        cls._payload_events = cls._parent_service._core_microservice_management_client.get_asset_tracker_events()['track']
 
         cls._stop = False
         cls._started = True
@@ -288,7 +297,11 @@ class Ingest(object):
 
         while list_index <= cls._max_concurrent_readings_inserts-1:
             if cls._stop:
-                break  # Terminate this method
+                readings = 0
+                for i, v in cls._sensor_stats.items():
+                    readings += v
+                if cls._readings_stats+cls._discarded_readings_stats+readings == 0:
+                    break  # Terminate this method
 
             list_index += 1
             if list_index > cls._max_concurrent_readings_inserts-1:
@@ -340,23 +353,15 @@ class Ingest(object):
             # Perform insert. Retry when fails.
             while True:
                 try:
-                    payload = dict()
-                    payload['readings'] = copy.deepcopy(readings_list)
-                    batch_size = len(payload['readings'])
+                    batch_size = len(readings_list)
+                    payload = json.dumps({"readings": readings_list[:batch_size]})
                     # insert_start_time = time.time()
                     # _LOGGER.debug('Begin insert: Queue index: %s Batch size: %s', list_index, batch_size)
                     try:
-                        await cls.readings_storage_async.append(json.dumps(payload))
+                        await cls.readings_storage_async.append(payload)
                         # insert_end_time = time.time()
                         # _LOGGER.debug('Inserted %s records in time %s', batch_size, insert_end_time - insert_start_time)
                         cls._readings_stats += batch_size
-                        for reading_item in payload['readings']:
-                            # Increment the count of received readings to be used for statistics update
-                            if reading_item['asset_code'].upper() in cls._sensor_stats:
-                                cls._sensor_stats[reading_item['asset_code'].upper()] += 1
-                            else:
-                                cls._sensor_stats[reading_item['asset_code'].upper()] = 1
-
                     except StorageServerError as ex:
                         err_response = ex.error
                         # if key error in next, it will be automatically in parent except block
@@ -427,13 +432,16 @@ class Ingest(object):
             _LOGGER.exception('An error occurred while writing discarded statistics, Error: %s', str(ex))
 
         """ Register the statistics keys as this may be the first time the key has come into existence """
-        for key in cls._sensor_stats:
+        readings = cls._sensor_stats.copy()
+        for key in readings:
             description = 'Readings received by FogLAMP since startup for sensor {}'.format(key)
             await stats.register(key, description)
+            cls._sensor_stats[key] -= readings[key]
         try:
-            await stats.add_update(cls._sensor_stats)
-            cls._sensor_stats = {}
+            await stats.add_update(readings)
         except Exception as ex:
+            for key in readings:
+                cls._sensor_stats[key] += readings[key]
             _LOGGER.exception('An error occurred while writing sensor statistics, Error: %s', str(ex))
 
     @classmethod
@@ -526,12 +534,10 @@ class Ingest(object):
         # Comment out to test IntegrityError
         # key = '123e4567-e89b-12d3-a456-426655440000'
 
-        # Wait for an empty slot in the list
-        while not cls.is_available():
-            cls._readings_lists_not_full.clear()
-            await cls._readings_lists_not_full.wait()
-            if cls._stop:
-                raise RuntimeError('The South Service is stopping')
+        # If an empty slot is not available, discard the reading
+        if not cls.is_available():
+            cls.increment_discarded_readings()
+            return
 
         list_index = cls._current_readings_list_index
         readings_list = cls._readings_lists[list_index]
@@ -545,6 +551,12 @@ class Ingest(object):
         readings_list.append(read)
 
         list_size = len(readings_list)
+
+        # Increment the count of received readings to be used for statistics update
+        if asset.upper() in cls._sensor_stats:
+            cls._sensor_stats[asset.upper()] += 1
+        else:
+            cls._sensor_stats[asset.upper()] = 1
 
         # asset tracker checking
         payload = {"asset": asset, "event": "Ingest", "service": cls._parent_service._name,

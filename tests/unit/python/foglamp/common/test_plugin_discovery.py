@@ -231,23 +231,49 @@ class TestPluginDiscovery:
         plugin_folders = PluginDiscovery.get_plugin_folders("north")
         assert TestPluginDiscovery.mock_north_folders == plugin_folders
 
-    @pytest.mark.parametrize("info, is_config", [
-        ({'name': "furnace4", 'version': "1.1", 'type': "south", 'interface': "1.0"}, False),
+    @pytest.mark.parametrize("info, expected, is_config, warn_count", [
         ({'name': "furnace4", 'version': "1.1", 'type': "south", 'interface': "1.0",
-          'config': {'plugin': {'description': "Modbus RTU plugin", 'type': 'string', 'default': 'modbus'}}}, True)
+          'config': {'plugin': {'description': "Modbus RTU plugin", 'type': 'string', 'default': 'modbus'}}},
+         {'name': 'modbus', 'type': 'south', 'description': 'Modbus RTU plugin', 'version': '1.1'}, False, 1),
+        ({'name': "furnace4", 'version': "1.1", 'type': "south", 'interface': "1.0",
+          'config': {'plugin': {'description': "Modbus RTU plugin", 'type': 'string', 'default': 'modbus'}}},
+         {'name': 'modbus', 'type': 'south', 'description': 'Modbus RTU plugin', 'version': '1.1',
+          'config': {'plugin': {'description': 'Modbus RTU plugin', 'type': 'string', 'default': 'modbus'}}}, True, 0)
     ])
-    def test_get_plugin_config(self, info, is_config):
+    def test_get_plugin_config(self, info, expected, is_config, warn_count):
         mock = MagicMock()
         attrs = {"plugin_info.side_effect": [info]}
         mock.configure_mock(**attrs)
 
-        with patch('builtins.__import__', return_value=mock):
-            actual = PluginDiscovery.get_plugin_config("modbus", "south", is_config)
-            expected = TestPluginDiscovery.mock_plugins_south_config[0]
-            # TODO: Investigate why import json at module top is not working and also why
-            #       assert expected == actual is not working
-            import json
-            assert json.loads(expected) == json.loads(actual)
+        with patch.object(_logger, "warning") as patch_log_warn:
+            with patch('builtins.__import__', return_value=mock):
+                actual = PluginDiscovery.get_plugin_config("modbus", "south", is_config)
+                assert expected == actual
+        assert warn_count == patch_log_warn.call_count
+
+    def test_bad_get_plugin_config(self):
+        mock_plugin_info = {
+                'name': "HTTP",
+                'version': "1.0.0",
+                'type': "north",
+                'interface': "1.0.0",
+                'config': {
+                            'plugin': {
+                                'description': "HTTP north plugin",
+                                'type': 'string',
+                                'default': 'http-north'
+                            }
+                }
+        }
+
+        mock = MagicMock()
+        attrs = {"plugin_info.side_effect": [mock_plugin_info]}
+        mock.configure_mock(**attrs)
+        with patch.object(_logger, "warning") as patch_log_warn:
+            with patch('builtins.__import__', return_value=mock):
+                actual = PluginDiscovery.get_plugin_config("http-north", "south", False)
+                assert actual is None
+        patch_log_warn.assert_called_once_with('Plugin http-north is discarded due to invalid type')
 
     def test_fetch_c_plugins_installed(self):
         info = {"interface": "1.0.0", "version": "1.0.0", "type": "south", "name": "Random",

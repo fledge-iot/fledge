@@ -142,6 +142,33 @@ class TestService:
         assert code == resp.status
         assert message == resp.reason
 
+    async def test_plugin_not_supported(self, client):
+        data = {"name": "HTTP", "type": "south", "plugin": "http-north"}
+
+        mock_plugin_info = {
+            'name': "HTTP",
+            'version': "1.1",
+            'type': "north",
+            'interface': "1.0.0",
+            'config': {
+                'plugin': {
+                    'description': "HTTP North Plugin",
+                    'type': 'string',
+                    'default': 'http-north'
+                }
+            }
+        }
+
+        mock = MagicMock()
+        attrs = {"plugin_info.side_effect": [mock_plugin_info]}
+        mock.configure_mock(**attrs)
+        with patch('builtins.__import__', return_value=mock):
+            with patch.object(_logger, 'exception') as ex_logger:
+                resp = await client.post('/foglamp/service', data=json.dumps(data))
+                assert 400 == resp.status
+                assert 'Plugin of north type is not supported' == resp.reason
+            assert 1 == ex_logger.call_count
+
     async def test_insert_scheduled_process_exception_add_service(self, client):
         data = {"name": "furnace4", "type": "south", "plugin": "dht11"}
 
@@ -149,13 +176,25 @@ class TestService:
         def q_result(*arg):
             return {'count': 0, 'rows': []}
 
-        @asyncio.coroutine
-        def async_mock():
-            expected = {'count': 0, 'rows': []}
-            return expected
+        mock_plugin_info = {
+            'name': "furnace4",
+            'version': "1.1",
+            'type': "south",
+            'interface': "1.0",
+            'config': {
+                'plugin': {
+                    'description': "DHT11",
+                    'type': 'string',
+                    'default': 'dht11'
+                }
+            }
+        }
 
+        mock = MagicMock()
+        attrs = {"plugin_info.side_effect": [mock_plugin_info]}
+        mock.configure_mock(**attrs)
         storage_client_mock = MagicMock(StorageClientAsync)
-        with patch('builtins.__import__', side_effect=MagicMock()):
+        with patch('builtins.__import__', return_value=mock):
             with patch.object(_logger, 'exception') as ex_logger:
                 with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                     with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result) as query_table_patch:
@@ -180,9 +219,27 @@ class TestService:
                 assert {'return': ['schedule_name'], 'where': {'column': 'schedule_name', 'condition': '=', 'value': 'furnace4'}} == json.loads(payload)
                 return {'count': 1, 'rows': [{'schedule_name': 'schedule_name'}]}
 
+        mock_plugin_info = {
+                'name': "furnace4",
+                'version': "1.1",
+                'type': "south",
+                'interface': "1.0",
+                'config': {
+                            'plugin': {
+                                'description': "DHT11",
+                                'type': 'string',
+                                'default': 'dht11'
+                            }
+            }
+        }
+
+        mock = MagicMock()
+        attrs = {"plugin_info.side_effect": [mock_plugin_info]}
+        mock.configure_mock(**attrs)
+
         data = {"name": "furnace4", "type": "south", "plugin": "dht11"}
         storage_client_mock = MagicMock(StorageClientAsync)
-        with patch('builtins.__import__', side_effect=MagicMock()):
+        with patch('builtins.__import__', return_value=mock):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
                     resp = await client.post('/foglamp/service', data=json.dumps(data))

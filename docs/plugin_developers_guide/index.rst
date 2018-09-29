@@ -1,8 +1,8 @@
 .. Plugins
 
-*******
-Plugins
-*******
+***********************
+Plugin Developer Guide
+***********************
 
 .. toctree::
 

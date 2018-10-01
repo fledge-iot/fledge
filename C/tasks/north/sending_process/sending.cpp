@@ -372,22 +372,12 @@ void SendingProcess::updateDatabaseCounters()
 					      lastId,
 					      wStreamId);
 
-        this->updateStatistics();
-}
 
-/**
- * Update database tables statistics
- * numReadings sent in statistics
- * it either updates the specific row if it is alreadfy avaialble
- * or add the new row
- */
-void SendingProcess::updateStatistics()
-{
-
+	// Updates 'Master' statistic
 	string stat_key;
 	string stat_description;
 
-	// Identifies the statistics that should be updated
+	// Identifies the statistics that should be updated in relation to the data source
 	for(auto &item : source_to_statistics) {
 
 		if (item.first == m_data_source_t) {
@@ -395,6 +385,25 @@ void SendingProcess::updateStatistics()
 			stat_description =item.second.second;
 		}
 	}
+        this->updateStatistics(stat_key, stat_description);
+
+	// Updates 'stream' specific statistic
+	stat_key = this->getName();
+	stat_description = stat_key;
+
+	this->updateStatistics(stat_key, stat_description);
+
+}
+
+/**
+ * Update database tables statistics
+ * numReadings sent in statistics
+ * it either updates the specific row if it is already available
+ * or add the new row
+ */
+void SendingProcess::updateStatistics(string& stat_key, const string& stat_description)
+{
+
 
 	if (stat_key.empty())
 	{

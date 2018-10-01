@@ -16,6 +16,7 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <thread>
 
 using namespace std;
 using namespace rapidjson;
@@ -32,6 +33,11 @@ ostringstream urlbase;
 	m_logger = Logger::getLogger();
 	urlbase << hostname << ":" << port;
 	m_client = new HttpClient(urlbase.str());
+
+	std::thread::id thread_id = std::this_thread::get_id();
+
+	m_logger->debug("DBG 9 - thread_id -%x-", thread_id);
+
 }
 
 /**
@@ -54,6 +60,9 @@ bool StorageClient::readingAppend(Reading& reading)
 		convert << reading.toJSON();
 		convert << " ] }";
 		auto res = m_client->request("POST", "/storage/reading", convert.str());
+		// FIXME:
+		Logger::getLogger()->debug("DBG 1 - use_count -%d-", res.use_count());
+
 		if (res->status_code.compare("200 OK") == 0)
 		{
 			return true;
@@ -88,6 +97,9 @@ bool StorageClient::readingAppend(const vector<Reading *>& readings)
 		}
 		convert << " ] }";
 		auto res = m_client->request("POST", "/storage/reading", convert.str());
+		// FIXME:
+		Logger::getLogger()->debug("DBG 2 - use_count -%d-", res.use_count());
+
 		if (res->status_code.compare("200 OK") == 0)
 		{
 			return true;
@@ -115,6 +127,9 @@ ResultSet *StorageClient::readingQuery(const Query& query)
 
 		convert << query.toJSON();
 		auto res = m_client->request("PUT", "/storage/reading/query", convert.str());
+		// FIXME:
+		Logger::getLogger()->debug("DBG 3 - use_count -%d-", res.use_count());
+
 		if (res->status_code.compare("200 OK") == 0)
 		{
 			ostringstream resultPayload;
@@ -151,6 +166,9 @@ ReadingSet *StorageClient::readingFetch(const unsigned long readingId, const uns
 		snprintf(url, sizeof(url), "/storage/reading?id=%ld&count=%ld",
 				readingId, count);
 		auto res = m_client->request("GET", url);
+		// FIXME:
+		Logger::getLogger()->debug("DBG 4 - use_count -%d-", res.use_count());
+
 		if (res->status_code.compare("200 OK") == 0)
 		{
 			ostringstream resultPayload;
@@ -187,6 +205,9 @@ PurgeResult StorageClient::readingPurgeByAge(unsigned long age, unsigned long se
 		snprintf(url, sizeof(url), "/storage/reading/purge?age=%ld&sent=%ld&flags=%s",
 				age, sent, purgeUnsent ? "purge" : "retain");
 		auto res = m_client->request("PUT", url);
+		// FIXME:
+		Logger::getLogger()->debug("DBG 5 - use_count -%d-", res.use_count());
+
 		ostringstream resultPayload;
 		resultPayload << res->content.rdbuf();
 		if (res->status_code.compare("200 OK") == 0)
@@ -220,6 +241,9 @@ PurgeResult StorageClient::readingPurgeBySize(unsigned long size, unsigned long 
 		snprintf(url, sizeof(url), "/storage/reading/purge?size=%ld&sent=%ld&flags=%s",
 				size, sent, purgeUnsent ? "purge" : "retain");
 		auto res = m_client->request("PUT", url);
+		// FIXME:
+		Logger::getLogger()->debug("DBG 6 - use_count -%d-", res.use_count());
+
 		if (res->status_code.compare("200 OK") == 0)
 		{
 			ostringstream resultPayload;
@@ -253,6 +277,9 @@ ResultSet *StorageClient::queryTable(const std::string& tableName, const Query& 
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s/query", tableName.c_str());
 		auto res = m_client->request("PUT", url, convert.str());
+		// FIXME:
+		Logger::getLogger()->debug("DBG 7 - use_count -%d-", res.use_count());
+
 		ostringstream resultPayload;
 		resultPayload << res->content.rdbuf();
 		if (res->status_code.compare("200 OK") == 0)
@@ -291,6 +318,9 @@ ReadingSet* StorageClient::queryTableToReadings(const std::string& tableName,
 		snprintf(url, sizeof(url), "/storage/table/%s/query", tableName.c_str());
 
 		auto res = m_client->request("PUT", url, convert.str());
+		// FIXME:
+		Logger::getLogger()->debug("DBG 8 - use_count -%d-", res.use_count());
+
 		ostringstream resultPayload;
 		resultPayload << res->content.rdbuf();
 
@@ -327,6 +357,9 @@ int StorageClient::insertTable(const string& tableName, const InsertValues& valu
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
 		auto res = m_client->request("POST", url, convert.str());
+		// FIXME:
+		Logger::getLogger()->debug("DBG 9 - use_count -%d-", res.use_count());
+
 		ostringstream resultPayload;
 		resultPayload << res->content.rdbuf();
 		if (res->status_code.compare("200 OK") == 0 || res->status_code.compare("201 Created") == 0)
@@ -378,6 +411,9 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
 		auto res = m_client->request("PUT", url, convert.str());
+		// FIXME:
+		Logger::getLogger()->debug("DBG 10 - use_count -%d-", res.use_count());
+
 		if (res->status_code.compare("200 OK") == 0)
 		{
 			ostringstream resultPayload;
@@ -430,6 +466,9 @@ int StorageClient::updateTable(const string& tableName, const ExpressionValues& 
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
 		auto res = m_client->request("PUT", url, convert.str());
+		// FIXME:
+		Logger::getLogger()->debug("DBG 11 - use_count -%d-", res.use_count());
+
 		if (res->status_code.compare("200 OK") == 0)
 		{
 			ostringstream resultPayload;
@@ -486,6 +525,9 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
 		auto res = m_client->request("PUT", url, convert.str());
+		// FIXME:
+		Logger::getLogger()->debug("DBG 12 - use_count -%d-", res.use_count());
+
 		if (res->status_code.compare("200 OK") == 0)
 		{
 			ostringstream resultPayload;
@@ -538,6 +580,9 @@ int StorageClient::updateTable(const string& tableName, const JSONProperties& va
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
 		auto res = m_client->request("PUT", url, convert.str());
+		// FIXME:
+		Logger::getLogger()->debug("DBG 13 - use_count -%d-", res.use_count());
+
 		if (res->status_code.compare("200 OK") == 0)
 		{
 			ostringstream resultPayload;
@@ -593,6 +638,9 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
 		auto res = m_client->request("PUT", url, convert.str());
+		// FIXME:
+		Logger::getLogger()->debug("DBG 14 - use_count -%d-", res.use_count());
+
 		if (res->status_code.compare("200 OK") == 0)
 		{
 			ostringstream resultPayload;
@@ -640,6 +688,9 @@ int StorageClient::deleteTable(const std::string& tableName, const Query& query)
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
 		auto res = m_client->request("DELETE", url, convert.str());
+		// FIXME:
+		Logger::getLogger()->debug("DBG 15 - use_count -%d-", res.use_count());
+
 		if (res->status_code.compare("200 OK") == 0)
 		{
 			ostringstream resultPayload;

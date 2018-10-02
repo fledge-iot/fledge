@@ -137,9 +137,12 @@ static void loadDataThread(SendingProcess *loadData)
 						  loadData->getStreamId(),
 						  readIdx);
 
-			// Load thread is put on hold
-			unique_lock<mutex> lock(waitMutex);
-			cond_var.wait(lock);
+			if (loadData->isRunning()) {
+
+				// Load thread is put on hold, only if the execution should proceed
+				unique_lock<mutex> lock(waitMutex);
+				cond_var.wait(lock);
+			}
                 }
                 else
                 {
@@ -345,9 +348,12 @@ static void sendDataThread(SendingProcess *sendData)
 				Logger::getLogger()->debug("DBG 301 - sendDataThread");
 			}
 
-			// Send thread is put on hold
-                        unique_lock<mutex> lock(waitMutex);
-                        cond_var.wait(lock);
+			if (sendData->isRunning()) {
+
+				// Send thread is put on hold, only if the execution shoule proceed
+				unique_lock<mutex> lock(waitMutex);
+				cond_var.wait(lock);
+			}
                 }
                 else
                 {
@@ -360,7 +366,13 @@ static void sendDataThread(SendingProcess *sendData)
 
 			const vector<Reading *> &readingData = sendData->m_buffer.at(sendIdx)->getAllReadings();
 
+			// FIXME:
+			Logger::getLogger()->debug("DBG 305 - sendDataThread");
+
 			uint32_t sentReadings = sendData->m_plugin->send(readingData);
+
+			// FIXME:
+			Logger::getLogger()->debug("DBG 306 - sendDataThread");
 
 			if (sentReadings)
 			{

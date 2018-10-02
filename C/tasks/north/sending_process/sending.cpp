@@ -323,6 +323,10 @@ void SendingProcess::stop()
 	// End of processing loop for threads
 	this->stopRunning();
 
+	Logger::getLogger()->info("DBG 200.1 - stop ");
+
+	//readMutex.unlock();
+
 	Logger::getLogger()->info("DBG 201 - stop ");
 
 	// Threads execution has completed.

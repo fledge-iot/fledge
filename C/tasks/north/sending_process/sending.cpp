@@ -317,12 +317,19 @@ bool SendingProcess::loadPlugin(const string& pluginName)
 // Stop running threads & cleanup used resources
 void SendingProcess::stop()
 {
+	// FIXME:
+	Logger::getLogger()->info("DBG 200 - stop ");
+
 	// End of processing loop for threads
 	this->stopRunning();
+
+	Logger::getLogger()->info("DBG 201 - stop ");
 
 	// Threads execution has completed.
 	this->m_thread_load->join();
         this->m_thread_send->join();
+
+        Logger::getLogger()->info("DBG 202 - stop ");
 
 	// Remove the data buffers
 	for (unsigned int i = 0; i < DATA_BUFFER_ELMS; i++)
@@ -333,6 +340,8 @@ void SendingProcess::stop()
 			delete data;
 		}
 	}
+
+	Logger::getLogger()->info("DBG 203 - stop ");
 
 	// Cleanup the plugin resources
 	this->m_plugin->shutdown();

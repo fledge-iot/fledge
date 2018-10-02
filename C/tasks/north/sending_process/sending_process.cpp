@@ -305,6 +305,8 @@ static void sendDataThread(SendingProcess *sendData)
 				// DB update done
 				sendData->setUpdateDb(false);
 
+				// FIXME:
+				Logger::getLogger()->debug("DBG 300 - sendDataThread");
                         }
 
 			// Reset send index
@@ -340,6 +342,9 @@ static void sendDataThread(SendingProcess *sendData)
 
 				// DB update done
 				sendData->setUpdateDb(false);
+
+				// FIXME:
+				Logger::getLogger()->debug("DBG 301 - sendDataThread");
 			}
 
 			// Send thread is put on hold
@@ -406,6 +411,10 @@ static void sendDataThread(SendingProcess *sendData)
 
 					// DB update done
 					sendData->setUpdateDb(false);
+
+					// FIXME:
+					Logger::getLogger()->debug("DBG 302 - sendDataThread");
+
 				}
 
 				// Error: just wait & continue
@@ -414,6 +423,8 @@ static void sendDataThread(SendingProcess *sendData)
 			}
                 }
         }
+	// FIXME:
+	Logger::getLogger()->debug("DBG 304 - sendDataThread");
 
 	Logger::getLogger()->info("SendingProcess sendData thread: sent %lu total '%s'",
 				  totSent,
@@ -432,6 +443,8 @@ static void sendDataThread(SendingProcess *sendData)
 
                 sendData->setUpdateDb(false);
 
+		// FIXME:
+		Logger::getLogger()->debug("DBG 303 - sendDataThread");
         }
 
 	/**

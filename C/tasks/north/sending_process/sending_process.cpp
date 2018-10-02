@@ -52,8 +52,6 @@ int main(int argc, char** argv)
 {
 	try
 	{
-        std::string tmp_str;
-
                 // Instantiate SendingProcess class
 		SendingProcess sendingProcess(argc, argv);
                 

@@ -21,6 +21,7 @@
 #include <logger.h>
 #include <string>
 #include <vector>
+#include <thread>
 
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 
@@ -53,9 +54,10 @@ class StorageClient {
 						const std::string& payload);
 		HttpClient 	*getHttpClient(void);
 
-		std::ostringstream 	m_urlbase;
-		HttpClient		*m_client;
-		Logger			*m_logger;
+		std::ostringstream 			m_urlbase;
+		HttpClient				*m_client;
+		std::map<std::thread::id, HttpClient *> m_client_map;
+		Logger					*m_logger;
 };
 #endif
 

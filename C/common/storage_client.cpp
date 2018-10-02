@@ -40,12 +40,37 @@ StorageClient::StorageClient(const string& hostname, const unsigned short port)
 }
 
 /**
- * // FIXME:
+ * Destructor for storage client
+ */
+StorageClient::~StorageClient()
+{
+	std::map<std::thread::id, HttpClient *>::const_iterator item;
+
+	delete m_client;
+
+
+	// FIXME:
+	m_logger->debug("DBG 9.3 - ~StorageClient");
+
+	// Deletes all the HttpClient objcts created in the map
+	item  = m_client_map.begin();
+	while (item  != m_client_map.end() ) {
+
+		m_logger->debug("DBG 9.3 - Delete - object of thread_id -%x-", item->first);
+		//delete item->second;
+		//m_client_map.erase(item);
+		item++;
+	}
+}
+
+/**
+ * Creates a HttpClient object for each thread that is using storage_client
+ * it stores/retrieves the reference to the HttpClient and the associated thread id in a map.
  */
 HttpClient *StorageClient::getHttpClient(void) {
 
-	static std::map<std::thread::id, HttpClient *>                 client_map;
-	       std::map<std::thread::id, HttpClient *>::const_iterator item;
+
+	std::map<std::thread::id, HttpClient *>::const_iterator item;
 
 	HttpClient *client;
 
@@ -53,28 +78,22 @@ HttpClient *StorageClient::getHttpClient(void) {
 
 	m_logger->debug("DBG 9 - thread_id -%x-", thread_id);
 
-	item = client_map.find(thread_id);
+	item = m_client_map.find(thread_id);
 
-	if (item  == client_map.end() ) {
+	if (item  == m_client_map.end() ) {
 
+		m_logger->debug("DBG 9.1 - New eleme - thread_id -%x-", thread_id);
 		// Inserting a new HttpClient
 		client = new HttpClient(m_urlbase.str());
-		client_map.insert(std::make_pair(thread_id, client));
+		m_client_map.insert(std::make_pair(thread_id, client));
 	}
 	else
 	{
+		m_logger->debug("DBG 9.2 - reused - thread_id -%x-", thread_id);
 		client = item->second;
 	}
 
 	return (client);
-}
-
-/**
- * Destructor for storage client
- */
-StorageClient::~StorageClient()
-{
-	delete m_client;
 }
 
 /**
@@ -88,6 +107,7 @@ bool StorageClient::readingAppend(Reading& reading)
 		convert << "{ \"readings\" : [ ";
 		convert << reading.toJSON();
 		convert << " ] }";
+		m_client = this->getHttpClient();
 		auto res = m_client->request("POST", "/storage/reading", convert.str());
 		// FIXME:
 		Logger::getLogger()->debug("DBG 1 - use_count -%d-", res.use_count());
@@ -125,6 +145,7 @@ bool StorageClient::readingAppend(const vector<Reading *>& readings)
 			convert << (*it)->toJSON();
 		}
 		convert << " ] }";
+		m_client = this->getHttpClient();
 		auto res = m_client->request("POST", "/storage/reading", convert.str());
 		// FIXME:
 		Logger::getLogger()->debug("DBG 2 - use_count -%d-", res.use_count());
@@ -155,6 +176,7 @@ ResultSet *StorageClient::readingQuery(const Query& query)
 		ostringstream convert;
 
 		convert << query.toJSON();
+		m_client = this->getHttpClient();
 		auto res = m_client->request("PUT", "/storage/reading/query", convert.str());
 		// FIXME:
 		Logger::getLogger()->debug("DBG 3 - use_count -%d-", res.use_count());
@@ -235,6 +257,7 @@ PurgeResult StorageClient::readingPurgeByAge(unsigned long age, unsigned long se
 		char url[256];
 		snprintf(url, sizeof(url), "/storage/reading/purge?age=%ld&sent=%ld&flags=%s",
 				age, sent, purgeUnsent ? "purge" : "retain");
+		m_client = this->getHttpClient();
 		auto res = m_client->request("PUT", url);
 		// FIXME:
 		Logger::getLogger()->debug("DBG 5 - use_count -%d-", res.use_count());
@@ -271,6 +294,7 @@ PurgeResult StorageClient::readingPurgeBySize(unsigned long size, unsigned long 
 		char url[256];
 		snprintf(url, sizeof(url), "/storage/reading/purge?size=%ld&sent=%ld&flags=%s",
 				size, sent, purgeUnsent ? "purge" : "retain");
+		m_client = this->getHttpClient();
 		auto res = m_client->request("PUT", url);
 		// FIXME:
 		Logger::getLogger()->debug("DBG 6 - use_count -%d-", res.use_count());
@@ -307,6 +331,7 @@ ResultSet *StorageClient::queryTable(const std::string& tableName, const Query& 
 		convert << query.toJSON();
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s/query", tableName.c_str());
+		m_client = this->getHttpClient();
 		auto res = m_client->request("PUT", url, convert.str());
 		// FIXME:
 		Logger::getLogger()->debug("DBG 7 - use_count -%d-", res.use_count());
@@ -348,6 +373,7 @@ ReadingSet* StorageClient::queryTableToReadings(const std::string& tableName,
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s/query", tableName.c_str());
 
+		m_client = this->getHttpClient();
 		auto res = m_client->request("PUT", url, convert.str());
 		// FIXME:
 		Logger::getLogger()->debug("DBG 8 - use_count -%d-", res.use_count());
@@ -387,6 +413,7 @@ int StorageClient::insertTable(const string& tableName, const InsertValues& valu
 		convert << values.toJSON();
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
+		m_client = this->getHttpClient();
 		auto res = m_client->request("POST", url, convert.str());
 		// FIXME:
 		Logger::getLogger()->debug("DBG 9 - use_count -%d-", res.use_count());
@@ -441,6 +468,7 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 		convert << " }";
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
+		m_client = this->getHttpClient();
 		auto res = m_client->request("PUT", url, convert.str());
 		// FIXME:
 		Logger::getLogger()->debug("DBG 10 - use_count -%d-", res.use_count());
@@ -496,6 +524,7 @@ int StorageClient::updateTable(const string& tableName, const ExpressionValues& 
 		convert << " }";
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
+		m_client = this->getHttpClient();
 		auto res = m_client->request("PUT", url, convert.str());
 		// FIXME:
 		Logger::getLogger()->debug("DBG 11 - use_count -%d-", res.use_count());
@@ -555,6 +584,7 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 		convert << " }";
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
+		m_client = this->getHttpClient();
 		auto res = m_client->request("PUT", url, convert.str());
 		// FIXME:
 		Logger::getLogger()->debug("DBG 12 - use_count -%d-", res.use_count());
@@ -610,6 +640,7 @@ int StorageClient::updateTable(const string& tableName, const JSONProperties& va
 		convert << " }";
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
+		m_client = this->getHttpClient();
 		auto res = m_client->request("PUT", url, convert.str());
 		// FIXME:
 		Logger::getLogger()->debug("DBG 13 - use_count -%d-", res.use_count());
@@ -668,6 +699,7 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 		convert << " }";
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
+		m_client = this->getHttpClient();
 		auto res = m_client->request("PUT", url, convert.str());
 		// FIXME:
 		Logger::getLogger()->debug("DBG 14 - use_count -%d-", res.use_count());
@@ -718,6 +750,7 @@ int StorageClient::deleteTable(const std::string& tableName, const Query& query)
 		convert << query.toJSON();
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
+		m_client = this->getHttpClient();
 		auto res = m_client->request("DELETE", url, convert.str());
 		// FIXME:
 		Logger::getLogger()->debug("DBG 15 - use_count -%d-", res.use_count());

@@ -51,6 +51,9 @@ class StorageClient {
 		void  		handleUnexpectedResponse(const char *operation,
 						const std::string& responseCode,
 						const std::string& payload);
+		HttpClient 	*getHttpClient(void);
+
+		std::ostringstream 	m_urlbase;
 		HttpClient		*m_client;
 		Logger			*m_logger;
 };

@@ -17,6 +17,7 @@
 #include <sstream>
 #include <iostream>
 #include <thread>
+#include <map>
 
 using namespace std;
 using namespace rapidjson;
@@ -28,16 +29,44 @@ using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
  */
 StorageClient::StorageClient(const string& hostname, const unsigned short port)
 {
-ostringstream urlbase;
 
 	m_logger = Logger::getLogger();
-	urlbase << hostname << ":" << port;
-	m_client = new HttpClient(urlbase.str());
+
+	m_urlbase << hostname << ":" << port;
+
+	// FIXME:
+	//m_client = new HttpClient(urlbase.str());
+	m_client = this->getHttpClient();
+}
+
+/**
+ * // FIXME:
+ */
+HttpClient *StorageClient::getHttpClient(void) {
+
+	static std::map<std::thread::id, HttpClient *>                 client_map;
+	       std::map<std::thread::id, HttpClient *>::const_iterator item;
+
+	HttpClient *client;
 
 	std::thread::id thread_id = std::this_thread::get_id();
 
 	m_logger->debug("DBG 9 - thread_id -%x-", thread_id);
 
+	item = client_map.find(thread_id);
+
+	if (item  == client_map.end() ) {
+
+		// Inserting a new HttpClient
+		client = new HttpClient(m_urlbase.str());
+		client_map.insert(std::make_pair(thread_id, client));
+	}
+	else
+	{
+		client = item->second;
+	}
+
+	return (client);
 }
 
 /**
@@ -165,6 +194,8 @@ ReadingSet *StorageClient::readingFetch(const unsigned long readingId, const uns
 		char url[256];
 		snprintf(url, sizeof(url), "/storage/reading?id=%ld&count=%ld",
 				readingId, count);
+
+		m_client = this->getHttpClient();
 		auto res = m_client->request("GET", url);
 		// FIXME:
 		Logger::getLogger()->debug("DBG 4 - use_count -%d-", res.use_count());

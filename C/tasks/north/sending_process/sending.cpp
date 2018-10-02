@@ -354,6 +354,9 @@ void SendingProcess::updateDatabaseCounters()
 {
 	// Update counters to Database
 
+	// FIXME:
+	Logger::getLogger()->debug("DBG 100 - updateDatabaseCounters START");
+
 	string streamId = to_string(this->getStreamId());
 
 	// Prepare WHERE id = val
@@ -392,6 +395,9 @@ void SendingProcess::updateDatabaseCounters()
 	stat_description = stat_key;
 
 	this->updateStatistics(stat_key, stat_description);
+
+	// FIXME:
+	Logger::getLogger()->debug("DBG 100 - updateDatabaseCounters END");
 
 }
 

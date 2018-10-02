@@ -44,23 +44,26 @@ StorageClient::StorageClient(const string& hostname, const unsigned short port)
  */
 StorageClient::~StorageClient()
 {
-	std::map<std::thread::id, HttpClient *>::const_iterator item;
+	std::map<std::thread::id, HttpClient *>::iterator item;
 
-	delete m_client;
+	// FIXME:
+	//delete m_client;
 
 
 	// FIXME:
 	m_logger->debug("DBG 9.3 - ~StorageClient");
 
 	// Deletes all the HttpClient objcts created in the map
-	item  = m_client_map.begin();
-	while (item  != m_client_map.end() ) {
 
+	for (item  = m_client_map.begin() ; item  != m_client_map.end() ; )
+	{
 		m_logger->debug("DBG 9.3 - Delete - object of thread_id -%x-", item->first);
-		//delete item->second;
-		//m_client_map.erase(item);
-		item++;
+		// FIXME:
+		delete item->second;
+		item = m_client_map.erase(item);
+
 	}
+	//m_client_map.clear();
 }
 
 /**
@@ -70,7 +73,7 @@ StorageClient::~StorageClient()
 HttpClient *StorageClient::getHttpClient(void) {
 
 
-	std::map<std::thread::id, HttpClient *>::const_iterator item;
+	std::map<std::thread::id, HttpClient *>::iterator item;
 
 	HttpClient *client;
 
@@ -217,9 +220,10 @@ ReadingSet *StorageClient::readingFetch(const unsigned long readingId, const uns
 		snprintf(url, sizeof(url), "/storage/reading?id=%ld&count=%ld",
 				readingId, count);
 
-		m_client = this->getHttpClient();
-		auto res = m_client->request("GET", url);
 		// FIXME:
+		//m_client =
+		//auto res = m_client->request("GET", url);
+		auto res = this->getHttpClient()->request("GET", url);
 		Logger::getLogger()->debug("DBG 4 - use_count -%d-", res.use_count());
 
 		if (res->status_code.compare("200 OK") == 0)

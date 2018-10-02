@@ -30,7 +30,7 @@ using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
  */
 class StorageClient {
 	public:
-		StorageClient(HttpClient *client) : m_client(client) {};
+		StorageClient(HttpClient *client);
 		StorageClient(const std::string& hostname, const unsigned short port);
 		~StorageClient();
 		ResultSet	*queryTable(const std::string& tablename, const Query& query);
@@ -55,7 +55,6 @@ class StorageClient {
 		HttpClient 	*getHttpClient(void);
 
 		std::ostringstream 			m_urlbase;
-		HttpClient				*m_client;
 		std::map<std::thread::id, HttpClient *> m_client_map;
 		Logger					*m_logger;
 };

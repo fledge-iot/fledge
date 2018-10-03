@@ -81,6 +81,13 @@ class ConfigurationCache(object):
                 oldest_entry = category_name
         self.cache.pop(oldest_entry)
 
+    def remove(self, key):
+        """Remove the entry with given key name"""
+        for category_name in self.cache:
+            if key == category_name:
+                self.cache.pop(key)
+                break
+
     @property
     def size(self):
         """Return the size of the cache"""

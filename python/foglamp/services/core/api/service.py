@@ -126,23 +126,36 @@ async def add_service(request):
 
             script = '["services/south"]' if service_type == 'south' else '["services/north"]'
             # Fetch configuration from the configuration defined in the plugin
-            plugin_info = _plugin.plugin_info()
+            import copy
+            plugin_info = copy.deepcopy(_plugin.plugin_info())
+            if plugin_info['type'] != service_type:
+                msg = "Plugin of {} type is not supported".format(plugin_info['type'])
+                _logger.exception(msg)
+                return web.HTTPBadRequest(reason=msg)
+
             if config is not None:
                 if not isinstance(config, dict):
                     raise ValueError('Config must be a JSON object')
                 # merge plugin_info with new config
                 plugin_info['config'].update(config)
+
             plugin_config = plugin_info['config']
             process_name = 'south'
         except ImportError as ex:
             # Checking for C-type plugins
             script = '["services/south_c"]' if service_type == 'south' else '["services/north_c"]'
             plugin_info = apiutils.get_plugin_info(plugin)
+            if plugin_info['type'] != service_type:
+                msg = "Plugin of {} type is not supported".format(plugin_info['type'])
+                _logger.exception(msg)
+                return web.HTTPBadRequest(reason=msg)
+
             if config is not None:
                 if not isinstance(config, dict):
                     raise ValueError('Config must be a JSON object')
                 # merge plugin_info with new config
                 plugin_info['config'].update(config)
+
             plugin_config = plugin_info['config']
             process_name = 'south_c'
             if not plugin_config:

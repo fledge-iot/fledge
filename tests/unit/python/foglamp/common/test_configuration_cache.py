@@ -68,3 +68,17 @@ class TestConfigurationCache:
         assert 'cat10' in cached_manager.cache
         assert 'cat11' in cached_manager.cache
         assert 10 == cached_manager.size
+
+    def test_remove(self):
+        cached_manager = ConfigurationCache()
+        cached_manager.update("cat1", {'value': {}})
+        cached_manager.update("cat2", {'value': {}})
+        cached_manager.update("cat3", {'value': {}})
+        cached_manager.update("cat4", {'value': {}})
+        assert 4 == cached_manager.size
+        cached_manager.remove("cat2")
+        assert 3 == cached_manager.size
+        assert 'cat2' not in cached_manager.cache
+        assert 'cat1' in cached_manager.cache
+        assert 'cat3' in cached_manager.cache
+        assert 'cat4' in cached_manager.cache

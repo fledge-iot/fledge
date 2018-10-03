@@ -249,6 +249,9 @@ async def check_schedules(storage, schedule_name):
 async def revert_configuration(storage, key):
     payload = PayloadBuilder().WHERE(['key', '=', key]).payload()
     await storage.delete_from_tbl('configuration', payload)
+    # Removed key from configuration cache
+    config_mgr = ConfigurationManager(storage)
+    config_mgr._cacheManager.remove(key)
 
 
 async def revert_parent_child_configuration(storage, key):

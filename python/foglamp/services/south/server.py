@@ -237,10 +237,9 @@ class Server(FoglampMicroservice):
             done, pending = await asyncio.wait(asyncio.Task.all_tasks(), timeout=_CLEAR_PENDING_TASKS_TIMEOUT)
             for task_pending in pending:
                 try:
-                     task_pending.cancel()
+                    task_pending.cancel()
                 except asyncio.CancelledError:
                     pass
-            await asyncio.sleep(1.0)
         except asyncio.CancelledError:
             pass
 
@@ -266,7 +265,7 @@ class Server(FoglampMicroservice):
 
         try:
             loop = asyncio.get_event_loop()
-            loop.call_soon_threadsafe(schedule_shutdown, loop)
+            loop.call_later(0.5, schedule_shutdown, loop)
         except Exception as ex:
             raise web.HTTPInternalServerError(reason=str(ex))
         else:

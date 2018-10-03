@@ -667,6 +667,9 @@ class Server:
     async def _stop(cls):
         """Stops FogLAMP"""
         try:
+            # stop monitor
+            await cls.stop_service_monitor()
+
             # stop the scheduler
             await cls._stop_scheduler()
 
@@ -674,9 +677,6 @@ class Server:
 
             # poll microservices for unregister
             await cls.poll_microservices_unregister()
-
-            # stop monitor
-            await cls.stop_service_monitor()
 
             # stop the REST api (exposed on service port)
             await cls.stop_rest_server()
@@ -788,9 +788,8 @@ class Server:
 
         try:
             shutdown_threshold = 0
-            secs_per_service = 5
             found_services = ServiceRegistry.get()
-            _service_shutdown_threshold = secs_per_service * (len(found_services) - 2)
+            _service_shutdown_threshold = 5 * (len(found_services) - 2)
             while True:
                 services_to_stop = list()
                 for fs in found_services:
@@ -809,9 +808,10 @@ class Server:
                             os.kill(pid, signal.SIGKILL)
                             _logger.error("KILLED Microservice:%s status: %s...", fs._name, fs._status)
                     return
-                await asyncio.sleep(secs_per_service*2)
-                shutdown_threshold += secs_per_service
+                await asyncio.sleep(2)
+                shutdown_threshold += 2
                 found_services = ServiceRegistry.get()
+
         except service_registry_exceptions.DoesNotExist:
             pass
         except Exception as ex:

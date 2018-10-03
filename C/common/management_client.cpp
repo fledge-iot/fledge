@@ -55,7 +55,6 @@ string payload;
 
 	try {
 		service.asJSON(payload);
-		m_logger->info("%s: URL='%s'", __FUNCTION__, "/foglamp/service");
 		auto res = m_client->request("POST", "/foglamp/service", payload);
 		Document doc;
 		string response = res->content.string();
@@ -104,7 +103,6 @@ bool ManagementClient::unregisterService()
 	try {
 		string url = "/foglamp/service/";
 		url += url_encode(*m_uuid);
-		m_logger->info("%s: URL='%s'", __FUNCTION__, url.c_str());
 		auto res = m_client->request("DELETE", url.c_str());
 		Document doc;
 		string response = res->content.string();
@@ -152,7 +150,6 @@ string payload;
 		{
 			url += "?type=" + url_encode(service.getType());
 		}
-		m_logger->info("%s: URL='%s'", __FUNCTION__, url.c_str());
 		auto res = m_client->request("GET", url.c_str());
 		Document doc;
 		string response = res->content.string();
@@ -250,7 +247,6 @@ ostringstream convert;
         try {   
 		string url = "/foglamp/interest/";
 		url += url_encode(m_categories[category]);
-		m_logger->info("%s: URL='%s'", __FUNCTION__, url.c_str());
         auto res = m_client->request("DELETE", url.c_str());
         } catch (const SimpleWeb::system_error &e) {
                 m_logger->error("Unregister configuration category failed %s.", e.what());
@@ -266,7 +262,6 @@ ConfigCategories ManagementClient::getCategories() const
 {
 	try {
 		string url = "/foglamp/service/category";
-		m_logger->info("%s: URL='%s'", __FUNCTION__, url.c_str());
 		auto res = m_client->request("GET", url.c_str());
 		Document doc;
 		string response = res->content.string();
@@ -308,13 +303,10 @@ ConfigCategory ManagementClient::getCategory(const string& categoryName) const
 {
 	try {
 		string url = "/foglamp/service/category/" + url_encode(categoryName);
-		m_logger->info("%s: URL='%s'", __FUNCTION__, url.c_str());
 		auto res = m_client->request("GET", url.c_str());
 		Document doc;
 		string response = res->content.string();
 		doc.Parse(response.c_str());
-		m_logger->info("response='%s'", response.c_str());
-		//m_logger->info("doc='%s'", doc.GetString());
 		if (doc.HasParseError())
 		{
 			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
@@ -356,7 +348,6 @@ string ManagementClient::setCategoryItemValue(const string& categoryName,
 	try {
 		string url = "/foglamp/service/category/" + url_encode(categoryName) + "/" + url_encode(itemName);
 		string payload = "{ \"value\" : \"" + itemValue + "\" }";
-		m_logger->info("%s: URL='%s'", __FUNCTION__, url.c_str());
 		auto res = m_client->request("PUT", url.c_str(), payload);
 		Document doc;
 		string response = res->content.string();
@@ -409,7 +400,6 @@ string ManagementClient::addChildCategories(const string& parentCategory,
 			}
 		}
 		payload += "] }";
-		m_logger->info("%s: URL='%s'", __FUNCTION__, url.c_str());
 		auto res = m_client->request("POST", url.c_str(), payload);
 		string response = res->content.string();
 		Document doc;
@@ -450,11 +440,9 @@ std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples(const
 	
 	try {
 		string url = "/foglamp/track?service="+url_encode(serviceName);
-		m_logger->info("%s: URL='%s'", __FUNCTION__, url.c_str());
 		auto res = m_client->request("GET", url.c_str());
 		Document doc;
 		string response = res->content.string();
-		//m_logger->info("GET /foglamp/track?service=%s: response='%s'", serviceName.c_str(), response.c_str());
 		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
@@ -522,11 +510,9 @@ bool ManagementClient::addAssetTrackingTuple(const std::string& service,
 		convert << " \"asset\" : \"" << asset << "\", ";
 		convert << " \"event\" : \"" << event << "\" }";
 
-		m_logger->info("%s: URL='%s'", __FUNCTION__, "/foglamp/track");
 		auto res = m_client->request("POST", "/foglamp/track", convert.str());
 		Document doc;
 		string content = res->content.string();
-		m_logger->info("POST /foglamp/track: response='%s' ", content.c_str());
 		doc.Parse(content.c_str());
 		if (doc.HasParseError())
 		{

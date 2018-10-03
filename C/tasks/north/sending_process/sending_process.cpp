@@ -305,9 +305,6 @@ static void sendDataThread(SendingProcess *sendData)
 
 				// DB update done
 				sendData->setUpdateDb(false);
-
-				// FIXME:
-				Logger::getLogger()->debug("DBG 300 - sendDataThread");
                         }
 
 			// Reset send index
@@ -343,9 +340,6 @@ static void sendDataThread(SendingProcess *sendData)
 
 				// DB update done
 				sendData->setUpdateDb(false);
-
-				// FIXME:
-				Logger::getLogger()->debug("DBG 301 - sendDataThread");
 			}
 
 			if (sendData->isRunning()) {
@@ -366,13 +360,7 @@ static void sendDataThread(SendingProcess *sendData)
 
 			const vector<Reading *> &readingData = sendData->m_buffer.at(sendIdx)->getAllReadings();
 
-			// FIXME:
-			Logger::getLogger()->debug("DBG 305 - sendDataThread");
-
 			uint32_t sentReadings = sendData->m_plugin->send(readingData);
-
-			// FIXME:
-			Logger::getLogger()->debug("DBG 306 - sendDataThread");
 
 			if (sentReadings)
 			{
@@ -421,10 +409,6 @@ static void sendDataThread(SendingProcess *sendData)
 
 					// DB update done
 					sendData->setUpdateDb(false);
-
-					// FIXME:
-					Logger::getLogger()->debug("DBG 302 - sendDataThread");
-
 				}
 
 				// Error: just wait & continue
@@ -433,9 +417,6 @@ static void sendDataThread(SendingProcess *sendData)
 			}
                 }
         }
-	// FIXME:
-	Logger::getLogger()->debug("DBG 304 - sendDataThread");
-
 	Logger::getLogger()->info("SendingProcess sendData thread: sent %lu total '%s'",
 				  totSent,
 				  sendData->getDataSourceType().c_str());
@@ -452,9 +433,6 @@ static void sendDataThread(SendingProcess *sendData)
 		sendData->resetSentReadings();
 
                 sendData->setUpdateDb(false);
-
-		// FIXME:
-		Logger::getLogger()->debug("DBG 303 - sendDataThread");
         }
 
 	/**

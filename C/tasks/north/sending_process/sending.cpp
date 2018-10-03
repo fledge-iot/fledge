@@ -317,23 +317,12 @@ bool SendingProcess::loadPlugin(const string& pluginName)
 // Stop running threads & cleanup used resources
 void SendingProcess::stop()
 {
-	// FIXME:
-	Logger::getLogger()->info("DBG 200 - stop ");
-
 	// End of processing loop for threads
 	this->stopRunning();
-
-	Logger::getLogger()->info("DBG 200.1 - stop ");
-
-	//readMutex.unlock();
-
-	Logger::getLogger()->info("DBG 201 - stop ");
 
 	// Threads execution has completed.
 	this->m_thread_load->join();
         this->m_thread_send->join();
-
-        Logger::getLogger()->info("DBG 202 - stop ");
 
 	// Remove the data buffers
 	for (unsigned int i = 0; i < DATA_BUFFER_ELMS; i++)
@@ -344,8 +333,6 @@ void SendingProcess::stop()
 			delete data;
 		}
 	}
-
-	Logger::getLogger()->info("DBG 203 - stop ");
 
 	// Cleanup the plugin resources
 	this->m_plugin->shutdown();
@@ -366,9 +353,6 @@ void SendingProcess::stop()
 void SendingProcess::updateDatabaseCounters()
 {
 	// Update counters to Database
-
-	// FIXME:
-	Logger::getLogger()->debug("DBG 100 - updateDatabaseCounters START");
 
 	string streamId = to_string(this->getStreamId());
 
@@ -408,10 +392,6 @@ void SendingProcess::updateDatabaseCounters()
 	stat_description = stat_key;
 
 	this->updateStatistics(stat_key, stat_description);
-
-	// FIXME:
-	Logger::getLogger()->debug("DBG 100 - updateDatabaseCounters END");
-
 }
 
 /**

@@ -23,6 +23,8 @@ using namespace std;
 using namespace rapidjson;
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 
+// handles m_client_map access
+std::mutex mtx_client_map;
 
 /**
  * Storage Client constructor
@@ -45,7 +47,11 @@ StorageClient::StorageClient(HttpClient *client) {
 	// FIXME:
 	m_logger->debug("DBG - StorageClient 2 - thread_id -%x-", thread_id);
 
+	m_logger->debug("DBG 2.0 - StorageClient 2-  LOCK thread_id -%x-", thread_id);
+	mtx_client_map.lock();
 	m_client_map[thread_id] = client;
+	mtx_client_map.unlock();
+	m_logger->debug("DBG 2.1 - StorageClient 2-  unLOCK thread_id -%x-", thread_id);
 }
 
 
@@ -82,6 +88,8 @@ HttpClient *StorageClient::getHttpClient(void) {
 
 	m_logger->debug("DBG 9 - thread_id -%x-", thread_id);
 
+	m_logger->debug("DBG 9.0.1 - LOCK thread_id -%x-", thread_id);
+	mtx_client_map.lock();
 	item = m_client_map.find(thread_id);
 
 	if (item  == m_client_map.end() ) {
@@ -96,6 +104,8 @@ HttpClient *StorageClient::getHttpClient(void) {
 		m_logger->debug("DBG 9.2 - reused - thread_id -%x-", thread_id);
 		client = item->second;
 	}
+	mtx_client_map.unlock();
+	m_logger->debug("DBG 9.0.2 - UNLOCK thread_id -%x-", thread_id);
 
 	return (client);
 }

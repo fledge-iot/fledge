@@ -26,7 +26,6 @@
 #include <filter_plugin.h>
 
 extern int makeDaemon(void);
-static int createTimerFd(unsigned int usecs);
 
 using namespace std;
 
@@ -398,7 +397,7 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
  *
  * @param usecs	 Time in micro-secs after which data would be available on the timer FD
  */
-static int createTimerFd(unsigned int usecs)
+int SouthService::createTimerFd(unsigned int usecs)
 {
 	int fd = -1;
 	struct itimerspec new_value;

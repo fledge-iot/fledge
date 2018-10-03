@@ -5,7 +5,7 @@
 # FOGLAMP_END
 
 import datetime
-
+import copy
 from aiohttp import web
 
 from foglamp.common import utils
@@ -112,9 +112,6 @@ async def add_service(request):
         is_enabled = True if ((type(enabled) is str and enabled.lower() in ['true']) or (
             (type(enabled) is bool and enabled is True))) else False
 
-        storage = connect.get_storage_async()
-        config_mgr = ConfigurationManager(storage)
-
         # Check if a valid plugin has been provided
         try:
             # "plugin_module_path" is fixed by design. It is MANDATORY to keep the plugin in the exactly similar named
@@ -126,7 +123,6 @@ async def add_service(request):
 
             script = '["services/south"]' if service_type == 'south' else '["services/north"]'
             # Fetch configuration from the configuration defined in the plugin
-            import copy
             plugin_info = copy.deepcopy(_plugin.plugin_info())
             if plugin_info['type'] != service_type:
                 msg = "Plugin of {} type is not supported".format(plugin_info['type'])
@@ -164,6 +160,9 @@ async def add_service(request):
         except Exception as ex:
             _logger.exception("Failed to fetch plugin configuration. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration')
+
+        storage = connect.get_storage_async()
+        config_mgr = ConfigurationManager(storage)
 
         # Check that the schedule name is not already registered
         count = await check_schedules(storage, name)

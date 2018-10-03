@@ -17,6 +17,7 @@ import uuid
 from aiohttp import web
 import aiohttp
 import json
+import signal
 
 from foglamp.common import logger
 from foglamp.common.audit_logger import AuditLogger
@@ -778,6 +779,13 @@ class Server:
     @classmethod
     async def poll_microservices_unregister(cls):
         """ poll microservice shutdown endpoint for non core micro-services"""
+
+        def get_process_id(name):
+            """Return process ids found by (partial) name or regex."""
+            child = subprocess.Popen(['pgrep', '-f', 'name={}'.format(name)], stdout=subprocess.PIPE, shell=False)
+            response = child.communicate()[0]
+            return [int(pid) for pid in response.split()]
+
         try:
             shutdown_threshold = 0
             secs_per_service = 5
@@ -796,8 +804,10 @@ class Server:
                     return
                 if shutdown_threshold > _service_shutdown_threshold:
                     for fs in services_to_stop:
-                        # TODO: Find pid and kill the microservice process
-                        _logger.error("Microservice:%s status: %s has NOT been shutdown. Kill it...", fs._name, fs._status)
+                        pids = get_process_id(fs._name)
+                        for pid in pids:
+                            os.kill(pid, signal.SIGKILL)
+                            _logger.error("KILLED Microservice:%s status: %s...", fs._name, fs._status)
                     return
                 await asyncio.sleep(secs_per_service*2)
                 shutdown_threshold += secs_per_service

@@ -13,11 +13,15 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <cctype>
+#include <iomanip>
 #include <asset_tracking.h>
 
 using namespace std;
 using namespace rapidjson;
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
+
+string url_encode(const string &value);
 
 /**
  * Management Client constructor
@@ -53,6 +57,7 @@ string payload;
 
 	try {
 		service.asJSON(payload);
+		m_logger->info("%s: URL='%s'", __FUNCTION__, "/foglamp/service");
 		auto res = m_client->request("POST", "/foglamp/service", payload);
 		Document doc;
 		string response = res->content.string();
@@ -98,7 +103,8 @@ bool ManagementClient::unregisterService()
 	}
 	try {
 		string url = "/foglamp/service/";
-		url += *m_uuid;
+		url += url_encode(*m_uuid);
+		m_logger->info("%s: URL='%s'", __FUNCTION__, url.c_str());
 		auto res = m_client->request("DELETE", url.c_str());
 		Document doc;
 		string response = res->content.string();
@@ -138,12 +144,13 @@ string payload;
 		string url = "/foglamp/service";
 		if (!service.getName().empty())
 		{
-			url += "?name=" + service.getName();
+			url += "?name=" + url_encode(service.getName());
 		}
 		else if (!service.getType().empty())
 		{
-			url += "?type=" + service.getType();
+			url += "?type=" + url_encode(service.getType());
 		}
+		m_logger->info("%s: URL='%s'", __FUNCTION__, url.c_str());
 		auto res = m_client->request("GET", url.c_str());
 		Document doc;
 		string response = res->content.string();
@@ -236,8 +243,9 @@ ostringstream convert;
         
         try {   
 		string url = "/foglamp/interest/";
-		url += m_categories[category];
-                auto res = m_client->request("DELETE", url.c_str());
+		url += url_encode(m_categories[category]);
+		m_logger->info("%s: URL='%s'", __FUNCTION__, url.c_str());
+        auto res = m_client->request("DELETE", url.c_str());
         } catch (const SimpleWeb::system_error &e) {
                 m_logger->error("Unregister configuration category failed %s.", e.what());
                 return false;
@@ -252,6 +260,7 @@ ConfigCategories ManagementClient::getCategories() const
 {
 	try {
 		string url = "/foglamp/service/category";
+		m_logger->info("%s: URL='%s'", __FUNCTION__, url.c_str());
 		auto res = m_client->request("GET", url.c_str());
 		Document doc;
 		string response = res->content.string();
@@ -290,11 +299,14 @@ ConfigCategories ManagementClient::getCategories() const
 ConfigCategory ManagementClient::getCategory(const string& categoryName) const
 {
 	try {
-		string url = "/foglamp/service/category/" + categoryName;
+		string url = "/foglamp/servi1ce/category/" + url_encode(categoryName) + "1";
+		m_logger->info("%s: URL='%s'", __FUNCTION__, url.c_str());
 		auto res = m_client->request("GET", url.c_str());
 		Document doc;
 		string response = res->content.string();
 		doc.Parse(response.c_str());
+		m_logger->info("response='%s'", response.c_str());
+		//m_logger->info("doc='%s'", doc.GetString());
 		if (doc.HasParseError())
 		{
 			m_logger->error("Failed to parse result of fetching configuration category for %s: %s\n", categoryName.c_str(),
@@ -332,9 +344,9 @@ string ManagementClient::setCategoryItemValue(const string& categoryName,
 					      const string& itemValue) const
 {
 	try {
-		string url = "/foglamp/service/category/" + categoryName + "/" + itemName;
+		string url = "/foglamp/service/category/" + url_encode(categoryName) + "/" + url_encode(itemName);
 		string payload = "{ \"value\" : \"" + itemValue + "\" }";
-
+		m_logger->info("%s: URL='%s'", __FUNCTION__, url.c_str());
 		auto res = m_client->request("PUT", url.c_str(), payload);
 		Document doc;
 		string response = res->content.string();
@@ -373,7 +385,7 @@ string ManagementClient::addChildCategories(const string& parentCategory,
 					    const vector<string>& children) const
 {
 	try {
-		string url = "/foglamp/service/category/" + parentCategory + "/children";
+		string url = "/foglamp/service/category/" + url_encode(parentCategory) + "/children";
 		string payload = "{ \"children\" : [";
 
 		for (auto it = children.begin(); it != children.end(); ++it)
@@ -385,6 +397,7 @@ string ManagementClient::addChildCategories(const string& parentCategory,
 			}
 		}
 		payload += "] }";
+		m_logger->info("%s: URL='%s'", __FUNCTION__, url.c_str());
 		auto res = m_client->request("POST", url.c_str(), payload);
 		string response = res->content.string();
 		Document doc;
@@ -422,7 +435,8 @@ std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples(const
 	std::vector<AssetTrackingTuple*> *vec = new std::vector<AssetTrackingTuple*>();
 	
 	try {
-		string url = "/foglamp/track?service="+serviceName;
+		string url = "/foglamp/track?service="+url_encode(serviceName);
+		m_logger->info("%s: URL='%s'", __FUNCTION__, url.c_str());
 		auto res = m_client->request("GET", url.c_str());
 		Document doc;
 		string response = res->content.string();
@@ -491,7 +505,8 @@ bool ManagementClient::addAssetTrackingTuple(const std::string& service,
 		convert << " \"plugin\" : \"" << plugin << "\", ";
 		convert << " \"asset\" : \"" << asset << "\", ";
 		convert << " \"event\" : \"" << event << "\" }";
-		
+
+		m_logger->info("%s: URL='%s'", __FUNCTION__, "/foglamp/track");
 		auto res = m_client->request("POST", "/foglamp/track", convert.str());
 		Document doc;
 		string content = res->content.string();
@@ -524,5 +539,28 @@ bool ManagementClient::addAssetTrackingTuple(const std::string& service,
 				return false;
 		}
 		return false;
+}
+
+string url_encode(const string &value) {
+    ostringstream escaped;
+    escaped.fill('0');
+    escaped << hex;
+
+    for (string::const_iterator i = value.begin(), n = value.end(); i != n; ++i) {
+        string::value_type c = (*i);
+
+        // Keep alphanumeric and other accepted characters intact
+        if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+            escaped << c;
+            continue;
+        }
+
+        // Any other characters are percent-encoded
+        escaped << uppercase;
+        escaped << '%' << setw(2) << int((unsigned char) c);
+        escaped << nouppercase;
+    }
+
+    return escaped.str();
 }
 

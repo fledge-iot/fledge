@@ -156,8 +156,9 @@ class Server:
             'default': 'foglamp'
         },
         'authentication': {
-            'description': 'API Call Authentication (mandatory or optional)',
-            'type': 'string',
+            'description': 'API Call Authentication',
+            'type': 'enumeration',
+            'options': ['mandatory', 'optional'],
             'default': 'optional'
         },
         'allowPing': {

@@ -76,6 +76,7 @@ async def add_service(request):
 
     :Example:
              curl -X POST http://localhost:8081/foglamp/service -d '{"name": "DHT 11", "plugin": "dht11", "type": "south", "enabled": true}'
+             curl -sX POST http://localhost:8081/foglamp/service -d '{"name": "Sine", "plugin": "sinusoid", "type": "south", "enabled": true, "config": {"dataPointsPerSec": {"description": "Test", "default": "10", "type": "integer", "order":"2"}}}' | jq
     """
 
     try:

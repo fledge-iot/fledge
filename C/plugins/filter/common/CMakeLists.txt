@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.4.0)
 
-project(plugins-common-lib)
+project(filters-common-lib)
 
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
@@ -20,13 +20,15 @@ include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 file(GLOB SOURCES *.cpp)
 
 # Include header files
-include_directories(include ../../common/include ../../services/common/include ../../thirdparty/Simple-Web-Server)
+include_directories(include ../../../common/include ../../../services/common/include)
+include_directories(../../../thirdparty/Simple-Web-Server)
+include_directories(../../../thirdparty/rapidjson/include)
 
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../../lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../../../lib)
 
 # Create shared library
-add_library(${PROJECT_NAME} SHARED ${SOURCES})
-target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES} -lz)
+add_library(${PROJECT_NAME} SHARED ${SOURCES} ${EXTRA_SOURCES})
+target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES})
 set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION 1)
 
 # Install library

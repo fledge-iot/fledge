@@ -21,8 +21,6 @@ using namespace std;
 using namespace rapidjson;
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 
-string url_encode(const string &value);
-
 /**
  * Management Client constructor
  */
@@ -64,8 +62,10 @@ string payload;
 		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
-			m_logger->error("Failed to parse result of registration: %s\n",
-					response.c_str());
+			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
+			m_logger->error("%s service registration: %s\n", 
+								httpError?"HTTP error during":"Failed to parse result of", 
+								response.c_str());
 			return false;
 		}
 		if (doc.HasMember("id"))
@@ -111,8 +111,10 @@ bool ManagementClient::unregisterService()
 		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
-			m_logger->error("Failed to parse result of unregistration: %s\n",
-					response.c_str());
+			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
+			m_logger->error("%s service unregistration: %s\n", 
+								httpError?"HTTP error during":"Failed to parse result of", 
+								response.c_str());
 			return false;
 		}
 		if (doc.HasMember("id"))
@@ -157,8 +159,10 @@ string payload;
 		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
-			m_logger->error("Failed to parse result of fetching service record: %s\n",
-					response.c_str());
+			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
+			m_logger->error("%s fetching service record: %s\n", 
+								httpError?"HTTP error while":"Failed to parse result of", 
+								response.c_str());
 			return false;
 		}
 		else if (doc.HasMember("message"))
@@ -205,8 +209,10 @@ ostringstream convert;
 		doc.Parse(content.c_str());
 		if (doc.HasParseError())
 		{
-			m_logger->error("Failed to parse result of category registration: %s\n",
-					content.c_str());
+			bool httpError = (isdigit(content[0]) && isdigit(content[1]) && isdigit(content[2]) && content[3]==':');
+			m_logger->error("%s category registration: %s\n", 
+								httpError?"HTTP error during":"Failed to parse result of", 
+								content.c_str());
 			return false;
 		}
 		if (doc.HasMember("id"))
@@ -267,8 +273,10 @@ ConfigCategories ManagementClient::getCategories() const
 		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
-			m_logger->error("Failed to parse result of fetching configuration categories: %s\n",
-					response.c_str());
+			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
+			m_logger->error("%s fetching configuration categories: %s\n", 
+								httpError?"HTTP error while":"Failed to parse result of", 
+								response.c_str());
 			throw new exception();
 		}
 		else if (doc.HasMember("message"))
@@ -299,7 +307,7 @@ ConfigCategories ManagementClient::getCategories() const
 ConfigCategory ManagementClient::getCategory(const string& categoryName) const
 {
 	try {
-		string url = "/foglamp/servi1ce/category/" + url_encode(categoryName) + "1";
+		string url = "/foglamp/service/category/" + url_encode(categoryName);
 		m_logger->info("%s: URL='%s'", __FUNCTION__, url.c_str());
 		auto res = m_client->request("GET", url.c_str());
 		Document doc;
@@ -309,8 +317,10 @@ ConfigCategory ManagementClient::getCategory(const string& categoryName) const
 		//m_logger->info("doc='%s'", doc.GetString());
 		if (doc.HasParseError())
 		{
-			m_logger->error("Failed to parse result of fetching configuration category for %s: %s\n", categoryName.c_str(),
-					response.c_str());
+			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
+			m_logger->error("%s fetching configuration category for %s: %s\n", 
+								httpError?"HTTP error while":"Failed to parse result of", 
+								categoryName.c_str(), response.c_str());
 			throw new exception();
 		}
 		else if (doc.HasMember("message"))
@@ -353,8 +363,10 @@ string ManagementClient::setCategoryItemValue(const string& categoryName,
 		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
-			m_logger->error("Failed to parse result of setting configuration category item value: %s",
-					response.c_str());
+			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
+			m_logger->error("%s setting configuration category item value: %s\n", 
+								httpError?"HTTP error while":"Failed to parse result of", 
+								response.c_str());
 			throw new exception();
 		}
 		else if (doc.HasMember("message"))
@@ -404,8 +416,10 @@ string ManagementClient::addChildCategories(const string& parentCategory,
 		doc.Parse(response.c_str());
 		if (doc.HasParseError() || !doc.HasMember("children"))
 		{
-			m_logger->error("Failed to parse result of adding child categories: %s",
-					response.c_str());
+			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
+			m_logger->error("%s adding child categories: %s\n", 
+								httpError?"HTTP error while":"Failed to parse result of", 
+								response.c_str());
 			throw new exception();
 		}
 		else if (doc.HasMember("message"))
@@ -444,8 +458,10 @@ std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples(const
 		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
-			m_logger->error("Failed to parse result of fetch asset tracking tuples: %s\n",
-					response.c_str());
+			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
+			m_logger->error("%s fetch asset tracking tuples: %s\n", 
+								httpError?"HTTP error during":"Failed to parse result of", 
+								response.c_str());
 			throw new exception();
 		}
 		else if (doc.HasMember("message"))
@@ -514,8 +530,10 @@ bool ManagementClient::addAssetTrackingTuple(const std::string& service,
 		doc.Parse(content.c_str());
 		if (doc.HasParseError())
 		{
-			m_logger->error("Failed to parse result of asset tracking tuple addition: %s\n",
-					content.c_str());
+			bool httpError = (isdigit(content[0]) && isdigit(content[1]) && isdigit(content[2]) && content[3]==':');
+			m_logger->error("%s asset tracking tuple addition: %s\n", 
+								httpError?"HTTP error during":"Failed to parse result of", 
+								content.c_str());
 			return false;
 		}
 		if (doc.HasMember("foglamp"))
@@ -541,12 +559,19 @@ bool ManagementClient::addAssetTrackingTuple(const std::string& service,
 		return false;
 }
 
-string url_encode(const string &value) {
+/**
+ * URL-encode a given string
+ *
+ * @param s		Input string that is to be URL-encoded
+ * @return		URL-encoded output string
+ */
+string ManagementClient::url_encode(const string &s) const
+{
     ostringstream escaped;
     escaped.fill('0');
     escaped << hex;
 
-    for (string::const_iterator i = value.begin(), n = value.end(); i != n; ++i) {
+    for (string::const_iterator i = s.begin(), n = s.end(); i != n; ++i) {
         string::value_type c = (*i);
 
         // Keep alphanumeric and other accepted characters intact

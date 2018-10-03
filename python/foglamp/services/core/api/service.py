@@ -5,7 +5,6 @@
 # FOGLAMP_END
 
 import datetime
-
 from aiohttp import web
 
 from foglamp.common import utils
@@ -76,6 +75,7 @@ async def add_service(request):
 
     :Example:
              curl -X POST http://localhost:8081/foglamp/service -d '{"name": "DHT 11", "plugin": "dht11", "type": "south", "enabled": true}'
+             curl -sX POST http://localhost:8081/foglamp/service -d '{"name": "Sine", "plugin": "sinusoid", "type": "south", "enabled": true, "config": {"dataPointsPerSec": {"value": "10"}}}' | jq
     """
 
     try:
@@ -87,6 +87,7 @@ async def add_service(request):
         plugin = data.get('plugin', None)
         service_type = data.get('type', None)
         enabled = data.get('enabled', None)
+        config = data.get('config', None)
 
         if name is None:
             raise web.HTTPBadRequest(reason='Missing name property in payload.')
@@ -147,6 +148,7 @@ async def add_service(request):
             raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration')
 
         storage = connect.get_storage_async()
+        config_mgr = ConfigurationManager(storage)
 
         # Check that the schedule name is not already registered
         count = await check_schedules(storage, name)
@@ -171,7 +173,6 @@ async def add_service(request):
         try:
             # Create a configuration category from the configuration defined in the plugin
             category_desc = plugin_config['plugin']['description']
-            config_mgr = ConfigurationManager(storage)
             await config_mgr.create_category(category_name=name,
                                              category_description=category_desc,
                                              category_value=plugin_config,
@@ -179,6 +180,14 @@ async def add_service(request):
             # Create the parent category for all South services
             await config_mgr.create_category("South", {}, "South microservices", True)
             await config_mgr.create_child_category("South", [name])
+
+            # If config is in POST data, then update the value for each config item
+            if config is not None:
+                if not isinstance(config, dict):
+                    raise ValueError('Config must be a JSON object')
+                for k, v in config.items():
+                    await config_mgr.set_category_item_value_entry(name, k, v['value'])
+
         except Exception as ex:
             await revert_configuration(storage, name)  # Revert configuration entry
             await revert_parent_child_configuration(storage, name)
@@ -230,6 +239,9 @@ async def check_schedules(storage, schedule_name):
 async def revert_configuration(storage, key):
     payload = PayloadBuilder().WHERE(['key', '=', key]).payload()
     await storage.delete_from_tbl('configuration', payload)
+    # Removed key from configuration cache
+    config_mgr = ConfigurationManager(storage)
+    config_mgr._cacheManager.remove(key)
 
 
 async def revert_parent_child_configuration(storage, key):

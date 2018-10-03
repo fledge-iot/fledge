@@ -170,7 +170,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		}
 
 		// Get a handle on the storage layer
-		ServiceRecord storageRecord("FogLAMP%20Storage");
+		ServiceRecord storageRecord("FogLAMP Storage");
 		if (!m_mgtClient->getService(storageRecord))
 		{
 			logger->fatal("Unable to find storage service");

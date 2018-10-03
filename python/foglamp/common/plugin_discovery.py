@@ -103,11 +103,11 @@ class PluginDiscovery(object):
                     'description': plugin_info['config']['plugin']['description'],
                     'version': plugin_info['version']
                 }
-            if is_config:
-                plugin_config.update({'config': plugin_info['config']})
             else:
                 _logger.warning("Plugin {} is discarded due to invalid type".format(plugin_dir))
 
+            if is_config:
+                plugin_config.update({'config': plugin_info['config']})
         except ImportError as ex:
             _logger.error('Plugin "{}" import problem from path "{}". {}'.format(plugin_dir, plugin_module_path, str(ex)))
         except Exception as ex:

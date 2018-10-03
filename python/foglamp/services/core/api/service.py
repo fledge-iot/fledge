@@ -5,7 +5,6 @@
 # FOGLAMP_END
 
 import datetime
-import copy
 from aiohttp import web
 
 from foglamp.common import utils
@@ -76,7 +75,7 @@ async def add_service(request):
 
     :Example:
              curl -X POST http://localhost:8081/foglamp/service -d '{"name": "DHT 11", "plugin": "dht11", "type": "south", "enabled": true}'
-             curl -sX POST http://localhost:8081/foglamp/service -d '{"name": "Sine", "plugin": "sinusoid", "type": "south", "enabled": true, "config": {"dataPointsPerSec": {"description": "Test", "default": "10", "type": "integer", "order":"2"}}}' | jq
+             curl -sX POST http://localhost:8081/foglamp/service -d '{"name": "Sine", "plugin": "sinusoid", "type": "south", "enabled": true, "config": {"dataPointsPerSec": {"value": "10"}}}' | jq
     """
 
     try:
@@ -124,18 +123,11 @@ async def add_service(request):
 
             script = '["services/south"]' if service_type == 'south' else '["services/north"]'
             # Fetch configuration from the configuration defined in the plugin
-            plugin_info = copy.deepcopy(_plugin.plugin_info())
+            plugin_info = _plugin.plugin_info()
             if plugin_info['type'] != service_type:
                 msg = "Plugin of {} type is not supported".format(plugin_info['type'])
                 _logger.exception(msg)
                 return web.HTTPBadRequest(reason=msg)
-
-            if config is not None:
-                if not isinstance(config, dict):
-                    raise ValueError('Config must be a JSON object')
-                # merge plugin_info with new config
-                plugin_info['config'].update(config)
-
             plugin_config = plugin_info['config']
             process_name = 'south'
         except ImportError as ex:
@@ -146,13 +138,6 @@ async def add_service(request):
                 msg = "Plugin of {} type is not supported".format(plugin_info['type'])
                 _logger.exception(msg)
                 return web.HTTPBadRequest(reason=msg)
-
-            if config is not None:
-                if not isinstance(config, dict):
-                    raise ValueError('Config must be a JSON object')
-                # merge plugin_info with new config
-                plugin_info['config'].update(config)
-
             plugin_config = plugin_info['config']
             process_name = 'south_c'
             if not plugin_config:
@@ -195,6 +180,14 @@ async def add_service(request):
             # Create the parent category for all South services
             await config_mgr.create_category("South", {}, "South microservices", True)
             await config_mgr.create_child_category("South", [name])
+
+            # If config is in POST data, then update the value for each config item
+            if config is not None:
+                if not isinstance(config, dict):
+                    raise ValueError('Config must be a JSON object')
+                for k, v in config.items():
+                    await config_mgr.set_category_item_value_entry(name, k, v['value'])
+
         except Exception as ex:
             await revert_configuration(storage, name)  # Revert configuration entry
             await revert_parent_child_configuration(storage, name)

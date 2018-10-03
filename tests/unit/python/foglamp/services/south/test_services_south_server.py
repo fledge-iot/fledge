@@ -415,13 +415,13 @@ class TestServicesSouthServer:
         cat_get, south_server, ingest_start, log_exception, log_error, log_info, log_warning = self.south_fixture(mocker)
         mocker.patch.object(south_server, '_stop', return_value=mock_coro())
         mocker.patch.object(south_server, 'unregister_service_with_core', return_value=True)
+        call_patch = mocker.patch.object(asyncio.get_event_loop(), 'call_later')
 
         # WHEN
         await south_server.shutdown(request=None)
 
         # THEN
-        assert 1 == log_info.call_count
-        log_info.assert_called_with('Stopping South Service plugin {}'.format(south_server._name))
+        assert 1 == call_patch.call_count
 
     @pytest.mark.asyncio
     async def test_shutdown_error(self, loop, mocker):
@@ -429,6 +429,7 @@ class TestServicesSouthServer:
         cat_get, south_server, ingest_start, log_exception, log_error, log_info, log_warning = self.south_fixture(mocker)
         mocker.patch.object(south_server, '_stop', return_value=mock_coro(), side_effect=RuntimeError)
         mocker.patch.object(south_server, 'unregister_service_with_core', return_value=True)
+        call_patch = mocker.patch.object(asyncio.get_event_loop(), 'call_later', side_effect=RuntimeError)
 
         # WHEN
         from aiohttp.web_exceptions import HTTPInternalServerError
@@ -436,10 +437,6 @@ class TestServicesSouthServer:
             await south_server.shutdown(request=None)
 
         # THEN
-        assert 1 == log_info.call_count
-        log_info.assert_called_with('Stopping South Service plugin {}'.format(south_server._name))
-        assert 1 == log_exception.call_count
-        log_exception.assert_called_with('Error in stopping South Service plugin {}, '.format(south_server._name))
 
     @pytest.mark.asyncio
     async def test_change(self, loop, mocker):

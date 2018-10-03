@@ -548,7 +548,7 @@ class Ingest(object):
 
         # asset tracker checking
         payload = {"asset": asset, "event": "Ingest", "service": cls._parent_service._name,
-                   "plugin": cls._parent_service._plugin_handle['plugin']['value']}
+                   "plugin": cls._parent_service._plugin_info['config']['plugin']['default']}
         if payload not in cls._payload_events:
             cls._parent_service._core_microservice_management_client.create_asset_tracker_event(payload)
             cls._payload_events.append(payload)

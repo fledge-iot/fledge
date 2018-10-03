@@ -806,7 +806,8 @@ class Server:
                         pids = get_process_id(fs._name)
                         for pid in pids:
                             os.kill(pid, signal.SIGKILL)
-                            _logger.error("KILLED Microservice:%s status: %s...", fs._name, fs._status)
+                            _logger.error("Microservice:%s status: %s has NOT been shutdown. Kill it...", fs._name, fs._status)
+                            _logger.error("KILLED Microservice:%s...", fs._name)
                     return
                 await asyncio.sleep(2)
                 shutdown_threshold += 2

@@ -415,7 +415,7 @@ class TestServicesSouthServer:
         cat_get, south_server, ingest_start, log_exception, log_error, log_info, log_warning = self.south_fixture(mocker)
         mocker.patch.object(south_server, '_stop', return_value=mock_coro())
         mocker.patch.object(south_server, 'unregister_service_with_core', return_value=True)
-        call_patch = mocker.patch.object(asyncio.get_event_loop(), 'call_soon_threadsafe')
+        call_patch = mocker.patch.object(asyncio.get_event_loop(), 'call_later')
 
         # WHEN
         await south_server.shutdown(request=None)
@@ -429,7 +429,7 @@ class TestServicesSouthServer:
         cat_get, south_server, ingest_start, log_exception, log_error, log_info, log_warning = self.south_fixture(mocker)
         mocker.patch.object(south_server, '_stop', return_value=mock_coro(), side_effect=RuntimeError)
         mocker.patch.object(south_server, 'unregister_service_with_core', return_value=True)
-        call_patch = mocker.patch.object(asyncio.get_event_loop(), 'call_soon_threadsafe', side_effect=RuntimeError)
+        call_patch = mocker.patch.object(asyncio.get_event_loop(), 'call_later', side_effect=RuntimeError)
 
         # WHEN
         from aiohttp.web_exceptions import HTTPInternalServerError

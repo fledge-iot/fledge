@@ -63,6 +63,13 @@ static const string sendingDefaultConfig =
 		"\"description\": \"Identifies the specific stream to handle and the related information,"
 		" among them the ID of the last object streamed.\", \"type\": \"integer\", \"default\": \"0\", \"readonly\": \"true\"   }";
 
+// Translation from the data source type to the statistics key/description
+const vector<pair<string, pair<string, string>>>  source_to_statistics = {
+	// Data source  - Statistics key - Statistics description
+	{"readings",   {"Readings Sent",   "Readings Sent North"}},
+	{"statistics", {"Statistics Sent", "Statistics Sent North"}},
+	{"audit",      {"Audit Sent",      "Audit Sent North"}}
+};
 
 volatile std::sig_atomic_t signalReceived = 0;
 
@@ -340,9 +347,8 @@ void SendingProcess::stop()
 }
 
 /**
- * Update datbaase tables statistics and streams
+ * Update database tables statistics and streams
  * setting last_object id in streams
- * and numReadings sent in statistics
  */
 void SendingProcess::updateDatabaseCounters()
 {
@@ -366,26 +372,94 @@ void SendingProcess::updateDatabaseCounters()
 					      lastId,
 					      wStreamId);
 
-	// Prepare foglamp.statistics update
-	string statistics_key = this->getName();
-	for (auto & c: statistics_key) c = toupper(c);
 
-	// Prepare "WHERE key = name
-	const Condition conditionStat(Equals);
-	Where wLastStat("key",
-			conditionStat,
-                        statistics_key);
+	// Updates 'Master' statistic
+	string stat_key;
+	string stat_description;
 
-	// Prepare value = value + inc
-	ExpressionValues updateValue;
-	updateValue.push_back(Expression("value",
-			      "+",
-			      (int)this->getSentReadings()));
+	// Identifies the statistics that should be updated in relation to the data source
+	for(auto &item : source_to_statistics) {
 
-	// Perform UPDATE foglamp.statistics SET value = value + x WHERE key = 'name'
-	this->getStorageClient()->updateTable("statistics",
-					      updateValue,
-					      wLastStat);
+		if (item.first == m_data_source_t) {
+			stat_key =item.second.first;
+			stat_description =item.second.second;
+		}
+	}
+        this->updateStatistics(stat_key, stat_description);
+
+	// Updates 'stream' specific statistic
+	stat_key = this->getName();
+	stat_description = stat_key;
+
+	this->updateStatistics(stat_key, stat_description);
+
+}
+
+/**
+ * Update database tables statistics
+ * numReadings sent in statistics
+ * it either updates the specific row if it is already available
+ * or add the new row
+ */
+void SendingProcess::updateStatistics(string& stat_key, const string& stat_description)
+{
+
+
+	if (stat_key.empty())
+	{
+		Logger::getLogger()->error("It is not possible to update the statistics as the data source is unknown, data source -%s-", m_data_source_t.c_str());
+	}
+	else
+	{
+		// Prepare foglamp.statistics update
+		for (char & c: stat_key) c = (char) toupper(c);
+
+		// Prepare "WHERE key = name
+		const Condition conditionStat(Equals);
+		Where wLastStat("key",
+				conditionStat,
+				stat_key);
+
+		// Prepare value = value + inc
+		ExpressionValues updateValue;
+		updateValue.push_back(Expression("value",
+				      "+",
+				      (int)this->getSentReadings()));
+
+		// Perform UPDATE foglamp.statistics SET value = value + x WHERE key = 'name'
+		int row_affected = this->getStorageClient()->updateTable("statistics",
+									 updateValue,
+									 wLastStat);
+
+		if (row_affected == -1){
+			// The required row is not in the statistics table yet
+			// this situation happens only at the initial setup
+			// adding the required row.
+
+			Logger::getLogger()->info("Adding a new row into the statistics as it is not present yet, key -%s- description -%s-"
+				,stat_key.c_str()
+				,stat_description.c_str());
+
+			InsertValues values;
+			values.push_back(InsertValue("key",         stat_key));
+			values.push_back(InsertValue("description", stat_description));
+			values.push_back(InsertValue("value",       (int)this->getSentReadings()));
+			string table = "statistics";
+
+			if (getStorageClient()->insertTable(table, values) != 1) {
+
+				getLogger()->error("Failed to insert a new row into the %s", table.c_str());
+			} else {
+				Logger::getLogger()->info("New row added into the %s, key -%s- description -%s-"
+					,table.c_str()
+					,stat_key.c_str()
+					,stat_description.c_str());
+
+	                }
+
+		}
+
+	}
 }
 
 /**

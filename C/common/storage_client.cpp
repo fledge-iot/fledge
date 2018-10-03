@@ -24,7 +24,7 @@ using namespace rapidjson;
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 
 // handles m_client_map access
-std::mutex mtx_client_map;
+std::mutex sto_mtx_client_map;
 
 /**
  * Storage Client constructor
@@ -44,9 +44,9 @@ StorageClient::StorageClient(HttpClient *client) {
 
 	std::thread::id thread_id = std::this_thread::get_id();
 
-	mtx_client_map.lock();
+	sto_mtx_client_map.lock();
 	m_client_map[thread_id] = client;
-	mtx_client_map.unlock();
+	sto_mtx_client_map.unlock();
 }
 
 
@@ -65,8 +65,8 @@ StorageClient::~StorageClient()
 }
 
 /**
- * Creates a HttpClient object for each thread that is using storage_client
- * it stores/retrieves the reference to the HttpClient and the associated thread id in a map.
+ * Creates a HttpClient object for each thread
+ * it stores/retrieves the reference to the HttpClient and the associated thread id in a map
  */
 HttpClient *StorageClient::getHttpClient(void) {
 
@@ -75,7 +75,7 @@ HttpClient *StorageClient::getHttpClient(void) {
 
 	std::thread::id thread_id = std::this_thread::get_id();
 
-	mtx_client_map.lock();
+	sto_mtx_client_map.lock();
 	item = m_client_map.find(thread_id);
 
 	if (item  == m_client_map.end() ) {
@@ -88,7 +88,7 @@ HttpClient *StorageClient::getHttpClient(void) {
 	{
 		client = item->second;
 	}
-	mtx_client_map.unlock();
+	sto_mtx_client_map.unlock();
 
 	return (client);
 }

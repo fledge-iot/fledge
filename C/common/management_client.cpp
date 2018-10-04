@@ -564,7 +564,7 @@ bool ManagementClient::addAssetTrackingTuple(const std::string& service,
 		if (doc.HasMember("foglamp"))
 		{
 			const char *reg_id = doc["foglamp"].GetString();
-			m_logger->info("Added asset tracking tuple successfully");
+			//m_logger->info("Added asset tracking tuple successfully");
 			return true;
 		}
 		else if (doc.HasMember("message"))

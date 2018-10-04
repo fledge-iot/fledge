@@ -321,11 +321,11 @@ static void sendDataThread(SendingProcess *sendData)
 
                 if (canSend == NULL)
                 {
-                        Logger::getLogger()->info("SendingProcess sendDataThread: " \
+                        /*Logger::getLogger()->info("SendingProcess sendDataThread: " \
                                                   "('%s' stream id %d), sendIdx %u, buffer is empty, waiting ...",
 						  sendData->getDataSourceType().c_str(),
                                                   sendData->getStreamId(),
-                                                  sendIdx);
+                                                  sendIdx);*/
 
 			if (sendData->getUpdateDb())
 			{

@@ -120,7 +120,7 @@ void doIngest(Ingest *ingest, Reading reading)
 /**
  * Constructor for the south service
  */
-SouthService::SouthService(const string& myName) : m_name(myName), m_shutdown(false), m_pollInterval(1000)
+SouthService::SouthService(const string& myName) : m_name(myName), m_shutdown(false), m_pollInterval(1000), m_readingsPerSec(1)
 {
 	logger = new Logger(myName);
 }
@@ -202,8 +202,11 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 
 		try {
 			m_pollInterval = 500;
+			m_readingsPerSec = 1;
 			if (m_config.itemExists("pollInterval"))
 				m_pollInterval = (unsigned long)atoi(m_config.getValue("pollInterval").c_str());
+			if (m_config.itemExists("readingsPerSec"))
+				m_readingsPerSec = (unsigned long)atoi(m_config.getValue("readingsPerSec").c_str());
 		} catch (ConfigItemNotFound e) {
 			logger->info("Defaulting to inline default for poll interval");
 		}
@@ -219,9 +222,9 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		// Get and ingest data
 		if (! southPlugin->isAsync())
 		{
-			int fd = createTimerFd(m_pollInterval * 1000); // interval to be passed is in usecs
+			int fd = createTimerFd(1000000/m_readingsPerSec); // interval to be passed is in usecs
 			if (fd >= 0)
-				logger->info("Created timer FD with interval of %u usecs", m_pollInterval * 1000);
+				logger->info("Created timer FD with interval of %u usecs", 1000000/m_readingsPerSec);
 			else
 			{
 				logger->fatal("Could not create timer FD");
@@ -371,6 +374,7 @@ void SouthService::configChange(const string& categoryName, const string& catego
 	m_config = m_mgtClient->getCategory(m_name);
 	try {
 		m_pollInterval = (unsigned long)atoi(m_config.getValue("pollInterval").c_str());
+		m_readingsPerSec = (unsigned long)atoi(m_config.getValue("readingsPerSec").c_str());
 	} catch (ConfigItemNotFound e) {
 		logger->error("Failed to update poll interval following configuration change");
 	}

@@ -17,6 +17,7 @@ import uuid
 from aiohttp import web
 import aiohttp
 import json
+import signal
 
 from foglamp.common import logger
 from foglamp.common.audit_logger import AuditLogger
@@ -335,7 +336,6 @@ class Server:
                 cls._service_description = config['description']['value']
             except KeyError:
                 cls._service_description = 'FogLAMP REST Services'
-
         except Exception as ex:
             _logger.exception(str(ex))
             raise
@@ -667,14 +667,16 @@ class Server:
     async def _stop(cls):
         """Stops FogLAMP"""
         try:
+            # stop monitor
+            await cls.stop_service_monitor()
+
             # stop the scheduler
             await cls._stop_scheduler()
 
-            # I assume it will be by scheduler
             await cls.stop_microservices()
 
-            # stop monitor
-            await cls.stop_service_monitor()
+            # poll microservices for unregister
+            await cls.poll_microservices_unregister()
 
             # stop the REST api (exposed on service port)
             await cls.stop_rest_server()
@@ -756,7 +758,6 @@ class Server:
         """ request service's shutdown """
         management_api_url = 'http://{}:{}/foglamp/service/shutdown'.format(svc._address, svc._management_port)
         # TODO: need to set http / https based on service protocol
-        _logger.info("Shutting down the %s service %s ...", svc._type, svc._name)
         headers = {'content-type': 'application/json'}
         async with aiohttp.ClientSession() as session:
             async with session.post(management_api_url, data=None, headers=headers) as resp:
@@ -771,9 +772,51 @@ class Server:
                 try:
                     response = json.loads(result)
                     response['message']
-                    _logger.info("Successfully shut down the %s service %s.", svc._type, svc._name)
+                    _logger.info("Shutdown scheduled for %s service %s. %s", svc._type, svc._name, response['message'])
                 except KeyError:
                     raise
+
+    @classmethod
+    async def poll_microservices_unregister(cls):
+        """ poll microservice shutdown endpoint for non core micro-services"""
+
+        def get_process_id(name):
+            """Return process ids found by (partial) name or regex."""
+            child = subprocess.Popen(['pgrep', '-f', 'name={}'.format(name)], stdout=subprocess.PIPE, shell=False)
+            response = child.communicate()[0]
+            return [int(pid) for pid in response.split()]
+
+        try:
+            shutdown_threshold = 0
+            found_services = ServiceRegistry.get()
+            _service_shutdown_threshold = 5 * (len(found_services) - 2)
+            while True:
+                services_to_stop = list()
+                for fs in found_services:
+                    if fs._name in ("FogLAMP Storage", "FogLAMP Core"):
+                        continue
+                    if fs._status not in [ServiceRecord.Status.Running, ServiceRecord.Status.Unresponsive]:
+                        continue
+                    services_to_stop.append(fs)
+                if len(services_to_stop) == 0:
+                    _logger.info("All microservices, except Core and Storage, have been shutdown.")
+                    return
+                if shutdown_threshold > _service_shutdown_threshold:
+                    for fs in services_to_stop:
+                        pids = get_process_id(fs._name)
+                        for pid in pids:
+                            _logger.error("Microservice:%s status: %s has NOT been shutdown. Killing it...", fs._name, fs._status)
+                            os.kill(pid, signal.SIGKILL)
+                            _logger.info("KILLED Microservice:%s...", fs._name)
+                    return
+                await asyncio.sleep(2)
+                shutdown_threshold += 2
+                found_services = ServiceRegistry.get()
+
+        except service_registry_exceptions.DoesNotExist:
+            pass
+        except Exception as ex:
+            _logger.exception(str(ex))
 
     @classmethod
     async def _stop_scheduler(cls):

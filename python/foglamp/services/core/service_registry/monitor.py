@@ -172,4 +172,7 @@ class Monitor(object):
         self._monitor_loop_task = asyncio.ensure_future(self._monitor_loop())
 
     async def stop(self):
-        self._monitor_loop_task.cancel()
+        try:
+            self._monitor_loop_task.cancel()
+        except asyncio.CancelledError:
+            pass

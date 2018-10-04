@@ -44,6 +44,9 @@ class ManagementClient {
 												const std::string& event);
 
 private:
+		std::string 	url_encode(const std::string &s) const;
+
+private:
 		HttpClient				*m_client;
 		std::string				*m_uuid;
 		Logger					*m_logger;

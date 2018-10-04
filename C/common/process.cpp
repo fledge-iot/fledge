@@ -65,7 +65,7 @@ FogLampProcess::FogLampProcess(int argc, char** argv) :
 	m_client = new ManagementClient(m_core_mngt_host, m_core_mngt_port);
 
 	// Storage layer handle
-	ServiceRecord storageInfo("FogLAMP%20Storage");
+	ServiceRecord storageInfo("FogLAMP Storage");
 
 	if (!m_client->getService(storageInfo))
 	{

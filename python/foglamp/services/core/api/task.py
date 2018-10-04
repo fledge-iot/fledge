@@ -48,6 +48,19 @@ async def add_task(request):
         "schedule_repeat": 30,
         "schedule_enabled": true
      }'
+
+     curl -sX POST http://localhost:8081/foglamp/scheduled/task -d
+     '{"name": "PI-2",
+     "plugin": "pi_server",
+     "type": "north",
+     "schedule_type": 3,
+     "schedule_day": 0,
+     "schedule_time": 0,
+     "schedule_repeat": 30,
+     "schedule_enabled": true,
+     "config": {
+        "producerToken": {"value": "uid=180905062754237&sig=kx5l+"},
+        "URL": {"value": "https://10.2.5.22:5460/ingress/messages"}}}'
     """
 
     try:
@@ -64,6 +77,7 @@ async def add_task(request):
         schedule_time = data.get('schedule_time', None)
         schedule_repeat = data.get('schedule_repeat', None)
         enabled = data.get('schedule_enabled', None)
+        config = data.get('config', None)
 
         if name is None:
             raise web.HTTPBadRequest(reason='Missing name property in payload.')
@@ -193,6 +207,13 @@ async def add_task(request):
             # Create the parent category for all North tasks
             await config_mgr.create_category("North", {}, 'North tasks', True)
             await config_mgr.create_child_category("North", [name])
+
+            # If config is in POST data, then update the value for each config item
+            if config is not None:
+                if not isinstance(config, dict):
+                    raise ValueError('Config must be a JSON object')
+                for k, v in config.items():
+                    await config_mgr.set_category_item_value_entry(name, k, v['value'])
         except Exception as ex:
             await revert_configuration(storage, name)  # Revert configuration entry
             await revert_parent_child_configuration(storage, name)

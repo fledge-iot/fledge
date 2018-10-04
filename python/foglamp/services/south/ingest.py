@@ -22,7 +22,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_LOGGER = logger.setup(__name__, level=20)  # type: logging.Logger
+_LOGGER = logger.setup(__name__)  # type: logging.Logger
 _MAX_ATTEMPTS = 2
 
 # _LOGGER = logger.setup(__name__, level=logging.DEBUG)  # type: logging.Logger
@@ -232,13 +232,9 @@ class Ingest(object):
                             cls._readings_list_size * cls._max_concurrent_readings_inserts)
 
         cls._last_insert_time = 0
-
         cls._insert_readings_wait_tasks = []
         cls._readings_list_batch_size_reached = []
         cls._readings_list_not_empty = []
-
-
-        
         cls._readings_lists = []
 
         for _ in range(cls._max_concurrent_readings_inserts):
@@ -258,7 +254,6 @@ class Ingest(object):
     @classmethod
     async def stop(cls):
         """Stops the server
-
         Writes pending statistics and readings to storage
         """
         if cls._stop or not cls._started:
@@ -304,8 +299,8 @@ class Ingest(object):
                 readings = 0
                 for i, v in cls._sensor_stats.items():
                     readings += v
-                if cls._readings_stats+cls._discarded_readings_stats+readings == 0:
-                    break  # Terminate this method
+                if cls._readings_stats + cls._discarded_readings_stats+readings == 0:
+                    break  # Terminate this method as there are no pending readings available
 
             list_index += 1
             if list_index > cls._max_concurrent_readings_inserts-1:

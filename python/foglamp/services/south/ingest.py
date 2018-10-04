@@ -210,12 +210,10 @@ class Ingest(object):
 
         await cls._read_config()
 
-        # Auto adjust queue size in case plugin's 'dataPointsPerSec' value exceeds default queue size
-        try:
-            cls._readings_insert_batch_size = max(cls._readings_insert_batch_size,
-                                                  int(cls._parent_service.config['dataPointsPerSec']['value']))
-        except KeyError:
-            pass
+        # cls._readings_insert_batch_size and cls._max_concurrent_readings_inserts are two most critical config items
+        # and cannot be a any value other than non zero integers.
+        cls._readings_insert_batch_size = 1024 if not cls._readings_insert_batch_size else cls._readings_insert_batch_size
+        cls._max_concurrent_readings_inserts = 4 if not cls._max_concurrent_readings_inserts else cls._max_concurrent_readings_inserts
 
         cls._readings_list_size = int(cls._readings_buffer_size / (
             cls._max_concurrent_readings_inserts))
@@ -235,6 +233,9 @@ class Ingest(object):
         cls._insert_readings_wait_tasks = []
         cls._readings_list_batch_size_reached = []
         cls._readings_list_not_empty = []
+
+
+        
         cls._readings_lists = []
 
         for _ in range(cls._max_concurrent_readings_inserts):

@@ -60,11 +60,14 @@ class Server(FoglampMicroservice):
 
     config = None
 
+    _event_loop = None
+
     def __init__(self):
         super().__init__()
 
     async def _start(self, loop) -> None:
         error = None
+        self._event_loop = loop
         try:
             # Configuration handling - initial configuration
             category = self._name
@@ -174,6 +177,7 @@ class Server(FoglampMicroservice):
 
         while self._plugin and try_count <= _MAX_RETRY_POLL:
             try:
+                t1 = self._event_loop.time()
                 data = self._plugin.plugin_poll(self._plugin_handle)
                 if len(data) > 0:
                     if isinstance(data, list):
@@ -187,7 +191,10 @@ class Server(FoglampMicroservice):
                                                                   timestamp=data['timestamp'],
                                                                   key=data['key'],
                                                                   readings=data['readings']))
-                await asyncio.sleep(sleep_seconds)
+                delta = self._event_loop.time() - t1
+                # If delta somehow becomes > sleep_seconds, then ignore delta
+                sleep_for = sleep_seconds - delta if delta < sleep_seconds else sleep_seconds
+                await asyncio.sleep(sleep_for)
             except asyncio.CancelledError:
                 pass
             except KeyError as ex:

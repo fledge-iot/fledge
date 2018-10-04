@@ -126,7 +126,6 @@ class OMF
 		const std::string		m_path;
 		const std::string		m_typeId;
 		const std::string		m_producerToken;
-		std::map<std::string, bool>	m_createdTypes;
 
 		// Define the OMF format to use for each type
 		// the format will not be applied if the string is empty
@@ -138,7 +137,7 @@ class OMF
 
     		// Vector with OMF_TYPES
 		const std::vector<std::string> omfTypes = { OMF_TYPE_STRING,
-							    OMF_TYPE_INTEGER,
+							    OMF_TYPE_FLOAT,  // Forces the creation of float also for integer numbers
 							    OMF_TYPE_FLOAT };
 		// HTTP Sender interface
 		HttpSender&		m_sender;

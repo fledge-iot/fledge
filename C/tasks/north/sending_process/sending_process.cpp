@@ -52,8 +52,6 @@ int main(int argc, char** argv)
 {
 	try
 	{
-        std::string tmp_str;
-
                 // Instantiate SendingProcess class
 		SendingProcess sendingProcess(argc, argv);
                 
@@ -139,9 +137,12 @@ static void loadDataThread(SendingProcess *loadData)
 						  loadData->getStreamId(),
 						  readIdx);
 
-			// Load thread is put on hold
-			unique_lock<mutex> lock(waitMutex);
-			cond_var.wait(lock);
+			if (loadData->isRunning()) {
+
+				// Load thread is put on hold, only if the execution should proceed
+				unique_lock<mutex> lock(waitMutex);
+				cond_var.wait(lock);
+			}
                 }
                 else
                 {
@@ -304,7 +305,6 @@ static void sendDataThread(SendingProcess *sendData)
 
 				// DB update done
 				sendData->setUpdateDb(false);
-
                         }
 
 			// Reset send index
@@ -342,9 +342,12 @@ static void sendDataThread(SendingProcess *sendData)
 				sendData->setUpdateDb(false);
 			}
 
-			// Send thread is put on hold
-                        unique_lock<mutex> lock(waitMutex);
-                        cond_var.wait(lock);
+			if (sendData->isRunning()) {
+
+				// Send thread is put on hold, only if the execution shoule proceed
+				unique_lock<mutex> lock(waitMutex);
+				cond_var.wait(lock);
+			}
                 }
                 else
                 {
@@ -414,7 +417,6 @@ static void sendDataThread(SendingProcess *sendData)
 			}
                 }
         }
-
 	Logger::getLogger()->info("SendingProcess sendData thread: sent %lu total '%s'",
 				  totSent,
 				  sendData->getDataSourceType().c_str());
@@ -431,7 +433,6 @@ static void sendDataThread(SendingProcess *sendData)
 		sendData->resetSentReadings();
 
                 sendData->setUpdateDb(false);
-
         }
 
 	/**

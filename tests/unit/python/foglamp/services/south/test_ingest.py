@@ -121,6 +121,7 @@ class TestIngest:
         mocker.patch.object(MicroserviceManagementClient, "__init__", return_value=None)
         create_cfg = mocker.patch.object(MicroserviceManagementClient, "create_configuration_category", return_value=None)
         get_cfg = mocker.patch.object(MicroserviceManagementClient, "get_configuration_category", return_value=get_cat(Ingest.default_config))
+        mocker.patch.object(MicroserviceManagementClient, "create_child_category", return_value=None)
         Ingest._parent_service = MagicMock(_core_microservice_management_client=MicroserviceManagementClient())
 
         # WHEN
@@ -153,6 +154,7 @@ class TestIngest:
         create_cfg = mocker.patch.object(MicroserviceManagementClient, "create_configuration_category", return_value=None)
         get_cfg = mocker.patch.object(MicroserviceManagementClient, "get_configuration_category", return_value=get_cat(Ingest.default_config))
         mocker.patch.object(MicroserviceManagementClient, "get_asset_tracker_events", return_value={'track':[]})
+        mocker.patch.object(MicroserviceManagementClient, "create_child_category", return_value=None)
         parent_service = MagicMock(_core_microservice_management_client=MicroserviceManagementClient())
         mocker.patch.object(Ingest, "_write_statistics", return_value=mock_coro())
         mocker.patch.object(Ingest, "_insert_readings", return_value=mock_coro())
@@ -184,6 +186,7 @@ class TestIngest:
         create_cfg = mocker.patch.object(MicroserviceManagementClient, "create_configuration_category", return_value=None)
         get_cfg = mocker.patch.object(MicroserviceManagementClient, "get_configuration_category", return_value=get_cat(Ingest.default_config))
         mocker.patch.object(MicroserviceManagementClient, "get_asset_tracker_events", return_value={'track':[]})
+        mocker.patch.object(MicroserviceManagementClient, "create_child_category", return_value=None)
         parent_service = MagicMock(_core_microservice_management_client=MicroserviceManagementClient())
         mocker.patch.object(Ingest, "_write_statistics", return_value=mock_coro())
         mocker.patch.object(Ingest, "_insert_readings", return_value=mock_coro())

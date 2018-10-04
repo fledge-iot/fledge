@@ -171,7 +171,7 @@ class Ingest(object):
         # Create configuration category and any new keys within it
         config_payload = json.dumps({
             "key": category,
-            "description": 'South Service configuration',
+            "description": '{} South Service Ingest configuration'.format(cls._parent_service._name),
             "value": default_config,
             "keep_original_items": True
         })

@@ -21,6 +21,9 @@ using namespace std;
 using namespace rapidjson;
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 
+// handles m_client_map access
+std::mutex mng_mtx_client_map;
+
 /**
  * Management Client constructor
  */
@@ -29,8 +32,7 @@ ManagementClient::ManagementClient(const string& hostname, const unsigned short 
 ostringstream urlbase;
 
 	m_logger = Logger::getLogger();
-	urlbase << hostname << ":" << port;
-	m_client = new HttpClient(urlbase.str());
+	m_urlbase << hostname << ":" << port;
 }
 
 /**
@@ -38,12 +40,48 @@ ostringstream urlbase;
  */
 ManagementClient::~ManagementClient()
 {
+	std::map<std::thread::id, HttpClient *>::iterator item;
+
 	if (m_uuid)
 	{
 		delete m_uuid;
 		m_uuid = 0;
 	}
-	delete m_client;
+
+	// Deletes all the HttpClient objects created in the map
+	for (item  = m_client_map.begin() ; item  != m_client_map.end() ; ++item)
+	{
+		delete item->second;
+	}
+}
+
+/**
+ * Creates a HttpClient object for each thread
+ * it stores/retrieves the reference to the HttpClient and the associated thread id in a map
+ */
+HttpClient *ManagementClient::getHttpClient() {
+
+	std::map<std::thread::id, HttpClient *>::iterator item;
+	HttpClient *client;
+
+	std::thread::id thread_id = std::this_thread::get_id();
+
+	mng_mtx_client_map.lock();
+	item = m_client_map.find(thread_id);
+
+	if (item  == m_client_map.end() ) {
+
+		// Adding a new HttpClient
+		client = new HttpClient(m_urlbase.str());
+		m_client_map[thread_id] = client;
+	}
+	else
+	{
+		client = item->second;
+	}
+	mng_mtx_client_map.unlock();
+
+	return (client);
 }
 
 /**
@@ -55,7 +93,8 @@ string payload;
 
 	try {
 		service.asJSON(payload);
-		auto res = m_client->request("POST", "/foglamp/service", payload);
+
+		auto res = this->getHttpClient()->request("POST", "/foglamp/service", payload);
 		Document doc;
 		string response = res->content.string();
 		doc.Parse(response.c_str());
@@ -103,7 +142,7 @@ bool ManagementClient::unregisterService()
 	try {
 		string url = "/foglamp/service/";
 		url += url_encode(*m_uuid);
-		auto res = m_client->request("DELETE", url.c_str());
+		auto res = this->getHttpClient()->request("DELETE", url.c_str());
 		Document doc;
 		string response = res->content.string();
 		doc.Parse(response.c_str());
@@ -150,7 +189,7 @@ string payload;
 		{
 			url += "?type=" + url_encode(service.getType());
 		}
-		auto res = m_client->request("GET", url.c_str());
+		auto res = this->getHttpClient()->request("GET", url.c_str());
 		Document doc;
 		string response = res->content.string();
 		doc.Parse(response.c_str());
@@ -200,7 +239,7 @@ ostringstream convert;
 	try {
 		convert << "{ \"category\" : \"" << category << "\", ";
 		convert << "\"service\" : \"" << *m_uuid << "\" }";
-		auto res = m_client->request("POST", "/foglamp/interest", convert.str());
+		auto res = this->getHttpClient()->request("POST", "/foglamp/interest", convert.str());
 		Document doc;
 		string content = res->content.string();
 		doc.Parse(content.c_str());
@@ -247,7 +286,7 @@ ostringstream convert;
         try {   
 		string url = "/foglamp/interest/";
 		url += url_encode(m_categories[category]);
-        auto res = m_client->request("DELETE", url.c_str());
+        auto res = this->getHttpClient()->request("DELETE", url.c_str());
         } catch (const SimpleWeb::system_error &e) {
                 m_logger->error("Unregister configuration category failed %s.", e.what());
                 return false;
@@ -258,11 +297,11 @@ ostringstream convert;
 /**
  * Get the set of all categories from the core micro service.
  */
-ConfigCategories ManagementClient::getCategories() const
+ConfigCategories ManagementClient::getCategories()
 {
 	try {
 		string url = "/foglamp/service/category";
-		auto res = m_client->request("GET", url.c_str());
+		auto res = this->getHttpClient()->request("GET", url.c_str());
 		Document doc;
 		string response = res->content.string();
 		doc.Parse(response.c_str());
@@ -299,11 +338,11 @@ ConfigCategories ManagementClient::getCategories() const
  * @throw  exception		If the category does not exist or
  *				the result can not be parsed
  */
-ConfigCategory ManagementClient::getCategory(const string& categoryName) const
+ConfigCategory ManagementClient::getCategory(const string& categoryName)
 {
 	try {
 		string url = "/foglamp/service/category/" + url_encode(categoryName);
-		auto res = m_client->request("GET", url.c_str());
+		auto res = this->getHttpClient()->request("GET", url.c_str());
 		Document doc;
 		string response = res->content.string();
 		doc.Parse(response.c_str());
@@ -343,12 +382,12 @@ ConfigCategory ManagementClient::getCategory(const string& categoryName) const
  */
 string ManagementClient::setCategoryItemValue(const string& categoryName,
 					      const string& itemName,
-					      const string& itemValue) const
+					      const string& itemValue)
 {
 	try {
 		string url = "/foglamp/service/category/" + url_encode(categoryName) + "/" + url_encode(itemName);
 		string payload = "{ \"value\" : \"" + itemValue + "\" }";
-		auto res = m_client->request("PUT", url.c_str(), payload);
+		auto res = this->getHttpClient()->request("PUT", url.c_str(), payload);
 		Document doc;
 		string response = res->content.string();
 		doc.Parse(response.c_str());
@@ -385,7 +424,7 @@ string ManagementClient::setCategoryItemValue(const string& categoryName,
  * @throw			std::exception
  */
 string ManagementClient::addChildCategories(const string& parentCategory,
-					    const vector<string>& children) const
+					    const vector<string>& children)
 {
 	try {
 		string url = "/foglamp/service/category/" + url_encode(parentCategory) + "/children";
@@ -400,7 +439,7 @@ string ManagementClient::addChildCategories(const string& parentCategory,
 			}
 		}
 		payload += "] }";
-		auto res = m_client->request("POST", url.c_str(), payload);
+		auto res = this->getHttpClient()->request("POST", url.c_str(), payload);
 		string response = res->content.string();
 		Document doc;
 		doc.Parse(response.c_str());
@@ -434,13 +473,13 @@ string ManagementClient::addChildCategories(const string& parentCategory,
  *
  * @return		A vector of pointers to AssetTrackingTuple objects allocated on heap
  */
-std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples(const std::string serviceName) const
+std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples(const std::string serviceName)
 {
 	std::vector<AssetTrackingTuple*> *vec = new std::vector<AssetTrackingTuple*>();
 	
 	try {
 		string url = "/foglamp/track?service="+url_encode(serviceName);
-		auto res = m_client->request("GET", url.c_str());
+		auto res = this->getHttpClient()->request("GET", url.c_str());
 		Document doc;
 		string response = res->content.string();
 		doc.Parse(response.c_str());
@@ -510,7 +549,7 @@ bool ManagementClient::addAssetTrackingTuple(const std::string& service,
 		convert << " \"asset\" : \"" << asset << "\", ";
 		convert << " \"event\" : \"" << event << "\" }";
 
-		auto res = m_client->request("POST", "/foglamp/track", convert.str());
+		auto res = this->getHttpClient()->request("POST", "/foglamp/track", convert.str());
 		Document doc;
 		string content = res->content.string();
 		doc.Parse(content.c_str());

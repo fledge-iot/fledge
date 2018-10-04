@@ -392,7 +392,6 @@ void SendingProcess::updateDatabaseCounters()
 	stat_description = stat_key;
 
 	this->updateStatistics(stat_key, stat_description);
-
 }
 
 /**

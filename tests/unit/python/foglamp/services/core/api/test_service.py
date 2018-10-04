@@ -9,7 +9,7 @@ import asyncio
 import json
 from aiohttp import web
 import pytest
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 from foglamp.services.core import routes
 from foglamp.services.core import connect
 from foglamp.common.storage_client.storage_client import StorageClientAsync
@@ -57,9 +57,9 @@ class TestService:
 
         with patch.object(ServiceRegistry._logger, 'info') as log_patch_info:
             # populated service registry
-            s_id_1 = ServiceRegistry.register(
+            ServiceRegistry.register(
                 'name1', 'Storage', 'address1', 1, 1, 'protocol1')
-            s_id_2 = ServiceRegistry.register(
+            ServiceRegistry.register(
                 'name2', 'Southbound', 'address2', 2, 2, 'protocol2')
             s_id_3 = ServiceRegistry.register(
                 'name3', 'Southbound', 'address3', 3, 3, 'protocol3')
@@ -74,44 +74,44 @@ class TestService:
             result = await resp.text()
             json_response = json.loads(result)
             assert json_response == {
-                        'services': [
-                            {
-                                'type': 'Storage',
-                                'service_port': 1,
-                                'address': 'address1',
-                                'protocol': 'protocol1',
-                                'status': 'running',
-                                'name': 'name1',
-                                'management_port': 1
-                            },
-                            {
-                                'type': 'Southbound',
-                                'service_port': 2,
-                                'address': 'address2',
-                                'protocol': 'protocol2',
-                                'status': 'running',
-                                'name': 'name2',
-                                'management_port': 2
-                            },
-                            {
-                                'type': 'Southbound',
-                                'service_port': 3,
-                                'address': 'address3',
-                                'protocol': 'protocol3',
-                                'status': 'down',
-                                'name': 'name3',
-                                'management_port': 3
-                            },
-                            {
-                                'type': 'Southbound',
-                                'service_port': 4,
-                                'address': 'address4',
-                                'protocol': 'protocol4',
-                                'status': 'failed',
-                                'name': 'name4',
-                                'management_port': 4
-                            }
-                        ]
+                'services': [
+                    {
+                        'type': 'Storage',
+                        'service_port': 1,
+                        'address': 'address1',
+                        'protocol': 'protocol1',
+                        'status': 'running',
+                        'name': 'name1',
+                        'management_port': 1
+                    },
+                    {
+                        'type': 'Southbound',
+                        'service_port': 2,
+                        'address': 'address2',
+                        'protocol': 'protocol2',
+                        'status': 'running',
+                        'name': 'name2',
+                        'management_port': 2
+                    },
+                    {
+                        'type': 'Southbound',
+                        'service_port': 3,
+                        'address': 'address3',
+                        'protocol': 'protocol3',
+                        'status': 'down',
+                        'name': 'name3',
+                        'management_port': 3
+                    },
+                    {
+                        'type': 'Southbound',
+                        'service_port': 4,
+                        'address': 'address4',
+                        'protocol': 'protocol4',
+                        'status': 'failed',
+                        'name': 'name4',
+                        'management_port': 4
+                    }
+                ]
             }
         assert 6 == log_patch_info.call_count
 
@@ -197,7 +197,8 @@ class TestService:
         with patch('builtins.__import__', return_value=mock):
             with patch.object(_logger, 'exception') as ex_logger:
                 with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                    with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result) as query_table_patch:
+                    with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result) \
+                            as query_table_patch:
                         with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=Exception()):
                             resp = await client.post('/foglamp/service', data=json.dumps(data))
                             assert 500 == resp.status
@@ -216,20 +217,21 @@ class TestService:
             payload = arg[1]
 
             if table == 'schedules':
-                assert {'return': ['schedule_name'], 'where': {'column': 'schedule_name', 'condition': '=', 'value': 'furnace4'}} == json.loads(payload)
+                assert {'return': ['schedule_name'], 'where': {'column': 'schedule_name', 'condition': '=',
+                                                               'value': 'furnace4'}} == json.loads(payload)
                 return {'count': 1, 'rows': [{'schedule_name': 'schedule_name'}]}
 
         mock_plugin_info = {
-                'name': "furnace4",
-                'version': "1.1",
-                'type': "south",
-                'interface': "1.0",
-                'config': {
-                            'plugin': {
-                                'description': "DHT11",
-                                'type': 'string',
-                                'default': 'dht11'
-                            }
+            'name': "furnace4",
+            'version': "1.1",
+            'type': "south",
+            'interface': "1.0",
+            'config': {
+                'plugin': {
+                    'description': "DHT11",
+                    'type': 'string',
+                    'default': 'dht11'
+                }
             }
         }
 
@@ -254,7 +256,6 @@ class TestService:
 
     @pytest.mark.parametrize("payload", [p1, p2, p3, p4, p5])
     async def test_add_service(self, client, payload):
-
         data = json.loads(payload)
 
         @asyncio.coroutine
@@ -269,13 +270,15 @@ class TestService:
         @asyncio.coroutine
         def q_result(*arg):
             table = arg[0]
-            payload = arg[1]
+            _payload = arg[1]
 
             if table == 'scheduled_processes':
-                assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=', 'value': 'south'}} == json.loads(payload)
+                assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=',
+                                                      'value': 'south'}} == json.loads(_payload)
                 return {'count': 0, 'rows': []}
             if table == 'schedules':
-                assert {'return': ['schedule_name'], 'where': {'column': 'schedule_name', 'condition': '=', 'value': 'furnace4'}} == json.loads(payload)
+                assert {'return': ['schedule_name'], 'where': {'column': 'schedule_name', 'condition': '=',
+                                                               'value': 'furnace4'}} == json.loads(_payload)
                 return {'count': 0, 'rows': []}
 
         async def async_mock_insert():
@@ -283,16 +286,16 @@ class TestService:
             return expected
 
         mock_plugin_info = {
-                'name': "furnace4",
-                'version': "1.1",
-                'type': "south",
-                'interface': "1.0",
-                'config': {
-                            'plugin': {
-                                'description': "Modbus RTU plugin",
-                                'type': 'string',
-                                'default': 'dht11'
-                            }
+            'name': "furnace4",
+            'version': "1.1",
+            'type': "south",
+            'interface': "1.0",
+            'config': {
+                'plugin': {
+                    'description': "DHT11 plugin",
+                    'type': 'string',
+                    'default': 'dht11'
+                }
             }
         }
 
@@ -301,36 +304,126 @@ class TestService:
         mock.configure_mock(**attrs)
 
         server.Server.scheduler = Scheduler(None, None)
-
-        description = "Modbus RTU plugin"
-
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        val = {'plugin': {'default': data['plugin'], 'description': 'Modbus RTU plugin', 'type': 'string'}}
-
         with patch('builtins.__import__', return_value=mock):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
-                    with patch.object(storage_client_mock, 'insert_into_tbl', return_value=async_mock_insert()) as insert_table_patch:
+                    with patch.object(storage_client_mock, 'insert_into_tbl', return_value=async_mock_insert()) \
+                            as insert_table_patch:
                         with patch.object(c_mgr, 'create_category', return_value=async_mock(None)) as patch_create_cat:
-                            with patch.object(c_mgr, 'create_child_category', return_value=async_mock(None)) as patch_create_child_cat:
-                                with patch.object(server.Server.scheduler, 'save_schedule', return_value=async_mock("")) as patch_save_schedule:
-                                    with patch.object(server.Server.scheduler, 'get_schedule_by_name', return_value=async_mock_get_schedule()) as patch_get_schedule:
+                            with patch.object(c_mgr, 'create_child_category', return_value=async_mock(None)) \
+                                    as patch_create_child_cat:
+                                with patch.object(server.Server.scheduler, 'save_schedule',
+                                                  return_value=async_mock("")) as patch_save_schedule:
+                                    with patch.object(server.Server.scheduler, 'get_schedule_by_name',
+                                                      return_value=async_mock_get_schedule()) as patch_get_schedule:
                                         resp = await client.post('/foglamp/service', data=payload)
                                         server.Server.scheduler = None
                                         assert 200 == resp.status
                                         result = await resp.text()
                                         json_response = json.loads(result)
-                                        assert {'id': '2129cc95-c841-441a-ad39-6469a87dbc8b', 'name': 'furnace4'} == json_response
+                                        assert {'id': '2129cc95-c841-441a-ad39-6469a87dbc8b',
+                                                'name': 'furnace4'} == json_response
                                     patch_get_schedule.assert_called_once_with(data['name'])
                                 patch_save_schedule.called_once_with()
-                                calls = [call(category_description='Modbus RTU plugin', category_name='furnace4', category_value={'plugin': {'description': 'Modbus RTU plugin', 'type': 'string', 'default': 'dht11'}}, keep_original_items=True),
-                                         call('South', {}, 'South microservices', True)]
-                            patch_create_cat.assert_has_calls(calls)
+                            patch_create_child_cat.assert_called_once_with('South', ['furnace4'])
+                        assert 2 == patch_create_cat.call_count
+                        patch_create_cat.assert_called_with('South', {}, 'South microservices', True)
+                    args, kwargs = insert_table_patch.call_args
+                    assert 'scheduled_processes' == args[0]
+                    p = json.loads(args[1])
+                    assert {'name': 'south', 'script': '["services/south"]'} == p
 
-                        args, kwargs = insert_table_patch.call_args
-                        assert 'scheduled_processes' == args[0]
-                        p = json.loads(args[1])
-                        assert {'name': 'south', 'script': '["services/south"]'} == p
+    async def test_add_service_with_config(self, client):
+        payload = '{"name": "Sine", "type": "south", "plugin": "sinusoid", "enabled": "false",' \
+                  ' "config": {"dataPointsPerSec": {"value": "10"}}}'
+        data = json.loads(payload)
+
+        @asyncio.coroutine
+        def async_mock(return_value):
+            return return_value
+
+        async def async_mock_get_schedule():
+            schedule = StartUpSchedule()
+            schedule.schedule_id = '2129cc95-c841-441a-ad39-6469a87dbc8b'
+            return schedule
+
+        @asyncio.coroutine
+        def q_result(*arg):
+            table = arg[0]
+            _payload = arg[1]
+
+            if table == 'scheduled_processes':
+                assert {'return': ['name'],
+                        'where': {'column': 'name', 'condition': '=', 'value': 'south'}} == json.loads(_payload)
+                return {'count': 0, 'rows': []}
+            if table == 'schedules':
+                assert {'return': ['schedule_name'],
+                        'where': {'column': 'schedule_name', 'condition': '=',
+                                  'value': data['name']}} == json.loads(_payload)
+                return {'count': 0, 'rows': []}
+
+        async def async_mock_insert():
+            expected = {'rows_affected': 1, "response": "inserted"}
+            return expected
+
+        mock_plugin_info = {
+            'name': data['name'],
+            'version': "1.1",
+            'type': "south",
+            'interface': "1.0",
+            'config': {
+                'plugin': {
+                    'description': "Sinusoid Plugin",
+                    'type': 'string',
+                    'default': 'sinusoid'
+                },
+                'dataPointsPerSec': {
+                    'description': 'Data points per second',
+                    'type': 'integer',
+                    'default': '1',
+                    'order': '2'
+                }
+            }
+        }
+
+        mock = MagicMock()
+        attrs = {"plugin_info.side_effect": [mock_plugin_info]}
+        mock.configure_mock(**attrs)
+        server.Server.scheduler = Scheduler(None, None)
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch('builtins.__import__', return_value=mock):
+            with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
+                    with patch.object(storage_client_mock, 'insert_into_tbl',
+                                      return_value=async_mock_insert()) as insert_table_patch:
+                        with patch.object(c_mgr, 'create_category', return_value=async_mock(None)) as patch_create_cat:
+                            with patch.object(c_mgr, 'create_child_category',
+                                              return_value=async_mock(None)) as patch_create_child_cat:
+                                with patch.object(c_mgr, 'set_category_item_value_entry',
+                                                  return_value=async_mock(None)) as patch_set_entry:
+                                    with patch.object(server.Server.scheduler, 'save_schedule',
+                                                      return_value=async_mock("")) as patch_save_schedule:
+                                        with patch.object(server.Server.scheduler, 'get_schedule_by_name',
+                                                          return_value=async_mock_get_schedule()) as patch_get_schedule:
+                                                resp = await client.post('/foglamp/service', data=payload)
+                                                server.Server.scheduler = None
+                                                assert 200 == resp.status
+                                                result = await resp.text()
+                                                json_response = json.loads(result)
+                                                assert {'id': '2129cc95-c841-441a-ad39-6469a87dbc8b',
+                                                        'name': data['name']} == json_response
+                                        patch_get_schedule.assert_called_once_with(data['name'])
+                                    patch_save_schedule.called_once_with()
+                                patch_set_entry.assert_called_once_with(data['name'], 'dataPointsPerSec', '10')
+                            patch_create_child_cat.assert_called_once_with('South', ['Sine'])
+                        assert 2 == patch_create_cat.call_count
+                        patch_create_cat.assert_called_with('South', {}, 'South microservices', True)
+                    args, kwargs = insert_table_patch.call_args
+                    assert 'scheduled_processes' == args[0]
+                    p = json.loads(args[1])
+                    assert {'name': 'south', 'script': '["services/south"]'} == p
 
 # TODO:  add negative tests and C type plugin add service tests

@@ -350,7 +350,8 @@ async def get_child_category(request):
     cf_mgr = ConfigurationManager(connect.get_storage_async())
 
     try:
-        result = await cf_mgr.get_category_child(category_name)
+        children = await cf_mgr.get_category_child(category_name)
+        result = [{"key": c['key'], "description": c['description'], "displayName": c['display_name']} for c in children]
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
 

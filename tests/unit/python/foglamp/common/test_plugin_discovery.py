@@ -231,25 +231,22 @@ class TestPluginDiscovery:
         plugin_folders = PluginDiscovery.get_plugin_folders("north")
         assert TestPluginDiscovery.mock_north_folders == plugin_folders
 
-    @pytest.mark.parametrize("info, expected, is_config, warn_count", [
+    @pytest.mark.parametrize("info, expected, is_config", [
         ({'name': "furnace4", 'version': "1.1", 'type': "south", 'interface': "1.0",
           'config': {'plugin': {'description': "Modbus RTU plugin", 'type': 'string', 'default': 'modbus'}}},
-         {'name': 'modbus', 'type': 'south', 'description': 'Modbus RTU plugin', 'version': '1.1'}, False, 1),
+         {'name': 'modbus', 'type': 'south', 'description': 'Modbus RTU plugin', 'version': '1.1'}, False),
         ({'name': "furnace4", 'version': "1.1", 'type': "south", 'interface': "1.0",
           'config': {'plugin': {'description': "Modbus RTU plugin", 'type': 'string', 'default': 'modbus'}}},
          {'name': 'modbus', 'type': 'south', 'description': 'Modbus RTU plugin', 'version': '1.1',
-          'config': {'plugin': {'description': 'Modbus RTU plugin', 'type': 'string', 'default': 'modbus'}}}, True, 0)
+          'config': {'plugin': {'description': 'Modbus RTU plugin', 'type': 'string', 'default': 'modbus'}}}, True)
     ])
-    def test_get_plugin_config(self, info, expected, is_config, warn_count):
+    def test_get_plugin_config(self, info, expected, is_config):
         mock = MagicMock()
         attrs = {"plugin_info.side_effect": [info]}
         mock.configure_mock(**attrs)
-
-        with patch.object(_logger, "warning") as patch_log_warn:
-            with patch('builtins.__import__', return_value=mock):
-                actual = PluginDiscovery.get_plugin_config("modbus", "south", is_config)
-                assert expected == actual
-        assert warn_count == patch_log_warn.call_count
+        with patch('builtins.__import__', return_value=mock):
+            actual = PluginDiscovery.get_plugin_config("modbus", "south", is_config)
+            assert expected == actual
 
     def test_bad_get_plugin_config(self):
         mock_plugin_info = {

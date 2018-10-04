@@ -217,7 +217,8 @@ class TestConfigurationManager:
             "test_item_name": {
                 "description": "test description val",
                 "type": "IPv4",
-                "default": "test default val"
+                "default": "test default val",
+                "displayName": "{}"
             },
         }
 
@@ -384,7 +385,7 @@ class TestConfigurationManager:
                  "default": "test default val",
                  "maximum": "unexpected",
              },
-         }, "maximum", "an integer or float"),
+         }, "maximum", "an integer or float")
     ])
     async def test__validate_category_val_optional_attributes_unrecognized_entry_name(self, config, item_name, message):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
@@ -947,7 +948,7 @@ class TestConfigurationManager:
                     with patch.object(ConfigurationManager, '_run_callbacks', return_value=async_mock(None)) as callbackpatch:
                         await c_mgr.create_category('catname', 'catvalue', "catdesc")
                     callbackpatch.assert_called_once_with('catname')
-                createpatch.assert_called_once_with('catname', None, 'catdesc')
+                createpatch.assert_called_once_with('catname', None, 'catdesc', None)
             readpatch.assert_called_once_with('catname')
         valpatch.assert_called_once_with('catvalue', True)
 
@@ -967,7 +968,7 @@ class TestConfigurationManager:
                             with pytest.raises(StorageServerError):
                                 await c_mgr.create_category('catname', 'catvalue', "catdesc")
                         callbackpatch.assert_not_called()
-                    createpatch.assert_called_once_with('catname', None, 'catdesc')
+                    createpatch.assert_called_once_with('catname', None, 'catdesc', None)
                 readpatch.assert_called_once_with('catname')
             valpatch.assert_called_once_with('catvalue', True)
         assert 1 == log_exc.call_count
@@ -989,7 +990,7 @@ class TestConfigurationManager:
                             with pytest.raises(KeyError):
                                 await c_mgr.create_category('catname', 'catvalue', "catdesc")
                         callbackpatch.assert_not_called()
-                    createpatch.assert_called_once_with('catname', None, 'catdesc')
+                    createpatch.assert_called_once_with('catname', None, 'catdesc', None)
                 readpatch.assert_called_once_with('catname')
             valpatch.assert_called_once_with('catvalue', True)
         assert 1 == log_exc.call_count
@@ -1150,7 +1151,7 @@ class TestConfigurationManager:
     async def test_set_category_item_value_entry_with_enum_type_exceptions(self, new_value_entry, message):
         async def async_mock():
             return {"default": "woo", "description": "enum types", "type": "enumeration",
-                               "options": ["foo", "woo"]}
+                    "options": ["foo", "woo"]}
 
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
@@ -1296,7 +1297,7 @@ class TestConfigurationManager:
     async def test__create_new_category_good(self, reset_singleton):
         @asyncio.coroutine
         def mock_coro():
-            return {'response': [{'category_name': 'catname', 'category_val': 'catval', 'description': 'catdesc'}]}
+            return {'response': [{'display_name': 'catname', 'category_name': 'catname', 'category_val': 'catval', 'description': 'catdesc'}]}
 
         async def async_mock(return_value):
             return return_value
@@ -1316,7 +1317,7 @@ class TestConfigurationManager:
                         with patch.object(PayloadBuilder, 'payload', return_value=None) as pbpayloadpatch:
                             await c_mgr._create_new_category(category_name, category_val, category_description)
                         pbpayloadpatch.assert_called_once_with()
-                    pbinsertpatch.assert_called_once_with(description=category_description, key=category_name, value=category_val)
+                    pbinsertpatch.assert_called_once_with(display_name=category_name, description=category_description, key=category_name, value=category_val)
             auditinfopatch.assert_called_once_with('CONAD', {'category': category_val, 'name': category_name})
         storage_client_mock.insert_into_tbl.assert_called_once_with(
             'configuration', None)
@@ -1326,10 +1327,10 @@ class TestConfigurationManager:
         @asyncio.coroutine
         def mock_coro():
             return {'response': [{
-                                    'category_name': 'catname',
-                                    'category_val': 'catval',
-                                    'description': 'catdesc'
-                    }]
+                'category_name': 'catname',
+                'category_val': 'catval',
+                'description': 'catdesc'
+            }]
             }
 
         async def async_mock(return_value):
@@ -1371,7 +1372,7 @@ class TestConfigurationManager:
                         with patch.object(PayloadBuilder, 'payload', return_value=None) as pbpayloadpatch:
                             await c_mgr._create_new_category(category_name, category_val, category_description)
                         pbpayloadpatch.assert_called_once_with()
-                    pbinsertpatch.assert_called_once_with(description=category_description, key=category_name, value=category_val_actual)
+                    pbinsertpatch.assert_called_once_with(display_name=category_name, description=category_description, key=category_name, value=category_val_actual)
             auditinfopatch.assert_called_once_with('CONAD', {'category': category_val_actual, 'name': category_name})
         storage_client_mock.insert_into_tbl.assert_called_once_with('configuration', None)
 
@@ -1379,7 +1380,7 @@ class TestConfigurationManager:
     async def test__read_all_category_names_1_row(self, reset_singleton):
         @asyncio.coroutine
         def mock_coro():
-            return {'rows': [{'key': 'key1', 'description': 'description1'}]}
+            return {'rows': [{'key': 'key1', 'description': 'description1', 'display_name': 'display key'}]}
 
         attrs = {"query_tbl_with_payload.return_value": mock_coro()}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
@@ -1389,14 +1390,14 @@ class TestConfigurationManager:
         args, kwargs = storage_client_mock.query_tbl_with_payload.call_args
         assert 'configuration' == args[0]
         p = json.loads(args[1])
-        assert {"return": ["key", "description", "value", {"column": "ts", "alias": "timestamp", "format": "YYYY-MM-DD HH24:MI:SS.MS"}]} == p
-        assert [('key1', 'description1')] == ret_val
+        assert {"return": ["key", "description", "value", "display_name", {"column": "ts", "alias": "timestamp", "format": "YYYY-MM-DD HH24:MI:SS.MS"}]} == p
+        assert [('key1', 'description1', 'display key')] == ret_val
 
     @pytest.mark.asyncio
     async def test__read_all_category_names_2_row(self, reset_singleton):
         @asyncio.coroutine
         def mock_coro():
-            return {'rows': [{'key': 'key1', 'description': 'description1'}, {'key': 'key2', 'description': 'description2'}]}
+            return {'rows': [{'key': 'key1', 'description': 'description1', 'display_name': 'display key1'}, {'key': 'key2', 'description': 'description2', 'display_name': 'display key2'}]}
 
         attrs = {"query_tbl_with_payload.return_value": mock_coro()}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
@@ -1405,8 +1406,8 @@ class TestConfigurationManager:
         args, kwargs = storage_client_mock.query_tbl_with_payload.call_args
         assert 'configuration' == args[0]
         p = json.loads(args[1])
-        assert {"return": ["key", "description", "value", {"column": "ts", "alias": "timestamp", "format": "YYYY-MM-DD HH24:MI:SS.MS"}]} == p
-        assert [('key1', 'description1'), ('key2', 'description2')] == ret_val
+        assert {"return": ["key", "description", "value", "display_name", {"column": "ts", "alias": "timestamp", "format": "YYYY-MM-DD HH24:MI:SS.MS"}]} == p
+        assert [('key1', 'description1', 'display key1'), ('key2', 'description2', 'display key2')] == ret_val
 
     @pytest.mark.asyncio
     async def test__read_all_category_names_0_row(self, reset_singleton):
@@ -1421,13 +1422,13 @@ class TestConfigurationManager:
         args, kwargs = storage_client_mock.query_tbl_with_payload.call_args
         assert 'configuration' == args[0]
         p = json.loads(args[1])
-        assert {"return": ["key", "description", "value", {"column": "ts", "alias": "timestamp", "format": "YYYY-MM-DD HH24:MI:SS.MS"}]} == p
+        assert {"return": ["key", "description", "value", "display_name", {"column": "ts", "alias": "timestamp", "format": "YYYY-MM-DD HH24:MI:SS.MS"}]} == p
         assert [] == ret_val
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("value, expected_result", [
-        (True, [('General', 'General'), ('Advanced', 'Advanced')]),
-        (False, [('service', 'FogLAMP service'), ('rest_api', 'User REST API')])
+        (True, [('General', 'General', 'GEN'), ('Advanced', 'Advanced', 'ADV')]),
+        (False, [('service', 'FogLAMP service', 'SERV'), ('rest_api', 'User REST API', 'API')])
     ])
     async def test__read_all_groups(self, reset_singleton, value, expected_result):
         @asyncio.coroutine
@@ -1435,8 +1436,8 @@ class TestConfigurationManager:
             table = args[0]
             payload = json.loads(args[1])
             if table == "configuration":
-                assert {"return": ["key", "description"]} == payload
-                return {"rows": [{"key": "General", "description": "General"}, {"key": "Advanced", "description": "Advanced"}, {"key": "service", "description": "FogLAMP service"}, {"key": "rest_api", "description": "User REST API"}], "count": 4}
+                assert {"return": ["key", "description", "display_name"]} == payload
+                return {"rows": [{"key": "General", "description": "General", "display_name": "GEN"}, {"key": "Advanced", "description": "Advanced", "display_name": "ADV"}, {"key": "service", "description": "FogLAMP service", "display_name": "SERV"}, {"key": "rest_api", "description": "User REST API", "display_name": "API"}], "count": 4}
 
             if table == "category_children":
                 assert {"return": ["child"], "modifier": "distinct"} == payload
@@ -2036,7 +2037,7 @@ class TestConfigurationManager:
         attrs = {"query_tbl_with_payload.return_value": mock_coro()}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
         child_cat_names = [{'child': 'HTTP SOUTH', 'parent': 'south'}]
-        payload = {"return": ["key", "description"], "where": {"column": "key", "condition": "=", "value": "HTTP SOUTH"}}
+        payload = {"return": ["key", "description", "display_name"], "where": {"column": "key", "condition": "=", "value": "HTTP SOUTH"}}
         c_mgr = ConfigurationManager(storage_client_mock)
         ret_val = await c_mgr._read_child_info(child_cat_names)
         assert [{'description': 'HTTP South Plugin', 'key': 'HTTP SOUTH'}] == ret_val

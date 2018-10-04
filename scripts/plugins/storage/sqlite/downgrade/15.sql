@@ -1,0 +1,1 @@
+ALTER TABLE foglamp.configuration DROP COLUMN display_name;

@@ -36,10 +36,10 @@ class TestConfiguration:
 
     async def test_get_categories(self, client):
         async def async_mock():
-            return [('rest_api', 'User REST API'), ('service', 'Service configuration')]
+            return [('rest_api', 'User REST API', 'API'), ('service', 'Service configuration', 'SERV')]
 
-        result = {'categories': [{'key': 'rest_api', 'description': 'User REST API'},
-                                 {'key': 'service', 'description': 'Service configuration'}]}
+        result = {'categories': [{'key': 'rest_api', 'description': 'User REST API', 'displayName': 'API'},
+                                 {'key': 'service', 'description': 'Service configuration', 'displayName': 'SERV'}]}
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
@@ -56,10 +56,10 @@ class TestConfiguration:
     ])
     async def test_get_categories_with_root_true(self, client, value):
         async def async_mock():
-            return [('General', 'General'), ('Advanced', 'Advanced')]
+            return [('General', 'General', 'GEN'), ('Advanced', 'Advanced', 'ADV')]
 
-        result = {'categories': [{'key': 'General', 'description': 'General'},
-                                 {'key': 'Advanced', 'description': 'Advanced'}]}
+        result = {'categories': [{'key': 'General', 'description': 'General', 'displayName': 'GEN'},
+                                 {'key': 'Advanced', 'description': 'Advanced', 'displayName': 'ADV'}]}
 
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
@@ -77,13 +77,13 @@ class TestConfiguration:
     ])
     async def test_get_categories_with_root_false(self, client, value):
         async def async_mock():
-            return [('service', 'FogLAMP Service'), ('rest_api', 'FogLAMP Admin and User REST API'),
-                    ('SMNTR', 'Service Monitor'), ('SCHEDULER', 'Scheduler configuration')]
+            return [('service', 'FogLAMP Service', 'SERV'), ('rest_api', 'FogLAMP Admin and User REST API', 'API'),
+                    ('SMNTR', 'Service Monitor', 'Monitor'), ('SCHEDULER', 'Scheduler configuration', 'SCH')]
 
-        result = {'categories': [{'key': 'service', 'description': 'FogLAMP Service'},
-                                 {'key': 'rest_api', 'description': 'FogLAMP Admin and User REST API'},
-                                 {'key': 'SMNTR', 'description': 'Service Monitor'},
-                                 {'key': 'SCHEDULER', 'description': 'Scheduler configuration'}]}
+        result = {'categories': [{'key': 'service', 'description': 'FogLAMP Service', 'displayName': 'SERV'},
+                                 {'key': 'rest_api', 'description': 'FogLAMP Admin and User REST API', 'displayName': 'API'},
+                                 {'key': 'SMNTR', 'description': 'Service Monitor', 'displayName': 'Monitor'},
+                                 {'key': 'SCHEDULER', 'description': 'Scheduler configuration', 'displayName': 'SCH'}]}
 
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
@@ -349,9 +349,13 @@ class TestConfiguration:
             assert 400 == resp.status
             assert message == resp.reason
 
-    async def test_create_category(self, client, name="test_cat", desc="Test desc"):
+    @pytest.mark.parametrize("payload", [
+        {"key": "T1", "description": "Test"},
+        {"key": "T2", "description": "Test 2", "display_name": "Test Display"}
+    ])
+    async def test_create_category(self, client, payload):
         info = {'info': {'type': 'boolean', 'value': 'False', 'description': 'Test', 'default': 'False'}}
-        payload = {"key": name, "description": desc, "value": info}
+        payload.update({"value": info})
 
         async def async_mock_create_cat():
             return None
@@ -368,10 +372,14 @@ class TestConfiguration:
                     assert 200 == resp.status
                     r = await resp.text()
                     json_response = json.loads(r)
+                    if 'display_name' in payload:
+                        payload['displayName'] = payload.pop('display_name')
+                    else:
+                        payload.update({'displayName': payload['key']})
                     assert payload == json_response
-                patch_cat_all_item.assert_called_once_with(category_name=name)
-            patch_create_cat.assert_called_once_with(category_name=name, category_description=desc,
-                                                     category_value=info, keep_original_items=False)
+                patch_cat_all_item.assert_called_once_with(category_name=payload['key'])
+            patch_create_cat.assert_called_once_with(category_name=payload['key'], category_description=payload['description'],
+                                                     category_value=info, keep_original_items=False, display_name=payload['displayName'])
 
     async def test_create_category_invalid_key(self, client, name="test_cat", desc="Test desc"):
         info = {'info': {'type': 'boolean', 'value': 'False', 'description': 'Test', 'default': 'False'}}
@@ -404,7 +412,7 @@ class TestConfiguration:
                     assert 'No such test_cat found' == resp.reason
                 patch_cat_all_item.assert_called_once_with(category_name=name)
             patch_create_cat.assert_called_once_with(category_name=name, category_description=desc,
-                                                     category_value=info, keep_original_items=False)
+                                                     category_value=info, keep_original_items=False, display_name=name)
 
     async def test_create_category_http_exception(self, client, name="test_cat", desc="Test desc"):
         info = {'info': {'type': 'boolean', 'value': 'False', 'description': 'Test', 'default': 'False'}}
@@ -614,8 +622,9 @@ class TestConfiguration:
                         assert 200 == resp.status
                         r = await resp.text()
                         json_response = json.loads(r)
+                        payload.update({'displayName': name})
                         assert payload == json_response
                     patch_create_child.assert_called_once_with(name, payload["children"])
                 patch_cat_all_item.assert_called_once_with(category_name=name)
             patch_create_cat.assert_called_once_with(category_name=name, category_description=desc,
-                                                     category_value=info, keep_original_items=False)
+                                                     category_value=info, keep_original_items=False, display_name=name)

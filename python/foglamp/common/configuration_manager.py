@@ -207,7 +207,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             if type(item_val) is not dict:
                 raise TypeError('item_value must be a dict for item_name {}'.format(item_name))
 
-            optional_item_entries = {'readonly': 0, 'order': 0, 'length': 0, 'maximum': 0, 'minimum': 0, 'deprecated': 0}
+            optional_item_entries = {'readonly': 0, 'order': 0, 'length': 0, 'maximum': 0, 'minimum': 0,
+                                     'deprecated': 0, 'displayName': 0}
             expected_item_entries = {'description': 0, 'default': 0, 'type': 0}
 
             if require_entry_value:
@@ -250,6 +251,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     elif entry_name == 'minimum' or entry_name == 'maximum':
                         if (self._validate_type_value('integer', entry_val) or self._validate_type_value('float', entry_val)) is False:
                             raise ValueError('Entry value must be an integer or float for item name {}'.format(entry_name))
+                    elif entry_name == 'displayName':
+                        if not isinstance(entry_val, str):
+                            raise ValueError('Entry value must be string for item name {}'.format(entry_name))
                     else:
                         if self._validate_type_value('integer', entry_val) is False:
                             raise ValueError('Entry value must be an integer for item name {}'.format(entry_name))
@@ -287,7 +291,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         return category_val_copy
 
-    async def _create_new_category(self, category_name, category_val, category_description):
+    async def _create_new_category(self, category_name, category_val, category_description, display_name=None):
         try:
             if isinstance(category_val, dict):
                 new_category_val = copy.deepcopy(category_val)
@@ -298,10 +302,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             else:
                 new_category_val = category_val
 
+            display_name = category_name if display_name is None else display_name
             audit = AuditLogger(self._storage)
             await audit.information('CONAD', {'name': category_name, 'category': new_category_val})
             payload = PayloadBuilder().INSERT(key=category_name, description=category_description,
-                                              value=new_category_val).payload()
+                                              value=new_category_val, display_name=display_name).payload()
             result = await self._storage.insert_into_tbl("configuration", payload)
             response = result['response']
             self._cacheManager.update(category_name, new_category_val)
@@ -312,15 +317,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             raise ValueError(err_response)
 
     async def _read_all_category_names(self):
-        # SELECT configuration.key, configuration.description, configuration.value, configuration.ts FROM configuration
-        payload = PayloadBuilder().SELECT("key", "description", "value", "ts") \
+        # SELECT configuration.key, configuration.description, configuration.value, configuration.display_name, configuration.ts FROM configuration
+        payload = PayloadBuilder().SELECT("key", "description", "value", "display_name", "ts") \
             .ALIAS("return", ("ts", 'timestamp')) \
             .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")).payload()
         results = await self._storage.query_tbl_with_payload('configuration', payload)
 
         category_info = []
         for row in results['rows']:
-            category_info.append((row['key'], row['description']))
+            category_info.append((row['key'], row['description'], row["display_name"]))
         return category_info
 
     async def _read_all_groups(self, root, children):
@@ -337,8 +342,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 for next_child in child["children"]:
                     await nested_children(next_child)
 
-        # SELECT key, description FROM configuration
-        payload = PayloadBuilder().SELECT("key", "description").payload()
+        # SELECT key, description, display_name FROM configuration
+        payload = PayloadBuilder().SELECT("key", "description", "display_name").payload()
         all_categories = await self._storage.query_tbl_with_payload('configuration', payload)
 
         # SELECT DISTINCT child FROM category_children
@@ -351,13 +356,13 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         for row in all_categories['rows']:
             if row["key"] in list_child:
-                list_not_root.append((row["key"], row["description"]))
+                list_not_root.append((row["key"], row["description"], row["display_name"]))
             else:
-                list_root.append((row["key"], row["description"]))
+                list_root.append((row["key"], row["description"], row["display_name"]))
         if children:
             tree = []
-            for k, v in list_root if root is True else list_not_root:
-                tree.append({"key": k, "description": v, "children": []})
+            for k, v, d in list_root if root is True else list_not_root:
+                tree.append({"key": k, "description": v, "displayName": d, "children": []})
 
             for branch in tree:
                 await nested_children(branch)
@@ -599,7 +604,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 'Unable to run callbacks for category_name %s', category_name)
             raise
 
-    async def create_category(self, category_name, category_value, category_description='', keep_original_items=False):
+    async def create_category(self, category_name, category_value, category_description='', keep_original_items=False, display_name=None):
         """Create a new category in the database.
 
         Keyword Arguments:
@@ -630,6 +635,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         category_description -- description of the category (default='')
         keep_original_items -- keep items in storage's category_val that are not in the new category_val (removes side effect #3) (default=False)
+        display_name -- configuration category for display in the GUI. if it is NONE then use the value of the category_name
 
         Return Values:
         None
@@ -667,7 +673,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             # check if category_name is already in storage
             category_val_storage = await self._read_category_val(category_name)
             if category_val_storage is None:
-                await self._create_new_category(category_name, category_val_prepared, category_description)
+                await self._create_new_category(category_name, category_val_prepared, category_description, display_name)
             else:
                 # validate category_val from storage, do not set "value" from default, reuse from storage value
                 try:
@@ -710,7 +716,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
     async def _read_child_info(self, child_list):
         info = []
         for item in child_list:
-            payload = PayloadBuilder().SELECT("key", "description").WHERE(["key", "=", item['child']]).payload()
+            payload = PayloadBuilder().SELECT("key", "description", "display_name").WHERE(["key", "=", item['child']]).payload()
             results = await self._storage.query_tbl_with_payload('configuration', payload)
             for row in results['rows']:
                 info.append(row)
@@ -977,7 +983,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 return False
         elif _type == 'string':
             return isinstance(_value, str)
-
 
     def _clean(self, item_type, item_val):
         if item_type == 'boolean':

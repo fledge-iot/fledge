@@ -255,6 +255,7 @@ CREATE TABLE foglamp.streams (
 -- ts is set by default with now().
 CREATE TABLE foglamp.configuration (
        key         character varying(255)      NOT NULL,                          -- Primary key
+       display_name character varying(255)     NOT NULL,                          -- Display Name
        description character varying(255)      NOT NULL,                          -- Description, in plain text
        value       JSON                        NOT NULL DEFAULT '{}',             -- JSON object containing the configuration values
        ts          DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')), -- Timestamp, updated at every change

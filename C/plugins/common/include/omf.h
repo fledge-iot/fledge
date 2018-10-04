@@ -126,7 +126,6 @@ class OMF
 		const std::string		m_path;
 		const std::string		m_typeId;
 		const std::string		m_producerToken;
-		std::map<std::string, bool>	m_createdTypes;
 
 		// Define the OMF format to use for each type
 		// the format will not be applied if the string is empty

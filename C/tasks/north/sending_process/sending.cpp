@@ -410,9 +410,6 @@ void SendingProcess::updateStatistics(string& stat_key, const string& stat_descr
 	}
 	else
 	{
-		// Prepare foglamp.statistics update
-		for (char & c: stat_key) c = (char) toupper(c);
-
 		// Prepare "WHERE key = name
 		const Condition conditionStat(Equals);
 		Where wLastStat("key",

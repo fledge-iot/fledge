@@ -138,7 +138,7 @@ class OMF
 
     		// Vector with OMF_TYPES
 		const std::vector<std::string> omfTypes = { OMF_TYPE_STRING,
-							    OMF_TYPE_INTEGER,
+							    OMF_TYPE_FLOAT,  // Forces the creation of float also for integer numbers
 							    OMF_TYPE_FLOAT };
 		// HTTP Sender interface
 		HttpSender&		m_sender;

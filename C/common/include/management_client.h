@@ -46,11 +46,16 @@ class ManagementClient {
 		HttpClient 		*getHttpClient();
 
 private:
-		std::ostringstream 			m_urlbase;
+    std::string 	url_encode(const std::string &s) const;
+
+private:
+    std::ostringstream 			m_urlbase;
 		std::map<std::thread::id, HttpClient *> m_client_map;
+		HttpClient				*m_client;
 		std::string				*m_uuid;
 		Logger					*m_logger;
 		std::map<std::string, std::string>	m_categories;
+  
 	public:
 		// member template must be here and not in .cpp file
 		template<class T> bool	addCategory(const T& t, bool keepOriginalItems = false)

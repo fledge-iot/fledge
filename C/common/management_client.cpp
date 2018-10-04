@@ -13,6 +13,8 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <cctype>
+#include <iomanip>
 #include <asset_tracking.h>
 
 using namespace std;
@@ -98,8 +100,10 @@ string payload;
 		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
-			m_logger->error("Failed to parse result of registration: %s\n",
-					response.c_str());
+			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
+			m_logger->error("%s service registration: %s\n", 
+								httpError?"HTTP error during":"Failed to parse result of", 
+								response.c_str());
 			return false;
 		}
 		if (doc.HasMember("id"))
@@ -137,16 +141,17 @@ bool ManagementClient::unregisterService()
 	}
 	try {
 		string url = "/foglamp/service/";
-		url += *m_uuid;
-
+		url += url_encode(*m_uuid);
 		auto res = this->getHttpClient()->request("DELETE", url.c_str());
 		Document doc;
 		string response = res->content.string();
 		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
-			m_logger->error("Failed to parse result of unregistration: %s\n",
-					response.c_str());
+			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
+			m_logger->error("%s service unregistration: %s\n", 
+								httpError?"HTTP error during":"Failed to parse result of", 
+								response.c_str());
 			return false;
 		}
 		if (doc.HasMember("id"))
@@ -178,11 +183,11 @@ string payload;
 		string url = "/foglamp/service";
 		if (!service.getName().empty())
 		{
-			url += "?name=" + service.getName();
+			url += "?name=" + url_encode(service.getName());
 		}
 		else if (!service.getType().empty())
 		{
-			url += "?type=" + service.getType();
+			url += "?type=" + url_encode(service.getType());
 		}
 		auto res = this->getHttpClient()->request("GET", url.c_str());
 		Document doc;
@@ -190,8 +195,10 @@ string payload;
 		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
-			m_logger->error("Failed to parse result of fetching service record: %s\n",
-					response.c_str());
+			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
+			m_logger->error("%s fetching service record: %s\n", 
+								httpError?"HTTP error while":"Failed to parse result of", 
+								response.c_str());
 			return false;
 		}
 		else if (doc.HasMember("message"))
@@ -238,8 +245,10 @@ ostringstream convert;
 		doc.Parse(content.c_str());
 		if (doc.HasParseError())
 		{
-			m_logger->error("Failed to parse result of category registration: %s\n",
-					content.c_str());
+			bool httpError = (isdigit(content[0]) && isdigit(content[1]) && isdigit(content[2]) && content[3]==':');
+			m_logger->error("%s category registration: %s\n", 
+								httpError?"HTTP error during":"Failed to parse result of", 
+								content.c_str());
 			return false;
 		}
 		if (doc.HasMember("id"))
@@ -276,8 +285,8 @@ ostringstream convert;
         
         try {   
 		string url = "/foglamp/interest/";
-		url += m_categories[category];
-                auto res = this->getHttpClient()->request("DELETE", url.c_str());
+		url += url_encode(m_categories[category]);
+        auto res = this->getHttpClient()->request("DELETE", url.c_str());
         } catch (const SimpleWeb::system_error &e) {
                 m_logger->error("Unregister configuration category failed %s.", e.what());
                 return false;
@@ -298,8 +307,10 @@ ConfigCategories ManagementClient::getCategories()
 		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
-			m_logger->error("Failed to parse result of fetching configuration categories: %s\n",
-					response.c_str());
+			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
+			m_logger->error("%s fetching configuration categories: %s\n", 
+								httpError?"HTTP error while":"Failed to parse result of", 
+								response.c_str());
 			throw new exception();
 		}
 		else if (doc.HasMember("message"))
@@ -330,15 +341,17 @@ ConfigCategories ManagementClient::getCategories()
 ConfigCategory ManagementClient::getCategory(const string& categoryName)
 {
 	try {
-		string url = "/foglamp/service/category/" + categoryName;
+		string url = "/foglamp/service/category/" + url_encode(categoryName);
 		auto res = this->getHttpClient()->request("GET", url.c_str());
 		Document doc;
 		string response = res->content.string();
 		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
-			m_logger->error("Failed to parse result of fetching configuration category for %s: %s\n", categoryName.c_str(),
-					response.c_str());
+			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
+			m_logger->error("%s fetching configuration category for %s: %s\n", 
+								httpError?"HTTP error while":"Failed to parse result of", 
+								categoryName.c_str(), response.c_str());
 			throw new exception();
 		}
 		else if (doc.HasMember("message"))
@@ -372,17 +385,18 @@ string ManagementClient::setCategoryItemValue(const string& categoryName,
 					      const string& itemValue)
 {
 	try {
-		string url = "/foglamp/service/category/" + categoryName + "/" + itemName;
+		string url = "/foglamp/service/category/" + url_encode(categoryName) + "/" + url_encode(itemName);
 		string payload = "{ \"value\" : \"" + itemValue + "\" }";
-
 		auto res = this->getHttpClient()->request("PUT", url.c_str(), payload);
 		Document doc;
 		string response = res->content.string();
 		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
-			m_logger->error("Failed to parse result of setting configuration category item value: %s",
-					response.c_str());
+			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
+			m_logger->error("%s setting configuration category item value: %s\n", 
+								httpError?"HTTP error while":"Failed to parse result of", 
+								response.c_str());
 			throw new exception();
 		}
 		else if (doc.HasMember("message"))
@@ -413,7 +427,7 @@ string ManagementClient::addChildCategories(const string& parentCategory,
 					    const vector<string>& children)
 {
 	try {
-		string url = "/foglamp/service/category/" + parentCategory + "/children";
+		string url = "/foglamp/service/category/" + url_encode(parentCategory) + "/children";
 		string payload = "{ \"children\" : [";
 
 		for (auto it = children.begin(); it != children.end(); ++it)
@@ -431,8 +445,10 @@ string ManagementClient::addChildCategories(const string& parentCategory,
 		doc.Parse(response.c_str());
 		if (doc.HasParseError() || !doc.HasMember("children"))
 		{
-			m_logger->error("Failed to parse result of adding child categories: %s",
-					response.c_str());
+			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
+			m_logger->error("%s adding child categories: %s\n", 
+								httpError?"HTTP error while":"Failed to parse result of", 
+								response.c_str());
 			throw new exception();
 		}
 		else if (doc.HasMember("message"))
@@ -462,16 +478,17 @@ std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples(const
 	std::vector<AssetTrackingTuple*> *vec = new std::vector<AssetTrackingTuple*>();
 	
 	try {
-		string url = "/foglamp/track?service="+serviceName;
+		string url = "/foglamp/track?service="+url_encode(serviceName);
 		auto res = this->getHttpClient()->request("GET", url.c_str());
 		Document doc;
 		string response = res->content.string();
-		//m_logger->info("GET /foglamp/track?service=%s: response='%s'", serviceName.c_str(), response.c_str());
 		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
-			m_logger->error("Failed to parse result of fetch asset tracking tuples: %s\n",
-					response.c_str());
+			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
+			m_logger->error("%s fetch asset tracking tuples: %s\n", 
+								httpError?"HTTP error during":"Failed to parse result of", 
+								response.c_str());
 			throw new exception();
 		}
 		else if (doc.HasMember("message"))
@@ -535,12 +552,13 @@ bool ManagementClient::addAssetTrackingTuple(const std::string& service,
 		auto res = this->getHttpClient()->request("POST", "/foglamp/track", convert.str());
 		Document doc;
 		string content = res->content.string();
-		m_logger->info("POST /foglamp/track: response='%s' ", content.c_str());
 		doc.Parse(content.c_str());
 		if (doc.HasParseError())
 		{
-			m_logger->error("Failed to parse result of asset tracking tuple addition: %s\n",
-					content.c_str());
+			bool httpError = (isdigit(content[0]) && isdigit(content[1]) && isdigit(content[2]) && content[3]==':');
+			m_logger->error("%s asset tracking tuple addition: %s\n", 
+								httpError?"HTTP error during":"Failed to parse result of", 
+								content.c_str());
 			return false;
 		}
 		if (doc.HasMember("foglamp"))
@@ -564,5 +582,35 @@ bool ManagementClient::addAssetTrackingTuple(const std::string& service,
 				return false;
 		}
 		return false;
+}
+
+/**
+ * URL-encode a given string
+ *
+ * @param s		Input string that is to be URL-encoded
+ * @return		URL-encoded output string
+ */
+string ManagementClient::url_encode(const string &s) const
+{
+    ostringstream escaped;
+    escaped.fill('0');
+    escaped << hex;
+
+    for (string::const_iterator i = s.begin(), n = s.end(); i != n; ++i) {
+        string::value_type c = (*i);
+
+        // Keep alphanumeric and other accepted characters intact
+        if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+            escaped << c;
+            continue;
+        }
+
+        // Any other characters are percent-encoded
+        escaped << uppercase;
+        escaped << '%' << setw(2) << int((unsigned char) c);
+        escaped << nouppercase;
+    }
+
+    return escaped.str();
 }
 

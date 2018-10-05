@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.4.0)
+cmake_minimum_required(VERSION 2.6.0)
 
 project(postgres)
 

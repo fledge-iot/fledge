@@ -219,7 +219,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		// Get and ingest data
 		if (! southPlugin->isAsync())
 		{
-			int fd = createTimerFd(m_pollInterval * 1000); // interval to be passed is in usecs
+			int fd = createTimerFd((int) m_pollInterval * 1000); // interval to be passed is in usecs
 			if (fd >= 0)
 				logger->info("Created timer FD with interval of %u usecs", m_pollInterval * 1000);
 			else
@@ -239,7 +239,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				ssize_t s;
 				
 				s = read(fd, &exp, sizeof(uint64_t));
-				if (s != sizeof(uint64_t))
+				if ((unsigned int)s != sizeof(uint64_t))
 					logger->error("timerfd read()");
 				if (exp > 100)
 					logger->error("%d expiry notifications accumulated", exp);
@@ -397,7 +397,7 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
  *
  * @param usecs	 Time in micro-secs after which data would be available on the timer FD
  */
-int SouthService::createTimerFd(unsigned int usecs)
+int SouthService::createTimerFd(int usecs)
 {
 	int fd = -1;
 	struct itimerspec new_value;

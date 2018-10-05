@@ -142,6 +142,8 @@ class OMF
 		// HTTP Sender interface
 		HttpSender&		m_sender;
 		bool			m_lastError;
+		unsigned long long      m_readings;
+		unsigned long long      m_usecs;
 };
 
 /**

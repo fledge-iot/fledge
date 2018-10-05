@@ -219,7 +219,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		// Get and ingest data
 		if (! southPlugin->isAsync())
 		{
-			int fd = createTimerFd(1000000/m_readingsPerSec); // interval to be passed is in usecs
+			int fd = createTimerFd(1000000/(int)m_readingsPerSec); // interval to be passed is in usecs
 			if (fd >= 0)
 				logger->info("Created timer FD with interval of %u usecs", 1000000/m_readingsPerSec);
 			else

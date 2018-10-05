@@ -19,6 +19,9 @@
 
 using namespace std;
 
+// Cache for OMF data types
+static std::map<std::string, bool>	OMFcreatedTypes;
+
 /**
  * OMFData constructor
  */
@@ -749,7 +752,7 @@ bool OMF::handleDataTypes(const Reading& row,
  */
 bool OMF::setCreatedTypes(const string& key)
 {
-	return m_createdTypes[key] = true;
+	return OMFcreatedTypes[key] = true;
 }
 
 /**
@@ -761,7 +764,7 @@ bool OMF::setCreatedTypes(const string& key)
  */
 bool OMF::getCreatedTypes(const string& key)
 {
-	return m_createdTypes[key];
+	return OMFcreatedTypes[key];
 }
 
 /**

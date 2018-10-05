@@ -69,7 +69,6 @@ bool Ingest::checkAssetTrackingCache(AssetTrackingTuple& tuple)
 	std::unordered_set<AssetTrackingTuple*>::const_iterator it = assetTrackerTuplesCache.find(ptr);
 	if (it == assetTrackerTuplesCache.end())
 		{
-		m_logger->info("checkAssetTrackingCache(): Tuple not found in cache: '%s'", tuple.assetToString().c_str());
 		return false;
 		}
 	else
@@ -86,7 +85,6 @@ void Ingest::addAssetTrackingTuple(AssetTrackingTuple& tuple)
 	std::unordered_set<AssetTrackingTuple*>::const_iterator it = assetTrackerTuplesCache.find(&tuple);
 	if (it == assetTrackerTuplesCache.end())
 		{
-		m_logger->info("addAssetTrackingTuple(): Tuple not found in cache: '%s', adding now.", tuple.assetToString().c_str());
 		bool rv = m_mgtClient->addAssetTrackingTuple(tuple.m_serviceName, tuple.m_pluginName, tuple.m_assetName, "Ingest");
 		if (rv) // insert into cache only if DB operation succeeded
 			{

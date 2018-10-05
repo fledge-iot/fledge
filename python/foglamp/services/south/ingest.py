@@ -297,9 +297,9 @@ class Ingest(object):
         while list_index <= cls._max_concurrent_readings_inserts-1:
             if cls._stop:
                 readings = 0
-                for i, v in cls._sensor_stats.items():
-                    readings += v
-                if cls._readings_stats + cls._discarded_readings_stats+readings == 0:
+                for i in range(cls._max_concurrent_readings_inserts):
+                    readings += len(cls._readings_lists[i])
+                if cls._discarded_readings_stats + readings == 0:
                     break  # Terminate this method as there are no pending readings available
 
             list_index += 1

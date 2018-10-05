@@ -120,7 +120,7 @@ void doIngest(Ingest *ingest, Reading reading)
 /**
  * Constructor for the south service
  */
-SouthService::SouthService(const string& myName) : m_name(myName), m_shutdown(false), m_pollInterval(1000), m_readingsPerSec(1)
+SouthService::SouthService(const string& myName) : m_name(myName), m_shutdown(false), m_readingsPerSec(1)
 {
 	logger = new Logger(myName);
 }
@@ -201,10 +201,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		Ingest ingest(storage, timeout, threshold, m_name, pluginName, m_mgtClient);
 
 		try {
-			m_pollInterval = 500;
 			m_readingsPerSec = 1;
-			if (m_config.itemExists("pollInterval"))
-				m_pollInterval = (unsigned long)atoi(m_config.getValue("pollInterval").c_str());
 			if (m_config.itemExists("readingsPerSec"))
 				m_readingsPerSec = (unsigned long)atoi(m_config.getValue("readingsPerSec").c_str());
 		} catch (ConfigItemNotFound e) {
@@ -373,7 +370,6 @@ void SouthService::configChange(const string& categoryName, const string& catego
 			category.c_str());
 	m_config = m_mgtClient->getCategory(m_name);
 	try {
-		m_pollInterval = (unsigned long)atoi(m_config.getValue("pollInterval").c_str());
 		m_readingsPerSec = (unsigned long)atoi(m_config.getValue("readingsPerSec").c_str());
 	} catch (ConfigItemNotFound e) {
 		logger->error("Failed to update poll interval following configuration change");

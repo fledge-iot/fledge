@@ -124,7 +124,7 @@ ostringstream convert;
 }
 
 /**
- * Return a formatted   m_timestamp DataTime
+ * Return a formatted   m_timestamp DataTime in UTC
  * @param dateFormat    Format: FMT_DEFAULT or FMT_STANDARD
  * @return              The formatted datetime string
  */
@@ -135,7 +135,7 @@ char micro_s[10];
 ostringstream assetTime;
 
         // Populate tm structure
-        const struct tm *timeinfo = std::localtime(&(m_timestamp.tv_sec));
+        const struct tm *timeinfo = std::gmtime(&(m_timestamp.tv_sec));
 
         /**
          * Build date_time with format YYYY-MM-DD HH24:MM:SS.MS+00:00
@@ -169,7 +169,7 @@ ostringstream assetTime;
 }
 
 /**
- * Return a formatted   m_userTimestamp DataTime
+ * Return a formatted   m_userTimestamp DataTime in UTC
  * @param dateFormat    Format: FMT_DEFAULT or FMT_STANDARD
  * @return              The formatted datetime string
  */
@@ -180,7 +180,7 @@ char micro_s[10];
 ostringstream assetTime;
 
         // Populate tm structure
-        const struct tm *timeinfo = std::localtime(&(m_userTimestamp.tv_sec));
+        const struct tm *timeinfo = std::gmtime(&(m_userTimestamp.tv_sec));
 
         /**
          * Build date_time with format YYYY-MM-DD HH24:MM:SS.MS+00:00

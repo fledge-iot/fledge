@@ -219,8 +219,8 @@ CREATE TABLE foglamp.readings (
                                                                              -- assets table.
     read_key   uuid                        UNIQUE,                           -- An optional unique key used to avoid double-loading.
     reading    JSON                        NOT NULL DEFAULT '{}',            -- The json object received
-    user_ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')),
-    ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime'))
+    user_ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),      -- UTC time
+    ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW'))       -- UTC time
 );
 
 CREATE INDEX fki_readings_fk1
@@ -290,7 +290,7 @@ CREATE TABLE foglamp.statistics_history (
        key         character varying(56)       NOT NULL,                           -- Coumpund primary key, all uppercase
        history_ts  DATETIME NOT NULL,                                              -- Compound primary key, the highest value of statistics.ts when statistics are copied here.
        value       bigint                      NOT NULL DEFAULT 0,                 -- Integer value, the statistics
-       ts          DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime'))); -- Timestamp, updated at every change
+       ts          DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')));       -- Timestamp, updated at every change, UTC time
 
 CREATE UNIQUE INDEX statistics_history_ix1
     ON statistics_history (key, history_ts);

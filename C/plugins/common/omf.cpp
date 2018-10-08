@@ -47,7 +47,7 @@ OMFData::OMFData(const Reading& reading)
 	}
 
 	// Append Z to getAssetDateTime(FMT_STANDARD)
-	m_value.append("\"Time\": \"" + reading.getAssetDateTime(Reading::FMT_STANDARD) + "Z" + "\"");
+	m_value.append("\"Time\": \"" + reading.getAssetDateUserTime(Reading::FMT_STANDARD) + "Z" + "\"");
 
 	m_value.append("}]}");
 }

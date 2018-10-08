@@ -66,7 +66,7 @@ class StatisticsHistory(FoglampProcess):
             2. UPDATE the previous_value in statistics table to be equal to statistics.value at snapshot 
         """
 
-        current_time = datetime.now()
+        current_time = datetime.utcnow()
         results = await self._storage_async.query_tbl("statistics")
         for r in results['rows']:
             key = r['key']

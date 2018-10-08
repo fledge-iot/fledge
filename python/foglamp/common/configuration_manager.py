@@ -501,10 +501,14 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 if item_name not in self._cacheManager.cache[category_name]['value']:
                     return None
                 return self._cacheManager.cache[category_name]['value'][item_name]
-            cat_item = await self._read_item_val(category_name, item_name)
-            if cat_item is not None:
-                self._cacheManager.update(category_name, cat_item)
-            return cat_item
+            else:
+                cat_item = await self._read_item_val(category_name, item_name)
+                if cat_item is not None:
+                    cat = await self._read_category_val(category_name)
+                    if cat is not None:
+                        self._cacheManager.update(category_name, cat)
+                        self._cacheManager.cache[category_name]['value'].update({item_name: cat_item})
+                return cat_item
         except:
             _logger.exception(
                 'Unable to get category item based on category_name %s and item_name %s', category_name, item_name)

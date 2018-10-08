@@ -301,7 +301,7 @@ class StorageClientAsync(AbstractStorage):
 
         url = 'http://' + self.base_url + put_url
         async with aiohttp.ClientSession() as session:
-            async with session.put(url, data=query_payload, timeout=3) as resp:
+            async with session.put(url, data=query_payload) as resp:
                 status_code = resp.status
                 jdoc = await resp.json()
                 if status_code not in range(200, 209):

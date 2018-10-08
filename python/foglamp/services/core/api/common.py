@@ -103,12 +103,8 @@ async def get_stats(req):
     :return:  data_read, data_sent, data_purged
     """
 
-    try:
-        res = await get_statistics(req)
-    except asyncio.CancelledError:
-        raise
-    else:
-        stats = json.loads(res.body.decode())
+    res = await get_statistics(req)
+    stats = json.loads(res.body.decode())
 
     def filter_stat(k):
 

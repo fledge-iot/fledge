@@ -4,6 +4,7 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
+import asyncio
 from functools import wraps
 import json
 import traceback
@@ -29,7 +30,7 @@ async def error_middleware(app, handler):
         try:
             response = await handler(request)
             return response
-        except web.HTTPException:
+        except (web.HTTPException, asyncio.CancelledError):
             raise
         # Below Exception must come last as it is the super class of all exceptions
         except Exception as ex:

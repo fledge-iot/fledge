@@ -11,11 +11,10 @@ Fetch information from the statistics table, compute delta and
 stores the delta value (statistics.value - statistics.previous_value) in the statistics_history table
 """
 
-from datetime import datetime
-
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common import logger
 from foglamp.common.process import FoglampProcess
+from foglamp.plugins.common import utils
 
 
 __author__ = "Ori Shadmon, Ashish Jabble"
@@ -27,6 +26,7 @@ __version__ = "${VERSION}"
 class StatisticsHistory(FoglampProcess):
 
     _logger = None
+
     def __init__(self):
         super().__init__()
         self._logger = logger.setup("StatisticsHistory")
@@ -42,8 +42,7 @@ class StatisticsHistory(FoglampProcess):
             Return the number of rows inserted. Since each process inserts only 1 row,
             the expected count should always be 1.
         """
-        date_to_str = history_ts.strftime("%Y-%m-%d %H:%M:%S.%f")
-        payload = PayloadBuilder().INSERT(key=key, value=value, history_ts=date_to_str).payload()
+        payload = PayloadBuilder().INSERT(key=key, value=value, history_ts=history_ts).payload()
         await self._storage_async.insert_into_tbl("statistics_history", payload)
 
     async def _update_previous_value(self, key='', value=0):
@@ -65,8 +64,7 @@ class StatisticsHistory(FoglampProcess):
             1. INSERT the delta between `value` and `previous_value` into  statistics_history
             2. UPDATE the previous_value in statistics table to be equal to statistics.value at snapshot 
         """
-
-        current_time = datetime.now()
+        current_time = utils.local_timestamp()
         results = await self._storage_async.query_tbl("statistics")
         for r in results['rows']:
             key = r['key']

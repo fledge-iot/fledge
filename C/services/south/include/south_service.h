@@ -37,7 +37,7 @@ class SouthService : public ServiceHandler {
 	private:
 		void				addConfigDefaults(DefaultConfigCategory& defaults);
 		bool 				loadPlugin();
-		int 				createTimerFd(unsigned int usecs);
+		int 				createTimerFd(int usecs);
 	private:
 		SouthPlugin			*southPlugin;
 		const std::string&		m_name;
@@ -45,7 +45,7 @@ class SouthService : public ServiceHandler {
 		bool				m_shutdown;
 		ConfigCategory			m_config;
 		ManagementClient		*m_mgtClient;
-		unsigned long			m_pollInterval;
+		unsigned long			m_readingsPerSec;
 		unsigned int			m_threshold;
 		unsigned long			m_timeout;
 };

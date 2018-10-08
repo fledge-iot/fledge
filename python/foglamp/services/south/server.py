@@ -58,6 +58,8 @@ class Server(FoglampMicroservice):
 
     _task_main = None
 
+    config = None
+
     _event_loop = None
 
     def __init__(self):
@@ -69,19 +71,19 @@ class Server(FoglampMicroservice):
         try:
             # Configuration handling - initial configuration
             category = self._name
-            config = self._DEFAULT_CONFIG
+            self.config = self._DEFAULT_CONFIG
             config_descr = self._name
             config_payload = json.dumps({
                 "key": category,
                 "description": config_descr,
-                "value": config,
+                "value": self.config,
                 "keep_original_items": True
             })
             self._core_microservice_management_client.create_configuration_category(config_payload)
-            config = self._core_microservice_management_client.get_configuration_category(category_name=category)
+            self.config = self._core_microservice_management_client.get_configuration_category(category_name=category)
 
             try:
-                plugin_module_name = config['plugin']['value']
+                plugin_module_name = self.config['plugin']['value']
             except KeyError:
                 message = self._MESSAGES_LIST['e000002'].format(self._name)
                 _LOGGER.error(message)
@@ -120,7 +122,7 @@ class Server(FoglampMicroservice):
                 "keep_original_items": True
             })
             self._core_microservice_management_client.create_configuration_category(config_payload)
-            config = self._core_microservice_management_client.get_configuration_category(category_name=category)
+            self.config = self._core_microservice_management_client.get_configuration_category(category_name=category)
 
             # Register interest with category and microservice_id
             result = self._core_microservice_management_client.register_interest(category, self._microservice_id)
@@ -135,7 +137,7 @@ class Server(FoglampMicroservice):
                 _LOGGER.error(message)
                 raise exceptions.InvalidPluginTypeError()
 
-            self._plugin_handle = self._plugin.plugin_init(config)
+            self._plugin_handle = self._plugin.plugin_init(self.config)
             await Ingest.start(self)
 
             # Executes the requested plugin type

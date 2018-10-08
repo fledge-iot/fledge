@@ -84,6 +84,7 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
 - libpq-dev
 - libsqlite3-dev
 - libtool
+- libz-dev
 - make
 - postgresql
 - python3-dbus
@@ -110,7 +111,7 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
   Building dependency tree
   ...
   $
-  $ sudo apt-get install libtool libboost-dev libboost-system-dev libboost-thread-dev libssl-dev libpq-dev uuid-dev
+  $ sudo apt-get install libtool libboost-dev libboost-system-dev libboost-thread-dev libssl-dev libpq-dev uuid-dev libz-dev
   Reading package lists... Done
   Building dependency tree
   ...

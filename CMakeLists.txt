@@ -18,3 +18,4 @@ add_subdirectory(C/plugins/utils)
 
 # FIXME:
 set(CMAKE_BUILD_TYPE Debug)
+

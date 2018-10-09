@@ -196,7 +196,7 @@ class TestScheduler:
         assert 1 == len(scheduler._schedule_executions[schedule.id].task_processes)
         assert 1 == log_info.call_count
         # assert call("Queued schedule '%s' for execution", 'OMF to PI north') == log_info.call_args_list[0]
-        args, kwargs = log_info.call_args_list[1]
+        args, kwargs = log_info.call_args_list[0]
         assert "Process started: Schedule '%s' process '%s' task %s pid %s, %s running tasks\n%s" in args
         assert 'OMF to PI north' in args
         assert 'North Readings to PI' in args

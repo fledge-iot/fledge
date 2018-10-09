@@ -12,7 +12,7 @@ import time
 import uuid
 from typing import List, Union
 import json
-import copy
+
 from foglamp.common import logger
 from foglamp.common import statistics
 from foglamp.common.storage_client.exceptions import StorageServerError
@@ -117,6 +117,8 @@ class Ingest(object):
     """The list of unique reading payload for asset tracker"""
 
     # Configuration (end)
+
+    _stats = None
 
     @classmethod
     async def _read_config(cls):
@@ -247,6 +249,14 @@ class Ingest(object):
         cls._readings_lists_not_full = asyncio.Event()
 
         cls._payload_events = cls._parent_service._core_microservice_management_client.get_asset_tracker_events()['track']
+
+        cls.stats = await statistics.create_statistics(cls.storage_async)
+
+        # Register static statistics
+        await cls.stats.register('READINGS', 'Readings received by FogLAMP')
+        await cls.stats.register('DISCARDED', 'Readings discarded at the input side by FogLAMP, i.e. '
+                                          'discarded before being  placed in the buffer. This may be due to some '
+                                          'error in the readings themselves.')
 
         cls._stop = False
         cls._started = True
@@ -406,19 +416,11 @@ class Ingest(object):
     async def _write_statistics(cls):
         """Periodically commits collected readings statistics"""
 
-        stats = await statistics.create_statistics(cls.storage_async)
-
-        # Register static statistics
-        await stats.register('READINGS', 'Readings received by FogLAMP')
-        await stats.register('DISCARDED', 'Readings discarded at the input side by FogLAMP, i.e. '
-                                          'discarded before being  placed in the buffer. This may be due to some '
-                                          'error in the readings themselves.')
-
         readings = cls._readings_stats
         cls._readings_stats = 0
 
         try:
-            await stats.update('READINGS', readings)
+            await cls.stats.update('READINGS', readings)
         except Exception as ex:
             cls._readings_stats += readings
             _LOGGER.exception('An error occurred while writing readings statistics, %s', str(ex))
@@ -427,7 +429,7 @@ class Ingest(object):
         cls._discarded_readings_stats = 0
 
         try:
-            await stats.update('DISCARDED', readings)
+            await cls.stats.update('DISCARDED', readings)
         except Exception as ex:
             cls._discarded_readings_stats += readings
             _LOGGER.exception('An error occurred while writing discarded statistics, Error: %s', str(ex))
@@ -436,10 +438,10 @@ class Ingest(object):
         readings = cls._sensor_stats.copy()
         for key in readings:
             description = 'Readings received by FogLAMP since startup for sensor {}'.format(key)
-            await stats.register(key, description)
+            await cls.stats.register(key, description)
             cls._sensor_stats[key] -= readings[key]
         try:
-            await stats.add_update(readings)
+            await cls.stats.add_update(readings)
         except Exception as ex:
             for key in readings:
                 cls._sensor_stats[key] += readings[key]

@@ -25,14 +25,14 @@ const char *two_readings = R"(
                 "id": 1, "asset_code": "luxometer",
                 "read_key": "5b3be500-ff95-41ae-b5a4-cc99d08bef4a",
                 "reading": { "lux": 45204.524 },
-                "user_ts": "2018-06-11 15:00:08.532958",
+                "user_ts": "2018-06-11 14:00:08.532958",
                 "ts": "2018-06-12 14:47:18.872708"
             },
             {
                 "id": 2, "asset_code": "luxometer",
                 "read_key": "5b3be50c-ff95-41ae-b5a4-cc99d08bef4a",
                 "reading": { "lux": 76834.361 },
-                "user_ts": "2018-08-21 15:00:09.32958",
+                "user_ts": "2018-08-21 14:00:09.32958",
                 "ts": "2018-08-22 14:48:18.72708"
             }
         ]
@@ -41,7 +41,7 @@ const char *two_readings = R"(
 
 
 // 2 readings translated to OMF JSON text
-const char *two_translated_readings = R"([{"containerid": "measurement_luxometer", "values": [{"lux": 45204.524, "Time": "2018-06-12T14:47:18.872708Z"}]}, {"containerid": "measurement_luxometer", "values": [{"lux": 76834.361, "Time": "2018-08-22T14:48:18.727080Z"}]}])";
+const char *two_translated_readings = R"([{"containerid": "measurement_luxometer", "values": [{"lux": 45204.524, "Time": "2018-06-11T14:00:08.532958Z"}]}, {"containerid": "measurement_luxometer", "values": [{"lux": 76834.361, "Time": "2018-08-21T14:00:09.329580Z"}]}])";
 
 // Compare translated readings with a provided JSON value
 TEST(OMF_transation, TwoTranslationsCompareResult)

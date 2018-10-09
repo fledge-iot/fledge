@@ -263,7 +263,10 @@ class Ingest(object):
 
         for task in cls._insert_readings_wait_tasks:
             if task is not None:
-                task.cancel()
+                try:
+                    task.cancel()
+                except asyncio.CancelledError:
+                    pass
         try:
             await cls._insert_readings_task
             cls._insert_readings_task = None
@@ -310,7 +313,6 @@ class Ingest(object):
 
             readings_list = cls._readings_lists[list_index]
             min_readings_reached = cls._readings_list_batch_size_reached[list_index]
-            list_not_empty = cls._readings_list_not_empty[list_index]
             lists_not_full = cls._readings_lists_not_full
 
             # Wait for enough items in the list to fill a batch

@@ -52,12 +52,6 @@ class Ingest(object):
     _sensor_stats = {}  # type: dict
     """Number of sensor readings accepted before statistics were written to storage"""
 
-    _write_statistics_task = None  # type: asyncio.Task
-    """asyncio task for :meth:`_write_statistics`"""
-
-    _write_statistics_sleep_task = None  # type: asyncio.Task
-    """asyncio task for asyncio.sleep"""
-
     _stop = False
     """True when the server needs to stop"""
 
@@ -91,10 +85,6 @@ class Ingest(object):
     _readings_list_size = 0  # type: int
     """Maximum number of readings items in each buffer"""
 
-    # Configuration (begin)
-    _write_statistics_frequency_seconds = 5
-    """The number of seconds to wait before writing readings-related statistics to storage"""
-
     _readings_buffer_size = 4096
     """Maximum number of readings to buffer in memory(_max_concurrent_readings_inserts x _readings_insert_batch_size)"""
 
@@ -113,12 +103,13 @@ class Ingest(object):
     _max_readings_insert_batch_reconnect_wait_seconds = 10
     """The maximum number of seconds to wait before reconnecting to storage when inserting readings"""
 
+    # Configuration (end)
+
     _payload_events = []
     """The list of unique reading payload for asset tracker"""
 
-    # Configuration (end)
-
     _stats = None
+    """Statistics class instance"""
 
     @classmethod
     async def _read_config(cls):
@@ -128,12 +119,6 @@ class Ingest(object):
         category = "{}Advanced".format(cls._parent_service._name)
 
         default_config = {
-            "write_statistics_frequency_seconds": {
-                "description": "Seconds to wait before writing readings-related "
-                               "statistics to storage",
-                "type": "integer",
-                "default": str(cls._write_statistics_frequency_seconds)
-            },
             "readings_buffer_size": {
                 "description": "Maximum number of readings to buffer in memory",
                 "type": "integer",
@@ -185,8 +170,6 @@ class Ingest(object):
         # Create child category
         cls._parent_service._core_microservice_management_client.create_child_category(parent=cls._parent_service._name, children=[category])
 
-        cls._write_statistics_frequency_seconds = int(config['write_statistics_frequency_seconds']
-                                                      ['value'])
         cls._readings_buffer_size = int(config['readings_buffer_size']['value'])
         cls._max_concurrent_readings_inserts = int(config['max_concurrent_readings_inserts']
                                                    ['value'])
@@ -255,8 +238,8 @@ class Ingest(object):
         # Register static statistics
         await cls.stats.register('READINGS', 'Readings received by FogLAMP')
         await cls.stats.register('DISCARDED', 'Readings discarded at the input side by FogLAMP, i.e. '
-                                          'discarded before being  placed in the buffer. This may be due to some '
-                                          'error in the readings themselves.')
+                                              'discarded before being placed in the buffer. This may be due to some '
+                                              'error in the readings themselves.')
 
         cls._stop = False
         cls._started = True
@@ -390,7 +373,6 @@ class Ingest(object):
                 except Exception as ex:
                     attempt += 1
 
-                    # TODO logging each time is overkill
                     _LOGGER.exception('Insert failed on attempt #%s, list index: %s | %s', attempt, list_index, str(ex))
 
                     if cls._stop or attempt >= _MAX_ATTEMPTS:
@@ -550,7 +532,6 @@ class Ingest(object):
         read['read_key'] = str(key)
         read['reading'] = readings
         read['user_ts'] = timestamp
-
         readings_list.append(read)
 
         list_size = len(readings_list)

@@ -121,7 +121,7 @@ async def create_category(request):
         category_name = data.get('key')
         category_desc = data.get('description')
         category_value = data.get('value')
-        category_display_name = category_name if data.get('display_name') is None else data.get('display_name')
+        category_display_name = data.get('display_name')
         should_keep_original_items = True if keep_original_items == 'true' else False
 
         await cf_mgr.create_category(category_name=category_name, category_description=category_desc,
@@ -130,8 +130,7 @@ async def create_category(request):
         category_info = await cf_mgr.get_category_all_items(category_name=category_name)
         if category_info is None:
             raise LookupError('No such %s found' % category_name)
-
-        result = {"key": category_name, "description": category_desc, "value": category_info, "displayName": category_display_name}
+        result = {"key": category_name, "description": category_desc, "value": category_info, "displayName": cf_mgr._cacheManager.cache[category_name]['displayName']}
         if data.get('children'):
             r = await cf_mgr.create_child_category(category_name, data.get('children'))
             result.update(r)

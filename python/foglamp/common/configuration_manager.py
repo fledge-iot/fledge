@@ -301,7 +301,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         new_category_val.pop(i)
             else:
                 new_category_val = category_val
-
             display_name = category_name if display_name is None else display_name
             audit = AuditLogger(self._storage)
             await audit.information('CONAD', {'name': category_name, 'category': new_category_val})
@@ -691,20 +690,20 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         if c[0] == category_name:
                             display_name_storage = c[2]
                             break
+                    if display_name is None:
+                        display_name = display_name_storage
+
                     category_val_prepared = await self._merge_category_vals(category_val_prepared, category_val_storage,
                                                                             keep_original_items, category_name)
                     if json.dumps(category_val_prepared, sort_keys=True) == json.dumps(category_val_storage,
                                                                                        sort_keys=True):
-                        if display_name is not None:
-                            if display_name_storage == display_name:
-                                return
+                        if display_name_storage == display_name:
+                            return
 
-                            await self._update_category(category_name, category_val_prepared, category_description,
-                                                        display_name)
+                        await self._update_category(category_name, category_val_prepared, category_description, display_name)
                         return
                     else:
-                        await self._update_category(category_name, category_val_prepared, category_description,
-                                                display_name)
+                        await self._update_category(category_name, category_val_prepared, category_description, display_name)
         except:
             _logger.exception(
                 'Unable to create new category based on category_name %s and category_description %s and category_json_schema %s',

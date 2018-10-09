@@ -63,12 +63,12 @@ class ConfigurationCache(object):
         self.miss += 1
         return False
 
-    def update(self, category_name, category_val):
+    def update(self, category_name, category_val, display_name=None):
         """Update the cache dictionary and remove the oldest item"""
         if category_name not in self.cache and len(self.cache) >= self.max_cache_size:
             self.remove_oldest()
-
-        self.cache[category_name] = {'date_accessed': datetime.datetime.now(), 'value': category_val}
+        display_name = category_name if display_name is None else display_name
+        self.cache[category_name] = {'date_accessed': datetime.datetime.now(), 'value': category_val, 'displayName': display_name}
         _logger.info("Updated Configuration Cache %s", self.cache)
 
     def remove_oldest(self):
@@ -309,7 +309,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                               value=new_category_val, display_name=display_name).payload()
             result = await self._storage.insert_into_tbl("configuration", payload)
             response = result['response']
-            self._cacheManager.update(category_name, new_category_val)
+            self._cacheManager.update(category_name, new_category_val, display_name)
         except KeyError:
             raise ValueError(result['message'])
         except StorageServerError as ex:
@@ -427,18 +427,19 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             err_response = ex.error
             raise ValueError(err_response)
 
-    async def _update_category(self, category_name, category_val, category_description):
+    async def _update_category(self, category_name, category_val, category_description, display_name=None):
         try:
-            payload = PayloadBuilder().SET(value=category_val, description=category_description). \
-                WHERE(["key", "=", category_name]).payload()
+            display_name = category_name if display_name is None else display_name
+            payload = PayloadBuilder().SET(value=category_val, description=category_description, display_name=display_name).WHERE(["key", "=", category_name]).payload()
             result = await self._storage.update_tbl("configuration", payload)
             response = result['response']
             # Re-read category from DB
             new_category_val_db = await self._read_category_val(category_name)
             if category_name in self._cacheManager.cache:
                 self._cacheManager.cache[category_name]['value'] = new_category_val_db
+                self._cacheManager.cache[category_name]['displayName'] = display_name
             else:
-                self._cacheManager.cache.update({category_name: {"value": new_category_val_db}})
+                self._cacheManager.cache.update({category_name: {"value": new_category_val_db, "displayName": display_name}})
         except KeyError:
             raise ValueError(result['message'])
         except StorageServerError as ex:
@@ -685,12 +686,25 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         category_name)
                 # if validating category from storage succeeds, merge new and storage
                 else:
+                    all_categories = await self._read_all_category_names()
+                    for c in all_categories:
+                        if c[0] == category_name:
+                            display_name_storage = c[2]
+                            break
                     category_val_prepared = await self._merge_category_vals(category_val_prepared, category_val_storage,
                                                                             keep_original_items, category_name)
                     if json.dumps(category_val_prepared, sort_keys=True) == json.dumps(category_val_storage,
                                                                                        sort_keys=True):
+                        if display_name is not None:
+                            if display_name_storage == display_name:
+                                return
+
+                            await self._update_category(category_name, category_val_prepared, category_description,
+                                                        display_name)
                         return
-                await self._update_category(category_name, category_val_prepared, category_description)
+                    else:
+                        await self._update_category(category_name, category_val_prepared, category_description,
+                                                display_name)
         except:
             _logger.exception(
                 'Unable to create new category based on category_name %s and category_description %s and category_json_schema %s',

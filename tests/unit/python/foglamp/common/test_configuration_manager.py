@@ -1245,10 +1245,12 @@ class TestConfigurationManager:
         item_name = 'item_name'
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        with patch.object(ConfigurationManager, '_read_item_val', return_value=async_mock('bla')) as readpatch:
-            ret_val = await c_mgr.get_category_item(category_name, item_name)
-            assert 'bla' == ret_val
-        readpatch.assert_called_once_with(category_name, item_name)
+        with patch.object(ConfigurationManager, '_read_item_val', return_value=async_mock('bla')) as read_item_patch:
+            with patch.object(ConfigurationManager, '_read_category_val', return_value=async_mock(None)) as read_cat_patch:
+                ret_val = await c_mgr.get_category_item(category_name, item_name)
+                assert 'bla' == ret_val
+            read_cat_patch.assert_called_once_with(category_name)
+        read_item_patch.assert_called_once_with(category_name, item_name)
 
     @pytest.mark.asyncio
     async def test_get_category_item_bad(self, reset_singleton):

@@ -350,11 +350,10 @@ async def get_child_category(request):
 
     try:
         children = await cf_mgr.get_category_child(category_name)
-        result = [{"key": c['key'], "description": c['description'], "displayName": c['display_name']} for c in children]
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
 
-    return web.json_response({"categories": result})
+    return web.json_response({"categories": children})
 
 
 async def create_child_category(request):

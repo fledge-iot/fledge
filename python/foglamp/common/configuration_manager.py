@@ -701,7 +701,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                             return
 
                         await self._update_category(category_name, category_val_prepared, category_description, display_name)
-                        return
                     else:
                         await self._update_category(category_name, category_val_prepared, category_description, display_name)
         except:
@@ -765,7 +764,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         try:
             child_cat_names = await self._read_all_child_category_names(category_name)
-            return await self._read_child_info(child_cat_names)
+            children =  await self._read_child_info(child_cat_names)
+            return [{"key": c['key'], "description": c['description'], "displayName": c['display_name']} for c in children]
         except:
             _logger.exception(
                 'Unable to read all child category names')

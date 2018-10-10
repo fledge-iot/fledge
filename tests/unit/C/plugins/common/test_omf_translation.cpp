@@ -17,6 +17,8 @@
 using namespace std;
 using namespace rapidjson;
 
+#define TYPE_ID "1234"
+
 // 2 readings JSON text
 const char *two_readings = R"(
     {
@@ -41,7 +43,7 @@ const char *two_readings = R"(
 
 
 // 2 readings translated to OMF JSON text
-const char *two_translated_readings = R"([{"containerid": "measurement_luxometer", "values": [{"lux": 45204.524, "Time": "2018-06-12T14:47:18.872708Z"}]}, {"containerid": "measurement_luxometer", "values": [{"lux": 76834.361, "Time": "2018-08-22T14:48:18.727080Z"}]}])";
+const char *two_translated_readings = R"([{"containerid": ")" TYPE_ID R"(measurement_luxometer", "values": [{"lux": 45204.524, "Time": "2018-06-12T14:47:18.872708Z"}]}, {"containerid": ")" TYPE_ID R"(measurement_luxometer", "values": [{"lux": 76834.361, "Time": "2018-08-22T14:48:18.727080Z"}]}])";
 
 // Compare translated readings with a provided JSON value
 TEST(OMF_transation, TwoTranslationsCompareResult)
@@ -58,7 +60,7 @@ TEST(OMF_transation, TwoTranslationsCompareResult)
 							++elem)
 	{
 		// Add into JSON string the OMF transformed Reading data
-		jsonData << OMFData(**elem).OMFdataVal() << (elem < (readingSet.getAllReadings().end() - 1 ) ? ", " : "");
+		jsonData << OMFData(**elem, string(TYPE_ID)).OMFdataVal() << (elem < (readingSet.getAllReadings().end() - 1 ) ? ", " : "");
 	}
 
 	jsonData << "]";
@@ -82,7 +84,7 @@ TEST(OMF_transation, OneReading)
 
 	// Create the OMF Json data
 	jsonData << "[";
-	jsonData << OMFData(lab).OMFdataVal();
+	jsonData << OMFData(lab, string(TYPE_ID)).OMFdataVal();
 	jsonData << "]";
 
 	// "values" key is in the output 

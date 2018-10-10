@@ -108,7 +108,7 @@ class Ingest(object):
     _payload_events = []
     """The list of unique reading payload for asset tracker"""
 
-    _stats = None
+    stats = None
     """Statistics class instance"""
 
     @classmethod

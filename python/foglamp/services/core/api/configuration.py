@@ -4,12 +4,15 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
+import os
 from aiohttp import web
 import urllib.parse
+
 from foglamp.services.core import connect
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.audit_logger import AuditLogger
+from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA
 
 __author__ = "Amarendra K. Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -22,6 +25,7 @@ _help = """
     | GET            | /foglamp/category/{category_name}                           |
     | GET POST PUT   | /foglamp/category/{category_name}/{config_item}             |
     | DELETE         | /foglamp/category/{category_name}/{config_item}/value       |
+    | POST           | /foglamp/category/{category_name}/{config_item}/upload      |
     | GET POST       | /foglamp/category/{category_name}/children                  |
     | DELETE         | /foglamp/category/{category_name}/children/{child_category} |
     | DELETE         | /foglamp/category/{category_name}/parent                    |
@@ -167,9 +171,19 @@ async def get_category_item(request):
     # TODO: make it optimized and elegant
     cf_mgr = ConfigurationManager(connect.get_storage_async())
     category_item = await cf_mgr.get_category_item(category_name, config_item)
-
     if category_item is None:
         raise web.HTTPNotFound(reason="No such Category item found for {}".format(config_item))
+
+    if category_item['type'] == 'script':
+        dir_name = _FOGLAMP_DATA + '/scripts/' if _FOGLAMP_DATA else _FOGLAMP_ROOT + "/data/scripts/"
+        # TODO: It may be add more extensions
+        valid_extensions = ('.py')
+
+        for root, dirs, files in os.walk(dir_name):
+            _file = [f for f in files if f.startswith(category_name + "_" + config_item) and f.endswith(valid_extensions)]
+            if _file:
+                category_item["file"] = dir_name + _file[0]
+                # TODO: read the contents of file and return default/value | Not sure about save in DB
 
     return web.json_response(category_item)
 
@@ -439,3 +453,44 @@ async def delete_parent_category(request):
         raise web.HTTPNotFound(reason=str(ex))
 
     return web.json_response({"message": "Parent-child relationship for the parent-{} is deleted".format(category_name)})
+
+
+async def upload_script(request):
+    """ Upload script for a given config item
+
+    :Example:
+            curl -F "script=@filename.py" http://localhost:8081/foglamp/category/{category_name}/{config_item}/upload
+    """
+    category_name = request.match_info.get('category_name', None)
+    config_item = request.match_info.get('config_item', None)
+
+    category_name = urllib.parse.unquote(category_name) if category_name is not None else None
+    config_item = urllib.parse.unquote(config_item) if config_item is not None else None
+    cf_mgr = ConfigurationManager(connect.get_storage_async())
+    category_item = await cf_mgr.get_category_item(category_name, config_item)
+    if category_item is None:
+        raise web.HTTPNotFound(reason="No such Category item found for {}".format(config_item))
+
+    data = await request.post()
+
+    # contains the name of the file in string format
+    script_file = data.get('script')
+    if not script_file:
+        raise web.HTTPBadRequest(reason="Script file is missing")
+
+    # TODO: For now accepted extension is '.py'
+    valid_extensions = ('.py')
+    script_filename = script_file.filename
+    if not script_filename.endswith(valid_extensions):
+        raise web.HTTPBadRequest(reason="Accepted file extension is .py")
+
+    dir_name = _FOGLAMP_DATA + '/scripts/' if _FOGLAMP_DATA else _FOGLAMP_ROOT + "/data/scripts/"
+    if script_file:
+        script_file_data = data['script'].file
+        script_file_content = script_file_data.read()
+        file_name = category_name + "_" + config_item + "_" + script_filename
+        script_file_path = str(dir_name) + '{}'.format(file_name)
+        with open(script_file_path, 'wb') as f:
+            f.write(script_file_content)
+
+    return web.json_response({"result": "{} has been uploaded successfully".format(script_filename)})

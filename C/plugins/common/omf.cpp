@@ -25,10 +25,10 @@ static std::map<std::string, bool>	OMFcreatedTypes;
 /**
  * OMFData constructor
  */
-OMFData::OMFData(const Reading& reading)
+OMFData::OMFData(const Reading& reading, const string& typeId)
 {
 	// Convert reading data into the OMF JSON string
-	m_value.append("{\"containerid\": \"measurement_");
+	m_value.append("{\"containerid\": \"" + typeId + "measurement_");
 	m_value.append(reading.getAssetName() + "\", \"values\": [{");
 
 
@@ -73,16 +73,20 @@ OMF::OMF(HttpSender& sender,
 	 m_sender(sender)
 {
 	m_lastError = false;
-        m_readings = 0;
-        m_usecs = 0;
+	m_readings = 0;
+	m_usecs = 0;
 }
 
 // Destructor
 OMF::~OMF()
 {
-	Logger::getLogger()->info("Total %lld readings sent to PI server in %lld usecs, amortized request->response time = %lld usec/reading", m_readings, m_usecs, m_usecs/m_readings);
+	Logger::getLogger()->info("Total %lld readings sent to PI server "
+				  "in %lld usecs, amortized request->response "
+				  "time = %lld usec/reading",
+				  m_readings,
+				  m_usecs,
+				  m_usecs/m_readings);
 }
-
 
 /**
  * Compress a string
@@ -300,7 +304,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		}
 
 		// Add into JSON string the OMF transformed Reading data
-		jsonData << OMFData(**elem).OMFdataVal() << (elem < (readings.end() -1 ) ? ", " : "");
+		jsonData << OMFData(**elem, m_typeId).OMFdataVal() << (elem < (readings.end() -1 ) ? ", " : "");
 	}
 
 	jsonData << "]";
@@ -331,8 +335,8 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
  		auto usecs = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
 		//Logger::getLogger()->info("OMF::sendToServer(): HTTP request sent buffer with buffer size %d bytes, res=%d", json.size(), res);
-                m_readings += readings.size();
-                m_usecs += usecs;
+		m_readings += readings.size();
+		m_usecs += usecs;
 
 		if (res != 200 && res != 204)
 		{
@@ -398,7 +402,7 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 		}
 
 		// Add into JSON string the OMF transformed Reading data
-		jsonData << OMFData(*elem).OMFdataVal() << (elem < (readings.end() -1 ) ? ", " : "");
+		jsonData << OMFData(*elem, m_typeId).OMFdataVal() << (elem < (readings.end() -1 ) ? ", " : "");
 	}
 
 	jsonData << "]";
@@ -454,7 +458,7 @@ uint32_t OMF::sendToServer(const Reading* reading,
 	}
 
 	// Add into JSON string the OMF transformed Reading data
-	jsonData << OMFData(*reading).OMFdataVal();
+	jsonData << OMFData(*reading, m_typeId).OMFdataVal();
 	jsonData << "]";
 
 	// Build headers for Readings data
@@ -583,7 +587,7 @@ const std::string OMF::createContainerData(const Reading& reading) const
 			     "typename_measurement",
 			     cData);
 
-	cData.append("\", \"id\": \"measurement_");
+	cData.append("\", \"id\": \"" + m_typeId + "measurement_");
 	cData.append(reading.getAssetName());
 	cData.append("\"}]");
 
@@ -664,7 +668,7 @@ const std::string OMF::createLinkData(const Reading& reading) const
 	// Add asset_name
 	lData.append(reading.getAssetName());
 
-	lData.append("\"}, \"target\": {\"containerid\": \"measurement_");
+	lData.append("\"}, \"target\": {\"containerid\": \"" + m_typeId + "measurement_");
 
 	// Add asset_name
 	lData.append(reading.getAssetName());

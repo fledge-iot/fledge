@@ -43,8 +43,7 @@ const char *two_readings = R"(
 
 
 // 2 readings translated to OMF JSON text
-const char *two_translated_readings = R"([{"containerid": ")" TYPE_ID R"(measurement_luxometer", "values": [{"lux": 45204.524, "Time": "2018-06-12T14:47:18.872708Z"}]}, {"containerid": ")" TYPE_ID R"(measurement_luxometer", "values": [{"lux": 76834.361, "Time": "2018-08-22T14:48:18.727080Z"}]}])";
-const char *two_translated_readings = R"([{"containerid": "measurement_luxometer", "values": [{"lux": 45204.524, "Time": "2018-06-11T14:00:08.532958Z"}]}, {"containerid": "measurement_luxometer", "values": [{"lux": 76834.361, "Time": "2018-08-21T14:00:09.329580Z"}]}])";
+const char *two_translated_readings = R"([{"containerid": ")" TYPE_ID R"(measurement_luxometer", "values": [{"lux": 45204.524, "Time": "2018-06-11T14:00:08.532958Z"}]}, {"containerid": ")" TYPE_ID R"(measurement_luxometer", "values": [{"lux": 76834.361, "Time": "2018-08-21T14:00:09.329580Z"}]}])";
 
 // Compare translated readings with a provided JSON value
 TEST(OMF_transation, TwoTranslationsCompareResult)

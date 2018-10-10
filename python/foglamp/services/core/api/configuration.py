@@ -485,12 +485,16 @@ async def upload_script(request):
         raise web.HTTPBadRequest(reason="Accepted file extension is .py")
 
     dir_name = _FOGLAMP_DATA + '/scripts/' if _FOGLAMP_DATA else _FOGLAMP_ROOT + "/data/scripts/"
-    if script_file:
-        script_file_data = data['script'].file
-        script_file_content = script_file_data.read()
-        file_name = category_name + "_" + config_item + "_" + script_filename
-        script_file_path = str(dir_name) + '{}'.format(file_name)
-        with open(script_file_path, 'wb') as f:
-            f.write(script_file_content)
+    script_file_data = data['script'].file
+    script_file_content = script_file_data.read()
+    file_name = category_name + "_" + config_item + "_" + script_filename
+    script_file_path = str(dir_name) + '{}'.format(file_name)
+    with open(script_file_path, 'wb') as f:
+        f.write(script_file_content)
 
-    return web.json_response({"result": "{} has been uploaded successfully".format(script_filename)})
+    bytes_to_string = script_file_content.decode("utf-8")
+    await cf_mgr.set_category_item_value_entry(category_name, config_item, bytes_to_string)
+    result = await cf_mgr.get_category_item(category_name, config_item)
+    result['file'] = script_file_path
+    
+    return web.json_response(result)

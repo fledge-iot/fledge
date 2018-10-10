@@ -133,8 +133,7 @@ class Scheduler(object):
 
         # Initialize class attributes
         if not cls._logger:
-            cls._logger = logger.setup(__name__, level=20)
-            # cls._logger = logger.setup(__name__, destination=logger.CONSOLE, level=logging.DEBUG)
+            cls._logger = logger.setup(__name__, level=logging.INFO)
             # cls._logger = logger.setup(__name__, level=logging.DEBUG)
         if not cls._core_management_port:
             cls._core_management_port = core_management_port
@@ -474,7 +473,7 @@ class Scheduler(object):
                 sleep_seconds = self._MAX_SLEEP
 
             if sleep_seconds > 0:
-                self._logger.info("Sleeping for %s seconds", sleep_seconds)
+                self._logger.debug("Sleeping for %s seconds", sleep_seconds)
                 self._scheduler_loop_sleep_task = (
                     asyncio.ensure_future(asyncio.sleep(sleep_seconds)))
 
@@ -1362,7 +1361,7 @@ class Scheduler(object):
 
         schedule_execution.start_now = True
 
-        self._logger.info("Queued schedule '%s' for execution", schedule_row.name)
+        self._logger.debug("Queued schedule '%s' for execution", schedule_row.name)
         self._resume_check_schedules()
         return True
 

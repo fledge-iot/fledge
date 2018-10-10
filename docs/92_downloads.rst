@@ -26,17 +26,17 @@
 
    <a href="https://github.com/foglamp/storage-postgres" target="_blank">https://github.com/foglamp/storage-postgres</a>
 
-.. |intel 1.4.0 Ubuntu 16.04| raw:: html
+.. |intel 1.4.1 Ubuntu 16.04| raw:: html
 
-   <a href="https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-1.4.0-x86_64_ubuntu_16_04.deb">v1.4.0 Ubuntu 16.04</a>
+   <a href="https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-1.4.1-x86_64_ubuntu_16_04.deb">v1.4.1 Ubuntu 16.04</a>
 
-.. |intel 1.4.0 Ubuntu 18.04| raw:: html
+.. |intel 1.4.1 Ubuntu 18.04| raw:: html
 
-   <a href="https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-1.4.0-x86_64_ubuntu_18_04.deb">v1.4.0 Ubuntu 18.04</a>
+   <a href="https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-1.4.1-x86_64_ubuntu_18_04.deb">v1.4.1 Ubuntu 18.04</a>
 
-.. |arm 1.4.0| raw:: html
+.. |arm 1.4.1| raw:: html
 
-   <a href="https://s3.amazonaws.com/foglamp/debian/armhf/foglamp-1.4.0-armhf.deb">v1.4.0 ARM</a>
+   <a href="https://s3.amazonaws.com/foglamp/debian/armhf/foglamp-1.4.1-armhf.deb">v1.4.1 ARM</a>
 
 .. |gui 1.4.0| raw:: html
 
@@ -75,14 +75,14 @@ We have created Debian for Intel and ARM architectures. The packages have been t
 FogLAMP Debian Packages for Intel
 ---------------------------------
 
-- |intel 1.4.0 Ubuntu 16.04|
-- |intel 1.4.0 Ubuntu 18.04|
+- |intel 1.4.1 Ubuntu 16.04|
+- |intel 1.4.1 Ubuntu 18.04|
 
 
 FogLAMP Debian Packages for ARM
 -------------------------------
 
-- |arm 1.4.0|
+- |arm 1.4.1|
 
 
 FogLAMP GUI Debian Package

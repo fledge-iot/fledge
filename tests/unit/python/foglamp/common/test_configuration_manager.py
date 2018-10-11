@@ -832,9 +832,8 @@ class TestConfigurationManager:
                 with patch.object(ConfigurationManager, '_read_category_val', return_value=async_mock({})) as readpatch:
                     with patch.object(ConfigurationManager, '_merge_category_vals') as mergepatch:
                         with patch.object(ConfigurationManager, '_run_callbacks', return_value=async_mock(None)) as callbackpatch:
-                            with patch.object(ConfigurationManager, '_update_category', return_value=async_mock(None)) as updatepatch:
-                                await c_mgr.create_category('catname', 'catvalue', 'catdesc')
-                            updatepatch.assert_called_once_with('catname', {}, 'catdesc')
+                            cat = await c_mgr.create_category('catname', 'catvalue', 'catdesc')
+                            assert cat is None
                         callbackpatch.assert_called_once_with('catname')
                     mergepatch.assert_not_called()
                 readpatch.assert_called_once_with('catname')
@@ -855,11 +854,10 @@ class TestConfigurationManager:
                 with patch.object(ConfigurationManager, '_read_category_val', return_value=async_mock({})) as readpatch:
                     with patch.object(ConfigurationManager, '_merge_category_vals') as mergepatch:
                         with patch.object(ConfigurationManager, '_run_callbacks') as callbackpatch:
-                            with patch.object(ConfigurationManager, '_update_category', side_effect=Exception()) as updatepatch:
-                                with pytest.raises(Exception):
-                                    await c_mgr.create_category('catname', 'catvalue', 'catdesc')
-                            updatepatch.assert_called_once_with('catname', {}, 'catdesc')
-                        callbackpatch.assert_not_called()
+                            with pytest.raises(Exception) as excinfo:
+                                await c_mgr.create_category('catname', 'catvalue', 'catdesc')
+                            assert excinfo.type is TypeError
+                        callbackpatch.assert_called_once_with('catname')
                     mergepatch.assert_not_called()
                 readpatch.assert_called_once_with('catname')
             valpatch.assert_has_calls([call('catvalue', True), call({}, False)])
@@ -875,17 +873,21 @@ class TestConfigurationManager:
         async def async_mock(return_value):
             return return_value
 
+        all_cat_names = [('rest_api', 'FogLAMP Admin and User REST API', 'rest_api'), ('catname', 'catdesc', 'catname')]
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(ConfigurationManager, '_validate_category_val', side_effect=[async_mock({}), async_mock({})]) as valpatch:
             with patch.object(ConfigurationManager, '_read_category_val', return_value=async_mock({})) as readpatch:
-                with patch.object(ConfigurationManager, '_merge_category_vals', return_value=async_mock({})) as mergepatch:
-                    with patch.object(ConfigurationManager, '_run_callbacks') as callbackpatch:
-                        with patch.object(ConfigurationManager, '_update_category') as updatepatch:
-                            await c_mgr.create_category('catname', 'catvalue', 'catdesc')
-                        updatepatch.assert_not_called()
-                    callbackpatch.assert_not_called()
-                mergepatch.assert_called_once_with({}, {}, False, 'catname')
+                with patch.object(ConfigurationManager, '_read_all_category_names', return_value=async_mock(all_cat_names)) as read_all_patch:
+                    with patch.object(ConfigurationManager, '_merge_category_vals', return_value=async_mock({})) as mergepatch:
+                        with patch.object(ConfigurationManager, '_run_callbacks') as callbackpatch:
+                            with patch.object(ConfigurationManager, '_update_category') as updatepatch:
+                                cat = await c_mgr.create_category('catname', 'catvalue', 'catdesc')
+                                assert cat is None
+                            updatepatch.assert_not_called()
+                        callbackpatch.assert_not_called()
+                    mergepatch.assert_called_once_with({}, {}, False, 'catname')
+                read_all_patch.assert_called_once_with()
             readpatch.assert_called_once_with('catname')
         valpatch.assert_has_calls([call('catvalue', True), call({}, False)])
 
@@ -895,17 +897,21 @@ class TestConfigurationManager:
         async def async_mock(return_value):
             return return_value
 
+        all_cat_names = [('rest_api', 'FogLAMP Admin and User REST API', 'rest_api'), ('catname', 'catdesc', 'catname')]
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(ConfigurationManager, '_validate_category_val', side_effect=[async_mock({}), async_mock({})]) as valpatch:
             with patch.object(ConfigurationManager, '_read_category_val', return_value=async_mock({})) as readpatch:
-                with patch.object(ConfigurationManager, '_merge_category_vals', return_value=async_mock({'bla': 'bla'})) as mergepatch:
-                    with patch.object(ConfigurationManager, '_run_callbacks', return_value=async_mock(None)) as callbackpatch:
-                        with patch.object(ConfigurationManager, '_update_category', return_value=async_mock(None)) as updatepatch:
-                            await c_mgr.create_category('catname', 'catvalue', 'catdesc')
-                        updatepatch.assert_called_once_with('catname', {'bla': 'bla'}, 'catdesc')
-                    callbackpatch.assert_called_once_with('catname')
-                mergepatch.assert_called_once_with({}, {}, False, 'catname')
+                with patch.object(ConfigurationManager, '_read_all_category_names', return_value=async_mock(all_cat_names)) as read_all_patch:
+                    with patch.object(ConfigurationManager, '_merge_category_vals', return_value=async_mock({'bla': 'bla'})) as mergepatch:
+                        with patch.object(ConfigurationManager, '_run_callbacks', return_value=async_mock(None)) as callbackpatch:
+                            with patch.object(ConfigurationManager, '_update_category', return_value=async_mock(None)) as updatepatch:
+                                cat = await c_mgr.create_category('catname', 'catvalue', 'catdesc')
+                                assert cat is None
+                            updatepatch.assert_called_once_with('catname', {'bla': 'bla'}, 'catdesc', 'catname')
+                        callbackpatch.assert_called_once_with('catname')
+                    mergepatch.assert_called_once_with({}, {}, False, 'catname')
+                read_all_patch.assert_called_once_with()
             readpatch.assert_called_once_with('catname')
         valpatch.assert_has_calls([call('catvalue', True), call({}, False)])
 
@@ -915,20 +921,22 @@ class TestConfigurationManager:
         async def async_mock(return_value):
             return return_value
 
+        all_cat_names = [('rest_api', 'FogLAMP Admin and User REST API', 'rest_api'), ('catname', 'catdesc', 'catname')]
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(_logger, 'exception') as log_exc:
             with patch.object(ConfigurationManager, '_validate_category_val', side_effect=[async_mock({}), async_mock({})]) as valpatch:
                 with patch.object(ConfigurationManager, '_read_category_val', return_value=async_mock({})) as readpatch:
-                    with patch.object(ConfigurationManager, '_merge_category_vals', return_value=async_mock({'bla': 'bla'})) as mergepatch:
-                        with patch.object(ConfigurationManager, '_run_callbacks') as callbackpatch:
-                            with patch.object(ConfigurationManager, '_update_category', side_effect=Exception()) as updatepatch:
-                                with pytest.raises(Exception):
+                    with patch.object(ConfigurationManager, '_read_all_category_names', return_value=async_mock(all_cat_names)) as read_all_patch:
+                        with patch.object(ConfigurationManager, '_merge_category_vals', return_value=async_mock({'bla': 'bla'})) as mergepatch:
+                            with patch.object(ConfigurationManager, '_run_callbacks') as callbackpatch:
+                                with pytest.raises(Exception) as excinfo:
                                     await c_mgr.create_category('catname', 'catvalue', 'catdesc')
-                                updatepatch.assert_called_once_with('catname', {'bla': 'bla'}, 'catdesc')
+                                assert excinfo.type is TypeError
                             callbackpatch.assert_not_called()
                         mergepatch.assert_called_once_with({}, {}, False, 'catname')
-                    readpatch.assert_called_once_with('catname')
+                    read_all_patch.assert_called_once_with()
+                readpatch.assert_called_once_with('catname')
             valpatch.assert_has_calls([call('catvalue', True), call({}, False)])
         assert 1 == log_exc.call_count
         log_exc.assert_called_once_with('Unable to create new category based on category_name %s and category_description %s '
@@ -1654,9 +1662,10 @@ class TestConfigurationManager:
                     with patch.object(PayloadBuilder, 'payload', return_value=None) as pbpayloadpatch:
                         with patch.object(c_mgr, '_read_category_val', return_value=mock_coro2()) as readpatch:
                             await c_mgr._update_category(category_name, category_val, category_description)
-                        pbpayloadpatch.assert_called_once_with()
-                    pbwherepatch.assert_called_once_with(["key", "=", category_name])
-                pbsetpatch.assert_called_once_with(description='catdesc', value='catval')
+                        readpatch.assert_called_once_with(category_name)
+                    pbpayloadpatch.assert_called_once_with()
+                pbwherepatch.assert_called_once_with(["key", "=", category_name])
+            pbsetpatch.assert_called_once_with(description=category_description, value=category_val, display_name=category_name)
         storage_client_mock.update_tbl.assert_called_once_with('configuration', None)
 
     @pytest.mark.asyncio
@@ -1709,7 +1718,7 @@ class TestConfigurationManager:
                             await c_mgr._update_category(category_name, category_val, category_description)
                     pbpayloadpatch.assert_called_once_with()
                 pbwherepatch.assert_called_once_with(["key", "=", category_name])
-            pbsetpatch.assert_called_once_with(description='catdesc', value='catval')
+            pbsetpatch.assert_called_once_with(description=category_description, value=category_val, display_name=category_name)
         storage_client_mock.update_tbl.assert_called_once_with('configuration', None)
 
     async def test_get_category_child(self):
@@ -1718,7 +1727,7 @@ class TestConfigurationManager:
 
         category_name = 'HTTP SOUTH'
         all_child_ret_val = [{'parent': 'south', 'child': category_name}]
-        child_info_ret_val = [{'key': category_name, 'description': 'HTTP South Plugin'}]
+        child_info_ret_val = [{'key': category_name, 'description': 'HTTP South Plugin', 'display_name': category_name}]
 
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
@@ -1726,7 +1735,7 @@ class TestConfigurationManager:
             with patch.object(ConfigurationManager, '_read_all_child_category_names', return_value=async_mock(all_child_ret_val)) as patch_read_all_child:
                 with patch.object(ConfigurationManager, '_read_child_info', return_value=async_mock(child_info_ret_val)) as patch_read_child_info:
                     ret_val = await c_mgr.get_category_child(category_name)
-                    assert [{'description': 'HTTP South Plugin', 'key': category_name}] == ret_val
+                    assert [{'displayName': category_name, 'description': 'HTTP South Plugin', 'key': category_name}] == ret_val
                 patch_read_child_info.assert_called_once_with([{'child': category_name, 'parent': 'south'}])
             patch_read_all_child.assert_called_once_with(category_name)
         patch_read_cat_val.assert_called_once_with(category_name)

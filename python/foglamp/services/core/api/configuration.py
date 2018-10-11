@@ -95,6 +95,8 @@ async def get_category(request):
     for k, v in category.items():
         if v['type'] == 'script':
             prefix_file_name = category_name.lower() + "_" + k.lower() + "_"
+            if not os.path.exists(script_dir):
+                os.makedirs(script_dir)
             _all_files = os.listdir(script_dir)
             for name in _all_files:
                 if name.startswith(prefix_file_name):
@@ -187,6 +189,8 @@ async def get_category_item(request):
 
     if category_item['type'] == 'script':
         prefix_file_name = category_name.lower() + "_" + config_item.lower() + "_"
+        if not os.path.exists(script_dir):
+            os.makedirs(script_dir)
         _all_files = os.listdir(script_dir)
         for name in _all_files:
             if name.startswith(prefix_file_name):

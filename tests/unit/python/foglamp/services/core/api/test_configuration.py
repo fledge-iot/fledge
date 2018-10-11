@@ -14,7 +14,7 @@ import pytest
 from foglamp.services.core import routes
 from foglamp.services.core import connect
 from foglamp.common.storage_client.storage_client import StorageClientAsync
-from foglamp.common.configuration_manager import ConfigurationManager, ConfigurationManagerSingleton
+from foglamp.common.configuration_manager import ConfigurationManager, ConfigurationManagerSingleton, _logger
 from foglamp.common.audit_logger import AuditLogger
 
 __author__ = "Ashish Jabble"
@@ -396,10 +396,13 @@ class TestConfiguration:
 
         storage_client_mock = MagicMock(StorageClientAsync)
         ConfigurationManager(storage_client_mock)
-        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            resp = await client.post('/foglamp/category', data=json.dumps(payload))
-            assert 400 == resp.status
-            assert "Specifying value_name and value_val for item_name info is not allowed if desired behavior is to use default_val as value_val" == resp.reason
+        with patch.object(_logger, 'exception') as log_exc:
+            with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                resp = await client.post('/foglamp/category', data=json.dumps(payload))
+                assert 400 == resp.status
+                assert "Specifying value_name and value_val for item_name info is not allowed if desired behavior is to use default_val as value_val" == resp.reason
+        assert 1 == log_exc.call_count
+        log_exc.assert_called_once_with('Unable to create new category based on category_name %s and category_description %s and category_json_schema %s', 'test_cat', 'Test desc', '')
 
     async def test_create_category_invalid_category(self, client, name="test_cat", desc="Test desc"):
         info = {'info': {'type': 'boolean', 'value': 'False', 'description': 'Test', 'default': 'False'}}

@@ -764,7 +764,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         try:
             child_cat_names = await self._read_all_child_category_names(category_name)
-            children =  await self._read_child_info(child_cat_names)
+            children = await self._read_child_info(child_cat_names)
             return [{"key": c['key'], "description": c['description'], "displayName": c['display_name']} for c in children]
         except:
             _logger.exception(

@@ -416,6 +416,7 @@ CREATE TABLE foglamp.streams (
 -- ts is set by default with now().
 CREATE TABLE foglamp.configuration (
        key         character varying(255)      NOT NULL COLLATE pg_catalog."default", -- Primary key
+       display_name character varying(255)     NOT NULL,                              -- Display Name
        description character varying(255)      NOT NULL,                              -- Description, in plain text
        value       jsonb                       NOT NULL DEFAULT '{}'::jsonb,          -- JSON object containing the configuration values
        ts          timestamp(6) with time zone NOT NULL DEFAULT now(),                -- Timestamp, updated at every change

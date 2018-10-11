@@ -56,10 +56,10 @@ async def get_categories(request):
             categories_json = await cf_mgr.get_all_category_names(root=is_root, children=is_children)
         else:
             categories = await cf_mgr.get_all_category_names(root=is_root)
-            categories_json = [{"key": c[0], "description": c[1]} for c in categories]
+            categories_json = [{"key": c[0], "description": c[1], "displayName": c[2]} for c in categories]
     else:
         categories = await cf_mgr.get_all_category_names()
-        categories_json = [{"key": c[0], "description": c[1]} for c in categories]
+        categories_json = [{"key": c[0], "description": c[1], "displayName": c[2]} for c in categories]
 
     return web.json_response({'categories': categories_json})
 
@@ -98,6 +98,7 @@ async def create_category(request):
 
     :Example:
             curl -d '{"key": "TEST", "description": "description", "value": {"info": {"description": "Test", "type": "boolean", "default": "true"}}}' -X POST http://localhost:8081/foglamp/category
+            curl -d '{"key": "TEST", "description": "description", "display_name": "Display test", "value": {"info": {"description": "Test", "type": "boolean", "default": "true"}}}' -X POST http://localhost:8081/foglamp/category
             curl -d '{"key": "TEST", "description": "description", "value": {"info": {"description": "Test", "type": "boolean", "default": "true"}}, "children":["child1", "child2"]}' -X POST http://localhost:8081/foglamp/category
     """
     keep_original_items = None
@@ -120,17 +121,16 @@ async def create_category(request):
         category_name = data.get('key')
         category_desc = data.get('description')
         category_value = data.get('value')
-
+        category_display_name = data.get('display_name')
         should_keep_original_items = True if keep_original_items == 'true' else False
 
         await cf_mgr.create_category(category_name=category_name, category_description=category_desc,
-                                     category_value=category_value, keep_original_items=should_keep_original_items)
+                                     category_value=category_value, display_name=category_display_name, keep_original_items=should_keep_original_items)
 
         category_info = await cf_mgr.get_category_all_items(category_name=category_name)
         if category_info is None:
             raise LookupError('No such %s found' % category_name)
-
-        result = {"key": category_name, "description": category_desc, "value": category_info}
+        result = {"key": category_name, "description": category_desc, "value": category_info, "displayName": cf_mgr._cacheManager.cache[category_name]['displayName']}
         if data.get('children'):
             r = await cf_mgr.create_child_category(category_name, data.get('children'))
             result.update(r)
@@ -349,11 +349,11 @@ async def get_child_category(request):
     cf_mgr = ConfigurationManager(connect.get_storage_async())
 
     try:
-        result = await cf_mgr.get_category_child(category_name)
+        children = await cf_mgr.get_category_child(category_name)
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
 
-    return web.json_response({"categories": result})
+    return web.json_response({"categories": children})
 
 
 async def create_child_category(request):

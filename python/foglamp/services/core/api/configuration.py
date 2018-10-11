@@ -32,6 +32,9 @@ _help = """
     --------------------------------------------------------------------------------
 """
 
+script_dir = _FOGLAMP_DATA + '/scripts/' if _FOGLAMP_DATA else _FOGLAMP_ROOT + "/data/scripts/"
+
+
 #################################
 #  Configuration Manager
 #################################
@@ -88,6 +91,14 @@ async def get_category(request):
 
     if category is None:
         raise web.HTTPNotFound(reason="No such Category found for {}".format(category_name))
+
+    for k, v in category.items():
+        if v['type'] == 'script':
+            prefix_file_name = category_name.lower() + "_" + k.lower() + "_"
+            _all_files = os.listdir(script_dir)
+            for name in _all_files:
+                if name.startswith(prefix_file_name):
+                    category[k]["file"] = script_dir + name
 
     return web.json_response(category)
 
@@ -175,15 +186,11 @@ async def get_category_item(request):
         raise web.HTTPNotFound(reason="No such Category item found for {}".format(config_item))
 
     if category_item['type'] == 'script':
-        dir_name = _FOGLAMP_DATA + '/scripts/' if _FOGLAMP_DATA else _FOGLAMP_ROOT + "/data/scripts/"
-        # TODO: It may be add more extensions
-        valid_extensions = ('.py')
-
-        for root, dirs, files in os.walk(dir_name):
-            _file = [f for f in files if f.startswith(category_name + "_" + config_item) and f.endswith(valid_extensions)]
-            if _file:
-                category_item["file"] = dir_name + _file[0]
-                # TODO: read the contents of file and return default/value | Not sure about save in DB
+        prefix_file_name = category_name.lower() + "_" + config_item.lower() + "_"
+        _all_files = os.listdir(script_dir)
+        for name in _all_files:
+            if name.startswith(prefix_file_name):
+                category_item["file"] = script_dir + name
 
     return web.json_response(category_item)
 
@@ -478,23 +485,38 @@ async def upload_script(request):
     if not script_file:
         raise web.HTTPBadRequest(reason="Script file is missing")
 
-    # TODO: For now accepted extension is '.py'
-    valid_extensions = ('.py')
+    # TODO: For the time being accepted extension is '.py'
     script_filename = script_file.filename
-    if not script_filename.endswith(valid_extensions):
+    if not script_filename.endswith('.py'):
         raise web.HTTPBadRequest(reason="Accepted file extension is .py")
 
-    dir_name = _FOGLAMP_DATA + '/scripts/' if _FOGLAMP_DATA else _FOGLAMP_ROOT + "/data/scripts/"
     script_file_data = data['script'].file
     script_file_content = script_file_data.read()
-    file_name = category_name + "_" + config_item + "_" + script_filename
-    script_file_path = str(dir_name) + '{}'.format(file_name)
+    prefix_file_name = category_name.lower() + "_" + config_item.lower() + "_"
+    file_name = prefix_file_name + script_filename
+    script_file_path = script_dir + file_name
+    # If 'scripts' dir not exists, then create
+    if not os.path.exists(script_dir):
+        os.makedirs(script_dir)
+    # Write contents to file and save under scripts dir path
     with open(script_file_path, 'wb') as f:
         f.write(script_file_content)
 
     bytes_to_string = script_file_content.decode("utf-8")
-    await cf_mgr.set_category_item_value_entry(category_name, config_item, bytes_to_string)
-    result = await cf_mgr.get_category_item(category_name, config_item)
-    result['file'] = script_file_path
-    
-    return web.json_response(result)
+    try:
+        # Save the value to database
+        await cf_mgr.set_category_item_value_entry(category_name, config_item, bytes_to_string)
+        # Remove old files for combination categoryname_configitem_filename and retain only the latest one
+        _all_files = os.listdir(script_dir)
+        for name in _all_files:
+            if name.startswith(prefix_file_name):
+                if name != file_name:
+                    os.remove(script_dir + name)
+
+    except Exception as ex:
+        os.remove(script_file_path)
+        raise web.HTTPBadRequest(reason=ex)
+    else:
+        result = await cf_mgr.get_category_item(category_name, config_item)
+        result['file'] = script_file_path
+        return web.json_response(result)

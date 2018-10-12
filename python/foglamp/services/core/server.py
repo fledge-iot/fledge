@@ -133,44 +133,52 @@ class Server:
         'httpPort': {
             'description': 'Port to accept HTTP connections on',
             'type': 'integer',
-            'default': '8081'
+            'default': '8081',
+            'displayName': 'HTTP Port'
         },
         'httpsPort': {
             'description': 'Port to accept HTTPS connections on',
             'type': 'integer',
-            'default': '1995'
+            'default': '1995',
+            'displayName': 'HTTPS Port'
         },
         'enableHttp': {
             'description': 'Enable HTTP (disable to use HTTPS)',
             'type': 'boolean',
-            'default': 'true'
+            'default': 'true',
+            'displayName': 'Enable HTTP'
         },
         'authProviders': {
             'description': 'Authentication providers to use for the interface (JSON array object)',
             'type': 'JSON',
-            'default': '{"providers": ["username", "ldap"] }'
+            'default': '{"providers": ["username", "ldap"] }',
+            'displayName': 'Auth Providers'
         },
         'certificateName': {
             'description': 'Certificate file name',
             'type': 'string',
-            'default': 'foglamp'
+            'default': 'foglamp',
+            'displayName': 'Certificate Name'
         },
         'authentication': {
             'description': 'API Call Authentication',
             'type': 'enumeration',
             'options': ['mandatory', 'optional'],
-            'default': 'optional'
+            'default': 'optional',
+            'displayName': 'Authentication'
         },
         'allowPing': {
             'description': 'Allow access to ping, regardless of the authentication required and'
                            ' authentication header',
             'type': 'boolean',
-            'default': 'true'
+            'default': 'true',
+            'displayName': 'Allow Ping'
         },
         'passwordChange': {
             'description': 'Number of days after which passwords must be changed',
             'type': 'integer',
-            'default': '0'
+            'default': '0',
+            'displayName': 'Password Expiry Days'
         }
     }
 
@@ -279,7 +287,7 @@ class Server:
             config = cls._REST_API_DEFAULT_CONFIG
             category = 'rest_api'
 
-            await cls._configuration_manager.create_category(category, config, 'FogLAMP Admin and User REST API', True)
+            await cls._configuration_manager.create_category(category, config, 'FogLAMP Admin and User REST API', True, display_name="Admin API")
             config = await cls._configuration_manager.get_category_all_items(category)
 
             try:

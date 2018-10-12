@@ -113,7 +113,6 @@ static void loadDataThread(SendingProcess *loadData)
 {
         unsigned int    readIdx = 0;
 
-        // FIXME:
 	// Read from the storage last Id already sent
 	loadData->setLastFetchId(loadData->getLastSentId());
 
@@ -215,7 +214,6 @@ static void loadDataThread(SendingProcess *loadData)
 			// Data fetched from storage layer
 			if (readings != NULL && readings->getCount())
 			{
-				// FIXME:
 				//Update last fetched reading Id
 				loadData->setLastFetchId(readings->getLastId());
 
@@ -303,7 +301,7 @@ static void sendDataThread(SendingProcess *sendData)
 				sendData->updateDatabaseCounters();
 
 				// numReadings sent so far
-				totSent += sendData->getSentReadings();
+				totSent = sendData->getSentReadings();
 
 				// Reset current sent readings
 				sendData->resetSentReadings();	
@@ -338,7 +336,7 @@ static void sendDataThread(SendingProcess *sendData)
 				sendData->updateDatabaseCounters();
 
 				// numReadings sent so far
-				totSent += sendData->getSentReadings();
+				totSent = sendData->getSentReadings();
 
 				// Reset current sent readings
 				sendData->resetSentReadings();	
@@ -367,9 +365,6 @@ static void sendDataThread(SendingProcess *sendData)
 
 			uint32_t sentReadings = sendData->m_plugin->send(readingData);
 
-			// FIXME:
-			sendData->stopRunning();
-
 			if (sentReadings)
 			{
 				/** Sending done */
@@ -381,19 +376,17 @@ static void sendDataThread(SendingProcess *sendData)
 				 */
 				readMutex.lock();
 
+				// Update last sent reading Id
+				sendData->setLastSentId(readingData.back()->getId());
+
 				delete sendData->m_buffer.at(sendIdx);
 				sendData->m_buffer.at(sendIdx) = NULL;
 
 				/** 2- Update sent counter (memory only) */
 				sendData->updateSentReadings(sentReadings);
 
-				// FIXME:
-				// Update last fetched reading Id
-				sendData->setLastSentId(readingData.back()->getId());
-
-				// FIXME:
 				// numReadings sent so far
-				totSent += sendData->getSentReadings();
+				totSent = sendData->getSentReadings();
 
 				readMutex.unlock();
 
@@ -418,7 +411,7 @@ static void sendDataThread(SendingProcess *sendData)
 					sendData->updateDatabaseCounters();
 
 					// numReadings sent so far
-					totSent += sendData->getSentReadings();
+					totSent = sendData->getSentReadings();
 
 					// Reset current sent readings
 					sendData->resetSentReadings();	
@@ -443,7 +436,7 @@ static void sendDataThread(SendingProcess *sendData)
 		sendData->updateDatabaseCounters();
 
                 // numReadings sent so far
-		totSent += sendData->getSentReadings();
+		totSent = sendData->getSentReadings();
 
                 // Reset current sent readings
 		sendData->resetSentReadings();

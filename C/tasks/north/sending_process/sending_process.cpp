@@ -287,10 +287,10 @@ static void loadDataThread(SendingProcess *loadData)
  */
 static void sendDataThread(SendingProcess *sendData)
 {
-	unsigned long totSent = 0;
 	unsigned int  sendIdx = 0;
+	sendData->resetSentReadings();
 
-        while (sendData->isRunning())
+	while (sendData->isRunning())
         {
                 if (sendIdx >= DATA_BUFFER_ELMS)
 		{
@@ -299,12 +299,6 @@ static void sendDataThread(SendingProcess *sendData)
 			{
 				// Update counters to Database
 				sendData->updateDatabaseCounters();
-
-				// numReadings sent so far
-				totSent = sendData->getSentReadings();
-
-				// Reset current sent readings
-				sendData->resetSentReadings();	
 
 				// DB update done
 				sendData->setUpdateDb(false);
@@ -334,12 +328,6 @@ static void sendDataThread(SendingProcess *sendData)
 			{
                                 // Update counters to Database
 				sendData->updateDatabaseCounters();
-
-				// numReadings sent so far
-				totSent = sendData->getSentReadings();
-
-				// Reset current sent readings
-				sendData->resetSentReadings();	
 
 				// DB update done
 				sendData->setUpdateDb(false);
@@ -385,9 +373,6 @@ static void sendDataThread(SendingProcess *sendData)
 				/** 2- Update sent counter (memory only) */
 				sendData->updateSentReadings(sentReadings);
 
-				// numReadings sent so far
-				totSent = sendData->getSentReadings();
-
 				readMutex.unlock();
 
 				sendIdx++;
@@ -410,12 +395,6 @@ static void sendDataThread(SendingProcess *sendData)
 					// Update counters to Database
 					sendData->updateDatabaseCounters();
 
-					// numReadings sent so far
-					totSent = sendData->getSentReadings();
-
-					// Reset current sent readings
-					sendData->resetSentReadings();	
-
 					// DB update done
 					sendData->setUpdateDb(false);
 				}
@@ -427,19 +406,13 @@ static void sendDataThread(SendingProcess *sendData)
                 }
         }
 	Logger::getLogger()->info("SendingProcess sendData thread: sent %lu total '%s'",
-				  totSent,
+				  sendData->getSentReadings(),
 				  sendData->getDataSourceType().c_str());
 
 	if (sendData->getUpdateDb())
 	{
                 // Update counters to Database
 		sendData->updateDatabaseCounters();
-
-                // numReadings sent so far
-		totSent = sendData->getSentReadings();
-
-                // Reset current sent readings
-		sendData->resetSentReadings();
 
                 sendData->setUpdateDb(false);
         }

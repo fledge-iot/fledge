@@ -1,0 +1,146 @@
+#!/bin/bash
+
+##
+# This script has been copied into FogLAMP 'scripts/tasks' by the Foglamp install process.
+#
+# It may either be called by FogLAMP scheduler for updating FogLAMP package and it may also be called
+# manually via /usr/local/foglamp/bin/foglamp_update script.
+##
+
+__author__="Massimiliano Pinto, Amarendra K Sinha"
+__copyright__="Copyright (c) 2018 OSIsoft, LLC"
+__license__="Apache 2.0"
+__version__="1.1"
+
+# Set the default value for FOGLAMP_ROOT if not set
+if [ "${FOGLAMP_ROOT}" = "" ]; then
+	FOGLAMP_ROOT=/usr/local/foglamp
+fi
+
+# Check availability of FOGLAMP_ROOT directory
+if [ ! -d "${FOGLAMP_ROOT}" ]; then
+        logger -p local0.err -t "FogLAMP[${$}]" "${TASK_NAME} $0 home directory missing or incorrectly set environment"
+        exit 1
+fi
+
+# Handle input parameters
+while [ "$1" != "" ]; do
+    PARAM=`echo $1 | awk -F= '{print $1}'`
+    VALUE=`echo $1 | awk -F= '{print $2}'`
+    case $PARAM in
+        --port)
+            CORE_PORT=$VALUE
+            ;;
+        --address)
+            CORE_ADDRESS=$VALUE
+            ;;
+        --name)
+            TASK_NAME=$VALUE
+            ;;
+        *)
+        ;;
+    esac
+    shift
+done
+
+# Include logging: it works only with bash
+. "${FOGLAMP_ROOT}/scripts/common/write_log.sh" || exit 1
+
+# Abort on missing CORE_PORT
+if [ ! "${CORE_PORT}" ]; then
+	write_log "FogLAMP[${$}]" "err" "${TASK_NAME} $0: missing '--port' option. Exiting" "all" "pretty"
+	exit 1
+fi
+
+# Set 'localhost' if CORE_ADDRESS is not set
+if [ ! "${CORE_ADDRESS}" ]; then
+	CORE_ADDRESS="localhost"
+fi
+
+REST_API_SCHEME="https://"
+CORE_BASE_URL="${REST_API_SCHEME}${CORE_ADDRESS}:${CORE_PORT}/foglamp/service"
+
+# Check FogLAMP Core is running at CORE_ADDRESS, CORE_PORT with HTTPS first
+CHECK_SERVICE=`curl -s -k --max-time 30 "${CORE_BASE_URL}/ping" | grep -i uptime`
+
+if [ ! "${CHECK_SERVICE}" ]; then
+	# No reply using HTTPS, so try HTTP now
+	REST_API_SCHEME="http://"
+	CORE_BASE_URL="${REST_API_SCHEME}${CORE_ADDRESS}:${CORE_PORT}/foglamp/service"
+	# Check FogLAMP Core is running at CORE_ADDRESS, CORE_PORT with HTTPP
+	CHECK_SERVICE=`curl -s -k --max-time 30 "${CORE_BASE_URL}/ping" | grep -i uptime`
+	# Exit on error
+	if [ ! "${CHECK_SERVICE}" ]; then
+		write_log "FogLAMP[${$}]" "err" "${TASK_NAME} $0: cannot connect to FogLAMP Core [${REST_API_SCHEME}${CORE_ADDRESS}:${CORE_PORT}]. Exiting" "all" "pretty"
+		exit 1
+	fi
+fi
+
+# Get the FogLAMP Core details
+CORE_SERVICE_URL="${CORE_BASE_URL}?name=FogLAMP%20Core"
+SERVICE_INFO=`curl -s -k --max-time 30 "${CORE_SERVICE_URL}"`
+CHECK_SERVICE=`echo "${SERVICE_INFO}" | grep -i "FogLAMP Core"`
+
+# Check for errors
+if [ ! "${CHECK_SERVICE}" ]; then
+	write_log "FogLAMP[${$}]" "err" "${TASK_NAME} $0: cannot get FogLAMP Core details from [${CORE_SERVICE_URL}]. Exiting."
+	exit 2
+fi
+
+# Add foglamp python path to PYTHONPATH
+export PYTHONPATH="${PYTHONPATH}:${FOGLAMP_ROOT}/scripts/common"
+
+# On succes 'REST_API_URL' var holds the REST API server URL
+REST_API_URL=`echo ${SERVICE_INFO} | python3 -m json_parse get_rest_api_url`
+find_api_server=$?
+
+# Check ret code
+if [ "${find_api_server}" -ne 0 ]; then
+    write_log "FogLAMP[${$}]" "err" "${TASK_NAME} $0: FogLAMP API URL [${REST_API_URL}]" "all" "pretty"
+    exit 2
+fi
+
+# Now check and download the latest Foglamp package.
+# 1. Download the latest stable version info
+# 2. Compare current version and latest stable version
+# 3. Download the latest stable version if latest version and current version are different
+
+
+# 1. Download the latest stable version info
+VERSION_CMD="wget https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-latest-version.info"
+VERSION_STATUS=`$VERSION_CMD`
+if [ "${VERSION_STATUS}" != "" ]; then
+    write_log "FogLAMP[${$}]" "err" "${TASK_NAME} $0: cannot download foglamp-latest-version.info"
+    exit 1
+fi
+
+LATEST_CMD="cat ./foglamp-latest-version.info"
+LATEST_VERSION=`${LATEST_CMD}`
+if [ "${VERSION_STATUS}" = "" ]; then
+    write_log "Error in reading foglamp-latest-version.info"
+    exit 1
+fi
+
+
+# 2. Compare current version and latest stable version
+CURRENT_VERSION=`cat ${FOGLAMP_ROOT}/VERSION | grep foglamp_version | cut -d'=' -f2`
+if [ "${CURRENT_VERSION}" = "${LATEST_VERSION}" ]; then
+    #echo "FogLAMP[${$}]" "Both Current version ${CURRENT_VERSION} and lastest version ${LATEST_VERSION} are same..."
+    write_log "FogLAMP[${$}]" "Both Current version ${CURRENT_VERSION} and lastest version ${LATEST_VERSION} are same..."
+    exit 0
+fi
+
+
+# 3. Download the latest stable version
+DOWNLOAD_CMD="wget https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-${LATEST_VERSION}-x86_64_ubuntu_16_04.deb"
+DOWNLOADED_STATUS=`$DOWNLOAD_CMD`
+if [ "${DOWNLOADED_STATUS}" != "" ]; then
+    write_log "FogLAMP[${$}]" "err" "${TASK_NAME} $0: cannot download FogLAMP ${LATEST_VERSION}"
+    exit 1
+else
+    write_log "FogLAMP[${$}]" "success" "${TASK_NAME} $0: cannot download FogLAMP ${LATEST_VERSION}"
+fi
+
+
+# Disconnect script execution from shell
+#nohup $command </dev/null >/dev/null 2>&1 &

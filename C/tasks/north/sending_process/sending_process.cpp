@@ -300,9 +300,6 @@ static void sendDataThread(SendingProcess *sendData)
 				// Update counters to Database
 				sendData->updateDatabaseCounters();
 
-				// numReadings sent so far
-				totSent = sendData->getSentReadings();
-
 				// Reset current sent readings
 				sendData->resetSentReadings();	
 
@@ -334,9 +331,6 @@ static void sendDataThread(SendingProcess *sendData)
 			{
                                 // Update counters to Database
 				sendData->updateDatabaseCounters();
-
-				// numReadings sent so far
-				totSent = sendData->getSentReadings();
 
 				// Reset current sent readings
 				sendData->resetSentReadings();	
@@ -386,7 +380,7 @@ static void sendDataThread(SendingProcess *sendData)
 				sendData->updateSentReadings(sentReadings);
 
 				// numReadings sent so far
-				totSent = sendData->getSentReadings();
+				totSent += sentReadings;
 
 				readMutex.unlock();
 
@@ -410,9 +404,6 @@ static void sendDataThread(SendingProcess *sendData)
 					// Update counters to Database
 					sendData->updateDatabaseCounters();
 
-					// numReadings sent so far
-					totSent = sendData->getSentReadings();
-
 					// Reset current sent readings
 					sendData->resetSentReadings();	
 
@@ -434,9 +425,6 @@ static void sendDataThread(SendingProcess *sendData)
 	{
                 // Update counters to Database
 		sendData->updateDatabaseCounters();
-
-                // numReadings sent so far
-		totSent = sendData->getSentReadings();
 
                 // Reset current sent readings
 		sendData->resetSentReadings();

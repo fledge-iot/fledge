@@ -32,17 +32,26 @@ class NorthPlugin : public Plugin {
 		~NorthPlugin();
 
 		void			shutdown();
+		std::string		shutdownSaveData();
 		std::map<const std::string, const std::string>& 	config() const;
 		uint32_t		send(const std::vector<Reading* >& readings) const;
 		PLUGIN_HANDLE		init(const std::map<std::string, std::string>& config);
+		bool			persistData() { return info->options & SP_PERSIST_DATA; };
+		void			start();
+		void			startData(const std::string& pluginData);
 
 	private:
 		// Function pointers
-		void			(*pluginShutdownPtr)(const PLUGIN_HANDLE);
+		void			(*pluginShutdown)(const PLUGIN_HANDLE);
+		std::string		(*pluginShutdownData)(const PLUGIN_HANDLE);
 		std::map<const std::string, const std::string>&	(*pluginGetConfig)();
 		uint32_t		(*pluginSend)(const PLUGIN_HANDLE,
 						      const std::vector<Reading* >& readings);
-		PLUGIN_HANDLE		(*pluginInit)(const std::map<std::string, std::string>& config);
+		PLUGIN_HANDLE		(*pluginInit)(const std::map<std::string,
+						      std::string>& config);
+		void			(*pluginStart)(PLUGIN_HANDLE);
+		void			(*pluginStartData)(PLUGIN_HANDLE,
+							   const std::string& pluginData);
 
 	private:
 		// Attributes

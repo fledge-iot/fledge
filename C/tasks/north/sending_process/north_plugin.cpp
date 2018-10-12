@@ -25,13 +25,21 @@ NorthPlugin::NorthPlugin(const PLUGIN_HANDLE handle) : Plugin(handle)
         pluginInit = (PLUGIN_HANDLE (*)(const map<string, string>& config))
 					manager->resolveSymbol(handle, "plugin_init");
 
-	pluginShutdownPtr = (void (*)(const PLUGIN_HANDLE))
-				      manager->resolveSymbol(handle, "plugin_shutdown");
+	pluginShutdown = (void (*)(const PLUGIN_HANDLE))
+				   manager->resolveSymbol(handle, "plugin_shutdown");
+	pluginShutdownData = (string (*)(const PLUGIN_HANDLE))
+					 manager->resolveSymbol(handle, "plugin_shutdown");
 
 	pluginSend = (uint32_t (*)(const PLUGIN_HANDLE, const vector<Reading* >& readings))
 				   manager->resolveSymbol(handle, "plugin_send");
 
-	pluginGetConfig = (map<const string, const string>& (*)())manager->resolveSymbol(handle, "plugin_config");
+	pluginGetConfig = (map<const string, const string>& (*)())
+								manager->resolveSymbol(handle, "plugin_config");
+
+	pluginStart = (void (*)(const PLUGIN_HANDLE))
+				manager->resolveSymbol(handle, "plugin_start");
+	pluginStartData = (void (*)(const PLUGIN_HANDLE, const string& storedData))
+				manager->resolveSymbol(handle, "plugin_start");
 }
 
 // Destructor
@@ -49,6 +57,32 @@ PLUGIN_HANDLE NorthPlugin::init(const map<string, string>& config)
 {
 	m_instance = this->pluginInit(config);
 	return &m_instance;
+}
+
+/**
+ * Call the start method in the plugin
+ * with no persisted data
+ */
+void NorthPlugin::start()
+{
+	// Ccheck pluginStart function pointer exists
+	if (this->pluginStart)
+	{
+		this->pluginStart(m_instance);
+	}
+}
+
+/**
+ * Call the start method in the plugin
+ * passing persisted data
+ */
+void NorthPlugin::startData(const string& storedData)
+{
+	// Ccheck pluginStartData function pointer exists
+	if (this->pluginStartData)
+	{
+		this->pluginStartData(m_instance, storedData);
+	}
 }
 
 /**
@@ -75,5 +109,22 @@ map<const string, const string>& NorthPlugin::config() const
  */
 void NorthPlugin::shutdown()
 {
-        return this->pluginShutdownPtr(m_instance);
+	// Ccheck pluginShutdown function pointer exists
+	if (this->pluginShutdown)
+	{
+		return this->pluginShutdown(m_instance);
+	}
+}
+
+/**
+ * Call the shutdown method in the plugin
+ * and return plugin data to parsist as JSON string
+ */
+string NorthPlugin::shutdownSaveData()
+{
+	// Ccheck pluginShutdownData function pointer exists
+	if (this->pluginShutdownData)
+	{
+		return this->pluginShutdownData(m_instance);
+	}
 }

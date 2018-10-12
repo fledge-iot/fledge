@@ -752,6 +752,12 @@ CREATE TABLE foglamp.asset_tracker (
 CREATE INDEX asset_tracker_ix1 ON foglamp.asset_tracker USING btree (asset);
 CREATE INDEX asset_tracker_ix2 ON foglamp.asset_tracker USING btree (service);
 
+-- Create plugin_data table
+-- Persist plugin data in the storage
+CREATE TABLE foglamp.plugin_data (
+	key     character varying(255)    NOT NULL,
+	data    jsonb                     NOT NULL DEFAULT '{}'::jsonb,
+	CONSTRAINT plugin_data_pkey PRIMARY KEY (key) );
 
 -- Grants to foglamp schema
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA foglamp TO PUBLIC;

@@ -41,6 +41,11 @@ SouthPlugin::SouthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category) :
   		pluginRegisterPtr = (void (*)(PLUGIN_HANDLE, INGEST_CB cb, void *data))
 				manager->resolveSymbol(handle, "plugin_register_ingest");
 	}
+
+	pluginShutdownDataPtr = (string (*)(const PLUGIN_HANDLE))
+				 manager->resolveSymbol(handle, "plugin_shutdown");
+	pluginStartDataPtr = (void (*)(const PLUGIN_HANDLE, const string& storedData))
+			      manager->resolveSymbol(handle, "plugin_start");
 }
 
 /**

@@ -423,11 +423,14 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 	try {
 		ostringstream convert;
 
+		convert << "{ \"updates\" : [ ";
 		convert << "{ \"where\" : ";
 		convert << where.toJSON();
 		convert << ", \"values\" : ";
 		convert << values.toJSON();
 		convert << " }";
+		convert << " ] }";
+		
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
 		auto res = this->getHttpClient()->request("PUT", url, convert.str());
@@ -475,11 +478,76 @@ int StorageClient::updateTable(const string& tableName, const ExpressionValues& 
 	try {
 		ostringstream convert;
 
+		convert << "{ \"updates\" : [ ";
 		convert << "{ \"where\" : ";
 		convert << where.toJSON();
 		convert << ", \"expressions\" : ";
 		convert << values.toJSON();
 		convert << " }";
+		convert << " ] }";
+		
+		char url[128];
+		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
+		auto res = this->getHttpClient()->request("PUT", url, convert.str());
+		if (res->status_code.compare("200 OK") == 0)
+		{
+			ostringstream resultPayload;
+			resultPayload << res->content.rdbuf();
+			Document doc;
+			doc.Parse(resultPayload.str().c_str());
+			if (doc.HasParseError())
+			{
+				m_logger->info("PUT result %s.", res->status_code.c_str());
+				m_logger->error("Failed to parse result of updateTable. %s",
+						GetParseError_En(doc.GetParseError()));
+				return -1;
+			}
+			else if (doc.HasMember("message"))
+			{
+				m_logger->error("Failed to update table data: %s",
+					doc["message"].GetString());
+				return -1;
+			}
+			return doc["rows_affected"].GetInt();
+		}
+		ostringstream resultPayload;
+		resultPayload << res->content.rdbuf();
+		handleUnexpectedResponse("Update table", res->status_code, resultPayload.str());
+	} catch (exception& ex) {
+		m_logger->error("Failed to update table %s: %s", tableName.c_str(), ex.what());
+		throw;
+	}
+	return -1;
+}
+
+/**
+ * Update data into an arbitrary table
+ *
+ * @param tableName	The name of the table into which data will be added
+ * @param updates	The expressions and condition pairs to update in the table
+ * @return int		The number of rows updated
+ */
+int StorageClient::updateTable(const string& tableName, vector<pair<ExpressionValues *, Where *>>& updates)
+{
+	try {
+		ostringstream convert;
+
+		convert << "{ \"updates\" : [ ";
+		for (vector<pair<ExpressionValues *, Where *>>::const_iterator it = updates.cbegin();
+						 it != updates.cend(); ++it)
+		{
+			if (it != updates.cbegin())
+			{
+				convert << ", ";
+			}
+			convert << "{ \"where\" : ";
+			convert << it->second->toJSON();
+			convert << ", \"expressions\" : ";
+			convert << it->first->toJSON();
+			convert << " }";
+		}
+		convert << " ] }";
+		
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
 		auto res = this->getHttpClient()->request("PUT", url, convert.str());
@@ -529,6 +597,7 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 	try {
 		ostringstream convert;
 
+		convert << "{ \"updates\" : [ ";
 		convert << "{ \"where\" : ";
 		convert << where.toJSON();
 		convert << ", \"values\" : ";
@@ -536,6 +605,8 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 		convert << ", \"expressions\" : ";
 		convert << expressions.toJSON();
 		convert << " }";
+		convert << " ] }";
+		
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
 		auto res = this->getHttpClient()->request("PUT", url, convert.str());
@@ -583,11 +654,14 @@ int StorageClient::updateTable(const string& tableName, const JSONProperties& va
 	try {
 		ostringstream convert;
 
+		convert << "{ \"updates\" : [ ";
 		convert << "{ \"where\" : ";
 		convert << where.toJSON();
 		convert << ", ";
 		convert << values.toJSON();
 		convert << " }";
+		convert << " ] }";
+		
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
 		auto res = this->getHttpClient()->request("PUT", url, convert.str());
@@ -636,6 +710,7 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 	try {
 		ostringstream convert;
 
+		convert << "{ \"updates\" : [ ";
 		convert << "{ \"where\" : ";
 		convert << where.toJSON();
 		convert << ", \"values\" : ";
@@ -643,6 +718,8 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 		convert << ", ";
 		convert << jsonProp.toJSON();
 		convert << " }";
+		convert << " ] }";
+		
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
 		auto res = this->getHttpClient()->request("PUT", url, convert.str());

@@ -16,6 +16,7 @@
 #include <north_plugin.h>
 #include <reading.h>
 #include <filter_plugin.h>
+#include <plugin_data.h>
 
 // Buffer max elements
 #define DATA_BUFFER_ELMS 10
@@ -112,6 +113,7 @@ class SendingProcess : public FogLampProcess
 		// static pointer for data buffer access
 		static std::vector<ReadingSet *>*
 						m_buffer_ptr;
+		PluginData*			m_plugin_data;
 };
 
 #endif

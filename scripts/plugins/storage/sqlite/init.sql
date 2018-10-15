@@ -255,6 +255,7 @@ CREATE TABLE foglamp.streams (
 -- ts is set by default with now().
 CREATE TABLE foglamp.configuration (
        key         character varying(255)      NOT NULL,                          -- Primary key
+       display_name character varying(255)     NOT NULL,                          -- Display Name
        description character varying(255)      NOT NULL,                          -- Description, in plain text
        value       JSON                        NOT NULL DEFAULT '{}',             -- JSON object containing the configuration values
        ts          DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')), -- Timestamp, updated at every change
@@ -572,6 +573,13 @@ CREATE TABLE foglamp.asset_tracker (
 
 CREATE INDEX asset_tracker_ix1 ON asset_tracker (asset);
 CREATE INDEX asset_tracker_ix2 ON asset_tracker (service);
+
+-- Create plugin_data table
+-- Persist plugin data in the storage
+CREATE TABLE foglamp.plugin_data (
+	key     character varying(255)    NOT NULL,
+	data    JSON                      NOT NULL DEFAULT '{}',
+	CONSTRAINT plugin_data_pkey PRIMARY KEY (key) );
 
 ----------------------------------------------------------------------
 -- Initialization phase - DML

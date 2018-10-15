@@ -12,7 +12,6 @@
 #include <iostream>
 #include <string>
 #include <cstring>
-#include <chrono>
 #include <omf.h>
 #include <logger.h>
 #include <zlib.h>
@@ -73,19 +72,11 @@ OMF::OMF(HttpSender& sender,
 	 m_sender(sender)
 {
 	m_lastError = false;
-	m_readings = 0;
-	m_usecs = 0;
 }
 
 // Destructor
 OMF::~OMF()
 {
-	Logger::getLogger()->info("Total %lld readings sent to PI server "
-				  "in %lld usecs, amortized request->response "
-				  "time = %lld usec/reading",
-				  m_readings,
-				  m_usecs,
-				  m_usecs/m_readings);
 }
 
 /**
@@ -330,14 +321,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	// Then get HTTPS POST ret code and return 0 to client on error
 	try
 	{
-		std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 		int res = m_sender.sendRequest("POST", m_path, readingData, json);
-		std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
- 		auto usecs = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
-		//Logger::getLogger()->info("OMF::sendToServer(): HTTP request sent buffer with buffer size %d bytes, res=%d", json.size(), res);
-		m_readings += readings.size();
-		m_usecs += usecs;
-
 		if (res != 200 && res != 204)
 		{
 			Logger::getLogger()->error("Sending JSON readings data error: %d", res);

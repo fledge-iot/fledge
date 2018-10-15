@@ -40,6 +40,7 @@ class StorageClient {
 		int		updateTable(const std::string& tableName, const JSONProperties& json, const Where& where);
 		int		updateTable(const std::string& tableName, const InsertValues& values, const JSONProperties& json, const Where& where);
 		int		updateTable(const std::string& tableName, const ExpressionValues& values, const Where& where);
+		int		updateTable(const std::string& tableName, std::vector<std::pair<ExpressionValues *, Where *>>& updates);
 		int		updateTable(const std::string& tableName, const InsertValues& values, const ExpressionValues& expressoins, const Where& where);
 		int		deleteTable(const std::string& tableName, const Query& query);
 		bool		readingAppend(Reading& reading);
@@ -58,5 +59,6 @@ class StorageClient {
 		std::map<std::thread::id, HttpClient *> m_client_map;
 		Logger					*m_logger;
 };
+
 #endif
 

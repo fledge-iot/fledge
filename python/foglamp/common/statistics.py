@@ -17,6 +17,7 @@ __version__ = "${VERSION}"
 
 _logger = logger.setup(__name__)
 
+
 async def create_statistics(storage=None):
     stat = Statistics(storage)
     await stat._init()

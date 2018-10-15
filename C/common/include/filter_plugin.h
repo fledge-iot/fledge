@@ -36,6 +36,9 @@ public:
 				     OUTPUT_STREAM outputFunc);
         void			shutdown();
         void			ingest(READINGSET *);
+	bool			persistData() { return info->options & SP_PERSIST_DATA; };
+	void			startData(const std::string& pluginData);
+	std::string		shutdownSaveData();
 
 // Public static methods
 public:
@@ -54,6 +57,9 @@ private:
         void            (*pluginShutdownPtr)(PLUGIN_HANDLE);
         void            (*pluginIngestPtr)(PLUGIN_HANDLE,
 					   READINGSET *);
+	std::string	(*pluginShutdownDataPtr)(const PLUGIN_HANDLE);
+	void		(*pluginStartDataPtr)(PLUGIN_HANDLE,
+					      const std::string& pluginData);
 
 private:
 	std::string	m_name;

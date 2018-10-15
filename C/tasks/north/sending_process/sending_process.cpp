@@ -185,7 +185,11 @@ static void loadDataThread(SendingProcess *loadData)
 					columns.push_back(new Returns("key", "asset_code"));
 					columns.push_back(new Returns("key", "read_key"));
 					columns.push_back(new Returns("ts"));
-					columns.push_back(new Returns("history_ts", "user_ts"));
+
+					Returns *tmpReturn = new Returns("history_ts", "user_ts");
+					tmpReturn->timezone("utc");
+					columns.push_back(tmpReturn);
+
 					columns.push_back(new Returns("value"));
 					// Build the query with fields, aliases and where
 					Query qStatistics(columns, wId);

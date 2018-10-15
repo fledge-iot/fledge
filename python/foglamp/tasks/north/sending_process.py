@@ -429,7 +429,7 @@ class SendingProcess(FoglampProcess):
         converted_data = []
         for row in raw_data:
             try:
-                timestamp = apply_date_format(row['ts'])  # Adds timezone UTC
+                timestamp = apply_date_format(row['history_ts'])  # Adds timezone UTC
                 asset_code = row['key'].strip()
 
                 # Skips row having undefined asset_code

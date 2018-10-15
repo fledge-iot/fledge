@@ -50,10 +50,10 @@ class Statistics(object):
             await self._load_keys()
 
     async def update_bulk(self, stat_list):
-        """ UPDATE the value column only of a statistics row based on key
+        """ Bulk update statistics table keys and their values
 
         Args:
-            payload: list of dict {key, value_increment}
+            stat_list: dict containing statistics keys and increment values
 
         Returns:
             None

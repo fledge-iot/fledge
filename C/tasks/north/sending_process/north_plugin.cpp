@@ -122,9 +122,11 @@ void NorthPlugin::shutdown()
  */
 string NorthPlugin::shutdownSaveData()
 {
-	// Ccheck pluginShutdownData function pointer exists
+	string ret("");
+	// Check pluginShutdownData function pointer exists
 	if (this->pluginShutdownData)
 	{
-		return this->pluginShutdownData(m_instance);
+		ret = this->pluginShutdownData(m_instance);
 	}
+	return ret;
 }

@@ -83,11 +83,12 @@ class SendingProcess : public FogLampProcess
 		void			setSleepTime(unsigned long val) { m_sleep = val; };
 		void			setReadBlockSize(unsigned long size) { m_block_size = size; };
 		bool			loadPlugin(const std::string& pluginName);
-		const std::map<std::string, std::string>& fetchConfiguration(const std::string& defCfg,
-									     const std::string& plugin_name);
+		ConfigCategory		fetchConfiguration(const std::string& defCfg,
+							   const std::string& pluginName);
 		bool			loadFilters(const std::string& pluginName);
 		bool			setupFiltersPipeline() const;
-		void 			updateStatistics(std::string& stat_key, const std::string& stat_description);
+		void 			updateStatistics(std::string& stat_key,
+							 const std::string& stat_description);
 
 		// Make private the copy constructor and operator=
 		SendingProcess(const SendingProcess &);

@@ -46,7 +46,7 @@ void Ingest::populateAssetTrackingCache(ManagementClient *mgtClient)
 				continue;
 				}
 			assetTrackerTuplesCache.insert(rec);
-			m_logger->info("Added asset tracker tuple to cache: '%s'", rec->assetToString().c_str());
+			//m_logger->info("Added asset tracker tuple to cache: '%s'", rec->assetToString().c_str());
 			}
 		delete (&vec);
 		}
@@ -184,7 +184,7 @@ void Ingest::updateStats()
 			{
 			createStatsDbEntry(it->first);
 			statsDbEntriesCache.insert(it->first);
-			Logger::getLogger()->info("%s:%d : Created stats entry for asset name %s and added to cache", __FUNCTION__, __LINE__, it->first.c_str());
+			//Logger::getLogger()->info("%s:%d : Created stats entry for asset name %s and added to cache", __FUNCTION__, __LINE__, it->first.c_str());
 			}
 		
 		if (it->second)
@@ -296,6 +296,7 @@ Ingest::Ingest(StorageClient& storage,
 Ingest::~Ingest()
 {
 	m_running = false;
+	m_cv.notify_one();
 	m_thread->join();
 	processQueue();
 	m_statsThread->join();
@@ -304,7 +305,7 @@ Ingest::~Ingest()
 	delete m_thread;
 	delete m_statsThread;
 	delete m_data;
-
+	
 	// Cleanup filters
 	FilterPlugin::cleanupFilters(m_filters);
 }
@@ -327,16 +328,16 @@ void Ingest::ingest(const Reading& reading)
 {
 	lock_guard<mutex> guard(m_qMutex);
 	m_queue->push_back(new Reading(reading));
-	if (m_queue->size() >= m_queueSizeThreshold)
+	if (m_queue->size() >= m_queueSizeThreshold || m_running == false)
 		m_cv.notify_all();
-	
 }
 
 void Ingest::waitForQueue()
 {
 	mutex mtx;
 	unique_lock<mutex> lck(mtx);
-	m_cv.wait_for(lck,chrono::milliseconds(m_timeout));
+	if (m_running)
+		m_cv.wait_for(lck,chrono::milliseconds(m_timeout));
 }
 
 /**
@@ -456,6 +457,7 @@ vector<Reading *>* newQ = new vector<Reading *>();
 	if (!readingSet)
 	{
 		delete m_data;
+		m_data = NULL;
 	}
 	
 	// Signal stats thread to update stats

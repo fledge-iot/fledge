@@ -148,7 +148,7 @@ class Ingest(object):
             "max_readings_insert_batch_connection_idle_seconds": {
                 "description": "Close storage connections used to insert readings when idle for "
                                "this number of seconds",
-                "displayName": "Max Idle Time To Close Connections",
+                "displayName": "Max Idle Time To Close Connection",
                 "type": "integer",
                 "default": str(cls._max_readings_insert_batch_connection_idle_seconds)
             },

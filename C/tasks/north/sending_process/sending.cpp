@@ -120,6 +120,9 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 	// NorthPlugin
 	m_plugin = NULL;
 
+	// Plugin Data
+	m_plugin_data = NULL;
+
 	// Set vars & counters to 0, false
 	m_last_sent_id  = 0;
 	m_tot_sent = 0;
@@ -216,6 +219,21 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
         // Init plugin with merged configuration from FogLAMP API
 	this->m_plugin->init(config);
 
+	if (this->m_plugin_data)
+	{
+		// If plugin has SP_PERSIST_DATA:
+		// 1 - load plugin stored data from storage: key is taskName + pluginName
+		string storedData = this->m_plugin_data->loadStoredData(this->getName() + m_plugin_name);
+
+		// 2 - call 'plugin_start' with plugin data: startData()
+		m_plugin->startData(storedData);
+	}
+	else
+	{
+		// Call 'plugin_start' without parameters: start()
+		m_plugin->start();
+	}
+
 	// Fetch last_object sent from foglamp.streams
 	if (!this->getLastSentReadingId())
 	{
@@ -309,6 +327,12 @@ bool SendingProcess::loadPlugin(const string& pluginName)
         {
                 Logger::getLogger()->info("Loaded north plugin '%s'.", pluginName.c_str());
                 m_plugin = new NorthPlugin(handle);
+		// Check persist data option for plugin.
+		if (m_plugin->persistData())
+		{
+			// Instantiate PluginData class for persistence of data
+			m_plugin_data = new PluginData(this->getStorageClient());
+		}
                 return true;
         }
         return false;
@@ -335,7 +359,34 @@ void SendingProcess::stop()
 	}
 
 	// Cleanup the plugin resources
-	this->m_plugin->shutdown();
+	if (this->m_plugin_data)
+	{
+		// If plugin has SP_PERSIST_DATA option:
+		// 1- call shutdownSaveData and get up-to-date plugin data.
+		string saveData = this->m_plugin->shutdownSaveData();
+		// 2- store returned data: key is taskName + pluginName
+		string key(this->getName() + m_plugin_name);
+		if (!this->m_plugin_data->persistPluginData(key, saveData))
+		{
+
+			Logger::getLogger()->error("Plugin %s has failed to save data [%s] for key %s",
+						   m_plugin_name.c_str(),
+						   saveData.c_str(),
+						   key.c_str());
+		}
+		else
+		{
+			std::cerr << "--- Plugin data saved" << std::endl;
+		}
+	}
+	else
+	{
+		// No data to save
+		this->m_plugin->shutdown();
+	}
+
+	// Free m_plugin_data
+	delete m_plugin_data;
 
 	// Cleanup filters
 	if (m_filters.size())
@@ -542,7 +593,7 @@ int SendingProcess::createNewStream()
                                 streamId = (int)theVal->getInteger();
                         }
                 }
-
+		delete rows;
         }
 
         return streamId;

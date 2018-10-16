@@ -398,35 +398,31 @@ class Ingest(object):
     async def _write_statistics(cls):
         """Periodically commits collected readings statistics"""
 
+        updates = {}
+
         readings = cls._readings_stats
-        cls._readings_stats = 0
+        cls._readings_stats -= readings
+        updates.update({'READINGS': readings})
 
-        try:
-            await cls.stats.update('READINGS', readings)
-        except Exception as ex:
-            cls._readings_stats += readings
-            _LOGGER.exception('An error occurred while writing readings statistics, %s', str(ex))
-
-        readings = cls._discarded_readings_stats
-        cls._discarded_readings_stats = 0
-
-        try:
-            await cls.stats.update('DISCARDED', readings)
-        except Exception as ex:
-            cls._discarded_readings_stats += readings
-            _LOGGER.exception('An error occurred while writing discarded statistics, Error: %s', str(ex))
+        discarded_readings = cls._discarded_readings_stats
+        cls._discarded_readings_stats -= discarded_readings
+        updates.update({'DISCARDED': discarded_readings})
 
         """ Register the statistics keys as this may be the first time the key has come into existence """
-        readings = cls._sensor_stats.copy()
-        for key in readings:
+        sensor_readings = cls._sensor_stats.copy()
+        for key in sensor_readings:
             description = 'Readings received by FogLAMP since startup for sensor {}'.format(key)
             await cls.stats.register(key, description)
-            cls._sensor_stats[key] -= readings[key]
+            cls._sensor_stats[key] -= sensor_readings[key]
+            updates.update({key: sensor_readings[key]})
+
         try:
-            await cls.stats.add_update(readings)
+            await cls.stats.update_bulk(updates)
         except Exception as ex:
-            for key in readings:
-                cls._sensor_stats[key] += readings[key]
+            cls._readings_stats += readings
+            cls._discarded_readings_stats += discarded_readings
+            for key in sensor_readings:
+                cls._sensor_stats[key] += sensor_readings[key]
             _LOGGER.exception('An error occurred while writing sensor statistics, Error: %s', str(ex))
 
     @classmethod

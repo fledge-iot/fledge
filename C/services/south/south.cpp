@@ -197,6 +197,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			logger->info("Defaulting to inline defaults for south configuration");
 		}
 
+		{
 		// Instantiate the Ingest class
 		Ingest ingest(storage, timeout, threshold, m_name, pluginName, m_mgtClient);
 
@@ -286,11 +287,12 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 			}
 		}
-
+		}
+		
 		// Clean shutdown, unregister the storage service
 		m_mgtClient->unregisterService();
 	}
-	logger->info("South service shut down.");
+	logger->info("South service shutdown completed");
 }
 
 /**

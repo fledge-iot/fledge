@@ -721,7 +721,7 @@ class Scheduler(object):
                                "in the tasks table that does not have a status of running",
                 "type": "integer",
                 "default": str(self._DEFAULT_MAX_COMPLETED_TASK_AGE_DAYS),
-                "displayName": "Max Completion of Task (In days)"
+                "displayName": "Max Age Of Task (In days)"
             },
         }
 

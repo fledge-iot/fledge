@@ -131,28 +131,32 @@ class Monitor(object):
             "sleep_interval": {
                 "description": "Time in seconds to sleep between health checks. (must be greater than 5)",
                 "type": "integer",
-                "default": str(self._DEFAULT_SLEEP_INTERVAL)
+                "default": str(self._DEFAULT_SLEEP_INTERVAL),
+                "displayName": "Sleep Interval (In seconds)"
             },
             "ping_timeout": {
                 "description": "Timeout for a response from any given micro-service. (must be greater than 0)",
                 "type": "integer",
-                "default": str(self._DEFAULT_PING_TIMEOUT)
+                "default": str(self._DEFAULT_PING_TIMEOUT),
+                "displayName": "Ping Timeout"
             },
             "max_attempts": {
                 "description": "Maximum number of attempts for finding a heartbeat of service",
                 "type": "integer",
-                "default": str(self._DEFAULT_MAX_ATTEMPTS)
+                "default": str(self._DEFAULT_MAX_ATTEMPTS),
+                "displayName": "Max Attempts For Service Heartbeat"
             },
             "restart_failed": {
                 "description": "Restart failed microservice - manual/auto",
                 "type": "string",
-                "default": self._DEFAULT_RESTART_FAILED
+                "default": self._DEFAULT_RESTART_FAILED,
+                "displayName": "Restart Fail"
             }
         }
 
         storage_client = connect.get_storage_async()
         cfg_manager = ConfigurationManager(storage_client)
-        await cfg_manager.create_category('SMNTR', default_config, 'Service Monitor')
+        await cfg_manager.create_category('SMNTR', default_config, 'Service Monitor', display_name='Service Monitor')
 
         config = await cfg_manager.get_category_all_items('SMNTR')
 

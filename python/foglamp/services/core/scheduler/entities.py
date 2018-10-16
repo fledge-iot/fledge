@@ -111,10 +111,10 @@ class Task(object):
         INTERRUPTED = 4
 
     # Class attributes
-    attr = collections.namedtuple('TaskAttributes', ['state', 'process_name', 'start_time',
+    attr = collections.namedtuple('TaskAttributes', ['state', 'process_name', 'schedule_name', 'start_time',
                                                      'end_time', 'exit_code'])
 
-    __slots__ = ['task_id', 'process_name', 'state', 'cancel_requested', 'start_time',
+    __slots__ = ['task_id', 'process_name', 'schedule_name', 'state', 'cancel_requested', 'start_time',
                  'end_time', 'state', 'exit_code', 'reason']
 
     def __init__(self):
@@ -122,6 +122,7 @@ class Task(object):
         self.task_id = None  # type: uuid.UUID
         """Unique identifier"""
         self.process_name = None  # type: str
+        self.schedule_name = None  # type: str
         self.reason = None  # type: str
         self.state = None  # type: Task.State
         self.cancel_requested = None  # type: datetime.datetime

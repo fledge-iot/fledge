@@ -330,6 +330,7 @@ class Scheduler(object):
                 .INSERT(id=str(task_id),
                         pid=(self._schedule_executions[schedule.id].
                              task_processes[task_id].process.pid),
+                        schedule_name=schedule.name,
                         process_name=schedule.process_name,
                         state=int(Task.State.RUNNING),
                         start_time=str(datetime.datetime.now())) \
@@ -1418,6 +1419,7 @@ class Scheduler(object):
         for (task_id, task_process) in self._task_processes.items():
             task = Task()
             task.task_id = task_id
+            task.schedule_name = task_process.schedule.name
             task.process_name = task_process.schedule.process_name
             task.state = Task.State.RUNNING
             if task_process.cancel_requested is not None:
@@ -1430,7 +1432,7 @@ class Scheduler(object):
 
     async def get_task(self, task_id: uuid.UUID) -> Task:
         """Retrieves a task given its id"""
-        query_payload = PayloadBuilder().SELECT("id", "process_name", "state", "start_time", "end_time", "reason", "exit_code")\
+        query_payload = PayloadBuilder().SELECT("id", "process_name", "schedule_name", "state", "start_time", "end_time", "reason", "exit_code")\
             .ALIAS("return", ("start_time", 'start_time'), ("end_time", 'end_time'))\
             .FORMAT("return", ("start_time", "YYYY-MM-DD HH24:MI:SS.MS"), ("end_time", "YYYY-MM-DD HH24:MI:SS.MS"))\
             .WHERE(["id", "=", str(task_id)]).payload()
@@ -1443,6 +1445,7 @@ class Scheduler(object):
                 task.task_id = row.get('id')
                 task.state = Task.State(int(row.get('state')))
                 task.start_time = row.get('start_time')
+                task.schedule_name = row.get('schedule_name')
                 task.process_name = row.get('process_name')
                 task.end_time = row.get('end_time')
                 task.exit_code = row.get('exit_code')
@@ -1467,7 +1470,7 @@ class Scheduler(object):
                 A tuple of Task attributes to sort by.
                 Defaults to ("start_time", "desc")
         """
-        chain_payload = PayloadBuilder().SELECT("id", "process_name", "state", "start_time", "end_time", "reason", "exit_code") \
+        chain_payload = PayloadBuilder().SELECT("id", "process_name", "schedule_name", "state", "start_time", "end_time", "reason", "exit_code") \
             .ALIAS("return", ("start_time", 'start_time'), ("end_time", 'end_time'))\
             .FORMAT("return", ("start_time", "YYYY-MM-DD HH24:MI:SS.MS"), ("end_time", "YYYY-MM-DD HH24:MI:SS.MS"))\
             .LIMIT(limit).chain_payload()
@@ -1493,6 +1496,7 @@ class Scheduler(object):
                 task.task_id = row.get('id')
                 task.state = Task.State(int(row.get('state')))
                 task.start_time = row.get('start_time')
+                task.schedule_name = row.get('schedule_name')
                 task.process_name = row.get('process_name')
                 task.end_time = row.get('end_time')
                 task.exit_code = row.get('exit_code')

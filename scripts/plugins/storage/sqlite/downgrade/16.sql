@@ -9,7 +9,7 @@ CREATE TABLE foglamp.tasks_temporary (
              exit_code    integer,                                                       -- Process exit status code (negative means exited via signal)
   CONSTRAINT tasks_temporary_pkey PRIMARY KEY ( id ),
   CONSTRAINT tasks_temporary_fk1 FOREIGN KEY  ( process_name )
-  REFERENCES fscheduled_processes ( name ) MATCH SIMPLE
+  REFERENCES scheduled_processes ( name ) MATCH SIMPLE
              ON UPDATE NO ACTION
              ON DELETE NO ACTION );
 INSERT INTO foglamp.tasks_temporary SELECT id, process_name, state, start_time, end_time, reason, pid, exit_code FROM foglamp.tasks;
@@ -26,7 +26,7 @@ CREATE TABLE foglamp.tasks (
              exit_code    integer,                                                       -- Process exit status code (negative means exited via signal)
   CONSTRAINT tasks_pkey PRIMARY KEY ( id ),
   CONSTRAINT tasks_fk1 FOREIGN KEY  ( process_name )
-  REFERENCES fscheduled_processes ( name ) MATCH SIMPLE
+  REFERENCES scheduled_processes ( name ) MATCH SIMPLE
              ON UPDATE NO ACTION
              ON DELETE NO ACTION );
 INSERT INTO foglamp.tasks SELECT id, process_name, state, start_time, end_time, reason, pid, exit_code FROM foglamp.tasks_temporary;

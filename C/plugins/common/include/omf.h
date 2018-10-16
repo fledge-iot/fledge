@@ -77,6 +77,12 @@ class OMF
 		std::string compress_string(const std::string& str,
                             				int compressionlevel = Z_DEFAULT_COMPRESSION);
 
+		// Return current value of type-id
+		const std::string& getTypeId() { return m_typeId; };
+
+		// Check DataTypeError
+		bool isDataTypeError(const char* message);
+
 	private:
 		/**
 		 * Builds the HTTP header to send
@@ -114,17 +120,26 @@ class OMF
 				     bool skipSendingTypes);
 
 		// Send OMF data types
-		bool sendDataTypes(const Reading& row) const;
+		bool sendDataTypes(const Reading& row);
 
 		// Get saved dataType
-		bool getCreatedTypes(const std::string& key);
+		static bool getCreatedTypes(const std::string& key);
 
 		// Set saved dataType
-		bool setCreatedTypes(const std::string& key);
+		static bool setCreatedTypes(const std::string& key);
+
+		// Clear data types cache
+		static void clearCreatedTypes();
+
+		// Increment type-id value
+		void incrementTypeId();
+
+                // Handle data type errors
+		bool handleTypeErrors(const Reading& reading);
 
 	private:
 		const std::string		m_path;
-		const std::string		m_typeId;
+		std::string			m_typeId;
 		const std::string		m_producerToken;
 
 		// Define the OMF format to use for each type
@@ -142,6 +157,7 @@ class OMF
 		// HTTP Sender interface
 		HttpSender&		m_sender;
 		bool			m_lastError;
+		bool			m_changeTypeId;
 };
 
 /**

@@ -36,8 +36,11 @@ class SendingProcess : public FogLampProcess
 		int			getStreamId() const { return m_stream_id; };
 		bool			isRunning() const { return m_running; };
 		void			stopRunning() { m_running = false; };
+		void			setLastFetchId(unsigned long id) { m_last_fetch_id = id; };
+		unsigned long		getLastFetchId() const { return m_last_fetch_id; };
 		void			setLastSentId(unsigned long id) { m_last_sent_id = id; };
 		unsigned long		getLastSentId() const { return m_last_sent_id; };
+
 		unsigned long		getSentReadings() const { return m_tot_sent; };
 		bool			updateSentReadings(unsigned long num) {
 						m_tot_sent += num;
@@ -100,6 +103,7 @@ class SendingProcess : public FogLampProcess
 		bool				m_running;
 		int 				m_stream_id;
 		unsigned long			m_last_sent_id;
+    		unsigned long			m_last_fetch_id;
 		unsigned long			m_tot_sent;
 		unsigned int			m_duration;
 		unsigned long			m_sleep;

@@ -8,7 +8,7 @@
 
 CREATE TABLE foglamp.tasks_temporary (
              id           uuid                        NOT NULL,                          -- PK
-             schedule_name character varying(255)     NOT NULL,                          -- Name of the task
+             schedule_name character varying(255),                                       -- Name of the task
              process_name character varying(255)      NOT NULL,                          -- Name of the task's process
              state        smallint                    NOT NULL,                          -- 1-Running, 2-Complete, 3-Cancelled, 4-Interrupted
              start_time   DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')), -- The date and time the task started
@@ -26,7 +26,7 @@ DROP TABLE foglamp.tasks;
 
 CREATE TABLE foglamp.tasks (
              id           uuid                        NOT NULL,                          -- PK
-             schedule_name character varying(255)     NOT NULL,                          -- Name of the task
+             schedule_name character varying(255),                                       -- Name of the task
              process_name character varying(255)      NOT NULL,                          -- Name of the task's process
              state        smallint                    NOT NULL,                          -- 1-Running, 2-Complete, 3-Cancelled, 4-Interrupted
              start_time   DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')), -- The date and time the task started

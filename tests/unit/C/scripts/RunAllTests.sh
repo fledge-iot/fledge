@@ -1,10 +1,12 @@
 #!/bin/sh
 set -e
-#set -x
-
 #
 # This is the shell script wrapper for running C unit tests
 #
+if [ "$FOGLAMP_ROOT" = "" ]; then
+	echo You must set FOGLAMP_ROOT before running this script
+	exit
+fi
 
 cd $FOGLAMP_ROOT/tests/unit/C
 if [ ! -d results ] ; then

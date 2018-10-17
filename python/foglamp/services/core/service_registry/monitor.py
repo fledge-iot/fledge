@@ -132,25 +132,30 @@ class Monitor(object):
                 "description": "Time in seconds to sleep between health checks. (must be greater than 5)",
                 "type": "integer",
                 "default": str(self._DEFAULT_SLEEP_INTERVAL),
-                "displayName": "Sleep Interval (In seconds)"
+                "displayName": "Health Check Sleep Interval (In seconds)",
+                "minimum": "5"
             },
             "ping_timeout": {
                 "description": "Timeout for a response from any given micro-service. (must be greater than 0)",
                 "type": "integer",
                 "default": str(self._DEFAULT_PING_TIMEOUT),
-                "displayName": "Ping Timeout"
+                "displayName": "Ping Timeout",
+                "minimum": "1",
+                "maximum": "5"
             },
             "max_attempts": {
                 "description": "Maximum number of attempts for finding a heartbeat of service",
                 "type": "integer",
                 "default": str(self._DEFAULT_MAX_ATTEMPTS),
-                "displayName": "Max Attempts For Service Heartbeat"
+                "displayName": "Max Attempts To Check Service Heartbeat",
+                "minimum": "1"
             },
             "restart_failed": {
                 "description": "Restart failed microservice - manual/auto",
-                "type": "string",
+                "type": "enumeration",
+                'options': ['auto', 'manual'],
                 "default": self._DEFAULT_RESTART_FAILED,
-                "displayName": "Restart Fail"
+                "displayName": "Restart Failed Microservice"
             }
         }
 

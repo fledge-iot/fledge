@@ -323,7 +323,7 @@ class BackupRestoreLib(object):
             "description": "SQLite database file name",
             "type": "string",
             "default": "foglamp.db",
-            "displayName": "DB Filename"
+            "displayName": "SQLite DB Filename"
         },
         "backup-dir": {
             "description": "Directory where backups will be created. "

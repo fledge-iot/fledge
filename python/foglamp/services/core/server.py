@@ -84,12 +84,14 @@ class Server:
         'name': {
             'description': 'Name of this FogLAMP service',
             'type': 'string',
-            'default': 'FogLAMP'
+            'default': 'FogLAMP',
+            "displayName": "Name Of Service"
         },
         'description': {
             'description': 'Description of this FogLAMP service',
             'type': 'string',
-            'default': 'FogLAMP administrative API'
+            'default': 'FogLAMP administrative API',
+            "displayName": "Description Of Service"
         }
     }
 
@@ -334,7 +336,7 @@ class Server:
 
             if cls._configuration_manager is None:
                 _logger.error("No configuration manager available")
-            await cls._configuration_manager.create_category(category, config, 'FogLAMP Service', True)
+            await cls._configuration_manager.create_category(category, config, 'FogLAMP Service', True, display_name='Service')
             config = await cls._configuration_manager.get_category_all_items(category)
 
             try:

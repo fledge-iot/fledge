@@ -46,7 +46,7 @@ void Ingest::populateAssetTrackingCache(ManagementClient *mgtClient)
 				continue;
 				}
 			assetTrackerTuplesCache.insert(rec);
-			m_logger->info("Added asset tracker tuple to cache: '%s'", rec->assetToString().c_str());
+			//m_logger->info("Added asset tracker tuple to cache: '%s'", rec->assetToString().c_str());
 			}
 		delete (&vec);
 		}
@@ -135,8 +135,6 @@ int Ingest::createStatsDbEntry(const string& assetName)
 				m_logger->error("%s:%d : Insert new row into statistics table failed, newStatsEntry='%s'", __FUNCTION__, __LINE__, newStatsEntry.toJSON().c_str());
 				return -1;
 			}
-			else
-				m_logger->info("%s:%d : Inserted new row into statistics table, newStatsEntry='%s'", __FUNCTION__, __LINE__, newStatsEntry.toJSON().c_str());
 		}
 	}
 	catch (...)
@@ -168,79 +166,80 @@ void Ingest::updateStats()
 	unique_lock<mutex> lck(m_statsMutex);
 	if (m_running) // don't wait on condition variable if plugin/ingest is being shutdown
 		m_statsCv.wait(lck);
-	/*Logger::getLogger()->info("%s:%d : stats thread: wakeup from sleep, now updating stats, m_newReadings=%d, m_discardedReadings=%d, m_readingsAssetName='%s'",
-				__FUNCTION__, __LINE__, m_newReadings, m_discardedReadings, m_readingsAssetName.c_str());
-	*/
+
+	if (statsPendingEntries.empty())
+		{
+		Logger::getLogger()->info("statsPendingEntries is empty, returning from updateStats()");
+		return;
+		}
 	
-	if (m_newReadings==0 && m_discardedReadings==0) return; // nothing to update, possible spurious wakeup
-
-	createStatsDbEntry(m_readingsAssetName);
-
+	int readings=0;
+	vector<pair<ExpressionValues *, Where *>> statsUpdates;
 	string key;
 	const Condition conditionStat(Equals);
 	
-	try
+	for (auto it = statsPendingEntries.begin(); it != statsPendingEntries.end(); ++it)
 		{
-		if (m_newReadings)
+		if (statsDbEntriesCache.find(it->first) == statsDbEntriesCache.end())
+			{
+			createStatsDbEntry(it->first);
+			statsDbEntriesCache.insert(it->first);
+			//Logger::getLogger()->info("%s:%d : Created stats entry for asset name %s and added to cache", __FUNCTION__, __LINE__, it->first.c_str());
+			}
+		
+		if (it->second)
 			{
 			// Prepare foglamp.statistics update
-			key = "INGEST_" + m_readingsAssetName;
+			key = "INGEST_" + it->first;
 			for (auto & c: key) c = toupper(c);
 
 			// Prepare "WHERE key = name
-			Where wPluginStat("key", conditionStat, key);
+			Where *wPluginStat = new Where("key", conditionStat, key);
 
 			// Prepare value = value + inc
-			ExpressionValues updateValue;
-			updateValue.push_back(Expression("value", "+", (int) m_newReadings));
+			ExpressionValues *updateValue = new ExpressionValues;
+			updateValue->push_back(Expression("value", "+", (int) it->second));
 
-			//Logger::getLogger()->info("%s:%d : Updating DB now, getNewReadings()=%d", __FUNCTION__, __LINE__, m_newReadings);
-			// Perform UPDATE foglamp.statistics SET value = value + x WHERE key = 'name'
-			int rv = m_storage.updateTable("statistics", updateValue, wPluginStat);
-			
-			if (rv<0)
-				Logger::getLogger()->info("%s:%d : Update DB failed, rv=%d", __FUNCTION__, __LINE__, rv);
-
-			// Update READINGS row
-			key = "READINGS";
-
-			// Prepare "WHERE key = name
-			Where wPluginStat2("key", conditionStat, key);
-
-			// Perform UPDATE foglamp.statistics SET value = value + x WHERE key = 'name'
-			rv = m_storage.updateTable("statistics", updateValue, wPluginStat2);
-			
-			if (rv<0)
-				Logger::getLogger()->info("%s:%d : Update DB failed, rv=%d", __FUNCTION__, __LINE__, rv);
-			else
-				{
-				m_newReadings=0;
-				}
-
+			statsUpdates.emplace_back(updateValue, wPluginStat);
+			readings += it->second;
 			}
+		}
+
+	if(readings)
+		{
+		Where *wPluginStat = new Where("key", conditionStat, "READINGS");
+		ExpressionValues *updateValue = new ExpressionValues;
+		updateValue->push_back(Expression("value", "+", (int) readings));
+		statsUpdates.emplace_back(updateValue, wPluginStat);
+		}
+	if (m_discardedReadings)
+		{
+		Where *wPluginStat = new Where("key", conditionStat, "DISCARDED");
+		ExpressionValues *updateValue = new ExpressionValues;
+		updateValue->push_back(Expression("value", "+", (int) m_discardedReadings));
+		statsUpdates.emplace_back(updateValue, wPluginStat);
+ 		}
+	
+	try
+		{
+		std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+		int rv = m_storage.updateTable("statistics", statsUpdates);
 		
-		if (m_discardedReadings)
+		if (rv<0)
+			Logger::getLogger()->info("%s:%d : Update stats failed, rv=%d", __FUNCTION__, __LINE__, rv);
+		else
 			{
-			// Update DISCARDED row
-			key = "DISCARDED";
-
-			// Prepare "WHERE key = name
-			Where wPluginStat("key", conditionStat, key);
-
-			// Prepare value = value + inc
-			ExpressionValues updateValue;
-			updateValue.push_back(Expression("value", "+", (int) m_discardedReadings));
-
-			// Perform UPDATE foglamp.statistics SET value = value + x WHERE key = 'name'
-			int rv = m_storage.updateTable("statistics", updateValue, wPluginStat);
-			
-			if (rv<0)
-				Logger::getLogger()->info("%s:%d : Update DB failed, rv=%d", __FUNCTION__, __LINE__, rv);
-			else
+			m_discardedReadings=0;
+			for (auto it = statsUpdates.begin(); it != statsUpdates.end(); ++it)
 				{
-				m_discardedReadings=0;
+				delete it->first;
+				delete it->second;
 				}
+			statsPendingEntries.clear();
 			}
+		std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+ 		auto usecs = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
+		Logger::getLogger()->info("Bulk stats update of %d readings took %lld usecs", readings, usecs);
 		}
 	catch (...)
 		{
@@ -273,17 +272,14 @@ Ingest::Ingest(StorageClient& storage,
 			m_pluginName(pluginName),
 			m_mgtClient(mgmtClient)
 {
-	
 	m_running = true;
 	m_queue = new vector<Reading *>();
 	m_thread = new thread(ingestThread, this);
 	m_statsThread = new thread(statsThread, this);
 	m_logger = Logger::getLogger();
 	m_data = NULL;
-	m_newReadings = 0;
 	m_discardedReadings = 0;
-	m_readingsAssetName = "unknown";
-
+	
 	// populate asset tracking cache
 	populateAssetTrackingCache(m_mgtClient);
 }
@@ -300,6 +296,7 @@ Ingest::Ingest(StorageClient& storage,
 Ingest::~Ingest()
 {
 	m_running = false;
+	m_cv.notify_one();
 	m_thread->join();
 	processQueue();
 	m_statsThread->join();
@@ -308,7 +305,7 @@ Ingest::~Ingest()
 	delete m_thread;
 	delete m_statsThread;
 	delete m_data;
-
+	
 	// Cleanup filters
 	FilterPlugin::cleanupFilters(m_filters);
 }
@@ -331,16 +328,16 @@ void Ingest::ingest(const Reading& reading)
 {
 	lock_guard<mutex> guard(m_qMutex);
 	m_queue->push_back(new Reading(reading));
-	if (m_queue->size() >= m_queueSizeThreshold)
+	if (m_queue->size() >= m_queueSizeThreshold || m_running == false)
 		m_cv.notify_all();
-	
 }
 
 void Ingest::waitForQueue()
 {
 	mutex mtx;
 	unique_lock<mutex> lck(mtx);
-	m_cv.wait_for(lck,chrono::milliseconds(m_timeout));
+	if (m_running)
+		m_cv.wait_for(lck,chrono::milliseconds(m_timeout));
 }
 
 /**
@@ -365,16 +362,8 @@ vector<Reading *>* newQ = new vector<Reading *>();
 		m_data = m_queue;
 		m_queue = newQ;
 	}
-
-	vector<Reading *>::iterator it;
-	Reading *firstReading = NULL;
-	if(!m_data->empty())
-		{
-		it = m_data->begin();
-		firstReading = (*it);
-		m_readingsAssetName=firstReading->getAssetName();
-		}
-
+	
+	std::map<std::string, int>		statsEntriesCurrQueue;
 	// check if this requires addition of a new asset tracker tuple
 	for (vector<Reading *>::iterator it = m_data->begin(); it != m_data->end(); ++it)
 	{
@@ -385,6 +374,7 @@ vector<Reading *>* newQ = new vector<Reading *>();
 			addAssetTrackingTuple(tuple);
 			m_logger->info("processQueue(): Added new asset tracking tuple seen during readings' ingest: %s", tuple.assetToString().c_str());
 			}
+		++statsEntriesCurrQueue[reading->getAssetName()];
 	}
 	
 	ReadingSet* readingSet = NULL;
@@ -399,6 +389,8 @@ vector<Reading *>* newQ = new vector<Reading *>();
 		(*it)->ingest(readingSet);
 	}
 
+	std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+	
 	/**
 	 * 'm_data' vector is ready to be sent to storage service.
 	 *
@@ -410,7 +402,7 @@ vector<Reading *>* newQ = new vector<Reading *>();
 	 *	2- some readings removed
 	 *	3- New set of readings
 	 */
-	int rv;
+	int rv = 0;
 	if ((!m_data->empty()) &&
 			(rv = m_storage.readingAppend(*m_data)) == false && requeue == true)
 	{
@@ -425,13 +417,22 @@ vector<Reading *>* newQ = new vector<Reading *>();
 	}
 	else
 	{
+		std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+		auto usecs = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
+		if (!m_data->empty())
+			m_logger->info("Bulk insert of %d readings done in %lld usecs", m_data->size(), usecs);
+		
 		if (!m_data->empty() && rv==false) // m_data had some (possibly filtered) readings, but they couldn't be sent successfully to storage service
 			{
 			m_logger->info("%s:%d, Couldn't send %d readings to storage service", __FUNCTION__, __LINE__, m_data->size());
 			m_discardedReadings += m_data->size();
 			}
 		else
-			m_newReadings += m_data->size();
+			{
+			unique_lock<mutex> lck(m_statsMutex);
+			for (auto &it : statsEntriesCurrQueue)
+				statsPendingEntries[it.first] += it.second;
+			}
 		
 		// Data sent to sorage service
 		if (!readingSet)
@@ -456,8 +457,9 @@ vector<Reading *>* newQ = new vector<Reading *>();
 	if (!readingSet)
 	{
 		delete m_data;
+		m_data = NULL;
 	}
-
+	
 	// Signal stats thread to update stats
 	lock_guard<mutex> guard(m_statsMutex);
 	m_statsCv.notify_all();

@@ -121,35 +121,41 @@ class Ingest(object):
         default_config = {
             "readings_buffer_size": {
                 "description": "Maximum number of readings to buffer in memory",
+                "displayName":"Buffer Size",
                 "type": "integer",
                 "default": str(cls._readings_buffer_size)
             },
             "max_concurrent_readings_inserts": {
                 "description": "Maximum number of concurrent processes that send batches of "
                                "readings to storage",
+                "displayName": "Max Concurrent Inserts",
                 "type": "integer",
                 "default": str(cls._max_concurrent_readings_inserts)
             },
             "readings_insert_batch_size": {
                 "description": "Maximum number of readings in a batch of inserts",
+                "displayName": "Batch Size Per Queue",
                 "type": "integer",
                 "default": str(cls._readings_insert_batch_size)
             },
             "readings_insert_batch_timeout_seconds": {
                 "description": "Number of seconds to wait for a readings list to reach the "
                                "minimum batch size",
+                "displayName": "Batch Timeout",
                 "type": "integer",
                 "default": str(cls._readings_insert_batch_timeout_seconds)
             },
             "max_readings_insert_batch_connection_idle_seconds": {
                 "description": "Close storage connections used to insert readings when idle for "
                                "this number of seconds",
+                "displayName": "Max Idle Time To Close Connection",
                 "type": "integer",
                 "default": str(cls._max_readings_insert_batch_connection_idle_seconds)
             },
             "max_readings_insert_batch_reconnect_wait_seconds": {
                 "description": "Maximum number of seconds to wait before reconnecting to "
                                "storage when inserting readings",
+                "displayName": "Max Batch Reconnect Wait Time",
                 "type": "integer",
                 "default": str(cls._max_readings_insert_batch_reconnect_wait_seconds)
             },
@@ -398,35 +404,31 @@ class Ingest(object):
     async def _write_statistics(cls):
         """Periodically commits collected readings statistics"""
 
+        updates = {}
+
         readings = cls._readings_stats
-        cls._readings_stats = 0
+        cls._readings_stats -= readings
+        updates.update({'READINGS': readings})
 
-        try:
-            await cls.stats.update('READINGS', readings)
-        except Exception as ex:
-            cls._readings_stats += readings
-            _LOGGER.exception('An error occurred while writing readings statistics, %s', str(ex))
-
-        readings = cls._discarded_readings_stats
-        cls._discarded_readings_stats = 0
-
-        try:
-            await cls.stats.update('DISCARDED', readings)
-        except Exception as ex:
-            cls._discarded_readings_stats += readings
-            _LOGGER.exception('An error occurred while writing discarded statistics, Error: %s', str(ex))
+        discarded_readings = cls._discarded_readings_stats
+        cls._discarded_readings_stats -= discarded_readings
+        updates.update({'DISCARDED': discarded_readings})
 
         """ Register the statistics keys as this may be the first time the key has come into existence """
-        readings = cls._sensor_stats.copy()
-        for key in readings:
+        sensor_readings = cls._sensor_stats.copy()
+        for key in sensor_readings:
             description = 'Readings received by FogLAMP since startup for sensor {}'.format(key)
             await cls.stats.register(key, description)
-            cls._sensor_stats[key] -= readings[key]
+            cls._sensor_stats[key] -= sensor_readings[key]
+            updates.update({key: sensor_readings[key]})
+
         try:
-            await cls.stats.add_update(readings)
+            await cls.stats.update_bulk(updates)
         except Exception as ex:
-            for key in readings:
-                cls._sensor_stats[key] += readings[key]
+            cls._readings_stats += readings
+            cls._discarded_readings_stats += discarded_readings
+            for key in sensor_readings:
+                cls._sensor_stats[key] += sensor_readings[key]
             _LOGGER.exception('An error occurred while writing sensor statistics, Error: %s', str(ex))
 
     @classmethod

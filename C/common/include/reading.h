@@ -42,11 +42,14 @@ class Reading {
 		const std::vector<Datapoint *>	getReadingData() const { return m_values; };
 		// Return refrerence to Reading datapoints
 		std::vector<Datapoint *>&	getReadingData() { return m_values; };
+		unsigned long			getId() const { return m_id; };
 
 		typedef enum dateTimeFormat { FMT_DEFAULT, FMT_STANDARD, FMT_ISO8601 } readingTimeFormat;
 
-		// Return Reading asset time
+		// Return Reading asset time - ts time
 		const std::string getAssetDateTime(readingTimeFormat datetimeFmt = FMT_DEFAULT, bool addMs = true) const;
+		// Return Reading asset time - user_ts time
+		const std::string getAssetDateUserTime(readingTimeFormat datetimeFmt = FMT_DEFAULT, bool addMs = true) const;
 
 	protected:
 		Reading() {};

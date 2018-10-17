@@ -44,6 +44,7 @@ class SouthService : public ServiceHandler {
 		Logger        			*logger;
 		bool				m_shutdown;
 		ConfigCategory			m_config;
+		ConfigCategory			m_configAdvanced;
 		ManagementClient		*m_mgtClient;
 		unsigned long			m_readingsPerSec;
 		unsigned int			m_threshold;

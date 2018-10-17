@@ -44,6 +44,10 @@ FilterPlugin::FilterPlugin(const std::string& name,
   	pluginIngestPtr = (void (*)(PLUGIN_HANDLE, READINGSET *))
 				      manager->resolveSymbol(handle,
 							     "plugin_ingest");
+	pluginShutdownDataPtr = (string (*)(const PLUGIN_HANDLE))
+				 manager->resolveSymbol(handle, "plugin_shutdown");
+	pluginStartDataPtr = (void (*)(const PLUGIN_HANDLE, const string& storedData))
+			      manager->resolveSymbol(handle, "plugin_start");
 }
 
 /**

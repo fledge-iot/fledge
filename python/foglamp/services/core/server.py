@@ -84,12 +84,16 @@ class Server:
         'name': {
             'description': 'Name of this FogLAMP service',
             'type': 'string',
-            'default': 'FogLAMP'
+            'default': 'FogLAMP',
+            'displayName': 'Name',
+            'order': '1'
         },
         'description': {
             'description': 'Description of this FogLAMP service',
             'type': 'string',
-            'default': 'FogLAMP administrative API'
+            'default': 'FogLAMP administrative API',
+            'displayName': 'Description',
+            'order': '2'
         }
     }
 
@@ -134,51 +138,59 @@ class Server:
             'description': 'Port to accept HTTP connections on',
             'type': 'integer',
             'default': '8081',
-            'displayName': 'HTTP Port'
+            'displayName': 'HTTP Port',
+            'order': '2'
         },
         'httpsPort': {
             'description': 'Port to accept HTTPS connections on',
             'type': 'integer',
             'default': '1995',
-            'displayName': 'HTTPS Port'
+            'displayName': 'HTTPS Port',
+            'order': '3'
         },
         'enableHttp': {
             'description': 'Enable HTTP (disable to use HTTPS)',
             'type': 'boolean',
             'default': 'true',
-            'displayName': 'Enable HTTP'
+            'displayName': 'Enable HTTP',
+            'order': '1'
         },
         'authProviders': {
             'description': 'Authentication providers to use for the interface (JSON array object)',
             'type': 'JSON',
             'default': '{"providers": ["username", "ldap"] }',
-            'displayName': 'Auth Providers'
+            'displayName': 'Auth Providers',
+            'order': '8'
         },
         'certificateName': {
             'description': 'Certificate file name',
             'type': 'string',
             'default': 'foglamp',
-            'displayName': 'Certificate Name'
+            'displayName': 'Certificate Name',
+            'order': '4'
         },
         'authentication': {
             'description': 'API Call Authentication',
             'type': 'enumeration',
             'options': ['mandatory', 'optional'],
             'default': 'optional',
-            'displayName': 'Authentication'
+            'displayName': 'Authentication',
+            'order': '5'
         },
         'allowPing': {
             'description': 'Allow access to ping, regardless of the authentication required and'
                            ' authentication header',
             'type': 'boolean',
             'default': 'true',
-            'displayName': 'Allow Ping'
+            'displayName': 'Allow Ping',
+            'order': '6'
         },
         'passwordChange': {
             'description': 'Number of days after which passwords must be changed',
             'type': 'integer',
             'default': '0',
-            'displayName': 'Password Expiry Days'
+            'displayName': 'Password Expiry Days',
+            'order': '7'
         }
     }
 
@@ -334,7 +346,7 @@ class Server:
 
             if cls._configuration_manager is None:
                 _logger.error("No configuration manager available")
-            await cls._configuration_manager.create_category(category, config, 'FogLAMP Service', True)
+            await cls._configuration_manager.create_category(category, config, 'FogLAMP Service', True, display_name='FogLAMP Service')
             config = await cls._configuration_manager.get_category_all_items(category)
 
             try:

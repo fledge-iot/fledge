@@ -121,35 +121,41 @@ class Ingest(object):
         default_config = {
             "readings_buffer_size": {
                 "description": "Maximum number of readings to buffer in memory",
+                "displayName":"Buffer Size",
                 "type": "integer",
                 "default": str(cls._readings_buffer_size)
             },
             "max_concurrent_readings_inserts": {
                 "description": "Maximum number of concurrent processes that send batches of "
                                "readings to storage",
+                "displayName": "Max Concurrent Inserts",
                 "type": "integer",
                 "default": str(cls._max_concurrent_readings_inserts)
             },
             "readings_insert_batch_size": {
                 "description": "Maximum number of readings in a batch of inserts",
+                "displayName": "Batch Size Per Queue",
                 "type": "integer",
                 "default": str(cls._readings_insert_batch_size)
             },
             "readings_insert_batch_timeout_seconds": {
                 "description": "Number of seconds to wait for a readings list to reach the "
                                "minimum batch size",
+                "displayName": "Batch Timeout",
                 "type": "integer",
                 "default": str(cls._readings_insert_batch_timeout_seconds)
             },
             "max_readings_insert_batch_connection_idle_seconds": {
                 "description": "Close storage connections used to insert readings when idle for "
                                "this number of seconds",
+                "displayName": "Max Idle Time To Close Connection",
                 "type": "integer",
                 "default": str(cls._max_readings_insert_batch_connection_idle_seconds)
             },
             "max_readings_insert_batch_reconnect_wait_seconds": {
                 "description": "Maximum number of seconds to wait before reconnecting to "
                                "storage when inserting readings",
+                "displayName": "Max Batch Reconnect Wait Time",
                 "type": "integer",
                 "default": str(cls._max_readings_insert_batch_reconnect_wait_seconds)
             },

@@ -696,10 +696,6 @@ CREATE TABLE foglamp.tasks (
   CONSTRAINT tasks_fk1 FOREIGN KEY  ( process_name )
   REFERENCES foglamp.scheduled_processes ( name ) MATCH SIMPLE
              ON UPDATE NO ACTION
-             ON DELETE NO ACTION,
-  CONSTRAINT tasks_fk2 FOREIGN KEY  ( schedule_name )
-  REFERENCES foglamp.schedules ( schedule_name ) MATCH SIMPLE
-             ON UPDATE NO ACTION
              ON DELETE NO ACTION );
 
 CREATE INDEX tasks_ix1

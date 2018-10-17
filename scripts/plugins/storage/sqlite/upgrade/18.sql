@@ -20,10 +20,6 @@ CREATE TABLE foglamp.tasks_temporary (
   CONSTRAINT tasks_temporary_fk1 FOREIGN KEY  ( process_name )
   REFERENCES scheduled_processes ( name ) MATCH SIMPLE
              ON UPDATE NO ACTION
-             ON DELETE NO ACTION,
-  CONSTRAINT tasks_temporary_fk2 FOREIGN KEY  ( schedule_name )
-  REFERENCES schedules ( schedule_name ) MATCH SIMPLE
-             ON UPDATE NO ACTION
              ON DELETE NO ACTION );
 INSERT INTO foglamp.tasks_temporary (id, process_name, state, start_time, end_time, reason, pid, exit_code) SELECT id, process_name, state, start_time, end_time, reason, pid, exit_code FROM foglamp.tasks;
 DROP TABLE foglamp.tasks;
@@ -41,10 +37,6 @@ CREATE TABLE foglamp.tasks (
   CONSTRAINT tasks_pkey PRIMARY KEY ( id ),
   CONSTRAINT tasks_fk1 FOREIGN KEY  ( process_name )
   REFERENCES scheduled_processes ( name ) MATCH SIMPLE
-             ON UPDATE NO ACTION
-             ON DELETE NO ACTION,
-  CONSTRAINT tasks_fk2 FOREIGN KEY  ( schedule_name )
-  REFERENCES schedules ( schedule_name ) MATCH SIMPLE
              ON UPDATE NO ACTION
              ON DELETE NO ACTION );
 INSERT INTO foglamp.tasks SELECT id, schedule_name, process_name, state, start_time, end_time, reason, pid, exit_code FROM foglamp.tasks_temporary;

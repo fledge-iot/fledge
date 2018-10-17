@@ -187,10 +187,10 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		unsigned long timeout = 5000;
 		std::string pluginName;
 		try {
-			if (m_config.itemExists("bufferThreshold"))
-				threshold = (unsigned int)atoi(m_config.getValue("bufferThreshold").c_str());
-			if (m_config.itemExists("maxSendLatency"))
-				timeout = (unsigned long)atoi(m_config.getValue("maxSendLatency").c_str());
+			if (m_configAdvanced.itemExists("bufferThreshold"))
+				threshold = (unsigned int)atoi(m_configAdvanced.getValue("bufferThreshold").c_str());
+			if (m_configAdvanced.itemExists("maxSendLatency"))
+				timeout = (unsigned long)atoi(m_configAdvanced.getValue("maxSendLatency").c_str());
 			if (m_config.itemExists("plugin"))
 				pluginName = m_config.getValue("plugin");
 		} catch (ConfigItemNotFound e) {
@@ -325,7 +325,6 @@ bool SouthService::loadPlugin()
 		{
 			// Deal with registering and fetching the configuration
 			DefaultConfigCategory defConfig(m_name, manager->getInfo(handle)->config);
-			addConfigDefaults(defConfig);
 			defConfig.setDescription(m_name);	// TODO We do not have access to the description
 
 			// Create/Update category name (we pass keep_original_items=true)
@@ -339,7 +338,24 @@ bool SouthService::loadPlugin()
 			// Must now reload the configuration to obtain any items added from
 			// the plugin
 			m_config = m_mgtClient->getCategory(m_name);
-			
+
+			// Deal with registering and fetching the advanced configuration
+			string advancedCatName = m_name+string("Advanced");
+			DefaultConfigCategory defConfigAdvanced(advancedCatName, string("{}"));
+			addConfigDefaults(defConfigAdvanced);
+			defConfigAdvanced.setDescription(m_name+string(" advanced config params"));
+
+			// Create/Update category name (we pass keep_original_items=true)
+			m_mgtClient->addCategory(defConfigAdvanced, true);
+
+			// Add this service under 'm_name' parent category
+			vector<string> children1;
+			children1.push_back(advancedCatName);
+			m_mgtClient->addChildCategories(m_name, children1);
+
+			// Must now reload the merged configuration
+			m_configAdvanced = m_mgtClient->getCategory(advancedCatName);
+
 			southPlugin = new SouthPlugin(handle, m_config);
 			logger->info("Loaded south plugin %s.", plugin.c_str());
 			return true;
@@ -370,9 +386,9 @@ void SouthService::configChange(const string& categoryName, const string& catego
 	// TODO action configuration change
 	logger->info("Configuration change in category %s: %s", categoryName.c_str(),
 			category.c_str());
-	m_config = m_mgtClient->getCategory(m_name);
+	m_configAdvanced = m_mgtClient->getCategory(m_name+"Advanced");
 	try {
-		m_readingsPerSec = (unsigned long)atoi(m_config.getValue("readingsPerSec").c_str());
+		m_readingsPerSec = (unsigned long)atoi(m_configAdvanced.getValue("readingsPerSec").c_str());
 	} catch (ConfigItemNotFound e) {
 		logger->error("Failed to update poll interval following configuration change");
 	}

@@ -47,20 +47,23 @@ class Purge(FoglampProcess):
                            "unless retained.",
             "type": "integer",
             "default": "72",
-            "displayName": "Age Of Data To Be Retained (In Hours)"
+            "displayName": "Age Of Data To Be Retained (In Hours)",
+            "order": "1"
         },
         "size": {
             "description": "Maximum size of data to be retained (in Kbytes). Oldest data will be removed to keep "
                            "below this size, unless retained.",
             "type": "integer",
             "default": "1000000",
-            "displayName": "Max Size Of Data To Be Retained (In kB)"
+            "displayName": "Max Size Of Data To Be Retained (In kB)",
+            "order": "2"
         },
         "retainUnsent": {
             "description": "Retain data that has not been sent to any historian yet.",
             "type": "boolean",
             "default": "False",
-            "displayName": "Retain Unsent Data"
+            "displayName": "Retain Unsent Data",
+            "order": "3"
         }
     }
     _CONFIG_CATEGORY_NAME = 'PURGE_READ'

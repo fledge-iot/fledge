@@ -714,18 +714,20 @@ class Scheduler(object):
             "max_running_tasks": {
                 "description": "Maximum number of tasks that can be running at any given time",
                 "type": "integer",
-                "default": str(self._DEFAULT_MAX_RUNNING_TASKS)
+                "default": str(self._DEFAULT_MAX_RUNNING_TASKS),
+                "displayName": "Max Running Tasks"
             },
             "max_completed_task_age_days": {
                 "description": "Maximum age in days (based on the start time) for a row "
                                "in the tasks table that does not have a status of running",
                 "type": "integer",
-                "default": str(self._DEFAULT_MAX_COMPLETED_TASK_AGE_DAYS)
+                "default": str(self._DEFAULT_MAX_COMPLETED_TASK_AGE_DAYS),
+                "displayName": "Max Age Of Task (In days)"
             },
         }
 
         cfg_manager = ConfigurationManager(self._storage_async)
-        await cfg_manager.create_category('SCHEDULER', default_config, 'Scheduler configuration')
+        await cfg_manager.create_category('SCHEDULER', default_config, 'Scheduler configuration', display_name='Scheduler')
 
         config = await cfg_manager.get_category_all_items('SCHEDULER')
         self._max_running_tasks = int(config['max_running_tasks']['value'])

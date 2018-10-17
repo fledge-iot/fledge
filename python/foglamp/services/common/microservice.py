@@ -56,9 +56,10 @@ class FoglampMicroservice(FoglampProcess):
             # Configuration handled through the Configuration Manager
             default_config = {
                 'local_services': {
-                    'description': 'Restrict microservice to localhost',
+                    'description': 'Restrict microservices to localhost',
                     'type': 'boolean',
                     'default': 'false',
+                    'displayName': 'Restrict Microservices To Local'
                 }
             }
 

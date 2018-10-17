@@ -18,11 +18,15 @@
 #include <omf.h>
 #include <simple_https.h>
 #include <config_category.h>
-#include <storage_client.h>
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
 
 using namespace std;
+using namespace rapidjson;
 
 #define PLUGIN_NAME "PI_Server_V2"
+#define TYPE_ID_KEY "type-id"
+#define TYPE_ID_DEFAULT "1"
 
 /**
  * Plugin specific default configuration
@@ -81,27 +85,11 @@ extern "C" {
 static PLUGIN_INFORMATION info = {
 	PLUGIN_NAME,		        // Name
 	"1.0.0",			// Version
-	0,				// Flags
+	SP_PERSIST_DATA,		// Flags
 	PLUGIN_TYPE_NORTH,		// Type
 	"1.0.0",			// Interface version
 	PLUGIN_DEFAULT_CONFIG_INFO      // Configuration
 };
-
-static const string omf_types_default_config =
-			"\"type-id\": { "
-				"\"description\": \"Identify sensor and measurement types\", "
-				"\"type\": \"integer\", \"default\": \"0002\" }";
-
-static const map<const string, const string> plugin_configuration = {
-					{
-						"OMF_TYPES",
-						omf_types_default_config
-					},
-					{
-						"PLUGIN",
-						string(PLUGIN_DEFAULT_CONFIG)
-					},
-				 };
 
 /**
  * Historian PI Server connector info
@@ -114,7 +102,7 @@ typedef struct
 	string		hostAndPort;	// hostname:port for SimpleHttps
 	unsigned int	timeout;	// connect and operation timeout
 	string		path;		// PI Server application path
-	string		typesId;	// OMF protocol type-id prefix
+	string		typeId;		// OMF protocol type-id prefix
 	string		producerToken;	// PI Server connector token
 	string		formatNumber;	// OMF protocol Number format
 	string		formatInteger;	// OMF protocol Integer format
@@ -130,42 +118,25 @@ PLUGIN_INFORMATION *plugin_info()
 }
 
 /**
- * Return default plugin configuration:
- * plugin specific and types_id
- */
-const map<const string, const string>& plugin_config()
-{
-	return plugin_configuration;
-}
-
-/**
  * Initialise the plugin with configuration.
  *
  * This funcion is called to get the plugin handle.
  */
-PLUGIN_HANDLE plugin_init(map<string, string>& configData)
+PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 {
 	/**
 	 * Handle the PI Server parameters here
 	 */
-	ConfigCategory configCategory("cfg", configData["GLOBAL_CONFIGURATION"]);
-	string url = configCategory.getValue("URL");
-	unsigned int timeout = atoi(configCategory.getValue("OMFHttpTimeout").c_str());
-	string producerToken = configCategory.getValue("producerToken");
+	string url = configData->getValue("URL");
+	unsigned int timeout = atoi(configData->getValue("OMFHttpTimeout").c_str());
+	string producerToken = configData->getValue("producerToken");
 
-	string formatNumber = configCategory.getValue("formatNumber");
-	string formatInteger = configCategory.getValue("formatInteger");
-
-	/**
-	 * Handle the OMF_TYPES parameters here
-	 */
-	ConfigCategory configTypes("types", configData["OMF_TYPES"]);
-	string typesId = configTypes.getValue("type-id");
+	string formatNumber = configData->getValue("formatNumber");
+	string formatInteger = configData->getValue("formatInteger");
 
 	/**
 	 * Extract host, port, path from URL
 	 */
-
 	size_t findProtocol = url.find_first_of(":");
 	string protocol = url.substr(0,findProtocol);
 
@@ -185,13 +156,13 @@ PLUGIN_HANDLE plugin_init(map<string, string>& configData)
 	connInfo->hostAndPort = hostAndPort;
 	connInfo->path = path;
 	connInfo->timeout = timeout;
-	connInfo->typesId = typesId;
+	connInfo->typeId = TYPE_ID_DEFAULT;
 	connInfo->producerToken = producerToken;
 	connInfo->formatNumber = formatNumber;
 	connInfo->formatInteger = formatInteger;
 
 	// Use compression ?
-	string compr = configCategory.getValue("compression");
+	string compr = configData->getValue("compression");
 	if (compr == "True" || compr == "true" || compr == "TRUE")
 		connInfo->compression = true;
 	else
@@ -200,14 +171,55 @@ PLUGIN_HANDLE plugin_init(map<string, string>& configData)
 
 	// Log plugin configuration
 	Logger::getLogger()->info("%s plugin configured: URL=%s, "
-				  "producerToken=%s, OMF_types_id=%s, compression=%s",
+				  "producerToken=%s, compression=%s",
 				  PLUGIN_NAME,
 				  url.c_str(),
 				  producerToken.c_str(),
-				  typesId.c_str(),
 				  connInfo->compression ? "True" : "False");
 
 	return (PLUGIN_HANDLE)connInfo;
+}
+
+/**
+ * Plugin start with sored plugin_data
+ *
+ * @param handle	The plugin handle
+ * @param storedData	The stored plugin_data
+ */
+void plugin_start(const PLUGIN_HANDLE handle,
+		  const string& storedData)
+{
+	Logger* logger = Logger::getLogger();
+	CONNECTOR_INFO* connInfo = (CONNECTOR_INFO *)handle;
+
+	// Parse JSON plugin_data
+	Document JSONData;
+	JSONData.Parse(storedData.c_str());
+	if (JSONData.HasParseError())
+	{
+		logger->error("%s plugin error: failure parsing "
+			      "plugin data JSON object '%s'",
+			      PLUGIN_NAME,
+			      storedData.c_str());
+	}
+	else if(JSONData.HasMember(TYPE_ID_KEY) &&
+		JSONData[TYPE_ID_KEY].IsString())
+	{
+		// Update type-id in PLUGIN_HANDLE object
+		connInfo->typeId = JSONData[TYPE_ID_KEY].GetString();
+	}
+	else
+	{
+		logger->error("%s plugin error: key " TYPE_ID_KEY " not found "
+			      " or not valid in plugin data JSON object'%s'",
+			      PLUGIN_NAME,
+			      storedData.c_str());
+	}
+	// Log plugin configuration
+	Logger::getLogger()->info("%s plugin is using OMF %s=%s",
+				  PLUGIN_NAME,
+				  TYPE_ID_KEY,
+				  connInfo->typeId.c_str());
 }
 
 /**
@@ -230,7 +242,7 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	// Allocate the PI Server data protocol
 	connInfo->omf = new OMF(*connInfo->sender,
 				connInfo->path,
-				connInfo->typesId,
+				connInfo->typeId,
 				connInfo->producerToken);
 
 	// Set OMF FormatTypes  
@@ -243,6 +255,17 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	uint32_t ret = connInfo->omf->sendToServer(readings,
 						   connInfo->compression);
 
+	// Detect typeId change in OMF class
+	if (connInfo->omf->getTypeId().compare(connInfo->typeId) != 0)
+	{
+		// Update typeId in plugin handle
+		connInfo->typeId = connInfo->omf->getTypeId();
+		// Log change
+		Logger::getLogger()->info("%s plugin: a new OMF %s (%s) has been created.",
+					  PLUGIN_NAME,
+					  TYPE_ID_KEY,
+					  connInfo->typeId.c_str());
+	}
 	// Delete objects
 	delete connInfo->sender;
 	delete connInfo->omf;
@@ -257,12 +280,27 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
  * Delete allocated data
  *
  * @param handle    The plugin handle
+ * @return	    A string with JSON plugin data
+ *		    the caller will persist
  */
-void plugin_shutdown(PLUGIN_HANDLE handle)
+string plugin_shutdown(PLUGIN_HANDLE handle)
 {
 	// Delete the handle
 	CONNECTOR_INFO* connInfo = (CONNECTOR_INFO *) handle;
+
+	// Create save data
+	string saveData("{\"" TYPE_ID_KEY "\": \"" + connInfo->typeId + "\"}");
+
+        // Log saving the plugin configuration
+        Logger::getLogger()->info("%s plugin: saving plugin_data '%s'",
+                                  PLUGIN_NAME,
+                                  saveData.c_str());
+
+	// Delete plugin handle
 	delete connInfo;
+
+	// Return current plugin data to save
+	return saveData;
 }
 
 // End of extern "C"

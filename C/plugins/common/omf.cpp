@@ -970,11 +970,6 @@ bool OMF::isDataTypeError(const char* message)
  */
 bool OMF::handleTypeErrors(const Reading& reading)
 {
-	// Return true now
-	// TODO: remove this return
-	// when north plugin code can persist plugin data
-	return true;
-
 	bool ret = true;
 
 	// Increment type-id

@@ -59,7 +59,7 @@ class FoglampMicroservice(FoglampProcess):
                     'description': 'Restrict microservice to localhost',
                     'type': 'boolean',
                     'default': 'false',
-                    'displayName': 'Restrict Microservice To IP 127.0.0.1'
+                    'displayName': 'Restrict Microservice To Local'
                 }
             }
 

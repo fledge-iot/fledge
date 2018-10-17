@@ -305,7 +305,7 @@ class BackupRestoreLib(object):
             "description": "PostgreSQL port",
             "type": "integer",
             "default": "5432",
-            "displayName": "Port"
+            "displayName": "PostgresSQL Port"
         },
         "database": {
             "description": "Database name",
@@ -343,7 +343,7 @@ class BackupRestoreLib(object):
             "description": "Number of backups to maintain (old ones will be deleted)",
             "type": "integer",
             "default": "5",
-            "displayName": "Retention Policy For Backup To Maintain"
+            "displayName": "Max Backups To Retain"
         },
         "max_retry": {
             "description": "Maximum retries",
@@ -368,7 +368,7 @@ class BackupRestoreLib(object):
                            "to ensure it has started successfully.",
             "type": "integer",
             "default": "5",
-            "displayName": "Sleep Time For Status When FogLAMP Restart"
+            "displayName": "Restart Status Check Interval (In Seconds)"
         },
     }
 

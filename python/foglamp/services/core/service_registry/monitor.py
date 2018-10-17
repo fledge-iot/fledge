@@ -132,7 +132,7 @@ class Monitor(object):
                 "description": "Time in seconds to sleep between health checks. (must be greater than 5)",
                 "type": "integer",
                 "default": str(self._DEFAULT_SLEEP_INTERVAL),
-                "displayName": "Health Check Sleep Interval (In seconds)",
+                "displayName": "Health Check Interval (In seconds)",
                 "minimum": "5"
             },
             "ping_timeout": {
@@ -147,7 +147,7 @@ class Monitor(object):
                 "description": "Maximum number of attempts for finding a heartbeat of service",
                 "type": "integer",
                 "default": str(self._DEFAULT_MAX_ATTEMPTS),
-                "displayName": "Max Attempts To Check Service Heartbeat",
+                "displayName": "Max Attempts To Check Heartbeat",
                 "minimum": "1"
             },
             "restart_failed": {
@@ -155,7 +155,7 @@ class Monitor(object):
                 "type": "enumeration",
                 'options': ['auto', 'manual'],
                 "default": self._DEFAULT_RESTART_FAILED,
-                "displayName": "Restart Failed Microservice"
+                "displayName": "Restart Failed"
             }
         }
 

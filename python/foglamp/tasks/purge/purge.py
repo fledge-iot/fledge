@@ -46,18 +46,24 @@ class Purge(FoglampProcess):
             "description": "Age of data to be retained (in hours). All data older than this value will be removed," +
                            "unless retained.",
             "type": "integer",
-            "default": "72"
+            "default": "72",
+            "displayName": "Age Of Data To Be Retained (In Hours)",
+            "order": "1"
         },
         "size": {
             "description": "Maximum size of data to be retained (in Kbytes). Oldest data will be removed to keep "
                            "below this size, unless retained.",
             "type": "integer",
-            "default": "1000000"
+            "default": "1000000",
+            "displayName": "Max Size Of Data To Be Retained (In kB)",
+            "order": "2"
         },
         "retainUnsent": {
             "description": "Retain data that has not been sent to any historian yet.",
             "type": "boolean",
-            "default": "False"
+            "default": "False",
+            "displayName": "Retain Unsent Data",
+            "order": "3"
         }
     }
     _CONFIG_CATEGORY_NAME = 'PURGE_READ'
@@ -81,7 +87,7 @@ class Purge(FoglampProcess):
         cfg_manager = ConfigurationManager(self._readings_storage_async)
         await cfg_manager.create_category(self._CONFIG_CATEGORY_NAME,
                                           self._DEFAULT_PURGE_CONFIG,
-                                          self._CONFIG_CATEGORY_DESCRIPTION)
+                                          self._CONFIG_CATEGORY_DESCRIPTION, display_name="Purge")
 
         # Create the child category for purge
         try:

@@ -684,7 +684,8 @@ CREATE TABLE foglamp.schedules (
 -- List of tasks
 CREATE TABLE foglamp.tasks (
              id           uuid                        NOT NULL,               -- PK
-             process_name character varying(255)      NOT NULL,               -- Name of the task
+             schedule_name character varying(255),                            -- Name of the task
+             process_name character varying(255)      NOT NULL,               -- Name of the task's process
              state        smallint                    NOT NULL,               -- 1-Running, 2-Complete, 3-Cancelled, 4-Interrupted
              start_time   timestamp(6) with time zone NOT NULL DEFAULT now(), -- The date and time the task started
              end_time     timestamp(6) with time zone,                        -- The date and time the task ended
@@ -698,7 +699,7 @@ CREATE TABLE foglamp.tasks (
              ON DELETE NO ACTION );
 
 CREATE INDEX tasks_ix1
-   ON foglamp.tasks(process_name, start_time);
+   ON foglamp.tasks(schedule_name, start_time);
 
 
 -- Tracks types already created into PI Server

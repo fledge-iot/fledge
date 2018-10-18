@@ -506,7 +506,8 @@ CREATE TABLE foglamp.schedules (
 -- List of tasks
 CREATE TABLE foglamp.tasks (
              id           uuid                        NOT NULL,                          -- PK
-             process_name character varying(255)      NOT NULL,                          -- Name of the task
+             schedule_name character varying(255),                                       -- Name of the task
+             process_name character varying(255)      NOT NULL,                          -- Name of the task's process
              state        smallint                    NOT NULL,                          -- 1-Running, 2-Complete, 3-Cancelled, 4-Interrupted
              start_time   DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')), -- The date and time the task started
              end_time     DATETIME,                                                      -- The date and time the task ended
@@ -515,12 +516,12 @@ CREATE TABLE foglamp.tasks (
              exit_code    integer,                                                       -- Process exit status code (negative means exited via signal)
   CONSTRAINT tasks_pkey PRIMARY KEY ( id ),
   CONSTRAINT tasks_fk1 FOREIGN KEY  ( process_name )
-  REFERENCES fscheduled_processes ( name ) MATCH SIMPLE
+  REFERENCES scheduled_processes ( name ) MATCH SIMPLE
              ON UPDATE NO ACTION
              ON DELETE NO ACTION );
 
 CREATE INDEX tasks_ix1
-    ON tasks(process_name, start_time);
+    ON tasks(schedule_name, start_time);
 
 
 -- Tracks types already created into PI Server

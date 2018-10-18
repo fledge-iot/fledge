@@ -1262,7 +1262,7 @@ class TestScheduler:
             await scheduler.get_task(task_id)
 
         # THEN
-        payload = {"return": ["id", "process_name", "state", {"alias": "start_time", "format": "YYYY-MM-DD HH24:MI:SS.MS", "column": "start_time"}, {"alias": "end_time", "format": "YYYY-MM-DD HH24:MI:SS.MS", "column": "end_time"}, "reason", "exit_code"], "where": {"column": "id", "condition": "=", "value": str(task_id)}}
+        payload = {"return": ["id", "process_name", "schedule_name", "state", {"alias": "start_time", "format": "YYYY-MM-DD HH24:MI:SS.MS", "column": "start_time"}, {"alias": "end_time", "format": "YYYY-MM-DD HH24:MI:SS.MS", "column": "end_time"}, "reason", "exit_code"], "where": {"column": "id", "condition": "=", "value": str(task_id)}}
         args, kwargs = log_exception.call_args
         assert 'Query failed: %s' == args[0]
         p = json.loads(args[1])
@@ -1313,7 +1313,7 @@ class TestScheduler:
             tasks = await scheduler.get_tasks()
 
         # THEN
-        payload = {"return": ["id", "process_name", "state", {"alias": "start_time", "column": "start_time", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"alias": "end_time", "column": "end_time", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "reason", "exit_code"], "limit": 100}
+        payload = {"return": ["id", "process_name", "schedule_name", "state", {"alias": "start_time", "column": "start_time", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"alias": "end_time", "column": "end_time", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "reason", "exit_code"], "limit": 100}
         args, kwargs = log_exception.call_args
         assert 'Query failed: %s' == args[0]
         p = json.loads(args[1])

@@ -803,6 +803,8 @@ async def get_tasks_latest(request):
         tasks = []
         previous_schedule = None
         for row in results['rows']:
+            if not row['schedule_name'].strip():
+                continue
             if previous_schedule != row['schedule_name']:
                 tasks.append(row)
                 previous_schedule = row['schedule_name']

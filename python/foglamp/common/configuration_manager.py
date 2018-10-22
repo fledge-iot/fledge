@@ -28,7 +28,7 @@ _logger = logger.setup(__name__)
 
 # MAKE UPPER_CASE
 _valid_type_strings = sorted(['boolean', 'integer', 'float', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password', 'JSON',
-                              'URL', 'enumeration'])
+                              'URL', 'enumeration', 'script'])
 
 
 class ConfigurationCache(object):

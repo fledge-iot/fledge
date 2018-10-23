@@ -69,6 +69,42 @@ async def get_health(request):
     return web.json_response(response)
 
 
+async def delete_service(request):
+    """ Delete an existing service
+
+    :Example:
+        curl -X DELETE http://localhost:8081/foglamp/service/<svc name>
+    """
+
+    try:
+        svc = request.match_info.get('service_name', None)
+
+        if svc is None or svc.strip() == '':
+            raise web.HTTPBadRequest(reason='Missing service_name in request URL')
+
+        storage = connect.get_storage_async()
+
+        result = await get_schedule(storage, svc)
+        if result['count'] == 0:
+            raise web.HTTPBadRequest(reason='A service with this name does not exist.')
+
+        svc_schedule  = result['rows'][0]
+        # if svc_schedule is disabled then delete it
+        # else disable it and then delete
+
+        # delete config for the service name
+        # (should be a child of South)
+        # delete that relationship too?! or auto deleted
+        await revert_configuration(storage, svc)  # Delete configuration entry
+
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason=ex)
+    else:
+        return web.json_response({'result': 'Service {} deleted successfully.'.format(svc)})
+
+
+
+
 async def add_service(request):
     """
     Create a new service to run a specific plugin
@@ -235,7 +271,14 @@ async def check_schedules(storage, schedule_name):
     result = await storage.query_tbl_with_payload('schedules', payload)
     return result['count']
 
+# FIX ME
+async def get_schedule(storage, schedule_name):
+    payload = PayloadBuilder().SELECT(["schedule_name", "enabled"]).WHERE(['schedule_name', '=', schedule_name]).payload()
+    result = await storage.query_tbl_with_payload('schedules', payload)
+    return result
 
+
+# its delete configuration
 async def revert_configuration(storage, key):
     payload = PayloadBuilder().WHERE(['key', '=', key]).payload()
     await storage.delete_from_tbl('configuration', payload)

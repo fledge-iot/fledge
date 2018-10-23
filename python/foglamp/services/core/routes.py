@@ -98,6 +98,7 @@ def setup(app):
     # Service
     app.router.add_route('POST', '/foglamp/service', service.add_service)
     app.router.add_route('GET', '/foglamp/service', service.get_health)
+    app.router.add_route('DELETE', '/foglamp/service/{service_name}', service.delete_service)
 
     # South
     app.router.add_route('GET', '/foglamp/south', south.get_south_services)

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ##
-# Installation process creates a link file, named "update.sh", to this script into FogLAMP 'scripts/tasks' folder.
+# Installation process creates a link file, named "scripts/tasks/update".
 #
 # It may either be called by FogLAMP scheduler for updating FogLAMP package and it may also be called
 # manually via /usr/local/foglamp/bin/foglamp_update script.

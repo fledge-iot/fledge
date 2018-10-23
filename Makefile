@@ -71,6 +71,9 @@ SQLITE_SCHEMA_UPDATE_DIR := $(SCRIPTS_INSTALL_DIR)/plugins/storage/sqlite
 # SCRIPTS TO INSTALL IN BIN DIR
 FOGBENCH_SCRIPT_SRC        := scripts/extras/fogbench
 FOGLAMP_SCRIPT_SRC         := scripts/foglamp
+FOGLAMP_UPDATE_SRC         := scripts/extras/foglamp_update
+UPDATE_TASK_APT_SRC        := scripts/extras/update_task.apt
+UPDATE_TASK_SNAPPY_SRC     := scripts/extras/update_task.snappy
 
 # SCRIPTS TO INSTALL IN SCRIPTS DIR
 COMMON_SCRIPTS_SRC          := scripts/common
@@ -367,6 +370,9 @@ $(SQLITE_SCHEMA_UPDATE_DIR) :
 bin_install : $(BIN_INSTALL_DIR) $(FOGBENCH_SCRIPT_SRC) $(FOGLAMP_SCRIPT_SRC)
 	$(CP) $(FOGBENCH_SCRIPT_SRC) $(BIN_INSTALL_DIR)
 	$(CP) $(FOGLAMP_SCRIPT_SRC) $(BIN_INSTALL_DIR)
+	$(CP) $(FOGLAMP_UPDATE_SRC) $(BIN_INSTALL_DIR)
+	$(CP) $(UPDATE_TASK_APT_SRC) $(BIN_INSTALL_DIR)
+	$(CP) $(UPDATE_TASK_SNAPPY_SRC) $(BIN_INSTALL_DIR)
 
 # create bin install dir
 $(BIN_INSTALL_DIR) :

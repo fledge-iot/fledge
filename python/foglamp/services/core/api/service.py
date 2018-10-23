@@ -106,8 +106,7 @@ async def delete_service(request):
         # delete config for the service name
         await revert_configuration(storage, svc)  # Delete configuration entry
         # svc should be a child of South.
-        # delete that relationship too?!
-        # TODO
+        # delete that relationship too?! (or its already handled)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
     else:

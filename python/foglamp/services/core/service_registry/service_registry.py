@@ -103,6 +103,7 @@ class ServiceRegistry:
         """
         expunged_service = cls._expunge(service_id, ServiceRecord.Status.Down)
         cls._logger.info("Stopped {}".format(str(expunged_service)))
+        cls.remove_from_registry(service_id)
         return service_id
 
     @classmethod

@@ -12,10 +12,6 @@
 # 2. Add the repository location to your sources list.
 #    Add the following lines to your "/etc/apt/sources.list" file.
 #        deb http://52.201.211.250:8080/ /
-# 3. Add user to the /etc/sudoers list
-#    Execute command - sudo visudo -f /etc/sudoers and add below line to the file after substituing
-#    <username> with actual user name:
-#        <username> ALL=(root) NOPASSWD: /usr/local/foglamp/scripts/tasks/update
 ##
 
 __author__="Amarendra K Sinha"

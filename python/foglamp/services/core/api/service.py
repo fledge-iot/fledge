@@ -82,27 +82,36 @@ async def delete_service(request):
         if svc is None or svc.strip() == '':
             raise web.HTTPBadRequest(reason='Missing service_name in request URL')
 
+        # shutdown of service should remove it from service registry (as unregister)
+        # looks like a bug!
+        # python/foglamp/services/south/server.py:268
+        # check http://localhost:8081/foglamp/service
+
         storage = connect.get_storage_async()
 
         result = await get_schedule(storage, svc)
         if result['count'] == 0:
             raise web.HTTPBadRequest(reason='A service with this name does not exist.')
 
-        svc_schedule  = result['rows'][0]
-        # if svc_schedule is disabled then delete it
-        # else disable it and then delete
+        svc_schedule = result['rows'][0]
+
+        import uuid
+        sch_id = uuid.UUID(svc_schedule['id'])
+        if svc_schedule['enabled'].lower() == 't':
+            # disable it
+            await server.Server.scheduler.disable_schedule(sch_id)
+        # delete it
+        await server.Server.scheduler.delete_schedule(sch_id)
 
         # delete config for the service name
-        # (should be a child of South)
-        # delete that relationship too?! or auto deleted
         await revert_configuration(storage, svc)  # Delete configuration entry
-
+        # svc should be a child of South.
+        # delete that relationship too?!
+        # TODO
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
     else:
         return web.json_response({'result': 'Service {} deleted successfully.'.format(svc)})
-
-
 
 
 async def add_service(request):
@@ -271,9 +280,9 @@ async def check_schedules(storage, schedule_name):
     result = await storage.query_tbl_with_payload('schedules', payload)
     return result['count']
 
-# FIX ME
+
 async def get_schedule(storage, schedule_name):
-    payload = PayloadBuilder().SELECT(["schedule_name", "enabled"]).WHERE(['schedule_name', '=', schedule_name]).payload()
+    payload = PayloadBuilder().SELECT(["id", "enabled"]).WHERE(['schedule_name', '=', schedule_name]).payload()
     result = await storage.query_tbl_with_payload('schedules', payload)
     return result
 

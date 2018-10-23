@@ -867,7 +867,9 @@ class Scheduler(object):
                 try:
                     task_process = self._task_processes[task_id]
                     schedule = task_process.schedule
-                    task_count += 1 if schedule.type != Schedule.Type.STARTUP else 0
+                    if schedule.process_name != "FogLAMPUpdater":
+                        if schedule.type != Schedule.Type.STARTUP:
+                            task_count += 1
                 except KeyError:
                     continue
             if task_count != 0:

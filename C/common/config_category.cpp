@@ -283,6 +283,39 @@ string ConfigCategory::getValue(const string& name) const
 }
 
 /**
+ * Return the requested attribute of a configuration category item
+ *
+ * @param name	The name of the configuration item to return
+ * @param itemAttribute	The item attribute (such as "file", "order", "readonly"
+ * @return	The configuration item attribute as string
+ * @throws	ConfigItemNotFound if the item does not exist in the category
+ *		ConfigItemAttributeNotFound if the requested attribute
+ *		does not exist for the found item.
+ */
+string ConfigCategory::getItemAttribute(const string& itemName,
+					const ItemAttribute itemAttribute) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (itemName.compare(m_items[i]->m_name) == 0)
+		{
+			switch (itemAttribute)
+			{
+				case ORDER_ATTR:
+					return m_items[i]->m_order;
+				case READONLY_ATTR:
+					return m_items[i]->m_readonly;
+				case FILE_ATTR:
+					return m_items[i]->m_file;
+				default:
+					throw new ConfigItemAttributeNotFound();
+			}
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
  * Return the type of the configuration category item
  *
  * @param name	The name of the configuration item to return
@@ -523,6 +556,15 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		m_order = "";
 	}
 
+	if (item.HasMember("file"))
+	{
+		m_file = item["file"].GetString();
+	}
+	else
+	{
+		m_file = "";
+	}
+
 	if (item.HasMember("readonly"))
 	{
 		m_readonly = item["readonly"].GetString();
@@ -740,6 +782,10 @@ ostringstream convert;
 		convert << "\"readonly\" : \"" << m_readonly << "\", ";
 	}
 
+	if (!m_file.empty())
+	{
+		convert << "\"file\" : \"" << m_file << "\", ";
+	}
 
 	if (m_itemType == StringItem ||
 	    m_itemType == BoolItem)

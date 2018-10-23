@@ -76,6 +76,12 @@ class ConfigCategory {
 		void				setItemsValueFromDefault();
 		void				checkDefaultValuesOnly() const;
 		std::string 			itemToJSON(const std::string& itemName) const;
+		enum ItemAttribute {
+					ORDER_ATTR,
+					READONLY_ATTR,
+					FILE_ATTR};
+		std::string			getItemAttribute(const std::string& itemName,
+								 ItemAttribute itemAttribute) const;
 
 	protected:
 		class CategoryItem {
@@ -100,6 +106,7 @@ class ConfigCategory {
 				std::string 	m_description;
 				std::string 	m_order;
 				std::string 	m_readonly;
+				std::string 	m_file;
 				ItemType	m_itemType;
 		};
 		std::vector<CategoryItem *>	m_items;
@@ -165,5 +172,18 @@ class ConfigValueFoundWithDefault : public std::exception {
 		}
 	private:
 		std::string	m_errmsg;
+};
+
+/**
+ * This exception must be raised when a requested item attribute
+ * does not exist.
+ * Supported item attributes: "order", "readonly", "file".
+ */
+class ConfigItemAttributeNotFound : public std::exception {
+	public:
+		virtual const char *what() const throw()
+		{
+			return "Configuration item attribute not found in configuration category";
+		}
 };
 #endif

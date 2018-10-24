@@ -93,4 +93,4 @@ fi
 
 
 logger -p local0.err -t "FogLAMP[${$}]" "${TASK_NAME} $0: Foglamp and Foglamp GUI updated successfully!"
-echo "Foglamp and Foglamp GUI updated successfully!"
+echo "FogLAMP and FogLAMP GUI updated successfully!"

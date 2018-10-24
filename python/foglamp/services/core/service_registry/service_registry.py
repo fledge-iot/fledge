@@ -8,7 +8,6 @@
 
 import uuid
 import asyncio
-import time
 from foglamp.common import logger
 from foglamp.common.service_record import ServiceRecord
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions

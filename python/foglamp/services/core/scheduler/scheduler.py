@@ -1149,27 +1149,24 @@ class Scheduler(object):
         Args: service_name:
         Returns:
         """
-        if not self._ready:
-            return False
+        if not self._ready: return False
 
         # Find task_id for the service
         task_id = None
         task_process = None
         schedule_type = None
         try:
-            for key in list(self._task_processes.keys()):
-                if self._task_processes[key].schedule.name == service_name:
-                    task_id = key
-                    break
-            if task_id is None:
-                raise KeyError
+            task_id = next(
+                (key for key in self._task_processes.keys() if self._task_processes[key].schedule.name == service_name),
+                None)
+            if task_id is None: raise KeyError
 
             task_process = self._task_processes[task_id]
 
             if task_id is not None:
                 schedule = task_process.schedule
                 schedule_type = schedule.type
-                if schedule_type == Schedule.Type.STARTUP: # If schedule is a service e.g. South services
+                if schedule_type == Schedule.Type.STARTUP:  # If schedule is a service e.g. South services
                     del self._schedule_executions[schedule.id]
                     del self._task_processes[task_process.task_id]
                     self._logger.info("Service {} records successfully removed".format(service_name))
@@ -1177,7 +1174,9 @@ class Scheduler(object):
         except KeyError:
             pass
 
-        self._logger.exception("Service {} records could not be removed with task id {} type {}".format(service_name, str(task_id), schedule_type))
+        self._logger.exception(
+            "Service {} records could not be removed with task id {} type {}".format(service_name, str(task_id),
+                                                                                     schedule_type))
         return False
 
     async def disable_schedule(self, schedule_id: uuid.UUID, bypass_check=None):

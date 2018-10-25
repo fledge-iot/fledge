@@ -245,6 +245,30 @@ void ConfigCategory::addItem(const std::string& name, const std::string descript
 	m_items.push_back(new CategoryItem(name, description, type, def, value));
 }
 
+/**
+ * Delete all the items from the configuration category having a specific type
+ *
+ * * @param type  Type to delete
+ */
+void ConfigCategory::removeItemsType(Type type)
+{
+	std:string typeToSearch;
+
+	typeToSearch = ConfigCategory::typeString[type];
+
+	for (auto it = m_items.begin(); it != m_items.end(); )
+	{
+		if ((*it)->m_type.compare(typeToSearch) == 0)
+		{
+			m_items.erase(it);
+		}
+		else
+		{
+			++it;
+		}
+	}
+}
+
 
 /**
  * Check for the existance of an item within the configuration category

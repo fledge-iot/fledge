@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 #include <rapidjson/document.h>
+#include <map>
 
 class ConfigCategoryDescription {
 	public:
@@ -49,13 +50,23 @@ class ConfigCategories {
 
 class ConfigCategory {
 	public:
-		ConfigCategory(const std::string& name, const std::string& json);
+		// FIXME: todo add other types
+		typedef enum type { StringType, CategoryType } Type;
+
+    		std::map<ConfigCategory::Type, std::string> typeString = {
+		    {ConfigCategory::StringType, "string"},
+		    {ConfigCategory::CategoryType, "category"}
+		};
+
+    		ConfigCategory(const std::string& name, const std::string& json);
 		ConfigCategory() {};
 		ConfigCategory(const ConfigCategory& orig);
 		~ConfigCategory();
 		void				addItem(const std::string& name, const std::string description,
 							const std::string& type, const std::string def,
 							const std::string& value);
+		// FIXME:
+		void 				removeItemsType(Type type);
 		void				setDescription(const std::string& description);
 		std::string                     getName() const { return m_name; };
 		std::string                     getDescription() const { return m_description; };

@@ -100,6 +100,10 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/service', service.get_health)
     app.router.add_route('DELETE', '/foglamp/service/{service_name}', service.delete_service)
 
+    # Task
+    app.router.add_route('POST', '/foglamp/scheduled/task', task.add_task)
+    app.router.add_route('DELETE', '/foglamp/scheduled/task/{task_name}', task.delete_task)
+
     # South
     app.router.add_route('GET', '/foglamp/south', south.get_south_services)
 
@@ -149,9 +153,6 @@ def setup(app):
 
     # Get Plugin
     app.router.add_route('GET', '/foglamp/plugins/installed', plugin_discovery.get_plugins_installed)
-
-    # Task
-    app.router.add_route('POST', '/foglamp/scheduled/task', task.add_task)
 
     # Filters 
     app.router.add_route('POST', '/foglamp/filter', filters.create_filter)

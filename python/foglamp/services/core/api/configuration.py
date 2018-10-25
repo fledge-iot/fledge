@@ -99,7 +99,7 @@ async def get_category(request):
                 os.makedirs(script_dir)
             _all_files = os.listdir(script_dir)
             for name in _all_files:
-                if name.startswith(prefix_file_name):
+                if name.startswith(prefix_file_name) and name.endswith('.py'):
                     category[k]["file"] = script_dir + name
 
     return web.json_response(category)
@@ -481,6 +481,10 @@ async def upload_script(request):
     category_item = await cf_mgr.get_category_item(category_name, config_item)
     if category_item is None:
         raise web.HTTPNotFound(reason="No such Category item found for {}".format(config_item))
+
+    config_item_type = category_item['type']
+    if config_item_type != 'script':
+        raise web.HTTPBadRequest(reason="Accepted config item type is 'script' but found {}".format(config_item_type))
 
     data = await request.post()
 

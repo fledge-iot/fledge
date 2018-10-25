@@ -54,14 +54,14 @@ fi
 # Now run Foglamp and Foglamp GUI update commands.
 
 UPDATE_CMD="sudo apt update"
-FOGLAMP_UPDATE_CMD="echo Y | sudo apt-get install foglamp"
-FOGLAMP_GUI_UPDATE_CMD="echo Y | sudo apt-get install foglamp-gui"
+FOGLAMP_UPDATE_CMD="sudo apt-get -y install foglamp"
+FOGLAMP_GUI_UPDATE_CMD="sudo apt-get -y install foglamp-gui"
 
 
 # Update apt-get
 UPDATE_CMD_STATUS=`$UPDATE_CMD`
 if [ "${UPDATE_CMD_STATUS}" = "" ]; then
-    logger -p local0.err -t "FogLAMP[${$}]" "${TASK_NAME} $0: cannot run \"${UPDATE_CMD}\" command"
+    logger -p local0.err -t "FogLAMP[${$}]" "${TASK_NAME} $0: cannot run \"${UPDATE_CMD}\" command: \"${UPDATE_CMD_STATUS}\""
     exit 1
 fi
 
@@ -69,7 +69,7 @@ fi
 # Update FogLAMP
 FOGLAMP_UPDATE_CMD_STATUS=`$FOGLAMP_UPDATE_CMD`
 if [ "${FOGLAMP_UPDATE_CMD_STATUS}" = "" ]; then
-    logger -p local0.err -t "FogLAMP[${$}]" "${TASK_NAME} $0: cannot run \"${FOGLAMP_UPDATE_CMD}\" command"
+    logger -p local0.err -t "FogLAMP[${$}]" "${TASK_NAME} $0: cannot run \"${FOGLAMP_UPDATE_CMD}\" command: \"${FOGLAMP_UPDATE_CMD_STATUS}\""
     exit 1
 fi
 
@@ -77,7 +77,7 @@ fi
 # Update FogLAMP GUI
 FOGLAMP_GUI_UPDATE_STATUS=`$FOGLAMP_GUI_UPDATE_CMD`
 if [ "${FOGLAMP_GUI_UPDATE_STATUS}" = "" ]; then
-    logger -p local0.err -t "FogLAMP[${$}]" "${TASK_NAME} $0: cannot run \"${FOGLAMP_GUI_UPDATE_CMD}\" command"
+    logger -p local0.err -t "FogLAMP[${$}]" "${TASK_NAME} $0: cannot run \"${FOGLAMP_GUI_UPDATE_CMD}\" command: \"${FOGLAMP_GUI_UPDATE_CMD_STATUS}\""
     exit 1
 fi
 
@@ -87,7 +87,7 @@ START_FOGLAMP_CMD="${FOGLAMP_ROOT}/bin/foglamp start"
 START_FOGLAMP_CMD_STATUS=`$START_FOGLAMP_CMD`
 sleep 15
 if [ "${START_FOGLAMP_CMD_STATUS}" = "" ]; then
-    logger -p local0.err -t "FogLAMP[${$}]" "${TASK_NAME} $0: cannot run \"${START_FOGLAMP_CMD}\" command"
+    logger -p local0.err -t "FogLAMP[${$}]" "${TASK_NAME} $0: cannot run \"${START_FOGLAMP_CMD}\" command: \"${START_FOGLAMP_CMD_STATUS}\""
     exit 1
 fi
 

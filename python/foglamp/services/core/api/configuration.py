@@ -4,12 +4,15 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
+import os
 from aiohttp import web
 import urllib.parse
+
 from foglamp.services.core import connect
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.audit_logger import AuditLogger
+from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA
 
 __author__ = "Amarendra K. Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -22,11 +25,15 @@ _help = """
     | GET            | /foglamp/category/{category_name}                           |
     | GET POST PUT   | /foglamp/category/{category_name}/{config_item}             |
     | DELETE         | /foglamp/category/{category_name}/{config_item}/value       |
+    | POST           | /foglamp/category/{category_name}/{config_item}/upload      |
     | GET POST       | /foglamp/category/{category_name}/children                  |
     | DELETE         | /foglamp/category/{category_name}/children/{child_category} |
     | DELETE         | /foglamp/category/{category_name}/parent                    |
     --------------------------------------------------------------------------------
 """
+
+script_dir = _FOGLAMP_DATA + '/scripts/' if _FOGLAMP_DATA else _FOGLAMP_ROOT + "/data/scripts/"
+
 
 #################################
 #  Configuration Manager
@@ -84,6 +91,16 @@ async def get_category(request):
 
     if category is None:
         raise web.HTTPNotFound(reason="No such Category found for {}".format(category_name))
+
+    for k, v in category.items():
+        if v['type'] == 'script':
+            prefix_file_name = category_name.lower() + "_" + k.lower() + "_"
+            if not os.path.exists(script_dir):
+                os.makedirs(script_dir)
+            _all_files = os.listdir(script_dir)
+            for name in _all_files:
+                if name.startswith(prefix_file_name) and name.endswith('.py'):
+                    category[k]["file"] = script_dir + name
 
     return web.json_response(category)
 
@@ -167,9 +184,17 @@ async def get_category_item(request):
     # TODO: make it optimized and elegant
     cf_mgr = ConfigurationManager(connect.get_storage_async())
     category_item = await cf_mgr.get_category_item(category_name, config_item)
-
     if category_item is None:
         raise web.HTTPNotFound(reason="No such Category item found for {}".format(config_item))
+
+    if category_item['type'] == 'script':
+        prefix_file_name = category_name.lower() + "_" + config_item.lower() + "_"
+        if not os.path.exists(script_dir):
+            os.makedirs(script_dir)
+        _all_files = os.listdir(script_dir)
+        for name in _all_files:
+            if name.startswith(prefix_file_name):
+                category_item["file"] = script_dir + name
 
     return web.json_response(category_item)
 
@@ -439,3 +464,67 @@ async def delete_parent_category(request):
         raise web.HTTPNotFound(reason=str(ex))
 
     return web.json_response({"message": "Parent-child relationship for the parent-{} is deleted".format(category_name)})
+
+
+async def upload_script(request):
+    """ Upload script for a given config item
+
+    :Example:
+            curl -F "script=@filename.py" http://localhost:8081/foglamp/category/{category_name}/{config_item}/upload
+    """
+    category_name = request.match_info.get('category_name', None)
+    config_item = request.match_info.get('config_item', None)
+
+    category_name = urllib.parse.unquote(category_name) if category_name is not None else None
+    config_item = urllib.parse.unquote(config_item) if config_item is not None else None
+    cf_mgr = ConfigurationManager(connect.get_storage_async())
+    category_item = await cf_mgr.get_category_item(category_name, config_item)
+    if category_item is None:
+        raise web.HTTPNotFound(reason="No such Category item found for {}".format(config_item))
+
+    config_item_type = category_item['type']
+    if config_item_type != 'script':
+        raise web.HTTPBadRequest(reason="Accepted config item type is 'script' but found {}".format(config_item_type))
+
+    data = await request.post()
+
+    # contains the name of the file in string format
+    script_file = data.get('script')
+    if not script_file:
+        raise web.HTTPBadRequest(reason="Script file is missing")
+
+    # TODO: For the time being accepted extension is '.py'
+    script_filename = script_file.filename
+    if not script_filename.endswith('.py'):
+        raise web.HTTPBadRequest(reason="Accepted file extension is .py")
+
+    script_file_data = data['script'].file
+    script_file_content = script_file_data.read()
+    prefix_file_name = category_name.lower() + "_" + config_item.lower() + "_"
+    file_name = prefix_file_name + script_filename
+    script_file_path = script_dir + file_name
+    # If 'scripts' dir not exists, then create
+    if not os.path.exists(script_dir):
+        os.makedirs(script_dir)
+    # Write contents to file and save under scripts dir path
+    with open(script_file_path, 'wb') as f:
+        f.write(script_file_content)
+
+    bytes_to_string = script_file_content.decode("utf-8")
+    try:
+        # Save the value to database
+        await cf_mgr.set_category_item_value_entry(category_name, config_item, bytes_to_string)
+        # Remove old files for combination categoryname_configitem_filename and retain only the latest one
+        _all_files = os.listdir(script_dir)
+        for name in _all_files:
+            if name.startswith(prefix_file_name):
+                if name != file_name:
+                    os.remove(script_dir + name)
+
+    except Exception as ex:
+        os.remove(script_file_path)
+        raise web.HTTPBadRequest(reason=ex)
+    else:
+        result = await cf_mgr.get_category_item(category_name, config_item)
+        result['file'] = script_file_path
+        return web.json_response(result)

@@ -330,6 +330,7 @@ class Scheduler(object):
                 .INSERT(id=str(task_id),
                         pid=(self._schedule_executions[schedule.id].
                              task_processes[task_id].process.pid),
+                        schedule_name=schedule.name,
                         process_name=schedule.process_name,
                         state=int(Task.State.RUNNING),
                         start_time=str(datetime.datetime.now())) \
@@ -1148,27 +1149,24 @@ class Scheduler(object):
         Args: service_name:
         Returns:
         """
-        if not self._ready:
-            return False
+        if not self._ready: return False
 
         # Find task_id for the service
         task_id = None
         task_process = None
         schedule_type = None
         try:
-            for key in list(self._task_processes.keys()):
-                if self._task_processes[key].schedule.name == service_name:
-                    task_id = key
-                    break
-            if task_id is None:
-                raise KeyError
+            task_id = next(
+                (key for key in self._task_processes.keys() if self._task_processes[key].schedule.name == service_name),
+                None)
+            if task_id is None: raise KeyError
 
             task_process = self._task_processes[task_id]
 
             if task_id is not None:
                 schedule = task_process.schedule
                 schedule_type = schedule.type
-                if schedule_type == Schedule.Type.STARTUP: # If schedule is a service e.g. South services
+                if schedule_type == Schedule.Type.STARTUP:  # If schedule is a service e.g. South services
                     del self._schedule_executions[schedule.id]
                     del self._task_processes[task_process.task_id]
                     self._logger.info("Service {} records successfully removed".format(service_name))
@@ -1176,7 +1174,9 @@ class Scheduler(object):
         except KeyError:
             pass
 
-        self._logger.exception("Service {} records could not be removed with task id {} type {}".format(service_name, str(task_id), schedule_type))
+        self._logger.exception(
+            "Service {} records could not be removed with task id {} type {}".format(service_name, str(task_id),
+                                                                                     schedule_type))
         return False
 
     async def disable_schedule(self, schedule_id: uuid.UUID, bypass_check=None):
@@ -1420,6 +1420,7 @@ class Scheduler(object):
         for (task_id, task_process) in self._task_processes.items():
             task = Task()
             task.task_id = task_id
+            task.schedule_name = task_process.schedule.name
             task.process_name = task_process.schedule.process_name
             task.state = Task.State.RUNNING
             if task_process.cancel_requested is not None:
@@ -1432,7 +1433,7 @@ class Scheduler(object):
 
     async def get_task(self, task_id: uuid.UUID) -> Task:
         """Retrieves a task given its id"""
-        query_payload = PayloadBuilder().SELECT("id", "process_name", "state", "start_time", "end_time", "reason", "exit_code")\
+        query_payload = PayloadBuilder().SELECT("id", "process_name", "schedule_name", "state", "start_time", "end_time", "reason", "exit_code")\
             .ALIAS("return", ("start_time", 'start_time'), ("end_time", 'end_time'))\
             .FORMAT("return", ("start_time", "YYYY-MM-DD HH24:MI:SS.MS"), ("end_time", "YYYY-MM-DD HH24:MI:SS.MS"))\
             .WHERE(["id", "=", str(task_id)]).payload()
@@ -1445,6 +1446,7 @@ class Scheduler(object):
                 task.task_id = row.get('id')
                 task.state = Task.State(int(row.get('state')))
                 task.start_time = row.get('start_time')
+                task.schedule_name = row.get('schedule_name')
                 task.process_name = row.get('process_name')
                 task.end_time = row.get('end_time')
                 task.exit_code = row.get('exit_code')
@@ -1469,7 +1471,7 @@ class Scheduler(object):
                 A tuple of Task attributes to sort by.
                 Defaults to ("start_time", "desc")
         """
-        chain_payload = PayloadBuilder().SELECT("id", "process_name", "state", "start_time", "end_time", "reason", "exit_code") \
+        chain_payload = PayloadBuilder().SELECT("id", "process_name", "schedule_name", "state", "start_time", "end_time", "reason", "exit_code") \
             .ALIAS("return", ("start_time", 'start_time'), ("end_time", 'end_time'))\
             .FORMAT("return", ("start_time", "YYYY-MM-DD HH24:MI:SS.MS"), ("end_time", "YYYY-MM-DD HH24:MI:SS.MS"))\
             .LIMIT(limit).chain_payload()
@@ -1495,6 +1497,7 @@ class Scheduler(object):
                 task.task_id = row.get('id')
                 task.state = Task.State(int(row.get('state')))
                 task.start_time = row.get('start_time')
+                task.schedule_name = row.get('schedule_name')
                 task.process_name = row.get('process_name')
                 task.end_time = row.get('end_time')
                 task.exit_code = row.get('exit_code')

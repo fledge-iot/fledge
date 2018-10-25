@@ -1252,6 +1252,19 @@ SQLBuffer	sql;
 	{
 		raiseError("update", zErrMsg);
 		sqlite3_free(zErrMsg);
+		if (sqlite3_get_autocommit(dbHandle)==0) // transaction is still open, do rollback
+		{
+			rc=SQLexec(dbHandle,
+				"ROLLBACK TRANSACTION;",
+				NULL,
+				NULL,
+				&zErrMsg);
+			if (rc != SQLITE_OK)
+			{
+				raiseError("rollback", zErrMsg);
+				sqlite3_free(zErrMsg);
+			}
+		}
 		Logger::getLogger()->error("SQL statement: %s", query);
 		// Release memory for 'query' var
 		delete[] query;

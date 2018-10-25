@@ -288,6 +288,7 @@ async def get_schedule(storage, schedule_name):
 
 async def delete_configuration(storage, key):
     await delete_configuration_category(storage, key)
+    await delete_configuration_category(storage, "{}Advanced".format(key))
     await delete_parent_child_configuration(storage, key)
     await delete_advance_child_configuration(storage, key)
 

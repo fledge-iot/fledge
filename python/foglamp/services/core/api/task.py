@@ -27,7 +27,7 @@ __version__ = "${VERSION}"
 
 _help = """
     -------------------------------------------------------------------------------
-    | GET POST             | /foglamp/scheduled/task                              |
+    | POST                 | /foglamp/scheduled/task                              |
     | DELETE               | /foglamp/scheduled/task/{task_name}                  |
     -------------------------------------------------------------------------------
 """
@@ -276,7 +276,6 @@ async def delete_task(request):
             raise web.HTTPBadRequest(reason='A north instance task with this name does not exist.')
 
         north_instance_schedule = result['rows'][0]
-
         sch_id = uuid.UUID(north_instance_schedule['id'])
         if north_instance_schedule['enabled'].lower() == 't':
             # disable it

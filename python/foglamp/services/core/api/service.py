@@ -100,7 +100,6 @@ async def delete_service(request):
             raise web.HTTPBadRequest(reason='A service with this name does not exist.')
 
         svc_schedule = result['rows'][0]
-
         sch_id = uuid.UUID(svc_schedule['id'])
         if svc_schedule['enabled'].lower() == 't':
             # disable it
@@ -310,4 +309,3 @@ async def delete_parent_child_configuration(storage, key):
 async def delete_advance_child_configuration(storage, key):
     payload = PayloadBuilder().WHERE(['parent', '=', key]).payload()
     await storage.delete_from_tbl('category_children', payload)
-

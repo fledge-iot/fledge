@@ -327,9 +327,8 @@ bool SouthService::loadPlugin()
 			DefaultConfigCategory defConfig(m_name, manager->getInfo(handle)->config);
 			defConfig.setDescription(m_name);	// TODO We do not have access to the description
 
-			// FIXME:
-			DefaultConfigCategory defConfigCategory(defConfig);
-			defConfigCategory.keepItemsType(ConfigCategory::ItemType::CategoryType);
+			DefaultConfigCategory defConfigCategoryOnly(defConfig);
+			defConfigCategoryOnly.keepItemsType(ConfigCategory::ItemType::CategoryType);
 			defConfig.removeItemsType(ConfigCategory::ItemType::CategoryType);
 
 			// Create/Update category name (we pass keep_original_items=true)
@@ -344,16 +343,28 @@ bool SouthService::loadPlugin()
 			// the plugin
 			m_config = m_mgtClient->getCategory(m_name);
 
-			// FIXME: add sub cat using d
-//			ConfigCategory item;
-//			while (item.moveItem(defConfigCategory)) {
-//				// FIXME:
-//				item.setDescription(m_name + "1");
-//				m_mgtClient->addCategory(item, true);
-//			}
-			// FIXME:...
+			// Adds sub categories to the configuration
+			bool extracted = true;
+			ConfigCategory subCategory;
+			while (extracted) {
 
-			//ConfigCategory::CategoryItem item = defConfig.removeItem();
+				extracted = subCategory.extractSubcategory(defConfigCategoryOnly);
+
+				if (extracted) {
+
+					DefaultConfigCategory defSubCategory(subCategory);
+					m_mgtClient->addCategory(defSubCategory, true);
+
+					// Adds the subcategory as child
+					vector<string> childrenSubCat;
+					childrenSubCat.push_back(defSubCategory.getName());
+					m_mgtClient->addChildCategories(m_name, childrenSubCat);
+
+					// Cleans the category
+					subCategory.removeItems();
+					subCategory = ConfigCategory() ;
+				}
+			}
 
 			// Deal with registering and fetching the advanced configuration
 			string advancedCatName = m_name+string("Advanced");

@@ -59,9 +59,10 @@ class ConfigCategory {
 		void				addItem(const std::string& name, const std::string description,
 							const std::string& type, const std::string def,
 							const std::string& value);
+    		void 				removeItems();
 		void 				removeItemsType(ItemType type);
 		void 				keepItemsType(ItemType type);
-		bool                            moveItem(const ConfigCategory& orig);
+		bool                            extractSubcategory(ConfigCategory &subCategories);
 		void				setDescription(const std::string& description);
 		std::string                     getName() const { return m_name; };
 		std::string                     getDescription() const { return m_description; };

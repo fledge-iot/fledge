@@ -266,6 +266,19 @@ void ConfigCategory::removeItemsType(ConfigCategory::ItemType type)
 }
 
 /**
+ * Delete all the items from the configuration category
+ *
+ */
+void ConfigCategory::removeItems()
+{
+	for (auto it = m_items.begin(); it != m_items.end(); )
+	{
+
+		m_items.erase(it);
+	}
+}
+
+/**
  * Delete all the items from the configuration category not having a specific type
  *
  * * @param type  Type to maintain
@@ -286,42 +299,54 @@ void ConfigCategory::keepItemsType(ConfigCategory::ItemType type)
 	}
 }
 /**
- * // FIXME:
+ * Extracts, process and adds subcategory information from a given category to the current instance
  *
- * * @param
+ * * @param subCategories Configuration category from which the subcategories information should be extracted
  */
-bool ConfigCategory::moveItem(ConfigCategory const& rhs)
+bool ConfigCategory::extractSubcategory(ConfigCategory &subCategories)
 {
 
 	bool extracted;
 
-	auto it = rhs.m_items.cbegin();
+	auto it = subCategories.m_items.begin();
 
-	m_items.push_back(new CategoryItem(**it));
+	if (it != subCategories.m_items.end())
+	{
+		// Generates a new temporary category from the JSON in m_default
+		ConfigCategory tmpCategory = ConfigCategory("tmpCategory", (*it)->m_default);
 
-	//rhs.m_items.erase(it);
+		// Extracts all the items generated from m_default and adds them to the category
+		for(auto item : tmpCategory.m_items)
+		{
 
+			m_items.push_back(new CategoryItem(*item));
+		}
 
-//	auto it = rhs.m_items.cbegin();
+		m_name = (*it)->m_name;
+		m_description = (*it)->m_description;
 
-//	if (it !=  = rhs.m_items.cend())
-//	{
-//		m_items.push_back((new CategoryItem(**it));
-//
-//		rhs.m_items.erase(ur);
-//		extracted = true;
-//	}
-//	else
-//	{
-//		extracted = fase;
-//	}
-//
-//	return 	extracted
+		// Replaces the %N escape sequence with the instance name of this plugin
+		string instanceName = subCategories.m_name;
+		string pattern  = "%N";
+
+		if (m_name.find(pattern) != string::npos)
+			m_name.replace(m_name.find(pattern), pattern.length(), instanceName);
+
+		// Removes the element just processed
+		subCategories.m_items.erase(it);
+		extracted = true;
+	}
+	else
+	{
+		extracted = false;
+	}
+
+	return 	extracted;
 
 }
 
 /**
- * Check for the existance of an item within the configuration category
+ * Check for the existence of an item within the configuration category
  *
  * @param name	Item name to check within the category
  */
@@ -605,7 +630,6 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 	{
 		m_readonly = "";
 	}
-	// FIXME:
 	if  (m_type.compare("category") == 0)
 	{
 
@@ -716,7 +740,6 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 				throw new runtime_error("'default' JSON property is not an object");
 			}
 		}
-		// FIXME:
 		// Avoids overwrite if it is already valued
 		if (m_itemType == StringItem)
 		{

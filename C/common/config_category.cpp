@@ -784,7 +784,10 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 	else if (item.HasMember("value") && item["value"].IsString())
 	{
 		m_value = item["value"].GetString();
-		m_itemType = StringItem;
+		if (m_options.size() == 0)
+			m_itemType = StringItem;
+		else
+			m_itemType = EnumerationItem;
 	}
 	// Item "value" is a Double
 	else if (item.HasMember("value") && item["value"].IsDouble())
@@ -856,7 +859,10 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 	else if (item.HasMember("default") && item["default"].IsString())
 	{
 		m_default = item["default"].GetString();
-		m_itemType = StringItem;
+		if (m_options.size() == 0)
+			m_itemType = StringItem;
+		else
+			m_itemType = EnumerationItem;
 	}
 	// Item "default" is a Double
 	else if (item.HasMember("default") && item["default"].IsDouble())
@@ -979,6 +985,7 @@ ostringstream convert;
 	}
 
 	if (m_itemType == StringItem ||
+	    m_itemType == EnumerationItem ||
 	    m_itemType == BoolItem)
 	{
 		convert << "\"default\" : \"" << m_default << "\" }";

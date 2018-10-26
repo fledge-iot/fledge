@@ -109,7 +109,7 @@ const char *myCategoryDeprecated = "{\"description\": {"
 		"\"value\": \"remote\","
 		"\"type\": \"string\","
 		"\"default\": \"local\", "
-		"\"decprecated\": \"true\", "
+		"\"deprecated\": \"true\", "
 		"\"description\": \"A deprecated configuration parameter\"}}";
 
 const char *json_array_item = "{\"pipeline\":[\"scale\",\"exceptional\"]}";
@@ -319,5 +319,4 @@ TEST(CategoryTest, minMax)
 	ConfigCategory confCategory("test", myCategoryMinMax);
 	ASSERT_EQ("1", confCategory.getMinimum("range"));
 	ASSERT_EQ("10", confCategory.getMaximum("range"));
-	ASSERT_EQ(true, confCategory.isDeprecated("location"));
 }

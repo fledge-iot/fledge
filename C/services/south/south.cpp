@@ -328,8 +328,9 @@ bool SouthService::loadPlugin()
 			defConfig.setDescription(m_name);	// TODO We do not have access to the description
 
 			// FIXME:
-			DefaultConfigCategory defConfigAll(defConfig);
-			defConfig.removeItemsType(ConfigCategory::CategoryType);
+			DefaultConfigCategory defConfigCategory(defConfig);
+			defConfigCategory.keepItemsType(ConfigCategory::ItemType::CategoryType);
+			defConfig.removeItemsType(ConfigCategory::ItemType::CategoryType);
 
 			// Create/Update category name (we pass keep_original_items=true)
 			m_mgtClient->addCategory(defConfig, true);
@@ -343,7 +344,16 @@ bool SouthService::loadPlugin()
 			// the plugin
 			m_config = m_mgtClient->getCategory(m_name);
 
-			// FIXME: add sub cat using defConfigAll
+			// FIXME: add sub cat using d
+//			ConfigCategory item;
+//			while (item.moveItem(defConfigCategory)) {
+//				// FIXME:
+//				item.setDescription(m_name + "1");
+//				m_mgtClient->addCategory(item, true);
+//			}
+			// FIXME:...
+
+			//ConfigCategory::CategoryItem item = defConfig.removeItem();
 
 			// Deal with registering and fetching the advanced configuration
 			string advancedCatName = m_name+string("Advanced");

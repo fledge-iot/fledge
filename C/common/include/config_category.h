@@ -50,23 +50,18 @@ class ConfigCategories {
 
 class ConfigCategory {
 	public:
-		// FIXME: todo add other types
-		typedef enum type { StringType, CategoryType } Type;
+		enum ItemType  { StringItem, JsonItem, BoolItem, NumberItem, DoubleItem, ScriptItem, CategoryType};
 
-    		std::map<ConfigCategory::Type, std::string> typeString = {
-		    {ConfigCategory::StringType, "string"},
-		    {ConfigCategory::CategoryType, "category"}
-		};
-
-    		ConfigCategory(const std::string& name, const std::string& json);
+		ConfigCategory(const std::string& name, const std::string& json);
 		ConfigCategory() {};
 		ConfigCategory(const ConfigCategory& orig);
 		~ConfigCategory();
 		void				addItem(const std::string& name, const std::string description,
 							const std::string& type, const std::string def,
 							const std::string& value);
-		// FIXME:
-		void 				removeItemsType(Type type);
+		void 				removeItemsType(ItemType type);
+		void 				keepItemsType(ItemType type);
+		bool                            moveItem(const ConfigCategory& orig);
 		void				setDescription(const std::string& description);
 		std::string                     getName() const { return m_name; };
 		std::string                     getDescription() const { return m_description; };
@@ -91,11 +86,10 @@ class ConfigCategory {
 	protected:
 		class CategoryItem {
 			public:
-				enum ItemType { StringItem, JsonItem, BoolItem, NumberItem, DoubleItem };
 				CategoryItem(const std::string& name, const rapidjson::Value& item);
 				CategoryItem(const std::string& name, const std::string& description,
-							const std::string& type, const std::string def,
-							const std::string& value);
+					     const std::string& type, const std::string def,
+					     const std::string& value);
 				// Return both "value" and "default" items
 				std::string	toJSON() const;
 				// Return only "default" items

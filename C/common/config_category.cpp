@@ -250,15 +250,11 @@ void ConfigCategory::addItem(const std::string& name, const std::string descript
  *
  * * @param type  Type to delete
  */
-void ConfigCategory::removeItemsType(Type type)
+void ConfigCategory::removeItemsType(ConfigCategory::ItemType type)
 {
-	std:string typeToSearch;
-
-	typeToSearch = ConfigCategory::typeString[type];
-
 	for (auto it = m_items.begin(); it != m_items.end(); )
 	{
-		if ((*it)->m_type.compare(typeToSearch) == 0)
+		if ((*it)->m_itemType == type)
 		{
 			m_items.erase(it);
 		}
@@ -269,6 +265,60 @@ void ConfigCategory::removeItemsType(Type type)
 	}
 }
 
+/**
+ * Delete all the items from the configuration category not having a specific type
+ *
+ * * @param type  Type to maintain
+ */
+void ConfigCategory::keepItemsType(ConfigCategory::ItemType type)
+{
+
+	for (auto it = m_items.begin(); it != m_items.end(); )
+	{
+		if ((*it)->m_itemType != type)
+		{
+			m_items.erase(it);
+		}
+		else
+		{
+			++it;
+		}
+	}
+}
+/**
+ * // FIXME:
+ *
+ * * @param
+ */
+bool ConfigCategory::moveItem(ConfigCategory const& rhs)
+{
+
+	bool extracted;
+
+	auto it = rhs.m_items.cbegin();
+
+	m_items.push_back(new CategoryItem(**it));
+
+	//rhs.m_items.erase(it);
+
+
+//	auto it = rhs.m_items.cbegin();
+
+//	if (it !=  = rhs.m_items.cend())
+//	{
+//		m_items.push_back((new CategoryItem(**it));
+//
+//		rhs.m_items.erase(ur);
+//		extracted = true;
+//	}
+//	else
+//	{
+//		extracted = fase;
+//	}
+//
+//	return 	extracted
+
+}
 
 /**
  * Check for the existance of an item within the configuration category
@@ -376,7 +426,7 @@ bool ConfigCategory::isString(const string& name) const
 	{
 		if (name.compare(m_items[i]->m_name) == 0)
 		{
-			return m_items[i]->m_itemType == CategoryItem::StringItem;
+			return m_items[i]->m_itemType == StringItem;
 		}
 	}
 	throw new ConfigItemNotFound();
@@ -395,7 +445,7 @@ bool ConfigCategory::isJSON(const string& name) const
 	{
 		if (name.compare(m_items[i]->m_name) == 0)
 		{
-			return m_items[i]->m_itemType == CategoryItem::JsonItem;
+			return m_items[i]->m_itemType == JsonItem;
 		}
 	}
 	throw new ConfigItemNotFound();
@@ -414,7 +464,7 @@ bool ConfigCategory::isBool(const string& name) const
 	{
 		if (name.compare(m_items[i]->m_name) == 0)
 		{
-			return m_items[i]->m_itemType == CategoryItem::BoolItem;
+			return m_items[i]->m_itemType == BoolItem;
 		}
 	}
 	throw new ConfigItemNotFound();
@@ -433,7 +483,7 @@ bool ConfigCategory::isNumber(const string& name) const
 	{
 		if (name.compare(m_items[i]->m_name) == 0)
 		{
-			return m_items[i]->m_itemType == CategoryItem::NumberItem;
+			return m_items[i]->m_itemType == NumberItem;
 		}
 	}
 	throw new ConfigItemNotFound();
@@ -452,7 +502,7 @@ bool ConfigCategory::isDouble(const string& name) const
 	{
 		if (name.compare(m_items[i]->m_name) == 0)
 		{
-			return m_items[i]->m_itemType == CategoryItem::DoubleItem;
+			return m_items[i]->m_itemType == DoubleItem;
 		}
 	}
 	throw new ConfigItemNotFound();
@@ -555,6 +605,17 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 	{
 		m_readonly = "";
 	}
+	// FIXME:
+	if  (m_type.compare("category") == 0)
+	{
+
+		m_itemType = CategoryType;
+	}
+	if  (m_type.compare("script") == 0)
+	{
+
+		m_itemType = ScriptItem;
+	}
 
 	// Item "value" can be an escaped JSON string, so check m_type JSON as well
 	if (item.HasMember("value") &&
@@ -655,7 +716,12 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 				throw new runtime_error("'default' JSON property is not an object");
 			}
 		}
-		m_itemType = JsonItem;
+		// FIXME:
+		// Avoids overwrite if it is already valued
+		if (m_itemType == StringItem)
+		{
+			m_itemType = JsonItem;
+		}
 	}
 	// Item "default" is a Bool or m_type is boolean
 	else if (item.HasMember("default") &&

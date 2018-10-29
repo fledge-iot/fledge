@@ -36,6 +36,8 @@ class Reading {
 		std::string			toJSON() const;
 		// Return AssetName
 		const std::string&              getAssetName() const { return m_asset; };
+		// Set AssetName
+		void                            setAssetName(std::string assetName) { m_asset = assetName; };
 		// Return UUID
 		const std::string&              getUuid() const { return m_uuid; };
 		// Return Reading datapoints

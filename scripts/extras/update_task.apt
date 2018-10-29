@@ -51,7 +51,7 @@ if [ "${STOP_FOGLAMP_CMD_STATUS}" = "" ]; then
 fi
 
 
-# Now run Foglamp and Foglamp GUI update commands.
+# Now run Foglamp update commands.
 
 UPDATE_CMD="sudo apt update"
 FOGLAMP_UPDATE_CMD="sudo apt-get -y install foglamp"
@@ -83,5 +83,5 @@ if [ "${START_FOGLAMP_CMD_STATUS}" = "" ]; then
 fi
 
 
-logger -p local0.err -t "FogLAMP[${$}]" "${TASK_NAME} $0: Foglamp and Foglamp GUI updated successfully!"
+logger -p local0.err -t "FogLAMP[${$}]" "${TASK_NAME} $0: Foglamp updated successfully!"
 echo "FogLAMP updated successfully!"

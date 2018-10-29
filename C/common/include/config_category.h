@@ -84,6 +84,9 @@ class ConfigCategory {
 		void				checkDefaultValuesOnly() const;
 		std::string 			itemToJSON(const std::string& itemName) const;
 
+		// FIXME:
+    		bool 				isSubcategoryPresent();
+
 	protected:
 		class CategoryItem {
 			public:

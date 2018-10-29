@@ -28,7 +28,7 @@ trap "" 1 2 3 6 15
 
 # Set the default value for FOGLAMP_ROOT if not set
 if [ "${FOGLAMP_ROOT}" = "" ]; then
-	FOGLAMP_ROOT=/usr/local/foglamp
+	export FOGLAMP_ROOT='/usr/local/foglamp'
 fi
 
 # Check availability of FOGLAMP_ROOT directory
@@ -55,7 +55,6 @@ fi
 
 UPDATE_CMD="sudo apt update"
 FOGLAMP_UPDATE_CMD="sudo apt-get -y install foglamp"
-FOGLAMP_GUI_UPDATE_CMD="sudo apt-get -y install foglamp-gui"
 
 
 # Update apt-get
@@ -74,14 +73,6 @@ if [ "${FOGLAMP_UPDATE_CMD_STATUS}" = "" ]; then
 fi
 
 
-# Update FogLAMP GUI
-FOGLAMP_GUI_UPDATE_STATUS=`$FOGLAMP_GUI_UPDATE_CMD`
-if [ "${FOGLAMP_GUI_UPDATE_STATUS}" = "" ]; then
-    logger -p local0.err -t "FogLAMP[${$}]" "${TASK_NAME} $0: cannot run \"${FOGLAMP_GUI_UPDATE_CMD}\" command: \"${FOGLAMP_GUI_UPDATE_CMD_STATUS}\""
-    exit 1
-fi
-
-
 # Everything fine, so restart Foglamp
 START_FOGLAMP_CMD="${FOGLAMP_ROOT}/bin/foglamp start"
 START_FOGLAMP_CMD_STATUS=`$START_FOGLAMP_CMD`
@@ -93,4 +84,4 @@ fi
 
 
 logger -p local0.err -t "FogLAMP[${$}]" "${TASK_NAME} $0: Foglamp and Foglamp GUI updated successfully!"
-echo "FogLAMP and FogLAMP GUI updated successfully!"
+echo "FogLAMP updated successfully!"

@@ -9,7 +9,6 @@
  */
 #include <ingest.h>
 #include <reading.h>
-#include <chrono>
 #include <thread>
 #include <logger.h>
 
@@ -222,7 +221,6 @@ void Ingest::updateStats()
 	
 	try
 		{
-		std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 		int rv = m_storage.updateTable("statistics", statsUpdates);
 		
 		if (rv<0)
@@ -237,9 +235,6 @@ void Ingest::updateStats()
 				}
 			statsPendingEntries.clear();
 			}
-		std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
- 		auto usecs = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
-		Logger::getLogger()->info("Bulk stats update of %d readings took %lld usecs", readings, usecs);
 		}
 	catch (...)
 		{
@@ -304,7 +299,7 @@ Ingest::~Ingest()
 	delete m_queue;
 	delete m_thread;
 	delete m_statsThread;
-	delete m_data;
+	//delete m_data;
 	
 	// Cleanup filters
 	FilterPlugin::cleanupFilters(m_filters);
@@ -363,6 +358,18 @@ vector<Reading *>* newQ = new vector<Reading *>();
 		m_queue = newQ;
 	}
 	
+	ReadingSet* readingSet = NULL;
+
+	// Create a ReadingSet from m_data readings if we have filters.
+	// ReadingSet has same reading pointers as in m_data.
+	if (m_filters.size())
+	{
+		auto it = m_filters.begin();
+		readingSet = new ReadingSet(m_data);
+		// Pass readingSet to filter chain
+		(*it)->ingest(readingSet);
+	}
+
 	std::map<std::string, int>		statsEntriesCurrQueue;
 	// check if this requires addition of a new asset tracker tuple
 	for (vector<Reading *>::iterator it = m_data->begin(); it != m_data->end(); ++it)
@@ -376,21 +383,7 @@ vector<Reading *>* newQ = new vector<Reading *>();
 			}
 		++statsEntriesCurrQueue[reading->getAssetName()];
 	}
-	
-	ReadingSet* readingSet = NULL;
-
-	// Create a ReadingSet from m_data readings if we have filters.
-	// ReadingSet has same reading pointers as in m_data.
-	if (m_filters.size())
-	{
-		auto it = m_filters.begin();
-		readingSet = new ReadingSet(m_data);
-		// Pass readingSet to filter chain
-		(*it)->ingest(readingSet);
-	}
-
-	std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
-	
+		
 	/**
 	 * 'm_data' vector is ready to be sent to storage service.
 	 *
@@ -416,12 +409,7 @@ vector<Reading *>* newQ = new vector<Reading *>();
 		// Is it possible that some of the readings are stored in DB, and others are not?
 	}
 	else
-	{
-		std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-		auto usecs = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
-		if (!m_data->empty())
-			m_logger->info("Bulk insert of %d readings done in %lld usecs", m_data->size(), usecs);
-		
+	{	
 		if (!m_data->empty() && rv==false) // m_data had some (possibly filtered) readings, but they couldn't be sent successfully to storage service
 			{
 			m_logger->info("%s:%d, Couldn't send %d readings to storage service", __FUNCTION__, __LINE__, m_data->size());

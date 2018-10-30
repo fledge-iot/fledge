@@ -39,9 +39,7 @@ class SouthService : public ServiceHandler {
 		bool 				loadPlugin();
 		int 				createTimerFd(int usecs);
 		void 				createConfigCategories(DefaultConfigCategory configCategory, std::string parent_name,std::string current_name);
-
-
-private:
+	private:
 		SouthPlugin			*southPlugin;
 		const std::string&		m_name;
 		Logger        			*logger;

@@ -26,6 +26,10 @@
 #include <time.h>
 #include <unistd.h>
 #include <utils.h>
+#include <chrono>
+#include <thread>
+
+#define PURGE_SLEEP_MS 250
 
 /**
  * SQLite3 storage plugin for FogLAMP
@@ -304,7 +308,7 @@ Connection::Connection()
 	string dbPath;
 	const char *defaultConnection = getenv("DEFAULT_SQLITE_DB_FILE");
 
-	m_logSQL = false;
+	m_logSQL = flase;
 
 	if (defaultConnection == NULL)
 	{
@@ -1874,32 +1878,42 @@ long numReadings = 0;
 		sql.append(" AND id < ");
 		sql.append(sent);
 	}
-	sql.append(';');
+	sql.append(" limit 1000;");
 	const char *query = sql.coalesce();
 	logSQL("ReadingsPurge", query);
+	unsigned int deletedRows = 0;
 	char *zErrMsg = NULL;
-	int rc;
-	int rows_deleted;
+	unsigned int rowsAffected;
 
-	// Exec DELETE query: no callback, no resultset
-	rc = SQLexec(dbHandle,
-	    	     query,
-		     NULL,
-		     NULL,
-		     &zErrMsg);
+	do
+	{
+		// Exec DELETE query: no callback, no resultset
+		int rc = SQLexec(dbHandle,
+			     query,
+			     NULL,
+			     NULL,
+			     &zErrMsg);
+
+
+		if (rc != SQLITE_OK)
+		{
+			raiseError("purge - phase 3", zErrMsg);
+			sqlite3_free(zErrMsg);
+			// Release memory for 'query' var
+			delete[] query;
+			return 0;
+		}
+
+		// Get db changes
+		rowsAffected = sqlite3_changes(dbHandle);
+		deletedRows += rowsAffected;
+
+		// Sleep for a while to reease locks on the database
+		std::this_thread::sleep_for(std::chrono::milliseconds(PURGE_SLEEP_MS));
+	} while (rowsAffected > 0);
 
 	// Release memory for 'query' var
 	delete[] query;
-
-	if (rc != SQLITE_OK)
-	{
- 		raiseError("purge - phase 3", zErrMsg);
-		sqlite3_free(zErrMsg);
-		return 0;
-	}
-
-	// Get db changes
-	unsigned int deletedRows = sqlite3_changes(dbHandle);
 
 	SQLBuffer retainedBuffer;
 	retainedBuffer.append("SELECT count(ROWID) FROM foglamp.readings WHERE id > ");
@@ -1910,7 +1924,7 @@ long numReadings = 0;
 	int retained_unsent = 0;
 
 	// Exec query and get result in 'retained_unsent' via 'countCallback'
-	rc = SQLexec(dbHandle,
+	int rc = SQLexec(dbHandle,
 		     query_r,
 		     countCallback,
 		     &retained_unsent,

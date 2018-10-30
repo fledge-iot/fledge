@@ -203,8 +203,8 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 
 		try {
 			m_readingsPerSec = 1;
-			if (m_config.itemExists("readingsPerSec"))
-				m_readingsPerSec = (unsigned long)atoi(m_config.getValue("readingsPerSec").c_str());
+			if (m_configAdvanced.itemExists("readingsPerSec"))
+				m_readingsPerSec = (unsigned long)atoi(m_configAdvanced.getValue("readingsPerSec").c_str());
 		} catch (ConfigItemNotFound e) {
 			logger->info("Defaulting to inline default for poll interval");
 		}

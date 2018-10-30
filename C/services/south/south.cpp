@@ -305,11 +305,11 @@ void SouthService::stop()
 
 
 /**
- * // FIXME:
+ * Creates config categories and sub categories recursively and their parent child relations
  *
  *
  */
-void SouthService::handleSubCategoryRecursively(DefaultConfigCategory configCategory, std::string parent_name, std::string current_name )
+void SouthService::createConfigCategories(DefaultConfigCategory configCategory, std::string parent_name, std::string current_name)
 {
 
 	// Deal with registering and fetching the configuration
@@ -338,7 +338,7 @@ void SouthService::handleSubCategoryRecursively(DefaultConfigCategory configCate
 		if (extracted) {
 			DefaultConfigCategory defSubCategory(subCategory);
 
-			handleSubCategoryRecursively(defSubCategory, current_name, subCategory.getName());
+			createConfigCategories(defSubCategory, current_name, subCategory.getName());
 
 			// Cleans the category
 			subCategory.removeItems();
@@ -367,27 +367,9 @@ bool SouthService::loadPlugin()
 		PLUGIN_HANDLE handle;
 		if ((handle = manager->loadPlugin(plugin, PLUGIN_TYPE_SOUTH)) != NULL)
 		{
-//			// Deal with registering and fetching the configuration
-//			DefaultConfigCategory defConfig(m_name, manager->getInfo(handle)->config);
-//			defConfig.setDescription(m_name);	// TODO We do not have access to the description
-//
-//			DefaultConfigCategory defConfigCategoryOnly(defConfig);
-//			defConfigCategoryOnly.keepItemsType(ConfigCategory::ItemType::CategoryType);
-//			defConfig.removeItemsType(ConfigCategory::ItemType::CategoryType);
-//
-//			// Create/Update category name (we pass keep_original_items=true)
-//			m_mgtClient->addCategory(defConfig, true);
-//
-//			// Add this service under 'South' parent category
-//			vector<string> children;
-//			children.push_back(m_name);
-//			m_mgtClient->addChildCategories(string("South"), children);
-
-			// Adds sub categories to the configuration
-			//handleSubCategoryRecursively(defConfigCategoryOnly, "South", m_name);
+			// Adds categories and sub categories to the configuration
 			DefaultConfigCategory defConfig(m_name, manager->getInfo(handle)->config);
-			handleSubCategoryRecursively(defConfig, string("South") , m_name);
-
+			createConfigCategories(defConfig, string("South"), m_name);
 
 			// Must now reload the configuration to obtain any items added from
 			// the plugin

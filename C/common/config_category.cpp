@@ -299,26 +299,6 @@ void ConfigCategory::keepItemsType(ConfigCategory::ItemType type)
 	}
 }
 
-/*
-*  // FIXME:
-*
-*/
-bool ConfigCategory::isSubcategoryPresent()
-{
-	bool isPresent = false;
-
-	for (auto it = m_items.begin();  it != m_items.end() ; it++) {
-
-		if ((*it)->m_itemType == CategoryType)
-		{
-			isPresent = true;
-		}
-	}
-
-	return 	isPresent;
-}
-
-
 /**
  * Extracts, process and adds subcategory information from a given category to the current instance
  *

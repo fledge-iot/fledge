@@ -38,9 +38,7 @@ class SouthService : public ServiceHandler {
 		void				addConfigDefaults(DefaultConfigCategory& defaults);
 		bool 				loadPlugin();
 		int 				createTimerFd(int usecs);
-
-		// FIXME:
-		void handleSubCategoryRecursively(DefaultConfigCategory configCategory, std::string parent_name, std::string current_name );
+		void 				createConfigCategories(DefaultConfigCategory configCategory, std::string parent_name,std::string current_name);
 
 
 private:

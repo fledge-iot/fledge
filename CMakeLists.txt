@@ -16,5 +16,3 @@ add_subdirectory(C/services/south)
 add_subdirectory(C/tasks/north)
 add_subdirectory(C/plugins/utils)
 add_subdirectory(C/plugins/north/PI_Server_V2)
-# FIXME:
-set(CMAKE_BUILD_TYPE Debug)

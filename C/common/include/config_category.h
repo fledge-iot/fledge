@@ -14,7 +14,6 @@
 #include <string>
 #include <vector>
 #include <rapidjson/document.h>
-#include <map>
 
 class ConfigCategoryDescription {
 	public:

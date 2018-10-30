@@ -53,7 +53,7 @@ class ConfigCategories {
 
 class ConfigCategory {
 	public:
-		enum ItemType  { StringItem, JsonItem, BoolItem, NumberItem, DoubleItem, ScriptItem, CategoryType};
+		enum ItemType  { StringItem, EnumerationItem, JsonItem, BoolItem, NumberItem, DoubleItem, ScriptItem, CategoryType};
 
 		ConfigCategory(const std::string& name, const std::string& json);
 		ConfigCategory() {};
@@ -102,7 +102,6 @@ class ConfigCategory {
 	protected:
 		class CategoryItem {
 			public:
-				enum ItemType { StringItem, EnumerationItem, JsonItem, BoolItem, NumberItem, DoubleItem, ScriptItem };
 				CategoryItem(const std::string& name, const rapidjson::Value& item);
 				CategoryItem(const std::string& name, const std::string& description,
 					     const std::string& type, const std::string def,

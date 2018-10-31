@@ -61,6 +61,8 @@ const char *myCategoryEnum = "{\"description\": {"
 		"\"options\": [\"first\", \"second\", \"third\"],"
 		"\"description\": \"An enumeration configuration parameter\"}}";
 
+const char *enum_JSON = "{ \"key\" : \"test\", \"description\" : \"\", \"value\" : {\"description\" : { \"description\" : \"The description of this FogLAMP service\", \"type\" : \"string\", \"value\" : \"The FogLAMP administrative API\", \"default\" : \"The FogLAMP administrative API\" }, \"name\" : { \"description\" : \"The name of this FogLAMP service\", \"type\" : \"string\", \"value\" : \"FogLAMP\", \"default\" : \"FogLAMP\" }, \"enum\" : { \"description\" : \"An enumeration configuration parameter\", \"type\" : \"enumeration\", \"options\" : [ \"first\",\"second\",\"third\"],\"value\" : \"first\", \"default\" : \"first\" }} }";
+
 const char *myCategory_JSON_type_with_escaped_default = "{ "
 	"\"filter\": { "
 		"\"type\": \"JSON\", "
@@ -299,6 +301,15 @@ TEST(CategoryTest, enumerationTest)
 	ASSERT_EQ(true, confCategory.isEnumeration("enum"));
 	std::vector<std::string> options = confCategory.getOptions("enum");
 	ASSERT_EQ(3, options.size());
+}
+
+TEST(CategoryTest, enumerationJSONTest)
+{
+	ConfigCategory confCategory("test", myCategoryEnum);
+	ASSERT_EQ(true, confCategory.isEnumeration("enum"));
+	std::vector<std::string> options = confCategory.getOptions("enum");
+	ASSERT_EQ(3, options.size());
+	ASSERT_EQ(0, confCategory.toJSON().compare(enum_JSON));
 }
 
 TEST(CategoryTest, displayName)

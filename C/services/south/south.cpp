@@ -371,6 +371,8 @@ bool SouthService::loadPlugin()
 
 			// Must now reload the configuration to obtain any items added from
 			// the plugin
+			// Removes all the m_items already present in the category
+			m_config.removeItems();
 			m_config = m_mgtClient->getCategory(m_name);
 
 			// Deal with registering and fetching the advanced configuration

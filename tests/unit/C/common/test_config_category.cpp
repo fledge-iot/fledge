@@ -86,6 +86,20 @@ const char *myCategoryMinMax = "{\"description\": {"
 		"\"default\": {\"first\" : \"FogLAMP\", \"second\" : \"json\" },"
 		"\"description\": \"A JSON configuration parameter\"}}";
 
+const char *myCategoryRemoveItems = "{" \
+			"\"plugin\" : {"\
+				"\"description\" : \"Random C south plugin\", "\
+				"\"type\" : \"string\", "\
+				"\"default\" : \"Random_2\", "\
+				"\"value\" : \"Random_2\" "\
+			"}, "\
+			"\"asset\" : {"\
+				"\"description\" : \"Asset name\", " \
+				"\"type\" : \"string\", "\
+				"\"default\" : \"Random\", "\
+				"\"value\" : \"Random\" "\
+			"} "\
+		"}";
 
 // default has invalid (escaped) JSON object value here: a \\\" is missing for pipeline
 const char *myCategory_JSON_type_without_escaped_default = "{ "
@@ -320,3 +334,13 @@ TEST(CategoryTest, minMax)
 	ASSERT_EQ("1", confCategory.getMinimum("range"));
 	ASSERT_EQ("10", confCategory.getMaximum("range"));
 }
+
+TEST(CategoryTest, removeItems)
+{
+	ConfigCategory confCategory("test", myCategoryRemoveItems);
+	ASSERT_EQ(2, confCategory.getCount());
+
+	confCategory.removeItems();
+	ASSERT_EQ(0, confCategory.getCount());
+}
+

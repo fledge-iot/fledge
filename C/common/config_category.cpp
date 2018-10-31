@@ -200,9 +200,6 @@ ConfigCategory& ConfigCategory::operator=(ConfigCategory const& rhs)
 	m_name = rhs.m_name;
 	m_description = rhs.m_description;
 
-	// Removes all the m_items already present in the category
-	this->removeItems();
-
 	for (auto it = rhs.m_items.cbegin(); it != rhs.m_items.cend(); it++)
 	{
 		m_items.push_back(new CategoryItem(**it));

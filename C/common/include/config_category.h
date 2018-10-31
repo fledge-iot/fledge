@@ -101,6 +101,7 @@ class ConfigCategory {
 				CategoryItem(const std::string& name, const std::string& description,
 							const std::string& type, const std::string def,
 							const std::string& value);
+				CategoryItem(const CategoryItem& rhs);
 				// Return both "value" and "default" items
 				std::string	toJSON() const;
 				// Return only "default" items
@@ -145,10 +146,6 @@ class DefaultConfigCategory : public ConfigCategory
 {
 	public:
 		DefaultConfigCategory(const std::string& name, const std::string& json);
-		DefaultConfigCategory(const ConfigCategory& orig) : ConfigCategory(orig)
-		{
-		};
-	
 		std::string	toJSON() const;
 		std::string	itemsToJSON() const;
 };

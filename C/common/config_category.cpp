@@ -911,7 +911,7 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name, const std::string
 ConfigCategory::CategoryItem::CategoryItem(const CategoryItem& rhs)
 {
 	m_name = rhs.m_name;
-	m_displayName = rhs.m_displayName
+	m_displayName = rhs.m_displayName;
 	m_type = rhs.m_type;
 	m_default = rhs.m_default;
 	m_value = rhs.m_value;

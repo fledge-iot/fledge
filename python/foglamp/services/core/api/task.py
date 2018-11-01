@@ -283,8 +283,9 @@ async def delete_task(request):
         # delete it
         await server.Server.scheduler.delete_schedule(sch_id)
 
-        # delete all configuration for the service name
+        # delete all configuration for the north task instance name
         await delete_configuration(storage, north_instance)
+        await delete_parent_child_configuration(storage, north_instance)
 
         # delete statistics key
         await delete_statistics_key(storage, north_instance)

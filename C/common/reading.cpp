@@ -34,6 +34,8 @@ char	uuid_str[37];
 	m_uuid = string(uuid_str);
 	// Store seconds and microseconds
 	gettimeofday(&m_timestamp, NULL);
+	// Initialise m_userTimestamp
+	m_userTimestamp = m_timestamp;
 }
 
 /**
@@ -57,13 +59,17 @@ char	uuid_str[37];
 	m_uuid = string(uuid_str);
 	// Store seconds and microseconds
 	gettimeofday(&m_timestamp, NULL);
+	// Initialise m_userTimestamp
+	m_userTimestamp = m_timestamp;
 }
 
 /**
  * Reading copy constructor
  */
 Reading::Reading(const Reading& orig) : m_asset(orig.m_asset),
-	m_timestamp(orig.m_timestamp), m_uuid(orig.m_uuid)
+	m_timestamp(orig.m_timestamp), m_uuid(orig.m_uuid),
+	m_userTimestamp(orig.m_userTimestamp),
+	m_has_id(orig.m_has_id), m_id(orig.m_id)
 {
 	for (auto it = orig.m_values.cbegin(); it != orig.m_values.cend(); it++)
 	{

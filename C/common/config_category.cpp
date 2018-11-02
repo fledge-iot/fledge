@@ -1042,6 +1042,31 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name, const std::string
 }
 
 /**
+ * Copy constructor for configuration item
+ */
+ConfigCategory::CategoryItem::CategoryItem(const CategoryItem& rhs)
+{
+	m_name = rhs.m_name;
+	m_displayName = rhs.m_displayName;
+	m_type = rhs.m_type;
+	m_default = rhs.m_default;
+	m_value = rhs.m_value;
+	m_description = rhs.m_description;
+       	m_order = rhs.m_order;
+       	m_readonly = rhs.m_readonly;
+       	m_deprecated = rhs.m_deprecated;
+       	m_minimum = rhs.m_minimum;
+       	m_maximum = rhs.m_maximum;
+       	m_filename = rhs.m_filename;
+	for (auto it = rhs.m_options.cbegin(); it != rhs.m_options.cend(); it++)
+	{
+		m_options.push_back(*it);
+	}
+       	m_file = rhs.m_file;
+       	m_itemType = rhs.m_itemType;
+}
+
+/**
  * Create a JSON representation of the configuration item
  */
 string ConfigCategory::CategoryItem::toJSON() const
@@ -1118,6 +1143,17 @@ ostringstream convert;
 	if (!m_file.empty())
 	{
 		convert << "\"file\" : \"" << m_file << "\", ";
+	}
+	if (m_options.size() > 0)
+	{
+		convert << "\"options\" : [ ";
+		for (int i = 0; i < m_options.size(); i++)
+		{
+			if (i > 0)
+				convert << ",";
+			convert << "\"" << m_options[i] << "\"";
+		}
+		convert << "],";
 	}
 
 	if (m_itemType == StringItem ||

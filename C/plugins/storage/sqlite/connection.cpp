@@ -26,6 +26,17 @@
 #include <time.h>
 #include <unistd.h>
 #include <utils.h>
+#include <chrono>
+#include <thread>
+
+/*
+ * Control the way purge deletes readings. The block size sets a limit as to how many rows
+ * get deleted in each call, whilst the sleep interval controls how long the thread sleeps
+ * between deletes. The idea is to not keep the database locked too long and allow other threads
+ * to have access to the database between blocks.
+ */
+#define PURGE_SLEEP_MS 250
+#define PURGE_DELETE_BLOCK_SIZE	"1000"
 
 /**
  * SQLite3 storage plugin for FogLAMP
@@ -1874,32 +1885,44 @@ long numReadings = 0;
 		sql.append(" AND id < ");
 		sql.append(sent);
 	}
+	sql.append(" limit ");
+	sql.append(PURGE_DELETE_BLOCK_SIZE);
 	sql.append(';');
 	const char *query = sql.coalesce();
 	logSQL("ReadingsPurge", query);
+	unsigned int deletedRows = 0;
 	char *zErrMsg = NULL;
-	int rc;
-	int rows_deleted;
+	unsigned int rowsAffected;
 
-	// Exec DELETE query: no callback, no resultset
-	rc = SQLexec(dbHandle,
-	    	     query,
-		     NULL,
-		     NULL,
-		     &zErrMsg);
+	do
+	{
+		// Exec DELETE query: no callback, no resultset
+		int rc = SQLexec(dbHandle,
+			     query,
+			     NULL,
+			     NULL,
+			     &zErrMsg);
+
+
+		if (rc != SQLITE_OK)
+		{
+			raiseError("purge - phase 3", zErrMsg);
+			sqlite3_free(zErrMsg);
+			// Release memory for 'query' var
+			delete[] query;
+			return 0;
+		}
+
+		// Get db changes
+		rowsAffected = sqlite3_changes(dbHandle);
+		deletedRows += rowsAffected;
+
+		// Sleep for a while to reease locks on the database
+		std::this_thread::sleep_for(std::chrono::milliseconds(PURGE_SLEEP_MS));
+	} while (rowsAffected > 0);
 
 	// Release memory for 'query' var
 	delete[] query;
-
-	if (rc != SQLITE_OK)
-	{
- 		raiseError("purge - phase 3", zErrMsg);
-		sqlite3_free(zErrMsg);
-		return 0;
-	}
-
-	// Get db changes
-	unsigned int deletedRows = sqlite3_changes(dbHandle);
 
 	SQLBuffer retainedBuffer;
 	retainedBuffer.append("SELECT count(ROWID) FROM foglamp.readings WHERE id > ");
@@ -1910,7 +1933,7 @@ long numReadings = 0;
 	int retained_unsent = 0;
 
 	// Exec query and get result in 'retained_unsent' via 'countCallback'
-	rc = SQLexec(dbHandle,
+	int rc = SQLexec(dbHandle,
 		     query_r,
 		     countCallback,
 		     &retained_unsent,

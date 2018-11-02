@@ -849,34 +849,49 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		}
 	}
 
+	std:string m_typeUpperCase = m_type;
+	for (auto & c: m_typeUpperCase) c = toupper(c);
+
 	// Item "value" can be an escaped JSON string, so check m_type JSON as well
 	if (item.HasMember("value") &&
-	    ((item["value"].IsObject() || m_type.compare("JSON") == 0)))
-	{
-		rapidjson::StringBuffer strbuf;
-		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
-		item["value"].Accept(writer);
-		m_value = item["value"].IsObject() ?
-			  // use current string
-			  strbuf.GetString() :
-			  // Unescape the string
-			  this->unescape(strbuf.GetString());
+	    (item["value"].IsObject() || m_typeUpperCase.compare("JSON") == 0))
 
-		// If it's not a real eject, check the string buffer it is:
-		if (!item["value"].IsObject())
+	{
+		if (m_typeUpperCase.compare("JSON") == 0)
 		{
-			Document check;
-			check.Parse(m_value.c_str());
-			if (check.HasParseError())
+			rapidjson::StringBuffer strbuf;
+			rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
+			item["value"].Accept(writer);
+			m_value = item["value"].IsObject() ?
+				  // use current string
+				  strbuf.GetString() :
+				  // Unescape the string
+				  this->unescape(strbuf.GetString());
+
+			// If it's not a real eject, check the string buffer it is:
+			if (!item["value"].IsObject())
 			{
-				throw new runtime_error(GetParseError_En(check.GetParseError()));
+				Document check;
+				check.Parse(m_value.c_str());
+				if (check.HasParseError())
+				{
+					throw new runtime_error(GetParseError_En(check.GetParseError()));
+				}
+				if (!check.IsObject())
+				{
+					throw new runtime_error("'value' JSON property is not an object");
+				}
 			}
-			if (!check.IsObject())
+			m_itemType = JsonItem;
+		}
+		else
+		{
+			// Avoids overwrite if it is already valued
+			if (m_itemType == StringItem)
 			{
-				throw new runtime_error("'value' JSON property is not an object");
+				m_itemType = JsonItem;
 			}
 		}
-		m_itemType = JsonItem;
 	}
 	// Item "value" is a Bool or m_type is boolean
 	else if (item.HasMember("value") &&
@@ -926,35 +941,42 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 
 	// Item "default" can be an escaped JSON string, so check m_type JSON as well
 	if (item.HasMember("default") &&
-	    ((item["default"].IsObject() || m_type.compare("JSON") == 0)))
+	    (item["default"].IsObject() || m_typeUpperCase.compare("JSON") == 0))
 	{
-		rapidjson::StringBuffer strbuf;
-		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
-		item["default"].Accept(writer);
-		m_default = item["default"].IsObject() ?
-			  // use current string
-			  strbuf.GetString() :
-			  // Unescape the string
-			  this->unescape(strbuf.GetString());
+		if (m_typeUpperCase.compare("JSON") == 0)
+		{
+			rapidjson::StringBuffer strbuf;
+			rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
+			item["default"].Accept(writer);
+			m_default = item["default"].IsObject() ?
+				  // use current string
+				  strbuf.GetString() :
+				  // Unescape the string
+				  this->unescape(strbuf.GetString());
 
-		// If it's not a real eject, check the string buffer it is:
-		if (!item["default"].IsObject())
-		{
-			Document check;
-			check.Parse(m_default.c_str());
-			if (check.HasParseError())
+			// If it's not a real eject, check the string buffer it is:
+			if (!item["default"].IsObject())
 			{
-				throw new runtime_error(GetParseError_En(check.GetParseError()));
+				Document check;
+				check.Parse(m_default.c_str());
+				if (check.HasParseError())
+				{
+					throw new runtime_error(GetParseError_En(check.GetParseError()));
+				}
+				if (!check.IsObject())
+				{
+					throw new runtime_error("'default' JSON property is not an object");
+				}
 			}
-			if (!check.IsObject())
-			{
-				throw new runtime_error("'default' JSON property is not an object");
-			}
-		}
-		// Avoids overwrite if it is already valued
-		if (m_itemType == StringItem)
-		{
 			m_itemType = JsonItem;
+		}
+		else
+		{
+			// Avoids overwrite if it is already valued
+			if (m_itemType == StringItem)
+			{
+				m_itemType = JsonItem;
+			}
 		}
 	}
 	// Item "default" is a Bool or m_type is boolean

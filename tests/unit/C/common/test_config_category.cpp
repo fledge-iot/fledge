@@ -95,11 +95,24 @@ const char *myCategoryRemoveItems = "{" \
 			"}, "\
 			"\"asset\" : {"\
 				"\"description\" : \"Asset name\", " \
-				"\"type\" : \"string\", "\
-				"\"default\" : \"Random\", "\
-				"\"value\" : \"Random\" "\
+				"\"type\" : \"category\", "\
+				"\"default\" : {"\
+					"\"bias\" : {"\
+						"\"description\" : \"Bias offset\", "\
+						"\"type\" : \"float\", "\
+						"\"default\" : \"2\" "\
+					"} "\
+				"}, "\
+				"\"value\" : {"\
+					"\"bias\" : {"\
+						"\"description\" : \"Bias offset\", "\
+						"\"type\" : \"float\", "\
+						"\"default\" : \"2\" "\
+					"} "\
+				"} "\
 			"} "\
 		"}";
+
 
 // default has invalid (escaped) JSON object value here: a \\\" is missing for pipeline
 const char *myCategory_JSON_type_without_escaped_default = "{ "
@@ -342,5 +355,15 @@ TEST(CategoryTest, removeItems)
 
 	confCategory.removeItems();
 	ASSERT_EQ(0, confCategory.getCount());
+}
+
+TEST(CategoryTest, removeItemsType)
+{
+	ConfigCategory conf2Category("test", myCategoryRemoveItems);
+	ASSERT_EQ(2, conf2Category.getCount());
+
+	conf2Category.removeItemsType(ConfigCategory::ItemType::CategoryType);
+	ASSERT_EQ(1, conf2Category.getCount());
+
 }
 

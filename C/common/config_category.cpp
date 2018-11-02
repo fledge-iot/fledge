@@ -857,31 +857,31 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 	    (item["value"].IsObject() || m_typeUpperCase.compare("JSON") == 0))
 
 	{
+		rapidjson::StringBuffer strbuf;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
+		item["value"].Accept(writer);
+		m_value = item["value"].IsObject() ?
+			  // use current string
+			  strbuf.GetString() :
+			  // Unescape the string
+			  this->unescape(strbuf.GetString());
+
+		// If it's not a real eject, check the string buffer it is:
+		if (!item["value"].IsObject())
+		{
+			Document check;
+			check.Parse(m_value.c_str());
+			if (check.HasParseError())
+			{
+				throw new runtime_error(GetParseError_En(check.GetParseError()));
+			}
+			if (!check.IsObject())
+			{
+				throw new runtime_error("'value' JSON property is not an object");
+			}
+		}
 		if (m_typeUpperCase.compare("JSON") == 0)
 		{
-			rapidjson::StringBuffer strbuf;
-			rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
-			item["value"].Accept(writer);
-			m_value = item["value"].IsObject() ?
-				  // use current string
-				  strbuf.GetString() :
-				  // Unescape the string
-				  this->unescape(strbuf.GetString());
-
-			// If it's not a real eject, check the string buffer it is:
-			if (!item["value"].IsObject())
-			{
-				Document check;
-				check.Parse(m_value.c_str());
-				if (check.HasParseError())
-				{
-					throw new runtime_error(GetParseError_En(check.GetParseError()));
-				}
-				if (!check.IsObject())
-				{
-					throw new runtime_error("'value' JSON property is not an object");
-				}
-			}
 			m_itemType = JsonItem;
 		}
 		else
@@ -943,31 +943,32 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 	if (item.HasMember("default") &&
 	    (item["default"].IsObject() || m_typeUpperCase.compare("JSON") == 0))
 	{
+		rapidjson::StringBuffer strbuf;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
+		item["default"].Accept(writer);
+		m_default = item["default"].IsObject() ?
+			  // use current string
+			  strbuf.GetString() :
+			  // Unescape the string
+			  this->unescape(strbuf.GetString());
+
+		// If it's not a real eject, check the string buffer it is:
+		if (!item["default"].IsObject())
+		{
+			Document check;
+			check.Parse(m_default.c_str());
+			if (check.HasParseError())
+			{
+				throw new runtime_error(GetParseError_En(check.GetParseError()));
+			}
+			if (!check.IsObject())
+			{
+				throw new runtime_error("'default' JSON property is not an object");
+			}
+		}
 		if (m_typeUpperCase.compare("JSON") == 0)
 		{
-			rapidjson::StringBuffer strbuf;
-			rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
-			item["default"].Accept(writer);
-			m_default = item["default"].IsObject() ?
-				  // use current string
-				  strbuf.GetString() :
-				  // Unescape the string
-				  this->unescape(strbuf.GetString());
 
-			// If it's not a real eject, check the string buffer it is:
-			if (!item["default"].IsObject())
-			{
-				Document check;
-				check.Parse(m_default.c_str());
-				if (check.HasParseError())
-				{
-					throw new runtime_error(GetParseError_En(check.GetParseError()));
-				}
-				if (!check.IsObject())
-				{
-					throw new runtime_error("'default' JSON property is not an object");
-				}
-			}
 			m_itemType = JsonItem;
 		}
 		else

@@ -18,13 +18,17 @@
 class ConfigCategoryDescription {
 	public:
 		ConfigCategoryDescription(const std::string& name, const std::string& description) :
-				m_name(name), m_description(description) {};
+				m_name(name), m_displayName(name), m_description(description) {};
+		ConfigCategoryDescription(const std::string& name, const std::string& displayName, const std::string& description) :
+				m_name(name), m_displayName(displayName), m_description(description) {};
 		std::string	getName() const { return m_name; };
+		std::string	getDisplayName() const { return m_displayName; };
 		std::string	getDescription() const { return m_description; };
 		// JSON string with m_name and m_description
 		std::string 	toJSON() const;
 	private:
 		const std::string	m_name;
+		const std::string	m_displayName;
 		const std::string	m_description;
 };
 
@@ -65,11 +69,17 @@ class ConfigCategory {
 		std::string			getType(const std::string& name) const;
 		std::string			getDescription(const std::string& name) const;
 		std::string			getDefault(const std::string& name) const;
+		std::string			getDisplayName(const std::string& name) const;
+		std::vector<std::string>	getOptions(const std::string& name) const;
+		std::string			getMinimum(const std::string& name) const;
+		std::string			getMaximum(const std::string& name) const;
 		bool				isString(const std::string& name) const;
+		bool				isEnumeration(const std::string& name) const;
 		bool				isJSON(const std::string& name) const;
 		bool				isBool(const std::string& name) const;
 		bool				isNumber(const std::string& name) const;
 		bool				isDouble(const std::string& name) const;
+		bool				isDeprecated(const std::string& name) const;
 		std::string			toJSON() const;
 		std::string			itemsToJSON() const;
 		ConfigCategory& 		operator=(ConfigCategory const& rhs);
@@ -86,11 +96,12 @@ class ConfigCategory {
 	protected:
 		class CategoryItem {
 			public:
-				enum ItemType { StringItem, JsonItem, BoolItem, NumberItem, DoubleItem };
+				enum ItemType { StringItem, EnumerationItem, JsonItem, BoolItem, NumberItem, DoubleItem, ScriptItem };
 				CategoryItem(const std::string& name, const rapidjson::Value& item);
 				CategoryItem(const std::string& name, const std::string& description,
 							const std::string& type, const std::string def,
 							const std::string& value);
+				CategoryItem(const CategoryItem& rhs);
 				// Return both "value" and "default" items
 				std::string	toJSON() const;
 				// Return only "default" items
@@ -100,12 +111,19 @@ class ConfigCategory {
 
 			public:
 				std::string 	m_name;
+				std::string	m_displayName;
 				std::string 	m_type;
 				std::string 	m_default;
 				std::string 	m_value;
 				std::string 	m_description;
 				std::string 	m_order;
 				std::string 	m_readonly;
+				std::string 	m_deprecated;
+				std::string	m_minimum;
+				std::string	m_maximum;
+				std::string 	m_filename;
+				std::vector<std::string>
+						m_options;
 				std::string 	m_file;
 				ItemType	m_itemType;
 		};
@@ -128,10 +146,6 @@ class DefaultConfigCategory : public ConfigCategory
 {
 	public:
 		DefaultConfigCategory(const std::string& name, const std::string& json);
-		DefaultConfigCategory(const ConfigCategory& orig) : ConfigCategory(orig)
-		{
-		};
-	
 		std::string	toJSON() const;
 		std::string	itemsToJSON() const;
 };

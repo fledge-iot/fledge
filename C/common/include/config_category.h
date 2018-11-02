@@ -151,6 +151,9 @@ class DefaultConfigCategory : public ConfigCategory
 {
 	public:
 		DefaultConfigCategory(const std::string& name, const std::string& json);
+		DefaultConfigCategory(const ConfigCategory& orig) : ConfigCategory(orig)
+		{
+		};
 		std::string	toJSON() const;
 		std::string	itemsToJSON() const;
 };

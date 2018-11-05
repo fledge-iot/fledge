@@ -19,8 +19,27 @@ using namespace std;
 using namespace rapidjson;
 
 /**
+ * Construct a reading set from a vector<Reading *> pointer
+ * NOTE: readings are copied into m_readings
+ *
+ * @param readings	The  vector<Reading *> pointer
+ *			of readings to be copied
+ *			into m_readings vector
+ */
+ReadingSet::ReadingSet(vector<Reading *>* readings)
+{
+	m_count = readings->size();
+	for (auto it = readings->begin(); it != readings->end(); ++it)
+	{
+		m_readings.push_back(*it);
+	}
+}
+
+/**
  * Construct a reading set from a JSON document returned from
  * the FogLAMP storage service.
+ *
+ * @param json	The JSON document (as string) with readings data
  */
 ReadingSet::ReadingSet(const std::string& json)
 {
@@ -99,8 +118,7 @@ struct tm tm;
 	memset(&tm, 0, sizeof(tm));
 	strptime(str, "%Y-%m-%d %H:%M:%S", &tm);
 
-    // mktime handles timezones, so UTC is configured
-	setenv("TZ","UTC",1);
+    	// mktime handles timezones, so UTC is configured
 	tv->tv_sec = mktime(&tm);
 
 	// Work out the microseconds from the fractional part of the seconds
@@ -141,9 +159,19 @@ JSONReading::JSONReading(const Value& json)
 		    m.IsInt64() ||
 		    m.IsUint64())
 		{
-			DatapointValue value(m.GetInt());
-			this->addDatapoint(new Datapoint("value",
-							 value));
+			DatapointValue* value;
+			if (m.IsInt() ||
+			    m.IsUint() )
+			{
+				value = new DatapointValue((long) m.GetInt());
+			}
+			else
+			{
+				value = new DatapointValue((long) m.GetInt64());
+			}
+			this->addDatapoint(new Datapoint("value",*value));
+			delete value;
+
 		}
 		else if (m.IsDouble())
 		{
@@ -185,9 +213,20 @@ JSONReading::JSONReading(const Value& json)
 					    m.value.IsInt64() ||
 					    m.value.IsUint64())
 					{
-						DatapointValue value(m.value.GetInt());
+
+						DatapointValue* value;
+						if (m.value.IsInt() ||
+						    m.value.IsUint() )
+						{
+							value = new DatapointValue((long) m.value.GetInt());
+						}
+						else
+						{
+							value = new DatapointValue((long) m.value.GetInt64());
+						}
 						this->addDatapoint(new Datapoint(m.name.GetString(),
-										 value));
+										 *value));
+						delete value;
 						break;
 					}
 					else if (m.value.IsDouble())

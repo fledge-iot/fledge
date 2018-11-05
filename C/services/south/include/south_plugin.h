@@ -16,6 +16,7 @@
 #include <string>
 #include <reading.h>
 
+typedef void (*INGEST_CB)(void *, Reading);
 /**
  * Class that represents a south plugin.
  *
@@ -37,13 +38,23 @@ public:
 	void		start();
 	void		reconfigure(std::string&);
 	void		shutdown();
+	void		registerIngest(INGEST_CB, void *);
+	bool		isAsync() { return info->options & SP_ASYNC; };
+	bool		persistData() { return info->options & SP_PERSIST_DATA; };
+	void		startData(const std::string& pluginData);
+	std::string	shutdownSaveData();
 
 private:
 	PLUGIN_HANDLE	instance;
 	void		(*pluginStartPtr)(PLUGIN_HANDLE);
 	Reading		(*pluginPollPtr)(PLUGIN_HANDLE);
-	void		(*pluginReconfigurePtr)(PLUGIN_HANDLE, std::string& newConfig);
+	void		(*pluginReconfigurePtr)(PLUGIN_HANDLE,
+						std::string& newConfig);
 	void		(*pluginShutdownPtr)(PLUGIN_HANDLE);
+	void		(*pluginRegisterPtr)(PLUGIN_HANDLE, INGEST_CB, void *);
+	std::string	(*pluginShutdownDataPtr)(const PLUGIN_HANDLE);
+	void		(*pluginStartDataPtr)(PLUGIN_HANDLE,
+					      const std::string& pluginData);
 };
 
 #endif

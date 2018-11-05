@@ -1,3 +1,15 @@
+ALTER TABLE foglamp.omf_created_objects DROP CONSTRAINT omf_created_objects_fk1;
+
+UPDATE foglamp.omf_created_objects  SET configuration_key = 'North Readings to PI'   WHERE configuration_key = 'SEND_PR_1';
+UPDATE foglamp.omf_created_objects  SET configuration_key = 'North Statistics to PI' WHERE configuration_key = 'SEND_PR_2';
+UPDATE foglamp.omf_created_objects  SET configuration_key = 'North Readings to OCS'  WHERE configuration_key = 'SEND_PR_4';
+
+ALTER TABLE foglamp.omf_created_objects
+    ADD CONSTRAINT  omf_created_objects_fk1 FOREIGN KEY (configuration_key)
+    REFERENCES foglamp.configuration (key) MATCH SIMPLE
+            ON UPDATE NO ACTION
+            ON DELETE NO ACTION;
+
 UPDATE foglamp.configuration SET key = 'North Readings to PI' WHERE key = 'SEND_PR_1';
 UPDATE foglamp.configuration SET key = 'North Statistics to PI' WHERE key = 'SEND_PR_2';
 UPDATE foglamp.configuration SET key = 'North Readings to OCS' WHERE key = 'SEND_PR_4';

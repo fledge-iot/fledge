@@ -24,7 +24,7 @@ import foglamp.plugins.north.common.common as plugin_common
 import foglamp.plugins.north.common.exceptions as plugin_exceptions
 from foglamp.common import logger
 
-import foglamp.plugins.north.omf.omf as omf
+import foglamp.plugins.north.pi_server.pi_server as pi_server
 
 # Module information
 __author__ = "Stefano Simonelli"
@@ -46,7 +46,6 @@ _logger = None
 _log_debug_level = 0
 _log_performance = False
 _stream_id = None
-_destination_id = None
 
 _MODULE_NAME = "ocs_north"
 
@@ -98,56 +97,28 @@ _CONFIG_DEFAULT_OMF = {
     'plugin': {
         'description': 'OCS North Plugin',
         'type': 'string',
-        'default': 'ocs'
+        'default': 'ocs',
+        'readonly': 'true'
     },
     "URL": {
         "description": "The URL of OCS (OSIsoft Cloud Services) ",
         "type": "string",
-        "default": "https://dat-a.osisoft.com/api/omf"
+        "default": "https://dat-a.osisoft.com/api/omf",
+        "order": "1"
     },
     "producerToken": {
         "description": "The producer token used to authenticate as a valid publisher and "
                        "required to ingest data into OCS using OMF.",
         "type": "string",
-        "default": "ocs_north_0001"
+        "default": "ocs_north_0001",
+        "order": "2"
     },
-    "namespace": {
-        "description": "Specifies the OCS namespace where the information are stored and "
-                       "it is used for the interaction with the OCS API.",
-        "type": "string",
-        "default": "ocs_namespace_0001"
-    },
-    "tenant_id": {
-      "description": "Tenant id associated to the specific OCS account.",
-      "type": "string",
-      "default": "ocs_tenant_id"
-    },
-    "client_id": {
-      "description": "Client id associated to the specific OCS account, "
-                     "it is used to authenticate the source for using the OCS API.",
-      "type": "string",
-      "default": "ocs_client_id"
-    },
-    "client_secret": {
-      "description": "Client secret associated to the specific OCS account, "
-                     "it is used to authenticate the source for using the OCS API.",
-      "type": "string",
-      "default": "ocs_client_secret"
-    },
-    "OMFMaxRetry": {
-        "description": "Max number of retries for the communication with the OMF PI Connector Relay",
-        "type": "integer",
-        "default": "5"
-    },
-    "OMFRetrySleepTime": {
-        "description": "Seconds between each retry for the communication with the OMF PI Connector Relay",
-        "type": "integer",
-        "default": "1"
-    },
-    "OMFHttpTimeout": {
-        "description": "Timeout in seconds for the HTTP operations with the OMF PI Connector Relay",
-        "type": "integer",
-        "default": "30"
+    "source": {
+        "description": "Source of data to be sent on the stream.",
+        "type": "enumeration",
+        "default": "readings",
+        "options": ["readings"],
+        "order": "3"
     },
     "StaticData": {
         "description": "Static data to include in each sensor reading sent to OMF.",
@@ -157,37 +128,99 @@ _CONFIG_DEFAULT_OMF = {
                 "Location": "Palo Alto",
                 "Company": "Dianomic"
             }
-        )
+        ),
+        "order": "4"
     },
     "applyFilter": {
         "description": "Whether to apply filter before processing the data",
         "type": "boolean",
-        "default": "False"
+        "default": "False",
+        "order": "5"
     },
     "filterRule": {
         "description": "JQ formatted filter to apply (applicable if applyFilter is True)",
         "type": "string",
-        "default": ".[]"
+        "default": ".[]",
+        "order": "6"
     },
-    "formatNumber": {
-        "description": "OMF format property to apply to the type Number",
-        "type": "string",
-        "default": "float64"
+    "OMFRetrySleepTime": {
+        "description": "Seconds between each retry for the communication with the OMF PI Connector Relay",
+        "type": "integer",
+        "default": "1",
+        "order": "9"
+    },
+    "OMFMaxRetry": {
+        "description": "Max number of retries for the communication with the OMF PI Connector Relay",
+        "type": "integer",
+        "default": "5",
+        "order": "10"
+    },
+    "OMFHttpTimeout": {
+        "description": "Timeout in seconds for the HTTP operations with the OMF PI Connector Relay",
+        "type": "integer",
+        "default": "30",
+        "order": "13"
     },
     "formatInteger": {
         "description": "OMF format property to apply to the type Integer",
         "type": "string",
-        "default": "int32"
-    }
+        "default": "int64",
+        "order": "14"
+    },
+    "formatNumber": {
+        "description": "OMF format property to apply to the type Number",
+        "type": "string",
+        "default": "float64",
+        "order": "15"
+    },
+    "namespace": {
+        "description": "Specifies the OCS namespace where the information are stored and "
+                       "it is used for the interaction with the OCS API.",
+        "type": "string",
+        "default": "ocs_namespace_0001",
+        "order": "16"
+    },
+    "tenant_id": {
+        "description": "Tenant id associated to the specific OCS account.",
+        "type": "string",
+        "default": "ocs_tenant_id",
+        "order": "17"
+    },
+    "client_id": {
+        "description": "Client id associated to the specific OCS account, "
+                       "it is used to authenticate the source for using the OCS API.",
+        "type": "string",
+        "default": "ocs_client_id",
+        "order": "18"
+    },
+    "client_secret": {
+        "description": "Client secret associated to the specific OCS account, "
+                       "it is used to authenticate the source for using the OCS API.",
+        "type": "string",
+        "default": "ocs_client_secret",
+        "order": "19"
+    },
+    "notBlockingErrors": {
+        "description": "These errors are considered not blocking in the communication with the PI Server,"
+                       " the sending operation will proceed with the next block of data if one of these is encountered",
+        "type": "JSON",
+        "default": json.dumps(
+            [
+                {'id': 400, 'message': 'Invalid value type for the property'},
+                {'id': 400, 'message': 'Redefinition of the type with the same ID is not allowed'}
+            ]
+        ),
+        "readonly": "true"
+    },
 }
 
 # Configuration related to the OMF Types
 _CONFIG_CATEGORY_OMF_TYPES_NAME = 'OCS_TYPES'
 _CONFIG_CATEGORY_OMF_TYPES_DESCRIPTION = 'Configuration of OCS types'
 
-_CONFIG_DEFAULT_OMF_TYPES = omf.CONFIG_DEFAULT_OMF_TYPES
+_CONFIG_DEFAULT_OMF_TYPES = pi_server.CONFIG_DEFAULT_OMF_TYPES
 
-_OMF_TEMPLATE_TYPE = omf.OMF_TEMPLATE_TYPE
+_OMF_TEMPLATE_TYPE = pi_server.OMF_TEMPLATE_TYPE
 
 
 def _performance_log(_function):
@@ -302,12 +335,11 @@ def plugin_init(data):
     global _config_omf_types
     global _logger
     global _recreate_omf_objects
-    global _log_debug_level, _log_performance, _stream_id, _destination_id
+    global _log_debug_level, _log_performance, _stream_id
 
     _log_debug_level = data['debug_level']
     _log_performance = data['log_performance']
     _stream_id = data['stream_id']
-    _destination_id = data['destination_id']
 
     try:
         # note : _module_name is used as __name__ refers to the Sending Process
@@ -399,9 +431,9 @@ async def plugin_send(data, raw_data, stream_id):
     type_id = _config_omf_types['type-id']['value']
 
     # Sets globals for the OMF module
-    omf._logger = _logger
-    omf._log_debug_level = _log_debug_level
-    omf._log_performance = _log_performance
+    pi_server._logger = _logger
+    pi_server._log_debug_level = _log_debug_level
+    pi_server._log_performance = _log_performance
 
     ocs_north = OCSNorthPlugin(data['sending_process_instance'], data, _config_omf_types, _logger)
 
@@ -463,76 +495,9 @@ def plugin_reconfigure():
     pass
 
 
-class OCSNorthPlugin(omf.OmfNorthPlugin):
+class OCSNorthPlugin(pi_server.PIServerNorthPlugin):
     """ North OCS North Plugin """
 
     def __init__(self, sending_process_instance, config, config_omf_types,  _logger):
 
         super().__init__(sending_process_instance, config, config_omf_types, _logger)
-
-    async def _create_omf_type_automatic(self, asset_info):
-        """ Automatic OMF Type Mapping - Handles the OMF type creation
-
-            Overwrite omf._create_omf_type_automatic function
-            OCS needs the setting of the 'format' property to handle decimal numbers properly
-
-         Args:
-             asset_info : Asset's information as retrieved from the Storage layer,
-                          having also a sample value for the asset
-         Returns:
-             typename : typename associate to the asset
-             omf_type : describe the OMF type as a python dict
-         Raises:
-
-         """
-
-        type_id = self._config_omf_types["type-id"]["value"]
-        sensor_id = self._generate_omf_asset_id(asset_info["asset_code"])
-        asset_data = asset_info["asset_data"]
-        typename = self._generate_omf_typename_automatic(sensor_id)
-        new_tmp_dict = copy.deepcopy(_OMF_TEMPLATE_TYPE)
-        omf_type = {typename: new_tmp_dict["typename"]}
-        # Handles Static section
-        # Generates elements evaluating the StaticData retrieved form the Configuration Manager
-        omf_type[typename][0]["properties"]["Name"] = {
-                "type": "string",
-                "isindex": True
-            }
-        omf_type[typename][0]["id"] = type_id + "_" + typename + "_sensor"
-        for item in self._config['StaticData']:
-            omf_type[typename][0]["properties"][item] = {"type": "string"}
-        # Handles Dynamic section
-        omf_type[typename][1]["properties"]["Time"] = {
-              "type": "string",
-              "format": "date-time",
-              "isindex": True
-            }
-        omf_type[typename][1]["id"] = type_id + "_" + typename + "_measurement"
-        for item in asset_data:
-            item_type = plugin_common.evaluate_type(asset_data[item])
-
-            self._logger.debug(
-                "func |{func}| - item_type |{type}| - formatInteger |{int}| - formatNumber |{float}| ".format(
-                            func="_create_omf_type_automatic",
-                            type=item_type,
-                            int=self._config['formatInteger'],
-                            float=self._config['formatNumber']))
-
-            # Handles OMF format property to force the proper OCS type, especially for handling decimal numbers
-            if item_type == "integer":
-
-                omf_type[typename][1]["properties"][item] = {"type": item_type,
-                                                             "format": self._config['formatInteger']}
-            elif item_type == "number":
-                omf_type[typename][1]["properties"][item] = {"type": item_type,
-                                                             "format": self._config['formatNumber']}
-            else:
-                omf_type[typename][1]["properties"][item] = {"type": item_type}
-
-        if _log_debug_level == 3:
-            self._logger.debug("_create_omf_type_automatic - sensor_id |{0}| - omf_type |{1}| "
-                               .format(sensor_id, str(omf_type)))
-
-        await self.send_in_memory_data_to_picromf("Type", omf_type[typename])
-
-        return typename, omf_type

@@ -52,8 +52,6 @@ int main(int argc, char** argv)
 {
 	try
 	{
-        std::string tmp_str;
-
                 // Instantiate SendingProcess class
 		SendingProcess sendingProcess(argc, argv);
                 
@@ -88,6 +86,25 @@ int main(int argc, char** argv)
 }
 
 /**
+ * Apply load filter
+ *
+ * Just call "ingest" methid of the first one
+ *
+ * @param loadData    pointer to SendingProcess instance
+ * @param readingSet  The current reading set loaded from storage
+ */
+void applyFilters(SendingProcess* loadData,
+		  ReadingSet* readingSet)
+{
+	// Get first filter
+	auto it = loadData->getFilters().begin();
+	// Call first filter "ingest"
+	// Note:
+	// next filters will be automatically called
+	(*it)->ingest(readingSet);
+}
+
+/**
  * Thread to load data from the storage layer.
  *
  * @param loadData    pointer to SendingProcess instance
@@ -96,7 +113,10 @@ static void loadDataThread(SendingProcess *loadData)
 {
         unsigned int    readIdx = 0;
 
-        while (loadData->isRunning())
+	// Read from the storage last Id already sent
+	loadData->setLastFetchId(loadData->getLastSentId());
+
+	while (loadData->isRunning())
         {
                 if (readIdx >= DATA_BUFFER_ELMS)
                 {
@@ -120,9 +140,12 @@ static void loadDataThread(SendingProcess *loadData)
 						  loadData->getStreamId(),
 						  readIdx);
 
-			// Load thread is put on hold
-			unique_lock<mutex> lock(waitMutex);
-			cond_var.wait(lock);
+			if (loadData->isRunning()) {
+
+				// Load thread is put on hold, only if the execution should proceed
+				unique_lock<mutex> lock(waitMutex);
+				cond_var.wait(lock);
+			}
                 }
                 else
                 {
@@ -135,7 +158,7 @@ static void loadDataThread(SendingProcess *loadData)
 				if (isReading)
 				{
 					// Read from storage all readings with id > last sent id
-					unsigned long lastReadId = loadData->getLastSentId() + 1;
+					unsigned long lastReadId = loadData->getLastFetchId() + 1;
 					readings = loadData->getStorageClient()->readingFetch(lastReadId,
 											      loadData->getReadBlockSize());
 				}
@@ -155,14 +178,18 @@ static void loadDataThread(SendingProcess *loadData)
 					// WHERE id > lastId
 					Where* wId = new Where("id",
 								conditionId,
-								to_string(loadData->getLastSentId()));
+								to_string(loadData->getLastFetchId()));
 					vector<Returns *> columns;
 					// Add colums and needed aliases
 					columns.push_back(new Returns("id"));
 					columns.push_back(new Returns("key", "asset_code"));
 					columns.push_back(new Returns("key", "read_key"));
 					columns.push_back(new Returns("ts"));
-					columns.push_back(new Returns("history_ts", "user_ts"));
+
+					Returns *tmpReturn = new Returns("history_ts", "user_ts");
+					tmpReturn->timezone("utc");
+					columns.push_back(tmpReturn);
+
 					columns.push_back(new Returns("value"));
 					// Build the query with fields, aliases and where
 					Query qStatistics(columns, wId);
@@ -191,8 +218,8 @@ static void loadDataThread(SendingProcess *loadData)
 			// Data fetched from storage layer
 			if (readings != NULL && readings->getCount())
 			{
-				// Update last fetched reading Id
-				loadData->setLastSentId(readings->getLastId());
+				//Update last fetched reading Id
+				loadData->setLastFetchId(readings->getLastId());
 
 				/**
 				 * The buffer access is protected by a mutex
@@ -205,8 +232,24 @@ static void loadDataThread(SendingProcess *loadData)
 				 * - the sending thread when processin it
 				 * OR
 				 * at program exit by a cleanup routine
+				 *					
+				 * Note: the readings set can be optionally filtered
+				 * if plugin filters are set.
 				 */
-	                      	loadData->m_buffer.at(readIdx) = readings;
+
+				// Apply filters to the reading set
+				if (loadData->getFiltersCount())
+				{
+					// Make the load readIdx available to filters
+					loadData->setLoadBufferIndex(readIdx);
+					// Apply filters
+					applyFilters(loadData, readings);
+				}
+				else
+				{
+					// No filters: just set buffer with current data
+              				loadData->m_buffer.at(readIdx) = readings;
+				}
 
                         	readMutex.unlock();
 
@@ -232,7 +275,7 @@ static void loadDataThread(SendingProcess *loadData)
 
 	Logger::getLogger()->info("SendingProcess loadData thread: Last ID '%s' read is %lu",
 				  loadData->getDataSourceType().c_str(),
-				  loadData->getLastSentId()); 
+				  loadData->getLastFetchId());
 
 	/**
 	 * The loop is over: unlock the sendData thread
@@ -261,15 +304,11 @@ static void sendDataThread(SendingProcess *sendData)
 				// Update counters to Database
 				sendData->updateDatabaseCounters();
 
-				// numReadings sent so far
-				totSent += sendData->getSentReadings();
-
 				// Reset current sent readings
 				sendData->resetSentReadings();	
 
 				// DB update done
 				sendData->setUpdateDb(false);
-
                         }
 
 			// Reset send index
@@ -286,19 +325,16 @@ static void sendDataThread(SendingProcess *sendData)
 
                 if (canSend == NULL)
                 {
-                        Logger::getLogger()->info("SendingProcess sendDataThread: " \
+                        /*Logger::getLogger()->info("SendingProcess sendDataThread: " \
                                                   "('%s' stream id %d), sendIdx %u, buffer is empty, waiting ...",
 						  sendData->getDataSourceType().c_str(),
                                                   sendData->getStreamId(),
-                                                  sendIdx);
+                                                  sendIdx);*/
 
 			if (sendData->getUpdateDb())
 			{
                                 // Update counters to Database
 				sendData->updateDatabaseCounters();
-
-				// numReadings sent so far
-				totSent += sendData->getSentReadings();
 
 				// Reset current sent readings
 				sendData->resetSentReadings();	
@@ -307,9 +343,12 @@ static void sendDataThread(SendingProcess *sendData)
 				sendData->setUpdateDb(false);
 			}
 
-			// Send thread is put on hold
-                        unique_lock<mutex> lock(waitMutex);
-                        cond_var.wait(lock);
+			if (sendData->isRunning()) {
+
+				// Send thread is put on hold, only if the execution shoule proceed
+				unique_lock<mutex> lock(waitMutex);
+				cond_var.wait(lock);
+			}
                 }
                 else
                 {
@@ -335,11 +374,17 @@ static void sendDataThread(SendingProcess *sendData)
 				 */
 				readMutex.lock();
 
+				// Update last sent reading Id
+				sendData->setLastSentId(readingData.back()->getId());
+
 				delete sendData->m_buffer.at(sendIdx);
 				sendData->m_buffer.at(sendIdx) = NULL;
 
 				/** 2- Update sent counter (memory only) */
 				sendData->updateSentReadings(sentReadings);
+
+				// numReadings sent so far
+				totSent += sentReadings;
 
 				readMutex.unlock();
 
@@ -363,9 +408,6 @@ static void sendDataThread(SendingProcess *sendData)
 					// Update counters to Database
 					sendData->updateDatabaseCounters();
 
-					// numReadings sent so far
-					totSent += sendData->getSentReadings();
-
 					// Reset current sent readings
 					sendData->resetSentReadings();	
 
@@ -379,7 +421,6 @@ static void sendDataThread(SendingProcess *sendData)
 			}
                 }
         }
-
 	Logger::getLogger()->info("SendingProcess sendData thread: sent %lu total '%s'",
 				  totSent,
 				  sendData->getDataSourceType().c_str());
@@ -389,14 +430,10 @@ static void sendDataThread(SendingProcess *sendData)
                 // Update counters to Database
 		sendData->updateDatabaseCounters();
 
-                // numReadings sent so far
-		totSent += sendData->getSentReadings();
-
                 // Reset current sent readings
 		sendData->resetSentReadings();
 
                 sendData->setUpdateDb(false);
-
         }
 
 	/**
@@ -405,4 +442,3 @@ static void sendDataThread(SendingProcess *sendData)
 	unique_lock<mutex> lock(waitMutex);
 	cond_var.notify_one();
 }
-

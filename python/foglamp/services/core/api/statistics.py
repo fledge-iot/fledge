@@ -73,10 +73,27 @@ async def get_statistics_history(request):
         raise web.HTTPNotFound(reason="No stats collector schedule found")
     stats_history_chain_payload = PayloadBuilder().SELECT(("history_ts", "key", "value"))\
         .ALIAS("return", ("history_ts", 'history_ts')).FORMAT("return", ("history_ts", "YYYY-MM-DD HH24:MI:SS.MS"))\
-        .ORDER_BY(['history_ts', 'desc']).chain_payload()
+        .ORDER_BY(['history_ts', 'desc']).WHERE(['1', '=', 1]).chain_payload()
 
     if 'key' in request.query:
-        stats_history_chain_payload = PayloadBuilder(stats_history_chain_payload).WHERE(['key', '=', request.query['key']]).chain_payload()
+        stats_history_chain_payload = PayloadBuilder(stats_history_chain_payload).AND_WHERE(['key', '=', request.query['key']]).chain_payload()
+
+    try:
+        # get time based graphs for statistics history
+        val = 0
+        if 'minutes' in request.query and request.query['minutes'] != '':
+            val = int(request.query['minutes']) * 60
+        elif 'hours' in request.query and request.query['hours'] != '':
+            val = int(request.query['hours']) * 60 * 60
+        elif 'days' in request.query and request.query['days'] != '':
+            val = int(request.query['days']) * 24 * 60 * 60
+
+        if val < 0:
+            raise ValueError
+        elif val > 0:
+            stats_history_chain_payload = PayloadBuilder(stats_history_chain_payload).AND_WHERE(['history_ts', 'newer', val]).chain_payload()
+    except ValueError:
+        raise web.HTTPBadRequest(reason="Time unit must be a positive integer")
 
     if 'limit' in request.query and request.query['limit'] != '':
         try:

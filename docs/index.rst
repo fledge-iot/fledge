@@ -9,14 +9,11 @@ Welcome to FogLAMP's documentation!
 
 .. toctree::
 
-    01_introduction
-    02_foglamp_at_a_glance
-    03_getting_started
-    04_installation
-    05_testing
-    06_plugins/index
-    07_admin/index
-    08_developer/index
+    quick_start
+    foglamp_architecture
+    plugin_developers_guide/index
+    rest_api_guide/index
+    building_foglamp/index
     91_version_history
     92_downloads
 

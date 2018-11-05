@@ -260,7 +260,7 @@ class MicroserviceManagementClient(object):
         :return:
         """
         data = {"children": children}
-        url = '/foglamp/service/category/{}/children'.format(parent)
+        url = '/foglamp/service/category/{}/children'.format(urllib.parse.quote(parent))
 
         self._management_client_conn.request(method='POST', url=url, body=json.dumps(data))
         r = self._management_client_conn.getresponse()
@@ -308,6 +308,42 @@ class MicroserviceManagementClient(object):
         url = "/foglamp/service/category/{}/{}/value".format(urllib.parse.quote(category_name), urllib.parse.quote(config_item))
 
         self._management_client_conn.request(method='DELETE', url=url)
+        r = self._management_client_conn.getresponse()
+        if r.status in range(400, 500):
+            _logger.error("Client error code: %d, Reason: %s", r.status, r.reason)
+            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
+        if r.status in range(500, 600):
+            _logger.error("Server error code: %d, Reason: %s", r.status, r.reason)
+            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
+        res = r.read().decode()
+        self._management_client_conn.close()
+        response = json.loads(res)
+        return response
+
+    def get_asset_tracker_events(self):
+        url = '/foglamp/track'
+        self._management_client_conn.request(method='GET', url=url)
+        r = self._management_client_conn.getresponse()
+        if r.status in range(400, 500):
+            _logger.error("Client error code: %d, Reason: %s", r.status, r.reason)
+            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
+        if r.status in range(500, 600):
+            _logger.error("Server error code: %d, Reason: %s", r.status, r.reason)
+            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
+        res = r.read().decode()
+        self._management_client_conn.close()
+        response = json.loads(res)
+        return response
+
+    def create_asset_tracker_event(self, asset_event):
+        """
+
+        :param asset_event
+               e.g. {"asset": "AirIntake", "event": "Ingest", "service": "PT100_In1", "plugin": "PT100"}
+        :return:
+        """
+        url = '/foglamp/track'
+        self._management_client_conn.request(method='POST', url=url, body=json.dumps(asset_event))
         r = self._management_client_conn.getresponse()
         if r.status in range(400, 500):
             _logger.error("Client error code: %d, Reason: %s", r.status, r.reason)

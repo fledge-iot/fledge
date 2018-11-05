@@ -18,6 +18,11 @@ from foglamp.services.core.api import certificate_store
 from foglamp.services.core.api import support
 from foglamp.services.core.api import plugin_discovery
 from foglamp.services.core.api import task
+from foglamp.services.core.api import asset_tracker
+from foglamp.services.core.api import south
+from foglamp.services.core.api import north
+from foglamp.services.core.api import filters
+
 
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
@@ -62,7 +67,7 @@ def setup(app):
     app.router.add_route('PUT', '/foglamp/category/{category_name}/{config_item}', api_configuration.set_configuration_item)
     app.router.add_route('POST', '/foglamp/category/{category_name}/{config_item}', api_configuration.add_configuration_item)
     app.router.add_route('DELETE', '/foglamp/category/{category_name}/{config_item}/value', api_configuration.delete_configuration_item_value)
-
+    app.router.add_route('POST', '/foglamp/category/{category_name}/{config_item}/upload', api_configuration.upload_script)
     # Scheduler
     # Scheduled_processes - As per doc
     app.router.add_route('GET', '/foglamp/schedule/process', api_scheduler.get_scheduled_processes)
@@ -75,6 +80,10 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/schedule/{schedule_id}', api_scheduler.get_schedule)
     app.router.add_route('PUT', '/foglamp/schedule/{schedule_id}/enable', api_scheduler.enable_schedule)
     app.router.add_route('PUT', '/foglamp/schedule/{schedule_id}/disable', api_scheduler.disable_schedule)
+
+    app.router.add_route('PUT', '/foglamp/schedule/enable', api_scheduler.enable_schedule_with_name)
+    app.router.add_route('PUT', '/foglamp/schedule/disable', api_scheduler.disable_schedule_with_name)
+
     app.router.add_route('POST', '/foglamp/schedule/start/{schedule_id}', api_scheduler.start_schedule)
     app.router.add_route('PUT', '/foglamp/schedule/{schedule_id}', api_scheduler.update_schedule)
     app.router.add_route('DELETE', '/foglamp/schedule/{schedule_id}', api_scheduler.delete_schedule)
@@ -89,8 +98,23 @@ def setup(app):
     # Service
     app.router.add_route('POST', '/foglamp/service', service.add_service)
     app.router.add_route('GET', '/foglamp/service', service.get_health)
+    app.router.add_route('DELETE', '/foglamp/service/{service_name}', service.delete_service)
 
+    # Task
+    app.router.add_route('POST', '/foglamp/scheduled/task', task.add_task)
+    app.router.add_route('DELETE', '/foglamp/scheduled/task/{task_name}', task.delete_task)
+
+    # South
+    app.router.add_route('GET', '/foglamp/south', south.get_south_services)
+
+    # North
+    app.router.add_route('GET', '/foglamp/north', north.get_north_schedules)
+
+    # assets
     browser.setup(app)
+
+    # asset tracker
+    app.router.add_route('GET', '/foglamp/track', asset_tracker.get_asset_tracker_events)
 
     # Statistics - As per doc
     app.router.add_route('GET', '/foglamp/statistics', api_statistics.get_statistics)
@@ -130,8 +154,9 @@ def setup(app):
     # Get Plugin
     app.router.add_route('GET', '/foglamp/plugins/installed', plugin_discovery.get_plugins_installed)
 
-    # Task
-    app.router.add_route('POST', '/foglamp/scheduled/task', task.add_task)
+    # Filters 
+    app.router.add_route('POST', '/foglamp/filter', filters.create_filter)
+    app.router.add_route('PUT', '/foglamp/filter/{service_name}/pipeline', filters.add_filters_pipeline)
 
     # enable cors support
     enable_cors(app)

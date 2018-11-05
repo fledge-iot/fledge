@@ -11,6 +11,9 @@
  */
 #include <string>
 #include <sstream>
+#include <iomanip>
+#include <cfloat>
+#include <vector>
 
 /**
  * Class to hold an actual reading value.
@@ -31,7 +34,7 @@ class DatapointValue {
 		/**
  		 * Construct with an integer value
 		 */
-		DatapointValue(const int value)
+		DatapointValue(const long value)
 		{
 			m_value.i = value;
 			m_type = T_INTEGER;
@@ -45,6 +48,15 @@ class DatapointValue {
 			m_type = T_FLOAT;
 		};
 		/**
+		 * Construct with an array of floating point values
+		 */
+		DatapointValue(const std::vector<double>& values)
+		{
+			m_value.a = new std::vector<double>(values);
+			m_type = T_FLOAT_ARRAY;
+		};
+		
+		/**
 		 * Copy constructor
 		 */
 		DatapointValue(const DatapointValue& obj)
@@ -54,6 +66,9 @@ class DatapointValue {
 			{
 			case T_STRING:
 				m_value.str = new std::string(*(obj.m_value.str));
+				break;
+			case T_FLOAT_ARRAY:
+				m_value.a = new std::vector<double>(*(obj.m_value.a));
 				break;
 			default:
 				m_value = obj.m_value;
@@ -69,6 +84,10 @@ class DatapointValue {
 			{
 				delete m_value.str;
 			}
+			if (m_type == T_FLOAT_ARRAY)
+			{
+				delete m_value.a;
+			}
 		};
 
 		/**
@@ -81,6 +100,11 @@ class DatapointValue {
 				// Remove previous value
 				delete m_value.str;
 			}
+			if (m_type == T_FLOAT_ARRAY)
+			{
+				// Remove previous value
+				delete m_value.a;
+			}
 
 			m_type = rhs.m_type;
 
@@ -88,6 +112,9 @@ class DatapointValue {
 			{
 			case T_STRING:
 				m_value.str = new std::string(*(rhs.m_value.str));
+				break;
+			case T_FLOAT_ARRAY:
+				m_value.a = new std::vector<double>(*(rhs.m_value.a));
 				break;
 			default:
 				m_value = rhs.m_value;
@@ -97,19 +124,46 @@ class DatapointValue {
 			return *this;
 		};
 
+		void setValue(long value)
+		{
+			m_value.i = value;
+		}
+
+		void setValue(double value)
+		{
+			m_value.f = value;
+		}
+
 		/**
 		 * Return the value as a string
 		 */
 		std::string	toString() const
 		{
 			std::ostringstream ss;
+
 			switch (m_type)
 			{
 			case T_INTEGER:
 				ss << m_value.i;
 				return ss.str();
 			case T_FLOAT:
+			        ss << std::setprecision(DBL_DIG);
 				ss << m_value.f;
+
+				return ss.str();
+			case T_FLOAT_ARRAY:
+				ss << "[";
+				for (auto it = m_value.a->begin();
+				     it != m_value.a->end();
+				     ++it)
+				{
+					if (it != m_value.a->begin())
+					{
+						ss << ", ";
+					}
+					ss << *it;
+				}
+				ss << "]";
 				return ss.str();
 			case T_STRING:
 			default:
@@ -120,7 +174,23 @@ class DatapointValue {
 			}
 		};
 
-		typedef enum DatapointTag { T_STRING, T_INTEGER, T_FLOAT } dataTagType;
+		/**
+		 * Return long value
+		 */
+		long toInt() const { return m_value.i; };
+		/**
+		 * Return double value
+		 */
+		double toDouble() const { return m_value.f; };
+
+		// Supported Data Tag Types
+		typedef enum DatapointTag
+		{
+			T_STRING,
+			T_INTEGER,
+			T_FLOAT,
+			T_FLOAT_ARRAY
+		} dataTagType;
 
 		/**
 		 * Return the Tag type
@@ -131,9 +201,10 @@ class DatapointValue {
 		}
 	private:
 		union data_t {
-			std::string	*str;
-			int		i;
-			double		f;
+			std::string*		str;
+			long			i;
+			double			f;
+			std::vector<double>*	a;
 			} m_value;
 		DatapointTag	m_type;
 };
@@ -174,9 +245,14 @@ class Datapoint {
 		{
 			return m_value;
 		}
+		// Return reference to Datapoint value
+		DatapointValue& getData()
+		{
+			return m_value;
+		}
 	private:
 		const std::string	m_name;
-		const DatapointValue	m_value;
+		DatapointValue		m_value;
 };
 #endif
 

@@ -77,9 +77,17 @@ class TestFoglampMicroservice:
 
             def run(self):
                 pass
+
             async def change(self):
                 pass
+
             async def shutdown(self):
+                pass
+
+            async def get_track(self):
+                pass
+
+            async def add_track(self):
                 pass
 
         with patch.object(asyncio, 'get_event_loop', return_value=loop):
@@ -123,9 +131,17 @@ class TestFoglampMicroservice:
 
             def run(self):
                 pass
+
             async def change(self):
                 pass
+
             async def shutdown(self):
+                pass
+
+            async def get_track(self):
+                pass
+
+            async def add_track(self):
                 pass
 
         with patch.object(asyncio, 'get_event_loop', return_value=loop):
@@ -153,9 +169,17 @@ class TestFoglampMicroservice:
 
             def run(self):
                 pass
+
             async def change(self):
                 pass
+
             async def shutdown(self):
+                pass
+
+            async def get_track(self):
+                pass
+
+            async def add_track(self):
                 pass
 
         with patch.object(asyncio, 'get_event_loop', return_value=loop):

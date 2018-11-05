@@ -4,8 +4,6 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-
-import json
 import pathlib
 from pathlib import PosixPath
 
@@ -131,7 +129,6 @@ class TestBundleSupport:
         with patch.object(SupportBuilder, "__init__", return_value=None):
             with patch.object(SupportBuilder, "build", side_effect=RuntimeError("blah")):
                 resp = await client.post('/foglamp/support')
-                res = await resp.text()
                 assert 500 == resp.status
                 assert "Support bundle could not be created. blah" == resp.reason
 
@@ -143,7 +140,7 @@ class TestBundleSupport:
         Mar 19 14:00:53 nerd51-ThinkPad FogLAMP[18809] INFO: server: foglamp.services.core.server: start storage, from directory /home/asinha/Development/FogLAMP/scripts
         Mar 19 14:00:54 nerd51-ThinkPad FogLAMP[18809] INFO: service_registry: foglamp.services.core.service_registry.service_registry: Registered service instance id=479a90ec-0d1d-4845-b2c5-f1d9ce72ac8e: <FogLAMP Storage, type=Storage, protocol=http, address=localhost, service port=33395, management port=45952, status=1>
         Mar 19 14:00:58 nerd51-ThinkPad FogLAMP[18809] INFO: server: foglamp.services.core.server: start scheduler
-        Mar 19 14:00:58 nerd51-ThinkPad FogLAMP[18809] INFO: scheduler: foglamp.services.core.scheduler.scheduler: Starting
+        Mar 19 14:00:58 nerd51-ThinkPad FogLAMP Storage[18809]: Registered configuration category STORAGE, registration id 3db674a7-9569-4950-a328-1204834fba7e
         Mar 19 14:00:58 nerd51-ThinkPad FogLAMP[18809] INFO: scheduler: foglamp.services.core.scheduler.scheduler: Starting Scheduler: Management port received is 38311
         Mar 19 14:00:58 nerd51-ThinkPad FogLAMP[18809] INFO: scheduler: foglamp.services.core.scheduler.scheduler: Scheduled task for schedule 'purge' to start at 2018-03-19 15:00:58.912532
         Mar 19 14:00:58 nerd51-ThinkPad FogLAMP[18809] INFO: scheduler: foglamp.services.core.scheduler.scheduler: Scheduled task for schedule 'stats collection' to start at 2018-03-19 14:01:13.912532
@@ -151,28 +148,92 @@ class TestBundleSupport:
         """
 
         with patch.object(support, "__GET_SYSLOG_CMD_TEMPLATE", mock_syslog()):
-            resp = await client.get('/foglamp/syslog')
-            res = await resp.text()
-            jdict = json.loads(res)
-            assert 200 == resp.status
+            with patch.object(support, "__GET_SYSLOG_TOTAL_MATCHED_LINES", """echo "10" """):
+                resp = await client.get('/foglamp/syslog')
+                res = await resp.text()
+                jdict = json.loads(res)
+                assert 200 == resp.status
+                assert 10 == jdict['count']
+                assert 'INFO' in jdict['logs'][0]
+                assert 'FogLAMP' in jdict['logs'][0]
+                assert 'FogLAMP Storage' in jdict['logs'][5]
 
-    async def test_get_syslog_entries_limit_exception(self, client):
-        with patch.object(support, "__DEFAULT_LIMIT", "garbage"):
+    async def test_get_syslog_entries_all_with_level_error(self, client):
+        def mock_syslog():
+            return """
+            echo "Sep 12 13:31:41 nerd-034 FogLAMP[9241] ERROR: sending_process: sending_process_PI: cannot complete the sending operation"
+            """
+
+        with patch.object(support, "__GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE", mock_syslog()):
+            with patch.object(support, "__GET_SYSLOG_ERROR_MATCHED_LINES", """echo "1" """):
+                resp = await client.get('/foglamp/syslog?level=error')
+                res = await resp.text()
+                jdict = json.loads(res)
+                assert 200 == resp.status
+                assert 1 == jdict['count']
+                assert 'ERROR' in jdict['logs'][0]
+
+    async def test_get_syslog_entries_all_with_level_warning(self, client):
+        def mock_syslog():
+            return """
+            echo "Sep 12 14:31:36 nerd-034 FogLAMP Storage[8683]: SQLite3 storage plugin raising error: UNIQUE constraint failed: readings.read_key
+            Sep 12 17:42:23 nerd-034 FogLAMP[16637] WARNING: server: foglamp.services.core.server: A FogLAMP PID file has been found: [/home/foglamp/Development/FogLAMP/data/var/run/foglamp.core.pid] found, ignoring it."
+            """
+        with patch.object(support, "__GET_SYSLOG_CMD_WITH_WARNING_TEMPLATE", mock_syslog()):
+            with patch.object(support, "__GET_SYSLOG_WARNING_MATCHED_LINES", """echo "2" """):
+                resp = await client.get('/foglamp/syslog?level=warning')
+                res = await resp.text()
+                jdict = json.loads(res)
+                assert 200 == resp.status
+                assert 2 == jdict['count']
+                assert 'error' in jdict['logs'][0]
+                assert 'WARNING' in jdict['logs'][1]
+
+    async def test_get_syslog_entries_from_storage(self, client):
+        def mock_syslog():
+            return """
+            echo "Sep 12 14:31:41 nerd-034 FogLAMP Storage[8874]: Starting service...
+            Sep 12 14:46:36 nerd-034 FogLAMP Storage[8683]: SQLite3 storage plugin raising error: UNIQUE constraint failed: readings.read_key
+            Sep 12 14:56:41 nerd-034 FogLAMP Storage[8979]: warning No directory found"
+            """
+        with patch.object(support, "__GET_SYSLOG_CMD_TEMPLATE", mock_syslog()):
+            with patch.object(support, "__GET_SYSLOG_TOTAL_MATCHED_LINES", """echo "3" """):
+                resp = await client.get('/foglamp/syslog?source=Storage')
+                res = await resp.text()
+                jdict = json.loads(res)
+                assert 200 == resp.status
+                assert 3 == jdict['count']
+                assert 'FogLAMP Storage' in jdict['logs'][0]
+                assert 'error' in jdict['logs'][1]
+                assert 'warning' in jdict['logs'][2]
+
+    async def test_get_syslog_entries_from_storage_with_level_warning(self, client):
+        def mock_syslog():
+            return """
+            echo "Sep 12 14:31:36 nerd-034 FogLAMP Storage[8683]: SQLite3 storage plugin raising error: UNIQUE constraint failed: readings.read_key
+            Sep 12 14:46:41 nerd-034 FogLAMP Storage[8979]: warning No directory found"
+            """
+        with patch.object(support, "__GET_SYSLOG_CMD_WITH_WARNING_TEMPLATE", mock_syslog()):
+            with patch.object(support, "__GET_SYSLOG_WARNING_MATCHED_LINES", """echo "3" """):
+                resp = await client.get('/foglamp/syslog?source=storage&level=warning')
+                res = await resp.text()
+                jdict = json.loads(res)
+                assert 200 == resp.status
+                assert 3 == jdict['count']
+                assert 'FogLAMP Storage' in jdict['logs'][0]
+                assert 'error' in jdict['logs'][0]
+                assert 'warning' in jdict['logs'][1]
+
+    @pytest.mark.parametrize("param, message", [
+        ("__DEFAULT_LIMIT", "Limit must be a positive integer"),
+        ("__DEFAULT_OFFSET", "Offset must be a positive integer OR Zero"),
+        ("__DEFAULT_LOG_SOURCE", "garbage is not a valid source")
+    ])
+    async def test_get_syslog_entries_exception(self, client, param, message):
+        with patch.object(support, param, "garbage"):
             resp = await client.get('/foglamp/syslog')
             assert 400 == resp.status
-            assert 'Limit must be a positive integer' == resp.reason
-
-    async def test_get_syslog_entries_offset_exception(self, client):
-        with patch.object(support, "__DEFAULT_OFFSET", "garbage"):
-            resp = await client.get('/foglamp/syslog')
-            assert 400 == resp.status
-            assert 'Offset must be a positive integer OR Zero' == resp.reason
-
-    async def test_get_syslog_entries_search_exception(self, client):
-        with patch.object(support, "__DEFAULT_LOG_TYPE", "garbage"):
-            resp = await client.get('/foglamp/syslog')
-            assert 400 == resp.status
-            assert 'garbage is not a valid source' == resp.reason
+            assert message == resp.reason
 
     async def test_get_syslog_entries_cmd_exception(self, client):
         with patch.object(subprocess, "Popen", side_effect=Exception):

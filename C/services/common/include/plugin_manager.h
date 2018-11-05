@@ -3,11 +3,11 @@
 /*
  * FogLAMP storage service.
  *
- * Copyright (c) 2017 OSisoft, LLC
+ * Copyright (c) 2017, 2018 OSisoft, LLC
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 
 #include <plugin_api.h>
@@ -35,8 +35,8 @@ class PluginManager {
 
 	private:
                 std::list<PLUGIN_HANDLE>	        plugins;
-                std::map<std::string, PLUGIN_HANDLE>      pluginNames;
-                std::map<std::string, PLUGIN_HANDLE>      pluginTypes;
+                std::map<std::string, PLUGIN_HANDLE>    pluginNames;
+                std::map<std::string, std::string>      pluginTypes;
                 std::map<PLUGIN_HANDLE, PLUGIN_INFORMATION *> pluginInfo;
                 PluginManager();
                 Logger      *logger;

@@ -24,6 +24,7 @@
 #include <sstream>
 #include <logger.h>
 #include <time.h>
+#include <unistd.h>
 
 /**
  * SQLite3 storage plugin for FogLAMP
@@ -34,8 +35,9 @@ using namespace rapidjson;
 
 #define CONNECT_ERROR_THRESHOLD		5*60	// 5 minutes
 
+#define MAX_RETRIES			10	// Maximum no. of retries for a DB lock
+
 #define _DB_NAME              "/foglamp.sqlite"
-#define _FOGLAMP_ROOT_PATH    "/usr/local/foglamp"
 
 #define F_TIMEH24_S     "%H:%M:%S"
 #define F_DATEH24_S     "%Y-%m-%d %H:%M:%S"
@@ -145,11 +147,11 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 			char formattedData[100] = "";
 
 			// Exec the format SQL
-			int rc = sqlite3_exec(inMemory,
-					      formatStmt.c_str(),
-					      dateCallback,
-					      formattedData,
-					      &zErrMsg);
+			int rc  = SQLexec(inMemory,
+				          formatStmt.c_str(),
+					  dateCallback,
+					  formattedData,
+					  &zErrMsg);
 
 			if (rc == SQLITE_OK )
 			{
@@ -280,10 +282,6 @@ bool retCode;
  */
 Connection::Connection()
 {
-	string dbPath;
-	const char *rootDir = getenv("FOGLAMP_ROOT");
-	const char *dataDir = getenv("FOGLAMP_DATA");
-
 	/**
 	 * Create IN MEMORY database for "readings" table: set empty file
 	 */
@@ -869,11 +867,11 @@ int		row = 0;
 	int rc;
 
 	// Exec the INSERT statement: no callback, no result set
-	rc = sqlite3_exec(inMemory,
-			  query,
-			  NULL,
-			  NULL,
-			  &zErrMsg);
+	rc = SQLexec(inMemory,
+		     query,
+		     NULL,
+		     NULL,
+		     &zErrMsg);
 
 	// Release memory for 'query' var
 	delete[] query;
@@ -990,11 +988,11 @@ long numReadings = 0;
 		int purge_readings = 0;
 
 		// Exec query and get result in 'purge_readings' via 'selectCallback'
-		rc = sqlite3_exec(inMemory,
-				  query,
-				  selectCallback,
-				  &purge_readings,
-				  &zErrMsg);
+		rc = SQLexec(inMemory,
+			     query,
+			     selectCallback,
+			     &purge_readings,
+			     &zErrMsg);
 		// Release memory for 'query' var
 		delete[] query;
 
@@ -1025,11 +1023,11 @@ long numReadings = 0;
 		int unsent = 0;
 
 		// Exec query and get result in 'unsent' via 'countCallback'
-		rc = sqlite3_exec(inMemory,
-				  query,
-				  countCallback,
-				  &unsent,
-				  &zErrMsg);
+		rc = SQLexec(inMemory,
+			     query,
+			     countCallback,
+			     &unsent,
+			     &zErrMsg);
 
 		// Release memory for 'query' var
 		delete[] query;
@@ -1062,11 +1060,11 @@ long numReadings = 0;
 	int rows_deleted;
 
 	// Exec DELETE query: no callback, no resultset
-	rc = sqlite3_exec(inMemory,
-			  query,
-			  NULL,
-			  NULL,
-			  &zErrMsg);
+	rc = SQLexec(inMemory,
+		     query,
+		     NULL,
+		     NULL,
+		     &zErrMsg);
 
 	// Release memory for 'query' var
 	delete[] query;
@@ -1090,11 +1088,11 @@ long numReadings = 0;
 	int retained_unsent = 0;
 
 	// Exec query and get result in 'retained_unsent' via 'countCallback'
-	rc = sqlite3_exec(inMemory,
-			  query_r,
-			  countCallback,
-			  &retained_unsent,
-			  &zErrMsg);
+	rc = SQLexec(inMemory,
+		     query,
+		     countCallback,
+		     &retained_unsent,
+		     &zErrMsg);
 
 	// Release memory for 'query_r' var
 	delete[] query_r;
@@ -1111,10 +1109,11 @@ long numReadings = 0;
 
 	int readings_num = 0;
 	// Exec query and get result in 'readings_num' via 'countCallback'
-	rc = sqlite3_exec(inMemory, "SELECT count(*) FROM foglamp.readings",
-			  countCallback,
-			  &readings_num,
-			  &zErrMsg);
+	rc = SQLexec(inMemory,
+		    "SELECT count(*) FROM foglamp.readings",
+		     countCallback,
+		     &readings_num,
+		     &zErrMsg);
 
 	if (rc == SQLITE_OK)
 	{
@@ -2029,4 +2028,39 @@ void Connection::logSQL(const char *tag, const char *stmt)
 	{
 		Logger::getLogger()->info("%s: %s", tag, stmt);
 	}
+}
+
+/**
+ * SQLITE wrapper to rety statements when the database is locked
+ *
+ * @param	db	The open SQLite database
+ * @param	sql	The SQL to execute
+ * @param	callback	Callback function
+ * @param	cbArg		Callback 1st argument
+ * @param	errmsg		Locaiton to write error message
+ */
+int Connection::SQLexec(sqlite3 *db, const char *sql, int (*callback)(void*,int,char**,char**),
+  			void *cbArg, char **errmsg)
+{
+int retries = 0, rc;
+
+	do {
+		rc = sqlite3_exec(db, sql, callback, cbArg, errmsg);
+		retries++;
+		if (rc == SQLITE_LOCKED || rc == SQLITE_BUSY)
+		{
+			usleep(retries * 1000);	// sleep retries milliseconds
+		}
+	} while (retries < MAX_RETRIES && (rc == SQLITE_LOCKED || rc == SQLITE_BUSY));
+
+	if (rc == SQLITE_LOCKED)
+	{
+		Logger::getLogger()->error("Database still locked after maximum retries");
+	}
+	if (rc == SQLITE_BUSY)
+	{
+		Logger::getLogger()->error("Database still busy after maximum retries");
+	}
+
+	return rc;
 }

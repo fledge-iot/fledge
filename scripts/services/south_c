@@ -9,7 +9,7 @@ if [ ! -d "${FOGLAMP_ROOT}" ]; then
 	exit 1
 fi
 
-cd "${FOGLAMP_ROOT}"
+cd "${FOGLAMP_ROOT}/services"
 
-./services/south "$@"
+./foglamp.services.south "$@"
 

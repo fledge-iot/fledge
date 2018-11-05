@@ -98,7 +98,9 @@ class TestStatistics:
     async def test_get_statistics_history(self, client, interval, schedule_interval):
         output = {"interval": interval, 'statistics': [{"READINGS": 1, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:24.321589"},
                                                        {"READINGS": 0, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:09.321589"}]}
-        p1 = {"return": [{"alias": "history_ts", "column": "history_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "key", "value"], "sort": {"column": "history_ts", "direction": "desc"}}
+        p1 = {"return": [{"column": "history_ts", "alias": "history_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "key", "value"],
+              "sort": {"column": "history_ts", "direction": "desc"},
+              "where": {"column": "1", "condition": "=", "value": 1}}
         p2 = {"return": ["schedule_interval"],
               "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
 
@@ -128,13 +130,98 @@ class TestStatistics:
         assert query_patch.called
         assert 2 == query_patch.call_count
 
+    @pytest.mark.parametrize("param, time_unit_payload", [
+        ("?minutes=30", {"return": [{"column": "history_ts", "alias": "history_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "key", "value"],
+                         "sort": {"column": "history_ts", "direction": "desc"},
+                         "where": {"column": "1", "condition": "=", "value": 1, "and": {"column": "history_ts", "condition": "newer", "value": 1800}}}),
+        ("?hours=1", {"return": [{"column": "history_ts", "alias": "history_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "key", "value"],
+                      "sort": {"column": "history_ts", "direction": "desc"},
+                      "where": {"column": "1", "condition": "=", "value": 1, "and": {"column": "history_ts", "condition": "newer", "value": 3600}}}),
+        ("?days=1", {"return": [{"column": "history_ts", "alias": "history_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "key", "value"],
+                     "sort": {"column": "history_ts", "direction": "desc"},
+                     "where": {"column": "1", "condition": "=", "value": 1, "and": {"column": "history_ts", "condition": "newer", "value": 86400}}}),
+        ("?minutes=10&hours=1", {"return": [{"column": "history_ts", "alias": "history_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "key", "value"],
+                                 "sort": {"column": "history_ts", "direction": "desc"},
+                                 "where": {"column": "1", "condition": "=", "value": 1, "and": {"column": "history_ts", "condition": "newer", "value": 600}}}),
+        ("?hours=1&days=2", {"return": [{"column": "history_ts", "alias": "history_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "key", "value"],
+                             "sort": {"column": "history_ts", "direction": "desc"},
+                             "where": {"column": "1", "condition": "=", "value": 1, "and": {"column": "history_ts", "condition": "newer", "value": 3600}}}),
+        ("?minutes=15&days=1", {"return": [{"column": "history_ts", "alias": "history_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "key", "value"],
+                                "sort": {"column": "history_ts", "direction": "desc"},
+                                "where": {"column": "1", "condition": "=", "value": 1, "and": {"column": "history_ts", "condition": "newer", "value": 900}}})
+    ])
+    async def test_get_statistics_history_with_time_unit(self, client, param, time_unit_payload):
+        output = {"interval": 60, 'statistics': [{"READINGS": 1, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:24.321589"},
+                                                 {"READINGS": 0, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:09.321589"}]}
+
+        p1 = {"aggregate": {"operation": "count", "column": "*"}}
+        p3 = {"return": ["schedule_interval"],
+              "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
+
+        @asyncio.coroutine
+        def q_result(*args):
+            table = args[0]
+            payload = args[1]
+
+            if table == 'statistics':
+                assert p1 == json.loads(payload)
+                return {"rows": [{"count_*": 2}]}
+
+            if table == 'statistics_history':
+                assert time_unit_payload == json.loads(payload)
+                return {"rows": [{"key": "READINGS", "value": 1, "history_ts": "2018-02-20 13:16:24.321589"},
+                                 {"key": "BUFFERED", "value": 10, "history_ts": "2018-02-20 13:16:24.321589"},
+                                 {"key": "READINGS", "value": 0, "history_ts": "2018-02-20 13:16:09.321589"},
+                                 {"key": "BUFFERED", "value": 10, "history_ts": "2018-02-20 13:16:09.321589"}]}
+
+            if table == 'schedules':
+                assert p3 == json.loads(payload)
+                return {"rows": [{"schedule_interval": "00:01:00"}]}
+
+        mock_async_storage_client = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=mock_async_storage_client):
+            with patch.object(mock_async_storage_client, 'query_tbl_with_payload', side_effect=q_result) as query_patch:
+                resp = await client.get("/foglamp/statistics/history{}".format(param))
+            assert 200 == resp.status
+            r = await resp.text()
+            assert output == json.loads(r)
+        assert query_patch.called
+        assert 2 == query_patch.call_count
+
+    @pytest.mark.parametrize("param", [
+        "?minutes=-1"
+    ])
+    async def test_get_statistics_history_with_time_unit_exception(self, client, param):
+        p1 = {"return": ["schedule_interval"],
+              "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
+
+        @asyncio.coroutine
+        def q_result(*args):
+            table = args[0]
+            payload = args[1]
+
+            if table == 'schedules':
+                assert p1 == json.loads(payload)
+                return {"rows": [{"schedule_interval": "00:01:00"}]}
+
+        mock_async_storage_client = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=mock_async_storage_client):
+            with patch.object(mock_async_storage_client, 'query_tbl_with_payload', side_effect=q_result) as query_patch:
+                resp = await client.get("/foglamp/statistics/history{}".format(param))
+            assert 400 == resp.status
+            assert 'Time unit must be a positive integer' == resp.reason
+        assert query_patch.called
+        assert 1 == query_patch.call_count
+
     async def test_get_statistics_history_limit(self, client):
         output = {"interval": 60, 'statistics': [{"READINGS": 1, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:24.321589"},
                                                  {"READINGS": 0, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:09.321589"}]}
 
         p1 = {"aggregate": {"operation": "count", "column": "*"}}
         # payload limit will be request limit*2 i.e. via p1 query
-        p2 = {"return": [{"column": "history_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias": "history_ts"}, "key", "value"], "sort": {"column": "history_ts", "direction": "desc"}, "limit": 2}
+        p2 = {"return": [{"column": "history_ts", "alias": "history_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "key", "value"],
+              "sort": {"column": "history_ts", "direction": "desc"},
+              "where": {"column": "1", "condition": "=", "value": 1}, "limit": 2}
         p3 = {"return": ["schedule_interval"],
               "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
 
@@ -238,7 +325,7 @@ class TestStatistics:
         output = {"interval": 15, 'statistics': [{"READINGS": 1, "history_ts": "2018-02-20 13:16:24.321589"}, {"READINGS": 0, "history_ts": "2018-02-20 13:16:09.321589"}]}
         p1 = {'where': {'value': 'stats collector', 'condition': '=', 'column': 'process_name'}, 'return': ['schedule_interval']}
         p2 = {'aggregate': {'column': '*', 'operation': 'count'}}
-        p3 = {'return': [{'column': 'history_ts', 'alias': 'history_ts', 'format': 'YYYY-MM-DD HH24:MI:SS.MS'}, 'key', 'value'], 'where': {'column': 'key', 'condition': '=', 'value': 'READINGS'}, 'sort': {'column': 'history_ts', 'direction': 'desc'}}
+        p3 = {"return": [{"column": "history_ts", "alias": "history_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "key", "value"], "sort": {"column": "history_ts", "direction": "desc"}, "where": {"column": "1", "condition": "=", "value": 1, "and": {"column": "key", "condition": "=", "value": "READINGS"}}}
 
         @asyncio.coroutine
         def q_result(*args):
@@ -271,7 +358,7 @@ class TestStatistics:
     async def test_get_statistics_history_by_key_with_limit(self, client):
         output = {"interval": 15, 'statistics': [{"READINGS": 1, "history_ts": "2018-02-20 13:16:24.321589"}]}
         p1 = {'where': {'value': 'stats collector', 'condition': '=', 'column': 'process_name'}, 'return': ['schedule_interval']}
-        p3 = {'return': [{'column': 'history_ts', 'alias': 'history_ts', 'format': 'YYYY-MM-DD HH24:MI:SS.MS'}, 'key', 'value'], 'where': {'column': 'key', 'condition': '=', 'value': 'READINGS'}, 'sort': {'column': 'history_ts', 'direction': 'desc'}, 'limit': 1}
+        p3 = {"return": [{"column": "history_ts", "alias": "history_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "key", "value"], "sort": {"column": "history_ts", "direction": "desc"}, "where": {"column": "1", "condition": "=", "value": 1, "and": {"column": "key", "condition": "=", "value": "READINGS"}}, "limit": 1}
 
         @asyncio.coroutine
         def q_result(*args):
@@ -300,7 +387,10 @@ class TestStatistics:
         output = {"interval": 15, 'statistics': [{}]}
         p1 = {'where': {'value': 'stats collector', 'condition': '=', 'column': 'process_name'}, 'return': ['schedule_interval']}
         p2 = {'aggregate': {'column': '*', 'operation': 'count'}}
-        p3 = {'return': [{'column': 'history_ts', 'alias': 'history_ts', 'format': 'YYYY-MM-DD HH24:MI:SS.MS'}, 'key', 'value'], 'where': {'column': 'key', 'condition': '=', 'value': 'blah'}, 'sort': {'column': 'history_ts', 'direction': 'desc'}}
+        p3 = {"return": [{"column": "history_ts", "alias": "history_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "key", "value"],
+              "sort": {"column": "history_ts", "direction": "desc"},
+              "where": {"column": "1", "condition": "=", "value": 1,
+                        "and": {"column": "key", "condition": "=", "value": "blah"}}}
 
         @asyncio.coroutine
         def q_result(*args):

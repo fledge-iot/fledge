@@ -7,7 +7,7 @@ pytest-cov==2.5.1
 pytest-aiohttp==0.3.0
 
 # Common - REST interface
-requests==2.18.4
+requests==2.20.0
 
 # Downgrade aiohttp to 2.3.8 (dependency of pytest-aiohttp) due to issue with aiohttp 3.3.1
 aiohttp==2.3.8

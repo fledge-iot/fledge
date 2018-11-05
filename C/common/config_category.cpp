@@ -138,14 +138,32 @@ ConfigCategory::ConfigCategory(const string& name, const string& json) : m_name(
 	doc.Parse(json.c_str());
 	if (doc.HasParseError())
 	{
-		Logger::getLogger()->error("Configuration parse error in category %s, %s: %s at %d",
+		Logger::getLogger()->error("Configuration parse error in category '%s', %s: %s at %d",
 			name.c_str(), json.c_str(),
 			GetParseError_En(doc.GetParseError()), (unsigned)doc.GetErrorOffset());
 		throw new ConfigMalformed();
 	}
+	
 	for (Value::ConstMemberIterator itr = doc.MemberBegin(); itr != doc.MemberEnd(); ++itr)
 	{
-		m_items.push_back(new CategoryItem(itr->name.GetString(), itr->value));
+		try
+		{
+			m_items.push_back(new CategoryItem(itr->name.GetString(), itr->value));
+		}
+		catch (exception* e)
+		{
+			Logger::getLogger()->error("Configuration parse error in category '%s' item '%s', %s: %s",
+				name.c_str(),
+				itr->name.GetString(),
+				json.c_str(),
+				e->what());
+			delete e;
+			throw ConfigMalformed();
+		}
+		catch (...)
+		{
+			throw;
+		}
 	}
 }
 
@@ -265,6 +283,39 @@ string ConfigCategory::getValue(const string& name) const
 }
 
 /**
+ * Return the requested attribute of a configuration category item
+ *
+ * @param name	The name of the configuration item to return
+ * @param itemAttribute	The item attribute (such as "file", "order", "readonly"
+ * @return	The configuration item attribute as string
+ * @throws	ConfigItemNotFound if the item does not exist in the category
+ *		ConfigItemAttributeNotFound if the requested attribute
+ *		does not exist for the found item.
+ */
+string ConfigCategory::getItemAttribute(const string& itemName,
+					const ItemAttribute itemAttribute) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (itemName.compare(m_items[i]->m_name) == 0)
+		{
+			switch (itemAttribute)
+			{
+				case ORDER_ATTR:
+					return m_items[i]->m_order;
+				case READONLY_ATTR:
+					return m_items[i]->m_readonly;
+				case FILE_ATTR:
+					return m_items[i]->m_file;
+				default:
+					throw new ConfigItemAttributeNotFound();
+			}
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
  * Return the type of the configuration category item
  *
  * @param name	The name of the configuration item to return
@@ -322,6 +373,84 @@ string ConfigCategory::getDefault(const string& name) const
 }
 
 /**
+ * Return the display name of the configuration category item
+ *
+ * @param name	The name of the configuration item to return
+ * @return string	The configuration item name
+ * @throws exception if the item does not exist in the category
+ */
+string ConfigCategory::getDisplayName(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return m_items[i]->m_displayName;
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
+ * Return the minimum value of the configuration category item
+ *
+ * @param name	The name of the configuration item to return
+ * @return string	The configuration item name
+ * @throws exception if the item does not exist in the category
+ */
+string ConfigCategory::getMinimum(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return m_items[i]->m_minimum;
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
+ * Return the maximum of the configuration category item
+ *
+ * @param name	The name of the configuration item to return
+ * @return string	The configuration item name
+ * @throws exception if the item does not exist in the category
+ */
+string ConfigCategory::getMaximum(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return m_items[i]->m_maximum;
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+
+
+/**
+ * Return the options of the configuration category item
+ *
+ * @param name	The name of the configuration item to return
+ * @return string	The configuration item name
+ * @throws exception if the item does not exist in the category
+ */
+vector<string> ConfigCategory::getOptions(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return m_items[i]->m_options;
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
  * Return if the configuration item is a string item
  *
  * @param name		The name of the item to test
@@ -341,6 +470,25 @@ bool ConfigCategory::isString(const string& name) const
 }
 
 /**
+ * Return if the configuration item is an enumeration item
+ *
+ * @param name		The name of the item to test
+ * @return bool		True if the item is a string type
+ * @throws exception	If the item was not found in the configuration category
+ */
+bool ConfigCategory::isEnumeration(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return m_items[i]->m_itemType == CategoryItem::EnumerationItem;
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
  * Return if the configuration item is a JSON item
  *
  * @param name		The name of the item to test
@@ -354,6 +502,82 @@ bool ConfigCategory::isJSON(const string& name) const
 		if (name.compare(m_items[i]->m_name) == 0)
 		{
 			return m_items[i]->m_itemType == CategoryItem::JsonItem;
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
+ * Return if the configuration item is a Bool item
+ *
+ * @param name		The name of the item to test
+ * @return bool		True if the item is a Bool type
+ * @throws exception	If the item was not found in the configuration category
+ */
+bool ConfigCategory::isBool(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return m_items[i]->m_itemType == CategoryItem::BoolItem;
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
+ * Return if the configuration item is a Numeric item
+ *
+ * @param name		The name of the item to test
+ * @return bool		True if the item is a Numeric type
+ * @throws exception	If the item was not found in the configuration category
+ */
+bool ConfigCategory::isNumber(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return m_items[i]->m_itemType == CategoryItem::NumberItem;
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
+ * Return if the configuration item is a Double item
+ *
+ * @param name		The name of the item to test
+ * @return bool		True if the item is a Double type
+ * @throws exception	If the item was not found in the configuration category
+ */
+bool ConfigCategory::isDouble(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return m_items[i]->m_itemType == CategoryItem::DoubleItem;
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
+ * Return if the configuration item is deprecated a item
+ *
+ * @param name		The name of the item to test
+ * @return bool		True if the item is a deprecated type
+ * @throws exception	If the item was not found in the configuration category
+ */
+bool ConfigCategory::isDeprecated(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return ! m_items[i]->m_deprecated.empty();
 		}
 	}
 	throw new ConfigItemNotFound();
@@ -408,8 +632,13 @@ ostringstream convert;
 
 /**
  * Constructor for a configuration item
+ * @param name	The category item name
+ * @param item	The item object to add
+ * @throw	ConfigMalformed exception
+ * @throw	runtime_error exception
  */
-ConfigCategory::CategoryItem::CategoryItem(const string& name, const Value& item)
+ConfigCategory::CategoryItem::CategoryItem(const string& name,
+					   const Value& item)
 {
 	m_name = name;
 	if (! item.IsObject())
@@ -417,45 +646,248 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name, const Value& item
 		throw new ConfigMalformed();
 	}
 	if (item.HasMember("type"))
+	{
 		m_type = item["type"].GetString();
+	}
 	else
+	{
 		m_type = "";
+	}
+
 	if (item.HasMember("description"))
+	{
 		m_description = item["description"].GetString();
+	}
 	else
+	{
 		m_description = "";
-	if (item.HasMember("value") && item["value"].IsString())
+	}
+
+	if (item.HasMember("order"))
+	{
+		m_order = item["order"].GetString();
+	}
+	else
+	{
+		m_order = "";
+	}
+
+
+	if (item.HasMember("minimum"))
+	{
+		m_minimum = item["minimum"].GetString();
+	}
+	else
+	{
+		m_minimum = "";
+	}
+
+	if (item.HasMember("maximum"))
+	{
+		m_maximum = item["maximum"].GetString();
+	}
+	else
+	{
+		m_maximum = "";
+  }
+
+	if (item.HasMember("file"))
+	{
+		m_file = item["file"].GetString();
+	}
+	else
+	{
+		m_file = "";
+	}
+
+	if (item.HasMember("readonly"))
+	{
+		m_readonly = item["readonly"].GetString();
+	}
+	else
+	{
+		m_readonly = "";
+	}
+
+	if (item.HasMember("deprecated"))
+	{
+		m_deprecated = item["deprecated"].GetString();
+	}
+	else
+	{
+		m_deprecated = "";
+	}
+
+	if (item.HasMember("displayName"))
+	{
+		m_displayName = item["displayName"].GetString();
+	}
+	else
+	{
+		m_displayName = "";
+	}
+
+	if (item.HasMember("options"))
+	{
+		const Value& options = item["options"];
+		if (options.IsArray())
+		{
+			for (SizeType i = 0; i < options.Size(); i++)
+			{
+				m_options.push_back(string(options[i].GetString()));
+			}
+		}
+	}
+
+	// Item "value" can be an escaped JSON string, so check m_type JSON as well
+	if (item.HasMember("value") &&
+	    ((item["value"].IsObject() || m_type.compare("JSON") == 0)))
+	{
+		rapidjson::StringBuffer strbuf;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
+		item["value"].Accept(writer);
+		m_value = item["value"].IsObject() ?
+			  // use current string
+			  strbuf.GetString() :
+			  // Unescape the string
+			  this->unescape(strbuf.GetString());
+
+		// If it's not a real eject, check the string buffer it is:
+		if (!item["value"].IsObject())
+		{
+			Document check;
+			check.Parse(m_value.c_str());
+			if (check.HasParseError())
+			{
+				throw new runtime_error(GetParseError_En(check.GetParseError()));
+			}
+			if (!check.IsObject())
+			{
+				throw new runtime_error("'value' JSON property is not an object");
+			}
+		}
+		m_itemType = JsonItem;
+	}
+	// Item "value" is a Bool or m_type is boolean
+	else if (item.HasMember("value") &&
+		 (item["value"].IsBool() || m_type.compare("boolean") == 0))
+	{
+		m_value = !item["value"].IsBool() ?
+			  // use string value
+			  item["value"].GetString() :
+			  // use bool value
+			  item["value"].GetBool() ? "true" : "false";	
+		
+		m_itemType = BoolItem;
+	}
+	// Item "value" is just a string
+	else if (item.HasMember("value") && item["value"].IsString())
 	{
 		m_value = item["value"].GetString();
-		m_itemType = StringItem;
+		if (m_options.size() == 0)
+			m_itemType = StringItem;
+		else
+			m_itemType = EnumerationItem;
 	}
-	else if (item.HasMember("value") && item["value"].IsObject())
+	// Item "value" is a Double
+	else if (item.HasMember("value") && item["value"].IsDouble())
 	{
 		rapidjson::StringBuffer strbuf;
 		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
 		item["value"].Accept(writer);
 		m_value = strbuf.GetString();
-		m_itemType = JsonItem;
+		m_itemType = DoubleItem;
 	}
+	// Item "value" is a Number
+	else if (item.HasMember("value") && item["value"].IsNumber())
+	{
+		// Don't check Uint/Int/Long etc: just get the string value
+		rapidjson::StringBuffer strbuf;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
+		item["value"].Accept(writer);
+		m_value = strbuf.GetString();
+		m_itemType = NumberItem;
+	}
+	// Item "value" has an unknwon type so far: set empty string
 	else
 	{
 		m_value = "";
 	}
-	if (item.HasMember("default") && item["default"].IsString())
+
+	// Item "default" can be an escaped JSON string, so check m_type JSON as well
+	if (item.HasMember("default") &&
+	    ((item["default"].IsObject() || m_type.compare("JSON") == 0)))
+	{
+		rapidjson::StringBuffer strbuf;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
+		item["default"].Accept(writer);
+		m_default = item["default"].IsObject() ?
+			  // use current string
+			  strbuf.GetString() :
+			  // Unescape the string
+			  this->unescape(strbuf.GetString());
+
+		// If it's not a real eject, check the string buffer it is:
+		if (!item["default"].IsObject())
+		{
+			Document check;
+			check.Parse(m_default.c_str());
+			if (check.HasParseError())
+			{
+				throw new runtime_error(GetParseError_En(check.GetParseError()));
+			}
+			if (!check.IsObject())
+			{
+				throw new runtime_error("'default' JSON property is not an object");
+			}
+		}
+		m_itemType = JsonItem;
+	}
+	// Item "default" is a Bool or m_type is boolean
+	else if (item.HasMember("default") &&
+		 (item["default"].IsBool() || m_type.compare("boolean") == 0))
+	{
+		m_default = !item["default"].IsBool() ?
+			    // use string value
+			    item["default"].GetString() :
+			    // use bool value
+			    item["default"].GetBool() ? "true" : "false";	
+		
+		m_itemType = BoolItem;
+	}
+	// Item "default" is just a string
+	else if (item.HasMember("default") && item["default"].IsString())
 	{
 		m_default = item["default"].GetString();
-		m_itemType = StringItem;
+		if (m_options.size() == 0)
+			m_itemType = StringItem;
+		else
+			m_itemType = EnumerationItem;
 	}
-	else if (item.HasMember("default") && item["default"].IsObject())
+	// Item "default" is a Double
+	else if (item.HasMember("default") && item["default"].IsDouble())
 	{
 		rapidjson::StringBuffer strbuf;
 		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
 		item["default"].Accept(writer);
 		m_default = strbuf.GetString();
-		m_itemType = JsonItem;
+		m_itemType = DoubleItem;
+	}
+	// Item "default" is a Number
+	else if (item.HasMember("default") && item["default"].IsNumber())
+	{
+		// Don't check Uint/Int/Long etc: just get the string value
+		rapidjson::StringBuffer strbuf;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
+		item["default"].Accept(writer);
+		m_default = strbuf.GetString();
+		m_itemType = NumberItem;
 	}
 	else
+	// Item "default" has an unknwon type so far: set empty string
+	{
 		m_default = "";
+	}
 }
 
 /**
@@ -474,6 +906,31 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name, const std::string
 }
 
 /**
+ * Copy constructor for configuration item
+ */
+ConfigCategory::CategoryItem::CategoryItem(const CategoryItem& rhs)
+{
+	m_name = rhs.m_name;
+	m_displayName = rhs.m_displayName;
+	m_type = rhs.m_type;
+	m_default = rhs.m_default;
+	m_value = rhs.m_value;
+	m_description = rhs.m_description;
+       	m_order = rhs.m_order;
+       	m_readonly = rhs.m_readonly;
+       	m_deprecated = rhs.m_deprecated;
+       	m_minimum = rhs.m_minimum;
+       	m_maximum = rhs.m_maximum;
+       	m_filename = rhs.m_filename;
+	for (auto it = rhs.m_options.cbegin(); it != rhs.m_options.cend(); it++)
+	{
+		m_options.push_back(*it);
+	}
+       	m_file = rhs.m_file;
+       	m_itemType = rhs.m_itemType;
+}
+
+/**
  * Create a JSON representation of the configuration item
  */
 string ConfigCategory::CategoryItem::toJSON() const
@@ -482,13 +939,33 @@ ostringstream convert;
 
 	convert << "\"" << m_name << "\" : { ";
 	convert << "\"description\" : \"" << m_description << "\", ";
+	if (! m_displayName.empty())
+	{
+		convert << "\"displayName\" : \"" << m_displayName << "\", ";
+	}
 	convert << "\"type\" : \"" << m_type << "\", ";
-	if (m_itemType == StringItem)
+	if (m_options.size() > 0)
+	{
+		convert << "\"options\" : [ ";
+		for (int i = 0; i < m_options.size(); i++)
+		{
+			if (i > 0)
+				convert << ",";
+			convert << "\"" << m_options[i] << "\"";
+		}
+		convert << "],";
+	}
+
+	if (m_itemType == StringItem ||
+	    m_itemType == BoolItem ||
+	    m_itemType == EnumerationItem)
 	{
 		convert << "\"value\" : \"" << m_value << "\", ";
 		convert << "\"default\" : \"" << m_default << "\" }";
 	}
-	else if (m_itemType == JsonItem)
+	else if (m_itemType == JsonItem ||
+		 m_itemType == NumberItem ||
+		 m_itemType == DoubleItem)
 	{
 		convert << "\"value\" : " << m_value << ", ";
 		convert << "\"default\" : " << m_default << " }";
@@ -506,11 +983,63 @@ ostringstream convert;
 	convert << "\"" << m_name << "\" : { ";
 	convert << "\"description\" : \"" << m_description << "\", ";
 	convert << "\"type\" : \"" << m_type << "\", ";
-	if (m_itemType == StringItem)
+
+	if (!m_order.empty())
+	{
+		convert << "\"order\" : \"" << m_order << "\", ";
+	}
+
+	if (!m_minimum.empty())
+	{
+		convert << "\"minimum\" : \"" << m_minimum << "\", ";
+	}
+
+	if (!m_maximum.empty())
+	{
+		convert << "\"maximum\" : \"" << m_maximum << "\", ";
+	}
+
+	if (!m_readonly.empty())
+	{
+		convert << "\"readonly\" : \"" << m_readonly << "\", ";
+	}
+
+	if (!m_file.empty())
+	{
+		convert << "\"file\" : \"" << m_file << "\", ";
+	}
+	if (m_options.size() > 0)
+	{
+		convert << "\"options\" : [ ";
+		for (int i = 0; i < m_options.size(); i++)
+		{
+			if (i > 0)
+				convert << ",";
+			convert << "\"" << m_options[i] << "\"";
+		}
+		convert << "],";
+	}
+
+	if (m_itemType == StringItem ||
+	    m_itemType == EnumerationItem ||
+	    m_itemType == BoolItem)
 	{
 		convert << "\"default\" : \"" << m_default << "\" }";
 	}
-	else if (m_itemType == JsonItem)
+	/**
+	 * NOTE:
+	 * These data types must be all escaped.
+	 * "default" items in the DefaultConfigCategory class are sent to
+	 * ConfigurationManager interface which requires string values only:
+	 *
+	 * examples:
+	 * we must use "100" not 100
+	 * and for JSON
+	 * "{\"pipeline\":[\"scale\"]}" not {"pipeline":["scale"]}
+	 */
+	else if (m_itemType == JsonItem ||
+		 m_itemType == NumberItem ||
+		 m_itemType == DoubleItem)
 	{
 		convert << "\"default\" : \"" << escape(m_default) << "\" }";
 	}
@@ -597,4 +1126,37 @@ string ConfigCategory::itemToJSON(const string& itemName) const
 	convert << "}";
         
 	return convert.str();
+}
+
+/**
+ * Return unescaped version of a JSON string
+ *
+ * Routine removes \" inside the string
+ * and leading and trailing "
+ *
+ * @param subject	Input string
+ * @return		Unescaped string
+ */
+std::string ConfigCategory::CategoryItem::unescape(const std::string& subject) const
+{
+	size_t pos = 0;
+	string replace("");
+	string json = subject;
+
+	// Replace '\"' with '"'
+        while ((pos = json.find("\\\"", pos)) != std::string::npos)
+        {
+                json.replace(pos, 1, "");
+        }
+	// Remove leading '"'
+	if (json[0] == '\"')
+	{
+		json.erase(0, 1);
+	}
+	// Remove trainling '"'
+	if (json[json.length() - 1] == '\"')
+	{
+		json.erase(json.length() - 1, 1);
+	}
+        return json;
 }

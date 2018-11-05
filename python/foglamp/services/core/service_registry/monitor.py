@@ -94,21 +94,23 @@ class Monitor(object):
                             text = await resp.text()
                             res = json.loads(text)
                             if res["uptime"] is None:
-                                raise ValueError('Improper Response')
-                except ValueError:
+                                raise ValueError('res.uptime is None')
+                except (asyncio.TimeoutError, aiohttp.client_exceptions.ServerTimeoutError) as ex:
                     service_record._status = ServiceRecord.Status.Unresponsive
                     check_count[service_record._id] += 1
-                    self._logger.info("Marked as doubtful micro-service %s", service_record.__repr__())
-                except Exception as ex:  # TODO: Fix too broad exception clause
-                    # Fixme: Investigate as why no exception message can appear,
-                    # e.g. FogLAMP[423] INFO: monitor: foglamp.services.core.service_registry.monitor: Exception occurred
-                    # during monitoring:
-
-                    if "" != str(ex).strip():  # i.e. if a genuine exception occurred
-                        self._logger.info("Exception occurred during monitoring: %s", str(ex))
-                        service_record._status = ServiceRecord.Status.Unresponsive
-                        check_count[service_record._id] += 1
-                        self._logger.info("Marked as unresponsive micro-service %s", service_record.__repr__())
+                    self._logger.info("ServerTimeoutError: %s, %s", str(ex), service_record.__repr__())
+                except aiohttp.client_exceptions.ClientConnectorError as ex:
+                    service_record._status = ServiceRecord.Status.Unresponsive
+                    check_count[service_record._id] += 1
+                    self._logger.info("ClientConnectorError: %s, %s", str(ex), service_record.__repr__())
+                except ValueError as ex:
+                    service_record._status = ServiceRecord.Status.Unresponsive
+                    check_count[service_record._id] += 1
+                    self._logger.info("Invalid response: %s, %s", str(ex), service_record.__repr__())
+                except Exception as ex:
+                    service_record._status = ServiceRecord.Status.Unresponsive
+                    check_count[service_record._id] += 1
+                    self._logger.info("Exception occurred: %s, %s", str(ex), service_record.__repr__())
                 else:
                     service_record._status = ServiceRecord.Status.Running
                     check_count[service_record._id] = 1
@@ -129,28 +131,37 @@ class Monitor(object):
             "sleep_interval": {
                 "description": "Time in seconds to sleep between health checks. (must be greater than 5)",
                 "type": "integer",
-                "default": str(self._DEFAULT_SLEEP_INTERVAL)
+                "default": str(self._DEFAULT_SLEEP_INTERVAL),
+                "displayName": "Health Check Interval (In seconds)",
+                "minimum": "5"
             },
             "ping_timeout": {
                 "description": "Timeout for a response from any given micro-service. (must be greater than 0)",
                 "type": "integer",
-                "default": str(self._DEFAULT_PING_TIMEOUT)
+                "default": str(self._DEFAULT_PING_TIMEOUT),
+                "displayName": "Ping Timeout",
+                "minimum": "1",
+                "maximum": "5"
             },
             "max_attempts": {
                 "description": "Maximum number of attempts for finding a heartbeat of service",
                 "type": "integer",
-                "default": str(self._DEFAULT_MAX_ATTEMPTS)
+                "default": str(self._DEFAULT_MAX_ATTEMPTS),
+                "displayName": "Max Attempts To Check Heartbeat",
+                "minimum": "1"
             },
             "restart_failed": {
                 "description": "Restart failed microservice - manual/auto",
-                "type": "string",
-                "default": self._DEFAULT_RESTART_FAILED
+                "type": "enumeration",
+                'options': ['auto', 'manual'],
+                "default": self._DEFAULT_RESTART_FAILED,
+                "displayName": "Restart Failed"
             }
         }
 
         storage_client = connect.get_storage_async()
         cfg_manager = ConfigurationManager(storage_client)
-        await cfg_manager.create_category('SMNTR', default_config, 'Service Monitor')
+        await cfg_manager.create_category('SMNTR', default_config, 'Service Monitor', display_name='Service Monitor')
 
         config = await cfg_manager.get_category_all_items('SMNTR')
 
@@ -170,4 +181,7 @@ class Monitor(object):
         self._monitor_loop_task = asyncio.ensure_future(self._monitor_loop())
 
     async def stop(self):
-        self._monitor_loop_task.cancel()
+        try:
+            self._monitor_loop_task.cancel()
+        except asyncio.CancelledError:
+            pass

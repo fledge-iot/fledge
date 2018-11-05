@@ -194,9 +194,9 @@ class TestScheduler:
         # THEN
         # Confirm that task has started
         assert 1 == len(scheduler._schedule_executions[schedule.id].task_processes)
-        assert 2 == log_info.call_count
-        assert call("Queued schedule '%s' for execution", 'OMF to PI north') == log_info.call_args_list[0]
-        args, kwargs = log_info.call_args_list[1]
+        assert 1 == log_info.call_count
+        # assert call("Queued schedule '%s' for execution", 'OMF to PI north') == log_info.call_args_list[0]
+        args, kwargs = log_info.call_args_list[0]
         assert "Process started: Schedule '%s' process '%s' task %s pid %s, %s running tasks\n%s" in args
         assert 'OMF to PI north' in args
         assert 'North Readings to PI' in args
@@ -1071,7 +1071,7 @@ class TestScheduler:
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
         mocker.patch.object(scheduler, '_schedule_first_task')
-        log_info = mocker.patch.object(scheduler._logger, "info")
+        # log_info = mocker.patch.object(scheduler._logger, "info")
         await scheduler._get_schedules()
         sch_id = uuid.UUID("cea17db8-6ccc-11e7-907b-a6006ad3dba0")  # backup
 
@@ -1087,8 +1087,8 @@ class TestScheduler:
 
         # THEN
         assert isinstance(scheduler._schedule_executions[sch_id], scheduler._ScheduleExecution)
-        log_params = "Queued schedule '%s' for execution", 'purge'
-        log_info.assert_called_with(*log_params)
+        # log_params = "Queued schedule '%s' for execution", 'purge'
+        # log_info.assert_called_with(*log_params)
 
     @pytest.mark.asyncio
     async def test_queue_task_schedule_not_found(self, mocker):
@@ -1262,7 +1262,7 @@ class TestScheduler:
             await scheduler.get_task(task_id)
 
         # THEN
-        payload = {"return": ["id", "process_name", "state", {"alias": "start_time", "format": "YYYY-MM-DD HH24:MI:SS.MS", "column": "start_time"}, {"alias": "end_time", "format": "YYYY-MM-DD HH24:MI:SS.MS", "column": "end_time"}, "reason", "exit_code"], "where": {"column": "id", "condition": "=", "value": str(task_id)}}
+        payload = {"return": ["id", "process_name", "schedule_name", "state", {"alias": "start_time", "format": "YYYY-MM-DD HH24:MI:SS.MS", "column": "start_time"}, {"alias": "end_time", "format": "YYYY-MM-DD HH24:MI:SS.MS", "column": "end_time"}, "reason", "exit_code"], "where": {"column": "id", "condition": "=", "value": str(task_id)}}
         args, kwargs = log_exception.call_args
         assert 'Query failed: %s' == args[0]
         p = json.loads(args[1])
@@ -1313,7 +1313,7 @@ class TestScheduler:
             tasks = await scheduler.get_tasks()
 
         # THEN
-        payload = {"return": ["id", "process_name", "state", {"alias": "start_time", "column": "start_time", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"alias": "end_time", "column": "end_time", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "reason", "exit_code"], "limit": 100}
+        payload = {"return": ["id", "process_name", "schedule_name", "state", {"alias": "start_time", "column": "start_time", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"alias": "end_time", "column": "end_time", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "reason", "exit_code"], "limit": 100}
         args, kwargs = log_exception.call_args
         assert 'Query failed: %s' == args[0]
         p = json.loads(args[1])
@@ -1348,14 +1348,14 @@ class TestScheduler:
 
         # THEN
         assert scheduler._schedule_executions[schedule.id].task_processes[task_id].cancel_requested is not None
-        assert 3 == log_info.call_count
+        assert 2 == log_info.call_count
+        # args, kwargs = log_info.call_args_list[0]
+        # assert ("Queued schedule '%s' for execution", 'OMF to PI north') == args
         args, kwargs = log_info.call_args_list[0]
-        assert ("Queued schedule '%s' for execution", 'OMF to PI north') == args
-        args, kwargs = log_info.call_args_list[1]
         assert "Process started: Schedule '%s' process '%s' task %s pid %s, %s running tasks\n%s" in args
         assert 'OMF to PI north' in args
         assert 'North Readings to PI' in args
-        args, kwargs = log_info.call_args_list[2]
+        args, kwargs = log_info.call_args_list[1]
         assert "Stopping process: Schedule '%s' process '%s' task %s pid %s\n%s" in args
         assert 'OMF to PI north' in args
         assert 'North Readings to PI' in args

@@ -15,6 +15,8 @@ This test file assumes those 2 units are tested
 import asyncio
 import json
 import ssl
+import socket
+import subprocess
 import pathlib
 from unittest.mock import MagicMock, patch
 import pytest
@@ -44,9 +46,18 @@ def ssl_ctx(certs_path):
     return ssl_ctx
 
 
+@pytest.fixture
+def get_machine_detail():
+    host_name = socket.gethostname()
+    # all addresses for the host
+    all_ip_addresses_cmd_res = subprocess.run(['hostname', '-I'], stdout=subprocess.PIPE)
+    ip_addresses = all_ip_addresses_cmd_res.stdout.decode('utf-8').replace("\n", "").strip().split(" ")
+    return host_name, ip_addresses
+
+
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
-async def test_ping_http_allow_ping_true(test_server, test_client, loop):
+async def test_ping_http_allow_ping_true(test_server, test_client, loop, get_machine_detail):
     payload = '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
     result = {"rows": [
         {"value": 1, "key": "PURGED", "description": "blah6"},
@@ -54,6 +65,7 @@ async def test_ping_http_allow_ping_true(test_server, test_client, loop):
         {"value": 3, "key": "North Readings to PI", "description": "blah2"},
         {"value": 4, "key": "North Statistics to PI", "description": "blah3"},
         {"value": 10, "key": "North Statistics to OCS", "description": "blah5"},
+        {"value": 100, "key": "Readings Sent", "description": "Readings Sent North"},
     ]}
 
     @asyncio.coroutine
@@ -63,12 +75,12 @@ async def test_ping_http_allow_ping_true(test_server, test_client, loop):
     async def mock_get_category_item():
         return {"value": "true"}
 
+    host_name, ip_addresses = get_machine_detail
     attrs = {"query_tbl_with_payload.return_value": mock_coro()}
     mockedStorageClientAsync = MagicMock(spec=StorageClientAsync, **attrs)
     with patch.object(middleware._logger, 'info') as logger_info:
         with patch.object(connect, 'get_storage_async', return_value=mockedStorageClientAsync):
             with patch.object(mockedStorageClientAsync, 'query_tbl_with_payload', return_value=mock_coro()) as query_patch:
-                with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat:
                     app = web.Application(loop=loop, middlewares=[middleware.optional_auth_middleware])
                     # fill route table
                     routes.setup(app)
@@ -85,10 +97,14 @@ async def test_ping_http_allow_ping_true(test_server, test_client, loop):
                     content_dict = json.loads(content)
                     assert 0.0 < content_dict["uptime"]
                     assert 2 == content_dict["dataRead"]
-                    assert 17 == content_dict["dataSent"]
+                    assert 100 == content_dict["dataSent"]
                     assert 1 == content_dict["dataPurged"]
                     assert content_dict["authenticationOptional"] is True
-                mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
+                    assert content_dict['serviceName'] == "FogLAMP"
+                    assert content_dict['hostName'] == host_name
+                    assert content_dict['ipAddresses'] == ip_addresses
+                    assert content_dict['health'] == "green"
+
             query_patch.assert_called_once_with('statistics', payload)
         log_params = 'Received %s request for %s', 'GET', '/foglamp/ping'
         logger_info.assert_called_once_with(*log_params)
@@ -96,7 +112,7 @@ async def test_ping_http_allow_ping_true(test_server, test_client, loop):
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
-async def test_ping_http_allow_ping_false(test_server, test_client, loop):
+async def test_ping_http_allow_ping_false(test_server, test_client, loop, get_machine_detail):
     payload = '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
 
     @asyncio.coroutine
@@ -107,17 +123,18 @@ async def test_ping_http_allow_ping_false(test_server, test_client, loop):
             {"value": 3, "key": "North Readings to PI", "description": "blah2"},
             {"value": 4, "key": "North Statistics to PI", "description": "blah3"},
             {"value": 10, "key": "North Statistics to OCS", "description": "blah5"},
+            {"value": 100, "key": "Readings Sent", "description": "Readings Sent North"},
         ]}
         return result
 
     async def mock_get_category_item():
         return {"value": "false"}
 
+    host_name, ip_addresses = get_machine_detail
     mockedStorageClientAsync = MagicMock(StorageClientAsync)
     with patch.object(middleware._logger, 'info') as logger_info:
         with patch.object(connect, 'get_storage_async', return_value=mockedStorageClientAsync):
             with patch.object(mockedStorageClientAsync, 'query_tbl_with_payload', return_value=mock_coro()) as query_patch:
-                with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat:
                     app = web.Application(loop=loop, middlewares=[middleware.optional_auth_middleware])
                     # fill route table
                     routes.setup(app)
@@ -134,10 +151,14 @@ async def test_ping_http_allow_ping_false(test_server, test_client, loop):
                     content_dict = json.loads(content)
                     assert 0.0 < content_dict["uptime"]
                     assert 2 == content_dict["dataRead"]
-                    assert 17 == content_dict["dataSent"]
+                    assert 100 == content_dict["dataSent"]
                     assert 1 == content_dict["dataPurged"]
                     assert content_dict["authenticationOptional"] is True
-                mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
+                    assert content_dict['serviceName'] == "FogLAMP"
+                    assert content_dict['hostName'] == host_name
+                    assert content_dict['ipAddresses'] == ip_addresses
+                    assert content_dict['health'] == "green"
+
             query_patch.assert_called_once_with('statistics', payload)
         log_params = 'Received %s request for %s', 'GET', '/foglamp/ping'
         logger_info.assert_called_once_with(*log_params)
@@ -145,7 +166,7 @@ async def test_ping_http_allow_ping_false(test_server, test_client, loop):
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
-async def test_ping_http_auth_required_allow_ping_true(test_server, test_client, loop):
+async def test_ping_http_auth_required_allow_ping_true(test_server, test_client, loop, get_machine_detail):
     payload = '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
     result = {"rows": [
                 {"value": 1, "key": "PURGED", "description": "blah6"},
@@ -153,6 +174,7 @@ async def test_ping_http_auth_required_allow_ping_true(test_server, test_client,
                 {"value": 3, "key": "North Readings to PI", "description": "blah2"},
                 {"value": 4, "key": "North Statistics to PI", "description": "blah3"},
                 {"value": 10, "key": "North Statistics to OCS", "description": "blah5"},
+                {"value": 100, "key": "Readings Sent", "description": "Readings Sent North"},
                ]}
 
     @asyncio.coroutine
@@ -162,6 +184,7 @@ async def test_ping_http_auth_required_allow_ping_true(test_server, test_client,
     async def mock_get_category_item():
         return {"value": "true"}
 
+    host_name, ip_addresses = get_machine_detail
     mockedStorageClientAsync = MagicMock(StorageClientAsync)
     with patch.object(middleware._logger, 'info') as logger_info:
         with patch.object(connect, 'get_storage_async', return_value=mockedStorageClientAsync):
@@ -183,9 +206,13 @@ async def test_ping_http_auth_required_allow_ping_true(test_server, test_client,
                     content_dict = json.loads(content)
                     assert 0.0 < content_dict["uptime"]
                     assert 2 == content_dict["dataRead"]
-                    assert 17 == content_dict["dataSent"]
+                    assert 100 == content_dict["dataSent"]
                     assert 1 == content_dict["dataPurged"]
                     assert content_dict["authenticationOptional"] is False
+                    assert content_dict['serviceName'] == "FogLAMP"
+                    assert content_dict['hostName'] == host_name
+                    assert content_dict['ipAddresses'] == ip_addresses
+                    assert content_dict['health'] == "green"
                 mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
             query_patch.assert_called_once_with('statistics', payload)
         log_params = 'Received %s request for %s', 'GET', '/foglamp/ping'
@@ -194,7 +221,7 @@ async def test_ping_http_auth_required_allow_ping_true(test_server, test_client,
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
-async def test_ping_http_auth_required_allow_ping_false(test_server, test_client, loop):
+async def test_ping_http_auth_required_allow_ping_false(test_server, test_client, loop, get_machine_detail):
     payload = '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
     result = {"rows": [
         {"value": 1, "key": "PURGED", "description": "blah6"},
@@ -202,6 +229,7 @@ async def test_ping_http_auth_required_allow_ping_false(test_server, test_client
         {"value": 3, "key": "North Readings to PI", "description": "blah2"},
         {"value": 4, "key": "North Statistics to PI", "description": "blah3"},
         {"value": 5, "key": "North Statistics to OCS", "description": "blah5"},
+        {"value": 100, "key": "Readings Sent", "description": "Readings Sent North"},
     ]}
 
     @asyncio.coroutine
@@ -211,6 +239,7 @@ async def test_ping_http_auth_required_allow_ping_false(test_server, test_client
     async def mock_get_category_item():
         return {"value": "false"}
 
+    host_name, ip_addresses = get_machine_detail
     mockedStorageClientAsync = MagicMock(StorageClientAsync)
     with patch.object(middleware._logger, 'info') as logger_info:
         with patch.object(connect, 'get_storage_async', return_value=mockedStorageClientAsync):
@@ -238,7 +267,7 @@ async def test_ping_http_auth_required_allow_ping_false(test_server, test_client
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
-async def test_ping_https_allow_ping_true(test_server, ssl_ctx, test_client, loop):
+async def test_ping_https_allow_ping_true(test_server, ssl_ctx, test_client, loop, get_machine_detail):
     payload = '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
     result = {"rows": [
                 {"value": 1, "key": "PURGED", "description": "blah6"},
@@ -246,6 +275,7 @@ async def test_ping_https_allow_ping_true(test_server, ssl_ctx, test_client, loo
                 {"value": 3, "key": "North Readings to PI", "description": "blah2"},
                 {"value": 4, "key": "North Statistics to PI", "description": "blah3"},
                 {"value": 10, "key": "North Statistics to OCS", "description": "blah5"},
+                {"value": 100, "key": "Readings Sent", "description": "Readings Sent North"},
                ]}
 
     @asyncio.coroutine
@@ -255,11 +285,11 @@ async def test_ping_https_allow_ping_true(test_server, ssl_ctx, test_client, loo
     async def mock_get_category_item():
         return {"value": "true"}
 
+    host_name, ip_addresses = get_machine_detail
     mockedStorageClientAsync = MagicMock(StorageClientAsync)
     with patch.object(middleware._logger, 'info') as logger_info:
         with patch.object(connect, 'get_storage_async', return_value=mockedStorageClientAsync):
             with patch.object(mockedStorageClientAsync, 'query_tbl_with_payload', return_value=mock_coro()) as query_patch:
-                with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat:
                     app = web.Application(loop=loop, middlewares=[middleware.optional_auth_middleware])
                     # fill route table
                     routes.setup(app)
@@ -290,17 +320,20 @@ async def test_ping_https_allow_ping_true(test_server, ssl_ctx, test_client, loo
                     content_dict = json.loads(content)
                     assert 0.0 < content_dict["uptime"]
                     assert 2 == content_dict["dataRead"]
-                    assert 17 == content_dict["dataSent"]
+                    assert 100 == content_dict["dataSent"]
                     assert 1 == content_dict["dataPurged"]
                     assert content_dict["authenticationOptional"] is True
-                mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
+                    assert content_dict['serviceName'] == "FogLAMP"
+                    assert content_dict['hostName'] == host_name
+                    assert content_dict['ipAddresses'] == ip_addresses
+                    assert content_dict['health'] == "green"
             query_patch.assert_called_once_with('statistics', payload)
         logger_info.assert_called_once_with('Received %s request for %s', 'GET', '/foglamp/ping')
 
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
-async def test_ping_https_allow_ping_false(test_server, ssl_ctx, test_client, loop):
+async def test_ping_https_allow_ping_false(test_server, ssl_ctx, test_client, loop, get_machine_detail):
     payload = '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
     result = {"rows": [
         {"value": 1, "key": "PURGED", "description": "blah6"},
@@ -308,6 +341,7 @@ async def test_ping_https_allow_ping_false(test_server, ssl_ctx, test_client, lo
         {"value": 3, "key": "North Readings to PI", "description": "blah2"},
         {"value": 4, "key": "North Statistics to PI", "description": "blah3"},
         {"value": 6, "key": "North Statistics to OCS", "description": "blah5"},
+        {"value": 100, "key": "Readings Sent", "description": "Readings Sent North"},
     ]}
 
     @asyncio.coroutine
@@ -317,11 +351,11 @@ async def test_ping_https_allow_ping_false(test_server, ssl_ctx, test_client, lo
     async def mock_get_category_item():
         return {"value": "false"}
 
+    host_name, ip_addresses = get_machine_detail
     mockedStorageClientAsync = MagicMock(StorageClientAsync)
     with patch.object(middleware._logger, 'info') as logger_info:
         with patch.object(connect, 'get_storage_async', return_value=mockedStorageClientAsync):
             with patch.object(mockedStorageClientAsync, 'query_tbl_with_payload', return_value=mock_coro()) as query_patch:
-                with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat:
                     app = web.Application(loop=loop, middlewares=[middleware.optional_auth_middleware])
                     # fill route table
                     routes.setup(app)
@@ -348,14 +382,20 @@ async def test_ping_https_allow_ping_false(test_server, ssl_ctx, test_client, lo
                     s = resp.request_info.url.human_repr()
                     assert "https" == s[:5]
                     assert 200 == resp.status
-                mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
+                    content = await resp.text()
+                    content_dict = json.loads(content)
+                    assert content_dict['serviceName'] == "FogLAMP"
+                    assert content_dict['hostName'] == host_name
+                    assert content_dict['ipAddresses'] == ip_addresses
+                    assert content_dict['health'] == "green"
+
             query_patch.assert_called_once_with('statistics', payload)
         logger_info.assert_called_once_with('Received %s request for %s', 'GET', '/foglamp/ping')
 
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
-async def test_ping_https_auth_required_allow_ping_true(test_server, ssl_ctx, test_client, loop):
+async def test_ping_https_auth_required_allow_ping_true(test_server, ssl_ctx, test_client, loop, get_machine_detail):
     payload = '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
     result = {"rows": [
                 {"value": 1, "key": "PURGED", "description": "blah6"},
@@ -363,6 +403,7 @@ async def test_ping_https_auth_required_allow_ping_true(test_server, ssl_ctx, te
                 {"value": 3, "key": "North Readings to PI", "description": "blah2"},
                 {"value": 4, "key": "North Statistics to PI", "description": "blah3"},
                 {"value": 10, "key": "North Statistics to OCS", "description": "blah5"},
+                {"value": 100, "key": "Readings Sent", "description": "Readings Sent North"},
                ]}
 
     @asyncio.coroutine
@@ -372,6 +413,7 @@ async def test_ping_https_auth_required_allow_ping_true(test_server, ssl_ctx, te
     async def mock_get_category_item():
         return {"value": "true"}
 
+    host_name, ip_addresses = get_machine_detail
     mockedStorageClientAsync = MagicMock(StorageClientAsync)
     with patch.object(middleware._logger, 'info') as logger_info:
         with patch.object(connect, 'get_storage_async', return_value=mockedStorageClientAsync):
@@ -407,9 +449,13 @@ async def test_ping_https_auth_required_allow_ping_true(test_server, ssl_ctx, te
                     content_dict = json.loads(content)
                     assert 0.0 < content_dict["uptime"]
                     assert 2 == content_dict["dataRead"]
-                    assert 17 == content_dict["dataSent"]
+                    assert 100 == content_dict["dataSent"]
                     assert 1 == content_dict["dataPurged"]
                     assert content_dict["authenticationOptional"] is False
+                    assert content_dict['serviceName'] == "FogLAMP"
+                    assert content_dict['hostName'] == host_name
+                    assert content_dict['ipAddresses'] == ip_addresses
+                    assert content_dict['health'] == "green"
                     mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
                 query_patch.assert_called_once_with('statistics', payload)
             logger_info.assert_called_once_with('Received %s request for %s', 'GET', '/foglamp/ping')
@@ -417,7 +463,7 @@ async def test_ping_https_auth_required_allow_ping_true(test_server, ssl_ctx, te
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
-async def test_ping_https_auth_required_allow_ping_false(test_server, ssl_ctx, test_client, loop):
+async def test_ping_https_auth_required_allow_ping_false(test_server, ssl_ctx, test_client, loop, get_machine_detail):
     payload = '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
 
     @asyncio.coroutine
@@ -428,14 +474,15 @@ async def test_ping_https_auth_required_allow_ping_false(test_server, ssl_ctx, t
             {"value": 3, "key": "North Readings to PI", "description": "blah2"},
             {"value": 4, "key": "North Statistics to PI", "description": "blah3"},
             {"value": 6, "key": "North Statistics to OCS", "description": "blah5"},
+            {"value": 100, "key": "Readings Sent", "description": "Readings Sent North"},
         ]}
         return result
 
     async def mock_get_category_item():
         return {"value": "false"}
 
+    host_name, ip_addresses = get_machine_detail
     mockedStorageClientAsync = MagicMock(StorageClientAsync)
-
     with patch.object(middleware._logger, 'info') as logger_info:
         with patch.object(connect, 'get_storage_async', return_value=mockedStorageClientAsync):
             with patch.object(mockedStorageClientAsync, 'query_tbl_with_payload', return_value=mock_coro()) as query_patch:

@@ -52,36 +52,39 @@ fi
 
 
 # Now run Foglamp update commands.
-
-UPDATE_CMD="sudo apt update"
-FOGLAMP_UPDATE_CMD="sudo apt-get -y install foglamp"
+UPDATE_CMD="sudo apt-get -y --allow-unauthenticated update"
+FOGLAMP_UPDATE_CMD="sudo apt-get -y --allow-unauthenticated install foglamp"
 
 
 # Update apt-get
-UPDATE_CMD_STATUS=`$UPDATE_CMD`
-if [ "${UPDATE_CMD_STATUS}" = "" ]; then
-    logger -p local0.err -t "FogLAMP[${$}]" "${TASK_NAME} $0: cannot run \"${UPDATE_CMD}\" command: \"${UPDATE_CMD_STATUS}\""
+logger -p local0.err -t "FogLAMP[${$}]" "$TASK_NAME $0: Starting ${UPDATE_CMD} command"
+UPDATE_CMD_OUT=`$UPDATE_CMD`
+UPDATE_CMD_STATUS="$?"
+if [ "$UPDATE_CMD_STATUS" != "0" ]; then
+    logger -p local0.err -t "FogLAMP[${$}]" "$TASK_NAME $0: Error: $UPDATE_CMD. Exit: $UPDATE_CMD_STATUS. Out: $UPDATE_CMD_OUT"
     exit 1
 fi
 
 
 # Update FogLAMP
-FOGLAMP_UPDATE_CMD_STATUS=`$FOGLAMP_UPDATE_CMD`
-if [ "${FOGLAMP_UPDATE_CMD_STATUS}" = "" ]; then
-    logger -p local0.err -t "FogLAMP[${$}]" "${TASK_NAME} $0: cannot run \"${FOGLAMP_UPDATE_CMD}\" command: \"${FOGLAMP_UPDATE_CMD_STATUS}\""
+logger -p local0.err -t "FogLAMP[${$}]" "$TASK_NAME $0: Starting ${FOGLAMP_UPDATE_CMD} command"
+FOGLAMP_UPDATE_CMD_OUT=`$FOGLAMP_UPDATE_CMD`
+FOGLAMP_UPDATE_CMD_STATUS="$?"
+if [ "$FOGLAMP_UPDATE_CMD_STATUS" != "0" ]; then
+    logger -p local0.err -t "FogLAMP[${$}]" "$TASK_NAME $0: Error: $FOGLAMP_UPDATE_CMD. Exit: $FOGLAMP_UPDATE_CMD_STATUS. Out: $FOGLAMP_UPDATE_CMD_OUT"
     exit 1
 fi
 
 
-# Everything fine, so restart Foglamp
+# Start Foglamp
+
 START_FOGLAMP_CMD="${FOGLAMP_ROOT}/bin/foglamp start"
-START_FOGLAMP_CMD_STATUS=`$START_FOGLAMP_CMD`
-sleep 15
-if [ "${START_FOGLAMP_CMD_STATUS}" = "" ]; then
-    logger -p local0.err -t "FogLAMP[${$}]" "${TASK_NAME} $0: cannot run \"${START_FOGLAMP_CMD}\" command: \"${START_FOGLAMP_CMD_STATUS}\""
+START_FOGLAMP_CMD_OUT=`$START_FOGLAMP_CMD`
+START_FOGLAMP_CMD_STATUS="$?"
+if [ "$START_FOGLAMP_CMD_STATUS" != "0" ]; then
+    logger -p local0.err -t "FogLAMP[${$}]" "$TASK_NAME $0: Error: $START_FOGLAMP_CMD. Exit: $START_FOGLAMP_CMD_STATUS. Out: $START_FOGLAMP_CMD_OUT"
     exit 1
 fi
-
 
 logger -p local0.err -t "FogLAMP[${$}]" "${TASK_NAME} $0: Foglamp updated successfully!"
 echo "FogLAMP updated successfully!"

@@ -232,7 +232,7 @@ bool OMF::sendDataTypes(const Reading& row)
 	{
 		if (OMF::isDataTypeError(e.what()))
 		{
-			// Data tyoe error: force type-id change
+			// Data type error: force type-id change
 			m_changeTypeId = true;
 		}
 		Logger::getLogger()->error("Sending JSON dataType message 'Container' "
@@ -285,7 +285,7 @@ bool OMF::sendDataTypes(const Reading& row)
 	{
 		if (OMF::isDataTypeError(e.what()))
 		{
-			// Data tyoe error: force type-id change
+			// Data type error: force type-id change
 			m_changeTypeId = true;
 		}
 		Logger::getLogger()->error("Sending JSON dataType message 'StaticData'"

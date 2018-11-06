@@ -45,9 +45,9 @@ SimpleHttps::~SimpleHttps()
  * @param path      The URL path
  * @param headers   The optional headers to send
  * @param payload   The optional data payload (for POST, PUT)
- * @return          The HTTP code for the cases : 1xx Informational / 2xx Success / 3xx Redirezione
+ * @return          The HTTP code for the cases : 1xx Informational / 2xx Success / 3xx Redirection
  * @throw	    BadRequest for HTTP 400 error
- *		    std::exception as generic exception for all the cases >= 401 Client Error / 5xx Server Error
+ *		    std::exception as generic exception for all the cases >= 401 Client errors / 5xx Server errors
  */
 int SimpleHttps::sendRequest(const string& method,
 			    const string& path,

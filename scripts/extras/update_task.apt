@@ -20,16 +20,18 @@ __license__="Apache 2.0"
 __version__="1.1"
 
 
+# Set the default value for FOGLAMP_ROOT if not set
+if [ "${FOGLAMP_ROOT}" = "" ]; then
+	export FOGLAMP_ROOT='/usr/local/foglamp'
+fi
+
+
 # Include logging: it works only with bash
 . "${FOGLAMP_ROOT}/scripts/common/write_log.sh" || exit 1
 
 # Ignore signals: 1-SIGHUP, 2-SIGINT, 3-SIGQUIT, 6-SIGABRT, 15-SIGTERM
 trap "" 1 2 3 6 15
 
-# Set the default value for FOGLAMP_ROOT if not set
-if [ "${FOGLAMP_ROOT}" = "" ]; then
-	export FOGLAMP_ROOT='/usr/local/foglamp'
-fi
 
 # Check availability of FOGLAMP_ROOT directory
 if [ ! -d "${FOGLAMP_ROOT}" ]; then
@@ -46,7 +48,7 @@ STOP_FOGLAMP_CMD="${FOGLAMP_ROOT}/bin/foglamp stop"
 STOP_FOGLAMP_CMD_STATUS=`$STOP_FOGLAMP_CMD`
 sleep 15
 if [ "${STOP_FOGLAMP_CMD_STATUS}" = "" ]; then
-    write_log "FogLAMP[${$}]" "err" "${TASK_NAME} $0: cannot run \"${STOP_FOGLAMP_CMD}\" command"
+    logger -p local0.err -t "FogLAMP[${$}]" "err" "${TASK_NAME} $0: cannot run \"${STOP_FOGLAMP_CMD}\" command"
     exit 1
 fi
 
@@ -81,7 +83,7 @@ fi
 START_FOGLAMP_CMD="${FOGLAMP_ROOT}/bin/foglamp start"
 START_FOGLAMP_CMD_OUT=`$START_FOGLAMP_CMD`
 START_FOGLAMP_CMD_STATUS="$?"
-if [ "$START_FOGLAMP_CMD_STATUS" != "0" ]; then
+if [ "$START_FOGLAMP_CMD_OUT" = "" ]; then
     logger -p local0.err -t "FogLAMP[${$}]" "$TASK_NAME $0: Error: $START_FOGLAMP_CMD. Exit: $START_FOGLAMP_CMD_STATUS. Out: $START_FOGLAMP_CMD_OUT"
     exit 1
 fi

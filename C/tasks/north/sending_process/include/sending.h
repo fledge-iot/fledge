@@ -99,6 +99,7 @@ class SendingProcess : public FogLampProcess
 		std::thread*			m_thread_load;
 		std::thread*			m_thread_send;
 		NorthPlugin*			m_plugin;
+		std::vector<unsigned long>	m_last_read_id;
 
 	private:
 		bool				m_running;

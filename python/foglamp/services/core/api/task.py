@@ -5,6 +5,7 @@
 # FOGLAMP_END
 
 import datetime
+import uuid
 
 from aiohttp import web
 
@@ -26,7 +27,8 @@ __version__ = "${VERSION}"
 
 _help = """
     -------------------------------------------------------------------------------
-    | GET POST            | /foglamp/scheduled/task                               |
+    | POST                 | /foglamp/scheduled/task                              |
+    | DELETE               | /foglamp/scheduled/task/{task_name}                  |
     -------------------------------------------------------------------------------
 """
 
@@ -215,8 +217,8 @@ async def add_task(request):
                 for k, v in config.items():
                     await config_mgr.set_category_item_value_entry(name, k, v['value'])
         except Exception as ex:
-            await revert_configuration(storage, name)  # Revert configuration entry
-            await revert_parent_child_configuration(storage, name)
+            await delete_configuration(storage, name)  # Revert configuration entry
+            await delete_parent_child_configuration(storage, name)
             _logger.exception("Failed to create plugin configuration. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to create plugin configuration.')
 
@@ -239,13 +241,13 @@ async def add_task(request):
             await server.Server.scheduler.save_schedule(schedule, is_enabled)
             schedule = await server.Server.scheduler.get_schedule_by_name(name)
         except StorageServerError as ex:
-            await revert_configuration(storage, name)  # Revert configuration entry
-            await revert_parent_child_configuration(storage, name)
+            await delete_configuration(storage, name)  # Revert configuration entry
+            await delete_parent_child_configuration(storage, name)
             _logger.exception("Failed to create schedule. %s", ex.error)
             raise web.HTTPInternalServerError(reason='Failed to create north instance.')
         except Exception as ex:
-            await revert_configuration(storage, name)  # Revert configuration entry
-            await revert_parent_child_configuration(storage, name)
+            await delete_configuration(storage, name)  # Revert configuration entry
+            await delete_parent_child_configuration(storage, name)
             _logger.exception("Failed to create schedule. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to create north instance.')
 
@@ -253,6 +255,51 @@ async def add_task(request):
         raise web.HTTPBadRequest(reason=str(e))
     else:
         return web.json_response({'name': name, 'id': str(schedule.schedule_id)})
+
+
+async def delete_task(request):
+    """ Delete a north plugin instance task
+
+        :Example:
+            curl -X DELETE http://localhost:8081/foglamp/scheduled/task/<task name>
+    """
+    try:
+        north_instance = request.match_info.get('task_name', None)
+
+        if north_instance is None or north_instance.strip() == '':
+            raise web.HTTPBadRequest(reason='Missing task_name in requested URL')
+
+        storage = connect.get_storage_async()
+
+        result = await get_schedule(storage, north_instance)
+        if result['count'] == 0:
+            raise web.HTTPBadRequest(reason='A north instance task with this name does not exist.')
+
+        north_instance_schedule = result['rows'][0]
+        sch_id = uuid.UUID(north_instance_schedule['id'])
+        if north_instance_schedule['enabled'].lower() == 't':
+            # disable it
+            await server.Server.scheduler.disable_schedule(sch_id)
+        # delete it
+        await server.Server.scheduler.delete_schedule(sch_id)
+
+        # delete all configuration for the north task instance name
+        await delete_configuration(storage, north_instance)
+        await delete_parent_child_configuration(storage, north_instance)
+
+        # delete statistics key
+        await delete_statistics_key(storage, north_instance)
+
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason=ex)
+    else:
+        return web.json_response({'result': 'North instance {} deleted successfully.'.format(north_instance)})
+
+
+async def get_schedule(storage, schedule_name):
+    payload = PayloadBuilder().SELECT(["id", "enabled"]).WHERE(['schedule_name', '=', schedule_name]).payload()
+    result = await storage.query_tbl_with_payload('schedules', payload)
+    return result
 
 
 async def check_scheduled_processes(storage, process_name):
@@ -267,7 +314,7 @@ async def check_schedules(storage, schedule_name):
     return result['count']
 
 
-async def revert_configuration(storage, key):
+async def delete_configuration(storage, key):
     payload = PayloadBuilder().WHERE(['key', '=', key]).payload()
     await storage.delete_from_tbl('configuration', payload)
     # Removed key from configuration cache
@@ -275,6 +322,11 @@ async def revert_configuration(storage, key):
     config_mgr._cacheManager.remove(key)
 
 
-async def revert_parent_child_configuration(storage, key):
+async def delete_parent_child_configuration(storage, key):
     payload = PayloadBuilder().WHERE(['parent', '=', "North"]).AND_WHERE(['child', '=', key]).payload()
     await storage.delete_from_tbl('category_children', payload)
+
+
+async def delete_statistics_key(storage, key):
+    payload = PayloadBuilder().WHERE(['key', '=', key]).payload()
+    await storage.delete_from_tbl('statistics', payload)

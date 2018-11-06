@@ -6,6 +6,7 @@
 
 import datetime
 from aiohttp import web
+import uuid
 
 from foglamp.common import utils
 from foglamp.common import logger
@@ -18,6 +19,8 @@ from foglamp.services.core import connect
 from foglamp.services.core.api import utils as apiutils
 from foglamp.services.core.scheduler.entities import StartUpSchedule
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
+from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
+
 
 __author__ = "Mark Riddoch, Ashwin Gopalakrishnan, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -67,6 +70,49 @@ async def get_health(request):
     """
     response = get_service_records()
     return web.json_response(response)
+
+
+async def delete_service(request):
+    """ Delete an existing service
+
+    :Example:
+        curl -X DELETE http://localhost:8081/foglamp/service/<svc name>
+    """
+
+    try:
+        svc = request.match_info.get('service_name', None)
+
+        if svc is None or svc.strip() == '':
+            raise web.HTTPBadRequest(reason='Missing service_name in requested URL')
+
+        try:
+            svcs = ServiceRegistry.get(name=svc)
+        except service_registry_exceptions.DoesNotExist:
+            pass
+        else:
+            # shutdown of service does not remove it from service registry via unregister
+            ServiceRegistry.remove_from_registry(svcs[0]._id)
+
+        storage = connect.get_storage_async()
+
+        result = await get_schedule(storage, svc)
+        if result['count'] == 0:
+            raise web.HTTPBadRequest(reason='A service with this name does not exist.')
+
+        svc_schedule = result['rows'][0]
+        sch_id = uuid.UUID(svc_schedule['id'])
+        if svc_schedule['enabled'].lower() == 't':
+            # disable it
+            await server.Server.scheduler.disable_schedule(sch_id)
+        # delete it
+        await server.Server.scheduler.delete_schedule(sch_id)
+
+        # delete all configuration for the service name
+        await delete_configuration(storage, svc)
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason=ex)
+    else:
+        return web.json_response({'result': 'Service {} deleted successfully.'.format(svc)})
 
 
 async def add_service(request):
@@ -189,8 +235,7 @@ async def add_service(request):
                     await config_mgr.set_category_item_value_entry(name, k, v['value'])
 
         except Exception as ex:
-            await revert_configuration(storage, name)  # Revert configuration entry
-            await revert_parent_child_configuration(storage, name)
+            await delete_configuration(storage, name)  # Revert configuration entry
             _logger.exception("Failed to create plugin configuration. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to create plugin configuration.')
 
@@ -208,13 +253,11 @@ async def add_service(request):
             await server.Server.scheduler.save_schedule(schedule, is_enabled)
             schedule = await server.Server.scheduler.get_schedule_by_name(name)
         except StorageServerError as ex:
-            await revert_configuration(storage, name)  # Revert configuration entry
-            await revert_parent_child_configuration(storage, name)
+            await delete_configuration(storage, name)  # Revert configuration entry
             _logger.exception("Failed to create schedule. %s", ex.error)
             raise web.HTTPInternalServerError(reason='Failed to create service.')
         except Exception as ex:
-            await revert_configuration(storage, name)  # Revert configuration entry
-            await revert_parent_child_configuration(storage, name)
+            await delete_configuration(storage, name)  # Revert configuration entry
             _logger.exception("Failed to create service. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to create service.')
 
@@ -236,14 +279,33 @@ async def check_schedules(storage, schedule_name):
     return result['count']
 
 
-async def revert_configuration(storage, key):
+async def get_schedule(storage, schedule_name):
+    payload = PayloadBuilder().SELECT(["id", "enabled"]).WHERE(['schedule_name', '=', schedule_name]).payload()
+    result = await storage.query_tbl_with_payload('schedules', payload)
+    return result
+
+
+async def delete_configuration(storage, key):
+    await delete_configuration_category(storage, key)
+    await delete_configuration_category(storage, "{}Advanced".format(key))
+    await delete_parent_child_configuration(storage, key)
+    await delete_advance_child_configuration(storage, key)
+
+
+async def delete_configuration_category(storage, key):
     payload = PayloadBuilder().WHERE(['key', '=', key]).payload()
     await storage.delete_from_tbl('configuration', payload)
+
     # Removed key from configuration cache
     config_mgr = ConfigurationManager(storage)
     config_mgr._cacheManager.remove(key)
 
 
-async def revert_parent_child_configuration(storage, key):
+async def delete_parent_child_configuration(storage, key):
     payload = PayloadBuilder().WHERE(['parent', '=', "South"]).AND_WHERE(['child', '=', key]).payload()
+    await storage.delete_from_tbl('category_children', payload)
+
+
+async def delete_advance_child_configuration(storage, key):
+    payload = PayloadBuilder().WHERE(['parent', '=', key]).payload()
     await storage.delete_from_tbl('category_children', payload)

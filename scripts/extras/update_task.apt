@@ -52,8 +52,8 @@ fi
 
 
 # Now run Foglamp update commands.
-UPDATE_CMD="sudo apt-get -y --allow-unauthenticated update"
-FOGLAMP_UPDATE_CMD="sudo apt-get -y --allow-unauthenticated install foglamp"
+UPDATE_CMD="sudo apt-get -y update"
+FOGLAMP_UPDATE_CMD="sudo apt-get -y install foglamp"
 
 
 # Update apt-get

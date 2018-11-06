@@ -456,12 +456,9 @@ static void sendDataThread(SendingProcess *sendData)
 					sendData->setUpdateDb(false);
 				}
 
-				// FIXME:
-				Logger::getLogger()->debug("DBG - before sleep ");
 				// Error: just wait & continue
 				this_thread::sleep_for(chrono::milliseconds(sleep_time));
 				slept = true;
-				Logger::getLogger()->debug("DBG - after sleep ");
 			}
                 }
 

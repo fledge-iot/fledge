@@ -222,6 +222,16 @@ static void loadDataThread(SendingProcess *loadData)
 				loadData->setLastFetchId(readings->getLastId());
 
 				/**
+				 * Set last fetched reading Id for buffer index
+				 * This is used by send thread whiule updating the next
+				 * position to read from db.
+				 * NOTE:
+				 * The saved position is not ffected by the filters
+				 * called below which can skip some or all input readings.
+				 */
+				loadData->m_last_read_id.at(readIdx) = readings->getLastId();
+
+				/**
 				 * The buffer access is protected by a mutex
 				 */
                 	        readMutex.lock();
@@ -343,8 +353,8 @@ static void sendDataThread(SendingProcess *sendData)
 				sendData->setUpdateDb(false);
 			}
 
-			if (sendData->isRunning()) {
-
+			if (sendData->isRunning())
+			{
 				// Send thread is put on hold, only if the execution shoule proceed
 				unique_lock<mutex> lock(waitMutex);
 				cond_var.wait(lock);
@@ -359,11 +369,31 @@ static void sendDataThread(SendingProcess *sendData)
 			 * transformed using historian protocol and then sent to destination.
 			 */
 
-			const vector<Reading *> &readingData = sendData->m_buffer.at(sendIdx)->getAllReadings();
+			bool emptyReadings = sendData->m_buffer[sendIdx]->getCount() == 0;
+			uint32_t sentReadings = 0;
+			bool processUpdate = false;
 
-			uint32_t sentReadings = sendData->m_plugin->send(readingData);
+			if (!emptyReadings)
+			{
+				// We have some readings to send
+				const vector<Reading *> &readingData = sendData->m_buffer.at(sendIdx)->getAllReadings();
+				sentReadings = sendData->m_plugin->send(readingData);
+				// Check sent readings result
+				if (sentReadings)
+				{
+					processUpdate = true;
+				}
+			}
+			else
+			{
+				// We have an empty readings set: check last id
+				if (sendData->m_last_read_id.at(sendIdx) > 0)
+				{
+					processUpdate = true;
+				}
+			}
 
-			if (sentReadings)
+			if (processUpdate)
 			{
 				/** Sending done */
 				sendData->setUpdateDb(true);
@@ -374,11 +404,14 @@ static void sendDataThread(SendingProcess *sendData)
 				 */
 				readMutex.lock();
 
-				// Update last sent reading Id
-				sendData->setLastSentId(readingData.back()->getId());
+				// Update last sent reading Id using the last id of the unfiltered readings buffer
+				sendData->setLastSentId(sendData->m_last_read_id.at(sendIdx));
 
+				// Free buffer
 				delete sendData->m_buffer.at(sendIdx);
 				sendData->m_buffer.at(sendIdx) = NULL;
+				// Reset buffer last id
+				sendData->m_last_read_id.at(sendIdx) = 0;
 
 				/** 2- Update sent counter (memory only) */
 				sendData->updateSentReadings(sentReadings);
@@ -396,12 +429,14 @@ static void sendDataThread(SendingProcess *sendData)
 			}
 			else
 			{
-				Logger::getLogger()->error("SendingProcess sendDataThread: Error while sending" \
-							   "('%s' stream id %d), sendIdx %u. N. (%d readings)",
+				Logger::getLogger()->error("SendingProcess sendDataThread: Error while sending " \
+							   "('%s' stream id %d), sendIdx %u, N. (%d readings), " \
+							   ", last reading id in buffer %ld",
 							   sendData->getDataSourceType().c_str(),
 							   sendData->getStreamId(),
 							   sendIdx,
-							   sendData->m_buffer[sendIdx]->getCount());
+							   sendData->m_buffer[sendIdx]->getCount(),
+							   sendData->m_last_read_id.at(sendIdx));
 
 				if (sendData->getUpdateDb())
 				{

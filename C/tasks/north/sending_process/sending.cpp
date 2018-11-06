@@ -115,6 +115,8 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 
         // Set buffer of ReadingSet with NULLs
 	m_buffer.resize(DATA_BUFFER_ELMS, NULL);
+	// Initialise buffer last read id
+	m_last_read_id.resize(DATA_BUFFER_ELMS, 0);
 	// Set the static pointer
 	m_buffer_ptr = &m_buffer;
 

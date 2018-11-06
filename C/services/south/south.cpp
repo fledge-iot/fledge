@@ -304,6 +304,48 @@ void SouthService::stop()
 }
 
 /**
+ * Creates config categories and sub categories recursively, along with their parent-child relations
+ */
+void SouthService::createConfigCategories(DefaultConfigCategory configCategory, std::string parent_name, std::string current_name)
+{
+
+	// Deal with registering and fetching the configuration
+	DefaultConfigCategory defConfig(configCategory);
+	defConfig.setDescription(current_name);	// TODO We do not have access to the description
+
+	DefaultConfigCategory defConfigCategoryOnly(defConfig);
+	defConfigCategoryOnly.keepItemsType(ConfigCategory::ItemType::CategoryType);
+	defConfig.removeItemsType(ConfigCategory::ItemType::CategoryType);
+
+	// Create/Update category name (we pass keep_original_items=true)
+	m_mgtClient->addCategory(defConfig, true);
+
+	// Add this service under 'South' parent category
+	vector<string> children;
+	children.push_back(current_name);
+	m_mgtClient->addChildCategories(parent_name, children);
+
+	// Adds sub categories to the configuration
+	bool extracted = true;
+	ConfigCategory subCategory;
+	while (extracted) {
+
+		extracted = subCategory.extractSubcategory(defConfigCategoryOnly);
+
+		if (extracted) {
+			DefaultConfigCategory defSubCategory(subCategory);
+
+			createConfigCategories(defSubCategory, current_name, subCategory.getName());
+
+			// Cleans the category
+			subCategory.removeItems();
+			subCategory = ConfigCategory() ;
+		}
+	}
+
+}
+
+/**
  * Load the configured south plugin
  *
  * TODO Should search for the plugin in specified locations
@@ -323,20 +365,14 @@ bool SouthService::loadPlugin()
 		PLUGIN_HANDLE handle;
 		if ((handle = manager->loadPlugin(plugin, PLUGIN_TYPE_SOUTH)) != NULL)
 		{
-			// Deal with registering and fetching the configuration
+			// Adds categories and sub categories to the configuration
 			DefaultConfigCategory defConfig(m_name, manager->getInfo(handle)->config);
-			defConfig.setDescription(m_name);	// TODO We do not have access to the description
-
-			// Create/Update category name (we pass keep_original_items=true)
-			m_mgtClient->addCategory(defConfig, true);
-
-			// Add this service under 'South' parent category
-			vector<string> children;
-			children.push_back(m_name);
-			m_mgtClient->addChildCategories(string("South"), children);
+			createConfigCategories(defConfig, string("South"), m_name);
 
 			// Must now reload the configuration to obtain any items added from
 			// the plugin
+			// Removes all the m_items already present in the category
+			m_config.removeItems();
 			m_config = m_mgtClient->getCategory(m_name);
 
 			// Deal with registering and fetching the advanced configuration

@@ -38,6 +38,7 @@ class SouthService : public ServiceHandler {
 		void				addConfigDefaults(DefaultConfigCategory& defaults);
 		bool 				loadPlugin();
 		int 				createTimerFd(int usecs);
+		void 				createConfigCategories(DefaultConfigCategory configCategory, std::string parent_name,std::string current_name);
 	private:
 		SouthPlugin			*southPlugin;
 		const std::string&		m_name;

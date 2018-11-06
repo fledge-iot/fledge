@@ -4,7 +4,7 @@
 MKDIR_PATH := mkdir -p
 CD := cd
 LN := ln -sf
-CMAKE := cmake
+CMAKE := cmake -DCMAKE_BUILD_TYPE=Debug
 PIP_USER_FLAG = --user
 PIP_INSTALL_REQUIREMENTS := pip3 install -Ir
 PYTHON_BUILD_PACKAGE = python3 setup.py build -b ../$(PYTHON_BUILD_DIR)

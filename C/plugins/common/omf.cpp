@@ -162,10 +162,10 @@ bool OMF::sendDataTypes(const Reading& row)
 					   m_path,
 					   resType,
 					   typeData);
-		if (res != 200 && res != 204)
+		if (res != 200 && res != 202 && res != 204)
 		{
 			Logger::getLogger()->error("Sending JSON dataType message 'Type' "
-						   "error: HTTP code |%d| - HostPort |%s| - path |%s| - message |%s|",
+						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
 						   res,
 						   m_sender.getHostPort().c_str(),
 						   m_path.c_str(),
@@ -173,16 +173,16 @@ bool OMF::sendDataTypes(const Reading& row)
 			return false;
 		}
 	}
-	// Exception raised fof HTTP 400 Bad Request
+	// Exception raised for HTTP 400 Bad Request
 	catch (const BadRequest& e)
 	{
 		if (OMF::isDataTypeError(e.what()))
 		{
-			// Data tyoe error: force type-id change
+			// Data type error: force type-id change
 			m_changeTypeId = true;
 		}
                 Logger::getLogger()->error("Sending JSON dataType message 'Type' "
-					   "%serror |%s| - HostPort |%s| - path |%s| - message |%s|",
+					   "- %s - error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
 					   (m_changeTypeId ? "Data Type " : "" ),
                                            e.what(),
                                            m_sender.getHostPort().c_str(),
@@ -193,7 +193,7 @@ bool OMF::sendDataTypes(const Reading& row)
 	catch (const std::exception& e)
 	{
                 Logger::getLogger()->error("Sending JSON dataType message 'Type' "
-					   "error |%s| - HostPort |%s| - path |%s| - message |%s|",
+					   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
                                            e.what(),
                                            m_sender.getHostPort().c_str(),
                                            m_path.c_str(),
@@ -216,11 +216,14 @@ bool OMF::sendDataTypes(const Reading& row)
 					   m_path,
 					   resContainer,
 					   typeContainer);
-		if (res != 200 && res != 204)
+		if (res != 200 && res != 202 && res != 204)
 		{
-			Logger::getLogger()->error("Sending JSON dataType message "
-						   "'Container' error: HTTP code %d",
-						   res);
+			Logger::getLogger()->error("Sending JSON dataType message 'Container' "
+						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+						   res,
+						   m_sender.getHostPort().c_str(),
+						   m_path.c_str(),
+						   typeContainer.c_str() );
 			return false;
 		}
 	}
@@ -233,16 +236,22 @@ bool OMF::sendDataTypes(const Reading& row)
 			m_changeTypeId = true;
 		}
 		Logger::getLogger()->error("Sending JSON dataType message 'Container' "
-					   "%serror: %s",
+					   "- %s - error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
 					   (m_changeTypeId ? "Data Type " : "" ),
-					   e.what());
+					   e.what(),
+					   m_sender.getHostPort().c_str(),
+					   m_path.c_str(),
+					   typeContainer.c_str() );
 		return false;
 	}
 	catch (const std::exception& e)
 	{
 		Logger::getLogger()->error("Sending JSON dataType message 'Container' "
-					   "generic error: %s",
-					   e.what());
+					   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+					   e.what(),
+					   m_sender.getHostPort().c_str(),
+					   m_path.c_str(),
+					   typeContainer.c_str() );
 		return false;
 	}
 
@@ -260,11 +269,14 @@ bool OMF::sendDataTypes(const Reading& row)
 					   m_path,
 					   resStaticData,
 					   typeStaticData);
-		if (res != 200 && res != 204)
+		if (res != 200 && res != 202 && res != 204)
 		{
-			Logger::getLogger()->error("Sending JSON dataType message "
-						   "'StaticData' error: HTTP code %d",
-						   res);
+			Logger::getLogger()->error("Sending JSON dataType message 'StaticData' "
+						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+						   res,
+						   m_sender.getHostPort().c_str(),
+						   m_path.c_str(),
+						   typeStaticData.c_str() );
 			return false;
 		}
 	}
@@ -276,17 +288,23 @@ bool OMF::sendDataTypes(const Reading& row)
 			// Data tyoe error: force type-id change
 			m_changeTypeId = true;
 		}
-		Logger::getLogger()->error("Sending JSON dataType message "
-					   "'StaticData' %serror: %s",
+		Logger::getLogger()->error("Sending JSON dataType message 'StaticData'"
+					   "- %s - error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
 					   (m_changeTypeId ? "Data Type " : "" ),
-					   e.what());
+					   e.what(),
+					   m_sender.getHostPort().c_str(),
+					   m_path.c_str(),
+					   typeStaticData.c_str() );
 		return false;
 	}
 	catch (const std::exception& e)
 	{
-		Logger::getLogger()->error("Sending JSON dataType message "
-					   "'StaticData' generic error: %s",
-					   e.what());
+		Logger::getLogger()->error("Sending JSON dataType message 'StaticData'"
+					   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+					   e.what(),
+					   m_sender.getHostPort().c_str(),
+					   m_path.c_str(),
+					   typeData.c_str() );
 		return false;
 	}
 
@@ -304,11 +322,14 @@ bool OMF::sendDataTypes(const Reading& row)
 					   m_path,
 					   resLinkData,
 					   typeLinkData);
-		if (res != 200 && res != 204)
+		if (res != 200 && res != 202 && res != 204)
 		{
-			Logger::getLogger()->error("Sending JSON dataType message "
-						   "'Data' (lynk) error: HTTP code %d",
-						   res);
+			Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) "
+						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+						   res,
+						   m_sender.getHostPort().c_str(),
+						   m_path.c_str(),
+						   typeLinkData.c_str() );
 			return false;
 		}
 		else
@@ -322,20 +343,26 @@ bool OMF::sendDataTypes(const Reading& row)
 	{
 		if (OMF::isDataTypeError(e.what()))
 		{
-			// Data tyoe error: force type-id change
+			// Data type error: force type-id change
 			m_changeTypeId = true;
 		}
-		Logger::getLogger()->error("Sending JSON dataType message "
-					   "'Data' (lynk) %serror: %s",
+		Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) "
+					   "- %s - error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
 					   (m_changeTypeId ? "Data Type " : "" ),
-					   e.what());
+					   e.what(),
+					   m_sender.getHostPort().c_str(),
+					   m_path.c_str(),
+					   typeData.c_str() );
 		return false;
 	}
 	catch (const std::exception& e)
 	{
-		Logger::getLogger()->error("Sending JSON dataType message "
-					   "'Data' (lynk) generic error: %s",
-					   e.what());
+		Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) "
+					   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+					   e.what(),
+					   m_sender.getHostPort().c_str(),
+					   m_path.c_str(),
+					   typeLinkData.c_str() );
 		return false;
 	}
 }
@@ -422,9 +449,14 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 					       m_path,
 					       readingData,
 					       json);
-		if (res != 200 && res != 204)
+		if (res != 200 && res != 202 && res != 204)
 		{
-			Logger::getLogger()->error("Sending JSON readings, HTTP code %d", res);
+			Logger::getLogger()->error("Sending JSON readings, "
+						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+						   res,
+						   m_sender.getHostPort().c_str(),
+						   m_path.c_str(),
+						   json.c_str() );
 			m_lastError = true;
 			return 0;
 		}
@@ -447,9 +479,11 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			// 3- Data Types cache is cleared: next sendData call
 			//    will send data types again.
 			Logger::getLogger()->warn("Sending JSON readings, "
-						  "not blocking issue: %s",
-						  e.what());
-
+						  "not blocking issue: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+						  e.what(),
+						  m_sender.getHostPort().c_str(),
+						  m_path.c_str(),
+						  json.c_str() );
 			// Reset OMF types cache
 			OMF::clearCreatedTypes();
 			// Reset error indicator
@@ -463,8 +497,11 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	}
 	catch (const std::exception& e)
 	{
-		Logger::getLogger()->error("Sending JSON data error: %s",
-					   e.what());
+		Logger::getLogger()->error("Sending JSON data error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+					   e.what(),
+					   m_sender.getHostPort().c_str(),
+					   m_path.c_str(),
+					   json.c_str() );
 		// Failure
 		m_lastError = true;
 		return 0;
@@ -490,7 +527,7 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 	ostringstream jsonData;
 	jsonData << "[";
 
-	// Fecth Reading data
+	// Fetch Reading data
 	for (vector<Reading>::const_iterator elem = readings.begin();
 						    elem != readings.end();
 						    ++elem)
@@ -525,13 +562,32 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 
 	// Build an HTTPS POST with 'readingData headers and 'allReadings' JSON payload
 	// Then get HTTPS POST ret code and return 0 to client on error
-	int res = m_sender.sendRequest("POST", m_path, readingData, jsonData.str());
-
-	if (res != 200 && res != 204)
+	try
 	{
-		Logger::getLogger()->error("Sending JSON readings data error: %d", res);
-		m_lastError = true;
-		return 0;
+		int res = m_sender.sendRequest("POST", m_path, readingData, jsonData.str());
+
+		if (res != 200 && res != 202 && res != 204) {
+			Logger::getLogger()->error("Sending JSON readings data "
+						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+				res,
+				m_sender.getHostPort().c_str(),
+				m_path.c_str(),
+                                jsonData.str().c_str() );
+
+			m_lastError = true;
+			return 0;
+		}
+	}
+	catch (const std::exception& e)
+	{
+		Logger::getLogger()->error("Sending JSON readings data "
+					   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+					   e.what(),
+					   m_sender.getHostPort().c_str(),
+					   m_path.c_str(),
+					   jsonData.str().c_str() );
+
+		return false;
 	}
 
 	m_lastError = false;
@@ -579,11 +635,33 @@ uint32_t OMF::sendToServer(const Reading* reading,
 
 	// Build an HTTPS POST with 'readingData headers and 'allReadings' JSON payload
 	// Then get HTTPS POST ret code and return 0 to client on error
-	int res = m_sender.sendRequest("POST", m_path, readingData, jsonData.str());
-
-	if (res != 200 && res != 204)
+	try
 	{
-		return 0;
+
+		int res = m_sender.sendRequest("POST", m_path, readingData, jsonData.str());
+
+		if (res != 200 && res != 202 && res != 204)
+		{
+			Logger::getLogger()->error("Sending JSON readings data "
+						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+						   res,
+						   m_sender.getHostPort().c_str(),
+						   m_path.c_str(),
+						   jsonData.str().c_str() );
+
+			return 0;
+		}
+	}
+	catch (const std::exception& e)
+	{
+		Logger::getLogger()->error("Sending JSON readings data "
+					   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+					   e.what(),
+					   m_sender.getHostPort().c_str(),
+					   m_path.c_str(),
+					   jsonData.str().c_str() );
+
+		return false;
 	}
 
 	// Return number of sent readings to the caller

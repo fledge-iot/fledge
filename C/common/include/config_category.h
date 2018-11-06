@@ -53,6 +53,8 @@ class ConfigCategories {
 
 class ConfigCategory {
 	public:
+		enum ItemType  { StringItem, EnumerationItem, JsonItem, BoolItem, NumberItem, DoubleItem, ScriptItem, CategoryType};
+
 		ConfigCategory(const std::string& name, const std::string& json);
 		ConfigCategory() {};
 		ConfigCategory(const ConfigCategory& orig);
@@ -60,6 +62,10 @@ class ConfigCategory {
 		void				addItem(const std::string& name, const std::string description,
 							const std::string& type, const std::string def,
 							const std::string& value);
+    		void 				removeItems();
+		void 				removeItemsType(ItemType type);
+		void 				keepItemsType(ItemType type);
+		bool                            extractSubcategory(ConfigCategory &subCategories);
 		void				setDescription(const std::string& description);
 		std::string                     getName() const { return m_name; };
 		std::string                     getDescription() const { return m_description; };
@@ -96,11 +102,10 @@ class ConfigCategory {
 	protected:
 		class CategoryItem {
 			public:
-				enum ItemType { StringItem, EnumerationItem, JsonItem, BoolItem, NumberItem, DoubleItem, ScriptItem };
 				CategoryItem(const std::string& name, const rapidjson::Value& item);
 				CategoryItem(const std::string& name, const std::string& description,
-							const std::string& type, const std::string def,
-							const std::string& value);
+					     const std::string& type, const std::string def,
+					     const std::string& value);
 				CategoryItem(const CategoryItem& rhs);
 				// Return both "value" and "default" items
 				std::string	toJSON() const;
@@ -146,6 +151,9 @@ class DefaultConfigCategory : public ConfigCategory
 {
 	public:
 		DefaultConfigCategory(const std::string& name, const std::string& json);
+		DefaultConfigCategory(const ConfigCategory& orig) : ConfigCategory(orig)
+		{
+		};
 		std::string	toJSON() const;
 		std::string	itemsToJSON() const;
 };

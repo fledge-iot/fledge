@@ -63,6 +63,9 @@ int main(int argc, char** argv)
 		// Run: max execution time or caught signals can stop it
 		sendingProcess.run();
 
+		// Unlock load & send threads
+		cond_var.notify_all();
+
 		// End processing
 		sendingProcess.stop();
 	}

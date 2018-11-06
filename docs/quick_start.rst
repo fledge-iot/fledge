@@ -65,7 +65,7 @@ SSH into the system that will host FogLAMP services. For each FogLAMP package th
 
 The key packages to install are the FogLAMP core and the FogLAMP User Interface::
 
-  sudo apt -y install ./foglamp-1.4.0-armhf.deb
+  sudo apt -y install ./foglamp-1.4.1-armhf.deb
   sudo apt -y install ./foglamp-gui-1.4.0-dev.deb
 
 You will need to install one of more South plugins to acquire data.  You can either do this now or when you are adding the data source. For example, to install the plugin for the Sense HAT sensor board, type::

@@ -16,30 +16,81 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <thread>
+#include <map>
 
 using namespace std;
 using namespace rapidjson;
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 
+// handles m_client_map access
+std::mutex sto_mtx_client_map;
 
 /**
  * Storage Client constructor
  */
 StorageClient::StorageClient(const string& hostname, const unsigned short port)
 {
-ostringstream urlbase;
 
 	m_logger = Logger::getLogger();
-	urlbase << hostname << ":" << port;
-	m_client = new HttpClient(urlbase.str());
+	m_urlbase << hostname << ":" << port;
 }
+
+/**
+ * Storage Client constructor
+ * stores the provided HttpClient into the map
+ */
+StorageClient::StorageClient(HttpClient *client) {
+
+	std::thread::id thread_id = std::this_thread::get_id();
+
+	sto_mtx_client_map.lock();
+	m_client_map[thread_id] = client;
+	sto_mtx_client_map.unlock();
+}
+
 
 /**
  * Destructor for storage client
  */
 StorageClient::~StorageClient()
 {
-	delete m_client;
+	std::map<std::thread::id, HttpClient *>::iterator item;
+
+	// Deletes all the HttpClient objects created in the map
+	for (item  = m_client_map.begin() ; item  != m_client_map.end() ; ++item)
+	{
+		delete item->second;
+	}
+}
+
+/**
+ * Creates a HttpClient object for each thread
+ * it stores/retrieves the reference to the HttpClient and the associated thread id in a map
+ */
+HttpClient *StorageClient::getHttpClient(void) {
+
+	std::map<std::thread::id, HttpClient *>::iterator item;
+	HttpClient *client;
+
+	std::thread::id thread_id = std::this_thread::get_id();
+
+	sto_mtx_client_map.lock();
+	item = m_client_map.find(thread_id);
+
+	if (item  == m_client_map.end() ) {
+
+		// Adding a new HttpClient
+		client = new HttpClient(m_urlbase.str());
+		m_client_map[thread_id] = client;
+	}
+	else
+	{
+		client = item->second;
+	}
+	sto_mtx_client_map.unlock();
+
+	return (client);
 }
 
 /**
@@ -53,7 +104,7 @@ bool StorageClient::readingAppend(Reading& reading)
 		convert << "{ \"readings\" : [ ";
 		convert << reading.toJSON();
 		convert << " ] }";
-		auto res = m_client->request("POST", "/storage/reading", convert.str());
+		auto res = this->getHttpClient()->request("POST", "/storage/reading", convert.str());
 		if (res->status_code.compare("200 OK") == 0)
 		{
 			return true;
@@ -87,7 +138,7 @@ bool StorageClient::readingAppend(const vector<Reading *>& readings)
 			convert << (*it)->toJSON();
 		}
 		convert << " ] }";
-		auto res = m_client->request("POST", "/storage/reading", convert.str());
+		auto res = this->getHttpClient()->request("POST", "/storage/reading", convert.str());
 		if (res->status_code.compare("200 OK") == 0)
 		{
 			return true;
@@ -114,7 +165,7 @@ ResultSet *StorageClient::readingQuery(const Query& query)
 		ostringstream convert;
 
 		convert << query.toJSON();
-		auto res = m_client->request("PUT", "/storage/reading/query", convert.str());
+		auto res = this->getHttpClient()->request("PUT", "/storage/reading/query", convert.str());
 		if (res->status_code.compare("200 OK") == 0)
 		{
 			ostringstream resultPayload;
@@ -147,10 +198,12 @@ ResultSet *StorageClient::readingQuery(const Query& query)
 ReadingSet *StorageClient::readingFetch(const unsigned long readingId, const unsigned long count)
 {
 	try {
+
 		char url[256];
 		snprintf(url, sizeof(url), "/storage/reading?id=%ld&count=%ld",
 				readingId, count);
-		auto res = m_client->request("GET", url);
+
+		auto res = this->getHttpClient()->request("GET", url);
 		if (res->status_code.compare("200 OK") == 0)
 		{
 			ostringstream resultPayload;
@@ -186,7 +239,7 @@ PurgeResult StorageClient::readingPurgeByAge(unsigned long age, unsigned long se
 		char url[256];
 		snprintf(url, sizeof(url), "/storage/reading/purge?age=%ld&sent=%ld&flags=%s",
 				age, sent, purgeUnsent ? "purge" : "retain");
-		auto res = m_client->request("PUT", url);
+		auto res = this->getHttpClient()->request("PUT", url);
 		ostringstream resultPayload;
 		resultPayload << res->content.rdbuf();
 		if (res->status_code.compare("200 OK") == 0)
@@ -219,7 +272,7 @@ PurgeResult StorageClient::readingPurgeBySize(unsigned long size, unsigned long 
 		char url[256];
 		snprintf(url, sizeof(url), "/storage/reading/purge?size=%ld&sent=%ld&flags=%s",
 				size, sent, purgeUnsent ? "purge" : "retain");
-		auto res = m_client->request("PUT", url);
+		auto res = this->getHttpClient()->request("PUT", url);
 		if (res->status_code.compare("200 OK") == 0)
 		{
 			ostringstream resultPayload;
@@ -252,7 +305,7 @@ ResultSet *StorageClient::queryTable(const std::string& tableName, const Query& 
 		convert << query.toJSON();
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s/query", tableName.c_str());
-		auto res = m_client->request("PUT", url, convert.str());
+		auto res = this->getHttpClient()->request("PUT", url, convert.str());
 		ostringstream resultPayload;
 		resultPayload << res->content.rdbuf();
 		if (res->status_code.compare("200 OK") == 0)
@@ -290,7 +343,7 @@ ReadingSet* StorageClient::queryTableToReadings(const std::string& tableName,
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s/query", tableName.c_str());
 
-		auto res = m_client->request("PUT", url, convert.str());
+		auto res = this->getHttpClient()->request("PUT", url, convert.str());
 		ostringstream resultPayload;
 		resultPayload << res->content.rdbuf();
 
@@ -326,7 +379,7 @@ int StorageClient::insertTable(const string& tableName, const InsertValues& valu
 		convert << values.toJSON();
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
-		auto res = m_client->request("POST", url, convert.str());
+		auto res = this->getHttpClient()->request("POST", url, convert.str());
 		ostringstream resultPayload;
 		resultPayload << res->content.rdbuf();
 		if (res->status_code.compare("200 OK") == 0 || res->status_code.compare("201 Created") == 0)
@@ -370,14 +423,17 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 	try {
 		ostringstream convert;
 
+		convert << "{ \"updates\" : [ ";
 		convert << "{ \"where\" : ";
 		convert << where.toJSON();
 		convert << ", \"values\" : ";
 		convert << values.toJSON();
 		convert << " }";
+		convert << " ] }";
+		
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
-		auto res = m_client->request("PUT", url, convert.str());
+		auto res = this->getHttpClient()->request("PUT", url, convert.str());
 		if (res->status_code.compare("200 OK") == 0)
 		{
 			ostringstream resultPayload;
@@ -422,14 +478,79 @@ int StorageClient::updateTable(const string& tableName, const ExpressionValues& 
 	try {
 		ostringstream convert;
 
+		convert << "{ \"updates\" : [ ";
 		convert << "{ \"where\" : ";
 		convert << where.toJSON();
 		convert << ", \"expressions\" : ";
 		convert << values.toJSON();
 		convert << " }";
+		convert << " ] }";
+		
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
-		auto res = m_client->request("PUT", url, convert.str());
+		auto res = this->getHttpClient()->request("PUT", url, convert.str());
+		if (res->status_code.compare("200 OK") == 0)
+		{
+			ostringstream resultPayload;
+			resultPayload << res->content.rdbuf();
+			Document doc;
+			doc.Parse(resultPayload.str().c_str());
+			if (doc.HasParseError())
+			{
+				m_logger->info("PUT result %s.", res->status_code.c_str());
+				m_logger->error("Failed to parse result of updateTable. %s",
+						GetParseError_En(doc.GetParseError()));
+				return -1;
+			}
+			else if (doc.HasMember("message"))
+			{
+				m_logger->error("Failed to update table data: %s",
+					doc["message"].GetString());
+				return -1;
+			}
+			return doc["rows_affected"].GetInt();
+		}
+		ostringstream resultPayload;
+		resultPayload << res->content.rdbuf();
+		handleUnexpectedResponse("Update table", res->status_code, resultPayload.str());
+	} catch (exception& ex) {
+		m_logger->error("Failed to update table %s: %s", tableName.c_str(), ex.what());
+		throw;
+	}
+	return -1;
+}
+
+/**
+ * Update data into an arbitrary table
+ *
+ * @param tableName	The name of the table into which data will be added
+ * @param updates	The expressions and condition pairs to update in the table
+ * @return int		The number of rows updated
+ */
+int StorageClient::updateTable(const string& tableName, vector<pair<ExpressionValues *, Where *>>& updates)
+{
+	try {
+		ostringstream convert;
+
+		convert << "{ \"updates\" : [ ";
+		for (vector<pair<ExpressionValues *, Where *>>::const_iterator it = updates.cbegin();
+						 it != updates.cend(); ++it)
+		{
+			if (it != updates.cbegin())
+			{
+				convert << ", ";
+			}
+			convert << "{ \"where\" : ";
+			convert << it->second->toJSON();
+			convert << ", \"expressions\" : ";
+			convert << it->first->toJSON();
+			convert << " }";
+		}
+		convert << " ] }";
+		
+		char url[128];
+		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
+		auto res = this->getHttpClient()->request("PUT", url, convert.str());
 		if (res->status_code.compare("200 OK") == 0)
 		{
 			ostringstream resultPayload;
@@ -476,6 +597,7 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 	try {
 		ostringstream convert;
 
+		convert << "{ \"updates\" : [ ";
 		convert << "{ \"where\" : ";
 		convert << where.toJSON();
 		convert << ", \"values\" : ";
@@ -483,9 +605,11 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 		convert << ", \"expressions\" : ";
 		convert << expressions.toJSON();
 		convert << " }";
+		convert << " ] }";
+		
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
-		auto res = m_client->request("PUT", url, convert.str());
+		auto res = this->getHttpClient()->request("PUT", url, convert.str());
 		if (res->status_code.compare("200 OK") == 0)
 		{
 			ostringstream resultPayload;
@@ -530,14 +654,17 @@ int StorageClient::updateTable(const string& tableName, const JSONProperties& va
 	try {
 		ostringstream convert;
 
+		convert << "{ \"updates\" : [ ";
 		convert << "{ \"where\" : ";
 		convert << where.toJSON();
 		convert << ", ";
 		convert << values.toJSON();
 		convert << " }";
+		convert << " ] }";
+		
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
-		auto res = m_client->request("PUT", url, convert.str());
+		auto res = this->getHttpClient()->request("PUT", url, convert.str());
 		if (res->status_code.compare("200 OK") == 0)
 		{
 			ostringstream resultPayload;
@@ -583,6 +710,7 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 	try {
 		ostringstream convert;
 
+		convert << "{ \"updates\" : [ ";
 		convert << "{ \"where\" : ";
 		convert << where.toJSON();
 		convert << ", \"values\" : ";
@@ -590,9 +718,11 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 		convert << ", ";
 		convert << jsonProp.toJSON();
 		convert << " }";
+		convert << " ] }";
+		
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
-		auto res = m_client->request("PUT", url, convert.str());
+		auto res = this->getHttpClient()->request("PUT", url, convert.str());
 		if (res->status_code.compare("200 OK") == 0)
 		{
 			ostringstream resultPayload;
@@ -639,7 +769,7 @@ int StorageClient::deleteTable(const std::string& tableName, const Query& query)
 		convert << query.toJSON();
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
-		auto res = m_client->request("DELETE", url, convert.str());
+		auto res = this->getHttpClient()->request("DELETE", url, convert.str());
 		if (res->status_code.compare("200 OK") == 0)
 		{
 			ostringstream resultPayload;

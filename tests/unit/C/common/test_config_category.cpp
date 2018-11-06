@@ -27,12 +27,67 @@ const char *myCategory = "{\"description\": {"
 		"\"default\": {\"first\" : \"FogLAMP\", \"second\" : \"json\" },"
 		"\"description\": \"A JSON configuration parameter\"}}";
 
+const char *myCategoryDisplayName = "{\"description\": {"
+		"\"value\": \"The FogLAMP administrative API\","
+		"\"type\": \"string\","
+		"\"default\": \"The FogLAMP administrative API\","
+		"\"description\": \"The description of this FogLAMP service\"},"
+	"\"name\": {"
+		"\"value\": \"FogLAMP\","
+		"\"displayName\" : \"My FogLAMP\","
+		"\"type\": \"string\","
+		"\"default\": \"FogLAMP\","
+		"\"description\": \"The name of this FogLAMP service\"},"
+        "\"complex\": {" \
+		"\"value\": { \"first\" : \"FogLAMP\", \"second\" : \"json\" },"
+		"\"type\": \"json\","
+		"\"default\": {\"first\" : \"FogLAMP\", \"second\" : \"json\" },"
+		"\"description\": \"A JSON configuration parameter\"}}";
+
+const char *myCategoryEnum = "{\"description\": {"
+		"\"value\": \"The FogLAMP administrative API\","
+		"\"type\": \"string\","
+		"\"default\": \"The FogLAMP administrative API\","
+		"\"description\": \"The description of this FogLAMP service\"},"
+	"\"name\": {"
+		"\"value\": \"FogLAMP\","
+		"\"type\": \"string\","
+		"\"default\": \"FogLAMP\","
+		"\"description\": \"The name of this FogLAMP service\"},"
+        "\"enum\": {" \
+		"\"value\": \"first\","
+		"\"type\": \"enumeration\","
+		"\"default\": \"first\","
+		"\"options\": [\"first\", \"second\", \"third\"],"
+		"\"description\": \"An enumeration configuration parameter\"}}";
+
+const char *enum_JSON = "{ \"key\" : \"test\", \"description\" : \"\", \"value\" : {\"description\" : { \"description\" : \"The description of this FogLAMP service\", \"type\" : \"string\", \"value\" : \"The FogLAMP administrative API\", \"default\" : \"The FogLAMP administrative API\" }, \"name\" : { \"description\" : \"The name of this FogLAMP service\", \"type\" : \"string\", \"value\" : \"FogLAMP\", \"default\" : \"FogLAMP\" }, \"enum\" : { \"description\" : \"An enumeration configuration parameter\", \"type\" : \"enumeration\", \"options\" : [ \"first\",\"second\",\"third\"],\"value\" : \"first\", \"default\" : \"first\" }} }";
+
 const char *myCategory_JSON_type_with_escaped_default = "{ "
 	"\"filter\": { "
 		"\"type\": \"JSON\", "
 		"\"description\": \"filter\", "
 		"\"default\": \"{\\\"pipeline\\\":[\\\"scale\\\",\\\"exceptional\\\"]}\", "
 		"\"value\": \"{}\" } }";
+
+const char *myCategoryMinMax = "{\"description\": {"
+		"\"value\": \"The FogLAMP administrative API\","
+		"\"type\": \"string\","
+		"\"default\": \"The FogLAMP administrative API\","
+		"\"description\": \"The description of this FogLAMP service\"},"
+	"\"range\": {"
+		"\"value\": \"1\","
+		"\"type\": \"integer\","
+		"\"default\": \"1\","
+		"\"minimum\": \"1\","
+		"\"maximum\": \"10\","
+		"\"description\": \"A constrained value\"},"
+        "\"complex\": {" \
+		"\"value\": { \"first\" : \"FogLAMP\", \"second\" : \"json\" },"
+		"\"type\": \"json\","
+		"\"default\": {\"first\" : \"FogLAMP\", \"second\" : \"json\" },"
+		"\"description\": \"A JSON configuration parameter\"}}";
+
 
 // default has invalid (escaped) JSON object value here: a \\\" is missing for pipeline
 const char *myCategory_JSON_type_without_escaped_default = "{ "
@@ -41,6 +96,23 @@ const char *myCategory_JSON_type_without_escaped_default = "{ "
 		"\"description\": \"filter\", "
 		"\"default\": \"{\"pipeline\\\" : \\\"scale\\\", \\\"exceptional\\\"]}\", "
 		"\"value\": \"{}\" } }";
+
+const char *myCategoryDeprecated = "{\"description\": {"
+		"\"value\": \"The FogLAMP administrative API\","
+		"\"type\": \"string\","
+		"\"default\": \"The FogLAMP administrative API\","
+		"\"description\": \"The description of this FogLAMP service\"},"
+	"\"name\": {"
+		"\"value\": \"FogLAMP\","
+		"\"type\": \"string\","
+		"\"default\": \"FogLAMP\","
+		"\"description\": \"The name of this FogLAMP service\"},"
+        "\"location\": {" \
+		"\"value\": \"remote\","
+		"\"type\": \"string\","
+		"\"default\": \"local\", "
+		"\"deprecated\": \"true\", "
+		"\"description\": \"A deprecated configuration parameter\"}}";
 
 const char *json_array_item = "{\"pipeline\":[\"scale\",\"exceptional\"]}";
 
@@ -221,4 +293,41 @@ TEST(CategoryTest, handle_type_JSON_fail)
 		// Test ok; exception found
 		ASSERT_TRUE(true);
 	}
+}
+
+TEST(CategoryTest, enumerationTest)
+{
+	ConfigCategory confCategory("test", myCategoryEnum);
+	ASSERT_EQ(true, confCategory.isEnumeration("enum"));
+	std::vector<std::string> options = confCategory.getOptions("enum");
+	ASSERT_EQ(3, options.size());
+}
+
+TEST(CategoryTest, enumerationJSONTest)
+{
+	ConfigCategory confCategory("test", myCategoryEnum);
+	ASSERT_EQ(true, confCategory.isEnumeration("enum"));
+	std::vector<std::string> options = confCategory.getOptions("enum");
+	ASSERT_EQ(3, options.size());
+	ASSERT_EQ(0, confCategory.toJSON().compare(enum_JSON));
+}
+
+TEST(CategoryTest, displayName)
+{
+	ConfigCategory confCategory("test", myCategoryDisplayName);
+	ASSERT_EQ("My FogLAMP", confCategory.getDisplayName("name"));
+}
+
+TEST(CategoryTest, deprecated)
+{
+	ConfigCategory confCategory("test", myCategoryDeprecated);
+	ASSERT_EQ(false, confCategory.isDeprecated("name"));
+	ASSERT_EQ(true, confCategory.isDeprecated("location"));
+}
+
+TEST(CategoryTest, minMax)
+{
+	ConfigCategory confCategory("test", myCategoryMinMax);
+	ASSERT_EQ("1", confCategory.getMinimum("range"));
+	ASSERT_EQ("10", confCategory.getMaximum("range"));
 }

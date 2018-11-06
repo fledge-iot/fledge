@@ -367,7 +367,7 @@ foglamp_status() {
       if [[ "${token}" =~ "failed" ]]; then
           foglamp_log "info" "Failed authentication when attempting to get foglamp status." "all" "pretty"
           echo "Authentication failed."
-          exit 0
+          exit -1
       fi
       result=`curl -H "authorization: $token" -k -s ${REST_API_URL}/foglamp/ping || true`
     fi

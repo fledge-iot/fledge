@@ -16,6 +16,7 @@
 #include <north_plugin.h>
 #include <reading.h>
 #include <filter_plugin.h>
+#include <plugin_data.h>
 
 // Buffer max elements
 #define DATA_BUFFER_ELMS 10
@@ -35,8 +36,11 @@ class SendingProcess : public FogLampProcess
 		int			getStreamId() const { return m_stream_id; };
 		bool			isRunning() const { return m_running; };
 		void			stopRunning() { m_running = false; };
+		void			setLastFetchId(unsigned long id) { m_last_fetch_id = id; };
+		unsigned long		getLastFetchId() const { return m_last_fetch_id; };
 		void			setLastSentId(unsigned long id) { m_last_sent_id = id; };
 		unsigned long		getLastSentId() const { return m_last_sent_id; };
+
 		unsigned long		getSentReadings() const { return m_tot_sent; };
 		bool			updateSentReadings(unsigned long num) {
 						m_tot_sent += num;
@@ -79,10 +83,12 @@ class SendingProcess : public FogLampProcess
 		void			setSleepTime(unsigned long val) { m_sleep = val; };
 		void			setReadBlockSize(unsigned long size) { m_block_size = size; };
 		bool			loadPlugin(const std::string& pluginName);
-		const std::map<std::string, std::string>& fetchConfiguration(const std::string& defCfg,
-									     const std::string& plugin_name);
+		ConfigCategory		fetchConfiguration(const std::string& defCfg,
+							   const std::string& pluginName);
 		bool			loadFilters(const std::string& pluginName);
 		bool			setupFiltersPipeline() const;
+		void 			updateStatistics(std::string& stat_key,
+							 const std::string& stat_description);
 
 		// Make private the copy constructor and operator=
 		SendingProcess(const SendingProcess &);
@@ -93,11 +99,13 @@ class SendingProcess : public FogLampProcess
 		std::thread*			m_thread_load;
 		std::thread*			m_thread_send;
 		NorthPlugin*			m_plugin;
+		std::vector<unsigned long>	m_last_read_id;
 
 	private:
 		bool				m_running;
 		int 				m_stream_id;
 		unsigned long			m_last_sent_id;
+    		unsigned long			m_last_fetch_id;
 		unsigned long			m_tot_sent;
 		unsigned int			m_duration;
 		unsigned long			m_sleep;
@@ -111,6 +119,7 @@ class SendingProcess : public FogLampProcess
 		// static pointer for data buffer access
 		static std::vector<ReadingSet *>*
 						m_buffer_ptr;
+		PluginData*			m_plugin_data;
 };
 
 #endif

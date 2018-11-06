@@ -298,65 +298,77 @@ class BackupRestoreLib(object):
         "host": {
             "description": "Server IP or name to backup/restore",
             "type": "string",
-            "default": "localhost"
+            "default": "localhost",
+            "displayName": "Host"
         },
         "port": {
             "description": "PostgreSQL port",
             "type": "integer",
-            "default": "5432"
+            "default": "5432",
+            "displayName": "PostgresSQL Port"
         },
         "database": {
             "description": "Database name",
             "type": "string",
-            "default": "foglamp"
+            "default": "foglamp",
+            "displayName": "DB Name"
         },
         "schema": {
             "description": "Schema",
             "type": "string",
-            "default": "foglamp"
+            "default": "foglamp",
+            "displayName": "DB Schema Name"
         },
         "database-filename": {
             "description": "SQLite database file name",
             "type": "string",
-            "default": "foglamp.db"
+            "default": "foglamp.db",
+            "displayName": "SQLite DB Filename"
         },
         "backup-dir": {
             "description": "Directory where backups will be created. "
                            "If not specificed, FOGLAMP_BACKUP, FOGLAMP_DATA or FOGLAMP_BACKUP will be used.",
             "type": "string",
-            "default": "none"
+            "default": "none",
+            "displayName": "Backup Directory"
         },
         "semaphores-dir": {
             "description": "Semaphore directory for backup/restore synchronization."
                            "if not specified, backup-dir is used.",
             "type": "string",
-            "default": "none"
+            "default": "none",
+            "displayName": "Semaphore Directory"
         },
         "retention": {
             "description": "Number of backups to maintain (old ones will be deleted)",
             "type": "integer",
-            "default": "5"
+            "default": "5",
+            "displayName": "Max Backups To Retain"
         },
         "max_retry": {
             "description": "Maximum retries",
             "type": "integer",
-            "default": "5"
+            "default": "5",
+            "displayName": "Max Retries"
         },
         "timeout": {
             "description": "Timeout in seconds for execution of external commands",
             "type": "integer",
-            "default": "1200"
+            "default": "1200",
+            "displayName": "Timeout (In Seconds)"
         },
         "restart-max-retries": {
             "description": "Maximum number of retries to restart Foglamp",
             "type": "integer",
-            "default": "10"
+            "default": "10",
+            "displayName": "Max Retries To Restart FogLAMP"
         },
         "restart-sleep": {
             "description": "Sleep time between status checks at Foglamp restarts "
                            "to ensure it has started successfully.",
             "type": "integer",
-            "default": "5"
+            "default": "5",
+            "displayName": "Restart Status Check Interval (In Seconds)"
         },
     }
 
@@ -776,7 +788,7 @@ class BackupRestoreLib(object):
         _event_loop.run_until_complete(cfg_manager.create_category(
             self._CONFIG_CATEGORY_NAME,
             self._CONFIG_DEFAULT,
-            self._CONFIG_CATEGORY_DESCRIPTION))
+            self._CONFIG_CATEGORY_DESCRIPTION, display_name="Backup & Restore"))
         _event_loop.run_until_complete(cfg_manager.create_child_category(
             "Utilities", [self._CONFIG_CATEGORY_NAME]))
         self._config_from_manager = _event_loop.run_until_complete(cfg_manager.get_category_all_items

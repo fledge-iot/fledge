@@ -21,6 +21,7 @@
 #include <logger.h>
 #include <string>
 #include <vector>
+#include <thread>
 
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 
@@ -29,7 +30,7 @@ using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
  */
 class StorageClient {
 	public:
-		StorageClient(HttpClient *client) : m_client(client) {};
+		StorageClient(HttpClient *client);
 		StorageClient(const std::string& hostname, const unsigned short port);
 		~StorageClient();
 		ResultSet	*queryTable(const std::string& tablename, const Query& query);
@@ -39,6 +40,7 @@ class StorageClient {
 		int		updateTable(const std::string& tableName, const JSONProperties& json, const Where& where);
 		int		updateTable(const std::string& tableName, const InsertValues& values, const JSONProperties& json, const Where& where);
 		int		updateTable(const std::string& tableName, const ExpressionValues& values, const Where& where);
+		int		updateTable(const std::string& tableName, std::vector<std::pair<ExpressionValues *, Where *>>& updates);
 		int		updateTable(const std::string& tableName, const InsertValues& values, const ExpressionValues& expressoins, const Where& where);
 		int		deleteTable(const std::string& tableName, const Query& query);
 		bool		readingAppend(Reading& reading);
@@ -51,8 +53,12 @@ class StorageClient {
 		void  		handleUnexpectedResponse(const char *operation,
 						const std::string& responseCode,
 						const std::string& payload);
-		HttpClient		*m_client;
-		Logger			*m_logger;
+		HttpClient 	*getHttpClient(void);
+
+		std::ostringstream 			m_urlbase;
+		std::map<std::thread::id, HttpClient *> m_client_map;
+		Logger					*m_logger;
 };
+
 #endif
 

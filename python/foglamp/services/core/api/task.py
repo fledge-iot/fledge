@@ -5,14 +5,19 @@
 # FOGLAMP_END
 
 import datetime
+import uuid
+
 from aiohttp import web
-from foglamp.common.storage_client.payload_builder import PayloadBuilder
+
+from foglamp.common import utils
+from foglamp.common import logger
 from foglamp.common.configuration_manager import ConfigurationManager
+from foglamp.common.storage_client.payload_builder import PayloadBuilder
+from foglamp.common.storage_client.exceptions import StorageServerError
+
 from foglamp.services.core import server
 from foglamp.services.core import connect
 from foglamp.services.core.scheduler.entities import Schedule, TimedSchedule, IntervalSchedule, ManualSchedule
-from foglamp.common.storage_client.exceptions import StorageServerError
-from foglamp.common import utils
 from foglamp.services.core.api import utils as apiutils
 
 __author__ = "Amarendra K Sinha"
@@ -22,14 +27,16 @@ __version__ = "${VERSION}"
 
 _help = """
     -------------------------------------------------------------------------------
-    | GET POST            | /foglamp/scheduled/task                               |
+    | POST                 | /foglamp/scheduled/task                              |
+    | DELETE               | /foglamp/scheduled/task/{task_name}                  |
     -------------------------------------------------------------------------------
 """
 
+_logger = logger.setup()
+
 
 async def add_task(request):
-    """
-    Create a new task to run a specific plugin
+    """ Create a new task to run a specific plugin
 
     :Example:
      curl -X POST http://localhost:8081/foglamp/scheduled/task -d
@@ -43,12 +50,25 @@ async def add_task(request):
         "schedule_repeat": 30,
         "schedule_enabled": true
      }'
+
+     curl -sX POST http://localhost:8081/foglamp/scheduled/task -d
+     '{"name": "PI-2",
+     "plugin": "pi_server",
+     "type": "north",
+     "schedule_type": 3,
+     "schedule_day": 0,
+     "schedule_time": 0,
+     "schedule_repeat": 30,
+     "schedule_enabled": true,
+     "config": {
+        "producerToken": {"value": "uid=180905062754237&sig=kx5l+"},
+        "URL": {"value": "https://10.2.5.22:5460/ingress/messages"}}}'
     """
 
     try:
         data = await request.json()
         if not isinstance(data, dict):
-            raise ValueError('Data payload must be a dictionary')
+            raise ValueError('Data payload must be a valid JSON')
 
         name = data.get('name', None)
         plugin = data.get('plugin', None)
@@ -59,6 +79,7 @@ async def add_task(request):
         schedule_time = data.get('schedule_time', None)
         schedule_repeat = data.get('schedule_repeat', None)
         enabled = data.get('schedule_enabled', None)
+        config = data.get('config', None)
 
         if name is None:
             raise web.HTTPBadRequest(reason='Missing name property in payload.')
@@ -104,7 +125,8 @@ async def add_task(request):
             if not schedule_time:
                 raise web.HTTPBadRequest(reason='schedule_time cannot be empty/None for TIMED schedule.')
             if schedule_day is not None and (schedule_day < 1 or schedule_day > 7):
-                raise web.HTTPBadRequest(reason='schedule_day {} must either be None or must be an integer, 1(Monday) to 7(Sunday).'.format(schedule_day))
+                raise web.HTTPBadRequest(reason='schedule_day {} must either be None or must be an integer, 1(Monday) '
+                                                'to 7(Sunday).'.format(schedule_day))
             if schedule_time < 0 or schedule_time > 86399:
                 raise web.HTTPBadRequest(reason='schedule_time {} must be an integer and in range 0-86399.'.format(schedule_time))
 
@@ -115,9 +137,9 @@ async def add_task(request):
                 raise web.HTTPBadRequest(reason='schedule_repeat {} must be an integer.'.format(schedule_repeat))
 
         if enabled is not None:
-            if enabled not in ['t', 'f', 'true', 'false', 0, 1]:
-                raise web.HTTPBadRequest(reason='Only "t", "f", "true", "false" are allowed for value of enabled.')
-        is_enabled = True if ((type(enabled) is str and enabled.lower() in ['t', 'true']) or (
+            if enabled not in ['true', 'false', True, False]:
+                raise web.HTTPBadRequest(reason='Only "true", "false", true, false are allowed for value of enabled.')
+        is_enabled = True if ((type(enabled) is str and enabled.lower() in ['true']) or (
             (type(enabled) is bool and enabled is True))) else False
 
         # Check if a valid plugin has been provided
@@ -132,20 +154,35 @@ async def add_task(request):
             script = '["tasks/north"]'
             # Fetch configuration from the configuration defined in the plugin
             plugin_info = _plugin.plugin_info()
+            if plugin_info['type'] != task_type:
+                msg = "Plugin of {} type is not supported".format(plugin_info['type'])
+                _logger.exception(msg)
+                return web.HTTPBadRequest(reason=msg)
             plugin_config = plugin_info['config']
             process_name = 'north'
         except ImportError as ex:
             # Checking for C-type plugins
             script = '["tasks/north_c"]'
             plugin_info = apiutils.get_plugin_info(plugin)
+            if plugin_info['type'] != task_type:
+                msg = "Plugin of {} type is not supported".format(plugin_info['type'])
+                _logger.exception(msg)
+                return web.HTTPBadRequest(reason=msg)
             plugin_config = plugin_info['config']
             process_name = 'north_c'
             if not plugin_config:
-                raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}". {}'.format(plugin, plugin_module_path, str(ex)))
+                _logger.exception("Plugin %s import problem from path %s. %s", plugin, plugin_module_path, str(ex))
+                raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}"'.format(plugin, plugin_module_path))
         except Exception as ex:
-            raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration. {}'.format(str(ex)))
+            _logger.exception("Failed to fetch plugin configuration. %s", str(ex))
+            raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration.')
 
         storage = connect.get_storage_async()
+
+        # Check that the schedule name is not already registered
+        count = await check_schedules(storage, name)
+        if count != 0:
+            raise web.HTTPBadRequest(reason='A north instance with this name already exists')
 
         # Check that the process name is not already registered
         count = await check_scheduled_processes(storage, process_name)
@@ -154,15 +191,11 @@ async def add_task(request):
             try:
                 res = await storage.insert_into_tbl("scheduled_processes", payload)
             except StorageServerError as ex:
-                err_response = ex.error
-                raise web.HTTPInternalServerError(reason='Failed to created scheduled process. {}'.format(err_response))
-            except Exception as ins_ex:
-                raise web.HTTPInternalServerError(reason='Failed to created scheduled process. {}'.format(str(ins_ex)))
-
-        # Check that the schedule name is not already registered
-        count = await check_schedules(storage, name)
-        if count != 0:
-            raise web.HTTPBadRequest(reason='A schedule with that name already exists')
+                _logger.exception("Failed to create scheduled process. %s", ex.error)
+                raise web.HTTPInternalServerError(reason='Failed to create north instance.')
+            except Exception as ex:
+                _logger.exception("Failed to create scheduled process. %s", ex)
+                raise web.HTTPInternalServerError(reason='Failed to create north instance.')
 
         # If successful then create a configuration entry from plugin configuration
         try:
@@ -176,10 +209,18 @@ async def add_task(request):
             # Create the parent category for all North tasks
             await config_mgr.create_category("North", {}, 'North tasks', True)
             await config_mgr.create_child_category("North", [name])
+
+            # If config is in POST data, then update the value for each config item
+            if config is not None:
+                if not isinstance(config, dict):
+                    raise ValueError('Config must be a JSON object')
+                for k, v in config.items():
+                    await config_mgr.set_category_item_value_entry(name, k, v['value'])
         except Exception as ex:
-            await revert_configuration(storage, name)  # Revert configuration entry
-            await revert_parent_child_configuration(storage, name)
-            raise web.HTTPInternalServerError(reason='Failed to create plugin configuration. {}'.format(str(ex)))
+            await delete_configuration(storage, name)  # Revert configuration entry
+            await delete_parent_child_configuration(storage, name)
+            _logger.exception("Failed to create plugin configuration. %s", str(ex))
+            raise web.HTTPInternalServerError(reason='Failed to create plugin configuration.')
 
         # If all successful then lastly add a schedule to run the new task at startup
         try:
@@ -200,18 +241,65 @@ async def add_task(request):
             await server.Server.scheduler.save_schedule(schedule, is_enabled)
             schedule = await server.Server.scheduler.get_schedule_by_name(name)
         except StorageServerError as ex:
-            await revert_configuration(storage, name)  # Revert configuration entry
-            await revert_parent_child_configuration(storage, name)
-            raise web.HTTPInternalServerError(reason='Failed to created schedule. {}'.format(ex.error))
-        except Exception as ins_ex:
-            await revert_configuration(storage, name)  # Revert configuration entry
-            await revert_parent_child_configuration(storage, name)
-            raise web.HTTPInternalServerError(reason='Failed to created schedule. {}'.format(str(ins_ex)))
+            await delete_configuration(storage, name)  # Revert configuration entry
+            await delete_parent_child_configuration(storage, name)
+            _logger.exception("Failed to create schedule. %s", ex.error)
+            raise web.HTTPInternalServerError(reason='Failed to create north instance.')
+        except Exception as ex:
+            await delete_configuration(storage, name)  # Revert configuration entry
+            await delete_parent_child_configuration(storage, name)
+            _logger.exception("Failed to create schedule. %s", str(ex))
+            raise web.HTTPInternalServerError(reason='Failed to create north instance.')
 
+    except ValueError as e:
+        raise web.HTTPBadRequest(reason=str(e))
+    else:
         return web.json_response({'name': name, 'id': str(schedule.schedule_id)})
 
-    except ValueError as ex:
-        raise web.HTTPInternalServerError(reason=str(ex))
+
+async def delete_task(request):
+    """ Delete a north plugin instance task
+
+        :Example:
+            curl -X DELETE http://localhost:8081/foglamp/scheduled/task/<task name>
+    """
+    try:
+        north_instance = request.match_info.get('task_name', None)
+
+        if north_instance is None or north_instance.strip() == '':
+            raise web.HTTPBadRequest(reason='Missing task_name in requested URL')
+
+        storage = connect.get_storage_async()
+
+        result = await get_schedule(storage, north_instance)
+        if result['count'] == 0:
+            raise web.HTTPBadRequest(reason='A north instance task with this name does not exist.')
+
+        north_instance_schedule = result['rows'][0]
+        sch_id = uuid.UUID(north_instance_schedule['id'])
+        if north_instance_schedule['enabled'].lower() == 't':
+            # disable it
+            await server.Server.scheduler.disable_schedule(sch_id)
+        # delete it
+        await server.Server.scheduler.delete_schedule(sch_id)
+
+        # delete all configuration for the north task instance name
+        await delete_configuration(storage, north_instance)
+        await delete_parent_child_configuration(storage, north_instance)
+
+        # delete statistics key
+        await delete_statistics_key(storage, north_instance)
+
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason=ex)
+    else:
+        return web.json_response({'result': 'North instance {} deleted successfully.'.format(north_instance)})
+
+
+async def get_schedule(storage, schedule_name):
+    payload = PayloadBuilder().SELECT(["id", "enabled"]).WHERE(['schedule_name', '=', schedule_name]).payload()
+    result = await storage.query_tbl_with_payload('schedules', payload)
+    return result
 
 
 async def check_scheduled_processes(storage, process_name):
@@ -226,11 +314,19 @@ async def check_schedules(storage, schedule_name):
     return result['count']
 
 
-async def revert_configuration(storage, key):
+async def delete_configuration(storage, key):
     payload = PayloadBuilder().WHERE(['key', '=', key]).payload()
     await storage.delete_from_tbl('configuration', payload)
+    # Removed key from configuration cache
+    config_mgr = ConfigurationManager(storage)
+    config_mgr._cacheManager.remove(key)
 
 
-async def revert_parent_child_configuration(storage, key):
+async def delete_parent_child_configuration(storage, key):
     payload = PayloadBuilder().WHERE(['parent', '=', "North"]).AND_WHERE(['child', '=', key]).payload()
     await storage.delete_from_tbl('category_children', payload)
+
+
+async def delete_statistics_key(storage, key):
+    payload = PayloadBuilder().WHERE(['key', '=', key]).payload()
+    await storage.delete_from_tbl('statistics', payload)

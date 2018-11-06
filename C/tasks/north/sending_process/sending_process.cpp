@@ -52,8 +52,6 @@ int main(int argc, char** argv)
 {
 	try
 	{
-        std::string tmp_str;
-
                 // Instantiate SendingProcess class
 		SendingProcess sendingProcess(argc, argv);
                 
@@ -115,7 +113,10 @@ static void loadDataThread(SendingProcess *loadData)
 {
         unsigned int    readIdx = 0;
 
-        while (loadData->isRunning())
+	// Read from the storage last Id already sent
+	loadData->setLastFetchId(loadData->getLastSentId());
+
+	while (loadData->isRunning())
         {
                 if (readIdx >= DATA_BUFFER_ELMS)
                 {
@@ -139,9 +140,12 @@ static void loadDataThread(SendingProcess *loadData)
 						  loadData->getStreamId(),
 						  readIdx);
 
-			// Load thread is put on hold
-			unique_lock<mutex> lock(waitMutex);
-			cond_var.wait(lock);
+			if (loadData->isRunning()) {
+
+				// Load thread is put on hold, only if the execution should proceed
+				unique_lock<mutex> lock(waitMutex);
+				cond_var.wait(lock);
+			}
                 }
                 else
                 {
@@ -154,7 +158,7 @@ static void loadDataThread(SendingProcess *loadData)
 				if (isReading)
 				{
 					// Read from storage all readings with id > last sent id
-					unsigned long lastReadId = loadData->getLastSentId() + 1;
+					unsigned long lastReadId = loadData->getLastFetchId() + 1;
 					readings = loadData->getStorageClient()->readingFetch(lastReadId,
 											      loadData->getReadBlockSize());
 				}
@@ -174,14 +178,18 @@ static void loadDataThread(SendingProcess *loadData)
 					// WHERE id > lastId
 					Where* wId = new Where("id",
 								conditionId,
-								to_string(loadData->getLastSentId()));
+								to_string(loadData->getLastFetchId()));
 					vector<Returns *> columns;
 					// Add colums and needed aliases
 					columns.push_back(new Returns("id"));
 					columns.push_back(new Returns("key", "asset_code"));
 					columns.push_back(new Returns("key", "read_key"));
 					columns.push_back(new Returns("ts"));
-					columns.push_back(new Returns("history_ts", "user_ts"));
+
+					Returns *tmpReturn = new Returns("history_ts", "user_ts");
+					tmpReturn->timezone("utc");
+					columns.push_back(tmpReturn);
+
 					columns.push_back(new Returns("value"));
 					// Build the query with fields, aliases and where
 					Query qStatistics(columns, wId);
@@ -210,8 +218,18 @@ static void loadDataThread(SendingProcess *loadData)
 			// Data fetched from storage layer
 			if (readings != NULL && readings->getCount())
 			{
-				// Update last fetched reading Id
-				loadData->setLastSentId(readings->getLastId());
+				//Update last fetched reading Id
+				loadData->setLastFetchId(readings->getLastId());
+
+				/**
+				 * Set last fetched reading Id for buffer index
+				 * This is used by send thread whiule updating the next
+				 * position to read from db.
+				 * NOTE:
+				 * The saved position is not ffected by the filters
+				 * called below which can skip some or all input readings.
+				 */
+				loadData->m_last_read_id.at(readIdx) = readings->getLastId();
 
 				/**
 				 * The buffer access is protected by a mutex
@@ -267,7 +285,7 @@ static void loadDataThread(SendingProcess *loadData)
 
 	Logger::getLogger()->info("SendingProcess loadData thread: Last ID '%s' read is %lu",
 				  loadData->getDataSourceType().c_str(),
-				  loadData->getLastSentId()); 
+				  loadData->getLastFetchId());
 
 	/**
 	 * The loop is over: unlock the sendData thread
@@ -296,15 +314,11 @@ static void sendDataThread(SendingProcess *sendData)
 				// Update counters to Database
 				sendData->updateDatabaseCounters();
 
-				// numReadings sent so far
-				totSent += sendData->getSentReadings();
-
 				// Reset current sent readings
 				sendData->resetSentReadings();	
 
 				// DB update done
 				sendData->setUpdateDb(false);
-
                         }
 
 			// Reset send index
@@ -321,19 +335,16 @@ static void sendDataThread(SendingProcess *sendData)
 
                 if (canSend == NULL)
                 {
-                        Logger::getLogger()->info("SendingProcess sendDataThread: " \
+                        /*Logger::getLogger()->info("SendingProcess sendDataThread: " \
                                                   "('%s' stream id %d), sendIdx %u, buffer is empty, waiting ...",
 						  sendData->getDataSourceType().c_str(),
                                                   sendData->getStreamId(),
-                                                  sendIdx);
+                                                  sendIdx);*/
 
 			if (sendData->getUpdateDb())
 			{
                                 // Update counters to Database
 				sendData->updateDatabaseCounters();
-
-				// numReadings sent so far
-				totSent += sendData->getSentReadings();
 
 				// Reset current sent readings
 				sendData->resetSentReadings();	
@@ -342,9 +353,12 @@ static void sendDataThread(SendingProcess *sendData)
 				sendData->setUpdateDb(false);
 			}
 
-			// Send thread is put on hold
-                        unique_lock<mutex> lock(waitMutex);
-                        cond_var.wait(lock);
+			if (sendData->isRunning())
+			{
+				// Send thread is put on hold, only if the execution shoule proceed
+				unique_lock<mutex> lock(waitMutex);
+				cond_var.wait(lock);
+			}
                 }
                 else
                 {
@@ -355,11 +369,31 @@ static void sendDataThread(SendingProcess *sendData)
 			 * transformed using historian protocol and then sent to destination.
 			 */
 
-			const vector<Reading *> &readingData = sendData->m_buffer.at(sendIdx)->getAllReadings();
+			bool emptyReadings = sendData->m_buffer[sendIdx]->getCount() == 0;
+			uint32_t sentReadings = 0;
+			bool processUpdate = false;
 
-			uint32_t sentReadings = sendData->m_plugin->send(readingData);
+			if (!emptyReadings)
+			{
+				// We have some readings to send
+				const vector<Reading *> &readingData = sendData->m_buffer.at(sendIdx)->getAllReadings();
+				sentReadings = sendData->m_plugin->send(readingData);
+				// Check sent readings result
+				if (sentReadings)
+				{
+					processUpdate = true;
+				}
+			}
+			else
+			{
+				// We have an empty readings set: check last id
+				if (sendData->m_last_read_id.at(sendIdx) > 0)
+				{
+					processUpdate = true;
+				}
+			}
 
-			if (sentReadings)
+			if (processUpdate)
 			{
 				/** Sending done */
 				sendData->setUpdateDb(true);
@@ -370,11 +404,20 @@ static void sendDataThread(SendingProcess *sendData)
 				 */
 				readMutex.lock();
 
+				// Update last sent reading Id using the last id of the unfiltered readings buffer
+				sendData->setLastSentId(sendData->m_last_read_id.at(sendIdx));
+
+				// Free buffer
 				delete sendData->m_buffer.at(sendIdx);
 				sendData->m_buffer.at(sendIdx) = NULL;
+				// Reset buffer last id
+				sendData->m_last_read_id.at(sendIdx) = 0;
 
 				/** 2- Update sent counter (memory only) */
 				sendData->updateSentReadings(sentReadings);
+
+				// numReadings sent so far
+				totSent += sentReadings;
 
 				readMutex.unlock();
 
@@ -386,20 +429,19 @@ static void sendDataThread(SendingProcess *sendData)
 			}
 			else
 			{
-				Logger::getLogger()->error("SendingProcess sendDataThread: Error while sending" \
-							   "('%s' stream id %d), sendIdx %u. N. (%d readings)",
+				Logger::getLogger()->error("SendingProcess sendDataThread: Error while sending " \
+							   "('%s' stream id %d), sendIdx %u, N. (%d readings), " \
+							   ", last reading id in buffer %ld",
 							   sendData->getDataSourceType().c_str(),
 							   sendData->getStreamId(),
 							   sendIdx,
-							   sendData->m_buffer[sendIdx]->getCount());
+							   sendData->m_buffer[sendIdx]->getCount(),
+							   sendData->m_last_read_id.at(sendIdx));
 
 				if (sendData->getUpdateDb())
 				{
 					// Update counters to Database
 					sendData->updateDatabaseCounters();
-
-					// numReadings sent so far
-					totSent += sendData->getSentReadings();
 
 					// Reset current sent readings
 					sendData->resetSentReadings();	
@@ -414,7 +456,6 @@ static void sendDataThread(SendingProcess *sendData)
 			}
                 }
         }
-
 	Logger::getLogger()->info("SendingProcess sendData thread: sent %lu total '%s'",
 				  totSent,
 				  sendData->getDataSourceType().c_str());
@@ -424,14 +465,10 @@ static void sendDataThread(SendingProcess *sendData)
                 // Update counters to Database
 		sendData->updateDatabaseCounters();
 
-                // numReadings sent so far
-		totSent += sendData->getSentReadings();
-
                 // Reset current sent readings
 		sendData->resetSentReadings();
 
                 sendData->setUpdateDb(false);
-
         }
 
 	/**

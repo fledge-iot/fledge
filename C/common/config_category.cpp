@@ -283,6 +283,39 @@ string ConfigCategory::getValue(const string& name) const
 }
 
 /**
+ * Return the requested attribute of a configuration category item
+ *
+ * @param name	The name of the configuration item to return
+ * @param itemAttribute	The item attribute (such as "file", "order", "readonly"
+ * @return	The configuration item attribute as string
+ * @throws	ConfigItemNotFound if the item does not exist in the category
+ *		ConfigItemAttributeNotFound if the requested attribute
+ *		does not exist for the found item.
+ */
+string ConfigCategory::getItemAttribute(const string& itemName,
+					const ItemAttribute itemAttribute) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (itemName.compare(m_items[i]->m_name) == 0)
+		{
+			switch (itemAttribute)
+			{
+				case ORDER_ATTR:
+					return m_items[i]->m_order;
+				case READONLY_ATTR:
+					return m_items[i]->m_readonly;
+				case FILE_ATTR:
+					return m_items[i]->m_file;
+				default:
+					throw new ConfigItemAttributeNotFound();
+			}
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
  * Return the type of the configuration category item
  *
  * @param name	The name of the configuration item to return
@@ -340,6 +373,84 @@ string ConfigCategory::getDefault(const string& name) const
 }
 
 /**
+ * Return the display name of the configuration category item
+ *
+ * @param name	The name of the configuration item to return
+ * @return string	The configuration item name
+ * @throws exception if the item does not exist in the category
+ */
+string ConfigCategory::getDisplayName(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return m_items[i]->m_displayName;
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
+ * Return the minimum value of the configuration category item
+ *
+ * @param name	The name of the configuration item to return
+ * @return string	The configuration item name
+ * @throws exception if the item does not exist in the category
+ */
+string ConfigCategory::getMinimum(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return m_items[i]->m_minimum;
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
+ * Return the maximum of the configuration category item
+ *
+ * @param name	The name of the configuration item to return
+ * @return string	The configuration item name
+ * @throws exception if the item does not exist in the category
+ */
+string ConfigCategory::getMaximum(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return m_items[i]->m_maximum;
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+
+
+/**
+ * Return the options of the configuration category item
+ *
+ * @param name	The name of the configuration item to return
+ * @return string	The configuration item name
+ * @throws exception if the item does not exist in the category
+ */
+vector<string> ConfigCategory::getOptions(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return m_items[i]->m_options;
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
  * Return if the configuration item is a string item
  *
  * @param name		The name of the item to test
@@ -353,6 +464,25 @@ bool ConfigCategory::isString(const string& name) const
 		if (name.compare(m_items[i]->m_name) == 0)
 		{
 			return m_items[i]->m_itemType == CategoryItem::StringItem;
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
+ * Return if the configuration item is an enumeration item
+ *
+ * @param name		The name of the item to test
+ * @return bool		True if the item is a string type
+ * @throws exception	If the item was not found in the configuration category
+ */
+bool ConfigCategory::isEnumeration(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return m_items[i]->m_itemType == CategoryItem::EnumerationItem;
 		}
 	}
 	throw new ConfigItemNotFound();
@@ -429,6 +559,25 @@ bool ConfigCategory::isDouble(const string& name) const
 		if (name.compare(m_items[i]->m_name) == 0)
 		{
 			return m_items[i]->m_itemType == CategoryItem::DoubleItem;
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
+ * Return if the configuration item is deprecated a item
+ *
+ * @param name		The name of the item to test
+ * @return bool		True if the item is a deprecated type
+ * @throws exception	If the item was not found in the configuration category
+ */
+bool ConfigCategory::isDeprecated(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return ! m_items[i]->m_deprecated.empty();
 		}
 	}
 	throw new ConfigItemNotFound();
@@ -523,6 +672,34 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		m_order = "";
 	}
 
+
+	if (item.HasMember("minimum"))
+	{
+		m_minimum = item["minimum"].GetString();
+	}
+	else
+	{
+		m_minimum = "";
+	}
+
+	if (item.HasMember("maximum"))
+	{
+		m_maximum = item["maximum"].GetString();
+	}
+	else
+	{
+		m_maximum = "";
+  }
+
+	if (item.HasMember("file"))
+	{
+		m_file = item["file"].GetString();
+	}
+	else
+	{
+		m_file = "";
+	}
+
 	if (item.HasMember("readonly"))
 	{
 		m_readonly = item["readonly"].GetString();
@@ -530,6 +707,36 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 	else
 	{
 		m_readonly = "";
+	}
+
+	if (item.HasMember("deprecated"))
+	{
+		m_deprecated = item["deprecated"].GetString();
+	}
+	else
+	{
+		m_deprecated = "";
+	}
+
+	if (item.HasMember("displayName"))
+	{
+		m_displayName = item["displayName"].GetString();
+	}
+	else
+	{
+		m_displayName = "";
+	}
+
+	if (item.HasMember("options"))
+	{
+		const Value& options = item["options"];
+		if (options.IsArray())
+		{
+			for (SizeType i = 0; i < options.Size(); i++)
+			{
+				m_options.push_back(string(options[i].GetString()));
+			}
+		}
 	}
 
 	// Item "value" can be an escaped JSON string, so check m_type JSON as well
@@ -577,7 +784,10 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 	else if (item.HasMember("value") && item["value"].IsString())
 	{
 		m_value = item["value"].GetString();
-		m_itemType = StringItem;
+		if (m_options.size() == 0)
+			m_itemType = StringItem;
+		else
+			m_itemType = EnumerationItem;
 	}
 	// Item "value" is a Double
 	else if (item.HasMember("value") && item["value"].IsDouble())
@@ -649,7 +859,10 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 	else if (item.HasMember("default") && item["default"].IsString())
 	{
 		m_default = item["default"].GetString();
-		m_itemType = StringItem;
+		if (m_options.size() == 0)
+			m_itemType = StringItem;
+		else
+			m_itemType = EnumerationItem;
 	}
 	// Item "default" is a Double
 	else if (item.HasMember("default") && item["default"].IsDouble())
@@ -693,6 +906,31 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name, const std::string
 }
 
 /**
+ * Copy constructor for configuration item
+ */
+ConfigCategory::CategoryItem::CategoryItem(const CategoryItem& rhs)
+{
+	m_name = rhs.m_name;
+	m_displayName = rhs.m_displayName;
+	m_type = rhs.m_type;
+	m_default = rhs.m_default;
+	m_value = rhs.m_value;
+	m_description = rhs.m_description;
+       	m_order = rhs.m_order;
+       	m_readonly = rhs.m_readonly;
+       	m_deprecated = rhs.m_deprecated;
+       	m_minimum = rhs.m_minimum;
+       	m_maximum = rhs.m_maximum;
+       	m_filename = rhs.m_filename;
+	for (auto it = rhs.m_options.cbegin(); it != rhs.m_options.cend(); it++)
+	{
+		m_options.push_back(*it);
+	}
+       	m_file = rhs.m_file;
+       	m_itemType = rhs.m_itemType;
+}
+
+/**
  * Create a JSON representation of the configuration item
  */
 string ConfigCategory::CategoryItem::toJSON() const
@@ -701,10 +939,26 @@ ostringstream convert;
 
 	convert << "\"" << m_name << "\" : { ";
 	convert << "\"description\" : \"" << m_description << "\", ";
+	if (! m_displayName.empty())
+	{
+		convert << "\"displayName\" : \"" << m_displayName << "\", ";
+	}
 	convert << "\"type\" : \"" << m_type << "\", ";
+	if (m_options.size() > 0)
+	{
+		convert << "\"options\" : [ ";
+		for (int i = 0; i < m_options.size(); i++)
+		{
+			if (i > 0)
+				convert << ",";
+			convert << "\"" << m_options[i] << "\"";
+		}
+		convert << "],";
+	}
 
 	if (m_itemType == StringItem ||
-	    m_itemType == BoolItem)
+	    m_itemType == BoolItem ||
+	    m_itemType == EnumerationItem)
 	{
 		convert << "\"value\" : \"" << m_value << "\", ";
 		convert << "\"default\" : \"" << m_default << "\" }";
@@ -735,13 +989,39 @@ ostringstream convert;
 		convert << "\"order\" : \"" << m_order << "\", ";
 	}
 
+	if (!m_minimum.empty())
+	{
+		convert << "\"minimum\" : \"" << m_minimum << "\", ";
+	}
+
+	if (!m_maximum.empty())
+	{
+		convert << "\"maximum\" : \"" << m_maximum << "\", ";
+	}
+
 	if (!m_readonly.empty())
 	{
 		convert << "\"readonly\" : \"" << m_readonly << "\", ";
 	}
 
+	if (!m_file.empty())
+	{
+		convert << "\"file\" : \"" << m_file << "\", ";
+	}
+	if (m_options.size() > 0)
+	{
+		convert << "\"options\" : [ ";
+		for (int i = 0; i < m_options.size(); i++)
+		{
+			if (i > 0)
+				convert << ",";
+			convert << "\"" << m_options[i] << "\"";
+		}
+		convert << "],";
+	}
 
 	if (m_itemType == StringItem ||
+	    m_itemType == EnumerationItem ||
 	    m_itemType == BoolItem)
 	{
 		convert << "\"default\" : \"" << m_default << "\" }";

@@ -46,6 +46,8 @@ SimpleHttps::~SimpleHttps()
  * @param headers   The optional headers to send
  * @param payload   The optional data payload (for POST, PUT)
  * @return          The HTTP code on success or 0 on execptions
+ * @throw	    BadRequest for HTTP 400 error
+ *		    std::exception as generic exception
  */
 int SimpleHttps::sendRequest(const string& method,
 			    const string& path,
@@ -70,6 +72,14 @@ int SimpleHttps::sendRequest(const string& method,
 	{
 		auto res = m_sender->request(method, path, payload, header);
 		retCode = res->status_code;
+		string response = res->content.string();
+		// If 400 Bad Request, throw BadRequest exception
+		if (atoi(retCode.c_str()) == 400)
+		{
+			throw BadRequest(response);
+		}
+	} catch (BadRequest& ex) {
+		throw BadRequest(ex.what());
 	} catch (exception& ex) {
 		string errMsg("Failed to send data: ");
 		errMsg.append(ex.what());

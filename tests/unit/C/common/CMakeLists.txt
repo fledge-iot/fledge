@@ -34,5 +34,5 @@ target_link_libraries(RunTests ${GTEST_LIBRARIES} pthread)
 target_link_libraries(RunTests  ${Boost_LIBRARIES})
 target_link_libraries(RunTests  ${UUIDLIB})
 target_link_libraries(RunTests  ${COMMONLIB})
-target_link_libraries(RunTests -lssl -lcrypto)
+target_link_libraries(RunTests -lssl -lcrypto -lz)
 

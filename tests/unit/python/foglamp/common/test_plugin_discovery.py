@@ -100,11 +100,7 @@ class TestPluginDiscovery:
          "version": "1.0.0",
          "type": "south",
          "name": "Dummy",
-         "config": {"plugin":
-                        {"type": "string",
-                         "description": "Dummy C south plugin",
-                         "default": "dummy"}
-                    }
+         "config": {"plugin": {"type": "string", "description": "Dummy C south plugin", "default": "dummy"}}
          }
     ]
 
@@ -113,11 +109,7 @@ class TestPluginDiscovery:
          "version": "1.0.0",
          "type": "south",
          "name": "Dummy",
-         "config": {"plugin":
-                        {"type": "string",
-                         "description": "Dummy C south plugin",
-                         "default": "dummy"}
-                    }
+         "config": {"plugin": {"type": "string", "description": "Dummy C south plugin", "default": "dummy"}}
          },
         {"interface": "1.0.0",
          "name": "OCS",
@@ -145,8 +137,10 @@ class TestPluginDiscovery:
 
         mock_get_folders = mocker.patch.object(PluginDiscovery, "get_plugin_folders", return_value=next(mock_folders()))
         mock_get_c_folders = mocker.patch.object(utils, "find_c_plugin_libs", return_value=next(mock_c_folders()))
-        mock_get_plugin_config = mocker.patch.object(PluginDiscovery, "get_plugin_config", side_effect=TestPluginDiscovery.mock_plugins_config)
-        mock_get_c_plugin_config = mocker.patch.object(utils, "get_plugin_info", side_effect=TestPluginDiscovery.mock_c_plugins_config)
+        mock_get_plugin_config = mocker.patch.object(PluginDiscovery, "get_plugin_config",
+                                                     side_effect=TestPluginDiscovery.mock_plugins_config)
+        mock_get_c_plugin_config = mocker.patch.object(utils, "get_plugin_info",
+                                                       side_effect=TestPluginDiscovery.mock_c_plugins_config)
 
         plugins = PluginDiscovery.get_plugins_installed()
         expected_plugin = TestPluginDiscovery.mock_plugins_config
@@ -168,9 +162,11 @@ class TestPluginDiscovery:
             yield TestPluginDiscovery.mock_c_north_folders
 
         mock_get_folders = mocker.patch.object(PluginDiscovery, "get_plugin_folders", return_value=next(mock_folders()))
-        mock_get_plugin_config = mocker.patch.object(PluginDiscovery, "get_plugin_config", side_effect=TestPluginDiscovery.mock_plugins_north_config)
+        mock_get_plugin_config = mocker.patch.object(PluginDiscovery, "get_plugin_config",
+                                                     side_effect=TestPluginDiscovery.mock_plugins_north_config)
         mock_get_c_folders = mocker.patch.object(utils, "find_c_plugin_libs", return_value=next(mock_c_folders()))
-        mock_get_c_plugin_config = mocker.patch.object(utils, "get_plugin_info", side_effect=TestPluginDiscovery.mock_c_plugins_north_config)
+        mock_get_c_plugin_config = mocker.patch.object(utils, "get_plugin_info",
+                                                       side_effect=TestPluginDiscovery.mock_c_plugins_north_config)
 
         plugins = PluginDiscovery.get_plugins_installed("north")
         expected_plugin = TestPluginDiscovery.mock_plugins_north_config
@@ -192,9 +188,11 @@ class TestPluginDiscovery:
             yield TestPluginDiscovery.mock_c_south_folders
 
         mock_get_folders = mocker.patch.object(PluginDiscovery, "get_plugin_folders", return_value=next(mock_folders()))
-        mock_get_plugin_config = mocker.patch.object(PluginDiscovery, "get_plugin_config", side_effect=TestPluginDiscovery.mock_plugins_south_config)
+        mock_get_plugin_config = mocker.patch.object(PluginDiscovery, "get_plugin_config",
+                                                     side_effect=TestPluginDiscovery.mock_plugins_south_config)
         mock_get_c_folders = mocker.patch.object(utils, "find_c_plugin_libs", return_value=next(mock_c_folders()))
-        mock_get_c_plugin_config = mocker.patch.object(utils, "get_plugin_info", side_effect=TestPluginDiscovery.mock_c_plugins_south_config)
+        mock_get_c_plugin_config = mocker.patch.object(utils, "get_plugin_info",
+                                                       side_effect=TestPluginDiscovery.mock_c_plugins_south_config)
 
         plugins = PluginDiscovery.get_plugins_installed("south")
         expected_plugin = TestPluginDiscovery.mock_plugins_south_config
@@ -212,9 +210,10 @@ class TestPluginDiscovery:
             yield TestPluginDiscovery.mock_north_folders
 
         mock_get_folders = mocker.patch.object(PluginDiscovery, "get_plugin_folders", return_value=next(mock_folders()))
-        mock_get_plugin_config = mocker.patch.object(PluginDiscovery, "get_plugin_config", side_effect=TestPluginDiscovery.mock_plugins_north_config)
+        mock_get_plugin_config = mocker.patch.object(PluginDiscovery, "get_plugin_config",
+                                                     side_effect=TestPluginDiscovery.mock_plugins_north_config)
 
-        plugins = PluginDiscovery.fetch_plugins_installed("north")
+        plugins = PluginDiscovery.fetch_plugins_installed("north", False)
         # FIXME: below line is failing when in suite
         # assert TestPluginDiscovery.mock_plugins_north_config == plugins
         assert 1 == mock_get_folders.call_count
@@ -227,23 +226,39 @@ class TestPluginDiscovery:
             listdir.extend(["__init__", "empty", "common"])
             yield listdir
 
-        mock_os_listdir = mocker.patch.object(os, "listdir", return_value=next(mock_folders()))
-        mock_os_isdir = mocker.patch.object(os.path, "isdir", return_value=True)
-
+        mocker.patch.object(os, "listdir", return_value=next(mock_folders()))
+        mocker.patch.object(os.path, "isdir", return_value=True)
         plugin_folders = PluginDiscovery.get_plugin_folders("north")
         assert TestPluginDiscovery.mock_north_folders == plugin_folders
 
-    def test_get_plugin_config(self):
+    @pytest.mark.parametrize("info, expected, is_config", [
+        ({'name': "furnace4", 'version': "1.1", 'type': "south", 'interface': "1.0",
+          'config': {'plugin': {'description': "Modbus RTU plugin", 'type': 'string', 'default': 'modbus'}}},
+         {'name': 'modbus', 'type': 'south', 'description': 'Modbus RTU plugin', 'version': '1.1'}, False),
+        ({'name': "furnace4", 'version': "1.1", 'type': "south", 'interface': "1.0",
+          'config': {'plugin': {'description': "Modbus RTU plugin", 'type': 'string', 'default': 'modbus'}}},
+         {'name': 'modbus', 'type': 'south', 'description': 'Modbus RTU plugin', 'version': '1.1',
+          'config': {'plugin': {'description': 'Modbus RTU plugin', 'type': 'string', 'default': 'modbus'}}}, True)
+    ])
+    def test_get_plugin_config(self, info, expected, is_config):
+        mock = MagicMock()
+        attrs = {"plugin_info.side_effect": [info]}
+        mock.configure_mock(**attrs)
+        with patch('builtins.__import__', return_value=mock):
+            actual = PluginDiscovery.get_plugin_config("modbus", "south", is_config)
+            assert expected == actual
+
+    def test_bad_get_plugin_config(self):
         mock_plugin_info = {
-                'name': "furnace4",
-                'version': "1.1",
-                'type': "south",
-                'interface': "1.0",
+                'name': "HTTP",
+                'version': "1.0.0",
+                'type': "north",
+                'interface': "1.0.0",
                 'config': {
                             'plugin': {
-                                'description': "Modbus RTU plugin",
+                                'description': "HTTP north plugin",
                                 'type': 'string',
-                                'default': 'modbus'
+                                'default': 'http-north'
                             }
                 }
         }
@@ -251,14 +266,20 @@ class TestPluginDiscovery:
         mock = MagicMock()
         attrs = {"plugin_info.side_effect": [mock_plugin_info]}
         mock.configure_mock(**attrs)
+        with patch.object(_logger, "warning") as patch_log_warn:
+            with patch('builtins.__import__', return_value=mock):
+                actual = PluginDiscovery.get_plugin_config("http-north", "south", False)
+                assert actual is None
+        patch_log_warn.assert_called_once_with('Plugin http-north is discarded due to invalid type')
 
-        with patch('builtins.__import__', return_value=mock):
-            actual = PluginDiscovery.get_plugin_config("modbus", "south")
-            expected = TestPluginDiscovery.mock_plugins_south_config[0]
-            # TODO: Investigate why import json at module top is not working and also why
-            #       assert expected == actual is not working
-            import json
-            assert json.loads(expected) == json.loads(actual)
+    def test_fetch_c_plugins_installed(self):
+        info = {"interface": "1.0.0", "version": "1.0.0", "type": "south", "name": "Random",
+                "config": {"plugin": {"description": "Random C plugin", "type": "string", "default": "Random"}}}
+        with patch.object(utils, "find_c_plugin_libs", return_value=["Random"]) as patch_plugin_lib:
+            with patch.object(utils, "get_plugin_info", return_value=info) as patch_plugin_info:
+                PluginDiscovery.fetch_c_plugins_installed("south", True)
+            patch_plugin_info.assert_called_once_with('Random')
+        patch_plugin_lib.assert_called_once_with('south')
 
     @pytest.mark.parametrize("info, exc_count", [
         ({}, 0),
@@ -269,7 +290,7 @@ class TestPluginDiscovery:
         with patch.object(_logger, "exception") as patch_log_exc:
             with patch.object(utils, "find_c_plugin_libs", return_value=["Random"]) as patch_plugin_lib:
                 with patch.object(utils, "get_plugin_info",  return_value=info) as patch_plugin_info:
-                    PluginDiscovery.fetch_c_plugins_installed("south")
+                    PluginDiscovery.fetch_c_plugins_installed("south", False)
                 patch_plugin_info.assert_called_once_with('Random')
             patch_plugin_lib.assert_called_once_with('south')
             assert exc_count == patch_log_exc.call_count
@@ -283,7 +304,7 @@ class TestPluginDiscovery:
         with patch.object(_logger, "exception") as patch_log_exc:
             with patch.object(utils, "find_c_plugin_libs", return_value=["PI_Server"]) as patch_plugin_lib:
                 with patch.object(utils, "get_plugin_info", return_value=info) as patch_plugin_info:
-                    PluginDiscovery.fetch_c_plugins_installed("north")
+                    PluginDiscovery.fetch_c_plugins_installed("north", False)
                 patch_plugin_info.assert_called_once_with('PI_Server')
             patch_plugin_lib.assert_called_once_with('north')
             assert exc_count == patch_log_exc.call_count
@@ -299,7 +320,7 @@ class TestPluginDiscovery:
 
         with patch.object(_logger, log_exc_name) as patch_log_exc:
             with patch('builtins.__import__', return_value=mock):
-                PluginDiscovery.get_plugin_config("modbus", "south")
+                PluginDiscovery.get_plugin_config("modbus", "south", False)
         assert 1 == patch_log_exc.call_count
         args, kwargs = patch_log_exc.call_args
         assert msg in args[0]
@@ -315,7 +336,7 @@ class TestPluginDiscovery:
 
         with patch.object(_logger, log_exc_name) as patch_log_exc:
             with patch('builtins.__import__', return_value=mock):
-                PluginDiscovery.get_plugin_config("http", "north")
+                PluginDiscovery.get_plugin_config("http", "north", False)
         assert 1 == patch_log_exc.call_count
         args, kwargs = patch_log_exc.call_args
         assert msg in args[0]

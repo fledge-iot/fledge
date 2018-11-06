@@ -10,6 +10,11 @@
 
 typedef std::vector<std::pair<std::string *, std::string *> > REGISTRY;
 
+/**
+ * StorageRegistry - a class that manages requests from other microservices
+ * to register interest in new readings being inserted into the storage layer
+ * that match a given asset code, or any asset code "*".
+ */
 class StorageRegistry {
 	public:
 		StorageRegistry();
@@ -21,6 +26,7 @@ class StorageRegistry {
 	private:
 		void		processPayload(char *payload);
 		void		sendPayload(const std::string& url, char *payload);
+		void		filterPayload(const std::string& url, char *payload, const std::string& asset);
 		REGISTRY			m_registrations;
 		std::queue<char *>		m_queue;
 		std::mutex			m_qMutex;

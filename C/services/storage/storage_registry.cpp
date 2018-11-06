@@ -171,6 +171,13 @@ bool allDone = true;
 		return;
 	}
 	// TODO Deal with registrations for individul assets
+	for (REGISTRY::const_iterator it = m_registrations.cbegin(); it != m_registrations.cend(); it++)
+	{
+		if (it->first->compare("*") == 0)
+		{
+			filterPayload(*(it->second), payload, *(it->first));
+		}
+	}
 }
 
 
@@ -182,6 +189,25 @@ bool allDone = true;
  */
 void
 StorageRegistry::sendPayload(const string& url, char *payload)
+{
+	size_t found = url.find_first_of("://");
+	size_t found1 = url.find_first_of("/", found + 3);
+	string hostport = url.substr(found+3, found1 - found - 4);
+	string resource = url.substr(found1);
+
+	HttpClient client(hostport);
+	client.request("POST", resource, payload);
+}
+
+/**
+ * Send a filtered copy of the payload to the given URL
+ *
+ * @param url		The URL to send the payload to
+ * @param payload	The payload to send
+ * @param asset		The asset code to filter
+ */
+void
+StorageRegistry::filterPayload(const string& url, char *payload, const string& asset)
 {
 	size_t found = url.find_first_of("://");
 	size_t found1 = url.find_first_of("/", found + 3);

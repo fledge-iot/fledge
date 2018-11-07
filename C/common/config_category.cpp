@@ -245,9 +245,109 @@ void ConfigCategory::addItem(const std::string& name, const std::string descript
 	m_items.push_back(new CategoryItem(name, description, type, def, value));
 }
 
+/**
+ * Delete all the items from the configuration category having a specific type
+ *
+ * * @param type  Type to delete
+ */
+void ConfigCategory::removeItemsType(ConfigCategory::ItemType type)
+{
+	for (auto it = m_items.begin(); it != m_items.end(); )
+	{
+		if ((*it)->m_itemType == type)
+		{
+			m_items.erase(it);
+		}
+		else
+		{
+			++it;
+		}
+	}
+}
 
 /**
- * Check for the existance of an item within the configuration category
+ * Delete all the items from the configuration category
+ *
+ */
+void ConfigCategory::removeItems()
+{
+	for (auto it = m_items.begin(); it != m_items.end(); )
+	{
+
+		m_items.erase(it);
+	}
+}
+
+/**
+ * Delete all the items from the configuration category not having a specific type
+ *
+ * * @param type  Type to maintain
+ */
+void ConfigCategory::keepItemsType(ConfigCategory::ItemType type)
+{
+
+	for (auto it = m_items.begin(); it != m_items.end(); )
+	{
+		if ((*it)->m_itemType != type)
+		{
+			m_items.erase(it);
+		}
+		else
+		{
+			++it;
+		}
+	}
+}
+
+/**
+ * Extracts, process and adds subcategory information from a given category to the current instance
+ *
+ * * @param subCategories Configuration category from which the subcategories information should be extracted
+ */
+bool ConfigCategory::extractSubcategory(ConfigCategory &subCategories)
+{
+
+	bool extracted;
+
+	auto it = subCategories.m_items.begin();
+
+	if (it != subCategories.m_items.end())
+	{
+		// Generates a new temporary category from the JSON in m_default
+		ConfigCategory tmpCategory = ConfigCategory("tmpCategory", (*it)->m_default);
+
+		// Extracts all the items generated from m_default and adds them to the category
+		for(auto item : tmpCategory.m_items)
+		{
+
+			m_items.push_back(new CategoryItem(*item));
+		}
+
+		m_name = (*it)->m_name;
+		m_description = (*it)->m_description;
+
+		// Replaces the %N escape sequence with the instance name of this plugin
+		string instanceName = subCategories.m_name;
+		string pattern  = "%N";
+
+		if (m_name.find(pattern) != string::npos)
+			m_name.replace(m_name.find(pattern), pattern.length(), instanceName);
+
+		// Removes the element just processed
+		subCategories.m_items.erase(it);
+		extracted = true;
+	}
+	else
+	{
+		extracted = false;
+	}
+
+	return 	extracted;
+
+}
+
+/**
+ * Check for the existence of an item within the configuration category
  *
  * @param name	Item name to check within the category
  */
@@ -463,7 +563,7 @@ bool ConfigCategory::isString(const string& name) const
 	{
 		if (name.compare(m_items[i]->m_name) == 0)
 		{
-			return m_items[i]->m_itemType == CategoryItem::StringItem;
+			return m_items[i]->m_itemType == StringItem;
 		}
 	}
 	throw new ConfigItemNotFound();
@@ -482,7 +582,7 @@ bool ConfigCategory::isEnumeration(const string& name) const
 	{
 		if (name.compare(m_items[i]->m_name) == 0)
 		{
-			return m_items[i]->m_itemType == CategoryItem::EnumerationItem;
+			return m_items[i]->m_itemType == EnumerationItem;
 		}
 	}
 	throw new ConfigItemNotFound();
@@ -501,7 +601,7 @@ bool ConfigCategory::isJSON(const string& name) const
 	{
 		if (name.compare(m_items[i]->m_name) == 0)
 		{
-			return m_items[i]->m_itemType == CategoryItem::JsonItem;
+			return m_items[i]->m_itemType == JsonItem;
 		}
 	}
 	throw new ConfigItemNotFound();
@@ -520,7 +620,7 @@ bool ConfigCategory::isBool(const string& name) const
 	{
 		if (name.compare(m_items[i]->m_name) == 0)
 		{
-			return m_items[i]->m_itemType == CategoryItem::BoolItem;
+			return m_items[i]->m_itemType == BoolItem;
 		}
 	}
 	throw new ConfigItemNotFound();
@@ -539,7 +639,7 @@ bool ConfigCategory::isNumber(const string& name) const
 	{
 		if (name.compare(m_items[i]->m_name) == 0)
 		{
-			return m_items[i]->m_itemType == CategoryItem::NumberItem;
+			return m_items[i]->m_itemType == NumberItem;
 		}
 	}
 	throw new ConfigItemNotFound();
@@ -558,7 +658,7 @@ bool ConfigCategory::isDouble(const string& name) const
 	{
 		if (name.compare(m_items[i]->m_name) == 0)
 		{
-			return m_items[i]->m_itemType == CategoryItem::DoubleItem;
+			return m_items[i]->m_itemType == DoubleItem;
 		}
 	}
 	throw new ConfigItemNotFound();
@@ -708,6 +808,16 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 	{
 		m_readonly = "";
 	}
+	if  (m_type.compare("category") == 0)
+	{
+
+		m_itemType = CategoryType;
+	}
+	if  (m_type.compare("script") == 0)
+	{
+
+		m_itemType = ScriptItem;
+	}
 
 	if (item.HasMember("deprecated"))
 	{
@@ -739,9 +849,13 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		}
 	}
 
+	std:string m_typeUpperCase = m_type;
+	for (auto & c: m_typeUpperCase) c = toupper(c);
+
 	// Item "value" can be an escaped JSON string, so check m_type JSON as well
 	if (item.HasMember("value") &&
-	    ((item["value"].IsObject() || m_type.compare("JSON") == 0)))
+	    (item["value"].IsObject() || m_typeUpperCase.compare("JSON") == 0))
+
 	{
 		rapidjson::StringBuffer strbuf;
 		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
@@ -766,7 +880,18 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 				throw new runtime_error("'value' JSON property is not an object");
 			}
 		}
-		m_itemType = JsonItem;
+		if (m_typeUpperCase.compare("JSON") == 0)
+		{
+			m_itemType = JsonItem;
+		}
+		else
+		{
+			// Avoids overwrite if it is already valued
+			if (m_itemType == StringItem)
+			{
+				m_itemType = JsonItem;
+			}
+		}
 	}
 	// Item "value" is a Bool or m_type is boolean
 	else if (item.HasMember("value") &&
@@ -816,7 +941,7 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 
 	// Item "default" can be an escaped JSON string, so check m_type JSON as well
 	if (item.HasMember("default") &&
-	    ((item["default"].IsObject() || m_type.compare("JSON") == 0)))
+	    (item["default"].IsObject() || m_typeUpperCase.compare("JSON") == 0))
 	{
 		rapidjson::StringBuffer strbuf;
 		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
@@ -841,7 +966,19 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 				throw new runtime_error("'default' JSON property is not an object");
 			}
 		}
-		m_itemType = JsonItem;
+		if (m_typeUpperCase.compare("JSON") == 0)
+		{
+
+			m_itemType = JsonItem;
+		}
+		else
+		{
+			// Avoids overwrite if it is already valued
+			if (m_itemType == StringItem)
+			{
+				m_itemType = JsonItem;
+			}
+		}
 	}
 	// Item "default" is a Bool or m_type is boolean
 	else if (item.HasMember("default") &&

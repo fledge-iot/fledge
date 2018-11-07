@@ -13,6 +13,7 @@
 #include <server_http.hpp>
 #include <storage_plugin.h>
 #include <storage_stats.h>
+#include <storage_registry.h>
 
 using namespace std;
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
@@ -25,11 +26,13 @@ using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 #define READING_ACCESS  	"^/storage/reading$"
 #define READING_QUERY   	"^/storage/reading/query"
 #define READING_PURGE   	"^/storage/reading/purge"
+#define READING_INTEREST	"^/storage/reading/interest/([A-Za-z\\*][a-zA-Z0-9_]*)$"
 
 #define PURGE_FLAG_RETAIN	"retain"
 #define PURGE_FLAG_PURGE	"purge"
 
 #define TABLE_NAME_COMPONENT	1
+#define ASSET_NAME_COMPONENT	1
 
 /**
  * The Storage API class - this class is responsible for the registration of all API
@@ -59,6 +62,8 @@ public:
 	void	readingFetch(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 	void	readingQuery(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 	void	readingPurge(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
+	void	readingRegister(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
+	void	readingUnregister(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 
 private:
         static StorageApi       *m_instance;
@@ -69,6 +74,7 @@ private:
 	StoragePlugin		*plugin;
 	StoragePlugin		*readingPlugin;
 	StorageStats		stats;
+	StorageRegistry		registry;
 	void			respond(shared_ptr<HttpServer::Response>, const string&);
 	void			respond(shared_ptr<HttpServer::Response>, SimpleWeb::StatusCode, const string&);
 	void			internalError(shared_ptr<HttpServer::Response>, const exception&);

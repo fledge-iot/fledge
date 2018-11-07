@@ -235,7 +235,7 @@ void StorageApi::initResources()
 #endif
 	m_server->resource[READING_QUERY]["PUT"] = readingQueryWrapper;
 	m_server->resource[READING_PURGE]["PUT"] = readingPurgeWrapper;
-	m_server->resource[READING_INTEREST]["PUT"] = readingRegisterWrapper;
+	m_server->resource[READING_INTEREST]["POST"] = readingRegisterWrapper;
 	m_server->resource[READING_INTEREST]["DELETE"] = readingUnregisterWrapper;
 
 	m_server->on_error = on_error;

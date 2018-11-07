@@ -7,15 +7,19 @@
  *
  * Author: Mark Riddoch
  */
-#include <storage_registry.h>
+#include <rapidjson/document.h>
+#include "storage_registry.h"
 #include "client_http.hpp"
 #include "server_http.hpp"
 #include "management_api.h"
+#include "reading_set.h"
+#include "reading.h"
 #include "logger.h"
 #include "strings.h"
 #include "client_http.hpp"
 
 using namespace std;
+using namespace rapidjson;
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 
 /**
@@ -75,6 +79,7 @@ StorageRegistry::process(const string& payload)
 		if ((data = strdup(payload.c_str())) != NULL)
 		{
 			lock_guard<mutex> guard(m_qMutex);
+Logger::getLogger()->error("Pushed payload to process");
 			m_queue.push(data);
 			m_cv.notify_all();
 		}
@@ -170,12 +175,15 @@ bool allDone = true;
 		// No registrations for individual assets, no need to parse payload
 		return;
 	}
-	// TODO Deal with registrations for individul assets
 	for (REGISTRY::const_iterator it = m_registrations.cbegin(); it != m_registrations.cend(); it++)
 	{
-		if (it->first->compare("*") == 0)
+		if (it->first->compare("*") != 0)
 		{
-			filterPayload(*(it->second), payload, *(it->first));
+			try {
+				filterPayload(*(it->second), payload, *(it->first));
+			} catch (const exception& e) {
+Logger::getLogger()->error("filterPayload: exception %s", e.what());
+			}
 		}
 	}
 }
@@ -196,7 +204,11 @@ StorageRegistry::sendPayload(const string& url, char *payload)
 	string resource = url.substr(found1);
 
 	HttpClient client(hostport);
-	client.request("POST", resource, payload);
+	try {
+		client.request("POST", resource, payload);
+	} catch (const exception& e) {
+		Logger::getLogger()->error("sendPayload: exception %s sending reading data to interested party %s", e.what(), url.c_str());
+	}
 }
 
 /**
@@ -209,11 +221,72 @@ StorageRegistry::sendPayload(const string& url, char *payload)
 void
 StorageRegistry::filterPayload(const string& url, char *payload, const string& asset)
 {
+ostringstream convert;
+
 	size_t found = url.find_first_of("://");
 	size_t found1 = url.find_first_of("/", found + 3);
 	string hostport = url.substr(found+3, found1 - found - 4);
 	string resource = url.substr(found1);
 
+	// Filter the payload to include just the one asset
+	Document doc;
+	doc.Parse(payload);
+	if (doc.HasParseError())
+	{
+		Logger::getLogger()->error("filterPayload: Parse error in payload");
+		return;
+	}
+	if (!doc.HasMember("readings"))
+	{
+		Logger::getLogger()->error("filterPayload: payload has no readings object");
+		return;
+	}
+	const Value& readings = doc["readings"];
+	if (!readings.IsArray())
+	{
+		Logger::getLogger()->error("filterPayload: payload readings object is not an array");
+		return;
+	}
+	convert << "{ \"readings\" : [ ";
+	int count = 0;
+	/*
+	 * Loop over the readings and create a reading object for
+	 * each, check if it matches the asset name and incldue in the
+	 * new payload if it does. In eother case free that object
+	 * immediately to reduce the memory requirement.
+	 */
+	for (auto& reading : readings.GetArray())
+	{
+		if (reading.IsObject())
+		{
+			JSONReading *value = new JSONReading(reading);
+			if (value->getAssetName().compare(asset) == 0)
+			{
+				if (count)
+					convert << ",";
+				count++;
+				convert << value->toJSON();
+			}
+			delete value;
+		}
+	}
+	
+	convert << "] }";
+
+	/*
+	 * Check if any assets inthe filtered payload
+	 */
+	if (count == 0)
+	{
+		Logger::getLogger()->error("filterPayload: nothing to send, %s, %s", asset.c_str(), payload);
+		// Nothing to send
+		return;
+	}
+
 	HttpClient client(hostport);
-	client.request("POST", resource, payload);
+	try {
+		client.request("POST", resource, convert.str());
+	} catch (const exception& e) {
+		Logger::getLogger()->error("filterPayload: exception %s sending reading data to interested party %s", e.what(), url.c_str());
+	}
 }

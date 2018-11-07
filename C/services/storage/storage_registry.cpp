@@ -79,7 +79,6 @@ StorageRegistry::process(const string& payload)
 		if ((data = strdup(payload.c_str())) != NULL)
 		{
 			lock_guard<mutex> guard(m_qMutex);
-Logger::getLogger()->error("Pushed payload to process");
 			m_queue.push(data);
 			m_cv.notify_all();
 		}
@@ -182,7 +181,7 @@ bool allDone = true;
 			try {
 				filterPayload(*(it->second), payload, *(it->first));
 			} catch (const exception& e) {
-Logger::getLogger()->error("filterPayload: exception %s", e.what());
+				Logger::getLogger()->error("filterPayload: exception %s", e.what());
 			}
 		}
 	}

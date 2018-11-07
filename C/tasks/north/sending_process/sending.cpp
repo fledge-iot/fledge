@@ -126,9 +126,6 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 	// NorthPlugin
 	m_plugin = NULL;
 
-	// Plugin Data
-	m_plugin_data = NULL;
-
 	// Set vars & counters to 0, false
 	m_last_sent_id  = 0;
 	m_tot_sent = 0;
@@ -233,11 +230,11 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
         // Init plugin with merged configuration from FogLAMP API
 	this->m_plugin->init(config);
 
-	if (this->m_plugin_data)
+	if (this->m_plugin->m_plugin_data)
 	{
 		// If plugin has SP_PERSIST_DATA:
 		// 1 - load plugin stored data from storage: key is taskName + pluginName
-		string storedData = this->m_plugin_data->loadStoredData(this->getName() + m_plugin_name);
+		string storedData = this->m_plugin->m_plugin_data->loadStoredData(this->getName() + m_plugin_name);
 
 		// 2 - call 'plugin_start' with plugin data: startData()
 		m_plugin->startData(storedData);
@@ -348,7 +345,7 @@ bool SendingProcess::loadPlugin(const string& pluginName)
 		if (m_plugin->persistData())
 		{
 			// Instantiate PluginData class for persistence of data
-			m_plugin_data = new PluginData(this->getStorageClient());
+			m_plugin->m_plugin_data = new PluginData(this->getStorageClient());
 		}
 		return true;
 	}
@@ -376,16 +373,15 @@ void SendingProcess::stop()
 	}
 
 	// Cleanup the plugin resources
-	if (this->m_plugin_data)
+	if (this->m_plugin->m_plugin_data)
 	{
 		// If plugin has SP_PERSIST_DATA option:
 		// 1- call shutdownSaveData and get up-to-date plugin data.
 		string saveData = this->m_plugin->shutdownSaveData();
 		// 2- store returned data: key is taskName + pluginName
 		string key(this->getName() + m_plugin_name);
-		if (!this->m_plugin_data->persistPluginData(key, saveData))
+		if (!this->m_plugin->m_plugin_data->persistPluginData(key, saveData))
 		{
-
 			Logger::getLogger()->error("Plugin %s has failed to save data [%s] for key %s",
 						   m_plugin_name.c_str(),
 						   saveData.c_str(),
@@ -397,9 +393,6 @@ void SendingProcess::stop()
 		// No data to save
 		this->m_plugin->shutdown();
 	}
-
-	// Free m_plugin_data
-	delete m_plugin_data;
 
 	// Cleanup filters
 	if (m_filters.size())

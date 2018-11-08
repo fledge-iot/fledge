@@ -64,7 +64,14 @@ static const string sendingDefaultConfig =
 		"\"description\": \"Identifies the specific stream to handle and the related information,"
 		" among them the ID of the last object streamed.\", "
 		"\"type\": \"integer\", \"default\": \"0\", "
-		"\"readonly\": \"true\" }"
+		"\"readonly\": \"true\" }, "
+	"\"memoryBufferSize\": {"
+		"\"description\": \"Number of elements of blockSize size to be buffered in memory\","
+		"\"type\": \"integer\", "
+  		"\"default\": \"10\", "
+		"\"order\": \"12\" ,"
+		"\"readonly\": \"false\" "
+	"} "
 	"}";
 
 // Translation from the data source type to the statistics key/description
@@ -113,13 +120,6 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 				argv[i]);
         }
 
-        // Set buffer of ReadingSet with NULLs
-	m_buffer.resize(DATA_BUFFER_ELMS, NULL);
-	// Initialise buffer last read id
-	m_last_read_id.resize(DATA_BUFFER_ELMS, 0);
-	// Set the static pointer
-	m_buffer_ptr = &m_buffer;
-
 	// Mark running state
 	m_running = true;
 
@@ -142,7 +142,18 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 	ConfigCategory processDefault = this->fetchConfiguration(sendingDefaultConfig,
 								 PLUGIN_UNDEFINED);
 
-        if (m_plugin_name == PLUGIN_UNDEFINED) {
+
+	// The allocation should be done after fetchConfiguration
+	// as the value for m_memory_buffer_size is retrieved from the configuration
+	//
+	// Set buffer of ReadingSet with NULLs
+	m_buffer.resize(m_memory_buffer_size, NULL);
+	// Initialise buffer last read id
+	m_last_read_id.resize(m_memory_buffer_size, 0);
+	// Set the static pointer
+	m_buffer_ptr = &m_buffer;
+
+	if (m_plugin_name == PLUGIN_UNDEFINED) {
 
                 // Ends the execution if the plug-in is not defined
 
@@ -262,7 +273,7 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 	}
 
 	Logger::getLogger()->info("SendingProcess initialised with %d data buffers.",
-				  DATA_BUFFER_ELMS);
+				  m_memory_buffer_size);
 
 	Logger::getLogger()->info("SendingProcess data source type is '%s'",
 				  this->getDataSourceType().c_str());
@@ -363,7 +374,7 @@ void SendingProcess::stop()
         this->m_thread_send->join();
 
 	// Remove the data buffers
-	for (unsigned int i = 0; i < DATA_BUFFER_ELMS; i++)
+	for (unsigned int i = 0; i < m_memory_buffer_size; i++)
 	{
 		ReadingSet* data = this->m_buffer[i];
 		if (data != NULL)
@@ -701,6 +712,7 @@ ConfigCategory SendingProcess::fetchConfiguration(const std::string& defaultConf
 		string blockSize = configuration.getValue("blockSize");
 		string duration = configuration.getValue("duration");
 		string sleepInterval = configuration.getValue("sleepInterval");
+		string memoryBufferSize = configuration.getValue("memoryBufferSize");
 
                 // Handles the case in which the stream_id is not defined
 		// in the configuration and sets it to not defined (0)
@@ -735,6 +747,8 @@ ConfigCategory SendingProcess::fetchConfiguration(const std::string& defaultConf
                 m_stream_id = atoi(streamId.c_str());
 		// Set the data source type: readings (default) or statistics
 		m_data_source_t = configuration.getValue("source");
+
+		m_memory_buffer_size = strtoul(memoryBufferSize.c_str(), NULL, 10);
 
 		Logger::getLogger()->info("SendingProcess configuration parameters: "
 					  "pluginName=%s, blockSize=%d, "

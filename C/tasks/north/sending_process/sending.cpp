@@ -397,7 +397,7 @@ void SendingProcess::stop()
 	// Cleanup filters
 	if (m_filters.size())
 	{
-		FilterPlugin::cleanupFilters(m_filters);
+		FilterPlugin::cleanupFilters(m_filters, this->getName());
 	}
 
 	Logger::getLogger()->info("SendingProcess successfully terminated");
@@ -925,6 +925,22 @@ bool SendingProcess::setupFiltersPipeline() const
 				initErrors = true;
 				break;
 			}
+		}
+
+		if ((*it)->persistData())
+		{
+			// Plugin support SP_PERSIST_DATA
+			// Instantiate the PluginData class
+			(*it)->m_plugin_data = new PluginData(this->getStorageClient());
+			// Load plugin data from storage layer
+			string pluginStoredData = (*it)->m_plugin_data->loadStoredData(this->getName() + (*it)->getName());
+
+			//call 'plugin_start' with plugin data: startData()
+			(*it)->startData(pluginStoredData);
+		}
+		else
+		{
+			// We don't call simple plugin_start for filters right now
 		}
 	}
 

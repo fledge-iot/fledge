@@ -142,11 +142,25 @@ struct tm tm;
  */
 JSONReading::JSONReading(const Value& json)
 {
-	m_id = json["id"].GetUint();
-	m_has_id = true;
+	if (json.HasMember("id"))
+	{
+		m_id = json["id"].GetUint();
+		m_has_id = true;
+	}
+	else
+	{
+		m_has_id = false;
+	}
 	m_asset = json["asset_code"].GetString();
-	convert_timestamp(json["ts"].GetString(), &m_timestamp);
 	convert_timestamp(json["user_ts"].GetString(), &m_userTimestamp);
+	if (json.HasMember("ts"))
+	{
+		convert_timestamp(json["ts"].GetString(), &m_timestamp);
+	}
+	else
+	{
+		m_timestamp = m_userTimestamp;
+	}
 	m_uuid = json["read_key"].GetString();
 
 	// We have a single value here which is a number

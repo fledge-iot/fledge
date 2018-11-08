@@ -1,5 +1,5 @@
 /*
- * FogLAMP north service.
+ * FogLAMP north plugin
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -37,11 +37,15 @@ NorthPlugin::NorthPlugin(const PLUGIN_HANDLE handle) : Plugin(handle)
 				manager->resolveSymbol(handle, "plugin_start");
 	pluginStartData = (void (*)(const PLUGIN_HANDLE, const string& storedData))
 				manager->resolveSymbol(handle, "plugin_start");
+
+	// Persist data initialised
+	m_plugin_data = NULL;
 }
 
 // Destructor
 NorthPlugin::~NorthPlugin()
 {
+	delete m_plugin_data;
 }
 
 /**

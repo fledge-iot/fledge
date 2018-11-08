@@ -199,7 +199,7 @@ StorageRegistry::sendPayload(const string& url, char *payload)
 {
 	size_t found = url.find_first_of("://");
 	size_t found1 = url.find_first_of("/", found + 3);
-	string hostport = url.substr(found+3, found1 - found - 4);
+	string hostport = url.substr(found+3, found1 - found - 3);
 	string resource = url.substr(found1);
 
 	HttpClient client(hostport);
@@ -224,7 +224,7 @@ ostringstream convert;
 
 	size_t found = url.find_first_of("://");
 	size_t found1 = url.find_first_of("/", found + 3);
-	string hostport = url.substr(found+3, found1 - found - 4);
+	string hostport = url.substr(found+3, found1 - found - 3);
 	string resource = url.substr(found1);
 
 	// Filter the payload to include just the one asset

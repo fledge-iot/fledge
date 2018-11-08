@@ -302,7 +302,7 @@ Ingest::~Ingest()
 	//delete m_data;
 	
 	// Cleanup filters
-	FilterPlugin::cleanupFilters(m_filters);
+	FilterPlugin::cleanupFilters(m_filters, m_serviceName);
 }
 
 /**
@@ -543,6 +543,21 @@ bool Ingest::setupFiltersPipeline() const
 				initErrors = true;
 				break;
 			}
+		}
+
+		if ((*it)->persistData())
+		{
+			// Plugin support SP_PERSIST_DATA
+			// Instantiate the PluginData class
+			(*it)->m_plugin_data = new PluginData(&m_storage);
+			// Load plugin data from storage layer
+			string pluginStoredData = (*it)->m_plugin_data->loadStoredData(m_serviceName + (*it)->getName());
+ 			//call 'plugin_start' with plugin data: startData()
+			(*it)->startData(pluginStoredData);
+		}
+		else
+		{
+			// We don't call simple plugin_start for filters right now
 		}
 	}
 

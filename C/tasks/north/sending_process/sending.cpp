@@ -46,10 +46,6 @@ static const string sendingDefaultConfig =
 	"\"enable\": {"
 		"\"description\": \"A switch that can be used to enable or disable execution of "
 		"the sending process.\", \"type\": \"boolean\", \"default\": \"true\" , \"readonly\": \"true\"  },"
-	"\"source\": {"
-		"\"description\": \"Defines the source of the data to be sent on the stream, "
-		"this may be one of either readings, statistics or audit.\", \"type\": \"string\", "
-		"\"default\": \"readings\", \"order\": \"3\"  }, "
 	"\"duration\": {"
 		"\"description\": \"How long the sending process should run (in seconds) before stopping.\", "
 		"\"type\": \"integer\", \"default\": \"60\" , \"order\": \"7\" }, "
@@ -59,12 +55,7 @@ static const string sendingDefaultConfig =
 	"\"sleepInterval\": {"
 		"\"description\": \"A period of time, expressed in seconds, "
 		"to wait between attempts to send readings when there are no "
-		"readings to be sent.\", \"type\": \"integer\", \"default\": \"1\", \"order\": \"11\"   }, "
-	"\"streamId\": {"
-		"\"description\": \"Identifies the specific stream to handle and the related information,"
-		" among them the ID of the last object streamed.\", "
-		"\"type\": \"integer\", \"default\": \"0\", "
-		"\"readonly\": \"true\" }"
+		"readings to be sent.\", \"type\": \"integer\", \"default\": \"1\", \"order\": \"11\"   } "
 	"}";
 
 // Translation from the data source type to the statistics key/description
@@ -643,11 +634,11 @@ bool SendingProcess::createStream(int streamId)
  *
  * Return to caller the configuration items as a ConfigCategory object
  *
- * @param    defaultConfig	Sendiong Process default configuration
+ * @param    defaultConfig	Sending Process default configuration
  * @param    plugin_name	The plugin name: if not set yet
  *				passed value is PLUGIN_UNDEFINED
- * @return   The configuratio category with Sendiong Process defaults
- *	     and plugin dwefaults
+ * @return   The configuration category with Sending Process defaults
+ *	     and plugin defaults
  * @throw    runtime_error
  */
 ConfigCategory SendingProcess::fetchConfiguration(const std::string& defaultConfig,
@@ -734,12 +725,21 @@ ConfigCategory SendingProcess::fetchConfiguration(const std::string& defaultConf
 		m_duration = strtoul(duration.c_str(), NULL, 10);
                 m_stream_id = atoi(streamId.c_str());
 		// Set the data source type: readings (default) or statistics
-		m_data_source_t = configuration.getValue("source");
+		try
+		{
+			m_data_source_t = configuration.getValue("source");
+		} catch (...)
+		{
+			m_data_source_t = "";
+		}
+
+
 
 		Logger::getLogger()->info("SendingProcess configuration parameters: "
-					  "pluginName=%s, blockSize=%d, "
+					  "pluginName=%s, source=%s, blockSize=%d, "
 					  "duration=%d, sleepInterval=%d, streamId=%d",
-					  plugin_name.c_str(),
+					  m_plugin_name.c_str(),
+					  m_data_source_t.c_str(),
 					  m_block_size,
 					  m_duration,
 					  m_sleep,

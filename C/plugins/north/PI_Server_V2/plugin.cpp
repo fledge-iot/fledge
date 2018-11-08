@@ -41,6 +41,12 @@ using namespace rapidjson;
 				"\"description\": \"The producer token that represents this FogLAMP stream\", " \
 				"\"type\": \"string\", \"default\": \"omf_north_0001\", " \
 				"\"order\": \"2\" }, " \
+			"\"source\": {" \
+				"\"description\": \"Defines the source of the data to be sent on the stream, " \
+				"this may be one of either readings, statistics or audit.\", \"type\": \"enumeration\", " \
+				"\"default\": \"readings\", "\
+				"\"options\": [\"readings\", \"statistics\"], " \
+				"\"order\": \"3\"  }, " \
 			"\"StaticData\": { " \
 				"\"description\": \"Static data to include in each sensor reading sent to the PI Server.\", " \
 				"\"type\": \"string\", \"default\": \"Location: Palo Alto, Company: Dianomic\", " \
@@ -67,8 +73,14 @@ using namespace rapidjson;
 				"\"order\": \"15\" }, " \
 			"\"compression\": { " \
         			"\"description\": \"Compress readings data before sending to PI server\", " \
-				"\"type\": \"boolean\", \"default\": \"False\", " \
-				"\"order\": \"16\" } "
+				"\"type\": \"boolean\", \"default\": \"True\", " \
+				"\"order\": \"16\" }, " \
+			"\"streamId\": {" \
+				"\"description\": \"Identifies the specific stream to handle and the related information," \
+				" among them the ID of the last object streamed.\", " \
+				"\"type\": \"integer\", \"default\": \"0\", " \
+				"\"readonly\": \"true\" }"
+
 
 #define OMF_PLUGIN_DESC "\"plugin\": {\"description\": \"PI Server North C Plugin\", \"type\": \"string\", \"default\": \"" PLUGIN_NAME "\", \"readonly\": \"true\"}"
 

@@ -750,9 +750,13 @@ ConfigCategory SendingProcess::fetchConfiguration(const std::string& defaultConf
 			m_data_source_t = "";
 		}
 
-
-
+		// Sets the m_memory_buffer_size = 1 in case of an invalid value from the configuration like for example "A432"
 		m_memory_buffer_size = strtoul(memoryBufferSize.c_str(), NULL, 10);
+		if (m_memory_buffer_size < 1)
+		{
+			m_memory_buffer_size = 1;
+		}
+
 
 		Logger::getLogger()->info("SendingProcess configuration parameters: "
 					  "pluginName=%s, source=%s, blockSize=%d, "

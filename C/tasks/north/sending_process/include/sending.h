@@ -113,7 +113,7 @@ class SendingProcess : public FogLampProcess
                 Logger*			        m_logger;
 		std::string			m_data_source_t;
 		unsigned long			m_load_buffer_index;
-    		unsigned long			m_memory_buffer_size = 0;
+    		unsigned long			m_memory_buffer_size = 1;
 		std::vector<FilterPlugin *>	m_filters;
 		// static pointer for data buffer access
 		static std::vector<ReadingSet *>*

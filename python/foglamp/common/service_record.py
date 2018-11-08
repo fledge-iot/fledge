@@ -24,6 +24,7 @@ class ServiceRecord(object):
         Storage = 1
         Core = 2
         Southbound = 3
+        Notification = 4
 
     class Status(IntEnum):
         """Enumeration for Service Status"""

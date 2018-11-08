@@ -1,7 +1,7 @@
 #ifndef _NORTH_PLUGIN
 #define _NORTH_PLUGIN
 /*
- * FogLAMP south service.
+ * FogLAMP north plugin.
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -14,6 +14,7 @@
 #include <plugin_manager.h>
 #include <reading.h>
 #include <config_category.h>
+#include <plugin_data.h>
 
 /**
  * Class that represents a north plugin.
@@ -50,6 +51,10 @@ class NorthPlugin : public Plugin {
 		void			(*pluginStart)(PLUGIN_HANDLE);
 		void			(*pluginStartData)(PLUGIN_HANDLE,
 							   const std::string& pluginData);
+
+	public:
+		// Persist plugin data
+		PluginData*		m_plugin_data;
 
 	private:
 		// Attributes

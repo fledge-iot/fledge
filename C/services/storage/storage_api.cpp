@@ -768,8 +768,8 @@ Document	doc;
 	{
 		if (doc.HasMember("url"))
 		{
-			registry.registerAsset(asset, doc["url"].GetString());
-			string resp = " { \"" + asset + "\" : \"registered\" }";
+			registry.unregisterAsset(asset, doc["url"].GetString());
+			string resp = " { \"" + asset + "\" : \"unregistered\" }";
 			respond(response, resp);
 		}
 		else

@@ -55,7 +55,6 @@ static const string sendingDefaultConfig =
 	"\"sleepInterval\": {"
 		"\"description\": \"A period of time, expressed in seconds, "
 		"to wait between attempts to send readings when there are no "
-		"readings to be sent.\", \"type\": \"integer\", \"default\": \"1\", \"order\": \"11\"   } "
 		"readings to be sent.\", \"type\": \"integer\", \"default\": \"1\", \"order\": \"11\"   }, "
 	"\"streamId\": {"
 		"\"description\": \"Identifies the specific stream to handle and the related information,"

@@ -124,14 +124,26 @@ class DatapointValue {
 			return *this;
 		};
 
+		/**
+		 * Set the value of a datapoint, this may
+		 * also cause the type to be changed.
+		 * @param value	An integer value to set
+		 */
 		void setValue(long value)
 		{
 			m_value.i = value;
+			m_type = T_INTEGER;
 		}
 
+		/**
+		 * Set the value of a datapoint, this may
+		 * also cause the type to be changed.
+		 * @param value	A floating point value to set
+		 */
 		void setValue(double value)
 		{
 			m_value.f = value;
+			m_type = T_FLOAT;
 		}
 
 		/**

@@ -17,9 +17,6 @@
 #include <reading.h>
 #include <filter_plugin.h>
 
-// Buffer max elements
-#define DATA_BUFFER_ELMS 10
-
 // SendingProcess class
 class SendingProcess : public FogLampProcess
 {
@@ -65,6 +62,8 @@ class SendingProcess : public FogLampProcess
 		size_t			getFiltersCount() const { return m_filters.size(); }; 
 		const std::vector<FilterPlugin *>&
 					getFilters() const { return m_filters; };
+
+    		unsigned long		getMemoryBufferSize() const { return m_memory_buffer_size; };
 
 	// Public static methods
 	public:
@@ -114,6 +113,7 @@ class SendingProcess : public FogLampProcess
                 Logger*			        m_logger;
 		std::string			m_data_source_t;
 		unsigned long			m_load_buffer_index;
+    		unsigned long			m_memory_buffer_size = 1;
 		std::vector<FilterPlugin *>	m_filters;
 		// static pointer for data buffer access
 		static std::vector<ReadingSet *>*

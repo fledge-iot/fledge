@@ -43,7 +43,8 @@ class ManagementClient {
 												const std::string& plugin, 
 												const std::string& asset, 
 												const std::string& event);
-		HttpClient 		*getHttpClient();
+		ConfigCategories	getChildCategories(const std::string& categoryName);
+		HttpClient		*getHttpClient();
 
 private:
     std::string 	url_encode(const std::string &s) const;

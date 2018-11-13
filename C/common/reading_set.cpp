@@ -14,6 +14,9 @@
 #include <iostream>
 #include <time.h>
 #include <stdlib.h>
+#include <logger.h>
+
+#define ASSET_NAME_INVALID_READING "error_invalid_reading"
 
 using namespace std;
 using namespace rapidjson;
@@ -205,75 +208,78 @@ JSONReading::JSONReading(const Value& json)
 	}
 	else
 	{
-		// Add 'reading' values
-		for (auto& m : json["reading"].GetObject())
+		if (json["reading"].IsObject())
 		{
-			switch (m.value.GetType())
-			{
-				// String
-				case (kStringType):
-				{
-					DatapointValue value(m.value.GetString());
-					this->addDatapoint(new Datapoint(m.name.GetString(),
-									 value));
-					break;
-				}
-
-				// Number
-				case (kNumberType):
-				{
-					if (m.value.IsInt() ||
-					    m.value.IsUint() ||
-					    m.value.IsInt64() ||
-					    m.value.IsUint64())
-					{
-
-						DatapointValue* value;
-						if (m.value.IsInt() ||
-						    m.value.IsUint() )
-						{
-							value = new DatapointValue((long) m.value.GetInt());
-						}
-						else
-						{
-							value = new DatapointValue((long) m.value.GetInt64());
-						}
-						this->addDatapoint(new Datapoint(m.name.GetString(),
-										 *value));
-						delete value;
-						break;
-					}
-					else if (m.value.IsDouble())
-					{
-						DatapointValue value(m.value.GetDouble());
+			// Add 'reading' values
+			for (auto &m : json["reading"].GetObject()) {
+				switch (m.value.GetType()) {
+					// String
+					case (kStringType): {
+						DatapointValue value(m.value.GetString());
 						this->addDatapoint(new Datapoint(m.name.GetString(),
 										 value));
 						break;
 					}
-					else
-					{
-						string errMsg = "Cannot parse the numeric type";
-						errMsg += " of reading element '";
+
+						// Number
+					case (kNumberType): {
+						if (m.value.IsInt() ||
+						    m.value.IsUint() ||
+						    m.value.IsInt64() ||
+						    m.value.IsUint64()) {
+
+							DatapointValue *value;
+							if (m.value.IsInt() ||
+							    m.value.IsUint()) {
+								value = new DatapointValue((long) m.value.GetInt());
+							} else {
+								value = new DatapointValue((long) m.value.GetInt64());
+							}
+							this->addDatapoint(new Datapoint(m.name.GetString(),
+											 *value));
+							delete value;
+							break;
+						} else if (m.value.IsDouble()) {
+							DatapointValue value(m.value.GetDouble());
+							this->addDatapoint(new Datapoint(m.name.GetString(),
+											 value));
+							break;
+						} else {
+							string errMsg = "Cannot parse the numeric type";
+							errMsg += " of reading element '";
+							errMsg.append(m.name.GetString());
+							errMsg += "'";
+
+							throw new ReadingSetException(errMsg.c_str());
+							break;
+						}
+					}
+
+					default: {
+						string errMsg = "Cannot handle unsupported type '" + m.value.GetType();
+						errMsg += "' of reading element '";
 						errMsg.append(m.name.GetString());
 						errMsg += "'";
 
 						throw new ReadingSetException(errMsg.c_str());
+
 						break;
 					}
 				}
-
-				default:
-				{
-					string errMsg = "Cannot handle unsupported type '" + m.value.GetType();
-					errMsg += "' of reading element '";
-					errMsg.append(m.name.GetString());
-					errMsg += "'";
-
-					throw new ReadingSetException(errMsg.c_str());
-
-					break;
-				}
 			}
+		}
+		else
+		{
+			// The reading should be an object at this stage, it is and invalid one if not
+			// the asset name ASSET_NAME_INVALID_READING will be created in the PI-Server containing the
+			// invalid asset_name/values.
+			string tmp_reading1 = json["reading"].GetString();
+			Logger::getLogger()->error("Invalid reading: Asset name |%s| reading value |%s|", m_asset.c_str(), tmp_reading1.c_str());
+
+			DatapointValue value(tmp_reading1);
+			this->addDatapoint(new Datapoint(m_asset,  value));
+
+			m_asset = ASSET_NAME_INVALID_READING;
 		}
 	}
 }

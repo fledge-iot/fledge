@@ -85,14 +85,6 @@ async def delete_service(request):
         if svc is None or svc.strip() == '':
             raise web.HTTPBadRequest(reason='Missing service_name in requested URL')
 
-        try:
-            svcs = ServiceRegistry.get(name=svc)
-        except service_registry_exceptions.DoesNotExist:
-            pass
-        else:
-            # shutdown of service does not remove it from service registry via unregister
-            ServiceRegistry.remove_from_registry(svcs[0]._id)
-
         storage = connect.get_storage_async()
 
         result = await get_schedule(storage, svc)

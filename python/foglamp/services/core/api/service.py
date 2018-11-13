@@ -99,6 +99,14 @@ async def delete_service(request):
         # delete it
         await server.Server.scheduler.delete_schedule(sch_id)
 
+        try:
+            svcs = ServiceRegistry.get(name=svc)
+        except service_registry_exceptions.DoesNotExist:
+            pass
+        else:
+            # shutdown of service does not actually remove it from service registry via unregister (it just set its status to Shutdown)
+            ServiceRegistry.remove_from_registry(svcs[0]._id)
+
         # delete all configuration for the service name
         await delete_configuration(storage, svc)
     except Exception as ex:

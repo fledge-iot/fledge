@@ -49,6 +49,11 @@ class StorageClient {
 		ReadingSet	*readingFetch(const unsigned long readingId, const unsigned long count);
 		PurgeResult	readingPurgeByAge(unsigned long age, unsigned long sent, bool purgeUnsent);
 		PurgeResult	readingPurgeBySize(unsigned long size, unsigned long sent, bool purgeUnsent);
+		bool		registerAssetNotification(const std::string& assetName,
+							  const std::string& callbackUrl);
+		bool		unregisterAssetNotification(const std::string& assetName,
+							    const std::string& callbackUrl);
+
 	private:
 		void  		handleUnexpectedResponse(const char *operation,
 						const std::string& responseCode,

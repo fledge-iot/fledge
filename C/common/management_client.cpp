@@ -416,6 +416,56 @@ string ManagementClient::setCategoryItemValue(const string& categoryName,
 }
 
 /**
+ * Return child categories of a given category
+ *
+ * @param categoryName		The given category name
+ * @return			JSON string with current child categories
+ * @throw			std::exception
+ */
+ConfigCategories ManagementClient::getChildCategories(const string& categoryName)
+{
+	try
+	{
+		string url = "/foglamp/service/category/" + url_encode(categoryName) + "/children";
+		auto res = this->getHttpClient()->request("GET", url.c_str());
+		Document doc;
+		string response = res->content.string();
+		doc.Parse(response.c_str());
+		if (doc.HasParseError())
+		{
+			bool httpError = (isdigit(response[0]) &&
+					  isdigit(response[1]) &&
+					  isdigit(response[2]) &&
+					  response[3]==':');
+			m_logger->error("%s fetching child categories of %s: %s\n",
+					httpError?"HTTP error while":"Failed to parse result of",
+					categoryName.c_str(),
+					response.c_str());
+			throw new exception();
+		}
+		else if (doc.HasMember("message"))
+		{
+			m_logger->error("Failed to fetch child categories of %s: %s.",
+					categoryName.c_str(),
+					doc["message"].GetString());
+
+			throw new exception();
+		}
+		else
+		{
+			return ConfigCategories(response);
+		}
+	}
+	catch (const SimpleWeb::system_error &e)
+	{
+		m_logger->error("Get child categories of %s failed %s.",
+				categoryName.c_str(),
+				e.what());
+		throw;
+	}
+}
+
+/**
  * Add child categories to a (parent) category
  *
  * @param parentCategory	The given category name

@@ -101,6 +101,8 @@ class TestOCS:
                 'sending_process_instance': MagicMock(spec=SendingProcess),
                 "formatNumber": {"value": "float64"},
                 "formatInteger": {"value": "int64"},
+                "notBlockingErrors": {"value": "{'id': 400, 'message': 'none'}"},
+                "compression": {"value": "true"}
 
         }
 

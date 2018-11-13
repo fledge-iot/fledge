@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 
 # FOGLAMP_BEGIN
 # See: http://foglamp.readthedocs.io/
@@ -103,7 +104,9 @@ _CONFIG_DEFAULT_OMF = {
     "URL": {
         "description": "The URL of OCS (OSIsoft Cloud Services) ",
         "type": "string",
-        "default": "https://dat-a.osisoft.com/api/omf",
+        #// FIXME:
+        "default": "https://dat-a.osisoft.com",
+        #"default": "https://dat-a.osisoft.com/api/omf",
         "order": "1"
     },
     "producerToken": {
@@ -119,6 +122,11 @@ _CONFIG_DEFAULT_OMF = {
         "default": "readings",
         "options": ["readings"],
         "order": "3"
+    },
+    "compression": {
+        "description": "Compress message body",
+        "type": "boolean",
+        "default": "false",
     },
     "StaticData": {
         "description": "Static data to include in each sensor reading sent to OMF.",
@@ -372,6 +380,10 @@ def plugin_init(data):
 
     _config['formatNumber'] = data['formatNumber']['value']
     _config['formatInteger'] = data['formatInteger']['value']
+
+    _config['notBlockingErrors'] = ast.literal_eval(data['notBlockingErrors']['value'])
+
+    _config['compression'] = data['compression']['value']
 
     # TODO: compare instance fetching via inspect vs as param passing
     # import inspect

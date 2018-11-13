@@ -11,7 +11,6 @@ declare SENDING_PROCESS_DATA
 declare PI_SERVER
 declare PI_SERVER_PORT
 declare OMF_PRODUCER_TOKEN
-declare OMF_TYPE_ID
 
 # Reads configuration setting
 source ${SUITE_BASEDIR}/suite.cfg
@@ -27,18 +26,14 @@ exec 2>>"${RESULT_DIR}/${TEST_NAME}_err.temp"
 # Enables the pi_server plugin
 bash -c "cat > ${TMP_FILE_ADD_NORTH_READINGS}" << 'EOF'
         {
-            "name": "North Readings to PI",
-            "plugin": "pi_server",
+            "name": "North_Readings_to_PI",
+            "plugin": "PI_Server_V2",
             "type": "north",
             "schedule_type": 3,
             "schedule_day": 0,
             "schedule_time": 0,
             "schedule_repeat": 30,
-            "schedule_enabled": true,
-            "cmd_params": {
-                "stream_id": "1",
-                "debug_level": "1"
-            }
+            "schedule_enabled": true
          }
 EOF
 
@@ -51,15 +46,9 @@ if [[ "$?" != "0" ]]; then
     exit 1
 fi
 
-${TEST_BASEDIR}/bash/wait_creation_cfg.bash "OMF_TYPES/type-id"
-if [[ "$?" != "0" ]]; then
-    exit 1
-fi
-
 # Configures FogLAMP with the required settings
 curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/${SENDING_PROCESS_DATA}/URL           -d '{ "value" : "https://'${PI_SERVER}':'${PI_SERVER_PORT}'/ingress/messages"}'
 curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/${SENDING_PROCESS_DATA}/producerToken -d '{ "value" : "'${OMF_PRODUCER_TOKEN}'" }'
-curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/OMF_TYPES/type-id                     -d '{ "value" : "'${OMF_TYPE_ID}'" }'
 
 # Restarts FogLAMP to ensure the new configurations are used
 ${TEST_BASEDIR}/bash/exec_any_foglamp_command.bash stop  > /dev/null 2>&1

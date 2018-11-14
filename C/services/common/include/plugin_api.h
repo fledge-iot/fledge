@@ -38,9 +38,11 @@ typedef void * PLUGIN_HANDLE;
 /**
  * Plugin types
  */
-#define PLUGIN_TYPE_STORAGE     "storage"
-#define PLUGIN_TYPE_SOUTH       "south"
-#define PLUGIN_TYPE_NORTH       "north"
-#define PLUGIN_TYPE_FILTER      "filter"
+#define PLUGIN_TYPE_STORAGE			"storage"
+#define PLUGIN_TYPE_SOUTH			"south"
+#define PLUGIN_TYPE_NORTH			"north"
+#define PLUGIN_TYPE_FILTER			"filter"
+#define PLUGIN_TYPE_NOTIFICATION_RULE		"notificationRule"
+#define PLUGIN_TYPE_NOTIFICATION_DELIVERY	"notificationDelivery"
 
 #endif

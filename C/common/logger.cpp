@@ -42,7 +42,7 @@ void Logger::debug(const string& msg, ...)
 	va_list args;
 	va_start(args, msg);
 	string *fmt = format(msg, args);
-	syslog(LOG_DEBUG, "%s", fmt->c_str());
+	syslog(LOG_DEBUG, "DEBUG: %s", fmt->c_str());
 	delete fmt;
 	va_end(args);
 }
@@ -52,7 +52,7 @@ void Logger::info(const string& msg, ...)
 	va_list args;
 	va_start(args, msg);
 	string *fmt = format(msg, args);
-	syslog(LOG_INFO, "%s", fmt->c_str());
+	syslog(LOG_INFO, "INFO: %s", fmt->c_str());
 	delete fmt;
 	va_end(args);
 }
@@ -62,7 +62,7 @@ void Logger::warn(const string& msg, ...)
 	va_list args;
 	va_start(args, msg);
 	string *fmt = format(msg, args);
-	syslog(LOG_WARNING, "%s", fmt->c_str());
+	syslog(LOG_WARNING, "WARNING: %s", fmt->c_str());
 	delete fmt;
 	va_end(args);
 }
@@ -72,7 +72,7 @@ void Logger::error(const string& msg, ...)
 	va_list args;
 	va_start(args, msg);
 	string *fmt = format(msg, args);
-	syslog(LOG_ERR, "%s", fmt->c_str());
+	syslog(LOG_ERR, "ERROR: %s", fmt->c_str());
 	delete fmt;
 	va_end(args);
 }
@@ -82,7 +82,7 @@ void Logger::fatal(const string& msg, ...)
 	va_list args;
 	va_start(args, msg);
 	string *fmt = format(msg, args);
-	syslog(LOG_CRIT, "%s", fmt->c_str());
+	syslog(LOG_CRIT, "FATAL: %s", fmt->c_str());
 	delete fmt;
 	va_end(args);
 }

@@ -829,3 +829,85 @@ Document doc;
 		m_logger->error("%s completed with result %s", operation, responseCode.c_str());
 	}
 }
+
+/**
+ * Register interest for a Reading asset name
+ *
+ * @param assetName	The asset name to register
+ *			for readings data notification
+ * @param callbackUrl	The callback URL to send readings data.
+ * @return		True on success, false otherwise.
+ */
+bool StorageClient::registerAssetNotification(const string& assetName,
+					      const string& callbackUrl)
+{
+	try
+	{
+		ostringstream convert;
+
+		convert << "{ \"url\" : \"";
+		convert << callbackUrl;
+		convert << "\" }";
+		auto res = this->getHttpClient()->request("POST",
+							  "/storage/reading/interest/" + assetName,
+							  convert.str());
+		if (res->status_code.compare("200 OK") == 0)
+		{
+			return true;
+		}
+		ostringstream resultPayload;
+		resultPayload << res->content.rdbuf();
+		handleUnexpectedResponse("Register asset",
+					 res->status_code,
+					 resultPayload.str());
+
+		return false;
+	} catch (exception& ex)
+	{
+		m_logger->error("Failed to register asset '%s': %s",
+				assetName.c_str(),
+				ex.what());
+	}
+	return false;
+}
+
+/**
+ * Unregister interest for a Reading asset name
+ *
+ * @param assetName	The asset name to unregister
+ *			for readings data notification
+ * @param callbackUrl	The callback URL provided in registration.
+ * @return		True on success, false otherwise.
+ */
+bool StorageClient::unregisterAssetNotification(const string& assetName,
+						const string& callbackUrl)
+{
+	try
+	{
+		ostringstream convert;
+
+		convert << "{ \"url\" : \"";
+		convert << callbackUrl;
+		convert << "\" }";
+		auto res = this->getHttpClient()->request("DELETE",
+							  "/storage/reading/interest/" + assetName,
+							  convert.str());
+		if (res->status_code.compare("200 OK") == 0)
+		{
+			return true;
+		}
+		ostringstream resultPayload;
+		resultPayload << res->content.rdbuf();
+		handleUnexpectedResponse("Unregister asset",
+					 res->status_code,
+					 resultPayload.str());
+
+		return false;
+	} catch (exception& ex)
+	{
+		m_logger->error("Failed to unregister asset '%s': %s",
+				assetName.c_str(),
+				ex.what());
+	}
+	return false;
+}

@@ -100,7 +100,7 @@ class ServiceRegistry:
         :param service_id: a uuid of registered service
         :return: service_id on successful deregistration
         """
-        expunged_service = cls._expunge(service_id, ServiceRecord.Status.Down)
+        expunged_service = cls._expunge(service_id, ServiceRecord.Status.Shutdown)
         cls._logger.info("Stopped {}".format(str(expunged_service)))
         return service_id
 

@@ -46,10 +46,6 @@ static const string sendingDefaultConfig =
 	"\"enable\": {"
 		"\"description\": \"A switch that can be used to enable or disable execution of "
 		"the sending process.\", \"type\": \"boolean\", \"default\": \"true\" , \"readonly\": \"true\"  },"
-	"\"source\": {"
-		"\"description\": \"Defines the source of the data to be sent on the stream, "
-		"this may be one of either readings, statistics or audit.\", \"type\": \"string\", "
-		"\"default\": \"readings\", \"order\": \"3\"  }, "
 	"\"duration\": {"
 		"\"description\": \"How long the sending process should run (in seconds) before stopping.\", "
 		"\"type\": \"integer\", \"default\": \"60\" , \"order\": \"7\" }, "
@@ -64,7 +60,14 @@ static const string sendingDefaultConfig =
 		"\"description\": \"Identifies the specific stream to handle and the related information,"
 		" among them the ID of the last object streamed.\", "
 		"\"type\": \"integer\", \"default\": \"0\", "
-		"\"readonly\": \"true\" }"
+		"\"readonly\": \"true\" }, "
+	"\"memoryBufferSize\": {"
+		"\"description\": \"Number of elements of blockSize size to be buffered in memory\","
+		"\"type\": \"integer\", "
+  		"\"default\": \"10\", "
+		"\"order\": \"12\" ,"
+		"\"readonly\": \"false\" "
+	"} "
 	"}";
 
 // Translation from the data source type to the statistics key/description
@@ -113,21 +116,11 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 				argv[i]);
         }
 
-        // Set buffer of ReadingSet with NULLs
-	m_buffer.resize(DATA_BUFFER_ELMS, NULL);
-	// Initialise buffer last read id
-	m_last_read_id.resize(DATA_BUFFER_ELMS, 0);
-	// Set the static pointer
-	m_buffer_ptr = &m_buffer;
-
 	// Mark running state
 	m_running = true;
 
 	// NorthPlugin
 	m_plugin = NULL;
-
-	// Plugin Data
-	m_plugin_data = NULL;
 
 	// Set vars & counters to 0, false
 	m_last_sent_id  = 0;
@@ -145,7 +138,18 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 	ConfigCategory processDefault = this->fetchConfiguration(sendingDefaultConfig,
 								 PLUGIN_UNDEFINED);
 
-        if (m_plugin_name == PLUGIN_UNDEFINED) {
+
+	// The allocation should be done after fetchConfiguration
+	// as the value for m_memory_buffer_size is retrieved from the configuration
+	//
+	// Set buffer of ReadingSet with NULLs
+	m_buffer.resize(m_memory_buffer_size, NULL);
+	// Initialise buffer last read id
+	m_last_read_id.resize(m_memory_buffer_size, 0);
+	// Set the static pointer
+	m_buffer_ptr = &m_buffer;
+
+	if (m_plugin_name == PLUGIN_UNDEFINED) {
 
                 // Ends the execution if the plug-in is not defined
 
@@ -233,11 +237,11 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
         // Init plugin with merged configuration from FogLAMP API
 	this->m_plugin->init(config);
 
-	if (this->m_plugin_data)
+	if (this->m_plugin->m_plugin_data)
 	{
 		// If plugin has SP_PERSIST_DATA:
 		// 1 - load plugin stored data from storage: key is taskName + pluginName
-		string storedData = this->m_plugin_data->loadStoredData(this->getName() + m_plugin_name);
+		string storedData = this->m_plugin->m_plugin_data->loadStoredData(this->getName() + m_plugin_name);
 
 		// 2 - call 'plugin_start' with plugin data: startData()
 		m_plugin->startData(storedData);
@@ -265,7 +269,7 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 	}
 
 	Logger::getLogger()->info("SendingProcess initialised with %d data buffers.",
-				  DATA_BUFFER_ELMS);
+				  m_memory_buffer_size);
 
 	Logger::getLogger()->info("SendingProcess data source type is '%s'",
 				  this->getDataSourceType().c_str());
@@ -348,7 +352,7 @@ bool SendingProcess::loadPlugin(const string& pluginName)
 		if (m_plugin->persistData())
 		{
 			// Instantiate PluginData class for persistence of data
-			m_plugin_data = new PluginData(this->getStorageClient());
+			m_plugin->m_plugin_data = new PluginData(this->getStorageClient());
 		}
 		return true;
 	}
@@ -366,7 +370,7 @@ void SendingProcess::stop()
         this->m_thread_send->join();
 
 	// Remove the data buffers
-	for (unsigned int i = 0; i < DATA_BUFFER_ELMS; i++)
+	for (unsigned int i = 0; i < m_memory_buffer_size; i++)
 	{
 		ReadingSet* data = this->m_buffer[i];
 		if (data != NULL)
@@ -376,16 +380,15 @@ void SendingProcess::stop()
 	}
 
 	// Cleanup the plugin resources
-	if (this->m_plugin_data)
+	if (this->m_plugin->m_plugin_data)
 	{
 		// If plugin has SP_PERSIST_DATA option:
 		// 1- call shutdownSaveData and get up-to-date plugin data.
 		string saveData = this->m_plugin->shutdownSaveData();
 		// 2- store returned data: key is taskName + pluginName
 		string key(this->getName() + m_plugin_name);
-		if (!this->m_plugin_data->persistPluginData(key, saveData))
+		if (!this->m_plugin->m_plugin_data->persistPluginData(key, saveData))
 		{
-
 			Logger::getLogger()->error("Plugin %s has failed to save data [%s] for key %s",
 						   m_plugin_name.c_str(),
 						   saveData.c_str(),
@@ -398,13 +401,10 @@ void SendingProcess::stop()
 		this->m_plugin->shutdown();
 	}
 
-	// Free m_plugin_data
-	delete m_plugin_data;
-
 	// Cleanup filters
 	if (m_filters.size())
 	{
-		FilterPlugin::cleanupFilters(m_filters);
+		FilterPlugin::cleanupFilters(m_filters, this->getName());
 	}
 
 	Logger::getLogger()->info("SendingProcess successfully terminated");
@@ -650,11 +650,11 @@ bool SendingProcess::createStream(int streamId)
  *
  * Return to caller the configuration items as a ConfigCategory object
  *
- * @param    defaultConfig	Sendiong Process default configuration
+ * @param    defaultConfig	Sending Process default configuration
  * @param    plugin_name	The plugin name: if not set yet
  *				passed value is PLUGIN_UNDEFINED
- * @return   The configuratio category with Sendiong Process defaults
- *	     and plugin dwefaults
+ * @return   The configuration category with Sending Process defaults
+ *	     and plugin defaults
  * @throw    runtime_error
  */
 ConfigCategory SendingProcess::fetchConfiguration(const std::string& defaultConfig,
@@ -708,6 +708,7 @@ ConfigCategory SendingProcess::fetchConfiguration(const std::string& defaultConf
 		string blockSize = configuration.getValue("blockSize");
 		string duration = configuration.getValue("duration");
 		string sleepInterval = configuration.getValue("sleepInterval");
+		string memoryBufferSize = configuration.getValue("memoryBufferSize");
 
                 // Handles the case in which the stream_id is not defined
 		// in the configuration and sets it to not defined (0)
@@ -741,12 +742,27 @@ ConfigCategory SendingProcess::fetchConfiguration(const std::string& defaultConf
 		m_duration = strtoul(duration.c_str(), NULL, 10);
                 m_stream_id = atoi(streamId.c_str());
 		// Set the data source type: readings (default) or statistics
-		m_data_source_t = configuration.getValue("source");
+		try
+		{
+			m_data_source_t = configuration.getValue("source");
+		} catch (...)
+		{
+			m_data_source_t = "";
+		}
+
+		// Sets the m_memory_buffer_size = 1 in case of an invalid value from the configuration like for example "A432"
+		m_memory_buffer_size = strtoul(memoryBufferSize.c_str(), NULL, 10);
+		if (m_memory_buffer_size < 1)
+		{
+			m_memory_buffer_size = 1;
+		}
+
 
 		Logger::getLogger()->info("SendingProcess configuration parameters: "
-					  "pluginName=%s, blockSize=%d, "
+					  "pluginName=%s, source=%s, blockSize=%d, "
 					  "duration=%d, sleepInterval=%d, streamId=%d",
-					  plugin_name.c_str(),
+					  m_plugin_name.c_str(),
+					  m_data_source_t.c_str(),
 					  m_block_size,
 					  m_duration,
 					  m_sleep,
@@ -932,6 +948,22 @@ bool SendingProcess::setupFiltersPipeline() const
 				initErrors = true;
 				break;
 			}
+		}
+
+		if ((*it)->persistData())
+		{
+			// Plugin support SP_PERSIST_DATA
+			// Instantiate the PluginData class
+			(*it)->m_plugin_data = new PluginData(this->getStorageClient());
+			// Load plugin data from storage layer
+			string pluginStoredData = (*it)->m_plugin_data->loadStoredData(this->getName() + (*it)->getName());
+
+			//call 'plugin_start' with plugin data: startData()
+			(*it)->startData(pluginStoredData);
+		}
+		else
+		{
+			// We don't call simple plugin_start for filters right now
 		}
 	}
 

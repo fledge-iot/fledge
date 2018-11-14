@@ -14,6 +14,7 @@
 #include "management_api.h"
 #include "logger.h"
 #include "plugin_exception.h"
+#include <rapidjson/document.h>
 
 
 // Added for the default_resource example
@@ -34,6 +35,7 @@
 StorageApi *StorageApi::m_instance = 0;
 
 using namespace std;
+using namespace rapidjson;
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 
@@ -144,6 +146,24 @@ void readingPurgeWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<H
 }
 
 /**
+ * Wrapper function for the reading purge API call.
+ */
+void readingRegisterWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+	StorageApi *api = StorageApi::getInstance();
+	api->readingRegister(response, request);
+}
+
+/**
+ * Wrapper function for the reading purge API call.
+ */
+void readingUnregisterWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+	StorageApi *api = StorageApi::getInstance();
+	api->readingUnregister(response, request);
+}
+
+/**
  * Construct the singleton Storage API 
  */
 StorageApi::StorageApi(const unsigned short port, const unsigned int threads) : readingPlugin(0) {
@@ -215,6 +235,8 @@ void StorageApi::initResources()
 #endif
 	m_server->resource[READING_QUERY]["PUT"] = readingQueryWrapper;
 	m_server->resource[READING_PURGE]["PUT"] = readingPurgeWrapper;
+	m_server->resource[READING_INTEREST]["POST"] = readingRegisterWrapper;
+	m_server->resource[READING_INTEREST]["DELETE"] = readingUnregisterWrapper;
 
 	m_server->on_error = on_error;
 
@@ -503,6 +525,7 @@ string  responsePayload;
 		int rval = (readingPlugin ? readingPlugin : plugin)->readingsAppend(payload);
 		if (rval != -1)
 		{
+			registry.process(payload);
 			responsePayload = "{ \"response\" : \"appended\", \"readings_added\" : ";
 			responsePayload += to_string(rval);
 			responsePayload += " }";
@@ -688,6 +711,72 @@ string        flags;
 	catch (exception ex) {
 		internalError(response, ex);
 		return;
+	}
+}
+
+/**
+ * Register interest in readings for an asset
+ */
+void StorageApi::readingRegister(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+string		asset;
+string		payload;
+Document	doc;
+
+	payload = request->content.string();
+	asset = request->path_match[ASSET_NAME_COMPONENT];
+	doc.Parse(payload.c_str());
+	if (doc.HasParseError())
+	{
+			string resp = "{ \"error\" : \"Badly formed payload\" }";
+			respond(response, SimpleWeb::StatusCode::client_error_bad_request, resp);
+	}
+	else
+	{
+		if (doc.HasMember("url"))
+		{
+			registry.registerAsset(asset, doc["url"].GetString());
+			string resp = " { \"" + asset + "\" : \"registered\" }";
+			respond(response, resp);
+		}
+		else
+		{
+			string resp = "{ \"error\" : \"Missing url element in payload\" }";
+			respond(response, SimpleWeb::StatusCode::client_error_bad_request, resp);
+		}
+	}
+}
+
+/**
+ * Unregister interest in readings for an asset
+ */
+void StorageApi::readingUnregister(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+string		asset;
+string		payload;
+Document	doc;
+
+	payload = request->content.string();
+	asset = request->path_match[ASSET_NAME_COMPONENT];
+	doc.Parse(payload.c_str());
+	if (doc.HasParseError())
+	{
+			string resp = "{ \"error\" : \"Badly formed payload\" }";
+			respond(response, SimpleWeb::StatusCode::client_error_bad_request, resp);
+	}
+	else
+	{
+		if (doc.HasMember("url"))
+		{
+			registry.unregisterAsset(asset, doc["url"].GetString());
+			string resp = " { \"" + asset + "\" : \"unregistered\" }";
+			respond(response, resp);
+		}
+		else
+		{
+			string resp = "{ \"error\" : \"Missing url element in payload\" }";
+			respond(response, SimpleWeb::StatusCode::client_error_bad_request, resp);
+		}
 	}
 }
 

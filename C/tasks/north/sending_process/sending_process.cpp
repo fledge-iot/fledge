@@ -28,7 +28,7 @@
 
 #define TASK_FETCH_SLEEP 500
 #define TASK_SEND_SLEEP 500
-#define TASK_SLEEP_MAX_INCREMENTS 4 // Currently not used
+#define TASK_SLEEP_MAX_INCREMENTS 7 // from 0,5 secs to up to 32 secs
 
 using namespace std;
 using namespace std::chrono;
@@ -39,6 +39,9 @@ mutex      readMutex;
 mutex	waitMutex;
 // Block the calling thread until notified to resume.
 condition_variable cond_var;
+
+// Buffer max elements
+unsigned long memoryBufferSize;
 
 // Used to identifies logs
 const string LOG_SERVICE_NAME = "SendingProcess/sending_process";
@@ -54,7 +57,9 @@ int main(int argc, char** argv)
 	{
                 // Instantiate SendingProcess class
 		SendingProcess sendingProcess(argc, argv);
-                
+
+		memoryBufferSize = sendingProcess.getMemoryBufferSize();
+
 		// Launch the load thread
 		sendingProcess.m_thread_load = new thread(loadDataThread, &sendingProcess);
 		// Launch the send thread
@@ -121,7 +126,7 @@ static void loadDataThread(SendingProcess *loadData)
 
 	while (loadData->isRunning())
         {
-                if (readIdx >= DATA_BUFFER_ELMS)
+                if (readIdx >= memoryBufferSize)
                 {
                         readIdx = 0;
                 }
@@ -307,9 +312,15 @@ static void sendDataThread(SendingProcess *sendData)
 	unsigned long totSent = 0;
 	unsigned int  sendIdx = 0;
 
+	bool slept;
+	long sleep_time = TASK_SEND_SLEEP;
+	int sleep_num_increments = 0;
+
         while (sendData->isRunning())
         {
-                if (sendIdx >= DATA_BUFFER_ELMS)
+		slept = false;
+
+                if (sendIdx >= memoryBufferSize)
 		{
 
 			if (sendData->getUpdateDb())
@@ -432,7 +443,7 @@ static void sendDataThread(SendingProcess *sendData)
 			}
 			else
 			{
-				Logger::getLogger()->error("SendingProcess sendDataThread: Error while sending " \
+				Logger::getLogger()->debug("SendingProcess sendDataThread: Error while sending " \
 							   "('%s' stream id %d), sendIdx %u, N. (%d readings), " \
 							   ", last reading id in buffer %ld",
 							   sendData->getDataSourceType().c_str(),
@@ -454,10 +465,23 @@ static void sendDataThread(SendingProcess *sendData)
 				}
 
 				// Error: just wait & continue
-				// TODO: add increments from 1 to TASK_SLEEP_MAX_INCREMENTS
-				this_thread::sleep_for(chrono::milliseconds(TASK_SEND_SLEEP));
+				this_thread::sleep_for(chrono::milliseconds(sleep_time));
+				slept = true;
 			}
                 }
+
+		// Handles the sleep time, it is doubled every time up to a limit
+		if (slept)
+		{
+			sleep_num_increments += 1;
+			sleep_time *= 2;
+			if (sleep_num_increments >= TASK_SLEEP_MAX_INCREMENTS)
+			{
+				sleep_time = TASK_SEND_SLEEP;
+				sleep_num_increments = 0;
+			}
+		}
+
         }
 	Logger::getLogger()->info("SendingProcess sendData thread: sent %lu total '%s'",
 				  totSent,

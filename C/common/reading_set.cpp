@@ -39,7 +39,6 @@ ReadingSet::ReadingSet(vector<Reading *>* readings)
 	for (auto it = readings->begin(); it != readings->end(); ++it)
 	{
 		m_readings.push_back(*it);
-		m_count++;
 	}
 }
 

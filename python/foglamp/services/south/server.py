@@ -249,6 +249,7 @@ class Server(FoglampMicroservice):
                     task_pending.cancel()
                 except asyncio.CancelledError:
                     pass
+            await asyncio.sleep(0.1)
         except asyncio.CancelledError:
             pass
 

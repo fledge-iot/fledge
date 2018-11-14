@@ -40,6 +40,9 @@ mutex	waitMutex;
 // Block the calling thread until notified to resume.
 condition_variable cond_var;
 
+// Buffer max elements
+unsigned long memoryBufferSize;
+
 // Used to identifies logs
 const string LOG_SERVICE_NAME = "SendingProcess/sending_process";
 
@@ -54,7 +57,9 @@ int main(int argc, char** argv)
 	{
                 // Instantiate SendingProcess class
 		SendingProcess sendingProcess(argc, argv);
-                
+
+		memoryBufferSize = sendingProcess.getMemoryBufferSize();
+
 		// Launch the load thread
 		sendingProcess.m_thread_load = new thread(loadDataThread, &sendingProcess);
 		// Launch the send thread
@@ -121,7 +126,7 @@ static void loadDataThread(SendingProcess *loadData)
 
 	while (loadData->isRunning())
         {
-                if (readIdx >= DATA_BUFFER_ELMS)
+                if (readIdx >= memoryBufferSize)
                 {
                         readIdx = 0;
                 }
@@ -315,7 +320,7 @@ static void sendDataThread(SendingProcess *sendData)
         {
 		slept = false;
 
-                if (sendIdx >= DATA_BUFFER_ELMS)
+                if (sendIdx >= memoryBufferSize)
 		{
 
 			if (sendData->getUpdateDb())

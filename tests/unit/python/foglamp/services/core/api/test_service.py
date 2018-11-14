@@ -98,7 +98,7 @@ class TestService:
                         'service_port': 3,
                         'address': 'address3',
                         'protocol': 'protocol3',
-                        'status': 'down',
+                        'status': 'shutdown',
                         'name': 'name3',
                         'management_port': 3
                     },

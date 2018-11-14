@@ -4,6 +4,7 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
+import asyncio
 import datetime
 from aiohttp import web
 import uuid
@@ -85,14 +86,6 @@ async def delete_service(request):
         if svc is None or svc.strip() == '':
             raise web.HTTPBadRequest(reason='Missing service_name in requested URL')
 
-        try:
-            svcs = ServiceRegistry.get(name=svc)
-        except service_registry_exceptions.DoesNotExist:
-            pass
-        else:
-            # shutdown of service does not remove it from service registry via unregister
-            ServiceRegistry.remove_from_registry(svcs[0]._id)
-
         storage = connect.get_storage_async()
 
         result = await get_schedule(storage, svc)
@@ -109,6 +102,21 @@ async def delete_service(request):
 
         # delete all configuration for the service name
         await delete_configuration(storage, svc)
+
+        try:
+            ServiceRegistry.get(name=svc)
+        except service_registry_exceptions.DoesNotExist:
+            pass
+        else:
+            # shutdown of service does not actually remove it from service registry via unregister (it just set its
+            # status to Shutdown)
+            while True:
+                svcs = ServiceRegistry.get(name=svc)
+                if svcs[0]._status == ServiceRecord.Status.Shutdown:
+                    ServiceRegistry.remove_from_registry(svcs[0]._id)
+                    break
+                else:
+                    await asyncio.sleep(1.0)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
     else:

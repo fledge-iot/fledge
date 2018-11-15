@@ -51,7 +51,7 @@ curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/"${SEND
 curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/"${SENDING_PROCESS_OCS_DATA}"/client_secret -d '{ "value" : "'${OCS_CLIENT_SECRET}'" }'
 curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/"${SENDING_PROCESS_OCS_DATA}"/namespace -d '{ "value" : "'${OCS_NAMESPACE}'" }'
 
-curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/OCS_TYPES/type-id -d '{ "value" : "'${OCS_TYPE_ID}'" }'
+curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/"${SENDING_PROCESS_OCS_DATA}"/URL -d '{ "value" : "'${OCS_URL}'" }'
 curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/"${SENDING_PROCESS_OCS_DATA}"/producerToken -d '{ "value" : "'${OCS_TOKEN}'" }'
 
 # Initializes OCS cleaning all the content of the defined OCS NameSpace

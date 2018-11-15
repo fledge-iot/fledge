@@ -104,9 +104,7 @@ _CONFIG_DEFAULT_OMF = {
     "URL": {
         "description": "The URL of OCS (OSIsoft Cloud Services) ",
         "type": "string",
-        #// FIXME:
-        "default": "https://dat-a.osisoft.com",
-        #"default": "https://dat-a.osisoft.com/api/omf",
+        "default": "https://dat-a.osisoft.com/api/tenants/TENANT_ID_PLACEHOLDER/namespaces/NAMESPACE_ID_PLACEHOLDER/omf",
         "order": "1"
     },
     "producerToken": {

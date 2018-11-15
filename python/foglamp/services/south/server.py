@@ -249,7 +249,7 @@ class Server(FoglampMicroservice):
                     task_pending.cancel()
                 except asyncio.CancelledError:
                     pass
-            await asyncio.sleep(1.0)
+            await asyncio.sleep(0.1)
         except asyncio.CancelledError:
             pass
 
@@ -266,9 +266,10 @@ class Server(FoglampMicroservice):
             try:
                 await self._stop(loop)
                 self.unregister_service_with_core(self._microservice_id)
+            except asyncio.CancelledError:
+                pass
             except Exception as ex:
                 _LOGGER.exception('Error in stopping South Service plugin {}, {}'.format(self._name, str(ex)))
-                raise web.HTTPInternalServerError(reason=str(ex))
 
         def schedule_shutdown(loop):
             asyncio.ensure_future(do_shutdown(loop), loop=loop)

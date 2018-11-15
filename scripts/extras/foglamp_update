@@ -1,10 +1,10 @@
 #!/bin/bash
 
 ##
-# This script has copied into FogLAMP 'bin' dierctory by the Snap build process
+# This script is copied into FogLAMP 'bin' directory by the Foglamp install process
 #
-# This script let the user to enable/disable/remove and set the time inteerval
-# of the scheduled process for Snap package update in a Snap installed FogLAMP setup.
+# This script let the user to update Foglamp either manually or in auto mode via a schedule
+# enable/disable/remove and also to set the time interval of the schedule for apt package update.
 #
 ##
 
@@ -14,7 +14,7 @@
 # it's not possible to specify to run at particular time not a specific week day
 #
 
-__author__="Massimiliano Pinto"
+__author__="Massimiliano Pinto, Amarendra K Sinha"
 __copyright__="Copyright (c) 2018 OSIsoft, LLC"
 __license__="Apache 2.0"
 __version__="1.0"
@@ -36,23 +36,28 @@ if [ ! -d "${FOGLAMP_ROOT}" ]; then
         exit 1
 fi
 
+# Add FOGLAMP_ROOT/python to PYTHONPATH
+export PYTHONPATH="${PYTHONPATH}:${FOGLAMP_ROOT}/scripts/common"
+
 # Print usage and credits
 usage()
 {
 	echo "FogLAMP auto update enable/disable v${FOGLAMP_AUTO_UPDATER_VER} Copyright (c) 2018 OSIsoft, LLC"
 	echo
-	echo "usage: $(basename $0) --enable --disable --remove-update [--address --port --use-https --update-interval=seconds]"
+	echo "usage: $(basename $0) --manual --auto --enable --disable --remove-update [--host --port --use-https --update-interval=seconds]"
 	echo
 	echo  mandatory options:
+	echo "  --manual           Run update script manually."
+	echo "  --auto             Create update task schedule for auto update."
 	echo "  --enable           Enables the auto update  or creates the enabled schedule if not set."
 	echo "  --disable          Disables the auto update if set"
 	echo "  --remove-update    Removes the auto update"
 	echo
 	echo "optional parameters:"
-	echo "  --address=            Sets the FogLAMP REST API address, default is 127.0.0.1"
-	echo "  --port=               Sets the FogLAMP REST API port, default is 8081"
+	echo "  --host             Sets the FogLAMP REST API host, default is 127.0.0.1"
+	echo "  --port                Sets the FogLAMP REST API port, default is 8081"
 	echo "  --use-https           Sets HTTPS for FogLAMP REST API, default is http"
-	echo "  --update-interval=    Sets the auto update interval in seconds, default is 10800 (3 hours)"
+	echo "  --update-interval     Sets the auto update interval in seconds, default is 10800 (3 hours)"
 	exit 0
 }
 
@@ -67,8 +72,14 @@ while [ "$1" != "" ]; do
         --port)
             API_PORT=$VALUE
             ;;
-        --address)
+        --host)
             API_ADDRESS=$VALUE
+            ;;
+        --manual)
+            MANUAL_UPDATE="Y"
+            ;;
+        --auto)
+            AUTO_UPDATE="Y"
             ;;
         --enable)
             ENABLE_UPDATE="Y"
@@ -93,7 +104,7 @@ while [ "$1" != "" ]; do
 done
 
 # Check for mandatoruy options first
-if [ ! "${ENABLE_UPDATE}" ] && [ ! "${DISABLE_UPDATE}" ] && [ ! "${REMOVE_UPDATE}" ]; then
+if [ ! "${MANUAL_UPDATE}" ] && [ ! "${AUTO_UPDATE}" ] && [ ! "${ENABLE_UPDATE}" ] && [ ! "${DISABLE_UPDATE}" ] && [ ! "${REMOVE_UPDATE}" ]; then
 	usage
 	exit 1
 fi
@@ -113,16 +124,12 @@ REST_API_URL="${REST_API_SCHEME}${API_ADDRESS}:${API_PORT}"
 
 # Check FogLAMP API is running at API_ADDRESS, API_PORT via 'ping'
 CHECK_SERVICE=`curl -s -k --max-time 30 "${REST_API_URL}/foglamp/ping" | grep -i uptime`
-
 if [ ! "${CHECK_SERVICE}" ]; then
 	if [ ! "${CHECK_SERVICE}" ]; then
 		echo "$(basename $0): Error: cannot connect to FogLAMP API at [${REST_API_URL}]"
 		exit 1
 	fi
 fi
-
-# Add FOGLAMP_ROOT/python to PYTHONPATH
-export PYTHONPATH="${PYTHONPATH}:${FOGLAMP_ROOT}/scripts/common"
 
 # Check whether SCHEDULE_NAME exists
 # Abort on JSON erros
@@ -172,13 +179,50 @@ SCHEDULE_SET_PAYLOAD="{\"type\": 3, \
 # Commands handling
 ###
 
+# If manual mode has been choosen, then simply run the update task script and exit
+if [ "${MANUAL_UPDATE}" = "Y" ]; then
+	# CREATE API call
+	MANUAL_OUTPUT=`curl -s -k --max-time 30 -X PUT "${REST_API_URL}/foglamp/update"`
+
+	# Check 'deleted' in JSON output
+	CHECK_MANUAL=`echo ${MANUAL_OUTPUT} | grep Running`
+	if [ ! "${CHECK_MANUAL}" ]; then
+		echo "$(basename $0): error: failed to run manual update: ${MANUAL_OUTPUT}"
+		exit 3
+	else
+		echo "The Foglamp update process has been successfully scheduled."
+		exit 0
+	fi
+fi
+
+# Create Update schedule vide create task
+if [ "${AUTO_UPDATE}" = "Y" ]; then
+	if [ "${SCHEDULE_ID}" ]; then
+		echo "$(basename $0): warning: the schedule '${SCHEDULE_NAME}' with id ${SCHEDULE_ID} already exists."
+		exit 2
+	fi
+
+	# CREATE API call
+	AUTO_OUTPUT=`curl -s -k --max-time 30 -X POST -d "${SCHEDULE_SET_PAYLOAD}" "${REST_API_URL}/foglamp/schedule"`
+
+	# Check 'deleted' in JSON output
+	AUTO_CREATE=`echo ${AUTO_OUTPUT} | grep ${SCHEDULE_PROCESS_NAME}`
+	if [ ! "${AUTO_CREATE}" ]; then
+		echo "$(basename $0): error: failed to create schedule: ${AUTO_OUTPUT}"
+		exit 3
+	else
+		echo "The Foglamp update has been successfully auto scheduled."
+		exit 0
+	fi
+fi
+
 #
 # --remove-update
 # Remove the schedule from FogLAMP
 #
 if [ "${REMOVE_UPDATE}" = "Y" ]; then
 	if [ ! "${SCHEDULE_ID}" ]; then
-		echo "$(basename $0): warning: the schedule '${SCHEDULE_PROCESS_NAME}' is not active."
+		echo "$(basename $0): warning: the schedule '${SCHEDULE_NAME}' is not active."
 		exit 2
 	fi
 
@@ -191,7 +235,7 @@ if [ "${REMOVE_UPDATE}" = "Y" ]; then
 		echo "$(basename $0): error: failed to remove schedule: ${REMOVE_OUTPUT}"
 		exit 3
 	else
-		echo "The schedule '${SCHEDULE_PROCESS_NAME}', ID [${SCHEDULE_ID}] has been removed."
+		echo "The schedule '${SCHEDULE_NAME}', ID [${SCHEDULE_ID}] has been removed."
 		exit 0
 	fi
 fi
@@ -202,7 +246,7 @@ fi
 #
 if [ "${ENABLE_UPDATE}" = "Y" ]; then
 	if [ ! "${SCHEDULE_ID}" ]; then
-		echo "The schedule '${SCHEDULE_PROCESS_NAME}' is not active. Activating and enabling it"
+		echo "The schedule '${SCHEDULE_NAME}' is not active. Activating and enabling it"
 
 		# Create the schedule
 		# POST API call for 'enable' and 'update interval'
@@ -215,7 +259,7 @@ if [ "${ENABLE_UPDATE}" = "Y" ]; then
 			echo "$(basename $0): error: cannot get 'schedule_id' for new created schedule '${SCHEDULE_NAME}': [${SCHEDULE_SET}]"
 			exit 3
 		fi
-		echo "Schedule '${SCHEDULE_PROCESS_NAME}' successfully added, ID [${SCHEDULE_ID}], interval ${UPDATE_INTERVAL} seconds"
+		echo "Schedule '${SCHEDULE_NAME}' successfully added, ID [${SCHEDULE_ID}], interval ${UPDATE_INTERVAL} seconds"
 		exit 0
 	else
 		# Update the schedule, using SCHEDULE_ID
@@ -229,7 +273,7 @@ if [ "${ENABLE_UPDATE}" = "Y" ]; then
 			echo "$(basename $0): error: failed to enable schedule: ${ENABLE_OUTPUT}"
 			exit 3
 		else
-			echo "The schedule '${SCHEDULE_PROCESS_NAME}', ID [${SCHEDULE_ID}] has been enabled, interval ${UPDATE_INTERVAL} seconds"
+			echo "The schedule '${SCHEDULE_NAME}', ID [${SCHEDULE_ID}] has been enabled, interval ${UPDATE_INTERVAL} seconds"
 		fi
 		exit 0
 	fi
@@ -241,7 +285,7 @@ fi
 #
 if [ "${DISABLE_UPDATE}" = "Y" ]; then
 	if [ ! "${SCHEDULE_ID}" ]; then
-		echo "$(basename $0): info: the schedule '${SCHEDULE_PROCESS_NAME}' is not active. Try with --enable to install/active it"
+		echo "$(basename $0): info: the schedule '${SCHEDULE_NAME}' is not active. Try with --enable to install/active it"
 		exit 2
 	fi
 
@@ -254,7 +298,7 @@ if [ "${DISABLE_UPDATE}" = "Y" ]; then
 		echo "$(basename $0): error: failed to disable schedule: ${DISABLE_OUTPUT}"
 		exit 3
 	else
-		echo "The schedule '${SCHEDULE_PROCESS_NAME}', ID [${SCHEDULE_ID}] has been disabled."
+		echo "The schedule '${SCHEDULE_NAME}', ID [${SCHEDULE_ID}] has been disabled."
 		exit 0
 	fi
 fi

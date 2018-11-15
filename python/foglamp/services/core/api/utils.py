@@ -24,6 +24,14 @@ def get_plugin_info(name):
         return jdoc
 
 
+def get_rule_plugin_info(name):
+    pass
+
+
+def get_delivery_plugin_info(name):
+    pass
+
+
 def _find_c_lib(name):
     for path, subdirs, files in os.walk(_lib_path):
         for fname in files:

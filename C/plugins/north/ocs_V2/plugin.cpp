@@ -35,7 +35,7 @@ using namespace rapidjson;
 			"\"URL\": { " \
 				"\"description\": \"The URL of OCS (OSIsoft Cloud Services)\", " \
 				"\"type\": \"string\", " \
-				"\"default\": \"https://dat-a.osisoft.com/api/tenants/TENANT_ID_PLACEHOLDER/namespaces/NAMESPACE_ID_PLACEHOLDER/omf\", " \
+				"\"default\": \"https://dat-a.osisoft.com:443/api/tenants/TENANT_ID_PLACEHOLDER/namespaces/NAMESPACE_ID_PLACEHOLDER/omf\", " \
 				"\"order\": \"1\" }, " \
 			"\"producerToken\": { " \
 				"\"description\": \"The producer token used to authenticate as a valid publisher and required to ingest data into OCS using OMF.\", " \
@@ -157,7 +157,7 @@ PLUGIN_INFORMATION *plugin_info()
 /**
  * Initialise the plugin with configuration.
  *
- * This funcion is called to get the plugin handle.
+ * This function is called to get the plugin handle.
  */
 PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 {

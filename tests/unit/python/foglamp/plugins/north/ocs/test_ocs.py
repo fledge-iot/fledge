@@ -102,7 +102,11 @@ class TestOCS:
                 "formatNumber": {"value": "float64"},
                 "formatInteger": {"value": "int64"},
                 "notBlockingErrors": {"value": "{'id': 400, 'message': 'none'}"},
-                "compression": {"value": "true"}
+                "compression": {"value": "true"},
+                "namespace": {"value": "ocs_namespace_0001"},
+                "tenant_id": {"value": "ocs_tenant_id"},
+                "client_id": {"value": "ocs_client_id"},
+                "client_secret": {"value": "ocs_client_secret"},
 
         }
 

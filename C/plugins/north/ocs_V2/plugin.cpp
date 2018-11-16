@@ -33,7 +33,8 @@ using namespace rapidjson;
  */
 #define PLUGIN_DEFAULT_CONFIG \
 			"\"URL\": { " \
-				"\"description\": \"The URL of OCS (OSIsoft Cloud Services)\", " \
+				"\"description\": \"The URL of OCS (OSIsoft Cloud Services), " \
+				"NOTE : TENANT_ID_PLACEHOLDER and NAMESPACE_ID_PLACEHOLDER, if present, will be replaced with the values of tenant_id and namespace\", " \
 				"\"type\": \"string\", " \
 				"\"default\": \"https://dat-a.osisoft.com:443/api/tenants/TENANT_ID_PLACEHOLDER/namespaces/NAMESPACE_ID_PLACEHOLDER/omf\", " \
 				"\"order\": \"1\" }, " \
@@ -171,6 +172,20 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	string formatNumber = configData->getValue("formatNumber");
 	string formatInteger = configData->getValue("formatInteger");
 
+	string tenant_id = configData->getValue("tenant_id");
+	string namespace_id = configData->getValue("namespace");
+
+	// TENANT_ID_PLACEHOLDER and NAMESPACE_ID_PLACEHOLDER, if present, will be replaced with the values of tenant_id and namespace_id
+	string pattern  = "TENANT_ID_PLACEHOLDER";
+
+	if (url.find(pattern) != string::npos)
+		url.replace(url.find(pattern), pattern.length(), tenant_id);
+
+	pattern  = "NAMESPACE_ID_PLACEHOLDER";
+
+	if (url.find(pattern) != string::npos)
+		url.replace(url.find(pattern), pattern.length(), namespace_id);
+
 	/**
 	 * Extract host, port, path from URL
 	 */
@@ -189,7 +204,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 
 	// Allocate connector struct
 	CONNECTOR_INFO* connInfo = new CONNECTOR_INFO;
-	// Set configuration felds
+	// Set configuration fields
 	connInfo->hostAndPort = hostAndPort;
 	connInfo->path = path;
 	connInfo->timeout = timeout;

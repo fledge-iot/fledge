@@ -24,7 +24,7 @@
 using namespace std;
 using namespace rapidjson;
 
-#define PLUGIN_NAME "ocs"
+#define PLUGIN_NAME "ocs_V2"
 #define TYPE_ID_KEY "type-id"
 #define TYPE_ID_DEFAULT "1"
 
@@ -35,7 +35,7 @@ using namespace rapidjson;
 			"\"URL\": { " \
 				"\"description\": \"The URL of OCS (OSIsoft Cloud Services)\", " \
 				"\"type\": \"string\", " \
-				"\"default\": \"https://dat-a.osisoft.com/api/omf\", " \
+				"\"default\": \"https://dat-a.osisoft.com/api/tenants/TENANT_ID_PLACEHOLDER/namespaces/NAMESPACE_ID_PLACEHOLDER/omf\", " \
 				"\"order\": \"1\" }, " \
 			"\"producerToken\": { " \
 				"\"description\": \"The producer token used to authenticate as a valid publisher and required to ingest data into OCS using OMF.\", " \
@@ -79,7 +79,32 @@ using namespace rapidjson;
 				"\"description\": \"Identifies the specific stream to handle and the related information," \
 				" among them the ID of the last object streamed.\", " \
 				"\"type\": \"integer\", \"default\": \"0\", " \
-				"\"readonly\": \"true\" }"
+				"\"readonly\": \"true\" }," \
+			"\"namespace\" : {"\
+				"\"description\" : \"Specifies the OCS namespace where the information are stored and it is used for the interaction with the OCS API\", "\
+				"\"type\" : \"string\", "\
+				"\"default\": \"10\", " \
+				"\"order\": \"17\"  " \
+			"}, "\
+			"\"tenant_id\" : {"\
+				"\"description\" : \"Tenant id associated to the specific OCS account\", "\
+				"\"type\" : \"string\", "\
+				"\"default\": \"ocs_tenant_id\", " \
+				"\"order\": \"18\"  " \
+			"}, "\
+			"\"client_id\" : {"\
+				"\"description\" : \"Client id associated to the specific OCS account, it is used to authenticate the source for using the OCS API\", "\
+				"\"type\" : \"string\", "\
+				"\"default\": \"ocs_client_id\", " \
+				"\"order\": \"19\"  " \
+			"}, "\
+			"\"client_secret\" : {"\
+				"\"description\" : \"Client secret associated to the specific OCS account, it is used to authenticate the source for using the OCS API\", "\
+				"\"type\" : \"string\", "\
+				"\"default\": \"ocs_client_secret\", " \
+				"\"order\": \"20\"  " \
+			"} "\
+
 
 
 #define OMF_PLUGIN_DESC "\"plugin\": {\"description\": \"OCS (OSIsoft Cloud Services) North C Plugin\", \"type\": \"string\", \"default\": \"" PLUGIN_NAME "\", \"readonly\": \"true\"}"

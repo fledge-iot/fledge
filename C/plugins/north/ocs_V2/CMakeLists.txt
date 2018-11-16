@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.6.0)
 
-project(ocs)
+project(ocs_V2)
 
 set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 # Add here all needed FogLAMP libraries as list

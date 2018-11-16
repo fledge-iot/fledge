@@ -26,7 +26,7 @@ bash -c "cat > ${TMP_FILE_ADD_NORTH_OCS_READINGS}" << 'EOF'
             "schedule_enabled": true,
             "cmd_params": {
                 "stream_id": "1",
-                "debug_level": "1"
+                "debug_level": "3"
             }
          }
 EOF

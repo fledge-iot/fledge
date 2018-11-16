@@ -368,7 +368,17 @@ def plugin_init(data):
 
     # Retrieves the configurations and apply the related conversions
     _config['_CONFIG_CATEGORY_NAME'] = data['_CONFIG_CATEGORY_NAME']
+
+    _config['namespace'] = data['namespace']['value']
+    _config['tenant_id'] = data['tenant_id']['value']
+    _config['client_id'] = data['client_id']['value']
+    _config['client_secret'] = data['client_secret']['value']
     _config['URL'] = data['URL']['value']
+
+    # Replaces placeholders if the URL doesn't already contain the final address
+    _config['URL'] = _config['URL'].replace("TENANT_ID_PLACEHOLDER", _config['tenant_id'])
+    _config['URL'] = _config['URL'].replace("NAMESPACE_ID_PLACEHOLDER", _config['namespace'])
+
     _config['producerToken'] = data['producerToken']['value']
     _config['OMFMaxRetry'] = int(data['OMFMaxRetry']['value'])
     _config['OMFRetrySleepTime'] = int(data['OMFRetrySleepTime']['value'])

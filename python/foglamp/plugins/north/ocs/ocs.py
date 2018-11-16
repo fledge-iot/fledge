@@ -101,7 +101,7 @@ _CONFIG_DEFAULT_OMF = {
         'readonly': 'true'
     },
     "URL": {
-        "description": "The URL of OCS (OSIsoft Cloud Services) ",
+        "description": "The URL of OCS (OSIsoft Cloud Services),  TENANT_ID_PLACEHOLDER and NAMESPACE_ID_PLACEHOLDER, if present, will be replaced with the values of tenant_id and namespace parameters ",
         "type": "string",
         "default": "https://dat-a.osisoft.com/api/tenants/TENANT_ID_PLACEHOLDER/namespaces/NAMESPACE_ID_PLACEHOLDER/omf",
         "order": "1"

@@ -25,6 +25,7 @@
  */
 class ReadingSet {
 	public:
+		ReadingSet();
 		ReadingSet(const std::string& json);
 		ReadingSet(std::vector<Reading *>* readings);
 		~ReadingSet();
@@ -41,6 +42,8 @@ class ReadingSet {
 
 		// Return the reading id of the last  data element
 		unsigned long			getLastId() const { return m_last_id; };
+		void				append(ReadingSet *);
+		void				append(const std::vector<Reading *> &);
 
 	private:
 		unsigned long			m_count;

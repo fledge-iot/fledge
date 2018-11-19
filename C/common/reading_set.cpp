@@ -22,6 +22,13 @@ using namespace std;
 using namespace rapidjson;
 
 /**
+ * Construct an empty reading set
+ */
+ReadingSet::ReadingSet() : m_count(0)
+{
+}
+
+/**
  * Construct a reading set from a vector<Reading *> pointer
  * NOTE: readings are copied into m_readings
  *
@@ -108,6 +115,28 @@ ReadingSet::~ReadingSet()
 	for (auto it = m_readings.cbegin(); it != m_readings.cend(); it++)
 	{
 		delete *it;
+	}
+}
+
+/**
+ * Append the readings in a second reading set to this reading set.
+ */
+void
+ReadingSet::append(ReadingSet *readings)
+{
+	append(readings->getAllReadings());
+}
+
+/**
+ * Append a set of readings to this reading set.
+ */
+void
+ReadingSet::append(const vector<Reading *>& readings)
+{
+	for (auto it = readings.cbegin(); it != readings.cend(); it++)
+	{
+		m_readings.push_back(new Reading(**it));
+		m_count++;
 	}
 }
 

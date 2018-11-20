@@ -172,6 +172,15 @@ async def post_notification(request):
         is_enabled = "true" if ((type(enabled) is str and enabled.lower() in ['true']) or (
             (type(enabled) is bool and enabled is True))) else "false"
 
+        try:
+            # Get default config for rule and channel plugins
+            url = '{}/plugin'.format(request.url)
+            list_plugins = json.loads(await _hit_get_url(url))
+            rule_plugin_config = list_plugins['rules'][rule]
+            delivery_plugin_config = list_plugins['delivery'][channel]
+        except KeyError:
+            raise web.HTTPBadRequest(reason="Invalid rule plugin:[{}] and/or delivery plugin:[{}] supplied.".format(rule, channel))
+
         # First create templates for notification and rule, channel plugins
         post_url = 'http://{}:{}/foglamp/notification/{}'.format(_address, _port, name)
         await _hit_post_url(post_url)  # Create Notification template
@@ -179,14 +188,6 @@ async def post_notification(request):
         await _hit_post_url(post_url)  # Create Notification rule template
         post_url = 'http://{}:{}/foglamp/notification/{}/delivery/{}'.format(_address, _port, name, channel)
         await _hit_post_url(post_url)  # Create Notification delivery template
-
-
-        # Get default config for rule and channel plugins
-        url = '{}/plugin'.format(request.url)
-        list_plugins = json.loads(await _hit_get_url(url))
-        rule_plugin_config = list_plugins['rules'][rule]
-        delivery_plugin_config = list_plugins['delivery'][channel]
-
 
         # Create configurations
         storage = connect.get_storage_async()
@@ -293,6 +294,17 @@ async def put_notification(request):
                 raise web.HTTPBadRequest(reason='Only "true", "false", true, false are allowed for value of enabled.')
         is_enabled = "true" if ((type(enabled) is str and enabled.lower() in ['true']) or (
             (type(enabled) is bool and enabled is True))) else "false"
+
+        try:
+            # Get default config for rule and channel plugins
+            url = str(request.url)
+            url_parts = url.split("/foglamp/notification")
+            url = '{}/foglamp/notification/plugin'.format(url_parts[0])
+            list_plugins = json.loads(await _hit_get_url(url))
+            rule_plugin_config = list_plugins['rules'][rule]
+            delivery_plugin_config = list_plugins['delivery'][channel]
+        except KeyError:
+            raise web.HTTPBadRequest(reason="Invalid rule plugin:[{}] and/or delivery plugin:[{}] supplied.".format(rule, channel))
 
         # Update configurations
         notification_config = {

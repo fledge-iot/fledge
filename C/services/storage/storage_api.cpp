@@ -361,6 +361,37 @@ string  tableName;
 string	payload;
 string	responsePayload;
 
+	auto header_seq = request->header.find("SeqNum");
+	if(header_seq != request->header.end())
+	{
+		string threadId = header_seq->second.substr(0, header_seq->second.find("_"));
+		int seqNum = stoi(header_seq->second.substr(header_seq->second.find("_")+1));
+
+		{
+			std::unique_lock<std::mutex> lock(mtx_seqnum_map);
+			auto it = m_seqnum_map.find(threadId);
+			if (it != m_seqnum_map.end())
+			{
+				if (seqNum <= it->second)
+				{
+					responsePayload = "{ \"response\" : \"updated\", \"rows_affected\"  : ";
+					responsePayload += to_string(0);
+					responsePayload += " }";
+					Logger::getLogger()->info("%s:%d: Repeat/old request: responding with zero response - threadId=%s, last seen seqNum for this threadId=%d, HTTP request header seqNum=%d",
+									__FUNCTION__, __LINE__, threadId.c_str(), it->second, seqNum);
+					respond(response, responsePayload);
+					return;
+				}
+				else
+					m_seqnum_map[threadId] = seqNum;
+			}
+			else
+			{
+				m_seqnum_map[threadId] = seqNum;
+			}
+		}
+	}
+	
 	stats.commonUpdate++;
 	try {
 		tableName = request->path_match[TABLE_NAME_COMPONENT];
@@ -518,6 +549,37 @@ void StorageApi::readingAppend(shared_ptr<HttpServer::Response> response, shared
 {
 string payload;
 string  responsePayload;
+	
+	auto header_seq = request->header.find("SeqNum");
+	if(header_seq != request->header.end())
+	{
+		string threadId = header_seq->second.substr(0, header_seq->second.find("_"));
+		int seqNum = stoi(header_seq->second.substr(header_seq->second.find("_")+1));
+
+		{
+			std::unique_lock<std::mutex> lock(mtx_seqnum_map);
+			auto it = m_seqnum_map.find(threadId);
+			if (it != m_seqnum_map.end())
+			{
+				if (seqNum <= it->second)
+				{
+					responsePayload = "{ \"response\" : \"appended\", \"readings_added\" : ";
+					responsePayload += to_string(0);
+					responsePayload += " }";
+					Logger::getLogger()->info("%s:%d: Repeat/old request: responding with zero response - threadId=%s, last seen seqNum for this threadId=%d, HTTP request header seqNum=%d",
+									__FUNCTION__, __LINE__, threadId.c_str(), it->second, seqNum);
+					respond(response, responsePayload);
+					return;
+				}
+				else
+					m_seqnum_map[threadId] = seqNum;
+			}
+			else
+			{
+				m_seqnum_map[threadId] = seqNum;
+			}
+		}
+	}
 
 	stats.readingAppend++;
 	try {
@@ -537,7 +599,7 @@ string  responsePayload;
 			respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
 		}
 
-		respond(response, responsePayload);
+		//respond(response, responsePayload);
 	} catch (exception ex) {
 		internalError(response, ex);
 	}

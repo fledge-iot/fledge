@@ -435,7 +435,7 @@ The command also removes the service installed. |br| You may notice the warning 
 DEPRECATED: Installing the Snap Package
 ---------------------------------------
 
-.. note:: The use of |snappy| allows you to install packages up to version 1.1.1. Newver versions are available with Debian packages.
+.. note:: The use of |snappy| allows you to install packages up to version 1.1.1. Newer versions are available with Debian packages.
 
 |snappy| is a software deployment and package management system originally designed and built by Canonical. Snappy is now available for many Linux distributions, including Ubuntu, Ubuntu Core, Debian, Fedora, Archlinux, Raspbian, Suse, the Yocto project and many others. The package management is based on snap packages that can be installed in a *transactional* environment, i.e. the packages have a current installation and the system can maintain a given number of previous installations. In case of issues with the new packages, Administrators can easily revert to previous installations.
 

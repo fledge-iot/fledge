@@ -4,10 +4,9 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-import asyncio
-import datetime
+import aiohttp
 from aiohttp import web
-import uuid
+import json
 
 from foglamp.common import utils
 from foglamp.common import logger
@@ -15,13 +14,9 @@ from foglamp.common.service_record import ServiceRecord
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.exceptions import StorageServerError
 from foglamp.common.configuration_manager import ConfigurationManager
-from foglamp.services.core import server
 from foglamp.services.core import connect
-from foglamp.services.core.api import utils as apiutils
-from foglamp.services.core.scheduler.entities import StartUpSchedule
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
-
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -30,99 +25,113 @@ __version__ = "${VERSION}"
 
 _help = """
     -------------------------------------------------------------------------------
-    | POST PUT GET DELETE            | /foglamp/notification                      |
+    | GET                            | /foglamp/notification/plugin               |
+    | GET POST PUT DELETE            | /foglamp/notification                      |
     -------------------------------------------------------------------------------
 """
 
 _logger = logger.setup()
 
 
+async def get_plugin(request):
+    """ GET lists of rule plugins and delivery plugins
+
+    :Example:
+        curl -X GET http://localhost:8081/foglamp/notification/plugin
+    """
+    try:
+        notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
+        _address, _port = notification_service[0]._address, notification_service[0]._management_port
+    except service_registry_exceptions.DoesNotExist:
+        return web.json_response({'result': "No Notification service available."})
+
+    try:
+        url = 'http://{}:{}/foglamp/notification/rules'.format(_address, _port)
+        rule_plugins = json.loads(await _hit_get_url(url))
+
+        url = 'http://{}:{}/foglamp/notification/delivery'.format(_address, _port)
+        delivery_plugins = json.loads(await _hit_get_url(url))
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason=ex)
+    else:
+        return web.json_response({'rules': rule_plugins, 'delivery': delivery_plugins})
+
+
 async def get_notification(request):
-    """ GET an existing notification or list of notifications from Service registry
+    """ GET an existing notification
+
+    :Example:
+        curl -X GET http://localhost:8081/foglamp/notification/<notification_name>
+    """
+    try:
+        notif = request.match_info.get('notification_name', None)
+        if notif is None:
+            raise web.HTTPInternalServerError(reason="Notification name is required.")
+
+        notification = {}
+        storage = connect.get_storage_async()
+        config_mgr = ConfigurationManager(storage)
+        notification_config = await config_mgr._read_category_val(notif)
+        if notification_config:
+            rule_config = await config_mgr._read_category_val("rule{}".format(notif))
+            channel_config = await config_mgr._read_category_val("delivery{}".format(notif))
+            notification = {
+                "name": notification_config['name']['value'],
+                "description": notification_config['description']['value'],
+                "rule": notification_config['rule']['value'],
+                "ruleConfig": rule_config,
+                "channel": notification_config['channel']['value'],
+                "deliveryConfig": channel_config,
+                "notification_type": notification_config['notification_type']['value'],
+                "enable": notification_config['enable']['value'],
+            }
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason=ex)
+    else:
+        return web.json_response({'notification': notification})
+
+
+async def get_notifications(request):
+    """ GET list of notifications
 
     :Example:
         curl -X GET http://localhost:8081/foglamp/notification
-        curl -X GET http://localhost:8081/foglamp/notification/<notification name>
     """
-
     try:
-        notif = request.match_info.get('notification_name', None)
-        all_notifications = False
-        if notif is None or notif.strip() == '':
-            all_notifications = True
-
-        try:
-            if all_notifications is True:
-                notifications = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification)
-            else:
-                notifications = ServiceRegistry.get(name=notif)
-        except service_registry_exceptions.DoesNotExist:
-            pass
-    except Exception as ex:
-        raise web.HTTPInternalServerError(reason=ex)
-    else:
-        return web.json_response({'result': notifications})
-
-
-async def delete_notification(request):
-    """ Delete an existing notification
-
-    :Example:
-        curl -X DELETE http://localhost:8081/foglamp/notification/<notification name>
-    """
-
-    try:
-        notif = request.match_info.get('notification_name', None)
-
-        if notif is None or notif.strip() == '':
-            raise web.HTTPBadRequest(reason='Missing notification_name in requested URL')
-
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
-
-        result = await get_schedule(storage, notif)
-        if result['count'] == 0:
-            raise web.HTTPBadRequest(reason='A notification with this name does not exist.')
-
-        notif_schedule = result['rows'][0]
-        sch_id = uuid.UUID(notif_schedule['id'])
-        if notif_schedule['enabled'].lower() == 't':
-            # disable it
-            await server.Server.scheduler.disable_schedule(sch_id)
-        # delete it
-        await server.Server.scheduler.delete_schedule(sch_id)
-
-        # delete all configuration for the notification name
-        await delete_configuration(storage, config_mgr, notif)
-
-        try:
-            ServiceRegistry.get(name=notif)
-        except service_registry_exceptions.DoesNotExist:
-            pass
-        else:
-            # shutdown of notification does not actually remove it from notification registry via unregister (it just set its
-            # status to Shutdown)
-            while True:
-                notifs = ServiceRegistry.get(name=notif)
-                if notifs[0]._status == ServiceRecord.Status.Shutdown:
-                    ServiceRegistry.remove_from_registry(notifs[0]._id)
-                    break
-                else:
-                    await asyncio.sleep(1.0)
+        all_notifications = await config_mgr._read_all_child_category_names("Notifications")
+        notifications = []
+        for notification in all_notifications:
+            notification_config = await config_mgr._read_category_val(notification['child'])
+            notification = {
+                "name": notification_config['name']['value'],
+                "rule": notification_config['rule']['value'],
+                "channel": notification_config['channel']['value'],
+                "notification_type": notification_config['notification_type']['value'],
+                "enable": notification_config['enable']['value'],
+            }
+            notifications.append(notification)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
     else:
-        return web.json_response({'result': 'notification {} deleted successfully.'.format(notif)})
+        return web.json_response({'notifications': notifications})
 
 
-async def add_notification(request):
+async def post_notification(request):
     """
     Create a new notification to run a specific plugin
 
     :Example:
-             curl -X POST http://localhost:8081/foglamp/notification -d '{"name": "Test Notification", "description":"Test Notification", "rule": "testrule", "channel": "email", "notification_type": "one shot", "enabled": false}'
-             curl -X POST http://localhost:8081/foglamp/notification -d '{"name": "Test Notification", "description":"Test Notification", "rule": "testrule", "channel": "email", "notification_type": "one shot", "enabled": false, "ruleConfig": {}, "deliveryConfig": {}}'
+             curl -X POST http://localhost:8081/foglamp/notification -d '{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", "channel": "email", "notification_type": "one shot", "enabled": false}'
+             curl -X POST http://localhost:8081/foglamp/notification -d '{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", "channel": "email", "notification_type": "one shot", "enabled": false, "ruleConfig": {}, "deliveryConfig": {}}'
     """
+    try:
+        notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
+        _address, _port = notification_service[0]._address, notification_service[0]._management_port
+    except service_registry_exceptions.DoesNotExist:
+        return {'result': "No Notification service available."}
+
     try:
         data = await request.json()
         if not isinstance(data, dict):
@@ -134,8 +143,8 @@ async def add_notification(request):
         channel = data.get('channel', None)
         notification_type = data.get('notification_type', None)
         enabled = data.get('enabled', None)
-        rule_config = data.get('ruleConfig', None)
-        delivery_config = data.get('deliveryConfig', None)
+        rule_config = data.get('ruleConfig', {})
+        delivery_config = data.get('deliveryConfig', {})
 
         if name is None:
             raise web.HTTPBadRequest(reason='Missing name property in payload.')
@@ -160,26 +169,28 @@ async def add_notification(request):
         if enabled is not None:
             if enabled not in ['true', 'false', True, False]:
                 raise web.HTTPBadRequest(reason='Only "true", "false", true, false are allowed for value of enabled.')
-        is_enabled = True if ((type(enabled) is str and enabled.lower() in ['true']) or (
-            (type(enabled) is bool and enabled is True))) else False
+        is_enabled = "true" if ((type(enabled) is str and enabled.lower() in ['true']) or (
+            (type(enabled) is bool and enabled is True))) else "false"
 
-        storage = connect.get_storage_async()
-        config_mgr = ConfigurationManager(storage)
-        process_name = 'notification_c'
-        script = '["services/notification_c"]'
+        # First create templates for notification and rule, channel plugins
+        post_url = 'http://{}:{}/foglamp/notification/{}'.format(_address, _port, name)
+        await _hit_post_url(post_url)  # Create Notification template
+        post_url = 'http://{}:{}/foglamp/notification/{}/rule/{}'.format(_address, _port, name, rule)
+        await _hit_post_url(post_url)  # Create Notification rule template
+        post_url = 'http://{}:{}/foglamp/notification/{}/delivery/{}'.format(_address, _port, name, channel)
+        await _hit_post_url(post_url)  # Create Notification delivery template
 
-        # First check if valid plugins have been supplied
-        rule_plugin_config, delivery_plugin_config = await check_plugins(rule, channel)
 
-        # then check that the schedule name is not already registered
-        count = await check_schedules(storage, name)
-        if count != 0:
-            raise web.HTTPBadRequest(reason='A notification with this name already exists.')
+        # Get default config for rule and channel plugins
+        url = '{}/plugin'.format(request.url)
+        list_plugins = json.loads(await _hit_get_url(url))
+        rule_plugin_config = list_plugins['rules'][rule]
+        delivery_plugin_config = list_plugins['delivery'][channel]
 
-        # Create scheduled process
-        await create_scheduled_process(storage, process_name, script)
 
         # Create configurations
+        storage = connect.get_storage_async()
+        config_mgr = ConfigurationManager(storage)
         notification_config = {
             "name": {
                 "description": "The name of this notification",
@@ -210,57 +221,55 @@ async def add_notification(request):
             "enable": {
                 "description": "Enabled",
                 "type": "boolean",
-                "default": "true" if enabled else "false",
+                "default": is_enabled,
             }
         }
-        await create_configurations(storage, config_mgr, name, notification_config,
-                                    rule, rule_plugin_config, rule_config,
-                                    channel, delivery_plugin_config, delivery_config)
-
-        # Create schedule
-        schedule = await create_schedule(storage, config_mgr, name, process_name, is_enabled)
+        await _create_configurations(storage, config_mgr, name, notification_config,
+                                     rule, rule_plugin_config, rule_config,
+                                     channel, delivery_plugin_config, delivery_config)
     except ValueError as e:
         raise web.HTTPBadRequest(reason=str(e))
     else:
-        return web.json_response({'name': name, 'id': str(schedule.schedule_id)})
+        return web.json_response({'result': "Notification {} created successfully".format(name)})
 
 
-async def update_notification(request):
+async def put_notification(request):
     """
     Update an existing notification
 
     :Example:
-             curl -X POST http://localhost:8081/foglamp/notification -d '{"name": "Test Notification", "description":"Test Notification", "rule": "testrule", "channel": "email", "notification_type": "one shot", "enabled": false}'
-             curl -X POST http://localhost:8081/foglamp/notification -d '{"name": "Test Notification", "description":"Test Notification", "rule": "testrule", "channel": "email", "notification_type": "one shot", "enabled": false, "ruleConfig": {}, "deliveryConfig": {}}'
+             curl -X PUT http://localhost:8081/foglamp/notification/<notification_name> -d '{"description":"Test Notification", "rule": "threshold", "channel": "email", "notification_type": "one shot", "enabled": false}'
+             curl -X PUT http://localhost:8081/foglamp/notification/<notification_name> -d '{"description":"Test Notification", "rule": "threshold", "channel": "email", "notification_type": "one shot", "enabled": false, "ruleConfig": {}, "deliveryConfig": {}}'
     """
     try:
+        notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
+        _address, _port = notification_service[0]._address, notification_service[0]._management_port
+    except service_registry_exceptions.DoesNotExist:
+        return {'result': "No Notification service available."}
+
+    try:
+        notif = request.match_info.get('notification_name', None)
+        if notif is None:
+            raise web.HTTPInternalServerError(reason="Notification name is required for updation.")
+
+        # TODO: Stop notification before update
+
         data = await request.json()
         if not isinstance(data, dict):
             raise ValueError('Data payload must be a valid JSON')
 
-        name = data.get('name', None)
         description = data.get('description', None)
         rule = data.get('rule', None)
         channel = data.get('channel', None)
         notification_type = data.get('type', None)
         enabled = data.get('enabled', None)
-        rule_config = data.get('ruleConfig', None)
-        delivery_config = data.get('deliveryConfig', None)
+        rule_config = data.get('ruleConfig', {})
+        delivery_config = data.get('deliveryConfig', {})
 
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
-        process_name = 'notification_c'
-        script = '["services/notification_c"]'
 
-        if name is None:
-            raise web.HTTPBadRequest(reason='Missing name property in payload.')
-
-        # then check that the schedule name exists
-        count = await check_schedules(storage, name)
-        if count == 0:
-            raise web.HTTPBadRequest(reason='A notification with this name DOES NOT exist.')
-
-        current_config = await config_mgr._read_category_val(name)
+        current_config = await config_mgr._read_category_val(notif)
         if description is None:
             description = current_config['description']['value']
         if rule is None:
@@ -270,8 +279,8 @@ async def update_notification(request):
         if notification_type is None:
             notification_type = current_config['notification_type']['value']
 
-        if utils.check_reserved(name) is False:
-            raise web.HTTPBadRequest(reason='Invalid name property in payload.')
+        if utils.check_reserved(notif) is False:
+            raise web.HTTPBadRequest(reason='Invalid notification name parameter.')
         if utils.check_reserved(rule) is False:
             raise web.HTTPBadRequest(reason='Invalid rule property in payload.')
         if utils.check_reserved(channel) is False:
@@ -282,18 +291,15 @@ async def update_notification(request):
         if enabled is not None:
             if enabled not in ['true', 'false', True, False]:
                 raise web.HTTPBadRequest(reason='Only "true", "false", true, false are allowed for value of enabled.')
-        is_enabled = True if ((type(enabled) is str and enabled.lower() in ['true']) or (
-            (type(enabled) is bool and enabled is True))) else False
-
-        # First check if valid plugins have been supplied
-        rule_plugin_config, delivery_plugin_config = await check_plugins(rule, channel)
+        is_enabled = "true" if ((type(enabled) is str and enabled.lower() in ['true']) or (
+            (type(enabled) is bool and enabled is True))) else "false"
 
         # Update configurations
         notification_config = {
             "name": {
                 "description": "The name of this notification",
                 "type": "string",
-                "default": name,
+                "default": notif,
             },
             "description": {
                 "description": "Description of this notification",
@@ -319,126 +325,78 @@ async def update_notification(request):
             "enable": {
                 "description": "Enabled",
                 "type": "boolean",
-                "default": "true" if enabled else "false",
+                "default": is_enabled,
             }
         }
-        await create_configurations(storage, config_mgr, name, notification_config,
-                                    rule, rule_plugin_config, rule_config,
-                                    channel, delivery_plugin_config, delivery_config)
-
-        # Update schedule
-        schedule = await create_schedule(storage, config_mgr, name, process_name, is_enabled)
+        await _update_configurations(config_mgr, notif, notification_config, rule_config, delivery_config)
     except ValueError as e:
         raise web.HTTPBadRequest(reason=str(e))
     else:
-        return web.json_response({'name': name, 'id': str(schedule.schedule_id)})
+        # TODO: Start notification after update
+        return web.json_response({'result': "Notification {} updated successfully".format(notif)})
 
 
-async def check_scheduled_processes(storage, process_name):
-    payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', process_name]).payload()
-    result = await storage.query_tbl_with_payload('scheduled_processes', payload)
-    return result['count']
+async def delete_notification(request):
+    """ Delete an existing notification
 
-
-async def check_schedules(storage, schedule_name):
-    payload = PayloadBuilder().SELECT("schedule_name").WHERE(['schedule_name', '=', schedule_name]).payload()
-    result = await storage.query_tbl_with_payload('schedules', payload)
-    return result['count']
-
-
-async def get_schedule(storage, schedule_name):
-    payload = PayloadBuilder().SELECT(["id", "enabled"]).WHERE(['schedule_name', '=', schedule_name]).payload()
-    result = await storage.query_tbl_with_payload('schedules', payload)
-    return result
-
-
-async def delete_configuration(storage, config_mgr, name):
-    current_config = await config_mgr._read_category_val(name)
-    if not current_config:
-        return
-    rule = current_config['rule']['value']
-    channel = current_config['channel']['value']
-
-    await delete_configuration_category(storage, name)
-    await delete_configuration_category(storage, "rule{}".format(rule))
-    await delete_configuration_category(storage, "delivery{}".format(channel))
-    await delete_parent_child_configuration(storage, "Notifications", name)
-    await delete_parent_child_configuration(storage, name, rule)
-    await delete_parent_child_configuration(storage, name, channel)
-
-
-async def delete_configuration_category(storage, key):
-    payload = PayloadBuilder().WHERE(['key', '=', key]).payload()
-    await storage.delete_from_tbl('configuration', payload)
-
-    # Removed key from configuration cache
-    config_mgr = ConfigurationManager(storage)
-    config_mgr._cacheManager.remove(key)
-
-
-async def delete_parent_child_configuration(storage, parent, child):
-    payload = PayloadBuilder().WHERE(['parent', '=', parent]).AND_WHERE(['child', '=', child]).payload()
-    await storage.delete_from_tbl('category_children', payload)
-
-
-async def check_plugins(rule, channel):
-    # Below line is purely for testing the API. Will be removed once support is available from C++ code for rule and delivery plugins,
-    return {"plugin": {"description": "rule", "type": "string", "default": "rule"}}, {"plugin": {"description": "delivery", "type": "string", "default": "delivery"}}
-
-    # Check if a valid rule plugin has been provided
+    :Example:
+        curl -X DELETE http://localhost:8081/foglamp/notification/<notification_name>
+    """
     try:
-        # Checking for C-type plugins
-        plugin_info = apiutils.get_rule_plugin_info(rule)
-        if plugin_info['type'] != 'notificationRule':
-            msg = "Rule Plugin of {} type is not supported".format(plugin_info['type'])
-            _logger.exception(msg)
-            return web.HTTPBadRequest(reason=msg)
-        rule_plugin_config = plugin_info['config']
-        if not rule_plugin_config:
-            _logger.exception("Rule Plugin %s import problem", rule)
-            raise web.HTTPNotFound(reason='Rule Plugin "{}" import problem.'.format(rule))
-    except Exception as ex:
-        _logger.exception("Failed to fetch rule plugin configuration. %s", str(ex))
-        raise web.HTTPInternalServerError(reason='Failed to fetch rule plugin configuration')
+        notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
+    except service_registry_exceptions.DoesNotExist:
+        return {'result': "No Notification service available."}
 
-    # Check if a valid delivery plugin has been provided
     try:
-        # Checking for C-type plugins
-        plugin_info = apiutils.get_delivery_plugin_info(channel)
-        if plugin_info['type'] != 'notificationDelivery':
-            msg = "Delivery Plugin of {} type is not supported".format(plugin_info['type'])
-            _logger.exception(msg)
-            return web.HTTPBadRequest(reason=msg)
-        delivery_plugin_config = plugin_info['config']
-        if not delivery_plugin_config:
-            _logger.exception("Delivery Plugin %s import problem", channel)
-            raise web.HTTPNotFound(reason='Delivery Plugin "{}" import problem.'.format(channel))
+        notif = request.match_info.get('notification_name', None)
+        if notif is None:
+            raise web.HTTPInternalServerError(reason="Notification name is required for deletion.")
+
+        # TODO: Stop notification before deletion
+
+        # Removes the child categories for the rule and delivery plugins, Removes the category for the notification itself
+        storage = connect.get_storage_async()
+        config_mgr = ConfigurationManager(storage)
+        await _delete_configuration(storage, config_mgr, notif)
     except Exception as ex:
-        _logger.exception("Failed to fetch delivery plugin configuration. %s", str(ex))
-        raise web.HTTPInternalServerError(reason='Failed to fetch delivery plugin configuration')
-    return rule_plugin_config, delivery_plugin_config
+        raise web.HTTPInternalServerError(reason=ex)
+    else:
+        return web.json_response({'result': 'notification {} deleted successfully.'.format(notif)})
 
 
-async def create_scheduled_process(storage, process_name, script):
-    # Check that the process name is not already registered
-    count = await check_scheduled_processes(storage, process_name)
-    if count == 0:
-        # Now first create the scheduled process entry for the new service
-        payload = PayloadBuilder().INSERT(name=process_name, script=script).payload()
-        try:
-            await storage.insert_into_tbl("scheduled_processes", payload)
-        except StorageServerError as ex:
-            _logger.exception("Failed to create scheduled process. %s", ex.error)
-            raise web.HTTPInternalServerError(reason='Failed to create notification.')
-        except Exception as ex:
-            _logger.exception("Failed to create scheduled process. %s", str(ex))
-            raise web.HTTPInternalServerError(reason='Failed to create notification.')
+async def _hit_get_url(get_url):
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(get_url) as resp:
+                status_code = resp.status
+                jdoc = await resp.text()
+                if status_code not in range(200, 209):
+                    _logger.error("Error code: %d, reason: %s, details: %s, url: %s", resp.status, resp.reason, jdoc, get_url)
+                    raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason=ex)
+    else:
+        return jdoc
 
 
-async def create_configurations(storage, config_mgr, name, notification_config,
-                                rule, rule_plugin_config, rule_config,
-                                channel, delivery_plugin_config, delivery_config):
-    # If successful then create a configuration entry from plugin configuration
+async def _hit_post_url(post_url, data=None):
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(post_url, data=data) as resp:
+                status_code = resp.status
+                jdoc = await resp.text()
+                if status_code not in range(200, 209):
+                    _logger.error("Error code: %d, reason: %s, details: %s, url: %s", resp.status, resp.reason, jdoc, post_url)
+                    raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason=ex)
+    else:
+        return jdoc
+
+
+async def _create_configurations(storage, config_mgr, name, notification_config,
+                                 rule, rule_plugin_config, rule_config,
+                                 channel, delivery_plugin_config, delivery_config):
     try:
         # ---------------- Main notification - Create a main notification configuration category
         category_desc = notification_config['description']['default']
@@ -448,7 +406,6 @@ async def create_configurations(storage, config_mgr, name, notification_config,
                                          keep_original_items=True)
         # Create the parent category for all Notifications
         await config_mgr.create_category("Notifications", {}, "Notifications", True)
-        refresh_cache = await config_mgr.get_category_all_items(category_name="Notifications")  # TODO: remove this asap
         await config_mgr.create_child_category("Notifications", [name])
 
         # ----------------Rule - Create a rule configuration category from the configuration defined in the rule plugin
@@ -466,7 +423,7 @@ async def create_configurations(storage, config_mgr, name, notification_config,
             if not isinstance(rule_config, dict):
                 raise ValueError('ruleConfig must be a JSON object')
             for k, v in rule_config.items():
-                await config_mgr.set_category_item_value_entry(rule, k, v['value'])
+                await config_mgr.set_category_item_value_entry("rule{}".format(name), k, v['value'])
 
         # ---------------- Delivery - Create a delivery configuration category from the configuration defined in the delivery plugin
         category_desc = delivery_plugin_config['plugin']['description']
@@ -483,33 +440,66 @@ async def create_configurations(storage, config_mgr, name, notification_config,
             if not isinstance(delivery_config, dict):
                 raise ValueError('deliveryConfig must be a JSON object')
             for k, v in delivery_config.items():
-                await config_mgr.set_category_item_value_entry(channel, k, v['value'])
+                await config_mgr.set_category_item_value_entry("delivery{}".format(name), k, v['value'])
     except Exception as ex:
-        await delete_configuration(storage, config_mgr, name)  # Revert configuration entry
+        await _delete_configuration(storage, config_mgr, name)  # Revert configuration entry
         _logger.exception("Failed to create notification configuration. %s", str(ex))
         raise web.HTTPInternalServerError(reason='Failed to create notification configuration.')
 
 
-async def create_schedule(storage, config_mgr, name, process_name, is_enabled):
-    # If all successful then lastly add a schedule to run the new service at startup
+async def _update_configurations(config_mgr, name, notification_config, rule_config, delivery_config):
     try:
-        schedule = StartUpSchedule()
-        schedule.name = name
-        schedule.process_name = process_name
-        schedule.repeat = datetime.timedelta(0)
-        schedule.exclusive = True
-        #  if "enabled" is supplied, it gets activated in save_schedule() via is_enabled flag
-        schedule.enabled = False
+        # ---------------- Update main notification
+        category_desc = notification_config['description']['default']
+        await config_mgr.create_category(category_name=name,
+                                         category_description=category_desc,
+                                         category_value=notification_config,
+                                         keep_original_items=True)
 
-        # Save schedule
-        await server.Server.scheduler.save_schedule(schedule, is_enabled)
-        schedule = await server.Server.scheduler.get_schedule_by_name(name)
-    except StorageServerError as ex:
-        await delete_configuration(storage, config_mgr, name)  # Revert configuration entry
-        _logger.exception("Failed to create schedule. %s", ex.error)
-        raise web.HTTPInternalServerError(reason='Failed to create notification.')
+        # ---------------- Replace rule configuration
+        if rule_config != {}:
+            category_desc = rule_config['plugin']['description']
+            category_name = "rule{}".format(name)
+            await config_mgr._update_category(category_name=category_name,
+                                             category_description=category_desc,
+                                             category_val=rule_config)
+
+        # ---------------- Replace delivery configuration
+        if delivery_config != {}:
+            category_desc = delivery_config['plugin']['description']
+            category_name = "delivery{}".format(name)
+            await config_mgr._update_category(category_name=category_name,
+                                             category_description=category_desc,
+                                             category_val=delivery_config)
     except Exception as ex:
-        await delete_configuration(storage, config_mgr, name)  # Revert configuration entry
-        _logger.exception("Failed to create schedule. %s", str(ex))
-        raise web.HTTPInternalServerError(reason='Failed to create notification.')
-    return schedule
+        _logger.exception("Failed to update notification configuration. %s", str(ex))
+        raise web.HTTPInternalServerError(reason='Failed to update notification configuration.')
+
+
+async def _delete_configuration(storage, config_mgr, name):
+    current_config = await config_mgr._read_category_val(name)
+    if not current_config:
+        return
+    rule = current_config['rule']['value']
+    channel = current_config['channel']['value']
+
+    await _delete_configuration_category(storage, name)
+    await _delete_configuration_category(storage, "rule{}".format(name))
+    await _delete_configuration_category(storage, "delivery{}".format(name))
+    await _delete_parent_child_configuration(storage, "Notifications", name)
+    await _delete_parent_child_configuration(storage, name, "rule{}".format(name))
+    await _delete_parent_child_configuration(storage, name, "delivery{}".format(name))
+
+
+async def _delete_configuration_category(storage, key):
+    payload = PayloadBuilder().WHERE(['key', '=', key]).payload()
+    await storage.delete_from_tbl('configuration', payload)
+
+    # Removed key from configuration cache
+    config_mgr = ConfigurationManager(storage)
+    config_mgr._cacheManager.remove(key)
+
+
+async def _delete_parent_child_configuration(storage, parent, child):
+    payload = PayloadBuilder().WHERE(['parent', '=', parent]).AND_WHERE(['child', '=', child]).payload()
+    await storage.delete_from_tbl('category_children', payload)

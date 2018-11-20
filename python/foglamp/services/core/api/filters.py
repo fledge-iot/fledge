@@ -242,9 +242,8 @@ async def add_filters_pipeline(request):
 
             # Difference b/w two(pipeline and value from storage) lists and then delete relationship as per diff
             delete_children = diff(new_list, filter_value_from_storage['pipeline'])
-            if delete_children:
-                for l in delete_children:
-                    await cf_mgr.delete_child_category(service_name, l)
+            for l in delete_children:
+                await cf_mgr.delete_child_category(service_name, l)
 
             # Set the pipeline value with the 'new_list' of filters
             await cf_mgr.set_category_item_value_entry(service_name,

@@ -235,7 +235,7 @@ async def post_notification(request):
     except ValueError as ex:
         raise web.HTTPBadRequest(reason=str(ex))
     except Exception as e:
-        raise web.HTTPBadRequest(reason=str(e))
+        raise web.HTTPInternalServerError(reason=str(e))
     else:
         return web.json_response({'result': "Notification {} created successfully".format(name)})
 

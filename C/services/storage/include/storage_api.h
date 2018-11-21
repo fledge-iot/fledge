@@ -74,6 +74,8 @@ private:
 	StoragePlugin		*plugin;
 	StoragePlugin		*readingPlugin;
 	StorageStats		stats;
+	std::map<std::string, int> m_seqnum_map;
+	std::mutex 		mtx_seqnum_map;
 	StorageRegistry		registry;
 	void			respond(shared_ptr<HttpServer::Response>, const string&);
 	void			respond(shared_ptr<HttpServer::Response>, SimpleWeb::StatusCode, const string&);

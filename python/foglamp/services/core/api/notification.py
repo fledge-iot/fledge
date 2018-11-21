@@ -17,6 +17,7 @@ from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.services.core import connect
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
+from foglamp.common.audit_logger import AuditLogger
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -74,15 +75,15 @@ async def get_notification(request):
         notification_config = await config_mgr._read_category_val(notif)
         if notification_config:
             rule_config = await config_mgr._read_category_val("rule{}".format(notif))
-            channel_config = await config_mgr._read_category_val("delivery{}".format(notif))
+            delivery_config = await config_mgr._read_category_val("delivery{}".format(notif))
             notification = {
                 "name": notification_config['name']['value'],
                 "description": notification_config['description']['value'],
                 "rule": notification_config['rule']['value'],
                 "ruleConfig": rule_config,
                 "channel": notification_config['channel']['value'],
-                "deliveryConfig": channel_config,
-                "notification_type": notification_config['notification_type']['value'],
+                "deliveryConfig": delivery_config,
+                "notificationType": notification_config['notification_type']['value'],
                 "enable": notification_config['enable']['value'],
             }
     except Exception as ex:
@@ -108,7 +109,7 @@ async def get_notifications(request):
                 "name": notification_config['name']['value'],
                 "rule": notification_config['rule']['value'],
                 "channel": notification_config['channel']['value'],
-                "notification_type": notification_config['notification_type']['value'],
+                "notificationType": notification_config['notification_type']['value'],
                 "enable": notification_config['enable']['value'],
             }
             notifications.append(notification)
@@ -130,7 +131,7 @@ async def post_notification(request):
         notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
         _address, _port = notification_service[0]._address, notification_service[0]._management_port
     except service_registry_exceptions.DoesNotExist:
-        return {'result': "No Notification service available."}
+        return web.json_response({'result': "No Notification service available."})
 
     try:
         data = await request.json()
@@ -143,8 +144,8 @@ async def post_notification(request):
         channel = data.get('channel', None)
         notification_type = data.get('notification_type', None)
         enabled = data.get('enabled', None)
-        rule_config = data.get('ruleConfig', {})
-        delivery_config = data.get('deliveryConfig', {})
+        rule_config = data.get('rule_config', {})
+        delivery_config = data.get('delivery_config', {})
 
         if name is None:
             raise web.HTTPBadRequest(reason='Missing name property in payload.')
@@ -246,7 +247,7 @@ async def put_notification(request):
         notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
         _address, _port = notification_service[0]._address, notification_service[0]._management_port
     except service_registry_exceptions.DoesNotExist:
-        return {'result': "No Notification service available."}
+        return web.json_response({'result': "No Notification service available."})
 
     try:
         notif = request.match_info.get('notification_name', None)
@@ -262,10 +263,10 @@ async def put_notification(request):
         description = data.get('description', None)
         rule = data.get('rule', None)
         channel = data.get('channel', None)
-        notification_type = data.get('type', None)
+        notification_type = data.get('notification_type', None)
         enabled = data.get('enabled', None)
-        rule_config = data.get('ruleConfig', {})
-        delivery_config = data.get('deliveryConfig', {})
+        rule_config = data.get('rule_config', {})
+        delivery_config = data.get('delivery_config', {})
 
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
@@ -356,8 +357,9 @@ async def delete_notification(request):
     """
     try:
         notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
+        _address, _port = notification_service[0]._address, notification_service[0]._management_port
     except service_registry_exceptions.DoesNotExist:
-        return {'result': "No Notification service available."}
+        return web.json_response({'result': "No Notification service available."})
 
     try:
         notif = request.match_info.get('notification_name', None)
@@ -370,6 +372,11 @@ async def delete_notification(request):
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
         await _delete_configuration(storage, config_mgr, notif)
+
+        audit = AuditLogger(storage)
+        url = 'http://{}:{}/foglamp/notification/{}'.format(_address, _port, notif)
+        notification = json.loads(await _hit_get_url(url))
+        await audit.information('NOTIF', notification)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
     else:

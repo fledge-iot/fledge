@@ -68,7 +68,7 @@ async def get_notification(request):
     try:
         notif = request.match_info.get('notification_name', None)
         if notif is None:
-            raise web.HTTPInternalServerError(reason="Notification name is required.")
+            raise ValueError("Notification name is required.")
 
         notification = {}
         storage = connect.get_storage_async()
@@ -87,6 +87,8 @@ async def get_notification(request):
                 "notificationType": notification_config['notification_type']['value'],
                 "enable": notification_config['enable']['value'],
             }
+    except ValueError as ex:
+        raise web.HTTPBadRequest(reason=str(ex))
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
     else:
@@ -126,7 +128,7 @@ async def post_notification(request):
 
     :Example:
              curl -X POST http://localhost:8081/foglamp/notification -d '{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", "channel": "email", "notification_type": "one shot", "enabled": false}'
-             curl -X POST http://localhost:8081/foglamp/notification -d '{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", "channel": "email", "notification_type": "one shot", "enabled": false, "ruleConfig": {}, "deliveryConfig": {}}'
+             curl -X POST http://localhost:8081/foglamp/notification -d '{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", "channel": "email", "notification_type": "one shot", "enabled": false, "rule_config": {}, "delivery_config": {}}'
     """
     try:
         notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
@@ -149,28 +151,28 @@ async def post_notification(request):
         delivery_config = data.get('delivery_config', {})
 
         if name is None:
-            raise web.HTTPBadRequest(reason='Missing name property in payload.')
+            raise ValueError('Missing name property in payload.')
         if description is None:
-            raise web.HTTPBadRequest(reason='Missing description property in payload.')
+            raise ValueError('Missing description property in payload.')
         if rule is None:
-            raise web.HTTPBadRequest(reason='Missing rule property in payload.')
+            raise ValueError('Missing rule property in payload.')
         if channel is None:
-            raise web.HTTPBadRequest(reason='Missing channel property in payload.')
+            raise ValueError('Missing channel property in payload.')
         if notification_type is None:
-            raise web.HTTPBadRequest(reason='Missing notification_type property in payload.')
+            raise ValueError('Missing notification_type property in payload.')
 
         if utils.check_reserved(name) is False:
-            raise web.HTTPBadRequest(reason='Invalid name property in payload.')
+            raise ValueError('Invalid name property in payload.')
         if utils.check_reserved(rule) is False:
-            raise web.HTTPBadRequest(reason='Invalid rule property in payload.')
+            raise ValueError('Invalid rule property in payload.')
         if utils.check_reserved(channel) is False:
-            raise web.HTTPBadRequest(reason='Invalid channel property in payload.')
+            raise ValueError('Invalid channel property in payload.')
         if notification_type not in NOTIFICATION_TYPE:
-            raise web.HTTPBadRequest(reason='Invalid notification_type property in payload.')
+            raise ValueError('Invalid notification_type property in payload.')
 
         if enabled is not None:
             if enabled not in ['true', 'false', True, False]:
-                raise web.HTTPBadRequest(reason='Only "true", "false", true, false are allowed for value of enabled.')
+                raise ValueError('Only "true", "false", true, false are allowed for value of enabled.')
         is_enabled = "true" if ((type(enabled) is str and enabled.lower() in ['true']) or (
             (type(enabled) is bool and enabled is True))) else "false"
 
@@ -181,7 +183,7 @@ async def post_notification(request):
             rule_plugin_config = list_plugins['rules'][rule]
             delivery_plugin_config = list_plugins['delivery'][channel]
         except KeyError:
-            raise web.HTTPBadRequest(reason="Invalid rule plugin:[{}] and/or delivery plugin:[{}] supplied.".format(rule, channel))
+            raise ValueError("Invalid rule plugin:[{}] and/or delivery plugin:[{}] supplied.".format(rule, channel))
 
         # First create templates for notification and rule, channel plugins
         post_url = 'http://{}:{}/foglamp/notification/{}'.format(_address, _port, urllib.parse.quote(name))
@@ -230,6 +232,8 @@ async def post_notification(request):
         await _create_configurations(storage, config_mgr, name, notification_config,
                                      rule, rule_plugin_config, rule_config,
                                      channel, delivery_plugin_config, delivery_config)
+    except ValueError as ex:
+        raise web.HTTPBadRequest(reason=str(ex))
     except Exception as e:
         raise web.HTTPBadRequest(reason=str(e))
     else:
@@ -242,7 +246,7 @@ async def put_notification(request):
 
     :Example:
              curl -X PUT http://localhost:8081/foglamp/notification/<notification_name> -d '{"description":"Test Notification", "rule": "threshold", "channel": "email", "notification_type": "one shot", "enabled": false}'
-             curl -X PUT http://localhost:8081/foglamp/notification/<notification_name> -d '{"description":"Test Notification", "rule": "threshold", "channel": "email", "notification_type": "one shot", "enabled": false, "ruleConfig": {}, "deliveryConfig": {}}'
+             curl -X PUT http://localhost:8081/foglamp/notification/<notification_name> -d '{"description":"Test Notification", "rule": "threshold", "channel": "email", "notification_type": "one shot", "enabled": false, "rule_config": {}, "delivery_config": {}}'
     """
     try:
         notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
@@ -253,7 +257,7 @@ async def put_notification(request):
     try:
         notif = request.match_info.get('notification_name', None)
         if notif is None:
-            raise web.HTTPInternalServerError(reason="Notification name is required for updation.")
+            raise ValueError("Notification name is required for updation.")
 
         # TODO: Stop notification before update
 
@@ -283,17 +287,17 @@ async def put_notification(request):
             notification_type = current_config['notification_type']['value']
 
         if utils.check_reserved(notif) is False:
-            raise web.HTTPBadRequest(reason='Invalid notification name parameter.')
+            raise ValueError('Invalid notification name parameter.')
         if utils.check_reserved(rule) is False:
-            raise web.HTTPBadRequest(reason='Invalid rule property in payload.')
+            raise ValueError('Invalid rule property in payload.')
         if utils.check_reserved(channel) is False:
-            raise web.HTTPBadRequest(reason='Invalid channel property in payload.')
+            raise ValueError('Invalid channel property in payload.')
         if notification_type not in NOTIFICATION_TYPE:
-            raise web.HTTPBadRequest(reason='Invalid notification_type property in payload.')
+            raise ValueError('Invalid notification_type property in payload.')
 
         if enabled is not None:
             if enabled not in ['true', 'false', True, False]:
-                raise web.HTTPBadRequest(reason='Only "true", "false", true, false are allowed for value of enabled.')
+                raise ValueError('Only "true", "false", true, false are allowed for value of enabled.')
         is_enabled = "true" if ((type(enabled) is str and enabled.lower() in ['true']) or (
             (type(enabled) is bool and enabled is True))) else "false"
 
@@ -306,7 +310,7 @@ async def put_notification(request):
             rule_plugin_config = list_plugins['rules'][rule]
             delivery_plugin_config = list_plugins['delivery'][channel]
         except KeyError:
-            raise web.HTTPBadRequest(reason="Invalid rule plugin:[{}] and/or delivery plugin:[{}] supplied.".format(rule, channel))
+            raise ValueError("Invalid rule plugin:[{}] and/or delivery plugin:[{}] supplied.".format(rule, channel))
 
         # Update configurations
         notification_config = {
@@ -343,8 +347,10 @@ async def put_notification(request):
             }
         }
         await _update_configurations(config_mgr, notif, notification_config, rule_config, delivery_config)
+    except ValueError as ex:
+        raise web.HTTPBadRequest(reason=str(ex))
     except Exception as e:
-        raise web.HTTPBadRequest(reason=str(e))
+        raise web.HTTPInternalServerError(reason=str(e))
     else:
         # TODO: Start notification after update
         return web.json_response({'result': "Notification {} updated successfully".format(notif)})
@@ -365,7 +371,7 @@ async def delete_notification(request):
     try:
         notif = request.match_info.get('notification_name', None)
         if notif is None:
-            raise web.HTTPInternalServerError(reason="Notification name is required for deletion.")
+            raise ValueError("Notification name is required for deletion.")
 
         url = str(request.url)
         url_parts = url.split("/foglamp/notification")
@@ -381,6 +387,8 @@ async def delete_notification(request):
 
         audit = AuditLogger(storage)
         await audit.information('NTFDL', notification)
+    except ValueError as ex:
+        raise web.HTTPBadRequest(reason=str(ex))
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=str(ex))
     else:
@@ -396,8 +404,8 @@ async def _hit_get_url(get_url):
                 if status_code not in range(200, 209):
                     _logger.error("Error code: %d, reason: %s, details: %s, url: %s", resp.status, resp.reason, jdoc, get_url)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
-    except Exception as ex:
-        raise web.HTTPInternalServerError(reason=ex)
+    except Exception:
+        raise
     else:
         return jdoc
 
@@ -411,8 +419,8 @@ async def _hit_post_url(post_url, data=None):
                 if status_code not in range(200, 209):
                     _logger.error("Error code: %d, reason: %s, details: %s, url: %s", resp.status, resp.reason, jdoc, post_url)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
-    except Exception as ex:
-        raise web.HTTPInternalServerError(reason=ex)
+    except Exception:
+        raise
     else:
         return jdoc
 
@@ -441,10 +449,10 @@ async def _create_configurations(storage, config_mgr, name, notification_config,
         # Create the child rule category
         await config_mgr.create_child_category(name, [category_name])
 
-        # If ruleConfig is in POST data, then update the value for each config item
+        # If rule_config is in POST data, then update the value for each config item
         if rule_config is not None:
             if not isinstance(rule_config, dict):
-                raise ValueError('ruleConfig must be a JSON object')
+                raise ValueError('rule_config must be a JSON object')
             for k, v in rule_config.items():
                 await config_mgr.set_category_item_value_entry("rule{}".format(name), k, v['value'])
 
@@ -458,15 +466,15 @@ async def _create_configurations(storage, config_mgr, name, notification_config,
         # Create the child delivery category
         await config_mgr.create_child_category(name, [category_name])
 
-        # If deliveryConfig is in POST data, then update the value for each config item
+        # If delivery_config is in POST data, then update the value for each config item
         if delivery_config is not None:
             if not isinstance(delivery_config, dict):
-                raise ValueError('deliveryConfig must be a JSON object')
+                raise ValueError('delivery_config must be a JSON object')
             for k, v in delivery_config.items():
                 await config_mgr.set_category_item_value_entry("delivery{}".format(name), k, v['value'])
     except Exception as ex:
-        await _delete_configuration(storage, config_mgr, name)  # Revert configuration entry
         _logger.exception("Failed to create notification configuration. %s", str(ex))
+        await _delete_configuration(storage, config_mgr, name)  # Revert configuration entry
         raise web.HTTPInternalServerError(reason='Failed to create notification configuration.')
 
 
@@ -502,7 +510,7 @@ async def _update_configurations(config_mgr, name, notification_config, rule_con
 async def _delete_configuration(storage, config_mgr, name):
     current_config = await config_mgr._read_category_val(name)
     if not current_config:
-        raise web.HTTPNotFound(reason='No Configuration entry found for [{}]'.format(name))
+        raise ValueError('No Configuration entry found for [{}]'.format(name))
     await _delete_configuration_category(storage, name)
     await _delete_configuration_category(storage, "rule{}".format(name))
     await _delete_configuration_category(storage, "delivery{}".format(name))

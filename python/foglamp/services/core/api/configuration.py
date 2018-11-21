@@ -5,6 +5,7 @@
 # FOGLAMP_END
 
 import os
+import binascii
 from aiohttp import web
 import urllib.parse
 
@@ -94,6 +95,15 @@ async def get_category(request):
 
     for k, v in category.items():
         if v['type'] == 'script':
+            # FIXME: To avoid Non-hexadecimal digit found in a better way
+            try:
+                category[k]["value"] = binascii.unhexlify(v['value'].encode('utf-8')).decode("utf-8")
+            except Exception:
+                pass
+
+            if cf_mgr._cacheManager.cache[category_name]['value'][k]:
+                cf_mgr._cacheManager.cache[category_name]['value'][k]['value'] = v['value']
+
             prefix_file_name = category_name.lower() + "_" + k.lower() + "_"
             if not os.path.exists(script_dir):
                 os.makedirs(script_dir)
@@ -186,15 +196,26 @@ async def get_category_item(request):
     category_item = await cf_mgr.get_category_item(category_name, config_item)
     if category_item is None:
         raise web.HTTPNotFound(reason="No such Category item found for {}".format(config_item))
+    try:
+        if category_item['type'] == 'script':
+            # FIXME: To avoid Non-hexadecimal digit found in a better way
+            try:
+                category_item['value'] = binascii.unhexlify(category_item['value'].encode('utf-8')).decode("utf-8")
+            except Exception:
+                pass
 
-    if category_item['type'] == 'script':
-        prefix_file_name = category_name.lower() + "_" + config_item.lower() + "_"
-        if not os.path.exists(script_dir):
-            os.makedirs(script_dir)
-        _all_files = os.listdir(script_dir)
-        for name in _all_files:
-            if name.startswith(prefix_file_name):
-                category_item["file"] = script_dir + name
+            if cf_mgr._cacheManager.cache[category_name]['value'][config_item]:
+                cf_mgr._cacheManager.cache[category_name]['value'][config_item]['value'] = category_item['value']
+
+            prefix_file_name = category_name.lower() + "_" + config_item.lower() + "_"
+            if not os.path.exists(script_dir):
+                os.makedirs(script_dir)
+            _all_files = os.listdir(script_dir)
+            for name in _all_files:
+                if name.startswith(prefix_file_name):
+                    category_item["file"] = script_dir + name
+    except Exception as e:
+        raise web.HTTPBadRequest(reason="{}".format(str(e)))
 
     return web.json_response(category_item)
 
@@ -510,10 +531,13 @@ async def upload_script(request):
     with open(script_file_path, 'wb') as f:
         f.write(script_file_content)
 
-    bytes_to_string = script_file_content.decode("utf-8")
+    # the hexadecimal representation of the binary data
+    hex_data = binascii.hexlify(script_file_content)
+    str_data = hex_data.decode('utf-8')
+
     try:
         # Save the value to database
-        await cf_mgr.set_category_item_value_entry(category_name, config_item, bytes_to_string)
+        await cf_mgr.set_category_item_value_entry(category_name, config_item, str_data)
         # Remove old files for combination categoryname_configitem_filename and retain only the latest one
         _all_files = os.listdir(script_dir)
         for name in _all_files:
@@ -527,4 +551,9 @@ async def upload_script(request):
     else:
         result = await cf_mgr.get_category_item(category_name, config_item)
         result['file'] = script_file_path
+        # Return the binary data represented by the hexadecimal string hexstr.
+        result['value'] = binascii.unhexlify(str_data.encode('utf-8')).decode("utf-8")
+        if cf_mgr._cacheManager.cache[category_name]['value'][config_item]:
+            cf_mgr._cacheManager.cache[category_name]['value'][config_item]['value'] = result['value']
+
         return web.json_response(result)

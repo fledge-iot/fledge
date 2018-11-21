@@ -83,6 +83,9 @@ HttpClient *StorageClient::getHttpClient(void) {
 		// Adding a new HttpClient
 		client = new HttpClient(m_urlbase.str());
 		m_client_map[thread_id] = client;
+		m_seqnum_map[thread_id].store(0);
+		std::ostringstream ss;
+		ss << std::this_thread::get_id();
 	}
 	else
 	{
@@ -124,9 +127,18 @@ bool StorageClient::readingAppend(Reading& reading)
  */
 bool StorageClient::readingAppend(const vector<Reading *>& readings)
 {
+	static HttpClient *httpClient = this->getHttpClient(); // to initialize m_seqnum_map[thread_id] for this thread
 	try {
-		ostringstream convert;
+		std::thread::id thread_id = std::this_thread::get_id();
+		ostringstream ss;
+		sto_mtx_client_map.lock();
+		m_seqnum_map[thread_id].fetch_add(1);
+		ss << thread_id << "_" << m_seqnum_map[thread_id].load();
+		sto_mtx_client_map.unlock();
 
+		SimpleWeb::CaseInsensitiveMultimap headers = {{"SeqNum", ss.str()}};
+
+		ostringstream convert;
 		convert << "{ \"readings\" : [ ";
 		for (vector<Reading *>::const_iterator it = readings.cbegin();
 						 it != readings.cend(); ++it)
@@ -138,7 +150,7 @@ bool StorageClient::readingAppend(const vector<Reading *>& readings)
 			convert << (*it)->toJSON();
 		}
 		convert << " ] }";
-		auto res = this->getHttpClient()->request("POST", "/storage/reading", convert.str());
+		auto res = this->getHttpClient()->request("POST", "/storage/reading", convert.str(), headers);
 		if (res->status_code.compare("200 OK") == 0)
 		{
 			return true;
@@ -529,9 +541,18 @@ int StorageClient::updateTable(const string& tableName, const ExpressionValues& 
  */
 int StorageClient::updateTable(const string& tableName, vector<pair<ExpressionValues *, Where *>>& updates)
 {
+	static HttpClient *httpClient = this->getHttpClient(); // to initialize m_seqnum_map[thread_id] for this thread
 	try {
-		ostringstream convert;
+		std::thread::id thread_id = std::this_thread::get_id();
+		ostringstream ss;
+		sto_mtx_client_map.lock();
+		m_seqnum_map[thread_id].fetch_add(1);
+		ss << thread_id << "_" << m_seqnum_map[thread_id].load();
+		sto_mtx_client_map.unlock();
 
+		SimpleWeb::CaseInsensitiveMultimap headers = {{"SeqNum", ss.str()}};
+		
+		ostringstream convert;
 		convert << "{ \"updates\" : [ ";
 		for (vector<pair<ExpressionValues *, Where *>>::const_iterator it = updates.cbegin();
 						 it != updates.cend(); ++it)
@@ -550,7 +571,7 @@ int StorageClient::updateTable(const string& tableName, vector<pair<ExpressionVa
 		
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
-		auto res = this->getHttpClient()->request("PUT", url, convert.str());
+		auto res = this->getHttpClient()->request("PUT", url, convert.str(), headers);
 		if (res->status_code.compare("200 OK") == 0)
 		{
 			ostringstream resultPayload;

@@ -16,18 +16,14 @@ exec 2>>"${RESULT_DIR}/${TEST_NAME}_err.temp"
 # Enables the OCS plugin
 bash -c "cat > ${TMP_FILE_ADD_NORTH_OCS_READINGS}" << 'EOF'
         {
-            "name": "North Readings to OCS",
-            "plugin": "ocs",
+            "name": "North_Readings_to_OCS",
+            "plugin": "ocs_V2",
             "type": "north",
             "schedule_type": 3,
             "schedule_day": 0,
             "schedule_time": 0,
             "schedule_repeat": 30,
-            "schedule_enabled": true,
-            "cmd_params": {
-                "stream_id": "1",
-                "debug_level": "3"
-            }
+            "schedule_enabled": true
          }
 EOF
 
@@ -40,18 +36,12 @@ if [[ "$?" != "0" ]]; then
     exit 1
 fi
 
-${TEST_BASEDIR}/bash/wait_creation_cfg.bash "OCS_TYPES/type-id"
-if [[ "$?" != "0" ]]; then
-    exit 1
-fi
-
 # Configures FogLAMP with the required settings
 curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/"${SENDING_PROCESS_OCS_DATA}"/tenant_id -d '{ "value" : "'${OCS_TENANT}'" }'
 curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/"${SENDING_PROCESS_OCS_DATA}"/client_id -d '{ "value" : "'${OCS_CLIENT_ID}'" }'
 curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/"${SENDING_PROCESS_OCS_DATA}"/client_secret -d '{ "value" : "'${OCS_CLIENT_SECRET}'" }'
 curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/"${SENDING_PROCESS_OCS_DATA}"/namespace -d '{ "value" : "'${OCS_NAMESPACE}'" }'
 
-curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/"${SENDING_PROCESS_OCS_DATA}"/URL -d '{ "value" : "'${OCS_URL}'" }'
 curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/"${SENDING_PROCESS_OCS_DATA}"/producerToken -d '{ "value" : "'${OCS_TOKEN}'" }'
 
 # Initializes OCS cleaning all the content of the defined OCS NameSpace

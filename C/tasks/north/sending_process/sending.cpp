@@ -649,20 +649,24 @@ bool SendingProcess::createStream(int streamId)
  */
 void SendingProcess::createConfigCategories(DefaultConfigCategory configCategory, std::string parent_name, std::string current_name, std::string current_description)
 {
-
 	// Deal with registering and fetching the configuration
 	DefaultConfigCategory defConfig(configCategory);
-	defConfig.setDescription(current_description);	// TODO We do not have access to the description
+	defConfig.setDescription(current_description);
 
 	DefaultConfigCategory defConfigCategoryOnly(defConfig);
 	defConfigCategoryOnly.keepItemsType(ConfigCategory::ItemType::CategoryType);
 	defConfig.removeItemsType(ConfigCategory::ItemType::CategoryType);
 
 	// Create/Update category name (we pass keep_original_items=true)
-	this->getManagementClient()->addCategory(defConfig, true);
+	if (! this->getManagementClient()->addCategory(defConfig, true))
+	{
+		string errMsg = string("Failure creating/updating configuration key '").append(current_name).append("'");
 
+		Logger::getLogger()->fatal(errMsg);
+		throw runtime_error(errMsg);
+	}
 
-	// Add this service under 'South' parent category
+	// Add parent-child relationship
 	vector<string> children;
 	children.push_back(current_name);
 	this->getManagementClient()->addChildCategories(parent_name, children);
@@ -732,32 +736,8 @@ ConfigCategory SendingProcess::fetchConfiguration(const std::string& defaultConf
 			category = pluginInfo;
 		}
 
-
-		// FIXME:
-		try {
-			createConfigCategories(category, string(PARENT_CONFIGURATION_KEY), categoryName, CONFIG_CATEGORY_DESCRIPTION);
-
-		}
-		catch (std::exception *e)
-		{
-			string errMsg("Failure creating/updating configuration key '");
-			errMsg.append(categoryName);
-			errMsg += "'";
-
-			Logger::getLogger()->fatal(errMsg.c_str());
-			throw runtime_error(errMsg);
-		}
-
-		// Create/Update configuration category categoryNamegory categoryName
-//		if (!this->getManagementClient()->addCategory(category, true))
-//		{
-//			string errMsg("Failure creating/updating configuration key '");
-//			errMsg.append(categoryName);
-//			errMsg += "'";
-//
-//			Logger::getLogger()->fatal(errMsg.c_str());
-//			throw runtime_error(errMsg);
-//		}
+		// Create/Update hierarchical configuration categories
+		createConfigCategories(category, PARENT_CONFIGURATION_KEY, categoryName, CONFIG_CATEGORY_DESCRIPTION);
 
 		// Get the category with values and defaults
 		configuration = this->getManagementClient()->getCategory(categoryName);

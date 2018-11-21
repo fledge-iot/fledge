@@ -5,6 +5,7 @@
 # FOGLAMP_END
 
 import datetime
+import uuid
 
 from aiohttp import web
 
@@ -13,7 +14,6 @@ from foglamp.common import logger
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.exceptions import StorageServerError
-
 
 from foglamp.services.core import server
 from foglamp.services.core import connect
@@ -27,7 +27,8 @@ __version__ = "${VERSION}"
 
 _help = """
     -------------------------------------------------------------------------------
-    | GET POST            | /foglamp/scheduled/task                               |
+    | POST                 | /foglamp/scheduled/task                              |
+    | DELETE               | /foglamp/scheduled/task/{task_name}                  |
     -------------------------------------------------------------------------------
 """
 
@@ -49,6 +50,19 @@ async def add_task(request):
         "schedule_repeat": 30,
         "schedule_enabled": true
      }'
+
+     curl -sX POST http://localhost:8081/foglamp/scheduled/task -d
+     '{"name": "PI-2",
+     "plugin": "pi_server",
+     "type": "north",
+     "schedule_type": 3,
+     "schedule_day": 0,
+     "schedule_time": 0,
+     "schedule_repeat": 30,
+     "schedule_enabled": true,
+     "config": {
+        "producerToken": {"value": "uid=180905062754237&sig=kx5l+"},
+        "URL": {"value": "https://10.2.5.22:5460/ingress/messages"}}}'
     """
 
     try:
@@ -65,6 +79,7 @@ async def add_task(request):
         schedule_time = data.get('schedule_time', None)
         schedule_repeat = data.get('schedule_repeat', None)
         enabled = data.get('schedule_enabled', None)
+        config = data.get('config', None)
 
         if name is None:
             raise web.HTTPBadRequest(reason='Missing name property in payload.')
@@ -139,12 +154,20 @@ async def add_task(request):
             script = '["tasks/north"]'
             # Fetch configuration from the configuration defined in the plugin
             plugin_info = _plugin.plugin_info()
+            if plugin_info['type'] != task_type:
+                msg = "Plugin of {} type is not supported".format(plugin_info['type'])
+                _logger.exception(msg)
+                return web.HTTPBadRequest(reason=msg)
             plugin_config = plugin_info['config']
             process_name = 'north'
         except ImportError as ex:
             # Checking for C-type plugins
             script = '["tasks/north_c"]'
             plugin_info = apiutils.get_plugin_info(plugin)
+            if plugin_info['type'] != task_type:
+                msg = "Plugin of {} type is not supported".format(plugin_info['type'])
+                _logger.exception(msg)
+                return web.HTTPBadRequest(reason=msg)
             plugin_config = plugin_info['config']
             process_name = 'north_c'
             if not plugin_config:
@@ -186,9 +209,16 @@ async def add_task(request):
             # Create the parent category for all North tasks
             await config_mgr.create_category("North", {}, 'North tasks', True)
             await config_mgr.create_child_category("North", [name])
+
+            # If config is in POST data, then update the value for each config item
+            if config is not None:
+                if not isinstance(config, dict):
+                    raise ValueError('Config must be a JSON object')
+                for k, v in config.items():
+                    await config_mgr.set_category_item_value_entry(name, k, v['value'])
         except Exception as ex:
-            await revert_configuration(storage, name)  # Revert configuration entry
-            await revert_parent_child_configuration(storage, name)
+            await delete_configuration(storage, name)  # Revert configuration entry
+            await delete_parent_child_configuration(storage, name)
             _logger.exception("Failed to create plugin configuration. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to create plugin configuration.')
 
@@ -211,13 +241,13 @@ async def add_task(request):
             await server.Server.scheduler.save_schedule(schedule, is_enabled)
             schedule = await server.Server.scheduler.get_schedule_by_name(name)
         except StorageServerError as ex:
-            await revert_configuration(storage, name)  # Revert configuration entry
-            await revert_parent_child_configuration(storage, name)
+            await delete_configuration(storage, name)  # Revert configuration entry
+            await delete_parent_child_configuration(storage, name)
             _logger.exception("Failed to create schedule. %s", ex.error)
             raise web.HTTPInternalServerError(reason='Failed to create north instance.')
         except Exception as ex:
-            await revert_configuration(storage, name)  # Revert configuration entry
-            await revert_parent_child_configuration(storage, name)
+            await delete_configuration(storage, name)  # Revert configuration entry
+            await delete_parent_child_configuration(storage, name)
             _logger.exception("Failed to create schedule. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to create north instance.')
 
@@ -225,6 +255,51 @@ async def add_task(request):
         raise web.HTTPBadRequest(reason=str(e))
     else:
         return web.json_response({'name': name, 'id': str(schedule.schedule_id)})
+
+
+async def delete_task(request):
+    """ Delete a north plugin instance task
+
+        :Example:
+            curl -X DELETE http://localhost:8081/foglamp/scheduled/task/<task name>
+    """
+    try:
+        north_instance = request.match_info.get('task_name', None)
+
+        if north_instance is None or north_instance.strip() == '':
+            raise web.HTTPBadRequest(reason='Missing task_name in requested URL')
+
+        storage = connect.get_storage_async()
+
+        result = await get_schedule(storage, north_instance)
+        if result['count'] == 0:
+            raise web.HTTPBadRequest(reason='A north instance task with this name does not exist.')
+
+        north_instance_schedule = result['rows'][0]
+        sch_id = uuid.UUID(north_instance_schedule['id'])
+        if north_instance_schedule['enabled'].lower() == 't':
+            # disable it
+            await server.Server.scheduler.disable_schedule(sch_id)
+        # delete it
+        await server.Server.scheduler.delete_schedule(sch_id)
+
+        # delete all configuration for the north task instance name
+        await delete_configuration(storage, north_instance)
+        await delete_parent_child_configuration(storage, north_instance)
+
+        # delete statistics key
+        await delete_statistics_key(storage, north_instance)
+
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason=ex)
+    else:
+        return web.json_response({'result': 'North instance {} deleted successfully.'.format(north_instance)})
+
+
+async def get_schedule(storage, schedule_name):
+    payload = PayloadBuilder().SELECT(["id", "enabled"]).WHERE(['schedule_name', '=', schedule_name]).payload()
+    result = await storage.query_tbl_with_payload('schedules', payload)
+    return result
 
 
 async def check_scheduled_processes(storage, process_name):
@@ -239,11 +314,19 @@ async def check_schedules(storage, schedule_name):
     return result['count']
 
 
-async def revert_configuration(storage, key):
+async def delete_configuration(storage, key):
     payload = PayloadBuilder().WHERE(['key', '=', key]).payload()
     await storage.delete_from_tbl('configuration', payload)
+    # Removed key from configuration cache
+    config_mgr = ConfigurationManager(storage)
+    config_mgr._cacheManager.remove(key)
 
 
-async def revert_parent_child_configuration(storage, key):
+async def delete_parent_child_configuration(storage, key):
     payload = PayloadBuilder().WHERE(['parent', '=', "North"]).AND_WHERE(['child', '=', key]).payload()
     await storage.delete_from_tbl('category_children', payload)
+
+
+async def delete_statistics_key(storage, key):
+    payload = PayloadBuilder().WHERE(['key', '=', key]).payload()
+    await storage.delete_from_tbl('statistics', payload)

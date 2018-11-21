@@ -26,6 +26,17 @@
 #include <time.h>
 #include <unistd.h>
 #include <utils.h>
+#include <chrono>
+#include <thread>
+
+/*
+ * Control the way purge deletes readings. The block size sets a limit as to how many rows
+ * get deleted in each call, whilst the sleep interval controls how long the thread sleeps
+ * between deletes. The idea is to not keep the database locked too long and allow other threads
+ * to have access to the database between blocks.
+ */
+#define PURGE_SLEEP_MS 250
+#define PURGE_DELETE_BLOCK_SIZE	"1000"
 
 /**
  * SQLite3 storage plugin for FogLAMP
@@ -711,8 +722,6 @@ SQLBuffer	jsonConstraints;
 									sql.append("strftime('%Y-%m-%d %H:%M:%f', ");
 									sql.append((*itr)["column"].GetString());
 									sql.append(", 'utc')");
-									sql.append(" AS ");
-									sql.append((*itr)["column"].GetString());
 								}
 							}
 							else
@@ -936,277 +945,306 @@ int Connection::update(const string& table, const string& payload)
 // Default template parameter uses UTF8 and MemoryPoolAllocator.
 Document	document;
 SQLBuffer	sql;
-int		col = 0;
- 
-	if (document.Parse(payload.c_str()).HasParseError())
+
+	int 	row = 0;
+	ostringstream convert;
+
+	std::size_t arr = payload.find("updates");
+	bool changeReqd = (arr == std::string::npos || arr > 8);
+	if (changeReqd)
+		{
+		convert << "{ \"updates\" : [ ";
+		convert << payload;
+		convert << " ] }";
+		}
+
+	if (document.Parse(changeReqd?convert.str().c_str():payload.c_str()).HasParseError())
 	{
 		raiseError("update", "Failed to parse JSON payload");
 		return -1;
 	}
 	else
 	{
-		sql.append("UPDATE foglamp.");
-		sql.append(table);
-		sql.append(" SET ");
-
-		if (document.HasMember("values"))
+		Value &updates = document["updates"];
+		if (!updates.IsArray())
 		{
-			Value& values = document["values"];
-			for (Value::ConstMemberIterator itr = values.MemberBegin();
-					itr != values.MemberEnd(); ++itr)
-			{
-				if (col != 0)
-				{
-					sql.append( ", ");
-				}
-				sql.append(itr->name.GetString());
-				sql.append(" = ");
-	 
-				if (itr->value.IsString())
-				{
-					const char *str = itr->value.GetString();
-					if (strcmp(str, "now()") == 0)
-					{
-						sql.append(SQLITE3_NOW);
-					}
-					else
-					{
-						sql.append('\'');
-						sql.append(escape(str));
-						sql.append('\'');
-					}
-				}
-				else if (itr->value.IsDouble())
-					sql.append(itr->value.GetDouble());
-				else if (itr->value.IsNumber())
-					sql.append(itr->value.GetInt());
-				else if (itr->value.IsObject())
-				{
-					StringBuffer buffer;
-					Writer<StringBuffer> writer(buffer);
-					itr->value.Accept(writer);
-					sql.append('\'');
-					sql.append(escape(buffer.GetString()));
-					sql.append('\'');
-				}
-				col++;
-			}
-		}
-		if (document.HasMember("expressions"))
-		{
-			Value& exprs = document["expressions"];
-			if (!exprs.IsArray())
-			{
-				raiseError("update", "The property exressions must be an array");
-				return -1;
-			}
-			for (Value::ConstValueIterator itr = exprs.Begin(); itr != exprs.End(); ++itr)
-			{
-				if (col != 0)
-				{
-					sql.append( ", ");
-				}
-				if (!itr->IsObject())
-				{
-					raiseError("update",
-						   "expressions must be an array of objects");
-					return -1;
-				}
-				if (!itr->HasMember("column"))
-				{
-					raiseError("update",
-						   "Missing column property in expressions array item");
-					return -1;
-				}
-				if (!itr->HasMember("operator"))
-				{
-					raiseError("update",
-						   "Missing operator property in expressions array item");
-					return -1;
-				}
-				if (!itr->HasMember("value"))
-				{
-					raiseError("update",
-						   "Missing value property in expressions array item");
-					return -1;
-				}
-				sql.append((*itr)["column"].GetString());
-				sql.append(" = ");
-				sql.append((*itr)["column"].GetString());
-				sql.append(' ');
-				sql.append((*itr)["operator"].GetString());
-				sql.append(' ');
-				const Value& value = (*itr)["value"];
-	 
-				if (value.IsString())
-				{
-					const char *str = value.GetString();
-					if (strcmp(str, "now()") == 0)
-					{
-						sql.append(SQLITE3_NOW);
-					}
-					else
-					{
-						sql.append('\'');
-						sql.append(str);
-						sql.append('\'');
-					}
-				}
-				else if (value.IsDouble())
-					sql.append(value.GetDouble());
-				else if (value.IsNumber())
-					sql.append(value.GetInt());
-				else if (value.IsObject())
-				{
-					StringBuffer buffer;
-					Writer<StringBuffer> writer(buffer);
-					value.Accept(writer);
-					sql.append('\'');
-					sql.append(buffer.GetString());
-					sql.append('\'');
-				}
-				col++;
-			}
-		}
-		if (document.HasMember("json_properties"))
-		{
-			Value& exprs = document["json_properties"];
-			if (!exprs.IsArray())
-			{
-				raiseError("update",
-					   "The property json_properties must be an array");
-				return -1;
-			}
-			for (Value::ConstValueIterator itr = exprs.Begin(); itr != exprs.End(); ++itr)
-			{
-				if (col != 0)
-				{
-					sql.append( ", ");
-				}
-				if (!itr->IsObject())
-				{
-					raiseError("update",
-						   "json_properties must be an array of objects");
-					return -1;
-				}
-				if (!itr->HasMember("column"))
-				{
-					raiseError("update",
-						   "Missing column property in json_properties array item");
-					return -1;
-				}
-				if (!itr->HasMember("path"))
-				{
-					raiseError("update",
-						   "Missing path property in json_properties array item");
-					return -1;
-				}
-				if (!itr->HasMember("value"))
-				{
-					raiseError("update",
-						  "Missing value property in json_properties array item");
-					return -1;
-				}
-				sql.append((*itr)["column"].GetString());
-
-				// SQLite 3 JSON1 extension: json_set
-				// json_set(field, '$.key.value', the_value)
-				sql.append(" = json_set(");
-				sql.append((*itr)["column"].GetString());
-				sql.append(", '$.");
-
-				const Value& path = (*itr)["path"];
-				if (!path.IsArray())
-				{
-					raiseError("update",
-						   "The property path must be an array");
-					return -1;
-				}
-				int pathElement = 0;
-				for (Value::ConstValueIterator itr2 = path.Begin();
-					itr2 != path.End(); ++itr2)
-				{
-					if (pathElement > 0)
-					{
-						sql.append('.');
-					}
-					if (itr2->IsString())
-					{
-						sql.append(itr2->GetString());
-					}
-					else
-					{
-						raiseError("update",
-							   "The elements of path must all be strings");
-						return -1;
-					}
-					pathElement++;
-				}
-				sql.append("', ");
-				const Value& value = (*itr)["value"];
-	 
-				if (value.IsString())
-				{
-					const char *str = value.GetString();
-					if (strcmp(str, "now()") == 0)
-					{
-						sql.append(SQLITE3_NOW);
-					}
-					else
-					{
-						sql.append("\"");
-						sql.append(str);
-						sql.append("\"");
-					}
-				}
-				else if (value.IsDouble())
-				{
-					sql.append(value.GetDouble());
-				}
-				else if (value.IsNumber())
-				{
-					sql.append(value.GetInt());
-				}
-				else if (value.IsObject())
-				{
-					StringBuffer buffer;
-					Writer<StringBuffer> writer(buffer);
-					value.Accept(writer);
-					sql.append('\'');
-					sql.append(buffer.GetString());
-					sql.append('\'');
-				}
-				sql.append(")");
-				col++;
-			}
-		}
-
-		if (col == 0)
-		{
-			raiseError("update",
-				   "Missing values or expressions object in payload");
+			raiseError("update", "Payload is missing the updates array");
 			return -1;
 		}
+		
+		sql.append("BEGIN TRANSACTION;");
+		int i=0;
+		for (Value::ConstValueIterator iter = updates.Begin(); iter != updates.End(); ++iter,++i)
+		{
+			if (!iter->IsObject())
+			{
+				raiseError("update",
+					   "Each entry in the update array must be an object");
+				return -1;
+			}
+			sql.append("UPDATE foglamp.");
+			sql.append(table);
+			sql.append(" SET ");
 
-		if (document.HasMember("condition"))
-		{
-			sql.append(" WHERE ");
-			if (!jsonWhereClause(document["condition"], sql))
+			int		col = 0;
+			if ((*iter).HasMember("values"))
 			{
-				return false;
+				const Value& values = (*iter)["values"];
+				for (Value::ConstMemberIterator itr = values.MemberBegin();
+						itr != values.MemberEnd(); ++itr)
+				{
+					if (col != 0)
+					{
+						sql.append( ", ");
+					}
+					sql.append(itr->name.GetString());
+					sql.append(" = ");
+		 
+					if (itr->value.IsString())
+					{
+						const char *str = itr->value.GetString();
+						if (strcmp(str, "now()") == 0)
+						{
+							sql.append(SQLITE3_NOW);
+						}
+						else
+						{
+							sql.append('\'');
+							sql.append(escape(str));
+							sql.append('\'');
+						}
+					}
+					else if (itr->value.IsDouble())
+						sql.append(itr->value.GetDouble());
+					else if (itr->value.IsNumber())
+						sql.append(itr->value.GetInt());
+					else if (itr->value.IsObject())
+					{
+						StringBuffer buffer;
+						Writer<StringBuffer> writer(buffer);
+						itr->value.Accept(writer);
+						sql.append('\'');
+						sql.append(escape(buffer.GetString()));
+						sql.append('\'');
+					}
+					col++;
+				}
 			}
-		}
-		else if (document.HasMember("where"))
-		{
-			sql.append(" WHERE ");
-			if (!jsonWhereClause(document["where"], sql))
+			if ((*iter).HasMember("expressions"))
 			{
-				return false;
+				const Value& exprs = (*iter)["expressions"];
+				if (!exprs.IsArray())
+				{
+					raiseError("update", "The property exressions must be an array");
+					return -1;
+				}
+				for (Value::ConstValueIterator itr = exprs.Begin(); itr != exprs.End(); ++itr)
+				{
+					if (col != 0)
+					{
+						sql.append( ", ");
+					}
+					if (!itr->IsObject())
+					{
+						raiseError("update",
+							   "expressions must be an array of objects");
+						return -1;
+					}
+					if (!itr->HasMember("column"))
+					{
+						raiseError("update",
+							   "Missing column property in expressions array item");
+						return -1;
+					}
+					if (!itr->HasMember("operator"))
+					{
+						raiseError("update",
+							   "Missing operator property in expressions array item");
+						return -1;
+					}
+					if (!itr->HasMember("value"))
+					{
+						raiseError("update",
+							   "Missing value property in expressions array item");
+						return -1;
+					}
+					sql.append((*itr)["column"].GetString());
+					sql.append(" = ");
+					sql.append((*itr)["column"].GetString());
+					sql.append(' ');
+					sql.append((*itr)["operator"].GetString());
+					sql.append(' ');
+					const Value& value = (*itr)["value"];
+		 
+					if (value.IsString())
+					{
+						const char *str = value.GetString();
+						if (strcmp(str, "now()") == 0)
+						{
+							sql.append(SQLITE3_NOW);
+						}
+						else
+						{
+							sql.append('\'');
+							sql.append(str);
+							sql.append('\'');
+						}
+					}
+					else if (value.IsDouble())
+						sql.append(value.GetDouble());
+					else if (value.IsNumber())
+						sql.append(value.GetInt());
+					else if (value.IsObject())
+					{
+						StringBuffer buffer;
+						Writer<StringBuffer> writer(buffer);
+						value.Accept(writer);
+						sql.append('\'');
+						sql.append(buffer.GetString());
+						sql.append('\'');
+					}
+					col++;
+				}
 			}
+			if ((*iter).HasMember("json_properties"))
+			{
+				const Value& exprs = (*iter)["json_properties"];
+				if (!exprs.IsArray())
+				{
+					raiseError("update",
+						   "The property json_properties must be an array");
+					return -1;
+				}
+				for (Value::ConstValueIterator itr = exprs.Begin(); itr != exprs.End(); ++itr)
+				{
+					if (col != 0)
+					{
+						sql.append( ", ");
+					}
+					if (!itr->IsObject())
+					{
+						raiseError("update",
+							   "json_properties must be an array of objects");
+						return -1;
+					}
+					if (!itr->HasMember("column"))
+					{
+						raiseError("update",
+							   "Missing column property in json_properties array item");
+						return -1;
+					}
+					if (!itr->HasMember("path"))
+					{
+						raiseError("update",
+							   "Missing path property in json_properties array item");
+						return -1;
+					}
+					if (!itr->HasMember("value"))
+					{
+						raiseError("update",
+							  "Missing value property in json_properties array item");
+						return -1;
+					}
+					sql.append((*itr)["column"].GetString());
+
+					// SQLite 3 JSON1 extension: json_set
+					// json_set(field, '$.key.value', the_value)
+					sql.append(" = json_set(");
+					sql.append((*itr)["column"].GetString());
+					sql.append(", '$.");
+
+					const Value& path = (*itr)["path"];
+					if (!path.IsArray())
+					{
+						raiseError("update",
+							   "The property path must be an array");
+						return -1;
+					}
+					int pathElement = 0;
+					for (Value::ConstValueIterator itr2 = path.Begin();
+						itr2 != path.End(); ++itr2)
+					{
+						if (pathElement > 0)
+						{
+							sql.append('.');
+						}
+						if (itr2->IsString())
+						{
+							sql.append(itr2->GetString());
+						}
+						else
+						{
+							raiseError("update",
+								   "The elements of path must all be strings");
+							return -1;
+						}
+						pathElement++;
+					}
+					sql.append("', ");
+					const Value& value = (*itr)["value"];
+		 
+					if (value.IsString())
+					{
+						const char *str = value.GetString();
+						if (strcmp(str, "now()") == 0)
+						{
+							sql.append(SQLITE3_NOW);
+						}
+						else
+						{
+							sql.append("\"");
+							sql.append(str);
+							sql.append("\"");
+						}
+					}
+					else if (value.IsDouble())
+					{
+						sql.append(value.GetDouble());
+					}
+					else if (value.IsNumber())
+					{
+						sql.append(value.GetInt());
+					}
+					else if (value.IsObject())
+					{
+						StringBuffer buffer;
+						Writer<StringBuffer> writer(buffer);
+						value.Accept(writer);
+						sql.append('\'');
+						sql.append(buffer.GetString());
+						sql.append('\'');
+					}
+					sql.append(")");
+					col++;
+				}
+			}
+			if (col == 0)
+			{
+				raiseError("update",
+					   "Missing values or expressions object in payload");
+				return -1;
+			}
+			if ((*iter).HasMember("condition"))
+			{
+				sql.append(" WHERE ");
+				if (!jsonWhereClause((*iter)["condition"], sql))
+				{
+					return false;
+				}
+			}
+			else if ((*iter).HasMember("where"))
+			{
+				sql.append(" WHERE ");
+				if (!jsonWhereClause((*iter)["where"], sql))
+				{
+					return false;
+				}
+			}
+		sql.append(';');
 		}
 	}
-	sql.append(';');
-
+	sql.append("COMMIT TRANSACTION;");
+	
 	const char *query = sql.coalesce();
 	logSQL("CommonUpdate", query);
 	char *zErrMsg = NULL;
@@ -1225,6 +1263,19 @@ int		col = 0;
 	{
 		raiseError("update", zErrMsg);
 		sqlite3_free(zErrMsg);
+		if (sqlite3_get_autocommit(dbHandle)==0) // transaction is still open, do rollback
+		{
+			rc=SQLexec(dbHandle,
+				"ROLLBACK TRANSACTION;",
+				NULL,
+				NULL,
+				&zErrMsg);
+			if (rc != SQLITE_OK)
+			{
+				raiseError("rollback", zErrMsg);
+				sqlite3_free(zErrMsg);
+			}
+		}
 		Logger::getLogger()->error("SQL statement: %s", query);
 		// Release memory for 'query' var
 		delete[] query;
@@ -1834,32 +1885,44 @@ long numReadings = 0;
 		sql.append(" AND id < ");
 		sql.append(sent);
 	}
+	sql.append(" limit ");
+	sql.append(PURGE_DELETE_BLOCK_SIZE);
 	sql.append(';');
 	const char *query = sql.coalesce();
 	logSQL("ReadingsPurge", query);
+	unsigned int deletedRows = 0;
 	char *zErrMsg = NULL;
-	int rc;
-	int rows_deleted;
+	unsigned int rowsAffected;
 
-	// Exec DELETE query: no callback, no resultset
-	rc = SQLexec(dbHandle,
-	    	     query,
-		     NULL,
-		     NULL,
-		     &zErrMsg);
+	do
+	{
+		// Exec DELETE query: no callback, no resultset
+		int rc = SQLexec(dbHandle,
+			     query,
+			     NULL,
+			     NULL,
+			     &zErrMsg);
+
+
+		if (rc != SQLITE_OK)
+		{
+			raiseError("purge - phase 3", zErrMsg);
+			sqlite3_free(zErrMsg);
+			// Release memory for 'query' var
+			delete[] query;
+			return 0;
+		}
+
+		// Get db changes
+		rowsAffected = sqlite3_changes(dbHandle);
+		deletedRows += rowsAffected;
+
+		// Sleep for a while to reease locks on the database
+		std::this_thread::sleep_for(std::chrono::milliseconds(PURGE_SLEEP_MS));
+	} while (rowsAffected > 0);
 
 	// Release memory for 'query' var
 	delete[] query;
-
-	if (rc != SQLITE_OK)
-	{
- 		raiseError("purge - phase 3", zErrMsg);
-		sqlite3_free(zErrMsg);
-		return 0;
-	}
-
-	// Get db changes
-	unsigned int deletedRows = sqlite3_changes(dbHandle);
 
 	SQLBuffer retainedBuffer;
 	retainedBuffer.append("SELECT count(ROWID) FROM foglamp.readings WHERE id > ");
@@ -1870,7 +1933,7 @@ long numReadings = 0;
 	int retained_unsent = 0;
 
 	// Exec query and get result in 'retained_unsent' via 'countCallback'
-	rc = SQLexec(dbHandle,
+	int rc = SQLexec(dbHandle,
 		     query_r,
 		     countCallback,
 		     &retained_unsent,

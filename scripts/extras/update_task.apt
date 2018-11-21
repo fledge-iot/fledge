@@ -1,0 +1,92 @@
+#!/bin/bash
+
+##
+# Installation process creates a link file, named "scripts/tasks/update".
+#
+# It may either be called by FogLAMP scheduler for updating FogLAMP package and it may also be called
+# manually via /usr/local/foglamp/bin/foglamp_update script.
+#
+# Pre-requisites:
+# 1. Add the repository key to your apt key list:
+#        wget -q -O - http://archives.dianomic.com/KEY.gpg | sudo apt-key add -
+# 2. Add the repository location to your sources list.
+#    Add the following lines to your "/etc/apt/sources.list" file.
+#        deb http://archives.dianomic.com/ /
+##
+
+__author__="Amarendra K Sinha"
+__copyright__="Copyright (c) 2018 OSIsoft, LLC"
+__license__="Apache 2.0"
+__version__="1.1"
+
+
+# Set the default value for FOGLAMP_ROOT if not set
+if [ "${FOGLAMP_ROOT}" = "" ]; then
+	export FOGLAMP_ROOT='/usr/local/foglamp'
+fi
+
+
+# Include logging: it works only with bash
+. "${FOGLAMP_ROOT}/scripts/common/write_log.sh" || exit 1
+
+# Ignore signals: 1-SIGHUP, 2-SIGINT, 3-SIGQUIT, 6-SIGABRT, 15-SIGTERM
+trap "" 1 2 3 6 15
+
+
+# Check availability of FOGLAMP_ROOT directory
+if [ ! -d "${FOGLAMP_ROOT}" ]; then
+        logger -p local0.err -t "FogLAMP[${$}]" "${TASK_NAME} $0 home directory missing or incorrectly set environment"
+        exit 1
+fi
+
+# Add foglamp python path to PYTHONPATH
+export PYTHONPATH="${PYTHONPATH}:${FOGLAMP_ROOT}/scripts/common"
+
+# Stop Foglamp
+
+STOP_FOGLAMP_CMD="${FOGLAMP_ROOT}/bin/foglamp stop"
+STOP_FOGLAMP_CMD_STATUS=`$STOP_FOGLAMP_CMD`
+sleep 15
+if [ "${STOP_FOGLAMP_CMD_STATUS}" = "" ]; then
+    logger -p local0.err -t "FogLAMP[${$}]" "err" "${TASK_NAME} $0: cannot run \"${STOP_FOGLAMP_CMD}\" command"
+    exit 1
+fi
+
+
+# Now run Foglamp update commands.
+UPDATE_CMD="sudo apt-get -y update"
+FOGLAMP_UPDATE_CMD="sudo apt-get -y install foglamp"
+
+
+# Update apt-get
+logger -p local0.err -t "FogLAMP[${$}]" "$TASK_NAME $0: Starting ${UPDATE_CMD} command"
+UPDATE_CMD_OUT=`$UPDATE_CMD`
+UPDATE_CMD_STATUS="$?"
+if [ "$UPDATE_CMD_STATUS" != "0" ]; then
+    logger -p local0.err -t "FogLAMP[${$}]" "$TASK_NAME $0: Error: $UPDATE_CMD. Exit: $UPDATE_CMD_STATUS. Out: $UPDATE_CMD_OUT"
+    exit 1
+fi
+
+
+# Update FogLAMP
+logger -p local0.err -t "FogLAMP[${$}]" "$TASK_NAME $0: Starting ${FOGLAMP_UPDATE_CMD} command"
+FOGLAMP_UPDATE_CMD_OUT=`$FOGLAMP_UPDATE_CMD`
+FOGLAMP_UPDATE_CMD_STATUS="$?"
+if [ "$FOGLAMP_UPDATE_CMD_STATUS" != "0" ]; then
+    logger -p local0.err -t "FogLAMP[${$}]" "$TASK_NAME $0: Error: $FOGLAMP_UPDATE_CMD. Exit: $FOGLAMP_UPDATE_CMD_STATUS. Out: $FOGLAMP_UPDATE_CMD_OUT"
+    exit 1
+fi
+
+
+# Start Foglamp
+
+START_FOGLAMP_CMD="${FOGLAMP_ROOT}/bin/foglamp start"
+START_FOGLAMP_CMD_OUT=`$START_FOGLAMP_CMD`
+START_FOGLAMP_CMD_STATUS="$?"
+if [ "$START_FOGLAMP_CMD_OUT" = "" ]; then
+    logger -p local0.err -t "FogLAMP[${$}]" "$TASK_NAME $0: Error: $START_FOGLAMP_CMD. Exit: $START_FOGLAMP_CMD_STATUS. Out: $START_FOGLAMP_CMD_OUT"
+    exit 1
+fi
+
+logger -p local0.err -t "FogLAMP[${$}]" "${TASK_NAME} $0: Foglamp updated successfully!"
+echo "FogLAMP updated successfully!"

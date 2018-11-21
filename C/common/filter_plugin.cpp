@@ -44,6 +44,15 @@ FilterPlugin::FilterPlugin(const std::string& name,
   	pluginIngestPtr = (void (*)(PLUGIN_HANDLE, READINGSET *))
 				      manager->resolveSymbol(handle,
 							     "plugin_ingest");
+	pluginShutdownDataPtr = (string (*)(const PLUGIN_HANDLE))
+				 manager->resolveSymbol(handle, "plugin_shutdown");
+	pluginStartDataPtr = (void (*)(const PLUGIN_HANDLE, const string& storedData))
+			      manager->resolveSymbol(handle, "plugin_start");
+	pluginStartPtr = (void (*)(const PLUGIN_HANDLE))
+			      manager->resolveSymbol(handle, "plugin_start");
+
+	// Persist data initialised
+	m_plugin_data = NULL;	
 }
 
 /**
@@ -51,6 +60,7 @@ FilterPlugin::FilterPlugin(const std::string& name,
  */
 FilterPlugin::~FilterPlugin()
 {
+	delete m_plugin_data;
 }
 
 /**
@@ -78,17 +88,66 @@ PLUGIN_HANDLE FilterPlugin::init(const ConfigCategory& config,
  */
 void FilterPlugin::shutdown()
 {
-	return this->pluginShutdownPtr(m_instance);
+	if (this->pluginShutdownPtr)
+	{
+		return this->pluginShutdownPtr(m_instance);
+	}
+}
+
+/**
+ * Call the loaded plugin "plugin_shutdown" method
+ * returning plugind data (as string)
+ *
+ * @return	Plugin data as JSON string (to be saved into strage layer)
+ */
+string FilterPlugin::shutdownSaveData()
+{
+	string ret("");
+	if (this->pluginShutdownDataPtr)
+	{
+		ret = this->pluginShutdownDataPtr(m_instance);
+	}
+	return ret;
+}
+
+/**
+ * Call plugin_start
+ */
+void FilterPlugin::start()
+{
+	if (pluginStartPtr)
+	{
+        	return this->pluginStartPtr(m_instance);
+	}
+}
+
+/**
+ * Call plugin_start passing plugin data.
+ *
+ * @param storedData	Plugin data to pass (from storage layer)
+ */
+void FilterPlugin::startData(const string& storedData)
+{
+	// Check pluginStartData function pointer exists
+	if (this->pluginStartDataPtr)
+	{
+		this->pluginStartDataPtr(m_instance, storedData);
+	}
 }
 
 /**
  * Call the loaded plugin "plugin_ingest" method
  *
  * This call ingest the readings through the filters chain
+ *
+ * @param readings	The reading set to ingest
  */
 void FilterPlugin::ingest(READINGSET* readings)
 {
-        return this->pluginIngestPtr(m_instance, readings);
+	if (this->pluginIngestPtr)
+	{
+        	return this->pluginIngestPtr(m_instance, readings);
+	}
 }
 
 /**
@@ -129,15 +188,37 @@ PLUGIN_HANDLE FilterPlugin::loadFilterPlugin(const string& filterName)
  * Static method
  *
  * @param loadedFilters		The vector of loaded filters
+ * @param categoryName		Configuration category
  *
  */
-void FilterPlugin::cleanupFilters(std::vector<FilterPlugin *>& loadedFilters)
+void FilterPlugin::cleanupFilters(std::vector<FilterPlugin *>& loadedFilters,
+				  const string& categoryName)
 {
 	// Cleanup filters
 	for (auto it = loadedFilters.begin(); it != loadedFilters.end(); ++it)
 	{
-		// Call filter plugin shutdown
-		(*it)->shutdown();
+		FilterPlugin* filter = *it;
+		// If plugin has SP_PERSIST_DATA option:
+		if (filter->m_plugin_data)
+	 	{
+			// 1- call shutdownSaveData and get up-to-date plugin data.
+			string saveData = filter->shutdownSaveData();
+			// 2- store returned data: key is service/task categoryName + pluginName
+			string key(categoryName + filter->getName());
+			if (!filter->m_plugin_data->persistPluginData(key, saveData))
+			{
+				Logger::getLogger()->error("Filter plugin %s has failed to save data [%s] for key %s",
+							   filter->getName().c_str(),
+							   saveData.c_str(),
+							   key.c_str());
+			}
+		}
+		else
+		{
+			// Call filter plugin shutdown
+			(*it)->shutdown();
+		}
+
 		// Free filter
 		delete *it;
 	}

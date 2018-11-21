@@ -39,4 +39,23 @@ class HttpSender
                 virtual std::string getHostPort() = 0;
 };
 
+/**
+ * BadRequest exception
+ */
+class BadRequest : public std::exception {
+	public:
+		// Constructor with parameter
+		BadRequest(const std::string& serverReply)
+		{
+			m_errmsg = serverReply;
+		};
+
+		virtual const char *what() const throw()
+		{
+			return m_errmsg.c_str();
+		}
+
+	private:
+		std::string     m_errmsg;
+};
 #endif

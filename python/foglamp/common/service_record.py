@@ -24,12 +24,13 @@ class ServiceRecord(object):
         Storage = 1
         Core = 2
         Southbound = 3
+        Notification = 4
 
     class Status(IntEnum):
         """Enumeration for Service Status"""
 
         Running = 1
-        Down = 2
+        Shutdown = 2
         Failed = 3
         Unresponsive = 4
 

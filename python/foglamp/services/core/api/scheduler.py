@@ -691,7 +691,8 @@ async def get_task(request):
 
         task = {
             'id': str(tsk.task_id),
-            'name': tsk.process_name,
+            'name': tsk.schedule_name,
+            'processName': tsk.process_name,
             'state': Task.State(int(tsk.state)).name.capitalize(),
             'startTime': str(tsk.start_time),
             'endTime': str(tsk.end_time),
@@ -743,9 +744,9 @@ async def get_tasks(request):
 
         where_clause = None
         if name and state:
-            where_clause = (["process_name", "=", name], ["state", "=", state])
+            where_clause = (["schedule_name", "=", name], ["state", "=", state])
         elif name:
-            where_clause = ["process_name", "=", name]
+            where_clause = ["schedule_name", "=", name]
         elif state:
             where_clause = ["state", "=", state]
 
@@ -758,7 +759,8 @@ async def get_tasks(request):
         for task in tasks:
             new_tasks.append(
                 {'id': str(task.task_id),
-                 'name': task.process_name,
+                 'name': task.schedule_name,
+                 'processName': task.process_name,
                  'state': Task.State(int(task.state)).name.capitalize(),
                  'startTime': str(task.start_time),
                  'endTime': str(task.end_time),
@@ -782,14 +784,14 @@ async def get_tasks_latest(request):
 
               curl -X GET  http://localhost:8081/foglamp/task/latest?name=xxx
     """
-    payload = PayloadBuilder().SELECT("id", "process_name", "state", "start_time", "end_time", "reason", "pid", "exit_code")\
+    payload = PayloadBuilder().SELECT("id", "schedule_name", "process_name", "state", "start_time", "end_time", "reason", "pid", "exit_code")\
         .ALIAS("return", ("start_time", 'start_time'), ("end_time", 'end_time'))\
         .FORMAT("return", ("start_time", "YYYY-MM-DD HH24:MI:SS.MS"), ("end_time", "YYYY-MM-DD HH24:MI:SS.MS"))\
-        .ORDER_BY(["process_name", "asc"], ["start_time", "desc"])
+        .ORDER_BY(["schedule_name", "asc"], ["start_time", "desc"])
 
     if 'name' in request.query and request.query['name'] != '':
         name = request.query['name']
-        payload.WHERE(["process_name", "=", name])
+        payload.WHERE(["schedule_name", "=", name])
 
     try:
         _storage = connect.get_storage_async()
@@ -799,17 +801,20 @@ async def get_tasks_latest(request):
             raise web.HTTPNotFound(reason="No Tasks found")
 
         tasks = []
-        previous_process = None
+        previous_schedule = None
         for row in results['rows']:
-            if previous_process != row['process_name']:
+            if not row['schedule_name'].strip():
+                continue
+            if previous_schedule != row['schedule_name']:
                 tasks.append(row)
-                previous_process = row['process_name']
+                previous_schedule = row['schedule_name']
 
         new_tasks = []
         for task in tasks:
             new_tasks.append(
                 {'id': str(task['id']),
-                 'name': task['process_name'],
+                 'name': task['schedule_name'],
+                 'processName': task['process_name'],
                  'state': [t.name.capitalize() for t in list(Task.State)][int(task['state']) - 1],
                  'startTime': str(task['start_time']),
                  'endTime': str(task['end_time']),

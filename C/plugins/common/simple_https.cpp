@@ -45,7 +45,9 @@ SimpleHttps::~SimpleHttps()
  * @param path      The URL path
  * @param headers   The optional headers to send
  * @param payload   The optional data payload (for POST, PUT)
- * @return          The HTTP code on success or 0 on execptions
+ * @return          The HTTP code for the cases : 1xx Informational / 2xx Success / 3xx Redirection
+ * @throw	    BadRequest for HTTP 400 error
+ *		    std::exception as generic exception for all the cases >= 401 Client errors / 5xx Server errors
  */
 int SimpleHttps::sendRequest(const string& method,
 			    const string& path,
@@ -70,6 +72,25 @@ int SimpleHttps::sendRequest(const string& method,
 	{
 		auto res = m_sender->request(method, path, payload, header);
 		retCode = res->status_code;
+		string response = res->content.string();
+
+		int http_code = atoi(retCode.c_str());
+
+		// If 400 Bad Request, throw BadRequest exception
+		if (http_code == 400)
+		{
+			throw BadRequest(response);
+		}
+		else  if (http_code >= 401)
+		{
+			std::stringstream error_message;
+			error_message << "HTTP code |" << to_string(http_code) << "| HTTP error |" << response << "|";
+
+			throw runtime_error(error_message.str());
+		}
+
+	} catch (BadRequest& ex) {
+		throw BadRequest(ex.what());
 	} catch (exception& ex) {
 		string errMsg("Failed to send data: ");
 		errMsg.append(ex.what());

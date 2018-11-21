@@ -87,6 +87,26 @@ const char *default_myCategory_JSON_type_without_escaped_default = "{ "
 // This is the output pf getValue or getDefault and the contend is unescaped
 const char *default_json_array_item = "{\"pipeline\":[\"scale\",\"exceptional\"]}";
 
+const char *myDefCategoryRemoveItems = "{" \
+			"\"plugin\" : {"\
+				"\"description\" : \"Random C south plugin\", "\
+				"\"type\" : \"string\", "\
+				"\"default\" : \"Random_2\" "\
+			"}, "\
+			"\"asset\" : {"\
+				"\"description\" : \"Asset name\", " \
+				"\"type\" : \"category\", "\
+				"\"default\" : {"\
+					"\"bias\" : {"\
+						"\"description\" : \"Bias offset\", "\
+						"\"type\" : \"float\", "\
+						"\"default\" : \"2\" "\
+					"} "\
+				"} "\
+			"} "\
+		"}";
+
+
 TEST(DefaultCategoriesTest, Count)
 {
 	ConfigCategories confCategories(default_categories);
@@ -208,3 +228,16 @@ TEST(CategoryTest, default_handle_type_JSON_fail)
                 ASSERT_TRUE(true);
         }
 }
+
+
+TEST(DefaultCategoryTest, removeItemsType)
+{
+	DefaultConfigCategory defCategory("test", myDefCategoryRemoveItems);
+	ASSERT_EQ(2, defCategory.getCount());
+
+	defCategory.removeItemsType(ConfigCategory::ItemType::CategoryType);
+	ASSERT_EQ(1, defCategory.getCount());
+
+}
+
+

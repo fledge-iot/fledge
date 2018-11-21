@@ -219,8 +219,8 @@ CREATE TABLE foglamp.readings (
                                                                              -- assets table.
     read_key   uuid                        UNIQUE,                           -- An optional unique key used to avoid double-loading.
     reading    JSON                        NOT NULL DEFAULT '{}',            -- The json object received
-    user_ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')),
-    ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime'))
+    user_ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),      -- UTC time
+    ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW'))       -- UTC time
 );
 
 CREATE INDEX fki_readings_fk1
@@ -255,6 +255,7 @@ CREATE TABLE foglamp.streams (
 -- ts is set by default with now().
 CREATE TABLE foglamp.configuration (
        key         character varying(255)      NOT NULL,                          -- Primary key
+       display_name character varying(255)     NOT NULL,                          -- Display Name
        description character varying(255)      NOT NULL,                          -- Description, in plain text
        value       JSON                        NOT NULL DEFAULT '{}',             -- JSON object containing the configuration values
        ts          DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')), -- Timestamp, updated at every change
@@ -290,7 +291,7 @@ CREATE TABLE foglamp.statistics_history (
        key         character varying(56)       NOT NULL,                           -- Coumpund primary key, all uppercase
        history_ts  DATETIME NOT NULL,                                              -- Compound primary key, the highest value of statistics.ts when statistics are copied here.
        value       bigint                      NOT NULL DEFAULT 0,                 -- Integer value, the statistics
-       ts          DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime'))); -- Timestamp, updated at every change
+       ts          DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')));       -- Timestamp, updated at every change, UTC time
 
 CREATE UNIQUE INDEX statistics_history_ix1
     ON statistics_history (key, history_ts);
@@ -505,7 +506,8 @@ CREATE TABLE foglamp.schedules (
 -- List of tasks
 CREATE TABLE foglamp.tasks (
              id           uuid                        NOT NULL,                          -- PK
-             process_name character varying(255)      NOT NULL,                          -- Name of the task
+             schedule_name character varying(255),                                       -- Name of the task
+             process_name character varying(255)      NOT NULL,                          -- Name of the task's process
              state        smallint                    NOT NULL,                          -- 1-Running, 2-Complete, 3-Cancelled, 4-Interrupted
              start_time   DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')), -- The date and time the task started
              end_time     DATETIME,                                                      -- The date and time the task ended
@@ -514,12 +516,12 @@ CREATE TABLE foglamp.tasks (
              exit_code    integer,                                                       -- Process exit status code (negative means exited via signal)
   CONSTRAINT tasks_pkey PRIMARY KEY ( id ),
   CONSTRAINT tasks_fk1 FOREIGN KEY  ( process_name )
-  REFERENCES fscheduled_processes ( name ) MATCH SIMPLE
+  REFERENCES scheduled_processes ( name ) MATCH SIMPLE
              ON UPDATE NO ACTION
              ON DELETE NO ACTION );
 
 CREATE INDEX tasks_ix1
-    ON tasks(process_name, start_time);
+    ON tasks(schedule_name, start_time);
 
 
 -- Tracks types already created into PI Server
@@ -572,6 +574,13 @@ CREATE TABLE foglamp.asset_tracker (
 
 CREATE INDEX asset_tracker_ix1 ON asset_tracker (asset);
 CREATE INDEX asset_tracker_ix2 ON asset_tracker (service);
+
+-- Create plugin_data table
+-- Persist plugin data in the storage
+CREATE TABLE foglamp.plugin_data (
+	key     character varying(255)    NOT NULL,
+	data    JSON                      NOT NULL DEFAULT '{}',
+	CONSTRAINT plugin_data_pkey PRIMARY KEY (key) );
 
 ----------------------------------------------------------------------
 -- Initialization phase - DML

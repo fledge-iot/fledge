@@ -416,6 +416,7 @@ CREATE TABLE foglamp.streams (
 -- ts is set by default with now().
 CREATE TABLE foglamp.configuration (
        key         character varying(255)      NOT NULL COLLATE pg_catalog."default", -- Primary key
+       display_name character varying(255)     NOT NULL,                              -- Display Name
        description character varying(255)      NOT NULL,                              -- Description, in plain text
        value       jsonb                       NOT NULL DEFAULT '{}'::jsonb,          -- JSON object containing the configuration values
        ts          timestamp(6) with time zone NOT NULL DEFAULT now(),                -- Timestamp, updated at every change
@@ -683,7 +684,8 @@ CREATE TABLE foglamp.schedules (
 -- List of tasks
 CREATE TABLE foglamp.tasks (
              id           uuid                        NOT NULL,               -- PK
-             process_name character varying(255)      NOT NULL,               -- Name of the task
+             schedule_name character varying(255),                            -- Name of the task
+             process_name character varying(255)      NOT NULL,               -- Name of the task's process
              state        smallint                    NOT NULL,               -- 1-Running, 2-Complete, 3-Cancelled, 4-Interrupted
              start_time   timestamp(6) with time zone NOT NULL DEFAULT now(), -- The date and time the task started
              end_time     timestamp(6) with time zone,                        -- The date and time the task ended
@@ -697,7 +699,7 @@ CREATE TABLE foglamp.tasks (
              ON DELETE NO ACTION );
 
 CREATE INDEX tasks_ix1
-   ON foglamp.tasks(process_name, start_time);
+   ON foglamp.tasks(schedule_name, start_time);
 
 
 -- Tracks types already created into PI Server
@@ -751,6 +753,12 @@ CREATE TABLE foglamp.asset_tracker (
 CREATE INDEX asset_tracker_ix1 ON foglamp.asset_tracker USING btree (asset);
 CREATE INDEX asset_tracker_ix2 ON foglamp.asset_tracker USING btree (service);
 
+-- Create plugin_data table
+-- Persist plugin data in the storage
+CREATE TABLE foglamp.plugin_data (
+	key     character varying(255)    NOT NULL,
+	data    jsonb                     NOT NULL DEFAULT '{}'::jsonb,
+	CONSTRAINT plugin_data_pkey PRIMARY KEY (key) );
 
 -- Grants to foglamp schema
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA foglamp TO PUBLIC;

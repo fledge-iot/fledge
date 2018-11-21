@@ -53,7 +53,7 @@ async def create_filter(request):
 
     """
     try:
-        # Get inpout data
+        # Get input data
         data = await request.json()
         # Get filter name
         filter_name = data.get('name', None)
@@ -92,7 +92,7 @@ async def create_filter(request):
         # Sanity checks
         if plugin_name != loaded_plugin_name or loaded_plugin_type != 'filter':
             error_message = "Loaded plugin '{0}', type '{1}', doesn't match " + \
-            "the specified one '{2}', type 'filter'"
+                            "the specified one '{2}', type 'filter'"
             raise ValueError(error_message.format(loaded_plugin_name,
                                                   loaded_plugin_type,
                                                   plugin_name))
@@ -126,6 +126,7 @@ async def create_filter(request):
     except Exception as ex:
         _LOGGER.exception("Add filter, caught exception: " + str(ex))
         raise web.HTTPInternalServerError(reason=str(ex))
+
 
 async def add_filters_pipeline(request):
     """
@@ -179,13 +180,13 @@ async def add_filters_pipeline(request):
 
         # Check input data
         if not service_name:
-             return web.HTTPBadRequest(reason='Service name is required')
+            return web.HTTPBadRequest(reason='Service name is required')
 
         # Empty list [] is allowed as it clears the pipeline
         # curl -X PUT http://localhost:8081/foglamp/filter/ServiceName/pipeline -d '{"pipeline": []}'
-        # Check filter_list is alist only if filter_list in not None
+        # Check filter_list is a list only if filter_list in not None
         if filter_list is not None and not isinstance(filter_list, list):
-             return web.HTTPBadRequest(reason='Pipeline must be a list of filters or an empty value')
+            return web.HTTPBadRequest(reason='Pipeline must be a list of filters or an empty value')
 
         # Get configuration manager instance
         cf_mgr = ConfigurationManager(connect.get_storage_async())
@@ -233,6 +234,16 @@ async def add_filters_pipeline(request):
             else:
                 # Overwriting the list: use input list
                 new_list = filter_list
+
+            filter_value_from_storage = json.loads(category_info['filter']['value'])
+
+            def diff(lst1, lst2):
+                return [v for v in lst2 if v not in lst1]
+
+            # Difference b/w two(pipeline and value from storage) lists and then delete relationship as per diff
+            delete_children = diff(new_list, filter_value_from_storage['pipeline'])
+            for l in delete_children:
+                await cf_mgr.delete_child_category(service_name, l)
 
             # Set the pipeline value with the 'new_list' of filters
             await cf_mgr.set_category_item_value_entry(service_name,

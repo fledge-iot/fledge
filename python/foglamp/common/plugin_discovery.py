@@ -24,28 +24,28 @@ class PluginDiscovery(object):
         pass
 
     @classmethod
-    def get_plugins_installed(cls, plugin_type=None):
+    def get_plugins_installed(cls, plugin_type=None, is_config=False):
         if plugin_type is None:
             plugins_list = []
-            plugins_list_north = cls.fetch_plugins_installed("north")
-            plugins_list_south = cls.fetch_plugins_installed("south")
-            plugins_list_c_north = cls.fetch_c_plugins_installed("north")
-            plugins_list_c_south = cls.fetch_c_plugins_installed("south")
+            plugins_list_north = cls.fetch_plugins_installed("north", is_config)
+            plugins_list_south = cls.fetch_plugins_installed("south", is_config)
+            plugins_list_c_north = cls.fetch_c_plugins_installed("north", is_config)
+            plugins_list_c_south = cls.fetch_c_plugins_installed("south", is_config)
             plugins_list.extend(plugins_list_north)
             plugins_list.extend(plugins_list_c_north)
             plugins_list.extend(plugins_list_south)
             plugins_list.extend(plugins_list_c_south)
         else:
-            plugins_list = cls.fetch_plugins_installed(plugin_type)
-            plugins_list.extend(cls.fetch_c_plugins_installed(plugin_type))
+            plugins_list = cls.fetch_plugins_installed(plugin_type, is_config)
+            plugins_list.extend(cls.fetch_c_plugins_installed(plugin_type, is_config))
         return plugins_list
 
     @classmethod
-    def fetch_plugins_installed(cls, plugin_type):
+    def fetch_plugins_installed(cls, plugin_type, is_config):
         directories = cls.get_plugin_folders(plugin_type)
         configs = []
         for d in directories:
-            plugin_config = cls.get_plugin_config(d, plugin_type)
+            plugin_config = cls.get_plugin_config(d, plugin_type, is_config)
             if plugin_config is not None:
                 configs.append(plugin_config)
         return configs
@@ -63,7 +63,7 @@ class PluginDiscovery(object):
             return directories
 
     @classmethod
-    def fetch_c_plugins_installed(cls, plugin_type):
+    def fetch_c_plugins_installed(cls, plugin_type, is_config):
         libs = utils.find_c_plugin_libs(plugin_type)
         configs = []
         for l in libs:
@@ -75,6 +75,8 @@ class PluginDiscovery(object):
                                      'description': jdoc['config']['plugin']['description'],
                                      'version': jdoc['version']
                                      }
+                    if is_config:
+                        plugin_config.update({'config': jdoc['config']})
                     configs.append(plugin_config)
             except Exception as ex:
                 _logger.exception(ex)
@@ -82,7 +84,7 @@ class PluginDiscovery(object):
         return configs
 
     @classmethod
-    def get_plugin_config(cls, plugin_dir, plugin_type):
+    def get_plugin_config(cls, plugin_dir, plugin_type, is_config):
         plugin_module_path = "foglamp.plugins.south" if plugin_type == 'south' else "foglamp.plugins.north"
         plugin_config = None
 
@@ -94,12 +96,18 @@ class PluginDiscovery(object):
 
             # Fetch configuration from the configuration defined in the plugin
             plugin_info = _plugin.plugin_info()
-            plugin_config = {
-                'name': plugin_info['config']['plugin']['default'],
-                'type': plugin_info['type'],
-                'description': plugin_info['config']['plugin']['description'],
-                'version': plugin_info['version']
-            }
+            if plugin_info['type'] == plugin_type:
+                plugin_config = {
+                    'name': plugin_info['config']['plugin']['default'],
+                    'type': plugin_info['type'],
+                    'description': plugin_info['config']['plugin']['description'],
+                    'version': plugin_info['version']
+                }
+            else:
+                _logger.warning("Plugin {} is discarded due to invalid type".format(plugin_dir))
+
+            if is_config:
+                plugin_config.update({'config': plugin_info['config']})
         except ImportError as ex:
             _logger.error('Plugin "{}" import problem from path "{}". {}'.format(plugin_dir, plugin_module_path, str(ex)))
         except Exception as ex:

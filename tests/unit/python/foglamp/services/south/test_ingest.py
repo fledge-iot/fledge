@@ -15,19 +15,19 @@ from foglamp.services.south import ingest
 from foglamp.common.storage_client.storage_client import StorageClientAsync, ReadingsStorageClientAsync
 from foglamp.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient
 
-
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-
 @asyncio.coroutine
 def mock_coro():
     yield from false_coro()
 
+
 async def false_coro():
     return True
+
 
 def get_cat(old_config):
     new_config = {}
@@ -36,6 +36,7 @@ def get_cat(old_config):
         new_value['value'] = new_value['default']
         new_config.update({key: new_value})
     return new_config
+
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("services", "south", "ingest")
@@ -71,12 +72,6 @@ class TestIngest:
         Ingest._max_readings_insert_batch_reconnect_wait_seconds = 10
         Ingest.category = 'South'
         Ingest.default_config = {
-            "write_statistics_frequency_seconds": {
-                "description": "The number of seconds to wait before writing readings-related "
-                               "statistics to storage",
-                "type": "integer",
-                "default": str(Ingest._write_statistics_frequency_seconds)
-            },
             "readings_buffer_size": {
                 "description": "The maximum number of readings to buffer in memory",
                 "type": "integer",
@@ -121,6 +116,7 @@ class TestIngest:
         mocker.patch.object(MicroserviceManagementClient, "__init__", return_value=None)
         create_cfg = mocker.patch.object(MicroserviceManagementClient, "create_configuration_category", return_value=None)
         get_cfg = mocker.patch.object(MicroserviceManagementClient, "get_configuration_category", return_value=get_cat(Ingest.default_config))
+        mocker.patch.object(MicroserviceManagementClient, "create_child_category", return_value=None)
         Ingest._parent_service = MagicMock(_core_microservice_management_client=MicroserviceManagementClient())
 
         # WHEN
@@ -130,8 +126,6 @@ class TestIngest:
         assert 1 == create_cfg.call_count
         assert 1 == get_cfg.call_count
         new_config = get_cat(Ingest.default_config)
-        assert Ingest._write_statistics_frequency_seconds == \
-               int(new_config['write_statistics_frequency_seconds']['value'])
         assert Ingest._readings_buffer_size == int(new_config['readings_buffer_size']['value'])
         assert Ingest._max_concurrent_readings_inserts == \
                int(new_config['max_concurrent_readings_inserts']['value'])
@@ -145,6 +139,17 @@ class TestIngest:
         
     @pytest.mark.asyncio
     async def test_start(self, mocker):
+
+        class mock_stat:
+            def __init__(self):
+                pass
+
+            async def register(self, key, desc):
+                return None
+
+        async def mock_create(storage):
+            return mock_stat()
+
         # GIVEN
         mocker.patch.object(StorageClientAsync, "__init__", return_value=None)
         mocker.patch.object(ReadingsStorageClientAsync, "__init__", return_value=None)
@@ -152,6 +157,9 @@ class TestIngest:
         mocker.patch.object(MicroserviceManagementClient, "__init__", return_value=None)
         create_cfg = mocker.patch.object(MicroserviceManagementClient, "create_configuration_category", return_value=None)
         get_cfg = mocker.patch.object(MicroserviceManagementClient, "get_configuration_category", return_value=get_cat(Ingest.default_config))
+        mocker.patch.object(MicroserviceManagementClient, "get_asset_tracker_events", return_value={'track':[]})
+        mocker.patch.object(MicroserviceManagementClient, "create_child_category", return_value=None)
+        mocker.patch.object(statistics, "create_statistics", return_value=mock_create(None))
         parent_service = MagicMock(_core_microservice_management_client=MicroserviceManagementClient())
         mocker.patch.object(Ingest, "_write_statistics", return_value=mock_coro())
         mocker.patch.object(Ingest, "_insert_readings", return_value=mock_coro())
@@ -175,6 +183,17 @@ class TestIngest:
 
     @pytest.mark.asyncio
     async def test_stop(self, mocker):
+
+        class mock_stat:
+            def __init__(self):
+                pass
+
+            async def register(self, key, desc):
+                return None
+
+        async def mock_create(storage):
+            return mock_stat()
+
         # GIVEN
         mocker.patch.object(StorageClientAsync, "__init__", return_value=None)
         mocker.patch.object(ReadingsStorageClientAsync, "__init__", return_value=None)
@@ -182,6 +201,9 @@ class TestIngest:
         mocker.patch.object(MicroserviceManagementClient, "__init__", return_value=None)
         create_cfg = mocker.patch.object(MicroserviceManagementClient, "create_configuration_category", return_value=None)
         get_cfg = mocker.patch.object(MicroserviceManagementClient, "get_configuration_category", return_value=get_cat(Ingest.default_config))
+        mocker.patch.object(MicroserviceManagementClient, "get_asset_tracker_events", return_value={'track':[]})
+        mocker.patch.object(MicroserviceManagementClient, "create_child_category", return_value=None)
+        mocker.patch.object(statistics, "create_statistics", return_value=mock_create(None))
         parent_service = MagicMock(_core_microservice_management_client=MicroserviceManagementClient())
         mocker.patch.object(Ingest, "_write_statistics", return_value=mock_coro())
         mocker.patch.object(Ingest, "_insert_readings", return_value=mock_coro())

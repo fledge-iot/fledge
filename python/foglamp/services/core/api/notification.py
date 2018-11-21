@@ -498,7 +498,8 @@ async def _update_configurations(config_mgr, name, notification_config, rule_con
 async def _delete_configuration(storage, config_mgr, name):
     current_config = await config_mgr._read_category_val(name)
     if not current_config:
-        return
+        raise web.HTTPInternalServerError(reason='No Configuration entry found for [{}]'.format(name))
+
     rule = current_config['rule']['value']
     channel = current_config['channel']['value']
 

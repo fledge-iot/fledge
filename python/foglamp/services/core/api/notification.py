@@ -4,9 +4,10 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
+import json
+import urllib.parse
 import aiohttp
 from aiohttp import web
-import json
 
 from foglamp.common import utils
 from foglamp.common import logger
@@ -32,7 +33,7 @@ _help = """
 """
 
 _logger = logger.setup()
-
+NOTIFICATION_TYPE = ["one shot", "retriggered", "toggled"]
 
 async def get_plugin(request):
     """ GET lists of rule plugins and delivery plugins
@@ -44,7 +45,7 @@ async def get_plugin(request):
         notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
         _address, _port = notification_service[0]._address, notification_service[0]._management_port
     except service_registry_exceptions.DoesNotExist:
-        return web.json_response({'result': "No Notification service available."})
+        raise web.HTTPNotFound(reason="No Notification service available.")
 
     try:
         url = 'http://{}:{}/foglamp/notification/rules'.format(_address, _port)
@@ -131,7 +132,7 @@ async def post_notification(request):
         notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
         _address, _port = notification_service[0]._address, notification_service[0]._management_port
     except service_registry_exceptions.DoesNotExist:
-        return web.json_response({'result': "No Notification service available."})
+        raise web.HTTPNotFound(reason="No Notification service available.")
 
     try:
         data = await request.json()
@@ -164,7 +165,7 @@ async def post_notification(request):
             raise web.HTTPBadRequest(reason='Invalid rule property in payload.')
         if utils.check_reserved(channel) is False:
             raise web.HTTPBadRequest(reason='Invalid channel property in payload.')
-        if notification_type not in ["one shot", "retriggered", "toggled"]:
+        if notification_type not in NOTIFICATION_TYPE:
             raise web.HTTPBadRequest(reason='Invalid notification_type property in payload.')
 
         if enabled is not None:
@@ -183,11 +184,11 @@ async def post_notification(request):
             raise web.HTTPBadRequest(reason="Invalid rule plugin:[{}] and/or delivery plugin:[{}] supplied.".format(rule, channel))
 
         # First create templates for notification and rule, channel plugins
-        post_url = 'http://{}:{}/foglamp/notification/{}'.format(_address, _port, name)
+        post_url = 'http://{}:{}/foglamp/notification/{}'.format(_address, _port, urllib.parse.quote(name))
         await _hit_post_url(post_url)  # Create Notification template
-        post_url = 'http://{}:{}/foglamp/notification/{}/rule/{}'.format(_address, _port, name, rule)
+        post_url = 'http://{}:{}/foglamp/notification/{}/rule/{}'.format(_address, _port, urllib.parse.quote(name), urllib.parse.quote(rule))
         await _hit_post_url(post_url)  # Create Notification rule template
-        post_url = 'http://{}:{}/foglamp/notification/{}/delivery/{}'.format(_address, _port, name, channel)
+        post_url = 'http://{}:{}/foglamp/notification/{}/delivery/{}'.format(_address, _port, urllib.parse.quote(name), urllib.parse.quote(channel))
         await _hit_post_url(post_url)  # Create Notification delivery template
 
         # Create configurations
@@ -217,7 +218,7 @@ async def post_notification(request):
             "notification_type": {
                 "description": "Type of notification",
                 "type": "enumeration",
-                "options": ["one shot", "retriggered", "toggled"],
+                "options": NOTIFICATION_TYPE,
                 "default": notification_type,
             },
             "enable": {
@@ -229,7 +230,7 @@ async def post_notification(request):
         await _create_configurations(storage, config_mgr, name, notification_config,
                                      rule, rule_plugin_config, rule_config,
                                      channel, delivery_plugin_config, delivery_config)
-    except ValueError as e:
+    except Exception as e:
         raise web.HTTPBadRequest(reason=str(e))
     else:
         return web.json_response({'result': "Notification {} created successfully".format(name)})
@@ -247,7 +248,7 @@ async def put_notification(request):
         notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
         _address, _port = notification_service[0]._address, notification_service[0]._management_port
     except service_registry_exceptions.DoesNotExist:
-        return web.json_response({'result': "No Notification service available."})
+        raise web.HTTPNotFound(reason="No Notification service available.")
 
     try:
         notif = request.match_info.get('notification_name', None)
@@ -287,7 +288,7 @@ async def put_notification(request):
             raise web.HTTPBadRequest(reason='Invalid rule property in payload.')
         if utils.check_reserved(channel) is False:
             raise web.HTTPBadRequest(reason='Invalid channel property in payload.')
-        if notification_type not in ["one shot", "retriggered", "toggled"]:
+        if notification_type not in NOTIFICATION_TYPE:
             raise web.HTTPBadRequest(reason='Invalid notification_type property in payload.')
 
         if enabled is not None:
@@ -332,7 +333,7 @@ async def put_notification(request):
             "notification_type": {
                 "description": "Type of notification",
                 "type": "enumeration",
-                "options": ["one shot", "retriggered", "toggled"],
+                "options": NOTIFICATION_TYPE,
                 "default": notification_type,
             },
             "enable": {
@@ -342,7 +343,7 @@ async def put_notification(request):
             }
         }
         await _update_configurations(config_mgr, notif, notification_config, rule_config, delivery_config)
-    except ValueError as e:
+    except Exception as e:
         raise web.HTTPBadRequest(reason=str(e))
     else:
         # TODO: Start notification after update
@@ -359,12 +360,17 @@ async def delete_notification(request):
         notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
         _address, _port = notification_service[0]._address, notification_service[0]._management_port
     except service_registry_exceptions.DoesNotExist:
-        return web.json_response({'result': "No Notification service available."})
+        raise web.HTTPNotFound(reason="No Notification service available.")
 
     try:
         notif = request.match_info.get('notification_name', None)
         if notif is None:
             raise web.HTTPInternalServerError(reason="Notification name is required for deletion.")
+
+        url = str(request.url)
+        url_parts = url.split("/foglamp/notification")
+        url = '{}/foglamp/notification/{}'.format(url_parts[0], urllib.parse.quote(notif))
+        notification = json.loads(await _hit_get_url(url))
 
         # TODO: Stop notification before deletion
 
@@ -374,11 +380,9 @@ async def delete_notification(request):
         await _delete_configuration(storage, config_mgr, notif)
 
         audit = AuditLogger(storage)
-        url = 'http://{}:{}/foglamp/notification/{}'.format(_address, _port, notif)
-        notification = json.loads(await _hit_get_url(url))
-        await audit.information('NOTIF', notification)
+        await audit.information('NTFDL', notification)
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=ex)
+        raise web.HTTPInternalServerError(reason=str(ex))
     else:
         return web.json_response({'result': 'notification {} deleted successfully.'.format(notif)})
 
@@ -417,7 +421,7 @@ async def _create_configurations(storage, config_mgr, name, notification_config,
                                  rule, rule_plugin_config, rule_config,
                                  channel, delivery_plugin_config, delivery_config):
     try:
-        # ---------------- Main notification - Create a main notification configuration category
+        # Main notification - Create a main notification configuration category
         category_desc = notification_config['description']['default']
         await config_mgr.create_category(category_name=name,
                                          category_description=category_desc,
@@ -427,7 +431,7 @@ async def _create_configurations(storage, config_mgr, name, notification_config,
         await config_mgr.create_category("Notifications", {}, "Notifications", True)
         await config_mgr.create_child_category("Notifications", [name])
 
-        # ----------------Rule - Create a rule configuration category from the configuration defined in the rule plugin
+        # Rule - Create a rule configuration category from the configuration defined in the rule plugin
         category_desc = rule_plugin_config['plugin']['description']
         category_name = "rule{}".format(name)
         await config_mgr.create_category(category_name=category_name,
@@ -444,7 +448,7 @@ async def _create_configurations(storage, config_mgr, name, notification_config,
             for k, v in rule_config.items():
                 await config_mgr.set_category_item_value_entry("rule{}".format(name), k, v['value'])
 
-        # ---------------- Delivery - Create a delivery configuration category from the configuration defined in the delivery plugin
+        # Delivery - Create a delivery configuration category from the configuration defined in the delivery plugin
         category_desc = delivery_plugin_config['plugin']['description']
         category_name = "delivery{}".format(name)
         await config_mgr.create_category(category_name=category_name,
@@ -468,14 +472,14 @@ async def _create_configurations(storage, config_mgr, name, notification_config,
 
 async def _update_configurations(config_mgr, name, notification_config, rule_config, delivery_config):
     try:
-        # ---------------- Update main notification
+        # Update main notification
         category_desc = notification_config['description']['default']
         await config_mgr.create_category(category_name=name,
                                          category_description=category_desc,
                                          category_value=notification_config,
                                          keep_original_items=True)
 
-        # ---------------- Replace rule configuration
+        # Replace rule configuration
         if rule_config != {}:
             category_desc = rule_config['plugin']['description']
             category_name = "rule{}".format(name)
@@ -483,7 +487,7 @@ async def _update_configurations(config_mgr, name, notification_config, rule_con
                                              category_description=category_desc,
                                              category_val=rule_config)
 
-        # ---------------- Replace delivery configuration
+        # Replace delivery configuration
         if delivery_config != {}:
             category_desc = delivery_config['plugin']['description']
             category_name = "delivery{}".format(name)
@@ -499,17 +503,12 @@ async def _delete_configuration(storage, config_mgr, name):
     current_config = await config_mgr._read_category_val(name)
     if not current_config:
         raise web.HTTPInternalServerError(reason='No Configuration entry found for [{}]'.format(name))
-
-    rule = current_config['rule']['value']
-    channel = current_config['channel']['value']
-
     await _delete_configuration_category(storage, name)
     await _delete_configuration_category(storage, "rule{}".format(name))
     await _delete_configuration_category(storage, "delivery{}".format(name))
     await _delete_parent_child_configuration(storage, "Notifications", name)
     await _delete_parent_child_configuration(storage, name, "rule{}".format(name))
     await _delete_parent_child_configuration(storage, name, "delivery{}".format(name))
-
 
 async def _delete_configuration_category(storage, key):
     payload = PayloadBuilder().WHERE(['key', '=', key]).payload()

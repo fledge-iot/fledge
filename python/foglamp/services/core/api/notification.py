@@ -502,7 +502,7 @@ async def _update_configurations(config_mgr, name, notification_config, rule_con
 async def _delete_configuration(storage, config_mgr, name):
     current_config = await config_mgr._read_category_val(name)
     if not current_config:
-        raise web.HTTPInternalServerError(reason='No Configuration entry found for [{}]'.format(name))
+        raise web.HTTPNotFound(reason='No Configuration entry found for [{}]'.format(name))
     await _delete_configuration_category(storage, name)
     await _delete_configuration_category(storage, "rule{}".format(name))
     await _delete_configuration_category(storage, "delivery{}".format(name))

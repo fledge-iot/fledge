@@ -160,11 +160,11 @@ def setup(app):
     app.router.add_route('PUT', '/foglamp/filter/{service_name}/pipeline', filters.add_filters_pipeline)
 
     # Notification
-    app.router.add_route('POST', '/foglamp/notification', notification.post_notification)
-    app.router.add_route('PUT', '/foglamp/notification/{notification_name}', notification.put_notification)
     app.router.add_route('GET', '/foglamp/notification', notification.get_notifications)
     app.router.add_route('GET', '/foglamp/notification/plugin', notification.get_plugin)
     app.router.add_route('GET', '/foglamp/notification/{notification_name}', notification.get_notification)
+    app.router.add_route('POST', '/foglamp/notification', notification.post_notification)
+    app.router.add_route('PUT', '/foglamp/notification/{notification_name}', notification.put_notification)
     app.router.add_route('DELETE', '/foglamp/notification/{notification_name}', notification.delete_notification)
 
     # enable cors support

@@ -21,7 +21,7 @@ from foglamp.services.core.service_registry import exceptions as service_registr
 from foglamp.common.audit_logger import AuditLogger
 
 __author__ = "Amarendra K Sinha"
-__copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
+__copyright__ = "Copyright (c) 2018 Dianomic Systems"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 

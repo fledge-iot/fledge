@@ -9,6 +9,7 @@
  *
  * Author: Mark Riddoch
  */
+#include <config_category.h>
 #include <string>
 
 /**
@@ -19,6 +20,6 @@ class ServiceHandler
 {
 	public:
 		virtual void	shutdown() = 0;
-		virtual void	configChange(const std::string& category, const std::string& payload) = 0;
+		virtual void	configChange(const std::string& category, const std::string& config) = 0;
 };
 #endif

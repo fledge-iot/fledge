@@ -1346,3 +1346,58 @@ std::string ConfigCategory::CategoryItem::unescape(const std::string& subject) c
 	}
         return json;
 }
+
+/**
+ * Configuration Category constructor
+ *
+ * @param name	The name of the configuration category
+ * @param json	JSON content of the configuration category
+ */
+ConfigCategoryChange::ConfigCategoryChange(const string& json)
+{
+	Document doc;
+	doc.Parse(json.c_str());
+	if (doc.HasParseError())
+	{
+		Logger::getLogger()->error("Configuration parse error in category change %s: %s at %d",
+			json.c_str(), GetParseError_En(doc.GetParseError()),
+			(unsigned)doc.GetErrorOffset());
+		throw new ConfigMalformed();
+	}
+	if (!doc.HasMember("category"))
+	{
+		Logger::getLogger()->error("Configuration change is missing a category element '%s'",
+			json.c_str());
+		throw new ConfigMalformed();
+	}
+	if (!doc.HasMember("items"))
+	{
+		Logger::getLogger()->error("Configuration change is missing an items element '%s'",
+			json.c_str());
+		throw new ConfigMalformed();
+	}
+
+	m_name = doc["category"].GetString();
+	const Value& items = doc["items"];
+	for (Value::ConstMemberIterator itr = items.MemberBegin(); itr != items.MemberEnd(); ++itr)
+	{
+		try
+		{
+			m_items.push_back(new CategoryItem(itr->name.GetString(), itr->value));
+		}
+		catch (exception* e)
+		{
+			Logger::getLogger()->error("Configuration parse error in category %s item '%s', %s: %s",
+				m_name,
+				itr->name.GetString(),
+				json.c_str(),
+				e->what());
+			delete e;
+			throw ConfigMalformed();
+		}
+		catch (...)
+		{
+			throw;
+		}
+	}
+}

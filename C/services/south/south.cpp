@@ -24,6 +24,7 @@
 #include <iostream>
 #include <defaults.h>
 #include <filter_plugin.h>
+#include <config_handler.h>
 
 extern int makeDaemon(void);
 
@@ -163,11 +164,8 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		{
 			logger->error("Failed to register service %s", m_name.c_str());
 		}
-		unsigned int retryCount = 0;
-		while (m_mgtClient->registerCategory(m_name) == false && ++retryCount < 10)
-		{
-			sleep(2 * retryCount);
-		}
+		ConfigHandler *configHandler = ConfigHandler::getInstance(m_mgtClient);
+		configHandler->registerCategory(this, m_name);
 
 		// Get a handle on the storage layer
 		ServiceRecord storageRecord("FogLAMP Storage");
@@ -391,6 +389,8 @@ bool SouthService::loadPlugin()
 
 			// Must now reload the merged configuration
 			m_configAdvanced = m_mgtClient->getCategory(advancedCatName);
+			ConfigHandler *configHandler = ConfigHandler::getInstance(m_mgtClient);
+			configHandler->registerCategory(this, advancedCatName);
 
 			southPlugin = new SouthPlugin(handle, m_config);
 			logger->info("Loaded south plugin %s.", plugin.c_str());
@@ -422,11 +422,19 @@ void SouthService::configChange(const string& categoryName, const string& catego
 	// TODO action configuration change
 	logger->info("Configuration change in category %s: %s", categoryName.c_str(),
 			category.c_str());
-	m_configAdvanced = m_mgtClient->getCategory(m_name+"Advanced");
-	try {
-		m_readingsPerSec = (unsigned long)atoi(m_configAdvanced.getValue("readingsPerSec").c_str());
-	} catch (ConfigItemNotFound e) {
-		logger->error("Failed to update poll interval following configuration change");
+	if (categoryName.compare(m_name) == 0)
+	{
+		m_config = ConfigCategory(m_name, category);
+		southPlugin->reconfigure(category);
+	}
+	if (categoryName.compare(m_name+"Advanced") == 0)
+	{
+		m_configAdvanced = ConfigCategory(m_name+"Advanced", category);
+		try {
+			m_readingsPerSec = (unsigned long)atoi(m_configAdvanced.getValue("readingsPerSec").c_str());
+		} catch (ConfigItemNotFound e) {
+			logger->error("Failed to update poll interval following configuration change");
+		}
 	}
 }
 

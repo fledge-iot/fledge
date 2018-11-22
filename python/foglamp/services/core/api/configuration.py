@@ -87,7 +87,6 @@ async def get_category(request):
     category_name = request.match_info.get('category_name', None)
     category_name = urllib.parse.unquote(category_name) if category_name is not None else None
 
-    # TODO: make it optimized and elegant
     cf_mgr = ConfigurationManager(connect.get_storage_async())
     category = await cf_mgr.get_category_all_items(category_name)
 
@@ -96,11 +95,11 @@ async def get_category(request):
 
     for k, v in category.items():
         if v['type'] == 'script':
-            # FIXME: To handle Non-hexadecimal digit found in a better way
+            # FIXME: Handle 'Non-hexadecimal digit found' issue
             try:
                 category[k]["value"] = binascii.unhexlify(v['value'].encode('utf-8')).decode("utf-8")
             except Exception as e:
-                _logger.exception("Non-hexadecimal digit found for config item: {} | {}".format(category[k], str(e)))
+                _logger.exception("Got an error while decoding config item: {} | {}".format(category[k], str(e)))
                 pass
 
             if cf_mgr._cacheManager.cache[category_name]['value'][k]:
@@ -193,18 +192,17 @@ async def get_category_item(request):
     category_name = urllib.parse.unquote(category_name) if category_name is not None else None
     config_item = urllib.parse.unquote(config_item) if config_item is not None else None
 
-    # TODO: make it optimized and elegant
     cf_mgr = ConfigurationManager(connect.get_storage_async())
     category_item = await cf_mgr.get_category_item(category_name, config_item)
     if category_item is None:
         raise web.HTTPNotFound(reason="No such Category item found for {}".format(config_item))
     try:
         if category_item['type'] == 'script':
-            # FIXME: To handle Non-hexadecimal digit found in a better way
+            # FIXME: Handle 'Non-hexadecimal digit found' issue
             try:
                 category_item['value'] = binascii.unhexlify(category_item['value'].encode('utf-8')).decode("utf-8")
             except Exception as e:
-                _logger.exception("Non-hexadecimal digit found for config item: {} | {}".format(config_item, str(e)))
+                _logger.exception("Got an error while decoding config item: {} | {}".format(config_item, str(e)))
                 pass
 
             if cf_mgr._cacheManager.cache[category_name]['value'][config_item]:

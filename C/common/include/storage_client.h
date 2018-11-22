@@ -62,6 +62,7 @@ class StorageClient {
 
 		std::ostringstream 			m_urlbase;
 		std::map<std::thread::id, HttpClient *> m_client_map;
+		std::map<std::thread::id, std::atomic<int>> m_seqnum_map;
 		Logger					*m_logger;
 };
 

@@ -158,6 +158,12 @@ class DefaultConfigCategory : public ConfigCategory
 		std::string	itemsToJSON() const;
 };
 
+class ConfigCategoryChange : public ConfigCategory
+{
+	public:
+		ConfigCategoryChange(const std::string& json);
+};
+
 class ConfigItemNotFound : public std::exception {
 	public:
 		virtual const char *what() const throw()

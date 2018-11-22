@@ -234,11 +234,14 @@ TEST(CategoriesTest, toJSON)
 
 TEST(CategoriesTest, toJSONParameters)
 {
+	// Arrange
 	ConfigCategory category("test_toJSONParameters", myCategory_to_json_parameters);
 
+	// Act
 	string strJSONFalse = category.toJSON();
 	string strJSONTrue = category.toJSON(true);
 
+	// Assert
 	ASSERT_EQ(string::npos, strJSONFalse.find("order"));
 	ASSERT_EQ(string::npos, strJSONFalse.find("readonly"));
 

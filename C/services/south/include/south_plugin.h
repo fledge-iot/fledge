@@ -36,7 +36,7 @@ public:
 
 	Reading		poll();
 	void		start();
-	void		reconfigure(std::string&);
+	void		reconfigure(const std::string&);
 	void		shutdown();
 	void		registerIngest(INGEST_CB, void *);
 	bool		isAsync() { return info->options & SP_ASYNC; };
@@ -49,7 +49,7 @@ private:
 	void		(*pluginStartPtr)(PLUGIN_HANDLE);
 	Reading		(*pluginPollPtr)(PLUGIN_HANDLE);
 	void		(*pluginReconfigurePtr)(PLUGIN_HANDLE,
-						std::string& newConfig);
+					        const std::string& newConfig);
 	void		(*pluginShutdownPtr)(PLUGIN_HANDLE);
 	void		(*pluginRegisterPtr)(PLUGIN_HANDLE, INGEST_CB, void *);
 	std::string	(*pluginShutdownDataPtr)(const PLUGIN_HANDLE);

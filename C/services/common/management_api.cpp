@@ -8,11 +8,14 @@
  * Author: Mark Riddoch
  */
 #include <management_api.h>
+#include <config_handler.h>
+#include <rapidjson/document.h>
 #include <logger.h>
 #include <time.h>
 #include <sstream>
 
 using namespace std;
+using namespace rapidjson;
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 
 ManagementApi *ManagementApi::m_instance = 0;
@@ -150,8 +153,12 @@ void ManagementApi::configChange(shared_ptr<HttpServer::Response> response, shar
 {
 ostringstream convert;
 string responsePayload;
+string	category, items, payload;
 
-	(void)request;	// Unsused argument
+	payload = request->content.string();
+	ConfigCategoryChange	conf(payload);
+	ConfigHandler	*handler = ConfigHandler::getInstance(NULL);
+	handler->configChange(conf.getName(), conf.itemsToJSON());
 	convert << "{ \"message\" ; \"Config change accepted\" }";
 	responsePayload = convert.str();
 	respond(response, responsePayload);

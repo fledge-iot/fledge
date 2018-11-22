@@ -14,6 +14,7 @@ from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.audit_logger import AuditLogger
 from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA
+from foglamp.common import logger
 
 __author__ = "Amarendra K. Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -34,7 +35,7 @@ _help = """
 """
 
 script_dir = _FOGLAMP_DATA + '/scripts/' if _FOGLAMP_DATA else _FOGLAMP_ROOT + "/data/scripts/"
-
+_logger = logger.setup(__name__)
 
 #################################
 #  Configuration Manager
@@ -95,10 +96,11 @@ async def get_category(request):
 
     for k, v in category.items():
         if v['type'] == 'script':
-            # FIXME: To avoid Non-hexadecimal digit found in a better way
+            # FIXME: To handle Non-hexadecimal digit found in a better way
             try:
                 category[k]["value"] = binascii.unhexlify(v['value'].encode('utf-8')).decode("utf-8")
-            except Exception:
+            except Exception as e:
+                _logger.exception("Non-hexadecimal digit found for config item: {} | {}".format(category[k], str(e)))
                 pass
 
             if cf_mgr._cacheManager.cache[category_name]['value'][k]:
@@ -198,10 +200,11 @@ async def get_category_item(request):
         raise web.HTTPNotFound(reason="No such Category item found for {}".format(config_item))
     try:
         if category_item['type'] == 'script':
-            # FIXME: To avoid Non-hexadecimal digit found in a better way
+            # FIXME: To handle Non-hexadecimal digit found in a better way
             try:
                 category_item['value'] = binascii.unhexlify(category_item['value'].encode('utf-8')).decode("utf-8")
-            except Exception:
+            except Exception as e:
+                _logger.exception("Non-hexadecimal digit found for config item: {} | {}".format(config_item, str(e)))
                 pass
 
             if cf_mgr._cacheManager.cache[category_name]['value'][config_item]:

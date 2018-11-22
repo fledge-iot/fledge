@@ -32,7 +32,7 @@ SouthPlugin::SouthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category) :
 				manager->resolveSymbol(handle, "plugin_start");
   	pluginPollPtr = (Reading (*)(PLUGIN_HANDLE))
 				manager->resolveSymbol(handle, "plugin_poll");
-  	pluginReconfigurePtr = (void (*)(PLUGIN_HANDLE, std::string&))
+  	pluginReconfigurePtr = (void (*)(PLUGIN_HANDLE, const std::string&))
 				manager->resolveSymbol(handle, "plugin_reconfigure");
   	pluginShutdownPtr = (void (*)(PLUGIN_HANDLE))
 				manager->resolveSymbol(handle, "plugin_shutdown");
@@ -68,7 +68,7 @@ Reading SouthPlugin::poll()
 /**
  * Call the reconfigure method in the plugin
  */
-void SouthPlugin::reconfigure(string& newConfig)
+void SouthPlugin::reconfigure(const string& newConfig)
 {
 	return this->pluginReconfigurePtr(instance, newConfig);
 }

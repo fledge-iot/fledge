@@ -22,6 +22,7 @@ from foglamp.services.core.api import asset_tracker
 from foglamp.services.core.api import south
 from foglamp.services.core.api import north
 from foglamp.services.core.api import filters
+from foglamp.services.core.api import notification
 
 
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto"
@@ -157,6 +158,14 @@ def setup(app):
     # Filters 
     app.router.add_route('POST', '/foglamp/filter', filters.create_filter)
     app.router.add_route('PUT', '/foglamp/filter/{service_name}/pipeline', filters.add_filters_pipeline)
+
+    # Notification
+    app.router.add_route('GET', '/foglamp/notification', notification.get_notifications)
+    app.router.add_route('GET', '/foglamp/notification/plugin', notification.get_plugin)
+    app.router.add_route('GET', '/foglamp/notification/{notification_name}', notification.get_notification)
+    app.router.add_route('POST', '/foglamp/notification', notification.post_notification)
+    app.router.add_route('PUT', '/foglamp/notification/{notification_name}', notification.put_notification)
+    app.router.add_route('DELETE', '/foglamp/notification/{notification_name}', notification.delete_notification)
 
     # enable cors support
     enable_cors(app)

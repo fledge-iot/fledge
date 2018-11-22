@@ -624,7 +624,8 @@ INSERT INTO foglamp.log_codes ( code, description )
             ( 'NHDWN', 'North Destination Unavailable' ),
             ( 'NHAVL', 'North Destination Available' ),
             ( 'UPEXC', 'Update Complete' ),
-            ( 'BKEXC', 'Backup Complete' );
+            ( 'BKEXC', 'Backup Complete' ),
+            ( 'NTFDL', 'Notification Deleted' );
 
 
 --

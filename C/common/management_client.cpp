@@ -233,7 +233,7 @@ ostringstream convert;
 	if (m_uuid == 0)
 	{
 		// Not registered with core
-		m_logger->error("Storage service is not registered with the core - not registering configuration interest");
+		m_logger->error("Service is not registered with the core - not registering configuration interest");
 		return true;
 	}
 	try {

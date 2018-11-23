@@ -11,6 +11,7 @@
 #include <sys/timerfd.h>
 #include <time.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <south_service.h>
 #include <management_api.h>
 #include <storage_client.h>
@@ -48,7 +49,7 @@ string	       myName = SERVICE_NAME;
 		}
 		else if (!strncmp(argv[i], "--port=", 7))
 		{
-			corePort = (unsigned short)atoi(&argv[i][7]);
+			corePort = (unsigned short)strtol(&argv[i][7], NULL, 10);
 		}
 		else if (!strncmp(argv[i], "--name=", 7))
 		{
@@ -187,9 +188,9 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		std::string pluginName;
 		try {
 			if (m_configAdvanced.itemExists("bufferThreshold"))
-				threshold = (unsigned int)atoi(m_configAdvanced.getValue("bufferThreshold").c_str());
+				threshold = (unsigned int)strtol(m_configAdvanced.getValue("bufferThreshold").c_str(), NULL, 10);
 			if (m_configAdvanced.itemExists("maxSendLatency"))
-				timeout = (unsigned long)atoi(m_configAdvanced.getValue("maxSendLatency").c_str());
+				timeout = (unsigned long)strtol(m_configAdvanced.getValue("maxSendLatency").c_str(), NULL, 10);
 			if (m_config.itemExists("plugin"))
 				pluginName = m_config.getValue("plugin");
 		} catch (ConfigItemNotFound e) {
@@ -204,7 +205,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		try {
 			m_readingsPerSec = 1;
 			if (m_configAdvanced.itemExists("readingsPerSec"))
-				m_readingsPerSec = (unsigned long)atoi(m_configAdvanced.getValue("readingsPerSec").c_str());
+				m_readingsPerSec = (unsigned long)strtol(m_configAdvanced.getValue("readingsPerSec").c_str(), NULL, 10);
 		} catch (ConfigItemNotFound e) {
 			logger->info("Defaulting to inline default for poll interval");
 		}
@@ -431,17 +432,17 @@ void SouthService::configChange(const string& categoryName, const string& catego
 	{
 		m_configAdvanced = ConfigCategory(m_name+"Advanced", category);
 		try {
-			m_readingsPerSec = (unsigned long)atoi(m_configAdvanced.getValue("readingsPerSec").c_str());
+			m_readingsPerSec = (unsigned long)strtol(m_configAdvanced.getValue("readingsPerSec").c_str(), NULL, 10);
 		} catch (ConfigItemNotFound e) {
 			logger->error("Failed to update poll interval following configuration change");
 		}
 		if (m_configAdvanced.itemExists("bufferThreshold"))
 		{
-			m_ingest->setThreshold((unsigned int)atoi(m_configAdvanced.getValue("bufferThreshold").c_str()));
+			m_ingest->setThreshold((unsigned int)strtol(m_configAdvanced.getValue("bufferThreshold").c_str(), NULL, 10));
 		}
 		if (m_configAdvanced.itemExists("maxSendLatency"))
 		{
-			m_ingest->setTimeout((unsigned long)atoi(m_configAdvanced.getValue("maxSendLatency").c_str()));
+			m_ingest->setTimeout((unsigned long)strtol(m_configAdvanced.getValue("maxSendLatency").c_str(), NULL, 10));
 		}
 	}
 }

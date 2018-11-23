@@ -75,6 +75,14 @@ ConfigHandler::registerCategory(ServiceHandler *handler, const string& category)
 		{
 			m_logger->error("Failed to register configuration category %s", category.c_str());
 		}
+		else
+		{
+			 m_logger->info("Interest in %s registered", category.c_str());
+		}
+	}
+	else
+	{
+		m_logger->info("Interest in %s already registered", category.c_str());
 	}
 	m_registrations.insert(pair<string, ServiceHandler *>(category, handler));
 }

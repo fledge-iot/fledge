@@ -426,6 +426,71 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             err_response = ex.error
             raise ValueError(err_response)
 
+    async def update_configuration_item_bulk(self, category_name, config_item_list):
+        """ Bulk update config items
+
+        Args:
+            category_name: category name
+            config_item_list: dict containing config item values
+
+        Returns:
+            None
+        """
+
+        try:
+            payload = {"updates": []}
+            audit_details = {'category': category_name, 'items': {}}
+            for item_name, new_val in config_item_list.items():
+                if not isinstance(new_val, str):
+                    raise TypeError('new value should be of string type')
+
+                cat_item = await self._read_item_val(category_name, item_name)
+                if cat_item is None:
+                    raise KeyError('{} config item not found'.format(item_name))
+                # Special case for enumeration field type handling
+                if cat_item['type'] == 'enumeration':
+                    if new_val == '':
+                        raise ValueError('entry_val cannot be empty')
+                    if new_val not in cat_item['options']:
+                        raise ValueError('new value does not exist in options enum')
+                else:
+                    if self._validate_type_value(cat_item['type'], new_val) is False:
+                        raise TypeError('Unrecognized value name for item_name {}'.format(item_name))
+
+                old_value = cat_item['value']
+                new_val = self._clean(cat_item['type'], new_val)
+                payload_item = PayloadBuilder().SELECT("key", "description", "ts", "value") \
+                    .JSON_PROPERTY(("value", [item_name, "value"], new_val)) \
+                    .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")) \
+                    .WHERE(["key", "=", category_name]).payload()
+                payload['updates'].append(json.loads(payload_item))
+                audit_details['items'].update({item_name: {'oldValue': old_value, 'newValue': new_val}})
+
+            await self._storage.update_tbl("configuration", json.dumps(payload))
+            # CONCH audit entry
+            audit = AuditLogger(self._storage)
+            await audit.information('CONCH', audit_details)
+
+            # Category config items cache updated
+            for item_name, new_val in config_item_list.items():
+                # always get value from storage
+                cat_item = await self._read_item_val(category_name, item_name)
+                if category_name in self._cacheManager.cache:
+                    if item_name in self._cacheManager.cache[category_name]['value']:
+                        self._cacheManager.cache[category_name]['value'][item_name]['value'] = cat_item['value']
+                    else:
+                        self._cacheManager.cache[category_name]['value'].update({item_name: cat_item['value']})
+
+        except Exception as ex:
+            _logger.exception('Unable to bulk update config items %s', str(ex))
+            raise
+        try:
+            await self._run_callbacks(category_name)
+        except:
+            _logger.exception(
+                'Unable to run callbacks for category_name %s', category_name)
+            raise
+
     async def _update_category(self, category_name, category_val, category_description, display_name=None):
         try:
             display_name = category_name if display_name is None else display_name

@@ -165,9 +165,29 @@ def mock_get_url(get_url):
     if get_url.endswith("/plugin"):
         return json.dumps({'rules': rule_config, 'delivery': delivery_config})
     if get_url.endswith("/foglamp/notification"):
-        pass
-    if get_url.endswith("/foglamp/notification/Test Notification"):
-        pass
+        return json.dumps(notification_config)
+    if get_url.endswith("/foglamp/notification/TestNotification"):
+        notif = {
+            "name": notification_config['name']['value'],
+            "description": notification_config['description']['value'],
+            "rule": notification_config['rule']['value'],
+            "ruleConfig": rule_config[notification_config['rule']['value']],
+            "channel": notification_config['channel']['value'],
+            "deliveryConfig": delivery_config[notification_config['channel']['value']],
+            "notificationType": notification_config['notification_type']['value'],
+            "enable": notification_config['enable']['value'],
+        }
+        return json.dumps(notif)
+
+
+@asyncio.coroutine
+def mock_post_url(post_url):
+    if post_url.endswith("/foglamp/notification/TestNotification"):
+        return json.dumps({"result": "OK"})
+    if post_url.endswith("/foglamp/notification/TestNotification/rule/threshold"):
+        return json.dumps({"result": "OK"})
+    if post_url.endswith("/foglamp/notification/TestNotification/delivery/email"):
+        return json.dumps({"result": "OK"})
 
 
 @asyncio.coroutine
@@ -186,20 +206,6 @@ def mock_read_all_child_category_names():
         "parent": "Notifications",
         "child": "TestNotification",
     }]
-
-
-@asyncio.coroutine
-def mock_post_url(post_url):
-    if post_url.endswith("/foglamp/notification/rules"):
-        return json.dumps(rule_config)
-    if post_url.endswith("/foglamp/notification/delivery"):
-        return json.dumps(delivery_config)
-    if post_url.endswith("/plugin"):
-        return json.dumps({'rules': rule_config, 'delivery': delivery_config})
-    if post_url.endswith("/foglamp/notification"):
-        pass
-    if post_url.endswith("/foglamp/notification/Test Notification"):
-        pass
 
 
 @pytest.allure.feature("unit")
@@ -267,3 +273,15 @@ class TestNotification:
         result = await resp.text()
         json_response = json.loads(result)
         assert notifications == json_response["notifications"]
+
+    @pytest.mark.skip(reason="Not Implemented")
+    async def test_post_notification(self, mocker, client):
+        pass
+
+    @pytest.mark.skip(reason="Not Implemented")
+    async def test_put_notification(self, mocker, client):
+        pass
+
+    @pytest.mark.skip(reason="Not Implemented")
+    async def test_delete_notification(self, mocker, client):
+        pass

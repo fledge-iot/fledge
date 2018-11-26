@@ -467,12 +467,16 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 old_value = cat_info[item_name]['value']
                 new_val = self._clean(cat_info[item_name]['type'], new_val)
 
-                payload_item = PayloadBuilder().SELECT("key", "description", "ts", "value") \
-                    .JSON_PROPERTY(("value", [item_name, "value"], new_val)) \
-                    .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")) \
-                    .WHERE(["key", "=", category_name]).payload()
-                payload['updates'].append(json.loads(payload_item))
-                audit_details['items'].update({item_name: {'oldValue': old_value, 'newValue': new_val}})
+                if old_value != new_val:
+                    payload_item = PayloadBuilder().SELECT("key", "description", "ts", "value") \
+                        .JSON_PROPERTY(("value", [item_name, "value"], new_val)) \
+                        .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")) \
+                        .WHERE(["key", "=", category_name]).payload()
+                    payload['updates'].append(json.loads(payload_item))
+                    audit_details['items'].update({item_name: {'oldValue': old_value, 'newValue': new_val}})
+
+            if not payload['updates']:
+                return
 
             await self._storage.update_tbl("configuration", json.dumps(payload))
 

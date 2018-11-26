@@ -150,7 +150,7 @@ async def post_notification(request):
         rule_config = data.get('rule_config', {})
         delivery_config = data.get('delivery_config', {})
 
-        if name is None:
+        if name is None or name.strip() == "":
             raise ValueError('Missing name property in payload.')
         if description is None:
             raise ValueError('Missing description property in payload.')
@@ -191,7 +191,7 @@ async def post_notification(request):
         post_url = 'http://{}:{}/foglamp/notification/{}/rule/{}'.format(_address, _port, urllib.parse.quote(name), urllib.parse.quote(rule))
         await _hit_post_url(post_url)  # Create Notification rule template
         post_url = 'http://{}:{}/foglamp/notification/{}/delivery/{}'.format(_address, _port, urllib.parse.quote(name), urllib.parse.quote(channel))
-        await _hit_post_url(post_url)  # Create Notification delivery template
+        tt = await _hit_post_url(post_url)  # Create Notification delivery template
 
         # Create configurations
         storage = connect.get_storage_async()
@@ -383,6 +383,7 @@ async def delete_notification(request):
         # Removes the child categories for the rule and delivery plugins, Removes the category for the notification itself
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
+
         await _delete_configuration(storage, config_mgr, notif)
 
         audit = AuditLogger(storage)
@@ -392,7 +393,7 @@ async def delete_notification(request):
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=str(ex))
     else:
-        return web.json_response({'result': 'notification {} deleted successfully.'.format(notif)})
+        return web.json_response({'result': 'Notification {} deleted successfully.'.format(notif)})
 
 
 async def _hit_get_url(get_url):

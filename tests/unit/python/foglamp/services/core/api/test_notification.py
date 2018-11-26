@@ -6,32 +6,24 @@
 
 
 import asyncio
-import json
-from unittest.mock import MagicMock, patch, call
-from datetime import timedelta, datetime
 import uuid
 import pytest
 import json
-import aiohttp
 from aiohttp import web
-import sys
-import os
-import time
-import copy
+from unittest.mock import MagicMock, call
 
 from foglamp.services.core import routes
 from foglamp.services.core import connect
-from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.common.service_record import ServiceRecord
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
-from foglamp.common.audit_logger import AuditLogger
 from foglamp.services.core.api import notification
+from foglamp.common.audit_logger import AuditLogger
 
 
 __author__ = "Amarendra K Sinha"
-__copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
+__copyright__ = "Copyright (c) 2017 Dianomic Systems"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
@@ -114,7 +106,7 @@ delivery_config = {"email": {
     }
 }
 
-NOTIFICATION_TYPE = ["one shot", "retriggered", "toggled"]
+NOTIFICATION_TYPE = notification.NOTIFICATION_TYPE
 notification_config = {
     "name": {
         "description": "The name of this notification",
@@ -198,7 +190,7 @@ def mock_read_category_val(key):
         return delivery_config[notification_config['channel']['value']]
     if key.endswith("TestNotification"):
         return notification_config
-
+    return ""
 
 @asyncio.coroutine
 def mock_read_all_child_category_names():
@@ -206,6 +198,21 @@ def mock_read_all_child_category_names():
         "parent": "Notifications",
         "child": "TestNotification",
     }]
+
+
+@asyncio.coroutine
+def mock_create_category():
+    return ""
+
+
+@asyncio.coroutine
+def mock_update_category():
+    return ""
+
+
+@asyncio.coroutine
+def mock_create_child_category():
+    return ""
 
 
 @pytest.allure.feature("unit")
@@ -274,14 +281,237 @@ class TestNotification:
         json_response = json.loads(result)
         assert notifications == json_response["notifications"]
 
-    @pytest.mark.skip(reason="Not Implemented")
     async def test_post_notification(self, mocker, client):
-        pass
+        mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
+        mocker.patch.object(notification, '_hit_get_url', return_value=mock_get_url("/foglamp/notification/plugin"))
+        mocker.patch.object(notification, '_hit_post_url', side_effect=[mock_post_url("/foglamp/notification/TestNotification"),
+                                                                        mock_post_url("/foglamp/notification/TestNotification/rule/threshold"),
+                                                                        mock_post_url("/foglamp/notification/TestNotification/delivery/email")])
+        mocker.patch.object(connect, 'get_storage_async')
+        mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
+        create_category = mocker.patch.object(ConfigurationManager, 'create_category', return_value=mock_create_category())
+        create_child_category = mocker.patch.object(ConfigurationManager, 'create_child_category', return_value=mock_create_child_category())
+        mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val())
+        mock_payload = '{"name": "TestNotification", "description":"TestNotification", "rule": "threshold", "channel": "email", "notification_type": "one shot", "enabled": false}'
 
-    @pytest.mark.skip(reason="Not Implemented")
+        resp = await client.post("/foglamp/notification", data=mock_payload)
+        assert 200 == resp.status
+        result = await resp.json()
+        assert result['result'].endswith("Notification {} created successfully".format("TestNotification"))
+
+        create_category_calls = [call(category_description='TestNotification', category_name='TestNotification', category_value={'rule': {'default': 'threshold', 'type': 'string', 'description': 'Rule to evaluate'}, 'channel': {'default': 'email', 'type': 'string', 'description': 'Channel to send alert on'}, 'enable': {'default': 'false', 'type': 'boolean', 'description': 'Enabled'}, 'notification_type': {'default': 'one shot', 'options': ['one shot', 'retriggered', 'toggled'], 'type': 'enumeration', 'description': 'Type of notification'}, 'name': {'default': 'TestNotification', 'type': 'string', 'description': 'The name of this notification'}, 'description': {'default': 'TestNotification', 'type': 'string', 'description': 'Description of this notification'}}, keep_original_items=True),
+                                 call('Notifications', {}, 'Notifications', True),
+                                 call(category_description='The accepted tolerance', category_name='ruleTestNotification', category_value={'tolerance': {'default': '4', 'type': 'integer', 'value': '4', 'description': 'The accepted tolerance'}, 'trigger': {'default': '40', 'type': 'integer', 'value': '40', 'description': 'Temparature threshold value'}, 'plugin': {'default': 'threshold', 'type': 'string', 'value': 'threshold', 'description': 'The accepted tolerance'}, 'window': {'default': '60', 'type': 'integer', 'value': '60', 'description': 'The window to perform rule evaluation over in minutes'}, 'asset': {'default': 'temperature', 'type': 'string', 'value': 'temperature', 'description': 'The asset the notification is defined against'}}, keep_original_items=True),
+                                 call(category_description='Email', category_name='deliveryTestNotification', category_value={'to': {'default': 'test', 'type': 'string', 'value': 'test', 'description': 'The address to send the notification to'}, 'from': {'default': 'foglamp', 'type': 'string', 'value': 'foglamp', 'description': 'The from address to use in the email'}, 'server': {'default': 'smtp', 'type': 'string', 'value': 'smtp', 'description': 'The smtp server'}, 'plugin': {'default': 'email', 'type': 'string', 'value': 'email', 'description': 'Email'}}, keep_original_items=True)]
+        create_category.assert_has_calls(create_category_calls, any_order=True)
+        create_child_category_calls =  [call('Notifications', ['TestNotification']),
+                                        call('TestNotification', ['ruleTestNotification']),
+                                        call('TestNotification', ['deliveryTestNotification'])]
+        create_child_category.assert_has_calls(create_child_category_calls, any_order=True)
+
+    async def test_post_notification_exception(self, mocker, client):
+        mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
+        mocker.patch.object(notification, '_hit_get_url', return_value=mock_get_url("/foglamp/notification/plugin"))
+        mocker.patch.object(notification, '_hit_post_url', side_effect=[mock_post_url("/foglamp/notification/TestNotification"),
+                                                                        mock_post_url("/foglamp/notification/TestNotification/rule/threshold"),
+                                                                        mock_post_url("/foglamp/notification/TestNotification/delivery/email")])
+        mocker.patch.object(connect, 'get_storage_async')
+        mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
+        create_category = mocker.patch.object(ConfigurationManager, 'create_category', return_value=mock_create_category())
+        create_child_category = mocker.patch.object(ConfigurationManager, 'create_child_category', return_value=mock_create_child_category())
+        mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val())
+
+        mock_payload = '{"description":"TestNotification", "rule": "threshold", "channel": "email", "notification_type": "one shot", "enabled": false}'
+        resp = await client.post("/foglamp/notification", data=mock_payload)
+        assert 400 == resp.status
+        result = await resp.text()
+        assert result.endswith('Missing name property in payload.')
+
+        mock_payload = '{"name": "", "description":"TestNotification", "rule": "threshold", "channel": "email", "notification_type": "one shot", "enabled": false}'
+        resp = await client.post("/foglamp/notification", data=mock_payload)
+        assert 400 == resp.status
+        result = await resp.text()
+        assert result.endswith('Missing name property in payload.')
+
+        mock_payload = '{"name": "TestNotification", "rule": "threshold", "channel": "email", "notification_type": "one shot", "enabled": false}'
+        resp = await client.post("/foglamp/notification", data=mock_payload)
+        assert 400 == resp.status
+        result = await resp.text()
+        assert result.endswith('Missing description property in payload.')
+
+        mock_payload = '{"name": "TestNotification", "description":"TestNotification", "channel": "email", "notification_type": "one shot", "enabled": false}'
+        resp = await client.post("/foglamp/notification", data=mock_payload)
+        assert 400 == resp.status
+        result = await resp.text()
+        assert result.endswith('Missing rule property in payload.')
+
+        mock_payload = '{"name": "TestNotification", "description":"TestNotification", "rule": "threshold", "notification_type": "one shot", "enabled": false}'
+        resp = await client.post("/foglamp/notification", data=mock_payload)
+        assert 400 == resp.status
+        result = await resp.text()
+        assert result.endswith('Missing channel property in payload.')
+
+        mock_payload = '{"name": "TestNotification", "description":"TestNotification", "rule": "threshold", "channel": "email", "enabled": false}'
+        resp = await client.post("/foglamp/notification", data=mock_payload)
+        assert 400 == resp.status
+        result = await resp.text()
+        assert result.endswith('Missing notification_type property in payload.')
+
+        mock_payload = '{"name": ";", "description":"TestNotification", "rule": "threshold", "channel": "email", "notification_type": "one shot", "enabled": false}'
+        resp = await client.post("/foglamp/notification", data=mock_payload)
+        assert 400 == resp.status
+        result = await resp.text()
+        assert result.endswith('Invalid name property in payload.')
+
+        mock_payload = '{"name": "TestNotification", "description":"TestNotification", "rule": ";", "channel": "email", "notification_type": "one shot", "enabled": false}'
+        resp = await client.post("/foglamp/notification", data=mock_payload)
+        assert 400 == resp.status
+        result = await resp.text()
+        assert result.endswith('Invalid rule property in payload.')
+
+        mock_payload = '{"name": "TestNotification", "description":"TestNotification", "rule": "threshold", "channel": ";", "notification_type": "one shot", "enabled": false}'
+        resp = await client.post("/foglamp/notification", data=mock_payload)
+        assert 400 == resp.status
+        result = await resp.text()
+        assert result.endswith('Invalid channel property in payload.')
+
+        mock_payload = '{"name": "TestNotification", "description":"TestNotification", "rule": "threshold", "channel": "email", "notification_type": ";", "enabled": false}'
+        resp = await client.post("/foglamp/notification", data=mock_payload)
+        assert 400 == resp.status
+        result = await resp.text()
+        assert result.endswith('Invalid notification_type property in payload.')
+
+        mock_payload = '{"name": "TestNotification", "description":"TestNotification", "rule": "threshold", "channel": "email", "notification_type": "one shot", "enabled": fals}'
+        resp = await client.post("/foglamp/notification", data=mock_payload)
+        assert 400 == resp.status
+        result = await resp.text()
+        assert result.endswith('Expecting value: line 1 column 149 (char 148)')
+
+        mock_payload = '{"name": "TestNotification", "description":"TestNotification", "rule": "threshol", "channel": "emai", "notification_type": "one shot", "enabled": false}'
+        resp = await client.post("/foglamp/notification", data=mock_payload)
+        assert 400 == resp.status
+        result = await resp.text()
+        assert result.endswith("Invalid rule plugin:[{}] and/or delivery plugin:[{}] supplied.".format("threshol", "emai"))
+
     async def test_put_notification(self, mocker, client):
-        pass
+        mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
+        mocker.patch.object(notification, '_hit_get_url', return_value=mock_get_url("/foglamp/notification/plugin"))
+        mocker.patch.object(connect, 'get_storage_async')
+        mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
+        create_category = mocker.patch.object(ConfigurationManager, 'create_category', return_value=mock_create_category())
+        update_category = mocker.patch.object(ConfigurationManager, '_update_category', return_value=mock_update_category())
+        mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val("TestNotification"))
+        mock_payload = '{"name": "TestNotification", "description":"TestNotification", "rule": "threshold", "channel": "sms", "notification_type": "one shot", "enabled": false, ' \
+                       '"rule_config": {"plugin": {"value": "threshold", "default": "threshold", "description": "Updated description", "type": "string"}, "asset": {"value": "temperature", "default": "temperature", "description": "The asset the notification is defined against", "type": "string"}, "trigger": {"value": "70", "default": "70", "description": "Temparature threshold value", "type": "integer"}, "window": {"value": "60", "default": "60", "description": "The window to perform rule evaluation over in minutes", "type": "integer"}, "tolerance": {"value": "4", "default": "4", "description": "The accepted tolerance", "type": "integer"}}, ' \
+                       '"delivery_config": {"plugin": {"value": "sms", "default": "sms", "description": "SMS", "type": "string"}, "number": {"value": "07812 343830", "default": "07812 343830", "description": "The phone number to call", "type": "string"}} }'
 
-    @pytest.mark.skip(reason="Not Implemented")
+        resp = await client.put("/foglamp/notification/TestNotification", data=mock_payload)
+        assert 200 == resp.status
+        result = await resp.json()
+        assert result['result'].endswith("Notification {} updated successfully".format("TestNotification"))
+
+        create_category_calls =  [call(category_description='TestNotification', category_name='TestNotification', category_value={'description': {'description': 'Description of this notification', 'type': 'string', 'default': 'TestNotification'}, 'channel': {'description': 'Channel to send alert on', 'type': 'string', 'default': 'sms'}, 'rule': {'description': 'Rule to evaluate', 'type': 'string', 'default': 'threshold'}, 'enable': {'description': 'Enabled', 'type': 'boolean', 'default': 'false'}, 'notification_type': {'options': ['one shot', 'retriggered', 'toggled'], 'description': 'Type of notification', 'type': 'enumeration', 'default': 'one shot'}, 'name': {'description': 'The name of this notification', 'type': 'string', 'default': 'TestNotification'}}, keep_original_items=True)]
+        create_category.assert_has_calls(create_category_calls, any_order=True)
+        update_category_calls =  [call(category_description='Updated description', category_name='ruleTestNotification', category_val={'asset': {'type': 'string', 'description': 'The asset the notification is defined against', 'default': 'temperature', 'value': 'temperature'}, 'plugin': {'type': 'string', 'description': 'Updated description', 'default': 'threshold', 'value': 'threshold'}, 'trigger': {'type': 'integer', 'description': 'Temparature threshold value', 'default': '70', 'value': '70'}, 'window': {'type': 'integer', 'description': 'The window to perform rule evaluation over in minutes', 'default': '60', 'value': '60'}, 'tolerance': {'type': 'integer', 'description': 'The accepted tolerance', 'default': '4', 'value': '4'}}),
+                                  call(category_description='SMS', category_name='deliveryTestNotification', category_val={'plugin': {'type': 'string', 'description': 'SMS', 'default': 'sms', 'value': 'sms'}, 'number': {'type': 'string', 'description': 'The phone number to call', 'default': '07812 343830', 'value': '07812 343830'}})]
+        update_category.assert_has_calls(update_category_calls, any_order=True)
+
+    async def test_put_notification_exception(self, mocker, client):
+        mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
+        mocker.patch.object(notification, '_hit_get_url', return_value=mock_get_url("/foglamp/notification/plugin"))
+        mocker.patch.object(connect, 'get_storage_async')
+        mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
+        create_category = mocker.patch.object(ConfigurationManager, 'create_category', return_value=mock_create_category())
+        update_category = mocker.patch.object(ConfigurationManager, '_update_category', return_value=mock_update_category())
+        mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val("TestNotification"))
+
+        mock_payload = '{"name": "TestNotification", "description":"TestNotification", "rule": "threshold", "channel": "email", "notification_type": "one shot", "enabled": false, ' \
+                       '"rule_config": {"plugin": {"value": "threshold", "default": "threshold", "description": "Updated description", "type": "string"}, "asset": {"value": "temperature", "default": "temperature", "description": "The asset the notification is defined against", "type": "string"}, "trigger": {"value": "70", "default": "70", "description": "Temparature threshold value", "type": "integer"}, "window": {"value": "60", "default": "60", "description": "The window to perform rule evaluation over in minutes", "type": "integer"}, "tolerance": {"value": "4", "default": "4", "description": "The accepted tolerance", "type": "integer"}}, ' \
+                       '"delivery_config": {"plugin": {"value": "sms", "default": "sms", "description": "SMS", "type": "string"}, "number": {"value": "07812 343830", "default": "07812 343830", "description": "The phone number to call", "type": "string"}} }'
+        resp = await client.put("/foglamp/notification", data=mock_payload)
+        assert 405 == resp.status
+        result = await resp.text()
+        assert result.endswith(" Method Not Allowed")
+
+        mock_payload = '{"name": "TestNotification", "description":"TestNotification", "rule": ";", "channel": "email", "notification_type": "one shot", "enabled": false, ' \
+                       '"rule_config": {"plugin": {"value": "threshold", "default": "threshold", "description": "Updated description", "type": "string"}, "asset": {"value": "temperature", "default": "temperature", "description": "The asset the notification is defined against", "type": "string"}, "trigger": {"value": "70", "default": "70", "description": "Temparature threshold value", "type": "integer"}, "window": {"value": "60", "default": "60", "description": "The window to perform rule evaluation over in minutes", "type": "integer"}, "tolerance": {"value": "4", "default": "4", "description": "The accepted tolerance", "type": "integer"}}, ' \
+                       '"delivery_config": {"plugin": {"value": "sms", "default": "sms", "description": "SMS", "type": "string"}, "number": {"value": "07812 343830", "default": "07812 343830", "description": "The phone number to call", "type": "string"}} }'
+        resp = await client.put("/foglamp/notification/TestNotification", data=mock_payload)
+        assert 400 == resp.status
+        result = await resp.text()
+        assert result.endswith('Invalid rule property in payload.')
+
+        mock_payload = '{"name": "TestNotification", "description":"TestNotification", "rule": "threshold", "channel": ";", "notification_type": "one shot", "enabled": false, ' \
+                       '"rule_config": {"plugin": {"value": "threshold", "default": "threshold", "description": "Updated description", "type": "string"}, "asset": {"value": "temperature", "default": "temperature", "description": "The asset the notification is defined against", "type": "string"}, "trigger": {"value": "70", "default": "70", "description": "Temparature threshold value", "type": "integer"}, "window": {"value": "60", "default": "60", "description": "The window to perform rule evaluation over in minutes", "type": "integer"}, "tolerance": {"value": "4", "default": "4", "description": "The accepted tolerance", "type": "integer"}}, ' \
+                       '"delivery_config": {"plugin": {"value": "sms", "default": "sms", "description": "SMS", "type": "string"}, "number": {"value": "07812 343830", "default": "07812 343830", "description": "The phone number to call", "type": "string"}} }'
+        resp = await client.put("/foglamp/notification/TestNotification", data=mock_payload)
+        assert 400 == resp.status
+        result = await resp.text()
+        assert result.endswith('Invalid channel property in payload.')
+
+        mock_payload = '{"name": "TestNotification", "description":"TestNotification", "rule": "threshold", "channel": "sms", "notification_type": ";", "enabled": false, ' \
+                       '"rule_config": {"plugin": {"value": "threshold", "default": "threshold", "description": "Updated description", "type": "string"}, "asset": {"value": "temperature", "default": "temperature", "description": "The asset the notification is defined against", "type": "string"}, "trigger": {"value": "70", "default": "70", "description": "Temparature threshold value", "type": "integer"}, "window": {"value": "60", "default": "60", "description": "The window to perform rule evaluation over in minutes", "type": "integer"}, "tolerance": {"value": "4", "default": "4", "description": "The accepted tolerance", "type": "integer"}}, ' \
+                       '"delivery_config": {"plugin": {"value": "sms", "default": "sms", "description": "SMS", "type": "string"}, "number": {"value": "07812 343830", "default": "07812 343830", "description": "The phone number to call", "type": "string"}} }'
+        resp = await client.put("/foglamp/notification/TestNotification", data=mock_payload)
+        assert 400 == resp.status
+        result = await resp.text()
+        assert result.endswith('Invalid notification_type property in payload.')
+
+        mock_payload = '{"name": "TestNotification", "description":"TestNotification", "rule": "threshold", "channel": "sms", "notification_type": "one shot", "enabled": fals, ' \
+                       '"rule_config": {"plugin": {"value": "threshold", "default": "threshold", "description": "Updated description", "type": "string"}, "asset": {"value": "temperature", "default": "temperature", "description": "The asset the notification is defined against", "type": "string"}, "trigger": {"value": "70", "default": "70", "description": "Temparature threshold value", "type": "integer"}, "window": {"value": "60", "default": "60", "description": "The window to perform rule evaluation over in minutes", "type": "integer"}, "tolerance": {"value": "4", "default": "4", "description": "The accepted tolerance", "type": "integer"}}, ' \
+                       '"delivery_config": {"plugin": {"value": "sms", "default": "sms", "description": "SMS", "type": "string"}, "number": {"value": "07812 343830", "default": "07812 343830", "description": "The phone number to call", "type": "string"}} }'
+        resp = await client.put("/foglamp/notification/TestNotification", data=mock_payload)
+        assert 400 == resp.status
+        result = await resp.text()
+        assert result.endswith('Expecting value: line 1 column 147 (char 146)')
+
+        mock_payload = '{"name": "TestNotification", "description":"TestNotification", "rule": "threshol", "channel": "sm", "notification_type": "one shot", "enabled": false, ' \
+                       '"rule_config": {"plugin": {"value": "threshold", "default": "threshold", "description": "Updated description", "type": "string"}, "asset": {"value": "temperature", "default": "temperature", "description": "The asset the notification is defined against", "type": "string"}, "trigger": {"value": "70", "default": "70", "description": "Temparature threshold value", "type": "integer"}, "window": {"value": "60", "default": "60", "description": "The window to perform rule evaluation over in minutes", "type": "integer"}, "tolerance": {"value": "4", "default": "4", "description": "The accepted tolerance", "type": "integer"}}, ' \
+                       '"delivery_config": {"plugin": {"value": "sms", "default": "sms", "description": "SMS", "type": "string"}, "number": {"value": "07812 343830", "default": "07812 343830", "description": "The phone number to call", "type": "string"}} }'
+        resp = await client.put("/foglamp/notification/TestNotification", data=mock_payload)
+        assert 400 == resp.status
+        result = await resp.text()
+        assert result.endswith("Invalid rule plugin:[{}] and/or delivery plugin:[{}] supplied.".format("threshol", "sm"))
+
     async def test_delete_notification(self, mocker, client):
-        pass
+        mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
+        mocker.patch.object(notification, '_hit_get_url', return_value=mock_get_url("/foglamp/notification/plugin"))
+        mocker.patch.object(connect, 'get_storage_async')
+        mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
+        mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val("TestNotification"))
+        delete_configuration = mocker.patch.object(notification, "_delete_configuration", return_value=asyncio.sleep(.1))
+        mocker.patch.object(AuditLogger, "__init__", return_value=None)
+        audit_logger = mocker.patch.object(AuditLogger, "information", return_value=asyncio.sleep(.1))
+
+        resp = await client.delete("/foglamp/notification/TestNotification")
+        assert 200 == resp.status
+        result = await resp.json()
+        assert result['result'].endswith("Notification {} deleted successfully.".format("TestNotification"))
+        args, kwargs = delete_configuration.call_args_list[0]
+        assert "TestNotification" in args
+
+        assert 1 == audit_logger.call_count
+        audit_logger_calls =   [call('NTFDL', {'delivery': {'sms': {'plugin': {'default': 'sms', 'type': 'string', 'description': 'SMS', 'value': 'sms'}, 'number': {'default': '07812 343830', 'type': 'string', 'description': 'The phone number to call', 'value': '07812 343830'}}, 'email': {'to': {'default': 'test', 'type': 'string', 'description': 'The address to send the notification to', 'value': 'test'}, 'plugin': {'default': 'email', 'type': 'string', 'description': 'Email', 'value': 'email'}, 'server': {'default': 'smtp', 'type': 'string', 'description': 'The smtp server', 'value': 'smtp'}, 'from': {'default': 'foglamp', 'type': 'string', 'description': 'The from address to use in the email', 'value': 'foglamp'}}}, 'rules': {'threshold': {'trigger': {'default': '40', 'type': 'integer', 'description': 'Temparature threshold value', 'value': '40'}, 'window': {'default': '60', 'type': 'integer', 'description': 'The window to perform rule evaluation over in minutes', 'value': '60'}, 'asset': {'default': 'temperature', 'type': 'string', 'description': 'The asset the notification is defined against', 'value': 'temperature'}, 'tolerance': {'default': '4', 'type': 'integer', 'description': 'The accepted tolerance', 'value': '4'}, 'plugin': {'default': 'threshold', 'type': 'string', 'description': 'The accepted tolerance', 'value': 'threshold'}}}})]
+        audit_logger.assert_has_calls(audit_logger_calls, any_order=True)
+
+    async def test_delete_notification_exception(self, mocker, client):
+        mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
+        mocker.patch.object(notification, '_hit_get_url', return_value=mock_get_url("/foglamp/notification/plugin"))
+        mocker.patch.object(connect, 'get_storage_async')
+        mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
+        mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val("TestNotification"))
+        delete_configuration = mocker.patch.object(notification, "_delete_configuration", return_value=asyncio.sleep(.1))
+        mocker.patch.object(AuditLogger, "__init__", return_value=None)
+        audit_logger = mocker.patch.object(AuditLogger, "information", return_value=asyncio.sleep(.1))
+
+        resp = await client.delete("/foglamp/notification")
+        assert 405 == resp.status
+        result = await resp.text()
+        assert result.endswith(" Method Not Allowed")
+
+    async def test_registry_exception(self, mocker, client):
+        mocker.patch.object(ServiceRegistry, 'get', side_effect=service_registry_exceptions.DoesNotExist)
+        resp = await client.delete("/foglamp/notification/TestNotification")
+        assert 404 == resp.status
+        result = await resp.text()
+        assert result.endswith("No Notification service available.")

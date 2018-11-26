@@ -102,7 +102,7 @@ Installing New Plugins
 As a general rule and unless the documentation states otherwise, plugins should be installed in two ways:
 
 - When the plugin is available as **source code**, it should be installed when **FogLAMP is not running**. |br| This is the recommended method because you may want to manually move the plugin code into the right location where FogLAMP is installed, add pre-requisites and execute the REST commands necessary to start the plugin.
-- When the plugin is available as **package**, it should be installed when **FogLAMP is running**. |br| This is the required method because the package executed pre and post-installtion tasks that require FogLAMP to run. 
+- When the plugin is available as **package**, it should be installed when **FogLAMP is running**. |br| This is the required method because the package executed pre and post-installation tasks that require FogLAMP to run. 
 
 In general, FogLAMP must be restarted when a new plugin has been installed.
 

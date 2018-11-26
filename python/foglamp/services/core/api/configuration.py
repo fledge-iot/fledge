@@ -273,7 +273,7 @@ async def update_configuration_item_bulk(request):
     """ Bulk update config items
 
      :Example:
-        curl -X PUT -H "Content-Type: application/json" -d '{"config_item_key": "<some value>", "config_item2_key": "<some value>" }' http://localhost:8081/foglamp/category/{category_name}
+        curl -X PUT -H "Content-Type: application/json" -d '{"config_item_key": "<some value>", "config_item2_key": "<some value>" }' http://localhost:8081/foglamp/category/{category_name}/value
     """
     category_name = request.match_info.get('category_name', None)
     category_name = urllib.parse.unquote(category_name) if category_name is not None else None
@@ -284,7 +284,7 @@ async def update_configuration_item_bulk(request):
             return web.HTTPBadRequest(reason='Nothing to update')
         cf_mgr = ConfigurationManager(connect.get_storage_async())
         await cf_mgr.update_configuration_item_bulk(category_name, data)
-    except KeyError as ex:
+    except (NameError, KeyError) as ex:
         raise web.HTTPNotFound(reason=ex)
     except (ValueError, TypeError) as ex:
         raise web.HTTPBadRequest(reason=ex)

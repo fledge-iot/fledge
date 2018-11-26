@@ -64,8 +64,12 @@ class SendingProcess : public FogLampProcess
 					getFilters() const { return m_filters; };
 
     		unsigned long		getMemoryBufferSize() const { return m_memory_buffer_size; };
+    		void 			createConfigCategories(DefaultConfigCategory configCategory,
+    							       std::string parent_name,
+    							       std::string current_name,
+    							       std::string current_description);
 
-	// Public static methods
+    // Public static methods
 	public:
 		static void		setLoadBufferData(unsigned long index,
 							  ReadingSet* readings);

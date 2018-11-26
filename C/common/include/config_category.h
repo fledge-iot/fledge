@@ -86,8 +86,8 @@ class ConfigCategory {
 		bool				isNumber(const std::string& name) const;
 		bool				isDouble(const std::string& name) const;
 		bool				isDeprecated(const std::string& name) const;
-		std::string			toJSON() const;
-		std::string			itemsToJSON() const;
+		std::string			toJSON(const bool full=false) const;
+		std::string			itemsToJSON(const bool full=false) const;
 		ConfigCategory& 		operator=(ConfigCategory const& rhs);
 		void				setItemsValueFromDefault();
 		void				checkDefaultValuesOnly() const;
@@ -108,7 +108,7 @@ class ConfigCategory {
 					     const std::string& value);
 				CategoryItem(const CategoryItem& rhs);
 				// Return both "value" and "default" items
-				std::string	toJSON() const;
+				std::string	toJSON(const bool full=false) const;
 				// Return only "default" items
 				std::string	defaultToJSON() const;
 				std::string	escape(const std::string& str) const;

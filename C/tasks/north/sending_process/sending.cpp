@@ -26,9 +26,13 @@
 #define CONFIG_CATEGORY_DESCRIPTION "Configuration of the Sending Process"
 #define CATEGORY_OMF_TYPES_DESCRIPTION "Configuration of OMF types"
 
+// Used for the handling of the hierarchical configuration structure
+#define PARENT_CONFIGURATION_KEY "North"
+
 // Default values for the creation of a new stream,
 // the description is derived from the parameter --name
 #define NEW_STREAM_LAST_OBJECT 0
+
 
 using namespace std;
 
@@ -641,6 +645,53 @@ bool SendingProcess::createStream(int streamId)
 }
 
 /**
+ * Creates config categories and sub categories recursively, along with their parent-child relations
+ */
+void SendingProcess::createConfigCategories(DefaultConfigCategory configCategory, std::string parent_name, std::string current_name, std::string current_description)
+{
+	// Deal with registering and fetching the configuration
+	DefaultConfigCategory defConfig(configCategory);
+	defConfig.setDescription(current_description);
+
+	DefaultConfigCategory defConfigCategoryOnly(defConfig);
+	defConfigCategoryOnly.keepItemsType(ConfigCategory::ItemType::CategoryType);
+	defConfig.removeItemsType(ConfigCategory::ItemType::CategoryType);
+
+	// Create/Update category name (we pass keep_original_items=true)
+	if (! this->getManagementClient()->addCategory(defConfig, true))
+	{
+		string errMsg = string("Failure creating/updating configuration key '").append(current_name).append("'");
+
+		Logger::getLogger()->fatal(errMsg);
+		throw runtime_error(errMsg);
+	}
+
+	// Add parent-child relationship
+	vector<string> children;
+	children.push_back(current_name);
+	this->getManagementClient()->addChildCategories(parent_name, children);
+
+	// Adds sub categories to the configuration
+	bool extracted = true;
+	ConfigCategory subCategory;
+	while (extracted) {
+
+		extracted = subCategory.extractSubcategory(defConfigCategoryOnly);
+
+		if (extracted) {
+			DefaultConfigCategory defSubCategory(subCategory);
+
+			createConfigCategories(defSubCategory, current_name, subCategory.getName(), subCategory.getDescription());
+
+			// Cleans the category
+			subCategory.removeItems();
+			subCategory = ConfigCategory() ;
+		}
+	}
+
+}
+
+/**
  * Create or Update the sending process configuration
  * by accessing FogLAMP rest API service
  *
@@ -668,18 +719,16 @@ ConfigCategory SendingProcess::fetchConfiguration(const std::string& defaultConf
 				   categoryName.c_str());
 
 	ConfigCategory configuration;
-	try
-	{
+	try {
 		// Create category, with "default" values only 
 		DefaultConfigCategory category(categoryName,
 					       defaultConfig);
 		category.setDescription(CONFIG_CATEGORY_DESCRIPTION);
 
 		// Build JSON merged configuration (sendingProcess + pluginConfig
-		if (plugin_name != PLUGIN_UNDEFINED)
-		{
+		if (plugin_name != PLUGIN_UNDEFINED) {
 			// Get plugin default config via API method "plugin_info"
-			const PLUGIN_INFORMATION* info = this->m_plugin->getInfo();
+			const PLUGIN_INFORMATION *info = this->m_plugin->getInfo();
 			DefaultConfigCategory pluginInfo(categoryName,
 							 info->config);
 
@@ -687,16 +736,8 @@ ConfigCategory SendingProcess::fetchConfiguration(const std::string& defaultConf
 			category = pluginInfo;
 		}
 
-		// Create/Update configuration category categoryNamegory categoryName
-		if (!this->getManagementClient()->addCategory(category, true))
-		{
-			string errMsg("Failure creating/updating configuration key '");
-			errMsg.append(categoryName);
-			errMsg += "'";
-
-			Logger::getLogger()->fatal(errMsg.c_str());
-			throw runtime_error(errMsg);
-		}
+		// Create/Update hierarchical configuration categories
+		createConfigCategories(category, PARENT_CONFIGURATION_KEY, categoryName, CONFIG_CATEGORY_DESCRIPTION);
 
 		// Get the category with values and defaults
 		configuration = this->getManagementClient()->getCategory(categoryName);

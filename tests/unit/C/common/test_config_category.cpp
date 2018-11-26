@@ -154,6 +154,17 @@ const char *myCategory_number_and_boolean_items =  "{\"factor\": {"
 	"\"value\" : true, "
 	"\"type\" : \"boolean\"}}";
 
+
+const char *myCategory_to_json_parameters = "{"\
+		"\"memoryBufferSize\": {"
+			"\"description\": \"Number of elements of blockSize size to be buffered in memory\","
+			"\"type\": \"integer\", "
+			"\"default\": \"10\", "
+			"\"order\": \"12\" ,"
+			"\"readonly\": \"false\" "
+		"} "
+	"}";
+
 const char *json = "{ \"key\" : \"test\", \"description\" : \"Test description\", "
     "\"value\" : {"
 	"\"description\" : { "
@@ -220,6 +231,24 @@ TEST(CategoriesTest, toJSON)
 	ASSERT_EQ(2, categories.length());
 	ASSERT_EQ(0, result.compare(allCategories));
 }
+
+TEST(CategoriesTest, toJSONParameters)
+{
+	// Arrange
+	ConfigCategory category("test_toJSONParameters", myCategory_to_json_parameters);
+
+	// Act
+	string strJSONFalse = category.toJSON();
+	string strJSONTrue = category.toJSON(true);
+
+	// Assert
+	ASSERT_EQ(string::npos, strJSONFalse.find("order"));
+	ASSERT_EQ(string::npos, strJSONFalse.find("readonly"));
+
+	ASSERT_NE(string::npos, strJSONTrue.find("order"));
+	ASSERT_NE(string::npos, strJSONTrue.find("readonly"));
+}
+
 
 TEST(CategoryTest, Construct)
 {
@@ -377,4 +406,3 @@ TEST(CategoryTest, removeItemsType)
 	ASSERT_EQ(1, conf2Category.getCount());
 
 }
-

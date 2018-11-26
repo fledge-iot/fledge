@@ -280,6 +280,8 @@ async def update_configuration_item_bulk(request):
 
     try:
         data = await request.json()
+        if not data:
+            return web.HTTPBadRequest(reason='Nothing to update')
         cf_mgr = ConfigurationManager(connect.get_storage_async())
         await cf_mgr.update_configuration_item_bulk(category_name, data)
     except KeyError as ex:
@@ -288,10 +290,9 @@ async def update_configuration_item_bulk(request):
         raise web.HTTPBadRequest(reason=ex)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
-
-    result = await cf_mgr.get_category_all_items(category_name)
-
-    return web.json_response(result)
+    else:
+        result = await cf_mgr.get_category_all_items(category_name)
+        return web.json_response(result)
 
 
 async def add_configuration_item(request):

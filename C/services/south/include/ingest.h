@@ -58,6 +58,8 @@ public:
 	void 		populateAssetTrackingCache(ManagementClient *m_mgtClient);
 	bool 		checkAssetTrackingCache(AssetTrackingTuple& tuple);
 	void 		addAssetTrackingTuple(AssetTrackingTuple& tuple);
+	void		setTimeout(const unsigned long timeout) { m_timeout = timeout; };
+	void		setThreshold(const unsigned int threshold) { m_queueSizeThreshold = threshold; };
 
 public:
 	std::vector<FilterPlugin *>	m_filters;

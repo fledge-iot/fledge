@@ -12,6 +12,9 @@
 #include <time.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <signal.h>
+#include <execinfo.h>
+#include <unistd.h>
 #include <south_service.h>
 #include <management_api.h>
 #include <storage_client.h>
@@ -28,6 +31,7 @@
 #include <config_handler.h>
 
 extern int makeDaemon(void);
+extern void handler(int sig);
 
 using namespace std;
 
@@ -40,6 +44,12 @@ unsigned short corePort = 8082;
 string	       coreAddress = "localhost";
 bool	       daemonMode = true;
 string	       myName = SERVICE_NAME;
+
+	signal(SIGSEGV, handler);
+	signal(SIGILL, handler);
+	signal(SIGBUS, handler);
+	signal(SIGFPE, handler);
+	signal(SIGABRT, handler);
 
 	for (int i = 1; i < argc; i++)
 	{
@@ -106,6 +116,26 @@ pid_t pid;
 	(void)dup(0);  			// stdout	GCC bug 66425 produces warning
 	(void)dup(0);  			// stderr	GCC bug 66425 produces warning
  	return 0;
+}
+
+void handler(int sig)
+{
+Logger	*logger = Logger::getLogger();
+void	*array[20];
+int	size;
+
+	// get void*'s for all entries on the stack
+	size = backtrace(array, 20);
+
+	// print out all the frames to stderr
+	logger->fatal("Signal %d (%s) trapped:\n", sig, strsignal(sig));
+	char **messages = backtrace_symbols(array, size);
+	for (int i = 0; i < size; i++)
+	{
+		logger->fatal("(%d) %s", i, messages[i]);
+	}
+	free(messages);
+	exit(1);
 }
 
 /**

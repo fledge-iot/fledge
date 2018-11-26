@@ -9,6 +9,10 @@
  */
 #include <south_plugin.h>
 #include <config_category.h>
+#include <logger.h>
+#include <exception>
+#include <typeinfo>
+#include <stdexcept>
 
 using namespace std;
 
@@ -53,7 +57,18 @@ SouthPlugin::SouthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category) :
  */
 void SouthPlugin::start()
 {
-	return this->pluginStartPtr(instance);
+	try {
+		return this->pluginStartPtr(instance);
+	} catch (exception& e) {
+		Logger::getLogger()->fatal("Unhandled exception raised in south plugin start(), %s",
+			e.what());
+		throw;
+	} catch (...) {
+		std::exception_ptr p = std::current_exception();
+		Logger::getLogger()->fatal("Unhandled exception raised in south plugin start(), %s",
+			p ? p.__cxa_exception_type()->name() : "unknown exception");
+		throw;
+	}
 }
 
 /**
@@ -61,7 +76,18 @@ void SouthPlugin::start()
  */
 Reading SouthPlugin::poll()
 {
-	return this->pluginPollPtr(instance);
+	try {
+		return this->pluginPollPtr(instance);
+	} catch (exception& e) {
+		Logger::getLogger()->fatal("Unhandled exception raised in south plugin poll(), %s",
+			e.what());
+		throw;
+	} catch (...) {
+		std::exception_ptr p = std::current_exception();
+		Logger::getLogger()->fatal("Unhandled exception raised in south plugin poll(), %s",
+			p ? p.__cxa_exception_type()->name() : "unknown exception");
+		throw;
+	}
 }
 
 
@@ -70,7 +96,18 @@ Reading SouthPlugin::poll()
  */
 void SouthPlugin::reconfigure(const string& newConfig)
 {
-	return this->pluginReconfigurePtr(instance, newConfig);
+	try {
+		return this->pluginReconfigurePtr(instance, newConfig);
+	} catch (exception& e) {
+		Logger::getLogger()->fatal("Unhandled exception raised in south plugin reconfigure(), %s",
+			e.what());
+		throw;
+	} catch (...) {
+		std::exception_ptr p = std::current_exception();
+		Logger::getLogger()->fatal("Unhandled exception raised in south plugin reconfigure(), %s",
+			p ? p.__cxa_exception_type()->name() : "unknown exception");
+		throw;
+	}
 }
 
 /**
@@ -78,10 +115,32 @@ void SouthPlugin::reconfigure(const string& newConfig)
  */
 void SouthPlugin::shutdown()
 {
-	return this->pluginShutdownPtr(instance);
+	try {
+		return this->pluginShutdownPtr(instance);
+	} catch (exception& e) {
+		Logger::getLogger()->fatal("Unhandled exception raised in south plugin shutdown(), %s",
+			e.what());
+		throw;
+	} catch (...) {
+		std::exception_ptr p = std::current_exception();
+		Logger::getLogger()->fatal("Unhandled exception raised in south plugin shutdown(), %s",
+			p ? p.__cxa_exception_type()->name() : "unknown exception");
+		throw;
+	}
 }
 
 void SouthPlugin::registerIngest(INGEST_CB cb, void *data)
 {
-	return this->pluginRegisterPtr(instance, cb, data);
+	try {
+		return this->pluginRegisterPtr(instance, cb, data);
+	} catch (exception& e) {
+		Logger::getLogger()->fatal("Unhandled exception raised in south plugin registerIngest(), %s",
+			e.what());
+		throw;
+	} catch (...) {
+		std::exception_ptr p = std::current_exception();
+		Logger::getLogger()->fatal("Unhandled exception raised in south plugin registerIngest(), %s",
+			p ? p.__cxa_exception_type()->name() : "unknown exception");
+		throw;
+	}
 }

@@ -35,6 +35,7 @@ _help = """
 _logger = logger.setup()
 NOTIFICATION_TYPE = ["one shot", "retriggered", "toggled"]
 
+
 async def get_plugin(request):
     """ GET lists of rule plugins and delivery plugins
 
@@ -188,9 +189,11 @@ async def post_notification(request):
         # First create templates for notification and rule, channel plugins
         post_url = 'http://{}:{}/foglamp/notification/{}'.format(_address, _port, urllib.parse.quote(name))
         await _hit_post_url(post_url)  # Create Notification template
-        post_url = 'http://{}:{}/foglamp/notification/{}/rule/{}'.format(_address, _port, urllib.parse.quote(name), urllib.parse.quote(rule))
+        post_url = 'http://{}:{}/foglamp/notification/{}/rule/{}'.format(_address, _port, urllib.parse.quote(name),
+                                                                         urllib.parse.quote(rule))
         await _hit_post_url(post_url)  # Create Notification rule template
-        post_url = 'http://{}:{}/foglamp/notification/{}/delivery/{}'.format(_address, _port, urllib.parse.quote(name), urllib.parse.quote(channel))
+        post_url = 'http://{}:{}/foglamp/notification/{}/delivery/{}'.format(_address, _port, urllib.parse.quote(name),
+                                                                             urllib.parse.quote(channel))
         await _hit_post_url(post_url)  # Create Notification delivery template
 
         # Create configurations
@@ -403,7 +406,8 @@ async def _hit_get_url(get_url):
                 status_code = resp.status
                 jdoc = await resp.text()
                 if status_code not in range(200, 209):
-                    _logger.error("Error code: %d, reason: %s, details: %s, url: %s", resp.status, resp.reason, jdoc, get_url)
+                    _logger.error("Error code: %d, reason: %s, details: %s, url: %s", resp.status, resp.reason, jdoc,
+                                  get_url)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
     except Exception:
         raise
@@ -418,7 +422,8 @@ async def _hit_post_url(post_url, data=None):
                 status_code = resp.status
                 jdoc = await resp.text()
                 if status_code not in range(200, 209):
-                    _logger.error("Error code: %d, reason: %s, details: %s, url: %s", resp.status, resp.reason, jdoc, post_url)
+                    _logger.error("Error code: %d, reason: %s, details: %s, url: %s", resp.status, resp.reason, jdoc,
+                                  post_url)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
     except Exception:
         raise
@@ -493,16 +498,16 @@ async def _update_configurations(config_mgr, name, notification_config, rule_con
             category_desc = rule_config['plugin']['description']
             category_name = "rule{}".format(name)
             await config_mgr._update_category(category_name=category_name,
-                                             category_description=category_desc,
-                                             category_val=rule_config)
+                                              category_description=category_desc,
+                                              category_val=rule_config)
 
         # Replace delivery configuration
         if delivery_config != {}:
             category_desc = delivery_config['plugin']['description']
             category_name = "delivery{}".format(name)
             await config_mgr._update_category(category_name=category_name,
-                                             category_description=category_desc,
-                                             category_val=delivery_config)
+                                              category_description=category_desc,
+                                              category_val=delivery_config)
     except Exception as ex:
         _logger.exception("Failed to update notification configuration. %s", str(ex))
         raise web.HTTPInternalServerError(reason='Failed to update notification configuration.')
@@ -518,6 +523,7 @@ async def _delete_configuration(storage, config_mgr, name):
     await _delete_parent_child_configuration(storage, "Notifications", name)
     await _delete_parent_child_configuration(storage, name, "rule{}".format(name))
     await _delete_parent_child_configuration(storage, name, "delivery{}".format(name))
+
 
 async def _delete_configuration_category(storage, key):
     payload = PayloadBuilder().WHERE(['key', '=', key]).payload()

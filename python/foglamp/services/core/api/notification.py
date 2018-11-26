@@ -191,7 +191,7 @@ async def post_notification(request):
         post_url = 'http://{}:{}/foglamp/notification/{}/rule/{}'.format(_address, _port, urllib.parse.quote(name), urllib.parse.quote(rule))
         await _hit_post_url(post_url)  # Create Notification rule template
         post_url = 'http://{}:{}/foglamp/notification/{}/delivery/{}'.format(_address, _port, urllib.parse.quote(name), urllib.parse.quote(channel))
-        tt = await _hit_post_url(post_url)  # Create Notification delivery template
+        await _hit_post_url(post_url)  # Create Notification delivery template
 
         # Create configurations
         storage = connect.get_storage_async()

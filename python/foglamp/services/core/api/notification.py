@@ -88,6 +88,8 @@ async def get_notification(request):
                 "notificationType": notification_config['notification_type']['value'],
                 "enable": notification_config['enable']['value'],
             }
+        else:
+            raise ValueError("The Notification: {} does not exist.".format(notif))
     except ValueError as ex:
         raise web.HTTPBadRequest(reason=str(ex))
     except Exception as ex:

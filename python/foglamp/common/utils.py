@@ -27,7 +27,7 @@ def check_reserved(string):
     :param string: 
     :return: 
     """
-    reserved = ";" + "/" + "?" + ":" + "@" + "&" + "=" + "+" + "$" + ","
+    reserved = ";" + "/" + "?" + ":" + "@" + "&" + "=" + "+" + "$" + "," + "{" + "}"
     if string is None or not isinstance(string, str) or string == "":
         return False
     for s in string:

@@ -2255,7 +2255,10 @@ class TestConfigurationManager:
             assert payload == json.loads(args[1])
         patch_get_all_items.assert_called_once_with(category_name)
 
-    async def test_update_configuration_item_bulk_no_change(self, category_name='rest_api'):
+    @pytest.mark.parametrize("category_name", [
+       "rest_api", "S #1"
+    ])
+    async def test_update_configuration_item_bulk_no_change(self, category_name):
         async def async_mock(return_value):
             return return_value
 
@@ -2264,6 +2267,12 @@ class TestConfigurationManager:
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(c_mgr, 'get_category_all_items', return_value=async_mock(cat_info)) as patch_get_all_items:
-            result = await c_mgr.update_configuration_item_bulk(category_name, config_item_list)
-            assert result is None
+            with patch.object(c_mgr._storage, 'update_tbl') as patch_update:
+                with patch.object(AuditLogger, 'information') as patch_audit:
+                    with patch.object(ConfigurationManager, '_run_callbacks') as patch_callback:
+                        result = await c_mgr.update_configuration_item_bulk(category_name, config_item_list)
+                        assert result is None
+                    patch_callback.assert_not_called()
+                patch_audit.assert_not_called()
+            patch_update.assert_not_called()
         patch_get_all_items.assert_called_once_with(category_name)

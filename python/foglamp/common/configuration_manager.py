@@ -477,7 +477,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
             if not payload['updates']:
                 return
-
+            
             await self._storage.update_tbl("configuration", json.dumps(payload))
 
             # read the updated value from storage
@@ -496,6 +496,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         except Exception as ex:
             _logger.exception('Unable to bulk update config items %s', str(ex))
             raise
+
         try:
             await self._run_callbacks(category_name)
         except:

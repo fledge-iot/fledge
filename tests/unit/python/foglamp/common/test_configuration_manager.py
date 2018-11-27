@@ -2192,3 +2192,78 @@ class TestConfigurationManager:
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         assert c_mgr._validate_type_value(item_type, item_val) is False
+
+    @pytest.mark.parametrize("cat_info, config_item_list, exc_type, exc_msg", [
+        (None, {}, NameError, "No such Category found for testcat"),
+        ({'enableHttp': {'default': 'true', 'description': 'Enable HTTP', 'type': 'boolean', 'value': 'true'}},
+         {"blah": "12"}, KeyError, "'blah config item not found'"),
+        ({'enableHttp': {'default': 'true', 'description': 'Enable HTTP', 'type': 'boolean', 'value': 'true'}},
+         {"enableHttp": False}, TypeError, "new value should be of type string"),
+        ({'authentication': {'default': 'optional', 'options': ['mandatory', 'optional'], 'type': 'enumeration', 'description': 'API Call Authentication', 'value': 'optional'}},
+         {"authentication": ""}, ValueError, "entry_val cannot be empty"),
+        ({'authentication': {'default': 'optional', 'options': ['mandatory', 'optional'], 'type': 'enumeration', 'description': 'API Call Authentication', 'value': 'optional'}},
+         {"authentication": "false"}, ValueError, "new value does not exist in options enum"),
+        ({'authProviders': {'default': '{"providers": ["username", "ldap"] }', 'description': 'Authentication providers to use for the interface', 'type': 'JSON', 'value': '{"providers": ["username", "ldap"] }'}},
+         {"authProviders": 3}, TypeError, "new value should be a valid dict Or a string literal, in double quotes"),
+        ({'enableHttp': {'default': 'true', 'description': 'Enable HTTP', 'type': 'boolean', 'value': 'true'}},
+         {"enableHttp": "blah"}, TypeError, "Unrecognized value name for item_name enableHttp")
+    ])
+    async def test_update_configuration_item_bulk_exceptions(self, cat_info, config_item_list, exc_type, exc_msg,
+                                                             category_name='testcat'):
+        async def async_mock(return_value):
+            return return_value
+
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(c_mgr, 'get_category_all_items', return_value=async_mock(cat_info)) as patch_get_all_items:
+            with patch.object(_logger, 'exception') as patch_log_exc:
+                with pytest.raises(Exception) as exc_info:
+                    await c_mgr.update_configuration_item_bulk(category_name, config_item_list)
+                assert exc_type == exc_info.type
+                assert exc_msg == str(exc_info.value)
+            assert 1 == patch_log_exc.call_count
+        patch_get_all_items.assert_called_once_with(category_name)
+
+    async def test_update_configuration_item_bulk(self, category_name='rest_api'):
+        async def async_mock(return_value):
+            return return_value
+
+        cat_info = {'enableHttp': {'default': 'true', 'description': 'Enable HTTP', 'type': 'boolean', 'value': 'true'}}
+        config_item_list = {"enableHttp": "false"}
+        update_result = {"response": "updated", "rows_affected": 1}
+        read_val = {'allowPing': {'default': 'true', 'description': 'Allow access to ping', 'value': 'true', 'type': 'boolean'},
+                    'enableHttp': {'default': 'true', 'description': 'Enable HTTP', 'value': 'false', 'type': 'boolean'}}
+        payload = {'updates': [{'json_properties': [{'path': ['enableHttp', 'value'], 'column': 'value', 'value': 'false'}],
+                                'return': ['key', 'description', {'format': 'YYYY-MM-DD HH24:MI:SS.MS', 'column': 'ts'}, 'value'],
+                                'where': {'value': 'rest_api', 'column': 'key', 'condition': '='}}]}
+        audit_details = {'items': {'enableHttp': {'oldValue': 'true', 'newValue': 'false'}}, 'category': category_name}
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(c_mgr, 'get_category_all_items', return_value=async_mock(cat_info)) as patch_get_all_items:
+            with patch.object(c_mgr._storage, 'update_tbl', return_value=async_mock(update_result)) as patch_update:
+                with patch.object(c_mgr, '_read_category_val', return_value=async_mock(read_val)) as patch_read_val:
+                    with patch.object(AuditLogger, '__init__', return_value=None):
+                        with patch.object(AuditLogger, 'information', return_value=async_mock(None)) as patch_audit:
+                            with patch.object(ConfigurationManager, '_run_callbacks', return_value=async_mock(None)) \
+                                    as patch_callback:
+                                await c_mgr.update_configuration_item_bulk(category_name, config_item_list)
+                            patch_callback.assert_called_once_with(category_name)
+                        patch_audit.assert_called_once_with('CONCH', audit_details)
+                patch_read_val.assert_called_once_with(category_name)
+            args, kwargs = patch_update.call_args
+            assert 'configuration' == args[0]
+            assert payload == json.loads(args[1])
+        patch_get_all_items.assert_called_once_with(category_name)
+
+    async def test_update_configuration_item_bulk_no_change(self, category_name='rest_api'):
+        async def async_mock(return_value):
+            return return_value
+
+        cat_info = {'enableHttp': {'default': 'true', 'description': 'Enable HTTP', 'type': 'boolean', 'value': 'true'}}
+        config_item_list = {"enableHttp": "true"}
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(c_mgr, 'get_category_all_items', return_value=async_mock(cat_info)) as patch_get_all_items:
+            result = await c_mgr.update_configuration_item_bulk(category_name, config_item_list)
+            assert result is None
+        patch_get_all_items.assert_called_once_with(category_name)

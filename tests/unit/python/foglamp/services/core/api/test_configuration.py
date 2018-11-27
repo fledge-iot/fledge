@@ -641,3 +641,50 @@ class TestConfiguration:
                 patch_cat_all_item.assert_called_once_with(category_name=name)
             patch_create_cat.assert_called_once_with(category_name=name, category_description=desc,
                                                      category_value=info, keep_original_items=False, display_name=None)
+
+    async def test_update_bulk_config_bad_request(self, client, category_name='rest_api'):
+        resp = await client.put('/foglamp/category/{}'.format(category_name), data=json.dumps({}))
+        assert 400 == resp.status
+        assert 'Nothing to update' == resp.reason
+
+    @pytest.mark.parametrize("code, exception_name", [
+        (404, [NameError, KeyError]),
+        (400, [ValueError, TypeError]),
+        (500, Exception)
+    ])
+    async def test_update_bulk_config_exception(self, client,  code, exception_name, category_name='rest_api'):
+        payload = {"http_port": "8082", "authentication": "mandatory"}
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(c_mgr, 'update_configuration_item_bulk', side_effect=exception_name) as patch_update_bulk:
+                resp = await client.put('/foglamp/category/{}'.format(category_name), data=json.dumps(payload))
+                assert code == resp.status
+                assert resp.reason is None
+            patch_update_bulk.assert_called_once_with(category_name, payload)
+
+    @pytest.mark.parametrize("category_name", [
+        "rest_api", "Rest $API"
+    ])
+    async def test_update_bulk_config(self, client, category_name):
+        async def async_mock(return_value):
+            return return_value
+
+        response = {"response": "updated", "rows_affected": 1}
+        result = {'authentication': {'options': ['mandatory', 'optional'], 'description': 'API Call Authentication', 'displayName': 'Authentication', 'value': 'mandatory', 'default': 'optional', 'order': '5', 'type': 'enumeration'},
+                  'enableHttp': {'description': 'Enable HTTP (disable to use HTTPS)', 'displayName': 'Enable HTTP', 'value': 'true', 'default': 'true', 'order': '1', 'type': 'boolean'},
+                  'httpPort': {'description': 'Port to accept HTTP connections on', 'displayName': 'HTTP Port', 'value': '8082', 'default': '8081', 'order': '2', 'type': 'integer'}}
+
+        payload = {"http_port": "8082", "authentication": "mandatory"}
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(c_mgr, 'update_configuration_item_bulk', return_value=async_mock(response)) as patch_update_bulk:
+                with patch.object(c_mgr, 'get_category_all_items', return_value=async_mock(result)) as patch_get_all_items:
+                    resp = await client.put('/foglamp/category/{}'.format(category_name), data=json.dumps(payload))
+                    assert 200 == resp.status
+                    r = await resp.text()
+                    json_response = json.loads(r)
+                    assert result == json_response
+                patch_get_all_items.assert_called_once_with(category_name)
+            patch_update_bulk.assert_called_once_with(category_name, payload)

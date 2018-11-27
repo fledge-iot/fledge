@@ -8,6 +8,7 @@
  * Author: Mark Riddoch, Massimiliano Pinto
  */
 #include <plugin_manager.h>
+#include <plugin_handle.h>
 #include <cstdio>
 #include <dlfcn.h>
 #include <string.h>
@@ -43,7 +44,8 @@ PluginManager::PluginManager()
  */
 PLUGIN_HANDLE PluginManager::loadPlugin(const string& name, const string& type)
 {
-PLUGIN_HANDLE hndl = NULL;
+PluginHandle *pluginHandle = NULL;
+PLUGIN_HANDLE hndl;
 char          buf[128];
 
   if (pluginNames.find(name) != pluginNames.end())
@@ -57,13 +59,14 @@ char          buf[128];
     return pluginNames[name];
   }
 
+  char *home = getenv("FOGLAMP_ROOT");
+
   /*
-   * Find and load the dynamic library that is the plugin
+   * Find and try to load the dynamic library that is the plugin
    */
   snprintf(buf, sizeof(buf), "./lib%s.so", name.c_str());
   if (access(buf, F_OK) != 0)
   {
-    char *home = getenv("FOGLAMP_ROOT");
     if (home)
     {
         snprintf(buf,
@@ -75,41 +78,57 @@ char          buf[128];
                  name.c_str());
     }
   }
-
-  if ((hndl = dlopen(buf, RTLD_LAZY)) != NULL)
+  if (access(buf, F_OK) == 0)
   {
-    func_t infoEntry = (func_t)dlsym(hndl, "plugin_info");
-    if (infoEntry == NULL)
+  	logger->info("Attempting to load C plugin: name=%s, path=%s", name.c_str(), buf);
+	pluginHandle = new BinaryPluginHandle;
+	hndl = pluginHandle->openHandle(buf);
+	logger->info("%s:%d: pluginHandle=%p, hndl=%p", __FUNCTION__, __LINE__, pluginHandle, hndl);
+    if (hndl != NULL)
     {
-      // Unable to find plugin_info entry point
-      logger->error("Plugin %s does not support plugin_info entry point.\n", name.c_str());
-      dlclose(hndl);
-      return NULL;
+      func_t infoEntry = (func_t)pluginHandle->GetInfo();
+      if (infoEntry == NULL)
+      {
+        // Unable to find plugin_info entry point
+        logger->error("C plugin %s does not support plugin_info entry point.\n", name.c_str());
+        pluginHandle->closeHandle();
+		delete pluginHandle;
+        return NULL;
+      }
+      PLUGIN_INFORMATION *info = (PLUGIN_INFORMATION *)(*infoEntry)();
+	  logger->info("%s:%d: name=%s, type=%s, config=%s", __FUNCTION__, __LINE__, info->name, info->type, info->config);
+	  
+      if (strcmp(info->type, type.c_str()) != 0)
+      {
+        // Log error, incorrect plugin type
+        logger->error("C plugin %s is not of the expected type %s, it is of type %s.\n",
+          name.c_str(), type.c_str(), info->type);
+        pluginHandle->closeHandle();
+		delete pluginHandle;
+        return NULL;
+      }
+	  logger->info("%s:%d", __FUNCTION__, __LINE__);
+  
+      plugins.push_back(pluginHandle);
+      pluginNames[name] = hndl;
+      pluginTypes[name] = type;
+      pluginInfo[hndl] = info;
+	  pluginHandleMap[hndl] = pluginHandle;
+	  logger->info("%s:%d: Added entry in pluginHandleMap={%p, %p}", __FUNCTION__, __LINE__, hndl, pluginHandle);
     }
-    PLUGIN_INFORMATION *info = (PLUGIN_INFORMATION *)(*infoEntry)();
-
-    if (strcmp(info->type, type.c_str()) != 0)
+    else
     {
-      // Log error, incorrect plugin type
-      logger->error("Plugin %s is not of the expected type %s, it is of type %s.\n",
-        name.c_str(), type.c_str(), info->type);
-      dlclose(hndl);
-      return NULL;
+      logger->error("PluginManager: Failed to load C plugin %s in %s: %s.",
+                    name.c_str(),
+                    buf,
+                    dlerror());
     }
-
-    plugins.push_back(hndl);
-    pluginNames[name] = hndl;
-    pluginTypes[name] = type;
-    pluginInfo[hndl] = info;
+    return hndl;
   }
   else
   {
-    logger->error("PluginManager: Failed to load plugin %s in %s: %s.",
-                  name.c_str(),
-                  buf,
-                  dlerror());
+  	logger->info("Attempting to load python plugin: name=%s, path=%s", name.c_str(), buf);
   }
-
   return hndl;
 }
 
@@ -152,7 +171,14 @@ PLUGIN_INFORMATION *PluginManager::getInfo(const PLUGIN_HANDLE handle)
 /**
  * Resolve a symbol within the plugin
  */
-void *PluginManager::resolveSymbol(PLUGIN_HANDLE handle, const string& symbol)
+PLUGIN_HANDLE PluginManager::resolveSymbol(PLUGIN_HANDLE handle, const string& symbol)
 {
-  return dlsym(handle, symbol.c_str());
+  logger->info("%s:%d: handle=%p, symbol=%s", __FUNCTION__, __LINE__, handle, symbol.c_str());
+  if (pluginHandleMap.find(handle) == pluginHandleMap.end())
+  {
+  	logger->info("%s:%d: returning NULL", __FUNCTION__, __LINE__);
+    return NULL;
+  }
+  logger->info("%s:%d: returning non-NULL", __FUNCTION__, __LINE__);
+  return pluginHandleMap.find(handle)->second->ResolveSymbol(symbol.c_str());
 }

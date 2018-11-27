@@ -11,6 +11,7 @@
  */
 
 #include <plugin_api.h>
+#include <plugin_handle.h>
 #include <logger.h>
 #include <string>
 #include <list>
@@ -37,6 +38,7 @@ class PluginManager {
                 std::list<PLUGIN_HANDLE>	        plugins;
                 std::map<std::string, PLUGIN_HANDLE>    pluginNames;
                 std::map<std::string, std::string>      pluginTypes;
+				std::map<PLUGIN_HANDLE, PluginHandle*>      pluginHandleMap;
                 std::map<PLUGIN_HANDLE, PLUGIN_INFORMATION *> pluginInfo;
                 PluginManager();
                 Logger      *logger;

@@ -24,8 +24,7 @@ __version__ = "${VERSION}"
 _help = """
     --------------------------------------------------------------------------------
     | GET POST       | /foglamp/category                                           |
-    | GET            | /foglamp/category/{category_name}                           |
-    | PUT            | /foglamp/category/{category_name}/value                     |
+    | GET PUT        | /foglamp/category/{category_name}                           |
     | GET POST PUT   | /foglamp/category/{category_name}/{config_item}             |
     | DELETE         | /foglamp/category/{category_name}/{config_item}/value       |
     | POST           | /foglamp/category/{category_name}/{config_item}/upload      |
@@ -273,7 +272,7 @@ async def update_configuration_item_bulk(request):
     """ Bulk update config items
 
      :Example:
-        curl -X PUT -H "Content-Type: application/json" -d '{"config_item_key": "<some value>", "config_item2_key": "<some value>" }' http://localhost:8081/foglamp/category/{category_name}/value
+        curl -X PUT -H "Content-Type: application/json" -d '{"config_item_key": "<some value>", "config_item2_key": "<some value>" }' http://localhost:8081/foglamp/category/{category_name}
     """
     category_name = request.match_info.get('category_name', None)
     category_name = urllib.parse.unquote(category_name) if category_name is not None else None

@@ -2255,10 +2255,7 @@ class TestConfigurationManager:
             assert payload == json.loads(args[1])
         patch_get_all_items.assert_called_once_with(category_name)
 
-    @pytest.mark.parametrize("category_name", [
-       "rest_api", "S #1"
-    ])
-    async def test_update_configuration_item_bulk_no_change(self, category_name):
+    async def test_update_configuration_item_bulk_no_change(self, category_name='rest_api'):
         async def async_mock(return_value):
             return return_value
 

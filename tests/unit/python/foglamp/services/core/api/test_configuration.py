@@ -663,7 +663,10 @@ class TestConfiguration:
                 assert resp.reason is None
             patch_update_bulk.assert_called_once_with(category_name, payload)
 
-    async def test_update_bulk_config(self, client, category_name='rest_api'):
+    @pytest.mark.parametrize("category_name", [
+        "rest_api", "Rest $API"
+    ])
+    async def test_update_bulk_config(self, client, category_name):
         async def async_mock(return_value):
             return return_value
 

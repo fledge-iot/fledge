@@ -35,6 +35,7 @@ _help = """
 _logger = logger.setup()
 NOTIFICATION_TYPE = ["one shot", "retriggered", "toggled"]
 
+
 async def get_plugin(request):
     """ GET lists of rule plugins and delivery plugins
 
@@ -87,6 +88,8 @@ async def get_notification(request):
                 "notificationType": notification_config['notification_type']['value'],
                 "enable": notification_config['enable']['value'],
             }
+        else:
+            raise ValueError("The Notification: {} does not exist.".format(notif))
     except ValueError as ex:
         raise web.HTTPBadRequest(reason=str(ex))
     except Exception as ex:
@@ -150,7 +153,7 @@ async def post_notification(request):
         rule_config = data.get('rule_config', {})
         delivery_config = data.get('delivery_config', {})
 
-        if name is None:
+        if name is None or name.strip() == "":
             raise ValueError('Missing name property in payload.')
         if description is None:
             raise ValueError('Missing description property in payload.')
@@ -188,9 +191,11 @@ async def post_notification(request):
         # First create templates for notification and rule, channel plugins
         post_url = 'http://{}:{}/foglamp/notification/{}'.format(_address, _port, urllib.parse.quote(name))
         await _hit_post_url(post_url)  # Create Notification template
-        post_url = 'http://{}:{}/foglamp/notification/{}/rule/{}'.format(_address, _port, urllib.parse.quote(name), urllib.parse.quote(rule))
+        post_url = 'http://{}:{}/foglamp/notification/{}/rule/{}'.format(_address, _port, urllib.parse.quote(name),
+                                                                         urllib.parse.quote(rule))
         await _hit_post_url(post_url)  # Create Notification rule template
-        post_url = 'http://{}:{}/foglamp/notification/{}/delivery/{}'.format(_address, _port, urllib.parse.quote(name), urllib.parse.quote(channel))
+        post_url = 'http://{}:{}/foglamp/notification/{}/delivery/{}'.format(_address, _port, urllib.parse.quote(name),
+                                                                             urllib.parse.quote(channel))
         await _hit_post_url(post_url)  # Create Notification delivery template
 
         # Create configurations
@@ -383,6 +388,7 @@ async def delete_notification(request):
         # Removes the child categories for the rule and delivery plugins, Removes the category for the notification itself
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
+
         await _delete_configuration(storage, config_mgr, notif)
 
         audit = AuditLogger(storage)
@@ -392,7 +398,7 @@ async def delete_notification(request):
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=str(ex))
     else:
-        return web.json_response({'result': 'notification {} deleted successfully.'.format(notif)})
+        return web.json_response({'result': 'Notification {} deleted successfully.'.format(notif)})
 
 
 async def _hit_get_url(get_url):
@@ -402,7 +408,8 @@ async def _hit_get_url(get_url):
                 status_code = resp.status
                 jdoc = await resp.text()
                 if status_code not in range(200, 209):
-                    _logger.error("Error code: %d, reason: %s, details: %s, url: %s", resp.status, resp.reason, jdoc, get_url)
+                    _logger.error("Error code: %d, reason: %s, details: %s, url: %s", resp.status, resp.reason, jdoc,
+                                  get_url)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
     except Exception:
         raise
@@ -417,7 +424,8 @@ async def _hit_post_url(post_url, data=None):
                 status_code = resp.status
                 jdoc = await resp.text()
                 if status_code not in range(200, 209):
-                    _logger.error("Error code: %d, reason: %s, details: %s, url: %s", resp.status, resp.reason, jdoc, post_url)
+                    _logger.error("Error code: %d, reason: %s, details: %s, url: %s", resp.status, resp.reason, jdoc,
+                                  post_url)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
     except Exception:
         raise
@@ -492,16 +500,16 @@ async def _update_configurations(config_mgr, name, notification_config, rule_con
             category_desc = rule_config['plugin']['description']
             category_name = "rule{}".format(name)
             await config_mgr._update_category(category_name=category_name,
-                                             category_description=category_desc,
-                                             category_val=rule_config)
+                                              category_description=category_desc,
+                                              category_val=rule_config)
 
         # Replace delivery configuration
         if delivery_config != {}:
             category_desc = delivery_config['plugin']['description']
             category_name = "delivery{}".format(name)
             await config_mgr._update_category(category_name=category_name,
-                                             category_description=category_desc,
-                                             category_val=delivery_config)
+                                              category_description=category_desc,
+                                              category_val=delivery_config)
     except Exception as ex:
         _logger.exception("Failed to update notification configuration. %s", str(ex))
         raise web.HTTPInternalServerError(reason='Failed to update notification configuration.')
@@ -517,6 +525,7 @@ async def _delete_configuration(storage, config_mgr, name):
     await _delete_parent_child_configuration(storage, "Notifications", name)
     await _delete_parent_child_configuration(storage, name, "rule{}".format(name))
     await _delete_parent_child_configuration(storage, name, "delivery{}".format(name))
+
 
 async def _delete_configuration_category(storage, key):
     payload = PayloadBuilder().WHERE(['key', '=', key]).payload()

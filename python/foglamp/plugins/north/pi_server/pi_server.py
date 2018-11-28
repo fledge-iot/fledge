@@ -661,8 +661,17 @@ class PIServerNorthPlugin(object):
             elif item_type == "number":
                 omf_type[typename][1]["properties"][item] = {"type": item_type,
                                                              "format": self._config['formatNumber']}
+
+            elif item_type == "array":
+                omf_type[typename][1]["properties"][item] = {
+                                                                "type": item_type,
+                                                                "items": {
+                                                                    "type": "number"
+                                                                }
+                                                             }
             else:
                 omf_type[typename][1]["properties"][item] = {"type": item_type}
+
 
         if _log_debug_level == 3:
             self._logger.debug("_create_omf_type_automatic - sensor_id |{0}| - omf_type |{1}| ".format(sensor_id, str(omf_type)))

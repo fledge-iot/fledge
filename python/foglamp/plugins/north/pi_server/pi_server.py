@@ -666,7 +666,8 @@ class PIServerNorthPlugin(object):
                 omf_type[typename][1]["properties"][item] = {
                                                                 "type": item_type,
                                                                 "items": {
-                                                                    "type": "number"
+                                                                    "type": "number",
+                                                                    "format": self._config['formatNumber']
                                                                 }
                                                              }
             else:

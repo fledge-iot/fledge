@@ -515,7 +515,7 @@ class TestService:
         mocker.patch.object(service, "get_schedule", return_value=mock_bad_result())
 
         resp = await client.delete("/foglamp/service/{}".format(name))
-        assert 400 == resp.status
+        assert 404 == resp.status
         assert '{} service does not exist.'.format(name) == resp.reason
 
 # TODO:  add negative tests and C type plugin add service tests

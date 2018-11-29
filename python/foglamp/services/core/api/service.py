@@ -86,7 +86,7 @@ async def delete_service(request):
 
         result = await get_schedule(storage, svc)
         if result['count'] == 0:
-            return web.HTTPBadRequest(reason='{} service does not exist.'.format(svc))
+            return web.HTTPNotFound(reason='{} service does not exist.'.format(svc))
 
         svc_schedule = result['rows'][0]
         sch_id = uuid.UUID(svc_schedule['id'])

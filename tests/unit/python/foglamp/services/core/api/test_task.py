@@ -440,7 +440,7 @@ class TestService:
         mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(task, "get_schedule", return_value=mock_bad_result())
         resp = await client.delete("/foglamp/scheduled/task/Test")
-        assert 400 == resp.status
+        assert 404 == resp.status
         assert 'Test north instance does not exist.' == resp.reason
 
 # TODO: Add test for negative scenarios

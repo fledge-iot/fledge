@@ -269,7 +269,7 @@ async def delete_task(request):
 
         result = await get_schedule(storage, north_instance)
         if result['count'] == 0:
-            return web.HTTPBadRequest(reason='{} north instance does not exist.'.format(north_instance))
+            return web.HTTPNotFound(reason='{} north instance does not exist.'.format(north_instance))
 
         north_instance_schedule = result['rows'][0]
         sch_id = uuid.UUID(north_instance_schedule['id'])

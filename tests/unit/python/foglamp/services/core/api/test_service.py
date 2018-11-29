@@ -7,18 +7,21 @@
 
 import asyncio
 import json
+from uuid import uuid4, UUID
 from aiohttp import web
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, call
 from foglamp.services.core import routes
 from foglamp.services.core import connect
 from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
+from foglamp.common.service_record import ServiceRecord
 from foglamp.services.core.interest_registry.interest_registry import InterestRegistry
 from foglamp.services.core import server
 from foglamp.services.core.scheduler.scheduler import Scheduler
 from foglamp.services.core.scheduler.entities import StartUpSchedule
 from foglamp.common.configuration_manager import ConfigurationManager
+from foglamp.services.core.api import service
 
 from foglamp.services.core.api.service import _logger
 
@@ -425,5 +428,98 @@ class TestService:
                     assert 'scheduled_processes' == args[0]
                     p = json.loads(args[1])
                     assert {'name': 'south', 'script': '["services/south"]'} == p
+
+    async def test_delete_service(self, mocker, client):
+        sch_id = '0178f7b6-d55c-4427-9106-245513e46416'
+        reg_id = 'd607c5be-792f-4993-96b7-b513674e7d3b'
+        mock_registry = [ServiceRecord(reg_id, "Test", "Southbound", "http", "localhost", "8118", "8118")]
+        async def mock_result():
+            return {
+                        "count": 1,
+                        "rows": [
+                            {
+                                "id": sch_id,
+                                "process_name": "Test",
+                                "schedule_name": "Test Service",
+                                "schedule_type": "1",
+                                "schedule_interval": "0",
+                                "schedule_time": "0",
+                                "schedule_day": "0",
+                                "exclusive": "t",
+                                "enabled" : "t"
+                            },
+                        ]
+            }
+        mocker.patch.object(connect, 'get_storage_async')
+        get_schedule = mocker.patch.object(service, "get_schedule", return_value=mock_result())
+        scheduler = mocker.patch.object(server.Server, "scheduler", MagicMock())
+        delete_schedule = mocker.patch.object(scheduler, "delete_schedule", return_value=asyncio.sleep(.1))
+        disable_schedule = mocker.patch.object(scheduler, "disable_schedule", return_value=asyncio.sleep(.1))
+        delete_configuration = mocker.patch.object(service, "delete_configuration", return_value=asyncio.sleep(.1))
+        get_registry = mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
+        remove_registry = mocker.patch.object(ServiceRegistry, 'remove_from_registry')
+
+        mock_registry[0]._status = ServiceRecord.Status.Shutdown
+
+        resp = await client.delete("/foglamp/service/Test Service")
+        assert 200 == resp.status
+        result = await resp.json()
+        assert result['result'].endswith("Service {} deleted successfully.".format("Test Service"))
+
+        assert 1 == get_schedule.call_count
+        args, kwargs = get_schedule.call_args_list[0]
+        assert "Test Service" in args
+
+        assert 1 == delete_schedule.call_count
+        delete_schedule_calls = [call(UUID('0178f7b6-d55c-4427-9106-245513e46416'))]
+        delete_schedule.assert_has_calls(delete_schedule_calls, any_order=True)
+
+        assert 1 == disable_schedule.call_count
+        disable_schedule_calls = [call(UUID('0178f7b6-d55c-4427-9106-245513e46416'))]
+        disable_schedule.assert_has_calls(disable_schedule_calls, any_order=True)
+
+        assert 1 == delete_configuration.call_count
+        args, kwargs = delete_configuration.call_args_list[0]
+        assert "Test Service" in args
+
+        assert 2 == get_registry.call_count
+        get_registry_calls = [call(name='Test Service'), call(name='Test Service')]
+        get_registry.assert_has_calls(get_registry_calls, any_order=True)
+
+        assert 1 == remove_registry.call_count
+        remove_registry_calls = [call('d607c5be-792f-4993-96b7-b513674e7d3b')]
+        remove_registry.assert_has_calls(remove_registry_calls, any_order=True)
+
+    async def test_delete_service_exception(self, mocker, client):
+        sch_id = '0178f7b6-d55c-4427-9106-245513e46416'
+        reg_id = 'd607c5be-792f-4993-96b7-b513674e7d3b'
+        mock_registry = [ServiceRecord(reg_id, "Test", "Southbound", "http", "localhost", "8118", "8118")]
+        async def mock_bad_result():
+            return {
+                        "count": 0,
+                        "rows": []
+            }
+
+        mocker.patch.object(connect, 'get_storage_async')
+        scheduler = mocker.patch.object(server.Server, "scheduler", MagicMock())
+        delete_schedule = mocker.patch.object(scheduler, "delete_schedule", return_value=asyncio.sleep(.1))
+        disable_schedule = mocker.patch.object(scheduler, "disable_schedule", return_value=asyncio.sleep(.1))
+        delete_configuration = mocker.patch.object(service, "delete_configuration", return_value=asyncio.sleep(.1))
+        get_registry = mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
+        remove_registry = mocker.patch.object(ServiceRegistry, 'remove_from_registry')
+
+        mock_registry[0]._status = ServiceRecord.Status.Shutdown
+
+        resp = await client.delete("/foglamp/service")
+        assert 405 == resp.status
+        result = await resp.text()
+        assert result.endswith(" Method Not Allowed")
+
+        get_schedule = mocker.patch.object(service, "get_schedule", return_value=mock_bad_result())
+        resp = await client.delete("/foglamp/service/Test")
+        # TODO: FOGL-2128
+        assert 500 == resp.status
+        result = await resp.text()
+        assert result.endswith('A service with this name does not exist.')
 
 # TODO:  add negative tests and C type plugin add service tests

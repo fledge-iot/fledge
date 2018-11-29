@@ -7,7 +7,7 @@
 
 import asyncio
 import json
-from uuid import uuid4, UUID
+from uuid import UUID
 from aiohttp import web
 import pytest
 from unittest.mock import MagicMock, patch, call
@@ -365,6 +365,7 @@ class TestService:
 
     async def test_delete_task(self, mocker, client):
         sch_id = '0178f7b6-d55c-4427-9106-245513e46416'
+        sch_name = "Test Task"
 
         async def mock_result():
             return {
@@ -373,7 +374,7 @@ class TestService:
                     {
                         "id": sch_id,
                         "process_name": "Test",
-                        "schedule_name": "Test Task",
+                        "schedule_name": sch_name,
                         "schedule_type": "3",
                         "schedule_interval": "30",
                         "schedule_time": "0",
@@ -394,14 +395,14 @@ class TestService:
         delete_parent_child_configuration = mocker.patch.object(task, "delete_parent_child_configuration", return_value=asyncio.sleep(.1))
         delete_statistics_key = mocker.patch.object(task, "delete_statistics_key", return_value=asyncio.sleep(.1))
 
-        resp = await client.delete("/foglamp/scheduled/task/Test Task")
+        resp = await client.delete("/foglamp/scheduled/task/{}".format(sch_name))
         assert 200 == resp.status
         result = await resp.json()
-        assert result['result'].endswith('North instance {} deleted successfully.'.format("Test Task"))
+        assert 'North instance {} deleted successfully.'.format(sch_name) == result['result']
 
         assert 1 == get_schedule.call_count
         args, kwargs = get_schedule.call_args_list[0]
-        assert "Test Task" in args
+        assert sch_name in args
 
         assert 1 == delete_schedule.call_count
         delete_schedule_calls = [call(UUID('0178f7b6-d55c-4427-9106-245513e46416'))]
@@ -413,44 +414,33 @@ class TestService:
 
         assert 1 == delete_configuration.call_count
         args, kwargs = delete_configuration.call_args_list[0]
-        assert "Test Task" in args
+        assert sch_name in args
 
         assert 1 == delete_parent_child_configuration.call_count
         args, kwargs = delete_parent_child_configuration.call_args_list[0]
-        assert "Test Task" in args
+        assert sch_name in args
 
         assert 1 == delete_statistics_key.call_count
         args, kwargs = delete_statistics_key.call_args_list[0]
-        assert "Test Task" in args
+        assert sch_name in args
 
     async def test_delete_task_exception(self, mocker, client):
-        sch_id = '0178f7b6-d55c-4427-9106-245513e46416'
-
-        async def mock_bad_result():
-            return {
-                "count": 0,
-                "rows": []
-            }
-
-        mocker.patch.object(connect, 'get_storage_async')
-        scheduler = mocker.patch.object(server.Server, "scheduler", MagicMock())
-        delete_schedule = mocker.patch.object(scheduler, "delete_schedule", return_value=asyncio.sleep(.1))
-        disable_schedule = mocker.patch.object(scheduler, "disable_schedule",
-                                               return_value=asyncio.sleep(.1))
-        delete_configuration = mocker.patch.object(task, "delete_configuration", return_value=asyncio.sleep(.1))
-        delete_parent_child_configuration = mocker.patch.object(task, "delete_parent_child_configuration", return_value=asyncio.sleep(.1))
-        delete_statistics_key = mocker.patch.object(task, "delete_statistics_key", return_value=asyncio.sleep(.1))
-
         resp = await client.delete("/foglamp/scheduled/task")
         assert 405 == resp.status
-        result = await resp.text()
-        assert result.endswith(" Method Not Allowed")
+        assert 'Method Not Allowed' == resp.reason
 
-        get_schedule = mocker.patch.object(task, "get_schedule", return_value=mock_bad_result())
+        mocker.patch.object(task, "get_schedule", side_effect=Exception)
         resp = await client.delete("/foglamp/scheduled/task/Test")
-        # TODO: FOGL-2128
         assert 500 == resp.status
-        result = await resp.text()
-        assert result.endswith('A north instance task with this name does not exist.')
+        assert resp.reason is None
+
+        async def mock_bad_result():
+            return {"count": 0, "rows": []}
+
+        mocker.patch.object(connect, 'get_storage_async')
+        mocker.patch.object(task, "get_schedule", return_value=mock_bad_result())
+        resp = await client.delete("/foglamp/scheduled/task/Test")
+        assert 400 == resp.status
+        assert 'Test north instance does not exist.' == resp.reason
 
 # TODO: Add test for negative scenarios

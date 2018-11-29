@@ -65,6 +65,7 @@ char          buf[128];
    * Find and try to load the dynamic library that is the plugin
    */
   snprintf(buf, sizeof(buf), "./lib%s.so", name.c_str());
+  logger->info("PluginManager::loadPlugin: buf=%s", buf);
   if (access(buf, F_OK) != 0)
   {
     if (home)
@@ -78,10 +79,11 @@ char          buf[128];
                  name.c_str());
     }
   }
-  if (access(buf, F_OK) == 0)
+  logger->info("PluginManager::loadPlugin: buf=%s", buf);
+  if (access(buf, F_OK|R_OK) == 0)
   {
   	logger->info("Attempting to load C plugin: name=%s, path=%s", name.c_str(), buf);
-	pluginHandle = new BinaryPluginHandle;
+	pluginHandle = new BinaryPluginHandle(name.c_str(), buf);
 	hndl = pluginHandle->openHandle(buf);
 	logger->info("%s:%d: pluginHandle=%p, hndl=%p", __FUNCTION__, __LINE__, pluginHandle, hndl);
     if (hndl != NULL)
@@ -125,9 +127,64 @@ char          buf[128];
     }
     return hndl;
   }
-  else
+
+  // look for and load python plugin with given name
+  snprintf(buf,
+             sizeof(buf),
+             "%s/python/foglamp/plugins/%s/%s/%s.py",
+             home,
+             type.c_str(),
+             name.c_str(),
+             name.c_str());
+
+  logger->info("PluginManager::loadPlugin: buf=%s", buf);
+  
+  if (access(buf, F_OK|R_OK) == 0)
   {
   	logger->info("Attempting to load python plugin: name=%s, path=%s", name.c_str(), buf);
+	pluginHandle = new PythonPluginHandle(name.c_str(), buf);
+	hndl = pluginHandle->openHandle(buf);
+	logger->info("%s:%d: pluginHandle=%p, hndl=%p", __FUNCTION__, __LINE__, pluginHandle, hndl);
+    if (hndl != NULL)
+    {
+      func_t infoEntry = (func_t)pluginHandle->GetInfo();
+      if (infoEntry == NULL)
+      {
+        // Unable to find plugin_info entry point
+        logger->error("C plugin %s does not support plugin_info entry point.\n", name.c_str());
+        pluginHandle->closeHandle();
+		delete pluginHandle;
+        return NULL;
+      }
+      PLUGIN_INFORMATION *info = (PLUGIN_INFORMATION *)(*infoEntry)();
+	  logger->info("%s:%d: name=%s, type=%s, config=%s", __FUNCTION__, __LINE__, info->name, info->type, info->config);
+	  
+      if (strcmp(info->type, type.c_str()) != 0)
+      {
+        // Log error, incorrect plugin type
+        logger->error("C plugin %s is not of the expected type %s, it is of type %s.\n",
+          name.c_str(), type.c_str(), info->type);
+        pluginHandle->closeHandle();
+		delete pluginHandle;
+        return NULL;
+      }
+	  logger->info("%s:%d", __FUNCTION__, __LINE__);
+  
+      plugins.push_back(pluginHandle);
+      pluginNames[name] = hndl;
+      pluginTypes[name] = type;
+      pluginInfo[hndl] = info;
+	  pluginHandleMap[hndl] = pluginHandle;
+	  logger->info("%s:%d: Added entry in pluginHandleMap={%p, %p}", __FUNCTION__, __LINE__, hndl, pluginHandle);
+    }
+    else
+    {
+      logger->error("PluginManager: Failed to load C plugin %s in %s: %s.",
+                    name.c_str(),
+                    buf,
+                    dlerror());
+    }
+    return hndl;
   }
   return hndl;
 }
@@ -182,3 +239,4 @@ PLUGIN_HANDLE PluginManager::resolveSymbol(PLUGIN_HANDLE handle, const string& s
   logger->info("%s:%d: returning non-NULL", __FUNCTION__, __LINE__);
   return pluginHandleMap.find(handle)->second->ResolveSymbol(symbol.c_str());
 }
+

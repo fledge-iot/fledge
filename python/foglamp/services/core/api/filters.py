@@ -150,7 +150,7 @@ async def add_filters_pipeline(request):
     {"pipeline": ["Scale10Filter", "Python_assetCodeFilter"]} 
 
     Query string parameters:
-    - append_filter=true|false       Default true
+    - append_filter=true|false       Default false
     - allow_duplicates=true|false    Default true
 
     :Example:

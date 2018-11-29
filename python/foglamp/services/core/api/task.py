@@ -265,15 +265,11 @@ async def delete_task(request):
     """
     try:
         north_instance = request.match_info.get('task_name', None)
-
-        if north_instance is None or north_instance.strip() == '':
-            raise web.HTTPBadRequest(reason='Missing task_name in requested URL')
-
         storage = connect.get_storage_async()
 
         result = await get_schedule(storage, north_instance)
         if result['count'] == 0:
-            raise web.HTTPBadRequest(reason='A north instance task with this name does not exist.')
+            return web.HTTPNotFound(reason='{} north instance does not exist.'.format(north_instance))
 
         north_instance_schedule = result['rows'][0]
         sch_id = uuid.UUID(north_instance_schedule['id'])

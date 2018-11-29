@@ -440,7 +440,7 @@ class TestService:
                             {
                                 "id": sch_id,
                                 "process_name": "Test",
-                                "schedule_name": "Test",
+                                "schedule_name": "Test Service",
                                 "schedule_type": "1",
                                 "schedule_interval": "0",
                                 "schedule_time": "0",
@@ -461,14 +461,14 @@ class TestService:
 
         mock_registry[0]._status = ServiceRecord.Status.Shutdown
 
-        resp = await client.delete("/foglamp/service/Test")
+        resp = await client.delete("/foglamp/service/Test Service")
         assert 200 == resp.status
         result = await resp.json()
-        assert result['result'].endswith("Service {} deleted successfully.".format("Test"))
+        assert result['result'].endswith("Service {} deleted successfully.".format("Test Service"))
 
         assert 1 == get_schedule.call_count
         args, kwargs = get_schedule.call_args_list[0]
-        assert "Test" in args
+        assert "Test Service" in args
 
         assert 1 == delete_schedule.call_count
         delete_schedule_calls = [call(UUID('0178f7b6-d55c-4427-9106-245513e46416'))]
@@ -480,10 +480,10 @@ class TestService:
 
         assert 1 == delete_configuration.call_count
         args, kwargs = delete_configuration.call_args_list[0]
-        assert "Test" in args
+        assert "Test Service" in args
 
         assert 2 == get_registry.call_count
-        get_registry_calls = [call(name='Test'), call(name='Test')]
+        get_registry_calls = [call(name='Test Service'), call(name='Test Service')]
         get_registry.assert_has_calls(get_registry_calls, any_order=True)
 
         assert 1 == remove_registry.call_count
@@ -517,7 +517,7 @@ class TestService:
 
         get_schedule = mocker.patch.object(service, "get_schedule", return_value=mock_bad_result())
         resp = await client.delete("/foglamp/service/Test")
-        # TODO: Refactor service.py->delete_service() to throw 400
+        # TODO: FOGL-2128
         assert 500 == resp.status
         result = await resp.text()
         assert result.endswith('A service with this name does not exist.')

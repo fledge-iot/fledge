@@ -373,7 +373,7 @@ class TestService:
                     {
                         "id": sch_id,
                         "process_name": "Test",
-                        "schedule_name": "Test",
+                        "schedule_name": "Test Task",
                         "schedule_type": "3",
                         "schedule_interval": "30",
                         "schedule_time": "0",
@@ -394,14 +394,14 @@ class TestService:
         delete_parent_child_configuration = mocker.patch.object(task, "delete_parent_child_configuration", return_value=asyncio.sleep(.1))
         delete_statistics_key = mocker.patch.object(task, "delete_statistics_key", return_value=asyncio.sleep(.1))
 
-        resp = await client.delete("/foglamp/scheduled/task/Test")
+        resp = await client.delete("/foglamp/scheduled/task/Test Task")
         assert 200 == resp.status
         result = await resp.json()
-        assert result['result'].endswith('North instance {} deleted successfully.'.format("Test"))
+        assert result['result'].endswith('North instance {} deleted successfully.'.format("Test Task"))
 
         assert 1 == get_schedule.call_count
         args, kwargs = get_schedule.call_args_list[0]
-        assert "Test" in args
+        assert "Test Task" in args
 
         assert 1 == delete_schedule.call_count
         delete_schedule_calls = [call(UUID('0178f7b6-d55c-4427-9106-245513e46416'))]
@@ -413,15 +413,15 @@ class TestService:
 
         assert 1 == delete_configuration.call_count
         args, kwargs = delete_configuration.call_args_list[0]
-        assert "Test" in args
+        assert "Test Task" in args
 
         assert 1 == delete_parent_child_configuration.call_count
         args, kwargs = delete_parent_child_configuration.call_args_list[0]
-        assert "Test" in args
+        assert "Test Task" in args
 
         assert 1 == delete_statistics_key.call_count
         args, kwargs = delete_statistics_key.call_args_list[0]
-        assert "Test" in args
+        assert "Test Task" in args
 
     async def test_delete_task_exception(self, mocker, client):
         sch_id = '0178f7b6-d55c-4427-9106-245513e46416'
@@ -448,7 +448,7 @@ class TestService:
 
         get_schedule = mocker.patch.object(task, "get_schedule", return_value=mock_bad_result())
         resp = await client.delete("/foglamp/scheduled/task/Test")
-        # TODO: Refactor task.py->delete_task() to throw 400
+        # TODO: FOGL-2128
         assert 500 == resp.status
         result = await resp.text()
         assert result.endswith('A north instance task with this name does not exist.')

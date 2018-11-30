@@ -992,31 +992,20 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 children = await self.get_category_child(cat)
                 for row in children:
                     child = row['key']
-
                     await delete_recursively(child)
 
-                    # No more child found. Start deleting parent-child from category_children table from inner most set.
-                    payload = PayloadBuilder().WHERE(["key", "=", child]).payload()
-                    result = await self._storage.delete_from_tbl("configuration", payload)
-                    response = result["response"]
-                    if result['response'] == 'deleted':
-                        _logger.warning('Deleted child category from configuration: %s', child)
-
-                # All children removed - relationships + categories. Remove remaining entries for this cat either as
-                # as parent or child.
-                payload = PayloadBuilder().WHERE(["child", "=", cat]).OR_WHERE(["parent", "=", cat]).payload()
+                # Remove child from parent-child relation.
+                payload = PayloadBuilder().WHERE(["child", "=", cat]).payload()
                 result = await self._storage.delete_from_tbl("category_children", payload)
-                response = result["response"]
                 if result['response'] == 'deleted':
-                    _logger.warning('Deleted parent and/or child entries in catgory_children for %s', cat)
+                    _logger.warning('Deleted parent in catgory_children: %s', cat)
 
-                # All cleaned up. Now it is time to remove this cat from configuration table.
+                # Remove child category.
                 payload = PayloadBuilder().WHERE(["key", "=", cat]).payload()
                 result = await self._storage.delete_from_tbl("configuration", payload)
-                response = result["response"]
                 if result['response'] == 'deleted':
                     _logger.warning('Deleted parent category from configuration: %s', cat)
-                # TODO: Shall we write audit trail code entry here? log_code?
+                    deleted_ones.append(cat)
             except KeyError as ex:
                 raise ValueError(ex)
             except StorageServerError as ex:
@@ -1026,7 +1015,16 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 return result
 
         try:
+            deleted_ones = list()
             result = await delete_recursively(category_name)
+            # All children and relationships removed. Remove remaining entries for this cat as child.
+            payload = PayloadBuilder().WHERE(["child", "=", category_name]).payload()
+            result = await self._storage.delete_from_tbl("category_children", payload)
+            if result['response'] == 'deleted':
+                _logger.warning('Deleted parent and/or child entries in catgory_children for %s', category_name)
+            audit = AuditLogger(self._storage)
+            audit_details = {'categoriesDeleted': deleted_ones}
+            await audit.information('CONCH', audit_details)
         except Exception as ex:
             raise ValueError(ex)
         else:

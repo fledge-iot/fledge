@@ -972,7 +972,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         return result
 
     async def delete_recursively_parent_category(self, category_name):
-        """Delete a parent-child relationship for a parent recursively 
+        """Delete a category and its child recursively including their parent-child relationship 
 
         Keyword Arguments:
         category_name -- name of the category (required)
@@ -1021,11 +1021,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             payload = PayloadBuilder().WHERE(["child", "=", category_name]).payload()
             result = await self._storage.delete_from_tbl("category_children", payload)
             if result['response'] == 'deleted':
-                _logger.warning('Deleted parent and/or child entries in catgory_children for %s', category_name)
+                _logger.warning('Deleted parent child relationship entries for %s', category_name)
             audit = AuditLogger(self._storage)
             audit_details = {'categoriesDeleted': deleted_ones}
             await audit.information('CONCH', audit_details)
-        except Exception as ex:
+        except ValueError as ex:
             raise ValueError(ex)
         else:
             return result

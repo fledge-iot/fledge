@@ -409,73 +409,10 @@ PLUGIN_INFORMATION *plugin_info_fn()
  * @return		Pointer to a new PLUGIN_INFORMATION structure
  *				or NULL in case of errors
  */
-PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* /*pyRetVal*/)
+PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal)
 {
-	//PyObject* pyRetVal = Py_BuildValue("{s:s,s:s}", "name", "pythonPlugin", "version", "1.0.0");    //{'abc': 123, 'def': 456}
-	PyObject *pyRetVal = PyDict_New(); // new reference
-
-	// add a few named values
-	//PyDict_SetItemString(pyRetVal, "name", Py_BuildValue("s", "pythonPlugin"));
-	//PyDict_SetItemString(pyRetVal, "version", Py_BuildValue("s", "1.0.0"));
-
-	PyObject* nameKey = PyBytes_FromString("pythonPlugin");
-	PyDict_SetItemString(pyRetVal, "name", nameKey);
-	
 	// Create returnable PLUGIN_INFORMATION structure
 	PLUGIN_INFORMATION *info = new PLUGIN_INFORMATION;
-
-	Logger::getLogger()->info("PyDict_Size(pyRetVal)=%d, PyDict_Check(pyRetVal)=%s", PyDict_Size(pyRetVal), PyDict_Check(pyRetVal)?"true":"false");	
-
-#if 1
-	PyObject *keys = PyDict_Keys(pyRetVal);
-	for (int i = 0; i < PyList_Size(keys); i++)
-	{
-		// Get list item: borrowed reference.
-		PyObject* element = PyList_GetItem(keys, i);
-		if (!element)
-		{
-			// Failure
-			if (PyErr_Occurred())
-			{
-				logErrorMessage();
-			}
-			Logger::getLogger()->info("1. PyDict: keys[%d] is not valid", i);
-		}
-
-		Logger::getLogger()->info("2. PyDict: keys[%d]=%s", i, PyBytes_AsString(element));
-	}
-#endif
-
-	PyObject *pKeys = PyDict_Keys(pyRetVal); // new reference
-	for(int i = 0; i < PyList_Size(pKeys); ++i)
-	{
-	
-		PyObject *pKey =
-				PyList_GetItem(pKeys, i); // borrowed reference
-	
-		PyObject *pValue =
-				PyDict_GetItem(pyRetVal, pKey); // borrowed reference
-
-		Logger::getLogger()->info("2.1 PyBytes_Check(pKey)=%s, PyBytes_Check(pValue)=%s", PyBytes_Check(pKey)?"true":"false", PyBytes_Check(pValue)?"true":"false");
-	}
-	
-	Py_DECREF(pKeys);
-
-
-	PRINT_FUNC;
-	PyObject* assetCode = PyDict_GetItemString(pyRetVal, "name");
-	PRINT_FUNC;
-	if (assetCode == NULL)
-	{
-		PRINT_FUNC;
-		Logger::getLogger()->info("2.2: assetCode=NULL");
-	}
-	else
-	{
-		PRINT_FUNC;
-		//Logger::getLogger()->info("2.5: name=%s", PyBytes_AsString(assetCode));
-		PRINT_FUNC;
-	}
 
 	PyObject *dKey, *dValue;
 	Py_ssize_t dPos = 0;
@@ -483,105 +420,59 @@ PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* /*pyRetVal*/)
 	// dKey and dValue are borrowed references
 	while (PyDict_Next(pyRetVal, &dPos, &dKey, &dValue))
 	{
-		 if (!PyBytes_Check(dKey) || !PyBytes_Check(dValue))
-          {
-		  	Logger::getLogger()->info("3. PyDict: dKey & dValue are not of required type");
-            continue;
-          }
-        char* ckey = PyBytes_AsString(dKey);
-    	char* cval = PyBytes_AsString(dValue);
-		Logger::getLogger()->info("4. PyDict: dKey=%s, dValue=%s", ckey, cval);
-		if (PyBytes_AsString(dKey) == "name")
+		 /*if (!PyBytes_Check(dKey) || !PyBytes_Check(dValue))
+		  {
+			Logger::getLogger()->info("3. PyDict: dKey & dValue are not of required type");
+			continue;
+		  }*/
+		char* ckey = PyUnicode_AsUTF8(dKey);
+		char* cval;
+		char *emptyStr = new char[1];
+		emptyStr[0] = '\0';
+		if(strcmp(ckey, "config"))
+			cval = PyUnicode_AsUTF8(dValue);
+		else
+			cval = emptyStr;
+		//Logger::getLogger()->info("4. PyDict: dKey=%s, dValue=%s", ckey, cval);
+
+		char *valStr = new char [string(cval).length()+1];
+		std::strcpy (valStr, cval);
+		
+		if(!strcmp(ckey, "name"))
 		{
-			PyObject* item = dValue;
-			Logger::getLogger()->info("5. PyDict: name item=%p", item);
-			Logger::getLogger()->info("6. PyDict: name=%s", PyBytes_AsString(item));
-			if (item && PyBytes_Check(item))
-			{
-				// Set name
-				Logger::getLogger()->info("7. PyDict: name=%s", PyBytes_AsString(item));
-				char *name = new char [string(PyBytes_AsString(item)).length()+1];
-				std::strcpy (name, string(PyBytes_AsString(item)).c_str());
-				info->name = name;
-			}
+			info->name = valStr;
+		}
+		else if(!strcmp(ckey, "version"))
+		{
+			info->version = valStr;
+		}
+		else if(!strcmp(ckey, "mode"))
+		{
+			info->options = 0;
+			if (!strcmp(valStr, "async"))
+			info->options |= SP_ASYNC;
+			free(valStr);
+		}
+		else if(!strcmp(ckey, "type"))
+		{
+			info->type = valStr;
+		}
+		else if(!strcmp(ckey, "interface"))
+		{
+			info->interface = valStr;
+		}
+		else if(!strcmp(ckey, "config"))
+		{
+			free (valStr);
+			char *valStr1 = new char[3];
+			valStr1[0]='{';
+			valStr1[1]='}';
+			valStr1[2]='\0';
+			info->config = valStr1;
+			// TODO : write real code : probably convert python dict to JSON string
 		}
 	}
 	
-#if 0
-	// Iterate filtered data in the list
-	for (int i = 0; i < PyList_Size(pyRetVal); i++)
-	{
-		// Get list item: borrowed reference.
-		PyObject* element = PyList_GetItem(pyRetVal, i);
-		if (!element)
-		{
-			// Failure
-			if (PyErr_Occurred())
-			{
-				logErrorMessage();
-			}
-			delete info;
-
-			return NULL;
-		}
-
-#if 0
-		GET_PLUGIN_INFO_ELEM(name)
-		GET_PLUGIN_INFO_ELEM(version)
-		GET_PLUGIN_INFO_ELEM(type)
-		GET_PLUGIN_INFO_ELEM(interface)
-		GET_PLUGIN_INFO_ELEM(config)
-#else
-		PyObject* item;
-		// Get 'name' value: borrowed reference
-		item = PyDict_GetItemString(element, "name");
-		char *name = new char [string(PyBytes_AsString(item)).length()+1];
-		std::strcpy (name, string(PyBytes_AsString(item)).c_str());
-		info->name = name;
-
-		// Get 'version' value: borrowed reference
-		item = PyDict_GetItemString(element, "version");
-		char *version = new char [string(PyBytes_AsString(item)).length()+1];
-		std::strcpy (version, string(PyBytes_AsString(item)).c_str());
-		info->version = version;
-#endif
-		
-		// Get 'name' value: borrowed reference
-		item = PyDict_GetItemString(element, "options");
-		if (!item)
-		{
-			// Failure
-			if (PyErr_Occurred())
-			{
-				logErrorMessage();
-			}
-			delete info;
-			return NULL;
-		}
-		
-		info->options = PyLong_AsUnsignedLong(item);
-#if 0
-		// Get 'type' value: borrowed reference
-		item = PyDict_GetItemString(element, "type");
-		char *type = new char [string(PyBytes_AsString(item)).length()+1];
-		std::strcpy (type, string(PyBytes_AsString(item)).c_str());
-		info->type = type;
-
-		// Get 'name' value: borrowed reference
-		item = PyDict_GetItemString(element, "interface");
-		char *type = new char [string(PyBytes_AsString(item)).length()+1];
-		std::strcpy (type, string(PyBytes_AsString(item)).c_str());
-		info->type = type;
-
-		// Get 'name' value: borrowed reference
-		item = PyDict_GetItemString(element, "config");
-		char *type = new char [string(PyBytes_AsString(item)).length()+1];
-		std::strcpy (type, string(PyBytes_AsString(item)).c_str());
-		info->type = type;
-#endif
-	}
-#endif
-
 	return info;
 }
 

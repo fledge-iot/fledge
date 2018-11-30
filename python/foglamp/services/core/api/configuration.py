@@ -505,7 +505,7 @@ async def delete_parent_category(request):
 
     cf_mgr = ConfigurationManager(connect.get_storage_async())
     try:
-        await cf_mgr.delete_parent_category(category_name)
+        await cf_mgr.delete_recursively_parent_category(category_name)
     except TypeError as ex:
         raise web.HTTPBadRequest(reason=str(ex))
     except ValueError as ex:

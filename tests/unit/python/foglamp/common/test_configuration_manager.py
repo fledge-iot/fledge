@@ -2025,6 +2025,10 @@ class TestConfigurationManager:
                 assert str(msg) == str(excinfo.value)
         patch_read_cat_val.assert_called_once_with("south")
 
+    @pytest.mark.skip(reason="TODO")
+    async def test_delete_recursively_parent_category(self, reset_singleton):
+        pass
+
     async def test__read_all_child_category_names(self, reset_singleton):
         @asyncio.coroutine
         def mock_coro():

@@ -19,7 +19,7 @@ from foglamp.common.storage_client.utils import Utils
 from foglamp.common import logger
 from foglamp.common.audit_logger import AuditLogger
 
-__author__ = "Ashwin Gopalakrishnan, Ashish Jabble"
+__author__ = "Ashwin Gopalakrishnan, Ashish Jabble, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -970,6 +970,67 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             raise ValueError(err_response)
 
         return result
+
+    async def delete_recursively_parent_category(self, category_name):
+        """Delete a parent-child relationship for a parent recursively 
+
+        Keyword Arguments:
+        category_name -- name of the category (required)
+
+        Return Values:
+        JSON
+        """
+        if not isinstance(category_name, str):
+            raise TypeError('category_name must be a string')
+
+        category = await self._read_category_val(category_name)
+        if category is None:
+            raise ValueError('No such {} category exist'.format(category_name))
+
+        async def delete_recursively(cat):
+            try:
+                children = await self.get_category_child(cat)
+                for row in children:
+                    child = row['key']
+
+                    await delete_recursively(child)
+
+                    # No more child found. Start deleting parent-child from category_children table from inner most set.
+                    payload = PayloadBuilder().WHERE(["key", "=", child]).payload()
+                    result = await self._storage.delete_from_tbl("configuration", payload)
+                    response = result["response"]
+                    if result['response'] == 'deleted':
+                        _logger.warning('Deleted child category from configuration: %s', child)
+
+                # All children removed - relationships + categories. Remove remaining entries for this cat either as
+                # as parent or child.
+                payload = PayloadBuilder().WHERE(["child", "=", cat]).OR_WHERE(["parent", "=", cat]).payload()
+                result = await self._storage.delete_from_tbl("category_children", payload)
+                response = result["response"]
+                if result['response'] == 'deleted':
+                    _logger.warning('Deleted parent and/or child entries in catgory_children for %s', cat)
+
+                # All cleaned up. Now it is time to remove this cat from configuration table.
+                payload = PayloadBuilder().WHERE(["key", "=", category_name]).payload()
+                result = await self._storage.delete_from_tbl("configuration", payload)
+                response = result["response"]
+                if result['response'] == 'deleted':
+                    _logger.warning('Deleted parent category from configuration: %s', cat)
+                # TODO: Shall we write audit trail code entry here? log_code?
+            except KeyError as ex:
+                raise ValueError(ex)
+            except StorageServerError as ex:
+                err_response = ex.error
+                raise ValueError(err_response)
+            else:
+                return result
+
+        try:
+            result = await delete_recursively(category_name)
+        except Exception as ex:
+            raise ValueError(ex)
+        else:
+            return result
 
     def register_interest(self, category_name, callback):
         """Registers an interest in any changes to the category_value associated with category_name

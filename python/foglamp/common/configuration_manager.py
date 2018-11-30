@@ -998,13 +998,13 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 payload = PayloadBuilder().WHERE(["child", "=", cat]).payload()
                 result = await self._storage.delete_from_tbl("category_children", payload)
                 if result['response'] == 'deleted':
-                    _logger.warning('Deleted parent in catgory_children: %s', cat)
+                    _logger.info('Deleted parent in catgory_children: %s', cat)
 
                 # Remove child category.
                 payload = PayloadBuilder().WHERE(["key", "=", cat]).payload()
                 result = await self._storage.delete_from_tbl("configuration", payload)
                 if result['response'] == 'deleted':
-                    _logger.warning('Deleted parent category from configuration: %s', cat)
+                    _logger.info('Deleted parent category from configuration: %s', cat)
                     deleted_ones.append(cat)
             except KeyError as ex:
                 raise ValueError(ex)
@@ -1021,7 +1021,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             payload = PayloadBuilder().WHERE(["child", "=", category_name]).payload()
             result = await self._storage.delete_from_tbl("category_children", payload)
             if result['response'] == 'deleted':
-                _logger.warning('Deleted parent child relationship entries for %s', category_name)
+                _logger.info('Deleted parent child relationship entries for %s', category_name)
             audit = AuditLogger(self._storage)
             audit_details = {'categoriesDeleted': deleted_ones}
             await audit.information('CONCH', audit_details)

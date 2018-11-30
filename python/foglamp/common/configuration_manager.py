@@ -1011,7 +1011,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     _logger.warning('Deleted parent and/or child entries in catgory_children for %s', cat)
 
                 # All cleaned up. Now it is time to remove this cat from configuration table.
-                payload = PayloadBuilder().WHERE(["key", "=", category_name]).payload()
+                payload = PayloadBuilder().WHERE(["key", "=", cat]).payload()
                 result = await self._storage.delete_from_tbl("configuration", payload)
                 response = result["response"]
                 if result['response'] == 'deleted':

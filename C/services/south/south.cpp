@@ -278,7 +278,10 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				for (uint64_t i=0; i<exp; i++)
 				{
 					Reading reading = southPlugin->poll();
-					ingest.ingest(reading);
+					if (reading.getDatapointCount())
+					{
+						ingest.ingest(reading);
+					}
 					++pollCount;
 				}
 			}

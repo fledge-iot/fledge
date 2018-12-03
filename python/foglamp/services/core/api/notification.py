@@ -389,7 +389,7 @@ async def delete_notification(request):
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
 
-        await _delete_configuration(storage, config_mgr, notif)
+        await config_mgr.delete_recursively_parent_category(notif)
 
         audit = AuditLogger(storage)
         await audit.information('NTFDL', notification)
@@ -482,7 +482,7 @@ async def _create_configurations(storage, config_mgr, name, notification_config,
                 await config_mgr.set_category_item_value_entry("delivery{}".format(name), k, v['value'])
     except Exception as ex:
         _logger.exception("Failed to create notification configuration. %s", str(ex))
-        await _delete_configuration(storage, config_mgr, name)  # Revert configuration entry
+        await config_mgr.delete_recursively_parent_category(name)
         raise web.HTTPInternalServerError(reason='Failed to create notification configuration.')
 
 
@@ -513,29 +513,3 @@ async def _update_configurations(config_mgr, name, notification_config, rule_con
     except Exception as ex:
         _logger.exception("Failed to update notification configuration. %s", str(ex))
         raise web.HTTPInternalServerError(reason='Failed to update notification configuration.')
-
-
-async def _delete_configuration(storage, config_mgr, name):
-    current_config = await config_mgr._read_category_val(name)
-    if not current_config:
-        raise ValueError('No Configuration entry found for [{}]'.format(name))
-    await _delete_configuration_category(storage, name)
-    await _delete_configuration_category(storage, "rule{}".format(name))
-    await _delete_configuration_category(storage, "delivery{}".format(name))
-    await _delete_parent_child_configuration(storage, "Notifications", name)
-    await _delete_parent_child_configuration(storage, name, "rule{}".format(name))
-    await _delete_parent_child_configuration(storage, name, "delivery{}".format(name))
-
-
-async def _delete_configuration_category(storage, key):
-    payload = PayloadBuilder().WHERE(['key', '=', key]).payload()
-    await storage.delete_from_tbl('configuration', payload)
-
-    # Removed key from configuration cache
-    config_mgr = ConfigurationManager(storage)
-    config_mgr._cacheManager.remove(key)
-
-
-async def _delete_parent_child_configuration(storage, parent, child):
-    payload = PayloadBuilder().WHERE(['parent', '=', parent]).AND_WHERE(['child', '=', child]).payload()
-    await storage.delete_from_tbl('category_children', payload)

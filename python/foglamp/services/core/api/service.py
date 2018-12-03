@@ -240,7 +240,7 @@ async def add_service(request):
                     await config_mgr.set_category_item_value_entry(name, k, v['value'])
 
         except Exception as ex:
-            await delete_configuration(storage, name)  # Revert configuration entry
+            await config_mgr.delete_recursively_parent_category(name)
             _logger.exception("Failed to create plugin configuration. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to create plugin configuration.')
 
@@ -258,11 +258,11 @@ async def add_service(request):
             await server.Server.scheduler.save_schedule(schedule, is_enabled)
             schedule = await server.Server.scheduler.get_schedule_by_name(name)
         except StorageServerError as ex:
-            await delete_configuration(storage, name)  # Revert configuration entry
+            await config_mgr.delete_recursively_parent_category(name)
             _logger.exception("Failed to create schedule. %s", ex.error)
             raise web.HTTPInternalServerError(reason='Failed to create service.')
         except Exception as ex:
-            await delete_configuration(storage, name)  # Revert configuration entry
+            await config_mgr.delete_recursively_parent_category(name)
             _logger.exception("Failed to create service. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to create service.')
 
@@ -288,29 +288,3 @@ async def get_schedule(storage, schedule_name):
     payload = PayloadBuilder().SELECT(["id", "enabled"]).WHERE(['schedule_name', '=', schedule_name]).payload()
     result = await storage.query_tbl_with_payload('schedules', payload)
     return result
-
-
-async def delete_configuration(storage, key):
-    await delete_configuration_category(storage, key)
-    await delete_configuration_category(storage, "{}Advanced".format(key))
-    await delete_parent_child_configuration(storage, key)
-    await delete_advance_child_configuration(storage, key)
-
-
-async def delete_configuration_category(storage, key):
-    payload = PayloadBuilder().WHERE(['key', '=', key]).payload()
-    await storage.delete_from_tbl('configuration', payload)
-
-    # Removed key from configuration cache
-    config_mgr = ConfigurationManager(storage)
-    config_mgr._cacheManager.remove(key)
-
-
-async def delete_parent_child_configuration(storage, key):
-    payload = PayloadBuilder().WHERE(['parent', '=', "South"]).AND_WHERE(['child', '=', key]).payload()
-    await storage.delete_from_tbl('category_children', payload)
-
-
-async def delete_advance_child_configuration(storage, key):
-    payload = PayloadBuilder().WHERE(['parent', '=', key]).payload()
-    await storage.delete_from_tbl('category_children', payload)

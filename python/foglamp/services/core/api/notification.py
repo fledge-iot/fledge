@@ -389,7 +389,7 @@ async def delete_notification(request):
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
 
-        await config_mgr.delete_recursively_parent_category(notif)
+        await config_mgr.delete_parent_category_recursively(notif)
 
         audit = AuditLogger(storage)
         await audit.information('NTFDL', notification)
@@ -482,7 +482,7 @@ async def _create_configurations(storage, config_mgr, name, notification_config,
                 await config_mgr.set_category_item_value_entry("delivery{}".format(name), k, v['value'])
     except Exception as ex:
         _logger.exception("Failed to create notification configuration. %s", str(ex))
-        await config_mgr.delete_recursively_parent_category(name)
+        await config_mgr.delete_parent_category_recursively(name)
         raise web.HTTPInternalServerError(reason='Failed to create notification configuration.')
 
 

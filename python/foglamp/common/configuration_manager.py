@@ -975,7 +975,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         return result
 
-    async def delete_recursively_parent_category(self, category_name):
+    async def delete_parent_category_recursively(self, category_name):
         """Delete recursively a category and its children along with their parent-child relationship
         Keyword Arguments:
         category_name -- name of the category (required)

@@ -602,7 +602,7 @@ class TestConfiguration:
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'delete_recursively_parent_category', return_value=async_mock()) as patch_delete_parent_cat:
+            with patch.object(c_mgr, 'delete_parent_category_recursively', return_value=async_mock()) as patch_delete_parent_cat:
                 resp = await client.delete('/foglamp/category/{}/parent'.format("south"))
                 assert 200 == resp.status
                 r = await resp.text()

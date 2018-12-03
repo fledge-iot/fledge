@@ -660,7 +660,7 @@ class TestNotification:
         audit_logger = mocker.patch.object(AuditLogger, "information", return_value=asyncio.sleep(.1))
 
         c_mgr = ConfigurationManager(storage_client_mock)
-        delete_configuration = mocker.patch.object(ConfigurationManager, "delete_recursively_parent_category", return_value=asyncio.sleep(.1))
+        delete_configuration = mocker.patch.object(ConfigurationManager, "delete_parent_category_recursively", return_value=asyncio.sleep(.1))
 
         resp = await client.delete("/foglamp/notification/Test Notification")
         assert 200 == resp.status
@@ -702,7 +702,7 @@ class TestNotification:
         audit_logger = mocker.patch.object(AuditLogger, "information", return_value=asyncio.sleep(.1))
 
         c_mgr = ConfigurationManager(storage_client_mock)
-        delete_configuration = mocker.patch.object(ConfigurationManager, "delete_recursively_parent_category", return_value=asyncio.sleep(.1))
+        delete_configuration = mocker.patch.object(ConfigurationManager, "delete_parent_category_recursively", return_value=asyncio.sleep(.1))
 
         resp = await client.delete("/foglamp/notification")
         assert 405 == resp.status

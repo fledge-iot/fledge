@@ -217,7 +217,7 @@ async def add_task(request):
                 for k, v in config.items():
                     await config_mgr.set_category_item_value_entry(name, k, v['value'])
         except Exception as ex:
-            await config_mgr.delete_recursively_parent_category(name)
+            await config_mgr.delete_parent_category_recursively(name)
             _logger.exception("Failed to create plugin configuration. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to create plugin configuration.')
 
@@ -240,11 +240,11 @@ async def add_task(request):
             await server.Server.scheduler.save_schedule(schedule, is_enabled)
             schedule = await server.Server.scheduler.get_schedule_by_name(name)
         except StorageServerError as ex:
-            await config_mgr.delete_recursively_parent_category(name)
+            await config_mgr.delete_parent_category_recursively(name)
             _logger.exception("Failed to create schedule. %s", ex.error)
             raise web.HTTPInternalServerError(reason='Failed to create north instance.')
         except Exception as ex:
-            await config_mgr.delete_recursively_parent_category(name)
+            await config_mgr.delete_parent_category_recursively(name)
             _logger.exception("Failed to create schedule. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to create north instance.')
 
@@ -278,7 +278,7 @@ async def delete_task(request):
 
         # delete all configuration for the north task instance name
         config_mgr = ConfigurationManager(storage)
-        await config_mgr.delete_recursively_parent_category(north_instance)
+        await config_mgr.delete_parent_category_recursively(north_instance)
 
         # delete statistics key
         await delete_statistics_key(storage, north_instance)

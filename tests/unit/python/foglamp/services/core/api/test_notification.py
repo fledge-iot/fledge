@@ -652,14 +652,15 @@ class TestNotification:
     async def test_delete_notification(self, mocker, client):
         mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
         mocker.patch.object(notification, '_hit_get_url', return_value=mock_get_url("/foglamp/notification/plugin"))
-        mocker.patch.object(connect, 'get_storage_async')
+        storage_client_mock = mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
         mocker.patch.object(ConfigurationManager, '_read_category_val',
                             return_value=mock_read_category_val("Test Notification"))
-        delete_configuration = mocker.patch.object(notification, "_delete_configuration",
-                                                   return_value=asyncio.sleep(.1))
         mocker.patch.object(AuditLogger, "__init__", return_value=None)
         audit_logger = mocker.patch.object(AuditLogger, "information", return_value=asyncio.sleep(.1))
+
+        c_mgr = ConfigurationManager(storage_client_mock)
+        delete_configuration = mocker.patch.object(ConfigurationManager, "delete_recursively_parent_category", return_value=asyncio.sleep(.1))
 
         resp = await client.delete("/foglamp/notification/Test Notification")
         assert 200 == resp.status
@@ -693,14 +694,15 @@ class TestNotification:
     async def test_delete_notification_exception(self, mocker, client):
         mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
         mocker.patch.object(notification, '_hit_get_url', return_value=mock_get_url("/foglamp/notification/plugin"))
-        mocker.patch.object(connect, 'get_storage_async')
+        storage_client_mock = mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
         mocker.patch.object(ConfigurationManager, '_read_category_val',
                             return_value=mock_read_category_val("Test Notification"))
-        delete_configuration = mocker.patch.object(notification, "_delete_configuration",
-                                                   return_value=asyncio.sleep(.1))
         mocker.patch.object(AuditLogger, "__init__", return_value=None)
         audit_logger = mocker.patch.object(AuditLogger, "information", return_value=asyncio.sleep(.1))
+
+        c_mgr = ConfigurationManager(storage_client_mock)
+        delete_configuration = mocker.patch.object(ConfigurationManager, "delete_recursively_parent_category", return_value=asyncio.sleep(.1))
 
         resp = await client.delete("/foglamp/notification")
         assert 405 == resp.status

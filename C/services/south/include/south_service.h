@@ -50,5 +50,6 @@ class SouthService : public ServiceHandler {
 		unsigned long			m_readingsPerSec;
 		unsigned int			m_threshold;
 		unsigned long			m_timeout;
+		Ingest				*m_ingest;
 };
 #endif

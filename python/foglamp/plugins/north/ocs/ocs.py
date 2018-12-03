@@ -101,9 +101,9 @@ _CONFIG_DEFAULT_OMF = {
         'readonly': 'true'
     },
     "URL": {
-        "description": "The URL of OCS (OSIsoft Cloud Services) ",
+        "description": "The URL of OCS (OSIsoft Cloud Services),  TENANT_ID_PLACEHOLDER and NAMESPACE_ID_PLACEHOLDER, if present, will be replaced with the values of tenant_id and namespace parameters ",
         "type": "string",
-        "default": "https://dat-a.osisoft.com/api/omf",
+        "default": "https://dat-a.osisoft.com/api/tenants/TENANT_ID_PLACEHOLDER/namespaces/NAMESPACE_ID_PLACEHOLDER/omf",
         "order": "1"
     },
     "producerToken": {
@@ -119,6 +119,11 @@ _CONFIG_DEFAULT_OMF = {
         "default": "readings",
         "options": ["readings"],
         "order": "3"
+    },
+    "compression": {
+        "description": "Compress message body",
+        "type": "boolean",
+        "default": "false",
     },
     "StaticData": {
         "description": "Static data to include in each sensor reading sent to OMF.",
@@ -363,7 +368,17 @@ def plugin_init(data):
 
     # Retrieves the configurations and apply the related conversions
     _config['_CONFIG_CATEGORY_NAME'] = data['_CONFIG_CATEGORY_NAME']
+
+    _config['namespace'] = data['namespace']['value']
+    _config['tenant_id'] = data['tenant_id']['value']
+    _config['client_id'] = data['client_id']['value']
+    _config['client_secret'] = data['client_secret']['value']
     _config['URL'] = data['URL']['value']
+
+    # Replaces placeholders if the URL doesn't already contain the final address
+    _config['URL'] = _config['URL'].replace("TENANT_ID_PLACEHOLDER", _config['tenant_id'])
+    _config['URL'] = _config['URL'].replace("NAMESPACE_ID_PLACEHOLDER", _config['namespace'])
+
     _config['producerToken'] = data['producerToken']['value']
     _config['OMFMaxRetry'] = int(data['OMFMaxRetry']['value'])
     _config['OMFRetrySleepTime'] = int(data['OMFRetrySleepTime']['value'])
@@ -372,6 +387,10 @@ def plugin_init(data):
 
     _config['formatNumber'] = data['formatNumber']['value']
     _config['formatInteger'] = data['formatInteger']['value']
+
+    _config['notBlockingErrors'] = ast.literal_eval(data['notBlockingErrors']['value'])
+
+    _config['compression'] = data['compression']['value']
 
     # TODO: compare instance fetching via inspect vs as param passing
     # import inspect

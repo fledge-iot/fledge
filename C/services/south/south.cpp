@@ -11,6 +11,10 @@
 #include <sys/timerfd.h>
 #include <time.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <execinfo.h>
+#include <unistd.h>
 #include <south_service.h>
 #include <management_api.h>
 #include <storage_client.h>
@@ -24,8 +28,10 @@
 #include <iostream>
 #include <defaults.h>
 #include <filter_plugin.h>
+#include <config_handler.h>
 
 extern int makeDaemon(void);
+extern void handler(int sig);
 
 using namespace std;
 
@@ -39,6 +45,12 @@ string	       coreAddress = "localhost";
 bool	       daemonMode = true;
 string	       myName = SERVICE_NAME;
 
+	signal(SIGSEGV, handler);
+	signal(SIGILL, handler);
+	signal(SIGBUS, handler);
+	signal(SIGFPE, handler);
+	signal(SIGABRT, handler);
+
 	for (int i = 1; i < argc; i++)
 	{
 		if (!strcmp(argv[i], "-d"))
@@ -47,7 +59,7 @@ string	       myName = SERVICE_NAME;
 		}
 		else if (!strncmp(argv[i], "--port=", 7))
 		{
-			corePort = (unsigned short)atoi(&argv[i][7]);
+			corePort = (unsigned short)strtol(&argv[i][7], NULL, 10);
 		}
 		else if (!strncmp(argv[i], "--name=", 7))
 		{
@@ -104,6 +116,26 @@ pid_t pid;
 	(void)dup(0);  			// stdout	GCC bug 66425 produces warning
 	(void)dup(0);  			// stderr	GCC bug 66425 produces warning
  	return 0;
+}
+
+void handler(int sig)
+{
+Logger	*logger = Logger::getLogger();
+void	*array[20];
+int	size;
+
+	// get void*'s for all entries on the stack
+	size = backtrace(array, 20);
+
+	// print out all the frames to stderr
+	logger->fatal("Signal %d (%s) trapped:\n", sig, strsignal(sig));
+	char **messages = backtrace_symbols(array, size);
+	for (int i = 0; i < size; i++)
+	{
+		logger->fatal("(%d) %s", i, messages[i]);
+	}
+	free(messages);
+	exit(1);
 }
 
 /**
@@ -163,11 +195,9 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		{
 			logger->error("Failed to register service %s", m_name.c_str());
 		}
-		unsigned int retryCount = 0;
-		while (m_mgtClient->registerCategory(m_name) == false && ++retryCount < 10)
-		{
-			sleep(2 * retryCount);
-		}
+		ConfigHandler *configHandler = ConfigHandler::getInstance(m_mgtClient);
+		configHandler->registerCategory(this, m_name);
+		configHandler->registerCategory(this, m_name+"Advanced");
 
 		// Get a handle on the storage layer
 		ServiceRecord storageRecord("FogLAMP Storage");
@@ -188,9 +218,9 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		std::string pluginName;
 		try {
 			if (m_configAdvanced.itemExists("bufferThreshold"))
-				threshold = (unsigned int)atoi(m_configAdvanced.getValue("bufferThreshold").c_str());
+				threshold = (unsigned int)strtol(m_configAdvanced.getValue("bufferThreshold").c_str(), NULL, 10);
 			if (m_configAdvanced.itemExists("maxSendLatency"))
-				timeout = (unsigned long)atoi(m_configAdvanced.getValue("maxSendLatency").c_str());
+				timeout = (unsigned long)strtol(m_configAdvanced.getValue("maxSendLatency").c_str(), NULL, 10);
 			if (m_config.itemExists("plugin"))
 				pluginName = m_config.getValue("plugin");
 		} catch (ConfigItemNotFound e) {
@@ -200,11 +230,12 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		{
 		// Instantiate the Ingest class
 		Ingest ingest(storage, timeout, threshold, m_name, pluginName, m_mgtClient);
+		m_ingest = &ingest;
 
 		try {
 			m_readingsPerSec = 1;
 			if (m_configAdvanced.itemExists("readingsPerSec"))
-				m_readingsPerSec = (unsigned long)atoi(m_configAdvanced.getValue("readingsPerSec").c_str());
+				m_readingsPerSec = (unsigned long)strtol(m_configAdvanced.getValue("readingsPerSec").c_str(), NULL, 10);
 		} catch (ConfigItemNotFound e) {
 			logger->info("Defaulting to inline default for poll interval");
 		}
@@ -247,7 +278,10 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				for (uint64_t i=0; i<exp; i++)
 				{
 					Reading reading = southPlugin->poll();
-					ingest.ingest(reading);
+					if (reading.getDatapointCount())
+					{
+						ingest.ingest(reading);
+					}
 					++pollCount;
 				}
 			}
@@ -394,6 +428,7 @@ bool SouthService::loadPlugin()
 
 			southPlugin = new SouthPlugin(handle, m_config);
 			logger->info("Loaded south plugin %s.", plugin.c_str());
+
 			return true;
 		}
 	} catch (exception e) {
@@ -419,14 +454,29 @@ void SouthService::shutdown()
  */
 void SouthService::configChange(const string& categoryName, const string& category)
 {
-	// TODO action configuration change
 	logger->info("Configuration change in category %s: %s", categoryName.c_str(),
 			category.c_str());
-	m_configAdvanced = m_mgtClient->getCategory(m_name+"Advanced");
-	try {
-		m_readingsPerSec = (unsigned long)atoi(m_configAdvanced.getValue("readingsPerSec").c_str());
-	} catch (ConfigItemNotFound e) {
-		logger->error("Failed to update poll interval following configuration change");
+	if (categoryName.compare(m_name) == 0)
+	{
+		m_config = ConfigCategory(m_name, category);
+		southPlugin->reconfigure(category);
+	}
+	if (categoryName.compare(m_name+"Advanced") == 0)
+	{
+		m_configAdvanced = ConfigCategory(m_name+"Advanced", category);
+		try {
+			m_readingsPerSec = (unsigned long)strtol(m_configAdvanced.getValue("readingsPerSec").c_str(), NULL, 10);
+		} catch (ConfigItemNotFound e) {
+			logger->error("Failed to update poll interval following configuration change");
+		}
+		if (m_configAdvanced.itemExists("bufferThreshold"))
+		{
+			m_ingest->setThreshold((unsigned int)strtol(m_configAdvanced.getValue("bufferThreshold").c_str(), NULL, 10));
+		}
+		if (m_configAdvanced.itemExists("maxSendLatency"))
+		{
+			m_ingest->setTimeout((unsigned long)strtol(m_configAdvanced.getValue("maxSendLatency").c_str(), NULL, 10));
+		}
 	}
 }
 

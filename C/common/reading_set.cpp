@@ -47,62 +47,84 @@ ReadingSet::ReadingSet(vector<Reading *>* readings)
 
 /**
  * Construct a reading set from a JSON document returned from
- * the FogLAMP storage service.
+ * the FogLAMP storage service query or notification.
  *
  * @param json	The JSON document (as string) with readings data
  */
 ReadingSet::ReadingSet(const std::string& json)
 {
+	unsigned long rows = 0;
 	Document doc;
 	doc.Parse(json.c_str());
 	if (doc.HasParseError())
 	{
 		throw new ReadingSetException("Unable to parse results json document");
 	}
-	if (doc.HasMember("count"))
+	// Check we have "count" and "rows"
+	bool docHasRows =  doc.HasMember("rows"); // Query
+	bool docHasReadings =  doc.HasMember("readings"); // Notification
+
+	// Check we have "rows" or "readings"
+	if (!docHasRows && !docHasReadings)
+	{
+		throw new ReadingSetException("Missing readings or rows array");
+	}
+
+	// Check we have "count" and "rows"
+	if (doc.HasMember("count") && docHasRows)
 	{
 		m_count = doc["count"].GetUint();
-		if (m_count)
-		{
-			if (!doc.HasMember("rows"))
-			{
-				throw new ReadingSetException("Missing readings array");
-			}
-			const Value& readings = doc["rows"];
-			if (readings.IsArray())
-			{
-				unsigned long id = 0;
-				// Process every rows and create the result set
-				for (auto& reading : readings.GetArray())
-				{
-					if (!reading.IsObject())
-					{
-						throw new ReadingSetException("Expected reading to be an object");
-					}
-					JSONReading *value = new JSONReading(reading);
-					m_readings.push_back(value);
-
-					// Get the Reading Id
-					id = value->getId();
-
-				}
-				// Set the last id
-				m_last_id = id;
-			}
-			else
-			{
-				throw new ReadingSetException("Expected array of rows in result set");
-			}
-		}
-		else
+		// No readings
+		if (!m_count)
 		{
 			m_last_id = 0;
+			return;
 		}
 	}
 	else
 	{
+		// These fields might be updated later
 		m_count = 0;
 		m_last_id = 0;
+	}
+
+	// Get "rows" or "readings" data
+	const Value& readings = docHasRows ? doc["rows"] : doc["readings"];
+	if (readings.IsArray())
+	{
+		unsigned long id = 0;
+		// Process every rows and create the result set
+		for (auto& reading : readings.GetArray())
+		{
+			if (!reading.IsObject())
+			{
+				throw new ReadingSetException("Expected reading to be an object");
+			}
+			JSONReading *value = new JSONReading(reading);
+			m_readings.push_back(value);
+
+			// Get the Reading Id
+			id = value->getId();
+
+			// We don't have count informations with "readings"
+			if (docHasReadings)
+			{
+				rows++;
+			}
+
+		}
+		// Set the last id
+		m_last_id = id;
+
+		// Set count informations with "readings"
+		if (docHasReadings)
+		{
+			m_count = rows;
+		}
+	}
+	else
+	{
+		throw new ReadingSetException("Expected array of rows in result set");
 	}
 }
 

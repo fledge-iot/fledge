@@ -78,30 +78,33 @@ def evaluate_type(value):
      Raises:
      """
 
-    try:
-        float(value)
-
+    if type(value) is list:
+        evaluated_type = "array"
+    else:
         try:
-            # Evaluates if it is a int or a number
-            if str(int(float(value))) == str(value):
+            float(value)
 
-                # Checks the case having .0 as 967.0
-                int_str = str(int(float(value)))
-                value_str = str(value)
+            try:
+                # Evaluates if it is a int or a number
+                if str(int(float(value))) == str(value):
 
-                if int_str == value_str:
-                    evaluated_type = "integer"
+                    # Checks the case having .0 as 967.0
+                    int_str = str(int(float(value)))
+                    value_str = str(value)
+
+                    if int_str == value_str:
+                        evaluated_type = "integer"
+                    else:
+                        evaluated_type = "number"
+
                 else:
                     evaluated_type = "number"
 
-            else:
-                evaluated_type = "number"
+            except ValueError:
+                evaluated_type = "string"
 
         except ValueError:
             evaluated_type = "string"
-
-    except ValueError:
-        evaluated_type = "string"
 
     return evaluated_type
 

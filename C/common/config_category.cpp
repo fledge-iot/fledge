@@ -695,15 +695,18 @@ void ConfigCategory::setDescription(const string& description)
 
 /**
  * Return JSON string of all category components
+ *
+ * @param full	false is the deafult, true evaluates all the members of the CategoryItems
+ *
  */
-string ConfigCategory::toJSON() const
+string ConfigCategory::toJSON(const bool full) const
 {
 ostringstream convert;
 
 	convert << "{ \"key\" : \"" << m_name << "\", ";
 	convert << "\"description\" : \"" << m_description << "\", \"value\" : ";
 	// Add items
-	convert << ConfigCategory::itemsToJSON();
+	convert << ConfigCategory::itemsToJSON(full);
 	convert << " }";
 
 	return convert.str();
@@ -711,15 +714,18 @@ ostringstream convert;
 
 /**
  * Return JSON string of category items only
+ *
+ * @param full	false is the deafult, true evaluates all the members of the CategoryItems
+ *
  */
-string ConfigCategory::itemsToJSON() const
+string ConfigCategory::itemsToJSON(const bool full) const
 {
 ostringstream convert;
 
 	convert << "{";
 	for (auto it = m_items.cbegin(); it != m_items.cend(); it++)
 	{
-		convert << (*it)->toJSON();
+		convert << (*it)->toJSON(full);
 		if (it + 1 != m_items.cend() )
 		{
 			convert << ", ";
@@ -1069,8 +1075,11 @@ ConfigCategory::CategoryItem::CategoryItem(const CategoryItem& rhs)
 
 /**
  * Create a JSON representation of the configuration item
+ *
+ * @param full	false is the deafult, true evaluates all the members of the CategoryItem
+ *
  */
-string ConfigCategory::CategoryItem::toJSON() const
+string ConfigCategory::CategoryItem::toJSON(const bool full) const
 {
 ostringstream convert;
 
@@ -1107,6 +1116,46 @@ ostringstream convert;
 		convert << "\"value\" : " << m_value << ", ";
 		convert << "\"default\" : " << m_default << " }";
 	}
+
+	if (full)
+	{
+		if (!m_order.empty())
+		{
+			convert << "\"order\" : \"" << m_order << "\", ";
+		}
+
+		if (!m_minimum.empty())
+		{
+			convert << "\"minimum\" : \"" << m_minimum << "\", ";
+		}
+
+		if (!m_maximum.empty())
+		{
+			convert << "\"maximum\" : \"" << m_maximum << "\", ";
+		}
+
+		if (!m_readonly.empty())
+		{
+			convert << "\"readonly\" : \"" << m_readonly << "\", ";
+		}
+
+		if (!m_file.empty())
+		{
+			convert << "\"file\" : \"" << m_file << "\", ";
+		}
+		if (m_options.size() > 0)
+		{
+			convert << "\"options\" : [ ";
+			for (int i = 0; i < m_options.size(); i++)
+			{
+				if (i > 0)
+					convert << ",";
+				convert << "\"" << m_options[i] << "\"";
+			}
+			convert << "],";
+		}
+	}
+
 	return convert.str();
 }
 
@@ -1296,4 +1345,59 @@ std::string ConfigCategory::CategoryItem::unescape(const std::string& subject) c
 		json.erase(json.length() - 1, 1);
 	}
         return json;
+}
+
+/**
+ * Configuration Category constructor
+ *
+ * @param name	The name of the configuration category
+ * @param json	JSON content of the configuration category
+ */
+ConfigCategoryChange::ConfigCategoryChange(const string& json)
+{
+	Document doc;
+	doc.Parse(json.c_str());
+	if (doc.HasParseError())
+	{
+		Logger::getLogger()->error("Configuration parse error in category change %s: %s at %d",
+			json.c_str(), GetParseError_En(doc.GetParseError()),
+			(unsigned)doc.GetErrorOffset());
+		throw new ConfigMalformed();
+	}
+	if (!doc.HasMember("category"))
+	{
+		Logger::getLogger()->error("Configuration change is missing a category element '%s'",
+			json.c_str());
+		throw new ConfigMalformed();
+	}
+	if (!doc.HasMember("items"))
+	{
+		Logger::getLogger()->error("Configuration change is missing an items element '%s'",
+			json.c_str());
+		throw new ConfigMalformed();
+	}
+
+	m_name = doc["category"].GetString();
+	const Value& items = doc["items"];
+	for (Value::ConstMemberIterator itr = items.MemberBegin(); itr != items.MemberEnd(); ++itr)
+	{
+		try
+		{
+			m_items.push_back(new CategoryItem(itr->name.GetString(), itr->value));
+		}
+		catch (exception* e)
+		{
+			Logger::getLogger()->error("Configuration parse error in category %s item '%s', %s: %s",
+				m_name,
+				itr->name.GetString(),
+				json.c_str(),
+				e->what());
+			delete e;
+			throw ConfigMalformed();
+		}
+		catch (...)
+		{
+			throw;
+		}
+	}
 }

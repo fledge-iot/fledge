@@ -29,8 +29,10 @@ _logger = logger.setup(__name__)
 # MAKE UPPER_CASE
 _valid_type_strings = sorted(['boolean', 'integer', 'float', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password', 'JSON',
                               'URL', 'enumeration', 'script'])
-RESERVED_CATG = [ 'South', 'North', 'General', 'Advanced', 'Utilities', 'rest_api', 'Security',
-                  'service', 'SCHEDULER', 'SMNTR', 'PURGE_READ']
+RESERVED_CATG = [ 'South', 'North', 'General',
+                  'Advanced', 'Utilities', 'rest_api',
+                  'Security', 'service', 'SCHEDULER',
+                  'SMNTR', 'PURGE_READ', 'Notifications']
 
 
 class ConfigurationCache(object):

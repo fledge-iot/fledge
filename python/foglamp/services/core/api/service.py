@@ -97,7 +97,8 @@ async def delete_service(request):
         await server.Server.scheduler.delete_schedule(sch_id)
 
         # delete all configuration for the service name
-        await delete_configuration(storage, svc)
+        config_mgr = ConfigurationManager(storage)
+        await config_mgr.delete_recursively_parent_category(svc)
 
         try:
             ServiceRegistry.get(name=svc)

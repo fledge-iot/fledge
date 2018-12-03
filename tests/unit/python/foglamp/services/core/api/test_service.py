@@ -454,11 +454,13 @@ class TestService:
                         ]
             }
         mocker.patch.object(connect, 'get_storage_async')
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
         get_schedule = mocker.patch.object(service, "get_schedule", return_value=mock_result())
         scheduler = mocker.patch.object(server.Server, "scheduler", MagicMock())
         delete_schedule = mocker.patch.object(scheduler, "delete_schedule", return_value=asyncio.sleep(.1))
         disable_schedule = mocker.patch.object(scheduler, "disable_schedule", return_value=asyncio.sleep(.1))
-        delete_configuration = mocker.patch.object(service, "delete_configuration", return_value=asyncio.sleep(.1))
+        delete_configuration = mocker.patch.object(ConfigurationManager, "delete_recursively_parent_category", return_value=asyncio.sleep(.1))
         get_registry = mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
         remove_registry = mocker.patch.object(ServiceRegistry, 'remove_from_registry')
 

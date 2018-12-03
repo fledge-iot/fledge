@@ -280,8 +280,8 @@ async def delete_task(request):
         await server.Server.scheduler.delete_schedule(sch_id)
 
         # delete all configuration for the north task instance name
-        await delete_configuration(storage, north_instance)
-        await delete_parent_child_configuration(storage, north_instance)
+        config_mgr = ConfigurationManager(storage)
+        await config_mgr.delete_recursively_parent_category(north_instance)
 
         # delete statistics key
         await delete_statistics_key(storage, north_instance)

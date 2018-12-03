@@ -29,6 +29,7 @@ _logger = logger.setup(__name__)
 # MAKE UPPER_CASE
 _valid_type_strings = sorted(['boolean', 'integer', 'float', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password', 'JSON',
                               'URL', 'enumeration', 'script'])
+RESERVED_CATG = ['Advanced','General', 'PURGE_READ', 'SCHEDULER', 'SMNTR', 'Utilities', 'rest_api', 'service', 'North', 'South']
 
 
 class ConfigurationCache(object):
@@ -972,63 +973,73 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         return result
 
     async def delete_recursively_parent_category(self, category_name):
-        """Delete a category and its child recursively including their parent-child relationship 
-
+        """Delete recursively a category and its children along with their parent-child relationship
         Keyword Arguments:
         category_name -- name of the category (required)
-
         Return Values:
         JSON
         """
         if not isinstance(category_name, str):
             raise TypeError('category_name must be a string')
-
         category = await self._read_category_val(category_name)
+
         if category is None:
             raise ValueError('No such {} category exist'.format(category_name))
+        catg_descendents = await self._fetch_descendents(category_name)
 
-        async def delete_recursively(cat):
-            try:
-                children = await self.get_category_child(cat)
-                for row in children:
-                    child = row['key']
-                    await delete_recursively(child)
-
-                # Remove child from parent-child relation.
-                payload = PayloadBuilder().WHERE(["child", "=", cat]).payload()
-                result = await self._storage.delete_from_tbl("category_children", payload)
-                if result['response'] == 'deleted':
-                    _logger.info('Deleted parent in catgory_children: %s', cat)
-
-                # Remove child category.
-                payload = PayloadBuilder().WHERE(["key", "=", cat]).payload()
-                result = await self._storage.delete_from_tbl("configuration", payload)
-                if result['response'] == 'deleted':
-                    _logger.info('Deleted parent category from configuration: %s', cat)
-                    deleted_ones.append(cat)
-            except KeyError as ex:
-                raise ValueError(ex)
-            except StorageServerError as ex:
-                err_response = ex.error
-                raise ValueError(err_response)
-            else:
-                return result
-
+        for catg in RESERVED_CATG:
+            if catg in catg_descendents:
+                raise ValueError('Reserved category found in descendents of {} - {}'.format(category_name, catg_descendents))
         try:
-            deleted_ones = list()
-            result = await delete_recursively(category_name)
-            # All children and relationships removed. Remove remaining entries for this cat as child.
-            payload = PayloadBuilder().WHERE(["child", "=", category_name]).payload()
-            result = await self._storage.delete_from_tbl("category_children", payload)
-            if result['response'] == 'deleted':
-                _logger.info('Deleted parent child relationship entries for %s', category_name)
-            audit = AuditLogger(self._storage)
-            audit_details = {'categoriesDeleted': deleted_ones}
-            await audit.information('CONCH', audit_details)
+            result = await self._delete_recursively(category_name)
         except ValueError as ex:
             raise ValueError(ex)
         else:
-            return result
+            return result[category_name]
+
+    async def _fetch_descendents(self, cat):
+        children = await self._read_all_child_category_names(cat)
+        descendents = []
+        for row in children:
+            child = row['child']
+            descendents.append(child)
+            child_descendents = await self._fetch_descendents(child)
+            descendents.extend(child_descendents)
+        return descendents
+
+    async def _delete_recursively(self, cat):
+        try:
+            children = await self._read_all_child_category_names(cat)
+            for row in children:
+                child = row['child']
+                await self._delete_recursively(child)
+
+            # Remove cat as child from parent-child relation.
+            payload = PayloadBuilder().WHERE(["child", "=", cat]).payload()
+            result = await self._storage.delete_from_tbl("category_children", payload)
+            if result['response'] == 'deleted':
+                _logger.info('Deleted parent in catgory_children: %s', cat)
+
+            # Remove category.
+            payload = PayloadBuilder().WHERE(["key", "=", cat]).payload()
+            result = await self._storage.delete_from_tbl("configuration", payload)
+            if result['response'] == 'deleted':
+                _logger.info('Deleted parent category from configuration: %s', cat)
+                audit = AuditLogger(self._storage)
+                audit_details = {'categoryDeleted': cat}
+                # FIXME: FOGL-2140
+                await audit.information('CONCH', audit_details)
+
+            # Remove cat from cache
+            if cat in self._cacheManager.cache:
+                self._cacheManager.remove(cat)
+        except KeyError as ex:
+            raise ValueError(ex)
+        except StorageServerError as ex:
+            err_response = ex.error
+            raise ValueError(err_response)
+        else:
+            return {cat: result}
 
     def register_interest(self, category_name, callback):
         """Registers an interest in any changes to the category_value associated with category_name

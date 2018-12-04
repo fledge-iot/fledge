@@ -19,9 +19,9 @@
 
 #include <Python.h>
 
-typedef PLUGIN_INFORMATION *(*func_t)();
+//typedef PLUGIN_INFORMATION *(*func_t)();
 
-#define PYTHON_FILTERS_PATH "/scripts"
+//#define PYTHON_FILTERS_PATH "/scripts"
 
 /**
  * The PluginHandle class is used to represent an opaque handle to a 
@@ -43,10 +43,22 @@ class PluginHandle
 class BinaryPluginHandle : public PluginHandle
 {
 	public:
-		BinaryPluginHandle(const char *, const char *path) { handle = dlopen(path, RTLD_LAZY); }
+		BinaryPluginHandle(const char *, const char *path)
+			{
+			Logger::getLogger()->info("BinaryPluginHandle c'tor: dlopen done for path='%s'", path);
+			handle = dlopen(path, RTLD_LAZY);
+			}
 		~BinaryPluginHandle() { if (handle) dlclose(handle); }
-		void *GetInfo() { return dlsym(handle, "plugin_info"); }
-		void *ResolveSymbol(const char* sym) { return dlsym(handle, sym); };
+		void *GetInfo()
+			{
+			Logger::getLogger()->info("BinaryPluginHandle::GetInfo(): dlsym for plugin_info");
+			return dlsym(handle, "plugin_info"); 
+			}
+		void *ResolveSymbol(const char* sym)
+			{
+			Logger::getLogger()->info("BinaryPluginHandle::ResolveSymbol(): For sym='%s'", sym);
+			return dlsym(handle, sym);
+			}
 		void *openHandle(const char *) { return handle; }
 		void closeHandle() {}
 	private:

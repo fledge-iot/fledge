@@ -233,7 +233,7 @@ PLUGIN_HANDLE PluginManager::resolveSymbol(PLUGIN_HANDLE handle, const string& s
   logger->info("%s:%d: handle=%p, symbol=%s", __FUNCTION__, __LINE__, handle, symbol.c_str());
   if (pluginHandleMap.find(handle) == pluginHandleMap.end())
   {
-  	logger->info("%s:%d: returning NULL", __FUNCTION__, __LINE__);
+  	logger->info("%s:%d: Cannot find PLUGIN_HANDLE in pluginHandleMap: returning NULL", __FUNCTION__, __LINE__);
     return NULL;
   }
   logger->info("%s:%d: returning non-NULL", __FUNCTION__, __LINE__);

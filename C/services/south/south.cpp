@@ -339,6 +339,9 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			}
 		}
 		}
+
+		if (southPlugin)
+			southPlugin->shutdown();
 		
 		// Clean shutdown, unregister the storage service
 		m_mgtClient->unregisterService();

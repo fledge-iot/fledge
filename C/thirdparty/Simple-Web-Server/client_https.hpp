@@ -17,7 +17,7 @@ namespace SimpleWeb {
   public:
     Client(const std::string &server_port_path, bool verify_certificate = true, const std::string &cert_file = std::string(),
            const std::string &private_key_file = std::string(), const std::string &verify_file = std::string())
-        : ClientBase<HTTPS>::ClientBase(server_port_path, 443), context(asio::ssl::context::tls) {
+        : ClientBase<HTTPS>::ClientBase(server_port_path, 443), context(asio::ssl::context::sslv23) {
 
         // Disables old protocols
         context.set_options(boost::asio::ssl::context::no_sslv2);

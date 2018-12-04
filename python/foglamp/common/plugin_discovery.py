@@ -10,7 +10,7 @@ import os
 from foglamp.common import logger
 from foglamp.services.core.api import utils
 
-__author__ = "Amarendra K Sinha"
+__author__ = "Amarendra K Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -31,10 +31,14 @@ class PluginDiscovery(object):
             plugins_list_south = cls.fetch_plugins_installed("south", is_config)
             plugins_list_c_north = cls.fetch_c_plugins_installed("north", is_config)
             plugins_list_c_south = cls.fetch_c_plugins_installed("south", is_config)
+            plugins_list_filter = cls.fetch_c_plugins_installed("filter", is_config)
             plugins_list.extend(plugins_list_north)
             plugins_list.extend(plugins_list_c_north)
             plugins_list.extend(plugins_list_south)
             plugins_list.extend(plugins_list_c_south)
+            plugins_list.extend(plugins_list_filter)
+        elif plugin_type == 'filter':
+            plugins_list = cls.fetch_c_plugins_installed(plugin_type, is_config)
         else:
             plugins_list = cls.fetch_plugins_installed(plugin_type, is_config)
             plugins_list.extend(cls.fetch_c_plugins_installed(plugin_type, is_config))

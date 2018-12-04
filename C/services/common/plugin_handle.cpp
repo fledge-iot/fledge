@@ -25,7 +25,7 @@ using namespace std;
 PLUGIN_INFORMATION *plugin_info_fn();
 PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config);
 Reading plugin_poll_fn(PLUGIN_HANDLE);
-void* plugin_reconfigure_fn(PLUGIN_HANDLE handle, const std::string& newConfig);
+void plugin_reconfigure_fn(PLUGIN_HANDLE handle, const std::string& newConfig);
 void plugin_shutdown_fn(PLUGIN_HANDLE);
 
 PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal);
@@ -370,9 +370,66 @@ void plugin_shutdown_fn(PLUGIN_HANDLE handle)
 }
 	
 
-void* plugin_reconfigure_fn(PLUGIN_HANDLE handle, const std::string& newConfig)
+void plugin_reconfigure_fn(PLUGIN_HANDLE handle, const std::string& config)
 {
+	string *handleStr = (string *) handle;
+
+	PyObject* pFunc;
 	
+	// Fetch required method in loaded object
+	pFunc = PyObject_GetAttrString(pModule, "plugin_reconfigure");
+	if (!pModule || !pFunc)
+		Logger::getLogger()->info("plugin_handle: plugin_reconfigure(): pModule=%p, pFunc=%p", pModule, pFunc);
+
+	if (!pFunc || !PyCallable_Check(pFunc))
+	{
+		// Failure
+		if (PyErr_Occurred())
+		{
+			logErrorMessage();
+		}
+
+		Logger::getLogger()->fatal("Cannot find method plugin_reconfigure in loaded python module");
+		Py_CLEAR(pFunc);
+
+		return;
+	}
+
+	PRINT_FUNC;
+
+	Logger::getLogger()->info("plugin_handle: plugin_reconfigure(): config->toJSON()='%s'", config.c_str());
+	
+	// - 2 - Call Python method passing an object
+	PyObject* pReturn = PyObject_CallFunction(pFunc, "ss", handleStr->c_str(), config.c_str());
+
+	PRINT_FUNC;
+	Logger::getLogger()->info("plugin_handle: plugin_reconfigure(): pReturn=%p", pReturn);
+
+	// - 3 - Handle filter returned data
+	if (!pReturn)
+	{
+		// Errors while getting result object
+		Logger::getLogger()->error("Called python script method plugin_reconfigure : error while getting result object");
+
+		// Errors while getting result object
+		logErrorMessage();
+
+		return;
+	}
+	else
+	{
+		PRINT_FUNC;
+
+		
+		*handleStr = string(PyUnicode_AsUTF8(pReturn));
+
+		Logger::getLogger()->info("plugin_handle: plugin_reconfigure(): got updated handle from python plugin='%s'", handleStr->c_str());
+		
+		// Remove pReturn object
+		Py_CLEAR(pReturn);
+
+		return;
+	}
 }
 
 /**

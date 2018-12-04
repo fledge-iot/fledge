@@ -2025,7 +2025,7 @@ class TestConfigurationManager:
                 assert str(msg) == str(excinfo.value)
         patch_read_cat_val.assert_called_once_with("south")
 
-    async def test_delete_children_categories(self, mocker, reset_singleton):
+    async def test_delete_category_and_children_recursively(self, mocker, reset_singleton):
         @asyncio.coroutine
         def mock_coro(a, b):
             return expected_result
@@ -2099,7 +2099,7 @@ class TestConfigurationManager:
         audit_logger = mocker.patch.object(AuditLogger, '__init__', return_value=None)
         audit_info = mocker.patch.object(AuditLogger, 'information', return_value=async_mock('bla'))
 
-        ret_val = await c_mgr.delete_children_categories("A")
+        ret_val = await c_mgr.delete_category_and_children_recursively("A")
         assert expected_result == ret_val
 
         patch_read_cat_val.assert_called_once_with('A')
@@ -2150,7 +2150,7 @@ class TestConfigurationManager:
                         call('CONCH', {'categoryDeleted': 'A'})]
         audit_info.has_calls(audit_calls, any_order=True)
 
-    async def test_delete_children_categories_exception(self, mocker, reset_singleton):
+    async def test_delete_category_and_children_recursively_exception(self, mocker, reset_singleton):
         @asyncio.coroutine
         def mock_coro(a, b):
             return expected_result
@@ -2227,7 +2227,7 @@ class TestConfigurationManager:
         msg = "Reserved category found in descendents of A - ['B', 'E', 'F', 'G', 'H', 'I', 'N', 'C', 'M', 'D', 'North', 'K', 'L']"
 
         with pytest.raises(ValueError) as excinfo:
-            await c_mgr.delete_children_categories("A")
+            await c_mgr.delete_category_and_children_recursively("A")
         assert str(msg) == str(excinfo.value)
 
     async def test__read_all_child_category_names(self, reset_singleton):

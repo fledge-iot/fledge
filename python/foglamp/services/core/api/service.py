@@ -98,7 +98,7 @@ async def delete_service(request):
 
         # delete all configuration for the service name
         config_mgr = ConfigurationManager(storage)
-        await config_mgr.delete_children_categories(svc)
+        await config_mgr.delete_category_and_children_recursively(svc)
 
         try:
             ServiceRegistry.get(name=svc)
@@ -240,7 +240,7 @@ async def add_service(request):
                     await config_mgr.set_category_item_value_entry(name, k, v['value'])
 
         except Exception as ex:
-            await config_mgr.delete_children_categories(name)
+            await config_mgr.delete_category_and_children_recursively(name)
             _logger.exception("Failed to create plugin configuration. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to create plugin configuration.')
 
@@ -258,11 +258,11 @@ async def add_service(request):
             await server.Server.scheduler.save_schedule(schedule, is_enabled)
             schedule = await server.Server.scheduler.get_schedule_by_name(name)
         except StorageServerError as ex:
-            await config_mgr.delete_children_categories(name)
+            await config_mgr.delete_category_and_children_recursively(name)
             _logger.exception("Failed to create schedule. %s", ex.error)
             raise web.HTTPInternalServerError(reason='Failed to create service.')
         except Exception as ex:
-            await config_mgr.delete_children_categories(name)
+            await config_mgr.delete_category_and_children_recursively(name)
             _logger.exception("Failed to create service. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to create service.')
 

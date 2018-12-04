@@ -393,7 +393,7 @@ class TestService:
         delete_schedule = mocker.patch.object(scheduler, "delete_schedule", return_value=asyncio.sleep(.1))
         disable_schedule = mocker.patch.object(scheduler, "disable_schedule",
                                                return_value=asyncio.sleep(.1))
-        delete_configuration = mocker.patch.object(ConfigurationManager, "delete_children_categories", return_value=asyncio.sleep(.1))
+        delete_configuration = mocker.patch.object(ConfigurationManager, "delete_category_and_children_recursively", return_value=asyncio.sleep(.1))
         delete_statistics_key = mocker.patch.object(task, "delete_statistics_key", return_value=asyncio.sleep(.1))
 
         resp = await client.delete("/foglamp/scheduled/task/{}".format(sch_name))

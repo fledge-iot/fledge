@@ -63,7 +63,6 @@ def setup(app):
     app.router.add_route('PUT', '/foglamp/category/{category_name}', api_configuration.update_configuration_item_bulk)
     app.router.add_route('POST', '/foglamp/category/{category_name}/children', api_configuration.create_child_category)
     app.router.add_route('GET', '/foglamp/category/{category_name}/children', api_configuration.get_child_category)
-    app.router.add_route('DELETE', '/foglamp/category/{category_name}/children', api_configuration.delete_children_categories)
     app.router.add_route('DELETE', '/foglamp/category/{category_name}/children/{child_category}', api_configuration.delete_child_category)
     app.router.add_route('DELETE', '/foglamp/category/{category_name}/parent', api_configuration.delete_parent_category)
     app.router.add_route('GET', '/foglamp/category/{category_name}/{config_item}', api_configuration.get_category_item)

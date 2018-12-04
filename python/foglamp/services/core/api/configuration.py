@@ -28,7 +28,7 @@ _help = """
     | GET POST PUT   | /foglamp/category/{category_name}/{config_item}             |
     | DELETE         | /foglamp/category/{category_name}/{config_item}/value       |
     | POST           | /foglamp/category/{category_name}/{config_item}/upload      |
-    | GET POST DELETE| /foglamp/category/{category_name}/children                  |
+    | GET POST       | /foglamp/category/{category_name}/children                  |
     | DELETE         | /foglamp/category/{category_name}/children/{child_category} |
     | DELETE         | /foglamp/category/{category_name}/parent                    |
     --------------------------------------------------------------------------------
@@ -511,32 +511,7 @@ async def delete_parent_category(request):
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
 
-    return web.json_response({"message": "Parent category-{} is deleted".format(category_name)})
-
-async def delete_children_categories(request):
-    """
-    Args:
-        request: category_name
-
-    Returns:
-        remove the link b/w parent-child category for the parent
-
-    :Example:
-        curl -X DELETE http://localhost:8081/foglamp/category/{category_name}/children
-
-    """
-    category_name = request.match_info.get('category_name', None)
-    category_name = urllib.parse.unquote(category_name) if category_name is not None else None
-
-    cf_mgr = ConfigurationManager(connect.get_storage_async())
-    try:
-        await cf_mgr.delete_children_categories(category_name)
-    except TypeError as ex:
-        raise web.HTTPBadRequest(reason=str(ex))
-    except ValueError as ex:
-        raise web.HTTPNotFound(reason=str(ex))
-
-    return web.json_response({"message": "Children of {} have been deleted".format(category_name)})
+    return web.json_response({"message": "Parent-child relationship for the parent-{} is deleted".format(category_name)})
 
 
 async def upload_script(request):

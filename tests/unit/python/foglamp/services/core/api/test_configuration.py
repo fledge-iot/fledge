@@ -607,23 +607,7 @@ class TestConfiguration:
                 assert 200 == resp.status
                 r = await resp.text()
                 json_response = json.loads(r)
-                assert {'message': 'Parent category-south is deleted'} == json_response
-            patch_delete_parent_cat.assert_called_once_with('south')
-
-    async def test_delete_child_categories(self, client):
-        @asyncio.coroutine
-        def async_mock():
-            return None
-
-        storage_client_mock = MagicMock(StorageClientAsync)
-        c_mgr = ConfigurationManager(storage_client_mock)
-        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'delete_children_categories', return_value=async_mock()) as patch_delete_parent_cat:
-                resp = await client.delete('/foglamp/category/{}/children'.format("south"))
-                assert 200 == resp.status
-                r = await resp.text()
-                json_response = json.loads(r)
-                assert {'message': 'Children of south have been deleted'} == json_response
+                assert {'message': 'Parent-child relationship for the parent-south is deleted'} == json_response
             patch_delete_parent_cat.assert_called_once_with('south')
 
     async def test_create_category_with_children(self, client, reset_singleton, name="test_cat", desc="Test desc"):

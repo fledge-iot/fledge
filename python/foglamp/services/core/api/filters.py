@@ -150,7 +150,7 @@ async def add_filters_pipeline(request):
     {"pipeline": ["Scale10Filter", "Python_assetCodeFilter"]} 
 
     Query string parameters:
-    - append_filter=true|false       Default true
+    - append_filter=true|false       Default false
     - allow_duplicates=true|false    Default true
 
     :Example:
@@ -205,7 +205,7 @@ async def add_filters_pipeline(request):
             # Check whether we want to replace or update the list
             # or we allow duplicate entries in the list
             # Default: append and allow duplicates
-            append_filter = 'true'
+            append_filter = 'false'
             allow_duplicates = 'true'
             if 'append_filter' in request.query and request.query['append_filter'] != '':
                 append_filter = request.query['append_filter'].lower()

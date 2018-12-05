@@ -426,6 +426,84 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             err_response = ex.error
             raise ValueError(err_response)
 
+    async def update_configuration_item_bulk(self, category_name, config_item_list):
+        """ Bulk update config items
+
+        Args:
+            category_name: category name
+            config_item_list: dict containing config item values
+
+        Returns:
+            None
+        """
+
+        try:
+            payload = {"updates": []}
+            audit_details = {'category': category_name, 'items': {}}
+            cat_info = await self.get_category_all_items(category_name)
+            if cat_info is None:
+                raise NameError("No such Category found for {}".format(category_name))
+            for item_name, new_val in config_item_list.items():
+                if item_name not in cat_info:
+                    raise KeyError('{} config item not found'.format(item_name))
+
+                if cat_info[item_name]['type'] == 'JSON':
+                    if isinstance(new_val, dict):
+                        pass
+                    elif not isinstance(new_val, str):
+                        raise TypeError('new value should be a valid dict Or a string literal, in double quotes')
+                elif not isinstance(new_val, str):
+                    raise TypeError('new value should be of type string')
+
+                if cat_info[item_name]['type'] == 'enumeration':
+                    if new_val == '':
+                        raise ValueError('entry_val cannot be empty')
+                    if new_val not in cat_info[item_name]['options']:
+                        raise ValueError('new value does not exist in options enum')
+                else:
+                    if self._validate_type_value(cat_info[item_name]['type'], new_val) is False:
+                        raise TypeError('Unrecognized value name for item_name {}'.format(item_name))
+
+                old_value = cat_info[item_name]['value']
+                new_val = self._clean(cat_info[item_name]['type'], new_val)
+
+                if old_value != new_val:
+                    payload_item = PayloadBuilder().SELECT("key", "description", "ts", "value") \
+                        .JSON_PROPERTY(("value", [item_name, "value"], new_val)) \
+                        .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")) \
+                        .WHERE(["key", "=", category_name]).payload()
+                    payload['updates'].append(json.loads(payload_item))
+                    audit_details['items'].update({item_name: {'oldValue': old_value, 'newValue': new_val}})
+
+            if not payload['updates']:
+                return
+            
+            await self._storage.update_tbl("configuration", json.dumps(payload))
+
+            # read the updated value from storage
+            cat_value = await self._read_category_val(category_name)
+            # Category config items cache updated
+            for item_name, new_val in config_item_list.items():
+                if category_name in self._cacheManager.cache:
+                    if item_name in self._cacheManager.cache[category_name]['value']:
+                        self._cacheManager.cache[category_name]['value'][item_name]['value'] = cat_value[item_name]['value']
+                    else:
+                        self._cacheManager.cache[category_name]['value'].update({item_name: cat_value[item_name]['value']})
+
+            # Configuration Change audit entry
+            audit = AuditLogger(self._storage)
+            await audit.information('CONCH', audit_details)
+        except Exception as ex:
+            _logger.exception('Unable to bulk update config items %s', str(ex))
+            raise
+
+        try:
+            await self._run_callbacks(category_name)
+        except:
+            _logger.exception(
+                'Unable to run callbacks for category_name %s', category_name)
+            raise
+
     async def _update_category(self, category_name, category_val, category_description, display_name=None):
         try:
             display_name = category_name if display_name is None else display_name

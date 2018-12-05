@@ -6,8 +6,8 @@
 
 import asyncio
 import datetime
-from aiohttp import web
 import uuid
+from aiohttp import web
 
 from foglamp.common import utils
 from foglamp.common import logger
@@ -82,15 +82,11 @@ async def delete_service(request):
 
     try:
         svc = request.match_info.get('service_name', None)
-
-        if svc is None or svc.strip() == '':
-            raise web.HTTPBadRequest(reason='Missing service_name in requested URL')
-
         storage = connect.get_storage_async()
 
         result = await get_schedule(storage, svc)
         if result['count'] == 0:
-            raise web.HTTPBadRequest(reason='A service with this name does not exist.')
+            return web.HTTPNotFound(reason='{} service does not exist.'.format(svc))
 
         svc_schedule = result['rows'][0]
         sch_id = uuid.UUID(svc_schedule['id'])

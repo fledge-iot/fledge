@@ -55,12 +55,16 @@ std::unordered_map<std::string, PluginFuncType> pluginFuncTypeMap = {
 
 PyObject* pModule;
 
-PythonPluginHandle::PythonPluginHandle(const char *name, const char *_path)
+PythonPluginHandle::PythonPluginHandle(const char *_name, const char *_path)
 {
 	// Python 3.5 loaded filter module handle
 	// pModule = NULL;
 
-	string path(_path);
+	string foglampRootDir(getenv("FOGLAMP_ROOT"));
+
+	//string path(_path);
+	string path = foglampRootDir + "/python/foglamp/plugins/common/shim/shim.py";
+	string name("shim");
 	
 	// Python 3.5  script name
 	std::size_t found = path.find_last_of("/");
@@ -69,12 +73,11 @@ PythonPluginHandle::PythonPluginHandle(const char *name, const char *_path)
 	//filtersPath = path.substr(0, filtersPath.find_last_of("/"));
 	
 	// Embedded Python 3.5 program name
-	wchar_t *programName = Py_DecodeLocale(name, NULL);
-    Py_SetProgramName(programName);
+	wchar_t *programName = Py_DecodeLocale(name.c_str(), NULL);
+	Py_SetProgramName(programName);
 	PyMem_RawFree(programName);
 
-	const char* foglampRootDir = getenv("FOGLAMP_ROOT");
-	string foglampPythonDir = (string(foglampRootDir) + "/python");
+	string foglampPythonDir = foglampRootDir + "/python";
 	
 	// Embedded Python 3.5 initialisation
     Py_Initialize();
@@ -84,12 +87,18 @@ PythonPluginHandle::PythonPluginHandle(const char *name, const char *_path)
 	// Set Python path for embedded Python 3.5
 	// Get current sys.path. borrowed reference
 	PyObject* sysPath = PySys_GetObject((char *)"path");
-	// Add FogLAMP python filters path
 	PyList_Append(sysPath, PyUnicode_FromString((char *) filtersPath.c_str()));
 	PyList_Append(sysPath, PyUnicode_FromString((char *) foglampPythonDir.c_str()));
 
+	// Set sys.argv for embedded Python 3.5
+	int argc = 2;
+	wchar_t* argv[2];
+	argv[0] = Py_DecodeLocale("", NULL);
+	argv[1] = Py_DecodeLocale(_name, NULL);
+	PySys_SetArgv(argc, argv);
+
 	// 2) Import Python script
-	pModule = PyImport_ImportModule(name);
+	pModule = PyImport_ImportModule(name.c_str());
 
 	// Check whether the Python module has been imported
 	if (!pModule)
@@ -101,11 +110,12 @@ PythonPluginHandle::PythonPluginHandle(const char *name, const char *_path)
 		}
 		Logger::getLogger()->fatal("PythonPluginHandle c'tor: cannot import Python 3.5 script "
 					   "'%s' from '%s' : pythonScript=%s, filtersPath=%s",
-					   name, _path,
+					   name.c_str(), path.c_str(),
 					   pythonScript.c_str(),
 					   filtersPath.c_str());
 	}
-	Logger::getLogger()->info("%s:%d: python module loaded successfully, pModule=%p", __FUNCTION__, __LINE__, pModule);
+	else
+		Logger::getLogger()->info("%s:%d: python module loaded successfully, pModule=%p", __FUNCTION__, __LINE__, pModule);
 }
 
 
@@ -291,14 +301,14 @@ Reading plugin_poll_fn(PLUGIN_HANDLE handle)
 		return Reading("Invalid", NULL);
 	}
 
-	PRINT_FUNC;
+	//PRINT_FUNC;
 
 	string *pluginHandleStr = (string *) handle;
 	
 	// - 2 - Call Python method passing an object
 	PyObject* pReturn = PyObject_CallFunction(pFunc, "s", pluginHandleStr->c_str());
 
-	PRINT_FUNC;
+	//PRINT_FUNC;
 
 	// - 3 - Handle filter returned data
 	if (!pReturn)
@@ -322,50 +332,6 @@ Reading plugin_poll_fn(PLUGIN_HANDLE handle)
 		Reading reading(*rdng);
 		delete rdng;
 		return reading;
-	}
-}
-
-
-void plugin_shutdown_fn(PLUGIN_HANDLE handle)
-{
-	PyObject* pFunc;
-	
-	// Fetch required method in loaded object
-	pFunc = PyObject_GetAttrString(pModule, "plugin_shutdown");
-	if (!pModule || !pFunc)
-		Logger::getLogger()->info("plugin_handle: plugin_shutdown(): pModule=%p, pFunc=%p", pModule, pFunc);
-
-	if (!pFunc || !PyCallable_Check(pFunc))
-	{
-		// Failure
-		if (PyErr_Occurred())
-		{
-			logErrorMessage();
-		}
-
-		Logger::getLogger()->fatal("Cannot find method plugin_shutdown in loaded python module");
-		Py_CLEAR(pFunc);
-
-		return;
-	}
-
-	PRINT_FUNC;
-
-	string *pluginHandleStr = (string *) handle;
-	
-	// - 2 - Call Python method passing an object
-	PyObject* pReturn = PyObject_CallFunction(pFunc, "s", pluginHandleStr->c_str());
-
-	PRINT_FUNC;
-
-	// - 3 - Handle filter returned data
-	if (!pReturn)
-	{
-		// Errors while getting result object
-		Logger::getLogger()->error("Called python script method plugin_shutdown : error while getting result object");
-
-		// Errors while getting result object
-		logErrorMessage();
 	}
 }
 	
@@ -420,7 +386,6 @@ void plugin_reconfigure_fn(PLUGIN_HANDLE handle, const std::string& config)
 	{
 		PRINT_FUNC;
 
-		
 		*handleStr = string(PyUnicode_AsUTF8(pReturn));
 
 		Logger::getLogger()->info("plugin_handle: plugin_reconfigure(): got updated handle from python plugin='%s'", handleStr->c_str());
@@ -431,6 +396,51 @@ void plugin_reconfigure_fn(PLUGIN_HANDLE handle, const std::string& config)
 		return;
 	}
 }
+
+
+void plugin_shutdown_fn(PLUGIN_HANDLE handle)
+{
+	PyObject* pFunc;
+	
+	// Fetch required method in loaded object
+	pFunc = PyObject_GetAttrString(pModule, "plugin_shutdown");
+	if (!pModule || !pFunc)
+		Logger::getLogger()->info("plugin_handle: plugin_shutdown(): pModule=%p, pFunc=%p", pModule, pFunc);
+
+	if (!pFunc || !PyCallable_Check(pFunc))
+	{
+		// Failure
+		if (PyErr_Occurred())
+		{
+			logErrorMessage();
+		}
+
+		Logger::getLogger()->fatal("Cannot find method plugin_shutdown in loaded python module");
+		Py_CLEAR(pFunc);
+
+		return;
+	}
+
+	PRINT_FUNC;
+
+	string *pluginHandleStr = (string *) handle;
+	
+	// - 2 - Call Python method passing an object
+	PyObject* pReturn = PyObject_CallFunction(pFunc, "s", pluginHandleStr->c_str());
+
+	PRINT_FUNC;
+
+	// - 3 - Handle filter returned data
+	if (!pReturn)
+	{
+		// Errors while getting result object
+		Logger::getLogger()->error("Called python script method plugin_shutdown : error while getting result object");
+
+		// Errors while getting result object
+		logErrorMessage();
+	}
+}
+
 
 /**
  * Get PLUGIN_INFORMATION structure filled from Python object

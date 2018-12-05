@@ -75,7 +75,7 @@ class PythonPluginHandle : public PluginHandle
 		void *openHandle(const char *) { return this; }
 		void closeHandle() { }
 	private:
-		PLUGIN_HANDLE handle; // pointer returned by dlopen on plugin shared lib
+		//PLUGIN_HANDLE handle; // pointer returned by dlopen on plugin shared lib
 		//std::unordered_map<std::string, void*) dispatchTable;
 		//PyObject* pModule;
 };

@@ -148,7 +148,7 @@ void
 ReadingSet::append(ReadingSet *readings)
 {
 	append(readings->getAllReadings());
-	readings.clear();
+	readings->clear();
 }
 
 /**

@@ -33,26 +33,6 @@ Reading* Py2C_getReading(PyObject *element);
 
 static void logErrorMessage();
 
-#if 0
-typedef enum {
-	PLUGIN_INIT,
-	PLUGIN_START,
-	PLUGIN_POLL,
-	PLUGIN_RECONF,
-	PLUGIN_SHUTDOWN,
-	PLUGIN_REGISTER
-} PluginFuncType;
-
-std::unordered_map<std::string, PluginFuncType> pluginFuncTypeMap = {
-															{"plugin_init", PLUGIN_INIT}, 
-															{"plugin_start", PLUGIN_START}, 
-															{"plugin_poll", PLUGIN_POLL}, 
-															{"plugin_reconfigure", PLUGIN_RECONF}, 
-															{"plugin_shutdown", PLUGIN_SHUTDOWN}, 
-															{"plugin_register_ingest", PLUGIN_REGISTER}
-														  };
-#endif
-
 PyObject* pModule;
 
 PythonPluginHandle::PythonPluginHandle(const char *_name, const char *_path)
@@ -186,6 +166,7 @@ PLUGIN_INFORMATION *plugin_info_fn()
 	// - 2 - Call Python method passing an object
 	PyObject* pReturn = PyObject_CallFunction(pFunc, NULL);
 
+	Py_CLEAR(pFunc);
 	PRINT_FUNC;
 
 	PLUGIN_INFORMATION *info = NULL;
@@ -249,6 +230,7 @@ PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 	// - 2 - Call Python method passing an object
 	PyObject* pReturn = PyObject_CallFunction(pFunc, "s", config->toJSON().c_str());
 
+	Py_CLEAR(pFunc);
 	PRINT_FUNC;
 
 	// - 3 - Handle filter returned data
@@ -308,6 +290,7 @@ Reading plugin_poll_fn(PLUGIN_HANDLE handle)
 	// - 2 - Call Python method passing an object
 	PyObject* pReturn = PyObject_CallFunction(pFunc, "s", pluginHandleStr->c_str());
 
+	Py_CLEAR(pFunc);
 	//PRINT_FUNC;
 
 	// - 3 - Handle filter returned data
@@ -368,6 +351,7 @@ void plugin_reconfigure_fn(PLUGIN_HANDLE handle, const std::string& config)
 	// - 2 - Call Python method passing an object
 	PyObject* pReturn = PyObject_CallFunction(pFunc, "ss", handleStr->c_str(), config.c_str());
 
+	Py_CLEAR(pFunc);
 	PRINT_FUNC;
 	Logger::getLogger()->info("plugin_handle: plugin_reconfigure(): pReturn=%p", pReturn);
 
@@ -428,6 +412,7 @@ void plugin_shutdown_fn(PLUGIN_HANDLE handle)
 	// - 2 - Call Python method passing an object
 	PyObject* pReturn = PyObject_CallFunction(pFunc, "s", pluginHandleStr->c_str());
 
+	Py_CLEAR(pFunc);
 	PRINT_FUNC;
 
 	// - 3 - Handle filter returned data
@@ -454,7 +439,7 @@ PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal)
 	// Create returnable PLUGIN_INFORMATION structure
 	PLUGIN_INFORMATION *info = new PLUGIN_INFORMATION;
 
-	PyObject *dKey, *dValue;
+	PyObject *dKey, *dValue; // these are borrowed references returned by PyDict_Next
 	Py_ssize_t dPos = 0;
 	
 	// dKey and dValue are borrowed references
@@ -552,7 +537,7 @@ Reading* Py2C_getReading(PyObject *element)
 	//Logger::getLogger()->info("plugin_poll_fn: asset_code=%s, reading is a python dict", PyUnicode_AsUTF8(assetCode));
 
 	// Fetch all Datapoins in 'reading' dict			
-	PyObject *dKey, *dValue;
+	PyObject *dKey, *dValue;  // borrowed references set by PyDict_Next()
 	Py_ssize_t dPos = 0;
 	Reading* newReading = NULL;
 

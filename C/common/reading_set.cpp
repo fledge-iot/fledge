@@ -142,15 +142,18 @@ ReadingSet::~ReadingSet()
 
 /**
  * Append the readings in a second reading set to this reading set.
+ * The readings are removed from the original reading set
  */
 void
 ReadingSet::append(ReadingSet *readings)
 {
 	append(readings->getAllReadings());
+	readings.clear();
 }
 
 /**
  * Append the readings in a second reading set to this reading set.
+ * The readings are removed from the original reading set
  */
 void
 ReadingSet::append(ReadingSet& readings)

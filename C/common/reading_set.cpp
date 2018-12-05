@@ -142,11 +142,24 @@ ReadingSet::~ReadingSet()
 
 /**
  * Append the readings in a second reading set to this reading set.
+ * The readings are removed from the original reading set
  */
 void
 ReadingSet::append(ReadingSet *readings)
 {
 	append(readings->getAllReadings());
+	readings->clear();
+}
+
+/**
+ * Append the readings in a second reading set to this reading set.
+ * The readings are removed from the original reading set
+ */
+void
+ReadingSet::append(ReadingSet& readings)
+{
+	append(readings.getAllReadings());
+	readings.clear();
 }
 
 /**
@@ -160,6 +173,29 @@ ReadingSet::append(const vector<Reading *>& readings)
 		m_readings.push_back(new Reading(**it));
 		m_count++;
 	}
+}
+
+/**
+ * Remove all readings from the reading set and delete the memory
+ * After this call the reading set exists but contains no readings.
+ */
+void
+ReadingSet::removeAll()
+{
+	for (auto it = m_readings.cbegin(); it != m_readings.cend(); it++)
+	{
+		delete *it;
+	}
+	m_readings.clear();
+}
+
+/**
+ * Remove the readings from the vector without deleting them
+ */
+void
+ReadingSet::clear()
+{
+	m_readings.clear();
 }
 
 /**

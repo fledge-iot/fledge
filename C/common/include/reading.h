@@ -71,10 +71,7 @@ class Reading {
 		std::vector<Datapoint *>	m_values;
 		std::string			m_uuid;
 		// Supported date time formats for 'm_timestamp'
-		std::vector<std::string>	m_dateTypes = { DEFAULT_DATE_TIME_FORMAT,
-								COMBINED_DATE_STANDARD_FORMAT,
-								ISO8601_DATE_TIME_FORMAT
-								};
+		static std::vector<std::string>	m_dateTypes;
 };
 #endif
 

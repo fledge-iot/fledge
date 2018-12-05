@@ -14,9 +14,10 @@
 #include <config_category.h>
 #include <management_client.h>
 #include <plugin_data.h>
+#include <reading_set.h>
 
 // This is a C++ ReadingSet class instance passed through
-typedef void READINGSET;
+typedef ReadingSet READINGSET;
 // Data handle passed to function pointer
 typedef void OUTPUT_HANDLE;
 // Function pointer called by "plugin_ingest" plugin method

@@ -63,5 +63,5 @@ target_link_libraries(RunTests  ${UUIDLIB})
 target_link_libraries(RunTests  ${COMMONLIB})
 
 # Add Python 3.5 library
-target_link_libraries(${PROJECT_NAME} -lpython3.5m)
+target_link_libraries(RunTests -lpython3.5m)
 

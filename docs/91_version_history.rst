@@ -25,6 +25,13 @@ Version History
 FogLAMP v1
 ==========
 
+v1.4.5
+-------
+
+Release Date: 2018-12-06
+
+
+
 v1.4.1
 ----
 

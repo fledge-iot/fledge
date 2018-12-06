@@ -491,6 +491,14 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			// Just return the size of readings buffer to the caller
 			return readings.size();
 		}
+		else
+		{
+			Logger::getLogger()->error("Sending JSON data error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+			                           e.what(),
+			                           m_sender.getHostPort().c_str(),
+			                           m_path.c_str(),
+			                           json.c_str() );
+		}
 		// Failure
 		m_lastError = true;
 		return 0;

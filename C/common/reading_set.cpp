@@ -21,6 +21,16 @@
 using namespace std;
 using namespace rapidjson;
 
+// List of characters to be considered invalid for a string
+const vector<string> string_invalid_characters = {
+	"{",
+	"\""
+};
+
+// Character to be used in place of an invalid one
+const string string_invalid_characters_replacement = "?";
+
+
 /**
  * Construct an empty reading set
  */
@@ -361,12 +371,34 @@ JSONReading::JSONReading(const Value& json)
 			// the asset name ASSET_NAME_INVALID_READING will be created in the PI-Server containing the
 			// invalid asset_name/values.
 			string tmp_reading1 = json["reading"].GetString();
-			Logger::getLogger()->error("Invalid reading: Asset name |%s| reading value |%s|", m_asset.c_str(), tmp_reading1.c_str());
+
+			// Substitute all the characters that are invalid for a string to be properly treated
+			for(const string &item : string_invalid_characters) {
+
+				ReplacePattern(tmp_reading1, item, string_invalid_characters_replacement);
+			}
+
+			Logger::getLogger()->error("Invalid reading: Asset name |%s| reading value |%s| converted value |%s|",
+				m_asset.c_str(),
+				json["reading"].GetString(),
+				tmp_reading1.c_str());
 
 			DatapointValue value(tmp_reading1);
 			this->addDatapoint(new Datapoint(m_asset,  value));
 
 			m_asset = ASSET_NAME_INVALID_READING;
 		}
+	}
+}
+
+/**
+ * Replace in a string all the occurrences of a pattern with the one provided
+ *
+ */
+void JSONReading::ReplacePattern(string &stringToEvaluate, string pattern, string replaceWith)
+{
+	while (stringToEvaluate.find(pattern) != string::npos)
+	{
+		stringToEvaluate.replace(stringToEvaluate.find(pattern), pattern.length(), replaceWith);
 	}
 }

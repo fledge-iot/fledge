@@ -44,13 +44,15 @@ async def create_filter(request):
      curl -X POST http://localhost:8081/foglamp/filter -d 
      '{
         "name": "North_Readings_to_PI_scale_stage_1Filter",
-        "plugin": "scale"
+        "plugin": "scale",
+        "user": "North_Readings_to_PI"
      }'
 
      curl -X POST http://localhost:8081/foglamp/filter -d 
      '{
         "name": "North_Readings_to_PI_scale_stage_1Filter",
         "plugin": "scale",
+        "user": "North_Readings_to_PI",
         "filter_config": {}
      }'
 
@@ -73,17 +75,25 @@ async def create_filter(request):
     try:
         # Get input data
         data = await request.json()
+
         # Get filter name
-        filter_name = data.get('name', None)
+        name = data.get('name', None)
+
         # Get plugin name
         plugin_name = data.get('plugin', None)
+
+        # Get user name
+        user_name = data.get('user', None)
+
+        # Get filter config, if any
         filter_config = data.get('filter_config', {})
 
         # Check we have needed input data
-        if not filter_name or not plugin_name:
-            raise web.HTTPBadRequest(reason='Filter name or plugin name are required.')
+        if not name or not plugin_name or not user_name:
+            raise web.HTTPBadRequest(reason='Filter name, plugin name and user name are mandatory.')
 
-        # Set filter description
+        # Set filter name and description
+        filter_name = "{}_{}".format(user_name, name)
         filter_desc = 'Configuration of \'' + filter_name + '\' filter for plugin \'' + plugin_name + '\''
         # Get configuration manager instance
         storage = connect.get_storage_async()
@@ -105,10 +115,6 @@ async def create_filter(request):
 
         # Check first whether filter name already exists
         category_info = await cf_mgr.get_category_all_items(category_name=filter_name)
-        if category_info is not None:
-            # Filter name already exists: return error
-            message = "Filter '%s' already exists." % filter_name
-            raise web.HTTPBadRequest(reason=message)
 
         # Sanity checks
         if plugin_name != loaded_plugin_name or loaded_plugin_type != 'filter':
@@ -138,9 +144,13 @@ async def create_filter(request):
             for k, v in filter_config.items():
                 await cf_mgr.set_category_item_value_entry(filter_name, k, v['value'])
 
-        # Create entry in filters table
-        payload = PayloadBuilder().INSERT(name=filter_name, plugin=plugin_name).payload()
-        await storage.insert_into_tbl("filters", payload)
+        # Check if filter exists in filters table
+        payload = PayloadBuilder().WHERE(['name', '=', filter_name]).payload()
+        result = await storage.query_tbl_with_payload("filters", payload)
+        if len(result["rows"]) == 0:
+            # Create entry in filters table
+            payload = PayloadBuilder().INSERT(name=filter_name, plugin=plugin_name).payload()
+            await storage.insert_into_tbl("filters", payload)
 
         # Fetch the new created filter: get category items
         category_info = await cf_mgr.get_category_all_items(category_name=filter_name)
@@ -240,6 +250,14 @@ async def add_filters_pipeline(request):
             message = "No such '%s' category found." % service_name
             raise web.HTTPNotFound(reason=message)
 
+        # Check if all filters in the list exists in filters table
+        for _filter in filter_list:
+            payload = PayloadBuilder().WHERE(['name', '=', _filter]).payload()
+            result = await storage.query_tbl_with_payload("filters", payload)
+            if len(result["rows"]) == 0:
+                message = "No such '%s' filter found in filters table." % _filter
+                raise web.HTTPNotFound(reason=message)
+
         # Check whether config_item already exists
         if config_item in category_info:
             # We just need to update the value of config_item
@@ -335,7 +353,7 @@ async def add_filters_pipeline(request):
             await cf_mgr.create_child_category(service_name, filter_list)
 
             # Return the filters pipeline 
-            return web.json_response({'result': "Filter pipeline {} created successfully".format(json.loads(result['value']))})
+            return web.json_response({'result': "Filter pipeline {} updated successfully".format(json.loads(result['value']))})
     except ValueError as ex:
         _LOGGER.exception("Add filters pipeline, caught exception: " + str(ex))
         raise web.HTTPNotFound(reason=str(ex))
@@ -356,7 +374,16 @@ async def get_filter(request):
     filter_name = request.match_info.get('filter_name', None)
     try:
         storage = connect.get_storage_async()
+        cf_mgr = ConfigurationManager(storage)
         filter_detail = {}
+
+        # Fetch the filter items: get category items
+        category_info = await cf_mgr.get_category_all_items(category_name=filter_name)
+        if category_info is None:
+            # Error service__name doesn't exist
+            message = "No such '%s' category found." % filter_name
+            return web.HTTPNotFound(reason=message)
+        filter_detail.update({"config": category_info})
 
         # Fetch filter detail
         payload = PayloadBuilder().WHERE(['name', '=', filter_name]).payload()

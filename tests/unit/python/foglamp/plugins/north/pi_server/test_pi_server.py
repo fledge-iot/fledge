@@ -122,8 +122,8 @@ class MockAiohttpClientSessionError(MagicMock):
 
 # noinspection PyUnresolvedReferences
 @pytest.allure.feature("unit")
-@pytest.allure.story("plugin", "north", "omf")
-class TestOMF:
+@pytest.allure.story("plugin", "north", "pi_server")
+class TestPiServer:
     """Unit tests related to the public methods of the omf plugin """
 
     def test_plugin_info(self):
@@ -163,7 +163,8 @@ class TestOMF:
                 'sending_process_instance': MagicMock(spec=SendingProcess),
                 "formatNumber": {"value": "float64"},
                 "formatInteger": {"value": "int64"},
-                "notBlockingErrors": {"value": "{'id': 400, 'message': 'none'}"}
+                "notBlockingErrors": {"value": "{'id': 400, 'message': 'none'}"},
+                "compression": {"value": "true"}
 
         }
 
@@ -360,7 +361,6 @@ class TestOMF:
         """
 
         data = MagicMock()
-
 
         with patch.object(fixture_omf.PIServerNorthPlugin,
                           'transform_in_memory_data',
@@ -1183,6 +1183,8 @@ class TestPIServerNorthPlugin:
         fixture_omf_north._config["OMFRetrySleepTime"] = 1
         fixture_omf_north._config["OMFHttpTimeout"] = 1
         fixture_omf_north._config["OMFMaxRetry"] = 1
+        fixture_omf_north._config["compression"] = "false"
+
 
         with patch.object(aiohttp.ClientSession,
                           'post',
@@ -1245,7 +1247,7 @@ class TestPIServerNorthPlugin:
         fixture_omf_north._config["OMFRetrySleepTime"] = 1
         fixture_omf_north._config["OMFHttpTimeout"] = 1
         fixture_omf_north._config["OMFMaxRetry"] = 1
-
+        fixture_omf_north._config["compression"] = "false"
         fixture_omf_north._config["notBlockingErrors"] = ast.literal_eval(pi_server._CONFIG_DEFAULT_OMF["notBlockingErrors"]["default"])
 
         with patch.object(aiohttp.ClientSession,
@@ -1326,6 +1328,7 @@ class TestPIServerNorthPlugin:
         fixture_omf_north._config["OMFRetrySleepTime"] = 1
         fixture_omf_north._config["OMFHttpTimeout"] = test_omf_http_timeout
         fixture_omf_north._config["OMFMaxRetry"] = 1
+        fixture_omf_north._config["compression"] = "false"
 
         # To avoid the wait time
         with patch.object(time, 'sleep', return_value=True):
@@ -1377,6 +1380,7 @@ class TestPIServerNorthPlugin:
         fixture_omf_north._config["OMFRetrySleepTime"] = 1
         fixture_omf_north._config["OMFHttpTimeout"] = 1
         fixture_omf_north._config["OMFMaxRetry"] = max_retry
+        fixture_omf_north._config["compression"] = "false"
         fixture_omf_north._config["notBlockingErrors"] = [{'id': 400, 'message': 'none'}]
 
         # To avoid the wait time

@@ -17,6 +17,7 @@ import uuid
 from aiohttp import web
 import aiohttp
 import json
+import signal
 
 from foglamp.common import logger
 from foglamp.common.audit_logger import AuditLogger
@@ -83,12 +84,16 @@ class Server:
         'name': {
             'description': 'Name of this FogLAMP service',
             'type': 'string',
-            'default': 'FogLAMP'
+            'default': 'FogLAMP',
+            'displayName': 'Name',
+            'order': '1'
         },
         'description': {
             'description': 'Description of this FogLAMP service',
             'type': 'string',
-            'default': 'FogLAMP administrative API'
+            'default': 'FogLAMP administrative API',
+            'displayName': 'Description',
+            'order': '2'
         }
     }
 
@@ -132,43 +137,60 @@ class Server:
         'httpPort': {
             'description': 'Port to accept HTTP connections on',
             'type': 'integer',
-            'default': '8081'
+            'default': '8081',
+            'displayName': 'HTTP Port',
+            'order': '2'
         },
         'httpsPort': {
             'description': 'Port to accept HTTPS connections on',
             'type': 'integer',
-            'default': '1995'
+            'default': '1995',
+            'displayName': 'HTTPS Port',
+            'order': '3'
         },
         'enableHttp': {
             'description': 'Enable HTTP (disable to use HTTPS)',
             'type': 'boolean',
-            'default': 'true'
+            'default': 'true',
+            'displayName': 'Enable HTTP',
+            'order': '1'
         },
         'authProviders': {
             'description': 'Authentication providers to use for the interface (JSON array object)',
             'type': 'JSON',
-            'default': '{"providers": ["username", "ldap"] }'
+            'default': '{"providers": ["username", "ldap"] }',
+            'displayName': 'Auth Providers',
+            'order': '8'
         },
         'certificateName': {
             'description': 'Certificate file name',
             'type': 'string',
-            'default': 'foglamp'
+            'default': 'foglamp',
+            'displayName': 'Certificate Name',
+            'order': '4'
         },
         'authentication': {
-            'description': 'API Call Authentication (mandatory or optional)',
-            'type': 'string',
-            'default': 'optional'
+            'description': 'API Call Authentication',
+            'type': 'enumeration',
+            'options': ['mandatory', 'optional'],
+            'default': 'optional',
+            'displayName': 'Authentication',
+            'order': '5'
         },
         'allowPing': {
             'description': 'Allow access to ping, regardless of the authentication required and'
                            ' authentication header',
             'type': 'boolean',
-            'default': 'true'
+            'default': 'true',
+            'displayName': 'Allow Ping',
+            'order': '6'
         },
         'passwordChange': {
             'description': 'Number of days after which passwords must be changed',
             'type': 'integer',
-            'default': '0'
+            'default': '0',
+            'displayName': 'Password Expiry Days',
+            'order': '7'
         }
     }
 
@@ -277,7 +299,7 @@ class Server:
             config = cls._REST_API_DEFAULT_CONFIG
             category = 'rest_api'
 
-            await cls._configuration_manager.create_category(category, config, 'FogLAMP Admin and User REST API', True)
+            await cls._configuration_manager.create_category(category, config, 'FogLAMP Admin and User REST API', True, display_name="Admin API")
             config = await cls._configuration_manager.get_category_all_items(category)
 
             try:
@@ -324,7 +346,7 @@ class Server:
 
             if cls._configuration_manager is None:
                 _logger.error("No configuration manager available")
-            await cls._configuration_manager.create_category(category, config, 'FogLAMP Service', True)
+            await cls._configuration_manager.create_category(category, config, 'FogLAMP Service', True, display_name='FogLAMP Service')
             config = await cls._configuration_manager.get_category_all_items(category)
 
             try:
@@ -335,7 +357,6 @@ class Server:
                 cls._service_description = config['description']['value']
             except KeyError:
                 cls._service_description = 'FogLAMP REST Services'
-
         except Exception as ex:
             _logger.exception(str(ex))
             raise
@@ -667,14 +688,16 @@ class Server:
     async def _stop(cls):
         """Stops FogLAMP"""
         try:
+            # stop monitor
+            await cls.stop_service_monitor()
+
             # stop the scheduler
             await cls._stop_scheduler()
 
-            # I assume it will be by scheduler
             await cls.stop_microservices()
 
-            # stop monitor
-            await cls.stop_service_monitor()
+            # poll microservices for unregister
+            await cls.poll_microservices_unregister()
 
             # stop the REST api (exposed on service port)
             await cls.stop_rest_server()
@@ -756,7 +779,6 @@ class Server:
         """ request service's shutdown """
         management_api_url = 'http://{}:{}/foglamp/service/shutdown'.format(svc._address, svc._management_port)
         # TODO: need to set http / https based on service protocol
-        _logger.info("Shutting down the %s service %s ...", svc._type, svc._name)
         headers = {'content-type': 'application/json'}
         async with aiohttp.ClientSession() as session:
             async with session.post(management_api_url, data=None, headers=headers) as resp:
@@ -771,9 +793,51 @@ class Server:
                 try:
                     response = json.loads(result)
                     response['message']
-                    _logger.info("Successfully shut down the %s service %s.", svc._type, svc._name)
+                    _logger.info("Shutdown scheduled for %s service %s. %s", svc._type, svc._name, response['message'])
                 except KeyError:
                     raise
+
+    @classmethod
+    async def poll_microservices_unregister(cls):
+        """ poll microservice shutdown endpoint for non core micro-services"""
+
+        def get_process_id(name):
+            """Return process ids found by (partial) name or regex."""
+            child = subprocess.Popen(['pgrep', '-f', 'name={}'.format(name)], stdout=subprocess.PIPE, shell=False)
+            response = child.communicate()[0]
+            return [int(pid) for pid in response.split()]
+
+        try:
+            shutdown_threshold = 0
+            found_services = ServiceRegistry.get()
+            _service_shutdown_threshold = 5 * (len(found_services) - 2)
+            while True:
+                services_to_stop = list()
+                for fs in found_services:
+                    if fs._name in ("FogLAMP Storage", "FogLAMP Core"):
+                        continue
+                    if fs._status not in [ServiceRecord.Status.Running, ServiceRecord.Status.Unresponsive]:
+                        continue
+                    services_to_stop.append(fs)
+                if len(services_to_stop) == 0:
+                    _logger.info("All microservices, except Core and Storage, have been shutdown.")
+                    return
+                if shutdown_threshold > _service_shutdown_threshold:
+                    for fs in services_to_stop:
+                        pids = get_process_id(fs._name)
+                        for pid in pids:
+                            _logger.error("Microservice:%s status: %s has NOT been shutdown. Killing it...", fs._name, fs._status)
+                            os.kill(pid, signal.SIGKILL)
+                            _logger.info("KILLED Microservice:%s...", fs._name)
+                    return
+                await asyncio.sleep(2)
+                shutdown_threshold += 2
+                found_services = ServiceRegistry.get()
+
+        except service_registry_exceptions.DoesNotExist:
+            pass
+        except Exception as ex:
+            _logger.exception(str(ex))
 
     @classmethod
     async def _stop_scheduler(cls):
@@ -1133,6 +1197,11 @@ class Server:
     @classmethod
     async def create_child_category(cls, request):
         res = await conf_api.create_child_category(request)
+        return res
+
+    @classmethod
+    async def get_child_category(cls, request):
+        res = await conf_api.get_child_category(request)
         return res
 
     @classmethod

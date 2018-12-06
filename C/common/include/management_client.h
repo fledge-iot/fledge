@@ -17,6 +17,7 @@
 #include <map>
 #include <rapidjson/document.h>
 #include <asset_tracking.h>
+#include <thread>
 
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 using namespace rapidjson;
@@ -30,24 +31,32 @@ class ManagementClient {
 		bool 			getService(ServiceRecord& service);
 		bool 			registerCategory(const std::string& categoryName);
 		bool 			unregisterCategory(const std::string& categoryName);
-		ConfigCategories	getCategories() const;
-		ConfigCategory		getCategory(const std::string& categoryName) const;
+		ConfigCategories	getCategories();
+		ConfigCategory		getCategory(const std::string& categoryName);
                 std::string             setCategoryItemValue(const std::string& categoryName,
                                                              const std::string& itemName,
-                                                             const std::string& itemValue) const;
+                                                             const std::string& itemValue);
 		std::string		addChildCategories(const std::string& parentCategory,
-							   const std::vector<std::string>& children) const;
-		std::vector<AssetTrackingTuple*>&	getAssetTrackingTuples(const std::string serviceName) const;
+							   const std::vector<std::string>& children);
+		std::vector<AssetTrackingTuple*>&	getAssetTrackingTuples(const std::string serviceName);
 		bool addAssetTrackingTuple(const std::string& service, 
 												const std::string& plugin, 
 												const std::string& asset, 
 												const std::string& event);
+		ConfigCategories	getChildCategories(const std::string& categoryName);
+		HttpClient		*getHttpClient();
 
 private:
+    std::string 	url_encode(const std::string &s) const;
+
+private:
+    std::ostringstream 			m_urlbase;
+		std::map<std::thread::id, HttpClient *> m_client_map;
 		HttpClient				*m_client;
 		std::string				*m_uuid;
 		Logger					*m_logger;
 		std::map<std::string, std::string>	m_categories;
+  
 	public:
 		// member template must be here and not in .cpp file
 		template<class T> bool	addCategory(const T& t, bool keepOriginalItems = false)
@@ -77,7 +86,7 @@ private:
 				// Terminate JSON string
 				payload << " }";
 
-				auto res = m_client->request("POST", url.c_str(), payload.str());
+				auto res = this->getHttpClient()->request("POST", url.c_str(), payload.str());
 
 				Document doc;
 				std::string response = res->content.string();

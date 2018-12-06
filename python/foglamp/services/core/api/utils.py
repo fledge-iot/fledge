@@ -5,6 +5,7 @@ from foglamp.common import logger
 from foglamp.common.common import _FOGLAMP_ROOT
 
 _logger = logger.setup(__name__)
+_lib_path = _FOGLAMP_ROOT + "/" + "plugins"
 
 
 def get_plugin_info(name):
@@ -24,7 +25,7 @@ def get_plugin_info(name):
 
 
 def _find_c_lib(name):
-    for path, subdirs, files in os.walk(_FOGLAMP_ROOT):
+    for path, subdirs, files in os.walk(_lib_path):
         for fname in files:
             # C-binary file
             if fname.endswith(name + '.so'):
@@ -43,16 +44,13 @@ def _find_c_util(name):
 
 def find_c_plugin_libs(direction):
     libraries = []
-    # FIXME: Duplicate binaries found only in case "make",
-    # follow_links=False by default in os.walk() should ignore such symbolic links but right now its not working
-    for root, dirs, files in os.walk(_FOGLAMP_ROOT, followlinks=False):
+    for root, dirs, files in os.walk(_lib_path + "/" + direction):
         for name in dirs:
-            if 'plugins' in name:
-                p = os.path.join(root, name) + "/" + direction
-                for path, subdirs, f in os.walk(p):
-                    for fname in f:
-                        # C-binary file
-                        if fname.endswith('.so'):
-                            # Replace lib and .so from fname
-                            libraries.append(fname.replace("lib", "").replace(".so", ""))
+            p = os.path.join(root, name)
+            for path, subdirs, f in os.walk(p):
+                for fname in f:
+                    # C-binary file
+                    if fname.endswith('.so'):
+                        # Replace lib and .so from fname
+                        libraries.append(fname.replace("lib", "").replace(".so", ""))
     return libraries

@@ -58,6 +58,8 @@ public:
 	void 		populateAssetTrackingCache(ManagementClient *m_mgtClient);
 	bool 		checkAssetTrackingCache(AssetTrackingTuple& tuple);
 	void 		addAssetTrackingTuple(AssetTrackingTuple& tuple);
+	void		setTimeout(const unsigned long timeout) { m_timeout = timeout; };
+	void		setThreshold(const unsigned int threshold) { m_queueSizeThreshold = threshold; };
 
 public:
 	std::vector<FilterPlugin *>	m_filters;
@@ -81,11 +83,11 @@ private:
 	std::condition_variable		m_statsCv;
 	// Data ready to be filtered/sent
 	std::vector<Reading *>*		m_data;
-	unsigned int			m_newReadings; // new readings since last update to statistics table
 	unsigned int			m_discardedReadings; // discarded readings since last update to statistics table
-	std::string			m_readingsAssetName; // asset name extracted from the Reading object
 	
 	std::unordered_set<AssetTrackingTuple*, std::hash<AssetTrackingTuple*>, AssetTrackingTuplePtrEqual>   assetTrackerTuplesCache;
+	std::unordered_set<std::string>   		statsDbEntriesCache;  // confirmed stats table entries
+	std::map<std::string, int>		statsPendingEntries;  // pending stats table entries
 };
 
 #endif

@@ -21,8 +21,8 @@ __version__ = "${VERSION}"
 
 _LOGGER = logger.setup(__name__)
 _MAX_RETRY_POLL = 3
-_TIME_TO_WAIT_BEFORE_RETRY = 2
-_CLEAR_PENDING_TASKS_TIMEOUT = 5
+_TIME_TO_WAIT_BEFORE_RETRY = 1
+_CLEAR_PENDING_TASKS_TIMEOUT = 3
 
 
 class Server(FoglampMicroservice):
@@ -58,27 +58,32 @@ class Server(FoglampMicroservice):
 
     _task_main = None
 
+    config = None
+
+    _event_loop = None
+
     def __init__(self):
         super().__init__()
 
     async def _start(self, loop) -> None:
         error = None
+        self._event_loop = loop
         try:
             # Configuration handling - initial configuration
             category = self._name
-            config = self._DEFAULT_CONFIG
+            self.config = self._DEFAULT_CONFIG
             config_descr = self._name
             config_payload = json.dumps({
                 "key": category,
                 "description": config_descr,
-                "value": config,
+                "value": self.config,
                 "keep_original_items": True
             })
             self._core_microservice_management_client.create_configuration_category(config_payload)
-            config = self._core_microservice_management_client.get_configuration_category(category_name=category)
+            self.config = self._core_microservice_management_client.get_configuration_category(category_name=category)
 
             try:
-                plugin_module_name = config['plugin']['value']
+                plugin_module_name = self.config['plugin']['value']
             except KeyError:
                 message = self._MESSAGES_LIST['e000002'].format(self._name)
                 _LOGGER.error(message)
@@ -117,7 +122,7 @@ class Server(FoglampMicroservice):
                 "keep_original_items": True
             })
             self._core_microservice_management_client.create_configuration_category(config_payload)
-            config = self._core_microservice_management_client.get_configuration_category(category_name=category)
+            self.config = self._core_microservice_management_client.get_configuration_category(category_name=category)
 
             # Register interest with category and microservice_id
             result = self._core_microservice_management_client.register_interest(category, self._microservice_id)
@@ -132,7 +137,7 @@ class Server(FoglampMicroservice):
                 _LOGGER.error(message)
                 raise exceptions.InvalidPluginTypeError()
 
-            self._plugin_handle = self._plugin.plugin_init(config)
+            self._plugin_handle = self._plugin.plugin_init(self.config)
             await Ingest.start(self)
 
             # Executes the requested plugin type
@@ -161,8 +166,18 @@ class Server(FoglampMicroservice):
         """
         _LOGGER.info('Started South Plugin: {}'.format(self._name))
         try_count = 1
+
+        # pollInterval is expressed in milliseconds
+        if int(self._plugin_handle['pollInterval']['value']) <= 0:
+            self._plugin_handle['pollInterval']['value'] = '1000'
+            _LOGGER.warning('Plugin {} pollInterval must be greater than 0, defaulting to {} ms'.format(
+                self._name, self._plugin_handle['pollInterval']['value']))
+        sleep_seconds = int(self._plugin_handle['pollInterval']['value']) / 1000.0
+        _TIME_TO_WAIT_BEFORE_RETRY = sleep_seconds
+
         while self._plugin and try_count <= _MAX_RETRY_POLL:
             try:
+                t1 = self._event_loop.time()
                 data = self._plugin.plugin_poll(self._plugin_handle)
                 if len(data) > 0:
                     if isinstance(data, list):
@@ -176,12 +191,12 @@ class Server(FoglampMicroservice):
                                                                   timestamp=data['timestamp'],
                                                                   key=data['key'],
                                                                   readings=data['readings']))
-                # pollInterval is expressed in milliseconds
-                if int(self._plugin_handle['pollInterval']['value']) <= 0:
-                    _LOGGER.warning('Plugin {} pollInterval must be greater than 0, defaulting to 1000 ms'.format(self._name))
-                    self._plugin_handle['pollInterval']['value'] = '1000'
-                sleep_seconds = int(self._plugin_handle['pollInterval']['value']) / 1000.0
-                await asyncio.sleep(sleep_seconds)
+                delta = self._event_loop.time() - t1
+                # If delta somehow becomes > sleep_seconds, then ignore delta
+                sleep_for = sleep_seconds - delta if delta < sleep_seconds else sleep_seconds
+                await asyncio.sleep(sleep_for)
+            except asyncio.CancelledError:
+                pass
             except KeyError as ex:
                 try_count = 2
                 _LOGGER.exception('Key error plugin {} : {}'.format(self._name, str(ex)))
@@ -194,7 +209,7 @@ class Server(FoglampMicroservice):
                 _LOGGER.debug('Exception poll plugin {}'.format(str(ex)))
                 await asyncio.sleep(_TIME_TO_WAIT_BEFORE_RETRY)
 
-        _LOGGER.exception('Max retries exhausted in starting South plugin: {}'.format(self._name))
+        _LOGGER.warning('Stopped all polling tasks for plugin: {}'.format(self._name))
 
     def run(self):
         """Starts the South Microservice
@@ -230,9 +245,12 @@ class Server(FoglampMicroservice):
             # Cancel all pending asyncio tasks after a timeout occurs
             done, pending = await asyncio.wait(asyncio.Task.all_tasks(), timeout=_CLEAR_PENDING_TASKS_TIMEOUT)
             for task_pending in pending:
-                task_pending.cancel()
-            await asyncio.sleep(2)
-        except (asyncio.CancelledError, exceptions.DataRetrievalError):
+                try:
+                    task_pending.cancel()
+                except asyncio.CancelledError:
+                    pass
+            await asyncio.sleep(0.1)
+        except asyncio.CancelledError:
             pass
 
         # This deactivates event loop and
@@ -243,16 +261,28 @@ class Server(FoglampMicroservice):
     async def shutdown(self, request):
         """implementation of abstract method form foglamp.common.microservice.
         """
-        _LOGGER.info('Stopping South Service plugin {}'.format(self._name))
-        try:
-            await self._stop(asyncio.get_event_loop())
-            self.unregister_service_with_core(self._microservice_id)
-        except Exception as ex:
-            _LOGGER.exception('Error in stopping South Service plugin {}, {}'.format(self._name, str(ex)))
-            raise web.HTTPInternalServerError(reason=str(ex))
+        async def do_shutdown(loop):
+            _LOGGER.info('Stopping South Service plugin {}'.format(self._name))
+            try:
+                await self._stop(loop)
+                self.unregister_service_with_core(self._microservice_id)
+            except asyncio.CancelledError:
+                pass
+            except Exception as ex:
+                _LOGGER.exception('Error in stopping South Service plugin {}, {}'.format(self._name, str(ex)))
 
-        return web.json_response({"message": "Successfully shutdown microservice id {} at "
-                                             "url http://{}:{}/foglamp/service/shutdown".format(self._microservice_id, self._microservice_management_host, self._microservice_management_port)})
+        def schedule_shutdown(loop):
+            asyncio.ensure_future(do_shutdown(loop), loop=loop)
+
+        try:
+            loop = asyncio.get_event_loop()
+            loop.call_later(0.5, schedule_shutdown, loop)
+        except Exception as ex:
+            raise web.HTTPInternalServerError(reason=str(ex))
+        else:
+            return web.json_response({
+                "message": "http://{}:{}/foglamp/service/shutdown".format(
+                    self._microservice_management_host, self._microservice_management_port)})
 
     async def change(self, request):
         """implementation of abstract method form foglamp.common.microservice.

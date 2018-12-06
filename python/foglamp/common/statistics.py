@@ -4,6 +4,7 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
+import json
 from foglamp.common import logger
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.storage_client import StorageClientAsync
@@ -16,6 +17,7 @@ __version__ = "${VERSION}"
 
 
 _logger = logger.setup(__name__)
+
 
 async def create_statistics(storage=None):
     stat = Statistics(storage)
@@ -46,6 +48,31 @@ class Statistics(object):
     async def _init(self):
         if self._registered_keys is None:
             await self._load_keys()
+
+    async def update_bulk(self, stat_list):
+        """ Bulk update statistics table keys and their values
+
+        Args:
+            stat_list: dict containing statistics keys and increment values
+
+        Returns:
+            None
+        """
+        if not isinstance(stat_list, dict):
+            raise TypeError('stat_list must be a dict')
+
+        try:
+            payload = {"updates": []}
+            for k, v in stat_list.items():
+                payload_item = PayloadBuilder() \
+                    .WHERE(["key", "=", k]) \
+                    .EXPR(["value", "+", v]) \
+                    .payload()
+                payload['updates'].append(json.loads(payload_item))
+            await self._storage.update_tbl("statistics", json.dumps(payload, sort_keys=False))
+        except Exception as ex:
+            _logger.exception('Unable to bulk update statistics %s', str(ex))
+            raise
 
     async def update(self, key, value_increment):
         """ UPDATE the value column only of a statistics row based on key

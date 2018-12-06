@@ -216,7 +216,7 @@ class SendingProcess(FoglampProcess):
         "enable": {
             "description": "Enable execution of the sending process",
             "type": "boolean",
-            "default": "True",
+            "default": "true",
             "readonly": "true"
         },
         "duration": {
@@ -226,9 +226,9 @@ class SendingProcess(FoglampProcess):
             "order": "7"
         },
         "blockSize": {
-            "description": "Bytes to send in each transmission",
+            "description": "Number of readings to send in each transmission",
             "type": "integer",
-            "default": "500",
+            "default": "5000",
             "order": "8"
         },
         "sleepInterval": {
@@ -429,7 +429,7 @@ class SendingProcess(FoglampProcess):
         converted_data = []
         for row in raw_data:
             try:
-                timestamp = apply_date_format(row['ts'])  # Adds timezone UTC
+                timestamp = apply_date_format(row['history_ts'])  # Adds timezone UTC
                 asset_code = row['key'].strip()
 
                 # Skips row having undefined asset_code

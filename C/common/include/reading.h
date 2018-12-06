@@ -29,6 +29,7 @@ class Reading {
 	public:
 		Reading(const std::string& asset, Datapoint *value);
 		Reading(const std::string& asset, std::vector<Datapoint *> values);
+		Reading(const std::string& asset, std::vector<Datapoint *> values, const std::string& ts);
 		Reading(const Reading& orig);
 
 		~Reading();
@@ -36,17 +37,31 @@ class Reading {
 		std::string			toJSON() const;
 		// Return AssetName
 		const std::string&              getAssetName() const { return m_asset; };
+		// Set AssetName
+		void				setAssetName(std::string assetName) { m_asset = assetName; };
+		int				getDatapointCount() { return m_values.size(); };
 		// Return UUID
 		const std::string&              getUuid() const { return m_uuid; };
 		// Return Reading datapoints
 		const std::vector<Datapoint *>	getReadingData() const { return m_values; };
 		// Return refrerence to Reading datapoints
 		std::vector<Datapoint *>&	getReadingData() { return m_values; };
+		unsigned long			getId() const { return m_id; };
+		unsigned long			getTimestamp() const { return (unsigned long)m_timestamp.tv_sec; };
+		unsigned long			getUserTimestamp() const { return (unsigned long)m_userTimestamp.tv_sec; };
+		void				setId(unsigned long id) { m_id = id; };
+		void				setUuid(const std::string& uuid) { m_uuid = uuid; };
+		void				setTimestamp(unsigned long ts) { m_timestamp.tv_sec = (time_t)ts; };
+		void				setUserTimestamp(unsigned long uTs) { m_userTimestamp.tv_sec = (time_t)uTs; };
+		void				getUserTimestamp(struct timeval *tm) { *tm = m_userTimestamp; };
+		void				getTimestamp(struct timeval *tm) { *tm = m_timestamp; };
 
 		typedef enum dateTimeFormat { FMT_DEFAULT, FMT_STANDARD, FMT_ISO8601 } readingTimeFormat;
 
-		// Return Reading asset time
+		// Return Reading asset time - ts time
 		const std::string getAssetDateTime(readingTimeFormat datetimeFmt = FMT_DEFAULT, bool addMs = true) const;
+		// Return Reading asset time - user_ts time
+		const std::string getAssetDateUserTime(readingTimeFormat datetimeFmt = FMT_DEFAULT, bool addMs = true) const;
 
 	protected:
 		Reading() {};
@@ -58,10 +73,7 @@ class Reading {
 		std::vector<Datapoint *>	m_values;
 		std::string			m_uuid;
 		// Supported date time formats for 'm_timestamp'
-		std::vector<std::string>	m_dateTypes = { DEFAULT_DATE_TIME_FORMAT,
-								COMBINED_DATE_STANDARD_FORMAT,
-								ISO8601_DATE_TIME_FORMAT
-								};
+		static std::vector<std::string>	m_dateTypes;
 };
 #endif
 

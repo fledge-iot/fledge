@@ -384,6 +384,9 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	 * - add OMF data to new vector
 	 */
 
+	// Used for logging
+	string json_not_compressed;
+
 	ostringstream jsonData;
 	jsonData << "[";
 
@@ -425,8 +428,12 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	jsonData << "]";
 
 	string json = jsonData.str();
+
 	if (compression)
+	{
+		json_not_compressed = json;
 		json = compress_string(json);
+	}
 
 	/**
 	 * Types messages sent, now transform each reading to OMF format.
@@ -456,7 +463,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 						   res,
 						   m_sender.getHostPort().c_str(),
 						   m_path.c_str(),
-						   json.c_str() );
+						   json_not_compressed.c_str() );
 			m_lastError = true;
 			return 0;
 		}
@@ -483,7 +490,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 						  e.what(),
 						  m_sender.getHostPort().c_str(),
 						  m_path.c_str(),
-						  json.c_str() );
+						  json_not_compressed.c_str() );
 			// Reset OMF types cache
 			OMF::clearCreatedTypes();
 			// Reset error indicator
@@ -497,7 +504,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			                           e.what(),
 			                           m_sender.getHostPort().c_str(),
 			                           m_path.c_str(),
-			                           json.c_str() );
+			                           json_not_compressed.c_str());
 		}
 		// Failure
 		m_lastError = true;
@@ -509,7 +516,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 					   e.what(),
 					   m_sender.getHostPort().c_str(),
 					   m_path.c_str(),
-					   json.c_str() );
+					   json_not_compressed.c_str() );
 		// Failure
 		m_lastError = true;
 		return 0;

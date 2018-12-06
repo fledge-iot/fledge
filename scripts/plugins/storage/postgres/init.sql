@@ -769,7 +769,7 @@ CREATE TABLE foglamp.filters (
 -- Create filter_users table
 CREATE TABLE foglamp.filter_users (
              name        character varying(255)        NOT NULL,
-             user        character varying(255)        NOT NULL);
+             "user"      character varying(255)        NOT NULL);
 
 -- Grants to foglamp schema
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA foglamp TO PUBLIC;

@@ -35,6 +35,14 @@ static void logErrorMessage();
 
 PyObject* pModule;
 
+
+
+/**
+ * Constructor for PythonPluginHandle
+ *    - Load python 3.5 interpreter
+ *    - Set sys.path and sys.argv
+ *    - Import shim layer script and pass plugin name in argv[1]
+ */
 PythonPluginHandle::PythonPluginHandle(const char *_name, const char *_path)
 {
 	// Python 3.5 loaded filter module handle
@@ -98,7 +106,11 @@ PythonPluginHandle::PythonPluginHandle(const char *_name, const char *_path)
 		Logger::getLogger()->info("%s:%d: python module loaded successfully, pModule=%p", __FUNCTION__, __LINE__, pModule);
 }
 
-
+/**
+ * Destructor for PythonPluginHandle
+ *    - Free up owned references
+ *    - Unload python 3.5 interpreter
+ */
 PythonPluginHandle::~PythonPluginHandle()
 {
 	// Decrement pModule reference count
@@ -108,7 +120,10 @@ PythonPluginHandle::~PythonPluginHandle()
 	Py_Finalize();
 }
 
-
+/**
+ * Returns function pointer that can be invoked to call '_sym' function
+ * in python plugin
+ */
 void* PythonPluginHandle::ResolveSymbol(const char *_sym)
 {
 	string sym(_sym);
@@ -129,12 +144,19 @@ void* PythonPluginHandle::ResolveSymbol(const char *_sym)
 	}
 }
 
+/**
+ * Returns function pointer that can be invoked to call 'plugin_info'
+ * function in python plugin
+ */
 void* PythonPluginHandle::GetInfo()
 {
 	Logger::getLogger()->info("PythonPluginHandle::GetInfo()");
 	return (void *) plugin_info_fn;
 }
 
+/**
+ * Function to invoke 'plugin_info' function in python plugin
+ */
 PLUGIN_INFORMATION *plugin_info_fn()
 {
 	PyObject* pFunc;
@@ -199,7 +221,9 @@ PLUGIN_INFORMATION *plugin_info_fn()
 	return info;
 }
 
-
+/**
+ * Function to invoke 'plugin_init' function in python plugin
+ */
 PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 {
 	PyObject* pFunc;
@@ -259,7 +283,9 @@ PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 	}
 }
 
-
+/**
+ * Function to invoke 'plugin_poll' function in python plugin
+ */
 Reading plugin_poll_fn(PLUGIN_HANDLE handle)
 {
 	PyObject* pFunc;
@@ -319,6 +345,9 @@ Reading plugin_poll_fn(PLUGIN_HANDLE handle)
 }
 	
 
+/**
+ * Function to invoke 'plugin_reconfigure' function in python plugin
+ */
 void plugin_reconfigure_fn(PLUGIN_HANDLE handle, const std::string& config)
 {
 	string *handleStr = (string *) handle;
@@ -382,6 +411,9 @@ void plugin_reconfigure_fn(PLUGIN_HANDLE handle, const std::string& config)
 }
 
 
+/**
+ * Function to invoke 'plugin_shutdown' function in python plugin
+ */
 void plugin_shutdown_fn(PLUGIN_HANDLE handle)
 {
 	PyObject* pFunc;
@@ -428,7 +460,7 @@ void plugin_shutdown_fn(PLUGIN_HANDLE handle)
 
 
 /**
- * Get PLUGIN_INFORMATION structure filled from Python object
+ * Fill PLUGIN_INFORMATION structure from Python object
  *
  * @param pyRetVal	Python 3.5 Object (dict)
  * @return		Pointer to a new PLUGIN_INFORMATION structure
@@ -492,7 +524,13 @@ PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal)
 	return info;
 }
 
-
+/**
+ * Creating Reading object from Python object
+ *
+ * @param element	Python 3.5 Object (dict)
+ * @return		Pointer to a new Reading object
+ *				or NULL in case of errors
+ */
 Reading* Py2C_getReading(PyObject *element)
 {
 	// Get list item: borrowed reference.
@@ -619,6 +657,10 @@ Reading* Py2C_getReading(PyObject *element)
 	return newReading;
 }
 
+/**
+ * Function to log error message encountered while interfacing with
+ * Python runtime
+ */
 static void logErrorMessage()
 {
 	Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);

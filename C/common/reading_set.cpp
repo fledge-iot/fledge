@@ -178,7 +178,7 @@ ReadingSet::append(const vector<Reading *>& readings)
 {
 	for (auto it = readings.cbegin(); it != readings.cend(); it++)
 	{
-		m_readings.push_back(new Reading(**it));
+		m_readings.push_back(*it);
 		m_count++;
 	}
 }

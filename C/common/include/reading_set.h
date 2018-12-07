@@ -70,7 +70,7 @@ class JSONReading : public Reading {
 		unsigned long	getId() const { return m_id; };
 
 	private:
-                void ReplacePattern(std::string &stringToEvaluate, std::string pattern, std::string replaceWith);
+                void escapeCharacter(std::string& stringToEvaluate, std::string pattern);
 };
 
 class ReadingSetException : public std::exception

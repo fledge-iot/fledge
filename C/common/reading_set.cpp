@@ -16,20 +16,18 @@
 #include <stdlib.h>
 #include <logger.h>
 
+#include <boost/algorithm/string/replace.hpp>
+
 #define ASSET_NAME_INVALID_READING "error_invalid_reading"
 
 using namespace std;
 using namespace rapidjson;
 
-// List of characters to be considered invalid for a string
-const vector<string> string_invalid_characters = {
-	"{",
+// List of characters to be escaped in JSON
+const vector<string> JSON_characters_to_be_escaped = {
+	"\\",
 	"\""
 };
-
-// Character to be used in place of an invalid one
-const string string_invalid_characters_replacement = "?";
-
 
 /**
  * Construct an empty reading set
@@ -372,10 +370,10 @@ JSONReading::JSONReading(const Value& json)
 			// invalid asset_name/values.
 			string tmp_reading1 = json["reading"].GetString();
 
-			// Substitute all the characters that are invalid for a string to be properly treated
-			for(const string &item : string_invalid_characters) {
+			// Escape specific character for to be properly manage as JSON
+			for(const string &item : JSON_characters_to_be_escaped) {
 
-				ReplacePattern(tmp_reading1, item, string_invalid_characters_replacement);
+				escapeCharacter(tmp_reading1, item);
 			}
 
 			Logger::getLogger()->error("Invalid reading: Asset name |%s| reading value |%s| converted value |%s|",
@@ -386,19 +384,18 @@ JSONReading::JSONReading(const Value& json)
 			DatapointValue value(tmp_reading1);
 			this->addDatapoint(new Datapoint(m_asset,  value));
 
-			m_asset = ASSET_NAME_INVALID_READING;
+			m_asset = string(ASSET_NAME_INVALID_READING) + string("_") + m_asset.c_str();
 		}
 	}
 }
 
 /**
- * Replace in a string all the occurrences of a pattern with the one provided
+ * Escapes a character in a string to be properly handled as JSON
  *
  */
-void JSONReading::ReplacePattern(string &stringToEvaluate, string pattern, string replaceWith)
+void JSONReading::escapeCharacter(string& stringToEvaluate, string pattern)
 {
-	while (stringToEvaluate.find(pattern) != string::npos)
-	{
-		stringToEvaluate.replace(stringToEvaluate.find(pattern), pattern.length(), replaceWith);
-	}
+	string escaped = "\\" + pattern;
+
+	boost::replace_all(stringToEvaluate, pattern, escaped);
 }

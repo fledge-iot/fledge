@@ -17,6 +17,12 @@
 
 using namespace std;
 
+std::vector<std::string> Reading::m_dateTypes = {
+	DEFAULT_DATE_TIME_FORMAT,
+	COMBINED_DATE_STANDARD_FORMAT,
+	ISO8601_DATE_TIME_FORMAT
+};
+
 /**
  * Reading constructor
  *

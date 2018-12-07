@@ -47,7 +47,7 @@ string	       coreAddress = "localhost";
 bool	       daemonMode = true;
 string	       myName = SERVICE_NAME;
 
-	//signal(SIGSEGV, handler);
+	signal(SIGSEGV, handler);
 	signal(SIGILL, handler);
 	signal(SIGBUS, handler);
 	signal(SIGFPE, handler);
@@ -136,21 +136,24 @@ int	size;
 	for (int i = 0; i < size; i++)
 	{
 		Dl_info info;
-        if (dladdr(array[i], &info) && info.dli_sname) {
-            char *demangled = NULL;
-            int status = -1;
-            if (info.dli_sname[0] == '_')
-                demangled = abi::__cxa_demangle(info.dli_sname, NULL, 0, &status);
-            snprintf(buf, sizeof(buf), "%-3d %*p %s + %zd---------",
-                     i, int(2 + sizeof(void*) * 2), array[i],
-                     status == 0 ? demangled :
-                     info.dli_sname == 0 ? messages[i] : info.dli_sname,
-                     (char *)array[i] - (char *)info.dli_saddr);
-            free(demangled);
-        } else {
-            snprintf(buf, sizeof(buf), "%-3d %*p %s---------",
-                     i, int(2 + sizeof(void*) * 2), array[i], messages[i]);
-        }
+		if (dladdr(array[i], &info) && info.dli_sname)
+		{
+		    char *demangled = NULL;
+		    int status = -1;
+		    if (info.dli_sname[0] == '_')
+		        demangled = abi::__cxa_demangle(info.dli_sname, NULL, 0, &status);
+		    snprintf(buf, sizeof(buf), "%-3d %*p %s + %zd---------",
+		             i, int(2 + sizeof(void*) * 2), array[i],
+		             status == 0 ? demangled :
+		             info.dli_sname == 0 ? messages[i] : info.dli_sname,
+		             (char *)array[i] - (char *)info.dli_saddr);
+		    free(demangled);
+		} 
+		else
+		{
+		    snprintf(buf, sizeof(buf), "%-3d %*p %s---------",
+		             i, int(2 + sizeof(void*) * 2), array[i], messages[i]);
+		}
 		logger->fatal("(%d) %s", i, buf);
 	}
 	free(messages);

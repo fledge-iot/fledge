@@ -4,7 +4,7 @@
 MKDIR_PATH := mkdir -p
 CD := cd
 LN := ln -sf
-CMAKE := cmake -DCMAKE_BUILD_TYPE=Debug
+CMAKE := cmake
 PIP_USER_FLAG = --user
 PIP_INSTALL_REQUIREMENTS := pip3 install -Ir
 PYTHON_BUILD_PACKAGE = python3 setup.py build -b ../$(PYTHON_BUILD_DIR)
@@ -118,7 +118,7 @@ PACKAGE_NAME=FogLAMP
 default : apply_version \
 	generate_selfcertificate \
 	c_build $(SYMLINK_STORAGE_BINARY) $(SYMLINK_SOUTH_BINARY) $(SYMLINK_NORTH_BINARY) $(SYMLINK_PLUGINS_DIR) \
-	python_build #python_requirements_user
+	python_build python_requirements_user
 
 apply_version :
 # VERSION : this file contains FogLAMP app version and FogLAMP DB schema revision
@@ -236,11 +236,11 @@ python_build : $(PYTHON_SETUP_FILE)
 
 # install python requirements without --user 
 python_requirements : $(PYTHON_REQUIREMENTS_FILE)
-	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) #--no-cache-dir
+	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) --no-cache-dir
 
 # install python requirements for user
 python_requirements_user : $(PYTHON_REQUIREMENTS_FILE)
-	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) $(PIP_USER_FLAG) #--no-cache-dir
+	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) $(PIP_USER_FLAG) --no-cache-dir
 
 # create python install dir
 $(PYTHON_INSTALL_DIR) :

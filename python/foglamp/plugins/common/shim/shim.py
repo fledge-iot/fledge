@@ -33,8 +33,6 @@ def _plugin_obj():
 _plugin = _plugin_obj()
 
 def plugin_info():
-    #return json.dumps({"plugin":"test"})
-    #_plugin = _plugin_obj()
     #_LOGGER.info("plugin_info called")
     handle = _plugin.plugin_info()
     handle['config'] = json.dumps(handle['config'])
@@ -42,12 +40,10 @@ def plugin_info():
     return handle
 
 def plugin_init(config):
-    #_plugin = _plugin_obj()
     #_LOGGER.info("plugin_init called")
     return json.dumps(_plugin.plugin_init(json.loads(config)))
 
 def plugin_poll(handle):
-    #_plugin = _plugin_obj()
     #_LOGGER.info("plugin_poll called")
     _read = _plugin.plugin_poll(json.loads(handle))
     reading = {
@@ -60,13 +56,11 @@ def plugin_poll(handle):
     return reading
 
 def plugin_reconfigure(handle, new_config):
-    #_plugin = _plugin_obj()
     #_LOGGER.info("plugin_reconfigure called")
     new_handle = _plugin.plugin_reconfigure(json.loads(handle),json.loads(new_config))
     return json.dumps(new_handle)
 
 def plugin_shutdown(handle):
-    #_plugin = _plugin_obj()
     #_LOGGER.info("plugin_shutdown called")
     return json.dumps(_plugin.plugin_shutdown(json.loads(handle)))
 

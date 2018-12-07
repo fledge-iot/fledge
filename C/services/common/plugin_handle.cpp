@@ -249,10 +249,10 @@ PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 
 	PRINT_FUNC;
 
-	Logger::getLogger()->info("plugin_handle: plugin_init(): config->toJSON()='%s'", config->toJSON().c_str());
+	Logger::getLogger()->info("plugin_handle: plugin_init(): config->itemsToJSON()='%s'", config->itemsToJSON().c_str());
 	
 	// - 2 - Call Python method passing an object
-	PyObject* pReturn = PyObject_CallFunction(pFunc, "s", config->toJSON().c_str());
+	PyObject* pReturn = PyObject_CallFunction(pFunc, "s", config->itemsToJSON().c_str());
 
 	Py_CLEAR(pFunc);
 	PRINT_FUNC;

@@ -18,6 +18,8 @@
 #include <python_plugin_handle.h>
 
 #define PRINT_FUNC	Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+#define SHIM_SCRIPT_REL_PATH  "/python/foglamp/plugins/common/shim/shim.py"
+#define SHIM_SCRIPT_NAME "shim"
 
 using namespace std;
 
@@ -41,7 +43,7 @@ PyObject* pModule;
  *    - Set sys.path and sys.argv
  *    - Import shim layer script and pass plugin name in argv[1]
  */
-PythonPluginHandle::PythonPluginHandle(const char *_name, const char *_path)
+PythonPluginHandle::PythonPluginHandle(const char *pluginName, const char * /*_path*/)
 {
 	// Python 3.5 loaded filter module handle
 	// pModule = NULL;
@@ -49,8 +51,8 @@ PythonPluginHandle::PythonPluginHandle(const char *_name, const char *_path)
 	string foglampRootDir(getenv("FOGLAMP_ROOT"));
 
 	//string path(_path);
-	string path = foglampRootDir + "/python/foglamp/plugins/common/shim/shim.py";
-	string name("shim");
+	string path = foglampRootDir + SHIM_SCRIPT_REL_PATH;
+	string name(SHIM_SCRIPT_NAME);
 	
 	// Python 3.5  script name
 	std::size_t found = path.find_last_of("/");
@@ -68,7 +70,7 @@ PythonPluginHandle::PythonPluginHandle(const char *_name, const char *_path)
 	// Embedded Python 3.5 initialisation
     Py_Initialize();
 
-	Logger::getLogger()->info("%s:%d: filtersPath=%s, pythonScript=%s", __FUNCTION__, __LINE__, filtersPath.c_str(), pythonScript.c_str());
+	Logger::getLogger()->info("%s:%d: filtersPath=%s, foglampPythonDir=%s", __FUNCTION__, __LINE__, filtersPath.c_str(), foglampPythonDir.c_str());
 	
 	// Set Python path for embedded Python 3.5
 	// Get current sys.path. borrowed reference
@@ -80,7 +82,7 @@ PythonPluginHandle::PythonPluginHandle(const char *_name, const char *_path)
 	int argc = 2;
 	wchar_t* argv[2];
 	argv[0] = Py_DecodeLocale("", NULL);
-	argv[1] = Py_DecodeLocale(_name, NULL);
+	argv[1] = Py_DecodeLocale(pluginName, NULL);
 	PySys_SetArgv(argc, argv);
 
 	// 2) Import Python script
@@ -180,14 +182,11 @@ PLUGIN_INFORMATION *plugin_info_fn()
 			return NULL;
 		}
 	}
-
-	PRINT_FUNC;
 	
 	// - 2 - Call Python method passing an object
 	PyObject* pReturn = PyObject_CallFunction(pFunc, NULL);
 
 	Py_CLEAR(pFunc);
-	PRINT_FUNC;
 
 	PLUGIN_INFORMATION *info = NULL;
 
@@ -204,9 +203,7 @@ PLUGIN_INFORMATION *plugin_info_fn()
 		info = NULL;
 	}
 	else
-	{
-		PRINT_FUNC;
-		
+	{	
 		// Get plugin information from Python filter
 		info = Py2C_PluginInfo(pReturn);
 		
@@ -245,15 +242,12 @@ PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 		return NULL;
 	}
 
-	PRINT_FUNC;
-
 	Logger::getLogger()->info("plugin_handle: plugin_init(): config->itemsToJSON()='%s'", config->itemsToJSON().c_str());
 	
 	// - 2 - Call Python method passing an object
 	PyObject* pReturn = PyObject_CallFunction(pFunc, "s", config->itemsToJSON().c_str());
 
 	Py_CLEAR(pFunc);
-	PRINT_FUNC;
 
 	// - 3 - Handle filter returned data
 	if (!pReturn)
@@ -268,11 +262,9 @@ PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 	}
 	else
 	{
-		PRINT_FUNC;
-		
 		string *handleStr = new string(PyUnicode_AsUTF8(pReturn));
 
-		Logger::getLogger()->info("plugin_handle: plugin_init(): got a valid handle from python plugin='%s'", handleStr->c_str());
+		Logger::getLogger()->info("plugin_handle: plugin_init(): got handle from python plugin='%s'", handleStr->c_str());
 		
 		// Remove pReturn object
 		Py_CLEAR(pReturn);
@@ -307,15 +299,12 @@ Reading plugin_poll_fn(PLUGIN_HANDLE handle)
 		return Reading("Invalid", NULL);
 	}
 
-	//PRINT_FUNC;
-
 	string *pluginHandleStr = (string *) handle;
 	
 	// - 2 - Call Python method passing an object
 	PyObject* pReturn = PyObject_CallFunction(pFunc, "s", pluginHandleStr->c_str());
 
 	Py_CLEAR(pFunc);
-	//PRINT_FUNC;
 
 	// - 3 - Handle filter returned data
 	if (!pReturn)
@@ -332,7 +321,7 @@ Reading plugin_poll_fn(PLUGIN_HANDLE handle)
 	{
 		// Get plugin information from Python filter
 		Reading *rdng = Py2C_getReading(pReturn);
-		Logger::getLogger()->info("plugin_poll_fn: reading='%s'", rdng->toJSON().c_str());
+		//Logger::getLogger()->info("plugin_poll_fn: reading='%s'", rdng->toJSON().c_str());
 		
 		// Remove pReturn object
 		Py_CLEAR(pReturn);
@@ -371,15 +360,12 @@ void plugin_reconfigure_fn(PLUGIN_HANDLE handle, const std::string& config)
 		return;
 	}
 
-	PRINT_FUNC;
-
 	Logger::getLogger()->info("plugin_handle: plugin_reconfigure(): config->toJSON()='%s'", config.c_str());
 	
 	// - 2 - Call Python method passing an object
 	PyObject* pReturn = PyObject_CallFunction(pFunc, "ss", handleStr->c_str(), config.c_str());
 
 	Py_CLEAR(pFunc);
-	PRINT_FUNC;
 	Logger::getLogger()->info("plugin_handle: plugin_reconfigure(): pReturn=%p", pReturn);
 
 	// - 3 - Handle filter returned data
@@ -395,8 +381,6 @@ void plugin_reconfigure_fn(PLUGIN_HANDLE handle, const std::string& config)
 	}
 	else
 	{
-		PRINT_FUNC;
-
 		*handleStr = string(PyUnicode_AsUTF8(pReturn));
 
 		Logger::getLogger()->info("plugin_handle: plugin_reconfigure(): got updated handle from python plugin='%s'", handleStr->c_str());
@@ -435,15 +419,12 @@ void plugin_shutdown_fn(PLUGIN_HANDLE handle)
 		return;
 	}
 
-	PRINT_FUNC;
-
 	string *pluginHandleStr = (string *) handle;
 	
 	// - 2 - Call Python method passing an object
 	PyObject* pReturn = PyObject_CallFunction(pFunc, "s", pluginHandleStr->c_str());
 
 	Py_CLEAR(pFunc);
-	PRINT_FUNC;
 
 	// - 3 - Handle filter returned data
 	if (!pReturn)

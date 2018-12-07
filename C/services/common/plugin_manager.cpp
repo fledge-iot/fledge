@@ -152,7 +152,7 @@ char          buf[128];
         return NULL;
       }
       PLUGIN_INFORMATION *info = (PLUGIN_INFORMATION *)(*infoEntry)();
-	  logger->info("%s:%d: name=%s, type=%s, config=%s", __FUNCTION__, __LINE__, info->name, info->type, info->config);
+	  //logger->info("%s:%d: name=%s, type=%s, config=%s", __FUNCTION__, __LINE__, info->name, info->type, info->config);
 	  
       if (strcmp(info->type, type.c_str()) != 0)
       {
@@ -162,8 +162,6 @@ char          buf[128];
         delete pluginHandle;
         return NULL;
       }
-	  logger->info("%s:%d", __FUNCTION__, __LINE__);
-  
       plugins.push_back(pluginHandle);
       pluginNames[name] = hndl;
       pluginTypes[name] = type;
@@ -224,13 +222,12 @@ PLUGIN_INFORMATION *PluginManager::getInfo(const PLUGIN_HANDLE handle)
  */
 PLUGIN_HANDLE PluginManager::resolveSymbol(PLUGIN_HANDLE handle, const string& symbol)
 {
-  logger->info("%s:%d: handle=%p, symbol=%s", __FUNCTION__, __LINE__, handle, symbol.c_str());
+  //logger->info("%s:%d: handle=%p, symbol=%s", __FUNCTION__, __LINE__, handle, symbol.c_str());
   if (pluginHandleMap.find(handle) == pluginHandleMap.end())
   {
   	logger->info("%s:%d: Cannot find PLUGIN_HANDLE in pluginHandleMap: returning NULL", __FUNCTION__, __LINE__);
     return NULL;
   }
-  logger->info("%s:%d: returning non-NULL", __FUNCTION__, __LINE__);
   return pluginHandleMap.find(handle)->second->ResolveSymbol(symbol.c_str());
 }
 

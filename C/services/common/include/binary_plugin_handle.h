@@ -21,25 +21,25 @@
 
 /**
  * The BinaryPluginHandle class is used to represent an interface to 
- * a plugin that is avaialble in a binary format
+ * a plugin that is available in a binary format
  */
 class BinaryPluginHandle : public PluginHandle
 {
 	public:
 		BinaryPluginHandle(const char *, const char *path)
 			{
-			Logger::getLogger()->info("BinaryPluginHandle c'tor: dlopen done for path='%s'", path);
+			//Logger::getLogger()->info("BinaryPluginHandle c'tor: dlopen done for path='%s'", path);
 			handle = dlopen(path, RTLD_LAZY);
 			}
 		~BinaryPluginHandle() { if (handle) dlclose(handle); }
 		void *GetInfo()
 			{
-			Logger::getLogger()->info("BinaryPluginHandle::GetInfo(): dlsym for plugin_info");
+			//Logger::getLogger()->info("BinaryPluginHandle::GetInfo(): dlsym for plugin_info");
 			return dlsym(handle, "plugin_info"); 
 			}
 		void *ResolveSymbol(const char* sym)
 			{
-			Logger::getLogger()->info("BinaryPluginHandle::ResolveSymbol(): For sym='%s'", sym);
+			//Logger::getLogger()->info("BinaryPluginHandle::ResolveSymbol(): For sym='%s'", sym);
 			return dlsym(handle, sym);
 			}
 		void *getHandle() { return handle; }

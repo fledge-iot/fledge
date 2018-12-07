@@ -35,33 +35,39 @@ _plugin = _plugin_obj()
 def plugin_info():
     #return json.dumps({"plugin":"test"})
     #_plugin = _plugin_obj()
-    _LOGGER.info("plugin_info called")
+    #_LOGGER.info("plugin_info called")
     handle = _plugin.plugin_info()
     handle['config'] = json.dumps(handle['config'])
-    _LOGGER.info("info dict = {}".format(json.dumps(handle)))
+    #_LOGGER.info("info dict = {}".format(json.dumps(handle)))
     return handle
 
 def plugin_init(config):
     #_plugin = _plugin_obj()
-    _LOGGER.info("plugin_init called")
+    #_LOGGER.info("plugin_init called")
     return json.dumps(_plugin.plugin_init(json.loads(config)))
 
 def plugin_poll(handle):
     #_plugin = _plugin_obj()
     #_LOGGER.info("plugin_poll called")
-    reading = _plugin.plugin_poll(json.loads(handle))
+    _read = _plugin.plugin_poll(json.loads(handle))
+    reading = {
+            'asset_code': _read['asset'],
+            'user_ts': _read['timestamp'],
+            'read_key': _read['key'],
+            'reading': _read['readings']
+        }
     #_LOGGER.info("Reading = {}".format(json.dumps(reading)))
     return reading
 
 def plugin_reconfigure(handle, new_config):
     #_plugin = _plugin_obj()
-    _LOGGER.info("plugin_reconfigure called")
+    #_LOGGER.info("plugin_reconfigure called")
     new_handle = _plugin.plugin_reconfigure(json.loads(handle),json.loads(new_config))
     return json.dumps(new_handle)
 
 def plugin_shutdown(handle):
     #_plugin = _plugin_obj()
-    _LOGGER.info("plugin_shutdown called")
+    #_LOGGER.info("plugin_shutdown called")
     return json.dumps(_plugin.plugin_shutdown(json.loads(handle)))
 
 if __name__ == '__main__':

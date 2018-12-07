@@ -21,7 +21,7 @@
 
 /**
  * The PythonPluginHandle class is used to represent an interface to 
- * a plugin that is avaialble as a python script
+ * a plugin that is available as a python script
  */
 class PythonPluginHandle : public PluginHandle
 {

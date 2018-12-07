@@ -277,7 +277,6 @@ ostringstream convert;
 	 */
 	if (count == 0)
 	{
-		Logger::getLogger()->error("filterPayload: nothing to send, %s, %s", asset.c_str(), payload);
 		// Nothing to send
 		return;
 	}

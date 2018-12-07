@@ -66,7 +66,6 @@ char          buf[128];
    * Find and try to load the dynamic library that is the plugin
    */
   snprintf(buf, sizeof(buf), "./lib%s.so", name.c_str());
-  //logger->info("PluginManager::loadPlugin: buf=%s", buf);
   if (access(buf, F_OK) != 0 && home)
   {
 	snprintf(buf,
@@ -77,7 +76,6 @@ char          buf[128];
 	         name.c_str(),
 	         name.c_str());
   }
-  //logger->info("PluginManager::loadPlugin: buf=%s", buf);
   if (access(buf, F_OK|R_OK) == 0)
   {
   	logger->info("Attempting to load C plugin: name=%s, path=%s", name.c_str(), buf);
@@ -105,8 +103,7 @@ char          buf[128];
         delete pluginHandle;
         return NULL;
       }
-	  logger->info("%s:%d", __FUNCTION__, __LINE__);
-  
+	  
       plugins.push_back(pluginHandle);
       pluginNames[name] = hndl;
       pluginTypes[name] = type;
@@ -133,8 +130,6 @@ char          buf[128];
              name.c_str(),
              name.c_str());
 
-  //logger->info("PluginManager::loadPlugin: buf=%s", buf);
-  
   if (access(buf, F_OK|R_OK) == 0)
   {
   	logger->info("Attempting to load python plugin: name=%s, path=%s", name.c_str(), buf);
@@ -152,7 +147,6 @@ char          buf[128];
         return NULL;
       }
       PLUGIN_INFORMATION *info = (PLUGIN_INFORMATION *)(*infoEntry)();
-	  //logger->info("%s:%d: name=%s, type=%s, config=%s", __FUNCTION__, __LINE__, info->name, info->type, info->config);
 	  
       if (strcmp(info->type, type.c_str()) != 0)
       {
@@ -171,14 +165,14 @@ char          buf[128];
     }
     else
     {
-      logger->error("PluginManager: Failed to load C plugin %s in %s: %s.",
+      logger->error("PluginManager: Failed to load C plugin %s in %s",
                     name.c_str(),
-                    buf,
-                    dlerror());
+                    buf);
     }
     return hndl;
   }
-  return hndl;
+  logger->error("PluginManager: Failed to load C/python plugin '%s' ", name.c_str());
+  return NULL;
 }
 
 /**

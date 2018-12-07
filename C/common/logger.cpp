@@ -14,16 +14,8 @@
 #include <stdarg.h>
 #include <memory>
 #include <string.h>
-#include <sys/time.h>
 
 using namespace std;
-
-inline long getCurrTimeUsec()
-{
-	struct timeval m_timestamp;
-	gettimeofday(&m_timestamp, NULL);
-	return m_timestamp.tv_usec;
-}
 
 Logger *Logger::instance = 0;
 
@@ -60,7 +52,7 @@ void Logger::info(const string& msg, ...)
 	va_list args;
 	va_start(args, msg);
 	string *fmt = format(msg, args);
-	syslog(LOG_INFO, "[.%06ld] INFO: %s", getCurrTimeUsec(), fmt->c_str());
+	syslog(LOG_INFO, "INFO: %s", fmt->c_str());
 	delete fmt;
 	va_end(args);
 }

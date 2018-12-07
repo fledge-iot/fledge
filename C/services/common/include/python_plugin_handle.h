@@ -13,9 +13,7 @@
 #include <logger.h>
 #include <vector>
 #include <sstream>
-#include <unordered_map>
 #include <dlfcn.h>
-#include <plugin_api.h>
 #include <plugin_handle.h>
 #include <Python.h>
 
@@ -27,14 +25,10 @@ class PythonPluginHandle : public PluginHandle
 {
 	public:
 		PythonPluginHandle(const char *name, const char *path);
-		~PythonPluginHandle(); // TODO
+		~PythonPluginHandle();
 		void *GetInfo();
 		void *ResolveSymbol(const char* sym);
 		void *getHandle() { return this; }
-	private:
-		//PLUGIN_HANDLE handle; // pointer returned by dlopen on plugin shared lib
-		//std::unordered_map<std::string, void*) dispatchTable;
-		//PyObject* pModule;
 };
 
 #endif

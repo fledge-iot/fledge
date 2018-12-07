@@ -31,8 +31,6 @@ class PluginHandle
 		virtual void *GetInfo() = 0;
 		virtual void *ResolveSymbol(const char* sym) = 0;
 		virtual void *getHandle() = 0;
-	private:
-		//PLUGIN_HANDLE handle;
 };
 
 #endif

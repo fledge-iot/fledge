@@ -113,9 +113,6 @@ class ConfigCategory {
 				std::string	defaultToJSON() const;
 				std::string	escape(const std::string& str) const;
 				std::string	unescape(const std::string& subject) const;
-				std::string getName() const { return m_name; }
-				std::string getDescription() const { return m_description; }
-				std::string getType() const { return m_type; }
 
 			public:
 				std::string 	m_name;
@@ -143,8 +140,6 @@ class ConfigCategory {
 		using iterator = std::vector<CategoryItem *>::iterator;
   		using const_iterator = std::vector<CategoryItem *>::const_iterator;
 
-		//iterator begin() { return m_items.begin(); }
-		//iterator end() { return m_items.end(); }
 		const_iterator begin() const { return m_items.begin(); }
 		const_iterator end() const { return m_items.end(); }
 		const_iterator cbegin() const { return m_items.cbegin(); }

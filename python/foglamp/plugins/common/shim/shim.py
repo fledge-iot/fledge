@@ -12,9 +12,6 @@ import json
 from foglamp.common import logger
 
 _LOGGER = logger.setup(__name__, level=20)
-#_LOGGER.info("shim layer module start")
-
-#_LOGGER.info("shim layer loaded")
 _LOGGER.info("Loading shim layer for python plugin '{}' ".format(sys.argv[1]))
 
 _plugin = None

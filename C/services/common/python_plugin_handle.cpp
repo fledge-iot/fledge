@@ -15,12 +15,11 @@
 #include <reading.h>
 #include <logger.h>
 #include <utils.h>
-#include <plugin_handle.h>
-
-using namespace std;
-
+#include <python_plugin_handle.h>
 
 #define PRINT_FUNC	Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+
+using namespace std;
 
 PLUGIN_INFORMATION *plugin_info_fn();
 PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config);
@@ -34,7 +33,6 @@ Reading* Py2C_getReading(PyObject *element);
 static void logErrorMessage();
 
 PyObject* pModule;
-
 
 
 /**
@@ -150,7 +148,7 @@ void* PythonPluginHandle::ResolveSymbol(const char *_sym)
  */
 void* PythonPluginHandle::GetInfo()
 {
-	Logger::getLogger()->info("PythonPluginHandle::GetInfo()");
+	//Logger::getLogger()->info("PythonPluginHandle::GetInfo()");
 	return (void *) plugin_info_fn;
 }
 

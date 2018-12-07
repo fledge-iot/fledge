@@ -7,13 +7,14 @@
  *
  * Author: Mark Riddoch, Massimiliano Pinto
  */
-#include <plugin_manager.h>
-#include <plugin_handle.h>
 #include <cstdio>
 #include <dlfcn.h>
 #include <string.h>
 #include <iostream>
 #include <unistd.h>
+#include <plugin_manager.h>
+#include <binary_plugin_handle.h>
+#include <python_plugin_handle.h>
 
 using namespace std;
 
@@ -65,26 +66,23 @@ char          buf[128];
    * Find and try to load the dynamic library that is the plugin
    */
   snprintf(buf, sizeof(buf), "./lib%s.so", name.c_str());
-  logger->info("PluginManager::loadPlugin: buf=%s", buf);
-  if (access(buf, F_OK) != 0)
+  //logger->info("PluginManager::loadPlugin: buf=%s", buf);
+  if (access(buf, F_OK) != 0 && home)
   {
-    if (home)
-    {
-        snprintf(buf,
-                 sizeof(buf),
-                 "%s/plugins/%s/%s/lib%s.so",
-                 home,
-                 type.c_str(),
-                 name.c_str(),
-                 name.c_str());
-    }
+	snprintf(buf,
+	         sizeof(buf),
+	         "%s/plugins/%s/%s/lib%s.so",
+	         home,
+	         type.c_str(),
+	         name.c_str(),
+	         name.c_str());
   }
-  logger->info("PluginManager::loadPlugin: buf=%s", buf);
+  //logger->info("PluginManager::loadPlugin: buf=%s", buf);
   if (access(buf, F_OK|R_OK) == 0)
   {
   	logger->info("Attempting to load C plugin: name=%s, path=%s", name.c_str(), buf);
 	pluginHandle = new BinaryPluginHandle(name.c_str(), buf);
-	hndl = pluginHandle->openHandle(buf);
+	hndl = pluginHandle->getHandle();
 	logger->info("%s:%d: pluginHandle=%p, hndl=%p", __FUNCTION__, __LINE__, pluginHandle, hndl);
     if (hndl != NULL)
     {
@@ -93,8 +91,7 @@ char          buf[128];
       {
         // Unable to find plugin_info entry point
         logger->error("C plugin %s does not support plugin_info entry point.\n", name.c_str());
-        pluginHandle->closeHandle();
-		delete pluginHandle;
+        delete pluginHandle;
         return NULL;
       }
       PLUGIN_INFORMATION *info = (PLUGIN_INFORMATION *)(*infoEntry)();
@@ -105,8 +102,7 @@ char          buf[128];
         // Log error, incorrect plugin type
         logger->error("C plugin %s is not of the expected type %s, it is of type %s.\n",
           name.c_str(), type.c_str(), info->type);
-        pluginHandle->closeHandle();
-		delete pluginHandle;
+        delete pluginHandle;
         return NULL;
       }
 	  logger->info("%s:%d", __FUNCTION__, __LINE__);
@@ -137,13 +133,13 @@ char          buf[128];
              name.c_str(),
              name.c_str());
 
-  logger->info("PluginManager::loadPlugin: buf=%s", buf);
+  //logger->info("PluginManager::loadPlugin: buf=%s", buf);
   
   if (access(buf, F_OK|R_OK) == 0)
   {
   	logger->info("Attempting to load python plugin: name=%s, path=%s", name.c_str(), buf);
 	pluginHandle = new PythonPluginHandle(name.c_str(), buf);
-	hndl = pluginHandle->openHandle(buf);
+	hndl = pluginHandle->getHandle();
 	logger->info("%s:%d: pluginHandle=%p, hndl=%p", __FUNCTION__, __LINE__, pluginHandle, hndl);
     if (hndl != NULL)
     {
@@ -152,8 +148,7 @@ char          buf[128];
       {
         // Unable to find plugin_info entry point
         logger->error("C plugin %s does not support plugin_info entry point.\n", name.c_str());
-        pluginHandle->closeHandle();
-		delete pluginHandle;
+        delete pluginHandle;
         return NULL;
       }
       PLUGIN_INFORMATION *info = (PLUGIN_INFORMATION *)(*infoEntry)();
@@ -164,8 +159,7 @@ char          buf[128];
         // Log error, incorrect plugin type
         logger->error("C plugin %s is not of the expected type %s, it is of type %s.\n",
           name.c_str(), type.c_str(), info->type);
-        pluginHandle->closeHandle();
-		delete pluginHandle;
+        delete pluginHandle;
         return NULL;
       }
 	  logger->info("%s:%d", __FUNCTION__, __LINE__);

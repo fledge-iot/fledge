@@ -20,7 +20,7 @@ using namespace std;
 
 inline long getCurrTimeUsec()
 {
-	struct timeval			m_timestamp;
+	struct timeval m_timestamp;
 	gettimeofday(&m_timestamp, NULL);
 	return m_timestamp.tv_usec;
 }

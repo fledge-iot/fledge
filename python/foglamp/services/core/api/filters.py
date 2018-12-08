@@ -15,6 +15,7 @@ from foglamp.services.core.api import utils as apiutils
 from foglamp.common import logger
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.exceptions import StorageServerError
+from foglamp.common.storage_client.storage_client import StorageClientAsync
 
 __author__ = "Massimiliano Pinto, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -32,7 +33,7 @@ _help = """
 _LOGGER = logger.setup("filter")
 
 
-async def create_filter(request):
+async def create_filter(request: web.Request) -> web.Response:
     """
     Create a new filter with a specific plugin
     
@@ -84,7 +85,7 @@ async def create_filter(request):
             raise web.HTTPBadRequest(reason='Filter name, plugin name are mandatory.')
 
         # Set filter name and description
-        filter_desc = 'Configuration of \'' + filter_name + '\' filter for plugin \'' + plugin_name + '\''
+        filter_desc = "Configuration of '{}' filter for plugin '{}'".format(filter_name, plugin_name)
         # Get configuration manager instance
         storage = connect.get_storage_async()
         cf_mgr = ConfigurationManager(storage)
@@ -93,7 +94,7 @@ async def create_filter(request):
 
         # Get plugin default configuration (dict)
         if not loaded_plugin_info or 'config' not in loaded_plugin_info:
-            message = "Can not get 'plugin_info' detail from plugin '%s'" % plugin_name
+            message = "Can not get 'plugin_info' detail from plugin '{}'".format(plugin_name)
             _LOGGER.exception("Add filter error: " + message)
             raise web.HTTPNotFound(reason=message)
             
@@ -108,11 +109,8 @@ async def create_filter(request):
 
         # Sanity checks
         if plugin_name != loaded_plugin_name or loaded_plugin_type != 'filter':
-            error_message = "Loaded plugin '{0}', type '{1}', doesn't match " + \
-                            "the specified one '{2}', type 'filter'"
-            raise ValueError(error_message.format(loaded_plugin_name,
-                                                  loaded_plugin_type,
-                                                  plugin_name))
+            raise ValueError("Loaded plugin '{}', type '{}', doesn't match the specified one '{}', type 'filter'".format(
+                loaded_plugin_name, loaded_plugin_type, plugin_name))
 
         #################################################
         # Set string value for 'default' if type is JSON
@@ -144,26 +142,23 @@ async def create_filter(request):
         # Fetch the new created filter: get category items
         category_info = await cf_mgr.get_category_all_items(category_name=filter_name)
         if category_info is None:
-            message = "No such '%s' filter found" % filter_name
-            raise ValueError(message)
+            raise ValueError("No such '{}' filter found".format(filter_name))
         else:
             # Success: return new filter content
-            return web.json_response({'filter': filter_name,
-                                      'description': filter_desc,
-                                      'value': category_info})
+            return web.json_response({'filter': filter_name, 'description': filter_desc, 'value': category_info})
     except ValueError as ex:
         _LOGGER.exception("Add filter, caught exception: " + str(ex))
         raise web.HTTPNotFound(reason=str(ex))
     except StorageServerError as ex:
         await _delete_configuration_category(storage, filter_name)  # Revert configuration entry
-        _LOGGER.exception("Failed to create schedule. %s", ex.error)
-        raise web.HTTPInternalServerError(reason='Failed to create service.')
+        _LOGGER.exception("Failed to create filter. %s", ex.error)
+        raise web.HTTPInternalServerError(reason='Failed to create filter.')
     except Exception as ex:
-        _LOGGER.exception("Add filter, caught exception: " + str(ex))
+        _LOGGER.exception("Add filter, caught exception:  %s", str(ex))
         raise web.HTTPInternalServerError(reason=str(ex))
 
 
-async def add_filters_pipeline(request):
+async def add_filters_pipeline(request: web.Request) -> web.Response:
     """
     Add filter names to "filter" item in {service_name}
 
@@ -232,16 +227,14 @@ async def add_filters_pipeline(request):
         category_info = await cf_mgr.get_category_all_items(category_name=service_name)
         if category_info is None:
             # Error service__name doesn't exist
-            message = "No such '%s' category found." % service_name
-            raise web.HTTPNotFound(reason=message)
+            raise web.HTTPNotFound(reason="No such '{}' category found.".format(service_name))
 
         # Check if all filters in the list exists in filters table
         for _filter in filter_list:
             payload = PayloadBuilder().WHERE(['name', '=', _filter]).payload()
             result = await storage.query_tbl_with_payload("filters", payload)
             if len(result["rows"]) == 0:
-                message = "No such '%s' filter found in filters table." % _filter
-                raise web.HTTPNotFound(reason=message)
+                raise web.HTTPNotFound(reason="No such '{}' filter found in filters table.".format(_filter))
 
         def delete_keys_from_dict(dict_del, lst_keys):
             for k in lst_keys:
@@ -266,13 +259,13 @@ async def add_filters_pipeline(request):
             if 'append_filter' in request.query and request.query['append_filter'] != '':
                 append_filter = request.query['append_filter'].lower()
                 if append_filter not in ['true', 'false']:
-                    raise ValueError("Only 'true' and 'false' are allowed for "
-                                     "append_filter. {} given.".format(append_filter))
+                    raise ValueError("Only 'true' and 'false' are allowed for append_filter. {} given.".format(
+                        append_filter))
             if 'allow_duplicates' in request.query and request.query['allow_duplicates'] != '':
                 allow_duplicates = request.query['allow_duplicates'].lower()
                 if allow_duplicates not in ['true', 'false']:
-                    raise ValueError("Only 'true' and 'false' are allowed for "
-                                     "allow_duplicates. {} given.".format(allow_duplicates))
+                    raise ValueError("Only 'true' and 'false' are allowed for allow_duplicates. {} given.".format(
+                        allow_duplicates))
 
             # If filter list is empty don't check current list value
             # Empty list [] clears current pipeline
@@ -315,9 +308,7 @@ async def add_filters_pipeline(request):
                 await storage.delete_from_tbl("filter_users", payload)
 
             # Set the pipeline value with the 'new_list' of filters
-            await cf_mgr.set_category_item_value_entry(service_name,
-                                                       config_item,
-                                                       {'pipeline': new_list})
+            await cf_mgr.set_category_item_value_entry(service_name, config_item, {'pipeline': new_list})
             # Create new children categories
             for _filter in new_list:
                 filter_config = await cf_mgr.get_category_all_items(category_name=_filter)
@@ -368,24 +359,23 @@ async def add_filters_pipeline(request):
         result = await cf_mgr.get_category_item(service_name, config_item)
         if result is None:
             # Error config_item doesn't exist
-            message = "No detail found for the category_name: {} " \
-                      "and config_item: {}".format(service_name, config_item)
+            message = "No detail found for the category_name: {} and config_item: {}".format(service_name, config_item)
             raise web.HTTPNotFound(reason=message)
         else:
             # Return the filters pipeline
             return web.json_response({'result': "Filter pipeline {} updated successfully".format(json.loads(result['value']))})
     except ValueError as ex:
-        _LOGGER.exception("Add filters pipeline, caught exception: " + str(ex))
+        _LOGGER.exception("Add filters pipeline, caught exception: %s", str(ex))
         raise web.HTTPNotFound(reason=str(ex))
     except StorageServerError as ex:
-        _LOGGER.exception("Add filters pipeline, caught exception: " + str(ex.error))
+        _LOGGER.exception("Add filters pipeline, caught exception: %s", str(ex.error))
         raise web.HTTPInternalServerError(reason=str(ex.error))
     except Exception as ex:
-        _LOGGER.exception("Add filters pipeline, caught exception: " + str(ex))
+        _LOGGER.exception("Add filters pipeline, caught exception: %s", str(ex))
         raise web.HTTPInternalServerError(reason=str(ex))
 
 
-async def get_filter(request):
+async def get_filter(request: web.Request) -> web.Response:
     """ GET filter detail
 
     :Example:
@@ -401,8 +391,7 @@ async def get_filter(request):
         category_info = await cf_mgr.get_category_all_items(filter_name)
         if category_info is None:
             # Error service__name doesn't exist
-            message = "No such '%s' category found." % filter_name
-            raise web.HTTPNotFound(reason=message)
+            raise web.HTTPNotFound(reason="No such '{}' category found.".format(filter_name))
         filter_detail.update({"config": category_info})
 
         # Fetch filter detail
@@ -421,7 +410,7 @@ async def get_filter(request):
             users.append(row["user"])
         filter_detail.update({"users": users})
     except StorageServerError as ex:
-        _LOGGER.exception("Get filter: {}, caught exception: ".format(filter_name) + str(ex.error))
+        _LOGGER.exception("Get filter: %s, caught exception: %s" ,filter_name, str(ex.error))
         raise web.HTTPInternalServerError(reason=str(ex.error))
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
@@ -429,7 +418,7 @@ async def get_filter(request):
         return web.json_response({'filter': filter_detail})
 
 
-async def get_filters(request):
+async def get_filters(request: web.Request) -> web.Response:
     """ GET list of filters
 
     :Example:
@@ -440,7 +429,7 @@ async def get_filters(request):
         result = await storage.query_tbl("filters")
         filters = result["rows"]
     except StorageServerError as ex:
-        _LOGGER.exception("Get filters, caught exception: " + str(ex.error))
+        _LOGGER.exception("Get filters, caught exception: %s", str(ex.error))
         raise web.HTTPInternalServerError(reason=str(ex.error))
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
@@ -448,7 +437,7 @@ async def get_filters(request):
         return web.json_response({'filters': filters})
 
 
-async def get_filter_pipeline(request):
+async def get_filter_pipeline(request: web.Request) -> web.Response:
     """ GET filter pipeline
 
     :Example:
@@ -463,15 +452,14 @@ async def get_filter_pipeline(request):
         category_info = await cf_mgr.get_category_all_items(category_name=service_name)
         if category_info is None:
             # Error service__name doesn't exist
-            message = "No such '%s' category found." % service_name
-            raise web.HTTPNotFound(reason=message)
+            raise web.HTTPNotFound(reason="No such '{}' category found.".format(service_name))
 
         filter_value_from_storage = json.loads(category_info['filter']['value'])
     except KeyError as ex:
-        _LOGGER.exception("Get pipeline: {}, no filter exists: ".format(service_name) + str(ex))
+        _LOGGER.exception("Get pipeline: %s, no filter exists: %s", service_name, str(ex))
         raise web.HTTPNotFound(reason="Get pipeline: {}, no filter exists: ".format(service_name) + str(ex))
     except StorageServerError as ex:
-        _LOGGER.exception("Get pipeline: {}, caught exception: ".format(service_name) + str(ex.error))
+        _LOGGER.exception("Get pipeline: %s, caught exception: %s", service_name, str(ex.error))
         raise web.HTTPInternalServerError(reason=str(ex.error))
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
@@ -479,7 +467,7 @@ async def get_filter_pipeline(request):
         return web.json_response({'result': filter_value_from_storage})
 
 
-async def delete_filter(request):
+async def delete_filter(request: web.Request) -> web.Response:
     """ DELETE filter
 
     :Example:
@@ -508,15 +496,14 @@ async def delete_filter(request):
         # Delete configuration for filter
         _delete_configuration_category(storage, filter_name)
     except StorageServerError as ex:
-        _LOGGER.exception("Get filter: {}, caught exception: ".format(filter_name) + str(ex.error))
+        _LOGGER.exception("Delete filter: %s, caught exception: %s", filter_name, str(ex.error))
         raise web.HTTPInternalServerError(reason=str(ex.error))
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
     else:
         return web.json_response({'result': "Filter {} deleted successfully".format(filter_name)})
 
-
-async def delete_filter_pipeline(request):
+async def delete_filter_pipeline(request: web.Request) -> web.Response:
     """ DELETE filter pipeline
 
     :Example:
@@ -540,7 +527,7 @@ async def delete_filter_pipeline(request):
         return web.json_response({'result': "Filter pipline for service {} deleted successfully".format(service_name)})
 
 
-async def _delete_configuration_category(storage, key):
+async def _delete_configuration_category(storage: StorageClientAsync, key: str) -> None:
     payload = PayloadBuilder().WHERE(['key', '=', key]).payload()
     await storage.delete_from_tbl('configuration', payload)
 

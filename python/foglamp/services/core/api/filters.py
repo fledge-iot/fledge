@@ -131,8 +131,7 @@ async def create_filter(request):
         if filter_config is not None:
             if not isinstance(filter_config, dict):
                 raise ValueError('filter_config must be a JSON object')
-            for k, v in filter_config.items():
-                await cf_mgr.set_category_item_value_entry(filter_name, k, v['value'])
+            cf_mgr.update_configuration_item_bulk(filter_name, filter_config)
 
         # Check if filter exists in filters table
         payload = PayloadBuilder().WHERE(['name', '=', filter_name]).payload()
@@ -379,8 +378,8 @@ async def add_filters_pipeline(request):
         _LOGGER.exception("Add filters pipeline, caught exception: " + str(ex))
         raise web.HTTPNotFound(reason=str(ex))
     except StorageServerError as ex:
-        _LOGGER.exception("Add filters pipeline, caught exception: " + str(ex))
-        raise web.HTTPInternalServerError(reason=str(ex))
+        _LOGGER.exception("Add filters pipeline, caught exception: " + str(ex.error))
+        raise web.HTTPInternalServerError(reason=str(ex.error))
     except Exception as ex:
         _LOGGER.exception("Add filters pipeline, caught exception: " + str(ex))
         raise web.HTTPInternalServerError(reason=str(ex))
@@ -403,7 +402,7 @@ async def get_filter(request):
         if category_info is None:
             # Error service__name doesn't exist
             message = "No such '%s' category found." % filter_name
-            return web.HTTPNotFound(reason=message)
+            raise web.HTTPNotFound(reason=message)
         filter_detail.update({"config": category_info})
 
         # Fetch filter detail
@@ -422,8 +421,8 @@ async def get_filter(request):
             users.append(row["user"])
         filter_detail.update({"users": users})
     except StorageServerError as ex:
-        _LOGGER.exception("Get filter: {}, caught exception: ".format(filter_name) + str(ex))
-        raise web.HTTPInternalServerError(reason=str(ex))
+        _LOGGER.exception("Get filter: {}, caught exception: ".format(filter_name) + str(ex.error))
+        raise web.HTTPInternalServerError(reason=str(ex.error))
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
     else:
@@ -441,8 +440,8 @@ async def get_filters(request):
         result = await storage.query_tbl("filters")
         filters = result["rows"]
     except StorageServerError as ex:
-        _LOGGER.exception("Get filters, caught exception: " + str(ex))
-        raise web.HTTPInternalServerError(reason=str(ex))
+        _LOGGER.exception("Get filters, caught exception: " + str(ex.error))
+        raise web.HTTPInternalServerError(reason=str(ex.error))
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
     else:
@@ -465,15 +464,15 @@ async def get_filter_pipeline(request):
         if category_info is None:
             # Error service__name doesn't exist
             message = "No such '%s' category found." % service_name
-            return web.HTTPNotFound(reason=message)
+            raise web.HTTPNotFound(reason=message)
 
         filter_value_from_storage = json.loads(category_info['filter']['value'])
     except KeyError as ex:
         _LOGGER.exception("Get pipeline: {}, no filter exists: ".format(service_name) + str(ex))
         raise web.HTTPNotFound(reason="Get pipeline: {}, no filter exists: ".format(service_name) + str(ex))
     except StorageServerError as ex:
-        _LOGGER.exception("Get pipeline: {}, caught exception: ".format(service_name) + str(ex))
-        raise web.HTTPInternalServerError(reason=str(ex))
+        _LOGGER.exception("Get pipeline: {}, caught exception: ".format(service_name) + str(ex.error))
+        raise web.HTTPInternalServerError(reason=str(ex.error))
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
     else:
@@ -509,8 +508,8 @@ async def delete_filter(request):
         # Delete configuration for filter
         _delete_configuration_category(storage, filter_name)
     except StorageServerError as ex:
-        _LOGGER.exception("Get filter: {}, caught exception: ".format(filter_name) + str(ex))
-        raise web.HTTPInternalServerError(reason=str(ex))
+        _LOGGER.exception("Get filter: {}, caught exception: ".format(filter_name) + str(ex.error))
+        raise web.HTTPInternalServerError(reason=str(ex.error))
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
     else:

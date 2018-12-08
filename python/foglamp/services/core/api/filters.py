@@ -450,10 +450,12 @@ async def get_filter_pipeline(request: web.Request) -> web.Response:
         category_info = await cf_mgr.get_category_all_items(category_name=service_name)
         if category_info is None:
             raise web.HTTPNotFound(reason="No such '{}' category found.".format(service_name))
-        try:
-            filter_value_from_storage = json.loads(category_info['filter']['value'])
-        except KeyError as ex:
-            filter_value_from_storage = []
+
+        filter_value_from_storage = json.loads(category_info['filter']['value'])
+    except KeyError:
+        err_msg = "No filter pipeline exists for {}".format(service_name)
+        _LOGGER.exception(err_msg)
+        raise web.HTTPNotFound(reason=err_msg)
     except StorageServerError as ex:
         _LOGGER.exception("Get pipeline: %s, caught exception: %s", service_name, str(ex.error))
         raise web.HTTPInternalServerError(reason=str(ex.error))

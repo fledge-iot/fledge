@@ -71,10 +71,10 @@ async def create_filter(request: web.Request) -> web.Response:
         # Get input data
         data = await request.json()
 
-        # Get filter name
+        # Get filter
         filter_name = data.get('name', None)
 
-        # Get plugin name
+        # Get filter plugin
         plugin_name = data.get('plugin', None)
 
         # Get filter config, if any
@@ -84,7 +84,7 @@ async def create_filter(request: web.Request) -> web.Response:
         if not filter_name or not plugin_name:
             raise web.HTTPBadRequest(reason='Filter name, plugin name are mandatory.')
 
-        # Set filter name and description
+        # Set filter category description
         filter_desc = "Configuration of '{}' filter for plugin '{}'".format(filter_name, plugin_name)
         # Get configuration manager instance
         storage = connect.get_storage_async()
@@ -104,7 +104,7 @@ async def create_filter(request: web.Request) -> web.Response:
         # Get plugin name (string)
         loaded_plugin_name = plugin_config['plugin']['default']
 
-        # Check first whether filter name already exists
+        # Check first whether filter already exists
         category_info = await cf_mgr.get_category_all_items(category_name=filter_name)
 
         # Sanity checks
@@ -208,7 +208,7 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
         data = await request.json()
         # Get filters list
         filter_list = data.get('pipeline', None)
-        # Get service name
+        # Get service
         service_name = request.match_info.get('service_name', None)
         # Item name to add/update
         config_item = "filter"
@@ -226,7 +226,6 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
         # Fetch the filter items: get category items
         category_info = await cf_mgr.get_category_all_items(category_name=service_name)
         if category_info is None:
-            # Error service__name doesn't exist
             raise web.HTTPNotFound(reason="No such '{}' category found.".format(service_name))
 
         # Check if all filters in the list exists in filters table
@@ -390,7 +389,6 @@ async def get_filter(request: web.Request) -> web.Response:
         # Fetch the filter items: get category items
         category_info = await cf_mgr.get_category_all_items(filter_name)
         if category_info is None:
-            # Error service__name doesn't exist
             raise web.HTTPNotFound(reason="No such '{}' category found.".format(filter_name))
         filter_detail.update({"config": category_info})
 
@@ -402,7 +400,7 @@ async def get_filter(request: web.Request) -> web.Response:
         row = result["rows"][0]
         filter_detail.update({"name": row["name"], "plugin": row["plugin"]})
 
-        # Fetch service names which are using this filter
+        # Fetch services which are using this filter
         payload = PayloadBuilder().WHERE(['name', '=', filter_name]).payload()
         result = await storage.query_tbl_with_payload("filter_users", payload)
         users = []
@@ -451,12 +449,11 @@ async def get_filter_pipeline(request: web.Request) -> web.Response:
         # Fetch the filter items: get category items
         category_info = await cf_mgr.get_category_all_items(category_name=service_name)
         if category_info is None:
-            # Error service__name doesn't exist
             raise web.HTTPNotFound(reason="No such '{}' category found.".format(service_name))
         try:
             filter_value_from_storage = json.loads(category_info['filter']['value'])
         except KeyError as ex:
-            filter_value_from_storage = "No filter pipeline exists for {}".format(service_name)
+            filter_value_from_storage = []
     except StorageServerError as ex:
         _LOGGER.exception("Get pipeline: %s, caught exception: %s", service_name, str(ex.error))
         raise web.HTTPInternalServerError(reason=str(ex.error))

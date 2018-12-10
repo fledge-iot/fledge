@@ -40,6 +40,7 @@ class Reading {
 		// Set AssetName
 		void				setAssetName(std::string assetName) { m_asset = assetName; };
 		int				getDatapointCount() { return m_values.size(); };
+		void				removeAllDatapoints();
 		// Return UUID
 		const std::string&              getUuid() const { return m_uuid; };
 		// Return Reading datapoints

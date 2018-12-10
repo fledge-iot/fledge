@@ -137,6 +137,18 @@ Reading::~Reading()
 }
 
 /**
+ * Remove all data points for Reading class
+ */
+void Reading::removeAllDatapoints()
+{
+	for (auto it = m_values.cbegin(); it != m_values.cend(); it++)
+	{
+		delete(*it);
+	}
+	m_values.clear();
+}
+
+/**
  * Add another data point to an asset reading
  */
 void Reading::addDatapoint(Datapoint *value)

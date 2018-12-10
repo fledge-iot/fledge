@@ -228,16 +228,19 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
             if len(result["rows"]) == 0:
                 raise ValueError("No such '{}' filter found in filters table.".format(_filter))
 
-        def delete_keys_from_dict(dict_del, lst_keys):
+        def delete_keys_from_dict(dict_del, lst_keys, deleted_values={}, parent=None):
             for k in lst_keys:
                 try:
+                    if parent is not None:
+                        deleted_values.update({parent:dict_del[k]})
                     del dict_del[k]
                 except KeyError:
                     pass
-            for v in dict_del.values():
+            for k, v in dict_del.items():
                 if isinstance(v, dict):
-                    delete_keys_from_dict(v, lst_keys)
-            return dict_del
+                    parent = k
+                    delete_keys_from_dict(v, lst_keys, deleted_values, parent)
+            return dict_del, deleted_values
 
         # Check whether config_item already exists
         if config_item in category_info:
@@ -305,10 +308,13 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
             for _filter in new_list:
                 filter_config = await cf_mgr.get_category_all_items(category_name=_filter)
                 filter_desc = "Configuration of {} filter for user {}".format(service_name, _filter)
+                new_filter_config, deleted_values = delete_keys_from_dict(filter_config, ['value'])
                 await cf_mgr.create_category(category_name="{}_{}".format(service_name, _filter),
                                              category_description=filter_desc,
-                                             category_value=delete_keys_from_dict(filter_config, ['value']),
+                                             category_value=new_filter_config,
                                              keep_original_items=True)
+                if deleted_values != {}:
+                    await cf_mgr.update_configuration_item_bulk("{}_{}".format(service_name, _filter), deleted_values)
             # Create new children
             new_children = ["{}_{}".format(service_name, _filter) for _filter in new_list]
             await cf_mgr.create_child_category(category_name=service_name, children=new_children)
@@ -335,10 +341,13 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
             for filter_name in filter_list:
                 filter_config = await cf_mgr.get_category_all_items(category_name=filter_name)
                 filter_desc = "Configuration of {} filter for user {}".format(service_name, filter_name)
+                new_filter_config, deleted_values = delete_keys_from_dict(filter_config, ['value'])
                 await cf_mgr.create_category(category_name="{}_{}".format(service_name, filter_name),
                                              category_description=filter_desc,
-                                             category_value=delete_keys_from_dict(filter_config, ['value']),
+                                             category_value=new_filter_config,
                                              keep_original_items=True)
+                if deleted_values != {}:
+                    await cf_mgr.update_configuration_item_bulk("{}_{}".format(service_name, filter_name), deleted_values)
             # Create children
             children = ["{}_{}".format(service_name, _filter) for _filter in filter_list]
             await cf_mgr.create_child_category(category_name=service_name, children=children)

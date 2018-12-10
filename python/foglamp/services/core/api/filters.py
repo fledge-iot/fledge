@@ -38,18 +38,8 @@ async def create_filter(request: web.Request) -> web.Response:
     Create a new filter with a specific plugin
     
     :Example:
-     curl -X POST http://localhost:8081/foglamp/filter -d 
-     '{
-        "name": "North_Readings_to_PI_scale_stage_1Filter",
-        "plugin": "scale"
-     }'
-
-     curl -X POST http://localhost:8081/foglamp/filter -d 
-     '{
-        "name": "North_Readings_to_PI_scale_stage_1Filter",
-        "plugin": "scale",
-        "filter_config": {}
-     }'
+     curl -X POST http://localhost:8081/foglamp/filter -d '{"name": "North_Readings_to_PI_scale_stage_1Filter", "plugin": "scale"}'
+     curl -X POST http://localhost:8081/foglamp/filter -d '{"name": "North_Readings_to_PI_scale_stage_1Filter", "plugin": "scale", "filter_config": {"offset":"1","enable":"true"}}'
 
     'name' is the filter name
     'plugin' is the filter plugin name
@@ -129,7 +119,7 @@ async def create_filter(request: web.Request) -> web.Response:
         if filter_config is not None:
             if not isinstance(filter_config, dict):
                 raise ValueError('filter_config must be a JSON object')
-            cf_mgr.update_configuration_item_bulk(filter_name, filter_config)
+            await cf_mgr.update_configuration_item_bulk(filter_name, filter_config)
 
         # Check if filter exists in filters table
         payload = PayloadBuilder().WHERE(['name', '=', filter_name]).payload()

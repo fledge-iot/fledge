@@ -17,8 +17,6 @@
 #include <dlfcn.h>
 #include <plugin_api.h>
 
-#include <Python.h>
-
 /**
  * The PluginHandle class is used to represent an opaque handle to a 
  * plugin instance

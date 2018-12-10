@@ -496,7 +496,7 @@ async def delete_filter(request: web.Request) -> web.Response:
         payload = PayloadBuilder().WHERE(['name', '=', filter_name]).payload()
         result = await storage.query_tbl_with_payload("filter_users", payload)
         if len(result["rows"]) != 0:
-            raise TypeError(reason="Filter '{}' found in pipelines".format(filter_name))
+            raise TypeError("Filter '{}' found in pipelines".format(filter_name))
 
         # Delete filter from filters table
         payload = PayloadBuilder().WHERE(['name', '=', filter_name]).payload()

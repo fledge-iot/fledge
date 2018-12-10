@@ -416,7 +416,7 @@ async def get_filter(request: web.Request) -> web.Response:
         _LOGGER.exception("Get filter: %s, caught exception: %s" ,filter_name, str(ex.error))
         raise web.HTTPInternalServerError(reason=str(ex.error))
     except ValueError as ex:
-        raise web.web.HTTPNotFound(reason=ex)
+        raise web.HTTPNotFound(reason=ex)
     except TypeError as ex:
         raise web.HTTPBadRequest(reason=ex)
     except Exception as ex:

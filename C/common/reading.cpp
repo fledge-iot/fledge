@@ -17,6 +17,12 @@
 
 using namespace std;
 
+std::vector<std::string> Reading::m_dateTypes = {
+	DEFAULT_DATE_TIME_FORMAT,
+	COMBINED_DATE_STANDARD_FORMAT,
+	ISO8601_DATE_TIME_FORMAT
+};
+
 /**
  * Reading constructor
  *
@@ -128,6 +134,18 @@ Reading::~Reading()
 	{
 		delete(*it);
 	}
+}
+
+/**
+ * Remove all data points for Reading class
+ */
+void Reading::removeAllDatapoints()
+{
+	for (auto it = m_values.cbegin(); it != m_values.cend(); it++)
+	{
+		delete(*it);
+	}
+	m_values.clear();
 }
 
 /**

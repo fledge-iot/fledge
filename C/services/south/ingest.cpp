@@ -358,16 +358,33 @@ vector<Reading *>* newQ = new vector<Reading *>();
 		m_queue = newQ;
 	}
 	
-	ReadingSet* readingSet = NULL;
-
-	// Create a ReadingSet from m_data readings if we have filters.
-	// ReadingSet has same reading pointers as in m_data.
+	/*
+	 * Create a ReadingSet from m_data readings if we have filters.
+	 *
+	 * At this point the m_data vectoir is cleared so that the only reference to
+	 * the readings is inthe ReadingSet that is passed along the filter pipeline
+	 *
+	 * The final filter in the pipeline will pass the ReadingSet back into the
+	 * ingest class where it will repopulate the m_data member.
+	 */
 	if (m_filters.size())
 	{
 		auto it = m_filters.begin();
-		readingSet = new ReadingSet(m_data);
+		ReadingSet *readingSet = new ReadingSet(m_data);
+		m_data->clear();
 		// Pass readingSet to filter chain
 		(*it)->ingest(readingSet);
+
+		/*
+		 * If filtering removed all the readings then simply clean up m_data and
+		 * return.
+		 */
+		if (m_data->size() == 0)
+		{
+			delete m_data;
+			m_data = NULL;
+			return;
+		}
 	}
 
 	std::map<std::string, int>		statsEntriesCurrQueue;
@@ -422,31 +439,17 @@ vector<Reading *>* newQ = new vector<Reading *>();
 				statsPendingEntries[it.first] += it.second;
 			}
 		
-		// Data sent to sorage service
-		if (!readingSet)
+		// Remove the Readings in the vector
+		for (vector<Reading *>::iterator it = m_data->begin();
+						 it != m_data->end(); ++it)
 		{
-			// Data not filtered: remove the Readings in the vector
-			for (vector<Reading *>::iterator it = m_data->begin();
-							 it != m_data->end(); ++it)
-			{
-				Reading *reading = *it;
-				delete reading;
-			}
-		}
-		else
-		{
-			// Filtered data
-			// Remove reading set (and m_data reading pointers)
-			delete readingSet;
+			Reading *reading = *it;
+			delete reading;
 		}
 	}
 
-	// No filtering: remove m_data pointer
-	if (!readingSet)
-	{
-		delete m_data;
-		m_data = NULL;
-	}
+	delete m_data;
+	m_data = NULL;
 	
 	// Signal stats thread to update stats
 	lock_guard<mutex> guard(m_statsMutex);
@@ -608,9 +611,11 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 			     READINGSET *readingSet)
 {
 	Ingest* ingest = (Ingest *)outHandle;
-	// Free current ingest->m_data pointer
-	delete ingest->m_data;
-	// Set new data pointer
-	ingest->m_data = ((ReadingSet *)readingSet)->getAllReadingsPtr();
+	vector<Reading *> *data = readingSet->getAllReadingsPtr();
+	for (auto it = data->cbegin(); it != data->end(); it++)
+	{
+		ingest->m_data->push_back(*it);
+	}
+	readingSet->clear();
 }
 

@@ -50,7 +50,12 @@ class TestPluginDiscoveryApi:
         "North",
         "South",
         "NORTH",
-        "SOUTH"
+        "SOUTH",
+        "filter",
+        "Filter",
+        "FILTER",
+        "notify",
+        "NOTIFY"
     ])
     async def test_get_plugins_installed_by_params(self, client, param):
         with patch.object(PluginDiscovery, 'get_plugins_installed', return_value={}) as patch_get_plugin_installed:
@@ -64,10 +69,16 @@ class TestPluginDiscoveryApi:
     @pytest.mark.parametrize("param, direction, result, is_config", [
         ("?type=north&config=false", "north", {"name": "http", "version": "1.0.0", "type": "north", "description": "HTTP North-C plugin"}, False),
         ("?type=south&config=false", "south", {"name": "sinusoid", "version": "1.0", "type": "south", "description": "sinusoid plugin"}, False),
+        ("?type=filter&config=false", "filter", {"name": "scale", "version": "1.0.0", "type": "filter", "description": "Filter Scale plugin"}, False),
+        ("?type=notify&config=false", "notify", {"name": "email", "version": "1.0.0", "type": "notify", "description": "Email notification plugin"}, False),
         ("?type=north&config=true", "north", {"name": "http", "version": "1.0.0", "type": "north", "description": "HTTP North-C plugin",
                                               "config": {"plugin": {"description": "HTTP North-C plugin", "type": "string", "default": "http-north"}}}, True),
         ("?type=south&config=true", "south", {"name": "sinusoid", "version": "1.0", "type": "south", "description": "sinusoid plugin",
-                                              "config": {"plugin": {"description": "sinusoid plugin", "type": "string", "default": "sinusoid", "readonly": "true"}}}, True)
+                                              "config": {"plugin": {"description": "sinusoid plugin", "type": "string", "default": "sinusoid", "readonly": "true"}}}, True),
+        ("?type=filter&config=true", "filter", {"name": "scale", "version": "1.0.0", "type": "filter", "description": "Filter Scale plugin",
+                                                "config": {"offset": {"default": "0.0", "type": "float", "description": "A constant offset"}, "factor": {"default": "100.0", "type": "float", "description": "Scale factor for a reading."}, "plugin": {"default": "scale", "type": "string", "description": "Scale filter plugin"}, "enable": {"default": "false", "type": "boolean", "description": "A switch that can be used to enable or disable."}}}, True),
+        ("?type=notify&config=true", "notify", {"name": "email", "version": "1.0.0", "type": "notify", "description": "Email notification plugin",
+                                                "config": {"plugin": {"type": "string", "description": "Email notification plugin", "default": "email"}}}, True)
     ])
     async def test_get_plugins_installed_by_type_and_config(self, client, param, direction, result, is_config):
         with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=result) as patch_get_plugin_installed:
@@ -79,7 +90,7 @@ class TestPluginDiscoveryApi:
         patch_get_plugin_installed.assert_called_once_with(direction, is_config)
 
     @pytest.mark.parametrize("param, message", [
-        ("?type=blah", "Invalid plugin type. Must be 'north' or 'south'."),
+        ("?type=blah", "Invalid plugin type. Must be 'north' or 'south' or 'filter' or 'notify'."),
         ("?config=blah", 'Only "true", "false", true, false are allowed for value of config.'),
         ("?config=False", 'Only "true", "false", true, false are allowed for value of config.'),
         ("?config=True", 'Only "true", "false", true, false are allowed for value of config.'),

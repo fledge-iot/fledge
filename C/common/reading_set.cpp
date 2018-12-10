@@ -16,10 +16,18 @@
 #include <stdlib.h>
 #include <logger.h>
 
+#include <boost/algorithm/string/replace.hpp>
+
 #define ASSET_NAME_INVALID_READING "error_invalid_reading"
 
 using namespace std;
 using namespace rapidjson;
+
+// List of characters to be escaped in JSON
+const vector<string> JSON_characters_to_be_escaped = {
+	"\\",
+	"\""
+};
 
 /**
  * Construct an empty reading set
@@ -142,11 +150,24 @@ ReadingSet::~ReadingSet()
 
 /**
  * Append the readings in a second reading set to this reading set.
+ * The readings are removed from the original reading set
  */
 void
 ReadingSet::append(ReadingSet *readings)
 {
 	append(readings->getAllReadings());
+	readings->clear();
+}
+
+/**
+ * Append the readings in a second reading set to this reading set.
+ * The readings are removed from the original reading set
+ */
+void
+ReadingSet::append(ReadingSet& readings)
+{
+	append(readings.getAllReadings());
+	readings.clear();
 }
 
 /**
@@ -157,9 +178,32 @@ ReadingSet::append(const vector<Reading *>& readings)
 {
 	for (auto it = readings.cbegin(); it != readings.cend(); it++)
 	{
-		m_readings.push_back(new Reading(**it));
+		m_readings.push_back(*it);
 		m_count++;
 	}
+}
+
+/**
+ * Remove all readings from the reading set and delete the memory
+ * After this call the reading set exists but contains no readings.
+ */
+void
+ReadingSet::removeAll()
+{
+	for (auto it = m_readings.cbegin(); it != m_readings.cend(); it++)
+	{
+		delete *it;
+	}
+	m_readings.clear();
+}
+
+/**
+ * Remove the readings from the vector without deleting them
+ */
+void
+ReadingSet::clear()
+{
+	m_readings.clear();
 }
 
 /**
@@ -325,12 +369,33 @@ JSONReading::JSONReading(const Value& json)
 			// the asset name ASSET_NAME_INVALID_READING will be created in the PI-Server containing the
 			// invalid asset_name/values.
 			string tmp_reading1 = json["reading"].GetString();
-			Logger::getLogger()->error("Invalid reading: Asset name |%s| reading value |%s|", m_asset.c_str(), tmp_reading1.c_str());
+
+			// Escape specific character for to be properly manage as JSON
+			for(const string &item : JSON_characters_to_be_escaped) {
+
+				escapeCharacter(tmp_reading1, item);
+			}
+
+			Logger::getLogger()->error("Invalid reading: Asset name |%s| reading value |%s| converted value |%s|",
+				m_asset.c_str(),
+				json["reading"].GetString(),
+				tmp_reading1.c_str());
 
 			DatapointValue value(tmp_reading1);
 			this->addDatapoint(new Datapoint(m_asset,  value));
 
-			m_asset = ASSET_NAME_INVALID_READING;
+			m_asset = string(ASSET_NAME_INVALID_READING) + string("_") + m_asset.c_str();
 		}
 	}
+}
+
+/**
+ * Escapes a character in a string to be properly handled as JSON
+ *
+ */
+void JSONReading::escapeCharacter(string& stringToEvaluate, string pattern)
+{
+	string escaped = "\\" + pattern;
+
+	boost::replace_all(stringToEvaluate, pattern, escaped);
 }

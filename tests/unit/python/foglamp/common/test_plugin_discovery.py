@@ -26,6 +26,8 @@ class TestPluginDiscovery:
     mock_south_folders = ["modbus", "http"]
     mock_c_north_folders = ["ocs"]
     mock_c_south_folders = ["dummy"]
+    mock_c_filter_folders = ["scale"]
+    mock_c_notify_folders = ["email"]
     mock_all_folders = ["OMF", "foglamp-north", "modbus", "http"]
     mock_plugins_config = [
         {
@@ -104,6 +106,22 @@ class TestPluginDiscovery:
          }
     ]
 
+    mock_c_filter_config = [
+        {"name": "scale",
+         "version": "1.0.0",
+         "type": "filter",
+         "description": "Filter Scale plugin",
+         "config": {"plugin": {"default": "scale", "type": "string", "description": "Scale filter plugin"}}}
+    ]
+
+    mock_c_notify_config = [
+        {"name": "email",
+         "version": "1.0.0",
+         "type": "notify",
+         "description": "Email notification plugin",
+         "config": {"plugin": {"type": "string", "description": "Email notification plugin", "default": "email"}}}
+    ]
+
     mock_c_plugins_config = [
         {"interface": "1.0.0",
          "version": "1.0.0",
@@ -121,7 +139,18 @@ class TestPluginDiscovery:
                  "description": "OMF North C Plugin"
              }
          }
-         }
+         },
+        {"name": "scale", "version": "1.0.0", "type": "filter", "description": "Filter Scale plugin",
+         "config": {
+             "plugin": {
+                 "default": "scale",
+                 "type": "string",
+                 "description": "Scale filter plugin"}}},
+        {"name": "email", "type": "notify", "version": "1.0.0", "description": "Email notification plugin",
+         "config": {"plugin": {
+             "type": "string",
+             "description": "Email notification plugin",
+             "default": "email"}}}
     ]
 
     def test_get_plugins_installed_type_none(self, mocker):
@@ -134,6 +163,8 @@ class TestPluginDiscovery:
         def mock_c_folders():
             yield TestPluginDiscovery.mock_c_north_folders
             yield TestPluginDiscovery.mock_c_south_folders
+            yield TestPluginDiscovery.mock_c_filter_folders
+            yield TestPluginDiscovery.mock_c_notify_folders
 
         mock_get_folders = mocker.patch.object(PluginDiscovery, "get_plugin_folders", return_value=next(mock_folders()))
         mock_get_c_folders = mocker.patch.object(utils, "find_c_plugin_libs", return_value=next(mock_c_folders()))
@@ -149,8 +180,8 @@ class TestPluginDiscovery:
         # assert expected_plugin == plugins
         assert 2 == mock_get_folders.call_count
         assert 4 == mock_get_plugin_config.call_count
-        assert 2 == mock_get_c_folders.call_count
-        assert 2 == mock_get_c_plugin_config.call_count
+        assert 4 == mock_get_c_folders.call_count
+        assert 4 == mock_get_c_plugin_config.call_count
 
     def test_get_plugins_installed_type_north(self, mocker):
         @asyncio.coroutine
@@ -203,6 +234,36 @@ class TestPluginDiscovery:
         assert 2 == mock_get_plugin_config.call_count
         assert 1 == mock_get_c_folders.call_count
         assert 1 == mock_get_c_plugin_config.call_count
+
+    def test_get_c_filter_plugins_installed(self, mocker):
+        @asyncio.coroutine
+        def mock_filter_folders():
+            yield TestPluginDiscovery.mock_c_filter_folders
+
+        mock_get_c_filter_folders = mocker.patch.object(utils, "find_c_plugin_libs", return_value=next(mock_filter_folders()))
+        mock_get_c_filter_plugin_config = mocker.patch.object(utils, "get_plugin_info", side_effect=TestPluginDiscovery.mock_c_filter_config)
+
+        plugins = PluginDiscovery.get_plugins_installed("filter")
+        # expected_plugin = TestPluginDiscovery.mock_c_plugins_config[2]
+        # FIXME: ordering issue
+        # assert expected_plugin == plugins
+        assert 1 == mock_get_c_filter_folders.call_count
+        assert 1 == mock_get_c_filter_plugin_config.call_count
+
+    def test_get_c_notify_plugins_installed(self, mocker):
+        @asyncio.coroutine
+        def mock_notify_folders():
+            yield TestPluginDiscovery.mock_c_notify_folders
+
+        mock_get_c_notify_folders = mocker.patch.object(utils, "find_c_plugin_libs", return_value=next(mock_notify_folders()))
+        mock_get_c_notify_plugin_config = mocker.patch.object(utils, "get_plugin_info", side_effect=TestPluginDiscovery.mock_c_notify_config)
+
+        plugins = PluginDiscovery.get_plugins_installed("notify")
+        # expected_plugin = TestPluginDiscovery.mock_c_plugins_config[3]
+        # FIXME: ordering issue
+        # assert expected_plugin == plugins
+        assert 1 == mock_get_c_notify_folders.call_count
+        assert 1 == mock_get_c_notify_plugin_config.call_count
 
     def test_fetch_plugins_installed(self, mocker):
         @asyncio.coroutine
@@ -272,14 +333,18 @@ class TestPluginDiscovery:
                 assert actual is None
         patch_log_warn.assert_called_once_with('Plugin http-north is discarded due to invalid type')
 
-    def test_fetch_c_plugins_installed(self):
-        info = {"interface": "1.0.0", "version": "1.0.0", "type": "south", "name": "Random",
-                "config": {"plugin": {"description": "Random C plugin", "type": "string", "default": "Random"}}}
-        with patch.object(utils, "find_c_plugin_libs", return_value=["Random"]) as patch_plugin_lib:
+    @pytest.mark.parametrize("info, direction", [
+        (mock_c_plugins_config[0], "south"),
+        (mock_c_plugins_config[1], "north"),
+        (mock_c_plugins_config[2], "filter"),
+        (mock_c_plugins_config[3], "notify")
+    ])
+    def test_fetch_c_plugins_installed(self, info, direction):
+        with patch.object(utils, "find_c_plugin_libs", return_value=[info['name']]) as patch_plugin_lib:
             with patch.object(utils, "get_plugin_info", return_value=info) as patch_plugin_info:
-                PluginDiscovery.fetch_c_plugins_installed("south", True)
-            patch_plugin_info.assert_called_once_with('Random')
-        patch_plugin_lib.assert_called_once_with('south')
+                PluginDiscovery.fetch_c_plugins_installed(direction, True)
+            patch_plugin_info.assert_called_once_with(info['name'])
+        patch_plugin_lib.assert_called_once_with(direction)
 
     @pytest.mark.parametrize("info, exc_count", [
         ({}, 0),

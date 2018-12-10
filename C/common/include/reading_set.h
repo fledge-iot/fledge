@@ -68,6 +68,9 @@ class JSONReading : public Reading {
 
 		// Return the reading id
 		unsigned long	getId() const { return m_id; };
+
+	private:
+                void escapeCharacter(std::string& stringToEvaluate, std::string pattern);
 };
 
 class ReadingSetException : public std::exception

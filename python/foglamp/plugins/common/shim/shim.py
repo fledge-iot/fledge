@@ -45,13 +45,7 @@ def plugin_init(config):
 
 def plugin_poll(handle):
     #_LOGGER.info("plugin_poll called")
-    _read = _plugin.plugin_poll(json.loads(handle))
-    reading = {
-            'asset_code': _read['asset'],
-            'user_ts': _read['timestamp'],
-            'read_key': _read['key'],
-            'reading': _read['readings']
-        }
+    reading = _plugin.plugin_poll(json.loads(handle))
     #_LOGGER.info("Reading = {}".format(json.dumps(reading)))
     return reading
 

@@ -509,10 +509,10 @@ Reading* Py2C_getReading(PyObject *element)
 
 	// Get 'asset_code' value: borrowed reference.
 	PyObject* assetCode = PyDict_GetItemString(element,
-						   "asset_code");
+						   "asset");
 	// Get 'reading' value: borrowed reference.
 	PyObject* reading = PyDict_GetItemString(element,
-						 "reading");
+						 "readings");
 	// Keys not found or reading is not a dict
 	if (!assetCode ||
 		!reading ||
@@ -590,7 +590,7 @@ Reading* Py2C_getReading(PyObject *element)
 		}
 
 		// Get 'user_ts' value: borrowed reference.
-		PyObject* uts = PyDict_GetItemString(element, "user_ts");
+		PyObject* uts = PyDict_GetItemString(element, "timestamp");
 		if (uts && PyLong_Check(uts))
 		{
 			// Set user timestamp
@@ -598,11 +598,11 @@ Reading* Py2C_getReading(PyObject *element)
 		}
 
 		// Get 'uuid' value: borrowed reference.
-		PyObject* uuid = PyDict_GetItemString(element, "uuid");
-		if (uuid && PyBytes_Check(uuid))
+		PyObject* uuid = PyDict_GetItemString(element, "key");
+		if (uuid && PyUnicode_Check(uuid))
 		{
 			// Set uuid
-			newReading->setUuid(PyUnicode_AsUTF8(uuid));
+			newReading->setUuid(string(PyUnicode_AsUTF8(uuid)));
 		}
 
 		// Remove temp objects

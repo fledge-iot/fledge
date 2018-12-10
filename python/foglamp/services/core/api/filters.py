@@ -72,7 +72,7 @@ async def create_filter(request: web.Request) -> web.Response:
 
         # Check we have needed input data
         if not filter_name or not plugin_name:
-            raise web.HTTPBadRequest(reason='Filter name, plugin name are mandatory.')
+            raise TypeError('Filter name, plugin name are mandatory.')
 
         # Set filter category description
         filter_desc = "Configuration of '{}' filter for plugin '{}'".format(filter_name, plugin_name)
@@ -86,7 +86,7 @@ async def create_filter(request: web.Request) -> web.Response:
         if not loaded_plugin_info or 'config' not in loaded_plugin_info:
             message = "Can not get 'plugin_info' detail from plugin '{}'".format(plugin_name)
             _LOGGER.exception("Add filter error: " + message)
-            raise web.HTTPNotFound(reason=message)
+            raise ValueError(message)
             
         plugin_config = loaded_plugin_info['config']
         # Get plugin type (string)
@@ -139,6 +139,9 @@ async def create_filter(request: web.Request) -> web.Response:
     except ValueError as ex:
         _LOGGER.exception("Add filter, caught exception: " + str(ex))
         raise web.HTTPNotFound(reason=str(ex))
+    except TypeError as ex:
+        _LOGGER.exception("Add filter, caught exception: " + str(ex))
+        raise web.HTTPBadRequest(reason=str(ex))
     except StorageServerError as ex:
         await _delete_configuration_category(storage, filter_name)  # Revert configuration entry
         _LOGGER.exception("Failed to create filter. %s", ex.error)
@@ -207,7 +210,7 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
         # curl -X PUT http://localhost:8081/foglamp/filter/ServiceName/pipeline -d '{"pipeline": []}'
         # Check filter_list is a list only if filter_list in not None
         if filter_list is not None and not isinstance(filter_list, list):
-            raise web.HTTPBadRequest(reason='Pipeline must be a list of filters or an empty value')
+            raise TypeError('Pipeline must be a list of filters or an empty value')
 
         # Get configuration manager instance
         storage = connect.get_storage_async()
@@ -216,14 +219,14 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
         # Fetch the filter items: get category items
         category_info = await cf_mgr.get_category_all_items(category_name=service_name)
         if category_info is None:
-            raise web.HTTPNotFound(reason="No such '{}' category found.".format(service_name))
+            raise ValueError("No such '{}' category found.".format(service_name))
 
         # Check if all filters in the list exists in filters table
         for _filter in filter_list:
             payload = PayloadBuilder().WHERE(['name', '=', _filter]).payload()
             result = await storage.query_tbl_with_payload("filters", payload)
             if len(result["rows"]) == 0:
-                raise web.HTTPNotFound(reason="No such '{}' filter found in filters table.".format(_filter))
+                raise ValueError("No such '{}' filter found in filters table.".format(_filter))
 
         def delete_keys_from_dict(dict_del, lst_keys):
             for k in lst_keys:
@@ -349,13 +352,16 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
         if result is None:
             # Error config_item doesn't exist
             message = "No detail found for the category_name: {} and config_item: {}".format(service_name, config_item)
-            raise web.HTTPNotFound(reason=message)
+            raise ValueError(message)
         else:
             # Return the filters pipeline
             return web.json_response({'result': "Filter pipeline {} updated successfully".format(json.loads(result['value']))})
     except ValueError as ex:
         _LOGGER.exception("Add filters pipeline, caught exception: %s", str(ex))
         raise web.HTTPNotFound(reason=str(ex))
+    except TypeError as ex:
+        _LOGGER.exception("Add filters pipeline, caught exception: %s", str(ex))
+        raise web.HTTPBadRequest(reason=ex)
     except StorageServerError as ex:
         _LOGGER.exception("Add filters pipeline, caught exception: %s", str(ex.error))
         raise web.HTTPInternalServerError(reason=str(ex.error))
@@ -379,7 +385,7 @@ async def get_filter(request: web.Request) -> web.Response:
         # Fetch the filter items: get category items
         category_info = await cf_mgr.get_category_all_items(filter_name)
         if category_info is None:
-            raise web.HTTPNotFound(reason="No such '{}' category found.".format(filter_name))
+            raise ValueError("No such '{}' category found.".format(filter_name))
         filter_detail.update({"config": category_info})
 
         # Fetch filter detail
@@ -400,6 +406,10 @@ async def get_filter(request: web.Request) -> web.Response:
     except StorageServerError as ex:
         _LOGGER.exception("Get filter: %s, caught exception: %s" ,filter_name, str(ex.error))
         raise web.HTTPInternalServerError(reason=str(ex.error))
+    except ValueError as ex:
+        raise web.web.HTTPNotFound(reason=ex)
+    except TypeError as ex:
+        raise web.HTTPBadRequest(reason=ex)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
     else:
@@ -439,7 +449,7 @@ async def get_filter_pipeline(request: web.Request) -> web.Response:
         # Fetch the filter items: get category items
         category_info = await cf_mgr.get_category_all_items(category_name=service_name)
         if category_info is None:
-            raise web.HTTPNotFound(reason="No such '{}' category found.".format(service_name))
+            raise ValueError("No such '{}' category found.".format(service_name))
 
         filter_value_from_storage = json.loads(category_info['filter']['value'])
     except KeyError:
@@ -449,6 +459,8 @@ async def get_filter_pipeline(request: web.Request) -> web.Response:
     except StorageServerError as ex:
         _LOGGER.exception("Get pipeline: %s, caught exception: %s", service_name, str(ex.error))
         raise web.HTTPInternalServerError(reason=str(ex.error))
+    except ValueError as ex:
+        raise web.HTTPNotFound(reason=ex)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
     else:
@@ -469,13 +481,13 @@ async def delete_filter(request: web.Request) -> web.Response:
         payload = PayloadBuilder().WHERE(['name', '=', filter_name]).payload()
         result = await storage.query_tbl_with_payload("filters", payload)
         if len(result["rows"]) == 0:
-            raise web.HTTPNotFound(reason="No such filter '{}' found".format(filter_name))
+            raise ValueError("No such filter '{}' found".format(filter_name))
 
         # Check if filter exists in any pipeline
         payload = PayloadBuilder().WHERE(['name', '=', filter_name]).payload()
         result = await storage.query_tbl_with_payload("filter_users", payload)
         if len(result["rows"]) != 0:
-            raise web.HTTPBadRequest(reason="Filter '{}' found in pipelines".format(filter_name))
+            raise TypeError(reason="Filter '{}' found in pipelines".format(filter_name))
 
         # Delete filter from filters table
         payload = PayloadBuilder().WHERE(['name', '=', filter_name]).payload()
@@ -486,6 +498,10 @@ async def delete_filter(request: web.Request) -> web.Response:
     except StorageServerError as ex:
         _LOGGER.exception("Delete filter: %s, caught exception: %s", filter_name, str(ex.error))
         raise web.HTTPInternalServerError(reason=str(ex.error))
+    except ValueError as ex:
+        raise web.HTTPNotFound(reason=ex)
+    except TypeError as ex:
+        raise web.HTTPBadRequest(reason=ex)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
     else:

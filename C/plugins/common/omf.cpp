@@ -16,6 +16,10 @@
 #include <logger.h>
 #include <zlib.h>
 
+// FIXME:
+#include <boost/algorithm/string.hpp>
+
+
 using namespace std;
 
 // Cache for OMF data types
@@ -1010,6 +1014,19 @@ void OMF::setFormatType(const string &key, string &value)
 
 	m_formatTypes[key] = value;
 }
+
+
+// FIXME:
+void OMF::setNotBlockingErrors(std::string notBlockingErrors)
+{
+	boost::split(m_notBlockingErrors,
+		     notBlockingErrors,
+		     boost::is_any_of("-"));
+
+	// FIXME:
+	//m_notBlockingErrors.push_back(notBlockingErrors);
+}
+
 
 /**
  * Increment type-id

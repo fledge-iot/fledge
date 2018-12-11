@@ -156,6 +156,7 @@ bool ManagementClient::unregisterService()
 		}
 		if (doc.HasMember("id"))
 		{
+			delete m_uuid;
 			m_uuid = new string(doc["id"].GetString());
 			m_logger->info("Unregistered service %s.\n", m_uuid->c_str());
 			return true;

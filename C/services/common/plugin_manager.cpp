@@ -165,7 +165,7 @@ char          buf[128];
     }
     else
     {
-      logger->error("PluginManager: Failed to load C plugin %s in %s",
+      logger->error("PluginManager: Failed to load python plugin %s in %s",
                     name.c_str(),
                     buf);
     }

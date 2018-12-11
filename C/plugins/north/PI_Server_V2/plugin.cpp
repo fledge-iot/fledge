@@ -134,7 +134,7 @@ typedef struct
 	string		formatNumber;	// OMF protocol Number format
 	string		formatInteger;	// OMF protocol Integer format
 	// FIXME:
-        string		notBlockingErrors;
+	std::vector<std::string>  notBlockingErrors;
 } CONNECTOR_INFO;
 
 
@@ -145,6 +145,26 @@ PLUGIN_INFORMATION *plugin_info()
 {
 	return &info;
 }
+
+
+// FIXME:
+void JSONStringToVectorString(std::vector<std::string>& vectorString, std::string  JSONString)
+{
+	Document theFilters;
+	theFilters.Parse(JSONString.c_str());
+
+	const Value& filterList = theFilters["errors400"];
+	if (filterList.Size())
+	{
+		for (Value::ConstValueIterator itr = filterList.Begin(); itr != filterList.End(); ++itr)
+		{
+			vectorString.emplace_back(itr->GetString());
+		}
+
+	}
+
+}
+
 
 /**
  * Initialise the plugin with configuration.
@@ -198,7 +218,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 		connInfo->compression = false;
 
 	// FIXME:
-	connInfo->notBlockingErrors = configData->getValue("notBlockingErrors");
+	JSONStringToVectorString(connInfo->notBlockingErrors , configData->getValue("notBlockingErrors"));
 
 	// Log plugin configuration
 	Logger::getLogger()->info("%s plugin configured: URL=%s, "
@@ -210,6 +230,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 
 	return (PLUGIN_HANDLE)connInfo;
 }
+
 
 /**
  * Plugin start with sored plugin_data

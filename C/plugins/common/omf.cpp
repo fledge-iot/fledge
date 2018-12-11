@@ -1,3 +1,5 @@
+#include <utility>
+
 /*
  * FogLAMP OSI Soft OMF interface to PI Server.
  *
@@ -1017,14 +1019,10 @@ void OMF::setFormatType(const string &key, string &value)
 
 
 // FIXME:
-void OMF::setNotBlockingErrors(std::string notBlockingErrors)
+void OMF::setNotBlockingErrors(std::vector<std::string>& notBlockingErrors)
 {
-	boost::split(m_notBlockingErrors,
-		     notBlockingErrors,
-		     boost::is_any_of("-"));
 
-	// FIXME:
-	//m_notBlockingErrors.push_back(notBlockingErrors);
+	m_notBlockingErrors = std::move(notBlockingErrors);
 }
 
 

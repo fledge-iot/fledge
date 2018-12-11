@@ -760,6 +760,17 @@ CREATE TABLE foglamp.plugin_data (
 	data    jsonb                     NOT NULL DEFAULT '{}'::jsonb,
 	CONSTRAINT plugin_data_pkey PRIMARY KEY (key) );
 
+-- Create filters table
+CREATE TABLE foglamp.filters (
+             name        character varying(255)        NOT NULL,
+             plugin      character varying(255)        NOT NULL,
+       CONSTRAINT filter_pkey PRIMARY KEY( name ) );
+
+-- Create filter_users table
+CREATE TABLE foglamp.filter_users (
+             name        character varying(255)        NOT NULL,
+             "user"      character varying(255)        NOT NULL);
+
 -- Grants to foglamp schema
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA foglamp TO PUBLIC;
 

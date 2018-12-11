@@ -81,16 +81,21 @@ using namespace rapidjson;
 				"\"type\": \"integer\", \"default\": \"0\", " \
 				"\"readonly\": \"true\" }, " \
 			"\"notBlockingErrors\": {" \
-				"\"description\": \"These errors are considered not blocking in the communication with the PI Server, " \
-				" the sending operation will proceed with the next block of data if one of these is encountered\" ," \
-				"\"type\": \"string\", " \
-				"\"default\": \"Redefinition of the type with the same ID is not allowed" \
-				              "-Invalid value type for the property\", " \
+				"\"description\": "\
+					"\"These errors are considered not blocking in the communication with the PI Server, " \
+					  " the sending operation will proceed with the next block of data if one of these is encountered\" ," \
+				"\"type\": \"JSON\", " \
+				"\"default\": \"{\\\"errors400\\\": "\
+		                        "["\
+			                        "\\\"Redefinition of the type with the same ID is not allowed\\\", "\
+						"\\\"Invalid value type for the property\\\" "\
+		                        "]"\
+                                "}\", " \
 				"\"order\": \"17\" ,"  \
 				"\"readonly\": \"true\" " \
 			"} "
 
-
+// "default": "{\"pipeline\": [\"DeltaFilter\"]}"
 
 #define OMF_PLUGIN_DESC "\"plugin\": {\"description\": \"PI Server North C Plugin\", \"type\": \"string\", \"default\": \"" PLUGIN_NAME "\", \"readonly\": \"true\"}"
 

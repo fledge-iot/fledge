@@ -158,6 +158,16 @@ class OMF
 		HttpSender&		m_sender;
 		bool			m_lastError;
 		bool			m_changeTypeId;
+
+		// These errors are considered not blocking in the communication with the destination,
+                // the sending operation will proceed with the next block of data if one of these is encountered
+                std::vector<std::string> m_notBlockingErrors {
+			// REDEFINITION_TYPE_MESSAGE
+			"Redefinition of the type with the same ID is not allowed",
+
+			// INVALID_VALUE_TYPE
+			"Invalid value type for the property"
+		};
 };
 
 /**

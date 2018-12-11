@@ -16,9 +16,6 @@
 #include <logger.h>
 #include <zlib.h>
 
-#define REDEFINITION_TYPE_MESSAGE	"Redefinition of the type with the same ID is not allowed"
-#define INVALID_VALUE_TYPE		"Invalid value type for the property"
-
 using namespace std;
 
 // Cache for OMF data types
@@ -1042,10 +1039,13 @@ bool OMF::isDataTypeError(const char* message)
 	if (message)
 	{
 		string serverReply(message);
-		if (serverReply.find(REDEFINITION_TYPE_MESSAGE) != std::string::npos ||
-		    serverReply.find(INVALID_VALUE_TYPE) != std::string::npos)
-		{
-			return true;
+
+		for(string &item : m_notBlockingErrors) {
+
+			if (serverReply.find(item) != std::string::npos)
+			{
+				return true;
+			}
 		}
 	}
 	return false;

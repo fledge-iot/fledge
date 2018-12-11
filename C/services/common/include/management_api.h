@@ -33,6 +33,8 @@ class ManagementApi {
 		static ManagementApi *getInstance();
 		void start();
 		void startServer();
+		void stop();
+		void stopServer();
 		void registerStats(JSONProvider *statsProvider);
 		void registerService(ServiceHandler *serviceHandler) {
 			m_serviceHandler = serviceHandler;

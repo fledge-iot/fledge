@@ -295,7 +295,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				secs--;
 				nsecs += 1000000000;
 			}
-			Logger::getLogger()->info("%d readings generated in %d.%d secs", pollCount, secs, nsecs);
+			Logger::getLogger()->info("%d readings generated in %d.%09d secs", pollCount, secs, nsecs);
 			close(fd);
 		}
 		else
@@ -326,6 +326,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		// Clean shutdown, unregister the storage service
 		m_mgtClient->unregisterService();
 	}
+	management.stop();
 	logger->info("South service shutdown completed");
 }
 

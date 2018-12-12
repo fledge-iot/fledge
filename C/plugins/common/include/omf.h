@@ -73,6 +73,8 @@ class OMF
 		// Get saved OMF formats
 		std::string getFormatType(const std::string &key) const;
 
+		// Set the list of errors considered not blocking
+		// in the communication with the PI Server
                 void setNotBlockingErrors(std::vector<std::string>& );
 
 		// Compress string using gzip

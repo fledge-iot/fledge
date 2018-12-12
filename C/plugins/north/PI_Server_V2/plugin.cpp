@@ -20,6 +20,7 @@
 #include <config_category.h>
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
+#include "json_utils.h"
 
 using namespace std;
 using namespace rapidjson;
@@ -133,9 +134,10 @@ typedef struct
 	string		producerToken;	// PI Server connector token
 	string		formatNumber;	// OMF protocol Number format
 	string		formatInteger;	// OMF protocol Integer format
-	std::vector<std::string>  notBlockingErrors;  // Errors considered not blocking in the communication with the PI Server
+        // Errors considered not blocking in the communication with the PI Server
+	std::vector<std::string>
+			notBlockingErrors;
 } CONNECTOR_INFO;
-
 
 /**
  * Return the information about this plugin
@@ -144,59 +146,6 @@ PLUGIN_INFORMATION *plugin_info()
 {
 	return &info;
 }
-
-
-/**
- * Processes a string containing an array in JSON format and loads a vector of string
- *
- * @param vectorString  vector of string used by reference in which the JSON array will be loaded
- * @param JSONString    string containing an array in JSON format
- * @param Key           key of the JSON from which the array should be evaluated
- *
- */
-bool JSONStringToVectorString(std::vector<std::string>& vectorString, const std::string& JSONString, const std::string& Key)
-{
-	bool success = true;
-
-	Document JSONdoc;
-
-	try
-	{
-		JSONdoc.Parse(JSONString.c_str());
-
-		if ( JSONdoc.HasParseError() ||
-		   ! JSONdoc.HasMember(Key.c_str()) ||
-		   ! JSONdoc[Key.c_str()].IsArray() )
-		{
-			success = false;
-		}
-		else
-		{
-			const Value &filterList = JSONdoc[Key.c_str()];
-			if (!filterList.Size())
-			{
-				success = false;
-			} else
-			{
-				for (Value::ConstValueIterator itr = filterList.Begin();
-				     itr != filterList.End(); ++itr)
-				{
-					vectorString.emplace_back(itr->GetString());
-				}
-
-			}
-		}
-
-	}
-	catch (...)
-	{
-		success = false;
-	}
-
-
-	return success;
-}
-
 
 /**
  * Initialise the plugin with configuration.

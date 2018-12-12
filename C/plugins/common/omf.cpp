@@ -1014,7 +1014,8 @@ void OMF::setFormatType(const string &key, string &value)
 }
 
 /**
- * Set m_notBlockingErrors
+ * Set the list of errors considered not blocking in the communication
+ * with the PI Server
  */
 void OMF::setNotBlockingErrors(std::vector<std::string>& notBlockingErrors)
 {

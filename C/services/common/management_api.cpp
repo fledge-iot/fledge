@@ -110,6 +110,7 @@ ManagementApi *ManagementApi::getInstance()
 ManagementApi::~ManagementApi()
 {
 	delete m_server;
+	delete m_thread;
 }
 
 /**

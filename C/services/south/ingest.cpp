@@ -599,6 +599,15 @@ void Ingest::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
  * Use the current input readings (they have been filtered
  * by all filters)
  *
+ * The assumption is that one of two things has happened.
+ *
+ *	1. The filtering has all been done in place. In which case
+ *	the m_data vector is in the ReadingSet passed in here.
+ *
+ *	2. The fitlering has created new ReadingSet in which case
+ *	the reading vector must be copied into m_data from the
+ *	ReadingSet.
+ *
  * Note:
  * This routine must be passed to last filter "plugin_init" only
  *
@@ -611,11 +620,12 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 			     READINGSET *readingSet)
 {
 	Ingest* ingest = (Ingest *)outHandle;
-	vector<Reading *> *data = readingSet->getAllReadingsPtr();
-	for (auto it = data->cbegin(); it != data->end(); it++)
+	if (ingest->m_data != readingSet->getAllReadingsPtr())
 	{
-		ingest->m_data->push_back(*it);
+		ingest->m_data->clear();// Remove any pointers still in the vector
+		*(ingest->m_data) = readingSet->getAllReadings();
 	}
 	readingSet->clear();
+	delete readingSet;
 }
 

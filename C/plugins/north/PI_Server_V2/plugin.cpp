@@ -198,6 +198,8 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	else
 		connInfo->compression = false;
 
+	// Set the list of errors considered not blocking in the communication
+	// with the PI Server
 	JSONStringToVectorString(connInfo->notBlockingErrors ,
 	                         configData->getValue("notBlockingErrors"),
 	                         std::string("errors400"));

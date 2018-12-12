@@ -18,10 +18,6 @@
 #include <logger.h>
 #include <zlib.h>
 
-// FIXME:
-#include <boost/algorithm/string.hpp>
-
-
 using namespace std;
 
 // Cache for OMF data types
@@ -1017,8 +1013,9 @@ void OMF::setFormatType(const string &key, string &value)
 	m_formatTypes[key] = value;
 }
 
-
-// FIXME:
+/**
+ * Set m_notBlockingErrors
+ */
 void OMF::setNotBlockingErrors(std::vector<std::string>& notBlockingErrors)
 {
 

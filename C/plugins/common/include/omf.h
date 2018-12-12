@@ -73,7 +73,6 @@ class OMF
 		// Get saved OMF formats
 		std::string getFormatType(const std::string &key) const;
 
-		// FIXME:
                 void setNotBlockingErrors(std::vector<std::string>& );
 
 		// Compress string using gzip

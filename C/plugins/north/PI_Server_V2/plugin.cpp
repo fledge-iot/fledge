@@ -133,8 +133,7 @@ typedef struct
 	string		producerToken;	// PI Server connector token
 	string		formatNumber;	// OMF protocol Number format
 	string		formatInteger;	// OMF protocol Integer format
-	// FIXME:
-	std::vector<std::string>  notBlockingErrors;
+	std::vector<std::string>  notBlockingErrors;  // Errors considered not blocking in the communication with the PI Server
 } CONNECTOR_INFO;
 
 
@@ -250,7 +249,6 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	else
 		connInfo->compression = false;
 
-	// FIXME:
 	JSONStringToVectorString(connInfo->notBlockingErrors ,
 	                         configData->getValue("notBlockingErrors"),
 	                         std::string("errors400"));
@@ -338,7 +336,6 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	connInfo->omf->setFormatType(OMF_TYPE_INTEGER,
 				     connInfo->formatInteger);
 
-	// FIXME:
 	connInfo->omf->setNotBlockingErrors(connInfo->notBlockingErrors);
 
 	// Send data

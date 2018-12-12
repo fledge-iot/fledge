@@ -147,22 +147,55 @@ PLUGIN_INFORMATION *plugin_info()
 }
 
 
-// FIXME:
-void JSONStringToVectorString(std::vector<std::string>& vectorString, std::string  JSONString)
+/**
+ * Processes a string containing an array in JSON format and loads a vector of string
+ *
+ * @param vectorString  vector of string used by reference in which the JSON array will be loaded
+ * @param JSONString    string containing an array in JSON format
+ * @param Key           key of the JSON from which the array should be evaluated
+ *
+ */
+bool JSONStringToVectorString(std::vector<std::string>& vectorString, const std::string& JSONString, const std::string& Key)
 {
-	Document theFilters;
-	theFilters.Parse(JSONString.c_str());
+	bool success = true;
 
-	const Value& filterList = theFilters["errors400"];
-	if (filterList.Size())
+	Document JSONdoc;
+
+	try
 	{
-		for (Value::ConstValueIterator itr = filterList.Begin(); itr != filterList.End(); ++itr)
+		JSONdoc.Parse(JSONString.c_str());
+
+		if ( JSONdoc.HasParseError() ||
+		   ! JSONdoc.HasMember(Key.c_str()) ||
+		   ! JSONdoc[Key.c_str()].IsArray() )
 		{
-			vectorString.emplace_back(itr->GetString());
+			success = false;
+		}
+		else
+		{
+			const Value &filterList = JSONdoc[Key.c_str()];
+			if (!filterList.Size())
+			{
+				success = false;
+			} else
+			{
+				for (Value::ConstValueIterator itr = filterList.Begin();
+				     itr != filterList.End(); ++itr)
+				{
+					vectorString.emplace_back(itr->GetString());
+				}
+
+			}
 		}
 
 	}
+	catch (...)
+	{
+		success = false;
+	}
 
+
+	return success;
 }
 
 
@@ -218,7 +251,9 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 		connInfo->compression = false;
 
 	// FIXME:
-	JSONStringToVectorString(connInfo->notBlockingErrors , configData->getValue("notBlockingErrors"));
+	JSONStringToVectorString(connInfo->notBlockingErrors ,
+	                         configData->getValue("notBlockingErrors"),
+	                         std::string("errors400"));
 
 	// Log plugin configuration
 	Logger::getLogger()->info("%s plugin configured: URL=%s, "

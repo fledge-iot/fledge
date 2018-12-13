@@ -44,7 +44,7 @@ async def get_plugin(request):
     """
     try:
         notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
-        _address, _port = notification_service[0]._address, notification_service[0]._management_port
+        _address, _port = notification_service[0]._address, notification_service[0]._port
     except service_registry_exceptions.DoesNotExist:
         raise web.HTTPNotFound(reason="No Notification service available.")
 
@@ -135,7 +135,7 @@ async def post_notification(request):
     """
     try:
         notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
-        _address, _port = notification_service[0]._address, notification_service[0]._management_port
+        _address, _port = notification_service[0]._address, notification_service[0]._port
     except service_registry_exceptions.DoesNotExist:
         raise web.HTTPNotFound(reason="No Notification service available.")
 
@@ -255,7 +255,7 @@ async def put_notification(request):
     """
     try:
         notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
-        _address, _port = notification_service[0]._address, notification_service[0]._management_port
+        _address, _port = notification_service[0]._address, notification_service[0]._port
     except service_registry_exceptions.DoesNotExist:
         raise web.HTTPNotFound(reason="No Notification service available.")
 
@@ -369,7 +369,7 @@ async def delete_notification(request):
     """
     try:
         notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
-        _address, _port = notification_service[0]._address, notification_service[0]._management_port
+        _address, _port = notification_service[0]._address, notification_service[0]._port
     except service_registry_exceptions.DoesNotExist:
         raise web.HTTPNotFound(reason="No Notification service available.")
 

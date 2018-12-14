@@ -24,13 +24,15 @@ using namespace std;
 extern "C" {
 
 PLUGIN_INFORMATION *plugin_info_fn();
-PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config);
-Reading plugin_poll_fn(PLUGIN_HANDLE);
-void plugin_reconfigure_fn(PLUGIN_HANDLE handle, const std::string& newConfig);
+PLUGIN_HANDLE plugin_init_fn(ConfigCategory *);
+vector<Reading *> * plugin_poll_fn(PLUGIN_HANDLE);
+void plugin_reconfigure_fn(PLUGIN_HANDLE, const std::string&);
 void plugin_shutdown_fn(PLUGIN_HANDLE);
 
-PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal);
-Reading* Py2C_getReading(PyObject *element);
+PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject *);
+Reading* Py2C_parseReadingObject(PyObject *);
+vector<Reading *>* Py2C_getReadings(PyObject *);
+
 
 static void logErrorMessage();
 
@@ -195,6 +197,15 @@ PLUGIN_INFORMATION *plugin_info_fn()
 		// Parse plugin information
 		info = Py2C_PluginInfo(pReturn);
 		
+		// bump interface version to atleast 2.x so that we are able to handle list of readings from python plugins in plugin_poll
+		if (info->interface[0]=='1' && info->interface[1]=='.')
+		{
+			Logger::getLogger()->info("plugin_handle: plugin_info(): Updating interface version from '%s' to '2.0.0' ", info->interface);
+			delete info->interface;
+			char *valStr = new char[6];
+			std::strcpy(valStr, "2.0.0");
+		}
+		
 		// Remove pReturn object
 		Py_CLEAR(pReturn);
 	}
@@ -261,7 +272,7 @@ PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 /**
  * Function to invoke 'plugin_poll' function in python plugin
  */
-Reading plugin_poll_fn(PLUGIN_HANDLE handle)
+vector<Reading *> * plugin_poll_fn(PLUGIN_HANDLE handle)
 {
 	PyObject* pFunc;
 	
@@ -281,7 +292,7 @@ Reading plugin_poll_fn(PLUGIN_HANDLE handle)
 		Logger::getLogger()->fatal("Cannot find method plugin_poll in loaded python module");
 		Py_CLEAR(pFunc);
 
-		return Reading("Invalid", NULL);
+		return NULL;
 	}
 
 	string *pluginHandleStr = (string *) handle;
@@ -298,19 +309,17 @@ Reading plugin_poll_fn(PLUGIN_HANDLE handle)
 		Logger::getLogger()->error("Called python script method plugin_poll : error while getting result object");
 		logErrorMessage();
 
-		return Reading("Invalid", NULL);
+		return NULL;
 	}
 	else
 	{
 		// Get reading data
-		Reading *rdng = Py2C_getReading(pReturn);
+		vector<Reading *> *vec = Py2C_getReadings(pReturn);
 		//Logger::getLogger()->info("plugin_poll_fn: reading='%s'", rdng->toJSON().c_str());
 		
 		// Remove pReturn object
 		Py_CLEAR(pReturn);
-		Reading reading(*rdng);
-		delete rdng;
-		return reading;
+		return vec;
 	}
 }
 	
@@ -486,7 +495,7 @@ PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal)
  * @return		Pointer to a new Reading object
  *				or NULL in case of errors
  */
-Reading* Py2C_getReading(PyObject *element)
+Reading* Py2C_parseReadingObject(PyObject *element)
 {
 	// Get list item: borrowed reference.
 	if (!element)
@@ -610,6 +619,54 @@ Reading* Py2C_getReading(PyObject *element)
 		delete dataPoint;
 	}
 	return newReading;
+}
+
+/**
+ * Creating Reading object from Python object
+ *
+ * @param element	Python 3.5 Object (dict)
+ * @return		Pointer to a new Reading object
+ *				or NULL in case of errors
+ */
+vector<Reading *>* Py2C_getReadings(PyObject *polledData)
+{
+	vector<Reading *>* newReadings = new vector<Reading *>();
+
+	if(PyList_Check(polledData)) // got a list of readings
+	{
+		// Iterate reading objects in the list
+		for (int i = 0; i < PyList_Size(polledData); i++)
+		{
+			// Get list item: borrowed reference.
+			PyObject* element = PyList_GetItem(polledData, i);
+			if (!element)
+			{
+				// Failure
+				if (PyErr_Occurred())
+				{
+					logErrorMessage();
+				}
+				delete newReadings;
+
+				return NULL;
+			}
+			Reading* newReading = Py2C_parseReadingObject(element);
+			if (newReading)
+			{
+				// Add the new reading to result vector
+				newReadings->push_back(newReading);
+			}
+		}
+	}
+	else // just a single reading, no list
+	{
+		Reading* newReading = Py2C_parseReadingObject(polledData);
+		if (newReading)
+			newReadings->push_back(newReading);
+	}
+	
+	return newReadings;
+	
 }
 
 /**

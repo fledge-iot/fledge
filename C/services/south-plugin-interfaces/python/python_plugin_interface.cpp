@@ -536,7 +536,7 @@ Reading* Py2C_parseReadingObject(PyObject *element)
 		return NULL;
 	}
 
-	//Logger::getLogger()->info("plugin_poll_fn: asset_code=%s, reading is a python dict", PyUnicode_AsUTF8(assetCode));
+	//Logger::getLogger()->info("Py2C_parseReadingObject: asset_code=%s, reading is a python dict", PyUnicode_AsUTF8(assetCode));
 
 	// Fetch all Datapoins in 'reading' dict			
 	PyObject *dKey, *dValue;  // borrowed references set by PyDict_Next()
@@ -557,6 +557,10 @@ Reading* Py2C_parseReadingObject(PyObject *element)
 			dataPoint = new DatapointValue(PyFloat_AS_DOUBLE(dValue));
 		}
 		else if (PyBytes_Check(dValue))
+		{
+			dataPoint = new DatapointValue(string(PyUnicode_AsUTF8(dValue)));
+		}
+		else if (PyUnicode_Check(dValue))
 		{
 			dataPoint = new DatapointValue(string(PyUnicode_AsUTF8(dValue)));
 		}
@@ -656,6 +660,8 @@ vector<Reading *>* Py2C_getReadings(PyObject *polledData)
 				// Add the new reading to result vector
 				newReadings->push_back(newReading);
 			}
+			else
+				Logger::getLogger()->info("Py2C_getReadings: Reading[%d] is NULL", i);
 		}
 	}
 	else // just a single reading, no list

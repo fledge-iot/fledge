@@ -26,7 +26,7 @@ __version__ = "${VERSION}"
 _help = """
     ---------------------------------------------------------------------------
     | POST GET        | /foglamp/filter                                       |
-    | PUT GET DELETE  | /foglamp/filter/{user_name}/pipeline               |
+    | PUT GET DELETE  | /foglamp/filter/{user_name}/pipeline                  |
     | GET DELETE      | /foglamp/filter/{filter_name}                         |
     ---------------------------------------------------------------------------
 """
@@ -78,7 +78,6 @@ async def create_filter(request: web.Request) -> web.Response:
         loaded_plugin_info = apiutils.get_plugin_info(plugin_name)
         if not loaded_plugin_info or 'config' not in loaded_plugin_info:
             message = "Can not get 'plugin_info' detail from plugin '{}'".format(plugin_name)
-            _LOGGER.exception("Add filter error: " + message)
             raise ValueError(message)
 
         # Sanity checks
@@ -146,7 +145,7 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
     'pipeline' is the array of filter category names to set
     into 'filter' default/value properties
 
-    :Example: set 'pipeline' for service 'NorthReadings_to_PI'
+    :Example: set 'pipeline' for user 'NorthReadings_to_PI'
     curl -X PUT http://localhost:8081/foglamp/filter/NorthReadings_to_PI/pipeline -d 
     '{
         "pipeline": ["Scale10Filter", "Python_assetCodeFilter"],
@@ -210,7 +209,7 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
         storage = connect.get_storage_async()
         cf_mgr = ConfigurationManager(storage)
 
-        # Check if service config exists
+        # Check if category_name exists
         category_info = await cf_mgr.get_category_all_items(category_name=user_name)
         if category_info is None:
             raise ValueError("No such '{}' category found.".format(user_name))
@@ -224,7 +223,7 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
 
         config_item = "filter"
 
-        if config_item in category_info:  # Check if config_item key has already been added to the service config
+        if config_item in category_info:  # Check if config_item key has already been added to the category config
             # Fetch existing filters
             filter_value_from_storage = json.loads(category_info[config_item]['value'])
             current_filters = filter_value_from_storage['pipeline']
@@ -290,11 +289,11 @@ async def get_filter(request: web.Request) -> web.Response:
         payload = PayloadBuilder().WHERE(['name', '=', filter_name]).payload()
         result = await storage.query_tbl_with_payload("filters", payload)
         if len(result["rows"]) == 0:
-            raise web.HTTPNotFound(reason="No such filter '{}' found".format(filter_name))
+            raise ValueError("No such filter '{}' found.".format(filter_name))
         row = result["rows"][0]
         filter_detail.update({"name": row["name"], "plugin": row["plugin"]})
 
-        # Fetch services which are using this filter
+        # Fetch users which are using this filter
         payload = PayloadBuilder().WHERE(['name', '=', filter_name]).payload()
         result = await storage.query_tbl_with_payload("filter_users", payload)
         users = []
@@ -427,7 +426,7 @@ async def delete_filter_pipeline(request: web.Request) -> web.Response:
     except Exception:
         raise
     else:
-        return web.json_response({'result': "Filter pipline for service {} deleted successfully".format(user_name)})
+        return web.json_response({'result': "Filter pipeline for {} deleted successfully".format(user_name)})
 
 
 async def _delete_configuration_category(storage: StorageClientAsync, key: str) -> None:
@@ -443,8 +442,8 @@ def _diff(lst1: List[str], lst2: List[str]) -> List[str]:
     return [v for v in lst2 if v not in lst1]
 
 
-def _delete_keys_from_dict(dict_del: Dict, lst_keys: List[str], deleted_values: Dict = {}, parent: str = None) -> Tuple[
-    Dict, Dict]:
+def _delete_keys_from_dict(dict_del: Dict, lst_keys: List[str], deleted_values: Dict = {}, parent: str = None) \
+        -> Tuple[Dict, Dict]:
     """ Delete keys from the dict and add deleted key=value pairs to deleted_values dict"""
     for k in lst_keys:
         try:
@@ -461,7 +460,7 @@ def _delete_keys_from_dict(dict_del: Dict, lst_keys: List[str], deleted_values: 
 
 
 async def _delete_child_filters(storage: StorageClientAsync, cf_mgr: ConfigurationManager, user_name: str,
-                                   new_list: List[str], old_list: List[str] = []) -> None:
+                                new_list: List[str], old_list: List[str] = []) -> None:
     # Difference between pipeline and value from storage lists and then delete relationship as per diff
     delete_children = _diff(new_list, old_list)
     for child in delete_children:
@@ -476,7 +475,7 @@ async def _delete_child_filters(storage: StorageClientAsync, cf_mgr: Configurati
 
 
 async def _add_child_filters(storage: StorageClientAsync, cf_mgr: ConfigurationManager, user_name: str,
-                               filter_list: List[str], old_list: List[str] = []) -> None:
+                             filter_list: List[str], old_list: List[str] = []) -> None:
     # Create children categories. Since create_category() does not expect "value" key to be
     # present in the payload, we need to remove all "value" keys BUT need to add back these
     # "value" keys to the new configuration.

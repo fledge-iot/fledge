@@ -379,7 +379,6 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 {
 	/*
 	 * Iterate over readings:
-	 * Iterate over readings:
 	 * - Send/cache Types
 	 * - transform a reading to OMF format
 	 * - add OMF data to new vector

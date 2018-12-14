@@ -190,6 +190,7 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 	{
 		api->wait();
 	}
+	management.stop();
 	logger->info("Storage service shut down.");
 }
 

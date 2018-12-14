@@ -148,7 +148,11 @@ static void loadDataThread(SendingProcess *loadData)
 						  loadData->getStreamId(),
 						  readIdx);
 
-			if (loadData->isRunning()) {
+	                Logger::getLogger()->warn("SendingProcess is faster to load data than the destination to process them,"
+	                                          " so all the %lu in memory buffers are full and the load thread should wait until at least a buffer is freed.",
+	                                          loadData->getMemoryBufferSize());
+
+	                if (loadData->isRunning()) {
 
 				// Load thread is put on hold, only if the execution should proceed
 				unique_lock<mutex> lock(waitMutex);

@@ -379,6 +379,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 {
 	/*
 	 * Iterate over readings:
+	 * Iterate over readings:
 	 * - Send/cache Types
 	 * - transform a reading to OMF format
 	 * - add OMF data to new vector
@@ -452,17 +453,10 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	// Then get HTTPS POST ret code and return 0 to client on error
 	try
 	{
-		// FIXME::
-		Logger::getLogger()->info("DBG : OMG MESSAGE : HostPort |%s| - path |%s| - message |%s|",
-		                          m_sender.getHostPort().c_str(),
-		                          m_path.c_str(),
-		                          json_not_compressed.c_str() );
-
 		int res = m_sender.sendRequest("POST",
 					       m_path,
 					       readingData,
 					       json);
-
 		if (res != 200 && res != 202 && res != 204)
 		{
 			Logger::getLogger()->error("Sending JSON readings, "

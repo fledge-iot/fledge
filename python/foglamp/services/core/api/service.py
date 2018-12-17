@@ -183,17 +183,17 @@ async def add_service(request):
             script = '["services/south_c"]' if plugin_info['mode'] == 'poll' else '["services/south"]'
         except ImportError as ex:
             # Checking for C-type plugins
-            script = '["services/south_c"]' if service_type == 'south' else '["services/north_c"]'
             plugin_info = apiutils.get_plugin_info(plugin)
             if plugin_info['type'] != service_type:
                 msg = "Plugin of {} type is not supported".format(plugin_info['type'])
                 _logger.exception(msg)
                 return web.HTTPBadRequest(reason=msg)
             plugin_config = plugin_info['config']
-            process_name = 'south_c'
             if not plugin_config:
                 _logger.exception("Plugin %s import problem from path %s. %s", plugin, plugin_module_path, str(ex))
                 raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}".'.format(plugin, plugin_module_path))
+            process_name = 'south_c'
+            script = '["services/south_c"]'
         except Exception as ex:
             _logger.exception("Failed to fetch plugin configuration. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration')

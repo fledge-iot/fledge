@@ -178,6 +178,7 @@ async def add_task(request):
             raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration.')
 
         storage = connect.get_storage_async()
+        config_mgr = ConfigurationManager(storage)
 
         # Check that the schedule name is not already registered
         count = await check_schedules(storage, name)
@@ -201,7 +202,6 @@ async def add_task(request):
         try:
             # Create a configuration category from the configuration defined in the plugin
             category_desc = plugin_config['plugin']['description']
-            config_mgr = ConfigurationManager(storage)
             await config_mgr.create_category(category_name=name,
                                              category_description=category_desc,
                                              category_value=plugin_config,
@@ -217,8 +217,7 @@ async def add_task(request):
                 for k, v in config.items():
                     await config_mgr.set_category_item_value_entry(name, k, v['value'])
         except Exception as ex:
-            await delete_configuration(storage, name)  # Revert configuration entry
-            await delete_parent_child_configuration(storage, name)
+            await config_mgr.delete_category_and_children_recursively(name)
             _logger.exception("Failed to create plugin configuration. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to create plugin configuration.')
 
@@ -241,13 +240,11 @@ async def add_task(request):
             await server.Server.scheduler.save_schedule(schedule, is_enabled)
             schedule = await server.Server.scheduler.get_schedule_by_name(name)
         except StorageServerError as ex:
-            await delete_configuration(storage, name)  # Revert configuration entry
-            await delete_parent_child_configuration(storage, name)
+            await config_mgr.delete_category_and_children_recursively(name)
             _logger.exception("Failed to create schedule. %s", ex.error)
             raise web.HTTPInternalServerError(reason='Failed to create north instance.')
         except Exception as ex:
-            await delete_configuration(storage, name)  # Revert configuration entry
-            await delete_parent_child_configuration(storage, name)
+            await config_mgr.delete_category_and_children_recursively(name)
             _logger.exception("Failed to create schedule. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to create north instance.')
 
@@ -280,8 +277,8 @@ async def delete_task(request):
         await server.Server.scheduler.delete_schedule(sch_id)
 
         # delete all configuration for the north task instance name
-        await delete_configuration(storage, north_instance)
-        await delete_parent_child_configuration(storage, north_instance)
+        config_mgr = ConfigurationManager(storage)
+        await config_mgr.delete_category_and_children_recursively(north_instance)
 
         # delete statistics key
         await delete_statistics_key(storage, north_instance)
@@ -308,19 +305,6 @@ async def check_schedules(storage, schedule_name):
     payload = PayloadBuilder().SELECT("schedule_name").WHERE(['schedule_name', '=', schedule_name]).payload()
     result = await storage.query_tbl_with_payload('schedules', payload)
     return result['count']
-
-
-async def delete_configuration(storage, key):
-    payload = PayloadBuilder().WHERE(['key', '=', key]).payload()
-    await storage.delete_from_tbl('configuration', payload)
-    # Removed key from configuration cache
-    config_mgr = ConfigurationManager(storage)
-    config_mgr._cacheManager.remove(key)
-
-
-async def delete_parent_child_configuration(storage, key):
-    payload = PayloadBuilder().WHERE(['parent', '=', "North"]).AND_WHERE(['child', '=', key]).payload()
-    await storage.delete_from_tbl('category_children', payload)
 
 
 async def delete_statistics_key(storage, key):

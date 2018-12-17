@@ -1239,6 +1239,15 @@ DefaultConfigCategory::DefaultConfigCategory(const string& name, const string& j
 }
 
 /**
+ * Destructor for the default configuration category. Simply call the base class
+ * destructor.
+ */
+DefaultConfigCategory::~DefaultConfigCategory()
+{
+}
+
+
+/**
  * Return JSON string of all category components
  * of a DefaultConfigCategory class
  */

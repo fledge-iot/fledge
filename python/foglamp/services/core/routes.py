@@ -158,11 +158,11 @@ def setup(app):
 
     # Filters 
     app.router.add_route('POST', '/foglamp/filter', filters.create_filter)
-    app.router.add_route('PUT', '/foglamp/filter/{service_name}/pipeline', filters.add_filters_pipeline)
-    app.router.add_route('GET', '/foglamp/filter/{service_name}/pipeline', filters.get_filter_pipeline)
+    app.router.add_route('PUT', '/foglamp/filter/{user_name}/pipeline', filters.add_filters_pipeline)
+    app.router.add_route('GET', '/foglamp/filter/{user_name}/pipeline', filters.get_filter_pipeline)
     app.router.add_route('GET', '/foglamp/filter/{filter_name}', filters.get_filter)
     app.router.add_route('GET', '/foglamp/filter', filters.get_filters)
-    app.router.add_route('DELETE', '/foglamp/filter/{service_name}/pipeline', filters.delete_filter_pipeline)
+    app.router.add_route('DELETE', '/foglamp/filter/{user_name}/pipeline', filters.delete_filter_pipeline)
     app.router.add_route('DELETE', '/foglamp/filter/{filter_name}', filters.delete_filter)
 
     # Notification

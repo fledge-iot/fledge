@@ -386,13 +386,14 @@ class TestService:
             }
 
         mocker.patch.object(connect, 'get_storage_async')
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
         get_schedule = mocker.patch.object(task, "get_schedule", return_value=mock_result())
         scheduler = mocker.patch.object(server.Server, "scheduler", MagicMock())
         delete_schedule = mocker.patch.object(scheduler, "delete_schedule", return_value=asyncio.sleep(.1))
         disable_schedule = mocker.patch.object(scheduler, "disable_schedule",
                                                return_value=asyncio.sleep(.1))
-        delete_configuration = mocker.patch.object(task, "delete_configuration", return_value=asyncio.sleep(.1))
-        delete_parent_child_configuration = mocker.patch.object(task, "delete_parent_child_configuration", return_value=asyncio.sleep(.1))
+        delete_configuration = mocker.patch.object(ConfigurationManager, "delete_category_and_children_recursively", return_value=asyncio.sleep(.1))
         delete_statistics_key = mocker.patch.object(task, "delete_statistics_key", return_value=asyncio.sleep(.1))
 
         resp = await client.delete("/foglamp/scheduled/task/{}".format(sch_name))
@@ -414,10 +415,6 @@ class TestService:
 
         assert 1 == delete_configuration.call_count
         args, kwargs = delete_configuration.call_args_list[0]
-        assert sch_name in args
-
-        assert 1 == delete_parent_child_configuration.call_count
-        args, kwargs = delete_parent_child_configuration.call_args_list[0]
         assert sch_name in args
 
         assert 1 == delete_statistics_key.call_count

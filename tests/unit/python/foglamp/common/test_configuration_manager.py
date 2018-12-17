@@ -2025,6 +2025,211 @@ class TestConfigurationManager:
                 assert str(msg) == str(excinfo.value)
         patch_read_cat_val.assert_called_once_with("south")
 
+    async def test_delete_category_and_children_recursively(self, mocker, reset_singleton):
+        @asyncio.coroutine
+        def mock_coro(a, b):
+            return expected_result
+
+        @asyncio.coroutine
+        def async_mock(return_value):
+            return return_value
+
+        @asyncio.coroutine
+        def mock_read_all_child_category_names(cat):
+            """
+            Mimics 
+
+                     G      I
+                      \    /
+                       F  H
+                        \/
+                        E    
+                       /    M
+                      /    / 
+                A -- B -- C  -- D 
+                \     \
+                 \     N
+                  \
+                   \   K
+                    \ /
+                     J\
+                       \
+                        L
+            :param cat: 
+            :return: 
+            """
+            if cat == "A":
+                return [{"parent": 'A', "child": 'B'}, {"parent": 'A', "child": 'J'}]
+            if cat == "B":
+                return [{"parent": 'B', "child": 'E'}, {"parent": 'B', "child": 'N'}, {"parent": 'B', "child": 'C'}]
+            if cat == "C":
+                return [{"parent": 'C', "child": 'M'}, {"parent": 'C', "child": 'D'}]
+            if cat == "D":
+                return []
+            if cat == "E":
+                return [{"parent": 'E', "child": 'F'}, {"parent": 'E', "child": 'H'}]
+            if cat == "F":
+                return [{"parent": 'F', "child": 'G'}]
+            if cat == "G":
+                return []
+            if cat == "H":
+                return [{"parent": 'H', "child": 'I'}]
+            if cat == "I":
+                return []
+            if cat == "J":
+                return [{"parent": 'J', "child": 'K'}, {"parent": 'J', "child": 'L'}]
+            if cat == "K":
+                return []
+            if cat == "L":
+                return []
+            if cat == "M":
+                return []
+            if cat == "N":
+                return []
+
+        expected_result = {"response": "deleted", "rows_affected": 1}
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        patch_delete_from_tbl = mocker.patch.object(storage_client_mock, 'delete_from_tbl', side_effect=mock_coro)
+
+        c_mgr = ConfigurationManager(storage_client_mock)
+        patch_read_cat_val = mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=async_mock('bla'))
+        patch_fetch_descendents = mocker.patch.object(ConfigurationManager, '_read_all_child_category_names', side_effect=mock_read_all_child_category_names)
+        patch_fetch_descendents = mocker.patch.object(ConfigurationManager, '_fetch_descendents', return_value=async_mock('bla'))
+
+        audit_logger = mocker.patch.object(AuditLogger, '__init__', return_value=None)
+        audit_info = mocker.patch.object(AuditLogger, 'information', return_value=async_mock('bla'))
+
+        ret_val = await c_mgr.delete_category_and_children_recursively("A")
+        assert expected_result == ret_val
+
+        patch_read_cat_val.assert_called_once_with('A')
+        patch_fetch_descendents.assert_called_once_with('A')
+        calls = [call('category_children', '{"where": {"column": "child", "condition": "=", "value": "G"}}'),
+                 call('configuration', '{"where": {"column": "key", "condition": "=", "value": "G"}}'),
+                 call('category_children', '{"where": {"column": "child", "condition": "=", "value": "F"}}'),
+                 call('configuration', '{"where": {"column": "key", "condition": "=", "value": "F"}}'),
+                 call('category_children', '{"where": {"column": "child", "condition": "=", "value": "I"}}'),
+                 call('configuration', '{"where": {"column": "key", "condition": "=", "value": "I"}}'),
+                 call('category_children', '{"where": {"column": "child", "condition": "=", "value": "H"}}'),
+                 call('configuration', '{"where": {"column": "key", "condition": "=", "value": "H"}}'),
+                 call('category_children', '{"where": {"column": "child", "condition": "=", "value": "E"}}'),
+                 call('configuration', '{"where": {"column": "key", "condition": "=", "value": "E"}}'),
+                 call('category_children', '{"where": {"column": "child", "condition": "=", "value": "N"}}'),
+                 call('configuration', '{"where": {"column": "key", "condition": "=", "value": "N"}}'),
+                 call('category_children', '{"where": {"column": "child", "condition": "=", "value": "M"}}'),
+                 call('configuration', '{"where": {"column": "key", "condition": "=", "value": "M"}}'),
+                 call('category_children', '{"where": {"column": "child", "condition": "=", "value": "D"}}'),
+                 call('configuration', '{"where": {"column": "key", "condition": "=", "value": "D"}}'),
+                 call('category_children', '{"where": {"column": "child", "condition": "=", "value": "C"}}'),
+                 call('configuration', '{"where": {"column": "key", "condition": "=", "value": "C"}}'),
+                 call('category_children', '{"where": {"column": "child", "condition": "=", "value": "B"}}'),
+                 call('configuration', '{"where": {"column": "key", "condition": "=", "value": "B"}}'),
+                 call('category_children', '{"where": {"column": "child", "condition": "=", "value": "K"}}'),
+                 call('configuration', '{"where": {"column": "key", "condition": "=", "value": "K"}}'),
+                 call('category_children', '{"where": {"column": "child", "condition": "=", "value": "L"}}'),
+                 call('configuration', '{"where": {"column": "key", "condition": "=", "value": "L"}}'),
+                 call('category_children', '{"where": {"column": "child", "condition": "=", "value": "J"}}'),
+                 call('configuration', '{"where": {"column": "key", "condition": "=", "value": "J"}}'),
+                 call('category_children', '{"where": {"column": "child", "condition": "=", "value": "A"}}'),
+                 call('configuration', '{"where": {"column": "key", "condition": "=", "value": "A"}}')]
+        patch_delete_from_tbl.has_calls(calls, any_order=True)
+
+        audit_calls = [call('CONCH', {'categoryDeleted': 'G'}),
+                        call('CONCH', {'categoryDeleted': 'F'}),
+                        call('CONCH', {'categoryDeleted': 'I'}),
+                        call('CONCH', {'categoryDeleted': 'H'}),
+                        call('CONCH', {'categoryDeleted': 'E'}),
+                        call('CONCH', {'categoryDeleted': 'N'}),
+                        call('CONCH', {'categoryDeleted': 'M'}),
+                        call('CONCH', {'categoryDeleted': 'D'}),
+                        call('CONCH', {'categoryDeleted': 'C'}),
+                        call('CONCH', {'categoryDeleted': 'B'}),
+                        call('CONCH', {'categoryDeleted': 'K'}),
+                        call('CONCH', {'categoryDeleted': 'L'}),
+                        call('CONCH', {'categoryDeleted': 'J'}),
+                        call('CONCH', {'categoryDeleted': 'A'})]
+        audit_info.has_calls(audit_calls, any_order=True)
+
+    async def test_delete_category_and_children_recursively_exception(self, mocker, reset_singleton):
+        @asyncio.coroutine
+        def mock_coro(a, b):
+            return expected_result
+
+        @asyncio.coroutine
+        def async_mock(return_value):
+            return return_value
+
+        @asyncio.coroutine
+        def mock_read_all_child_category_names(cat):
+            """
+            Mimics 
+
+                     G      I
+                      \    /
+                       F  H
+                        \/
+                        E    
+                       /    M
+                      /    / 
+                A -- B -- C  -- D 
+                \     \
+                 \     N
+                  \
+                   \   K
+                    \ /
+                     North\
+                           \
+                            L
+            :param cat: 
+            :return: 
+            """
+            if cat == "A":
+                return [{"parent": 'A', "child": 'B'}, {"parent": 'A', "child": "North"}]
+            if cat == "B":
+                return [{"parent": 'B', "child": 'E'}, {"parent": 'B', "child": 'N'}, {"parent": 'B', "child": 'C'}]
+            if cat == "C":
+                return [{"parent": 'C', "child": 'M'}, {"parent": 'C', "child": 'D'}]
+            if cat == "D":
+                return []
+            if cat == "E":
+                return [{"parent": 'E', "child": 'F'}, {"parent": 'E', "child": 'H'}]
+            if cat == "F":
+                return [{"parent": 'F', "child": 'G'}]
+            if cat == "G":
+                return []
+            if cat == "H":
+                return [{"parent": 'H', "child": 'I'}]
+            if cat == "I":
+                return []
+            if cat == "North":
+                return [{"parent": "North", "child": 'K'}, {"parent": "North", "child": 'L'}]
+            if cat == "K":
+                return []
+            if cat == "L":
+                return []
+            if cat == "M":
+                return []
+            if cat == "N":
+                return []
+
+        expected_result = {"response": "deleted", "rows_affected": 1}
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        patch_delete_from_tbl = mocker.patch.object(storage_client_mock, 'delete_from_tbl', side_effect=mock_coro)
+
+        c_mgr = ConfigurationManager(storage_client_mock)
+        patch_read_cat_val = mocker.patch.object(ConfigurationManager, '_read_category_val',
+                                                 return_value=async_mock('bla'))
+        patch_fetch_descendents = mocker.patch.object(ConfigurationManager, '_read_all_child_category_names',
+                                                      side_effect=mock_read_all_child_category_names)
+
+        audit_logger = mocker.patch.object(AuditLogger, '__init__', return_value=None)
+        audit_info = mocker.patch.object(AuditLogger, 'information', return_value=async_mock('bla'))
+        msg = "Reserved category found in descendents of A - ['B', 'E', 'F', 'G', 'H', 'I', 'N', 'C', 'M', 'D', 'North', 'K', 'L']"
+
+        with pytest.raises(ValueError) as excinfo:
+            await c_mgr.delete_category_and_children_recursively("A")
+        assert str(msg) == str(excinfo.value)
+
     async def test__read_all_child_category_names(self, reset_singleton):
         @asyncio.coroutine
         def mock_coro():

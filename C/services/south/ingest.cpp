@@ -168,7 +168,7 @@ void Ingest::updateStats()
 
 	if (statsPendingEntries.empty())
 		{
-		Logger::getLogger()->info("statsPendingEntries is empty, returning from updateStats()");
+		//Logger::getLogger()->info("statsPendingEntries is empty, returning from updateStats()");
 		return;
 		}
 	
@@ -326,6 +326,23 @@ void Ingest::ingest(const Reading& reading)
 	if (m_queue->size() >= m_queueSizeThreshold || m_running == false)
 		m_cv.notify_all();
 }
+
+/**
+ * Add a reading to the reading queue
+ */
+void Ingest::ingest(const vector<Reading *> *vec)
+{
+	lock_guard<mutex> guard(m_qMutex);
+	
+	// Get the readings in the set
+	for (auto & rdng : *vec)
+	{
+		m_queue->push_back(rdng);
+	}
+	if (m_queue->size() >= m_queueSizeThreshold || m_running == false)
+		m_cv.notify_all();
+}
+
 
 void Ingest::waitForQueue()
 {

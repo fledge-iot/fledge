@@ -288,6 +288,10 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			if (clock_gettime(CLOCK_MONOTONIC, &start) == -1)
 			   Logger::getLogger()->error("polling loop start: clock_gettime");
 
+			const char *pluginInterfaceVer = southPlugin->getInfo()->interface;
+			bool pollInterfaceV2 = (pluginInterfaceVer[0]=='2' && pluginInterfaceVer[1]=='.');
+			logger->info("pollInterfaceV2=%s", pollInterfaceV2?"true":"false");
+
 			while (!m_shutdown)
 			{
 				uint64_t exp;
@@ -300,12 +304,23 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 					logger->error("%d expiry notifications accumulated", exp);
 				for (uint64_t i=0; i<exp; i++)
 				{
-					Reading reading = southPlugin->poll();
-					if (reading.getDatapointCount())
+					if (!pollInterfaceV2) // v1 poll method
 					{
-						ingest.ingest(reading);
+						Reading reading = southPlugin->poll();
+						if (reading.getDatapointCount())
+						{
+							ingest.ingest(reading);
+						}
+						++pollCount;
 					}
-					++pollCount;
+					else // V2 poll method
+					{
+						vector<Reading *> *vec = southPlugin->pollV2();
+						if (!vec) continue;
+						ingest.ingest(vec);
+						pollCount += (int) vec->size();
+						delete vec; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
+					}
 				}
 			}
 			if (clock_gettime(CLOCK_MONOTONIC, &end) == -1)

@@ -34,8 +34,25 @@ SouthPlugin::SouthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category) :
 	// Setup the function pointers to the plugin
   	pluginStartPtr = (void (*)(PLUGIN_HANDLE))
 				manager->resolveSymbol(handle, "plugin_start");
-  	pluginPollPtr = (Reading (*)(PLUGIN_HANDLE))
+	
+	const char *pluginInterfaceVer = manager->getInfo(handle)->interface;
+	if (pluginInterfaceVer[0]=='1' && pluginInterfaceVer[1]=='.')
+	{
+  		pluginPollPtr = (Reading (*)(PLUGIN_HANDLE))
 				manager->resolveSymbol(handle, "plugin_poll");
+	}
+	else if (pluginInterfaceVer[0]=='2' && pluginInterfaceVer[1]=='.')
+	{
+		pluginPollPtrV2 = (vector<Reading *>* (*)(PLUGIN_HANDLE))
+				manager->resolveSymbol(handle, "plugin_poll");
+	}
+	else
+	{
+		Logger::getLogger()->error("Invalid plugin interface version '%s', assuming version 1.x", pluginInterfaceVer);
+		pluginPollPtr = (Reading (*)(PLUGIN_HANDLE))
+				manager->resolveSymbol(handle, "plugin_poll");
+	}
+	
   	pluginReconfigurePtr = (void (*)(PLUGIN_HANDLE, const std::string&))
 				manager->resolveSymbol(handle, "plugin_reconfigure");
   	pluginShutdownPtr = (void (*)(PLUGIN_HANDLE))
@@ -90,6 +107,24 @@ Reading SouthPlugin::poll()
 	}
 }
 
+/**
+ * Call the poll method in the plugin supporting interface ver 2.x
+ */
+vector<Reading *>* SouthPlugin::pollV2()
+{
+	try {
+		return this->pluginPollPtrV2(instance);
+	} catch (exception& e) {
+		Logger::getLogger()->fatal("Unhandled exception raised in v2 south plugin poll(), %s",
+			e.what());
+		throw;
+	} catch (...) {
+		std::exception_ptr p = std::current_exception();
+		Logger::getLogger()->fatal("Unhandled exception raised in v2 south plugin poll(), %s",
+			p ? p.__cxa_exception_type()->name() : "unknown exception");
+		throw;
+	}
+}
 
 /**
  * Call the reconfigure method in the plugin

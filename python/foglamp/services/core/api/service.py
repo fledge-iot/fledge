@@ -172,7 +172,6 @@ async def add_service(request):
             import_file_name = "{path}.{dir}.{file}".format(path=plugin_module_path, dir=plugin, file=plugin)
             _plugin = __import__(import_file_name, fromlist=[''])
 
-            script = '["services/south"]' if service_type == 'south' else '["services/north"]'
             # Fetch configuration from the configuration defined in the plugin
             plugin_info = _plugin.plugin_info()
             if plugin_info['type'] != service_type:
@@ -180,7 +179,8 @@ async def add_service(request):
                 _logger.exception(msg)
                 return web.HTTPBadRequest(reason=msg)
             plugin_config = plugin_info['config']
-            process_name = 'south'
+            process_name = 'south_c' if plugin_info['mode'] == 'poll' else 'south'
+            script = '["services/south_c"]' if plugin_info['mode'] == 'poll' else '["services/south"]'
         except ImportError as ex:
             # Checking for C-type plugins
             script = '["services/south_c"]' if service_type == 'south' else '["services/north_c"]'

@@ -249,8 +249,14 @@ class TestFilters:
                                 assert 1 == log_exc.call_count
                                 log_exc.assert_called_once_with("Add filter, caught exception: filter_config must be a JSON object")
                             create_cat_patch.assert_called_once_with(category_description="Configuration of 'test' filter for plugin 'filter'", category_name='test', category_value={'plugin': {'description': 'Python 3.5 filter plugin', 'type': 'string', 'default': 'filter'}}, keep_original_items=True)
-                        insert_tbl_patch.assert_called_once_with('filters', '{"name": "test", "plugin": "filter"}')
-                    query_tbl_patch.assert_called_once_with('filters', '{"where": {"column": "name", "condition": "=", "value": "test"}}')
+                        args, kwargs = insert_tbl_patch.call_args_list[0]
+                        assert 'filters' == args[0]
+                        assert {"name": "test", "plugin": "filter"} == json.loads(args[1])
+                        # insert_tbl_patch.assert_called_once_with('filters', '{"name": "test", "plugin": "filter"}')
+                    args, kwargs = query_tbl_patch.call_args_list[0]
+                    assert 'filters' == args[0]
+                    assert {"where": {"column": "name", "condition": "=", "value": "test"}} == json.loads(args[1])
+                    # query_tbl_patch.assert_called_once_with('filters', '{"where": {"column": "name", "condition": "=", "value": "test"}}')
                 api_utils_patch.assert_called_once_with(plugin_name)
             get_cat_info_patch.assert_called_once_with(category_name='test')
 
@@ -309,8 +315,14 @@ class TestFilters:
                                     assert {'filter': name, 'description': "Configuration of 'test' filter for plugin 'filter'", 'value': {}} == json_response
                                 update_cfg_bulk_patch.assert_called_once_with(name, {})
                             create_cat_patch.assert_called_once_with(category_description="Configuration of 'test' filter for plugin 'filter'", category_name='test', category_value={'plugin': {'description': 'Python 3.5 filter plugin', 'type': 'string', 'default': 'filter'}}, keep_original_items=True)
-                        insert_tbl_patch.assert_called_once_with('filters', '{"name": "test", "plugin": "filter"}')
-                    query_tbl_patch.assert_called_once_with('filters', '{"where": {"column": "name", "condition": "=", "value": "test"}}')
+                        args, kwargs = insert_tbl_patch.call_args_list[0]
+                        assert 'filters' == args[0]
+                        assert {"name": "test", "plugin": "filter"} == json.loads(args[1])
+                        # insert_tbl_patch.assert_called_once_with('filters', '{"name": "test", "plugin": "filter"}')
+                    args, kwargs = query_tbl_patch.call_args_list[0]
+                    assert 'filters' == args[0]
+                    assert {"where": {"column": "name", "condition": "=", "value": "test"}} == json.loads(args[1])
+                    # query_tbl_patch.assert_called_once_with('filters', '{"where": {"column": "name", "condition": "=", "value": "test"}}')
                 api_utils_patch.assert_called_once_with(plugin_name)
             assert 2 == get_cat_info_patch.call_count
 

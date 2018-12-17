@@ -153,6 +153,7 @@ class TestService:
             'version': "1.1",
             'type': "north",
             'interface': "1.0.0",
+            'mode': "async",
             'config': {
                 'plugin': {
                     'description': "HTTP North Plugin",
@@ -184,6 +185,7 @@ class TestService:
             'version': "1.1",
             'type': "south",
             'interface': "1.0",
+            'mode': "async",
             'config': {
                 'plugin': {
                     'description': "DHT11",
@@ -229,6 +231,7 @@ class TestService:
             'version': "1.1",
             'type': "south",
             'interface': "1.0",
+            'mode': "async",
             'config': {
                 'plugin': {
                     'description': "DHT11",
@@ -293,6 +296,7 @@ class TestService:
             'version': "1.1",
             'type': "south",
             'interface': "1.0",
+            'mode': "async",
             'config': {
                 'plugin': {
                     'description': "DHT11 plugin",
@@ -376,6 +380,7 @@ class TestService:
             'version': "1.1",
             'type': "south",
             'interface': "1.0",
+            'mode': "async",
             'config': {
                 'plugin': {
                     'description': "Sinusoid Plugin",

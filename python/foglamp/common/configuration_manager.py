@@ -19,7 +19,7 @@ from foglamp.common.storage_client.utils import Utils
 from foglamp.common import logger
 from foglamp.common.audit_logger import AuditLogger
 
-__author__ = "Ashwin Gopalakrishnan, Ashish Jabble"
+__author__ = "Ashwin Gopalakrishnan, Ashish Jabble, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -29,6 +29,10 @@ _logger = logger.setup(__name__)
 # MAKE UPPER_CASE
 _valid_type_strings = sorted(['boolean', 'integer', 'float', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password', 'JSON',
                               'URL', 'enumeration', 'script'])
+RESERVED_CATG = [ 'South', 'North', 'General',
+                  'Advanced', 'Utilities', 'rest_api',
+                  'Security', 'service', 'SCHEDULER',
+                  'SMNTR', 'PURGE_READ', 'Notifications']
 
 
 class ConfigurationCache(object):
@@ -970,6 +974,75 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             raise ValueError(err_response)
 
         return result
+
+    async def delete_category_and_children_recursively(self, category_name):
+        """Delete recursively a category and its children along with their parent-child relationship
+        Keyword Arguments:
+        category_name -- name of the category (required)
+        Return Values:
+        JSON
+        """
+        if not isinstance(category_name, str):
+            raise TypeError('category_name must be a string')
+        category = await self._read_category_val(category_name)
+
+        if category is None:
+            raise ValueError('No such {} category exist'.format(category_name))
+        catg_descendents = await self._fetch_descendents(category_name)
+
+        for catg in RESERVED_CATG:
+            if catg in catg_descendents:
+                raise ValueError('Reserved category found in descendents of {} - {}'.format(category_name, catg_descendents))
+        try:
+            result = await self._delete_recursively(category_name)
+        except ValueError as ex:
+            raise ValueError(ex)
+        else:
+            return result[category_name]
+
+    async def _fetch_descendents(self, cat):
+        children = await self._read_all_child_category_names(cat)
+        descendents = []
+        for row in children:
+            child = row['child']
+            descendents.append(child)
+            child_descendents = await self._fetch_descendents(child)
+            descendents.extend(child_descendents)
+        return descendents
+
+    async def _delete_recursively(self, cat):
+        try:
+            children = await self._read_all_child_category_names(cat)
+            for row in children:
+                child = row['child']
+                await self._delete_recursively(child)
+
+            # Remove cat as child from parent-child relation.
+            payload = PayloadBuilder().WHERE(["child", "=", cat]).payload()
+            result = await self._storage.delete_from_tbl("category_children", payload)
+            if result['response'] == 'deleted':
+                _logger.info('Deleted parent in catgory_children: %s', cat)
+
+            # Remove category.
+            payload = PayloadBuilder().WHERE(["key", "=", cat]).payload()
+            result = await self._storage.delete_from_tbl("configuration", payload)
+            if result['response'] == 'deleted':
+                _logger.info('Deleted parent category from configuration: %s', cat)
+                audit = AuditLogger(self._storage)
+                audit_details = {'categoryDeleted': cat}
+                # FIXME: FOGL-2140
+                await audit.information('CONCH', audit_details)
+
+            # Remove cat from cache
+            if cat in self._cacheManager.cache:
+                self._cacheManager.remove(cat)
+        except KeyError as ex:
+            raise ValueError(ex)
+        except StorageServerError as ex:
+            err_response = ex.error
+            raise ValueError(err_response)
+        else:
+            return {cat: result}
 
     def register_interest(self, category_name, callback):
         """Registers an interest in any changes to the category_value associated with category_name

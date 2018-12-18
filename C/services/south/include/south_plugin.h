@@ -35,6 +35,7 @@ public:
 	~SouthPlugin();
 
 	Reading		poll();
+	std::vector<Reading *>*	pollV2();
 	void		start();
 	void		reconfigure(const std::string&);
 	void		shutdown();
@@ -48,6 +49,7 @@ private:
 	PLUGIN_HANDLE	instance;
 	void		(*pluginStartPtr)(PLUGIN_HANDLE);
 	Reading		(*pluginPollPtr)(PLUGIN_HANDLE);
+	std::vector<Reading *>*	(*pluginPollPtrV2)(PLUGIN_HANDLE);
 	void		(*pluginReconfigurePtr)(PLUGIN_HANDLE,
 					        const std::string& newConfig);
 	void		(*pluginShutdownPtr)(PLUGIN_HANDLE);

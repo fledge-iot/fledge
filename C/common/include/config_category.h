@@ -135,6 +135,16 @@ class ConfigCategory {
 		std::vector<CategoryItem *>	m_items;
 		std::string			m_name;
 		std::string			m_description;
+
+	public:
+		using iterator = std::vector<CategoryItem *>::iterator;
+  		using const_iterator = std::vector<CategoryItem *>::const_iterator;
+
+		const_iterator begin() const { return m_items.begin(); }
+		const_iterator end() const { return m_items.end(); }
+		const_iterator cbegin() const { return m_items.cbegin(); }
+		const_iterator cend() const { return m_items.cend(); }
+		
 };
 
 /**
@@ -154,6 +164,7 @@ class DefaultConfigCategory : public ConfigCategory
 		DefaultConfigCategory(const ConfigCategory& orig) : ConfigCategory(orig)
 		{
 		};
+		~DefaultConfigCategory();
 		std::string	toJSON() const;
 		std::string	itemsToJSON() const;
 };

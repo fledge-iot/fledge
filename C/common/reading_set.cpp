@@ -211,13 +211,13 @@ ReadingSet::clear()
  */
 static void convert_timestamp(const char *str, struct timeval *tv)
 {
-struct tm tm;
+	struct tm tm  = {0};
 
 	memset(&tm, 0, sizeof(tm));
 	strptime(str, "%Y-%m-%d %H:%M:%S", &tm);
 
-    	// mktime handles timezones, so UTC is configured
-	tv->tv_sec = mktime(&tm);
+    	// stores in timeval the UTC time
+	tv->tv_sec = mktime(&tm) - __timezone;
 
 	// Work out the microseconds from the fractional part of the seconds
 	char fractional[10];

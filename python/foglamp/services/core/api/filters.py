@@ -482,7 +482,7 @@ async def _add_child_filters(storage: StorageClientAsync, cf_mgr: ConfigurationM
     for filter_name in filter_list:
         filter_config = await cf_mgr.get_category_all_items(category_name=filter_name)
         filter_desc = "Configuration of {} filter for user {}".format(filter_name, user_name)
-        new_filter_config, deleted_values = _delete_keys_from_dict(filter_config, ['value'])
+        new_filter_config, deleted_values = _delete_keys_from_dict(filter_config, ['value'], deleted_values={}, parent=None)
         await cf_mgr.create_category(category_name="{}_{}".format(user_name, filter_name),
                                      category_description=filter_desc,
                                      category_value=new_filter_config,

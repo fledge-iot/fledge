@@ -213,6 +213,21 @@ ConfigCategory& ConfigCategory::operator=(ConfigCategory const& rhs)
 }
 
 /**
+ * Operator+= for ConfigCategory
+ */
+ConfigCategory& ConfigCategory::operator+=(ConfigCategory const& rhs)
+{
+	m_name = rhs.m_name;
+	m_description = rhs.m_description;
+
+	for (auto it = rhs.m_items.cbegin(); it != rhs.m_items.cend(); it++)
+	{
+		m_items.push_back(new CategoryItem(**it));
+	}
+	return *this;
+}
+
+/**
  * Set the m_value from m_default for each item
  */
 void ConfigCategory::setItemsValueFromDefault()

@@ -251,8 +251,8 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		// Get and ingest data
 		if (! southPlugin->isAsync())
 		{
-			int fd = createTimerFd(1000000/(int)m_readingsPerSec); // interval to be passed is in usecs
-			if (fd >= 0)
+			m_timerfd = createTimerFd(1000000/(int)m_readingsPerSec); // interval to be passed is in usecs
+			if (m_timerfd >= 0)
 				logger->info("Created timer FD with interval of %u usecs", 1000000/m_readingsPerSec);
 			else
 			{
@@ -270,7 +270,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				uint64_t exp;
 				ssize_t s;
 				
-				s = read(fd, &exp, sizeof(uint64_t));
+				s = read(m_timerfd, &exp, sizeof(uint64_t));
 				if ((unsigned int)s != sizeof(uint64_t))
 					logger->error("timerfd read()");
 				if (exp > 100)
@@ -296,7 +296,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				nsecs += 1000000000;
 			}
 			Logger::getLogger()->info("%d readings generated in %d.%d secs", pollCount, secs, nsecs);
-			close(fd);
+			close(m_timerfd);
 		}
 		else
 		{
@@ -465,7 +465,13 @@ void SouthService::configChange(const string& categoryName, const string& catego
 	{
 		m_configAdvanced = ConfigCategory(m_name+"Advanced", category);
 		try {
-			m_readingsPerSec = (unsigned long)strtol(m_configAdvanced.getValue("readingsPerSec").c_str(), NULL, 10);
+			unsigned long newval = (unsigned long)strtol(m_configAdvanced.getValue("readingsPerSec").c_str(), NULL, 10);
+			if (newval != m_readingsPerSec)
+			{
+				m_readingsPerSec = newval;
+				close(m_timerfd);
+				m_timerfd = createTimerFd(1000000/(int)m_readingsPerSec); // interval to be passed is in usecs
+			}
 		} catch (ConfigItemNotFound e) {
 			logger->error("Failed to update poll interval following configuration change");
 		}
@@ -506,7 +512,7 @@ int SouthService::createTimerFd(int usecs)
 	int fd = -1;
 	struct itimerspec new_value;
 	struct timespec now;
-	
+
 	if (clock_gettime(CLOCK_REALTIME, &now) == -1)
 	   Logger::getLogger()->error("clock_gettime");
 

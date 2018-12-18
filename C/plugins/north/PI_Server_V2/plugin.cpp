@@ -20,6 +20,7 @@
 #include <config_category.h>
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
+#include "json_utils.h"
 
 using namespace std;
 using namespace rapidjson;
@@ -79,8 +80,23 @@ using namespace rapidjson;
 				"\"description\": \"Identifies the specific stream to handle and the related information," \
 				" among them the ID of the last object streamed.\", " \
 				"\"type\": \"integer\", \"default\": \"0\", " \
-				"\"readonly\": \"true\" }"
+				"\"readonly\": \"true\" }, " \
+			"\"notBlockingErrors\": {" \
+				"\"description\": "\
+					"\"These errors are considered not blocking in the communication with the PI Server, " \
+					  " the sending operation will proceed with the next block of data if one of these is encountered\" ," \
+				"\"type\": \"JSON\", " \
+				"\"default\": \"{\\\"errors400\\\": "\
+		                        "["\
+			                        "\\\"Redefinition of the type with the same ID is not allowed\\\", "\
+						"\\\"Invalid value type for the property\\\" "\
+		                        "]"\
+                                "}\", " \
+				"\"order\": \"17\" ,"  \
+				"\"readonly\": \"true\" " \
+			"} "
 
+// "default": "{\"pipeline\": [\"DeltaFilter\"]}"
 
 #define OMF_PLUGIN_DESC "\"plugin\": {\"description\": \"PI Server North C Plugin\", \"type\": \"string\", \"default\": \"" PLUGIN_NAME "\", \"readonly\": \"true\"}"
 
@@ -118,8 +134,10 @@ typedef struct
 	string		producerToken;	// PI Server connector token
 	string		formatNumber;	// OMF protocol Number format
 	string		formatInteger;	// OMF protocol Integer format
+        // Errors considered not blocking in the communication with the PI Server
+	std::vector<std::string>
+			notBlockingErrors;
 } CONNECTOR_INFO;
-
 
 /**
  * Return the information about this plugin
@@ -132,7 +150,7 @@ PLUGIN_INFORMATION *plugin_info()
 /**
  * Initialise the plugin with configuration.
  *
- * This funcion is called to get the plugin handle.
+ * This function is called to get the plugin handle.
  */
 PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 {
@@ -180,6 +198,11 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	else
 		connInfo->compression = false;
 
+	// Set the list of errors considered not blocking in the communication
+	// with the PI Server
+	JSONStringToVectorString(connInfo->notBlockingErrors ,
+	                         configData->getValue("notBlockingErrors"),
+	                         std::string("errors400"));
 
 	// Log plugin configuration
 	Logger::getLogger()->info("%s plugin configured: URL=%s, "
@@ -191,6 +214,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 
 	return (PLUGIN_HANDLE)connInfo;
 }
+
 
 /**
  * Plugin start with sored plugin_data
@@ -262,6 +286,8 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 				     connInfo->formatNumber);
 	connInfo->omf->setFormatType(OMF_TYPE_INTEGER,
 				     connInfo->formatInteger);
+
+	connInfo->omf->setNotBlockingErrors(connInfo->notBlockingErrors);
 
 	// Send data
 	uint32_t ret = connInfo->omf->sendToServer(readings,

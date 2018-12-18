@@ -14,6 +14,8 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <execinfo.h>
+#include <dlfcn.h>    // for dladdr
+#include <cxxabi.h>   // for __cxa_demangle
 #include <unistd.h>
 #include <south_service.h>
 #include <management_api.h>
@@ -122,6 +124,7 @@ void handler(int sig)
 {
 Logger	*logger = Logger::getLogger();
 void	*array[20];
+char	buf[1024];
 int	size;
 
 	// get void*'s for all entries on the stack
@@ -132,11 +135,31 @@ int	size;
 	char **messages = backtrace_symbols(array, size);
 	for (int i = 0; i < size; i++)
 	{
-		logger->fatal("(%d) %s", i, messages[i]);
+		Dl_info info;
+		if (dladdr(array[i], &info) && info.dli_sname)
+		{
+		    char *demangled = NULL;
+		    int status = -1;
+		    if (info.dli_sname[0] == '_')
+		        demangled = abi::__cxa_demangle(info.dli_sname, NULL, 0, &status);
+		    snprintf(buf, sizeof(buf), "%-3d %*p %s + %zd---------",
+		             i, int(2 + sizeof(void*) * 2), array[i],
+		             status == 0 ? demangled :
+		             info.dli_sname == 0 ? messages[i] : info.dli_sname,
+		             (char *)array[i] - (char *)info.dli_saddr);
+		    free(demangled);
+		} 
+		else
+		{
+		    snprintf(buf, sizeof(buf), "%-3d %*p %s---------",
+		             i, int(2 + sizeof(void*) * 2), array[i], messages[i]);
+		}
+		logger->fatal("(%d) %s", i, buf);
 	}
 	free(messages);
 	exit(1);
 }
+
 
 /**
  * Callback called by south plugin to ingest readings into FogLAMP
@@ -265,6 +288,10 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			if (clock_gettime(CLOCK_MONOTONIC, &start) == -1)
 			   Logger::getLogger()->error("polling loop start: clock_gettime");
 
+			const char *pluginInterfaceVer = southPlugin->getInfo()->interface;
+			bool pollInterfaceV2 = (pluginInterfaceVer[0]=='2' && pluginInterfaceVer[1]=='.');
+			logger->info("pollInterfaceV2=%s", pollInterfaceV2?"true":"false");
+
 			while (!m_shutdown)
 			{
 				uint64_t exp;
@@ -277,12 +304,23 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 					logger->error("%d expiry notifications accumulated", exp);
 				for (uint64_t i=0; i<exp; i++)
 				{
-					Reading reading = southPlugin->poll();
-					if (reading.getDatapointCount())
+					if (!pollInterfaceV2) // v1 poll method
 					{
-						ingest.ingest(reading);
+						Reading reading = southPlugin->poll();
+						if (reading.getDatapointCount())
+						{
+							ingest.ingest(reading);
+						}
+						++pollCount;
 					}
-					++pollCount;
+					else // V2 poll method
+					{
+						vector<Reading *> *vec = southPlugin->pollV2();
+						if (!vec) continue;
+						ingest.ingest(vec);
+						pollCount += (int) vec->size();
+						delete vec; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
+					}
 				}
 			}
 			if (clock_gettime(CLOCK_MONOTONIC, &end) == -1)
@@ -322,6 +360,9 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			}
 		}
 		}
+
+		if (southPlugin)
+			southPlugin->shutdown();
 		
 		// Clean shutdown, unregister the storage service
 		m_mgtClient->unregisterService();

@@ -29,6 +29,7 @@ if(APPLE)
 endif()
 
 file(GLOB storage_src "*.cpp")
+
 link_directories(${PROJECT_BINARY_DIR}/../../lib)
 
 add_executable(${EXEC} ${storage_src} ${service_common_src} ${common_src})

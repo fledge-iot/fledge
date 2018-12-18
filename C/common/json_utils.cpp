@@ -8,6 +8,7 @@
  * Author: Stefano Simonelli
  */
 
+#include <iostream>
 #include <string>
 #include <vector>
 #include "json_utils.h"
@@ -34,13 +35,22 @@ bool JSONStringToVectorString(std::vector<std::string>& vectorString,
 
 	JSONdoc.Parse(JSONString.c_str());
 
-	if ( JSONdoc.HasParseError() ||
-	     ! JSONdoc.HasMember(Key.c_str()) ||
-	     ! JSONdoc[Key.c_str()].IsArray() )
+
+	if (JSONdoc.HasParseError())
 	{
 		success = false;
+
+	} else if (!JSONdoc.HasMember(Key.c_str()))
+	{
+		success = false;
+
+	} else if (!JSONdoc[Key.c_str()].IsArray())
+	{
+
+		success = false;
 	}
-	else
+
+	if (success)
 	{
 		const Value &filterList = JSONdoc[Key.c_str()];
 		if (!filterList.Size())

@@ -5,78 +5,71 @@
 
 using namespace std;
 
-
-const char *json_ok_2 =  "{" \
-					"\"description\": "\
-						"\"These errors are considered not blocking in the communication with the PI Server, " \
-						  " the sending operation will proceed with the next block of data if one of these is encountered\" ," \
-					"\"type\": \"JSON\", " \
-					"\"errors400\": \"{\\\"errors400X\\\": "\
-			                        "["\
-				                        "\\\"Redefinition of the type with the same ID is not allowed\\\", "\
-							"\\\"Invalid value type for the property\\\" "\
-			                        "]"\
-	                                "}\", " \
-					"\"order\": \"17\" ,"  \
-					"\"readonly\": \"true\" " \
-			"} ";
-
 const char *json_ok =  "{" \
-					"\"description\":  "\
-			                        "["\
-				                        "\"Redefinition of the type with the same ID is not allowed\", "\
-							"\"Invalid value type for the property\" "\
-			                        "]"\
-	                                ", " \
-					"\"type\": \"JSON\", " \
-					"\"order\": \"17\" ,"  \
-					"\"readonly\": \"true\" " \
+				"\"errors400\":  "\
+				        "["\
+				                "\"Redefinition of the type with the same ID is not allowed\", "\
+						"\"Invalid value type for the property\" "\
+				        "]"\
+				", " \
+				"\"type\": \"JSON\", " \
+				"\"order\": \"17\" ,"  \
+				"\"readonly\": \"true\" " \
 			"} ";
 
- 
-const char *json_bad = "{" \
-			"\"notBlockingErrors\": {" \
-				"\"description\": "\
-					"\"These errors are considered not blocking in the communication with the PI Server, " \
-					  " the sending operation will proceed with the next block of data if one of these is encountered\" ," \
+const char *json_bad_not_array =  "{" \
+				"\"errors400\":  \"text\", " \
 				"\"type\": \"JSON\", " \
-				"\"default\": \"{\\\"errors400\\\": "\
-		                        "["\
-			                        "\\\"Redefinition of the type with the same ID is not allowed\\\", "\
-						"\\\"Invalid value type for the property\\\" "\
-		                        "]"\
-                                "xxxx";
+				"\"order\": \"17\" ,"  \
+				"\"readonly\": \"true\" " \
+			"} ";
 
-
-
-
+const char *json_bad =  "{" \
+				"\"errors400\":  "\
+				        "["\
+				                "\"Redefinition of the type with the same ID is not allowed\", "\
+						"\"Invalid value type for the property\" "\
+				        "]"\
+				", " \
+				"xxxx";
 
 TEST(JsonToVectorString, JSONok)
 {
 	std::vector<std::string> stringJSON;
 	bool result;
 
-	result = JSONStringToVectorString(stringJSON,json_ok,"description");
+	result = JSONStringToVectorString(stringJSON,json_ok,"errors400");
 
 	ASSERT_EQ(result, true);
 }
 
-//TEST(JsonToVectorString, JSONbad)
-//{
-//	std::vector<std::string> stringJSON;
-//	bool result;
-//
-//	result = JSONStringToVectorString(stringJSON,json_bad,"notBlockingErrors");
-//
-//	ASSERT_EQ(result, false);
-//}
-//
-//TEST(JsonToVectorString, BadKey)
-//{
-//	std::vector<std::string> stringJSON;
-//	bool result;
-//
-//	result = JSONStringToVectorString(stringJSON,json_ok,"xxx");
-//
-//	ASSERT_EQ(result, false);
-//}
+TEST(JsonToVectorString, KeyNotExist)
+{
+	std::vector<std::string> stringJSON;
+	bool result;
+
+	result = JSONStringToVectorString(stringJSON,json_ok,"xxx");
+
+	ASSERT_EQ(result, false);
+}
+
+TEST(JsonToVectorString, NotArray)
+{
+	std::vector<std::string> stringJSON;
+	bool result;
+
+	result = JSONStringToVectorString(stringJSON,json_bad_not_array,"errors400");
+
+	ASSERT_EQ(result, false);
+}
+
+
+TEST(JsonToVectorString, JSONbad)
+{
+	std::vector<std::string> stringJSON;
+	bool result;
+
+	result = JSONStringToVectorString(stringJSON,json_bad,"errors400");
+
+	ASSERT_EQ(result, false);
+}

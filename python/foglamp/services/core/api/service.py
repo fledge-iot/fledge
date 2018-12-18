@@ -97,7 +97,8 @@ async def delete_service(request):
         await server.Server.scheduler.delete_schedule(sch_id)
 
         # delete all configuration for the service name
-        await delete_configuration(storage, svc)
+        config_mgr = ConfigurationManager(storage)
+        await config_mgr.delete_category_and_children_recursively(svc)
 
         try:
             ServiceRegistry.get(name=svc)
@@ -171,7 +172,6 @@ async def add_service(request):
             import_file_name = "{path}.{dir}.{file}".format(path=plugin_module_path, dir=plugin, file=plugin)
             _plugin = __import__(import_file_name, fromlist=[''])
 
-            script = '["services/south"]' if service_type == 'south' else '["services/north"]'
             # Fetch configuration from the configuration defined in the plugin
             plugin_info = _plugin.plugin_info()
             if plugin_info['type'] != service_type:
@@ -179,20 +179,21 @@ async def add_service(request):
                 _logger.exception(msg)
                 return web.HTTPBadRequest(reason=msg)
             plugin_config = plugin_info['config']
-            process_name = 'south'
+            process_name = 'south_c' if plugin_info['mode'] == 'poll' else 'south'
+            script = '["services/south_c"]' if plugin_info['mode'] == 'poll' else '["services/south"]'
         except ImportError as ex:
             # Checking for C-type plugins
-            script = '["services/south_c"]' if service_type == 'south' else '["services/north_c"]'
             plugin_info = apiutils.get_plugin_info(plugin)
             if plugin_info['type'] != service_type:
                 msg = "Plugin of {} type is not supported".format(plugin_info['type'])
                 _logger.exception(msg)
                 return web.HTTPBadRequest(reason=msg)
             plugin_config = plugin_info['config']
-            process_name = 'south_c'
             if not plugin_config:
                 _logger.exception("Plugin %s import problem from path %s. %s", plugin, plugin_module_path, str(ex))
                 raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}".'.format(plugin, plugin_module_path))
+            process_name = 'south_c'
+            script = '["services/south_c"]'
         except Exception as ex:
             _logger.exception("Failed to fetch plugin configuration. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration')
@@ -239,7 +240,7 @@ async def add_service(request):
                     await config_mgr.set_category_item_value_entry(name, k, v['value'])
 
         except Exception as ex:
-            await delete_configuration(storage, name)  # Revert configuration entry
+            await config_mgr.delete_category_and_children_recursively(name)
             _logger.exception("Failed to create plugin configuration. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to create plugin configuration.')
 
@@ -257,11 +258,11 @@ async def add_service(request):
             await server.Server.scheduler.save_schedule(schedule, is_enabled)
             schedule = await server.Server.scheduler.get_schedule_by_name(name)
         except StorageServerError as ex:
-            await delete_configuration(storage, name)  # Revert configuration entry
+            await config_mgr.delete_category_and_children_recursively(name)
             _logger.exception("Failed to create schedule. %s", ex.error)
             raise web.HTTPInternalServerError(reason='Failed to create service.')
         except Exception as ex:
-            await delete_configuration(storage, name)  # Revert configuration entry
+            await config_mgr.delete_category_and_children_recursively(name)
             _logger.exception("Failed to create service. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to create service.')
 
@@ -287,29 +288,3 @@ async def get_schedule(storage, schedule_name):
     payload = PayloadBuilder().SELECT(["id", "enabled"]).WHERE(['schedule_name', '=', schedule_name]).payload()
     result = await storage.query_tbl_with_payload('schedules', payload)
     return result
-
-
-async def delete_configuration(storage, key):
-    await delete_configuration_category(storage, key)
-    await delete_configuration_category(storage, "{}Advanced".format(key))
-    await delete_parent_child_configuration(storage, key)
-    await delete_advance_child_configuration(storage, key)
-
-
-async def delete_configuration_category(storage, key):
-    payload = PayloadBuilder().WHERE(['key', '=', key]).payload()
-    await storage.delete_from_tbl('configuration', payload)
-
-    # Removed key from configuration cache
-    config_mgr = ConfigurationManager(storage)
-    config_mgr._cacheManager.remove(key)
-
-
-async def delete_parent_child_configuration(storage, key):
-    payload = PayloadBuilder().WHERE(['parent', '=', "South"]).AND_WHERE(['child', '=', key]).payload()
-    await storage.delete_from_tbl('category_children', payload)
-
-
-async def delete_advance_child_configuration(storage, key):
-    payload = PayloadBuilder().WHERE(['parent', '=', key]).payload()
-    await storage.delete_from_tbl('category_children', payload)

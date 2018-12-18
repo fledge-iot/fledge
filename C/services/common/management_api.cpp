@@ -82,6 +82,17 @@ void ManagementApi::startServer() {
 	m_server->start();
 }
 
+void ManagementApi::stop()
+{
+	this->stopServer();
+}
+
+void ManagementApi::stopServer()
+{
+	m_server->stop();
+	m_thread->join();
+}
+
 /**
  * Return the signleton instance of the management interface
  *
@@ -99,6 +110,7 @@ ManagementApi *ManagementApi::getInstance()
 ManagementApi::~ManagementApi()
 {
 	delete m_server;
+	delete m_thread;
 }
 
 /**

@@ -153,6 +153,7 @@ class TestService:
             'version': "1.1",
             'type': "north",
             'interface': "1.0.0",
+            'mode': "async",
             'config': {
                 'plugin': {
                     'description': "HTTP North Plugin",
@@ -184,6 +185,7 @@ class TestService:
             'version': "1.1",
             'type': "south",
             'interface': "1.0",
+            'mode': "async",
             'config': {
                 'plugin': {
                     'description': "DHT11",
@@ -229,6 +231,7 @@ class TestService:
             'version': "1.1",
             'type': "south",
             'interface': "1.0",
+            'mode': "async",
             'config': {
                 'plugin': {
                     'description': "DHT11",
@@ -293,6 +296,7 @@ class TestService:
             'version': "1.1",
             'type': "south",
             'interface': "1.0",
+            'mode': "async",
             'config': {
                 'plugin': {
                     'description': "DHT11 plugin",
@@ -376,6 +380,7 @@ class TestService:
             'version': "1.1",
             'type': "south",
             'interface': "1.0",
+            'mode': "async",
             'config': {
                 'plugin': {
                     'description': "Sinusoid Plugin",
@@ -454,11 +459,13 @@ class TestService:
                         ]
             }
         mocker.patch.object(connect, 'get_storage_async')
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
         get_schedule = mocker.patch.object(service, "get_schedule", return_value=mock_result())
         scheduler = mocker.patch.object(server.Server, "scheduler", MagicMock())
         delete_schedule = mocker.patch.object(scheduler, "delete_schedule", return_value=asyncio.sleep(.1))
         disable_schedule = mocker.patch.object(scheduler, "disable_schedule", return_value=asyncio.sleep(.1))
-        delete_configuration = mocker.patch.object(service, "delete_configuration", return_value=asyncio.sleep(.1))
+        delete_configuration = mocker.patch.object(ConfigurationManager, "delete_category_and_children_recursively", return_value=asyncio.sleep(.1))
         get_registry = mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
         remove_registry = mocker.patch.object(ServiceRegistry, 'remove_from_registry')
 

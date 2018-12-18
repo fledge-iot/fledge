@@ -42,6 +42,7 @@ public:
 	~Ingest();
 
 	void		ingest(const Reading& reading);
+	void		ingest(const std::vector<Reading *> *vec);
 	bool		running();
 	void		processQueue();
 	void		waitForQueue();

@@ -16,10 +16,18 @@
 #include <stdlib.h>
 #include <logger.h>
 
+#include <boost/algorithm/string/replace.hpp>
+
 #define ASSET_NAME_INVALID_READING "error_invalid_reading"
 
 using namespace std;
 using namespace rapidjson;
+
+// List of characters to be escaped in JSON
+const vector<string> JSON_characters_to_be_escaped = {
+	"\\",
+	"\""
+};
 
 /**
  * Construct an empty reading set
@@ -203,13 +211,13 @@ ReadingSet::clear()
  */
 static void convert_timestamp(const char *str, struct timeval *tv)
 {
-struct tm tm;
+	struct tm tm  = {0};
 
 	memset(&tm, 0, sizeof(tm));
 	strptime(str, "%Y-%m-%d %H:%M:%S", &tm);
 
-    	// mktime handles timezones, so UTC is configured
-	tv->tv_sec = mktime(&tm);
+    	// stores in timeval the UTC time
+	tv->tv_sec = mktime(&tm) - __timezone;
 
 	// Work out the microseconds from the fractional part of the seconds
 	char fractional[10];
@@ -360,13 +368,61 @@ JSONReading::JSONReading(const Value& json)
 			// The reading should be an object at this stage, it is and invalid one if not
 			// the asset name ASSET_NAME_INVALID_READING will be created in the PI-Server containing the
 			// invalid asset_name/values.
-			string tmp_reading1 = json["reading"].GetString();
-			Logger::getLogger()->error("Invalid reading: Asset name |%s| reading value |%s|", m_asset.c_str(), tmp_reading1.c_str());
+			if (json["reading"].IsString())
+			{
+				string tmp_reading1 = json["reading"].GetString();
 
-			DatapointValue value(tmp_reading1);
-			this->addDatapoint(new Datapoint(m_asset,  value));
+				// Escape specific character for to be properly manage as JSON
+				for (const string &item : JSON_characters_to_be_escaped)
+				{
 
-			m_asset = ASSET_NAME_INVALID_READING;
+					escapeCharacter(tmp_reading1, item);
+				}
+
+				Logger::getLogger()->error(
+					"Invalid reading: Asset name |%s| reading value |%s| converted value |%s|",
+					m_asset.c_str(),
+					json["reading"].GetString(),
+					tmp_reading1.c_str());
+
+				DatapointValue value(tmp_reading1);
+				this->addDatapoint(new Datapoint(m_asset, value));
+
+			} else if (json["reading"].IsInt() ||
+				   json["reading"].IsUint() ||
+				   json["reading"].IsInt64() ||
+				   json["reading"].IsUint64()) {
+
+				DatapointValue *value;
+
+				if (json["reading"].IsInt() ||
+				    json["reading"].IsUint()) {
+					value = new DatapointValue((long) json["reading"].GetInt());
+				} else {
+					value = new DatapointValue((long) json["reading"].GetInt64());
+				}
+				this->addDatapoint(new Datapoint(m_asset, *value));
+				delete value;
+
+			} else if (json["reading"].IsDouble())
+			{
+				DatapointValue value(json["reading"].GetDouble());
+				this->addDatapoint(new Datapoint(m_asset, value));
+
+			}
+
+			m_asset = string(ASSET_NAME_INVALID_READING) + string("_") + m_asset.c_str();
 		}
 	}
+}
+
+/**
+ * Escapes a character in a string to be properly handled as JSON
+ *
+ */
+void JSONReading::escapeCharacter(string& stringToEvaluate, string pattern)
+{
+	string escaped = "\\" + pattern;
+
+	boost::replace_all(stringToEvaluate, pattern, escaped);
 }

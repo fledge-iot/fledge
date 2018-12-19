@@ -49,10 +49,10 @@ async def get_plugin(request):
         raise web.HTTPNotFound(reason="No Notification service available.")
 
     try:
-        url = 'http://{}:{}/foglamp/notification/rules'.format(_address, _port)
+        url = 'http://{}:{}/notification/rules'.format(_address, _port)
         rule_plugins = json.loads(await _hit_get_url(url))
 
-        url = 'http://{}:{}/foglamp/notification/delivery'.format(_address, _port)
+        url = 'http://{}:{}/notification/delivery'.format(_address, _port)
         delivery_plugins = json.loads(await _hit_get_url(url))
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
@@ -183,18 +183,21 @@ async def post_notification(request):
             # Get default config for rule and channel plugins
             url = '{}/plugin'.format(request.url)
             list_plugins = json.loads(await _hit_get_url(url))
-            rule_plugin_config = list_plugins['rules'][rule]
-            delivery_plugin_config = list_plugins['delivery'][channel]
+            r = list(filter(lambda rules: rules['name'] == rule, list_plugins['rules']))
+            c = list(filter(lambda channels: channels['name'] == channel, list_plugins['delivery']))
+            if len(r) == 0 or len(c) == 0: raise KeyError
+            rule_plugin_config = r[0]['config']
+            delivery_plugin_config = c[0]['config']
         except KeyError:
             raise ValueError("Invalid rule plugin:[{}] and/or delivery plugin:[{}] supplied.".format(rule, channel))
 
         # First create templates for notification and rule, channel plugins
-        post_url = 'http://{}:{}/foglamp/notification/{}'.format(_address, _port, urllib.parse.quote(name))
+        post_url = 'http://{}:{}/notification/{}'.format(_address, _port, urllib.parse.quote(name))
         await _hit_post_url(post_url)  # Create Notification template
-        post_url = 'http://{}:{}/foglamp/notification/{}/rule/{}'.format(_address, _port, urllib.parse.quote(name),
+        post_url = 'http://{}:{}/notification/{}/rule/{}'.format(_address, _port, urllib.parse.quote(name),
                                                                          urllib.parse.quote(rule))
         await _hit_post_url(post_url)  # Create Notification rule template
-        post_url = 'http://{}:{}/foglamp/notification/{}/delivery/{}'.format(_address, _port, urllib.parse.quote(name),
+        post_url = 'http://{}:{}/notification/{}/delivery/{}'.format(_address, _port, urllib.parse.quote(name),
                                                                              urllib.parse.quote(channel))
         await _hit_post_url(post_url)  # Create Notification delivery template
 
@@ -312,8 +315,11 @@ async def put_notification(request):
             url_parts = url.split("/foglamp/notification")
             url = '{}/foglamp/notification/plugin'.format(url_parts[0])
             list_plugins = json.loads(await _hit_get_url(url))
-            rule_plugin_config = list_plugins['rules'][rule]
-            delivery_plugin_config = list_plugins['delivery'][channel]
+            r = list(filter(lambda rules: rules['name'] == rule, list_plugins['rules']))
+            c = list(filter(lambda channels: channels['name'] == channel, list_plugins['delivery']))
+            if len(r) == 0 or len(c) == 0: raise KeyError
+            rule_plugin_config = r[0]['config']
+            delivery_plugin_config = c[0]['config']
         except KeyError:
             raise ValueError("Invalid rule plugin:[{}] and/or delivery plugin:[{}] supplied.".format(rule, channel))
 

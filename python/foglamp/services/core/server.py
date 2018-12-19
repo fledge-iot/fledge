@@ -566,6 +566,12 @@ class Server:
         # Create the parent category for all advanced configuration categories
         try:
             await cls._configuration_manager.create_category("Advanced", {}, 'Advanced', True)
+
+            #
+            # TODO: if we want to allow to even run the FogLAMP in safe-mode, just after the installation
+            # don't add SCHEDULER child key, as scheduler category will be created only
+            # when scheduler runs atleast once
+            #
             await cls._configuration_manager.create_child_category("Advanced", ["SMNTR", "SCHEDULER"])
         except KeyError:
             _logger.error('Failed to create Advanced parent configuration category for service')
@@ -585,6 +591,9 @@ class Server:
 
     @classmethod
     def _start_core(cls, loop=None):
+        if cls.running_in_safe_mode:
+            _logger.info("Starting in safe mode")
+
         _logger.info("start core")
         try:
             host = cls._host
@@ -600,74 +609,19 @@ class Server:
             # get storage client
             loop.run_until_complete(cls._get_storage_client())
 
-            # FIXME: Below check needs at right place
-            if cls.running_in_safe_mode:
-                _logger.info("Running in Safe mode")
-
-                # obtain configuration manager and interest registry
-                cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
-                cls._interest_registry = InterestRegistry(cls._configuration_manager)
-
-                # start monitor
-                loop.run_until_complete(cls._start_service_monitor())
-
-                loop.run_until_complete(cls.rest_api_config())
-                cls.service_app = cls._make_app(auth_required=cls.is_auth_required)
-                # ssl context
-                ssl_ctx = None
-                if not cls.is_rest_server_http_enabled:
-                    # ensure TLS 1.2 and SHA-256
-                    # handle expiry?
-                    ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-                    cert, key = cls.get_certificates()
-                    _logger.info('Loading certificates %s and key %s', cert, key)
-                    ssl_ctx.load_cert_chain(cert, key)
-
-                # Get the service data and advertise the management port of the core
-                # to allow other microservices to find FogLAMP
-                loop.run_until_complete(cls.service_config())
-
-                _logger.info('Announce management API service')
-                cls.management_announcer = ServiceAnnouncer('core.{}'.format(cls._service_name),
-                                                            cls._MANAGEMENT_SERVICE, cls.core_management_port,
-                                                            ['The FogLAMP Core REST API'])
-
-                cls.service_server, cls.service_server_handler = cls._start_app(loop, cls.service_app, host,
-                                                                                 cls.rest_server_port, ssl_ctx=ssl_ctx)
-                address, service_server_port = cls.service_server.sockets[0].getsockname()
-
-                # Write PID file with REST API details
-                cls._write_pid(address, service_server_port)
-
-                _logger.info('REST API Server started on %s://%s:%s',
-                             'http' if cls.is_rest_server_http_enabled else 'https',
-                             address, service_server_port)
-
-                # All services are up so now we can advertise the Admin and User REST API's
-                cls.admin_announcer = ServiceAnnouncer(cls._service_name, cls._ADMIN_API_SERVICE, service_server_port,
-                                                       [cls._service_description])
-                cls.user_announcer = ServiceAnnouncer(cls._service_name, cls._USER_API_SERVICE, service_server_port,
-                                                      [cls._service_description])
-
-                # register core
-                # a service with 2 web server instance,
-                # registering now only when service_port is ready to listen the request
-                # TODO: if ssl then register with protocol https
-                cls._register_core(host, cls.core_management_port, service_server_port)
-
-                loop.run_forever()
-
-            # If readings table is empty, set last_object of all streams to 0
-            cls._check_readings_table(loop)
+            if not cls.running_in_safe_mode:
+                # If readings table is empty, set last_object of all streams to 0
+                cls._check_readings_table(loop)
 
             # obtain configuration manager and interest registry
             cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
             cls._interest_registry = InterestRegistry(cls._configuration_manager)
 
-            # start scheduler
-            # see scheduler.py start def FIXME
-            # scheduler on start will wait for storage service registration
-            loop.run_until_complete(cls._start_scheduler())
+            if not cls.running_in_safe_mode:
+                # start scheduler
+                # see scheduler.py start def FIXME
+                # scheduler on start will wait for storage service registration
+                loop.run_until_complete(cls._start_scheduler())
 
             # start monitor
             loop.run_until_complete(cls._start_service_monitor())
@@ -711,15 +665,18 @@ class Server:
             # TODO: if ssl then register with protocol https
             cls._register_core(host, cls.core_management_port, service_server_port)
 
-            # Create the configuration category parents
-            loop.run_until_complete(cls._config_parents())
+            if not cls.running_in_safe_mode:
+                # TODO: for config parents call in safe mode?
+                # Create the configuration category parents
+                loop.run_until_complete(cls._config_parents())
 
-            # Start asset tracker
-            loop.run_until_complete(cls._start_asset_tracker())
+                # Start asset tracker
+                loop.run_until_complete(cls._start_asset_tracker())
 
             # Everything is complete in the startup sequence, write the audit log entry
             cls._audit = AuditLogger(cls._storage_client_async)
-            loop.run_until_complete(cls._audit.information('START', None))
+            audit_msg = {"message": "Running in safe mode"} if cls.running_in_safe_mode else None
+            loop.run_until_complete(cls._audit.information('START', audit_msg))
 
             loop.run_forever()
 
@@ -748,18 +705,12 @@ class Server:
     async def _stop(cls):
         """Stops FogLAMP"""
         try:
-            # FIXME: Below check at right place and right order
-            if cls.running_in_safe_mode:
-                _logger.info("Stop in safe mode")
-                # stop storage
-                await cls.stop_storage()
-                return
-
             # stop monitor
             await cls.stop_service_monitor()
 
-            # stop the scheduler
-            await cls._stop_scheduler()
+            if not cls.running_in_safe_mode:
+                # stop the scheduler
+                await cls._stop_scheduler()
 
             await cls.stop_microservices()
 
@@ -771,6 +722,7 @@ class Server:
 
             # Must write the audit log entry before we stop the storage service
             cls._audit = AuditLogger(cls._storage_client_async)
+            # TODO: msg for safe mode
             await cls._audit.information('FSTOP', None)
 
             # stop storage

@@ -16,5 +16,5 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-is_safe_mode = True if sys.argv[1] == 'safe-mode' is not None else False
+is_safe_mode = True if sys.argv[1] == 'safe-mode' else False
 Server().start(is_safe_mode)

@@ -566,12 +566,6 @@ class Server:
         # Create the parent category for all advanced configuration categories
         try:
             await cls._configuration_manager.create_category("Advanced", {}, 'Advanced', True)
-
-            #
-            # TODO: if we want to allow to even run the FogLAMP in safe-mode, just after the installation
-            # don't add SCHEDULER child key, as scheduler category will be created only
-            # when scheduler runs atleast once
-            #
             await cls._configuration_manager.create_child_category("Advanced", ["SMNTR", "SCHEDULER"])
         except KeyError:
             _logger.error('Failed to create Advanced parent configuration category for service')

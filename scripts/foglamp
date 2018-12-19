@@ -22,7 +22,7 @@ set -e
 #
 # This is the startup script for foglamp
 #
-USAGE="Usage: `basename ${0}` {start|stop|status|reset|kill|safe-mode|help|version}"
+USAGE="Usage: `basename ${0}` {start|start --safe-mode|stop|status|reset|kill|help|version}"
 
 # Remove any token cache left over from a previous execution
 rm -f ~/.foglamp_token
@@ -99,7 +99,6 @@ foglamp_reset() {
 
 
 ## FogLAMP Start
-SAFE_MODE=''
 foglamp_start() {
     # Check the storage management script
     check_storage_management_script "start"
@@ -488,15 +487,15 @@ foglamp_help() {
 FogLAMP v${FOGLAMP_VERSION} admin script
 The script is used to start FogLAMP
 Arguments:
- start     - Start FogLAMP core (core will start other services).
- stop      - Stop all FogLAMP services and processes
- kill      - Kill all FogLAMP services and processes
- status    - Show the status for the FogLAMP services
- reset     - Restore FogLAMP factory settings
-             WARNING! This command will destroy all your data!
- safe-mode - Safe mode (only core and storage services will be started)
- version   - Print FogLAMP version
- help      - This text"
+ start             - Start FogLAMP core (core will start other services)
+ start --safe-mode - Start in safe mode (only core and storage services will be started)
+ stop              - Stop all FogLAMP services and processes
+ kill              - Kill all FogLAMP services and processes
+ status            - Show the status for the FogLAMP services
+ reset             - Restore FogLAMP factory settings
+                     WARNING! This command will destroy all your data!
+ version           - Print FogLAMP version
+ help              - This text"
 }
 
 
@@ -568,12 +567,21 @@ if [ -f ~/.foglamp ] ; then
 	fi
 fi
 
+SAFE_MODE=''
 # Handle commands
 case "$1" in
     reset)
         foglamp_reset
         ;;
     start)
+        if [ ! -z "$2" ]; then
+            if [ $2 = "--safe-mode" ]; then
+               SAFE_MODE='safe-mode'
+            else
+               echo "An invalid option has been entered: $2. Use --safe-mode"
+               exit 1
+            fi
+        fi
         foglamp_start
         ;;
     stop)
@@ -584,10 +592,6 @@ case "$1" in
         ;;
     status)
         foglamp_status
-        ;;
-    safe-mode)
-        SAFE_MODE='safe-mode'
-        foglamp_start
         ;;
     version)
         foglamp_print_version 

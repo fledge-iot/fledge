@@ -734,7 +734,7 @@ class Scheduler(object):
         self._max_completed_task_age = datetime.timedelta(
             seconds=int(config['max_completed_task_age_days']['value']) * self._DAY_SECONDS)
 
-    async def start(self):
+    async def start(self, is_safe_mode=False):
         """Starts the scheduler
 
         When this method returns, an asyncio task is
@@ -744,16 +744,17 @@ class Scheduler(object):
         Raises:
             NotReadyError: Scheduler was stopped
         """
-        if self._paused or self._schedule_executions is None:
-            raise NotReadyError("The scheduler was stopped and can not be restarted")
+        if not is_safe_mode:
+            if self._paused or self._schedule_executions is None:
+                raise NotReadyError("The scheduler was stopped and can not be restarted")
 
-        if self._ready:
-            return
+            if self._ready:
+                return
 
-        if self._start_time:
-            raise NotReadyError("The scheduler is starting")
+            if self._start_time:
+                raise NotReadyError("The scheduler is starting")
 
-        self._logger.info("Starting")
+            self._logger.info("Starting")
 
         self._start_time = self.current_time if self.current_time else time.time()
 
@@ -784,8 +785,8 @@ class Scheduler(object):
         await self._read_storage()
 
         self._ready = True
-
-        self._scheduler_loop_task = asyncio.ensure_future(self._scheduler_loop())
+        if not is_safe_mode:
+            self._scheduler_loop_task = asyncio.ensure_future(self._scheduler_loop())
 
     async def stop(self):
         """Attempts to stop the scheduler

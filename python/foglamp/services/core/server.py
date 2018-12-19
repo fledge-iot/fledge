@@ -404,7 +404,7 @@ class Server:
         """Starts the scheduler"""
         _logger.info("start scheduler")
         cls.scheduler = Scheduler(cls._host, cls.core_management_port)
-        await cls.scheduler.start()
+        await cls.scheduler.start(cls.running_in_safe_mode)
 
     @staticmethod
     def __start_storage(host, m_port):
@@ -617,11 +617,10 @@ class Server:
             cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
             cls._interest_registry = InterestRegistry(cls._configuration_manager)
 
-            if not cls.running_in_safe_mode:
-                # start scheduler
-                # see scheduler.py start def FIXME
-                # scheduler on start will wait for storage service registration
-                loop.run_until_complete(cls._start_scheduler())
+            # start scheduler
+            # see scheduler.py start def FIXME
+            # scheduler on start will wait for storage service registration
+            loop.run_until_complete(cls._start_scheduler())
 
             # start monitor
             loop.run_until_complete(cls._start_service_monitor())
@@ -665,11 +664,10 @@ class Server:
             # TODO: if ssl then register with protocol https
             cls._register_core(host, cls.core_management_port, service_server_port)
 
-            if not cls.running_in_safe_mode:
-                # TODO: for config parents call in safe mode?
-                # Create the configuration category parents
-                loop.run_until_complete(cls._config_parents())
+            # Create the configuration category parents
+            loop.run_until_complete(cls._config_parents())
 
+            if not cls.running_in_safe_mode:
                 # Start asset tracker
                 loop.run_until_complete(cls._start_asset_tracker())
 

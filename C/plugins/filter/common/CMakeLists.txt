@@ -29,6 +29,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../../../lib)
 # Create shared library
 add_library(${PROJECT_NAME} SHARED ${SOURCES} ${EXTRA_SOURCES})
 target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES})
+
 set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION 1)
 
 # Install library

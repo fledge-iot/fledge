@@ -14,8 +14,19 @@
 #include <stdarg.h>
 #include <memory>
 #include <string.h>
+#include <sys/time.h>
 
 using namespace std;
+
+// uncomment line below to get uSec level timestamps
+//#define ADD_USEC_TS
+
+inline long getCurrTimeUsec()
+{
+	struct timeval m_timestamp;
+	gettimeofday(&m_timestamp, NULL);
+	return m_timestamp.tv_usec;
+}
 
 Logger *Logger::instance = 0;
 
@@ -52,7 +63,11 @@ void Logger::info(const string& msg, ...)
 	va_list args;
 	va_start(args, msg);
 	string *fmt = format(msg, args);
+#ifdef ADD_USEC_TS
+	syslog(LOG_INFO, "[.%06ld] INFO: %s", getCurrTimeUsec(), fmt->c_str());
+#else
 	syslog(LOG_INFO, "INFO: %s", fmt->c_str());
+#endif
 	delete fmt;
 	va_end(args);
 }

@@ -1,3 +1,5 @@
+#include <utility>
+
 /*
  * FogLAMP OSI Soft OMF interface to PI Server.
  *
@@ -15,9 +17,6 @@
 #include <omf.h>
 #include <logger.h>
 #include <zlib.h>
-
-#define REDEFINITION_TYPE_MESSAGE	"Redefinition of the type with the same ID is not allowed"
-#define INVALID_VALUE_TYPE		"Invalid value type for the property"
 
 using namespace std;
 
@@ -1015,6 +1014,17 @@ void OMF::setFormatType(const string &key, string &value)
 }
 
 /**
+ * Set the list of errors considered not blocking in the communication
+ * with the PI Server
+ */
+void OMF::setNotBlockingErrors(std::vector<std::string>& notBlockingErrors)
+{
+
+	m_notBlockingErrors = std::move(notBlockingErrors);
+}
+
+
+/**
  * Increment type-id
  */
 void OMF::incrementTypeId()
@@ -1042,10 +1052,13 @@ bool OMF::isDataTypeError(const char* message)
 	if (message)
 	{
 		string serverReply(message);
-		if (serverReply.find(REDEFINITION_TYPE_MESSAGE) != std::string::npos ||
-		    serverReply.find(INVALID_VALUE_TYPE) != std::string::npos)
-		{
-			return true;
+
+		for(string &item : m_notBlockingErrors) {
+
+			if (serverReply.find(item) != std::string::npos)
+			{
+				return true;
+			}
 		}
 	}
 	return false;

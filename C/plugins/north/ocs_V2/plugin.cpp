@@ -20,6 +20,7 @@
 #include <config_category.h>
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
+#include "json_utils.h"
 
 using namespace std;
 using namespace rapidjson;
@@ -104,7 +105,20 @@ using namespace rapidjson;
 				"\"type\" : \"string\", "\
 				"\"default\": \"ocs_client_secret\", " \
 				"\"order\": \"20\"  " \
-			"} "\
+			"}, "\
+			"\"notBlockingErrors\": {" \
+				"\"description\": "\
+					"\"These errors are considered not blocking in the communication with the PI Server, " \
+					  " the sending operation will proceed with the next block of data if one of these is encountered\" ," \
+				"\"type\": \"JSON\", " \
+				"\"default\": \"{\\\"errors400\\\": "\
+		                        "["\
+		                        "]"\
+                                "}\", " \
+				"\"order\": \"21\" ,"  \
+				"\"readonly\": \"true\" " \
+			"} "
+			// The notBlockingErrors list is empty as OCS is curretly not raising errors, PI-SERVER does.
 
 
 
@@ -144,6 +158,10 @@ typedef struct
 	string		producerToken;	// OCS connector token
 	string		formatNumber;	// OMF protocol Number format
 	string		formatInteger;	// OMF protocol Integer format
+	// Errors considered not blocking in the communication with the PI Server
+	std::vector<std::string>
+			notBlockingErrors;
+
 } CONNECTOR_INFO;
 
 
@@ -220,6 +238,11 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	else
 		connInfo->compression = false;
 
+	// Set the list of errors considered not blocking in the communication
+	// with the PI Server
+	JSONStringToVectorString(connInfo->notBlockingErrors ,
+	                         configData->getValue("notBlockingErrors"),
+	                         std::string("errors400"));
 
 	// Log plugin configuration
 	Logger::getLogger()->info("%s plugin configured: URL=%s, "
@@ -302,6 +325,8 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 				     connInfo->formatNumber);
 	connInfo->omf->setFormatType(OMF_TYPE_INTEGER,
 				     connInfo->formatInteger);
+
+	connInfo->omf->setNotBlockingErrors(connInfo->notBlockingErrors);
 
 	// Send data
 	uint32_t ret = connInfo->omf->sendToServer(readings,

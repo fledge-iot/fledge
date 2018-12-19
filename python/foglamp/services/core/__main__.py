@@ -7,6 +7,7 @@
 
 """Core server starter"""
 
+import sys
 from foglamp.services.core.server import Server
 
 __author__ = "Terris Linenbach"
@@ -15,4 +16,5 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-Server().start()
+is_safe_mode = True if sys.argv[1] == 'safe-mode' is not None else False
+Server().start(is_safe_mode)

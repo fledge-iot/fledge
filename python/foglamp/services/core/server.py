@@ -221,6 +221,9 @@ class Server:
     _asset_tracker = None
     """ Asset tracker """
 
+    running_in_safe_mode = False
+    """ FogLAMP running in Safe mode """
+
     service_app, service_server, service_server_handler = None, None, None
     core_app, core_server, core_server_handler = None, None, None
 
@@ -583,7 +586,6 @@ class Server:
     @classmethod
     def _start_core(cls, loop=None):
         _logger.info("start core")
-
         try:
             host = cls._host
 
@@ -597,6 +599,63 @@ class Server:
 
             # get storage client
             loop.run_until_complete(cls._get_storage_client())
+
+            # FIXME: Below check needs at right place
+            if cls.running_in_safe_mode:
+                _logger.info("Running in Safe mode")
+
+                # obtain configuration manager and interest registry
+                cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
+                cls._interest_registry = InterestRegistry(cls._configuration_manager)
+
+                # start monitor
+                loop.run_until_complete(cls._start_service_monitor())
+
+                loop.run_until_complete(cls.rest_api_config())
+                cls.service_app = cls._make_app(auth_required=cls.is_auth_required)
+                # ssl context
+                ssl_ctx = None
+                if not cls.is_rest_server_http_enabled:
+                    # ensure TLS 1.2 and SHA-256
+                    # handle expiry?
+                    ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+                    cert, key = cls.get_certificates()
+                    _logger.info('Loading certificates %s and key %s', cert, key)
+                    ssl_ctx.load_cert_chain(cert, key)
+
+                # Get the service data and advertise the management port of the core
+                # to allow other microservices to find FogLAMP
+                loop.run_until_complete(cls.service_config())
+
+                _logger.info('Announce management API service')
+                cls.management_announcer = ServiceAnnouncer('core.{}'.format(cls._service_name),
+                                                            cls._MANAGEMENT_SERVICE, cls.core_management_port,
+                                                            ['The FogLAMP Core REST API'])
+
+                cls.service_server, cls.service_server_handler = cls._start_app(loop, cls.service_app, host,
+                                                                                 cls.rest_server_port, ssl_ctx=ssl_ctx)
+                address, service_server_port = cls.service_server.sockets[0].getsockname()
+
+                # Write PID file with REST API details
+                cls._write_pid(address, service_server_port)
+
+                _logger.info('REST API Server started on %s://%s:%s',
+                             'http' if cls.is_rest_server_http_enabled else 'https',
+                             address, service_server_port)
+
+                # All services are up so now we can advertise the Admin and User REST API's
+                cls.admin_announcer = ServiceAnnouncer(cls._service_name, cls._ADMIN_API_SERVICE, service_server_port,
+                                                       [cls._service_description])
+                cls.user_announcer = ServiceAnnouncer(cls._service_name, cls._USER_API_SERVICE, service_server_port,
+                                                      [cls._service_description])
+
+                # register core
+                # a service with 2 web server instance,
+                # registering now only when service_port is ready to listen the request
+                # TODO: if ssl then register with protocol https
+                cls._register_core(host, cls.core_management_port, service_server_port)
+
+                loop.run_forever()
 
             # If readings table is empty, set last_object of all streams to 0
             cls._check_readings_table(loop)
@@ -679,8 +738,9 @@ class Server:
         return core_service_id
 
     @classmethod
-    def start(cls):
+    def start(cls, is_safe_mode=False):
         """Starts FogLAMP"""
+        cls.running_in_safe_mode = is_safe_mode
         loop = asyncio.get_event_loop()
         cls._start_core(loop=loop)
 
@@ -688,6 +748,13 @@ class Server:
     async def _stop(cls):
         """Stops FogLAMP"""
         try:
+            # FIXME: Below check at right place and right order
+            if cls.running_in_safe_mode:
+                _logger.info("Stop in safe mode")
+                # stop storage
+                await cls.stop_storage()
+                return
+
             # stop monitor
             await cls.stop_service_monitor()
 

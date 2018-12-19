@@ -9,6 +9,7 @@
  */
 #include <ingest.h>
 #include <reading.h>
+#include <config_handler.h>
 #include <thread>
 #include <logger.h>
 
@@ -514,10 +515,12 @@ bool Ingest::loadFilters(const string& categoryName)
  *			False otherwise.
  * @thown		Any caught exception
  */
-bool Ingest::setupFiltersPipeline() const
+bool Ingest::setupFiltersPipeline()
 {
-	bool initErrors = false;
-	string errMsg = "'plugin_init' failed for filter '";
+ConfigHandler	*configHandler = ConfigHandler::getInstance(m_mgtClient);
+bool 		initErrors = false;
+string		errMsg = "'plugin_init' failed for filter '";
+
 	for (auto it = m_filters.begin(); it != m_filters.end(); ++it)
 	{
 		string filterCategoryName = (*it)->getName();
@@ -532,6 +535,9 @@ bool Ingest::setupFiltersPipeline() const
 			// Add filter category name under service/process config name
 			children.push_back(filterCategoryName);
 			m_mgtClient->addChildCategories(m_serviceName, children);
+
+        		configHandler->registerCategory(this, filterCategoryName);
+			m_filterCategories.insert(pair<string, FilterPlugin *>(filterCategoryName, *it));
 		}
 		// TODO catch specific exceptions
 		catch (...)
@@ -646,3 +652,21 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 	delete readingSet;
 }
 
+/**
+ * Configuration change for one of our filters. Lookup the category name and
+ * find the plugin to call. Call the reconfigure method of that plugin with
+ * the new configuration.
+ *
+ * Note when the filter pipeline is abstracted this will move to the pipeline
+ *
+ * @param category	The name of the configuration category
+ * @param newConfig	The new category contents
+ */
+void Ingest::configChange(const string& category, const string& newConfig)
+{
+	auto it = m_filterCategories.find(category);
+	if (it != m_filterCategories.end())
+	{
+		it->second->reconfigure(newConfig);
+	}
+}

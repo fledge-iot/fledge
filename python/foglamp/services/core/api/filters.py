@@ -493,6 +493,10 @@ async def _add_child_filters(storage: StorageClientAsync, cf_mgr: ConfigurationM
                                      keep_original_items=True)
         if deleted_values != {}:
             await cf_mgr.update_configuration_item_bulk("{}_{}".format(user_name, filter_name), deleted_values)
+        # Remove cat from cache
+        if filter_name in cf_mgr._cacheManager.cache:
+            cf_mgr._cacheManager.remove(filter_name)
+
     # Create children categories in category_children table
     children = ["{}_{}".format(user_name, _filter) for _filter in filter_list]
     await cf_mgr.create_child_category(category_name=user_name, children=children)

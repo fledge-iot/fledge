@@ -12,6 +12,7 @@
 #include <csignal>
 #include <sys/prctl.h>
 #include <filter_plugin.h>
+#include <map>
 
 #define PLUGIN_UNDEFINED ""
 
@@ -33,6 +34,10 @@
 // the description is derived from the parameter --name
 #define NEW_STREAM_LAST_OBJECT 0
 
+// Data sources handled by the sending process
+#define DATA_SOURCE_READINGS    "readings"
+#define DATA_SOURCE_STATISTICS  "statistics"
+#define DATA_SOURCE_AUDIT       "audit"
 
 using namespace std;
 
@@ -74,12 +79,21 @@ static const string sendingDefaultConfig =
 	"} "
 	"}";
 
+// Translation from the data source type to data source information
+const map<string, std::tuple<string, string, string>>  data_source_to_information = {
+
+	// Data source          - TableName     - Statistics key - Statistics description
+	{DATA_SOURCE_READINGS,   {"readings",   "Readings Sent",   "Readings Sent North"}},
+	{DATA_SOURCE_STATISTICS, {"statistics", "Statistics Sent", "Statistics Sent North"}},
+	{DATA_SOURCE_AUDIT,      {"audit",      "Audit Sent",      "Audit Sent North"}}
+};
+
 // Translation from the data source type to the statistics key/description
 const vector<pair<string, pair<string, string>>>  source_to_statistics = {
 	// Data source  - Statistics key - Statistics description
-	{"readings",   {"Readings Sent",   "Readings Sent North"}},
-	{"statistics", {"Statistics Sent", "Statistics Sent North"}},
-	{"audit",      {"Audit Sent",      "Audit Sent North"}}
+	{DATA_SOURCE_READINGS,   {"Readings Sent",   "Readings Sent North"}},
+	{DATA_SOURCE_STATISTICS, {"Statistics Sent", "Statistics Sent North"}},
+	{DATA_SOURCE_AUDIT,      {"Audit Sent",      "Audit Sent North"}}
 };
 
 volatile std::sig_atomic_t signalReceived = 0;
@@ -270,6 +284,12 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 		} else {
                         m_logger->info(LOG_SERVICE_NAME + " - streamId :" + to_string(m_stream_id) + ": created.");
 		}
+	}
+
+	// Fetch last_object sent from foglamp.streams
+	if (!this->fixReadingId())
+	{
+		m_logger->warn(LOG_SERVICE_NAME + " - // FIXME: '");
 	}
 
 	Logger::getLogger()->info("SendingProcess initialised with %d data buffers.",
@@ -524,6 +544,79 @@ void SendingProcess::updateStatistics(string& stat_key, const string& stat_descr
 		}
 
 	}
+}
+
+
+/**
+// FIXME:
+ */
+unsigned long SendingProcess::RetrieveReadingsMaxId(string tableName,
+						    string fieldName,
+						    string operation)
+{
+	unsigned long maxValue = -1;
+
+	string resultField = operation + "_" + fieldName;
+
+	const Condition conditionId(GreaterThan);
+	Where*      where = new Where(fieldName, conditionId, "0");
+	Aggregate*  max   = new Aggregate(operation, fieldName);
+	Query       query(max ,where);
+
+	ResultSet* resultSet = this->getStorageClient()->queryTable(tableName, query);
+
+	if (resultSet != NULL && resultSet->rowCount())
+	{
+		ResultSet::RowIterator it = resultSet->firstRow();
+
+		ResultSet::Row* row = *it;
+		if (row)
+		{
+			ResultSet::ColumnValue* theVal = row->getColumn(resultField);
+			unsigned long maxValue = (unsigned long)theVal->getInteger();
+		}
+	}
+
+	return (maxValue);
+}
+
+/**
+ * Set the stream_id of foglam.streams to 0 if it is > 0 and the readings table
+ * is empty.
+ * This situation happens if the readings is stored in memory'readingPlugin=sqlitememory'
+ * , some data have been sent (so, stream_id > 0) and FogLAMP restarts.
+ *
+ * @return true if no errors were raised
+ */
+bool SendingProcess::fixReadingId()
+{
+	bool success=true;
+	string tableName;
+
+	// Executes the algorithm only if the sending process is handling the
+	// readings table
+	if (! m_data_source_t.compare(DATA_SOURCE_READINGS))
+	{
+		if (this->getLastSentId() > 0)
+		{
+			// retrieves table name
+			auto item = data_source_to_information.find(DATA_SOURCE_READINGS);
+			if (item != data_source_to_information.end())
+			{
+
+				tableName = std::get<0>(item->second);
+			}
+
+			if (maxRetrieve(tableName, "id", "max") > 0)
+			{
+				// Reset the stream_id field
+				Logger::getLogger()->info("DBG : RESET");
+			}
+		}
+
+	}
+
+	return success;
 }
 
 /**

@@ -448,7 +448,11 @@ def _delete_keys_from_dict(dict_del: Dict, lst_keys: List[str], deleted_values: 
     for k in lst_keys:
         try:
             if parent is not None:
-                deleted_values.update({parent: dict_del[k]})
+                if dict_del['type'] == 'JSON':
+                    i_val = json.loads(dict_del[k]) if isinstance(dict_del[k], str) else dict_del[k]
+                else:
+                    i_val = dict_del[k]
+                deleted_values.update({parent: i_val})
             del dict_del[k]
         except KeyError:
             pass

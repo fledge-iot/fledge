@@ -12,7 +12,6 @@ from aiohttp import web
 from foglamp.common import utils
 from foglamp.common import logger
 from foglamp.common.service_record import ServiceRecord
-from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.exceptions import StorageServerError
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.services.core import connect
@@ -191,6 +190,19 @@ async def post_notification(request):
         except KeyError:
             raise ValueError("Invalid rule plugin:[{}] and/or delivery plugin:[{}] supplied.".format(rule, channel))
 
+        # Verify if rule_config contains valid keys
+        if rule_config != {}:
+            for k, v in rule_config.items():
+                if k not in rule_plugin_config:
+                    raise ValueError("Invalid key:[{}] in rule_config:[{}] supplied for plugin [{}].".format(k, rule_config, rule))
+
+        # Verify if delivery_config contains valid keys
+        if delivery_config != {}:
+            for k, v in delivery_config.items():
+                if k not in delivery_plugin_config:
+                    raise ValueError(
+                        "Invalid key:[{}] in delivery_config:[{}] supplied for plugin [{}].".format(k, delivery_config, channel))
+
         # First create templates for notification and rule, channel plugins
         post_url = 'http://{}:{}/notification/{}'.format(_address, _port, urllib.parse.quote(name))
         await _hit_post_url(post_url)  # Create Notification template
@@ -205,41 +217,12 @@ async def post_notification(request):
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
         notification_config = {
-            "name": {
-                "description": "The name of this notification",
-                "type": "string",
-                "default": name,
-            },
-            "description": {
-                "description": "Description of this notification",
-                "type": "string",
-                "default": description,
-            },
-            "rule": {
-                "description": "Rule to evaluate",
-                "type": "string",
-                "default": rule,
-            },
-            "channel": {
-                "description": "Channel to send alert on",
-                "type": "string",
-                "default": channel,
-            },
-            "notification_type": {
-                "description": "Type of notification",
-                "type": "enumeration",
-                "options": NOTIFICATION_TYPE,
-                "default": notification_type,
-            },
-            "enable": {
-                "description": "Enabled",
-                "type": "boolean",
-                "default": is_enabled,
-            }
+            "rule": rule,
+            "channel": channel,
+            "notification_type": notification_type,
+            "enable":is_enabled,
         }
-        await _create_configurations(storage, config_mgr, name, notification_config,
-                                     rule, rule_plugin_config, rule_config,
-                                     channel, delivery_plugin_config, delivery_config)
+        await _update_configurations(config_mgr, name, notification_config, rule_config, delivery_config)
     except ValueError as ex:
         raise web.HTTPBadRequest(reason=str(ex))
     except Exception as e:
@@ -253,7 +236,10 @@ async def put_notification(request):
     Update an existing notification
 
     :Example:
-             curl -X PUT http://localhost:8081/foglamp/notification/<notification_name> -d '{"description":"Test Notification", "rule": "threshold", "channel": "email", "notification_type": "one shot", "enabled": false}'
+             curl -X PUT http://localhost:8081/foglamp/notification/<notification_name> -d '{"description":"Test Notification modified"}'
+             curl -X PUT http://localhost:8081/foglamp/notification/<notification_name> -d '{"rule": "threshold", "channel": "email"}'
+             curl -X PUT http://localhost:8081/foglamp/notification/<notification_name> -d '{"notification_type": "one shot", "enabled": false}'
+             curl -X PUT http://localhost:8081/foglamp/notification/<notification_name> -d '{"enabled": false}'
              curl -X PUT http://localhost:8081/foglamp/notification/<notification_name> -d '{"description":"Test Notification", "rule": "threshold", "channel": "email", "notification_type": "one shot", "enabled": false, "rule_config": {}, "delivery_config": {}}'
     """
     try:
@@ -281,26 +267,13 @@ async def put_notification(request):
         rule_config = data.get('rule_config', {})
         delivery_config = data.get('delivery_config', {})
 
-        storage = connect.get_storage_async()
-        config_mgr = ConfigurationManager(storage)
-
-        current_config = await config_mgr._read_category_val(notif)
-        if description is None:
-            description = current_config['description']['value']
-        if rule is None:
-            rule = current_config['rule']['value']
-        if channel is None:
-            channel = current_config['channel']['value']
-        if notification_type is None:
-            notification_type = current_config['notification_type']['value']
-
         if utils.check_reserved(notif) is False:
             raise ValueError('Invalid notification name parameter.')
-        if utils.check_reserved(rule) is False:
+        if rule is not None and utils.check_reserved(rule) is False:
             raise ValueError('Invalid rule property in payload.')
-        if utils.check_reserved(channel) is False:
+        if channel is not None and utils.check_reserved(channel) is False:
             raise ValueError('Invalid channel property in payload.')
-        if notification_type not in NOTIFICATION_TYPE:
+        if notification_type is not None and notification_type not in NOTIFICATION_TYPE:
             raise ValueError('Invalid notification_type property in payload.')
 
         if enabled is not None:
@@ -309,54 +282,70 @@ async def put_notification(request):
         is_enabled = "true" if ((type(enabled) is str and enabled.lower() in ['true']) or (
             (type(enabled) is bool and enabled is True))) else "false"
 
+        storage = connect.get_storage_async()
+        config_mgr = ConfigurationManager(storage)
+
+        current_config = await config_mgr._read_category_val(notif)
+        rule_changed = True if rule is not None and rule != current_config['rule']['value'] else False
+        channel_changed = True if channel is not None and channel != current_config['channel']['value'] else False
+
         try:
             # Get default config for rule and channel plugins
             url = str(request.url)
             url_parts = url.split("/foglamp/notification")
             url = '{}/foglamp/notification/plugin'.format(url_parts[0])
             list_plugins = json.loads(await _hit_get_url(url))
-            r = list(filter(lambda rules: rules['name'] == rule, list_plugins['rules']))
-            c = list(filter(lambda channels: channels['name'] == channel, list_plugins['delivery']))
-            if len(r) == 0 or len(c) == 0: raise KeyError
+
+            search_rule = rule if rule_changed else current_config['rule']['value']
+            r = list(filter(lambda rules: rules['name'] == search_rule, list_plugins['rules']))
+            if len(r) == 0: raise KeyError
             rule_plugin_config = r[0]['config']
+
+            search_channel = channel if channel_changed else current_config['channel']['value']
+            c = list(filter(lambda channels: channels['name'] == search_channel, list_plugins['delivery']))
+            if len(c) == 0: raise KeyError
             delivery_plugin_config = c[0]['config']
         except KeyError:
-            raise ValueError("Invalid rule plugin:[{}] and/or delivery plugin:[{}] supplied.".format(rule, channel))
+            raise ValueError("Invalid rule plugin:{} and/or delivery plugin:{} supplied.".format(rule, channel))
 
-        # Update configurations
-        notification_config = {
-            "name": {
-                "description": "The name of this notification",
-                "type": "string",
-                "default": notif,
-            },
-            "description": {
-                "description": "Description of this notification",
-                "type": "string",
-                "default": description,
-            },
-            "rule": {
-                "description": "Rule to evaluate",
-                "type": "string",
-                "default": rule,
-            },
-            "channel": {
-                "description": "Channel to send alert on",
-                "type": "string",
-                "default": channel,
-            },
-            "notification_type": {
-                "description": "Type of notification",
-                "type": "enumeration",
-                "options": NOTIFICATION_TYPE,
-                "default": notification_type,
-            },
-            "enable": {
-                "description": "Enabled",
-                "type": "boolean",
-                "default": is_enabled,
-            }
-        }
+        # Verify if rule_config contains valid keys
+        if rule_config != {}:
+            for k, v in rule_config.items():
+                if k not in rule_plugin_config:
+                    raise ValueError("Invalid key:{} in rule plugin:{}".format(k, rule_plugin_config))
+
+        # Verify if delivery_config contains valid keys
+        if delivery_config != {}:
+            for k, v in delivery_config.items():
+                if k not in delivery_plugin_config:
+                    raise ValueError(
+                        "Invalid key:{} in delivery plugin:{}".format(k, delivery_plugin_config))
+
+        if rule_changed:  # A new rule has been supplied
+            category_desc = rule_plugin_config['plugin']['description']
+            category_name = "rule{}".format(notif)
+            await config_mgr.create_category(category_name=category_name,
+                                             category_description=category_desc,
+                                             category_value=rule_plugin_config,
+                                             keep_original_items=False)
+        if channel_changed:  # A new delivery has been supplied
+            category_desc = delivery_plugin_config['plugin']['description']
+            category_name = "delivery{}".format(notif)
+            await config_mgr.create_category(category_name=category_name,
+                                             category_description=category_desc,
+                                             category_value=delivery_plugin_config,
+                                             keep_original_items=False)
+        notification_config = {}
+        if description is not None:
+            notification_config.update({"description": description})
+        if rule is not None:
+            notification_config.update({"rule": rule})
+        if channel is not None:
+            notification_config.update({"channel": channel})
+        if notification_type is not None:
+            notification_config.update({"notification_type": notification_type})
+        if enabled is not None:
+            notification_config.update({"enable": is_enabled})
         await _update_configurations(config_mgr, notif, notification_config, rule_config, delivery_config)
     except ValueError as ex:
         raise web.HTTPBadRequest(reason=str(ex))
@@ -439,83 +428,19 @@ async def _hit_post_url(post_url, data=None):
         return jdoc
 
 
-async def _create_configurations(storage, config_mgr, name, notification_config,
-                                 rule, rule_plugin_config, rule_config,
-                                 channel, delivery_plugin_config, delivery_config):
-    try:
-        # Main notification - Create a main notification configuration category
-        category_desc = notification_config['description']['default']
-        await config_mgr.create_category(category_name=name,
-                                         category_description=category_desc,
-                                         category_value=notification_config,
-                                         keep_original_items=True)
-        # Create the parent category for all Notifications
-        await config_mgr.create_category("Notifications", {}, "Notifications", True)
-        await config_mgr.create_child_category("Notifications", [name])
-
-        # Rule - Create a rule configuration category from the configuration defined in the rule plugin
-        category_desc = rule_plugin_config['plugin']['description']
-        category_name = "rule{}".format(name)
-        await config_mgr.create_category(category_name=category_name,
-                                         category_description=category_desc,
-                                         category_value=rule_plugin_config,
-                                         keep_original_items=True)
-        # Create the child rule category
-        await config_mgr.create_child_category(name, [category_name])
-
-        # If rule_config is in POST data, then update the value for each config item
-        if rule_config is not None:
-            if not isinstance(rule_config, dict):
-                raise ValueError('rule_config must be a JSON object')
-            for k, v in rule_config.items():
-                await config_mgr.set_category_item_value_entry("rule{}".format(name), k, v['value'])
-
-        # Delivery - Create a delivery configuration category from the configuration defined in the delivery plugin
-        category_desc = delivery_plugin_config['plugin']['description']
-        category_name = "delivery{}".format(name)
-        await config_mgr.create_category(category_name=category_name,
-                                         category_description=category_desc,
-                                         category_value=delivery_plugin_config,
-                                         keep_original_items=True)
-        # Create the child delivery category
-        await config_mgr.create_child_category(name, [category_name])
-
-        # If delivery_config is in POST data, then update the value for each config item
-        if delivery_config is not None:
-            if not isinstance(delivery_config, dict):
-                raise ValueError('delivery_config must be a JSON object')
-            for k, v in delivery_config.items():
-                await config_mgr.set_category_item_value_entry("delivery{}".format(name), k, v['value'])
-    except Exception as ex:
-        _logger.exception("Failed to create notification configuration. %s", str(ex))
-        await config_mgr.delete_category_and_children_recursively(name)
-        raise web.HTTPInternalServerError(reason='Failed to create notification configuration.')
-
-
 async def _update_configurations(config_mgr, name, notification_config, rule_config, delivery_config):
     try:
         # Update main notification
-        category_desc = notification_config['description']['default']
-        await config_mgr.create_category(category_name=name,
-                                         category_description=category_desc,
-                                         category_value=notification_config,
-                                         keep_original_items=True)
-
+        if notification_config != {}:
+            await config_mgr.update_configuration_item_bulk(name, notification_config)
         # Replace rule configuration
         if rule_config != {}:
-            category_desc = rule_config['plugin']['description']
             category_name = "rule{}".format(name)
-            await config_mgr._update_category(category_name=category_name,
-                                              category_description=category_desc,
-                                              category_val=rule_config)
-
+            await config_mgr.update_configuration_item_bulk(category_name, rule_config)
         # Replace delivery configuration
         if delivery_config != {}:
-            category_desc = delivery_config['plugin']['description']
             category_name = "delivery{}".format(name)
-            await config_mgr._update_category(category_name=category_name,
-                                              category_description=category_desc,
-                                              category_val=delivery_config)
+            await config_mgr.update_configuration_item_bulk(category_name, delivery_config)
     except Exception as ex:
         _logger.exception("Failed to update notification configuration. %s", str(ex))
         raise web.HTTPInternalServerError(reason='Failed to update notification configuration.')

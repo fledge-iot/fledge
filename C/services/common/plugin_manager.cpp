@@ -15,6 +15,7 @@
 #include <plugin_manager.h>
 #include <binary_plugin_handle.h>
 #include <python_plugin_handle.h>
+#include <dirent.h>
 
 using namespace std;
 
@@ -225,3 +226,60 @@ PLUGIN_HANDLE PluginManager::resolveSymbol(PLUGIN_HANDLE handle, const string& s
   return pluginHandleMap.find(handle)->second->ResolveSymbol(symbol.c_str());
 }
 
+/**
+ * Get the installed plugins in the given plugin type
+ * subdirectory of "plugins" under FOGLAMP_ROOT
+ * Plugin type is one of:
+ * south, north, filter, notificationRule, notificationDelivery
+ *
+ * @param    type		The plugin type
+ * @param    plugins		The output plugin list name to fill	
+ */
+void PluginManager::getInstalledPlugins(const string& type,
+					list<string>& plugins)
+{
+	char *home = getenv("FOGLAMP_ROOT");
+	if (home)
+	{
+		struct dirent *entry;
+		DIR *dp;
+		string path = home;
+		path += "/plugins/" + type + "/";
+
+		// Open the plugins dir/type
+		dp = opendir(path.c_str());
+
+		if (!dp)
+		{
+			// Can not open specified dir path
+			char msg[128];
+			char* ret = strerror_r(errno, msg, 128);
+			logger->fatal("Can not access plugin directory %s: %s",
+				      path.c_str(),
+				      ret);
+			return;
+		}
+
+		/**
+		 * Get all sub directory names in path:
+		 * path = plugins/filter/
+		 *     delta
+		 *     scale
+
+		 * Plugin filename is libdelta.so, libscale.so
+		 * Plugin name is the subdirecory name in path
+		 */
+		while ((entry = readdir(dp)))
+		{
+			if (strcmp (entry->d_name, "..") != 0 &&
+			    strcmp (entry->d_name, ".") != 0)
+			{
+				// Load plugin, given its name: the directory name
+				loadPlugin(entry->d_name, type);
+				// Add name to ouput list
+				plugins.push_back(entry->d_name);
+			}
+		}
+		closedir(dp);
+	}
+}

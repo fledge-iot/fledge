@@ -614,6 +614,10 @@ class Server:
             # start scheduler
             # see scheduler.py start def FIXME
             # scheduler on start will wait for storage service registration
+            #
+            # NOTE: In safe mode, the scheduler will be in restricted mode,
+            # and only API operations and current state will be accessible (No jobs / processes will be triggered)
+            #
             loop.run_until_complete(cls._start_scheduler())
 
             # start monitor
@@ -689,6 +693,11 @@ class Server:
     @classmethod
     def start(cls, is_safe_mode=False):
         """Starts FogLAMP"""
+        #
+        # is_safe_mode: When True, It prevents the start of any services or tasks other than the storage layer.
+        # Starting FogLAMP in this way would mean only the core and storage services would be running.
+        # And Scheduler will be running in restricted mode.
+        #
         cls.running_in_safe_mode = is_safe_mode
         loop = asyncio.get_event_loop()
         cls._start_core(loop=loop)
@@ -700,9 +709,8 @@ class Server:
             # stop monitor
             await cls.stop_service_monitor()
 
-            if not cls.running_in_safe_mode:
-                # stop the scheduler
-                await cls._stop_scheduler()
+            # stop the scheduler
+            await cls._stop_scheduler()
 
             await cls.stop_microservices()
 
@@ -714,8 +722,8 @@ class Server:
 
             # Must write the audit log entry before we stop the storage service
             cls._audit = AuditLogger(cls._storage_client_async)
-            # TODO: msg for safe mode
-            await cls._audit.information('FSTOP', None)
+            audit_msg = {"message": "Exited from safe mode"} if cls.running_in_safe_mode else None
+            await cls._audit.information('FSTOP', audit_msg)
 
             # stop storage
             await cls.stop_storage()

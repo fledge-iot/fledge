@@ -741,6 +741,9 @@ class Scheduler(object):
         scheduled that starts tasks and monitors their subprocesses. This class
         does not use threads (tasks run as subprocesses).
 
+        is_safe_mode: By default False
+                     When True, the scheduler will be in restricted mode,
+                     and only API operations and current state will be accessible (No jobs / processes will be triggered)
         Raises:
             NotReadyError: Scheduler was stopped
         """

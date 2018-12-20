@@ -79,6 +79,11 @@ static const string sendingDefaultConfig =
 	"} "
 	"}";
 
+
+#define DATA_SOURCE_INFORMATION_TABLE_NAME 0
+#define DATA_SOURCE_INFORMATION_STAT_KEY   1
+#define DATA_SOURCE_INFORMATION_STAT_DESCR 2
+
 // Translation from the data source type to data source information
 const map<string, std::tuple<string, string, string>>  data_source_to_information = {
 
@@ -286,11 +291,7 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 		}
 	}
 
-	// Fetch last_object sent from foglamp.streams
-	if (!this->fixReadingId())
-	{
-		m_logger->warn(LOG_SERVICE_NAME + " - // FIXME: '");
-	}
+	this->fixStreamsLastId();
 
 	Logger::getLogger()->info("SendingProcess initialised with %d data buffers.",
 				  m_memory_buffer_size);
@@ -434,32 +435,39 @@ void SendingProcess::stop()
 	Logger::getLogger()->info("SendingProcess successfully terminated");
 }
 
+
+
 /**
- * Update database tables statistics and streams
- * setting last_object id in streams
+ * // FIXME:
+ *
  */
-void SendingProcess::updateDatabaseCounters()
+void SendingProcess::updateStreamLastSentId(long lastSentId)
 {
-	// Update counters to Database
 
 	string streamId = to_string(this->getStreamId());
 
 	// Prepare WHERE id = val
 	const Condition conditionStream(Equals);
 	Where wStreamId("id",
-			conditionStream,
-			streamId);
+	                conditionStream,
+	                streamId);
 
 	// Prepare last_object = value
 	InsertValues lastId;
-	lastId.push_back(InsertValue("last_object",
-			 (long)this->getLastSentId()));
+	lastId.push_back(InsertValue("last_object",lastSentId));
 
 	// Perform UPDATE foglamp.streams SET last_object = x WHERE id = y
 	this->getStorageClient()->updateTable("streams",
-					      lastId,
-					      wStreamId);
-
+	                                      lastId,
+	                                      wStreamId);
+}
+/**
+ * Update database tables statistics and streams
+ * setting last_object id in streams
+ */
+void SendingProcess::updateDatabaseCounters()
+{
+	updateStreamLastSentId((long)this->getLastSentId());
 
 	// Updates 'Master' statistic
 	string stat_key;
@@ -550,11 +558,11 @@ void SendingProcess::updateStatistics(string& stat_key, const string& stat_descr
 /**
 // FIXME:
  */
-unsigned long SendingProcess::RetrieveReadingsMaxId(string tableName,
-						    string fieldName,
-						    string operation)
+long SendingProcess::retrieveAggregate(string tableName,
+                                       string fieldName,
+                                       string operation)
 {
-	unsigned long maxValue = -1;
+	long maxValue = -1;
 
 	string resultField = operation + "_" + fieldName;
 
@@ -573,22 +581,42 @@ unsigned long SendingProcess::RetrieveReadingsMaxId(string tableName,
 		if (row)
 		{
 			ResultSet::ColumnValue* theVal = row->getColumn(resultField);
-			unsigned long maxValue = (unsigned long)theVal->getInteger();
+			maxValue = (long)theVal->getInteger();
 		}
 	}
 
 	return (maxValue);
 }
 
+
 /**
- * Set the stream_id of foglam.streams to 0 if it is > 0 and the readings table
+ * // FIXME:
+ */
+string SendingProcess::retrieveTableInformationName(const char* dataSource)
+{
+	string tableInfo;
+
+	// Identifies table name
+	auto item = data_source_to_information.find(dataSource);
+	if (item != data_source_to_information.end())
+	{
+
+		tableInfo = std::get<DATA_SOURCE_INFORMATION_TABLE_NAME>(item->second);
+	}
+
+	return(tableInfo);
+}
+
+
+/**
+ * Set the stream_id of foglamp.streams to 0 if it is > 0 and the readings table
  * is empty.
  * This situation happens if the readings is stored in memory'readingPlugin=sqlitememory'
  * , some data have been sent (so, stream_id > 0) and FogLAMP restarts.
  *
  * @return true if no errors were raised
  */
-bool SendingProcess::fixReadingId()
+bool SendingProcess::fixStreamsLastId()
 {
 	bool success=true;
 	string tableName;
@@ -597,20 +625,31 @@ bool SendingProcess::fixReadingId()
 	// readings table
 	if (! m_data_source_t.compare(DATA_SOURCE_READINGS))
 	{
-		if (this->getLastSentId() > 0)
+		unsigned long streamsLastId = getLastSentId();
+
+		if (streamsLastId > 0)
 		{
-			// retrieves table name
-			auto item = data_source_to_information.find(DATA_SOURCE_READINGS);
-			if (item != data_source_to_information.end())
-			{
+			// Identifies table name
+			tableName = retrieveTableInformationName(DATA_SOURCE_READINGS);
 
-				tableName = std::get<0>(item->second);
-			}
+			long readingsMaxId = this->retrieveAggregate(tableName, "id", "max");
 
-			if (maxRetrieve(tableName, "id", "max") > 0)
+			// Reset the stream_id field
+			if (readingsMaxId == 0)
 			{
-				// Reset the stream_id field
-				Logger::getLogger()->info("DBG : RESET");
+				// Situation:
+				// 1- data source = readings
+				// 2- last sent id > 0
+				// 3- readings empty
+
+				updateStreamLastSentId(0);
+				getLastSentReadingId();
+
+				Logger::getLogger()->info("streams id reset - stream id |%d| "
+				                          "- readings max id |%ld| - streams last id |%lu|",
+				                          m_stream_id,
+				                          readingsMaxId,
+				                          streamsLastId);
 			}
 		}
 

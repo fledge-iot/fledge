@@ -44,7 +44,7 @@ class SendingProcess : public FogLampProcess
 		};
 		void			resetSentReadings() { m_tot_sent = 0; };
 		void			updateDatabaseCounters();
-		bool			fixReadingId();
+		bool			fixStreamsLastId();
                 bool			getLastSentReadingId();
                 bool			createStream(int);
                 int			createNewStream();
@@ -82,9 +82,11 @@ class SendingProcess : public FogLampProcess
 							   READINGSET* readings);
 
 	private:
-                unsigned long           RetrieveReadingsMaxId(std::string tableName,
-                                                              std::string fieldName,
-                                                              std::string operation);
+                std::string             retrieveTableInformationName(const char* dataSource);
+                void                    updateStreamLastSentId(long lastSentId);
+                long                    retrieveAggregate(std::string tableName,
+                                                          std::string fieldName,
+                                                          std::string operation);
 		void			setDuration(unsigned int val) { m_duration = val; };
 		void			setSleepTime(unsigned long val) { m_sleep = val; };
 		void			setReadBlockSize(unsigned long size) { m_block_size = size; };

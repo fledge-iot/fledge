@@ -130,7 +130,11 @@ foglamp_start() {
 
         "2")
             #FogLAMP not running
-            echo -n "Starting FogLAMP v${FOGLAMP_VERSION}."
+            if [[ "$SAFE_MODE" == "safe-mode" ]]; then
+                echo -n "Starting FogLAMP v${FOGLAMP_VERSION} in safe mode."
+            else
+                echo -n "Starting FogLAMP v${FOGLAMP_VERSION}."
+            fi
             PYTHONPATH=${FOGLAMP_ROOT}/python
             export PYTHONPATH
             if [[ ! -e "$PYTHONPATH/foglamp/services/core/__main__.py" ]]; then
@@ -385,13 +389,20 @@ foglamp_status() {
                 record_sent=`echo ${result} | tr -d ' ' | grep -o '"dataSent".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/}//g'`
                 record_purged=`echo ${result} | tr -d ' ' | grep -o '"dataPurged".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/}//g'`
                 auth_opt=`echo ${result} | tr -d ' ' | grep -o '"authenticationOptional".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/}//g'`
+                safe_mode=`echo ${result} | tr -d ' ' | grep -o '"safeMode".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/}//g'`
                 if [[ "${auth_opt}" == "true" ]]; then
                   req_auth="does not require"
                 else
                   req_auth="requires"
                 fi
 
-                foglamp_log "info" "FogLAMP v${FOGLAMP_VERSION} running." "outonly" "pretty"
+                if [[ "${safe_mode}" == "true" ]]; then
+                  safe_mode=" in safe mode"
+                else
+                  safe_mode=""
+                fi
+
+                foglamp_log "info" "FogLAMP v${FOGLAMP_VERSION} running${safe_mode}." "outonly" "pretty"
                 foglamp_log "info" "FogLAMP Uptime:  ${uptime_sec} seconds." "outonly" "pretty"
                 foglamp_log "info" "FogLAMP records: ${record_read} read, ${record_sent} sent, ${record_purged} purged." "outonly" "pretty"
                 

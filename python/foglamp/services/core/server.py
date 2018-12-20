@@ -402,13 +402,13 @@ class Server:
     @classmethod
     async def _start_scheduler(cls):
         """Starts the scheduler"""
-        _logger.info("start scheduler")
-        cls.scheduler = Scheduler(cls._host, cls.core_management_port)
-        await cls.scheduler.start(cls.running_in_safe_mode)
+        _logger.info("Starting scheduler ...")
+        cls.scheduler = Scheduler(cls._host, cls.core_management_port, cls.running_in_safe_mode)
+        await cls.scheduler.start()
 
     @staticmethod
     def __start_storage(host, m_port):
-        _logger.info("start storage, from directory %s", _SCRIPTS_DIR)
+        _logger.info("Start storage, from directory %s", _SCRIPTS_DIR)
         try:
             cmd_with_args = ['./services/storage', '--address={}'.format(host),
                              '--port={}'.format(m_port)]
@@ -586,9 +586,9 @@ class Server:
     @classmethod
     def _start_core(cls, loop=None):
         if cls.running_in_safe_mode:
-            _logger.info("Starting in safe mode")
-
-        _logger.info("start core")
+            _logger.info("Starting in SAFE MODE ...")
+        else:
+            _logger.info("Starting ...")
         try:
             host = cls._host
 

@@ -432,7 +432,17 @@ int StorageClient::insertTable(const string& tableName, const InsertValues& valu
  */
 int StorageClient::updateTable(const string& tableName, const InsertValues& values, const Where& where)
 {
+	static HttpClient *httpClient = this->getHttpClient(); // to initialize m_seqnum_map[thread_id] for this thread
 	try {
+		std::thread::id thread_id = std::this_thread::get_id();
+		ostringstream ss;
+		sto_mtx_client_map.lock();
+		m_seqnum_map[thread_id].fetch_add(1);
+		ss << thread_id << "_" << m_seqnum_map[thread_id].load();
+		sto_mtx_client_map.unlock();
+
+		SimpleWeb::CaseInsensitiveMultimap headers = {{"SeqNum", ss.str()}};
+		
 		ostringstream convert;
 
 		convert << "{ \"updates\" : [ ";
@@ -445,7 +455,7 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 		
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
-		auto res = this->getHttpClient()->request("PUT", url, convert.str());
+		auto res = this->getHttpClient()->request("PUT", url, convert.str(), headers);
 		if (res->status_code.compare("200 OK") == 0)
 		{
 			ostringstream resultPayload;
@@ -487,7 +497,17 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
  */
 int StorageClient::updateTable(const string& tableName, const ExpressionValues& values, const Where& where)
 {
+	static HttpClient *httpClient = this->getHttpClient(); // to initialize m_seqnum_map[thread_id] for this thread
 	try {
+		std::thread::id thread_id = std::this_thread::get_id();
+		ostringstream ss;
+		sto_mtx_client_map.lock();
+		m_seqnum_map[thread_id].fetch_add(1);
+		ss << thread_id << "_" << m_seqnum_map[thread_id].load();
+		sto_mtx_client_map.unlock();
+
+		SimpleWeb::CaseInsensitiveMultimap headers = {{"SeqNum", ss.str()}};
+		
 		ostringstream convert;
 
 		convert << "{ \"updates\" : [ ";
@@ -500,7 +520,7 @@ int StorageClient::updateTable(const string& tableName, const ExpressionValues& 
 		
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
-		auto res = this->getHttpClient()->request("PUT", url, convert.str());
+		auto res = this->getHttpClient()->request("PUT", url, convert.str(), headers);
 		if (res->status_code.compare("200 OK") == 0)
 		{
 			ostringstream resultPayload;

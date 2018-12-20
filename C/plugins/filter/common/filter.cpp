@@ -40,3 +40,15 @@ FogLampFilter::FogLampFilter(const string& filterName,
 			    m_config.getValue("enable").compare("True") == 0;
 	}
 }
+
+/**
+ * Set a new configurartion for this plugin
+ *
+ * @param newConfig	The new configuration
+ */
+void FogLampFilter::setConfig(const string& newConfig)
+{
+	m_config = ConfigCategory(m_name, newConfig);
+	m_enabled = m_config.getValue("enable").compare("true") == 0 ||
+			m_config.getValue("enable").compare("True") == 0;
+}

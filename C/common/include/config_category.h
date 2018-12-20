@@ -89,6 +89,7 @@ class ConfigCategory {
 		std::string			toJSON(const bool full=false) const;
 		std::string			itemsToJSON(const bool full=false) const;
 		ConfigCategory& 		operator=(ConfigCategory const& rhs);
+		ConfigCategory& 		operator+=(ConfigCategory const& rhs);
 		void				setItemsValueFromDefault();
 		void				checkDefaultValuesOnly() const;
 		std::string 			itemToJSON(const std::string& itemName) const;

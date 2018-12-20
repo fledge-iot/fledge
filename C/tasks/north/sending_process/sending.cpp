@@ -733,7 +733,7 @@ ConfigCategory SendingProcess::fetchConfiguration(const std::string& defaultConf
 							 info->config);
 
 			// Copy all pluginInfo items into current sendingProcess config
-			category = pluginInfo;
+			category += pluginInfo;
 		}
 
 		// Create/Update hierarchical configuration categories

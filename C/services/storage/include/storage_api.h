@@ -64,6 +64,7 @@ public:
 	void	readingPurge(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 	void	readingRegister(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 	void	readingUnregister(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
+	void	printList();
 
 private:
         static StorageApi       *m_instance;
@@ -74,7 +75,9 @@ private:
 	StoragePlugin		*plugin;
 	StoragePlugin		*readingPlugin;
 	StorageStats		stats;
-	std::map<std::string, int> m_seqnum_map;
+	std::map<string, pair<int,std::list<std::string>::iterator>> m_seqnum_map;
+	const unsigned int	max_entries_in_seqnum_map = 16;
+	std::list<std::string>	seqnum_map_lru_list; // has the most recently accessed elements of m_seqnum_map at front of the dequeue
 	std::mutex 		mtx_seqnum_map;
 	StorageRegistry		registry;
 	void			respond(shared_ptr<HttpServer::Response>, const string&);

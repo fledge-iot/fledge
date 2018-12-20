@@ -366,13 +366,12 @@ string	responsePayload;
 	{
 		string threadId = header_seq->second.substr(0, header_seq->second.find("_"));
 		int seqNum = stoi(header_seq->second.substr(header_seq->second.find("_")+1));
-
 		{
 			std::unique_lock<std::mutex> lock(mtx_seqnum_map);
 			auto it = m_seqnum_map.find(threadId);
 			if (it != m_seqnum_map.end())
 			{
-				if (seqNum <= it->second)
+				if (seqNum <= it->second.first)
 				{
 					responsePayload = "{ \"response\" : \"updated\", \"rows_affected\"  : ";
 					responsePayload += to_string(0);
@@ -382,13 +381,24 @@ string	responsePayload;
 					respond(response, responsePayload);
 					return;
 				}
-				else
-					m_seqnum_map[threadId] = seqNum;
+				
+				// remove this threadId from LRU list; will add this to front of LRU list below
+				seqnum_map_lru_list.erase(m_seqnum_map[threadId].second);
 			}
 			else
 			{
-				m_seqnum_map[threadId] = seqNum;
+				if (seqnum_map_lru_list.size() == max_entries_in_seqnum_map) // LRU list is full
+				{
+					//delete least recently used element
+					string last = seqnum_map_lru_list.back();
+					seqnum_map_lru_list.pop_back();
+					m_seqnum_map.erase(last);
+				}
 			}
+
+			// insert an entry for threadId at front of LRU queue
+			seqnum_map_lru_list.push_front(threadId);
+			m_seqnum_map[threadId] = make_pair(seqNum, seqnum_map_lru_list.begin());
 		}
 	}
 	
@@ -561,7 +571,7 @@ string  responsePayload;
 			auto it = m_seqnum_map.find(threadId);
 			if (it != m_seqnum_map.end())
 			{
-				if (seqNum <= it->second)
+				if (seqNum <= it->second.first)
 				{
 					responsePayload = "{ \"response\" : \"appended\", \"readings_added\" : ";
 					responsePayload += to_string(0);
@@ -571,13 +581,22 @@ string  responsePayload;
 					respond(response, responsePayload);
 					return;
 				}
-				else
-					m_seqnum_map[threadId] = seqNum;
+				// remove this threadId from LRU list; will add this to front of LRU list below
+				seqnum_map_lru_list.erase(m_seqnum_map[threadId].second);
 			}
 			else
 			{
-				m_seqnum_map[threadId] = seqNum;
+				if (seqnum_map_lru_list.size() == max_entries_in_seqnum_map) // LRU list is full
+				{
+					//delete least recently used element
+					string last = seqnum_map_lru_list.back();
+					seqnum_map_lru_list.pop_back();
+					m_seqnum_map.erase(last);
+				}
 			}
+			// insert an entry for threadId at front of LRU queue
+			seqnum_map_lru_list.push_front(threadId);
+			m_seqnum_map[threadId] = make_pair(seqNum, seqnum_map_lru_list.begin());
 		}
 	}
 

@@ -527,30 +527,6 @@ class Server:
             sys.exit(1)
 
     @classmethod
-    def _check_readings_table(cls, loop):
-        total_count_payload = payload_builder.PayloadBuilder().AGGREGATE(["count", "*"]).ALIAS("aggregate", (
-                                "*", "count", "count")).payload()
-        result = loop.run_until_complete(
-            cls._readings_client_async.query(total_count_payload))
-        total_count = result['rows'][0]['count']
-
-        if (total_count == 0):
-            _logger.info("'foglamp.readings' table is empty, force reset of 'foglamp.streams' last_objects")
-
-            # Get total count of streams
-            result = loop.run_until_complete(
-                cls._storage_client_async.query_tbl_with_payload('streams', total_count_payload))
-            total_streams_count = result['rows'][0]['count']
-
-            # If streams table is non empty, then initialize it
-            if (total_streams_count != 0):
-                payload = payload_builder.PayloadBuilder().SET(last_object=0, ts='now()').payload()
-                loop.run_until_complete(cls._storage_client_async.update_tbl("streams", payload))
-        else:
-            _logger.info("'foglamp.readings' has " + str(
-                total_count) + " rows, 'foglamp.streams' last_objects reset is not required")
-
-    @classmethod
     async def _config_parents(cls):
         # Create the parent category for all general configuration categories
         try:
@@ -597,9 +573,6 @@ class Server:
 
             # get storage client
             loop.run_until_complete(cls._get_storage_client())
-
-            # If readings table is empty, set last_object of all streams to 0
-            cls._check_readings_table(loop)
 
             # obtain configuration manager and interest registry
             cls._configuration_manager = ConfigurationManager(cls._storage_client_async)

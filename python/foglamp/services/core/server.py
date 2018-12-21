@@ -527,10 +527,12 @@ class Server:
             sys.exit(1)
 
     @classmethod
-    def _fix_streams_table(cls, loop):
+    def _reposition_streams_table(cls, loop):
 
-        configuration = loop.run_until_complete(
-            cls._storage_client_async.query_tbl('configuration'))
+        _logger.info("'foglamp.readings' is stored in memory and a restarted has occurred, "
+                     "force reset of 'foglamp.streams' last_objects")
+
+        configuration = loop.run_until_complete(cls._storage_client_async.query_tbl('configuration'))
 
         rows = configuration['rows']
 
@@ -577,8 +579,6 @@ class Server:
         total_count = result['rows'][0]['count']
 
         if total_count == 0:
-            _logger.info("'foglamp.readings' table is empty, force reset of 'foglamp.streams' last_objects")
-
             # Get total count of streams
             result = loop.run_until_complete(
                 cls._storage_client_async.query_tbl_with_payload('streams', total_count_payload))
@@ -586,7 +586,7 @@ class Server:
 
             # If streams table is non empty, then initialize it
             if total_streams_count != 0:
-                cls._fix_streams_table(loop)
+                cls._reposition_streams_table(loop)
 
         else:
             _logger.info("'foglamp.readings' has " + str(

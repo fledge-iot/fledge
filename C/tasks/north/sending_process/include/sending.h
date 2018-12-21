@@ -44,9 +44,9 @@ class SendingProcess : public FogLampProcess
 		};
 		void			resetSentReadings() { m_tot_sent = 0; };
 		void			updateDatabaseCounters();
-                bool			getLastSentReadingId();
-                bool			createStream(int);
-                int			createNewStream();
+		bool			getLastSentReadingId();
+		bool			createStream(int);
+		int			createNewStream();
 		unsigned int		getDuration() const { return m_duration; };
 		unsigned int		getSleepTime() const { return m_sleep; };
 		bool			getUpdateDb() const { return m_update_db; };

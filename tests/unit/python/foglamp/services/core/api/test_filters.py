@@ -622,7 +622,7 @@ class TestFilters:
         user = "Blah"
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', return_value=self.async_mock({})) as get_cat_info_patch:
-                with patch.object(_LOGGER, 'exception') as log_exc:
+                with patch.object(_LOGGER, 'info') as log_exc:
                     resp = await client.get('/foglamp/filter/{}/pipeline'.format(user))
                     assert 404 == resp.status
                     assert "No filter pipeline exists for {}".format(user) == resp.reason

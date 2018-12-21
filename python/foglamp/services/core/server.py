@@ -1050,6 +1050,10 @@ class Server:
             await asyncio.sleep(2.0, loop=loop)
             _logger.info("Stopping the FogLAMP Core event loop. Good Bye!")
             loop.stop()
+            
+            if 'safe-mode' in sys.argv:
+                sys.argv.remove('safe-mode')
+                sys.argv.append('')
 
             python3 = sys.executable
             os.execl(python3, python3, *sys.argv)

@@ -523,12 +523,13 @@ string		errMsg = "'plugin_init' failed for filter '";
 
 	for (auto it = m_filters.begin(); it != m_filters.end(); ++it)
 	{
-		string filterCategoryName = (*it)->getName();
+		string filterCategoryName = m_serviceName + "_" + (*it)->getName();
 		ConfigCategory updatedCfg;
 		vector<string> children;
         
 		try
 		{
+Logger::getLogger()->info("Load plugin categoryName %s", filterCategoryName.c_str());
 			// Fetch up to date filter configuration
 			updatedCfg = m_mgtClient->getCategory(filterCategoryName);
 

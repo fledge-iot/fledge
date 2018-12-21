@@ -126,7 +126,7 @@ class Scheduler(object):
     _storage = None
     _storage_async = None
 
-    def __init__(self, core_management_host=None, core_management_port=None):
+    def __init__(self, core_management_host=None, core_management_port=None, is_safe_mode=False):
         """Constructor"""
 
         cls = Scheduler
@@ -140,10 +140,13 @@ class Scheduler(object):
         if not cls._core_management_host:
             cls._core_management_host = core_management_host
 
+
         # Instance attributes
 
+        self._is_safe_mode = is_safe_mode # type: bool
+        """ When True the scheduler will be in restricted mode. 
+        Only API operations and current state will be accessible; No tasks/ processes will be triggered"""
         self._storage_async = None
-
         self._ready = False
         """True when the scheduler is ready to accept API calls"""
         self._start_time = None  # type: int
@@ -679,7 +682,8 @@ class Scheduler(object):
                     process_name=row.get('process_name'))
 
                 self._schedules[schedule_id] = schedule
-                self._schedule_first_task(schedule, self._start_time)
+                if not self._is_safe_mode:
+                    self._schedule_first_task(schedule, self._start_time)
         except Exception:
             self._logger.exception('Query failed: %s', 'schedules')
             raise
@@ -744,16 +748,17 @@ class Scheduler(object):
         Raises:
             NotReadyError: Scheduler was stopped
         """
-        if self._paused or self._schedule_executions is None:
-            raise NotReadyError("The scheduler was stopped and can not be restarted")
+        if not self._is_safe_mode:
+            if self._paused or self._schedule_executions is None:
+                raise NotReadyError("The scheduler was stopped and can not be restarted")
 
-        if self._ready:
-            return
+            if self._ready:
+                return
 
-        if self._start_time:
-            raise NotReadyError("The scheduler is starting")
+            if self._start_time:
+                raise NotReadyError("The scheduler is starting")
 
-        self._logger.info("Starting")
+            self._logger.info("Starting")
 
         self._start_time = self.current_time if self.current_time else time.time()
 
@@ -784,8 +789,8 @@ class Scheduler(object):
         await self._read_storage()
 
         self._ready = True
-
-        self._scheduler_loop_task = asyncio.ensure_future(self._scheduler_loop())
+        if not self._is_safe_mode:
+            self._scheduler_loop_task = asyncio.ensure_future(self._scheduler_loop())
 
     async def stop(self):
         """Attempts to stop the scheduler

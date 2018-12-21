@@ -221,6 +221,9 @@ class Server:
     _asset_tracker = None
     """ Asset tracker """
 
+    running_in_safe_mode = False
+    """ FogLAMP running in Safe mode """
+
     service_app, service_server, service_server_handler = None, None, None
     core_app, core_server, core_server_handler = None, None, None
 
@@ -399,13 +402,13 @@ class Server:
     @classmethod
     async def _start_scheduler(cls):
         """Starts the scheduler"""
-        _logger.info("start scheduler")
-        cls.scheduler = Scheduler(cls._host, cls.core_management_port)
+        _logger.info("Starting scheduler ...")
+        cls.scheduler = Scheduler(cls._host, cls.core_management_port, cls.running_in_safe_mode)
         await cls.scheduler.start()
 
     @staticmethod
     def __start_storage(host, m_port):
-        _logger.info("start storage, from directory %s", _SCRIPTS_DIR)
+        _logger.info("Start storage, from directory %s", _SCRIPTS_DIR)
         try:
             cmd_with_args = ['./services/storage', '--address={}'.format(host),
                              '--port={}'.format(m_port)]
@@ -582,8 +585,10 @@ class Server:
 
     @classmethod
     def _start_core(cls, loop=None):
-        _logger.info("start core")
-
+        if cls.running_in_safe_mode:
+            _logger.info("Starting in SAFE MODE ...")
+        else:
+            _logger.info("Starting ...")
         try:
             host = cls._host
 
@@ -598,8 +603,9 @@ class Server:
             # get storage client
             loop.run_until_complete(cls._get_storage_client())
 
-            # If readings table is empty, set last_object of all streams to 0
-            cls._check_readings_table(loop)
+            if not cls.running_in_safe_mode:
+                # If readings table is empty, set last_object of all streams to 0
+                cls._check_readings_table(loop)
 
             # obtain configuration manager and interest registry
             cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
@@ -608,6 +614,10 @@ class Server:
             # start scheduler
             # see scheduler.py start def FIXME
             # scheduler on start will wait for storage service registration
+            #
+            # NOTE: In safe mode, the scheduler will be in restricted mode,
+            # and only API operations and current state will be accessible (No jobs / processes will be triggered)
+            #
             loop.run_until_complete(cls._start_scheduler())
 
             # start monitor
@@ -655,12 +665,14 @@ class Server:
             # Create the configuration category parents
             loop.run_until_complete(cls._config_parents())
 
-            # Start asset tracker
-            loop.run_until_complete(cls._start_asset_tracker())
+            if not cls.running_in_safe_mode:
+                # Start asset tracker
+                loop.run_until_complete(cls._start_asset_tracker())
 
             # Everything is complete in the startup sequence, write the audit log entry
             cls._audit = AuditLogger(cls._storage_client_async)
-            loop.run_until_complete(cls._audit.information('START', None))
+            audit_msg = {"message": "Running in safe mode"} if cls.running_in_safe_mode else None
+            loop.run_until_complete(cls._audit.information('START', audit_msg))
 
             loop.run_forever()
 
@@ -679,8 +691,14 @@ class Server:
         return core_service_id
 
     @classmethod
-    def start(cls):
+    def start(cls, is_safe_mode=False):
         """Starts FogLAMP"""
+        #
+        # is_safe_mode: When True, It prevents the start of any services or tasks other than the storage layer.
+        # Starting FogLAMP in this way would mean only the core and storage services would be running.
+        # And Scheduler will be running in restricted mode.
+        #
+        cls.running_in_safe_mode = is_safe_mode
         loop = asyncio.get_event_loop()
         cls._start_core(loop=loop)
 
@@ -704,7 +722,8 @@ class Server:
 
             # Must write the audit log entry before we stop the storage service
             cls._audit = AuditLogger(cls._storage_client_async)
-            await cls._audit.information('FSTOP', None)
+            audit_msg = {"message": "Exited from safe mode"} if cls.running_in_safe_mode else None
+            await cls._audit.information('FSTOP', audit_msg)
 
             # stop storage
             await cls.stop_storage()
@@ -1031,6 +1050,10 @@ class Server:
             await asyncio.sleep(2.0, loop=loop)
             _logger.info("Stopping the FogLAMP Core event loop. Good Bye!")
             loop.stop()
+            
+            if 'safe-mode' in sys.argv:
+                sys.argv.remove('safe-mode')
+                sys.argv.append('')
 
             python3 = sys.executable
             os.execl(python3, python3, *sys.argv)

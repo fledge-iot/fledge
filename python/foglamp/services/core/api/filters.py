@@ -89,10 +89,10 @@ async def create_filter(request: web.Request) -> web.Response:
                 "Loaded plugin '{}', type '{}', doesn't match the specified one '{}', type 'filter'".format(
                     loaded_plugin_name, loaded_plugin_type, plugin_name))
 
-        # Set string value for 'default' if type is JSON. This is required by the configuration manager
+        # Set dict value for 'default' if type is JSON. This is required by the configuration manager
         for key, value in plugin_config.items():
             if value['type'] == 'JSON':
-                value['default'] = json.dumps(value['default'])
+                value['default'] = json.loads(json.dumps(value['default']))
 
         # Check if filter exists in filters table
         payload = PayloadBuilder().WHERE(['name', '=', filter_name]).payload()
@@ -240,7 +240,7 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
             await _delete_child_filters(storage, cf_mgr, user_name, new_list, old_list=current_filters)
             await _add_child_filters(storage, cf_mgr, user_name, new_list, old_list=current_filters)
         else:  # No existing filters, hence create new item 'config_item' and add the "pipeline" array as a string
-            new_item = dict({config_item: {'description': 'Filter pipeline', 'type': 'JSON', 'default': '{}'}})
+            new_item = dict({config_item: {'description': 'Filter pipeline', 'type': 'JSON', 'default': {}}})
             new_item[config_item]['default'] = json.dumps({'pipeline': filter_list})
             await cf_mgr.create_category(category_name=user_name, category_value=new_item, keep_original_items=True)
             await _add_child_filters(storage, cf_mgr, user_name, filter_list)
@@ -350,9 +350,9 @@ async def get_filter_pipeline(request: web.Request) -> web.Response:
 
         filter_value_from_storage = json.loads(category_info['filter']['value'])
     except KeyError:
-        err_msg = "No filter pipeline exists for {}".format(user_name)
-        _LOGGER.exception(err_msg)
-        raise web.HTTPNotFound(reason=err_msg)
+        msg = "No filter pipeline exists for {}".format(user_name)
+        _LOGGER.info(msg)
+        raise web.HTTPNotFound(reason=msg)
     except StorageServerError as ex:
         _LOGGER.exception("Get pipeline: %s, caught exception: %s", user_name, str(ex.error))
         raise web.HTTPInternalServerError(reason=str(ex.error))
@@ -449,7 +449,7 @@ def _delete_keys_from_dict(dict_del: Dict, lst_keys: List[str], deleted_values: 
         try:
             if parent is not None:
                 if dict_del['type'] == 'JSON':
-                    i_val = json.loads(dict_del[k]) if isinstance(dict_del[k], str) else dict_del[k]
+                    i_val = json.loads(dict_del[k]) if isinstance(dict_del[k], str) else json.loads(json.dumps(dict_del[k]))
                 else:
                     i_val = dict_del[k]
                 deleted_values.update({parent: i_val})

@@ -84,10 +84,6 @@ class SendingProcess : public FogLampProcess
 	private:
 		std::string             retrieveTableInformationName(const char* dataSource);
 		void                    updateStreamLastSentId(long lastSentId);
-		long                    retrieveAggregate(std::string tableName,
-							  std::string fieldName,
-							  std::string operation);
-    		bool 			isReadingsEmpty();
 		void			setDuration(unsigned int val) { m_duration = val; };
 		void			setSleepTime(unsigned long val) { m_sleep = val; };
 		void			setReadBlockSize(unsigned long size) { m_block_size = size; };

@@ -282,8 +282,6 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 		}
 	}
 
-	this->fixStreamsLastId();
-
 	Logger::getLogger()->info("SendingProcess initialised with %d data buffers.",
 				  m_memory_buffer_size);
 
@@ -426,8 +424,6 @@ void SendingProcess::stop()
 	Logger::getLogger()->info("SendingProcess successfully terminated");
 }
 
-
-
 /**
  * Sets the position of the readings table the sending procress
  * has already sent
@@ -548,40 +544,6 @@ void SendingProcess::updateStatistics(string& stat_key, const string& stat_descr
 }
 
 /**
-// FIXME:
- */
-long SendingProcess::retrieveAggregate(string tableName,
-                                       string fieldName,
-                                       string operation)
-{
-	long maxValue = -1;
-
-	string resultField = operation + "_" + fieldName;
-
-	const Condition conditionId(GreaterThan);
-	Where*      where = new Where(fieldName, conditionId, "0");
-	Aggregate*  max   = new Aggregate(operation, fieldName);
-	Query       query(max ,where);
-
-	ResultSet* resultSet = this->getStorageClient()->queryTable(tableName, query);
-
-	if (resultSet != NULL && resultSet->rowCount())
-	{
-		ResultSet::RowIterator it = resultSet->firstRow();
-
-		ResultSet::Row* row = *it;
-		if (row)
-		{
-			ResultSet::ColumnValue* theVal = row->getColumn(resultField);
-			maxValue = (long)theVal->getInteger();
-		}
-	}
-
-	return (maxValue);
-}
-
-
-/**
  * Retrieves the name table of the data source
  *
  * @dataSource	datasource for which the table name should be identified
@@ -600,76 +562,6 @@ string SendingProcess::retrieveTableInformationName(const char* dataSource)
 	}
 
 	return(tableInfo);
-}
-
-
-/**
- * Evaluates if the reagings table is empty or not
- *
- * @return	true if the readings is empty
- */
-bool SendingProcess::isReadingsEmpty()
-{
-	bool empty = false;
-
-	ReadingSet* readings;
-
-	readings = this->getStorageClient()->readingFetch(0, 10);
-
-	if (readings != NULL && readings->getCount() == 0)
-	{
-		empty = true;
-	}
-
-	return empty;
-}
-
-
-/**
- * Set the stream_id of foglamp.streams to 0 if it is > 0 and the readings table
- * is empty.
- * This situation happens if the readings is stored in memory'readingPlugin=sqlitememory'
- * , some data have been sent (so, stream_id > 0) and FogLAMP restarts.
- *
- * @return true if no errors were raised
- */
-bool SendingProcess::fixStreamsLastId()
-{
-	bool success=true;
-	string tableName;
-
-	// Executes the algorithm only if the sending process is handling the
-	// readings table
-	if (! m_data_source_t.compare(DATA_SOURCE_READINGS))
-	{
-		unsigned long streamsLastId = this->getLastSentId();
-
-		if (streamsLastId > 0)
-		{
-			// Identifies table name
-			tableName = this->retrieveTableInformationName(DATA_SOURCE_READINGS);
-
-			bool readingsEmpty = isReadingsEmpty();
-
-			if (readingsEmpty)
-			{
-				// Situation:
-				// 1- data source = readings
-				// 2- last sent id > 0
-				// 3- readings is empty
-
-				this->updateStreamLastSentId(0);
-				this->getLastSentReadingId();
-
-				Logger::getLogger()->info("streams last_object reset to 0 - stream id |%d| "
-					"- readings empty - previous streams last_object |%lu|",
-					m_stream_id,
-					streamsLastId);
-			}
-		}
-
-	}
-	return success;
 }
 
 /**

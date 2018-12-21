@@ -30,6 +30,8 @@
 // Used for the handling of the hierarchical configuration structure
 #define PARENT_CONFIGURATION_KEY "North"
 
+using namespace std;
+
 // Default values for the creation of a new stream,
 // the description is derived from the parameter --name
 #define NEW_STREAM_LAST_OBJECT 0
@@ -39,7 +41,18 @@
 #define DATA_SOURCE_STATISTICS  "statistics"
 #define DATA_SOURCE_AUDIT       "audit"
 
-using namespace std;
+#define DATA_SOURCE_INFORMATION_TABLE_NAME 0
+#define DATA_SOURCE_INFORMATION_STAT_KEY   1
+#define DATA_SOURCE_INFORMATION_STAT_DESCR 2
+
+// Translation from the data source type to data source information
+const map<string, std::tuple<string, string, string>>  data_source_to_information = {
+
+	// Data source          - TableName     - Statistics key - Statistics description
+	{DATA_SOURCE_READINGS,   {"readings",   "Readings Sent",   "Readings Sent North"}},
+	{DATA_SOURCE_STATISTICS, {"statistics", "Statistics Sent", "Statistics Sent North"}},
+	{DATA_SOURCE_AUDIT,      {"audit",      "Audit Sent",      "Audit Sent North"}}
+};
 
 // static pointer to data buffers for filter plugins
 std::vector<ReadingSet*>* SendingProcess::m_buffer_ptr = 0;
@@ -78,28 +91,6 @@ static const string sendingDefaultConfig =
 		"\"readonly\": \"false\" "
 	"} "
 	"}";
-
-
-#define DATA_SOURCE_INFORMATION_TABLE_NAME 0
-#define DATA_SOURCE_INFORMATION_STAT_KEY   1
-#define DATA_SOURCE_INFORMATION_STAT_DESCR 2
-
-// Translation from the data source type to data source information
-const map<string, std::tuple<string, string, string>>  data_source_to_information = {
-
-	// Data source          - TableName     - Statistics key - Statistics description
-	{DATA_SOURCE_READINGS,   {"readings",   "Readings Sent",   "Readings Sent North"}},
-	{DATA_SOURCE_STATISTICS, {"statistics", "Statistics Sent", "Statistics Sent North"}},
-	{DATA_SOURCE_AUDIT,      {"audit",      "Audit Sent",      "Audit Sent North"}}
-};
-
-// Translation from the data source type to the statistics key/description
-const vector<pair<string, pair<string, string>>>  source_to_statistics = {
-	// Data source  - Statistics key - Statistics description
-	{DATA_SOURCE_READINGS,   {"Readings Sent",   "Readings Sent North"}},
-	{DATA_SOURCE_STATISTICS, {"Statistics Sent", "Statistics Sent North"}},
-	{DATA_SOURCE_AUDIT,      {"Audit Sent",      "Audit Sent North"}}
-};
 
 volatile std::sig_atomic_t signalReceived = 0;
 
@@ -438,8 +429,10 @@ void SendingProcess::stop()
 
 
 /**
- * // FIXME:
+ * Sets the position of the readings table the sending procress
+ * has already sent
  *
+ * @lastSentId	Id of the readings table already sent
  */
 void SendingProcess::updateStreamLastSentId(long lastSentId)
 {
@@ -474,12 +467,12 @@ void SendingProcess::updateDatabaseCounters()
 	string stat_description;
 
 	// Identifies the statistics that should be updated in relation to the data source
-	for(auto &item : source_to_statistics) {
+	auto item = data_source_to_information.find(m_data_source_t);
+	if (item != data_source_to_information.end())
+	{
 
-		if (item.first == m_data_source_t) {
-			stat_key =item.second.first;
-			stat_description =item.second.second;
-		}
+		stat_key = std::get<DATA_SOURCE_INFORMATION_STAT_KEY>(item->second);
+		stat_description = std::get<DATA_SOURCE_INFORMATION_STAT_DESCR>(item->second);
 	}
         this->updateStatistics(stat_key, stat_description);
 
@@ -554,7 +547,6 @@ void SendingProcess::updateStatistics(string& stat_key, const string& stat_descr
 	}
 }
 
-
 /**
 // FIXME:
  */
@@ -590,7 +582,10 @@ long SendingProcess::retrieveAggregate(string tableName,
 
 
 /**
- * // FIXME:
+ * Retrieves the name table of the data source
+ *
+ * @dataSource	datasource for which the table name should be identified
+ * @return	table name
  */
 string SendingProcess::retrieveTableInformationName(const char* dataSource)
 {
@@ -605,6 +600,28 @@ string SendingProcess::retrieveTableInformationName(const char* dataSource)
 	}
 
 	return(tableInfo);
+}
+
+
+/**
+ * Evaluates if the reagings table is empty or not
+ *
+ * @return	true if the readings is empty
+ */
+bool SendingProcess::isReadingsEmpty()
+{
+	bool empty = false;
+
+	ReadingSet* readings;
+
+	readings = this->getStorageClient()->readingFetch(0, 10);
+
+	if (readings != NULL && readings->getCount() == 0)
+	{
+		empty = true;
+	}
+
+	return empty;
 }
 
 
@@ -625,36 +642,33 @@ bool SendingProcess::fixStreamsLastId()
 	// readings table
 	if (! m_data_source_t.compare(DATA_SOURCE_READINGS))
 	{
-		unsigned long streamsLastId = getLastSentId();
+		unsigned long streamsLastId = this->getLastSentId();
 
 		if (streamsLastId > 0)
 		{
 			// Identifies table name
-			tableName = retrieveTableInformationName(DATA_SOURCE_READINGS);
+			tableName = this->retrieveTableInformationName(DATA_SOURCE_READINGS);
 
-			long readingsMaxId = this->retrieveAggregate(tableName, "id", "max");
+			bool readingsEmpty = isReadingsEmpty();
 
-			// Reset the stream_id field
-			if (readingsMaxId == 0)
+			if (readingsEmpty)
 			{
 				// Situation:
 				// 1- data source = readings
 				// 2- last sent id > 0
-				// 3- readings empty
+				// 3- readings is empty
 
-				updateStreamLastSentId(0);
-				getLastSentReadingId();
+				this->updateStreamLastSentId(0);
+				this->getLastSentReadingId();
 
-				Logger::getLogger()->info("streams id reset - stream id |%d| "
-				                          "- readings max id |%ld| - streams last id |%lu|",
-				                          m_stream_id,
-				                          readingsMaxId,
-				                          streamsLastId);
+				Logger::getLogger()->info("streams last_object reset to 0 - stream id |%d| "
+					"- readings empty - previous streams last_object |%lu|",
+					m_stream_id,
+					streamsLastId);
 			}
 		}
 
 	}
-
 	return success;
 }
 

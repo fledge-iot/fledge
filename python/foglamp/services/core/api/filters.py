@@ -350,9 +350,9 @@ async def get_filter_pipeline(request: web.Request) -> web.Response:
 
         filter_value_from_storage = json.loads(category_info['filter']['value'])
     except KeyError:
-        err_msg = "No filter pipeline exists for {}".format(user_name)
-        _LOGGER.exception(err_msg)
-        raise web.HTTPNotFound(reason=err_msg)
+        msg = "No filter pipeline exists for {}".format(user_name)
+        _LOGGER.info(msg)
+        raise web.HTTPNotFound(reason=msg)
     except StorageServerError as ex:
         _LOGGER.exception("Get pipeline: %s, caught exception: %s", user_name, str(ex.error))
         raise web.HTTPInternalServerError(reason=str(ex.error))

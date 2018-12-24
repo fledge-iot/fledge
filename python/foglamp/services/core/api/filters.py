@@ -75,7 +75,7 @@ async def create_filter(request: web.Request) -> web.Response:
             raise ValueError("This '{}' filter already exists".format(filter_name))
 
         # Load C filter plugin info
-        loaded_plugin_info = apiutils.get_plugin_info(plugin_name)
+        loaded_plugin_info = apiutils.get_plugin_info(plugin_name, dir='filter')
         if not loaded_plugin_info or 'config' not in loaded_plugin_info:
             message = "Can not get 'plugin_info' detail from plugin '{}'".format(plugin_name)
             raise ValueError(message)

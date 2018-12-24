@@ -8,10 +8,10 @@ _logger = logger.setup(__name__)
 _lib_path = _FOGLAMP_ROOT + "/" + "plugins"
 
 
-def get_plugin_info(name):
+def get_plugin_info(name, dir):
     try:
         arg1 = _find_c_util('get_plugin_info')
-        arg2 = _find_c_lib(name)
+        arg2 = _find_c_lib(name, dir)
         cmd_with_args = [arg1, arg2, "plugin_info"]
         p = subprocess.Popen(cmd_with_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = p.communicate()
@@ -24,8 +24,9 @@ def get_plugin_info(name):
         return jdoc
 
 
-def _find_c_lib(name):
-    for path, subdirs, files in os.walk(_lib_path):
+def _find_c_lib(name, dir):
+    _path =_lib_path + "/" + dir
+    for path, subdirs, files in os.walk(_path):
         for fname in files:
             # C-binary file
             if fname.endswith(name + '.so'):

@@ -278,6 +278,8 @@ Ingest::Ingest(StorageClient& storage,
 	
 	// populate asset tracking cache
 	populateAssetTrackingCache(m_mgtClient);
+
+	filterPipeline = NULL;
 }
 
 /**
@@ -303,7 +305,11 @@ Ingest::~Ingest()
 	//delete m_data;
 	
 	// Cleanup filters
-	FilterPlugin::cleanupFilters(m_filters, m_serviceName);
+	if (filterPipeline)
+	{
+		filterPipeline->cleanupFilters(m_serviceName);
+		delete filterPipeline;
+	}
 }
 
 /**
@@ -385,23 +391,26 @@ vector<Reading *>* newQ = new vector<Reading *>();
 	 * The final filter in the pipeline will pass the ReadingSet back into the
 	 * ingest class where it will repopulate the m_data member.
 	 */
-	if (m_filters.size())
+	if (filterPipeline)
 	{
-		auto it = m_filters.begin();
-		ReadingSet *readingSet = new ReadingSet(m_data);
-		m_data->clear();
-		// Pass readingSet to filter chain
-		(*it)->ingest(readingSet);
-
-		/*
-		 * If filtering removed all the readings then simply clean up m_data and
-		 * return.
-		 */
-		if (m_data->size() == 0)
+		FilterPlugin *firstFilter = filterPipeline->getFirstFilterPlugin();
+		if (firstFilter)
 		{
-			delete m_data;
-			m_data = NULL;
-			return;
+			ReadingSet *readingSet = new ReadingSet(m_data);
+			m_data->clear();
+			// Pass readingSet to filter chain
+			firstFilter->ingest(readingSet);
+
+			/*
+			 * If filtering removed all the readings then simply clean up m_data and
+			 * return.
+			 */
+			if (m_data->size() == 0)
+			{
+				delete m_data;
+				m_data = NULL;
+				return;
+			}
 		}
 	}
 
@@ -490,113 +499,17 @@ vector<Reading *>* newQ = new vector<Reading *>();
  */
 bool Ingest::loadFilters(const string& categoryName)
 {
+	filterPipeline = new FilterPipeline;
+	
 	// Try to load filters:
-	if (!FilterPlugin::loadFilters(categoryName,
-				       m_filters,
-				       m_mgtClient))
+	if (!filterPipeline->loadFilters(categoryName, m_mgtClient))
 	{
 		// Return false on any error
 		return false;
 	}
 
 	// Set up the filter pipeline
-	return setupFiltersPipeline();
-}
-
-/**
- * Set the filterPipeline in the Ingest class
- * 
- * This method calls the the method "plugin_init" for all loadade filters.
- * Up to date filter configurations and Ingest filtering methods
- * are passed to "plugin_init"
- *
- * @param ingest	The ingest class
- * @return 		True on success,
- *			False otherwise.
- * @thown		Any caught exception
- */
-bool Ingest::setupFiltersPipeline()
-{
-ConfigHandler	*configHandler = ConfigHandler::getInstance(m_mgtClient);
-bool 		initErrors = false;
-string		errMsg = "'plugin_init' failed for filter '";
-
-	for (auto it = m_filters.begin(); it != m_filters.end(); ++it)
-	{
-		string filterCategoryName = m_serviceName + "_" + (*it)->getName();
-		ConfigCategory updatedCfg;
-		vector<string> children;
-        
-		try
-		{
-Logger::getLogger()->info("Load plugin categoryName %s", filterCategoryName.c_str());
-			// Fetch up to date filter configuration
-			updatedCfg = m_mgtClient->getCategory(filterCategoryName);
-
-			// Add filter category name under service/process config name
-			children.push_back(filterCategoryName);
-			m_mgtClient->addChildCategories(m_serviceName, children);
-
-        		configHandler->registerCategory(this, filterCategoryName);
-			m_filterCategories.insert(pair<string, FilterPlugin *>(filterCategoryName, *it));
-		}
-		// TODO catch specific exceptions
-		catch (...)
-		{       
-			throw;      
-		}                   
-
-		// Iterate the load filters set in the Ingest class m_filters member 
-		if ((it + 1) != m_filters.end())
-		{
-			// Set next filter pointer as OUTPUT_HANDLE
-			if (!(*it)->init(updatedCfg,
-				    (OUTPUT_HANDLE *)(*(it + 1)),
-				    Ingest::passToOnwardFilter))
-			{
-				errMsg += (*it)->getName() + "'";
-				initErrors = true;
-				break;
-			}
-		}
-		else
-		{
-			// Set the Ingest class pointer as OUTPUT_HANDLE
-			if (!(*it)->init(updatedCfg,
-					 (OUTPUT_HANDLE *)this,
-					 Ingest::useFilteredData))
-			{
-				errMsg += (*it)->getName() + "'";
-				initErrors = true;
-				break;
-			}
-		}
-
-		if ((*it)->persistData())
-		{
-			// Plugin support SP_PERSIST_DATA
-			// Instantiate the PluginData class
-			(*it)->m_plugin_data = new PluginData(&m_storage);
-			// Load plugin data from storage layer
-			string pluginStoredData = (*it)->m_plugin_data->loadStoredData(m_serviceName + (*it)->getName());
- 			//call 'plugin_start' with plugin data: startData()
-			(*it)->startData(pluginStoredData);
-		}
-		else
-		{
-			// We don't call simple plugin_start for filters right now
-		}
-	}
-
-	if (initErrors)
-	{
-		// Failure
-		m_logger->fatal("%s error: %s", SERVICE_NAME, errMsg.c_str());
-		return false;
-	}
-
-	//Success
-	return true;
+	return filterPipeline->setupFiltersPipeline(m_mgtClient, m_storage, m_serviceName, (void *)passToOnwardFilter, (void *)useFilteredData);
 }
 
 /**

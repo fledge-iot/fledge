@@ -20,6 +20,7 @@
 #include <unordered_set>
 #include <condition_variable>
 #include <filter_plugin.h>
+#include <filter_pipeline.h>
 #include <asset_tracking.h>
 #include <service_handler.h>
 
@@ -65,7 +66,7 @@ public:
 	void		configChange(const std::string&, const std::string&);
 	void		shutdown() {};	// Satisfy ServiceHandler
 public:
-	std::vector<FilterPlugin *>	m_filters;
+	//std::vector<FilterPlugin *>	m_filters;
 
 private:
 	StorageClient&			m_storage;
@@ -87,6 +88,7 @@ private:
 	// Data ready to be filtered/sent
 	std::vector<Reading *>*		m_data;
 	unsigned int			m_discardedReadings; // discarded readings since last update to statistics table
+	FilterPipeline*			filterPipeline;
 	
 	std::unordered_set<AssetTrackingTuple*, std::hash<AssetTrackingTuple*>, AssetTrackingTuplePtrEqual>   assetTrackerTuplesCache;
 	std::unordered_set<std::string>   		statsDbEntriesCache;  // confirmed stats table entries

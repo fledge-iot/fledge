@@ -333,18 +333,18 @@ class TestPluginDiscovery:
                 assert actual is None
         patch_log_warn.assert_called_once_with('Plugin http-north is discarded due to invalid type')
 
-    @pytest.mark.parametrize("info, direction", [
+    @pytest.mark.parametrize("info, dir", [
         (mock_c_plugins_config[0], "south"),
         (mock_c_plugins_config[1], "north"),
         (mock_c_plugins_config[2], "filter"),
         (mock_c_plugins_config[3], "notify")
     ])
-    def test_fetch_c_plugins_installed(self, info, direction):
+    def test_fetch_c_plugins_installed(self, info, dir):
         with patch.object(utils, "find_c_plugin_libs", return_value=[info['name']]) as patch_plugin_lib:
             with patch.object(utils, "get_plugin_info", return_value=info) as patch_plugin_info:
-                PluginDiscovery.fetch_c_plugins_installed(direction, True)
-            patch_plugin_info.assert_called_once_with(info['name'])
-        patch_plugin_lib.assert_called_once_with(direction)
+                PluginDiscovery.fetch_c_plugins_installed(dir, True)
+            patch_plugin_info.assert_called_once_with(info['name'], dir=dir)
+        patch_plugin_lib.assert_called_once_with(dir)
 
     @pytest.mark.parametrize("info, exc_count", [
         ({}, 0),
@@ -356,7 +356,7 @@ class TestPluginDiscovery:
             with patch.object(utils, "find_c_plugin_libs", return_value=["Random"]) as patch_plugin_lib:
                 with patch.object(utils, "get_plugin_info",  return_value=info) as patch_plugin_info:
                     PluginDiscovery.fetch_c_plugins_installed("south", False)
-                patch_plugin_info.assert_called_once_with('Random')
+                patch_plugin_info.assert_called_once_with('Random', dir='south')
             patch_plugin_lib.assert_called_once_with('south')
             assert exc_count == patch_log_exc.call_count
 
@@ -370,7 +370,7 @@ class TestPluginDiscovery:
             with patch.object(utils, "find_c_plugin_libs", return_value=["PI_Server"]) as patch_plugin_lib:
                 with patch.object(utils, "get_plugin_info", return_value=info) as patch_plugin_info:
                     PluginDiscovery.fetch_c_plugins_installed("north", False)
-                patch_plugin_info.assert_called_once_with('PI_Server')
+                patch_plugin_info.assert_called_once_with('PI_Server', dir='north')
             patch_plugin_lib.assert_called_once_with('north')
             assert exc_count == patch_log_exc.call_count
 

@@ -52,7 +52,6 @@ public:
 	int 		createStatsDbEntry(const std::string& assetName);
 
 	bool		loadFilters(const std::string& categoryName);
-	bool		setupFiltersPipeline();
 	static void	passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 					   READINGSET* readings);
 	static void	useFilteredData(OUTPUT_HANDLE *outHandle,

@@ -509,7 +509,7 @@ bool Ingest::loadFilters(const string& categoryName)
 	}
 
 	// Set up the filter pipeline
-	return filterPipeline->setupFiltersPipeline(m_mgtClient, m_storage, m_serviceName, (void *)passToOnwardFilter, (void *)useFilteredData);
+	return filterPipeline->setupFiltersPipeline(m_mgtClient, m_storage, m_serviceName, (void *)passToOnwardFilter, (void *)useFilteredData, this);
 }
 
 /**
@@ -528,6 +528,7 @@ void Ingest::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 {
 	// Get next filter in the pipeline
 	FilterPlugin *next = (FilterPlugin *)outHandle;
+	//Logger::getLogger()->info("passToOnwardFilter(): readingSet->getAllReadingsPtr()=%p", readingSet->getAllReadingsPtr());
 	// Pass readings to next filter
 	next->ingest(readingSet);
 }
@@ -557,6 +558,8 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 			     READINGSET *readingSet)
 {
 	Ingest* ingest = (Ingest *)outHandle;
+	//Logger::getLogger()->info("useFilteredData(): outHandle/ingest=%p, ingest->m_data=%p, readingSet->getAllReadingsPtr()=%p", ingest, ingest->m_data, readingSet->getAllReadingsPtr());
+	
 	if (ingest->m_data != readingSet->getAllReadingsPtr())
 	{
 		ingest->m_data->clear();// Remove any pointers still in the vector

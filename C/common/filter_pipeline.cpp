@@ -5,7 +5,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Massimiliano Pinto
+ * Author: Amandeep Singh Arora
  */
 
 #include <filter_pipeline.h>
@@ -234,7 +234,7 @@ bool FilterPipeline::loadFilters(const string& categoryName, ManagementClient* m
  * @thown		Any caught exception
  */
 bool FilterPipeline::setupFiltersPipeline(ManagementClient* mgtClient, StorageClient& storage, string serviceName,
-						void *passToOnwardFilter, void *useFilteredData) const
+						void *passToOnwardFilter, void *useFilteredData, void *ingest) const
 {
 	bool initErrors = false;
 	string errMsg = "'plugin_init' failed for filter '";
@@ -276,7 +276,7 @@ bool FilterPipeline::setupFiltersPipeline(ManagementClient* mgtClient, StorageCl
 		{
 			// Set the Ingest class pointer as OUTPUT_HANDLE
 			if (!(*it)->init(updatedCfg,
-					 (OUTPUT_HANDLE *)this,
+					 (OUTPUT_HANDLE *)ingest,
 					 filterReadingSetFn(useFilteredData)))
 			{
 				errMsg += (*it)->getName() + "'";

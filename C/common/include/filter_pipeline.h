@@ -7,7 +7,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Massimiliano Pinto
+ * Author: Amandeep Singh Arora
  */
 #include <plugin.h>
 #include <plugin_manager.h>
@@ -16,13 +16,6 @@
 #include <plugin_data.h>
 #include <reading_set.h>
 #include <filter_plugin.h>
-
-// This is a C++ ReadingSet class instance passed through
-typedef ReadingSet READINGSET;
-// Data handle passed to function pointer
-typedef void OUTPUT_HANDLE;
-// Function pointer called by "plugin_ingest" plugin method
-typedef void (*OUTPUT_STREAM)(OUTPUT_HANDLE *, READINGSET *);
 
 typedef void (*filterReadingSetFn)(OUTPUT_HANDLE *outHandle, READINGSET* readings);
 
@@ -53,11 +46,9 @@ public:
 	// Load filters as specified in the configuration
 	bool		loadFilters(const std::string& categoryName, ManagementClient* manager);
 	bool		setupFiltersPipeline(ManagementClient*, StorageClient&, std::string,
-												void *passToOnwardFilter, void *useFilteredData) const;
+				void *passToOnwardFilter, void *useFilteredData, void *ingest) const;
 
 private:
-	ManagementClient* manager;
-	//std::string	m_name;
 	std::vector<FilterPlugin *> m_filters;
 };
 

@@ -9,6 +9,8 @@
  */
 
 #include <filter_pipeline.h>
+#include <config_handler.h>
+#include <service_handler.h>
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 
@@ -88,9 +90,10 @@ bool FilterPipeline::loadFilters(const string& categoryName, ManagementClient* m
         {
         	// Get the category with values and defaults
         	ConfigCategory config = manager->getCategory(categoryName);
-                string filter = config.getValue(JSON_CONFIG_FILTER_ELEM);
-                if (!filter.empty())
-                {
+            string filter = config.getValue(JSON_CONFIG_FILTER_ELEM);
+			Logger::getLogger()->info("FilterPipeline::loadFilters(): categoryName=%s, filter=%s", categoryName.c_str(), filter.c_str());
+            if (!filter.empty())
+            {
 			std::vector<pair<string, PLUGIN_HANDLE>> filterInfo;
 
 			// Remove \" and leading/trailing "
@@ -234,38 +237,44 @@ bool FilterPipeline::loadFilters(const string& categoryName, ManagementClient* m
  * @thown		Any caught exception
  */
 bool FilterPipeline::setupFiltersPipeline(ManagementClient* mgtClient, StorageClient& storage, string serviceName,
-						void *passToOnwardFilter, void *useFilteredData, void *ingest) const
+						void *passToOnwardFilter, void *useFilteredData, void *ingest)
 {
 	bool initErrors = false;
 	string errMsg = "'plugin_init' failed for filter '";
 	for (auto it = m_filters.begin(); it != m_filters.end(); ++it)
 	{
-		string filterCategoryName = (*it)->getName();
+		string filterCategoryName =  serviceName + "_" + (*it)->getName();
 		ConfigCategory updatedCfg;
 		vector<string> children;
-        
+		
 		try
 		{
+			Logger::getLogger()->info("Load plugin categoryName %s", filterCategoryName.c_str());
 			// Fetch up to date filter configuration
 			updatedCfg = mgtClient->getCategory(filterCategoryName);
 
 			// Add filter category name under service/process config name
 			children.push_back(filterCategoryName);
 			mgtClient->addChildCategories(serviceName, children);
+
+			ConfigHandler *configHandler = ConfigHandler::getInstance(mgtClient);
+			configHandler->registerCategory((ServiceHandler *)ingest, filterCategoryName);
+			//m_filterCategories.insert(pair<string, FilterPlugin *>(filterCategoryName, *it));
+			m_filterCategories[filterCategoryName] = (*it);
 		}
 		// TODO catch specific exceptions
 		catch (...)
-		{       
-			throw;      
-		}                   
+		{		
+			throw;		
+		}
 
 		// Iterate the load filters set in the Ingest class m_filters member 
 		if ((it + 1) != m_filters.end())
 		{
 			// Set next filter pointer as OUTPUT_HANDLE
 			if (!(*it)->init(updatedCfg,
-				    (OUTPUT_HANDLE *)(*(it + 1)),
-				    filterReadingSetFn(passToOnwardFilter)))
+					(OUTPUT_HANDLE *)(*(it + 1)),
+					filterReadingSetFn(passToOnwardFilter)))
 			{
 				errMsg += (*it)->getName() + "'";
 				initErrors = true;
@@ -292,7 +301,7 @@ bool FilterPipeline::setupFiltersPipeline(ManagementClient* mgtClient, StorageCl
 			(*it)->m_plugin_data = new PluginData(&storage);
 			// Load plugin data from storage layer
 			string pluginStoredData = (*it)->m_plugin_data->loadStoredData(serviceName + (*it)->getName());
- 			//call 'plugin_start' with plugin data: startData()
+			//call 'plugin_start' with plugin data: startData()
 			(*it)->startData(pluginStoredData);
 		}
 		else
@@ -352,6 +361,24 @@ void FilterPipeline::cleanupFilters(const string& categoryName)
 
 		// Free filter
 		delete *it;
+	}
+}
+
+/**
+ * Configuration change for one of our filters. Lookup the category name and
+ * find the plugin to call. Call the reconfigure method of that plugin with
+ * the new configuration.
+ *
+ * @param category	The name of the configuration category
+ * @param newConfig	The new category contents
+ */
+void FilterPipeline::configChange(const string& category, const string& newConfig)
+{
+	Logger::getLogger()->info("FilterPipeline::configChange(): category=%s, newConfig=%s", category.c_str(), newConfig.c_str());
+	auto it = m_filterCategories.find(category);
+	if (it != m_filterCategories.end())
+	{
+		it->second->reconfigure(newConfig);
 	}
 }
 

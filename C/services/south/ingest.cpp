@@ -13,6 +13,8 @@
 #include <thread>
 #include <logger.h>
 
+#define PRINT_FUNC	Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+
 using namespace std;
 
 /**
@@ -385,8 +387,8 @@ vector<Reading *>* newQ = new vector<Reading *>();
 	/*
 	 * Create a ReadingSet from m_data readings if we have filters.
 	 *
-	 * At this point the m_data vectoir is cleared so that the only reference to
-	 * the readings is inthe ReadingSet that is passed along the filter pipeline
+	 * At this point the m_data vector is cleared so that the only reference to
+	 * the readings is in the ReadingSet that is passed along the filter pipeline
 	 *
 	 * The final filter in the pipeline will pass the ReadingSet back into the
 	 * ingest class where it will repopulate the m_data member.
@@ -499,6 +501,7 @@ vector<Reading *>* newQ = new vector<Reading *>();
  */
 bool Ingest::loadFilters(const string& categoryName)
 {
+	Logger::getLogger()->info("Ingest::loadFilters(): categoryName=%s", categoryName.c_str());
 	filterPipeline = new FilterPipeline;
 	
 	// Try to load filters:
@@ -581,9 +584,41 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
  */
 void Ingest::configChange(const string& category, const string& newConfig)
 {
+	PRINT_FUNC;
+	Logger::getLogger()->info("Ingest::configChange(): category=%s, newConfig=%s", category.c_str(), newConfig.c_str());
+	/*
 	auto it = m_filterCategories.find(category);
 	if (it != m_filterCategories.end())
 	{
 		it->second->reconfigure(newConfig);
+	}*/
+
+	if (category == m_serviceName)
+	{
+		// TODO: Recreate filter pipeline only if pipeline has actually changed
+		lock_guard<mutex> guard(m_qMutex); // blocks ingest process in this scope
+		m_running = false;
+		//m_cv.notify_one();
+		PRINT_FUNC;
+		//processQueue();
+		//updateStats();
+		PRINT_FUNC;
+		if (filterPipeline)
+		{
+			Logger::getLogger()->info("Ingest::configChange(): recreating filter pipeline");
+			filterPipeline->cleanupFilters(m_serviceName);
+			delete filterPipeline;
+		}
+		PRINT_FUNC;
+		loadFilters(category);
+		PRINT_FUNC;
+		m_running = true;
+	}
+	else
+	{
+		if (filterPipeline)
+		{
+			filterPipeline->configChange(category, newConfig);
+		}
 	}
 }

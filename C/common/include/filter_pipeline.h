@@ -38,6 +38,8 @@ public:
 	//std::string		shutdownSaveData();
 	//void			start();
 	FilterPlugin *	getFirstFilterPlugin() { return (m_filters.begin() == m_filters.end()) ? NULL : *(m_filters.begin()); }
+	unsigned int	getFilterCount() { return m_filters.size(); }
+	void		configChange(const std::string&, const std::string&);
 
 public:
 	PLUGIN_HANDLE	loadFilterPlugin(const std::string& filterName);
@@ -46,10 +48,11 @@ public:
 	// Load filters as specified in the configuration
 	bool		loadFilters(const std::string& categoryName, ManagementClient* manager);
 	bool		setupFiltersPipeline(ManagementClient*, StorageClient&, std::string,
-				void *passToOnwardFilter, void *useFilteredData, void *ingest) const;
+				void *passToOnwardFilter, void *useFilteredData, void *ingest);
 
 private:
 	std::vector<FilterPlugin *> m_filters;
+	std::map<std::string, FilterPlugin *>	m_filterCategories;
 };
 
 #endif

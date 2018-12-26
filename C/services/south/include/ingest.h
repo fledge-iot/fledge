@@ -92,7 +92,6 @@ private:
 	std::unordered_set<AssetTrackingTuple*, std::hash<AssetTrackingTuple*>, AssetTrackingTuplePtrEqual>   assetTrackerTuplesCache;
 	std::unordered_set<std::string>   		statsDbEntriesCache;  // confirmed stats table entries
 	std::map<std::string, int>		statsPendingEntries;  // pending stats table entries
-	std::map<std::string, FilterPlugin *>	m_filterCategories;
 };
 
 #endif

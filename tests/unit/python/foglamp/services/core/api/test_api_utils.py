@@ -36,9 +36,9 @@ class TestUtils:
             with patch.object(utils, '_find_c_lib', return_value=None) as patch_lib:
                 with patch.object(utils.subprocess, "Popen", side_effect=Exception):
                     with patch.object(utils._logger, 'exception') as patch_logger:
-                        assert {} == utils.get_plugin_info(plugin_name)
+                        assert {} == utils.get_plugin_info(plugin_name, dir='south')
                     assert 1 == patch_logger.call_count
-            patch_lib.assert_called_once_with(plugin_name)
+            patch_lib.assert_called_once_with(plugin_name, 'south')
         patch_util.assert_called_once_with('get_plugin_info')
 
     @patch('subprocess.Popen')
@@ -49,7 +49,7 @@ class TestUtils:
                 attrs = {'communicate.return_value': (b'{"name": "Random", "version": "1.0.0", "type": "south", "interface": "1.0.0", "config": {"plugin" : { "description" : "Random C south plugin", "type" : "string", "default" : "Random" }, "asset" : { "description" : "Asset name", "type" : "string", "default" : "Random" } } }\n', 'error')}
                 process_mock.configure_mock(**attrs)
                 mock_subproc_popen.return_value = process_mock
-                j = utils.get_plugin_info('Random')
+                j = utils.get_plugin_info('Random', dir='south')
                 assert {'name': 'Random', 'type': 'south', 'version': '1.0.0', 'interface': '1.0.0', 'config': {'plugin': {'description': 'Random C south plugin', 'type': 'string', 'default': 'Random'}, 'asset': {'description': 'Asset name', 'type': 'string', 'default': 'Random'}}} == j
-            patch_lib.assert_called_once_with('Random')
+            patch_lib.assert_called_once_with('Random', 'south')
         patch_util.assert_called_once_with('get_plugin_info')

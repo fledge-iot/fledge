@@ -74,7 +74,7 @@ class PluginDiscovery(object):
         configs = []
         for l in libs:
             try:
-                jdoc = utils.get_plugin_info(l)
+                jdoc = utils.get_plugin_info(l, dir=plugin_type)
                 if bool(jdoc):
                     plugin_config = {'name': l,
                                      'type': plugin_type,

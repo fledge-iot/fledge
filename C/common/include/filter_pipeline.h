@@ -1,7 +1,7 @@
 #ifndef _FILTER_PIPELINE_H
 #define _FILTER_PIPELINE_H
 /*
- * FogLAMP filter plugin class.
+ * FogLAMP filter pipeline class.
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -24,30 +24,21 @@ class FilterPipeline
 {
 
 public:
-        FilterPipeline(ManagementClient* mgtClient, StorageClient& storage, std::string serviceName);
-        ~FilterPipeline();
-
-		//const std::string	getName() const { return m_name; };
-       /* PLUGIN_HANDLE		init(const ConfigCategory& config,
-				     OUTPUT_HANDLE* outHandle,
-				     OUTPUT_STREAM outputFunc);
-        void			shutdown();
-        void			ingest(READINGSET *); */
-	//bool			persistData() { return info->options & SP_PERSIST_DATA; };
-	//void			startData(const std::string& pluginData);
-	//std::string		shutdownSaveData();
-	//void			start();
+	FilterPipeline(ManagementClient* mgtClient, StorageClient& storage, std::string serviceName);
+	~FilterPipeline();
 	FilterPlugin *	getFirstFilterPlugin() { return (m_filters.begin() == m_filters.end()) ? NULL : *(m_filters.begin()); }
 	unsigned int	getFilterCount() { return m_filters.size(); }
 	void		configChange(const std::string&, const std::string&);
-
-public:
-	PLUGIN_HANDLE	loadFilterPlugin(const std::string& filterName);
+	
 	// Cleanup the loaded filters
 	void 		cleanupFilters(const std::string& categoryName);
 	// Load filters as specified in the configuration
 	bool		loadFilters(const std::string& categoryName);
+	// Setup the filter pipeline
 	bool		setupFiltersPipeline(void *passToOnwardFilter, void *useFilteredData, void *ingest);
+
+private:
+	PLUGIN_HANDLE	loadFilterPlugin(const std::string& filterName);
 
 private:
 	ManagementClient*	mgtClient;

@@ -13,8 +13,6 @@
 #include <thread>
 #include <logger.h>
 
-#define PRINT_FUNC	Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
-
 using namespace std;
 
 /**
@@ -531,7 +529,6 @@ void Ingest::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 {
 	// Get next filter in the pipeline
 	FilterPlugin *next = (FilterPlugin *)outHandle;
-	//Logger::getLogger()->info("passToOnwardFilter(): readingSet->getAllReadingsPtr()=%p", readingSet->getAllReadingsPtr());
 	// Pass readings to next filter
 	next->ingest(readingSet);
 }
@@ -561,8 +558,6 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 			     READINGSET *readingSet)
 {
 	Ingest* ingest = (Ingest *)outHandle;
-	//Logger::getLogger()->info("useFilteredData(): outHandle/ingest=%p, ingest->m_data=%p, readingSet->getAllReadingsPtr()=%p", ingest, ingest->m_data, readingSet->getAllReadingsPtr());
-	
 	if (ingest->m_data != readingSet->getAllReadingsPtr())
 	{
 		ingest->m_data->clear();// Remove any pointers still in the vector
@@ -573,11 +568,7 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 }
 
 /**
- * Configuration change for one of our filters. Lookup the category name and
- * find the plugin to call. Call the reconfigure method of that plugin with
- * the new configuration.
- *
- * Note when the filter pipeline is abstracted this will move to the pipeline
+ * Configuration change for one of the filters or to the pipeline.
  *
  * @param category	The name of the configuration category
  * @param newConfig	The new category contents
@@ -585,13 +576,6 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 void Ingest::configChange(const string& category, const string& newConfig)
 {
 	//Logger::getLogger()->info("Ingest::configChange(): category=%s, newConfig=%s", category.c_str(), newConfig.c_str());
-	/*
-	auto it = m_filterCategories.find(category);
-	if (it != m_filterCategories.end())
-	{
-		it->second->reconfigure(newConfig);
-	}*/
-
 	static string pipelineCfgStr;
 	if (category == m_serviceName) // possible change to filter pipeline
 	{
@@ -602,11 +586,8 @@ void Ingest::configChange(const string& category, const string& newConfig)
 			return;
 		}
 		pipelineCfgStr = config.getValue("filter");
-		lock_guard<mutex> guard(m_qMutex); // blocks ingest process in this scope
+		lock_guard<mutex> guard(m_qMutex); // blocks ingest process while pipeline is being reconfigured
 		m_running = false;
-		//m_cv.notify_one();
-		//processQueue();
-		//updateStats();
 		if (filterPipeline)
 		{
 			Logger::getLogger()->info("Ingest::configChange(): filter pipeline has changed, recreating filter pipeline");

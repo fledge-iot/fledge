@@ -20,16 +20,13 @@
 using namespace std;
 
 /**
- * FilterPlugin class constructor
+ * FilterPipeline class constructor
  *
- * This class wraps the filter plugin C interface and creates
- * set of function pointers that resolve to the loaded plugin and
- * enclose in the class.
+ * This class abstracts the filter pipeline interface
  *
- * @param name		The filter name
- * @param handle	The loaded plugin handle
- *
- * Set the function pointers to Filter Plugin C API
+ * @param mgtClient	Management client handle
+ * @param storage	Storage client handle
+ * @param serviceName	Name of the service to which this pipeline applies
  */
 FilterPipeline::FilterPipeline(ManagementClient* mgtClient, StorageClient& storage, string serviceName) : 
 			mgtClient(mgtClient), storage(storage), serviceName(serviceName)
@@ -37,7 +34,7 @@ FilterPipeline::FilterPipeline(ManagementClient* mgtClient, StorageClient& stora
 }
 
 /**
- * FilterPlugin destructor
+ * FilterPipeline destructor
  */
 FilterPipeline::~FilterPipeline()
 {
@@ -46,10 +43,8 @@ FilterPipeline::~FilterPipeline()
 /**
  * Load the specified filter plugin
  *
- * Static method
- *
- * @param    filterName		The filter plugin to load
- * @return   			Plugin handle on success, NULL otherwise 
+ * @param filterName	The filter plugin to load
+ * @return		Plugin handle on success, NULL otherwise 
  *
  */
 PLUGIN_HANDLE FilterPipeline::loadFilterPlugin(const string& filterName)
@@ -74,138 +69,133 @@ PLUGIN_HANDLE FilterPipeline::loadFilterPlugin(const string& filterName)
 }
 
 /**
- * Load all filter plugins found in the configuration category
- *
- * Static method
+ * Load all filter plugins in the pipeline
  *
  * @param categoryName	Configuration category
- * @param filters	Vector of FilterPlugin to be filled
- * @param manager	The management client
  * @return		True if filters are loaded (or no filters at all)
  *			False otherwise
  */
 bool FilterPipeline::loadFilters(const string& categoryName)
 {
-		//PluginManager* manager = PluginManager::getInstance();
-        try
-        {
-        	// Get the category with values and defaults
-        	ConfigCategory config = mgtClient->getCategory(categoryName);
-            string filter = config.getValue(JSON_CONFIG_FILTER_ELEM);
-			Logger::getLogger()->info("FilterPipeline::loadFilters(): categoryName=%s, filter=%s", categoryName.c_str(), filter.c_str());
-            if (!filter.empty())
-            {
-			std::vector<pair<string, PLUGIN_HANDLE>> filterInfo;
+	try
+	{
+    		// Get the category with values and defaults
+		ConfigCategory config = mgtClient->getCategory(categoryName);
+		string filter = config.getValue(JSON_CONFIG_FILTER_ELEM);
+		Logger::getLogger()->info("FilterPipeline::loadFilters(): categoryName=%s, filter=%s", categoryName.c_str(), filter.c_str());
+		if (!filter.empty())
+		{
+		std::vector<pair<string, PLUGIN_HANDLE>> filterInfo;
 
-			// Remove \" and leading/trailing "
-			// TODO: improve/change this
-			filter.erase(remove(filter.begin(), filter.end(), '\\' ), filter.end());
-			size_t i;
-			while (! (i = filter.find('"')) || (i = filter.rfind('"')) == static_cast<unsigned char>(filter.size() - 1))
+		// Remove \" and leading/trailing "
+		// TODO: improve/change this
+		filter.erase(remove(filter.begin(), filter.end(), '\\' ), filter.end());
+		size_t i;
+		while (! (i = filter.find('"')) || (i = filter.rfind('"')) == static_cast<unsigned char>(filter.size() - 1))
+		{
+			filter.erase(i, 1);
+		}
+
+		//Parse JSON object for filters
+		Document theFilters;
+		theFilters.Parse(filter.c_str());
+		// The "pipeline" property must be an array
+		if (theFilters.HasParseError() ||
+			!theFilters.HasMember(JSON_CONFIG_PIPELINE_ELEM) ||
+			!theFilters[JSON_CONFIG_PIPELINE_ELEM].IsArray())
+		{
+			string errMsg("loadFilters: can not parse JSON '");
+			errMsg += string(JSON_CONFIG_FILTER_ELEM) + "' property";
+			Logger::getLogger()->fatal(errMsg.c_str());
+			throw runtime_error(errMsg);
+		}
+		else
+		{
+			const Value& filterList = theFilters[JSON_CONFIG_PIPELINE_ELEM];
+			if (!filterList.Size())
 			{
-				filter.erase(i, 1);
+				// Empty array, just return true
+				return true;
 			}
 
-			//Parse JSON object for filters
-			Document theFilters;
-			theFilters.Parse(filter.c_str());
-			// The "pipeline" property must be an array
-			if (theFilters.HasParseError() ||
-				!theFilters.HasMember(JSON_CONFIG_PIPELINE_ELEM) ||
-				!theFilters[JSON_CONFIG_PIPELINE_ELEM].IsArray())
+			// Prepare printable list of filters
+			StringBuffer buffer;
+			Writer<StringBuffer> writer(buffer);
+			filterList.Accept(writer);
+			string printableList(buffer.GetString());
+
+			string logMsg("loadFilters: found filter(s) ");
+			logMsg += printableList + " for plugin '";
+			logMsg += categoryName + "'";
+
+			Logger::getLogger()->info(logMsg.c_str());
+
+			// Try loading all filter plugins: abort on any error
+			for (Value::ConstValueIterator itr = filterList.Begin(); itr != filterList.End(); ++itr)
 			{
-				string errMsg("loadFilters: can not parse JSON '");
-				errMsg += string(JSON_CONFIG_FILTER_ELEM) + "' property";
-				Logger::getLogger()->fatal(errMsg.c_str());
-				throw runtime_error(errMsg);
+				// Get "plugin" item fromn filterCategoryName
+				string filterCategoryName = itr->GetString();
+				ConfigCategory filterDetails = mgtClient->getCategory(filterCategoryName);
+				if (!filterDetails.itemExists("plugin"))
+				{
+					string errMsg("loadFilters: 'plugin' item not found ");
+					errMsg += "in " + filterCategoryName + " category";
+					Logger::getLogger()->fatal(errMsg.c_str());
+					throw runtime_error(errMsg);
+				}
+				string filterName = filterDetails.getValue("plugin");
+				PLUGIN_HANDLE filterHandle;
+				// Load filter plugin only: we don't call any plugin method right now
+				filterHandle = loadFilterPlugin(filterName);
+				if (!filterHandle)
+				{
+					string errMsg("Cannot load filter plugin '" + filterName + "'");
+					Logger::getLogger()->fatal(errMsg.c_str());
+					throw runtime_error(errMsg);
+				}
+				else
+				{
+					// Save filter handler: key is filterCategoryName
+					filterInfo.push_back(pair<string,PLUGIN_HANDLE>
+							     (filterCategoryName, filterHandle));
+				}
 			}
-			else
+
+			// We have kept filter default config in the filterInfo map
+			// Handle configuration for each filter
+			PluginManager *pluginManager = PluginManager::getInstance();
+			for (vector<pair<string, PLUGIN_HANDLE>>::iterator itr = filterInfo.begin();
+			     itr != filterInfo.end();
+			     ++itr)
 			{
-				const Value& filterList = theFilters[JSON_CONFIG_PIPELINE_ELEM];
-				if (!filterList.Size())
+				// Get plugin default configuration
+				string filterConfig = pluginManager->getInfo(itr->second)->config;
+
+				// Update filter category items
+				DefaultConfigCategory filterDefConfig(itr->first, filterConfig);
+				string filterDescription = "Configuration of '" + itr->first;
+				filterDescription += "' filter for plugin '" + categoryName + "'";
+				filterDefConfig.setDescription(filterDescription);
+
+				if (!mgtClient->addCategory(filterDefConfig, true))
 				{
-					// Empty array, just return true
-					return true;
+					string errMsg("Cannot create/update '" + \
+						      categoryName + "' filter category");
+					Logger::getLogger()->fatal(errMsg.c_str());
+					throw runtime_error(errMsg);
 				}
 
-				// Prepare printable list of filters
-				StringBuffer buffer;
-				Writer<StringBuffer> writer(buffer);
-				filterList.Accept(writer);
-				string printableList(buffer.GetString());
+				// Instantiate the FilterPlugin class
+				// in order to call plugin entry points
+				FilterPlugin* currentFilter = new FilterPlugin(itr->first,
+									       itr->second);
 
-				string logMsg("loadFilters: found filter(s) ");
-				logMsg += printableList + " for plugin '";
-				logMsg += categoryName + "'";
-
-				Logger::getLogger()->info(logMsg.c_str());
-
-				// Try loading all filter plugins: abort on any error
-				for (Value::ConstValueIterator itr = filterList.Begin(); itr != filterList.End(); ++itr)
-				{
-					// Get "plugin" item fromn filterCategoryName
-					string filterCategoryName = itr->GetString();
-					ConfigCategory filterDetails = mgtClient->getCategory(filterCategoryName);
-					if (!filterDetails.itemExists("plugin"))
-					{
-						string errMsg("loadFilters: 'plugin' item not found ");
-						errMsg += "in " + filterCategoryName + " category";
-						Logger::getLogger()->fatal(errMsg.c_str());
-						throw runtime_error(errMsg);
-					}
-					string filterName = filterDetails.getValue("plugin");
-					PLUGIN_HANDLE filterHandle;
-					// Load filter plugin only: we don't call any plugin method right now
-					filterHandle = loadFilterPlugin(filterName);
-					if (!filterHandle)
-					{
-						string errMsg("Cannot load filter plugin '" + filterName + "'");
-						Logger::getLogger()->fatal(errMsg.c_str());
-						throw runtime_error(errMsg);
-					}
-					else
-					{
-						// Save filter handler: key is filterCategoryName
-						filterInfo.push_back(pair<string,PLUGIN_HANDLE>
-								     (filterCategoryName, filterHandle));
-					}
-				}
-
-				// We have kept filter default config in the filterInfo map
-				// Handle configuration for each filter
-				PluginManager *pluginManager = PluginManager::getInstance();
-				for (vector<pair<string, PLUGIN_HANDLE>>::iterator itr = filterInfo.begin();
-				     itr != filterInfo.end();
-				     ++itr)
-				{
-					// Get plugin default configuration
-					string filterConfig = pluginManager->getInfo(itr->second)->config;
-
-					// Update filter category items
-					DefaultConfigCategory filterDefConfig(itr->first, filterConfig);
-					string filterDescription = "Configuration of '" + itr->first;
-					filterDescription += "' filter for plugin '" + categoryName + "'";
-					filterDefConfig.setDescription(filterDescription);
-
-					if (!mgtClient->addCategory(filterDefConfig, true))
-					{
-						string errMsg("Cannot create/update '" + \
-							      categoryName + "' filter category");
-						Logger::getLogger()->fatal(errMsg.c_str());
-						throw runtime_error(errMsg);
-					}
-
-					// Instantiate the FilterPlugin class
-					// in order to call plugin entry points
-					FilterPlugin* currentFilter = new FilterPlugin(itr->first,
-										       itr->second);
-
-					// Add filter to filters vector
-					m_filters.push_back(currentFilter);
-				}
+				// Add filter to filters vector
+				m_filters.push_back(currentFilter);
 			}
 		}
-		return true;
+	}
+	return true;
 	}
 	catch (ConfigItemNotFound* e)
 	{
@@ -228,11 +218,13 @@ bool FilterPipeline::loadFilters(const string& categoryName)
 /**
  * Set the filter pipeline
  * 
- * This method calls the the method "plugin_init" for all loadade filters.
+ * This method calls the the method "plugin_init" for all loadad filters.
  * Up to date filter configurations and Ingest filtering methods
  * are passed to "plugin_init"
  *
- * @param ingest	The ingest class
+ * @param passToOnwardFilter	Ptr to function that passes data to next filter
+ * @param useFilteredData	Ptr to function that gets final filtered data
+ * @param ingest		The ingest class handle
  * @return 		True on success,
  *			False otherwise.
  * @thown		Any caught exception
@@ -322,13 +314,10 @@ bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFil
 }
 
 /**
- * Cleanup all the load filters setup
+ * Cleanup all the loaded filters
  *
  * Call "plugin_shutdown" method and free the FilterPlugin object
  *
- * Static method
- *
- * @param loadedFilters		The vector of loaded filters
  * @param categoryName		Configuration category
  *
  */
@@ -369,7 +358,7 @@ void FilterPipeline::cleanupFilters(const string& categoryName)
 }
 
 /**
- * Configuration change for one of our filters. Lookup the category name and
+ * Configuration change for one of the filters. Lookup the category name and
  * find the plugin to call. Call the reconfigure method of that plugin with
  * the new configuration.
  *

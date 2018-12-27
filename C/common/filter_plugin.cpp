@@ -166,33 +166,3 @@ void FilterPlugin::ingest(READINGSET* readings)
 	}
 }
 
-/**
- * Load the specified filter plugin
- *
- * Static method
- *
- * @param    filterName		The filter plugin to load
- * @return   			Plugin handle on success, NULL otherwise 
- *
- */
-PLUGIN_HANDLE FilterPlugin::loadFilterPlugin(const string& filterName)
-{
-	if (filterName.empty())
-	{
-		Logger::getLogger()->error("Unable to fetch filter plugin '%s' from configuration.",
-			filterName.c_str());
-		// Failure
-		return NULL;
-	}
-	Logger::getLogger()->info("Loading filter plugin '%s'.", filterName.c_str());
-
-	PluginManager* manager = PluginManager::getInstance();
-	PLUGIN_HANDLE handle;
-	if ((handle = manager->loadPlugin(filterName, PLUGIN_TYPE_FILTER)) != NULL)
-	{
-		// Suceess
-		Logger::getLogger()->info("Loaded filter plugin '%s'.", filterName.c_str());
-	}
-	return handle;
-}
-

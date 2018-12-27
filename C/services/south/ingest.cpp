@@ -502,17 +502,17 @@ vector<Reading *>* newQ = new vector<Reading *>();
 bool Ingest::loadFilters(const string& categoryName)
 {
 	Logger::getLogger()->info("Ingest::loadFilters(): categoryName=%s", categoryName.c_str());
-	filterPipeline = new FilterPipeline;
+	filterPipeline = new FilterPipeline(m_mgtClient, m_storage, m_serviceName);
 	
 	// Try to load filters:
-	if (!filterPipeline->loadFilters(categoryName, m_mgtClient))
+	if (!filterPipeline->loadFilters(categoryName))
 	{
 		// Return false on any error
 		return false;
 	}
 
 	// Set up the filter pipeline
-	return filterPipeline->setupFiltersPipeline(m_mgtClient, m_storage, m_serviceName, (void *)passToOnwardFilter, (void *)useFilteredData, this);
+	return filterPipeline->setupFiltersPipeline((void *)passToOnwardFilter, (void *)useFilteredData, this);
 }
 
 /**
@@ -584,8 +584,7 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
  */
 void Ingest::configChange(const string& category, const string& newConfig)
 {
-	PRINT_FUNC;
-	Logger::getLogger()->info("Ingest::configChange(): category=%s, newConfig=%s", category.c_str(), newConfig.c_str());
+	//Logger::getLogger()->info("Ingest::configChange(): category=%s, newConfig=%s", category.c_str(), newConfig.c_str());
 	/*
 	auto it = m_filterCategories.find(category);
 	if (it != m_filterCategories.end())
@@ -593,28 +592,31 @@ void Ingest::configChange(const string& category, const string& newConfig)
 		it->second->reconfigure(newConfig);
 	}*/
 
-	if (category == m_serviceName)
+	static string pipelineCfgStr;
+	if (category == m_serviceName) // possible change to filter pipeline
 	{
-		// TODO: Recreate filter pipeline only if pipeline has actually changed
+		ConfigCategory config("tmp", newConfig);
+		if (pipelineCfgStr == config.getValue("filter"))
+		{
+			Logger::getLogger()->info("Ingest::configChange(): filter pipeline has not changed");
+			return;
+		}
+		pipelineCfgStr = config.getValue("filter");
 		lock_guard<mutex> guard(m_qMutex); // blocks ingest process in this scope
 		m_running = false;
 		//m_cv.notify_one();
-		PRINT_FUNC;
 		//processQueue();
 		//updateStats();
-		PRINT_FUNC;
 		if (filterPipeline)
 		{
-			Logger::getLogger()->info("Ingest::configChange(): recreating filter pipeline");
+			Logger::getLogger()->info("Ingest::configChange(): filter pipeline has changed, recreating filter pipeline");
 			filterPipeline->cleanupFilters(m_serviceName);
 			delete filterPipeline;
 		}
-		PRINT_FUNC;
 		loadFilters(category);
-		PRINT_FUNC;
 		m_running = true;
 	}
-	else
+	else // change to config of some filter(s)
 	{
 		if (filterPipeline)
 		{

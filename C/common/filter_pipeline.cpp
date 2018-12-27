@@ -31,7 +31,8 @@ using namespace std;
  *
  * Set the function pointers to Filter Plugin C API
  */
-FilterPipeline::FilterPipeline()
+FilterPipeline::FilterPipeline(ManagementClient* mgtClient, StorageClient& storage, string serviceName) : 
+			mgtClient(mgtClient), storage(storage), serviceName(serviceName)
 {
 }
 
@@ -83,13 +84,13 @@ PLUGIN_HANDLE FilterPipeline::loadFilterPlugin(const string& filterName)
  * @return		True if filters are loaded (or no filters at all)
  *			False otherwise
  */
-bool FilterPipeline::loadFilters(const string& categoryName, ManagementClient* manager)
+bool FilterPipeline::loadFilters(const string& categoryName)
 {
 		//PluginManager* manager = PluginManager::getInstance();
         try
         {
         	// Get the category with values and defaults
-        	ConfigCategory config = manager->getCategory(categoryName);
+        	ConfigCategory config = mgtClient->getCategory(categoryName);
             string filter = config.getValue(JSON_CONFIG_FILTER_ELEM);
 			Logger::getLogger()->info("FilterPipeline::loadFilters(): categoryName=%s, filter=%s", categoryName.c_str(), filter.c_str());
             if (!filter.empty())
@@ -144,7 +145,7 @@ bool FilterPipeline::loadFilters(const string& categoryName, ManagementClient* m
 				{
 					// Get "plugin" item fromn filterCategoryName
 					string filterCategoryName = itr->GetString();
-					ConfigCategory filterDetails = manager->getCategory(filterCategoryName);
+					ConfigCategory filterDetails = mgtClient->getCategory(filterCategoryName);
 					if (!filterDetails.itemExists("plugin"))
 					{
 						string errMsg("loadFilters: 'plugin' item not found ");
@@ -186,7 +187,7 @@ bool FilterPipeline::loadFilters(const string& categoryName, ManagementClient* m
 					filterDescription += "' filter for plugin '" + categoryName + "'";
 					filterDefConfig.setDescription(filterDescription);
 
-					if (!manager->addCategory(filterDefConfig, true))
+					if (!mgtClient->addCategory(filterDefConfig, true))
 					{
 						string errMsg("Cannot create/update '" + \
 							      categoryName + "' filter category");
@@ -236,8 +237,7 @@ bool FilterPipeline::loadFilters(const string& categoryName, ManagementClient* m
  *			False otherwise.
  * @thown		Any caught exception
  */
-bool FilterPipeline::setupFiltersPipeline(ManagementClient* mgtClient, StorageClient& storage, string serviceName,
-						void *passToOnwardFilter, void *useFilteredData, void *ingest)
+bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFilteredData, void *ingest)
 {
 	bool initErrors = false;
 	string errMsg = "'plugin_init' failed for filter '";
@@ -338,6 +338,10 @@ void FilterPipeline::cleanupFilters(const string& categoryName)
 	for (auto it = m_filters.begin(); it != m_filters.end(); ++it)
 	{
 		FilterPlugin* filter = *it;
+		string filterCategoryName =  categoryName + "_" + filter->getName();
+		mgtClient->unregisterCategory(filterCategoryName);
+		Logger::getLogger()->info("FilterPipeline::cleanupFilters(): unregistered category %s", filterCategoryName.c_str());
+		
 		// If plugin has SP_PERSIST_DATA option:
 		if (filter->m_plugin_data)
 	 	{
@@ -360,7 +364,7 @@ void FilterPipeline::cleanupFilters(const string& categoryName)
 		}
 
 		// Free filter
-		delete *it;
+		delete filter;
 	}
 }
 
@@ -374,7 +378,6 @@ void FilterPipeline::cleanupFilters(const string& categoryName)
  */
 void FilterPipeline::configChange(const string& category, const string& newConfig)
 {
-	Logger::getLogger()->info("FilterPipeline::configChange(): category=%s, newConfig=%s", category.c_str(), newConfig.c_str());
 	auto it = m_filterCategories.find(category);
 	if (it != m_filterCategories.end())
 	{

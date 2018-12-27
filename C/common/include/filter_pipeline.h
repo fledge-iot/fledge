@@ -24,7 +24,7 @@ class FilterPipeline
 {
 
 public:
-        FilterPipeline();
+        FilterPipeline(ManagementClient* mgtClient, StorageClient& storage, std::string serviceName);
         ~FilterPipeline();
 
 		//const std::string	getName() const { return m_name; };
@@ -46,12 +46,14 @@ public:
 	// Cleanup the loaded filters
 	void 		cleanupFilters(const std::string& categoryName);
 	// Load filters as specified in the configuration
-	bool		loadFilters(const std::string& categoryName, ManagementClient* manager);
-	bool		setupFiltersPipeline(ManagementClient*, StorageClient&, std::string,
-				void *passToOnwardFilter, void *useFilteredData, void *ingest);
+	bool		loadFilters(const std::string& categoryName);
+	bool		setupFiltersPipeline(void *passToOnwardFilter, void *useFilteredData, void *ingest);
 
 private:
-	std::vector<FilterPlugin *> m_filters;
+	ManagementClient*	mgtClient;
+	StorageClient&		storage;
+	std::string		serviceName;
+	std::vector<FilterPlugin *>	m_filters;
 	std::map<std::string, FilterPlugin *>	m_filterCategories;
 };
 

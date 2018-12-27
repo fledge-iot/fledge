@@ -12,13 +12,13 @@ import subprocess
 import os
 
 __author__ = "Vaibhav Singhal"
-__copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
+__copyright__ = "Copyright (c) 2018 Dianomic Systems"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
 @pytest.fixture
-def reset_foglamp_start():
+def reset_and_start_foglamp():
     assert os.environ.get('FOGLAMP_ROOT') is not None
     subprocess.run(["$FOGLAMP_ROOT/scripts/foglamp kill"], shell=True, check=True)
     subprocess.run(["echo YES | $FOGLAMP_ROOT/scripts/foglamp reset"], shell=True, check=True)
@@ -42,8 +42,6 @@ def pytest_addoption(parser):
                      help="PI Server user login password")
     parser.addoption("--pi_token", action="store", default="omf_north_0001",
                      help="OMF Producer Token")
-    parser.addoption("--south_plugin_repo", action="store", default="foglamp-south-playback",
-                     help="South Repo to clone")
     parser.addoption("--south_plugin", action="store", default="playback",
                      help="Name of the South Plugin")
     parser.addoption("--north_plugin", action="store", default="PI_Server_V2",
@@ -85,11 +83,6 @@ def pi_passwd(request):
 @pytest.fixture
 def pi_token(request):
     return request.config.getoption("--pi_token")
-
-
-@pytest.fixture
-def south_plugin_repo(request):
-    return request.config.getoption("--south_plugin_repo")
 
 
 @pytest.fixture

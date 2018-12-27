@@ -18,7 +18,7 @@ import base64
 import ssl
 
 __author__ = "Vaibhav Singhal"
-__copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
+__copyright__ = "Copyright (c) 2018 Dianomic Systems"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
@@ -35,7 +35,7 @@ SLEEP_INTERVAL = 10
 
 
 @pytest.fixture
-def start_south_north(reset_foglamp_start, south_plugin, south_plugin_repo, asset_name, foglamp_url, pi_host, pi_port,
+def start_south_north(reset_and_start_foglamp, south_plugin, asset_name, foglamp_url, pi_host, pi_port,
                       north_plugin, pi_token):
     """ This fixture clone a south repo and starts both south and north instance """
     assert os.environ.get('FOGLAMP_ROOT') is not None
@@ -45,12 +45,14 @@ def start_south_north(reset_foglamp_start, south_plugin, south_plugin_repo, asse
             "config": south_config}
 
     conn = http.client.HTTPConnection(foglamp_url)
-    subprocess.run(["rm -rf /tmp/{}".format(south_plugin_repo)], shell=True, check=True)
+    subprocess.run(["rm -rf /tmp/foglamp-south-{}".format(south_plugin)], shell=True, check=True)
     subprocess.run(["rm -rf -d ${FOGLAMP_ROOT}/python/foglamp/plugins/south/*/"], shell=True, check=True)
-    subprocess.run(["git clone https://github.com/foglamp/{}.git /tmp/{}".format(south_plugin_repo, south_plugin_repo)], shell=True, check=True)
-    subprocess.run(["cp -r /tmp/{}/python/foglamp/plugins/south/* $FOGLAMP_ROOT/python/foglamp/plugins/south/".format(south_plugin_repo)], shell=True, check=True)
+    subprocess.run(["git clone https://github.com/foglamp/foglamp-south-{}.git /tmp/foglamp-south-{}".
+                   format(south_plugin, south_plugin)], shell=True, check=True)
+    subprocess.run(["cp -r /tmp/foglamp-south-{}/python/foglamp/plugins/south/* $FOGLAMP_ROOT/python/foglamp/plugins/south/".format(south_plugin)], shell=True, check=True)
     subprocess.run(["rm -rf $FOGLAMP_ROOT/data/{}".format(CSV_NAME)], shell=True, check=True)
-    f = open(os.path.join(os.path.expandvars('${FOGLAMP_ROOT}'), 'data/{}'.format(CSV_NAME)), "w")
+    csv_file_path = os.path.join(os.path.expandvars('${FOGLAMP_ROOT}'), 'data/{}'.format(CSV_NAME))
+    f = open(csv_file_path, "w")
     f.write(CSV_HEADER)
     f.write("\n{}".format(CSV_DATA))
     f.close()
@@ -102,8 +104,18 @@ def start_south_north(reset_foglamp_start, south_plugin, south_plugin_repo, asse
     assert 200 == r.status
     r.read().decode()
     yield start_south_north
-    os.remove(os.path.join(os.path.expandvars('$FOGLAMP_ROOT/data/{}'.format(CSV_NAME))))
-    shutil.rmtree("/tmp/{}".format(south_plugin_repo), ignore_errors=True)
+    _remove_csv_files(csv_file_path)
+    _remove_directories("/tmp/foglamp-south-{}".format(south_plugin))
+
+
+def _remove_csv_files(file_path=None):
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
+
+def _remove_directories(dir_path=None):
+    if os.path.exists(dir_path):
+        shutil.rmtree(dir_path, ignore_errors=True)
 
 
 def _read_data_from_pi(host, port, admin, password, pi_database, asset):
@@ -117,9 +129,9 @@ def _read_data_from_pi(host, port, admin, password, pi_database, asset):
     username_password = "{}:{}".format(admin, password)
     userAndPass = base64.b64encode(username_password.encode('ascii')).decode("ascii")
     headers = {'Authorization': 'Basic %s' % userAndPass}
-    conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
 
     try:
+        conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
         conn.request("GET", '/piwebapi/assetservers', headers=headers)
         res = conn.getresponse()
         r = json.loads(res.read().decode())
@@ -162,14 +174,14 @@ def _read_data_from_pi(host, port, admin, password, pi_database, asset):
                     res = conn.getresponse()
                     res.read()
                     return value
-    except KeyError:
+    except (KeyError, Exception):
         return None
 
 
 def test_end_to_end(start_south_north, foglamp_url, pi_host, pi_port, pi_admin, pi_passwd, pi_db, asset_name):
     """ Test that data is inserted in FogLAMP and sent to PI"""
     conn = http.client.HTTPConnection(foglamp_url)
-    time.sleep(10)
+    time.sleep(SLEEP_INTERVAL)
     conn.request("GET", '/foglamp/asset')
     r = conn.getresponse()
     assert 200 == r.status
@@ -177,6 +189,7 @@ def test_end_to_end(start_south_north, foglamp_url, pi_host, pi_port, pi_admin, 
     retval = json.loads(r)
     assert retval[0]["assetCode"] == asset_name
     assert retval[0]["count"] == 1
+
     conn.request("GET", '/foglamp/asset/{}'.format(asset_name))
     r = conn.getresponse()
     assert 200 == r.status

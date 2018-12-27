@@ -338,9 +338,9 @@ void FilterPipeline::cleanupFilters(const string& categoryName)
 	for (auto it = m_filters.begin(); it != m_filters.end(); ++it)
 	{
 		FilterPlugin* filter = *it;
-		string filterCategoryName =  categoryName + "_" + filter->getName();
-		mgtClient->unregisterCategory(filterCategoryName);
-		Logger::getLogger()->info("FilterPipeline::cleanupFilters(): unregistered category %s", filterCategoryName.c_str());
+		//string filterCategoryName =  categoryName + "_" + filter->getName();
+		//mgtClient->unregisterCategory(filterCategoryName);
+		//Logger::getLogger()->info("FilterPipeline::cleanupFilters(): unregistered category %s", filterCategoryName.c_str());
 		
 		// If plugin has SP_PERSIST_DATA option:
 		if (filter->m_plugin_data)

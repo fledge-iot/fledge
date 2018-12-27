@@ -236,9 +236,10 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
                         new_list.append(_filter)
             else:
                 new_list = filter_list
-            await cf_mgr.set_category_item_value_entry(user_name, config_item, {'pipeline': new_list})
             await _delete_child_filters(storage, cf_mgr, user_name, new_list, old_list=current_filters)
             await _add_child_filters(storage, cf_mgr, user_name, new_list, old_list=current_filters)
+            # Config update for filter pipeline and a change callback after category children creation
+            await cf_mgr.set_category_item_value_entry(user_name, config_item, {'pipeline': new_list})
         else:  # No existing filters, hence create new item 'config_item' and add the "pipeline" array as a string
             new_item = dict({config_item: {'description': 'Filter pipeline', 'type': 'JSON', 'default': {}}})
             new_item[config_item]['default'] = json.dumps({'pipeline': filter_list})

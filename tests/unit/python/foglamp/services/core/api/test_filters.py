@@ -538,9 +538,9 @@ class TestFilters:
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', return_value=self.async_mock(cat_info)) as get_cat_info_patch:
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=self.async_mock(query_tbl_payload_res)) as query_tbl_patch:
-                    with patch.object(cf_mgr, 'set_category_item_value_entry', return_value=self.async_mock(None)) as set_cat_item_patch:
-                        with patch.object(filters, '_delete_child_filters', return_value=self.async_mock(None)) as _delete_child_patch:
-                            with patch.object(filters, '_add_child_filters', return_value=self.async_mock(None)) as _add_child_patch:
+                    with patch.object(filters, '_delete_child_filters', return_value=self.async_mock(None)) as _delete_child_patch:
+                        with patch.object(filters, '_add_child_filters', return_value=self.async_mock(None)) as _add_child_patch:
+                            with patch.object(cf_mgr, 'set_category_item_value_entry', return_value=self.async_mock(None)) as set_cat_item_patch:
                                 with patch.object(cf_mgr, 'get_category_item', return_value=self.async_mock(update_filter_val['filter'])) as get_cat_item_patch:
                                     resp = await client.put('/foglamp/filter/{}/pipeline'.format(user), data=json.dumps({"pipeline": ["AssetFilter"]}))
                                     assert 200 == resp.status
@@ -548,15 +548,15 @@ class TestFilters:
                                     json_response = json.loads(r)
                                     assert {'result': "Filter pipeline {'pipeline': ['AssetFilter']} updated successfully"} == json_response
                                 get_cat_item_patch.assert_called_once_with(user, 'filter')
-                            args, kwargs = _add_child_patch.call_args
-                            assert user == args[2]
-                            assert ['AssetFilter'] == args[3]
-                            assert {'old_list': ['AssetFilter']} == kwargs
-                        args, kwargs = _delete_child_patch.call_args
+                            set_cat_item_patch.assert_called_once_with(user, 'filter', {'pipeline': ['AssetFilter']})
+                        args, kwargs = _add_child_patch.call_args
                         assert user == args[2]
                         assert ['AssetFilter'] == args[3]
                         assert {'old_list': ['AssetFilter']} == kwargs
-                    set_cat_item_patch.assert_called_once_with(user, 'filter', {'pipeline': ['AssetFilter']})
+                    args, kwargs = _delete_child_patch.call_args
+                    assert user == args[2]
+                    assert ['AssetFilter'] == args[3]
+                    assert {'old_list': ['AssetFilter']} == kwargs
                 query_tbl_patch.assert_called_once_with('filters', '{"where": {"column": "name", "condition": "=", "value": "AssetFilter"}}')
             get_cat_info_patch.assert_called_once_with(category_name=user)
 

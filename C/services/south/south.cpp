@@ -502,8 +502,7 @@ void SouthService::configChange(const string& categoryName, const string& catego
 	{
 		m_config = ConfigCategory(m_name, category);
 		southPlugin->reconfigure(category);
-		//logger->info("m_config.getName()=%s, m_config.getValue(\"filter\")=%s", m_config.getName().c_str(), m_config.getValue("filter").c_str());
-		//logger->info("categoryName=%s, category=%s", categoryName.c_str(), category.c_str());
+		// Let ingest class check for changes to filter pipeline
 		m_ingest->configChange(categoryName, category);
 	}
 	if (categoryName.compare(m_name+"Advanced") == 0)

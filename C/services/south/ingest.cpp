@@ -599,6 +599,7 @@ void Ingest::configChange(const string& category, const string& newConfig)
 	}
 	else // change to config of some filter(s)
 	{
+		Logger::getLogger()->info("Ingest::configChange(): change to config of some filter(s)");
 		if (filterPipeline)
 		{
 			filterPipeline->configChange(category, newConfig);

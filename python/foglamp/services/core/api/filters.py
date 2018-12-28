@@ -485,15 +485,20 @@ async def _add_child_filters(storage: StorageClientAsync, cf_mgr: ConfigurationM
     # present in the payload, we need to remove all "value" keys BUT need to add back these
     # "value" keys to the new configuration.
     for filter_name in filter_list:
-        filter_config = await cf_mgr.get_category_all_items(category_name=filter_name)
-        filter_desc = "Configuration of {} filter for user {}".format(filter_name, user_name)
-        new_filter_config, deleted_values = _delete_keys_from_dict(filter_config, ['value'], deleted_values={}, parent=None)
-        await cf_mgr.create_category(category_name="{}_{}".format(user_name, filter_name),
-                                     category_description=filter_desc,
-                                     category_value=new_filter_config,
-                                     keep_original_items=True)
-        if deleted_values != {}:
-            await cf_mgr.update_configuration_item_bulk("{}_{}".format(user_name, filter_name), deleted_values)
+        filter_config = await cf_mgr.get_category_all_items(category_name="{}_{}".format(user_name, filter_name))
+        # If "username_filter" category does not exist
+        if filter_config is None:
+            filter_config = await cf_mgr.get_category_all_items(category_name=filter_name)
+
+            filter_desc = "Configuration of {} filter for user {}".format(filter_name, user_name)
+            new_filter_config, deleted_values = _delete_keys_from_dict(filter_config, ['value'], deleted_values={}, parent=None)
+            await cf_mgr.create_category(category_name="{}_{}".format(user_name, filter_name),
+                                         category_description=filter_desc,
+                                         category_value=new_filter_config,
+                                         keep_original_items=True)
+            if deleted_values != {}:
+                await cf_mgr.update_configuration_item_bulk("{}_{}".format(user_name, filter_name), deleted_values)
+
         # Remove cat from cache
         if filter_name in cf_mgr._cacheManager.cache:
             cf_mgr._cacheManager.remove(filter_name)

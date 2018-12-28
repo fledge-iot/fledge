@@ -16,8 +16,6 @@ import shutil
 import base64
 import ssl
 import pytest
-from foglamp.common.common import _FOGLAMP_ROOT
-print(_FOGLAMP_ROOT)
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2018 Dianomic Systems"

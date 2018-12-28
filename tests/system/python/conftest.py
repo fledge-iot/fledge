@@ -7,9 +7,9 @@
 """ Configuration system/python/conftest.py
 
 """
-import pytest
 import subprocess
 import os
+import pytest
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2018 Dianomic Systems"

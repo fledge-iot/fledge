@@ -7,7 +7,6 @@
 """ Test system/python/end_to_end_csv.py
 
 """
-import pytest
 import os
 import subprocess
 import http.client
@@ -16,6 +15,9 @@ import time
 import shutil
 import base64
 import ssl
+import pytest
+from foglamp.common.common import _FOGLAMP_ROOT
+print(_FOGLAMP_ROOT)
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2018 Dianomic Systems"
@@ -30,12 +32,14 @@ CSV_DATA = 2.5
 # Number of tries to make to read PI data and to read North configuration
 NUM_RETRIES = 3
 # Low sleep interval between each tries, used in internal foglamp process waits
-SLEEP_INTERVAL_LOW = 3
+SLEEP_INTERVAL_LOW = 5
 # High sleep interval between each tries, used in external pi webapi waits
 SLEEP_INTERVAL_HIGH = 10
+# Name of the North Task
+NORTH_TASK_NAME = "North_Readings_to_PI"
 
 
-def _start_folamp_south(south_plugin, asset_name, foglamp_url):
+def _start_foglamp_south(south_plugin, asset_name, foglamp_url):
     """Start south service"""
 
     south_config = {"assetName": {"value": "{}".format(asset_name)}, "csvFilename": {"value": "{}".format(CSV_NAME)},
@@ -45,7 +49,7 @@ def _start_folamp_south(south_plugin, asset_name, foglamp_url):
 
     conn = http.client.HTTPConnection(foglamp_url)
     subprocess.run(["rm -rf /tmp/foglamp-south-{}".format(south_plugin)], shell=True, check=True)
-    subprocess.run(["rm -rf -d ${FOGLAMP_ROOT}/python/foglamp/plugins/south/*/"], shell=True, check=True)
+    subprocess.run(["rm -rf $FOGLAMP_ROOT/python/foglamp/plugins/south/foglamp-south-{}".format(south_plugin)], shell=True, check=True)
     subprocess.run(["git clone https://github.com/foglamp/foglamp-south-{}.git /tmp/foglamp-south-{}".
                    format(south_plugin, south_plugin)], shell=True, check=True)
     subprocess.run(["cp -r /tmp/foglamp-south-{}/python/foglamp/plugins/south/* "
@@ -62,51 +66,27 @@ def _start_folamp_south(south_plugin, asset_name, foglamp_url):
     assert 200 == r.status
     r = r.read().decode()
     retval = json.loads(r)
-    assert retval["name"] == "play"
+    assert "play" == retval["name"]
     return csv_file_path
 
 
-def _start_folamp_north(foglamp_url, pi_host, pi_port, north_plugin, pi_token):
+def _start_foglamp_north(foglamp_url, pi_host, pi_port, north_plugin, pi_token):
     """Start north task"""
 
     conn = http.client.HTTPConnection(foglamp_url)
-    data = {"name": "North_Readings_to_PI",
+    data = {"name": NORTH_TASK_NAME,
             "plugin": "{}".format(north_plugin),
             "type": "north",
             "schedule_type": 3,
             "schedule_day": 0,
             "schedule_time": 0,
             "schedule_repeat": 30,
-            "schedule_enabled": "false"}
+            "schedule_enabled": "true",
+            "config": {"producerToken": {"value": pi_token},
+                       "URL": {"value": "https://{}:{}/ingress/messages".format(pi_host, pi_port)}
+                       }
+            }
     conn.request("POST", '/foglamp/scheduled/task', json.dumps(data))
-    r = conn.getresponse()
-    assert 200 == r.status
-    r = r.read().decode()
-    retval = json.loads(r)
-    assert retval["name"] == "North_Readings_to_PI"
-
-    # Test the north is setup and configuration is available
-    retry_count = 0
-    config_status = None
-    while config_status != 200 and retry_count < NUM_RETRIES:
-        conn.request("GET", '/foglamp/category/North_Readings_to_PI/producerToken')
-        r = conn.getresponse()
-        config_status = r.status
-        r.read().decode()
-        retry_count += 1
-        time.sleep(SLEEP_INTERVAL_LOW)
-
-    if config_status != 200 or retry_count == NUM_RETRIES:
-        assert False, "North plugin config load failed in {} tries".format(NUM_RETRIES)
-
-    data = {"URL": "https://{}:{}/ingress/messages".format(pi_host, pi_port), "producerToken": "{}".format(pi_token)}
-    conn.request("PUT", '/foglamp/category/North_Readings_to_PI', json.dumps(data))
-    r = conn.getresponse()
-    assert 200 == r.status
-    r.read().decode()
-
-    data = {"schedule_name": "{}".format("North_Readings_to_PI")}
-    conn.request("PUT", '/foglamp/schedule/enable', json.dumps(data))
     r = conn.getresponse()
     assert 200 == r.status
     r.read().decode()
@@ -137,8 +117,8 @@ def _read_data_from_pi(host, admin, password, pi_database, asset):
     web_id = None
 
     username_password = "{}:{}".format(admin, password)
-    userAndPass = base64.b64encode(username_password.encode('ascii')).decode("ascii")
-    headers = {'Authorization': 'Basic %s' % userAndPass}
+    username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
+    headers = {'Authorization': 'Basic %s' % username_password_b64}
 
     try:
         conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
@@ -184,7 +164,7 @@ def _read_data_from_pi(host, admin, password, pi_database, asset):
                     res = conn.getresponse()
                     res.read()
                     return value
-    except (KeyError, Exception):
+    except (KeyError, IndexError, Exception):
         return None
 
 
@@ -193,14 +173,11 @@ def start_south_north(reset_and_start_foglamp, south_plugin, asset_name, foglamp
                       north_plugin, pi_token):
     """ This fixture clone a south repo and starts both south and north instance """
 
-    # Test that FOGLAMP_ROOT environment variable is set
-    assert os.environ.get('FOGLAMP_ROOT') is not None
-
     # Start foglamp south service
-    csv_file_path = _start_folamp_south(south_plugin, asset_name, foglamp_url)
+    csv_file_path = _start_foglamp_south(south_plugin, asset_name, foglamp_url)
 
     # Start foglamp north task
-    _start_folamp_north(foglamp_url, pi_host, pi_port, north_plugin, pi_token)
+    _start_foglamp_north(foglamp_url, pi_host, pi_port, north_plugin, pi_token)
 
     # Provide the fixture value
     yield start_south_north
@@ -220,15 +197,16 @@ def test_end_to_end(start_south_north, foglamp_url, pi_host, pi_port, pi_admin, 
     assert 200 == r.status
     r = r.read().decode()
     retval = json.loads(r)
-    assert retval[0]["assetCode"] == asset_name
-    assert retval[0]["count"] == 1
+    assert len(retval) > 0
+    assert asset_name == retval[0]["assetCode"]
+    assert 1 == retval[0]["count"]
 
     conn.request("GET", '/foglamp/asset/{}'.format(asset_name))
     r = conn.getresponse()
     assert 200 == r.status
     r = r.read().decode()
     retval = json.loads(r)
-    assert retval[0]["reading"] == {'{}'.format(CSV_HEADER): '{}'.format(CSV_DATA)}
+    assert {'{}'.format(CSV_HEADER): '{}'.format(CSV_DATA)} == retval[0]["reading"]
 
     retry_count = 0
     data_from_pi = None

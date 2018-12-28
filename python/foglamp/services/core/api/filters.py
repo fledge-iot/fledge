@@ -75,7 +75,7 @@ async def create_filter(request: web.Request) -> web.Response:
             raise ValueError("This '{}' filter already exists".format(filter_name))
 
         # Load C filter plugin info
-        loaded_plugin_info = apiutils.get_plugin_info(plugin_name)
+        loaded_plugin_info = apiutils.get_plugin_info(plugin_name, dir='filter')
         if not loaded_plugin_info or 'config' not in loaded_plugin_info:
             message = "Can not get 'plugin_info' detail from plugin '{}'".format(plugin_name)
             raise ValueError(message)
@@ -236,9 +236,10 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
                         new_list.append(_filter)
             else:
                 new_list = filter_list
-            await cf_mgr.set_category_item_value_entry(user_name, config_item, {'pipeline': new_list})
             await _delete_child_filters(storage, cf_mgr, user_name, new_list, old_list=current_filters)
             await _add_child_filters(storage, cf_mgr, user_name, new_list, old_list=current_filters)
+            # Config update for filter pipeline and a change callback after category children creation
+            await cf_mgr.set_category_item_value_entry(user_name, config_item, {'pipeline': new_list})
         else:  # No existing filters, hence create new item 'config_item' and add the "pipeline" array as a string
             new_item = dict({config_item: {'description': 'Filter pipeline', 'type': 'JSON', 'default': {}}})
             new_item[config_item]['default'] = json.dumps({'pipeline': filter_list})

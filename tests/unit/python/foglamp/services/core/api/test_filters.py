@@ -213,7 +213,7 @@ class TestFilters:
                         assert "Can not get 'plugin_info' detail from plugin '{}'".format(plugin_name) == resp.reason
                     assert 1 == log_exc.call_count
                     log_exc.assert_called_once_with("Add filter, caught exception: Can not get 'plugin_info' detail from plugin '{}'".format(plugin_name))
-                api_utils_patch.assert_called_once_with(plugin_name)
+                api_utils_patch.assert_called_once_with(plugin_name, dir='filter')
             get_cat_info_patch.assert_called_once_with(category_name='test')
 
     async def test_create_filter_value_error_3(self, client):
@@ -229,7 +229,7 @@ class TestFilters:
                         assert "Loaded plugin 'python35', type 'south', doesn't match the specified one '{}', type 'filter'".format(plugin_name) == resp.reason
                     assert 1 == log_exc.call_count
                     log_exc.assert_called_once_with("Add filter, caught exception: Loaded plugin 'python35', type 'south', doesn't match the specified one '{}', type 'filter'".format(plugin_name))
-                api_utils_patch.assert_called_once_with(plugin_name)
+                api_utils_patch.assert_called_once_with(plugin_name, dir='filter')
             get_cat_info_patch.assert_called_once_with(category_name='test')
 
     async def test_create_filter_value_error_4(self, client):
@@ -257,7 +257,7 @@ class TestFilters:
                     assert 'filters' == args[0]
                     assert {"where": {"column": "name", "condition": "=", "value": "test"}} == json.loads(args[1])
                     # query_tbl_patch.assert_called_once_with('filters', '{"where": {"column": "name", "condition": "=", "value": "test"}}')
-                api_utils_patch.assert_called_once_with(plugin_name)
+                api_utils_patch.assert_called_once_with(plugin_name, dir='filter')
             get_cat_info_patch.assert_called_once_with(category_name='test')
 
     async def test_create_filter_storage_error(self, client):
@@ -278,7 +278,7 @@ class TestFilters:
                             log_exc.assert_called_once_with('Failed to create filter. %s', 'something went wrong')
                         args, kwargs = _delete_cfg_patch.call_args
                         assert name == args[1]
-                api_utils_patch.assert_called_once_with(plugin_name)
+                api_utils_patch.assert_called_once_with(plugin_name, dir='filter')
             get_cat_info_patch.assert_called_once_with(category_name=name)
 
     async def test_create_filter_exception(self, client):
@@ -323,7 +323,7 @@ class TestFilters:
                     assert 'filters' == args[0]
                     assert {"where": {"column": "name", "condition": "=", "value": "test"}} == json.loads(args[1])
                     # query_tbl_patch.assert_called_once_with('filters', '{"where": {"column": "name", "condition": "=", "value": "test"}}')
-                api_utils_patch.assert_called_once_with(plugin_name)
+                api_utils_patch.assert_called_once_with(plugin_name, dir='filter')
             assert 2 == get_cat_info_patch.call_count
 
     async def test_delete_filter(self, client):
@@ -538,9 +538,9 @@ class TestFilters:
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', return_value=self.async_mock(cat_info)) as get_cat_info_patch:
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=self.async_mock(query_tbl_payload_res)) as query_tbl_patch:
-                    with patch.object(cf_mgr, 'set_category_item_value_entry', return_value=self.async_mock(None)) as set_cat_item_patch:
-                        with patch.object(filters, '_delete_child_filters', return_value=self.async_mock(None)) as _delete_child_patch:
-                            with patch.object(filters, '_add_child_filters', return_value=self.async_mock(None)) as _add_child_patch:
+                    with patch.object(filters, '_delete_child_filters', return_value=self.async_mock(None)) as _delete_child_patch:
+                        with patch.object(filters, '_add_child_filters', return_value=self.async_mock(None)) as _add_child_patch:
+                            with patch.object(cf_mgr, 'set_category_item_value_entry', return_value=self.async_mock(None)) as set_cat_item_patch:
                                 with patch.object(cf_mgr, 'get_category_item', return_value=self.async_mock(update_filter_val['filter'])) as get_cat_item_patch:
                                     resp = await client.put('/foglamp/filter/{}/pipeline'.format(user), data=json.dumps({"pipeline": ["AssetFilter"]}))
                                     assert 200 == resp.status
@@ -548,15 +548,15 @@ class TestFilters:
                                     json_response = json.loads(r)
                                     assert {'result': "Filter pipeline {'pipeline': ['AssetFilter']} updated successfully"} == json_response
                                 get_cat_item_patch.assert_called_once_with(user, 'filter')
-                            args, kwargs = _add_child_patch.call_args
-                            assert user == args[2]
-                            assert ['AssetFilter'] == args[3]
-                            assert {'old_list': ['AssetFilter']} == kwargs
-                        args, kwargs = _delete_child_patch.call_args
+                            set_cat_item_patch.assert_called_once_with(user, 'filter', {'pipeline': ['AssetFilter']})
+                        args, kwargs = _add_child_patch.call_args
                         assert user == args[2]
                         assert ['AssetFilter'] == args[3]
                         assert {'old_list': ['AssetFilter']} == kwargs
-                    set_cat_item_patch.assert_called_once_with(user, 'filter', {'pipeline': ['AssetFilter']})
+                    args, kwargs = _delete_child_patch.call_args
+                    assert user == args[2]
+                    assert ['AssetFilter'] == args[3]
+                    assert {'old_list': ['AssetFilter']} == kwargs
                 query_tbl_patch.assert_called_once_with('filters', '{"where": {"column": "name", "condition": "=", "value": "AssetFilter"}}')
             get_cat_info_patch.assert_called_once_with(category_name=user)
 

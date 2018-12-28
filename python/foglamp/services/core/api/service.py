@@ -183,7 +183,7 @@ async def add_service(request):
             script = '["services/south_c"]' if plugin_info['mode'] == 'poll' else '["services/south"]'
         except ImportError as ex:
             # Checking for C-type plugins
-            plugin_info = apiutils.get_plugin_info(plugin)
+            plugin_info = apiutils.get_plugin_info(plugin, dir=service_type)
             if plugin_info['type'] != service_type:
                 msg = "Plugin of {} type is not supported".format(plugin_info['type'])
                 _logger.exception(msg)

@@ -67,7 +67,7 @@ def _start_folamp_south(south_plugin, asset_name, foglamp_url):
 
 
 def _start_folamp_north(foglamp_url, pi_host, pi_port, north_plugin, pi_token):
-    """Start north service"""
+    """Start north task"""
 
     conn = http.client.HTTPConnection(foglamp_url)
     data = {"name": "North_Readings_to_PI",
@@ -199,7 +199,7 @@ def start_south_north(reset_and_start_foglamp, south_plugin, asset_name, foglamp
     # Start foglamp south service
     csv_file_path = _start_folamp_south(south_plugin, asset_name, foglamp_url)
 
-    # Start foglamp north service
+    # Start foglamp north task
     _start_folamp_north(foglamp_url, pi_host, pi_port, north_plugin, pi_token)
 
     # Provide the fixture value

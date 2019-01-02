@@ -48,10 +48,10 @@ using namespace std;
 // Translation from the data source type to data source information
 const map<string, std::tuple<string, string, string>>  data_source_to_information = {
 
-	// Data source          - TableName     - Statistics key - Statistics description
-	{DATA_SOURCE_READINGS,   {"readings",   "Readings Sent",   "Readings Sent North"}},
-	{DATA_SOURCE_STATISTICS, {"statistics", "Statistics Sent", "Statistics Sent North"}},
-	{DATA_SOURCE_AUDIT,      {"audit",      "Audit Sent",      "Audit Sent North"}}
+	// Data source                         - TableName   - Statistics key   - Statistics description
+	{DATA_SOURCE_READINGS,   std::make_tuple("readings",   "Readings Sent",   "Readings Sent North")},
+	{DATA_SOURCE_STATISTICS, std::make_tuple("statistics", "Statistics Sent", "Statistics Sent North")},
+	{DATA_SOURCE_AUDIT,      std::make_tuple("audit",      "Audit Sent",      "Audit Sent North")}
 };
 
 // static pointer to data buffers for filter plugins

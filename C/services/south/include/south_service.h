@@ -51,5 +51,6 @@ class SouthService : public ServiceHandler {
 		unsigned int			m_threshold;
 		unsigned long			m_timeout;
 		Ingest				*m_ingest;
+		int				m_timerfd;
 };
 #endif

@@ -163,7 +163,7 @@ async def add_task(request):
         except ImportError as ex:
             # Checking for C-type plugins
             script = '["tasks/north_c"]'
-            plugin_info = apiutils.get_plugin_info(plugin)
+            plugin_info = apiutils.get_plugin_info(plugin, dir=task_type)
             if plugin_info['type'] != task_type:
                 msg = "Plugin of {} type is not supported".format(plugin_info['type'])
                 _logger.exception(msg)

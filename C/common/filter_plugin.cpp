@@ -50,6 +50,9 @@ FilterPlugin::FilterPlugin(const std::string& name,
 			      manager->resolveSymbol(handle, "plugin_start");
 	pluginStartPtr = (void (*)(const PLUGIN_HANDLE))
 			      manager->resolveSymbol(handle, "plugin_start");
+  	pluginReconfigurePtr = (void (*)(PLUGIN_HANDLE, const string&))
+				      manager->resolveSymbol(handle,
+							     "plugin_reconfigure");
 
 	// Persist data initialised
 	m_plugin_data = NULL;	
@@ -118,6 +121,19 @@ void FilterPlugin::start()
 	if (pluginStartPtr)
 	{
         	return this->pluginStartPtr(m_instance);
+	}
+}
+
+/**
+ * Call plugin_reconfigure method
+ *
+ * @param configuration	The new filter configuration
+ */
+void FilterPlugin::reconfigure(const string& configuration)
+{
+	if (pluginReconfigurePtr)
+	{
+        	return this->pluginReconfigurePtr(m_instance, configuration);
 	}
 }
 

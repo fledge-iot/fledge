@@ -42,6 +42,7 @@ public:
 	void			startData(const std::string& pluginData);
 	std::string		shutdownSaveData();
 	void			start();
+	void			reconfigure(const std::string&);
 
 // Public static methods
 public:
@@ -59,6 +60,7 @@ private:
 				      OUTPUT_HANDLE* outHandle,
 				      OUTPUT_STREAM output);
         void            (*pluginShutdownPtr)(PLUGIN_HANDLE);
+        void            (*pluginReconfigurePtr)(PLUGIN_HANDLE, const std::string&);
         void            (*pluginIngestPtr)(PLUGIN_HANDLE,
 					   READINGSET *);
 	std::string	(*pluginShutdownDataPtr)(const PLUGIN_HANDLE);

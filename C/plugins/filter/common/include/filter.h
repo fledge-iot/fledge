@@ -26,10 +26,11 @@ class FogLampFilter{
 		bool		isEnabled() const { return m_enabled; };
 		ConfigCategory& getConfig() { return m_config; };
 		void		disableFilter() { m_enabled = false; };
+		void		setConfig(const std::string& newConfig);
 	public:
 		OUTPUT_HANDLE*	m_data;
 		OUTPUT_STREAM	m_func;
-	private:
+	protected:
 		std::string	m_name;
 		ConfigCategory	m_config;
 		bool		m_enabled;

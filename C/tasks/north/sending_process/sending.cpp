@@ -771,7 +771,7 @@ ConfigCategory SendingProcess::fetchConfiguration(const std::string& defaultConf
 							 info->config);
 
 			// Copy all pluginInfo items into current sendingProcess config
-			category = pluginInfo;
+			category += pluginInfo;
 		}
 
 		// Create/Update hierarchical configuration categories
@@ -984,7 +984,7 @@ bool SendingProcess::setupFiltersPipeline() const
 
 	for (auto it = m_filters.begin(); it != m_filters.end(); ++it)
 	{
-		string filterCategoryName = (*it)->getName();
+		string filterCategoryName = getName() + "_" + (*it)->getName();
 		ConfigCategory updatedCfg;
 		vector<string> children;
 

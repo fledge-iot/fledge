@@ -530,6 +530,50 @@ class Server:
             sys.exit(1)
 
     @classmethod
+    def _reposition_streams_table(cls, loop):
+
+        _logger.info("'foglamp.readings' is stored in memory and a restarted has occurred, "
+                     "force reset of 'foglamp.streams' last_objects")
+
+        configuration = loop.run_until_complete(cls._storage_client_async.query_tbl('configuration'))
+
+        rows = configuration['rows']
+
+        if len(rows) > 0:
+            streams_id = []
+
+            # Identifies the sending process handling the readings table
+            for _item in rows:
+                try:
+                    if _item['value']['source']['value'] is not None:
+
+                        if _item['value']['source']['value'] == "readings":
+
+                            # Sending process in C++
+                            try:
+                                streams_id.append(_item['value']['streamId']['value'])
+                            except KeyError:
+                                # Sending process in Python
+                                try:
+                                    streams_id.append(_item['value']['stream_id']['value'])
+                                except KeyError:
+                                    pass
+
+                except KeyError:
+                    pass
+
+            # Reset identified rows of the streams table
+            if len(streams_id) >= 0:
+
+                for _stream_id in streams_id:
+                    payload = payload_builder.PayloadBuilder() \
+                        .SET(last_object=0, ts='now()') \
+                        .WHERE(['id', '=', _stream_id]) \
+                        .payload()
+
+                    loop.run_until_complete(cls._storage_client_async.update_tbl("streams", payload))
+
+    @classmethod
     def _check_readings_table(cls, loop):
         total_count_payload = payload_builder.PayloadBuilder().AGGREGATE(["count", "*"]).ALIAS("aggregate", (
                                 "*", "count", "count")).payload()
@@ -537,18 +581,16 @@ class Server:
             cls._readings_client_async.query(total_count_payload))
         total_count = result['rows'][0]['count']
 
-        if (total_count == 0):
-            _logger.info("'foglamp.readings' table is empty, force reset of 'foglamp.streams' last_objects")
-
+        if total_count == 0:
             # Get total count of streams
             result = loop.run_until_complete(
                 cls._storage_client_async.query_tbl_with_payload('streams', total_count_payload))
             total_streams_count = result['rows'][0]['count']
 
             # If streams table is non empty, then initialize it
-            if (total_streams_count != 0):
-                payload = payload_builder.PayloadBuilder().SET(last_object=0, ts='now()').payload()
-                loop.run_until_complete(cls._storage_client_async.update_tbl("streams", payload))
+            if total_streams_count != 0:
+                cls._reposition_streams_table(loop)
+
         else:
             _logger.info("'foglamp.readings' has " + str(
                 total_count) + " rows, 'foglamp.streams' last_objects reset is not required")

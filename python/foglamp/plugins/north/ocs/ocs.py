@@ -95,7 +95,7 @@ _CONFIG_CATEGORY_DESCRIPTION = 'Configuration of OCS North plugin'
 #
 _CONFIG_DEFAULT_OMF = {
     'plugin': {
-        'description': 'OCS North Plugin',
+        'description': 'OCS (OSIsoft Cloud Services) North Plugin',
         'type': 'string',
         'default': 'ocs',
         'readonly': 'true'
@@ -104,26 +104,30 @@ _CONFIG_DEFAULT_OMF = {
         "description": "The URL of OCS (OSIsoft Cloud Services),  TENANT_ID_PLACEHOLDER and NAMESPACE_ID_PLACEHOLDER, if present, will be replaced with the values of tenant_id and namespace parameters ",
         "type": "string",
         "default": "https://dat-a.osisoft.com/api/tenants/TENANT_ID_PLACEHOLDER/namespaces/NAMESPACE_ID_PLACEHOLDER/omf",
-        "order": "1"
+        "order": "1",
+        "displayName": "URL"
     },
     "producerToken": {
         "description": "The producer token used to authenticate as a valid publisher and "
                        "required to ingest data into OCS using OMF.",
         "type": "string",
         "default": "ocs_north_0001",
-        "order": "2"
+        "order": "2",
+        "displayName": "Producer Token"
     },
     "source": {
         "description": "Source of data to be sent on the stream.",
         "type": "enumeration",
         "default": "readings",
         "options": ["readings"],
-        "order": "3"
+        "order": "3",
+        "displayName": "Data Source"
     },
     "compression": {
         "description": "Compress message body",
         "type": "boolean",
         "default": "false",
+        "displayName": "Compression"
     },
     "StaticData": {
         "description": "Static data to include in each sensor reading sent to OMF.",
@@ -134,76 +138,88 @@ _CONFIG_DEFAULT_OMF = {
                 "Company": "Dianomic"
             }
         ),
-        "order": "4"
+        "order": "4",
+        "displayName": "Static Data"
     },
     "applyFilter": {
         "description": "Whether to apply filter before processing the data",
         "type": "boolean",
         "default": "False",
-        "order": "5"
+        "order": "5",
+        "displayName": "Apply Filter"
     },
     "filterRule": {
         "description": "JQ formatted filter to apply (applicable if applyFilter is True)",
         "type": "string",
         "default": ".[]",
-        "order": "6"
+        "order": "6",
+        "displayName": "Filter Rule"
     },
     "OMFRetrySleepTime": {
         "description": "Seconds between each retry for the communication with the OMF PI Connector Relay",
         "type": "integer",
         "default": "1",
-        "order": "9"
+        "order": "9",
+        "displayName": "Sleep Time Retry"
     },
     "OMFMaxRetry": {
         "description": "Max number of retries for the communication with the OMF PI Connector Relay",
         "type": "integer",
         "default": "5",
-        "order": "10"
+        "order": "10",
+        "displayName": "Maximum Retry"
     },
     "OMFHttpTimeout": {
         "description": "Timeout in seconds for the HTTP operations with the OMF PI Connector Relay",
         "type": "integer",
         "default": "30",
-        "order": "13"
+        "order": "13",
+        "displayName": "HTTP Timeout"
     },
     "formatInteger": {
         "description": "OMF format property to apply to the type Integer",
         "type": "string",
         "default": "int64",
-        "order": "14"
+        "order": "14",
+        "displayName": "Integer Format"
     },
     "formatNumber": {
         "description": "OMF format property to apply to the type Number",
         "type": "string",
         "default": "float64",
-        "order": "15"
+        "order": "15",
+        "displayName": "Number Format"
     },
     "namespace": {
         "description": "Specifies the OCS namespace where the information are stored and "
                        "it is used for the interaction with the OCS API.",
         "type": "string",
         "default": "ocs_namespace_0001",
-        "order": "16"
+        "order": "16",
+        "displayName": "Namespace"
     },
     "tenant_id": {
         "description": "Tenant id associated to the specific OCS account.",
         "type": "string",
         "default": "ocs_tenant_id",
-        "order": "17"
+        "order": "17",
+        "displayName": "Tenant ID"
     },
     "client_id": {
         "description": "Client id associated to the specific OCS account, "
                        "it is used to authenticate the source for using the OCS API.",
         "type": "string",
         "default": "ocs_client_id",
-        "order": "18"
+        "order": "18",
+        "displayName": "Client ID"
     },
     "client_secret": {
         "description": "Client secret associated to the specific OCS account, "
                        "it is used to authenticate the source for using the OCS API.",
         "type": "string",
         "default": "ocs_client_secret",
-        "order": "19"
+        "order": "19",
+        "displayName": "Client Secret"
     },
     "notBlockingErrors": {
         "description": "These errors are considered not blocking in the communication with the PI Server,"

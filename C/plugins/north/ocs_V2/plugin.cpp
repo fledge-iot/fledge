@@ -38,45 +38,45 @@ using namespace rapidjson;
 				"NOTE : TENANT_ID_PLACEHOLDER and NAMESPACE_ID_PLACEHOLDER, if present, will be replaced with the values of tenant_id and namespace\", " \
 				"\"type\": \"string\", " \
 				"\"default\": \"https://dat-a.osisoft.com:443/api/tenants/TENANT_ID_PLACEHOLDER/namespaces/NAMESPACE_ID_PLACEHOLDER/omf\", " \
-				"\"order\": \"1\" }, " \
+				"\"order\": \"1\", \"displayName\" : \"URL\" }, " \
 			"\"producerToken\": { " \
 				"\"description\": \"The producer token used to authenticate as a valid publisher and required to ingest data into OCS using OMF.\", " \
 				"\"type\": \"string\", \"default\": \"omf_north_0001\", " \
-				"\"order\": \"2\" }, " \
+				"\"order\": \"2\", \"displayName\" : \"Producer Token\" }, " \
 			"\"source\": {" \
 				"\"description\": \"Defines the source of the data to be sent on the stream, " \
 				"this may be one of either readings, statistics or audit.\", \"type\": \"enumeration\", " \
 				"\"default\": \"readings\", "\
 				"\"options\": [\"readings\", \"statistics\"], " \
-				"\"order\": \"3\"  }, " \
+				"\"order\": \"3\", \"displayName\" : \"Data Source\"  }, " \
 			"\"StaticData\": { " \
 				"\"description\": \"Static data to include in each sensor reading sent to OCS.\", " \
 				"\"type\": \"string\", \"default\": \"Location: Palo Alto, Company: Dianomic\", " \
-				"\"order\": \"4\" }, " \
+				"\"order\": \"4\", \"displayName\" : \"Static Data\" }, " \
 			"\"OMFRetrySleepTime\": { " \
         			"\"description\": \"Seconds between each retry for the communication with OCS, " \
                        		"NOTE : the time is doubled at each attempt.\", \"type\": \"integer\", \"default\": \"1\", " \
-				"\"order\": \"9\" }, " \
+				"\"order\": \"9\", \"displayName\" : \"Sleep Time Retry\" }, " \
 			"\"OMFMaxRetry\": { " \
 				"\"description\": \"Max number of retries for the communication with OCS\", " \
 				"\"type\": \"integer\", \"default\": \"3\", " \
-				"\"order\": \"10\" }, " \
+				"\"order\": \"10\", \"displayName\" : \"Maximum Retry\" }, " \
 			"\"OMFHttpTimeout\": { " \
 				"\"description\": \"Timeout in seconds for the HTTP operations with OCS\", " \
 				"\"type\": \"integer\", \"default\": \"10\", " \
-				"\"order\": \"13\" }, " \
+				"\"order\": \"13\", \"displayName\" : \"HTTP Timeout\" }, " \
 			"\"formatInteger\": { " \
         			"\"description\": \"OMF format property to apply to the type Integer\", " \
 				"\"type\": \"string\", \"default\": \"int64\", " \
-				"\"order\": \"14\" }, " \
+				"\"order\": \"14\", \"displayName\" : \"Integer Format\" }, " \
 			"\"formatNumber\": { " \
         			"\"description\": \"OMF format property to apply to the type Number\", " \
 				"\"type\": \"string\", \"default\": \"float64\", " \
-				"\"order\": \"15\" }, " \
+				"\"order\": \"15\", \"displayName\" : \"Number Format\" }, " \
 			"\"compression\": { " \
         			"\"description\": \"Compress readings data before sending to OCS\", " \
 				"\"type\": \"boolean\", \"default\": \"True\", " \
-				"\"order\": \"16\" }, " \
+				"\"order\": \"16\", \"displayName\" : \"Compression\" }, " \
 			"\"streamId\": {" \
 				"\"description\": \"Identifies the specific stream to handle and the related information," \
 				" among them the ID of the last object streamed.\", " \
@@ -86,25 +86,25 @@ using namespace rapidjson;
 				"\"description\" : \"Specifies the OCS namespace where the information are stored and it is used for the interaction with the OCS API\", "\
 				"\"type\" : \"string\", "\
 				"\"default\": \"10\", " \
-				"\"order\": \"17\"  " \
+				"\"order\": \"17\", \"displayName\" : \"Namespace\"  " \
 			"}, "\
 			"\"tenant_id\" : {"\
 				"\"description\" : \"Tenant id associated to the specific OCS account\", "\
 				"\"type\" : \"string\", "\
 				"\"default\": \"ocs_tenant_id\", " \
-				"\"order\": \"18\"  " \
+				"\"order\": \"18\", \"displayName\" : \"Tenant ID\"  " \
 			"}, "\
 			"\"client_id\" : {"\
 				"\"description\" : \"Client id associated to the specific OCS account, it is used to authenticate the source for using the OCS API\", "\
 				"\"type\" : \"string\", "\
 				"\"default\": \"ocs_client_id\", " \
-				"\"order\": \"19\"  " \
+				"\"order\": \"19\", \"displayName\" : \"Client ID\"  " \
 			"}, "\
 			"\"client_secret\" : {"\
 				"\"description\" : \"Client secret associated to the specific OCS account, it is used to authenticate the source for using the OCS API\", "\
 				"\"type\" : \"string\", "\
 				"\"default\": \"ocs_client_secret\", " \
-				"\"order\": \"20\"  " \
+				"\"order\": \"20\", \"displayName\" : \"Client Secret\"  " \
 			"}, "\
 			"\"notBlockingErrors\": {" \
 				"\"description\": "\

@@ -174,7 +174,7 @@ _CONFIG_DEFAULT_OMF = {
         "type": "integer",
         "default": "30",
         "order": "13",
-        "displayName": "Http Timeout"
+        "displayName": "HTTP Timeout"
     },
     "formatInteger": {
         "description": "OMF format property to apply to the type Integer",

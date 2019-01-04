@@ -63,7 +63,7 @@ using namespace rapidjson;
 			"\"OMFHttpTimeout\": { " \
 				"\"description\": \"Timeout in seconds for the HTTP operations with the OMF PI Connector Relay\", " \
 				"\"type\": \"integer\", \"default\": \"10\", " \
-				"\"order\": \"13\", \"displayName\": \"Http Timeout\" }, " \
+				"\"order\": \"13\", \"displayName\": \"HTTP Timeout\" }, " \
 			"\"formatInteger\": { " \
         			"\"description\": \"OMF format property to apply to the type Integer\", " \
 				"\"type\": \"string\", \"default\": \"int64\", " \

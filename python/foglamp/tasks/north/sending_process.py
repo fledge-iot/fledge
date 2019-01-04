@@ -224,14 +224,14 @@ class SendingProcess(FoglampProcess):
             "type": "integer",
             "default": "60",
             "order": "7",
-            "displayName": "Duration Of Sending Process"
+            "displayName": "Duration"
         },
         "blockSize": {
             "description": "Number of readings to send in each transmission",
             "type": "integer",
             "default": "5000",
             "order": "8",
-            "displayName": "Block Size Of Reading"
+            "displayName": "Readings Block Size"
         },
         "sleepInterval": {
             "description": "Time in seconds to wait between duration checks",

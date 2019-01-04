@@ -223,25 +223,29 @@ class SendingProcess(FoglampProcess):
             "description": "Time in seconds the sending process should run",
             "type": "integer",
             "default": "60",
-            "order": "7"
+            "order": "7",
+            "displayName": "Duration Of Sending Process"
         },
         "blockSize": {
             "description": "Number of readings to send in each transmission",
             "type": "integer",
             "default": "5000",
-            "order": "8"
+            "order": "8",
+            "displayName": "Block Size Of Reading"
         },
         "sleepInterval": {
             "description": "Time in seconds to wait between duration checks",
             "type": "integer",
             "default": "1",
-            "order": "11"
+            "order": "11",
+            "displayName": "Sleep Interval"
         },
         "memory_buffer_size": {
             "description": "Number of elements of blockSize size to be buffered in memory",
             "type": "integer",
             "default": "10",
-            "order": "12"
+            "order": "12",
+            "displayName": "Memory Buffer Size"
         }
     }
 

@@ -598,7 +598,7 @@ Reading* Py2C_parseReadingObject(PyObject *element)
 			char *ts_str = PyUnicode_AsUTF8(ts);
 			struct timeval	timestamp;
 			struct tm tm;
-			strptime(ts_str, "%Y-%m-%dT%H:%M:%S", &tm);
+			strptime(ts_str, "%Y-%m-%d %H:%M:%S", &tm);
 			timestamp.tv_sec = mktime(&tm);
 			const char *ptr = ts_str;
 			while (*ptr && *ptr != '.')
@@ -614,7 +614,7 @@ Reading* Py2C_parseReadingObject(PyObject *element)
 			struct tm local = *localtime(&now);
 			struct tm utc = *gmtime(&now);
 
-			timestamp.tv_sec -= 3600 * (local.tm_hour - utc.tm_hour);
+			timestamp.tv_sec += 3600 * (local.tm_hour - utc.tm_hour);
 			newReading->setTimestamp(timestamp);
 		}
 
@@ -626,7 +626,7 @@ Reading* Py2C_parseReadingObject(PyObject *element)
 			char *ts_str = PyUnicode_AsUTF8(uts);
 			struct timeval	timestamp;
 			struct tm tm;
-			strptime(ts_str, "%Y-%m-%dT%H:%M:%S", &tm);
+			strptime(ts_str, "%Y-%m-%d %H:%M:%S", &tm);
 			timestamp.tv_sec = mktime(&tm);
 			const char *ptr = ts_str;
 			while (*ptr && *ptr != '.')
@@ -642,7 +642,7 @@ Reading* Py2C_parseReadingObject(PyObject *element)
 			struct tm local = *localtime(&now);
 			struct tm utc = *gmtime(&now);
 
-			timestamp.tv_sec -= 3600 * (local.tm_hour - utc.tm_hour);
+			timestamp.tv_sec += 3600 * (local.tm_hour - utc.tm_hour);
 			newReading->setUserTimestamp(timestamp);
 		}
 

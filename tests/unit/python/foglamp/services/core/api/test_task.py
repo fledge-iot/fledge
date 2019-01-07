@@ -44,6 +44,10 @@ class TestService:
         routes.setup(app)
         return loop.run_until_complete(test_client(app))
 
+    @asyncio.coroutine
+    def async_mock(self, return_value):
+        return return_value
+
     @pytest.mark.parametrize("payload, code, message", [
         ("blah", 400, "Data payload must be a valid JSON"),
         ({}, 400, 'Missing name property in payload.'),
@@ -119,18 +123,51 @@ class TestService:
         attrs = {"plugin_info.side_effect": [mock_plugin_info]}
         mock.configure_mock(**attrs)
         storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
         with patch('builtins.__import__', return_value=mock):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(_logger, 'exception') as ex_logger:
-                    with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
-                        with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=Exception()):
-                            resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
-                            assert 500 == resp.status
-                            assert 'Failed to create north instance.' == resp.reason
-                    assert 1 == ex_logger.call_count
+                    with patch.object(c_mgr, 'get_category_all_items',
+                                      return_value=self.async_mock(None)) as patch_get_cat_info:
+                        with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
+                            with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=Exception()):
+                                resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
+                                assert 500 == resp.status
+                                assert 'Failed to create north instance.' == resp.reason
+                        assert 1 == ex_logger.call_count
+                    patch_get_cat_info.assert_called_once_with(category_name=data['name'])
+
+    async def test_dupe_category_name_add_task(self, client):
+        mock_plugin_info = {
+            'name': "north bound",
+            'version': "1.1",
+            'type': "north",
+            'interface': "1.0",
+            'config': {
+                'plugin': {
+                    'description': "North OMF plugin",
+                    'type': 'string',
+                    'default': 'omf'
+                }
+            }
+        }
+
+        mock = MagicMock()
+        attrs = {"plugin_info.side_effect": [mock_plugin_info]}
+        mock.configure_mock(**attrs)
+
+        data = {"name": "north bound", "plugin": "omf", "type": "north", "schedule_type": 3, "schedule_repeat": 30}
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch('builtins.__import__', return_value=mock):
+            with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                with patch.object(c_mgr, 'get_category_all_items', return_value=self.async_mock(mock_plugin_info)) as patch_get_cat_info:
+                    resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
+                    assert 400 == resp.status
+                    assert "The '{}' category already exists".format(data['name']) == resp.reason
+                patch_get_cat_info.assert_called_once_with(category_name=data['name'])
 
     async def test_dupe_schedule_name_add_task(self, client):
-
         @asyncio.coroutine
         def q_result(*arg):
             table = arg[0]
@@ -161,18 +198,17 @@ class TestService:
 
         data = {"name": "north bound", "plugin": "omf", "type": "north", "schedule_type": 3, "schedule_repeat": 30}
         storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
         with patch('builtins.__import__', return_value=mock):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
-                    resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
-                    assert 400 == resp.status
-                    assert 'A north instance with this name already exists' == resp.reason
+                with patch.object(c_mgr, 'get_category_all_items', return_value=self.async_mock(None)) as patch_get_cat_info:
+                    with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
+                        resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
+                        assert 400 == resp.status
+                        assert 'A north instance with this name already exists' == resp.reason
+                patch_get_cat_info.assert_called_once_with(category_name=data['name'])
 
     async def test_add_task(self, client):
-        @asyncio.coroutine
-        def async_mock(return_value):
-            return return_value
-
         async def async_mock_get_schedule():
             schedule = TimedSchedule()
             schedule.schedule_id = '2129cc95-c841-441a-ad39-6469a87dbc8b'
@@ -192,10 +228,7 @@ class TestService:
                                                                'value': 'north bound'}} == json.loads(payload)
                 return {'count': 0, 'rows': []}
 
-        async def async_mock_insert():
-            expected = {'rows_affected': 1, "response": "inserted"}
-            return expected
-
+        expected_insert_resp = {'rows_affected': 1, "response": "inserted"}
         mock_plugin_info = {
             'name': "north bound",
             'version': "1.1",
@@ -230,42 +263,40 @@ class TestService:
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch('builtins.__import__', return_value=mock):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
-                    with patch.object(storage_client_mock, 'insert_into_tbl', return_value=async_mock_insert()) \
-                            as insert_table_patch:
-                        with patch.object(c_mgr, 'create_category', return_value=async_mock(None)) as patch_create_cat:
-                            with patch.object(c_mgr, 'create_child_category', return_value=async_mock(None)) \
-                                    as patch_create_child_cat:
-                                with patch.object(server.Server.scheduler, 'save_schedule',
-                                                  return_value=async_mock("")) as patch_save_schedule:
-                                    with patch.object(server.Server.scheduler, 'get_schedule_by_name',
-                                                      return_value=async_mock_get_schedule()) as patch_get_schedule:
-                                        resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
-                                        server.Server.scheduler = None
-                                        assert 200 == resp.status
-                                        result = await resp.text()
-                                        json_response = json.loads(result)
-                                        assert {'id': '2129cc95-c841-441a-ad39-6469a87dbc8b',
-                                                'name': 'north bound'} == json_response
-                                    patch_get_schedule.assert_called_once_with(data['name'])
-                                patch_save_schedule.called_once_with()
-                            patch_create_child_cat.assert_called_once_with('North', ['north bound'])
-                        calls = [call(category_description='North OMF plugin', category_name='north bound',
-                                      category_value={'plugin': {'description': 'North OMF plugin', 'default': 'omf',
-                                                                 'type': 'string'}}, keep_original_items=True),
-                                 call('North', {}, 'North tasks', True)]
-                        patch_create_cat.assert_has_calls(calls)
-                    args, kwargs = insert_table_patch.call_args
-                    assert 'scheduled_processes' == args[0]
-                    p = json.loads(args[1])
-                    assert p['name'] == 'north'
-                    assert p['script'] == '["tasks/north"]'
+                with patch.object(c_mgr, 'get_category_all_items', return_value=self.async_mock(None)) as patch_get_cat_info:
+                    with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
+                        with patch.object(storage_client_mock, 'insert_into_tbl', return_value=self.async_mock(expected_insert_resp)) \
+                                as insert_table_patch:
+                            with patch.object(c_mgr, 'create_category', return_value=self.async_mock(None)) as patch_create_cat:
+                                with patch.object(c_mgr, 'create_child_category', return_value=self.async_mock(None)) \
+                                        as patch_create_child_cat:
+                                    with patch.object(server.Server.scheduler, 'save_schedule',
+                                                      return_value=self.async_mock("")) as patch_save_schedule:
+                                        with patch.object(server.Server.scheduler, 'get_schedule_by_name',
+                                                          return_value=async_mock_get_schedule()) as patch_get_schedule:
+                                            resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
+                                            server.Server.scheduler = None
+                                            assert 200 == resp.status
+                                            result = await resp.text()
+                                            json_response = json.loads(result)
+                                            assert {'id': '2129cc95-c841-441a-ad39-6469a87dbc8b',
+                                                    'name': 'north bound'} == json_response
+                                        patch_get_schedule.assert_called_once_with(data['name'])
+                                    patch_save_schedule.called_once_with()
+                                patch_create_child_cat.assert_called_once_with('North', ['north bound'])
+                            calls = [call(category_description='North OMF plugin', category_name='north bound',
+                                          category_value={'plugin': {'description': 'North OMF plugin', 'default': 'omf',
+                                                                     'type': 'string'}}, keep_original_items=True),
+                                     call('North', {}, 'North tasks', True)]
+                            patch_create_cat.assert_has_calls(calls)
+                        args, kwargs = insert_table_patch.call_args
+                        assert 'scheduled_processes' == args[0]
+                        p = json.loads(args[1])
+                        assert p['name'] == 'north'
+                        assert p['script'] == '["tasks/north"]'
+                patch_get_cat_info.assert_called_once_with(category_name=data['name'])
 
     async def test_add_task_with_config(self, client):
-        @asyncio.coroutine
-        def async_mock(return_value):
-            return return_value
-
         async def async_mock_get_schedule():
             schedule = TimedSchedule()
             schedule.schedule_id = '2129cc95-c841-441a-ad39-6469a87dbc8b'
@@ -285,10 +316,7 @@ class TestService:
                                                                'value': 'north bound'}} == json.loads(payload)
                 return {'count': 0, 'rows': []}
 
-        async def async_mock_insert():
-            expected = {'rows_affected': 1, "response": "inserted"}
-            return expected
-
+        expected_insert_resp = {'rows_affected': 1, "response": "inserted"}
         mock_plugin_info = {
             'name': "PI server",
             'version': "1.1",
@@ -331,37 +359,39 @@ class TestService:
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch('builtins.__import__', return_value=mock):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
-                    with patch.object(storage_client_mock, 'insert_into_tbl', return_value=async_mock_insert()) \
-                            as insert_table_patch:
-                        with patch.object(c_mgr, 'create_category', return_value=async_mock(None)) as patch_create_cat:
-                            with patch.object(c_mgr, 'create_child_category', return_value=async_mock(None)) \
-                                    as patch_create_child_cat:
-                                with patch.object(c_mgr, 'set_category_item_value_entry',
-                                                  return_value=async_mock(None)) as patch_set_entry:
-                                    with patch.object(server.Server.scheduler, 'save_schedule',
-                                                      return_value=async_mock("")) as patch_save_schedule:
-                                        with patch.object(server.Server.scheduler, 'get_schedule_by_name',
-                                                          return_value=async_mock_get_schedule()) as patch_get_schedule:
-                                            resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
-                                            server.Server.scheduler = None
-                                            assert 200 == resp.status
-                                            result = await resp.text()
-                                            json_response = json.loads(result)
-                                            assert {'id': '2129cc95-c841-441a-ad39-6469a87dbc8b',
-                                                    'name': 'north bound'} == json_response
-                                        patch_get_schedule.assert_called_once_with(data['name'])
-                                    patch_save_schedule.called_once_with()
-                                patch_set_entry.assert_called_once_with(data['name'], 'producerToken',
-                                                                        'uid=180905062754237&sig=kx5l+')
-                            patch_create_child_cat.assert_called_once_with('North', ['north bound'])
-                        assert 2 == patch_create_cat.call_count
-                        patch_create_cat.assert_called_with('North', {}, 'North tasks', True)
-                    args, kwargs = insert_table_patch.call_args
-                    assert 'scheduled_processes' == args[0]
-                    p = json.loads(args[1])
-                    assert p['name'] == 'north'
-                    assert p['script'] == '["tasks/north"]'
+                with patch.object(c_mgr, 'get_category_all_items', return_value=self.async_mock(None)) as patch_get_cat_info:
+                    with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
+                        with patch.object(storage_client_mock, 'insert_into_tbl', return_value=self.async_mock(expected_insert_resp)) \
+                                as insert_table_patch:
+                            with patch.object(c_mgr, 'create_category', return_value=self.async_mock(None)) as patch_create_cat:
+                                with patch.object(c_mgr, 'create_child_category', return_value=self.async_mock(None)) \
+                                        as patch_create_child_cat:
+                                    with patch.object(c_mgr, 'set_category_item_value_entry',
+                                                      return_value=self.async_mock(None)) as patch_set_entry:
+                                        with patch.object(server.Server.scheduler, 'save_schedule',
+                                                          return_value=self.async_mock("")) as patch_save_schedule:
+                                            with patch.object(server.Server.scheduler, 'get_schedule_by_name',
+                                                              return_value=async_mock_get_schedule()) as patch_get_schedule:
+                                                resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
+                                                server.Server.scheduler = None
+                                                assert 200 == resp.status
+                                                result = await resp.text()
+                                                json_response = json.loads(result)
+                                                assert {'id': '2129cc95-c841-441a-ad39-6469a87dbc8b',
+                                                        'name': 'north bound'} == json_response
+                                            patch_get_schedule.assert_called_once_with(data['name'])
+                                        patch_save_schedule.called_once_with()
+                                    patch_set_entry.assert_called_once_with(data['name'], 'producerToken',
+                                                                            'uid=180905062754237&sig=kx5l+')
+                                patch_create_child_cat.assert_called_once_with('North', ['north bound'])
+                            assert 2 == patch_create_cat.call_count
+                            patch_create_cat.assert_called_with('North', {}, 'North tasks', True)
+                        args, kwargs = insert_table_patch.call_args
+                        assert 'scheduled_processes' == args[0]
+                        p = json.loads(args[1])
+                        assert p['name'] == 'north'
+                        assert p['script'] == '["tasks/north"]'
+                patch_get_cat_info.assert_called_once_with(category_name=data['name'])
 
     async def test_delete_task(self, mocker, client):
         sch_id = '0178f7b6-d55c-4427-9106-245513e46416'
@@ -386,8 +416,6 @@ class TestService:
             }
 
         mocker.patch.object(connect, 'get_storage_async')
-        storage_client_mock = MagicMock(StorageClientAsync)
-        c_mgr = ConfigurationManager(storage_client_mock)
         get_schedule = mocker.patch.object(task, "get_schedule", return_value=mock_result())
         scheduler = mocker.patch.object(server.Server, "scheduler", MagicMock())
         delete_schedule = mocker.patch.object(scheduler, "delete_schedule", return_value=asyncio.sleep(.1))

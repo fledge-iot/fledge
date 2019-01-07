@@ -201,11 +201,11 @@ async def add_service(request):
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
 
-        # Check first whether category name already exists
+        # Check  whether category name already exists
         category_info = await config_mgr.get_category_all_items(category_name=name)
         if category_info is not None:
-            raise web.HTTPBadRequest(reason="This '{}' category already exists".format(name))
-        
+            raise web.HTTPBadRequest(reason="The '{}' category already exists".format(name))
+
         # Check that the schedule name is not already registered
         count = await check_schedules(storage, name)
         if count != 0:

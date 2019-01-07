@@ -164,7 +164,7 @@ class TestService:
                 with patch.object(c_mgr, 'get_category_all_items', return_value=self.async_mock(mock_plugin_info)) as patch_get_cat_info:
                     resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
                     assert 400 == resp.status
-                    assert "This '{}' category already exists".format(data['name']) == resp.reason
+                    assert "The '{}' category already exists".format(data['name']) == resp.reason
                 patch_get_cat_info.assert_called_once_with(category_name=data['name'])
 
     async def test_dupe_schedule_name_add_task(self, client):

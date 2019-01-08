@@ -41,22 +41,22 @@ def plugin_info():
 
 def plugin_init(config):
     #_LOGGER.info("plugin_init called")
-    return json.dumps(_plugin.plugin_init(json.loads(config)))
+    handle = _plugin.plugin_init(json.loads(config))
+    return handle
 
 def plugin_poll(handle):
-    #_LOGGER.info("plugin_poll called")
-    reading = _plugin.plugin_poll(json.loads(handle))
-    #_LOGGER.info("Reading = {}".format(json.dumps(reading)))
+    reading = _plugin.plugin_poll(handle)
+    #_LOGGER.info("Reading {} = {}".format(type(reading), json.dumps(reading)))
     return reading
 
 def plugin_reconfigure(handle, new_config):
     #_LOGGER.info("plugin_reconfigure called")
-    new_handle = _plugin.plugin_reconfigure(json.loads(handle),json.loads(new_config))
-    return json.dumps(new_handle)
+    new_handle = _plugin.plugin_reconfigure(handle,json.loads(new_config))
+    return new_handle
 
 def plugin_shutdown(handle):
     #_LOGGER.info("plugin_shutdown called")
-    return json.dumps(_plugin.plugin_shutdown(json.loads(handle)))
+    return _plugin.plugin_shutdown(handle)
 
 if __name__ == '__main__':
     print("Main called")

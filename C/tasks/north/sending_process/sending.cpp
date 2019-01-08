@@ -48,10 +48,10 @@ using namespace std;
 // Translation from the data source type to data source information
 const map<string, std::tuple<string, string, string>>  data_source_to_information = {
 
-	// Data source          - TableName     - Statistics key - Statistics description
-	{DATA_SOURCE_READINGS,   {"readings",   "Readings Sent",   "Readings Sent North"}},
-	{DATA_SOURCE_STATISTICS, {"statistics", "Statistics Sent", "Statistics Sent North"}},
-	{DATA_SOURCE_AUDIT,      {"audit",      "Audit Sent",      "Audit Sent North"}}
+	// Data source                         - TableName   - Statistics key   - Statistics description
+	{DATA_SOURCE_READINGS,   std::make_tuple("readings",   "Readings Sent",   "Readings Sent North")},
+	{DATA_SOURCE_STATISTICS, std::make_tuple("statistics", "Statistics Sent", "Statistics Sent North")},
+	{DATA_SOURCE_AUDIT,      std::make_tuple("audit",      "Audit Sent",      "Audit Sent North")}
 };
 
 // static pointer to data buffers for filter plugins
@@ -70,14 +70,14 @@ static const string sendingDefaultConfig =
 		"the sending process.\", \"type\": \"boolean\", \"default\": \"true\" , \"readonly\": \"true\"  },"
 	"\"duration\": {"
 		"\"description\": \"How long the sending process should run (in seconds) before stopping.\", "
-		"\"type\": \"integer\", \"default\": \"60\" , \"order\": \"7\" }, "
+		"\"type\": \"integer\", \"default\": \"60\" , \"order\": \"7\", \"displayName\" : \"Duration\" }, "
 	"\"blockSize\": {"
 		"\"description\": \"The size of a block of readings to send in each transmission.\", "
-		"\"type\": \"integer\", \"default\": \"500\", \"order\": \"8\"   }, "
+		"\"type\": \"integer\", \"default\": \"500\", \"order\": \"8\", \"displayName\" : \"Readings Block Size\" }, "
 	"\"sleepInterval\": {"
 		"\"description\": \"A period of time, expressed in seconds, "
 		"to wait between attempts to send readings when there are no "
-		"readings to be sent.\", \"type\": \"integer\", \"default\": \"1\", \"order\": \"11\"   }, "
+		"readings to be sent.\", \"type\": \"integer\", \"default\": \"1\", \"order\": \"11\", \"displayName\" : \"Sleep Interval\"  }, "
 	"\"streamId\": {"
 		"\"description\": \"Identifies the specific stream to handle and the related information,"
 		" among them the ID of the last object streamed.\", "
@@ -87,7 +87,7 @@ static const string sendingDefaultConfig =
 		"\"description\": \"Number of elements of blockSize size to be buffered in memory\","
 		"\"type\": \"integer\", "
   		"\"default\": \"10\", "
-		"\"order\": \"12\" ,"
+		"\"order\": \"12\", \"displayName\" : \"Memory Buffer Size\" ,"
 		"\"readonly\": \"false\" "
 	"} "
 	"}";

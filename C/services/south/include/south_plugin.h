@@ -50,7 +50,7 @@ private:
 	void		(*pluginStartPtr)(PLUGIN_HANDLE);
 	Reading		(*pluginPollPtr)(PLUGIN_HANDLE);
 	std::vector<Reading *>*	(*pluginPollPtrV2)(PLUGIN_HANDLE);
-	void		(*pluginReconfigurePtr)(PLUGIN_HANDLE,
+	void		(*pluginReconfigurePtr)(PLUGIN_HANDLE*,
 					        const std::string& newConfig);
 	void		(*pluginShutdownPtr)(PLUGIN_HANDLE);
 	void		(*pluginRegisterPtr)(PLUGIN_HANDLE, INGEST_CB, void *);

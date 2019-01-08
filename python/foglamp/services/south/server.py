@@ -293,6 +293,10 @@ class Server(FoglampMicroservice):
             # retrieve new configuration
             new_config = self._core_microservice_management_client.get_configuration_category(category_name=self._name)
 
+            # Check and warn if pipeline exists in South service
+            if 'filter' in new_config:
+                _LOGGER.warning('South Service [%s] does not support the use of a filter pipeline.', self._name)
+
             # plugin_reconfigure and assign new handle
             new_handle = self._plugin.plugin_reconfigure(self._plugin_handle, new_config)
             self._plugin_handle = new_handle

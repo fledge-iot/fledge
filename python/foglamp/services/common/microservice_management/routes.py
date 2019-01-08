@@ -47,6 +47,9 @@ def setup(app, obj, is_core=False):
         app.router.add_route('GET', '/foglamp/track', obj.get_track)
         app.router.add_route('POST', '/foglamp/track', obj.add_track)
 
+        # Audit Log
+        app.router.add_route('POST', '/foglamp/audit', obj.add_audit)
+
     # enable cors support
     enable_cors(app)
 

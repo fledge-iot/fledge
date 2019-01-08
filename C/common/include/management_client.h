@@ -40,11 +40,14 @@ class ManagementClient {
 							   const std::vector<std::string>& children);
 		std::vector<AssetTrackingTuple*>&	getAssetTrackingTuples(const std::string serviceName);
 		bool addAssetTrackingTuple(const std::string& service, 
-												const std::string& plugin, 
-												const std::string& asset, 
-												const std::string& event);
+					   const std::string& plugin, 
+					   const std::string& asset, 
+					   const std::string& event);
 		ConfigCategories	getChildCategories(const std::string& categoryName);
 		HttpClient		*getHttpClient();
+		bool			addAuditEntry(const std::string& serviceName,
+						      const std::string& severity,
+						      const std::string& details);
 
 private:
     std::string 	url_encode(const std::string &s) const;

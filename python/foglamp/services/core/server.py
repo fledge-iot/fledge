@@ -18,6 +18,7 @@ from aiohttp import web
 import aiohttp
 import json
 import signal
+from datetime import datetime
 
 from foglamp.common import logger
 from foglamp.common.audit_logger import AuditLogger
@@ -1288,3 +1289,36 @@ class Server:
     async def delete_configuration_item(cls, request):
         res = await conf_api.delete_configuration_item_value(request)
         return res
+
+    @classmethod
+    async def add_audit(cls, request):
+        data = await request.json()
+        if not isinstance(data, dict):
+            raise ValueError('Data payload must be a dictionary')
+
+        try:
+            code=data.get("source")
+            level=data.get("severity")
+            message=data.get("details")
+
+            # Add audit entry code and message for the given level
+            await getattr(cls._audit, str(level).lower())(code, message)
+
+            # Set timestamp for return message
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+
+            # Return JSON message
+            message = {'timestamp': str(timestamp),
+                       'source': code,
+                       'severity': level,
+                       'details': message 
+                      }
+
+        except (TypeError, StorageServerError) as ex:
+            raise web.HTTPBadRequest(reason=str(ex))
+        except ValueError as ex:
+            raise web.HTTPNotFound(reason=str(ex))
+        except Exception as ex:
+            raise web.HTTPException(reason=ex)
+
+        return web.json_response(message)

@@ -664,3 +664,78 @@ string ManagementClient::url_encode(const string &s) const
     return escaped.str();
 }
 
+/**
+ * Add an Audit Entry
+ *
+ * Foglamp API call example :
+ *
+ *  curl -X POST -d '{"source":"LMTR", "severity":"WARNING",
+ *		      "details":{"message":"Engine oil pressure low"}}'
+ *  http://localhost:8081/foglamp/audit
+ *
+ * @param   code	The log code for the entry 
+ * @param   severity	The severity level
+ * @param   message	The JSON message to log
+ */
+bool ManagementClient::addAuditEntry(const std::string& code,
+				     const std::string& severity,
+				     const std::string& message)
+{
+	ostringstream convert;
+
+	try {
+		convert << "{ \"source\" : \"" << code << "\", ";
+		convert << " \"severity\" : \"" << severity << "\", ";
+		convert << " \"details\" : " << message << " }";
+
+		auto res = this->getHttpClient()->request("POST",
+							  "/foglamp/audit",
+							  convert.str());
+		Document doc;
+		string content = res->content.string();
+		doc.Parse(content.c_str());
+
+		if (doc.HasParseError())
+		{
+			bool httpError = (isdigit(content[0]) &&
+					  isdigit(content[1]) &&
+					  isdigit(content[2]) &&
+					  content[3]==':');
+			m_logger->error("%s audit entry: %s\n", 
+					(httpError ?
+					 "HTTP error during" :
+					 "Failed to parse result of"), 
+					content.c_str());
+			return false;
+		}
+
+		bool ret = false;
+
+		// Check server reply
+		if (doc.HasMember("source"))
+		{
+			// OK
+			ret = true;
+		}
+		else if (doc.HasMember("message"))
+		{
+			// Erropr
+			m_logger->error("Failed to add audit entry: %s.",
+				doc["message"].GetString());
+		}
+		else
+		{
+			// Erropr
+			m_logger->error("Failed to add audit entry: %s.",
+					content.c_str());
+		}
+
+		return ret;
+	}
+	catch (const SimpleWeb::system_error &e)
+	{
+		m_logger->error("Failed to add audit entry: %s.", e.what());
+		return false;
+	}
+	return false;
+}

@@ -462,6 +462,57 @@ class TestServicesSouthServer:
         log_info.assert_has_calls(calls, any_order=True)
 
     @pytest.mark.asyncio
+    async def test_change_filter(self, loop, mocker):
+        # GIVEN
+        _FILTER_TEST_CONFIG = {
+            'plugin': {
+                'description': 'Python module name of the plugin to load',
+                'type': 'string',
+                'default': 'test',
+                'value': 'test'
+            },
+            "filter": {
+                "type": "JSON",
+                "default": "{\"pipeline\": [\"scale\"]}",
+                "value": "{\"pipeline\": [\"scale\"]}",
+                "description": "Filter pipeline",
+            },
+        }
+        mocker.patch.object(FoglampMicroservice, "__init__", return_value=None)
+
+        south_server = Server()
+        south_server._storage = MagicMock(spec=StorageClientAsync)
+
+        attrs = {
+                    'create_configuration_category.return_value': None,
+                    'get_configuration_category.return_value': _FILTER_TEST_CONFIG,
+                    'register_interest.return_value': {'id': 1234, 'message': 'all ok'}
+        }
+        south_server._core_microservice_management_client = Mock()
+        south_server._core_microservice_management_client.configure_mock(**attrs)
+
+        mocker.patch.object(south_server, '_name', 'test')
+
+        ingest_start = mocker.patch.object(Ingest, 'start', return_value=mock_coro())
+        log_warning = mocker.patch.object(South._LOGGER, "warning")
+
+        mock_plugin = MagicMock()
+        attrs = copy.deepcopy(plugin_attrs)
+        attrs['plugin_info.return_value']['mode'] = 'async'
+        mock_plugin.configure_mock(**attrs)
+        sys.modules['foglamp.plugins.south.test.test'] = mock_plugin
+
+        # WHEN
+        await south_server._start(loop)
+        await asyncio.sleep(.5)
+        await south_server.change(request=None)
+
+        # THEN
+        assert 1 == log_warning.call_count
+        calls = [call('South Service [%s] does not support the use of a filter pipeline.', 'test')]
+        log_warning.assert_has_calls(calls, any_order=True)
+
+    @pytest.mark.asyncio
     async def test_change_error(self, loop, mocker):
         # GIVEN
         from foglamp.services.south import exceptions

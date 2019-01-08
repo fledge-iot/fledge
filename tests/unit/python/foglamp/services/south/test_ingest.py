@@ -189,7 +189,7 @@ class TestIngest:
         # THEN
         assert 1 == log_warning.call_count
         calls = [call('South Service [%s] does not support the use of a filter pipeline.', 'sinusoid')]
-        assert calls == log_warning.call_args_list
+        log_warning.assert_has_calls(calls, any_order=True)
 
     @pytest.mark.asyncio
     async def test_start(self, mocker):

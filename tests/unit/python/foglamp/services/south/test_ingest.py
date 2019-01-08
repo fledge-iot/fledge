@@ -9,7 +9,7 @@
 """
 import copy
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 from foglamp.services.south.ingest import *
 from foglamp.services.south import ingest
 from foglamp.common.storage_client.storage_client import StorageClientAsync, ReadingsStorageClientAsync
@@ -136,7 +136,61 @@ class TestIngest:
                int(new_config['max_readings_insert_batch_connection_idle_seconds']['value'])
         assert Ingest._max_readings_insert_batch_reconnect_wait_seconds == \
                int(new_config['max_readings_insert_batch_reconnect_wait_seconds']['value'])
-        
+
+    @pytest.mark.asyncio
+    async def test_read_config_filter(self, mocker):
+        # GIVEN
+        mock_config = {
+            "filter": {
+                "type": "JSON",
+                "default": "{\"pipeline\": [\"scale\"]}",
+                "description": "Filter pipeline",
+                "value": "{\"pipeline\": [\"scale\"]}"
+            },
+            "dataPointsPerSec": {
+                "order": "2",
+                "description": "Data points per second",
+                "displayName": "Data points per second",
+                "type": "integer",
+                "default": "1",
+                "value": "1"
+            },
+            "assetName": {
+                "order": "1",
+                "description": "Name of Asset",
+                "displayName": "Asset name",
+                "type": "string",
+                "default": "sinusoid",
+                "value": "sinusoid"
+            },
+            "plugin": {
+                "description": "Sinusoid Plugin",
+                "type": "string",
+                "default": "sinusoid",
+                "readonly": "true",
+                "value": "sinusoid"
+            }
+        }
+        Ingest.storage_async = MagicMock(spec=StorageClientAsync)
+        Ingest.readings_storage_async = MagicMock(spec=ReadingsStorageClientAsync)
+        mocker.patch.object(MicroserviceManagementClient, "__init__", return_value=None)
+        create_cfg = mocker.patch.object(MicroserviceManagementClient, "create_configuration_category",
+                                         return_value=None)
+        get_cfg = mocker.patch.object(MicroserviceManagementClient, "get_configuration_category",
+                                      return_value=get_cat(Ingest.default_config))
+        mocker.patch.object(MicroserviceManagementClient, "create_child_category", return_value=None)
+        Ingest._parent_service = MagicMock(_core_microservice_management_client=MicroserviceManagementClient())
+        Ingest._parent_service.config = mock_config
+        log_warning = mocker.patch.object(ingest._LOGGER, "warning")
+
+        # WHEN
+        await Ingest._read_config()
+
+        # THEN
+        assert 1 == log_warning.call_count
+        calls = [call('Filter pipeline is not supported on Python South service [%s]', 'sinusoid')]
+        assert calls == log_warning.call_args_list
+
     @pytest.mark.asyncio
     async def test_start(self, mocker):
 

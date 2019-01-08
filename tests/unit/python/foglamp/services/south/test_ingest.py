@@ -188,7 +188,7 @@ class TestIngest:
 
         # THEN
         assert 1 == log_warning.call_count
-        calls = [call('Filter pipeline is not supported on Python South service [%s]', 'sinusoid')]
+        calls = [call('South Service [%s] does not support the use of a filter pipeline.', 'sinusoid')]
         assert calls == log_warning.call_args_list
 
     @pytest.mark.asyncio

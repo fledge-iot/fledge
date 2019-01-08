@@ -179,7 +179,7 @@ class TestIngest:
         get_cfg = mocker.patch.object(MicroserviceManagementClient, "get_configuration_category",
                                       return_value=get_cat(Ingest.default_config))
         mocker.patch.object(MicroserviceManagementClient, "create_child_category", return_value=None)
-        Ingest._parent_service = MagicMock(_core_microservice_management_client=MicroserviceManagementClient())
+        Ingest._parent_service = MagicMock(_core_microservice_management_client=MicroserviceManagementClient(), _name="test")
         Ingest._parent_service.config = mock_config
         log_warning = mocker.patch.object(ingest._LOGGER, "warning")
 
@@ -188,7 +188,7 @@ class TestIngest:
 
         # THEN
         assert 1 == log_warning.call_count
-        calls = [call('South Service [%s] does not support the use of a filter pipeline.', 'sinusoid')]
+        calls = [call('South Service [%s] does not support the use of a filter pipeline.', 'test')]
         log_warning.assert_has_calls(calls, any_order=True)
 
     @pytest.mark.asyncio

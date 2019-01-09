@@ -591,19 +591,62 @@ Reading* Py2C_parseReadingObject(PyObject *element)
 
 		// Get 'ts' value: borrowed reference.
 		PyObject* ts = PyDict_GetItemString(element, "ts");
-		if (ts && PyLong_Check(ts))
+		if (ts)
 		{
-			// Set timestamp
-			newReading->setTimestamp(PyLong_AsUnsignedLong(ts));
+			// Convert a timestamp of the from 2019-01-07 19:06:35.366100+01:00
+			char *ts_str = PyUnicode_AsUTF8(ts);
+			struct timeval	timestamp;
+			struct tm tm;
+			strptime(ts_str, "%Y-%m-%d %H:%M:%S", &tm);
+			timestamp.tv_sec = mktime(&tm);
+			const char *ptr = ts_str;
+			while (*ptr && *ptr != '.')
+				ptr++;
+			if (ptr)
+			{
+				ptr++;
+				timestamp.tv_usec = strtol(ptr, NULL, 10);
+			}
+			// We now need to allow for the timezone difference as mktime is returning
+			// In the local timezone
+			time_t  now = time(NULL);
+			struct tm local = *localtime(&now);
+			struct tm utc = *gmtime(&now);
+
+			timestamp.tv_sec += 3600 * (local.tm_hour - utc.tm_hour);
+			newReading->setTimestamp(timestamp);
 		}
 
 		// Get 'user_ts' value: borrowed reference.
 		PyObject* uts = PyDict_GetItemString(element, "timestamp");
-		if (uts && PyLong_Check(uts))
+		if (uts)
 		{
-			// Set user timestamp
-			newReading->setUserTimestamp(PyLong_AsUnsignedLong(uts));
+			// Convert a timestamp of the from 2019-01-07 19:06:35.366100+01:00
+			char *ts_str = PyUnicode_AsUTF8(uts);
+			struct timeval	timestamp;
+			struct tm tm;
+			strptime(ts_str, "%Y-%m-%d %H:%M:%S", &tm);
+			timestamp.tv_sec = mktime(&tm);
+			const char *ptr = ts_str;
+			while (*ptr && *ptr != '.')
+				ptr++;
+			if (ptr)
+			{
+				ptr++;
+				timestamp.tv_usec = strtol(ptr, NULL, 10);
+			}
+			// We now need to allow for the timezone difference as mktime is returning
+			// In the local timezone
+			time_t  now = time(NULL);
+			struct tm local = *localtime(&now);
+			struct tm utc = *gmtime(&now);
+
+			timestamp.tv_sec += 3600 * (local.tm_hour - utc.tm_hour);
+			newReading->setUserTimestamp(timestamp);
 		}
+
+
+
 
 		// Get 'uuid' value: borrowed reference.
 		PyObject* uuid = PyDict_GetItemString(element, "key");

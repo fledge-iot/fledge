@@ -304,7 +304,9 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 					logger->error("timerfd read()");
 				if (exp > 100)
 					logger->error("%d expiry notifications accumulated", exp);
+#if DO_CATCHUP
 				for (uint64_t i=0; i<exp; i++)
+#endif
 				{
 					if (!pollInterfaceV2) // v1 poll method
 					{

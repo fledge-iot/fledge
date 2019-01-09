@@ -9,7 +9,7 @@ import datetime
 import uuid
 from aiohttp import web
 
-from typing import List, Dict, Tuple
+from typing import Dict
 from foglamp.common import utils
 from foglamp.common import logger
 from foglamp.common.service_record import ServiceRecord
@@ -169,20 +169,28 @@ async def add_service(request):
 
         # Check if a valid plugin has been provided
         plugin_module_path, plugin_config, process_name, script = "", {}, "", ""
-        # "plugin_module_path" is fixed by design. It is MANDATORY to keep the plugin in the exactly similar named
-        # folder, within the plugin_module_path.
-        # if multiple plugin with same name are found, then python plugin import will be tried first
         if service_type == 'south':
+            # "plugin_module_path" is fixed by design. It is MANDATORY to keep the plugin in the exactly similar named
+            # folder, within the plugin_module_path.
+            # if multiple plugin with same name are found, then python plugin import will be tried first
             try:
-                plugin_module_path, plugin_info = load_python_plugin(plugin, service_type)
+                plugin_module_path = "foglamp.plugins.south"
+                plugin_info = load_python_plugin(plugin_module_path, plugin, service_type)
                 plugin_config = plugin_info['config']
                 process_name = 'south_c' if plugin_info['mode'] == 'poll' else 'south'
                 script = '["services/south_c"]' if plugin_info['mode'] == 'poll' else '["services/south"]'
             except ImportError as ex:
                 # Checking for C-type plugins
-                plugin_config = load_c_plugin(plugin_module_path, plugin, service_type)
+                plugin_config = load_c_plugin(plugin, service_type)
+                if not plugin_config:
+                    _logger.exception("Plugin %s import problem from path %s. %s", plugin, plugin_module_path, str(ex))
+                    raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}".'.format(plugin, plugin_module_path))
+
                 process_name = 'south_c'
                 script = '["services/south_c"]'
+            except ValueError as ex:
+                _logger.exception(str(ex))
+                raise web.HTTPBadRequest(reason=str(ex))
             except Exception as ex:
                 _logger.exception("Failed to fetch plugin configuration. %s", str(ex))
                 raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration')
@@ -222,7 +230,7 @@ async def add_service(request):
             res = await check_notification_schedule(storage)
             for ps in res['rows']:
                 if 'notification_c' in ps['process_name']:
-                    raise web.HTTPBadRequest(reason='A Notification service already exists.')
+                    raise web.HTTPBadRequest(reason='A Notification service schedule already exists.')
 
         # If successful then create a configuration entry from plugin configuration
         elif service_type == 'south':
@@ -277,8 +285,7 @@ async def add_service(request):
         return web.json_response({'name': name, 'id': str(schedule.schedule_id)})
 
 
-def load_python_plugin(plugin: str, service_type: str) -> Tuple[str, Dict]:
-    plugin_module_path = "foglamp.plugins.south"
+def load_python_plugin(plugin_module_path: str, plugin: str, service_type: str) -> Dict:
     import_file_name = "{path}.{dir}.{file}".format(path=plugin_module_path, dir=plugin, file=plugin)
     _plugin = __import__(import_file_name, fromlist=[''])
 
@@ -286,22 +293,16 @@ def load_python_plugin(plugin: str, service_type: str) -> Tuple[str, Dict]:
     plugin_info = _plugin.plugin_info()
     if plugin_info['type'] != service_type:
         msg = "Plugin of {} type is not supported".format(plugin_info['type'])
-        _logger.exception(msg)
-        raise web.HTTPBadRequest(reason=msg)
-    return plugin_module_path, plugin_info
+        raise ValueError(msg)
+    return plugin_info
 
 
-def load_c_plugin(plugin_module_path: str, plugin: str, service_type: str) -> Dict:
+def load_c_plugin(plugin: str, service_type: str) -> Dict:
     plugin_info = apiutils.get_plugin_info(plugin, dir=service_type)
     if plugin_info['type'] != service_type:
         msg = "Plugin of {} type is not supported".format(plugin_info['type'])
-        _logger.exception(msg)
-        raise web.HTTPBadRequest(reason=msg)
+        raise ValueError(msg)
     plugin_config = plugin_info['config']
-    if not plugin_config:
-        # FIXME: exception message
-        _logger.exception("Plugin %s import problem from path %s. %s", plugin, plugin_module_path, str(ex))
-        raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}".'.format(plugin, plugin_module_path))
     return plugin_config
 
 

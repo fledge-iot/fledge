@@ -1,5 +1,5 @@
 #!/bin/sh
-# Run a FogLAMP south service written in C/C++
+# Run a FogLAMP notification service written in C/C++
 if [ "${FOGLAMP_ROOT}" = "" ]; then
 	FOGLAMP_ROOT=/usr/local/foglamp
 fi

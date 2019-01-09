@@ -12,6 +12,7 @@
 #include <config_category.h>
 #include <reading.h>
 #include <utils.h>
+#include <mutex>
 #include <python_plugin_handle.h>
 
 #define SHIM_SCRIPT_REL_PATH  "/python/foglamp/plugins/common/shim/shim.py"
@@ -26,7 +27,7 @@ extern "C" {
 PLUGIN_INFORMATION *plugin_info_fn();
 PLUGIN_HANDLE plugin_init_fn(ConfigCategory *);
 vector<Reading *> * plugin_poll_fn(PLUGIN_HANDLE);
-void plugin_reconfigure_fn(PLUGIN_HANDLE, const std::string&);
+void plugin_reconfigure_fn(PLUGIN_HANDLE*, const std::string&);
 void plugin_shutdown_fn(PLUGIN_HANDLE);
 
 PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject *);
@@ -37,6 +38,10 @@ vector<Reading *>* Py2C_getReadings(PyObject *);
 static void logErrorMessage();
 
 PyObject* pModule;
+
+// mutex between reconfigure and poll, since reconfigure changes the handle 
+// object itself and marks previous handle as garbage collectible by Python runtime
+std::mutex mtx;
 
 
 /**
@@ -204,6 +209,7 @@ PLUGIN_INFORMATION *plugin_info_fn()
 			delete info->interface;
 			char *valStr = new char[6];
 			std::strcpy(valStr, "2.0.0");
+			info->interface = valStr;
 		}
 		
 		// Remove pReturn object
@@ -258,14 +264,9 @@ PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 	}
 	else
 	{
-		string *handleStr = new string(PyUnicode_AsUTF8(pReturn));
-
-		Logger::getLogger()->info("plugin_handle: plugin_init(): got handle from python plugin='%s'", handleStr->c_str());
+		Logger::getLogger()->info("plugin_handle: plugin_init(): got handle from python plugin='%p'", pReturn);
 		
-		// Remove pReturn object
-		Py_CLEAR(pReturn);
-
-		return (void *) handleStr;
+		return (PLUGIN_HANDLE) pReturn;
 	}
 }
 
@@ -275,6 +276,7 @@ PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 vector<Reading *> * plugin_poll_fn(PLUGIN_HANDLE handle)
 {
 	PyObject* pFunc;
+	lock_guard<mutex> guard(mtx);
 	
 	// Fetch required method in loaded object
 	pFunc = PyObject_GetAttrString(pModule, "plugin_poll");
@@ -295,10 +297,8 @@ vector<Reading *> * plugin_poll_fn(PLUGIN_HANDLE handle)
 		return NULL;
 	}
 
-	string *pluginHandleStr = (string *) handle;
-	
 	// Call Python method passing an object
-	PyObject* pReturn = PyObject_CallFunction(pFunc, "s", pluginHandleStr->c_str());
+	PyObject* pReturn = PyObject_CallFunction(pFunc, "O", handle);
 
 	Py_CLEAR(pFunc);
 
@@ -319,6 +319,7 @@ vector<Reading *> * plugin_poll_fn(PLUGIN_HANDLE handle)
 		
 		// Remove pReturn object
 		Py_CLEAR(pReturn);
+
 		return vec;
 	}
 }
@@ -327,11 +328,11 @@ vector<Reading *> * plugin_poll_fn(PLUGIN_HANDLE handle)
 /**
  * Function to invoke 'plugin_reconfigure' function in python plugin
  */
-void plugin_reconfigure_fn(PLUGIN_HANDLE handle, const std::string& config)
+void plugin_reconfigure_fn(PLUGIN_HANDLE* handle, const std::string& config)
 {
-	string *handleStr = (string *) handle;
-
 	PyObject* pFunc;
+	lock_guard<mutex> guard(mtx);
+	//Logger::getLogger()->info("plugin_handle: plugin_reconfigure(): pModule=%p, *handle=%p", pModule, *handle);
 	
 	// Fetch required method in loaded object
 	pFunc = PyObject_GetAttrString(pModule, "plugin_reconfigure");
@@ -352,13 +353,10 @@ void plugin_reconfigure_fn(PLUGIN_HANDLE handle, const std::string& config)
 		return;
 	}
 
-	Logger::getLogger()->info("plugin_handle: plugin_reconfigure(): config->toJSON()='%s'", config.c_str());
-	
 	// Call Python method passing an object
-	PyObject* pReturn = PyObject_CallFunction(pFunc, "ss", handleStr->c_str(), config.c_str());
+	PyObject* pReturn = PyObject_CallFunction(pFunc, "Os", *handle, config.c_str());
 
 	Py_CLEAR(pFunc);
-	Logger::getLogger()->info("plugin_handle: plugin_reconfigure(): pReturn=%p", pReturn);
 
 	// Handle returned data
 	if (!pReturn)
@@ -370,12 +368,10 @@ void plugin_reconfigure_fn(PLUGIN_HANDLE handle, const std::string& config)
 	}
 	else
 	{
-		*handleStr = string(PyUnicode_AsUTF8(pReturn));
-		Logger::getLogger()->info("plugin_handle: plugin_reconfigure(): got updated handle from python plugin='%s'", handleStr->c_str());
+		Py_CLEAR(*handle);
+		*handle = pReturn;
+		Logger::getLogger()->info("plugin_handle: plugin_reconfigure(): got updated handle from python plugin=%p", *handle);
 		
-		// Remove pReturn object
-		Py_CLEAR(pReturn);
-
 		return;
 	}
 }
@@ -407,10 +403,8 @@ void plugin_shutdown_fn(PLUGIN_HANDLE handle)
 		return;
 	}
 
-	string *pluginHandleStr = (string *) handle;
-	
 	// Call Python method passing an object
-	PyObject* pReturn = PyObject_CallFunction(pFunc, "s", pluginHandleStr->c_str());
+	PyObject* pReturn = PyObject_CallFunction(pFunc, "O", handle);
 
 	Py_CLEAR(pFunc);
 
@@ -566,7 +560,8 @@ Reading* Py2C_parseReadingObject(PyObject *element)
 		}
 		else
 		{
-			delete dataPoint;
+			Logger::getLogger()->info("Unable to parse dValue in readings dict: dKey=%s, Py_TYPE(dValue)=%s", string(PyUnicode_AsUTF8(dKey)).c_str(), (Py_TYPE(dValue))->tp_name);
+			//delete dataPoint;
 			return NULL;
 		}
 
@@ -597,19 +592,62 @@ Reading* Py2C_parseReadingObject(PyObject *element)
 
 		// Get 'ts' value: borrowed reference.
 		PyObject* ts = PyDict_GetItemString(element, "ts");
-		if (ts && PyLong_Check(ts))
+		if (ts)
 		{
-			// Set timestamp
-			newReading->setTimestamp(PyLong_AsUnsignedLong(ts));
+			// Convert a timestamp of the from 2019-01-07 19:06:35.366100+01:00
+			char *ts_str = PyUnicode_AsUTF8(ts);
+			struct timeval	timestamp;
+			struct tm tm;
+			strptime(ts_str, "%Y-%m-%d %H:%M:%S", &tm);
+			timestamp.tv_sec = mktime(&tm);
+			const char *ptr = ts_str;
+			while (*ptr && *ptr != '.')
+				ptr++;
+			if (ptr)
+			{
+				ptr++;
+				timestamp.tv_usec = strtol(ptr, NULL, 10);
+			}
+			// We now need to allow for the timezone difference as mktime is returning
+			// In the local timezone
+			time_t  now = time(NULL);
+			struct tm local = *localtime(&now);
+			struct tm utc = *gmtime(&now);
+
+			timestamp.tv_sec += 3600 * (local.tm_hour - utc.tm_hour);
+			newReading->setTimestamp(timestamp);
 		}
 
 		// Get 'user_ts' value: borrowed reference.
 		PyObject* uts = PyDict_GetItemString(element, "timestamp");
-		if (uts && PyLong_Check(uts))
+		if (uts)
 		{
-			// Set user timestamp
-			newReading->setUserTimestamp(PyLong_AsUnsignedLong(uts));
+			// Convert a timestamp of the from 2019-01-07 19:06:35.366100+01:00
+			char *ts_str = PyUnicode_AsUTF8(uts);
+			struct timeval	timestamp;
+			struct tm tm;
+			strptime(ts_str, "%Y-%m-%d %H:%M:%S", &tm);
+			timestamp.tv_sec = mktime(&tm);
+			const char *ptr = ts_str;
+			while (*ptr && *ptr != '.')
+				ptr++;
+			if (ptr)
+			{
+				ptr++;
+				timestamp.tv_usec = strtol(ptr, NULL, 10);
+			}
+			// We now need to allow for the timezone difference as mktime is returning
+			// In the local timezone
+			time_t  now = time(NULL);
+			struct tm local = *localtime(&now);
+			struct tm utc = *gmtime(&now);
+
+			timestamp.tv_sec += 3600 * (local.tm_hour - utc.tm_hour);
+			newReading->setUserTimestamp(timestamp);
 		}
+
+
+
 
 		// Get 'uuid' value: borrowed reference.
 		PyObject* uuid = PyDict_GetItemString(element, "key");

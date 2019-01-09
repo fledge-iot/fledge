@@ -53,7 +53,7 @@ SouthPlugin::SouthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category) :
 				manager->resolveSymbol(handle, "plugin_poll");
 	}
 	
-  	pluginReconfigurePtr = (void (*)(PLUGIN_HANDLE, const std::string&))
+  	pluginReconfigurePtr = (void (*)(PLUGIN_HANDLE*, const std::string&))
 				manager->resolveSymbol(handle, "plugin_reconfigure");
   	pluginShutdownPtr = (void (*)(PLUGIN_HANDLE))
 				manager->resolveSymbol(handle, "plugin_shutdown");
@@ -132,7 +132,8 @@ vector<Reading *>* SouthPlugin::pollV2()
 void SouthPlugin::reconfigure(const string& newConfig)
 {
 	try {
-		return this->pluginReconfigurePtr(instance, newConfig);
+		this->pluginReconfigurePtr(&instance, newConfig);
+		return;
 	} catch (exception& e) {
 		Logger::getLogger()->fatal("Unhandled exception raised in south plugin reconfigure(), %s",
 			e.what());

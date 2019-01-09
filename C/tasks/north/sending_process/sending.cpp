@@ -12,6 +12,7 @@
 #include <csignal>
 #include <sys/prctl.h>
 #include <filter_plugin.h>
+#include <map>
 
 #define PLUGIN_UNDEFINED ""
 
@@ -29,12 +30,29 @@
 // Used for the handling of the hierarchical configuration structure
 #define PARENT_CONFIGURATION_KEY "North"
 
+using namespace std;
+
 // Default values for the creation of a new stream,
 // the description is derived from the parameter --name
 #define NEW_STREAM_LAST_OBJECT 0
 
+// Data sources handled by the sending process
+#define DATA_SOURCE_READINGS    "readings"
+#define DATA_SOURCE_STATISTICS  "statistics"
+#define DATA_SOURCE_AUDIT       "audit"
 
-using namespace std;
+#define DATA_SOURCE_INFORMATION_TABLE_NAME 0
+#define DATA_SOURCE_INFORMATION_STAT_KEY   1
+#define DATA_SOURCE_INFORMATION_STAT_DESCR 2
+
+// Translation from the data source type to data source information
+const map<string, std::tuple<string, string, string>>  data_source_to_information = {
+
+	// Data source                         - TableName   - Statistics key   - Statistics description
+	{DATA_SOURCE_READINGS,   std::make_tuple("readings",   "Readings Sent",   "Readings Sent North")},
+	{DATA_SOURCE_STATISTICS, std::make_tuple("statistics", "Statistics Sent", "Statistics Sent North")},
+	{DATA_SOURCE_AUDIT,      std::make_tuple("audit",      "Audit Sent",      "Audit Sent North")}
+};
 
 // static pointer to data buffers for filter plugins
 std::vector<ReadingSet*>* SendingProcess::m_buffer_ptr = 0;
@@ -52,14 +70,14 @@ static const string sendingDefaultConfig =
 		"the sending process.\", \"type\": \"boolean\", \"default\": \"true\" , \"readonly\": \"true\"  },"
 	"\"duration\": {"
 		"\"description\": \"How long the sending process should run (in seconds) before stopping.\", "
-		"\"type\": \"integer\", \"default\": \"60\" , \"order\": \"7\" }, "
+		"\"type\": \"integer\", \"default\": \"60\" , \"order\": \"7\", \"displayName\" : \"Duration\" }, "
 	"\"blockSize\": {"
 		"\"description\": \"The size of a block of readings to send in each transmission.\", "
-		"\"type\": \"integer\", \"default\": \"500\", \"order\": \"8\"   }, "
+		"\"type\": \"integer\", \"default\": \"500\", \"order\": \"8\", \"displayName\" : \"Readings Block Size\" }, "
 	"\"sleepInterval\": {"
 		"\"description\": \"A period of time, expressed in seconds, "
 		"to wait between attempts to send readings when there are no "
-		"readings to be sent.\", \"type\": \"integer\", \"default\": \"1\", \"order\": \"11\"   }, "
+		"readings to be sent.\", \"type\": \"integer\", \"default\": \"1\", \"order\": \"11\", \"displayName\" : \"Sleep Interval\"  }, "
 	"\"streamId\": {"
 		"\"description\": \"Identifies the specific stream to handle and the related information,"
 		" among them the ID of the last object streamed.\", "
@@ -69,18 +87,10 @@ static const string sendingDefaultConfig =
 		"\"description\": \"Number of elements of blockSize size to be buffered in memory\","
 		"\"type\": \"integer\", "
   		"\"default\": \"10\", "
-		"\"order\": \"12\" ,"
+		"\"order\": \"12\", \"displayName\" : \"Memory Buffer Size\" ,"
 		"\"readonly\": \"false\" "
 	"} "
 	"}";
-
-// Translation from the data source type to the statistics key/description
-const vector<pair<string, pair<string, string>>>  source_to_statistics = {
-	// Data source  - Statistics key - Statistics description
-	{"readings",   {"Readings Sent",   "Readings Sent North"}},
-	{"statistics", {"Statistics Sent", "Statistics Sent North"}},
-	{"audit",      {"Audit Sent",      "Audit Sent North"}}
-};
 
 volatile std::sig_atomic_t signalReceived = 0;
 
@@ -415,43 +425,50 @@ void SendingProcess::stop()
 }
 
 /**
- * Update database tables statistics and streams
- * setting last_object id in streams
+ * Sets the position of the readings table the sending procress
+ * has already sent
+ *
+ * @lastSentId	Id of the readings table already sent
  */
-void SendingProcess::updateDatabaseCounters()
+void SendingProcess::updateStreamLastSentId(long lastSentId)
 {
-	// Update counters to Database
 
 	string streamId = to_string(this->getStreamId());
 
 	// Prepare WHERE id = val
 	const Condition conditionStream(Equals);
 	Where wStreamId("id",
-			conditionStream,
-			streamId);
+	                conditionStream,
+	                streamId);
 
 	// Prepare last_object = value
 	InsertValues lastId;
-	lastId.push_back(InsertValue("last_object",
-			 (long)this->getLastSentId()));
+	lastId.push_back(InsertValue("last_object",lastSentId));
 
 	// Perform UPDATE foglamp.streams SET last_object = x WHERE id = y
 	this->getStorageClient()->updateTable("streams",
-					      lastId,
-					      wStreamId);
-
+	                                      lastId,
+	                                      wStreamId);
+}
+/**
+ * Update database tables statistics and streams
+ * setting last_object id in streams
+ */
+void SendingProcess::updateDatabaseCounters()
+{
+	updateStreamLastSentId((long)this->getLastSentId());
 
 	// Updates 'Master' statistic
 	string stat_key;
 	string stat_description;
 
 	// Identifies the statistics that should be updated in relation to the data source
-	for(auto &item : source_to_statistics) {
+	auto item = data_source_to_information.find(m_data_source_t);
+	if (item != data_source_to_information.end())
+	{
 
-		if (item.first == m_data_source_t) {
-			stat_key =item.second.first;
-			stat_description =item.second.second;
-		}
+		stat_key = std::get<DATA_SOURCE_INFORMATION_STAT_KEY>(item->second);
+		stat_description = std::get<DATA_SOURCE_INFORMATION_STAT_DESCR>(item->second);
 	}
         this->updateStatistics(stat_key, stat_description);
 
@@ -524,6 +541,27 @@ void SendingProcess::updateStatistics(string& stat_key, const string& stat_descr
 		}
 
 	}
+}
+
+/**
+ * Retrieves the name table of the data source
+ *
+ * @dataSource	datasource for which the table name should be identified
+ * @return	table name
+ */
+string SendingProcess::retrieveTableInformationName(const char* dataSource)
+{
+	string tableInfo;
+
+	// Identifies table name
+	auto item = data_source_to_information.find(dataSource);
+	if (item != data_source_to_information.end())
+	{
+
+		tableInfo = std::get<DATA_SOURCE_INFORMATION_TABLE_NAME>(item->second);
+	}
+
+	return(tableInfo);
 }
 
 /**

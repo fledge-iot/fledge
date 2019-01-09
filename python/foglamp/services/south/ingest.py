@@ -170,6 +170,10 @@ class Ingest(object):
         })
         cls._parent_service._core_microservice_management_client.create_configuration_category(config_payload)
 
+        # Check and warn if pipeline exists in South service
+        if 'filter' in cls._parent_service.config:
+            _LOGGER.warning('South Service [%s] does not support the use of a filter pipeline.', cls._parent_service._name)
+
         # Read configuration
         config = cls._parent_service._core_microservice_management_client.get_configuration_category(category_name=category)
 

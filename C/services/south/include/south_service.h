@@ -43,6 +43,7 @@ class SouthService : public ServiceHandler {
 		SouthPlugin			*southPlugin;
 		const std::string&		m_name;
 		Logger        			*logger;
+		AssetTracker			*m_assetTracker;
 		bool				m_shutdown;
 		ConfigCategory			m_config;
 		ConfigCategory			m_configAdvanced;

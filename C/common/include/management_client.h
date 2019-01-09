@@ -22,6 +22,8 @@
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 using namespace rapidjson;
 
+class AssetTrackingTuple;
+
 class ManagementClient {
 	public:
 		ManagementClient(const std::string& hostname, const unsigned short port);

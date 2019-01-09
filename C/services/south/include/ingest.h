@@ -57,9 +57,6 @@ public:
 	static void	useFilteredData(OUTPUT_HANDLE *outHandle,
 					READINGSET* readings);
 
-	void 		populateAssetTrackingCache(ManagementClient *m_mgtClient);
-	bool 		checkAssetTrackingCache(AssetTrackingTuple& tuple);
-	void 		addAssetTrackingTuple(AssetTrackingTuple& tuple);
 	void		setTimeout(const unsigned long timeout) { m_timeout = timeout; };
 	void		setThreshold(const unsigned int threshold) { m_queueSizeThreshold = threshold; };
 	void		configChange(const std::string&, const std::string&);
@@ -87,7 +84,6 @@ private:
 	unsigned int			m_discardedReadings; // discarded readings since last update to statistics table
 	FilterPipeline*			filterPipeline;
 	
-	std::unordered_set<AssetTrackingTuple*, std::hash<AssetTrackingTuple*>, AssetTrackingTuplePtrEqual>   assetTrackerTuplesCache;
 	std::unordered_set<std::string>   		statsDbEntriesCache;  // confirmed stats table entries
 	std::map<std::string, int>		statsPendingEntries;  // pending stats table entries
 };

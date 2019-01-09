@@ -125,7 +125,7 @@ class TestService:
     @pytest.mark.parametrize("payload, code, message", [
         ('"blah"', 400, "Data payload must be a valid JSON"''),
         ('{}', 400, "Missing name property in payload."),
-        ('{"name": "test"}', 400, "Missing plugin property in payload."),
+        ('{"name": "test"}', 400, "Missing type property in payload."),
         ('{"name": "a;b", "plugin": "dht11", "type": "south"}', 400, "Invalid name property in payload."),
         ('{"name": "test", "plugin": "dht@11", "type": "south"}', 400, "Invalid plugin property in payload."),
         ('{"name": "test", "plugin": "dht11", "type": "south", "enabled": "blah"}', 400,
@@ -141,8 +141,9 @@ class TestService:
         ('{"name": "test", "plugin": "dht11", "type": "south", "enabled": "0"}', 400,
          'Only "true", "false", true, false are allowed for value of enabled.'),
         ('{"name": "test", "plugin": "dht11"}', 400, "Missing type property in payload."),
-        ('{"name": "test", "plugin": "dht11", "type": "blah"}', 400, "Only south type is supported."),
-        ('{"name": "test", "plugin": "dht11", "type": "North"}', 406, "north type is not supported for the time being.")
+        ('{"name": "test", "plugin": "dht11", "type": "blah"}', 400, "Only south and notification type are supported."),
+        ('{"name": "test", "plugin": "dht11", "type": "North"}', 406, "north type is not supported for the time being."),
+        ('{"name": "test", "type": "south"}', 400, "Missing plugin property for type south in payload.")
     ])
     async def test_add_service_with_bad_params(self, client, code, payload, message):
         resp = await client.post('/foglamp/service', data=payload)

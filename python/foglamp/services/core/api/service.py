@@ -173,8 +173,8 @@ async def add_service(request):
             # "plugin_module_path" is fixed by design. It is MANDATORY to keep the plugin in the exactly similar named
             # folder, within the plugin_module_path.
             # if multiple plugin with same name are found, then python plugin import will be tried first
+            plugin_module_path = "foglamp.plugins.south"
             try:
-                plugin_module_path = "foglamp.plugins.south"
                 plugin_info = load_python_plugin(plugin_module_path, plugin, service_type)
                 plugin_config = plugin_info['config']
                 process_name = 'south_c' if plugin_info['mode'] == 'poll' else 'south'
@@ -188,7 +188,7 @@ async def add_service(request):
 
                 process_name = 'south_c'
                 script = '["services/south_c"]'
-            except ValueError as ex:
+            except TypeError as ex:
                 _logger.exception(str(ex))
                 raise web.HTTPBadRequest(reason=str(ex))
             except Exception as ex:
@@ -231,8 +231,6 @@ async def add_service(request):
             for ps in res['rows']:
                 if 'notification_c' in ps['process_name']:
                     raise web.HTTPBadRequest(reason='A Notification service schedule already exists.')
-
-        # If successful then create a configuration entry from plugin configuration
         elif service_type == 'south':
             try:
                 # Create a configuration category from the configuration defined in the plugin
@@ -293,7 +291,7 @@ def load_python_plugin(plugin_module_path: str, plugin: str, service_type: str) 
     plugin_info = _plugin.plugin_info()
     if plugin_info['type'] != service_type:
         msg = "Plugin of {} type is not supported".format(plugin_info['type'])
-        raise ValueError(msg)
+        raise TypeError(msg)
     return plugin_info
 
 
@@ -301,7 +299,7 @@ def load_c_plugin(plugin: str, service_type: str) -> Dict:
     plugin_info = apiutils.get_plugin_info(plugin, dir=service_type)
     if plugin_info['type'] != service_type:
         msg = "Plugin of {} type is not supported".format(plugin_info['type'])
-        raise ValueError(msg)
+        raise TypeError(msg)
     plugin_config = plugin_info['config']
     return plugin_config
 

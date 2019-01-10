@@ -770,38 +770,6 @@ class TestFilters:
         user_name_mock = 'random1'
         new_list_mock = ['scale2', 'python35b', 'meta2']
         old_list_mock = ['scale1', 'python35a', 'meta1']
-        in_dict_del = {
-            "assetName": {
-                "order": "1",
-                "description": "Name of Asset",
-                "type": "string",
-                "value": "sinusoid1",
-                "default": "sinusoid",
-                "displayName": "Asset name"
-            },
-            "plugin": {
-                "description": "Sinusoid Plugin",
-                "type": "string",
-                "readonly": "true",
-                "default": "sinusoid",
-                "value": "sinusoid1"
-            },
-            "filter": {
-                "description": "Filter pipeline",
-                "type": "JSON",
-                "default": "{\"pipeline\": [\"S1\"]}",
-                "value": "{\"pipeline\": [\"S11\"]}"
-            },
-            "dataPointsPerSec": {
-                "order": "2",
-                "description": "Data points per second",
-                "type": "integer",
-                "value": "11",
-                "default": "1",
-                "displayName": "Data points per second"
-            }
-        }
-
         mock_payload = {"where": {"column": "name", "condition": "=", "value": "meta1", "and": {"column": "user", "condition": "=", "value": "random1"}}}
 
         storage_client_mock = MagicMock(StorageClientAsync)

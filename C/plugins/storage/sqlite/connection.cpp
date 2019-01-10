@@ -1494,28 +1494,83 @@ bool Connection::fetchReadings(unsigned long id,
 			       unsigned int blksize,
 			       std::string& resultSet)
 {
-char sqlbuffer[300];
+char sqlbuffer[1100];
 char *zErrMsg = NULL;
 int rc;
 int retrieve;
+
+	// SQL command to extract the data from the foglamp.readings
+	//
+	// the user_ts field is constructed using strftime to extract the
+	// date-time up to the second
+	// and set of commands to exctract the milliseconds/microseonds part
+	// considering the possible cases in which the field could be loaded
+	// cases handled :
+	//     2019-01-01 10:01:01
+	//     2019-02-01 10:02:01.0
+	//     2019-02-02 10:02:02.841
+	//     2019-02-03 10:02:03.123456
+	//     2019-03-01 10:03:01.1+00:00
+	//     2019-03-02 10:03:02.123+00:00
+	//     2019-03-03 10:03:03.123456+00:00
+	//     2019-03-04 10:03:04.123456+01:00
+	//     2019-03-05 10:03:05.123456-01:00
+
+	const char *sql_cmd = R"(
+	SELECT
+		id,
+		asset_code,
+		read_key,
+		reading,
+		strftime('%%Y-%%m-%%d %%H:%%M:%%S', user_ts, 'utc')  ||
+		CASE -- Checks for the presence of sub-seconds
+			instr(user_ts,'.')
+			WHEN 0  THEN ""
+			ELSE
+				CASE -- Check for the presence of the timezone
+					max (
+						instr(substr(user_ts,instr(user_ts,'.')+1,99),'+') -1,
+						instr(substr(user_ts,instr(user_ts,'.')+1,99),'-') -1
+					)
+					WHEN -1 THEN
+						-- No timezone - extract up to the end
+						CASE
+							substr(user_ts,instr(user_ts,'.'),99)
+							WHEN "." THEN ""
+							ELSE  "." || substr(user_ts,instr(user_ts,'.')+1,99)
+						END
+					ELSE
+						-- yes timezone - extract up to the timezone
+						"." || substr(user_ts, instr(user_ts, '.') + 1,
+						max (
+						      instr(substr(user_ts,instr(user_ts,'.')+1,99),'+') -1,
+						      instr(substr(user_ts,instr(user_ts,'.')+1,99),'-') -1
+						)
+			)
+				END
+		END AS user_ts,
+		strftime('%%Y-%%m-%%d %%H:%%M:%%f', ts, 'utc') AS ts
+	FROM foglamp.readings
+	WHERE id >= %lu
+	ORDER BY id ASC
+	LIMIT %u;
+	)";
+
+
+	// FIXME:
+	Logger::getLogger()->debug("DBG 1 sql |%s|", sql_cmd);
 
 	/*
 	 * This query assumes datetime values are in 'localtime'
 	 */
 	snprintf(sqlbuffer,
 		 sizeof(sqlbuffer),
-		 "SELECT id, " \
-			"asset_code, " \
-			"read_key, " \
-			"reading, " \
-			"strftime('%%Y-%%m-%%d %%H:%%M:%%f', user_ts, 'utc') AS \"user_ts\", " \
-			"strftime('%%Y-%%m-%%d %%H:%%M:%%f', ts, 'utc') AS \"ts\" " \
-		 "FROM foglamp.readings " \
-			"WHERE id >= %lu " \
-		 "ORDER BY id ASC " \
-		 "LIMIT %u;",
+		 sql_cmd,
 		 id,
 		 blksize);
+
+	// FIXME:
+	Logger::getLogger()->debug("DBG 2 sql |%s|", sqlbuffer);
 
 	logSQL("ReadingsFetch", sqlbuffer);
 	sqlite3_stmt *stmt;

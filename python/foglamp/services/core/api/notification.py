@@ -223,6 +223,9 @@ async def post_notification(request):
             "enable":is_enabled,
         }
         await _update_configurations(config_mgr, name, notification_config, rule_config, delivery_config)
+
+        audit = AuditLogger(storage)
+        await audit.information('NTFAD', {"name": name})
     except ValueError as ex:
         raise web.HTTPBadRequest(reason=str(ex))
     except Exception as e:
@@ -373,12 +376,10 @@ async def delete_notification(request):
         if notif is None:
             raise ValueError("Notification name is required for deletion.")
 
-        url = str(request.url)
-        url_parts = url.split("/foglamp/notification")
-        url = '{}/foglamp/notification/{}'.format(url_parts[0], urllib.parse.quote(notif))
-        notification = json.loads(await _hit_get_url(url))
+        # Stop & remove notification
+        url = 'http://{}:{}/notification/{}'.format(_address, _port, urllib.parse.quote(notif))
 
-        # TODO: Stop notification before deletion
+        notification = json.loads(await _hit_delete_url(url))
 
         # Removes the child categories for the rule and delivery plugins, Removes the category for the notification itself
         storage = connect.get_storage_async()
@@ -387,7 +388,7 @@ async def delete_notification(request):
         await config_mgr.delete_category_and_children_recursively(notif)
 
         audit = AuditLogger(storage)
-        await audit.information('NTFDL', notification)
+        await audit.information('NTFDL', {"name": notif})
     except ValueError as ex:
         raise web.HTTPBadRequest(reason=str(ex))
     except Exception as ex:
@@ -444,3 +445,25 @@ async def _update_configurations(config_mgr, name, notification_config, rule_con
     except Exception as ex:
         _logger.exception("Failed to update notification configuration. %s", str(ex))
         raise web.HTTPInternalServerError(reason='Failed to update notification configuration.')
+
+
+async def _hit_delete_url(delete_url, data=None):
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.delete(delete_url, data=data) as resp:
+                status_code = resp.status
+                jdoc = await resp.text()
+                if status_code not in range(200, 209):
+                    _logger.error("Error code: %d, reason: %s, details: %s, url: %s",
+                                  resp.status,
+                                  resp.reason,
+                                  jdoc,
+                                  delete_url)
+                    raise StorageServerError(code=resp.status,
+                                             reason=resp.reason,
+                                             error=jdoc)
+    except Exception:
+        raise
+    else:
+        return jdoc
+

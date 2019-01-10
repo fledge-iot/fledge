@@ -177,6 +177,9 @@ async def add_service(request):
             try:
                 plugin_info = load_python_plugin(plugin_module_path, plugin, service_type)
                 plugin_config = plugin_info['config']
+                if not plugin_config:
+                    _logger.exception("Plugin %s import problem from path %s", plugin, plugin_module_path)
+                    raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}".'.format(plugin, plugin_module_path))
                 process_name = 'south_c' if plugin_info['mode'] == 'poll' else 'south'
                 script = '["services/south_c"]' if plugin_info['mode'] == 'poll' else '["services/south"]'
             except ImportError as ex:

@@ -12,12 +12,11 @@ import pytest
 
 from foglamp.services.core import routes
 from foglamp.services.core import connect
-from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.common.storage_client.exceptions import StorageServerError
 from foglamp.services.core.api import filters
 from foglamp.services.core.api.filters import _LOGGER
-from foglamp.common.configuration_manager import ConfigurationManager, ConfigurationCache
+from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.services.core.api import utils as apiutils
 
 __author__ = "Ashish Jabble"
@@ -687,7 +686,7 @@ class TestFilters:
         assert 'configuration' == args[0]
         p = json.loads(args[1])
         assert mock_payload == p
-        # cache_remove.assert_called_once_with("test")
+        # TODO: cache_remove.assert_called_once_with("test")
 
     def test_diff(self):
         in_list1 = ['a', 'b', 'c']
@@ -822,14 +821,25 @@ class TestFilters:
         p = json.loads(args[1])
         assert mock_payload == p
 
-        calls_tbl = [call('filter_users', '{"where": {"column": "name", "condition": "=", "value": "scale1", "and": {"column": "user", "condition": "=", "value": "random1"}}}'),
-                     call('filter_users', '{"where": {"column": "name", "condition": "=", "value": "python35a", "and": {"column": "user", "condition": "=", "value": "random1"}}}'),
-                     call('filter_users', '{"where": {"column": "name", "condition": "=", "value": "meta1", "and": {"column": "user", "condition": "=", "value": "random1"}}}')]
-        delete_tbl_patch.assert_has_calls(calls_tbl, any_order=True)
+        calls = delete_tbl_patch.call_args_list
+        args, kwargs = calls[0]
+        assert 'filter_users' == args[0]
+        p = json.loads(args[1])
+        assert {"where": {"column": "name", "condition": "=", "value": "scale1", "and": {"column": "user", "condition": "=", "value": "random1"}}} == p
+
+        args, kwargs = calls[1]
+        assert 'filter_users' == args[0]
+        p = json.loads(args[1])
+        assert {"where": {"column": "name", "condition": "=", "value": "python35a", "and": {"column": "user", "condition": "=", "value": "random1"}}} == p
+
+        args, kwargs = calls[2]
+        assert 'filter_users' == args[0]
+        p = json.loads(args[1])
+        assert {"where": {"column": "name", "condition": "=", "value": "meta1", "and": {"column": "user", "condition": "=", "value": "random1"}}} == p
 
         calls_child = [call('random1', 'random1_scale1'),
-                        call('random1', 'random1_python35a'),
-                        call('random1', 'random1_meta1')]
+                       call('random1', 'random1_python35a'),
+                       call('random1', 'random1_meta1')]
         delete_child_category_mock.assert_has_calls(calls_child, any_order=True)
 
     async def test_add_child_filters(self, mocker):
@@ -902,5 +912,7 @@ class TestFilters:
         calls_update = [call('random1_meta2', {'assetName': 'test1'})]
         update_config_bulk_mock.assert_has_calls(calls_update, any_order=True)
 
-        calls_insert = [call('filter_users', '{"user": "random1", "name": "meta2"}')]
-        insert_tbl_patch.assert_has_calls(calls_insert, any_order=True)
+        args, kwargs = insert_tbl_patch.call_args
+        assert 'filter_users' == args[0]
+        p = json.loads(args[1])
+        assert {"user": "random1", "name": "meta2"} == p

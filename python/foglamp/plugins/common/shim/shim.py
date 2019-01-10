@@ -8,58 +8,50 @@
 
 import sys
 import json
+import logging
 
 from foglamp.common import logger
 
-_LOGGER = logger.setup(__name__, level=20)
-_LOGGER.info("Loading shim layer for python plugin '{}' ".format(sys.argv[1]))
-
+_LOGGER = logger.setup(__name__, level=logging.INFO)
 _plugin = None
 
+
 def _plugin_obj():
-    plugin = sys.argv[1]  #'sinusoid' #sys.argv[1]
-    service_type = 'south'
+    plugin = sys.argv[1]
+    plugin_module_path = "foglamp.plugins.south"
     try:
-        plugin_module_path = "foglamp.plugins.south" if service_type == 'south' else "foglamp.plugins.north"
         import_file_name = "{path}.{dir}.{file}".format(path=plugin_module_path, dir=plugin, file=plugin)
         _plugin = __import__(import_file_name, fromlist=[''])
-        #_LOGGER.info("import succeeded")
     except ImportError as ex:
-        _LOGGER.info("exception 1")
+        _LOGGER.exception("Plugin %s import problem from path %s. %s", plugin, plugin_module_path, str(ex))
     except Exception as ex:
-        _LOGGER.info("exception 2")
+        _LOGGER.exception("Failed to load plugin. %s", str(ex))
     return _plugin
+
 
 _plugin = _plugin_obj()
 
+
 def plugin_info():
-    #_LOGGER.info("plugin_info called")
     handle = _plugin.plugin_info()
     handle['config'] = json.dumps(handle['config'])
-    #_LOGGER.info("info dict = {}".format(json.dumps(handle)))
     return handle
 
+
 def plugin_init(config):
-    #_LOGGER.info("plugin_init called")
     handle = _plugin.plugin_init(json.loads(config))
     return handle
 
+
 def plugin_poll(handle):
     reading = _plugin.plugin_poll(handle)
-    #_LOGGER.info("Reading {} = {}".format(type(reading), json.dumps(reading)))
     return reading
 
+
 def plugin_reconfigure(handle, new_config):
-    #_LOGGER.info("plugin_reconfigure called")
-    new_handle = _plugin.plugin_reconfigure(handle,json.loads(new_config))
+    new_handle = _plugin.plugin_reconfigure(handle, json.loads(new_config))
     return new_handle
 
-def plugin_shutdown(handle):
-    #_LOGGER.info("plugin_shutdown called")
-    return _plugin.plugin_shutdown(handle)
 
-if __name__ == '__main__':
-    print("Main called")
-    _LOGGER.info("main called")
-    _plugin = _plugin_obj()
-    print(_plugin.plugin_info())
+def plugin_shutdown(handle):
+    return _plugin.plugin_shutdown(handle)

@@ -31,7 +31,7 @@ std::mutex sto_mtx_client_map;
  */
 StorageClient::StorageClient(const string& hostname, const unsigned short port)
 {
-
+	m_pid = getpid();
 	m_logger = Logger::getLogger();
 	m_urlbase << hostname << ":" << port;
 }
@@ -133,7 +133,7 @@ bool StorageClient::readingAppend(const vector<Reading *>& readings)
 		ostringstream ss;
 		sto_mtx_client_map.lock();
 		m_seqnum_map[thread_id].fetch_add(1);
-		ss << thread_id << "_" << m_seqnum_map[thread_id].load();
+		ss << m_pid << "#" << thread_id << "_" << m_seqnum_map[thread_id].load();
 		sto_mtx_client_map.unlock();
 
 		SimpleWeb::CaseInsensitiveMultimap headers = {{"SeqNum", ss.str()}};
@@ -438,11 +438,11 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 		ostringstream ss;
 		sto_mtx_client_map.lock();
 		m_seqnum_map[thread_id].fetch_add(1);
-		ss << thread_id << "_" << m_seqnum_map[thread_id].load();
+		ss << m_pid << "#" << thread_id << "_" << m_seqnum_map[thread_id].load();
 		sto_mtx_client_map.unlock();
 
 		SimpleWeb::CaseInsensitiveMultimap headers = {{"SeqNum", ss.str()}};
-		
+
 		ostringstream convert;
 
 		convert << "{ \"updates\" : [ ";
@@ -503,7 +503,7 @@ int StorageClient::updateTable(const string& tableName, const ExpressionValues& 
 		ostringstream ss;
 		sto_mtx_client_map.lock();
 		m_seqnum_map[thread_id].fetch_add(1);
-		ss << thread_id << "_" << m_seqnum_map[thread_id].load();
+		ss << m_pid << "#" << thread_id << "_" << m_seqnum_map[thread_id].load();
 		sto_mtx_client_map.unlock();
 
 		SimpleWeb::CaseInsensitiveMultimap headers = {{"SeqNum", ss.str()}};
@@ -567,7 +567,7 @@ int StorageClient::updateTable(const string& tableName, vector<pair<ExpressionVa
 		ostringstream ss;
 		sto_mtx_client_map.lock();
 		m_seqnum_map[thread_id].fetch_add(1);
-		ss << thread_id << "_" << m_seqnum_map[thread_id].load();
+		ss << m_pid << "#" << thread_id << "_" << m_seqnum_map[thread_id].load();
 		sto_mtx_client_map.unlock();
 
 		SimpleWeb::CaseInsensitiveMultimap headers = {{"SeqNum", ss.str()}};

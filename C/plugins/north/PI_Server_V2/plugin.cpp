@@ -22,6 +22,8 @@
 #include "rapidjson/stringbuffer.h"
 #include "json_utils.h"
 
+#define VERBOSE_LOG	0
+
 using namespace std;
 using namespace rapidjson;
 
@@ -204,6 +206,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	                         configData->getValue("notBlockingErrors"),
 	                         std::string("errors400"));
 
+#if VERBOSE_LOG
 	// Log plugin configuration
 	Logger::getLogger()->info("%s plugin configured: URL=%s, "
 				  "producerToken=%s, compression=%s",
@@ -211,6 +214,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 				  url.c_str(),
 				  producerToken.c_str(),
 				  connInfo->compression ? "True" : "False");
+#endif
 
 	return (PLUGIN_HANDLE)connInfo;
 }
@@ -251,11 +255,13 @@ void plugin_start(const PLUGIN_HANDLE handle,
 			      PLUGIN_NAME,
 			      storedData.c_str());
 	}
+#if VERBOSE_LOG
 	// Log plugin configuration
 	Logger::getLogger()->info("%s plugin is using OMF %s=%s",
 				  PLUGIN_NAME,
 				  TYPE_ID_KEY,
 				  connInfo->typeId.c_str());
+#endif
 }
 
 /**

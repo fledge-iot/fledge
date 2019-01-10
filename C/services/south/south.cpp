@@ -275,9 +275,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		if (! southPlugin->isAsync())
 		{
 			m_timerfd = createTimerFd(1000000/(int)m_readingsPerSec); // interval to be passed is in usecs
-			if (m_timerfd >= 0)
-				logger->info("Created timer FD with interval of %u usecs", 1000000/m_readingsPerSec);
-			else
+			if (m_timerfd < 0)
 			{
 				logger->fatal("Could not create timer FD");
 				return;
@@ -471,7 +469,6 @@ bool SouthService::loadPlugin()
 			m_configAdvanced = m_mgtClient->getCategory(advancedCatName);
 
 			southPlugin = new SouthPlugin(handle, m_config);
-			logger->info("Loaded south plugin %s.", plugin.c_str());
 
 			return true;
 		}

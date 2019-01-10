@@ -86,6 +86,7 @@ STORAGE_SERVICE_SCRIPT_SRC  := scripts/services/storage
 STORAGE_SCRIPT_SRC          := scripts/storage
 NORTH_SCRIPT_SRC            := scripts/tasks/north
 NORTH_C_SCRIPT_SRC          := scripts/tasks/north_c
+NOTIFICATION_C_SCRIPT_SRC   := scripts/services/notification_c
 PURGE_SCRIPT_SRC            := scripts/tasks/purge
 STATISTICS_SCRIPT_SRC       := scripts/tasks/statistics
 BACKUP_SRC                  := scripts/tasks/backup
@@ -267,6 +268,7 @@ scripts_install : $(SCRIPTS_INSTALL_DIR) \
 	install_storage_service_script \
 	install_north_script \
 	install_north_c_script \
+	install_notification_c_script \
 	install_purge_script \
 	install_statistics_script \
 	install_storage_script \
@@ -312,6 +314,9 @@ install_north_script : $(SCRIPT_TASKS_INSTALL_DIR) $(NORTH_SCRIPT_SRC)
 
 install_north_c_script : $(SCRIPT_TASKS_INSTALL_DIR) $(NORTH_C_SCRIPT_SRC)
 	$(CP) $(NORTH_C_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
+
+install_notification_c_script: $(SCRIPT_SERVICES_INSTALL_DIR) $(NOTIFICATION_C_SCRIPT_SRC)
+	$(CP) $(NOTIFICATION_C_SCRIPT_SRC) $(SCRIPT_SERVICES_INSTALL_DIR)
 
 install_purge_script : $(SCRIPT_TASKS_INSTALL_DIR) $(PURGE_SCRIPT_SRC)
 	$(CP) $(PURGE_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)

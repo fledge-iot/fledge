@@ -6,7 +6,7 @@
 
 import asyncio
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, call
 from aiohttp import web
 import pytest
 
@@ -660,3 +660,227 @@ class TestFilters:
         user = "Random"
         resp = await client.delete('/foglamp/filter/{}/pipeline'.format(user))
         assert 500 == resp.status
+
+    async def test_delete_configuration_category(self, mocker):
+        # GIVEN
+        mock_payload = {
+               'where': {
+                 'column': 'key',
+                 'condition': '=',
+                 'value': 'test'
+               }
+        }
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = MagicMock(ConfigurationManager)
+
+        mock_connect = mocker.patch.object(connect, 'get_storage_async', return_value=storage_client_mock)
+        delete_tbl_patch = mocker.patch.object(storage_client_mock, 'delete_from_tbl', return_value=asyncio.sleep(.1))
+        cache_manager = mocker.patch.object(c_mgr, '_cacheManager')
+        cache_remove = mocker.patch.object(cache_manager, 'remove', return_value=MagicMock())
+
+        # WHEN
+        await filters._delete_configuration_category(storage_client_mock, "test")
+
+        # THEN
+        args, kwargs = delete_tbl_patch.call_args
+        assert 'configuration' == args[0]
+        p = json.loads(args[1])
+        assert mock_payload == p
+        # TODO: cache_remove.assert_called_once_with("test")
+
+    def test_diff(self):
+        in_list1 = ['a', 'b', 'c']
+        in_list2 = ['x', 'y', 'z']
+        out_list = ['x', 'y', 'z']
+        assert out_list == filters._diff(in_list1, in_list2)
+
+    def test_delete_keys_from_dict(self):
+        in_dict_del = {
+            "assetName": {
+                "order": "1",
+                "description": "Name of Asset",
+                "type": "string",
+                "value": "sinusoid1",
+                "default": "sinusoid",
+                "displayName": "Asset name"
+            },
+            "plugin": {
+                "description": "Sinusoid Plugin",
+                "type": "string",
+                "readonly": "true",
+                "default": "sinusoid",
+                "value": "sinusoid1"
+            },
+            "filter": {
+                "description": "Filter pipeline",
+                "type": "JSON",
+                "default": "{\"pipeline\": [\"S1\"]}",
+                "value": "{\"pipeline\": [\"S11\"]}"
+            },
+            "dataPointsPerSec": {
+                "order": "2",
+                "description": "Data points per second",
+                "type": "integer",
+                "value": "11",
+                "default": "1",
+                "displayName": "Data points per second"
+            }
+        }
+        out_dict_del = {
+            "assetName": {
+                "order": "1",
+                "description": "Name of Asset",
+                "type": "string",
+                "default": "sinusoid",
+                "displayName": "Asset name"
+            },
+            "plugin": {
+                "description": "Sinusoid Plugin",
+                "type": "string",
+                "readonly": "true",
+                "default": "sinusoid",
+            },
+            "filter": {
+                "description": "Filter pipeline",
+                "type": "JSON",
+                "default": "{\"pipeline\": [\"S1\"]}",
+            },
+            "dataPointsPerSec": {
+                "order": "2",
+                "description": "Data points per second",
+                "type": "integer",
+                "default": "1",
+                "displayName": "Data points per second"
+            }
+        }
+        lst_keys = ['value']
+        deleted_values = {
+            'plugin': 'sinusoid1',
+            'assetName': 'sinusoid1',
+            'filter': {
+                'pipeline': ['S11']
+            },
+            'dataPointsPerSec': '11'
+        }
+        a, b = filters._delete_keys_from_dict(in_dict_del, lst_keys, deleted_values={}, parent=None)
+        assert out_dict_del, deleted_values == (a, b)
+
+    async def test_delete_child_filters(self, mocker):
+        # GIVEN
+        user_name_mock = 'random1'
+        new_list_mock = ['scale2', 'python35b', 'meta2']
+        old_list_mock = ['scale1', 'python35a', 'meta1']
+        mock_payload = {"where": {"column": "name", "condition": "=", "value": "meta1", "and": {"column": "user", "condition": "=", "value": "random1"}}}
+
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr_mock = MagicMock(ConfigurationManager)
+
+        connect_mock = mocker.patch.object(connect, 'get_storage_async', return_value=storage_client_mock)
+        delete_child_category_mock = mocker.patch.object(c_mgr_mock, 'delete_child_category', return_value=asyncio.sleep(.1))
+        delete_tbl_patch = mocker.patch.object(storage_client_mock, 'delete_from_tbl', return_value=asyncio.sleep(.1))
+        delete_configuration_category_mock = mocker.patch.object(filters, '_delete_configuration_category', return_value=asyncio.sleep(.1))
+
+        # WHEN
+        await filters._delete_child_filters(storage_client_mock, c_mgr_mock, user_name_mock, new_list_mock, old_list_mock)
+
+        # THEN
+        args, kwargs = delete_tbl_patch.call_args
+        assert 'filter_users' == args[0]
+        p = json.loads(args[1])
+        assert mock_payload == p
+
+        calls = delete_tbl_patch.call_args_list
+        args, kwargs = calls[0]
+        assert 'filter_users' == args[0]
+        p = json.loads(args[1])
+        assert {"where": {"column": "name", "condition": "=", "value": "scale1", "and": {"column": "user", "condition": "=", "value": "random1"}}} == p
+
+        args, kwargs = calls[1]
+        assert 'filter_users' == args[0]
+        p = json.loads(args[1])
+        assert {"where": {"column": "name", "condition": "=", "value": "python35a", "and": {"column": "user", "condition": "=", "value": "random1"}}} == p
+
+        args, kwargs = calls[2]
+        assert 'filter_users' == args[0]
+        p = json.loads(args[1])
+        assert {"where": {"column": "name", "condition": "=", "value": "meta1", "and": {"column": "user", "condition": "=", "value": "random1"}}} == p
+
+        calls_child = [call('random1', 'random1_scale1'),
+                       call('random1', 'random1_python35a'),
+                       call('random1', 'random1_meta1')]
+        delete_child_category_mock.assert_has_calls(calls_child, any_order=True)
+
+    async def test_add_child_filters(self, mocker):
+        # GIVEN
+        user_name_mock = 'random1'
+        new_list_mock = ['scale1', 'meta2']
+        old_list_mock = ['scale1', 'python35a']
+        mock_cat = {
+            "assetName": {
+                "order": "1",
+                "description": "Name of Asset",
+                "type": "string",
+                "value": "test1",
+                "default": "test",
+                "displayName": "Asset name"
+            },
+        }
+
+        @asyncio.coroutine
+        def get_cat(category_name):
+            category = category_name
+            if category == "random1_scale1":
+                return mock_cat
+            if category == 'random1_meta2':
+                return None
+            if category == 'meta2':
+                return mock_cat
+
+        @asyncio.coroutine
+        def create_cat():
+            return {}
+
+        @asyncio.coroutine
+        def create_child_cat():
+            return {}
+
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr_mock = MagicMock(ConfigurationManager)
+
+        connect_mock = mocker.patch.object(connect, 'get_storage_async', return_value=storage_client_mock)
+        get_category_mock = mocker.patch.object(c_mgr_mock, 'get_category_all_items', side_effect=get_cat)
+        create_category_mock = mocker.patch.object(c_mgr_mock, 'create_category', return_value=create_cat())
+        create_child_category_mock = mocker.patch.object(c_mgr_mock, 'create_child_category',
+                                                         return_value=create_child_cat())
+        update_config_bulk_mock = mocker.patch.object(c_mgr_mock, 'update_configuration_item_bulk',
+                                                      return_value=asyncio.sleep(.1))
+        cache_manager = mocker.patch.object(c_mgr_mock, '_cacheManager')
+        cache_remove = mocker.patch.object(cache_manager, 'remove', return_value=MagicMock())
+        insert_tbl_patch = mocker.patch.object(storage_client_mock, 'insert_into_tbl', return_value=asyncio.sleep(.1))
+
+        # WHEN
+        await filters._add_child_filters(storage_client_mock, c_mgr_mock, user_name_mock, new_list_mock, old_list_mock)
+
+        # THEN
+        calls_get_cat = [call(category_name='random1_scale1'),
+                         call(category_name='random1_meta2'),
+                         call(category_name='meta2')]
+        get_category_mock.assert_has_calls(calls_get_cat, any_order=True)
+
+        calls_create_cat = [
+            call(category_description='Configuration of meta2 filter for user random1', category_name='random1_meta2',
+                 category_value={
+                     'assetName': {'description': 'Name of Asset', 'type': 'string', 'order': '1', 'default': 'test',
+                                   'displayName': 'Asset name'}}, keep_original_items=True)]
+        create_category_mock.assert_has_calls(calls_create_cat, any_order=True)
+
+        calls_create_child = [call(category_name='random1', children=['random1_scale1', 'random1_meta2'])]
+        create_child_category_mock.assert_has_calls(calls_create_child, any_order=True)
+
+        calls_update = [call('random1_meta2', {'assetName': 'test1'})]
+        update_config_bulk_mock.assert_has_calls(calls_update, any_order=True)
+
+        args, kwargs = insert_tbl_patch.call_args
+        assert 'filter_users' == args[0]
+        p = json.loads(args[1])
+        assert {"user": "random1", "name": "meta2"} == p

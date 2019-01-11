@@ -172,7 +172,7 @@ ostringstream convert;
 
 	// Add date_time with microseconds + timezone UTC:
 	// YYYY-MM-DD HH24:MM:SS.MS+00:00
-	convert << Reading::getAssetDateTime(FMT_DEFAULT) << "+00:00";
+	convert << Reading::getAssetDateUserTime(FMT_DEFAULT) << "+00:00";
 	convert << "\", \"ts\" : \"";
 
 	// Add date_time with microseconds + timezone UTC:

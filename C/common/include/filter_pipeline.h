@@ -19,7 +19,7 @@
 
 typedef void (*filterReadingSetFn)(OUTPUT_HANDLE *outHandle, READINGSET* readings);
 
-// FilterPlugin class
+// FilterPipeline class
 class FilterPipeline
 {
 
@@ -40,7 +40,7 @@ public:
 private:
 	PLUGIN_HANDLE	loadFilterPlugin(const std::string& filterName);
 
-private:
+protected:
 	ManagementClient*	mgtClient;
 	StorageClient&		storage;
 	std::string		serviceName;

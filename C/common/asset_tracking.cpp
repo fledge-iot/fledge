@@ -52,7 +52,7 @@ void AssetTracker::populateAssetTrackingCache(string /*plugin*/, string /*event*
 		for (AssetTrackingTuple* & rec : vec)
 		{
 			assetTrackerTuplesCache.insert(rec);
-			Logger::getLogger()->info("Added asset tracker tuple to cache: '%s'", rec->assetToString().c_str());
+			//Logger::getLogger()->info("Added asset tracker tuple to cache: '%s'", rec->assetToString().c_str());
 		}
 		delete (&vec);
 	}

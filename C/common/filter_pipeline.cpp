@@ -82,7 +82,7 @@ bool FilterPipeline::loadFilters(const string& categoryName)
     		// Get the category with values and defaults
 		ConfigCategory config = mgtClient->getCategory(categoryName);
 		string filter = config.getValue(JSON_CONFIG_FILTER_ELEM);
-		Logger::getLogger()->info("FilterPipeline::loadFilters(): categoryName=%s, filter=%s", categoryName.c_str(), filter.c_str());
+		Logger::getLogger()->info("FilterPipeline::loadFilters(): categoryName=%s, filters=%s", categoryName.c_str(), filter.c_str());
 		if (!filter.empty())
 		{
 		std::vector<pair<string, PLUGIN_HANDLE>> filterInfo;
@@ -248,10 +248,10 @@ bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFil
 			// Add filter category name under service/process config name
 			children.push_back(filterCategoryName);
 			mgtClient->addChildCategories(serviceName, children);
-
+			
 			ConfigHandler *configHandler = ConfigHandler::getInstance(mgtClient);
 			configHandler->registerCategory((ServiceHandler *)ingest, filterCategoryName);
-			//m_filterCategories.insert(pair<string, FilterPlugin *>(filterCategoryName, *it));
+			
 			m_filterCategories[filterCategoryName] = (*it);
 		}
 		// TODO catch specific exceptions
@@ -277,7 +277,7 @@ bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFil
 		{
 			// Set the Ingest class pointer as OUTPUT_HANDLE
 			if (!(*it)->init(updatedCfg,
-					 (OUTPUT_HANDLE *)ingest,
+					 (OUTPUT_HANDLE *)(ingest),
 					 filterReadingSetFn(useFilteredData)))
 			{
 				errMsg += (*it)->getName() + "'";

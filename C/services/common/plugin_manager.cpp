@@ -82,7 +82,6 @@ char          buf[128];
   	logger->info("Attempting to load C plugin: name=%s, path=%s", name.c_str(), buf);
 	pluginHandle = new BinaryPluginHandle(name.c_str(), buf);
 	hndl = pluginHandle->getHandle();
-	logger->info("%s:%d: pluginHandle=%p, hndl=%p", __FUNCTION__, __LINE__, pluginHandle, hndl);
     if (hndl != NULL)
     {
       func_t infoEntry = (func_t)pluginHandle->GetInfo();
@@ -110,7 +109,7 @@ char          buf[128];
       pluginTypes[name] = type;
       pluginInfo[hndl] = info;
 	  pluginHandleMap[hndl] = pluginHandle;
-	  logger->info("%s:%d: Added entry in pluginHandleMap={%p, %p}", __FUNCTION__, __LINE__, hndl, pluginHandle);
+	  //logger->info("%s:%d: Added entry in pluginHandleMap={%p, %p}", __FUNCTION__, __LINE__, hndl, pluginHandle);
     }
     else
     {

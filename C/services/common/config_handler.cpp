@@ -9,8 +9,6 @@
  */
 #include <config_handler.h>
 
-#define VERBOSE_LOG	0
-
 using namespace std;
 
 ConfigHandler *ConfigHandler::instance = 0;
@@ -77,12 +75,10 @@ ConfigHandler::registerCategory(ServiceHandler *handler, const string& category)
 		{
 			m_logger->error("Failed to register configuration category %s", category.c_str());
 		}
-#if VERBOSE_LOG
 		else
 		{
-			 m_logger->info("Interest in %s registered", category.c_str());
+			 m_logger->debug("Interest in %s registered", category.c_str());
 		}
-#endif
 	}
 	else
 	{

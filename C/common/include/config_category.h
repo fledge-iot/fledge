@@ -62,6 +62,9 @@ class ConfigCategory {
 		void				addItem(const std::string& name, const std::string description,
 							const std::string& type, const std::string def,
 							const std::string& value);
+		void				addItem(const std::string& name, const std::string description,
+							const std::string def, const std::string& value,
+							const std::vector<std::string> options);
     		void 				removeItems();
 		void 				removeItemsType(ItemType type);
 		void 				keepItemsType(ItemType type);
@@ -107,6 +110,9 @@ class ConfigCategory {
 				CategoryItem(const std::string& name, const std::string& description,
 					     const std::string& type, const std::string def,
 					     const std::string& value);
+				CategoryItem(const std::string& name, const std::string& description,
+					     const std::string def, const std::string& value,
+					     const std::vector<std::string> options);
 				CategoryItem(const CategoryItem& rhs);
 				// Return both "value" and "default" items
 				std::string	toJSON(const bool full=false) const;

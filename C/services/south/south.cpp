@@ -246,6 +246,8 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				timeout = (unsigned long)strtol(m_configAdvanced.getValue("maxSendLatency").c_str(), NULL, 10);
 			if (m_config.itemExists("plugin"))
 				pluginName = m_config.getValue("plugin");
+			if (m_configAdvanced.itemExists("logLevel"))
+				logger->setMinLevel(m_configAdvanced.getValue("logLevel"));
 		} catch (ConfigItemNotFound e) {
 			logger->info("Defaulting to inline defaults for south configuration");
 		}
@@ -524,12 +526,16 @@ void SouthService::configChange(const string& categoryName, const string& catego
 		{
 			m_ingest->setTimeout((unsigned long)strtol(m_configAdvanced.getValue("maxSendLatency").c_str(), NULL, 10));
 		}
+		if (m_configAdvanced.itemExists("logLevel"))
+		{
+			logger->setMinLevel(m_configAdvanced.getValue("logLevel"));
+		}
 	}
 }
 
 /**
- * Add the generic south service configuration options to the default retrieved
- * from the specific plugin.
+ * Add the generic south service configuration options to the advanced
+ * category
  *
  * @param defaultConfiguration	The default configuration from the plugin
  */
@@ -540,6 +546,11 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 		defaultConfig.addItem(defaults[i].name, defaults[i].description,
 			defaults[i].type, defaults[i].value, defaults[i].value);	
 	}
+
+	/* Add the set of logging levels to the service */
+	vector<string>	logLevels = { "error", "warning", "info", "debug" };
+	defaultConfig.addItem("logLevel", "Minimum logging level reported",
+			"warning", "warning", logLevels);
 }
 
 /**

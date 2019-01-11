@@ -230,6 +230,7 @@ Ingest::~Ingest()
 	m_cv.notify_one();
 	m_thread->join();
 	processQueue();
+	m_statsCv.notify_one();
 	m_statsThread->join();
 	updateStats();
 	delete m_queue;

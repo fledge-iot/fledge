@@ -14,6 +14,8 @@
 #include <filter_plugin.h>
 #include <map>
 
+#define VERBOSE_LOG	0
+
 #define PLUGIN_UNDEFINED ""
 
 // The type of the plugin managed by the Sending Process
@@ -121,6 +123,7 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
         m_stream_id = -1;
 	m_plugin_name = PLUGIN_UNDEFINED;
 
+#if VERBOSE_LOG
         int i;
         for (i = 0; i < argc; i++)
         {
@@ -129,6 +132,7 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 				i,
 				argv[i]);
         }
+#endif
 
 	// Mark running state
 	m_running = true;
@@ -282,6 +286,7 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 		}
 	}
 
+#if VERBOSE_LOG
 	Logger::getLogger()->info("SendingProcess initialised with %d data buffers.",
 				  m_memory_buffer_size);
 
@@ -290,6 +295,7 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 
 	Logger::getLogger()->info("SendingProcess reads data from last id %lu",
 				  this->getLastSentId());
+#endif
 
 	filterPipeline = NULL;
 
@@ -364,8 +370,10 @@ bool SendingProcess::loadPlugin(const string& pluginName)
 	if ((handle = manager->loadPlugin(pluginName,
 					  PLUGIN_TYPE_NORTH)) != NULL)
         {
+#if VERBOSE_LOG
 		Logger::getLogger()->info("Loaded north plugin '%s'.",
 					  pluginName.c_str());
+#endif
 		m_plugin = new NorthPlugin(handle);
 		// Check persist data option for plugin.
 		if (m_plugin->persistData())
@@ -758,9 +766,11 @@ ConfigCategory SendingProcess::fetchConfiguration(const std::string& defaultConf
 	// retrieves the configuration using the value of the --name parameter
 	// (received in the command line) as the key
 	string categoryName(this->getName());
+#if VERBOSE_LOG
 	Logger::getLogger()->debug("%s - catName :%s:",
 				   LOG_SERVICE_NAME.c_str(),
 				   categoryName.c_str());
+#endif
 
 	ConfigCategory configuration;
 	try {
@@ -842,7 +852,7 @@ ConfigCategory SendingProcess::fetchConfiguration(const std::string& defaultConf
 			m_memory_buffer_size = 1;
 		}
 
-
+#if VERBOSE_LOG
 		Logger::getLogger()->info("SendingProcess configuration parameters: "
 					  "pluginName=%s, source=%s, blockSize=%d, "
 					  "duration=%d, sleepInterval=%d, streamId=%d",
@@ -852,7 +862,7 @@ ConfigCategory SendingProcess::fetchConfiguration(const std::string& defaultConf
 					  m_duration,
 					  m_sleep,
                                           m_stream_id);
-
+#endif
 		// Return configuration
 		return ConfigCategory(configuration);
 	}

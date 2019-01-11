@@ -15,6 +15,8 @@
 #include <plugin_api.h>
 #include <plugin.h>
 
+#define VERBOSE_LOG	0
+
 /**
  * The sending process is run according to a schedule in order to send reading data
  * to the historian, e.g. the PI system.
@@ -144,11 +146,13 @@ static void loadDataThread(SendingProcess *loadData)
 
                 if (canLoad)
                 {
+#if VERBOSE_LOG
 			Logger::getLogger()->info("SendingProcess loadDataThread: "
 						  "('%s' stream id %d), readIdx %u, buffer is NOT empty, waiting ...",
 						  loadData->getDataSourceType().c_str(),
 						  loadData->getStreamId(),
 						  readIdx);
+#endif
 
 	                Logger::getLogger()->warn("SendingProcess is faster to load data than the destination to process them,"
 	                                          " so all the %lu in memory buffers are full and the load thread should wait until at least a buffer is freed.",
@@ -319,9 +323,11 @@ static void loadDataThread(SendingProcess *loadData)
                 }
         }
 
+#if VERBOSE_LOG
 	Logger::getLogger()->info("SendingProcess loadData thread: Last ID '%s' read is %lu",
 				  loadData->getDataSourceType().c_str(),
 				  loadData->getLastFetchId());
+#endif
 
 	/**
 	 * The loop is over: unlock the sendData thread
@@ -377,11 +383,13 @@ static void sendDataThread(SendingProcess *sendData)
 
                 if (canSend == NULL)
                 {
-                        /*Logger::getLogger()->info("SendingProcess sendDataThread: " \
+#if VERBOSE_LOG
+                        Logger::getLogger()->info("SendingProcess sendDataThread: " \
                                                   "('%s' stream id %d), sendIdx %u, buffer is empty, waiting ...",
 						  sendData->getDataSourceType().c_str(),
                                                   sendData->getStreamId(),
-                                                  sendIdx);*/
+                                                  sendIdx);
+#endif
 
 			if (sendData->getUpdateDb())
 			{
@@ -511,9 +519,11 @@ static void sendDataThread(SendingProcess *sendData)
 		}
 
         }
+#if VERBOSE_LOG
 	Logger::getLogger()->info("SendingProcess sendData thread: sent %lu total '%s'",
 				  totSent,
 				  sendData->getDataSourceType().c_str());
+#endif
 
 	if (sendData->getUpdateDb())
 	{

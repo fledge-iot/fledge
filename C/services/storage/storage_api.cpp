@@ -377,7 +377,7 @@ string	responsePayload;
 					responsePayload += to_string(0);
 					responsePayload += " }";
 					Logger::getLogger()->info("%s:%d: Repeat/old request: responding with zero response - threadId=%s, last seen seqNum for this threadId=%d, HTTP request header seqNum=%d",
-									__FUNCTION__, __LINE__, threadId.c_str(), it->second, seqNum);
+									__FUNCTION__, __LINE__, threadId.c_str(), it->second.first, seqNum);
 					respond(response, responsePayload);
 					return;
 				}
@@ -577,7 +577,7 @@ string  responsePayload;
 					responsePayload += to_string(0);
 					responsePayload += " }";
 					Logger::getLogger()->info("%s:%d: Repeat/old request: responding with zero response - threadId=%s, last seen seqNum for this threadId=%d, HTTP request header seqNum=%d",
-									__FUNCTION__, __LINE__, threadId.c_str(), it->second, seqNum);
+									__FUNCTION__, __LINE__, threadId.c_str(), it->second.first, seqNum);
 					respond(response, responsePayload);
 					return;
 				}

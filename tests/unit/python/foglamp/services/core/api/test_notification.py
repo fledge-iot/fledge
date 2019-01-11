@@ -251,6 +251,10 @@ def mock_post_url(post_url):
     if post_url.endswith("/notification/Test Notification/delivery/email"):
         return json.dumps({"result": "OK"})
 
+@asyncio.coroutine
+def mock_delete_url(delete_url):
+    return json.dumps({"result": "OK"})
+
 
 @asyncio.coroutine
 def mock_read_category_val(key):
@@ -376,6 +380,8 @@ class TestNotification:
         update_configuration_item_bulk = mocker.patch.object(ConfigurationManager, 'update_configuration_item_bulk',
                                               return_value=mock_create_category())
         mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val())
+        mocker.patch.object(AuditLogger, "__init__", return_value=None)
+        audit_logger = mocker.patch.object(AuditLogger, "information", return_value=asyncio.sleep(.1))
         mock_payload = '{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", ' \
                        '"channel": "email", "notification_type": "one shot", "enabled": false}'
 
@@ -395,6 +401,8 @@ class TestNotification:
                                          mock_post_url("/notification/Test Notification/delivery/email")])
         mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
+        mocker.patch.object(AuditLogger, "__init__", return_value=None)
+        audit_logger = mocker.patch.object(AuditLogger, "information", return_value=asyncio.sleep(.1))
         update_configuration_item_bulk = mocker.patch.object(ConfigurationManager, 'update_configuration_item_bulk',
                                               return_value=mock_create_category())
         mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val())
@@ -425,6 +433,8 @@ class TestNotification:
                                                     return_value=mock_create_child_category())
         mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val())
 
+        mocker.patch.object(AuditLogger, "__init__", return_value=None)
+        audit_logger = mocker.patch.object(AuditLogger, "information", return_value=asyncio.sleep(.1))
         mock_payload = '{"description":"Test Notification", "rule": "threshold", "channel": "email", ' \
                        '"notification_type": "one shot", "enabled": false}'
         resp = await client.post("/foglamp/notification", data=mock_payload)
@@ -616,6 +626,10 @@ class TestNotification:
 
         c_mgr = ConfigurationManager(storage_client_mock)
         delete_configuration = mocker.patch.object(ConfigurationManager, "delete_category_and_children_recursively", return_value=asyncio.sleep(.1))
+        audit_logger = mocker.patch.object(AuditLogger, "information", return_value=asyncio.sleep(.1))
+
+        mocker.patch.object(notification, '_hit_delete_url',
+                            side_effect=[mock_delete_url("/notification/Test Notification")])
 
         resp = await client.delete("/foglamp/notification/Test Notification")
         assert 200 == resp.status
@@ -625,63 +639,8 @@ class TestNotification:
         assert "Test Notification" in args
 
         assert 1 == audit_logger.call_count
-        audit_logger_calls = [call('NTFDL', {'delivery': [{'config': {
-            'to': {'default': 'test', 'description': 'The address to send the notification to', 'type': 'string'},
-            'plugin': {'default': 'email', 'description': 'Email', 'type': 'string'},
-            'server': {'default': 'smtp', 'description': 'The smtp server', 'type': 'string'},
-            'from': {'default': 'foglamp', 'description': 'The from address to use in the email', 'type': 'string'}},
-                                                           'version': '1.0.0', 'interface': '1.0', 'name': 'email',
-                                                           'type': 'notificationDelivery'}, {'config': {
-            'number': {'default': '01111 222333', 'description': 'The phone number to call', 'type': 'string'},
-            'plugin': {'default': 'sms', 'description': 'SMS', 'type': 'string'}}, 'version': '1.0.0',
-                                                                                             'interface': '1.0',
-                                                                                             'name': 'sms',
-                                                                                             'type': 'notificationDelivery'},
-                                                          {'config': {'number': {'default': '01234 567890',
-                                                                                 'description': 'The phone number to call',
-                                                                                 'type': 'string'},
-                                                                      'plugin': {'default': 'sms', 'description': 'SMS',
-                                                                                 'type': 'string'}}, 'version': '1.0.0',
-                                                           'interface': '1.0', 'name': 'deliveryPlantAPump',
-                                                           'type': 'notificationDelivery'}], 'rules': [{'config': {
-            'asset': {'default': 'temperature', 'description': 'The asset the notification is defined against',
-                      'type': 'string'},
-            'plugin': {'default': 'threshold', 'description': 'The accepted tolerance', 'type': 'string'},
-            'tolerance': {'default': '4', 'description': 'The accepted tolerance', 'type': 'integer'},
-            'window': {'default': '60', 'description': 'The window to perform rule evaluation over in minutes',
-                       'type': 'integer'},
-            'trigger': {'default': '40', 'description': 'Temparature threshold value', 'type': 'integer'},
-            'builtin': {'default': 'false', 'description': 'Is this a builtin plugin?', 'type': 'boolean'}},
-        'version': '1.0.0',
-        'interface': '1.0',
-        'name': 'threshold',
-        'type': 'notificationRule'},
-        {'config': {
-           'plugin': {
-               'default': 'Builtin',
-               'description': 'Builtin',
-               'type': 'string'},
-           'builtin': {
-               'default': 'true',
-               'description': 'Is this a builtin plugin?',
-               'type': 'boolean'}},
-        'version': '1.0.0',
-        'interface': '1.0',
-        'name': 'ruleNotificationTwo',
-        'type': 'notificationRule'},
-        {'config': {
-           'plugin': {
-               'default': 'Builtin',
-               'description': 'Builtin',
-               'type': 'string'},
-           'builtin': {
-               'default': 'true',
-               'description': 'Is this a builtin plugin?',
-               'type': 'boolean'}},
-        'version': '1.0.0',
-        'interface': '1.0',
-        'name': 'rulePlantAPump',
-                                                                                                        'type': 'notificationRule'}]})]
+        print(audit_logger.call_args_list)
+        audit_logger_calls = [call('NTFDL', {'name': 'Test Notification'})]
         audit_logger.assert_has_calls(audit_logger_calls, any_order=True)
 
     async def test_delete_notification_exception(self, mocker, client):

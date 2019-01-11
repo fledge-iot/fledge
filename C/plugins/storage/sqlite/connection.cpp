@@ -29,6 +29,10 @@
 #include <chrono>
 #include <thread>
 
+
+// FIXME::
+#include <tmp_log.hpp>
+
 /*
  * Control the way purge deletes readings. The block size sets a limit as to how many rows
  * get deleted in each call, whilst the sleep interval controls how long the thread sleeps
@@ -166,6 +170,11 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 			strcmp(sqlite3_column_origin_name(pStmt, i),
 				sqlite3_column_name(pStmt, i)) == 0)
 		{
+			// FIXME:
+			Logger::getLogger()->debug("DBG daate 1 : column |%s| value |%s|",
+						   sqlite3_column_name(pStmt, i),
+						   string((char *)sqlite3_column_text(pStmt, i)).c_str());
+
 			// Column metadata found and column datatype is "pzDataType"
 			string formatStmt = string("SELECT strftime('");
 			formatStmt += string(F_DATEH24_MS);
@@ -1373,6 +1382,71 @@ SQLBuffer	sql;
 }
 
 /**
+ * Format a date to a fixed format with milliseconds, microseconds and
+ * timezone expressed, examples :
+ *
+ *   case - formatted |2019-01-01 10:01:01.000000+00:00| date |2019-01-01 10:01:01|
+ *   case - formatted |2019-02-01 10:02:01.000000+00:00| date |2019-02-01 10:02:01.0|
+ *   case - formatted |2019-02-02 10:02:02.841000+00:00| date |2019-02-02 10:02:02.841|
+ *   case - formatted |2019-02-03 10:02:03.123456+00:00| date |2019-02-03 10:02:03.123456|
+ *   case - formatted |2019-03-01 10:03:01.100000+00:00| date |2019-03-01 10:03:01.1+00:00|
+ *   case - formatted |2019-03-02 10:03:02.123000+00:00| date |2019-03-02 10:03:02.123+00:00|
+ *   case - formatted |2019-03-03 10:03:03.123456+00:00| date |2019-03-03 10:03:03.123456+00:00|
+ *   case - formatted |2019-03-04 10:03:04.123456+01:00| date |2019-03-04 10:03:04.123456+01:00|
+ *   case - formatted |2019-03-05 10:03:05.123456-01:00| date |2019-03-05 10:03:05.123456-01:00|
+ *   case - formatted |2019-03-04 10:03:04.123456+02:30| date |2019-03-04 10:03:04.123456+02:30|
+ *   case - formatted |2019-03-05 10:03:05.123456-02:30| date |2019-03-05 10:03:05.123456-02:30|
+ *
+ */
+void Connection::formatDate(char *formatted_date, int formatted_date_size, const char *date) {
+
+	struct timeval tv = {0};
+	struct tm tm  = {0};
+
+	// Extract up to seconds
+	memset(&tm, 0, sizeof(tm));
+	strptime(date, "%Y-%m-%d %H:%M:%S", &tm);
+
+	strftime (formatted_date, formatted_date_size, "%Y-%m-%d %H:%M:%S", &tm);
+
+	// Work out the microseconds from the fractional part of the seconds
+	char fractional[10] = {0};
+	sscanf(date, "%*d-%*d-%*d %*d:%*d:%*d.%[0-9]*", fractional);
+	int multiplier = 6 - (int)strlen(fractional);
+	if (multiplier < 0)
+		multiplier = 0;
+	while (multiplier--)
+		strcat(fractional, "0");
+
+	strcat(formatted_date ,".");
+	strcat(formatted_date ,fractional);
+
+	// Handles timezone
+	char timezone_neg[10] = {0};
+	sscanf(date, "%*d-%*d-%*d %*d:%*d:%*d.%*d-%s*", timezone_neg);
+	if (timezone_neg[0] != 0)
+	{
+		strcat(formatted_date, "-");
+		strcat(formatted_date, timezone_neg);
+	}
+	else
+	{
+		char timezone_pos[10] = {0};
+		sscanf(date, "%*d-%*d-%*d %*d:%*d:%*d.%*d+%s*", timezone_pos);
+		if (timezone_pos[0] != 0) {
+			strcat(formatted_date, "+");
+			strcat(formatted_date, timezone_pos);
+		}
+		else
+		{
+			// No timezone is expressed in the source date
+			// the default UTC is added
+			strcat(formatted_date, "+00:00");
+		}
+	}
+}
+
+/**
  * Append a set of readings to the readings table
  */
 int Connection::appendReadings(const char *readings)
@@ -1446,8 +1520,16 @@ int		row = 0;
 		}
 		else
 		{
+			char formatted_date[90];
+			formatDate(formatted_date, sizeof(formatted_date), str);
+
+			// FIXME:
+			Logger::getLogger()->info("DBG : appendReadings 0 |%s|  formatted_date  |%s| ",
+				str,
+				formatted_date);
+
 			sql.append('\'');
-			sql.append(escape(str));
+			sql.append(escape(formatted_date));
 			sql.append('\'');
 		}
 
@@ -1489,6 +1571,12 @@ int		row = 0;
 /**
  * Fetch a block of readings from the reading table
  * It might not work with SQLite 3
+ *
+ * NOTE : it expects to handle a date having a fixed format
+ * with milliseconds, microseconds and timezone expressed,
+ * like for example :
+ *
+ *    2019-01-11 15:45:01.123456+01:00
  */
 bool Connection::fetchReadings(unsigned long id,
 			       unsigned int blksize,
@@ -1500,22 +1588,6 @@ int rc;
 int retrieve;
 
 	// SQL command to extract the data from the foglamp.readings
-	//
-	// the user_ts field is constructed using strftime to extract the
-	// date-time up to the second
-	// and set of commands to exctract the milliseconds/microseonds part
-	// considering the possible cases in which the field could be loaded
-	// cases handled :
-	//     2019-01-01 10:01:01
-	//     2019-02-01 10:02:01.0
-	//     2019-02-02 10:02:02.841
-	//     2019-02-03 10:02:03.123456
-	//     2019-03-01 10:03:01.1+00:00
-	//     2019-03-02 10:03:02.123+00:00
-	//     2019-03-03 10:03:03.123456+00:00
-	//     2019-03-04 10:03:04.123456+01:00
-	//     2019-03-05 10:03:05.123456-01:00
-
 	const char *sql_cmd = R"(
 	SELECT
 		id,
@@ -1523,32 +1595,7 @@ int retrieve;
 		read_key,
 		reading,
 		strftime('%%Y-%%m-%%d %%H:%%M:%%S', user_ts, 'utc')  ||
-		CASE -- Checks for the presence of sub-seconds
-			instr(user_ts,'.')
-			WHEN 0  THEN ""
-			ELSE
-				CASE -- Check for the presence of the timezone
-					max (
-						instr(substr(user_ts,instr(user_ts,'.')+1,99),'+') -1,
-						instr(substr(user_ts,instr(user_ts,'.')+1,99),'-') -1
-					)
-					WHEN -1 THEN
-						-- No timezone - extract up to the end
-						CASE
-							substr(user_ts,instr(user_ts,'.'),99)
-							WHEN "." THEN ""
-							ELSE  "." || substr(user_ts,instr(user_ts,'.')+1,99)
-						END
-					ELSE
-						-- yes timezone - extract up to the timezone
-						"." || substr(user_ts, instr(user_ts, '.') + 1,
-						max (
-						      instr(substr(user_ts,instr(user_ts,'.')+1,99),'+') -1,
-						      instr(substr(user_ts,instr(user_ts,'.')+1,99),'-') -1
-						)
-			)
-				END
-		END AS user_ts,
+		substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
 		strftime('%%Y-%%m-%%d %%H:%%M:%%f', ts, 'utc') AS ts
 	FROM foglamp.readings
 	WHERE id >= %lu
@@ -1558,7 +1605,9 @@ int retrieve;
 
 
 	// FIXME:
-	Logger::getLogger()->debug("DBG 1 sql |%s|", sql_cmd);
+	char tmp_buffer[5000];
+	sprintf (tmp_buffer, "DBG 1 sql |%s|", sql_cmd);
+	tmpLogger (tmp_buffer);
 
 	/*
 	 * This query assumes datetime values are in 'localtime'
@@ -1570,7 +1619,9 @@ int retrieve;
 		 blksize);
 
 	// FIXME:
-	Logger::getLogger()->debug("DBG 2 sql |%s|", sqlbuffer);
+	sprintf (tmp_buffer, "DBG 1 sql |%s|", sqlbuffer);
+	tmpLogger (tmp_buffer);
+
 
 	logSQL("ReadingsFetch", sqlbuffer);
 	sqlite3_stmt *stmt;

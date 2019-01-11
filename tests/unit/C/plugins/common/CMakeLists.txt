@@ -20,7 +20,6 @@ find_package(Boost 1.53.0 COMPONENTS ${BOOST_COMPONENTS} REQUIRED)
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 
 include_directories(../../../../../C/common/include)
-include_directories(../../../../../C/tasks/north/sending_process/include)
 include_directories(../../../../../C/plugins/common/include)
 include_directories(../../../../../C/services/common/include)
 include_directories(../../../../../C/thirdparty/rapidjson/include)

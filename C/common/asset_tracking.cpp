@@ -41,7 +41,6 @@ AssetTracker::AssetTracker(ManagementClient *mgtClient, string service)
 /**
  * Fetch all asset tracking tuples from DB and populate local cache
  *
- * @param service  	Service name
  * @param plugin  	Plugin name
  * @param event  	Event name
  */
@@ -108,7 +107,6 @@ void AssetTracker::addAssetTrackingTuple(AssetTrackingTuple& tuple)
 /**
  * Add asset tracking tuple via microservice management API and in cache
  *
- * @param service	Service name
  * @param plugin	Plugin name
  * @param asset		Asset name
  * @param event		Event name

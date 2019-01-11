@@ -71,7 +71,7 @@ PLUGIN_HANDLE FilterPipeline::loadFilterPlugin(const string& filterName)
 /**
  * Load all filter plugins in the pipeline
  *
- * @param categoryName	Configuration category
+ * @param categoryName	Configuration category name
  * @return		True if filters are loaded (or no filters at all)
  *			False otherwise
  */
@@ -79,7 +79,7 @@ bool FilterPipeline::loadFilters(const string& categoryName)
 {
 	try
 	{
-    		// Get the category with values and defaults
+		// Get the category with values and defaults
 		ConfigCategory config = mgtClient->getCategory(categoryName);
 		string filter = config.getValue(JSON_CONFIG_FILTER_ELEM);
 		Logger::getLogger()->info("FilterPipeline::loadFilters(): categoryName=%s, filters=%s", categoryName.c_str(), filter.c_str());
@@ -218,8 +218,8 @@ bool FilterPipeline::loadFilters(const string& categoryName)
 /**
  * Set the filter pipeline
  * 
- * This method calls the the method "plugin_init" for all loadad filters.
- * Up to date filter configurations and Ingest filtering methods
+ * This method calls the method "plugin_init" for all loadad filters.
+ * Up-to-date filter configurations and Ingest filtering methods
  * are passed to "plugin_init"
  *
  * @param passToOnwardFilter	Ptr to function that passes data to next filter
@@ -318,7 +318,7 @@ bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFil
  *
  * Call "plugin_shutdown" method and free the FilterPlugin object
  *
- * @param categoryName		Configuration category
+ * @param categoryName		Configuration category name
  *
  */
 void FilterPipeline::cleanupFilters(const string& categoryName)

@@ -19,7 +19,11 @@
 
 typedef void (*filterReadingSetFn)(OUTPUT_HANDLE *outHandle, READINGSET* readings);
 
-// FilterPipeline class
+/**
+ * The FilterPipeline class is used to represent a pipeline of filters 
+ * applicable to a task/service. Methods are provided to load filters, 
+ * setup filtering pipeline and for pipeline/filters cleanup.
+ */
 class FilterPipeline
 {
 

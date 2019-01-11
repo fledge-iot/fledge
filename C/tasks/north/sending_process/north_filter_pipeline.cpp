@@ -19,7 +19,7 @@ using namespace std;
 /**
  * NorthFilterPipeline class constructor
  *
- * This class abstracts the filter pipeline interface
+ * This class abstracts the filter pipeline interface for sending process
  *
  * @param mgtClient	Management client handle
  * @param storage	Storage client handle
@@ -31,7 +31,7 @@ NorthFilterPipeline::NorthFilterPipeline(ManagementClient* mgtClient, StorageCli
 }
 
 /**
- * Set the filter pipeline
+ * Set the filter pipeline for sending process
  * 
  * This method calls the the method "plugin_init" for all loadad filters.
  * Up to date filter configurations and Ingest filtering methods

@@ -12,7 +12,12 @@
 
 #include <filter_pipeline.h>
 
-// NorthFilterPipeline class
+/**
+ * The NorthFilterPipeline class is derived from FilterPipeline class and 
+ * is used to represent a pipeline of filter applicable to sending process. 
+ * Methods are provided to load filters, setup filtering pipeline and for 
+ * pipeline/filters cleanup.
+ */
 class NorthFilterPipeline : public FilterPipeline 
 {
 

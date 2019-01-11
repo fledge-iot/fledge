@@ -17,7 +17,7 @@
 
 /**
  * The AssetTrackingTuple class is used to represent an asset
- * tracking tuple. Hash function and == operator are defined for
+ * tracking tuple. Hash function and '==' operator are defined for
  * this class and pointer to this class that would be required
  * to create an unordered_set of this class.
  */

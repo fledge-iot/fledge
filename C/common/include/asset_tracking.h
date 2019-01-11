@@ -13,10 +13,11 @@
 #include <vector>
 #include <sstream>
 #include <unordered_set>
+#include <management_client.h>
 
 /**
  * The AssetTrackingTuple class is used to represent an asset
- * tracking tuple. Hash function and == operator are defined for
+ * tracking tuple. Hash function and '==' operator are defined for
  * this class and pointer to this class that would be required
  * to create an unordered_set of this class.
  */
@@ -73,5 +74,30 @@ namespace std
         }
     };
 }
+
+class ManagementClient;
+
+/**
+ * The AssetTracker class provides the asset tracking functionality.
+ * There are methods to populate asset tracking cache from asset_tracker DB table,
+ * and methods to check/add asset tracking tuples to DB and to cache
+ */
+class AssetTracker {
+
+public:
+	AssetTracker(ManagementClient *mgtClient, std::string service);
+	~AssetTracker() {}
+	static AssetTracker *getAssetTracker();
+	void	populateAssetTrackingCache(std::string plugin, std::string event);
+	bool	checkAssetTrackingCache(AssetTrackingTuple& tuple);
+	void	addAssetTrackingTuple(AssetTrackingTuple& tuple);
+	void	addAssetTrackingTuple(std::string plugin, std::string asset, std::string event);
+
+private:
+	static AssetTracker	*instance;
+	ManagementClient	*m_mgtClient;
+	std::string		m_service;
+	std::unordered_set<AssetTrackingTuple*, std::hash<AssetTrackingTuple*>, AssetTrackingTuplePtrEqual>	assetTrackerTuplesCache;
+};
 
 #endif

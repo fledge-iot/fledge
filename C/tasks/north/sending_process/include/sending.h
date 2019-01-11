@@ -16,6 +16,8 @@
 #include <north_plugin.h>
 #include <reading.h>
 #include <filter_plugin.h>
+#include <north_filter_pipeline.h>
+#include <asset_tracking.h>
 
 // SendingProcess class
 class SendingProcess : public FogLampProcess
@@ -56,12 +58,10 @@ class SendingProcess : public FogLampProcess
 		};
 		unsigned long		getReadBlockSize() const { return m_block_size; };
 		const std::string& 	getDataSourceType() const { return m_data_source_t; };
+		const std::string& 	getPluginName() const { return m_plugin_name; };
 		void			setLoadBufferIndex(unsigned long loadBufferIdx);
 		unsigned long		getLoadBufferIndex() const;
 		const unsigned long*	getLoadBufferIndexPtr() const;
-		size_t			getFiltersCount() const { return m_filters.size(); }; 
-		const std::vector<FilterPlugin *>&
-					getFilters() const { return m_filters; };
 
     		unsigned long		getMemoryBufferSize() const { return m_memory_buffer_size; };
     		void 			createConfigCategories(DefaultConfigCategory configCategory,
@@ -90,7 +90,6 @@ class SendingProcess : public FogLampProcess
 		ConfigCategory		fetchConfiguration(const std::string& defCfg,
 							   const std::string& pluginName);
 		bool			loadFilters(const std::string& pluginName);
-		bool			setupFiltersPipeline() const;
 		void 			updateStatistics(std::string& stat_key,
 							 const std::string& stat_description);
 
@@ -104,6 +103,7 @@ class SendingProcess : public FogLampProcess
 		std::thread*			m_thread_send;
 		NorthPlugin*			m_plugin;
 		std::vector<unsigned long>	m_last_read_id;
+		NorthFilterPipeline*		filterPipeline;
 
 	private:
 		bool				m_running;
@@ -120,10 +120,11 @@ class SendingProcess : public FogLampProcess
 		std::string			m_data_source_t;
 		unsigned long			m_load_buffer_index;
     		unsigned long			m_memory_buffer_size = 1;
-		std::vector<FilterPlugin *>	m_filters;
+		
 		// static pointer for data buffer access
 		static std::vector<ReadingSet *>*
 						m_buffer_ptr;
+		AssetTracker			*m_assetTracker;
 };
 
 #endif

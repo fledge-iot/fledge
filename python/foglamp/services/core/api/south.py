@@ -77,7 +77,8 @@ async def _services_with_assets(storage_client, south_services):
 
 async def _get_tracked_assets_and_readings(storage_client, svc_name):
     asset_json = []
-    payload = PayloadBuilder().SELECT("asset").WHERE(['service', '=', svc_name]).payload()
+    payload = PayloadBuilder().SELECT("asset").WHERE(['service', '=', svc_name]).\
+        AND_WHERE(['event', '=', 'Ingest']).payload()
     try:
         result = await storage_client.query_tbl_with_payload('asset_tracker', payload)
         asset_records = result['rows']

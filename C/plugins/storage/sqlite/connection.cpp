@@ -29,10 +29,6 @@
 #include <chrono>
 #include <thread>
 
-
-// FIXME::
-#include <tmp_log.hpp>
-
 /*
  * Control the way purge deletes readings. The block size sets a limit as to how many rows
  * get deleted in each call, whilst the sleep interval controls how long the thread sleeps
@@ -75,13 +71,15 @@ unsigned long numStatements = 0;
 #define _DB_NAME              "/foglamp.sqlite"
 
 #define LEN_BUFFER_DATE 100
-#define F_TIMEH24_S     "%H:%M:%S"
-#define F_DATEH24_S     "%Y-%m-%d %H:%M:%S"
-#define F_DATEH24_M     "%Y-%m-%d %H:%M"
-#define F_DATEH24_H     "%Y-%m-%d %H"
+#define F_TIMEH24_S     	"%H:%M:%S"
+#define F_DATEH24_S     	"%Y-%m-%d %H:%M:%S"
+#define F_DATEH24_M     	"%Y-%m-%d %H:%M"
+#define F_DATEH24_H     	"%Y-%m-%d %H"
 // This is the default datetime format in FogLAMP: 2018-05-03 18:15:00.622
-#define F_DATEH24_MS    "%Y-%m-%d %H:%M:%f"
-#define SQLITE3_NOW     "strftime('%Y-%m-%d %H:%M:%f', 'now')"
+#define F_DATEH24_MS    	"%Y-%m-%d %H:%M:%f"
+#define SQLITE3_NOW     	"strftime('%Y-%m-%d %H:%M:%f', 'now')"
+// The default precision is milleseconds, it adds microseconds and timezone
+#define SQLITE3_NOW_READING     "strftime('%Y-%m-%d %H:%M:%f', 'now') || '000+00:00'"
 #define SQLITE3_FOGLAMP_DATETIME_TYPE "DATETIME"
 static time_t connectErrorTime = 0;
 map<string, string> sqliteDateFormat = {
@@ -172,7 +170,7 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 				sqlite3_column_name(pStmt, i)) == 0)
 		{
 			// FIXME:
-			Logger::getLogger()->debug("DBG daate 1 : column |%s| value |%s|",
+			Logger::getLogger()->debug("DBG date 1 : column |%s| value |%s|",
 						   sqlite3_column_name(pStmt, i),
 						   string((char *)sqlite3_column_text(pStmt, i)).c_str());
 
@@ -1514,7 +1512,7 @@ bool 		add_row = false;
 		return -1;
 	}
 
-	sql.append("INSERT INTO foglamp.readings ( asset_code, read_key, reading, user_ts ) VALUES ");
+	sql.append("INSERT INTO foglamp.readings ( user_ts, asset_code, read_key, reading ) VALUES ");
 
 	if (!doc.HasMember("readings"))
 	{
@@ -1551,27 +1549,18 @@ bool 		add_row = false;
 				sql.append('(');
 			}
 
-			sql.append(SQLITE3_NOW);
+			sql.append(SQLITE3_NOW_READING);
 		}
 		else
 		{
-
-			// FIXME:
-			Logger::getLogger()->info("DBG : STEP sql |%s|  ", str);
-
 			char formatted_date[LEN_BUFFER_DATE] = {0};
 			if (! formatDate(formatted_date, sizeof(formatted_date), str) )
 			{
-				raiseError("appendReadings", "Invalid Date |%s|", str);
+				raiseError("appendReadings", "Invalid date |%s|", str);
 				add_row = false;
 			}
 			else
 			{
-				// FIXME:
-				Logger::getLogger()->info("DBG : appendReadings 0 |%s|  formatted_date  |%s| ",
-							  str,
-							  formatted_date);
-
 				if (row)
 				{
 					sql.append(", (");
@@ -1626,10 +1615,6 @@ bool 		add_row = false;
 	logSQL("ReadingsAppend", query);
 	char *zErrMsg = NULL;
 	int rc;
-
-	// FIXME:
-	Logger::getLogger()->info("DBG : STEP sql |%s|  ", query);
-
 
 	// Exec the INSERT statement: no callback, no result set
 	rc = SQLexec(dbHandle,
@@ -1692,12 +1677,6 @@ int retrieve;
 	LIMIT %u;
 	)";
 
-
-	// FIXME:
-	char tmp_buffer[5000];
-	sprintf (tmp_buffer, "DBG 1 sql |%s|", sql_cmd);
-	tmpLogger (tmp_buffer);
-
 	/*
 	 * This query assumes datetime values are in 'localtime'
 	 */
@@ -1706,11 +1685,6 @@ int retrieve;
 		 sql_cmd,
 		 id,
 		 blksize);
-
-	// FIXME:
-	sprintf (tmp_buffer, "DBG 1 sql |%s|", sqlbuffer);
-	tmpLogger (tmp_buffer);
-
 
 	logSQL("ReadingsFetch", sqlbuffer);
 	sqlite3_stmt *stmt;

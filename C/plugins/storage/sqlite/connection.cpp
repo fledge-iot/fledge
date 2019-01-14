@@ -74,13 +74,14 @@ unsigned long numStatements = 0;
 
 #define _DB_NAME              "/foglamp.sqlite"
 
+#define LEN_BUFFER_DATE 100
 #define F_TIMEH24_S     "%H:%M:%S"
 #define F_DATEH24_S     "%Y-%m-%d %H:%M:%S"
 #define F_DATEH24_M     "%Y-%m-%d %H:%M"
 #define F_DATEH24_H     "%Y-%m-%d %H"
 // This is the default datetime format in FogLAMP: 2018-05-03 18:15:00.622
 #define F_DATEH24_MS    "%Y-%m-%d %H:%M:%f"
-#define SQLITE3_NOW     "strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime')"
+#define SQLITE3_NOW     "strftime('%Y-%m-%d %H:%M:%f', 'now')"
 #define SQLITE3_FOGLAMP_DATETIME_TYPE "DATETIME"
 static time_t connectErrorTime = 0;
 map<string, string> sqliteDateFormat = {
@@ -1397,17 +1398,25 @@ SQLBuffer	sql;
  *   case - formatted |2019-03-04 10:03:04.123456+02:30| date |2019-03-04 10:03:04.123456+02:30|
  *   case - formatted |2019-03-05 10:03:05.123456-02:30| date |2019-03-05 10:03:05.123456-02:30|
  *
+ * @param out	false if the date is invalid
+ *
  */
-void Connection::formatDate(char *formatted_date, int formatted_date_size, const char *date) {
+bool Connection::formatDate(char *formatted_date, size_t buffer_size, const char *date) {
 
 	struct timeval tv = {0};
 	struct tm tm  = {0};
+	char *valid_date = nullptr;
 
 	// Extract up to seconds
 	memset(&tm, 0, sizeof(tm));
-	strptime(date, "%Y-%m-%d %H:%M:%S", &tm);
+	valid_date = strptime(date, "%Y-%m-%d %H:%M:%S", &tm);
 
-	strftime (formatted_date, formatted_date_size, "%Y-%m-%d %H:%M:%S", &tm);
+	if (! valid_date)
+	{
+		return (false);
+	}
+
+	strftime (formatted_date, buffer_size, "%Y-%m-%d %H:%M:%S", &tm);
 
 	// Work out the microseconds from the fractional part of the seconds
 	char fractional[10] = {0};
@@ -1422,20 +1431,24 @@ void Connection::formatDate(char *formatted_date, int formatted_date_size, const
 	strcat(formatted_date ,fractional);
 
 	// Handles timezone
-	char timezone_neg[10] = {0};
-	sscanf(date, "%*d-%*d-%*d %*d:%*d:%*d.%*d-%s*", timezone_neg);
-	if (timezone_neg[0] != 0)
+	char timezone_hour[5] = {0};
+	char timezone_min[5] = {0};
+	char sign[2] = {0};
+
+	sscanf(date, "%*d-%*d-%*d %*d:%*d:%*d.%*d-%2[0-9]:%2[0-9]", timezone_hour, timezone_min);
+	if (timezone_hour[0] != 0)
 	{
-		strcat(formatted_date, "-");
-		strcat(formatted_date, timezone_neg);
+		strcat(sign, "-");
 	}
 	else
 	{
-		char timezone_pos[10] = {0};
-		sscanf(date, "%*d-%*d-%*d %*d:%*d:%*d.%*d+%s*", timezone_pos);
-		if (timezone_pos[0] != 0) {
-			strcat(formatted_date, "+");
-			strcat(formatted_date, timezone_pos);
+		memset(timezone_hour, 0, sizeof(timezone_hour));
+		memset(timezone_min,  0, sizeof(timezone_min));
+
+		sscanf(date, "%*d-%*d-%*d %*d:%*d:%*d.%*d+%2[0-9]:%2[0-9]", timezone_hour, timezone_min);
+		if  (timezone_hour[0] != 0)
+		{
+			strcat(sign, "+");
 		}
 		else
 		{
@@ -1444,6 +1457,43 @@ void Connection::formatDate(char *formatted_date, int formatted_date_size, const
 			strcat(formatted_date, "+00:00");
 		}
 	}
+
+	if (sign[0] != 0)
+	{
+		if (timezone_hour[0] != 0)
+		{
+			strcat(formatted_date, sign);
+
+			// Pad with 0 if an hour having only 1 digit was provided
+			// +1 -> +01
+			if (strlen(timezone_hour) == 1)
+				strcat(formatted_date, "0");
+
+			strcat(formatted_date, timezone_hour);
+			strcat(formatted_date, ":");
+		}
+
+		if (timezone_min[0] != 0)
+		{
+			strcat(formatted_date, timezone_min);
+
+			// Pad with 0 if minutes having only 1 digit were provided
+			// 3 -> 30
+			if (strlen(timezone_min) == 1)
+				strcat(formatted_date, "0");
+
+		}
+		else
+		{
+			// Minutes aren't expressed in the source date
+			strcat(formatted_date, "00");
+		}
+	}
+
+
+	return (true);
+
+
 }
 
 /**
@@ -1455,6 +1505,7 @@ int Connection::appendReadings(const char *readings)
 Document 	doc;
 SQLBuffer	sql;
 int		row = 0;
+bool 		add_row = false;
 
 	ParseResult ok = doc.Parse(readings);
 	if (!ok)
@@ -1484,56 +1535,90 @@ int		row = 0;
 				   "Each reading in the readings array must be an object");
 			return -1;
 		}
-		if (row)
-		{
-			sql.append(", (");
-		}
-		else
-		{
-			sql.append('(');
-		}
-		row++;
-		sql.append('\'');
-		sql.append((*itr)["asset_code"].GetString());
-		// Python code is passing the string None when here is no read_key in the payload
-		if (itr->HasMember("read_key") && strcmp((*itr)["read_key"].GetString(), "None") != 0)
-		{
-			sql.append("', \'");
-			sql.append((*itr)["read_key"].GetString());
-			sql.append("', \'");
-		}
-		else
-		{
-			// No "read_key" in this reading, insert NULL
-			sql.append("', NULL, '");
-		}
 
-		StringBuffer buffer;
-		Writer<StringBuffer> writer(buffer);
-		(*itr)["reading"].Accept(writer);
-		sql.append(buffer.GetString());
-		sql.append("\', ");
+		add_row = true;
+
+		// Handles - user_ts
 		const char *str = (*itr)["user_ts"].GetString();
 		if (strcmp(str, "now()") == 0)
 		{
+			if (row)
+			{
+				sql.append(", (");
+			}
+			else
+			{
+				sql.append('(');
+			}
+
 			sql.append(SQLITE3_NOW);
 		}
 		else
 		{
-			char formatted_date[90];
-			formatDate(formatted_date, sizeof(formatted_date), str);
 
 			// FIXME:
-			Logger::getLogger()->info("DBG : appendReadings 0 |%s|  formatted_date  |%s| ",
-				str,
-				formatted_date);
+			Logger::getLogger()->info("DBG : STEP sql |%s|  ", str);
 
-			sql.append('\'');
-			sql.append(escape(formatted_date));
-			sql.append('\'');
+			char formatted_date[LEN_BUFFER_DATE] = {0};
+			if (! formatDate(formatted_date, sizeof(formatted_date), str) )
+			{
+				raiseError("appendReadings", "Invalid Date |%s|", str);
+				add_row = false;
+			}
+			else
+			{
+				// FIXME:
+				Logger::getLogger()->info("DBG : appendReadings 0 |%s|  formatted_date  |%s| ",
+							  str,
+							  formatted_date);
+
+				if (row)
+				{
+					sql.append(", (");
+				}
+				else
+				{
+					sql.append('(');
+				}
+
+				sql.append('\'');
+				sql.append(formatted_date);
+				sql.append('\'');
+			}
 		}
 
-		sql.append(')');
+		if (add_row)
+		{
+			row++;
+
+			// Handles - asset_code
+			sql.append(",\'");
+			sql.append((*itr)["asset_code"].GetString());
+
+			// Handles - read_key
+			// Python code is passing the string None when here is no read_key in the payload
+			if (itr->HasMember("read_key") && strcmp((*itr)["read_key"].GetString(), "None") != 0)
+			{
+				sql.append("', \'");
+				sql.append((*itr)["read_key"].GetString());
+				sql.append("', \'");
+			}
+			else
+			{
+				// No "read_key" in this reading, insert NULL
+				sql.append("', NULL, '");
+			}
+
+			// Handles - reading
+			StringBuffer buffer;
+			Writer<StringBuffer> writer(buffer);
+			(*itr)["reading"].Accept(writer);
+			sql.append(buffer.GetString());
+			sql.append('\'');
+
+			sql.append(')');
+		}
+
 	}
 	sql.append(';');
 
@@ -1541,6 +1626,10 @@ int		row = 0;
 	logSQL("ReadingsAppend", query);
 	char *zErrMsg = NULL;
 	int rc;
+
+	// FIXME:
+	Logger::getLogger()->info("DBG : STEP sql |%s|  ", query);
+
 
 	// Exec the INSERT statement: no callback, no result set
 	rc = SQLexec(dbHandle,

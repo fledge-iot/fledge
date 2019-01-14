@@ -7,7 +7,7 @@ LN := ln -sf
 CMAKE := cmake
 PIP_USER_FLAG = --user
 PIP_INSTALL_REQUIREMENTS := pip3 install -Ir
-USE_PY_CACHE := no
+USE_PIP_CACHE := no
 PYTHON_BUILD_PACKAGE = python3 setup.py build -b ../$(PYTHON_BUILD_DIR)
 RM_DIR := rm -r
 RM_FILE := rm
@@ -144,8 +144,8 @@ else
 endif
 	@echo "$(ACTION) $(PACKAGE_NAME) version $(FOGLAMP_VERSION), DB schema $(FOGLAMP_SCHEMA)"
 
-# Use cache for python requirements depending on the value of USE_PY_CACHE
-ifeq ($(USE_PY_CACHE), yes)
+# Use cache for python requirements depending on the value of USE_PIP_CACHE
+ifeq ($(USE_PIP_CACHE), yes)
     $(eval NO_CACHE_DIR=)
 else
     $(eval NO_CACHE_DIR= --no-cache-dir)

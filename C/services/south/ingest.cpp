@@ -29,71 +29,14 @@ static void ingestThread(Ingest *ingest)
 }
 
 /**
- * Fetch all asset tracking tuples from DB and populate local cache
- *
- * @param m_mgtClient	Management client handle
+ * Thread to update statistics table in DB
  */
-void Ingest::populateAssetTrackingCache(ManagementClient *mgtClient)
+static void statsThread(Ingest *ingest)
 {
-	try {
-		std::vector<AssetTrackingTuple*>& vec = mgtClient->getAssetTrackingTuples(m_serviceName);
-		for (AssetTrackingTuple* & rec : vec)
-			{
-			if (rec->m_pluginName != m_pluginName || rec->m_eventName != "Ingest")
-				{
-				m_logger->info("Plugin/event name mismatch; NOT adding asset tracker tuple to cache: '%s'", rec->assetToString().c_str());
-				delete rec;
-				continue;
-				}
-			assetTrackerTuplesCache.insert(rec);
-			//m_logger->info("Added asset tracker tuple to cache: '%s'", rec->assetToString().c_str());
-			}
-		delete (&vec);
-		}
-	catch (...)
-		{
-		m_logger->error("Failed to populate asset tracking tuples' cache");
-		return;
-		}
-}
-
-/**
- * Check local cache for a given asset tracking tuple
- *
- * @param tuple		Tuple to find in cache
- * @return			Returns whether tuple is present in cache
- */
-bool Ingest::checkAssetTrackingCache(AssetTrackingTuple& tuple)
-{
-	AssetTrackingTuple *ptr = &tuple;
-	std::unordered_set<AssetTrackingTuple*>::const_iterator it = assetTrackerTuplesCache.find(ptr);
-	if (it == assetTrackerTuplesCache.end())
-		{
-		return false;
-		}
-	else
-		return true;
-}
-
-/**
- * Add asset tracking tuple via microservice management API and in cache
- *
- * @param tuple		New tuple to add in DB and in cache
- */
-void Ingest::addAssetTrackingTuple(AssetTrackingTuple& tuple)
-{
-	std::unordered_set<AssetTrackingTuple*>::const_iterator it = assetTrackerTuplesCache.find(&tuple);
-	if (it == assetTrackerTuplesCache.end())
-		{
-		bool rv = m_mgtClient->addAssetTrackingTuple(tuple.m_serviceName, tuple.m_pluginName, tuple.m_assetName, "Ingest");
-		if (rv) // insert into cache only if DB operation succeeded
-			{
-			AssetTrackingTuple *ptr = new AssetTrackingTuple(tuple);
-			assetTrackerTuplesCache.insert(ptr);
-			}
-		}
-	else
-		m_logger->info("addAssetTrackingTuple(): Tuple already found in cache: '%s', not adding again", tuple.assetToString().c_str());
+	while (ingest->running())
+	{
+		ingest->updateStats();
+	}
 }
 
 /**
@@ -143,17 +86,6 @@ int Ingest::createStatsDbEntry(const string& assetName)
 		return -1;
 	}
 	return 0;
-}
-
-/**
- * Thread to update statistics table in DB
- */
-static void statsThread(Ingest *ingest)
-{
-	while (ingest->running())
-	{
-		ingest->updateStats();
-	}
 }
 
  /**
@@ -277,7 +209,10 @@ Ingest::Ingest(StorageClient& storage,
 	m_discardedReadings = 0;
 	
 	// populate asset tracking cache
-	populateAssetTrackingCache(m_mgtClient);
+	//m_assetTracker = new AssetTracker(m_mgtClient);
+	AssetTracker::getAssetTracker()->populateAssetTrackingCache(m_pluginName, "Ingest");
+
+	filterPipeline = NULL;
 }
 
 /**
@@ -304,7 +239,11 @@ Ingest::~Ingest()
 	//delete m_data;
 	
 	// Cleanup filters
-	FilterPlugin::cleanupFilters(m_filters, m_serviceName);
+	if (filterPipeline)
+	{
+		filterPipeline->cleanupFilters(m_serviceName);
+		delete filterPipeline;
+	}
 }
 
 /**
@@ -380,29 +319,32 @@ vector<Reading *>* newQ = new vector<Reading *>();
 	/*
 	 * Create a ReadingSet from m_data readings if we have filters.
 	 *
-	 * At this point the m_data vectoir is cleared so that the only reference to
-	 * the readings is inthe ReadingSet that is passed along the filter pipeline
+	 * At this point the m_data vector is cleared so that the only reference to
+	 * the readings is in the ReadingSet that is passed along the filter pipeline
 	 *
 	 * The final filter in the pipeline will pass the ReadingSet back into the
 	 * ingest class where it will repopulate the m_data member.
 	 */
-	if (m_filters.size())
+	if (filterPipeline)
 	{
-		auto it = m_filters.begin();
-		ReadingSet *readingSet = new ReadingSet(m_data);
-		m_data->clear();
-		// Pass readingSet to filter chain
-		(*it)->ingest(readingSet);
-
-		/*
-		 * If filtering removed all the readings then simply clean up m_data and
-		 * return.
-		 */
-		if (m_data->size() == 0)
+		FilterPlugin *firstFilter = filterPipeline->getFirstFilterPlugin();
+		if (firstFilter)
 		{
-			delete m_data;
-			m_data = NULL;
-			return;
+			ReadingSet *readingSet = new ReadingSet(m_data);
+			m_data->clear();
+			// Pass readingSet to filter chain
+			firstFilter->ingest(readingSet);
+
+			/*
+			 * If filtering removed all the readings then simply clean up m_data and
+			 * return.
+			 */
+			if (m_data->size() == 0)
+			{
+				delete m_data;
+				m_data = NULL;
+				return;
+			}
 		}
 	}
 
@@ -412,11 +354,10 @@ vector<Reading *>* newQ = new vector<Reading *>();
 	{
 		Reading *reading = *it;
 		AssetTrackingTuple tuple(m_serviceName, m_pluginName, reading->getAssetName(), "Ingest");
-		if (!checkAssetTrackingCache(tuple))
-			{
-			addAssetTrackingTuple(tuple);
-			m_logger->info("processQueue(): Added new asset tracking tuple seen during readings' ingest: %s", tuple.assetToString().c_str());
-			}
+		if (!AssetTracker::getAssetTracker()->checkAssetTrackingCache(tuple))
+		{
+			AssetTracker::getAssetTracker()->addAssetTrackingTuple(tuple);
+		}
 		++statsEntriesCurrQueue[reading->getAssetName()];
 	}
 		
@@ -491,113 +432,18 @@ vector<Reading *>* newQ = new vector<Reading *>();
  */
 bool Ingest::loadFilters(const string& categoryName)
 {
+	Logger::getLogger()->info("Ingest::loadFilters(): categoryName=%s", categoryName.c_str());
+	filterPipeline = new FilterPipeline(m_mgtClient, m_storage, m_serviceName);
+	
 	// Try to load filters:
-	if (!FilterPlugin::loadFilters(categoryName,
-				       m_filters,
-				       m_mgtClient))
+	if (!filterPipeline->loadFilters(categoryName))
 	{
 		// Return false on any error
 		return false;
 	}
 
 	// Set up the filter pipeline
-	return setupFiltersPipeline();
-}
-
-/**
- * Set the filterPipeline in the Ingest class
- * 
- * This method calls the the method "plugin_init" for all loadade filters.
- * Up to date filter configurations and Ingest filtering methods
- * are passed to "plugin_init"
- *
- * @param ingest	The ingest class
- * @return 		True on success,
- *			False otherwise.
- * @thown		Any caught exception
- */
-bool Ingest::setupFiltersPipeline()
-{
-ConfigHandler	*configHandler = ConfigHandler::getInstance(m_mgtClient);
-bool 		initErrors = false;
-string		errMsg = "'plugin_init' failed for filter '";
-
-	for (auto it = m_filters.begin(); it != m_filters.end(); ++it)
-	{
-		string filterCategoryName = m_serviceName + "_" + (*it)->getName();
-		ConfigCategory updatedCfg;
-		vector<string> children;
-        
-		try
-		{
-Logger::getLogger()->info("Load plugin categoryName %s", filterCategoryName.c_str());
-			// Fetch up to date filter configuration
-			updatedCfg = m_mgtClient->getCategory(filterCategoryName);
-
-			// Add filter category name under service/process config name
-			children.push_back(filterCategoryName);
-			m_mgtClient->addChildCategories(m_serviceName, children);
-
-        		configHandler->registerCategory(this, filterCategoryName);
-			m_filterCategories.insert(pair<string, FilterPlugin *>(filterCategoryName, *it));
-		}
-		// TODO catch specific exceptions
-		catch (...)
-		{       
-			throw;      
-		}                   
-
-		// Iterate the load filters set in the Ingest class m_filters member 
-		if ((it + 1) != m_filters.end())
-		{
-			// Set next filter pointer as OUTPUT_HANDLE
-			if (!(*it)->init(updatedCfg,
-				    (OUTPUT_HANDLE *)(*(it + 1)),
-				    Ingest::passToOnwardFilter))
-			{
-				errMsg += (*it)->getName() + "'";
-				initErrors = true;
-				break;
-			}
-		}
-		else
-		{
-			// Set the Ingest class pointer as OUTPUT_HANDLE
-			if (!(*it)->init(updatedCfg,
-					 (OUTPUT_HANDLE *)this,
-					 Ingest::useFilteredData))
-			{
-				errMsg += (*it)->getName() + "'";
-				initErrors = true;
-				break;
-			}
-		}
-
-		if ((*it)->persistData())
-		{
-			// Plugin support SP_PERSIST_DATA
-			// Instantiate the PluginData class
-			(*it)->m_plugin_data = new PluginData(&m_storage);
-			// Load plugin data from storage layer
-			string pluginStoredData = (*it)->m_plugin_data->loadStoredData(m_serviceName + (*it)->getName());
- 			//call 'plugin_start' with plugin data: startData()
-			(*it)->startData(pluginStoredData);
-		}
-		else
-		{
-			// We don't call simple plugin_start for filters right now
-		}
-	}
-
-	if (initErrors)
-	{
-		// Failure
-		m_logger->fatal("%s error: %s", SERVICE_NAME, errMsg.c_str());
-		return false;
-	}
-
-	//Success
-	return true;
+	return filterPipeline->setupFiltersPipeline((void *)passToOnwardFilter, (void *)useFilteredData, this);
 }
 
 /**
@@ -655,20 +501,41 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 }
 
 /**
- * Configuration change for one of our filters. Lookup the category name and
- * find the plugin to call. Call the reconfigure method of that plugin with
- * the new configuration.
- *
- * Note when the filter pipeline is abstracted this will move to the pipeline
+ * Configuration change for one of the filters or to the pipeline.
  *
  * @param category	The name of the configuration category
  * @param newConfig	The new category contents
  */
 void Ingest::configChange(const string& category, const string& newConfig)
 {
-	auto it = m_filterCategories.find(category);
-	if (it != m_filterCategories.end())
+	//Logger::getLogger()->info("Ingest::configChange(): category=%s, newConfig=%s", category.c_str(), newConfig.c_str());
+	static string pipelineCfgStr;
+	if (category == m_serviceName) // possible change to filter pipeline
 	{
-		it->second->reconfigure(newConfig);
+		ConfigCategory config("tmp", newConfig);
+		if (pipelineCfgStr == config.getValue("filter"))
+		{
+			Logger::getLogger()->info("Ingest::configChange(): filter pipeline has not changed");
+			return;
+		}
+		pipelineCfgStr = config.getValue("filter");
+		lock_guard<mutex> guard(m_qMutex); // blocks ingest process while pipeline is being reconfigured
+		m_running = false;
+		if (filterPipeline)
+		{
+			Logger::getLogger()->info("Ingest::configChange(): filter pipeline has changed, recreating filter pipeline");
+			filterPipeline->cleanupFilters(m_serviceName);
+			delete filterPipeline;
+		}
+		loadFilters(category);
+		m_running = true;
+	}
+	else // change to config of some filter(s)
+	{
+		Logger::getLogger()->info("Ingest::configChange(): change to config of some filter(s)");
+		if (filterPipeline)
+		{
+			filterPipeline->configChange(category, newConfig);
+		}
 	}
 }

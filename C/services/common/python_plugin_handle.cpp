@@ -11,7 +11,6 @@
 #include <config_category.h>
 #include <reading.h>
 #include <logger.h>
-#include <utils.h>
 #include <python_plugin_handle.h>
 
 #define PYTHON_PLUGIN_INTF_LIB "libsouth-plugin-python-interface.so"

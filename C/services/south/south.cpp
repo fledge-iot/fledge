@@ -252,6 +252,8 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			logger->info("Defaulting to inline defaults for south configuration");
 		}
 
+		m_assetTracker = new AssetTracker(m_mgtClient, m_name);
+
 		{
 		// Instantiate the Ingest class
 		Ingest ingest(storage, timeout, threshold, m_name, pluginName, m_mgtClient);
@@ -308,6 +310,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				{
 					if (!pollInterfaceV2) // v1 poll method
 					{
+					
 						Reading reading = southPlugin->poll();
 						if (reading.getDatapointCount())
 						{
@@ -503,6 +506,8 @@ void SouthService::configChange(const string& categoryName, const string& catego
 	{
 		m_config = ConfigCategory(m_name, category);
 		southPlugin->reconfigure(category);
+		// Let ingest class check for changes to filter pipeline
+		m_ingest->configChange(categoryName, category);
 	}
 	if (categoryName.compare(m_name+"Advanced") == 0)
 	{

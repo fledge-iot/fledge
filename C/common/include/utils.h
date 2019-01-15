@@ -1,5 +1,5 @@
 #ifndef _FOGLAMP_UTILS_H
-#define _FOGLAMP_UTILS__H
+#define _FOGLAMP_UTILS_H
 /*
  * FogLAMP general utilities
  *

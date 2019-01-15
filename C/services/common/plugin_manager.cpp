@@ -92,6 +92,8 @@ char          buf[128];
         return NULL;
       }
       PLUGIN_INFORMATION *info = (PLUGIN_INFORMATION *)(*infoEntry)();
+
+	    logger->debug("%s:%d: name=%s, type=%s, default config=%s", __FUNCTION__, __LINE__, info->name, info->type, info->config);
 	  
       if (strcmp(info->type, type.c_str()) != 0)
       {
@@ -106,7 +108,9 @@ char          buf[128];
       pluginNames[name] = hndl;
       pluginTypes[name] = type;
       pluginInfo[hndl] = info;
+
       pluginHandleMap[hndl] = pluginHandle;
+	    logger->debug("%s:%d: Added entry in pluginHandleMap={%p, %p}", __FUNCTION__, __LINE__, hndl, pluginHandle);
     }
     else
     {

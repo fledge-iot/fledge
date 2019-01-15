@@ -6,17 +6,20 @@
 
 from importlib import import_module
 from urllib.parse import urlparse
+import binascii
 import copy
 import json
 import inspect
 import ipaddress
 import datetime
+import os
 
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.common.storage_client.exceptions import StorageServerError
 from foglamp.common.storage_client.utils import Utils
 from foglamp.common import logger
+from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA
 from foglamp.common.audit_logger import AuditLogger
 
 __author__ = "Ashwin Gopalakrishnan, Ashish Jabble, Amarendra K Sinha"
@@ -564,8 +567,32 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 return self._cacheManager.cache[category_name]['value']
 
             cat = await self._read_category_val(category_name)
+
             if cat is not None:
                 self._cacheManager.update(category_name, cat)
+
+            # Handle type script
+            for k, v in cat.items():
+                if v['type'] == 'script':
+                    try:
+                        cat[k]["value"] = binascii.unhexlify(v['value'].encode('utf-8')).decode("utf-8")
+                    except Exception as e:
+                        _logger.warning(
+                            "Got an issue while decoding config item: {} | {}".format(cat[k], str(e)))
+                        pass
+
+                    if self._cacheManager.cache[category_name]['value'][k]:
+                        self._cacheManager.cache[category_name]['value'][k]['value'] = v['value']
+
+                    script_dir = _FOGLAMP_DATA + '/scripts/' if _FOGLAMP_DATA else _FOGLAMP_ROOT + "/data/scripts/"
+                    prefix_file_name = category_name.lower() + "_" + k.lower() + "_"
+                    if not os.path.exists(script_dir):
+                        os.makedirs(script_dir)
+                    _all_files = os.listdir(script_dir)
+                    for name in _all_files:
+                        if name.startswith(prefix_file_name) and name.endswith('.py'):
+                            cat[k]["file"] = script_dir + name
+
             return cat
         except:
             _logger.exception(

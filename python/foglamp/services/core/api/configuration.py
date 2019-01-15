@@ -552,7 +552,7 @@ async def upload_script(request):
     try:
         # Save the value to database
         await cf_mgr.set_category_item_value_entry(category_name, config_item, str_data)
-        # Remove old file for combination categoryName_configItem_fileName and retain only the latest one
+        # Remove old files for combination categoryName_configItem_* and retain only the latest one
         _all_files = os.listdir(script_dir)
         for name in _all_files:
             if name.startswith(prefix_file_name):
@@ -565,7 +565,6 @@ async def upload_script(request):
     else:
         result = await cf_mgr.get_category_item(category_name, config_item)
         result['file'] = script_file_path
-        # Return the binary data represented by the hexadecimal string hexstr.
         result['value'] = binascii.unhexlify(str_data.encode('utf-8')).decode("utf-8")
         if cf_mgr._cacheManager.cache[category_name]['value'][config_item]:
             cf_mgr._cacheManager.cache[category_name]['value'][config_item]['value'] = result['value']

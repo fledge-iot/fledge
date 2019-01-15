@@ -40,8 +40,6 @@ async def run(category_name):
     except interest_registry_exceptions.DoesNotExist:
         return
 
-    # get configuration of category_name,
-    # FIXME: :remove me: get_category_all_items should also handle type script
     category_value = await cfg_mgr.get_category_all_items(category_name)
     payload = {"category" : category_name, "items" : category_value}
     headers = {'content-type': 'application/json'}

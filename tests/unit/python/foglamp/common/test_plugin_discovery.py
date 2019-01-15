@@ -363,7 +363,7 @@ class TestPluginDiscovery:
                 assert actual is None
         patch_log_warn.assert_called_once_with('Plugin http-north is discarded due to invalid type')
 
-    @pytest.mark.parametrize("info, dir", [
+    @pytest.mark.parametrize("info, dir_name", [
         (mock_c_plugins_config[0], "south"),
         (mock_c_plugins_config[1], "north"),
         (mock_c_plugins_config[2], "filter"),

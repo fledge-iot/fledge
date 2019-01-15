@@ -41,7 +41,7 @@ class PluginDiscovery(object):
             plugins_list.extend(plugins_list_c_filter)
             plugins_list.extend(plugins_list_c_notify)
             plugins_list.extend(plugins_list_c_rule)
-        elif plugin_type == 'filter' or plugin_type == 'notify' or plugin_type == 'rule':
+        elif plugin_type in ['filter', 'notify', 'rule']:
             plugins_list = cls.fetch_c_plugins_installed(plugin_type, is_config)
         else:
             plugins_list = cls.fetch_plugins_installed(plugin_type, is_config)

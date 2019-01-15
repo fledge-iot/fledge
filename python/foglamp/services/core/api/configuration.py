@@ -179,23 +179,29 @@ async def get_category_item(request):
         raise web.HTTPNotFound(reason="No such Category item found for {}".format(config_item))
     try:
         if category_item['type'] == 'script':
-            # FIXME: Handle 'Non-hexadecimal digit found' issue
+
+            category_item['value'] = ""
+            category_item["file"] = ""
+
             try:
-                category_item['value'] = binascii.unhexlify(category_item['value'].encode('utf-8')).decode("utf-8")
+                if category_item['value'] is not None and category_item['value'] != "":
+                    category_item['value'] = binascii.unhexlify(category_item['value'].encode('utf-8')).decode("utf-8")
             except Exception as e:
                 _logger.exception("Got an error while decoding config item: {} | {}".format(config_item, str(e)))
                 pass
 
-            if cf_mgr._cacheManager.cache[category_name]['value'][config_item]:
-                cf_mgr._cacheManager.cache[category_name]['value'][config_item]['value'] = category_item['value']
-
             prefix_file_name = category_name.lower() + "_" + config_item.lower() + "_"
             if not os.path.exists(script_dir):
                 os.makedirs(script_dir)
-            _all_files = os.listdir(script_dir)
-            for name in _all_files:
-                if name.startswith(prefix_file_name):
-                    category_item["file"] = script_dir + name
+            else:
+                _all_files = os.listdir(script_dir)
+                for name in _all_files:
+                    if name.startswith(prefix_file_name):
+                        category_item["file"] = script_dir + name
+
+            if cf_mgr._cacheManager.cache[category_name]['value'][config_item]:
+                cf_mgr._cacheManager.cache[category_name]['value'][config_item]['value'] = category_item['value']
+                cf_mgr._cacheManager.cache[category_name]['value'][config_item]['file'] = category_item['file']
     except Exception as e:
         raise web.HTTPBadRequest(reason="{}".format(str(e)))
 
@@ -535,7 +541,7 @@ async def upload_script(request):
     # If 'scripts' dir not exists, then create
     if not os.path.exists(script_dir):
         os.makedirs(script_dir)
-    # Write contents to file and save under scripts dir path
+    # Write contents to file and save under scripts dir path; it will be overwritten if exists
     with open(script_file_path, 'wb') as f:
         f.write(script_file_content)
 
@@ -546,7 +552,7 @@ async def upload_script(request):
     try:
         # Save the value to database
         await cf_mgr.set_category_item_value_entry(category_name, config_item, str_data)
-        # Remove old files for combination categoryname_configitem_filename and retain only the latest one
+        # Remove old file for combination categoryName_configItem_fileName and retain only the latest one
         _all_files = os.listdir(script_dir)
         for name in _all_files:
             if name.startswith(prefix_file_name):
@@ -563,5 +569,5 @@ async def upload_script(request):
         result['value'] = binascii.unhexlify(str_data.encode('utf-8')).decode("utf-8")
         if cf_mgr._cacheManager.cache[category_name]['value'][config_item]:
             cf_mgr._cacheManager.cache[category_name]['value'][config_item]['value'] = result['value']
-
+            cf_mgr._cacheManager.cache[category_name]['value'][config_item]['file'] = result['file']
         return web.json_response(result)

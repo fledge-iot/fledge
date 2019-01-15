@@ -4,7 +4,7 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-""" Test system/python/end_to_end_csv.py
+""" Test system/python/test_end_to_end_csv.py
 
 """
 import os

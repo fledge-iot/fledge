@@ -9,6 +9,8 @@
 """
 import subprocess
 import os
+import http.client
+import json
 import pytest
 
 __author__ = "Vaibhav Singhal"
@@ -25,6 +27,58 @@ def reset_and_start_foglamp():
     subprocess.run(["$FOGLAMP_ROOT/scripts/foglamp start"], shell=True)
     stat = subprocess.run(["$FOGLAMP_ROOT/scripts/foglamp status"], shell=True, stdout=subprocess.PIPE)
     assert "FogLAMP not running." not in stat.stdout.decode("utf-8")
+
+
+@pytest.fixture
+def start_south():
+    def _start_foglamp_south(south_plugin, foglamp_url, config=None):
+        """Start south service"""
+        _config = config if config is not None else {}
+        data = {"name": "play", "type": "South", "plugin": "{}".format(south_plugin), "enabled": "true",
+                "config": _config}
+
+        conn = http.client.HTTPConnection(foglamp_url)
+        subprocess.run(["rm -rf /tmp/foglamp-south-{}".format(south_plugin)], shell=True, check=True)
+        subprocess.run(["rm -rf $FOGLAMP_ROOT/python/foglamp/plugins/south/foglamp-south-{}".format(south_plugin)],
+                       shell=True, check=True)
+        subprocess.run(["git clone https://github.com/foglamp/foglamp-south-{}.git /tmp/foglamp-south-{}".
+                       format(south_plugin, south_plugin)], shell=True, check=True)
+        subprocess.run(["cp -r /tmp/foglamp-south-{}/python/foglamp/plugins/south/* "
+                        "$FOGLAMP_ROOT/python/foglamp/plugins/south/".format(south_plugin)], shell=True, check=True)
+
+        conn.request("POST", '/foglamp/service', json.dumps(data))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        retval = json.loads(r)
+        assert "play" == retval["name"]
+    return _start_foglamp_south
+
+
+@pytest.fixture
+def start_north():
+    def _start_foglamp_north_pi_v2(foglamp_url, pi_host, pi_port, north_plugin, pi_token,
+                                   taskname="North_Readings_to_PI"):
+        """Start north task"""
+        conn = http.client.HTTPConnection(foglamp_url)
+        data = {"name": taskname,
+                "plugin": "{}".format(north_plugin),
+                "type": "north",
+                "schedule_type": 3,
+                "schedule_day": 0,
+                "schedule_time": 0,
+                "schedule_repeat": 30,
+                "schedule_enabled": "true",
+                "config": {"producerToken": {"value": pi_token},
+                           "URL": {"value": "https://{}:{}/ingress/messages".format(pi_host, pi_port)}
+                           }
+                }
+        conn.request("POST", '/foglamp/scheduled/task', json.dumps(data))
+        r = conn.getresponse()
+        assert 200 == r.status
+        retval = r.read().decode()
+        return retval
+    return _start_foglamp_north_pi_v2
 
 
 def pytest_addoption(parser):
@@ -48,11 +102,25 @@ def pytest_addoption(parser):
                      help="Name of the North Plugin")
     parser.addoption("--asset_name", action="store", default="systemtest",
                      help="Name of asset")
+    parser.addoption("--wait_time", action="store", default=5,
+                     help="Time to wait between retries")
+    parser.addoption("--retries", action="store", default=3,
+                     help="Number of tries to make to fetch data")
 
 
 @pytest.fixture
 def foglamp_url(request):
     return request.config.getoption("--foglamp_url")
+
+
+@pytest.fixture
+def wait_time(request):
+    return request.config.getoption("--wait_time")
+
+
+@pytest.fixture
+def retries(request):
+    return request.config.getoption("--retries")
 
 
 @pytest.fixture

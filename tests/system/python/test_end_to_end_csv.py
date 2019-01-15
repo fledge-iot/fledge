@@ -16,6 +16,7 @@ import shutil
 import base64
 import ssl
 import pytest
+from collections import Counter
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2018 Dianomic Systems"
@@ -24,70 +25,15 @@ __version__ = "${VERSION}"
 
 
 CSV_NAME = "sample.csv"
-CSV_HEADER = "temperature"
-CSV_DATA = 2.5
+CSV_HEADERS = "ivalue,fvalue,svalue"
+CSV_DATA = [{'ivalue': 1, 'fvalue': 1.1, 'svalue': 'abc'},
+            {'ivalue': 0, 'fvalue': 0.0, 'svalue': 'def'},
+            {'ivalue': -1, 'fvalue': -1.1, 'svalue': 'ghi'}]
 
-# Number of tries to make to read PI data and to read North configuration
-NUM_RETRIES = 3
-# Low sleep interval between each tries, used in internal foglamp process waits
-SLEEP_INTERVAL_LOW = 5
-# High sleep interval between each tries, used in external pi webapi waits
-SLEEP_INTERVAL_HIGH = 10
 # Name of the North Task
 NORTH_TASK_NAME = "North_Readings_to_PI"
 
-
-def _start_foglamp_south(south_plugin, asset_name, foglamp_url):
-    """Start south service"""
-
-    south_config = {"assetName": {"value": "{}".format(asset_name)}, "csvFilename": {"value": "{}".format(CSV_NAME)},
-                    "ingestMode": {"value": "batch"}}
-    data = {"name": "play", "type": "South", "plugin": "{}".format(south_plugin), "enabled": "true",
-            "config": south_config}
-
-    conn = http.client.HTTPConnection(foglamp_url)
-    subprocess.run(["rm -rf /tmp/foglamp-south-{}".format(south_plugin)], shell=True, check=True)
-    subprocess.run(["rm -rf $FOGLAMP_ROOT/python/foglamp/plugins/south/foglamp-south-{}".format(south_plugin)], shell=True, check=True)
-    subprocess.run(["git clone https://github.com/foglamp/foglamp-south-{}.git /tmp/foglamp-south-{}".
-                   format(south_plugin, south_plugin)], shell=True, check=True)
-    subprocess.run(["cp -r /tmp/foglamp-south-{}/python/foglamp/plugins/south/* "
-                    "$FOGLAMP_ROOT/python/foglamp/plugins/south/".format(south_plugin)], shell=True, check=True)
-    subprocess.run(["rm -rf $FOGLAMP_ROOT/data/{}".format(CSV_NAME)], shell=True, check=True)
-    csv_file_path = os.path.join(os.path.expandvars('${FOGLAMP_ROOT}'), 'data/{}'.format(CSV_NAME))
-    f = open(csv_file_path, "w")
-    f.write(CSV_HEADER)
-    f.write("\n{}".format(CSV_DATA))
-    f.close()
-
-    conn.request("POST", '/foglamp/service', json.dumps(data))
-    r = conn.getresponse()
-    assert 200 == r.status
-    r = r.read().decode()
-    retval = json.loads(r)
-    assert "play" == retval["name"]
-    return csv_file_path
-
-
-def _start_foglamp_north(foglamp_url, pi_host, pi_port, north_plugin, pi_token):
-    """Start north task"""
-
-    conn = http.client.HTTPConnection(foglamp_url)
-    data = {"name": NORTH_TASK_NAME,
-            "plugin": "{}".format(north_plugin),
-            "type": "north",
-            "schedule_type": 3,
-            "schedule_day": 0,
-            "schedule_time": 0,
-            "schedule_repeat": 30,
-            "schedule_enabled": "true",
-            "config": {"producerToken": {"value": pi_token},
-                       "URL": {"value": "https://{}:{}/ingress/messages".format(pi_host, pi_port)}
-                       }
-            }
-    conn.request("POST", '/foglamp/scheduled/task', json.dumps(data))
-    r = conn.getresponse()
-    assert 200 == r.status
-    r.read().decode()
+_data_str = {}
 
 
 def _remove_data_file(file_path=None):
@@ -100,17 +46,17 @@ def _remove_directories(dir_path=None):
         shutil.rmtree(dir_path, ignore_errors=True)
 
 
-def _read_data_from_pi(host, admin, password, pi_database, asset):
+def _read_data_from_pi(host, admin, password, pi_database, asset, sensor):
     """ This method reads data from pi web api """
 
     # List of pi databases
     dbs = None
     # PI logical grouping of attributes and child elements
-    element = None
+    elements = None
     # List of elements
     url_elements_list = None
-    # Element's EndValue
-    url_assets_list = None
+    # Element's recorded data url
+    url_recorded_data = None
     # Resources in the PI Web API are addressed by WebID, parameter used for deletion of element
     web_id = None
 
@@ -131,10 +77,10 @@ def _read_data_from_pi(host, admin, password, pi_database, asset):
             r = json.loads(res.read().decode())
             for el in r["Items"]:
                 if el["Name"] == pi_database:
-                    element = el["Links"]["Elements"]
+                    elements = el["Links"]["Elements"]
 
-        if element is not None:
-            conn.request("GET", element, headers=headers)
+        if elements is not None:
+            conn.request("GET", elements, headers=headers)
             res = conn.getresponse()
             r = json.loads(res.read().decode())
             url_elements_list = r["Items"][0]["Links"]["Elements"]
@@ -146,36 +92,68 @@ def _read_data_from_pi(host, admin, password, pi_database, asset):
             items = r["Items"]
             for el in items:
                 if el["Name"] == asset:
-                    url_assets_list = el["Links"]["EndValue"]
+                    url_recorded_data = el["Links"]["RecordedData"]
                     web_id = el["WebId"]
 
-        if url_assets_list is not None:
-            conn.request("GET", url_assets_list, headers=headers)
+        _data_pi = {}
+        if url_recorded_data is not None:
+            conn.request("GET", url_recorded_data, headers=headers)
             res = conn.getresponse()
             r = json.loads(res.read().decode())
             _items = r["Items"]
             for el in _items:
-                if el["Name"] == CSV_HEADER:
-                    value = el["Value"]["Value"]
-                    # After Value is stored, delete this element
-                    conn.request("DELETE", '/piwebapi/elements/{}'.format(web_id), headers=headers)
-                    res = conn.getresponse()
-                    res.read()
-                    return value
+                _recoded_value_list = []
+                for _head in sensor:
+                    if el["Name"] == _head:
+                        elx = el["Items"]
+                        for _el in elx:
+                            _recoded_value_list.append(_el["Value"])
+                        _data_pi[_head] = _recoded_value_list
+            conn.request("DELETE", '/piwebapi/elements/{}'.format(web_id), headers=headers)
+            res = conn.getresponse()
+            res.read()
+            return _data_pi
     except (KeyError, IndexError, Exception):
         return None
 
 
 @pytest.fixture
-def start_south_north(reset_and_start_foglamp, south_plugin, asset_name, foglamp_url, pi_host, pi_port,
-                      north_plugin, pi_token):
-    """ This fixture clone a south repo and starts both south and north instance """
+def start_south_north(reset_and_start_foglamp, start_south, start_north, south_plugin, asset_name,
+                      foglamp_url, pi_host, pi_port, north_plugin, pi_token):
+    """ This fixture clone a south repo and starts both south and north instance
+        reset_and_start_foglamp: Fixture that resets and starts foglamp, no explicit invocation, called at start
+        start_south: Fixture that starts any south service with given configuration
+        start_north: Fixture that starts PI north task"""
 
-    # Start foglamp south service
-    csv_file_path = _start_foglamp_south(south_plugin, asset_name, foglamp_url)
+    # Define configuration of foglamp south playback service
+    south_config = {"assetName": {"value": "{}".format(asset_name)}, "csvFilename": {"value": "{}".format(CSV_NAME)},
+                    "ingestMode": {"value": "batch"}}
 
-    # Start foglamp north task
-    _start_foglamp_north(foglamp_url, pi_host, pi_port, north_plugin, pi_token)
+    # Define the CSV data and create expected lists to be verified later
+    csv_file_path = os.path.join(os.path.expandvars('${FOGLAMP_ROOT}'), 'data/{}'.format(CSV_NAME))
+    f = open(csv_file_path, "w")
+    f.write(CSV_HEADERS)
+    _heads = CSV_HEADERS.split(",")
+    for c_data in CSV_DATA:
+        temp_data = []
+        for _head in _heads:
+            temp_data.append(str(c_data[_head]))
+        row = ','.join(temp_data)
+        f.write("\n{}".format(row))
+    f.close()
+
+    # Prepare list of values for each header
+    for _head in _heads:
+        tmp_list = []
+        for c_data in CSV_DATA:
+            tmp_list.append(c_data[_head])
+        _data_str[_head] = tmp_list
+
+    # Call the start south service fixture
+    start_south(south_plugin, foglamp_url, config=south_config)
+
+    # Call the start north task fixture
+    start_north(foglamp_url, pi_host, pi_port, north_plugin, pi_token)
 
     # Provide the fixture value
     yield start_south_north
@@ -185,11 +163,13 @@ def start_south_north(reset_and_start_foglamp, south_plugin, asset_name, foglamp
     _remove_directories("/tmp/foglamp-south-{}".format(south_plugin))
 
 
-def test_end_to_end(start_south_north, foglamp_url, pi_host, pi_port, pi_admin, pi_passwd, pi_db, asset_name):
-    """ Test that data is inserted in FogLAMP and sent to PI"""
+def test_end_to_end(start_south_north, foglamp_url, pi_host, pi_port, pi_admin, pi_passwd, pi_db,
+                    asset_name, wait_time, retries):
+    """ Test that data is inserted in FogLAMP and sent to PI
+        start_south_north: Fixture that starts FogLAMP with south and north instance"""
 
     conn = http.client.HTTPConnection(foglamp_url)
-    time.sleep(SLEEP_INTERVAL_LOW)
+    time.sleep(wait_time)
     conn.request("GET", '/foglamp/asset')
     r = conn.getresponse()
     assert 200 == r.status
@@ -197,23 +177,29 @@ def test_end_to_end(start_south_north, foglamp_url, pi_host, pi_port, pi_admin, 
     retval = json.loads(r)
     assert len(retval) > 0
     assert asset_name == retval[0]["assetCode"]
-    assert 1 == retval[0]["count"]
+    assert len(CSV_DATA) == retval[0]["count"]
 
-    conn.request("GET", '/foglamp/asset/{}'.format(asset_name))
-    r = conn.getresponse()
-    assert 200 == r.status
-    r = r.read().decode()
-    retval = json.loads(r)
-    assert {'{}'.format(CSV_HEADER): '{}'.format(CSV_DATA)} == retval[0]["reading"]
+    for _head in CSV_HEADERS.split(","):
+        conn.request("GET", '/foglamp/asset/{}/{}'.format(asset_name, _head))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        retval = json.loads(r)
+        _actual_read_list = []
+        for _el in retval:
+            _actual_read_list.append(_el[_head])
+        assert Counter(_actual_read_list) == Counter(_data_str[_head])
 
     retry_count = 0
     data_from_pi = None
-    while data_from_pi is None and retry_count < NUM_RETRIES:
-        data_from_pi = _read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db, asset_name)
+    while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
+        data_from_pi = _read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db, asset_name,
+                                          CSV_HEADERS.split(","))
         retry_count += 1
-        time.sleep(SLEEP_INTERVAL_HIGH)
+        time.sleep(wait_time*2)
 
-    if data_from_pi is None or retry_count == NUM_RETRIES:
+    if data_from_pi is None or retry_count == retries:
         assert False, "Failed to read data from PI"
 
-    assert data_from_pi == str(CSV_DATA)
+    for _head in CSV_HEADERS.split(","):
+        assert Counter(data_from_pi[_head][-len(CSV_DATA):]) == Counter(_data_str[_head])

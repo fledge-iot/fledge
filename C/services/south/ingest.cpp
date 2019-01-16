@@ -509,13 +509,14 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 void Ingest::configChange(const string& category, const string& newConfig)
 {
 	//Logger::getLogger()->info("Ingest::configChange(): category=%s, newConfig=%s", category.c_str(), newConfig.c_str());
-	static string pipelineCfgStr;
+	static string pipelineCfgStr("");
 	if (category == m_serviceName) // possible change to filter pipeline
 	{
 		ConfigCategory config("tmp", newConfig);
-		if (pipelineCfgStr == config.getValue("filter"))
+		if ( (!config.itemExists("filter") && pipelineCfgStr.compare("")==0) || 
+					pipelineCfgStr == config.getValue("filter") )
 		{
-			Logger::getLogger()->info("Ingest::configChange(): filter pipeline has not changed");
+			Logger::getLogger()->info("Ingest::configChange(): filter pipeline is not set or it hasn't changed");
 			return;
 		}
 		pipelineCfgStr = config.getValue("filter");

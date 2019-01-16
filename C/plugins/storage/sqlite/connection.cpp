@@ -29,10 +29,6 @@
 #include <chrono>
 #include <thread>
 
-// FIXME::
-#include <tmp_log.hpp>
-
-
 /*
  * Control the way purge deletes readings. The block size sets a limit as to how many rows
  * get deleted in each call, whilst the sleep interval controls how long the thread sleeps
@@ -175,12 +171,6 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 			strcmp(sqlite3_column_origin_name(pStmt, i),
 				sqlite3_column_name(pStmt, i)) == 0)
 		{
-			// FIXME:
-			Logger::getLogger()->debug("DBG date 1 : table :%s:  column |%s| value |%s|",
-						   sqlite3_column_table_name(pStmt, i),
-						   sqlite3_column_name(pStmt, i),
-						   string((char *)sqlite3_column_text(pStmt, i)).c_str());
-
 			// Column metadata found and column datatype is "pzDataType"
 			string formatStmt = {};
 
@@ -205,13 +195,6 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 				formatStmt += "', '" + string((char *)sqlite3_column_text(pStmt, i));
 				formatStmt += "')";
 			}
-
-			// FIXME:
-			Logger::getLogger()->debug("DBG date 1 : column |%s| format |%s| len |%d|",
-						   sqlite3_column_name(pStmt, i),
-						   formatStmt.c_str(),
-						   strlen((char *)sqlite3_column_text(pStmt, i)));
-
 
 			char* zErrMsg = NULL;
 			// New formatted data
@@ -1719,12 +1702,6 @@ int retrieve;
 		 id,
 		 blksize);
 
-
-	// FIXME:
-	char tmp_buffer[5000];
-	sprintf (tmp_buffer, "DBG fetchReadings sql |%s|", sql_cmd);
-	tmpLogger (tmp_buffer);
-
 	logSQL("ReadingsFetch", sqlbuffer);
 	sqlite3_stmt *stmt;
 	// Prepare the SQL statement and get the result set
@@ -1776,13 +1753,6 @@ SQLBuffer	sql;
 SQLBuffer	jsonConstraints;
 bool		isAggregate = false;
 
-
-	// FIXME:
-	char tmp_buffer[5000];
-	sprintf (tmp_buffer, "DBG retrieveReadings sql ||");
-	tmpLogger (tmp_buffer);
-
-
 	try {
 		if (dbHandle == NULL)
 		{
@@ -1807,10 +1777,6 @@ bool		isAggregate = false;
 		}
 		else
 		{
-			// FIXME:
-			sprintf (tmp_buffer, "DBG retrieveReadings sql .2 ||");
-			tmpLogger (tmp_buffer);
-
 			if (document.Parse(condition.c_str()).HasParseError())
 			{
 				raiseError("retrieve", "Failed to parse JSON payload");
@@ -1898,10 +1864,6 @@ bool		isAggregate = false;
 								}
 								else
 								{
-									// FIXME:
-									sprintf (tmp_buffer, "DBG retrieveReadings sql .3 |%s|", (*itr)["column"].GetString());
-									tmpLogger (tmp_buffer);
-
 									if (strcmp((*itr)["column"].GetString() ,"user_ts") == 0)
 									{
 										// Extract milliseconds and microseconds for the user_ts fields
@@ -1953,10 +1915,6 @@ bool		isAggregate = false;
 			}
 			else
 			{
-				// FIXME:
-				sprintf (tmp_buffer, "DBG retrieveReadings sql .4 ||");
-				tmpLogger (tmp_buffer);
-
 				sql.append("SELECT ");
 				if (document.HasMember("modifier"))
 				{
@@ -1964,7 +1922,6 @@ bool		isAggregate = false;
 					sql.append(' ');
 				}
 
-				// FIXME:
 				const char *sql_cmd = R"(
 						id,
 						asset_code,
@@ -2023,11 +1980,7 @@ bool		isAggregate = false;
 		int rc;
 		sqlite3_stmt *stmt;
 
-		// FIXME:
-		sprintf (tmp_buffer, "DBG retrieveReadings sql .5|%s|", query);
-		tmpLogger (tmp_buffer);
-
-		logSQL("ReadingsRetrive", query);
+		logSQL("ReadingsRetrieve", query);
 
 		// Prepare the SQL statement and get the result set
 		rc = sqlite3_prepare_v2(dbHandle, query, -1, &stmt, NULL);

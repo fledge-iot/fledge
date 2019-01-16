@@ -575,8 +575,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 for k, v in cat.items():
                     if v['type'] == 'script':
                         try:
-                            cat[k]["value"] = ""
                             cat[k]["file"] = ""
+
                             if v['value'] is not None and v['value'] != "":
                                 cat[k]["value"] = binascii.unhexlify(v['value'].encode('utf-8')).decode("utf-8")
                         except Exception as e:

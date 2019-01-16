@@ -180,7 +180,6 @@ async def get_category_item(request):
     try:
         if category_item['type'] == 'script':
 
-            category_item['value'] = ""
             category_item["file"] = ""
 
             try:

@@ -2608,7 +2608,7 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 		}
 		sql.append("< datetime('now', '-");
 		sql.append(whereClause["value"].GetInt());
-		sql.append(" seconds', 'localtime')");
+		sql.append(" seconds')"); // Get value in UTC by asking for no timezone
 	}
 	else if (!cond.compare("newer"))
 	{
@@ -2620,7 +2620,7 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 		}
 		sql.append("> datetime('now', '-");
 		sql.append(whereClause["value"].GetInt());
-		sql.append(" seconds', 'localtime')");
+		sql.append(" seconds')"); // Get value ion UTC timezone
 	}
 	else
 	{

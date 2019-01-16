@@ -8,7 +8,7 @@
 
 """
 import subprocess
-import os
+import os, fnmatch
 import http.client
 import json
 import pytest
@@ -29,6 +29,15 @@ def reset_and_start_foglamp():
     assert "FogLAMP not running." not in stat.stdout.decode("utf-8")
 
 
+def find(pattern, path):
+    result = None
+    for root, dirs, files in os.walk(path):
+        for name in files:
+            if fnmatch.fnmatch(name, pattern):
+                result = os.path.join(root, name)
+    return result
+
+
 @pytest.fixture
 def start_south():
     def _start_foglamp_south(south_plugin, foglamp_url, config=None):
@@ -38,14 +47,24 @@ def start_south():
                 "config": _config}
 
         conn = http.client.HTTPConnection(foglamp_url)
+        # Remove south plugin dir from tmp
         subprocess.run(["rm -rf /tmp/foglamp-south-{}".format(south_plugin)], shell=True, check=True)
+        # Remove south plugin from FogLAMP
         subprocess.run(["rm -rf $FOGLAMP_ROOT/python/foglamp/plugins/south/foglamp-south-{}".format(south_plugin)],
                        shell=True, check=True)
+        # Clone south plugin repo
         subprocess.run(["git clone https://github.com/foglamp/foglamp-south-{}.git /tmp/foglamp-south-{}".
                        format(south_plugin, south_plugin)], shell=True, check=True)
+        # Install plugin in FogLAMP
         subprocess.run(["cp -r /tmp/foglamp-south-{}/python/foglamp/plugins/south/* "
                         "$FOGLAMP_ROOT/python/foglamp/plugins/south/".format(south_plugin)], shell=True, check=True)
+        # Check if there is a python requirement file
+        req_file = find('requirement*.txt', '/tmp/foglamp-south-{}'.format(south_plugin))
+        # Install python requirement if exist
+        if req_file is not None:
+            subprocess.run(["pip3 install --user -Ir  {} --no-cache-dir".format(req_file)], shell=True, check=True)
 
+        # Create south service
         conn.request("POST", '/foglamp/service', json.dumps(data))
         r = conn.getresponse()
         assert 200 == r.status
@@ -166,4 +185,3 @@ def north_plugin(request):
 @pytest.fixture
 def asset_name(request):
     return request.config.getoption("--asset_name")
-

@@ -118,8 +118,9 @@ def _read_data_from_pi(host, admin, password, pi_database, asset, sensor):
 
 
 @pytest.fixture
-def start_south_north(reset_and_start_foglamp, start_south, start_north, south_plugin, asset_name,
-                      foglamp_url, pi_host, pi_port, north_plugin, pi_token):
+def start_south_north(reset_and_start_foglamp, start_south, start_north,
+                      foglamp_url, pi_host, pi_port, pi_token, south_plugin="playback",
+                      asset_name="end_to_end_csv", north_plugin="PI_Server_V2"):
     """ This fixture clone a south repo and starts both south and north instance
         reset_and_start_foglamp: Fixture that resets and starts foglamp, no explicit invocation, called at start
         start_south: Fixture that starts any south service with given configuration
@@ -163,8 +164,8 @@ def start_south_north(reset_and_start_foglamp, start_south, start_north, south_p
     _remove_directories("/tmp/foglamp-south-{}".format(south_plugin))
 
 
-def test_end_to_end(start_south_north, foglamp_url, pi_host, pi_port, pi_admin, pi_passwd, pi_db,
-                    asset_name, wait_time, retries):
+def test_end_to_end(start_south_north, foglamp_url, pi_host, pi_admin, pi_passwd, pi_db,
+                    wait_time, retries, asset_name="end_to_end_csv"):
     """ Test that data is inserted in FogLAMP and sent to PI
         start_south_north: Fixture that starts FogLAMP with south and north instance"""
 

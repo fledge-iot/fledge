@@ -4,10 +4,11 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-import os
-import binascii
+
 from aiohttp import web
+import binascii
 import urllib.parse
+import os
 
 from foglamp.services.core import connect
 from foglamp.common.configuration_manager import ConfigurationManager
@@ -92,26 +93,6 @@ async def get_category(request):
 
     if category is None:
         raise web.HTTPNotFound(reason="No such Category found for {}".format(category_name))
-
-    for k, v in category.items():
-        if v['type'] == 'script':
-            # FIXME: Handle 'Non-hexadecimal digit found' issue
-            try:
-                category[k]["value"] = binascii.unhexlify(v['value'].encode('utf-8')).decode("utf-8")
-            except Exception as e:
-                _logger.exception("Got an error while decoding config item: {} | {}".format(category[k], str(e)))
-                pass
-
-            if cf_mgr._cacheManager.cache[category_name]['value'][k]:
-                cf_mgr._cacheManager.cache[category_name]['value'][k]['value'] = v['value']
-
-            prefix_file_name = category_name.lower() + "_" + k.lower() + "_"
-            if not os.path.exists(script_dir):
-                os.makedirs(script_dir)
-            _all_files = os.listdir(script_dir)
-            for name in _all_files:
-                if name.startswith(prefix_file_name) and name.endswith('.py'):
-                    category[k]["file"] = script_dir + name
 
     return web.json_response(category)
 

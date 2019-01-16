@@ -29,6 +29,10 @@
 #include <chrono>
 #include <thread>
 
+// FIXME::
+#include <tmp_log.hpp>
+
+
 /*
  * Control the way purge deletes readings. The block size sets a limit as to how many rows
  * get deleted in each call, whilst the sleep interval controls how long the thread sleeps
@@ -77,8 +81,10 @@ unsigned long numStatements = 0;
 #define F_DATEH24_H     	"%Y-%m-%d %H"
 // This is the default datetime format in FogLAMP: 2018-05-03 18:15:00.622
 #define F_DATEH24_MS    	"%Y-%m-%d %H:%M:%f"
+// Format up to seconds
+#define F_DATEH24_SEC    	"%Y-%m-%d %H:%M:%S"
 #define SQLITE3_NOW     	"strftime('%Y-%m-%d %H:%M:%f', 'now')"
-// The default precision is milleseconds, it adds microseconds and timezone
+// The default precision is milliseconds, it adds microseconds and timezone
 #define SQLITE3_NOW_READING     "strftime('%Y-%m-%d %H:%M:%f', 'now') || '000+00:00'"
 #define SQLITE3_FOGLAMP_DATETIME_TYPE "DATETIME"
 static time_t connectErrorTime = 0;
@@ -147,7 +153,7 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 	 * we assume the column has not been formatted
 	 * by any datetime() or strftime() SQLite function.
 	 * Thus we apply default FOGLAMP formatting:
-	 * "%Y-%m-%d %H:%M:%f" with 'localtime'
+	 * "%Y-%m-%d %H:%M:%f"
 	 */
 	if (sqlite3_column_database_name(pStmt, i) != NULL &&
 		sqlite3_column_table_name(pStmt, i) != NULL &&
@@ -175,10 +181,34 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 						   string((char *)sqlite3_column_text(pStmt, i)).c_str());
 
 			// Column metadata found and column datatype is "pzDataType"
-			string formatStmt = string("SELECT strftime('");
-			formatStmt += string(F_DATEH24_MS);
-			formatStmt += "', '" + string((char *)sqlite3_column_text(pStmt, i));
-			formatStmt += "')";
+			string formatStmt = {};
+
+			if ((strcmp(sqlite3_column_name(pStmt, i) ,"user_ts") == 0) &&
+			    (strlen((char *)sqlite3_column_text(pStmt, i))    == 32))
+			{
+				// Extract milliseconds and microseconds for the user_ts field
+				formatStmt = string("SELECT strftime('");
+				formatStmt += string(F_DATEH24_SEC);
+				formatStmt += "', '" + string((char *)sqlite3_column_text(pStmt, i));
+				formatStmt += "')";
+				formatStmt += " || substr('"+ string((char *)sqlite3_column_text(pStmt, i));
+				formatStmt += "', instr('"  + string((char *)sqlite3_column_text(pStmt, i));
+				formatStmt += "', '.'), 7)";
+			}
+			else
+			{
+				formatStmt = string("SELECT strftime('");
+				formatStmt += string(F_DATEH24_MS);
+				formatStmt += "', '" + string((char *)sqlite3_column_text(pStmt, i));
+				formatStmt += "')";
+			}
+
+			// FIXME:
+			Logger::getLogger()->debug("DBG date 1 : column |%s| format |%s| len |%d|",
+						   sqlite3_column_name(pStmt, i),
+						   formatStmt.c_str(),
+						   strlen((char *)sqlite3_column_text(pStmt, i)));
+
 
 			char* zErrMsg = NULL;
 			// New formatted data
@@ -1686,6 +1716,12 @@ int retrieve;
 		 id,
 		 blksize);
 
+
+	// FIXME:
+	char tmp_buffer[5000];
+	sprintf (tmp_buffer, "DBG fetchReadings sql |%s|", sql_cmd);
+	tmpLogger (tmp_buffer);
+
 	logSQL("ReadingsFetch", sqlbuffer);
 	sqlite3_stmt *stmt;
 	// Prepare the SQL statement and get the result set
@@ -1737,6 +1773,13 @@ SQLBuffer	sql;
 SQLBuffer	jsonConstraints;
 bool		isAggregate = false;
 
+
+	// FIXME:
+	char tmp_buffer[5000];
+	sprintf (tmp_buffer, "DBG retrieveReadings sql ||");
+	tmpLogger (tmp_buffer);
+
+
 	try {
 		if (dbHandle == NULL)
 		{
@@ -1746,10 +1789,25 @@ bool		isAggregate = false;
 
 		if (condition.empty())
 		{
-			sql.append("SELECT * FROM foglamp.readings");
+			const char *sql_cmd = R"(
+					SELECT
+						id,
+						asset_code,
+						read_key,
+						reading,
+						strftime('%Y-%m-%d %H:%M:%S', user_ts, 'utc')  ||
+						substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
+						strftime('%Y-%m-%d %H:%M:%f', ts, 'utc') AS ts
+					FROM foglamp.readings)";
+
+			sql.append(sql_cmd);
 		}
 		else
 		{
+			// FIXME:
+			sprintf (tmp_buffer, "DBG retrieveReadings sql .2 ||");
+			tmpLogger (tmp_buffer);
+
 			if (document.Parse(condition.c_str()).HasParseError())
 			{
 				raiseError("retrieve", "Failed to parse JSON payload");
@@ -1799,7 +1857,7 @@ bool		isAggregate = false;
 						{
 							if (! (*itr)["column"].IsString())
 							{
-								raiseError("rerieve",
+								raiseError("retrieve",
 									   "column must be a string");
 								return false;
 							}
@@ -1807,7 +1865,7 @@ bool		isAggregate = false;
 							{
 								if (! (*itr)["format"].IsString())
 								{
-									raiseError("rerieve",
+									raiseError("retrieve",
 										   "format must be a string");
 									return false;
 								}
@@ -1824,7 +1882,7 @@ bool		isAggregate = false;
 							{
 								if (! (*itr)["timezone"].IsString())
 								{
-									raiseError("rerieve",
+									raiseError("retrieve",
 										   "timezone must be a string");
 									return false;
 								}
@@ -1837,11 +1895,27 @@ bool		isAggregate = false;
 								}
 								else
 								{
-									sql.append("strftime('%Y-%m-%d %H:%M:%f', ");
-									sql.append((*itr)["column"].GetString());
-									sql.append(", 'utc')");
-									sql.append(" AS ");
-									sql.append((*itr)["column"].GetString());
+									// FIXME:
+									sprintf (tmp_buffer, "DBG retrieveReadings sql .3 |%s|", (*itr)["column"].GetString());
+									tmpLogger (tmp_buffer);
+
+									if (strcmp((*itr)["column"].GetString() ,"user_ts") == 0)
+									{
+										// Extract milliseconds and microseconds for the user_ts fields
+
+										sql.append("strftime('%Y-%m-%d %H:%M:%S', user_ts, 'utc') ");
+										sql.append(" || substr(user_ts, instr(user_ts, '.'), 7) ");
+										sql.append(" AS user_ts");
+									}
+									else
+									{
+										sql.append("strftime('%Y-%m-%d %H:%M:%f', ");
+										sql.append((*itr)["column"].GetString());
+										sql.append(", 'utc')");
+										sql.append(" AS ");
+										sql.append((*itr)["column"].GetString());
+									}
+
 								}
 							}
 							else
@@ -1876,13 +1950,29 @@ bool		isAggregate = false;
 			}
 			else
 			{
+				// FIXME:
+				sprintf (tmp_buffer, "DBG retrieveReadings sql .4 ||");
+				tmpLogger (tmp_buffer);
+
 				sql.append("SELECT ");
 				if (document.HasMember("modifier"))
 				{
 					sql.append(document["modifier"].GetString());
 					sql.append(' ');
 				}
-				sql.append(" * FROM foglamp.");
+
+				// FIXME:
+				const char *sql_cmd = R"(
+						id,
+						asset_code,
+						read_key,
+						reading,
+						strftime('%Y-%m-%d %H:%M:%S', user_ts, 'utc')  ||
+						substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
+						strftime('%Y-%m-%d %H:%M:%f', ts, 'utc') AS ts
+					FROM foglamp.)";
+
+				sql.append(sql_cmd);
 			}
 			sql.append("readings");
 			if (document.HasMember("where"))
@@ -1929,6 +2019,10 @@ bool		isAggregate = false;
 		char *zErrMsg = NULL;
 		int rc;
 		sqlite3_stmt *stmt;
+
+		// FIXME:
+		sprintf (tmp_buffer, "DBG retrieveReadings sql .5|%s|", query);
+		tmpLogger (tmp_buffer);
 
 		logSQL("ReadingsRetrive", query);
 

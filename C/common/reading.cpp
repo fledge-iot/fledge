@@ -89,24 +89,8 @@ char	uuid_str[37];
 	uuid_generate_time_safe(uuid);
 	uuid_unparse_lower(uuid, uuid_str);
 	m_uuid = string(uuid_str);
-	struct tm tm;
-	strptime(ts.c_str(), COMBINED_DATE_STANDARD_FORMAT, &tm);
-	m_timestamp.tv_sec = mktime(&tm);
-	const char *ptr = ts.c_str();
-	while (*ptr && *ptr != '.')
-		ptr++;
-	if (ptr)
-	{
-		ptr++;
-		m_timestamp.tv_usec = strtol(ptr, NULL, 10);
-	}
-	// We now need to allow for the timezone difference as mktime is returning
-	// In the local timezone
-	time_t	now = time(NULL);
-	struct tm local = *localtime(&now);
-	struct tm utc = *gmtime(&now);
 
-	m_timestamp.tv_sec -= 3600 * (local.tm_hour - utc.tm_hour);
+	stringToTimestamp(ts, &m_timestamp);
 	// Initialise m_userTimestamp
 	m_userTimestamp = m_timestamp;
 }
@@ -282,4 +266,71 @@ ostringstream assetTime;
 		return string(date_time);
 	}
 
+}
+
+/**
+ * Set the system timestamp from a string of the format
+ * 2019-01-01 10:00:00.123456+08:00
+ * The timeval is populate in UTC
+ *
+ * @param timestamp	The timestamp string
+ */
+void Reading::setTimestamp(const string& timestamp)
+{
+	stringToTimestamp(timestamp, &m_timestamp);
+}
+
+/**
+ * Set the user timestamp from a string of the format
+ * 2019-01-01 10:00:00.123456+08:00
+ * The timeval is populate in UTC
+ *
+ * @param timestamp	The timestamp string
+ */
+void Reading::setUserTimestamp(const string& timestamp)
+{
+	stringToTimestamp(timestamp, &m_userTimestamp);
+}
+
+/**
+ * Convert a string timestamp, with milliseconds to a 
+ * struct timeval.
+ *
+ * Timezone handling
+ *    The timezone in the string is extracted to get UTC values
+ *    This is then converted to the local timezone as readings 
+ *    are always expressed in the localtime zone
+ *
+ * @param timestamp	String timestamp
+ * @param ts		Struct timeval to populate
+ */
+void Reading::stringToTimestamp(const string& timestamp, struct timeval *ts)
+{
+	struct tm tm;
+	strptime(timestamp.c_str(), "%Y-%m-%d %H:%M:%S", &tm);
+	ts->tv_sec = mktime(&tm);
+	const char *ptr = timestamp.c_str();
+	while (*ptr && *ptr != '.')
+		ptr++;
+	if (*ptr)
+	{
+		ptr++;
+		ts->tv_usec = strtol(ptr, NULL, 10);
+	}
+	// Get the timezone from the string and convert to UTC
+	ptr = timestamp.c_str() + 10; // Skip date as it contains '-' characters
+	while (*ptr && *ptr != '-' && *ptr != '+')
+                ptr++;
+	if (*ptr)
+	{
+		int h, m;
+		int sign = (*ptr == '+' ? -1 : +1);
+		ptr++;
+		sscanf(ptr, "%02d:%02d", &h, &m);
+		ts->tv_sec += sign * ((3600 * h) + (60 * m));
+	}
+	// Now convert to the local time
+	extern long timezone;
+	tzset();
+	ts->tv_sec -= timezone;
 }

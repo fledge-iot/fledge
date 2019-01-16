@@ -170,7 +170,7 @@ string	category, items, payload;
 	payload = request->content.string();
 	ConfigCategoryChange	conf(payload);
 	ConfigHandler	*handler = ConfigHandler::getInstance(NULL);
-	handler->configChange(conf.getName(), conf.itemsToJSON());
+	handler->configChange(conf.getName(), conf.itemsToJSON(true));
 	convert << "{ \"message\" ; \"Config change accepted\" }";
 	responsePayload = convert.str();
 	respond(response, responsePayload);

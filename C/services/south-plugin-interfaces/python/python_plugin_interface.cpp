@@ -11,7 +11,6 @@
 #include <logger.h>
 #include <config_category.h>
 #include <reading.h>
-#include <utils.h>
 #include <mutex>
 #include <python_plugin_handle.h>
 

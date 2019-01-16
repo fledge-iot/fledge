@@ -15,6 +15,8 @@
 #include <plugin_api.h>
 #include <plugin.h>
 
+#define VERBOSE_LOG	0
+
 /**
  * The sending process is run according to a schedule in order to send reading data
  * to the historian, e.g. the PI system.
@@ -105,11 +107,13 @@ void applyFilters(SendingProcess* loadData,
 		  ReadingSet* readingSet)
 {
 	// Get first filter
-	auto it = loadData->getFilters().begin();
+	FilterPlugin *firstFilter = loadData->filterPipeline->getFirstFilterPlugin();
+	
 	// Call first filter "ingest"
 	// Note:
 	// next filters will be automatically called
-	(*it)->ingest(readingSet);
+	if (firstFilter)
+		firstFilter->ingest(readingSet);
 }
 
 /**
@@ -142,11 +146,13 @@ static void loadDataThread(SendingProcess *loadData)
 
                 if (canLoad)
                 {
+#if VERBOSE_LOG
 			Logger::getLogger()->info("SendingProcess loadDataThread: "
 						  "('%s' stream id %d), readIdx %u, buffer is NOT empty, waiting ...",
 						  loadData->getDataSourceType().c_str(),
 						  loadData->getStreamId(),
 						  readIdx);
+#endif
 
 	                Logger::getLogger()->warn("SendingProcess is faster to load data than the destination to process them,"
 	                                          " so all the %lu in memory buffers are full and the load thread should wait until at least a buffer is freed.",
@@ -260,22 +266,44 @@ static void loadDataThread(SendingProcess *loadData)
 				 */
 
 				// Apply filters to the reading set
-				if (loadData->getFiltersCount())
+				if (loadData->filterPipeline)
 				{
-					// Make the load readIdx available to filters
-					loadData->setLoadBufferIndex(readIdx);
-					// Apply filters
-					applyFilters(loadData, readings);
+					FilterPlugin *firstFilter = loadData->filterPipeline->getFirstFilterPlugin();
+					if (firstFilter)
+					{
+						// Make the load readIdx available to filters
+						loadData->setLoadBufferIndex(readIdx);
+						// Apply filters
+						applyFilters(loadData, readings);
+					}
+					else
+					{
+						// No filters: just set buffer with current data
+						loadData->m_buffer.at(readIdx) = readings;
+					}
 				}
 				else
 				{
 					// No filters: just set buffer with current data
-              				loadData->m_buffer.at(readIdx) = readings;
+					loadData->m_buffer.at(readIdx) = readings;
 				}
 
-                        	readMutex.unlock();
+				// Update asset tracker table/cache, if required
+				vector<Reading *> *vec = loadData->m_buffer.at(readIdx)->getAllReadingsPtr();
+				for (vector<Reading *>::iterator it = vec->begin(); it != vec->end(); ++it)
+				{
+					Reading *reading = *it;
+					AssetTrackingTuple tuple(loadData->getName(), loadData->getPluginName(), reading->getAssetName(), "Egress");
+					if (!AssetTracker::getAssetTracker()->checkAssetTrackingCache(tuple))
+					{
+						AssetTracker::getAssetTracker()->addAssetTrackingTuple(tuple);
+						Logger::getLogger()->info("loadDataThread(): Adding new asset tracking tuple seen during readings' egress: %s", tuple.assetToString().c_str());
+					}
+				}
 
-                        	readIdx++;
+				readMutex.unlock();
+
+				readIdx++;
 
 				// Unlock the sendData thread
 				unique_lock<mutex> lock(waitMutex);
@@ -295,9 +323,11 @@ static void loadDataThread(SendingProcess *loadData)
                 }
         }
 
+#if VERBOSE_LOG
 	Logger::getLogger()->info("SendingProcess loadData thread: Last ID '%s' read is %lu",
 				  loadData->getDataSourceType().c_str(),
 				  loadData->getLastFetchId());
+#endif
 
 	/**
 	 * The loop is over: unlock the sendData thread
@@ -353,11 +383,13 @@ static void sendDataThread(SendingProcess *sendData)
 
                 if (canSend == NULL)
                 {
-                        /*Logger::getLogger()->info("SendingProcess sendDataThread: " \
+#if VERBOSE_LOG
+                        Logger::getLogger()->info("SendingProcess sendDataThread: " \
                                                   "('%s' stream id %d), sendIdx %u, buffer is empty, waiting ...",
 						  sendData->getDataSourceType().c_str(),
                                                   sendData->getStreamId(),
-                                                  sendIdx);*/
+                                                  sendIdx);
+#endif
 
 			if (sendData->getUpdateDb())
 			{
@@ -487,9 +519,11 @@ static void sendDataThread(SendingProcess *sendData)
 		}
 
         }
+#if VERBOSE_LOG
 	Logger::getLogger()->info("SendingProcess sendData thread: sent %lu total '%s'",
 				  totSent,
 				  sendData->getDataSourceType().c_str());
+#endif
 
 	if (sendData->getUpdateDb())
 	{

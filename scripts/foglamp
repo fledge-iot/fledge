@@ -415,6 +415,7 @@ foglamp_status() {
                 ps -ef | grep "foglamp.services.south" |grep python3| grep -v 'grep' | awk '{print "foglamp.services.south " $11 " " $12 " " $13}' || true
                 ps -ef | grep "foglamp.services.south" |grep -v python3| grep -v 'grep' | grep -v awk | awk '{print "foglamp.services.south " $9 " " $10 " " $11}' || true
                 ps -ef | grep "foglamp.services.north" | grep -v 'grep' | grep -v awk | awk '{print "foglamp.services.north " $9 " " $10}' || true
+                ps -ef | grep "foglamp.services.notification" |grep -v python3| grep -v 'grep' | grep -v awk | awk '{print "foglamp.services.notification " $9 " " $10 " " $11}' || true
 
                 # Show Tasks
                 foglamp_log "info" "=== FogLAMP tasks:" "outonly" "pretty"

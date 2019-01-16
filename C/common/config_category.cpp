@@ -266,6 +266,16 @@ void ConfigCategory::addItem(const std::string& name, const std::string descript
 }
 
 /**
+ * Add an item to a configuration category
+ */
+void ConfigCategory::addItem(const std::string& name, const std::string description,
+                             const std::string def, const std::string& value,
+			     const vector<string> options)
+{
+	m_items.push_back(new CategoryItem(name, description, def, value, options));
+}
+
+/**
  * Delete all the items from the configuration category having a specific type
  *
  * * @param type  Type to delete
@@ -1066,6 +1076,25 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name, const std::string
 	m_default = def;
 	m_value = value;
 	m_itemType = StringItem;
+}
+
+/**
+ * Constructor for a configuration item
+ */
+ConfigCategory::CategoryItem::CategoryItem(const string& name, const std::string& description,
+                                           const std::string def, const std::string& value,
+					   const vector<string> options)
+{
+	m_name = name;
+	m_description = description;
+	m_type = "enumeration";
+	m_default = def;
+	m_value = value;
+	m_itemType = StringItem;
+	for (auto it = options.cbegin(); it != options.cend(); it++)
+	{
+		m_options.push_back(*it);
+	}
 }
 
 /**

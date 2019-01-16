@@ -20,6 +20,7 @@
 #include <unordered_set>
 #include <condition_variable>
 #include <filter_plugin.h>
+#include <filter_pipeline.h>
 #include <asset_tracking.h>
 #include <service_handler.h>
 
@@ -51,21 +52,15 @@ public:
 	int 		createStatsDbEntry(const std::string& assetName);
 
 	bool		loadFilters(const std::string& categoryName);
-	bool		setupFiltersPipeline();
 	static void	passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 					   READINGSET* readings);
 	static void	useFilteredData(OUTPUT_HANDLE *outHandle,
 					READINGSET* readings);
 
-	void 		populateAssetTrackingCache(ManagementClient *m_mgtClient);
-	bool 		checkAssetTrackingCache(AssetTrackingTuple& tuple);
-	void 		addAssetTrackingTuple(AssetTrackingTuple& tuple);
 	void		setTimeout(const unsigned long timeout) { m_timeout = timeout; };
 	void		setThreshold(const unsigned int threshold) { m_queueSizeThreshold = threshold; };
 	void		configChange(const std::string&, const std::string&);
 	void		shutdown() {};	// Satisfy ServiceHandler
-public:
-	std::vector<FilterPlugin *>	m_filters;
 
 private:
 	StorageClient&			m_storage;
@@ -87,11 +82,10 @@ private:
 	// Data ready to be filtered/sent
 	std::vector<Reading *>*		m_data;
 	unsigned int			m_discardedReadings; // discarded readings since last update to statistics table
+	FilterPipeline*			filterPipeline;
 	
-	std::unordered_set<AssetTrackingTuple*, std::hash<AssetTrackingTuple*>, AssetTrackingTuplePtrEqual>   assetTrackerTuplesCache;
 	std::unordered_set<std::string>   		statsDbEntriesCache;  // confirmed stats table entries
 	std::map<std::string, int>		statsPendingEntries;  // pending stats table entries
-	std::map<std::string, FilterPlugin *>	m_filterCategories;
 };
 
 #endif

@@ -7,6 +7,7 @@ LN := ln -sf
 CMAKE := cmake
 PIP_USER_FLAG = --user
 PIP_INSTALL_REQUIREMENTS := pip3 install -Ir
+USE_PIP_CACHE := no
 PYTHON_BUILD_PACKAGE = python3 setup.py build -b ../$(PYTHON_BUILD_DIR)
 RM_DIR := rm -r
 RM_FILE := rm
@@ -86,6 +87,7 @@ STORAGE_SERVICE_SCRIPT_SRC  := scripts/services/storage
 STORAGE_SCRIPT_SRC          := scripts/storage
 NORTH_SCRIPT_SRC            := scripts/tasks/north
 NORTH_C_SCRIPT_SRC          := scripts/tasks/north_c
+NOTIFICATION_C_SCRIPT_SRC   := scripts/services/notification_c
 PURGE_SCRIPT_SRC            := scripts/tasks/purge
 STATISTICS_SCRIPT_SRC       := scripts/tasks/statistics
 BACKUP_SRC                  := scripts/tasks/backup
@@ -141,6 +143,13 @@ else
 	$(eval ACTION="Building")
 endif
 	@echo "$(ACTION) $(PACKAGE_NAME) version $(FOGLAMP_VERSION), DB schema $(FOGLAMP_SCHEMA)"
+
+# Use cache for python requirements depending on the value of USE_PIP_CACHE
+ifeq ($(USE_PIP_CACHE), yes)
+    $(eval NO_CACHE_DIR=)
+else
+    $(eval NO_CACHE_DIR= --no-cache-dir)
+endif
 
 # Check where this FogLAMP can be installed over an existing one:
 schema_check : apply_version
@@ -236,11 +245,11 @@ python_build : $(PYTHON_SETUP_FILE)
 
 # install python requirements without --user 
 python_requirements : $(PYTHON_REQUIREMENTS_FILE)
-	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) --no-cache-dir
+	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) $(NO_CACHE_DIR)
 
 # install python requirements for user
 python_requirements_user : $(PYTHON_REQUIREMENTS_FILE)
-	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) $(PIP_USER_FLAG) --no-cache-dir
+	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) $(PIP_USER_FLAG) $(NO_CACHE_DIR)
 
 # create python install dir
 $(PYTHON_INSTALL_DIR) :
@@ -267,6 +276,7 @@ scripts_install : $(SCRIPTS_INSTALL_DIR) \
 	install_storage_service_script \
 	install_north_script \
 	install_north_c_script \
+	install_notification_c_script \
 	install_purge_script \
 	install_statistics_script \
 	install_storage_script \
@@ -312,6 +322,9 @@ install_north_script : $(SCRIPT_TASKS_INSTALL_DIR) $(NORTH_SCRIPT_SRC)
 
 install_north_c_script : $(SCRIPT_TASKS_INSTALL_DIR) $(NORTH_C_SCRIPT_SRC)
 	$(CP) $(NORTH_C_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
+
+install_notification_c_script: $(SCRIPT_SERVICES_INSTALL_DIR) $(NOTIFICATION_C_SCRIPT_SRC)
+	$(CP) $(NOTIFICATION_C_SCRIPT_SRC) $(SCRIPT_SERVICES_INSTALL_DIR)
 
 install_purge_script : $(SCRIPT_TASKS_INSTALL_DIR) $(PURGE_SCRIPT_SRC)
 	$(CP) $(PURGE_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)

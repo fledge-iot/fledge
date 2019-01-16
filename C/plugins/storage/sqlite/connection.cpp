@@ -176,17 +176,20 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 				sqlite3_column_name(pStmt, i)) == 0)
 		{
 			// FIXME:
-			Logger::getLogger()->debug("DBG date 1 : column |%s| value |%s|",
+			Logger::getLogger()->debug("DBG date 1 : table :%s:  column |%s| value |%s|",
+						   sqlite3_column_table_name(pStmt, i),
 						   sqlite3_column_name(pStmt, i),
 						   string((char *)sqlite3_column_text(pStmt, i)).c_str());
 
 			// Column metadata found and column datatype is "pzDataType"
 			string formatStmt = {};
 
-			if ((strcmp(sqlite3_column_name(pStmt, i) ,"user_ts") == 0) &&
-			    (strlen((char *)sqlite3_column_text(pStmt, i))    == 32))
+			if ((strcmp(sqlite3_column_name(pStmt, i),         "user_ts" ) == 0) &&
+			    (strcmp(sqlite3_column_table_name(pStmt, i),   "readings") == 0) &&
+			    (strlen((char *)sqlite3_column_text(pStmt, i))             == 32))
 			{
 				// Extract milliseconds and microseconds for the user_ts field
+				// of the readingstable
 				formatStmt = string("SELECT strftime('");
 				formatStmt += string(F_DATEH24_SEC);
 				formatStmt += "', '" + string((char *)sqlite3_column_text(pStmt, i));

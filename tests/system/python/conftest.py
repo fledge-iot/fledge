@@ -8,9 +8,12 @@
 
 """
 import subprocess
-import os, fnmatch
+import os
+import fnmatch
 import http.client
 import json
+import base64
+import ssl
 import pytest
 
 __author__ = "Vaibhav Singhal"
@@ -100,6 +103,80 @@ def start_north():
     return _start_foglamp_north_pi_v2
 
 
+@pytest.fixture
+def read_data_from_pi():
+    def _read_data_from_pi(host, admin, password, pi_database, asset, sensor):
+        """ This method reads data from pi web api """
+
+        # List of pi databases
+        dbs = None
+        # PI logical grouping of attributes and child elements
+        elements = None
+        # List of elements
+        url_elements_list = None
+        # Element's recorded data url
+        url_recorded_data = None
+        # Resources in the PI Web API are addressed by WebID, parameter used for deletion of element
+        web_id = None
+
+        username_password = "{}:{}".format(admin, password)
+        username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
+        headers = {'Authorization': 'Basic %s' % username_password_b64}
+
+        try:
+            conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
+            conn.request("GET", '/piwebapi/assetservers', headers=headers)
+            res = conn.getresponse()
+            r = json.loads(res.read().decode())
+            dbs = r["Items"][0]["Links"]["Databases"]
+
+            if dbs is not None:
+                conn.request("GET", dbs, headers=headers)
+                res = conn.getresponse()
+                r = json.loads(res.read().decode())
+                for el in r["Items"]:
+                    if el["Name"] == pi_database:
+                        elements = el["Links"]["Elements"]
+
+            if elements is not None:
+                conn.request("GET", elements, headers=headers)
+                res = conn.getresponse()
+                r = json.loads(res.read().decode())
+                url_elements_list = r["Items"][0]["Links"]["Elements"]
+
+            if url_elements_list is not None:
+                conn.request("GET", url_elements_list, headers=headers)
+                res = conn.getresponse()
+                r = json.loads(res.read().decode())
+                items = r["Items"]
+                for el in items:
+                    if el["Name"] == asset:
+                        url_recorded_data = el["Links"]["RecordedData"]
+                        web_id = el["WebId"]
+
+            _data_pi = {}
+            if url_recorded_data is not None:
+                conn.request("GET", url_recorded_data, headers=headers)
+                res = conn.getresponse()
+                r = json.loads(res.read().decode())
+                _items = r["Items"]
+                for el in _items:
+                    _recoded_value_list = []
+                    for _head in sensor:
+                        if el["Name"] == _head:
+                            elx = el["Items"]
+                            for _el in elx:
+                                _recoded_value_list.append(_el["Value"])
+                            _data_pi[_head] = _recoded_value_list
+                conn.request("DELETE", '/piwebapi/elements/{}'.format(web_id), headers=headers)
+                res = conn.getresponse()
+                res.read()
+                return _data_pi
+        except (KeyError, IndexError, Exception):
+            return None
+    return _read_data_from_pi
+
+
 def pytest_addoption(parser):
     parser.addoption("--foglamp_url", action="store", default="localhost:8081",
                      help="foglmap client api url")
@@ -122,9 +199,9 @@ def pytest_addoption(parser):
     parser.addoption("--asset_name", action="store", default="systemtest",
                      help="Name of asset")
     parser.addoption("--wait_time", action="store", default=5,
-                     help="Time to wait between retries")
+                     help="Generic wait time between processes to run")
     parser.addoption("--retries", action="store", default=3,
-                     help="Number of tries to make to fetch data")
+                     help="Number of tries to make to fetch data from PI web api")
 
 
 @pytest.fixture

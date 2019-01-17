@@ -39,8 +39,7 @@ def _remove_directories(dir_path=None):
 def start_south_coap(reset_and_start_foglamp, start_south, foglamp_url, south_plugin="coap", asset_name="smoke"):
     """ This fixture clone a south repo and starts both south and north instance
         reset_and_start_foglamp: Fixture that resets and starts foglamp, no explicit invocation, called at start
-        start_south: Fixture that starts any south service with given configuration
-        start_north: Fixture that starts PI north task"""
+        start_south: Fixture that starts any south service with given configuration"""
 
     # Define the template file for fogbench
     fogbench_template_path = os.path.join(

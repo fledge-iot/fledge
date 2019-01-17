@@ -65,7 +65,7 @@ def start_south():
         req_file = find('requirement*.txt', '/tmp/foglamp-south-{}'.format(south_plugin))
         # Install python requirement if exist
         if req_file is not None:
-            subprocess.run(["pip3 install --user -Ir  {} --no-cache-dir".format(req_file)], shell=True, check=True)
+            subprocess.run(["pip3 install --user -Ir  {}".format(req_file)], shell=True, check=True)
 
         # Create south service
         conn.request("POST", '/foglamp/service', json.dumps(data))

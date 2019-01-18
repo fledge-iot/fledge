@@ -1,7 +1,7 @@
 /*
  * FogLAMP storage service.
  *
- * Copyright (c) 2018 OSisoft, LLC
+ * Copyright (c) 2018 OSIsoft, LLC
  *
  * Released under the Apache 2.0 Licence
  *
@@ -1435,6 +1435,8 @@ bool Connection::formatDate(char *formatted_date, size_t buffer_size, const char
 	// Work out the microseconds from the fractional part of the seconds
 	char fractional[10] = {0};
 	sscanf(date, "%*d-%*d-%*d %*d:%*d:%*d.%[0-9]*", fractional);
+	// Truncate to max 6 digits
+	fractional[6] = 0;
 	int multiplier = 6 - (int)strlen(fractional);
 	if (multiplier < 0)
 		multiplier = 0;

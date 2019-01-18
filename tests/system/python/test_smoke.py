@@ -64,7 +64,7 @@ def start_south_coap(reset_and_start_foglamp, start_south, foglamp_url, south_pl
 
 def test_end_to_end(start_south_coap, foglamp_url, wait_time, asset_name="smoke"):
     """ Test that data is inserted in FogLAMP and sent to PI
-        start_south_north: Fixture that starts FogLAMP with south and north instance"""
+        start_south_coap: Fixture that starts FogLAMP with south coap plugin"""
 
     conn = http.client.HTTPConnection(foglamp_url)
     time.sleep(wait_time)

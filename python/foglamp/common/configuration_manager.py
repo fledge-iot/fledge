@@ -627,13 +627,14 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 item_name)
             raise
 
-    async def set_category_item_value_entry(self, category_name, item_name, new_value_entry):
+    async def set_category_item_value_entry(self, category_name, item_name, new_value_entry, script_file_path=""):
         """Set the "value" entry of a given item within a given category.
 
         Keyword Arguments:
         category_name -- name of the category (required)
         item_name -- name of item within the category whose "value" entry needs to be changed (required)
         new_value_entry -- new value entry to replace old value entry
+        script_file_path -- Script file path
 
         Side Effects:
         An update to storage will not be issued if a new_value_entry is the same as the new_value_entry from storage.
@@ -680,9 +681,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             await self._update_value_val(category_name, item_name, new_value_entry)
             # always get value from storage
             cat_item = await self._read_item_val(category_name, item_name)
+            if storage_value_entry['type'] == 'script':
+                if cat_item['value'] is not None and cat_item['value'] != "":
+                   cat_item["value"] = binascii.unhexlify(cat_item['value'].encode('utf-8')).decode("utf-8")
+                cat_item["file"] = script_file_path
             if category_name in self._cacheManager.cache:
                 if item_name in self._cacheManager.cache[category_name]['value']:
                     self._cacheManager.cache[category_name]['value'][item_name]['value'] = cat_item['value']
+                    if storage_value_entry['type'] == 'script':
+                        self._cacheManager.cache[category_name]['value'][item_name]["file"] = script_file_path
                 else:
                     self._cacheManager.cache[category_name]['value'].update({item_name: cat_item['value']})
         except:

@@ -524,7 +524,7 @@ async def upload_script(request):
 
     try:
         # Save the value to database
-        await cf_mgr.set_category_item_value_entry(category_name, config_item, str_data)
+        await cf_mgr.set_category_item_value_entry(category_name, config_item, str_data, script_file_path)
         # Remove old files for combination categoryName_configItem_* and retain only the latest one
         _all_files = os.listdir(script_dir)
         for name in _all_files:
@@ -537,9 +537,4 @@ async def upload_script(request):
         raise web.HTTPBadRequest(reason=ex)
     else:
         result = await cf_mgr.get_category_item(category_name, config_item)
-        result['file'] = script_file_path
-        result['value'] = binascii.unhexlify(str_data.encode('utf-8')).decode("utf-8")
-        if cf_mgr._cacheManager.cache[category_name]['value'][config_item]:
-            cf_mgr._cacheManager.cache[category_name]['value'][config_item]['value'] = result['value']
-            cf_mgr._cacheManager.cache[category_name]['value'][config_item]['file'] = result['file']
         return web.json_response(result)

@@ -142,100 +142,155 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 					   int i,
 					   string& newDate)
 {
-	/**
-	 * Handle here possible unformatted DATETIME column type
-	 * If (column_name == column_original_name) AND
-	 * (sqlite3_column_table_name() == "DATETIME")
-	 * we assume the column has not been formatted
-	 * by any datetime() or strftime() SQLite function.
-	 * Thus we apply default FOGLAMP formatting:
-	 * "%Y-%m-%d %H:%M:%f"
-	 */
+
+	bool apply_format = false;
+	string formatStmt = {};
+
+	// FIXME:
+	Logger::getLogger()->debug("DBG applyColumnDateTimeFormat 1.0 : table |%s| column |%s| value |%s|  len |%d|",
+				   sqlite3_column_table_name(pStmt, i),
+				   sqlite3_column_name(pStmt, i),
+				   (char *)sqlite3_column_text(pStmt, i),
+				   strlen((char *)sqlite3_column_text(pStmt, i)));
+
+
+	// FIXME:
+	Logger::getLogger()->debug("DBG applyColumnDateTimeFormat 1.1 : name1 |%s| name2 |%s| ",
+				   sqlite3_column_origin_name(pStmt, i),
+				   sqlite3_column_name(pStmt, i));
+
 	if (sqlite3_column_database_name(pStmt, i) != NULL &&
-		sqlite3_column_table_name(pStmt, i) != NULL &&
-		(strcmp(sqlite3_column_origin_name(pStmt, i),
-			sqlite3_column_name(pStmt, i)) == 0))
+	    sqlite3_column_table_name(pStmt, i)    != NULL)
 	{
-		const char* pzDataType;
-		int retType = sqlite3_table_column_metadata(dbHandle,
-					sqlite3_column_database_name(pStmt, i),
-					sqlite3_column_table_name(pStmt, i),
-					sqlite3_column_name(pStmt, i),
-					&pzDataType,
-					NULL, NULL, NULL, NULL);
 
-		// Check whether to Apply dateformat
-		if (pzDataType != NULL &&
-			retType == SQLITE_OK &&
-			strcmp(pzDataType, SQLITE3_FOGLAMP_DATETIME_TYPE) == 0 &&
-			strcmp(sqlite3_column_origin_name(pStmt, i),
-				sqlite3_column_name(pStmt, i)) == 0)
+		if ((strcmp(sqlite3_column_origin_name(pStmt, i), "user_ts") == 0) &&
+		    (strcmp(sqlite3_column_table_name(pStmt, i), "readings") == 0) &&
+		    (strlen((char *) sqlite3_column_text(pStmt, i)) == 32))
 		{
-			// Column metadata found and column datatype is "pzDataType"
-			string formatStmt = {};
 
-			if ((strcmp(sqlite3_column_name(pStmt, i),         "user_ts" ) == 0) &&
-			    (strcmp(sqlite3_column_table_name(pStmt, i),   "readings") == 0) &&
-			    (strlen((char *)sqlite3_column_text(pStmt, i))             == 32))
-			{
-				// Extract milliseconds and microseconds for the user_ts field
-				// of the readingstable
-				formatStmt = string("SELECT strftime('");
-				formatStmt += string(F_DATEH24_SEC);
-				formatStmt += "', '" + string((char *)sqlite3_column_text(pStmt, i));
-				formatStmt += "')";
-				formatStmt += " || substr('"+ string((char *)sqlite3_column_text(pStmt, i));
-				formatStmt += "', instr('"  + string((char *)sqlite3_column_text(pStmt, i));
-				formatStmt += "', '.'), 7)";
-			}
-			else
-			{
-				formatStmt = string("SELECT strftime('");
-				formatStmt += string(F_DATEH24_MS);
-				formatStmt += "', '" + string((char *)sqlite3_column_text(pStmt, i));
-				formatStmt += "')";
-			}
+			// Extract milliseconds and microseconds for the user_ts field of the readings table
+			formatStmt = string("SELECT strftime('");
+			formatStmt += string(F_DATEH24_SEC);
+			formatStmt += "', '" + string((char *) sqlite3_column_text(pStmt, i));
+			formatStmt += "')";
+			formatStmt += " || substr('" + string((char *) sqlite3_column_text(pStmt, i));
+			formatStmt += "', instr('" + string((char *) sqlite3_column_text(pStmt, i));
+			formatStmt += "', '.'), 7)";
 
-			char* zErrMsg = NULL;
-			// New formatted data
-			char formattedData[100] = "";
+			// FIXME:
+			Logger::getLogger()->debug(
+				"DBG applyColumnDateTimeFormat 2.0 : table |%s| column |%s| format |%s| value |%s|  len |%d|",
+				sqlite3_column_table_name(pStmt, i),
+				sqlite3_column_name(pStmt, i),
+				formatStmt.c_str(),
+				(char *) sqlite3_column_text(pStmt, i),
+				strlen((char *) sqlite3_column_text(pStmt, i)));
 
-			// Exec the format SQL
-			int rc = SQLexec(dbHandle,
-					 formatStmt.c_str(),
-				         dateCallback,
-				         formattedData,
-					 &zErrMsg);
-
-			if (rc == SQLITE_OK )
-			{
-				// Use new formatted datetime value
-				newDate.assign(formattedData);
-
-				return true;
-			}
-			else
-			{
-				Logger::getLogger()->error("SELECT dateformat '%s': error %s",
-							   formatStmt.c_str(),
-							   zErrMsg);
-
-				sqlite3_free(zErrMsg);
-			}
+			apply_format = true;
 		}
 		else
 		{
-			// Format not done
-			// Just log the error if present
-			if (retType != SQLITE_OK)
+			/**
+			 * Handle here possible unformatted DATETIME column type
+			 * If (column_name == column_original_name) AND
+			 * (sqlite3_column_table_name() == "DATETIME")
+			 * we assume the column has not been formatted
+			 * by any datetime() or strftime() SQLite function.
+			 * Thus we apply default FOGLAMP formatting:
+			 * "%Y-%m-%d %H:%M:%f"
+			 */
+			if (sqlite3_column_database_name(pStmt, i) != NULL &&
+			    sqlite3_column_table_name(pStmt, i) != NULL &&
+			    (strcmp(sqlite3_column_origin_name(pStmt, i),
+				    sqlite3_column_name(pStmt, i)) == 0))
 			{
-				Logger::getLogger()->error("SQLite3 failed " \
-						"to call sqlite3_table_column_metadata() " \
-						"for column '%s'",
-						sqlite3_column_name(pStmt, i));
+				const char *pzDataType;
+				int retType = sqlite3_table_column_metadata(dbHandle,
+									    sqlite3_column_database_name(pStmt, i),
+									    sqlite3_column_table_name(pStmt, i),
+									    sqlite3_column_name(pStmt, i),
+									    &pzDataType,
+									    NULL, NULL, NULL, NULL);
+
+				// Check whether to Apply dateformat
+				if (pzDataType != NULL &&
+				    retType == SQLITE_OK &&
+				    strcmp(pzDataType, SQLITE3_FOGLAMP_DATETIME_TYPE) == 0 &&
+				    strcmp(sqlite3_column_origin_name(pStmt, i),
+					   sqlite3_column_name(pStmt, i)) == 0)
+				{
+					// Column metadata found and column datatype is "pzDataType"
+					string formatStmt = {};
+
+					formatStmt = string("SELECT strftime('");
+					formatStmt += string(F_DATEH24_MS);
+					formatStmt += "', '" + string((char *) sqlite3_column_text(pStmt, i));
+					formatStmt += "')";
+
+					// FIXME:
+					Logger::getLogger()->debug(
+						"DBG applyColumnDateTimeFormat 3.0 : table |%s| column |%s| format |%s| value |%s|  len |%d|",
+						sqlite3_column_table_name(pStmt, i),
+						sqlite3_column_name(pStmt, i),
+						formatStmt.c_str(),
+						(char *) sqlite3_column_text(pStmt, i),
+						strlen((char *) sqlite3_column_text(pStmt, i)));
+
+					apply_format = true;
+
+				}
+				else
+				{
+					// Format not done
+					// Just log the error if present
+					if (retType != SQLITE_OK)
+					{
+						Logger::getLogger()->error("SQLite3 failed " \
+                                                                "to call sqlite3_table_column_metadata() " \
+                                                                "for column '%s'",
+									   sqlite3_column_name(pStmt, i));
+					}
+				}
 			}
 		}
 	}
+
+	if (apply_format)
+	{
+
+		char* zErrMsg = NULL;
+		// New formatted data
+		char formattedData[100] = "";
+
+		// Exec the format SQL
+		int rc = SQLexec(dbHandle,
+				 formatStmt.c_str(),
+				 dateCallback,
+				 formattedData,
+				 &zErrMsg);
+
+		// FIXME:
+		Logger::getLogger()->debug("DBG applyColumnDateTimeFormat 4.0 : apply_format - formattedData |%s|",
+					   formattedData);
+
+		if (rc == SQLITE_OK )
+		{
+			// Use new formatted datetime value
+			newDate.assign(formattedData);
+
+			return true;
+		}
+		else
+		{
+			Logger::getLogger()->error("SELECT dateformat '%s': error %s",
+						   formatStmt.c_str(),
+						   zErrMsg);
+
+			sqlite3_free(zErrMsg);
+		}
+
+	}
+
 	return false;
 }
 
@@ -1755,6 +1810,10 @@ SQLBuffer	sql;
 SQLBuffer	jsonConstraints;
 bool		isAggregate = false;
 
+	// FIXME:
+	Logger::getLogger()->debug("DBG retrieveReadings 1 :");
+
+
 	try {
 		if (dbHandle == NULL)
 		{
@@ -1840,6 +1899,10 @@ bool		isAggregate = false;
 										   "format must be a string");
 									return false;
 								}
+
+
+								// FIXME:
+								Logger::getLogger()->debug("DBG retrieveReadings 4  ");
 
 								// SQLite 3 date format.
 								string new_format;
@@ -1984,6 +2047,11 @@ bool		isAggregate = false;
 
 		logSQL("ReadingsRetrieve", query);
 
+
+		// FIXME:
+		Logger::getLogger()->debug("DBG retrieveReadings 2 : query |%s|  ",
+					   query);
+
 		// Prepare the SQL statement and get the result set
 		rc = sqlite3_prepare_v2(dbHandle, query, -1, &stmt, NULL);
 
@@ -1995,6 +2063,9 @@ bool		isAggregate = false;
 			raiseError("retrieve", sqlite3_errmsg(dbHandle));
 			return false;
 		}
+
+		// FIXME:
+		Logger::getLogger()->debug("DBG retrieveReadings 3  ");
 
 		// Call result set mapping
 		rc = mapResultSet(stmt, resultSet);

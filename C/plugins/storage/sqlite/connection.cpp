@@ -146,19 +146,6 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 	bool apply_format = false;
 	string formatStmt = {};
 
-	// FIXME:
-	Logger::getLogger()->debug("DBG applyColumnDateTimeFormat 1.0 : table |%s| column |%s| value |%s|  len |%d|",
-				   sqlite3_column_table_name(pStmt, i),
-				   sqlite3_column_name(pStmt, i),
-				   (char *)sqlite3_column_text(pStmt, i),
-				   strlen((char *)sqlite3_column_text(pStmt, i)));
-
-
-	// FIXME:
-	Logger::getLogger()->debug("DBG applyColumnDateTimeFormat 1.1 : name1 |%s| name2 |%s| ",
-				   sqlite3_column_origin_name(pStmt, i),
-				   sqlite3_column_name(pStmt, i));
-
 	if (sqlite3_column_database_name(pStmt, i) != NULL &&
 	    sqlite3_column_table_name(pStmt, i)    != NULL)
 	{
@@ -176,15 +163,6 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 			formatStmt += " || substr('" + string((char *) sqlite3_column_text(pStmt, i));
 			formatStmt += "', instr('" + string((char *) sqlite3_column_text(pStmt, i));
 			formatStmt += "', '.'), 7)";
-
-			// FIXME:
-			Logger::getLogger()->debug(
-				"DBG applyColumnDateTimeFormat 2.0 : table |%s| column |%s| format |%s| value |%s|  len |%d|",
-				sqlite3_column_table_name(pStmt, i),
-				sqlite3_column_name(pStmt, i),
-				formatStmt.c_str(),
-				(char *) sqlite3_column_text(pStmt, i),
-				strlen((char *) sqlite3_column_text(pStmt, i)));
 
 			apply_format = true;
 		}
@@ -227,15 +205,6 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 					formatStmt += "', '" + string((char *) sqlite3_column_text(pStmt, i));
 					formatStmt += "')";
 
-					// FIXME:
-					Logger::getLogger()->debug(
-						"DBG applyColumnDateTimeFormat 3.0 : table |%s| column |%s| format |%s| value |%s|  len |%d|",
-						sqlite3_column_table_name(pStmt, i),
-						sqlite3_column_name(pStmt, i),
-						formatStmt.c_str(),
-						(char *) sqlite3_column_text(pStmt, i),
-						strlen((char *) sqlite3_column_text(pStmt, i)));
-
 					apply_format = true;
 
 				}
@@ -268,10 +237,6 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 				 dateCallback,
 				 formattedData,
 				 &zErrMsg);
-
-		// FIXME:
-		Logger::getLogger()->debug("DBG applyColumnDateTimeFormat 4.0 : apply_format - formattedData |%s|",
-					   formattedData);
 
 		if (rc == SQLITE_OK )
 		{
@@ -1810,10 +1775,6 @@ SQLBuffer	sql;
 SQLBuffer	jsonConstraints;
 bool		isAggregate = false;
 
-	// FIXME:
-	Logger::getLogger()->debug("DBG retrieveReadings 1 :");
-
-
 	try {
 		if (dbHandle == NULL)
 		{
@@ -1899,10 +1860,6 @@ bool		isAggregate = false;
 										   "format must be a string");
 									return false;
 								}
-
-
-								// FIXME:
-								Logger::getLogger()->debug("DBG retrieveReadings 4  ");
 
 								// SQLite 3 date format.
 								string new_format;
@@ -2047,11 +2004,6 @@ bool		isAggregate = false;
 
 		logSQL("ReadingsRetrieve", query);
 
-
-		// FIXME:
-		Logger::getLogger()->debug("DBG retrieveReadings 2 : query |%s|  ",
-					   query);
-
 		// Prepare the SQL statement and get the result set
 		rc = sqlite3_prepare_v2(dbHandle, query, -1, &stmt, NULL);
 
@@ -2063,9 +2015,6 @@ bool		isAggregate = false;
 			raiseError("retrieve", sqlite3_errmsg(dbHandle));
 			return false;
 		}
-
-		// FIXME:
-		Logger::getLogger()->debug("DBG retrieveReadings 3  ");
 
 		// Call result set mapping
 		rc = mapResultSet(stmt, resultSet);

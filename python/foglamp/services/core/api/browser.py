@@ -138,10 +138,6 @@ async def asset(request):
             curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity?seconds=60
     """
     asset_code = request.match_info.get('asset_code', '')
-    #// FIXME:
-    # _select = PayloadBuilder().SELECT(("reading", "user_ts")).ALIAS("return", ("user_ts", "timestamp")). \
-    #       FORMAT("return", ("user_ts", __TIMESTAMP_FMT)).chain_payload()
-
     _select = PayloadBuilder().SELECT(("reading", "user_ts")).ALIAS("return", ("user_ts", "timestamp")).chain_payload()
 
     _where = PayloadBuilder(_select).WHERE(["asset_code", "=", asset_code]).chain_payload()
@@ -197,8 +193,7 @@ async def asset_reading(request):
     reading = request.match_info.get('reading', '')
 
     _select = PayloadBuilder().SELECT(("user_ts", ["reading", reading])) \
-        .ALIAS("return", ("user_ts", "timestamp"), ("reading", reading)) \
-        .FORMAT("return", ("user_ts", __TIMESTAMP_FMT)).chain_payload()
+        .ALIAS("return", ("user_ts", "timestamp"), ("reading", reading)).chain_payload()
     _where = PayloadBuilder(_select).WHERE(["asset_code", "=", asset_code]).chain_payload()
     if 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
         _and_where = where_clause(request, _where)

@@ -634,7 +634,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         category_name -- name of the category (required)
         item_name -- name of item within the category whose "value" entry needs to be changed (required)
         new_value_entry -- new value entry to replace old value entry
-        script_file_path -- Script file path
+        script_file_path -- Script file path for the config item whose type is script
 
         Side Effects:
         An update to storage will not be issued if a new_value_entry is the same as the new_value_entry from storage.
@@ -681,10 +681,12 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             await self._update_value_val(category_name, item_name, new_value_entry)
             # always get value from storage
             cat_item = await self._read_item_val(category_name, item_name)
+            # Special case for script type
             if storage_value_entry['type'] == 'script':
                 if cat_item['value'] is not None and cat_item['value'] != "":
                    cat_item["value"] = binascii.unhexlify(cat_item['value'].encode('utf-8')).decode("utf-8")
                 cat_item["file"] = script_file_path
+
             if category_name in self._cacheManager.cache:
                 if item_name in self._cacheManager.cache[category_name]['value']:
                     self._cacheManager.cache[category_name]['value'][item_name]['value'] = cat_item['value']
@@ -1175,7 +1177,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         return item_val
 
     def _handle_script_type(self, category_name, cat):
-        # Handle type script
+        """For the script type "unhexlify" the value and add "file" attribute on fly
+
+        Keyword Arguments:
+        category_name -- name of the category
+        cat -- category value
+
+        Return Values:
+        JSON
+        """
         for k, v in cat.items():
             if v['type'] == 'script':
                 try:

@@ -177,32 +177,6 @@ async def get_category_item(request):
     category_item = await cf_mgr.get_category_item(category_name, config_item)
     if category_item is None:
         raise web.HTTPNotFound(reason="No such Category item found for {}".format(config_item))
-    try:
-        if category_item['type'] == 'script':
-
-            category_item["file"] = ""
-
-            try:
-                if category_item['value'] is not None and category_item['value'] != "":
-                    category_item['value'] = binascii.unhexlify(category_item['value'].encode('utf-8')).decode("utf-8")
-            except Exception as e:
-                _logger.exception("Got an error while decoding config item: {} | {}".format(config_item, str(e)))
-                pass
-
-            prefix_file_name = category_name.lower() + "_" + config_item.lower() + "_"
-            if not os.path.exists(script_dir):
-                os.makedirs(script_dir)
-            else:
-                _all_files = os.listdir(script_dir)
-                for name in _all_files:
-                    if name.startswith(prefix_file_name):
-                        category_item["file"] = script_dir + name
-
-            if cf_mgr._cacheManager.cache[category_name]['value'][config_item]:
-                cf_mgr._cacheManager.cache[category_name]['value'][config_item]['value'] = category_item['value']
-                cf_mgr._cacheManager.cache[category_name]['value'][config_item]['file'] = category_item['file']
-    except Exception as e:
-        raise web.HTTPBadRequest(reason="{}".format(str(e)))
 
     return web.json_response(category_item)
 

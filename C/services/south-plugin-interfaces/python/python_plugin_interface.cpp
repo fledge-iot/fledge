@@ -279,8 +279,12 @@ vector<Reading *> * plugin_poll_fn(PLUGIN_HANDLE handle)
 	
 	// Fetch required method in loaded object
 	pFunc = PyObject_GetAttrString(pModule, "plugin_poll");
-	if (!pModule || !pFunc)
-		Logger::getLogger()->info("plugin_handle: plugin_poll(): pModule=%p, pFunc=%p", pModule, pFunc);
+	if (!pModule || !pFunc || !handle)
+	{
+		if (handle)
+			Logger::getLogger()->info("plugin_handle: plugin_poll(): pModule=%p, pFunc=%p", pModule, pFunc);
+		return NULL;
+	}
 
 	if (!pFunc || !PyCallable_Check(pFunc))
 	{
@@ -362,7 +366,7 @@ void plugin_reconfigure_fn(PLUGIN_HANDLE* handle, const std::string& config)
 	{
 		Logger::getLogger()->error("Called python script method plugin_reconfigure : error while getting result object");
 		logErrorMessage();
-
+		*handle = NULL; // not sure if this should be treated as unrecoverable failure on python plugin side
 		return;
 	}
 	else
@@ -385,8 +389,12 @@ void plugin_shutdown_fn(PLUGIN_HANDLE handle)
 	
 	// Fetch required method in loaded object
 	pFunc = PyObject_GetAttrString(pModule, "plugin_shutdown");
-	if (!pModule || !pFunc)
-		Logger::getLogger()->info("plugin_handle: plugin_shutdown(): pModule=%p, pFunc=%p", pModule, pFunc);
+	if (!pModule || !pFunc || !handle)
+	{
+		if (handle)
+			Logger::getLogger()->info("plugin_handle: plugin_shutdown(): pModule=%p, pFunc=%p", pModule, pFunc);
+		return;
+	}
 
 	if (!pFunc || !PyCallable_Check(pFunc))
 	{
@@ -680,7 +688,6 @@ vector<Reading *>* Py2C_getReadings(PyObject *polledData)
  */
 static void logErrorMessage()
 {
-	Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 	//Get error message
 	PyObject *pType, *pValue, *pTraceback;
 	PyErr_Fetch(&pType, &pValue, &pTraceback);

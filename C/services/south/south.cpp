@@ -211,7 +211,8 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		m_config = m_mgtClient->getCategory(m_name);
 		if (!loadPlugin())
 		{
-			logger->fatal("Failed to load south plugin.");
+			logger->fatal("Failed to load south plugin, exiting...");
+			management.stop();
 			return;
 		}
 		if (!m_mgtClient->registerService(record))
@@ -473,7 +474,11 @@ bool SouthService::loadPlugin()
 			// Must now reload the merged configuration
 			m_configAdvanced = m_mgtClient->getCategory(advancedCatName);
 
-			southPlugin = new SouthPlugin(handle, m_config);
+			try {
+				southPlugin = new SouthPlugin(handle, m_config);
+			} catch (...) {
+				return false;
+			}
 
 			return true;
 		}
@@ -505,7 +510,13 @@ void SouthService::configChange(const string& categoryName, const string& catego
 	if (categoryName.compare(m_name) == 0)
 	{
 		m_config = ConfigCategory(m_name, category);
-		southPlugin->reconfigure(category);
+		try {
+			southPlugin->reconfigure(category);
+		}
+		catch (...) {
+			logger->fatal("Unrecoverable failure during South plugin reconfigure, south service exiting...");
+			shutdown();
+		}
 		// Let ingest class check for changes to filter pipeline
 		m_ingest->configChange(categoryName, category);
 	}

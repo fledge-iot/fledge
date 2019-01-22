@@ -56,6 +56,18 @@ In more specific terms, the command executes these steps:
 - Wait until the core microservice starts the Storage microservice and the initial required process that are necessary to handle other tasks and microservices.
 
 
+Safe Mode
+---------
+
+It is possible to start FogLAMP in safe mode by passing the flag ``--safe-mode`` to the start command. In safe mode FogLAMP
+will not start any of the south services or schedule any tasks, such as purge or north bound tasks. Safe mode allows
+FogLAMP to be started and configured in those situations where a previous misconfiguration has rendered it impossible to
+start and interact with FogLAMP.
+
+Once started in safe mode any configuration changes should be made and then FogLAMP should be restarted in normal mode
+to test those configuration changes.
+
+
 Stopping FogLAMP
 ----------------
 

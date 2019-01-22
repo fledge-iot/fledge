@@ -50,7 +50,6 @@ __version__ = "${VERSION}"
 
 __DEFAULT_LIMIT = 20
 __DEFAULT_OFFSET = 0
-__TIMESTAMP_FMT = 'YYYY-MM-DD HH24:MI:SS.MS'
 
 
 def setup(app):
@@ -129,7 +128,7 @@ async def asset(request):
     the query parameter ?limit=xx&skip=xx and it will not respect when datetime units is supplied
 
     Returns:
-          json result on basis of SELECT TO_CHAR(user_ts, '__TIMESTAMP_FMT') as "timestamp", (reading)::jsonFROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0;
+          json result on basis of SELECT user_ts as "timestamp", (reading)::jsonFROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0;
 
     :Example:
             curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity
@@ -180,7 +179,7 @@ async def asset_reading(request):
     Only one of hour, minutes or seconds should be supplied
 
     Returns:
-           json result on basis of SELECT TO_CHAR(user_ts, '__TIMESTAMP_FMT') as "timestamp", reading->>'reading' FROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0;
+           json result on basis of SELECT user_ts as "timestamp", reading->>'reading' FROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0;
 
     :Example:
             curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/temperature

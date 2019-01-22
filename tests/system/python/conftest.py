@@ -43,9 +43,10 @@ def find(pattern, path):
 
 @pytest.fixture
 def start_south():
-    def _start_foglamp_south(south_plugin, foglamp_url, config=None):
+    def _start_foglamp_south(south_plugin, foglamp_url, config=None, use_pip_cache=True):
         """Start south service"""
         _config = config if config is not None else {}
+        pip_cache = "" if use_pip_cache else "--no-cache-dir"
         data = {"name": "play", "type": "South", "plugin": "{}".format(south_plugin), "enabled": "true",
                 "config": _config}
 
@@ -65,7 +66,7 @@ def start_south():
         req_file = find('requirement*.txt', '/tmp/foglamp-south-{}'.format(south_plugin))
         # Install python requirement if exist
         if req_file is not None:
-            subprocess.run(["pip3 install --user -Ir  {}".format(req_file)], shell=True, check=True)
+            subprocess.run(["pip3 install --user -Ir  {} {}".format(req_file, pip_cache)], shell=True, check=True)
 
         # Create south service
         conn.request("POST", '/foglamp/service', json.dumps(data))
@@ -78,7 +79,7 @@ def start_south():
 
 
 @pytest.fixture
-def start_north():
+def start_north_pi_v2():
     def _start_foglamp_north_pi_v2(foglamp_url, pi_host, pi_port, north_plugin, pi_token,
                                    taskname="North_Readings_to_PI"):
         """Start north task"""
@@ -180,9 +181,12 @@ def read_data_from_pi():
 def pytest_addoption(parser):
     parser.addoption("--foglamp_url", action="store", default="localhost:8081",
                      help="foglmap client api url")
+    parser.addoption("--use_pip_cache", action="store", default=False,
+                     help="use pip cache is requirement is available")
+    # PI Config
     parser.addoption("--pi_host", action="store", default="pi-server",
                      help="PI Server Host Name/IP")
-    parser.addoption("--pi_port", action="store", default="5460",
+    parser.addoption("--pi_port", action="store", default="5460", type=int,
                      help="PI Server PORT")
     parser.addoption("--pi_db", action="store", default="pi-server-db",
                      help="PI Server database")
@@ -192,21 +196,27 @@ def pytest_addoption(parser):
                      help="PI Server user login password")
     parser.addoption("--pi_token", action="store", default="omf_north_0001",
                      help="OMF Producer Token")
+
     parser.addoption("--south_plugin", action="store", default="playback",
                      help="Name of the South Plugin")
     parser.addoption("--north_plugin", action="store", default="PI_Server_V2",
                      help="Name of the North Plugin")
     parser.addoption("--asset_name", action="store", default="systemtest",
                      help="Name of asset")
-    parser.addoption("--wait_time", action="store", default=5,
+    parser.addoption("--wait_time", action="store", default=5, type=int,
                      help="Generic wait time between processes to run")
-    parser.addoption("--retries", action="store", default=3,
+    parser.addoption("--retries", action="store", default=3, type=int,
                      help="Number of tries to make to fetch data from PI web api")
 
 
 @pytest.fixture
 def foglamp_url(request):
     return request.config.getoption("--foglamp_url")
+
+
+@pytest.fixture
+def use_pip_cache(request):
+    return request.config.getoption("--use_pip_cache")
 
 
 @pytest.fixture
@@ -262,3 +272,12 @@ def north_plugin(request):
 @pytest.fixture
 def asset_name(request):
     return request.config.getoption("--asset_name")
+
+
+def pytest_itemcollected(item):
+    par = item.parent.obj
+    node = item.obj
+    pref = par.__doc__.strip() if par.__doc__ else par.__class__.__name__
+    suf = node.__doc__.strip() if node.__doc__ else node.__name__
+    if pref or suf:
+        item._nodeid = ' '.join((pref, suf))

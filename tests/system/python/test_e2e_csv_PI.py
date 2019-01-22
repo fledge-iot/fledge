@@ -44,7 +44,7 @@ def _remove_directories(dir_path=None):
 
 
 @pytest.fixture
-def start_south_north(reset_and_start_foglamp, start_south, start_north,
+def start_south_north(reset_and_start_foglamp, start_south, start_north_pi_v2,
                       foglamp_url, pi_host, pi_port, pi_token, south_plugin="playback",
                       asset_name="end_to_end_csv", north_plugin="PI_Server_V2"):
     """ This fixture clone a south repo and starts both south and north instance
@@ -80,7 +80,7 @@ def start_south_north(reset_and_start_foglamp, start_south, start_north,
     start_south(south_plugin, foglamp_url, config=south_config)
 
     # Call the start north task fixture
-    start_north(foglamp_url, pi_host, pi_port, north_plugin, pi_token)
+    start_north_pi_v2(foglamp_url, pi_host, pi_port, north_plugin, pi_token)
 
     # Provide the fixture value
     yield start_south_north
@@ -90,11 +90,15 @@ def start_south_north(reset_and_start_foglamp, start_south, start_north,
     _remove_directories("/tmp/foglamp-south-{}".format(south_plugin))
 
 
-def test_end_to_end(start_south_north, read_data_from_pi, foglamp_url, pi_host, pi_admin, pi_passwd, pi_db,
+def test_e2e_csv_pi(start_south_north, read_data_from_pi, foglamp_url, pi_host, pi_admin, pi_passwd, pi_db,
                     wait_time, retries, asset_name="end_to_end_csv"):
     """ Test that data is inserted in FogLAMP and sent to PI
         start_south_north: Fixture that starts FogLAMP with south and north instance
-        read_data_from_pi: Fixture to read data from PI"""
+        read_data_from_pi: Fixture to read data from PI
+        Assertions:
+            on endpoint GET /foglamp/asset
+            on endpoint GET /foglamp/asset/<asset_name>
+            data received from PI is same as data sent"""
 
     conn = http.client.HTTPConnection(foglamp_url)
     time.sleep(wait_time)

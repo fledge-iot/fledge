@@ -62,10 +62,14 @@ def start_south_coap(reset_and_start_foglamp, start_south, foglamp_url, south_pl
     _remove_directories("/tmp/foglamp-south-{}".format(south_plugin))
 
 
-def test_end_to_end(start_south_coap, foglamp_url, wait_time, asset_name="smoke"):
-    """ Test that data is inserted in FogLAMP and sent to PI
-        start_south_coap: Fixture that starts FogLAMP with south coap plugin"""
-
+def test_smoke(start_south_coap, foglamp_url, wait_time, asset_name="smoke"):
+    """ Test that data is inserted in FogLAMP
+        start_south_coap: Fixture that starts FogLAMP with south coap plugin
+        Assertions:
+            on endpoint GET /foglamp/asset
+            on endpoint GET /foglamp/asset/<asset_name>
+    """
+    print("wait_time={}".format(wait_time))
     conn = http.client.HTTPConnection(foglamp_url)
     time.sleep(wait_time)
     subprocess.run(["cd $FOGLAMP_ROOT/extras/python; python3 -m fogbench -t ../../data/{}; cd -".format(TEMPLATE_NAME)],
@@ -73,16 +77,22 @@ def test_end_to_end(start_south_coap, foglamp_url, wait_time, asset_name="smoke"
     time.sleep(wait_time)
     conn.request("GET", '/foglamp/asset')
     r = conn.getresponse()
+    """Assert that GET /foglamp/asset request response code is 200"""
     assert 200 == r.status
     r = r.read().decode()
     retval = json.loads(r)
+    """Assert that return value of GET /foglamp/asset  > 1"""
     assert len(retval) > 0
+    """Assert that correct asset_name from /foglamp/asset"""
     assert asset_name == retval[0]["assetCode"]
+    """Assert count of /foglamp/asset = 1"""
     assert 1 == retval[0]["count"]
 
     conn.request("GET", '/foglamp/asset/{}'.format(asset_name))
     r = conn.getresponse()
+    """Assert that GET /foglamp/asset/<asset_name> request response code is 200"""
     assert 200 == r.status
     r = r.read().decode()
     retval = json.loads(r)
+    """Assert that response of GET /foglamp/asset/<asset_name> is correct"""
     assert {'sensor': SENSOR_VALUE} == retval[0]["reading"]

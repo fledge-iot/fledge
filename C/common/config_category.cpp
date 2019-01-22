@@ -944,11 +944,26 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 	// Item "value" is just a string
 	else if (item.HasMember("value") && item["value"].IsString())
 	{
-		m_value = item["value"].GetString();
-		if (m_options.size() == 0)
-			m_itemType = StringItem;
+		if (m_itemType == ScriptItem)
+		{
+			// Get content of script type item as is
+			rapidjson::StringBuffer strbuf;
+			rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
+			item["value"].Accept(writer);
+			m_value = strbuf.GetString();
+			if (m_value.empty())
+			{
+				m_value = "\"\"";
+			}
+		}
 		else
-			m_itemType = EnumerationItem;
+		{
+			m_value = item["value"].GetString();
+			if (m_options.size() == 0)
+				m_itemType = StringItem;
+			else
+				m_itemType = EnumerationItem;
+		}
 	}
 	// Item "value" is a Double
 	else if (item.HasMember("value") && item["value"].IsDouble())
@@ -1031,11 +1046,25 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 	// Item "default" is just a string
 	else if (item.HasMember("default") && item["default"].IsString())
 	{
-		m_default = item["default"].GetString();
-		if (m_options.size() == 0)
-			m_itemType = StringItem;
+		if (m_itemType == ScriptItem)
+		{
+			// Get content of script type item as is
+			rapidjson::StringBuffer strbuf;
+			rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
+			item["default"].Accept(writer);
+			if (m_default.empty())
+			{
+				m_default = "\"\"";
+			}
+		}
 		else
-			m_itemType = EnumerationItem;
+		{
+			m_default = item["default"].GetString();
+			if (m_options.size() == 0)
+				m_itemType = StringItem;
+			else
+				m_itemType = EnumerationItem;
+		}
 	}
 	// Item "default" is a Double
 	else if (item.HasMember("default") && item["default"].IsDouble())
@@ -1148,7 +1177,7 @@ ostringstream convert;
 				convert << ",";
 			convert << "\"" << m_options[i] << "\"";
 		}
-		convert << "],";
+		convert << "], ";
 	}
 
 	if (m_itemType == StringItem ||
@@ -1156,54 +1185,56 @@ ostringstream convert;
 	    m_itemType == EnumerationItem)
 	{
 		convert << "\"value\" : \"" << m_value << "\", ";
-		convert << "\"default\" : \"" << m_default << "\" }";
+		convert << "\"default\" : \"" << m_default << "\"";
 	}
 	else if (m_itemType == JsonItem ||
 		 m_itemType == NumberItem ||
-		 m_itemType == DoubleItem)
+		 m_itemType == DoubleItem ||
+		 m_itemType == ScriptItem)
 	{
 		convert << "\"value\" : " << m_value << ", ";
-		convert << "\"default\" : " << m_default << " }";
+		convert << "\"default\" : " << m_default;
 	}
 
 	if (full)
 	{
 		if (!m_order.empty())
 		{
-			convert << "\"order\" : \"" << m_order << "\", ";
+			convert << ", \"order\" : \"" << m_order << "\"";
 		}
 
 		if (!m_minimum.empty())
 		{
-			convert << "\"minimum\" : \"" << m_minimum << "\", ";
+			convert << ", \"minimum\" : \"" << m_minimum << "\"";
 		}
 
 		if (!m_maximum.empty())
 		{
-			convert << "\"maximum\" : \"" << m_maximum << "\", ";
+			convert << ", \"maximum\" : \"" << m_maximum << "\"";
 		}
 
 		if (!m_readonly.empty())
 		{
-			convert << "\"readonly\" : \"" << m_readonly << "\", ";
+			convert << ", \"readonly\" : \"" << m_readonly << "\"";
 		}
 
 		if (!m_file.empty())
 		{
-			convert << "\"file\" : \"" << m_file << "\", ";
+			convert << ", \"file\" : \"" << m_file << "\"";
 		}
 		if (m_options.size() > 0)
 		{
-			convert << "\"options\" : [ ";
+			convert << ", \"options\" : [ ";
 			for (int i = 0; i < m_options.size(); i++)
 			{
 				if (i > 0)
 					convert << ",";
 				convert << "\"" << m_options[i] << "\"";
 			}
-			convert << "],";
+			convert << "]";
 		}
 	}
+	convert << " }";
 
 	return convert.str();
 }
@@ -1217,49 +1248,49 @@ ostringstream convert;
 
 	convert << "\"" << m_name << "\" : { ";
 	convert << "\"description\" : \"" << m_description << "\", ";
-	convert << "\"type\" : \"" << m_type << "\", ";
+	convert << "\"type\" : \"" << m_type << "\"";
 
 	if (!m_order.empty())
 	{
-		convert << "\"order\" : \"" << m_order << "\", ";
+		convert << ", \"order\" : \"" << m_order << "\"";
 	}
 
 	if (!m_minimum.empty())
 	{
-		convert << "\"minimum\" : \"" << m_minimum << "\", ";
+		convert << ", \"minimum\" : \"" << m_minimum << "\"";
 	}
 
 	if (!m_maximum.empty())
 	{
-		convert << "\"maximum\" : \"" << m_maximum << "\", ";
+		convert << ", \"maximum\" : \"" << m_maximum << "\"";
 	}
 
 	if (!m_readonly.empty())
 	{
-		convert << "\"readonly\" : \"" << m_readonly << "\", ";
+		convert << ", \"readonly\" : \"" << m_readonly << "\"";
 	}
 
 	if (!m_file.empty())
 	{
-		convert << "\"file\" : \"" << m_file << "\", ";
+		convert << ", \"file\" : \"" << m_file << "\"";
 	}
 	if (m_options.size() > 0)
 	{
-		convert << "\"options\" : [ ";
+		convert << ", \"options\" : [ ";
 		for (int i = 0; i < m_options.size(); i++)
 		{
 			if (i > 0)
 				convert << ",";
 			convert << "\"" << m_options[i] << "\"";
 		}
-		convert << "],";
+		convert << "]";
 	}
 
 	if (m_itemType == StringItem ||
 	    m_itemType == EnumerationItem ||
 	    m_itemType == BoolItem)
 	{
-		convert << "\"default\" : \"" << m_default << "\" }";
+		convert << ", \"default\" : \"" << m_default << "\" }";
 	}
 	/**
 	 * NOTE:
@@ -1274,9 +1305,10 @@ ostringstream convert;
 	 */
 	else if (m_itemType == JsonItem ||
 		 m_itemType == NumberItem ||
-		 m_itemType == DoubleItem)
+		 m_itemType == DoubleItem ||
+		 m_itemType == ScriptItem)
 	{
-		convert << "\"default\" : \"" << escape(m_default) << "\" }";
+		convert << ", \"default\" : \"" << escape(m_default) << "\" }";
 	}
 	return convert.str();
 }

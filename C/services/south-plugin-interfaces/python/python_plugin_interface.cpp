@@ -279,8 +279,12 @@ vector<Reading *> * plugin_poll_fn(PLUGIN_HANDLE handle)
 	
 	// Fetch required method in loaded object
 	pFunc = PyObject_GetAttrString(pModule, "plugin_poll");
-	if (!pModule || !pFunc)
-		Logger::getLogger()->info("plugin_handle: plugin_poll(): pModule=%p, pFunc=%p", pModule, pFunc);
+	if (!pModule || !pFunc || !handle)
+	{
+		if (handle)
+			Logger::getLogger()->info("plugin_handle: plugin_poll(): pModule=%p, pFunc=%p", pModule, pFunc);
+		return NULL;
+	}
 
 	if (!pFunc || !PyCallable_Check(pFunc))
 	{
@@ -362,7 +366,7 @@ void plugin_reconfigure_fn(PLUGIN_HANDLE* handle, const std::string& config)
 	{
 		Logger::getLogger()->error("Called python script method plugin_reconfigure : error while getting result object");
 		logErrorMessage();
-
+		*handle = NULL; // not sure if this should be treated as unrecoverable failure on python plugin side
 		return;
 	}
 	else
@@ -385,8 +389,12 @@ void plugin_shutdown_fn(PLUGIN_HANDLE handle)
 	
 	// Fetch required method in loaded object
 	pFunc = PyObject_GetAttrString(pModule, "plugin_shutdown");
-	if (!pModule || !pFunc)
-		Logger::getLogger()->info("plugin_handle: plugin_shutdown(): pModule=%p, pFunc=%p", pModule, pFunc);
+	if (!pModule || !pFunc || !handle)
+	{
+		if (handle)
+			Logger::getLogger()->info("plugin_handle: plugin_shutdown(): pModule=%p, pFunc=%p", pModule, pFunc);
+		return;
+	}
 
 	if (!pFunc || !PyCallable_Check(pFunc))
 	{
@@ -595,26 +603,7 @@ Reading* Py2C_parseReadingObject(PyObject *element)
 		{
 			// Convert a timestamp of the from 2019-01-07 19:06:35.366100+01:00
 			char *ts_str = PyUnicode_AsUTF8(ts);
-			struct timeval	timestamp;
-			struct tm tm;
-			strptime(ts_str, "%Y-%m-%d %H:%M:%S", &tm);
-			timestamp.tv_sec = mktime(&tm);
-			const char *ptr = ts_str;
-			while (*ptr && *ptr != '.')
-				ptr++;
-			if (ptr)
-			{
-				ptr++;
-				timestamp.tv_usec = strtol(ptr, NULL, 10);
-			}
-			// We now need to allow for the timezone difference as mktime is returning
-			// In the local timezone
-			time_t  now = time(NULL);
-			struct tm local = *localtime(&now);
-			struct tm utc = *gmtime(&now);
-
-			timestamp.tv_sec += 3600 * (local.tm_hour - utc.tm_hour);
-			newReading->setTimestamp(timestamp);
+			newReading->setTimestamp(ts_str);
 		}
 
 		// Get 'user_ts' value: borrowed reference.
@@ -623,26 +612,7 @@ Reading* Py2C_parseReadingObject(PyObject *element)
 		{
 			// Convert a timestamp of the from 2019-01-07 19:06:35.366100+01:00
 			char *ts_str = PyUnicode_AsUTF8(uts);
-			struct timeval	timestamp;
-			struct tm tm;
-			strptime(ts_str, "%Y-%m-%d %H:%M:%S", &tm);
-			timestamp.tv_sec = mktime(&tm);
-			const char *ptr = ts_str;
-			while (*ptr && *ptr != '.')
-				ptr++;
-			if (ptr)
-			{
-				ptr++;
-				timestamp.tv_usec = strtol(ptr, NULL, 10);
-			}
-			// We now need to allow for the timezone difference as mktime is returning
-			// In the local timezone
-			time_t  now = time(NULL);
-			struct tm local = *localtime(&now);
-			struct tm utc = *gmtime(&now);
-
-			timestamp.tv_sec += 3600 * (local.tm_hour - utc.tm_hour);
-			newReading->setUserTimestamp(timestamp);
+			newReading->setUserTimestamp(ts_str);
 		}
 
 
@@ -718,7 +688,6 @@ vector<Reading *>* Py2C_getReadings(PyObject *polledData)
  */
 static void logErrorMessage()
 {
-	Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 	//Get error message
 	PyObject *pType, *pValue, *pTraceback;
 	PyErr_Fetch(&pType, &pValue, &pTraceback);

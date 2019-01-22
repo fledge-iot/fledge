@@ -58,10 +58,10 @@ const char *myCategoryEnum = "{\"description\": {"
 		"\"value\": \"first\","
 		"\"type\": \"enumeration\","
 		"\"default\": \"first\","
-		"\"options\": [\"first\", \"second\", \"third\"],"
+		"\"options\": [\"first\",\"second\",\"third\"], "
 		"\"description\": \"An enumeration configuration parameter\"}}";
 
-const char *enum_JSON = "{ \"key\" : \"test\", \"description\" : \"\", \"value\" : {\"description\" : { \"description\" : \"The description of this FogLAMP service\", \"type\" : \"string\", \"value\" : \"The FogLAMP administrative API\", \"default\" : \"The FogLAMP administrative API\" }, \"name\" : { \"description\" : \"The name of this FogLAMP service\", \"type\" : \"string\", \"value\" : \"FogLAMP\", \"default\" : \"FogLAMP\" }, \"enum\" : { \"description\" : \"An enumeration configuration parameter\", \"type\" : \"enumeration\", \"options\" : [ \"first\",\"second\",\"third\"],\"value\" : \"first\", \"default\" : \"first\" }} }";
+const char *enum_JSON = "{ \"key\" : \"test\", \"description\" : \"\", \"value\" : {\"description\" : { \"description\" : \"The description of this FogLAMP service\", \"type\" : \"string\", \"value\" : \"The FogLAMP administrative API\", \"default\" : \"The FogLAMP administrative API\" }, \"name\" : { \"description\" : \"The name of this FogLAMP service\", \"type\" : \"string\", \"value\" : \"FogLAMP\", \"default\" : \"FogLAMP\" }, \"enum\" : { \"description\" : \"An enumeration configuration parameter\", \"type\" : \"enumeration\", \"options\" : [ \"first\",\"second\",\"third\"], \"value\" : \"first\", \"default\" : \"first\" }} }";
 
 const char *myCategory_JSON_type_with_escaped_default = "{ "
 	"\"filter\": { "
@@ -115,6 +115,27 @@ const char *myCategoryRemoveItems = "{" \
 			"} "\
 		"}";
 
+
+const char *myCategoryScript = "{\"config\": {\"displayName\": \"Configuration\", \"order\": \"1\", "
+					"\"default\": \"{}\", \"value\": \"{\\\"d\\\":76}\", "
+					"\"type\": \"JSON\", \"description\": \"Python 2.7 filter configuration.\"}, "
+				"\"plugin\": {\"readonly\": \"true\", \"default\": \"python27\", "
+					"\"type\": \"string\", \"value\": \"python27\", "
+					"\"description\": \"Python 2.7 filter plugin\"}, "
+				"\"enable\": {\"displayName\": \"Enabled\", \"default\": \"false\", "
+					"\"type\": \"boolean\", \"value\": \"true\", "
+					"\"description\": \"A switch that can be used to enable or disable execution of the Python 2.7 filter.\"}, "
+				"\"script\": {\"displayName\": \"Python Script\", \"order\": \"2\", "
+					"\"default\": \"\", "
+					"\"value\": \"\\\"\\\"\\\"\\nFogLAMP filtering for readings data\\\"\\\"\\\"\\n"
+						"def set_filter_config(configuration):\\n"
+						"    print configuration\\n"
+						"    global filter_config\\n"
+						"    filter_config = json.loads(configuration['config'])\\n\\n"
+						"    return True\\n\\n\", "
+					"\"file\": \"/home/ubuntu/source/develop/FogLAMP/data/scripts/pumpa_powerfilter_script_file27.py\", "
+					"\"type\": \"script\", "
+					"\"description\": \"Python 2.7 module to load.\" } }";
 
 // default has invalid (escaped) JSON object value here: a \\\" is missing for pipeline
 const char *myCategory_JSON_type_without_escaped_default = "{ "
@@ -195,6 +216,30 @@ const char *json_boolean_number = "{ \"key\" : \"test\", \"description\" : \"Tes
 			"\"value\" : \"true\", \"default\" : \"false\" }} }";
 
 const char *allCategories = "[{\"key\": \"cat1\", \"description\" : \"desc1\"}, {\"key\": \"cat2\", \"description\" : \"desc2\"}]";
+
+const char *myCategoryEnumFull = "{\"description\": {"
+		"\"value\": \"The FogLAMP administrative API\","
+		"\"type\": \"string\", \"order\" : \"1\", "
+		"\"default\": \"The FogLAMP administrative API\", "
+		"\"description\": \"The description of this FogLAMP service\"}, "
+	"\"name\": {"
+		"\"value\": \"FogLAMP\", \"readonly\" : \"false\", "
+		"\"type\": \"string\", \"order\" : \"2\", "
+		"\"default\": \"FogLAMP\", \"displayName\" : \"FogLAMP service\", "
+		"\"description\": \"The name of this FogLAMP service\"}, "
+	"\"range\": {"
+		"\"value\": \"1\","
+		"\"type\": \"integer\","
+		"\"default\": \"1\","
+		"\"minimum\": \"1\", "
+		"\"maximum\": \"10\", \"order\" : \"4\",  \"displayName\" : \"FogLAMP range parameter\", "
+		"\"description\": \"A constrained value\"},"
+        "\"enum\": {" \
+		"\"value\": \"first\","
+		"\"type\": \"enumeration\", \"order\" : \"3\", "
+		"\"default\": \"first\", \"displayName\" : \"FogLAMP configuration parameter\", "
+		"\"options\": [\"first\",\"second\",\"third\"], "
+		"\"description\": \"An enumeration configuration parameter\"}}";
 
 TEST(CategoriesTest, Count)
 {
@@ -405,4 +450,41 @@ TEST(CategoryTest, removeItemsType)
 	conf2Category.removeItemsType(ConfigCategory::ItemType::CategoryType);
 	ASSERT_EQ(1, conf2Category.getCount());
 
+}
+
+/**
+ * Test "script" type item
+ */
+TEST(CategoryTest, scriptItem)
+{
+	string file = "/home/ubuntu/source/develop/FogLAMP/data/scripts/pumpa_powerfilter_script_file27.py";
+	ConfigCategory scriptCategory("script", myCategoryScript);
+	ConfigCategory newCategory("scriptNew", scriptCategory.itemsToJSON(true));
+	// Check we have file attribute in Category object
+	ASSERT_EQ(0,
+		  scriptCategory.getItemAttribute("script",
+						  ConfigCategory::FILE_ATTR).compare(file));
+
+	// Check we have 4 items in Category object
+	ASSERT_EQ(4, newCategory.getCount());
+}
+
+/**
+ * Check a cateogy object with oder, displayName etc
+ */
+TEST(CategoryTest, categoryAllFullOutput)
+{
+	ConfigCategory fullItems("full", myCategoryEnumFull);
+	// Get all hidden objects
+	string fullCategoryItems = fullItems.itemsToJSON(true);
+	// Create a Category object from a JSON with all objects
+	fullItems = ConfigCategory("full", fullCategoryItems);
+	// Get standard objects
+	string categoryItems = fullItems.itemsToJSON(false);
+	// Check category has all hidden objects
+	ASSERT_EQ(0, fullCategoryItems.compare(fullItems.itemsToJSON(true)));
+	// Check basic category object has no hidden objects
+	ASSERT_EQ(0, categoryItems.compare(fullItems.itemsToJSON(false)));
+	// Check we have 4 items in Category object
+	ASSERT_EQ(4, fullItems.getCount());
 }

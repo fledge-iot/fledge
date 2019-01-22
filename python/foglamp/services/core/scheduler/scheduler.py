@@ -1245,7 +1245,14 @@ class Scheduler(object):
                         # Shutdown will take care of unregistering the service from core
                         await utils.shutdown_service(service)
                 except:
-                    pass
+                    # Service registry does not exist but Scheduler records for service exist, hence remove records
+                    try:
+                        schedule_execution = self._schedule_executions[schedule_id]
+                    except KeyError:
+                        pass
+                    else:
+                        del schedule_execution.task_processes[task_process.task_id]
+                        self._logger.info("Removed Orphaned scheduler entries for schedule %s", str(schedule.name))
                 try:
                     # As of now, script starts the process and therefore, we need to explicitly stop this script process
                     # as shutdown caters to stopping of the actual service only.

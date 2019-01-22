@@ -61,6 +61,18 @@ FogLampProcess::FogLampProcess(int argc, char** argv) :
 		throw runtime_error("Error: --name is not specified");
 	}
 
+	m_logger->setMinLevel("warning");	// Default to warnings, errors and fatal for log messages
+	try
+	{
+		string minLogLevel = getArgValue("--loglevel=");
+		m_logger->setMinLevel(minLogLevel);
+	}
+	catch (exception e)
+	{
+		throw runtime_error(string("Error while parsing optional options: ") + e.what());
+	}
+
+
 	// Connection to FogLamp core microservice
 	m_client = new ManagementClient(m_core_mngt_host, m_core_mngt_port);
 

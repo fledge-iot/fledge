@@ -41,14 +41,14 @@ static void statsThread(Ingest *ingest)
 
 /**
  * Create a row for given assetName in statistics DB table, if not present already
- * The key checked/created in the table is "INGEST_<assetName>"
+ * The key checked/created in the table is "<assetName>"
  * 
  * @param assetName     Asset name for the plugin that is sending readings
  */
 int Ingest::createStatsDbEntry(const string& assetName)
 {
 	// Prepare foglamp.statistics update
-	string statistics_key = "INGEST_" + assetName;
+	string statistics_key = assetName;
 	for (auto & c: statistics_key) c = toupper(c);
 	
 	// SELECT * FROM foglamp.configuration WHERE key = categoryName
@@ -122,7 +122,7 @@ void Ingest::updateStats()
 		if (it->second)
 			{
 			// Prepare foglamp.statistics update
-			key = "INGEST_" + it->first;
+			key = it->first;
 			for (auto & c: key) c = toupper(c);
 
 			// Prepare "WHERE key = name
@@ -509,13 +509,14 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 void Ingest::configChange(const string& category, const string& newConfig)
 {
 	//Logger::getLogger()->info("Ingest::configChange(): category=%s, newConfig=%s", category.c_str(), newConfig.c_str());
-	static string pipelineCfgStr;
+	static string pipelineCfgStr("");
 	if (category == m_serviceName) // possible change to filter pipeline
 	{
 		ConfigCategory config("tmp", newConfig);
-		if (pipelineCfgStr == config.getValue("filter"))
+		if ( (!config.itemExists("filter") && pipelineCfgStr.compare("")==0) || 
+					pipelineCfgStr == config.getValue("filter") )
 		{
-			Logger::getLogger()->info("Ingest::configChange(): filter pipeline has not changed");
+			Logger::getLogger()->info("Ingest::configChange(): filter pipeline is not set or it hasn't changed");
 			return;
 		}
 		pipelineCfgStr = config.getValue("filter");

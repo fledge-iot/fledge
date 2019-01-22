@@ -566,12 +566,12 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             if category_name in self._cacheManager:
                 return self._cacheManager.cache[category_name]['value']
 
-            cat = await self._read_category_val(category_name)
+            category_value = await self._read_category_val(category_name)
 
-            if cat is not None:
-                self._cacheManager.update(category_name, cat)
-                cat = self._handle_script_type(category_name, cat)
-            return cat
+            if category_value is not None:
+                self._cacheManager.update(category_name, category_value)
+                category_value = self._handle_script_type(category_name, category_value)
+            return category_value
         except:
             _logger.exception(
                 'Unable to get all category names based on category_name %s', category_name)
@@ -596,12 +596,12 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             else:
                 cat_item = await self._read_item_val(category_name, item_name)
                 if cat_item is not None:
-                    cat = await self._read_category_val(category_name)
-                    if cat is not None:
-                        self._cacheManager.update(category_name, cat)
+                    category_value = await self._read_category_val(category_name)
+                    if category_value is not None:
+                        self._cacheManager.update(category_name, category_value)
                         self._cacheManager.cache[category_name]['value'].update({item_name: cat_item})
-                        cat = self._handle_script_type(category_name, cat)
-                        cat_item = cat[item_name]
+                        category_value = self._handle_script_type(category_name, category_value)
+                        cat_item = category_value[item_name]
                 return cat_item
         except:
             _logger.exception(
@@ -1176,26 +1176,27 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         return item_val
 
-    def _handle_script_type(self, category_name, cat):
-        """For the script type "unhexlify" the value and add "file" attribute on fly
+    def _handle_script_type(self, category_name, category_value):
+        """For the given category, check for config item of type script “unhexlify” the value stored in database
+        and add “file” attribute on the fly
 
         Keyword Arguments:
         category_name -- name of the category
-        cat -- category value
+        category_value -- category value
 
         Return Values:
         JSON
         """
-        for k, v in cat.items():
+        for k, v in category_value.items():
             if v['type'] == 'script':
                 try:
-                    cat[k]["file"] = ""
+                    category_value[k]["file"] = ""
 
                     if v['value'] is not None and v['value'] != "":
-                        cat[k]["value"] = binascii.unhexlify(v['value'].encode('utf-8')).decode("utf-8")
+                        category_value[k]["value"] = binascii.unhexlify(v['value'].encode('utf-8')).decode("utf-8")
                 except Exception as e:
                     _logger.warning(
-                        "Got an issue while decoding config item: {} | {}".format(cat[k], str(e)))
+                        "Got an issue while decoding config item: {} | {}".format(category_value[k], str(e)))
                     pass
 
                 script_dir = _FOGLAMP_DATA + '/scripts/' if _FOGLAMP_DATA else _FOGLAMP_ROOT + "/data/scripts/"
@@ -1207,10 +1208,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     _all_files = os.listdir(script_dir)
                     for name in _all_files:
                         if name.startswith(prefix_file_name) and name.endswith('.py'):
-                            cat[k]["file"] = script_dir + name
+                            category_value[k]["file"] = script_dir + name
 
                 if self._cacheManager.cache[category_name]['value'][k]:
-                    self._cacheManager.cache[category_name]['value'][k]['value'] = cat[k]["value"]
-                    self._cacheManager.cache[category_name]['value'][k]['file'] = cat[k]["file"]
+                    self._cacheManager.cache[category_name]['value'][k]['value'] = category_value[k]["value"]
+                    self._cacheManager.cache[category_name]['value'][k]['file'] = category_value[k]["file"]
 
-        return cat
+        return category_value

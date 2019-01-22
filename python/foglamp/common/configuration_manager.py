@@ -566,39 +566,12 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             if category_name in self._cacheManager:
                 return self._cacheManager.cache[category_name]['value']
 
-            cat = await self._read_category_val(category_name)
+            category_value = await self._read_category_val(category_name)
 
-            if cat is not None:
-                self._cacheManager.update(category_name, cat)
-
-                # Handle type script
-                for k, v in cat.items():
-                    if v['type'] == 'script':
-                        try:
-                            cat[k]["file"] = ""
-
-                            if v['value'] is not None and v['value'] != "":
-                                cat[k]["value"] = binascii.unhexlify(v['value'].encode('utf-8')).decode("utf-8")
-                        except Exception as e:
-                            _logger.warning(
-                                "Got an issue while decoding config item: {} | {}".format(cat[k], str(e)))
-                            pass
-
-                        script_dir = _FOGLAMP_DATA + '/scripts/' if _FOGLAMP_DATA else _FOGLAMP_ROOT + "/data/scripts/"
-                        prefix_file_name = category_name.lower() + "_" + k.lower() + "_"
-
-                        if not os.path.exists(script_dir):
-                            os.makedirs(script_dir)
-                        else:
-                            _all_files = os.listdir(script_dir)
-                            for name in _all_files:
-                                if name.startswith(prefix_file_name) and name.endswith('.py'):
-                                    cat[k]["file"] = script_dir + name
-
-                        if self._cacheManager.cache[category_name]['value'][k]:
-                            self._cacheManager.cache[category_name]['value'][k]['value'] = cat[k]["value"]
-                            self._cacheManager.cache[category_name]['value'][k]['file'] = cat[k]["file"]
-            return cat
+            if category_value is not None:
+                self._cacheManager.update(category_name, category_value)
+                category_value = self._handle_script_type(category_name, category_value)
+            return category_value
         except:
             _logger.exception(
                 'Unable to get all category names based on category_name %s', category_name)
@@ -623,10 +596,12 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             else:
                 cat_item = await self._read_item_val(category_name, item_name)
                 if cat_item is not None:
-                    cat = await self._read_category_val(category_name)
-                    if cat is not None:
-                        self._cacheManager.update(category_name, cat)
+                    category_value = await self._read_category_val(category_name)
+                    if category_value is not None:
+                        self._cacheManager.update(category_name, category_value)
                         self._cacheManager.cache[category_name]['value'].update({item_name: cat_item})
+                        category_value = self._handle_script_type(category_name, category_value)
+                        cat_item = category_value[item_name]
                 return cat_item
         except:
             _logger.exception(
@@ -652,13 +627,14 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 item_name)
             raise
 
-    async def set_category_item_value_entry(self, category_name, item_name, new_value_entry):
+    async def set_category_item_value_entry(self, category_name, item_name, new_value_entry, script_file_path=""):
         """Set the "value" entry of a given item within a given category.
 
         Keyword Arguments:
         category_name -- name of the category (required)
         item_name -- name of item within the category whose "value" entry needs to be changed (required)
         new_value_entry -- new value entry to replace old value entry
+        script_file_path -- Script file path for the config item whose type is script
 
         Side Effects:
         An update to storage will not be issued if a new_value_entry is the same as the new_value_entry from storage.
@@ -705,9 +681,17 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             await self._update_value_val(category_name, item_name, new_value_entry)
             # always get value from storage
             cat_item = await self._read_item_val(category_name, item_name)
+            # Special case for script type
+            if storage_value_entry['type'] == 'script':
+                if cat_item['value'] is not None and cat_item['value'] != "":
+                   cat_item["value"] = binascii.unhexlify(cat_item['value'].encode('utf-8')).decode("utf-8")
+                cat_item["file"] = script_file_path
+
             if category_name in self._cacheManager.cache:
                 if item_name in self._cacheManager.cache[category_name]['value']:
                     self._cacheManager.cache[category_name]['value'][item_name]['value'] = cat_item['value']
+                    if storage_value_entry['type'] == 'script':
+                        self._cacheManager.cache[category_name]['value'][item_name]["file"] = script_file_path
                 else:
                     self._cacheManager.cache[category_name]['value'].update({item_name: cat_item['value']})
         except:
@@ -1191,3 +1175,43 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             return str(float(item_val))
 
         return item_val
+
+    def _handle_script_type(self, category_name, category_value):
+        """For the given category, check for config item of type script “unhexlify” the value stored in database
+        and add “file” attribute on the fly
+
+        Keyword Arguments:
+        category_name -- name of the category
+        category_value -- category value
+
+        Return Values:
+        JSON
+        """
+        for k, v in category_value.items():
+            if v['type'] == 'script':
+                try:
+                    category_value[k]["file"] = ""
+
+                    if v['value'] is not None and v['value'] != "":
+                        category_value[k]["value"] = binascii.unhexlify(v['value'].encode('utf-8')).decode("utf-8")
+                except Exception as e:
+                    _logger.warning(
+                        "Got an issue while decoding config item: {} | {}".format(category_value[k], str(e)))
+                    pass
+
+                script_dir = _FOGLAMP_DATA + '/scripts/' if _FOGLAMP_DATA else _FOGLAMP_ROOT + "/data/scripts/"
+                prefix_file_name = category_name.lower() + "_" + k.lower() + "_"
+
+                if not os.path.exists(script_dir):
+                    os.makedirs(script_dir)
+                else:
+                    _all_files = os.listdir(script_dir)
+                    for name in _all_files:
+                        if name.startswith(prefix_file_name) and name.endswith('.py'):
+                            category_value[k]["file"] = script_dir + name
+
+                if self._cacheManager.cache[category_name]['value'][k]:
+                    self._cacheManager.cache[category_name]['value'][k]['value'] = category_value[k]["value"]
+                    self._cacheManager.cache[category_name]['value'][k]['file'] = category_value[k]["file"]
+
+        return category_value

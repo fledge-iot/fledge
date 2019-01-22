@@ -77,7 +77,7 @@ ConfigHandler::registerCategory(ServiceHandler *handler, const string& category)
 		}
 		else
 		{
-			 m_logger->info("Interest in %s registered", category.c_str());
+			 m_logger->debug("Interest in %s registered", category.c_str());
 		}
 	}
 	else

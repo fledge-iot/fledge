@@ -79,10 +79,8 @@ char          buf[128];
   }
   if (access(buf, F_OK|R_OK) == 0)
   {
-  	logger->info("Attempting to load C plugin: name=%s, path=%s", name.c_str(), buf);
 	pluginHandle = new BinaryPluginHandle(name.c_str(), buf);
 	hndl = pluginHandle->getHandle();
-	logger->info("%s:%d: pluginHandle=%p, hndl=%p", __FUNCTION__, __LINE__, pluginHandle, hndl);
     if (hndl != NULL)
     {
       func_t infoEntry = (func_t)pluginHandle->GetInfo();
@@ -94,7 +92,8 @@ char          buf[128];
         return NULL;
       }
       PLUGIN_INFORMATION *info = (PLUGIN_INFORMATION *)(*infoEntry)();
-	  logger->info("%s:%d: name=%s, type=%s, config=%s", __FUNCTION__, __LINE__, info->name, info->type, info->config);
+
+	    logger->debug("%s:%d: name=%s, type=%s, default config=%s", __FUNCTION__, __LINE__, info->name, info->type, info->config);
 	  
       if (strcmp(info->type, type.c_str()) != 0)
       {
@@ -109,12 +108,13 @@ char          buf[128];
       pluginNames[name] = hndl;
       pluginTypes[name] = type;
       pluginInfo[hndl] = info;
-	  pluginHandleMap[hndl] = pluginHandle;
-	  logger->info("%s:%d: Added entry in pluginHandleMap={%p, %p}", __FUNCTION__, __LINE__, hndl, pluginHandle);
+
+      pluginHandleMap[hndl] = pluginHandle;
+	    logger->debug("%s:%d: Added entry in pluginHandleMap={%p, %p}", __FUNCTION__, __LINE__, hndl, pluginHandle);
     }
     else
     {
-      logger->error("PluginManager: Failed to load C plugin %s in %s: %s.",
+		logger->error("PluginManager: Failed to load C plugin %s in %s: %s.",
                     name.c_str(),
                     buf,
                     dlerror());
@@ -130,20 +130,18 @@ char          buf[128];
              type.c_str(),
              name.c_str(),
              name.c_str());
-
+    
   if (access(buf, F_OK|R_OK) == 0)
   {
-  	logger->info("Attempting to load python plugin: name=%s, path=%s", name.c_str(), buf);
 	pluginHandle = new PythonPluginHandle(name.c_str(), buf);
 	hndl = pluginHandle->getHandle();
-	logger->info("%s:%d: pluginHandle=%p, hndl=%p", __FUNCTION__, __LINE__, pluginHandle, hndl);
     if (hndl != NULL)
     {
       func_t infoEntry = (func_t)pluginHandle->GetInfo();
       if (infoEntry == NULL)
       {
         // Unable to find plugin_info entry point
-        logger->error("C plugin %s does not support plugin_info entry point.\n", name.c_str());
+        logger->error("Python plugin %s does not support plugin_info entry point.\n", name.c_str());
         delete pluginHandle;
         return NULL;
       }
@@ -161,8 +159,7 @@ char          buf[128];
       pluginNames[name] = hndl;
       pluginTypes[name] = type;
       pluginInfo[hndl] = info;
-	  pluginHandleMap[hndl] = pluginHandle;
-	  logger->info("%s:%d: Added entry in pluginHandleMap={%p, %p}", __FUNCTION__, __LINE__, hndl, pluginHandle);
+      pluginHandleMap[hndl] = pluginHandle;
     }
     else
     {
@@ -217,10 +214,9 @@ PLUGIN_INFORMATION *PluginManager::getInfo(const PLUGIN_HANDLE handle)
  */
 PLUGIN_HANDLE PluginManager::resolveSymbol(PLUGIN_HANDLE handle, const string& symbol)
 {
-  //logger->info("%s:%d: handle=%p, symbol=%s", __FUNCTION__, __LINE__, handle, symbol.c_str());
   if (pluginHandleMap.find(handle) == pluginHandleMap.end())
   {
-  	logger->info("%s:%d: Cannot find PLUGIN_HANDLE in pluginHandleMap: returning NULL", __FUNCTION__, __LINE__);
+  	logger->warn("%s:%d: Cannot find PLUGIN_HANDLE in pluginHandleMap: returning NULL", __FUNCTION__, __LINE__);
     return NULL;
   }
   return pluginHandleMap.find(handle)->second->ResolveSymbol(symbol.c_str());

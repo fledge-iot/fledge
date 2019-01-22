@@ -14,6 +14,8 @@
 #include <filter_plugin.h>
 #include <map>
 
+#define VERBOSE_LOG	0
+
 #define PLUGIN_UNDEFINED ""
 
 // The type of the plugin managed by the Sending Process
@@ -121,6 +123,7 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
         m_stream_id = -1;
 	m_plugin_name = PLUGIN_UNDEFINED;
 
+#if VERBOSE_LOG
         int i;
         for (i = 0; i < argc; i++)
         {
@@ -129,6 +132,7 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 				i,
 				argv[i]);
         }
+#endif
 
 	// Mark running state
 	m_running = true;
@@ -282,6 +286,7 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 		}
 	}
 
+#if VERBOSE_LOG
 	Logger::getLogger()->info("SendingProcess initialised with %d data buffers.",
 				  m_memory_buffer_size);
 
@@ -290,7 +295,13 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 
 	Logger::getLogger()->info("SendingProcess reads data from last id %lu",
 				  this->getLastSentId());
+#endif
 
+	filterPipeline = NULL;
+
+	m_assetTracker = new AssetTracker(getManagementClient(), getName());
+	AssetTracker::getAssetTracker()->populateAssetTrackingCache(getName(), "Egress");
+	
 	// Load filter plugins
 	if (!this->loadFilters(this->getName()))
 	{
@@ -359,8 +370,10 @@ bool SendingProcess::loadPlugin(const string& pluginName)
 	if ((handle = manager->loadPlugin(pluginName,
 					  PLUGIN_TYPE_NORTH)) != NULL)
         {
+#if VERBOSE_LOG
 		Logger::getLogger()->info("Loaded north plugin '%s'.",
 					  pluginName.c_str());
+#endif
 		m_plugin = new NorthPlugin(handle);
 		// Check persist data option for plugin.
 		if (m_plugin->persistData())
@@ -416,9 +429,10 @@ void SendingProcess::stop()
 	}
 
 	// Cleanup filters
-	if (m_filters.size())
+	if (filterPipeline)
 	{
-		FilterPlugin::cleanupFilters(m_filters, this->getName());
+		filterPipeline->cleanupFilters(getName());
+		delete filterPipeline;
 	}
 
 	Logger::getLogger()->info("SendingProcess successfully terminated");
@@ -752,9 +766,11 @@ ConfigCategory SendingProcess::fetchConfiguration(const std::string& defaultConf
 	// retrieves the configuration using the value of the --name parameter
 	// (received in the command line) as the key
 	string categoryName(this->getName());
+#if VERBOSE_LOG
 	Logger::getLogger()->debug("%s - catName :%s:",
 				   LOG_SERVICE_NAME.c_str(),
 				   categoryName.c_str());
+#endif
 
 	ConfigCategory configuration;
 	try {
@@ -836,7 +852,7 @@ ConfigCategory SendingProcess::fetchConfiguration(const std::string& defaultConf
 			m_memory_buffer_size = 1;
 		}
 
-
+#if VERBOSE_LOG
 		Logger::getLogger()->info("SendingProcess configuration parameters: "
 					  "pluginName=%s, source=%s, blockSize=%d, "
 					  "duration=%d, sleepInterval=%d, streamId=%d",
@@ -846,7 +862,7 @@ ConfigCategory SendingProcess::fetchConfiguration(const std::string& defaultConf
 					  m_duration,
 					  m_sleep,
                                           m_stream_id);
-
+#endif
 		// Return configuration
 		return ConfigCategory(configuration);
 	}
@@ -870,23 +886,23 @@ ConfigCategory SendingProcess::fetchConfiguration(const std::string& defaultConf
  */
 bool SendingProcess::loadFilters(const string& categoryName)
 {
+	filterPipeline = new NorthFilterPipeline(this->getManagementClient(), *(this->getStorageClient()), getName());
+
 	// Try to load filters:
-	if (!FilterPlugin::loadFilters(categoryName,
-				       m_filters,
-				       this->getManagementClient()))
+	if (!filterPipeline->loadFilters(categoryName))
 	{
 		// return false on any error
 		return false;
 	}
 
 	// return true if no filters
-	if (m_filters.size() == 0)
+	if (filterPipeline->getFilterCount() == 0)
 	{
 		return true;
 	}
-
+	
 	// We have some filters: set up the filter pipeline
-	return this->setupFiltersPipeline();
+	return filterPipeline->setupFiltersPipeline((void *)passToOnwardFilter, (void *)useFilteredData, this);
 }
 
 /**
@@ -964,97 +980,3 @@ const unsigned long* SendingProcess::getLoadBufferIndexPtr() const
         return &m_load_buffer_index;
 }
 
-/**
- * Setup the filters pipeline
- *
- * This routine is calles when there are loaded filters.
- *
- * Set up the filter pipeline
- * by calling the "plugin_init" method with the right OUTPUT_HANDLE function
- * and OUTPUT_HANDLE pointer
- *
- * @return 		True on success,
- *			False otherwise.
- * @thown		Any caught exception
- */
-bool SendingProcess::setupFiltersPipeline() const
-{
-	bool initErrors = false;
-	string errMsg = "'plugin_init' failed for filter '";
-
-	for (auto it = m_filters.begin(); it != m_filters.end(); ++it)
-	{
-		string filterCategoryName = getName() + "_" + (*it)->getName();
-		ConfigCategory updatedCfg;
-		vector<string> children;
-
-		try
-		{
-			// Fetch up to date filter configuration
-			updatedCfg = this->getManagementClient()->getCategory(filterCategoryName);
-
-			// Add filter category name under service/process config name
-			children.push_back(filterCategoryName);
-			this->getManagementClient()->addChildCategories(this->getName(), children);
-		}
-		// TODO catch specific exceptions
-		catch (...)
-		{
-			throw;
-		}
-
-		if ((it + 1) != m_filters.end())
-		{
-			// Set next filter pointer as OUTPUT_HANDLE
-			if (!(*it)->init(updatedCfg,
-				    (OUTPUT_HANDLE *)(*(it + 1)),
-				    this->passToOnwardFilter))
-			{
-				errMsg += (*it)->getName() + "'";
-				initErrors = true;
-				break;
-			}
-		}
-		else
-		{
-			// Set load buffer index pointer as OUTPUT_HANDLE
-			const unsigned long* bufferIndex = this->getLoadBufferIndexPtr();
-			if (!(*it)->init(updatedCfg,
-				    (OUTPUT_HANDLE *)(bufferIndex),
-				    this->useFilteredData))
-			{
-				errMsg += (*it)->getName() + "'";
-				initErrors = true;
-				break;
-			}
-		}
-
-		if ((*it)->persistData())
-		{
-			// Plugin support SP_PERSIST_DATA
-			// Instantiate the PluginData class
-			(*it)->m_plugin_data = new PluginData(this->getStorageClient());
-			// Load plugin data from storage layer
-			string pluginStoredData = (*it)->m_plugin_data->loadStoredData(this->getName() + (*it)->getName());
-
-			//call 'plugin_start' with plugin data: startData()
-			(*it)->startData(pluginStoredData);
-		}
-		else
-		{
-			// We don't call simple plugin_start for filters right now
-		}
-	}
-
-	if (initErrors)
-	{
-		// Failure
-		m_logger->fatal("%s error: %s",
-				LOG_SERVICE_NAME,
-				errMsg.c_str());
-		return false;
-	}
-
-	//Success
-	return true;
-}

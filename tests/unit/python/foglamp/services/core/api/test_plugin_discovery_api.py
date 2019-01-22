@@ -8,6 +8,7 @@ import json
 from unittest.mock import patch
 import pytest
 from aiohttp import web
+
 from foglamp.services.core import routes
 from foglamp.common.plugin_discovery import PluginDiscovery
 
@@ -55,7 +56,10 @@ class TestPluginDiscoveryApi:
         "Filter",
         "FILTER",
         "notify",
-        "NOTIFY"
+        "NOTIFY",
+        "rule",
+        "Rule",
+        "RULE"
     ])
     async def test_get_plugins_installed_by_params(self, client, param):
         with patch.object(PluginDiscovery, 'get_plugins_installed', return_value={}) as patch_get_plugin_installed:
@@ -71,6 +75,7 @@ class TestPluginDiscoveryApi:
         ("?type=south&config=false", "south", {"name": "sinusoid", "version": "1.0", "type": "south", "description": "sinusoid plugin"}, False),
         ("?type=filter&config=false", "filter", {"name": "scale", "version": "1.0.0", "type": "filter", "description": "Filter Scale plugin"}, False),
         ("?type=notify&config=false", "notify", {"name": "email", "version": "1.0.0", "type": "notify", "description": "Email notification plugin"}, False),
+        ("?type=rule&config=false", "rule", {"name": "OverMaxRule", "version": "1.0.0", "type": "rule", "description": "The OverMaxRule notification rule plugin"}, False),
         ("?type=north&config=true", "north", {"name": "http", "version": "1.0.0", "type": "north", "description": "HTTP North-C plugin",
                                               "config": {"plugin": {"description": "HTTP North-C plugin", "type": "string", "default": "http-north"}}}, True),
         ("?type=south&config=true", "south", {"name": "sinusoid", "version": "1.0", "type": "south", "description": "sinusoid plugin",
@@ -78,7 +83,9 @@ class TestPluginDiscoveryApi:
         ("?type=filter&config=true", "filter", {"name": "scale", "version": "1.0.0", "type": "filter", "description": "Filter Scale plugin",
                                                 "config": {"offset": {"default": "0.0", "type": "float", "description": "A constant offset"}, "factor": {"default": "100.0", "type": "float", "description": "Scale factor for a reading."}, "plugin": {"default": "scale", "type": "string", "description": "Scale filter plugin"}, "enable": {"default": "false", "type": "boolean", "description": "A switch that can be used to enable or disable."}}}, True),
         ("?type=notify&config=true", "notify", {"name": "email", "version": "1.0.0", "type": "notify", "description": "Email notification plugin",
-                                                "config": {"plugin": {"type": "string", "description": "Email notification plugin", "default": "email"}}}, True)
+                                                "config": {"plugin": {"type": "string", "description": "Email notification plugin", "default": "email"}}}, True),
+        ("?type=rule&config=true", "rule", {"name": "OverMaxRule", "version": "1.0.0", "type": "rule", "description": "The OverMaxRule notification rule plugin",
+                                            "config": {"plugin": {"type": "string", "description": "The OverMaxRule notification rule plugin", "default": "OverMaxRule"}}}, True)
     ])
     async def test_get_plugins_installed_by_type_and_config(self, client, param, direction, result, is_config):
         with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=result) as patch_get_plugin_installed:
@@ -90,7 +97,7 @@ class TestPluginDiscoveryApi:
         patch_get_plugin_installed.assert_called_once_with(direction, is_config)
 
     @pytest.mark.parametrize("param, message", [
-        ("?type=blah", "Invalid plugin type. Must be 'north' or 'south' or 'filter' or 'notify'."),
+        ("?type=blah", "Invalid plugin type. Must be 'north' or 'south' or 'filter' or 'notify' or 'rule'."),
         ("?config=blah", 'Only "true", "false", true, false are allowed for value of config.'),
         ("?config=False", 'Only "true", "false", true, false are allowed for value of config.'),
         ("?config=True", 'Only "true", "false", true, false are allowed for value of config.'),

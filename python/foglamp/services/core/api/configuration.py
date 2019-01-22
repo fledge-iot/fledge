@@ -4,10 +4,11 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-import os
-import binascii
+
 from aiohttp import web
+import binascii
 import urllib.parse
+import os
 
 from foglamp.services.core import connect
 from foglamp.common.configuration_manager import ConfigurationManager
@@ -93,26 +94,6 @@ async def get_category(request):
     if category is None:
         raise web.HTTPNotFound(reason="No such Category found for {}".format(category_name))
 
-    for k, v in category.items():
-        if v['type'] == 'script':
-            # FIXME: Handle 'Non-hexadecimal digit found' issue
-            try:
-                category[k]["value"] = binascii.unhexlify(v['value'].encode('utf-8')).decode("utf-8")
-            except Exception as e:
-                _logger.exception("Got an error while decoding config item: {} | {}".format(category[k], str(e)))
-                pass
-
-            if cf_mgr._cacheManager.cache[category_name]['value'][k]:
-                cf_mgr._cacheManager.cache[category_name]['value'][k]['value'] = v['value']
-
-            prefix_file_name = category_name.lower() + "_" + k.lower() + "_"
-            if not os.path.exists(script_dir):
-                os.makedirs(script_dir)
-            _all_files = os.listdir(script_dir)
-            for name in _all_files:
-                if name.startswith(prefix_file_name) and name.endswith('.py'):
-                    category[k]["file"] = script_dir + name
-
     return web.json_response(category)
 
 
@@ -196,27 +177,6 @@ async def get_category_item(request):
     category_item = await cf_mgr.get_category_item(category_name, config_item)
     if category_item is None:
         raise web.HTTPNotFound(reason="No such Category item found for {}".format(config_item))
-    try:
-        if category_item['type'] == 'script':
-            # FIXME: Handle 'Non-hexadecimal digit found' issue
-            try:
-                category_item['value'] = binascii.unhexlify(category_item['value'].encode('utf-8')).decode("utf-8")
-            except Exception as e:
-                _logger.exception("Got an error while decoding config item: {} | {}".format(config_item, str(e)))
-                pass
-
-            if cf_mgr._cacheManager.cache[category_name]['value'][config_item]:
-                cf_mgr._cacheManager.cache[category_name]['value'][config_item]['value'] = category_item['value']
-
-            prefix_file_name = category_name.lower() + "_" + config_item.lower() + "_"
-            if not os.path.exists(script_dir):
-                os.makedirs(script_dir)
-            _all_files = os.listdir(script_dir)
-            for name in _all_files:
-                if name.startswith(prefix_file_name):
-                    category_item["file"] = script_dir + name
-    except Exception as e:
-        raise web.HTTPBadRequest(reason="{}".format(str(e)))
 
     return web.json_response(category_item)
 
@@ -554,7 +514,7 @@ async def upload_script(request):
     # If 'scripts' dir not exists, then create
     if not os.path.exists(script_dir):
         os.makedirs(script_dir)
-    # Write contents to file and save under scripts dir path
+    # Write contents to file and save under scripts dir path; it will be overwritten if exists
     with open(script_file_path, 'wb') as f:
         f.write(script_file_content)
 
@@ -564,8 +524,8 @@ async def upload_script(request):
 
     try:
         # Save the value to database
-        await cf_mgr.set_category_item_value_entry(category_name, config_item, str_data)
-        # Remove old files for combination categoryname_configitem_filename and retain only the latest one
+        await cf_mgr.set_category_item_value_entry(category_name, config_item, str_data, script_file_path)
+        # Remove old files for combination categoryName_configItem_* and retain only the latest one
         _all_files = os.listdir(script_dir)
         for name in _all_files:
             if name.startswith(prefix_file_name):
@@ -577,10 +537,4 @@ async def upload_script(request):
         raise web.HTTPBadRequest(reason=ex)
     else:
         result = await cf_mgr.get_category_item(category_name, config_item)
-        result['file'] = script_file_path
-        # Return the binary data represented by the hexadecimal string hexstr.
-        result['value'] = binascii.unhexlify(str_data.encode('utf-8')).decode("utf-8")
-        if cf_mgr._cacheManager.cache[category_name]['value'][config_item]:
-            cf_mgr._cacheManager.cache[category_name]['value'][config_item]['value'] = result['value']
-
         return web.json_response(result)

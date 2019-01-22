@@ -44,17 +44,6 @@ public:
 	void			start();
 	void			reconfigure(const std::string&);
 
-// Public static methods
-public:
-	static PLUGIN_HANDLE	loadFilterPlugin(const std::string& filterName);
-	// Cleanup the loaded filters
-	static void 		cleanupFilters(std::vector<FilterPlugin *>& loadedFilters,
-					       const std::string& categoryName);
-	// Load filters as specified in the configuration
-	static bool		loadFilters(const std::string& categoryName,
-					    std::vector<FilterPlugin *>& filters,
-					    ManagementClient* manager);
-
 private:
 	PLUGIN_HANDLE	(*pluginInit)(const ConfigCategory* config,
 				      OUTPUT_HANDLE* outHandle,

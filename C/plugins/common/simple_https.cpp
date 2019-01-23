@@ -11,6 +11,9 @@
 
 #include <simple_https.h>
 
+// FIXME:
+#include <logger.h>
+
 using namespace std;
 
 // Using https://github.com/eidheim/Simple-Web-Server
@@ -70,11 +73,48 @@ int SimpleHttps::sendRequest(const string& method,
 	// Call HTTPS method
 	try
 	{
-		auto res = m_sender->request(method, path, payload, header);
-		retCode = res->status_code;
-		string response = res->content.string();
+		bool retry = false;
+		int retry_count = 0;
+		int http_code;
+		string response;
 
-		int http_code = atoi(retCode.c_str());
+		do
+		{
+			Logger::getLogger()->setMinLevel("info");
+
+			auto res = m_sender->request(method, path, payload, header);
+			retCode = res->status_code;
+			response = res->content.string();
+
+			http_code = atoi(retCode.c_str());
+
+			if (http_code != 202)
+			{
+				retry_count++;
+				if (retry_count < 100)
+				{
+
+					retry = true;
+				}
+				else
+				{
+					retry = false;
+				}
+
+				Logger::getLogger()->error("DBG HTTP  request BAD: retry |%d| code |%d| error |%s| ",
+							   retry_count,
+							   http_code,
+							   response.c_str());
+			}
+			else
+			{
+				retry = false;
+				Logger::getLogger()->info("DBG HTTP  request OK : retry |%d| code |%d| ",
+							   retry_count,
+							   http_code);
+
+			}
+		} while (retry);
 
 		// If 400 Bad Request, throw BadRequest exception
 		if (http_code == 400)

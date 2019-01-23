@@ -11,12 +11,11 @@ import os
 import http.client
 import json
 import time
-import shutil
 import pytest
 from collections import Counter
 
 __author__ = "Vaibhav Singhal"
-__copyright__ = "Copyright (c) 2018 Dianomic Systems"
+__copyright__ = "Copyright (c) 2019 Dianomic Systems"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
@@ -33,24 +32,16 @@ NORTH_TASK_NAME = "North_Readings_to_PI"
 _data_str = {}
 
 
-def _remove_data_file(file_path=None):
-    if os.path.exists(file_path):
-        os.remove(file_path)
-
-
-def _remove_directories(dir_path=None):
-    if os.path.exists(dir_path):
-        shutil.rmtree(dir_path, ignore_errors=True)
-
-
 @pytest.fixture
-def start_south_north(reset_and_start_foglamp, start_south, start_north_pi_v2,
-                      foglamp_url, pi_host, pi_port, pi_token, south_plugin="playback",
+def start_south_north(reset_and_start_foglamp, start_south, start_north_pi_server_c, remove_data_file,
+                      remove_directories, foglamp_url, pi_host, pi_port, pi_token, south_plugin="playback",
                       asset_name="end_to_end_csv", north_plugin="PI_Server_V2"):
     """ This fixture clone a south repo and starts both south and north instance
         reset_and_start_foglamp: Fixture that resets and starts foglamp, no explicit invocation, called at start
         start_south: Fixture that starts any south service with given configuration
-        start_north: Fixture that starts PI north task"""
+        start_north_pi_server_c: Fixture that starts PI north task
+        remove_data_file: Fixture that remove data file created during the tests
+        remove_directories: Fixture that remove directories created during the tests"""
 
     # Define configuration of foglamp south playback service
     south_config = {"assetName": {"value": "{}".format(asset_name)}, "csvFilename": {"value": "{}".format(CSV_NAME)},
@@ -80,14 +71,14 @@ def start_south_north(reset_and_start_foglamp, start_south, start_north_pi_v2,
     start_south(south_plugin, foglamp_url, config=south_config)
 
     # Call the start north task fixture
-    start_north_pi_v2(foglamp_url, pi_host, pi_port, north_plugin, pi_token)
+    start_north_pi_server_c(foglamp_url, pi_host, pi_port, north_plugin, pi_token)
 
     # Provide the fixture value
     yield start_south_north
 
     # Cleanup code that runs after the caller test is over
-    _remove_data_file(csv_file_path)
-    _remove_directories("/tmp/foglamp-south-{}".format(south_plugin))
+    remove_data_file(csv_file_path)
+    remove_directories("/tmp/foglamp-south-{}".format(south_plugin))
 
 
 def test_e2e_csv_pi(start_south_north, read_data_from_pi, foglamp_url, pi_host, pi_admin, pi_passwd, pi_db,
@@ -107,7 +98,7 @@ def test_e2e_csv_pi(start_south_north, read_data_from_pi, foglamp_url, pi_host, 
     assert 200 == r.status
     r = r.read().decode()
     retval = json.loads(r)
-    assert len(retval) > 0
+    assert len(retval) == 1
     assert asset_name == retval[0]["assetCode"]
     assert len(CSV_DATA) == retval[0]["count"]
 

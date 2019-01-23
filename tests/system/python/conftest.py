@@ -14,16 +14,18 @@ import http.client
 import json
 import base64
 import ssl
+import shutil
 import pytest
 
 __author__ = "Vaibhav Singhal"
-__copyright__ = "Copyright (c) 2018 Dianomic Systems"
+__copyright__ = "Copyright (c) 2019 Dianomic Systems"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
 @pytest.fixture
 def reset_and_start_foglamp():
+    """Fixture that kills foglamp, reset database and starts foglamp again"""
     assert os.environ.get('FOGLAMP_ROOT') is not None
     subprocess.run(["$FOGLAMP_ROOT/scripts/foglamp kill"], shell=True, check=True)
     subprocess.run(["echo YES | $FOGLAMP_ROOT/scripts/foglamp reset"], shell=True, check=True)
@@ -42,13 +44,31 @@ def find(pattern, path):
 
 
 @pytest.fixture
+def remove_data_file():
+    """Fixture that removes any file from a given path"""
+    def _remove_data_file(file_path=None):
+        if os.path.exists(file_path):
+            os.remove(file_path)
+    return _remove_data_file
+
+
+@pytest.fixture
+def remove_directories():
+    """Fixture that recursively removes any file and directories from a given path"""
+    def _remove_directories(dir_path=None):
+        if os.path.exists(dir_path):
+            shutil.rmtree(dir_path, ignore_errors=True)
+    return _remove_directories
+
+
+@pytest.fixture
 def start_south():
-    def _start_foglamp_south(south_plugin, foglamp_url, config=None, use_pip_cache=True):
+    def _start_foglamp_south(south_plugin, foglamp_url, service_name="play", config=None, use_pip_cache=True):
         """Start south service"""
         _config = config if config is not None else {}
         pip_cache = "" if use_pip_cache else "--no-cache-dir"
-        data = {"name": "play", "type": "South", "plugin": "{}".format(south_plugin), "enabled": "true",
-                "config": _config}
+        data = {"name": "{}".format(service_name), "type": "South", "plugin": "{}".format(south_plugin),
+                "enabled": "true", "config": _config}
 
         conn = http.client.HTTPConnection(foglamp_url)
         # Remove south plugin dir from tmp
@@ -74,13 +94,13 @@ def start_south():
         assert 200 == r.status
         r = r.read().decode()
         retval = json.loads(r)
-        assert "play" == retval["name"]
+        assert service_name == retval["name"]
     return _start_foglamp_south
 
 
 @pytest.fixture
 def start_north_pi_v2():
-    def _start_foglamp_north_pi_v2(foglamp_url, pi_host, pi_port, north_plugin, pi_token,
+    def _start_north_pi_server_c(foglamp_url, pi_host, pi_port, north_plugin, pi_token,
                                    taskname="North_Readings_to_PI"):
         """Start north task"""
         conn = http.client.HTTPConnection(foglamp_url)
@@ -101,7 +121,9 @@ def start_north_pi_v2():
         assert 200 == r.status
         retval = r.read().decode()
         return retval
-    return _start_foglamp_north_pi_v2
+    return _start_north_pi_server_c
+
+start_north_pi_server_c = start_north_pi_v2
 
 
 @pytest.fixture
@@ -199,6 +221,8 @@ def pytest_addoption(parser):
 
     parser.addoption("--south_plugin", action="store", default="playback",
                      help="Name of the South Plugin")
+    parser.addoption("--south_service_name", action="store", default="play",
+                     help="Name of the South Service")
     parser.addoption("--north_plugin", action="store", default="PI_Server_V2",
                      help="Name of the North Plugin")
     parser.addoption("--asset_name", action="store", default="systemtest",
@@ -262,6 +286,11 @@ def pi_token(request):
 @pytest.fixture
 def south_plugin(request):
     return request.config.getoption("--south_plugin")
+
+
+@pytest.fixture
+def south_service_name(request):
+    return request.config.getoption("--south_service_name")
 
 
 @pytest.fixture

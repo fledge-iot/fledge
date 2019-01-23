@@ -232,6 +232,8 @@ CREATE INDEX readings_ix1
 CREATE INDEX readings_ix2
     ON readings (asset_code);
 
+CREATE INDEX readings_ix3
+    ON readings (user_ts);
 
 -- Streams table
 -- List of the streams to the Cloud.

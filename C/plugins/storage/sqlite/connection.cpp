@@ -1894,6 +1894,29 @@ unsigned long rowidLimit = 0;
 			return 0;
 		}
 	}
+	{
+		/*
+		 * Refine rowid limit to just those rows older than age hours
+		 */
+		char *zErrMsg = NULL;
+		int rc;
+		SQLBuffer sqlBuffer;
+		sqlBUffer.append("select max(rowid) from foglamp.readings where user_ts < datetime('now' , '-");
+		unsentBuffer.append(age);
+		unsentBuffer.append(" hours', 'localtime');");
+		rc = SQLexec(dbHandle,
+		     "select max(rowid) from foglamp.readings;",
+	  	     rowidCallback,
+		     &rowidLimit,
+		     &zErrMsg);
+
+		if (rc != SQLITE_OK)
+		{
+ 			raiseError("purge - phaase 0, fetching rowid limit ", zErrMsg);
+			sqlite3_free(zErrMsg);
+			return 0;
+		}
+	}
 	logger->info("Purge collecting unsent row count");
 	if ((flags & 0x01) == 0)
 	{

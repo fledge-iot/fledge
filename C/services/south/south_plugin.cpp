@@ -30,6 +30,11 @@ SouthPlugin::SouthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category) :
 					manager->resolveSymbol(handle, "plugin_init");
 	instance = (*pluginInit)(&category);
 
+	if (!instance)
+	{
+		Logger::getLogger()->error("plugin_init returned NULL, cannot proceed");
+		throw new exception();
+	}
 
 	// Setup the function pointers to the plugin
   	pluginStartPtr = (void (*)(PLUGIN_HANDLE))
@@ -133,6 +138,11 @@ void SouthPlugin::reconfigure(const string& newConfig)
 {
 	try {
 		this->pluginReconfigurePtr(&instance, newConfig);
+		if (!instance)
+		{
+			Logger::getLogger()->error("plugin_reconfigure returned NULL, cannot proceed");
+			throw new exception();
+		}
 		return;
 	} catch (exception& e) {
 		Logger::getLogger()->fatal("Unhandled exception raised in south plugin reconfigure(), %s",

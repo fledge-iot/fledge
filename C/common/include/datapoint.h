@@ -15,6 +15,8 @@
 #include <cfloat>
 #include <vector>
 
+class Datapoint;
+
 /**
  * Class to hold an actual reading value.
  * The class is simply a tagged union that also contains
@@ -55,6 +57,15 @@ class DatapointValue {
 			m_value.a = new std::vector<double>(values);
 			m_type = T_FLOAT_ARRAY;
 		};
+
+		/**
+		 * Construct with an array of Datapoints
+		 */
+		DatapointValue(std::vector<Datapoint*>*& values)
+		{
+			m_value.dpa = values;
+			m_type = T_DP_ARRAY;
+		};
 		
 		/**
 		 * Copy constructor
@@ -69,6 +80,9 @@ class DatapointValue {
 				break;
 			case T_FLOAT_ARRAY:
 				m_value.a = new std::vector<double>(*(obj.m_value.a));
+				break;
+			case T_DP_ARRAY:
+				m_value.dpa = new std::vector<Datapoint*>(*(obj.m_value.dpa));
 				break;
 			default:
 				m_value = obj.m_value;
@@ -88,6 +102,10 @@ class DatapointValue {
 			{
 				delete m_value.a;
 			}
+			if (m_type == T_DP_ARRAY)
+			{
+				delete m_value.dpa;
+			}
 		};
 
 		/**
@@ -105,6 +123,11 @@ class DatapointValue {
 				// Remove previous value
 				delete m_value.a;
 			}
+			if (m_type == T_DP_ARRAY)
+			{
+				// Remove previous value
+				delete m_value.dpa;
+			}
 
 			m_type = rhs.m_type;
 
@@ -115,6 +138,9 @@ class DatapointValue {
 				break;
 			case T_FLOAT_ARRAY:
 				m_value.a = new std::vector<double>(*(rhs.m_value.a));
+				break;
+			case T_DP_ARRAY:
+				m_value.dpa = new std::vector<Datapoint*>(*(rhs.m_value.dpa));
 				break;
 			default:
 				m_value = rhs.m_value;
@@ -177,6 +203,22 @@ class DatapointValue {
 				}
 				ss << "]";
 				return ss.str();
+			case T_DP_ARRAY:
+				ss << "[";
+				for (auto it = m_value.dpa->begin(); // std::vector<Datapoint *>*	dpa;
+				     it != m_value.dpa->end();
+				     ++it)
+				{
+					if (it != m_value.dpa->begin())
+					{
+						ss << ", ";
+					}
+					ss << "{";   /// dict doesn't need this, list needs it, need differentiation.
+					ss << (*it)->toJSONProperty();
+					ss << "}";
+				}
+				ss << "]";
+				return ss.str();
 			case T_STRING:
 			default:
 				ss << "\"";
@@ -201,7 +243,8 @@ class DatapointValue {
 			T_STRING,
 			T_INTEGER,
 			T_FLOAT,
-			T_FLOAT_ARRAY
+			T_FLOAT_ARRAY,
+			T_DP_ARRAY
 		} dataTagType;
 
 		/**
@@ -217,6 +260,7 @@ class DatapointValue {
 			long			i;
 			double			f;
 			std::vector<double>*	a;
+			std::vector<Datapoint*>*	dpa;
 			} m_value;
 		DatapointTag	m_type;
 };

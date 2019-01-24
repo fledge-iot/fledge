@@ -36,7 +36,7 @@
  * to have access to the database between blocks.
  */
 #define PURGE_SLEEP_MS 250
-#define PURGE_DELETE_BLOCK_SIZE	"1000"
+#define PURGE_DELETE_BLOCK_SIZE	1000
 
 /**
  * SQLite3 storage plugin for FogLAMP
@@ -600,6 +600,30 @@ int *nRows = (int *)data;
 
 	// Return the value of the first column: the count(*)
 	*nRows = atoi(colValues[0]);
+
+	// Set OK
+	return 0;
+}
+
+/**
+ * This SQLIte3 query rowid callback just returns the rowid
+ * by a SELECT statement in the 'data' parameter
+ *
+ * @param data         Output parameter to update with rowid
+ * @param nCols        The number of columns or the row
+ * @param colValues    The column values
+ * @param colNames     The column names
+ * @return             0 on success, 1 otherwise
+ */
+static int rowidCallback(void *data,
+			 int nCols,
+			 char **colValues,
+			 char **colNames)
+{
+unsigned long *rowid = (unsigned long *)data;
+
+	// Return the value of the first column: the count(*)
+	*rowid = strtoul(colValues[0], NULL, 10);
 
 	// Set OK
 	return 0;
@@ -1807,6 +1831,33 @@ SQLBuffer sql;
 long unsentPurged = 0;
 long unsentRetained = 0;
 long numReadings = 0;
+unsigned long rowidLimit = 0;
+
+	Logger *logger = Logger::getLogger();
+
+	logger->info("Purge starting...");
+	/*
+	 * We fetch the current rowid and limit the purge process to work on just
+	 * those rows present in the database when the purge process started.
+	 * This provents us looping in the purge process if new readings become
+	 * eligible for purging at a rate that is faster than we can purge them.
+	 */
+	{
+		char *zErrMsg = NULL;
+		int rc;
+		rc = SQLexec(dbHandle,
+		     "select max(rowid) from foglamp.readings;",
+	  	     rowidCallback,
+		     &rowidLimit,
+		     &zErrMsg);
+
+		if (rc != SQLITE_OK)
+		{
+ 			raiseError("purge - phaase 0, fetching rowid limit ", zErrMsg);
+			sqlite3_free(zErrMsg);
+			return 0;
+		}
+	}
 
 	if (age == 0)
 	{
@@ -1815,7 +1866,9 @@ long numReadings = 0;
 		 * So set age based on the data we have and continue.
 		 */
 		SQLBuffer oldest;
-		oldest.append("SELECT (strftime('%s','now', 'localtime') - strftime('%s', MIN(user_ts)))/360 FROM foglamp.readings;");
+		oldest.append("SELECT (strftime('%s','now', 'localtime') - strftime('%s', MIN(user_ts)))/360 FROM foglamp.readings where rowid <= ");
+		oldest.append(rowidLimit);
+		oldest.append(';');
 		const char *query = oldest.coalesce();
 		char *zErrMsg = NULL;
 		int rc;
@@ -1841,6 +1894,7 @@ long numReadings = 0;
 			return 0;
 		}
 	}
+	logger->info("Purge collecting unsent row count");
 	if ((flags & 0x01) == 0)
 	{
 		// Get number of unsent rows we are about to remove
@@ -1849,6 +1903,8 @@ long numReadings = 0;
 		unsentBuffer.append(age);
 		unsentBuffer.append(" hours', 'localtime') AND id > ");
 		unsentBuffer.append(sent);
+		unsentBuffer.append(" AND rowid <= ");
+		unsentBuffer.append(rowidLimit);
 		unsentBuffer.append(';');
 		const char *query = unsentBuffer.coalesce();
 		char *zErrMsg = NULL;
@@ -1885,6 +1941,8 @@ long numReadings = 0;
 		sql.append(" AND id < ");
 		sql.append(sent);
 	}
+	sql.append(" AND rowid <= ");
+	sql.append(rowidLimit);
 	sql.append(" limit ");
 	sql.append(PURGE_DELETE_BLOCK_SIZE);
 	sql.append(';');
@@ -1893,7 +1951,7 @@ long numReadings = 0;
 	unsigned int deletedRows = 0;
 	char *zErrMsg = NULL;
 	unsigned int rowsAffected;
-
+	logger->info("Purge about to delete the readings readings in blocks");
 	do
 	{
 		// Exec DELETE query: no callback, no resultset
@@ -1919,10 +1977,12 @@ long numReadings = 0;
 
 		// Sleep for a while to reease locks on the database
 		std::this_thread::sleep_for(std::chrono::milliseconds(PURGE_SLEEP_MS));
-	} while (rowsAffected > 0);
+		Logger::getLogger()->info("Purge delete block of %d readings", rowsAffected);
+	} while (rowsAffected == PURGE_DELETE_BLOCK_SIZE);
 
 	// Release memory for 'query' var
 	delete[] query;
+	logger->info("Purged all blocks of readings");
 
 	SQLBuffer retainedBuffer;
 	retainedBuffer.append("SELECT count(ROWID) FROM foglamp.readings WHERE id > ");
@@ -1952,6 +2012,8 @@ long numReadings = 0;
 		sqlite3_free(zErrMsg);
 	}
 
+	logger->info("Got retained unsetn row count");
+
 	int readings_num = 0;
 	// Exec query and get result in 'readings_num' via 'countCallback'
 	rc = SQLexec(dbHandle,
@@ -1978,6 +2040,8 @@ long numReadings = 0;
     	convert << " \"readings\" : " << numReadings << " }";
 
 	result = convert.str();
+
+	logger->info("Purge process complete");
 
 	return deletedRows;
 }

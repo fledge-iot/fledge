@@ -32,6 +32,10 @@ void plugin_shutdown_fn(PLUGIN_HANDLE);
 PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject *);
 Reading* Py2C_parseReadingObject(PyObject *);
 vector<Reading *>* Py2C_getReadings(PyObject *);
+DatapointValue* Py2C_createDictDPV(PyObject *data);
+DatapointValue* Py2C_createListDPV(PyObject *data);
+DatapointValue *Py2C_createBasicDPV(PyObject *dValue);
+
 
 
 static void logErrorMessage();
@@ -692,7 +696,7 @@ DatapointValue* Py2C_createDictDPV(PyObject *data)
 		DatapointValue* dpv;
 		if (PyLong_Check(dValue) || PyFloat_Check(dValue) || PyBytes_Check(dValue) || PyUnicode_Check(dValue))
 		{
-			dpv = Py2C_createBasicDPV(element);
+			dpv = Py2C_createBasicDPV(dValue);
 		}
 		else if (PyList_Check(dValue))
 		{
@@ -710,13 +714,13 @@ DatapointValue* Py2C_createDictDPV(PyObject *data)
 		}
 		if (dpv)
 		{
-			dpVec->emplace_bacK(new Datapoint(string(PyUnicode_AsUTF8(dKey)), dpv));
+			dpVec->emplace_back(new Datapoint(string(PyUnicode_AsUTF8(dKey)), *dpv));
 		}
 	}
 	
 	if (dpVec->size() > 0)
 	{
-		DatapointValue *dpv = new DatapointValue("unnamed_dict", dpVec);
+		DatapointValue *dpv = new DatapointValue(dpVec);
 		return dpv;
 	}
 	else
@@ -757,13 +761,13 @@ DatapointValue* Py2C_createListDPV(PyObject *data)
 		{
 			dpv = Py2C_createListDPV(element);
 		}
-		else if (PyLong_Check(dValue) || PyFloat_Check(dValue) || PyBytes_Check(dValue) || PyUnicode_Check(dValue))
+		else if (PyLong_Check(element) || PyFloat_Check(element) || PyBytes_Check(element) || PyUnicode_Check(element))
 		{
 			dpv = Py2C_createBasicDPV(element);
 		}
 		if (dpv)
 		{
-			dpVec->emplace_bacK(new Datapoint(string("unnamed_list_elem#") + i, dpv));
+			dpVec->emplace_back(new Datapoint(string("unnamed_list_elem#") + std::to_string(i), *dpv));
 		}
 		else
 			Logger::getLogger()->info("dpv is NULL");

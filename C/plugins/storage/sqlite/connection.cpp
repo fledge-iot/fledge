@@ -263,7 +263,7 @@ bool retCode;
 			outFormat.append(colName);
 		}
 
-		outFormat.append(")");
+		outFormat.append(", 'localtime')");	// MR TRY THIS
 		retCode = true;
 	}
 	else
@@ -395,7 +395,7 @@ Connection::Connection()
 
 	/**
 	 * Make a connection to the database
-	 * and chewck backend connection was successfully made
+	 * and check backend connection was successfully made
 	 * Note:
 	 *   we assume the database already exists, so the flag
 	 *   SQLITE_OPEN_CREATE is not added in sqlite3_open_v2 call

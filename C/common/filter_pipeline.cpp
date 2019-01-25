@@ -201,10 +201,14 @@ bool FilterPipeline::loadFilters(const string& categoryName)
 	 * Put all the new catregories in the Filter category parent
 	 * Create an empty South category if one doesn't exist
 	 */
-	DefaultConfigCategory filterConfig(string("Filter"), string("{}"));
-	filterConfig.setDescription("Filters");
+	string parentName = categoryName + " Filters";
+	DefaultConfigCategory filterConfig(parentName, string("{}"));
+	filterConfig.setDescription("Filters for " + categoryName);
 	mgtClient->addCategory(filterConfig, true);
-	mgtClient->addChildCategories("Filter", children);
+	mgtClient->addChildCategories(parentName, children);
+	vector<string> children1;
+	children1.push_back(parentName);
+	mgtClient->addChildCategories(categoryName, children1);
 	return true;
 	}
 	catch (ConfigItemNotFound* e)

@@ -57,10 +57,82 @@ class DatapointValue {
 			m_type = T_FLOAT_ARRAY;
 		};
 
-		DatapointValue(std::vector<Datapoint*>*& values);
+		/**
+		 * Construct with an array of Datapoints
+		 */
+		DatapointValue(std::vector<Datapoint*>*& values, bool isDict)
+		{
+			m_value.dpa = values;
+			m_type = isDict? T_DP_DICT : T_DP_LIST;
+		}
 
-		DatapointValue(const DatapointValue& obj);
-		DatapointValue& operator=(const DatapointValue& rhs);
+		/**
+		 * Copy constructor
+		 */
+		DatapointValue(const DatapointValue& obj)
+		{
+			m_type = obj.m_type;
+			switch (m_type)
+			{
+			case T_STRING:
+				m_value.str = new std::string(*(obj.m_value.str));
+				break;
+			case T_FLOAT_ARRAY:
+				m_value.a = new std::vector<double>(*(obj.m_value.a));
+				break;
+			case T_DP_DICT:
+			case T_DP_LIST:
+				m_value.dpa = new std::vector<Datapoint*>(*(obj.m_value.dpa));
+				break;
+			default:
+				m_value = obj.m_value;
+				break;
+			}
+		}
+
+		/**
+		 * Assignment Operator
+		 */
+		DatapointValue& operator=(const DatapointValue& rhs)
+		{
+			if (m_type == T_STRING)
+			{
+				// Remove previous value
+				delete m_value.str;
+			}
+			if (m_type == T_FLOAT_ARRAY)
+			{
+				// Remove previous value
+				delete m_value.a;
+			}
+			if (m_type == T_DP_DICT || m_type == T_DP_LIST)
+			{
+				// Remove previous value
+				delete m_value.dpa;
+			}
+
+			m_type = rhs.m_type;
+
+			switch (m_type)
+			{
+			case T_STRING:
+				m_value.str = new std::string(*(rhs.m_value.str));
+				break;
+			case T_FLOAT_ARRAY:
+				m_value.a = new std::vector<double>(*(rhs.m_value.a));
+				break;
+			case T_DP_DICT:
+			case T_DP_LIST:
+				m_value.dpa = new std::vector<Datapoint*>(*(rhs.m_value.dpa));
+				break;
+			default:
+				m_value = rhs.m_value;
+				break;
+			}
+
+			return *this;
+		}
+		
 		/**
 		 * Destructor
 		 */
@@ -74,14 +146,12 @@ class DatapointValue {
 			{
 				delete m_value.a;
 			}
-			if (m_type == T_DP_ARRAY)
+			if (m_type == T_DP_DICT || m_type == T_DP_LIST)
 			{
-				delete m_value.dpa;
+				delete m_value.dpa; // TODO: need to deleted in a nested manner
 			}
 		};
-
 		
-
 		/**
 		 * Set the value of a datapoint, this may
 		 * also cause the type to be changed.
@@ -123,7 +193,8 @@ class DatapointValue {
 			T_INTEGER,
 			T_FLOAT,
 			T_FLOAT_ARRAY,
-			T_DP_ARRAY
+			T_DP_DICT,
+			T_DP_LIST
 		} dataTagType;
 
 		/**

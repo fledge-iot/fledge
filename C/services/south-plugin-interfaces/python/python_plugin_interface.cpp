@@ -681,6 +681,34 @@ vector<Reading *>* Py2C_getReadings(PyObject *polledData)
 	
 }
 
+DatapointValue *Py2C_createBasicDPV(PyObject *dValue)
+{
+	if (!dValue)
+	{
+		Logger::getLogger()->info("dValue is NULL");
+		return NULL;
+	}
+	DatapointValue* dpv;
+	if (PyLong_Check(dValue))
+	{
+		dpv = new DatapointValue((long)PyLong_AsUnsignedLongMask(dValue));
+	}
+	else if (PyFloat_Check(dValue))
+	{
+		dpv = new DatapointValue(PyFloat_AS_DOUBLE(dValue));
+	}
+	else if (PyBytes_Check(dValue) || PyUnicode_Check(dValue))
+	{
+		dpv = new DatapointValue(string(PyUnicode_AsUTF8(dValue)));
+	}
+	else
+	{
+		Logger::getLogger()->info("Unable to parse dValue: Py_TYPE(dValue)=%s", (Py_TYPE(dValue))->tp_name);
+		dpv = NULL;
+	}
+	Logger::getLogger()->info("%s: dpv=%s", __FUNCTION__, dpv?dpv->toString().c_str():"NULL");
+	return dpv;
+}
 
 DatapointValue* Py2C_createDictDPV(PyObject *data)
 {
@@ -728,11 +756,15 @@ DatapointValue* Py2C_createDictDPV(PyObject *data)
 	
 	if (dpVec->size() > 0)
 	{
-		DatapointValue *dpv = new DatapointValue(dpVec);
+		DatapointValue *dpv = new DatapointValue(dpVec, true);
+		Logger::getLogger()->info("%s: dpv=%s", __FUNCTION__, dpv?dpv->toString().c_str():"NULL");
 		return dpv;
 	}
 	else
+	{
+		Logger::getLogger()->info("%s: dpv=%s", __FUNCTION__, "NULL");
 		return NULL;
+	}
 }
 
 DatapointValue* Py2C_createListDPV(PyObject *data)
@@ -783,315 +815,16 @@ DatapointValue* Py2C_createListDPV(PyObject *data)
 	
 	if (dpVec->size() > 0)
 	{
-		DatapointValue *dpv = new DatapointValue(dpVec);
+		DatapointValue *dpv = new DatapointValue(dpVec, false);
+		Logger::getLogger()->info("%s: dpv=%s", __FUNCTION__, dpv?dpv->toString().c_str():"NULL");
 		return dpv;
 	}
 	else
-		return NULL;
-}
-
-DatapointValue *Py2C_createBasicDPV(PyObject *dValue)
-{
-	if (!dValue)
 	{
-		Logger::getLogger()->info("dValue is NULL");
-		return NULL;
-	}
-	DatapointValue* dpv;
-	if (PyLong_Check(dValue))
-	{
-		dpv = new DatapointValue((long)PyLong_AsUnsignedLongMask(dValue));
-	}
-	else if (PyFloat_Check(dValue))
-	{
-		dpv = new DatapointValue(PyFloat_AS_DOUBLE(dValue));
-	}
-	else if (PyBytes_Check(dValue) || PyUnicode_Check(dValue))
-	{
-		dpv = new DatapointValue(string(PyUnicode_AsUTF8(dValue)));
-	}
-	else
-	{
-		Logger::getLogger()->info("Unable to parse dValue: Py_TYPE(dValue)=%s", (Py_TYPE(dValue))->tp_name);
-		dpv = NULL;
-	}
-	return dpv;
-}
-
-#if 0
-// create a "list" DPV
-DatapointValue* Py2C_createDPV(PyObject *data)
-{
-	if(PyList_Check(data)) // got a list of DPs
-	{
-		vector<Datapoint *>* vec = new vector<Datapoint *>();
-		// Iterate DPV objects in the list
-		for (int i = 0; i < PyList_Size(data); i++)
-		{
-			DatapointValue* dpv = NULL:
-			// Get list item: borrowed reference.
-			PyObject* element = PyList_GetItem(data, i);
-			if (!element)
-			{
-				// Failure
-				if (PyErr_Occurred())
-				{
-					logErrorMessage();
-				}
-				delete vec;
-
-				return NULL;
-			}
-			else if (PyDict_Check(element))
-			{
-				vector<DatapointValue *>* vec2 = Py2C_createDPV(element);
-				dpv = new DatapointValue(vec2);
-			}
-			else if (PyLong_Check(dValue) || PyFloat_Check(dValue) || PyBytes_Check(dValue) || PyUnicode_Check(dValue))
-			{
-				dpv = Py2C_createBasicDPV(element);
-			}
-			
-			Reading* newReading = Py2C_parseReadingObject(element);
-			if (dpv)
-			{
-				Datapoint *dp = new Datapoint("list_elem",*dpv)
-				vec->push_back(dp);
-			}
-			else
-				Logger::getLogger()->info("dpv is NULL", i);
-		}
-		if (vec->size() > 0)
-		{
-			DatapointValue *dp = new DatapointValue(vec);
-			return dp;
-		}
-		else
-			return NULL;
-	}
-	else if(PyDict_Check(data)) // got a dict of DPs
-	{
-		// Fetch all Datapoints in the dict			
-		PyObject *dKey, *dValue;  // borrowed references set by PyDict_Next()
-		Py_ssize_t dPos = 0;
-		Reading* newReading = NULL;
-		
-		vector<DatapointValue*> *dpvVec = new vector<DatapointValue*>();
-		
-		// Fetch all Datapoints in 'reading' dict
-		// dKey and dValue are borrowed references
-		while (PyDict_Next(data, &dPos, &dKey, &dValue))
-		{
-			DatapointValue* dpv;
-			if (PyLong_Check(dValue))
-			{
-				dpv = new DatapointValue((long)PyLong_AsUnsignedLongMask(dValue));
-			}
-			else if (PyFloat_Check(dValue))
-			{
-				dpv = new DatapointValue(PyFloat_AS_DOUBLE(dValue));
-			}
-			else if (PyBytes_Check(dValue))
-			{
-				dpv = new DatapointValue(string(PyUnicode_AsUTF8(dValue)));
-			}
-			else if (PyUnicode_Check(dValue))
-			{
-				dpv = new DatapointValue(string(PyUnicode_AsUTF8(dValue)));
-			}
-			else if (PyList_Check(dValue))
-			{
-				dpv = Py2C_createDPV(dValue);
-			}
-			else if (PyDict_Check(dValue))
-			{
-				dpv = Py2C_createDPV(dValue);
-			}
-			else
-			{
-				Logger::getLogger()->info("Unable to parse dValue in 'data' dict: dKey=%s, Py_TYPE(dValue)=%s", string(PyUnicode_AsUTF8(dKey)).c_str(), (Py_TYPE(dValue))->tp_name);
-				//delete dataPoint;
-				dpv = NULL;
-			}
-			dpvVec->push_bacK(dpv);
-		}
-		if (dpvVec->size() > 0)
-		{
-			Datapoint *dp = new Datapoint("list", dpvVec);
-			return dp;
-		}
-		else
-			return NULL;
-	}
-	else if (PyLong_Check(data) || PyLong_Check(data))
-	{
-		return (new DatapointValue((long)PyLong_AsUnsignedLongMask(data)));
-	}
-	else if (PyFloat_Check(data))
-	{
-		return (new DatapointValue(PyFloat_AS_DOUBLE(data)));
-	}
-	else if (PyBytes_Check(data))
-	{
-		return (new DatapointValue(string(PyUnicode_AsUTF8(data))));
-	}
-	else if (PyUnicode_Check(data))
-	{
-		return (new DatapointValue(string(PyUnicode_AsUTF8(data))));
-	}
-	else if (PyList_Check(data))
-	{
-		return Py2C_createDPV(data);
-	}
-	else if (PyDict_Check(data))
-	{
-		return Py2C_createDPV(data);
-	}
-	else
-	{
-		Logger::getLogger()->info("Unable to parse dValue in 'data' dict: Py_TYPE(data)=%s", (Py_TYPE(data))->tp_name);
-		//delete dataPoint;
+		Logger::getLogger()->info("%s: dpv=%s", __FUNCTION__, "NULL");
 		return NULL;
 	}
 }
-
-// create DP out of list of DPVs
-Datapoint* Py2C_createDP(PyObject *data)
-{
-	if(PyList_Check(data)) // got a list of DPs
-	{
-		vector<Datapoint *>* vec = new vector<Datapoint *>();
-		// Iterate DPV objects in the list
-		for (int i = 0; i < PyList_Size(data); i++)
-		{
-			// Get list item: borrowed reference.
-			PyObject* element = PyList_GetItem(data, i);
-			if (!element)
-			{
-				// Failure
-				if (PyErr_Occurred())
-				{
-					logErrorMessage();
-				}
-				delete vec;
-
-				return NULL;
-			}
-			else if!PyDict_Check(element))
-			{
-				vector<DatapointValue *>* vec2 = Py2C_createDPV(element);
-				DatapointValue *val = new DatapointValue(Py2C_createDPV(element));
-				vec->push_back(val);
-			}
-			else if (PyLong_Check(dValue) || PyFloat_Check(dValue) || PyBytes_Check(dValue) || PyUnicode_Check(dValue))
-			{
-				DatapointValue *val = new DatapointValue(Py2C_createDPV(element));
-				vec->push_back(val);
-			}
-				
-			Reading* newReading = Py2C_parseReadingObject(element);
-			if (newReading)
-			{
-				// Add the new reading to result vector
-				vec->push_back(newReading);
-			}
-			else
-				Logger::getLogger()->info("Py2C_getReadings: Reading[%d] is NULL", i);
-		}
-		if (vec->size() > 0)
-		{
-			DatapointValue *dp = new DatapointValue(vec);
-			return dp;
-		}
-		else
-			return NULL;
-	}
-	else if(PyDict_Check(data)) // got a dict of DPs
-	{
-		// Fetch all Datapoints in the dict			
-		PyObject *dKey, *dValue;  // borrowed references set by PyDict_Next()
-		Py_ssize_t dPos = 0;
-		Reading* newReading = NULL;
-		
-		vector<DatapointValue*> *dpvVec = new vector<DatapointValue*>();
-		
-		// Fetch all Datapoints in 'reading' dict
-		// dKey and dValue are borrowed references
-		while (PyDict_Next(data, &dPos, &dKey, &dValue))
-		{
-			DatapointValue* dpv;
-			if (PyLong_Check(dValue))
-			{
-				dpv = new DatapointValue((long)PyLong_AsUnsignedLongMask(dValue));
-			}
-			else if (PyFloat_Check(dValue))
-			{
-				dpv = new DatapointValue(PyFloat_AS_DOUBLE(dValue));
-			}
-			else if (PyBytes_Check(dValue))
-			{
-				dpv = new DatapointValue(string(PyUnicode_AsUTF8(dValue)));
-			}
-			else if (PyUnicode_Check(dValue))
-			{
-				dpv = new DatapointValue(string(PyUnicode_AsUTF8(dValue)));
-			}
-			else if (PyList_Check(dValue))
-			{
-				dpv = Py2C_createDPV(dValue);
-			}
-			else if (PyDict_Check(dValue))
-			{
-				dpv = Py2C_createDPV(dValue);
-			}
-			else
-			{
-				Logger::getLogger()->info("Unable to parse dValue in 'data' dict: dKey=%s, Py_TYPE(dValue)=%s", string(PyUnicode_AsUTF8(dKey)).c_str(), (Py_TYPE(dValue))->tp_name);
-				//delete dataPoint;
-				dpv = NULL;
-			}
-			dpvVec->push_bacK(dpv);
-		}
-		if (dpvVec->size() > 0)
-		{
-			Datapoint *dp = new Datapoint("list", dpvVec);
-			return dp;
-		}
-		else
-			return NULL;
-	}
-	else if (PyLong_Check(data) || PyLong_Check(data))
-	{
-		return (new DatapointValue((long)PyLong_AsUnsignedLongMask(data)));
-	}
-	else if (PyFloat_Check(data))
-	{
-		return (new DatapointValue(PyFloat_AS_DOUBLE(data)));
-	}
-	else if (PyBytes_Check(data))
-	{
-		return (new DatapointValue(string(PyUnicode_AsUTF8(data))));
-	}
-	else if (PyUnicode_Check(data))
-	{
-		return (new DatapointValue(string(PyUnicode_AsUTF8(data))));
-	}
-	else if (PyList_Check(data))
-	{
-		return Py2C_createDPV(data);
-	}
-	else if (PyDict_Check(data))
-	{
-		return Py2C_createDPV(data);
-	}
-	else
-	{
-		Logger::getLogger()->info("Unable to parse dValue in 'data' dict: Py_TYPE(data)=%s", (Py_TYPE(data))->tp_name);
-		//delete dataPoint;
-		return NULL;
-	}
-}
-#endif
 
 /**
  * Function to log error message encountered while interfacing with

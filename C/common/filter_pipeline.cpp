@@ -77,6 +77,7 @@ PLUGIN_HANDLE FilterPipeline::loadFilterPlugin(const string& filterName)
  */
 bool FilterPipeline::loadFilters(const string& categoryName)
 {
+	vector<string> children;	// The Child categories of 'Filters'
 	try
 	{
 		// Get the category with values and defaults
@@ -184,6 +185,7 @@ bool FilterPipeline::loadFilters(const string& categoryName)
 					Logger::getLogger()->fatal(errMsg.c_str());
 					throw runtime_error(errMsg);
 				}
+				children.push_back(categoryName);
 
 				// Instantiate the FilterPlugin class
 				// in order to call plugin entry points
@@ -195,6 +197,18 @@ bool FilterPipeline::loadFilters(const string& categoryName)
 			}
 		}
 	}
+	/*
+	 * Put all the new catregories in the Filter category parent
+	 * Create an empty South category if one doesn't exist
+	 */
+	string parentName = categoryName + " Filters";
+	DefaultConfigCategory filterConfig(parentName, string("{}"));
+	filterConfig.setDescription("Filters for " + categoryName);
+	mgtClient->addCategory(filterConfig, true);
+	mgtClient->addChildCategories(parentName, children);
+	vector<string> children1;
+	children1.push_back(parentName);
+	mgtClient->addChildCategories(categoryName, children1);
 	return true;
 	}
 	catch (ConfigItemNotFound* e)

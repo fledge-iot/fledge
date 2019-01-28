@@ -14,6 +14,7 @@
 #include <iostream>
 #include <uuid/uuid.h>
 #include <time.h>
+#include <logger.h>
 
 using namespace std;
 
@@ -175,6 +176,7 @@ ostringstream convert;
 	}
 	convert << " } }";
 
+	Logger::getLogger()->info("Reading::toJSON(): convert=%s", convert.str().c_str());
 	return convert.str();
 }
 

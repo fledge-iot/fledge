@@ -215,22 +215,30 @@ ReadingSet *StorageClient::readingFetch(const unsigned long readingId, const uns
 		snprintf(url, sizeof(url), "/storage/reading?id=%ld&count=%ld",
 				readingId, count);
 
+		PRINT_FUNC;
+		Logger::getLogger()->info("StorageClient::readingFetch(): url=%s", url);
+
 		auto res = this->getHttpClient()->request("GET", url);
+		PRINT_FUNC;
 		if (res->status_code.compare("200 OK") == 0)
 		{
+			PRINT_FUNC;
 			ostringstream resultPayload;
 			resultPayload << res->content.rdbuf();
+			Logger::getLogger()->info("StorageClient::readingFetch(): resultPayload=%s", resultPayload.str().c_str());
 			ReadingSet *result = new ReadingSet(resultPayload.str().c_str());
 			return result;
 		}
+		PRINT_FUNC;
 		ostringstream resultPayload;
 		resultPayload << res->content.rdbuf();
+		PRINT_FUNC;
 		handleUnexpectedResponse("Fetch readings", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
-		m_logger->error("Failed to fetch readings: %s", ex.what());
+		m_logger->error("Failed to fetch readings 1: %s", ex.what());
 		throw;
 	} catch (exception* ex) {
-		m_logger->error("Failed to fetch readings: %s", ex->what());
+		m_logger->error("Failed to fetch readings 2: %s", ex->what());
 		delete ex;
 		throw exception();
 	}

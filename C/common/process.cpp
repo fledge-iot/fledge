@@ -61,7 +61,7 @@ FogLampProcess::FogLampProcess(int argc, char** argv) :
 		throw runtime_error("Error: --name is not specified");
 	}
 
-	m_logger->setMinLevel("warning");	// Default to warnings, errors and fatal for log messages
+	m_logger->setMinLevel("debug");	// Default to warnings, errors and fatal for log messages
 	try
 	{
 		string minLogLevel = getArgValue("--loglevel=");

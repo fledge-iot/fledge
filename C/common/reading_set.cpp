@@ -63,6 +63,7 @@ ReadingSet::ReadingSet(const std::string& json)
 {
 	unsigned long rows = 0;
 	Document doc;
+	Logger::getLogger()->info("ReadingSet c'tor: json=%s", json.c_str());
 	doc.Parse(json.c_str());
 	if (doc.HasParseError())
 	{
@@ -77,10 +78,12 @@ ReadingSet::ReadingSet(const std::string& json)
 	{
 		throw new ReadingSetException("Missing readings or rows array");
 	}
+	PRINT_FUNC;
 
 	// Check we have "count" and "rows"
 	if (doc.HasMember("count") && docHasRows)
 	{
+		PRINT_FUNC;
 		m_count = doc["count"].GetUint();
 		// No readings
 		if (!m_count)
@@ -91,10 +94,13 @@ ReadingSet::ReadingSet(const std::string& json)
 	}
 	else
 	{
+		PRINT_FUNC;
 		// These fields might be updated later
 		m_count = 0;
 		m_last_id = 0;
 	}
+
+	PRINT_FUNC;
 
 	// Get "rows" or "readings" data
 	const Value& readings = docHasRows ? doc["rows"] : doc["readings"];
@@ -108,7 +114,10 @@ ReadingSet::ReadingSet(const std::string& json)
 			{
 				throw new ReadingSetException("Expected reading to be an object");
 			}
+			PRINT_FUNC;
 			JSONReading *value = new JSONReading(reading);
+			Logger::getLogger()->info("ReadingSet c'tor: value=%s", value->toJSON().c_str());
+			PRINT_FUNC;
 			m_readings.push_back(value);
 
 			// Get the Reading Id
@@ -230,6 +239,57 @@ static void convert_timestamp(const char *str, struct timeval *tv)
 	tv->tv_usec = atol(fractional);
 }
 
+#if 1
+DatapointValue* createDictDPV(const Value &obj)
+{
+	vector<Datapoint*> *dpVec = new vector<Datapoint*>();
+	
+	for (Value::ConstMemberIterator itr = obj.MemberBegin();
+			itr != obj.MemberEnd(); ++itr)
+	{
+		DatapointValue * dpv = NULL;
+		Logger::getLogger()->info("%s: itr->value.GetType()=%d, kObjectType=%d, kStringType=%d, kNumberType=%d, kArrayType=%d", 
+														__FUNCTION__, itr->value.GetType(), kObjectType, kStringType, kNumberType, kArrayType);
+		if (itr->value.IsString())
+			dpv = new DatapointValue(string(itr->value.GetString()));
+		else if (itr->value.IsDouble())
+			dpv = new DatapointValue(itr->value.GetDouble());
+		else if (itr->value.IsNumber())
+			dpv = new DatapointValue((const long) (itr->value.GetInt()));
+		else if (itr->value.IsObject())
+		{
+			dpv = NULL; // TODO
+			if (itr->value.IsArray())
+			{
+				Logger::getLogger()->info("createDPV: Got list inside dict");
+				//dpv = createListDPV(itr->value);
+			}
+			else
+			{
+				Logger::getLogger()->info("createDPV: Got dict inside dict");
+			}
+		}
+		if (dpv)
+			dpVec->emplace_back(new Datapoint(string(itr->name.GetString()), *dpv));
+	}
+
+	DatapointValue *dpv = NULL;
+	if (dpVec->size() > 0)
+	{
+		dpv = new DatapointValue(dpVec, true);
+		Logger::getLogger()->info("%s: dpv=%s", __FUNCTION__, dpv?dpv->toString().c_str():"NULL");
+		return dpv;
+	}
+	else
+	{
+		Logger::getLogger()->info("%s: dpv=%s", __FUNCTION__, "NULL");
+	}
+	
+	Logger::getLogger()->info("%s: dpv = %s", __FUNCTION__, dpv?dpv->toString().c_str():"NULL");
+	return dpv;
+}
+#endif
+
 /**
  * Construct a reading from a JSON document
  *
@@ -249,6 +309,7 @@ JSONReading::JSONReading(const Value& json)
 	{
 		m_has_id = false;
 	}
+	PRINT_FUNC;
 	m_asset = json["asset_code"].GetString();
 	convert_timestamp(json["user_ts"].GetString(), &m_userTimestamp);
 	if (json.HasMember("ts"))
@@ -260,6 +321,7 @@ JSONReading::JSONReading(const Value& json)
 		m_timestamp = m_userTimestamp;
 	}
 	m_uuid = json["read_key"].GetString();
+	PRINT_FUNC;
 
 	// We have a single value here which is a number
 	if (json.HasMember("value") && json["value"].IsNumber())
@@ -271,6 +333,7 @@ JSONReading::JSONReading(const Value& json)
 		    m.IsInt64() ||
 		    m.IsUint64())
 		{
+			PRINT_FUNC;
 			DatapointValue* value;
 			if (m.IsInt() ||
 			    m.IsUint() )
@@ -287,12 +350,14 @@ JSONReading::JSONReading(const Value& json)
 		}
 		else if (m.IsDouble())
 		{
+			PRINT_FUNC;
 			DatapointValue value(m.GetDouble());
 			this->addDatapoint(new Datapoint("value",
 							 value));
 		}
 		else
 		{
+			PRINT_FUNC;
 			string errMsg = "Cannot parse the numeric type";
 			errMsg += " of reading element '";
 			errMsg.append("value");
@@ -303,6 +368,7 @@ JSONReading::JSONReading(const Value& json)
 	}
 	else
 	{
+		PRINT_FUNC;
 		if (json["reading"].IsObject())
 		{
 			// Add 'reading' values
@@ -310,6 +376,7 @@ JSONReading::JSONReading(const Value& json)
 				switch (m.value.GetType()) {
 					// String
 					case (kStringType): {
+						PRINT_FUNC;
 						DatapointValue value(m.value.GetString());
 						this->addDatapoint(new Datapoint(m.name.GetString(),
 										 value));
@@ -322,6 +389,7 @@ JSONReading::JSONReading(const Value& json)
 						    m.value.IsUint() ||
 						    m.value.IsInt64() ||
 						    m.value.IsUint64()) {
+						    PRINT_FUNC;
 
 							DatapointValue *value;
 							if (m.value.IsInt() ||
@@ -335,11 +403,13 @@ JSONReading::JSONReading(const Value& json)
 							delete value;
 							break;
 						} else if (m.value.IsDouble()) {
+						PRINT_FUNC;
 							DatapointValue value(m.value.GetDouble());
 							this->addDatapoint(new Datapoint(m.name.GetString(),
 											 value));
 							break;
 						} else {
+						PRINT_FUNC;
 							string errMsg = "Cannot parse the numeric type";
 							errMsg += " of reading element '";
 							errMsg.append(m.name.GetString());
@@ -349,13 +419,51 @@ JSONReading::JSONReading(const Value& json)
 							break;
 						}
 					}
+					
+					case kArrayType: {
+						PRINT_FUNC;
+						vector<Datapoint*> *dpVec = new vector<Datapoint*>();
+						for (auto& elem : m.value.GetArray())
+						{
+							if (!elem.IsObject())
+							{
+								throw new ReadingSetException("Expected reading to be an object");
+							}
+							PRINT_FUNC;
+							Logger::getLogger()->info("JSONReading c'tor: kArrayType: elem.GetType()=%d, kObjectType=%d, kStringType=%d, kNumberType=%d, kArrayType=%d", 
+														elem.GetType(), kObjectType, kStringType, kNumberType, kArrayType);
+							DatapointValue *dpv = createDictDPV(elem);
+							dpVec->emplace_back(new Datapoint(string("unnamed_list_elem#"), *dpv));
+							//JSONReading *value = new JSONReading(elem);
+						}
+						if (dpVec->size() > 0)
+						{
+							DatapointValue *dpv = new DatapointValue(dpVec, false);
+							Logger::getLogger()->info("%s: dpv=%s", __FUNCTION__, dpv?dpv->toString().c_str():"NULL");
+							this->addDatapoint(new Datapoint("value", *dpv));
+						}
+						else
+						{
+							Logger::getLogger()->info("%s: dpv=%s", __FUNCTION__, "NULL");
+							string errMsg = "Cannot parse the array type with name";
+							//errMsg.append(m.name);
+
+							throw new ReadingSetException(errMsg.c_str());
+						}
+						
+						//DatapointValue value(m.value.GetString());
+						//this->addDatapoint(new Datapoint(m.name.GetString(),
+						//				 value));
+						break;
+					}
 
 					default: {
+						PRINT_FUNC;
 						string errMsg = "Cannot handle unsupported type '" + m.value.GetType();
 						errMsg += "' of reading element '";
 						errMsg.append(m.name.GetString());
 						errMsg += "'";
-
+						Logger::getLogger()->info("JSONReading c'tor: errMsg=%s", errMsg.c_str());
 						throw new ReadingSetException(errMsg.c_str());
 
 						break;
@@ -368,6 +476,7 @@ JSONReading::JSONReading(const Value& json)
 			// The reading should be an object at this stage, it is and invalid one if not
 			// the asset name ASSET_NAME_INVALID_READING will be created in the PI-Server containing the
 			// invalid asset_name/values.
+			PRINT_FUNC;
 			if (json["reading"].IsString())
 			{
 				string tmp_reading1 = json["reading"].GetString();
@@ -392,6 +501,7 @@ JSONReading::JSONReading(const Value& json)
 				   json["reading"].IsUint() ||
 				   json["reading"].IsInt64() ||
 				   json["reading"].IsUint64()) {
+				   PRINT_FUNC;
 
 				DatapointValue *value;
 
@@ -406,14 +516,20 @@ JSONReading::JSONReading(const Value& json)
 
 			} else if (json["reading"].IsDouble())
 			{
+				PRINT_FUNC;
 				DatapointValue value(json["reading"].GetDouble());
 				this->addDatapoint(new Datapoint(m_asset, value));
 
 			}
+			else
+				PRINT_FUNC;
 
 			m_asset = string(ASSET_NAME_INVALID_READING) + string("_") + m_asset.c_str();
+			PRINT_FUNC;
 		}
+		PRINT_FUNC;
 	}
+	PRINT_FUNC;
 }
 
 /**

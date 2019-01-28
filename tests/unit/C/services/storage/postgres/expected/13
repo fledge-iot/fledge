@@ -1,4 +1,4 @@
-{ "entryPoint" : "insert", "message" : "ERROR:  column \"nonexistant\" of relation \"test\" does not exist
-LINE 1: ...RT INTO foglamp.test (id, key, description, data, Nonexistan...
+{ "entryPoint" : "insert", "message" : "ERROR:  column \"Nonexistant\" of relation \"test\" does not exist
+LINE 1: ...foglamp.test (\"id\", \"key\", \"description\", \"data\", \"Nonexista...
                                                              ^
 ", "retryable" : false}

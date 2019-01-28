@@ -916,6 +916,7 @@ SQLBuffer	jsonConstraints;
 			return false;
 		}
 
+if (table.compare("statistics_history") == 0) Logger::getLogger()->error("SQL statement: %s", query);
 		// Release memory for 'query' var
 		delete[] query;
 		// Success

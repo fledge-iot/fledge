@@ -83,11 +83,11 @@ async def _get_north_schedules(storage_client):
                 'enabled': sch.enabled,
                 'exclusive': sch.exclusive,
                 'taskStatus': None if task is None else {
-                    'state': [t.name.capitalize() for t in list(Task.State)][int(task['state']) - 1] if task is not None else None,
-                    'startTime': str(task['start_time']) if task is not None else None,
-                    'endTime': str(task['end_time']) if task is not None else None,
-                    'exitCode': task['exit_code'] if task is not None else None,
-                    'reason': task['reason'] if task is not None else None,
+                    'state': [t.name.capitalize() for t in list(Task.State)][int(task['state']) - 1],
+                    'startTime': str(task['start_time']),
+                    'endTime': str(task['end_time']),
+                    'exitCode': task['exit_code'],
+                    'reason': task['reason'],
                 }
             })
 

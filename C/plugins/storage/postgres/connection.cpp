@@ -126,7 +126,9 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 						sql.append(", ");
 					if (!itr->IsObject())	// Simple column name
 					{
+						sql.append("\"");
 						sql.append(itr->GetString());
+						sql.append("\"");
 					}
 					else
 					{
@@ -145,7 +147,9 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 									return false;
 								}
 								sql.append("to_char(");
+								sql.append("\"");
 								sql.append((*itr)["column"].GetString());
+								sql.append("\"");
 								sql.append(", '");
 								sql.append((*itr)["format"].GetString());
 								sql.append("')");
@@ -157,14 +161,18 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 									raiseError("rerieve", "timezone must be a string");
 									return false;
 								}
+								sql.append("\"");
 								sql.append((*itr)["column"].GetString());
+								sql.append("\"");
 								sql.append(" AT TIME ZONE '");
 								sql.append((*itr)["timezone"].GetString());
 								sql.append("' ");
 							}
 							else
 							{
+								sql.append("\"");
 								sql.append((*itr)["column"].GetString());
+								sql.append("\"");
 							}
 							sql.append(' ');
 						}
@@ -234,6 +242,7 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 		sql.append(';');
 
 		const char *query = sql.coalesce();
+
 		PGresult *res = PQexec(dbConnection, query);
 		delete[] query;
 		if (PQresultStatus(res) == PGRES_TUPLES_OK)
@@ -280,11 +289,17 @@ int		col = 0;
 		itr != document.MemberEnd(); ++itr)
 	{
 		if (col)
+		{
 			sql.append(", ");
+		}
+		sql.append("\"");
 		sql.append(itr->name.GetString());
+		sql.append("\"");
  
 		if (col)
+		{
 			values.append(", ");
+		}
 		if (itr->value.IsString())
 		{
 			const char *str = itr->value.GetString();
@@ -397,7 +412,9 @@ SQLBuffer	sql;
 					{
 						sql.append( ", ");
 					}
+					sql.append("\"");
 					sql.append(itr->name.GetString());
+					sql.append("\"");
 					sql.append(" = ");
 		 
 					if (itr->value.IsString())
@@ -471,9 +488,13 @@ SQLBuffer	sql;
 							   "Missing value property in expressions array item");
 						return -1;
 					}
+					sql.append("\"");
 					sql.append((*itr)["column"].GetString());
+					sql.append("\"");
 					sql.append(" = ");
+					sql.append("\"");
 					sql.append((*itr)["column"].GetString());
+					sql.append("\"");
 					sql.append(' ');
 					sql.append((*itr)["operator"].GetString());
 					sql.append(' ');
@@ -551,7 +572,9 @@ SQLBuffer	sql;
 							  "Missing value property in json_properties array item");
 						return -1;
 					}
+					sql.append("\"");
 					sql.append((*itr)["column"].GetString());
+					sql.append("\"");
 					sql.append(" = jsonb_set(");
 					sql.append((*itr)["column"].GetString());
 					sql.append(", '{");
@@ -1104,7 +1127,16 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
 		sql.append('(');
 		if (aggregates.HasMember("column"))
 		{
+			if (strcmp(aggregates["operation"].GetString(), "count"))
+			{
+			sql.append("\"");
 			sql.append(aggregates["column"].GetString());
+			sql.append("\"");
+			}
+			else
+			{
+			sql.append(aggregates["column"].GetString());
+			}
 		}
 		else if (aggregates.HasMember("json"))
 		{
@@ -1120,7 +1152,9 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
 				return false;
 			}
 			sql.append('(');
+			sql.append("\"");
 			sql.append(json["column"].GetString());
+			sql.append("\"");
 			sql.append("->");
 			if (!json.HasMember("properties"))
 			{
@@ -1216,7 +1250,9 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
 			sql.append('(');
 			if (itr->HasMember("column"))
 			{
+				sql.append("\"");
 				sql.append((*itr)["column"].GetString());
+				sql.append("\"");
 			}
 			else if (itr->HasMember("json"))
 			{
@@ -1232,7 +1268,9 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
 					return false;
 				}
 				sql.append('(');
+				sql.append("\"");
 				sql.append(json["column"].GetString());
+				sql.append("\"");
 				if (!json.HasMember("properties"))
 				{
 					raiseError("retrieve", "The json property is missing a properties property");
@@ -1298,14 +1336,18 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
 			if (grp.HasMember("format"))
 			{
 				sql.append("to_char(");
+				sql.append("\"");
 				sql.append(grp["column"].GetString());
+				sql.append("\"");
 				sql.append(", '");
 				sql.append(grp["format"].GetString());
 				sql.append("')");
 			}
 			else
 			{
+				sql.append("\"");
 				sql.append(grp["column"].GetString());
+				sql.append("\"");
 			}
 			if (grp.HasMember("alias"))
 			{
@@ -1322,7 +1364,9 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
 		}
 		else
 		{
+			sql.append("\"");
 			sql.append(payload["group"].GetString());
+			sql.append("\"");
 		}
 	}
 	if (payload.HasMember("timebucket"))
@@ -1403,7 +1447,9 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 			if (grp.HasMember("format"))
 			{
 				sql.append("to_char(");
+				sql.append("\"");
 				sql.append(grp["column"].GetString());
+				sql.append("\"");
 				sql.append(", '");
 				sql.append(grp["format"].GetString());
 				sql.append("')");
@@ -1411,7 +1457,9 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 		}
 		else
 		{
+			sql.append("\"");
 			sql.append(payload["group"].GetString());
+			sql.append("\"");
 		}
 	}
 
@@ -1426,7 +1474,9 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 				raiseError("Select sort", "Missing property \"column\"");
 				return false;
 			}
+			sql.append("\"");
 			sql.append(sortBy["column"].GetString());
+			sql.append("\"");
 			sql.append(' ');
 			if (! sortBy.HasMember("direction"))
 			{
@@ -1456,7 +1506,9 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 				if (index)
 					sql.append(", ");
 				index++;
+				sql.append("\"");
 				sql.append((*itr)["column"].GetString());
+				sql.append("\"");
 				sql.append(' ');
 				if (! itr->HasMember("direction"))
 				{
@@ -1573,7 +1625,9 @@ bool Connection::jsonWhereClause(const Value& whereClause, SQLBuffer& sql)
 		return false;
 	}
 
+	sql.append("\"");
 	sql.append(whereClause["column"].GetString());
+	sql.append("\"");
 	sql.append(' ');
 	string cond = whereClause["condition"].GetString();
 	if (!cond.compare("older"))

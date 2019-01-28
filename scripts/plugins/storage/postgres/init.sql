@@ -822,8 +822,11 @@ INSERT INTO foglamp.log_codes ( code, description )
             ( 'NHAVL', 'North Destination Available' ),
             ( 'UPEXC', 'Update Complete' ),
             ( 'BKEXC', 'Backup Complete' ),
-            ( 'NTFDL', 'Notification Deleted' );
-
+            ( 'NTFDL', 'Notification Deleted' ),
+            ( 'NTFAD', 'Notification Added' ),
+            ( 'NTFSN', 'Notification Sent' ),
+            ( 'NTFST', 'Notification Server Startup' ),
+            ( 'NTFSD', 'Notification Server Shutdown' );
 
 --
 -- Configuration parameters

@@ -11,7 +11,7 @@
 			}
 		    ],
 	"sort" : {
-			"column" : "id:"
+			"column" : "id\\\">\\\""
 	}
 }
 

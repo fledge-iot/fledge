@@ -14,6 +14,7 @@
 #include <iostream>
 #include <uuid/uuid.h>
 #include <time.h>
+#include <string.h>
 #include <logger.h>
 
 using namespace std;
@@ -308,8 +309,9 @@ void Reading::setUserTimestamp(const string& timestamp)
 void Reading::stringToTimestamp(const string& timestamp, struct timeval *ts)
 {
 	struct tm tm;
+	memset(&tm, 0, sizeof(struct tm));
 	strptime(timestamp.c_str(), "%Y-%m-%d %H:%M:%S", &tm);
-	// Convert tiem to epoch - mktime assumes localtime so most adjust for that
+	// Convert time to epoch - mktime assumes localtime so most adjust for that
 	ts->tv_sec = mktime(&tm);
 	extern long timezone;
 	ts->tv_sec -= timezone;

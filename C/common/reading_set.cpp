@@ -207,30 +207,6 @@ ReadingSet::clear()
 }
 
 /**
- * Convert an ASCII timestamp into a timeval structure
- */
-static void convert_timestamp(const char *str, struct timeval *tv)
-{
-	struct tm tm  = {0};
-
-	memset(&tm, 0, sizeof(tm));
-	strptime(str, "%Y-%m-%d %H:%M:%S", &tm);
-
-    	// stores in timeval the UTC time
-	tv->tv_sec = mktime(&tm) - __timezone;
-
-	// Work out the microseconds from the fractional part of the seconds
-	char fractional[10];
-	sscanf(str, "%*d-%*d-%*d %*d:%*d:%*d.%[0-9]*", fractional);
-	int multiplier = 6 - (int)strlen(fractional);
-	if (multiplier < 0)
-		multiplier = 0;
-	while (multiplier--)
-		strcat(fractional, "0");
-	tv->tv_usec = atol(fractional);
-}
-
-/**
  * Construct a reading from a JSON document
  *
  * The data can be in the "value" property as single numeric value
@@ -250,10 +226,10 @@ JSONReading::JSONReading(const Value& json)
 		m_has_id = false;
 	}
 	m_asset = json["asset_code"].GetString();
-	convert_timestamp(json["user_ts"].GetString(), &m_userTimestamp);
+	stringToTimestamp(json["user_ts"].GetString(), &m_userTimestamp);
 	if (json.HasMember("ts"))
 	{
-		convert_timestamp(json["ts"].GetString(), &m_timestamp);
+		stringToTimestamp(json["ts"].GetString(), &m_timestamp);
 	}
 	else
 	{

@@ -307,7 +307,7 @@ bool retCode;
 			outFormat.append(colName);
 		}
 
-		outFormat.append(")");
+		outFormat.append(", 'localtime')");	// MR TRY THIS
 		retCode = true;
 	}
 	else
@@ -439,7 +439,7 @@ Connection::Connection()
 
 	/**
 	 * Make a connection to the database
-	 * and chewck backend connection was successfully made
+	 * and check backend connection was successfully made
 	 * Note:
 	 *   we assume the database already exists, so the flag
 	 *   SQLITE_OPEN_CREATE is not added in sqlite3_open_v2 call
@@ -900,7 +900,7 @@ SQLBuffer	jsonConstraints;
 			 
 				if (document.HasMember("where"))
 				{
-					if (!jsonWhereClause(document["where"], sql))
+					if (!jsonWhereClause(document["where"], sql, true))
 					{
 						return false;
 					}
@@ -1860,7 +1860,6 @@ SQLBuffer	sql;
 SQLBuffer	jsonConstraints;
 bool		isAggregate = false;
 
-Logger::getLogger()->info("Retrieve readings with condition %s", condition.c_str());
 	try {
 		if (dbHandle == NULL)
 		{
@@ -2975,7 +2974,7 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
  *
  */
 bool Connection::jsonWhereClause(const Value& whereClause,
-				 SQLBuffer& sql)
+				 SQLBuffer& sql, bool convertLocaltime)
 {
 	if (!whereClause.IsObject())
 	{
@@ -3012,7 +3011,10 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 		}
 		sql.append("< datetime('now', '-");
 		sql.append(whereClause["value"].GetInt());
-		sql.append(" seconds')"); // Get value in UTC by asking for no timezone
+		if (convertLocaltime)
+			sql.append(" seconds', 'localtime')"); // Get value in localtime
+		else
+			sql.append(" seconds')"); // Get value in UTC by asking for no timezone
 	}
 	else if (!cond.compare("newer"))
 	{
@@ -3024,7 +3026,10 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 		}
 		sql.append("> datetime('now', '-");
 		sql.append(whereClause["value"].GetInt());
-		sql.append(" seconds')"); // Get value ion UTC timezone
+		if (convertLocaltime)
+			sql.append(" seconds', 'localtime')"); // Get value in localtime
+		else
+			sql.append(" seconds')"); // Get value in UTC by asking for no timezone
 	}
 	else
 	{
@@ -3044,7 +3049,7 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 	if (whereClause.HasMember("and"))
 	{
 		sql.append(" AND ");
-		if (!jsonWhereClause(whereClause["and"], sql))
+		if (!jsonWhereClause(whereClause["and"], sql, convertLocaltime))
 		{
 			return false;
 		}
@@ -3052,7 +3057,7 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 	if (whereClause.HasMember("or"))
 	{
 		sql.append(" OR ");
-		if (!jsonWhereClause(whereClause["or"], sql))
+		if (!jsonWhereClause(whereClause["or"], sql, convertLocaltime))
 		{
 			return false;
 		}

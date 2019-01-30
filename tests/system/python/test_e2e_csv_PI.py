@@ -34,7 +34,7 @@ _data_str = {}
 
 @pytest.fixture
 def start_south_north(reset_and_start_foglamp, start_south, start_north_pi_server_c, remove_data_file,
-                      remove_directories, foglamp_url, pi_host, pi_port, pi_token, south_plugin="playback",
+                      remove_directories, south_branch, foglamp_url, pi_host, pi_port, pi_token, south_plugin="playback",
                       asset_name="end_to_end_csv", north_plugin="PI_Server_V2"):
     """ This fixture clone a south repo and starts both south and north instance
         reset_and_start_foglamp: Fixture that resets and starts foglamp, no explicit invocation, called at start
@@ -68,7 +68,7 @@ def start_south_north(reset_and_start_foglamp, start_south, start_north_pi_serve
         _data_str[_head] = tmp_list
 
     # Call the start south service fixture
-    start_south(south_plugin, foglamp_url, config=south_config)
+    start_south(south_plugin, south_branch, foglamp_url, config=south_config)
 
     # Call the start north task fixture
     start_north_pi_server_c(foglamp_url, pi_host, pi_port, north_plugin, pi_token)

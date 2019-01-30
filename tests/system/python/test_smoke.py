@@ -25,8 +25,8 @@ SENSOR_VALUE = 10
 
 
 @pytest.fixture
-def start_south_coap(reset_and_start_foglamp, start_south, remove_data_file, remove_directories, foglamp_url,
-                     south_plugin="coap", asset_name="smoke"):
+def start_south_coap(reset_and_start_foglamp, start_south, remove_data_file, remove_directories, south_branch,
+                     foglamp_url, south_plugin="coap", asset_name="smoke"):
     """ This fixture clone a south repo and starts both south and north instance
         reset_and_start_foglamp: Fixture that resets and starts foglamp, no explicit invocation, called at start
         start_south: Fixture that starts any south service with given configuration
@@ -44,7 +44,7 @@ def start_south_coap(reset_and_start_foglamp, start_south, remove_data_file, rem
     f.close()
 
     # Call the start south service fixture
-    start_south(south_plugin, foglamp_url, service_name="coap")
+    start_south(south_plugin, south_branch, foglamp_url, service_name="coap")
 
     # Provide the fixture value
     yield start_south_coap

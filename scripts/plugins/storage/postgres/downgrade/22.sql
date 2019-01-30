@@ -1,0 +1,1 @@
+-- Nothing required, here to keep numebnring with SQLite

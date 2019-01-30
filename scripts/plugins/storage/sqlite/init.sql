@@ -232,6 +232,8 @@ CREATE INDEX readings_ix1
 CREATE INDEX readings_ix2
     ON readings (asset_code);
 
+CREATE INDEX readings_ix3
+    ON readings (user_ts);
 
 -- Streams table
 -- List of the streams to the Cloud.
@@ -636,8 +638,11 @@ INSERT INTO foglamp.log_codes ( code, description )
             ( 'NHAVL', 'North Destination Available' ),
             ( 'UPEXC', 'Update Complete' ),
             ( 'BKEXC', 'Backup Complete' ),
-            ( 'NTFDL', 'Notification Deleted' );
-
+            ( 'NTFDL', 'Notification Deleted' ),
+            ( 'NTFAD', 'Notification Added' ),
+            ( 'NTFSN', 'Notification Sent' ),
+            ( 'NTFST', 'Notification Server Startup' ),
+            ( 'NTFSD', 'Notification Server Shutdown' );
 
 --
 -- Configuration parameters

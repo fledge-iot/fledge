@@ -152,6 +152,8 @@ typedef struct
 	OMF 		*omf;		// OMF data protocol
 	bool		compression;	// whether to compress readings' data
 	string		hostAndPort;	// hostname:port for SimpleHttps
+	unsigned int	retrySleepTime;	// Seconds between each retry
+	unsigned int	maxRetry;	// Max number of retries in the communication
 	unsigned int	timeout;	// connect and operation timeout
 	string		path;		// OCS application path
 	string		typeId;		// OMF protocol type-id prefix
@@ -184,7 +186,11 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	 * Handle the OCS parameters here
 	 */
 	string url = configData->getValue("URL");
+
+	unsigned int retrySleepTime = atoi(configData->getValue("OMFRetrySleepTime").c_str());
+	unsigned int maxRetry = atoi(configData->getValue("OMFMaxRetry").c_str());
 	unsigned int timeout = atoi(configData->getValue("OMFHttpTimeout").c_str());
+
 	string producerToken = configData->getValue("producerToken");
 
 	string formatNumber = configData->getValue("formatNumber");
@@ -225,6 +231,8 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	// Set configuration fields
 	connInfo->hostAndPort = hostAndPort;
 	connInfo->path = path;
+	connInfo->retrySleepTime = retrySleepTime;
+	connInfo->maxRetry = maxRetry;
 	connInfo->timeout = timeout;
 	connInfo->typeId = TYPE_ID_DEFAULT;
 	connInfo->producerToken = producerToken;
@@ -312,7 +320,9 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	 */
 	connInfo->sender = new SimpleHttps(connInfo->hostAndPort,
 					   connInfo->timeout,
-					   connInfo->timeout);
+					   connInfo->timeout,
+					   connInfo->retrySleepTime,
+					   connInfo->maxRetry);
   
 	// Allocate the OCS data protocol
 	connInfo->omf = new OMF(*connInfo->sender,

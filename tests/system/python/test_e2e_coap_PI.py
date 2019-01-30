@@ -26,7 +26,7 @@ SENSOR_VALUE = 20
 
 @pytest.fixture
 def start_south_north(reset_and_start_foglamp, start_south, start_north_pi_server_c, remove_data_file,
-                      remove_directories, foglamp_url, pi_host, pi_port,
+                      remove_directories, south_branch, foglamp_url, pi_host, pi_port,
                       north_plugin, pi_token, south_plugin="coap", asset_name="end_to_end_coap"):
     """ This fixture clone a south repo and starts both south and north instance
         reset_and_start_foglamp: Fixture that resets and starts foglamp, no explicit invocation, called at start
@@ -46,7 +46,7 @@ def start_south_north(reset_and_start_foglamp, start_south, start_north_pi_serve
     f.close()
 
     # Call the start south service fixture
-    start_south(south_plugin, foglamp_url)
+    start_south(south_plugin, south_branch, foglamp_url, service_name="coap")
 
     # Call the start north task fixture
     start_north_pi_server_c(foglamp_url, pi_host, pi_port, north_plugin, pi_token)

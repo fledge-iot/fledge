@@ -211,6 +211,18 @@ def pytest_addoption(parser):
     parser.addoption("--pi-token", action="store", default="omf_north_0001",
                      help="OMF Producer Token")
 
+    # OCS Config
+    parser.addoption("--ocs-tenant", action="store", default="ocs_tenant_id",
+                     help="Tenant id of OCS")
+    parser.addoption("--ocs-client-id", action="store", default="ocs_client_id",
+                     help="Client id of OCS account")
+    parser.addoption("--ocs-client-secret", action="store", default="ocs_client_secret",
+                     help="Client Secret of OCS account")
+    parser.addoption("--ocs-namespace", action="store", default="ocs_namespace_0001",
+                     help="OCS namespace where the information are stored")
+    parser.addoption("--ocs-token", action="store", default="ocs_north_0001",
+                     help="Token of OCS account")
+
     parser.addoption("--south-plugin", action="store", default="playback",
                      help="Name of the South Plugin")
     parser.addoption("--south-service-name", action="store", default="play",
@@ -291,6 +303,31 @@ def pi_passwd(request):
 @pytest.fixture
 def pi_token(request):
     return request.config.getoption("--pi-token")
+
+
+@pytest.fixture
+def ocs_tenant(request):
+    return request.config.getoption("--ocs-tenant")
+
+
+@pytest.fixture
+def ocs_client_id(request):
+    return request.config.getoption("--ocs-client-id")
+
+
+@pytest.fixture
+def ocs_client_secret(request):
+    return request.config.getoption("--ocs-client-secret")
+
+
+@pytest.fixture
+def ocs_namespace(request):
+    return request.config.getoption("--ocs-namespace")
+
+
+@pytest.fixture
+def ocs_token(request):
+    return request.config.getoption("--ocs-token")
 
 
 @pytest.fixture

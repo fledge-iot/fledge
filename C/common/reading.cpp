@@ -14,6 +14,8 @@
 #include <iostream>
 #include <uuid/uuid.h>
 #include <time.h>
+#include <string.h>
+#include <logger.h>
 
 using namespace std;
 
@@ -156,12 +158,12 @@ ostringstream convert;
 
 	// Add date_time with microseconds + timezone UTC:
 	// YYYY-MM-DD HH24:MM:SS.MS+00:00
-	convert << Reading::getAssetDateUserTime(FMT_DEFAULT) << "+00:00";
+	convert << getAssetDateUserTime(FMT_DEFAULT) << "+00:00";
 	convert << "\", \"ts\" : \"";
 
 	// Add date_time with microseconds + timezone UTC:
 	// YYYY-MM-DD HH24:MM:SS.MS+00:00
-	convert << Reading::getAssetDateTime(FMT_DEFAULT) << "+00:00";
+	convert << getAssetDateTime(FMT_DEFAULT) << "+00:00";
 
 	// Add values
 	convert << "\", \"reading\" : { ";
@@ -174,12 +176,11 @@ ostringstream convert;
 		convert << (*it)->toJSONProperty();
 	}
 	convert << " } }";
-
 	return convert.str();
 }
 
 /**
- * Return a formatted   m_timestamp DataTime in UTC
+ * Return a formatted m_timestamp DataTime in UTC
  * @param dateFormat    Format: FMT_DEFAULT or FMT_STANDARD
  * @return              The formatted datetime string
  */
@@ -190,7 +191,8 @@ char micro_s[10];
 ostringstream assetTime;
 
         // Populate tm structure
-        const struct tm *timeinfo = std::gmtime(&(m_timestamp.tv_sec));
+        struct tm timeinfo;
+	gmtime_r(&m_timestamp.tv_sec, &timeinfo);
 
         /**
          * Build date_time with format YYYY-MM-DD HH24:MM:SS.MS+00:00
@@ -201,7 +203,7 @@ ostringstream assetTime;
         // Create datetime with seconds
         std::strftime(date_time, sizeof(date_time),
 		      m_dateTypes[dateFormat].c_str(),
-                      timeinfo);
+                      &timeinfo);
 
 	if (dateFormat != FMT_ISO8601 && addMS)
 	{
@@ -224,7 +226,7 @@ ostringstream assetTime;
 }
 
 /**
- * Return a formatted   m_userTimestamp DataTime in UTC
+ * Return a formatted m_userTimestamp DataTime in UTC
  * @param dateFormat    Format: FMT_DEFAULT or FMT_STANDARD
  * @return              The formatted datetime string
  */
@@ -234,8 +236,9 @@ char date_time[DATE_TIME_BUFFER_LEN];
 char micro_s[10];
 ostringstream assetTime;
 
-        // Populate tm structure
-        const struct tm *timeinfo = std::gmtime(&(m_userTimestamp.tv_sec));
+        // Populate tm structure with UTC time
+        struct tm timeinfo;
+	gmtime_r(&m_userTimestamp.tv_sec, &timeinfo);
 
         /**
          * Build date_time with format YYYY-MM-DD HH24:MM:SS.MS+00:00
@@ -246,7 +249,7 @@ ostringstream assetTime;
         // Create datetime with seconds
         std::strftime(date_time, sizeof(date_time),
 		      m_dateTypes[dateFormat].c_str(),
-                      timeinfo);
+                      &timeinfo);
 
 	if (dateFormat != FMT_ISO8601 && addMS)
 	{
@@ -271,7 +274,7 @@ ostringstream assetTime;
 /**
  * Set the system timestamp from a string of the format
  * 2019-01-01 10:00:00.123456+08:00
- * The timeval is populate in UTC
+ * The timeval is populated in UTC
  *
  * @param timestamp	The timestamp string
  */
@@ -283,7 +286,7 @@ void Reading::setTimestamp(const string& timestamp)
 /**
  * Set the user timestamp from a string of the format
  * 2019-01-01 10:00:00.123456+08:00
- * The timeval is populate in UTC
+ * The timeval is populated in UTC
  *
  * @param timestamp	The timestamp string
  */
@@ -297,9 +300,8 @@ void Reading::setUserTimestamp(const string& timestamp)
  * struct timeval.
  *
  * Timezone handling
- *    The timezone in the string is extracted to get UTC values
- *    This is then converted to the local timezone as readings 
- *    are always expressed in the localtime zone
+ *    The timezone in the string is extracted to get UTC values.
+ *    Times within a reading are always stored as UTC
  *
  * @param timestamp	String timestamp
  * @param ts		Struct timeval to populate
@@ -307,16 +309,33 @@ void Reading::setUserTimestamp(const string& timestamp)
 void Reading::stringToTimestamp(const string& timestamp, struct timeval *ts)
 {
 	struct tm tm;
+	memset(&tm, 0, sizeof(struct tm));
 	strptime(timestamp.c_str(), "%Y-%m-%d %H:%M:%S", &tm);
+	// Convert time to epoch - mktime assumes localtime so most adjust for that
 	ts->tv_sec = mktime(&tm);
+	extern long timezone;
+	ts->tv_sec -= timezone;
+
+	// Now process the fractional seconds
 	const char *ptr = timestamp.c_str();
 	while (*ptr && *ptr != '.')
 		ptr++;
 	if (*ptr)
 	{
-		ptr++;
-		ts->tv_usec = strtol(ptr, NULL, 10);
+		char *eptr;
+		ts->tv_usec = strtol(ptr + 1, &eptr, 10);
+		int digits = eptr - (ptr + 1);	// Number of digits we have
+		while (digits < 6)
+		{
+			digits++;
+			ts->tv_usec *= 10;
+		}
 	}
+	else
+	{
+		ts->tv_usec = 0;
+	}
+
 	// Get the timezone from the string and convert to UTC
 	ptr = timestamp.c_str() + 10; // Skip date as it contains '-' characters
 	while (*ptr && *ptr != '-' && *ptr != '+')
@@ -329,8 +348,4 @@ void Reading::stringToTimestamp(const string& timestamp, struct timeval *ts)
 		sscanf(ptr, "%02d:%02d", &h, &m);
 		ts->tv_sec += sign * ((3600 * h) + (60 * m));
 	}
-	// Now convert to the local time
-	extern long timezone;
-	tzset();
-	ts->tv_sec -= timezone;
 }

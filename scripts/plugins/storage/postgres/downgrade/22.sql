@@ -1,1 +1,1 @@
--- Nothing required, here to keep numebnring with SQLite
+-- Nothing required, here to keep numbering with SQLite

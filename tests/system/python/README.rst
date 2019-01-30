@@ -97,8 +97,20 @@ custom options ::
     --pi-port=PI_PORT     PI Server Port
     --pi-db=PI_DB         PI Server database
     --pi-admin=PI_ADMIN   PI Server user login
-    --pi-passwd=PI_PASSWD PI Server user login password
+    --pi-passwd=PI_PASSWD
+                        PI Server user login password
     --pi-token=PI_TOKEN   OMF Producer Token
+    --ocs-tenant=OCS_TENANT
+                        Tenant id of OCS
+    --ocs-client-id=OCS_CLIENT_ID
+                        Client id of OCS account
+    --ocs-client-secret=OCS_CLIENT_SECRET
+                        Client Secret of OCS account
+    --ocs-namespace=OCS_NAMESPACE
+                        OCS namespace where the information are stored
+    --ocs-token=OCS_TOKEN
+                        Token of OCS account
+    --ocs-url=OCS_URL     URL of OCS, used in North Instance
     --south-plugin=SOUTH_PLUGIN
                         Name of the South Plugin
     --south-service-name=SOUTH_SERVICE_NAME
@@ -120,6 +132,7 @@ custom options ::
                         Kafka Rest Proxy Port
 
 
+
 Test test_e2e_coap_PI and test_e2e_csv_PI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -131,6 +144,18 @@ The minimum required parameters to run these tests are ::
     --pi-admin=<Login of PI Machine>
     --pi-passwd=<Password of PI Machine>
     --pi-token="<PI Producer token>"
+
+
+Test test_e2e_coap_OCS
+~~~~~~~~~~~~~~~~~~~~~~
+
+The minimum required parameters to run these tests are ::
+
+    --ocs-tenant=<Tenant id of OCS>
+    --ocs-client-id=<Client id of OCS account>
+    --ocs-client-secret=<Client Secret of OCS account>
+    --ocs-namespace=<OCS namespace where the information are stored>
+    --ocs-token=<Token of OCS account>
 
 
 Test test_e2e_kafka
@@ -177,6 +202,15 @@ and running pytest without the test name::
     --pi-admin=<Login of PI Machine>
     --pi-passwd=<Password of PI Machine>
     --pi-token=<PI Producer token>
+    --ocs-tenant=<Tenant id of OCS>
+    --ocs-client-id=<Client id of OCS account>
+    --ocs-client-secret=<Client Secret of OCS account>
+    --ocs-namespace=<OCS namespace where the information are stored>
+    --ocs-token=<Token of OCS account>
+    --kafka-host=<Hostname/IP of Kafka Server>
+    --kafka-port=<Kafka Server Port>
+    --kafka-topic=<Kafka topic>
+    --kafka-rest-port=<Kafka Rest Port>
 
 Console output
 ++++++++++++++

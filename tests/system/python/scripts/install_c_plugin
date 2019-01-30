@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -e
+
+__author__="Ashish Jabble"
+__copyright__="Copyright (c) 2019 Dianomic Systems"
+__license__="Apache 2.0"
+__version__="1.0.0"
+
+######################################################################################################
+# Usage text for this script
+# $FOGLAMP_ROOT/tests/system/python/scripts/install_c_plugin {BRANCH_NAME} {PLUGIN_TYPE} {PLUGIN_NAME}
+######################################################################################################
+
+BRANCH_NAME=$1
+PLUGIN_TYPE=$2
+PLUGIN_NAME=$3
+
+[[ -z "${BRANCH_NAME}" ]] && echo "Branch name not found." && exit 1
+[[ -z "${PLUGIN_TYPE}" ]] && echo "Plugin type not found." && exit 1
+[[ -z "${PLUGIN_NAME}" ]] && echo "Plugin name not found." && exit 1
+
+###########################################################################################
+# FIXME: As some of the C-plugins are having different project name & repo name convention
+# So when we are using this script we need to check carefully about the convention
+# Plugin name converted to lowercase for repo name
+###########################################################################################
+
+REPO_NAME=foglamp-${PLUGIN_TYPE}-${PLUGIN_NAME,,}
+
+clean () {
+   rm -rf /tmp/${REPO_NAME}
+   rm -rf ${FOGLAMP_ROOT}/plugins/${PLUGIN_TYPE}/${PLUGIN_NAME}
+}
+
+clone_repo () {
+   git clone -b ${BRANCH_NAME} --single-branch https://github.com/foglamp/${REPO_NAME}.git /tmp/${REPO_NAME}
+}
+
+install_binary_file () {
+   mkdir -p /tmp/${REPO_NAME}/build; cd /tmp/${REPO_NAME}/build; cmake -DFOGLAMP_INSTALL=${FOGLAMP_ROOT} ..; make -j4 && make install; cd -
+}
+
+clean
+clone_repo
+install_binary_file
+echo "${PLUGIN_NAME} plugin is installed."

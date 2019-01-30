@@ -122,7 +122,7 @@ int SimpleHttps::sendRequest(const string& method,
 		{
 			retry = false;
 #if VERBOSE_LOG
-			Logger::getLogger()->info("sendRequest succeeded : retry count |%d| http code |%d| message |%s|",
+			Logger::getLogger()->info("HTTPS sendRequest succeeded : retry count |%d| HTTP code |%d| message |%s|",
 						  retry_count,
 						  http_code,
 						  payload.c_str());
@@ -134,7 +134,7 @@ int SimpleHttps::sendRequest(const string& method,
 			if (exception_raised)
 			{
 				Logger::getLogger()->error(
-					"sendRequest : retry count |%d| error |%s| message |%s|",
+					"HTTPS sendRequest : retry count |%d| error |%s| message |%s|",
 					retry_count,
 					exception_message.c_str(),
 					payload.c_str());
@@ -143,7 +143,7 @@ int SimpleHttps::sendRequest(const string& method,
 			else
 			{
 				Logger::getLogger()->error(
-					"sendRequest : retry count |%d| http code |%d| error |%s| message |%s|",
+					"HTTPS sendRequest : retry count |%d| HTTP code |%d| HTTP error |%s| message |%s|",
 					retry_count,
 					http_code,
 					response.c_str(),

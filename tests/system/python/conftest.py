@@ -222,9 +222,6 @@ def pytest_addoption(parser):
                      help="OCS namespace where the information are stored")
     parser.addoption("--ocs-token", action="store", default="ocs_north_0001",
                      help="Token of OCS account")
-    parser.addoption("--ocs-url", action="store", default="https://dat-a.osisoft.com/api/tenants/TENANT_ID_PLACEHOLDER/namespaces/NAMESPACE_ID_PLACEHOLDER/omf",
-                     help="URL of OCS, used in North Instance")
-
 
     parser.addoption("--south-plugin", action="store", default="playback",
                      help="Name of the South Plugin")
@@ -331,11 +328,6 @@ def ocs_namespace(request):
 @pytest.fixture
 def ocs_token(request):
     return request.config.getoption("--ocs-token")
-
-
-@pytest.fixture
-def ocs_url(request):
-    return request.config.getoption("--ocs-url")
 
 
 @pytest.fixture

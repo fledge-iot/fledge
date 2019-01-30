@@ -93,13 +93,20 @@ custom options ::
                         FogLAMP client api url
     --use-pip-cache=USE_PIP_CACHE
                         use pip cache is requirement is available
-    --pi-host=PI_HOST     PI Server Host Name/IP
-    --pi-port=PI_PORT     PI Server Port
-    --pi-db=PI_DB         PI Server database
-    --pi-admin=PI_ADMIN   PI Server user login
+
+    --pi-host=PI_HOST
+                        PI Server Host Name/IP
+    --pi-port=PI_PORT
+                        PI Server Port
+    --pi-db=PI_DB
+                        PI Server database
+    --pi-admin=PI_ADMIN
+                        PI Server user login
     --pi-passwd=PI_PASSWD
                         PI Server user login password
-    --pi-token=PI_TOKEN   OMF Producer Token
+    --pi-token=PI_TOKEN
+                        OMF Producer Token
+
     --ocs-tenant=OCS_TENANT
                         Tenant id of OCS
     --ocs-client-id=OCS_CLIENT_ID
@@ -110,7 +117,7 @@ custom options ::
                         OCS namespace where the information are stored
     --ocs-token=OCS_TOKEN
                         Token of OCS account
-    --ocs-url=OCS_URL     URL of OCS, used in North Instance
+
     --south-plugin=SOUTH_PLUGIN
                         Name of the South Plugin
     --south-service-name=SOUTH_SERVICE_NAME
@@ -119,9 +126,12 @@ custom options ::
                         Name of the North Plugin
     --asset-name=ASSET_NAME
                         Name of asset
+
     --wait-time=WAIT_TIME
                         Generic wait time between processes to run
-    --retries=RETRIES     Number of tries to make to fetch data from PI web api
+    --retries=RETRIES
+                        Number of tries to make to fetch data from PI web api
+
     --kafka-host=KAFKA_HOST
                         Kafka Server Host Name/IP
     --kafka-port=KAFKA_PORT
@@ -129,7 +139,7 @@ custom options ::
     --kafka-topic=KAFKA_TOPIC
                         Kafka topic
     --kafka-rest-port=KAFKA_REST_PORT
-                        Kafka Rest Proxy Port
+                        Kafka REST Proxy Port
 
 
 
@@ -187,7 +197,7 @@ The minimum required parameters to run ::
     --kafka-host=<Hostname/IP of Kafka Server>
     --kafka-port=<Kafka Server Port>
     --kafka-topic=<Kafka topic>
-    --kafka-rest-port=<Kafka Rest Port>
+    --kafka-rest-port=<Kafka REST Proxy Port>
 
 
 Execute all the System tests
@@ -202,15 +212,17 @@ and running pytest without the test name::
     --pi-admin=<Login of PI Machine>
     --pi-passwd=<Password of PI Machine>
     --pi-token=<PI Producer token>
+
     --ocs-tenant=<Tenant id of OCS>
     --ocs-client-id=<Client id of OCS account>
     --ocs-client-secret=<Client Secret of OCS account>
     --ocs-namespace=<OCS namespace where the information are stored>
     --ocs-token=<Token of OCS account>
+
     --kafka-host=<Hostname/IP of Kafka Server>
     --kafka-port=<Kafka Server Port>
     --kafka-topic=<Kafka topic>
-    --kafka-rest-port=<Kafka Rest Port>
+    --kafka-rest-port=<Kafka REST Proxy Port>
 
 Console output
 ++++++++++++++

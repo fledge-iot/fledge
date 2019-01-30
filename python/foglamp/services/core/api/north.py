@@ -10,7 +10,7 @@ from foglamp.services.core import server
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.services.core import connect
-
+from foglamp.services.core.scheduler.entities import Task
 
 __author__ = "Praveen Garg"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -37,6 +37,28 @@ async def _get_sent_stats(storage_client):
         return stats
 
 
+async def _get_tasks_status():
+    payload = PayloadBuilder().SELECT("id", "schedule_name", "process_name", "state", "start_time", "end_time", "reason", "pid", "exit_code")\
+        .ALIAS("return", ("start_time", 'start_time'), ("end_time", 'end_time'))\
+        .FORMAT("return", ("start_time", "YYYY-MM-DD HH24:MI:SS.MS"), ("end_time", "YYYY-MM-DD HH24:MI:SS.MS"))\
+        .ORDER_BY(["schedule_name", "asc"], ["start_time", "desc"])
+
+    tasks = {}
+    try:
+        _storage = connect.get_storage_async()
+        results = await _storage.query_tbl_with_payload('tasks', payload.payload())
+        previous_schedule = None
+        for row in results['rows']:
+            if not row['schedule_name'].strip():
+                continue
+            if previous_schedule != row['schedule_name']:
+                tasks.update({row['schedule_name']: row})
+                previous_schedule = row['schedule_name']
+    except Exception as ex:
+        raise ValueError(str(ex))
+    return tasks
+
+
 async def _get_north_schedules(storage_client):
 
     cf_mgr = ConfigurationManager(storage_client)
@@ -48,8 +70,10 @@ async def _get_north_schedules(storage_client):
 
     schedules = []
     schedule_list = await server.Server.scheduler.get_schedules()
+    latest_tasks = await _get_tasks_status()
     for sch in schedule_list:
         if sch.name in north_schedules:
+            task = latest_tasks.get(sch.name, None)
             schedules.append({
                 'id': str(sch.schedule_id),
                 'name': sch.name,
@@ -57,7 +81,14 @@ async def _get_north_schedules(storage_client):
                 'repeat': sch.repeat.total_seconds() if sch.repeat else 0,
                 'day': sch.day,
                 'enabled': sch.enabled,
-                'exclusive': sch.exclusive
+                'exclusive': sch.exclusive,
+                'taskStatus': None if task is None else {
+                    'state': [t.name.capitalize() for t in list(Task.State)][int(task['state']) - 1],
+                    'startTime': str(task['start_time']),
+                    'endTime': str(task['end_time']),
+                    'exitCode': task['exit_code'],
+                    'reason': task['reason'],
+                }
             })
 
     return schedules

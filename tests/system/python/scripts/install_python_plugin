@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+set -e
+
+__author__="Ashish Jabble"
+__copyright__="Copyright (c) 2019 Dianomic Systems"
+__license__="Apache 2.0"
+__version__="1.0.0"
+
+###########################################################################################################
+# Usage text for this script
+# $FOGLAMP_ROOT/tests/system/python/scripts/install_python_plugin {BRANCH_NAME} {PLUGIN_TYPE} {PLUGIN_NAME}
+###########################################################################################################
+
+BRANCH_NAME=$1
+PLUGIN_TYPE=$2
+PLUGIN_NAME=$3
+USE_PIP_CACHE=$4
+
+[[ -z "${BRANCH_NAME}" ]] && echo "Branch name not found." && exit 1
+[[ -z "${PLUGIN_TYPE}" ]] && echo "Plugin type not found." && exit 1
+[[ -z "${PLUGIN_NAME}" ]] && echo "Plugin name not found." && exit 1
+
+USE_PIP_CACHE=${USE_PIP_CACHE,,}
+if [[ "${USE_PIP_CACHE}" = false ]]; then USE_PIP_CACHE="--no-cache-dir"; else USE_PIP_CACHE=""; fi
+
+###########################################################################################
+# FIXME: Only Http south/north are having different repo and directory naming convention
+# So we cannot use this script for them
+###########################################################################################
+
+REPO_NAME=foglamp-${PLUGIN_TYPE}-${PLUGIN_NAME}
+
+clean () {
+   rm -rf /tmp/${REPO_NAME}
+   rm -rf ${FOGLAMP_ROOT}/python/foglamp/plugins/${PLUGIN_TYPE}/foglamp-${PLUGIN_TYPE}-${PLUGIN_NAME}
+}
+
+clone_repo () {
+   git clone -b ${BRANCH_NAME} --single-branch https://github.com/foglamp/${REPO_NAME}.git /tmp/${REPO_NAME}
+}
+
+copy_file_and_requirement () {
+    cp -r /tmp/${REPO_NAME}/python/foglamp/plugins/${PLUGIN_TYPE}/${PLUGIN_NAME} $FOGLAMP_ROOT/python/foglamp/plugins/${PLUGIN_TYPE}/
+    req_file=$(find /tmp/${REPO_NAME} -name requirement*.txt)
+    [ ! -z "${req_file}" ] && pip3 install --user -Ir ${req_file} ${USE_PIP_CACHE} || echo "No such external dependency needed for ${PLUGIN_NAME} plugin."
+}
+
+clean
+clone_repo
+copy_file_and_requirement
+echo "${PLUGIN_NAME} plugin is installed."

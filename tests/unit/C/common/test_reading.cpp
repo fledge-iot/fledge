@@ -50,3 +50,39 @@ TEST(ReadingTest, FloatArray)
 	ASSERT_NE(json.find(string("\"read_key\" : \"")), std::string::npos);
 	ASSERT_NE(json.find(string("\"user_ts\" : ")), std::string::npos);
 }
+
+TEST(ReadingTest, GMT)
+{
+	DatapointValue value((long) 10);
+	Reading reading(string("test1"), new Datapoint("x", value));
+	reading.setUserTimestamp("2019-01-10 10:01:03.123456+0:00");
+	string json = reading.toJSON();
+	ASSERT_NE(json.find(string("\"user_ts\" : \"2019-01-10 10:01:03.123456+0:00\"")), 0);
+}
+
+TEST(ReadingTest, CET)
+{
+	DatapointValue value((long) 10);
+	Reading reading(string("test1"), new Datapoint("x", value));
+	reading.setUserTimestamp("2019-01-10 10:01:03.123456-1:00");
+	string json = reading.toJSON();
+	ASSERT_NE(json.find(string("\"user_ts\" : \"2019-01-10 11:01:03.123456+0:00\"")), 0);
+}
+
+TEST(ReadingTest, PST)
+{
+	DatapointValue value((long) 10);
+	Reading reading(string("test1"), new Datapoint("x", value));
+	reading.setUserTimestamp("2019-01-10 10:01:03.123456+8:00");
+	string json = reading.toJSON();
+	ASSERT_NE(json.find(string("\"user_ts\" : \"2019-01-10 18:01:03.123456+0:00\"")), 0);
+}
+
+TEST(ReadingTest, IST)
+{
+	DatapointValue value((long) 10);
+	Reading reading(string("test1"), new Datapoint("x", value));
+	reading.setUserTimestamp("2019-01-10 10:01:03.123456-5:30");
+	string json = reading.toJSON();
+	ASSERT_NE(json.find(string("\"user_ts\" : \"2019-01-10 15:31:03.123456+0:00\"")), 0);
+}

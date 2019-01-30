@@ -79,9 +79,9 @@ unsigned long numStatements = 0;
 #define F_DATEH24_MS    	"%Y-%m-%d %H:%M:%f"
 // Format up to seconds
 #define F_DATEH24_SEC    	"%Y-%m-%d %H:%M:%S"
-#define SQLITE3_NOW     	"strftime('%Y-%m-%d %H:%M:%f', 'now')"
+#define SQLITE3_NOW     	"strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime')"
 // The default precision is milliseconds, it adds microseconds and timezone
-#define SQLITE3_NOW_READING     "strftime('%Y-%m-%d %H:%M:%f', 'now') || '000+00:00'"
+#define SQLITE3_NOW_READING     "strftime('%Y-%m-%d %H:%M:%f000+00:00', 'now')"
 #define SQLITE3_FOGLAMP_DATETIME_TYPE "DATETIME"
 static time_t connectErrorTime = 0;
 map<string, string> sqliteDateFormat = {

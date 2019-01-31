@@ -1746,22 +1746,27 @@ bool		isAggregate = false;
 								}
 								// SQLite3 doesnt support time zone formatting
 								const char *tz = (*itr)["timezone"].GetString();
-								if (strcasecmp((*itr)["timezone"].GetString(), "utc") != 0)
 								if (strncasecmp(tz, "utc", 3) == 0)
 								{
 									sql.append("strftime('%Y-%m-%d %H:%M:%f', ");
 									sql.append((*itr)["column"].GetString());
 									sql.append(", 'utc')");
-									sql.append(" AS ");
-									sql.append((*itr)["column"].GetString());
+									if (! itr->HasMember("alias"))
+									{
+										sql.append(" AS ");
+										sql.append((*itr)["column"].GetString());
+									}
 								}
 								else if (strncasecmp(tz, "localtime", 9) == 0)
 								{
 									sql.append("strftime('%Y-%m-%d %H:%M:%f', ");
 									sql.append((*itr)["column"].GetString());
 									sql.append(", 'localtime')");
-									sql.append(" AS ");
-									sql.append((*itr)["column"].GetString());
+									if (! itr->HasMember("alias"))
+									{
+										sql.append(" AS ");
+										sql.append((*itr)["column"].GetString());
+									}
 								}
 								else
 								{
@@ -1775,8 +1780,11 @@ bool		isAggregate = false;
 								sql.append("strftime('%Y-%m-%d %H:%M:%f', ");
 								sql.append((*itr)["column"].GetString());
 								sql.append(", 'localtime')");
-								sql.append(" AS ");
-								sql.append((*itr)["column"].GetString());
+								if (! itr->HasMember("alias"))
+								{
+									sql.append(" AS ");
+									sql.append((*itr)["column"].GetString());
+								}
 							}
 							sql.append(' ');
 						}

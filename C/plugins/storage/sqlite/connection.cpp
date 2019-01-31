@@ -29,6 +29,11 @@
 #include <chrono>
 #include <thread>
 
+#define VERBOSE_LOG	1
+
+// FIXME::
+#include <tmp_log.hpp>
+
 /*
  * Control the way purge deletes readings. The block size sets a limit as to how many rows
  * get deleted in each call, whilst the sleep interval controls how long the thread sleeps
@@ -48,11 +53,11 @@ using namespace rapidjson;
 #define CONNECT_ERROR_THRESHOLD		5*60	// 5 minutes
 
 #define MAX_RETRIES			20	// Maximum no. of retries when a lock is encountered
-#define RETRY_BACKOFF			2000	// Multipier to backoff DB retry on lock
+#define RETRY_BACKOFF			2000	// Multipler to backoff DB retry on lock
 
 /*
  * The following allows for conditional inclusion of code that tracks the top queries
- * run by the storage plugin and the numebr of times a particular statement has to
+ * run by the storage plugin and the number of times a particular statement has to
  * be retried because of the database being busy./
  */
 #define DO_PROFILE		0
@@ -1784,6 +1789,12 @@ char *zErrMsg = NULL;
 int rc;
 int retrieve;
 
+	// FIXME:
+	Logger::getLogger()->setMinLevel("debug");
+#if VERBOSE_LOG
+	Logger::getLogger()->debug("fetchReadings");
+#endif
+
 	// SQL command to extract the data from the foglamp.readings
 	const char *sql_cmd = R"(
 	SELECT
@@ -1860,6 +1871,16 @@ SQLBuffer	sql;
 SQLBuffer	jsonConstraints;
 bool		isAggregate = false;
 
+	// FIXME:
+	Logger::getLogger()->setMinLevel("debug");
+
+	// FIXME:
+	char tmp_buffer[5000];
+	sprintf (tmp_buffer,"DBG : retrieveReadings : condition |%s|",
+		 condition.c_str());
+	tmpLogger (tmp_buffer);
+
+
 	try {
 		if (dbHandle == NULL)
 		{
@@ -1869,15 +1890,18 @@ bool		isAggregate = false;
 
 		if (condition.empty())
 		{
+#if VERBOSE_LOG
+			Logger::getLogger()->debug("retrieveReadings condition empty");
+#endif
 			const char *sql_cmd = R"(
 					SELECT
 						id,
 						asset_code,
 						read_key,
 						reading,
-						strftime('%Y-%m-%d %H:%M:%S', user_ts, 'utc')  ||
+						strftime('%Y-%m-%d %H:%M:%S', user_ts, 'localtime')  ||
 						substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
-						strftime('%Y-%m-%d %H:%M:%f', ts, 'utc') AS ts
+						strftime('%Y-%m-%d %H:%M:%f', ts, 'localtime') AS ts
 					FROM foglamp.readings)";
 
 			sql.append(sql_cmd);
@@ -1956,17 +1980,36 @@ bool		isAggregate = false;
 							}
 							else if (itr->HasMember("timezone"))
 							{
+#if VERBOSE_LOG
+								// FIXME:
+								Logger::getLogger()->debug("retrieveReadings column - timezone 1");
+#endif
+
 								if (! (*itr)["timezone"].IsString())
 								{
+									Logger::getLogger()->debug("retrieveReadings column - timezone 1.1");
+
 									raiseError("retrieve",
 										   "timezone must be a string");
 									return false;
 								}
+								// FIXME:
+								Logger::getLogger()->debug("retrieveReadings column - timezone 2");
+
+
 								// SQLite3 doesnt support time zone formatting
 								const char *tz = (*itr)["timezone"].GetString();
-								if (strcasecmp((*itr)["timezone"].GetString(), "utc") != 0)
+
+								// FIXME:
+								Logger::getLogger()->debug("retrieveReadings column - timezone 2.1 tz :%s:", tz);
+
+								// FIXME:
+								//if (strcasecmp((*itr)["timezone"].GetString(), "utc") != 0)
 								if (strncasecmp(tz, "utc", 3) == 0)
 								{
+									// FIXME:
+									Logger::getLogger()->debug("retrieveReadings utc column 1.10 - column :%s:", (*itr)["column"].GetString() );
+
 									// FIXME:
 									if (strcmp((*itr)["column"].GetString() ,"user_ts") == 0)
 									{
@@ -1974,19 +2017,29 @@ bool		isAggregate = false;
 
 										sql.append("strftime('%Y-%m-%d %H:%M:%S', user_ts, 'utc') ");
 										sql.append(" || substr(user_ts, instr(user_ts, '.'), 7) ");
-										sql.append(" AS user_ts");
+										if (! itr->HasMember("alias"))
+										{
+											sql.append(" AS ");
+											sql.append((*itr)["column"].GetString());
+										}
 									}
 									else
 									{
 										sql.append("strftime('%Y-%m-%d %H:%M:%f', ");
 										sql.append((*itr)["column"].GetString());
 										sql.append(", 'utc')");
-										sql.append(" AS ");
-										sql.append((*itr)["column"].GetString());
+										if (! itr->HasMember("alias"))
+										{
+											sql.append(" AS ");
+											sql.append((*itr)["column"].GetString());
+										}
 									}
 								}
 								else if (strncasecmp(tz, "localtime", 9) == 0)
 								{
+									// FIXME:
+									Logger::getLogger()->debug("retrieveReadings localtime column 1.10 - column :%s:", (*itr)["column"].GetString() );
+
 									// FIXME:
 									if (strcmp((*itr)["column"].GetString() ,"user_ts") == 0)
 									{
@@ -1994,41 +2047,69 @@ bool		isAggregate = false;
 
 										sql.append("strftime('%Y-%m-%d %H:%M:%S', user_ts, 'localtime') ");
 										sql.append(" || substr(user_ts, instr(user_ts, '.'), 7) ");
-										sql.append(" AS user_ts");
+										if (! itr->HasMember("alias"))
+										{
+											sql.append(" AS ");
+											sql.append((*itr)["column"].GetString());
+										}
 									}
 									else
 									{
 										sql.append("strftime('%Y-%m-%d %H:%M:%f', ");
 										sql.append((*itr)["column"].GetString());
 										sql.append(", 'localtime')");
+										if (! itr->HasMember("alias"))
+										{
+											sql.append(" AS ");
+											sql.append((*itr)["column"].GetString());
+										}
+									}
+								}
+								else
+								{
+									// FIXME:
+									Logger::getLogger()->debug("retrieveReadings localtime column error");
+
+									raiseError("retrieve",
+										   "SQLite3 plugin does not support timezones in queries");
+									return false;
+								}
+							}
+							else
+							{
+#if VERBOSE_LOG
+								// FIXME:
+								Logger::getLogger()->debug("retrieveReadings column - NO timezone");
+#endif
+
+								if (strcmp((*itr)["column"].GetString() ,"user_ts") == 0)
+								{
+									// FIXME:
+									Logger::getLogger()->debug("retrieveReadings column - user_ts");
+
+									// Extract milliseconds and microseconds for the user_ts fields
+
+									sql.append("strftime('%Y-%m-%d %H:%M:%S', user_ts, 'localtime') ");
+									sql.append(" || substr(user_ts, instr(user_ts, '.'), 7) ");
+									if (! itr->HasMember("alias"))
+									{
 										sql.append(" AS ");
 										sql.append((*itr)["column"].GetString());
 									}
 								}
 								else
 								{
-									raiseError("retrieve",
-										   "SQLite3 plugin does not support timezones in qeueries");
-									return false;
-								}
-							}
-							else
-							{
-								if (strcmp((*itr)["column"].GetString() ,"user_ts") == 0)
-								{
-									// Extract milliseconds and microseconds for the user_ts fields
+									// FIXME:
+									Logger::getLogger()->debug("retrieveReadings column - ts");
 
-									sql.append("strftime('%Y-%m-%d %H:%M:%S', user_ts, 'localtime') ");
-									sql.append(" || substr(user_ts, instr(user_ts, '.'), 7) ");
-									sql.append(" AS user_ts");
-								}
-								else
-								{
 									sql.append("strftime('%Y-%m-%d %H:%M:%f', ");
 									sql.append((*itr)["column"].GetString());
 									sql.append(", 'localtime')");
-									sql.append(" AS ");
-									sql.append((*itr)["column"].GetString());
+									if (! itr->HasMember("alias"))
+									{
+										sql.append(" AS ");
+										sql.append((*itr)["column"].GetString());
+									}
 								}
 							}
 							sql.append(' ');
@@ -2048,6 +2129,9 @@ bool		isAggregate = false;
 
 						if (itr->HasMember("alias"))
 						{
+							// FIXME:
+							Logger::getLogger()->debug("retrieveReadings column - ALIAS :%s:", (*itr)["alias"].GetString());
+
 							sql.append(" AS \"");
 							sql.append((*itr)["alias"].GetString());
 							sql.append('"');
@@ -2059,6 +2143,10 @@ bool		isAggregate = false;
 			}
 			else
 			{
+#if VERBOSE_LOG
+				Logger::getLogger()->debug("retrieveReadings condition");
+#endif
+
 				sql.append("SELECT ");
 				if (document.HasMember("modifier"))
 				{
@@ -2071,9 +2159,9 @@ bool		isAggregate = false;
 						asset_code,
 						read_key,
 						reading,
-						strftime('%Y-%m-%d %H:%M:%S', user_ts, 'utc')  ||
+						strftime('%Y-%m-%d %H:%M:%S', user_ts, 'localtime')  ||
 						substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
-						strftime('%Y-%m-%d %H:%M:%f', ts, 'utc') AS ts
+						strftime('%Y-%m-%d %H:%M:%f', ts, 'localtime') AS ts
 					FROM foglamp.)";
 
 				sql.append(sql_cmd);
@@ -2123,6 +2211,11 @@ bool		isAggregate = false;
 		char *zErrMsg = NULL;
 		int rc;
 		sqlite3_stmt *stmt;
+
+		// FIXME:
+		sprintf (tmp_buffer,"DBG : retrieveReadings : query |%s|",
+			 query);
+		tmpLogger (tmp_buffer);
 
 		logSQL("ReadingsRetrieve", query);
 

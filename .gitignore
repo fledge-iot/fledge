@@ -64,3 +64,5 @@ data/etc/backup_postgres_configuration_cache.json
 # test
 .pytest_cache
 .coverage
+
+python/async_ingest.so*

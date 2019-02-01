@@ -29,11 +29,6 @@
 #include <chrono>
 #include <thread>
 
-#define VERBOSE_LOG	1
-
-// FIXME::
-#include <tmp_log.hpp>
-
 /*
  * Control the way purge deletes readings. The block size sets a limit as to how many rows
  * get deleted in each call, whilst the sleep interval controls how long the thread sleeps
@@ -1789,12 +1784,6 @@ char *zErrMsg = NULL;
 int rc;
 int retrieve;
 
-	// FIXME:
-	Logger::getLogger()->setMinLevel("debug");
-#if VERBOSE_LOG
-	Logger::getLogger()->debug("fetchReadings");
-#endif
-
 	// SQL command to extract the data from the foglamp.readings
 	const char *sql_cmd = R"(
 	SELECT
@@ -1871,16 +1860,6 @@ SQLBuffer	sql;
 SQLBuffer	jsonConstraints;
 bool		isAggregate = false;
 
-	// FIXME:
-	Logger::getLogger()->setMinLevel("debug");
-
-	// FIXME:
-	char tmp_buffer[5000];
-	sprintf (tmp_buffer,"DBG : retrieveReadings : condition |%s|",
-		 condition.c_str());
-	tmpLogger (tmp_buffer);
-
-
 	try {
 		if (dbHandle == NULL)
 		{
@@ -1890,9 +1869,6 @@ bool		isAggregate = false;
 
 		if (condition.empty())
 		{
-#if VERBOSE_LOG
-			Logger::getLogger()->debug("retrieveReadings condition empty");
-#endif
 			const char *sql_cmd = R"(
 					SELECT
 						id,
@@ -1980,10 +1956,6 @@ bool		isAggregate = false;
 							}
 							else if (itr->HasMember("timezone"))
 							{
-#if VERBOSE_LOG
-								// FIXME:
-								Logger::getLogger()->debug("retrieveReadings column - timezone 1");
-#endif
 
 								if (! (*itr)["timezone"].IsString())
 								{
@@ -1993,24 +1965,12 @@ bool		isAggregate = false;
 										   "timezone must be a string");
 									return false;
 								}
-								// FIXME:
-								Logger::getLogger()->debug("retrieveReadings column - timezone 2");
-
 
 								// SQLite3 doesnt support time zone formatting
 								const char *tz = (*itr)["timezone"].GetString();
 
-								// FIXME:
-								Logger::getLogger()->debug("retrieveReadings column - timezone 2.1 tz :%s:", tz);
-
-								// FIXME:
-								//if (strcasecmp((*itr)["timezone"].GetString(), "utc") != 0)
 								if (strncasecmp(tz, "utc", 3) == 0)
 								{
-									// FIXME:
-									Logger::getLogger()->debug("retrieveReadings utc column 1.10 - column :%s:", (*itr)["column"].GetString() );
-
-									// FIXME:
 									if (strcmp((*itr)["column"].GetString() ,"user_ts") == 0)
 									{
 										// Extract milliseconds and microseconds for the user_ts fields
@@ -2037,10 +1997,6 @@ bool		isAggregate = false;
 								}
 								else if (strncasecmp(tz, "localtime", 9) == 0)
 								{
-									// FIXME:
-									Logger::getLogger()->debug("retrieveReadings localtime column 1.10 - column :%s:", (*itr)["column"].GetString() );
-
-									// FIXME:
 									if (strcmp((*itr)["column"].GetString() ,"user_ts") == 0)
 									{
 										// Extract milliseconds and microseconds for the user_ts fields
@@ -2067,9 +2023,6 @@ bool		isAggregate = false;
 								}
 								else
 								{
-									// FIXME:
-									Logger::getLogger()->debug("retrieveReadings localtime column error");
-
 									raiseError("retrieve",
 										   "SQLite3 plugin does not support timezones in queries");
 									return false;
@@ -2077,16 +2030,9 @@ bool		isAggregate = false;
 							}
 							else
 							{
-#if VERBOSE_LOG
-								// FIXME:
-								Logger::getLogger()->debug("retrieveReadings column - NO timezone");
-#endif
 
 								if (strcmp((*itr)["column"].GetString() ,"user_ts") == 0)
 								{
-									// FIXME:
-									Logger::getLogger()->debug("retrieveReadings column - user_ts");
-
 									// Extract milliseconds and microseconds for the user_ts fields
 
 									sql.append("strftime('%Y-%m-%d %H:%M:%S', user_ts, 'localtime') ");
@@ -2099,9 +2045,6 @@ bool		isAggregate = false;
 								}
 								else
 								{
-									// FIXME:
-									Logger::getLogger()->debug("retrieveReadings column - ts");
-
 									sql.append("strftime('%Y-%m-%d %H:%M:%f', ");
 									sql.append((*itr)["column"].GetString());
 									sql.append(", 'localtime')");
@@ -2129,9 +2072,6 @@ bool		isAggregate = false;
 
 						if (itr->HasMember("alias"))
 						{
-							// FIXME:
-							Logger::getLogger()->debug("retrieveReadings column - ALIAS :%s:", (*itr)["alias"].GetString());
-
 							sql.append(" AS \"");
 							sql.append((*itr)["alias"].GetString());
 							sql.append('"');
@@ -2143,9 +2083,6 @@ bool		isAggregate = false;
 			}
 			else
 			{
-#if VERBOSE_LOG
-				Logger::getLogger()->debug("retrieveReadings condition");
-#endif
 
 				sql.append("SELECT ");
 				if (document.HasMember("modifier"))
@@ -2211,11 +2148,6 @@ bool		isAggregate = false;
 		char *zErrMsg = NULL;
 		int rc;
 		sqlite3_stmt *stmt;
-
-		// FIXME:
-		sprintf (tmp_buffer,"DBG : retrieveReadings : query |%s|",
-			 query);
-		tmpLogger (tmp_buffer);
 
 		logSQL("ReadingsRetrieve", query);
 

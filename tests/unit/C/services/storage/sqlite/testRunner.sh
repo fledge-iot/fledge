@@ -4,11 +4,14 @@
 export FOGLAMP_DATA=./plugin_cfg/sqlite
 #export FOGLAMP_DATA=./plugin_cfg/sqlitememory
 
+export TZ='Etc/UTC'
+
 if [ $# -eq 1 ] ; then
 	echo Starting storage layer $1
 	$1 
 elif [ "${FOGLAMP_ROOT}" != "" ] ; then
 	echo "Starting storage service in :$FOGLAMP_ROOT:"
+	echo "timezone                    :$TZ"
 	echo "configuration               :$FOGLAMP_DATA:"
 	echo "database                    :$DEFAULT_SQLITE_DB_FILE:"
 	$FOGLAMP_ROOT/services/foglamp.services.storage

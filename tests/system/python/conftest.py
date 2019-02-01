@@ -16,6 +16,7 @@ import base64
 import ssl
 import shutil
 import pytest
+from urllib.parse import quote
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems"
@@ -26,6 +27,8 @@ __version__ = "${VERSION}"
 @pytest.fixture
 def reset_and_start_foglamp():
     """Fixture that kills foglamp, reset database and starts foglamp again"""
+
+    # TODO: allow to sed storage.json and use postgres database plugin
     assert os.environ.get('FOGLAMP_ROOT') is not None
     subprocess.run(["$FOGLAMP_ROOT/scripts/foglamp kill"], shell=True, check=True)
     subprocess.run(["echo YES | $FOGLAMP_ROOT/scripts/foglamp reset"], shell=True, check=True)
@@ -46,6 +49,7 @@ def find(pattern, path):
 @pytest.fixture
 def remove_data_file():
     """Fixture that removes any file from a given path"""
+
     def _remove_data_file(file_path=None):
         if os.path.exists(file_path):
             os.remove(file_path)
@@ -55,6 +59,7 @@ def remove_data_file():
 @pytest.fixture
 def remove_directories():
     """Fixture that recursively removes any file and directories from a given path"""
+
     def _remove_directories(dir_path=None):
         if os.path.exists(dir_path):
             shutil.rmtree(dir_path, ignore_errors=True)
@@ -63,16 +68,24 @@ def remove_directories():
 
 @pytest.fixture
 def start_south():
-    def _start_foglamp_south(south_plugin, south_branch, foglamp_url, service_name="play", config=None, use_pip_cache=True):
+    def _start_foglamp_south(south_plugin, south_branch, foglamp_url, service_name="play", config=None,
+                             plugin_lang="python", use_pip_cache=True, start_service=True):
         """Start south service"""
+
         _config = config if config is not None else {}
+        _enabled = "true" if start_service else "false"
         data = {"name": "{}".format(service_name), "type": "South", "plugin": "{}".format(south_plugin),
-                "enabled": "true", "config": _config}
+                "enabled": _enabled, "config": _config}
 
         conn = http.client.HTTPConnection(foglamp_url)
+
         try:
-            subprocess.run(["$FOGLAMP_ROOT/tests/system/python/scripts/install_python_plugin {} south {} {}"
-                           .format(south_branch, south_plugin, use_pip_cache)], shell=True, check=True)
+            if plugin_lang == "python":
+                subprocess.run(["$FOGLAMP_ROOT/tests/system/python/scripts/install_python_plugin {} south {} {}".format(
+                    south_branch, south_plugin, use_pip_cache)], shell=True, check=True)
+            else:
+                subprocess.run(["$FOGLAMP_ROOT/tests/system/python/scripts/install_c_plugin {} south {}".format(
+                    south_branch, south_plugin)], shell=True, check=True)
         except subprocess.CalledProcessError:
             assert False, "{} plugin installation failed".format(south_plugin)
 
@@ -88,9 +101,10 @@ def start_south():
 
 @pytest.fixture
 def start_north_pi_v2():
-    def _start_north_pi_server_c(foglamp_url, pi_host, pi_port, north_plugin, pi_token,
-                                   taskname="North_Readings_to_PI"):
+    def _start_north_pi_server_c(foglamp_url, pi_host, pi_port, pi_token, north_plugin="PI_Server_V2",
+                                 taskname="NorthReadingsToPI"):
         """Start north task"""
+
         conn = http.client.HTTPConnection(foglamp_url)
         data = {"name": taskname,
                 "plugin": "{}".format(north_plugin),
@@ -188,6 +202,47 @@ def read_data_from_pi():
     return _read_data_from_pi
 
 
+@pytest.fixture
+def add_filter():
+    def _add_filter(filter_plugin, filter_plugin_branch, filter_name, filter_config, foglamp_url, filter_user_svc_task):
+        """
+
+        :param filter_plugin: filter plugin `foglamp-filter-?`
+        :param filter_plugin_branch:
+        :param filter_name: name of the filter with which it will be added to pipeline
+        :param filter_config:
+        :param foglamp_url:
+        :param filter_user_svc_task: south service or north task instance name
+        """
+
+        try:
+            subprocess.run(["$FOGLAMP_ROOT/tests/system/python/scripts/install_c_plugin {} filter {}".format(
+                filter_plugin_branch, filter_plugin)], shell=True, check=True)
+        except subprocess.CalledProcessError:
+            assert False, "{} filter plugin installation failed".format(filter_plugin)
+
+        data = {"name": "{}".format(filter_name), "plugin": "{}".format(filter_plugin), "filter_config": filter_config}
+        conn = http.client.HTTPConnection(foglamp_url)
+
+        conn.request("POST", '/foglamp/filter', json.dumps(data))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        assert filter_name == jdoc["filter"]
+
+        uri = "{}/pipeline?allow_duplicates=true&append_filter=true".format(quote(filter_user_svc_task))
+        filters_in_pipeline = [filter_name]
+        conn.request("PUT", '/foglamp/filter/' + uri, json.dumps({"pipeline": filters_in_pipeline}))
+        r = conn.getresponse()
+        assert 200 == r.status
+        res = r.read().decode()
+        expected = "Filter pipeline {{'pipeline': ['{}']}} updated successfully".format(filter_name)
+        jdoc = json.loads(res)
+        assert expected == jdoc["result"]
+
+    return _add_filter
+
 def pytest_addoption(parser):
     parser.addoption("--south-branch", action="store", default="develop",
                      help="south branch name")
@@ -236,6 +291,10 @@ def pytest_addoption(parser):
     parser.addoption("--retries", action="store", default=3, type=int,
                      help="Number of tries to make to fetch data from PI web api")
 
+    # Filter Args
+    parser.addoption("--filter-branch", action="store", default="develop", help="Filter plugin repo branch")
+    parser.addoption("--filter-name", action="store", default="Meta #1", help="Filter name to be added to pipeline")
+
     # Kafka Config
     parser.addoption("--kafka-host", action="store", default="localhost",
                      help="Kafka Server Host Name/IP")
@@ -256,13 +315,43 @@ def north_branch(request):
 
 
 @pytest.fixture
-def foglamp_url(request):
-    return request.config.getoption("--foglamp-url")
+def filter_branch(request):
+    return request.config.getoption("--filter-branch")
+
+
+@pytest.fixture
+def south_plugin(request):
+    return request.config.getoption("--south-plugin")
+
+
+@pytest.fixture
+def north_plugin(request):
+    return request.config.getoption("--north-plugin")
 
 
 @pytest.fixture
 def use_pip_cache(request):
     return request.config.getoption("--use-pip-cache")
+
+
+@pytest.fixture
+def filter_name(request):
+    return request.config.getoption("--filter-name")
+
+
+@pytest.fixture
+def south_service_name(request):
+    return request.config.getoption("--south-service-name")
+
+
+@pytest.fixture
+def asset_name(request):
+    return request.config.getoption("--asset-name")
+
+
+@pytest.fixture
+def foglamp_url(request):
+    return request.config.getoption("--foglamp-url")
 
 
 @pytest.fixture
@@ -331,26 +420,6 @@ def ocs_token(request):
 
 
 @pytest.fixture
-def south_plugin(request):
-    return request.config.getoption("--south-plugin")
-
-
-@pytest.fixture
-def south_service_name(request):
-    return request.config.getoption("--south-service-name")
-
-
-@pytest.fixture
-def north_plugin(request):
-    return request.config.getoption("--north-plugin")
-
-
-@pytest.fixture
-def asset_name(request):
-    return request.config.getoption("--asset-name")
-
-
-@pytest.fixture
 def kafka_host(request):
     return request.config.getoption("--kafka-host")
 
@@ -368,7 +437,6 @@ def kafka_topic(request):
 @pytest.fixture
 def kafka_rest_port(request):
     return request.config.getoption("--kafka-rest-port")
-
 
 def pytest_itemcollected(item):
     par = item.parent.obj

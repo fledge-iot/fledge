@@ -23,12 +23,13 @@ USE_PIP_CACHE=$4
 USE_PIP_CACHE=${USE_PIP_CACHE,,}
 if [[ "${USE_PIP_CACHE}" = false ]]; then USE_PIP_CACHE="--no-cache-dir"; else USE_PIP_CACHE=""; fi
 
-###########################################################################################
-# FIXME: Only Http south/north are having different repo and directory naming convention
-# So we cannot use this script for them
-###########################################################################################
 
 REPO_NAME=foglamp-${PLUGIN_TYPE}-${PLUGIN_NAME}
+
+if [ "${PLUGIN_NAME}" == "http_south" ] || [ "${PLUGIN_NAME}" == "http_north" ] ; then
+   REPO_NAME=foglamp-${PLUGIN_TYPE}-http
+fi
+
 
 clean () {
    rm -rf /tmp/${REPO_NAME}

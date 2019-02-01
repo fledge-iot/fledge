@@ -14,6 +14,7 @@
 #include <iomanip>
 #include <cfloat>
 #include <vector>
+#include <logger.h>
 
 class Datapoint;
 /**
@@ -71,6 +72,7 @@ class DatapointValue {
 		 */
 		DatapointValue(const DatapointValue& obj)
 		{
+			Logger::getLogger()->info("DatapointValue copy c'tor called for m_type=%s", obj.getTypeStr().c_str());
 			m_type = obj.m_type;
 			switch (m_type)
 			{
@@ -82,7 +84,7 @@ class DatapointValue {
 				break;
 			case T_DP_DICT:
 			case T_DP_LIST:
-				m_value.dpa = new std::vector<Datapoint*>(*(obj.m_value.dpa));
+				m_value.dpa = obj.m_value.dpa; // TODO: need to fix this, need to do nested copying in newly allocated memory
 				break;
 			default:
 				m_value = obj.m_value;
@@ -95,6 +97,7 @@ class DatapointValue {
 		 */
 		DatapointValue& operator=(const DatapointValue& rhs)
 		{
+			Logger::getLogger()->info("DatapointValue Assignment Operator called for m_type=%s", rhs.getTypeStr().c_str());
 			if (m_type == T_STRING)
 			{
 				// Remove previous value
@@ -136,21 +139,9 @@ class DatapointValue {
 		/**
 		 * Destructor
 		 */
-		~DatapointValue()
-		{
-			if (m_type == T_STRING)
-			{
-				delete m_value.str;
-			}
-			if (m_type == T_FLOAT_ARRAY)
-			{
-				delete m_value.a;
-			}
-			if (m_type == T_DP_DICT || m_type == T_DP_LIST)
-			{
-				delete m_value.dpa; // TODO: need to deleted in a nested manner
-			}
-		};
+		~DatapointValue();
+
+		void deleteNestedDPV();
 		
 		/**
 		 * Set the value of a datapoint, this may
@@ -204,6 +195,26 @@ class DatapointValue {
 		{
 			return m_type;
 		}
+
+		std::string getTypeStr() const
+		{
+			switch(m_type)
+			{
+				case T_STRING: return std::string("STRING");
+				case T_INTEGER: return std::string("INTEGER");
+				case T_FLOAT: return std::string("FLOAT");
+				case T_FLOAT_ARRAY: return std::string("FLOAT_ARRAY");
+				case T_DP_DICT: return std::string("DP_DICT");
+				case T_DP_LIST: return std::string("DP_LIST");
+				default: return std::string("INVALID");
+			}
+		}
+
+		std::vector<Datapoint*>*& getDpVec()
+		{
+			return m_value.dpa;
+		}
+		
 	private:
 		union data_t {
 			std::string*		str;
@@ -226,6 +237,17 @@ class Datapoint {
 		 */
 		Datapoint(const std::string& name, DatapointValue& value) : m_name(name), m_value(value)
 		{
+		}
+
+		~Datapoint()
+		{
+			Logger::getLogger()->info("Deleting Datapoint: m_name=%s, m_value.getTypeStr()=%s", m_name.c_str(), m_value.getTypeStr().c_str());
+			// if the DPV is a nested DPV, free up heap memory in nested DP/DPVs
+			//if (m_value.getType() == DatapointValue::T_DP_DICT || m_value.getType() == DatapointValue::T_DP_LIST)
+			{
+				m_value.deleteNestedDPV();
+			}
+			Logger::getLogger()->info("DONE Deleting Datapoint: m_name=%s, m_value.getTypeStr()=%s", m_name.c_str(), m_value.getTypeStr().c_str());
 		}
 		/**
 		 * Return asset reading data point as a JSON

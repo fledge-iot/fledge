@@ -47,11 +47,11 @@ string	       coreAddress = "localhost";
 bool	       daemonMode = true;
 string	       myName = SERVICE_NAME;
 
-	signal(SIGSEGV, handler);
-	signal(SIGILL, handler);
-	signal(SIGBUS, handler);
-	signal(SIGFPE, handler);
-	signal(SIGABRT, handler);
+	//signal(SIGSEGV, handler);
+	//signal(SIGILL, handler);
+	//signal(SIGBUS, handler);
+	//signal(SIGFPE, handler);
+	//signal(SIGABRT, handler);
 
 	for (int i = 1; i < argc; i++)
 	{

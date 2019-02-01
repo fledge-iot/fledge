@@ -614,9 +614,6 @@ Reading* Py2C_parseReadingObject(PyObject *element)
 			newReading->setUserTimestamp(ts_str);
 		}
 
-
-
-
 		// Get 'uuid' value: borrowed reference.
 		PyObject* uuid = PyDict_GetItemString(element, "key");
 		if (uuid && PyUnicode_Check(uuid))
@@ -745,12 +742,12 @@ DatapointValue* Py2C_createDictDPV(PyObject *data)
 		else
 		{
 			Logger::getLogger()->info("Unable to parse dValue in 'data' dict: dKey=%s, Py_TYPE(dValue)=%s", string(PyUnicode_AsUTF8(dKey)).c_str(), (Py_TYPE(dValue))->tp_name);
-			//delete dataPoint;
 			dpv = NULL;
 		}
 		if (dpv)
 		{
 			dpVec->emplace_back(new Datapoint(string(PyUnicode_AsUTF8(dKey)), *dpv));
+			delete dpv;
 		}
 	}
 	
@@ -808,6 +805,7 @@ DatapointValue* Py2C_createListDPV(PyObject *data)
 		if (dpv)
 		{
 			dpVec->emplace_back(new Datapoint(string("unnamed_list_elem#") + std::to_string(i), *dpv));
+			delete dpv;
 		}
 		else
 			Logger::getLogger()->info("dpv is NULL");

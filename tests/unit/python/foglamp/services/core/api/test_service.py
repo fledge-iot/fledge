@@ -219,7 +219,7 @@ class TestService:
                         args1, kwargs1 = query_table_patch.call_args
                         assert 'scheduled_processes' == args1[0]
                         p2 = json.loads(args1[1])
-                        assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=', 'value': 'south'}} == p2
+                        assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=', 'value': 'south_c'}} == p2
                     patch_get_cat_info.assert_called_once_with(category_name=data['name'])
             assert 1 == ex_logger.call_count
 
@@ -318,7 +318,7 @@ class TestService:
 
             if table == 'scheduled_processes':
                 assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=',
-                                                      'value': 'south'}} == json.loads(_payload)
+                                                      'value': 'south_c'}} == json.loads(_payload)
                 return {'count': 0, 'rows': []}
             if table == 'schedules':
                 assert {'return': ['schedule_name'], 'where': {'column': 'schedule_name', 'condition': '=',
@@ -376,7 +376,7 @@ class TestService:
                         args, kwargs = insert_table_patch.call_args
                         assert 'scheduled_processes' == args[0]
                         p = json.loads(args[1])
-                        assert {'name': 'south', 'script': '["services/south"]'} == p
+                        assert {'name': 'south_c', 'script': '["services/south_c"]'} == p
                 patch_get_cat_info.assert_called_once_with(category_name='furnace4')
 
     p1 = '{"name": "NotificationServer", "type": "notification"}'
@@ -495,7 +495,7 @@ class TestService:
 
             if table == 'scheduled_processes':
                 assert {'return': ['name'],
-                        'where': {'column': 'name', 'condition': '=', 'value': 'south'}} == json.loads(_payload)
+                        'where': {'column': 'name', 'condition': '=', 'value': 'south_c'}} == json.loads(_payload)
                 return {'count': 0, 'rows': []}
             if table == 'schedules':
                 assert {'return': ['schedule_name'],
@@ -562,7 +562,7 @@ class TestService:
                         args, kwargs = insert_table_patch.call_args
                         assert 'scheduled_processes' == args[0]
                         p = json.loads(args[1])
-                        assert {'name': 'south', 'script': '["services/south"]'} == p
+                        assert {'name': 'south_c', 'script': '["services/south_c"]'} == p
                 patch_get_cat_info.assert_called_once_with(category_name=data['name'])
 
     async def test_delete_service(self, mocker, client):

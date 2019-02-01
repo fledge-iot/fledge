@@ -12,9 +12,10 @@ import logging
 
 from foglamp.common import logger
 
-_LOGGER = logger.setup(__name__, level=logging.INFO)
+_LOGGER = logger.setup(__name__, level=logging.WARN)
 _plugin = None
 
+_LOGGER.info("Loading shim layer for python plugin '{}' ".format(sys.argv[1]))
 
 def _plugin_obj():
     plugin = sys.argv[1]
@@ -33,12 +34,14 @@ _plugin = _plugin_obj()
 
 
 def plugin_info():
+    _LOGGER.info("plugin_info called")
     handle = _plugin.plugin_info()
     handle['config'] = json.dumps(handle['config'])
     return handle
 
 
 def plugin_init(config):
+    _LOGGER.info("plugin_init called")
     handle = _plugin.plugin_init(json.loads(config))
     return handle
 
@@ -49,9 +52,21 @@ def plugin_poll(handle):
 
 
 def plugin_reconfigure(handle, new_config):
+    _LOGGER.info("plugin_reconfigure")
     new_handle = _plugin.plugin_reconfigure(handle, json.loads(new_config))
     return new_handle
 
 
 def plugin_shutdown(handle):
+    _LOGGER.info("plugin_shutdown")
     return _plugin.plugin_shutdown(handle)
+
+
+def plugin_start(handle):
+    _LOGGER.info("plugin_start")
+    return _plugin.plugin_start(handle)
+
+
+def plugin_register_ingest(handle, callback, ingest_ref):
+    _LOGGER.info("plugin_register_ingest")
+    return _plugin.plugin_register_ingest(handle, callback, ingest_ref)

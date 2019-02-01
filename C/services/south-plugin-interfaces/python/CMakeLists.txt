@@ -9,13 +9,13 @@ set(COMMON_LIB common-lib)
 set(SERVICE_COMMON_LIB services-common-lib)
 
 # Find source files
-file(GLOB SOURCES *.cpp)
+file(GLOB SOURCES python_plugin_interface.cpp pyobject_reading_parser.cpp)
 
 # Find Python.h 3.x dev/lib package
 find_package(PythonLibs 3 REQUIRED)
 
 # Include header files
-include_directories(include ../../../common/include ../../../services/common/include ../../../thirdparty/rapidjson/include)
+include_directories(include ../../../common/include ../../../services/common/include ../../../services/south/include ../../../thirdparty/rapidjson/include)
 
 # Add Python 3.x header files
 include_directories(${PYTHON_INCLUDE_DIRS})

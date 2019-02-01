@@ -185,7 +185,7 @@ bool FilterPipeline::loadFilters(const string& categoryName)
 					Logger::getLogger()->fatal(errMsg.c_str());
 					throw runtime_error(errMsg);
 				}
-				children.push_back(categoryName);
+				children.push_back(categoryName + "_" + itr->first);
 
 				// Instantiate the FilterPlugin class
 				// in order to call plugin entry points

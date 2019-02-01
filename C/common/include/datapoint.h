@@ -72,7 +72,7 @@ class DatapointValue {
 		 */
 		DatapointValue(const DatapointValue& obj)
 		{
-			Logger::getLogger()->info("DatapointValue copy c'tor called for m_type=%s", obj.getTypeStr().c_str());
+			Logger::getLogger()->debug("DatapointValue copy c'tor called for m_type=%s", obj.getTypeStr().c_str());
 			m_type = obj.m_type;
 			switch (m_type)
 			{
@@ -97,7 +97,6 @@ class DatapointValue {
 		 */
 		DatapointValue& operator=(const DatapointValue& rhs)
 		{
-			Logger::getLogger()->info("DatapointValue Assignment Operator called for m_type=%s", rhs.getTypeStr().c_str());
 			if (m_type == T_STRING)
 			{
 				// Remove previous value
@@ -241,13 +240,9 @@ class Datapoint {
 
 		~Datapoint()
 		{
-			Logger::getLogger()->info("Deleting Datapoint: m_name=%s, m_value.getTypeStr()=%s", m_name.c_str(), m_value.getTypeStr().c_str());
-			// if the DPV is a nested DPV, free up heap memory in nested DP/DPVs
-			//if (m_value.getType() == DatapointValue::T_DP_DICT || m_value.getType() == DatapointValue::T_DP_LIST)
-			{
-				m_value.deleteNestedDPV();
-			}
-			Logger::getLogger()->info("DONE Deleting Datapoint: m_name=%s, m_value.getTypeStr()=%s", m_name.c_str(), m_value.getTypeStr().c_str());
+			Logger::getLogger()->debug("Deleting Datapoint: m_name=%s, m_value.getTypeStr()=%s", m_name.c_str(), m_value.getTypeStr().c_str());
+			m_value.deleteNestedDPV();
+			Logger::getLogger()->debug("DONE Deleting Datapoint: m_name=%s, m_value.getTypeStr()=%s", m_name.c_str(), m_value.getTypeStr().c_str());
 		}
 		/**
 		 * Return asset reading data point as a JSON

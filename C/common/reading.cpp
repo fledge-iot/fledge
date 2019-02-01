@@ -176,8 +176,6 @@ ostringstream convert;
 		convert << (*it)->toJSONProperty();
 	}
 	convert << " } }";
-
-	Logger::getLogger()->info("Reading::toJSON(): convert=%s", convert.str().c_str());
 	return convert.str();
 }
 

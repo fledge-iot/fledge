@@ -28,6 +28,7 @@
 #include <utils.h>
 #include <chrono>
 #include <thread>
+#include <sys/time.h>
 
 /*
  * Control the way purge deletes readings. The block size sets a limit as to how many rows
@@ -35,7 +36,7 @@
  * between deletes. The idea is to not keep the database locked too long and allow other threads
  * to have access to the database between blocks.
  */
-#define PURGE_SLEEP_MS 250
+#define PURGE_SLEEP_MS 2500
 #define PURGE_DELETE_BLOCK_SIZE	1000
 
 /**
@@ -623,7 +624,10 @@ static int rowidCallback(void *data,
 unsigned long *rowid = (unsigned long *)data;
 
 	// Return the value of the first column: the count(*)
-	*rowid = strtoul(colValues[0], NULL, 10);
+	if (colValues[0])
+		*rowid = strtoul(colValues[0], NULL, 10);
+	else
+		*rowid = 0;
 
 	// Set OK
 	return 0;
@@ -1827,15 +1831,17 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 					unsigned long sent,
 					std::string& result)
 {
-SQLBuffer sql;
 long unsentPurged = 0;
 long unsentRetained = 0;
 long numReadings = 0;
-unsigned long rowidLimit = 0;
+unsigned long rowidLimit = 0, rowidMin;
+struct timeval startTv, endTv;
+int blocks = 0;
 
 	Logger *logger = Logger::getLogger();
 
 	logger->info("Purge starting...");
+	gettimeofday(&startTv, NULL);
 	/*
 	 * We fetch the current rowid and limit the purge process to work on just
 	 * those rows present in the database when the purge process started.
@@ -1901,13 +1907,39 @@ unsigned long rowidLimit = 0;
 		char *zErrMsg = NULL;
 		int rc;
 		SQLBuffer sqlBuffer;
-		sqlBUffer.append("select max(rowid) from foglamp.readings where user_ts < datetime('now' , '-");
-		unsentBuffer.append(age);
-		unsentBuffer.append(" hours', 'localtime');");
+		sqlBuffer.append("select max(rowid) from foglamp.readings where user_ts < datetime('now' , '-");
+		sqlBuffer.append(age);
+		sqlBuffer.append(" hours', 'localtime')");
+		if ((flags & 0x01) == 0x01)	// Don't delete unsent rows
+		{
+			sqlBuffer.append(" AND id < ");
+			sqlBuffer.append(sent);
+		}
+		sqlBuffer.append(';');
+		const char *query = sqlBuffer.coalesce();
 		rc = SQLexec(dbHandle,
-		     "select max(rowid) from foglamp.readings;",
+		     query,
 	  	     rowidCallback,
 		     &rowidLimit,
+		     &zErrMsg);
+		delete query;
+
+		if (rowidLimit == 0)
+		{
+ 			raiseError("purge - no data to purge", "");
+			return 0;
+		}
+
+		if (rc != SQLITE_OK)
+		{
+ 			raiseError("purge - phaase 0, fetching rowid limit ", zErrMsg);
+			sqlite3_free(zErrMsg);
+			return 0;
+		}
+		rc = SQLexec(dbHandle,
+		     "select min(rowid) from foglamp.readings;",
+	  	     rowidCallback,
+		     &rowidMin,
 		     &zErrMsg);
 
 		if (rc != SQLITE_OK)
@@ -1956,27 +1988,24 @@ unsigned long rowidLimit = 0;
 		}
 	}
 	
-	sql.append("DELETE FROM foglamp.readings WHERE user_ts < datetime('now', '-");
-	sql.append(age);
-	sql.append(" hours', 'localtime')");
-	if ((flags & 0x01) == 0x01)	// Don't delete unsent rows
-	{
-		sql.append(" AND id < ");
-		sql.append(sent);
-	}
-	sql.append(" AND rowid <= ");
-	sql.append(rowidLimit);
-	sql.append(" limit ");
-	sql.append(PURGE_DELETE_BLOCK_SIZE);
-	sql.append(';');
-	const char *query = sql.coalesce();
-	logSQL("ReadingsPurge", query);
 	unsigned int deletedRows = 0;
 	char *zErrMsg = NULL;
 	unsigned int rowsAffected;
 	logger->info("Purge about to delete the readings readings in blocks");
-	do
+	while (rowidMin < rowidLimit)
 	{
+		blocks++;
+		rowidMin += PURGE_DELETE_BLOCK_SIZE;
+		if (rowidMin > rowidLimit)
+		{
+			rowidMin = rowidLimit;
+		}
+		SQLBuffer sql;
+		sql.append("DELETE FROM foglamp.readings WHERE rowid < ");
+		sql.append(rowidMin);
+		sql.append(';');
+		const char *query = sql.coalesce();
+		logSQL("ReadingsPurge", query);
 		// Exec DELETE query: no callback, no resultset
 		int rc = SQLexec(dbHandle,
 			     query,
@@ -1999,13 +2028,9 @@ unsigned long rowidLimit = 0;
 		deletedRows += rowsAffected;
 
 		// Sleep for a while to reease locks on the database
-		std::this_thread::sleep_for(std::chrono::milliseconds(PURGE_SLEEP_MS));
+		// std::this_thread::sleep_for(std::chrono::milliseconds(PURGE_SLEEP_MS));
 		Logger::getLogger()->info("Purge delete block of %d readings", rowsAffected);
-	} while (rowsAffected == PURGE_DELETE_BLOCK_SIZE);
-
-	// Release memory for 'query' var
-	delete[] query;
-	logger->info("Purged all blocks of readings");
+	} while (rowidMin  < rowidLimit);
 
 	SQLBuffer retainedBuffer;
 	retainedBuffer.append("SELECT count(ROWID) FROM foglamp.readings WHERE id > ");
@@ -2064,7 +2089,9 @@ unsigned long rowidLimit = 0;
 
 	result = convert.str();
 
-	logger->info("Purge process complete");
+	gettimeofday(&endTv, NULL);
+	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
+	logger->info("Purge process complete in %d blocks after %lduS", blocks, duration);
 
 	return deletedRows;
 }

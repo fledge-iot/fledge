@@ -388,9 +388,11 @@ CREATE INDEX fki_readings_fk1
 CREATE INDEX readings_ix1
     ON foglamp.readings USING btree (read_key);
 
-
 CREATE INDEX readings_ix2
     ON foglamp.readings USING btree (asset_code);
+
+CREATE INDEX readings_ix3
+    ON foglamp.readings USING btree (user_ts);
 
 
 -- Streams table

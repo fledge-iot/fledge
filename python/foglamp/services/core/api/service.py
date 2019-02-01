@@ -180,8 +180,8 @@ async def add_service(request):
                 if not plugin_config:
                     _logger.exception("Plugin %s import problem from path %s", plugin, plugin_module_path)
                     raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}".'.format(plugin, plugin_module_path))
-                process_name = 'south_c' if plugin_info['mode'] == 'poll' else 'south'
-                script = '["services/south_c"]' if plugin_info['mode'] == 'poll' else '["services/south"]'
+                process_name = 'south_c'
+                script = '["services/south_c"]'
             except ImportError as ex:
                 # Checking for C-type plugins
                 plugin_config = load_c_plugin(plugin, service_type)

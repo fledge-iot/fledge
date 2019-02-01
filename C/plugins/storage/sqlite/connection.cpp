@@ -1956,16 +1956,12 @@ bool		isAggregate = false;
 							}
 							else if (itr->HasMember("timezone"))
 							{
-
 								if (! (*itr)["timezone"].IsString())
 								{
-									Logger::getLogger()->debug("retrieveReadings column - timezone 1.1");
-
 									raiseError("retrieve",
 										   "timezone must be a string");
 									return false;
 								}
-
 								// SQLite3 doesnt support time zone formatting
 								const char *tz = (*itr)["timezone"].GetString();
 
@@ -2083,7 +2079,6 @@ bool		isAggregate = false;
 			}
 			else
 			{
-
 				sql.append("SELECT ");
 				if (document.HasMember("modifier"))
 				{

@@ -198,8 +198,6 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 					   sqlite3_column_name(pStmt, i)) == 0)
 				{
 					// Column metadata found and column datatype is "pzDataType"
-					string formatStmt = {};
-
 					formatStmt = string("SELECT strftime('");
 					formatStmt += string(F_DATEH24_MS);
 					formatStmt += "', '" + string((char *) sqlite3_column_text(pStmt, i));

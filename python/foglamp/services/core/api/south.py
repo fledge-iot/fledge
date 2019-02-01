@@ -113,7 +113,7 @@ async def get_south_services(request):
     try:
         south_cat = await cf_mgr.get_category_child("South")
         south_categories = [nc["key"] for nc in south_cat]
-    except ValueError:
+    except:
         return web.json_response({'services': []})
 
     response = await _services_with_assets(storage_client, south_categories)

@@ -621,8 +621,8 @@ class TestService:
         args, kwargs = delete_configuration.call_args_list[0]
         assert sch_name in args
 
-        assert 2 == get_registry.call_count
-        get_registry_calls = [call(name=sch_name), call(name=sch_name)]
+        assert 1 == get_registry.call_count
+        get_registry_calls = [call(name=sch_name)]
         get_registry.assert_has_calls(get_registry_calls, any_order=True)
 
         assert 1 == remove_registry.call_count

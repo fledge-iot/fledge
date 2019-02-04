@@ -67,6 +67,7 @@ using namespace rapidjson;
 QueryProfile profiler(TOP_N_STATEMENTS);
 unsigned long retryStats[MAX_RETRIES] = { 0,0,0,0,0,0,0,0,0,0 };
 unsigned long numStatements = 0;
+int	      maxQueue = 0;
 #endif
 
 #define _DB_NAME              "/foglamp.sqlite"
@@ -317,6 +318,7 @@ Connection::Connection()
 	const char *defaultConnection = getenv("DEFAULT_SQLITE_DB_FILE");
 
 	m_logSQL = false;
+	m_queuing = 0;
 
 	if (defaultConnection == NULL)
 	{
@@ -1840,6 +1842,13 @@ int blocks = 0;
 
 	Logger *logger = Logger::getLogger();
 
+
+	result = "{ \"removed\" : 0, ";
+	result += " \"unsentPurged\" : 0, ";
+	result += " \"unsentRetained\", 0, ";
+    	result += " \"readings\" 0 }";
+
+
 	logger->info("Purge starting...");
 	gettimeofday(&startTv, NULL);
 	/*
@@ -1926,7 +1935,7 @@ int blocks = 0;
 
 		if (rowidLimit == 0)
 		{
- 			raiseError("purge - no data to purge", "");
+ 			raiseError("purge", "No data to purge");
 			return 0;
 		}
 
@@ -2026,10 +2035,13 @@ int blocks = 0;
 		// Get db changes
 		rowsAffected = sqlite3_changes(dbHandle);
 		deletedRows += rowsAffected;
-
-		// Sleep for a while to reease locks on the database
-		// std::this_thread::sleep_for(std::chrono::milliseconds(PURGE_SLEEP_MS));
 		Logger::getLogger()->info("Purge delete block of %d readings", rowsAffected);
+
+		// Sleep for a while to release locks on the database if anybody is waiting
+		if (m_queuing)
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(PURGE_SLEEP_MS));
+		}
 	} while (rowidMin  < rowidLimit);
 
 	SQLBuffer retainedBuffer;
@@ -3023,7 +3035,17 @@ int retries = 0, rc;
 		retries++;
 		if (rc == SQLITE_LOCKED || rc == SQLITE_BUSY)
 		{
+			m_qMutex.lock();
+			m_queuing++;
+#if DO_PROFILE_RETRIES
+			if (maxQueue < m_queuing)
+				maxQueue = m_queuing;
+#endif
+			m_qMutex.unlock();
 			usleep(retries * RETRY_BACKOFF);	// sleep retries milliseconds
+			m_qMutex.lock();
+			m_queuing--;
+			m_qMutex.unlock();
 		}
 	} while (retries < MAX_RETRIES && (rc == SQLITE_LOCKED || rc == SQLITE_BUSY));
 #if DO_PROFILE_RETRIES
@@ -3040,6 +3062,8 @@ int retries = 0, rc;
 		}
 		log->info("Too many retries: %d", retryStats[MAX_RETRIES-1]);
 		retryStats[MAX_RETRIES-1] = 0;
+		log->info("Maximum retry queue length: %d", maxQueue);
+		maxQueue = 0;
 	}
 #endif
 

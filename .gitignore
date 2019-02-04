@@ -17,10 +17,12 @@ data/tmp
 
 # SQLite3 default db location and after migration
 data/*.db
+data/foglamp.db-journal
 scripts/extras/*.db
 
 /etc/storage.json
 /etc/certs/*
+storage.json
 
 *.cert
 *.key
@@ -65,4 +67,8 @@ data/etc/backup_postgres_configuration_cache.json
 .pytest_cache
 .coverage
 
+# Async ingest pymodule
 python/async_ingest.so*
+
+# Python south plugins
+python/foglamp/plugins/south/*

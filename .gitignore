@@ -17,7 +17,7 @@ data/tmp
 
 # SQLite3 default db location and after migration
 data/*.db
-data/foglamp.db-journal
+data/*.db-journal
 scripts/extras/*.db
 
 /etc/storage.json

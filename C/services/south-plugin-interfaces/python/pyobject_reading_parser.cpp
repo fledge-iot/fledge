@@ -189,7 +189,7 @@ DatapointValue* Py2C_createListDPV(PyObject *data)
 }
 
 /**
- * Set id, uuid, ts and user_ts of the original data
+ * Set id, uuid, ts and user_ts in the reading object
  *
  * @param newReading	Reading object to update
  * @param element		PyObject containing this reading object
@@ -234,6 +234,12 @@ void setReadingAttr(Reading* newReading, PyObject *element)
 	}
 }
 
+/**
+ * Parse single reading element
+ *
+ * @param reading	Python dict object representing a reading
+ * @param assetName	Asset name for the reading object
+ */
 Reading* Py2C_parseReadingElement(PyObject *reading, std::string assetName)
 {
 	// Fetch all Datapoints in 'reading' dict			
@@ -455,7 +461,6 @@ std::vector<Reading *>* Py2C_parseReadingListObject(PyObject *element)
 	return vec;
 }
 
-
 /**
  * Creating vector of Reading objects from Python object
  *
@@ -494,8 +499,8 @@ std::vector<Reading *>* Py2C_getReadings(PyObject *polledData)
 				// Add the new reading to result vector
 				newReadings->push_back(newReading);
 			}
-                       else
-                               Logger::getLogger()->info("Py2C_getReadings: Reading[%d] is NULL", i);
+			else
+				Logger::getLogger()->info("Py2C_getReadings: Reading[%d] is NULL", i);
 		}
 	}
 	else // a dict, possibly containing multiple readings
@@ -545,9 +550,9 @@ static void logErrorMessage()
 					"no error description.";
 
 	Logger::getLogger()->fatal("logErrorMessage: Error '%s' ",
-				   pErrorMessage ?
-				   pErrorMessage :
-				   "no description");
+					pErrorMessage ?
+					pErrorMessage :
+					"no description");
 
 	// Reset error
 	PyErr_Clear();

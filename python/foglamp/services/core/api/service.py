@@ -80,7 +80,6 @@ async def delete_service(request):
     :Example:
         curl -X DELETE http://localhost:8081/foglamp/service/<svc name>
     """
-
     try:
         svc = request.match_info.get('service_name', None)
         storage = connect.get_storage_async()
@@ -89,32 +88,26 @@ async def delete_service(request):
         if result['count'] == 0:
             return web.HTTPNotFound(reason='{} service does not exist.'.format(svc))
 
+        # First disable the schedule
         svc_schedule = result['rows'][0]
         sch_id = uuid.UUID(svc_schedule['id'])
         if svc_schedule['enabled'].lower() == 't':
-            # disable it
             await server.Server.scheduler.disable_schedule(sch_id)
-        # delete it
-        await server.Server.scheduler.delete_schedule(sch_id)
 
-        # delete all configuration for the service name
+        # Delete all configuration for the service name
         config_mgr = ConfigurationManager(storage)
         await config_mgr.delete_category_and_children_recursively(svc)
 
+        # Remove from registry as it has been already shutdown via disable_schedule() and since
+        # we intend to delete the schedule also, there is no use of its Service registry entry
         try:
-            ServiceRegistry.get(name=svc)
+            services = ServiceRegistry.get(name=svc)
+            ServiceRegistry.remove_from_registry(services[0]._id)
         except service_registry_exceptions.DoesNotExist:
             pass
-        else:
-            # shutdown of service does not actually remove it from service registry via unregister (it just set its
-            # status to Shutdown)
-            while True:
-                svcs = ServiceRegistry.get(name=svc)
-                if svcs[0]._status == ServiceRecord.Status.Shutdown:
-                    ServiceRegistry.remove_from_registry(svcs[0]._id)
-                    break
-                else:
-                    await asyncio.sleep(1.0)
+
+        # Delete schedule
+        await server.Server.scheduler.delete_schedule(sch_id)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
     else:

@@ -91,4 +91,5 @@ Timezone,PUT,http://localhost:8080/storage/table/test2/query,timezone.json
 Bad Timezone,PUT,http://localhost:8080/storage/table/test2/query,timezone_bad.json
 Set-FOGL-983,PUT,http://localhost:8080/storage/table/configuration,FOGL-983.json
 Get-FOGL-983,PUT,http://localhost:8080/storage/table/configuration/query,get-FOGL-983.json
+Numeric Column Name,PUT,http://localhost:8080/storage/table/test/query,where_numeric_column.json,
 Shutdown,POST,http://localhost:1081/foglamp/service/shutdown,,checkstate

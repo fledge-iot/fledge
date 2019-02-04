@@ -1,7 +1,7 @@
 /*
  * FogLAMP south plugin interface related
  *
- * Copyright (c) 2018 OSisoft, LLC
+ * Copyright (c) 2018 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
@@ -13,11 +13,10 @@
 #include <reading.h>
 #include <mutex>
 #include <python_plugin_handle.h>
+#include <south_plugin.h>
 
 #define SHIM_SCRIPT_REL_PATH  "/python/foglamp/plugins/common/shim/shim.py"
 #define SHIM_SCRIPT_NAME "shim"
-
-#define PRINT_FUNC	Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 
 using namespace std;
 
@@ -28,6 +27,8 @@ PLUGIN_HANDLE plugin_init_fn(ConfigCategory *);
 vector<Reading *> * plugin_poll_fn(PLUGIN_HANDLE);
 void plugin_reconfigure_fn(PLUGIN_HANDLE*, const std::string&);
 void plugin_shutdown_fn(PLUGIN_HANDLE);
+void plugin_start_fn(PLUGIN_HANDLE handle);
+void plugin_register_ingest_fn(PLUGIN_HANDLE handle,INGEST_CB2 cb,void * data);
 
 PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject *);
 Reading* Py2C_parseReadingObject(PyObject *);
@@ -45,7 +46,6 @@ PyObject* pModule;
 // mutex between reconfigure and poll, since reconfigure changes the handle 
 // object itself and marks previous handle as garbage collectible by Python runtime
 std::mutex mtx;
-
 
 /**
  * Constructor for PythonPluginHandle
@@ -73,7 +73,10 @@ void *PluginInterfaceInit(const char *pluginName, const char * /*_path*/)
 	string foglampPythonDir = foglampRootDir + "/python";
 	
 	// Embedded Python 3.5 initialisation
-    Py_Initialize();
+	Py_Initialize();
+	PyEval_InitThreads();
+	PyThreadState* save = PyEval_SaveThread(); // release Python GIT
+	PyGILState_STATE state = PyGILState_Ensure();
 
 	Logger::getLogger()->info("%s:%d: shimLayerPath=%s, foglampPythonDir=%s", __FUNCTION__, __LINE__, shimLayerPath.c_str(), foglampPythonDir.c_str());
 	
@@ -101,7 +104,7 @@ void *PluginInterfaceInit(const char *pluginName, const char * /*_path*/)
 		{
 			logErrorMessage();
 		}
-		Logger::getLogger()->fatal("PythonPluginHandle c'tor: cannot import Python 3.5 script "
+		Logger::getLogger()->fatal("PluginInterfaceInit: cannot import Python 3.5 script "
 					   "'%s' from '%s' : pythonScript=%s, shimLayerPath=%s",
 					   name.c_str(), path.c_str(),
 					   pythonScript.c_str(),
@@ -110,6 +113,7 @@ void *PluginInterfaceInit(const char *pluginName, const char * /*_path*/)
 	else
 		Logger::getLogger()->info("%s:%d: python module loaded successfully, pModule=%p", __FUNCTION__, __LINE__, pModule);
 
+	PyGILState_Release(state);
 	return pModule;
 }
 
@@ -144,6 +148,10 @@ void* PluginInterfaceResolveSymbol(const char *_sym)
 		return (void *) plugin_shutdown_fn;
 	else if (!sym.compare("plugin_reconfigure"))
 		return (void *) plugin_reconfigure_fn;
+	else if (!sym.compare("plugin_start"))
+		return (void *) plugin_start_fn;
+	else if (!sym.compare("plugin_register_ingest"))
+		return (void *) plugin_register_ingest_fn;
 	else
 	{
 		Logger::getLogger()->info("PluginInterfaceResolveSymbol returning NULL for sym=%s", _sym);
@@ -166,6 +174,7 @@ void* PluginInterfaceGetInfo()
 PLUGIN_INFORMATION *plugin_info_fn()
 {
 	PyObject* pFunc;
+	PyGILState_STATE state = PyGILState_Ensure();
 	
 	// Fetch required method in loaded object
 	pFunc = PyObject_GetAttrString(pModule, "plugin_info");
@@ -183,6 +192,7 @@ PLUGIN_INFORMATION *plugin_info_fn()
 		Logger::getLogger()->fatal("Cannot find method plugin_info in loaded python module");
 		Py_CLEAR(pFunc);
 
+		PyGILState_Release(state);
 		return NULL;
 	}
 	
@@ -221,6 +231,7 @@ PLUGIN_INFORMATION *plugin_info_fn()
 	if(info)
 		Logger::getLogger()->info("plugin_handle: plugin_info(): info={name=%s, version=%s, options=%d, type=%s, interface=%s, config=%s}", 
 					info->name, info->version, info->options, info->type, info->interface, info->config);
+	PyGILState_Release(state);
 	return info;
 }
 
@@ -230,6 +241,7 @@ PLUGIN_INFORMATION *plugin_info_fn()
 PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 {
 	PyObject* pFunc;
+	PyGILState_STATE state = PyGILState_Ensure();
 	
 	// Fetch required method in loaded object
 	pFunc = PyObject_GetAttrString(pModule, "plugin_init");
@@ -247,6 +259,7 @@ PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 		Logger::getLogger()->fatal("Cannot find method plugin_init in loaded python module");
 		Py_CLEAR(pFunc);
 
+		PyGILState_Release(state);
 		return NULL;
 	}
 
@@ -263,12 +276,14 @@ PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 		Logger::getLogger()->error("Called python script method plugin_init : error while getting result object");
 		logErrorMessage();
 
+		PyGILState_Release(state);
 		return NULL;
 	}
 	else
 	{
 		Logger::getLogger()->info("plugin_handle: plugin_init(): got handle from python plugin='%p'", pReturn);
 		
+		PyGILState_Release(state);
 		return (PLUGIN_HANDLE) pReturn;
 	}
 }
@@ -280,6 +295,7 @@ vector<Reading *> * plugin_poll_fn(PLUGIN_HANDLE handle)
 {
 	PyObject* pFunc;
 	lock_guard<mutex> guard(mtx);
+	PyGILState_STATE state = PyGILState_Ensure();
 	
 	// Fetch required method in loaded object
 	pFunc = PyObject_GetAttrString(pModule, "plugin_poll");
@@ -301,6 +317,7 @@ vector<Reading *> * plugin_poll_fn(PLUGIN_HANDLE handle)
 		Logger::getLogger()->fatal("Cannot find method plugin_poll in loaded python module");
 		Py_CLEAR(pFunc);
 
+		PyGILState_Release(state);
 		return NULL;
 	}
 
@@ -316,6 +333,7 @@ vector<Reading *> * plugin_poll_fn(PLUGIN_HANDLE handle)
 		Logger::getLogger()->error("Called python script method plugin_poll : error while getting result object");
 		logErrorMessage();
 
+		PyGILState_Release(state);
 		return NULL;
 	}
 	else
@@ -327,6 +345,7 @@ vector<Reading *> * plugin_poll_fn(PLUGIN_HANDLE handle)
 		// Remove pReturn object
 		Py_CLEAR(pReturn);
 
+		PyGILState_Release(state);
 		return vec;
 	}
 }
@@ -339,6 +358,8 @@ void plugin_reconfigure_fn(PLUGIN_HANDLE* handle, const std::string& config)
 {
 	PyObject* pFunc;
 	lock_guard<mutex> guard(mtx);
+	PyGILState_STATE state = PyGILState_Ensure();
+
 	//Logger::getLogger()->info("plugin_handle: plugin_reconfigure(): pModule=%p, *handle=%p", pModule, *handle);
 	
 	// Fetch required method in loaded object
@@ -357,6 +378,7 @@ void plugin_reconfigure_fn(PLUGIN_HANDLE* handle, const std::string& config)
 		Logger::getLogger()->fatal("Cannot find method plugin_reconfigure in loaded python module");
 		Py_CLEAR(pFunc);
 
+		PyGILState_Release(state);
 		return;
 	}
 
@@ -378,9 +400,9 @@ void plugin_reconfigure_fn(PLUGIN_HANDLE* handle, const std::string& config)
 		Py_CLEAR(*handle);
 		*handle = pReturn;
 		Logger::getLogger()->info("plugin_handle: plugin_reconfigure(): got updated handle from python plugin=%p", *handle);
-		
-		return;
 	}
+	PyGILState_Release(state);
+	return;
 }
 
 
@@ -390,6 +412,7 @@ void plugin_reconfigure_fn(PLUGIN_HANDLE* handle, const std::string& config)
 void plugin_shutdown_fn(PLUGIN_HANDLE handle)
 {
 	PyObject* pFunc;
+	PyGILState_STATE state = PyGILState_Ensure();
 	
 	// Fetch required method in loaded object
 	pFunc = PyObject_GetAttrString(pModule, "plugin_shutdown");
@@ -410,7 +433,8 @@ void plugin_shutdown_fn(PLUGIN_HANDLE handle)
 
 		Logger::getLogger()->fatal("Cannot find method plugin_shutdown in loaded python module");
 		Py_CLEAR(pFunc);
-
+	
+		PyGILState_Release(state);
 		return;
 	}
 
@@ -425,8 +449,101 @@ void plugin_shutdown_fn(PLUGIN_HANDLE handle)
 		Logger::getLogger()->error("Called python script method plugin_shutdown : error while getting result object");
 		logErrorMessage();
 	}
+	PyGILState_Release(state);
 }
 
+
+/**
+ * Function to invoke 'plugin_start' function in python plugin
+ */
+void plugin_start_fn(PLUGIN_HANDLE handle)
+{
+	PyObject* pFunc;
+	PyGILState_STATE state = PyGILState_Ensure();
+	
+	// Fetch required method in loaded object
+	pFunc = PyObject_GetAttrString(pModule, "plugin_start");
+	if (!pModule || !pFunc)
+		Logger::getLogger()->info("plugin_handle: plugin_start(): pModule=%p, pFunc=%p", pModule, pFunc);
+
+	if (!pFunc || !PyCallable_Check(pFunc))
+	{
+		// Failure
+		if (PyErr_Occurred())
+		{
+			logErrorMessage();
+		}
+
+		Logger::getLogger()->fatal("Cannot find method plugin_start in loaded python module");
+		Py_CLEAR(pFunc);
+
+		PyGILState_Release(state);
+		return;
+	}
+
+	// Call Python method passing an object
+	PyObject* pReturn = PyObject_CallFunction(pFunc, "O", handle);
+
+	Py_CLEAR(pFunc);
+
+	// Handle return
+	if (!pReturn)
+	{
+		Logger::getLogger()->error("Called python script method plugin_start : error while getting result object");
+		logErrorMessage();
+	}
+	PyGILState_Release(state);
+}
+
+
+/**
+ * Function to invoke 'plugin_register_ingest' function in python plugin
+ */
+void plugin_register_ingest_fn(PLUGIN_HANDLE handle, INGEST_CB2 cb, void *data)
+{
+	PyObject* pFunc;
+	PyGILState_STATE state = PyGILState_Ensure();
+	
+	// Fetch required method in loaded object
+	pFunc = PyObject_GetAttrString(pModule, "plugin_register_ingest");
+	if (!pModule || !pFunc)
+		Logger::getLogger()->info("plugin_handle: plugin_register_ingest(): pModule=%p, pFunc=%p", pModule, pFunc);
+
+	if (!pFunc || !PyCallable_Check(pFunc))
+	{
+		// Failure
+		if (PyErr_Occurred())
+		{
+			logErrorMessage();
+		}
+
+		Logger::getLogger()->fatal("Cannot find method plugin_register_ingest in loaded python module");
+		Py_CLEAR(pFunc);
+
+		PyGILState_Release(state);
+		return;
+	}
+	
+	// Call Python method passing an object
+	PyObject* ingest_fn = PyCapsule_New((void *)cb, NULL, NULL);
+	PyObject* ingest_ref = PyCapsule_New((void *)data, NULL, NULL);
+	PyObject* pReturn = PyObject_CallFunction(pFunc, "OOO", handle, ingest_fn, ingest_ref);
+
+	Py_CLEAR(pFunc);
+	Py_CLEAR(ingest_fn);
+
+	// Handle returned data
+	if (!pReturn)
+	{
+		Logger::getLogger()->error("Called python script method plugin_register_ingest : error while getting result object");
+		logErrorMessage();
+	}
+	else
+	{
+		Logger::getLogger()->info("plugin_handle: plugin_register_ingest(): got result object '%p' ", pReturn);
+	}
+	PyGILState_Release(state);
+}
 
 /**
  * Fill PLUGIN_INFORMATION structure from Python object
@@ -446,17 +563,9 @@ PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal)
 	// dKey and dValue are borrowed references
 	while (PyDict_Next(pyRetVal, &dPos, &dKey, &dValue))
 	{
-		 /*if (!PyBytes_Check(dKey) || !PyBytes_Check(dValue))
-		  {
-			Logger::getLogger()->info("3. PyDict: dKey & dValue are not of required type");
-			continue;
-		  }*/
 		char* ckey = PyUnicode_AsUTF8(dKey);
 		char* cval = PyUnicode_AsUTF8(dValue);
-		//char *emptyStr = new char[1];
-		//emptyStr[0] = '\0';
-		//cval = PyUnicode_AsUTF8(dValue);
-		//Logger::getLogger()->info("4. PyDict: ckey=%s, cval=%s", ckey, cval);
+		//Logger::getLogger()->info("Py2C_PluginInfo: ckey=%s, cval=%s", ckey, cval);
 
 		char *valStr = new char [string(cval).length()+1];
 		std::strcpy (valStr, cval);
@@ -491,191 +600,6 @@ PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal)
 	}
 
 	return info;
-}
-
-/**
- * Creating Reading object from Python object
- *
- * @param element	Python 3.5 Object (dict)
- * @return		Pointer to a new Reading object
- *				or NULL in case of errors
- */
-Reading* Py2C_parseReadingObject(PyObject *element)
-{
-	// Get list item: borrowed reference.
-	if (!element)
-	{
-		// Failure
-		if (PyErr_Occurred())
-		{
-			logErrorMessage();
-		}
-		return NULL;
-	}
-	if (!PyDict_Check(element))
-	{
-		// Failure
-		if (PyErr_Occurred())
-		{
-			logErrorMessage();
-		}
-		return NULL;
-	}
-
-	// Get 'asset_code' value: borrowed reference.
-	PyObject* assetCode = PyDict_GetItemString(element,
-						   "asset");
-	// Get 'reading' value: borrowed reference.
-	PyObject* reading = PyDict_GetItemString(element,
-						 "readings");
-	// Keys not found or reading is not a dict
-	if (!assetCode ||
-		!reading ||
-		!PyDict_Check(reading))
-	{
-		// Failure
-		if (PyErr_Occurred())
-		{
-			logErrorMessage();
-		}
-		return NULL;
-	}
-
-	//Logger::getLogger()->info("Py2C_parseReadingObject: asset_code=%s, reading is a python dict", PyUnicode_AsUTF8(assetCode));
-
-	// Fetch all Datapoins in 'reading' dict			
-	PyObject *dKey, *dValue;  // borrowed references set by PyDict_Next()
-	Py_ssize_t dPos = 0;
-	Reading* newReading = NULL;
-
-	// Fetch all Datapoints in 'reading' dict
-	// dKey and dValue are borrowed references
-	while (PyDict_Next(reading, &dPos, &dKey, &dValue))
-	{
-		DatapointValue* dataPoint;
-		if (PyLong_Check(dValue) || PyFloat_Check(dValue) || PyBytes_Check(dValue) || PyUnicode_Check(dValue))
-		{
-			dataPoint = Py2C_createBasicDPV(dValue);
-		}
-		else if (PyList_Check(dValue))
-		{
-			dataPoint = Py2C_createListDPV(dValue);
-		}
-		else if (PyDict_Check(dValue))
-		{
-			dataPoint = Py2C_createDictDPV(dValue);
-		}
-		else
-		{
-			Logger::getLogger()->info("Unable to parse dValue in readings dict: dKey=%s, Py_TYPE(dValue)=%s", string(PyUnicode_AsUTF8(dKey)).c_str(), (Py_TYPE(dValue))->tp_name);
-			return NULL;
-		}
-
-		// Add / Update the new Reading data			
-		if (newReading == NULL)
-		{
-			newReading = new Reading(string(PyUnicode_AsUTF8(assetCode)),
-						 new Datapoint(string(PyUnicode_AsUTF8(dKey)),
-								   *dataPoint));
-		}
-		else
-		{
-			newReading->addDatapoint(new Datapoint(string(PyUnicode_AsUTF8(dKey)),
-								   *dataPoint));
-		}
-
-		/**
-		 * Set id, uuid, ts and user_ts of the original data
-		 */
-
-		// Get 'id' value: borrowed reference.
-		PyObject* id = PyDict_GetItemString(element, "id");
-		if (id && PyLong_Check(id))
-		{
-			// Set id
-			newReading->setId(PyLong_AsUnsignedLong(id));
-		}
-
-		// Get 'ts' value: borrowed reference.
-		PyObject* ts = PyDict_GetItemString(element, "ts");
-		if (ts)
-		{
-			// Convert a timestamp of the from 2019-01-07 19:06:35.366100+01:00
-			char *ts_str = PyUnicode_AsUTF8(ts);
-			newReading->setTimestamp(ts_str);
-		}
-
-		// Get 'user_ts' value: borrowed reference.
-		PyObject* uts = PyDict_GetItemString(element, "timestamp");
-		if (uts)
-		{
-			// Convert a timestamp of the from 2019-01-07 19:06:35.366100+01:00
-			char *ts_str = PyUnicode_AsUTF8(uts);
-			newReading->setUserTimestamp(ts_str);
-		}
-
-		// Get 'uuid' value: borrowed reference.
-		PyObject* uuid = PyDict_GetItemString(element, "key");
-		if (uuid && PyUnicode_Check(uuid))
-		{
-			// Set uuid
-			newReading->setUuid(string(PyUnicode_AsUTF8(uuid)));
-		}
-
-		// Remove temp objects
-		delete dataPoint;
-	}
-	return newReading;
-}
-
-/**
- * Creating Reading object from Python object
- *
- * @param element	Python 3.5 Object (dict)
- * @return		Pointer to a new Reading object
- *				or NULL in case of errors
- */
-vector<Reading *>* Py2C_getReadings(PyObject *polledData)
-{
-	vector<Reading *>* newReadings = new vector<Reading *>();
-
-	if(PyList_Check(polledData)) // got a list of readings
-	{
-		// Iterate reading objects in the list
-		for (int i = 0; i < PyList_Size(polledData); i++)
-		{
-			// Get list item: borrowed reference.
-			PyObject* element = PyList_GetItem(polledData, i);
-			if (!element)
-			{
-				// Failure
-				if (PyErr_Occurred())
-				{
-					logErrorMessage();
-				}
-				delete newReadings;
-
-				return NULL;
-			}
-			Reading* newReading = Py2C_parseReadingObject(element);
-			if (newReading)
-			{
-				// Add the new reading to result vector
-				newReadings->push_back(newReading);
-			}
-			else
-				Logger::getLogger()->info("Py2C_getReadings: Reading[%d] is NULL", i);
-		}
-	}
-	else // just a single reading, no list
-	{
-		Reading* newReading = Py2C_parseReadingObject(polledData);
-		if (newReading)
-			newReadings->push_back(newReading);
-	}
-	
-	return newReadings;
-	
 }
 
 DatapointValue *Py2C_createBasicDPV(PyObject *dValue)

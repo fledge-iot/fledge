@@ -64,8 +64,22 @@ SouthPlugin::SouthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category) :
 				manager->resolveSymbol(handle, "plugin_shutdown");
 	if (isAsync())
 	{
-  		pluginRegisterPtr = (void (*)(PLUGIN_HANDLE, INGEST_CB cb, void *data))
+		if (pluginInterfaceVer[0]=='1' && pluginInterfaceVer[1]=='.')
+		{
+	  		pluginRegisterPtr = (void (*)(PLUGIN_HANDLE, INGEST_CB cb, void *data))
 				manager->resolveSymbol(handle, "plugin_register_ingest");
+		}
+		else if (pluginInterfaceVer[0]=='2' && pluginInterfaceVer[1]=='.')
+		{
+			pluginRegisterPtrV2 = (void (*)(PLUGIN_HANDLE, INGEST_CB2 cb, void *data))
+				manager->resolveSymbol(handle, "plugin_register_ingest");
+		}
+		else
+		{
+			Logger::getLogger()->error("Invalid plugin interface version '%s', assuming version 1.x", pluginInterfaceVer);
+			pluginRegisterPtr = (void (*)(PLUGIN_HANDLE, INGEST_CB cb, void *data))
+				manager->resolveSymbol(handle, "plugin_register_ingest");
+		}
 	}
 
 	pluginShutdownDataPtr = (string (*)(const PLUGIN_HANDLE))
@@ -190,3 +204,20 @@ void SouthPlugin::registerIngest(INGEST_CB cb, void *data)
 		throw;
 	}
 }
+
+void SouthPlugin::registerIngestV2(INGEST_CB2 cb, void *data)
+{
+	try {
+		return this->pluginRegisterPtrV2(instance, cb, data);
+	} catch (exception& e) {
+		Logger::getLogger()->fatal("Unhandled exception raised in south plugin registerIngestV2(), %s",
+			e.what());
+		throw;
+	} catch (...) {
+		std::exception_ptr p = std::current_exception();
+		Logger::getLogger()->fatal("Unhandled exception raised in south plugin registerIngestV2(), %s",
+			p ? p.__cxa_exception_type()->name() : "unknown exception");
+		throw;
+	}
+}
+

@@ -164,7 +164,9 @@ class DatapointValue {
 			m_type = T_FLOAT;
 		}
 
-		
+		/**
+		 * Return the value as a string
+		 */
 		std::string	toString() const;
 
 		/**

@@ -189,6 +189,102 @@ DatapointValue* Py2C_createListDPV(PyObject *data)
 }
 
 /**
+ * Set id, uuid, ts and user_ts of the original data
+ *
+ * @param newReading	Reading object to update
+ * @param element		PyObject containing this reading object
+ */
+void setReadingAttr(Reading* newReading, PyObject *element)
+{
+	if (!newReading)
+		return;
+	
+	// Get 'id' value: borrowed reference.
+	PyObject* id = PyDict_GetItemString(element, "id");
+	if (id && PyLong_Check(id))
+	{
+		// Set id
+		newReading->setId(PyLong_AsUnsignedLong(id));
+	}
+
+	// Get 'ts' value: borrowed reference.
+	PyObject* ts = PyDict_GetItemString(element, "ts");
+	if (ts)
+	{
+		// Convert a timestamp of the from 2019-01-07 19:06:35.366100+01:00
+		char *ts_str = PyUnicode_AsUTF8(ts);
+		newReading->setTimestamp(ts_str);
+	}
+
+	// Get 'user_ts' value: borrowed reference.
+	PyObject* uts = PyDict_GetItemString(element, "timestamp");
+	if (uts)
+	{
+		// Convert a timestamp of the from 2019-01-07 19:06:35.366100+01:00
+		char *ts_str = PyUnicode_AsUTF8(uts);
+		newReading->setUserTimestamp(ts_str);
+	}
+	
+	// Get 'uuid' value: borrowed reference.
+	PyObject* uuid = PyDict_GetItemString(element, "key");
+	if (uuid && PyUnicode_Check(uuid))
+	{
+		// Set uuid
+		newReading->setUuid(std::string(PyUnicode_AsUTF8(uuid)));
+	}
+}
+
+Reading* Py2C_parseReadingElement(PyObject *reading, std::string assetName)
+{
+	// Fetch all Datapoints in 'reading' dict			
+	PyObject *dKey, *dValue;  // borrowed references set by PyDict_Next()
+	Py_ssize_t dPos = 0;
+	Reading* newReading = NULL;
+
+	if (!reading || !PyDict_Check(reading))
+		return NULL;
+	
+	while (PyDict_Next(reading, &dPos, &dKey, &dValue))
+	{
+		DatapointValue* dataPoint;
+		if (PyLong_Check(dValue) || PyFloat_Check(dValue) || PyBytes_Check(dValue) || PyUnicode_Check(dValue))
+		{
+			dataPoint = Py2C_createBasicDPV(dValue);
+		}
+		else if (PyList_Check(dValue))
+		{
+			dataPoint = Py2C_createListDPV(dValue);
+		}
+		else if (PyDict_Check(dValue))
+		{
+			dataPoint = Py2C_createDictDPV(dValue);
+		}
+		else
+		{
+			Logger::getLogger()->info("Unable to parse dValue in readings dict: dKey=%s, Py_TYPE(dValue)=%s", std::string(PyUnicode_AsUTF8(dKey)).c_str(), (Py_TYPE(dValue))->tp_name);
+			return NULL;
+		}
+
+		// Add / Update the new Reading data			
+		if (newReading == NULL)
+		{
+			newReading = new Reading(assetName,
+							new Datapoint(std::string(PyUnicode_AsUTF8(dKey)),
+								*dataPoint));
+		}
+		else
+		{
+			newReading->addDatapoint(new Datapoint(std::string(PyUnicode_AsUTF8(dKey)),
+										*dataPoint));
+		}
+
+		// Remove temp objects
+		delete dataPoint;
+	}
+	return newReading;
+}
+
+/**
  * Creating Reading object from Python object
  *
  * @param element	Python 3.5 Object (dict)
@@ -197,6 +293,7 @@ DatapointValue* Py2C_createListDPV(PyObject *data)
  */
 Reading* Py2C_parseReadingObject(PyObject *element)
 {
+	PRINT_FUNC;
 	// Get list item: borrowed reference.
 	if (!element)
 	{
@@ -216,13 +313,25 @@ Reading* Py2C_parseReadingObject(PyObject *element)
 		}
 		return NULL;
 	}
+	PRINT_FUNC;
 
 	// Get 'asset_code' value: borrowed reference.
 	PyObject* assetCode = PyDict_GetItemString(element,
 						   "asset");
+	if (!assetCode)
+	{
+		Logger::getLogger()->info("Couldn't get 'asset' field from Python reading object");
+		return NULL;
+	}
+	
+	std::string assetName(PyUnicode_AsUTF8(assetCode));
+
+	PRINT_FUNC;
+	
 	// Get 'reading' value: borrowed reference.
 	PyObject* reading = PyDict_GetItemString(element,
 						 "readings");
+	PRINT_FUNC;
 	// Keys not found or reading is not a dict
 	if (!assetCode ||
 		!reading ||
@@ -235,91 +344,117 @@ Reading* Py2C_parseReadingObject(PyObject *element)
 		}
 		return NULL;
 	}
+	PRINT_FUNC;
 
-	// Fetch all Datapoins in 'reading' dict			
-	PyObject *dKey, *dValue;  // borrowed references set by PyDict_Next()
-	Py_ssize_t dPos = 0;
-	Reading* newReading = NULL;
+	Reading* newReading = Py2C_parseReadingElement(reading, assetName);
+	PRINT_FUNC;
+	setReadingAttr(newReading, element);
+	PRINT_FUNC;
 
-	// Fetch all Datapoints in 'reading' dict
-	// dKey and dValue are borrowed references
-	while (PyDict_Next(reading, &dPos, &dKey, &dValue))
-	{
-		DatapointValue* dataPoint;
-               if (PyLong_Check(dValue) || PyFloat_Check(dValue) || PyBytes_Check(dValue) || PyUnicode_Check(dValue))
-		{
-                       dataPoint = Py2C_createBasicDPV(dValue);
-		}
-               else if (PyList_Check(dValue))
-		{
-                       dataPoint = Py2C_createListDPV(dValue);
-		}
-               else if (PyDict_Check(dValue))
-		{
-                       dataPoint = Py2C_createDictDPV(dValue);
-		}
-		else
-		{
-                       Logger::getLogger()->info("Unable to parse dValue in readings dict: dKey=%s, Py_TYPE(dValue)=%s", std::string(PyUnicode_AsUTF8(dKey)).c_str(), (Py_TYPE(dValue))->tp_name);
-			return NULL;
-		}
-
-		// Add / Update the new Reading data			
-		if (newReading == NULL)
-		{
-                       newReading = new Reading(std::string(PyUnicode_AsUTF8(assetCode)),
-                                                new Datapoint(std::string(PyUnicode_AsUTF8(dKey)),
-								   *dataPoint));
-		}
-		else
-		{
-                       newReading->addDatapoint(new Datapoint(std::string(PyUnicode_AsUTF8(dKey)),
-								   *dataPoint));
-		}
-
-		/**
-		 * Set id, uuid, ts and user_ts of the original data
-		 */
-
-		// Get 'id' value: borrowed reference.
-		PyObject* id = PyDict_GetItemString(element, "id");
-		if (id && PyLong_Check(id))
-		{
-			// Set id
-			newReading->setId(PyLong_AsUnsignedLong(id));
-		}
-
-		// Get 'ts' value: borrowed reference.
-		PyObject* ts = PyDict_GetItemString(element, "ts");
-		if (ts)
-		{
-			// Convert a timestamp of the from 2019-01-07 19:06:35.366100+01:00
-			char *ts_str = PyUnicode_AsUTF8(ts);
-                        newReading->setTimestamp(ts_str);
-		}
-
-		// Get 'user_ts' value: borrowed reference.
-		PyObject* uts = PyDict_GetItemString(element, "timestamp");
-		if (uts)
-		{
-			// Convert a timestamp of the from 2019-01-07 19:06:35.366100+01:00
-			char *ts_str = PyUnicode_AsUTF8(uts);
-                        newReading->setUserTimestamp(ts_str);
-                }
-		
-		// Get 'uuid' value: borrowed reference.
-		PyObject* uuid = PyDict_GetItemString(element, "key");
-		if (uuid && PyUnicode_Check(uuid))
-		{
-			// Set uuid
-                       newReading->setUuid(std::string(PyUnicode_AsUTF8(uuid)));
-		}
-
-		// Remove temp objects
-		delete dataPoint;
-	}
 	return newReading;
 }
+
+/**
+ * Creating Reading object from Python object
+ *
+ * @param element	Python 3.5 Object (dict)
+ * @return		Pointer to a new Reading object
+ *				or NULL in case of error
+ */
+std::vector<Reading *>* Py2C_parseReadingListObject(PyObject *element)
+{
+	PRINT_FUNC;
+	// Get list item: borrowed reference.
+	if (!element)
+	{
+		// Failure
+		if (PyErr_Occurred())
+		{
+			logErrorMessage();
+		}
+		return NULL;
+	}
+	if (!PyDict_Check(element))
+	{
+		// Failure
+		if (PyErr_Occurred())
+		{
+			logErrorMessage();
+		}
+		return NULL;
+	}
+	PRINT_FUNC;
+
+	// Get 'asset_code' value: borrowed reference.
+	PyObject* assetCode = PyDict_GetItemString(element,
+							"asset");
+	if (!assetCode)
+	{
+		Logger::getLogger()->info("Couldn't get 'asset' field from Python reading object");
+		return NULL;
+	}
+	
+	std::string assetName(PyUnicode_AsUTF8(assetCode));
+
+	PRINT_FUNC;
+	
+	// Get 'reading' value: borrowed reference.
+	PyObject* reading = PyDict_GetItemString(element,
+							"readings");
+
+	if (!assetCode || !reading || !PyList_Check(reading))
+	{
+		// Failure
+		if (PyErr_Occurred())
+		{
+			logErrorMessage();
+		}
+		return NULL;
+	}
+	PRINT_FUNC;
+
+	std::vector<Reading *>* vec = new std::vector<Reading *>();
+	Reading* newReading;
+	// Iterate reading objects in the list
+	for (int i = 0; i < PyList_Size(reading); i++)
+	{
+		PRINT_FUNC;
+		newReading = NULL;
+		PyObject* elem = PyList_GetItem(reading, i);
+		if (!elem)
+		{
+			// Failure
+			if (PyErr_Occurred())
+			{
+				logErrorMessage();
+			}
+			delete vec;
+			return NULL;
+		}
+		
+		Reading* newReading = Py2C_parseReadingElement(elem, assetName);
+		PRINT_FUNC;
+		
+		if (!newReading)
+			continue;
+
+		setReadingAttr(newReading, element);
+		PRINT_FUNC;
+
+		if (newReading)
+		{
+			vec->push_back(newReading);
+			Logger::getLogger()->info("Added newReading to vec: newReading=%s", newReading->toJSON().c_str());
+		}
+		else
+			Logger::getLogger()->info("newReading is NULL, skipping...");
+
+		PRINT_FUNC;
+	}
+	
+	return vec;
+}
+
 
 /**
  * Creating vector of Reading objects from Python object
@@ -330,13 +465,16 @@ Reading* Py2C_parseReadingObject(PyObject *element)
  */
 std::vector<Reading *>* Py2C_getReadings(PyObject *polledData)
 {
+	PRINT_FUNC;
 	std::vector<Reading *>* newReadings = new std::vector<Reading *>();
 
 	if(PyList_Check(polledData)) // got a list of readings
 	{
+		PRINT_FUNC;
 		// Iterate reading objects in the list
 		for (int i = 0; i < PyList_Size(polledData); i++)
 		{
+			PRINT_FUNC;
 			// Get list item: borrowed reference.
 			PyObject* element = PyList_GetItem(polledData, i);
 			if (!element)
@@ -360,15 +498,30 @@ std::vector<Reading *>* Py2C_getReadings(PyObject *polledData)
                                Logger::getLogger()->info("Py2C_getReadings: Reading[%d] is NULL", i);
 		}
 	}
-	else // just a single reading, no list
+	else // a dict, possibly containing multiple readings
 	{
-		Reading* newReading = Py2C_parseReadingObject(polledData);
-		if (newReading)
-			newReadings->push_back(newReading);
+		PRINT_FUNC;
+		if (polledData && PyDict_Check(polledData))
+		{
+			// Get 'reading' value: borrowed reference.
+			// Look inside for "reading" field to determine the helper function to parse readings
+			PyObject* reading = PyDict_GetItemString(polledData,
+								 "readings");
+			if (reading && PyList_Check(reading))
+			{
+				delete newReadings;
+				newReadings = Py2C_parseReadingListObject(polledData);
+			}
+			else // just a single reading, no list
+			{
+				PRINT_FUNC;
+				Reading* newReading = Py2C_parseReadingObject(polledData);
+				if (newReading)
+					newReadings->push_back(newReading);
+			}
+		}
 	}
-	
 	return newReadings;
-	
 }
 
 /**

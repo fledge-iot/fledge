@@ -17,6 +17,176 @@
 extern "C" {
 
 static void logErrorMessage();
+DatapointValue* Py2C_createDictDPV(PyObject *data);
+DatapointValue* Py2C_createListDPV(PyObject *data);
+
+
+/**
+ * Creating DatapointValue object from Python object
+ *
+ * @param dValue	Python 3.5 Object
+ * @return		Pointer to a new DatapointValue object
+ *				or NULL in case of error
+ */
+DatapointValue *Py2C_createBasicDPV(PyObject *dValue)
+{
+	if (!dValue)
+	{
+		Logger::getLogger()->info("dValue is NULL");
+		return NULL;
+	}
+	DatapointValue* dpv;
+	if (PyLong_Check(dValue))
+	{
+		dpv = new DatapointValue((long)PyLong_AsUnsignedLongMask(dValue));
+	}
+	else if (PyFloat_Check(dValue))
+	{
+		dpv = new DatapointValue(PyFloat_AS_DOUBLE(dValue));
+	}
+	else if (PyBytes_Check(dValue) || PyUnicode_Check(dValue))
+	{
+		dpv = new DatapointValue(std::string(PyUnicode_AsUTF8(dValue)));
+	}
+	else
+	{
+		Logger::getLogger()->info("Unable to parse dValue: Py_TYPE(dValue)=%s", (Py_TYPE(dValue))->tp_name);
+		dpv = NULL;
+	}
+	Logger::getLogger()->info("%s: dpv=%s", __FUNCTION__, dpv?dpv->toString().c_str():"NULL");
+	return dpv;
+}
+
+/**
+ * Creating DatapointValue object from Python object
+ *
+ * @param data	Python 3.5 Object (dict)
+ * @return		Pointer to a new DatapointValue object
+ *				or NULL in case of error
+ */
+DatapointValue* Py2C_createDictDPV(PyObject *data)
+{
+	if(!data || !PyDict_Check(data)) // got a dict of DPs
+	{
+		Logger::getLogger()->info("data is NULL or not a PyDict");
+		return NULL;
+	}
+	
+	// Fetch all Datapoints in the dict			
+	PyObject *dKey, *dValue;  // borrowed references set by PyDict_Next()
+	Py_ssize_t dPos = 0;
+	Reading* newReading = NULL;
+	
+	std::vector<Datapoint*> *dpVec = new std::vector<Datapoint*>();
+	
+	// Fetch all Datapoints in 'reading' dict
+	// dKey and dValue are borrowed references
+	while (PyDict_Next(data, &dPos, &dKey, &dValue))
+	{
+		DatapointValue* dpv;
+		if (PyLong_Check(dValue) || PyFloat_Check(dValue) || PyBytes_Check(dValue) || PyUnicode_Check(dValue))
+		{
+			dpv = Py2C_createBasicDPV(dValue);
+		}
+		else if (PyList_Check(dValue))
+		{
+			dpv = Py2C_createListDPV(dValue);
+		}
+		else if (PyDict_Check(dValue))
+		{
+			dpv = Py2C_createDictDPV(dValue);
+		}
+		else
+		{
+			Logger::getLogger()->info("Unable to parse dValue in 'data' dict: dKey=%s, Py_TYPE(dValue)=%s", std::string(PyUnicode_AsUTF8(dKey)).c_str(), (Py_TYPE(dValue))->tp_name);
+			dpv = NULL;
+		}
+		if (dpv)
+		{
+			dpVec->emplace_back(new Datapoint(std::string(PyUnicode_AsUTF8(dKey)), *dpv));
+			delete dpv;
+		}
+	}
+	
+	if (dpVec->size() > 0)
+	{
+		DatapointValue *dpv = new DatapointValue(dpVec, true);
+		Logger::getLogger()->info("%s: dpv=%s", __FUNCTION__, dpv?dpv->toString().c_str():"NULL");
+		return dpv;
+	}
+	else
+	{
+		Logger::getLogger()->info("%s: dpv=%s", __FUNCTION__, "NULL");
+		return NULL;
+	}
+}
+
+/**
+ * Creating DatapointValue object from Python object
+ *
+ * @param data	Python 3.5 Object (list)
+ * @return		Pointer to a new DatapointValue object
+ *				or NULL in case of error
+ */
+DatapointValue* Py2C_createListDPV(PyObject *data)
+{
+	if(!data || !PyList_Check(data)) // got a list of DPs
+	{
+		Logger::getLogger()->info("data is NULL or not a PyList");
+		return NULL;
+	}
+	
+	std::vector<Datapoint*>* dpVec = new std::vector<Datapoint *>();
+	// Iterate DPV objects in the list
+	for (int i = 0; i < PyList_Size(data); i++)
+	{
+		DatapointValue* dpv = NULL;
+		// Get list item: borrowed reference.
+		PyObject* element = PyList_GetItem(data, i);
+		if (!element)
+		{
+			// Failure
+			if (PyErr_Occurred())
+			{
+				logErrorMessage();
+			}
+			delete dpVec;
+
+			return NULL;
+		}
+		else if (PyDict_Check(element))
+		{
+			dpv = Py2C_createDictDPV(element);
+		}
+		else if (PyList_Check(element))
+		{
+			dpv = Py2C_createListDPV(element);
+		}
+		else if (PyLong_Check(element) || PyFloat_Check(element) || PyBytes_Check(element) || PyUnicode_Check(element))
+		{
+			dpv = Py2C_createBasicDPV(element);
+		}
+		if (dpv)
+		{
+			dpVec->emplace_back(new Datapoint(std::string("unnamed_list_elem#") + std::to_string(i), *dpv));
+			delete dpv;
+		}
+		else
+			Logger::getLogger()->info("dpv is NULL");
+	}
+	
+	if (dpVec->size() > 0)
+	{
+		DatapointValue *dpv = new DatapointValue(dpVec, false);
+		Logger::getLogger()->info("%s: dpv=%s", __FUNCTION__, dpv?dpv->toString().c_str():"NULL");
+		return dpv;
+	}
+	else
+	{
+		Logger::getLogger()->info("%s: dpv=%s", __FUNCTION__, "NULL");
+		return NULL;
+	}
+}
 
 /**
  * Creating Reading object from Python object
@@ -76,40 +246,34 @@ Reading* Py2C_parseReadingObject(PyObject *element)
 	while (PyDict_Next(reading, &dPos, &dKey, &dValue))
 	{
 		DatapointValue* dataPoint;
-		if (PyLong_Check(dValue) || PyLong_Check(dValue))
+               if (PyLong_Check(dValue) || PyFloat_Check(dValue) || PyBytes_Check(dValue) || PyUnicode_Check(dValue))
 		{
-			dataPoint = new DatapointValue((long)PyLong_AsUnsignedLongMask(dValue));
+                       dataPoint = Py2C_createBasicDPV(dValue);
 		}
-		else if (PyFloat_Check(dValue))
+               else if (PyList_Check(dValue))
 		{
-			dataPoint = new DatapointValue(PyFloat_AS_DOUBLE(dValue));
+                       dataPoint = Py2C_createListDPV(dValue);
 		}
-		else if (PyBytes_Check(dValue))
+               else if (PyDict_Check(dValue))
 		{
-			dataPoint = new DatapointValue(std::string(PyUnicode_AsUTF8(dValue)));
-		}
-		else if (PyUnicode_Check(dValue))
-		{
-			dataPoint = new DatapointValue(std::string(PyUnicode_AsUTF8(dValue)));
+                       dataPoint = Py2C_createDictDPV(dValue);
 		}
 		else
 		{
-			Logger::getLogger()->info("Unable to parse dValue in readings dict: dKey=%s, Py_TYPE(dValue)=%s", 
-									std::string(PyUnicode_AsUTF8(dKey)).c_str(), (Py_TYPE(dValue))->tp_name);
-			//delete dataPoint;
+                       Logger::getLogger()->info("Unable to parse dValue in readings dict: dKey=%s, Py_TYPE(dValue)=%s", std::string(PyUnicode_AsUTF8(dKey)).c_str(), (Py_TYPE(dValue))->tp_name);
 			return NULL;
 		}
 
 		// Add / Update the new Reading data			
 		if (newReading == NULL)
 		{
-			newReading = new Reading(std::string(PyUnicode_AsUTF8(assetCode)),
-						 new Datapoint(std::string(PyUnicode_AsUTF8(dKey)),
+                       newReading = new Reading(std::string(PyUnicode_AsUTF8(assetCode)),
+                                                new Datapoint(std::string(PyUnicode_AsUTF8(dKey)),
 								   *dataPoint));
 		}
 		else
 		{
-			newReading->addDatapoint(new Datapoint(std::string(PyUnicode_AsUTF8(dKey)),
+                       newReading->addDatapoint(new Datapoint(std::string(PyUnicode_AsUTF8(dKey)),
 								   *dataPoint));
 		}
 
@@ -148,7 +312,7 @@ Reading* Py2C_parseReadingObject(PyObject *element)
 		if (uuid && PyUnicode_Check(uuid))
 		{
 			// Set uuid
-			newReading->setUuid(std::string(PyUnicode_AsUTF8(uuid)));
+                       newReading->setUuid(std::string(PyUnicode_AsUTF8(uuid)));
 		}
 
 		// Remove temp objects
@@ -160,7 +324,7 @@ Reading* Py2C_parseReadingObject(PyObject *element)
 /**
  * Creating vector of Reading objects from Python object
  *
- * @param element	Python 3.5 Object (dict)
+ * @param polledData	Python 3.5 Object (dict)
  * @return		Pointer to a vector of Reading objects
  *				or NULL in case of error
  */
@@ -192,8 +356,8 @@ std::vector<Reading *>* Py2C_getReadings(PyObject *polledData)
 				// Add the new reading to result vector
 				newReadings->push_back(newReading);
 			}
-			//else
-				//Logger::getLogger()->info("Py2C_getReadings: Reading[%d] is NULL", i);
+                       else
+                               Logger::getLogger()->info("Py2C_getReadings: Reading[%d] is NULL", i);
 		}
 	}
 	else // just a single reading, no list
@@ -241,3 +405,4 @@ static void logErrorMessage()
 	Py_CLEAR(pTraceback);
 }
 };
+

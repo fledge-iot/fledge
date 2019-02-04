@@ -16,9 +16,10 @@
 #include <logger.h>
 #include <datapoint.h>
 
-
-/**
+ /**
  * Return the value as a string
+ *
+ * @return		String representing the DatapointValue object			
  */
 std::string	DatapointValue::toString() const
 {
@@ -131,6 +132,9 @@ void DatapointValue::deleteNestedDPV()
 	}
 }
 
+/**
+ * DatapointValue class destructor
+ */
 DatapointValue::~DatapointValue()
 {
 	if (m_type == T_STRING)

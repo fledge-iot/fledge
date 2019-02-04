@@ -19,9 +19,9 @@
  /**
  * Return the value as a string
  *
- * @return		String representing the DatapointValue object			
+ * @return	String representing the DatapointValue object
  */
-std::string	DatapointValue::toString() const
+std::string DatapointValue::toString() const
 {
 	std::ostringstream ss;
 	Logger::getLogger()->debug("%s: m_type = %d", __FUNCTION__, m_type);
@@ -104,29 +104,6 @@ void DatapointValue::deleteNestedDPV()
 			 it != m_value.dpa->end();
 			 ++it)
 		{
-#if 0
-			// '*it' is of 'Datapoint*' type
-			DatapointValue &dpv = (*it)->getData();
-			Logger::getLogger()->debug("%s:%d: deleting dpa element: dpv.getTypeStr()=%s", __FUNCTION__, __LINE__, dpv.getTypeStr().c_str());
-			// if this dpv is of dict/list type, need to free up nested DPVs also
-			if (dpv.getType() == T_DP_DICT || dpv.getType() == T_DP_LIST)
-			{
-				Logger::getLogger()->debug("%s:%d: deleting nested dpv", __FUNCTION__, __LINE__);
-				for (auto it2 = dpv.getDpVec()->begin(); // std::vector<Datapoint *>*	dpa;
-					 it2 != dpv.getDpVec()->end();
-					 ++it2)
-				{
-					// '*it2' is of 'Datapoint*' type
-					delete (*it2);
-				}
-			}
-			else
-			{
-				Logger::getLogger()->debug("%s:%d: deleting non-nested dpv", __FUNCTION__, __LINE__);
-				dpv.deleteNestedDPV();
-			}
-			Logger::getLogger()->debug("%s:%d: DONE deleting dpa element: dpv.getTypeStr()=%s", __FUNCTION__, __LINE__, dpv.getTypeStr().c_str());
-#endif
 			delete (*it);
 		}
 		delete m_value.dpa;
@@ -149,8 +126,6 @@ DatapointValue::~DatapointValue()
 		delete m_value.a;
 		m_value.a = NULL;
 	}
-	//DPV d'tor is always called from holding Datapoint object's destructor
-	//if (m_type == T_STRING || m_type == T_FLOAT_ARRAY)
-	//		deleteNestedDPV();
+	// For nested DPV, d'tor is always called from holding Datapoint object's destructor
 }
 

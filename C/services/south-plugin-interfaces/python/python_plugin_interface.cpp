@@ -325,12 +325,10 @@ vector<Reading *> * plugin_poll_fn(PLUGIN_HANDLE handle)
 	PyObject* pReturn = PyObject_CallFunction(pFunc, "O", handle);
 
 	Py_CLEAR(pFunc);
-	PRINT_FUNC;
 
 	// Handle returned data
 	if (!pReturn)
 	{
-		PRINT_FUNC;
 		// Errors while getting result object
 		Logger::getLogger()->error("Called python script method plugin_poll : error while getting result object");
 		logErrorMessage();
@@ -340,11 +338,9 @@ vector<Reading *> * plugin_poll_fn(PLUGIN_HANDLE handle)
 	}
 	else
 	{
-		PRINT_FUNC;
 		// Get reading data
 		vector<Reading *> *vec = Py2C_getReadings(pReturn);
 		//Logger::getLogger()->info("plugin_poll_fn: reading='%s'", rdng->toJSON().c_str());
-		PRINT_FUNC;
 		
 		// Remove pReturn object
 		Py_CLEAR(pReturn);

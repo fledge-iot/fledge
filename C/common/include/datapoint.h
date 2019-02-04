@@ -72,7 +72,6 @@ class DatapointValue {
 		 */
 		DatapointValue(const DatapointValue& obj)
 		{
-			Logger::getLogger()->debug("DatapointValue copy c'tor called for m_type=%s", obj.getTypeStr().c_str());
 			m_type = obj.m_type;
 			switch (m_type)
 			{

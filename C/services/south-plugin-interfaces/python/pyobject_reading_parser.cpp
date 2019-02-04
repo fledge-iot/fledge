@@ -299,7 +299,6 @@ Reading* Py2C_parseReadingElement(PyObject *reading, std::string assetName)
  */
 Reading* Py2C_parseReadingObject(PyObject *element)
 {
-	PRINT_FUNC;
 	// Get list item: borrowed reference.
 	if (!element)
 	{
@@ -319,7 +318,6 @@ Reading* Py2C_parseReadingObject(PyObject *element)
 		}
 		return NULL;
 	}
-	PRINT_FUNC;
 
 	// Get 'asset_code' value: borrowed reference.
 	PyObject* assetCode = PyDict_GetItemString(element,
@@ -331,13 +329,10 @@ Reading* Py2C_parseReadingObject(PyObject *element)
 	}
 	
 	std::string assetName(PyUnicode_AsUTF8(assetCode));
-
-	PRINT_FUNC;
 	
 	// Get 'reading' value: borrowed reference.
 	PyObject* reading = PyDict_GetItemString(element,
 						 "readings");
-	PRINT_FUNC;
 	// Keys not found or reading is not a dict
 	if (!assetCode ||
 		!reading ||
@@ -350,26 +345,22 @@ Reading* Py2C_parseReadingObject(PyObject *element)
 		}
 		return NULL;
 	}
-	PRINT_FUNC;
 
 	Reading* newReading = Py2C_parseReadingElement(reading, assetName);
-	PRINT_FUNC;
 	setReadingAttr(newReading, element);
-	PRINT_FUNC;
 
 	return newReading;
 }
 
 /**
- * Creating Reading object from Python object
+ * Creating Reading objects from Python object
  *
- * @param element	Python 3.5 Object (dict)
- * @return		Pointer to a new Reading object
+ * @param element	Python 3.5 Object (list)
+ * @return		Pointer to a vector containing reading objects
  *				or NULL in case of error
  */
 std::vector<Reading *>* Py2C_parseReadingListObject(PyObject *element)
 {
-	PRINT_FUNC;
 	// Get list item: borrowed reference.
 	if (!element)
 	{
@@ -389,7 +380,6 @@ std::vector<Reading *>* Py2C_parseReadingListObject(PyObject *element)
 		}
 		return NULL;
 	}
-	PRINT_FUNC;
 
 	// Get 'asset_code' value: borrowed reference.
 	PyObject* assetCode = PyDict_GetItemString(element,
@@ -401,8 +391,6 @@ std::vector<Reading *>* Py2C_parseReadingListObject(PyObject *element)
 	}
 	
 	std::string assetName(PyUnicode_AsUTF8(assetCode));
-
-	PRINT_FUNC;
 	
 	// Get 'reading' value: borrowed reference.
 	PyObject* reading = PyDict_GetItemString(element,
@@ -417,14 +405,12 @@ std::vector<Reading *>* Py2C_parseReadingListObject(PyObject *element)
 		}
 		return NULL;
 	}
-	PRINT_FUNC;
 
 	std::vector<Reading *>* vec = new std::vector<Reading *>();
 	Reading* newReading;
 	// Iterate reading objects in the list
 	for (int i = 0; i < PyList_Size(reading); i++)
 	{
-		PRINT_FUNC;
 		newReading = NULL;
 		PyObject* elem = PyList_GetItem(reading, i);
 		if (!elem)
@@ -439,13 +425,11 @@ std::vector<Reading *>* Py2C_parseReadingListObject(PyObject *element)
 		}
 		
 		Reading* newReading = Py2C_parseReadingElement(elem, assetName);
-		PRINT_FUNC;
 		
 		if (!newReading)
 			continue;
 
 		setReadingAttr(newReading, element);
-		PRINT_FUNC;
 
 		if (newReading)
 		{
@@ -455,7 +439,6 @@ std::vector<Reading *>* Py2C_parseReadingListObject(PyObject *element)
 		else
 			Logger::getLogger()->info("newReading is NULL, skipping...");
 
-		PRINT_FUNC;
 	}
 	
 	return vec;
@@ -470,16 +453,13 @@ std::vector<Reading *>* Py2C_parseReadingListObject(PyObject *element)
  */
 std::vector<Reading *>* Py2C_getReadings(PyObject *polledData)
 {
-	PRINT_FUNC;
 	std::vector<Reading *>* newReadings = new std::vector<Reading *>();
 
 	if(PyList_Check(polledData)) // got a list of readings
 	{
-		PRINT_FUNC;
 		// Iterate reading objects in the list
 		for (int i = 0; i < PyList_Size(polledData); i++)
 		{
-			PRINT_FUNC;
 			// Get list item: borrowed reference.
 			PyObject* element = PyList_GetItem(polledData, i);
 			if (!element)
@@ -505,7 +485,6 @@ std::vector<Reading *>* Py2C_getReadings(PyObject *polledData)
 	}
 	else // a dict, possibly containing multiple readings
 	{
-		PRINT_FUNC;
 		if (polledData && PyDict_Check(polledData))
 		{
 			// Get 'reading' value: borrowed reference.
@@ -519,7 +498,6 @@ std::vector<Reading *>* Py2C_getReadings(PyObject *polledData)
 			}
 			else // just a single reading, no list
 			{
-				PRINT_FUNC;
 				Reading* newReading = Py2C_parseReadingObject(polledData);
 				if (newReading)
 					newReadings->push_back(newReading);

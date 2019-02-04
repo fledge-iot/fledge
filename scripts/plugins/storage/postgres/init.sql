@@ -388,9 +388,11 @@ CREATE INDEX fki_readings_fk1
 CREATE INDEX readings_ix1
     ON foglamp.readings USING btree (read_key);
 
-
 CREATE INDEX readings_ix2
     ON foglamp.readings USING btree (asset_code);
+
+CREATE INDEX readings_ix3
+    ON foglamp.readings USING btree (user_ts);
 
 
 -- Streams table
@@ -822,8 +824,11 @@ INSERT INTO foglamp.log_codes ( code, description )
             ( 'NHAVL', 'North Destination Available' ),
             ( 'UPEXC', 'Update Complete' ),
             ( 'BKEXC', 'Backup Complete' ),
-            ( 'NTFDL', 'Notification Deleted' );
-
+            ( 'NTFDL', 'Notification Deleted' ),
+            ( 'NTFAD', 'Notification Added' ),
+            ( 'NTFSN', 'Notification Sent' ),
+            ( 'NTFST', 'Notification Server Startup' ),
+            ( 'NTFSD', 'Notification Server Shutdown' );
 
 --
 -- Configuration parameters

@@ -219,8 +219,8 @@ CREATE TABLE foglamp.readings (
                                                                              -- assets table.
     read_key   uuid                        UNIQUE,                           -- An optional unique key used to avoid double-loading.
     reading    JSON                        NOT NULL DEFAULT '{}',            -- The json object received
-    user_ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),      -- UTC time
-    ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW'))       -- UTC time
+    user_ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),      -- UTC time
+    ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW'))       -- UTC time
 );
 
 CREATE INDEX fki_readings_fk1
@@ -638,8 +638,11 @@ INSERT INTO foglamp.log_codes ( code, description )
             ( 'NHAVL', 'North Destination Available' ),
             ( 'UPEXC', 'Update Complete' ),
             ( 'BKEXC', 'Backup Complete' ),
-            ( 'NTFDL', 'Notification Deleted' );
-
+            ( 'NTFDL', 'Notification Deleted' ),
+            ( 'NTFAD', 'Notification Added' ),
+            ( 'NTFSN', 'Notification Sent' ),
+            ( 'NTFST', 'Notification Server Startup' ),
+            ( 'NTFSD', 'Notification Server Shutdown' );
 
 --
 -- Configuration parameters

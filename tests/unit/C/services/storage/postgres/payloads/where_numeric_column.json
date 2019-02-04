@@ -1,0 +1,12 @@
+{
+	"where" : {
+			"column" : "-0.55",
+			"condition" : "=",
+			"value" : "-0.55",
+			"and" : {
+                                       "column" : "id",
+                                       "condition" : "=",
+                                       "value" : "0"
+				}
+		 }
+}

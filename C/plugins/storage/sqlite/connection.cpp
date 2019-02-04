@@ -265,7 +265,68 @@ bool retCode;
 			outFormat.append(colName);
 		}
 
-		outFormat.append(")");
+		outFormat.append(", 'localtime')");	// MR TRY THIS
+		retCode = true;
+	}
+	else
+	{
+		// Use column as is
+		outFormat.append(colName);
+		retCode = false;
+	}
+
+	return retCode;
+}
+
+/**
+ * Apply the specified date format
+ * using the available formats in SQLite3
+ * for a specific column
+ *
+ * If the requested format is not availble
+ * the input column is used as is.
+ * Additionally milliseconds could be rounded
+ * upon request.
+ * The routine return false if datwe format is not
+ * found and the caller might decide to raise an error
+ * or use the non formatted value
+ *
+ * @param inFormat     Input date format from application
+ * @param colName      The column name to format
+ * @param outFormat    The formatted column
+ * @return             True if format has been applied or
+ *		       false id no format is in use.
+ */
+static bool applyColumnDateFormatLocaltime(const string& inFormat,
+				  const string& colName,
+				  string& outFormat,
+				  bool roundMs = false)
+
+{
+bool retCode;
+	// Get format, if any, from the supported formats map
+	const string format = sqliteDateFormat[inFormat];
+	if (!format.empty())
+	{
+		// Apply found format via SQLite3 strftime()
+		outFormat.append("strftime('");
+		outFormat.append(format);
+		outFormat.append("', ");
+
+		// Check whether we have to round milliseconds
+		if (roundMs == true &&
+		    format.back() == 'f')
+		{
+			outFormat.append("cast(round((julianday(");
+			outFormat.append(colName);
+			outFormat.append(") - 2440587.5)*86400 -0.00005, 3) AS FLOAT), 'unixepoch'");
+		}
+		else
+		{
+			outFormat.append(colName);
+		}
+
+		outFormat.append(", 'localtime')");	// MR force localtime
 		retCode = true;
 	}
 	else
@@ -337,7 +398,7 @@ Connection::Connection()
 
 	/**
 	 * Make a connection to the database
-	 * and chewck backend connection was successfully made
+	 * and check backend connection was successfully made
 	 * Note:
 	 *   we assume the database already exists, so the flag
 	 *   SQLITE_OPEN_CREATE is not added in sqlite3_open_v2 call
@@ -801,7 +862,7 @@ SQLBuffer	jsonConstraints;
 			 
 				if (document.HasMember("where"))
 				{
-					if (!jsonWhereClause(document["where"], sql))
+					if (!jsonWhereClause(document["where"], sql, true))
 					{
 						return false;
 					}
@@ -1675,7 +1736,7 @@ bool		isAggregate = false;
 
 								// SQLite 3 date format.
 								string new_format;
-								applyColumnDateFormat((*itr)["format"].GetString(),
+								applyColumnDateFormatLocaltime((*itr)["format"].GetString(),
 										      (*itr)["column"].GetString(),
 										      new_format, true);
 								// Add the formatted column or use it as is
@@ -1690,24 +1751,46 @@ bool		isAggregate = false;
 									return false;
 								}
 								// SQLite3 doesnt support time zone formatting
-								if (strcasecmp((*itr)["timezone"].GetString(), "utc") != 0)
+								const char *tz = (*itr)["timezone"].GetString();
+								if (strncasecmp(tz, "utc", 3) == 0)
+								{
+									sql.append("strftime('%Y-%m-%d %H:%M:%f', ");
+									sql.append((*itr)["column"].GetString());
+									sql.append(", 'utc')");
+									if (! itr->HasMember("alias"))
+									{
+										sql.append(" AS ");
+										sql.append((*itr)["column"].GetString());
+									}
+								}
+								else if (strncasecmp(tz, "localtime", 9) == 0)
+								{
+									sql.append("strftime('%Y-%m-%d %H:%M:%f', ");
+									sql.append((*itr)["column"].GetString());
+									sql.append(", 'localtime')");
+									if (! itr->HasMember("alias"))
+									{
+										sql.append(" AS ");
+										sql.append((*itr)["column"].GetString());
+									}
+								}
+								else
 								{
 									raiseError("retrieve",
 										   "SQLite3 plugin does not support timezones in qeueries");
 									return false;
 								}
-								else
-								{
-									sql.append("strftime('%Y-%m-%d %H:%M:%f', ");
-									sql.append((*itr)["column"].GetString());
-									sql.append(", 'utc')");
-									sql.append(" AS ");
-									sql.append((*itr)["column"].GetString());
-								}
 							}
 							else
 							{
+								sql.append("strftime('%Y-%m-%d %H:%M:%f', ");
 								sql.append((*itr)["column"].GetString());
+								sql.append(", 'localtime')");
+								if (! itr->HasMember("alias"))
+								{
+									sql.append(" AS ");
+									sql.append((*itr)["column"].GetString());
+								}
 							}
 							sql.append(' ');
 						}
@@ -2697,7 +2780,7 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
  *
  */
 bool Connection::jsonWhereClause(const Value& whereClause,
-				 SQLBuffer& sql)
+				 SQLBuffer& sql, bool convertLocaltime)
 {
 	if (!whereClause.IsObject())
 	{
@@ -2734,7 +2817,10 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 		}
 		sql.append("< datetime('now', '-");
 		sql.append(whereClause["value"].GetInt());
-		sql.append(" seconds')"); // Get value in UTC by asking for no timezone
+		if (convertLocaltime)
+			sql.append(" seconds', 'localtime')"); // Get value in localtime
+		else
+			sql.append(" seconds')"); // Get value in UTC by asking for no timezone
 	}
 	else if (!cond.compare("newer"))
 	{
@@ -2746,7 +2832,10 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 		}
 		sql.append("> datetime('now', '-");
 		sql.append(whereClause["value"].GetInt());
-		sql.append(" seconds')"); // Get value ion UTC timezone
+		if (convertLocaltime)
+			sql.append(" seconds', 'localtime')"); // Get value in localtime
+		else
+			sql.append(" seconds')"); // Get value in UTC by asking for no timezone
 	}
 	else
 	{
@@ -2766,7 +2855,7 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 	if (whereClause.HasMember("and"))
 	{
 		sql.append(" AND ");
-		if (!jsonWhereClause(whereClause["and"], sql))
+		if (!jsonWhereClause(whereClause["and"], sql, convertLocaltime))
 		{
 			return false;
 		}
@@ -2774,7 +2863,7 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 	if (whereClause.HasMember("or"))
 	{
 		sql.append(" OR ");
-		if (!jsonWhereClause(whereClause["or"], sql))
+		if (!jsonWhereClause(whereClause["or"], sql, convertLocaltime))
 		{
 			return false;
 		}

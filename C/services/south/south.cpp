@@ -172,6 +172,12 @@ void doIngest(Ingest *ingest, Reading reading)
 	ingest->ingest(reading);
 }
 
+void doIngestV2(Ingest *ingest, const vector<Reading *> *vec)
+{
+	ingest->ingest(vec);
+}
+
+
 /**
  * Constructor for the south service
  */
@@ -344,7 +350,13 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		}
 		else
 		{
-			southPlugin->registerIngest((INGEST_CB)doIngest, &ingest);
+			const char *pluginInterfaceVer = southPlugin->getInfo()->interface;
+			bool pollInterfaceV2 = (pluginInterfaceVer[0]=='2' && pluginInterfaceVer[1]=='.');
+			Logger::getLogger()->info("pluginInterfaceVer=%s, pollInterfaceV2=%s", pluginInterfaceVer, pollInterfaceV2?"true":"false");
+			if (!pollInterfaceV2)
+				southPlugin->registerIngest((INGEST_CB)doIngest, &ingest);
+			else
+				southPlugin->registerIngestV2((INGEST_CB2)doIngestV2, &ingest);
 			bool started = false;
 			int backoff = 1000;
 			while (started == false && m_shutdown == false)

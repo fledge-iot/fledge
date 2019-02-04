@@ -1625,9 +1625,22 @@ bool Connection::jsonWhereClause(const Value& whereClause, SQLBuffer& sql)
 		return false;
 	}
 
-	sql.append("\"");
-	sql.append(whereClause["column"].GetString());
-	sql.append("\"");
+	// Handle WHERE 1 = 1, 0.55 = 0.55 etc
+	string whereColumnName = whereClause["column"].GetString();
+	char* p;
+	double converted = strtod(whereColumnName.c_str(), &p);
+	if (*p)
+	{
+		// Quote column name
+		sql.append("\"");
+		sql.append(whereClause["column"].GetString());
+		sql.append("\"");
+	}
+	else
+	{	// Use converted numeric value
+		sql.append(whereClause["column"].GetString());
+	}
+
 	sql.append(' ');
 	string cond = whereClause["condition"].GetString();
 	if (!cond.compare("older"))

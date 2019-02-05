@@ -59,5 +59,6 @@ class Connection {
 						int i,
 						std::string& newDate);
 		void		logSQL(const char *, const char *);
+    		bool 		formatDate(char *formatted_date, size_t formatted_date_size, const char *date);
 };
 #endif

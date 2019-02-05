@@ -50,7 +50,6 @@ __version__ = "${VERSION}"
 
 __DEFAULT_LIMIT = 20
 __DEFAULT_OFFSET = 0
-__TIMESTAMP_FMT = 'YYYY-MM-DD HH24:MI:SS.MS'
 
 
 def setup(app):
@@ -129,7 +128,7 @@ async def asset(request):
     the query parameter ?limit=xx&skip=xx and it will not respect when datetime units is supplied
 
     Returns:
-          json result on basis of SELECT TO_CHAR(user_ts, '__TIMESTAMP_FMT') as "timestamp", (reading)::jsonFROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0;
+          json result on basis of SELECT user_ts as "timestamp", (reading)::jsonFROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0;
 
     :Example:
             curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity
@@ -138,8 +137,8 @@ async def asset(request):
             curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity?seconds=60
     """
     asset_code = request.match_info.get('asset_code', '')
-    _select = PayloadBuilder().SELECT(("reading", "user_ts")).ALIAS("return", ("user_ts", "timestamp")). \
-        FORMAT("return", ("user_ts", __TIMESTAMP_FMT)).chain_payload()
+    _select = PayloadBuilder().SELECT(("reading", "user_ts")).ALIAS("return", ("user_ts", "timestamp")).chain_payload()
+
     _where = PayloadBuilder(_select).WHERE(["asset_code", "=", asset_code]).chain_payload()
     if 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
         _and_where = where_clause(request, _where)
@@ -180,7 +179,7 @@ async def asset_reading(request):
     Only one of hour, minutes or seconds should be supplied
 
     Returns:
-           json result on basis of SELECT TO_CHAR(user_ts, '__TIMESTAMP_FMT') as "timestamp", reading->>'reading' FROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0;
+           json result on basis of SELECT user_ts as "timestamp", reading->>'reading' FROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0;
 
     :Example:
             curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/temperature
@@ -193,8 +192,7 @@ async def asset_reading(request):
     reading = request.match_info.get('reading', '')
 
     _select = PayloadBuilder().SELECT(("user_ts", ["reading", reading])) \
-        .ALIAS("return", ("user_ts", "timestamp"), ("reading", reading)) \
-        .FORMAT("return", ("user_ts", __TIMESTAMP_FMT)).chain_payload()
+        .ALIAS("return", ("user_ts", "timestamp"), ("reading", reading)).chain_payload()
     _where = PayloadBuilder(_select).WHERE(["asset_code", "=", asset_code]).chain_payload()
     if 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
         _and_where = where_clause(request, _where)

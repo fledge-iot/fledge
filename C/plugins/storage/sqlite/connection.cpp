@@ -1,7 +1,7 @@
 /*
  * FogLAMP storage service.
  *
- * Copyright (c) 2018 OSisoft, LLC
+ * Copyright (c) 2018 OSIsoft, LLC
  *
  * Released under the Apache 2.0 Licence
  *
@@ -49,11 +49,11 @@ using namespace rapidjson;
 #define CONNECT_ERROR_THRESHOLD		5*60	// 5 minutes
 
 #define MAX_RETRIES			20	// Maximum no. of retries when a lock is encountered
-#define RETRY_BACKOFF			2000	// Multipier to backoff DB retry on lock
+#define RETRY_BACKOFF			2000	// Multipler to backoff DB retry on lock
 
 /*
  * The following allows for conditional inclusion of code that tracks the top queries
- * run by the storage plugin and the numebr of times a particular statement has to
+ * run by the storage plugin and the number of times a particular statement has to
  * be retried because of the database being busy./
  */
 #define DO_PROFILE		0
@@ -72,13 +72,18 @@ int	      maxQueue = 0;
 
 #define _DB_NAME              "/foglamp.sqlite"
 
-#define F_TIMEH24_S     "%H:%M:%S"
-#define F_DATEH24_S     "%Y-%m-%d %H:%M:%S"
-#define F_DATEH24_M     "%Y-%m-%d %H:%M"
-#define F_DATEH24_H     "%Y-%m-%d %H"
+#define LEN_BUFFER_DATE 100
+#define F_TIMEH24_S     	"%H:%M:%S"
+#define F_DATEH24_S     	"%Y-%m-%d %H:%M:%S"
+#define F_DATEH24_M     	"%Y-%m-%d %H:%M"
+#define F_DATEH24_H     	"%Y-%m-%d %H"
 // This is the default datetime format in FogLAMP: 2018-05-03 18:15:00.622
-#define F_DATEH24_MS    "%Y-%m-%d %H:%M:%f"
-#define SQLITE3_NOW     "strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime')"
+#define F_DATEH24_MS    	"%Y-%m-%d %H:%M:%f"
+// Format up to seconds
+#define F_DATEH24_SEC    	"%Y-%m-%d %H:%M:%S"
+#define SQLITE3_NOW     	"strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime')"
+// The default precision is milliseconds, it adds microseconds and timezone
+#define SQLITE3_NOW_READING     "strftime('%Y-%m-%d %H:%M:%f000+00:00', 'now')"
 #define SQLITE3_FOGLAMP_DATETIME_TYPE "DATETIME"
 static time_t connectErrorTime = 0;
 map<string, string> sqliteDateFormat = {
@@ -139,81 +144,118 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 					   int i,
 					   string& newDate)
 {
-	/**
-	 * Handle here possible unformatted DATETIME column type
-	 * If (column_name == column_original_name) AND
-	 * (sqlite3_column_table_name() == "DATETIME")
-	 * we assume the column has not been formatted
-	 * by any datetime() or strftime() SQLite function.
-	 * Thus we apply default FOGLAMP formatting:
-	 * "%Y-%m-%d %H:%M:%f" with 'localtime'
-	 */
+
+	bool apply_format = false;
+	string formatStmt = {};
+
 	if (sqlite3_column_database_name(pStmt, i) != NULL &&
-		sqlite3_column_table_name(pStmt, i) != NULL &&
-		(strcmp(sqlite3_column_origin_name(pStmt, i),
-			sqlite3_column_name(pStmt, i)) == 0))
+	    sqlite3_column_table_name(pStmt, i)    != NULL)
 	{
-		const char* pzDataType;
-		int retType = sqlite3_table_column_metadata(dbHandle,
-					sqlite3_column_database_name(pStmt, i),
-					sqlite3_column_table_name(pStmt, i),
-					sqlite3_column_name(pStmt, i),
-					&pzDataType,
-					NULL, NULL, NULL, NULL);
 
-		// Check whether to Apply dateformat
-		if (pzDataType != NULL &&
-			retType == SQLITE_OK &&
-			strcmp(pzDataType, SQLITE3_FOGLAMP_DATETIME_TYPE) == 0 &&
-			strcmp(sqlite3_column_origin_name(pStmt, i),
-				sqlite3_column_name(pStmt, i)) == 0)
+		if ((strcmp(sqlite3_column_origin_name(pStmt, i), "user_ts") == 0) &&
+		    (strcmp(sqlite3_column_table_name(pStmt, i), "readings") == 0) &&
+		    (strlen((char *) sqlite3_column_text(pStmt, i)) == 32))
 		{
-			// Column metadata found and column datatype is "pzDataType"
-			string formatStmt = string("SELECT strftime('");
-			formatStmt += string(F_DATEH24_MS);
-			formatStmt += "', '" + string((char *)sqlite3_column_text(pStmt, i));
+
+			// Extract milliseconds and microseconds for the user_ts field of the readings table
+			formatStmt = string("SELECT strftime('");
+			formatStmt += string(F_DATEH24_SEC);
+			formatStmt += "', '" + string((char *) sqlite3_column_text(pStmt, i));
 			formatStmt += "')";
+			formatStmt += " || substr('" + string((char *) sqlite3_column_text(pStmt, i));
+			formatStmt += "', instr('" + string((char *) sqlite3_column_text(pStmt, i));
+			formatStmt += "', '.'), 7)";
 
-			char* zErrMsg = NULL;
-			// New formatted data
-			char formattedData[100] = "";
-
-			// Exec the format SQL
-			int rc = SQLexec(dbHandle,
-					 formatStmt.c_str(),
-				         dateCallback,
-				         formattedData,
-					 &zErrMsg);
-
-			if (rc == SQLITE_OK )
-			{
-				// Use new formatted datetime value
-				newDate.assign(formattedData);
-
-				return true;
-			}
-			else
-			{
-				Logger::getLogger()->error("SELECT dateformat '%s': error %s",
-							   formatStmt.c_str(),
-							   zErrMsg);
-
-				sqlite3_free(zErrMsg);
-			}
+			apply_format = true;
 		}
 		else
 		{
-			// Format not done
-			// Just log the error if present
-			if (retType != SQLITE_OK)
+			/**
+			 * Handle here possible unformatted DATETIME column type
+			 * If (column_name == column_original_name) AND
+			 * (sqlite3_column_table_name() == "DATETIME")
+			 * we assume the column has not been formatted
+			 * by any datetime() or strftime() SQLite function.
+			 * Thus we apply default FOGLAMP formatting:
+			 * "%Y-%m-%d %H:%M:%f"
+			 */
+			if (sqlite3_column_database_name(pStmt, i) != NULL &&
+			    sqlite3_column_table_name(pStmt, i) != NULL &&
+			    (strcmp(sqlite3_column_origin_name(pStmt, i),
+				    sqlite3_column_name(pStmt, i)) == 0))
 			{
-				Logger::getLogger()->error("SQLite3 failed " \
-						"to call sqlite3_table_column_metadata() " \
-						"for column '%s'",
-						sqlite3_column_name(pStmt, i));
+				const char *pzDataType;
+				int retType = sqlite3_table_column_metadata(dbHandle,
+									    sqlite3_column_database_name(pStmt, i),
+									    sqlite3_column_table_name(pStmt, i),
+									    sqlite3_column_name(pStmt, i),
+									    &pzDataType,
+									    NULL, NULL, NULL, NULL);
+
+				// Check whether to Apply dateformat
+				if (pzDataType != NULL &&
+				    retType == SQLITE_OK &&
+				    strcmp(pzDataType, SQLITE3_FOGLAMP_DATETIME_TYPE) == 0 &&
+				    strcmp(sqlite3_column_origin_name(pStmt, i),
+					   sqlite3_column_name(pStmt, i)) == 0)
+				{
+					// Column metadata found and column datatype is "pzDataType"
+					formatStmt = string("SELECT strftime('");
+					formatStmt += string(F_DATEH24_MS);
+					formatStmt += "', '" + string((char *) sqlite3_column_text(pStmt, i));
+					formatStmt += "')";
+
+					apply_format = true;
+
+				}
+				else
+				{
+					// Format not done
+					// Just log the error if present
+					if (retType != SQLITE_OK)
+					{
+						Logger::getLogger()->error("SQLite3 failed " \
+                                                                "to call sqlite3_table_column_metadata() " \
+                                                                "for column '%s'",
+									   sqlite3_column_name(pStmt, i));
+					}
+				}
 			}
 		}
 	}
+
+	if (apply_format)
+	{
+
+		char* zErrMsg = NULL;
+		// New formatted data
+		char formattedData[100] = "";
+
+		// Exec the format SQL
+		int rc = SQLexec(dbHandle,
+				 formatStmt.c_str(),
+				 dateCallback,
+				 formattedData,
+				 &zErrMsg);
+
+		if (rc == SQLITE_OK )
+		{
+			// Use new formatted datetime value
+			newDate.assign(formattedData);
+
+			return true;
+		}
+		else
+		{
+			Logger::getLogger()->error("SELECT dateformat '%s': error %s",
+						   formatStmt.c_str(),
+						   zErrMsg);
+
+			sqlite3_free(zErrMsg);
+		}
+
+	}
+
 	return false;
 }
 
@@ -265,7 +307,68 @@ bool retCode;
 			outFormat.append(colName);
 		}
 
-		outFormat.append(")");
+		outFormat.append(", 'localtime')");	// MR TRY THIS
+		retCode = true;
+	}
+	else
+	{
+		// Use column as is
+		outFormat.append(colName);
+		retCode = false;
+	}
+
+	return retCode;
+}
+
+/**
+ * Apply the specified date format
+ * using the available formats in SQLite3
+ * for a specific column
+ *
+ * If the requested format is not availble
+ * the input column is used as is.
+ * Additionally milliseconds could be rounded
+ * upon request.
+ * The routine return false if datwe format is not
+ * found and the caller might decide to raise an error
+ * or use the non formatted value
+ *
+ * @param inFormat     Input date format from application
+ * @param colName      The column name to format
+ * @param outFormat    The formatted column
+ * @return             True if format has been applied or
+ *		       false id no format is in use.
+ */
+static bool applyColumnDateFormatLocaltime(const string& inFormat,
+				  const string& colName,
+				  string& outFormat,
+				  bool roundMs = false)
+
+{
+bool retCode;
+	// Get format, if any, from the supported formats map
+	const string format = sqliteDateFormat[inFormat];
+	if (!format.empty())
+	{
+		// Apply found format via SQLite3 strftime()
+		outFormat.append("strftime('");
+		outFormat.append(format);
+		outFormat.append("', ");
+
+		// Check whether we have to round milliseconds
+		if (roundMs == true &&
+		    format.back() == 'f')
+		{
+			outFormat.append("cast(round((julianday(");
+			outFormat.append(colName);
+			outFormat.append(") - 2440587.5)*86400 -0.00005, 3) AS FLOAT), 'unixepoch'");
+		}
+		else
+		{
+			outFormat.append(colName);
+		}
+
+		outFormat.append(", 'localtime')");	// MR force localtime
 		retCode = true;
 	}
 	else
@@ -337,7 +440,7 @@ Connection::Connection()
 
 	/**
 	 * Make a connection to the database
-	 * and chewck backend connection was successfully made
+	 * and check backend connection was successfully made
 	 * Note:
 	 *   we assume the database already exists, so the flag
 	 *   SQLITE_OPEN_CREATE is not added in sqlite3_open_v2 call
@@ -801,7 +904,7 @@ SQLBuffer	jsonConstraints;
 			 
 				if (document.HasMember("where"))
 				{
-					if (!jsonWhereClause(document["where"], sql))
+					if (!jsonWhereClause(document["where"], sql, true))
 					{
 						return false;
 					}
@@ -1403,6 +1506,122 @@ SQLBuffer	sql;
 }
 
 /**
+ * Format a date to a fixed format with milliseconds, microseconds and
+ * timezone expressed, examples :
+ *
+ *   case - formatted |2019-01-01 10:01:01.000000+00:00| date |2019-01-01 10:01:01|
+ *   case - formatted |2019-02-01 10:02:01.000000+00:00| date |2019-02-01 10:02:01.0|
+ *   case - formatted |2019-02-02 10:02:02.841000+00:00| date |2019-02-02 10:02:02.841|
+ *   case - formatted |2019-02-03 10:02:03.123456+00:00| date |2019-02-03 10:02:03.123456|
+ *   case - formatted |2019-03-01 10:03:01.100000+00:00| date |2019-03-01 10:03:01.1+00:00|
+ *   case - formatted |2019-03-02 10:03:02.123000+00:00| date |2019-03-02 10:03:02.123+00:00|
+ *   case - formatted |2019-03-03 10:03:03.123456+00:00| date |2019-03-03 10:03:03.123456+00:00|
+ *   case - formatted |2019-03-04 10:03:04.123456+01:00| date |2019-03-04 10:03:04.123456+01:00|
+ *   case - formatted |2019-03-05 10:03:05.123456-01:00| date |2019-03-05 10:03:05.123456-01:00|
+ *   case - formatted |2019-03-04 10:03:04.123456+02:30| date |2019-03-04 10:03:04.123456+02:30|
+ *   case - formatted |2019-03-05 10:03:05.123456-02:30| date |2019-03-05 10:03:05.123456-02:30|
+ *
+ * @param out	false if the date is invalid
+ *
+ */
+bool Connection::formatDate(char *formatted_date, size_t buffer_size, const char *date) {
+
+	struct timeval tv = {0};
+	struct tm tm  = {0};
+	char *valid_date = nullptr;
+
+	// Extract up to seconds
+	memset(&tm, 0, sizeof(tm));
+	valid_date = strptime(date, "%Y-%m-%d %H:%M:%S", &tm);
+
+	if (! valid_date)
+	{
+		return (false);
+	}
+
+	strftime (formatted_date, buffer_size, "%Y-%m-%d %H:%M:%S", &tm);
+
+	// Work out the microseconds from the fractional part of the seconds
+	char fractional[10] = {0};
+	sscanf(date, "%*d-%*d-%*d %*d:%*d:%*d.%[0-9]*", fractional);
+	// Truncate to max 6 digits
+	fractional[6] = 0;
+	int multiplier = 6 - (int)strlen(fractional);
+	if (multiplier < 0)
+		multiplier = 0;
+	while (multiplier--)
+		strcat(fractional, "0");
+
+	strcat(formatted_date ,".");
+	strcat(formatted_date ,fractional);
+
+	// Handles timezone
+	char timezone_hour[5] = {0};
+	char timezone_min[5] = {0};
+	char sign[2] = {0};
+
+	sscanf(date, "%*d-%*d-%*d %*d:%*d:%*d.%*d-%2[0-9]:%2[0-9]", timezone_hour, timezone_min);
+	if (timezone_hour[0] != 0)
+	{
+		strcat(sign, "-");
+	}
+	else
+	{
+		memset(timezone_hour, 0, sizeof(timezone_hour));
+		memset(timezone_min,  0, sizeof(timezone_min));
+
+		sscanf(date, "%*d-%*d-%*d %*d:%*d:%*d.%*d+%2[0-9]:%2[0-9]", timezone_hour, timezone_min);
+		if  (timezone_hour[0] != 0)
+		{
+			strcat(sign, "+");
+		}
+		else
+		{
+			// No timezone is expressed in the source date
+			// the default UTC is added
+			strcat(formatted_date, "+00:00");
+		}
+	}
+
+	if (sign[0] != 0)
+	{
+		if (timezone_hour[0] != 0)
+		{
+			strcat(formatted_date, sign);
+
+			// Pad with 0 if an hour having only 1 digit was provided
+			// +1 -> +01
+			if (strlen(timezone_hour) == 1)
+				strcat(formatted_date, "0");
+
+			strcat(formatted_date, timezone_hour);
+			strcat(formatted_date, ":");
+		}
+
+		if (timezone_min[0] != 0)
+		{
+			strcat(formatted_date, timezone_min);
+
+			// Pad with 0 if minutes having only 1 digit were provided
+			// 3 -> 30
+			if (strlen(timezone_min) == 1)
+				strcat(formatted_date, "0");
+
+		}
+		else
+		{
+			// Minutes aren't expressed in the source date
+			strcat(formatted_date, "00");
+		}
+	}
+
+
+	return (true);
+
+
+}
+
+/**
  * Append a set of readings to the readings table
  */
 int Connection::appendReadings(const char *readings)
@@ -1411,6 +1630,7 @@ int Connection::appendReadings(const char *readings)
 Document 	doc;
 SQLBuffer	sql;
 int		row = 0;
+bool 		add_row = false;
 
 	ParseResult ok = doc.Parse(readings);
 	if (!ok)
@@ -1419,7 +1639,7 @@ int		row = 0;
 		return -1;
 	}
 
-	sql.append("INSERT INTO foglamp.readings ( asset_code, read_key, reading, user_ts ) VALUES ");
+	sql.append("INSERT INTO foglamp.readings ( user_ts, asset_code, read_key, reading ) VALUES ");
 
 	if (!doc.HasMember("readings"))
 	{
@@ -1440,48 +1660,81 @@ int		row = 0;
 				   "Each reading in the readings array must be an object");
 			return -1;
 		}
-		if (row)
-		{
-			sql.append(", (");
-		}
-		else
-		{
-			sql.append('(');
-		}
-		row++;
-		sql.append('\'');
-		sql.append((*itr)["asset_code"].GetString());
-		// Python code is passing the string None when here is no read_key in the payload
-		if (itr->HasMember("read_key") && strcmp((*itr)["read_key"].GetString(), "None") != 0)
-		{
-			sql.append("', \'");
-			sql.append((*itr)["read_key"].GetString());
-			sql.append("', \'");
-		}
-		else
-		{
-			// No "read_key" in this reading, insert NULL
-			sql.append("', NULL, '");
-		}
 
-		StringBuffer buffer;
-		Writer<StringBuffer> writer(buffer);
-		(*itr)["reading"].Accept(writer);
-		sql.append(buffer.GetString());
-		sql.append("\', ");
+		add_row = true;
+
+		// Handles - user_ts
 		const char *str = (*itr)["user_ts"].GetString();
 		if (strcmp(str, "now()") == 0)
 		{
-			sql.append(SQLITE3_NOW);
+			if (row)
+			{
+				sql.append(", (");
+			}
+			else
+			{
+				sql.append('(');
+			}
+
+			sql.append(SQLITE3_NOW_READING);
 		}
 		else
 		{
-			sql.append('\'');
-			sql.append(escape(str));
-			sql.append('\'');
+			char formatted_date[LEN_BUFFER_DATE] = {0};
+			if (! formatDate(formatted_date, sizeof(formatted_date), str) )
+			{
+				raiseError("appendReadings", "Invalid date |%s|", str);
+				add_row = false;
+			}
+			else
+			{
+				if (row)
+				{
+					sql.append(", (");
+				}
+				else
+				{
+					sql.append('(');
+				}
+
+				sql.append('\'');
+				sql.append(formatted_date);
+				sql.append('\'');
+			}
 		}
 
-		sql.append(')');
+		if (add_row)
+		{
+			row++;
+
+			// Handles - asset_code
+			sql.append(",\'");
+			sql.append((*itr)["asset_code"].GetString());
+
+			// Handles - read_key
+			// Python code is passing the string None when here is no read_key in the payload
+			if (itr->HasMember("read_key") && strcmp((*itr)["read_key"].GetString(), "None") != 0)
+			{
+				sql.append("', \'");
+				sql.append((*itr)["read_key"].GetString());
+				sql.append("', \'");
+			}
+			else
+			{
+				// No "read_key" in this reading, insert NULL
+				sql.append("', NULL, '");
+			}
+
+			// Handles - reading
+			StringBuffer buffer;
+			Writer<StringBuffer> writer(buffer);
+			(*itr)["reading"].Accept(writer);
+			sql.append(buffer.GetString());
+			sql.append('\'');
+
+			sql.append(')');
+		}
+
 	}
 	sql.append(';');
 
@@ -1519,31 +1772,44 @@ int		row = 0;
 /**
  * Fetch a block of readings from the reading table
  * It might not work with SQLite 3
+ *
+ * NOTE : it expects to handle a date having a fixed format
+ * with milliseconds, microseconds and timezone expressed,
+ * like for example :
+ *
+ *    2019-01-11 15:45:01.123456+01:00
  */
 bool Connection::fetchReadings(unsigned long id,
 			       unsigned int blksize,
 			       std::string& resultSet)
 {
-char sqlbuffer[300];
+char sqlbuffer[1100];
 char *zErrMsg = NULL;
 int rc;
 int retrieve;
+
+	// SQL command to extract the data from the foglamp.readings
+	const char *sql_cmd = R"(
+	SELECT
+		id,
+		asset_code,
+		read_key,
+		reading,
+		strftime('%%Y-%%m-%%d %%H:%%M:%%S', user_ts, 'utc')  ||
+		substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
+		strftime('%%Y-%%m-%%d %%H:%%M:%%f', ts, 'utc') AS ts
+	FROM foglamp.readings
+	WHERE id >= %lu
+	ORDER BY id ASC
+	LIMIT %u;
+	)";
 
 	/*
 	 * This query assumes datetime values are in 'localtime'
 	 */
 	snprintf(sqlbuffer,
 		 sizeof(sqlbuffer),
-		 "SELECT id, " \
-			"asset_code, " \
-			"read_key, " \
-			"reading, " \
-			"strftime('%%Y-%%m-%%d %%H:%%M:%%f', user_ts, 'utc') AS \"user_ts\", " \
-			"strftime('%%Y-%%m-%%d %%H:%%M:%%f', ts, 'utc') AS \"ts\" " \
-		 "FROM foglamp.readings " \
-			"WHERE id >= %lu " \
-		 "ORDER BY id ASC " \
-		 "LIMIT %u;",
+		 sql_cmd,
 		 id,
 		 blksize);
 
@@ -1607,7 +1873,18 @@ bool		isAggregate = false;
 
 		if (condition.empty())
 		{
-			sql.append("SELECT * FROM foglamp.readings");
+			const char *sql_cmd = R"(
+					SELECT
+						id,
+						asset_code,
+						read_key,
+						reading,
+						strftime('%Y-%m-%d %H:%M:%S', user_ts, 'localtime')  ||
+						substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
+						strftime('%Y-%m-%d %H:%M:%f', ts, 'localtime') AS ts
+					FROM foglamp.readings)";
+
+			sql.append(sql_cmd);
 		}
 		else
 		{
@@ -1660,7 +1937,7 @@ bool		isAggregate = false;
 						{
 							if (! (*itr)["column"].IsString())
 							{
-								raiseError("rerieve",
+								raiseError("retrieve",
 									   "column must be a string");
 								return false;
 							}
@@ -1668,14 +1945,14 @@ bool		isAggregate = false;
 							{
 								if (! (*itr)["format"].IsString())
 								{
-									raiseError("rerieve",
+									raiseError("retrieve",
 										   "format must be a string");
 									return false;
 								}
 
 								// SQLite 3 date format.
 								string new_format;
-								applyColumnDateFormat((*itr)["format"].GetString(),
+								applyColumnDateFormatLocaltime((*itr)["format"].GetString(),
 										      (*itr)["column"].GetString(),
 										      new_format, true);
 								// Add the formatted column or use it as is
@@ -1685,29 +1962,98 @@ bool		isAggregate = false;
 							{
 								if (! (*itr)["timezone"].IsString())
 								{
-									raiseError("rerieve",
+									raiseError("retrieve",
 										   "timezone must be a string");
 									return false;
 								}
 								// SQLite3 doesnt support time zone formatting
-								if (strcasecmp((*itr)["timezone"].GetString(), "utc") != 0)
+								const char *tz = (*itr)["timezone"].GetString();
+
+								if (strncasecmp(tz, "utc", 3) == 0)
+								{
+									if (strcmp((*itr)["column"].GetString() ,"user_ts") == 0)
+									{
+										// Extract milliseconds and microseconds for the user_ts fields
+
+										sql.append("strftime('%Y-%m-%d %H:%M:%S', user_ts, 'utc') ");
+										sql.append(" || substr(user_ts, instr(user_ts, '.'), 7) ");
+										if (! itr->HasMember("alias"))
+										{
+											sql.append(" AS ");
+											sql.append((*itr)["column"].GetString());
+										}
+									}
+									else
+									{
+										sql.append("strftime('%Y-%m-%d %H:%M:%f', ");
+										sql.append((*itr)["column"].GetString());
+										sql.append(", 'utc')");
+										if (! itr->HasMember("alias"))
+										{
+											sql.append(" AS ");
+											sql.append((*itr)["column"].GetString());
+										}
+									}
+								}
+								else if (strncasecmp(tz, "localtime", 9) == 0)
+								{
+									if (strcmp((*itr)["column"].GetString() ,"user_ts") == 0)
+									{
+										// Extract milliseconds and microseconds for the user_ts fields
+
+										sql.append("strftime('%Y-%m-%d %H:%M:%S', user_ts, 'localtime') ");
+										sql.append(" || substr(user_ts, instr(user_ts, '.'), 7) ");
+										if (! itr->HasMember("alias"))
+										{
+											sql.append(" AS ");
+											sql.append((*itr)["column"].GetString());
+										}
+									}
+									else
+									{
+										sql.append("strftime('%Y-%m-%d %H:%M:%f', ");
+										sql.append((*itr)["column"].GetString());
+										sql.append(", 'localtime')");
+										if (! itr->HasMember("alias"))
+										{
+											sql.append(" AS ");
+											sql.append((*itr)["column"].GetString());
+										}
+									}
+								}
+								else
 								{
 									raiseError("retrieve",
-										   "SQLite3 plugin does not support timezones in qeueries");
+										   "SQLite3 plugin does not support timezones in queries");
 									return false;
+								}
+							}
+							else
+							{
+
+								if (strcmp((*itr)["column"].GetString() ,"user_ts") == 0)
+								{
+									// Extract milliseconds and microseconds for the user_ts fields
+
+									sql.append("strftime('%Y-%m-%d %H:%M:%S', user_ts, 'localtime') ");
+									sql.append(" || substr(user_ts, instr(user_ts, '.'), 7) ");
+									if (! itr->HasMember("alias"))
+									{
+										sql.append(" AS ");
+										sql.append((*itr)["column"].GetString());
+									}
 								}
 								else
 								{
 									sql.append("strftime('%Y-%m-%d %H:%M:%f', ");
 									sql.append((*itr)["column"].GetString());
-									sql.append(", 'utc')");
-									sql.append(" AS ");
-									sql.append((*itr)["column"].GetString());
+									sql.append(", 'localtime')");
+									if (! itr->HasMember("alias"))
+									{
+										sql.append(" AS ");
+										sql.append((*itr)["column"].GetString());
+									}
 								}
-							}
-							else
-							{
-								sql.append((*itr)["column"].GetString());
 							}
 							sql.append(' ');
 						}
@@ -1743,7 +2089,18 @@ bool		isAggregate = false;
 					sql.append(document["modifier"].GetString());
 					sql.append(' ');
 				}
-				sql.append(" * FROM foglamp.");
+
+				const char *sql_cmd = R"(
+						id,
+						asset_code,
+						read_key,
+						reading,
+						strftime('%Y-%m-%d %H:%M:%S', user_ts, 'localtime')  ||
+						substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
+						strftime('%Y-%m-%d %H:%M:%f', ts, 'localtime') AS ts
+					FROM foglamp.)";
+
+				sql.append(sql_cmd);
 			}
 			sql.append("readings");
 			if (document.HasMember("where"))
@@ -1791,7 +2148,7 @@ bool		isAggregate = false;
 		int rc;
 		sqlite3_stmt *stmt;
 
-		logSQL("ReadingsRetrive", query);
+		logSQL("ReadingsRetrieve", query);
 
 		// Prepare the SQL statement and get the result set
 		rc = sqlite3_prepare_v2(dbHandle, query, -1, &stmt, NULL);
@@ -2697,7 +3054,7 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
  *
  */
 bool Connection::jsonWhereClause(const Value& whereClause,
-				 SQLBuffer& sql)
+				 SQLBuffer& sql, bool convertLocaltime)
 {
 	if (!whereClause.IsObject())
 	{
@@ -2734,7 +3091,10 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 		}
 		sql.append("< datetime('now', '-");
 		sql.append(whereClause["value"].GetInt());
-		sql.append(" seconds')"); // Get value in UTC by asking for no timezone
+		if (convertLocaltime)
+			sql.append(" seconds', 'localtime')"); // Get value in localtime
+		else
+			sql.append(" seconds')"); // Get value in UTC by asking for no timezone
 	}
 	else if (!cond.compare("newer"))
 	{
@@ -2746,7 +3106,10 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 		}
 		sql.append("> datetime('now', '-");
 		sql.append(whereClause["value"].GetInt());
-		sql.append(" seconds')"); // Get value ion UTC timezone
+		if (convertLocaltime)
+			sql.append(" seconds', 'localtime')"); // Get value in localtime
+		else
+			sql.append(" seconds')"); // Get value in UTC by asking for no timezone
 	}
 	else
 	{
@@ -2766,7 +3129,7 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 	if (whereClause.HasMember("and"))
 	{
 		sql.append(" AND ");
-		if (!jsonWhereClause(whereClause["and"], sql))
+		if (!jsonWhereClause(whereClause["and"], sql, convertLocaltime))
 		{
 			return false;
 		}
@@ -2774,7 +3137,7 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 	if (whereClause.HasMember("or"))
 	{
 		sql.append(" OR ");
-		if (!jsonWhereClause(whereClause["or"], sql))
+		if (!jsonWhereClause(whereClause["or"], sql, convertLocaltime))
 		{
 			return false;
 		}

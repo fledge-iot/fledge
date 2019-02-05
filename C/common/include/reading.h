@@ -24,6 +24,9 @@
  *
  * Each asset reading may have multiple datapoints to represent the
  * multiple values that maybe held within a complex asset.
+ *
+ * NB The timestamp data held for both the system timestamp and the
+ * user timestamp are always held internally as UTC times
  */
 class Reading {
 	public:
@@ -34,6 +37,7 @@ class Reading {
 
 		~Reading();
 		void				addDatapoint(Datapoint *value);
+		Datapoint			*removeDatapoint(const std::string& name);
 		std::string			toJSON() const;
 		// Return AssetName
 		const std::string&              getAssetName() const { return m_asset; };

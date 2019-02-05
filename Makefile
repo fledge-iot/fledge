@@ -25,21 +25,22 @@ MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 CURRENT_DIR := $(dir $(MKFILE_PATH))
 
 # C BUILD DIRS/FILES
-CMAKE_FILE             := $(CURRENT_DIR)/CMakeLists.txt
-CMAKE_BUILD_DIR        := cmake_build
-CMAKE_GEN_MAKEFILE     := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/Makefile
-CMAKE_SERVICES_DIR     := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/services
-CMAKE_TASKS_DIR        := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/tasks
-CMAKE_STORAGE_BINARY   := $(CMAKE_SERVICES_DIR)/storage/foglamp.services.storage
-CMAKE_SOUTH_BINARY     := $(CMAKE_SERVICES_DIR)/south/foglamp.services.south
-CMAKE_NORTH_BINARY     := $(CMAKE_TASKS_DIR)/north/sending_process/sending_process
-CMAKE_PLUGINS_DIR      := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/plugins
-DEV_SERVICES_DIR       := $(CURRENT_DIR)/services
-DEV_TASKS_DIR          := $(CURRENT_DIR)/tasks
-SYMLINK_PLUGINS_DIR    := $(CURRENT_DIR)/plugins
-SYMLINK_STORAGE_BINARY := $(DEV_SERVICES_DIR)/foglamp.services.storage
-SYMLINK_SOUTH_BINARY   := $(DEV_SERVICES_DIR)/foglamp.services.south
-SYMLINK_NORTH_BINARY   := $(DEV_TASKS_DIR)/sending_process
+CMAKE_FILE               := $(CURRENT_DIR)/CMakeLists.txt
+CMAKE_BUILD_DIR          := cmake_build
+CMAKE_GEN_MAKEFILE       := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/Makefile
+CMAKE_SERVICES_DIR       := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/services
+CMAKE_TASKS_DIR          := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/tasks
+CMAKE_STORAGE_BINARY     := $(CMAKE_SERVICES_DIR)/storage/foglamp.services.storage
+CMAKE_SOUTH_BINARY       := $(CMAKE_SERVICES_DIR)/south/foglamp.services.south
+CMAKE_NORTH_BINARY       := $(CMAKE_TASKS_DIR)/north/sending_process/sending_process
+CMAKE_PLUGINS_DIR        := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/plugins
+DEV_SERVICES_DIR         := $(CURRENT_DIR)/services
+DEV_TASKS_DIR            := $(CURRENT_DIR)/tasks
+SYMLINK_PLUGINS_DIR      := $(CURRENT_DIR)/plugins
+SYMLINK_STORAGE_BINARY   := $(DEV_SERVICES_DIR)/foglamp.services.storage
+SYMLINK_SOUTH_BINARY     := $(DEV_SERVICES_DIR)/foglamp.services.south
+SYMLINK_NORTH_BINARY     := $(DEV_TASKS_DIR)/sending_process
+ASYNC_INGEST_PYMODULE    := $(CURRENT_DIR)/python/async_ingest.so*
 
 # PYTHON BUILD DIRS/FILES
 PYTHON_SRC_DIR := python
@@ -454,3 +455,4 @@ clean :
 	-$(RM_DIR) $(PYTHON_BUILD_DIR)
 	-$(RM_DIR) $(DEV_SERVICES_DIR)
 	-$(RM) $(SYMLINK_PLUGINS_DIR)
+	-$(RM) $(ASYNC_INGEST_PYMODULE)

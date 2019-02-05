@@ -29,7 +29,7 @@ for f in $cmakefile; do
 			echo cmake failed for $dir;
 			exit 1
 		fi
-		make -j4;
+		make -j2;
 		rc=$?
 		if [ $rc != 0 ]; then
 			echo make failed for $dir;

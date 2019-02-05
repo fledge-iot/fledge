@@ -64,7 +64,7 @@ CREATE TABLE foglamp.log (
        code  CHARACTER(5)           NOT NULL,                  -- The process that logged the action
        level SMALLINT               NOT NULL,                  -- 0 Success - 1 Failure - 2 Warning - 4 Info
        log   JSON                   NOT NULL DEFAULT '{}',     -- Generic log structure
-       ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')),
+       ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')), -- UTC
        CONSTRAINT log_fk1 FOREIGN KEY (code)
        REFERENCES log_codes (code) MATCH SIMPLE
                ON UPDATE NO ACTION
@@ -511,7 +511,7 @@ CREATE TABLE foglamp.tasks (
              schedule_name character varying(255),                                       -- Name of the task
              process_name character varying(255)      NOT NULL,                          -- Name of the task's process
              state        smallint                    NOT NULL,                          -- 1-Running, 2-Complete, 3-Cancelled, 4-Interrupted
-             start_time   DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')), -- The date and time the task started
+             start_time   DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')), -- The date and time the task started UTC
              end_time     DATETIME,                                                      -- The date and time the task ended
              reason       character varying(255),                                        -- The reason why the task ended
              pid          integer                     NOT NULL,                          -- Linux process id

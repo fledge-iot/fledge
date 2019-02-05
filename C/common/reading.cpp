@@ -143,6 +143,28 @@ void Reading::addDatapoint(Datapoint *value)
 }
 
 /**
+ * Remove a datapoint from the reading
+ *
+ * @param name	Name of the datapoitn to remove
+ * @return	Pointer to the datapoint removed or NULL if it was not found
+ */
+Datapoint *Reading::removeDatapoint(const string& name)
+{
+Datapoint *rval;
+
+	for (auto it = m_values.begin(); it != m_values.end(); it++)
+	{
+		if ((*it)->getName().compare(name) == 0)
+		{
+			rval = *it;
+			m_values.erase(it);
+			return rval;
+		}
+	}
+	return NULL;
+}
+
+/**
  * Return the asset reading as a JSON structure encoded in a
  * C++ string.
  */

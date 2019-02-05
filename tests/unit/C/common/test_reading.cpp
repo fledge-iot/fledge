@@ -86,3 +86,18 @@ TEST(ReadingTest, IST)
 	string json = reading.toJSON();
 	ASSERT_NE(json.find(string("\"user_ts\" : \"2019-01-10 15:31:03.123456+0:00\"")), 0);
 }
+
+TEST(ReadingTest, rmDatapoint)
+{
+	DatapointValue value((long) 10);
+	Reading reading(string("test1"), new Datapoint("x", value));
+	DatapointValue val2((long) 20);
+	reading.addDatapoint(new Datapoint("y", val2));
+	ASSERT_EQ(reading.getDatapointCount(), 2);
+	Datapoint *removed = reading.removeDatapoint("x");
+	ASSERT_EQ(reading.getDatapointCount(), 1);
+	ASSERT_EQ(removed->getName().compare("x"), 0);
+	delete removed;
+	removed = reading.removeDatapoint("x");
+	ASSERT_EQ(removed,  (Datapoint *)0);
+}

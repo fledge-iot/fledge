@@ -25,8 +25,8 @@ CREATE TABLE IF NOT EXISTS foglamp.readings (
                                                                    -- assets table.
     read_key   uuid                        UNIQUE,                 -- An optional unique key used to avoid double-loading.
     reading    JSON                        NOT NULL DEFAULT '{}',  -- The json object received
-    user_ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')),
-    ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime'))
+    user_ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW'), -- UTC time
+    ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')  -- UTC time
 );
 
 -- CREATE INDEX fki_readings_fk1

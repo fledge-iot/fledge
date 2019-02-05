@@ -242,6 +242,7 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 		sql.append(';');
 
 		const char *query = sql.coalesce();
+		logSQL("CommonRetrieve", query);
 
 		PGresult *res = PQexec(dbConnection, query);
 		delete[] query;
@@ -1637,7 +1638,8 @@ bool Connection::jsonWhereClause(const Value& whereClause, SQLBuffer& sql)
 		sql.append("\"");
 	}
 	else
-	{	// Use converted numeric value
+	{
+		// Use converted numeric value
 		sql.append(whereClause["column"].GetString());
 	}
 
@@ -1664,6 +1666,66 @@ bool Connection::jsonWhereClause(const Value& whereClause, SQLBuffer& sql)
 		sql.append("> now() - INTERVAL '");
 		sql.append(whereClause["value"].GetInt());
 		sql.append(" seconds'");
+	}
+	else if (!cond.compare("in") || !cond.compare("not in"))
+	{
+		// Check we have a non empty array
+		if (whereClause["value"].IsArray() &&
+		    whereClause["value"].Size())
+		{
+			sql.append(cond);
+			sql.append(" ( ");
+			int field = 0;
+			for (Value::ConstValueIterator itr = whereClause["value"].Begin();
+							itr != whereClause["value"].End();
+							++itr)
+			{
+				if (field)
+				{
+					sql.append(", ");
+				}
+				field++;
+				if (itr->IsNumber())
+				{
+					if (itr->IsInt())
+					{
+						sql.append(itr->GetInt());
+					}
+					else if (itr->IsInt64())
+					{
+						sql.append(itr->GetInt64());
+					}
+					else
+					{
+						sql.append(itr->GetDouble());
+					}
+				}
+				else if (itr->IsString())
+				{
+					sql.append('\'');
+					sql.append(escape(itr->GetString()));
+					sql.append('\'');
+				}
+				else
+				{
+					string message("The \"value\" of a \"" + \
+							cond + \
+							"\" condition array element must be " \
+							"a string, integer or double.");
+					raiseError("where clause", message.c_str());
+					return false;
+				}
+			}
+			sql.append(" )");
+		}
+		else
+		{
+			string message("The \"value\" of a \"" + \
+					cond + "\" condition must be an array " \
+					"and must not be empty.");
+			raiseError("where clause", message.c_str());
+			return false;
+		}
 	}
 	else
 	{

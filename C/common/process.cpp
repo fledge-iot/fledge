@@ -65,7 +65,10 @@ FogLampProcess::FogLampProcess(int argc, char** argv) :
 	try
 	{
 		string minLogLevel = getArgValue("--loglevel=");
-		m_logger->setMinLevel(minLogLevel);
+		if (!minLogLevel.empty())
+		{
+			m_logger->setMinLevel(minLogLevel);
+		}
 	}
 	catch (exception e)
 	{

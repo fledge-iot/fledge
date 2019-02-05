@@ -32,7 +32,7 @@ _logger = logger.setup(__name__)
 # MAKE UPPER_CASE
 _valid_type_strings = sorted(['boolean', 'integer', 'float', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password', 'JSON',
                               'URL', 'enumeration', 'script'])
-RESERVED_CATG = [ 'South', 'North', 'General',
+RESERVED_CATG = ['South', 'North', 'General',
                   'Advanced', 'Utilities', 'rest_api',
                   'Security', 'service', 'SCHEDULER',
                   'SMNTR', 'PURGE_READ', 'Notifications']
@@ -203,16 +203,19 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         return category_val_new_copy
 
-    async def _validate_category_val(self, category_val, set_value_val_from_default_val=True):
+    async def _validate_category_val(self, category_name, category_val, set_value_val_from_default_val=True):
         require_entry_value = not set_value_val_from_default_val
         if type(category_val) is not dict:
-            raise TypeError('category_val must be a dictionary')
+            raise TypeError('For {} category, category value must be a dictionary; got {}'
+                            .format(category_name, type(category_val)))
         category_val_copy = copy.deepcopy(category_val)
         for item_name, item_val in category_val_copy.items():
             if type(item_name) is not str:
-                raise TypeError('item_name must be a string')
+                raise TypeError('For {} category, item name {} must be a string; got {}'
+                                .format(category_name, item_name, type(item_name)))
             if type(item_val) is not dict:
-                raise TypeError('item_value must be a dict for item_name {}'.format(item_name))
+                raise TypeError('For {} category, item value must be a dict for item name {}; got {}'
+                                .format(category_name, item_name, type(item_val)))
 
             optional_item_entries = {'readonly': 0, 'order': 0, 'length': 0, 'maximum': 0, 'minimum': 0,
                                      'deprecated': 0, 'displayName': 0}
@@ -227,43 +230,53 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
             for entry_name, entry_val in item_val.items():
                 if type(entry_name) is not str:
-                    raise TypeError('entry_name must be a string for item_name {}'.format(item_name))
+                    raise TypeError('For {} category, entry name {} must be a string for item name {}; got {}'
+                                    .format(category_name, entry_name, item_name, type(entry_name)))
 
                 # Validate enumeration type and mandatory options item_name
                 if 'type' in item_val and get_entry_val("type") == 'enumeration':
                     if 'options' not in item_val:
-                        raise KeyError('options required for enumeration type')
+                        raise KeyError('For {} category, options required for enumeration type'.format(category_name))
                     if entry_name == 'options':
                         if type(entry_val) is not list:
-                            raise TypeError('entry_val must be a list for item_name {} and entry_name {}'.format(item_name, entry_name))
+                            raise TypeError('For {} category, entry value must be a list for item name {} and '
+                                            'entry name {}; got {}'.format(category_name, item_name, entry_name, type(entry_val)))
                         if not entry_val:
-                            raise ValueError('entry_val cannot be empty list for item_name {} and entry_name {}'.format(item_name, entry_name))
+                            raise ValueError('For {} category, entry value cannot be empty list for item_name {} and '
+                                             'entry_name {}; got {}'.format(category_name, item_name, entry_name, entry_val))
                         if get_entry_val("default") not in entry_val:
-                            raise ValueError('entry_val does not exist in options list for item_name {} and entry_name {}'.format(item_name, entry_name))
+                            raise ValueError('For {} category, entry value does not exist in options list for item name'
+                                             ' {} and entry_name {}; got {}'.format(category_name, item_name, entry_name, get_entry_val("default")))
                         else:
                             d = {entry_name: entry_val}
                             expected_item_entries.update(d)
                     else:
                         if type(entry_val) is not str:
-                            raise TypeError('entry_val must be a string for item_name {} and entry_name {}'.format(item_name, entry_name))
+                            raise TypeError('For {} category, entry value must be a string for item name {} and '
+                                            'entry name {}; got {}'.format(category_name, item_name, entry_name, type(entry_val)))
                 else:
                     if type(entry_val) is not str:
-                        raise TypeError('entry_val must be a string for item_name {} and entry_name {}'.format(item_name, entry_name))
+                        raise TypeError('For {} category, entry value must be a string for item name {} and '
+                                        'entry name {}; got {}'.format(category_name, item_name, entry_name, type(entry_val)))
 
                 # If Entry item exists in optional list, then update expected item entries
                 if entry_name in optional_item_entries:
                     if entry_name == 'readonly' or entry_name == 'deprecated':
                         if self._validate_type_value('boolean', entry_val) is False:
-                            raise ValueError('Entry value must be boolean for item name {}'.format(entry_name))
+                            raise ValueError('For {} category, entry value must be boolean for item name {}; got {}'
+                                             .format(category_name, entry_name, type(entry_val)))
                     elif entry_name == 'minimum' or entry_name == 'maximum':
                         if (self._validate_type_value('integer', entry_val) or self._validate_type_value('float', entry_val)) is False:
-                            raise ValueError('Entry value must be an integer or float for item name {}'.format(entry_name))
+                            raise ValueError('For {} category, entry value must be an integer or float for item name '
+                                             '{}; got {}'.format(category_name, entry_name, type(entry_val)))
                     elif entry_name == 'displayName':
                         if not isinstance(entry_val, str):
-                            raise ValueError('Entry value must be string for item name {}'.format(entry_name))
+                            raise ValueError('For {} category, entry value must be string for item name {}; got {}'
+                                             .format(category_name, entry_name, type(entry_val)))
                     else:
                         if self._validate_type_value('integer', entry_val) is False:
-                            raise ValueError('Entry value must be an integer for item name {}'.format(entry_name))
+                            raise ValueError('For {} category, entry value must be an integer for item name {}; got {}'
+                                             .format(category_name, entry_name, type(entry_val)))
 
                     d = {entry_name: entry_val}
                     expected_item_entries.update(d)
@@ -273,20 +286,21 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     raise ValueError('Specifying value_name and value_val for item_name {} is not allowed if '
                                      'desired behavior is to use default_val as value_val'.format(item_name))
                 if num_entries is None:
-                    raise ValueError('Unrecognized entry_name {} for item_name {}'.format(entry_name, item_name))
+                    raise ValueError('For {} category, unrecognized entry name {} for item name {}'
+                                     .format(category_name, entry_name, item_name))
                 if entry_name == 'type':
                     if entry_val not in _valid_type_strings:
-                        raise ValueError(
-                            'Invalid entry_val for entry_name "type" for item_name {}. valid: {}'.format(
-                                item_name, _valid_type_strings))
+                        raise ValueError('For {} category, invalid entry value for entry name "type" for item name {}.'
+                                         ' valid type strings are: {}'.format(category_name, item_name, _valid_type_strings))
                 expected_item_entries[entry_name] = 1
             for needed_key, needed_value in expected_item_entries.items():
                 if needed_value == 0:
-                    raise ValueError('Missing entry_name {} for item_name {}'.format(needed_key, item_name))
+                    raise ValueError('For {} category, missing entry name {} for item name {}'.format(
+                        category_name, needed_key, item_name))
 
             # validate data type value
             if self._validate_type_value(get_entry_val("type"), get_entry_val("default")) is False:
-                raise ValueError('Unrecognized value for item_name {}'.format(item_name))
+                raise ValueError('For {} category, unrecognized value for item name {}'.format(category_name, item_name))
             if 'readonly' in item_val:
                 item_val['readonly'] = self._clean('boolean', item_val['readonly'])
             if 'deprecated' in item_val:
@@ -684,7 +698,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             # Special case for script type
             if storage_value_entry['type'] == 'script':
                 if cat_item['value'] is not None and cat_item['value'] != "":
-                   cat_item["value"] = binascii.unhexlify(cat_item['value'].encode('utf-8')).decode("utf-8")
+                    cat_item["value"] = binascii.unhexlify(cat_item['value'].encode('utf-8')).decode("utf-8")
                 cat_item["file"] = script_file_path
 
             if category_name in self._cacheManager.cache:
@@ -771,7 +785,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         category_val_prepared = ''
         try:
             # validate new category_val, set "value" from default
-            category_val_prepared = await self._validate_category_val(category_value, True)
+            category_val_prepared = await self._validate_category_val(category_name, category_value, True)
             # check if category_name is already in storage
             category_val_storage = await self._read_category_val(category_name)
             if category_val_storage is None:
@@ -779,7 +793,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             else:
                 # validate category_val from storage, do not set "value" from default, reuse from storage value
                 try:
-                    category_val_storage = await self._validate_category_val(category_val_storage, False)
+                    category_val_storage = await self._validate_category_val(category_name, category_val_storage, False)
                 # if validating category from storage fails, nothing to salvage from storage, use new completely
                 except:
                     _logger.exception(

@@ -14,7 +14,9 @@
 #include <iomanip>
 #include <cfloat>
 #include <vector>
+#include <logger.h>
 
+class Datapoint;
 /**
  * Class to hold an actual reading value.
  * The class is simply a tagged union that also contains
@@ -55,7 +57,16 @@ class DatapointValue {
 			m_value.a = new std::vector<double>(values);
 			m_type = T_FLOAT_ARRAY;
 		};
-		
+
+		/**
+		 * Construct with an array of Datapoints
+		 */
+		DatapointValue(std::vector<Datapoint*>*& values, bool isDict)
+		{
+			m_value.dpa = values;
+			m_type = isDict? T_DP_DICT : T_DP_LIST;
+		}
+
 		/**
 		 * Copy constructor
 		 */
@@ -70,25 +81,15 @@ class DatapointValue {
 			case T_FLOAT_ARRAY:
 				m_value.a = new std::vector<double>(*(obj.m_value.a));
 				break;
+			case T_DP_DICT:
+			case T_DP_LIST:
+				m_value.dpa = obj.m_value.dpa; // TODO: need to fix this, need to do nested copying in newly allocated memory
+				break;
 			default:
 				m_value = obj.m_value;
 				break;
 			}
 		}
-		/**
-		 * Destructor
-		 */
-		~DatapointValue()
-		{
-			if (m_type == T_STRING)
-			{
-				delete m_value.str;
-			}
-			if (m_type == T_FLOAT_ARRAY)
-			{
-				delete m_value.a;
-			}
-		};
 
 		/**
 		 * Assignment Operator
@@ -105,6 +106,11 @@ class DatapointValue {
 				// Remove previous value
 				delete m_value.a;
 			}
+			if (m_type == T_DP_DICT || m_type == T_DP_LIST)
+			{
+				// Remove previous value
+				delete m_value.dpa;
+			}
 
 			m_type = rhs.m_type;
 
@@ -116,14 +122,25 @@ class DatapointValue {
 			case T_FLOAT_ARRAY:
 				m_value.a = new std::vector<double>(*(rhs.m_value.a));
 				break;
+			case T_DP_DICT:
+			case T_DP_LIST:
+				m_value.dpa = new std::vector<Datapoint*>(*(rhs.m_value.dpa));
+				break;
 			default:
 				m_value = rhs.m_value;
 				break;
 			}
 
 			return *this;
-		};
+		}
+		
+		/**
+		 * Destructor
+		 */
+		~DatapointValue();
 
+		void deleteNestedDPV();
+		
 		/**
 		 * Set the value of a datapoint, this may
 		 * also cause the type to be changed.
@@ -149,45 +166,7 @@ class DatapointValue {
 		/**
 		 * Return the value as a string
 		 */
-		std::string	toString() const
-		{
-			std::ostringstream ss;
-
-			switch (m_type)
-			{
-			case T_INTEGER:
-				ss << m_value.i;
-				return ss.str();
-			case T_FLOAT:
-				{
-				ss << std::fixed << std::setprecision(10) << m_value.f;
-				std::string s = ss.str();
-				s.erase(s.find_last_not_of('0') + 1, std::string::npos); // remove trailing 0's
-				s = (s[s.size()-1] == '.') ? s+'0' : s; // add '0' if string ends with decimal
-				return s;
-				}
-			case T_FLOAT_ARRAY:
-				ss << "[";
-				for (auto it = m_value.a->begin();
-				     it != m_value.a->end();
-				     ++it)
-				{
-					if (it != m_value.a->begin())
-					{
-						ss << ", ";
-					}
-					ss << *it;
-				}
-				ss << "]";
-				return ss.str();
-			case T_STRING:
-			default:
-				ss << "\"";
-				ss << *m_value.str;
-				ss << "\"";
-				return ss.str();
-			}
-		};
+		std::string	toString() const;
 
 		/**
 		 * Return long value
@@ -204,7 +183,9 @@ class DatapointValue {
 			T_STRING,
 			T_INTEGER,
 			T_FLOAT,
-			T_FLOAT_ARRAY
+			T_FLOAT_ARRAY,
+			T_DP_DICT,
+			T_DP_LIST
 		} dataTagType;
 
 		/**
@@ -214,12 +195,33 @@ class DatapointValue {
 		{
 			return m_type;
 		}
+
+		std::string getTypeStr() const
+		{
+			switch(m_type)
+			{
+				case T_STRING: return std::string("STRING");
+				case T_INTEGER: return std::string("INTEGER");
+				case T_FLOAT: return std::string("FLOAT");
+				case T_FLOAT_ARRAY: return std::string("FLOAT_ARRAY");
+				case T_DP_DICT: return std::string("DP_DICT");
+				case T_DP_LIST: return std::string("DP_LIST");
+				default: return std::string("INVALID");
+			}
+		}
+
+		std::vector<Datapoint*>*& getDpVec()
+		{
+			return m_value.dpa;
+		}
+		
 	private:
 		union data_t {
 			std::string*		str;
 			long			i;
 			double			f;
 			std::vector<double>*	a;
+			std::vector<Datapoint*>*	dpa;
 			} m_value;
 		DatapointTag	m_type;
 };
@@ -235,6 +237,11 @@ class Datapoint {
 		 */
 		Datapoint(const std::string& name, DatapointValue& value) : m_name(name), m_value(value)
 		{
+		}
+
+		~Datapoint()
+		{
+			m_value.deleteNestedDPV();
 		}
 		/**
 		 * Return asset reading data point as a JSON

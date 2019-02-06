@@ -24,7 +24,7 @@ DatapointValue* Py2C_createListDPV(PyObject *data);
 /**
  * Creating DatapointValue object from Python object
  *
- * @param dValue	Python 3.5 Object
+ * @param dValue	Python Object
  * @return		Pointer to a new DatapointValue object
  *				or NULL in case of error
  */
@@ -59,7 +59,7 @@ DatapointValue *Py2C_createBasicDPV(PyObject *dValue)
 /**
  * Creating DatapointValue object from Python object
  *
- * @param data	Python 3.5 Object (dict)
+ * @param data	Python Object (dict)
  * @return		Pointer to a new DatapointValue object
  *				or NULL in case of error
  */
@@ -121,7 +121,7 @@ DatapointValue* Py2C_createDictDPV(PyObject *data)
 /**
  * Creating DatapointValue object from Python object
  *
- * @param data	Python 3.5 Object (list)
+ * @param data	Python Object (list)
  * @return		Pointer to a new DatapointValue object
  *				or NULL in case of error
  */
@@ -286,7 +286,7 @@ Reading* Py2C_parseReadingElement(PyObject *reading, std::string assetName)
 /**
  * Creating Reading object from Python object
  *
- * @param element	Python 3.5 Object (dict)
+ * @param element	Python Object (dict)
  * @return		Pointer to a new Reading object
  *				or NULL in case of error
  */
@@ -348,7 +348,7 @@ Reading* Py2C_parseReadingObject(PyObject *element)
 /**
  * Creating Reading objects from Python object
  *
- * @param element	Python 3.5 Object (list)
+ * @param element	Python Object (list)
  * @return		Pointer to a vector containing reading objects
  *				or NULL in case of error
  */
@@ -436,7 +436,7 @@ std::vector<Reading *>* Py2C_parseReadingListObject(PyObject *element)
 /**
  * Creating vector of Reading objects from Python object
  *
- * @param polledData	Python 3.5 Object (dict)
+ * @param polledData	Python Object (dict)
  * @return		Pointer to a vector of Reading objects
  *				or NULL in case of error
  */

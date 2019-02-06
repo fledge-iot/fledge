@@ -48,7 +48,6 @@ def plugin_init(config):
 
 def plugin_poll(handle):
     reading = _plugin.plugin_poll(handle)
-    _LOGGER.debug("reading={}".format(json.dumps(reading)))
     return reading
 
 

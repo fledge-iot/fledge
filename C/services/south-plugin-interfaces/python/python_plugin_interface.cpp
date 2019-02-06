@@ -33,6 +33,10 @@ void plugin_register_ingest_fn(PLUGIN_HANDLE handle,INGEST_CB2 cb,void * data);
 PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject *);
 Reading* Py2C_parseReadingObject(PyObject *);
 vector<Reading *>* Py2C_getReadings(PyObject *);
+DatapointValue* Py2C_createDictDPV(PyObject *data);
+DatapointValue* Py2C_createListDPV(PyObject *data);
+DatapointValue *Py2C_createBasicDPV(PyObject *dValue);
+
 
 
 static void logErrorMessage();

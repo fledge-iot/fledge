@@ -3,6 +3,11 @@
 #
 # This is the shell script wrapper for running C unit tests
 #
+jobs="-j 4"
+if [ "$1" != "" ]; then
+  jobs="$1"
+fi
+
 if [ "$FOGLAMP_ROOT" = "" ]; then
 	echo You must set FOGLAMP_ROOT before running this script
 	exit -1
@@ -29,7 +34,7 @@ for f in $cmakefile; do
 			echo cmake failed for $dir;
 			exit 1
 		fi
-		make -j2;
+		make ${jobs};
 		rc=$?
 		if [ $rc != 0 ]; then
 			echo make failed for $dir;

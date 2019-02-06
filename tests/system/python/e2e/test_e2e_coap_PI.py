@@ -26,8 +26,8 @@ SENSOR_VALUE = 20
 
 @pytest.fixture
 def start_south_north(reset_and_start_foglamp, add_south, start_north_pi_server_c, remove_data_file,
-                      remove_directories, south_branch, foglamp_url, pi_host, pi_port,
-                      north_plugin, pi_token, south_plugin="coap", asset_name="end_to_end_coap"):
+                      remove_directories, south_branch, foglamp_url, pi_host, pi_port, pi_token,
+                      asset_name="end_to_end_coap"):
     """ This fixture clone a south repo and starts both south and north instance
         reset_and_start_foglamp: Fixture that resets and starts foglamp, no explicit invocation, called at start
         add_south: Fixture that adds a south service with given configuration
@@ -44,8 +44,9 @@ def start_south_north(reset_and_start_foglamp, add_south, start_north_pi_server_
             '[{"name": "sensor", "type": "number", "min": %d, "max": %d, "precision": 0}]}]' % (
                 asset_name, SENSOR_VALUE, SENSOR_VALUE))
 
+    south_plugin = "coap"
     add_south(south_plugin, south_branch, foglamp_url, service_name="coap")
-    start_north_pi_server_c(foglamp_url, pi_host, pi_port, north_plugin, pi_token)
+    start_north_pi_server_c(foglamp_url, pi_host, pi_port, pi_token)
 
     yield start_south_north
 

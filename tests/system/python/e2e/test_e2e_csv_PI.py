@@ -26,15 +26,14 @@ CSV_DATA = [{'ivalue': 1, 'fvalue': 1.1, 'svalue': 'abc'},
             {'ivalue': 0, 'fvalue': 0.0, 'svalue': 'def'},
             {'ivalue': -1, 'fvalue': -1.1, 'svalue': 'ghi'}]
 
-# Name of the North Task
-NORTH_TASK_NAME = "North_Readings_to_PI"
+NORTH_TASK_NAME = "NorthReadingsTo_PI"
 
 _data_str = {}
 
 
 @pytest.fixture
 def start_south_north(reset_and_start_foglamp, add_south, start_north_pi_server_c, remove_data_file,
-                      remove_directories, south_branch, foglamp_url, pi_host, pi_port, pi_token, south_plugin="playback",
+                      remove_directories, south_branch, foglamp_url, pi_host, pi_port, pi_token,
                       asset_name="end_to_end_csv"):
     """ This fixture clone a south repo and starts both south and north instance
         reset_and_start_foglamp: Fixture that resets and starts foglamp, no explicit invocation, called at start
@@ -67,6 +66,7 @@ def start_south_north(reset_and_start_foglamp, add_south, start_north_pi_server_
             tmp_list.append(c_data[_head])
         _data_str[_head] = tmp_list
 
+    south_plugin = "playback"
     add_south(south_plugin, south_branch, foglamp_url, config=south_config)
     start_north_pi_server_c(foglamp_url, pi_host, pi_port, pi_token)
 

@@ -45,7 +45,7 @@ def start_south_north(reset_and_start_foglamp, add_south, start_north_ocs_server
                       prepare_template_reading_from_fogbench, remove_data_file,
                       remove_directories, south_branch, foglamp_url,
                       ocs_tenant, ocs_client_id, ocs_client_secret, ocs_namespace, ocs_token,
-                      north_plugin="ocs_V2", south_plugin="coap", asset_name="end_to_end_coap"):
+                      asset_name="endToEndCoAP"):
     """ This fixture clone a south repo and starts both south and north instance
         reset_and_start_foglamp: Fixture that resets and starts foglamp, no explicit invocation, called at start
         add_south: Fixture that add a south service with given configuration
@@ -56,8 +56,9 @@ def start_south_north(reset_and_start_foglamp, add_south, start_north_ocs_server
     # fogbench template path for readings
     fogbench_template_path = prepare_template_reading_from_fogbench(TEMPLATE_NAME, asset_name)
 
-    add_south(south_plugin, south_branch, foglamp_url, service_name="coap")
-    start_north_ocs_server_c(foglamp_url, north_plugin, ocs_tenant, ocs_client_id, ocs_client_secret,
+    south_plugin = "coap"
+    add_south(south_plugin, south_branch, foglamp_url, service_name="CoAP #1")
+    start_north_ocs_server_c(foglamp_url, ocs_tenant, ocs_client_id, ocs_client_secret,
                              ocs_namespace, ocs_token)
 
     yield start_south_north
@@ -69,12 +70,12 @@ def start_south_north(reset_and_start_foglamp, add_south, start_north_ocs_server
 
 @pytest.fixture
 def start_north_ocs_v2():
-    def _start_north_ocs_server_c(foglamp_url, north_plugin, ocs_tenant, ocs_client_id, ocs_client_secret,
-                                  ocs_namespace, ocs_token, taskname="North_Readings_to_OCS"):
+    def _start_north_ocs_server_c(foglamp_url, ocs_tenant, ocs_client_id, ocs_client_secret,
+                                  ocs_namespace, ocs_token, taskname="NorthReadingsToOCS"):
         """Start north task"""
         conn = http.client.HTTPConnection(foglamp_url)
         data = {"name": taskname,
-                "plugin": "{}".format(north_plugin),
+                "plugin": "{}".format("ocs_V2"),
                 "type": "north",
                 "schedule_type": 3,
                 "schedule_day": 0,
@@ -95,6 +96,8 @@ def start_north_ocs_v2():
         return retval
 
     return _start_north_ocs_server_c
+
+
 start_north_ocs_server_c = start_north_ocs_v2
 
 
@@ -102,7 +105,9 @@ start_north_ocs_server_c = start_north_ocs_v2
 def read_data_from_ocs():
     def _read_data_from_ocs(ocs_client_id, ocs_client_secret, ocs_tenant, ocs_namespace, sensor):
         """ This method reads data from OCS web api """
+
         # TODO: use http.client instead of requests library
+
         ocs_type_id = 1
         ocs_stream = "{}measurement_{}".format(ocs_type_id, sensor)
         start_timestamp = "2019-01-01T00:00:00.000000Z"
@@ -150,7 +155,7 @@ def read_data_from_ocs():
 
 class TestE2EOCS:
     def test_end_to_end(self, start_south_north, read_data_from_ocs, foglamp_url, wait_time, retries,
-                        ocs_client_id, ocs_client_secret, ocs_tenant, ocs_namespace, asset_name="end_to_end_coap"):
+                        ocs_client_id, ocs_client_secret, ocs_tenant, ocs_namespace, asset_name="endToEndCoAP"):
         """ Test that data is inserted in FogLAMP and sent to OCS
             start_south_north: Fixture that starts FogLAMP with south and north instance
             read_data_from_ocs: Fixture to read data from OCS

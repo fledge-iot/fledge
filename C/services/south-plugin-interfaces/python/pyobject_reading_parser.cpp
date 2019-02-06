@@ -53,7 +53,6 @@ DatapointValue *Py2C_createBasicDPV(PyObject *dValue)
 		Logger::getLogger()->info("Unable to parse dValue: Py_TYPE(dValue)=%s", (Py_TYPE(dValue))->tp_name);
 		dpv = NULL;
 	}
-	Logger::getLogger()->info("%s: dpv=%s", __FUNCTION__, dpv?dpv->toString().c_str():"NULL");
 	return dpv;
 }
 
@@ -111,12 +110,10 @@ DatapointValue* Py2C_createDictDPV(PyObject *data)
 	if (dpVec->size() > 0)
 	{
 		DatapointValue *dpv = new DatapointValue(dpVec, true);
-		Logger::getLogger()->info("%s: dpv=%s", __FUNCTION__, dpv?dpv->toString().c_str():"NULL");
 		return dpv;
 	}
 	else
 	{
-		Logger::getLogger()->info("%s: dpv=%s", __FUNCTION__, "NULL");
 		return NULL;
 	}
 }
@@ -171,19 +168,15 @@ DatapointValue* Py2C_createListDPV(PyObject *data)
 			dpVec->emplace_back(new Datapoint(std::string("unnamed_list_elem#") + std::to_string(i), *dpv));
 			delete dpv;
 		}
-		else
-			Logger::getLogger()->info("dpv is NULL");
 	}
 	
 	if (dpVec->size() > 0)
 	{
 		DatapointValue *dpv = new DatapointValue(dpVec, false);
-		Logger::getLogger()->info("%s: dpv=%s", __FUNCTION__, dpv?dpv->toString().c_str():"NULL");
 		return dpv;
 	}
 	else
 	{
-		Logger::getLogger()->info("%s: dpv=%s", __FUNCTION__, "NULL");
 		return NULL;
 	}
 }
@@ -434,11 +427,7 @@ std::vector<Reading *>* Py2C_parseReadingListObject(PyObject *element)
 		if (newReading)
 		{
 			vec->push_back(newReading);
-			Logger::getLogger()->info("Added newReading to vec: newReading=%s", newReading->toJSON().c_str());
 		}
-		else
-			Logger::getLogger()->info("newReading is NULL, skipping...");
-
 	}
 	
 	return vec;
@@ -479,8 +468,6 @@ std::vector<Reading *>* Py2C_getReadings(PyObject *polledData)
 				// Add the new reading to result vector
 				newReadings->push_back(newReading);
 			}
-			else
-				Logger::getLogger()->info("Py2C_getReadings: Reading[%d] is NULL", i);
 		}
 	}
 	else // a dict, possibly containing multiple readings
@@ -513,7 +500,6 @@ std::vector<Reading *>* Py2C_getReadings(PyObject *polledData)
  */
 static void logErrorMessage()
 {
-	PRINT_FUNC;
 	//Get error message
 	PyObject *pType, *pValue, *pTraceback;
 	PyErr_Fetch(&pType, &pValue, &pTraceback);

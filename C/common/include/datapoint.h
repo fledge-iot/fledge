@@ -241,9 +241,7 @@ class Datapoint {
 
 		~Datapoint()
 		{
-			Logger::getLogger()->debug("Deleting Datapoint: m_name=%s, m_value.getTypeStr()=%s", m_name.c_str(), m_value.getTypeStr().c_str());
 			m_value.deleteNestedDPV();
-			Logger::getLogger()->debug("DONE Deleting Datapoint: m_name=%s, m_value.getTypeStr()=%s", m_name.c_str(), m_value.getTypeStr().c_str());
 		}
 		/**
 		 * Return asset reading data point as a JSON

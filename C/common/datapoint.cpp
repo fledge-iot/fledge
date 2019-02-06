@@ -24,7 +24,6 @@
 std::string DatapointValue::toString() const
 {
 	std::ostringstream ss;
-	Logger::getLogger()->debug("%s: m_type = %d", __FUNCTION__, m_type);
 
 	switch (m_type)
 	{
@@ -67,7 +66,6 @@ std::string DatapointValue::toString() const
 			ss << ((m_type==T_DP_DICT)?(*it)->toJSONProperty():(*it)->getData().toString());
 		}
 		ss << ((m_type==T_DP_DICT)?'}':']');
-		Logger::getLogger()->debug("%s: dpv = %s", (m_type==T_DP_DICT)?"T_DP_DICT":"T_DP_LIST", ss.str().c_str());
 		return ss.str();
 	case T_STRING:
 	default:
@@ -85,21 +83,16 @@ void DatapointValue::deleteNestedDPV()
 {
 	if (m_type == T_STRING)
 	{
-		Logger::getLogger()->debug("%s:%d: deleting m_value.str, this=%p", __FUNCTION__, __LINE__, this);
 		delete m_value.str;
 		m_value.str = NULL;
-		Logger::getLogger()->debug("%s:%d: DONE deleting m_value.str, this=%p", __FUNCTION__, __LINE__, this);
 	}
 	else if (m_type == T_FLOAT_ARRAY)
 	{
-		Logger::getLogger()->debug("%s:%d: deleting m_value.a, this=%p", __FUNCTION__, __LINE__, this);
 		delete m_value.a;
 		m_value.a = NULL;
-		Logger::getLogger()->debug("%s:%d: DONE deleting m_value.a, this=%p", __FUNCTION__, __LINE__, this);
 	}
 	else if (m_type == T_DP_DICT || m_type == T_DP_LIST)
 	{
-		Logger::getLogger()->debug("%s:%d: deleting m_value.dpa, this=%p", __FUNCTION__, __LINE__, this);
 		for (auto it = m_value.dpa->begin(); // std::vector<Datapoint *>*	dpa;
 			 it != m_value.dpa->end();
 			 ++it)
@@ -107,7 +100,6 @@ void DatapointValue::deleteNestedDPV()
 			delete (*it);
 		}
 		delete m_value.dpa;
-		Logger::getLogger()->debug("%s:%d: DONE deleting m_value.dpa, this=%p", __FUNCTION__, __LINE__, this);
 	}
 }
 

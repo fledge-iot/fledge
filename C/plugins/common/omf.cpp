@@ -994,7 +994,7 @@ std::string OMF::getFormatType(const string &key) const
         }
         catch (const std::exception& e)
         {
-                Logger::getLogger()->error("Unable to find the OMF format for the type :%s: - error: %s", key.c_str(), e.what());
+                Logger::getLogger()->error("Unable to find the OMF format for the type :" + key + ": - error: %s", e.what());
         }
 
         return value;

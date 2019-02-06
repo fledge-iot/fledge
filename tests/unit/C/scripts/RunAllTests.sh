@@ -18,7 +18,14 @@ cd $FOGLAMP_ROOT/tests/unit/C
 if [ ! -d results ] ; then
 	mkdir results
 fi
-cmakefile=`find . -name CMakeLists.txt`
+
+if [ -f "./CMakeLists.txt" ] ; then
+	echo -n "Compiling libraries..."
+	(rm -rf build && mkdir build && cd build && cmake .. && make ${jobs} && cd ..) >/dev/null
+	echo "done"
+fi
+
+cmakefile=`find . -name CMakeLists.txt | grep -v "\.\/CMakeLists.txt"`
 for f in $cmakefile; do	
 	dir=`dirname $f`
 	echo Testing $dir

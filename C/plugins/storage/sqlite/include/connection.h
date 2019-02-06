@@ -14,6 +14,7 @@
 #include <string>
 #include <rapidjson/document.h>
 #include <sqlite3.h>
+#include <mutex>
 
 class Connection {
 	public:
@@ -34,6 +35,8 @@ class Connection {
 		long		tableSize(const std::string& table);
 		void		setTrace(bool);
 	private:
+		int		m_queuing;
+		std::mutex	m_qMutex;
 		int 		SQLexec(sqlite3 *db, const char *sql,
 					int (*callback)(void*,int,char**,char**),
 					void *cbArg, char **errmsg);
@@ -56,5 +59,6 @@ class Connection {
 						int i,
 						std::string& newDate);
 		void		logSQL(const char *, const char *);
+    		bool 		formatDate(char *formatted_date, size_t formatted_date_size, const char *date);
 };
 #endif

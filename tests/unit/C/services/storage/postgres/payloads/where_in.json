@@ -1,0 +1,7 @@
+{
+	"where" : {
+			"column" : "id",
+			"condition" : "in",
+			"value" : [ -4, 12.3, 0, 1001]
+		}
+}

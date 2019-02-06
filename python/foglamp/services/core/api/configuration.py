@@ -291,7 +291,7 @@ async def add_configuration_item(request):
             config_item_dict = {new_config_item: data}
 
         # validate configuration category value
-        await cf_mgr._validate_category_val(category_val=config_item_dict, set_value_val_from_default_val=False)
+        await cf_mgr._validate_category_val(category_name=category_name, category_val=config_item_dict, set_value_val_from_default_val=False)
 
         # validate category
         category = await cf_mgr.get_category_all_items(category_name)

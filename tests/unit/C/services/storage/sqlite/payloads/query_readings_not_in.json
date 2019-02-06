@@ -1,0 +1,7 @@
+{
+	"where" : {
+				"column" : "asset_code",
+				"condition" : "not in",
+				"value" : ["MyAsset"]
+			}
+}

@@ -93,4 +93,13 @@ Get Reading series (seconds),PUT,http://localhost:8080/storage/reading/query,ser
 Get Reading series summary (seconds),PUT,http://localhost:8080/storage/reading/query,series_summary_seconds.json
 Get Reading series group by hours,PUT,http://localhost:8080/storage/reading/query,series_group_by_hours.json
 Add Readings now,POST,http://localhost:8080/storage/reading,add_readings_now.json
+microseconds - Purge Readings,PUT,http://localhost:8080/storage/reading/purge?age=1&sent=0&flags=purge,
+microseconds - Add Readings,POST,http://localhost:8080/storage/reading,msec_add_readings_user_ts.json
+microseconds - Query Readings,PUT,http://localhost:8080/storage/reading/query,msec_query_readings.json
+Common table IN operator,PUT,http://localhost:8080/storage/table/test2/query,where_in.json
+Common table NOT IN operator,PUT,http://localhost:8080/storage/table/test2/query,where_not_in.json
+Common table IN operator bad values,PUT,http://localhost:8080/storage/table/test2/query,where_in_bad_values.json
+Query Readings IN operator,PUT,http://localhost:8080/storage/reading/query,query_readings_in.json
+Query Readings NOT IN operator,PUT,http://localhost:8080/storage/reading/query,query_readings_not_in.json
+Query Readings IN operator bad values,PUT,http://localhost:8080/storage/reading/query,query_readings_in_bad_values.json
 Shutdown,POST,http://localhost:1081/foglamp/service/shutdown,,checkstate

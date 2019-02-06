@@ -260,7 +260,7 @@ class MicroserviceManagementClient(object):
         :return:
         """
         data = {"children": children}
-        url = '/foglamp/service/category/{}/children'.format(parent)
+        url = '/foglamp/service/category/{}/children'.format(urllib.parse.quote(parent))
 
         self._management_client_conn.request(method='POST', url=url, body=json.dumps(data))
         r = self._management_client_conn.getresponse()

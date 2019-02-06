@@ -5,4 +5,4 @@ DELETE FROM foglamp.statistics WHERE key IN (
     'North Readings to PI',
     'North Statistics to PI',
     'North Readings to OCS'
-    );
+    ) and value = 0;

@@ -25,7 +25,10 @@ class SimpleHttp: public HttpSender
 		 */
 		SimpleHttp(const std::string& host_port,
 				unsigned int connect_timeout = 0,
-				unsigned int request_timeout = 0);
+				unsigned int request_timeout = 0,
+				unsigned int retry_sleep_Time = 1,
+				unsigned int max_retry = 4);
+
 
 		// Destructor
 		~SimpleHttp();
@@ -47,6 +50,9 @@ class SimpleHttp: public HttpSender
 	private:
 		std::string	m_host_port;
 		HttpClient	*m_sender;
+		unsigned int	m_retry_sleep_time;     // Seconds between each retry
+		unsigned int	m_max_retry;            // Max number of retries in the communication
+
 		
 };
 

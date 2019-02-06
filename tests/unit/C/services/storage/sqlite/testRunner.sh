@@ -1,11 +1,20 @@
 #!/bin/sh
-export FOGLAMP_DATA=.
+
+# Select the required plugin, either persistent storage or in memory
+export FOGLAMP_DATA=./plugin_cfg/sqlite
+#export FOGLAMP_DATA=./plugin_cfg/sqlitememory
+
+export TZ='Etc/UTC'
+
 if [ $# -eq 1 ] ; then
 	echo Starting storage layer $1
 	$1 
 elif [ "${FOGLAMP_ROOT}" != "" ] ; then
-	echo Starting storage service in $FOGLAMP_ROOT
-	$FOGLAMP_ROOT/services/storage
+	echo "Starting storage service in :$FOGLAMP_ROOT:"
+	echo "timezone                    :$TZ"
+	echo "configuration               :$FOGLAMP_DATA:"
+	echo "database                    :$DEFAULT_SQLITE_DB_FILE:"
+	$FOGLAMP_ROOT/services/foglamp.services.storage
 	sleep 1
 else
 	echo Must either set FOGLAMP_ROOT or provide storage service to test

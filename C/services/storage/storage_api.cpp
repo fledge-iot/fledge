@@ -14,6 +14,7 @@
 #include "management_api.h"
 #include "logger.h"
 #include "plugin_exception.h"
+#include <rapidjson/document.h>
 
 
 // Added for the default_resource example
@@ -34,6 +35,7 @@
 StorageApi *StorageApi::m_instance = 0;
 
 using namespace std;
+using namespace rapidjson;
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 
@@ -144,6 +146,24 @@ void readingPurgeWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<H
 }
 
 /**
+ * Wrapper function for the reading purge API call.
+ */
+void readingRegisterWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+	StorageApi *api = StorageApi::getInstance();
+	api->readingRegister(response, request);
+}
+
+/**
+ * Wrapper function for the reading purge API call.
+ */
+void readingUnregisterWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+	StorageApi *api = StorageApi::getInstance();
+	api->readingUnregister(response, request);
+}
+
+/**
  * Construct the singleton Storage API 
  */
 StorageApi::StorageApi(const unsigned short port, const unsigned int threads) : readingPlugin(0) {
@@ -215,6 +235,8 @@ void StorageApi::initResources()
 #endif
 	m_server->resource[READING_QUERY]["PUT"] = readingQueryWrapper;
 	m_server->resource[READING_PURGE]["PUT"] = readingPurgeWrapper;
+	m_server->resource[READING_INTEREST]["POST"] = readingRegisterWrapper;
+	m_server->resource[READING_INTEREST]["DELETE"] = readingUnregisterWrapper;
 
 	m_server->on_error = on_error;
 
@@ -339,6 +361,47 @@ string  tableName;
 string	payload;
 string	responsePayload;
 
+	auto header_seq = request->header.find("SeqNum");
+	if(header_seq != request->header.end())
+	{
+		string threadId = header_seq->second.substr(0, header_seq->second.find("_"));
+		int seqNum = stoi(header_seq->second.substr(header_seq->second.find("_")+1));
+		{
+			std::unique_lock<std::mutex> lock(mtx_seqnum_map);
+			auto it = m_seqnum_map.find(threadId);
+			if (it != m_seqnum_map.end())
+			{
+				if (seqNum <= it->second.first)
+				{
+					responsePayload = "{ \"response\" : \"updated\", \"rows_affected\"  : ";
+					responsePayload += to_string(0);
+					responsePayload += " }";
+					Logger::getLogger()->info("%s:%d: Repeat/old request: responding with zero response - threadId=%s, last seen seqNum for this threadId=%d, HTTP request header seqNum=%d",
+									__FUNCTION__, __LINE__, threadId.c_str(), it->second.first, seqNum);
+					respond(response, responsePayload);
+					return;
+				}
+				
+				// remove this threadId from LRU list; will add this to front of LRU list below
+				seqnum_map_lru_list.erase(m_seqnum_map[threadId].second);
+			}
+			else
+			{
+				if (seqnum_map_lru_list.size() == max_entries_in_seqnum_map) // LRU list is full
+				{
+					//delete least recently used element
+					string last = seqnum_map_lru_list.back();
+					seqnum_map_lru_list.pop_back();
+					m_seqnum_map.erase(last);
+				}
+			}
+
+			// insert an entry for threadId at front of LRU queue
+			seqnum_map_lru_list.push_front(threadId);
+			m_seqnum_map[threadId] = make_pair(seqNum, seqnum_map_lru_list.begin());
+		}
+	}
+	
 	stats.commonUpdate++;
 	try {
 		tableName = request->path_match[TABLE_NAME_COMPONENT];
@@ -496,6 +559,46 @@ void StorageApi::readingAppend(shared_ptr<HttpServer::Response> response, shared
 {
 string payload;
 string  responsePayload;
+	
+	auto header_seq = request->header.find("SeqNum");
+	if(header_seq != request->header.end())
+	{
+		string threadId = header_seq->second.substr(0, header_seq->second.find("_"));
+		int seqNum = stoi(header_seq->second.substr(header_seq->second.find("_")+1));
+
+		{
+			std::unique_lock<std::mutex> lock(mtx_seqnum_map);
+			auto it = m_seqnum_map.find(threadId);
+			if (it != m_seqnum_map.end())
+			{
+				if (seqNum <= it->second.first)
+				{
+					responsePayload = "{ \"response\" : \"appended\", \"readings_added\" : ";
+					responsePayload += to_string(0);
+					responsePayload += " }";
+					Logger::getLogger()->info("%s:%d: Repeat/old request: responding with zero response - threadId=%s, last seen seqNum for this threadId=%d, HTTP request header seqNum=%d",
+									__FUNCTION__, __LINE__, threadId.c_str(), it->second.first, seqNum);
+					respond(response, responsePayload);
+					return;
+				}
+				// remove this threadId from LRU list; will add this to front of LRU list below
+				seqnum_map_lru_list.erase(m_seqnum_map[threadId].second);
+			}
+			else
+			{
+				if (seqnum_map_lru_list.size() == max_entries_in_seqnum_map) // LRU list is full
+				{
+					//delete least recently used element
+					string last = seqnum_map_lru_list.back();
+					seqnum_map_lru_list.pop_back();
+					m_seqnum_map.erase(last);
+				}
+			}
+			// insert an entry for threadId at front of LRU queue
+			seqnum_map_lru_list.push_front(threadId);
+			m_seqnum_map[threadId] = make_pair(seqNum, seqnum_map_lru_list.begin());
+		}
+	}
 
 	stats.readingAppend++;
 	try {
@@ -503,6 +606,7 @@ string  responsePayload;
 		int rval = (readingPlugin ? readingPlugin : plugin)->readingsAppend(payload);
 		if (rval != -1)
 		{
+			registry.process(payload);
 			responsePayload = "{ \"response\" : \"appended\", \"readings_added\" : ";
 			responsePayload += to_string(rval);
 			responsePayload += " }";
@@ -514,7 +618,7 @@ string  responsePayload;
 			respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
 		}
 
-		respond(response, responsePayload);
+		//respond(response, responsePayload);
 	} catch (exception ex) {
 		internalError(response, ex);
 	}
@@ -688,6 +792,72 @@ string        flags;
 	catch (exception ex) {
 		internalError(response, ex);
 		return;
+	}
+}
+
+/**
+ * Register interest in readings for an asset
+ */
+void StorageApi::readingRegister(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+string		asset;
+string		payload;
+Document	doc;
+
+	payload = request->content.string();
+	asset = request->path_match[ASSET_NAME_COMPONENT];
+	doc.Parse(payload.c_str());
+	if (doc.HasParseError())
+	{
+			string resp = "{ \"error\" : \"Badly formed payload\" }";
+			respond(response, SimpleWeb::StatusCode::client_error_bad_request, resp);
+	}
+	else
+	{
+		if (doc.HasMember("url"))
+		{
+			registry.registerAsset(asset, doc["url"].GetString());
+			string resp = " { \"" + asset + "\" : \"registered\" }";
+			respond(response, resp);
+		}
+		else
+		{
+			string resp = "{ \"error\" : \"Missing url element in payload\" }";
+			respond(response, SimpleWeb::StatusCode::client_error_bad_request, resp);
+		}
+	}
+}
+
+/**
+ * Unregister interest in readings for an asset
+ */
+void StorageApi::readingUnregister(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+string		asset;
+string		payload;
+Document	doc;
+
+	payload = request->content.string();
+	asset = request->path_match[ASSET_NAME_COMPONENT];
+	doc.Parse(payload.c_str());
+	if (doc.HasParseError())
+	{
+			string resp = "{ \"error\" : \"Badly formed payload\" }";
+			respond(response, SimpleWeb::StatusCode::client_error_bad_request, resp);
+	}
+	else
+	{
+		if (doc.HasMember("url"))
+		{
+			registry.unregisterAsset(asset, doc["url"].GetString());
+			string resp = " { \"" + asset + "\" : \"unregistered\" }";
+			respond(response, resp);
+		}
+		else
+		{
+			string resp = "{ \"error\" : \"Missing url element in payload\" }";
+			respond(response, SimpleWeb::StatusCode::client_error_bad_request, resp);
+		}
 	}
 }
 

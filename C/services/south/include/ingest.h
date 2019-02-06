@@ -20,7 +20,9 @@
 #include <unordered_set>
 #include <condition_variable>
 #include <filter_plugin.h>
+#include <filter_pipeline.h>
 #include <asset_tracking.h>
+#include <service_handler.h>
 
 #define SERVICE_NAME  "FogLAMP South"
 
@@ -30,7 +32,7 @@
  * these are sent using a background thread that regularly
  * wakes up and sends the queued readings.
  */
-class Ingest {
+class Ingest : public ServiceHandler {
 
 public:
 	Ingest(StorageClient& storage,
@@ -42,6 +44,7 @@ public:
 	~Ingest();
 
 	void		ingest(const Reading& reading);
+	void		ingest(const std::vector<Reading *> *vec);
 	bool		running();
 	void		processQueue();
 	void		waitForQueue();
@@ -49,18 +52,15 @@ public:
 	int 		createStatsDbEntry(const std::string& assetName);
 
 	bool		loadFilters(const std::string& categoryName);
-	bool		setupFiltersPipeline() const;
 	static void	passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 					   READINGSET* readings);
 	static void	useFilteredData(OUTPUT_HANDLE *outHandle,
 					READINGSET* readings);
 
-	void 		populateAssetTrackingCache(ManagementClient *m_mgtClient);
-	bool 		checkAssetTrackingCache(AssetTrackingTuple& tuple);
-	void 		addAssetTrackingTuple(AssetTrackingTuple& tuple);
-
-public:
-	std::vector<FilterPlugin *>	m_filters;
+	void		setTimeout(const unsigned long timeout) { m_timeout = timeout; };
+	void		setThreshold(const unsigned int threshold) { m_queueSizeThreshold = threshold; };
+	void		configChange(const std::string&, const std::string&);
+	void		shutdown() {};	// Satisfy ServiceHandler
 
 private:
 	StorageClient&			m_storage;
@@ -81,11 +81,11 @@ private:
 	std::condition_variable		m_statsCv;
 	// Data ready to be filtered/sent
 	std::vector<Reading *>*		m_data;
-	unsigned int			m_newReadings; // new readings since last update to statistics table
 	unsigned int			m_discardedReadings; // discarded readings since last update to statistics table
-	std::string			m_readingsAssetName; // asset name extracted from the Reading object
+	FilterPipeline*			filterPipeline;
 	
-	std::unordered_set<AssetTrackingTuple*, std::hash<AssetTrackingTuple*>, AssetTrackingTuplePtrEqual>   assetTrackerTuplesCache;
+	std::unordered_set<std::string>   		statsDbEntriesCache;  // confirmed stats table entries
+	std::map<std::string, int>		statsPendingEntries;  // pending stats table entries
 };
 
 #endif

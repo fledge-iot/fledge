@@ -1,18 +1,32 @@
-UPDATE foglamp.configuration SET value = '{"plugin": {"description": "OMF North Plugin", "type": "string", "default": "omf", "value": "omf"}, "source": {"description": "Source of data to be sent on the stream. May be either readings, statistics or audit.", "type": "string", "default": "audit", "value": "readings"}}'
+UPDATE foglamp.configuration SET value = jsonb_set(value, '{source}', '{"description": "Source of data to be sent on the stream. May be either readings, statistics or audit.", "type": "string", "default": "readings", "value": "readings"}')
         WHERE key = 'North Readings to PI';
-UPDATE foglamp.configuration SET value = '{"plugin": {"description": "OMF North Plugin", "type": "string", "default": "omf", "value": "omf"}, "source": {"description": "Source of data to be sent on the stream. May be either readings, statistics or audit.", "type": "string", "default": "audit", "value": "statistics"}}'
+
+UPDATE foglamp.configuration SET value = jsonb_set(value, '{source}', '{"description": "Source of data to be sent on the stream. May be either readings, statistics or audit.", "type": "string", "default": "statistics", "value": "statistics"}')
         WHERE key = 'North Statistics to PI';
-UPDATE foglamp.configuration SET value = '{"plugin": {"description": "OCS North Plugin", "type": "string", "default": "ocs", "value": "ocs"}, "source": {"description": "Source of data to be sent on the stream. May be either readings, statistics or audit.", "type": "string", "default": "audit", "value": "readings"}}'
+
+UPDATE foglamp.configuration SET value = jsonb_set(value, '{source}', '{"description": "Source of data to be sent on the stream. May be either readings, statistics or audit.", "type": "string", "default": "readings", "value": "readings"}')
         WHERE key = 'North Readings to OCS';
 
 UPDATE statistics SET key = 'North Readings to PI' WHERE key = 'SENT_1';
 UPDATE statistics SET key = 'North Statistics to PI' WHERE key = 'SENT_2';
 UPDATE statistics SET key = 'North Readings to OCS' WHERE key = 'SENT_4';
 
-UPDATE foglamp.scheduled_processes SET name = 'North Readings to PI', script = '["tasks/north"]' ) WHERE name = 'SEND_PR_1';
-UPDATE foglamp.scheduled_processes SET name = 'North Statistics to PI', script = '["tasks/north"]' ) WHERE name = 'SEND_PR_2';
-UPDATE foglamp.scheduled_processes SET name = 'North Readings to OCS', script = '["tasks/north"]' ) WHERE name = 'SEND_PR_4';
+---
+INSERT INTO foglamp.statistics ( key , description ) VALUES ( 'Readings Sent',   'Readings Sent North' );
+INSERT INTO foglamp.statistics ( key , description ) VALUES ( 'Statistics Sent',   'Statistics Sent North' );
 
-UPDATE foglamp.schedules SET process_name = 'North Readings to PI' WHERE process_name = 'SEND_PR_1';
-UPDATE foglamp.schedules SET process_name = 'North Statistics to PI' WHERE process_name = 'SEND_PR_2';
-UPDATE foglamp.schedules SET process_name = 'North Readings to OCS' WHERE process_name = 'SEND_PR_4';
+INSERT INTO foglamp.configuration (key, description, value) VALUES ( 'North',   'North tasks' , '{}' );
+
+UPDATE foglamp.schedules SET schedule_name=process_name WHERE process_name  in (SELECT name FROM  foglamp.scheduled_processes  WHERE script ? 'tasks/north');
+
+INSERT INTO foglamp.category_children (parent, child)
+SELECT 'North', name FROM  foglamp.scheduled_processes  WHERE script ? 'tasks/north';
+
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'north',   '["tasks/north"]' );
+
+UPDATE foglamp.schedules SET process_name='north' WHERE schedule_name in (SELECT name FROM  foglamp.scheduled_processes  WHERE script ? 'tasks/north');
+
+INSERT INTO foglamp.category_children (parent, child) VALUES ( 'North',   'OMF_TYPES' );
+
+--- Disables North pending tasks created before the upgrade process
+UPDATE tasks SET end_time=start_time, exit_code=0, state=2  WHERE end_time is null AND process_name in (SELECT name FROM  foglamp.scheduled_processes  WHERE script ? 'tasks/north');

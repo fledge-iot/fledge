@@ -22,6 +22,7 @@ from foglamp.services.core.api import asset_tracker
 from foglamp.services.core.api import south
 from foglamp.services.core.api import north
 from foglamp.services.core.api import filters
+from foglamp.services.core.api import notification
 
 
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto"
@@ -59,6 +60,7 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/category', api_configuration.get_categories)
     app.router.add_route('POST', '/foglamp/category', api_configuration.create_category)
     app.router.add_route('GET', '/foglamp/category/{category_name}', api_configuration.get_category)
+    app.router.add_route('PUT', '/foglamp/category/{category_name}', api_configuration.update_configuration_item_bulk)
     app.router.add_route('POST', '/foglamp/category/{category_name}/children', api_configuration.create_child_category)
     app.router.add_route('GET', '/foglamp/category/{category_name}/children', api_configuration.get_child_category)
     app.router.add_route('DELETE', '/foglamp/category/{category_name}/children/{child_category}', api_configuration.delete_child_category)
@@ -67,7 +69,7 @@ def setup(app):
     app.router.add_route('PUT', '/foglamp/category/{category_name}/{config_item}', api_configuration.set_configuration_item)
     app.router.add_route('POST', '/foglamp/category/{category_name}/{config_item}', api_configuration.add_configuration_item)
     app.router.add_route('DELETE', '/foglamp/category/{category_name}/{config_item}/value', api_configuration.delete_configuration_item_value)
-
+    app.router.add_route('POST', '/foglamp/category/{category_name}/{config_item}/upload', api_configuration.upload_script)
     # Scheduler
     # Scheduled_processes - As per doc
     app.router.add_route('GET', '/foglamp/schedule/process', api_scheduler.get_scheduled_processes)
@@ -98,6 +100,11 @@ def setup(app):
     # Service
     app.router.add_route('POST', '/foglamp/service', service.add_service)
     app.router.add_route('GET', '/foglamp/service', service.get_health)
+    app.router.add_route('DELETE', '/foglamp/service/{service_name}', service.delete_service)
+
+    # Task
+    app.router.add_route('POST', '/foglamp/scheduled/task', task.add_task)
+    app.router.add_route('DELETE', '/foglamp/scheduled/task/{task_name}', task.delete_task)
 
     # South
     app.router.add_route('GET', '/foglamp/south', south.get_south_services)
@@ -149,12 +156,22 @@ def setup(app):
     # Get Plugin
     app.router.add_route('GET', '/foglamp/plugins/installed', plugin_discovery.get_plugins_installed)
 
-    # Task
-    app.router.add_route('POST', '/foglamp/scheduled/task', task.add_task)
-
     # Filters 
     app.router.add_route('POST', '/foglamp/filter', filters.create_filter)
-    app.router.add_route('PUT', '/foglamp/filter/{service_name}/pipeline', filters.add_filters_pipeline)
+    app.router.add_route('PUT', '/foglamp/filter/{user_name}/pipeline', filters.add_filters_pipeline)
+    app.router.add_route('GET', '/foglamp/filter/{user_name}/pipeline', filters.get_filter_pipeline)
+    app.router.add_route('GET', '/foglamp/filter/{filter_name}', filters.get_filter)
+    app.router.add_route('GET', '/foglamp/filter', filters.get_filters)
+    app.router.add_route('DELETE', '/foglamp/filter/{user_name}/pipeline', filters.delete_filter_pipeline)
+    app.router.add_route('DELETE', '/foglamp/filter/{filter_name}', filters.delete_filter)
+
+    # Notification
+    app.router.add_route('GET', '/foglamp/notification', notification.get_notifications)
+    app.router.add_route('GET', '/foglamp/notification/plugin', notification.get_plugin)
+    app.router.add_route('GET', '/foglamp/notification/{notification_name}', notification.get_notification)
+    app.router.add_route('POST', '/foglamp/notification', notification.post_notification)
+    app.router.add_route('PUT', '/foglamp/notification/{notification_name}', notification.put_notification)
+    app.router.add_route('DELETE', '/foglamp/notification/{notification_name}', notification.delete_notification)
 
     # enable cors support
     enable_cors(app)

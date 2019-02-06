@@ -71,16 +71,13 @@ async def test_ping_http_allow_ping_true(test_server, test_client, loop, get_mac
     @asyncio.coroutine
     def mock_coro(*args, **kwargs):
         return result
-
-    async def mock_get_category_item():
-        return {"value": "true"}
-
+    
     host_name, ip_addresses = get_machine_detail
     attrs = {"query_tbl_with_payload.return_value": mock_coro()}
-    mockedStorageClientAsync = MagicMock(spec=StorageClientAsync, **attrs)
+    mock_storage_client_async = MagicMock(spec=StorageClientAsync, **attrs)
     with patch.object(middleware._logger, 'info') as logger_info:
-        with patch.object(connect, 'get_storage_async', return_value=mockedStorageClientAsync):
-            with patch.object(mockedStorageClientAsync, 'query_tbl_with_payload', return_value=mock_coro()) as query_patch:
+        with patch.object(connect, 'get_storage_async', return_value=mock_storage_client_async):
+            with patch.object(mock_storage_client_async, 'query_tbl_with_payload', return_value=mock_coro()) as query_patch:
                     app = web.Application(loop=loop, middlewares=[middleware.optional_auth_middleware])
                     # fill route table
                     routes.setup(app)
@@ -104,7 +101,7 @@ async def test_ping_http_allow_ping_true(test_server, test_client, loop, get_mac
                     assert content_dict['hostName'] == host_name
                     assert content_dict['ipAddresses'] == ip_addresses
                     assert content_dict['health'] == "green"
-
+                    assert content_dict['safeMode'] is False
             query_patch.assert_called_once_with('statistics', payload)
         log_params = 'Received %s request for %s', 'GET', '/foglamp/ping'
         logger_info.assert_called_once_with(*log_params)
@@ -127,14 +124,11 @@ async def test_ping_http_allow_ping_false(test_server, test_client, loop, get_ma
         ]}
         return result
 
-    async def mock_get_category_item():
-        return {"value": "false"}
-
     host_name, ip_addresses = get_machine_detail
-    mockedStorageClientAsync = MagicMock(StorageClientAsync)
+    mock_storage_client_async = MagicMock(StorageClientAsync)
     with patch.object(middleware._logger, 'info') as logger_info:
-        with patch.object(connect, 'get_storage_async', return_value=mockedStorageClientAsync):
-            with patch.object(mockedStorageClientAsync, 'query_tbl_with_payload', return_value=mock_coro()) as query_patch:
+        with patch.object(connect, 'get_storage_async', return_value=mock_storage_client_async):
+            with patch.object(mock_storage_client_async, 'query_tbl_with_payload', return_value=mock_coro()) as query_patch:
                     app = web.Application(loop=loop, middlewares=[middleware.optional_auth_middleware])
                     # fill route table
                     routes.setup(app)
@@ -158,7 +152,7 @@ async def test_ping_http_allow_ping_false(test_server, test_client, loop, get_ma
                     assert content_dict['hostName'] == host_name
                     assert content_dict['ipAddresses'] == ip_addresses
                     assert content_dict['health'] == "green"
-
+                    assert content_dict['safeMode'] is False
             query_patch.assert_called_once_with('statistics', payload)
         log_params = 'Received %s request for %s', 'GET', '/foglamp/ping'
         logger_info.assert_called_once_with(*log_params)
@@ -185,10 +179,10 @@ async def test_ping_http_auth_required_allow_ping_true(test_server, test_client,
         return {"value": "true"}
 
     host_name, ip_addresses = get_machine_detail
-    mockedStorageClientAsync = MagicMock(StorageClientAsync)
+    mock_storage_client_async = MagicMock(StorageClientAsync)
     with patch.object(middleware._logger, 'info') as logger_info:
-        with patch.object(connect, 'get_storage_async', return_value=mockedStorageClientAsync):
-            with patch.object(mockedStorageClientAsync, 'query_tbl_with_payload', return_value=mock_coro()) as query_patch:
+        with patch.object(connect, 'get_storage_async', return_value=mock_storage_client_async):
+            with patch.object(mock_storage_client_async, 'query_tbl_with_payload', return_value=mock_coro()) as query_patch:
                 with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat:
                     app = web.Application(loop=loop, middlewares=[middleware.auth_middleware])
                     # fill route table
@@ -213,6 +207,7 @@ async def test_ping_http_auth_required_allow_ping_true(test_server, test_client,
                     assert content_dict['hostName'] == host_name
                     assert content_dict['ipAddresses'] == ip_addresses
                     assert content_dict['health'] == "green"
+                    assert content_dict['safeMode'] is False
                 mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
             query_patch.assert_called_once_with('statistics', payload)
         log_params = 'Received %s request for %s', 'GET', '/foglamp/ping'
@@ -222,7 +217,6 @@ async def test_ping_http_auth_required_allow_ping_true(test_server, test_client,
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
 async def test_ping_http_auth_required_allow_ping_false(test_server, test_client, loop, get_machine_detail):
-    payload = '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
     result = {"rows": [
         {"value": 1, "key": "PURGED", "description": "blah6"},
         {"value": 2, "key": "READINGS", "description": "blah1"},
@@ -239,11 +233,10 @@ async def test_ping_http_auth_required_allow_ping_false(test_server, test_client
     async def mock_get_category_item():
         return {"value": "false"}
 
-    host_name, ip_addresses = get_machine_detail
-    mockedStorageClientAsync = MagicMock(StorageClientAsync)
+    mock_storage_client_async = MagicMock(StorageClientAsync)
     with patch.object(middleware._logger, 'info') as logger_info:
-        with patch.object(connect, 'get_storage_async', return_value=mockedStorageClientAsync):
-            with patch.object(mockedStorageClientAsync, 'query_tbl_with_payload', return_value=mock_coro()) as query_patch:
+        with patch.object(connect, 'get_storage_async', return_value=mock_storage_client_async):
+            with patch.object(mock_storage_client_async, 'query_tbl_with_payload', return_value=mock_coro()) as query_patch:
                 with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat:
                     with patch.object(_logger, 'warning') as logger_warn:
                         app = web.Application(loop=loop, middlewares=[middleware.auth_middleware])
@@ -282,14 +275,11 @@ async def test_ping_https_allow_ping_true(test_server, ssl_ctx, test_client, loo
     def mock_coro(*args, **kwargs):
         return result
 
-    async def mock_get_category_item():
-        return {"value": "true"}
-
     host_name, ip_addresses = get_machine_detail
-    mockedStorageClientAsync = MagicMock(StorageClientAsync)
+    mock_storage_client_async = MagicMock(StorageClientAsync)
     with patch.object(middleware._logger, 'info') as logger_info:
-        with patch.object(connect, 'get_storage_async', return_value=mockedStorageClientAsync):
-            with patch.object(mockedStorageClientAsync, 'query_tbl_with_payload', return_value=mock_coro()) as query_patch:
+        with patch.object(connect, 'get_storage_async', return_value=mock_storage_client_async):
+            with patch.object(mock_storage_client_async, 'query_tbl_with_payload', return_value=mock_coro()) as query_patch:
                     app = web.Application(loop=loop, middlewares=[middleware.optional_auth_middleware])
                     # fill route table
                     routes.setup(app)
@@ -327,6 +317,7 @@ async def test_ping_https_allow_ping_true(test_server, ssl_ctx, test_client, loo
                     assert content_dict['hostName'] == host_name
                     assert content_dict['ipAddresses'] == ip_addresses
                     assert content_dict['health'] == "green"
+                    assert content_dict['safeMode'] is False
             query_patch.assert_called_once_with('statistics', payload)
         logger_info.assert_called_once_with('Received %s request for %s', 'GET', '/foglamp/ping')
 
@@ -348,14 +339,11 @@ async def test_ping_https_allow_ping_false(test_server, ssl_ctx, test_client, lo
     def mock_coro(*args, **kwargs):
         return result
 
-    async def mock_get_category_item():
-        return {"value": "false"}
-
     host_name, ip_addresses = get_machine_detail
-    mockedStorageClientAsync = MagicMock(StorageClientAsync)
+    mock_storage_client_async = MagicMock(StorageClientAsync)
     with patch.object(middleware._logger, 'info') as logger_info:
-        with patch.object(connect, 'get_storage_async', return_value=mockedStorageClientAsync):
-            with patch.object(mockedStorageClientAsync, 'query_tbl_with_payload', return_value=mock_coro()) as query_patch:
+        with patch.object(connect, 'get_storage_async', return_value=mock_storage_client_async):
+            with patch.object(mock_storage_client_async, 'query_tbl_with_payload', return_value=mock_coro()) as query_patch:
                     app = web.Application(loop=loop, middlewares=[middleware.optional_auth_middleware])
                     # fill route table
                     routes.setup(app)
@@ -414,10 +402,10 @@ async def test_ping_https_auth_required_allow_ping_true(test_server, ssl_ctx, te
         return {"value": "true"}
 
     host_name, ip_addresses = get_machine_detail
-    mockedStorageClientAsync = MagicMock(StorageClientAsync)
+    mock_storage_client_async = MagicMock(StorageClientAsync)
     with patch.object(middleware._logger, 'info') as logger_info:
-        with patch.object(connect, 'get_storage_async', return_value=mockedStorageClientAsync):
-            with patch.object(mockedStorageClientAsync, 'query_tbl_with_payload', return_value=mock_coro()) as query_patch:
+        with patch.object(connect, 'get_storage_async', return_value=mock_storage_client_async):
+            with patch.object(mock_storage_client_async, 'query_tbl_with_payload', return_value=mock_coro()) as query_patch:
                 with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat:
                     app = web.Application(loop=loop, middlewares=[middleware.auth_middleware])
                     # fill route table
@@ -456,6 +444,7 @@ async def test_ping_https_auth_required_allow_ping_true(test_server, ssl_ctx, te
                     assert content_dict['hostName'] == host_name
                     assert content_dict['ipAddresses'] == ip_addresses
                     assert content_dict['health'] == "green"
+                    assert content_dict['safeMode'] is False
                     mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
                 query_patch.assert_called_once_with('statistics', payload)
             logger_info.assert_called_once_with('Received %s request for %s', 'GET', '/foglamp/ping')
@@ -464,8 +453,6 @@ async def test_ping_https_auth_required_allow_ping_true(test_server, ssl_ctx, te
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
 async def test_ping_https_auth_required_allow_ping_false(test_server, ssl_ctx, test_client, loop, get_machine_detail):
-    payload = '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
-
     @asyncio.coroutine
     def mock_coro(*args, **kwargs):
         result = {"rows": [
@@ -481,11 +468,10 @@ async def test_ping_https_auth_required_allow_ping_false(test_server, ssl_ctx, t
     async def mock_get_category_item():
         return {"value": "false"}
 
-    host_name, ip_addresses = get_machine_detail
-    mockedStorageClientAsync = MagicMock(StorageClientAsync)
+    mock_storage_client_async = MagicMock(StorageClientAsync)
     with patch.object(middleware._logger, 'info') as logger_info:
-        with patch.object(connect, 'get_storage_async', return_value=mockedStorageClientAsync):
-            with patch.object(mockedStorageClientAsync, 'query_tbl_with_payload', return_value=mock_coro()) as query_patch:
+        with patch.object(connect, 'get_storage_async', return_value=mock_storage_client_async):
+            with patch.object(mock_storage_client_async, 'query_tbl_with_payload', return_value=mock_coro()) as query_patch:
                 with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat:
                     with patch.object(_logger, 'warning') as logger_warn:
                         app = web.Application(loop=loop, middlewares=[middleware.auth_middleware])
@@ -556,4 +542,3 @@ async def test_restart_http(test_server, test_client, loop):
         content_dict = json.loads(content)
         assert "FogLAMP restart has been scheduled." == content_dict["message"]
     logger_info.assert_called_once_with('Executing controlled shutdown and start')
-

@@ -1,12 +1,12 @@
 cmake_minimum_required (VERSION 2.8.8)
 project (South)
 
-set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb -DPy_DEBUG")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra -Wsign-conversion")
 set(DLLIB -ldl)
 set(UUIDLIB -luuid)
-set(COMMON_LIB -lcommon-lib)
-set(SERVICE_COMMON_LIB -lservices-common-lib)
+set(COMMON_LIB common-lib)
+set(SERVICE_COMMON_LIB services-common-lib)
 set(EXEC foglamp.services.south)
 
 include_directories(. include ../../thirdparty/Simple-Web-Server ../../thirdparty/rapidjson/include  ../common/include ../../common/include)

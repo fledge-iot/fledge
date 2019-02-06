@@ -11,8 +11,7 @@ PICROMF = PI Connector Relay OMF"""
 
 import aiohttp
 import asyncio
-
-from datetime import datetime
+import gzip
 import sys
 import copy
 import ast
@@ -94,20 +93,29 @@ _CONFIG_DEFAULT_OMF = {
         "description": "URL of PI Connector to send data to",
         "type": "string",
         "default": "https://pi-server:5460/ingress/messages",
-        "order": "1"
+        "order": "1",
+        "displayName": "URL"
     },
     "producerToken": {
         "description": "Producer token for this FogLAMP stream",
         "type": "string",
         "default": "pi_server_north_0001",
-        "order": "2"
+        "order": "2",
+        "displayName": "Producer Token"
     },
     "source": {
         "description": "Source of data to be sent on the stream. May be either readings or statistics.",
         "type": "enumeration",
         "default": "readings",
         "options": ["readings", "statistics"],
-        "order": "3"
+        "order": "3",
+        "displayName": "Data Source"
+    },
+    "compression": {
+        "description": "Compress message body",
+        "type": "boolean",
+        "default": "true",
+        "displayName": "Compression"
     },
     "StaticData": {
         "description": "Static data to include in each sensor reading sent via OMF",
@@ -118,50 +126,58 @@ _CONFIG_DEFAULT_OMF = {
                 "Company": "Dianomic"
             }
         ),
-        "order": "4"
+        "order": "4",
+        "displayName": "Static Data"
     },
     "applyFilter": {
         "description": "Should filter be applied before processing the data?",
         "type": "boolean",
         "default": "False",
-        "order": "5"
+        "order": "5",
+        "displayName": "Apply Filter"
     },
     "filterRule": {
         "description": "JQ formatted filter to apply (only applicable if applyFilter is True)",
         "type": "string",
         "default": ".[]",
-        "order": "6"
+        "order": "6",
+        "displayName": "Filter Rule"
     },
     "OMFRetrySleepTime": {
         "description": "Seconds between each retry for communication with the OMF PI Connector Relay. "
                        "This time is doubled at each attempt.",
         "type": "integer",
         "default": "1",
-        "order": "9"
+        "order": "9",
+        "displayName": "Sleep Time Retry"
     },
     "OMFMaxRetry": {
         "description": "Max number of retries for communication with the OMF PI Connector Relay",
         "type": "integer",
         "default": "3",
-        "order": "10"
+        "order": "10",
+        "displayName": "Maximum Retry"
     },
     "OMFHttpTimeout": {
         "description": "Timeout in seconds for HTTP operations with the OMF PI Connector Relay",
         "type": "integer",
         "default": "10",
-        "order": "13"
+        "order": "13",
+        "displayName": "HTTP Timeout"
     },
     "formatInteger": {
         "description": "OMF format property to apply to the type Integer",
         "type": "string",
         "default": "int64",
-        "order": "14"
+        "order": "14",
+        "displayName": "Integer Format"
     },
     "formatNumber": {
         "description": "OMF format property to apply to the type Number",
         "type": "string",
         "default": "float64",
-        "order": "15"
+        "order": "15",
+        "displayName": "Number Format"
     },
     "notBlockingErrors": {
         "description": "These errors are considered not blocking in the communication with the PI Server,"
@@ -386,9 +402,10 @@ def plugin_init(data):
     _config['StaticData'] = ast.literal_eval(data['StaticData']['value'])
     _config['notBlockingErrors'] = ast.literal_eval(data['notBlockingErrors']['value'])
 
-
     _config['formatNumber'] = data['formatNumber']['value']
     _config['formatInteger'] = data['formatInteger']['value']
+
+    _config['compression'] = data['compression']['value']
 
     # TODO: compare instance fetching via inspect vs as param passing
     # import inspect
@@ -656,8 +673,18 @@ class PIServerNorthPlugin(object):
             elif item_type == "number":
                 omf_type[typename][1]["properties"][item] = {"type": item_type,
                                                              "format": self._config['formatNumber']}
+
+            elif item_type == "array":
+                omf_type[typename][1]["properties"][item] = {
+                                                                "type": item_type,
+                                                                "items": {
+                                                                    "type": "number",
+                                                                    "format": self._config['formatNumber']
+                                                                }
+                                                             }
             else:
                 omf_type[typename][1]["properties"][item] = {"type": item_type}
+
 
         if _log_debug_level == 3:
             self._logger.debug("_create_omf_type_automatic - sensor_id |{0}| - omf_type |{1}| ".format(sensor_id, str(omf_type)))
@@ -818,32 +845,40 @@ class PIServerNorthPlugin(object):
         while num_retry <= self._config['OMFMaxRetry']:
             _error = False
             try:
+                use_compression = True if self._config['compression'].upper() == 'TRUE' else False
+                if use_compression:
+                    msg_body = gzip.compress(bytes(omf_data_json, 'utf-8'))
+                    msg_header.update({'compression': 'gzip'})
+                    # https://docs.aiohttp.org/en/stable/client_advanced.html#uploading-pre-compressed-data
+                    msg_header.update({'Content-Encoding': 'gzip'})
+                else:
+                    msg_body = omf_data_json
+
+                self._logger.info("SEND requested with compression: %s started at: %s", str(use_compression), datetime.datetime.now().isoformat())
                 async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
                     async with session.post(
                                             url=self._config['URL'],
                                             headers=msg_header,
-                                            data=omf_data_json,
+                                            data=msg_body,
                                             timeout=self._config['OMFHttpTimeout']
                                             ) as resp:
 
                         status_code = resp.status
                         text = await resp.text()
-
             except (TimeoutError, asyncio.TimeoutError) as ex:
-
                 _message = plugin_common.MESSAGES_LIST["e000024"].format(self._config['URL'], "connection Timeout")
                 _error = plugin_exceptions.URLConnectionError(_message)
 
             except Exception as ex:
-
                 details = str(ex)
                 _message = plugin_common.MESSAGES_LIST["e000024"].format(self._config['URL'], details)
                 _error = plugin_exceptions.URLConnectionError(_message)
 
             else:
+                self._logger.info("PI Server responded with status: %s received at: %s", str(status_code),
+                                     datetime.datetime.now().isoformat())
                 # Evaluate the HTTP status codes
                 if not str(status_code).startswith('2'):
-
                     if any(_['id'] == status_code and _['message'] in text for _ in self._config['notBlockingErrors']):
 
                         # The error encountered is in the list of not blocking

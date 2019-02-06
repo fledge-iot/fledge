@@ -26,6 +26,12 @@ _help = """
 """
 
 
+async def _get_schedule_status(storage_client, svc_name):
+    payload = PayloadBuilder().SELECT("enabled").WHERE(['schedule_name', '=', svc_name]).payload()
+    result = await storage_client.query_tbl_with_payload('schedules', payload)
+    return True if result['rows'][0]['enabled'] == 't' else False
+
+
 async def _services_with_assets(storage_client, south_services):
     sr_list = list()
     try:
@@ -34,33 +40,34 @@ async def _services_with_assets(storage_client, south_services):
         except DoesNotExist:
             services_from_registry = []
 
-        def get_svc(name):
+        def is_svc_in_service_registry(name):
             return next((svc for svc in services_from_registry if svc._name == name), None)
 
-        for ss in services_from_registry:
+        for s_record in services_from_registry:
             sr_list.append(
                 {
-                    'name': ss._name,
-                    'address': ss._address,
-                    'management_port': ss._management_port,
-                    'service_port': ss._port,
-                    'protocol': ss._protocol,
-                    'status': ServiceRecord.Status(int(ss._status)).name.lower(),
-                    'assets': await _get_tracked_assets_and_readings(storage_client, ss._name)
+                    'name': s_record._name,
+                    'address': s_record._address,
+                    'management_port': s_record._management_port,
+                    'service_port': s_record._port,
+                    'protocol': s_record._protocol,
+                    'status': ServiceRecord.Status(int(s_record._status)).name.lower(),
+                    'assets': await _get_tracked_assets_and_readings(storage_client, s_record._name),
+                    'schedule_enabled': await _get_schedule_status(storage_client, s_record._name)
                 })
-        for _s in south_services:
-            south_svc = get_svc(_s)
+        for s_name in south_services:
+            south_svc = is_svc_in_service_registry(s_name)
             if not south_svc:
                 sr_list.append(
                     {
-                        'name': _s,
+                        'name': s_name,
                         'address': '',
                         'management_port': '',
                         'service_port': '',
                         'protocol': '',
                         'status': '',
-                        'assets': await _get_tracked_assets_and_readings(storage_client, _s)
-
+                        'assets': await _get_tracked_assets_and_readings(storage_client, s_name),
+                        'schedule_enabled': await _get_schedule_status(storage_client, s_name)
                     })
     except:
         raise
@@ -70,7 +77,8 @@ async def _services_with_assets(storage_client, south_services):
 
 async def _get_tracked_assets_and_readings(storage_client, svc_name):
     asset_json = []
-    payload = PayloadBuilder().SELECT("asset").WHERE(['service', '=', svc_name]).payload()
+    payload = PayloadBuilder().SELECT("asset").WHERE(['service', '=', svc_name]).\
+        AND_WHERE(['event', '=', 'Ingest']).payload()
     try:
         result = await storage_client.query_tbl_with_payload('asset_tracker', payload)
         asset_records = result['rows']
@@ -105,7 +113,7 @@ async def get_south_services(request):
     try:
         south_cat = await cf_mgr.get_category_child("South")
         south_categories = [nc["key"] for nc in south_cat]
-    except ValueError:
+    except:
         return web.json_response({'services': []})
 
     response = await _services_with_assets(storage_client, south_categories)

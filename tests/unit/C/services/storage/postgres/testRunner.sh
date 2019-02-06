@@ -4,8 +4,8 @@ if [ $# -eq 1 ] ; then
 	echo Starting storage layer $1
 	$1 
 elif [ "${FOGLAMP_ROOT}" != "" ] ; then
-	echo Starting storage service in $FOGLAMP_ROOT
-	$FOGLAMP_ROOT/services/storage
+	echo Starting storage service in $FOGLAMP_ROOT	
+	$FOGLAMP_ROOT/services/foglamp.services.storage
 else
 	echo Must either set FOGLAMP_ROOT or provide storage service to test
 	exit 1

@@ -17,6 +17,8 @@
 #include <reading.h>
 
 typedef void (*INGEST_CB)(void *, Reading);
+typedef void (*INGEST_CB2)(void *, std::vector<Reading *>*);
+
 /**
  * Class that represents a south plugin.
  *
@@ -35,19 +37,30 @@ public:
 	~SouthPlugin();
 
 	Reading		poll();
+	std::vector<Reading *>*	pollV2();
 	void		start();
-	void		reconfigure(std::string&);
+	void		reconfigure(const std::string&);
 	void		shutdown();
 	void		registerIngest(INGEST_CB, void *);
+	void		registerIngestV2(INGEST_CB2, void *);
 	bool		isAsync() { return info->options & SP_ASYNC; };
+	bool		persistData() { return info->options & SP_PERSIST_DATA; };
+	void		startData(const std::string& pluginData);
+	std::string	shutdownSaveData();
 
 private:
 	PLUGIN_HANDLE	instance;
 	void		(*pluginStartPtr)(PLUGIN_HANDLE);
 	Reading		(*pluginPollPtr)(PLUGIN_HANDLE);
-	void		(*pluginReconfigurePtr)(PLUGIN_HANDLE, std::string& newConfig);
+	std::vector<Reading *>*	(*pluginPollPtrV2)(PLUGIN_HANDLE);
+	void		(*pluginReconfigurePtr)(PLUGIN_HANDLE*,
+					        const std::string& newConfig);
 	void		(*pluginShutdownPtr)(PLUGIN_HANDLE);
 	void		(*pluginRegisterPtr)(PLUGIN_HANDLE, INGEST_CB, void *);
+	void		(*pluginRegisterPtrV2)(PLUGIN_HANDLE, INGEST_CB2, void *);
+	std::string	(*pluginShutdownDataPtr)(const PLUGIN_HANDLE);
+	void		(*pluginStartDataPtr)(PLUGIN_HANDLE,
+					      const std::string& pluginData);
 };
 
 #endif

@@ -1,7 +1,7 @@
 #ifndef _NORTH_PLUGIN
 #define _NORTH_PLUGIN
 /*
- * FogLAMP south service.
+ * FogLAMP north plugin.
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -13,6 +13,8 @@
 #include <plugin.h>
 #include <plugin_manager.h>
 #include <reading.h>
+#include <config_category.h>
+#include <plugin_data.h>
 
 /**
  * Class that represents a north plugin.
@@ -32,17 +34,27 @@ class NorthPlugin : public Plugin {
 		~NorthPlugin();
 
 		void			shutdown();
-		std::map<const std::string, const std::string>& 	config() const;
+		std::string		shutdownSaveData();
 		uint32_t		send(const std::vector<Reading* >& readings) const;
-		PLUGIN_HANDLE		init(const std::map<std::string, std::string>& config);
+		PLUGIN_HANDLE		init(const ConfigCategory& config);
+		bool			persistData() { return info->options & SP_PERSIST_DATA; };
+		void			start();
+		void			startData(const std::string& pluginData);
 
 	private:
 		// Function pointers
-		void			(*pluginShutdownPtr)(const PLUGIN_HANDLE);
-		std::map<const std::string, const std::string>&	(*pluginGetConfig)();
+		void			(*pluginShutdown)(const PLUGIN_HANDLE);
+		std::string		(*pluginShutdownData)(const PLUGIN_HANDLE);
 		uint32_t		(*pluginSend)(const PLUGIN_HANDLE,
 						      const std::vector<Reading* >& readings);
-		PLUGIN_HANDLE		(*pluginInit)(const std::map<std::string, std::string>& config);
+		PLUGIN_HANDLE		(*pluginInit)(const ConfigCategory* config);
+		void			(*pluginStart)(PLUGIN_HANDLE);
+		void			(*pluginStartData)(PLUGIN_HANDLE,
+							   const std::string& pluginData);
+
+	public:
+		// Persist plugin data
+		PluginData*		m_plugin_data;
 
 	private:
 		// Attributes

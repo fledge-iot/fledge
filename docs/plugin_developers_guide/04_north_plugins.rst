@@ -60,7 +60,7 @@ The streams are managed by two different North tasks using the same plugin, but 
 
 The output of API call above shows three interesting tasks: the two tasks associated to the OMF plugin, the one to send data (*OMF to PI north*) and the one to send statistics (*North Statistics to PI*).
  
-The two scheduled tasks are associated to two configuration items that can be retrieved using the ``category`` API call. The the items are named ``SEND_PR_1`` and ``SEND_PR_2``.
+The two scheduled tasks are associated to two configuration items that can be retrieved using the ``category`` API call. The items are named ``SEND_PR_1`` and ``SEND_PR_2``.
 
 .. code-block:: console
 

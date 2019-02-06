@@ -1,0 +1,2 @@
+%sudo ALL=(ALL) NOPASSWD: /usr/bin/apt-get -y update, /usr/bin/apt-get -y install foglamp
+

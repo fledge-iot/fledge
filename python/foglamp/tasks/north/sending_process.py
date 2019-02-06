@@ -216,32 +216,36 @@ class SendingProcess(FoglampProcess):
         "enable": {
             "description": "Enable execution of the sending process",
             "type": "boolean",
-            "default": "True",
+            "default": "true",
             "readonly": "true"
         },
         "duration": {
             "description": "Time in seconds the sending process should run",
             "type": "integer",
             "default": "60",
-            "order": "7"
+            "order": "7",
+            "displayName": "Duration"
         },
         "blockSize": {
-            "description": "Bytes to send in each transmission",
+            "description": "Number of readings to send in each transmission",
             "type": "integer",
-            "default": "500",
-            "order": "8"
+            "default": "5000",
+            "order": "8",
+            "displayName": "Readings Block Size"
         },
         "sleepInterval": {
             "description": "Time in seconds to wait between duration checks",
             "type": "integer",
             "default": "1",
-            "order": "11"
+            "order": "11",
+            "displayName": "Sleep Interval"
         },
         "memory_buffer_size": {
             "description": "Number of elements of blockSize size to be buffered in memory",
             "type": "integer",
             "default": "10",
-            "order": "12"
+            "order": "12",
+            "displayName": "Memory Buffer Size"
         }
     }
 
@@ -429,7 +433,7 @@ class SendingProcess(FoglampProcess):
         converted_data = []
         for row in raw_data:
             try:
-                timestamp = apply_date_format(row['ts'])  # Adds timezone UTC
+                timestamp = apply_date_format(row['history_ts'])  # Adds timezone UTC
                 asset_code = row['key'].strip()
 
                 # Skips row having undefined asset_code

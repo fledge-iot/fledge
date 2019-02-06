@@ -6,20 +6,23 @@
 
 from importlib import import_module
 from urllib.parse import urlparse
+import binascii
 import copy
 import json
 import inspect
 import ipaddress
 import datetime
+import os
 
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.common.storage_client.exceptions import StorageServerError
 from foglamp.common.storage_client.utils import Utils
 from foglamp.common import logger
+from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA
 from foglamp.common.audit_logger import AuditLogger
 
-__author__ = "Ashwin Gopalakrishnan, Ashish Jabble"
+__author__ = "Ashwin Gopalakrishnan, Ashish Jabble, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -27,8 +30,12 @@ __version__ = "${VERSION}"
 _logger = logger.setup(__name__)
 
 # MAKE UPPER_CASE
-_valid_type_strings = sorted(['boolean', 'integer', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password', 'JSON',
-                              'URL', 'enumeration'])
+_valid_type_strings = sorted(['boolean', 'integer', 'float', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password', 'JSON',
+                              'URL', 'enumeration', 'script'])
+RESERVED_CATG = ['South', 'North', 'General',
+                  'Advanced', 'Utilities', 'rest_api',
+                  'Security', 'service', 'SCHEDULER',
+                  'SMNTR', 'PURGE_READ', 'Notifications']
 
 
 class ConfigurationCache(object):
@@ -63,12 +70,12 @@ class ConfigurationCache(object):
         self.miss += 1
         return False
 
-    def update(self, category_name, category_val):
+    def update(self, category_name, category_val, display_name=None):
         """Update the cache dictionary and remove the oldest item"""
         if category_name not in self.cache and len(self.cache) >= self.max_cache_size:
             self.remove_oldest()
-
-        self.cache[category_name] = {'date_accessed': datetime.datetime.now(), 'value': category_val}
+        display_name = category_name if display_name is None else display_name
+        self.cache[category_name] = {'date_accessed': datetime.datetime.now(), 'value': category_val, 'displayName': display_name}
         _logger.info("Updated Configuration Cache %s", self.cache)
 
     def remove_oldest(self):
@@ -80,6 +87,13 @@ class ConfigurationCache(object):
             elif self.cache[category_name]['date_accessed'] < self.cache[oldest_entry]['date_accessed']:
                 oldest_entry = category_name
         self.cache.pop(oldest_entry)
+
+    def remove(self, key):
+        """Remove the entry with given key name"""
+        for category_name in self.cache:
+            if key == category_name:
+                self.cache.pop(key)
+                break
 
     @property
     def size(self):
@@ -160,35 +174,51 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     raise AttributeError('Callback module {} run method must be a coroutine function'.format(callback))
                 await cb.run(category_name)
 
-    async def _merge_category_vals(self, category_val_new, category_val_storage, keep_original_items):
+    async def _merge_category_vals(self, category_val_new, category_val_storage, keep_original_items, category_name=None):
         # preserve all value_vals from category_val_storage
         # use items in category_val_new not in category_val_storage
         # keep_original_items = FALSE ignore items in category_val_storage not in category_val_new
         # keep_original_items = TRUE keep items in category_val_storage not in category_val_new
         category_val_storage_copy = copy.deepcopy(category_val_storage)
         category_val_new_copy = copy.deepcopy(category_val_new)
+        deprecated_items = []
         for item_name_new, item_val_new in category_val_new_copy.items():
             item_val_storage = category_val_storage_copy.get(item_name_new)
             if item_val_storage is not None:
                 item_val_new['value'] = item_val_storage.get('value')
                 category_val_storage_copy.pop(item_name_new)
+            if "deprecated" in item_val_new and item_val_new['deprecated'] == 'true':
+                audit = AuditLogger(self._storage)
+                audit_details = {'category': category_name, 'item': item_name_new, 'oldValue': item_val_new['value'],
+                                 'newValue': 'deprecated'}
+                await audit.information('CONCH', audit_details)
+                deprecated_items.append(item_name_new)
+
+        for item in deprecated_items:
+            category_val_new_copy.pop(item)
+
         if keep_original_items:
             for item_name_storage, item_val_storage in category_val_storage_copy.items():
                 category_val_new_copy[item_name_storage] = item_val_storage
+
         return category_val_new_copy
 
-    async def _validate_category_val(self, category_val, set_value_val_from_default_val=True):
+    async def _validate_category_val(self, category_name, category_val, set_value_val_from_default_val=True):
         require_entry_value = not set_value_val_from_default_val
         if type(category_val) is not dict:
-            raise TypeError('category_val must be a dictionary')
+            raise TypeError('For {} category, category value must be a dictionary; got {}'
+                            .format(category_name, type(category_val)))
         category_val_copy = copy.deepcopy(category_val)
         for item_name, item_val in category_val_copy.items():
             if type(item_name) is not str:
-                raise TypeError('item_name must be a string')
+                raise TypeError('For {} category, item name {} must be a string; got {}'
+                                .format(category_name, item_name, type(item_name)))
             if type(item_val) is not dict:
-                raise TypeError('item_value must be a dict for item_name {}'.format(item_name))
+                raise TypeError('For {} category, item value must be a dict for item name {}; got {}'
+                                .format(category_name, item_name, type(item_val)))
 
-            optional_item_entries = {'readonly': 0, 'order': 0, 'length': 0, 'maximum': 0, 'minimum': 0}
+            optional_item_entries = {'readonly': 0, 'order': 0, 'length': 0, 'maximum': 0, 'minimum': 0,
+                                     'deprecated': 0, 'displayName': 0}
             expected_item_entries = {'description': 0, 'default': 0, 'type': 0}
 
             if require_entry_value:
@@ -200,37 +230,53 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
             for entry_name, entry_val in item_val.items():
                 if type(entry_name) is not str:
-                    raise TypeError('entry_name must be a string for item_name {}'.format(item_name))
+                    raise TypeError('For {} category, entry name {} must be a string for item name {}; got {}'
+                                    .format(category_name, entry_name, item_name, type(entry_name)))
 
                 # Validate enumeration type and mandatory options item_name
                 if 'type' in item_val and get_entry_val("type") == 'enumeration':
                     if 'options' not in item_val:
-                        raise KeyError('options required for enumeration type')
+                        raise KeyError('For {} category, options required for enumeration type'.format(category_name))
                     if entry_name == 'options':
                         if type(entry_val) is not list:
-                            raise TypeError('entry_val must be a list for item_name {} and entry_name {}'.format(item_name, entry_name))
+                            raise TypeError('For {} category, entry value must be a list for item name {} and '
+                                            'entry name {}; got {}'.format(category_name, item_name, entry_name, type(entry_val)))
                         if not entry_val:
-                            raise ValueError('entry_val cannot be empty list for item_name {} and entry_name {}'.format(item_name, entry_name))
+                            raise ValueError('For {} category, entry value cannot be empty list for item_name {} and '
+                                             'entry_name {}; got {}'.format(category_name, item_name, entry_name, entry_val))
                         if get_entry_val("default") not in entry_val:
-                            raise ValueError('entry_val does not exist in options list for item_name {} and entry_name {}'.format(item_name, entry_name))
+                            raise ValueError('For {} category, entry value does not exist in options list for item name'
+                                             ' {} and entry_name {}; got {}'.format(category_name, item_name, entry_name, get_entry_val("default")))
                         else:
                             d = {entry_name: entry_val}
                             expected_item_entries.update(d)
                     else:
                         if type(entry_val) is not str:
-                            raise TypeError('entry_val must be a string for item_name {} and entry_name {}'.format(item_name, entry_name))
+                            raise TypeError('For {} category, entry value must be a string for item name {} and '
+                                            'entry name {}; got {}'.format(category_name, item_name, entry_name, type(entry_val)))
                 else:
                     if type(entry_val) is not str:
-                        raise TypeError('entry_val must be a string for item_name {} and entry_name {}'.format(item_name, entry_name))
+                        raise TypeError('For {} category, entry value must be a string for item name {} and '
+                                        'entry name {}; got {}'.format(category_name, item_name, entry_name, type(entry_val)))
 
                 # If Entry item exists in optional list, then update expected item entries
                 if entry_name in optional_item_entries:
-                    if entry_name == 'readonly':
+                    if entry_name == 'readonly' or entry_name == 'deprecated':
                         if self._validate_type_value('boolean', entry_val) is False:
-                            raise ValueError('Unrecognized value for item_name {}'.format(entry_name))
+                            raise ValueError('For {} category, entry value must be boolean for item name {}; got {}'
+                                             .format(category_name, entry_name, type(entry_val)))
+                    elif entry_name == 'minimum' or entry_name == 'maximum':
+                        if (self._validate_type_value('integer', entry_val) or self._validate_type_value('float', entry_val)) is False:
+                            raise ValueError('For {} category, entry value must be an integer or float for item name '
+                                             '{}; got {}'.format(category_name, entry_name, type(entry_val)))
+                    elif entry_name == 'displayName':
+                        if not isinstance(entry_val, str):
+                            raise ValueError('For {} category, entry value must be string for item name {}; got {}'
+                                             .format(category_name, entry_name, type(entry_val)))
                     else:
                         if self._validate_type_value('integer', entry_val) is False:
-                            raise ValueError('Unrecognized value for item_name {}'.format(entry_name))
+                            raise ValueError('For {} category, entry value must be an integer for item name {}; got {}'
+                                             .format(category_name, entry_name, type(entry_val)))
 
                     d = {entry_name: entry_val}
                     expected_item_entries.update(d)
@@ -240,22 +286,25 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     raise ValueError('Specifying value_name and value_val for item_name {} is not allowed if '
                                      'desired behavior is to use default_val as value_val'.format(item_name))
                 if num_entries is None:
-                    raise ValueError('Unrecognized entry_name {} for item_name {}'.format(entry_name, item_name))
+                    raise ValueError('For {} category, unrecognized entry name {} for item name {}'
+                                     .format(category_name, entry_name, item_name))
                 if entry_name == 'type':
                     if entry_val not in _valid_type_strings:
-                        raise ValueError(
-                            'Invalid entry_val for entry_name "type" for item_name {}. valid: {}'.format(
-                                item_name, _valid_type_strings))
+                        raise ValueError('For {} category, invalid entry value for entry name "type" for item name {}.'
+                                         ' valid type strings are: {}'.format(category_name, item_name, _valid_type_strings))
                 expected_item_entries[entry_name] = 1
             for needed_key, needed_value in expected_item_entries.items():
                 if needed_value == 0:
-                    raise ValueError('Missing entry_name {} for item_name {}'.format(needed_key, item_name))
+                    raise ValueError('For {} category, missing entry name {} for item name {}'.format(
+                        category_name, needed_key, item_name))
 
             # validate data type value
             if self._validate_type_value(get_entry_val("type"), get_entry_val("default")) is False:
-                raise ValueError('Unrecognized value for item_name {}'.format(item_name))
+                raise ValueError('For {} category, unrecognized value for item name {}'.format(category_name, item_name))
             if 'readonly' in item_val:
                 item_val['readonly'] = self._clean('boolean', item_val['readonly'])
+            if 'deprecated' in item_val:
+                item_val['deprecated'] = self._clean('boolean', item_val['deprecated'])
 
             if set_value_val_from_default_val:
                 item_val['default'] = self._clean(item_val['type'], item_val['default'])
@@ -263,15 +312,24 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         return category_val_copy
 
-    async def _create_new_category(self, category_name, category_val, category_description):
+    async def _create_new_category(self, category_name, category_val, category_description, display_name=None):
         try:
+            if isinstance(category_val, dict):
+                new_category_val = copy.deepcopy(category_val)
+                # Remove "deprecated" items from a new category configuration
+                for i, v in category_val.items():
+                    if 'deprecated' in v and v['deprecated'] == 'true':
+                        new_category_val.pop(i)
+            else:
+                new_category_val = category_val
+            display_name = category_name if display_name is None else display_name
             audit = AuditLogger(self._storage)
-            await audit.information('CONAD', {'name': category_name, 'category': category_val})
+            await audit.information('CONAD', {'name': category_name, 'category': new_category_val})
             payload = PayloadBuilder().INSERT(key=category_name, description=category_description,
-                                              value=category_val).payload()
+                                              value=new_category_val, display_name=display_name).payload()
             result = await self._storage.insert_into_tbl("configuration", payload)
             response = result['response']
-            self._cacheManager.update(category_name, category_val)
+            self._cacheManager.update(category_name, new_category_val, display_name)
         except KeyError:
             raise ValueError(result['message'])
         except StorageServerError as ex:
@@ -279,15 +337,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             raise ValueError(err_response)
 
     async def _read_all_category_names(self):
-        # SELECT configuration.key, configuration.description, configuration.value, configuration.ts FROM configuration
-        payload = PayloadBuilder().SELECT("key", "description", "value", "ts") \
+        # SELECT configuration.key, configuration.description, configuration.value, configuration.display_name, configuration.ts FROM configuration
+        payload = PayloadBuilder().SELECT("key", "description", "value", "display_name", "ts") \
             .ALIAS("return", ("ts", 'timestamp')) \
             .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")).payload()
         results = await self._storage.query_tbl_with_payload('configuration', payload)
 
         category_info = []
         for row in results['rows']:
-            category_info.append((row['key'], row['description']))
+            category_info.append((row['key'], row['description'], row["display_name"]))
         return category_info
 
     async def _read_all_groups(self, root, children):
@@ -304,8 +362,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 for next_child in child["children"]:
                     await nested_children(next_child)
 
-        # SELECT key, description FROM configuration
-        payload = PayloadBuilder().SELECT("key", "description").payload()
+        # SELECT key, description, display_name FROM configuration
+        payload = PayloadBuilder().SELECT("key", "description", "display_name").payload()
         all_categories = await self._storage.query_tbl_with_payload('configuration', payload)
 
         # SELECT DISTINCT child FROM category_children
@@ -318,13 +376,13 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         for row in all_categories['rows']:
             if row["key"] in list_child:
-                list_not_root.append((row["key"], row["description"]))
+                list_not_root.append((row["key"], row["description"], row["display_name"]))
             else:
-                list_root.append((row["key"], row["description"]))
+                list_root.append((row["key"], row["description"], row["display_name"]))
         if children:
             tree = []
-            for k, v in list_root if root is True else list_not_root:
-                tree.append({"key": k, "description": v, "children": []})
+            for k, v, d in list_root if root is True else list_not_root:
+                tree.append({"key": k, "description": v, "displayName": d, "children": []})
 
             for branch in tree:
                 await nested_children(branch)
@@ -389,16 +447,97 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             err_response = ex.error
             raise ValueError(err_response)
 
-    async def _update_category(self, category_name, category_val, category_description):
+    async def update_configuration_item_bulk(self, category_name, config_item_list):
+        """ Bulk update config items
+
+        Args:
+            category_name: category name
+            config_item_list: dict containing config item values
+
+        Returns:
+            None
+        """
+
         try:
-            payload = PayloadBuilder().SET(value=category_val, description=category_description). \
-                WHERE(["key", "=", category_name]).payload()
+            payload = {"updates": []}
+            audit_details = {'category': category_name, 'items': {}}
+            cat_info = await self.get_category_all_items(category_name)
+            if cat_info is None:
+                raise NameError("No such Category found for {}".format(category_name))
+            for item_name, new_val in config_item_list.items():
+                if item_name not in cat_info:
+                    raise KeyError('{} config item not found'.format(item_name))
+
+                if cat_info[item_name]['type'] == 'JSON':
+                    if isinstance(new_val, dict):
+                        pass
+                    elif not isinstance(new_val, str):
+                        raise TypeError('new value should be a valid dict Or a string literal, in double quotes')
+                elif not isinstance(new_val, str):
+                    raise TypeError('new value should be of type string')
+
+                if cat_info[item_name]['type'] == 'enumeration':
+                    if new_val == '':
+                        raise ValueError('entry_val cannot be empty')
+                    if new_val not in cat_info[item_name]['options']:
+                        raise ValueError('new value does not exist in options enum')
+                else:
+                    if self._validate_type_value(cat_info[item_name]['type'], new_val) is False:
+                        raise TypeError('Unrecognized value name for item_name {}'.format(item_name))
+
+                old_value = cat_info[item_name]['value']
+                new_val = self._clean(cat_info[item_name]['type'], new_val)
+
+                if old_value != new_val:
+                    payload_item = PayloadBuilder().SELECT("key", "description", "ts", "value") \
+                        .JSON_PROPERTY(("value", [item_name, "value"], new_val)) \
+                        .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")) \
+                        .WHERE(["key", "=", category_name]).payload()
+                    payload['updates'].append(json.loads(payload_item))
+                    audit_details['items'].update({item_name: {'oldValue': old_value, 'newValue': new_val}})
+
+            if not payload['updates']:
+                return
+            
+            await self._storage.update_tbl("configuration", json.dumps(payload))
+
+            # read the updated value from storage
+            cat_value = await self._read_category_val(category_name)
+            # Category config items cache updated
+            for item_name, new_val in config_item_list.items():
+                if category_name in self._cacheManager.cache:
+                    if item_name in self._cacheManager.cache[category_name]['value']:
+                        self._cacheManager.cache[category_name]['value'][item_name]['value'] = cat_value[item_name]['value']
+                    else:
+                        self._cacheManager.cache[category_name]['value'].update({item_name: cat_value[item_name]['value']})
+
+            # Configuration Change audit entry
+            audit = AuditLogger(self._storage)
+            await audit.information('CONCH', audit_details)
+        except Exception as ex:
+            _logger.exception('Unable to bulk update config items %s', str(ex))
+            raise
+
+        try:
+            await self._run_callbacks(category_name)
+        except:
+            _logger.exception(
+                'Unable to run callbacks for category_name %s', category_name)
+            raise
+
+    async def _update_category(self, category_name, category_val, category_description, display_name=None):
+        try:
+            display_name = category_name if display_name is None else display_name
+            payload = PayloadBuilder().SET(value=category_val, description=category_description, display_name=display_name).WHERE(["key", "=", category_name]).payload()
             result = await self._storage.update_tbl("configuration", payload)
             response = result['response']
+            # Re-read category from DB
+            new_category_val_db = await self._read_category_val(category_name)
             if category_name in self._cacheManager.cache:
-                self._cacheManager.cache[category_name]['value'] = category_val
+                self._cacheManager.cache[category_name]['value'] = new_category_val_db
+                self._cacheManager.cache[category_name]['displayName'] = display_name
             else:
-                self._cacheManager.cache.update({category_name: {"value": category_val}})
+                self._cacheManager.cache.update({category_name: {"value": new_category_val_db, "displayName": display_name}})
         except KeyError:
             raise ValueError(result['message'])
         except StorageServerError as ex:
@@ -441,10 +580,12 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             if category_name in self._cacheManager:
                 return self._cacheManager.cache[category_name]['value']
 
-            cat = await self._read_category_val(category_name)
-            if cat is not None:
-                self._cacheManager.update(category_name, cat)
-            return cat
+            category_value = await self._read_category_val(category_name)
+
+            if category_value is not None:
+                self._cacheManager.update(category_name, category_value)
+                category_value = self._handle_script_type(category_name, category_value)
+            return category_value
         except:
             _logger.exception(
                 'Unable to get all category names based on category_name %s', category_name)
@@ -466,10 +607,16 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 if item_name not in self._cacheManager.cache[category_name]['value']:
                     return None
                 return self._cacheManager.cache[category_name]['value'][item_name]
-            cat_item = await self._read_item_val(category_name, item_name)
-            if cat_item is not None:
-                self._cacheManager.update(category_name, cat_item)
-            return cat_item
+            else:
+                cat_item = await self._read_item_val(category_name, item_name)
+                if cat_item is not None:
+                    category_value = await self._read_category_val(category_name)
+                    if category_value is not None:
+                        self._cacheManager.update(category_name, category_value)
+                        self._cacheManager.cache[category_name]['value'].update({item_name: cat_item})
+                        category_value = self._handle_script_type(category_name, category_value)
+                        cat_item = category_value[item_name]
+                return cat_item
         except:
             _logger.exception(
                 'Unable to get category item based on category_name %s and item_name %s', category_name, item_name)
@@ -494,13 +641,14 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 item_name)
             raise
 
-    async def set_category_item_value_entry(self, category_name, item_name, new_value_entry):
+    async def set_category_item_value_entry(self, category_name, item_name, new_value_entry, script_file_path=""):
         """Set the "value" entry of a given item within a given category.
 
         Keyword Arguments:
         category_name -- name of the category (required)
         item_name -- name of item within the category whose "value" entry needs to be changed (required)
         new_value_entry -- new value entry to replace old value entry
+        script_file_path -- Script file path for the config item whose type is script
 
         Side Effects:
         An update to storage will not be issued if a new_value_entry is the same as the new_value_entry from storage.
@@ -547,9 +695,17 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             await self._update_value_val(category_name, item_name, new_value_entry)
             # always get value from storage
             cat_item = await self._read_item_val(category_name, item_name)
+            # Special case for script type
+            if storage_value_entry['type'] == 'script':
+                if cat_item['value'] is not None and cat_item['value'] != "":
+                    cat_item["value"] = binascii.unhexlify(cat_item['value'].encode('utf-8')).decode("utf-8")
+                cat_item["file"] = script_file_path
+
             if category_name in self._cacheManager.cache:
                 if item_name in self._cacheManager.cache[category_name]['value']:
                     self._cacheManager.cache[category_name]['value'][item_name]['value'] = cat_item['value']
+                    if storage_value_entry['type'] == 'script':
+                        self._cacheManager.cache[category_name]['value'][item_name]["file"] = script_file_path
                 else:
                     self._cacheManager.cache[category_name]['value'].update({item_name: cat_item['value']})
         except:
@@ -564,7 +720,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 'Unable to run callbacks for category_name %s', category_name)
             raise
 
-    async def create_category(self, category_name, category_value, category_description='', keep_original_items=False):
+    async def create_category(self, category_name, category_value, category_description='', keep_original_items=False, display_name=None):
         """Create a new category in the database.
 
         Keyword Arguments:
@@ -595,6 +751,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         category_description -- description of the category (default='')
         keep_original_items -- keep items in storage's category_val that are not in the new category_val (removes side effect #3) (default=False)
+        display_name -- configuration category for display in the GUI. if it is NONE then use the value of the category_name
 
         Return Values:
         None
@@ -628,15 +785,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         category_val_prepared = ''
         try:
             # validate new category_val, set "value" from default
-            category_val_prepared = await self._validate_category_val(category_value, True)
+            category_val_prepared = await self._validate_category_val(category_name, category_value, True)
             # check if category_name is already in storage
             category_val_storage = await self._read_category_val(category_name)
             if category_val_storage is None:
-                await self._create_new_category(category_name, category_val_prepared, category_description)
+                await self._create_new_category(category_name, category_val_prepared, category_description, display_name)
             else:
                 # validate category_val from storage, do not set "value" from default, reuse from storage value
                 try:
-                    category_val_storage = await self._validate_category_val(category_val_storage, False)
+                    category_val_storage = await self._validate_category_val(category_name, category_val_storage, False)
                 # if validating category from storage fails, nothing to salvage from storage, use new completely
                 except:
                     _logger.exception(
@@ -644,12 +801,24 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         category_name)
                 # if validating category from storage succeeds, merge new and storage
                 else:
+                    all_categories = await self._read_all_category_names()
+                    for c in all_categories:
+                        if c[0] == category_name:
+                            display_name_storage = c[2]
+                            break
+                    if display_name is None:
+                        display_name = display_name_storage
+
                     category_val_prepared = await self._merge_category_vals(category_val_prepared, category_val_storage,
-                                                                            keep_original_items)
+                                                                            keep_original_items, category_name)
                     if json.dumps(category_val_prepared, sort_keys=True) == json.dumps(category_val_storage,
                                                                                        sort_keys=True):
-                        return
-                await self._update_category(category_name, category_val_prepared, category_description)
+                        if display_name_storage == display_name:
+                            return
+
+                        await self._update_category(category_name, category_val_prepared, category_description, display_name)
+                    else:
+                        await self._update_category(category_name, category_val_prepared, category_description, display_name)
         except:
             _logger.exception(
                 'Unable to create new category based on category_name %s and category_description %s and category_json_schema %s',
@@ -675,7 +844,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
     async def _read_child_info(self, child_list):
         info = []
         for item in child_list:
-            payload = PayloadBuilder().SELECT("key", "description").WHERE(["key", "=", item['child']]).payload()
+            payload = PayloadBuilder().SELECT("key", "description", "display_name").WHERE(["key", "=", item['child']]).payload()
             results = await self._storage.query_tbl_with_payload('configuration', payload)
             for row in results['rows']:
                 info.append(row)
@@ -711,7 +880,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         try:
             child_cat_names = await self._read_all_child_category_names(category_name)
-            return await self._read_child_info(child_cat_names)
+            children = await self._read_child_info(child_cat_names)
+            return [{"key": c['key'], "description": c['description'], "displayName": c['display_name']} for c in children]
         except:
             _logger.exception(
                 'Unable to read all child category names')
@@ -835,6 +1005,75 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         return result
 
+    async def delete_category_and_children_recursively(self, category_name):
+        """Delete recursively a category and its children along with their parent-child relationship
+        Keyword Arguments:
+        category_name -- name of the category (required)
+        Return Values:
+        JSON
+        """
+        if not isinstance(category_name, str):
+            raise TypeError('category_name must be a string')
+        category = await self._read_category_val(category_name)
+
+        if category is None:
+            raise ValueError('No such {} category exist'.format(category_name))
+        catg_descendents = await self._fetch_descendents(category_name)
+
+        for catg in RESERVED_CATG:
+            if catg in catg_descendents:
+                raise ValueError('Reserved category found in descendents of {} - {}'.format(category_name, catg_descendents))
+        try:
+            result = await self._delete_recursively(category_name)
+        except ValueError as ex:
+            raise ValueError(ex)
+        else:
+            return result[category_name]
+
+    async def _fetch_descendents(self, cat):
+        children = await self._read_all_child_category_names(cat)
+        descendents = []
+        for row in children:
+            child = row['child']
+            descendents.append(child)
+            child_descendents = await self._fetch_descendents(child)
+            descendents.extend(child_descendents)
+        return descendents
+
+    async def _delete_recursively(self, cat):
+        try:
+            children = await self._read_all_child_category_names(cat)
+            for row in children:
+                child = row['child']
+                await self._delete_recursively(child)
+
+            # Remove cat as child from parent-child relation.
+            payload = PayloadBuilder().WHERE(["child", "=", cat]).payload()
+            result = await self._storage.delete_from_tbl("category_children", payload)
+            if result['response'] == 'deleted':
+                _logger.info('Deleted parent in catgory_children: %s', cat)
+
+            # Remove category.
+            payload = PayloadBuilder().WHERE(["key", "=", cat]).payload()
+            result = await self._storage.delete_from_tbl("configuration", payload)
+            if result['response'] == 'deleted':
+                _logger.info('Deleted parent category from configuration: %s', cat)
+                audit = AuditLogger(self._storage)
+                audit_details = {'categoryDeleted': cat}
+                # FIXME: FOGL-2140
+                await audit.information('CONCH', audit_details)
+
+            # Remove cat from cache
+            if cat in self._cacheManager.cache:
+                self._cacheManager.remove(cat)
+        except KeyError as ex:
+            raise ValueError(ex)
+        except StorageServerError as ex:
+            err_response = ex.error
+            raise ValueError(err_response)
+        else:
+            return {cat: result}
+
     def register_interest(self, category_name, callback):
         """Registers an interest in any changes to the category_value associated with category_name
 
@@ -908,6 +1147,14 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             else:
                 return True
 
+        def _str_to_float(item_val):
+            try:
+                _value = float(item_val)
+            except ValueError:
+                return False
+            else:
+                return True
+
         def _str_to_ipaddress(item_val):
             try:
                 return ipaddress.ip_address(item_val)
@@ -918,6 +1165,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             return _str_to_bool(_value)
         elif _type == 'integer':
             return _str_to_int(_value)
+        elif _type == 'float':
+            return _str_to_float(_value)
         elif _type == 'JSON':
             if isinstance(_value, dict):
                 return True
@@ -933,9 +1182,50 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         elif _type == 'string':
             return isinstance(_value, str)
 
-
     def _clean(self, item_type, item_val):
         if item_type == 'boolean':
             return item_val.lower()
+        elif item_type == 'float':
+            return str(float(item_val))
 
         return item_val
+
+    def _handle_script_type(self, category_name, category_value):
+        """For the given category, check for config item of type script “unhexlify” the value stored in database
+        and add “file” attribute on the fly
+
+        Keyword Arguments:
+        category_name -- name of the category
+        category_value -- category value
+
+        Return Values:
+        JSON
+        """
+        for k, v in category_value.items():
+            if v['type'] == 'script':
+                try:
+                    category_value[k]["file"] = ""
+
+                    if v['value'] is not None and v['value'] != "":
+                        category_value[k]["value"] = binascii.unhexlify(v['value'].encode('utf-8')).decode("utf-8")
+                except Exception as e:
+                    _logger.warning(
+                        "Got an issue while decoding config item: {} | {}".format(category_value[k], str(e)))
+                    pass
+
+                script_dir = _FOGLAMP_DATA + '/scripts/' if _FOGLAMP_DATA else _FOGLAMP_ROOT + "/data/scripts/"
+                prefix_file_name = category_name.lower() + "_" + k.lower() + "_"
+
+                if not os.path.exists(script_dir):
+                    os.makedirs(script_dir)
+                else:
+                    _all_files = os.listdir(script_dir)
+                    for name in _all_files:
+                        if name.startswith(prefix_file_name) and name.endswith('.py'):
+                            category_value[k]["file"] = script_dir + name
+
+                if self._cacheManager.cache[category_name]['value'][k]:
+                    self._cacheManager.cache[category_name]['value'][k]['value'] = category_value[k]["value"]
+                    self._cacheManager.cache[category_name]['value'][k]['file'] = category_value[k]["file"]
+
+        return category_value

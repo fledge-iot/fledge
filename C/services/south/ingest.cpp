@@ -9,7 +9,7 @@
  */
 #include <ingest.h>
 #include <reading.h>
-#include <chrono>
+#include <config_handler.h>
 #include <thread>
 #include <logger.h>
 
@@ -29,85 +29,26 @@ static void ingestThread(Ingest *ingest)
 }
 
 /**
- * Fetch all asset tracking tuples from DB and populate local cache
- *
- * @param m_mgtClient	Management client handle
+ * Thread to update statistics table in DB
  */
-void Ingest::populateAssetTrackingCache(ManagementClient *mgtClient)
+static void statsThread(Ingest *ingest)
 {
-	try {
-		std::vector<AssetTrackingTuple*>& vec = mgtClient->getAssetTrackingTuples(m_serviceName);
-		for (AssetTrackingTuple* & rec : vec)
-			{
-			if (rec->m_pluginName != m_pluginName || rec->m_eventName != "Ingest")
-				{
-				m_logger->info("Plugin/event name mismatch; NOT adding asset tracker tuple to cache: '%s'", rec->assetToString().c_str());
-				delete rec;
-				continue;
-				}
-			assetTrackerTuplesCache.insert(rec);
-			m_logger->info("Added asset tracker tuple to cache: '%s'", rec->assetToString().c_str());
-			}
-		delete (&vec);
-		}
-	catch (...)
-		{
-		m_logger->error("Failed to populate asset tracking tuples' cache");
-		return;
-		}
-}
-
-/**
- * Check local cache for a given asset tracking tuple
- *
- * @param tuple		Tuple to find in cache
- * @return			Returns whether tuple is present in cache
- */
-bool Ingest::checkAssetTrackingCache(AssetTrackingTuple& tuple)
-{
-	AssetTrackingTuple *ptr = &tuple;
-	std::unordered_set<AssetTrackingTuple*>::const_iterator it = assetTrackerTuplesCache.find(ptr);
-	if (it == assetTrackerTuplesCache.end())
-		{
-		m_logger->info("checkAssetTrackingCache(): Tuple not found in cache: '%s'", tuple.assetToString().c_str());
-		return false;
-		}
-	else
-		return true;
-}
-
-/**
- * Add asset tracking tuple via microservice management API and in cache
- *
- * @param tuple		New tuple to add in DB and in cache
- */
-void Ingest::addAssetTrackingTuple(AssetTrackingTuple& tuple)
-{
-	std::unordered_set<AssetTrackingTuple*>::const_iterator it = assetTrackerTuplesCache.find(&tuple);
-	if (it == assetTrackerTuplesCache.end())
-		{
-		m_logger->info("addAssetTrackingTuple(): Tuple not found in cache: '%s', adding now.", tuple.assetToString().c_str());
-		bool rv = m_mgtClient->addAssetTrackingTuple(tuple.m_serviceName, tuple.m_pluginName, tuple.m_assetName, "Ingest");
-		if (rv) // insert into cache only if DB operation succeeded
-			{
-			AssetTrackingTuple *ptr = new AssetTrackingTuple(tuple);
-			assetTrackerTuplesCache.insert(ptr);
-			}
-		}
-	else
-		m_logger->info("addAssetTrackingTuple(): Tuple already found in cache: '%s', not adding again", tuple.assetToString().c_str());
+	while (ingest->running())
+	{
+		ingest->updateStats();
+	}
 }
 
 /**
  * Create a row for given assetName in statistics DB table, if not present already
- * The key checked/created in the table is "INGEST_<assetName>"
+ * The key checked/created in the table is "<assetName>"
  * 
  * @param assetName     Asset name for the plugin that is sending readings
  */
 int Ingest::createStatsDbEntry(const string& assetName)
 {
 	// Prepare foglamp.statistics update
-	string statistics_key = "INGEST_" + assetName;
+	string statistics_key = assetName;
 	for (auto & c: statistics_key) c = toupper(c);
 	
 	// SELECT * FROM foglamp.configuration WHERE key = categoryName
@@ -137,8 +78,6 @@ int Ingest::createStatsDbEntry(const string& assetName)
 				m_logger->error("%s:%d : Insert new row into statistics table failed, newStatsEntry='%s'", __FUNCTION__, __LINE__, newStatsEntry.toJSON().c_str());
 				return -1;
 			}
-			else
-				m_logger->info("%s:%d : Inserted new row into statistics table, newStatsEntry='%s'", __FUNCTION__, __LINE__, newStatsEntry.toJSON().c_str());
 		}
 	}
 	catch (...)
@@ -147,17 +86,6 @@ int Ingest::createStatsDbEntry(const string& assetName)
 		return -1;
 	}
 	return 0;
-}
-
-/**
- * Thread to update statistics table in DB
- */
-static void statsThread(Ingest *ingest)
-{
-	while (ingest->running())
-	{
-		ingest->updateStats();
-	}
 }
 
  /**
@@ -170,78 +98,75 @@ void Ingest::updateStats()
 	unique_lock<mutex> lck(m_statsMutex);
 	if (m_running) // don't wait on condition variable if plugin/ingest is being shutdown
 		m_statsCv.wait(lck);
-	/*Logger::getLogger()->info("%s:%d : stats thread: wakeup from sleep, now updating stats, m_newReadings=%d, m_discardedReadings=%d, m_readingsAssetName='%s'",
-				__FUNCTION__, __LINE__, m_newReadings, m_discardedReadings, m_readingsAssetName.c_str());
-	*/
+
+	if (statsPendingEntries.empty())
+		{
+		//Logger::getLogger()->info("statsPendingEntries is empty, returning from updateStats()");
+		return;
+		}
 	
-	if (m_newReadings==0 && m_discardedReadings==0) return; // nothing to update, possible spurious wakeup
-
-	createStatsDbEntry(m_readingsAssetName);
-
+	int readings=0;
+	vector<pair<ExpressionValues *, Where *>> statsUpdates;
 	string key;
 	const Condition conditionStat(Equals);
 	
-	try
+	for (auto it = statsPendingEntries.begin(); it != statsPendingEntries.end(); ++it)
 		{
-		if (m_newReadings)
+		if (statsDbEntriesCache.find(it->first) == statsDbEntriesCache.end())
+			{
+			createStatsDbEntry(it->first);
+			statsDbEntriesCache.insert(it->first);
+			//Logger::getLogger()->info("%s:%d : Created stats entry for asset name %s and added to cache", __FUNCTION__, __LINE__, it->first.c_str());
+			}
+		
+		if (it->second)
 			{
 			// Prepare foglamp.statistics update
-			key = "INGEST_" + m_readingsAssetName;
+			key = it->first;
 			for (auto & c: key) c = toupper(c);
 
 			// Prepare "WHERE key = name
-			Where wPluginStat("key", conditionStat, key);
+			Where *wPluginStat = new Where("key", conditionStat, key);
 
 			// Prepare value = value + inc
-			ExpressionValues updateValue;
-			updateValue.push_back(Expression("value", "+", (int) m_newReadings));
+			ExpressionValues *updateValue = new ExpressionValues;
+			updateValue->push_back(Expression("value", "+", (int) it->second));
 
-			//Logger::getLogger()->info("%s:%d : Updating DB now, getNewReadings()=%d", __FUNCTION__, __LINE__, m_newReadings);
-			// Perform UPDATE foglamp.statistics SET value = value + x WHERE key = 'name'
-			int rv = m_storage.updateTable("statistics", updateValue, wPluginStat);
-			
-			if (rv<0)
-				Logger::getLogger()->info("%s:%d : Update DB failed, rv=%d", __FUNCTION__, __LINE__, rv);
-
-			// Update READINGS row
-			key = "READINGS";
-
-			// Prepare "WHERE key = name
-			Where wPluginStat2("key", conditionStat, key);
-
-			// Perform UPDATE foglamp.statistics SET value = value + x WHERE key = 'name'
-			rv = m_storage.updateTable("statistics", updateValue, wPluginStat2);
-			
-			if (rv<0)
-				Logger::getLogger()->info("%s:%d : Update DB failed, rv=%d", __FUNCTION__, __LINE__, rv);
-			else
-				{
-				m_newReadings=0;
-				}
-
+			statsUpdates.emplace_back(updateValue, wPluginStat);
+			readings += it->second;
 			}
+		}
+
+	if(readings)
+		{
+		Where *wPluginStat = new Where("key", conditionStat, "READINGS");
+		ExpressionValues *updateValue = new ExpressionValues;
+		updateValue->push_back(Expression("value", "+", (int) readings));
+		statsUpdates.emplace_back(updateValue, wPluginStat);
+		}
+	if (m_discardedReadings)
+		{
+		Where *wPluginStat = new Where("key", conditionStat, "DISCARDED");
+		ExpressionValues *updateValue = new ExpressionValues;
+		updateValue->push_back(Expression("value", "+", (int) m_discardedReadings));
+		statsUpdates.emplace_back(updateValue, wPluginStat);
+ 		}
+	
+	try
+		{
+		int rv = m_storage.updateTable("statistics", statsUpdates);
 		
-		if (m_discardedReadings)
+		if (rv<0)
+			Logger::getLogger()->info("%s:%d : Update stats failed, rv=%d", __FUNCTION__, __LINE__, rv);
+		else
 			{
-			// Update DISCARDED row
-			key = "DISCARDED";
-
-			// Prepare "WHERE key = name
-			Where wPluginStat("key", conditionStat, key);
-
-			// Prepare value = value + inc
-			ExpressionValues updateValue;
-			updateValue.push_back(Expression("value", "+", (int) m_discardedReadings));
-
-			// Perform UPDATE foglamp.statistics SET value = value + x WHERE key = 'name'
-			int rv = m_storage.updateTable("statistics", updateValue, wPluginStat);
-			
-			if (rv<0)
-				Logger::getLogger()->info("%s:%d : Update DB failed, rv=%d", __FUNCTION__, __LINE__, rv);
-			else
+			m_discardedReadings=0;
+			for (auto it = statsUpdates.begin(); it != statsUpdates.end(); ++it)
 				{
-				m_discardedReadings=0;
+				delete it->first;
+				delete it->second;
 				}
+			statsPendingEntries.clear();
 			}
 		}
 	catch (...)
@@ -275,19 +200,19 @@ Ingest::Ingest(StorageClient& storage,
 			m_pluginName(pluginName),
 			m_mgtClient(mgmtClient)
 {
-	
 	m_running = true;
 	m_queue = new vector<Reading *>();
 	m_thread = new thread(ingestThread, this);
 	m_statsThread = new thread(statsThread, this);
 	m_logger = Logger::getLogger();
 	m_data = NULL;
-	m_newReadings = 0;
 	m_discardedReadings = 0;
-	m_readingsAssetName = "unknown";
-
+	
 	// populate asset tracking cache
-	populateAssetTrackingCache(m_mgtClient);
+	//m_assetTracker = new AssetTracker(m_mgtClient);
+	AssetTracker::getAssetTracker()->populateAssetTrackingCache(m_pluginName, "Ingest");
+
+	filterPipeline = NULL;
 }
 
 /**
@@ -302,17 +227,23 @@ Ingest::Ingest(StorageClient& storage,
 Ingest::~Ingest()
 {
 	m_running = false;
+	m_cv.notify_one();
 	m_thread->join();
 	processQueue();
+	m_statsCv.notify_one();
 	m_statsThread->join();
 	updateStats();
 	delete m_queue;
 	delete m_thread;
 	delete m_statsThread;
-	delete m_data;
-
+	//delete m_data;
+	
 	// Cleanup filters
-	FilterPlugin::cleanupFilters(m_filters);
+	if (filterPipeline)
+	{
+		filterPipeline->cleanupFilters(m_serviceName);
+		delete filterPipeline;
+	}
 }
 
 /**
@@ -333,16 +264,33 @@ void Ingest::ingest(const Reading& reading)
 {
 	lock_guard<mutex> guard(m_qMutex);
 	m_queue->push_back(new Reading(reading));
-	if (m_queue->size() >= m_queueSizeThreshold)
+	if (m_queue->size() >= m_queueSizeThreshold || m_running == false)
 		m_cv.notify_all();
-	
 }
+
+/**
+ * Add a reading to the reading queue
+ */
+void Ingest::ingest(const vector<Reading *> *vec)
+{
+	lock_guard<mutex> guard(m_qMutex);
+	
+	// Get the readings in the set
+	for (auto & rdng : *vec)
+	{
+		m_queue->push_back(rdng);
+	}
+	if (m_queue->size() >= m_queueSizeThreshold || m_running == false)
+		m_cv.notify_all();
+}
+
 
 void Ingest::waitForQueue()
 {
 	mutex mtx;
 	unique_lock<mutex> lck(mtx);
-	m_cv.wait_for(lck,chrono::milliseconds(m_timeout));
+	if (m_running)
+		m_cv.wait_for(lck,chrono::milliseconds(m_timeout));
 }
 
 /**
@@ -367,40 +315,52 @@ vector<Reading *>* newQ = new vector<Reading *>();
 		m_data = m_queue;
 		m_queue = newQ;
 	}
-
-	vector<Reading *>::iterator it;
-	Reading *firstReading = NULL;
-	if(!m_data->empty())
+	
+	/*
+	 * Create a ReadingSet from m_data readings if we have filters.
+	 *
+	 * At this point the m_data vector is cleared so that the only reference to
+	 * the readings is in the ReadingSet that is passed along the filter pipeline
+	 *
+	 * The final filter in the pipeline will pass the ReadingSet back into the
+	 * ingest class where it will repopulate the m_data member.
+	 */
+	if (filterPipeline)
+	{
+		FilterPlugin *firstFilter = filterPipeline->getFirstFilterPlugin();
+		if (firstFilter)
 		{
-		it = m_data->begin();
-		firstReading = (*it);
-		m_readingsAssetName=firstReading->getAssetName();
-		}
+			ReadingSet *readingSet = new ReadingSet(m_data);
+			m_data->clear();
+			// Pass readingSet to filter chain
+			firstFilter->ingest(readingSet);
 
+			/*
+			 * If filtering removed all the readings then simply clean up m_data and
+			 * return.
+			 */
+			if (m_data->size() == 0)
+			{
+				delete m_data;
+				m_data = NULL;
+				return;
+			}
+		}
+	}
+
+	std::map<std::string, int>		statsEntriesCurrQueue;
 	// check if this requires addition of a new asset tracker tuple
 	for (vector<Reading *>::iterator it = m_data->begin(); it != m_data->end(); ++it)
 	{
 		Reading *reading = *it;
 		AssetTrackingTuple tuple(m_serviceName, m_pluginName, reading->getAssetName(), "Ingest");
-		if (!checkAssetTrackingCache(tuple))
-			{
-			addAssetTrackingTuple(tuple);
-			m_logger->info("processQueue(): Added new asset tracking tuple seen during readings' ingest: %s", tuple.assetToString().c_str());
-			}
+		if (!AssetTracker::getAssetTracker()->checkAssetTrackingCache(tuple))
+		{
+			AssetTracker::getAssetTracker()->addAssetTrackingTuple(tuple);
+		}
+		++statsEntriesCurrQueue[reading->getAssetName()];
 	}
-	
-	ReadingSet* readingSet = NULL;
-
-	// Create a ReadingSet from m_data readings if we have filters.
-	// ReadingSet has same reading pointers as in m_data.
-	if (m_filters.size())
-	{
-		auto it = m_filters.begin();
-		readingSet = new ReadingSet(m_data);
-		// Pass readingSet to filter chain
-		(*it)->ingest(readingSet);
-	}
-
+		
 	/**
 	 * 'm_data' vector is ready to be sent to storage service.
 	 *
@@ -412,7 +372,7 @@ vector<Reading *>* newQ = new vector<Reading *>();
 	 *	2- some readings removed
 	 *	3- New set of readings
 	 */
-	int rv;
+	int rv = 0;
 	if ((!m_data->empty()) &&
 			(rv = m_storage.readingAppend(*m_data)) == false && requeue == true)
 	{
@@ -426,40 +386,31 @@ vector<Reading *>* newQ = new vector<Reading *>();
 		// Is it possible that some of the readings are stored in DB, and others are not?
 	}
 	else
-	{
+	{	
 		if (!m_data->empty() && rv==false) // m_data had some (possibly filtered) readings, but they couldn't be sent successfully to storage service
 			{
 			m_logger->info("%s:%d, Couldn't send %d readings to storage service", __FUNCTION__, __LINE__, m_data->size());
 			m_discardedReadings += m_data->size();
 			}
 		else
-			m_newReadings += m_data->size();
-		
-		// Data sent to sorage service
-		if (!readingSet)
-		{
-			// Data not filtered: remove the Readings in the vector
-			for (vector<Reading *>::iterator it = m_data->begin();
-							 it != m_data->end(); ++it)
 			{
-				Reading *reading = *it;
-				delete reading;
+			unique_lock<mutex> lck(m_statsMutex);
+			for (auto &it : statsEntriesCurrQueue)
+				statsPendingEntries[it.first] += it.second;
 			}
-		}
-		else
+		
+		// Remove the Readings in the vector
+		for (vector<Reading *>::iterator it = m_data->begin();
+						 it != m_data->end(); ++it)
 		{
-			// Filtered data
-			// Remove reading set (and m_data reading pointers)
-			delete readingSet;
+			Reading *reading = *it;
+			delete reading;
 		}
 	}
 
-	// No filtering: remove m_data pointer
-	if (!readingSet)
-	{
-		delete m_data;
-	}
-
+	delete m_data;
+	m_data = NULL;
+	
 	// Signal stats thread to update stats
 	lock_guard<mutex> guard(m_statsMutex);
 	m_statsCv.notify_all();
@@ -481,92 +432,18 @@ vector<Reading *>* newQ = new vector<Reading *>();
  */
 bool Ingest::loadFilters(const string& categoryName)
 {
+	Logger::getLogger()->info("Ingest::loadFilters(): categoryName=%s", categoryName.c_str());
+	filterPipeline = new FilterPipeline(m_mgtClient, m_storage, m_serviceName);
+	
 	// Try to load filters:
-	if (!FilterPlugin::loadFilters(categoryName,
-				       m_filters,
-				       m_mgtClient))
+	if (!filterPipeline->loadFilters(categoryName))
 	{
 		// Return false on any error
 		return false;
 	}
 
 	// Set up the filter pipeline
-	return setupFiltersPipeline();
-}
-
-/**
- * Set the filterPipeline in the Ingest class
- * 
- * This method calls the the method "plugin_init" for all loadade filters.
- * Up to date filter configurations and Ingest filtering methods
- * are passed to "plugin_init"
- *
- * @param ingest	The ingest class
- * @return 		True on success,
- *			False otherwise.
- * @thown		Any caught exception
- */
-bool Ingest::setupFiltersPipeline() const
-{
-	bool initErrors = false;
-	string errMsg = "'plugin_init' failed for filter '";
-	for (auto it = m_filters.begin(); it != m_filters.end(); ++it)
-	{
-		string filterCategoryName = (*it)->getName();
-		ConfigCategory updatedCfg;
-		vector<string> children;
-        
-		try
-		{
-			// Fetch up to date filter configuration
-			updatedCfg = m_mgtClient->getCategory(filterCategoryName);
-
-			// Add filter category name under service/process config name
-			children.push_back(filterCategoryName);
-			m_mgtClient->addChildCategories(m_serviceName, children);
-		}
-		// TODO catch specific exceptions
-		catch (...)
-		{       
-			throw;      
-		}                   
-
-		// Iterate the load filters set in the Ingest class m_filters member 
-		if ((it + 1) != m_filters.end())
-		{
-			// Set next filter pointer as OUTPUT_HANDLE
-			if (!(*it)->init(updatedCfg,
-				    (OUTPUT_HANDLE *)(*(it + 1)),
-				    Ingest::passToOnwardFilter))
-			{
-				errMsg += (*it)->getName() + "'";
-				initErrors = true;
-				break;
-			}
-		}
-		else
-		{
-			// Set the Ingest class pointer as OUTPUT_HANDLE
-			if (!(*it)->init(updatedCfg,
-					 (OUTPUT_HANDLE *)this,
-					 Ingest::useFilteredData))
-			{
-				errMsg += (*it)->getName() + "'";
-				initErrors = true;
-				break;
-			}
-		}
-	}
-
-	if (initErrors)
-	{
-		// Failure
-		m_logger->fatal("%s error: %s", SERVICE_NAME, errMsg.c_str());
-		return false;
-	}
-
-	//Success
-	return true;
+	return filterPipeline->setupFiltersPipeline((void *)passToOnwardFilter, (void *)useFilteredData, this);
 }
 
 /**
@@ -593,6 +470,15 @@ void Ingest::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
  * Use the current input readings (they have been filtered
  * by all filters)
  *
+ * The assumption is that one of two things has happened.
+ *
+ *	1. The filtering has all been done in place. In which case
+ *	the m_data vector is in the ReadingSet passed in here.
+ *
+ *	2. The fitlering has created new ReadingSet in which case
+ *	the reading vector must be copied into m_data from the
+ *	ReadingSet.
+ *
  * Note:
  * This routine must be passed to last filter "plugin_init" only
  *
@@ -605,9 +491,52 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 			     READINGSET *readingSet)
 {
 	Ingest* ingest = (Ingest *)outHandle;
-	// Free current ingest->m_data pointer
-	delete ingest->m_data;
-	// Set new data pointer
-	ingest->m_data = ((ReadingSet *)readingSet)->getAllReadingsPtr();
+	if (ingest->m_data != readingSet->getAllReadingsPtr())
+	{
+		ingest->m_data->clear();// Remove any pointers still in the vector
+		*(ingest->m_data) = readingSet->getAllReadings();
+	}
+	readingSet->clear();
+	delete readingSet;
 }
 
+/**
+ * Configuration change for one of the filters or to the pipeline.
+ *
+ * @param category	The name of the configuration category
+ * @param newConfig	The new category contents
+ */
+void Ingest::configChange(const string& category, const string& newConfig)
+{
+	//Logger::getLogger()->info("Ingest::configChange(): category=%s, newConfig=%s", category.c_str(), newConfig.c_str());
+	static string pipelineCfgStr("");
+	if (category == m_serviceName) // possible change to filter pipeline
+	{
+		ConfigCategory config("tmp", newConfig);
+		if ( (!config.itemExists("filter") && pipelineCfgStr.compare("")==0) || 
+					pipelineCfgStr == config.getValue("filter") )
+		{
+			Logger::getLogger()->info("Ingest::configChange(): filter pipeline is not set or it hasn't changed");
+			return;
+		}
+		pipelineCfgStr = config.getValue("filter");
+		lock_guard<mutex> guard(m_qMutex); // blocks ingest process while pipeline is being reconfigured
+		m_running = false;
+		if (filterPipeline)
+		{
+			Logger::getLogger()->info("Ingest::configChange(): filter pipeline has changed, recreating filter pipeline");
+			filterPipeline->cleanupFilters(m_serviceName);
+			delete filterPipeline;
+		}
+		loadFilters(category);
+		m_running = true;
+	}
+	else // change to config of some filter(s)
+	{
+		Logger::getLogger()->info("Ingest::configChange(): change to config of some filter(s)");
+		if (filterPipeline)
+		{
+			filterPipeline->configChange(category, newConfig);
+		}
+	}
+}

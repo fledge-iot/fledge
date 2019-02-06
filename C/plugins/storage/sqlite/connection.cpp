@@ -2357,7 +2357,7 @@ int blocks = 0;
 	unsigned int deletedRows = 0;
 	char *zErrMsg = NULL;
 	unsigned int rowsAffected;
-	logger->info("Purge about to delete the readings readings in blocks");
+	logger->info("Purge about to delete the readings %ld to %ld in blocks", rowidMin, rowidLimit);
 	while (rowidMin < rowidLimit)
 	{
 		blocks++;
@@ -2367,7 +2367,7 @@ int blocks = 0;
 			rowidMin = rowidLimit;
 		}
 		SQLBuffer sql;
-		sql.append("DELETE FROM foglamp.readings WHERE rowid < ");
+		sql.append("DELETE FROM foglamp.readings WHERE rowid <= ");
 		sql.append(rowidMin);
 		sql.append(';');
 		const char *query = sql.coalesce();

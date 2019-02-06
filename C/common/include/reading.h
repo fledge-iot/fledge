@@ -43,7 +43,7 @@ class Reading {
 		const std::string&              getAssetName() const { return m_asset; };
 		// Set AssetName
 		void				setAssetName(std::string assetName) { m_asset = assetName; };
-		int				getDatapointCount() { return m_values.size(); };
+		unsigned int			getDatapointCount() { return m_values.size(); };
 		void				removeAllDatapoints();
 		// Return UUID
 		const std::string&              getUuid() const { return m_uuid; };

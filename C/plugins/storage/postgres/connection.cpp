@@ -1693,7 +1693,7 @@ bool Connection::jsonWhereClause(const Value& whereClause, SQLBuffer& sql)
 					}
 					else if (itr->IsInt64())
 					{
-						sql.append(itr->GetInt64());
+						sql.append((long)itr->GetInt64());
 					}
 					else
 					{

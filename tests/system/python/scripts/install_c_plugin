@@ -36,6 +36,9 @@ clone_repo () {
    git clone -b ${BRANCH_NAME} --single-branch https://github.com/foglamp/${REPO_NAME}.git /tmp/${REPO_NAME}
 }
 
+req_file=$(find . -name requirement*.sh)
+[[ ! -z "${req_file}" ]] && ./${req_file} || echo "No external dependency needed for ${PLUGIN_NAME} plugin."
+
 install_binary_file () {
    mkdir -p /tmp/${REPO_NAME}/build; cd /tmp/${REPO_NAME}/build; cmake -DFOGLAMP_INSTALL=${FOGLAMP_ROOT} ..; make -j4 && make install; cd -
 }

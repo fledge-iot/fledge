@@ -67,10 +67,10 @@ def remove_directories():
 
 
 @pytest.fixture
-def start_south():
-    def _start_foglamp_south(south_plugin, south_branch, foglamp_url, service_name="play", config=None,
-                             plugin_lang="python", use_pip_cache=True, start_service=True):
-        """Start south service"""
+def add_south():
+    def _add_foglamp_south(south_plugin, south_branch, foglamp_url, service_name="play", config=None,
+                           plugin_lang="python", use_pip_cache=True, start_service=True):
+        """Add south plugin and start the service by default"""
 
         _config = config if config is not None else {}
         _enabled = "true" if start_service else "false"
@@ -96,7 +96,7 @@ def start_south():
         r = r.read().decode()
         retval = json.loads(r)
         assert service_name == retval["name"]
-    return _start_foglamp_south
+    return _add_foglamp_south
 
 
 @pytest.fixture
@@ -124,6 +124,7 @@ def start_north_pi_v2():
         retval = r.read().decode()
         return retval
     return _start_north_pi_server_c
+
 
 start_north_pi_server_c = start_north_pi_v2
 
@@ -243,6 +244,35 @@ def add_filter():
 
     return _add_filter
 
+
+@pytest.fixture
+def enable_schedule():
+    def _enable_sch(foglamp_url, sch_name):
+        conn = http.client.HTTPConnection(foglamp_url)
+        conn.request("PUT", '/foglamp/schedule/enable', json.dumps({"schedule_name": sch_name}))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        assert "scheduleId" in jdoc
+
+    return _enable_sch
+
+
+@pytest.fixture
+def disable_schedule():
+    def _disable_sch(foglamp_url, sch_name):
+        conn = http.client.HTTPConnection(foglamp_url)
+        conn.request("PUT", '/foglamp/schedule/disable', json.dumps({"schedule_name": sch_name}))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        assert jdoc["status"]
+
+    return _disable_sch
+
+
 def pytest_addoption(parser):
     parser.addoption("--south-branch", action="store", default="develop",
                      help="south branch name")
@@ -278,18 +308,15 @@ def pytest_addoption(parser):
     parser.addoption("--ocs-token", action="store", default="ocs_north_0001",
                      help="Token of OCS account")
 
-    parser.addoption("--south-plugin", action="store", default="playback",
-                     help="Name of the South Plugin")
-    parser.addoption("--south-service-name", action="store", default="play",
+    parser.addoption("--south-service-name", action="store", default="southSvc #1",
                      help="Name of the South Service")
-    parser.addoption("--north-plugin", action="store", default="PI_Server_V2",
-                     help="Name of the North Plugin")
-    parser.addoption("--asset-name", action="store", default="systemtest",
+    parser.addoption("--asset-name", action="store", default="SystemTest",
                      help="Name of asset")
+
     parser.addoption("--wait-time", action="store", default=5, type=int,
                      help="Generic wait time between processes to run")
     parser.addoption("--retries", action="store", default=3, type=int,
-                     help="Number of tries to make to fetch data from PI web api")
+                     help="Number of tries for polling")
 
     # Filter Args
     parser.addoption("--filter-branch", action="store", default="develop", help="Filter plugin repo branch")
@@ -317,16 +344,6 @@ def north_branch(request):
 @pytest.fixture
 def filter_branch(request):
     return request.config.getoption("--filter-branch")
-
-
-@pytest.fixture
-def south_plugin(request):
-    return request.config.getoption("--south-plugin")
-
-
-@pytest.fixture
-def north_plugin(request):
-    return request.config.getoption("--north-plugin")
 
 
 @pytest.fixture
@@ -437,6 +454,7 @@ def kafka_topic(request):
 @pytest.fixture
 def kafka_rest_port(request):
     return request.config.getoption("--kafka-rest-port")
+
 
 def pytest_itemcollected(item):
     par = item.parent.obj

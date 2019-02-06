@@ -1,0 +1,11 @@
+{
+	"aggregate" : {
+		"operation" : "count",
+		"column" : "id"
+	},
+	"where" : {
+		"column" : "id",
+		"condition" : "not in",
+		"value" : [ -4, 12.3, 0, 11111]
+	}
+}

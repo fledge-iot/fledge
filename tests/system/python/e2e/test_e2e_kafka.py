@@ -38,12 +38,12 @@ class TestE2EKafka:
 
         fogbench_template_path = os.path.join(
             os.path.expandvars('${FOGLAMP_ROOT}'), 'data/{}'.format(FOGBENCH_TEMPLATE))
-        f = open(fogbench_template_path, "w")
-        f.write(
-            '[{"name": "%s", "sensor_values": '
-            '[{"name": "sensor", "type": "number", "min": %d, "max": %d, "precision": 0}]}]' % (
-                ASSET_NAME, SENSOR_VALUE, SENSOR_VALUE))
-        f.close()
+        with open(fogbench_template_path, "w") as f:
+            f.write(
+                '[{"name": "%s", "sensor_values": '
+                '[{"name": "sensor", "type": "number", "min": %d, "max": %d, "precision": 0}]}]' % (
+                    ASSET_NAME, SENSOR_VALUE, SENSOR_VALUE))
+
         return fogbench_template_path
 
     def _configure_and_start_north_kafka(self, north_branch, foglamp_url, host, port, topic, task_name="NorthReadingsTo{}"
@@ -77,17 +77,17 @@ class TestE2EKafka:
         assert task_name == val['name']
 
     @pytest.fixture
-    def start_south_north(self, reset_and_start_foglamp, start_south, remove_data_file,
+    def start_south_north(self, reset_and_start_foglamp, add_south, remove_data_file,
                           remove_directories, south_branch, foglamp_url, north_branch, kafka_host, kafka_port, kafka_topic):
         """ This fixture clone a south and north repo and starts both south and north instance
             reset_and_start_foglamp: Fixture that resets and starts foglamp, no explicit invocation, called at start
-            start_south: Fixture that starts any south service with given configuration
+            add_south: Fixture that starts any south service with given configuration
             remove_data_file: Fixture that remove data file created during the tests
             remove_directories: Fixture that remove directories created during the tests """
 
         fogbench_template_path = self._prepare_template_reading_from_fogbench()
 
-        start_south(SOUTH_PLUGIN_NAME, south_branch, foglamp_url, service_name=SOUTH_PLUGIN_NAME)
+        add_south(SOUTH_PLUGIN_NAME, south_branch, foglamp_url, service_name=SOUTH_PLUGIN_NAME)
 
         self._configure_and_start_north_kafka(north_branch, foglamp_url, kafka_host, kafka_port, kafka_topic)
 

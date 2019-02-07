@@ -72,7 +72,7 @@ Some tests, like ``test_e2e_coap_PI.py`` , requires some information to be provi
 for example the PI-Server or the OCS account that should be used. This information can be passed though command
 like during test execution. For e.g., ::
 
-    /FogLAMP/tests/system/python $ pytest test_e2e_coap_PI.py
+    /FogLAMP/tests/system/python/e2e/ $ pytest test_e2e_coap_PI.py
     --pi-db=<PI DB name>
     --pi-host=<Hostname/IP of PI Server>
     --pi-admin=<Login of PI Machine>
@@ -85,6 +85,7 @@ custom options ::
     $ pytest --help
     ...
     custom options:
+
     --south-branch=SOUTH_BRANCH
                         south branch name
     --north-branch=NORTH_BRANCH
@@ -118,19 +119,16 @@ custom options ::
     --ocs-token=OCS_TOKEN
                         Token of OCS account
 
-    --south-plugin=SOUTH_PLUGIN
-                        Name of the South Plugin
+
     --south-service-name=SOUTH_SERVICE_NAME
                         Name of the South Service
-    --north-plugin=NORTH_PLUGIN
-                        Name of the North Plugin
     --asset-name=ASSET_NAME
                         Name of asset
 
     --wait-time=WAIT_TIME
                         Generic wait time between processes to run
     --retries=RETRIES
-                        Number of tries to make to fetch data from PI web api
+                        Number of tries for polling
 
     --kafka-host=KAFKA_HOST
                         Kafka Server Host Name/IP
@@ -236,7 +234,7 @@ Console displays the docstring of the test that tells a user what test is runnin
     plugins:
     collected 1 item
 
-    Test system/python/test_smoke.py Test that data is inserted in FogLAMP
+    Test system/python/smoke/test_smoke.py Test that data is inserted in FogLAMP
         start_south_coap: Fixture that starts FogLAMP with south coap plugin
         Assertions:
             on endpoint GET /foglamp/asset

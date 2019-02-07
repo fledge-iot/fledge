@@ -1255,6 +1255,11 @@ ostringstream convert;
 		convert << ", \"order\" : \"" << m_order << "\"";
 	}
 
+	if (!m_displayName.empty())
+	{
+		convert << ", \"displayName\" : \"" << m_displayName << "\"";
+	}
+
 	if (!m_minimum.empty())
 	{
 		convert << ", \"minimum\" : \"" << m_minimum << "\"";

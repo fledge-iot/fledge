@@ -69,7 +69,7 @@ class TestScheduledProcesses:
 
     async def test_get_scheduled_process(self, client):
         storage_client_mock = MagicMock(StorageClientAsync)
-        payload = '{"return": ["name"], "where": {"column": "name", "condition": "=", "value": "purge"}}'
+        payload = '{"return": ["name"], "where": {"column": "name", "condition": "in", "value": ["purge"]}}'
         response = {'rows': [{'name': 'purge'}], 'count': 1}
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(storage_client_mock, 'query_tbl_with_payload',
@@ -89,7 +89,7 @@ class TestScheduledProcesses:
                                   return_value=mock_coro_response(response)):
                     resp = await client.get('/foglamp/schedule/process/bla')
                     assert 404 == resp.status
-                    assert 'No such Scheduled Process: bla.' == resp.reason
+                    assert "No such Scheduled Process: ['bla']." == resp.reason
 
 
 class TestSchedules:

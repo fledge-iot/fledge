@@ -73,19 +73,25 @@ async def get_scheduled_process(request):
             a list of all the defined scheduled_processes from scheduled_processes table
 
     :Example:
-             curl -X GET http://localhost:8081/foglamp/schedule/process/purge
+        curl -X GET http://localhost:8081/foglamp/schedule/process/purge
+        curl -X GET http://localhost:8081/foglamp/schedule/process/purge%2Cbackup%2Crestore
+        curl -X GET http://localhost:8081/foglamp/schedule/process/purge%2Cbackup%2Cstats%20collector
     """
 
-    scheduled_process_name = request.match_info.get('scheduled_process_name', None)
-
-    payload = PayloadBuilder().SELECT("name").WHERE(["name", "=", scheduled_process_name]).payload()
+    scheduled_process_names = request.match_info.get('scheduled_process_name', None)
+    scheduled_process_name = scheduled_process_names.split(',')
+    payload = PayloadBuilder().SELECT("name").WHERE(["name", "in", scheduled_process_name]).payload()
     _storage = connect.get_storage_async()
     scheduled_process = await _storage.query_tbl_with_payload('scheduled_processes', payload)
 
     if len(scheduled_process['rows']) == 0:
         raise web.HTTPNotFound(reason='No such Scheduled Process: {}.'.format(scheduled_process_name))
 
-    return web.json_response(scheduled_process['rows'][0].get("name"))
+    if len(scheduled_process['rows']) == 1:
+        retval = scheduled_process['rows'][0].get("name")
+    else:
+        retval = scheduled_process['rows']
+    return web.json_response(retval)
 
 
 #################################

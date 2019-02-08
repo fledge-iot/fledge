@@ -86,8 +86,9 @@ class TestPayloadBuilderRead:
         (["id", "<=", 99], _payload("data/payload_conditions5.json")),
         (["id", "!=", "False"], _payload("data/payload_conditions6.json")),
         (["ts", "newer", 3600], _payload("data/payload_newer_condition.json")),
-        (["ts", "older", 600], _payload("data/payload_older_condition.json"))
-
+        (["ts", "older", 600], _payload("data/payload_older_condition.json")),
+        (["plugin_type", "in", ['north', 'south', 'rule', 'delivery', 'filter']], _payload("data/payload_condition_in.json")),
+        (["plugin_type", "not in", ['north', 'south']], _payload("data/payload_condition_not_in.json"))
     ])
     def test_conditions_payload(self, test_input, expected):
         res = PayloadBuilder().WHERE(test_input).payload()

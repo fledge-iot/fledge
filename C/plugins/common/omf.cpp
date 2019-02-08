@@ -180,8 +180,8 @@ bool OMF::sendDataTypes(const Reading& row)
 			// Data type error: force type-id change
 			m_changeTypeId = true;
 		}
-                Logger::getLogger()->error("Sending JSON dataType message 'Type' "
-					   "- %s - error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+                Logger::getLogger()->warn("Sending JSON dataType message 'Type', "
+					  "not blocking issue:  |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
 					   (m_changeTypeId ? "Data Type " : "" ),
                                            e.what(),
                                            m_sender.getHostPort().c_str(),
@@ -234,8 +234,8 @@ bool OMF::sendDataTypes(const Reading& row)
 			// Data type error: force type-id change
 			m_changeTypeId = true;
 		}
-		Logger::getLogger()->error("Sending JSON dataType message 'Container' "
-					   "- %s - error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+		Logger::getLogger()->warn("Sending JSON dataType message 'Container' "
+					   "not blocking issue: |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
 					   (m_changeTypeId ? "Data Type " : "" ),
 					   e.what(),
 					   m_sender.getHostPort().c_str(),
@@ -287,8 +287,8 @@ bool OMF::sendDataTypes(const Reading& row)
 			// Data type error: force type-id change
 			m_changeTypeId = true;
 		}
-		Logger::getLogger()->error("Sending JSON dataType message 'StaticData'"
-					   "- %s - error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+		Logger::getLogger()->warn("Sending JSON dataType message 'StaticData'"
+					   "not blocking issue: |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
 					   (m_changeTypeId ? "Data Type " : "" ),
 					   e.what(),
 					   m_sender.getHostPort().c_str(),
@@ -345,8 +345,8 @@ bool OMF::sendDataTypes(const Reading& row)
 			// Data type error: force type-id change
 			m_changeTypeId = true;
 		}
-		Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) "
-					   "- %s - error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+		Logger::getLogger()->warn("Sending JSON dataType message 'Data' (lynk) "
+					   "not blocking issue: |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
 					   (m_changeTypeId ? "Data Type " : "" ),
 					   e.what(),
 					   m_sender.getHostPort().c_str(),
@@ -376,6 +376,13 @@ bool OMF::sendDataTypes(const Reading& row)
 uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			   bool compression, bool skipSentDataTypes)
 {
+	std::map<string, Reading*> superSetDataPoints;
+
+	// Create a superset of all found datapoints for each assetName
+	// the superset[assetName] is then passed to routines which handle
+	// creation of OMF data types
+	setMapObjectTypes(readings, superSetDataPoints);
+
 	/*
 	 * Iterate over readings:
 	 * - Send/cache Types
@@ -405,15 +412,31 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 				 // Always send types
 				 true;
 
-		// Handle the data types of the current reading
-		if (sendDataTypes &&
-		     // Send data typer
-		    !OMF::handleDataTypes(**elem, skipSentDataTypes) &&
+		Reading* datatypeStructure = NULL;
+		if (sendDataTypes)
+		{
+			// Get the supersetDataPoints for current assetName
+			auto it = superSetDataPoints.find((**elem).getAssetName());
+			if (it != superSetDataPoints.end())
+			{
+				datatypeStructure = (*it).second;
+			}
+		}
+
+		// Check first we have supersetDataPoints for the current reading
+		if ((sendDataTypes && datatypeStructure == NULL) ||
+		    // Handle the data types of the current reading
+		    (sendDataTypes &&
+		    // Send data type
+		    !OMF::handleDataTypes(*datatypeStructure, skipSentDataTypes) &&
 		    // Data type not sent: 
 		    (!m_changeTypeId ||
 		     // Increment type-id and re-send data types
-		     !OMF::handleTypeErrors(**elem)))
+		     !OMF::handleTypeErrors(*datatypeStructure))))
 		{
+			// Remove all assets supersetDataPoints
+			unsetMapObjectTypes(superSetDataPoints);
+
 			// Failure
 			m_lastError = true;
 			return 0;
@@ -423,6 +446,9 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		jsonData << OMFData(**elem, m_typeId).OMFdataVal() <<
 			    (elem < (readings.end() - 1 ) ? ", " : "");
 	}
+
+	// Remove all assets supersetDataPoints
+	unsetMapObjectTypes(superSetDataPoints);
 
 	jsonData << "]";
 
@@ -494,7 +520,9 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			OMF::clearCreatedTypes();
 			// Reset error indicator
 			m_lastError = false;
-			// Just return the size of readings buffer to the caller
+
+			// It returns size instead of 0 as the rows in the block should be skipped in case of an error
+			// as it is considered a not blocking ones.
 			return readings.size();
 		}
 		else
@@ -770,7 +798,7 @@ const std::string OMF::createTypeData(const Reading& reading) const
 			     "typename_measurement",
 			     tData);
 
-	 tData.append("\" }]");
+	tData.append("\" }]");
 
 	// Return JSON string
 	return tData;
@@ -936,17 +964,6 @@ bool OMF::handleDataTypes(const Reading& row,
 		OMF::setCreatedTypes(key);
 	}
 
-	// Just for dubug right now
-	//if (skipSending)
-	//{
-	//	cerr << "dataTypes for key [" << key << "]" <<
-	//		(sendTypes ? " have been sent." : " already sent.") << endl;
-	//}
-	//else
-	//{
-	//	cerr << "dataTypes for typeId [" << m_typeId << "] have been sent." << endl;
-	//}
-
 	// Success
 	return true;
 }
@@ -1020,7 +1037,7 @@ void OMF::setFormatType(const string &key, string &value)
 void OMF::setNotBlockingErrors(std::vector<std::string>& notBlockingErrors)
 {
 
-	m_notBlockingErrors = std::move(notBlockingErrors);
+	m_notBlockingErrors = notBlockingErrors;
 }
 
 
@@ -1098,4 +1115,127 @@ bool OMF::handleTypeErrors(const Reading& reading)
 		ret = false;
 	}
 	return ret;
+}
+
+/**
+ * Create a superset data map for each reading and found datapoints
+ *
+ * The output map is filled with a Reading object containing
+ * all the datapoints found for each asset in the inoput reading set.
+ * The datapoint have a fake value based on the datapoint type
+ *  
+ * @param    readings		Current input readings data
+ * @param    dataSuperSet	Map to store all datapoints for an assetname
+ */
+void OMF::setMapObjectTypes(const vector<Reading*>& readings,
+			    std::map<std::string, Reading*>& dataSuperSet) const
+{
+	// Temporary map for [asset][datapoint] = type
+	std::map<string, map<string, string>> readingAllDataPoints;
+
+	// Fetch ALL Reading pointers in the input vecror
+	// and create a map of [assetName][datapoint1 .. datapointN] = type
+	for (vector<Reading *>::const_iterator elem = readings.begin();
+						elem != readings.end();
+						++elem)
+	{
+		// Get asset name
+		string assetName = (**elem).getAssetName();
+		// Get all datapoints
+		const vector<Datapoint*> data = (**elem).getReadingData();
+		// Iterate through datapoints
+		for (vector<Datapoint*>::const_iterator it = data.begin();
+							it != data.end();
+							++it)
+		{       
+			string omfType = omfTypes[((*it)->getData()).getType()];
+			string datapointName = (*it)->getName();
+			auto itr = readingAllDataPoints.find(assetName);
+			// Asset not found in the map
+			if (itr == readingAllDataPoints.end())
+			{
+				// Set type of current datapoint for ssetName
+				readingAllDataPoints[assetName][datapointName] = omfType;
+			}
+			else
+			{
+				// Asset found
+				auto dpItr = (*itr).second.find(datapointName);
+				// Datapoint not found
+				if (dpItr == (*itr).second.end())
+				{
+					// Add datapointName/type to map with key assetName
+					(*itr).second.emplace(datapointName, omfType);
+				}
+				else
+				{
+					if ((*dpItr).second.compare(omfType) != 0)
+					{
+						// Datapoint already set has changed type
+						Logger::getLogger()->warn("Datapoint '" + datapointName + \
+									  "' in asset '" + assetName + \
+									  "' has changed type from '" + (*dpItr).second + \
+									  " to " + omfType);
+					}
+
+					// Update datapointName/type to map with key assetName
+					// 1- remove element
+					(*itr).second.erase(dpItr);	
+					// 2- Add new value
+					readingAllDataPoints[assetName][datapointName] = omfType;
+				}
+			}
+		}
+	}
+
+	// Loop now only the elements found in the per asset types map
+	for (auto it = readingAllDataPoints.begin();
+		  it != readingAllDataPoints.end();
+		  ++it)
+	{
+		string assetName = (*it).first;
+		vector<Datapoint *> values;
+		// Set fake datapoints values
+		for (auto dp = (*it).second.begin();
+			  dp != (*it).second.end();
+			  ++dp)
+		{
+			if ((*dp).second.compare(OMF_TYPE_FLOAT) == 0)
+			{
+				DatapointValue vDouble(0.1);
+				values.push_back(new Datapoint((*dp).first, vDouble));
+			}
+			else if ((*dp).second.compare(OMF_TYPE_INTEGER) == 0)
+			{
+				DatapointValue vInt((long)1);
+				values.push_back(new Datapoint((*dp).first, vInt));
+			}
+			else if ((*dp).second.compare(OMF_TYPE_STRING) == 0)
+			{
+				DatapointValue vString("v_str");
+				values.push_back(new Datapoint((*dp).first, vString));
+			}
+		}
+
+		// Add the superset Reading data with fake values
+		dataSuperSet.emplace(assetName, new Reading(assetName, values));
+	}
+}
+
+/**
+ * Cleanup the mapped object types for input data
+ *
+ * @param    dataSuperSet	The  mapped object to cleanup
+ */
+void OMF::unsetMapObjectTypes(std::map<std::string, Reading*>& dataSuperSet) const
+{
+	// Remove all assets supersetDataPoints
+	for (auto m = dataSuperSet.begin();
+		  m != dataSuperSet.end();
+		  ++m)
+	{
+		(*m).second->removeAllDatapoints();
+		delete (*m).second;
+	}
+	dataSuperSet.clear();
 }

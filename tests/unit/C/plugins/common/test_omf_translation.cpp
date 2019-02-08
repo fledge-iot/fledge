@@ -3,6 +3,7 @@
 #include <reading_set.h>
 #include <omf.h>
 #include <rapidjson/document.h>
+#include <simple_https.h>
 
 /*
  * FogLAMP Readings to OMF translation unit tests
@@ -34,6 +35,28 @@ const char *two_readings = R"(
                 "id": 2, "asset_code": "luxometer",
                 "read_key": "5b3be50c-ff95-41ae-b5a4-cc99d08bef4a",
                 "reading": { "lux": 76834.361 },
+                "user_ts": "2018-08-21 14:00:09.32958",
+                "ts": "2018-08-22 14:48:18.72708"
+            }
+        ]
+    }
+)";
+
+// 2 readings JSON text
+const char *readings_with_different_datapoints = R"(
+    {
+        "count" : 2, "rows" : [
+            {
+                "id": 1, "asset_code": "A",
+                "read_key": "5b3be500-ff95-41ae-b5a4-cc99d08bef4a",
+                "reading": { "lux": 45204.524 },
+                "user_ts": "2018-06-11 14:00:08.532958",
+                "ts": "2018-06-12 14:47:18.872708"
+            },
+            {
+                "id": 2, "asset_code": "A",
+                "read_key": "5b3be50c-ff95-41ae-b5a4-cc99d08bef4a",
+                "reading": { "temp": 23, "label" : "device_1" },
                 "user_ts": "2018-08-21 14:00:09.32958",
                 "ts": "2018-08-22 14:48:18.72708"
             }
@@ -117,4 +140,31 @@ TEST(OMF_transation, OneReading)
 		// The array element [0] is an object with 3 keys
 		ASSERT_EQ((*itr)["values"].GetArray()[0].GetObject().MemberCount(), 3);
 	}
+}
+
+// Compare translated readings with a provided JSON value
+TEST(OMF_transation, SuperSet)
+{
+	SimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
+	OMF omf(sender, "/", "1", "ABC");
+	// Build a ReadingSet from JSON
+	ReadingSet readingSet(readings_with_different_datapoints);
+	vector<Reading *>readings = readingSet.getAllReadings();
+
+	std::map<string, Reading*> superSetDataPoints;
+
+	// Create a superset of all found datapoints for each assetName
+	// the superset[assetName] is then passed to routines which handle
+	// creation of OMF data types
+	omf.setMapObjectTypes(readings, superSetDataPoints);
+
+	// We have only 1 superset reading as the readings in input
+	// have same assetName
+	ASSERT_EQ(1, superSetDataPoints.size());
+	auto it = superSetDataPoints.begin();
+	// We have 3 datapoints in total in te superset
+	ASSERT_EQ(3, (*it).second->getDatapointCount());
+	omf.unsetMapObjectTypes(superSetDataPoints);
+	// Superset map is empty
+	ASSERT_EQ(0, superSetDataPoints.size());
 }

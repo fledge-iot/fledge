@@ -240,7 +240,7 @@ async def asset_all_readings_summary(request):
 
         # TODO: FOGL-1768 when support available from storage layer then avoid multiple calls
         # Find keys in readings
-        reading_keys = list(results['rows'][0]['reading'].keys())
+        reading_keys = list(results['rows'][-1]['reading'].keys())
         response = []
         _where = PayloadBuilder().WHERE(["asset_code", "=", asset_code]).chain_payload()
         if 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:

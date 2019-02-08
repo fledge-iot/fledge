@@ -87,13 +87,20 @@ class OMF
 		// Check DataTypeError
 		bool isDataTypeError(const char* message);
 
+		// Map object types found in input data
+		void setMapObjectTypes(const std::vector<Reading *>& data,
+					std::map<std::string, Reading*>& dataSuperSet) const;
+		// Removed mapped object types found in input data
+		void unsetMapObjectTypes(std::map<std::string, Reading*>& dataSuperSet) const;
+
 	private:
 		/**
 		 * Builds the HTTP header to send
 		 * messagetype header takes the passed type value:
 		 * 'Type', 'Container', 'Data'
 		 */
-		const std::vector<std::pair<std::string, std::string>> createMessageHeader(const std::string& type) const;
+		const std::vector<std::pair<std::string, std::string>>
+			createMessageHeader(const std::string& type) const;
 
 		// Create data for Type message for current row
 		const std::string createTypeData(const Reading& reading) const;

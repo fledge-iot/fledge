@@ -180,8 +180,8 @@ bool OMF::sendDataTypes(const Reading& row)
 			// Data type error: force type-id change
 			m_changeTypeId = true;
 		}
-                Logger::getLogger()->error("Sending JSON dataType message 'Type' "
-					   "- %s - error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+                Logger::getLogger()->warn("Sending JSON dataType message 'Type', "
+					  "not blocking issue:  |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
 					   (m_changeTypeId ? "Data Type " : "" ),
                                            e.what(),
                                            m_sender.getHostPort().c_str(),
@@ -234,8 +234,8 @@ bool OMF::sendDataTypes(const Reading& row)
 			// Data type error: force type-id change
 			m_changeTypeId = true;
 		}
-		Logger::getLogger()->error("Sending JSON dataType message 'Container' "
-					   "- %s - error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+		Logger::getLogger()->warn("Sending JSON dataType message 'Container' "
+					   "not blocking issue: |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
 					   (m_changeTypeId ? "Data Type " : "" ),
 					   e.what(),
 					   m_sender.getHostPort().c_str(),
@@ -287,8 +287,8 @@ bool OMF::sendDataTypes(const Reading& row)
 			// Data type error: force type-id change
 			m_changeTypeId = true;
 		}
-		Logger::getLogger()->error("Sending JSON dataType message 'StaticData'"
-					   "- %s - error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+		Logger::getLogger()->warn("Sending JSON dataType message 'StaticData'"
+					   "not blocking issue: |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
 					   (m_changeTypeId ? "Data Type " : "" ),
 					   e.what(),
 					   m_sender.getHostPort().c_str(),
@@ -345,8 +345,8 @@ bool OMF::sendDataTypes(const Reading& row)
 			// Data type error: force type-id change
 			m_changeTypeId = true;
 		}
-		Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) "
-					   "- %s - error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+		Logger::getLogger()->warn("Sending JSON dataType message 'Data' (lynk) "
+					   "not blocking issue: |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
 					   (m_changeTypeId ? "Data Type " : "" ),
 					   e.what(),
 					   m_sender.getHostPort().c_str(),
@@ -520,7 +520,9 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			OMF::clearCreatedTypes();
 			// Reset error indicator
 			m_lastError = false;
-			// Just return the size of readings buffer to the caller
+
+			// It returns size instead of 0 as the rows in the block should be skipped in case of an error
+			// as it is considered a not blocking ones.
 			return readings.size();
 		}
 		else
@@ -1035,7 +1037,7 @@ void OMF::setFormatType(const string &key, string &value)
 void OMF::setNotBlockingErrors(std::vector<std::string>& notBlockingErrors)
 {
 
-	m_notBlockingErrors = std::move(notBlockingErrors);
+	m_notBlockingErrors = notBlockingErrors;
 }
 
 

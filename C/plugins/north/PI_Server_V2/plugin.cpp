@@ -91,7 +91,8 @@ using namespace rapidjson;
 				"\"default\": \"{\\\"errors400\\\": "\
 		                        "["\
 			                        "\\\"Redefinition of the type with the same ID is not allowed\\\", "\
-						"\\\"Invalid value type for the property\\\" "\
+						"\\\"Invalid value type for the property\\\", "\
+						"\\\"Property does not exist in the type definition\\\" "\
 		                        "]"\
                                 "}\", " \
 				"\"order\": \"17\" ,"  \

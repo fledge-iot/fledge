@@ -8,6 +8,7 @@
 
 import json
 import asyncio
+import sys
 from foglamp.services.south import exceptions
 from foglamp.common import logger
 from foglamp.services.south.ingest import Ingest
@@ -110,6 +111,12 @@ class Server(FoglampMicroservice):
 
             # Plugin initialization
             self._plugin_info = self._plugin.plugin_info()
+            if float(self._plugin_info['version'][:3]) >= 1.5 and self._plugin_info['mode'] == 'async':
+                _LOGGER.warning('Plugin %s should be loaded by C version of South server', self._name)
+                import foglamp.services.south.modify_process as mp
+                await mp.change_to_south_c(self._name, self._microservice_management_host, self._core_management_host, self._core_management_port, self._microservice_id)
+                sys.exit(1)
+
             default_config = self._plugin_info['config']
             default_plugin_descr = self._name if (default_config['plugin']['description']).strip() == "" else \
                 default_config['plugin']['description']
@@ -241,7 +248,8 @@ class Server(FoglampMicroservice):
             raise ex
 
         try:
-            self._task_main.cancel()
+            if self._task_main is not None:
+                self._task_main.cancel()
             # Cancel all pending asyncio tasks after a timeout occurs
             done, pending = await asyncio.wait(asyncio.Task.all_tasks(), timeout=_CLEAR_PENDING_TASKS_TIMEOUT)
             for task_pending in pending:

@@ -2202,8 +2202,8 @@ int blocks = 0;
 
 	result = "{ \"removed\" : 0, ";
 	result += " \"unsentPurged\" : 0, ";
-	result += " \"unsentRetained\", 0, ";
-    	result += " \"readings\" 0 }";
+	result += " \"unsentRetained\" : 0, ";
+    	result += " \"readings\" : 0 }";
 
 
 	logger->info("Purge starting...");
@@ -2292,7 +2292,7 @@ int blocks = 0;
 
 		if (rowidLimit == 0)
 		{
- 			raiseError("purge", "No data to purge");
+ 			logger->info("No data to purge");
 			return 0;
 		}
 

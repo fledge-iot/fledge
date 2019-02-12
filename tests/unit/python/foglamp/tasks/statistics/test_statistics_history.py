@@ -9,7 +9,7 @@
 import asyncio
 from unittest.mock import patch, MagicMock
 import pytest
-from datetime import datetime
+
 import ast
 from foglamp.common import logger
 from foglamp.common.storage_client.storage_client import StorageClientAsync
@@ -68,13 +68,14 @@ class TestStatisticsHistory:
             with patch.object(logger, "setup"):
                 sh = StatisticsHistory()
                 sh._storage_async = MagicMock(spec=StorageClientAsync)
+                payload = {'updates': [{'where': {'value': 'Bla', 'condition': '=', 'column': 'key'}, 'values': {'previous_value': 1}}]}
                 with patch.object(sh._storage_async, "update_tbl", return_value=mock_coro(None)) as patch_storage:
-                    await sh._update_previous_value(key='Bla', value=1)
+                    await sh._bulk_update_previous_value(payload)
                 args, kwargs = patch_storage.call_args
                 assert "statistics" == args[0]
                 payload = ast.literal_eval(args[1])
-                assert "Bla" == payload["where"]["value"]
-                assert 1 == payload["values"]["previous_value"]
+                assert "Bla" == payload["updates"][0]["where"]["value"]
+                assert 1 == payload["updates"][0]["values"]["previous_value"]
 
     async def test_run(self):
         with patch.object(FoglampProcess, '__init__'):
@@ -92,9 +93,9 @@ class TestStatisticsHistory:
                           }
                 with patch.object(sh._storage_async, "query_tbl", return_value=mock_coro(retval)) as mock_keys:
                     with patch.object(sh, "_insert_into_stats_history", return_value=mock_coro(None)) as mock_insert_history:
-                        with patch.object(sh, "_update_previous_value", return_value=mock_coro(None)) as mock_update:
+                        with patch.object(sh, "_bulk_update_previous_value", return_value=mock_coro(None)) as mock_update:
                             await sh.run()
-                        assert 2 == mock_update.call_count
+                        assert 1 == mock_update.call_count
                     args, kwargs = mock_insert_history.call_args
                     assert "READINGS" == kwargs["key"]
                 mock_keys.assert_called_once_with('statistics')

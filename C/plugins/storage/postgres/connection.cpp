@@ -25,6 +25,10 @@
 #include <logger.h>
 #include <time.h>
 
+
+// FIXME::
+//#include <tmp_log.hpp>
+
 using namespace std;
 using namespace rapidjson;
 
@@ -77,6 +81,12 @@ bool Connection::retrieve(const string& table, const string& condition, string& 
 Document document;  // Default template parameter uses UTF8 and MemoryPoolAllocator.
 SQLBuffer	sql;
 SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
+
+
+	// FIXME:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("DBG retrieve table :%s:", table.c_str());
+
 
 	try {
 		if (condition.empty())
@@ -244,12 +254,25 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 		const char *query = sql.coalesce();
 		logSQL("CommonRetrieve", query);
 
+		// FIXME:
+//		char tmp_buffer[10000];
+//		sprintf (tmp_buffer,"DBG : PG retrieve : query |%s|",
+//			 query);
+//		tmpLogger (tmp_buffer);
+
 		PGresult *res = PQexec(dbConnection, query);
 		delete[] query;
 		if (PQresultStatus(res) == PGRES_TUPLES_OK)
 		{
 			mapResultSet(res, resultSet);
 			PQclear(res);
+
+			// FIXME:
+//			sprintf (tmp_buffer,"DBG : PG retrieve : resultSet |%s| \n",
+//				resultSet.c_str() );
+//
+//			tmpLogger (tmp_buffer);
+
 			return true;
 		}
 		char *SQLState = PQresultErrorField(res, PG_DIAG_SQLSTATE);
@@ -844,6 +867,12 @@ int		row = 0;
 bool Connection::fetchReadings(unsigned long id, unsigned int blksize, std::string& resultSet)
 {
 char	sqlbuffer[200];
+
+
+	// FIXME:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("DBG fetchReadings");
+
 
 	snprintf(sqlbuffer, sizeof(sqlbuffer),
 		"SELECT id, asset_code, read_key, reading, user_ts AT TIME ZONE 'UTC' as \"user_ts\", ts AT TIME ZONE 'UTC' as \"ts\" FROM foglamp.readings WHERE id >= %ld ORDER BY id LIMIT %d;", id, blksize);

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import pytest
+import sys
 
 from unittest.mock import patch
 
@@ -28,15 +29,15 @@ class TestFoglampProcess:
             fp = FoglampProcessImp()
 
     @pytest.mark.parametrize('argslist',
-                             [([ArgumentParserError()]),
-                              (['corehost', ArgumentParserError()]),
-                              (['corehost', 0, ArgumentParserError()])
+                             [(['pytest']),
+                              (['pytest, ''--address', 'corehost']),
+                              (['pytest', '--address', 'corehost', '--port', 0])
                               ])
     def test_constructor_missing_args(self, argslist):
         class FoglampProcessImp(FoglampProcess):
             def run(self):
                 pass
-        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=argslist):
+        with patch.object(sys, 'argv', argslist):
             with pytest.raises(ArgumentParserError) as excinfo:
                 fp = FoglampProcessImp()
         assert '' in str(
@@ -46,7 +47,7 @@ class TestFoglampProcess:
         class FoglampProcessImp(FoglampProcess):
             def run(self):
                 pass
-        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+        with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
                     with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
@@ -66,7 +67,7 @@ class TestFoglampProcess:
         class FoglampProcessImp(FoglampProcess):
             def run(self):
                 pass
-        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+        with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(MicroserviceManagementClient, 'get_services', return_value=None) as get_patch:
                     with patch.object(ReadingsStorageClientAsync, '__init__',
@@ -80,7 +81,7 @@ class TestFoglampProcess:
         class FoglampProcessImp(FoglampProcess):
             def run(self):
                 pass
-        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+        with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(MicroserviceManagementClient, 'register_service', return_value=None) as register_patch:
                     with patch.object(ReadingsStorageClientAsync, '__init__',
@@ -94,7 +95,7 @@ class TestFoglampProcess:
         class FoglampProcessImp(FoglampProcess):
             def run(self):
                 pass
-        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+        with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(MicroserviceManagementClient, 'unregister_service', return_value=None) as unregister_patch:
                     with patch.object(ReadingsStorageClientAsync, '__init__',

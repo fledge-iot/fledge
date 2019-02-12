@@ -12,13 +12,17 @@
 
 static struct {
 	const char	*name;
+	const char	*displayName;
 	const char	*description;
 	const char	*type;
 	const char	*value;
 } defaults[] = {
-	{ "readingsPerSec",	"Number of readings to generate per sec",	"integer", "1" },
-	{ "maxSendLatency",	"Maximum time to spend filling buffer before sending", "integer", "5000" },
-	{ "bufferThreshold",	"Number of readings to buffer before sending", "integer", "100" },
-	{ NULL, NULL, NULL, NULL }
+	{ "readingsPerSec",	"Readings Per Second",
+			"Number of readings to generate per sec",	"integer", "1" },
+	{ "maxSendLatency",	"Maximum Reading Latency (mS)",
+			"Maximum time to spend filling buffer before sending", "integer", "5000" },
+	{ "bufferThreshold",	"Maximum buffered Readings",
+			"Number of readings to buffer before sending", "integer", "100" },
+	{ NULL, NULL, NULL, NULL, NULL }
 };
 #endif

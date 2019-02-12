@@ -10,6 +10,7 @@
 Fetch information from the statistics table, compute delta and
 stores the delta value (statistics.value - statistics.previous_value) in the statistics_history table
 """
+import json
 
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common import logger
@@ -45,17 +46,15 @@ class StatisticsHistory(FoglampProcess):
         payload = PayloadBuilder().INSERT(key=key, value=value, history_ts=history_ts).payload()
         await self._storage_async.insert_into_tbl("statistics_history", payload)
 
-    async def _update_previous_value(self, key='', value=0):
+    async def _bulk_update_previous_value(self, payload):
         """ UPDATE previous_value of column to have the same value as snapshot
     
         Query: 
             UPDATE statistics_history SET previous_value = value WHERE key = key
         Args:
-            key: Key which previous_value gets update 
-            value: value at snapshot
+           payload: dict containing statistics keys and previous values
         """
-        payload = PayloadBuilder().SET(previous_value=value).WHERE(["key", "=", key]).payload()
-        await self._storage_async.update_tbl("statistics", payload)
+        await self._storage_async.update_tbl("statistics", json.dumps(payload, sort_keys=False))
 
     async def run(self):
         """ SELECT against the statistics table, to get a snapshot of the data at that moment.
@@ -66,10 +65,14 @@ class StatisticsHistory(FoglampProcess):
         """
         current_time = utils.local_timestamp()
         results = await self._storage_async.query_tbl("statistics")
+        payload = {"updates": []}
         for r in results['rows']:
             key = r['key']
             value = int(r["value"])
             previous_value = int(r["previous_value"])
             delta = value - previous_value
+            # TODO: Once FOGL-1973 is done, use bulk insert for statistics_history
             await self._insert_into_stats_history(key=key, value=delta, history_ts=current_time)
-            await self._update_previous_value(key=key, value=value)
+            payload_item = PayloadBuilder().SET(previous_value=value).WHERE(["key", "=", key]).payload()
+            payload['updates'].append(json.loads(payload_item))
+        await self._bulk_update_previous_value(payload)

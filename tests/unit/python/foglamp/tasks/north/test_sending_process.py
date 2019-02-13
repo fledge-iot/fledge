@@ -55,7 +55,7 @@ async def mock_audit_failure():
 def fixture_sp(event_loop):
     """"  Configures the sending process instance for the tests """
 
-    with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+    with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
         with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
             with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
                 with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
@@ -367,7 +367,7 @@ class TestSendingProcess:
     async def test_is_north_valid(self,  plugin_file, plugin_type, plugin_name, expected_result, event_loop):
         """Tests the possible cases of the function is_north_valid """
 
-        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+        with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
                     with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
@@ -392,7 +392,7 @@ class TestSendingProcess:
             return True
 
         # Checks the Readings handling
-        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+        with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
                     with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
@@ -472,7 +472,7 @@ class TestSendingProcess:
             return p_rows
 
         # Checks the Readings handling
-        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+        with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
                     with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
@@ -558,7 +558,7 @@ class TestSendingProcess:
         """ Unit test for - _transform_in_memory_data_readings"""
 
         # Checks the Readings handling
-        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+        with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
                     with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
@@ -729,7 +729,7 @@ class TestSendingProcess:
         """Test _load_data_into_memory handling and transformations for the statistics """
 
         # Checks the Statistics handling
-        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+        with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
                     with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
@@ -822,7 +822,7 @@ class TestSendingProcess:
         """ Unit test for - _transform_in_memory_data_statistics"""
 
         # Checks the Statistics handling
-        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+        with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
                     with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
@@ -860,7 +860,7 @@ class TestSendingProcess:
             rows = {"rows": [{"last_object": 10}, {"last_object": 11}]}
             return rows
 
-        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+        with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
                     with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
@@ -927,7 +927,7 @@ class TestSendingProcess:
 
             return True
 
-        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+        with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
                     with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
@@ -1101,7 +1101,7 @@ class TestSendingProcess:
             return p_rows[idx]
 
         # GIVEN
-        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+        with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
                     with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
@@ -1289,7 +1289,7 @@ class TestSendingProcess:
             return p_rows[idx]
 
         # GIVEN
-        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+        with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
                     with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
@@ -1433,7 +1433,7 @@ class TestSendingProcess:
             return p_rows[idx]
 
         # GIVEN
-        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+        with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
                     with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
@@ -1602,7 +1602,7 @@ class TestSendingProcess:
             return p_rows[idx]
 
         # GIVEN
-        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+        with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
                     with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
@@ -1786,7 +1786,7 @@ class TestSendingProcess:
             return p_send_result[x]["data_sent"], p_send_result[x]["new_last_object_id"], p_send_result[x]["num_sent"]
 
         # GIVEN
-        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+        with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
                     with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
@@ -1968,7 +1968,7 @@ class TestSendingProcess:
             return p_send_result[x]["data_sent"], p_send_result[x]["new_last_object_id"], p_send_result[x]["num_sent"]
 
         # GIVEN
-        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+        with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
                     with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
@@ -2204,7 +2204,7 @@ class TestSendingProcess:
             """ Dummy async task """
             return True
 
-        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+        with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
                     with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
@@ -2230,7 +2230,7 @@ class TestSendingProcess:
     async def test_standard_plugins(self, plugin_file, plugin_type, plugin_name, event_loop):
         """Tests if the standard plugins are available and loadable and if they have the required methods """
 
-        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+        with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
                     with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
@@ -2290,7 +2290,7 @@ class TestSendingProcess:
                                          expected_config):
         """ Unit tests - _retrieve_configuration - tests the transformations """
 
-        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+        with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
                     with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
@@ -2313,7 +2313,7 @@ class TestSendingProcess:
     async def test_start_stream_not_valid(self, event_loop):
         """ Unit tests - _start - stream_id is not valid """
 
-        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+        with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
                     with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
@@ -2338,7 +2338,7 @@ class TestSendingProcess:
         async def mock_master_stat_key():
             return 'Readings Sent'
 
-        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+        with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
                     with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
@@ -2374,7 +2374,7 @@ class TestSendingProcess:
         async def mock_master_stat_key():
             return 'Readings Sent'
 
-        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+        with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
                     with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
@@ -2414,7 +2414,7 @@ class TestSendingProcess:
         async def mock_master_stat_key():
             return 'Readings Sent'
 
-        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+        with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
                     with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:

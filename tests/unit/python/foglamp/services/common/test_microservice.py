@@ -5,6 +5,7 @@ import time
 from unittest.mock import patch, MagicMock
 from aiohttp import web
 import asyncio
+import sys
 from foglamp.common.storage_client.storage_client import ReadingsStorageClientAsync, StorageClientAsync
 from foglamp.common.process import FoglampProcess, SilentArgParse, ArgumentParserError
 from foglamp.services.common.microservice import FoglampMicroservice, _logger
@@ -91,7 +92,7 @@ class TestFoglampMicroservice:
                 pass
 
         with patch.object(asyncio, 'get_event_loop', return_value=loop):
-            with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
                 with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                     with patch.object(MicroserviceManagementClient, 'create_configuration_category', return_value=None):
                         with patch.object(MicroserviceManagementClient, 'create_child_category',
@@ -145,7 +146,7 @@ class TestFoglampMicroservice:
                 pass
 
         with patch.object(asyncio, 'get_event_loop', return_value=loop):
-            with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
                 with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                     with patch.object(MicroserviceManagementClient, 'create_configuration_category', return_value=None):
                         with patch.object(MicroserviceManagementClient, 'create_child_category',
@@ -183,7 +184,7 @@ class TestFoglampMicroservice:
                 pass
 
         with patch.object(asyncio, 'get_event_loop', return_value=loop):
-            with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', 0, '--name', 'sname']):
                 with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                     with patch.object(MicroserviceManagementClient, 'create_configuration_category', return_value=None):
                         with patch.object(MicroserviceManagementClient, 'create_child_category',

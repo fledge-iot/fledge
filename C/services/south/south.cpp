@@ -572,13 +572,15 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 	for (int i = 0; defaults[i].name; i++)
 	{
 		defaultConfig.addItem(defaults[i].name, defaults[i].description,
-			defaults[i].type, defaults[i].value, defaults[i].value);	
+			defaults[i].type, defaults[i].value, defaults[i].value);
+		defaultConfig.setItemDisplayName(defaults[i].name, defaults[i].displayName);
 	}
 
 	/* Add the set of logging levels to the service */
 	vector<string>	logLevels = { "error", "warning", "info", "debug" };
 	defaultConfig.addItem("logLevel", "Minimum logging level reported",
 			"warning", "warning", logLevels);
+	defaultConfig.setItemDisplayName("logLevel", "Minimum Log Level");
 }
 
 /**

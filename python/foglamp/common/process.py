@@ -9,6 +9,7 @@
 from abc import ABC, abstractmethod
 import argparse
 import time
+import re
 from foglamp.common.storage_client.storage_client import StorageClientAsync, ReadingsStorageClientAsync
 from foglamp.common import logger
 from foglamp.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient
@@ -84,6 +85,12 @@ class FoglampProcess(ABC):
             self._name = getattr(namespace, 'name')
             self._core_management_host = getattr(namespace, 'address')
             self._core_management_port = getattr(namespace, 'port')
+            if (re.match(
+                    "(^[2][0-5][0-5]|^[1]{0,1}[0-9]{1,2})\.([0-2][0-5][0-5]|[1]{0,1}[0-9]{1,2})\.([0-2][0-5][0-5]|[1]{0,1}[0-9]{1,2})\.([0-2][0-5][0-5]|[1]{0,1}[0-9]{1,2})$",
+                    self._core_management_host) is None):
+                raise ArgumentParserError("Invalid Host: {}".format(self._core_management_host))
+            if self._core_management_port < 1 or self._core_management_port > 65535:
+                raise ArgumentParserError("Invalid Port: {}".format(self._core_management_port))
         except ArgumentParserError as ex:
             _logger.error("Arg parser error: %s", str(ex))
             raise

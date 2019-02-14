@@ -16,15 +16,17 @@
 #include <process.h>
 #include <service_record.h>
 #include <signal.h>
+#include <dlfcn.h>
 #include <execinfo.h>
 #include <cxxabi.h>
+
 
 #define LOG_SERVICE_NAME  "FogLAMP Process"
 
 using namespace std;
 
 /**
- * Signal handker to log stack trqaces on fatal signals
+ * Signal handler to log stack trqaces on fatal signals
  */
 static void handler(int sig)
 {

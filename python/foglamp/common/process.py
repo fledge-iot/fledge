@@ -85,10 +85,11 @@ class FoglampProcess(ABC):
             self._name = getattr(namespace, 'name')
             self._core_management_host = getattr(namespace, 'address')
             self._core_management_port = getattr(namespace, 'port')
-            if (re.match(
-                    "(^[2][0-5][0-5]|^[1]{0,1}[0-9]{1,2})\.([0-2][0-5][0-5]|[1]{0,1}[0-9]{1,2})\.([0-2][0-5][0-5]|[1]{0,1}[0-9]{1,2})\.([0-2][0-5][0-5]|[1]{0,1}[0-9]{1,2})$",
-                    self._core_management_host) is None):
-                raise ArgumentParserError("Invalid Host: {}".format(self._core_management_host))
+            if self._core_management_host.strip() != 'localhost':
+                if (re.match(
+                        "(^[2][0-5][0-5]|^[1]{0,1}[0-9]{1,2})\.([0-2][0-5][0-5]|[1]{0,1}[0-9]{1,2})\.([0-2][0-5][0-5]|[1]{0,1}[0-9]{1,2})\.([0-2][0-5][0-5]|[1]{0,1}[0-9]{1,2})$",
+                        self._core_management_host) is None):
+                    raise ArgumentParserError("Invalid Host: {}".format(self._core_management_host))
             if self._core_management_port < 1 or self._core_management_port > 65535:
                 raise ArgumentParserError("Invalid Port: {}".format(self._core_management_port))
         except ArgumentParserError as ex:

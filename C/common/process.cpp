@@ -26,7 +26,7 @@
 using namespace std;
 
 /**
- * Signal handler to log stack trqaces on fatal signals
+ * Signal handler to log stack traces on fatal signals
  */
 static void handler(int sig)
 {

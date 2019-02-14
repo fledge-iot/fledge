@@ -27,7 +27,7 @@
 
 
 // FIXME::
-//#include <tmp_log.hpp>
+#include <tmp_log.hpp>
 
 using namespace std;
 using namespace rapidjson;
@@ -255,10 +255,10 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 		logSQL("CommonRetrieve", query);
 
 		// FIXME:
-//		char tmp_buffer[10000];
-//		sprintf (tmp_buffer,"DBG : PG retrieve : query |%s|",
-//			 query);
-//		tmpLogger (tmp_buffer);
+		char tmp_buffer[10000];
+		sprintf (tmp_buffer,"DBG 2 : PG retrieve : query |%s|",
+			 query);
+		tmpLogger (tmp_buffer);
 
 		PGresult *res = PQexec(dbConnection, query);
 		delete[] query;
@@ -268,10 +268,10 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 			PQclear(res);
 
 			// FIXME:
-//			sprintf (tmp_buffer,"DBG : PG retrieve : resultSet |%s| \n",
-//				resultSet.c_str() );
-//
-//			tmpLogger (tmp_buffer);
+			sprintf (tmp_buffer,"DBG 2 : PG retrieve : resultSet |%s| \n",
+				resultSet.c_str() );
+
+			tmpLogger (tmp_buffer);
 
 			return true;
 		}

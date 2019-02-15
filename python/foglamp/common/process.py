@@ -9,7 +9,6 @@
 from abc import ABC, abstractmethod
 import argparse
 import time
-import re
 from foglamp.common.storage_client.storage_client import StorageClientAsync, ReadingsStorageClientAsync
 from foglamp.common import logger
 from foglamp.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient

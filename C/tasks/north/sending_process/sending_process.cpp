@@ -45,6 +45,12 @@ condition_variable cond_var;
 // Buffer max elements
 unsigned long memoryBufferSize;
 
+// Exit code:
+// 0 = success (some data sent)
+// 1 = 100% failure sending data to north server
+// 2 =internal errors
+int exitCode = 1;
+
 // Used to identifies logs
 const string LOG_SERVICE_NAME = "SendingProcess/sending_process";
 
@@ -80,7 +86,7 @@ int main(int argc, char** argv)
 	{
 		cerr << "Exception in " << argv[0] << " : " << e.what() << endl;
 		// Return failure for class instance/configuration etc
-		exit(1);
+		exit(2);
 	}
 	// Catch all exceptions
 	catch (...)
@@ -88,11 +94,11 @@ int main(int argc, char** argv)
 		std::exception_ptr p = std::current_exception();
 		string name = (p ? p.__cxa_exception_type()->name() : "null");
 		cerr << "Generic Exception in " << argv[0] << " : " << name << endl;
-		exit(1);
+		exit(2);
 	}
 
 	// Return success
-	exit(0);
+	exit(exitCode);
 }
 
 /**
@@ -432,10 +438,12 @@ static void sendDataThread(SendingProcess *sendData)
 				if (sentReadings)
 				{
 					processUpdate = true;
+					exitCode = 0;
 				}
 			}
 			else
 			{
+				exitCode = 0;
 				// We have an empty readings set: check last id
 				if (sendData->m_last_read_id.at(sendIdx) > 0)
 				{
@@ -445,6 +453,8 @@ static void sendDataThread(SendingProcess *sendData)
 
 			if (processUpdate)
 			{
+				exitCode = 0;
+
 				/** Sending done */
 				sendData->setUpdateDb(true);
 

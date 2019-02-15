@@ -276,6 +276,26 @@ void ConfigCategory::addItem(const std::string& name, const std::string descript
 }
 
 /**
+ * Set the display name of an item
+ *
+ * @param name	The item name in the category
+ * @param displayName	The display name to set
+ * @return true if the item was found
+ */
+bool ConfigCategory::setItemDisplayName(const std::string& name, const std::string& displayName)
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			m_items[i]->m_displayName = displayName;
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
  * Delete all the items from the configuration category having a specific type
  *
  * * @param type  Type to delete

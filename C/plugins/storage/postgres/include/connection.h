@@ -21,6 +21,7 @@ class Connection {
 		~Connection();
 		bool		retrieve(const std::string& table, const std::string& condition,
 					std::string& resultSet);
+    		bool 		retrieveReadings(const std::string& condition, std::string& resultSet);
 		int		insert(const std::string& table, const std::string& data);
 		int		update(const std::string& table, const std::string& data);
 		int		deleteRows(const std::string& table, const std::string& condition);

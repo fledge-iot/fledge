@@ -292,6 +292,227 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 }
 
 /**
+ * Perform a query against the readings table
+ *
+ */
+bool Connection::retrieveReadings(const string& condition, string& resultSet)
+{
+	Document document;  // Default template parameter uses UTF8 and MemoryPoolAllocator.
+	SQLBuffer	sql;
+	SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
+
+	const string table = "readings";
+
+	// FIXME:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("DBG retrieveReadings table :%s:", table.c_str());
+
+
+	try {
+		if (condition.empty())
+		{
+			sql.append("SELECT * FROM foglamp.");
+			sql.append(table);
+		}
+		else
+		{
+			if (document.Parse(condition.c_str()).HasParseError())
+			{
+				raiseError("retrieve", "Failed to parse JSON payload");
+				return false;
+			}
+			if (document.HasMember("aggregate"))
+			{
+				sql.append("SELECT ");
+				if (document.HasMember("modifier"))
+				{
+					sql.append(document["modifier"].GetString());
+					sql.append(' ');
+				}
+				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints))
+				{
+					return false;
+				}
+				sql.append(" FROM foglamp.");
+			}
+			else if (document.HasMember("return"))
+			{
+				int col = 0;
+				Value& columns = document["return"];
+				if (! columns.IsArray())
+				{
+					raiseError("retrieve", "The property return must be an array");
+					return false;
+				}
+				sql.append("SELECT ");
+				if (document.HasMember("modifier"))
+				{
+					sql.append(document["modifier"].GetString());
+					sql.append(' ');
+				}
+				for (Value::ConstValueIterator itr = columns.Begin(); itr != columns.End(); ++itr)
+				{
+					if (col)
+						sql.append(", ");
+					if (!itr->IsObject())	// Simple column name
+					{
+						sql.append("\"");
+						sql.append(itr->GetString());
+						sql.append("\"");
+					}
+					else
+					{
+						if (itr->HasMember("column"))
+						{
+							if (! (*itr)["column"].IsString())
+							{
+								raiseError("rerieve", "column must be a string");
+								return false;
+							}
+							if (itr->HasMember("format"))
+							{
+								if (! (*itr)["format"].IsString())
+								{
+									raiseError("rerieve", "format must be a string");
+									return false;
+								}
+								sql.append("to_char(");
+								sql.append("\"");
+								sql.append((*itr)["column"].GetString());
+								sql.append("\"");
+								sql.append(", '");
+								sql.append((*itr)["format"].GetString());
+								sql.append("')");
+							}
+							else if (itr->HasMember("timezone"))
+							{
+								if (! (*itr)["timezone"].IsString())
+								{
+									raiseError("rerieve", "timezone must be a string");
+									return false;
+								}
+								sql.append("\"");
+								sql.append((*itr)["column"].GetString());
+								sql.append("\"");
+								sql.append(" AT TIME ZONE '");
+								sql.append((*itr)["timezone"].GetString());
+								sql.append("' ");
+							}
+							else
+							{
+								sql.append("\"");
+								sql.append((*itr)["column"].GetString());
+								sql.append("\"");
+							}
+							sql.append(' ');
+						}
+						else if (itr->HasMember("json"))
+						{
+							const Value& json = (*itr)["json"];
+							if (! returnJson(json, sql, jsonConstraints))
+								return false;
+						}
+						else
+						{
+							raiseError("retrieve", "return object must have either a column or json property");
+							return false;
+						}
+
+						if (itr->HasMember("alias"))
+						{
+							sql.append(" AS \"");
+							sql.append((*itr)["alias"].GetString());
+							sql.append('"');
+						}
+					}
+					col++;
+				}
+				sql.append(" FROM foglamp.");
+			}
+			else
+			{
+				sql.append("SELECT ");
+				if (document.HasMember("modifier"))
+				{
+					sql.append(document["modifier"].GetString());
+					sql.append(' ');
+				}
+				sql.append(" * FROM foglamp.");
+			}
+			sql.append(table);
+			if (document.HasMember("where"))
+			{
+				sql.append(" WHERE ");
+
+				if (document.HasMember("where"))
+				{
+					if (!jsonWhereClause(document["where"], sql))
+					{
+						return false;
+					}
+				}
+				else
+				{
+					raiseError("retrieve", "JSON does not contain where clause");
+					return false;
+				}
+				if (! jsonConstraints.isEmpty())
+				{
+					sql.append(" AND ");
+					const char *jsonBuf =  jsonConstraints.coalesce();
+					sql.append(jsonBuf);
+					delete[] jsonBuf;
+				}
+			}
+			if (!jsonModifiers(document, sql))
+			{
+				return false;
+			}
+		}
+		sql.append(';');
+
+		const char *query = sql.coalesce();
+		logSQL("CommonRetrieve", query);
+
+		// FIXME:
+		char tmp_buffer[10000];
+		sprintf (tmp_buffer,"DBG 2 : PG retrieve : query |%s|",
+			 query);
+		tmpLogger (tmp_buffer);
+
+		PGresult *res = PQexec(dbConnection, query);
+		delete[] query;
+		if (PQresultStatus(res) == PGRES_TUPLES_OK)
+		{
+			mapResultSet(res, resultSet);
+			PQclear(res);
+
+			// FIXME:
+			sprintf (tmp_buffer,"DBG 2 : PG retrieve : resultSet |%s| \n",
+				 resultSet.c_str() );
+
+			tmpLogger (tmp_buffer);
+
+			return true;
+		}
+		char *SQLState = PQresultErrorField(res, PG_DIAG_SQLSTATE);
+		if (!strcmp(SQLState, "22P02"))	// Conversion error
+		{
+			raiseError("retrieve", "Unable to convert data to the required type");
+		}
+		else
+		{
+			raiseError("retrieve", PQerrorMessage(dbConnection));
+		}
+		PQclear(res);
+		return false;
+	} catch (exception e) {
+		raiseError("retrieve", "Internal error: %s", e.what());
+	}
+}
+
+
+/**
  * Insert data into a table
  */
 int Connection::insert(const std::string& table, const std::string& data)

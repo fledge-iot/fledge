@@ -153,11 +153,7 @@ async def asset(request):
         results = await _readings.query(payload)
         response = results['rows']
 
-        #// FIXME:4
-        #response = [{'timestamp': '2019-02-12 11:01:02.123456+00', 'reading': {'value': 4}}, {'timestamp': '2019-02-12 12:01:01.123+00', 'reading': {'value': 3}}]
-        #response = [{'timestamp': '2019-02-12 11:01:02.123456', 'reading': {'value': 4}}, {'timestamp': '2019-02-12 12:01:01.123', 'reading': {'value': 3}}]
-
-
+        #// FIXME:
         _text = "DBG :{0}: \n".format(response)
         file = open("//home//foglamp//wrk//log//test_2.txt", 'a');file .write(_text);file.close()
 

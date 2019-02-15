@@ -155,7 +155,7 @@ async def asset(request):
 
         #// FIXME:
         _text = "DBG :{0}: \n".format(response)
-        file = open("//home//foglamp//wrk//log//test_2.txt", 'a');file .write(_text);file.close()
+        file = open("//home//foglamp//wrk//log//log_test_py.txt", 'a');file .write(_text);file.close()
 
     except KeyError:
         raise web.HTTPBadRequest(reason=results['message'])

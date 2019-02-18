@@ -7,7 +7,7 @@ from aiohttp import web
 import asyncio
 import sys
 from foglamp.common.storage_client.storage_client import ReadingsStorageClientAsync, StorageClientAsync
-from foglamp.common.process import FoglampProcess, SilentArgParse, ArgumentParserError
+from foglamp.common.process import FoglampProcess
 from foglamp.services.common.microservice import FoglampMicroservice, _logger
 from foglamp.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient
 

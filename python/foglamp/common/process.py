@@ -28,8 +28,8 @@ class ArgumentParserError(Exception):
         self.message = message
 
     def __str__(self):
-        format = '%(message)s'
-        return format % dict(message=self.message)
+        fmt = '%(message)s'
+        return fmt % dict(message=self.message)
 
 
 class SilentArgParse(argparse.ArgumentParser):

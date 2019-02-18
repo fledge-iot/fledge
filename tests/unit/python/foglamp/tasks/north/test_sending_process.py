@@ -18,7 +18,6 @@ import foglamp.tasks.north.sending_process as sp_module
 from foglamp.common.audit_logger import AuditLogger
 from foglamp.common.storage_client.storage_client import StorageClientAsync, ReadingsStorageClientAsync
 from foglamp.tasks.north.sending_process import SendingProcess
-from foglamp.common.process import FoglampProcess, SilentArgParse, ArgumentParserError
 from foglamp.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient
 
 __author__ = "Stefano Simonelli"

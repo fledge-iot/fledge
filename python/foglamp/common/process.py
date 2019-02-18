@@ -84,7 +84,8 @@ class FoglampProcess(ABC):
             self._name = getattr(namespace, 'name')
             self._core_management_host = getattr(namespace, 'address')
             self._core_management_port = getattr(namespace, 'port')
-            if self._core_management_port < 1 or self._core_management_port > 65535:
+            r = range(1, 65536)
+            if self._core_management_port not in r:
                 raise ArgumentParserError("Invalid Port: {}".format(self._core_management_port))
             for item in args:
                 if item.startswith('--'):

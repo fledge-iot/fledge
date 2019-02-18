@@ -225,21 +225,6 @@ def add_filter():
         data = {"name": "{}".format(filter_name), "plugin": "{}".format(filter_plugin), "filter_config": filter_config}
         conn = http.client.HTTPConnection(foglamp_url)
 
-        # Get filters in pipeline
-        existing_pipeline = []
-        conn.request("GET", '/foglamp/filter/{}/pipeline'.format(filter_user_svc_task))
-        r = conn.getresponse()
-        res = r.read().decode()
-        if r.status == 404:
-            print("No pipeline exist")
-            print(
-                "existing_pipeline={}, existing_pipeline_format={}".format(existing_pipeline, type(existing_pipeline)))
-        else:
-            print("Pipeline exist")
-            jdoc = json.loads(res)
-            existing_pipeline = jdoc["result"]["pipeline"]
-            print("existing_pipeline={}, existing_pipeline_format={}".format(existing_pipeline, type(existing_pipeline)))
-
         conn.request("POST", '/foglamp/filter', json.dumps(data))
         r = conn.getresponse()
         assert 200 == r.status
@@ -248,19 +233,14 @@ def add_filter():
         assert filter_name == jdoc["filter"]
 
         uri = "{}/pipeline?allow_duplicates=true&append_filter=true".format(quote(filter_user_svc_task))
-        print("existing_pipeline={}, existing_pipeline_format={}, filter_to_Add={}".format(existing_pipeline,
-                                                                                           type(existing_pipeline),
-                                                                                           filter_name))
-        existing_pipeline.append(filter_name)
-        # filters_in_pipeline = [filter_name]
-        print("filters_in_pipeline={}".format(existing_pipeline))
-        conn.request("PUT", '/foglamp/filter/' + uri, json.dumps({"pipeline": existing_pipeline}))
+        filters_in_pipeline = [filter_name]
+        conn.request("PUT", '/foglamp/filter/' + uri, json.dumps({"pipeline": filters_in_pipeline}))
         r = conn.getresponse()
         assert 200 == r.status
         res = r.read().decode()
-        expected = "Filter pipeline {{'pipeline': ['{}']}} updated successfully".format(filter_name)
         jdoc = json.loads(res)
-        assert expected == jdoc["result"]
+        # Asset newly added filter exist in request's response
+        assert filter_name in jdoc["result"]
 
     return _add_filter
 

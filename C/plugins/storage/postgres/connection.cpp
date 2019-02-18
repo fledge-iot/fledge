@@ -35,6 +35,9 @@ using namespace rapidjson;
 static time_t connectErrorTime = 0;
 #define CONNECT_ERROR_THRESHOLD		5*60	// 5 minutes
 
+// FIXME:
+#define F_DATEH24_MS    	"%Y-%m-%d %H:%M:%f"
+
 /**
  * Create a database connection
  */
@@ -254,11 +257,12 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 		const char *query = sql.coalesce();
 		logSQL("CommonRetrieve", query);
 
-		// FIXME:
-		char tmp_buffer[10000];
+//		// FIXME:
+		char tmp_buffer[20000];
 		sprintf (tmp_buffer,"DBG 2 : PG retrieve : query |%s|",
 			 query);
-		tmpLogger (tmp_buffer);
+		string str_buffer(tmp_buffer);
+		tmpLogger (str_buffer);
 
 		PGresult *res = PQexec(dbConnection, query);
 		delete[] query;
@@ -267,11 +271,15 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 			mapResultSet(res, resultSet);
 			PQclear(res);
 
-			// FIXME:
+//			// FIXME:
+			Logger::getLogger()->debug("DBG xxx  LEN :%d:", resultSet.length() );
+			char * tmp_buffer;
+			tmp_buffer = (char*) malloc (resultSet.length()+1000);
 			sprintf (tmp_buffer,"DBG 2 : PG retrieve : resultSet |%s| \n",
 				resultSet.c_str() );
-
-			tmpLogger (tmp_buffer);
+			string str_buffer(tmp_buffer);
+			tmpLogger (str_buffer);
+			free(tmp_buffer);
 
 			return true;
 		}
@@ -311,7 +319,20 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 	try {
 		if (condition.empty())
 		{
-			sql.append("SELECT * FROM foglamp.");
+			// FIXME:
+			Logger::getLogger()->debug("DBG retrieveReadings NO 2 condition :%s:", table.c_str());
+
+			const char *sql_cmd = R"(
+					SELECT
+						id,
+						asset_code,
+						read_key,
+						reading,
+						to_char(user_ts, 'YYYY-MM-DD HH24:MI:SS.US') as user_ts,
+						to_char(ts, 'YYYY-MM-DD HH24:MI:SS.US') as ts
+					FROM foglamp.)";
+
+			sql.append(sql_cmd);
 			sql.append(table);
 		}
 		else
@@ -323,6 +344,10 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 			}
 			if (document.HasMember("aggregate"))
 			{
+				// FIXME:
+				Logger::getLogger()->debug("DBG retrieveReadings aggregate :%s:", table.c_str());
+
+
 				sql.append("SELECT ");
 				if (document.HasMember("modifier"))
 				{
@@ -337,6 +362,10 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 			}
 			else if (document.HasMember("return"))
 			{
+				// FIXME:
+				Logger::getLogger()->debug("DBG retrieveReadings return 2 :%s:", table.c_str());
+
+
 				int col = 0;
 				Value& columns = document["return"];
 				if (! columns.IsArray())
@@ -347,6 +376,9 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 				sql.append("SELECT ");
 				if (document.HasMember("modifier"))
 				{
+					// FIXME:
+					Logger::getLogger()->debug("DBG retrieveReadings modifier :%s:", table.c_str());
+
 					sql.append(document["modifier"].GetString());
 					sql.append(' ');
 				}
@@ -356,9 +388,25 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 						sql.append(", ");
 					if (!itr->IsObject())	// Simple column name
 					{
-						sql.append("\"");
-						sql.append(itr->GetString());
-						sql.append("\"");
+						// FIXME:
+						Logger::getLogger()->debug("DBG retrieveReadings Simple column column :%s:", itr->GetString());
+
+						if (strcmp(itr->GetString() ,"user_ts") == 0)
+						{
+							// Display without TZ expression and microseconds also
+							sql.append("to_char(user_ts, 'YYYY-MM-DD HH24:MI:SS.US') as user_ts");
+						}
+						else if (strcmp(itr->GetString() ,"ts") == 0)
+						{
+							// Display without TZ expression and microseconds also
+							sql.append("to_char(ts, 'YYYY-MM-DD HH24:MI:SS.US') as ts");
+						}
+						else
+						{
+							sql.append("\"");
+							sql.append(itr->GetString());
+							sql.append("\"");
+						}
 					}
 					else
 					{
@@ -371,6 +419,10 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 							}
 							if (itr->HasMember("format"))
 							{
+								// FIXME:
+								Logger::getLogger()->debug("DBG retrieveReadings format :%s:", table.c_str());
+
+
 								if (! (*itr)["format"].IsString())
 								{
 									raiseError("rerieve", "format must be a string");
@@ -386,6 +438,9 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 							}
 							else if (itr->HasMember("timezone"))
 							{
+								// FIXME:
+								Logger::getLogger()->debug("DBG retrieveReadings timezone :%s:", table.c_str());
+
 								if (! (*itr)["timezone"].IsString())
 								{
 									raiseError("rerieve", "timezone must be a string");
@@ -400,14 +455,42 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 							}
 							else
 							{
-								sql.append("\"");
-								sql.append((*itr)["column"].GetString());
-								sql.append("\"");
+								// FIXME:
+								Logger::getLogger()->debug("DBG retrieveReadings no format/timezone :%s:", (*itr)["column"].GetString());
+
+								if (strcmp((*itr)["column"].GetString() ,"user_ts") == 0)
+								{
+									// Display without TZ expression and microseconds also
+									sql.append("to_char(user_ts, 'YYYY-MM-DD HH24:MI:SS.US')");
+									if (! itr->HasMember("alias"))
+									{
+										sql.append(" AS \"user_ts\" ");
+									}
+								}
+								else if (strcmp((*itr)["column"].GetString() ,"ts") == 0)
+								{
+									// Display without TZ expression and microseconds also
+									sql.append("to_char(ts, 'YYYY-MM-DD HH24:MI:SS.US')");
+									if (! itr->HasMember("alias"))
+									{
+										sql.append(" AS \"ts\" ");
+									}
+								}
+								else
+								{
+									sql.append("\"");
+									sql.append((*itr)["column"].GetString());
+									sql.append("\"");
+								}
 							}
 							sql.append(' ');
 						}
 						else if (itr->HasMember("json"))
 						{
+							// FIXME:
+							Logger::getLogger()->debug("DBG retrieveReadings json :%s:", table.c_str());
+
+
 							const Value& json = (*itr)["json"];
 							if (! returnJson(json, sql, jsonConstraints))
 								return false;
@@ -431,13 +514,27 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 			}
 			else
 			{
+				// FIXME:
+				Logger::getLogger()->debug("DBG retrieveReadings NO column :%s:", table.c_str());
+
 				sql.append("SELECT ");
 				if (document.HasMember("modifier"))
 				{
 					sql.append(document["modifier"].GetString());
 					sql.append(' ');
 				}
-				sql.append(" * FROM foglamp.");
+
+				// FIXME:
+				const char *sql_cmd = R"(
+						id,
+						asset_code,
+						read_key,
+						reading,
+						to_char(user_ts, 'YYYY-MM-DD HH24:MI:SS.US') as user_ts,
+						to_char(ts, 'YYYY-MM-DD HH24:MI:SS.US') as ts
+					FROM foglamp.)";
+
+				sql.append(sql_cmd);
 			}
 			sql.append(table);
 			if (document.HasMember("where"))

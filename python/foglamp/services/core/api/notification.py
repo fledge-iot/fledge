@@ -9,7 +9,7 @@ import urllib.parse
 import aiohttp
 from aiohttp import web
 
-from foglamp.common import utils
+from foglamp.common import utils as common_utils
 from foglamp.common import logger
 from foglamp.common.service_record import ServiceRecord
 from foglamp.common.storage_client.exceptions import StorageServerError
@@ -163,11 +163,11 @@ async def post_notification(request):
         if notification_type is None:
             raise ValueError('Missing notification_type property in payload.')
 
-        if utils.check_reserved(name) is False:
+        if common_utils.check_reserved(name) is False:
             raise ValueError('Invalid name property in payload.')
-        if utils.check_reserved(rule) is False:
+        if common_utils.check_reserved(rule) is False:
             raise ValueError('Invalid rule property in payload.')
-        if utils.check_reserved(channel) is False:
+        if common_utils.check_reserved(channel) is False:
             raise ValueError('Invalid channel property in payload.')
         if notification_type not in NOTIFICATION_TYPE:
             raise ValueError('Invalid notification_type property in payload.')
@@ -270,11 +270,11 @@ async def put_notification(request):
         rule_config = data.get('rule_config', {})
         delivery_config = data.get('delivery_config', {})
 
-        if utils.check_reserved(notif) is False:
+        if common_utils.check_reserved(notif) is False:
             raise ValueError('Invalid notification name parameter.')
-        if rule is not None and utils.check_reserved(rule) is False:
+        if rule is not None and common_utils.check_reserved(rule) is False:
             raise ValueError('Invalid rule property in payload.')
-        if channel is not None and utils.check_reserved(channel) is False:
+        if channel is not None and common_utils.check_reserved(channel) is False:
             raise ValueError('Invalid channel property in payload.')
         if notification_type is not None and notification_type not in NOTIFICATION_TYPE:
             raise ValueError('Invalid notification_type property in payload.')

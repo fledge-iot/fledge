@@ -10,7 +10,7 @@ import uuid
 from aiohttp import web
 
 from typing import Dict
-from foglamp.common import utils
+from foglamp.common import utils as common_utils
 from foglamp.common import logger
 from foglamp.common.service_record import ServiceRecord
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
@@ -137,7 +137,7 @@ async def add_service(request):
 
         if name is None:
             raise web.HTTPBadRequest(reason='Missing name property in payload.')
-        if utils.check_reserved(name) is False:
+        if common_utils.check_reserved(name) is False:
             raise web.HTTPBadRequest(reason='Invalid name property in payload.')
 
         if service_type is None:
@@ -150,7 +150,7 @@ async def add_service(request):
 
         if plugin is None and service_type == 'south':
             raise web.HTTPBadRequest(reason='Missing plugin property for type south in payload.')
-        if plugin and utils.check_reserved(plugin) is False:
+        if plugin and common_utils.check_reserved(plugin) is False:
             raise web.HTTPBadRequest(reason='Invalid plugin property in payload.')
 
         if enabled is not None:

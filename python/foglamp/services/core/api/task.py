@@ -6,10 +6,9 @@
 
 import datetime
 import uuid
-
 from aiohttp import web
 
-from foglamp.common import utils
+from foglamp.common import utils as common_utils
 from foglamp.common import logger
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
@@ -87,9 +86,9 @@ async def add_task(request):
             raise web.HTTPBadRequest(reason='Missing plugin property in payload.')
         if task_type is None:
             raise web.HTTPBadRequest(reason='Missing type property in payload.')
-        if utils.check_reserved(name) is False:
+        if common_utils.check_reserved(name) is False:
             raise web.HTTPBadRequest(reason='Invalid name property in payload.')
-        if utils.check_reserved(plugin) is False:
+        if common_utils.check_reserved(plugin) is False:
             raise web.HTTPBadRequest(reason='Invalid plugin property in payload.')
         if task_type not in ['north']:
             raise web.HTTPBadRequest(reason='Only north type is supported.')

@@ -15,7 +15,7 @@ from foglamp.common import logger
 from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.tasks.statistics.statistics_history import StatisticsHistory
 from foglamp.common.process import FoglampProcess
-from foglamp.plugins.common import utils
+from foglamp.common import utils as common_utils
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -55,7 +55,7 @@ class TestStatisticsHistory:
                 sh = StatisticsHistory()
                 sh._storage_async = MagicMock(spec=StorageClientAsync)
                 with patch.object(sh._storage_async, "insert_into_tbl", return_value=mock_coro(None)) as patch_storage:
-                    ts = utils.local_timestamp()
+                    ts = common_utils.local_timestamp()
                     await sh._insert_into_stats_history(key='Bla', value=1, history_ts=ts)
                 args, kwargs = patch_storage.call_args
                 assert "statistics_history" == args[0]

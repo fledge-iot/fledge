@@ -6,6 +6,7 @@
 
 """Common utilities"""
 
+import datetime
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -34,3 +35,22 @@ def check_reserved(string):
         if s in reserved:
             return False
     return True
+
+
+def get_diff(old, new):
+    diff = list()
+    for key in new:
+        if key in old:
+            if old[key] != new[key]:
+                diff.append(key)
+        else:
+            diff.append(key)
+    return diff
+
+
+def local_timestamp():
+    """
+    :return: str - current time stamp with microseconds and machine timezone info
+    :example '2018-05-08 14:06:40.517313+05:30'
+    """
+    return str(datetime.datetime.now(datetime.timezone.utc).astimezone())

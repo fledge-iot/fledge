@@ -215,7 +215,6 @@ void StorageApi::initResources()
 	m_server->resource[READING_ACCESS]["POST"] = [](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
     thread work_thread([response, request] {
       readingAppendWrapper(response, request);
-      response->write("Work done");
     });
     work_thread.detach();
   };
@@ -226,7 +225,6 @@ void StorageApi::initResources()
 	m_server->resource[READING_ACCESS]["GET"] = [](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
     thread work_thread([response, request] {
       readingFetchWrapper(response, request);
-      response->write("Work done");
     });
     work_thread.detach();
   };

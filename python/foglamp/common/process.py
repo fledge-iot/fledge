@@ -18,25 +18,24 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-
 _logger = logger.setup(__name__)
 
 
 class ArgumentParserError(Exception):
     """ Override default exception to not terminate application """
-    pass
+
+    def __init__(self, message):
+        self.message = message
+
+    def __str__(self):
+        fmt = '%(message)s'
+        return fmt % dict(message=self.message)
 
 
 class SilentArgParse(argparse.ArgumentParser):
-
     def error(self, message):
         """ Override default error functionality to not terminate application """
         raise ArgumentParserError(message)
-
-    def silent_arg_parse(self, argument_name):
-        self.add_argument(argument_name)
-        parser_result = self.parse_known_args()
-        return list(vars(parser_result[0]).values())[0]
 
 
 class FoglampProcess(ABC):
@@ -73,25 +72,37 @@ class FoglampProcess(ABC):
         --port [core microservice management port]
         --name [process name]
         """
-        
+
         self._start_time = time.time()
 
-        try:    
-            self._core_management_host = self.get_arg_value("--address")
-            self._core_management_port = self.get_arg_value("--port")
-            self._name = self.get_arg_value("--name")
-        except ArgumentParserError:
+        try:
+            parser = SilentArgParse()
+            parser.add_argument("--name", required=True)
+            parser.add_argument("--address", required=True)
+            parser.add_argument("--port", required=True, type=int)
+            namespace, args = parser.parse_known_args()
+            self._name = getattr(namespace, 'name')
+            self._core_management_host = getattr(namespace, 'address')
+            self._core_management_port = getattr(namespace, 'port')
+            r = range(1, 65536)
+            if self._core_management_port not in r:
+                raise ArgumentParserError("Invalid Port: {}".format(self._core_management_port))
+            for item in args:
+                if item.startswith('--'):
+                    kv = item.split('=')
+                    if len(kv) == 2:
+                        if len(kv[1].strip()) == 0:
+                            raise ArgumentParserError("Invalid value {} for optional arg {}".format(kv[1], kv[0]))
+
+        except ArgumentParserError as ex:
+            _logger.error("Arg parser error: %s", str(ex))
             raise
-        if self._core_management_host is None:
-            raise ValueError("--address is not specified")
-        elif self._core_management_port is None:
-            raise ValueError("--port is not specified")
-        elif self._name is None:
-            raise ValueError("--name is not specified")
 
-        self._core_microservice_management_client = MicroserviceManagementClient(self._core_management_host,self._core_management_port)
+        self._core_microservice_management_client = MicroserviceManagementClient(self._core_management_host,
+                                                                                 self._core_management_port)
 
-        self._readings_storage_async = ReadingsStorageClientAsync(self._core_management_host, self._core_management_port)
+        self._readings_storage_async = ReadingsStorageClientAsync(self._core_management_host,
+                                                                  self._core_management_port)
         self._storage_async = StorageClientAsync(self._core_management_host, self._core_management_port)
 
     # pure virtual method run() to be implemented by child class
@@ -99,25 +110,6 @@ class FoglampProcess(ABC):
     def run(self):
         pass
 
-    def get_arg_value(self, argument_name):
-        """ Parses command line arguments for a single argument of name argument_name. Returns the value of the argument specified or None if argument was not specified.
-
-        Keyword Arguments:
-        argument_name -- name of command line argument to retrieve value for
-    
-        Return Values:
-            Argument value (as a string)
-            None (if argument was not passed)
-    
-            Side Effects:
-            None
-    
-            Known Exceptions:
-            ArgumentParserError
-        """
-        parser = SilentArgParse()
-        return parser.silent_arg_parse(argument_name)
-        
     def get_services_from_core(self, name=None, _type=None):
         return self._core_microservice_management_client.get_services(name, _type)
 

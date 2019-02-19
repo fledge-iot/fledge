@@ -22,7 +22,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-
+#// FIXME:
 # URLS = ['foglamp/asset',
 #         '/foglamp/asset/fogbench%2fhumidity',
 #         '/foglamp/asset/fogbench%2fhumidity/temperature',
@@ -41,15 +41,36 @@ __version__ = "${VERSION}"
 #            {'rows': [{'max': '9', 'min': '9', 'average': '9'}], 'count': 1},
 #            {'rows': [{'average': '26', 'timestamp': '2018-02-16 15:08:51', 'max': '26', 'min': '26'}], 'count': 1}
 #            ]
+#
 
-URLS = ['foglamp/asset'
+
+URLS = ['foglamp/asset',
+        '/foglamp/asset/fogbench%2fhumidity'
         ]
 
-PAYLOADS = ['{"aggregate": {"column": "*", "alias": "count", "operation": "count"}, "group": "asset_code"}'
+PAYLOADS = ['{"aggregate": {"column": "*", "alias": "count", "operation": "count"}, "group": "asset_code"}',
+            '{"return": ["reading", {"column": "user_ts", "alias": "timestamp"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 20, "sort": {"column": "user_ts", "direction": "desc"}}'
             ]
 
-RESULTS = [{'rows': [{'count': 10, 'asset_code': 'TI sensorTag/luxometer'}], 'count': 1}
+RESULTS = [{'rows': [{'count': 10, 'asset_code': 'TI sensorTag/luxometer'}], 'count': 1},
+           {'rows': [{'reading': {'temperature': 26, 'humidity': 93}, 'timestamp': '2018-02-16 15:08:51.026'}], 'count': 1}
            ]
+
+
+# URLS = ['foglamp/asset',
+#         '/foglamp/asset/fogbench%2fhumidity',
+#         '/foglamp/asset/fogbench%2fhumidity/temperature'
+#         ]
+#
+# PAYLOADS = ['{"aggregate": {"column": "*", "alias": "count", "operation": "count"}, "group": "asset_code"}',
+#             '{"return": ["reading", {"column": "user_ts", "alias": "timestamp"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 20, "sort": {"column": "user_ts", "direction": "desc"}}',
+#             '{"return": [{"column": "user_ts", "alias": "timestamp"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 20, "sort": {"column": "user_ts", "direction": "desc"}}'
+#             ]
+#
+# RESULTS = [{'rows': [{'count': 10, 'asset_code': 'TI sensorTag/luxometer'}], 'count': 1},
+#            {'rows': [{'reading': {'temperature': 26, 'humidity': 93}, 'timestamp': '2018-02-16 15:08:51.026'}], 'count': 1},
+#            {'rows': [{'temperature': 26, 'timestamp': '2018-02-16 15:08:51.026'}], 'count': 1}
+#            ]
 
 FIXTURE_1 = [(url, payload, result) for url, payload, result in zip(URLS, PAYLOADS, RESULTS)]
 FIXTURE_2 = [(url, 400, payload) for url, payload in zip(URLS, PAYLOADS)]

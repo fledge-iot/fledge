@@ -1,16 +1,26 @@
 #!/bin/sh
 export FOGLAMP_DATA=.
+
+# Set UTC as TZ for the proper execution of the tests
+current_tz=`psql -qtAX -d foglamp -c "SHOW timezone ;"`
+psql -d foglamp -c "ALTER DATABASE foglamp SET timezone TO 'UTC';" > /dev/null
+exec_tz=`psql -qtAX -d foglamp -c "SHOW timezone ;"`
+
 if [ $# -eq 1 ] ; then
 	echo Starting storage layer $1
 	$1 
 elif [ "${FOGLAMP_ROOT}" != "" ] ; then
-	echo Starting storage service in $FOGLAMP_ROOT	
+	echo "Starting storage service in  :$FOGLAMP_ROOT:"
+	echo "Original timezone            :$current_tz:"
+	echo "Execution timezone           :$exec_tz:"
+	echo "Configuration path           :$FOGLAMP_DATA:"
+
+
 	$FOGLAMP_ROOT/services/foglamp.services.storage
 else
 	echo Must either set FOGLAMP_ROOT or provide storage service to test
 	exit 1
 fi
-
 
 export IFS=","
 testNum=1
@@ -77,6 +87,12 @@ echo $n_failed Tests Failed 		>  tests.result
 echo $n_passed Tests Passed 		>> tests.result
 echo $n_unchecked Tests Unchecked	>> tests.result
 done
+
+#Restore the initial TZ
+psql -d foglamp -c "ALTER DATABASE foglamp SET timezone TO '"$current_tz"';" > /dev/null
+current_tz=`psql -qtAX  -qtAX -d foglamp -c "SHOW timezone ;"`
+echo "\nOriginal timezone restored   :$current_tz:\n"
+
 ./testCleanup.sh > /dev/null
 cat tests.result
 rm -f tests.result
@@ -87,4 +103,5 @@ if [ -f "failed" ]; then
 	cat failed
 	exit 1
 fi
+
 exit 0

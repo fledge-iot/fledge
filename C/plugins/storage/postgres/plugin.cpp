@@ -157,8 +157,8 @@ Connection        *connection = manager->allocate();
 std::string results;
 
 	// FIXME:
-	connection->retrieve(std::string("readings"), std::string(condition), results);
-	//connection->retrieveReadings(std::string(condition), results);
+	//connection->retrieve(std::string("readings"), std::string(condition), results);
+	connection->retrieveReadings(std::string(condition), results);
 	manager->release(connection);
 	return strdup(results.c_str());
 }

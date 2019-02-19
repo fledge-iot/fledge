@@ -36,6 +36,7 @@ static time_t connectErrorTime = 0;
 #define CONNECT_ERROR_THRESHOLD		5*60	// 5 minutes
 
 // FIXME:
+#define LEN_BUFFER_DATE 100
 #define F_DATEH24_MS    	"%Y-%m-%d %H:%M:%f"
 
 /**
@@ -87,8 +88,8 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 
 
 	// FIXME:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("DBG retrieve table :%s:", table.c_str());
+//	Logger::getLogger()->setMinLevel("debug");
+//	Logger::getLogger()->debug("DBG retrieve table :%s:", table.c_str());
 
 
 	try {
@@ -258,11 +259,11 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 		logSQL("CommonRetrieve", query);
 
 //		// FIXME:
-		char tmp_buffer[20000];
-		sprintf (tmp_buffer,"DBG 2 : PG retrieve : query |%s|",
-			 query);
-		string str_buffer(tmp_buffer);
-		tmpLogger (str_buffer);
+//		char tmp_buffer[20000];
+//		sprintf (tmp_buffer,"DBG 2 : PG retrieve : query |%s|",
+//			 query);
+//		string str_buffer(tmp_buffer);
+//		tmpLogger (str_buffer);
 
 		PGresult *res = PQexec(dbConnection, query);
 		delete[] query;
@@ -272,14 +273,14 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 			PQclear(res);
 
 //			// FIXME:
-			Logger::getLogger()->debug("DBG xxx  LEN :%d:", resultSet.length() );
-			char * tmp_buffer;
-			tmp_buffer = (char*) malloc (resultSet.length()+1000);
-			sprintf (tmp_buffer,"DBG 2 : PG retrieve : resultSet |%s| \n",
-				resultSet.c_str() );
-			string str_buffer(tmp_buffer);
-			tmpLogger (str_buffer);
-			free(tmp_buffer);
+//			Logger::getLogger()->debug("DBG xxx  LEN :%d:", resultSet.length() );
+//			char * tmp_buffer;
+//			tmp_buffer = (char*) malloc (resultSet.length()+1000);
+//			sprintf (tmp_buffer,"DBG 2 : PG retrieve : resultSet |%s| \n",
+//				resultSet.c_str() );
+//			string str_buffer(tmp_buffer);
+//			tmpLogger (str_buffer);
+//			free(tmp_buffer);
 
 			return true;
 		}
@@ -573,7 +574,7 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 
 		// FIXME:
 		char tmp_buffer[10000];
-		sprintf (tmp_buffer,"DBG 2 : PG retrieve : query |%s|",
+		sprintf (tmp_buffer,"DBG 2 : PG retrieveReadings : query |%s|",
 			 query);
 		tmpLogger (tmp_buffer);
 
@@ -1086,6 +1087,123 @@ SQLBuffer	sql;
 }
 
 /**
+ * Format a date to a fixed format with milliseconds, microseconds and
+ * timezone expressed, examples :
+ *
+ *   case - formatted |2019-01-01 10:01:01.000000+00:00| date |2019-01-01 10:01:01|
+ *   case - formatted |2019-02-01 10:02:01.000000+00:00| date |2019-02-01 10:02:01.0|
+ *   case - formatted |2019-02-02 10:02:02.841000+00:00| date |2019-02-02 10:02:02.841|
+ *   case - formatted |2019-02-03 10:02:03.123456+00:00| date |2019-02-03 10:02:03.123456|
+ *   case - formatted |2019-03-01 10:03:01.100000+00:00| date |2019-03-01 10:03:01.1+00:00|
+ *   case - formatted |2019-03-02 10:03:02.123000+00:00| date |2019-03-02 10:03:02.123+00:00|
+ *   case - formatted |2019-03-03 10:03:03.123456+00:00| date |2019-03-03 10:03:03.123456+00:00|
+ *   case - formatted |2019-03-04 10:03:04.123456+01:00| date |2019-03-04 10:03:04.123456+01:00|
+ *   case - formatted |2019-03-05 10:03:05.123456-01:00| date |2019-03-05 10:03:05.123456-01:00|
+ *   case - formatted |2019-03-04 10:03:04.123456+02:30| date |2019-03-04 10:03:04.123456+02:30|
+ *   case - formatted |2019-03-05 10:03:05.123456-02:30| date |2019-03-05 10:03:05.123456-02:30|
+ *
+ * @param out	false if the date is invalid
+ *
+ */
+bool Connection::formatDate(char *formatted_date, size_t buffer_size, const char *date) {
+
+	struct timeval tv = {0};
+	struct tm tm  = {0};
+	char *valid_date = nullptr;
+
+	// Extract up to seconds
+	memset(&tm, 0, sizeof(tm));
+	valid_date = strptime(date, "%Y-%m-%d %H:%M:%S", &tm);
+
+	if (! valid_date)
+	{
+		return (false);
+	}
+
+	strftime (formatted_date, buffer_size, "%Y-%m-%d %H:%M:%S", &tm);
+
+	// Work out the microseconds from the fractional part of the seconds
+	char fractional[10] = {0};
+	sscanf(date, "%*d-%*d-%*d %*d:%*d:%*d.%[0-9]*", fractional);
+	// Truncate to max 6 digits
+	fractional[6] = 0;
+	int multiplier = 6 - (int)strlen(fractional);
+	if (multiplier < 0)
+		multiplier = 0;
+	while (multiplier--)
+		strcat(fractional, "0");
+
+	strcat(formatted_date ,".");
+	strcat(formatted_date ,fractional);
+
+	// Handles timezone
+	char timezone_hour[5] = {0};
+	char timezone_min[5] = {0};
+	char sign[2] = {0};
+
+	sscanf(date, "%*d-%*d-%*d %*d:%*d:%*d.%*d-%2[0-9]:%2[0-9]", timezone_hour, timezone_min);
+	if (timezone_hour[0] != 0)
+	{
+		strcat(sign, "-");
+	}
+	else
+	{
+		memset(timezone_hour, 0, sizeof(timezone_hour));
+		memset(timezone_min,  0, sizeof(timezone_min));
+
+		sscanf(date, "%*d-%*d-%*d %*d:%*d:%*d.%*d+%2[0-9]:%2[0-9]", timezone_hour, timezone_min);
+		if  (timezone_hour[0] != 0)
+		{
+			strcat(sign, "+");
+		}
+		else
+		{
+			// No timezone is expressed in the source date
+			// the default UTC is added
+			strcat(formatted_date, "+00:00");
+		}
+	}
+
+	if (sign[0] != 0)
+	{
+		if (timezone_hour[0] != 0)
+		{
+			strcat(formatted_date, sign);
+
+			// Pad with 0 if an hour having only 1 digit was provided
+			// +1 -> +01
+			if (strlen(timezone_hour) == 1)
+				strcat(formatted_date, "0");
+
+			strcat(formatted_date, timezone_hour);
+			strcat(formatted_date, ":");
+		}
+
+		if (timezone_min[0] != 0)
+		{
+			strcat(formatted_date, timezone_min);
+
+			// Pad with 0 if minutes having only 1 digit were provided
+			// 3 -> 30
+			if (strlen(timezone_min) == 1)
+				strcat(formatted_date, "0");
+
+		}
+		else
+		{
+			// Minutes aren't expressed in the source date
+			strcat(formatted_date, "00");
+		}
+	}
+
+
+	return (true);
+
+
+}
+
+
+/**
  * Append a set of readings to the readings table
  */
 int Connection::appendReadings(const char *readings)
@@ -1093,6 +1211,7 @@ int Connection::appendReadings(const char *readings)
 Document 	doc;
 SQLBuffer	sql;
 int		row = 0;
+bool 		add_row = false;
 
 	ParseResult ok = doc.Parse(readings);
 	if (!ok)
@@ -1101,7 +1220,7 @@ int		row = 0;
 		return -1;
 	}
 
-	sql.append("INSERT INTO foglamp.readings ( asset_code, read_key, reading, user_ts ) VALUES ");
+	sql.append("INSERT INTO foglamp.readings ( user_ts, asset_code, read_key, reading ) VALUES ");
 
     if (!doc.HasMember("readings"))
     {
@@ -1122,50 +1241,90 @@ int		row = 0;
 					"Each reading in the readings array must be an object");
 			return -1;
 		}
-		if (row)
-			sql.append(", (");
-		else
-			sql.append('(');
-		row++;
-		sql.append('\'');
-		sql.append((*itr)["asset_code"].GetString());
-        // Python code is passing the string None when here is no read_key in the payload
-        if (itr->HasMember("read_key") && strcmp((*itr)["read_key"].GetString(), "None") != 0)
-        {
-    		sql.append("', \'");
-    		sql.append((*itr)["read_key"].GetString());
-    		sql.append("', \'");
-        }
-        else
-        {
-            // No "read_key" in this reading, insert NULL
-            sql.append("', NULL, '");
-        }
-		StringBuffer buffer;
-		Writer<StringBuffer> writer(buffer);
-		(*itr)["reading"].Accept(writer);
-		sql.append(buffer.GetString());
-		sql.append("\', ");
+		add_row = true;
+
 		const char *str = (*itr)["user_ts"].GetString();
 		// Check if the string is a function
 		string s (str);
 		regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
 		if (regex_match (s,e))
 		{
+			if (row)
+				sql.append(", (");
+			else
+				sql.append('(');
+
 			sql.append(str);
 		}
 		else
 		{
-			sql.append('\'');
-			sql.append(escape(str));
-			sql.append('\'');
+			char formatted_date[LEN_BUFFER_DATE] = {0};
+			if (! formatDate(formatted_date, sizeof(formatted_date), str) )
+			{
+				raiseError("appendReadings", "Invalid date |%s|", str);
+				add_row = false;
+			}
+			else
+			{
+				if (row)
+				{
+					sql.append(", (");
+				}
+				else
+				{
+					sql.append('(');
+				}
+
+				sql.append('\'');
+				sql.append(formatted_date);
+				sql.append('\'');
+			}
 		}
 
-		sql.append(')');
+		if (add_row)
+		{
+			row++;
+
+			// Handles - asset_code
+			sql.append(",\'");
+			sql.append((*itr)["asset_code"].GetString());
+
+			// Handles - read_key
+			// Python code is passing the string None when here is no read_key in the payload
+			if (itr->HasMember("read_key") && strcmp((*itr)["read_key"].GetString(), "None") != 0)
+			{
+				sql.append("', \'");
+				sql.append((*itr)["read_key"].GetString());
+				sql.append("', \'");
+			}
+			else
+			{
+				// No "read_key" in this reading, insert NULL
+				sql.append("', NULL, '");
+			}
+
+			// Handles - reading
+			StringBuffer buffer;
+			Writer<StringBuffer> writer(buffer);
+			(*itr)["reading"].Accept(writer);
+			sql.append(buffer.GetString());
+			sql.append("\' ");
+
+			sql.append(')');
+		}
 	}
 	sql.append(';');
 
 	const char *query = sql.coalesce();
+
+	// FIXME: Fast
+	char tmp_buffer[5000];
+	sprintf (tmp_buffer,"DBG : appendReadings : query |%s|",query);
+	string str_buffer(tmp_buffer);
+	tmpLogger (str_buffer);
+
+
+
 	logSQL("ReadingsAppend", query);
 	PGresult *res = PQexec(dbConnection, query);
 	delete[] query;

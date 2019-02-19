@@ -152,11 +152,6 @@ async def asset(request):
         _readings = connect.get_readings_async()
         results = await _readings.query(payload)
         response = results['rows']
-
-        #// FIXME:
-        #_text = "DBG :{0}: \n".format(response)
-        #file = open("//home//foglamp//wrk//log//log_test_py.txt", 'a');file .write(_text);file.close()
-
     except KeyError:
         raise web.HTTPBadRequest(reason=results['message'])
     else:

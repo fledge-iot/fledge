@@ -583,7 +583,7 @@ class TestFilters:
                         args, kwargs = _add_child_patch.call_args
                         assert user == args[2]
                         assert ['AssetFilter'] == args[3]
-                    create_cat_patch.assert_called_once_with(category_name='bench', category_value={'filter': {'description': 'Filter pipeline', 'type': 'JSON', 'default': '{"pipeline": ["AssetFilter"]}'}}, keep_original_items=True)
+                    create_cat_patch.assert_called_once_with(category_name='bench', category_value={'filter': {'description': 'Filter pipeline', 'readonly' : 'true', 'type': 'JSON', 'default': '{"pipeline": ["AssetFilter"]}'}}, keep_original_items=True)
                 query_tbl_patch.assert_called_once_with('filters', '{"where": {"column": "name", "condition": "=", "value": "AssetFilter"}}')
             get_cat_info_patch.assert_called_once_with(category_name=user)
 

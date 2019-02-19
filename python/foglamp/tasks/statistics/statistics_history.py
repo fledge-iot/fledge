@@ -15,8 +15,7 @@ import json
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common import logger
 from foglamp.common.process import FoglampProcess
-from foglamp.plugins.common import utils
-
+from foglamp.common import utils as common_utils
 
 __author__ = "Ori Shadmon, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSI Soft, LLC"
@@ -63,7 +62,7 @@ class StatisticsHistory(FoglampProcess):
             1. INSERT the delta between `value` and `previous_value` into  statistics_history
             2. UPDATE the previous_value in statistics table to be equal to statistics.value at snapshot 
         """
-        current_time = utils.local_timestamp()
+        current_time = common_utils.local_timestamp()
         results = await self._storage_async.query_tbl("statistics")
         payload = {"updates": []}
         for r in results['rows']:

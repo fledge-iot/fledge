@@ -35,9 +35,9 @@ using namespace rapidjson;
 static time_t connectErrorTime = 0;
 #define CONNECT_ERROR_THRESHOLD		5*60	// 5 minutes
 
-// FIXME:
 #define LEN_BUFFER_DATE 100
-#define F_DATEH24_MS    	"%Y-%m-%d %H:%M:%f"
+// Format timestamp having microseconds
+#define F_DATEH24_US    	"YYYY-MM-DD HH24:MI:SS.US"
 
 /**
  * Create a database connection
@@ -329,8 +329,8 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 						asset_code,
 						read_key,
 						reading,
-						to_char(user_ts, 'YYYY-MM-DD HH24:MI:SS.US') as user_ts,
-						to_char(ts, 'YYYY-MM-DD HH24:MI:SS.US') as ts
+						to_char(user_ts, ')" F_DATEH24_US R"(') as user_ts,
+						to_char(ts, ')" F_DATEH24_US R"(') as ts
 					FROM foglamp.)";
 
 			sql.append(sql_cmd);
@@ -395,12 +395,12 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 						if (strcmp(itr->GetString() ,"user_ts") == 0)
 						{
 							// Display without TZ expression and microseconds also
-							sql.append("to_char(user_ts, 'YYYY-MM-DD HH24:MI:SS.US') as user_ts");
+							sql.append("to_char(user_ts, '" F_DATEH24_US "') as user_ts");
 						}
 						else if (strcmp(itr->GetString() ,"ts") == 0)
 						{
 							// Display without TZ expression and microseconds also
-							sql.append("to_char(ts, 'YYYY-MM-DD HH24:MI:SS.US') as ts");
+							sql.append("to_char(ts, '" F_DATEH24_US "') as ts");
 						}
 						else
 						{
@@ -462,7 +462,7 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 								if (strcmp((*itr)["column"].GetString() ,"user_ts") == 0)
 								{
 									// Display without TZ expression and microseconds also
-									sql.append("to_char(user_ts, 'YYYY-MM-DD HH24:MI:SS.US')");
+									sql.append("to_char(user_ts, '" F_DATEH24_US "')");
 									if (! itr->HasMember("alias"))
 									{
 										sql.append(" AS \"user_ts\" ");
@@ -471,7 +471,7 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 								else if (strcmp((*itr)["column"].GetString() ,"ts") == 0)
 								{
 									// Display without TZ expression and microseconds also
-									sql.append("to_char(ts, 'YYYY-MM-DD HH24:MI:SS.US')");
+									sql.append("to_char(ts, '" F_DATEH24_US "')");
 									if (! itr->HasMember("alias"))
 									{
 										sql.append(" AS \"ts\" ");
@@ -531,8 +531,8 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 						asset_code,
 						read_key,
 						reading,
-						to_char(user_ts, 'YYYY-MM-DD HH24:MI:SS.US') as user_ts,
-						to_char(ts, 'YYYY-MM-DD HH24:MI:SS.US') as ts
+						to_char(user_ts, ')" F_DATEH24_US R"(') as user_ts,
+						to_char(ts, ')" F_DATEH24_US R"(') as ts
 					FROM foglamp.)";
 
 				sql.append(sql_cmd);

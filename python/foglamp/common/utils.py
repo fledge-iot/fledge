@@ -37,17 +37,6 @@ def check_reserved(string):
     return True
 
 
-def get_diff(old, new):
-    diff = list()
-    for key in new:
-        if key in old:
-            if old[key] != new[key]:
-                diff.append(key)
-        else:
-            diff.append(key)
-    return diff
-
-
 def local_timestamp():
     """
     :return: str - current time stamp with microseconds and machine timezone info

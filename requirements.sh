@@ -27,5 +27,5 @@ sudo apt-get install avahi-daemon curl
 sudo apt-get install cmake g++ make build-essential autoconf automake uuid-dev
 sudo apt-get install libtool libboost-dev libboost-system-dev libboost-thread-dev libpq-dev libssl-dev libz-dev
 sudo apt-get install python-dbus python-dev python3-dev python3-pip
-sudo apt-get install postgresql
 sudo apt-get install sqlite3 libsqlite3-dev
+# sudo apt-get install postgresql

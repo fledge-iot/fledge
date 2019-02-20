@@ -86,11 +86,11 @@ async def _get_tracked_assets_and_readings(storage_client, svc_name):
         _readings_client = connect.get_readings_async()
         for r in asset_records:
             payload = PayloadBuilder().AGGREGATE(["count", "*"]).ALIAS("aggregate", ("*", "count", "count")) \
-                .GROUP_BY("asset_code").WHERE(['asset_code', '=', r["asset"]]).payload()
+                .WHERE(['asset_code', '=', r["asset"]]).payload()
             results = await _readings_client.query(payload)
             if int(results['count']):
-                r = results['rows'][0]
-                asset_json.append({"count": r['count'], "asset": r['asset_code']})
+                n = results['rows'][0]
+                asset_json.append({"count": n['count'], "asset": r["asset"]})
     except:
         raise
     else:

@@ -28,6 +28,7 @@
 #include <utils.h>
 #include <chrono>
 #include <thread>
+#include <atomic>
 #include <sys/time.h>
 
 /*
@@ -39,6 +40,9 @@
 #define PURGE_SLEEP_MS 2500
 #define PURGE_DELETE_BLOCK_SIZE	1000
 
+#define PURGE_SLOWDOWN_AFTER_BLOCKS 5
+#define PURGE_SLOWDOWN_SLEEP_MS 500
+
 /**
  * SQLite3 storage plugin for FogLAMP
  */
@@ -48,8 +52,8 @@ using namespace rapidjson;
 
 #define CONNECT_ERROR_THRESHOLD		5*60	// 5 minutes
 
-#define MAX_RETRIES			20	// Maximum no. of retries when a lock is encountered
-#define RETRY_BACKOFF			2000	// Multipler to backoff DB retry on lock
+#define MAX_RETRIES			40	// Maximum no. of retries when a lock is encountered
+#define RETRY_BACKOFF			100	// Multipler to backoff DB retry on lock
 
 /*
  * The following allows for conditional inclusion of code that tracks the top queries
@@ -69,6 +73,8 @@ unsigned long retryStats[MAX_RETRIES] = { 0,0,0,0,0,0,0,0,0,0 };
 unsigned long numStatements = 0;
 int	      maxQueue = 0;
 #endif
+
+static std::atomic<int> m_waiting(0);
 
 #define _DB_NAME              "/foglamp.sqlite"
 
@@ -447,7 +453,7 @@ Connection::Connection()
 	 */
 	if (sqlite3_open_v2(dbPath.c_str(),
 			    &dbHandle,
-			    SQLITE_OPEN_READWRITE,
+			    SQLITE_OPEN_READWRITE | SQLITE_OPEN_NOMUTEX,
 			    NULL) != SQLITE_OK)
 	{
 		const char* dbErrMsg = sqlite3_errmsg(dbHandle);
@@ -471,6 +477,21 @@ Connection::Connection()
 	{
 		int rc;
 		char *zErrMsg = NULL;
+
+		sqlite3_extended_result_codes(dbHandle, 1);
+
+		rc = sqlite3_exec(dbHandle, "PRAGMA page_size = 4096; PRAGMA cache_size = 5000; PRAGMA journal_mode = WAL;", NULL, NULL, &zErrMsg);
+		if (rc != SQLITE_OK)
+		{
+			const char* errMsg = "Failed to set 'PRAGMA page_size = 4096; PRAGMA cache_size = 5000; PRAGMA journal_mode = WAL;'";
+			Logger::getLogger()->error("%s : error %s",
+						   errMsg,
+						   zErrMsg);
+			connectErrorTime = time(0);
+
+			sqlite3_free(zErrMsg);
+		}
+		
 		/*
 		 * Build the ATTACH DATABASE command in order to get
 		 * 'foglamp.' prefix in all SQL queries
@@ -1419,11 +1440,6 @@ SQLBuffer	sql;
 		// Release memory for 'query' var
 		delete[] query;
 		update = sqlite3_changes(dbHandle);
-		if (update == 0)
-		{
- 			raiseError("update", "No rows where updated");
-			return -1;
-		}
 
 		// Return success
 		return update;
@@ -2353,7 +2369,14 @@ int blocks = 0;
 			return 0;
 		}
 	}
-	
+	if (m_waiting)
+	{
+		while (m_waiting)
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(PURGE_SLEEP_MS));
+		}
+	}
+
 	unsigned int deletedRows = 0;
 	char *zErrMsg = NULL;
 	unsigned int rowsAffected;
@@ -2392,12 +2415,21 @@ int blocks = 0;
 		// Get db changes
 		rowsAffected = sqlite3_changes(dbHandle);
 		deletedRows += rowsAffected;
-		Logger::getLogger()->info("Purge delete block of %d readings", rowsAffected);
+		Logger::getLogger()->info("Purge delete block #%d with %d readings", blocks, rowsAffected);
 
 		// Sleep for a while to release locks on the database if anybody is waiting
-		if (m_queuing)
+		if (m_waiting)
 		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(PURGE_SLEEP_MS));
+			//Logger::getLogger()->info("Purge loop sleeping");
+			while (m_waiting)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(PURGE_SLEEP_MS));
+			}
+			//Logger::getLogger()->info("Purge loop woken up");
+		}
+		else if ( blocks % PURGE_SLOWDOWN_AFTER_BLOCKS == (PURGE_SLOWDOWN_AFTER_BLOCKS-1) )
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(PURGE_SLOWDOWN_SLEEP_MS));
 		}
 	} while (rowidMin  < rowidLimit);
 
@@ -3459,16 +3491,33 @@ int retries = 0, rc;
 		if (rc == SQLITE_LOCKED || rc == SQLITE_BUSY)
 		{
 			m_qMutex.lock();
-			m_queuing++;
+			m_waiting.fetch_add(1);
 #if DO_PROFILE_RETRIES
-			if (maxQueue < m_queuing)
-				maxQueue = m_queuing;
+			if (maxQueue < m_waiting)
+				maxQueue = m_waiting;
 #endif
 			m_qMutex.unlock();
-			usleep(retries * RETRY_BACKOFF);	// sleep retries milliseconds
+			int interval = (retries * RETRY_BACKOFF);
+			std::this_thread::sleep_for(std::chrono::milliseconds(interval));
+			if (retries > 5) Logger::getLogger()->info("SQLexec: retry %d of %d, rc=%s, errmsg=%s, DB connection @ %p, slept for %d msecs", 
+						retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", sqlite3_errmsg(db), this, interval);
 			m_qMutex.lock();
-			m_queuing--;
+			m_waiting.fetch_sub(1);
 			m_qMutex.unlock();
+			if (sqlite3_get_autocommit(db)==0) // if transaction is still open, do rollback
+			{
+				char *zErrMsg = NULL;
+				rc=SQLexec(db,
+					"ROLLBACK TRANSACTION;",
+					NULL,
+					NULL,
+					&zErrMsg);
+				if (rc != SQLITE_OK)
+				{
+					raiseError("rollback", zErrMsg);
+					sqlite3_free(zErrMsg);
+				}
+			}
 		}
 	} while (retries < MAX_RETRIES && (rc == SQLITE_LOCKED || rc == SQLITE_BUSY));
 #if DO_PROFILE_RETRIES
@@ -3518,7 +3567,10 @@ int retries = 0, rc;
 		retries++;
 		if (rc == SQLITE_LOCKED || rc == SQLITE_BUSY)
 		{
-			usleep(retries * RETRY_BACKOFF);	// sleep retries milliseconds
+			int interval = (retries * RETRY_BACKOFF);
+			usleep(interval);	// sleep retries milliseconds
+			if (retries > 5) Logger::getLogger()->info("SQLstep: retry %d of %d, rc=%s, DB connection @ %p, slept for %d msecs", 
+						retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", this, interval);
 		}
 	} while (retries < MAX_RETRIES && (rc == SQLITE_LOCKED || rc == SQLITE_BUSY));
 #if DO_PROFILE_RETRIES

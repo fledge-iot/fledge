@@ -26,7 +26,7 @@
 #endif
 
 // Enable worker threads for readings append and fetch
-#define WORKER_THREADS		0
+#define WORKER_THREADS		1
 
 /**
  * Definition of the Storage Service REST API
@@ -232,7 +232,17 @@ void StorageApi::initResources()
 	m_server->resource[READING_ACCESS]["GET"] = readingFetchWrapper;
 #endif
 	m_server->resource[READING_QUERY]["PUT"] = readingQueryWrapper;
+#if WORKER_THREADS
+	m_server->resource[READING_PURGE]["PUT"] = [](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
+    thread work_thread([response, request] {
+      readingPurgeWrapper(response, request);
+    });
+    work_thread.detach();
+  };
+#else
 	m_server->resource[READING_PURGE]["PUT"] = readingPurgeWrapper;
+#endif
+
 	m_server->resource[READING_INTEREST]["POST"] = readingRegisterWrapper;
 	m_server->resource[READING_INTEREST]["DELETE"] = readingUnregisterWrapper;
 

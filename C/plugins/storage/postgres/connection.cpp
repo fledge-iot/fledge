@@ -113,7 +113,7 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 					sql.append(document["modifier"].GetString());
 					sql.append(' ');
 				}
-				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints))
+				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints, false))
 				{
 					return false;
 				}
@@ -355,7 +355,7 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 					sql.append(document["modifier"].GetString());
 					sql.append(' ');
 				}
-				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints))
+				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints, true))
 				{
 					return false;
 				}
@@ -1616,8 +1616,21 @@ Document doc;
 
 /**
  * Process the aggregate options and return the columns to be selected
+ *
+ * @param payload           To evaluate for the generation of the SQLcommands
+ * @param aggregates        To evaluate for the generation of the SQL commands
+ * @param jsonConstraint    To evaluate for the generation of the SQL commands
+ * @param isTableReading    True if the handled table is the readings for which
+ *                          a specific format should be applied
+ * @param sql		    The sql commands relates to payload, aggregates
+ *                          and jsonConstraint
+ *
  */
-bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, SQLBuffer& sql, SQLBuffer& jsonConstraint)
+bool Connection::jsonAggregates(const Value& payload,
+				const Value& aggregates,
+				SQLBuffer& sql,
+				SQLBuffer& jsonConstraint,
+				bool isTableReading)
 {
 	// FIXME:
 	Logger::getLogger()->setMinLevel("debug");
@@ -1646,15 +1659,13 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
 			// FIXME:
 			Logger::getLogger()->debug("DBG PG jsonAggregates column :%s:", "none");
 
-			// FIXME:
-			//if (strcmp(aggregates["operation"].GetString(), "count") == 0)
-			if (strcmp(aggregates["operation"].GetString(), "count"))
+			if (strcmp(aggregates["operation"].GetString(), "count") != 0)
 			{
 				// an operation different from the 'count' is requested
 				// FIXME:
 				Logger::getLogger()->debug("DBG PG jsonAggregates - NO count :%s: op :%s:", column_name.c_str(), aggregates["operation"].GetString());
 
-				if (column_name == "user_ts")
+				if (isTableReading && (column_name.compare("user_ts") == 0) )
 				{
 					// FIXME:
 					Logger::getLogger()->debug("DBG PG jsonAggregates - user_ts :%s: op :%s:", column_name.c_str(), aggregates["operation"].GetString());

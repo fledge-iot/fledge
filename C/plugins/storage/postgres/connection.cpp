@@ -387,6 +387,7 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 				{
 					if (col)
 						sql.append(", ");
+
 					if (!itr->IsObject())	// Simple column name
 					{
 						// FIXME:
@@ -1618,6 +1619,10 @@ Document doc;
  */
 bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, SQLBuffer& sql, SQLBuffer& jsonConstraint)
 {
+	// FIXME:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("DBG PG jsonAggregates :%s:", "none");
+
 	if (aggregates.IsObject())
 	{
 		if (! aggregates.HasMember("operation"))
@@ -1630,23 +1635,55 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
 			raiseError("Select aggregation", "Missing property \"column\" or \"json\"");
 			return false;
 		}
+
+		// FIXME:
+		string column_name = aggregates["column"].GetString();
+
 		sql.append(aggregates["operation"].GetString());
 		sql.append('(');
 		if (aggregates.HasMember("column"))
 		{
+			// FIXME:
+			Logger::getLogger()->debug("DBG PG jsonAggregates column :%s:", "none");
+
+			// FIXME:
+			//if (strcmp(aggregates["operation"].GetString(), "count") == 0)
 			if (strcmp(aggregates["operation"].GetString(), "count"))
 			{
-			sql.append("\"");
-			sql.append(aggregates["column"].GetString());
-			sql.append("\"");
+				// an operation different from the 'count' is requested
+				// FIXME:
+				Logger::getLogger()->debug("DBG PG jsonAggregates - NO count :%s: op :%s:", column_name.c_str(), aggregates["operation"].GetString());
+
+				if (column_name == "user_ts")
+				{
+					// FIXME:
+					Logger::getLogger()->debug("DBG PG jsonAggregates - user_ts :%s: op :%s:", column_name.c_str(), aggregates["operation"].GetString());
+
+					sql.append("to_char(user_ts, '" F_DATEH24_US "')");
+				}
+				else
+				{
+					// FIXME:
+					Logger::getLogger()->debug("DBG PG jsonAggregates - other :%s: op :%s:", column_name.c_str(), aggregates["operation"].GetString());
+
+					sql.append("\"");
+					sql.append(column_name);
+					sql.append("\"");
+				}
 			}
 			else
 			{
-			sql.append(aggregates["column"].GetString());
+				// 'count' operation is requested
+				// FIXME:
+				Logger::getLogger()->debug("DBG PG jsonAggregates - count :%s: op :%s:", column_name.c_str(), aggregates["operation"].GetString());
+				sql.append(column_name);
 			}
 		}
 		else if (aggregates.HasMember("json"))
 		{
+			// FIXME:
+			Logger::getLogger()->debug("DBG PG jsonAggregates json :%s:", "none");
+
 			const Value& json = aggregates["json"];
 			if (! json.IsObject())
 			{
@@ -1660,6 +1697,11 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
 			}
 			sql.append('(');
 			sql.append("\"");
+
+			// FIXME:
+			Logger::getLogger()->debug("DBG PG jsonAggregates json :%s:", json["column"].GetString());
+
+
 			sql.append(json["column"].GetString());
 			sql.append("\"");
 			sql.append("->");

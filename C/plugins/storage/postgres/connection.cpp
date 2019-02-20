@@ -1799,9 +1799,22 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
 			sql.append('(');
 			if (itr->HasMember("column"))
 			{
-				sql.append("\"");
-				sql.append((*itr)["column"].GetString());
-				sql.append("\"");
+
+				string column_name= (*itr)["column"].GetString();
+				// FIXME:
+				if (column_name == "user_ts")
+				{
+					// FIXME:
+					Logger::getLogger()->debug("DBG PG jsonAggregates - user_ts :%s: ", column_name.c_str());
+
+					sql.append("to_char(user_ts, '" F_DATEH24_US "')");
+				}
+				else
+				{
+					sql.append("\"");
+					sql.append(column_name);
+					sql.append("\"");
+				}
 			}
 			else if (itr->HasMember("json"))
 			{

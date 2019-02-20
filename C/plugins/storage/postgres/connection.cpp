@@ -1813,7 +1813,7 @@ bool Connection::jsonAggregates(const Value& payload,
 
 				string column_name= (*itr)["column"].GetString();
 				// FIXME:
-				if (column_name == "user_ts")
+				if (isTableReading && (column_name.compare("user_ts") == 0) )
 				{
 					// FIXME:
 					Logger::getLogger()->debug("DBG PG jsonAggregates - user_ts :%s: ", column_name.c_str());

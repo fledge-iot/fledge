@@ -35,12 +35,6 @@ Release Date: 2019-02-21
     - Performance improvements and Bug Fixes
     - Introduction of Safe Mode in case FogLAMP is accidentally configured to generate so much data that it is overwhelmed and can no longer be managed.
 
-  
-- **FogLAMP Core**
-
-    - Performance improvements and Bug Fixes
-    - Introduction of Safe Mode in case FogLAMP is accidentally configured to generate so much data that it is overwhelmed and can no longer be managed.
-
 
 - **GUI**
 

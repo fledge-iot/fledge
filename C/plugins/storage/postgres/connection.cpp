@@ -25,10 +25,6 @@
 #include <logger.h>
 #include <time.h>
 
-
-// FIXME::
-#include <tmp_log.hpp>
-
 using namespace std;
 using namespace rapidjson;
 
@@ -85,12 +81,6 @@ bool Connection::retrieve(const string& table, const string& condition, string& 
 Document document;  // Default template parameter uses UTF8 and MemoryPoolAllocator.
 SQLBuffer	sql;
 SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
-
-
-	// FIXME:
-//	Logger::getLogger()->setMinLevel("debug");
-//	Logger::getLogger()->debug("DBG retrieve table :%s:", table.c_str());
-
 
 	try {
 		if (condition.empty())
@@ -258,29 +248,12 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 		const char *query = sql.coalesce();
 		logSQL("CommonRetrieve", query);
 
-//		// FIXME:
-//		char tmp_buffer[20000];
-//		sprintf (tmp_buffer,"DBG 2 : PG retrieve : query |%s|",
-//			 query);
-//		string str_buffer(tmp_buffer);
-//		tmpLogger (str_buffer);
-
 		PGresult *res = PQexec(dbConnection, query);
 		delete[] query;
 		if (PQresultStatus(res) == PGRES_TUPLES_OK)
 		{
 			mapResultSet(res, resultSet);
 			PQclear(res);
-
-//			// FIXME:
-//			Logger::getLogger()->debug("DBG xxx  LEN :%d:", resultSet.length() );
-//			char * tmp_buffer;
-//			tmp_buffer = (char*) malloc (resultSet.length()+1000);
-//			sprintf (tmp_buffer,"DBG 2 : PG retrieve : resultSet |%s| \n",
-//				resultSet.c_str() );
-//			string str_buffer(tmp_buffer);
-//			tmpLogger (str_buffer);
-//			free(tmp_buffer);
 
 			return true;
 		}
@@ -312,17 +285,9 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 
 	const string table = "readings";
 
-	// FIXME:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("DBG retrieveReadings table :%s:", table.c_str());
-
-
 	try {
 		if (condition.empty())
 		{
-			// FIXME:
-			Logger::getLogger()->debug("DBG retrieveReadings NO 2 condition :%s:", table.c_str());
-
 			const char *sql_cmd = R"(
 					SELECT
 						id,
@@ -345,10 +310,6 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 			}
 			if (document.HasMember("aggregate"))
 			{
-				// FIXME:
-				Logger::getLogger()->debug("DBG retrieveReadings aggregate :%s:", table.c_str());
-
-
 				sql.append("SELECT ");
 				if (document.HasMember("modifier"))
 				{
@@ -363,10 +324,6 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 			}
 			else if (document.HasMember("return"))
 			{
-				// FIXME:
-				Logger::getLogger()->debug("DBG retrieveReadings return 2 :%s:", table.c_str());
-
-
 				int col = 0;
 				Value& columns = document["return"];
 				if (! columns.IsArray())
@@ -377,9 +334,6 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 				sql.append("SELECT ");
 				if (document.HasMember("modifier"))
 				{
-					// FIXME:
-					Logger::getLogger()->debug("DBG retrieveReadings modifier :%s:", table.c_str());
-
 					sql.append(document["modifier"].GetString());
 					sql.append(' ');
 				}
@@ -390,9 +344,6 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 
 					if (!itr->IsObject())	// Simple column name
 					{
-						// FIXME:
-						Logger::getLogger()->debug("DBG retrieveReadings Simple column column :%s:", itr->GetString());
-
 						if (strcmp(itr->GetString() ,"user_ts") == 0)
 						{
 							// Display without TZ expression and microseconds also
@@ -421,10 +372,6 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 							}
 							if (itr->HasMember("format"))
 							{
-								// FIXME:
-								Logger::getLogger()->debug("DBG retrieveReadings format :%s:", table.c_str());
-
-
 								if (! (*itr)["format"].IsString())
 								{
 									raiseError("rerieve", "format must be a string");
@@ -440,9 +387,6 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 							}
 							else if (itr->HasMember("timezone"))
 							{
-								// FIXME:
-								Logger::getLogger()->debug("DBG retrieveReadings timezone :%s:", table.c_str());
-
 								if (! (*itr)["timezone"].IsString())
 								{
 									raiseError("rerieve", "timezone must be a string");
@@ -457,9 +401,6 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 							}
 							else
 							{
-								// FIXME:
-								Logger::getLogger()->debug("DBG retrieveReadings no format/timezone :%s:", (*itr)["column"].GetString());
-
 								if (strcmp((*itr)["column"].GetString() ,"user_ts") == 0)
 								{
 									// Display without TZ expression and microseconds also
@@ -489,10 +430,6 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 						}
 						else if (itr->HasMember("json"))
 						{
-							// FIXME:
-							Logger::getLogger()->debug("DBG retrieveReadings json :%s:", table.c_str());
-
-
 							const Value& json = (*itr)["json"];
 							if (! returnJson(json, sql, jsonConstraints))
 								return false;
@@ -516,9 +453,6 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 			}
 			else
 			{
-				// FIXME:
-				Logger::getLogger()->debug("DBG retrieveReadings NO column :%s:", table.c_str());
-
 				sql.append("SELECT ");
 				if (document.HasMember("modifier"))
 				{
@@ -526,7 +460,6 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 					sql.append(' ');
 				}
 
-				// FIXME:
 				const char *sql_cmd = R"(
 						id,
 						asset_code,
@@ -573,25 +506,12 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 		const char *query = sql.coalesce();
 		logSQL("CommonRetrieve", query);
 
-		// FIXME:
-		char tmp_buffer[10000];
-		sprintf (tmp_buffer,"DBG 2 : PG retrieveReadings : query |%s|",
-			 query);
-		tmpLogger (tmp_buffer);
-
 		PGresult *res = PQexec(dbConnection, query);
 		delete[] query;
 		if (PQresultStatus(res) == PGRES_TUPLES_OK)
 		{
 			mapResultSet(res, resultSet);
 			PQclear(res);
-
-			// FIXME:
-			sprintf (tmp_buffer,"DBG 2 : PG retrieve : resultSet |%s| \n",
-				 resultSet.c_str() );
-
-			tmpLogger (tmp_buffer);
-
 			return true;
 		}
 		char *SQLState = PQresultErrorField(res, PG_DIAG_SQLSTATE);
@@ -1318,34 +1238,14 @@ bool 		add_row = false;
 
 	const char *query = sql.coalesce();
 
-	// FIXME: Fast
-	Logger::getLogger()->debug("DBG xxx  LEN :%d:", strlen(query) );
-	char * tmp_buffer;
-	tmp_buffer = (char*) malloc (strlen(query)+1000);
-	sprintf (tmp_buffer,"DBG : appendReadings : query |%s|",query);
-	string str_buffer(tmp_buffer);
-	tmpLogger (str_buffer);
-	free(tmp_buffer);
-
-
 	logSQL("ReadingsAppend", query);
 	PGresult *res = PQexec(dbConnection, query);
 	delete[] query;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
 	{
 		PQclear(res);
-
-		// FIXME:
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("DBG appendReadings - OK  res :%s: res :%d:", PQcmdTuples(res), atoi(PQcmdTuples(res)));
-
-
 		return atoi(PQcmdTuples(res));
 	}
-	// FIXME:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("DBG appendReadings - error ");
-
  	raiseError("appendReadings", PQerrorMessage(dbConnection));
 	PQclear(res);
 	return -1;
@@ -1357,12 +1257,6 @@ bool 		add_row = false;
 bool Connection::fetchReadings(unsigned long id, unsigned int blksize, std::string& resultSet)
 {
 char	sqlbuffer[200];
-
-
-	// FIXME:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("DBG fetchReadings");
-
 
 	snprintf(sqlbuffer, sizeof(sqlbuffer),
 		"SELECT id, asset_code, read_key, reading, user_ts AT TIME ZONE 'UTC' as \"user_ts\", ts AT TIME ZONE 'UTC' as \"ts\" FROM foglamp.readings WHERE id >= %ld ORDER BY id LIMIT %d;", id, blksize);
@@ -1644,10 +1538,6 @@ bool Connection::jsonAggregates(const Value& payload,
 				SQLBuffer& jsonConstraint,
 				bool isTableReading)
 {
-	// FIXME:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("DBG PG jsonAggregates :%s:", "none");
-
 	if (aggregates.IsObject())
 	{
 		if (! aggregates.HasMember("operation"))
@@ -1661,34 +1551,21 @@ bool Connection::jsonAggregates(const Value& payload,
 			return false;
 		}
 
-		// FIXME:
 		string column_name = aggregates["column"].GetString();
 
 		sql.append(aggregates["operation"].GetString());
 		sql.append('(');
 		if (aggregates.HasMember("column"))
 		{
-			// FIXME:
-			Logger::getLogger()->debug("DBG PG jsonAggregates column :%s:", "none");
-
 			if (strcmp(aggregates["operation"].GetString(), "count") != 0)
 			{
 				// an operation different from the 'count' is requested
-				// FIXME:
-				Logger::getLogger()->debug("DBG PG jsonAggregates - NO count :%s: op :%s:", column_name.c_str(), aggregates["operation"].GetString());
-
 				if (isTableReading && (column_name.compare("user_ts") == 0) )
 				{
-					// FIXME:
-					Logger::getLogger()->debug("DBG PG jsonAggregates - user_ts :%s: op :%s:", column_name.c_str(), aggregates["operation"].GetString());
-
 					sql.append("to_char(user_ts, '" F_DATEH24_US "')");
 				}
 				else
 				{
-					// FIXME:
-					Logger::getLogger()->debug("DBG PG jsonAggregates - other :%s: op :%s:", column_name.c_str(), aggregates["operation"].GetString());
-
 					sql.append("\"");
 					sql.append(column_name);
 					sql.append("\"");
@@ -1697,16 +1574,11 @@ bool Connection::jsonAggregates(const Value& payload,
 			else
 			{
 				// 'count' operation is requested
-				// FIXME:
-				Logger::getLogger()->debug("DBG PG jsonAggregates - count :%s: op :%s:", column_name.c_str(), aggregates["operation"].GetString());
 				sql.append(column_name);
 			}
 		}
 		else if (aggregates.HasMember("json"))
 		{
-			// FIXME:
-			Logger::getLogger()->debug("DBG PG jsonAggregates json :%s:", "none");
-
 			const Value& json = aggregates["json"];
 			if (! json.IsObject())
 			{
@@ -1720,10 +1592,6 @@ bool Connection::jsonAggregates(const Value& payload,
 			}
 			sql.append('(');
 			sql.append("\"");
-
-			// FIXME:
-			Logger::getLogger()->debug("DBG PG jsonAggregates json :%s:", json["column"].GetString());
-
 
 			sql.append(json["column"].GetString());
 			sql.append("\"");
@@ -1824,12 +1692,8 @@ bool Connection::jsonAggregates(const Value& payload,
 			{
 
 				string column_name= (*itr)["column"].GetString();
-				// FIXME:
 				if (isTableReading && (column_name.compare("user_ts") == 0) )
 				{
-					// FIXME:
-					Logger::getLogger()->debug("DBG PG jsonAggregates - user_ts :%s: ", column_name.c_str());
-
 					sql.append("to_char(user_ts, '" F_DATEH24_US "')");
 				}
 				else

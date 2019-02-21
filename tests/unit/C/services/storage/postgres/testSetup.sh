@@ -12,6 +12,11 @@ insert into foglamp.test values (1, 'TEST1',  'A test row', '{ "json" : "test1" 
 
 delete from foglamp.readings;
 
+--
+-- test2 handling
+--
+drop table if exists foglamp.test2;
+
 create table foglamp.test2 (
 	id	bigint,
 	key	character(5),

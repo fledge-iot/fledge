@@ -1223,11 +1223,11 @@ bool 		add_row = false;
 
 	sql.append("INSERT INTO foglamp.readings ( user_ts, asset_code, read_key, reading ) VALUES ");
 
-    if (!doc.HasMember("readings"))
-    {
- 		raiseError("appendReadings", "Payload is missing a readings array");
-        return -1;
-    }
+	if (!doc.HasMember("readings"))
+	{
+		raiseError("appendReadings", "Payload is missing a readings array");
+	return -1;
+	}
 	Value &rdings = doc["readings"];
 	if (!rdings.IsArray())
 	{
@@ -1319,11 +1319,13 @@ bool 		add_row = false;
 	const char *query = sql.coalesce();
 
 	// FIXME: Fast
-	char tmp_buffer[5000];
+	Logger::getLogger()->debug("DBG xxx  LEN :%d:", strlen(query) );
+	char * tmp_buffer;
+	tmp_buffer = (char*) malloc (strlen(query)+1000);
 	sprintf (tmp_buffer,"DBG : appendReadings : query |%s|",query);
 	string str_buffer(tmp_buffer);
 	tmpLogger (str_buffer);
-
+	free(tmp_buffer);
 
 
 	logSQL("ReadingsAppend", query);
@@ -1332,8 +1334,18 @@ bool 		add_row = false;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
 	{
 		PQclear(res);
+
+		// FIXME:
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("DBG appendReadings - OK  res :%s: res :%d:", PQcmdTuples(res), atoi(PQcmdTuples(res)));
+
+
 		return atoi(PQcmdTuples(res));
 	}
+	// FIXME:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("DBG appendReadings - error ");
+
  	raiseError("appendReadings", PQerrorMessage(dbConnection));
 	PQclear(res);
 	return -1;

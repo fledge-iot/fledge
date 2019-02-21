@@ -101,4 +101,8 @@ Query Readings IN operator bad values,PUT,http://localhost:8080/storage/reading/
 microseconds - Purge Readings,PUT,http://localhost:8080/storage/reading/purge?age=1&sent=0&flags=purge,
 microseconds - Add Readings,POST,http://localhost:8080/storage/reading,msec_add_readings_user_ts.json
 microseconds - Query Readings,PUT,http://localhost:8080/storage/reading/query,msec_query_readings.json
+microseconds - Query asset NO alias,PUT,http://localhost:8080/storage/reading/query,msec_query_asset_noalias.json
+microseconds - Query asset alias,PUT,http://localhost:8080/storage/reading/query,msec_query_asset_alias.json
+microseconds - Query asset aggregate min,PUT,http://localhost:8080/storage/reading/query,msec_query_asset_aggmin.json
+microseconds - Query asset aggregate min array,PUT,http://localhost:8080/storage/reading/query,msec_query_asset_aggminarray.json
 Shutdown,POST,http://localhost:1081/foglamp/service/shutdown,,checkstate

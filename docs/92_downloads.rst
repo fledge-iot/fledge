@@ -10,9 +10,13 @@
 
 .. Links in new tabs
 
-.. |foglamp prj| raw:: html
+.. |foglamp repo| raw:: html
 
    <a href="https://github.com/foglamp/FogLAMP" target="_blank">https://github.com/foglamp/FogLAMP</a>
+
+.. |foglamp prj| raw:: html
+
+   <a href="https://github.com/foglamp" target="_blank">https://github.com/foglamp</a>
 
 .. |foglamp gui| raw:: html
 
@@ -65,8 +69,8 @@ Download/Clone from GitHub
 
 FogLAMP and the FogLAMP tools are on GitHub. You can view and download them here:
 
-- **FogLAMP Project**: This is the main project for the FogLAMP platform. |br| |foglamp prj|
+- **FogLAMP**: This is the main project for the FogLAMP platform. |br| |foglamp repo|
 - **FogLAMP GUI**: This is an experimental GUI that connects to the FogLAMP REST API to configure and administer the platform and to retrieve the data buffered in it. |br| |foglamp gui|
 - **PostgreSQL for FogLAMP**: If you want to build FogLAMP from source and you want to use a version of PostgreSQL that is not automatically installed with a repository manager, this project allows you to create a package containing a tailored version of PostgreSQL. |br| |postgres for foglamp|
  
-
+There are many south, north, and filter plugins available on github: |br| |foglamp repo|

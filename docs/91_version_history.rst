@@ -31,51 +31,42 @@ v1.5.0
 Release Date: 2019-02-21
 
 - **Changes in the REST API**
-
   - **ping Method**: the ping method now returns uptime, number of records read/sent/purged and if FogLAMP requires REST API authentication.
 
 - **FogLAMP Core**
-
+  - Performance improvements and Bug Fixes
+  - Introduction of Safe Mode in case FogLAMP is accidentally configured to generate so much data that it is overwhelmed and can no longer be managed.
+  
+- **FogLAMP Core**
   - Performance improvements and Bug Fixes
   - Introduction of Safe Mode in case FogLAMP is accidentally configured to generate so much data that it is overwhelmed and can no longer be managed.
 
-  
-- **FogLAMP Core**
-
-    - Performance improvements and Bug Fixes
-    - Introduction of Safe Mode in case FogLAMP is accidentally configured to generate so much data that it is overwhelmed and can no longer be managed.
-
 - **GUI**
-
-    - re-organization of screens for Health, Assets, South and North
-    - bug fixes
+  - re-organization of screens for Health, Assets, South and North
+  - bug fixes
 
 - **South**
-
-    - Many Performance improvements, including conversion to C++
-    - Modbus plugin
-    - many other new south plugins
+  - Many Performance improvements, including conversion to C++
+  - Modbus plugin
+  - many other new south plugins
 
 - **North**
-
-    - Compressed data via OMF
-    - Kafka
+  - Compressed data via OMF
+  - Kafka
 
 - **Filters**: Perform data pre-processing, and allow distributed applications to be built on FogLAMP.
-
-    - Delta: only send data upon change
-    - Expression: run a complex mathematical expression across one or more data streams
-    - Python: run arbitrary python code to modify a data stream
-    - Asset: modify Asset metadata
-    - RMS: Generate new asset with Root Mean Squared and Peak calcuations across data streams
-    - FFT (beta): execute a Fast Fourier Transform across a data stream. Valuable for Vibration Analysis
-    - Many others
+  - Delta: only send data upon change
+  - Expression: run a complex mathematical expression across one or more data streams
+  - Python: run arbitrary python code to modify a data stream
+  - Asset: modify Asset metadata
+  - RMS: Generate new asset with Root Mean Squared and Peak calcuations across data streams
+  - FFT (beta): execute a Fast Fourier Transform across a data stream. Valuable for Vibration Analysis
+  - Many others
 
 - **Event Notification Engine (beta)**
-
-    - Run rules to detect conditions and generate events at the edge
-    - Default Delivery Mechanisms: email, external script
-    - Fully pluggable, so custom Rules and Delivery Mechanisms can be easily created
+  - Run rules to detect conditions and generate events at the edge
+  - Default Delivery Mechanisms: email, external script
+  - Fully pluggable, so custom Rules and Delivery Mechanisms can be easily created
 
 - **Debian Packages for All Repo's**
 

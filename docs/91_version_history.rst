@@ -30,11 +30,6 @@ v1.5.0
 
 Release Date: 2019-02-21
 
-- **Changes in the REST API**
-
-    - **ping Method**: the ping method now returns uptime, number of records read/sent/purged and if FogLAMP requires REST API authentication.
-
-
 - **FogLAMP Core**
 
     - Performance improvements and Bug Fixes

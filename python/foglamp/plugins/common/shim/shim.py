@@ -46,6 +46,7 @@ def plugin_init(config):
     # South C server sends "config" argument as string in which all JSON type items' components,
     # 'default' and 'value', gets converted to dict during json.loads(). Hence we need to restore
     # them to str, which is the required format for configuration items.
+    # TODO: FOGL-1827 - Config item value must be respected as per type given
     revised_handle = {}
     for k, v in handle.items():
         if v['type'] == 'JSON':

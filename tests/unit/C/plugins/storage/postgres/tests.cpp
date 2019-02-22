@@ -50,7 +50,7 @@ INSTANTIATE_TEST_CASE_P(
 	TestConversions,
 	TestFormatDate,
 	::testing::Values(
-		// Test case                                       Expected
+		// Test cases                                      Expected
 		RowFormatDate("2019-01-01 10:01:01"              ,"2019-01-01 10:01:01.000000+00:00", true),
 		RowFormatDate("2019-02-01 10:02:01.0"            ,"2019-02-01 10:02:01.000000+00:00", true),
 		RowFormatDate("2019-02-02 10:02:02.841"          ,"2019-02-02 10:02:02.841000+00:00", true),

@@ -23,6 +23,10 @@ include_directories(../../../C/plugins/common/include)
 include_directories(../../../C/services/common/include)
 include_directories(../../../C/thirdparty/rapidjson/include)
 include_directories(../../../C/thirdparty/Simple-Web-Server)
+# postgres plugin
+include_directories(/usr/include/postgresql)
+include_directories(../../../C/plugins/storage/common/include)
+include_directories(../../../C/plugins/storage/postgres/include)
 
 # Add Python 3.x header files
 include_directories(${PYTHON_INCLUDE_DIRS})
@@ -57,3 +61,30 @@ add_library(plugins-common-lib SHARED ${PLUGINS_COMMON_LIB_SOURCES})
 target_link_libraries(plugins-common-lib ${Boost_LIBRARIES} common-lib services-common-lib z ssl crypto)
 
 set_target_properties(plugins-common-lib PROPERTIES SOVERSION 1)
+
+#
+# storage-common-lib
+#
+set(LIB_NAME storage-common-lib)
+set(DLLIB -ldl)
+
+# Find source files
+file(GLOB STORAGE_COMMON_LIB_SOURCE ../../../C/plugins/storage/common/*.cpp)
+
+# Create shared library
+add_library(${LIB_NAME} SHARED ${STORAGE_COMMON_LIB_SOURCE})
+target_link_libraries(${LIB_NAME} ${DLLIB})
+set_target_properties(${LIB_NAME} PROPERTIES SOVERSION 1)
+
+#
+# postgres plugin
+#
+
+# Find source files
+file(GLOB PG_PLUGIN ../../../C/plugins/storage/postgres/*.cpp)
+
+# Create shared library
+add_library(postgres SHARED ${PG_PLUGIN})
+target_link_libraries(postgres ${UUIDLIB})
+target_link_libraries(postgres ${Boost_LIBRARIES})
+set_target_properties(postgres PROPERTIES SOVERSION 1)

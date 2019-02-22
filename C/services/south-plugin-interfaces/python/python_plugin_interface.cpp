@@ -615,12 +615,10 @@ static void logErrorMessage()
 
 	PyObject* str_exc_value = PyObject_Repr(pValue);
 	PyObject* pyExcValueStr = PyUnicode_AsEncodedString(str_exc_value, "utf-8", "Error ~");
-	const char *pErrorMessage =  PyBytes_AS_STRING(pyExcValueStr);
-
-	Logger::getLogger()->fatal("logErrorMessage: Error '%s' ",
-				   pErrorMessage ?
-				   pErrorMessage :
-				   "no description");
+	const char* pErrorMessage = pValue ?
+				    PyBytes_AsString(pyExcValueStr) :
+				    "no error description.";
+	Logger::getLogger()->fatal("logErrorMessage: Error '%s' ", pErrorMessage);
 
 	// Reset error
 	PyErr_Clear();
@@ -629,6 +627,8 @@ static void logErrorMessage()
 	Py_CLEAR(pType);
 	Py_CLEAR(pValue);
 	Py_CLEAR(pTraceback);
+	Py_CLEAR(str_exc_value);
+	Py_CLEAR(pyExcValueStr);
 }
 };
 

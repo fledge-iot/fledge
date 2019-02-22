@@ -1,5 +1,5 @@
 /*
- * FogLAMP north service.
+ * FogLAMP north plugin
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -22,21 +22,30 @@ using namespace std;
 NorthPlugin::NorthPlugin(const PLUGIN_HANDLE handle) : Plugin(handle)
 {
         // Setup the function pointers to the plugin
-        pluginInit = (PLUGIN_HANDLE (*)(const map<string, string>& config))
+        pluginInit = (PLUGIN_HANDLE (*)(const ConfigCategory* config))
 					manager->resolveSymbol(handle, "plugin_init");
 
-	pluginShutdownPtr = (void (*)(const PLUGIN_HANDLE))
-				      manager->resolveSymbol(handle, "plugin_shutdown");
+	pluginShutdown = (void (*)(const PLUGIN_HANDLE))
+				   manager->resolveSymbol(handle, "plugin_shutdown");
+	pluginShutdownData = (string (*)(const PLUGIN_HANDLE))
+					 manager->resolveSymbol(handle, "plugin_shutdown");
 
 	pluginSend = (uint32_t (*)(const PLUGIN_HANDLE, const vector<Reading* >& readings))
 				   manager->resolveSymbol(handle, "plugin_send");
 
-	pluginGetConfig = (map<const string, const string>& (*)())manager->resolveSymbol(handle, "plugin_config");
+	pluginStart = (void (*)(const PLUGIN_HANDLE))
+				manager->resolveSymbol(handle, "plugin_start");
+	pluginStartData = (void (*)(const PLUGIN_HANDLE, const string& storedData))
+				manager->resolveSymbol(handle, "plugin_start");
+
+	// Persist data initialised
+	m_plugin_data = NULL;
 }
 
 // Destructor
 NorthPlugin::~NorthPlugin()
 {
+	delete m_plugin_data;
 }
 
 /**
@@ -45,10 +54,37 @@ NorthPlugin::~NorthPlugin()
  * @param config    The configuration data
  * @return          The plugin handle
  */
-PLUGIN_HANDLE NorthPlugin::init(const map<string, string>& config)
+PLUGIN_HANDLE NorthPlugin::init(const ConfigCategory& config)
 {
-	m_instance = this->pluginInit(config);
+	// Pass input data pointer
+	m_instance = this->pluginInit(&config);
 	return &m_instance;
+}
+
+/**
+ * Call the start method in the plugin
+ * with no persisted data
+ */
+void NorthPlugin::start()
+{
+	// Ccheck pluginStart function pointer exists
+	if (this->pluginStart)
+	{
+		this->pluginStart(m_instance);
+	}
+}
+
+/**
+ * Call the start method in the plugin
+ * passing persisted data
+ */
+void NorthPlugin::startData(const string& storedData)
+{
+	// Ccheck pluginStartData function pointer exists
+	if (this->pluginStartData)
+	{
+		this->pluginStartData(m_instance, storedData);
+	}
 }
 
 /**
@@ -63,17 +99,28 @@ uint32_t NorthPlugin::send(const vector<Reading* >& readings) const
 }
 
 /**
- * Return plugin specific configuration
- */
-map<const string, const string>& NorthPlugin::config() const
-{
-	return this->pluginGetConfig();
-}
-
-/**
  * Call the shutdown method in the plugin
  */
 void NorthPlugin::shutdown()
 {
-        return this->pluginShutdownPtr(m_instance);
+	// Ccheck pluginShutdown function pointer exists
+	if (this->pluginShutdown)
+	{
+		return this->pluginShutdown(m_instance);
+	}
+}
+
+/**
+ * Call the shutdown method in the plugin
+ * and return plugin data to parsist as JSON string
+ */
+string NorthPlugin::shutdownSaveData()
+{
+	string ret("");
+	// Check pluginShutdownData function pointer exists
+	if (this->pluginShutdownData)
+	{
+		ret = this->pluginShutdownData(m_instance);
+	}
+	return ret;
 }

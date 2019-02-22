@@ -1,3 +1,5 @@
+#include <utility>
+
 /*
  * FogLAMP OSI Soft OMF interface to PI Server.
  *
@@ -11,19 +13,25 @@
 
 #include <iostream>
 #include <string>
+#include <cstring>
 #include <omf.h>
 #include <logger.h>
+#include <zlib.h>
 
 using namespace std;
+
+// Cache for OMF data types
+static std::map<std::string, bool>	OMFcreatedTypes;
 
 /**
  * OMFData constructor
  */
-OMFData::OMFData(const Reading& reading)
+OMFData::OMFData(const Reading& reading, const string& typeId)
 {
 	// Convert reading data into the OMF JSON string
-	m_value.append("{\"containerid\": \"measurement_");
+	m_value.append("{\"containerid\": \"" + typeId + "measurement_");
 	m_value.append(reading.getAssetName() + "\", \"values\": [{");
+
 
 	// Get reading data
 	const vector<Datapoint*> data = reading.getReadingData();
@@ -40,7 +48,7 @@ OMFData::OMFData(const Reading& reading)
 	}
 
 	// Append Z to getAssetDateTime(FMT_STANDARD)
-	m_value.append("\"Time\": \"" + reading.getAssetDateTime(Reading::FMT_STANDARD) + "Z" + "\"");
+	m_value.append("\"Time\": \"" + reading.getAssetDateUserTime(Reading::FMT_STANDARD) + "Z" + "\"");
 
 	m_value.append("}]}");
 }
@@ -63,14 +71,68 @@ OMF::OMF(HttpSender& sender,
 	 m_path(path),
 	 m_typeId(id),
 	 m_producerToken(token),
-         m_sender(sender)
+	 m_sender(sender)
 {
 	m_lastError = false;
+	m_changeTypeId = false;
 }
 
 // Destructor
 OMF::~OMF()
 {
+}
+
+/**
+ * Compress a string
+ *
+ * @param str			Input STL string that is to be compressed
+ * @param compressionlevel	zlib/gzip Compression level
+ * @return str			gzip compressed binary data
+ */
+std::string OMF::compress_string(const std::string& str,
+                            int compressionlevel)
+{
+    const int windowBits = 15;
+    const int GZIP_ENCODING = 16;
+
+    z_stream zs;                        // z_stream is zlib's control structure
+    memset(&zs, 0, sizeof(zs));
+
+    if (deflateInit2(&zs, compressionlevel, Z_DEFLATED,
+		 windowBits | GZIP_ENCODING, 8,
+		 Z_DEFAULT_STRATEGY) != Z_OK)
+        throw(std::runtime_error("deflateInit failed while compressing."));
+
+    zs.next_in = (Bytef*)str.data();
+    zs.avail_in = str.size();           // set the z_stream's input
+
+    int ret;
+    char outbuffer[32768];
+    std::string outstring;
+
+    // retrieve the compressed bytes blockwise
+    do {
+        zs.next_out = reinterpret_cast<Bytef*>(outbuffer);
+        zs.avail_out = sizeof(outbuffer);
+
+        ret = deflate(&zs, Z_FINISH);
+
+        if (outstring.size() < zs.total_out) {
+            // append the block to the output string
+            outstring.append(outbuffer,
+                             zs.total_out - outstring.size());
+        }
+    } while (ret == Z_OK);
+
+    deflateEnd(&zs);
+
+    if (ret != Z_STREAM_END) {          // an error occurred that was not EOF
+        std::ostringstream oss;
+        oss << "Exception during zlib compression: (" << ret << ") " << zs.msg;
+        throw(std::runtime_error(oss.str()));
+    }
+
+    return outstring;
 }
 
 /**
@@ -80,9 +142,10 @@ OMF::~OMF()
  * @return       True is all data types have been sent (HTTP 200/204 OK)
  *               False when first error occurs.
  */
-bool OMF::sendDataTypes(const Reading& row) const
+bool OMF::sendDataTypes(const Reading& row)
 {
 	int res;
+	m_changeTypeId = false;
 
 	// Create header for Type
 	vector<pair<string, string>> resType = OMF::createMessageHeader("Type");
@@ -94,10 +157,14 @@ bool OMF::sendDataTypes(const Reading& row) const
 	// Then get HTTPS POST ret code and return 0 to client on error
 	try
 	{
-		res = m_sender.sendRequest("POST", m_path, resType, typeData);
-		if (res != 200 && res != 204)
+		res = m_sender.sendRequest("POST",
+					   m_path,
+					   resType,
+					   typeData);
+		if (res != 200 && res != 202 && res != 204)
 		{
-			Logger::getLogger()->error("Sending JSON dataType message 'Type' error: HTTP code |%d| - HostPort |%s| - path |%s| - message |%s|",
+			Logger::getLogger()->error("Sending JSON dataType message 'Type' "
+						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
 						   res,
 						   m_sender.getHostPort().c_str(),
 						   m_path.c_str(),
@@ -105,9 +172,27 @@ bool OMF::sendDataTypes(const Reading& row) const
 			return false;
 		}
 	}
+	// Exception raised for HTTP 400 Bad Request
+	catch (const BadRequest& e)
+	{
+		if (OMF::isDataTypeError(e.what()))
+		{
+			// Data type error: force type-id change
+			m_changeTypeId = true;
+		}
+                Logger::getLogger()->warn("Sending JSON dataType message 'Type', "
+					  "not blocking issue:  |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+					   (m_changeTypeId ? "Data Type " : "" ),
+                                           e.what(),
+                                           m_sender.getHostPort().c_str(),
+                                           m_path.c_str(),
+                                           typeData.c_str() );
+		return false;
+	}
 	catch (const std::exception& e)
 	{
-                Logger::getLogger()->error("Sending JSON dataType message 'Type' error |%s| - HostPort |%s| - path |%s| - message |%s|",
+                Logger::getLogger()->error("Sending JSON dataType message 'Type' "
+					   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
                                            e.what(),
                                            m_sender.getHostPort().c_str(),
                                            m_path.c_str(),
@@ -126,16 +211,46 @@ bool OMF::sendDataTypes(const Reading& row) const
 	// Then get HTTPS POST ret code and return 0 to client on error
 	try
 	{
-		res = m_sender.sendRequest("POST", m_path, resContainer, typeContainer);
-		if (res != 200 && res != 204)
+		res = m_sender.sendRequest("POST",
+					   m_path,
+					   resContainer,
+					   typeContainer);
+		if (res != 200 && res != 202 && res != 204)
 		{
-			Logger::getLogger()->error("Sending JSON dataType message 'Container' error: HTTP code %d", res);
+			Logger::getLogger()->error("Sending JSON dataType message 'Container' "
+						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+						   res,
+						   m_sender.getHostPort().c_str(),
+						   m_path.c_str(),
+						   typeContainer.c_str() );
 			return false;
 		}
 	}
+	// Exception raised fof HTTP 400 Bad Request
+	catch (const BadRequest& e)
+	{
+		if (OMF::isDataTypeError(e.what()))
+		{
+			// Data type error: force type-id change
+			m_changeTypeId = true;
+		}
+		Logger::getLogger()->warn("Sending JSON dataType message 'Container' "
+					   "not blocking issue: |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+					   (m_changeTypeId ? "Data Type " : "" ),
+					   e.what(),
+					   m_sender.getHostPort().c_str(),
+					   m_path.c_str(),
+					   typeContainer.c_str() );
+		return false;
+	}
 	catch (const std::exception& e)
 	{
-		Logger::getLogger()->error("Sending JSON dataType message 'Container' error: %s", e.what());
+		Logger::getLogger()->error("Sending JSON dataType message 'Container' "
+					   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+					   e.what(),
+					   m_sender.getHostPort().c_str(),
+					   m_path.c_str(),
+					   typeContainer.c_str() );
 		return false;
 	}
 
@@ -149,16 +264,46 @@ bool OMF::sendDataTypes(const Reading& row) const
 	// Then get HTTPS POST ret code and return 0 to client on error
 	try
 	{
-		res = m_sender.sendRequest("POST", m_path, resStaticData, typeStaticData);
-		if (res != 200 && res != 204)
+		res = m_sender.sendRequest("POST",
+					   m_path,
+					   resStaticData,
+					   typeStaticData);
+		if (res != 200 && res != 202 && res != 204)
 		{
-			Logger::getLogger()->error("Sending JSON dataType message 'StaticData' error: HTTP code %d", res);
+			Logger::getLogger()->error("Sending JSON dataType message 'StaticData' "
+						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+						   res,
+						   m_sender.getHostPort().c_str(),
+						   m_path.c_str(),
+						   typeStaticData.c_str() );
 			return false;
 		}
 	}
+	// Exception raised fof HTTP 400 Bad Request
+	catch (const BadRequest& e)
+	{
+		if (OMF::isDataTypeError(e.what()))
+		{
+			// Data type error: force type-id change
+			m_changeTypeId = true;
+		}
+		Logger::getLogger()->warn("Sending JSON dataType message 'StaticData'"
+					   "not blocking issue: |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+					   (m_changeTypeId ? "Data Type " : "" ),
+					   e.what(),
+					   m_sender.getHostPort().c_str(),
+					   m_path.c_str(),
+					   typeStaticData.c_str() );
+		return false;
+	}
 	catch (const std::exception& e)
 	{
-		Logger::getLogger()->error("Sending JSON dataType message 'StaticData' error: %s", e.what());
+		Logger::getLogger()->error("Sending JSON dataType message 'StaticData'"
+					   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+					   e.what(),
+					   m_sender.getHostPort().c_str(),
+					   m_path.c_str(),
+					   typeData.c_str() );
 		return false;
 	}
 
@@ -172,10 +317,18 @@ bool OMF::sendDataTypes(const Reading& row) const
 	// Then get HTTPS POST ret code and return 0 to client on error
 	try
 	{
-		res = m_sender.sendRequest("POST", m_path, resLinkData, typeLinkData);
-		if (res != 200 && res != 204)
+		res = m_sender.sendRequest("POST",
+					   m_path,
+					   resLinkData,
+					   typeLinkData);
+		if (res != 200 && res != 202 && res != 204)
 		{
-			Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) error: %d", res);
+			Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) "
+						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+						   res,
+						   m_sender.getHostPort().c_str(),
+						   m_path.c_str(),
+						   typeLinkData.c_str() );
 			return false;
 		}
 		else
@@ -184,9 +337,31 @@ bool OMF::sendDataTypes(const Reading& row) const
 			return true;
 		}
 	}
+	// Exception raised fof HTTP 400 Bad Request
+	catch (const BadRequest& e)
+	{
+		if (OMF::isDataTypeError(e.what()))
+		{
+			// Data type error: force type-id change
+			m_changeTypeId = true;
+		}
+		Logger::getLogger()->warn("Sending JSON dataType message 'Data' (lynk) "
+					   "not blocking issue: |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+					   (m_changeTypeId ? "Data Type " : "" ),
+					   e.what(),
+					   m_sender.getHostPort().c_str(),
+					   m_path.c_str(),
+					   typeData.c_str() );
+		return false;
+	}
 	catch (const std::exception& e)
 	{
-		Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) error: %s", e.what());
+		Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) "
+					   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+					   e.what(),
+					   m_sender.getHostPort().c_str(),
+					   m_path.c_str(),
+					   typeLinkData.c_str() );
 		return false;
 	}
 }
@@ -199,19 +374,29 @@ bool OMF::sendDataTypes(const Reading& row) const
  * @return                    != on success, 0 otherwise
  */
 uint32_t OMF::sendToServer(const vector<Reading *>& readings,
-			   bool skipSentDataTypes)
+			   bool compression, bool skipSentDataTypes)
 {
+	std::map<string, Reading*> superSetDataPoints;
+
+	// Create a superset of all found datapoints for each assetName
+	// the superset[assetName] is then passed to routines which handle
+	// creation of OMF data types
+	setMapObjectTypes(readings, superSetDataPoints);
+
 	/*
 	 * Iterate over readings:
 	 * - Send/cache Types
 	 * - transform a reading to OMF format
-	 * - add OMND data to new vector
+	 * - add OMF data to new vector
 	 */
+
+	// Used for logging
+	string json_not_compressed;
 
 	ostringstream jsonData;
 	jsonData << "[";
 
-	// Fecth Reading* data
+	// Fetch Reading* data
 	for (vector<Reading *>::const_iterator elem = readings.begin();
 						    elem != readings.end();
 						    ++elem)
@@ -227,22 +412,56 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 				 // Always send types
 				 true;
 
-		// Handle the data types of the current reading
-		if (sendDataTypes && !OMF::handleDataTypes(**elem, skipSentDataTypes))
+		Reading* datatypeStructure = NULL;
+		if (sendDataTypes)
 		{
+			// Get the supersetDataPoints for current assetName
+			auto it = superSetDataPoints.find((**elem).getAssetName());
+			if (it != superSetDataPoints.end())
+			{
+				datatypeStructure = (*it).second;
+			}
+		}
+
+		// Check first we have supersetDataPoints for the current reading
+		if ((sendDataTypes && datatypeStructure == NULL) ||
+		    // Handle the data types of the current reading
+		    (sendDataTypes &&
+		    // Send data type
+		    !OMF::handleDataTypes(*datatypeStructure, skipSentDataTypes) &&
+		    // Data type not sent: 
+		    (!m_changeTypeId ||
+		     // Increment type-id and re-send data types
+		     !OMF::handleTypeErrors(*datatypeStructure))))
+		{
+			// Remove all assets supersetDataPoints
+			unsetMapObjectTypes(superSetDataPoints);
+
 			// Failure
 			m_lastError = true;
 			return 0;
 		}
 
 		// Add into JSON string the OMF transformed Reading data
-		jsonData << OMFData(**elem).OMFdataVal() << (elem < (readings.end() -1 ) ? ", " : "");
+		jsonData << OMFData(**elem, m_typeId).OMFdataVal() <<
+			    (elem < (readings.end() - 1 ) ? ", " : "");
 	}
+
+	// Remove all assets supersetDataPoints
+	unsetMapObjectTypes(superSetDataPoints);
 
 	jsonData << "]";
 
+	string json = jsonData.str();
+
+	if (compression)
+	{
+		json_not_compressed = json;
+		json = compress_string(json);
+	}
+
 	/**
-	 * Types messages sent, now transorm ech reading to OMF format.
+	 * Types messages sent, now transform each reading to OMF format.
 	 *
 	 * After formatting the new vector of data can be sent
 	 * with one message only
@@ -250,28 +469,82 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 
 	// Create header for Readings data
 	vector<pair<string, string>> readingData = OMF::createMessageHeader("Data");
+	if (compression)
+		readingData.push_back(pair<string, string>("compression", "gzip"));
 
 	// Build an HTTPS POST with 'readingData headers
 	// and 'allReadings' JSON payload
 	// Then get HTTPS POST ret code and return 0 to client on error
 	try
 	{
-		int res = m_sender.sendRequest("POST", m_path, readingData, jsonData.str());
-		if (res != 200 && res != 204)
+		int res = m_sender.sendRequest("POST",
+					       m_path,
+					       readingData,
+					       json);
+		if (res != 200 && res != 202 && res != 204)
 		{
-			Logger::getLogger()->error("Sending JSON readings data error: %d", res);
+			Logger::getLogger()->error("Sending JSON readings, "
+						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+						   res,
+						   m_sender.getHostPort().c_str(),
+						   m_path.c_str(),
+						   json_not_compressed.c_str() );
 			m_lastError = true;
 			return 0;
 		}
-
+		// Reset error indicator
 		m_lastError = false;
 
-		// Return number of sen t readings to the caller
+		// Return number of sent readings to the caller
 		return readings.size();
+	}
+	// Exception raised fof HTTP 400 Bad Request
+	catch (const BadRequest& e)
+        {
+		if (OMF::isDataTypeError(e.what()))
+		{
+			// Some assets have invalid or redefined data type
+			// NOTE:
+			//
+			// 1- We consider this a NOT blocking issue.
+			// 2- Type-id is not incremented
+			// 3- Data Types cache is cleared: next sendData call
+			//    will send data types again.
+			Logger::getLogger()->warn("Sending JSON readings, "
+						  "not blocking issue: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+						  e.what(),
+						  m_sender.getHostPort().c_str(),
+						  m_path.c_str(),
+						  json_not_compressed.c_str() );
+			// Reset OMF types cache
+			OMF::clearCreatedTypes();
+			// Reset error indicator
+			m_lastError = false;
+
+			// It returns size instead of 0 as the rows in the block should be skipped in case of an error
+			// as it is considered a not blocking ones.
+			return readings.size();
+		}
+		else
+		{
+			Logger::getLogger()->error("Sending JSON data error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+			                           e.what(),
+			                           m_sender.getHostPort().c_str(),
+			                           m_path.c_str(),
+			                           json_not_compressed.c_str());
+		}
+		// Failure
+		m_lastError = true;
+		return 0;
 	}
 	catch (const std::exception& e)
 	{
-		Logger::getLogger()->error("Sending JSON data error: %s", e.what());
+		Logger::getLogger()->error("Sending JSON data error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+					   e.what(),
+					   m_sender.getHostPort().c_str(),
+					   m_path.c_str(),
+					   json_not_compressed.c_str() );
+		// Failure
 		m_lastError = true;
 		return 0;
 	}
@@ -296,7 +569,7 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 	ostringstream jsonData;
 	jsonData << "[";
 
-	// Fecth Reading data
+	// Fetch Reading data
 	for (vector<Reading>::const_iterator elem = readings.begin();
 						    elem != readings.end();
 						    ++elem)
@@ -321,7 +594,7 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 		}
 
 		// Add into JSON string the OMF transformed Reading data
-		jsonData << OMFData(*elem).OMFdataVal() << (elem < (readings.end() -1 ) ? ", " : "");
+		jsonData << OMFData(*elem, m_typeId).OMFdataVal() << (elem < (readings.end() -1 ) ? ", " : "");
 	}
 
 	jsonData << "]";
@@ -331,13 +604,32 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 
 	// Build an HTTPS POST with 'readingData headers and 'allReadings' JSON payload
 	// Then get HTTPS POST ret code and return 0 to client on error
-	int res = m_sender.sendRequest("POST", m_path, readingData, jsonData.str());
-
-	if (res != 200 && res != 204)
+	try
 	{
-		Logger::getLogger()->error("Sending JSON readings data error: %d", res);
-		m_lastError = true;
-		return 0;
+		int res = m_sender.sendRequest("POST", m_path, readingData, jsonData.str());
+
+		if (res != 200 && res != 202 && res != 204) {
+			Logger::getLogger()->error("Sending JSON readings data "
+						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+				res,
+				m_sender.getHostPort().c_str(),
+				m_path.c_str(),
+                                jsonData.str().c_str() );
+
+			m_lastError = true;
+			return 0;
+		}
+	}
+	catch (const std::exception& e)
+	{
+		Logger::getLogger()->error("Sending JSON readings data "
+					   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+					   e.what(),
+					   m_sender.getHostPort().c_str(),
+					   m_path.c_str(),
+					   jsonData.str().c_str() );
+
+		return false;
 	}
 
 	m_lastError = false;
@@ -377,7 +669,7 @@ uint32_t OMF::sendToServer(const Reading* reading,
 	}
 
 	// Add into JSON string the OMF transformed Reading data
-	jsonData << OMFData(*reading).OMFdataVal();
+	jsonData << OMFData(*reading, m_typeId).OMFdataVal();
 	jsonData << "]";
 
 	// Build headers for Readings data
@@ -385,11 +677,33 @@ uint32_t OMF::sendToServer(const Reading* reading,
 
 	// Build an HTTPS POST with 'readingData headers and 'allReadings' JSON payload
 	// Then get HTTPS POST ret code and return 0 to client on error
-	int res = m_sender.sendRequest("POST", m_path, readingData, jsonData.str());
-
-	if (res != 200 && res != 204)
+	try
 	{
-		return 0;
+
+		int res = m_sender.sendRequest("POST", m_path, readingData, jsonData.str());
+
+		if (res != 200 && res != 202 && res != 204)
+		{
+			Logger::getLogger()->error("Sending JSON readings data "
+						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+						   res,
+						   m_sender.getHostPort().c_str(),
+						   m_path.c_str(),
+						   jsonData.str().c_str() );
+
+			return 0;
+		}
+	}
+	catch (const std::exception& e)
+	{
+		Logger::getLogger()->error("Sending JSON readings data "
+					   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+					   e.what(),
+					   m_sender.getHostPort().c_str(),
+					   m_path.c_str(),
+					   jsonData.str().c_str() );
+
+		return false;
 	}
 
 	// Return number of sent readings to the caller
@@ -484,7 +798,7 @@ const std::string OMF::createTypeData(const Reading& reading) const
 			     "typename_measurement",
 			     tData);
 
-	 tData.append("\" }]");
+	tData.append("\" }]");
 
 	// Return JSON string
 	return tData;
@@ -506,7 +820,7 @@ const std::string OMF::createContainerData(const Reading& reading) const
 			     "typename_measurement",
 			     cData);
 
-	cData.append("\", \"id\": \"measurement_");
+	cData.append("\", \"id\": \"" + m_typeId + "measurement_");
 	cData.append(reading.getAssetName());
 	cData.append("\"}]");
 
@@ -587,7 +901,7 @@ const std::string OMF::createLinkData(const Reading& reading) const
 	// Add asset_name
 	lData.append(reading.getAssetName());
 
-	lData.append("\"}, \"target\": {\"containerid\": \"measurement_");
+	lData.append("\"}, \"target\": {\"containerid\": \"" + m_typeId + "measurement_");
 
 	// Add asset_name
 	lData.append(reading.getAssetName());
@@ -650,17 +964,6 @@ bool OMF::handleDataTypes(const Reading& row,
 		OMF::setCreatedTypes(key);
 	}
 
-	// Just for dubug right now
-	//if (skipSending)
-	//{
-	//	cerr << "dataTypes for key [" << key << "]" <<
-	//		(sendTypes ? " have been sent." : " already sent.") << endl;
-	//}
-	//else
-	//{
-	//	cerr << "dataTypes for typeId [" << m_typeId << "] have been sent." << endl;
-	//}
-
 	// Success
 	return true;
 }
@@ -675,7 +978,7 @@ bool OMF::handleDataTypes(const Reading& row,
  */
 bool OMF::setCreatedTypes(const string& key)
 {
-	return m_createdTypes[key] = true;
+	return OMFcreatedTypes[key] = true;
 }
 
 /**
@@ -687,7 +990,7 @@ bool OMF::setCreatedTypes(const string& key)
  */
 bool OMF::getCreatedTypes(const string& key)
 {
-	return m_createdTypes[key];
+	return OMFcreatedTypes[key];
 }
 
 /**
@@ -727,3 +1030,212 @@ void OMF::setFormatType(const string &key, string &value)
 	m_formatTypes[key] = value;
 }
 
+/**
+ * Set the list of errors considered not blocking in the communication
+ * with the PI Server
+ */
+void OMF::setNotBlockingErrors(std::vector<std::string>& notBlockingErrors)
+{
+
+	m_notBlockingErrors = notBlockingErrors;
+}
+
+
+/**
+ * Increment type-id
+ */
+void OMF::incrementTypeId()
+{
+	unsigned int id = atol(m_typeId.c_str());
+	m_typeId = to_string(++id);
+}
+
+/**
+ * Clear OMF types cache
+ */
+void OMF::clearCreatedTypes()
+{
+	OMFcreatedTypes.clear();
+}
+
+/**
+ * Check for invalid/redefinition data type error
+ *
+ * @param message       Server reply message for data type creation
+ * @return              True for data type error, false otherwise
+ */
+bool OMF::isDataTypeError(const char* message)
+{
+	if (message)
+	{
+		string serverReply(message);
+
+		for(string &item : m_notBlockingErrors) {
+
+			if (serverReply.find(item) != std::string::npos)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+/**
+ * Send again Data Types of current readind data
+ * with a new type-id
+ *
+ * NOTE: the m_typeId member variable value is incremented.
+ *
+ * @param reading       The current reading data
+ * @return              True if data types with new-id
+ *                      have been sent, false otherwise.
+ */
+bool OMF::handleTypeErrors(const Reading& reading)
+{
+	bool ret = true;
+
+	// Increment type-id
+	OMF::incrementTypeId();
+
+	// Reset change type-id indicator
+	m_changeTypeId = false;
+
+	// Reset OMF types cache
+	OMF::clearCreatedTypes();
+
+	// Force re-send data types with a new type-id
+	if (!OMF::handleDataTypes(reading,
+				  false))
+	{
+		Logger::getLogger()->error("Failure re-sending JSON dataType messages "
+					   "with new type-id=" + m_typeId);
+		// Failure
+		m_lastError = true;
+		ret = false;
+	}
+	return ret;
+}
+
+/**
+ * Create a superset data map for each reading and found datapoints
+ *
+ * The output map is filled with a Reading object containing
+ * all the datapoints found for each asset in the inoput reading set.
+ * The datapoint have a fake value based on the datapoint type
+ *  
+ * @param    readings		Current input readings data
+ * @param    dataSuperSet	Map to store all datapoints for an assetname
+ */
+void OMF::setMapObjectTypes(const vector<Reading*>& readings,
+			    std::map<std::string, Reading*>& dataSuperSet) const
+{
+	// Temporary map for [asset][datapoint] = type
+	std::map<string, map<string, string>> readingAllDataPoints;
+
+	// Fetch ALL Reading pointers in the input vecror
+	// and create a map of [assetName][datapoint1 .. datapointN] = type
+	for (vector<Reading *>::const_iterator elem = readings.begin();
+						elem != readings.end();
+						++elem)
+	{
+		// Get asset name
+		string assetName = (**elem).getAssetName();
+		// Get all datapoints
+		const vector<Datapoint*> data = (**elem).getReadingData();
+		// Iterate through datapoints
+		for (vector<Datapoint*>::const_iterator it = data.begin();
+							it != data.end();
+							++it)
+		{       
+			string omfType = omfTypes[((*it)->getData()).getType()];
+			string datapointName = (*it)->getName();
+			auto itr = readingAllDataPoints.find(assetName);
+			// Asset not found in the map
+			if (itr == readingAllDataPoints.end())
+			{
+				// Set type of current datapoint for ssetName
+				readingAllDataPoints[assetName][datapointName] = omfType;
+			}
+			else
+			{
+				// Asset found
+				auto dpItr = (*itr).second.find(datapointName);
+				// Datapoint not found
+				if (dpItr == (*itr).second.end())
+				{
+					// Add datapointName/type to map with key assetName
+					(*itr).second.emplace(datapointName, omfType);
+				}
+				else
+				{
+					if ((*dpItr).second.compare(omfType) != 0)
+					{
+						// Datapoint already set has changed type
+						Logger::getLogger()->warn("Datapoint '" + datapointName + \
+									  "' in asset '" + assetName + \
+									  "' has changed type from '" + (*dpItr).second + \
+									  " to " + omfType);
+					}
+
+					// Update datapointName/type to map with key assetName
+					// 1- remove element
+					(*itr).second.erase(dpItr);	
+					// 2- Add new value
+					readingAllDataPoints[assetName][datapointName] = omfType;
+				}
+			}
+		}
+	}
+
+	// Loop now only the elements found in the per asset types map
+	for (auto it = readingAllDataPoints.begin();
+		  it != readingAllDataPoints.end();
+		  ++it)
+	{
+		string assetName = (*it).first;
+		vector<Datapoint *> values;
+		// Set fake datapoints values
+		for (auto dp = (*it).second.begin();
+			  dp != (*it).second.end();
+			  ++dp)
+		{
+			if ((*dp).second.compare(OMF_TYPE_FLOAT) == 0)
+			{
+				DatapointValue vDouble(0.1);
+				values.push_back(new Datapoint((*dp).first, vDouble));
+			}
+			else if ((*dp).second.compare(OMF_TYPE_INTEGER) == 0)
+			{
+				DatapointValue vInt((long)1);
+				values.push_back(new Datapoint((*dp).first, vInt));
+			}
+			else if ((*dp).second.compare(OMF_TYPE_STRING) == 0)
+			{
+				DatapointValue vString("v_str");
+				values.push_back(new Datapoint((*dp).first, vString));
+			}
+		}
+
+		// Add the superset Reading data with fake values
+		dataSuperSet.emplace(assetName, new Reading(assetName, values));
+	}
+}
+
+/**
+ * Cleanup the mapped object types for input data
+ *
+ * @param    dataSuperSet	The  mapped object to cleanup
+ */
+void OMF::unsetMapObjectTypes(std::map<std::string, Reading*>& dataSuperSet) const
+{
+	// Remove all assets supersetDataPoints
+	for (auto m = dataSuperSet.begin();
+		  m != dataSuperSet.end();
+		  ++m)
+	{
+		(*m).second->removeAllDatapoints();
+		delete (*m).second;
+	}
+	dataSuperSet.clear();
+}

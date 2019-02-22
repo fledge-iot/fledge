@@ -14,6 +14,7 @@
 #include <map>
 #include <reading.h>
 #include <http_sender.h>
+#include <zlib.h>
 
 #define OMF_TYPE_STRING  "string"
 #define OMF_TYPE_INTEGER "integer"
@@ -56,7 +57,7 @@ class OMF
 
 		// Method with vector (by reference) of reading pointers
 		uint32_t sendToServer(const std::vector<Reading *>& readings,
-				      bool skipSentDataTypes = true);
+				      bool compression, bool skipSentDataTypes = true);
 
 		// Send a single reading (by reference)
 		uint32_t sendToServer(const Reading& reading,
@@ -72,13 +73,34 @@ class OMF
 		// Get saved OMF formats
 		std::string getFormatType(const std::string &key) const;
 
+		// Set the list of errors considered not blocking
+		// in the communication with the PI Server
+                void setNotBlockingErrors(std::vector<std::string>& );
+
+		// Compress string using gzip
+		std::string compress_string(const std::string& str,
+                            				int compressionlevel = Z_DEFAULT_COMPRESSION);
+
+		// Return current value of type-id
+		const std::string& getTypeId() { return m_typeId; };
+
+		// Check DataTypeError
+		bool isDataTypeError(const char* message);
+
+		// Map object types found in input data
+		void setMapObjectTypes(const std::vector<Reading *>& data,
+					std::map<std::string, Reading*>& dataSuperSet) const;
+		// Removed mapped object types found in input data
+		void unsetMapObjectTypes(std::map<std::string, Reading*>& dataSuperSet) const;
+
 	private:
 		/**
 		 * Builds the HTTP header to send
 		 * messagetype header takes the passed type value:
 		 * 'Type', 'Container', 'Data'
 		 */
-		const std::vector<std::pair<std::string, std::string>> createMessageHeader(const std::string& type) const;
+		const std::vector<std::pair<std::string, std::string>>
+			createMessageHeader(const std::string& type) const;
 
 		// Create data for Type message for current row
 		const std::string createTypeData(const Reading& reading) const;
@@ -109,19 +131,27 @@ class OMF
 				     bool skipSendingTypes);
 
 		// Send OMF data types
-		bool sendDataTypes(const Reading& row) const;
+		bool sendDataTypes(const Reading& row);
 
 		// Get saved dataType
-		bool getCreatedTypes(const std::string& key);
+		static bool getCreatedTypes(const std::string& key);
 
 		// Set saved dataType
-		bool setCreatedTypes(const std::string& key);
+		static bool setCreatedTypes(const std::string& key);
+
+		// Clear data types cache
+		static void clearCreatedTypes();
+
+		// Increment type-id value
+		void incrementTypeId();
+
+                // Handle data type errors
+		bool handleTypeErrors(const Reading& reading);
 
 	private:
 		const std::string		m_path;
-		const std::string		m_typeId;
+		std::string			m_typeId;
 		const std::string		m_producerToken;
-		std::map<std::string, bool>	m_createdTypes;
 
 		// Define the OMF format to use for each type
 		// the format will not be applied if the string is empty
@@ -133,11 +163,16 @@ class OMF
 
     		// Vector with OMF_TYPES
 		const std::vector<std::string> omfTypes = { OMF_TYPE_STRING,
-							    OMF_TYPE_INTEGER,
+							    OMF_TYPE_FLOAT,  // Forces the creation of float also for integer numbers
 							    OMF_TYPE_FLOAT };
 		// HTTP Sender interface
 		HttpSender&		m_sender;
 		bool			m_lastError;
+		bool			m_changeTypeId;
+
+		// These errors are considered not blocking in the communication with the destination,
+                // the sending operation will proceed with the next block of data if one of these is encountered
+                std::vector<std::string> m_notBlockingErrors;
 };
 
 /**
@@ -147,7 +182,7 @@ class OMF
 class OMFData
 {
 	public:
-		OMFData(const Reading& reading);
+		OMFData(const Reading& reading, const std::string& typeId);
 		const std::string& OMFdataVal() const;
 	private:
 		std::string	m_value;

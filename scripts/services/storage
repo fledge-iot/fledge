@@ -1,18 +1,30 @@
 #!/bin/sh
 if [ "${FOGLAMP_ROOT}" = "" ]; then
-	if [ ! -x /usr/local/foglamp/services/foglamp.services.storage ]; then
+	if [ ! -x /usr/local/foglamp/services/foglamp.services.storage ] && [ ! -x /usr/local/foglamp/services/storage ]; then
 		logger "Unable to find FogLAMP storage microservice in the default location"
 		exit 1
 	else
-		/usr/local/foglamp/services/foglamp.services.storage "$@"
+		if [ -x /usr/local/foglamp/services/foglamp.services.storage ]; then
+			export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/local/foglamp/lib
+			/usr/local/foglamp/services/foglamp.services.storage "$@"
+		else
+			/usr/local/foglamp/services/storage "$@"
+		fi
+		logger "FogLAMP storage microservice in the default location: /usr/local/foglamp"
 		exit 0
 	fi
 else
-	if [ ! -x ${FOGLAMP_ROOT}/services/foglamp.services.storage ]; then
+	if [ ! -x ${FOGLAMP_ROOT}/services/foglamp.services.storage ] && [ ! -x ${FOGLAMP_ROOT}/services/storage ]; then
 		logger "Unable to find FogLAMP storage microservice in ${FOGLAMP_ROOT}/services/storage"
 		exit 1
 	else
-		${FOGLAMP_ROOT}/services/foglamp.services.storage "$@"
+		if [ -x ${FOGLAMP_ROOT}/services/foglamp.services.storage ]; then
+			export LD_LIBRARY_PATH=${FOGLAMP_ROOT}:/usr/local/foglamp/lib
+			${FOGLAMP_ROOT}/services/foglamp.services.storage "$@"
+		else
+			${FOGLAMP_ROOT}/services/storage "$@"
+		fi
+		logger "FogLAMP storage microservice found in FOGLAMP_ROOT location: ${FOGLAMP_ROOT}"
 		exit 0
 	fi
 fi

@@ -15,6 +15,7 @@ from foglamp.common import logger
 from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.tasks.statistics.statistics_history import StatisticsHistory
 from foglamp.common.process import FoglampProcess
+from foglamp.plugins.common import utils
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -23,6 +24,7 @@ __version__ = "${VERSION}"
 
 
 pytestmark = pytest.mark.asyncio
+
 
 @asyncio.coroutine
 def mock_coro(*args, **kwargs):
@@ -48,45 +50,37 @@ class TestStatisticsHistory:
         mock_process.assert_called_once_with()
 
     async def test_insert_into_stats_history(self):
-        mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
         with patch.object(FoglampProcess, '__init__'):
             with patch.object(logger, "setup"):
                 sh = StatisticsHistory()
-                sh._storage_async = mockStorageClientAsync
+                sh._storage_async = MagicMock(spec=StorageClientAsync)
                 with patch.object(sh._storage_async, "insert_into_tbl", return_value=mock_coro(None)) as patch_storage:
-                    ts = datetime.now()
+                    ts = utils.local_timestamp()
                     await sh._insert_into_stats_history(key='Bla', value=1, history_ts=ts)
-                    args, kwargs = patch_storage.call_args
-                    assert args[0] == "statistics_history"
-                    payload = ast.literal_eval(args[1])
-                    assert payload["key"] == "Bla"
-                    assert payload["value"] == 1
-                    try:
-                        datetime.strptime(payload["history_ts"], "%Y-%m-%d %H:%M:%S.%f")
-                        assert True
-                    except ValueError:
-                        assert False
+                args, kwargs = patch_storage.call_args
+                assert "statistics_history" == args[0]
+                payload = ast.literal_eval(args[1])
+                assert "Bla" == payload["key"]
+                assert 1 == payload["value"]
 
     async def test_update_previous_value(self):
-        mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
         with patch.object(FoglampProcess, '__init__'):
             with patch.object(logger, "setup"):
                 sh = StatisticsHistory()
-                sh._storage_async = mockStorageClientAsync
+                sh._storage_async = MagicMock(spec=StorageClientAsync)
                 with patch.object(sh._storage_async, "update_tbl", return_value=mock_coro(None)) as patch_storage:
                     await sh._update_previous_value(key='Bla', value=1)
-                    args, kwargs = patch_storage.call_args
-                    assert args[0] == "statistics"
-                    payload = ast.literal_eval(args[1])
-                    assert payload["where"]["value"] == "Bla"
-                    assert payload["values"]["previous_value"] == 1
+                args, kwargs = patch_storage.call_args
+                assert "statistics" == args[0]
+                payload = ast.literal_eval(args[1])
+                assert "Bla" == payload["where"]["value"]
+                assert 1 == payload["values"]["previous_value"]
 
     async def test_run(self):
-        mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
         with patch.object(FoglampProcess, '__init__'):
             with patch.object(logger, "setup"):
                 sh = StatisticsHistory()
-                sh._storage_async = mockStorageClientAsync
+                sh._storage_async = MagicMock(spec=StorageClientAsync)
                 retval = {'count': 2,
                           'rows': [{'description': 'Readings removed from the buffer by the purge process',
                                     'value': 0, 'key': 'PURGED', 'previous_value': 0,

@@ -7,6 +7,7 @@ LN := ln -sf
 CMAKE := cmake
 PIP_USER_FLAG = --user
 PIP_INSTALL_REQUIREMENTS := pip3 install -Ir
+USE_PIP_CACHE := no
 PYTHON_BUILD_PACKAGE = python3 setup.py build -b ../$(PYTHON_BUILD_DIR)
 RM_DIR := rm -r
 RM_FILE := rm
@@ -24,21 +25,22 @@ MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 CURRENT_DIR := $(dir $(MKFILE_PATH))
 
 # C BUILD DIRS/FILES
-CMAKE_FILE             := $(CURRENT_DIR)/CMakeLists.txt
-CMAKE_BUILD_DIR        := cmake_build
-CMAKE_GEN_MAKEFILE     := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/Makefile
-CMAKE_SERVICES_DIR     := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/services
-CMAKE_TASKS_DIR        := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/tasks
-CMAKE_STORAGE_BINARY   := $(CMAKE_SERVICES_DIR)/storage/foglamp.services.storage
-CMAKE_SOUTH_BINARY     := $(CMAKE_SERVICES_DIR)/south/foglamp.services.south
-CMAKE_NORTH_BINARY     := $(CMAKE_TASKS_DIR)/north/sending_process/sending_process
-CMAKE_PLUGINS_DIR      := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/plugins
-DEV_SERVICES_DIR       := $(CURRENT_DIR)/services
-DEV_TASKS_DIR          := $(CURRENT_DIR)/tasks
-SYMLINK_PLUGINS_DIR    := $(CURRENT_DIR)/plugins
-SYMLINK_STORAGE_BINARY := $(DEV_SERVICES_DIR)/foglamp.services.storage
-SYMLINK_SOUTH_BINARY   := $(DEV_SERVICES_DIR)/foglamp.services.south
-SYMLINK_NORTH_BINARY   := $(DEV_TASKS_DIR)/sending_process
+CMAKE_FILE               := $(CURRENT_DIR)/CMakeLists.txt
+CMAKE_BUILD_DIR          := cmake_build
+CMAKE_GEN_MAKEFILE       := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/Makefile
+CMAKE_SERVICES_DIR       := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/services
+CMAKE_TASKS_DIR          := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/tasks
+CMAKE_STORAGE_BINARY     := $(CMAKE_SERVICES_DIR)/storage/foglamp.services.storage
+CMAKE_SOUTH_BINARY       := $(CMAKE_SERVICES_DIR)/south/foglamp.services.south
+CMAKE_NORTH_BINARY       := $(CMAKE_TASKS_DIR)/north/sending_process/sending_process
+CMAKE_PLUGINS_DIR        := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/plugins
+DEV_SERVICES_DIR         := $(CURRENT_DIR)/services
+DEV_TASKS_DIR            := $(CURRENT_DIR)/tasks
+SYMLINK_PLUGINS_DIR      := $(CURRENT_DIR)/plugins
+SYMLINK_STORAGE_BINARY   := $(DEV_SERVICES_DIR)/foglamp.services.storage
+SYMLINK_SOUTH_BINARY     := $(DEV_SERVICES_DIR)/foglamp.services.south
+SYMLINK_NORTH_BINARY     := $(DEV_TASKS_DIR)/sending_process
+ASYNC_INGEST_PYMODULE    := $(CURRENT_DIR)/python/async_ingest.so*
 
 # PYTHON BUILD DIRS/FILES
 PYTHON_SRC_DIR := python
@@ -71,6 +73,10 @@ SQLITE_SCHEMA_UPDATE_DIR := $(SCRIPTS_INSTALL_DIR)/plugins/storage/sqlite
 # SCRIPTS TO INSTALL IN BIN DIR
 FOGBENCH_SCRIPT_SRC        := scripts/extras/fogbench
 FOGLAMP_SCRIPT_SRC         := scripts/foglamp
+FOGLAMP_UPDATE_SRC         := scripts/extras/foglamp_update
+UPDATE_TASK_APT_SRC        := scripts/extras/update_task.apt
+UPDATE_TASK_SNAPPY_SRC     := scripts/extras/update_task.snappy
+SUDOERS_SRC                := scripts/extras/foglamp.sudoers
 
 # SCRIPTS TO INSTALL IN SCRIPTS DIR
 COMMON_SCRIPTS_SRC          := scripts/common
@@ -82,6 +88,7 @@ STORAGE_SERVICE_SCRIPT_SRC  := scripts/services/storage
 STORAGE_SCRIPT_SRC          := scripts/storage
 NORTH_SCRIPT_SRC            := scripts/tasks/north
 NORTH_C_SCRIPT_SRC          := scripts/tasks/north_c
+NOTIFICATION_C_SCRIPT_SRC   := scripts/services/notification_c
 PURGE_SCRIPT_SRC            := scripts/tasks/purge
 STATISTICS_SCRIPT_SRC       := scripts/tasks/statistics
 BACKUP_SRC                  := scripts/tasks/backup
@@ -137,6 +144,13 @@ else
 	$(eval ACTION="Building")
 endif
 	@echo "$(ACTION) $(PACKAGE_NAME) version $(FOGLAMP_VERSION), DB schema $(FOGLAMP_SCHEMA)"
+
+# Use cache for python requirements depending on the value of USE_PIP_CACHE
+ifeq ($(USE_PIP_CACHE), yes)
+    $(eval NO_CACHE_DIR=)
+else
+    $(eval NO_CACHE_DIR= --no-cache-dir)
+endif
 
 # Check where this FogLAMP can be installed over an existing one:
 schema_check : apply_version
@@ -232,11 +246,11 @@ python_build : $(PYTHON_SETUP_FILE)
 
 # install python requirements without --user 
 python_requirements : $(PYTHON_REQUIREMENTS_FILE)
-	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) --no-cache-dir
+	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) $(NO_CACHE_DIR)
 
 # install python requirements for user
 python_requirements_user : $(PYTHON_REQUIREMENTS_FILE)
-	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) $(PIP_USER_FLAG) --no-cache-dir
+	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) $(PIP_USER_FLAG) $(NO_CACHE_DIR)
 
 # create python install dir
 $(PYTHON_INSTALL_DIR) :
@@ -263,6 +277,7 @@ scripts_install : $(SCRIPTS_INSTALL_DIR) \
 	install_storage_service_script \
 	install_north_script \
 	install_north_c_script \
+	install_notification_c_script \
 	install_purge_script \
 	install_statistics_script \
 	install_storage_script \
@@ -308,6 +323,9 @@ install_north_script : $(SCRIPT_TASKS_INSTALL_DIR) $(NORTH_SCRIPT_SRC)
 
 install_north_c_script : $(SCRIPT_TASKS_INSTALL_DIR) $(NORTH_C_SCRIPT_SRC)
 	$(CP) $(NORTH_C_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
+
+install_notification_c_script: $(SCRIPT_SERVICES_INSTALL_DIR) $(NOTIFICATION_C_SCRIPT_SRC)
+	$(CP) $(NOTIFICATION_C_SCRIPT_SRC) $(SCRIPT_SERVICES_INSTALL_DIR)
 
 install_purge_script : $(SCRIPT_TASKS_INSTALL_DIR) $(PURGE_SCRIPT_SRC)
 	$(CP) $(PURGE_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
@@ -367,6 +385,10 @@ $(SQLITE_SCHEMA_UPDATE_DIR) :
 bin_install : $(BIN_INSTALL_DIR) $(FOGBENCH_SCRIPT_SRC) $(FOGLAMP_SCRIPT_SRC)
 	$(CP) $(FOGBENCH_SCRIPT_SRC) $(BIN_INSTALL_DIR)
 	$(CP) $(FOGLAMP_SCRIPT_SRC) $(BIN_INSTALL_DIR)
+	$(CP) $(FOGLAMP_UPDATE_SRC) $(BIN_INSTALL_DIR)
+	$(CP) $(UPDATE_TASK_APT_SRC) $(BIN_INSTALL_DIR)
+	$(CP) $(UPDATE_TASK_SNAPPY_SRC) $(BIN_INSTALL_DIR)
+	$(CP) $(SUDOERS_SRC) $(BIN_INSTALL_DIR)
 
 # create bin install dir
 $(BIN_INSTALL_DIR) :
@@ -433,3 +455,4 @@ clean :
 	-$(RM_DIR) $(PYTHON_BUILD_DIR)
 	-$(RM_DIR) $(DEV_SERVICES_DIR)
 	-$(RM) $(SYMLINK_PLUGINS_DIR)
+	-$(RM) $(ASYNC_INGEST_PYMODULE)

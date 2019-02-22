@@ -1,3 +1,26 @@
+--- Start :  updates omf_created_objects avoiding the problem of the constraint
+CREATE TABLE foglamp.tmp_omf_created_objects (
+    configuration_key character varying(255)    NOT NULL,
+    type_id           integer                   NOT NULL,
+    asset_code        character varying(50)     NOT NULL,
+    CONSTRAINT tmp_omf_created_objects_pkey PRIMARY KEY (configuration_key,type_id, asset_code)
+  );
+
+INSERT INTO foglamp.tmp_omf_created_objects
+SELECT * FROM foglamp.omf_created_objects;
+
+UPDATE foglamp.tmp_omf_created_objects  SET configuration_key = 'North Readings to PI'   WHERE configuration_key = 'SEND_PR_1';
+UPDATE foglamp.tmp_omf_created_objects  SET configuration_key = 'North Statistics to PI' WHERE configuration_key = 'SEND_PR_2';
+UPDATE foglamp.tmp_omf_created_objects  SET configuration_key = 'North Readings to OCS'  WHERE configuration_key = 'SEND_PR_4';
+
+DELETE FROM foglamp.omf_created_objects;
+
+INSERT INTO foglamp.omf_created_objects
+SELECT * FROM foglamp.tmp_omf_created_objects;
+
+DROP TABLE foglamp.tmp_omf_created_objects;
+--- End
+
 UPDATE foglamp.configuration SET key = 'North Readings to PI' WHERE key = 'SEND_PR_1';
 UPDATE foglamp.configuration SET key = 'North Statistics to PI' WHERE key = 'SEND_PR_2';
 UPDATE foglamp.configuration SET key = 'North Readings to OCS' WHERE key = 'SEND_PR_4';

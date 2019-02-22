@@ -674,7 +674,8 @@ class TestSendingProcess:
                             "key": "test_asset_code",
                             "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "value": 20,
-                            "ts": "16/04/2018 16:32:55"
+                            "history_ts": "16/04/2018 20:00:00",
+                            "ts": "16/04/2018 16:32:55",
                         },
                     ]
                 },
@@ -685,7 +686,7 @@ class TestSendingProcess:
                         "asset_code": "test_asset_code",
                         "reading": {"value": 20},
                         "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                        "user_ts": "16/04/2018 16:32:55.000000+00"
+                        "user_ts": "16/04/2018 20:00:00.000000+00"
                     },
                 ]
 
@@ -701,6 +702,7 @@ class TestSendingProcess:
                                 "key": " test_asset_code ",
                                 "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                                 "value": 21,
+                                "history_ts": "16/04/2018 20:00:00",
                                 "ts": "16/04/2018 16:32:55"
                             },
                         ]
@@ -712,7 +714,7 @@ class TestSendingProcess:
                             "asset_code": "test_asset_code",
                             "reading": {"value": 21},
                             "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                            "user_ts": "16/04/2018 16:32:55.000000+00"
+                            "user_ts": "16/04/2018 20:00:00.000000+00"
                         },
                     ]
 
@@ -768,6 +770,7 @@ class TestSendingProcess:
                             "key": "test_asset_code",
                             "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "value": 20,
+                            "history_ts": "16/04/2018 20:00:00",
                             "ts": "16/04/2018 16:32:55"
                         },
                 ],
@@ -778,7 +781,7 @@ class TestSendingProcess:
                         "asset_code": "test_asset_code",
                         "reading": {"value": 20},
                         "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                        "user_ts": "16/04/2018 16:32:55.000000+00"
+                        "user_ts": "16/04/2018 20:00:00.000000+00"
                     },
                 ]
 
@@ -793,6 +796,7 @@ class TestSendingProcess:
                             "key": " test_asset_code ",
                             "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "value": 21,
+                            "history_ts": "16/04/2018 20:00:00",
                             "ts": "16/04/2018 16:32:55"
                         },
                     ],
@@ -803,7 +807,7 @@ class TestSendingProcess:
                             "asset_code": "test_asset_code",
                             "reading": {"value": 21},
                             "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                            "user_ts": "16/04/2018 16:32:55.000000+00"
+                            "user_ts": "16/04/2018 20:00:00.000000+00"
                         },
                     ]
 

@@ -1,10 +1,10 @@
-cmake_minimum_required(VERSION 2.4.0)
+cmake_minimum_required(VERSION 2.6.0)
 
 project(sqlitememory)
 
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-set(STORAGE_COMMON_LIB -lstorage-common-lib)
+set(STORAGE_COMMON_LIB storage-common-lib)
 
 # Find source files
 file(GLOB SOURCES *.cpp)

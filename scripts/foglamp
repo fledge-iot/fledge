@@ -22,7 +22,7 @@ set -e
 #
 # This is the startup script for foglamp
 #
-USAGE="Usage: `basename ${0}` {start|stop|status|reset|kill|help|version}"
+USAGE="Usage: `basename ${0}` {start|start --safe-mode|stop|status|reset|kill|help|version}"
 
 # Remove any token cache left over from a previous execution
 rm -f ~/.foglamp_token
@@ -130,7 +130,11 @@ foglamp_start() {
 
         "2")
             #FogLAMP not running
-            echo -n "Starting FogLAMP v${FOGLAMP_VERSION}."
+            if [[ "$SAFE_MODE" == "safe-mode" ]]; then
+                echo -n "Starting FogLAMP v${FOGLAMP_VERSION} in safe mode."
+            else
+                echo -n "Starting FogLAMP v${FOGLAMP_VERSION}."
+            fi
             PYTHONPATH=${FOGLAMP_ROOT}/python
             export PYTHONPATH
             if [[ ! -e "$PYTHONPATH/foglamp/services/core/__main__.py" ]]; then
@@ -138,7 +142,7 @@ foglamp_start() {
                 exit 1
             fi
 
-            python3 -m foglamp.services.core > /dev/null 2> "$FOGLAMP_DATA/core.err" & disown
+            python3 -m foglamp.services.core "$SAFE_MODE" > /dev/null 2> "$FOGLAMP_DATA/core.err" & disown
 
             attempts=60
             while [ $attempts -gt 0 ]; do
@@ -316,6 +320,7 @@ foglamp_kill() {
 
 }
 
+
 foglamp_authenticate() {
 
     if [[ -f ~/.foglamp_token ]]; then
@@ -367,7 +372,7 @@ foglamp_status() {
       if [[ "${token}" =~ "failed" ]]; then
           foglamp_log "info" "Failed authentication when attempting to get foglamp status." "all" "pretty"
           echo "Authentication failed."
-          exit 0
+          exit -1
       fi
       result=`curl -H "authorization: $token" -k -s ${REST_API_URL}/foglamp/ping || true`
     fi
@@ -384,13 +389,20 @@ foglamp_status() {
                 record_sent=`echo ${result} | tr -d ' ' | grep -o '"dataSent".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/}//g'`
                 record_purged=`echo ${result} | tr -d ' ' | grep -o '"dataPurged".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/}//g'`
                 auth_opt=`echo ${result} | tr -d ' ' | grep -o '"authenticationOptional".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/}//g'`
+                safe_mode=`echo ${result} | tr -d ' ' | grep -o '"safeMode".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/}//g'`
                 if [[ "${auth_opt}" == "true" ]]; then
                   req_auth="does not require"
                 else
                   req_auth="requires"
                 fi
 
-                foglamp_log "info" "FogLAMP v${FOGLAMP_VERSION} running." "outonly" "pretty"
+                if [[ "${safe_mode}" == "true" ]]; then
+                  safe_mode=" in safe mode"
+                else
+                  safe_mode=""
+                fi
+
+                foglamp_log "info" "FogLAMP v${FOGLAMP_VERSION} running${safe_mode}." "outonly" "pretty"
                 foglamp_log "info" "FogLAMP Uptime:  ${uptime_sec} seconds." "outonly" "pretty"
                 foglamp_log "info" "FogLAMP records: ${record_read} read, ${record_sent} sent, ${record_purged} purged." "outonly" "pretty"
                 
@@ -403,6 +415,7 @@ foglamp_status() {
                 ps -ef | grep "foglamp.services.south" |grep python3| grep -v 'grep' | awk '{print "foglamp.services.south " $11 " " $12 " " $13}' || true
                 ps -ef | grep "foglamp.services.south" |grep -v python3| grep -v 'grep' | grep -v awk | awk '{print "foglamp.services.south " $9 " " $10 " " $11}' || true
                 ps -ef | grep "foglamp.services.north" | grep -v 'grep' | grep -v awk | awk '{print "foglamp.services.north " $9 " " $10}' || true
+                ps -ef | grep "foglamp.services.notification" |grep -v python3| grep -v 'grep' | grep -v awk | awk '{print "foglamp.services.notification " $9 " " $10 " " $11}' || true
 
                 # Show Tasks
                 foglamp_log "info" "=== FogLAMP tasks:" "outonly" "pretty"
@@ -486,14 +499,15 @@ foglamp_help() {
 FogLAMP v${FOGLAMP_VERSION} admin script
 The script is used to start FogLAMP
 Arguments:
- start   - Start FogLAMP core (core will start other services).
- stop    - Stop all FogLAMP services and processes
- kill    - Kill all FogLAMP services and processes
- status  - Show the status for the FogLAMP services
- reset   - Restore FogLAMP factory settings
-           WARNING! This command will destroy all your data!
- version - Print FogLAMP version
- help    - This text"
+ start             - Start FogLAMP core (core will start other services)
+ start --safe-mode - Start in safe mode (only core and storage services will be started)
+ stop              - Stop all FogLAMP services and processes
+ kill              - Kill all FogLAMP services and processes
+ status            - Show the status for the FogLAMP services
+ reset             - Restore FogLAMP factory settings
+                     WARNING! This command will destroy all your data!
+ version           - Print FogLAMP version
+ help              - This text"
 }
 
 
@@ -565,13 +579,21 @@ if [ -f ~/.foglamp ] ; then
 	fi
 fi
 
-
+SAFE_MODE=''
 # Handle commands
 case "$1" in
     reset)
         foglamp_reset
         ;;
     start)
+        if [ ! -z "$2" ]; then
+            if [ $2 = "--safe-mode" ]; then
+               SAFE_MODE='safe-mode'
+            else
+               echo "An invalid option has been entered: $2. Use --safe-mode"
+               exit 1
+            fi
+        fi
         foglamp_start
         ;;
     stop)

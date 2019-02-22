@@ -12,6 +12,8 @@
 
 #include <string>
 
+#define PRINT_FUNC	Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+
 /**
  * FogLAMP Logger class used to log to syslog
  *
@@ -31,7 +33,7 @@ class Logger {
 		void warn(const std::string& msg, ...);
 		void error(const std::string& msg, ...);
 		void fatal(const std::string& msg, ...);
-
+		void setMinLevel(const std::string& level);
 	private:
 		std::string 	*format(const std::string& msg, va_list ap);
 		static Logger   *instance;

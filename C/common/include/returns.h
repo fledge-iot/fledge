@@ -30,11 +30,15 @@ class Returns {
 		{
 			m_format = format;
 		}
+		void		timezone(const std::string timezone)
+		{
+			m_timezone = timezone;
+		}
 		std::string	toJSON()
 		{
 		std::ostringstream json;
 
-			if ((! m_alias.empty()) || (! m_format.empty()))
+			if ((! m_alias.empty()) || (! m_format.empty()) || (! m_timezone.empty()))
 			{
 				json << "{ ";
 				json << "\"column\" : \"" << m_column << "\"";
@@ -42,6 +46,8 @@ class Returns {
 					json << ", \"alias\" : \"" << m_alias << "\"";
 				if (! m_format.empty())
 					json << ", \"format\" : \"" << m_format << "\"";
+				if (! m_timezone.empty())
+					json << ", \"timezone\" : \"" << m_timezone << "\"";
 				json << " }";
 			}
 			else
@@ -54,6 +60,6 @@ class Returns {
 		const std::string	m_column;
 		const std::string	m_alias;
 		std::string		m_format;
+		std::string		m_timezone;
 };
 #endif
-

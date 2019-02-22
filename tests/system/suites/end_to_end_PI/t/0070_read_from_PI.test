@@ -67,7 +67,12 @@ function pi_web_retrieves_value_2x {
 
         # Retrieves the value
         value=`curl -s -u  ${PI_SERVER_UID}:${PI_SERVER_PWD} -X GET -k ${url_asset} |  jq --raw-output '.Items | .[] | select(.Name=="sensor") | .Value | .Value' 2>> $RESULT_DIR/$TEST_NAME.2.temp `
-        echo value :${value}: >> $RESULT_DIR/$TEST_NAME.1.temp 2>&1
+        echo value 1 :${value}: >> $RESULT_DIR/$TEST_NAME.1.temp 2>&1
+
+        # 2 reads to improve the stability of the test
+        sleep 5
+        value=`curl -s -u  ${PI_SERVER_UID}:${PI_SERVER_PWD} -X GET -k ${url_asset} |  jq --raw-output '.Items | .[] | select(.Name=="sensor") | .Value | .Value' 2>> $RESULT_DIR/$TEST_NAME.2.temp `
+        echo value 2 :${value}: >> $RESULT_DIR/$TEST_NAME.1.temp 2>&1
     fi
 
     echo ${value}

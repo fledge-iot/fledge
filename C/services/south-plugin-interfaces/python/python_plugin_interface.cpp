@@ -613,10 +613,6 @@ static void logErrorMessage()
 	PyErr_Fetch(&pType, &pValue, &pTraceback);
 	PyErr_NormalizeException(&pType, &pValue, &pTraceback);
 
-	PyObject* str_exc_type = PyObject_Repr(pType);
-	PyObject* pyStr = PyUnicode_AsEncodedString(str_exc_type, "utf-8", "Error ~");
-	const char *strExcType =  PyBytes_AS_STRING(pyStr);
-
 	PyObject* str_exc_value = PyObject_Repr(pValue);
 	PyObject* pyExcValueStr = PyUnicode_AsEncodedString(str_exc_value, "utf-8", "Error ~");
 	const char *pErrorMessage =  PyBytes_AS_STRING(pyExcValueStr);

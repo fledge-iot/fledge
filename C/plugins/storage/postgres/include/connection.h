@@ -30,6 +30,7 @@ class Connection {
 		unsigned int	purgeReadings(unsigned long age, unsigned int flags, unsigned long sent, std::string& results);
 		long		tableSize(const std::string& table);
 		void		setTrace(bool flag) { m_logSQL = flag; };
+    		static bool 	formatDate(char *formatted_date, size_t formatted_date_size, const char *date);
 	private:
 		bool		m_logSQL;
 		void		raiseError(const char *operation, const char *reason,...);
@@ -43,6 +44,5 @@ class Connection {
 		const char	*escape(const char *);
 		const std::string	escape(const std::string&);
 		void		logSQL(const char *, const char *);
-    		bool 		formatDate(char *formatted_date, size_t formatted_date_size, const char *date);
 };
 #endif

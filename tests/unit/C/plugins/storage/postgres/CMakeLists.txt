@@ -3,8 +3,8 @@ project(RunTests)
 cmake_minimum_required(VERSION 2.6)
 set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 
-set(UUIDLIB -luuid)
-set(COMMONLIB -ldl)
+# libraries
+set(PG_LIB     pq)
 
 # FogLAMP libraries
 set(COMMON_LIB         common-lib)
@@ -12,7 +12,6 @@ set(SERVICE_COMMON_LIB services-common-lib)
 set(PLUGINS_COMMON_LIB plugins-common-lib)
 set(PLUGIN_POSTGRES    postgres)
 set(STORAGE_COMMON_LIB storage-common-lib)
-set(PG_LIB             pq)
 
 # Locate GTest
 find_package(GTest REQUIRED)
@@ -28,7 +27,6 @@ include_directories(../../../../../../C/thirdparty/rapidjson/include)
 
 # Source files
 file(GLOB test_sources tests.cpp)
-
 
 # Exe creation
 link_directories(

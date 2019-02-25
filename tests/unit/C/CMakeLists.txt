@@ -79,12 +79,13 @@ set_target_properties(${LIB_NAME} PROPERTIES SOVERSION 1)
 #
 # postgres plugin
 #
+set(LIB_NAME postgres)
 
 # Find source files
-file(GLOB PG_PLUGIN ../../../C/plugins/storage/postgres/*.cpp)
+file(GLOB PG_PLUGIN_SOURCES ../../../C/plugins/storage/postgres/*.cpp)
 
 # Create shared library
-add_library(postgres SHARED ${PG_PLUGIN})
-target_link_libraries(postgres ${UUIDLIB})
-target_link_libraries(postgres ${Boost_LIBRARIES})
-set_target_properties(postgres PROPERTIES SOVERSION 1)
+add_library(${LIB_NAME} SHARED ${PG_PLUGIN_SOURCES})
+target_link_libraries(${LIB_NAME} ${UUIDLIB})
+target_link_libraries(${LIB_NAME} ${Boost_LIBRARIES})
+set_target_properties(${LIB_NAME} PROPERTIES SOVERSION 1)

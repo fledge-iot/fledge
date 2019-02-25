@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -e
+
+__author__="Ashish Jabble"
+__copyright__="Copyright (c) 2019 Dianomic Systems"
+__license__="Apache 2.0"
+__version__="1.0.0"
+
+##########################################################################################
+# Usage text for this script
+# $FOGLAMP_ROOT/tests/system/python/scripts/install_c_service {BRANCH_NAME} {SERVICE_NAME}
+##########################################################################################
+
+BRANCH_NAME=$1
+SERVICE_NAME=$2
+
+[[ -z "${BRANCH_NAME}" ]] && echo "Branch name not found." && exit 1
+[[ -z "${SERVICE_NAME}" ]] && echo "Service name not found." && exit 1
+
+REPO_NAME=foglamp-service-${SERVICE_NAME}
+
+clean () {
+   rm -rf /tmp/${REPO_NAME}
+   rm -rf ${FOGLAMP_ROOT}/services/foglamp.services.${SERVICE_NAME}
+}
+
+clone_repo () {
+   git clone -b ${BRANCH_NAME} --single-branch https://github.com/foglamp/${REPO_NAME}.git /tmp/${REPO_NAME}
+}
+
+install_binary_file () {
+   mkdir -p /tmp/${REPO_NAME}/build; cd /tmp/${REPO_NAME}/build; cmake -DFOGLAMP_INSTALL=${FOGLAMP_ROOT} ..; make -j4 && make install; cd -
+}
+
+clean
+clone_repo
+install_binary_file
+echo "${SERVICE_NAME} service is installed."

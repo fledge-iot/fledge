@@ -17,18 +17,19 @@ import os
 import subprocess
 import signal
 from typing import List
-from foglamp.common.configuration_manager import ConfigurationManager
+
 from foglamp.common import logger
+from foglamp.common import utils as common_utils
 from foglamp.common.audit_logger import AuditLogger
-from foglamp.services.core.scheduler.entities import *
-from foglamp.services.core.scheduler.exceptions import *
 from foglamp.common.storage_client.exceptions import *
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.storage_client import StorageClientAsync
+from foglamp.common.configuration_manager import ConfigurationManager
+from foglamp.services.core.scheduler.entities import *
+from foglamp.services.core.scheduler.exceptions import *
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
 from foglamp.services.common import utils
-from foglamp.plugins.common import utils as timedateUtils
 
 __author__ = "Terris Linenbach, Amarendra K Sinha, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
@@ -264,7 +265,7 @@ class Scheduler(object):
             update_payload = PayloadBuilder() \
                 .SET(exit_code=exit_code,
                      state=int(state),
-                     end_time=str(timedateUtils.local_timestamp())) \
+                     end_time=str(common_utils.local_timestamp())) \
                 .WHERE(['id', '=', str(task_process.task_id)]) \
                 .payload()
             try:
@@ -337,7 +338,7 @@ class Scheduler(object):
                         schedule_name=schedule.name,
                         process_name=schedule.process_name,
                         state=int(Task.State.RUNNING),
-                        start_time=str(timedateUtils.local_timestamp())) \
+                        start_time=str(common_utils.local_timestamp())) \
                 .payload()
             try:
                 self._logger.debug('Database command: %s', insert_payload)

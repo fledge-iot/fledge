@@ -43,7 +43,9 @@ def plugin_info():
 def plugin_init(config):
     _LOGGER.info("plugin_init called")
     handle = _plugin.plugin_init(json.loads(config))
-    return handle
+    # TODO: FOGL-1827 - Config item value must be respected as per type given
+    revised_handle = _revised_config_for_json_item(handle)
+    return revised_handle
 
 
 def plugin_poll(handle):
@@ -54,7 +56,9 @@ def plugin_poll(handle):
 def plugin_reconfigure(handle, new_config):
     _LOGGER.info("plugin_reconfigure")
     new_handle = _plugin.plugin_reconfigure(handle, json.loads(new_config))
-    return new_handle
+    # TODO: FOGL-1827 - Config item value must be respected as per type given
+    revised_handle = _revised_config_for_json_item(new_handle)
+    return revised_handle
 
 
 def plugin_shutdown(handle):
@@ -70,3 +74,18 @@ def plugin_start(handle):
 def plugin_register_ingest(handle, callback, ingest_ref):
     _LOGGER.info("plugin_register_ingest")
     return _plugin.plugin_register_ingest(handle, callback, ingest_ref)
+
+
+def _revised_config_for_json_item(config):
+    # South C server sends "config" argument as string in which all JSON type items' components,
+    # 'default' and 'value', gets converted to dict during json.loads(). Hence we need to restore
+    # them to str, which is the required format for configuration items.
+    revised_config_handle = {}
+    for k, v in config.items():
+        if v['type'] == 'JSON':
+            if isinstance(v['default'], dict):
+                v['default'] = json.dumps(v['default'])
+            if isinstance(v['value'], dict):
+                v['value'] = json.dumps(v['value'])
+        revised_config_handle.update({k: v})
+    return revised_config_handle

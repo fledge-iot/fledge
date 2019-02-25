@@ -1,9 +1,19 @@
 #!/bin/sh
 export FOGLAMP_DATA=.
 
+restore_tz() {
+	#Restore the initial TZ
+	psql -d foglamp -c "ALTER DATABASE foglamp SET timezone TO '"$current_tz"';" > /dev/null
+	current_tz=`psql -qtAX  -qtAX -d foglamp -c "SHOW timezone ;"`
+	echo "\nOriginal timezone restored   :$current_tz:\n"
+}
+
 # Set UTC as TZ for the proper execution of the tests
 current_tz=`psql -qtAX -d foglamp -c "SHOW timezone ;"`
 psql -d foglamp -c "ALTER DATABASE foglamp SET timezone TO 'UTC';" > /dev/null
+
+trap restore_tz 1 2 3 6 15
+
 exec_tz=`psql -qtAX -d foglamp -c "SHOW timezone ;"`
 
 if [ $# -eq 1 ] ; then
@@ -89,9 +99,7 @@ echo $n_unchecked Tests Unchecked	>> tests.result
 done
 
 #Restore the initial TZ
-psql -d foglamp -c "ALTER DATABASE foglamp SET timezone TO '"$current_tz"';" > /dev/null
-current_tz=`psql -qtAX  -qtAX -d foglamp -c "SHOW timezone ;"`
-echo "\nOriginal timezone restored   :$current_tz:\n"
+restore_tz
 
 ./testCleanup.sh > /dev/null
 cat tests.result

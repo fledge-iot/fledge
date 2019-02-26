@@ -23,6 +23,9 @@
 
 set -e
 
+sudo apt update
+sudo apt -y upgrade
+
 sudo apt install -y avahi-daemon curl
 sudo apt install -y cmake g++ make build-essential autoconf automake uuid-dev
 sudo apt install -y libtool libboost-dev libboost-system-dev libboost-thread-dev libpq-dev libssl-dev libz-dev

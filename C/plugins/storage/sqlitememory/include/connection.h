@@ -36,7 +36,7 @@ class Connection {
 		void		raiseError(const char *operation, const char *reason,...);
 		sqlite3		*inMemory; // Handle for :memory: database
 		int		mapResultSet(void *res, std::string& resultSet);
-		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&);
+		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&, bool convertLocaltime = false);
 		bool		jsonModifiers(const rapidjson::Value&, SQLBuffer&);
 		bool		jsonAggregates(const rapidjson::Value&,
 						const rapidjson::Value&,
@@ -50,5 +50,6 @@ class Connection {
 						int i,
 						std::string& newDate);
 		void		logSQL(const char *, const char *);
+    		bool 		formatDate(char *formatted_date, size_t formatted_date_size, const char *date);
 };
 #endif

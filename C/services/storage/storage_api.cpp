@@ -15,7 +15,7 @@
 #include "logger.h"
 #include "plugin_exception.h"
 #include <rapidjson/document.h>
-
+#include <atomic>
 
 // Added for the default_resource example
 #include <algorithm>
@@ -727,7 +727,17 @@ unsigned long size = 0;
 unsigned long lastSent = 0;
 unsigned int  flagsMask = 0;
 string        flags;
+static std::atomic<bool> already_running(false);
 
+	if (already_running)
+	{
+		Logger::getLogger()->info("Previous instance of purge is still running, returning right away...");
+		string payload = "{ \"error\" : \"Previous instance of purge is still running, returning right away...\" }";
+		respond(response, SimpleWeb::StatusCode::success_ok, payload);
+		return;
+	}
+	already_running.store(true);
+		
 	stats.readingPurge++;
 	try {
 		query = request->parse_query_string();
@@ -747,6 +757,7 @@ string        flags;
 		{
 			string payload = "{ \"error\" : \"Missing query parameter sent\" }";
 			respond(response, SimpleWeb::StatusCode::client_error_bad_request, payload);
+			already_running.store(false);
 			return;
 		}
 		else
@@ -782,6 +793,7 @@ string        flags;
 		{
 			string payload = "{ \"error\" : \"Must either specify age or size parameter\" }";
 			respond(response, SimpleWeb::StatusCode::client_error_bad_request, payload);
+			already_running.store(false);
 			return;
 		}
 		respond(response, purged);
@@ -794,13 +806,16 @@ string        flags;
 		payload += "\" }";
 		/** Return HTTP code 400 with message from storage plugin */
 		respond(response, SimpleWeb::StatusCode::client_error_bad_request, payload);
+		already_running.store(false);
 		return;
 	}
 	/** Handle general exception */
 	catch (exception ex) {
 		internalError(response, ex);
+		already_running.store(false);
 		return;
 	}
+	already_running.store(false);
 }
 
 /**

@@ -74,7 +74,7 @@ class QueryProfile
 				{
 					m_items.push_back(item);
 				}
-				if (time(0) - m_lastReport > 600)
+				if (time(0) - m_lastReport > 300)
 				{
 					report();
 				}

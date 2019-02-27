@@ -29,6 +29,7 @@
 #include <chrono>
 #include <thread>
 #include <atomic>
+#include <condition_variable>
 #include <sys/time.h>
 
 /*
@@ -37,7 +38,7 @@
  * between deletes. The idea is to not keep the database locked too long and allow other threads
  * to have access to the database between blocks.
  */
-#define PURGE_SLEEP_MS 2500
+#define PURGE_SLEEP_MS 500
 #define PURGE_DELETE_BLOCK_SIZE	1000
 
 #define PURGE_SLOWDOWN_AFTER_BLOCKS 5
@@ -60,7 +61,7 @@ using namespace rapidjson;
  * run by the storage plugin and the number of times a particular statement has to
  * be retried because of the database being busy./
  */
-#define DO_PROFILE		0
+#define DO_PROFILE		1
 #define DO_PROFILE_RETRIES	0
 #if DO_PROFILE
 #include <profile.h>
@@ -75,6 +76,10 @@ int	      maxQueue = 0;
 #endif
 
 static std::atomic<int> m_waiting(0);
+static std::atomic<int> m_writeAccessOngoing(0);
+static std::mutex	db_mutex;
+static std::condition_variable	db_cv;
+
 
 #define _DB_NAME              "/foglamp.sqlite"
 
@@ -480,10 +485,10 @@ Connection::Connection()
 
 		sqlite3_extended_result_codes(dbHandle, 1);
 
-		rc = sqlite3_exec(dbHandle, "PRAGMA page_size = 4096; PRAGMA cache_size = 5000; PRAGMA journal_mode = WAL;", NULL, NULL, &zErrMsg);
+		rc = sqlite3_exec(dbHandle, "PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off;", NULL, NULL, &zErrMsg);
 		if (rc != SQLITE_OK)
 		{
-			const char* errMsg = "Failed to set 'PRAGMA page_size = 4096; PRAGMA cache_size = 5000; PRAGMA journal_mode = WAL;'";
+			const char* errMsg = "Failed to set 'PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off;'";
 			Logger::getLogger()->error("%s : error %s",
 						   errMsg,
 						   zErrMsg);
@@ -1395,6 +1400,7 @@ SQLBuffer	sql;
 				}
 			}
 		sql.append(';');
+		row++;
 		}
 	}
 	sql.append("COMMIT TRANSACTION;");
@@ -1442,7 +1448,7 @@ SQLBuffer	sql;
 		update = sqlite3_changes(dbHandle);
 
 		// Return success
-		return update;
+		return row; // sqlite3_changes doesn't return the correct number of rows for explicit transaction case
 	}
 
 	// Return failure
@@ -1759,6 +1765,10 @@ bool 		add_row = false;
 	char *zErrMsg = NULL;
 	int rc;
 
+	{
+	m_writeAccessOngoing.fetch_add(1);
+	unique_lock<mutex> lck(db_mutex);
+
 	// Exec the INSERT statement: no callback, no result set
 	rc = SQLexec(dbHandle,
 		     query,
@@ -1766,6 +1776,10 @@ bool 		add_row = false;
 		     NULL,
 		     &zErrMsg);
 
+	m_writeAccessOngoing.fetch_sub(1);
+	db_cv.notify_all();
+	}
+	
 	// Release memory for 'query' var
 	delete[] query;
 
@@ -2369,9 +2383,9 @@ int blocks = 0;
 			return 0;
 		}
 	}
-	if (m_waiting)
+	if (m_writeAccessOngoing)
 	{
-		while (m_waiting)
+		while (m_writeAccessOngoing)
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(PURGE_SLEEP_MS));
 		}
@@ -2395,13 +2409,21 @@ int blocks = 0;
 		sql.append(';');
 		const char *query = sql.coalesce();
 		logSQL("ReadingsPurge", query);
+
+		int rc;
+		{
+		unique_lock<mutex> lck(db_mutex);
+		if (m_writeAccessOngoing) db_cv.wait(lck);
+
 		// Exec DELETE query: no callback, no resultset
-		int rc = SQLexec(dbHandle,
+		rc = SQLexec(dbHandle,
 			     query,
 			     NULL,
 			     NULL,
 			     &zErrMsg);
 
+		db_cv.notify_all();
+		}
 
 		if (rc != SQLITE_OK)
 		{
@@ -2417,20 +2439,6 @@ int blocks = 0;
 		deletedRows += rowsAffected;
 		Logger::getLogger()->info("Purge delete block #%d with %d readings", blocks, rowsAffected);
 
-		// Sleep for a while to release locks on the database if anybody is waiting
-		if (m_waiting)
-		{
-			//Logger::getLogger()->info("Purge loop sleeping");
-			while (m_waiting)
-			{
-				std::this_thread::sleep_for(std::chrono::milliseconds(PURGE_SLEEP_MS));
-			}
-			//Logger::getLogger()->info("Purge loop woken up");
-		}
-		else if ( blocks % PURGE_SLOWDOWN_AFTER_BLOCKS == (PURGE_SLOWDOWN_AFTER_BLOCKS-1) )
-		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(PURGE_SLOWDOWN_SLEEP_MS));
-		}
 	} while (rowidMin  < rowidLimit);
 
 	SQLBuffer retainedBuffer;
@@ -2461,7 +2469,7 @@ int blocks = 0;
 		sqlite3_free(zErrMsg);
 	}
 
-	logger->info("Got retained unsetn row count");
+	logger->info("Got retained unsent row count");
 
 	int readings_num = 0;
 	// Exec query and get result in 'readings_num' via 'countCallback'
@@ -3490,20 +3498,22 @@ int retries = 0, rc;
 		retries++;
 		if (rc == SQLITE_LOCKED || rc == SQLITE_BUSY)
 		{
+#if DO_PROFILE_RETRIES
 			m_qMutex.lock();
 			m_waiting.fetch_add(1);
-#if DO_PROFILE_RETRIES
 			if (maxQueue < m_waiting)
 				maxQueue = m_waiting;
-#endif
 			m_qMutex.unlock();
+#endif
 			int interval = (retries * RETRY_BACKOFF);
 			std::this_thread::sleep_for(std::chrono::milliseconds(interval));
-			if (retries > 5) Logger::getLogger()->info("SQLexec: retry %d of %d, rc=%s, errmsg=%s, DB connection @ %p, slept for %d msecs", 
+			if (retries > 1) Logger::getLogger()->info("SQLexec: retry %d of %d, rc=%s, errmsg=%s, DB connection @ %p, slept for %d msecs", 
 						retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", sqlite3_errmsg(db), this, interval);
+#if DO_PROFILE_RETRIES
 			m_qMutex.lock();
 			m_waiting.fetch_sub(1);
 			m_qMutex.unlock();
+#endif
 			if (sqlite3_get_autocommit(db)==0) // if transaction is still open, do rollback
 			{
 				char *zErrMsg = NULL;

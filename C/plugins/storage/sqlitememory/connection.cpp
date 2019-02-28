@@ -710,7 +710,7 @@ SQLBuffer	jsonConstraints;
 					sql.append(document["modifier"].GetString());
 					sql.append(' ');
 				}
-				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints))
+				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints, true))
 				{
 					return false;
 				}
@@ -733,11 +733,39 @@ SQLBuffer	jsonConstraints;
 				}
 				for (Value::ConstValueIterator itr = columns.Begin(); itr != columns.End(); ++itr)
 				{
+
+					// FIXME:
+					Logger::getLogger()->setMinLevel("debug");
+					Logger::getLogger()->debug("DBG retrieveReadings - loop");
+
 					if (col)
 						sql.append(", ");
 					if (!itr->IsObject())	// Simple column name
 					{
-						sql.append(itr->GetString());
+
+						// FIXME:
+						Logger::getLogger()->setMinLevel("debug");
+						Logger::getLogger()->debug("DBG retrieveReadings - simple column");
+
+						///--
+						if (strcmp(itr->GetString() ,"user_ts") == 0)
+						{
+							// Display without TZ expression and microseconds also
+							sql.append(" strftime('" F_DATEH24_SEC "', user_ts, 'localtime') ");
+							sql.append(" || substr(user_ts, instr(user_ts, '.'), 7) ");
+							sql.append(" as  user_ts ");
+						}
+						else if (strcmp(itr->GetString() ,"ts") == 0)
+						{
+							// Display without TZ expression and microseconds also
+							sql.append(" strftime('" F_DATEH24_MS "', ts, 'localtime') ");
+							sql.append(" as ts ");
+						}
+						else
+						{
+							sql.append(itr->GetString());
+						}
+
 					}
 					else
 					{
@@ -1520,7 +1548,8 @@ long numReadings = 0;
 bool Connection::jsonAggregates(const Value& payload,
 				const Value& aggregates,
 				SQLBuffer& sql,
-				SQLBuffer& jsonConstraint)
+				SQLBuffer& jsonConstraint,
+				bool isTableReading)
 {
 	if (aggregates.IsObject())
 	{
@@ -1536,11 +1565,32 @@ bool Connection::jsonAggregates(const Value& payload,
 				   "Missing property \"column\" or \"json\"");
 			return false;
 		}
+		string column_name = aggregates["column"].GetString();
+
 		sql.append(aggregates["operation"].GetString());
 		sql.append('(');
 		if (aggregates.HasMember("column"))
 		{
-			sql.append(aggregates["column"].GetString());
+			if (strcmp(aggregates["operation"].GetString(), "count") != 0)
+			{
+				// an operation different from the 'count' is requested
+				if (isTableReading && (column_name.compare("user_ts") == 0) )
+				{
+					sql.append("strftime('" F_DATEH24_SEC "', user_ts, 'localtime') ");
+					sql.append(" || substr(user_ts, instr(user_ts, '.'), 7) ");
+				}
+				else
+				{
+					sql.append("\"");
+					sql.append(column_name);
+					sql.append("\"");
+				}
+			}
+			else
+			{
+				// 'count' operation is requested
+				sql.append(column_name);
+			}
 		}
 		else if (aggregates.HasMember("json"))
 		{
@@ -1672,7 +1722,19 @@ bool Connection::jsonAggregates(const Value& payload,
 			sql.append('(');
 			if (itr->HasMember("column"))
 			{
-				sql.append((*itr)["column"].GetString());
+				string column_name= (*itr)["column"].GetString();
+				if (isTableReading && (column_name.compare("user_ts") == 0) )
+				{
+					sql.append("strftime('" F_DATEH24_SEC "', user_ts, 'localtime') ");
+					sql.append(" || substr(user_ts, instr(user_ts, '.'), 7) ");
+				}
+				else
+				{
+					sql.append("\"");
+					sql.append(column_name);
+					sql.append("\"");
+				}
+
 			}
 			else if (itr->HasMember("json"))
 			{

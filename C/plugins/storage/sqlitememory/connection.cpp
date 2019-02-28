@@ -1279,7 +1279,7 @@ bool Connection::fetchReadings(unsigned long id,
 			       unsigned int blksize,
 			       std::string& resultSet)
 {
-char sqlbuffer[1100];
+char sqlbuffer[512];
 char *zErrMsg = NULL;
 int rc;
 int retrieve;
@@ -1308,6 +1308,11 @@ int retrieve;
 		 sql_cmd,
 		 id,
 		 blksize);
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug(
+		"DBG fetchReadings strlen |%d| ",strlen(sqlbuffer));
 
 	logSQL("ReadingsFetch", sqlbuffer);
 	sqlite3_stmt *stmt;

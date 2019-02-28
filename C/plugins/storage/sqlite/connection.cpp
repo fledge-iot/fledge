@@ -1785,7 +1785,7 @@ bool Connection::fetchReadings(unsigned long id,
 			       unsigned int blksize,
 			       std::string& resultSet)
 {
-char sqlbuffer[1100];
+char sqlbuffer[512];
 char *zErrMsg = NULL;
 int rc;
 int retrieve;

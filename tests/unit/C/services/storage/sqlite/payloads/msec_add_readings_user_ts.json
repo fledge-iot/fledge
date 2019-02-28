@@ -1,12 +1,21 @@
 {
   "readings" : [
-    { "user_ts" : "xxx",                             "asset_code": "msec__001_BAD", "read_key" : "f1cfff7a-3769-4f47-9ded-10000000001",  "reading" : { "value" : 1  }},
-    { "user_ts" : "2019-30-07 10:17:17.123456+00",   "asset_code": "msec__002_BAD", "read_key" : "f1cfff7a-3769-4f47-9ded-10000000001",  "reading" : { "value" : 1  }},
+    { "user_ts" : "xxx",                             "asset_code": "msec_001_BAD", "read_key" : "f1cfff7a-3769-4f47-9ded-100000000001",  "reading" : { "value" : 1  }},
+    { "user_ts" : "2019-30-07 10:17:17.123456+00",   "asset_code": "msec_002_BAD", "read_key" : "f1cfff7a-3769-4f47-9ded-100000000002",  "reading" : { "value" : 2  }},
 
-    { "user_ts" : "2019-01-01 10:01:01",             "asset_code": "msec__001_OK", "read_key" : "f1cfff7a-3769-4f47-9ded-00000000001",  "reading" : { "value" : 1  }},
-    { "user_ts" : "2019-01-02 10:02:01.0",           "asset_code": "msec__002_OK", "read_key" : "f1cfff7a-3769-4f47-9ded-00000000002",  "reading" : { "value" : 1  }},
-    { "user_ts" : "2019-01-03 10:02:02.841",         "asset_code": "msec__003_OK", "read_key" : "f1cfff7a-3769-4f47-9ded-00000000003",  "reading" : { "value" : 1  }},
-    { "user_ts" : "2019-01-04 10:03:05.123456-01:00","asset_code": "msec__004_OK", "read_key" : "f1cfff7a-3769-4f47-9ded-00000000004",  "reading" : { "value" : 1  }}
+    { "user_ts" : "2019-01-01 10:01:01",             "asset_code": "msec_003_OK",  "read_key" : "f1cfff7a-3769-4f47-9ded-000000000003",  "reading" : { "value" : 3  }},
+    { "user_ts" : "2019-01-02 10:02:01.0",           "asset_code": "msec_004_OK",  "read_key" : "f1cfff7a-3769-4f47-9ded-000000000004",  "reading" : { "value" : 4  }},
+    { "user_ts" : "2019-01-03 10:02:02.841",         "asset_code": "msec_005_OK",  "read_key" : "f1cfff7a-3769-4f47-9ded-000000000005",  "reading" : { "value" : 5  }},
+    { "user_ts" : "2019-01-04 10:03:05.123456",      "asset_code": "msec_006_OK",  "read_key" : "f1cfff7a-3769-4f47-9ded-000000000006",  "reading" : { "value" : 6  }},
+
+    { "user_ts" : "2019-01-04 10:03:05.1+00:00",     "asset_code": "msec_007_OK",  "read_key" : "f1cfff7a-3769-4f47-9ded-000000000007",  "reading" : { "value" : 7  }},
+    { "user_ts" : "2019-01-04 10:03:05.123+00:00",   "asset_code": "msec_008_OK",  "read_key" : "f1cfff7a-3769-4f47-9ded-000000000008",  "reading" : { "value" : 8  }},
+
+    { "user_ts" : "2019-03-03 10:03:03.123456+00:00","asset_code": "msec_009_OK",  "read_key" : "f1cfff7a-3769-4f47-9ded-000000000009",  "reading" : { "value" : 9  }},
+    { "user_ts" : "2019-03-04 10:03:04.123456+01:00","asset_code": "msec_010_OK",  "read_key" : "f1cfff7a-3769-4f47-9ded-000000000010",  "reading" : { "value" :10  }},
+    { "user_ts" : "2019-03-05 10:03:05.123456-01:00","asset_code": "msec_011_OK",  "read_key" : "f1cfff7a-3769-4f47-9ded-000000000011",  "reading" : { "value" :11  }},
+    { "user_ts" : "2019-03-04 10:03:04.123456+02:30","asset_code": "msec_012_OK",  "read_key" : "f1cfff7a-3769-4f47-9ded-000000000012",  "reading" : { "value" :12  }},
+    { "user_ts" : "2019-03-05 10:03:05.123456-02:30","asset_code": "msec_013_OK",  "read_key" : "f1cfff7a-3769-4f47-9ded-000000000013",  "reading" : { "value" :13  }}
 
   ]
 }

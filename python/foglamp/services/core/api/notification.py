@@ -217,6 +217,7 @@ async def post_notification(request):
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
         notification_config = {
+            "description": description,
             "rule": rule,
             "channel": channel,
             "notification_type": notification_type,

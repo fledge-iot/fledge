@@ -1309,11 +1309,6 @@ int retrieve;
 		 id,
 		 blksize);
 
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug(
-		"DBG fetchReadings strlen |%d| ",strlen(sqlbuffer));
-
 	logSQL("ReadingsFetch", sqlbuffer);
 	sqlite3_stmt *stmt;
 	// Prepare the SQL statement and get the result set

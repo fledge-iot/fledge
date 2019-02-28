@@ -1814,7 +1814,6 @@ int retrieve;
 		 sql_cmd,
 		 id,
 		 blksize);
-
 	logSQL("ReadingsFetch", sqlbuffer);
 	sqlite3_stmt *stmt;
 	// Prepare the SQL statement and get the result set

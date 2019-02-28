@@ -28,6 +28,9 @@
 // Enable worker threads for readings append and fetch
 #define WORKER_THREADS		1
 
+// Threshold for logging number of threads in use for some "readings" wrappers
+#define MAX_WORKER_THREADS	5
+
 /**
  * Definition of the Storage Service REST API
  */
@@ -112,25 +115,84 @@ void on_error(__attribute__((unused)) shared_ptr<HttpServer::Request> request, _
 /**
  * Wrapper function for the reading appendAPI call.
  */
-void readingAppendWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+void readingAppendWrapper(shared_ptr<HttpServer::Response> response,
+			  shared_ptr<HttpServer::Request> request)
 {
 	StorageApi *api = StorageApi::getInstance();
+#if WORKER_THREADS
+	std::atomic<int>* cnt = &(api->m_workers_count);
+	// Check rurrent number of workers and log if threshold value is hit
+	int tVal = std::atomic_load(cnt);
+	if (tVal >= MAX_WORKER_THREADS)
+	{
+		Logger::getLogger()->warn("Storage API: readingAppend() is being run by a new thread. "
+					  "Current worker threads count %d exceeds the warning limit of %d"
+					  "%d allowed threads hit.",
+					  tVal,
+					  MAX_WORKER_THREADS);
+	}
+
+	// Start a new thread
+	thread work_thread([api, cnt, response, request]
+	{
+		// Increase count
+		std::atomic_fetch_add(cnt, 1);
+
+		api->readingAppend(response, request);
+
+		// Decrease counter 
+		std::atomic_fetch_sub(cnt, 1);
+	});
+	// Detach the new thread
+	work_thread.detach();
+#else
 	api->readingAppend(response, request);
+#endif
 }
 
 /**
  * Wrapper function for the reading fetch API call.
  */
-void readingFetchWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+void readingFetchWrapper(shared_ptr<HttpServer::Response> response,
+			 shared_ptr<HttpServer::Request> request)
 {
 	StorageApi *api = StorageApi::getInstance();
+#if WORKER_THREADS
+	std::atomic<int>* cnt = &(api->m_workers_count);
+	// Check rurrent number of workers and log if threshold value is hit
+	int tVal = std::atomic_load(cnt);
+	if (tVal >= MAX_WORKER_THREADS)
+	{
+		Logger::getLogger()->warn("Storage API: readingFetch() is being run by a new thread. "
+					  "Current worker threads count %d exceeds the warning limit of %d"
+					  "%d allowed threads hit.",
+					  tVal,
+					  MAX_WORKER_THREADS);
+	}
+
+	// Start a new thread
+	thread work_thread([api, cnt, response, request]
+	{
+		// Increase count
+		std::atomic_fetch_add(cnt, 1);
+
+		api->readingFetch(response, request);
+
+		// Decrease counter 
+		std::atomic_fetch_sub(cnt, 1);
+	});
+	// Detach the new thread
+	work_thread.detach();
+#else
 	api->readingFetch(response, request);
+#endif
 }
 
 /**
  * Wrapper function for the reading query API call.
  */
-void readingQueryWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+void readingQueryWrapper(shared_ptr<HttpServer::Response> response,
+			 shared_ptr<HttpServer::Request> request)
 {
 	StorageApi *api = StorageApi::getInstance();
 	api->readingQuery(response, request);
@@ -139,10 +201,38 @@ void readingQueryWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<H
 /**
  * Wrapper function for the reading purge API call.
  */
-void readingPurgeWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+void readingPurgeWrapper(shared_ptr<HttpServer::Response> response,
+			 shared_ptr<HttpServer::Request> request)
 {
 	StorageApi *api = StorageApi::getInstance();
+#if WORKER_THREADS
+	std::atomic<int>* cnt = &(api->m_workers_count);
+	// Check rurrent number of workers and log if threshold value is hit
+	int tVal = std::atomic_load(cnt);
+	if (tVal >= MAX_WORKER_THREADS)
+	{
+		Logger::getLogger()->warn("Storage API: readingPurge() is being run by a new thread. "
+					  "Current worker threads count %d exceeds the warning limit of %d"
+					  "%d allowed threads hit.",
+					  tVal,
+					  MAX_WORKER_THREADS);
+	}
+
+	// Start a new thread
+	thread work_thread([api, cnt, response, request]
+	{
+		// Increase count
+		std::atomic_fetch_add(cnt, 1);
+
+		api->readingPurge(response, request);
+		// Decrease counter 
+		std::atomic_fetch_sub(cnt, 1);
+	});
+	// Detach the new thread
+	work_thread.detach();
+#else
 	api->readingPurge(response, request);
+#endif
 }
 
 /**
@@ -202,6 +292,10 @@ unsigned short StorageApi::getListenerPort()
  */
 void StorageApi::initResources()
 {
+	// Initialise workers threads counter
+	m_workers_count = ATOMIC_VAR_INIT(0);
+
+	// Initialise the API entry points
 	m_server->resource[COMMON_ACCESS]["POST"] = commonInsertWrapper;
 	m_server->resource[COMMON_ACCESS]["GET"] = commonSimpleQueryWrapper;
 	m_server->resource[COMMON_QUERY]["PUT"] = commonQueryWrapper;
@@ -211,40 +305,14 @@ void StorageApi::initResources()
 	m_server->default_resource["PUT"] = defaultWrapper;
 	m_server->default_resource["GET"] = defaultWrapper;
 	m_server->default_resource["DELETE"] = defaultWrapper;
-#if WORKER_THREADS
-	m_server->resource[READING_ACCESS]["POST"] = [](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
-    thread work_thread([response, request] {
-      readingAppendWrapper(response, request);
-    });
-    work_thread.detach();
-  };
-#else
-	m_server->resource[READING_ACCESS]["POST"] = readingAppendWrapper;
-#endif
-#if WORKER_THREADS
-	m_server->resource[READING_ACCESS]["GET"] = [](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
-    thread work_thread([response, request] {
-      readingFetchWrapper(response, request);
-    });
-    work_thread.detach();
-  };
-#else
-	m_server->resource[READING_ACCESS]["GET"] = readingFetchWrapper;
-#endif
-	m_server->resource[READING_QUERY]["PUT"] = readingQueryWrapper;
-#if WORKER_THREADS
-	m_server->resource[READING_PURGE]["PUT"] = [](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
-    thread work_thread([response, request] {
-      readingPurgeWrapper(response, request);
-    });
-    work_thread.detach();
-  };
-#else
-	m_server->resource[READING_PURGE]["PUT"] = readingPurgeWrapper;
-#endif
 
 	m_server->resource[READING_INTEREST]["POST"] = readingRegisterWrapper;
 	m_server->resource[READING_INTEREST]["DELETE"] = readingUnregisterWrapper;
+
+	m_server->resource[READING_ACCESS]["POST"] = readingAppendWrapper;
+	m_server->resource[READING_ACCESS]["GET"] = readingFetchWrapper;
+	m_server->resource[READING_QUERY]["PUT"] = readingQueryWrapper;
+	m_server->resource[READING_PURGE]["PUT"] = readingPurgeWrapper;
 
 	m_server->on_error = on_error;
 

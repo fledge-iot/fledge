@@ -665,11 +665,6 @@ SQLBuffer	sql;
 // Extra constraints to add to where clause
 SQLBuffer	jsonConstraints;
 
-	// FIXME:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("DBG retrieveReadings");
-
-
 	try {
 		if (inMemory == NULL)
 		{
@@ -734,20 +729,10 @@ SQLBuffer	jsonConstraints;
 				for (Value::ConstValueIterator itr = columns.Begin(); itr != columns.End(); ++itr)
 				{
 
-					// FIXME:
-					Logger::getLogger()->setMinLevel("debug");
-					Logger::getLogger()->debug("DBG retrieveReadings - loop");
-
 					if (col)
 						sql.append(", ");
 					if (!itr->IsObject())	// Simple column name
 					{
-
-						// FIXME:
-						Logger::getLogger()->setMinLevel("debug");
-						Logger::getLogger()->debug("DBG retrieveReadings - simple column");
-
-						///--
 						if (strcmp(itr->GetString() ,"user_ts") == 0)
 						{
 							// Display without TZ expression and microseconds also
@@ -1298,10 +1283,6 @@ char sqlbuffer[1100];
 char *zErrMsg = NULL;
 int rc;
 int retrieve;
-
-	// FIXME:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("DBG fetchReadings");
 
 	// SQL command to extract the data from the foglamp.readings
 	const char *sql_cmd = R"(

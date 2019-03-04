@@ -53,19 +53,18 @@ class TestE2eCsvMultiFltrPi:
 
         # Define the CSV data and create expected lists to be verified later
         csv_file_path = os.path.join(os.path.expandvars('${FOGLAMP_ROOT}'), 'data/{}'.format(CSV_NAME))
-        f = open(csv_file_path, "w")
-        f.write(CSV_HEADERS)
-        for _items in CSV_DATA.split(","):
-            f.write("\n{}".format(_items))
-        f.close()
+        with open(csv_file_path, 'w') as f:
+            f.write(CSV_HEADERS)
+            for _items in CSV_DATA.split(","):
+                f.write("\n{}".format(_items))
 
         south_plugin = "playback"
         add_south(south_plugin, south_branch, foglamp_url, service_name=SVC_NAME,
                   config=south_config, start_service=False)
 
-        filter_cfg = {"enable": "true"}
+        filter_cfg_scale = {"enable": "true"}
         # I/P 10, 20, 21, 40 -> O/P 1000, 2000, 2100, 4000
-        add_filter("scale", filter_branch, "fscale", filter_cfg, foglamp_url, SVC_NAME)
+        add_filter("scale", filter_branch, "fscale", filter_cfg_scale, foglamp_url, SVC_NAME)
 
         # I/P asset_name : e2e_csv_filter_pi > O/P e2e_filters
         filter_cfg_asset = {"config": {"rules": [{"new_asset_name": "e2e_filters",
@@ -78,7 +77,10 @@ class TestE2eCsvMultiFltrPi:
         filter_cfg_rate = {"trigger": "ivalue > 1200", "untrigger": "ivalue < 1100", "preTrigger": "0", "enable": "true"}
         add_filter("rate", filter_branch, "frate", filter_cfg_rate, foglamp_url, SVC_NAME)
 
-        # I/P 1000, 2000, 2100, 40000 -> O/P 2000, 4000
+        # I/P 1000, 2000, 2100, 4000 -> O/P 2000, 4000
+        # Delta in 1st pair (2000-1000) = 1000 (> 20% of 1000) so 2000 is output
+        # Delta in second pair (2100-2000) = 100 (<20% of 2000) so 2100 not in output
+        # Delta in third pair (4000-2100) = 1900 (>20% of 2100) so 4000 in output
         filter_cfg_delta = {"tolerance": "20", "enable": "true"}
         add_filter("delta", filter_branch, "fdelta", filter_cfg_delta , foglamp_url, SVC_NAME)
 
@@ -86,7 +88,8 @@ class TestE2eCsvMultiFltrPi:
         filter_cfg_rms = {"assetName": "%a_RMS", "samples": "2", "peak": "true", "enable": "true"}
         add_filter("rms", filter_branch, "frms", filter_cfg_rms, foglamp_url, SVC_NAME)
 
-        add_filter("metadata", filter_branch, "fmeta", filter_cfg, foglamp_url, SVC_NAME)
+        filter_cfg_meta = {"enable": "true"}
+        add_filter("metadata", filter_branch, "fmeta", filter_cfg_meta, foglamp_url, SVC_NAME)
 
         # Since playback plugin reads all csv data at once, we cant keep it in enable mode before filter add
         # enable service when all filters all applied
@@ -97,12 +100,10 @@ class TestE2eCsvMultiFltrPi:
         yield self.start_south_north
 
         remove_directories("/tmp/foglamp-south-{}".format(south_plugin))
-        remove_directories("/tmp/foglamp-filter-{}".format("scale"))
-        remove_directories("/tmp/foglamp-filter-{}".format("asset"))
-        remove_directories("/tmp/foglamp-filter-{}".format("rate"))
-        remove_directories("/tmp/foglamp-filter-{}".format("delta"))
-        remove_directories("/tmp/foglamp-filter-{}".format("rms"))
-        remove_directories("/tmp/foglamp-filter-{}".format("metadata"))
+        filters = ["scale", "asset", "rate", "delta", "rms", "metadata"]
+        for fltr in filters:
+            remove_directories("/tmp/foglamp-filter-{}".format(fltr))
+
         remove_data_file(csv_file_path)
 
     def test_end_to_end(self, start_south_north, disable_schedule, foglamp_url, read_data_from_pi, pi_host, pi_admin,

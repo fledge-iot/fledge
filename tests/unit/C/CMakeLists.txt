@@ -61,6 +61,20 @@ target_link_libraries(plugins-common-lib ${Boost_LIBRARIES} common-lib services-
 
 set_target_properties(plugins-common-lib PROPERTIES SOVERSION 1)
 
+#
+# storage-common-lib
+#
+set(LIB_NAME storage-common-lib)
+set(DLLIB -ldl)
+
+# Find source files
+file(GLOB STORAGE_COMMON_LIB_SOURCE ../../../C/plugins/storage/common/*.cpp)
+
+# Create shared library
+add_library(${LIB_NAME} SHARED ${STORAGE_COMMON_LIB_SOURCE})
+target_link_libraries(${LIB_NAME} ${DLLIB})
+set_target_properties(${LIB_NAME} PROPERTIES SOVERSION 1)
+
 
 #
 # sqlitememory plugin

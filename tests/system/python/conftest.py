@@ -274,14 +274,35 @@ def disable_schedule():
 
 
 def pytest_addoption(parser):
-    parser.addoption("--south-branch", action="store", default="develop",
-                     help="south branch name")
-    parser.addoption("--north-branch", action="store", default="develop",
-                     help="north branch name")
     parser.addoption("--foglamp-url", action="store", default="localhost:8081",
                      help="FogLAMP client api url")
     parser.addoption("--use-pip-cache", action="store", default=False,
                      help="use pip cache is requirement is available")
+    parser.addoption("--wait-time", action="store", default=5, type=int,
+                     help="Generic wait time between processes to run")
+    parser.addoption("--retries", action="store", default=3, type=int,
+                     help="Number of tries for polling")
+
+    # South/North Args
+    parser.addoption("--south-branch", action="store", default="develop",
+                     help="south branch name")
+    parser.addoption("--north-branch", action="store", default="develop",
+                     help="north branch name")
+    parser.addoption("--south-service-name", action="store", default="southSvc #1",
+                     help="Name of the South Service")
+    parser.addoption("--asset-name", action="store", default="SystemTest",
+                     help="Name of asset")
+
+    # Filter Args
+    parser.addoption("--filter-branch", action="store", default="develop", help="Filter plugin repo branch")
+    parser.addoption("--filter-name", action="store", default="Meta #1", help="Filter name to be added to pipeline")
+
+    # External Services Arg foglamp-service-* e.g. foglamp-service-notification
+    parser.addoption("--service-branch", action="store", default="develop",
+                     help="service branch name")
+    # Notify Arg
+    parser.addoption("--notify-branch", action="store", default="develop", help="Notify plugin repo branch")
+
     # PI Config
     parser.addoption("--pi-host", action="store", default="pi-server",
                      help="PI Server Host Name/IP")
@@ -308,20 +329,6 @@ def pytest_addoption(parser):
     parser.addoption("--ocs-token", action="store", default="ocs_north_0001",
                      help="Token of OCS account")
 
-    parser.addoption("--south-service-name", action="store", default="southSvc #1",
-                     help="Name of the South Service")
-    parser.addoption("--asset-name", action="store", default="SystemTest",
-                     help="Name of asset")
-
-    parser.addoption("--wait-time", action="store", default=5, type=int,
-                     help="Generic wait time between processes to run")
-    parser.addoption("--retries", action="store", default=3, type=int,
-                     help="Number of tries for polling")
-
-    # Filter Args
-    parser.addoption("--filter-branch", action="store", default="develop", help="Filter plugin repo branch")
-    parser.addoption("--filter-name", action="store", default="Meta #1", help="Filter name to be added to pipeline")
-
     # Kafka Config
     parser.addoption("--kafka-host", action="store", default="localhost",
                      help="Kafka Server Host Name/IP")
@@ -342,8 +349,18 @@ def north_branch(request):
 
 
 @pytest.fixture
+def service_branch(request):
+    return request.config.getoption("--service-branch")
+
+
+@pytest.fixture
 def filter_branch(request):
     return request.config.getoption("--filter-branch")
+
+
+@pytest.fixture
+def notify_branch(request):
+    return request.config.getoption("--notify-branch")
 
 
 @pytest.fixture

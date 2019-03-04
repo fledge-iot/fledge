@@ -69,7 +69,7 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
 - sqlite3
 - libsqlite3-dev
 
-On Ubuntu-based Linux distributions the packages can be installed with *apt-get*:
+On Ubuntu-based Linux distributions the packages can be installed with given `requirements.sh <requirements.sh>`_ or manual *apt-get*:
 ::
    apt-get install avahi-daemon curl
    apt-get install cmake g++ make build-essential autoconf automake uuid-dev

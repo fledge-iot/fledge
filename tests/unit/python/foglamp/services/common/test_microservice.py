@@ -2,11 +2,12 @@
 
 import pytest
 import time
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from aiohttp import web
 import asyncio
+import sys
 from foglamp.common.storage_client.storage_client import ReadingsStorageClientAsync, StorageClientAsync
-from foglamp.common.process import FoglampProcess, SilentArgParse, ArgumentParserError
+from foglamp.common.process import FoglampProcess
 from foglamp.services.common.microservice import FoglampMicroservice, _logger
 from foglamp.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient
 
@@ -91,7 +92,7 @@ class TestFoglampMicroservice:
                 pass
 
         with patch.object(asyncio, 'get_event_loop', return_value=loop):
-            with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', '32333', '--name', 'sname']):
                 with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                     with patch.object(MicroserviceManagementClient, 'create_configuration_category', return_value=None):
                         with patch.object(MicroserviceManagementClient, 'create_child_category',
@@ -108,7 +109,7 @@ class TestFoglampMicroservice:
                                                         fm = FoglampMicroserviceImp()
         # from FoglampProcess
         assert fm._core_management_host is 'corehost'
-        assert fm._core_management_port is 0
+        assert fm._core_management_port == 32333
         assert fm._name is 'sname'
         assert hasattr(fm, '_core_microservice_management_client')
         assert hasattr(fm, '_readings_storage_async')
@@ -145,7 +146,7 @@ class TestFoglampMicroservice:
                 pass
 
         with patch.object(asyncio, 'get_event_loop', return_value=loop):
-            with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', '32333', '--name', 'sname']):
                 with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                     with patch.object(MicroserviceManagementClient, 'create_configuration_category', return_value=None):
                         with patch.object(MicroserviceManagementClient, 'create_child_category',
@@ -183,7 +184,7 @@ class TestFoglampMicroservice:
                 pass
 
         with patch.object(asyncio, 'get_event_loop', return_value=loop):
-            with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(sys, 'argv', ['pytest', '--address', 'corehost', '--port', '32333', '--name', 'sname']):
                 with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                     with patch.object(MicroserviceManagementClient, 'create_configuration_category', return_value=None):
                         with patch.object(MicroserviceManagementClient, 'create_child_category',

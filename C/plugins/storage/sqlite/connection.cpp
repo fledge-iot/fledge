@@ -80,6 +80,9 @@ static std::atomic<int> m_writeAccessOngoing(0);
 static std::mutex	db_mutex;
 static std::condition_variable	db_cv;
 
+#define START_TIME std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+#define END_TIME std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now(); \
+				 auto usecs = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
 
 #define _DB_NAME              "/foglamp.sqlite"
 
@@ -483,12 +486,10 @@ Connection::Connection()
 		int rc;
 		char *zErrMsg = NULL;
 
-		sqlite3_extended_result_codes(dbHandle, 1);
-
-		rc = sqlite3_exec(dbHandle, "PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off;", NULL, NULL, &zErrMsg);
+		rc = sqlite3_exec(dbHandle, "PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;", NULL, NULL, &zErrMsg);
 		if (rc != SQLITE_OK)
 		{
-			const char* errMsg = "Failed to set 'PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off;'";
+			const char* errMsg = "Failed to set 'PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;'";
 			Logger::getLogger()->error("%s : error %s",
 						   errMsg,
 						   zErrMsg);
@@ -2268,7 +2269,7 @@ int blocks = 0;
 		 * So set age based on the data we have and continue.
 		 */
 		SQLBuffer oldest;
-		oldest.append("SELECT (strftime('%s','now', 'localtime') - strftime('%s', MIN(user_ts)))/360 FROM foglamp.readings where rowid <= ");
+		oldest.append("SELECT (strftime('%s','now', 'utc') - strftime('%s', MIN(user_ts)))/360 FROM foglamp.readings where rowid <= ");
 		oldest.append(rowidLimit);
 		oldest.append(';');
 		const char *query = oldest.coalesce();
@@ -2298,20 +2299,25 @@ int blocks = 0;
 	}
 	{
 		/*
-		 * Refine rowid limit to just those rows older than age hours
+		 * Refine rowid limit to just those rows older than age hours.
+		 *
+		 * Using the max function with a where clause is slow in SQLite,
+		 * it results in a table scan. Therefore we do a select query that
+		 * will use an index and then sort and use limit 1 to get the maximum
+		 * value of rowid.
 		 */
 		char *zErrMsg = NULL;
 		int rc;
 		SQLBuffer sqlBuffer;
 		sqlBuffer.append("select max(rowid) from foglamp.readings where user_ts < datetime('now' , '-");
 		sqlBuffer.append(age);
-		sqlBuffer.append(" hours', 'localtime')");
+		sqlBuffer.append(" hours', 'utc')");
 		if ((flags & 0x01) == 0x01)	// Don't delete unsent rows
 		{
 			sqlBuffer.append(" AND id < ");
 			sqlBuffer.append(sent);
 		}
-		sqlBuffer.append(';');
+		sqlBuffer.append(";");
 		const char *query = sqlBuffer.coalesce();
 		rc = SQLexec(dbHandle,
 		     query,
@@ -2348,53 +2354,80 @@ int blocks = 0;
 	logger->info("Purge collecting unsent row count");
 	if ((flags & 0x01) == 0)
 	{
-		// Get number of unsent rows we are about to remove
-		SQLBuffer unsentBuffer;
-		unsentBuffer.append("SELECT count(ROWID) FROM foglamp.readings WHERE  user_ts < datetime('now', '-");
-		unsentBuffer.append(age);
-		unsentBuffer.append(" hours', 'localtime') AND id > ");
-		unsentBuffer.append(sent);
-		unsentBuffer.append(" AND rowid <= ");
-		unsentBuffer.append(rowidLimit);
-		unsentBuffer.append(';');
-		const char *query = unsentBuffer.coalesce();
 		char *zErrMsg = NULL;
 		int rc;
-		int unsent = 0;
-
-		// Exec query and get result in 'unsent' via 'countCallback'
+		int lastPurgedId;
+		SQLBuffer idBuffer;
+		idBuffer.append("select id from foglamp.readings where rowid = ");
+		idBuffer.append(rowidLimit);
+		idBuffer.append(';');
+		const char *idQuery = idBuffer.coalesce();
+		logger->info("3. idQuery=%s", idQuery);
 		rc = SQLexec(dbHandle,
-			     query,
-		  	     countCallback,
-			     &unsent,
-			     &zErrMsg);
+		     idQuery,
+	  	     rowidCallback,
+		     &lastPurgedId,
+		     &zErrMsg);
 
-		// Release memory for 'query' var
-		delete[] query;
+		// Release memory for 'idQuery' var
+		delete[] idQuery;
 
-		if (rc == SQLITE_OK)
+		if (rc != SQLITE_OK)
 		{
-			unsentPurged = unsent;
-		}
-		else
-		{
- 			raiseError("purge - phaase 2", zErrMsg);
+ 			raiseError("purge - phase 0, fetching rowid limit ", zErrMsg);
 			sqlite3_free(zErrMsg);
 			return 0;
+		}
+
+		if (sent != 0 && lastPurgedId > sent)	// Unsent readings will be purged
+		{
+			// Get number of unsent rows we are about to remove
+			SQLBuffer unsentBuffer;
+			unsentBuffer.append("SELECT count(ROWID) FROM foglamp.readings WHERE id > ");
+			unsentBuffer.append(sent);
+			unsentBuffer.append(" AND rowid <= ");
+			unsentBuffer.append(rowidLimit);
+			unsentBuffer.append(';');
+			const char *query = unsentBuffer.coalesce();
+			logger->info("4. query=%s", query);
+			int unsent = 0;
+
+			// Exec query and get result in 'unsent' via 'countCallback'
+			rc = SQLexec(dbHandle,
+				     query,
+				     countCallback,
+				     &unsent,
+				     &zErrMsg);
+
+			logger->info("4. query completed");
+
+			// Release memory for 'query' var
+			delete[] query;
+
+			if (rc == SQLITE_OK)
+			{
+				unsentPurged = unsent;
+			}
+			else
+			{
+				raiseError("purge - phase 2", zErrMsg);
+				sqlite3_free(zErrMsg);
+				return 0;
+			}
 		}
 	}
 	if (m_writeAccessOngoing)
 	{
 		while (m_writeAccessOngoing)
 		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(PURGE_SLEEP_MS));
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		}
 	}
 
 	unsigned int deletedRows = 0;
 	char *zErrMsg = NULL;
 	unsigned int rowsAffected;
-	logger->info("Purge about to delete the readings %ld to %ld in blocks", rowidMin, rowidLimit);
+	logger->info("Purge about to delete the readings %ld to %ld in blocks of %d rows each", rowidMin, rowidLimit, PURGE_DELETE_BLOCK_SIZE);
 	while (rowidMin < rowidLimit)
 	{
 		blocks++;
@@ -2415,22 +2448,29 @@ int blocks = 0;
 		unique_lock<mutex> lck(db_mutex);
 		if (m_writeAccessOngoing) db_cv.wait(lck);
 
+		START_TIME;
 		// Exec DELETE query: no callback, no resultset
 		rc = SQLexec(dbHandle,
 			     query,
 			     NULL,
 			     NULL,
 			     &zErrMsg);
+		END_TIME;
 
-		db_cv.notify_all();
+		// Release memory for 'query' var
+		delete[] query;
+
+		if(usecs>200000)
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(100+usecs/10000));
+			Logger::getLogger()->info("Purge loop slept for %lld msecs since removal of a block took %lld usecs", (100+usecs/10000), usecs);
 		}
-
+		}
+		
 		if (rc != SQLITE_OK)
 		{
 			raiseError("purge - phase 3", zErrMsg);
 			sqlite3_free(zErrMsg);
-			// Release memory for 'query' var
-			delete[] query;
 			return 0;
 		}
 
@@ -2487,6 +2527,11 @@ int blocks = 0;
 	{
  		raiseError("purge - phase 5", zErrMsg);
 		sqlite3_free(zErrMsg);
+	}
+
+	if (sent == 0)	// Special case when not north process is used
+	{
+		unsentPurged = deletedRows;
 	}
 
 	ostringstream convert;

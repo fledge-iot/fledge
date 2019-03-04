@@ -20,7 +20,10 @@ class ProfileItem
 {
 	public:
 		ProfileItem(const std::string& reference) : m_reference(reference)
-			{ gettimeofday(&m_tvStart, NULL); };
+			{ gettimeofday(&m_tvStart, NULL);
+				auto timenow = chrono::system_clock::to_time_t(chrono::system_clock::now());
+				m_ts = std::string(ctime(&timenow));
+				m_ts.back() = '\0'; };
 		~ProfileItem() {};
 		void 	complete()
 			{
@@ -32,10 +35,12 @@ class ProfileItem
 			};
 		unsigned long getDuration() { return m_duration; };
 		const std::string& getReference() const { return m_reference; };
+		const std::string& getTs() const { return m_ts; };
 	private:
 		std::string		m_reference;
 		struct timeval		m_tvStart;
 		unsigned long		m_duration;
+		std::string		m_ts;
 };
 
 class QueryProfile
@@ -74,7 +79,7 @@ class QueryProfile
 				{
 					m_items.push_back(item);
 				}
-				if (time(0) - m_lastReport > 300)
+				if (time(0) - m_lastReport > 600)
 				{
 					report();
 				}
@@ -98,8 +103,9 @@ class QueryProfile
 				logger->info(" > %3d mS %d", BUCKET_SIZE * TIME_BUCKETS, m_buckets[TIME_BUCKETS-1]);
 				for (int i = 0; i < m_items.size(); i++)
 				{
-					logger->info("%ld mS, %s\n",
+					logger->info("%ld mS, %s, %s\n",
 						m_items[i]->getDuration(),
+						m_items[i]->getTs().c_str(),
 						m_items[i]->getReference().c_str());
 				}
 				time(&m_lastReport);

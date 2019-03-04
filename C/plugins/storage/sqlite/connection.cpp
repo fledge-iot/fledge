@@ -600,8 +600,16 @@ unsigned long nRows = 0, nCols = 0;
 					Value value;
 					if (!d.Parse(str).HasParseError())
 					{
-						// JSON parsing ok, use the document
-						value = Value(d, allocator);
+						if (d.IsNumber())
+						{
+							// Set string
+							value = Value(str, allocator);
+						}
+						else
+						{
+							// JSON parsing ok, use the document
+							value = Value(d, allocator);
+						}
 					}
 					else
 					{

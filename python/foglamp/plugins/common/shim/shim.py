@@ -82,10 +82,11 @@ def _revised_config_for_json_item(config):
     # them to str, which is the required format for configuration items.
     revised_config_handle = {}
     for k, v in config.items():
-        if v['type'] == 'JSON':
-            if isinstance(v['default'], dict):
-                v['default'] = json.dumps(v['default'])
-            if isinstance(v['value'], dict):
-                v['value'] = json.dumps(v['value'])
+        if isinstance(v, dict):
+            if 'type' in v and v['type'] == 'JSON':
+                if isinstance(v['default'], dict):
+                    v['default'] = json.dumps(v['default'])
+                if isinstance(v['value'], dict):
+                    v['value'] = json.dumps(v['value'])
         revised_config_handle.update({k: v})
     return revised_config_handle

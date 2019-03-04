@@ -238,9 +238,9 @@ def add_filter():
         r = conn.getresponse()
         assert 200 == r.status
         res = r.read().decode()
-        expected = "Filter pipeline {{'pipeline': ['{}']}} updated successfully".format(filter_name)
         jdoc = json.loads(res)
-        assert expected == jdoc["result"]
+        # Asset newly added filter exist in request's response
+        assert filter_name in jdoc["result"]
 
     return _add_filter
 

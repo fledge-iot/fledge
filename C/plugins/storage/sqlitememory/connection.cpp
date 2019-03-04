@@ -674,18 +674,15 @@ SQLBuffer	jsonConstraints;
 
 		if (condition.empty())
 		{
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("DBG condition empty");
-
 			const char *sql_cmd = R"(
 					SELECT
 						id,
 						asset_code,
 						read_key,
 						reading,
-						strftime('%Y-%m-%d %H:%M:%S', user_ts, 'localtime')  ||
+						strftime(')" F_DATEH24_SEC R"(', user_ts, 'localtime')  ||
 						substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
-						strftime('%Y-%m-%d %H:%M:%f', ts, 'localtime') AS ts
+						strftime(')" F_DATEH24_MS R"(', ts, 'localtime') AS ts
 					FROM readings)";
 
 			sql.append(sql_cmd);
@@ -796,7 +793,7 @@ SQLBuffer	jsonConstraints;
 									{
 										// Extract milliseconds and microseconds for the user_ts fields
 
-										sql.append("strftime('%Y-%m-%d %H:%M:%S', user_ts, 'utc') ");
+										sql.append("strftime('" F_DATEH24_SEC "', user_ts, 'utc') ");
 										sql.append(" || substr(user_ts, instr(user_ts, '.'), 7) ");
 										if (! itr->HasMember("alias"))
 										{
@@ -806,7 +803,7 @@ SQLBuffer	jsonConstraints;
 									}
 									else
 									{
-										sql.append("strftime('%Y-%m-%d %H:%M:%f', ");
+										sql.append("strftime('" F_DATEH24_MS "', ");
 										sql.append((*itr)["column"].GetString());
 										sql.append(", 'utc')");
 										if (! itr->HasMember("alias"))
@@ -822,7 +819,7 @@ SQLBuffer	jsonConstraints;
 									{
 										// Extract milliseconds and microseconds for the user_ts fields
 
-										sql.append("strftime('%Y-%m-%d %H:%M:%S', user_ts, 'localtime') ");
+										sql.append("strftime('" F_DATEH24_SEC "', user_ts, 'localtime') ");
 										sql.append(" || substr(user_ts, instr(user_ts, '.'), 7) ");
 										if (! itr->HasMember("alias"))
 										{
@@ -832,7 +829,7 @@ SQLBuffer	jsonConstraints;
 									}
 									else
 									{
-										sql.append("strftime('%Y-%m-%d %H:%M:%f', ");
+										sql.append("strftime('" F_DATEH24_MS "', ");
 										sql.append((*itr)["column"].GetString());
 										sql.append(", 'localtime')");
 										if (! itr->HasMember("alias"))
@@ -857,7 +854,7 @@ SQLBuffer	jsonConstraints;
 								{
 									// Extract milliseconds and microseconds for the user_ts fields
 
-									sql.append("strftime('%Y-%m-%d %H:%M:%S', user_ts, 'localtime') ");
+									sql.append("strftime('" F_DATEH24_SEC "', user_ts, 'localtime') ");
 									sql.append(" || substr(user_ts, instr(user_ts, '.'), 7) ");
 									if (! itr->HasMember("alias"))
 									{
@@ -867,7 +864,7 @@ SQLBuffer	jsonConstraints;
 								}
 								else
 								{
-									sql.append("strftime('%Y-%m-%d %H:%M:%f', ");
+									sql.append("strftime('" F_DATEH24_MS "', ");
 									sql.append((*itr)["column"].GetString());
 									sql.append(", 'localtime')");
 									if (! itr->HasMember("alias"))
@@ -906,10 +903,6 @@ SQLBuffer	jsonConstraints;
 			}
 			else
 			{
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("DBG condition NO");
-
-
 				sql.append("SELECT ");
 				if (document.HasMember("modifier"))
 				{
@@ -921,9 +914,9 @@ SQLBuffer	jsonConstraints;
 						asset_code,
 						read_key,
 						reading,
-						strftime('%Y-%m-%d %H:%M:%S', user_ts, 'localtime')  ||
+						strftime(')" F_DATEH24_SEC R"(', user_ts, 'localtime')  ||
 						substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
-						strftime('%Y-%m-%d %H:%M:%f', ts, 'localtime') AS ts
+						strftime(')" F_DATEH24_MS R"(', ts, 'localtime') AS ts
 					FROM foglamp.)";
 
 				sql.append(sql_cmd);
@@ -1027,14 +1020,14 @@ bool Connection::formatDate(char *formatted_date, size_t buffer_size, const char
 
 	// Extract up to seconds
 	memset(&tm, 0, sizeof(tm));
-	valid_date = strptime(date, "%Y-%m-%d %H:%M:%S", &tm);
+	valid_date = strptime(date, F_DATEH24_SEC, &tm);
 
 	if (! valid_date)
 	{
 		return (false);
 	}
 
-	strftime (formatted_date, buffer_size, "%Y-%m-%d %H:%M:%S", &tm);
+	strftime (formatted_date, buffer_size, F_DATEH24_SEC, &tm);
 
 	// Work out the microseconds from the fractional part of the seconds
 	char fractional[10] = {0};

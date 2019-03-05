@@ -1007,60 +1007,114 @@ int Connection::insert(const std::string& table, const std::string& data)
 {
 SQLBuffer	sql;
 Document	document;
-SQLBuffer	values;
-int		col = 0;
- 
-	if (document.Parse(data.c_str()).HasParseError())
+ostringstream convert;
+std::size_t arr = data.find("inserts");
+
+// Check first the 'inserts' property in JSON data
+bool stdInsert = (arr == std::string::npos || arr > 8);
+	// If input data is not an array of iserts
+	// create an array with one element
+	if (stdInsert)
+	{
+		convert << "{ \"inserts\" : [ ";
+		convert << data;
+		convert << " ] }";
+	} 
+
+	if (document.Parse(stdInsert ? convert.str().c_str() : data.c_str()).HasParseError())
 	{
 		raiseError("insert", "Failed to parse JSON payload\n");
 		return -1;
 	}
- 	sql.append("INSERT INTO foglamp.");
-	sql.append(table);
-	sql.append(" (");
-	for (Value::ConstMemberIterator itr = document.MemberBegin();
-		itr != document.MemberEnd(); ++itr)
+	// Get the array with row(s)
+	Value &inserts = document["inserts"];
+	if (!inserts.IsArray())
 	{
-		if (col)
-			sql.append(", ");
-		sql.append(itr->name.GetString());
- 
-		if (col)
-			values.append(", ");
-		if (itr->value.IsString())
-		{
-			const char *str = itr->value.GetString();
-			if (strcmp(str, "now()") == 0)
-			{
-				values.append(SQLITE3_NOW);
-			}
-			else
-			{
-				values.append('\'');
-				values.append(escape(str));
-				values.append('\'');
-			}
-		}
-		else if (itr->value.IsDouble())
-			values.append(itr->value.GetDouble());
-		else if (itr->value.IsNumber())
-			values.append(itr->value.GetInt());
-		else if (itr->value.IsObject())
-		{
-			StringBuffer buffer;
-			Writer<StringBuffer> writer(buffer);
-			itr->value.Accept(writer);
-			values.append('\'');
-			values.append(escape(buffer.GetString()));
-			values.append('\'');
-		}
-		col++;
+		raiseError("insert", "Payload is missing the inserts array");
+		return -1;
 	}
-	sql.append(") values (");
-	const char *vals = values.coalesce();
-	sql.append(vals);
-	delete[] vals;
-	sql.append(");");
+
+	// Start a trabsaction
+	sql.append("BEGIN TRANSACTION;");
+
+	// Number of inserts
+	int ins = 0;
+
+	// Iterate through insert array
+	for (Value::ConstValueIterator iter = inserts.Begin();
+					iter != inserts.End();
+					++iter)
+	{
+		if (!iter->IsObject())
+		{
+			raiseError("insert",
+				   "Each entry in the insert array must be an object");
+			return -1;
+		}
+
+		int col = 0;
+		SQLBuffer values;
+
+	 	sql.append("INSERT INTO foglamp.");
+		sql.append(table);
+		sql.append(" (");
+
+		for (Value::ConstMemberIterator itr = (*iter).MemberBegin();
+						itr != (*iter).MemberEnd();
+						++itr)
+		{
+			// Append column name
+			if (col)
+			{
+				sql.append(", ");
+			}
+			sql.append(itr->name.GetString());
+ 
+			// Append column value
+			if (col)
+			{
+				values.append(", ");
+			}
+			if (itr->value.IsString())
+			{
+				const char *str = itr->value.GetString();
+				if (strcmp(str, "now()") == 0)
+				{
+					values.append(SQLITE3_NOW);
+				}
+				else
+				{
+					values.append('\'');
+					values.append(escape(str));
+					values.append('\'');
+				}
+			}
+			else if (itr->value.IsDouble())
+				values.append(itr->value.GetDouble());
+			else if (itr->value.IsNumber())
+				values.append(itr->value.GetInt());
+			else if (itr->value.IsObject())
+			{
+				StringBuffer buffer;
+				Writer<StringBuffer> writer(buffer);
+				itr->value.Accept(writer);
+				values.append('\'');
+				values.append(escape(buffer.GetString()));
+				values.append('\'');
+			}
+			col++;
+		}
+		sql.append(") VALUES (");
+		const char *vals = values.coalesce();
+		sql.append(vals);
+		delete[] vals;
+		sql.append(");");
+
+		// Increment row count
+		ins++;
+	}
+
+	sql.append("COMMIT TRANSACTION;");
 
 	const char *query = sql.coalesce();
 	logSQL("CommonInsert", query);
@@ -1075,22 +1129,44 @@ int		col = 0;
 		     &zErrMsg);
 
 	// Check exec result
-	if (rc == SQLITE_OK )
+	if (rc != SQLITE_OK )
+	{
+		raiseError("insert", zErrMsg);
+		Logger::getLogger()->error("SQL statement: %s", query);
+		sqlite3_free(zErrMsg);
+
+		// transaction is still open, do rollback
+		if (sqlite3_get_autocommit(dbHandle) == 0)
+                {
+			rc = SQLexec(dbHandle,
+				     "ROLLBACK TRANSACTION;",
+				     NULL,
+				     NULL,
+				     &zErrMsg);
+			if (rc != SQLITE_OK)
+			{
+				raiseError("insert rollback", zErrMsg);
+				sqlite3_free(zErrMsg);
+			}
+		}
+
+		Logger::getLogger()->error("SQL statement: %s", query);
+		// Release memory for 'query' var
+		delete[] query;
+
+		// Failure
+		return -1;
+	}
+	else
 	{
 		// Success. Release memory for 'query' var
 		delete[] query;
-		return sqlite3_changes(dbHandle);
+
+		// Return number of inserts using ins variable.
+		// NOTE: sqlite3_changes() doesn't return the correct number of rows
+		// for explicit transaction case
+		return ins;	
 	}
-
-	raiseError("insert", zErrMsg);
-	Logger::getLogger()->error("SQL statement: %s", query);
-	sqlite3_free(zErrMsg);
-
-	// Release memory for 'query' var
-	delete[] query;
-
-	// Failure
-	return -1;
 }
 
 /**
@@ -1112,11 +1188,11 @@ SQLBuffer	sql;
 	std::size_t arr = payload.find("updates");
 	bool changeReqd = (arr == std::string::npos || arr > 8);
 	if (changeReqd)
-		{
+	{
 		convert << "{ \"updates\" : [ ";
 		convert << payload;
 		convert << " ] }";
-		}
+	}
 
 	if (document.Parse(changeReqd?convert.str().c_str():payload.c_str()).HasParseError())
 	{

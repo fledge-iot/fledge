@@ -2122,7 +2122,7 @@ bool		isAggregate = false;
 						asset_code,
 						read_key,
 						reading,
-						strftime()" F_DATEH24_SEC R"(', user_ts, 'localtime')  ||
+						strftime(')" F_DATEH24_SEC R"(', user_ts, 'localtime')  ||
 						substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
 						strftime(')" F_DATEH24_MS R"(', ts, 'localtime') AS ts
 					FROM foglamp.)";

@@ -1,19 +1,59 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
-# Select the required plugin, either persistent storage or in memory
-export FOGLAMP_DATA=./plugin_cfg/sqlite
-#export FOGLAMP_DATA=./plugin_cfg/sqlitememory
-
+# Default values
+export FOGLAMP_DATA=./plugin_cfg/sqlite          # Select the persistent storage plugin
+export storage_file=""
 export TZ='Etc/UTC'
 
-if [ $# -eq 1 ] ; then
-	echo Starting storage layer $1
-	$1 
-elif [ "${FOGLAMP_ROOT}" != "" ] ; then
-	echo "Starting storage service in :$FOGLAMP_ROOT:"
-	echo "timezone                    :$TZ"
+#
+# evaluates : FOGLAMP_DATA, storage_file, TZ, and expected_dir
+#
+if [[ "$@" != "" ]];
+then
+	# Handles input parameters
+	SCRIPT_NAME=`basename $0`
+	options=`getopt -o c:f:t: --long configuration:,storage_file:,timezone: -n "$SCRIPT_NAME" -- "$@"`
+	eval set -- "$options"
+
+	while true ; do
+	    case "$1" in
+	        -c|--configuration)
+	            export FOGLAMP_DATA="$2"
+	            shift 2
+	            ;;
+
+	        -f|--storage_file)
+	            export storage_file="$2"
+	            shift 2
+	            ;;
+
+	        -t|--timezone)
+				export TZ="$2"
+	            shift 2
+	            ;;
+	        --)
+	            shift
+	            break
+	            ;;
+	    esac
+	done
+fi
+
+# Converts '/' to '_' and to upper case
+step1="${TZ/\//_}"
+expected_dir="expected_${step1^^}"
+
+if [[ "$storage_file" != "" ]] ; then
+	echo "Starting storage layer      :$storage_file:"
+	echo "timezone                    :$TZ:"
 	echo "configuration               :$FOGLAMP_DATA:"
-	echo "database                    :$DEFAULT_SQLITE_DB_FILE:"
+	echo "database file               :$DEFAULT_SQLITE_DB_FILE:"
+	$storage_file
+elif [[ "${FOGLAMP_ROOT}" != "" ]] ; then
+	echo "Starting storage service in :$FOGLAMP_ROOT:"
+	echo "timezone                    :$TZ:"
+	echo "configuration               :$FOGLAMP_DATA:"
+	echo "database file               :$DEFAULT_SQLITE_DB_FILE:"
 	$FOGLAMP_ROOT/services/foglamp.services.storage
 	sleep 1
 else
@@ -21,6 +61,9 @@ else
 	exit 1
 fi
 
+#
+# Main
+#
 export IFS=","
 testNum=1
 n_failed=0
@@ -41,11 +84,11 @@ else
 	curlstate=$?
 fi
 if [ "$optional" = "" ] ; then
-	if [ ! -f expected/$testNum ]; then
+	if [ ! -f ${expected_dir}/$testNum ]; then
 		n_unchecked=`expr $n_unchecked + 1`
-		echo Missing expected results for test $testNum - result unchecked
+		echo Missing expected results in :${expected_dir}: for test $testNum - result unchecked
 	else
-		cmp -s results/$testNum expected/$testNum
+		cmp -s results/$testNum ${expected_dir}/$testNum
 		if [ $? -ne "0" ]; then
 			echo Failed
 			n_failed=`expr $n_failed + 1`
@@ -57,7 +100,7 @@ if [ "$optional" = "" ] ; then
 			fi
 			(
 			unset IFS
-			echo "   " Expected: "`cat expected/$testNum`" >> failed
+			echo "   " Expected: "`cat ${expected_dir}/$testNum`" >> failed
 			echo "   " Got:     "`cat results/$testNum`" >> failed
 			)
 			echo >> failed

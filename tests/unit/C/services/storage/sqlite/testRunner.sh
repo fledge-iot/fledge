@@ -2,17 +2,17 @@
 
 # Default values
 export FOGLAMP_DATA=./plugin_cfg/sqlite          # Select the persistent storage plugin
-export storage_file=""
+export storage_exec=""
 export TZ='Etc/UTC'
 
 #
-# evaluates : FOGLAMP_DATA, storage_file, TZ, and expected_dir
+# evaluates : FOGLAMP_DATA, storage_exec, TZ, and expected_dir
 #
 if [[ "$@" != "" ]];
 then
 	# Handles input parameters
 	SCRIPT_NAME=`basename $0`
-	options=`getopt -o c:f:t: --long configuration:,storage_file:,timezone: -n "$SCRIPT_NAME" -- "$@"`
+	options=`getopt -o c:s:t: --long configuration:,storage_exec:,timezone: -n "$SCRIPT_NAME" -- "$@"`
 	eval set -- "$options"
 
 	while true ; do
@@ -22,8 +22,8 @@ then
 	            shift 2
 	            ;;
 
-	        -f|--storage_file)
-	            export storage_file="$2"
+	        -s|--storage_exec)
+	            export storage_exec="$2"
 	            shift 2
 	            ;;
 
@@ -43,12 +43,12 @@ fi
 step1="${TZ/\//_}"
 expected_dir="expected_${step1^^}"
 
-if [[ "$storage_file" != "" ]] ; then
-	echo "Starting storage layer      :$storage_file:"
+if [[ "$storage_exec" != "" ]] ; then
+	echo "Starting storage layer      :$storage_exec:"
 	echo "timezone                    :$TZ:"
 	echo "configuration               :$FOGLAMP_DATA:"
 	echo "database file               :$DEFAULT_SQLITE_DB_FILE:"
-	$storage_file
+	$storage_exec
 elif [[ "${FOGLAMP_ROOT}" != "" ]] ; then
 	echo "Starting storage service in :$FOGLAMP_ROOT:"
 	echo "timezone                    :$TZ:"

@@ -1167,13 +1167,16 @@ bool stdInsert = (arr == std::string::npos || arr > 8);
 	}
 	else
 	{
-		// Success. Release memory for 'query' var
+		// Release memory for 'query' var
 		delete[] query;
 
-		// Return number of inserts using ins variable.
-		// NOTE: sqlite3_changes() doesn't return the correct number of rows
-		// for explicit transaction case
-		return ins;	
+		int insert = sqlite3_changes(dbHandle);
+
+		if (insert == 0)
+			raiseError("insert", "Not all inserts within transaction succeeded");
+
+		// Return the status
+		return (insert ? ins : -1);
 	}
 }
 
@@ -1493,7 +1496,6 @@ SQLBuffer	sql;
 	const char *query = sql.coalesce();
 	logSQL("CommonUpdate", query);
 	char *zErrMsg = NULL;
-	int update = 0;
 	int rc;
 
 	// Exec the UPDATE statement: no callback, no result set
@@ -1530,10 +1532,14 @@ SQLBuffer	sql;
 	{
 		// Release memory for 'query' var
 		delete[] query;
-		update = sqlite3_changes(dbHandle);
+		
+		int update = sqlite3_changes(dbHandle);
 
-		// Return success
-		return row; // sqlite3_changes doesn't return the correct number of rows for explicit transaction case
+		if (update == 0)
+			raiseError("update", "Not all updates within transaction succeeded");
+
+		// Return the status
+		return (update ? row : -1);
 	}
 
 	// Return failure
@@ -2318,8 +2324,7 @@ int blocks = 0;
 	result = "{ \"removed\" : 0, ";
 	result += " \"unsentPurged\" : 0, ";
 	result += " \"unsentRetained\" : 0, ";
-    	result += " \"readings\" : 0 }";
-
+    result += " \"readings\" : 0 }";
 
 	logger->info("Purge starting...");
 	gettimeofday(&startTv, NULL);

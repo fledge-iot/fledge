@@ -54,14 +54,16 @@ class TestE2EAssetHttpPI:
                 data received from PI is same as data sent"""
 
         conn = http.client.HTTPConnection(foglamp_url)
-        time.sleep(wait_time)
 
         # Send data to foglamp-south-http
         conn_http_south = http.client.HTTPConnection("localhost:6683")
 
         asset_name = "e2e_varying"
+        # 2 list having mixed data simulating different sensors
+        # (sensors coming up and down, sensors throwing int and float data)
         sensor_data = [{"a": 1}, {"a": 2, "b": 3}, {"b": 4}]
-        for d in sensor_data:
+        sensor_data_2 = [{"b": 1.1}, {"a2": 2, "b2": 3}, {"a": 4.0}]
+        for d in sensor_data + sensor_data_2:
             tm = str(datetime.now(timezone.utc).astimezone())
             data = [{"asset": "{}".format(asset_name), "timestamp": "{}".format(tm), "key": str(uuid.uuid4()),
                      "readings": d}]
@@ -72,6 +74,7 @@ class TestE2EAssetHttpPI:
             jdoc = json.loads(r)
             assert {'result': 'success'} == jdoc
 
+        # Allow some buffer so that data is ingested before retrieval
         time.sleep(wait_time)
         conn.request("GET", '/foglamp/asset')
         r = conn.getresponse()
@@ -80,33 +83,60 @@ class TestE2EAssetHttpPI:
         retval = json.loads(r)
         assert len(retval) == 1
         assert asset_name == retval[0]["assetCode"]
-        assert 3 == retval[0]["count"]
+        assert 6 == retval[0]["count"]
 
         conn.request("GET", '/foglamp/asset/{}'.format(asset_name))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         retval = json.loads(r)
-        assert sensor_data[2] == retval[0]["reading"]
-        assert sensor_data[1] == retval[1]["reading"]
-        assert sensor_data[0] == retval[2]["reading"]
 
+        assert sensor_data_2[2] == retval[0]["reading"]
+        assert sensor_data_2[1] == retval[1]["reading"]
+        assert sensor_data_2[0] == retval[2]["reading"]
+        assert sensor_data[2] == retval[3]["reading"]
+        assert sensor_data[1] == retval[4]["reading"]
+        assert sensor_data[0] == retval[5]["reading"]
+
+        time.sleep(wait_time)
         retry_count = 0
         data_from_pi = None
         while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
-            data_from_pi = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db, asset_name, {"a", "b"})
+            data_from_pi = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db, asset_name, {"a", "b", "a2", "b2"})
             retry_count += 1
             time.sleep(wait_time*2)
 
         if data_from_pi is None or retry_count == retries:
             assert False, "Failed to read data from PI"
 
-        assert data_from_pi["b"][-1] == sensor_data[2]["b"]
-        assert data_from_pi["b"][-2] == sensor_data[1]["b"]
-        # On PI b does not have a datapoint for 1st set {"a": 1} and hence value is 0.0
-        assert data_from_pi["b"][-3] == 0.0
+        assert data_from_pi["b"][-1] == 0.0
+        assert data_from_pi["b"][-2] == 0.0
+        assert data_from_pi["b"][-3] == sensor_data_2[0]["b"]
+        assert data_from_pi["b"][-4] == sensor_data[2]["b"]
+        assert data_from_pi["b"][-5] == sensor_data[1]["b"]
+        assert data_from_pi["b"][-6] == 0.0
 
-        # On PI a does not have a datapoint for 3rd set {"b": 4} and hence value is 0.0
-        assert data_from_pi["a"][-1] == 0.0
-        assert data_from_pi["a"][-2] == sensor_data[1]["a"]
-        assert data_from_pi["a"][-3] == sensor_data[0]["a"]
+        assert data_from_pi["a"][-1] == sensor_data_2[2]["a"]
+        assert data_from_pi["a"][-2] == 0.0
+        assert data_from_pi["a"][-3] == 0.0
+        assert data_from_pi["a"][-4] == 0.0
+        assert data_from_pi["a"][-5] == sensor_data[1]["a"]
+        assert data_from_pi["a"][-6] == sensor_data[0]["a"]
+
+        assert data_from_pi["b2"][-1] == 0.0
+        assert data_from_pi["b2"][-2] == sensor_data_2[1]["b2"]
+        assert data_from_pi["b2"][-3] == 0.0
+        assert data_from_pi["b2"][-4] == 0.0
+        assert data_from_pi["b2"][-5] == 0.0
+        assert data_from_pi["b2"][-6] == 0.0
+
+        assert data_from_pi["a2"][-1] == 0.0
+        assert data_from_pi["a2"][-2] == sensor_data_2[1]["a2"]
+        assert data_from_pi["a2"][-3] == 0.0
+        assert data_from_pi["a2"][-4] == 0.0
+        assert data_from_pi["a2"][-5] == 0.0
+        assert data_from_pi["a2"][-6] == 0.0
+
+
+
+

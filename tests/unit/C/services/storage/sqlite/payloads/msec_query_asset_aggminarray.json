@@ -1,0 +1,20 @@
+{
+  "aggregate": [
+      {
+        "operation": "min",
+        "column": "user_ts",
+        "alias": "user_ts_min"
+      },
+      {
+        "operation": "max",
+        "column": "user_ts",
+        "alias": "user_ts_max"
+      }
+    ],
+    "where": {
+      "column": "asset_code",
+      "condition": "=",
+      "value": "msec_009_OK"
+  }
+}
+

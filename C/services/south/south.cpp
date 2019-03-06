@@ -295,8 +295,8 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				dividend = 3600000000;
 			unsigned long usecs = dividend / m_readingsPerSec;
 			struct timeval rate;
-			rate.tv_sec  = usecs / 1000000;
-			rate.tv_usec = usecs % 1000000;
+			rate.tv_sec  = (int)(usecs / 1000000);
+			rate.tv_usec = (int)(usecs % 1000000);
 			m_timerfd = createTimerFd(rate); // interval to be passed is in usecs
 			if (m_timerfd < 0)
 			{
@@ -563,8 +563,8 @@ void SouthService::configChange(const string& categoryName, const string& catego
 				close(m_timerfd);
 				unsigned long usecs = dividend / m_readingsPerSec;
 				struct timeval rate;
-				rate.tv_sec  = usecs / 1000000;
-				rate.tv_usec = usecs % 1000000;
+				rate.tv_sec  = (int)(usecs / 1000000);
+				rate.tv_usec = (int)(usecs % 1000000);
 				m_timerfd = createTimerFd(rate); // interval to be passed is in usecs
 			}
 		} catch (ConfigItemNotFound e) {

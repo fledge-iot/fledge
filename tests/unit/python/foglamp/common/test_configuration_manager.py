@@ -835,6 +835,52 @@ class TestConfigurationManager:
         assert test_config_storage is not c_return_value
         assert test_config_new is not test_config_storage
 
+    @pytest.mark.parametrize("payload, message", [
+        ((2, 'catvalue', 'catdesc'), "category_name must be a string"),
+        (('catname', 'catvalue', 3), "category_description must be a string")
+    ])
+    async def test_bad_create_category(self, reset_singleton, payload, message):
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with pytest.raises(Exception) as excinfo:
+            await c_mgr.create_category(category_name=payload[0], category_value=payload[1], category_description=payload[2])
+        assert excinfo.type is TypeError
+        assert message == str(excinfo.value)
+
+    @pytest.mark.parametrize("rule", [
+        'value * 3 == 6',
+        'value > 4',
+        'value % 2 == 0',
+        'value * (value + 1) == 9',
+        '(value + 1) / (value - 1) >= 3',
+        'sqrt(value) < 1',
+        'pow(value, value) != 27',
+        'value ^ value == 2',
+        'factorial(value) != 6',
+        'fabs(value) != 3.0',
+        'ceil(value) != 3',
+        'floor(value) != 3',
+        'sin(value) <= 0',
+        'degrees(value) < 171'
+    ])
+    @pytest.mark.asyncio
+    async def test_bad_rule_create_category(self, reset_singleton, rule):
+
+        async def async_mock(return_value):
+            return return_value
+
+        d = {'info': {'rule': rule, 'default': '3', 'type': 'integer', 'description': 'Test', 'value': '3'}}
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(_logger, 'exception') as log_exc:
+            with patch.object(ConfigurationManager, '_validate_category_val', side_effect=[async_mock(d), Exception()]) as valpatch:
+                with pytest.raises(Exception) as excinfo:
+                    await c_mgr.create_category('catname', 'catvalue', 'catdesc')
+                assert excinfo.type is ValueError
+                assert 'For catname category, Proposed value for item_name info is not allowed as per rule defined' == str(excinfo.value)
+            valpatch.assert_called_once_with('catname', 'catvalue', True)
+        assert 1 == log_exc.call_count
+
     @pytest.mark.asyncio
     async def test_create_category_good_newval_bad_storageval_good_update(self, reset_singleton):
 
@@ -966,13 +1012,13 @@ class TestConfigurationManager:
 
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        with patch.object(ConfigurationManager, '_validate_category_val', return_value=async_mock(None)) as valpatch:
+        with patch.object(ConfigurationManager, '_validate_category_val', return_value=async_mock({})) as valpatch:
             with patch.object(ConfigurationManager, '_read_category_val', return_value=async_mock(None)) as readpatch:
                 with patch.object(ConfigurationManager, '_create_new_category', return_value=async_mock(None)) as createpatch:
                     with patch.object(ConfigurationManager, '_run_callbacks', return_value=async_mock(None)) as callbackpatch:
                         await c_mgr.create_category('catname', 'catvalue', "catdesc")
                     callbackpatch.assert_called_once_with('catname')
-                createpatch.assert_called_once_with('catname', None, 'catdesc', None)
+                createpatch.assert_called_once_with('catname', {}, 'catdesc', None)
             readpatch.assert_called_once_with('catname')
         valpatch.assert_called_once_with('catname', 'catvalue', True)
 
@@ -985,18 +1031,18 @@ class TestConfigurationManager:
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(_logger, 'exception') as log_exc:
-            with patch.object(ConfigurationManager, '_validate_category_val', return_value=async_mock(None)) as valpatch:
+            with patch.object(ConfigurationManager, '_validate_category_val', return_value=async_mock({})) as valpatch:
                 with patch.object(ConfigurationManager, '_read_category_val', return_value=async_mock(None)) as readpatch:
                     with patch.object(ConfigurationManager, '_create_new_category', side_effect=StorageServerError(None, None, None)) as createpatch:
                         with patch.object(ConfigurationManager, '_run_callbacks') as callbackpatch:
                             with pytest.raises(StorageServerError):
                                 await c_mgr.create_category('catname', 'catvalue', "catdesc")
                         callbackpatch.assert_not_called()
-                    createpatch.assert_called_once_with('catname', None, 'catdesc', None)
+                    createpatch.assert_called_once_with('catname', {}, 'catdesc', None)
                 readpatch.assert_called_once_with('catname')
             valpatch.assert_called_once_with('catname', 'catvalue', True)
         assert 1 == log_exc.call_count
-        log_exc.assert_called_once_with('Unable to create new category based on category_name %s and category_description %s and category_json_schema %s', 'catname', 'catdesc', None)
+        log_exc.assert_called_once_with('Unable to create new category based on category_name %s and category_description %s and category_json_schema %s', 'catname', 'catdesc', {})
 
     @pytest.mark.asyncio
     async def test_create_category_good_newval_keyerror_bad_create(self, reset_singleton):
@@ -1007,18 +1053,18 @@ class TestConfigurationManager:
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(_logger, 'exception') as log_exc:
-            with patch.object(ConfigurationManager, '_validate_category_val', return_value=async_mock(None)) as valpatch:
+            with patch.object(ConfigurationManager, '_validate_category_val', return_value=async_mock({})) as valpatch:
                 with patch.object(ConfigurationManager, '_read_category_val', return_value=async_mock(None)) as readpatch:
                     with patch.object(ConfigurationManager, '_create_new_category', side_effect=KeyError()) as createpatch:
                         with patch.object(ConfigurationManager, '_run_callbacks') as callbackpatch:
                             with pytest.raises(KeyError):
                                 await c_mgr.create_category('catname', 'catvalue', "catdesc")
                         callbackpatch.assert_not_called()
-                    createpatch.assert_called_once_with('catname', None, 'catdesc', None)
+                    createpatch.assert_called_once_with('catname', {}, 'catdesc', None)
                 readpatch.assert_called_once_with('catname')
             valpatch.assert_called_once_with('catname', 'catvalue', True)
         assert 1 == log_exc.call_count
-        log_exc.assert_called_once_with('Unable to create new category based on category_name %s and category_description %s and category_json_schema %s', 'catname', 'catdesc', None)
+        log_exc.assert_called_once_with('Unable to create new category based on category_name %s and category_description %s and category_json_schema %s', 'catname', 'catdesc', {})
 
     @pytest.mark.asyncio
     async def test_create_category_bad_newval(self, reset_singleton):

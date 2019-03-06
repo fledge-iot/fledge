@@ -1781,6 +1781,8 @@ bool 		add_row = false;
  * Fetch a block of readings from the reading table
  * It might not work with SQLite 3
  *
+ * Fetch, used by the north side, returns timestamp in UTC.
+ *
  * NOTE : it expects to handle a date having a fixed format
  * with milliseconds, microseconds and timezone expressed,
  * like for example :
@@ -1791,7 +1793,7 @@ bool Connection::fetchReadings(unsigned long id,
 			       unsigned int blksize,
 			       std::string& resultSet)
 {
-char sqlbuffer[1100];
+char sqlbuffer[512];
 char *zErrMsg = NULL;
 int rc;
 int retrieve;
@@ -1820,7 +1822,6 @@ int retrieve;
 		 sql_cmd,
 		 id,
 		 blksize);
-
 	logSQL("ReadingsFetch", sqlbuffer);
 	sqlite3_stmt *stmt;
 	// Prepare the SQL statement and get the result set
@@ -1861,6 +1862,8 @@ int retrieve;
 
 /**
  * Perform a query against the readings table
+ *
+ * retrieveReadings, used by the API, returns timestamp in localtime.
  *
  */
 bool Connection::retrieveReadings(const string& condition, string& resultSet)

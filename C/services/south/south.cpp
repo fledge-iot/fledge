@@ -628,7 +628,7 @@ int SouthService::createTimerFd(struct timeval rate)
 	if (clock_gettime(CLOCK_REALTIME, &now) == -1)
 	   Logger::getLogger()->error("clock_gettime");
 
-	new_value.it_value.tv_sec = now.tv_sec;
+	new_value.it_value.tv_sec = now.tv_sec + rate.tv_sec;
 	new_value.it_value.tv_nsec = now.tv_nsec + rate.tv_usec*1000;
 	if (new_value.it_value.tv_nsec >= 1000000000)
 	{

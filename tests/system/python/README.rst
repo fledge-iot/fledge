@@ -85,7 +85,8 @@ custom options ::
     $ pytest --help
     ...
     custom options:
-
+    --storage-plugin=STORAGE_PLUGIN
+                        Database plugin to use for tests
     --south-branch=SOUTH_BRANCH
                         south branch name
     --north-branch=NORTH_BRANCH
@@ -139,7 +140,13 @@ custom options ::
     --kafka-rest-port=KAFKA_REST_PORT
                         Kafka REST Proxy Port
 
+Using different storage engine
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+By default system tests runs with sqlite database. If you want, you can use postgres storage plugin and tests will be
+executed using postgres database and postgres storage engine::
+
+    $ pytest test_smoke.py --storage-plugin=postgres
 
 Test test_e2e_coap_PI and test_e2e_csv_PI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

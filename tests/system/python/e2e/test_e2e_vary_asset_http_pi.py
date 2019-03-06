@@ -76,6 +76,7 @@ class TestE2EAssetHttpPI:
 
         # Allow some buffer so that data is ingested before retrieval
         time.sleep(wait_time)
+        
         conn.request("GET", '/foglamp/asset')
         r = conn.getresponse()
         assert 200 == r.status

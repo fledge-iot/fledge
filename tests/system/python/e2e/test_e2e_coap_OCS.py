@@ -153,6 +153,7 @@ def read_data_from_ocs():
     return _read_data_from_ocs
 
 
+@pytest.mark.skip(reason="OCS is currently disabled!")
 class TestE2EOCS:
     def test_end_to_end(self, start_south_north, read_data_from_ocs, foglamp_url, wait_time, retries,
                         ocs_client_id, ocs_client_secret, ocs_tenant, ocs_namespace, asset_name="endToEndCoAP"):

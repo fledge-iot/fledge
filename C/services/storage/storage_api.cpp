@@ -799,8 +799,7 @@ static std::atomic<bool> already_running(false);
 
 	if (already_running)
 	{
-		Logger::getLogger()->info("Previous instance of purge is still running, returning right away...");
-		string payload = "{ \"error\" : \"Previous instance of purge is still running, returning right away...\" }";
+		string payload = "{ \"error\" : \"Previous instance of purge is still running, not starting another one.\" }";
 		respond(response, SimpleWeb::StatusCode::success_ok, payload);
 		return;
 	}

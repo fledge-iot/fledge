@@ -61,7 +61,7 @@ using namespace rapidjson;
  * run by the storage plugin and the number of times a particular statement has to
  * be retried because of the database being busy./
  */
-#define DO_PROFILE		1
+#define DO_PROFILE		0
 #define DO_PROFILE_RETRIES	0
 #if DO_PROFILE
 #include <profile.h>
@@ -2327,7 +2327,7 @@ int blocks = 0;
 	result = "{ \"removed\" : 0, ";
 	result += " \"unsentPurged\" : 0, ";
 	result += " \"unsentRetained\" : 0, ";
-    result += " \"readings\" : 0 }";
+	result += " \"readings\" : 0 }";
 
 	logger->info("Purge starting...");
 	gettimeofday(&startTv, NULL);
@@ -2416,7 +2416,7 @@ int blocks = 0;
 		unsigned long l = minrowidLimit;
 		unsigned long r = ((flags & 0x01) && sent) ? min(sent, rowidLimit) : rowidLimit;
 		r = max(r, l);
-		logger->info("%s:%d: l=%u, r=%u, sent=%u, rowidLimit=%u, minrowidLimit=%u, flags=%u", __FUNCTION__, __LINE__, l, r, sent, rowidLimit, minrowidLimit, flags);
+		//logger->info("%s:%d: l=%u, r=%u, sent=%u, rowidLimit=%u, minrowidLimit=%u, flags=%u", __FUNCTION__, __LINE__, l, r, sent, rowidLimit, minrowidLimit, flags);
 		if (l == r)
 		{
  			logger->info("No data to purge: min_id == max_id == %u", minrowidLimit);
@@ -2432,9 +2432,7 @@ int blocks = 0;
 		    m = l + (r - l) / 2;
 			if (prev_m == m) break;
 
-			//logger->info("Search in range [%u..%u], m=%u, range_size=%u", l, r, m, r-l);
-
-			// e.g. select id from readings where rowid = 219867307 AND user_ts < datetime('now' , '-17 hours', 'utc');
+			// e.g. select id from readings where rowid = 219867307 AND user_ts < datetime('now' , '-24 hours', 'utc');
 			SQLBuffer sqlBuffer;
 			sqlBuffer.append("select id from foglamp.readings where rowid = ");
 			sqlBuffer.append(m);
@@ -2468,7 +2466,6 @@ int blocks = 0;
 			}
 		} 
 
-		//logger->info("%s:%d: l=%u, r=%u, m=%u", __FUNCTION__, __LINE__, l, r, m);
 		rowidLimit = m;
 				
 		if (minrowidLimit == rowidLimit)
@@ -2479,7 +2476,7 @@ int blocks = 0;
 
 		rowidMin = minrowidLimit;
 	}
-	logger->info("Purge collecting unsent row count");
+	//logger->info("Purge collecting unsent row count");
 	if ((flags & 0x01) == 0)
 	{
 		char *zErrMsg = NULL;
@@ -2490,7 +2487,7 @@ int blocks = 0;
 		idBuffer.append(rowidLimit);
 		idBuffer.append(';');
 		const char *idQuery = idBuffer.coalesce();
-		logger->info("3. idQuery=%s", idQuery);
+		//logger->info("3. idQuery=%s", idQuery);
 		rc = SQLexec(dbHandle,
 		     idQuery,
 	  	     rowidCallback,
@@ -2525,7 +2522,7 @@ int blocks = 0;
 	unsigned int deletedRows = 0;
 	char *zErrMsg = NULL;
 	unsigned int rowsAffected;
-	logger->info("Purge about to delete readings # %ld to %ld in %d blocks of %d rows max each", rowidMin, rowidLimit, (rowidLimit-rowidMin+PURGE_DELETE_BLOCK_SIZE-1)/PURGE_DELETE_BLOCK_SIZE, PURGE_DELETE_BLOCK_SIZE);
+	logger->info("Purge about to delete readings # %ld to %ld in %d blocks of %d rows each", rowidMin, rowidLimit, (rowidLimit-rowidMin+PURGE_DELETE_BLOCK_SIZE-1)/PURGE_DELETE_BLOCK_SIZE, PURGE_DELETE_BLOCK_SIZE);
 	while (rowidMin < rowidLimit)
 	{
 		blocks++;
@@ -2558,7 +2555,7 @@ int blocks = 0;
 		// Release memory for 'query' var
 		delete[] query;
 
-		if(usecs>200000)
+		if(usecs>150000)
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(100+usecs/10000));
 			Logger::getLogger()->info("Purge loop slept for %lld msecs since removal of a block took %lld usecs", (100+usecs/10000), usecs);
@@ -2575,11 +2572,10 @@ int blocks = 0;
 		// Get db changes
 		rowsAffected = sqlite3_changes(dbHandle);
 		deletedRows += rowsAffected;
-		Logger::getLogger()->info("Purge delete block #%d with %d readings", blocks, rowsAffected);
+		//Logger::getLogger()->info("Purge delete block #%d with %d readings", blocks, rowsAffected);
 	} while (rowidMin  < rowidLimit);
 
 	unsentRetained = maxrowidLimit - rowidLimit;
-	logger->info("purgeReadings: Got retained unsent row count = %ld", unsentRetained);
 
 	numReadings = maxrowidLimit - minrowidLimit - deletedRows;
 
@@ -2601,7 +2597,7 @@ int blocks = 0;
 
 	gettimeofday(&endTv, NULL);
 	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
-	logger->info("Purge process complete in %d blocks after %lduS", blocks, duration);
+	logger->info("Purge process complete in %d blocks in %lduS", blocks, duration);
 
 	return deletedRows;
 }
@@ -3608,7 +3604,7 @@ int retries = 0, rc;
 #endif
 			int interval = (retries * RETRY_BACKOFF);
 			std::this_thread::sleep_for(std::chrono::milliseconds(interval));
-			if (retries > 1) Logger::getLogger()->info("SQLexec: retry %d of %d, rc=%s, errmsg=%s, DB connection @ %p, slept for %d msecs", 
+			if (retries > 5) Logger::getLogger()->info("SQLexec: retry %d of %d, rc=%s, errmsg=%s, DB connection @ %p, slept for %d msecs", 
 						retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", sqlite3_errmsg(db), this, interval);
 #if DO_PROFILE_RETRIES
 			m_qMutex.lock();

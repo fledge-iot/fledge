@@ -192,9 +192,6 @@ async def add_task(request):
             _logger.exception("Failed to fetch plugin configuration. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration.')
 
-        storage = connect.get_storage_async()
-        config_mgr = ConfigurationManager(storage)
-
         # Check whether category name already exists
         category_info = await config_mgr.get_category_all_items(category_name=name)
         if category_info is not None:

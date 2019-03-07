@@ -142,8 +142,6 @@ async def add_task(request):
         is_enabled = True if ((type(enabled) is str and enabled.lower() in ['true']) or (
             (type(enabled) is bool and enabled is True))) else False
 
-        storage = connect.get_storage_async()
-        config_mgr = ConfigurationManager(storage)
 
         # Check if a valid plugin has been provided
         try:
@@ -179,6 +177,9 @@ async def add_task(request):
         except Exception as ex:
             _logger.exception("Failed to fetch plugin configuration. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration.')
+
+        storage = connect.get_storage_async()
+        config_mgr = ConfigurationManager(storage)
 
         # Check whether category name already exists
         category_info = await config_mgr.get_category_all_items(category_name=name)

@@ -27,6 +27,7 @@ def setup(app, obj, is_core=False):
         app.router.add_route('GET', '/foglamp/service/category', obj.get_configuration_categories)
         app.router.add_route('POST', '/foglamp/service/category', obj.create_configuration_category)
         app.router.add_route('GET', '/foglamp/service/category/{category_name}', obj.get_configuration_category)
+        app.router.add_route('DELETE', '/foglamp/service/category/{category_name}', obj.delete_configuration_category)
         app.router.add_route('GET', '/foglamp/service/category/{category_name}/children', obj.get_child_category)
         app.router.add_route('POST', '/foglamp/service/category/{category_name}/children', obj.create_child_category)
         app.router.add_route('GET', '/foglamp/service/category/{category_name}/{config_item}', obj.get_configuration_item)

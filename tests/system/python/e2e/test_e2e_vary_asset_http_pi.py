@@ -76,7 +76,7 @@ class TestE2EAssetHttpPI:
 
         # Allow some buffer so that data is ingested before retrieval
         time.sleep(wait_time)
-        
+
         conn.request("GET", '/foglamp/asset')
         r = conn.getresponse()
         assert 200 == r.status
@@ -99,7 +99,9 @@ class TestE2EAssetHttpPI:
         assert sensor_data[1] == retval[4]["reading"]
         assert sensor_data[0] == retval[5]["reading"]
 
+        # Allow some buffer so that data is ingested in PI before fetching using PI Web API
         time.sleep(wait_time)
+
         retry_count = 0
         data_from_pi = None
         while (data_from_pi is None or data_from_pi == []) and retry_count < retries:

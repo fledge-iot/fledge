@@ -39,7 +39,7 @@
  * to have access to the database between blocks.
  */
 #define PURGE_SLEEP_MS 500
-#define PURGE_DELETE_BLOCK_SIZE	1000
+#define PURGE_DELETE_BLOCK_SIZE	500
 
 #define PURGE_SLOWDOWN_AFTER_BLOCKS 5
 #define PURGE_SLOWDOWN_SLEEP_MS 500

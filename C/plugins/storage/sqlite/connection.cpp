@@ -3617,13 +3617,14 @@ int retries = 0, rc;
 #endif
 			if (sqlite3_get_autocommit(db)==0) // if transaction is still open, do rollback
 			{
+				int rc2;
 				char *zErrMsg = NULL;
-				rc=SQLexec(db,
+				rc2=SQLexec(db,
 					"ROLLBACK TRANSACTION;",
 					NULL,
 					NULL,
 					&zErrMsg);
-				if (rc != SQLITE_OK)
+				if (rc2 != SQLITE_OK)
 				{
 					raiseError("rollback", zErrMsg);
 					sqlite3_free(zErrMsg);

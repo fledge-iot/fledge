@@ -468,7 +468,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             for item_name, new_val in config_item_list.items():
                 if item_name not in cat_info:
                     raise KeyError('{} config item not found'.format(item_name))
-
+                if 'rule' in cat_info[item_name]:
+                    rule = cat_info[item_name]['rule'].replace("value", new_val)
+                    if eval(rule) is False:
+                        raise ValueError('Proposed value for item_name {} is not allowed as per rule defined'.format(item_name))
                 if cat_info[item_name]['type'] == 'JSON':
                     if isinstance(new_val, dict):
                         pass
@@ -789,8 +792,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             category_val_prepared = await self._validate_category_val(category_name, category_value, True)
             for item_name in category_val_prepared:
                 if 'rule' in category_val_prepared[item_name]:
-                    category_val_prepared[item_name]['rule'] = category_val_prepared[item_name]['rule'].replace("value", category_val_prepared[item_name]['value'])
-                    if eval(category_val_prepared[item_name]['rule']) is False:
+                    rule = category_val_prepared[item_name]['rule'].replace("value", category_val_prepared[item_name]['value'])
+                    if eval(rule) is False:
                         raise ValueError('For {} category, Proposed value for item_name {} is not allowed as per rule defined'.format(category_name, item_name))
             # check if category_name is already in storage
             category_val_storage = await self._read_category_val(category_name)

@@ -2541,3 +2541,26 @@ class TestConfigurationManager:
                 patch_audit.assert_not_called()
             patch_update.assert_not_called()
         patch_get_all_items.assert_called_once_with(category_name)
+
+    @pytest.mark.parametrize("config_item_list", [
+        {'info': "2"},
+        {'info': "2", "info1": "9"},
+        {'info1': "2", "info": "9"}
+    ])
+    async def test_update_configuration_item_bulk_with_rule_optional_attribute(self, config_item_list, category_name='testcat'):
+        async def async_mock(return_value):
+            return return_value
+
+        cat_info = {'info': {'rule': 'value*3==9', 'default': '3', 'description': 'Test', 'value': '3', 'type': 'integer'},
+                    'info1': {'default': '3', 'description': 'Test', 'value': '3', 'type': 'integer'}}
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(c_mgr, 'get_category_all_items', return_value=async_mock(cat_info)) as patch_get_all_items:
+            with patch.object(_logger, 'exception') as patch_log_exc:
+                with pytest.raises(Exception) as exc_info:
+                    await c_mgr.update_configuration_item_bulk(category_name, config_item_list)
+                assert exc_info.type is ValueError
+                assert 'Proposed value for item_name {} is not allowed as per rule defined'.format(
+                    list(cat_info.keys())[0]) == str(exc_info.value)
+            assert 1 == patch_log_exc.call_count
+        patch_get_all_items.assert_called_once_with(category_name)

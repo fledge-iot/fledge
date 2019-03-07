@@ -2440,7 +2440,7 @@ int blocks = 0;
 			sqlBuffer.append(m);
 			sqlBuffer.append(" AND user_ts < datetime('now' , '-");
 			sqlBuffer.append(age);
-			sqlBuffer.append(" hours', 'utc');");
+			sqlBuffer.append(" hours');");
 			const char *query = sqlBuffer.coalesce();
 			
 			rc = SQLexec(dbHandle,

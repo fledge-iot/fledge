@@ -37,7 +37,7 @@ class SouthService : public ServiceHandler {
 	private:
 		void				addConfigDefaults(DefaultConfigCategory& defaults);
 		bool 				loadPlugin();
-		int 				createTimerFd(int usecs);
+		int 				createTimerFd(struct timeval rate);
 		void 				createConfigCategories(DefaultConfigCategory configCategory, std::string parent_name,std::string current_name);
 	private:
 		SouthPlugin			*southPlugin;
@@ -48,7 +48,7 @@ class SouthService : public ServiceHandler {
 		ConfigCategory			m_config;
 		ConfigCategory			m_configAdvanced;
 		ManagementClient		*m_mgtClient;
-		unsigned long			m_readingsPerSec;
+		unsigned long			m_readingsPerSec;	// May not be per second, new rate defines time units
 		unsigned int			m_threshold;
 		unsigned long			m_timeout;
 		Ingest				*m_ingest;

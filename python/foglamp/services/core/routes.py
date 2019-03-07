@@ -169,6 +169,7 @@ def setup(app):
     # Notification
     app.router.add_route('GET', '/foglamp/notification', notification.get_notifications)
     app.router.add_route('GET', '/foglamp/notification/plugin', notification.get_plugin)
+    app.router.add_route('GET', '/foglamp/notification/type', notification.get_type)
     app.router.add_route('GET', '/foglamp/notification/{notification_name}', notification.get_notification)
     app.router.add_route('POST', '/foglamp/notification', notification.post_notification)
     app.router.add_route('PUT', '/foglamp/notification/{notification_name}', notification.put_notification)

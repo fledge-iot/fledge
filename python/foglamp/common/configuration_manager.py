@@ -468,6 +468,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             for item_name, new_val in config_item_list.items():
                 if item_name not in cat_info:
                     raise KeyError('{} config item not found'.format(item_name))
+                # Evaluate new_val as per rule if defined
                 if 'rule' in cat_info[item_name]:
                     rule = cat_info[item_name]['rule'].replace("value", new_val)
                     if eval(rule) is False:
@@ -696,6 +697,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     raise TypeError('Unrecognized value name for item_name {}'.format(item_name))
 
             new_value_entry = self._clean(storage_value_entry['type'], new_value_entry)
+            # Evaluate new_value_entry as per rule if defined
+            if 'rule' in storage_value_entry:
+                rule = storage_value_entry['rule'].replace("value", new_value_entry)
+                if eval(rule) is False:
+                    raise ValueError('Proposed value for item_name {} is not allowed as per rule defined'.format(item_name))
             await self._update_value_val(category_name, item_name, new_value_entry)
             # always get value from storage
             cat_item = await self._read_item_val(category_name, item_name)
@@ -790,6 +796,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         try:
             # validate new category_val, set "value" from default
             category_val_prepared = await self._validate_category_val(category_name, category_value, True)
+            # Evaluate value as per rule if defined
             for item_name in category_val_prepared:
                 if 'rule' in category_val_prepared[item_name]:
                     rule = category_val_prepared[item_name]['rule'].replace("value", category_val_prepared[item_name]['value'])

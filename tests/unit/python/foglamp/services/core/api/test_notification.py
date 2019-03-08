@@ -316,6 +316,14 @@ class TestNotification:
         json_response = json.loads(result)
         assert rules_and_delivery == json_response
 
+    async def test_get_type(self, client):
+        notification_type = {'notification_type': NOTIFICATION_TYPE}
+        resp = await client.get('/foglamp/notification/type')
+        assert 200 == resp.status
+        result = await resp.text()
+        json_response = json.loads(result)
+        assert notification_type == json_response
+
     async def test_get_notification(self, mocker, client):
         r = list(filter(lambda rules: rules['name'] == notification_config['rule']['value'], rule_config))
         c = list(filter(lambda channels: channels['name'] == notification_config['channel']['value'], delivery_config))

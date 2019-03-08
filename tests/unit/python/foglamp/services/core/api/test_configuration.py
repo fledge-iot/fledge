@@ -688,3 +688,19 @@ class TestConfiguration:
                     assert result == json_response
                 patch_get_all_items.assert_called_once_with(category_name)
             patch_update_bulk.assert_called_once_with(category_name, payload)
+
+    async def test_delete_configuration(self, client, category_name='rest_api'):
+        result = {'result': 'Category {} deleted successfully.'.format(category_name)}
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(c_mgr, 'delete_category_and_children_recursively', return_value=asyncio.sleep(.1)) as patch_delete_cat:
+                resp = await client.delete('/foglamp/category/{}'.format(category_name))
+                assert 200 == resp.status
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert result == json_response
+            assert 1 == patch_delete_cat.call_count
+            args, kwargs = patch_delete_cat.call_args
+            assert category_name == args[0]
+

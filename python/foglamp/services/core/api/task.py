@@ -189,8 +189,8 @@ async def add_task(request):
 
         result = await storage.query_tbl_with_payload('tasks', payload)
 
-        if result['count'] >= 1:
-            msg = 'Invalid name {0}, there are tasks already executed with this name.'.format(name)
+        if result['count'] >= 1:            
+            msg = 'Unable to reuse name {0}, already used by a previous task.'.format(name)
             _logger.exception(msg)
             raise web.HTTPBadRequest(reason=msg)
 

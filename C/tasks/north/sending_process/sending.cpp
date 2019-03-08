@@ -70,28 +70,36 @@ static const string sendingDefaultConfig =
 	"\"enable\": {"
 		"\"description\": \"A switch that can be used to enable or disable execution of "
 		"the sending process.\", \"type\": \"boolean\", \"default\": \"true\" , \"readonly\": \"true\"  },"
-	"\"duration\": {"
-		"\"description\": \"How long the sending process should run (in seconds) before stopping.\", "
-		"\"type\": \"integer\", \"default\": \"60\" , \"order\": \"7\", \"displayName\" : \"Duration\" }, "
-	"\"blockSize\": {"
-		"\"description\": \"The size of a block of readings to send in each transmission.\", "
-		"\"type\": \"integer\", \"default\": \"500\", \"order\": \"8\", \"displayName\" : \"Readings Block Size\" }, "
-	"\"sleepInterval\": {"
-		"\"description\": \"A period of time, expressed in seconds, "
-		"to wait between attempts to send readings when there are no "
-		"readings to be sent.\", \"type\": \"integer\", \"default\": \"1\", \"order\": \"11\", \"displayName\" : \"Sleep Interval\"  }, "
 	"\"streamId\": {"
 		"\"description\": \"Identifies the specific stream to handle and the related information,"
 		" among them the ID of the last object streamed.\", "
 		"\"type\": \"integer\", \"default\": \"0\", "
-		"\"readonly\": \"true\" }, "
-	"\"memoryBufferSize\": {"
-		"\"description\": \"Number of elements of blockSize size to be buffered in memory\","
-		"\"type\": \"integer\", "
-  		"\"default\": \"10\", "
-		"\"order\": \"12\", \"displayName\" : \"Memory Buffer Size\" ,"
-		"\"readonly\": \"false\" "
-	"} "
+		"\"readonly\": \"true\" } "
+	"}";
+
+// Sending process advanced configuration
+static const string sendingAdvancedConfig =
+	"{" \
+		"\"duration\": {" \
+			"\"description\": \"How long the sending process " \
+			"should run (in seconds) before stopping.\", " \
+			"\"type\": \"integer\", \"default\": \"60\" , " \
+			"\"order\": \"7\", \"displayName\" : \"Duration\" }, " \
+	        "\"blockSize\": {" \
+			"\"description\": \"The size of a block of readings to send " \
+			"in each transmission.\", " \
+			"\"type\": \"integer\", \"default\": \"500\", \"order\": \"8\", " \
+			"\"displayName\" : \"Readings Block Size\" }, " \
+		        "\"sleepInterval\": {" \
+		"\"description\": \"A period of time, expressed in seconds, " \
+			"to wait between attempts to send readings when there are no " \
+			"readings to be sent.\", \"type\": \"integer\", \"default\": \"1\", " \
+			"\"order\": \"11\", \"displayName\" : \"Sleep Interval\"  }, " \
+		"\"memoryBufferSize\": {" \
+			"\"description\": \"Number of elements of blockSize size to be buffered in memory\", " \
+			"\"type\": \"integer\", \"default\": \"10\", " \
+			"\"order\": \"12\", \"displayName\" : \"Memory Buffer Size\" ," \
+			"\"readonly\": \"false\" } " \
 	"}";
 
 volatile std::sig_atomic_t signalReceived = 0;
@@ -773,6 +781,7 @@ ConfigCategory SendingProcess::fetchConfiguration(const std::string& defaultConf
 #endif
 
 	ConfigCategory configuration;
+	ConfigCategory advancedConfiguration;
 	try {
 		// Create category, with "default" values only 
 		DefaultConfigCategory category(categoryName,
@@ -791,19 +800,36 @@ ConfigCategory SendingProcess::fetchConfiguration(const std::string& defaultConf
 		}
 
 		// Create/Update hierarchical configuration categories
-		createConfigCategories(category, PARENT_CONFIGURATION_KEY, categoryName, CONFIG_CATEGORY_DESCRIPTION);
+		createConfigCategories(category,
+					PARENT_CONFIGURATION_KEY,
+					categoryName,
+					CONFIG_CATEGORY_DESCRIPTION);
+
+		// Create advanced configuration category
+		string advancedCatName = categoryName + string("Advanced");
+		DefaultConfigCategory defConfigAdvanced(advancedCatName,
+							sendingAdvancedConfig);
+		// Set/Updaqte advanced configuration category
+		this->getManagementClient()->addCategory(defConfigAdvanced, true);
+		// Set advanced configuration category as child pf parent categoryName
+		vector<string> children1;
+		children1.push_back(advancedCatName);
+		this->getManagementClient()->addChildCategories(categoryName, children1);
 
 		// Get the category with values and defaults
 		configuration = this->getManagementClient()->getCategory(categoryName);
 
-		/**
-		 * Handle the sending process parameters here
-		 */
+		// Get the advanced category with values and defaults
+		advancedConfiguration = this->getManagementClient()->getCategory(advancedCatName);
 
-		string blockSize = configuration.getValue("blockSize");
-		string duration = configuration.getValue("duration");
-		string sleepInterval = configuration.getValue("sleepInterval");
-		string memoryBufferSize = configuration.getValue("memoryBufferSize");
+		/**
+		 * Handle the sending process parameters here:
+		 * fetch the Advanced configuration
+		 */
+		string blockSize = advancedConfiguration.getValue("blockSize");
+		string duration = advancedConfiguration.getValue("duration");
+		string sleepInterval = advancedConfiguration.getValue("sleepInterval");
+		string memoryBufferSize = advancedConfiguration.getValue("memoryBufferSize");
 
                 // Handles the case in which the stream_id is not defined
 		// in the configuration and sets it to not defined (0)
@@ -845,7 +871,8 @@ ConfigCategory SendingProcess::fetchConfiguration(const std::string& defaultConf
 			m_data_source_t = "";
 		}
 
-		// Sets the m_memory_buffer_size = 1 in case of an invalid value from the configuration like for example "A432"
+		// Sets the m_memory_buffer_size = 1 in case of an invalid value
+		// from the configuration like for example "A432"
 		m_memory_buffer_size = strtoul(memoryBufferSize.c_str(), NULL, 10);
 		if (m_memory_buffer_size < 1)
 		{

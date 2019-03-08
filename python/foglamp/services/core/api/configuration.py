@@ -25,7 +25,7 @@ __version__ = "${VERSION}"
 _help = """
     --------------------------------------------------------------------------------
     | GET POST       | /foglamp/category                                           |
-    | GET PUT        | /foglamp/category/{category_name}                           |
+    | GET PUT DELETE | /foglamp/category/{category_name}                           |
     | GET POST PUT   | /foglamp/category/{category_name}/{config_item}             |
     | DELETE         | /foglamp/category/{category_name}/{config_item}/value       |
     | POST           | /foglamp/category/{category_name}/{config_item}/upload      |
@@ -143,17 +143,38 @@ async def create_category(request):
         if data.get('children'):
             r = await cf_mgr.create_child_category(category_name, data.get('children'))
             result.update(r)
-
     except (KeyError, ValueError, TypeError) as ex:
         raise web.HTTPBadRequest(reason=str(ex))
-
     except LookupError as ex:
         raise web.HTTPNotFound(reason=str(ex))
-
     except Exception as ex:
         raise web.HTTPException(reason=str(ex))
-
     return web.json_response(result)
+
+
+async def delete_category(request):
+    """
+    Args:
+         request: category_name required
+    Returns:
+        Success message on successful deletion 
+    Raises:
+        TypeError/ValueError/Exception on error
+    :Example:
+            curl -X DELETE http://localhost:8081/foglamp/category/{category_name}
+    """
+    category_name = request.match_info.get('category_name', None)
+    category_name = urllib.parse.unquote(category_name) if category_name is not None else None
+
+    try:
+        cf_mgr = ConfigurationManager(connect.get_storage_async())
+        await cf_mgr.delete_category_and_children_recursively(category_name)
+    except (ValueError, TypeError) as ex:
+        raise web.HTTPBadRequest(reason=ex)
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason=ex)
+    else:
+        return web.json_response({'result': 'Category {} deleted successfully.'.format(category_name)})
 
 
 async def get_category_item(request):

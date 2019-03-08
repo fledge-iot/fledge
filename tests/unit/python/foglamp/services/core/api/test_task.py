@@ -104,6 +104,8 @@ class TestService:
                         'where': {'column': 'schedule_name', 'condition': '=',
                                   'value': 'north bound'}} == json.loads(payload)
                 return {'count': 0, 'rows': []}
+            if table == 'tasks':
+                return {'count': 0, 'rows': []}
 
         mock_plugin_info = {
             'name': "north bound",
@@ -138,6 +140,14 @@ class TestService:
                     patch_get_cat_info.assert_called_once_with(category_name=data['name'])
 
     async def test_dupe_category_name_add_task(self, client):
+
+        @asyncio.coroutine
+        def q_result(*arg):
+            table = arg[0]
+
+            if table == 'tasks':
+                return {'count': 0, 'rows': []}
+
         mock_plugin_info = {
             'name': "north bound",
             'version': "1.1",
@@ -162,9 +172,10 @@ class TestService:
         with patch('builtins.__import__', return_value=mock):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(c_mgr, 'get_category_all_items', return_value=self.async_mock(mock_plugin_info)) as patch_get_cat_info:
-                    resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
-                    assert 400 == resp.status
-                    assert "The '{}' category already exists".format(data['name']) == resp.reason
+                    with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
+                        resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
+                        assert 400 == resp.status
+                        assert "The '{}' category already exists".format(data['name']) == resp.reason
                 patch_get_cat_info.assert_called_once_with(category_name=data['name'])
 
     async def test_dupe_schedule_name_add_task(self, client):
@@ -177,6 +188,9 @@ class TestService:
                 assert {'return': ['schedule_name'], 'where': {'column': 'schedule_name', 'condition': '=',
                                                                'value': 'north bound'}} == json.loads(payload)
                 return {'count': 1, 'rows': [{'schedule_name': 'schedule_name'}]}
+
+            if table == 'tasks':
+                return {'count': 0, 'rows': []}
 
         mock_plugin_info = {
             'name': "north bound",
@@ -226,6 +240,9 @@ class TestService:
             if table == 'schedules':
                 assert {'return': ['schedule_name'], 'where': {'column': 'schedule_name', 'condition': '=',
                                                                'value': 'north bound'}} == json.loads(payload)
+                return {'count': 0, 'rows': []}
+
+            if table == 'tasks':
                 return {'count': 0, 'rows': []}
 
         expected_insert_resp = {'rows_affected': 1, "response": "inserted"}
@@ -296,6 +313,68 @@ class TestService:
                         assert p['script'] == '["tasks/north"]'
                 patch_get_cat_info.assert_called_once_with(category_name=data['name'])
 
+    @pytest.mark.parametrize(
+        "expected_count,"
+        "expected_http_code,"
+        "expected_message",
+        [
+            ( 1, 400, '400: Invalid name north bound, there are already executed tasks with this name.'),
+            (10, 400, '400: Invalid name north bound, there are already executed tasks with this name.')
+        ]
+    )
+    async def test_add_task_twice(self,
+                                  client,
+                                  expected_count,
+                                  expected_http_code,
+                                  expected_message):
+
+        @asyncio.coroutine
+        def q_result(*arg):
+            table = arg[0]
+
+            if table == 'tasks':
+                return {'count': expected_count, 'rows': []}
+
+        mock_plugin_info = {
+            'name': "north bound",
+            'version': "1.1",
+            'type': "north",
+            'interface': "1.0",
+            'config': {
+                'plugin': {
+                    'description': "North OMF plugin",
+                    'type': 'string',
+                    'default': 'omf'
+                }
+            }
+        }
+
+        mock = MagicMock()
+        attrs = {"plugin_info.side_effect": [mock_plugin_info]}
+        mock.configure_mock(**attrs)
+
+        data = {
+            "name": "north bound",
+            "plugin": "omf",
+            "type": "north",
+            "schedule_type": 3,
+            "schedule_day": 0,
+            "schedule_time": 0,
+            "schedule_repeat": 30,
+            "schedule_enabled": True
+        }
+
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch('builtins.__import__', return_value=mock):
+            with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                    with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
+
+                        resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
+                        result = await resp.text()
+
+                        assert resp.status == expected_http_code
+                        assert result == expected_message
+
     async def test_add_task_with_config(self, client):
         async def async_mock_get_schedule():
             schedule = TimedSchedule()
@@ -314,6 +393,9 @@ class TestService:
             if table == 'schedules':
                 assert {'return': ['schedule_name'], 'where': {'column': 'schedule_name', 'condition': '=',
                                                                'value': 'north bound'}} == json.loads(payload)
+                return {'count': 0, 'rows': []}
+
+            if table == 'tasks':
                 return {'count': 0, 'rows': []}
 
         expected_insert_resp = {'rows_affected': 1, "response": "inserted"}

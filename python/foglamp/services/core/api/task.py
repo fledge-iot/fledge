@@ -34,7 +34,6 @@ _help = """
 
 _logger = logger.setup()
 
-
 async def add_task(request):
     """ Create a new task to run a specific plugin
 
@@ -180,6 +179,21 @@ async def add_task(request):
 
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
+
+        # Abort the operation if there are already executed tasks
+        payload = PayloadBuilder() \
+            .SELECT(["id", "schedule_name"]) \
+            .WHERE(['schedule_name', '=', name]) \
+            .LIMIT(1) \
+            .payload()
+
+        result = await storage.query_tbl_with_payload('tasks', payload)
+
+        if result['count'] >= 1:
+            msg = 'Invalid name {0}, there are tasks already executed with this name.'.format(name)
+            _logger.exception(msg)
+            raise web.HTTPBadRequest(reason=msg)
+
 
         # Check whether category name already exists
         category_info = await config_mgr.get_category_all_items(category_name=name)

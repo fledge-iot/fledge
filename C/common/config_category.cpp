@@ -797,6 +797,7 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 					   const Value& item)
 {
 	m_name = name;
+	m_itemType = UnknownType;
 	if (! item.IsObject())
 	{
 		throw new ConfigMalformed();

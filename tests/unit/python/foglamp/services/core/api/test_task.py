@@ -318,8 +318,8 @@ class TestService:
         "expected_http_code,"
         "expected_message",
         [
-            ( 1, 400, '400: Invalid name north bound, there are tasks already executed with this name.'),
-            (10, 400, '400: Invalid name north bound, there are tasks already executed with this name.')
+            ( 1, 400, '400: Unable to reuse name north bound, already used by a previous task.'),
+            (10, 400, '400: Unable to reuse name north bound, already used by a previous task.')
         ]
     )
     async def test_add_task_twice(self,

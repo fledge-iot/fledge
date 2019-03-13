@@ -241,6 +241,34 @@ const char *myCategoryEnumFull = "{\"description\": {"
 		"\"options\": [\"first\",\"second\",\"third\"], "
 		"\"description\": \"An enumeration configuration parameter\"}}";
 
+const char* bigCategory =
+		"{\"OMFMaxRetry\": { " \
+			"\"type\": \"integer\", \"displayName\": \"Maximum Retry\", " \
+			"\"value\": \"3\", \"default\": \"3\", " \
+			"\"description\": \"Max number of retries\", " \
+			"\"order\": \"10\"}, "
+		"\"compression\": { " \
+			"\"type\": \"boolean\", \"displayName\": \"Compression\", " \
+			"\"value\": \"false\", \"default\": \"true\", " \
+			"\"description\": \"Compress data before sending\", " \
+			"\"order\": \"16\"}, " \
+			"\"enable\": {\"type\": \"boolean\", \"description\": " \
+				"\"A switch that can be used to enable or disable execution\", " \
+			"\"default\": \"true\", \"value\": \"true\", \"readonly\": \"true\"}, " \
+		"\"plugin\": { " \
+			"\"type\": \"string\", " \
+			"\"description\": \"PI Server North C Plugin\", " \
+			"\"default\": \"PI_Server_V2\", " \
+			"\"value\": \"PI_Server_V2\", \"readonly\": \"true\"}, " \
+		"\"source\": { " \
+			"\"type\": \"enumeration\", " \
+			"\"options\": [\"readings\", \"statistics\"], " \
+			"\"displayName\": \"Data Source\", " \
+			"\"value\": \"readings\", " \
+			"\"default\": \"readings\", " \
+			"\"description\": \"Defines\"} " \
+		"}";
+
 TEST(CategoriesTest, Count)
 {
 	ConfigCategories confCategories(categories);
@@ -487,4 +515,17 @@ TEST(CategoryTest, categoryAllFullOutput)
 	ASSERT_EQ(0, categoryItems.compare(fullItems.itemsToJSON(false)));
 	// Check we have 4 items in Category object
 	ASSERT_EQ(4, fullItems.getCount());
+}
+
+/**
+ * Check all return values of a category
+ */
+TEST(CategoryTest, categoryValues)
+{
+        ConfigCategory complex("complex", bigCategory);
+        ASSERT_EQ(true, complex.isBool("compression"));
+        ASSERT_EQ(true, complex.isEnumeration("source"));
+        ASSERT_EQ(true, complex.isString("plugin"));
+        ASSERT_EQ(true, complex.getValue("plugin").compare("PI_Server_V2") == 0);
+        ASSERT_EQ(true, complex.getValue("OMFMaxRetry").compare("3") == 0);
 }

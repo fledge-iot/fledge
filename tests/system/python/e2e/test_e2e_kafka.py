@@ -189,7 +189,7 @@ class TestE2EKafka:
         r = r.read().decode()
         jdoc = json.loads(r)
         assert ASSET_NAME == jdoc[0]['value']['asset']
-        assert SENSOR_VALUE == int(jdoc[0]['value']['sensor'])
+        assert SENSOR_VALUE == float(jdoc[0]['value']['sensor'])
 
     def _close_consumer(self, kafka_host, kafka_rest_port):
         conn = http.client.HTTPConnection("{}:{}".format(kafka_host, kafka_rest_port))

@@ -86,130 +86,131 @@ bool FilterPipeline::loadFilters(const string& categoryName)
 		Logger::getLogger()->info("FilterPipeline::loadFilters(): categoryName=%s, filters=%s", categoryName.c_str(), filter.c_str());
 		if (!filter.empty())
 		{
-		std::vector<pair<string, PLUGIN_HANDLE>> filterInfo;
+			std::vector<pair<string, PLUGIN_HANDLE>> filterInfo;
 
-		// Remove \" and leading/trailing "
-		// TODO: improve/change this
-		filter.erase(remove(filter.begin(), filter.end(), '\\' ), filter.end());
-		size_t i;
-		while (! (i = filter.find('"')) || (i = filter.rfind('"')) == static_cast<unsigned char>(filter.size() - 1))
-		{
-			filter.erase(i, 1);
-		}
-
-		//Parse JSON object for filters
-		Document theFilters;
-		theFilters.Parse(filter.c_str());
-		// The "pipeline" property must be an array
-		if (theFilters.HasParseError() ||
-			!theFilters.HasMember(JSON_CONFIG_PIPELINE_ELEM) ||
-			!theFilters[JSON_CONFIG_PIPELINE_ELEM].IsArray())
-		{
-			string errMsg("loadFilters: can not parse JSON '");
-			errMsg += string(JSON_CONFIG_FILTER_ELEM) + "' property";
-			Logger::getLogger()->fatal(errMsg.c_str());
-			throw runtime_error(errMsg);
-		}
-		else
-		{
-			const Value& filterList = theFilters[JSON_CONFIG_PIPELINE_ELEM];
-			if (!filterList.Size())
+			// Remove \" and leading/trailing "
+			// TODO: improve/change this
+			filter.erase(remove(filter.begin(), filter.end(), '\\' ), filter.end());
+			size_t i;
+			while (! (i = filter.find('"')) || (i = filter.rfind('"')) == static_cast<unsigned char>(filter.size() - 1))
 			{
-				// Empty array, just return true
-				return true;
+				filter.erase(i, 1);
 			}
 
-			// Prepare printable list of filters
-			StringBuffer buffer;
-			Writer<StringBuffer> writer(buffer);
-			filterList.Accept(writer);
-			string printableList(buffer.GetString());
-
-			string logMsg("loadFilters: found filter(s) ");
-			logMsg += printableList + " for plugin '";
-			logMsg += categoryName + "'";
-
-			Logger::getLogger()->info(logMsg.c_str());
-
-			// Try loading all filter plugins: abort on any error
-			for (Value::ConstValueIterator itr = filterList.Begin(); itr != filterList.End(); ++itr)
+			//Parse JSON object for filters
+			Document theFilters;
+			theFilters.Parse(filter.c_str());
+			// The "pipeline" property must be an array
+			if (theFilters.HasParseError() ||
+				!theFilters.HasMember(JSON_CONFIG_PIPELINE_ELEM) ||
+				!theFilters[JSON_CONFIG_PIPELINE_ELEM].IsArray())
 			{
-				// Get "plugin" item fromn filterCategoryName
-				string filterCategoryName = itr->GetString();
-				ConfigCategory filterDetails = mgtClient->getCategory(filterCategoryName);
-				if (!filterDetails.itemExists("plugin"))
-				{
-					string errMsg("loadFilters: 'plugin' item not found ");
-					errMsg += "in " + filterCategoryName + " category";
-					Logger::getLogger()->fatal(errMsg.c_str());
-					throw runtime_error(errMsg);
-				}
-				string filterName = filterDetails.getValue("plugin");
-				PLUGIN_HANDLE filterHandle;
-				// Load filter plugin only: we don't call any plugin method right now
-				filterHandle = loadFilterPlugin(filterName);
-				if (!filterHandle)
-				{
-					string errMsg("Cannot load filter plugin '" + filterName + "'");
-					Logger::getLogger()->fatal(errMsg.c_str());
-					throw runtime_error(errMsg);
-				}
-				else
-				{
-					// Save filter handler: key is filterCategoryName
-					filterInfo.push_back(pair<string,PLUGIN_HANDLE>
-							     (filterCategoryName, filterHandle));
-				}
+				string errMsg("loadFilters: can not parse JSON '");
+				errMsg += string(JSON_CONFIG_FILTER_ELEM) + "' property";
+				Logger::getLogger()->fatal(errMsg.c_str());
+				throw runtime_error(errMsg);
 			}
-
-			// We have kept filter default config in the filterInfo map
-			// Handle configuration for each filter
-			PluginManager *pluginManager = PluginManager::getInstance();
-			for (vector<pair<string, PLUGIN_HANDLE>>::iterator itr = filterInfo.begin();
-			     itr != filterInfo.end();
-			     ++itr)
+			else
 			{
-				// Get plugin default configuration
-				string filterConfig = pluginManager->getInfo(itr->second)->config;
-
-				// Update filter category items
-				DefaultConfigCategory filterDefConfig(itr->first, filterConfig);
-				string filterDescription = "Configuration of '" + itr->first;
-				filterDescription += "' filter for plugin '" + categoryName + "'";
-				filterDefConfig.setDescription(filterDescription);
-
-				if (!mgtClient->addCategory(filterDefConfig, true))
+				const Value& filterList = theFilters[JSON_CONFIG_PIPELINE_ELEM];
+				if (!filterList.Size())
 				{
-					string errMsg("Cannot create/update '" + \
-						      categoryName + "' filter category");
-					Logger::getLogger()->fatal(errMsg.c_str());
-					throw runtime_error(errMsg);
+					// Empty array, just return true
+					return true;
 				}
-				children.push_back(categoryName + "_" + itr->first);
 
-				// Instantiate the FilterPlugin class
-				// in order to call plugin entry points
-				FilterPlugin* currentFilter = new FilterPlugin(itr->first,
-									       itr->second);
+				// Prepare printable list of filters
+				StringBuffer buffer;
+				Writer<StringBuffer> writer(buffer);
+				filterList.Accept(writer);
+				string printableList(buffer.GetString());
 
-				// Add filter to filters vector
-				m_filters.push_back(currentFilter);
+				string logMsg("loadFilters: found filter(s) ");
+				logMsg += printableList + " for plugin '";
+				logMsg += categoryName + "'";
+
+				Logger::getLogger()->info(logMsg.c_str());
+
+				// Try loading all filter plugins: abort on any error
+				for (Value::ConstValueIterator itr = filterList.Begin(); itr != filterList.End(); ++itr)
+				{
+					// Get "plugin" item fromn filterCategoryName
+					string filterCategoryName = itr->GetString();
+					ConfigCategory filterDetails = mgtClient->getCategory(filterCategoryName);
+					if (!filterDetails.itemExists("plugin"))
+					{
+						string errMsg("loadFilters: 'plugin' item not found ");
+						errMsg += "in " + filterCategoryName + " category";
+						Logger::getLogger()->fatal(errMsg.c_str());
+						throw runtime_error(errMsg);
+					}
+					string filterName = filterDetails.getValue("plugin");
+					PLUGIN_HANDLE filterHandle;
+					// Load filter plugin only: we don't call any plugin method right now
+					filterHandle = loadFilterPlugin(filterName);
+					if (!filterHandle)
+					{
+						string errMsg("Cannot load filter plugin '" + filterName + "'");
+						Logger::getLogger()->fatal(errMsg.c_str());
+						throw runtime_error(errMsg);
+					}
+					else
+					{
+						// Save filter handler: key is filterCategoryName
+						filterInfo.push_back(pair<string,PLUGIN_HANDLE>
+								     (filterCategoryName, filterHandle));
+					}
+				}
+
+				// We have kept filter default config in the filterInfo map
+				// Handle configuration for each filter
+				PluginManager *pluginManager = PluginManager::getInstance();
+				for (vector<pair<string, PLUGIN_HANDLE>>::iterator itr = filterInfo.begin();
+				     itr != filterInfo.end();
+				     ++itr)
+				{
+					// Get plugin default configuration
+					string filterConfig = pluginManager->getInfo(itr->second)->config;
+
+					// Create/Update default filter category items
+					DefaultConfigCategory filterDefConfig(categoryName + "_" + itr->first, filterConfig);
+					string filterDescription = "Configuration of '" + itr->first;
+					filterDescription += "' filter for plugin '" + categoryName + "'";
+					filterDefConfig.setDescription(filterDescription);
+
+					if (!mgtClient->addCategory(filterDefConfig, true))
+					{
+						string errMsg("Cannot create/update '" + \
+							      categoryName + "' filter category");
+						Logger::getLogger()->fatal(errMsg.c_str());
+						throw runtime_error(errMsg);
+					}
+					children.push_back(categoryName + "_" + itr->first);
+
+					// Instantiate the FilterPlugin class
+					// in order to call plugin entry points
+					FilterPlugin* currentFilter = new FilterPlugin(itr->first,
+										       itr->second);
+
+					// Add filter to filters vector
+					m_filters.push_back(currentFilter);
+				}
 			}
 		}
-	}
-	/*
-	 * Put all the new catregories in the Filter category parent
-	 * Create an empty South category if one doesn't exist
-	 */
-	string parentName = categoryName + " Filters";
-	DefaultConfigCategory filterConfig(parentName, string("{}"));
-	filterConfig.setDescription("Filters for " + categoryName);
-	mgtClient->addCategory(filterConfig, true);
-	mgtClient->addChildCategories(parentName, children);
-	vector<string> children1;
-	children1.push_back(parentName);
-	mgtClient->addChildCategories(categoryName, children1);
-	return true;
+
+		/*
+		 * Put all the new catregories in the Filter category parent
+		 * Create an empty South category if one doesn't exist
+		 */
+		string parentName = categoryName + " Filters";
+		DefaultConfigCategory filterConfig(parentName, string("{}"));
+		filterConfig.setDescription("Filters for " + categoryName);
+		mgtClient->addCategory(filterConfig, true);
+		mgtClient->addChildCategories(parentName, children);
+		vector<string> children1;
+		children1.push_back(parentName);
+		mgtClient->addChildCategories(categoryName, children1);
+		return true;
 	}
 	catch (ConfigItemNotFound* e)
 	{

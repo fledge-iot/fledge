@@ -1,0 +1,1 @@
+{ "entryPoint" : "retrieve", "message" : "no such table: foglamp.doesntexist", "retryable" : false}

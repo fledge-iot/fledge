@@ -25,9 +25,10 @@ include_directories(../../../../../C/services/common/include)
 include_directories(../../../../../C/thirdparty/rapidjson/include)
 include_directories(../../../../../C/thirdparty/Simple-Web-Server)
 
-file(GLOB common_sources "../../../../../C/common/*.cpp")
-file(GLOB plugin_common_sources "../../../../../C/plugins/common/*.cpp")
-file(GLOB services_common_sources "../../../../../C/services/common/*.cpp")
+set(COMMON_LIB common-lib)
+set(SERVICE_COMMON_LIB services-common-lib)
+set(PLUGINS_COMMON_LIB plugins-common-lib)
+
 file(GLOB unittests "*.cpp")
  
 # Find python3.x dev/lib package
@@ -36,13 +37,18 @@ find_package(PythonLibs 3 REQUIRED)
 # Add Python 3.x header files
 include_directories(${PYTHON_INCLUDE_DIRS})
 
+link_directories(${PROJECT_BINARY_DIR}/../../../lib)
+
 # Link runTests with what we want to test and the GTest and pthread library
-add_executable(RunTests ${common_sources} ${plugin_common_sources} ${services_common_sources} ${unittests})
+add_executable(RunTests ${unittests})
 target_link_libraries(RunTests ${GTEST_LIBRARIES} pthread)
-target_link_libraries(RunTests  ${Boost_LIBRARIES})
-target_link_libraries(RunTests  ${UUIDLIB})
-target_link_libraries(RunTests  ${COMMONLIB})
-target_link_libraries(RunTests  -lssl -lcrypto -lz)
+target_link_libraries(RunTests ${Boost_LIBRARIES})
+target_link_libraries(RunTests ${UUIDLIB})
+target_link_libraries(RunTests ${COMMONLIB})
+target_link_libraries(RunTests -lssl -lcrypto -lz)
+target_link_libraries(RunTests ${COMMON_LIB})
+target_link_libraries(RunTests ${SERVICE_COMMON_LIB})
+target_link_libraries(RunTests ${PLUGINS_COMMON_LIB})
 
 # Add Python 3.x library
 target_link_libraries(RunTests ${PYTHON_LIBRARIES})

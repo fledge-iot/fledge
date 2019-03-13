@@ -59,6 +59,15 @@ async def get_plugin(request):
         return web.json_response({'rules': rule_plugins, 'delivery': delivery_plugins})
 
 
+async def get_type(request):
+    """ GET the list of available notification types
+
+    :Example:
+        curl -X GET http://localhost:8081/foglamp/notification/type
+    """
+    return web.json_response({'notification_type': NOTIFICATION_TYPE})
+
+
 async def get_notification(request):
     """ GET an existing notification
 
@@ -217,6 +226,7 @@ async def post_notification(request):
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
         notification_config = {
+            "description": description,
             "rule": rule,
             "channel": channel,
             "notification_type": notification_type,

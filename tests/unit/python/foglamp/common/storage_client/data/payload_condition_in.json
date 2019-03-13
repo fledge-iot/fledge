@@ -1,0 +1,7 @@
+ {
+   "where": {
+     "column": "plugin_type",
+     "condition": "in",
+     "value": ["north", "south", "rule", "delivery", "filter"]
+   }
+ }

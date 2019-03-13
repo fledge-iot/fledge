@@ -316,6 +316,14 @@ class TestNotification:
         json_response = json.loads(result)
         assert rules_and_delivery == json_response
 
+    async def test_get_type(self, client):
+        notification_type = {'notification_type': NOTIFICATION_TYPE}
+        resp = await client.get('/foglamp/notification/type')
+        assert 200 == resp.status
+        result = await resp.text()
+        json_response = json.loads(result)
+        assert notification_type == json_response
+
     async def test_get_notification(self, mocker, client):
         r = list(filter(lambda rules: rules['name'] == notification_config['rule']['value'], rule_config))
         c = list(filter(lambda channels: channels['name'] == notification_config['channel']['value'], delivery_config))
@@ -389,7 +397,7 @@ class TestNotification:
         assert 200 == resp.status
         result = await resp.json()
         assert result['result'].endswith("Notification {} created successfully".format("Test Notification"))
-        update_configuration_item_bulk_calls = [call('Test Notification', {'enable': 'false', 'rule': 'threshold', 'notification_type': 'one shot', 'channel': 'email'})]
+        update_configuration_item_bulk_calls = [call('Test Notification', {'enable': 'false', 'rule': 'threshold', 'description': 'Test Notification', 'channel': 'email', 'notification_type': 'one shot'})]
         update_configuration_item_bulk.assert_has_calls(update_configuration_item_bulk_calls, any_order=True)
 
     async def test_post_notification2(self, mocker, client):
@@ -413,9 +421,10 @@ class TestNotification:
         assert 200 == resp.status
         result = await resp.json()
         assert result['result'].endswith("Notification {} created successfully".format("Test Notification"))
-        update_configuration_item_bulk_calls = [call('Test Notification', {'notification_type': 'one shot', 'enable': 'false', 'channel': 'email', 'rule': 'threshold'}),
-                                                call('ruleTest Notification', {'window': '100'}),
-                                                call('deliveryTest Notification', {'server': 'pop'})]
+        update_configuration_item_bulk_calls = [call('Test Notification', {'description': 'Test Notification', 'rule': 'threshold', 'channel': 'email',
+                                        'notification_type': 'one shot', 'enable': 'false'}),
+             call('ruleTest Notification', {'window': '100'}),
+             call('deliveryTest Notification', {'server': 'pop'})]
         update_configuration_item_bulk.assert_has_calls(update_configuration_item_bulk_calls, any_order=True)
 
     async def test_post_notification_exception(self, mocker, client):

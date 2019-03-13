@@ -285,7 +285,19 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		// Get and ingest data
 		if (! southPlugin->isAsync())
 		{
-			m_timerfd = createTimerFd(1000000/(int)m_readingsPerSec); // interval to be passed is in usecs
+			string units = m_configAdvanced.getValue("units");
+			unsigned long dividend = 1000000;
+			if (units.compare("second") == 0)
+				dividend = 1000000;
+			else if (units.compare("minute") == 0)
+				dividend = 60000000;
+			else if (units.compare("hour") == 0)
+				dividend = 3600000000;
+			unsigned long usecs = dividend / m_readingsPerSec;
+			struct timeval rate;
+			rate.tv_sec  = (int)(usecs / 1000000);
+			rate.tv_usec = (int)(usecs % 1000000);
+			m_timerfd = createTimerFd(rate); // interval to be passed is in usecs
 			if (m_timerfd < 0)
 			{
 				logger->fatal("Could not create timer FD");
@@ -537,11 +549,23 @@ void SouthService::configChange(const string& categoryName, const string& catego
 		m_configAdvanced = ConfigCategory(m_name+"Advanced", category);
 		try {
 			unsigned long newval = (unsigned long)strtol(m_configAdvanced.getValue("readingsPerSec").c_str(), NULL, 10);
+			string units = m_configAdvanced.getValue("units");
+			unsigned long dividend = 1000000;
+			if (units.compare("second") == 0)
+				dividend = 1000000;
+			else if (units.compare("minute") == 0)
+				dividend = 60000000;
+			else if (units.compare("hour") == 0)
+				dividend = 3600000000;
 			if (newval != m_readingsPerSec)
 			{
 				m_readingsPerSec = newval;
 				close(m_timerfd);
-				m_timerfd = createTimerFd(1000000/(int)m_readingsPerSec); // interval to be passed is in usecs
+				unsigned long usecs = dividend / m_readingsPerSec;
+				struct timeval rate;
+				rate.tv_sec  = (int)(usecs / 1000000);
+				rate.tv_usec = (int)(usecs % 1000000);
+				m_timerfd = createTimerFd(rate); // interval to be passed is in usecs
 			}
 		} catch (ConfigItemNotFound e) {
 			logger->error("Failed to update poll interval following configuration change");
@@ -572,13 +596,21 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 	for (int i = 0; defaults[i].name; i++)
 	{
 		defaultConfig.addItem(defaults[i].name, defaults[i].description,
-			defaults[i].type, defaults[i].value, defaults[i].value);	
+			defaults[i].type, defaults[i].value, defaults[i].value);
+		defaultConfig.setItemDisplayName(defaults[i].name, defaults[i].displayName);
 	}
+
+	/* Add the reading rate units */
+	vector<string>	rateUnits = { "second", "minute", "hour" };
+	defaultConfig.addItem("units", "Reading Rate Per",
+			"second", "second", rateUnits);
+	defaultConfig.setItemDisplayName("units", "Reading Rate Per");
 
 	/* Add the set of logging levels to the service */
 	vector<string>	logLevels = { "error", "warning", "info", "debug" };
 	defaultConfig.addItem("logLevel", "Minimum logging level reported",
 			"warning", "warning", logLevels);
+	defaultConfig.setItemDisplayName("logLevel", "Minimum Log Level");
 }
 
 /**
@@ -587,7 +619,7 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
  *
  * @param usecs	 Time in micro-secs after which data would be available on the timer FD
  */
-int SouthService::createTimerFd(int usecs)
+int SouthService::createTimerFd(struct timeval rate)
 {
 	int fd = -1;
 	struct itimerspec new_value;
@@ -596,16 +628,16 @@ int SouthService::createTimerFd(int usecs)
 	if (clock_gettime(CLOCK_REALTIME, &now) == -1)
 	   Logger::getLogger()->error("clock_gettime");
 
-	new_value.it_value.tv_sec = now.tv_sec;
-	new_value.it_value.tv_nsec = now.tv_nsec + usecs*1000;
+	new_value.it_value.tv_sec = now.tv_sec + rate.tv_sec;
+	new_value.it_value.tv_nsec = now.tv_nsec + rate.tv_usec*1000;
 	if (new_value.it_value.tv_nsec >= 1000000000)
 	{
 		new_value.it_value.tv_sec += new_value.it_value.tv_nsec/1000000000;
 		new_value.it_value.tv_nsec %= 1000000000;
 	}
 	
-	new_value.it_interval.tv_sec = 0;
-	new_value.it_interval.tv_nsec = usecs*1000;
+	new_value.it_interval.tv_sec = rate.tv_sec;
+	new_value.it_interval.tv_nsec = rate.tv_usec*1000;
 	if (new_value.it_interval.tv_nsec >= 1000000000)
 	{
 		new_value.it_interval.tv_sec += new_value.it_interval.tv_nsec/1000000000;

@@ -800,7 +800,7 @@ static std::atomic<bool> already_running(false);
 	if (already_running)
 	{
 		string payload = "{ \"error\" : \"Previous instance of purge is still running, not starting another one.\" }";
-		respond(response, SimpleWeb::StatusCode::success_ok, payload);
+		respond(response, SimpleWeb::StatusCode::client_error_too_many_requests, payload);
 		return;
 	}
 	already_running.store(true);

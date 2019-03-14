@@ -2252,7 +2252,7 @@ int blocks = 0;
 
 		if (rc != SQLITE_OK)
 		{
- 			raiseError("purge - phaase 0, fetching rowid limit ", zErrMsg);
+ 			raiseError("purge - phase 0, fetching rowid limit ", zErrMsg);
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
@@ -2293,6 +2293,7 @@ int blocks = 0;
 			return 0;
 		}
 	}
+
 	{
 		/*
 		 * Refine rowid limit to just those rows older than age hours
@@ -2325,7 +2326,7 @@ int blocks = 0;
 
 		if (rc != SQLITE_OK)
 		{
- 			raiseError("purge - phaase 0, fetching rowid limit ", zErrMsg);
+ 			raiseError("purge - phase 0, fetching rowid limit ", zErrMsg);
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
@@ -2337,11 +2338,12 @@ int blocks = 0;
 
 		if (rc != SQLITE_OK)
 		{
- 			raiseError("purge - phaase 0, fetching rowid limit ", zErrMsg);
+ 			raiseError("purge - phase 0, fetching rowid limit ", zErrMsg);
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
 	}
+
 	logger->info("Purge collecting unsent row count");
 	if ((flags & 0x01) == 0)
 	{
@@ -2375,7 +2377,7 @@ int blocks = 0;
 		}
 		else
 		{
- 			raiseError("purge - phaase 2", zErrMsg);
+ 			raiseError("purge - phase 2", zErrMsg);
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
@@ -2406,13 +2408,13 @@ int blocks = 0;
 			     NULL,
 			     &zErrMsg);
 
+		// Release memory for 'query' var
+		delete[] query;
 
 		if (rc != SQLITE_OK)
 		{
 			raiseError("purge - phase 3", zErrMsg);
 			sqlite3_free(zErrMsg);
-			// Release memory for 'query' var
-			delete[] query;
 			return 0;
 		}
 
@@ -2426,7 +2428,7 @@ int blocks = 0;
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(PURGE_SLEEP_MS));
 		}
-	} while (rowidMin  < rowidLimit);
+	}
 
 	SQLBuffer retainedBuffer;
 	retainedBuffer.append("SELECT count(ROWID) FROM foglamp.readings WHERE id > ");

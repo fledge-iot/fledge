@@ -1,0 +1,1 @@
+{ "entryPoint" : "insert", "message" : "table foglamp.test has no column named Nonexistant", "retryable" : false}

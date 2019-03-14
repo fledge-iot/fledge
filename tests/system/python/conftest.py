@@ -25,12 +25,19 @@ __version__ = "${VERSION}"
 
 
 @pytest.fixture
-def reset_and_start_foglamp():
-    """Fixture that kills foglamp, reset database and starts foglamp again"""
+def reset_and_start_foglamp(storage_plugin):
+    """Fixture that kills foglamp, reset database and starts foglamp again
+        storage_plugin: Fixture that defines the storage plugin to be used for tests
+    """
 
-    # TODO: allow to sed storage.json and use postgres database plugin
     assert os.environ.get('FOGLAMP_ROOT') is not None
+
     subprocess.run(["$FOGLAMP_ROOT/scripts/foglamp kill"], shell=True, check=True)
+    if storage_plugin == 'postgres':
+        subprocess.run(["sed -i 's/sqlite/postgres/g' $FOGLAMP_ROOT/data/etc/storage.json"], shell=True, check=True)
+    else:
+        subprocess.run(["sed -i 's/postgres/sqlite/g' $FOGLAMP_ROOT/data/etc/storage.json"], shell=True, check=True)
+
     subprocess.run(["echo YES | $FOGLAMP_ROOT/scripts/foglamp reset"], shell=True, check=True)
     subprocess.run(["$FOGLAMP_ROOT/scripts/foglamp start"], shell=True)
     stat = subprocess.run(["$FOGLAMP_ROOT/scripts/foglamp status"], shell=True, stdout=subprocess.PIPE)
@@ -238,9 +245,9 @@ def add_filter():
         r = conn.getresponse()
         assert 200 == r.status
         res = r.read().decode()
-        expected = "Filter pipeline {{'pipeline': ['{}']}} updated successfully".format(filter_name)
         jdoc = json.loads(res)
-        assert expected == jdoc["result"]
+        # Asset newly added filter exist in request's response
+        assert filter_name in jdoc["result"]
 
     return _add_filter
 
@@ -274,6 +281,8 @@ def disable_schedule():
 
 
 def pytest_addoption(parser):
+    parser.addoption("--storage-plugin", action="store", default="sqlite",
+                     help="Database plugin to use for tests")
     parser.addoption("--foglamp-url", action="store", default="localhost:8081",
                      help="FogLAMP client api url")
     parser.addoption("--use-pip-cache", action="store", default=False,
@@ -336,6 +345,11 @@ def pytest_addoption(parser):
                      help="Kafka Server Port")
     parser.addoption("--kafka-topic", action="store", default="FogLAMP", help="Kafka topic")
     parser.addoption("--kafka-rest-port", action="store", default="8082", help="Kafka Rest Proxy Port")
+
+
+@pytest.fixture
+def storage_plugin(request):
+    return request.config.getoption("--storage-plugin")
 
 
 @pytest.fixture

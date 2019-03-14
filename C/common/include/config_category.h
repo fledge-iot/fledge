@@ -53,7 +53,7 @@ class ConfigCategories {
 
 class ConfigCategory {
 	public:
-		enum ItemType  { StringItem, EnumerationItem, JsonItem, BoolItem, NumberItem, DoubleItem, ScriptItem, CategoryType};
+		enum ItemType  { UnknownType, StringItem, EnumerationItem, JsonItem, BoolItem, NumberItem, DoubleItem, ScriptItem, CategoryType};
 
 		ConfigCategory(const std::string& name, const std::string& json);
 		ConfigCategory() {};

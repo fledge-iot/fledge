@@ -50,7 +50,8 @@ class Connection {
 		bool		jsonAggregates(const rapidjson::Value&,
 						const rapidjson::Value&,
 						SQLBuffer&,
-						SQLBuffer&);
+						SQLBuffer&,
+						bool isTableReading = false);
 		bool		returnJson(const rapidjson::Value&, SQLBuffer&, SQLBuffer&);
 		char		*trim(char *str);
 		const char	*escape(const char *);

@@ -25,6 +25,21 @@ Version History
 FogLAMP v1
 ==========
 
+v1.5.1
+-------
+
+Release Date: 2019-03-12
+
+- **FogLAMP Core**
+
+    - Bug Fix: plugin loading errors
+
+
+- **GUI**
+
+    - Bug Fix: uptime shows up to 24 hour clock only
+
+
 v1.5.0
 -------
 

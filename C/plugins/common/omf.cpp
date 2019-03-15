@@ -869,15 +869,17 @@ const std::string OMF::createLinkData(const Reading& reading) const
 {
 	// Build the Link data (JSON Array)
 
-	string lData = "[{\"typeid\": \"__Link\", \"values\": "
-"[{\"source\": {\"typeid\": \"";
+	string lData = "[{\"typeid\": \"__Link\", \"values\": [";
+#if ADD_ROOT_LINK
+	lData.append("{\"source\": {\"typeid\": \"");
 
 	// Add type_id + '_' + asset_name + '__typename_sensor'
 	OMF::setAssetTypeTag(reading.getAssetName(),
 			     "typename_sensor",
 			     lData);
 
-	lData.append("\", \"index\": \"_ROOT\"}, \"target\": {\"typeid\": \"");
+	lData.append("\", \"index\": \"_ROOT\"},");
+	lData.append("\"target\": {\"typeid\": \"");
 
 	// Add type_id + '_' + asset_name + '__typename_sensor'
 	OMF::setAssetTypeTag(reading.getAssetName(),
@@ -889,7 +891,9 @@ const std::string OMF::createLinkData(const Reading& reading) const
 	// Add asset_name
 	lData.append(reading.getAssetName());
 
-	lData.append("\"}}, {\"source\": {\"typeid\": \"");
+	lData.append("\"}},");
+#endif
+	lData.append("{\"source\": {\"typeid\": \"");
 
 	// Add type_id + '_' + asset_name + '__typename_sensor'
 	OMF::setAssetTypeTag(reading.getAssetName(),

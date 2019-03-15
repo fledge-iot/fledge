@@ -2503,7 +2503,6 @@ int blocks = 0;
 		idBuffer.append(rowidLimit);
 		idBuffer.append(';');
 		const char *idQuery = idBuffer.coalesce();
-		//logger->info("3. idQuery=%s", idQuery);
 		rc = SQLexec(dbHandle,
 		     idQuery,
 	  	     rowidCallback,
@@ -2574,7 +2573,7 @@ int blocks = 0;
 		if(usecs>150000)
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(100+usecs/10000));
-			Logger::getLogger()->info("Purge loop slept for %lld msecs since removal of a block took %lld usecs", (100+usecs/10000), usecs);
+			//Logger::getLogger()->debug("Purge loop slept for %lld msecs since removal of a block took %lld usecs", (100+usecs/10000), usecs);
 		}
 		}
 		
@@ -2588,7 +2587,7 @@ int blocks = 0;
 		// Get db changes
 		rowsAffected = sqlite3_changes(dbHandle);
 		deletedRows += rowsAffected;
-		//Logger::getLogger()->info("Purge delete block #%d with %d readings", blocks, rowsAffected);
+		//Logger::getLogger()->debug("Purge delete block #%d with %d readings", blocks, rowsAffected);
 	} while (rowidMin  < rowidLimit);
 
 	unsentRetained = maxrowidLimit - rowidLimit;
@@ -2609,7 +2608,7 @@ int blocks = 0;
 
 	result = convert.str();
 
-	//logger->info("Purge result=%s", result.c_str());
+	//logger->debug("Purge result=%s", result.c_str());
 
 	gettimeofday(&endTv, NULL);
 	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;

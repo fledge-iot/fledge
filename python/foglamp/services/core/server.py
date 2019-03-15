@@ -131,10 +131,19 @@ class Server:
     is_auth_required = False
     """ a var to decide to make authentication mandatory / optional for FogLAMP Admin/ User REST API"""
 
+    auth_method = 'any'
+
     cert_file_name = ''
     """ cert file name """
 
     _REST_API_DEFAULT_CONFIG = {
+        'enableHttp': {
+            'description': 'Enable HTTP (disable to use HTTPS)',
+            'type': 'boolean',
+            'default': 'true',
+            'displayName': 'Enable HTTP',
+            'order': '1'
+        },
         'httpPort': {
             'description': 'Port to accept HTTP connections on',
             'type': 'integer',
@@ -148,20 +157,6 @@ class Server:
             'default': '1995',
             'displayName': 'HTTPS Port',
             'order': '3'
-        },
-        'enableHttp': {
-            'description': 'Enable HTTP (disable to use HTTPS)',
-            'type': 'boolean',
-            'default': 'true',
-            'displayName': 'Enable HTTP',
-            'order': '1'
-        },
-        'authProviders': {
-            'description': 'Authentication providers to use for the interface (JSON array object)',
-            'type': 'JSON',
-            'default': '{"providers": ["username", "ldap"] }',
-            'displayName': 'Auth Providers',
-            'order': '8'
         },
         'certificateName': {
             'description': 'Certificate file name',
@@ -178,21 +173,43 @@ class Server:
             'displayName': 'Authentication',
             'order': '5'
         },
+        'authMethod': {
+            'description': 'Authentication method',
+            'type': 'enumeration',
+            'options': ["any", "password", "certificate"],
+            'default': 'any',
+            'displayName': 'Authentication method',
+            'order': '6'
+        },
+        'authCertificateName': {
+            'description': 'Auth Certificate name',
+            'type': 'string',
+            'default': 'ca',
+            'displayName': 'Auth Certificate',
+            'order': '7'
+        },
         'allowPing': {
             'description': 'Allow access to ping, regardless of the authentication required and'
                            ' authentication header',
             'type': 'boolean',
             'default': 'true',
             'displayName': 'Allow Ping',
-            'order': '6'
+            'order': '8'
         },
         'passwordChange': {
             'description': 'Number of days after which passwords must be changed',
             'type': 'integer',
             'default': '0',
             'displayName': 'Password Expiry Days',
-            'order': '7'
-        }
+            'order': '9'
+        },
+        'authProviders': {
+            'description': 'Authentication providers to use for the interface (JSON array object)',
+            'type': 'JSON',
+            'default': '{"providers": ["username", "ldap"] }',
+            'displayName': 'Auth Providers',
+            'order': '10'
+        },
     }
 
     _start_time = time.time()
@@ -307,6 +324,18 @@ class Server:
             config = await cls._configuration_manager.get_category_all_items(category)
 
             try:
+                cls.is_auth_required = True if config['authentication']['value'] == "mandatory" else False
+            except KeyError:
+                _logger.error("error in retrieving authentication info")
+                raise
+
+            try:
+                cls.auth_method = config['authMethod']['value']
+            except KeyError:
+                _logger.error("error in retrieving authentication method info")
+                raise
+
+            try:
                 cls.cert_file_name = config['certificateName']['value']
             except KeyError:
                 _logger.error("error in retrieving certificateName info")
@@ -328,13 +357,6 @@ class Server:
                 _logger.error("error in parsing port value, received %s with type %s",
                               port_from_config, type(port_from_config))
                 raise
-
-            try:
-                cls.is_auth_required = True if config['authentication']['value'] == "mandatory" else False
-            except KeyError:
-                _logger.error("error in retrieving authentication info")
-                raise
-
         except Exception as ex:
             _logger.exception(str(ex))
             raise
@@ -366,14 +388,26 @@ class Server:
             raise
 
     @staticmethod
-    def _make_app(auth_required=True):
+    def _make_app(auth_required=True, auth_method='any'):
         """Creates the REST server
 
         :rtype: web.Application
         """
-        app = web.Application(middlewares=[middleware.error_middleware, middleware.auth_middleware])
+        mwares = [middleware.error_middleware]
+
+        # Maintain this order. Middlewares are executed in reverse order.
+        if auth_method != "any":
+            if auth_method == "certificate":
+                mwares.append(middleware.certificate_login_middleware)
+            else:  # password
+                mwares.append(middleware.password_login_middleware)
+
         if not auth_required:
-            app = web.Application(middlewares=[middleware.error_middleware, middleware.optional_auth_middleware])
+            mwares.append(middleware.optional_auth_middleware)
+        else:
+            mwares.append(middleware.auth_middleware)
+
+        app = web.Application(middlewares=mwares)
         admin_routes.setup(app)
         return app
 
@@ -651,7 +685,7 @@ class Server:
             loop.run_until_complete(cls._start_service_monitor())
 
             loop.run_until_complete(cls.rest_api_config())
-            cls.service_app = cls._make_app(auth_required=cls.is_auth_required)
+            cls.service_app = cls._make_app(auth_required=cls.is_auth_required, auth_method=cls.auth_method)
             # ssl context
             ssl_ctx = None
             if not cls.is_rest_server_http_enabled:

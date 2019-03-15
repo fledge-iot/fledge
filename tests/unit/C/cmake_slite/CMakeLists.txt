@@ -1,0 +1,24 @@
+cmake_minimum_required(VERSION 2.6)
+
+project(sqlitememory)
+
+set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
+
+set(STORAGE_COMMON_LIB storage-common-lib)
+
+## sqlitememory plugin
+include_directories(${CMAKE_SOURCE_DIR}/../../../C/plugins/storage/common/include)
+include_directories(${CMAKE_SOURCE_DIR}/../../../C/plugins/storage/sqlitememory/include)
+
+# Check Sqlite3 required version
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}")
+find_package(sqlite3)
+
+# Find source files
+file(GLOB SOURCES ${CMAKE_SOURCE_DIR}/../../../C/plugins/storage/sqlitememory/*.cpp)
+
+# Create shared library
+add_library(${PROJECT_NAME} SHARED ${SOURCES})
+target_link_libraries(${PROJECT_NAME} -lsqlite3)
+target_link_libraries(${PROJECT_NAME} ${STORAGE_COMMON_LIB})
+set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION 1)

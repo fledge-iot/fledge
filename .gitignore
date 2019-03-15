@@ -17,6 +17,8 @@ data/tmp
 
 # SQLite3 default db location and after migration
 data/*.db
+data/*.db-wal
+data/*.db-shm
 data/*.db-journal
 scripts/extras/*.db
 

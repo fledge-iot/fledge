@@ -550,3 +550,28 @@ class TestUserModel:
         assert 'user_pwd_history' == args1[0]
         p = json.loads(args1[1])
         assert payload == p
+
+    @pytest.mark.parametrize("user_data", [
+        ({'count': 1, 'rows': [{'role_id': '1', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '1', 'is_admin': True, 'pwd_last_changed': '2018-03-30 12:32:08.216159'}]}),
+        ({'count': 1, 'rows': [{'role_id': '2', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '2', 'is_admin': False, 'pwd_last_changed': '2018-03-29 05:05:08.216159'}]})
+    ])
+    async def test_certficate_login(self, user_data):
+        payload = {"return": ["id", "role_id"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "t"}}}
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=mock_coro(user_data)) as query_tbl_patch:
+                with patch.object(storage_client_mock, 'insert_into_tbl', return_value=mock_coro(True)) as insert_tbl_patch:
+                    uid, jwt_token, is_admin = await User.Objects.certificate_login('user', '0.0.0.0')
+                    expected = user_data['rows'][0]
+                    assert uid == expected['id']
+                    assert is_admin == expected['is_admin']
+                    # FIXME: token patch
+                    # assert jwt_token
+
+                # FIXME: datetime.now() patch and then payload assertion
+                args, kwargs = insert_tbl_patch.call_args
+                assert 'user_logins' == args[0]
+            args1, kwargs1 = query_tbl_patch.call_args
+            assert 'users' == args1[0]
+            p = json.loads(args1[1])
+            assert payload == p

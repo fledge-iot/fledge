@@ -27,8 +27,6 @@ __version__ = "${VERSION}"
 @asyncio.coroutine
 def q_result(*args):
     table = args[0]
-    if table == 'readings':
-        return {"rows": [{"count_*": 1}], "count": 1}
 
     if table == 'streams':
         return {"rows": [{"min_last_object": 0}], "count": 1}
@@ -134,25 +132,21 @@ class TestPurge:
                 p._storage_async = MagicMock(spec=StorageClientAsync)
                 p._readings_storage_async = MagicMock(spec=ReadingsStorageClientAsync)
                 audit = p._audit
-                with patch.object(p._readings_storage_async, "query",
-                                  return_value=q_result('readings')) as patch_query:
-                    with patch.object(p._storage_async, "query_tbl_with_payload",
-                                      return_value=q_result('streams')) as patch_storage:
-                        with patch.object(p._readings_storage_async, 'purge',
-                                          side_effect=self.store_purge) as mock_storage_purge:
-                            with patch.object(audit, 'information', return_value=mock_audit_info()) as audit_info:
-                                # Test the positive case when all if conditions in purge_data pass
-                                assert expected_return == await p.purge_data(conf)
-                                assert audit_info.called
-                                args, kwargs = mock_storage_purge.call_args
-                                assert kwargs == expected_calls
-                    assert patch_storage.called
-                    assert 1 == patch_storage.call_count
-                    args, kwargs = patch_storage.call_args
-                    assert ('streams', '{"aggregate": {"operation": "min", "column": "last_object"}}') == args
-                assert patch_query.called
-                args1, kwargs1 = patch_query.call_args
-                assert ('{"aggregate": {"operation": "count", "column": "*"}}',) == args1
+
+                with patch.object(p._storage_async, "query_tbl_with_payload",
+                                  return_value=q_result('streams')) as patch_storage:
+                    with patch.object(p._readings_storage_async, 'purge',
+                                      side_effect=self.store_purge) as mock_storage_purge:
+                        with patch.object(audit, 'information', return_value=mock_audit_info()) as audit_info:
+                            # Test the positive case when all if conditions in purge_data pass
+                            assert expected_return == await p.purge_data(conf)
+                            assert audit_info.called
+                            args, kwargs = mock_storage_purge.call_args
+                            assert kwargs == expected_calls
+                assert patch_storage.called
+                assert 1 == patch_storage.call_count
+                args, kwargs = patch_storage.call_args
+                assert ('streams', '{"aggregate": {"operation": "min", "column": "last_object"}}') == args
 
     @pytest.mark.parametrize("conf, expected_return", [
         ({"retainUnsent": {"value": "False"}, "age": {"value": "0"}, "size": {"value": "0"}}, (0, 0)),
@@ -177,18 +171,14 @@ class TestPurge:
                 p._storage_async = MagicMock(spec=StorageClientAsync)
                 p._readings_storage_async = MagicMock(spec=ReadingsStorageClientAsync)
                 audit = p._audit
-                with patch.object(p._readings_storage_async, "query",
-                                  return_value=q_result('readings')) as patch_query:
-                    with patch.object(p._storage_async, "query_tbl_with_payload",
-                                      return_value=q_result('streams')) as patch_storage:
-                        with patch.object(p._readings_storage_async, 'purge', side_effect=self.store_purge):
-                            with patch.object(audit, 'information', return_value=mock_audit_info()):
-                                assert expected_return == await p.purge_data(conf)
-                                p._logger.info.assert_called_once_with("No rows purged")
-                    assert patch_storage.called
-                    assert 1 == patch_storage.call_count
-                assert patch_query.called
-                assert 1 == patch_query.call_count
+                with patch.object(p._storage_async, "query_tbl_with_payload",
+                                  return_value=q_result('streams')) as patch_storage:
+                    with patch.object(p._readings_storage_async, 'purge', side_effect=self.store_purge):
+                        with patch.object(audit, 'information', return_value=mock_audit_info()):
+                            assert expected_return == await p.purge_data(conf)
+                            p._logger.info.assert_called_once_with("No rows purged")
+                assert patch_storage.called
+                assert 1 == patch_storage.call_count
 
     @pytest.mark.parametrize("conf, expected_return", [
         ({"retainUnsent": {"value": "True"}, "age": {"value": "-1"}, "size": {"value": "-1"}}, (0, 0))
@@ -212,17 +202,13 @@ class TestPurge:
                 p._storage_async = MagicMock(spec=StorageClientAsync)
                 p._readings_storage_async = MagicMock(spec=ReadingsStorageClientAsync)
                 audit = p._audit
-                with patch.object(p._readings_storage_async, "query",
-                                  return_value=q_result('readings')) as patch_query:
-                    with patch.object(p._storage_async, "query_tbl_with_payload",
-                                      return_value=q_result('streams')) as patch_storage:
-                        with patch.object(p._readings_storage_async, 'purge', side_effect=self.store_purge):
-                            with patch.object(audit, 'information', return_value=mock_audit_info()):
-                                assert expected_return == await p.purge_data(conf)
-                    assert patch_storage.called
-                    assert 1 == patch_storage.call_count
-                assert patch_query.called
-                assert 1 == patch_query.call_count
+                with patch.object(p._storage_async, "query_tbl_with_payload",
+                                  return_value=q_result('streams')) as patch_storage:
+                    with patch.object(p._readings_storage_async, 'purge', side_effect=self.store_purge):
+                        with patch.object(audit, 'information', return_value=mock_audit_info()):
+                            assert expected_return == await p.purge_data(conf)
+                assert patch_storage.called
+                assert 1 == patch_storage.call_count
 
     @pytest.mark.parametrize("conf, expected_error_key",
                              [({"retainUnsent": {"value": "True"}, "age": {"value": "bla"}, "size": {"value": "0"}},
@@ -248,20 +234,17 @@ class TestPurge:
                 p._storage_async = MagicMock(spec=StorageClientAsync)
                 p._readings_storage_async = MagicMock(spec=ReadingsStorageClientAsync)
                 audit = p._audit
-                with patch.object(p._readings_storage_async, "query",
-                                  return_value=q_result('readings')) as patch_query:
-                    with patch.object(p._storage_async, "query_tbl_with_payload",
-                                      return_value=q_result('streams')) as patch_storage:
-                        with patch.object(p._readings_storage_async, 'purge', side_effect=self.store_purge):
-                            with patch.object(audit, 'information', return_value=mock_audit_info()):
-                                # Test the code block when purge failed because of invalid configuration
-                                await p.purge_data(conf)
-                                p._logger.error.assert_called_with('Configuration item {} bla should be integer!'.
-                                                                   format(expected_error_key))
-                    assert patch_storage.called
-                    assert 1 == patch_storage.call_count
-                assert patch_query.called
-                assert 1 == patch_query.call_count
+
+                with patch.object(p._storage_async, "query_tbl_with_payload",
+                                  return_value=q_result('streams')) as patch_storage:
+                    with patch.object(p._readings_storage_async, 'purge', side_effect=self.store_purge):
+                        with patch.object(audit, 'information', return_value=mock_audit_info()):
+                            # Test the code block when purge failed because of invalid configuration
+                            await p.purge_data(conf)
+                            p._logger.error.assert_called_with('Configuration item {} bla should be integer!'.
+                                                               format(expected_error_key))
+                assert patch_storage.called
+                assert 1 == patch_storage.call_count
 
     async def test_run(self):
         """Test that run calls all units of purge process"""

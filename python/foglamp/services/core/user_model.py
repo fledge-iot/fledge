@@ -1,4 +1,3 @@
-
 # -*- coding: utf-8 -*-
 
 # FOGLAMP_BEGIN
@@ -10,7 +9,6 @@
 """
 import uuid
 import hashlib
-
 from datetime import datetime, timedelta
 import jwt
 
@@ -18,8 +16,11 @@ from foglamp.services.core import connect
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.exceptions import StorageServerError
 from foglamp.common.configuration_manager import ConfigurationManager
+from foglamp.common import logger
+from foglamp.common.web.ssl_wrapper import SSLVerifier
+from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA
 
-__author__ = "Praveen Garg, Ashish Jabble"
+__author__ = "Praveen Garg, Ashish Jabble, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -30,6 +31,8 @@ JWT_ALGORITHM = 'HS256'
 JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 ERROR_MSG = 'Something went wrong'
 USED_PASSWORD_HISTORY_COUNT = 3
+
+_logger = logger.setup(__name__)
 
 
 class User:
@@ -324,6 +327,11 @@ class User:
             if not is_valid_pwd:
                 raise User.PasswordDoesNotMatch('Username or Password do not match')
 
+            uid, jwt_token, is_admin = await cls._get_new_token(storage_client, found_user, host)
+            return uid, jwt_token, is_admin
+
+        @classmethod
+        async def _get_new_token(cls, storage_client, found_user, host):
             # fetch user info
             exp = datetime.now() + timedelta(seconds=JWT_EXP_DELTA_SECONDS)
             uid = found_user['id']
@@ -346,6 +354,32 @@ class User:
                 return uid, jwt_token, True
 
             return uid, jwt_token, False
+
+        @classmethod
+        async def certificate_login(cls, username, host):
+            """
+            Args:
+                username: username
+                host:     IP address
+            Returns:
+                  uid: User id
+                  token: jwt token
+                  is_admin: boolean flag
+
+            """
+            storage_client = connect.get_storage_async()
+
+            # get user info on the basis of username
+            payload = PayloadBuilder().SELECT("id", "role_id").WHERE(['uname', '=', username])\
+                .AND_WHERE(['enabled', '=', 't']).payload()
+            result = await storage_client.query_tbl_with_payload('users', payload)
+            if len(result['rows']) == 0:
+                raise User.DoesNotExist('User does not exist')
+
+            found_user = result['rows'][0]
+
+            uid, jwt_token, is_admin = await cls._get_new_token(storage_client, found_user, host)
+            return uid, jwt_token, is_admin
 
         @classmethod
         async def delete_user_tokens(cls, user_id):
@@ -411,3 +445,16 @@ class User:
             # insert into password history table
             payload = PayloadBuilder().INSERT(user_id=user_id, pwd=hashed_pwd).payload()
             await storage_client.insert_into_tbl("user_pwd_history", payload)
+
+        @classmethod
+        async def verify_certificate(cls, cert):
+            certs_dir = _FOGLAMP_DATA + '/etc/certs' if _FOGLAMP_DATA else _FOGLAMP_ROOT + "/data/etc/certs"
+
+            storage_client = connect.get_storage_async()
+            cfg_mgr = ConfigurationManager(storage_client)
+            ca_cert_item = await cfg_mgr.get_category_item('rest_api', 'authCertificateName')
+            ca_cert_file = "{}/{}.cert".format(certs_dir, ca_cert_item['value'])
+
+            SSLVerifier.set_ca_cert(ca_cert_file)
+            SSLVerifier.set_user_cert(cert)
+            SSLVerifier.verify()  # raises OSError, SSLVerifier.VerificationError

@@ -1130,11 +1130,13 @@ bool stdInsert = (arr == std::string::npos || arr > 8);
 	int rc;
 
 	// Exec INSERT statement: no callback, no result set
+	m_writeAccessOngoing.fetch_add(1);
 	rc = SQLexec(dbHandle,
 		     query,
 		     NULL,
 		     NULL,
 		     &zErrMsg);
+	m_writeAccessOngoing.fetch_sub(1);
 
 	// Check exec result
 	if (rc != SQLITE_OK )
@@ -1499,11 +1501,13 @@ SQLBuffer	sql;
 	int rc;
 
 	// Exec the UPDATE statement: no callback, no result set
+	m_writeAccessOngoing.fetch_add(1);
 	rc = SQLexec(dbHandle,
 		     query,
 		     NULL,
 		     NULL,
 		     &zErrMsg);
+	m_writeAccessOngoing.fetch_sub(1);
 
 	// Check result code
 	if (rc != SQLITE_OK)
@@ -1592,12 +1596,13 @@ SQLBuffer	sql;
 	int rc;
 
 	// Exec the DELETE statement: no callback, no result set
+	m_writeAccessOngoing.fetch_add(1);
 	rc = SQLexec(dbHandle,
 		     query,
 		     NULL,
 		     NULL,
 		     &zErrMsg);
-
+	m_writeAccessOngoing.fetch_sub(1);
 
 	// Check result code
 	if (rc == SQLITE_OK)
@@ -3641,9 +3646,9 @@ int retries = 0, rc;
 				maxQueue = m_waiting;
 			m_qMutex.unlock();
 #endif
-			int interval = (retries * RETRY_BACKOFF);
+			int interval = (1 * RETRY_BACKOFF);
 			std::this_thread::sleep_for(std::chrono::milliseconds(interval));
-			if (retries > 5) Logger::getLogger()->info("SQLexec: retry %d of %d, rc=%s, errmsg=%s, DB connection @ %p, slept for %d msecs", 
+			if (retries > 9) Logger::getLogger()->info("SQLexec: retry %d of %d, rc=%s, errmsg=%s, DB connection @ %p, slept for %d msecs", 
 						retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", sqlite3_errmsg(db), this, interval);
 #if DO_PROFILE_RETRIES
 			m_qMutex.lock();

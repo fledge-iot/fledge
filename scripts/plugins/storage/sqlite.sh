@@ -166,6 +166,7 @@ sqlite_reset() {
     fi
     # 2- Create new datafile an apply init file
     INIT_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
+PRAGMA page_size = 4096;
 ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}' AS 'foglamp';
 .read '${INIT_SQL}'
 .quit

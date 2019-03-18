@@ -20,8 +20,10 @@ find_package(sqlite3)
 # Find source files
 file(GLOB SOURCES ../../../../C/plugins/storage/sqlitememory/*.cpp)
 
-
 # Create shared library
+
+link_directories(${PROJECT_BINARY_DIR}/../../lib)
+
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
 target_link_libraries(${PROJECT_NAME} -lsqlite3)
 target_link_libraries(${PROJECT_NAME} ${STORAGE_COMMON_LIB})

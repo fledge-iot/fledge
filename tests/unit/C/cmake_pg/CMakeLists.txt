@@ -18,6 +18,8 @@ include_directories(../../../../C/plugins/storage/postgres/include)
 file(GLOB SOURCES ../../../../C/plugins/storage/postgres/*.cpp)
 
 # Create shared library
+link_directories(${PROJECT_BINARY_DIR}/../../lib)
+
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
 target_link_libraries(${PROJECT_NAME} -lpq)
 target_link_libraries(${PROJECT_NAME} ${STORAGE_COMMON_LIB})

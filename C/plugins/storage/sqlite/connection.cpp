@@ -39,7 +39,12 @@
  * to have access to the database between blocks.
  */
 #define PURGE_SLEEP_MS 500
-#define PURGE_DELETE_BLOCK_SIZE	100
+#define PURGE_DELETE_BLOCK_SIZE	20
+#define TARGET_PURGE_BLOCK_DEL_TIME	(70*1000) 	// 70 msec
+#define PURGE_BLOCK_SZ_GRANULARITY	5 	// 5 rows
+#define MIN_PURGE_DELETE_BLOCK_SIZE	20
+#define MAX_PURGE_DELETE_BLOCK_SIZE	1500
+#define RECALC_PURGE_BLOCK_SIZE_NUM_BLOCKS	30	// recalculate purge block size after every 30 blocks
 
 #define PURGE_SLOWDOWN_AFTER_BLOCKS 5
 #define PURGE_SLOWDOWN_SLEEP_MS 500
@@ -79,6 +84,7 @@ static std::atomic<int> m_waiting(0);
 static std::atomic<int> m_writeAccessOngoing(0);
 static std::mutex	db_mutex;
 static std::condition_variable	db_cv;
+static int purgeBlockSize = PURGE_DELETE_BLOCK_SIZE;
 
 #define START_TIME std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 #define END_TIME std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now(); \
@@ -451,6 +457,9 @@ Connection::Connection()
 
 	// Allow usage of URI for filename
 	sqlite3_config(SQLITE_CONFIG_URI, 1);
+
+	Logger *logger = Logger::getLogger();
+	logger->setMinLevel("info");
 
 	/**
 	 * Make a connection to the database
@@ -2350,7 +2359,6 @@ int blocks = 0;
 
 	Logger *logger = Logger::getLogger();
 
-
 	result = "{ \"removed\" : 0, ";
 	result += " \"unsentPurged\" : 0, ";
 	result += " \"unsentRetained\" : 0, ";
@@ -2548,12 +2556,12 @@ int blocks = 0;
 
 	unsigned int deletedRows = 0;
 	char *zErrMsg = NULL;
-	unsigned int rowsAffected;
-	logger->info("Purge about to delete readings # %ld to %ld in %d blocks of %d rows each", rowidMin, rowidLimit, (rowidLimit-rowidMin+PURGE_DELETE_BLOCK_SIZE-1)/PURGE_DELETE_BLOCK_SIZE, PURGE_DELETE_BLOCK_SIZE);
+	unsigned int rowsAffected, totTime=0, prevBlocks=0, prevTotTime=0;
+	logger->info("Purge about to delete readings # %ld to %ld", rowidMin, rowidLimit);
 	while (rowidMin < rowidLimit)
 	{
 		blocks++;
-		rowidMin += PURGE_DELETE_BLOCK_SIZE;
+		rowidMin += purgeBlockSize;
 		if (rowidMin > rowidLimit)
 		{
 			rowidMin = rowidLimit;
@@ -2582,10 +2590,11 @@ int blocks = 0;
 		// Release memory for 'query' var
 		delete[] query;
 
+		totTime += usecs;
+
 		if(usecs>150000)
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(100+usecs/10000));
-			//Logger::getLogger()->debug("Purge loop slept for %lld msecs since removal of a block took %lld usecs", (100+usecs/10000), usecs);
 		}
 		}
 
@@ -2601,6 +2610,33 @@ int blocks = 0;
 		// Get db changes
 		rowsAffected = sqlite3_changes(dbHandle);
 		deletedRows += rowsAffected;
+		logger->debug("Purge delete block #%d with %d readings", blocks, rowsAffected);
+
+		if(blocks % RECALC_PURGE_BLOCK_SIZE_NUM_BLOCKS == 0)
+		{
+			int prevAvg = prevTotTime/(prevBlocks?prevBlocks:1);
+			int currAvg = (totTime-prevTotTime)/(blocks-prevBlocks);
+			int avg = ((prevAvg?prevAvg:currAvg)*5 + currAvg*5) / 10; // 50% weightage for long term avg and 50% weightage for current avg
+			prevBlocks = blocks;
+			prevTotTime = totTime;
+			int deviation = abs(avg - TARGET_PURGE_BLOCK_DEL_TIME);
+			logger->debug("blocks=%d, totTime=%d usecs, prevAvg=%d usecs, currAvg=%d usecs, avg=%d usecs, TARGET_PURGE_BLOCK_DEL_TIME=%d usecs, deviation=%d usecs", 
+							blocks, totTime, prevAvg, currAvg, avg, TARGET_PURGE_BLOCK_DEL_TIME, deviation);
+			if (deviation > TARGET_PURGE_BLOCK_DEL_TIME/10)
+			{
+				float ratio = (float)TARGET_PURGE_BLOCK_DEL_TIME / (float)avg;
+				if (ratio > 2.0) ratio = 2.0;
+				if (ratio < 0.5) ratio = 0.5;
+				purgeBlockSize = (float)purgeBlockSize * ratio;
+				purgeBlockSize = purgeBlockSize / PURGE_BLOCK_SZ_GRANULARITY * PURGE_BLOCK_SZ_GRANULARITY;
+				if (purgeBlockSize < MIN_PURGE_DELETE_BLOCK_SIZE)
+					purgeBlockSize = MIN_PURGE_DELETE_BLOCK_SIZE;
+				if (purgeBlockSize > MAX_PURGE_DELETE_BLOCK_SIZE)
+					purgeBlockSize = MAX_PURGE_DELETE_BLOCK_SIZE;
+				logger->debug("Changed purgeBlockSize to %d", purgeBlockSize);
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		}
 		//Logger::getLogger()->debug("Purge delete block #%d with %d readings", blocks, rowsAffected);
 	} while (rowidMin  < rowidLimit);
 

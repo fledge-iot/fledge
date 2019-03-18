@@ -121,6 +121,9 @@ The destination may be overriden by setting the variable *DESTDIR* in the make c
 
 |br|
 
+**NOTE:** *Please note that openssl toolkit is a requirement if we want to use https based REST client and certificate based authentication.*
+
+
 Executing FogLAMP
 =================
 

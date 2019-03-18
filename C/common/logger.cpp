@@ -19,7 +19,7 @@
 using namespace std;
 
 // uncomment line below to get uSec level timestamps
-//#define ADD_USEC_TS
+// #define ADD_USEC_TS
 
 inline long getCurrTimeUsec()
 {
@@ -112,7 +112,11 @@ void Logger::error(const string& msg, ...)
 	va_list args;
 	va_start(args, msg);
 	string *fmt = format(msg, args);
-	syslog(LOG_ERR, "ERROR: %s", fmt->c_str());
+#ifdef ADD_USEC_TS
+		syslog(LOG_ERR, "[.%06ld] ERROR: %s", getCurrTimeUsec(), fmt->c_str());
+#else
+		syslog(LOG_ERR, "ERROR: %s", fmt->c_str());
+#endif
 	delete fmt;
 	va_end(args);
 }

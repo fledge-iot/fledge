@@ -321,7 +321,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				s = read(m_timerfd, &exp, sizeof(uint64_t));
 				if ((unsigned int)s != sizeof(uint64_t))
 					logger->error("timerfd read()");
-				if (exp > 100)
+				if (exp > 100 && exp > m_readingsPerSec/2)
 					logger->error("%d expiry notifications accumulated", exp);
 #if DO_CATCHUP
 				for (uint64_t i=0; i<exp; i++)

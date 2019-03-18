@@ -226,9 +226,6 @@ CREATE TABLE foglamp.readings (
 CREATE INDEX fki_readings_fk1
     ON readings (asset_code, user_ts desc);
 
-CREATE INDEX readings_ix1
-    ON readings (read_key);
-
 CREATE INDEX readings_ix2
     ON readings (asset_code);
 

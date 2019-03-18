@@ -45,6 +45,8 @@ from foglamp.services.core.user_model import User
 from foglamp.common.storage_client import payload_builder
 from foglamp.services.core.asset_tracker.asset_tracker import AssetTracker
 from foglamp.services.core.api import asset_tracker as asset_tracker_api
+from foglamp.common.web.ssl_wrapper import SSLVerifier
+
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
@@ -688,13 +690,21 @@ class Server:
             cls.service_app = cls._make_app(auth_required=cls.is_auth_required, auth_method=cls.auth_method)
             # ssl context
             ssl_ctx = None
-            if not cls.is_rest_server_http_enabled:
-                # ensure TLS 1.2 and SHA-256
-                # handle expiry?
-                ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-                cert, key = cls.get_certificates()
-                _logger.info('Loading certificates %s and key %s', cert, key)
-                ssl_ctx.load_cert_chain(cert, key)
+            if not cls.running_in_safe_mode:
+                if not cls.is_rest_server_http_enabled:
+                    cert, key = cls.get_certificates()
+                    _logger.info('Loading certificates %s and key %s', cert, key)
+
+                    # Verification handling of a cert
+                    with open(cert, 'r') as content_file:
+                        server_cert = content_file.read()
+                    SSLVerifier.set_user_cert(server_cert)
+                    if SSLVerifier.is_expired():
+                        msg = 'Certificate expired on {}. Start in safe-mode to fix this problem'.format(SSLVerifier.get_enddate())
+                        _logger.error(msg)
+                        raise SSLVerifier.VerificationError(msg)
+                    ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+                    ssl_ctx.load_cert_chain(cert, key)
 
             # Get the service data and advertise the management port of the core
             # to allow other microservices to find FogLAMP
@@ -737,6 +747,9 @@ class Server:
 
             loop.run_forever()
 
+        except SSLVerifier.VerificationError as e:
+            sys.stderr.write('Error: ' + format(str(e)) + "\n")
+            sys.exit(1)
         except (OSError, RuntimeError, TimeoutError) as e:
             sys.stderr.write('Error: ' + format(str(e)) + "\n")
             sys.exit(1)

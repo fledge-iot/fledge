@@ -92,6 +92,24 @@ async def auth_middleware(app, handler):
     return middleware
 
 
+async def certificate_login_middleware(app, handler):
+    async def middleware(request):
+        if request.method == 'OPTIONS':
+            return await handler(request)
+        request.auth_method = 'certificate'
+        return await handler(request)
+    return middleware
+
+
+async def password_login_middleware(app, handler):
+    async def middleware(request):
+        if request.method == 'OPTIONS':
+            return await handler(request)
+        request.auth_method = 'password'
+        return await handler(request)
+    return middleware
+
+
 def has_permission(permission):
     """Decorator that restrict access only for authorized users with correct permissions (role_name)
 

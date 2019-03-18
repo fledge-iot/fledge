@@ -538,69 +538,113 @@ int Connection::insert(const std::string& table, const std::string& data)
 {
 SQLBuffer	sql;
 Document	document;
-SQLBuffer	values;
-int		col = 0;
- 
-	if (document.Parse(data.c_str()).HasParseError())
+ostringstream convert;
+std::size_t arr = data.find("inserts");
+
+// Check first the 'inserts' property in JSON data
+bool stdInsert = (arr == std::string::npos || arr > 8);
+	// If input data is not an array of iserts
+	// create an array with one element
+	if (stdInsert)
+	{
+		convert << "{ \"inserts\" : [ ";
+		convert << data;
+		convert << " ] }";
+	}
+
+	if (document.Parse(stdInsert ? convert.str().c_str() : data.c_str()).HasParseError())
 	{
 		raiseError("insert", "Failed to parse JSON payload\n");
 		return -1;
 	}
- 	sql.append("INSERT INTO foglamp.");
-	sql.append(table);
-	sql.append(" (");
-	for (Value::ConstMemberIterator itr = document.MemberBegin();
-		itr != document.MemberEnd(); ++itr)
+
+	// Get the array with row(s)
+	Value &inserts = document["inserts"];
+	if (!inserts.IsArray())
 	{
-		if (col)
-		{
-			sql.append(", ");
-		}
-		sql.append("\"");
-		sql.append(itr->name.GetString());
-		sql.append("\"");
- 
-		if (col)
-		{
-			values.append(", ");
-		}
-		if (itr->value.IsString())
-		{
-			const char *str = itr->value.GetString();
-			// Check if the string is a function
-			string s (str);
-  			regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
-  			if (regex_match (s,e))
-			{
-				values.append(str);
-			}
-			else
-			{
-				values.append('\'');
-				values.append(escape(str));
-				values.append('\'');
-			}
-		}
-		else if (itr->value.IsDouble())
-			values.append(itr->value.GetDouble());
-		else if (itr->value.IsNumber())
-			values.append(itr->value.GetInt());
-		else if (itr->value.IsObject())
-		{
-			StringBuffer buffer;
-			Writer<StringBuffer> writer(buffer);
-			itr->value.Accept(writer);
-			values.append('\'');
-			values.append(escape(buffer.GetString()));
-			values.append('\'');
-		}
-		col++;
+		raiseError("insert", "Payload is missing the inserts array");
+		return -1;
 	}
-	sql.append(") values (");
-	const char *vals = values.coalesce();
-	sql.append(vals);
-	delete[] vals;
-	sql.append(");");
+
+	// Number of inserts
+	int ins = 0;
+
+	// Iterate through insert array
+	for (Value::ConstValueIterator iter = inserts.Begin();
+					iter != inserts.End();
+					++iter)
+	{
+		if (!iter->IsObject())
+		{
+			raiseError("insert",
+				   "Each entry in the insert array must be an object");
+			return -1;
+		}
+
+		int col = 0;
+		SQLBuffer values;
+
+	 	sql.append("INSERT INTO foglamp.");
+		sql.append(table);
+		sql.append(" (");
+
+		for (Value::ConstMemberIterator itr = (*iter).MemberBegin();
+						itr != (*iter).MemberEnd();
+						++itr)
+		{
+			// Append column name
+			if (col)
+			{
+				sql.append(", ");
+			}
+			sql.append(itr->name.GetString());
+ 
+			// Append column value
+			if (col)
+			{
+				values.append(", ");
+			}
+			if (itr->value.IsString())
+			{
+				const char *str = itr->value.GetString();
+				// Check if the string is a function
+				string s (str);
+				regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
+				if (regex_match (s,e))
+				{
+					values.append(str);
+				}
+				else
+				{
+					values.append('\'');
+					values.append(escape(str));
+					values.append('\'');
+				}
+			}
+			else if (itr->value.IsDouble())
+				values.append(itr->value.GetDouble());
+			else if (itr->value.IsNumber())
+				values.append(itr->value.GetInt());
+			else if (itr->value.IsObject())
+			{
+				StringBuffer buffer;
+				Writer<StringBuffer> writer(buffer);
+				itr->value.Accept(writer);
+				values.append('\'');
+				values.append(escape(buffer.GetString()));
+				values.append('\'');
+			}
+			col++;
+		}
+		sql.append(") VALUES (");
+		const char *vals = values.coalesce();
+		sql.append(vals);
+		delete[] vals;
+		sql.append(");");
+
+		// Increment row count
+		ins++;
+	}
 
 	const char *query = sql.coalesce();
 	logSQL("CommonInsert", query);
@@ -632,11 +676,11 @@ SQLBuffer	sql;
 	std::size_t arr = payload.find("updates");
 	bool changeReqd = (arr == std::string::npos || arr > 8);
 	if (changeReqd)
-		{
+	{
 		convert << "{ \"updates\" : [ ";
 		convert << payload;
 		convert << " ] }";
-		}
+	}
 
 	if (document.Parse(changeReqd?convert.str().c_str():payload.c_str()).HasParseError())
 	{

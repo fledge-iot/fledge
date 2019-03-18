@@ -1,0 +1,176 @@
+#!/usr/bin/env bash
+
+##--------------------------------------------------------------------
+## Copyright (c) 2019 Dianomic Systems
+##
+## Licensed under the Apache License, Version 2.0 (the "License");
+## you may not use this file except in compliance with the License.
+## You may obtain a copy of the License at
+##
+##     http://www.apache.org/licenses/LICENSE-2.0
+##
+## Unless required by applicable law or agreed to in writing, software
+## distributed under the License is distributed on an "AS IS" BASIS,
+## WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+## See the License for the specific language governing permissions and
+## limitations under the License.
+##--------------------------------------------------------------------
+
+
+# @date: 2019-03-07
+#
+# Bash Script to manage auth certificates
+# The first implementation is to create a new self-signed SSL Certificate
+#
+# USAGE: this command will ask for the certificate name and number in days it will expire
+# $ ./certificates ca ca 365
+#
+# Create a certificate key.
+# Create the certificate signing request (CSR) which contains details such as the domain name and address details.
+# Sign the certificate
+# Install the certificate and key in the application.
+
+#
+# USAGE
+# The script is meant to be called via make, i.e. it is not meant to be used interactively
+# Arguments:
+#   $1 - ca or user
+#   $2 - Certificate name
+#   $3 - Expiration days
+#   $4 - Organization
+#   $5 - State
+#   $6 - Country
+#   $7 - Email
+#
+# The script is executed from the project directory
+#
+
+set -e
+#set -x
+
+#
+# Includes
+#
+
+# logger script
+. scripts/common/write_log.sh
+
+
+# Logger wrapper
+certificate_log() {
+  write_log "Utilities" "script.make.certificate" "$1" "$2" "$3" "$4" "$5"
+}
+
+#
+# Initial settings
+SSL_LOCATION="data/etc/certs"
+AUTH_NAME="ca"
+
+#
+# Initial checks
+#
+
+# Auth type - ca or user
+if [ -z ${1+x} ]; then
+  certificate_log "err" "Invalid/Missing auth type - ca or user" "all" "pretty"
+  exit 1
+else
+  if [[ "$1" != "ca" ]]; then
+    if [[ "$1" != "user" ]]; then
+      certificate_log "err" "Invalid/Missing auth type - ca or user" "all" "pretty"
+      exit 1
+    else
+      AUTH_TYPE="$1"
+    fi
+  else
+    AUTH_TYPE="$1"
+  fi
+fi
+
+# Certificate Name
+if [ -z ${2+x} ]; then
+  certificate_log "err" "Missing certificate name" "all" "pretty"
+  exit 1
+else
+  SSL_NAME="$2"
+fi
+
+# Expiration days
+if [ -z ${3+x} ]; then
+  certificate_log "err" "Missing expiration days" "all" "pretty"
+  exit 1
+else
+  SSL_EXPIRATION_DAYS="$3"
+fi
+
+# Organization
+if [ -z ${4+x} ]; then
+  SSL_ORGANIZATION="OSIsoft"
+else
+  SSL_ORGANIZATION="$4"
+fi
+
+# State
+if [ -z ${5+x} ]; then
+  SSL_STATE="California"
+else
+  SSL_STATE="$5"
+fi
+
+# Country
+if [ -z ${6+x} ]; then
+  SSL_COUNTRY="US"
+else
+  SSL_COUNTRY="$6"
+fi
+
+# Email
+if [ -z ${7+x} ]; then
+  SSL_EMAIL="foglamp@googlegroups.com"
+else
+  SSL_EMAIL="$7"
+fi
+
+# OpenSSL command
+if ! [ -x "$(command -v openssl)" ]; then
+  certificate_log "err" "Missing openssl command or package" "all" "pretty"
+  exit 1
+fi
+
+if [ ! -d "${SSL_LOCATION}" ]; then
+  mkdir -p "${SSL_LOCATION}"
+fi
+
+certificate_log "info"  "Creating ${AUTH_TYPE} SSL certificate ..." "outonly" "pretty"
+
+if [[ "$AUTH_TYPE" = "ca" ]]; then
+  # Add more info /C=$country/ST=$state/L=$locality/O=$organization/OU=$organizational_unit/CN=$common_name/emailAddress=$email
+  SUBJ="/C=${SSL_COUNTRY}/ST=${SSL_STATE}/O=${SSL_ORGANIZATION}/CN=${AUTH_NAME}/emailAddress=${SSL_EMAIL}"
+
+  openssl genrsa -out "${SSL_LOCATION}/${AUTH_NAME}.key" 4096 2> /dev/null
+  openssl req -new -x509 -days "${SSL_EXPIRATION_DAYS}" -key "${SSL_LOCATION}/${AUTH_NAME}.key" -out "${SSL_LOCATION}/${AUTH_NAME}.cert" -subj '/C=US/CN=MY-CA' 2> /dev/null
+
+  certificate_log "info" "${AUTH_TYPE} certificate created successfully, and placed in ${SSL_LOCATION}" "outonly" "pretty"
+else
+  # Add more info /C=$country/ST=$state/L=$locality/O=$organization/OU=$organizational_unit/CN=$common_name/emailAddress=$email
+  SUBJ="/C=${SSL_COUNTRY}/ST=${SSL_STATE}/O=${SSL_ORGANIZATION}/CN=${SSL_NAME}/emailAddress=${SSL_EMAIL}"
+
+  openssl genrsa -out "${SSL_LOCATION}/${SSL_NAME}.key" 1024 2> /dev/null
+  openssl req -new -key "${SSL_LOCATION}/${SSL_NAME}.key" -subj "${SUBJ}" -out "${SSL_LOCATION}/${SSL_NAME}.csr" 2> /dev/null
+  openssl x509 -req -days "${SSL_EXPIRATION_DAYS}" -in "${SSL_LOCATION}/${SSL_NAME}.csr" -CA "${SSL_LOCATION}/${AUTH_NAME}.cert" -CAkey "${SSL_LOCATION}/${AUTH_NAME}.key" -set_serial 01 -out "${SSL_LOCATION}/${SSL_NAME}.cert" 2> /dev/null
+
+  # Check key and certificate files
+  if [ ! -f "${SSL_LOCATION}/${SSL_NAME}.key" ]; then
+    certificate_log "err" "Could not create SSL certificate ${SSL_NAME} key at ${SSL_LOCATION}" "all" "pretty"
+    exit 1
+  fi
+
+  if [ ! -f "${SSL_LOCATION}/${SSL_NAME}.cert" ]; then
+    certificate_log "err" "Could not create SSL certificate ${SSL_NAME} at ${SSL_LOCATION}" "all" "pretty"
+    exit 1
+  fi
+
+  certificate_log "info" "${AUTH_TYPE} certificate created successfully for ${SSL_NAME}, and placed in ${SSL_LOCATION}" "outonly" "pretty"
+fi
+
+exit $?

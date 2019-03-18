@@ -66,6 +66,9 @@ public:
 	void	readingUnregister(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 	void	printList();
 
+public:
+	std::atomic<int>        m_workers_count;
+
 private:
         static StorageApi       *m_instance;
         HttpServer              *m_server;

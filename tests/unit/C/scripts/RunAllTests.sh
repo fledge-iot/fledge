@@ -48,10 +48,12 @@ for f in $cmakefile; do
 			exit 1
 		fi
 		echo Running tests...;
-		./RunTests --gtest_output=xml > /tmp/results;
-		rc=$?
-		if [ $rc != 0 ]; then
-			exit $rc
+		if [ -f "./RunTests" ] ; then
+			./RunTests --gtest_output=xml > /tmp/results;
+			rc=$?
+			if [ $rc != 0 ]; then
+				exit $rc
+			fi
 		fi
 	) >/dev/null
 	rc=$?

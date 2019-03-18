@@ -932,7 +932,7 @@ class Server:
         """ health check
         """
         since_started = time.time() - cls._start_time
-        return web.json_response({'uptime': since_started})
+        return web.json_response({'uptime': int(since_started)})
 
     @classmethod
     async def register(cls, request):

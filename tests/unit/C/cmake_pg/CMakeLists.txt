@@ -8,11 +8,14 @@ set(STORAGE_COMMON_LIB storage-common-lib)
 
 # postgres plugin
 include_directories(/usr/include/postgresql)
-include_directories(${CMAKE_SOURCE_DIR}/../../../C/plugins/storage/common/include)
-include_directories(${CMAKE_SOURCE_DIR}/../../../C/plugins/storage/postgres/include)
+include_directories(../../../../C/thirdparty/rapidjson/include)
+include_directories(../../../../C/common/include)
+include_directories(../../../../C/services/common/include)
+include_directories(../../../../C/plugins/storage/common/include)
+include_directories(../../../../C/plugins/storage/postgres/include)
 
 # Find source files
-file(GLOB SOURCES ${CMAKE_SOURCE_DIR}/../../../C/plugins/storage/postgres/*.cpp)
+file(GLOB SOURCES ../../../../C/plugins/storage/postgres/*.cpp)
 
 # Create shared library
 add_library(${PROJECT_NAME} SHARED ${SOURCES})

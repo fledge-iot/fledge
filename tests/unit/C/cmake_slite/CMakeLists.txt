@@ -7,15 +7,19 @@ set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 set(STORAGE_COMMON_LIB storage-common-lib)
 
 ## sqlitememory plugin
-include_directories(${CMAKE_SOURCE_DIR}/../../../C/plugins/storage/common/include)
-include_directories(${CMAKE_SOURCE_DIR}/../../../C/plugins/storage/sqlitememory/include)
+include_directories(../../../../C/thirdparty/rapidjson/include)
+include_directories(../../../../C/common/include)
+include_directories(../../../../C/services/common/include)
+include_directories(../../../../C/plugins/storage/common/include)
+include_directories(../../../../C/plugins/storage/sqlitememory/include)
 
 # Check Sqlite3 required version
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}")
 find_package(sqlite3)
 
 # Find source files
-file(GLOB SOURCES ${CMAKE_SOURCE_DIR}/../../../C/plugins/storage/sqlitememory/*.cpp)
+file(GLOB SOURCES ../../../../C/plugins/storage/sqlitememory/*.cpp)
+
 
 # Create shared library
 add_library(${PROJECT_NAME} SHARED ${SOURCES})

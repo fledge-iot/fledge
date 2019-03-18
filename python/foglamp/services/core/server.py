@@ -696,11 +696,11 @@ class Server:
                     _logger.info('Loading certificates %s and key %s', cert, key)
 
                     # Verification handling of a cert
-                    with open(cert, 'r') as content_file:
-                        server_cert = content_file.read()
-                    SSLVerifier.set_user_cert(server_cert)
+                    with open(cert, 'r') as tls_cert_content:
+                        tls_cert = tls_cert_content.read()
+                    SSLVerifier.set_user_cert(tls_cert)
                     if SSLVerifier.is_expired():
-                        msg = 'Certificate expired on {}. Start in safe-mode to fix this problem'.format(SSLVerifier.get_enddate())
+                        msg = 'Certificate `{}` expired on {}. Start in safe-mode to fix this problem!'.format(cls.cert_file_name, SSLVerifier.get_enddate())
                         _logger.error(msg)
                         raise SSLVerifier.VerificationError(msg)
                     ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)

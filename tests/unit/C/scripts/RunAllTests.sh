@@ -65,6 +65,9 @@ for f in $cmakefile; do
 		echo All tests in $dir passed
 	fi
 	file=`echo $dir | sed -e 's#./##' -e 's#/#_#g'`
-	mv $dir/build/test_detail.xml results/${file}.xml
+	source_file=$dir/build/test_detail.xml
+	if [ -f "$source_file" ] ; then
+		mv $source_file results/${file}.xml
+	fi
 done
 exit $exitstate

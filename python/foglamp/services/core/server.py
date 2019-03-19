@@ -690,19 +690,28 @@ class Server:
             cls.service_app = cls._make_app(auth_required=cls.is_auth_required, auth_method=cls.auth_method)
             # ssl context
             ssl_ctx = None
-            if not cls.running_in_safe_mode:
-                if not cls.is_rest_server_http_enabled:
-                    cert, key = cls.get_certificates()
-                    _logger.info('Loading certificates %s and key %s', cert, key)
+            if not cls.is_rest_server_http_enabled:
+                cert, key = cls.get_certificates()
+                _logger.info('Loading certificates %s and key %s', cert, key)
 
-                    # Verification handling of a cert
-                    with open(cert, 'r') as tls_cert_content:
-                        tls_cert = tls_cert_content.read()
-                    SSLVerifier.set_user_cert(tls_cert)
-                    if SSLVerifier.is_expired():
-                        msg = 'Certificate `{}` expired on {}. Start in safe-mode to fix this problem!'.format(cls.cert_file_name, SSLVerifier.get_enddate())
-                        _logger.error(msg)
+                # Verification handling of a tls cert
+                with open(cert, 'r') as tls_cert_content:
+                    tls_cert = tls_cert_content.read()
+                SSLVerifier.set_user_cert(tls_cert)
+                if SSLVerifier.is_expired():
+                    msg = 'Certificate `{}` expired on {}'.format(cls.cert_file_name, SSLVerifier.get_enddate())
+                    _logger.error(msg)
+
+                    if cls.running_in_safe_mode:
+                        cls.is_rest_server_http_enabled = True
+                        # TODO: Should we also run on configured https port or default http port?
+                        msg = "Running in safe mode withOUT https on port {}".format(cls.rest_server_port)
+                        _logger.info(msg)
+                    else:
+                        msg = 'Start in safe-mode to fix this problem!'
+                        _logger.warning(msg)
                         raise SSLVerifier.VerificationError(msg)
+                else:
                     ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
                     ssl_ctx.load_cert_chain(cert, key)
 
@@ -746,9 +755,9 @@ class Server:
             loop.run_until_complete(cls._audit.information('START', audit_msg))
 
             loop.run_forever()
-
         except SSLVerifier.VerificationError as e:
             sys.stderr.write('Error: ' + format(str(e)) + "\n")
+            loop.run_until_complete(cls.stop_storage())
             sys.exit(1)
         except (OSError, RuntimeError, TimeoutError) as e:
             sys.stderr.write('Error: ' + format(str(e)) + "\n")

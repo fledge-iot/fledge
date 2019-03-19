@@ -506,7 +506,7 @@ Connection::Connection()
 
 			sqlite3_free(zErrMsg);
 		}
-		
+
 		/*
 		 * Build the ATTACH DATABASE command in order to get
 		 * 'foglamp.' prefix in all SQL queries
@@ -1036,7 +1036,7 @@ bool stdInsert = (arr == std::string::npos || arr > 8);
 		convert << "{ \"inserts\" : [ ";
 		convert << data;
 		convert << " ] }";
-	} 
+	}
 
 	if (document.Parse(stdInsert ? convert.str().c_str() : data.c_str()).HasParseError())
 	{
@@ -1549,7 +1549,7 @@ SQLBuffer	sql;
 	{
 		// Release memory for 'query' var
 		delete[] query;
-		
+
 		int update = sqlite3_changes(dbHandle);
 
 		if (update == 0)
@@ -1890,7 +1890,7 @@ bool 		add_row = false;
 	m_writeAccessOngoing.fetch_sub(1);
 	db_cv.notify_all();
 	}
-	
+
 	// Release memory for 'query' var
 	delete[] query;
 
@@ -2383,7 +2383,7 @@ int blocks = 0;
 
 		if (rc != SQLITE_OK)
 		{
- 			raiseError("purge - phaase 0, fetching rowid limit ", zErrMsg);
+ 			raiseError("purge - phase 0, fetching rowid limit ", zErrMsg);
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
@@ -2442,6 +2442,7 @@ int blocks = 0;
 			return 0;
 		}
 	}
+
 	{
 		/*
 		 * Refine rowid limit to just those rows older than age hours.
@@ -2459,7 +2460,7 @@ int blocks = 0;
 		}
 
 		unsigned long m=l;
-		
+
 		while (l <= r)
 		{
 			unsigned long midRowId = 0;
@@ -2475,7 +2476,7 @@ int blocks = 0;
 			sqlBuffer.append(age);
 			sqlBuffer.append(" hours');");
 			const char *query = sqlBuffer.coalesce();
-			
+
 			rc = SQLexec(dbHandle,
 		     query,
 	  	     rowidCallback,
@@ -2499,10 +2500,10 @@ int blocks = 0;
 				// search in later/right half
 		        l = m + 1;
 			}
-		} 
+		}
 
 		rowidLimit = m;
-				
+
 		if (minrowidLimit == rowidLimit)
 		{
  			logger->info("No data to purge");
@@ -2596,11 +2597,13 @@ int blocks = 0;
 			std::this_thread::sleep_for(std::chrono::milliseconds(100+usecs/10000));
 		}
 		}
-		
+
 		if (rc != SQLITE_OK)
 		{
 			raiseError("purge - phase 3", zErrMsg);
 			sqlite3_free(zErrMsg);
+			// Release memory for 'query' var
+			delete[] query;
 			return 0;
 		}
 
@@ -3690,7 +3693,7 @@ int retries = 0, rc;
 #endif
 			int interval = (1 * RETRY_BACKOFF);
 			std::this_thread::sleep_for(std::chrono::milliseconds(interval));
-			if (retries > 9) Logger::getLogger()->info("SQLexec: retry %d of %d, rc=%s, errmsg=%s, DB connection @ %p, slept for %d msecs", 
+			if (retries > 9) Logger::getLogger()->info("SQLexec: retry %d of %d, rc=%s, errmsg=%s, DB connection @ %p, slept for %d msecs",
 						retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", sqlite3_errmsg(db), this, interval);
 #if DO_PROFILE_RETRIES
 			m_qMutex.lock();
@@ -3763,7 +3766,7 @@ int retries = 0, rc;
 		{
 			int interval = (retries * RETRY_BACKOFF);
 			usleep(interval);	// sleep retries milliseconds
-			if (retries > 5) Logger::getLogger()->info("SQLstep: retry %d of %d, rc=%s, DB connection @ %p, slept for %d msecs", 
+			if (retries > 5) Logger::getLogger()->info("SQLstep: retry %d of %d, rc=%s, DB connection @ %p, slept for %d msecs",
 						retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", this, interval);
 		}
 	} while (retries < MAX_RETRIES && (rc == SQLITE_LOCKED || rc == SQLITE_BUSY));

@@ -704,7 +704,7 @@ class Server:
 
                     if cls.running_in_safe_mode:
                         cls.is_rest_server_http_enabled = True
-                        # TODO: Should we also run on configured https port or default http port?
+                        # TODO: Should cls.rest_server_port be set to configured http port, as is_rest_server_http_enabled has been set to True?
                         msg = "Running in safe mode withOUT https on port {}".format(cls.rest_server_port)
                         _logger.info(msg)
                     else:

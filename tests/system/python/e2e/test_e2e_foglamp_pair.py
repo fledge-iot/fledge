@@ -92,10 +92,39 @@ class TestE2eFogPairPi:
 
         yield self.start_south_north_remote
 
+    def configure_and_start_north_http(self, north_branch, foglamp_url, remote_ip, task_name="NorthReadingsToHTTP"):
+        """ Configure and Start north http task """
+
+        try:
+            subprocess.run(["$FOGLAMP_ROOT/tests/system/python/scripts/install_c_plugin {} north {}"
+                           .format(north_branch, "http-c")], shell=True, check=True)
+        except subprocess.CalledProcessError:
+            assert False, "http north plugin installation failed"
+
+        conn = http.client.HTTPConnection(foglamp_url)
+        data = {"name": task_name,
+                "plugin": "{}".format("HttpNorthC"),
+                "type": "north",
+                "schedule_type": 3,
+                "schedule_day": 0,
+                "schedule_time": 0,
+                "schedule_repeat": 30,
+                "schedule_enabled": "false",
+                "config": {"URL": {"value": "http://{}:6683/sensor-reading".format(remote_ip)}}
+                }
+        # {"name":"NorthReadingsToHTTP","plugin":"HttpNorthC","type":"north","schedule_repeat":30,"schedule_type":"3","schedule_enabled":false,"config":{"URL":{"value":"http://10.2.5.18:6683/sensor-reading"},"verifySSL":{"value":"false"},"applyFilter":{"value":"false"}}}
+        conn.request("POST", '/foglamp/scheduled/task', json.dumps(data))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        val = json.loads(r)
+        assert 2 == len(val)
+        assert task_name == val['name']
+
     @pytest.fixture
     def start_south_north(self, reset_and_start_foglamp, add_south, enable_schedule, remove_directories,
-                          remove_data_file, south_branch, foglamp_url, add_filter, filter_branch,
-                          start_north_pi_server_c, pi_host, pi_port, pi_token, asset_name="e2e_csv_filter_pi"):
+                          remove_data_file, south_branch, north_branch, foglamp_url, remote_ip,
+                          add_filter, filter_branch):
         """ This fixture clone a south and north repo and starts both south and north instance
 
             reset_and_start_foglamp: Fixture that resets and starts foglamp, no explicit invocation, called at start
@@ -103,9 +132,9 @@ class TestE2eFogPairPi:
             remove_directories: Fixture that remove directories created during the tests
             remove_data_file: Fixture that remove data file created during the tests
         """
-
+        # Add playback plugin
         # Define configuration of foglamp south playback service
-        south_config_playbk = {"assetName": {"value": "{}".format(asset_name)},
+        south_config_playbk = {"assetName": {"value": "{}".format("playback")},
                         "csvFilename": {"value": "{}".format(CSV_NAME)},
                         "ingestMode": {"value": "batch"}}
 
@@ -117,22 +146,46 @@ class TestE2eFogPairPi:
                 f.write("\n{}".format(_items))
 
         south_plugin_playbk = "playback"
-        add_south(south_plugin_playbk, south_branch, foglamp_url, service_name="playfilter",
+        add_south(south_plugin_playbk, south_branch, foglamp_url, service_name="fogpair_playbk",
                   config=south_config_playbk, start_service=False)
 
+        # Add expression plugin
+        south_plugin_expression = "Expression"
+        south_config_expr = {"expression": {"value": "cos(x)"}, "minimumX": {"value": "45"},
+                             "maximumX": {"value": "45"}, "stepX": {"value": "0"}}
 
-        # enable_schedule(foglamp_url, SVC_NAME)
+        add_south(south_plugin_expression, south_branch, foglamp_url, service_name="fogpair_expr",
+                  config=south_config_expr, plugin_lang="C", start_service=False)
 
-        start_north_pi_server_c(foglamp_url, pi_host, pi_port, pi_token)
+        # Add sinusoid plugin
+        south_plugin_sinusoid = "sinusoid"
+
+        add_south(south_plugin_sinusoid, south_branch, foglamp_url, service_name="fogpair_sine", start_service=False)
+
+        self.configure_and_start_north_http(north_branch, foglamp_url, remote_ip)
+        # Add asset filter
+        # I/P asset_name : All assets > O/P All assets except Expression
+        filter_cfg_asset = {"config": {"rules": [{"asset_name": "Expression",
+                                                  "action": "exclude"}]},
+                            "enable": "true"}
+        add_filter("asset", filter_branch, "fasset", filter_cfg_asset, foglamp_url, "NorthReadingsToHTTP")
+
+        enable_schedule(foglamp_url, "fogpair_playbk")
+        enable_schedule(foglamp_url, "fogpair_expr")
+        enable_schedule(foglamp_url, "fogpair_sine")
+        enable_schedule(foglamp_url, "NorthReadingsToHTTP")
 
         yield self.start_south_north
 
         remove_directories("/tmp/foglamp-south-{}".format(south_plugin_playbk))
+        remove_directories("/tmp/foglamp-south-{}".format(south_plugin_expression.lower()))
+        remove_directories("/tmp/foglamp-south-{}".format(south_plugin_sinusoid))
+        remove_directories("/tmp/foglamp-north-{}".format("http"))
 
 
         remove_data_file(csv_file_path)
 
-    def test_end_to_end(self, start_south_north_remote, foglamp_url, wait_time):
+    def test_end_to_end(self, start_south_north_remote, start_south_north, foglamp_url, wait_time):
         """ Test that data is inserted in FogLAMP using playback south plugin &
             Delta, RMS, Rate, Scale, Asset & Metadata filters, and sent to PI
             start_south_north: Fixture that starts FogLAMP with south service, add filter and north instance

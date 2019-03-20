@@ -23,6 +23,11 @@ from foglamp.common import logger
 from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA
 from foglamp.common.audit_logger import AuditLogger
 
+#// FIXME_I:
+import logging
+dbg_logger = logger.setup("DBG", level=logging.DEBUG)
+
+
 __author__ = "Ashwin Gopalakrishnan, Ashish Jabble, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
@@ -459,6 +464,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             None
         """
 
+        #// FIXME_I:
+        dbg_logger.debug("DBG : config 1 - config Manager 1 - update_configuration_item_bulk - category_name :{}: - config_item_list :{}:  ".format (category_name, config_item_list))
+
+
         try:
             payload = {"updates": []}
             audit_details = {'category': category_name, 'items': {}}
@@ -501,9 +510,17 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     payload['updates'].append(json.loads(payload_item))
                     audit_details['items'].update({item_name: {'oldValue': old_value, 'newValue': new_val}})
 
+            #// FIXME_I:
+            dbg_logger.debug("DBG : config 2 - config Manager 2 -  update_configuration_item_bulk payload :{}: ".format (payload))
+
+
             if not payload['updates']:
                 return
-            
+
+            #// FIXME_I:
+            dbg_logger.debug("DBG : config 3 - config Manager 3 -  update_configuration_item_bulk payload :{}: ".format (payload))
+
+
             await self._storage.update_tbl("configuration", json.dumps(payload))
 
             # read the updated value from storage

@@ -102,6 +102,14 @@ int plugin_common_update(PLUGIN_HANDLE handle, char *table, char *data)
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug(
+		"DBG PG plugin_common_update : table |%s| data |%s| ",
+		table,
+		data);
+
 	int result = connection->update(std::string(table), std::string(data));
 	manager->release(connection);
 	return result;

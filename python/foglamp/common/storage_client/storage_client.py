@@ -22,6 +22,11 @@ from foglamp.common.service_record import ServiceRecord
 from foglamp.common.storage_client.exceptions import *
 from foglamp.common.storage_client.utils import Utils
 
+#// FIXME_I:
+import logging
+dbg_logger = logger.setup("DBG", level=logging.DEBUG)
+
+
 _LOGGER = logger.setup(__name__)
 
 
@@ -193,10 +198,21 @@ class StorageClientAsync(AbstractStorage):
         put_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name)
 
         url = 'http://' + self.base_url + put_url
+
+
+        #// FIXME_I:
+        dbg_logger.debug("DBG : update_tbl -  url :{}: -  data :{}: ".format (url, data))
+
+
         async with aiohttp.ClientSession() as session:
             async with session.put(url, data=data) as resp:
                 status_code = resp.status
                 jdoc = await resp.json()
+
+
+                #// FIXME_I:
+                dbg_logger.debug("DBG : update_tbl 2 -  status_code :{}: -  jdoc :{}: ".format (status_code, jdoc))
+
                 if status_code not in range(200, 209):
                     _LOGGER.info("PUT %s, with payload: %s", put_url, data)
                     _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)

@@ -25,6 +25,10 @@
 #include <logger.h>
 #include <time.h>
 
+// FIXME::
+#include <tmp_log.hpp>
+
+
 using namespace std;
 using namespace rapidjson;
 
@@ -410,6 +414,13 @@ SQLBuffer	sql;
 	int 	row = 0;
 	ostringstream convert;
 
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug(
+		"DBG PG 2  : table |%s| payload |%s| ",
+		table.c_str(),
+		payload.c_str());
+
 	std::size_t arr = payload.find("updates");
 	bool changeReqd = (arr == std::string::npos || arr > 8);
 	if (changeReqd)
@@ -719,6 +730,17 @@ SQLBuffer	sql;
 	}
 
 	const char *query = sql.coalesce();
+
+
+	//# FIXME_I
+	char tmp_buffer[10000];
+	sprintf (tmp_buffer,"DBG : query PG |%s| - table |%s| - payload |%s|",
+		 query,
+		 table.c_str(),
+		 payload.c_str());
+	string str_buffer(tmp_buffer);
+	tmpLogger (str_buffer);
+
 	logSQL("CommonUpdate", query);
 	PGresult *res = PQexec(dbConnection, query);
 	delete[] query;

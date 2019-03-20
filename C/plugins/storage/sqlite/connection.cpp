@@ -39,7 +39,12 @@
  * to have access to the database between blocks.
  */
 #define PURGE_SLEEP_MS 500
-#define PURGE_DELETE_BLOCK_SIZE	100
+#define PURGE_DELETE_BLOCK_SIZE	20
+#define TARGET_PURGE_BLOCK_DEL_TIME	(70*1000) 	// 70 msec
+#define PURGE_BLOCK_SZ_GRANULARITY	5 	// 5 rows
+#define MIN_PURGE_DELETE_BLOCK_SIZE	20
+#define MAX_PURGE_DELETE_BLOCK_SIZE	1500
+#define RECALC_PURGE_BLOCK_SIZE_NUM_BLOCKS	30	// recalculate purge block size after every 30 blocks
 
 #define PURGE_SLOWDOWN_AFTER_BLOCKS 5
 #define PURGE_SLOWDOWN_SLEEP_MS 500
@@ -79,6 +84,7 @@ static std::atomic<int> m_waiting(0);
 static std::atomic<int> m_writeAccessOngoing(0);
 static std::mutex	db_mutex;
 static std::condition_variable	db_cv;
+static int purgeBlockSize = PURGE_DELETE_BLOCK_SIZE;
 
 #define START_TIME std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 #define END_TIME std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now(); \
@@ -452,6 +458,9 @@ Connection::Connection()
 	// Allow usage of URI for filename
 	sqlite3_config(SQLITE_CONFIG_URI, 1);
 
+	Logger *logger = Logger::getLogger();
+	logger->setMinLevel("info");
+
 	/**
 	 * Make a connection to the database
 	 * and check backend connection was successfully made
@@ -497,7 +506,7 @@ Connection::Connection()
 
 			sqlite3_free(zErrMsg);
 		}
-		
+
 		/*
 		 * Build the ATTACH DATABASE command in order to get
 		 * 'foglamp.' prefix in all SQL queries
@@ -1027,7 +1036,7 @@ bool stdInsert = (arr == std::string::npos || arr > 8);
 		convert << "{ \"inserts\" : [ ";
 		convert << data;
 		convert << " ] }";
-	} 
+	}
 
 	if (document.Parse(stdInsert ? convert.str().c_str() : data.c_str()).HasParseError())
 	{
@@ -1540,7 +1549,7 @@ SQLBuffer	sql;
 	{
 		// Release memory for 'query' var
 		delete[] query;
-		
+
 		int update = sqlite3_changes(dbHandle);
 
 		if (update == 0)
@@ -1881,7 +1890,7 @@ bool 		add_row = false;
 	m_writeAccessOngoing.fetch_sub(1);
 	db_cv.notify_all();
 	}
-	
+
 	// Release memory for 'query' var
 	delete[] query;
 
@@ -2350,7 +2359,6 @@ int blocks = 0;
 
 	Logger *logger = Logger::getLogger();
 
-
 	result = "{ \"removed\" : 0, ";
 	result += " \"unsentPurged\" : 0, ";
 	result += " \"unsentRetained\" : 0, ";
@@ -2375,7 +2383,7 @@ int blocks = 0;
 
 		if (rc != SQLITE_OK)
 		{
- 			raiseError("purge - phaase 0, fetching rowid limit ", zErrMsg);
+ 			raiseError("purge - phase 0, fetching rowid limit ", zErrMsg);
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
@@ -2434,6 +2442,7 @@ int blocks = 0;
 			return 0;
 		}
 	}
+
 	{
 		/*
 		 * Refine rowid limit to just those rows older than age hours.
@@ -2451,7 +2460,7 @@ int blocks = 0;
 		}
 
 		unsigned long m=l;
-		
+
 		while (l <= r)
 		{
 			unsigned long midRowId = 0;
@@ -2467,7 +2476,7 @@ int blocks = 0;
 			sqlBuffer.append(age);
 			sqlBuffer.append(" hours');");
 			const char *query = sqlBuffer.coalesce();
-			
+
 			rc = SQLexec(dbHandle,
 		     query,
 	  	     rowidCallback,
@@ -2491,10 +2500,10 @@ int blocks = 0;
 				// search in later/right half
 		        l = m + 1;
 			}
-		} 
+		}
 
 		rowidLimit = m;
-				
+
 		if (minrowidLimit == rowidLimit)
 		{
  			logger->info("No data to purge");
@@ -2547,12 +2556,12 @@ int blocks = 0;
 
 	unsigned int deletedRows = 0;
 	char *zErrMsg = NULL;
-	unsigned int rowsAffected;
-	logger->info("Purge about to delete readings # %ld to %ld in %d blocks of %d rows each", rowidMin, rowidLimit, (rowidLimit-rowidMin+PURGE_DELETE_BLOCK_SIZE-1)/PURGE_DELETE_BLOCK_SIZE, PURGE_DELETE_BLOCK_SIZE);
+	unsigned int rowsAffected, totTime=0, prevBlocks=0, prevTotTime=0;
+	logger->info("Purge about to delete readings # %ld to %ld", rowidMin, rowidLimit);
 	while (rowidMin < rowidLimit)
 	{
 		blocks++;
-		rowidMin += PURGE_DELETE_BLOCK_SIZE;
+		rowidMin += purgeBlockSize;
 		if (rowidMin > rowidLimit)
 		{
 			rowidMin = rowidLimit;
@@ -2581,23 +2590,53 @@ int blocks = 0;
 		// Release memory for 'query' var
 		delete[] query;
 
+		totTime += usecs;
+
 		if(usecs>150000)
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(100+usecs/10000));
-			//Logger::getLogger()->debug("Purge loop slept for %lld msecs since removal of a block took %lld usecs", (100+usecs/10000), usecs);
 		}
 		}
-		
+
 		if (rc != SQLITE_OK)
 		{
 			raiseError("purge - phase 3", zErrMsg);
 			sqlite3_free(zErrMsg);
+			// Release memory for 'query' var
+			delete[] query;
 			return 0;
 		}
 
 		// Get db changes
 		rowsAffected = sqlite3_changes(dbHandle);
 		deletedRows += rowsAffected;
+		logger->debug("Purge delete block #%d with %d readings", blocks, rowsAffected);
+
+		if(blocks % RECALC_PURGE_BLOCK_SIZE_NUM_BLOCKS == 0)
+		{
+			int prevAvg = prevTotTime/(prevBlocks?prevBlocks:1);
+			int currAvg = (totTime-prevTotTime)/(blocks-prevBlocks);
+			int avg = ((prevAvg?prevAvg:currAvg)*5 + currAvg*5) / 10; // 50% weightage for long term avg and 50% weightage for current avg
+			prevBlocks = blocks;
+			prevTotTime = totTime;
+			int deviation = abs(avg - TARGET_PURGE_BLOCK_DEL_TIME);
+			logger->debug("blocks=%d, totTime=%d usecs, prevAvg=%d usecs, currAvg=%d usecs, avg=%d usecs, TARGET_PURGE_BLOCK_DEL_TIME=%d usecs, deviation=%d usecs", 
+							blocks, totTime, prevAvg, currAvg, avg, TARGET_PURGE_BLOCK_DEL_TIME, deviation);
+			if (deviation > TARGET_PURGE_BLOCK_DEL_TIME/10)
+			{
+				float ratio = (float)TARGET_PURGE_BLOCK_DEL_TIME / (float)avg;
+				if (ratio > 2.0) ratio = 2.0;
+				if (ratio < 0.5) ratio = 0.5;
+				purgeBlockSize = (float)purgeBlockSize * ratio;
+				purgeBlockSize = purgeBlockSize / PURGE_BLOCK_SZ_GRANULARITY * PURGE_BLOCK_SZ_GRANULARITY;
+				if (purgeBlockSize < MIN_PURGE_DELETE_BLOCK_SIZE)
+					purgeBlockSize = MIN_PURGE_DELETE_BLOCK_SIZE;
+				if (purgeBlockSize > MAX_PURGE_DELETE_BLOCK_SIZE)
+					purgeBlockSize = MAX_PURGE_DELETE_BLOCK_SIZE;
+				logger->debug("Changed purgeBlockSize to %d", purgeBlockSize);
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		}
 		//Logger::getLogger()->debug("Purge delete block #%d with %d readings", blocks, rowsAffected);
 	} while (rowidMin  < rowidLimit);
 
@@ -3654,7 +3693,7 @@ int retries = 0, rc;
 #endif
 			int interval = (1 * RETRY_BACKOFF);
 			std::this_thread::sleep_for(std::chrono::milliseconds(interval));
-			if (retries > 9) Logger::getLogger()->info("SQLexec: retry %d of %d, rc=%s, errmsg=%s, DB connection @ %p, slept for %d msecs", 
+			if (retries > 9) Logger::getLogger()->info("SQLexec: retry %d of %d, rc=%s, errmsg=%s, DB connection @ %p, slept for %d msecs",
 						retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", sqlite3_errmsg(db), this, interval);
 #if DO_PROFILE_RETRIES
 			m_qMutex.lock();
@@ -3727,7 +3766,7 @@ int retries = 0, rc;
 		{
 			int interval = (retries * RETRY_BACKOFF);
 			usleep(interval);	// sleep retries milliseconds
-			if (retries > 5) Logger::getLogger()->info("SQLstep: retry %d of %d, rc=%s, DB connection @ %p, slept for %d msecs", 
+			if (retries > 5) Logger::getLogger()->info("SQLstep: retry %d of %d, rc=%s, DB connection @ %p, slept for %d msecs",
 						retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", this, interval);
 		}
 	} while (retries < MAX_RETRIES && (rc == SQLITE_LOCKED || rc == SQLITE_BUSY));

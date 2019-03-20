@@ -708,7 +708,7 @@ SQLBuffer	sql;
 						Writer<StringBuffer> writer(buffer);
 						value.Accept(writer);
 
-						char *tmp_buffer = escape_double_quote(buffer.GetString());
+						char *tmp_buffer = escape_double_quotes(buffer.GetString());
 						std::string buffer_escaped = "\"";
 						buffer_escaped.append(tmp_buffer);
 						buffer_escaped.append( "\"");
@@ -1983,8 +1983,14 @@ SQLBuffer buf;
 	return -1;
 }
 
-
-char *Connection::escape_double_quote(const char *str)
+/**
+ * Converts the input string quoting the double quotes : "  to \"
+ * Note : the returned buffer should be freed
+ *
+ * @param str   String to convert
+ * @param out	Converted string
+ */
+char *Connection::escape_double_quotes(const char *str)
 {
 	static char *lastStr = NULL;
 	const char    *p1;

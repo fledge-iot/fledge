@@ -417,7 +417,7 @@ SQLBuffer	sql;
 	// FIXME_I:
 	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug(
-		"DBG PG 2  : table |%s| payload |%s| ",
+		"DBG PG 3  : table |%s| payload |%s| ",
 		table.c_str(),
 		payload.c_str());
 

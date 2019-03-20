@@ -437,6 +437,11 @@ string  tableName;
 string	payload;
 string	responsePayload;
 
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("DBG StorageApi 1.0 ");
+
+
 	auto header_seq = request->header.find("SeqNum");
 	if(header_seq != request->header.end())
 	{
@@ -482,6 +487,14 @@ string	responsePayload;
 	try {
 		tableName = request->path_match[TABLE_NAME_COMPONENT];
 		payload = request->content.string();
+
+		// FIXME_I:
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug(
+			"DBG StorageApi 2.0 : tableName |%s| payload |%s| ",
+			tableName.c_str(),
+			payload.c_str());
+
 
 		int rval = plugin->commonUpdate(tableName, payload);
 		if (rval != -1)

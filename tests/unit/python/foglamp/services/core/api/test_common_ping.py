@@ -18,6 +18,7 @@ import ssl
 import socket
 import subprocess
 import pathlib
+import time
 from unittest.mock import MagicMock, patch
 import pytest
 
@@ -31,7 +32,6 @@ from foglamp.common.web import middleware
 from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.common.configuration_manager import ConfigurationManager
 
-import time
 
 @pytest.fixture
 def certs_path():

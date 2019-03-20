@@ -40,8 +40,8 @@ def reset_and_start_foglamp(storage_plugin):
 
     subprocess.run(["echo YES | $FOGLAMP_ROOT/scripts/foglamp reset"], shell=True, check=True)
     subprocess.run(["$FOGLAMP_ROOT/scripts/foglamp start"], shell=True)
-    stat = subprocess.run(["$FOGLAMP_ROOT/scripts/foglamp status"], shell=True, stdout=subprocess.PIPE)
-    assert "FogLAMP not running." not in stat.stdout.decode("utf-8")
+    stat = subprocess.run(["$FOGLAMP_ROOT/scripts/foglamp status"], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    assert "FogLAMP not running." not in stat.stderr.decode("utf-8")
 
 
 def find(pattern, path):

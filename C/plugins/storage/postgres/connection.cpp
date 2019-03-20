@@ -496,6 +496,12 @@ SQLBuffer	sql;
 						sql.append(itr->value.GetInt());
 					else if (itr->value.IsObject())
 					{
+
+						// FIXME_I:
+						Logger::getLogger()->setMinLevel("debug");
+						Logger::getLogger()->debug(
+							"DBG PG 4.0  : IsObject");
+
 						StringBuffer buffer;
 						Writer<StringBuffer> writer(buffer);
 						itr->value.Accept(writer);
@@ -579,11 +585,17 @@ SQLBuffer	sql;
 						sql.append(value.GetInt());
 					else if (value.IsObject())
 					{
+						// FIXME_I:
+						Logger::getLogger()->setMinLevel("debug");
+						Logger::getLogger()->debug(
+							"DBG PG 4.1  : IsObject");
+
+
 						StringBuffer buffer;
 						Writer<StringBuffer> writer(buffer);
 						value.Accept(writer);
 						sql.append('\'');
-						sql.append(buffer.GetString());
+						sql.append(escape(buffer.GetString()));
 						sql.append('\'');
 					}
 					col++;
@@ -695,8 +707,23 @@ SQLBuffer	sql;
 						StringBuffer buffer;
 						Writer<StringBuffer> writer(buffer);
 						value.Accept(writer);
+
+						char *tmp_buffer = escape_double_quote(buffer.GetString());
+						std::string buffer_escaped = "\"";
+						buffer_escaped.append(tmp_buffer);
+						buffer_escaped.append( "\"");
+						//# FIXME_I
+						free (tmp_buffer);
+
+						// FIXME_I:
+						Logger::getLogger()->setMinLevel("debug");
+						Logger::getLogger()->debug(
+							"DBG PG 4.2  : IsObject :%s: - :%s:",
+							buffer.GetString(),
+							buffer_escaped.c_str());
+
 						sql.append('\'');
-						sql.append(buffer.GetString());
+						sql.append(buffer_escaped);
 						sql.append('\'');
 					}
 					sql.append(")");
@@ -1954,6 +1981,43 @@ SQLBuffer buf;
  	raiseError("tableSize", PQerrorMessage(dbConnection));
 	PQclear(res);
 	return -1;
+}
+
+
+char *Connection::escape_double_quote(const char *str)
+{
+	static char *lastStr = NULL;
+	const char    *p1;
+	char *p2;
+
+	if (strchr(str, '\"') == NULL)
+	{
+		return (char *) str;
+	}
+
+	if (lastStr !=  NULL)
+	{
+		free(lastStr);
+	}
+	lastStr = (char *)malloc(strlen(str) * 2);
+
+	p1 = str;
+	p2 = lastStr;
+	while (*p1)
+	{
+		if (*p1 == '\"')
+		{
+			*p2++ = '\\';
+			*p2++ = '\"';
+			p1++;
+		}
+		else
+		{
+			*p2++ = *p1++;
+		}
+	}
+	*p2 = 0;
+	return lastStr;
 }
 
 

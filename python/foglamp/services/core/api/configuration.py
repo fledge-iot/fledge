@@ -268,7 +268,7 @@ async def update_configuration_item_bulk(request):
     """
 
     #// FIXME_I:
-    dbg_logger.debug("DBG : config 1 - update_configuration_item_bulk request :{}:".format (request))
+    dbg_logger.debug("DBG : config A1 - update_configuration_item_bulk request :{}:".format (request))
 
 
     category_name = request.match_info.get('category_name', None)
@@ -281,7 +281,7 @@ async def update_configuration_item_bulk(request):
         cf_mgr = ConfigurationManager(connect.get_storage_async())
 
         #// FIXME_I:
-        dbg_logger.debug("DBG : config 2 - update_configuration_item_bulk category_name :{}: - data :{}:".format (category_name, data))
+        dbg_logger.debug("DBG : config A2 - update_configuration_item_bulk category_name :{}: - data :{}:".format (category_name, data))
 
         await cf_mgr.update_configuration_item_bulk(category_name, data)
 
@@ -295,7 +295,7 @@ async def update_configuration_item_bulk(request):
         result = await cf_mgr.get_category_all_items(category_name)
 
         #// FIXME_I:
-        dbg_logger.debug("DBG : config 3 - update_configuration_item_bulk category_name :{}: - data :{}:".format (category_name, data))
+        dbg_logger.debug("DBG : config A3 - update_configuration_item_bulk category_name :{}: - data :{}:".format (category_name, data))
 
         return web.json_response(result)
 

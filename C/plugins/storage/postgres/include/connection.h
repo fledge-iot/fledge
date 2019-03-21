@@ -40,7 +40,6 @@ class Connection {
 		bool		returnJson(const rapidjson::Value&, SQLBuffer&, SQLBuffer&);
 		char		*trim(char *str);
     		const std::string	escape_double_quotes(const std::string&);
-		const char	*escape(const char *);
 		const std::string	escape(const std::string&);
 		void		logSQL(const char *, const char *);
 };

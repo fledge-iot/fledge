@@ -1983,42 +1983,6 @@ const string Connection::escape_double_quotes(const string& str)
 	return newString;
 }
 
-const char *Connection::escape(const char *str)
-{
-static char *lastStr = NULL;
-const char    *p1;
-char *p2;
-
-    if (strchr(str, '\'') == NULL)
-    {
-        return str;
-    }
-
-    if (lastStr !=  NULL)
-    {
-        free(lastStr);
-    }
-    lastStr = (char *)malloc(strlen(str) * 2);
-
-    p1 = str;
-    p2 = lastStr;
-    while (*p1)
-    {
-        if (*p1 == '\'')
-        {
-            *p2++ = '\'';
-            *p2++ = '\'';
-            p1++;
-        }
-        else
-        {
-            *p2++ = *p1++;
-        }
-    }
-    *p2 = 0;
-    return lastStr;
-}
-
 const string Connection::escape(const string& str)
 {
 char    *buffer;

@@ -14,6 +14,8 @@ from foglamp.common.web import middleware
 from foglamp.services.core import routes
 from foglamp.services.core.user_model import User
 from foglamp.services.core.api import auth
+from foglamp.services.core import server
+from foglamp.common.web.ssl_wrapper import SSLVerifier
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -683,3 +685,64 @@ class TestAuthMandatory:
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/foglamp/admin/2/reset')
+
+    @pytest.mark.parametrize("auth_method, request_data, ret_val", [
+        ("certificate", "-----BEGIN CERTIFICATE----- Test -----END CERTIFICATE-----", (2, "token2", False))
+    ])
+    async def test_login_auth_certificate(self, client, auth_method, request_data, ret_val):
+        hdr = {'content-type': 'text/plain'}
+
+        async def async_mock():
+            return ret_val
+
+        async def async_get_user():
+            return {'role_id': '2', 'id': '2', 'uname': 'user'}
+
+        with patch.object(middleware._logger, 'info'):
+            with patch.object(server.Server, "auth_method", auth_method):
+                with patch.object(SSLVerifier, 'get_subject', return_value={"commonName": "user"}):
+                    with patch.object(User.Objects, 'verify_certificate', return_value=asyncio.sleep(.1)):
+                        with patch.object(User.Objects, 'certificate_login', return_value=async_mock()):
+                            with patch.object(User.Objects, 'get', return_value=async_get_user()):
+                                with patch.object(auth._logger, 'info'):
+                                    req_data = request_data
+                                    resp = await client.post('/foglamp/login', data=req_data, headers=hdr)
+                                    assert 200 == resp.status
+                                    r = await resp.text()
+                                    actual = json.loads(r)
+                                    assert ret_val[0] == actual['uid']
+                                    assert ret_val[1] == actual['token']
+                                    assert ret_val[2] == actual['admin']
+
+    @pytest.mark.skip(reason="Request mock required")
+    @pytest.mark.parametrize("auth_method, request_data, ret_val, expected", [
+        ("certificate", {"username": "admin", "password": "foglamp"}, (1, "token1", True), "Invalid authentication method, use certificate instead."),
+    ])
+    async def test_login_auth_exception1(self, client, auth_method, request_data, ret_val, expected):
+        async def async_mock():
+            return ret_val
+        with patch.object(middleware._logger, 'info') as patch_logger_info:
+            with patch.object(server.Server, "auth_method", auth_method) as patch_auth_method:
+                req_data = json.dumps(request_data) if isinstance(request_data, dict) else request_data
+                resp = await client.post('/foglamp/login', data=req_data)
+                assert 401 == resp.status
+                actual = await resp.text()
+                assert "401: {}".format(expected) == actual
+
+    @pytest.mark.skip(reason="Request mock required")
+    @pytest.mark.parametrize("auth_method, request_data, ret_val, expected", [
+        ("password", "-----BEGIN CERTIFICATE----- Test -----END CERTIFICATE-----", (2, "token2", False), "Invalid authentication method, use password instead.")
+    ])
+    async def test_login_auth_exception2(self, client, auth_method, request_data, ret_val, expected):
+        TEXT_HEADER = {'content-type': 'text/plain'}
+
+        async def async_mock():
+            return ret_val
+        with patch.object(middleware._logger, 'info') as patch_logger_info:
+            with patch.object(server.Server, "auth_method", auth_method) as patch_auth_method:
+                req_data = request_data
+                resp = await client.post('/foglamp/login', data=req_data, headers=TEXT_HEADER)
+                print(resp.text)
+                assert 401 == resp.status
+                actual = await resp.text()
+                assert "401: {}".format(expected) == actual

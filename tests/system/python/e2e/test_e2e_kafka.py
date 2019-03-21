@@ -146,6 +146,7 @@ class TestE2EKafka:
 
         self._verify_consumer_subscription_to_topic(conn, topic)
 
+        # FIXME: FOGL-2573 local / AWS confluent setup results in no data
         self._verify_consumer_data_from_topic(conn)
 
     def _verify_kafka_topic(self, conn, topic):
@@ -188,8 +189,9 @@ class TestE2EKafka:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
+        assert len(jdoc)
         assert ASSET_NAME == jdoc[0]['value']['asset']
-        assert SENSOR_VALUE == int(jdoc[0]['value']['sensor'])
+        assert SENSOR_VALUE == float(jdoc[0]['value']['sensor'])
 
     def _close_consumer(self, kafka_host, kafka_rest_port):
         conn = http.client.HTTPConnection("{}:{}".format(kafka_host, kafka_rest_port))

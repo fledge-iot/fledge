@@ -27,7 +27,7 @@ using namespace rapidjson;
 
 #define PLUGIN_NAME "ocs_V2"
 #define TYPE_ID_KEY "type-id"
-#define TYPE_ID_DEFAULT "1"
+#define TYPE_ID_DEFAULT 1
 
 /**
  * Plugin specific default configuration
@@ -156,7 +156,7 @@ typedef struct
 	unsigned int	maxRetry;	// Max number of retries in the communication
 	unsigned int	timeout;	// connect and operation timeout
 	string		path;		// OCS application path
-	string		typeId;		// OMF protocol type-id prefix
+	long		typeId;		// OMF protocol type-id prefix
 	string		producerToken;	// OCS connector token
 	string		formatNumber;	// OMF protocol Number format
 	string		formatInteger;	// OMF protocol Integer format
@@ -286,10 +286,18 @@ void plugin_start(const PLUGIN_HANDLE handle,
 			      storedData.c_str());
 	}
 	else if(JSONData.HasMember(TYPE_ID_KEY) &&
-		JSONData[TYPE_ID_KEY].IsString())
+		(JSONData[TYPE_ID_KEY].IsString() ||
+		 JSONData[TYPE_ID_KEY].IsNumber()))
 	{
 		// Update type-id in PLUGIN_HANDLE object
-		connInfo->typeId = JSONData[TYPE_ID_KEY].GetString();
+		if (JSONData[TYPE_ID_KEY].IsNumber())
+		{
+			connInfo->typeId = JSONData[TYPE_ID_KEY].GetInt();
+		}
+		else
+		{
+			connInfo->typeId = atol(JSONData[TYPE_ID_KEY].GetString());
+		}
 	}
 	else
 	{
@@ -299,10 +307,10 @@ void plugin_start(const PLUGIN_HANDLE handle,
 			      storedData.c_str());
 	}
 	// Log plugin configuration
-	Logger::getLogger()->info("%s plugin is using OMF %s=%s",
+	Logger::getLogger()->info("%s plugin is using OMF %s=%d",
 				  PLUGIN_NAME,
 				  TYPE_ID_KEY,
-				  connInfo->typeId.c_str());
+				  connInfo->typeId);
 }
 
 /**
@@ -343,15 +351,15 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 						   connInfo->compression);
 
 	// Detect typeId change in OMF class
-	if (connInfo->omf->getTypeId().compare(connInfo->typeId) != 0)
+	if (connInfo->omf->getTypeId() != connInfo->typeId)
 	{
 		// Update typeId in plugin handle
 		connInfo->typeId = connInfo->omf->getTypeId();
 		// Log change
-		Logger::getLogger()->info("%s plugin: a new OMF %s (%s) has been created.",
+		Logger::getLogger()->info("%s plugin: a new OMF %s (%d) has been created.",
 					  PLUGIN_NAME,
 					  TYPE_ID_KEY,
-					  connInfo->typeId.c_str());
+					  connInfo->typeId);
 	}
 	// Delete objects
 	delete connInfo->sender;
@@ -376,7 +384,7 @@ string plugin_shutdown(PLUGIN_HANDLE handle)
 	CONNECTOR_INFO* connInfo = (CONNECTOR_INFO *) handle;
 
 	// Create save data
-	string saveData("{\"" TYPE_ID_KEY "\": \"" + connInfo->typeId + "\"}");
+	string saveData("{\"" TYPE_ID_KEY "\": " + to_string(connInfo->typeId) + "}");
 
         // Log saving the plugin configuration
         Logger::getLogger()->info("%s plugin: saving plugin_data '%s'",

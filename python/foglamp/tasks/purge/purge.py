@@ -109,9 +109,6 @@ class Purge(FoglampProcess):
         unsent_retained = 0
         start_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
 
-        payload = PayloadBuilder().AGGREGATE(["count", "*"]).payload()
-        result = await self._readings_storage_async.query(payload)
-        total_count = result['rows'][0]['count_*']
         payload = PayloadBuilder().AGGREGATE(["min", "last_object"]).payload()
         result = await self._storage_async.query_tbl_with_payload("streams", payload)
         last_object = result["rows"][0]["min_last_object"]
@@ -127,8 +124,6 @@ class Purge(FoglampProcess):
         try:
             if int(config['age']['value']) != 0:
                 result = await self._readings_storage_async.purge(age=config['age']['value'], sent_id=last_id, flag=flag)
-
-                total_count = result['readings']
                 total_rows_removed = result['removed']
                 unsent_rows_removed = result['unsentPurged']
                 unsent_retained = result['unsentRetained']
@@ -143,8 +138,6 @@ class Purge(FoglampProcess):
         try:
             if int(config['size']['value']) != 0:
                 result = await self._readings_storage_async.purge(size=config['size']['value'], sent_id=last_id, flag=flag)
-
-                total_count += result['readings']
                 total_rows_removed += result['removed']
                 unsent_rows_removed += result['unsentPurged']
                 unsent_retained += result['unsentRetained']
@@ -164,8 +157,7 @@ class Purge(FoglampProcess):
                                                     "end_time": end_time,
                                                     "rowsRemoved": total_rows_removed,
                                                     "unsentRowsRemoved": unsent_rows_removed,
-                                                    "rowsRetained": unsent_retained,
-                                                    "rowsRemaining": total_count
+                                                    "rowsRetained": unsent_retained
                                                     })
         else:
             self._logger.info("No rows purged")

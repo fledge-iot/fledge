@@ -193,12 +193,10 @@ class StorageClientAsync(AbstractStorage):
         put_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name)
 
         url = 'http://' + self.base_url + put_url
-
         async with aiohttp.ClientSession() as session:
             async with session.put(url, data=data) as resp:
                 status_code = resp.status
                 jdoc = await resp.json()
-
                 if status_code not in range(200, 209):
                     _LOGGER.info("PUT %s, with payload: %s", put_url, data)
                     _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)

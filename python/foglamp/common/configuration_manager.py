@@ -463,20 +463,16 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             payload = {"updates": []}
             audit_details = {'category': category_name, 'items': {}}
             cat_info = await self.get_category_all_items(category_name)
-
             if cat_info is None:
                 raise NameError("No such Category found for {}".format(category_name))
             for item_name, new_val in config_item_list.items():
-
                 if item_name not in cat_info:
                     raise KeyError('{} config item not found'.format(item_name))
-
                 # Evaluate new_val as per rule if defined
                 if 'rule' in cat_info[item_name]:
                     rule = cat_info[item_name]['rule'].replace("value", new_val)
                     if eval(rule) is False:
                         raise ValueError('Proposed value for item_name {} is not allowed as per rule defined'.format(item_name))
-
                 if cat_info[item_name]['type'] == 'JSON':
                     if isinstance(new_val, dict):
                         pass
@@ -502,7 +498,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         .JSON_PROPERTY(("value", [item_name, "value"], new_val)) \
                         .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")) \
                         .WHERE(["key", "=", category_name]).payload()
-
                     payload['updates'].append(json.loads(payload_item))
                     audit_details['items'].update({item_name: {'oldValue': old_value, 'newValue': new_val}})
 

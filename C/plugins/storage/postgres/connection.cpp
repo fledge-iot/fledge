@@ -25,10 +25,6 @@
 #include <logger.h>
 #include <time.h>
 
-// FIXME::
-#include <tmp_log.hpp>
-
-
 using namespace std;
 using namespace rapidjson;
 
@@ -489,7 +485,6 @@ SQLBuffer	sql;
 						sql.append(itr->value.GetInt());
 					else if (itr->value.IsObject())
 					{
-
 						StringBuffer buffer;
 						Writer<StringBuffer> writer(buffer);
 						itr->value.Accept(writer);
@@ -731,7 +726,6 @@ SQLBuffer	sql;
 	}
 
 	const char *query = sql.coalesce();
-
 	logSQL("CommonUpdate", query);
 	PGresult *res = PQexec(dbConnection, query);
 	delete[] query;

@@ -18,6 +18,7 @@ import ssl
 import socket
 import subprocess
 import pathlib
+import time
 from unittest.mock import MagicMock, patch
 import pytest
 
@@ -88,11 +89,13 @@ async def test_ping_http_allow_ping_true(test_server, test_client, loop, get_mac
                     client = await test_client(server)
                     # note: If the parameter is app aiohttp.web.Application
                     # the tool creates TestServer implicitly for serving the application.
+                    time.sleep(1)
                     resp = await client.get('/foglamp/ping', headers={'authorization': "token"})
                     assert 200 == resp.status
                     content = await resp.text()
                     content_dict = json.loads(content)
-                    assert 0.0 < content_dict["uptime"]
+                    assert isinstance(content_dict["uptime"], int)
+                    assert 1 <= content_dict["uptime"]
                     assert 2 == content_dict["dataRead"]
                     assert 100 == content_dict["dataSent"]
                     assert 1 == content_dict["dataPurged"]
@@ -143,7 +146,7 @@ async def test_ping_http_allow_ping_false(test_server, test_client, loop, get_ma
                     assert 200 == resp.status
                     content = await resp.text()
                     content_dict = json.loads(content)
-                    assert 0.0 < content_dict["uptime"]
+                    assert 0 <= content_dict["uptime"]
                     assert 2 == content_dict["dataRead"]
                     assert 100 == content_dict["dataSent"]
                     assert 1 == content_dict["dataPurged"]
@@ -198,7 +201,7 @@ async def test_ping_http_auth_required_allow_ping_true(test_server, test_client,
                     assert 200 == resp.status
                     content = await resp.text()
                     content_dict = json.loads(content)
-                    assert 0.0 < content_dict["uptime"]
+                    assert 0 <= content_dict["uptime"]
                     assert 2 == content_dict["dataRead"]
                     assert 100 == content_dict["dataSent"]
                     assert 1 == content_dict["dataPurged"]
@@ -308,7 +311,7 @@ async def test_ping_https_allow_ping_true(test_server, ssl_ctx, test_client, loo
                     assert 200 == resp.status
                     content = await resp.text()
                     content_dict = json.loads(content)
-                    assert 0.0 < content_dict["uptime"]
+                    assert 0 <= content_dict["uptime"]
                     assert 2 == content_dict["dataRead"]
                     assert 100 == content_dict["dataSent"]
                     assert 1 == content_dict["dataPurged"]
@@ -435,7 +438,7 @@ async def test_ping_https_auth_required_allow_ping_true(test_server, ssl_ctx, te
                     assert 200 == resp.status
                     content = await resp.text()
                     content_dict = json.loads(content)
-                    assert 0.0 < content_dict["uptime"]
+                    assert 0 <= content_dict["uptime"]
                     assert 2 == content_dict["dataRead"]
                     assert 100 == content_dict["dataSent"]
                     assert 1 == content_dict["dataPurged"]

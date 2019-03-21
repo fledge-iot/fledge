@@ -232,7 +232,7 @@ async def asset_all_readings_summary(request):
         # Get readings from asset_code
         asset_code = request.match_info.get('asset_code', '')
         # TODO: Use only the latest asset read to determine the data points to use. This
-        # avoids readings every single reading into memory and creating a very big result set See FOGL-2635
+        # avoids reading every single reading into memory and creating a very big result set See FOGL-2635
         payload = PayloadBuilder().SELECT("reading").WHERE(["asset_code", "=", asset_code]).LIMIT(1).ORDER_BY(["user_ts", "desc"]).payload()
         _readings = connect.get_readings_async()
         results = await _readings.query(payload)

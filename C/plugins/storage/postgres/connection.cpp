@@ -664,7 +664,7 @@ SQLBuffer	sql;
 						{
 							sql.append("'\"");
 							sql.append(str);
-							sql.append("'\"");
+							sql.append("\"'");
 						}
 						else
 						{

@@ -17,11 +17,6 @@ from foglamp.common.audit_logger import AuditLogger
 from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA
 from foglamp.common import logger
 
-#// FIXME_I:
-import logging
-dbg_logger = logger.setup("DBG", level=logging.DEBUG)
-
-
 __author__ = "Amarendra K. Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
@@ -224,10 +219,6 @@ async def set_configuration_item(request):
     """
 
 
-    #// FIXME_I:
-    dbg_logger.debug("DBG : set_configuration_item ")
-
-
     category_name = request.match_info.get('category_name', None)
     config_item = request.match_info.get('config_item', None)
 
@@ -267,10 +258,6 @@ async def update_configuration_item_bulk(request):
         curl -X PUT -H "Content-Type: application/json" -d '{"config_item_key": "<some value>", "config_item2_key": "<some value>" }' http://localhost:8081/foglamp/category/{category_name}
     """
 
-    #// FIXME_I:
-    dbg_logger.debug("DBG : config A1 - update_configuration_item_bulk request :{}:".format (request))
-
-
     category_name = request.match_info.get('category_name', None)
     category_name = urllib.parse.unquote(category_name) if category_name is not None else None
 
@@ -279,9 +266,6 @@ async def update_configuration_item_bulk(request):
         if not data:
             return web.HTTPBadRequest(reason='Nothing to update')
         cf_mgr = ConfigurationManager(connect.get_storage_async())
-
-        #// FIXME_I:
-        dbg_logger.debug("DBG : config A2 - update_configuration_item_bulk category_name :{}: - data :{}:".format (category_name, data))
 
         await cf_mgr.update_configuration_item_bulk(category_name, data)
 
@@ -293,9 +277,6 @@ async def update_configuration_item_bulk(request):
         raise web.HTTPInternalServerError(reason=ex)
     else:
         result = await cf_mgr.get_category_all_items(category_name)
-
-        #// FIXME_I:
-        dbg_logger.debug("DBG : config A3 - update_configuration_item_bulk category_name :{}: - data :{}:".format (category_name, data))
 
         return web.json_response(result)
 
@@ -526,10 +507,6 @@ async def upload_script(request):
     :Example:
             curl -F "script=@filename.py" http://localhost:8081/foglamp/category/{category_name}/{config_item}/upload
     """
-
-    #// FIXME_I:
-    dbg_logger.debug("DBG : upload_script ")
-
 
     category_name = request.match_info.get('category_name', None)
     config_item = request.match_info.get('config_item', None)

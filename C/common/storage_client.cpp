@@ -432,10 +432,6 @@ int StorageClient::insertTable(const string& tableName, const InsertValues& valu
  */
 int StorageClient::updateTable(const string& tableName, const InsertValues& values, const Where& where)
 {
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("DBG updateTable 1 |%s| ", tableName);
-
 	static HttpClient *httpClient = this->getHttpClient(); // to initialize m_seqnum_map[thread_id] for this thread
 	try {
 		std::thread::id thread_id = std::this_thread::get_id();
@@ -501,10 +497,6 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
  */
 int StorageClient::updateTable(const string& tableName, const ExpressionValues& values, const Where& where)
 {
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("DBG updateTable 2 |%s| ", tableName);
-
 	static HttpClient *httpClient = this->getHttpClient(); // to initialize m_seqnum_map[thread_id] for this thread
 	try {
 		std::thread::id thread_id = std::this_thread::get_id();
@@ -569,11 +561,6 @@ int StorageClient::updateTable(const string& tableName, const ExpressionValues& 
  */
 int StorageClient::updateTable(const string& tableName, vector<pair<ExpressionValues *, Where *>>& updates)
 {
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("DBG updateTable 3 |%s| ", tableName);
-
-
 	static HttpClient *httpClient = this->getHttpClient(); // to initialize m_seqnum_map[thread_id] for this thread
 	try {
 		std::thread::id thread_id = std::this_thread::get_id();
@@ -648,10 +635,6 @@ int StorageClient::updateTable(const string& tableName, vector<pair<ExpressionVa
  */
 int StorageClient::updateTable(const string& tableName, const InsertValues& values, const ExpressionValues& expressions, const Where& where)
 {
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("DBG updateTable 4 |%s| ", tableName);
-
 	try {
 		ostringstream convert;
 
@@ -709,11 +692,6 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
  */
 int StorageClient::updateTable(const string& tableName, const JSONProperties& values, const Where& where)
 {
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("DBG updateTable 5 |%s| ", tableName);
-
-
 	try {
 		ostringstream convert;
 
@@ -770,11 +748,6 @@ int StorageClient::updateTable(const string& tableName, const JSONProperties& va
  */
 int StorageClient::updateTable(const string& tableName, const InsertValues& values, const JSONProperties& jsonProp, const Where& where)
 {
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("DBG updateTable 6 |%s| ", tableName);
-
-
 	try {
 		ostringstream convert;
 

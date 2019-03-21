@@ -32,10 +32,6 @@
 #include <condition_variable>
 #include <sys/time.h>
 
-// FIXME::
-#include <tmp_log.hpp>
-
-
 /*
  * Control the way purge deletes readings. The block size sets a limit as to how many rows
  * get deleted in each call, whilst the sleep interval controls how long the thread sleeps
@@ -1213,13 +1209,6 @@ SQLBuffer	sql;
 	int 	row = 0;
 	ostringstream convert;
 
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug(
-		"DBG sqlite : table |%s| payload |%s| ",
-		table.c_str(),
-		payload.c_str());
-
 	std::size_t arr = payload.find("updates");
 	bool changeReqd = (arr == std::string::npos || arr > 8);
 	if (changeReqd)
@@ -1521,15 +1510,6 @@ SQLBuffer	sql;
 	logSQL("CommonUpdate", query);
 	char *zErrMsg = NULL;
 	int rc;
-
-	//# FIXME_I
-	char tmp_buffer[10000];
-	sprintf (tmp_buffer,"DBG : query SLITE |%s| - table |%s| - payload |%s|",
-		 query,
-		 table.c_str(),
-		 payload.c_str());
-	string str_buffer(tmp_buffer);
-	tmpLogger (str_buffer);
 
 	// Exec the UPDATE statement: no callback, no result set
 	m_writeAccessOngoing.fetch_add(1);

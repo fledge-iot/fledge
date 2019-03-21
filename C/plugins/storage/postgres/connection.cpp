@@ -414,13 +414,6 @@ SQLBuffer	sql;
 	int 	row = 0;
 	ostringstream convert;
 
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug(
-		"DBG PG 3  : table |%s| payload |%s| ",
-		table.c_str(),
-		payload.c_str());
-
 	std::size_t arr = payload.find("updates");
 	bool changeReqd = (arr == std::string::npos || arr > 8);
 	if (changeReqd)
@@ -496,11 +489,6 @@ SQLBuffer	sql;
 						sql.append(itr->value.GetInt());
 					else if (itr->value.IsObject())
 					{
-
-						// FIXME_I:
-						Logger::getLogger()->setMinLevel("debug");
-						Logger::getLogger()->debug(
-							"DBG PG 4.0  : IsObject");
 
 						StringBuffer buffer;
 						Writer<StringBuffer> writer(buffer);
@@ -585,12 +573,6 @@ SQLBuffer	sql;
 						sql.append(value.GetInt());
 					else if (value.IsObject())
 					{
-						// FIXME_I:
-						Logger::getLogger()->setMinLevel("debug");
-						Logger::getLogger()->debug(
-							"DBG PG 4.1  : IsObject");
-
-
 						StringBuffer buffer;
 						Writer<StringBuffer> writer(buffer);
 						value.Accept(writer);
@@ -712,15 +694,7 @@ SQLBuffer	sql;
 						std::string buffer_escaped = "\"";
 						buffer_escaped.append(tmp_buffer);
 						buffer_escaped.append( "\"");
-						//# FIXME_I
 						free (tmp_buffer);
-
-						// FIXME_I:
-						Logger::getLogger()->setMinLevel("debug");
-						Logger::getLogger()->debug(
-							"DBG PG 4.2  : IsObject :%s: - :%s:",
-							buffer.GetString(),
-							buffer_escaped.c_str());
 
 						sql.append('\'');
 						sql.append(buffer_escaped);
@@ -757,16 +731,6 @@ SQLBuffer	sql;
 	}
 
 	const char *query = sql.coalesce();
-
-
-	//# FIXME_I
-	char tmp_buffer[10000];
-	sprintf (tmp_buffer,"DBG : query PG |%s| - table |%s| - payload |%s|",
-		 query,
-		 table.c_str(),
-		 payload.c_str());
-	string str_buffer(tmp_buffer);
-	tmpLogger (str_buffer);
 
 	logSQL("CommonUpdate", query);
 	PGresult *res = PQexec(dbConnection, query);

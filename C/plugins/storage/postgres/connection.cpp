@@ -662,7 +662,9 @@ SQLBuffer	sql;
 						regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
 						if (regex_match (s,e))
 						{
+							sql.append("'\"");
 							sql.append(str);
+							sql.append("'\"");
 						}
 						else
 						{

@@ -503,7 +503,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
             if not payload['updates']:
                 return
-
+            
             await self._storage.update_tbl("configuration", json.dumps(payload))
 
             # read the updated value from storage

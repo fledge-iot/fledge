@@ -98,4 +98,5 @@ Common table IN operator bad values,PUT,http://localhost:8080/storage/table/test
 Query Readings IN operator,PUT,http://localhost:8080/storage/reading/query,query_readings_in.json
 Query Readings NOT IN operator,PUT,http://localhost:8080/storage/reading/query,query_readings_not_in.json
 Query Readings IN operator bad values,PUT,http://localhost:8080/storage/reading/query,query_readings_in_bad_values.json
+Add a function as JSON value,PUT,http://localhost:8080/storage/table/test,put_function_in_JSON.json
 Shutdown,POST,http://localhost:1081/foglamp/service/shutdown,,checkstate

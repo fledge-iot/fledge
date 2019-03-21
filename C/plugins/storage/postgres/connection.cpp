@@ -685,11 +685,9 @@ SQLBuffer	sql;
 						Writer<StringBuffer> writer(buffer);
 						value.Accept(writer);
 
-						char *tmp_buffer = escape_double_quotes(buffer.GetString());
 						std::string buffer_escaped = "\"";
-						buffer_escaped.append(tmp_buffer);
+						buffer_escaped.append(escape_double_quotes(buffer.GetString()));
 						buffer_escaped.append( "\"");
-						free (tmp_buffer);
 
 						sql.append('\'');
 						sql.append(buffer_escaped);
@@ -1942,31 +1940,28 @@ SQLBuffer buf;
 }
 
 /**
- * Converts the input string quoting the double quotes : "  to \"
- * Note : the returned buffer should be freed
- *
- * @param str   String to convert
- * @param out	Converted string
- */
-char *Connection::escape_double_quotes(const char *str)
+  * Converts the input string quoting the double quotes : "  to \"
+  * Note : the returned buffer should be freed
+  *
+  * @param str   String to convert
+  * @param out	Converted string
+  */
+const string Connection::escape_double_quotes(const string& str)
 {
-	static char *lastStr = NULL;
-	const char    *p1;
-	char *p2;
+	char		*buffer;
+	const char	*p1;
+	char  		*p2;
+	string		newString;
 
-	if (strchr(str, '\"') == NULL)
+	if (str.find_first_of('\"') == string::npos)
 	{
-		return (char *) str;
+		return str;
 	}
 
-	if (lastStr !=  NULL)
-	{
-		free(lastStr);
-	}
-	lastStr = (char *)malloc(strlen(str) * 2);
+	buffer = (char *)malloc(str.length() * 2);
 
-	p1 = str;
-	p2 = lastStr;
+	p1 = str.c_str();
+	p2 = buffer;
 	while (*p1)
 	{
 		if (*p1 == '\"')
@@ -1981,9 +1976,10 @@ char *Connection::escape_double_quotes(const char *str)
 		}
 	}
 	*p2 = 0;
-	return lastStr;
+	newString = string(buffer);
+	free(buffer);
+	return newString;
 }
-
 
 const char *Connection::escape(const char *str)
 {

@@ -41,7 +41,6 @@ from aiohttp import web
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.services.core import connect
 
-
 __author__ = "Mark Riddoch, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
@@ -232,7 +231,9 @@ async def asset_all_readings_summary(request):
     try:
         # Get readings from asset_code
         asset_code = request.match_info.get('asset_code', '')
-        payload = PayloadBuilder().SELECT("reading").WHERE(["asset_code", "=", asset_code]).payload()
+        # TODO: Use only the latest asset read to determine the data points to use. This
+        # avoids reading every single reading into memory and creating a very big result set See FOGL-2635
+        payload = PayloadBuilder().SELECT("reading").WHERE(["asset_code", "=", asset_code]).LIMIT(1).ORDER_BY(["user_ts", "desc"]).payload()
         _readings = connect.get_readings_async()
         results = await _readings.query(payload)
         if not results['rows']:

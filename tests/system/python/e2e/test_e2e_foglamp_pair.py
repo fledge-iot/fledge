@@ -267,7 +267,7 @@ class TestE2eFogPairPi:
 
     def test_end_to_end(self, start_south_north_remote, start_south_north_local,
                         read_data_from_pi, retries, pi_host, pi_admin, pi_passwd, pi_db,
-                        foglamp_url, remote_ip, wait_time):
+                        foglamp_url, remote_ip, wait_time, verify_north_data):
         """ Test that data is inserted in FogLAMP (local instance) using playback south plugin,
             sinusoid south plugin and expression south plugin and sent to http north (filter only playback data),
             FogLAMP (remote instance) receive this data via http south and send to PI
@@ -282,6 +282,7 @@ class TestE2eFogPairPi:
             foglamp_url: Local FogLAMP URL
             remote_ip: IP address where 2 FogLAMP is running (Remote)
             wait_time: time to wait in sec before making assertions
+            verify_north_data: Flag for assertion of data from Pi web API
             Assertions:
                 on endpoint GET /foglamp/asset
                 on endpoint GET /foglamp/asset/<asset_name> with applied data processing filter value
@@ -342,5 +343,6 @@ class TestE2eFogPairPi:
             actual_read_values.append(itm['reading'][CSV_HEADERS])
         assert expected_read_values == actual_read_values
 
-        self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
-                            expected_read_values)
+        if verify_north_data:
+            self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
+                                expected_read_values)

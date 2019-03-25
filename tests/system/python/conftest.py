@@ -291,6 +291,9 @@ def pytest_addoption(parser):
                      help="Generic wait time between processes to run")
     parser.addoption("--retries", action="store", default=3, type=int,
                      help="Number of tries for polling")
+    # TODO: Temporary fixture, to be used with value False for environments where PI Web API is not stable
+    parser.addoption("--verify-north-data", action="store", default='true',
+                     help="Verify data from north side api")
 
     parser.addoption("--remote-user", action="store", default="ubuntu",
                      help="Username on remote machine where FogLAMP will run")
@@ -379,6 +382,15 @@ def key_path(request):
 @pytest.fixture
 def remote_foglamp_path(request):
     return request.config.getoption("--remote-foglamp-path")
+
+
+@pytest.fixture
+def verify_north_data(request):
+    v = request.config.getoption("--verify-north-data")
+    if v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        return True
 
 
 @pytest.fixture

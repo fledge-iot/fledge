@@ -32,6 +32,26 @@ HEADER = {'Content-Type': 'application/vnd.kafka.v2+json', 'Accept': 'applicatio
 
 
 class TestE2EKafka:
+    def get_ping_status(self, foglamp_url):
+        _connection = http.client.HTTPConnection(foglamp_url)
+        _connection.request("GET", '/foglamp/ping')
+        r = _connection.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        return jdoc
+
+    def get_statistics_map(self, foglamp_url):
+        _connection = http.client.HTTPConnection(foglamp_url)
+        _connection.request("GET", '/foglamp/statistics')
+        r = _connection.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        actual_stats_map = {}
+        for itm in jdoc:
+            actual_stats_map[itm['key']] = itm['value']
+        return actual_stats_map
 
     def _prepare_template_reading_from_fogbench(self):
         """ Define the template file for fogbench readings """
@@ -98,9 +118,11 @@ class TestE2EKafka:
         remove_directories("/tmp/foglamp-south-{}".format(SOUTH_PLUGIN_NAME))
         remove_directories("/tmp/foglamp-north-{}".format(NORTH_PLUGIN_NAME.lower()))
 
-    def test_end_to_end(self, start_south_north, foglamp_url, wait_time, kafka_host, kafka_rest_port, kafka_topic):
+    def test_end_to_end(self, start_south_north, foglamp_url, wait_time, kafka_host, kafka_rest_port, kafka_topic,
+                        verify_north_data):
         """ Test that data is inserted in FogLAMP and sent to Kafka
             start_south_north: Fixture that starts FogLAMP with south and north instance
+            verify_north_data: Flag for assertion of data from kafka rest
             Assertions:
                 on endpoint GET /foglamp/asset
                 on endpoint GET /foglamp/asset/<asset_name>
@@ -111,6 +133,17 @@ class TestE2EKafka:
         subprocess.run(["cd $FOGLAMP_ROOT/extras/python; python3 -m fogbench -t ../../data/{}; cd -"
                        .format(FOGBENCH_TEMPLATE)], shell=True, check=True)
         time.sleep(wait_time)
+
+        ping_response = self.get_ping_status(foglamp_url)
+        assert 1 == ping_response["dataRead"]
+        assert 1 == ping_response["dataSent"]
+
+        actual_stats_map = self.get_statistics_map(foglamp_url)
+        assert 1 == actual_stats_map[ASSET_NAME.upper()]
+        assert 1 == actual_stats_map["NorthReadingsTo{}".format(NORTH_PLUGIN_NAME)]
+        assert 1 == actual_stats_map['READINGS']
+        assert 1 == actual_stats_map['Readings Sent']
+
         conn.request("GET", '/foglamp/asset')
         r = conn.getresponse()
         assert 200 == r.status
@@ -128,7 +161,8 @@ class TestE2EKafka:
         assert 1 == len(val)
         assert {'sensor': SENSOR_VALUE} == val[0]["reading"]
 
-        self._read_from_kafka(kafka_host, kafka_rest_port, kafka_topic)
+        if verify_north_data:
+            self._read_from_kafka(kafka_host, kafka_rest_port, kafka_topic)
 
     def _read_from_kafka(self, host, rest_port, topic):
         conn = http.client.HTTPConnection("{}:{}".format(host, rest_port))

@@ -24,6 +24,29 @@ TEMPLATE_NAME = "template.json"
 SENSOR_VALUE = 10
 
 
+def get_ping_status(foglamp_url):
+    _connection = http.client.HTTPConnection(foglamp_url)
+    _connection.request("GET", '/foglamp/ping')
+    r = _connection.getresponse()
+    assert 200 == r.status
+    r = r.read().decode()
+    jdoc = json.loads(r)
+    return jdoc
+
+
+def get_statistics_map(foglamp_url):
+    _connection = http.client.HTTPConnection(foglamp_url)
+    _connection.request("GET", '/foglamp/statistics')
+    r = _connection.getresponse()
+    assert 200 == r.status
+    r = r.read().decode()
+    jdoc = json.loads(r)
+    actual_stats_map = {}
+    for itm in jdoc:
+        actual_stats_map[itm['key']] = itm['value']
+    return actual_stats_map
+
+
 @pytest.fixture
 def start_south_coap(reset_and_start_foglamp, add_south, remove_data_file, remove_directories, south_branch,
                      foglamp_url, south_plugin="coap", asset_name="smoke"):
@@ -64,6 +87,15 @@ def test_smoke(start_south_coap, foglamp_url, wait_time, asset_name="smoke"):
     subprocess.run(["cd $FOGLAMP_ROOT/extras/python; python3 -m fogbench -t ../../data/{}; cd -".format(TEMPLATE_NAME)],
                    shell=True, check=True)
     time.sleep(wait_time)
+
+    ping_response = get_ping_status(foglamp_url)
+    assert 1 == ping_response["dataRead"]
+    assert 0 == ping_response["dataSent"]
+
+    actual_stats_map = get_statistics_map(foglamp_url)
+    assert 1 == actual_stats_map[asset_name.upper()]
+    assert 1 == actual_stats_map['READINGS']
+
     conn.request("GET", '/foglamp/asset')
     r = conn.getresponse()
 

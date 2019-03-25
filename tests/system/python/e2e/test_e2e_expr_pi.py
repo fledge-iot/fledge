@@ -31,6 +31,26 @@ ASSET_NAME = "Expression"
 
 
 class TestE2eExprPi:
+    def get_ping_status(self, foglamp_url):
+        _connection = http.client.HTTPConnection(foglamp_url)
+        _connection.request("GET", '/foglamp/ping')
+        r = _connection.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        return jdoc
+
+    def get_statistics_map(self, foglamp_url):
+        _connection = http.client.HTTPConnection(foglamp_url)
+        _connection.request("GET", '/foglamp/statistics')
+        r = _connection.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        actual_stats_map = {}
+        for itm in jdoc:
+            actual_stats_map[itm['key']] = itm['value']
+        return actual_stats_map
 
     @pytest.fixture
     def start_south_north(self, reset_and_start_foglamp, add_south, enable_schedule, remove_directories,
@@ -63,22 +83,34 @@ class TestE2eExprPi:
         remove_directories("/tmp/foglamp-filter-{}".format(filter_plugin))
 
     def test_end_to_end(self, start_south_north, disable_schedule, foglamp_url, read_data_from_pi, pi_host, pi_admin,
-                        pi_passwd, pi_db, wait_time, retries):
+                        pi_passwd, pi_db, wait_time, retries, verify_north_data):
         """ Test that data is inserted in FogLAMP using expression south plugin & metadata filter, and sent to PI
             start_south_north: Fixture that starts FogLAMP with south service, add filter and north instance
+            verify_north_data: Flag for assertion of data from Pi web API
             Assertions:
                 on endpoint GET /foglamp/asset
                 on endpoint GET /foglamp/asset/<asset_name> with applied data processing filter value
                 data received from PI is same as data sent"""
 
         time.sleep(wait_time)
+
+        ping_response = self.get_ping_status(foglamp_url)
+        assert 0 < ping_response["dataRead"]
+        assert 0 < ping_response["dataSent"]
+
+        actual_stats_map = self.get_statistics_map(foglamp_url)
+        assert 0 < actual_stats_map[ASSET_NAME.upper()]
+        assert 0 < actual_stats_map['NorthReadingsToPI']
+        assert 0 < actual_stats_map['READINGS']
+        assert 0 < actual_stats_map['Readings Sent']
+
         conn = http.client.HTTPConnection(foglamp_url)
         self._verify_ingest(conn)
 
         # disable schedule to stop the service and sending data
         disable_schedule(foglamp_url, SVC_NAME)
-
-        self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
+        if verify_north_data:
+            self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
 
     def _verify_ingest(self, conn):
 

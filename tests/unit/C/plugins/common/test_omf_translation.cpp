@@ -18,7 +18,7 @@
 using namespace std;
 using namespace rapidjson;
 
-#define TYPE_ID "1234"
+#define TYPE_ID 1234
 
 // 2 readings JSON text
 const char *two_readings = R"(
@@ -66,7 +66,12 @@ const char *readings_with_different_datapoints = R"(
 
 
 // 2 readings translated to OMF JSON text
-const char *two_translated_readings = R"([{"containerid": ")" TYPE_ID R"(measurement_luxometer", "values": [{"lux": 45204.524, "Time": "2018-06-11T14:00:08.532958Z"}]}, {"containerid": ")" TYPE_ID R"(measurement_luxometer", "values": [{"lux": 76834.361, "Time": "2018-08-21T14:00:09.329580Z"}]}])";
+const string two_translated_readings = "[{\"containerid\": \"" + to_string(TYPE_ID) + \
+					"measurement_luxometer\", \"values\": [{\"lux\": "
+					"45204.524, \"Time\": \"2018-06-11T14:00:08.532958Z\"}]}, "
+					"{\"containerid\": \"" + to_string(TYPE_ID) + \
+					"measurement_luxometer\", \"values\": "
+					"[{\"lux\": 76834.361, \"Time\": \"2018-08-21T14:00:09.329580Z\"}]}]";
 
 // Compare translated readings with a provided JSON value
 TEST(OMF_transation, TwoTranslationsCompareResult)
@@ -83,7 +88,7 @@ TEST(OMF_transation, TwoTranslationsCompareResult)
 							++elem)
 	{
 		// Add into JSON string the OMF transformed Reading data
-		jsonData << OMFData(**elem, string(TYPE_ID)).OMFdataVal() << (elem < (readingSet.getAllReadings().end() - 1 ) ? ", " : "");
+		jsonData << OMFData(**elem, TYPE_ID).OMFdataVal() << (elem < (readingSet.getAllReadings().end() - 1 ) ? ", " : "");
 	}
 
 	jsonData << "]";
@@ -107,7 +112,7 @@ TEST(OMF_transation, OneReading)
 
 	// Create the OMF Json data
 	jsonData << "[";
-	jsonData << OMFData(lab, string(TYPE_ID)).OMFdataVal();
+	jsonData << OMFData(lab, TYPE_ID).OMFdataVal();
 	jsonData << "]";
 
 	// "values" key is in the output 
@@ -146,7 +151,7 @@ TEST(OMF_transation, OneReading)
 TEST(OMF_transation, SuperSet)
 {
 	SimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
-	OMF omf(sender, "/", "1", "ABC");
+	OMF omf(sender, "/", 1, "ABC");
 	// Build a ReadingSet from JSON
 	ReadingSet readingSet(readings_with_different_datapoints);
 	vector<Reading *>readings = readingSet.getAllReadings();

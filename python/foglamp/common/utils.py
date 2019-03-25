@@ -37,6 +37,27 @@ def check_reserved(string):
     return True
 
 
+def check_foglamp_reserved(string):
+    reserved = [
+        'foglamp',
+        'general',
+        'advanced',
+        'notifications',
+        'north',
+        'south',
+        'filter',
+        'notify',
+        'rule',
+        'delivery',
+        'utilities'
+    ]
+    if string is None or not isinstance(string, str) or string == "":
+        return False
+    if string.lower() in reserved:
+        return False
+    return True
+
+
 def local_timestamp():
     """
     :return: str - current time stamp with microseconds and machine timezone info

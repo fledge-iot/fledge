@@ -26,10 +26,6 @@
 #include <time.h>
 #include <algorithm>
 
-
-// FIXME::
-#include <tmp_log.hpp>
-
 using namespace std;
 using namespace rapidjson;
 
@@ -287,14 +283,6 @@ Document	document;
 ostringstream convert;
 std::size_t arr = data.find("inserts");
 
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug(
-		"DBG PG insert  1.0 : table |%s| data |%s|",
-		table.c_str(),
-		data.c_str());
-
-
 	// Check first the 'inserts' property in JSON data
 	bool stdInsert = (arr == std::string::npos || arr > 8);
 	// If input data is not an array of iserts
@@ -351,10 +339,8 @@ std::size_t arr = data.find("inserts");
 			{
 				sql.append(", ");
 			}
-			//# FIXME_I
 			string field_name = double_quote_reserved_column_name(itr->name.GetString());
 			sql.append(field_name);
-			///# FIXME_I
 
 			// Append column value
 			if (col)
@@ -406,14 +392,6 @@ std::size_t arr = data.find("inserts");
 	const char *query = sql.coalesce();
 	logSQL("CommonInsert", query);
 
-	// FIXME: Fast
-	char tmp_buffer[10000];
-	sprintf (tmp_buffer,"DBG : query |%s| ", query);
-	string str_buffer(tmp_buffer);
-	tmpLogger (str_buffer);
-
-
-
 	PGresult *res = PQexec(dbConnection, query);
 	delete[] query;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
@@ -435,14 +413,6 @@ int Connection::update(const string& table, const string& payload)
 // Default template parameter uses UTF8 and MemoryPoolAllocator.
 Document	document;
 SQLBuffer	sql;
-
-
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug(
-		"DBG PG UPDATE  1.0 : table |%s|",
-		table.c_str());
-
 
 	int 	row = 0;
 	ostringstream convert;
@@ -728,13 +698,6 @@ SQLBuffer	sql;
 						buffer_escaped.append(escape_double_quotes(buffer.GetString()));
 						buffer_escaped.append( "\"");
 
-						// FIXME_I:
-						Logger::getLogger()->setMinLevel("debug");
-						Logger::getLogger()->debug(
-							"DBG PG UPDATE 2.0 : buffer_escaped |%s|",
-							buffer_escaped.c_str());
-
-
 						sql.append('\'');
 						sql.append(buffer_escaped);
 						sql.append('\'');
@@ -771,13 +734,6 @@ SQLBuffer	sql;
 
 	const char *query = sql.coalesce();
 	logSQL("CommonUpdate", query);
-
-
-	// FIXME: Fast
-	char tmp_buffer[10000];
-	sprintf (tmp_buffer,"DBG : query |%s| ", query);
-	string str_buffer(tmp_buffer);
-	tmpLogger (str_buffer);
 
 	PGresult *res = PQexec(dbConnection, query);
 	delete[] query;

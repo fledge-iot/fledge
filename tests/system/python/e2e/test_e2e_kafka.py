@@ -159,7 +159,7 @@ class TestE2EKafka:
         assert 1 == len(val)
         assert {'sensor': SENSOR_VALUE} == val[0]["reading"]
 
-        if skip_verify_north_interface:
+        if not skip_verify_north_interface:
             self._read_from_kafka(kafka_host, kafka_rest_port, kafka_topic)
 
     def _read_from_kafka(self, host, rest_port, topic):

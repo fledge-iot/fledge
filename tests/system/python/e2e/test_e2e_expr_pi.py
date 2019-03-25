@@ -107,7 +107,7 @@ class TestE2eExprPi:
 
         # disable schedule to stop the service and sending data
         disable_schedule(foglamp_url, SVC_NAME)
-        if skip_verify_north_interface:
+        if not skip_verify_north_interface:
             self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
 
     def _verify_ingest(self, conn):

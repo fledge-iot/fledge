@@ -133,6 +133,6 @@ def test_end_to_end(start_south_north, read_data_from_pi, foglamp_url, pi_host, 
     retval = json.loads(r)
     assert {'sensor': SENSOR_VALUE} == retval[0]["reading"]
 
-    if skip_verify_north_interface:
+    if not skip_verify_north_interface:
         _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name)
 

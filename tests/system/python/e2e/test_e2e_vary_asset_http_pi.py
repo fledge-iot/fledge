@@ -168,7 +168,7 @@ class TestE2EAssetHttpPI:
         assert sensor_data[1] == retval[4]["reading"]
         assert sensor_data[0] == retval[5]["reading"]
 
-        if skip_verify_north_interface:
+        if not skip_verify_north_interface:
             # Allow some buffer so that data is ingested in PI before fetching using PI Web API
             time.sleep(wait_time)
             self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name,

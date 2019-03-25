@@ -152,7 +152,7 @@ class TestE2eCsvMultiFltrPi:
         assert 1 == actual_stats_map['READINGS']
         assert 1 == actual_stats_map['Readings Sent']
 
-        if skip_verify_north_interface:
+        if not skip_verify_north_interface:
             self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
 
     def _verify_ingest(self, conn):

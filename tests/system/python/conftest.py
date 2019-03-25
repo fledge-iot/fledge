@@ -389,7 +389,7 @@ def remote_foglamp_path(request):
 
 @pytest.fixture
 def skip_verify_north_interface(request):
-    return request.config.getoption("--skip-verify-north-interface")
+    return not request.config.getoption("--skip-verify-north-interface")
 
 
 @pytest.fixture

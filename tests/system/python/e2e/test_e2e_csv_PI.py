@@ -158,5 +158,5 @@ def test_e2e_csv_pi(start_south_north, read_data_from_pi, foglamp_url, pi_host, 
             _actual_read_list.append(_el[_head])
         assert Counter(_actual_read_list) == Counter(_data_str[_head])
 
-    if skip_verify_north_interface:
+    if not skip_verify_north_interface:
         _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name)

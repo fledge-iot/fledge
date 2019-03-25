@@ -204,6 +204,21 @@ The minimum required parameters to run ::
     --kafka-topic=<Kafka topic>
     --kafka-rest-port=<Kafka REST Proxy Port>
 
+Test test_e2e_foglamp_pair.py
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The minimum required parameters to run this test is ::
+
+    --remote-user=<Username of remote machine>
+    --remote-ip=<IP of remote machine>
+    --key-path=<Absolute path of key used for authentication>
+    --remote-foglamp-path=<Absolute path on remote machine where FogLAMP is cloned>
+    --pi-db=<PI DB name>
+    --pi-host=<Hostname/IP of PI Server>
+    --pi-port=<PI Server Port>
+    --pi-admin=<Login of PI Machine>
+    --pi-passwd=<Password of PI Machine>
+    --pi-token="<PI Producer token>"
 
 Execute all the System tests
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -228,6 +243,17 @@ and running pytest without the test name::
     --kafka-port=<Kafka Server Port>
     --kafka-topic=<Kafka topic>
     --kafka-rest-port=<Kafka REST Proxy Port>
+
+    --remote-user=REMOTE_USER
+                        Username on remote machine where FogLAMP will run
+    --remote-ip=REMOTE_IP
+                        IP of remote machine where FogLAMP will run
+    --key-path=KEY_PATH   Path of key file used for authentication to remote
+                        machine
+    --remote-foglamp-path=REMOTE_FOGLAMP_PATH
+                        Path on the remote machine where FogLAMP is clone and
+                        built
+
 
 Console output
 ++++++++++++++

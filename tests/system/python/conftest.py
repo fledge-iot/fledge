@@ -40,8 +40,8 @@ def reset_and_start_foglamp(storage_plugin):
 
     subprocess.run(["echo YES | $FOGLAMP_ROOT/scripts/foglamp reset"], shell=True, check=True)
     subprocess.run(["$FOGLAMP_ROOT/scripts/foglamp start"], shell=True)
-    stat = subprocess.run(["$FOGLAMP_ROOT/scripts/foglamp status"], shell=True, stdout=subprocess.PIPE)
-    assert "FogLAMP not running." not in stat.stdout.decode("utf-8")
+    stat = subprocess.run(["$FOGLAMP_ROOT/scripts/foglamp status"], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    assert "FogLAMP not running." not in stat.stderr.decode("utf-8")
 
 
 def find(pattern, path):
@@ -292,6 +292,15 @@ def pytest_addoption(parser):
     parser.addoption("--retries", action="store", default=3, type=int,
                      help="Number of tries for polling")
 
+    parser.addoption("--remote-user", action="store", default="ubuntu",
+                     help="Username on remote machine where FogLAMP will run")
+    parser.addoption("--remote-ip", action="store", default="127.0.0.1",
+                     help="IP of remote machine where FogLAMP will run")
+    parser.addoption("--key-path", action="store", default="~/.ssh/id_rsa.pub",
+                     help="Path of key file used for authentication to remote machine")
+    parser.addoption("--remote-foglamp-path", action="store",
+                     help="Path on the remote machine where FogLAMP is clone and built")
+
     # South/North Args
     parser.addoption("--south-branch", action="store", default="develop",
                      help="south branch name")
@@ -350,6 +359,26 @@ def pytest_addoption(parser):
 @pytest.fixture
 def storage_plugin(request):
     return request.config.getoption("--storage-plugin")
+
+
+@pytest.fixture
+def remote_user(request):
+    return request.config.getoption("--remote-user")
+
+
+@pytest.fixture
+def remote_ip(request):
+    return request.config.getoption("--remote-ip")
+
+
+@pytest.fixture
+def key_path(request):
+    return request.config.getoption("--key-path")
+
+
+@pytest.fixture
+def remote_foglamp_path(request):
+    return request.config.getoption("--remote-foglamp-path")
 
 
 @pytest.fixture

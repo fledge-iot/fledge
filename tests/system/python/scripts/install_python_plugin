@@ -42,7 +42,7 @@ clone_repo () {
 
 copy_file_and_requirement () {
     if [ "$PLUGIN_NAME" = "http" ]; then
-        cp -r /tmp/${REPO_NAME}/python/foglamp/plugins/${PLUGIN_TYPE}/${PLUGIN_NAME}_south $FOGLAMP_ROOT/python/foglamp/plugins/${PLUGIN_TYPE}/
+        cp -r /tmp/${REPO_NAME}/python/foglamp/plugins/${PLUGIN_TYPE}/${PLUGIN_NAME}_${PLUGIN_TYPE} $FOGLAMP_ROOT/python/foglamp/plugins/${PLUGIN_TYPE}/
     else
         cp -r /tmp/${REPO_NAME}/python/foglamp/plugins/${PLUGIN_TYPE}/${PLUGIN_NAME} $FOGLAMP_ROOT/python/foglamp/plugins/${PLUGIN_TYPE}/
     fi

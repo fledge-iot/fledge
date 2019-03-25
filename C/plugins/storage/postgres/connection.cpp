@@ -391,7 +391,6 @@ std::size_t arr = data.find("inserts");
 
 	const char *query = sql.coalesce();
 	logSQL("CommonInsert", query);
-
 	PGresult *res = PQexec(dbConnection, query);
 	delete[] query;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
@@ -734,7 +733,6 @@ SQLBuffer	sql;
 
 	const char *query = sql.coalesce();
 	logSQL("CommonUpdate", query);
-
 	PGresult *res = PQexec(dbConnection, query);
 	delete[] query;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
@@ -1950,11 +1948,11 @@ SQLBuffer buf;
 }
 
 /**
-  * Add double quotes for words that are reserved as a field name
+  * Add double quotes for words that are reserved as a column name
   * Sample : user to "user"
   *
-  * @param column_name  Field name to be evaluated
-  * @param out	       Finale name of the field
+  * @param column_name  Column name to be evaluated
+  * @param out	        Final name of the column
   */
 const string Connection::double_quote_reserved_column_name(const string &column_name)
 {

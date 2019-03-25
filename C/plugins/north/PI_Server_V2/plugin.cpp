@@ -283,21 +283,22 @@ void plugin_start(const PLUGIN_HANDLE handle,
 	loadSentDataTypes(connInfo, JSONData);
 
 	// Log default type-id
-	if (connInfo->assetsDataTypes.size() == 1)
+	if (connInfo->assetsDataTypes.size() == 1 &&
+	    connInfo->assetsDataTypes.find(FAKE_ASSET_KEY) != connInfo->assetsDataTypes.end())
 	{
 		// Only one value: we have the FAKE_ASSET_KEY and no other data
-		Logger::getLogger()->error("%s plugin is using global OMF prefix %s=%d",
+		Logger::getLogger()->info("%s plugin is using global OMF prefix %s=%d",
 					  PLUGIN_NAME,
 					  TYPE_ID_KEY,
 					  connInfo->typeId);
 	}
 	else
 	{
-		Logger::getLogger()->error("%s plugin is using per asset OMF prefix %s=%d "
-					   "(max value found)",
-					   PLUGIN_NAME,
-					   TYPE_ID_KEY,
-					   getMaxTypeId(connInfo));
+		Logger::getLogger()->info("%s plugin is using per asset OMF prefix %s=%d "
+					  "(max value found)",
+					  PLUGIN_NAME,
+					  TYPE_ID_KEY,
+					  getMaxTypeId(connInfo));
 	}
 }
 

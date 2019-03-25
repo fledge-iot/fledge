@@ -24,6 +24,7 @@
 #include <sstream>
 #include <logger.h>
 #include <time.h>
+#include <algorithm>
 
 using namespace std;
 using namespace rapidjson;
@@ -34,6 +35,10 @@ static time_t connectErrorTime = 0;
 #define LEN_BUFFER_DATE 100
 // Format timestamp having microseconds
 #define F_DATEH24_US    	"YYYY-MM-DD HH24:MI:SS.US"
+
+const vector<string>  pg_column_reserved_words = {
+	"user"
+};
 
 /**
  * Create a database connection
@@ -541,8 +546,8 @@ Document	document;
 ostringstream convert;
 std::size_t arr = data.find("inserts");
 
-// Check first the 'inserts' property in JSON data
-bool stdInsert = (arr == std::string::npos || arr > 8);
+	// Check first the 'inserts' property in JSON data
+	bool stdInsert = (arr == std::string::npos || arr > 8);
 	// If input data is not an array of iserts
 	// create an array with one element
 	if (stdInsert)
@@ -597,8 +602,9 @@ bool stdInsert = (arr == std::string::npos || arr > 8);
 			{
 				sql.append(", ");
 			}
-			sql.append(itr->name.GetString());
- 
+			string field_name = double_quote_reserved_column_name(itr->name.GetString());
+			sql.append(field_name);
+
 			// Append column value
 			if (col)
 			{
@@ -835,7 +841,7 @@ SQLBuffer	sql;
 						Writer<StringBuffer> writer(buffer);
 						value.Accept(writer);
 						sql.append('\'');
-						sql.append(buffer.GetString());
+						sql.append(escape(buffer.GetString()));
 						sql.append('\'');
 					}
 					col++;
@@ -925,7 +931,9 @@ SQLBuffer	sql;
 						regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
 						if (regex_match (s,e))
 						{
+							sql.append("'\"");
 							sql.append(str);
+							sql.append("\"'");
 						}
 						else
 						{
@@ -947,8 +955,13 @@ SQLBuffer	sql;
 						StringBuffer buffer;
 						Writer<StringBuffer> writer(buffer);
 						value.Accept(writer);
+
+						std::string buffer_escaped = "\"";
+						buffer_escaped.append(escape_double_quotes(buffer.GetString()));
+						buffer_escaped.append( "\"");
+
 						sql.append('\'');
-						sql.append(buffer.GetString());
+						sql.append(buffer_escaped);
 						sql.append('\'');
 					}
 					sql.append(")");
@@ -2382,41 +2395,72 @@ SQLBuffer buf;
 	return -1;
 }
 
-
-const char *Connection::escape(const char *str)
+/**
+  * Add double quotes for words that are reserved as a column name
+  * Sample : user to "user"
+  *
+  * @param column_name  Column name to be evaluated
+  * @param out	        Final name of the column
+  */
+const string Connection::double_quote_reserved_column_name(const string &column_name)
 {
-static char *lastStr = NULL;
-const char    *p1;
-char *p2;
+	string final_column_name;
 
-    if (strchr(str, '\'') == NULL)
-    {
-        return str;
-    }
+	if ( std::find(pg_column_reserved_words.begin(),
+		       pg_column_reserved_words.end(),
+		       column_name)
+	     != pg_column_reserved_words.end()
+		)
+	{
+		final_column_name = "\"" + column_name + "\"";
+	}
+	else
+	{
+		final_column_name = column_name;
+	}
 
-    if (lastStr !=  NULL)
-    {
-        free(lastStr);
-    }
-    lastStr = (char *)malloc(strlen(str) * 2);
+	return(final_column_name);
+}
 
-    p1 = str;
-    p2 = lastStr;
-    while (*p1)
-    {
-        if (*p1 == '\'')
-        {
-            *p2++ = '\'';
-            *p2++ = '\'';
-            p1++;
-        }
-        else
-        {
-            *p2++ = *p1++;
-        }
-    }
-    *p2 = 0;
-    return lastStr;
+/**
+  * Converts the input string quoting the double quotes : "  to \"
+  *
+  * @param str   String to convert
+  * @param out	Converted string
+  */
+const string Connection::escape_double_quotes(const string& str)
+{
+	char		*buffer;
+	const char	*p1;
+	char  		*p2;
+	string		newString;
+
+	if (str.find_first_of('\"') == string::npos)
+	{
+		return str;
+	}
+
+	buffer = (char *)malloc(str.length() * 2);
+
+	p1 = str.c_str();
+	p2 = buffer;
+	while (*p1)
+	{
+		if (*p1 == '\"')
+		{
+			*p2++ = '\\';
+			*p2++ = '\"';
+			p1++;
+		}
+		else
+		{
+			*p2++ = *p1++;
+		}
+	}
+	*p2 = 0;
+	newString = string(buffer);
+	free(buffer);
+	return newString;
 }
 
 const string Connection::escape(const string& str)

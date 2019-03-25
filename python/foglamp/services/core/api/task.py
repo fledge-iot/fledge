@@ -88,6 +88,8 @@ async def add_task(request):
             raise web.HTTPBadRequest(reason='Missing type property in payload.')
         if utils.check_reserved(name) is False:
             raise web.HTTPBadRequest(reason='Invalid name property in payload.')
+        if utils.check_foglamp_reserved(name) is False:
+            raise web.HTTPBadRequest(reason="'{}' is reserved for FogLAMP and can not be used as task name!".format(name))
         if utils.check_reserved(plugin) is False:
             raise web.HTTPBadRequest(reason='Invalid plugin property in payload.')
         if task_type not in ['north']:

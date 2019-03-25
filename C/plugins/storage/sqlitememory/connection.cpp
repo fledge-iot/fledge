@@ -1396,7 +1396,7 @@ long numReadings = 0;
 		unsentBuffer.append(sent);
 		unsentBuffer.append(';');
 		const char *query = unsentBuffer.coalesce();
-		logSQL("RedingsPurge", query);
+		logSQL("ReadingsPurge", query);
 		char *zErrMsg = NULL;
 		int rc;
 		int unsent = 0;
@@ -1433,7 +1433,7 @@ long numReadings = 0;
 	}
 	sql.append(';');
 	const char *query = sql.coalesce();
-	logSQL("RedingsPurge", query);
+	logSQL("ReadingsPurge", query);
 	char *zErrMsg = NULL;
 	int rc;
 	int rows_deleted;
@@ -1463,12 +1463,12 @@ long numReadings = 0;
 	retainedBuffer.append(sent);
 	retainedBuffer.append(';');
 	const char *query_r = retainedBuffer.coalesce();
-	logSQL("RedingsPurge", query_r);
+	logSQL("ReadingsPurge", query_r);
 	int retained_unsent = 0;
 
 	// Exec query and get result in 'retained_unsent' via 'countCallback'
 	rc = SQLexec(inMemory,
-		     query,
+		     query_r,
 		     countCallback,
 		     &retained_unsent,
 		     &zErrMsg);
@@ -2415,46 +2415,6 @@ SQLBuffer buf;
 
  	raiseError("tableSize", "Not available in SQLite3 Memory storage plugin");
 	return -1;
-}
-
-
-/**
- * char* escape routine
- */
-const char *Connection::escape(const char *str)
-{
-static char *lastStr = NULL;
-const char    *p1;
-char *p2;
-
-    if (strchr(str, '\'') == NULL)
-    {
-        return str;
-    }
-
-    if (lastStr !=  NULL)
-    {
-        free(lastStr);
-    }
-    lastStr = (char *)malloc(strlen(str) * 2);
-
-    p1 = str;
-    p2 = lastStr;
-    while (*p1)
-    {
-        if (*p1 == '\'')
-        {
-            *p2++ = '\'';
-            *p2++ = '\'';
-            p1++;
-        }
-        else
-        {
-            *p2++ = *p1++;
-        }
-    }
-    *p2 = 0;
-    return lastStr;
 }
 
 /**

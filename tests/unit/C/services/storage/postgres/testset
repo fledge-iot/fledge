@@ -105,4 +105,7 @@ microseconds - Query asset NO alias,PUT,http://localhost:8080/storage/reading/qu
 microseconds - Query asset alias,PUT,http://localhost:8080/storage/reading/query,msec_query_asset_alias.json
 microseconds - Query asset aggregate min,PUT,http://localhost:8080/storage/reading/query,msec_query_asset_aggmin.json
 microseconds - Query asset aggregate min array,PUT,http://localhost:8080/storage/reading/query,msec_query_asset_aggminarray.json
+Update JSON value as function,PUT,http://localhost:8080/storage/table/test,put_function_in_JSON.json
+Update JSON value in JSON value,PUT,http://localhost:8080/storage/table/test,put_json_in_JSON.json
+Get updated complex JSON value,PUT,http://localhost:8080/storage/table/test/query,get_updated_complex_JSON.json
 Shutdown,POST,http://localhost:1081/foglamp/service/shutdown,,checkstate

@@ -46,7 +46,6 @@ class Connection {
 		                               bool isTableReading = false);
 		bool		returnJson(const rapidjson::Value&, SQLBuffer&, SQLBuffer&);
 		char		*trim(char *str);
-		const char	*escape(const char *);
 		const std::string	escape(const std::string&);
 		bool applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 						int i,

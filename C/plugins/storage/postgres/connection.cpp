@@ -24,12 +24,21 @@
 #include <sstream>
 #include <logger.h>
 #include <time.h>
+#include <algorithm>
+
+
+// FIXME::
+#include <tmp_log.hpp>
 
 using namespace std;
 using namespace rapidjson;
 
 static time_t connectErrorTime = 0;
 #define CONNECT_ERROR_THRESHOLD		5*60	// 5 minutes
+
+const vector<string>  pg_column_reserved_words = {
+	"user"
+};
 
 /**
  * Create a database connection
@@ -278,8 +287,16 @@ Document	document;
 ostringstream convert;
 std::size_t arr = data.find("inserts");
 
-// Check first the 'inserts' property in JSON data
-bool stdInsert = (arr == std::string::npos || arr > 8);
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug(
+		"DBG PG insert  1.0 : table |%s| data |%s|",
+		table.c_str(),
+		data.c_str());
+
+
+	// Check first the 'inserts' property in JSON data
+	bool stdInsert = (arr == std::string::npos || arr > 8);
 	// If input data is not an array of iserts
 	// create an array with one element
 	if (stdInsert)
@@ -334,8 +351,11 @@ bool stdInsert = (arr == std::string::npos || arr > 8);
 			{
 				sql.append(", ");
 			}
-			sql.append(itr->name.GetString());
- 
+			//# FIXME_I
+			string field_name = double_quote_reserved_column_name(itr->name.GetString());
+			sql.append(field_name);
+			///# FIXME_I
+
 			// Append column value
 			if (col)
 			{
@@ -385,6 +405,15 @@ bool stdInsert = (arr == std::string::npos || arr > 8);
 
 	const char *query = sql.coalesce();
 	logSQL("CommonInsert", query);
+
+	// FIXME: Fast
+	char tmp_buffer[10000];
+	sprintf (tmp_buffer,"DBG : query |%s| ", query);
+	string str_buffer(tmp_buffer);
+	tmpLogger (str_buffer);
+
+
+
 	PGresult *res = PQexec(dbConnection, query);
 	delete[] query;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
@@ -406,6 +435,14 @@ int Connection::update(const string& table, const string& payload)
 // Default template parameter uses UTF8 and MemoryPoolAllocator.
 Document	document;
 SQLBuffer	sql;
+
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug(
+		"DBG PG UPDATE  1.0 : table |%s|",
+		table.c_str());
+
 
 	int 	row = 0;
 	ostringstream convert;
@@ -691,6 +728,13 @@ SQLBuffer	sql;
 						buffer_escaped.append(escape_double_quotes(buffer.GetString()));
 						buffer_escaped.append( "\"");
 
+						// FIXME_I:
+						Logger::getLogger()->setMinLevel("debug");
+						Logger::getLogger()->debug(
+							"DBG PG UPDATE 2.0 : buffer_escaped |%s|",
+							buffer_escaped.c_str());
+
+
 						sql.append('\'');
 						sql.append(buffer_escaped);
 						sql.append('\'');
@@ -727,6 +771,14 @@ SQLBuffer	sql;
 
 	const char *query = sql.coalesce();
 	logSQL("CommonUpdate", query);
+
+
+	// FIXME: Fast
+	char tmp_buffer[10000];
+	sprintf (tmp_buffer,"DBG : query |%s| ", query);
+	string str_buffer(tmp_buffer);
+	tmpLogger (str_buffer);
+
 	PGresult *res = PQexec(dbConnection, query);
 	delete[] query;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
@@ -1942,8 +1994,34 @@ SQLBuffer buf;
 }
 
 /**
+  * Add double quotes for words that are reserved as a field name
+  * Sample : user to "user"
+  *
+  * @param column_name  Field name to be evaluated
+  * @param out	       Finale name of the field
+  */
+const string Connection::double_quote_reserved_column_name(const string &column_name)
+{
+	string final_column_name;
+
+	if ( std::find(pg_column_reserved_words.begin(),
+		       pg_column_reserved_words.end(),
+		       column_name)
+	     != pg_column_reserved_words.end()
+		)
+	{
+		final_column_name = "\"" + column_name + "\"";
+	}
+	else
+	{
+		final_column_name = column_name;
+	}
+
+	return(final_column_name);
+}
+
+/**
   * Converts the input string quoting the double quotes : "  to \"
-  * Note : the returned buffer should be freed
   *
   * @param str   String to convert
   * @param out	Converted string

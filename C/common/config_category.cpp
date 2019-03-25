@@ -306,6 +306,7 @@ void ConfigCategory::removeItemsType(ConfigCategory::ItemType type)
 	{
 		if ((*it)->m_itemType == type)
 		{
+			delete *it;
 			m_items.erase(it);
 		}
 		else
@@ -323,7 +324,7 @@ void ConfigCategory::removeItems()
 {
 	for (auto it = m_items.begin(); it != m_items.end(); )
 	{
-
+		delete *it;
 		m_items.erase(it);
 	}
 }
@@ -340,6 +341,7 @@ void ConfigCategory::keepItemsType(ConfigCategory::ItemType type)
 	{
 		if ((*it)->m_itemType != type)
 		{
+			delete *it;
 			m_items.erase(it);
 		}
 		else
@@ -384,6 +386,7 @@ bool ConfigCategory::extractSubcategory(ConfigCategory &subCategories)
 			m_name.replace(m_name.find(pattern), pattern.length(), instanceName);
 
 		// Removes the element just processed
+		delete *it;
 		subCategories.m_items.erase(it);
 		extracted = true;
 	}

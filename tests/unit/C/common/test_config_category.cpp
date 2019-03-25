@@ -417,6 +417,11 @@ TEST(CategoryTest, handle_type_JSON_fail)
 		// test fails here!
 		ASSERT_TRUE(false);
 	}
+	catch (exception *e)
+	{
+		delete e;
+		// Test ok; exception found
+	} 
 	catch (...)
 	{
 		// Test ok; exception found

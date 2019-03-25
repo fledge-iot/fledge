@@ -9,6 +9,7 @@
 """
 import subprocess
 import os
+import sys
 import fnmatch
 import http.client
 import json
@@ -22,6 +23,8 @@ __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
+
+sys.path.append(os.path.join(os.path.dirname(__file__), 'helpers'))
 
 
 @pytest.fixture
@@ -292,8 +295,8 @@ def pytest_addoption(parser):
     parser.addoption("--retries", action="store", default=3, type=int,
                      help="Number of tries for polling")
     # TODO: Temporary fixture, to be used with value False for environments where PI Web API is not stable
-    parser.addoption("--verify-north-data", action="store", default='true',
-                     help="Verify data from north side api")
+    parser.addoption("--skip-verify-north-interface", action="store_false",
+                     help="Verify data from external north system api")
 
     parser.addoption("--remote-user", action="store", default="ubuntu",
                      help="Username on remote machine where FogLAMP will run")
@@ -385,12 +388,8 @@ def remote_foglamp_path(request):
 
 
 @pytest.fixture
-def verify_north_data(request):
-    v = request.config.getoption("--verify-north-data")
-    if v.lower() in ('no', 'false', 'f', 'n', '0'):
-        return False
-    else:
-        return True
+def skip_verify_north_interface(request):
+    return request.config.getoption("--skip-verify-north-interface")
 
 
 @pytest.fixture

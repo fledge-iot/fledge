@@ -14,6 +14,7 @@ import time
 from datetime import datetime, timezone
 import uuid
 import pytest
+import utils
 
 
 __author__ = "Vaibhav Singhal"
@@ -39,10 +40,7 @@ class TestE2EAssetHttpPI:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        actual_stats_map = {}
-        for itm in jdoc:
-            actual_stats_map[itm['key']] = itm['value']
-        return actual_stats_map
+        return utils.serialize_stats_map(jdoc)
 
     def _verify_egress(self, read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name,
                        sensor_data, sensor_data_2):
@@ -104,11 +102,11 @@ class TestE2EAssetHttpPI:
         remove_directories("/tmp/foglamp-south-{}".format(south_plugin))
 
     def test_end_to_end(self, start_south_north, read_data_from_pi, foglamp_url, pi_host, pi_admin, pi_passwd, pi_db,
-                        wait_time, retries, verify_north_data):
+                        wait_time, retries, skip_verify_north_interface):
         """ Test that data is inserted in FogLAMP and sent to PI
             start_south_north: Fixture that starts FogLAMP with south and north instance
             read_data_from_pi: Fixture to read data from PI
-            verify_north_data: Flag for assertion of data from Pi web API
+            skip_verify_north_interface: Flag for assertion of data from Pi web API
             Assertions:
                 on endpoint GET /foglamp/asset
                 on endpoint GET /foglamp/asset/<asset_name>
@@ -170,7 +168,7 @@ class TestE2EAssetHttpPI:
         assert sensor_data[1] == retval[4]["reading"]
         assert sensor_data[0] == retval[5]["reading"]
 
-        if verify_north_data:
+        if skip_verify_north_interface:
             # Allow some buffer so that data is ingested in PI before fetching using PI Web API
             time.sleep(wait_time)
             self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name,

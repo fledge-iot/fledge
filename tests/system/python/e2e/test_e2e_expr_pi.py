@@ -15,6 +15,7 @@ import http.client
 import json
 import time
 import pytest
+import utils
 
 
 __author__ = "Praveen Garg"
@@ -47,10 +48,7 @@ class TestE2eExprPi:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        actual_stats_map = {}
-        for itm in jdoc:
-            actual_stats_map[itm['key']] = itm['value']
-        return actual_stats_map
+        return utils.serialize_stats_map(jdoc)
 
     @pytest.fixture
     def start_south_north(self, reset_and_start_foglamp, add_south, enable_schedule, remove_directories,
@@ -83,10 +81,10 @@ class TestE2eExprPi:
         remove_directories("/tmp/foglamp-filter-{}".format(filter_plugin))
 
     def test_end_to_end(self, start_south_north, disable_schedule, foglamp_url, read_data_from_pi, pi_host, pi_admin,
-                        pi_passwd, pi_db, wait_time, retries, verify_north_data):
+                        pi_passwd, pi_db, wait_time, retries, skip_verify_north_interface):
         """ Test that data is inserted in FogLAMP using expression south plugin & metadata filter, and sent to PI
             start_south_north: Fixture that starts FogLAMP with south service, add filter and north instance
-            verify_north_data: Flag for assertion of data from Pi web API
+            skip_verify_north_interface: Flag for assertion of data from Pi web API
             Assertions:
                 on endpoint GET /foglamp/asset
                 on endpoint GET /foglamp/asset/<asset_name> with applied data processing filter value
@@ -109,7 +107,7 @@ class TestE2eExprPi:
 
         # disable schedule to stop the service and sending data
         disable_schedule(foglamp_url, SVC_NAME)
-        if verify_north_data:
+        if skip_verify_north_interface:
             self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
 
     def _verify_ingest(self, conn):

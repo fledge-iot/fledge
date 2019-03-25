@@ -13,6 +13,7 @@ import http.client
 import json
 import time
 import pytest
+import utils
 
 
 __author__ = "Ashish Jabble"
@@ -48,10 +49,7 @@ class TestE2EKafka:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        actual_stats_map = {}
-        for itm in jdoc:
-            actual_stats_map[itm['key']] = itm['value']
-        return actual_stats_map
+        return utils.serialize_stats_map(jdoc)
 
     def _prepare_template_reading_from_fogbench(self):
         """ Define the template file for fogbench readings """
@@ -119,10 +117,10 @@ class TestE2EKafka:
         remove_directories("/tmp/foglamp-north-{}".format(NORTH_PLUGIN_NAME.lower()))
 
     def test_end_to_end(self, start_south_north, foglamp_url, wait_time, kafka_host, kafka_rest_port, kafka_topic,
-                        verify_north_data):
+                        skip_verify_north_interface):
         """ Test that data is inserted in FogLAMP and sent to Kafka
             start_south_north: Fixture that starts FogLAMP with south and north instance
-            verify_north_data: Flag for assertion of data from kafka rest
+            skip_verify_north_interface: Flag for assertion of data from kafka rest
             Assertions:
                 on endpoint GET /foglamp/asset
                 on endpoint GET /foglamp/asset/<asset_name>
@@ -161,7 +159,7 @@ class TestE2EKafka:
         assert 1 == len(val)
         assert {'sensor': SENSOR_VALUE} == val[0]["reading"]
 
-        if verify_north_data:
+        if skip_verify_north_interface:
             self._read_from_kafka(kafka_host, kafka_rest_port, kafka_topic)
 
     def _read_from_kafka(self, host, rest_port, topic):

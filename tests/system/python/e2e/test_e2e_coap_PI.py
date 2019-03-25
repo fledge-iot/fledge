@@ -13,6 +13,7 @@ import http.client
 import json
 import time
 import pytest
+import utils
 
 
 __author__ = "Vaibhav Singhal"
@@ -41,10 +42,7 @@ def get_statistics_map(foglamp_url):
     assert 200 == r.status
     r = r.read().decode()
     jdoc = json.loads(r)
-    actual_stats_map = {}
-    for itm in jdoc:
-        actual_stats_map[itm['key']] = itm['value']
-    return actual_stats_map
+    return utils.serialize_stats_map(jdoc)
 
 
 def _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name):
@@ -93,11 +91,11 @@ def start_south_north(reset_and_start_foglamp, add_south, start_north_pi_server_
 
 
 def test_end_to_end(start_south_north, read_data_from_pi, foglamp_url, pi_host, pi_admin, pi_passwd, pi_db,
-                    wait_time, retries, verify_north_data, asset_name="end_to_end_coap"):
+                    wait_time, retries, skip_verify_north_interface, asset_name="end_to_end_coap"):
     """ Test that data is inserted in FogLAMP and sent to PI
         start_south_north: Fixture that starts FogLAMP with south and north instance
         read_data_from_pi: Fixture to read data from PI
-        verify_north_data: Flag for assertion of data from Pi web API
+        skip_verify_north_interface: Flag for assertion of data from Pi web API
         Assertions:
             on endpoint GET /foglamp/asset
             on endpoint GET /foglamp/asset/<asset_name>
@@ -135,6 +133,6 @@ def test_end_to_end(start_south_north, read_data_from_pi, foglamp_url, pi_host, 
     retval = json.loads(r)
     assert {'sensor': SENSOR_VALUE} == retval[0]["reading"]
 
-    if verify_north_data:
+    if skip_verify_north_interface:
         _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name)
 

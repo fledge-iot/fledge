@@ -13,6 +13,7 @@ import json
 import time
 import pytest
 from collections import Counter
+import utils
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems"
@@ -48,10 +49,7 @@ def get_statistics_map(foglamp_url):
     assert 200 == r.status
     r = r.read().decode()
     jdoc = json.loads(r)
-    actual_stats_map = {}
-    for itm in jdoc:
-        actual_stats_map[itm['key']] = itm['value']
-    return actual_stats_map
+    return utils.serialize_stats_map(jdoc)
 
 
 @pytest.fixture
@@ -117,11 +115,11 @@ def _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_
 
 
 def test_e2e_csv_pi(start_south_north, read_data_from_pi, foglamp_url, pi_host, pi_admin, pi_passwd, pi_db,
-                    wait_time, retries, verify_north_data, asset_name="end_to_end_csv"):
+                    wait_time, retries, skip_verify_north_interface, asset_name="end_to_end_csv"):
     """ Test that data is inserted in FogLAMP and sent to PI
         start_south_north: Fixture that starts FogLAMP with south and north instance
         read_data_from_pi: Fixture to read data from PI
-        verify_north_data: Flag for assertion of data from Pi web API
+        skip_verify_north_interface: Flag for assertion of data from Pi web API
         Assertions:
             on endpoint GET /foglamp/asset
             on endpoint GET /foglamp/asset/<asset_name>
@@ -160,5 +158,5 @@ def test_e2e_csv_pi(start_south_north, read_data_from_pi, foglamp_url, pi_host, 
             _actual_read_list.append(_el[_head])
         assert Counter(_actual_read_list) == Counter(_data_str[_head])
 
-    if verify_north_data:
+    if skip_verify_north_interface:
         _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name)

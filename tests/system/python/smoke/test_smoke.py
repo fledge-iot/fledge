@@ -13,6 +13,7 @@ import http.client
 import json
 import time
 import pytest
+import utils
 
 
 __author__ = "Vaibhav Singhal"
@@ -41,10 +42,7 @@ def get_statistics_map(foglamp_url):
     assert 200 == r.status
     r = r.read().decode()
     jdoc = json.loads(r)
-    actual_stats_map = {}
-    for itm in jdoc:
-        actual_stats_map[itm['key']] = itm['value']
-    return actual_stats_map
+    return utils.serialize_stats_map(jdoc)
 
 
 @pytest.fixture

@@ -115,10 +115,13 @@ class TestE2eFogPairPi:
 
         # Install http_south python plugin on remote machine
         try:
-            subprocess.run(
-                ["$FOGLAMP_ROOT/tests/system/python/scripts/install_python_plugin_remote {} south {} {} {} {} {} {}".format(
-                    south_branch, south_plugin, use_pip_cache, remote_user, remote_ip, key_path, remote_foglamp_path)],
+            subprocess.run([
+                "scp -i {} $FOGLAMP_ROOT/tests/system/python/scripts/install_python_plugin {}@{}:/tmp/".format(
+                    key_path, remote_user, remote_ip)], shell=True, check=True)
+            subprocess.run(["ssh -i {} {}@{} 'export FOGLAMP_ROOT={}; /tmp/install_python_plugin {} south {} {}'".format(
+                    key_path, remote_user, remote_ip, remote_foglamp_path, south_branch, south_plugin, use_pip_cache)],
                 shell=True, check=True)
+
         except subprocess.CalledProcessError:
             assert False, "{} plugin installation failed".format(south_plugin)
         conn = http.client.HTTPConnection(foglamp_url)
@@ -237,6 +240,31 @@ class TestE2eFogPairPi:
         remove_directories("/tmp/foglamp-north-{}".format("http"))
         remove_data_file(csv_file_path)
 
+    def _verify_egress(self, read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
+                       expected_read_values):
+        """
+        Verify that data is received in pi db by making calls to PI web api
+            read_data_from_pi: Fixture that reads data drom pi
+            pi_host: pi host
+            pi_admin: pi machine username
+            pi_passwd: pi machine password
+            pi_db: pi database
+            wait_time: wait before making a next call to pi web api
+            retries: number of tries to make
+            expected_read_values: expected readings value
+        """
+        retry_count = 0
+        data_from_pi = None
+        while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
+            data_from_pi = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db, "fogpair_playback", [CSV_HEADERS])
+            retry_count += 1
+            time.sleep(wait_time * 2)
+
+        if data_from_pi is None or retry_count == retries:
+            assert False, "Failed to read data from PI"
+
+        assert Counter(data_from_pi[CSV_HEADERS][-len(expected_read_values):]) == Counter(expected_read_values)
+
     def test_end_to_end(self, start_south_north_remote, start_south_north_local,
                         read_data_from_pi, retries, pi_host, pi_admin, pi_passwd, pi_db,
                         foglamp_url, remote_ip, wait_time):
@@ -260,7 +288,7 @@ class TestE2eFogPairPi:
                 data received from PI is same as data sent"""
 
         # Wait for data to be sent to FogLAMP instance 2 and then to PI
-        time.sleep(wait_time * 2)
+        time.sleep(wait_time * 3)
 
         # FogLAMP Instance 1 (Local) verification
         expected_asset_list = ["Expression", "fogpair_playback", "sinusoid"]
@@ -314,18 +342,5 @@ class TestE2eFogPairPi:
             actual_read_values.append(itm['reading'][CSV_HEADERS])
         assert expected_read_values == actual_read_values
 
-        retry_count = 0
-        data_from_pi = None
-        while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
-            data_from_pi = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db, "fogpair_playback", [CSV_HEADERS])
-            retry_count += 1
-            time.sleep(wait_time * 2)
-
-        if data_from_pi is None or retry_count == retries:
-            assert False, "Failed to read data from PI"
-
-        assert Counter(data_from_pi[CSV_HEADERS][-len(expected_read_values):]) == Counter(expected_read_values)
-
-
-
-
+        self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
+                            expected_read_values)

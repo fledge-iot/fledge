@@ -1,1 +1,1 @@
-{ "response" : "updated", "rows_affected"  : 1 }
+{ "removed" : 100,  "unsentPurged" : 100,  "unsentRetained" : 0,  "readings" : 0 }

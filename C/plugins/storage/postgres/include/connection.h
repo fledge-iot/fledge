@@ -21,6 +21,7 @@ class Connection {
 		~Connection();
 		bool		retrieve(const std::string& table, const std::string& condition,
 					std::string& resultSet);
+    		bool 		retrieveReadings(const std::string& condition, std::string& resultSet);
 		int		insert(const std::string& table, const std::string& data);
 		int		update(const std::string& table, const std::string& data);
 		int		deleteRows(const std::string& table, const std::string& condition);
@@ -29,6 +30,7 @@ class Connection {
 		unsigned int	purgeReadings(unsigned long age, unsigned int flags, unsigned long sent, std::string& results);
 		long		tableSize(const std::string& table);
 		void		setTrace(bool flag) { m_logSQL = flag; };
+    		static bool 	formatDate(char *formatted_date, size_t formatted_date_size, const char *date);
 	private:
 		bool		m_logSQL;
 		void		raiseError(const char *operation, const char *reason,...);
@@ -36,7 +38,7 @@ class Connection {
 		void		mapResultSet(PGresult *res, std::string& resultSet);
 		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&);
 		bool		jsonModifiers(const rapidjson::Value&, SQLBuffer&);
-		bool		jsonAggregates(const rapidjson::Value&, const rapidjson::Value&, SQLBuffer&, SQLBuffer&);
+		bool		jsonAggregates(const rapidjson::Value&, const rapidjson::Value&, SQLBuffer&, SQLBuffer&, bool isTableReading = false);
 		bool		returnJson(const rapidjson::Value&, SQLBuffer&, SQLBuffer&);
 		char		*trim(char *str);
     		const std::string	escape_double_quotes(const std::string&);

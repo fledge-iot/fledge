@@ -32,6 +32,10 @@ using namespace rapidjson;
 static time_t connectErrorTime = 0;
 #define CONNECT_ERROR_THRESHOLD		5*60	// 5 minutes
 
+#define LEN_BUFFER_DATE 100
+// Format timestamp having microseconds
+#define F_DATEH24_US    	"YYYY-MM-DD HH24:MI:SS.US"
+
 const vector<string>  pg_column_reserved_words = {
 	"user"
 };
@@ -104,7 +108,7 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 					sql.append(document["modifier"].GetString());
 					sql.append(' ');
 				}
-				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints))
+				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints, false))
 				{
 					return false;
 				}
@@ -255,6 +259,7 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 		{
 			mapResultSet(res, resultSet);
 			PQclear(res);
+
 			return true;
 		}
 		char *SQLState = PQresultErrorField(res, PG_DIAG_SQLSTATE);
@@ -272,6 +277,264 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 		raiseError("retrieve", "Internal error: %s", e.what());
 	}
 }
+
+/**
+ * Perform a query against the readings table
+ *
+ */
+bool Connection::retrieveReadings(const string& condition, string& resultSet)
+{
+	Document document;  // Default template parameter uses UTF8 and MemoryPoolAllocator.
+	SQLBuffer	sql;
+	SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
+
+	const string table = "readings";
+
+	try {
+		if (condition.empty())
+		{
+			const char *sql_cmd = R"(
+					SELECT
+						id,
+						asset_code,
+						read_key,
+						reading,
+						to_char(user_ts, ')" F_DATEH24_US R"(') as user_ts,
+						to_char(ts, ')" F_DATEH24_US R"(') as ts
+					FROM foglamp.)";
+
+			sql.append(sql_cmd);
+			sql.append(table);
+		}
+		else
+		{
+			if (document.Parse(condition.c_str()).HasParseError())
+			{
+				raiseError("retrieve", "Failed to parse JSON payload");
+				return false;
+			}
+			if (document.HasMember("aggregate"))
+			{
+				sql.append("SELECT ");
+				if (document.HasMember("modifier"))
+				{
+					sql.append(document["modifier"].GetString());
+					sql.append(' ');
+				}
+				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints, true))
+				{
+					return false;
+				}
+				sql.append(" FROM foglamp.");
+			}
+			else if (document.HasMember("return"))
+			{
+				int col = 0;
+				Value& columns = document["return"];
+				if (! columns.IsArray())
+				{
+					raiseError("retrieve", "The property return must be an array");
+					return false;
+				}
+				sql.append("SELECT ");
+				if (document.HasMember("modifier"))
+				{
+					sql.append(document["modifier"].GetString());
+					sql.append(' ');
+				}
+				for (Value::ConstValueIterator itr = columns.Begin(); itr != columns.End(); ++itr)
+				{
+					if (col)
+						sql.append(", ");
+
+					if (!itr->IsObject())	// Simple column name
+					{
+						if (strcmp(itr->GetString() ,"user_ts") == 0)
+						{
+							// Display without TZ expression and microseconds also
+							sql.append("to_char(user_ts, '" F_DATEH24_US "') as user_ts");
+						}
+						else if (strcmp(itr->GetString() ,"ts") == 0)
+						{
+							// Display without TZ expression and microseconds also
+							sql.append("to_char(ts, '" F_DATEH24_US "') as ts");
+						}
+						else
+						{
+							sql.append("\"");
+							sql.append(itr->GetString());
+							sql.append("\"");
+						}
+					}
+					else
+					{
+						if (itr->HasMember("column"))
+						{
+							if (! (*itr)["column"].IsString())
+							{
+								raiseError("rerieve", "column must be a string");
+								return false;
+							}
+							if (itr->HasMember("format"))
+							{
+								if (! (*itr)["format"].IsString())
+								{
+									raiseError("rerieve", "format must be a string");
+									return false;
+								}
+								sql.append("to_char(");
+								sql.append("\"");
+								sql.append((*itr)["column"].GetString());
+								sql.append("\"");
+								sql.append(", '");
+								sql.append((*itr)["format"].GetString());
+								sql.append("')");
+							}
+							else if (itr->HasMember("timezone"))
+							{
+								if (! (*itr)["timezone"].IsString())
+								{
+									raiseError("rerieve", "timezone must be a string");
+									return false;
+								}
+								sql.append("\"");
+								sql.append((*itr)["column"].GetString());
+								sql.append("\"");
+								sql.append(" AT TIME ZONE '");
+								sql.append((*itr)["timezone"].GetString());
+								sql.append("' ");
+							}
+							else
+							{
+								if (strcmp((*itr)["column"].GetString() ,"user_ts") == 0)
+								{
+									// Display without TZ expression and microseconds also
+									sql.append("to_char(user_ts, '" F_DATEH24_US "')");
+									if (! itr->HasMember("alias"))
+									{
+										sql.append(" AS \"user_ts\" ");
+									}
+								}
+								else if (strcmp((*itr)["column"].GetString() ,"ts") == 0)
+								{
+									// Display without TZ expression and microseconds also
+									sql.append("to_char(ts, '" F_DATEH24_US "')");
+									if (! itr->HasMember("alias"))
+									{
+										sql.append(" AS \"ts\" ");
+									}
+								}
+								else
+								{
+									sql.append("\"");
+									sql.append((*itr)["column"].GetString());
+									sql.append("\"");
+								}
+							}
+							sql.append(' ');
+						}
+						else if (itr->HasMember("json"))
+						{
+							const Value& json = (*itr)["json"];
+							if (! returnJson(json, sql, jsonConstraints))
+								return false;
+						}
+						else
+						{
+							raiseError("retrieve", "return object must have either a column or json property");
+							return false;
+						}
+
+						if (itr->HasMember("alias"))
+						{
+							sql.append(" AS \"");
+							sql.append((*itr)["alias"].GetString());
+							sql.append('"');
+						}
+					}
+					col++;
+				}
+				sql.append(" FROM foglamp.");
+			}
+			else
+			{
+				sql.append("SELECT ");
+				if (document.HasMember("modifier"))
+				{
+					sql.append(document["modifier"].GetString());
+					sql.append(' ');
+				}
+
+				const char *sql_cmd = R"(
+						id,
+						asset_code,
+						read_key,
+						reading,
+						to_char(user_ts, ')" F_DATEH24_US R"(') as user_ts,
+						to_char(ts, ')" F_DATEH24_US R"(') as ts
+					FROM foglamp.)";
+
+				sql.append(sql_cmd);
+			}
+			sql.append(table);
+			if (document.HasMember("where"))
+			{
+				sql.append(" WHERE ");
+
+				if (document.HasMember("where"))
+				{
+					if (!jsonWhereClause(document["where"], sql))
+					{
+						return false;
+					}
+				}
+				else
+				{
+					raiseError("retrieve", "JSON does not contain where clause");
+					return false;
+				}
+				if (! jsonConstraints.isEmpty())
+				{
+					sql.append(" AND ");
+					const char *jsonBuf =  jsonConstraints.coalesce();
+					sql.append(jsonBuf);
+					delete[] jsonBuf;
+				}
+			}
+			if (!jsonModifiers(document, sql))
+			{
+				return false;
+			}
+		}
+		sql.append(';');
+
+		const char *query = sql.coalesce();
+		logSQL("CommonRetrieve", query);
+
+		PGresult *res = PQexec(dbConnection, query);
+		delete[] query;
+		if (PQresultStatus(res) == PGRES_TUPLES_OK)
+		{
+			mapResultSet(res, resultSet);
+			PQclear(res);
+			return true;
+		}
+		char *SQLState = PQresultErrorField(res, PG_DIAG_SQLSTATE);
+		if (!strcmp(SQLState, "22P02"))	// Conversion error
+		{
+			raiseError("retrieve", "Unable to convert data to the required type");
+		}
+		else
+		{
+			raiseError("retrieve", PQerrorMessage(dbConnection));
+		}
+		PQclear(res);
+		return false;
+	} catch (exception e) {
+		raiseError("retrieve", "Internal error: %s", e.what());
+	}
+}
+
 
 /**
  * Insert data into a table
@@ -802,6 +1065,123 @@ SQLBuffer	sql;
 }
 
 /**
+ * Format a date to a fixed format with milliseconds, microseconds and
+ * timezone expressed, examples :
+ *
+ *   case - formatted |2019-01-01 10:01:01.000000+00:00| date |2019-01-01 10:01:01|
+ *   case - formatted |2019-02-01 10:02:01.000000+00:00| date |2019-02-01 10:02:01.0|
+ *   case - formatted |2019-02-02 10:02:02.841000+00:00| date |2019-02-02 10:02:02.841|
+ *   case - formatted |2019-02-03 10:02:03.123456+00:00| date |2019-02-03 10:02:03.123456|
+ *   case - formatted |2019-03-01 10:03:01.100000+00:00| date |2019-03-01 10:03:01.1+00:00|
+ *   case - formatted |2019-03-02 10:03:02.123000+00:00| date |2019-03-02 10:03:02.123+00:00|
+ *   case - formatted |2019-03-03 10:03:03.123456+00:00| date |2019-03-03 10:03:03.123456+00:00|
+ *   case - formatted |2019-03-04 10:03:04.123456+01:00| date |2019-03-04 10:03:04.123456+01:00|
+ *   case - formatted |2019-03-05 10:03:05.123456-01:00| date |2019-03-05 10:03:05.123456-01:00|
+ *   case - formatted |2019-03-04 10:03:04.123456+02:30| date |2019-03-04 10:03:04.123456+02:30|
+ *   case - formatted |2019-03-05 10:03:05.123456-02:30| date |2019-03-05 10:03:05.123456-02:30|
+ *
+ * @param out	false if the date is invalid
+ *
+ */
+bool Connection::formatDate(char *formatted_date, size_t buffer_size, const char *date) {
+
+	struct timeval tv = {0};
+	struct tm tm  = {0};
+	char *valid_date = nullptr;
+
+	// Extract up to seconds
+	memset(&tm, 0, sizeof(tm));
+	valid_date = strptime(date, "%Y-%m-%d %H:%M:%S", &tm);
+
+	if (! valid_date)
+	{
+		return (false);
+	}
+
+	strftime (formatted_date, buffer_size, "%Y-%m-%d %H:%M:%S", &tm);
+
+	// Work out the microseconds from the fractional part of the seconds
+	char fractional[10] = {0};
+	sscanf(date, "%*d-%*d-%*d %*d:%*d:%*d.%[0-9]*", fractional);
+	// Truncate to max 6 digits
+	fractional[6] = 0;
+	int multiplier = 6 - (int)strlen(fractional);
+	if (multiplier < 0)
+		multiplier = 0;
+	while (multiplier--)
+		strcat(fractional, "0");
+
+	strcat(formatted_date ,".");
+	strcat(formatted_date ,fractional);
+
+	// Handles timezone
+	char timezone_hour[5] = {0};
+	char timezone_min[5] = {0};
+	char sign[2] = {0};
+
+	sscanf(date, "%*d-%*d-%*d %*d:%*d:%*d.%*d-%2[0-9]:%2[0-9]", timezone_hour, timezone_min);
+	if (timezone_hour[0] != 0)
+	{
+		strcat(sign, "-");
+	}
+	else
+	{
+		memset(timezone_hour, 0, sizeof(timezone_hour));
+		memset(timezone_min,  0, sizeof(timezone_min));
+
+		sscanf(date, "%*d-%*d-%*d %*d:%*d:%*d.%*d+%2[0-9]:%2[0-9]", timezone_hour, timezone_min);
+		if  (timezone_hour[0] != 0)
+		{
+			strcat(sign, "+");
+		}
+		else
+		{
+			// No timezone is expressed in the source date
+			// the default UTC is added
+			strcat(formatted_date, "+00:00");
+		}
+	}
+
+	if (sign[0] != 0)
+	{
+		if (timezone_hour[0] != 0)
+		{
+			strcat(formatted_date, sign);
+
+			// Pad with 0 if an hour having only 1 digit was provided
+			// +1 -> +01
+			if (strlen(timezone_hour) == 1)
+				strcat(formatted_date, "0");
+
+			strcat(formatted_date, timezone_hour);
+			strcat(formatted_date, ":");
+		}
+
+		if (timezone_min[0] != 0)
+		{
+			strcat(formatted_date, timezone_min);
+
+			// Pad with 0 if minutes having only 1 digit were provided
+			// 3 -> 30
+			if (strlen(timezone_min) == 1)
+				strcat(formatted_date, "0");
+
+		}
+		else
+		{
+			// Minutes aren't expressed in the source date
+			strcat(formatted_date, "00");
+		}
+	}
+
+
+	return (true);
+
+
+}
+
+
+/**
  * Append a set of readings to the readings table
  */
 int Connection::appendReadings(const char *readings)
@@ -809,6 +1189,7 @@ int Connection::appendReadings(const char *readings)
 Document 	doc;
 SQLBuffer	sql;
 int		row = 0;
+bool 		add_row = false;
 
 	ParseResult ok = doc.Parse(readings);
 	if (!ok)
@@ -817,13 +1198,13 @@ int		row = 0;
 		return -1;
 	}
 
-	sql.append("INSERT INTO foglamp.readings ( asset_code, read_key, reading, user_ts ) VALUES ");
+	sql.append("INSERT INTO foglamp.readings ( user_ts, asset_code, read_key, reading ) VALUES ");
 
-    if (!doc.HasMember("readings"))
-    {
- 		raiseError("appendReadings", "Payload is missing a readings array");
-        return -1;
-    }
+	if (!doc.HasMember("readings"))
+	{
+		raiseError("appendReadings", "Payload is missing a readings array");
+	return -1;
+	}
 	Value &rdings = doc["readings"];
 	if (!rdings.IsArray())
 	{
@@ -838,50 +1219,82 @@ int		row = 0;
 					"Each reading in the readings array must be an object");
 			return -1;
 		}
-		if (row)
-			sql.append(", (");
-		else
-			sql.append('(');
-		row++;
-		sql.append('\'');
-		sql.append((*itr)["asset_code"].GetString());
-        // Python code is passing the string None when here is no read_key in the payload
-        if (itr->HasMember("read_key") && strcmp((*itr)["read_key"].GetString(), "None") != 0)
-        {
-    		sql.append("', \'");
-    		sql.append((*itr)["read_key"].GetString());
-    		sql.append("', \'");
-        }
-        else
-        {
-            // No "read_key" in this reading, insert NULL
-            sql.append("', NULL, '");
-        }
-		StringBuffer buffer;
-		Writer<StringBuffer> writer(buffer);
-		(*itr)["reading"].Accept(writer);
-		sql.append(buffer.GetString());
-		sql.append("\', ");
+		add_row = true;
+
 		const char *str = (*itr)["user_ts"].GetString();
 		// Check if the string is a function
 		string s (str);
 		regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
 		if (regex_match (s,e))
 		{
+			if (row)
+				sql.append(", (");
+			else
+				sql.append('(');
+
 			sql.append(str);
 		}
 		else
 		{
-			sql.append('\'');
-			sql.append(escape(str));
-			sql.append('\'');
+			char formatted_date[LEN_BUFFER_DATE] = {0};
+			if (! formatDate(formatted_date, sizeof(formatted_date), str) )
+			{
+				raiseError("appendReadings", "Invalid date |%s|", str);
+				add_row = false;
+			}
+			else
+			{
+				if (row)
+				{
+					sql.append(", (");
+				}
+				else
+				{
+					sql.append('(');
+				}
+
+				sql.append('\'');
+				sql.append(formatted_date);
+				sql.append('\'');
+			}
 		}
 
-		sql.append(')');
+		if (add_row)
+		{
+			row++;
+
+			// Handles - asset_code
+			sql.append(",\'");
+			sql.append((*itr)["asset_code"].GetString());
+
+			// Handles - read_key
+			// Python code is passing the string None when here is no read_key in the payload
+			if (itr->HasMember("read_key") && strcmp((*itr)["read_key"].GetString(), "None") != 0)
+			{
+				sql.append("', \'");
+				sql.append((*itr)["read_key"].GetString());
+				sql.append("', \'");
+			}
+			else
+			{
+				// No "read_key" in this reading, insert NULL
+				sql.append("', NULL, '");
+			}
+
+			// Handles - reading
+			StringBuffer buffer;
+			Writer<StringBuffer> writer(buffer);
+			(*itr)["reading"].Accept(writer);
+			sql.append(buffer.GetString());
+			sql.append("\' ");
+
+			sql.append(')');
+		}
 	}
 	sql.append(';');
 
 	const char *query = sql.coalesce();
+
 	logSQL("ReadingsAppend", query);
 	PGresult *res = PQexec(dbConnection, query);
 	delete[] query;
@@ -1166,8 +1579,21 @@ Document doc;
 
 /**
  * Process the aggregate options and return the columns to be selected
+ *
+ * @param payload           To evaluate for the generation of the SQLcommands
+ * @param aggregates        To evaluate for the generation of the SQL commands
+ * @param jsonConstraint    To evaluate for the generation of the SQL commands
+ * @param isTableReading    True if the handled table is the readings for which
+ *                          a specific format should be applied
+ * @param sql		    The sql commands relates to payload, aggregates
+ *                          and jsonConstraint
+ *
  */
-bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, SQLBuffer& sql, SQLBuffer& jsonConstraint)
+bool Connection::jsonAggregates(const Value& payload,
+				const Value& aggregates,
+				SQLBuffer& sql,
+				SQLBuffer& jsonConstraint,
+				bool isTableReading)
 {
 	if (aggregates.IsObject())
 	{
@@ -1181,19 +1607,31 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
 			raiseError("Select aggregation", "Missing property \"column\" or \"json\"");
 			return false;
 		}
+
+		string column_name = aggregates["column"].GetString();
+
 		sql.append(aggregates["operation"].GetString());
 		sql.append('(');
 		if (aggregates.HasMember("column"))
 		{
-			if (strcmp(aggregates["operation"].GetString(), "count"))
+			if (strcmp(aggregates["operation"].GetString(), "count") != 0)
 			{
-			sql.append("\"");
-			sql.append(aggregates["column"].GetString());
-			sql.append("\"");
+				// an operation different from the 'count' is requested
+				if (isTableReading && (column_name.compare("user_ts") == 0) )
+				{
+					sql.append("to_char(user_ts, '" F_DATEH24_US "')");
+				}
+				else
+				{
+					sql.append("\"");
+					sql.append(column_name);
+					sql.append("\"");
+				}
 			}
 			else
 			{
-			sql.append(aggregates["column"].GetString());
+				// 'count' operation is requested
+				sql.append(column_name);
 			}
 		}
 		else if (aggregates.HasMember("json"))
@@ -1211,6 +1649,7 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
 			}
 			sql.append('(');
 			sql.append("\"");
+
 			sql.append(json["column"].GetString());
 			sql.append("\"");
 			sql.append("->");
@@ -1308,9 +1747,18 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
 			sql.append('(');
 			if (itr->HasMember("column"))
 			{
-				sql.append("\"");
-				sql.append((*itr)["column"].GetString());
-				sql.append("\"");
+
+				string column_name= (*itr)["column"].GetString();
+				if (isTableReading && (column_name.compare("user_ts") == 0) )
+				{
+					sql.append("to_char(user_ts, '" F_DATEH24_US "')");
+				}
+				else
+				{
+					sql.append("\"");
+					sql.append(column_name);
+					sql.append("\"");
+				}
 			}
 			else if (itr->HasMember("json"))
 			{

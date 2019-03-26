@@ -23,9 +23,7 @@ include_directories(../../../C/plugins/common/include)
 include_directories(../../../C/services/common/include)
 include_directories(../../../C/thirdparty/rapidjson/include)
 include_directories(../../../C/thirdparty/Simple-Web-Server)
-# sqlitememory plugin
 include_directories(../../../C/plugins/storage/common/include)
-include_directories(../../../C/plugins/storage/sqlitememory/include)
 
 # Add Python 3.x header files
 include_directories(${PYTHON_INCLUDE_DIRS})
@@ -75,23 +73,5 @@ add_library(${LIB_NAME} SHARED ${STORAGE_COMMON_LIB_SOURCE})
 target_link_libraries(${LIB_NAME} ${DLLIB})
 set_target_properties(${LIB_NAME} PROPERTIES SOVERSION 1)
 
-
-#
-# sqlitememory plugin
-#
-set(LIB_NAME sqlitememory)
-
-# Check Sqlite3 required version
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}")
-find_package(sqlite3)
-
-# Find source files
-file(GLOB PG_PLUGIN_SOURCES ../../../C/plugins/storage/sqlitememory/*.cpp)
-
-# Create shared library
-add_library(${LIB_NAME} SHARED ${PG_PLUGIN_SOURCES})
-target_link_libraries(${LIB_NAME} ${UUIDLIB})
-target_link_libraries(${LIB_NAME} ${Boost_LIBRARIES})
-target_link_libraries(${LIB_NAME} -lsqlite3)
-set_target_properties(${LIB_NAME} PROPERTIES SOVERSION 1)
-
+add_subdirectory(cmake_pg)
+add_subdirectory(cmake_slite)

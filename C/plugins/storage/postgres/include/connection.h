@@ -41,6 +41,7 @@ class Connection {
 		char		*trim(char *str);
     		const std::string	escape_double_quotes(const std::string&);
 		const std::string	escape(const std::string&);
+    		const std::string 	double_quote_reserved_column_name(const std::string &column_name);
 		void		logSQL(const char *, const char *);
 };
 #endif

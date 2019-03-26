@@ -17,6 +17,7 @@ import json
 import time
 import pytest
 from collections import Counter
+import utils
 
 
 __author__ = "Vaibhav Singhal"
@@ -62,10 +63,7 @@ class TestE2eFogPairPi:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        actual_stats_map = {}
-        for itm in jdoc:
-            actual_stats_map[itm['key']] = itm['value']
-        return actual_stats_map
+        return utils.serialize_stats_map(jdoc)
 
     @pytest.fixture
     def reset_and_start_foglamp_remote(self, storage_plugin, remote_user, remote_ip, key_path, remote_foglamp_path):
@@ -267,7 +265,7 @@ class TestE2eFogPairPi:
 
     def test_end_to_end(self, start_south_north_remote, start_south_north_local,
                         read_data_from_pi, retries, pi_host, pi_admin, pi_passwd, pi_db,
-                        foglamp_url, remote_ip, wait_time):
+                        foglamp_url, remote_ip, wait_time, skip_verify_north_interface):
         """ Test that data is inserted in FogLAMP (local instance) using playback south plugin,
             sinusoid south plugin and expression south plugin and sent to http north (filter only playback data),
             FogLAMP (remote instance) receive this data via http south and send to PI
@@ -282,6 +280,7 @@ class TestE2eFogPairPi:
             foglamp_url: Local FogLAMP URL
             remote_ip: IP address where 2 FogLAMP is running (Remote)
             wait_time: time to wait in sec before making assertions
+            skip_verify_north_interface: Flag for assertion of data from Pi web API
             Assertions:
                 on endpoint GET /foglamp/asset
                 on endpoint GET /foglamp/asset/<asset_name> with applied data processing filter value
@@ -342,5 +341,6 @@ class TestE2eFogPairPi:
             actual_read_values.append(itm['reading'][CSV_HEADERS])
         assert expected_read_values == actual_read_values
 
-        self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
-                            expected_read_values)
+        if not skip_verify_north_interface:
+            self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
+                                expected_read_values)

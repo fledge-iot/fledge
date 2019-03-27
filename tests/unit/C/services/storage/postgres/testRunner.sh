@@ -8,28 +8,25 @@ export TZ='Etc/UTC'
 show_configuration () {
 
 	echo "Starting storage layer      :$storage_exec:"
-	echo "timezone                    :$exec_tz:"
+	echo "timezone                    :$tz_exec:"
 	echo "expected dir                :$expected_dir:"
 	echo "configuration               :$FOGLAMP_DATA:"
 }
 
 restore_tz() {
 	#Restore the initial TZ
-	psql -d foglamp -c "ALTER DATABASE foglamp SET timezone TO '"$current_tz"';" > /dev/null
-	current_tz=`psql -qtAX  -qtAX -d foglamp -c "SHOW timezone ;"`
-	echo "\nOriginal timezone restored   :$current_tz:\n"
+	psql -d foglamp -c "ALTER DATABASE foglamp SET timezone TO '"$tz_original"';" > /dev/null
+	tz_current=`psql -qtAX -d foglamp -c "SHOW timezone ;"`
+	echo -e "\nOriginal timezone restored   :$tz_current:\n"
 }
 
 # Set UTC as TZ for the proper execution of the tests
-current_tz=`psql -qtAX -d foglamp -c "SHOW timezone ;"`
+tz_original=`psql -qtAX -d foglamp -c "SHOW timezone ;"`
 
 trap restore_tz 1 2 3 6 15
 
-###   #########################################################################################:
-
-
 #
-# evaluates : FOGLAMP_DATA, storage_exec, TZ, and expected_dir
+# evaluates : FOGLAMP_DATA, storage_exec, TZ and expected_dir
 #
 if [[ "$@" != "" ]];
 then
@@ -52,7 +49,6 @@ then
 
 	        -t|--timezone)
 				export TZ="$2"
-				psql -d foglamp -c "ALTER DATABASE foglamp SET timezone TO '"${TZ}"';" > /dev/null
 	            shift 2
 	            ;;
 	        --)
@@ -63,11 +59,13 @@ then
 	done
 fi
 
+# Set the timezone to UTC or to the requested one
+psql -d foglamp -c "ALTER DATABASE foglamp SET timezone TO '"${TZ}"';" > /dev/null
+tz_exec=`psql -qtAX -d foglamp -c "SHOW timezone ;"`
+
 # Converts '/' to '_' and to upper case
 step1="${TZ/\//_}"
 expected_dir="expected_${step1^^}"
-
-exec_tz=`psql -qtAX -d foglamp -c "SHOW timezone ;"`
 
 if [[ "$storage_exec" != "" ]] ; then
 
@@ -85,14 +83,6 @@ else
 	echo Must either set FOGLAMP_ROOT or provide storage service to test
 	exit 1
 fi
-
-#Restore the initial TZ
-restore_tz
-
-
-exit 0
-###   #########################################################################################:
-
 
 export IFS=","
 testNum=1

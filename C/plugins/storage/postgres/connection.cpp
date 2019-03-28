@@ -1944,6 +1944,15 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 		return false;
 	}
 
+	// Count columns
+	unsigned int nAggregates = 0;
+	if (payload.HasMember("aggregate") &&
+	    payload["aggregate"].IsArray())
+	{
+		nAggregates = payload["aggregate"].Size();
+	}
+
+	string groupColumn;
 	if (payload.HasMember("group"))
 	{
 		sql.append(" GROUP BY ");
@@ -1959,6 +1968,9 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 				sql.append(", '");
 				sql.append(grp["format"].GetString());
 				sql.append("')");
+
+				// Get the column name in GROUP BY
+				groupColumn = grp["column"].GetString();
 			}
 		}
 		else
@@ -1966,6 +1978,9 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 			sql.append("\"");
 			sql.append(payload["group"].GetString());
 			sql.append("\"");
+
+			// Get the column name in GROUP BY
+			groupColumn = payload["group"].GetString();
 		}
 	}
 
@@ -1980,9 +1995,29 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 				raiseError("Select sort", "Missing property \"column\"");
 				return false;
 			}
-			sql.append("\"");
-			sql.append(sortBy["column"].GetString());
-			sql.append("\"");
+
+			// Check wether column name in GROUP BY is the same
+			// of column name in ORDER BY
+			if (!groupColumn.empty() &&
+			    groupColumn.compare(sortBy["column"].GetString()) == 0 &&
+			    nAggregates)
+			{
+				// Note that the GROUP BY column is added as last one
+				// in the column names for SELECT
+				// The ORDER BY column name is now replaced by a column
+				// number, without double quotes
+				// The column number is nAggregates + 1
+				// Example: SELECT MIN(id), MAX(id), AVG(id) ..
+				// nAggregates value is 3
+				// Final SQL statement is: SELECT ... ORDER BY 4
+				sql.append(nAggregates + 1);
+			}
+			else
+			{
+				sql.append("\"");
+				sql.append(sortBy["column"].GetString());
+				sql.append("\"");
+			}
 			sql.append(' ');
 			if (! sortBy.HasMember("direction"))
 			{

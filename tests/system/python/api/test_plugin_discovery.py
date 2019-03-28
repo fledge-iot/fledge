@@ -19,53 +19,40 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-def install_plugin(type, plugin, branch="develop", plugin_lang="python", use_pip_cache=True):
+def install_plugin(_type, plugin, branch="develop", plugin_lang="python", use_pip_cache=True):
     if plugin_lang == "python":
         path = "$FOGLAMP_ROOT/tests/system/python/scripts/install_python_plugin {} {} {} {}".format(
-            branch, type, plugin, use_pip_cache)
+            branch, _type, plugin, use_pip_cache)
     else:
         path = "$FOGLAMP_ROOT/tests/system/python/scripts/install_c_plugin {} {} {}".format(
-            branch, type, plugin)
+            branch, _type, plugin)
     try:
         subprocess.run([path], shell=True, check=True)
     except subprocess.CalledProcessError:
         assert False, "{} plugin installation failed".format(plugin)
 
-    # Cleanup code
-    if type == "notificationDelivery":
-        type = "notify"
-    if type == "notificationRule":
-        type = "rule"
+    # Cleanup /tmp repos
+    if _type == "notificationDelivery":
+        _type = "notify"
+    if _type == "notificationRule":
+        _type = "rule"
         subprocess.run(["rm -rf /tmp/foglamp-service-notification"], shell=True, check=True)
-    subprocess.run(["rm -rf /tmp/foglamp-{}-{}".format(type, plugin)], shell=True, check=True)
+    subprocess.run(["rm -rf /tmp/foglamp-{}-{}".format(_type, plugin)], shell=True, check=True)
 
 
 @pytest.fixture
 def reset_plugins():
-    subprocess.run(["rm -rf $FOGLAMP_ROOT/plugins/south"], shell=True, check=True)
-    subprocess.run(["path=$FOGLAMP_ROOT/python/foglamp/plugins/south; "
-                    "find $path -maxdepth 1 | grep -v \"^${path}$\" | "
-                    "egrep -v '(__init__.py)' | xargs rm -rf"], shell=True, check=True)
-    subprocess.run(["path=$FOGLAMP_ROOT/python/foglamp/plugins/north; "
-                    "find $path -maxdepth 1 | grep -v \"^${path}$\" | "
-                    "egrep -v '(pi_server|ocs|common|empty|README.rst|__init__.py)' | xargs rm -rf"],
-                   shell=True, check=True)
-    subprocess.run(["path=$FOGLAMP_ROOT/plugins/north; "
-                    "find $path -maxdepth 1 | grep -v \"^${path}$\" | "
-                    "egrep -v '(PI_Server_V2|ocs_V2)' | xargs rm -rf"],
-                   shell=True, check=True)
-    subprocess.run(["path=$FOGLAMP_ROOT/plugins/filter; "
-                    "find $path -maxdepth 1 | grep -v \"^${path}$\" | "
-                    "egrep -v '(common)' | xargs rm -rf"], shell=True, check=True)
-    subprocess.run(["rm -rf $FOGLAMP_ROOT/plugins/notificationDelivery"], shell=True, check=True)
-    subprocess.run(["rm -rf $FOGLAMP_ROOT/plugins/notificationRule"], shell=True, check=True)
+    try:
+        subprocess.run(["$FOGLAMP_ROOT/tests/system/python/scripts/reset_plugins"], shell=True, check=True)
+    except subprocess.CalledProcessError:
+        assert False, "reset plugin script failed"
 
 
 class TestPluginDiscovery:
 
     def test_cleanup(self, reset_plugins, reset_and_start_foglamp):
         # TODO: Remove this workaround
-        # This test to reset stuff And especially to avoid multiple fixture calls when parameterized tests
+        # Use better setup & teardown methods
         pass
 
     @pytest.mark.parametrize("param, config", [
@@ -80,7 +67,7 @@ class TestPluginDiscovery:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        # Only north plugins (2 north_c and 2 north python) expected by default
+        # Only north plugins (2 north_c and 2 north python) are expected by default
         assert 4 == len(jdoc['plugins'])
         for plugin in jdoc['plugins']:
             assert 'north' == plugin['type']
@@ -112,11 +99,11 @@ class TestPluginDiscovery:
         if count == 4:
             assert Counter(['ocs', 'pi_server', 'PI_Server_V2', 'ocs_V2']) == Counter(name)
 
-    def test_south_plugins_installed(self, foglamp_url):
-        install_plugin(type='south', plugin='sinusoid', plugin_lang='python')
-
+    def test_south_plugins_installed(self, foglamp_url, _type='south'):
+        # install south plugin (Python version)
+        install_plugin(_type, plugin='sinusoid', plugin_lang='python')
         conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/plugins/installed?type=south')
+        conn.request("GET", '/foglamp/plugins/installed?type={}'.format(_type))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -126,9 +113,9 @@ class TestPluginDiscovery:
         assert 1 == len(plugins)
         assert 'sinusoid' == plugins[0]['name']
 
-        install_plugin(type='south', plugin='random', plugin_lang='C')
-
-        conn.request("GET", '/foglamp/plugins/installed?type=south')
+        # install one more south plugin (C version)
+        install_plugin(_type, plugin='random', plugin_lang='C')
+        conn.request("GET", '/foglamp/plugins/installed?type={}'.format(_type))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -139,11 +126,11 @@ class TestPluginDiscovery:
         assert 'sinusoid' == plugins[0]['name']
         assert 'Random' == plugins[1]['name']
 
-    def test_north_plugins_installed(self, foglamp_url):
+    def test_north_plugins_installed(self, foglamp_url, _type='north'):
         # install north plugin (Python version)
-        install_plugin(type='north', plugin='http', plugin_lang='python')
+        install_plugin(_type, plugin='http', plugin_lang='python')
         conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/plugins/installed?type=north')
+        conn.request("GET", '/foglamp/plugins/installed?type={}'.format(_type))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -151,14 +138,14 @@ class TestPluginDiscovery:
         assert len(jdoc), "No data found"
         plugins = jdoc['plugins']
         plugin_names = [name['name'] for name in plugins]
-        # verify north plugins which is 4 by default and a new one (http) installed
+        # verify north plugins which is 4 by default and a new one (http)
         assert 5 == len(plugins)
         assert Counter(['ocs', 'http_north', 'pi_server', 'PI_Server_V2',
                         'ocs_V2']) == Counter(plugin_names)
 
         # install one more north plugin (C version)
-        install_plugin(type='north', plugin='thingspeak', plugin_lang='C')
-        conn.request("GET", '/foglamp/plugins/installed?type=north')
+        install_plugin(_type, plugin='thingspeak', plugin_lang='C')
+        conn.request("GET", '/foglamp/plugins/installed?type={}'.format(_type))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -166,16 +153,16 @@ class TestPluginDiscovery:
         assert len(jdoc), "No data found"
         plugins = jdoc['plugins']
         plugin_names = [name['name'] for name in plugins]
-        # verify north plugins which is 4 by default and 2 new one (Python & C version) installed
+        # verify north plugins which is 4 by default and 2 new one (Python & C version)
         assert 6 == len(plugins)
         assert Counter(['ocs', 'http_north', 'pi_server', 'PI_Server_V2', 'ThingSpeak',
                         'ocs_V2']) == Counter(plugin_names)
 
-    def test_filter_plugins_installed(self, foglamp_url):
+    def test_filter_plugins_installed(self, foglamp_url, _type='filter'):
         # install rms filter plugin
-        install_plugin(type='filter', plugin='rms', plugin_lang='C')
+        install_plugin(_type, plugin='rms', plugin_lang='C')
         conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/plugins/installed?type=filter')
+        conn.request("GET", '/foglamp/plugins/installed?type={}'.format(_type))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -185,11 +172,11 @@ class TestPluginDiscovery:
         assert 1 == len(plugins)
         assert 'rms' == plugins[0]['name']
 
-    def test_delivery_plugins_installed(self, foglamp_url):
+    def test_delivery_plugins_installed(self, foglamp_url, _type='notificationDelivery'):
         # install slack delivery plugin
-        install_plugin(type='notificationDelivery', plugin='slack', plugin_lang='C')
+        install_plugin(_type, plugin='slack', plugin_lang='C')
         conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/plugins/installed?type=notificationDelivery')
+        conn.request("GET", '/foglamp/plugins/installed?type={}'.format(_type))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -199,11 +186,11 @@ class TestPluginDiscovery:
         assert 1 == len(plugins)
         assert 'slack' == plugins[0]['name']
 
-    def test_rule_plugins_installed(self, foglamp_url):
-        # install outofbound rule plugin
-        install_plugin(type='notificationRule', plugin='outofbound', plugin_lang='C')
+    def test_rule_plugins_installed(self, foglamp_url, _type='notificationRule'):
+        # install OutOfBound rule plugin
+        install_plugin(_type, plugin='outofbound', plugin_lang='C')
         conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/plugins/installed?type=notificationRule')
+        conn.request("GET", '/foglamp/plugins/installed?type={}'.format(_type))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()

@@ -107,7 +107,8 @@ class TestService:
         data = {"name": SVC_NAME_4,
                 "type": "South",
                 "plugin": 'randomwalk',
-                "config": {"maxValue": {"value": "20"}, "assetName": {"value": "Random"}}
+                "config": {"maxValue": {"value": "20"}, "assetName": {"value": "Random"}},
+                "enabled": True
                 }
         conn = http.client.HTTPConnection(foglamp_url)
         conn.request("POST", '/foglamp/service', json.dumps(data))
@@ -127,14 +128,14 @@ class TestService:
         assert data['config']['assetName']['value'] == jdoc['assetName']['value']
         assert data['config']['maxValue']['value'] == jdoc['maxValue']['value']
 
-    @pytest.mark.parametrize("encoded_svc_name, svc_name, status", [
-        ("FogLAMP%20Storage", "FogLAMP Storage", 404),
-        ("FogLAMP%20Core", "FogLAMP Core", 404),
-        ("Random%20Walk%20%231", SVC_NAME_1, 200),
-        ("HTTP-SOUTH", SVC_NAME_2, 200),
-        (SVC_NAME_3, SVC_NAME_3, 200)
+    @pytest.mark.parametrize("encoded_svc_name, svc_name, status, svc_count", [
+        ("FogLAMP%20Storage", "FogLAMP Storage", 404, 2),
+        ("FogLAMP%20Core", "FogLAMP Core", 404, 2),
+        ("Random%20Walk%20%231", SVC_NAME_1, 200, 4),
+        ("HTTP-SOUTH", SVC_NAME_2, 200, 4),
+        (SVC_NAME_3, SVC_NAME_3, 200, 3)
     ])
-    def test_delete_service(self, encoded_svc_name, svc_name, status, foglamp_url):
+    def test_delete_service(self, encoded_svc_name, svc_name, status, svc_count, foglamp_url, wait_time):
         conn = http.client.HTTPConnection(foglamp_url)
         conn.request("DELETE", '/foglamp/service/{}'.format(encoded_svc_name))
         r = conn.getresponse()
@@ -145,6 +146,17 @@ class TestService:
             r = r.read().decode()
             jdoc = json.loads(r)
             assert 'Service {} deleted successfully.'.format(svc_name) == jdoc['result']
+
+            time.sleep(wait_time)
+            conn.request("GET", '/foglamp/service')
+            r = conn.getresponse()
+            assert 200 == r.status
+            r = r.read().decode()
+            jdoc = json.loads(r)
+            assert len(jdoc), "No data found"
+            assert svc_count == len(jdoc['services'])
+            services = [name['name'] for name in jdoc['services']]
+            assert svc_name not in services
 
     def test_notification_service(self):
         assert 1, "Already verified in test_e2e_notification_service_with_plugins.py"

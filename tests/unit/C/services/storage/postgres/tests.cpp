@@ -2,31 +2,26 @@
 #include <configuration.h>
 #include <string.h>
 #include <string>
+#include <stdlib.h>
 
 using namespace std;
 
+
 int main(int argc, char **argv) {
-    testing::InitGoogleTest(&argc, argv);
 
-    testing::GTEST_FLAG(repeat) = 1;
-    testing::GTEST_FLAG(shuffle) = true;
-    testing::GTEST_FLAG(break_on_failure) = true;
-
-    return RUN_ALL_TESTS();
-}
-
-/**
- * Select the proper storage.json file for the tests
- */
-void cache_file_select()
-{
-
+	// Select the proper storage.json file for the tests
 	string foglamp_root = getenv("FOGLAMP_ROOT");
 	string foglamp_data = foglamp_root + "/tests/unit/C/services/storage/postgres";
 
-	char buf[512];
-	snprintf(buf, sizeof(buf), "FOGLAMP_DATA=%s", foglamp_data.c_str());
-	putenv(buf);
+	setenv("FOGLAMP_DATA", foglamp_data.c_str(), 1 );
+
+	testing::InitGoogleTest(&argc, argv);
+
+	testing::GTEST_FLAG(repeat) = 5000;
+	testing::GTEST_FLAG(shuffle) = true;
+	testing::GTEST_FLAG(break_on_failure) = true;
+
+	return RUN_ALL_TESTS();
 }
 
 /**
@@ -36,7 +31,7 @@ TEST(ConfigurationTest, getport)
 {
 	StorageConfiguration	conf;
 
-	ASSERT_EQ(strcmp(conf.getValue(string("port")), "0"), 0);
+	ASSERT_EQ(strcmp(conf.getValue(string("port")), "8080"), 0);
 }
 
 /**
@@ -44,8 +39,6 @@ TEST(ConfigurationTest, getport)
  */
 TEST(ConfigurationTest, getplugin)
 {
-	cache_file_select();
-
 	StorageConfiguration	conf;
 
 	ASSERT_EQ(strcmp(conf.getValue(string("plugin")), "postgres"), 0);

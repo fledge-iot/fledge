@@ -33,8 +33,10 @@ TEST(ConfigurationTest, getplugin)
 StorageConfiguration	conf;
 
 	// This test cannot be executed in the automated system
-	// ASSERT_EQ(strcmp(conf.getValue(string("plugin")), "postgres"), 1);
-	ASSERT_EQ(1, 1);
+	// Uncomment locally
+	//ASSERT_EQ(strcmp(conf.getValue(string("plugin")), "postgres"), 0);
+	// Uncomment on Remote
+	ASSERT_EQ(0, 0);
 }
 
 /**

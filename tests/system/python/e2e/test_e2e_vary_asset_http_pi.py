@@ -112,6 +112,8 @@ class TestE2EAssetHttpPI:
                 on endpoint GET /foglamp/asset/<asset_name>
                 data received from PI is same as data sent"""
 
+        # Allow http_south service to come up and register before sending data
+        time.sleep(wait_time)
         conn = http.client.HTTPConnection(foglamp_url)
 
         # Send data to foglamp-south-http

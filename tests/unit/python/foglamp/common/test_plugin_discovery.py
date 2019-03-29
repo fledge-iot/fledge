@@ -118,7 +118,7 @@ class TestPluginDiscovery:
     mock_c_notify_config = [
         {"name": "email",
          "version": "1.0.0",
-         "type": "notify",
+         "type": "notificationDelivery",
          "description": "Email notification plugin",
          "config": {"plugin": {"type": "string", "description": "Email notification plugin", "default": "email"}}}
     ]
@@ -126,7 +126,7 @@ class TestPluginDiscovery:
     mock_c_rule_config = [
         {"name": "OverMaxRule",
          "version": "1.0.0",
-         "type": "rule",
+         "type": "notificationRule",
          "description": "The OverMaxRule notification rule",
          "config": {"plugin": {"type": "string", "description": "The OverMaxRule notification rule plugin", "default": "OverMaxRule"}}}
     ]
@@ -154,14 +154,14 @@ class TestPluginDiscovery:
                  "default": "scale",
                  "type": "string",
                  "description": "Scale filter plugin"}}},
-        {"name": "email", "type": "notify", "version": "1.0.0", "description": "Email notification plugin",
+        {"name": "email", "type": "notificationDelivery", "version": "1.0.0", "description": "Email notification plugin",
          "config": {"plugin": {
              "type": "string",
              "description": "Email notification plugin",
              "default": "email"}}},
         {"name": "OverMaxRule",
          "version": "1.0.0",
-         "type": "rule",
+         "type": "notificationRule",
          "description": "The OverMaxRule notification rule",
          "config": {"plugin": {"type": "string", "description": "The OverMaxRule notification rule plugin",
                                "default": "OverMaxRule"}}}
@@ -273,7 +273,7 @@ class TestPluginDiscovery:
         mock_get_c_notify_folders = mocker.patch.object(utils, "find_c_plugin_libs", return_value=next(mock_notify_folders()))
         mock_get_c_notify_plugin_config = mocker.patch.object(utils, "get_plugin_info", side_effect=TestPluginDiscovery.mock_c_notify_config)
 
-        plugins = PluginDiscovery.get_plugins_installed("notify")
+        plugins = PluginDiscovery.get_plugins_installed("notificationDelivery")
         # expected_plugin = TestPluginDiscovery.mock_c_plugins_config[3]
         # FIXME: ordering issue
         # assert expected_plugin == plugins
@@ -288,7 +288,7 @@ class TestPluginDiscovery:
         mock_get_c_rule_folders = mocker.patch.object(utils, "find_c_plugin_libs", return_value=next(mock_rule_folders()))
         mock_get_c_rule_plugin_config = mocker.patch.object(utils, "get_plugin_info", side_effect=TestPluginDiscovery.mock_c_rule_config)
 
-        plugins = PluginDiscovery.get_plugins_installed("rule")
+        plugins = PluginDiscovery.get_plugins_installed("notificationRule")
         # expected_plugin = TestPluginDiscovery.mock_c_plugins_config[4]
         # FIXME: ordering issue
         # assert expected_plugin == plugins
@@ -367,8 +367,8 @@ class TestPluginDiscovery:
         (mock_c_plugins_config[0], "south"),
         (mock_c_plugins_config[1], "north"),
         (mock_c_plugins_config[2], "filter"),
-        (mock_c_plugins_config[3], "notify"),
-        (mock_c_plugins_config[4], "rule")
+        (mock_c_plugins_config[3], "notificationDelivery"),
+        (mock_c_plugins_config[4], "notificationRule")
     ])
     def test_fetch_c_plugins_installed(self, info, dir_name):
         with patch.object(utils, "find_c_plugin_libs", return_value=[info['name']]) as patch_plugin_lib:

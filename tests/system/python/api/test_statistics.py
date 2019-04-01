@@ -67,7 +67,7 @@ class TestStatistics:
         r = r.read().decode()
         jdoc = json.loads(r)
         assert len(jdoc), "No data found"
-        assert 6 == len(jdoc)
+        assert len(STATS_KEYS) == len(jdoc)
         keys = [key['key'] for key in jdoc]
         assert Counter(STATS_KEYS) == Counter(keys)
 
@@ -82,9 +82,9 @@ class TestStatistics:
         assert 15 == jdoc['interval']
         assert {} == jdoc['statistics'][0]
 
-    def test_statistics_history_with_stats_collector_schedule(self, foglamp_url, wait_time):
+    def test_statistics_history_with_stats_collector_schedule(self, foglamp_url, wait_time, retries):
         # wait for sometime for stats collector schedule to start
-        time.sleep(wait_time * 3)
+        time.sleep(wait_time * retries)
 
         conn = http.client.HTTPConnection(foglamp_url)
         conn.request("GET", '/foglamp/statistics/history')
@@ -120,11 +120,13 @@ class TestStatistics:
         assert Counter(keys) == Counter(jdoc['statistics'][0].keys())
 
     def test_statistics_history_with_service_enabled(self, start_south_coap, foglamp_url, wait_time):
+        # Allow CoAP listener to start
         time.sleep(wait_time)
 
         # ingest one reading via fogbench
         subprocess.run(["cd $FOGLAMP_ROOT/extras/python; python3 -m fogbench -t ../../data/{}; cd -"
                        .format(TEMPLATE_NAME)], shell=True, check=True)
+        # Let the readings to be Ingressed
         time.sleep(wait_time)
 
         # verify stats
@@ -138,6 +140,8 @@ class TestStatistics:
         stats = utils.serialize_stats_map(jdoc)
         assert 1 == stats[ASSET_NAME.upper()]
         assert 1 == stats['READINGS']
+
+        # Allow stats collector schedule to run
         time.sleep(wait_time * 2)
 
         # check stats history
@@ -148,6 +152,7 @@ class TestStatistics:
         jdoc = json.loads(r)
         assert len(jdoc), "No data found"
         stats_history = jdoc['statistics']
+
         # READINGS & ASSET_NAME keys and verify no duplicate entry found
         read = [r['READINGS'] for r in stats_history]
         assert 1 in read

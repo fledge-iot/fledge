@@ -39,7 +39,7 @@ def reset():
         assert False, "reset plugin script failed"
 
 
-def add_south(south_plugin, foglamp_url, service_name, config=None, start_service=True):
+def add_south_service(south_plugin, foglamp_url, service_name, config=None, start_service=True):
         """Add south plugin and start the service by default"""
         _config = config if config is not None else {}
         _enabled = "true" if start_service else "false"

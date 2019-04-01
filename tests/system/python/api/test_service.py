@@ -16,7 +16,6 @@ from urllib.parse import quote
 import pytest
 import plugin_and_service
 
-
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems"
 __license__ = "Apache 2.0"
@@ -38,7 +37,6 @@ def install_plugins():
     plugin_and_service.install('south', plugin='http')
     plugin_and_service.install('south', plugin='benchmark', plugin_lang='C')
     plugin_and_service.install('south', plugin='random', plugin_lang='C')
-    plugin_and_service.install('filter', plugin=PLUGIN_FILTER, plugin_lang='C')
     # TODO: FOGL-2662 C-async plugin - Once done add 1 more plugin
     # plugin_and_service.install('south', plugin='?', plugin_lang='C')
 
@@ -56,7 +54,7 @@ def get_service(foglamp_url, path):
 class TestService:
 
     def test_cleanup_and_setup(self, reset_and_start_foglamp, install_plugins):
-        # TODO: Remove this workaround
+        # TODO: FOGL-2669 Remove this workaround
         # Use better setup & teardown methods
         pass
 
@@ -94,7 +92,7 @@ class TestService:
         ("Random", SVC_NAME_4, SVC_NAME_3, None, False, 4)
     ])
     def test_add_service(self, foglamp_url, wait_time, plugin, svc_name, display_svc_name, config, enabled, svc_count):
-        jdoc = plugin_and_service.add_south(plugin, foglamp_url, svc_name, config, enabled)
+        jdoc = plugin_and_service.add_south_service(plugin, foglamp_url, svc_name, config, enabled)
         assert svc_name == jdoc['name']
         assert UUID(jdoc['id'], version=4)
 
@@ -156,6 +154,7 @@ class TestService:
         conn.request("DELETE", '/foglamp/service/{}'.format(quote(svc_name)))
         r = conn.getresponse()
         assert status == r.status
+        # FIXME: FOGL-2668
         if status == 404:
             assert '{} service does not exist.'.format(svc_name) == r.reason
         else:
@@ -170,15 +169,8 @@ class TestService:
             services = [name['name'] for name in jdoc['services']]
             assert svc_name not in services
 
-    def test_service_with_enable_schedule(self, foglamp_url, wait_time):
-        data = {"schedule_name": SVC_NAME_4}
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("PUT", '/foglamp/schedule/enable', json.dumps(data))
-        r = conn.getresponse()
-        r = r.read().decode()
-        jdoc = json.loads(r)
-        assert jdoc['status'] is True
-        assert 'Schedule successfully enabled' == jdoc['message']
+    def test_service_with_enable_schedule(self, foglamp_url, wait_time, enable_schedule):
+        enable_schedule(foglamp_url, SVC_NAME_4)
 
         time.sleep(wait_time)
         jdoc = get_service(foglamp_url, '/foglamp/service')
@@ -186,15 +178,8 @@ class TestService:
         assert 4 == len(jdoc['services'])
         assert SVC_NAME_4 == jdoc['services'][3]['name']
 
-    def test_service_with_disable_schedule(self, foglamp_url, wait_time):
-        data = {"schedule_name": SVC_NAME_4}
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("PUT", '/foglamp/schedule/disable', json.dumps(data))
-        r = conn.getresponse()
-        r = r.read().decode()
-        jdoc = json.loads(r)
-        assert jdoc['status'] is True
-        assert 'Schedule successfully disabled' == jdoc['message']
+    def test_service_with_disable_schedule(self, foglamp_url, wait_time, disable_schedule):
+        disable_schedule(foglamp_url, SVC_NAME_4)
 
         time.sleep(wait_time)
         jdoc = get_service(foglamp_url, '/foglamp/service')
@@ -220,27 +205,12 @@ class TestService:
         services = [name['name'] for name in jdoc['services']]
         assert SVC_NAME_4 not in services
 
-    def test_delete_service_with_filters(self, foglamp_url, wait_time):
+    def test_delete_service_with_filters(self, foglamp_url, wait_time, add_filter, filter_branch, enable_schedule):
         # add filter
-        data = {"name": FILTER_NAME, "plugin": PLUGIN_FILTER, "filter_config": {"enable": "true"}}
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("POST", '/foglamp/filter', json.dumps(data))
-        r = conn.getresponse()
-        r = r.read().decode()
-        jdoc = json.loads(r)
-        assert FILTER_NAME == jdoc['filter']
-        assert PLUGIN_FILTER == jdoc['value']['plugin']['value']
-
-        # filter linked with SVC_NAME_5
-        data = {"pipeline": [FILTER_NAME]}
-        conn.request("PUT", '/foglamp/filter/{}/pipeline?allow_duplicates=true&append_filter=true'
-                     .format(SVC_NAME_5), json.dumps(data))
-        r = conn.getresponse()
-        r = r.read().decode()
-        jdoc = json.loads(r)
-        assert "Filter pipeline {{'pipeline': ['{}']}} updated successfully".format(FILTER_NAME) == jdoc['result']
+        add_filter(PLUGIN_FILTER, filter_branch, FILTER_NAME, {"enable": "true"}, foglamp_url, SVC_NAME_5)
 
         # delete service
+        conn = http.client.HTTPConnection(foglamp_url)
         conn.request("DELETE", '/foglamp/service/{}'.format(SVC_NAME_5))
         r = conn.getresponse()
         r = r.read().decode()
@@ -265,14 +235,7 @@ class TestService:
         assert "Filter pipeline {{'pipeline': ['{}']}} updated successfully".format(FILTER_NAME) == jdoc['result']
 
         # enable SVC_NAME_4 schedule
-        data = {"schedule_name": SVC_NAME_4}
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("PUT", '/foglamp/schedule/enable', json.dumps(data))
-        r = conn.getresponse()
-        r = r.read().decode()
-        jdoc = json.loads(r)
-        assert jdoc['status'] is True
-        assert 'Schedule successfully enabled' == jdoc['message']
+        enable_schedule(foglamp_url, SVC_NAME_4)
 
         # verify SVC_NAME_4 exist
         time.sleep(wait_time)

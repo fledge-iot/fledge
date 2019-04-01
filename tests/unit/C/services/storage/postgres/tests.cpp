@@ -2,17 +2,26 @@
 #include <configuration.h>
 #include <string.h>
 #include <string>
+#include <stdlib.h>
 
 using namespace std;
 
+
 int main(int argc, char **argv) {
-    testing::InitGoogleTest(&argc, argv);
 
-    testing::GTEST_FLAG(repeat) = 5000;
-    testing::GTEST_FLAG(shuffle) = true;
-    testing::GTEST_FLAG(break_on_failure) = true;
+	// Select the proper storage.json file for the tests
+	string foglamp_root = getenv("FOGLAMP_ROOT");
+	string foglamp_data = foglamp_root + "/tests/unit/C/services/storage/postgres";
 
-    return RUN_ALL_TESTS();
+	setenv("FOGLAMP_DATA", foglamp_data.c_str(), 1 );
+
+	testing::InitGoogleTest(&argc, argv);
+
+	testing::GTEST_FLAG(repeat) = 1000;
+	testing::GTEST_FLAG(shuffle) = true;
+	testing::GTEST_FLAG(break_on_failure) = true;
+
+	return RUN_ALL_TESTS();
 }
 
 /**
@@ -20,9 +29,9 @@ int main(int argc, char **argv) {
  */
 TEST(ConfigurationTest, getport)
 {
-StorageConfiguration	conf;
+	StorageConfiguration	conf;
 
-	ASSERT_EQ(strcmp(conf.getValue(string("port")), "0"), 0);
+	ASSERT_EQ(strcmp(conf.getValue(string("port")), "8080"), 0);
 }
 
 /**
@@ -30,13 +39,9 @@ StorageConfiguration	conf;
  */
 TEST(ConfigurationTest, getplugin)
 {
-StorageConfiguration	conf;
+	StorageConfiguration	conf;
 
-	// This test cannot be executed in the automated system
-	// Uncomment locally
-	//ASSERT_EQ(strcmp(conf.getValue(string("plugin")), "postgres"), 0);
-	// Uncomment on Remote
-	ASSERT_EQ(0, 0);
+	ASSERT_EQ(strcmp(conf.getValue(string("plugin")), "postgres"), 0);
 }
 
 /**
@@ -44,9 +49,8 @@ StorageConfiguration	conf;
  */
 TEST(ConfigurationTest, setport)
 {
-StorageConfiguration	conf;
+	StorageConfiguration	conf;
 
-	
 	ASSERT_EQ(true, conf.setValue(string("port"), string("8188")));
 	ASSERT_EQ(strcmp(conf.getValue(string("port")), "8188"), 0);
 }

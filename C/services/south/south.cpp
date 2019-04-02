@@ -31,6 +31,7 @@
 #include <defaults.h>
 #include <filter_plugin.h>
 #include <config_handler.h>
+#include <syslog.h>
 
 extern int makeDaemon(void);
 extern void handler(int sig);
@@ -46,6 +47,7 @@ unsigned short corePort = 8082;
 string	       coreAddress = "localhost";
 bool	       daemonMode = true;
 string	       myName = SERVICE_NAME;
+string	       logLevel = "warning";
 
 	signal(SIGSEGV, handler);
 	signal(SIGILL, handler);
@@ -71,6 +73,10 @@ string	       myName = SERVICE_NAME;
 		{
 			coreAddress = &argv[i][10];
 		}
+		else if (!strncmp(argv[i], "--logLevel=", 11))
+		{
+			logLevel = &argv[i][11];
+		}
 	}
 
 	if (daemonMode && makeDaemon() == -1)
@@ -80,6 +86,7 @@ string	       myName = SERVICE_NAME;
 	}
 
 	SouthService *service = new SouthService(myName);
+	Logger::getLogger()->setMinLevel(logLevel);
 	service->start(coreAddress, corePort);
 	return 0;
 }
@@ -91,6 +98,8 @@ int makeDaemon()
 {
 pid_t pid;
 
+	/* Make the child process inherit the log level */
+	int logmask = setlogmask(0);
 	/* create new process */
 	if ((pid = fork()  ) == -1)
 	{
@@ -100,6 +109,7 @@ pid_t pid;
 	{
 		exit (EXIT_SUCCESS);  
 	}
+	setlogmask(logmask);
 
 	// If we got here we are a child process
 
@@ -172,12 +182,19 @@ void doIngest(Ingest *ingest, Reading reading)
 	ingest->ingest(reading);
 }
 
+void doIngestV2(Ingest *ingest, const vector<Reading *> *vec)
+{
+	ingest->ingest(vec);
+}
+
+
 /**
  * Constructor for the south service
  */
 SouthService::SouthService(const string& myName) : m_name(myName), m_shutdown(false), m_readingsPerSec(1)
 {
 	logger = new Logger(myName);
+	logger->setMinLevel("warning");
 }
 
 /**
@@ -211,7 +228,8 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		m_config = m_mgtClient->getCategory(m_name);
 		if (!loadPlugin())
 		{
-			logger->fatal("Failed to load south plugin.");
+			logger->fatal("Failed to load south plugin, exiting...");
+			management.stop();
 			return;
 		}
 		if (!m_mgtClient->registerService(record))
@@ -278,7 +296,19 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		// Get and ingest data
 		if (! southPlugin->isAsync())
 		{
-			m_timerfd = createTimerFd(1000000/(int)m_readingsPerSec); // interval to be passed is in usecs
+			string units = m_configAdvanced.getValue("units");
+			unsigned long dividend = 1000000;
+			if (units.compare("second") == 0)
+				dividend = 1000000;
+			else if (units.compare("minute") == 0)
+				dividend = 60000000;
+			else if (units.compare("hour") == 0)
+				dividend = 3600000000;
+			unsigned long usecs = dividend / m_readingsPerSec;
+			struct timeval rate;
+			rate.tv_sec  = (int)(usecs / 1000000);
+			rate.tv_usec = (int)(usecs % 1000000);
+			m_timerfd = createTimerFd(rate); // interval to be passed is in usecs
 			if (m_timerfd < 0)
 			{
 				logger->fatal("Could not create timer FD");
@@ -302,7 +332,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				s = read(m_timerfd, &exp, sizeof(uint64_t));
 				if ((unsigned int)s != sizeof(uint64_t))
 					logger->error("timerfd read()");
-				if (exp > 100)
+				if (exp > 100 && exp > m_readingsPerSec/2)
 					logger->error("%d expiry notifications accumulated", exp);
 #if DO_CATCHUP
 				for (uint64_t i=0; i<exp; i++)
@@ -343,7 +373,13 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		}
 		else
 		{
-			southPlugin->registerIngest((INGEST_CB)doIngest, &ingest);
+			const char *pluginInterfaceVer = southPlugin->getInfo()->interface;
+			bool pollInterfaceV2 = (pluginInterfaceVer[0]=='2' && pluginInterfaceVer[1]=='.');
+			Logger::getLogger()->info("pluginInterfaceVer=%s, pollInterfaceV2=%s", pluginInterfaceVer, pollInterfaceV2?"true":"false");
+			if (!pollInterfaceV2)
+				southPlugin->registerIngest((INGEST_CB)doIngest, &ingest);
+			else
+				southPlugin->registerIngestV2((INGEST_CB2)doIngestV2, &ingest);
 			bool started = false;
 			int backoff = 1000;
 			while (started == false && m_shutdown == false)
@@ -473,7 +509,11 @@ bool SouthService::loadPlugin()
 			// Must now reload the merged configuration
 			m_configAdvanced = m_mgtClient->getCategory(advancedCatName);
 
-			southPlugin = new SouthPlugin(handle, m_config);
+			try {
+				southPlugin = new SouthPlugin(handle, m_config);
+			} catch (...) {
+				return false;
+			}
 
 			return true;
 		}
@@ -505,7 +545,13 @@ void SouthService::configChange(const string& categoryName, const string& catego
 	if (categoryName.compare(m_name) == 0)
 	{
 		m_config = ConfigCategory(m_name, category);
-		southPlugin->reconfigure(category);
+		try {
+			southPlugin->reconfigure(category);
+		}
+		catch (...) {
+			logger->fatal("Unrecoverable failure during South plugin reconfigure, south service exiting...");
+			shutdown();
+		}
 		// Let ingest class check for changes to filter pipeline
 		m_ingest->configChange(categoryName, category);
 	}
@@ -514,11 +560,23 @@ void SouthService::configChange(const string& categoryName, const string& catego
 		m_configAdvanced = ConfigCategory(m_name+"Advanced", category);
 		try {
 			unsigned long newval = (unsigned long)strtol(m_configAdvanced.getValue("readingsPerSec").c_str(), NULL, 10);
+			string units = m_configAdvanced.getValue("units");
+			unsigned long dividend = 1000000;
+			if (units.compare("second") == 0)
+				dividend = 1000000;
+			else if (units.compare("minute") == 0)
+				dividend = 60000000;
+			else if (units.compare("hour") == 0)
+				dividend = 3600000000;
 			if (newval != m_readingsPerSec)
 			{
 				m_readingsPerSec = newval;
 				close(m_timerfd);
-				m_timerfd = createTimerFd(1000000/(int)m_readingsPerSec); // interval to be passed is in usecs
+				unsigned long usecs = dividend / m_readingsPerSec;
+				struct timeval rate;
+				rate.tv_sec  = (int)(usecs / 1000000);
+				rate.tv_usec = (int)(usecs % 1000000);
+				m_timerfd = createTimerFd(rate); // interval to be passed is in usecs
 			}
 		} catch (ConfigItemNotFound e) {
 			logger->error("Failed to update poll interval following configuration change");
@@ -549,13 +607,21 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 	for (int i = 0; defaults[i].name; i++)
 	{
 		defaultConfig.addItem(defaults[i].name, defaults[i].description,
-			defaults[i].type, defaults[i].value, defaults[i].value);	
+			defaults[i].type, defaults[i].value, defaults[i].value);
+		defaultConfig.setItemDisplayName(defaults[i].name, defaults[i].displayName);
 	}
+
+	/* Add the reading rate units */
+	vector<string>	rateUnits = { "second", "minute", "hour" };
+	defaultConfig.addItem("units", "Reading Rate Per",
+			"second", "second", rateUnits);
+	defaultConfig.setItemDisplayName("units", "Reading Rate Per");
 
 	/* Add the set of logging levels to the service */
 	vector<string>	logLevels = { "error", "warning", "info", "debug" };
 	defaultConfig.addItem("logLevel", "Minimum logging level reported",
 			"warning", "warning", logLevels);
+	defaultConfig.setItemDisplayName("logLevel", "Minimum Log Level");
 }
 
 /**
@@ -564,7 +630,7 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
  *
  * @param usecs	 Time in micro-secs after which data would be available on the timer FD
  */
-int SouthService::createTimerFd(int usecs)
+int SouthService::createTimerFd(struct timeval rate)
 {
 	int fd = -1;
 	struct itimerspec new_value;
@@ -573,16 +639,16 @@ int SouthService::createTimerFd(int usecs)
 	if (clock_gettime(CLOCK_REALTIME, &now) == -1)
 	   Logger::getLogger()->error("clock_gettime");
 
-	new_value.it_value.tv_sec = now.tv_sec;
-	new_value.it_value.tv_nsec = now.tv_nsec + usecs*1000;
+	new_value.it_value.tv_sec = now.tv_sec + rate.tv_sec;
+	new_value.it_value.tv_nsec = now.tv_nsec + rate.tv_usec*1000;
 	if (new_value.it_value.tv_nsec >= 1000000000)
 	{
 		new_value.it_value.tv_sec += new_value.it_value.tv_nsec/1000000000;
 		new_value.it_value.tv_nsec %= 1000000000;
 	}
 	
-	new_value.it_interval.tv_sec = 0;
-	new_value.it_interval.tv_nsec = usecs*1000;
+	new_value.it_interval.tv_sec = rate.tv_sec;
+	new_value.it_interval.tv_nsec = rate.tv_usec*1000;
 	if (new_value.it_interval.tv_nsec >= 1000000000)
 	{
 		new_value.it_interval.tv_sec += new_value.it_interval.tv_nsec/1000000000;

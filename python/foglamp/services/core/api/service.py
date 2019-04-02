@@ -80,7 +80,6 @@ async def delete_service(request):
     :Example:
         curl -X DELETE http://localhost:8081/foglamp/service/<svc name>
     """
-
     try:
         svc = request.match_info.get('service_name', None)
         storage = connect.get_storage_async()
@@ -89,32 +88,34 @@ async def delete_service(request):
         if result['count'] == 0:
             return web.HTTPNotFound(reason='{} service does not exist.'.format(svc))
 
+        config_mgr = ConfigurationManager(storage)
+
+        # In case of notification service, if notifications exists, then deletion is not allowed
+        if 'notification' in result['rows'][0]['process_name']:
+            notf_children = await config_mgr.get_category_child(category_name="Notifications")
+            children = [x['key'] for x in notf_children]
+            if len(notf_children) > 0:
+                return web.HTTPBadRequest(reason='Notification service `{}` can not be deleted, as {} notification instances exist.'.format(svc, children))
+
+        # First disable the schedule
         svc_schedule = result['rows'][0]
         sch_id = uuid.UUID(svc_schedule['id'])
         if svc_schedule['enabled'].lower() == 't':
-            # disable it
             await server.Server.scheduler.disable_schedule(sch_id)
-        # delete it
-        await server.Server.scheduler.delete_schedule(sch_id)
 
-        # delete all configuration for the service name
-        config_mgr = ConfigurationManager(storage)
+        # Delete all configuration for the service name
         await config_mgr.delete_category_and_children_recursively(svc)
 
+        # Remove from registry as it has been already shutdown via disable_schedule() and since
+        # we intend to delete the schedule also, there is no use of its Service registry entry
         try:
-            ServiceRegistry.get(name=svc)
+            services = ServiceRegistry.get(name=svc)
+            ServiceRegistry.remove_from_registry(services[0]._id)
         except service_registry_exceptions.DoesNotExist:
             pass
-        else:
-            # shutdown of service does not actually remove it from service registry via unregister (it just set its
-            # status to Shutdown)
-            while True:
-                svcs = ServiceRegistry.get(name=svc)
-                if svcs[0]._status == ServiceRecord.Status.Shutdown:
-                    ServiceRegistry.remove_from_registry(svcs[0]._id)
-                    break
-                else:
-                    await asyncio.sleep(1.0)
+
+        # Delete schedule
+        await server.Server.scheduler.delete_schedule(sch_id)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
     else:
@@ -146,15 +147,16 @@ async def add_service(request):
             raise web.HTTPBadRequest(reason='Missing name property in payload.')
         if utils.check_reserved(name) is False:
             raise web.HTTPBadRequest(reason='Invalid name property in payload.')
-
+        if utils.check_foglamp_reserved(name) is False:
+            raise web.HTTPBadRequest(reason="'{}' is reserved for FogLAMP and can not be used as service name!".format(name))
         if service_type is None:
             raise web.HTTPBadRequest(reason='Missing type property in payload.')
+
         service_type = str(service_type).lower()
         if service_type == 'north':
             raise web.HTTPNotAcceptable(reason='north type is not supported for the time being.')
         if service_type not in ['south', 'notification']:
             raise web.HTTPBadRequest(reason='Only south and notification type are supported.')
-
         if plugin is None and service_type == 'south':
             raise web.HTTPBadRequest(reason='Missing plugin property for type south in payload.')
         if plugin and utils.check_reserved(plugin) is False:
@@ -180,8 +182,8 @@ async def add_service(request):
                 if not plugin_config:
                     _logger.exception("Plugin %s import problem from path %s", plugin, plugin_module_path)
                     raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}".'.format(plugin, plugin_module_path))
-                process_name = 'south_c' if plugin_info['mode'] == 'poll' else 'south'
-                script = '["services/south_c"]' if plugin_info['mode'] == 'poll' else '["services/south"]'
+                process_name = 'south_c'
+                script = '["services/south_c"]'
             except ImportError as ex:
                 # Checking for C-type plugins
                 plugin_config = load_c_plugin(plugin, service_type)

@@ -6,6 +6,7 @@
 
 """Common utilities"""
 
+import datetime
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -34,3 +35,32 @@ def check_reserved(string):
         if s in reserved:
             return False
     return True
+
+
+def check_foglamp_reserved(string):
+    reserved = [
+        'foglamp',
+        'general',
+        'advanced',
+        'notifications',
+        'north',
+        'south',
+        'filter',
+        'notify',
+        'rule',
+        'delivery',
+        'utilities'
+    ]
+    if string is None or not isinstance(string, str) or string == "":
+        return False
+    if string.lower() in reserved:
+        return False
+    return True
+
+
+def local_timestamp():
+    """
+    :return: str - current time stamp with microseconds and machine timezone info
+    :example '2018-05-08 14:06:40.517313+05:30'
+    """
+    return str(datetime.datetime.now(datetime.timezone.utc).astimezone())

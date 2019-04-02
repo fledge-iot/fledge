@@ -17,14 +17,16 @@ import os
 import subprocess
 import signal
 from typing import List
-from foglamp.common.configuration_manager import ConfigurationManager
+
 from foglamp.common import logger
+from foglamp.common import utils as common_utils
 from foglamp.common.audit_logger import AuditLogger
-from foglamp.services.core.scheduler.entities import *
-from foglamp.services.core.scheduler.exceptions import *
 from foglamp.common.storage_client.exceptions import *
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.storage_client import StorageClientAsync
+from foglamp.common.configuration_manager import ConfigurationManager
+from foglamp.services.core.scheduler.entities import *
+from foglamp.services.core.scheduler.exceptions import *
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
 from foglamp.services.common import utils
@@ -263,7 +265,7 @@ class Scheduler(object):
             update_payload = PayloadBuilder() \
                 .SET(exit_code=exit_code,
                      state=int(state),
-                     end_time=str(datetime.datetime.now())) \
+                     end_time=str(common_utils.local_timestamp())) \
                 .WHERE(['id', '=', str(task_process.task_id)]) \
                 .payload()
             try:
@@ -336,7 +338,7 @@ class Scheduler(object):
                         schedule_name=schedule.name,
                         process_name=schedule.process_name,
                         state=int(Task.State.RUNNING),
-                        start_time=str(datetime.datetime.now())) \
+                        start_time=str(common_utils.local_timestamp())) \
                 .payload()
             try:
                 self._logger.debug('Database command: %s', insert_payload)
@@ -1245,7 +1247,14 @@ class Scheduler(object):
                         # Shutdown will take care of unregistering the service from core
                         await utils.shutdown_service(service)
                 except:
-                    pass
+                    # Service registry does not exist but Scheduler records for service exist, hence remove records
+                    try:
+                        schedule_execution = self._schedule_executions[schedule_id]
+                    except KeyError:
+                        pass
+                    else:
+                        del schedule_execution.task_processes[task_process.task_id]
+                        self._logger.info("Removed Orphaned scheduler entries for schedule %s", str(schedule.name))
                 try:
                     # As of now, script starts the process and therefore, we need to explicitly stop this script process
                     # as shutdown caters to stopping of the actual service only.

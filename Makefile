@@ -7,6 +7,7 @@ LN := ln -sf
 CMAKE := cmake
 PIP_USER_FLAG = --user
 PIP_INSTALL_REQUIREMENTS := pip3 install -Ir
+USE_PIP_CACHE := no
 PYTHON_BUILD_PACKAGE = python3 setup.py build -b ../$(PYTHON_BUILD_DIR)
 RM_DIR := rm -r
 RM_FILE := rm
@@ -14,6 +15,7 @@ MAKE_INSTALL = $(MAKE) install
 CP            := cp
 CP_DIR        := cp -r
 SSL_NAME      := "foglamp"
+AUTH_NAME     := "ca"
 SSL_DAYS      := "365"
 
 ###############################################################################
@@ -24,21 +26,22 @@ MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 CURRENT_DIR := $(dir $(MKFILE_PATH))
 
 # C BUILD DIRS/FILES
-CMAKE_FILE             := $(CURRENT_DIR)/CMakeLists.txt
-CMAKE_BUILD_DIR        := cmake_build
-CMAKE_GEN_MAKEFILE     := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/Makefile
-CMAKE_SERVICES_DIR     := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/services
-CMAKE_TASKS_DIR        := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/tasks
-CMAKE_STORAGE_BINARY   := $(CMAKE_SERVICES_DIR)/storage/foglamp.services.storage
-CMAKE_SOUTH_BINARY     := $(CMAKE_SERVICES_DIR)/south/foglamp.services.south
-CMAKE_NORTH_BINARY     := $(CMAKE_TASKS_DIR)/north/sending_process/sending_process
-CMAKE_PLUGINS_DIR      := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/plugins
-DEV_SERVICES_DIR       := $(CURRENT_DIR)/services
-DEV_TASKS_DIR          := $(CURRENT_DIR)/tasks
-SYMLINK_PLUGINS_DIR    := $(CURRENT_DIR)/plugins
-SYMLINK_STORAGE_BINARY := $(DEV_SERVICES_DIR)/foglamp.services.storage
-SYMLINK_SOUTH_BINARY   := $(DEV_SERVICES_DIR)/foglamp.services.south
-SYMLINK_NORTH_BINARY   := $(DEV_TASKS_DIR)/sending_process
+CMAKE_FILE               := $(CURRENT_DIR)/CMakeLists.txt
+CMAKE_BUILD_DIR          := cmake_build
+CMAKE_GEN_MAKEFILE       := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/Makefile
+CMAKE_SERVICES_DIR       := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/services
+CMAKE_TASKS_DIR          := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/tasks
+CMAKE_STORAGE_BINARY     := $(CMAKE_SERVICES_DIR)/storage/foglamp.services.storage
+CMAKE_SOUTH_BINARY       := $(CMAKE_SERVICES_DIR)/south/foglamp.services.south
+CMAKE_NORTH_BINARY       := $(CMAKE_TASKS_DIR)/north/sending_process/sending_process
+CMAKE_PLUGINS_DIR        := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/plugins
+DEV_SERVICES_DIR         := $(CURRENT_DIR)/services
+DEV_TASKS_DIR            := $(CURRENT_DIR)/tasks
+SYMLINK_PLUGINS_DIR      := $(CURRENT_DIR)/plugins
+SYMLINK_STORAGE_BINARY   := $(DEV_SERVICES_DIR)/foglamp.services.storage
+SYMLINK_SOUTH_BINARY     := $(DEV_SERVICES_DIR)/foglamp.services.south
+SYMLINK_NORTH_BINARY     := $(DEV_TASKS_DIR)/sending_process
+ASYNC_INGEST_PYMODULE    := $(CURRENT_DIR)/python/async_ingest.so*
 
 # PYTHON BUILD DIRS/FILES
 PYTHON_SRC_DIR := python
@@ -143,6 +146,13 @@ else
 endif
 	@echo "$(ACTION) $(PACKAGE_NAME) version $(FOGLAMP_VERSION), DB schema $(FOGLAMP_SCHEMA)"
 
+# Use cache for python requirements depending on the value of USE_PIP_CACHE
+ifeq ($(USE_PIP_CACHE), yes)
+    $(eval NO_CACHE_DIR=)
+else
+    $(eval NO_CACHE_DIR= --no-cache-dir)
+endif
+
 # Check where this FogLAMP can be installed over an existing one:
 schema_check : apply_version
 ###
@@ -181,6 +191,9 @@ install : $(INSTALL_DIR) \
 ###############################################################################
 generate_selfcertificate:
 	scripts/certificates $(SSL_NAME) $(SSL_DAYS)
+	scripts/auth_certificates ca $(AUTH_NAME) $(SSL_DAYS)
+	scripts/auth_certificates user user $(SSL_DAYS)
+	scripts/auth_certificates user admin $(SSL_DAYS)
 
 ###############################################################################
 ############################ C BUILD/INSTALL TARGETS ##########################
@@ -237,11 +250,11 @@ python_build : $(PYTHON_SETUP_FILE)
 
 # install python requirements without --user 
 python_requirements : $(PYTHON_REQUIREMENTS_FILE)
-	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) --no-cache-dir
+	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) $(NO_CACHE_DIR)
 
 # install python requirements for user
 python_requirements_user : $(PYTHON_REQUIREMENTS_FILE)
-	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) $(PIP_USER_FLAG) --no-cache-dir
+	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) $(PIP_USER_FLAG) $(NO_CACHE_DIR)
 
 # create python install dir
 $(PYTHON_INSTALL_DIR) :
@@ -446,3 +459,4 @@ clean :
 	-$(RM_DIR) $(PYTHON_BUILD_DIR)
 	-$(RM_DIR) $(DEV_SERVICES_DIR)
 	-$(RM) $(SYMLINK_PLUGINS_DIR)
+	-$(RM) $(ASYNC_INGEST_PYMODULE)

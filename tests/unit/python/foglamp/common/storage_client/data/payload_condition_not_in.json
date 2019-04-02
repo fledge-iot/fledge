@@ -1,0 +1,7 @@
+ {
+   "where": {
+     "column": "plugin_type",
+     "condition": "not in",
+     "value": ["north", "south"]
+   }
+ }

@@ -28,6 +28,7 @@ class TestPluginDiscovery:
     mock_c_south_folders = ["dummy"]
     mock_c_filter_folders = ["scale"]
     mock_c_notify_folders = ["email"]
+    mock_c_rule_folders = ["OverMaxRule"]
     mock_all_folders = ["OMF", "foglamp-north", "modbus", "http"]
     mock_plugins_config = [
         {
@@ -117,11 +118,18 @@ class TestPluginDiscovery:
     mock_c_notify_config = [
         {"name": "email",
          "version": "1.0.0",
-         "type": "notify",
+         "type": "notificationDelivery",
          "description": "Email notification plugin",
          "config": {"plugin": {"type": "string", "description": "Email notification plugin", "default": "email"}}}
     ]
 
+    mock_c_rule_config = [
+        {"name": "OverMaxRule",
+         "version": "1.0.0",
+         "type": "notificationRule",
+         "description": "The OverMaxRule notification rule",
+         "config": {"plugin": {"type": "string", "description": "The OverMaxRule notification rule plugin", "default": "OverMaxRule"}}}
+    ]
     mock_c_plugins_config = [
         {"interface": "1.0.0",
          "version": "1.0.0",
@@ -146,11 +154,17 @@ class TestPluginDiscovery:
                  "default": "scale",
                  "type": "string",
                  "description": "Scale filter plugin"}}},
-        {"name": "email", "type": "notify", "version": "1.0.0", "description": "Email notification plugin",
+        {"name": "email", "type": "notificationDelivery", "version": "1.0.0", "description": "Email notification plugin",
          "config": {"plugin": {
              "type": "string",
              "description": "Email notification plugin",
-             "default": "email"}}}
+             "default": "email"}}},
+        {"name": "OverMaxRule",
+         "version": "1.0.0",
+         "type": "notificationRule",
+         "description": "The OverMaxRule notification rule",
+         "config": {"plugin": {"type": "string", "description": "The OverMaxRule notification rule plugin",
+                               "default": "OverMaxRule"}}}
     ]
 
     def test_get_plugins_installed_type_none(self, mocker):
@@ -165,6 +179,7 @@ class TestPluginDiscovery:
             yield TestPluginDiscovery.mock_c_south_folders
             yield TestPluginDiscovery.mock_c_filter_folders
             yield TestPluginDiscovery.mock_c_notify_folders
+            yield TestPluginDiscovery.mock_c_rule_folders
 
         mock_get_folders = mocker.patch.object(PluginDiscovery, "get_plugin_folders", return_value=next(mock_folders()))
         mock_get_c_folders = mocker.patch.object(utils, "find_c_plugin_libs", return_value=next(mock_c_folders()))
@@ -180,8 +195,8 @@ class TestPluginDiscovery:
         # assert expected_plugin == plugins
         assert 2 == mock_get_folders.call_count
         assert 4 == mock_get_plugin_config.call_count
-        assert 4 == mock_get_c_folders.call_count
-        assert 4 == mock_get_c_plugin_config.call_count
+        assert 5 == mock_get_c_folders.call_count
+        assert 5 == mock_get_c_plugin_config.call_count
 
     def test_get_plugins_installed_type_north(self, mocker):
         @asyncio.coroutine
@@ -258,12 +273,27 @@ class TestPluginDiscovery:
         mock_get_c_notify_folders = mocker.patch.object(utils, "find_c_plugin_libs", return_value=next(mock_notify_folders()))
         mock_get_c_notify_plugin_config = mocker.patch.object(utils, "get_plugin_info", side_effect=TestPluginDiscovery.mock_c_notify_config)
 
-        plugins = PluginDiscovery.get_plugins_installed("notify")
+        plugins = PluginDiscovery.get_plugins_installed("notificationDelivery")
         # expected_plugin = TestPluginDiscovery.mock_c_plugins_config[3]
         # FIXME: ordering issue
         # assert expected_plugin == plugins
         assert 1 == mock_get_c_notify_folders.call_count
         assert 1 == mock_get_c_notify_plugin_config.call_count
+
+    def test_get_c_rules_plugins_installed(self, mocker):
+        @asyncio.coroutine
+        def mock_rule_folders():
+            yield TestPluginDiscovery.mock_c_rule_folders
+
+        mock_get_c_rule_folders = mocker.patch.object(utils, "find_c_plugin_libs", return_value=next(mock_rule_folders()))
+        mock_get_c_rule_plugin_config = mocker.patch.object(utils, "get_plugin_info", side_effect=TestPluginDiscovery.mock_c_rule_config)
+
+        plugins = PluginDiscovery.get_plugins_installed("notificationRule")
+        # expected_plugin = TestPluginDiscovery.mock_c_plugins_config[4]
+        # FIXME: ordering issue
+        # assert expected_plugin == plugins
+        assert 1 == mock_get_c_rule_folders.call_count
+        assert 1 == mock_get_c_rule_plugin_config.call_count
 
     def test_fetch_plugins_installed(self, mocker):
         @asyncio.coroutine
@@ -333,18 +363,19 @@ class TestPluginDiscovery:
                 assert actual is None
         patch_log_warn.assert_called_once_with('Plugin http-north is discarded due to invalid type')
 
-    @pytest.mark.parametrize("info, dir", [
+    @pytest.mark.parametrize("info, dir_name", [
         (mock_c_plugins_config[0], "south"),
         (mock_c_plugins_config[1], "north"),
         (mock_c_plugins_config[2], "filter"),
-        (mock_c_plugins_config[3], "notify")
+        (mock_c_plugins_config[3], "notificationDelivery"),
+        (mock_c_plugins_config[4], "notificationRule")
     ])
-    def test_fetch_c_plugins_installed(self, info, dir):
+    def test_fetch_c_plugins_installed(self, info, dir_name):
         with patch.object(utils, "find_c_plugin_libs", return_value=[info['name']]) as patch_plugin_lib:
             with patch.object(utils, "get_plugin_info", return_value=info) as patch_plugin_info:
-                PluginDiscovery.fetch_c_plugins_installed(dir, True)
-            patch_plugin_info.assert_called_once_with(info['name'], dir=dir)
-        patch_plugin_lib.assert_called_once_with(dir)
+                PluginDiscovery.fetch_c_plugins_installed(dir_name, True)
+            patch_plugin_info.assert_called_once_with(info['name'], dir=dir_name)
+        patch_plugin_lib.assert_called_once_with(dir_name)
 
     @pytest.mark.parametrize("info, exc_count", [
         ({}, 0),

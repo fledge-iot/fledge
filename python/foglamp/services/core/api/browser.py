@@ -41,7 +41,6 @@ from aiohttp import web
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.services.core import connect
 
-
 __author__ = "Mark Riddoch, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
@@ -50,7 +49,6 @@ __version__ = "${VERSION}"
 
 __DEFAULT_LIMIT = 20
 __DEFAULT_OFFSET = 0
-__TIMESTAMP_FMT = 'YYYY-MM-DD HH24:MI:SS.MS'
 
 
 def setup(app):
@@ -129,7 +127,7 @@ async def asset(request):
     the query parameter ?limit=xx&skip=xx and it will not respect when datetime units is supplied
 
     Returns:
-          json result on basis of SELECT TO_CHAR(user_ts, '__TIMESTAMP_FMT') as "timestamp", (reading)::jsonFROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0;
+          json result on basis of SELECT user_ts as "timestamp", (reading)::jsonFROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0;
 
     :Example:
             curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity
@@ -138,8 +136,8 @@ async def asset(request):
             curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity?seconds=60
     """
     asset_code = request.match_info.get('asset_code', '')
-    _select = PayloadBuilder().SELECT(("reading", "user_ts")).ALIAS("return", ("user_ts", "timestamp")). \
-        FORMAT("return", ("user_ts", __TIMESTAMP_FMT)).chain_payload()
+    _select = PayloadBuilder().SELECT(("reading", "user_ts")).ALIAS("return", ("user_ts", "timestamp")).chain_payload()
+
     _where = PayloadBuilder(_select).WHERE(["asset_code", "=", asset_code]).chain_payload()
     if 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
         _and_where = where_clause(request, _where)
@@ -180,7 +178,7 @@ async def asset_reading(request):
     Only one of hour, minutes or seconds should be supplied
 
     Returns:
-           json result on basis of SELECT TO_CHAR(user_ts, '__TIMESTAMP_FMT') as "timestamp", reading->>'reading' FROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0;
+           json result on basis of SELECT user_ts as "timestamp", reading->>'reading' FROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0;
 
     :Example:
             curl -sX GET http://localhost:8081/foglamp/asset/fogbench_humidity/temperature
@@ -193,8 +191,7 @@ async def asset_reading(request):
     reading = request.match_info.get('reading', '')
 
     _select = PayloadBuilder().SELECT(("user_ts", ["reading", reading])) \
-        .ALIAS("return", ("user_ts", "timestamp"), ("reading", reading)) \
-        .FORMAT("return", ("user_ts", __TIMESTAMP_FMT)).chain_payload()
+        .ALIAS("return", ("user_ts", "timestamp"), ("reading", reading)).chain_payload()
     _where = PayloadBuilder(_select).WHERE(["asset_code", "=", asset_code]).chain_payload()
     if 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
         _and_where = where_clause(request, _where)
@@ -234,7 +231,9 @@ async def asset_all_readings_summary(request):
     try:
         # Get readings from asset_code
         asset_code = request.match_info.get('asset_code', '')
-        payload = PayloadBuilder().SELECT("reading").WHERE(["asset_code", "=", asset_code]).payload()
+        # TODO: Use only the latest asset read to determine the data points to use. This
+        # avoids reading every single reading into memory and creating a very big result set See FOGL-2635
+        payload = PayloadBuilder().SELECT("reading").WHERE(["asset_code", "=", asset_code]).LIMIT(1).ORDER_BY(["user_ts", "desc"]).payload()
         _readings = connect.get_readings_async()
         results = await _readings.query(payload)
         if not results['rows']:
@@ -242,7 +241,7 @@ async def asset_all_readings_summary(request):
 
         # TODO: FOGL-1768 when support available from storage layer then avoid multiple calls
         # Find keys in readings
-        reading_keys = list(results['rows'][0]['reading'].keys())
+        reading_keys = list(results['rows'][-1]['reading'].keys())
         response = []
         _where = PayloadBuilder().WHERE(["asset_code", "=", asset_code]).chain_payload()
         if 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:

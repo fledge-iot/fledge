@@ -32,14 +32,16 @@ class PluginDiscovery(object):
             plugins_list_c_north = cls.fetch_c_plugins_installed("north", is_config)
             plugins_list_c_south = cls.fetch_c_plugins_installed("south", is_config)
             plugins_list_c_filter = cls.fetch_c_plugins_installed("filter", is_config)
-            plugins_list_c_notify = cls.fetch_c_plugins_installed("notify", is_config)
+            plugins_list_c_notify = cls.fetch_c_plugins_installed("notificationDelivery", is_config)
+            plugins_list_c_rule = cls.fetch_c_plugins_installed("notificationRule", is_config)
             plugins_list.extend(plugins_list_north)
             plugins_list.extend(plugins_list_c_north)
             plugins_list.extend(plugins_list_south)
             plugins_list.extend(plugins_list_c_south)
             plugins_list.extend(plugins_list_c_filter)
             plugins_list.extend(plugins_list_c_notify)
-        elif plugin_type == 'filter' or plugin_type == 'notify':
+            plugins_list.extend(plugins_list_c_rule)
+        elif plugin_type in ['filter', 'notificationDelivery', 'notificationRule']:
             plugins_list = cls.fetch_c_plugins_installed(plugin_type, is_config)
         else:
             plugins_list = cls.fetch_plugins_installed(plugin_type, is_config)

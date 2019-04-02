@@ -28,6 +28,7 @@ class Connection {
 						unsigned long sent, std::string& results);
 		long		tableSize(const std::string& table);
 		void		setTrace(bool flag) { m_logSQL = flag; };
+		static bool 	formatDate(char *formatted_date, size_t formatted_date_size, const char *date);
 	private:
 		int 		SQLexec(sqlite3 *db, const char *sql,
 					int (*callback)(void*,int,char**,char**),
@@ -36,15 +37,15 @@ class Connection {
 		void		raiseError(const char *operation, const char *reason,...);
 		sqlite3		*inMemory; // Handle for :memory: database
 		int		mapResultSet(void *res, std::string& resultSet);
-		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&);
+		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&, bool convertLocaltime = false);
 		bool		jsonModifiers(const rapidjson::Value&, SQLBuffer&);
-		bool		jsonAggregates(const rapidjson::Value&,
-						const rapidjson::Value&,
-						SQLBuffer&,
-						SQLBuffer&);
+    		bool		jsonAggregates(const rapidjson::Value&,
+		                               const rapidjson::Value&,
+		                               SQLBuffer&,
+		                               SQLBuffer&,
+		                               bool isTableReading = false);
 		bool		returnJson(const rapidjson::Value&, SQLBuffer&, SQLBuffer&);
 		char		*trim(char *str);
-		const char	*escape(const char *);
 		const std::string	escape(const std::string&);
 		bool applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 						int i,

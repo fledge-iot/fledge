@@ -4,10 +4,11 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-import os
-import binascii
+
 from aiohttp import web
+import binascii
 import urllib.parse
+import os
 
 from foglamp.services.core import connect
 from foglamp.common.configuration_manager import ConfigurationManager
@@ -24,7 +25,7 @@ __version__ = "${VERSION}"
 _help = """
     --------------------------------------------------------------------------------
     | GET POST       | /foglamp/category                                           |
-    | GET PUT        | /foglamp/category/{category_name}                           |
+    | GET PUT DELETE | /foglamp/category/{category_name}                           |
     | GET POST PUT   | /foglamp/category/{category_name}/{config_item}             |
     | DELETE         | /foglamp/category/{category_name}/{config_item}/value       |
     | POST           | /foglamp/category/{category_name}/{config_item}/upload      |
@@ -93,26 +94,6 @@ async def get_category(request):
     if category is None:
         raise web.HTTPNotFound(reason="No such Category found for {}".format(category_name))
 
-    for k, v in category.items():
-        if v['type'] == 'script':
-            # FIXME: Handle 'Non-hexadecimal digit found' issue
-            try:
-                category[k]["value"] = binascii.unhexlify(v['value'].encode('utf-8')).decode("utf-8")
-            except Exception as e:
-                _logger.exception("Got an error while decoding config item: {} | {}".format(category[k], str(e)))
-                pass
-
-            if cf_mgr._cacheManager.cache[category_name]['value'][k]:
-                cf_mgr._cacheManager.cache[category_name]['value'][k]['value'] = v['value']
-
-            prefix_file_name = category_name.lower() + "_" + k.lower() + "_"
-            if not os.path.exists(script_dir):
-                os.makedirs(script_dir)
-            _all_files = os.listdir(script_dir)
-            for name in _all_files:
-                if name.startswith(prefix_file_name) and name.endswith('.py'):
-                    category[k]["file"] = script_dir + name
-
     return web.json_response(category)
 
 
@@ -162,17 +143,38 @@ async def create_category(request):
         if data.get('children'):
             r = await cf_mgr.create_child_category(category_name, data.get('children'))
             result.update(r)
-
     except (KeyError, ValueError, TypeError) as ex:
         raise web.HTTPBadRequest(reason=str(ex))
-
     except LookupError as ex:
         raise web.HTTPNotFound(reason=str(ex))
-
     except Exception as ex:
         raise web.HTTPException(reason=str(ex))
-
     return web.json_response(result)
+
+
+async def delete_category(request):
+    """
+    Args:
+         request: category_name required
+    Returns:
+        Success message on successful deletion 
+    Raises:
+        TypeError/ValueError/Exception on error
+    :Example:
+            curl -X DELETE http://localhost:8081/foglamp/category/{category_name}
+    """
+    category_name = request.match_info.get('category_name', None)
+    category_name = urllib.parse.unquote(category_name) if category_name is not None else None
+
+    try:
+        cf_mgr = ConfigurationManager(connect.get_storage_async())
+        await cf_mgr.delete_category_and_children_recursively(category_name)
+    except (ValueError, TypeError) as ex:
+        raise web.HTTPBadRequest(reason=ex)
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason=ex)
+    else:
+        return web.json_response({'result': 'Category {} deleted successfully.'.format(category_name)})
 
 
 async def get_category_item(request):
@@ -196,27 +198,6 @@ async def get_category_item(request):
     category_item = await cf_mgr.get_category_item(category_name, config_item)
     if category_item is None:
         raise web.HTTPNotFound(reason="No such Category item found for {}".format(config_item))
-    try:
-        if category_item['type'] == 'script':
-            # FIXME: Handle 'Non-hexadecimal digit found' issue
-            try:
-                category_item['value'] = binascii.unhexlify(category_item['value'].encode('utf-8')).decode("utf-8")
-            except Exception as e:
-                _logger.exception("Got an error while decoding config item: {} | {}".format(config_item, str(e)))
-                pass
-
-            if cf_mgr._cacheManager.cache[category_name]['value'][config_item]:
-                cf_mgr._cacheManager.cache[category_name]['value'][config_item]['value'] = category_item['value']
-
-            prefix_file_name = category_name.lower() + "_" + config_item.lower() + "_"
-            if not os.path.exists(script_dir):
-                os.makedirs(script_dir)
-            _all_files = os.listdir(script_dir)
-            for name in _all_files:
-                if name.startswith(prefix_file_name):
-                    category_item["file"] = script_dir + name
-    except Exception as e:
-        raise web.HTTPBadRequest(reason="{}".format(str(e)))
 
     return web.json_response(category_item)
 
@@ -331,7 +312,7 @@ async def add_configuration_item(request):
             config_item_dict = {new_config_item: data}
 
         # validate configuration category value
-        await cf_mgr._validate_category_val(category_val=config_item_dict, set_value_val_from_default_val=False)
+        await cf_mgr._validate_category_val(category_name=category_name, category_val=config_item_dict, set_value_val_from_default_val=False)
 
         # validate category
         category = await cf_mgr.get_category_all_items(category_name)
@@ -554,7 +535,7 @@ async def upload_script(request):
     # If 'scripts' dir not exists, then create
     if not os.path.exists(script_dir):
         os.makedirs(script_dir)
-    # Write contents to file and save under scripts dir path
+    # Write contents to file and save under scripts dir path; it will be overwritten if exists
     with open(script_file_path, 'wb') as f:
         f.write(script_file_content)
 
@@ -564,8 +545,8 @@ async def upload_script(request):
 
     try:
         # Save the value to database
-        await cf_mgr.set_category_item_value_entry(category_name, config_item, str_data)
-        # Remove old files for combination categoryname_configitem_filename and retain only the latest one
+        await cf_mgr.set_category_item_value_entry(category_name, config_item, str_data, script_file_path)
+        # Remove old files for combination categoryName_configItem_* and retain only the latest one
         _all_files = os.listdir(script_dir)
         for name in _all_files:
             if name.startswith(prefix_file_name):
@@ -577,10 +558,4 @@ async def upload_script(request):
         raise web.HTTPBadRequest(reason=ex)
     else:
         result = await cf_mgr.get_category_item(category_name, config_item)
-        result['file'] = script_file_path
-        # Return the binary data represented by the hexadecimal string hexstr.
-        result['value'] = binascii.unhexlify(str_data.encode('utf-8')).decode("utf-8")
-        if cf_mgr._cacheManager.cache[category_name]['value'][config_item]:
-            cf_mgr._cacheManager.cache[category_name]['value'][config_item]['value'] = result['value']
-
         return web.json_response(result)

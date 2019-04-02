@@ -53,7 +53,7 @@ class ConfigCategories {
 
 class ConfigCategory {
 	public:
-		enum ItemType  { StringItem, EnumerationItem, JsonItem, BoolItem, NumberItem, DoubleItem, ScriptItem, CategoryType};
+		enum ItemType  { UnknownType, StringItem, EnumerationItem, JsonItem, BoolItem, NumberItem, DoubleItem, ScriptItem, CategoryType};
 
 		ConfigCategory(const std::string& name, const std::string& json);
 		ConfigCategory() {};
@@ -74,6 +74,7 @@ class ConfigCategory {
 		std::string                     getDescription() const { return m_description; };
 		unsigned int			getCount() const { return m_items.size(); };
 		bool				itemExists(const std::string& name) const;
+		bool				setItemDisplayName(const std::string& name, const std::string& displayName);
 		std::string			getValue(const std::string& name) const;
 		std::string			getType(const std::string& name) const;
 		std::string			getDescription(const std::string& name) const;

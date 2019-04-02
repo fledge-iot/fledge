@@ -18,10 +18,59 @@
 #include <logger.h>
 #include <iostream>
 #include <string>
+#include <signal.h>
+#include <execinfo.h>
+#include <dlfcn.h>
+#include <cxxabi.h>
+#include <syslog.h>
 
 extern int makeDaemon(void);
 
 using namespace std;
+
+/**
+ * Signal handler to log stack trqaces on fatal signals
+ */
+static void handler(int sig)
+{
+Logger	*logger = Logger::getLogger();
+void	*array[20];
+char	buf[1024];
+int	size;
+
+	// get void*'s for all entries on the stack
+	size = backtrace(array, 20);
+
+	// print out all the frames to stderr
+	logger->fatal("Signal %d (%s) trapped:\n", sig, strsignal(sig));
+	char **messages = backtrace_symbols(array, size);
+	for (int i = 0; i < size; i++)
+	{
+		Dl_info info;
+		if (dladdr(array[i], &info) && info.dli_sname)
+		{
+		    char *demangled = NULL;
+		    int status = -1;
+		    if (info.dli_sname[0] == '_')
+		        demangled = abi::__cxa_demangle(info.dli_sname, NULL, 0, &status);
+		    snprintf(buf, sizeof(buf), "%-3d %*p %s + %zd---------",
+		             i, int(2 + sizeof(void*) * 2), array[i],
+		             status == 0 ? demangled :
+		             info.dli_sname == 0 ? messages[i] : info.dli_sname,
+		             (char *)array[i] - (char *)info.dli_saddr);
+		    free(demangled);
+		} 
+		else
+		{
+		    snprintf(buf, sizeof(buf), "%-3d %*p %s---------",
+		             i, int(2 + sizeof(void*) * 2), array[i], messages[i]);
+		}
+		logger->fatal("(%d) %s", i, buf);
+	}
+	free(messages);
+	exit(1);
+}
+
 
 /**
  * Storage service main entry point
@@ -33,6 +82,7 @@ string	       coreAddress = "localhost";
 bool	       daemonMode = true;
 string	       myName = SERVICE_NAME;
 bool           returnPlugin = false;
+string	       logLevel = "warning";
 
 	for (int i = 1; i < argc; i++)
 	{
@@ -56,6 +106,10 @@ bool           returnPlugin = false;
 		{
 			returnPlugin = true;
 		}
+		else if (!strncmp(argv[i], "--logLevel=", 11))
+		{
+			logLevel = &argv[i][11];
+		}
 	}
 
 	if (returnPlugin == false && daemonMode && makeDaemon() == -1)
@@ -65,6 +119,7 @@ bool           returnPlugin = false;
 	}
 
 	StorageService *service = new StorageService(myName);
+	Logger::getLogger()->setMinLevel(logLevel);
 	if (returnPlugin)
 	{
 		cout << service->getPluginName() << " " << service->getPluginManagedStatus() << endl;
@@ -83,6 +138,7 @@ int makeDaemon()
 {
 pid_t pid;
 
+	int logmask = setlogmask(0);
 	/* create new process */
 	if ((pid = fork()  ) == -1)
 	{
@@ -100,6 +156,7 @@ pid_t pid;
 	{
 		return -1;  
 	}
+	setlogmask(logmask);
 
 	// Close stdin, stdout and stderr
 	close(0);
@@ -122,6 +179,12 @@ unsigned short servicePort;
 	config = new StorageConfiguration();
 	logger = new Logger(myName);
 
+	signal(SIGSEGV, handler);
+	signal(SIGILL, handler);
+	signal(SIGBUS, handler);
+	signal(SIGFPE, handler);
+	signal(SIGABRT, handler);
+
 	if (config->getValue("port") == NULL)
 	{
 		servicePort = 0;	// default to a dynamic port
@@ -134,6 +197,14 @@ unsigned short servicePort;
 	if (config->hasValue("threads"))
 	{
 		threads = (unsigned int)atoi(config->getValue("threads"));
+	}
+	if (config->hasValue("logLevel"))
+	{
+		logger->setMinLevel(config->getValue("logLevel"));
+	}
+	else
+	{
+		logger->setMinLevel("warning");
 	}
 
 

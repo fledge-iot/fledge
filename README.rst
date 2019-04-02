@@ -69,7 +69,7 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
 - sqlite3
 - libsqlite3-dev
 
-On Ubuntu-based Linux distributions the packages can be installed with *apt-get*:
+On Ubuntu-based Linux distributions the packages can be installed with given `requirements.sh <requirements.sh>`_ or manual *apt-get*:
 ::
    apt-get install avahi-daemon curl
    apt-get install cmake g++ make build-essential autoconf automake uuid-dev
@@ -86,10 +86,14 @@ Build
 
 To build FogLAMP run the command ``make`` in the top level directory. This will compile all the components that need to be compiled and will also create a runable structure of the Python code components of FogLAMP.
 
-**NOTE:** *The GCC compiler version 5.4 available in Ubuntu 16.04 LTS raises warnings. This is a known bug of the compiler and it can be ignored.*
+**NOTE:**
+
+- *The GCC compiler version 5.4 available in Ubuntu 16.04 LTS raises warnings. This is a known bug of the compiler and it can be ignored.*
+- *openssl toolkit is a requirement if we want to use https based REST client and certificate based authentication.*
 
 Once the *make* has completed you can decide to test FogLAMP from your development environment or you can install it. 
 |br| |br|
+
 
 Testing FogLAMP from Your Development Environment
 =================================================
@@ -120,6 +124,8 @@ The destination may be overriden by setting the variable *DESTDIR* in the make c
    export FOGLAMP_ROOT=/opt/usr/local/foglamp
 
 |br|
+
+
 
 Executing FogLAMP
 =================

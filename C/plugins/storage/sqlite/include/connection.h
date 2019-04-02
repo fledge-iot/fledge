@@ -14,6 +14,7 @@
 #include <string>
 #include <rapidjson/document.h>
 #include <sqlite3.h>
+#include <mutex>
 
 class Connection {
 	public:
@@ -34,6 +35,8 @@ class Connection {
 		long		tableSize(const std::string& table);
 		void		setTrace(bool);
 	private:
+		int		m_queuing;
+		std::mutex	m_qMutex;
 		int 		SQLexec(sqlite3 *db, const char *sql,
 					int (*callback)(void*,int,char**,char**),
 					void *cbArg, char **errmsg);
@@ -42,19 +45,20 @@ class Connection {
 		void		raiseError(const char *operation, const char *reason,...);
 		sqlite3		*dbHandle;
 		int		mapResultSet(void *res, std::string& resultSet);
-		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&);
+		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&, bool convertLocaltime = false);
 		bool		jsonModifiers(const rapidjson::Value&, SQLBuffer&);
 		bool		jsonAggregates(const rapidjson::Value&,
 						const rapidjson::Value&,
 						SQLBuffer&,
-						SQLBuffer&);
+						SQLBuffer&,
+						bool isTableReading = false);
 		bool		returnJson(const rapidjson::Value&, SQLBuffer&, SQLBuffer&);
 		char		*trim(char *str);
-		const char	*escape(const char *);
 		const std::string	escape(const std::string&);
 		bool applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 						int i,
 						std::string& newDate);
 		void		logSQL(const char *, const char *);
+    		bool 		formatDate(char *formatted_date, size_t formatted_date_size, const char *date);
 };
 #endif

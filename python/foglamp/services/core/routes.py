@@ -61,6 +61,7 @@ def setup(app):
     app.router.add_route('POST', '/foglamp/category', api_configuration.create_category)
     app.router.add_route('GET', '/foglamp/category/{category_name}', api_configuration.get_category)
     app.router.add_route('PUT', '/foglamp/category/{category_name}', api_configuration.update_configuration_item_bulk)
+    app.router.add_route('DELETE', '/foglamp/category/{category_name}', api_configuration.delete_category)
     app.router.add_route('POST', '/foglamp/category/{category_name}/children', api_configuration.create_child_category)
     app.router.add_route('GET', '/foglamp/category/{category_name}/children', api_configuration.get_child_category)
     app.router.add_route('DELETE', '/foglamp/category/{category_name}/children/{child_category}', api_configuration.delete_child_category)
@@ -168,6 +169,7 @@ def setup(app):
     # Notification
     app.router.add_route('GET', '/foglamp/notification', notification.get_notifications)
     app.router.add_route('GET', '/foglamp/notification/plugin', notification.get_plugin)
+    app.router.add_route('GET', '/foglamp/notification/type', notification.get_type)
     app.router.add_route('GET', '/foglamp/notification/{notification_name}', notification.get_notification)
     app.router.add_route('POST', '/foglamp/notification', notification.post_notification)
     app.router.add_route('PUT', '/foglamp/notification/{notification_name}', notification.put_notification)

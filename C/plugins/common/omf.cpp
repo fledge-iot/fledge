@@ -17,19 +17,18 @@
 #include <omf.h>
 #include <logger.h>
 #include <zlib.h>
+#include <rapidjson/document.h>
 
 using namespace std;
-
-// Cache for OMF data types
-static std::map<std::string, bool>	OMFcreatedTypes;
+using namespace rapidjson;
 
 /**
  * OMFData constructor
  */
-OMFData::OMFData(const Reading& reading, const string& typeId)
+OMFData::OMFData(const Reading& reading, const long typeId)
 {
 	// Convert reading data into the OMF JSON string
-	m_value.append("{\"containerid\": \"" + typeId + "measurement_");
+	m_value.append("{\"containerid\": \"" + to_string(typeId) + "measurement_");
 	m_value.append(reading.getAssetName() + "\", \"values\": [{");
 
 
@@ -66,13 +65,37 @@ const string& OMFData::OMFdataVal() const
  */
 OMF::OMF(HttpSender& sender,
 	 const string& path,
-	 const string& id,
+	 const long id,
 	 const string& token) :
 	 m_path(path),
 	 m_typeId(id),
 	 m_producerToken(token),
 	 m_sender(sender)
 {
+	m_lastError = false;
+	m_changeTypeId = false;
+	m_OMFDataTypes = NULL;
+}
+
+/**
+ * OMF constructor with per asset data types
+ */
+
+OMF::OMF(HttpSender& sender,
+	 const string& path,
+	 map<string, OMFDataTypes>& types,
+	 const string& token) :
+	 m_path(path),
+	 m_OMFDataTypes(&types),
+	 m_producerToken(token),
+	 m_sender(sender)
+{
+	// Get starting type-id sequence or set the default value
+	auto it = (*m_OMFDataTypes).find(FAKE_ASSET_KEY);
+	m_typeId = (it != (*m_OMFDataTypes).end()) ?
+		   (*it).second.typeId :
+		   TYPE_ID_DEFAULT;
+
 	m_lastError = false;
 	m_changeTypeId = false;
 }
@@ -180,8 +203,8 @@ bool OMF::sendDataTypes(const Reading& row)
 			// Data type error: force type-id change
 			m_changeTypeId = true;
 		}
-                Logger::getLogger()->error("Sending JSON dataType message 'Type' "
-					   "- %s - error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+                Logger::getLogger()->warn("Sending JSON dataType message 'Type', "
+					  "not blocking issue:  |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
 					   (m_changeTypeId ? "Data Type " : "" ),
                                            e.what(),
                                            m_sender.getHostPort().c_str(),
@@ -234,8 +257,8 @@ bool OMF::sendDataTypes(const Reading& row)
 			// Data type error: force type-id change
 			m_changeTypeId = true;
 		}
-		Logger::getLogger()->error("Sending JSON dataType message 'Container' "
-					   "- %s - error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+		Logger::getLogger()->warn("Sending JSON dataType message 'Container' "
+					   "not blocking issue: |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
 					   (m_changeTypeId ? "Data Type " : "" ),
 					   e.what(),
 					   m_sender.getHostPort().c_str(),
@@ -287,8 +310,8 @@ bool OMF::sendDataTypes(const Reading& row)
 			// Data type error: force type-id change
 			m_changeTypeId = true;
 		}
-		Logger::getLogger()->error("Sending JSON dataType message 'StaticData'"
-					   "- %s - error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+		Logger::getLogger()->warn("Sending JSON dataType message 'StaticData'"
+					   "not blocking issue: |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
 					   (m_changeTypeId ? "Data Type " : "" ),
 					   e.what(),
 					   m_sender.getHostPort().c_str(),
@@ -345,8 +368,8 @@ bool OMF::sendDataTypes(const Reading& row)
 			// Data type error: force type-id change
 			m_changeTypeId = true;
 		}
-		Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) "
-					   "- %s - error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+		Logger::getLogger()->warn("Sending JSON dataType message 'Data' (lynk) "
+					   "not blocking issue: |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
 					   (m_changeTypeId ? "Data Type " : "" ),
 					   e.what(),
 					   m_sender.getHostPort().c_str(),
@@ -376,6 +399,13 @@ bool OMF::sendDataTypes(const Reading& row)
 uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			   bool compression, bool skipSentDataTypes)
 {
+	std::map<string, Reading*> superSetDataPoints;
+
+	// Create a superset of all found datapoints for each assetName
+	// the superset[assetName] is then passed to routines which handle
+	// creation of OMF data types
+	OMF::setMapObjectTypes(readings, superSetDataPoints);
+
 	/*
 	 * Iterate over readings:
 	 * - Send/cache Types
@@ -397,7 +427,8 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		bool sendDataTypes;
 
 		// Create the key for dataTypes sending once
-		string key((**elem).getAssetName() + m_typeId);
+		long typeId = OMF::getAssetTypeId((**elem).getAssetName());
+		string key((**elem).getAssetName());
 
 		sendDataTypes = (m_lastError == false && skipSentDataTypes == true) ?
 				 // Send if not already sent
@@ -405,32 +436,51 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 				 // Always send types
 				 true;
 
-		// Handle the data types of the current reading
-		if (sendDataTypes &&
-		     // Send data typer
-		    !OMF::handleDataTypes(**elem, skipSentDataTypes) &&
+		Reading* datatypeStructure = NULL;
+		if (sendDataTypes)
+		{
+			// Get the supersetDataPoints for current assetName
+			auto it = superSetDataPoints.find((**elem).getAssetName());
+			if (it != superSetDataPoints.end())
+			{
+				datatypeStructure = (*it).second;
+			}
+		}
+
+		// Check first we have supersetDataPoints for the current reading
+		if ((sendDataTypes && datatypeStructure == NULL) ||
+		    // Handle the data types of the current reading
+		    (sendDataTypes &&
+		    // Send data type
+		    !OMF::handleDataTypes(*datatypeStructure, skipSentDataTypes) &&
 		    // Data type not sent: 
 		    (!m_changeTypeId ||
 		     // Increment type-id and re-send data types
-		     !OMF::handleTypeErrors(**elem)))
+		     !OMF::handleTypeErrors(*datatypeStructure))))
 		{
+			// Remove all assets supersetDataPoints
+			OMF::unsetMapObjectTypes(superSetDataPoints);
+
 			// Failure
 			m_lastError = true;
 			return 0;
 		}
 
 		// Add into JSON string the OMF transformed Reading data
-		jsonData << OMFData(**elem, m_typeId).OMFdataVal() <<
+		jsonData << OMFData(**elem, typeId).OMFdataVal() <<
 			    (elem < (readings.end() - 1 ) ? ", " : "");
 	}
+
+	// Remove all assets supersetDataPoints
+	OMF::unsetMapObjectTypes(superSetDataPoints);
 
 	jsonData << "]";
 
 	string json = jsonData.str();
+	json_not_compressed = json;
 
 	if (compression)
 	{
-		json_not_compressed = json;
 		json = compress_string(json);
 	}
 
@@ -490,11 +540,52 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 						  m_sender.getHostPort().c_str(),
 						  m_path.c_str(),
 						  json_not_compressed.c_str() );
-			// Reset OMF types cache
-			OMF::clearCreatedTypes();
+
+			// Extract assetName from error message
+			string assetName = OMF::getAssetNameFromError(e.what());
+			if (assetName.empty())
+			{
+				// Reset OMF types cache
+				OMF::clearCreatedTypes();
+				// Get maximum value among all per asset type-ids
+				// if no data, just use current global type-id
+				OMF::setTypeId();
+				// Increment the new value of global type-id
+				OMF::incrementTypeId();
+
+				Logger::getLogger()->warn("Sending JSON readings, "
+							  "not blocking issue: assetName not found in error message, "
+							  " global 'type-id' has been set to %d "
+							  "|%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+							  m_typeId,
+							  e.what(),
+							  m_sender.getHostPort().c_str(),
+							  m_path.c_str(),
+							  json_not_compressed.c_str());
+			}
+			else
+			{
+				// Increment type-id of assetName in in memory cache
+				OMF::incrementAssetTypeId(assetName);
+				// Remove data and keep type-id
+				OMF::clearCreatedTypes(assetName);
+
+				Logger::getLogger()->warn("Sending JSON readings, "
+							  "not blocking issue: 'type-id' of assetName '%s' "
+							  "has been set to %d "
+							  "- HostPort |%s| - path |%s| - OMF message |%s|",
+							  assetName.c_str(),
+							  OMF::getAssetTypeId(assetName),
+							  m_sender.getHostPort().c_str(),
+							  m_path.c_str(),
+							  json_not_compressed.c_str());
+                        }
+
 			// Reset error indicator
 			m_lastError = false;
-			// Just return the size of readings buffer to the caller
+
+			// It returns size instead of 0 as the rows in the block should be skipped in case of an error
+			// as it is considered a not blocking ones.
 			return readings.size();
 		}
 		else
@@ -549,7 +640,8 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 		bool sendDataTypes;
 
 		// Create the key for dataTypes sending once
-		string key((*elem).getAssetName() + m_typeId);
+		long typeId = OMF::getAssetTypeId((*elem).getAssetName());
+		string key((*elem).getAssetName());
 
 		sendDataTypes = (m_lastError == false && skipSentDataTypes == true) ?
 				 // Send if not already sent
@@ -566,7 +658,7 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 		}
 
 		// Add into JSON string the OMF transformed Reading data
-		jsonData << OMFData(*elem, m_typeId).OMFdataVal() << (elem < (readings.end() -1 ) ? ", " : "");
+		jsonData << OMFData(*elem, typeId).OMFdataVal() << (elem < (readings.end() -1 ) ? ", " : "");
 	}
 
 	jsonData << "]";
@@ -640,8 +732,9 @@ uint32_t OMF::sendToServer(const Reading* reading,
 		return 0;
 	}
 
+	long typeId = OMF::getAssetTypeId((*reading).getAssetName());
 	// Add into JSON string the OMF transformed Reading data
-	jsonData << OMFData(*reading, m_typeId).OMFdataVal();
+	jsonData << OMFData(*reading, typeId).OMFdataVal();
 	jsonData << "]";
 
 	// Build headers for Readings data
@@ -770,7 +863,7 @@ const std::string OMF::createTypeData(const Reading& reading) const
 			     "typename_measurement",
 			     tData);
 
-	 tData.append("\" }]");
+	tData.append("\" }]");
 
 	// Return JSON string
 	return tData;
@@ -784,16 +877,18 @@ const std::string OMF::createTypeData(const Reading& reading) const
  */
 const std::string OMF::createContainerData(const Reading& reading) const
 {
+	string assetName = reading.getAssetName();
 	// Build the Container data (JSON Array)
 	string cData = "[{\"typeid\": \"";
 
 	// Add type_id + '_' + asset_name + '__typename_measurement'
-	OMF::setAssetTypeTag(reading.getAssetName(),
+	OMF::setAssetTypeTag(assetName,
 			     "typename_measurement",
 			     cData);
 
-	cData.append("\", \"id\": \"" + m_typeId + "measurement_");
-	cData.append(reading.getAssetName());
+	cData.append("\", \"id\": \"" + \
+		    to_string(OMF::getAssetTypeId(assetName)) + "measurement_");
+	cData.append(assetName);
 	cData.append("\"}]");
 
 	// Return JSON string
@@ -839,44 +934,46 @@ const std::string OMF::createStaticData(const Reading& reading) const
  */
 const std::string OMF::createLinkData(const Reading& reading) const
 {
+	string assetName = reading.getAssetName();
 	// Build the Link data (JSON Array)
 
 	string lData = "[{\"typeid\": \"__Link\", \"values\": "
 "[{\"source\": {\"typeid\": \"";
 
 	// Add type_id + '_' + asset_name + '__typename_sensor'
-	OMF::setAssetTypeTag(reading.getAssetName(),
+	OMF::setAssetTypeTag(assetName,
 			     "typename_sensor",
 			     lData);
 
 	lData.append("\", \"index\": \"_ROOT\"}, \"target\": {\"typeid\": \"");
 
 	// Add type_id + '_' + asset_name + '__typename_sensor'
-	OMF::setAssetTypeTag(reading.getAssetName(),
+	OMF::setAssetTypeTag(assetName,
 			     "typename_sensor",
 			     lData);
 
 	lData.append("\", \"index\": \"");
 
 	// Add asset_name
-	lData.append(reading.getAssetName());
+	lData.append(assetName);
 
 	lData.append("\"}}, {\"source\": {\"typeid\": \"");
 
 	// Add type_id + '_' + asset_name + '__typename_sensor'
-	OMF::setAssetTypeTag(reading.getAssetName(),
+	OMF::setAssetTypeTag(assetName,
 			     "typename_sensor",
 			     lData);
 
 	lData.append("\", \"index\": \"");
 
 	// Add asset_name
-	lData.append(reading.getAssetName());
+	lData.append(assetName);
 
-	lData.append("\"}, \"target\": {\"containerid\": \"" + m_typeId + "measurement_");
+	lData.append("\"}, \"target\": {\"containerid\": \"" + \
+		     to_string(OMF::getAssetTypeId(assetName)) + "measurement_");
 
 	// Add asset_name
-	lData.append(reading.getAssetName());
+	lData.append(assetName);
 
 	lData.append("\"}}]}]");
 
@@ -895,8 +992,9 @@ void OMF::setAssetTypeTag(const string& assetName,
 			  const string& tagName,
 			  string& data) const
 {
-	// Add type_id + '_' + asset_name + '_' + tagName'
-	data.append(m_typeId + "_" + assetName +  "_" + tagName);
+	// Add type-id + '_' + asset_name + '_' + tagName'
+	data.append(to_string(this->getAssetTypeId(assetName)) + \
+		    "_" + assetName +  "_" + tagName);
 }
 
 /**
@@ -913,7 +1011,7 @@ bool OMF::handleDataTypes(const Reading& row,
 			  bool skipSending)
 {
 	// Create the key for dataTypes sending once
-	const string key(skipSending ?  (row.getAssetName() + m_typeId) : "");
+	const string key(skipSending ? (row.getAssetName()) : "");
 
 	// Check whether to create and send Data Types
 	bool sendTypes = (skipSending == true) ?
@@ -933,47 +1031,11 @@ bool OMF::handleDataTypes(const Reading& row,
 	if (skipSending && sendTypes)
 	{
 		// Save datatypes key
-		OMF::setCreatedTypes(key);
+		OMF::setCreatedTypes(row);
 	}
-
-	// Just for dubug right now
-	//if (skipSending)
-	//{
-	//	cerr << "dataTypes for key [" << key << "]" <<
-	//		(sendTypes ? " have been sent." : " already sent.") << endl;
-	//}
-	//else
-	//{
-	//	cerr << "dataTypes for typeId [" << m_typeId << "] have been sent." << endl;
-	//}
 
 	// Success
 	return true;
-}
-
-/**
- * Add the key (assetName + m_typeId) into a map
- * That key is checked by getCreatedTypes in order
- * to send dataTypes only once
- *
- * @param key    The data tyepe key (assetName + m_typeId) from the Reading row
- * @return       Always true
- */
-bool OMF::setCreatedTypes(const string& key)
-{
-	return OMFcreatedTypes[key] = true;
-}
-
-/**
- * Get from createdTypes map the key (assetName + m_typeId)
- *
- * @param key    The data tyepe key (assetName + m_typeId) from the Reading row
- * @return       True is the key exists (aka dataTypes already sent)
- *               or false if not found.
- */
-bool OMF::getCreatedTypes(const string& key)
-{
-	return OMFcreatedTypes[key];
 }
 
 /**
@@ -1020,7 +1082,7 @@ void OMF::setFormatType(const string &key, string &value)
 void OMF::setNotBlockingErrors(std::vector<std::string>& notBlockingErrors)
 {
 
-	m_notBlockingErrors = std::move(notBlockingErrors);
+	m_notBlockingErrors = notBlockingErrors;
 }
 
 
@@ -1029,8 +1091,7 @@ void OMF::setNotBlockingErrors(std::vector<std::string>& notBlockingErrors)
  */
 void OMF::incrementTypeId()
 {
-	unsigned int id = atol(m_typeId.c_str());
-	m_typeId = to_string(++id);
+	++m_typeId;
 }
 
 /**
@@ -1038,7 +1099,10 @@ void OMF::incrementTypeId()
  */
 void OMF::clearCreatedTypes()
 {
-	OMFcreatedTypes.clear();
+	if (m_OMFDataTypes)
+	{
+		m_OMFDataTypes->clear();
+	}
 }
 
 /**
@@ -1077,25 +1141,418 @@ bool OMF::isDataTypeError(const char* message)
 bool OMF::handleTypeErrors(const Reading& reading)
 {
 	bool ret = true;
-
-	// Increment type-id
-	OMF::incrementTypeId();
+	string key = reading.getAssetName();
 
 	// Reset change type-id indicator
 	m_changeTypeId = false;
 
-	// Reset OMF types cache
-	OMF::clearCreatedTypes();
+	// Increment per asset type-id in memory cache:
+	// Note: if key is not found the global type-id is incremented
+	OMF::incrementAssetTypeId(key);
+
+	// Clear per asset data (but keep the type-id) if key found
+	// or remove all data otherwise
+	auto it = m_OMFDataTypes->find(key);
+	if (it != m_OMFDataTypes->end())
+	{
+		// Clear teh OMF types cache per asset, keep type-id
+		OMF::clearCreatedTypes(key);
+	}
+	else
+	{
+		// Remove all cached data, any asset
+		OMF::clearCreatedTypes();
+	}
 
 	// Force re-send data types with a new type-id
 	if (!OMF::handleDataTypes(reading,
 				  false))
 	{
 		Logger::getLogger()->error("Failure re-sending JSON dataType messages "
-					   "with new type-id=" + m_typeId);
+					   "with new type-id=%d for asset %s",
+					   OMF::getAssetTypeId(key),
+					   key.c_str());
 		// Failure
 		m_lastError = true;
 		ret = false;
+	}
+
+	return ret;
+}
+
+/**
+ * Create a superset data map for each reading and found datapoints
+ *
+ * The output map is filled with a Reading object containing
+ * all the datapoints found for each asset in the inoput reading set.
+ * The datapoint have a fake value based on the datapoint type
+ *  
+ * @param    readings		Current input readings data
+ * @param    dataSuperSet	Map to store all datapoints for an assetname
+ */
+void OMF::setMapObjectTypes(const vector<Reading*>& readings,
+			    std::map<std::string, Reading*>& dataSuperSet) const
+{
+	// Temporary map for [asset][datapoint] = type
+	std::map<string, map<string, string>> readingAllDataPoints;
+
+	// Fetch ALL Reading pointers in the input vecror
+	// and create a map of [assetName][datapoint1 .. datapointN] = type
+	for (vector<Reading *>::const_iterator elem = readings.begin();
+						elem != readings.end();
+						++elem)
+	{
+		// Get asset name
+		string assetName = (**elem).getAssetName();
+		// Get all datapoints
+		const vector<Datapoint*> data = (**elem).getReadingData();
+		// Iterate through datapoints
+		for (vector<Datapoint*>::const_iterator it = data.begin();
+							it != data.end();
+							++it)
+		{       
+			string omfType = omfTypes[((*it)->getData()).getType()];
+			string datapointName = (*it)->getName();
+			auto itr = readingAllDataPoints.find(assetName);
+			// Asset not found in the map
+			if (itr == readingAllDataPoints.end())
+			{
+				// Set type of current datapoint for ssetName
+				readingAllDataPoints[assetName][datapointName] = omfType;
+			}
+			else
+			{
+				// Asset found
+				auto dpItr = (*itr).second.find(datapointName);
+				// Datapoint not found
+				if (dpItr == (*itr).second.end())
+				{
+					// Add datapointName/type to map with key assetName
+					(*itr).second.emplace(datapointName, omfType);
+				}
+				else
+				{
+					if ((*dpItr).second.compare(omfType) != 0)
+					{
+						// Datapoint already set has changed type
+						Logger::getLogger()->warn("Datapoint '" + datapointName + \
+									  "' in asset '" + assetName + \
+									  "' has changed type from '" + (*dpItr).second + \
+									  " to " + omfType);
+					}
+
+					// Update datapointName/type to map with key assetName
+					// 1- remove element
+					(*itr).second.erase(dpItr);	
+					// 2- Add new value
+					readingAllDataPoints[assetName][datapointName] = omfType;
+				}
+			}
+		}
+	}
+
+	// Loop now only the elements found in the per asset types map
+	for (auto it = readingAllDataPoints.begin();
+		  it != readingAllDataPoints.end();
+		  ++it)
+	{
+		string assetName = (*it).first;
+		vector<Datapoint *> values;
+		// Set fake datapoints values
+		for (auto dp = (*it).second.begin();
+			  dp != (*it).second.end();
+			  ++dp)
+		{
+			if ((*dp).second.compare(OMF_TYPE_FLOAT) == 0)
+			{
+				DatapointValue vDouble(0.1);
+				values.push_back(new Datapoint((*dp).first, vDouble));
+			}
+			else if ((*dp).second.compare(OMF_TYPE_INTEGER) == 0)
+			{
+				DatapointValue vInt((long)1);
+				values.push_back(new Datapoint((*dp).first, vInt));
+			}
+			else if ((*dp).second.compare(OMF_TYPE_STRING) == 0)
+			{
+				DatapointValue vString("v_str");
+				values.push_back(new Datapoint((*dp).first, vString));
+			}
+		}
+
+		// Add the superset Reading data with fake values
+		dataSuperSet.emplace(assetName, new Reading(assetName, values));
+	}
+}
+
+/**
+ * Cleanup the mapped object types for input data
+ *
+ * @param    dataSuperSet	The  mapped object to cleanup
+ */
+void OMF::unsetMapObjectTypes(std::map<std::string, Reading*>& dataSuperSet) const
+{
+	// Remove all assets supersetDataPoints
+	for (auto m = dataSuperSet.begin();
+		  m != dataSuperSet.end();
+		  ++m)
+	{
+		(*m).second->removeAllDatapoints();
+		delete (*m).second;
+	}
+	dataSuperSet.clear();
+}
+/**
+ * Extract assetName from error message
+ *
+ * Currently handled cases
+ * (1) $datasource + "." + $id + "_" + $assetName + "_typename_measurement" + ...
+ * (2) $id + "measurement_" + $assetName
+ *
+ * @param    message		OMF error message (JSON)
+ * @return   The found assetName if found, or empty string
+ */
+string OMF::getAssetNameFromError(const char* message)
+{
+	string assetName;
+	Document error;
+
+	error.Parse(message);
+
+	if (!error.HasParseError() &&
+	    error.HasMember("source") &&
+	    error["source"].IsString())
+	{
+		string tmp = error["source"].GetString();
+
+		// (1) $datasource + "." + $id + "_" + $assetName + "_typename_measurement" + ...
+		size_t found = tmp.find("_typename_measurement");
+		if (found != std::string::npos)
+		{
+			tmp = tmp.substr(0, found);
+			found = tmp.find_first_of('.');
+			if (found != std::string::npos &&
+			    found < tmp.length())
+			{
+				tmp = tmp.substr(found + 1);
+				found = tmp.find_first_of('_');
+				if (found != std::string::npos &&
+				    found < tmp.length())
+				{
+					assetName = assetName.substr(found + 1 );
+				}
+			}
+		}
+		else
+		{
+			// (2) $id + "measurement_" + $assetName
+			found = tmp.find_first_of('_');
+			if (found != std::string::npos &&
+			    found < tmp.length())
+			{
+				assetName = tmp.substr(found + 1);
+			}
+		}
+	}
+
+	return assetName;
+}
+
+/**
+ * Return the asset type-id
+ *
+ * @param assetName	The asset name
+ * @return		The found type-id
+ *			or the generic value
+ */
+long OMF::getAssetTypeId(const string& assetName) const
+{
+	long typeId;
+	if (!m_OMFDataTypes)
+	{
+		// Use current value of m_typeId
+		typeId = m_typeId;
+	}
+	else
+	{
+		auto it = m_OMFDataTypes->find(assetName);
+		if (it != m_OMFDataTypes->end())
+		{
+			// Set the type-id of found element
+			typeId = ((*it).second).typeId;
+		}
+		else
+		{
+			// Use current value of m_typeId
+			typeId = m_typeId;
+		}
+	}
+	return typeId;
+}
+
+/**
+ * Increment the type-id for the given asset name
+ *
+ * If cached data pointer is NULL or asset name is not set
+ * the global m_typeId is incremented.
+ *
+ * @param    assetName		The asset name
+ *				which type-id sequence
+ *				has to be incremented.
+ */
+void OMF::incrementAssetTypeId(const std::string& assetName)
+{
+	long typeId;
+	if (!m_OMFDataTypes)
+        {
+                // Increment current value of m_typeId
+		OMF::incrementTypeId();
+        }
+	else
+	{
+		auto it = m_OMFDataTypes->find(assetName);
+		if (it != m_OMFDataTypes->end())
+		{
+			// Increment value of found type-id
+			++((*it).second).typeId;
+		}
+		else
+		{
+                	// Increment current value of m_typeId
+			OMF::incrementTypeId();
+		}
+	}
+}
+
+/**
+ * Add the reading asset namekey into a map
+ * That key is checked by getCreatedTypes in order
+ * to send dataTypes only once
+ *
+ * @param row    The reading data row
+ * @return       True, false if map pointer is NULL
+ */
+bool OMF::setCreatedTypes(const Reading& row)
+{
+	if (!m_OMFDataTypes)
+	{
+		return false;
+	}
+
+	string types;
+	string key = row.getAssetName();
+	long typeId = OMF::getAssetTypeId(key);
+	const vector<Datapoint*> data = row.getReadingData();
+	types.append("{");
+	for (vector<Datapoint*>::const_iterator it = data.begin();
+						it != data.end();
+						++it)
+	{
+		if (it != data.begin())
+		{
+			types.append(", ");
+		}
+
+		string omfType = omfTypes[((*it)->getData()).getType()];
+		string format = OMF::getFormatType(omfType);
+
+		// Add datapoint Name
+		types.append("\"" + (*it)->getName() + "\"");
+		types.append(": {\"type\": \"");
+		// Add datapoint Type
+		types.append(omfType);
+
+		// Applies a format if it is defined
+		if (!format.empty())
+		{
+			types.append("\", \"format\": \"");
+			types.append(format);
+		}
+
+		types.append("\"}");
+	}
+	types.append("}");
+
+	if (m_OMFDataTypes->find(key) == m_OMFDataTypes->end())
+	{
+		// New entry
+		OMFDataTypes newData;
+		// Start from default as we don't have anything in the cache
+		newData.typeId = m_typeId;
+		newData.types = types;
+		(*m_OMFDataTypes)[key] = newData;
+	}
+	else
+	{
+		// Just update dataTypes and keep the typeId
+		(*m_OMFDataTypes)[key].types = types;
+	}
+
+	return true;
+}
+
+/**
+ * Set a new value for global type-id
+ *
+ * new value is the maximum value of
+ * type-id among all asset datatypes
+ * or
+ * the current value of m_typeId
+ */
+void OMF::setTypeId()
+{
+	long maxId = m_typeId;
+	for (auto it = m_OMFDataTypes->begin();
+		  it != m_OMFDataTypes->end();
+		  ++it)
+	{
+		if ((*it).second.typeId > maxId)
+		{
+			maxId = (*it).second.typeId;
+		}
+	}
+	m_typeId = maxId;
+}
+
+/**
+ * Clear OMF types cache for given asset name
+ * but keep the type-id
+ */
+void OMF::clearCreatedTypes(const string& key)
+{
+	if (m_OMFDataTypes)
+	{
+		auto it = m_OMFDataTypes->find(key);
+		if (it != m_OMFDataTypes->end())
+		{
+			// Just clear data types
+			(*it).second.types = "";
+		}
+	}
+}
+
+/**
+ * Check the key (assetName) is set and not empty
+ * in the per asset data types cache.
+ *
+ * @param key    The data type key (assetName) from the Reading row
+ * @return       True is the key exists and data value is not empty:
+ *		 this means the dataTypes were already sent
+ *		 Found key with empty value means the data types
+ *		 must be sent again with the new type-id.
+ *               Return false if the key is not found or found but empty.
+ */
+bool OMF::getCreatedTypes(const string& key)
+{
+	bool ret;
+	if (!m_OMFDataTypes)
+	{
+		ret = false;
+	}
+	else
+	{
+		auto it = m_OMFDataTypes->find(key);
+		ret = (it != m_OMFDataTypes->end()) && !(*m_OMFDataTypes)[key].types.empty();
 	}
 	return ret;
 }

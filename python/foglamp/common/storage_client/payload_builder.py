@@ -55,9 +55,12 @@ class PayloadBuilder(object):
         retval = False
         if isinstance(arg, list):
             if len(arg) == 3:
-                # TODO: Implement LIKE and IN later when support becomes available in storage service
-                if arg[1] in ['<', '>', '=', '>=', '<=', '!=', 'newer', 'older']:
+                # TODO: Implement LIKE later when support becomes available in storage service
+                if arg[1] in ['<', '>', '=', '>=', '<=', '!=', 'newer', 'older', 'in', 'not in']:
                     retval = True
+                if arg[1] in ['in', 'not in']:
+                    if isinstance(arg[2], list):
+                        retval = True
         return retval
 
     @staticmethod

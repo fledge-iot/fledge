@@ -439,13 +439,13 @@ class TestConfiguration:
         # ({"default": "1"}, "Missing entry_name"),
         # ({"value": "0"}, "Missing entry_name"),
         # ({"description": "1", "type": "Integer"}, "Invalid entry_val for entry_name \"type\" for item_name info. valid: ['IPv4', 'IPv6', 'JSON', 'X509 certificate', 'boolean', 'integer', 'password', 'string']")
-        ("blah", "Data payload must be a dictionary"),
-        ({}, "entry_val must be a string for item_name info and entry_name value"),
-        ({"description": "Test desc"}, "entry_val must be a string for item_name info and entry_name value"),
-        ({"type": "integer"}, "entry_val must be a string for item_name info and entry_name value"),
-        ({"default": "1", "description": "Test desc"}, "Missing entry_name type for item_name info"),
-        ({"default": "1", "type": "integer"}, "Missing entry_name description for item_name info"),
-        ({"description": "1", "type": "integer"}, "entry_val must be a string for item_name info and entry_name value")
+        # ("blah", "Data payload must be a dictionary"),
+        ({}, "entry value must be a string for item name info and entry name value; got <class 'NoneType'>"),
+        ({"description": "Test desc"}, "entry value must be a string for item name info and entry name value; got <class 'NoneType'>"),
+        ({"type": "integer"}, "entry value must be a string for item name info and entry name value; got <class 'NoneType'>"),
+        ({"default": "1", "description": "Test desc"}, "missing entry name type for item name info"),
+        ({"default": "1", "type": "integer"}, "missing entry name description for item name info"),
+        ({"description": "1", "type": "integer"}, "entry value must be a string for item name info and entry name value; got <class 'NoneType'>")
     ])
     async def test_validate_data_for_add_config_item(self, client, payload, message, loop):
         @asyncio.coroutine
@@ -458,7 +458,7 @@ class TestConfiguration:
                               return_value=asyncio.ensure_future(async_mock(), loop=loop)) as log_code_patch:
                 resp = await client.post('/foglamp/category/{}/{}'.format("cat", "info"), data=json.dumps(payload))
                 assert 400 == resp.status
-                assert message == resp.reason
+                assert "For cat category, {}".format(message) == resp.reason
 
     async def test_invalid_cat_for_add_config_item(self, client):
         async def async_mock():
@@ -688,3 +688,19 @@ class TestConfiguration:
                     assert result == json_response
                 patch_get_all_items.assert_called_once_with(category_name)
             patch_update_bulk.assert_called_once_with(category_name, payload)
+
+    async def test_delete_configuration(self, client, category_name='rest_api'):
+        result = {'result': 'Category {} deleted successfully.'.format(category_name)}
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(c_mgr, 'delete_category_and_children_recursively', return_value=asyncio.sleep(.1)) as patch_delete_cat:
+                resp = await client.delete('/foglamp/category/{}'.format(category_name))
+                assert 200 == resp.status
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert result == json_response
+            assert 1 == patch_delete_cat.call_count
+            args, kwargs = patch_delete_cat.call_args
+            assert category_name == args[0]
+

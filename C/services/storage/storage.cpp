@@ -22,6 +22,7 @@
 #include <execinfo.h>
 #include <dlfcn.h>
 #include <cxxabi.h>
+#include <syslog.h>
 
 extern int makeDaemon(void);
 
@@ -81,6 +82,7 @@ string	       coreAddress = "localhost";
 bool	       daemonMode = true;
 string	       myName = SERVICE_NAME;
 bool           returnPlugin = false;
+string	       logLevel = "warning";
 
 	for (int i = 1; i < argc; i++)
 	{
@@ -104,6 +106,10 @@ bool           returnPlugin = false;
 		{
 			returnPlugin = true;
 		}
+		else if (!strncmp(argv[i], "--logLevel=", 11))
+		{
+			logLevel = &argv[i][11];
+		}
 	}
 
 	if (returnPlugin == false && daemonMode && makeDaemon() == -1)
@@ -113,6 +119,7 @@ bool           returnPlugin = false;
 	}
 
 	StorageService *service = new StorageService(myName);
+	Logger::getLogger()->setMinLevel(logLevel);
 	if (returnPlugin)
 	{
 		cout << service->getPluginName() << " " << service->getPluginManagedStatus() << endl;
@@ -131,6 +138,7 @@ int makeDaemon()
 {
 pid_t pid;
 
+	int logmask = setlogmask(0);
 	/* create new process */
 	if ((pid = fork()  ) == -1)
 	{
@@ -148,6 +156,7 @@ pid_t pid;
 	{
 		return -1;  
 	}
+	setlogmask(logmask);
 
 	// Close stdin, stdout and stderr
 	close(0);
@@ -188,6 +197,14 @@ unsigned short servicePort;
 	if (config->hasValue("threads"))
 	{
 		threads = (unsigned int)atoi(config->getValue("threads"));
+	}
+	if (config->hasValue("logLevel"))
+	{
+		logger->setMinLevel(config->getValue("logLevel"));
+	}
+	else
+	{
+		logger->setMinLevel("warning");
 	}
 
 

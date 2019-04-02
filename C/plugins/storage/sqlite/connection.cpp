@@ -2465,8 +2465,11 @@ int blocks = 0;
 		{
 			unsigned long midRowId = 0;
 			unsigned long prev_m = m;
-		    m = l + (r - l) / 2;
-			if (prev_m == m) break;
+		    	m = l + (r - l) / 2;
+
+			// It applies the check if there a more than a very limited number of rows
+			if ( (rowidLimit - minrowidLimit) > 10 )
+				if (prev_m == m) break;
 
 			// e.g. select id from readings where rowid = 219867307 AND user_ts < datetime('now' , '-24 hours', 'utc');
 			SQLBuffer sqlBuffer;
@@ -2478,10 +2481,10 @@ int blocks = 0;
 			const char *query = sqlBuffer.coalesce();
 
 			rc = SQLexec(dbHandle,
-		     query,
-	  	     rowidCallback,
-		     &midRowId,
-		     &zErrMsg);
+			query,
+			rowidCallback,
+			&midRowId,
+			&zErrMsg);
 
 			if (rc != SQLITE_OK)
 			{
@@ -2642,7 +2645,16 @@ int blocks = 0;
 
 	unsentRetained = maxrowidLimit - rowidLimit;
 
+	// numReadings is the number of rows left in the table
+	// the calculation produces a negative number in the case there are a
+	// very limited number of rows
+	// for example:  maxrowidLimit |378| minrowidLimit |377| deletedRows |2|
+	// we force it to 0 as there are no rows left
 	numReadings = maxrowidLimit - minrowidLimit - deletedRows;
+	if (numReadings < 0)
+	{
+		numReadings = 0;
+	}
 
 	if (sent == 0)	// Special case when not north process is used
 	{
@@ -2654,7 +2666,7 @@ int blocks = 0;
 	convert << "{ \"removed\" : " << deletedRows << ", ";
 	convert << " \"unsentPurged\" : " << unsentPurged << ", ";
 	convert << " \"unsentRetained\" : " << unsentRetained << ", ";
-    convert << " \"readings\" : " << numReadings << " }";
+	convert << " \"readings\" : " << numReadings << " }";
 
 	result = convert.str();
 

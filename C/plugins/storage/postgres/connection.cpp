@@ -2546,3 +2546,87 @@ void Connection::logSQL(const char *tag, const char *stmt)
 		Logger::getLogger()->info("%s: %s", tag, stmt);
 	}
 }
+
+/**
+ * Create snapshot of a common table
+ *
+ * @param table		The table to snapshot
+ * @param id		The snapshot id
+ * @return		-1 on error, >= 0 on success
+ *
+ * The new created table name has the name:
+ * table_id
+ */
+int Connection::create_table_snapshot(const string& table, const string& id)
+{
+	string query = "SELECT * INTO TABLE foglamp.";
+	query += table + "_" +  id + " FROM foglamp." + table;
+
+	logSQL("CreateTableSnapshot", query.c_str());
+
+	PGresult *res = PQexec(dbConnection, query.c_str());
+	if (PQresultStatus(res) == PGRES_COMMAND_OK)
+	{
+		PQclear(res);
+		return 1;
+	}
+
+	raiseError("create_table_snapshot", PQerrorMessage(dbConnection));
+	PQclear(res);
+	return -1;
+}
+
+/**
+ * Set the contents of a common table from a snapshot
+ *
+ * @param table		The table to fill
+ * @param id		The snapshot id of the table
+ * @return		-1 on error, >= 0 on success
+ *
+ */
+int Connection::load_table_snapshot(const string& table, const string& id)
+{
+	string query = "INSERT INTO foglamp." + table;
+	query += " SELECT * FROM foglamp." + table + "_" + id;
+
+	logSQL("LoadTableSnapshot", query.c_str());
+
+	PGresult *res = PQexec(dbConnection, query.c_str());
+	if (PQresultStatus(res) == PGRES_COMMAND_OK)
+	{
+		PQclear(res);
+		return 1;
+	}
+
+	raiseError("load_table_snapshot", PQerrorMessage(dbConnection));
+	PQclear(res);
+	return -1;
+}
+
+/**
+ * Create snapshot of a common table
+ *
+ * @param table		The table to snapshot
+ * @param id		The snapshot id
+ * @return		-1 on error, >= 0 on success
+ *
+ * The new created table name has the name:
+ * table_id
+ */
+int Connection::delete_table_snapshot(const string& table, const string& id)
+{
+	string query = "DROP TABLE foglamp." + table + "_" + id;
+
+	logSQL("DeleteTableSnapshot", query.c_str());
+
+	PGresult *res = PQexec(dbConnection, query.c_str());
+	if (PQresultStatus(res) == PGRES_COMMAND_OK)
+	{
+		PQclear(res);
+		return 1;
+	}
+
+	raiseError("delete_table_snapshot", PQerrorMessage(dbConnection));
+	PQclear(res);
+	return -1;
+}

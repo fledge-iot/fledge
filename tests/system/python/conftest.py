@@ -25,6 +25,7 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 sys.path.append(os.path.join(os.path.dirname(__file__), 'helpers'))
+sys.path.append(os.path.join(os.path.dirname(__file__)))
 
 
 @pytest.fixture

@@ -459,7 +459,6 @@ Connection::Connection()
 	sqlite3_config(SQLITE_CONFIG_URI, 1);
 
 	Logger *logger = Logger::getLogger();
-	logger->setMinLevel("info");
 
 	/**
 	 * Make a connection to the database

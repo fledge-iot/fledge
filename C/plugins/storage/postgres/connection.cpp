@@ -2586,8 +2586,11 @@ int Connection::create_table_snapshot(const string& table, const string& id)
  */
 int Connection::load_table_snapshot(const string& table, const string& id)
 {
-	string query = "INSERT INTO foglamp." + table;
+	string purgeQuery = "DELETE FROM foglamp." + table;
+	string query = "START TRANSACTION; " + purgeQuery;
+	query += "; INSERT INTO foglamp." + table;
 	query += " SELECT * FROM foglamp." + table + "_" + id;
+	query += "; COMMIT;";
 
 	logSQL("LoadTableSnapshot", query.c_str());
 
@@ -2596,6 +2599,16 @@ int Connection::load_table_snapshot(const string& table, const string& id)
 	{
 		PQclear(res);
 		return 1;
+	}
+	else
+	{
+		PGresult *resRollback = PQexec(dbConnection, "ROLLBACK;");
+		if (PQresultStatus(resRollback) != PGRES_COMMAND_OK)
+		{
+			raiseError(" rollback load_table_snapshot",
+				   PQerrorMessage(dbConnection));
+		}
+		PQclear(resRollback);
 	}
 
 	raiseError("load_table_snapshot", PQerrorMessage(dbConnection));

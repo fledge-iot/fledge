@@ -439,7 +439,7 @@ class TestNotification:
         audit_logger = mocker.patch.object(AuditLogger, "information", return_value=asyncio.sleep(.1))
         update_configuration_item_bulk = mocker.patch.object(ConfigurationManager, 'update_configuration_item_bulk',
                                               return_value=mock_create_category())
-        mocker.patch.object(ConfigurationManager, 'check_cache', return_value=False)
+        mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val())
         mocker.patch.object(ConfigurationManager, 'get_category_all_items', return_value=mock_check_cache())
         mock_payload = '{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", ' \
                        '"channel": "email", "notification_type": "one shot", "enabled": false, "rule_config":{"window": "100"}, "delivery_config": {"server": "pop"}}'

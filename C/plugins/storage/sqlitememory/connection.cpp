@@ -127,7 +127,6 @@ SQLBuffer	sql;
 int		row = 0;
 bool 		add_row = false;
 
-
 	ParseResult ok = doc.Parse(readings);
 	if (!ok)
 	{

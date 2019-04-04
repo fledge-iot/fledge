@@ -701,10 +701,10 @@ int blocks = 0;
 		char *zErrMsg = NULL;
 		int rc;
 		rc = SQLexec(dbHandle,
-			     "SELECT MAX(rowid) FROM foglamp.readings;",
-			     rowidCallback,
-			     &rowidLimit,
-			     &zErrMsg);
+		     "select max(rowid) from foglamp.readings;",
+	  	     rowidCallback,
+		     &rowidLimit,
+		     &zErrMsg);
 
 		if (rc != SQLITE_OK)
 		{
@@ -719,10 +719,10 @@ int blocks = 0;
 		char *zErrMsg = NULL;
 		int rc;
 		rc = SQLexec(dbHandle,
-			     "SELECT MIN(rowid) FROM foglamp.readings;",
-		             rowidCallback,
-		             &minrowidLimit,
-		             &zErrMsg);
+		     "select min(rowid) from foglamp.readings;",
+	  	     rowidCallback,
+		     &minrowidLimit,
+		     &zErrMsg);
 
 		if (rc != SQLITE_OK)
 		{
@@ -841,7 +841,6 @@ int blocks = 0;
 
 		rowidMin = minrowidLimit;
 	}
-
 	//logger->info("Purge collecting unsent row count");
 	if ((flags & 0x01) == 0)
 	{

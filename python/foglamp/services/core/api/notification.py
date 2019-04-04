@@ -187,6 +187,11 @@ async def post_notification(request):
         is_enabled = "true" if ((type(enabled) is str and enabled.lower() in ['true']) or (
             (type(enabled) is bool and enabled is True))) else "false"
 
+        storage = connect.get_storage_async()
+        config_mgr = ConfigurationManager(storage)
+        if name in config_mgr._cacheManager.cache:
+            raise ValueError("A Category with name:[{}] already exists.".format(name))
+
         try:
             # Get default config for rule and channel plugins
             url = '{}/plugin'.format(request.url)
@@ -223,8 +228,6 @@ async def post_notification(request):
         await _hit_post_url(post_url)  # Create Notification delivery template
 
         # Create configurations
-        storage = connect.get_storage_async()
-        config_mgr = ConfigurationManager(storage)
         notification_config = {
             "description": description,
             "rule": rule,

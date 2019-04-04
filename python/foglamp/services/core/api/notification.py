@@ -189,7 +189,8 @@ async def post_notification(request):
 
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
-        if name in config_mgr._cacheManager.cache:
+
+        if config_mgr.check_cache(name) is True:
             raise ValueError("A Category with name:[{}] already exists.".format(name))
 
         try:

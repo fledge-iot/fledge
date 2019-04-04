@@ -189,9 +189,9 @@ async def post_notification(request):
 
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
-        curr_contig = await config_mgr.get_category_all_items(name)
+        curr_config = await config_mgr.get_category_all_items(name)
 
-        if curr_contig is not None:
+        if curr_config is not None:
             raise ValueError("A Category with name:[{}] already exists.".format(name))
 
         try:

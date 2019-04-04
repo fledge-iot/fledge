@@ -15,7 +15,7 @@ from unittest.mock import MagicMock, call
 from foglamp.services.core import routes
 from foglamp.services.core import connect
 from foglamp.common.service_record import ServiceRecord
-from foglamp.common.configuration_manager import ConfigurationManager, ConfigurationCache
+from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
 from foglamp.services.core.api import notification
@@ -296,7 +296,7 @@ def mock_create_child_category():
 
 
 @asyncio.coroutine
-def mock_check_cache(val=None):
+def mock_check_category(val=None):
     return val
 
 
@@ -393,7 +393,7 @@ class TestNotification:
         update_configuration_item_bulk = mocker.patch.object(ConfigurationManager, 'update_configuration_item_bulk',
                                               return_value=mock_create_category())
         mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val())
-        mocker.patch.object(ConfigurationManager, 'get_category_all_items', return_value=mock_check_cache())
+        mocker.patch.object(ConfigurationManager, 'get_category_all_items', return_value=mock_check_category())
         mocker.patch.object(AuditLogger, "__init__", return_value=None)
         audit_logger = mocker.patch.object(AuditLogger, "information", return_value=asyncio.sleep(.1))
         mock_payload = '{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", ' \
@@ -416,7 +416,7 @@ class TestNotification:
         mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
         mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val())
-        mocker.patch.object(ConfigurationManager, 'get_category_all_items', return_value=mock_check_cache(True))
+        mocker.patch.object(ConfigurationManager, 'get_category_all_items', return_value=mock_check_category(True))
         mock_payload = '{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", ' \
                        '"channel": "email", "notification_type": "one shot", "enabled": false}'
 
@@ -440,7 +440,7 @@ class TestNotification:
         update_configuration_item_bulk = mocker.patch.object(ConfigurationManager, 'update_configuration_item_bulk',
                                               return_value=mock_create_category())
         mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val())
-        mocker.patch.object(ConfigurationManager, 'get_category_all_items', return_value=mock_check_cache())
+        mocker.patch.object(ConfigurationManager, 'get_category_all_items', return_value=mock_check_category())
         mock_payload = '{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", ' \
                        '"channel": "email", "notification_type": "one shot", "enabled": false, "rule_config":{"window": "100"}, "delivery_config": {"server": "pop"}}'
 
@@ -467,9 +467,8 @@ class TestNotification:
                                               return_value=mock_create_category())
         create_child_category = mocker.patch.object(ConfigurationManager, 'create_child_category',
                                                     return_value=mock_create_child_category())
-        mock_cache_manager = ConfigurationCache()
         mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val())
-        mocker.patch.object(ConfigurationManager, 'get_category_all_items', return_value=mock_check_cache())
+        mocker.patch.object(ConfigurationManager, 'get_category_all_items', return_value=mock_check_category())
 
         mocker.patch.object(AuditLogger, "__init__", return_value=None)
         audit_logger = mocker.patch.object(AuditLogger, "information", return_value=asyncio.sleep(.1))

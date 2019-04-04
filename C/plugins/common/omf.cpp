@@ -913,8 +913,16 @@ const std::string OMF::createStaticData(const Reading& reading) const
 			     "typename_sensor",
 			     sData);
 
-	sData.append("\", \"values\": [{\"Location\": \"Palo Alto\", "
-"\"Company\": \"Dianomic\", \"Name\": \"");
+	sData.append("\", \"values\": [{");
+	for (auto it = m_staticData->cbegin(); it != m_staticData->cend(); ++it)
+	{
+		sData.append("\"");
+		sData.append(it->first.c_str());
+		sData.append("\": \"");
+		sData.append(it->second.c_str());
+		sData.append("\", ");
+	}
+	sData.append(" \"Name\": \"");
 
 	// Add asset_name
 	sData.append(reading.getAssetName());

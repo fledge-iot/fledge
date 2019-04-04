@@ -74,6 +74,9 @@ class Connection {
 		int		insert(const std::string& table, const std::string& data);
 		int		update(const std::string& table, const std::string& data);
 		int		deleteRows(const std::string& table, const std::string& condition);
+		int		create_table_snapshot(const std::string& table, const std::string& id);
+		int		load_table_snapshot(const std::string& table, const std::string& id);
+		int		delete_table_snapshot(const std::string& table, const std::string& id);
 #endif
 		int		appendReadings(const char *readings);
 		bool		fetchReadings(unsigned long id, unsigned int blksize,

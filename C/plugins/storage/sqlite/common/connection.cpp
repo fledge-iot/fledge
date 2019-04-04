@@ -2816,3 +2816,131 @@ SQLBuffer	sql;
 	}
 }
 #endif
+
+#ifndef SQLITE_SPLIT_READINGS
+/**
+ * Create snapshot of a common table
+ *
+ * @param table		The table to snapshot
+ * @param id		The snapshot id
+ * @return		-1 on error, >= 0 on success
+ *
+ * The new created table name has the name:
+ * table_id
+ */
+int Connection::create_table_snapshot(const string& table, const string& id)
+{
+	string query = "CREATE TABLE foglamp.";
+	query += table + "_" +  id + " AS SELECT * FROM foglamp." + table;
+
+	logSQL("CreateTableSnapshot", query.c_str());
+
+	char* zErrMsg = NULL;
+	int rc = SQLexec(dbHandle,
+			 query.c_str(),
+			 NULL,
+			 NULL,
+			 &zErrMsg);
+
+	// Check result code
+	if (rc == SQLITE_OK)
+	{
+		return 1;
+	}
+	else
+	{
+		raiseError("create_table_snapshot", zErrMsg);
+		sqlite3_free(zErrMsg);
+		return -1;
+	}
+}
+
+/**
+ * Set the contents of a common table from a snapshot
+ *
+ * @param table		The table to fill
+ * @param id		The snapshot id of the table
+ * @return		-1 on error, >= 0 on success
+ *
+ */
+int Connection::load_table_snapshot(const string& table, const string& id)
+{
+	string purgeQuery = "DELETE FROM foglamp." + table;
+	string query = "BEGIN TRANSACTION; ";
+	query += purgeQuery +"; INSERT INTO foglamp." + table;
+	query += " SELECT * FROM foglamp." + table + "_" + id;
+	query += "; COMMIT TRANSACTION;";
+
+	logSQL("LoadTableSnapshot", query.c_str());
+
+	char* zErrMsg = NULL;
+	int rc = SQLexec(dbHandle,
+			 query.c_str(),
+			 NULL,
+			 NULL,
+			 &zErrMsg);
+
+	// Check result code
+	if (rc == SQLITE_OK)
+	{
+		return 1;
+	}
+	else
+	{
+		raiseError("load_table_snapshot", zErrMsg);
+		sqlite3_free(zErrMsg);
+
+		// transaction is still open, do rollback
+		if (sqlite3_get_autocommit(dbHandle) == 0)
+		{
+			rc = SQLexec(dbHandle,
+				     "ROLLBACK TRANSACTION;",
+				     NULL,
+				     NULL,
+				     &zErrMsg);
+			if (rc != SQLITE_OK)
+			{
+				raiseError("rollback for load_table_snapshot", zErrMsg);
+				sqlite3_free(zErrMsg);
+			}
+		}
+		return -1;
+	}
+}
+
+/**
+ * Create snapshot of a common table
+ *
+ * @param table		The table to snapshot
+ * @param id		The snapshot id
+ * @return		-1 on error, >= 0 on success
+ *
+ * The new created table name has the name:
+ * table_id
+ */
+int Connection::delete_table_snapshot(const string& table, const string& id)
+{
+	string query = "DROP TABLE foglamp." + table + "_" + id;
+
+	logSQL("DeleteTableSnapshot", query.c_str());
+
+	char* zErrMsg = NULL;
+	int rc = SQLexec(dbHandle,
+			 query.c_str(),
+			 NULL,
+			 NULL,
+			 &zErrMsg);
+
+	// Check result code
+	if (rc == SQLITE_OK)
+	{
+		return 1;
+	}
+	else
+	{
+		raiseError("delete_table_snapshot", zErrMsg);
+		sqlite3_free(zErrMsg);
+		return -1;
+	}
+}
+#endif

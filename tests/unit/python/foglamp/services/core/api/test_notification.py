@@ -15,7 +15,7 @@ from unittest.mock import MagicMock, call
 from foglamp.services.core import routes
 from foglamp.services.core import connect
 from foglamp.common.service_record import ServiceRecord
-from foglamp.common.configuration_manager import ConfigurationManager
+from foglamp.common.configuration_manager import ConfigurationManager, ConfigurationCache
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
 from foglamp.services.core.api import notification
@@ -387,7 +387,9 @@ class TestNotification:
         mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
         update_configuration_item_bulk = mocker.patch.object(ConfigurationManager, 'update_configuration_item_bulk',
                                               return_value=mock_create_category())
+        mock_cache_manager = ConfigurationCache()
         mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val())
+        mocker.patch.object(ConfigurationManager, '_cacheManager', return_value=mock_cache_manager)
         mocker.patch.object(AuditLogger, "__init__", return_value=None)
         audit_logger = mocker.patch.object(AuditLogger, "information", return_value=asyncio.sleep(.1))
         mock_payload = '{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", ' \
@@ -399,6 +401,27 @@ class TestNotification:
         assert result['result'].endswith("Notification {} created successfully".format("Test Notification"))
         update_configuration_item_bulk_calls = [call('Test Notification', {'enable': 'false', 'rule': 'threshold', 'description': 'Test Notification', 'channel': 'email', 'notification_type': 'one shot'})]
         update_configuration_item_bulk.assert_has_calls(update_configuration_item_bulk_calls, any_order=True)
+
+    async def test_post_notification_duplicate_name(self, mocker, client):
+        mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
+        mocker.patch.object(notification, '_hit_get_url', return_value=mock_get_url("/foglamp/notification/plugin"))
+        mocker.patch.object(notification, '_hit_post_url',
+                            side_effect=[mock_post_url("/notification/Test Notification"),
+                                         mock_post_url("/notification/Test Notification/rule/threshold"),
+                                         mock_post_url("/notification/Test Notification/delivery/email")])
+        mocker.patch.object(connect, 'get_storage_async')
+        mock_cache_manager = MagicMock(ConfigurationCache, _cache={"Test Notification": "Test Notification"}, cache={"Test Notification": "Test Notification"})
+        mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val())
+        ConfigurationManager._cacheManager = mock_cache_manager
+        mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
+        mock_payload = '{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", ' \
+                       '"channel": "email", "notification_type": "one shot", "enabled": false}'
+
+        # Check duplicate name
+        resp = await client.post("/foglamp/notification", data=mock_payload)
+        assert 400 == resp.status
+        result = await resp.text()
+        assert "400: A Category with name:[Test Notification] already exists." == result
 
     async def test_post_notification2(self, mocker, client):
         mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
@@ -413,7 +436,9 @@ class TestNotification:
         audit_logger = mocker.patch.object(AuditLogger, "information", return_value=asyncio.sleep(.1))
         update_configuration_item_bulk = mocker.patch.object(ConfigurationManager, 'update_configuration_item_bulk',
                                               return_value=mock_create_category())
+        mock_cache_manager = ConfigurationCache()
         mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val())
+        mocker.patch.object(ConfigurationManager, '_cacheManager', return_value=mock_cache_manager)
         mock_payload = '{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", ' \
                        '"channel": "email", "notification_type": "one shot", "enabled": false, "rule_config":{"window": "100"}, "delivery_config": {"server": "pop"}}'
 
@@ -440,7 +465,9 @@ class TestNotification:
                                               return_value=mock_create_category())
         create_child_category = mocker.patch.object(ConfigurationManager, 'create_child_category',
                                                     return_value=mock_create_child_category())
+        mock_cache_manager = ConfigurationCache()
         mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val())
+        mocker.patch.object(ConfigurationManager, '_cacheManager', return_value=mock_cache_manager)
 
         mocker.patch.object(AuditLogger, "__init__", return_value=None)
         audit_logger = mocker.patch.object(AuditLogger, "information", return_value=asyncio.sleep(.1))

@@ -27,17 +27,10 @@
 
    <a href="https://github.com/foglamp/storage-postgres" target="_blank">https://github.com/foglamp/storage-postgres</a>
 
-.. |intel 1.5.1 Ubuntu 16.04| raw:: html
+.. |downloads| raw:: html
 
-   <a href="https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-1.5.1-x86_64_ubuntu_16_04.tgz">v1.5.1 Ubuntu 16.04</a>
+   <a href="http://dianomic.com/download-packages/">Downloads Page</a>
 
-.. |intel 1.5.1 Ubuntu 18.04| raw:: html
-
-   <a href="https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-1.5.1-x86_64_ubuntu_18_04.tgz">v1.5.1 Ubuntu 18.04</a>
-
-.. |arm 1.5.1| raw:: html
-
-   <a href="https://s3.amazonaws.com/foglamp/debian/armhf/foglamp-1.5.1-armhf.tgz">v1.5.1 ARM</a>
 
 
    
@@ -49,19 +42,10 @@ Downloads
 Debian Packages
 ===============
 
-We have created Debian for Intel and ARM architectures. The packages have been tested on Ubuntu 16.04, Ubuntu 18.04 and Raspbian Stretch.
+Debian packages for both Intel and Arm architectures are available via the Dianomic web site's downlaod page.
 
-FogLAMP Debian Packages for Intel
----------------------------------
+- |downloads|
 
-- |intel 1.5.1 Ubuntu 16.04|
-- |intel 1.5.1 Ubuntu 18.04|
-
-
-FogLAMP Debian Packages for ARM
--------------------------------
-
-- |arm 1.5.1|
 
 
 Download/Clone from GitHub

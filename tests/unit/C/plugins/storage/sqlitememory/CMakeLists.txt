@@ -21,10 +21,13 @@ include_directories(${GTEST_INCLUDE_DIRS})
 include_directories(../../../../../../C/common/include)
 include_directories(../../../../../../C/services/common/include)
 include_directories(../../../../../../C/plugins/storage/common/include)
-include_directories(../../../../../../C/plugins/storage/sqlitememory/include)
 include_directories(../../../../../../C/thirdparty/rapidjson/include)
+include_directories(../../../../../../C/plugins/storage/sqlite/include)
+include_directories(../../../../../../C/plugins/storage/sqlite/common/include)
 
 # Source files
+file(GLOB COMMON_SOURCES ../sqlite/common/*.cpp)
+file(GLOB COMMON_SOURCES ../sqlitememory/*.cpp)
 file(GLOB test_sources tests.cpp)
 
 # Exe creation
@@ -32,7 +35,7 @@ link_directories(
         ${PROJECT_BINARY_DIR}/../../../../lib
 )
 
-add_executable(${PROJECT_NAME} ${test_sources})
+add_executable(${PROJECT_NAME} ${test_sources} ${COMMON_SOURCES})
 
 target_link_libraries(${PROJECT_NAME} ${COMMON_LIB})
 target_link_libraries(${PROJECT_NAME} ${SERVICE_COMMON_LIB})

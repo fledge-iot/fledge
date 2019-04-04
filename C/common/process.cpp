@@ -129,7 +129,6 @@ FogLampProcess::FogLampProcess(int argc, char** argv) :
 		throw runtime_error(string("Error while parsing optional options: ") + e.what());
 	}
 
-
 	// Connection to FogLamp core microservice
 	m_client = new ManagementClient(m_core_mngt_host, m_core_mngt_port);
 

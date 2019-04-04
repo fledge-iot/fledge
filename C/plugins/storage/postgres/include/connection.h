@@ -31,6 +31,10 @@ class Connection {
 		long		tableSize(const std::string& table);
 		void		setTrace(bool flag) { m_logSQL = flag; };
     		static bool 	formatDate(char *formatted_date, size_t formatted_date_size, const char *date);
+		int		create_table_snapshot(const std::string& table, const std::string& id);
+		int		load_table_snapshot(const std::string& table, const std::string& id);
+		int		delete_table_snapshot(const std::string& table, const std::string& id);
+
 	private:
 		bool		m_logSQL;
 		void		raiseError(const char *operation, const char *reason,...);

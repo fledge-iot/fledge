@@ -74,4 +74,4 @@ target_link_libraries(${LIB_NAME} ${DLLIB})
 set_target_properties(${LIB_NAME} PROPERTIES SOVERSION 1)
 
 add_subdirectory(cmake_pg)
-add_subdirectory(cmake_slite)
+add_subdirectory(cmake_sqlite)

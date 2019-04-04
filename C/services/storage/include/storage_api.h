@@ -27,12 +27,16 @@ using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 #define READING_QUERY   	"^/storage/reading/query"
 #define READING_PURGE   	"^/storage/reading/purge"
 #define READING_INTEREST	"^/storage/reading/interest/([A-Za-z\\*][a-zA-Z0-9_]*)$"
+#define CREATE_TABLE_SNAPSHOT	"^/storage/table/([A-Za-z][a-zA-Z_0-9_]*)/snapshot$"
+#define LOAD_TABLE_SNAPSHOT	"^/storage/table/([A-Za-z][a-zA-Z_0-9_]*)/snapshot/([a-zA-Z_0-9_]*)$"
+#define DELETE_TABLE_SNAPSHOT	LOAD_TABLE_SNAPSHOT
 
 #define PURGE_FLAG_RETAIN	"retain"
 #define PURGE_FLAG_PURGE	"purge"
 
 #define TABLE_NAME_COMPONENT	1
 #define ASSET_NAME_COMPONENT	1
+#define SNAPSHOT_ID_COMPONENT	2
 
 /**
  * The Storage API class - this class is responsible for the registration of all API
@@ -64,6 +68,9 @@ public:
 	void	readingPurge(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 	void	readingRegister(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 	void	readingUnregister(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
+	void	createTableSnapshot(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
+	void	loadTableSnapshot(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
+	void	deleteTableSnapshot(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 	void	printList();
 
 public:

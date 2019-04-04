@@ -33,9 +33,12 @@ class ConnectionManager {
 						return &lastError;
 					  }
 
-	private:
+	protected:
 		ConnectionManager();
+
+	private:
 		static ConnectionManager     *instance;
+	protected:
 		std::list<Connection *>      idle;
 		std::list<Connection *>      inUse;
 		std::mutex                   idleLock;

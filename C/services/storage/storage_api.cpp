@@ -254,6 +254,37 @@ void readingUnregisterWrapper(shared_ptr<HttpServer::Response> response, shared_
 }
 
 /**
+ * Wrapper function for the create snapshot API call.
+ */
+void createTableSnapshotWrapper(shared_ptr<HttpServer::Response> response,
+				shared_ptr<HttpServer::Request> request)
+{
+	StorageApi *api = StorageApi::getInstance();
+	api->createTableSnapshot(response, request);
+}
+
+/**
+ * Wrapper function for the load snapshot API call.
+ */
+void loadTableSnapshotWrapper(shared_ptr<HttpServer::Response> response,
+			      shared_ptr<HttpServer::Request> request)
+{
+	StorageApi *api = StorageApi::getInstance();
+	api->loadTableSnapshot(response, request);
+}
+
+/**
+ * Wrapper function for the delete snapshot API call.
+ */
+void deleteTableSnapshotWrapper(shared_ptr<HttpServer::Response> response,
+				shared_ptr<HttpServer::Request> request)
+{
+	StorageApi *api = StorageApi::getInstance();
+	api->deleteTableSnapshot(response, request);
+}
+
+
+/**
  * Construct the singleton Storage API 
  */
 StorageApi::StorageApi(const unsigned short port, const unsigned int threads) : readingPlugin(0) {
@@ -308,6 +339,10 @@ void StorageApi::initResources()
 
 	m_server->resource[READING_INTEREST]["POST"] = readingRegisterWrapper;
 	m_server->resource[READING_INTEREST]["DELETE"] = readingUnregisterWrapper;
+
+	m_server->resource[CREATE_TABLE_SNAPSHOT]["POST"] = createTableSnapshotWrapper;
+	m_server->resource[LOAD_TABLE_SNAPSHOT]["PUT"] = loadTableSnapshotWrapper;
+	m_server->resource[DELETE_TABLE_SNAPSHOT]["DELETE"] = deleteTableSnapshotWrapper;
 
 	m_server->resource[READING_ACCESS]["POST"] = readingAppendWrapper;
 	m_server->resource[READING_ACCESS]["GET"] = readingFetchWrapper;
@@ -988,6 +1023,8 @@ char *ptr, *ptr1, *buf = new char[strlen(lastError->message) * 2 + 1];
 		if (*ptr1 == '"')
 			*ptr++ = '\\';
 		*ptr++ = *ptr1++;
+		if (*ptr1 == '\n')
+			ptr1++;
 	}
 	*ptr = 0;
 	payload = "{ \"entryPoint\" : \"";
@@ -998,4 +1035,112 @@ char *ptr, *ptr1, *buf = new char[strlen(lastError->message) * 2 + 1];
 	payload = payload + (lastError->retryable ? "true" : "false");
 	payload = payload + "}";
 	delete[] buf;
+}
+
+/**
+ * Create a table snapshot
+ */
+void StorageApi::createTableSnapshot(shared_ptr<HttpServer::Response> response,
+				     shared_ptr<HttpServer::Request> request)
+{
+string   sTable;
+string   payload;
+Document doc;
+
+	payload = request->content.string();
+	sTable = request->path_match[TABLE_NAME_COMPONENT];
+	doc.Parse(payload.c_str());
+	if (!doc.HasMember("id"))
+	{
+		string resp = "{ \"error\" : \"Missing id element in payload for create snapshot\" }";
+		respond(response, SimpleWeb::StatusCode::client_error_bad_request, resp);
+		return;
+	}
+
+	string responsePayload;
+	string sId = doc["id"].GetString();
+	// call plugin method
+	if (plugin->createTableSnapshot(sTable, sId) < 0)
+	{
+		mapError(responsePayload, plugin->lastError());
+		respond(response,
+			SimpleWeb::StatusCode::client_error_bad_request,
+			responsePayload);
+	}
+	else
+	{
+		responsePayload = "{\"created\": {\"id\": \"" + sId;
+		responsePayload += "\", \"table\": \"" + sTable + "\"} }";
+		respond(response, responsePayload);
+	}
+}
+
+/**
+ * Load a table snapshot
+ */
+void StorageApi::loadTableSnapshot(shared_ptr<HttpServer::Response> response,
+				     shared_ptr<HttpServer::Request> request)
+{
+string   sId;
+string   sTable;
+string   payload;
+
+	payload = request->content.string();
+	sTable = request->path_match[TABLE_NAME_COMPONENT];
+	sId = request->path_match[SNAPSHOT_ID_COMPONENT];
+	if (sId.empty())
+	{
+		string resp = "{ \"error\" : \"Missing id element in payload for load snapshot\" }";
+		respond(response, SimpleWeb::StatusCode::client_error_bad_request, resp);
+		return;
+	}
+	string responsePayload;
+	if (plugin->loadTableSnapshot(sTable, sId) < 0)
+	{
+		mapError(responsePayload, plugin->lastError());
+		respond(response,
+			SimpleWeb::StatusCode::client_error_bad_request,
+			responsePayload);
+	}
+	else
+	{
+		responsePayload = "{\"loaded\": {\"id\": \"" + sId;
+		responsePayload += "\", \"table\": \"" + sTable + "\"} }";
+		respond(response, responsePayload);
+	}
+}
+
+/**
+ * Delete a table snapshot
+ */
+void StorageApi::deleteTableSnapshot(shared_ptr<HttpServer::Response> response,
+				     shared_ptr<HttpServer::Request> request)
+{
+string   sId;
+string   sTable;
+string   payload;
+
+	payload = request->content.string();
+	sTable = request->path_match[TABLE_NAME_COMPONENT];
+	sId = request->path_match[SNAPSHOT_ID_COMPONENT];
+	if (sId.empty())
+	{
+		string resp = "{ \"error\" : \"Missing id element in payload fopr delete snapshot\" }";
+		respond(response, SimpleWeb::StatusCode::client_error_bad_request, resp);
+		return;
+	}
+	string responsePayload;
+	if (plugin->deleteTableSnapshot(sTable, sId) < 0)
+	{
+		mapError(responsePayload, plugin->lastError());
+		respond(response,
+			SimpleWeb::StatusCode::client_error_bad_request,
+			responsePayload);
+	}
+	else
+	{
+		responsePayload = "{\"deleted\": {\"id\": \"" + sId;
+		responsePayload += "\", \"table\": \"" + sTable + "\"} }";
+		respond(response, responsePayload);
+	}
 }

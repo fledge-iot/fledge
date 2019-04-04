@@ -667,7 +667,6 @@ bool		isAggregate = false;
 	}
 }
 
-#ifndef SQLITE_SPLIT_READINGS
 /**
  * Purge readings from the reading table
  */
@@ -682,6 +681,16 @@ long numReadings = 0;
 unsigned long rowidLimit = 0, minrowidLimit = 0, maxrowidLimit = 0, rowidMin;
 struct timeval startTv, endTv;
 int blocks = 0;
+
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug(
+		"DBG2 STORAGE purgeReadings 1.0 : age |%lu| flags |%u| sent |%lu| ",
+		age,
+		flags,
+		sent);
+
 
 	Logger *logger = Logger::getLogger();
 
@@ -699,13 +708,19 @@ int blocks = 0;
 	 * eligible for purging at a rate that is faster than we can purge them.
 	 */
 	{
+		// string sql_cmd = "SELECT MAX(rowid) FROM foglamp.readings WHERE user_ts < datetime('now' , '-" + to_string(age) + " hours');";
+		string sql_cmd = "SELECT MAX(rowid) FROM foglamp.readings;";
+
+		//# FIXME_I
+		Logger::getLogger()->debug("DBG purgeReadings 1.0 : sql_cmd |%s| ",sql_cmd.c_str());
+
 		char *zErrMsg = NULL;
 		int rc;
 		rc = SQLexec(dbHandle,
-		     "select max(rowid) from foglamp.readings;",
-	  	     rowidCallback,
-		     &rowidLimit,
-		     &zErrMsg);
+			     sql_cmd.c_str(),
+			     rowidCallback,
+			     &rowidLimit,
+			     &zErrMsg);
 
 		if (rc != SQLITE_OK)
 		{
@@ -717,13 +732,19 @@ int blocks = 0;
 	}
 
 	{
+		//string sql_cmd = "SELECT MIN(rowid) FROM foglamp.readings WHERE  user_ts < datetime('now' , '-" + to_string(age) + " hours');";
+		string sql_cmd = "SELECT MIN(rowid) FROM foglamp.readings;";
+
+		//# FIXME_I
+		Logger::getLogger()->debug("DBG purgeReadings 1.0 : sql_cmd |%s| ",sql_cmd.c_str());
+
 		char *zErrMsg = NULL;
 		int rc;
 		rc = SQLexec(dbHandle,
-		     "select min(rowid) from foglamp.readings;",
-	  	     rowidCallback,
-		     &minrowidLimit,
-		     &zErrMsg);
+		             sql_cmd.c_str(),
+		             rowidCallback,
+		             &minrowidLimit,
+		             &zErrMsg);
 
 		if (rc != SQLITE_OK)
 		{
@@ -732,6 +753,14 @@ int blocks = 0;
 			return 0;
 		}
 	}
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug(
+		"DBG purgeReadings 1.0 : minrowidLimit |%lu| rowidLimit |%lu| ",
+		minrowidLimit,
+		rowidLimit);
+
 
 	if (age == 0)
 	{
@@ -789,10 +818,16 @@ int blocks = 0;
 
 		while (l <= r)
 		{
+			//# FIXME_I
+			Logger::getLogger()->debug("DBG purgeReadings - WHILE 1.0" );
+
 			unsigned long midRowId = 0;
 			unsigned long prev_m = m;
-		    m = l + (r - l) / 2;
+		    	m = l + (r - l) / 2;
 			if (prev_m == m) break;
+
+			//# FIXME_I
+			Logger::getLogger()->debug("DBG purgeReadings - WHILE 1.2" );
 
 			// e.g. select id from readings where rowid = 219867307 AND user_ts < datetime('now' , '-24 hours', 'utc');
 			SQLBuffer sqlBuffer;
@@ -803,11 +838,16 @@ int blocks = 0;
 			sqlBuffer.append(" hours');");
 			const char *query = sqlBuffer.coalesce();
 
+
 			rc = SQLexec(dbHandle,
-		     query,
-	  	     rowidCallback,
-		     &midRowId,
-		     &zErrMsg);
+			query,
+			rowidCallback,
+			&midRowId,
+			&zErrMsg);
+
+			//# FIXME_I
+			Logger::getLogger()->debug("DBG purgeReadings - WHILE 1.3 |%s| rc |%d| midRowId |%lu|" ,query, rc, midRowId);
+
 
 			if (rc != SQLITE_OK)
 			{
@@ -820,11 +860,16 @@ int blocks = 0;
 			{
 				// search in earlier/left half
 				r = m - 1;
+				// The m position should be skipped as midRowId is 0
+				m = r;
+				//# FIXME_I
+				Logger::getLogger()->debug("DBG purgeReadings - WHILE 1.4 - l |%lu|  r |%lu| m |%lu| " ,l ,r, m);
+
 			}
 			else //if (l != m)
 			{
 				// search in later/right half
-		        l = m + 1;
+		        	l = m + 1;
 			}
 		}
 
@@ -838,9 +883,16 @@ int blocks = 0;
 
 		rowidMin = minrowidLimit;
 	}
+
+	// FIXME_I:
+	Logger::getLogger()->debug("DBG purgeReadings flags 1.0");
+
 	//logger->info("Purge collecting unsent row count");
 	if ((flags & 0x01) == 0)
 	{
+		// FIXME_I:
+		Logger::getLogger()->debug("DBG purgeReadings flags 1.1");
+
 		char *zErrMsg = NULL;
 		int rc;
 		int lastPurgedId;
@@ -879,6 +931,18 @@ int blocks = 0;
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		}
 	}
+
+	// FIXME_I:
+	Logger::getLogger()->debug("DBG purgeReadings flags 1.2");
+
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug(
+		"DBG purgeReadings 3.0 : rowidMin |%lu| rowidLimit |%lu| ",
+		rowidMin,
+		rowidLimit);
+
 
 	unsigned int deletedRows = 0;
 	char *zErrMsg = NULL;
@@ -968,7 +1032,7 @@ int blocks = 0;
 
 	unsentRetained = maxrowidLimit - rowidLimit;
 
-	numReadings = maxrowidLimit - minrowidLimit - deletedRows;
+	numReadings = maxrowidLimit +1 - minrowidLimit - deletedRows;
 
 	if (sent == 0)	// Special case when not north process is used
 	{
@@ -980,7 +1044,7 @@ int blocks = 0;
 	convert << "{ \"removed\" : " << deletedRows << ", ";
 	convert << " \"unsentPurged\" : " << unsentPurged << ", ";
 	convert << " \"unsentRetained\" : " << unsentRetained << ", ";
-    convert << " \"readings\" : " << numReadings << " }";
+    	convert << " \"readings\" : " << numReadings << " }";
 
 	result = convert.str();
 
@@ -992,4 +1056,3 @@ int blocks = 0;
 
 	return deletedRows;
 }
-#endif

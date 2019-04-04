@@ -596,9 +596,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 'Unable to get all category names based on category_name %s', category_name)
             raise
 
-    def check_cache(self, category_name):
-        return True if category_name in self._cacheManager else False
-
     async def get_category_item(self, category_name, item_name):
         """Get a given item within a given category.
 

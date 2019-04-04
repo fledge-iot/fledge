@@ -295,6 +295,11 @@ def mock_create_child_category():
     return ""
 
 
+@asyncio.coroutine
+def mock_check_cache(val=None):
+    return val
+
+
 @pytest.allure.feature("unit")
 @pytest.allure.story("core", "api", "notification")
 class TestNotification:
@@ -388,7 +393,7 @@ class TestNotification:
         update_configuration_item_bulk = mocker.patch.object(ConfigurationManager, 'update_configuration_item_bulk',
                                               return_value=mock_create_category())
         mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val())
-        mocker.patch.object(ConfigurationManager, 'check_cache', return_value=False)
+        mocker.patch.object(ConfigurationManager, 'get_category_all_items', return_value=mock_check_cache())
         mocker.patch.object(AuditLogger, "__init__", return_value=None)
         audit_logger = mocker.patch.object(AuditLogger, "information", return_value=asyncio.sleep(.1))
         mock_payload = '{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", ' \
@@ -411,7 +416,7 @@ class TestNotification:
         mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
         mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val())
-        mocker.patch.object(ConfigurationManager, 'check_cache', return_value=True)
+        mocker.patch.object(ConfigurationManager, 'get_category_all_items', return_value=mock_check_cache(True))
         mock_payload = '{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", ' \
                        '"channel": "email", "notification_type": "one shot", "enabled": false}'
 
@@ -435,7 +440,7 @@ class TestNotification:
         update_configuration_item_bulk = mocker.patch.object(ConfigurationManager, 'update_configuration_item_bulk',
                                               return_value=mock_create_category())
         mocker.patch.object(ConfigurationManager, 'check_cache', return_value=False)
-        mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val())
+        mocker.patch.object(ConfigurationManager, 'get_category_all_items', return_value=mock_check_cache())
         mock_payload = '{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", ' \
                        '"channel": "email", "notification_type": "one shot", "enabled": false, "rule_config":{"window": "100"}, "delivery_config": {"server": "pop"}}'
 
@@ -464,7 +469,7 @@ class TestNotification:
                                                     return_value=mock_create_child_category())
         mock_cache_manager = ConfigurationCache()
         mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val())
-        mocker.patch.object(ConfigurationManager, 'check_cache', return_value=False)
+        mocker.patch.object(ConfigurationManager, 'get_category_all_items', return_value=mock_check_cache())
 
         mocker.patch.object(AuditLogger, "__init__", return_value=None)
         audit_logger = mocker.patch.object(AuditLogger, "information", return_value=asyncio.sleep(.1))

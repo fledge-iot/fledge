@@ -1177,10 +1177,6 @@ SQLBuffer	sql;
 	int 	row = 0;
 	ostringstream convert;
 
-	// FIXME_I:
-	Logger::getLogger()->debug("DBG update 2.0");
-
-
 	std::size_t arr = payload.find("updates");
 	bool changeReqd = (arr == std::string::npos || arr > 8);
 	if (changeReqd)
@@ -1197,10 +1193,6 @@ SQLBuffer	sql;
 	}
 	else
 	{
-		// FIXME_I:
-		Logger::getLogger()->debug("DBG update 2.1");
-
-
 		Value &updates = document["updates"];
 		if (!updates.IsArray())
 		{
@@ -1208,18 +1200,10 @@ SQLBuffer	sql;
 			return -1;
 		}
 
-		// FIXME_I:
-		Logger::getLogger()->debug("DBG update 2.2");
-
-
 		sql.append("BEGIN TRANSACTION;");
 		int i=0;
 		for (Value::ConstValueIterator iter = updates.Begin(); iter != updates.End(); ++iter,++i)
 		{
-			// FIXME_I:
-			Logger::getLogger()->debug("DBG update 2.3");
-
-
 			if (!iter->IsObject())
 			{
 				raiseError("update",
@@ -1485,10 +1469,6 @@ SQLBuffer	sql;
 				}
 			}
 		sql.append(';');
-
-		// FIXME_I:
-		Logger::getLogger()->debug("DBG update 2.9");
-
 		row++;
 		}
 	}
@@ -1498,7 +1478,6 @@ SQLBuffer	sql;
 	logSQL("CommonUpdate", query);
 	char *zErrMsg = NULL;
 	int rc;
-
 
 	// FIXME_I:
 	Logger::getLogger()->setMinLevel("debug");
@@ -1551,9 +1530,6 @@ SQLBuffer	sql;
 		Logger::getLogger()->debug(
 			"DBG 1.2 : update |%d|  row |%d| ", update, row);
 
-		//# FIXME_I
-		Logger::getLogger()->debug("DBG 1.2 : brfore raiseError");
-
 		int return_value=0;
 
 		if (update == 0)
@@ -1567,7 +1543,6 @@ SQLBuffer	sql;
 		}
 
 		//# FIXME_I
-		Logger::getLogger()->debug("DBG 1.2 : after raiseError");
 		Logger::getLogger()->debug("DBG 1.2 : return_value |%d| ", return_value);
 
 		// Returns the number of rows affected, cases :

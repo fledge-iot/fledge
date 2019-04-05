@@ -34,6 +34,7 @@ typedef void * PLUGIN_HANDLE;
 #define SP_READINGS     0x0002
 #define SP_ASYNC	0x0004
 #define SP_PERSIST_DATA	0x0008
+#define SP_INGEST	0x0010
  
 /**
  * Plugin types

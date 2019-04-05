@@ -418,7 +418,7 @@ class TestNotification:
         resp = await client.post("/foglamp/notification", data=mock_payload)
         assert 400 == resp.status
         result = await resp.text()
-        assert "400: A Category with name:[Test Notification] already exists." == result
+        assert "400: A Category with name Test Notification already exists." == result
 
     async def test_post_notification2(self, mocker, client):
         mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
@@ -550,7 +550,7 @@ class TestNotification:
         assert 400 == resp.status
         result = await resp.text()
         assert result.endswith(
-            "Invalid rule plugin:[{}] and/or delivery plugin:[{}] supplied.".format("threshol", "emai"))
+            "Invalid rule plugin {} and/or delivery plugin {} supplied.".format("threshol", "emai"))
 
     async def test_put_notification(self, mocker, client):
         mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)

@@ -985,8 +985,9 @@ Document	document;
 ostringstream convert;
 std::size_t arr = data.find("inserts");
 
-// Check first the 'inserts' property in JSON data
-bool stdInsert = (arr == std::string::npos || arr > 8);
+	// Check first the 'inserts' property in JSON data
+	bool stdInsert = (arr == std::string::npos || arr > 8);
+
 	// If input data is not an array of iserts
 	// create an array with one element
 	if (stdInsert)
@@ -1165,14 +1166,6 @@ int Connection::update(const string& table, const string& payload)
 // Default template parameter uses UTF8 and MemoryPoolAllocator.
 Document	document;
 SQLBuffer	sql;
-
-
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug(
-		"DBG update 1.0 : table |%s| payload |%s| ",
-		table.c_str(),
-		payload.c_str());
 
 	int 	row = 0;
 	ostringstream convert;
@@ -1479,11 +1472,6 @@ SQLBuffer	sql;
 	char *zErrMsg = NULL;
 	int rc;
 
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug(
-		"DBG 1.1 : query |%s|  ", query);
-
 	// Exec the UPDATE statement: no callback, no result set
 	m_writeAccessOngoing.fetch_add(1);
 	rc = SQLexec(dbHandle,
@@ -1525,11 +1513,6 @@ SQLBuffer	sql;
 
 		int update = sqlite3_changes(dbHandle);
 
-		// FIXME_I:
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug(
-			"DBG 1.2 : update |%d|  row |%d| ", update, row);
-
 		int return_value=0;
 
 		if (update == 0)
@@ -1541,9 +1524,6 @@ SQLBuffer	sql;
 		{
 			return_value = (row == 1 ? update : row);
 		}
-
-		//# FIXME_I
-		Logger::getLogger()->debug("DBG 1.2 : return_value |%d| ", return_value);
 
 		// Returns the number of rows affected, cases :
 		//

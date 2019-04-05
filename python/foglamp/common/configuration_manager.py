@@ -468,6 +468,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             for item_name, new_val in config_item_list.items():
                 if item_name not in cat_info:
                     raise KeyError('{} config item not found'.format(item_name))
+                # Prevent update to item for which optional attribute "readonly" has been set to "true"
+                if 'readonly' in cat_info[item_name]:
+                    if cat_info[item_name]['readonly'] == 'true':
+                        raise ValueError("Update not allowed for {} item_name as it has readonly attribute set".format(item_name))
+
                 # Evaluate new_val as per rule if defined
                 if 'rule' in cat_info[item_name]:
                     rule = cat_info[item_name]['rule'].replace("value", new_val)
@@ -685,6 +690,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                      .format(category_name, item_name))
                 if storage_value_entry == new_value_entry:
                     return
+
+            # Prevent update to item for which optional attribute "readonly" has been set to "true"
+            if 'readonly' in storage_value_entry:
+                if storage_value_entry['readonly'] == 'true':
+                    raise TypeError("Update not allowed for {} item_name as it has readonly attribute set".format(item_name))
 
             # Special case for enumeration field type handling
             if storage_value_entry['type'] == 'enumeration':

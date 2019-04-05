@@ -187,6 +187,13 @@ async def post_notification(request):
         is_enabled = "true" if ((type(enabled) is str and enabled.lower() in ['true']) or (
             (type(enabled) is bool and enabled is True))) else "false"
 
+        storage = connect.get_storage_async()
+        config_mgr = ConfigurationManager(storage)
+        curr_config = await config_mgr.get_category_all_items(name)
+
+        if curr_config is not None:
+            raise ValueError("A Category with name {} already exists.".format(name))
+
         try:
             # Get default config for rule and channel plugins
             url = '{}/plugin'.format(request.url)
@@ -197,20 +204,20 @@ async def post_notification(request):
             rule_plugin_config = r[0]['config']
             delivery_plugin_config = c[0]['config']
         except KeyError:
-            raise ValueError("Invalid rule plugin:[{}] and/or delivery plugin:[{}] supplied.".format(rule, channel))
+            raise ValueError("Invalid rule plugin {} and/or delivery plugin {} supplied.".format(rule, channel))
 
         # Verify if rule_config contains valid keys
         if rule_config != {}:
             for k, v in rule_config.items():
                 if k not in rule_plugin_config:
-                    raise ValueError("Invalid key:[{}] in rule_config:[{}] supplied for plugin [{}].".format(k, rule_config, rule))
+                    raise ValueError("Invalid key {} in rule_config {} supplied for plugin {}.".format(k, rule_config, rule))
 
         # Verify if delivery_config contains valid keys
         if delivery_config != {}:
             for k, v in delivery_config.items():
                 if k not in delivery_plugin_config:
                     raise ValueError(
-                        "Invalid key:[{}] in delivery_config:[{}] supplied for plugin [{}].".format(k, delivery_config, channel))
+                        "Invalid key {} in delivery_config {} supplied for plugin {}.".format(k, delivery_config, channel))
 
         # First create templates for notification and rule, channel plugins
         post_url = 'http://{}:{}/notification/{}'.format(_address, _port, urllib.parse.quote(name))
@@ -223,8 +230,6 @@ async def post_notification(request):
         await _hit_post_url(post_url)  # Create Notification delivery template
 
         # Create configurations
-        storage = connect.get_storage_async()
-        config_mgr = ConfigurationManager(storage)
         notification_config = {
             "description": description,
             "rule": rule,

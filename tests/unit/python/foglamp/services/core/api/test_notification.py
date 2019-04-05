@@ -295,6 +295,11 @@ def mock_create_child_category():
     return ""
 
 
+@asyncio.coroutine
+def mock_check_category(val=None):
+    return val
+
+
 @pytest.allure.feature("unit")
 @pytest.allure.story("core", "api", "notification")
 class TestNotification:
@@ -388,6 +393,7 @@ class TestNotification:
         update_configuration_item_bulk = mocker.patch.object(ConfigurationManager, 'update_configuration_item_bulk',
                                               return_value=mock_create_category())
         mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val())
+        mocker.patch.object(ConfigurationManager, 'get_category_all_items', return_value=mock_check_category())
         mocker.patch.object(AuditLogger, "__init__", return_value=None)
         audit_logger = mocker.patch.object(AuditLogger, "information", return_value=asyncio.sleep(.1))
         mock_payload = '{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", ' \
@@ -399,6 +405,20 @@ class TestNotification:
         assert result['result'].endswith("Notification {} created successfully".format("Test Notification"))
         update_configuration_item_bulk_calls = [call('Test Notification', {'enable': 'false', 'rule': 'threshold', 'description': 'Test Notification', 'channel': 'email', 'notification_type': 'one shot'})]
         update_configuration_item_bulk.assert_has_calls(update_configuration_item_bulk_calls, any_order=True)
+
+    async def test_post_notification_duplicate_name(self, mocker, client):
+        mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
+        mocker.patch.object(connect, 'get_storage_async')
+        mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
+        mocker.patch.object(ConfigurationManager, 'get_category_all_items', return_value=mock_check_category(True))
+        mock_payload = '{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", ' \
+                       '"channel": "email", "notification_type": "one shot", "enabled": false}'
+
+        # Check duplicate name
+        resp = await client.post("/foglamp/notification", data=mock_payload)
+        assert 400 == resp.status
+        result = await resp.text()
+        assert "400: A Category with name Test Notification already exists." == result
 
     async def test_post_notification2(self, mocker, client):
         mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
@@ -414,6 +434,7 @@ class TestNotification:
         update_configuration_item_bulk = mocker.patch.object(ConfigurationManager, 'update_configuration_item_bulk',
                                               return_value=mock_create_category())
         mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val())
+        mocker.patch.object(ConfigurationManager, 'get_category_all_items', return_value=mock_check_category())
         mock_payload = '{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", ' \
                        '"channel": "email", "notification_type": "one shot", "enabled": false, "rule_config":{"window": "100"}, "delivery_config": {"server": "pop"}}'
 
@@ -441,6 +462,7 @@ class TestNotification:
         create_child_category = mocker.patch.object(ConfigurationManager, 'create_child_category',
                                                     return_value=mock_create_child_category())
         mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val())
+        mocker.patch.object(ConfigurationManager, 'get_category_all_items', return_value=mock_check_category())
 
         mocker.patch.object(AuditLogger, "__init__", return_value=None)
         audit_logger = mocker.patch.object(AuditLogger, "information", return_value=asyncio.sleep(.1))
@@ -528,7 +550,7 @@ class TestNotification:
         assert 400 == resp.status
         result = await resp.text()
         assert result.endswith(
-            "Invalid rule plugin:[{}] and/or delivery plugin:[{}] supplied.".format("threshol", "emai"))
+            "Invalid rule plugin {} and/or delivery plugin {} supplied.".format("threshol", "emai"))
 
     async def test_put_notification(self, mocker, client):
         mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)

@@ -408,14 +408,8 @@ class TestNotification:
 
     async def test_post_notification_duplicate_name(self, mocker, client):
         mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
-        mocker.patch.object(notification, '_hit_get_url', return_value=mock_get_url("/foglamp/notification/plugin"))
-        mocker.patch.object(notification, '_hit_post_url',
-                            side_effect=[mock_post_url("/notification/Test Notification"),
-                                         mock_post_url("/notification/Test Notification/rule/threshold"),
-                                         mock_post_url("/notification/Test Notification/delivery/email")])
         mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
-        mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val())
         mocker.patch.object(ConfigurationManager, 'get_category_all_items', return_value=mock_check_category(True))
         mock_payload = '{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", ' \
                        '"channel": "email", "notification_type": "one shot", "enabled": false}'

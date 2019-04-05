@@ -58,11 +58,11 @@ Query Readings Timebucket 1,PUT,http://localhost:8080/storage/reading/query,quer
 Multi And,PUT,http://localhost:8080/storage/table/test2/query,multi_and.json
 Multi Or,PUT,http://localhost:8080/storage/table/test2/query,multi_or.json
 Multi Mixed,PUT,http://localhost:8080/storage/table/test2/query,multi_mised.json
-Update Bad Condition,PUT,http://localhost:8080/storage/table/test2,update_bad.json
+update - Update Bad Condition,PUT,http://localhost:8080/storage/table/test2,update_bad.json
 Read back,GET,http://localhost:8080/storage/table/test2,
 Count Assets,PUT,http://localhost:8080/storage/reading/query,count_assets.json
 Reading Rate,PUT,http://localhost:8080/storage/reading/query,reading_property.json
-Update expression,PUT,http://localhost:8080/storage/table/test2,update_expression.json
+update - Update expression,PUT,http://localhost:8080/storage/table/test2,update_expression.json
 Read back update,PUT,http://localhost:8080/storage/table/test2/query,read_id_1xx.json
 Distinct,PUT,http://localhost:8080/storage/table/test2/query,where_distinct.json
 Update JSON,PUT,http://localhost:8080/storage/table/test,update_json.json
@@ -106,4 +106,5 @@ microseconds - Query asset NO alias,PUT,http://localhost:8080/storage/reading/qu
 microseconds - Query asset alias,PUT,http://localhost:8080/storage/reading/query,msec_query_asset_alias.json
 microseconds - Query asset aggregate min,PUT,http://localhost:8080/storage/reading/query,msec_query_asset_aggmin.json
 microseconds - Query asset aggregate min array,PUT,http://localhost:8080/storage/reading/query,msec_query_asset_aggminarray.json
+update - Update multi rows,PUT,http://localhost:8080/storage/table/test2,update_multi_rows.json
 Shutdown,POST,http://localhost:1081/foglamp/service/shutdown,,checkstate

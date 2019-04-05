@@ -667,7 +667,6 @@ bool		isAggregate = false;
 	}
 }
 
-#ifndef SQLITE_SPLIT_READINGS
 /**
  * Purge readings from the reading table
  */
@@ -791,7 +790,7 @@ int blocks = 0;
 		{
 			unsigned long midRowId = 0;
 			unsigned long prev_m = m;
-		    m = l + (r - l) / 2;
+		    	m = l + (r - l) / 2;
 			if (prev_m == m) break;
 
 			// e.g. select id from readings where rowid = 219867307 AND user_ts < datetime('now' , '-24 hours', 'utc');
@@ -803,11 +802,12 @@ int blocks = 0;
 			sqlBuffer.append(" hours');");
 			const char *query = sqlBuffer.coalesce();
 
+
 			rc = SQLexec(dbHandle,
-		     query,
-	  	     rowidCallback,
-		     &midRowId,
-		     &zErrMsg);
+			query,
+			rowidCallback,
+			&midRowId,
+			&zErrMsg);
 
 			if (rc != SQLITE_OK)
 			{
@@ -820,11 +820,14 @@ int blocks = 0;
 			{
 				// search in earlier/left half
 				r = m - 1;
+
+				// The m position should be skipped as midRowId is 0
+				m = r;
 			}
 			else //if (l != m)
 			{
 				// search in later/right half
-		        l = m + 1;
+		        	l = m + 1;
 			}
 		}
 
@@ -968,7 +971,7 @@ int blocks = 0;
 
 	unsentRetained = maxrowidLimit - rowidLimit;
 
-	numReadings = maxrowidLimit - minrowidLimit - deletedRows;
+	numReadings = maxrowidLimit +1 - minrowidLimit - deletedRows;
 
 	if (sent == 0)	// Special case when not north process is used
 	{
@@ -980,7 +983,7 @@ int blocks = 0;
 	convert << "{ \"removed\" : " << deletedRows << ", ";
 	convert << " \"unsentPurged\" : " << unsentPurged << ", ";
 	convert << " \"unsentRetained\" : " << unsentRetained << ", ";
-    convert << " \"readings\" : " << numReadings << " }";
+    	convert << " \"readings\" : " << numReadings << " }";
 
 	result = convert.str();
 
@@ -992,4 +995,3 @@ int blocks = 0;
 
 	return deletedRows;
 }
-#endif

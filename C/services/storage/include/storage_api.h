@@ -27,7 +27,8 @@ using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 #define READING_QUERY   	"^/storage/reading/query"
 #define READING_PURGE   	"^/storage/reading/purge"
 #define READING_INTEREST	"^/storage/reading/interest/([A-Za-z\\*][a-zA-Z0-9_]*)$"
-#define CREATE_TABLE_SNAPSHOT	"^/storage/table/([A-Za-z][a-zA-Z_0-9_]*)/snapshot$"
+#define GET_TABLE_SNAPSHOTS	"^/storage/table/([A-Za-z][a-zA-Z_0-9_]*)/snapshot$"
+#define CREATE_TABLE_SNAPSHOT	GET_TABLE_SNAPSHOTS
 #define LOAD_TABLE_SNAPSHOT	"^/storage/table/([A-Za-z][a-zA-Z_0-9_]*)/snapshot/([a-zA-Z_0-9_]*)$"
 #define DELETE_TABLE_SNAPSHOT	LOAD_TABLE_SNAPSHOT
 
@@ -71,6 +72,7 @@ public:
 	void	createTableSnapshot(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 	void	loadTableSnapshot(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 	void	deleteTableSnapshot(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
+	void	getTableSnapshots(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 	void	printList();
 
 public:

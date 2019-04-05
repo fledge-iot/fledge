@@ -125,6 +125,8 @@ typedef struct
 	string		producerToken;	// PI Server connector token
 	string		formatNumber;	// OMF protocol Number format
 	string		formatInteger;	// OMF protocol Integer format
+	vector<pair<string, string>>
+			staticData;	// Static data
         // Errors considered not blocking in the communication with the PI Server
 	std::vector<std::string>
 			notBlockingErrors;
@@ -186,6 +188,8 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	string formatNumber = configData->getValue("formatNumber");
 	string formatInteger = configData->getValue("formatInteger");
 
+	
+
 	/**
 	 * Extract host, port, path from URL
 	 */
@@ -227,6 +231,30 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	JSONStringToVectorString(connInfo->notBlockingErrors ,
 	                         configData->getValue("notBlockingErrors"),
 	                         std::string("errors400"));
+	/**
+	 * Add static data
+	 * Split the string up into each pair
+	 */
+	string staticData = configData->getValue("StaticData");
+	size_t pos = 0;
+	size_t start = 0;
+	do {
+		pos = staticData.find(",", start);
+		string item = staticData.substr(start, pos);
+		start = pos + 1;
+		size_t pos2 = 0;
+		if ((pos2 = item.find(":")) != string::npos)
+		{
+			string name = item.substr(0, pos2);
+			while (name[0] == ' ')
+				name = name.substr(1);
+			string value = item.substr(pos2 + 1);
+			while (value[0] == ' ')
+				value = value.substr(1);
+			pair<string, string> sData = make_pair(name, value);
+			connInfo->staticData.push_back(sData);
+		}
+	} while (pos != string::npos);
 
 #if VERBOSE_LOG
 	// Log plugin configuration
@@ -333,6 +361,7 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	connInfo->omf->setFormatType(OMF_TYPE_INTEGER,
 				     connInfo->formatInteger);
 
+	connInfo->omf->setStaticData(&connInfo->staticData);
 	connInfo->omf->setNotBlockingErrors(connInfo->notBlockingErrors);
 
 	// Send data

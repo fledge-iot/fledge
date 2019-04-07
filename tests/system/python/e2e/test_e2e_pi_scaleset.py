@@ -84,26 +84,16 @@ class TestE2ePiEgressWithScalesetFilter:
         start_north_pi_server_c(foglamp_url, pi_host, pi_port, pi_token, taskname=TASK_NAME)
 
         filter_cfg = {"enable": "true",
-                      "factors": json.dumps([
-                           {
-                               "asset": "{}{}".format(ASSET_PREFIX, ASSET_NAME),
-                               "datapoint": READ_KEY,
-                               "scale": str(SCALE),
-                               "offset": str(OFFSET)
-                           }])
-                      }
-
-        filter_cfg = {"enable": "true",
-                      "factors": json.dumps([
+                      "factors": {"factors": [
                           {
                               "asset": "{}{}".format(ASSET_PREFIX, ASSET_NAME),
                               "datapoint": READ_KEY,
                               "scale": SCALE,
                               "offset": OFFSET
-                          }])
+                          }]}
                       }
 
-        # add_filter(FILTER_PLUGIN, filter_branch, EGRESS_FILTER_NAME, filter_cfg, foglamp_url, TASK_NAME)
+        add_filter(FILTER_PLUGIN, filter_branch, EGRESS_FILTER_NAME, filter_cfg, foglamp_url, TASK_NAME)
 
         yield self.start_south_north_with_filter
 
@@ -130,14 +120,14 @@ class TestE2ePiEgressWithScalesetFilter:
     def _verify_ping_and_statistics(self, foglamp_url, count):
         ping_response = self.get_ping_status(foglamp_url)
         assert count == ping_response["dataRead"]
-        # assert count == ping_response["dataSent"]
+        assert count == ping_response["dataSent"]
 
         actual_stats_map = self.get_statistics_map(foglamp_url)
         key_asset_name_with_prefix = "{}{}".format(ASSET_PREFIX.upper(), ASSET_NAME.upper())
         assert count == actual_stats_map[key_asset_name_with_prefix]
         assert count == actual_stats_map['READINGS']
-        # assert count == actual_stats_map[TASK_NAME]
-        # assert count == actual_stats_map['Readings Sent']
+        assert count == actual_stats_map[TASK_NAME]
+        assert count == actual_stats_map['Readings Sent']
 
     def _verify_ingest(self, foglamp_url, value, read_count):
         asset_name_with_prefix = "{}{}".format(ASSET_PREFIX, ASSET_NAME)

@@ -1095,7 +1095,7 @@ class TestConfigurationManager:
         category_name = 'catname'
         item_name = 'itemname'
         new_value_entry = 'newvalentry'
-        storage_value_entry = {'value': 'test', 'description': 'Test desc', 'type': 'string', 'default': 'test', 'readonly': 'false'}
+        storage_value_entry = {'value': 'test', 'description': 'Test desc', 'type': 'string', 'default': 'test'}
         c_mgr._cacheManager.update(category_name, {item_name: storage_value_entry})
         with patch.object(ConfigurationManager, '_read_item_val', return_value=async_mock(storage_value_entry)) as readpatch:
             with patch.object(ConfigurationManager, '_update_value_val', return_value=async_mock(None)) as updatepatch:
@@ -1104,26 +1104,6 @@ class TestConfigurationManager:
                 callbackpatch.assert_called_once_with(category_name)
             updatepatch.assert_called_once_with(category_name, item_name, new_value_entry)
         readpatch.assert_called_once_with(category_name, item_name)
-
-    @pytest.mark.asyncio
-    async def test_set_category_item_value_entry_with_optional_attribute(self, reset_singleton):
-        async def async_mock(return_value):
-            return return_value
-
-        storage_client_mock = MagicMock(spec=StorageClientAsync)
-        c_mgr = ConfigurationManager(storage_client_mock)
-        category_name = 'catname'
-        item_name = 'itemname'
-        new_value_entry = 'newvalentry'
-        storage_value_entry = {'value': 'test', 'description': 'Test desc', 'type': 'string', 'default': 'test', 'readonly': 'true'}
-        with patch.object(_logger, 'exception') as log_exc:
-            with patch.object(ConfigurationManager, '_read_item_val', return_value=async_mock(storage_value_entry)) as readpatch:
-                with pytest.raises(Exception) as excinfo:
-                    await c_mgr.set_category_item_value_entry(category_name, item_name, new_value_entry)
-                assert excinfo.type is TypeError
-                assert 'Update not allowed for {} item_name as it has readonly attribute set'.format(item_name) == str(excinfo.value)
-            readpatch.assert_called_once_with(category_name, item_name)
-        assert 1 == log_exc.call_count
 
     @pytest.mark.asyncio
     async def test_set_category_item_value_entry_bad_update(self, reset_singleton):
@@ -2602,23 +2582,5 @@ class TestConfigurationManager:
                     await c_mgr.update_configuration_item_bulk(category_name, config_item_list)
                 assert exc_info.type is ValueError
                 assert 'Proposed value for item_name info is not allowed as per rule defined' == str(exc_info.value)
-            assert 1 == patch_log_exc.call_count
-        patch_get_all_items.assert_called_once_with(category_name)
-
-    async def test_update_configuration_item_bulk_with_readonly_optional_attribute(self, category_name='testcat'):
-        async def async_mock(return_value):
-            return return_value
-
-        cat_info = {'info': {'default': '3', 'description': 'Test', 'value': '3',
-                             'type': 'integer', 'readonly': 'true'}, 'info1': {'default': '3', 'description': 'Test', 'value': '3',
-                                                           'type': 'integer', 'readonly': 'false'}}
-        storage_client_mock = MagicMock(spec=StorageClientAsync)
-        c_mgr = ConfigurationManager(storage_client_mock)
-        with patch.object(c_mgr, 'get_category_all_items', return_value=async_mock(cat_info)) as patch_get_all_items:
-            with patch.object(_logger, 'exception') as patch_log_exc:
-                with pytest.raises(Exception) as exc_info:
-                    await c_mgr.update_configuration_item_bulk(category_name, {"info": "9", "info1": "25"})
-                assert exc_info.type is ValueError
-                assert 'Update not allowed for info item_name as it has readonly attribute set' == str(exc_info.value)
             assert 1 == patch_log_exc.call_count
         patch_get_all_items.assert_called_once_with(category_name)

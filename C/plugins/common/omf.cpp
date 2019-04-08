@@ -806,10 +806,15 @@ const std::string OMF::createTypeData(const Reading& reading) const
 
 	// Add the Static data part
 
-	string tData("[{ \"type\": \"object\", \"properties\": { "
-"\"Company\": {\"type\": \"string\"}, \"Location\": {\"type\": \"string\"}, "
-"\"Name\": { \"type\": \"string\", \"isindex\": true } }, "
-"\"classification\": \"static\", \"id\": \"");
+	string tData("[{ \"type\": \"object\", \"properties\": { ");
+	for (auto it = m_staticData->cbegin(); it != m_staticData->cend(); ++it)
+	{
+		tData.append("\"");
+		tData.append(it->first.c_str());
+		tData.append("\": {\"type\": \"string\"},");
+	}
+	tData.append("\"Name\": { \"type\": \"string\", \"isindex\": true } }, "
+			"\"classification\": \"static\", \"id\": \"");
 
 	// Add type_id + '_' + asset_name + '_typename_sensor'
 	OMF::setAssetTypeTag(reading.getAssetName(),
@@ -913,8 +918,16 @@ const std::string OMF::createStaticData(const Reading& reading) const
 			     "typename_sensor",
 			     sData);
 
-	sData.append("\", \"values\": [{\"Location\": \"Palo Alto\", "
-"\"Company\": \"Dianomic\", \"Name\": \"");
+	sData.append("\", \"values\": [{");
+	for (auto it = m_staticData->cbegin(); it != m_staticData->cend(); ++it)
+	{
+		sData.append("\"");
+		sData.append(it->first.c_str());
+		sData.append("\": \"");
+		sData.append(it->second.c_str());
+		sData.append("\", ");
+	}
+	sData.append(" \"Name\": \"");
 
 	// Add asset_name
 	sData.append(reading.getAssetName());

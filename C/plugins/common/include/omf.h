@@ -114,6 +114,11 @@ class OMF
 		// Removed mapped object types found in input data
 		void unsetMapObjectTypes(std::map<std::string, Reading*>& dataSuperSet) const;
 
+		void setStaticData(std::vector<std::pair<std::string, std::string>> *staticData)
+		{
+			m_staticData = staticData;
+		};
+
 	private:
 		/**
 		 * Builds the HTTP header to send
@@ -217,6 +222,12 @@ class OMF
 		// Data types cache[key] = (key_type_id, key data types)
 		std::map<std::string, OMFDataTypes>*
 					m_OMFDataTypes;
+		/**
+		 * Static data to send to OMF
+		 */
+		std::vector<std::pair<std::string, std::string>>
+			*m_staticData;
+
 };
 
 /**

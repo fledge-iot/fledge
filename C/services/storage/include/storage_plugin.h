@@ -47,7 +47,6 @@ public:
 	int		createTableSnapshot(const std::string& table, const std::string& id);
 	int		loadTableSnapshot(const std::string& table, const std::string& id);
 	int		deleteTableSnapshot(const std::string& table, const std::string& id);
-	char		*getTableSnapshots(const std::string& table);
 	PLUGIN_ERROR	*lastError();
 
 private:
@@ -64,7 +63,6 @@ private:
 	int		(*createTableSnapshotPtr)(PLUGIN_HANDLE, const char *, const char *);
 	int		(*loadTableSnapshotPtr)(PLUGIN_HANDLE, const char *, const char *);
 	int		(*deleteTableSnapshotPtr)(PLUGIN_HANDLE, const char *, const char *);
-	char		*(*getTableSnapshotsPtr)(PLUGIN_HANDLE, const char *);
 	PLUGIN_ERROR	*(*lastErrorPtr)(PLUGIN_HANDLE);
 };
 

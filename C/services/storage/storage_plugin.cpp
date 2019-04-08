@@ -57,9 +57,6 @@ StoragePlugin::StoragePlugin(PLUGIN_HANDLE handle) : Plugin(handle)
 	deleteTableSnapshotPtr =
 			(int (*)(PLUGIN_HANDLE, const char*, const char*))
 			      manager->resolveSymbol(handle, "plugin_delete_table_snapshot");
-	getTableSnapshotsPtr =
-			(char * (*)(PLUGIN_HANDLE, const char*))
-			      manager->resolveSymbol(handle, "plugin_get_table_snapshots");
 }
 
 /**
@@ -164,12 +161,4 @@ int StoragePlugin::loadTableSnapshot(const string& table, const string& id)
 int StoragePlugin::deleteTableSnapshot(const string& table, const string& id)
 {
         return this->deleteTableSnapshotPtr(instance, table.c_str(), id.c_str());
-}
-
-/**
- * Call the get table snaphot method in the plugin
- */
-char *StoragePlugin::getTableSnapshots(const string& table)
-{
-        return this->getTableSnapshotsPtr(instance, table.c_str());
 }

@@ -34,7 +34,7 @@ TASK_NAME = "North v2 PI"
 FILTER_PLUGIN = "scale-set"
 EGRESS_FILTER_NAME = "SS #1"
 
-READ_KEY = "temprature"
+READ_KEY = "temperature"
 SENSOR_VALUE = 21
 
 # scale(set) factor
@@ -65,7 +65,7 @@ class TestE2ePiEgressWithScalesetFilter:
 
     @pytest.fixture
     def start_south_north_with_filter(self, reset_and_start_foglamp, add_south, south_branch,
-                                      remove_data_file, remove_directories,
+                                      remove_data_file, remove_directories, enable_schedule,
                                       foglamp_url, add_filter, filter_branch, filter_name,
                                       start_north_pi_server_c, pi_host, pi_port, pi_token):
         """ This fixture clones given south & filter plugin repo, and starts south and PI north C instance with filter
@@ -81,7 +81,7 @@ class TestE2ePiEgressWithScalesetFilter:
 
         add_south(SOUTH_PLUGIN, south_branch, foglamp_url, service_name=SVC_NAME)
 
-        start_north_pi_server_c(foglamp_url, pi_host, pi_port, pi_token, taskname=TASK_NAME)
+        start_north_pi_server_c(foglamp_url, pi_host, pi_port, pi_token, taskname=TASK_NAME, start_task=False)
 
         filter_cfg = {"enable": "true",
                       "factors": {"factors": [
@@ -94,6 +94,7 @@ class TestE2ePiEgressWithScalesetFilter:
                       }
 
         add_filter(FILTER_PLUGIN, filter_branch, EGRESS_FILTER_NAME, filter_cfg, foglamp_url, TASK_NAME)
+        enable_schedule(foglamp_url, TASK_NAME)
 
         yield self.start_south_north_with_filter
 
@@ -102,8 +103,7 @@ class TestE2ePiEgressWithScalesetFilter:
         remove_directories("/tmp/foglamp-filter-{}".format(FILTER_PLUGIN))
 
     def test_end_to_end(self, start_south_north_with_filter, read_data_from_pi, foglamp_url, pi_host, pi_admin,
-                        pi_passwd, pi_db, wait_time, retries, skip_verify_north_interface,
-                        disable_schedule, enable_schedule):
+                        pi_passwd, pi_db, wait_time, retries, skip_verify_north_interface):
 
         subprocess.run(["cd $FOGLAMP_ROOT/extras/python; python3 -m fogbench -t ../../data/template.json -p http; cd -"]
                        , shell=True, check=True)

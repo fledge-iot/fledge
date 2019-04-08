@@ -23,7 +23,7 @@ from foglamp.services.core.api import south
 from foglamp.services.core.api import north
 from foglamp.services.core.api import filters
 from foglamp.services.core.api import notification
-
+from foglamp.services.core.api.plugins import install
 
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
@@ -154,8 +154,9 @@ def setup(app):
     # Get Syslog
     app.router.add_route('GET', '/foglamp/syslog', support.get_syslog_entries)
 
-    # Get Plugin
+    # Plugins (install, discovery)
     app.router.add_route('GET', '/foglamp/plugins/installed', plugin_discovery.get_plugins_installed)
+    app.router.add_route('POST', '/foglamp/plugins', install.add_plugin)
 
     # Filters 
     app.router.add_route('POST', '/foglamp/filter', filters.create_filter)

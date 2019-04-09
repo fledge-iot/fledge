@@ -2840,12 +2840,12 @@ SQLBuffer	sql;
  * @return		-1 on error, >= 0 on success
  *
  * The new created table name has the name:
- * table_id
+ * $table_snap$id
  */
 int Connection::create_table_snapshot(const string& table, const string& id)
 {
 	string query = "CREATE TABLE foglamp.";
-	query += table + "_" +  id + " AS SELECT * FROM foglamp." + table;
+	query += table + "_snap" +  id + " AS SELECT * FROM foglamp." + table;
 
 	logSQL("CreateTableSnapshot", query.c_str());
 
@@ -2882,7 +2882,7 @@ int Connection::load_table_snapshot(const string& table, const string& id)
 	string purgeQuery = "DELETE FROM foglamp." + table;
 	string query = "BEGIN TRANSACTION; ";
 	query += purgeQuery +"; INSERT INTO foglamp." + table;
-	query += " SELECT * FROM foglamp." + table + "_" + id;
+	query += " SELECT * FROM foglamp." + table + "_snap" + id;
 	query += "; COMMIT TRANSACTION;";
 
 	logSQL("LoadTableSnapshot", query.c_str());
@@ -2923,18 +2923,16 @@ int Connection::load_table_snapshot(const string& table, const string& id)
 }
 
 /**
- * Create snapshot of a common table
+ * Delete a snapshot of a common table
  *
  * @param table		The table to snapshot
  * @param id		The snapshot id
  * @return		-1 on error, >= 0 on success
  *
- * The new created table name has the name:
- * table_id
  */
 int Connection::delete_table_snapshot(const string& table, const string& id)
 {
-	string query = "DROP TABLE foglamp." + table + "_" + id;
+	string query = "DROP TABLE foglamp." + table + "_snap" + id;
 
 	logSQL("DeleteTableSnapshot", query.c_str());
 
@@ -2955,6 +2953,72 @@ int Connection::delete_table_snapshot(const string& table, const string& id)
 		raiseError("delete_table_snapshot", zErrMsg);
 		sqlite3_free(zErrMsg);
 		return -1;
+	}
+}
+
+/**
+ * Get list of snapshots for a given common table
+ *
+ * @param table		The given table name
+ */
+bool Connection::get_table_snapshots(const string& table,
+				     string& resultSet)
+{
+SQLBuffer sql;
+	try {
+		if (dbHandle == NULL)
+		{
+			raiseError("retrieve", "No SQLite 3 db connection available");
+			return false;
+		}
+		sql.append("SELECT REPLACE(name, '");
+		sql.append(table);
+		sql.append("_snap', '') AS id FROM sqlite_master WHERE type='table' AND name LIKE '");
+		sql.append(table);
+		sql.append("_snap%';");
+
+		const char *query = sql.coalesce();
+		char *zErrMsg = NULL;
+		int rc;
+		sqlite3_stmt *stmt;
+
+		logSQL("GetTableSnapshots", query);
+
+		// Prepare the SQL statement and get the result set
+		rc = sqlite3_prepare_v2(dbHandle, query, -1, &stmt, NULL);
+
+		if (rc != SQLITE_OK)
+		{
+			raiseError("get_table_snapshots", sqlite3_errmsg(dbHandle));
+			Logger::getLogger()->error("SQL statement: %s", query);
+			delete[] query;
+			return false;
+		}
+
+		// Call result set mapping
+		rc = mapResultSet(stmt, resultSet);
+
+		// Delete result set
+		sqlite3_finalize(stmt);
+
+		// Check result set mapping errors
+		if (rc != SQLITE_DONE)
+		{
+			raiseError("get_table_snapshots", sqlite3_errmsg(dbHandle));
+			Logger::getLogger()->error("SQL statement: %s", query);
+			delete[] query;
+			// Failure
+			return false;
+		}
+
+		// Release memory for 'query' var
+		delete[] query;
+		// Success
+		return true;
+	} catch (exception e) {
+		raiseError("get_table_snapshots", "Internal error: %s", e.what());
+		// Failure
+		return false;
 	}
 }
 #endif

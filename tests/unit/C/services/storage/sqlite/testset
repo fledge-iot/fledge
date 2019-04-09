@@ -58,11 +58,11 @@ Query Readings Timebucket 1,PUT,http://localhost:8080/storage/reading/query,quer
 Multi And,PUT,http://localhost:8080/storage/table/test2/query,multi_and.json
 Multi Or,PUT,http://localhost:8080/storage/table/test2/query,multi_or.json
 Multi Mixed,PUT,http://localhost:8080/storage/table/test2/query,multi_mised.json
-Update Bad Condition,PUT,http://localhost:8080/storage/table/test2,update_bad.json
+update - Update Bad Condition,PUT,http://localhost:8080/storage/table/test2,update_bad.json
 Read back,GET,http://localhost:8080/storage/table/test2,
 Count Assets,PUT,http://localhost:8080/storage/reading/query,count_assets.json
 Reading Rate,PUT,http://localhost:8080/storage/reading/query,reading_property.json
-Update expression,PUT,http://localhost:8080/storage/table/test2,update_expression.json
+update - Update expression,PUT,http://localhost:8080/storage/table/test2,update_expression.json
 Read back update,PUT,http://localhost:8080/storage/table/test2/query,read_id_1xx.json
 Distinct,PUT,http://localhost:8080/storage/table/test2/query,where_distinct.json
 Update JSON,PUT,http://localhost:8080/storage/table/test,update_json.json
@@ -77,7 +77,7 @@ Newer Bad,PUT,http://localhost:8080/storage/table/test2/query,newerBad.json
 Like,PUT,http://localhost:8080/storage/table/test2/query,where_like.json
 Group Time,PUT,http://localhost:8080/storage/reading/query,group_time.json
 Jira FOGL-690,POST,http://localhost:8080/storage/table/configuration,error-fogl690.json
-Jira FOGL-690 cleanup,DELETE,http://localhost:8080/storage/table/configuration,delete.json
+Set-FOGL-983,PUT,http://localhost:8080/storage/table/configuration,FOGL-983.json
 Add bad Readings,POST,http://localhost:8080/storage/reading,badreadings.json
 Query Readings Timebucket Bad,PUT,http://localhost:8080/storage/reading/query,query_readings_timebucket_bad.json
 Reading Rate Array,PUT,http://localhost:8080/storage/reading/query,reading_property_array.json
@@ -85,8 +85,8 @@ Common Read limit max_int,PUT,http://localhost:8080/storage/table/test/query,lim
 Common Read skip max_int,PUT,http://localhost:8080/storage/table/test/query,skip_max_int.json
 Timezone,PUT,http://localhost:8080/storage/table/test2/query,timezone.json
 Bad Timezone,PUT,http://localhost:8080/storage/table/test2/query,timezone_bad.json
-Set-FOGL-983,PUT,http://localhost:8080/storage/table/configuration,FOGL-983.json
 Get-FOGL-983,PUT,http://localhost:8080/storage/table/configuration/query,get-FOGL-983.json
+Jira FOGL-690 cleanup,DELETE,http://localhost:8080/storage/table/configuration,delete.json
 Update now,PUT,http://localhost:8080/storage/table/test2,updatenow.json
 Get Reading series group by minutes,PUT,http://localhost:8080/storage/reading/query,series_group_by_minutes.json
 Get Reading series (seconds),PUT,http://localhost:8080/storage/reading/query,series_seconds.json
@@ -106,4 +106,7 @@ microseconds - Query asset NO alias,PUT,http://localhost:8080/storage/reading/qu
 microseconds - Query asset alias,PUT,http://localhost:8080/storage/reading/query,msec_query_asset_alias.json
 microseconds - Query asset aggregate min,PUT,http://localhost:8080/storage/reading/query,msec_query_asset_aggmin.json
 microseconds - Query asset aggregate min array,PUT,http://localhost:8080/storage/reading/query,msec_query_asset_aggminarray.json
+update - Update multi rows,PUT,http://localhost:8080/storage/table/test2,update_multi_rows.json
+insert - Insert 1 row,POST,http://localhost:8080/storage/table/test2,insert_1row.json
+insert - Insert multi rows,POST,http://localhost:8080/storage/table/test2,insert_multi_rows.json
 Shutdown,POST,http://localhost:1081/foglamp/service/shutdown,,checkstate

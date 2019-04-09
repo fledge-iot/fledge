@@ -1,0 +1,20 @@
+{
+  "inserts" : [
+    {
+      "id": 1000,
+      "key": "INSERT_2_1",
+      "description": "insert - multi rows",
+      "data": {
+        "json": "inserted"
+      }
+    },
+    {
+      "id": 1001,
+      "key": "INSERT_2_2",
+      "description": "insert - multi rows",
+      "data": {
+        "json": "inserted"
+      }
+    }
+  ]
+}

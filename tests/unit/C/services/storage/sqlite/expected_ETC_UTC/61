@@ -1,1 +1,1 @@
-{ "entryPoint" : "update", "message" : "No rows where updated", "retryable" : false}
+{ "entryPoint" : "update", "message" : "Not all updates within transaction succeeded", "retryable" : false}

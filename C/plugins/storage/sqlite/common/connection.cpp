@@ -985,8 +985,9 @@ Document	document;
 ostringstream convert;
 std::size_t arr = data.find("inserts");
 
-// Check first the 'inserts' property in JSON data
-bool stdInsert = (arr == std::string::npos || arr > 8);
+	// Check first the 'inserts' property in JSON data
+	bool stdInsert = (arr == std::string::npos || arr > 8);
+
 	// If input data is not an array of iserts
 	// create an array with one element
 	if (stdInsert)
@@ -1191,7 +1192,7 @@ SQLBuffer	sql;
 			raiseError("update", "Payload is missing the updates array");
 			return -1;
 		}
-		
+
 		sql.append("BEGIN TRANSACTION;");
 		int i=0;
 		for (Value::ConstValueIterator iter = updates.Begin(); iter != updates.End(); ++iter,++i)
@@ -1512,11 +1513,24 @@ SQLBuffer	sql;
 
 		int update = sqlite3_changes(dbHandle);
 
-		if (update == 0)
-			raiseError("update", "Not all updates within transaction succeeded");
+		int return_value=0;
 
-		// Return the status
-		return (update ? row : -1);
+		if (update == 0)
+		{
+			raiseError("update", "Not all updates within transaction succeeded");
+			return_value = -1;
+		}
+		else
+		{
+			return_value = (row == 1 ? update : row);
+		}
+
+		// Returns the number of rows affected, cases :
+		//
+		// 1) update == 0, no update,                                    returns -1
+		// 2) single command SQL that could affects multiple rows,       returns 'update'
+		// 3) multiple SQL commands packed and executed in one SQLexec,  returns 'row'
+		return (return_value);
 	}
 
 	// Return failure

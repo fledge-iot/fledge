@@ -39,12 +39,12 @@ Release Date: 2019-04-08
 
     - Enhancements / Bug Fix:
        - Performance improvements for SQLite storage plugin.
-       - Improve performance of data browsing where large datasets have been acquired
+       - Improved performance of data browsing where large datasets have been acquired
        - Optimized statistics history collection
        - Optimized purge task
        - The readings count shown on GUI and south page and corresponding API endpoints now shows total readings count and not what is currently buffered by FogLAMP. So these counts don't reduce when purge task runs
        - Static data in the OMF plugin was not being correctly taken from the plugin configuration
-       - Reduce the number of informational log messages being sent to the syslog
+       - Reduced the number of informational log messages being sent to the syslog
 
 
 - **GUI**

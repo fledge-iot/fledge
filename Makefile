@@ -15,6 +15,7 @@ MAKE_INSTALL = $(MAKE) install
 CP            := cp
 CP_DIR        := cp -r
 SSL_NAME      := "foglamp"
+AUTH_NAME     := "ca"
 SSL_DAYS      := "365"
 
 ###############################################################################
@@ -190,6 +191,9 @@ install : $(INSTALL_DIR) \
 ###############################################################################
 generate_selfcertificate:
 	scripts/certificates $(SSL_NAME) $(SSL_DAYS)
+	scripts/auth_certificates ca $(AUTH_NAME) $(SSL_DAYS)
+	scripts/auth_certificates user user $(SSL_DAYS)
+	scripts/auth_certificates user admin $(SSL_DAYS)
 
 ###############################################################################
 ############################ C BUILD/INSTALL TARGETS ##########################

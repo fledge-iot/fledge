@@ -1,0 +1,1 @@
+{ "entryPoint" : "appendReadings", "message" : "Payload is missing a readings array", "retryable" : false}

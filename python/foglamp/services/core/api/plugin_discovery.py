@@ -26,17 +26,17 @@ async def get_plugins_installed(request):
     :Example:
         curl -X GET http://localhost:8081/foglamp/plugins/installed
         curl -X GET http://localhost:8081/foglamp/plugins/installed?config=true
-        curl -X GET http://localhost:8081/foglamp/plugins/installed?type=north|south|filter|notify|rule
+        curl -X GET http://localhost:8081/foglamp/plugins/installed?type=north|south|filter|notificationDelivery|notificationRule
         curl -X 'GET http://localhost:8081/foglamp/plugins/installed?type=north&config=true'
     """
 
     plugin_type = None
     is_config = False
     if 'type' in request.query and request.query['type'] != '':
-        plugin_type = request.query['type'].lower()
+        plugin_type = request.query['type'].lower() if request.query['type'] not in ['notificationDelivery', 'notificationRule'] else request.query['type']
 
-    if plugin_type is not None and plugin_type not in ['north', 'south', 'filter', 'notify', 'rule']:
-        raise web.HTTPBadRequest(reason="Invalid plugin type. Must be 'north' or 'south' or 'filter' or 'notify' or 'rule'.")
+    if plugin_type is not None and plugin_type not in ['north', 'south', 'filter', 'notificationDelivery', 'notificationRule']:
+        raise web.HTTPBadRequest(reason="Invalid plugin type. Must be 'north' or 'south' or 'filter' or 'notificationDelivery' or 'notificationRule'.")
 
     if 'config' in request.query:
         config = request.query['config']

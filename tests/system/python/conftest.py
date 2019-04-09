@@ -9,6 +9,7 @@
 """
 import subprocess
 import os
+import sys
 import fnmatch
 import http.client
 import json
@@ -22,6 +23,9 @@ __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
+
+sys.path.append(os.path.join(os.path.dirname(__file__), 'helpers'))
+sys.path.append(os.path.join(os.path.dirname(__file__)))
 
 
 @pytest.fixture
@@ -40,8 +44,8 @@ def reset_and_start_foglamp(storage_plugin):
 
     subprocess.run(["echo YES | $FOGLAMP_ROOT/scripts/foglamp reset"], shell=True, check=True)
     subprocess.run(["$FOGLAMP_ROOT/scripts/foglamp start"], shell=True)
-    stat = subprocess.run(["$FOGLAMP_ROOT/scripts/foglamp status"], shell=True, stdout=subprocess.PIPE)
-    assert "FogLAMP not running." not in stat.stdout.decode("utf-8")
+    stat = subprocess.run(["$FOGLAMP_ROOT/scripts/foglamp status"], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    assert "FogLAMP not running." not in stat.stderr.decode("utf-8")
 
 
 def find(pattern, path):
@@ -291,6 +295,18 @@ def pytest_addoption(parser):
                      help="Generic wait time between processes to run")
     parser.addoption("--retries", action="store", default=3, type=int,
                      help="Number of tries for polling")
+    # TODO: Temporary fixture, to be used with value False for environments where PI Web API is not stable
+    parser.addoption("--skip-verify-north-interface", action="store_false",
+                     help="Verify data from external north system api")
+
+    parser.addoption("--remote-user", action="store", default="ubuntu",
+                     help="Username on remote machine where FogLAMP will run")
+    parser.addoption("--remote-ip", action="store", default="127.0.0.1",
+                     help="IP of remote machine where FogLAMP will run")
+    parser.addoption("--key-path", action="store", default="~/.ssh/id_rsa.pub",
+                     help="Path of key file used for authentication to remote machine")
+    parser.addoption("--remote-foglamp-path", action="store",
+                     help="Path on the remote machine where FogLAMP is clone and built")
 
     # South/North Args
     parser.addoption("--south-branch", action="store", default="develop",
@@ -350,6 +366,31 @@ def pytest_addoption(parser):
 @pytest.fixture
 def storage_plugin(request):
     return request.config.getoption("--storage-plugin")
+
+
+@pytest.fixture
+def remote_user(request):
+    return request.config.getoption("--remote-user")
+
+
+@pytest.fixture
+def remote_ip(request):
+    return request.config.getoption("--remote-ip")
+
+
+@pytest.fixture
+def key_path(request):
+    return request.config.getoption("--key-path")
+
+
+@pytest.fixture
+def remote_foglamp_path(request):
+    return request.config.getoption("--remote-foglamp-path")
+
+
+@pytest.fixture
+def skip_verify_north_interface(request):
+    return not request.config.getoption("--skip-verify-north-interface")
 
 
 @pytest.fixture

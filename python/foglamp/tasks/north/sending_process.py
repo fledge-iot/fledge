@@ -818,6 +818,12 @@ class SendingProcess(FoglampProcess):
             self._core_microservice_management_client.create_configuration_category(config_payload)
             _config_from_manager = self._core_microservice_management_client.get_configuration_category(category_name=cat_name)
 
+            # Check and warn if pipeline exists in North task instance
+            if 'filter' in _config_from_manager:
+                _LOGGER.warning('Filter pipeline is not supported on Python North task instance [%s], plugin [%s]',
+                                cat_name,
+                                _config_from_manager['plugin']['value'])
+
             # Create the parent category for all north services
             try:
                 parent_payload = json.dumps({"key": "North", "description": "North tasks", "value": {},

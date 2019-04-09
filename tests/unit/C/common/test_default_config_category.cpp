@@ -222,6 +222,12 @@ TEST(CategoryTest, default_handle_type_JSON_fail)
                 // test fails here!
                 ASSERT_TRUE(false);
         }
+	catch (exception *e)
+	{
+		delete e;
+		// Test ok; exception found
+		ASSERT_TRUE(true);
+	}
         catch (...)
         {
                 // Test ok; exception found

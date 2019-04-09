@@ -160,7 +160,7 @@ static void loadDataThread(SendingProcess *loadData)
 						  readIdx);
 #endif
 
-	                Logger::getLogger()->warn("SendingProcess is faster to load data than the destination to process them,"
+	                Logger::getLogger()->info("SendingProcess is faster to load data than the destination to process them,"
 	                                          " so all the %lu in memory buffers are full and the load thread should wait until at least a buffer is freed.",
 	                                          loadData->getMemoryBufferSize());
 

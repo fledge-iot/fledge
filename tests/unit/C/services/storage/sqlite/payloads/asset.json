@@ -11,6 +11,13 @@
 						"read_key" : "5b3be500-ff95-41ae-b5a4-cc99d18bef40",
 						"reading" : { "rate" : 45.1 },
 						"user_ts" : "2017-09-21 15:03:09.025655"
+					},
+					{
+						"asset_code": "MyAsset",
+						"read_key" : "5b3be500-ff95-41ae-b5a4-cc99d18bef41",
+						"reading" : { "rate" : 60.1 },
+						"user_ts" : "2017-09-21 15:04:09.025655"
 					}
+
 	]
 }

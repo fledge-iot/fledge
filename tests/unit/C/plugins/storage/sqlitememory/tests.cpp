@@ -9,6 +9,11 @@ using namespace std;
 
 int main(int argc, char **argv) {
     testing::InitGoogleTest(&argc, argv);
+
+    testing::GTEST_FLAG(repeat) = 1000;
+    testing::GTEST_FLAG(shuffle) = true;
+    testing::GTEST_FLAG(break_on_failure) = true;
+
     return RUN_ALL_TESTS();
 }
 
@@ -31,13 +36,14 @@ class TestFormatDate : public ::testing::TestWithParam<RowFormatDate> {
 
 TEST_P(TestFormatDate, TestConversions)
 {
+	Connection a;
 	Logger::getLogger()->setMinLevel("debug");
 
 	RowFormatDate const& p = GetParam();
 
 	char formatted_date[50] = {0};
 	memset (formatted_date,0 , sizeof (formatted_date));
-	bool result  = Connection::formatDate(formatted_date, sizeof(formatted_date), p.test_case);
+	bool result  = a.formatDate(formatted_date, sizeof(formatted_date), p.test_case);
 
 	string test_case = formatted_date;
 	string expected = p.expected;

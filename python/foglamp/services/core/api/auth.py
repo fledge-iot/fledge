@@ -7,15 +7,16 @@
 """ auth routes """
 
 import re
+import json
 from collections import OrderedDict
 
 from aiohttp import web
 from foglamp.services.core.user_model import User
 from foglamp.common.web.middleware import has_permission
 from foglamp.common import logger
+from foglamp.common.web.ssl_wrapper import SSLVerifier
 
-
-__author__ = "Praveen Garg, Ashish Jabble"
+__author__ = "Praveen Garg, Ashish Jabble, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -59,38 +60,72 @@ async def login(request):
     """ Validate user with its username and password
 
     :Example:
-        curl -X POST -d '{"username": "user", "password": "foglamp"}' http://localhost:8081/foglamp/login
+        curl -d '{"username": "user", "password": "foglamp"}' -X POST http://localhost:8081/foglamp/login
+        curl -T data/etc/certs/user.cert -X POST http://localhost:8081/foglamp/login --insecure (--insecure or -k)
     """
+    auth_method = request.auth_method if 'auth_method' in dir(request) else "any"
+    data = await request.text()
 
-    data = await request.json()
-    username = data.get('username')
-    password = data.get('password')
+    # Check for appropriate payload per auth_method
+    if auth_method == 'certificate':
+        if not data.startswith("-----BEGIN CERTIFICATE-----"):
+            raise web.HTTPBadRequest(reason="Use a valid certificate to login.")
+    elif auth_method == 'password':
+        try:
+            user_data = json.loads(data)
+        except json.JSONDecodeError:
+            raise web.HTTPBadRequest(reason="Use a valid username and password to login.")
 
-    if not username or not password:
-        _logger.warning("Username and password are required to login")
-        raise web.HTTPBadRequest(reason="Username or password is missing")
+    if data.startswith("-----BEGIN CERTIFICATE-----"):
+        peername = request.transport.get_extra_info('peername')
+        if peername is not None:
+            host, port = peername
 
-    username = str(username).lower()
+        try:
+            await User.Objects.verify_certificate(data)
+            username = SSLVerifier.get_subject()['commonName']
+            uid, token, is_admin = await User.Objects.certificate_login(username, host)
+            # set the user to request object
+            request.user = await User.Objects.get(uid=uid)
+            # set the token to request
+            request.token = token
+        except (SSLVerifier.VerificationError, User.DoesNotExist, OSError) as e:
+            raise web.HTTPUnauthorized(reason="Authentication failed")
+        except ValueError as ex:
+            raise web.HTTPUnauthorized(reason="Authentication failed: {}".format(str(ex)))
+    else:
+        try:
+            data = json.loads(data)
+        except json.JSONDecodeError:
+            raise web.HTTPBadRequest(reason="Invalid username and/or password.")
 
-    peername = request.transport.get_extra_info('peername')
-    host = '0.0.0.0'
-    if peername is not None:
-        host, port = peername
-    try:
-        uid, token, is_admin = await User.Objects.login(username, password, host)
-    except (User.DoesNotExist, User.PasswordDoesNotMatch, ValueError) as ex:
-        _logger.warning(str(ex))
-        return web.HTTPNotFound(reason=str(ex))
-    except User.PasswordExpired as ex:
-        # delete all user token for this user
-        await User.Objects.delete_user_tokens(str(ex))
+        username = data.get('username')
+        password = data.get('password')
 
-        msg = 'Your password has been expired. Please set your password again'
-        _logger.warning(msg)
-        return web.HTTPUnauthorized(reason=msg)
+        if not username or not password:
+            _logger.warning("Username and password are required to login")
+            raise web.HTTPBadRequest(reason="Username or password is missing")
+
+        username = str(username).lower()
+
+        peername = request.transport.get_extra_info('peername')
+        host = '0.0.0.0'
+        if peername is not None:
+            host, port = peername
+        try:
+            uid, token, is_admin = await User.Objects.login(username, password, host)
+        except (User.DoesNotExist, User.PasswordDoesNotMatch, ValueError) as ex:
+            _logger.warning(str(ex))
+            return web.HTTPNotFound(reason=str(ex))
+        except User.PasswordExpired as ex:
+            # delete all user token for this user
+            await User.Objects.delete_user_tokens(str(ex))
+
+            msg = 'Your password has been expired. Please set your password again'
+            _logger.warning(msg)
+            return web.HTTPUnauthorized(reason=msg)
 
     _logger.info("User with username:<{}> has been logged in successfully".format(username))
-
     return web.json_response({"message": "Logged in successfully", "uid": uid, "token": token, "admin": is_admin})
 
 

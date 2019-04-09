@@ -1,0 +1,16 @@
+{
+  "where" : {
+    "column" : "asset_code",
+    "condition" : "!=",
+    "value" : "MyAsset"
+  },
+  "return" : [
+    "asset_code",
+    "read_key",
+    "reading",
+    "user_ts"
+  ],
+  "sort" : {
+    "column" : "id"
+  }
+}

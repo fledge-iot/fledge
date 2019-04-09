@@ -15,7 +15,6 @@ from foglamp.common import logger
 from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.tasks.statistics.statistics_history import StatisticsHistory
 from foglamp.common.process import FoglampProcess
-from foglamp.common import utils as common_utils
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -49,20 +48,6 @@ class TestStatisticsHistory:
             log.assert_called_once_with("StatisticsHistory")
         mock_process.assert_called_once_with()
 
-    async def test_insert_into_stats_history(self):
-        with patch.object(FoglampProcess, '__init__'):
-            with patch.object(logger, "setup"):
-                sh = StatisticsHistory()
-                sh._storage_async = MagicMock(spec=StorageClientAsync)
-                with patch.object(sh._storage_async, "insert_into_tbl", return_value=mock_coro(None)) as patch_storage:
-                    ts = common_utils.local_timestamp()
-                    await sh._insert_into_stats_history(key='Bla', value=1, history_ts=ts)
-                args, kwargs = patch_storage.call_args
-                assert "statistics_history" == args[0]
-                payload = ast.literal_eval(args[1])
-                assert "Bla" == payload["key"]
-                assert 1 == payload["value"]
-
     async def test_update_previous_value(self):
         with patch.object(FoglampProcess, '__init__'):
             with patch.object(logger, "setup"):
@@ -92,10 +77,9 @@ class TestStatisticsHistory:
                                     }]
                           }
                 with patch.object(sh._storage_async, "query_tbl", return_value=mock_coro(retval)) as mock_keys:
-                    with patch.object(sh, "_insert_into_stats_history", return_value=mock_coro(None)) as mock_insert_history:
-                        with patch.object(sh, "_bulk_update_previous_value", return_value=mock_coro(None)) as mock_update:
+                    with patch.object(sh, "_bulk_update_previous_value", return_value=mock_coro(None)) as mock_update:
+                        with patch.object(sh._storage_async, "insert_into_tbl", return_value=mock_coro(None)) as mock_bulk_insert:
                             await sh.run()
-                        assert 1 == mock_update.call_count
-                    args, kwargs = mock_insert_history.call_args
-                    assert "READINGS" == kwargs["key"]
+                    assert 1 == mock_bulk_insert.call_count
+                    assert 1 == mock_update.call_count
                 mock_keys.assert_called_once_with('statistics')

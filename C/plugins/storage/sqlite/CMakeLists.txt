@@ -7,10 +7,14 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 set(STORAGE_COMMON_LIB storage-common-lib)
 
 # Find source files
-file(GLOB SOURCES *.cpp)
+file(GLOB SOURCES ./common/*.cpp *.cpp)
 
 # Include header files
-include_directories(include ../../../common/include ../../../services/common/include ../common/include)
+include_directories(./include)
+include_directories(./common/include)
+include_directories(../../../common/include)
+include_directories(../../../services/common/include)
+include_directories(../common/include)
 include_directories(../../../thirdparty/rapidjson/include)
 link_directories(${PROJECT_BINARY_DIR}/../../../lib)
 

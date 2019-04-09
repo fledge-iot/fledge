@@ -1,0 +1,13 @@
+{
+	"return": ["key", "data"],
+	"json_properties": [{
+		"column": "data",
+		"path": ["json"],
+		"value": { "providers": ["username123", "ldap_test_10"]}
+	}],
+	"where": {
+		"column": "key",
+		"condition": "=",
+		"value": "UPDA"
+	}
+}

@@ -16,9 +16,25 @@
 #include <http_sender.h>
 #include <zlib.h>
 
+#define TYPE_ID_DEFAULT 1
+#define FAKE_ASSET_KEY "_default_start_id_"
 #define OMF_TYPE_STRING  "string"
 #define OMF_TYPE_INTEGER "integer"
 #define OMF_TYPE_FLOAT   "number"
+
+/**
+ * Per asset dataTypes
+ *
+ * typeId is a prefix for OMF data Type messages
+ * types is a JSON string with datapoint names and types
+ * This class is used in a std::map where assetName is a key
+ */
+class OMFDataTypes
+{
+        public:
+                long typeId;
+                std::string types;
+};
 
 /**
  * The OMF class.
@@ -32,7 +48,12 @@ class OMF
 		 */
 		OMF(HttpSender& sender,
                     const std::string& path,
-		    const std::string& typeId,
+		    const long typeId,
+		    const std::string& producerToken);
+
+		OMF(HttpSender& sender,
+		    const std::string& path,
+		    std::map<std::string, OMFDataTypes>& types,
 		    const std::string& producerToken);
 
 		// Destructor
@@ -81,8 +102,8 @@ class OMF
 		std::string compress_string(const std::string& str,
                             				int compressionlevel = Z_DEFAULT_COMPRESSION);
 
-		// Return current value of type-id
-		const std::string& getTypeId() { return m_typeId; };
+		// Return current value of global type-id
+		const long getTypeId() const { return m_typeId; };
 
 		// Check DataTypeError
 		bool isDataTypeError(const char* message);
@@ -92,6 +113,11 @@ class OMF
 					std::map<std::string, Reading*>& dataSuperSet) const;
 		// Removed mapped object types found in input data
 		void unsetMapObjectTypes(std::map<std::string, Reading*>& dataSuperSet) const;
+
+		void setStaticData(std::vector<std::pair<std::string, std::string>> *staticData)
+		{
+			m_staticData = staticData;
+		};
 
 	private:
 		/**
@@ -134,13 +160,13 @@ class OMF
 		bool sendDataTypes(const Reading& row);
 
 		// Get saved dataType
-		static bool getCreatedTypes(const std::string& key);
+		bool getCreatedTypes(const std::string& key);
 
 		// Set saved dataType
-		static bool setCreatedTypes(const std::string& key);
+		bool setCreatedTypes(const std::string& key);
 
 		// Clear data types cache
-		static void clearCreatedTypes();
+		void clearCreatedTypes();
 
 		// Increment type-id value
 		void incrementTypeId();
@@ -148,10 +174,28 @@ class OMF
                 // Handle data type errors
 		bool handleTypeErrors(const Reading& reading);
 
+		// Extract assetName from erro message
+		std::string getAssetNameFromError(const char* message);
+
+		// Get asset type-id from cached data
+		long getAssetTypeId(const std::string& assetName) const;
+
+		// Increment per asset type-id value
+		void incrementAssetTypeId(const std::string& assetName);
+
+		// Set global type-id as the maximum value of all per asset type-ids
+		void setTypeId();
+
+		// Set saved dataType
+		bool setCreatedTypes(const Reading& row);
+
+		// Remove cached data types enttry for given asset name
+		void clearCreatedTypes(const std::string& key);
+
 	private:
-		const std::string		m_path;
-		std::string			m_typeId;
-		const std::string		m_producerToken;
+		const std::string	m_path;
+		long			m_typeId;
+		const std::string	m_producerToken;
 
 		// Define the OMF format to use for each type
 		// the format will not be applied if the string is empty
@@ -170,9 +214,20 @@ class OMF
 		bool			m_lastError;
 		bool			m_changeTypeId;
 
-		// These errors are considered not blocking in the communication with the destination,
-                // the sending operation will proceed with the next block of data if one of these is encountered
-                std::vector<std::string> m_notBlockingErrors;
+		// These errors are considered not blocking in the communication
+		// with the destination, the sending operation will proceed
+		// with the next block of data if one of these is encountered
+		std::vector<std::string> m_notBlockingErrors;
+
+		// Data types cache[key] = (key_type_id, key data types)
+		std::map<std::string, OMFDataTypes>*
+					m_OMFDataTypes;
+		/**
+		 * Static data to send to OMF
+		 */
+		std::vector<std::pair<std::string, std::string>>
+			*m_staticData;
+
 };
 
 /**
@@ -182,7 +237,7 @@ class OMF
 class OMFData
 {
 	public:
-		OMFData(const Reading& reading, const std::string& typeId);
+		OMFData(const Reading& reading, const long typeId);
 		const std::string& OMFdataVal() const;
 	private:
 		std::string	m_value;

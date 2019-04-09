@@ -164,8 +164,10 @@ sqlite_reset() {
         rm ${DEFAULT_SQLITE_DB_FILE} ||
         sqlite_log "err" "Cannot drop database '${DEFAULT_SQLITE_DB_FILE}' for the FogLAMP Plugin '${PLUGIN}'" "all" "pretty"
     fi
+    rm -f ${DEFAULT_SQLITE_DB_FILE}-journal ${DEFAULT_SQLITE_DB_FILE}-wal ${DEFAULT_SQLITE_DB_FILE}-shm
     # 2- Create new datafile an apply init file
     INIT_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
+PRAGMA page_size = 4096;
 ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}' AS 'foglamp';
 .read '${INIT_SQL}'
 .quit

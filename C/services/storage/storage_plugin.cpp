@@ -48,6 +48,15 @@ StoragePlugin::StoragePlugin(PLUGIN_HANDLE handle) : Plugin(handle)
 				manager->resolveSymbol(handle, "plugin_release");
 	lastErrorPtr = (PLUGIN_ERROR * (*)(PLUGIN_HANDLE))
 				manager->resolveSymbol(handle, "plugin_last_error");
+	createTableSnapshotPtr =
+			(int (*)(PLUGIN_HANDLE, const char*, const char*))
+			      manager->resolveSymbol(handle, "plugin_create_table_snapshot");
+	loadTableSnapshotPtr =
+			(int (*)(PLUGIN_HANDLE, const char*, const char*))
+			      manager->resolveSymbol(handle, "plugin_load_table_snapshot");
+	deleteTableSnapshotPtr =
+			(int (*)(PLUGIN_HANDLE, const char*, const char*))
+			      manager->resolveSymbol(handle, "plugin_delete_table_snapshot");
 }
 
 /**
@@ -128,4 +137,28 @@ void StoragePlugin::release(const char *results)
 PLUGIN_ERROR *StoragePlugin::lastError()
 {
 	return this->lastErrorPtr(instance);
+}
+
+/**
+ * Call the create table snaphot method in the plugin
+ */
+int StoragePlugin::createTableSnapshot(const string& table, const string& id)
+{
+        return this->createTableSnapshotPtr(instance, table.c_str(), id.c_str());
+}
+
+/**
+ * Call the load table snaphot method in the plugin
+ */
+int StoragePlugin::loadTableSnapshot(const string& table, const string& id)
+{
+        return this->loadTableSnapshotPtr(instance, table.c_str(), id.c_str());
+}
+
+/**
+ * Call the delete table snaphot method in the plugin
+ */
+int StoragePlugin::deleteTableSnapshot(const string& table, const string& id)
+{
+        return this->deleteTableSnapshotPtr(instance, table.c_str(), id.c_str());
 }

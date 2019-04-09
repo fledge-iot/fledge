@@ -197,7 +197,13 @@ async def post_notification(request):
         try:
             # Get default config for rule and channel plugins
             url = '{}/plugin'.format(request.url)
-            list_plugins = json.loads(await _hit_get_url(url))
+            try:
+                # When authentication is mandatory we need to pass token in request header
+                auth_token = request.token
+            except AttributeError:
+                auth_token = None
+
+            list_plugins = json.loads(await _hit_get_url(url, auth_token))
             r = list(filter(lambda rules: rules['name'] == rule, list_plugins['rules']))
             c = list(filter(lambda channels: channels['name'] == channel, list_plugins['delivery']))
             if len(r) == 0 or len(c) == 0: raise KeyError
@@ -312,8 +318,13 @@ async def put_notification(request):
             url = str(request.url)
             url_parts = url.split("/foglamp/notification")
             url = '{}/foglamp/notification/plugin'.format(url_parts[0])
-            list_plugins = json.loads(await _hit_get_url(url))
+            try:
+                # When authentication is mandatory we need to pass token in request header
+                auth_token = request.token
+            except AttributeError:
+                auth_token = None
 
+            list_plugins = json.loads(await _hit_get_url(url, auth_token))
             search_rule = rule if rule_changed else current_config['rule']['value']
             r = list(filter(lambda rules: rules['name'] == search_rule, list_plugins['rules']))
             if len(r) == 0: raise KeyError
@@ -412,10 +423,11 @@ async def delete_notification(request):
         return web.json_response({'result': 'Notification {} deleted successfully.'.format(notif)})
 
 
-async def _hit_get_url(get_url):
+async def _hit_get_url(get_url, token=None):
+    headers = {"Authorization": token} if token else None
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(get_url) as resp:
+            async with session.get(get_url, headers=headers) as resp:
                 status_code = resp.status
                 jdoc = await resp.text()
                 if status_code not in range(200, 209):

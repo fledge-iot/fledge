@@ -33,21 +33,24 @@ Release Date: 2019-04-08
 - **FogLAMP Core**
 
     - New Features:
+       - Addition of a new notification delivery plugin that will create an asset reading when a notification is delivered. This can then be sent to any system north of the FogLAMP instance via the usual mechanisms.
 
-
-
-    - Bug Fix:
-
+    - Enhancements / Bug Fix:
+       - FogLAMP performance has been improved when using SQLite DB.
+       - Improve performance of data browsing where large datasets have been acquired.
+       - Improve the ease of configuration of the email notification plugin
+       - The readings count shown on GUI and south page and corresponding API endpoints now shows total readings count and not what is currently buffered by FogLAMP. So these counts don't reduce when purge task runs.
+       - Static data in the OMF plugin was not being correctly taken from the plugin configuration. This is now fixed and the correct data is now sent to the PI Server.
+       - Reduce the number of informational log messages being sent to the syslog.
 
 
 - **GUI**
 
     - New Features:
-
-
+       - Notifications UI
 
     - Bug Fix:
-
+       - Backup creation time format
 
 
 v1.5.1

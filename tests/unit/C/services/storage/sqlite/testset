@@ -109,4 +109,7 @@ microseconds - Query asset aggregate min array,PUT,http://localhost:8080/storage
 update - Update multi rows,PUT,http://localhost:8080/storage/table/test2,update_multi_rows.json
 insert - Insert 1 row,POST,http://localhost:8080/storage/table/test2,insert_1row.json
 insert - Insert multi rows,POST,http://localhost:8080/storage/table/test2,insert_multi_rows.json
+Add table snapshot,POST,http://localhost:8080/storage/table/test2/snapshot,add_snapshot.json
+Load table snapshot,PUT,http://localhost:8080/storage/table/test2/snapshot/99,
+Delete table snapshot,DELETE,http://localhost:8080/storage/table/test2/snapshot/99,
 Shutdown,POST,http://localhost:1081/foglamp/service/shutdown,,checkstate

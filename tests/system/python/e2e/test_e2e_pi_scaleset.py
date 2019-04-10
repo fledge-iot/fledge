@@ -163,4 +163,4 @@ class TestE2ePiEgressWithScalesetFilter:
 
         assert READ_KEY in data_from_pi
         assert isinstance(data_from_pi[READ_KEY], list)
-        assert OUTPUT in data_from_pi[READ_KEY]
+        assert round(OUTPUT, 1) in [round(n, 1) for n in data_from_pi[READ_KEY]]

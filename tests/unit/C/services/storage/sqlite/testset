@@ -76,7 +76,7 @@ Older,PUT,http://localhost:8080/storage/table/test2/query,older.json
 Newer Bad,PUT,http://localhost:8080/storage/table/test2/query,newerBad.json
 Like,PUT,http://localhost:8080/storage/table/test2/query,where_like.json
 Group Time,PUT,http://localhost:8080/storage/reading/query,group_time.json
-Jira FOGL-690,POST,http://localhost:8080/storage/table/configuration,error-fogl690.json
+Jira FOGL-690,POST,http://localhost:8080/storage/table/configuration,fogl690-ok.json
 Set-FOGL-983,PUT,http://localhost:8080/storage/table/configuration,FOGL-983.json
 Add bad Readings,POST,http://localhost:8080/storage/reading,badreadings.json
 Query Readings Timebucket Bad,PUT,http://localhost:8080/storage/reading/query,query_readings_timebucket_bad.json
@@ -109,4 +109,5 @@ microseconds - Query asset aggregate min array,PUT,http://localhost:8080/storage
 update - Update multi rows,PUT,http://localhost:8080/storage/table/test2,update_multi_rows.json
 insert - Insert 1 row,POST,http://localhost:8080/storage/table/test2,insert_1row.json
 insert - Insert multi rows,POST,http://localhost:8080/storage/table/test2,insert_multi_rows.json
+Jira FOGL-690,POST,http://localhost:8080/storage/table/configuration,fogl690-error.json
 Shutdown,POST,http://localhost:1081/foglamp/service/shutdown,,checkstate

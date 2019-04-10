@@ -25,6 +25,37 @@ Version History
 FogLAMP v1
 ==========
 
+v1.5.2
+-------
+
+Release Date: 2019-04-08
+
+- **FogLAMP Core**
+
+    - New Features:
+       - Notification service, notification rule and delivery plugins
+       - Addition of a new notification delivery plugin that will create an asset reading when a notification is delivered. This can then be sent to any system north of the FogLAMP instance via the usual mechanisms
+       - Bulk insert support for SQLite and Postgres storage plugins
+
+    - Enhancements / Bug Fix:
+       - Performance improvements for SQLite storage plugin.
+       - Improved performance of data browsing where large datasets have been acquired
+       - Optimized statistics history collection
+       - Optimized purge task
+       - The readings count shown on GUI and south page and corresponding API endpoints now shows total readings count and not what is currently buffered by FogLAMP. So these counts don't reduce when purge task runs
+       - Static data in the OMF plugin was not being correctly taken from the plugin configuration
+       - Reduced the number of informational log messages being sent to the syslog
+
+
+- **GUI**
+
+    - New Features:
+       - Notifications UI
+
+    - Bug Fix:
+       - Backup creation time format
+
+
 v1.5.1
 -------
 

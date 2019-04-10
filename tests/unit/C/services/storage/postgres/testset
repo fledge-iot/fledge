@@ -108,4 +108,7 @@ microseconds - Query asset aggregate min array,PUT,http://localhost:8080/storage
 Update JSON value as function,PUT,http://localhost:8080/storage/table/test,put_function_in_JSON.json
 Update JSON value in JSON value,PUT,http://localhost:8080/storage/table/test,put_json_in_JSON.json
 Get updated complex JSON value,PUT,http://localhost:8080/storage/table/test/query,get_updated_complex_JSON.json
+Add table snapshot,POST,http://localhost:8080/storage/table/test2/snapshot,add_snapshot.json
+Load table snapshot,PUT,http://localhost:8080/storage/table/test2/snapshot/99,
+Delete table snapshot,DELETE,http://localhost:8080/storage/table/test2/snapshot/99,
 Shutdown,POST,http://localhost:1081/foglamp/service/shutdown,,checkstate

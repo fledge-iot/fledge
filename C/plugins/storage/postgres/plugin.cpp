@@ -39,7 +39,7 @@ static PLUGIN_INFORMATION info = {
 	"1.0.0",                  // Version
 	SP_COMMON|SP_READINGS,    // Flags
 	PLUGIN_TYPE_STORAGE,      // Type
-	"1.1.0"                   // Interface version
+	"1.2.0"                   // Interface version
 };
 
 /**
@@ -286,6 +286,25 @@ Connection        *connection = manager->allocate();
         manager->release(connection);
         return result;
 }
+/**
+ * Get all snapshots of a given common table
+ *
+ * @param handle	The plugin handle
+ * @param table		The table name 
+ * @return 		List of snapshots (even empty list) or NULL for errors
+ *
+ */
+const char* plugin_get_table_snapshots(PLUGIN_HANDLE handle,
+					char *table)
+{
+ConnectionManager *manager = (ConnectionManager *)handle;
+Connection        *connection = manager->allocate();
+std::string results;
+
+	bool rval = connection->get_table_snapshots(std::string(table), results);
+	manager->release(connection);
+
+	return rval ? strdup(results.c_str()) : NULL;
+}
 
 };
-

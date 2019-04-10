@@ -1,0 +1,36 @@
+{
+  "updates" : [
+    {
+      "condition": {
+        "column": "id",
+        "condition": "=",
+        "value": 1
+      },
+      "values": {
+        "description": "update multi rows - 1"
+      }
+    },
+    {
+      "condition": {
+        "column": "id",
+        "condition": "=",
+        "value": 2
+      },
+      "values": {
+        "description": "update multi rows - 2"
+      }
+    },
+    {
+      "condition": {
+        "column": "id",
+        "condition": "=",
+        "value": 3
+      },
+      "values": {
+        "description": "update multi rows - 3"
+      }
+    }
+
+  ]
+}
+

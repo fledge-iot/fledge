@@ -283,6 +283,15 @@ void deleteTableSnapshotWrapper(shared_ptr<HttpServer::Response> response,
 	api->deleteTableSnapshot(response, request);
 }
 
+/**
+ * Wrapper function for the delete snapshot API call.
+ */
+void getTableSnapshotsWrapper(shared_ptr<HttpServer::Response> response,
+				shared_ptr<HttpServer::Request> request)
+{
+	StorageApi *api = StorageApi::getInstance();
+	api->getTableSnapshots(response, request);
+}
 
 /**
  * Construct the singleton Storage API 
@@ -343,6 +352,7 @@ void StorageApi::initResources()
 	m_server->resource[CREATE_TABLE_SNAPSHOT]["POST"] = createTableSnapshotWrapper;
 	m_server->resource[LOAD_TABLE_SNAPSHOT]["PUT"] = loadTableSnapshotWrapper;
 	m_server->resource[DELETE_TABLE_SNAPSHOT]["DELETE"] = deleteTableSnapshotWrapper;
+	m_server->resource[GET_TABLE_SNAPSHOTS]["GET"] = getTableSnapshotsWrapper;
 
 	m_server->resource[READING_ACCESS]["POST"] = readingAppendWrapper;
 	m_server->resource[READING_ACCESS]["GET"] = readingFetchWrapper;
@@ -1143,4 +1153,39 @@ string   payload;
 		responsePayload += "\", \"table\": \"" + sTable + "\"} }";
 		respond(response, responsePayload);
 	}
+}
+
+/**
+ * Get list of a table snapshots
+ */
+void StorageApi::getTableSnapshots(shared_ptr<HttpServer::Response> response,
+				   shared_ptr<HttpServer::Request> request)
+{
+string   sTable;
+string   payload;
+
+        try
+	{
+		payload = request->content.string();
+		sTable = request->path_match[TABLE_NAME_COMPONENT];
+
+		// Get plugin data
+                char* pluginResult = plugin->getTableSnapshots(sTable);
+		if (pluginResult)
+		{
+                        string res = pluginResult;
+                        respond(response, res);
+                        free(pluginResult);
+		}
+		else
+		{
+			string responsePayload;
+			mapError(responsePayload, plugin->lastError());
+			respond(response,
+				SimpleWeb::StatusCode::client_error_bad_request,
+				responsePayload);
+		}
+        } catch (exception ex) {
+                internalError(response, ex);
+        }
 }

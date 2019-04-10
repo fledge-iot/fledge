@@ -1,7 +1,7 @@
 {
 	"return" : [
 			{
-				"column": "user_ts",
+				"column": "user_ts_X",
 				"format": "YYYY-MM-DD HH24:MI:SS.MS",
 				"alias" : "timestamp"},
 			{

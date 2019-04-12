@@ -1,2 +1,1 @@
-{ "entryPoint" : "insert", "message" : "Failed to parse JSON payload
-", "retryable" : false}
+{ "entryPoint" : "insert", "message" : "Failed to parse JSON payload", "retryable" : false}

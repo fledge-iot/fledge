@@ -1,1 +1,1 @@
-{"count":1,"rows":[{"description":"added'some'ch'''ars'"}]}
+{ "response" : "deleted", "rows_affected"  : 1 }

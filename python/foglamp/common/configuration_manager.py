@@ -14,6 +14,8 @@ import ipaddress
 import datetime
 import os
 from math import *
+import collections
+import ast
 
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.storage_client import StorageClientAsync
@@ -493,7 +495,13 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 old_value = cat_info[item_name]['value']
                 new_val = self._clean(cat_info[item_name]['type'], new_val)
 
-                if old_value != new_val:
+                # it converts .old so both .new and .old are dicts
+                # it uses OrderedDict to preserve the sequence of the keys
+                old_value_dict = ast.literal_eval(old_value)
+                old_value_ord = collections.OrderedDict(old_value_dict)
+                new_val_ord = collections.OrderedDict(new_val)
+
+                if old_value_ord != new_val_ord:
                     payload_item = PayloadBuilder().SELECT("key", "description", "ts", "value") \
                         .JSON_PROPERTY(("value", [item_name, "value"], new_val)) \
                         .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")) \

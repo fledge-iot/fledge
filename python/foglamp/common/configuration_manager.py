@@ -495,13 +495,20 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 old_value = cat_info[item_name]['value']
                 new_val = self._clean(cat_info[item_name]['type'], new_val)
 
-                # it converts .old so both .new and .old are dicts
-                # it uses OrderedDict to preserve the sequence of the keys
-                old_value_dict = ast.literal_eval(old_value)
-                old_value_ord = collections.OrderedDict(old_value_dict)
-                new_val_ord = collections.OrderedDict(new_val)
+                old_value_for_check = old_value
+                new_val_for_check = new_val
+                if type(new_val) == dict:
+                    # it converts .old so both .new and .old are dicts
+                    # it uses OrderedDict to preserve the sequence of the keys
+                    try:
+                        old_value_dict = ast.literal_eval(old_value)
+                        old_value_for_check = collections.OrderedDict(old_value_dict)
+                        new_val_for_check = collections.OrderedDict(new_val)
+                    except:
+                        old_value_for_check = old_value
+                        new_val_for_check = new_val
 
-                if old_value_ord != new_val_ord:
+                if old_value_for_check != new_val_for_check:
                     payload_item = PayloadBuilder().SELECT("key", "description", "ts", "value") \
                         .JSON_PROPERTY(("value", [item_name, "value"], new_val)) \
                         .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")) \

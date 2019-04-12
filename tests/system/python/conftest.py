@@ -113,9 +113,10 @@ def add_south():
 @pytest.fixture
 def start_north_pi_v2():
     def _start_north_pi_server_c(foglamp_url, pi_host, pi_port, pi_token, north_plugin="PI_Server_V2",
-                                 taskname="NorthReadingsToPI"):
+                                 taskname="NorthReadingsToPI", start_task=True):
         """Start north task"""
 
+        _enabled = "true" if start_task else "false"
         conn = http.client.HTTPConnection(foglamp_url)
         data = {"name": taskname,
                 "plugin": "{}".format(north_plugin),
@@ -124,7 +125,7 @@ def start_north_pi_v2():
                 "schedule_day": 0,
                 "schedule_time": 0,
                 "schedule_repeat": 30,
-                "schedule_enabled": "true",
+                "schedule_enabled": _enabled,
                 "config": {"producerToken": {"value": pi_token},
                            "URL": {"value": "https://{}:{}/ingress/messages".format(pi_host, pi_port)}
                            }

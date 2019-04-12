@@ -8,12 +8,13 @@ import os
 import subprocess
 import logging
 import asyncio
-from aiohttp import web
-import aiohttp
-import async_timeout
 import tarfile
 import shutil
 import hashlib
+
+from aiohttp import web
+import aiohttp
+import async_timeout
 
 from foglamp.common import logger
 from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA
@@ -57,11 +58,11 @@ async def add_plugin(request: web.Request) -> web.Response:
         checksum = data.get('checksum', None)
         if not url or not file_format or not plugin_type or not checksum:
             raise TypeError('URL, checksum, plugin type and format post params are mandatory.')
-        # TODO: add later for notification delivery and rules plugins
-        if plugin_type not in ['filter', 'north', 'south']:
-            raise ValueError("Invalid type you have supplied; Accepted types are filter, north, south")
+        if plugin_type not in ['south', 'north', 'filter', 'notificationDelivery', 'notificationRule']:
+            raise ValueError("Invalid plugin type. Must be 'north' or 'south' or 'filter' "
+                             "or 'notificationDelivery' or 'notificationRule'")
         if file_format not in ["tar", "deb"]:
-            raise ValueError("Invalid format you supplied; Accepted format are tar and deb")
+            raise ValueError("Invalid format. Must be 'tar' or 'deb'")
         if compressed:
             if compressed not in ['true', 'false', True, False]:
                 raise ValueError('Only "true", "false", true, false are allowed for value of compressed.')
@@ -133,10 +134,10 @@ def install_debian(file_name: str):
     pass
 
 
-def copy_file_install_requirement(_file: list, _type: str):
-    py_file = any(f.endswith(".py") for f in _file)
-    so_1_file = any(f.endswith(".so.1") for f in _file)  # regular file
-    so_file = any(f.endswith(".so") for f in _file)  # symlink file
+def copy_file_install_requirement(dir_files: list, plugin_type: str):
+    py_file = any(f.endswith(".py") for f in dir_files)
+    so_1_file = any(f.endswith(".so.1") for f in dir_files)  # regular file
+    so_file = any(f.endswith(".so") for f in dir_files)  # symlink file
 
     if not py_file and not so_file:
         raise FileNotFoundError("Invalid plugin directory structure found, please check the contents of your tar file.")
@@ -145,15 +146,15 @@ def copy_file_install_requirement(_file: list, _type: str):
         if not so_file:
             _LOGGER.error("Symlink file is missing")
             raise FileNotFoundError("Symlink file is missing")
-    dir = []
-    for s in _file:
-        dir.append(s.split("/")[-1])
+    _dir = []
+    for s in dir_files:
+        _dir.append(s.split("/")[-1])
 
-    assert len(dir), "No data found"
-    plugin_name = dir[0]
-    _LOGGER.info("Plugin name {} and Dir {} ".format(plugin_name, dir))
+    assert len(_dir), "No data found"
+    plugin_name = _dir[0]
+    _LOGGER.info("Plugin name {} and Dir {} ".format(plugin_name, _dir))
     plugin_path = "python/foglamp/plugins" if py_file else "plugins"
-    dest_path = "{}/{}/{}/".format(_FOGLAMP_ROOT, plugin_path, _type)
+    dest_path = "{}/{}/{}/".format(_FOGLAMP_ROOT, plugin_path, plugin_type)
     _LOGGER.info("Destination Path {}".format(dest_path))
 
     # FIXME: shutil with sudo permissions (bypass)
@@ -162,6 +163,6 @@ def copy_file_install_requirement(_file: list, _type: str):
     shutil.copytree(_PATH + plugin_name, dest_path + plugin_name)
     _LOGGER.info("File copied to {}".format(dest_path))
 
-    if "requirements.sh" in dir:
+    if "requirements.sh" in _dir:
         _LOGGER.info("Installing external deps required for plugins.... {}".format(dest_path + plugin_name + "/" + "requirements.sh"))
         subprocess.run(["sh {}".format(dest_path + plugin_name + "/" + "requirements.sh")], shell=True)

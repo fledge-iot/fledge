@@ -7,6 +7,8 @@ export TZ='Etc/UTC'
 
 show_configuration () {
 
+	echo "FogLAMP unit tests for the PostgreSQL plugin"
+
 	echo "Starting storage layer      :$storage_exec:"
 	echo "timezone                    :$tz_exec:"
 	echo "expected dir                :$expected_dir:"

@@ -23,9 +23,10 @@ from foglamp.services.core.api import south
 from foglamp.services.core.api import north
 from foglamp.services.core.api import filters
 from foglamp.services.core.api import notification
+from foglamp.services.core.api.snapshot import table as snapshot_table
 
 
-__author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto"
+__author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -174,6 +175,16 @@ def setup(app):
     app.router.add_route('POST', '/foglamp/notification', notification.post_notification)
     app.router.add_route('PUT', '/foglamp/notification/{notification_name}', notification.put_notification)
     app.router.add_route('DELETE', '/foglamp/notification/{notification_name}', notification.delete_notification)
+
+    # Snapshot config
+    app.router.add_route('GET', '/foglamp/snapshot/category', snapshot_table.get_snapshot)
+    app.router.add_route('POST', '/foglamp/snapshot/category', snapshot_table.post_snapshot)
+    app.router.add_route('PUT', '/foglamp/snapshot/category/{id}', snapshot_table.put_snapshot)
+    app.router.add_route('DELETE', '/foglamp/snapshot/category/{id}', snapshot_table.delete_snapshot)
+    app.router.add_route('GET', '/foglamp/snapshot/schedule', snapshot_table.get_snapshot)
+    app.router.add_route('POST', '/foglamp/snapshot/schedule', snapshot_table.post_snapshot)
+    app.router.add_route('PUT', '/foglamp/snapshot/schedule/{id}', snapshot_table.put_snapshot)
+    app.router.add_route('DELETE', '/foglamp/snapshot/schedule/{id}', snapshot_table.delete_snapshot)
 
     # enable cors support
     enable_cors(app)

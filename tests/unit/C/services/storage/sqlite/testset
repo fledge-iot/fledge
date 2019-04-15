@@ -76,7 +76,7 @@ Older,PUT,http://localhost:8080/storage/table/test2/query,older.json
 Newer Bad,PUT,http://localhost:8080/storage/table/test2/query,newerBad.json
 Like,PUT,http://localhost:8080/storage/table/test2/query,where_like.json
 Group Time,PUT,http://localhost:8080/storage/reading/query,group_time.json
-Jira FOGL-690,POST,http://localhost:8080/storage/table/configuration,error-fogl690.json
+Jira FOGL-690,POST,http://localhost:8080/storage/table/configuration,fogl690-ok.json
 Set-FOGL-983,PUT,http://localhost:8080/storage/table/configuration,FOGL-983.json
 Add bad Readings,POST,http://localhost:8080/storage/reading,badreadings.json
 Query Readings Timebucket Bad,PUT,http://localhost:8080/storage/reading/query,query_readings_timebucket_bad.json
@@ -112,4 +112,5 @@ insert - Insert multi rows,POST,http://localhost:8080/storage/table/test2,insert
 Add table snapshot,POST,http://localhost:8080/storage/table/test2/snapshot,add_snapshot.json
 Load table snapshot,PUT,http://localhost:8080/storage/table/test2/snapshot/99,
 Delete table snapshot,DELETE,http://localhost:8080/storage/table/test2/snapshot/99,
+Jira FOGL-690,POST,http://localhost:8080/storage/table/configuration,fogl690-error.json
 Shutdown,POST,http://localhost:1081/foglamp/service/shutdown,,checkstate

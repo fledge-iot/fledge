@@ -96,6 +96,7 @@ BACKUP_SRC                  := scripts/tasks/backup
 RESTORE_SRC                 := scripts/tasks/restore
 CHECK_CERTS_TASK_SCRIPT_SRC := scripts/tasks/check_certs
 CERTIFICATES_SCRIPT_SRC     := scripts/certificates
+AUTH_CERTIFICATES_SCRIPT_SRC := scripts/auth_certificates
 PACKAGE_UPDATE_SCRIPT_SRC   := scripts/package
 
 # EXTRA SCRIPTS
@@ -289,6 +290,7 @@ scripts_install : $(SCRIPTS_INSTALL_DIR) \
 	install_restore_script \
 	install_check_certificates_script \
 	install_certificates_script \
+	install_auth_certificates_script \
 	install_package_update_script
 
 # create scripts install dir
@@ -351,6 +353,9 @@ install_storage_script : $(SCRIPT_INSTALL_DIR) $(STORAGE_SCRIPT_SRC)
 
 install_certificates_script : $(SCRIPT_INSTALL_DIR) $(CERTIFICATES_SCRIPT_SRC)
 	$(CP) $(CERTIFICATES_SCRIPT_SRC) $(SCRIPTS_INSTALL_DIR)
+
+install_auth_certificates_script : $(SCRIPT_INSTALL_DIR) $(AUTH_CERTIFICATES_SCRIPT_SRC)
+	$(CP) $(AUTH_CERTIFICATES_SCRIPT_SRC) $(SCRIPTS_INSTALL_DIR)
 
 install_package_update_script : $(SCRIPT_INSTALL_DIR) $(PACKAGE_UPDATE_SCRIPT_SRC)
 	$(CP_DIR) $(PACKAGE_UPDATE_SCRIPT_SRC) $(SCRIPTS_INSTALL_DIR)

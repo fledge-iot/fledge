@@ -21,7 +21,6 @@ __version__ = "${VERSION}"
 CAT_NAME = 'test'
 ITEM_NAME = "test_item_name"
 
-
 @pytest.allure.feature("unit")
 @pytest.allure.story("common", "configuration_manager")
 class TestConfigurationManager:
@@ -2511,6 +2510,7 @@ class TestConfigurationManager:
             assert 1 == patch_log_exc.call_count
         patch_get_all_items.assert_called_once_with(category_name)
 
+
     async def test_update_configuration_item_bulk(self, category_name='rest_api'):
         async def async_mock(return_value):
             return return_value
@@ -2560,6 +2560,51 @@ class TestConfigurationManager:
                 patch_audit.assert_not_called()
             patch_update.assert_not_called()
         patch_get_all_items.assert_called_once_with(category_name)
+
+    async def test_update_configuration_item_bulk_dict_no_change(self, category_name='rest_api'):
+        async def async_mock(return_value):
+            return return_value
+
+        cat_info = {'providers': {'default': '{"providers": ["username", "ldap"] }', 'description': 'descr', 'type': 'JSON', 'value':'{"providers": ["username", "ldap"] }' }}
+        config_item_list = {"providers": {"providers": ["username", "ldap"] }}
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(c_mgr, 'get_category_all_items', return_value=async_mock(cat_info)) as patch_get_all_items:
+            with patch.object(c_mgr._storage, 'update_tbl') as patch_update:
+                with patch.object(AuditLogger, 'information') as patch_audit:
+                    with patch.object(ConfigurationManager, '_run_callbacks') as patch_callback:
+                        result = await c_mgr.update_configuration_item_bulk(category_name, config_item_list)
+                        assert result is None
+                    patch_callback.assert_not_called()
+                patch_audit.assert_not_called()
+            patch_update.assert_not_called()
+        patch_get_all_items.assert_called_once_with(category_name)
+
+    async def test_update_configuration_item_bulk_dict_change(self, category_name='rest_api'):
+        async def async_mock(return_value):
+            return return_value
+
+        cat_info = {'providers': {'default': '{"providers": ["username", "ldap"] }', 'description': 'descr', 'type': 'JSON', 'value':'{"providers": ["username", "ldap"] }' }}
+        config_item_list = {"providers": {"providers": ["username", "ldap_new"] }}
+
+        update_result = {"response": "updated", "rows_affected": 1}
+        read_val = {'allowPing': {'default': 'true', 'description': 'Allow access to ping', 'value': 'true', 'type': 'boolean'},
+                    'enableHttp': {'default': 'true', 'description': 'Enable HTTP', 'value': 'false', 'type': 'boolean'}}
+        payload = {'updates': [{'json_properties': [{'path': ['enableHttp', 'value'], 'column': 'value', 'value': 'false'}],
+                                'return': ['key', 'description', {'format': 'YYYY-MM-DD HH24:MI:SS.MS', 'column': 'ts'}, 'value'],
+                                'where': {'value': 'rest_api', 'column': 'key', 'condition': '='}}]}
+        audit_details = {'items': {'enableHttp': {'oldValue': 'true', 'newValue': 'false'}}, 'category': category_name}
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(c_mgr, 'get_category_all_items', return_value=async_mock(cat_info)) as patch_get_all_items:
+            with patch.object(c_mgr._storage, 'update_tbl', return_value=async_mock(update_result)) as patch_update:
+                with patch.object(c_mgr, '_read_category_val', return_value=async_mock(read_val)) as patch_read_val:
+                    with patch.object(AuditLogger, '__init__', return_value=None):
+                        with patch.object(AuditLogger, 'information', return_value=async_mock(None)) as patch_audit:
+                            with patch.object(ConfigurationManager, '_run_callbacks', return_value=async_mock(None)) \
+                                    as patch_callback:
+                                await c_mgr.update_configuration_item_bulk(category_name, config_item_list)
+            assert 1 == patch_update.call_count
 
     @pytest.mark.parametrize("config_item_list", [
         {'info': "2"},

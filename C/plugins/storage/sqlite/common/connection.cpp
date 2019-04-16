@@ -238,11 +238,11 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
  * using the available formats in SQLite3
  * for a specific column
  *
- * If the requested format is not availble
+ * If the requested format is not available
  * the input column is used as is.
  * Additionally milliseconds could be rounded
  * upon request.
- * The routine return false if datwe format is not
+ * The routine return false if date format is not
  * found and the caller might decide to raise an error
  * or use the non formatted value
  *
@@ -281,7 +281,8 @@ bool retCode;
 			outFormat.append(colName);
 		}
 
-		outFormat.append(", 'localtime')");	// MR TRY THIS
+		//# FIXME_I - remove comment
+		outFormat.append(" )");	// MR TRY THIS
 		retCode = true;
 	}
 	else
@@ -299,11 +300,11 @@ bool retCode;
  * using the available formats in SQLite3
  * for a specific column
  *
- * If the requested format is not availble
+ * If the requested format is not available
  * the input column is used as is.
  * Additionally milliseconds could be rounded
  * upon request.
- * The routine return false if datwe format is not
+ * The routine return false if date format is not
  * found and the caller might decide to raise an error
  * or use the non formatted value
  *
@@ -342,6 +343,7 @@ bool retCode;
 			outFormat.append(colName);
 		}
 
+		//# FIXME_I - remove comment
 		outFormat.append(", 'localtime')");	// MR force localtime
 		retCode = true;
 	}
@@ -752,6 +754,13 @@ SQLBuffer	sql;
 // Extra constraints to add to where clause
 SQLBuffer	jsonConstraints;
 
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug(
+		"DBG retrieve 1.0 : table |%s| condition |%s| ",
+		table.c_str(),
+		condition.c_str());
+
 	try {
 		if (dbHandle == NULL)
 		{
@@ -773,13 +782,17 @@ SQLBuffer	jsonConstraints;
 			}
 			if (document.HasMember("aggregate"))
 			{
+				// FIXME_I:
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("DBG retrieve 1.0 : aggregate");
+
 				sql.append("SELECT ");
 				if (document.HasMember("modifier"))
 				{
 					sql.append(document["modifier"].GetString());
 					sql.append(' ');
 				}
-				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints))
+				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints, false))
 				{
 					return false;
 				}
@@ -832,11 +845,26 @@ SQLBuffer	jsonConstraints;
 								applyColumnDateFormat((*itr)["format"].GetString(),
 										      (*itr)["column"].GetString(),
 										      new_format, true);
+
+								// FIXME_I:
+								string tmp_format = (*itr)["format"].GetString();
+								string tmp_column = (*itr)["column"].GetString();
+								Logger::getLogger()->setMinLevel("debug");
+								Logger::getLogger()->debug(
+									"DBG retrieve 1.1 : column |%s| format |%s| new_format |%s| ",
+									tmp_column.c_str(),
+									tmp_format.c_str(),
+									new_format.c_str());
+
 								// Add the formatted column or use it as is
 								sql.append(new_format);
 							}
 							else if (itr->HasMember("timezone"))
 							{
+								// FIXME_I:
+								Logger::getLogger()->setMinLevel("debug");
+								Logger::getLogger()->debug("DBG retrieve 1.1 : Timezone ");
+
 								if (! (*itr)["timezone"].IsString())
 								{
 									raiseError("rerieve",
@@ -859,6 +887,11 @@ SQLBuffer	jsonConstraints;
 							}
 							else
 							{
+								// FIXME_I:
+								Logger::getLogger()->setMinLevel("debug");
+								Logger::getLogger()->debug("DBG retrieve 1.1 : NO Timezone ");
+
+
 								sql.append((*itr)["column"].GetString());
 							}
 							sql.append(' ');
@@ -923,7 +956,7 @@ SQLBuffer	jsonConstraints;
                                         delete[] jsonBuf;
 				}
 			}
-			if (!jsonModifiers(document, sql))
+			if (!jsonModifiers(document, sql, false))
 			{
 				return false;
 			}
@@ -934,6 +967,11 @@ SQLBuffer	jsonConstraints;
 		char *zErrMsg = NULL;
 		int rc;
 		sqlite3_stmt *stmt;
+
+		// FIXME_I:
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug(
+			"DBG retrieve 1.0 : query |%s| ", query);
 
 		logSQL("CommonRetrive", query);
 
@@ -1664,6 +1702,10 @@ bool Connection::jsonAggregates(const Value& payload,
 				SQLBuffer& jsonConstraint,
 				bool isTableReading)
 {
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("DBG retrieve 1.0 : jsonAggregates");
+
 	if (aggregates.IsObject())
 	{
 		if (! aggregates.HasMember("operation"))
@@ -1934,6 +1976,11 @@ bool Connection::jsonAggregates(const Value& payload,
 	}
 	if (payload.HasMember("group"))
 	{
+		// FIXME_I:
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("DBG retrieve 1.0 : jsonAggregates - group ");
+
+
 		sql.append(", ");
 		if (payload["group"].IsObject())
 		{
@@ -1941,11 +1988,46 @@ bool Connection::jsonAggregates(const Value& payload,
 			
 			if (grp.HasMember("format"))
 			{
+				// FIXME_I:
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("DBG retrieve 1.0 : jsonAggregates - format ");
+
+
 				// SQLite 3 date format.
 				string new_format;
-				applyColumnDateFormat(grp["format"].GetString(),
-						      grp["column"].GetString(),
-						      new_format);
+				if (isTableReading)
+				{
+					applyColumnDateFormatLocaltime(grp["format"].GetString(),
+							               grp["column"].GetString(),
+							               new_format);
+
+
+					// FIXME_I:
+					string tmp_format = grp["format"].GetString();
+					string tmp_column = grp["column"].GetString();
+					Logger::getLogger()->setMinLevel("debug");
+					Logger::getLogger()->debug(
+						"DBG jsonAggregates isTableReading : column |%s| format |%s| new_format |%s| ",
+						tmp_column.c_str(),
+						tmp_format.c_str(),
+						new_format.c_str());
+				}
+				else
+				{
+					applyColumnDateFormat(grp["format"].GetString(),
+							      grp["column"].GetString(),
+							      new_format);
+
+					// FIXME_I:
+					string tmp_format = grp["format"].GetString();
+					string tmp_column = grp["column"].GetString();
+					Logger::getLogger()->setMinLevel("debug");
+					Logger::getLogger()->debug(
+						"DBG jsonAggregates NOT isTableReading : column |%s| format |%s| new_format |%s| ",
+						tmp_column.c_str(),
+						tmp_format.c_str(),
+						new_format.c_str());
+				}
 				// Add the formatted column or use it as is
 				sql.append(new_format);
 			}
@@ -2090,10 +2172,17 @@ bool Connection::jsonAggregates(const Value& payload,
 }
 
 /**
- * Process the modifers for limit, skip, sort and group
+ * Process the modifiers for limit, skip, sort and group
  */
-bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
+bool Connection::jsonModifiers(const Value& payload,
+                               SQLBuffer& sql,
+			       bool isTableReading)
 {
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("DBG retrieve 1.0 : jsonModifiers");
+
 	if (payload.HasMember("timebucket") && payload.HasMember("sort"))
 	{
 		raiseError("query modifiers",
@@ -2103,20 +2192,59 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 
 	if (payload.HasMember("group"))
 	{
+
+		// FIXME_I:
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("DBG jsonModifiers group 1");
+
 		sql.append(" GROUP BY ");
 		if (payload["group"].IsObject())
 		{
+			// FIXME_I:
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("DBG jsonModifiers group 2");
+
 			const Value& grp = payload["group"];
 			if (grp.HasMember("format"))
 			{
 				/**
 				 * SQLite 3 date format is limited.
-				 * Handle all availables formats here.
+				 * Handle all available formats here.
 				 */
 				string new_format;
-				applyColumnDateFormat(grp["format"].GetString(),
-						      grp["column"].GetString(),
-						      new_format);
+				if (isTableReading)
+				{
+					applyColumnDateFormatLocaltime(grp["format"].GetString(),
+								       grp["column"].GetString(),
+								       new_format);
+
+					// FIXME_I:
+					string tmp_format = grp["format"].GetString();
+					string tmp_column = grp["column"].GetString();
+					Logger::getLogger()->setMinLevel("debug");
+					Logger::getLogger()->debug(
+						"DBG jsonModifiers2 isTableReading : column |%s| format |%s| new_format |%s| ",
+						tmp_column.c_str(),
+						tmp_format.c_str(),
+						new_format.c_str());
+				}
+				else
+				{
+					applyColumnDateFormat(grp["format"].GetString(),
+							      grp["column"].GetString(),
+							      new_format);
+
+					// FIXME_I:
+					string tmp_format = grp["format"].GetString();
+					string tmp_column = grp["column"].GetString();
+					Logger::getLogger()->setMinLevel("debug");
+					Logger::getLogger()->debug(
+						"DBG jsonModifiers2 NOT isTableReading : column |%s| format |%s| new_format |%s| ",
+						tmp_column.c_str(),
+						tmp_format.c_str(),
+						new_format.c_str());
+				}
+
 				// Add the formatted column or use it as is
 				sql.append(new_format);
 			}

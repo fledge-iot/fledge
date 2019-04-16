@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch, call
 import pytest
 
 
-from foglamp.common.configuration_manager import ConfigurationManager, ConfigurationManagerSingleton, _valid_type_strings, _logger
+from foglamp.common.configuration_manager import ConfigurationManager, ConfigurationManagerSingleton, _valid_type_strings, _logger, _optional_items
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.common.storage_client.exceptions import StorageServerError
@@ -34,6 +34,10 @@ class TestConfigurationManager:
     def test_supported_validate_type_strings(self):
         assert 12 == len(_valid_type_strings)
         assert ['IPv4', 'IPv6', 'JSON', 'URL', 'X509 certificate', 'boolean', 'enumeration', 'float', 'integer', 'password', 'script', 'string'] == _valid_type_strings
+
+    def test_supported_optional_items(self):
+        assert 8 == len(_optional_items)
+        assert ['deprecated', 'displayName', 'length', 'maximum', 'minimum', 'order', 'readonly', 'rule'] == _optional_items
 
     def test_constructor_no_storage_client_defined_no_storage_client_passed(
             self, reset_singleton):
@@ -2629,3 +2633,51 @@ class TestConfigurationManager:
                 assert 'Proposed value for item_name info is not allowed as per rule defined' == str(exc_info.value)
             assert 1 == patch_log_exc.call_count
         patch_get_all_items.assert_called_once_with(category_name)
+
+    async def test_set_optional_value_entry_good_update(self, reset_singleton):
+        async def async_mock(return_value):
+            return return_value
+
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        category_name = 'catname'
+        item_name = 'itemname'
+        new_value_entry = '25'
+        optional_key_name = 'maximum'
+        storage_value_entry = {'readonly': 'true', 'type': 'string', 'order': '4', 'description': 'Test Optional', 'minimum': '2', 'value': '13', 'maximum': '20', 'default': '13'}
+        payload = {"return": ["key", "description", {"column": "ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "value"], "json_properties": [{"column": "value", "path": [item_name, optional_key_name], "value": new_value_entry}], "where": {"column": "key", "condition": "=", "value": category_name}}
+        update_result = {"response": "updated", "rows_affected": 1}
+        c_mgr._cacheManager.update(category_name, {item_name: storage_value_entry})
+        with patch.object(ConfigurationManager, '_read_item_val', return_value=async_mock(storage_value_entry)) as readpatch:
+            with patch.object(c_mgr._storage, 'update_tbl', return_value=async_mock(update_result)) as patch_update:
+                await c_mgr.set_optional_value_entry(category_name, item_name, optional_key_name, new_value_entry)
+            args, kwargs = patch_update.call_args
+            assert 'configuration' == args[0]
+            assert payload == json.loads(args[1])
+        readpatch.assert_called_once_with(category_name, item_name)
+
+    @pytest.mark.parametrize("optional_key_name, new_value_entry, exc_msg", [
+        ('maximum', '1', 'Maximum value should be greater than equal to Minimum value'),
+        ('minimum', '30', 'Minimum value should be less than equal to Maximum value'),
+        ('readonly', '1', "For catname category, entry value must be boolean for optional item name readonly; got <class 'str'>"),
+        ('deprecated', '1', "For catname category, entry value must be boolean for optional item name deprecated; got <class 'str'>"),
+        ('rule', 2, "For catname category, entry value must be string for optional item rule; got <class 'int'>"),
+        ('displayName', 123, "For catname category, entry value must be string for optional item displayName; got <class 'int'>"),
+        ('length', '1a', "For catname category, entry value must be an integer for optional item length; got <class 'str'>"),
+        ('maximum', 'blah', "For catname category, entry value must be an integer or float for optional item maximum; got <class 'str'>")
+    ])
+    async def test_set_optional_value_entry_bad_update(self, reset_singleton, optional_key_name, new_value_entry, exc_msg):
+        async def async_mock(return_value):
+            return return_value
+
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        category_name = 'catname'
+        item_name = 'itemname'
+        storage_value_entry = {'length': '255', 'displayName': category_name, 'rule': 'value * 3 == 6', 'deprecated': 'false', 'readonly': 'true', 'type': 'string', 'order': '4', 'description': 'Test Optional', 'minimum': '2', 'value': '13', 'maximum': '20', 'default': '13'}
+        with patch.object(ConfigurationManager, '_read_item_val', return_value=async_mock(storage_value_entry)) as readpatch:
+            with pytest.raises(Exception) as excinfo:
+                await c_mgr.set_optional_value_entry(category_name, item_name, optional_key_name, new_value_entry)
+            assert excinfo.type is ValueError
+            assert exc_msg == str(excinfo.value)
+        readpatch.assert_called_once_with(category_name, item_name)

@@ -281,8 +281,7 @@ bool retCode;
 			outFormat.append(colName);
 		}
 
-		//# FIXME_I - remove comment
-		outFormat.append(" )");	// MR TRY THIS
+		outFormat.append(" )");
 		retCode = true;
 	}
 	else
@@ -343,8 +342,7 @@ bool retCode;
 			outFormat.append(colName);
 		}
 
-		//# FIXME_I - remove comment
-		outFormat.append(", 'localtime')");	// MR force localtime
+		outFormat.append(", 'localtime')");
 		retCode = true;
 	}
 	else
@@ -754,13 +752,6 @@ SQLBuffer	sql;
 // Extra constraints to add to where clause
 SQLBuffer	jsonConstraints;
 
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug(
-		"DBG retrieve 1.0 : table |%s| condition |%s| ",
-		table.c_str(),
-		condition.c_str());
-
 	try {
 		if (dbHandle == NULL)
 		{
@@ -782,10 +773,6 @@ SQLBuffer	jsonConstraints;
 			}
 			if (document.HasMember("aggregate"))
 			{
-				// FIXME_I:
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("DBG retrieve 1.0 : aggregate");
-
 				sql.append("SELECT ");
 				if (document.HasMember("modifier"))
 				{
@@ -846,25 +833,11 @@ SQLBuffer	jsonConstraints;
 										      (*itr)["column"].GetString(),
 										      new_format, true);
 
-								// FIXME_I:
-								string tmp_format = (*itr)["format"].GetString();
-								string tmp_column = (*itr)["column"].GetString();
-								Logger::getLogger()->setMinLevel("debug");
-								Logger::getLogger()->debug(
-									"DBG retrieve 1.1 : column |%s| format |%s| new_format |%s| ",
-									tmp_column.c_str(),
-									tmp_format.c_str(),
-									new_format.c_str());
-
 								// Add the formatted column or use it as is
 								sql.append(new_format);
 							}
 							else if (itr->HasMember("timezone"))
 							{
-								// FIXME_I:
-								Logger::getLogger()->setMinLevel("debug");
-								Logger::getLogger()->debug("DBG retrieve 1.1 : Timezone ");
-
 								if (! (*itr)["timezone"].IsString())
 								{
 									raiseError("rerieve",
@@ -887,11 +860,6 @@ SQLBuffer	jsonConstraints;
 							}
 							else
 							{
-								// FIXME_I:
-								Logger::getLogger()->setMinLevel("debug");
-								Logger::getLogger()->debug("DBG retrieve 1.1 : NO Timezone ");
-
-
 								sql.append((*itr)["column"].GetString());
 							}
 							sql.append(' ');
@@ -967,11 +935,6 @@ SQLBuffer	jsonConstraints;
 		char *zErrMsg = NULL;
 		int rc;
 		sqlite3_stmt *stmt;
-
-		// FIXME_I:
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug(
-			"DBG retrieve 1.0 : query |%s| ", query);
 
 		logSQL("CommonRetrive", query);
 
@@ -1702,10 +1665,6 @@ bool Connection::jsonAggregates(const Value& payload,
 				SQLBuffer& jsonConstraint,
 				bool isTableReading)
 {
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("DBG retrieve 1.0 : jsonAggregates");
-
 	if (aggregates.IsObject())
 	{
 		if (! aggregates.HasMember("operation"))
@@ -1976,11 +1935,6 @@ bool Connection::jsonAggregates(const Value& payload,
 	}
 	if (payload.HasMember("group"))
 	{
-		// FIXME_I:
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("DBG retrieve 1.0 : jsonAggregates - group ");
-
-
 		sql.append(", ");
 		if (payload["group"].IsObject())
 		{
@@ -1988,11 +1942,6 @@ bool Connection::jsonAggregates(const Value& payload,
 			
 			if (grp.HasMember("format"))
 			{
-				// FIXME_I:
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("DBG retrieve 1.0 : jsonAggregates - format ");
-
-
 				// SQLite 3 date format.
 				string new_format;
 				if (isTableReading)
@@ -2000,33 +1949,12 @@ bool Connection::jsonAggregates(const Value& payload,
 					applyColumnDateFormatLocaltime(grp["format"].GetString(),
 							               grp["column"].GetString(),
 							               new_format);
-
-
-					// FIXME_I:
-					string tmp_format = grp["format"].GetString();
-					string tmp_column = grp["column"].GetString();
-					Logger::getLogger()->setMinLevel("debug");
-					Logger::getLogger()->debug(
-						"DBG jsonAggregates isTableReading : column |%s| format |%s| new_format |%s| ",
-						tmp_column.c_str(),
-						tmp_format.c_str(),
-						new_format.c_str());
 				}
 				else
 				{
 					applyColumnDateFormat(grp["format"].GetString(),
 							      grp["column"].GetString(),
 							      new_format);
-
-					// FIXME_I:
-					string tmp_format = grp["format"].GetString();
-					string tmp_column = grp["column"].GetString();
-					Logger::getLogger()->setMinLevel("debug");
-					Logger::getLogger()->debug(
-						"DBG jsonAggregates NOT isTableReading : column |%s| format |%s| new_format |%s| ",
-						tmp_column.c_str(),
-						tmp_format.c_str(),
-						new_format.c_str());
 				}
 				// Add the formatted column or use it as is
 				sql.append(new_format);
@@ -2179,10 +2107,6 @@ bool Connection::jsonModifiers(const Value& payload,
 			       bool isTableReading)
 {
 
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("DBG retrieve 1.0 : jsonModifiers");
-
 	if (payload.HasMember("timebucket") && payload.HasMember("sort"))
 	{
 		raiseError("query modifiers",
@@ -2192,18 +2116,9 @@ bool Connection::jsonModifiers(const Value& payload,
 
 	if (payload.HasMember("group"))
 	{
-
-		// FIXME_I:
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("DBG jsonModifiers group 1");
-
 		sql.append(" GROUP BY ");
 		if (payload["group"].IsObject())
 		{
-			// FIXME_I:
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("DBG jsonModifiers group 2");
-
 			const Value& grp = payload["group"];
 			if (grp.HasMember("format"))
 			{
@@ -2217,32 +2132,12 @@ bool Connection::jsonModifiers(const Value& payload,
 					applyColumnDateFormatLocaltime(grp["format"].GetString(),
 								       grp["column"].GetString(),
 								       new_format);
-
-					// FIXME_I:
-					string tmp_format = grp["format"].GetString();
-					string tmp_column = grp["column"].GetString();
-					Logger::getLogger()->setMinLevel("debug");
-					Logger::getLogger()->debug(
-						"DBG jsonModifiers2 isTableReading : column |%s| format |%s| new_format |%s| ",
-						tmp_column.c_str(),
-						tmp_format.c_str(),
-						new_format.c_str());
 				}
 				else
 				{
 					applyColumnDateFormat(grp["format"].GetString(),
 							      grp["column"].GetString(),
 							      new_format);
-
-					// FIXME_I:
-					string tmp_format = grp["format"].GetString();
-					string tmp_column = grp["column"].GetString();
-					Logger::getLogger()->setMinLevel("debug");
-					Logger::getLogger()->debug(
-						"DBG jsonModifiers2 NOT isTableReading : column |%s| format |%s| new_format |%s| ",
-						tmp_column.c_str(),
-						tmp_format.c_str(),
-						new_format.c_str());
 				}
 
 				// Add the formatted column or use it as is

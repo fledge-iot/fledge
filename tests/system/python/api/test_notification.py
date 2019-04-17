@@ -4,7 +4,7 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-""" Test add service using poll and async plugins for both python & C version REST API """
+""" Test notification REST API """
 
 import os
 import subprocess
@@ -12,11 +12,7 @@ import http.client
 import json
 import time
 import urllib
-from uuid import UUID
-from collections import Counter
-from urllib.parse import quote
 import pytest
-import apt
 
 
 __author__ = "Vaibhav Singhal"

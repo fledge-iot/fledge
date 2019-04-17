@@ -745,6 +745,18 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             raise
 
     async def set_optional_value_entry(self, category_name, item_name, optional_entry_name, new_value_entry):
+        """Set the "optional_key" entry of a given item within a given category.
+        Even we can reset the optional value by just passing new_value_entry=""
+
+        Keyword Arguments:
+        category_name -- name of the category (required)
+        item_name -- name of item within the category whose "optional_key" entry needs to be changed (required)
+        optional_entry_name -- name of the optional attribute
+        new_value_entry -- new value entry to replace old value entry
+
+        Return Values:
+        None
+        """
         try:
             storage_value_entry = None
             if category_name in self._cacheManager:
@@ -765,33 +777,35 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                      .format(category_name, item_name))
                 if storage_value_entry[optional_entry_name] == new_value_entry:
                     return
-            # Validate optional types
-            if optional_entry_name == 'readonly' or optional_entry_name == 'deprecated':
-                if self._validate_type_value('boolean', new_value_entry) is False:
-                    raise ValueError('For {} category, entry value must be boolean for optional item name {}; got {}'
-                                     .format(category_name, optional_entry_name, type(new_value_entry)))
-            elif optional_entry_name == 'minimum' or optional_entry_name == 'maximum':
-                if (self._validate_type_value('integer', new_value_entry) or self._validate_type_value('float', new_value_entry)) is False:
-                    raise ValueError('For {} category, entry value must be an integer or float for optional item '
-                                     '{}; got {}'.format(category_name, optional_entry_name, type(new_value_entry)))
-            elif optional_entry_name == 'rule' or optional_entry_name == 'displayName':
-                if not isinstance(new_value_entry, str):
-                    raise ValueError('For {} category, entry value must be string for optional item {}; got {}'
-                                     .format(category_name, optional_entry_name, type(new_value_entry)))
-            else:
-                if self._validate_type_value('integer', new_value_entry) is False:
-                    raise ValueError('For {} category, entry value must be an integer for optional item {}; got {}'
-                                     .format(category_name, optional_entry_name, type(new_value_entry)))
+            # Validate optional types only when new_value_entry not empty; otherwise set empty value
+            if new_value_entry:
+                if optional_entry_name == 'readonly' or optional_entry_name == 'deprecated':
+                    if self._validate_type_value('boolean', new_value_entry) is False:
+                        raise ValueError('For {} category, entry value must be boolean for optional item name {}; got {}'
+                                         .format(category_name, optional_entry_name, type(new_value_entry)))
+                elif optional_entry_name == 'minimum' or optional_entry_name == 'maximum':
+                    if (self._validate_type_value('integer', new_value_entry) or self._validate_type_value('float', new_value_entry)) is False:
+                        raise ValueError('For {} category, entry value must be an integer or float for optional item '
+                                         '{}; got {}'.format(category_name, optional_entry_name, type(new_value_entry)))
+                elif optional_entry_name == 'rule' or optional_entry_name == 'displayName':
+                    if not isinstance(new_value_entry, str):
+                        raise ValueError('For {} category, entry value must be string for optional item {}; got {}'
+                                         .format(category_name, optional_entry_name, type(new_value_entry)))
+                else:
+                    if self._validate_type_value('integer', new_value_entry) is False:
+                        raise ValueError('For {} category, entry value must be an integer for optional item {}; got {}'
+                                         .format(category_name, optional_entry_name, type(new_value_entry)))
 
-            # Validation is fairly minimal, minimum, maximum like maximum should be greater than minimum or vice-versa
-            # And no link between minimum, maximum and length is needed.
-            if optional_entry_name == 'minimum':
-                if new_value_entry >= storage_value_entry['maximum']:
-                    raise ValueError('Minimum value should be less than equal to Maximum value')
+                # Validation is fairly minimal, minimum, maximum like
+                # maximum should be greater than minimum or vice-versa
+                # And no link between minimum, maximum and length is needed.
+                if optional_entry_name == 'minimum':
+                    if new_value_entry >= storage_value_entry['maximum']:
+                        raise ValueError('Minimum value should be less than equal to Maximum value')
 
-            if optional_entry_name == 'maximum':
-                if new_value_entry <= storage_value_entry['minimum']:
-                    raise ValueError('Maximum value should be greater than equal to Minimum value')
+                if optional_entry_name == 'maximum':
+                    if new_value_entry <= storage_value_entry['minimum']:
+                        raise ValueError('Maximum value should be greater than equal to Minimum value')
 
             payload = PayloadBuilder().SELECT("key", "description", "ts", "value") \
                 .JSON_PROPERTY(("value", [item_name, optional_entry_name], new_value_entry)) \

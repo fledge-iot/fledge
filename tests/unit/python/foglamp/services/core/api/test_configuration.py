@@ -276,12 +276,16 @@ class TestConfiguration:
                 assert resp.reason is None
             patch_set_entry.assert_called_once_with(category_name, item_name, payload['value'])
 
-    async def test_set_optional_in_config_item(self, client, category_name='rest_api', item_name='http_port'):
+    @pytest.mark.parametrize("value", [
+        '',
+        'false',
+        'true'
+    ])
+    async def test_set_optional_in_config_item(self, client, value, category_name='rest_api', item_name='http_port', optional_key='readonly'):
         async def async_mock(return_value):
             return return_value
 
-        optional_key = 'readonly'
-        payload = {optional_key: 'false'}
+        payload = {optional_key: value}
         result = {optional_key: 'false', 'value': '8082', 'type': 'integer', 'default': '8081',
                   'description': 'The port to accept HTTP connections on'}
 

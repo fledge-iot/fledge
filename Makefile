@@ -448,7 +448,7 @@ endif
 #	$(MKDIR_PATH) $@
 
 # set setuid bit of cmdutil
-setuid_cmdutil:
+setuid_cmdutil : c_install
 	chmod u+s $(EXTRAS_INSTALL_DIR)/C/cmdutil
 
 

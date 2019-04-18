@@ -134,7 +134,9 @@ class TestNotificationService:
 
     def test_get_default_notification_plugins(self, foglamp_url, remove_directories):
         remove_directories(os.environ['FOGLAMP_ROOT'] + '/plugins/notificationDelivery')
+        remove_directories(os.environ['FOGLAMP_ROOT'] + '/plugins/notificationRule')
         remove_directories(os.environ['FOGLAMP_ROOT'] + 'cmake_build/C/plugins/notificationDelivery')
+        remove_directories(os.environ['FOGLAMP_ROOT'] + 'cmake_build/C/plugins/notificationRule')
         jdoc = _get_result(foglamp_url, '/foglamp/notification/plugin')
         assert [] == jdoc['delivery']
         assert 2 == len(jdoc['rules'])

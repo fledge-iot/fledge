@@ -14,6 +14,7 @@ data/etc/storage.json
 data/etc/certs/*
 data/var
 data/tmp
+data/snapshots
 
 # SQLite3 default db location and after migration
 data/*.db

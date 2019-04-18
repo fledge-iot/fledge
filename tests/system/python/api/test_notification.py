@@ -38,12 +38,6 @@ class TestNotificationServiceAPI:
         # Wait for foglamp server to start
         time.sleep(wait_time)
         conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/notification')
-        r = conn.getresponse()
-        pytest.xfail("FOGL-2748")
-        assert 404 == r.status
-        r = r.read().decode()
-        assert "404: No Notification service available." == r
 
         conn.request("GET", '/foglamp/notification/plugin')
         r = conn.getresponse()
@@ -59,6 +53,13 @@ class TestNotificationServiceAPI:
         assert {"notification_type": ["one shot", "retriggered", "toggled"]} == jdoc
 
         conn.request("POST", '/foglamp/notification', json.dumps({}))
+        r = conn.getresponse()
+        assert 404 == r.status
+        r = r.read().decode()
+        assert "404: No Notification service available." == r
+
+        pytest.xfail("FOGL-2748")
+        conn.request("GET", '/foglamp/notification')
         r = conn.getresponse()
         assert 404 == r.status
         r = r.read().decode()

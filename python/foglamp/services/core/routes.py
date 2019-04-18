@@ -24,6 +24,7 @@ from foglamp.services.core.api import north
 from foglamp.services.core.api import filters
 from foglamp.services.core.api import notification
 from foglamp.services.core.api.plugins import install as plugins_install
+from foglamp.services.core.api.snapshot import plugins as snapshot_plugins
 from foglamp.services.core.api.snapshot import table as snapshot_table
 
 
@@ -177,6 +178,12 @@ def setup(app):
     app.router.add_route('POST', '/foglamp/notification', notification.post_notification)
     app.router.add_route('PUT', '/foglamp/notification/{notification_name}', notification.put_notification)
     app.router.add_route('DELETE', '/foglamp/notification/{notification_name}', notification.delete_notification)
+
+    # Snapshot plugins
+    app.router.add_route('GET', '/foglamp/snapshot/plugins', snapshot_plugins.get_snapshot)
+    app.router.add_route('POST', '/foglamp/snapshot/plugins', snapshot_plugins.post_snapshot)
+    app.router.add_route('PUT', '/foglamp/snapshot/plugins/{id}', snapshot_plugins.put_snapshot)
+    app.router.add_route('DELETE', '/foglamp/snapshot/plugins/{id}', snapshot_plugins.delete_snapshot)
 
     # Snapshot config
     app.router.add_route('GET', '/foglamp/snapshot/category', snapshot_table.get_snapshot)

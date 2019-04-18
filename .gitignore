@@ -16,6 +16,7 @@ data/var
 data/tmp
 data/scripts
 data/plugins
+data/snapshots
 
 # SQLite3 default db location and after migration
 data/*.db

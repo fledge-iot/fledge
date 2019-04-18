@@ -931,8 +931,6 @@ int blocks = 0;
 		{
 			raiseError("purge - phase 3", zErrMsg);
 			sqlite3_free(zErrMsg);
-			// Release memory for 'query' var
-			delete[] query;
 			return 0;
 		}
 

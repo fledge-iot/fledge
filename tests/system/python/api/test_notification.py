@@ -41,7 +41,7 @@ class TestNotificationServiceAPI:
         conn.request("GET", '/foglamp/notification')
         r = conn.getresponse()
         pytest.xfail("FOGL-2748")
-        assert 400 == r.status
+        assert 404 == r.status
         r = r.read().decode()
         assert "404: No Notification service available." == r
 

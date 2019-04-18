@@ -2663,25 +2663,35 @@ class TestConfigurationManager:
         assert category_name == args[0]
         assert item_name == args[1]
 
-    @pytest.mark.parametrize("optional_key_name, new_value_entry, exc_msg", [
-        ('maximum', '1', 'Maximum value should be greater than equal to Minimum value'),
-        ('minimum', '30', 'Minimum value should be less than equal to Maximum value'),
-        ('readonly', '1', "For catname category, entry value must be boolean for optional item name readonly; got <class 'str'>"),
-        ('deprecated', '1', "For catname category, entry value must be boolean for optional item name deprecated; got <class 'str'>"),
-        ('rule', 2, "For catname category, entry value must be string for optional item rule; got <class 'int'>"),
-        ('displayName', 123, "For catname category, entry value must be string for optional item displayName; got <class 'int'>"),
-        ('length', '1a', "For catname category, entry value must be an integer for optional item length; got <class 'str'>"),
-        ('maximum', 'blah', "For catname category, entry value must be an integer or float for optional item maximum; got <class 'str'>")
+    @pytest.mark.parametrize("_type, optional_key_name, new_value_entry, exc_msg", [
+        (int, 'maximum', '1', 'Maximum value should be greater than equal to Minimum value'),
+        (int, 'maximum', '00100', 'Maximum value should be greater than equal to Minimum value'),
+        (float, 'maximum', '11.2', 'Maximum value should be greater than equal to Minimum value'),
+        (int, 'minimum', '30', 'Minimum value should be less than equal to Maximum value'),
+        (float, 'minimum', '50.0', 'Minimum value should be less than equal to Maximum value'),
+        (None, 'readonly', '1', "For catname category, entry value must be boolean for optional item name readonly; got <class 'str'>"),
+        (None, 'deprecated', '1', "For catname category, entry value must be boolean for optional item name deprecated; got <class 'str'>"),
+        (None, 'rule', 2, "For catname category, entry value must be string for optional item rule; got <class 'int'>"),
+        (None, 'displayName', 123, "For catname category, entry value must be string for optional item displayName; got <class 'int'>"),
+        (None, 'length', '1a', "For catname category, entry value must be an integer for optional item length; got <class 'str'>"),
+        (None, 'maximum', 'blah', "For catname category, entry value must be an integer or float for optional item maximum; got <class 'str'>")
     ])
-    async def test_set_optional_value_entry_bad_update(self, reset_singleton, optional_key_name, new_value_entry, exc_msg):
+    async def test_set_optional_value_entry_bad_update(self, reset_singleton, _type, optional_key_name, new_value_entry, exc_msg):
         async def async_mock(return_value):
             return return_value
+
+        min = '2'
+        max = '20'
+        if _type is not None:
+            if isinstance(1.1, _type):
+                min = '12.5'
+                max = '40.3'
 
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         category_name = 'catname'
         item_name = 'itemname'
-        storage_value_entry = {'length': '255', 'displayName': category_name, 'rule': 'value * 3 == 6', 'deprecated': 'false', 'readonly': 'true', 'type': 'string', 'order': '4', 'description': 'Test Optional', 'minimum': '2', 'value': '13', 'maximum': '20', 'default': '13'}
+        storage_value_entry = {'length': '255', 'displayName': category_name, 'rule': 'value * 3 == 6', 'deprecated': 'false', 'readonly': 'true', 'type': 'string', 'order': '4', 'description': 'Test Optional', 'minimum': min, 'value': '13', 'maximum': max, 'default': '13'}
         with patch.object(ConfigurationManager, '_read_item_val', return_value=async_mock(storage_value_entry)) as readpatch:
             with pytest.raises(Exception) as excinfo:
                 await c_mgr.set_optional_value_entry(category_name, item_name, optional_key_name, new_value_entry)

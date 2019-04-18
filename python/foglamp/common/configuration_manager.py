@@ -799,14 +799,21 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 # Validation is fairly minimal, minimum, maximum like
                 # maximum should be greater than minimum or vice-versa
                 # And no link between minimum, maximum and length is needed.
+                # condition check with numeric operands (int or float) rather than with string operands
+                def convert(value, _type):
+                    return int(value) if _type == "integer" else float(value) if _type == "float" else value
+
                 if optional_entry_name == 'minimum':
-                    if new_value_entry >= storage_value_entry['maximum']:
+                    new = convert(new_value_entry, storage_value_entry['type'])
+                    old = convert(storage_value_entry['maximum'], storage_value_entry['type'])
+                    if new > old:
                         raise ValueError('Minimum value should be less than equal to Maximum value')
 
                 if optional_entry_name == 'maximum':
-                    if new_value_entry <= storage_value_entry['minimum']:
+                    new = convert(new_value_entry, storage_value_entry['type'])
+                    old = convert(storage_value_entry['minimum'], storage_value_entry['type'])
+                    if new < old:
                         raise ValueError('Maximum value should be greater than equal to Minimum value')
-
             payload = PayloadBuilder().SELECT("key", "description", "ts", "value") \
                 .JSON_PROPERTY(("value", [item_name, optional_entry_name], new_value_entry)) \
                 .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")) \

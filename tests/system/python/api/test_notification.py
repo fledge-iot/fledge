@@ -40,10 +40,10 @@ class TestNotificationServiceAPI:
         conn = http.client.HTTPConnection(foglamp_url)
         conn.request("GET", '/foglamp/notification')
         r = conn.getresponse()
-        assert 200 == r.status
+        pytest.xfail("FOGL-2748")
+        assert 400 == r.status
         r = r.read().decode()
-        jdoc = json.loads(r)
-        assert {'notifications': []} == jdoc
+        assert "404: No Notification service available." == r
 
         conn.request("GET", '/foglamp/notification/plugin')
         r = conn.getresponse()
@@ -172,8 +172,8 @@ class TestNotificationServiceAPI:
         assert 2 == len(jdoc['rules'])
 
     @pytest.mark.parametrize("test_input, expected_error", [
-        pytest.param({"name": "Test8"}, '400: Name update is not allowed.', marks=pytest.mark.skip(reason="FOGL-2673")),
-        pytest.param({"name": "="}, '400: Invalid name property in payload.', marks=pytest.mark.skip(reason="FOGL-2673")),
+        pytest.param({"name": "Test8"}, '400: Name update is not allowed.', marks=pytest.mark.xfail(reason="FOGL-2673")),
+        pytest.param({"name": "="}, '400: Invalid name property in payload.', marks=pytest.mark.xfail(reason="FOGL-2673")),
         ({"rule": "+"}, '400: Invalid rule property in payload.'),
         ({"channel": ":"}, '400: Invalid channel property in payload.'),
         ({"enabled": "bla"}, '400: Only "true", "false", true, false are allowed for value of enabled.'),
@@ -192,7 +192,7 @@ class TestNotificationServiceAPI:
         r = r.read().decode()
         assert expected_error == r
 
-    @pytest.mark.skip(reason="FOGL-2738")
+    @pytest.mark.xfail(reason="FOGL-2738")
     def test_invalid_name_update_notification_instance(self, foglamp_url):
         conn = http.client.HTTPConnection(foglamp_url)
         changed_data = {"description": "changed_desc"}
@@ -236,4 +236,4 @@ class TestNotificationServiceAPI:
         r = r.read().decode()
         jdoc = json.loads(r)
         assert "Service {} deleted successfully.".format(SERVICE_NAME) == jdoc['result']
-        assert False
+

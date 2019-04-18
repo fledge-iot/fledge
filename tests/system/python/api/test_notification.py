@@ -24,7 +24,7 @@ SERVICE = "notification"
 SERVICE_NAME = "Notification Server #1"
 NOTIFY_PLUGIN = "slack"
 NOTIFY_INBUILT_RULES = ["OverMaxRule", "UnderMinRule"]
-data = {"name": "Test - 1",
+DATA = {"name": "Test - 1",
         "description": "Test4_Notification",
         "rule": NOTIFY_INBUILT_RULES[1],
         "channel": NOTIFY_PLUGIN,
@@ -111,7 +111,7 @@ class TestNotificationServiceAPI:
     @pytest.mark.parametrize("test_input, expected_error", [
         ({"description": "Test4_Notification", "rule": NOTIFY_INBUILT_RULES[1], "channel": NOTIFY_PLUGIN,
           "enabled": True, "notification_type": "one shot"}, '400: Missing name property in payload.'),
-        ({"name": "Test4","rule": NOTIFY_INBUILT_RULES[1], "channel": NOTIFY_PLUGIN, "enabled": True,
+        ({"name": "Test4", "rule": NOTIFY_INBUILT_RULES[1], "channel": NOTIFY_PLUGIN, "enabled": True,
           "notification_type": "one shot"}, '400: Missing description property in payload.'),
         ({"name": "Test4", "description": "Test4_Notification", "channel": NOTIFY_PLUGIN, "enabled": True,
           "notification_type": "one shot"}, '400: Missing rule property in payload.'),
@@ -142,23 +142,24 @@ class TestNotificationServiceAPI:
 
     def test_create_valid_notification_instance(self, foglamp_url):
         conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("POST", '/foglamp/notification', json.dumps(data))
+        conn.request("POST", '/foglamp/notification', json.dumps(DATA))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert "Notification {} created successfully".format(data['name']) == jdoc['result']
+        assert "Notification {} created successfully".format(DATA['name']) == jdoc['result']
 
         conn.request("GET", '/foglamp/notification')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert data['name'] == jdoc['notifications'][0]['name']
-        assert data['channel'] == jdoc['notifications'][0]['channel']
-        assert 'true' == jdoc['notifications'][0]['enable']
-        assert data['notification_type'] == jdoc['notifications'][0]['notificationType']
-        assert data['rule'] == jdoc['notifications'][0]['rule']
+        actual_data = jdoc['notifications'][0]
+        assert DATA['name'] == actual_data['name']
+        assert DATA['channel'] == actual_data['channel']
+        assert 'true' == actual_data['enable']
+        assert DATA['notification_type'] == actual_data['notificationType']
+        assert DATA['rule'] == actual_data['rule']
 
         conn.request("GET", '/foglamp/notification/plugin')
         r = conn.getresponse()
@@ -170,38 +171,46 @@ class TestNotificationServiceAPI:
         assert "notificationDelivery" == jdoc['delivery'][0]['type']
         assert 2 == len(jdoc['rules'])
 
-    # TODO - FOGL-2738, FOGL-2673
     @pytest.mark.parametrize("test_input, expected_error", [
-        # ({"name": "=", "description": "Test4_Notification", "rule": NOTIFY_INBUILT_RULES[1], "channel": NOTIFY_PLUGIN,
-        #   "enabled": True, "notification_type": "one shot"}, '400: Invalid name property in payload.'),
-        ({"name": "Test4", "description": "Test4_Notification", "rule": "+", "channel": NOTIFY_PLUGIN, "enabled": True,
-          "notification_type": "one shot"}, '400: Invalid rule property in payload.'),
-        ({"name": "Test4", "description": "Test4_Notification", "rule": NOTIFY_INBUILT_RULES[1], "channel": ":",
-          "enabled": True, "notification_type": "one shot"}, '400: Invalid channel property in payload.'),
-        ({"name": "Test4", "description": "Test4_Notification", "rule": NOTIFY_INBUILT_RULES[1],
-          "channel": NOTIFY_PLUGIN, "enabled": "bla", "notification_type": "one shot"},
-         '400: Only "true", "false", true, false are allowed for value of enabled.'),
-        ({"name": "Test4", "description": "Test4_Notification", "rule": "InvalidRulePlugin",
-          "channel": "InvalidChannelPlugin", "enabled": True, "notification_type": "one shot"},
+        pytest.param({"name": "Test8"}, '400: Name update is not allowed.', marks=pytest.mark.skip(reason="FOGL-2673")),
+        pytest.param({"name": "="}, '400: Invalid name property in payload.', marks=pytest.mark.skip(reason="FOGL-2673")),
+        ({"rule": "+"}, '400: Invalid rule property in payload.'),
+        ({"channel": ":"}, '400: Invalid channel property in payload.'),
+        ({"enabled": "bla"}, '400: Only "true", "false", true, false are allowed for value of enabled.'),
+        ({"rule": "InvalidRulePlugin"},
+         '400: Invalid rule plugin:InvalidRulePlugin and/or delivery plugin:None supplied.'),
+        ({"channel": "InvalidChannelPlugin"},
+         '400: Invalid rule plugin:None and/or delivery plugin:InvalidChannelPlugin supplied.'),
+        ({"rule": "InvalidRulePlugin", "channel": "InvalidChannelPlugin"},
          '400: Invalid rule plugin:InvalidRulePlugin and/or delivery plugin:InvalidChannelPlugin supplied.')
     ])
     def test_invalid_update_notification_instance(self, foglamp_url, test_input, expected_error):
         conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("PUT", '/foglamp/notification/{}'.format(urllib.parse.quote(data['name'])), json.dumps(test_input))
+        conn.request("PUT", '/foglamp/notification/{}'.format(urllib.parse.quote(DATA['name'])), json.dumps(test_input))
         r = conn.getresponse()
         assert 400 == r.status
         r = r.read().decode()
         assert expected_error == r
 
+    @pytest.mark.skip(reason="FOGL-2738")
+    def test_invalid_name_update_notification_instance(self, foglamp_url):
+        conn = http.client.HTTPConnection(foglamp_url)
+        changed_data = {"description": "changed_desc"}
+        conn.request("PUT", '/foglamp/notification/{}'.format('Invalid'), json.dumps(changed_data))
+        r = conn.getresponse()
+        assert 400 == r.status
+        r = r.read().decode()
+        assert '400: Notification instance not found.' == r
+
     def test_update_valid_notification_instance(self, foglamp_url):
         changed_data = {"description": "changed_desc"}
         conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("PUT", '/foglamp/notification/{}'.format(urllib.parse.quote(data['name'])), json.dumps(changed_data))
+        conn.request("PUT", '/foglamp/notification/{}'.format(urllib.parse.quote(DATA['name'])), json.dumps(changed_data))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert "Notification {} updated successfully".format(data["name"]) == jdoc['result']
+        assert "Notification {} updated successfully".format(DATA["name"]) == jdoc['result']
 
     def test_delete_service_without_notification_delete(self, foglamp_url):
         conn = http.client.HTTPConnection(foglamp_url)
@@ -210,16 +219,16 @@ class TestNotificationServiceAPI:
         assert 400 == r.status
         r = r.read().decode()
         assert "400: Notification service `{}` can not be deleted, as ['{}'] " \
-               "notification instances exist.".format(SERVICE_NAME, data['name']) == r
+               "notification instances exist.".format(SERVICE_NAME, DATA['name']) == r
 
     def test_delete_notification_and_service(self, foglamp_url):
         conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("DELETE", '/foglamp/notification/{}'.format(urllib.parse.quote(data['name'])))
+        conn.request("DELETE", '/foglamp/notification/{}'.format(urllib.parse.quote(DATA['name'])))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert "Notification {} deleted successfully.".format(data['name']) == jdoc['result']
+        assert "Notification {} deleted successfully.".format(DATA['name']) == jdoc['result']
 
         conn.request("DELETE", '/foglamp/service/{}'.format(urllib.parse.quote(SERVICE_NAME)))
         r = conn.getresponse()
@@ -227,3 +236,4 @@ class TestNotificationServiceAPI:
         r = r.read().decode()
         jdoc = json.loads(r)
         assert "Service {} deleted successfully.".format(SERVICE_NAME) == jdoc['result']
+        assert False

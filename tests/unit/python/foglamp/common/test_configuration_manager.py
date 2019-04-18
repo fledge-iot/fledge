@@ -2645,16 +2645,23 @@ class TestConfigurationManager:
         new_value_entry = '25'
         optional_key_name = 'maximum'
         storage_value_entry = {'readonly': 'true', 'type': 'string', 'order': '4', 'description': 'Test Optional', 'minimum': '2', 'value': '13', 'maximum': '20', 'default': '13'}
+        new_storage_value_entry = {'readonly': 'true', 'type': 'string', 'order': '4', 'description': 'Test Optional', 'minimum': '2', 'value': '13', 'maximum': new_value_entry, 'default': '13'}
         payload = {"return": ["key", "description", {"column": "ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "value"], "json_properties": [{"column": "value", "path": [item_name, optional_key_name], "value": new_value_entry}], "where": {"column": "key", "condition": "=", "value": category_name}}
         update_result = {"response": "updated", "rows_affected": 1}
-        c_mgr._cacheManager.update(category_name, {item_name: storage_value_entry})
-        with patch.object(ConfigurationManager, '_read_item_val', return_value=async_mock(storage_value_entry)) as readpatch:
+        with patch.object(ConfigurationManager, '_read_item_val', side_effect=[async_mock(storage_value_entry), async_mock(new_storage_value_entry)]) as readpatch:
             with patch.object(c_mgr._storage, 'update_tbl', return_value=async_mock(update_result)) as patch_update:
                 await c_mgr.set_optional_value_entry(category_name, item_name, optional_key_name, new_value_entry)
             args, kwargs = patch_update.call_args
             assert 'configuration' == args[0]
             assert payload == json.loads(args[1])
-        readpatch.assert_called_once_with(category_name, item_name)
+        assert 2 == readpatch.call_count
+        calls = readpatch.call_args_list
+        args, kwargs = calls[0]
+        assert category_name == args[0]
+        assert item_name == args[1]
+        args, kwargs = calls[1]
+        assert category_name == args[0]
+        assert item_name == args[1]
 
     @pytest.mark.parametrize("optional_key_name, new_value_entry, exc_msg", [
         ('maximum', '1', 'Maximum value should be greater than equal to Minimum value'),

@@ -9,7 +9,6 @@ import subprocess
 import logging
 import asyncio
 import tarfile
-import shutil
 import hashlib
 
 from aiohttp import web
@@ -19,12 +18,10 @@ import async_timeout
 from foglamp.common import logger
 from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA
 
-
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
-
 
 _help = """
     -------------------------------------------------------------------------------
@@ -37,7 +34,6 @@ _PATH = _FOGLAMP_DATA + '/plugins/' if _FOGLAMP_DATA else _FOGLAMP_ROOT + '/data
 _LOGGER = logger.setup(__name__, level=logging.INFO)
 
 
-# TODO: Add unit tests
 async def add_plugin(request: web.Request) -> web.Response:
     """ add plugin
 
@@ -54,6 +50,7 @@ async def add_plugin(request: web.Request) -> web.Response:
         url = data.get('url', None)
         file_format = data.get('format', None)
         compressed = data.get('compressed', None)
+        # FIXME: plugin_type only needed when format is tar
         plugin_type = data.get('type', None)
         checksum = data.get('checksum', None)
         if not url or not file_format or not plugin_type or not checksum:
@@ -86,7 +83,10 @@ async def add_plugin(request: web.Request) -> web.Response:
             _LOGGER.info("Files {} {}".format(files, type(files)))
             copy_file_install_requirement(files, plugin_type)
         else:
-            install_debian(file_name)
+            code = install_debian(file_name)
+            if code != 0:
+                # FIXME: proper message
+                raise ValueError('Something went wrong!')
     except FileNotFoundError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except (TypeError, ValueError) as ex:
@@ -128,10 +128,12 @@ def extract_file(file_name: str, is_compressed: bool) -> list:
 
 
 def install_debian(file_name: str):
-    # FIXME: Not working seems like we need to manipulate in /etc/sudoers.d/foglamp file
-    # subprocess.run(["sudo cp {} /var/cache/apt/archives/.".format(file_name)], shell=True, check=True)
-    # subprocess.run(["sudo apt install /var/cache/apt/archives/{}".format(file_name)], shell=True, check=True)
-    pass
+    apt_install = subprocess.run(["{}/extras/C/cmdutil".format(_FOGLAMP_ROOT), "apt-install",
+                                  "{}/data/plugins/{}".format(_FOGLAMP_ROOT, file_name)],
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    msg = apt_install.stdout.decode("utf-8") if apt_install.returncode != 0 else apt_install.stderr.decode("utf-8")
+    _LOGGER.exception("O/P....{}...{}".format(msg, apt_install.returncode))
+    return msg
 
 
 def copy_file_install_requirement(dir_files: list, plugin_type: str):
@@ -154,15 +156,23 @@ def copy_file_install_requirement(dir_files: list, plugin_type: str):
     plugin_name = _dir[0]
     _LOGGER.info("Plugin name {} and Dir {} ".format(plugin_name, _dir))
     plugin_path = "python/foglamp/plugins" if py_file else "plugins"
-    dest_path = "{}/{}/{}/".format(_FOGLAMP_ROOT, plugin_path, plugin_type)
-    _LOGGER.info("Destination Path {}".format(dest_path))
+    full_path = "{}/{}/{}/".format(_FOGLAMP_ROOT, plugin_path, plugin_type)
+    dest_path = "{}/{}/".format(plugin_path, plugin_type)
 
-    # FIXME: shutil with sudo permissions (bypass)
-    if os.path.exists(dest_path + plugin_name) and os.path.isdir(dest_path + plugin_name):
-        shutil.rmtree(dest_path + plugin_name)
-    shutil.copytree(_PATH + plugin_name, dest_path + plugin_name)
-    _LOGGER.info("File copied to {}".format(dest_path))
+    # Check if plugin dir exists then remove (for cleanup ONLY) otherwise create dir
+    if os.path.exists(full_path + plugin_name) and os.path.isdir(full_path + plugin_name):
+        cmd = "{}/extras/C/cmdutil rm {}".format(_FOGLAMP_ROOT, dest_path + plugin_name)
+        subprocess.run([cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+    else:
+        cmd = "{}/extras/C/cmdutil mkdir {}".format(_FOGLAMP_ROOT, dest_path + plugin_name)
+        subprocess.run([cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+
+    # copy plugin files to the relative plugins directory.
+    cmd = "{}/extras/C/cmdutil cp {} {}".format(_FOGLAMP_ROOT, _PATH + plugin_name, dest_path)
+    subprocess.run([cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+    _LOGGER.info("{} File copied to {}".format(cmd, full_path))
 
     if "requirements.sh" in _dir:
-        _LOGGER.info("Installing external deps required for plugins.... {}".format(dest_path + plugin_name + "/" + "requirements.sh"))
-        subprocess.run(["sh {}".format(dest_path + plugin_name + "/" + "requirements.sh")], shell=True)
+        _LOGGER.info("Installing external deps required for plugins.... {}".format(
+            full_path + plugin_name + "/" + "requirements.sh"))
+        subprocess.run(["sh {}".format(full_path + plugin_name + "/" + "requirements.sh")], shell=True)

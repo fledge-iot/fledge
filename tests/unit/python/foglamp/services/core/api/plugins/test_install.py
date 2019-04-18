@@ -139,8 +139,28 @@ class TestPluginInstall:
         param = {"url": url_value, "format": "deb", "type": "south", "checksum": checksum_value}
         with patch.object(plugins_install, 'download', return_value=async_mock()) as download_patch:
             with patch.object(plugins_install, 'validate_checksum', return_value=True) as checksum_patch:
-                resp = await client.post('/foglamp/plugins', data=json.dumps(param))
-                assert 200 == resp.status
-                # FIXME: Right now pass as no handling for debian case yet
+                with patch.object(plugins_install, 'install_debian', return_value=0) as debian_patch:
+                    resp = await client.post('/foglamp/plugins', data=json.dumps(param))
+                    assert 200 == resp.status
+                debian_patch.assert_called_once_with(plugin_name)
+            checksum_patch.assert_called_once_with(checksum_value, plugin_name)
+        download_patch.assert_called_once_with([url_value])
+
+    async def test_post_plugins_install_with_bad_debian(self, client):
+        async def async_mock():
+            return [plugin_name, '{}/__init__.py'.format(plugin_name), '{}/README.rst'.format(plugin_name),
+                    '{}/{}.py'.format(plugin_name, plugin_name), '{}/requirements.sh'.format(plugin_name)]
+
+        plugin_name = 'coap'
+        checksum_value = "4015c2dea1cc71dbf70a23f6a203eeb6"
+        url_value = "http://10.2.5.26:5000/download/foglamp-south-coap-1.5.2.deb"
+        param = {"url": url_value, "format": "deb", "type": "south", "checksum": checksum_value}
+        with patch.object(plugins_install, 'download', return_value=async_mock()) as download_patch:
+            with patch.object(plugins_install, 'validate_checksum', return_value=True) as checksum_patch:
+                with patch.object(plugins_install, 'install_debian', return_value=100) as debian_patch:
+                    resp = await client.post('/foglamp/plugins', data=json.dumps(param))
+                    assert 400 == resp.status
+                    assert 'Something went wrong!' == resp.reason
+                debian_patch.assert_called_once_with(plugin_name)
             checksum_patch.assert_called_once_with(checksum_value, plugin_name)
         download_patch.assert_called_once_with([url_value])

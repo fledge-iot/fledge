@@ -407,7 +407,7 @@ $(BIN_INSTALL_DIR) :
 ####################### EXTRAS INSTALL TARGETS ################################
 ###############################################################################
 # install bin
-extras_install : $(EXTRAS_INSTALL_DIR) install_python_fogbench install_extras_scripts setuid_extract_plugin_snapshot
+extras_install : $(EXTRAS_INSTALL_DIR) install_python_fogbench install_extras_scripts setuid_cmdutil
 
 install_python_fogbench : $(FOGBENCH_PYTHON_INSTALL_DIR) $(FOGBENCH_PYTHON_SRC_DIR)
 	$(CP_DIR) $(FOGBENCH_PYTHON_SRC_DIR) $(FOGBENCH_PYTHON_INSTALL_DIR)
@@ -447,9 +447,9 @@ endif
 #$(DATA_INSTALL_DIR) :
 #	$(MKDIR_PATH) $@
 
-# set setuid bit of extract_plugin_snapshot
-setuid_extract_plugin_snapshot:
-	chmod u+s $(EXTRAS_INSTALL_DIR)/C/extract_plugin_snapshot
+# set setuid bit of cmdutil
+setuid_cmdutil:
+	chmod u+s $(EXTRAS_INSTALL_DIR)/C/cmdutil
 
 
 ###############################################################################

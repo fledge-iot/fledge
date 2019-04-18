@@ -102,7 +102,7 @@ PACKAGE_UPDATE_SCRIPT_SRC   := scripts/package
 # EXTRA SCRIPTS
 EXTRAS_SCRIPTS_SRC_DIR      := extras/scripts
 
-# FOGBENCH 
+# FOGBENCH
 FOGBENCH_PYTHON_SRC_DIR    := extras/python/fogbench
 
 # FogLAMP Version file
@@ -185,7 +185,7 @@ install : $(INSTALL_DIR) \
 	scripts_install \
 	bin_install \
 	extras_install \
-	data_install
+	data_install 
 
 ###############################################################################
 ############################ PRE-REQUISITE SCRIPTS ############################
@@ -249,7 +249,7 @@ c_install : c_build
 python_build : $(PYTHON_SETUP_FILE)
 	$(CD) $(PYTHON_SRC_DIR) ; $(PYTHON_BUILD_PACKAGE) ; $(CD) $(CURRENT_DIR) ; $(CP) $(PYTHON_REQUIREMENTS_FILE) $(PYTHON_LIB_DIR)/.
 
-# install python requirements without --user 
+# install python requirements without --user
 python_requirements : $(PYTHON_REQUIREMENTS_FILE)
 	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) $(NO_CACHE_DIR)
 
@@ -300,7 +300,7 @@ $(SCRIPTS_INSTALL_DIR) :
 install_common_scripts : $(SCRIPT_COMMON_INSTALL_DIR) $(COMMON_SCRIPTS_SRC)
 	$(CP) $(COMMON_SCRIPTS_SRC)/*.sh $(SCRIPT_COMMON_INSTALL_DIR)
 	$(CP) $(COMMON_SCRIPTS_SRC)/*.py $(SCRIPT_COMMON_INSTALL_DIR)
-	
+
 install_postgres_script : $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR) \
 	$(POSTGRES_SCHEMA_UPDATE_DIR) $(POSTGRES_SCRIPT_SRC) $(POSTGRES_SCHEMA_UPDATE_SCRIPT_SRC)
 	$(CP) $(POSTGRES_SCRIPT_SRC) $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR)
@@ -407,7 +407,7 @@ $(BIN_INSTALL_DIR) :
 ####################### EXTRAS INSTALL TARGETS ################################
 ###############################################################################
 # install bin
-extras_install : $(EXTRAS_INSTALL_DIR) install_python_fogbench install_extras_scripts
+extras_install : $(EXTRAS_INSTALL_DIR) install_python_fogbench install_extras_scripts setuid_extract_plugin_snapshot
 
 install_python_fogbench : $(FOGBENCH_PYTHON_INSTALL_DIR) $(FOGBENCH_PYTHON_SRC_DIR)
 	$(CP_DIR) $(FOGBENCH_PYTHON_SRC_DIR) $(FOGBENCH_PYTHON_INSTALL_DIR)
@@ -447,11 +447,16 @@ endif
 #$(DATA_INSTALL_DIR) :
 #	$(MKDIR_PATH) $@
 
+# set setuid bit of extract_plugin_snapshot
+setuid_extract_plugin_snapshot:
+	chmod u+s $(EXTRAS_INSTALL_DIR)/C/extract_plugin_snapshot
+
+
 ###############################################################################
 ######################## SUPPORTING BUILD/INSTALL TARGETS #####################
 ###############################################################################
 # create install directory
-$(INSTALL_DIR) : 
+$(INSTALL_DIR) :
 	$(MKDIR_PATH) $@
 
 ###############################################################################

@@ -563,6 +563,13 @@ class RestoreProcess(FoglampProcess):
         if status != 0:
             raise exceptions.RestoreFailed
 
+        # Delete files related to the WAL mechanism
+        cmd = "rm  {path}/foglamp.db-shm ".format(path=self._restore_lib.dir_foglamp_data)
+        status, output = lib.exec_wait_retry(cmd, True, timeout=self._restore_lib.config['timeout'])
+
+        cmd = "rm  {path}/foglamp.db-wal ".format(path=self._restore_lib.dir_foglamp_data)
+        status, output = lib.exec_wait_retry(cmd, True, timeout=self._restore_lib.config['timeout'])
+
     def _foglamp_start(self):
         """ Starts FogLAMP after the execution of the restore
 

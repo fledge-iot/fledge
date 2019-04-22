@@ -247,23 +247,23 @@ class TestE2eRPiEphatEgress:
         for w in SENSOR_READ_KEY_W:
             assert w in data_from_pi_w
             abs_sum_w = sum([abs(n) for n in data_from_pi_w[w]])
-            print("Weather (sum of absolute values), Sensor={}".format(w), abs_sum_w)
+            print("Weather (sum of {} absolute values), Sensor={}".format(len(data_from_pi_w[w]), w), abs_sum_w)
             assert abs_sum_w, "Sum of weather sensor absolute values is 0"
 
         for a in SENSOR_READ_KEY_A:
             assert a in data_from_pi_a
             abs_sum_a = sum([abs(n) for n in data_from_pi_a[a]])
-            print("Accelerometer (sum of absolute values), Sensor={}".format(a), abs_sum_a)
+            print("Accelerometer (sum of {} absolute values, Sensor={}".format(len(data_from_pi_a[a]), a), abs_sum_a)
             assert abs_sum_a, "Sum of accelerometer sensor absolute values is 0"
 
         for m in SENSOR_READ_KEY_M:
             assert m in data_from_pi_m
             abs_sum_m = sum([abs(n) for n in data_from_pi_m[m]])
-            print("Magnetometer (sum of absolute values), Sensor={}".format(m), abs_sum_m)
+            print("Magnetometer (sum of {} absolute values), Sensor={}".format(len(data_from_pi_m[m]), m), abs_sum_m)
             assert abs_sum_m, "Sum of magnetometer sensor absolute values is 0"
 
         for c in SENSOR_READ_KEY_C:
             assert c in data_from_pi_c
             abs_sum_c = sum([abs(n) for n in data_from_pi_c[c]])
-            print("RGB colors (sum of absolute values), Sensor={}".format(c), abs_sum_c)
+            print("RGB colors (sum of {} absolute values), Sensor={}".format(len(data_from_pi_c[c]), c), abs_sum_c)
             assert abs_sum_c, "Sum of rgb sensors absolute values is 0"

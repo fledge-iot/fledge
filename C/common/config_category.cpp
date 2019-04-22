@@ -19,6 +19,8 @@
 #include <time.h>
 #include <stdlib.h>
 #include <logger.h>
+#include <stdexcept>
+
 
 using namespace std;
 using namespace rapidjson;
@@ -1507,7 +1509,7 @@ ConfigCategoryChange::ConfigCategoryChange(const string& json)
 		catch (exception* e)
 		{
 			Logger::getLogger()->error("Configuration parse error in category %s item '%s', %s: %s",
-				m_name,
+				m_name.c_str(),
 				itr->name.GetString(),
 				json.c_str(),
 				e->what());

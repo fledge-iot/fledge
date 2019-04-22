@@ -9,7 +9,7 @@
         Egress: PI Server (C) plugin
 """
 
-import platform
+import os
 import http.client
 import json
 import time
@@ -28,18 +28,24 @@ __version__ = "${VERSION}"
 SOUTH_PLUGIN = "envirophat"
 SVC_NAME = "Room-1"
 ASSET_PREFIX = "envirophat/"  # default for envirophat South plugin
-ASSET_NAME = "weather"
-SENSOR_READ_KEY = "temperature"
+ASSET_NAME_W = "weather"
+SENSOR_READ_KEY_W = {"temperature", "altitude", "pressure"}
+
+ASSET_NAME_M = "magnetometer"
+SENSOR_READ_KEY_M = {"x", "y", "z"}
+
+ASSET_NAME_A = "accelerometer"
+SENSOR_READ_KEY_A = {"x", "y", "z"}
+
+ASSET_NAME_C = "rgb"
+SENSOR_READ_KEY_C = {"r", "g", "b"}
 
 TASK_NAME = "North v2 PI"
 
 
-@pytest.mark.skipif(platform.platform().find("arm") == -1, reason="RPi only (ePhat) test")
-# RPi Linux-4.14.98-v7+-armv7l-with-debian-9.8
+@pytest.mark.skipif('raspberrypi' != os.uname()[1], reason="RPi only (ePhat) test")
+# sysname='Linux', nodename='raspberrypi', release='4.14.98+', version='#1200 ', machine='armv6l'
 class TestE2eRPiEphatEgress:
-
-    # def test_Rpi(self):
-    #     assert -1 != platform.platform().find("arm"), "ePhat tests are expected to be run on RPi only!"
 
     def get_ping_status(self, foglamp_url):
         conn = http.client.HTTPConnection(foglamp_url)
@@ -60,7 +66,7 @@ class TestE2eRPiEphatEgress:
         return utils.serialize_stats_map(jdoc)
 
     @pytest.fixture
-    def start_south_north(self, reset_and_start_foglamp, add_south, south_branch,
+    def start_south_north(self, reset_and_start_foglamp, add_south, south_branch, disable_schedule,
                           remove_data_file, remove_directories, enable_schedule, foglamp_url,
                           start_north_pi_server_c, pi_host, pi_port, pi_token, wait_time):
         """ This fixture clones given south & filter plugin repo, and starts south and PI north C instance with filter
@@ -73,6 +79,7 @@ class TestE2eRPiEphatEgress:
 
         # let the readings ingress
         time.sleep(wait_time)
+        disable_schedule(foglamp_url, SVC_NAME)
 
         enable_schedule(foglamp_url, TASK_NAME)
 
@@ -83,27 +90,34 @@ class TestE2eRPiEphatEgress:
     def test_end_to_end(self, start_south_north, read_data_from_pi, foglamp_url, pi_host, pi_admin,
                         pi_passwd, pi_db, wait_time, retries, skip_verify_north_interface):
 
+        # let the readings egress
+        time.sleep(wait_time * 2)
         self._verify_ping_and_statistics(foglamp_url)
 
         self._verify_ingest(foglamp_url)
 
-        # if not skip_verify_north_interface:
-        #     self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
+        if not skip_verify_north_interface:
+            self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
 
     def _verify_ping_and_statistics(self, foglamp_url):
         ping_response = self.get_ping_status(foglamp_url)
-        assert ping_response["dataRead"]
-        # assert ping_response["dataSent"]
+        assert ping_response["dataRead"] > 0
+        assert ping_response["dataSent"] > 0
 
         actual_stats_map = self.get_statistics_map(foglamp_url)
-        key_asset_name_with_prefix = "{}{}".format(ASSET_PREFIX.upper(), ASSET_NAME.upper())
-        assert actual_stats_map[key_asset_name_with_prefix]
+        assert actual_stats_map["{}{}".format(ASSET_PREFIX.upper(), ASSET_NAME_W.upper())]
+        assert actual_stats_map["{}{}".format(ASSET_PREFIX.upper(), ASSET_NAME_M.upper())]
+        assert actual_stats_map["{}{}".format(ASSET_PREFIX.upper(), ASSET_NAME_A.upper())]
+        assert actual_stats_map["{}{}".format(ASSET_PREFIX.upper(), ASSET_NAME_C.upper())]
         assert actual_stats_map['READINGS']
-        # assert actual_stats_map[TASK_NAME]
-        # assert actual_stats_map['Readings Sent']
+        assert actual_stats_map[TASK_NAME]
+        assert actual_stats_map['Readings Sent']
 
     def _verify_ingest(self, foglamp_url):
-        asset_name_with_prefix = "{}{}".format(ASSET_PREFIX, ASSET_NAME)
+        asset_name_with_prefix_w = "{}{}".format(ASSET_PREFIX, ASSET_NAME_W)
+        asset_name_with_prefix_m = "{}{}".format(ASSET_PREFIX, ASSET_NAME_M)
+        asset_name_with_prefix_a = "{}{}".format(ASSET_PREFIX, ASSET_NAME_A)
+        asset_name_with_prefix_c = "{}{}".format(ASSET_PREFIX, ASSET_NAME_C)
         conn = http.client.HTTPConnection(foglamp_url)
 
         conn.request("GET", '/foglamp/asset')
@@ -113,45 +127,145 @@ class TestE2eRPiEphatEgress:
         jdoc = json.loads(r)
         assert len(jdoc), "No asset found"
         actual_assets = [i["assetCode"] for i in jdoc]
-        assert asset_name_with_prefix in actual_assets
+        assert asset_name_with_prefix_w in actual_assets
+        assert asset_name_with_prefix_m in actual_assets
+        assert asset_name_with_prefix_a in actual_assets
+        assert asset_name_with_prefix_c in actual_assets
         assert jdoc[0]["count"]
-        expected_assets = Counter(["envirophat/magnetometer", "envirophat/rgb", "envirophat/accelerometer", "envirophat/weather"])
+        expected_assets = Counter([asset_name_with_prefix_w, asset_name_with_prefix_m,
+                                   asset_name_with_prefix_a, asset_name_with_prefix_c])
         assert Counter(actual_assets) == expected_assets
 
         # foglamp/asset/envirophat%2Fweather
-        conn.request("GET", '/foglamp/asset/{}'.format(quote(asset_name_with_prefix, safe='')))
+        conn.request("GET", '/foglamp/asset/{}'.format(quote(asset_name_with_prefix_w, safe='')))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
-        jdoc = json.loads(r)
-        assert len(jdoc), "No asset found"
-        assert jdoc[0]["reading"][SENSOR_READ_KEY]
+        jdoc_asset = json.loads(r)
 
-        weather_sensors = ["temperature", "altitude", "pressure"]
-        for s in weather_sensors:
-            conn.request("GET", '/foglamp/asset/{}/{}'.format(quote(asset_name_with_prefix, safe=''), s))
+        for _sensor in SENSOR_READ_KEY_W:
+            assert len(jdoc_asset), "No data found for asset '{}'".format(asset_name_with_prefix_w)
+            assert jdoc_asset[0]["reading"][_sensor] is not None
+            conn.request("GET", '/foglamp/asset/{}/{}'.format(quote(asset_name_with_prefix_w, safe=''), _sensor))
             r = conn.getresponse()
             assert 200 == r.status
             r = r.read().decode()
             jdoc = json.loads(r)
-            assert len(jdoc), "No asset found"
+            assert len(jdoc), "No data found for asset '{}' and datapoint '{}'".format(asset_name_with_prefix_w, _sensor)
+
+        # foglamp/asset/envirophat%2Fmagnetometer
+        conn.request("GET", '/foglamp/asset/{}'.format(quote(asset_name_with_prefix_m, safe='')))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc_asset = json.loads(r)
+
+        for _sensor in SENSOR_READ_KEY_M:
+            assert len(jdoc_asset), "No data found for asset '{}'".format(asset_name_with_prefix_m)
+            assert jdoc_asset[0]["reading"][_sensor] is not None
+            conn.request("GET", '/foglamp/asset/{}/{}'.format(quote(asset_name_with_prefix_m, safe=''), _sensor))
+            r = conn.getresponse()
+            assert 200 == r.status
+            r = r.read().decode()
+            jdoc = json.loads(r)
+            assert len(jdoc), "No data found for asset '{}' and datapoint '{}'".format(asset_name_with_prefix_m,
+                                                                                       _sensor)
+
+        # foglamp/asset/envirophat%2Faccelerometer
+        conn.request("GET", '/foglamp/asset/{}'.format(quote(asset_name_with_prefix_a, safe='')))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc_asset = json.loads(r)
+
+        for _sensor in SENSOR_READ_KEY_A:
+            assert len(jdoc_asset), "No data found for asset '{}'".format(asset_name_with_prefix_a)
+            assert jdoc_asset[0]["reading"][_sensor] is not None
+            conn.request("GET", '/foglamp/asset/{}/{}'.format(quote(asset_name_with_prefix_a, safe=''), _sensor))
+            r = conn.getresponse()
+            assert 200 == r.status
+            r = r.read().decode()
+            jdoc = json.loads(r)
+            assert len(jdoc), "No data found for asset '{}' and datapoint '{}'".format(asset_name_with_prefix_a,
+                                                                                       _sensor)
+        # foglamp/asset/envirophat%2Frgb
+        conn.request("GET", '/foglamp/asset/{}'.format(quote(asset_name_with_prefix_c, safe='')))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc_asset = json.loads(r)
+
+        for _sensor in SENSOR_READ_KEY_C:
+            assert len(jdoc_asset), "No data found for asset '{}'".format(asset_name_with_prefix_c)
+            assert jdoc_asset[0]["reading"][_sensor] is not None
+            conn.request("GET", '/foglamp/asset/{}/{}'.format(quote(asset_name_with_prefix_c, safe=''), _sensor))
+            r = conn.getresponse()
+            assert 200 == r.status
+            r = r.read().decode()
+            jdoc = json.loads(r)
+            assert len(jdoc), "No data found for asset '{}' and datapoint '{}'".format(asset_name_with_prefix_c,
+                                                                                       _sensor)
 
         # verify summary (avg|min|max)
         # foglamp/asset/envirophat%2Fweather/temperature/summary
+        # This will be covered in browser API test
 
-    # def _verify_egress(self, read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries):
-    #     retry_count = 0
-    #     data_from_pi = None
-    #     while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
-    #         asset_name_with_prefix = "{}{}".format(ASSET_PREFIX, ASSET_NAME)
-    #         data_from_pi = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db, asset_name_with_prefix, {READ_KEY})
-    #         retry_count += 1
-    #         time.sleep(wait_time * 2)
-    #
-    #     if data_from_pi is None or retry_count == retries:
-    #         assert False, "Failed to read data from PI"
-    #
-    #     assert SENSOR_READ_KEY in data_from_pi
-    #     assert isinstance(data_from_pi[SENSOR_READ_KEY], list)
-    #     for n in data_from_pi[SENSOR_READ_KEY]]:
-    #         assert round(n, 1) > 0.0
+    def _verify_egress(self, read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries):
+        retry_count = 0
+        data_from_pi_w = None
+        data_from_pi_m = None
+        data_from_pi_a = None
+        data_from_pi_c = None
+
+        asset_name_with_prefix_w = "{}{}".format(ASSET_PREFIX, ASSET_NAME_W)
+        asset_name_with_prefix_a = "{}{}".format(ASSET_PREFIX, ASSET_NAME_A)
+        asset_name_with_prefix_m = "{}{}".format(ASSET_PREFIX, ASSET_NAME_M)
+        asset_name_with_prefix_c = "{}{}".format(ASSET_PREFIX, ASSET_NAME_C)
+
+        while (data_from_pi_w is None or data_from_pi_w == []) and retry_count < retries:
+            data_from_pi_w = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db, asset_name_with_prefix_w,
+                                               SENSOR_READ_KEY_W)
+
+            data_from_pi_m = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db, asset_name_with_prefix_m,
+                                               SENSOR_READ_KEY_M)
+
+            data_from_pi_a = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db, asset_name_with_prefix_a,
+                                               SENSOR_READ_KEY_A)
+
+            data_from_pi_c = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db, asset_name_with_prefix_c,
+                                               SENSOR_READ_KEY_C)
+
+            retry_count += 1
+            time.sleep(wait_time * 2)
+
+        if data_from_pi_w is None or data_from_pi_m is None or data_from_pi_a is None or data_from_pi_c is None\
+                or retry_count == retries:
+            assert False, "Failed to read data from PI"
+        # TODO: Remove prints, used for debugging purpose only
+        print("data\nWeather={}\nMagnet={}\nAcel={}\nColor={}\n".format(data_from_pi_w, data_from_pi_m, data_from_pi_a,
+                                                                        data_from_pi_c))
+
+        for _s in SENSOR_READ_KEY_W:
+            assert _s in data_from_pi_w
+            print("Weather, Sensor={}".format(_s), sum([abs(number) for number in data_from_pi_w[_s]]))
+            # Verify that sum of absolute values of each sensor of weather (6-7 datapoints) is not zero
+            assert sum([abs(number) for number in data_from_pi_w[_s]]) != 0
+
+        for _s in SENSOR_READ_KEY_A:
+            assert _s in data_from_pi_a
+            print("Accelerometer, Sensor={}".format(_s), sum([abs(number) for number in data_from_pi_a[_s]]))
+            # Verify that sum of absolute values of each sensor of accelerometer (6-7 datapoints) is not zero
+            assert sum([abs(number) for number in data_from_pi_a[_s]]) != 0
+
+        for _s in SENSOR_READ_KEY_M:
+            assert _s in data_from_pi_m
+            print("Magnetometer, Sensor={}".format(_s), sum([abs(number) for number in data_from_pi_m[_s]]))
+            # Verify that sum of absolute values of each sensor of magnetometer (6-7 datapoints) is not zero
+            assert sum([abs(number) for number in data_from_pi_m[_s]]) != 0
+
+        for _s in SENSOR_READ_KEY_C:
+            assert _s in data_from_pi_c
+            print("Color, Sensor={}".format(_s), sum([abs(number) for number in data_from_pi_c[_s]]))
+            # Verify that sum of absolute values of each sensor of color rgb (6-7 datapoints) is not zero
+            assert sum([abs(number) for number in data_from_pi_c[_s]]) != 0
+

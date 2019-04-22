@@ -258,7 +258,7 @@ class TestE2eRPiEphatEgress:
 
         for m in SENSOR_READ_KEY_M:
             assert m in data_from_pi_m
-            abs_sum_m = sum([abs(n) for n in data_from_pi_a[m]])
+            abs_sum_m = sum([abs(n) for n in data_from_pi_m[m]])
             print("Magnetometer (sum of absolute values), Sensor={}".format(m), abs_sum_m)
             assert abs_sum_m, "Sum of magnetometer sensor absolute values is 0"
 

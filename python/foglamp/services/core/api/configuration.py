@@ -244,6 +244,14 @@ async def set_configuration_item(request):
             raise web.HTTPBadRequest(reason='Missing required value for {}'.format(config_item))
     try:
         if not found_optional:
+            try:
+                is_core_mgt = request.is_core_mgt
+            except AttributeError:
+                storage_value_entry = await cf_mgr.get_category_item(category_name, config_item)
+                if 'readonly' in storage_value_entry:
+                    if storage_value_entry['readonly'] == 'true':
+                        raise TypeError("Update not allowed for {} item_name as it has readonly attribute set".format(config_item))
+
             await cf_mgr.set_category_item_value_entry(category_name, config_item, value)
         else:
             await cf_mgr.set_optional_value_entry(category_name, config_item, list(found_optional.keys())[0], list(found_optional.values())[0])
@@ -273,6 +281,18 @@ async def update_configuration_item_bulk(request):
         if not data:
             return web.HTTPBadRequest(reason='Nothing to update')
         cf_mgr = ConfigurationManager(connect.get_storage_async())
+        try:
+            is_core_mgt = request.is_core_mgt
+        except AttributeError:
+            for item_name, new_val in data.items():
+                storage_value_entry = await cf_mgr.get_category_item(category_name, item_name)
+                if storage_value_entry is None:
+                    raise KeyError("{} config item not found".format(item_name))
+                else:
+                    if 'readonly' in storage_value_entry:
+                        if storage_value_entry['readonly'] == 'true':
+                            raise TypeError(
+                                "Bulk update not allowed for {} item_name as it has readonly attribute set".format(item_name))
         await cf_mgr.update_configuration_item_bulk(category_name, data)
     except (NameError, KeyError) as ex:
         raise web.HTTPNotFound(reason=ex)
@@ -377,16 +397,23 @@ async def delete_configuration_item_value(request):
     category_name = urllib.parse.unquote(category_name) if category_name is not None else None
     config_item = urllib.parse.unquote(config_item) if config_item is not None else None
 
-    # TODO: make it optimized and elegant
     cf_mgr = ConfigurationManager(connect.get_storage_async())
     try:
         category_item = await cf_mgr.get_category_item(category_name, config_item)
         if category_item is None:
             raise ValueError
-
+        try:
+            is_core_mgt = request.is_core_mgt
+        except AttributeError:
+            if 'readonly' in category_item:
+                if category_item['readonly'] == 'true':
+                    raise TypeError(
+                        "Delete not allowed for {} item_name as it has readonly attribute set".format(config_item))
         await cf_mgr.set_category_item_value_entry(category_name, config_item, category_item['default'])
     except ValueError:
         raise web.HTTPNotFound(reason="No detail found for the category_name: {} and config_item: {}".format(category_name, config_item))
+    except TypeError as ex:
+        raise web.HTTPBadRequest(reason=str(ex))
 
     result = await cf_mgr.get_category_item(category_name, config_item)
 

@@ -50,16 +50,17 @@ async def add_plugin(request: web.Request) -> web.Response:
         url = data.get('url', None)
         file_format = data.get('format', None)
         compressed = data.get('compressed', None)
-        # FIXME: plugin_type only needed when format is tar
         plugin_type = data.get('type', None)
         checksum = data.get('checksum', None)
-        if not url or not file_format or not plugin_type or not checksum:
-            raise TypeError('URL, checksum, plugin type and format post params are mandatory.')
-        if plugin_type not in ['south', 'north', 'filter', 'notificationDelivery', 'notificationRule']:
-            raise ValueError("Invalid plugin type. Must be 'north' or 'south' or 'filter' "
-                             "or 'notificationDelivery' or 'notificationRule'")
+        if not url or not file_format or not checksum:
+            raise TypeError('URL, checksum and format post params are mandatory.')
         if file_format not in ["tar", "deb"]:
             raise ValueError("Invalid format. Must be 'tar' or 'deb'")
+        if file_format == "tar" and not plugin_type:
+            raise ValueError("Plugin type param is required.")
+        if file_format == "tar" and plugin_type not in ['south', 'north', 'filter', 'notificationDelivery', 'notificationRule']:
+            raise ValueError("Invalid plugin type. Must be 'north' or 'south' or 'filter' "
+                             "or 'notificationDelivery' or 'notificationRule'")
         if compressed:
             if compressed not in ['true', 'false', True, False]:
                 raise ValueError('Only "true", "false", true, false are allowed for value of compressed.')
@@ -172,6 +173,10 @@ def copy_file_install_requirement(dir_files: list, plugin_type: str):
     subprocess.run([cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     _LOGGER.info("{} File copied to {}".format(cmd, full_path))
 
+    # TODO: OPTIONAL (If any external dependency required to install plugin we will use this sh file),
+    # but this is most risky thing to run with as sudo
+    # Use case: plugins like opcua, usb4704 (external dep)
+    # dht11- For pip packages we have requirements.txt file, as this plugin needs wiringpi apt package to install; so where to put this command?
     if "requirements.sh" in _dir:
         _LOGGER.info("Installing external deps required for plugins.... {}".format(
             full_path + plugin_name + "/" + "requirements.sh"))

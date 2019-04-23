@@ -276,6 +276,45 @@ class TestConfiguration:
                 assert resp.reason is None
             patch_set_entry.assert_called_once_with(category_name, item_name, payload['value'])
 
+    @pytest.mark.parametrize("value", [
+        '',
+        'false',
+        'true'
+    ])
+    async def test_set_optional_in_config_item(self, client, value, category_name='rest_api', item_name='http_port', optional_key='readonly'):
+        async def async_mock(return_value):
+            return return_value
+
+        payload = {optional_key: value}
+        result = {optional_key: 'false', 'value': '8082', 'type': 'integer', 'default': '8081',
+                  'description': 'The port to accept HTTP connections on'}
+
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(c_mgr, 'set_optional_value_entry', return_value=async_mock(None)) as patch_set_entry:
+                with patch.object(c_mgr, 'get_category_item', return_value=async_mock(result)) as patch_get_cat_item:
+                    resp = await client.put('/foglamp/category/{}/{}'.format(category_name, item_name),
+                                            data=json.dumps(payload))
+                    assert 200 == resp.status
+                    r = await resp.text()
+                    json_response = json.loads(r)
+                    assert result == json_response
+                patch_get_cat_item.assert_called_once_with(category_name, item_name)
+            patch_set_entry.assert_called_once_with(category_name, item_name, optional_key, payload[optional_key])
+
+    async def test_set_optional_in_config_item_exception(self, client, category_name='rest_api', item_name='http_port'):
+        optional_key = 'readonly'
+        payload = {optional_key: '8082'}
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(c_mgr, 'set_optional_value_entry', side_effect=ValueError) as patch_set_entry:
+                resp = await client.put('/foglamp/category/{}/{}'.format(category_name, item_name), data=json.dumps(payload))
+                assert 400 == resp.status
+                assert resp.reason is None
+            patch_set_entry.assert_called_once_with(category_name, item_name, optional_key, payload[optional_key])
+
     async def test_delete_config_item(self, client, category_name='rest_api', item_name='http_port'):
         result = {'value': '8081', 'type': 'integer', 'default': '8081',
                   'description': 'The port to accept HTTP connections on'}

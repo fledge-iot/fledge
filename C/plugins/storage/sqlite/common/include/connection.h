@@ -102,7 +102,7 @@ class Connection {
 		sqlite3		*dbHandle;
 		int		mapResultSet(void *res, std::string& resultSet);
 		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&, bool convertLocaltime = false);
-		bool		jsonModifiers(const rapidjson::Value&, SQLBuffer&);
+		bool		jsonModifiers(const rapidjson::Value&, SQLBuffer&, bool isTableReading = false);
 		bool		jsonAggregates(const rapidjson::Value&,
 					       const rapidjson::Value&,
 					       SQLBuffer&,

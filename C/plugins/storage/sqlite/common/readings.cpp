@@ -621,7 +621,7 @@ bool		isAggregate = false;
 				 */
 				sql.append(" WHERE asset_code = asset_code");
 			}
-			if (!jsonModifiers(document, sql))
+			if (!jsonModifiers(document, sql, true))
 			{
 				return false;
 			}

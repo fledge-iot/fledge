@@ -206,7 +206,7 @@ class BackupStatus (object):
 class BackupRestoreLib(object):
     """ Library of functionalities for the backup restore operations that requires information/state to be stored """
 
-    STORAGE_EXE = "/services/storage"
+    STORAGE_EXE = "/services/foglamp.services.storage"
 
     MAX_NUMBER_OF_BACKUPS_TO_RETRIEVE = 9999
     """" Maximum number of backup information to retrieve from the storage layer"""

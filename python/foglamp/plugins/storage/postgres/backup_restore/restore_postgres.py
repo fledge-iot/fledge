@@ -50,6 +50,7 @@ import os
 import signal
 import uuid
 
+from foglamp.common.parser import Parser
 from foglamp.services.core import server
 from foglamp.common.process import FoglampProcess
 from foglamp.common import logger
@@ -238,8 +239,9 @@ class RestoreProcess(FoglampProcess):
 
         # Handled Restore command line parameters
         try:
-            self._backup_id = super().get_arg_value("--backup-id")
-            self._file_name = super().get_arg_value("--file")
+            self._backup_id = Parser.get('--backup-id')
+            self._file_name = Parser.get('--file')
+
         except Exception as _ex:
 
             _message = _MESSAGES_LIST["e000003"].format(_ex)

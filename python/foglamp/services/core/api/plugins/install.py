@@ -78,13 +78,13 @@ async def add_plugin(request: web.Request) -> web.Response:
         if validate_checksum(checksum, file_name) is False:
             raise ValueError("Checksum is failed.")
 
-        _LOGGER.info("Found {} format with compressed {}".format(file_format, is_compressed))
+        _LOGGER.debug("Found {} format with compressed {}".format(file_format, is_compressed))
         if file_format == 'tar':
             files = extract_file(file_name, is_compressed)
-            _LOGGER.info("Files {} {}".format(files, type(files)))
+            _LOGGER.debug("Files {} {}".format(files, type(files)))
             copy_file_install_requirement(files, plugin_type)
         else:
-            code, msg = install_debian(file_name)
+            code, msg = install_deb(file_name)
             if code != 0:
                 raise ValueError(msg)
     except FileNotFoundError as ex:
@@ -121,23 +121,31 @@ def validate_checksum(checksum: str, file_name: str) -> bool:
 def extract_file(file_name: str, is_compressed: bool) -> list:
     mode = "r:gz" if is_compressed else "r"
     tar = tarfile.open(_PATH + file_name, mode)
-    _LOGGER.info("Extracted to {}".format(_PATH))
+    _LOGGER.debug("Extracted to {}".format(_PATH))
     tar.extractall(_PATH)
-    _LOGGER.info("Extraction Done!!")
     return tar.getnames()
 
 
-def install_debian(file_name: str):
-    cmd = "sudo apt -y install {}/data/plugins/{} > {}/data/plugins/output.txt 2>&1".format(_FOGLAMP_ROOT, file_name, _FOGLAMP_ROOT)
-    _LOGGER.exception("CMD....{}".format(cmd))
+def install_deb(file_name: str):
+    deb_file_path = "data/plugins/{}".format(file_name)
+    stdout_file_path = "data/plugins/output.txt"
+    cmd = "sudo apt -y install {} > {} 2>&1".format(_FOGLAMP_ROOT + deb_file_path, _FOGLAMP_ROOT + stdout_file_path)
+    _LOGGER.debug("CMD....{}".format(cmd))
     ret_code = os.system(cmd)
-    _LOGGER.exception("Return Code....{}".format(ret_code))
+    _LOGGER.debug("Return Code....{}".format(ret_code))
     msg = ""
-    with open("{}/data/plugins/output.txt".format(_FOGLAMP_ROOT), 'r') as fh:
+    with open("{}".format(_FOGLAMP_ROOT + stdout_file_path), 'r') as fh:
         for line in fh:
             line = line.rstrip("\n")
             msg += line
-    _LOGGER.exception("Message.....{}".format(msg))
+    _LOGGER.debug("Message.....{}".format(msg))
+    # Remove stdout file
+    cmd = "{}/extras/C/cmdutil rm {}".format(_FOGLAMP_ROOT, stdout_file_path)
+    subprocess.run([cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+
+    # Remove downloaded debian file
+    cmd = "{}/extras/C/cmdutil rm {}".format(_FOGLAMP_ROOT, deb_file_path)
+    subprocess.run([cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     return ret_code, msg
 
 
@@ -159,7 +167,7 @@ def copy_file_install_requirement(dir_files: list, plugin_type: str):
 
     assert len(_dir), "No data found"
     plugin_name = _dir[0]
-    _LOGGER.info("Plugin name {} and Dir {} ".format(plugin_name, _dir))
+    _LOGGER.debug("Plugin name {} and Dir {} ".format(plugin_name, _dir))
     plugin_path = "python/foglamp/plugins" if py_file else "plugins"
     full_path = "{}/{}/{}/".format(_FOGLAMP_ROOT, plugin_path, plugin_type)
     dest_path = "{}/{}/".format(plugin_path, plugin_type)
@@ -175,13 +183,14 @@ def copy_file_install_requirement(dir_files: list, plugin_type: str):
     # copy plugin files to the relative plugins directory.
     cmd = "{}/extras/C/cmdutil cp {} {}".format(_FOGLAMP_ROOT, _PATH + plugin_name, dest_path)
     subprocess.run([cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-    _LOGGER.info("{} File copied to {}".format(cmd, full_path))
+    _LOGGER.debug("{} File copied to {}".format(cmd, full_path))
 
     # TODO: OPTIONAL (If any external dependency required to install plugin we will use this sh file),
     # but this is most risky thing to run with as sudo
     # Use case: plugins like opcua, usb4704 (external dep)
     # dht11- For pip packages we have requirements.txt file, as this plugin needs wiringpi apt package to install; so where to put this command?
-    if "requirements.sh" in _dir:
-        _LOGGER.info("Installing external deps required for plugins.... {}".format(
-            full_path + plugin_name + "/" + "requirements.sh"))
-        subprocess.run(["sh {}".format(full_path + plugin_name + "/" + "requirements.sh")], shell=True)
+    # if "requirements.sh" in _dir:
+    #     _LOGGER.info("Installing external deps required for plugins.... {}".format(
+    #         full_path + plugin_name + "/" + "requirements.sh"))
+    #     subprocess.run(["sh {}".format(full_path + plugin_name + "/" + "requirements.sh")], shell=True)
+    # Also removed downloaded and extracted tar file at the end

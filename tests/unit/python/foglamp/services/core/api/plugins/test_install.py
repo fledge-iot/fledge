@@ -139,7 +139,7 @@ class TestPluginInstall:
         param = {"url": url_value, "format": "deb", "type": "south", "checksum": checksum_value}
         with patch.object(plugins_install, 'download', return_value=async_mock()) as download_patch:
             with patch.object(plugins_install, 'validate_checksum', return_value=True) as checksum_patch:
-                with patch.object(plugins_install, 'install_debian', return_value=0) as debian_patch:
+                with patch.object(plugins_install, 'install_debian', return_value=(0, 'Success')) as debian_patch:
                     resp = await client.post('/foglamp/plugins', data=json.dumps(param))
                     assert 200 == resp.status
                 debian_patch.assert_called_once_with(plugin_name)
@@ -157,7 +157,7 @@ class TestPluginInstall:
         param = {"url": url_value, "format": "deb", "type": "south", "checksum": checksum_value}
         with patch.object(plugins_install, 'download', return_value=async_mock()) as download_patch:
             with patch.object(plugins_install, 'validate_checksum', return_value=True) as checksum_patch:
-                with patch.object(plugins_install, 'install_debian', return_value=100) as debian_patch:
+                with patch.object(plugins_install, 'install_debian', return_value=(256, 'Something went wrong!')) as debian_patch:
                     resp = await client.post('/foglamp/plugins', data=json.dumps(param))
                     assert 400 == resp.status
                     assert 'Something went wrong!' == resp.reason

@@ -137,7 +137,7 @@ def install_debian(file_name: str):
         for line in fh:
             line = line.rstrip("\n")
             msg += line
-    _LOGGER.exception("Message.....{}", msg)
+    _LOGGER.exception("Message.....{}".format(msg))
     return ret_code, msg
 
 

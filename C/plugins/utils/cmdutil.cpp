@@ -31,23 +31,21 @@ bool checkFile(char *rootdir, char *file)
 	return (access(path, F_OK) == 0);
 }
 
-const char *cmds[] = {"tar-extract", "cp", "rm", "apt-install", "pip3-pkg", "pip3-req", "mkdir"};
+const char *cmds[] = {"tar-extract", "cp", "rm", "pip3-pkg", "pip3-req", "mkdir"};
 
 typedef enum {
 	TAR_EXTRACT,
 	CP,
 	RM,
-	APT_INSTALL,
 	PIP3_PKG,
 	PIP3_REQ,
 	MKDIR
 } cmdtype_t;
 
-char *argsArray[7][6] = {
+char *argsArray[][6] = {
 	{(char *) "/bin/tar", (char *) "-C", 	(char *) "PLACEHOLDER", (char *) "-xf", 		(char *) "PLACEHOLDER", NULL},
 	{(char *) "/bin/cp",  (char *) "-r", 	(char *) "PLACEHOLDER", (char *) "PLACEHOLDER", NULL, 					NULL},
 	{(char *) "/bin/rm",  (char *) "-rf", 	(char *) "PLACEHOLDER", NULL, 					NULL, 					NULL},
-	{(char *) "apt", 	(char *) "install", (char *) "-y", 			(char *) "PLACEHOLDER", NULL, 					NULL},
 	{(char *) "pip3", 	(char *) "install", (char *) "PLACEHOLDER", (char *) "--no-cache-dir", NULL, 				NULL},
 	{(char *) "pip3", 	(char *) "install", (char *) "-Ir", 		(char *) "PLACEHOLDER",	(char *) "--no-cache-dir", NULL},
 	{(char *) "mkdir",  (char *) "-p", 		(char *) "PLACEHOLDER", NULL, 					NULL, 					NULL}
@@ -72,7 +70,6 @@ int getCmdType(const char *cmd)
  * 		sudo tar -C $FOGLAMP_ROOT -xf abc.tar.gz		cmdutil tar-extract abc.tar.gz
  *		sudo cp -r abc $FOGLAMP_ROOT/xyz				cmdutil cp abc xyz
  *		sudo rm -rf $FOGLAMP_ROOT/abc					cmdutil rm abc
- *		sudo apt install -y wiringpi					cmdutil apt-install wiringpi
  *
  *		sudo pip3 install aiocoap==0.3 --no-cache-dir	cmdutil pip3-pkg aiocoap==0.3
  *		sudo pip3 install -Ir requirements.txt --no-cache-dir	cmdutil pip3-req requirements.txt
@@ -140,9 +137,6 @@ int main(int argc, char *argv[])
 				buf[sizeof(buf)-1] = '\0'; // force null terminate
 				args[2] = buf;
 			break;
-		case APT_INSTALL:
-				args[3] = argv[2];
-			break;
 		case PIP3_PKG:
 				args[2] = argv[2];
 			break;
@@ -159,7 +153,7 @@ int main(int argc, char *argv[])
 			return 3;
 	}
 
-	printf("cmd=%s %s %s %s %s %s\n", args[0], args[1], args[2], args[3]?args[3]:"", args[4]?args[4]:"", args[5]?args[5]:"");
+	//printf("cmd=%s %s %s %s %s %s\n", args[0], args[1], args[2], args[3]?args[3]:"", args[4]?args[4]:"", args[5]?args[5]:"");
 
 	errno = 0;
 	int rc = execvp(args[0], args);

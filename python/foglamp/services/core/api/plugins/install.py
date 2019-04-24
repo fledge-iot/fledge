@@ -84,10 +84,9 @@ async def add_plugin(request: web.Request) -> web.Response:
             _LOGGER.info("Files {} {}".format(files, type(files)))
             copy_file_install_requirement(files, plugin_type)
         else:
-            code = install_debian(file_name)
+            code, msg = install_debian(file_name)
             if code != 0:
-                # FIXME: proper message
-                raise ValueError('Something went wrong!')
+                raise ValueError(msg)
     except FileNotFoundError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except (TypeError, ValueError) as ex:
@@ -129,11 +128,17 @@ def extract_file(file_name: str, is_compressed: bool) -> list:
 
 
 def install_debian(file_name: str):
-    cmd = "sudo apt -y install {}/data/plugins/{}".format(_FOGLAMP_ROOT, file_name)
-    ret_code = os.system(cmd)
+    cmd = "sudo apt -y install {}/data/plugins/{} > {}/data/plugins/output.txt 2>&1".format(_FOGLAMP_ROOT, file_name, _FOGLAMP_ROOT)
+    _LOGGER.exception("CMD....{}".format(cmd))
     ret_code = os.system(cmd)
     _LOGGER.exception("Return Code....{}".format(ret_code))
-    return ret_code
+    msg = ""
+    with open("{}/data/plugins/output.txt".format(_FOGLAMP_ROOT), 'r') as fh:
+        for line in fh:
+            line = line.rstrip("\n")
+            msg += line
+    _LOGGER.exception("Message.....{}", msg)
+    return ret_code, msg
 
 
 def copy_file_install_requirement(dir_files: list, plugin_type: str):

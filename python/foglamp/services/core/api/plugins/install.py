@@ -129,12 +129,11 @@ def extract_file(file_name: str, is_compressed: bool) -> list:
 
 
 def install_debian(file_name: str):
-    apt_install = subprocess.run(["{}/extras/C/cmdutil".format(_FOGLAMP_ROOT), "apt-install",
-                                  "{}/data/plugins/{}".format(_FOGLAMP_ROOT, file_name)],
-                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    msg = apt_install.stdout.decode("utf-8") if apt_install.returncode != 0 else apt_install.stderr.decode("utf-8")
-    _LOGGER.exception("O/P....{}...{}".format(msg, apt_install.returncode))
-    return msg
+    cmd = "sudo apt -y install {}/data/plugins/{}".format(_FOGLAMP_ROOT, file_name)
+    ret_code = os.system(cmd)
+    ret_code = os.system(cmd)
+    _LOGGER.exception("Return Code....{}".format(ret_code))
+    return ret_code
 
 
 def copy_file_install_requirement(dir_files: list, plugin_type: str):

@@ -238,11 +238,11 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
  * using the available formats in SQLite3
  * for a specific column
  *
- * If the requested format is not availble
+ * If the requested format is not available
  * the input column is used as is.
  * Additionally milliseconds could be rounded
  * upon request.
- * The routine return false if datwe format is not
+ * The routine return false if date format is not
  * found and the caller might decide to raise an error
  * or use the non formatted value
  *
@@ -281,7 +281,7 @@ bool retCode;
 			outFormat.append(colName);
 		}
 
-		outFormat.append(", 'localtime')");	// MR TRY THIS
+		outFormat.append(" )");
 		retCode = true;
 	}
 	else
@@ -299,11 +299,11 @@ bool retCode;
  * using the available formats in SQLite3
  * for a specific column
  *
- * If the requested format is not availble
+ * If the requested format is not available
  * the input column is used as is.
  * Additionally milliseconds could be rounded
  * upon request.
- * The routine return false if datwe format is not
+ * The routine return false if date format is not
  * found and the caller might decide to raise an error
  * or use the non formatted value
  *
@@ -342,7 +342,7 @@ bool retCode;
 			outFormat.append(colName);
 		}
 
-		outFormat.append(", 'localtime')");	// MR force localtime
+		outFormat.append(", 'localtime')");
 		retCode = true;
 	}
 	else
@@ -779,7 +779,7 @@ SQLBuffer	jsonConstraints;
 					sql.append(document["modifier"].GetString());
 					sql.append(' ');
 				}
-				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints))
+				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints, false))
 				{
 					return false;
 				}
@@ -832,6 +832,7 @@ SQLBuffer	jsonConstraints;
 								applyColumnDateFormat((*itr)["format"].GetString(),
 										      (*itr)["column"].GetString(),
 										      new_format, true);
+
 								// Add the formatted column or use it as is
 								sql.append(new_format);
 							}
@@ -923,7 +924,7 @@ SQLBuffer	jsonConstraints;
                                         delete[] jsonBuf;
 				}
 			}
-			if (!jsonModifiers(document, sql))
+			if (!jsonModifiers(document, sql, false))
 			{
 				return false;
 			}
@@ -1943,9 +1944,18 @@ bool Connection::jsonAggregates(const Value& payload,
 			{
 				// SQLite 3 date format.
 				string new_format;
-				applyColumnDateFormat(grp["format"].GetString(),
-						      grp["column"].GetString(),
-						      new_format);
+				if (isTableReading)
+				{
+					applyColumnDateFormatLocaltime(grp["format"].GetString(),
+							               grp["column"].GetString(),
+							               new_format);
+				}
+				else
+				{
+					applyColumnDateFormat(grp["format"].GetString(),
+							      grp["column"].GetString(),
+							      new_format);
+				}
 				// Add the formatted column or use it as is
 				sql.append(new_format);
 			}
@@ -2090,10 +2100,13 @@ bool Connection::jsonAggregates(const Value& payload,
 }
 
 /**
- * Process the modifers for limit, skip, sort and group
+ * Process the modifiers for limit, skip, sort and group
  */
-bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
+bool Connection::jsonModifiers(const Value& payload,
+                               SQLBuffer& sql,
+			       bool isTableReading)
 {
+
 	if (payload.HasMember("timebucket") && payload.HasMember("sort"))
 	{
 		raiseError("query modifiers",
@@ -2111,12 +2124,22 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 			{
 				/**
 				 * SQLite 3 date format is limited.
-				 * Handle all availables formats here.
+				 * Handle all available formats here.
 				 */
 				string new_format;
-				applyColumnDateFormat(grp["format"].GetString(),
-						      grp["column"].GetString(),
-						      new_format);
+				if (isTableReading)
+				{
+					applyColumnDateFormatLocaltime(grp["format"].GetString(),
+								       grp["column"].GetString(),
+								       new_format);
+				}
+				else
+				{
+					applyColumnDateFormat(grp["format"].GetString(),
+							      grp["column"].GetString(),
+							      new_format);
+				}
+
 				// Add the formatted column or use it as is
 				sql.append(new_format);
 			}

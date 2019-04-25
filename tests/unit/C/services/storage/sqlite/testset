@@ -113,4 +113,15 @@ Add table snapshot,POST,http://localhost:8080/storage/table/test2/snapshot,add_s
 Load table snapshot,PUT,http://localhost:8080/storage/table/test2/snapshot/99,
 Delete table snapshot,DELETE,http://localhost:8080/storage/table/test2/snapshot/99,
 Jira FOGL-690,POST,http://localhost:8080/storage/table/configuration,fogl690-error.json
+timezone - all tables - Delete,DELETE,http://localhost:8080/storage/table/test2,
+timezone - readings   - Delete,PUT,http://localhost:8080/storage/reading/purge?age=1&sent=0&flags=purge,
+timezone - all tables - insert,POST,http://localhost:8080/storage/table/test2,tz_all_insert.json
+timezone - all tables - read 1,GET,http://localhost:8080/storage/table/test2?id=2000,
+timezone - all tables - read 2,PUT,http://localhost:8080/storage/table/test2/query,tz_all_read_2.json
+timezone - all tables - read 3,PUT,http://localhost:8080/storage/table/test2/query,tz_all_read_3.json
+timezone - readings   - insert,POST,http://localhost:8080/storage/reading,tz_readings_insert.json
+timezone - readings   - read 1,GET,http://localhost:8080/storage/reading?id=1&count=2000,,checkstate
+timezone - readings   - read 2,PUT,http://localhost:8080/storage/reading/query,tz_readings_read_2.json
+timezone - readings   - read 3,PUT,http://localhost:8080/storage/reading/query,tz_readings_read_3.json
+timezone - readings   - read 4,PUT,http://localhost:8080/storage/reading/query,tz_readings_read_4.json
 Shutdown,POST,http://localhost:1081/foglamp/service/shutdown,,checkstate

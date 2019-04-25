@@ -116,7 +116,7 @@ class TestE2eFogPairPi:
             subprocess.run([
                 "scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} $FOGLAMP_ROOT/tests/system/python/scripts/install_python_plugin {}@{}:/tmp/".format(
                     key_path, remote_user, remote_ip)], shell=True, check=True)
-            subprocess.run(["ssh -i {} {}@{} 'export FOGLAMP_ROOT={}; /tmp/install_python_plugin {} south {} {}'".format(
+            subprocess.run(["ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} 'export FOGLAMP_ROOT={}; /tmp/install_python_plugin {} south {} {}'".format(
                     key_path, remote_user, remote_ip, remote_foglamp_path, south_branch, south_plugin, use_pip_cache)],
                 shell=True, check=True)
 

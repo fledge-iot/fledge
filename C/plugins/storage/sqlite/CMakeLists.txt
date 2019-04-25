@@ -27,6 +27,9 @@ set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION 1)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}")
 find_package(sqlite3)
 
+message("SQLITE_INCLUDE_DIR: ${SQLITE_INCLUDE_DIR}")
+message("SQLITE_LIBRARIES: ${SQLITE_LIBRARIES}")
+
 # Link with SQLite3 library
 target_link_libraries(${PROJECT_NAME} -lsqlite3)
 

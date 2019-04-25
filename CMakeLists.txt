@@ -1,11 +1,29 @@
 cmake_minimum_required (VERSION 2.8.8)
 project (FogLAMP)
 
-set(CMAKE_BUILD_TYPE Debug)
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -Wall")
+#set(CMAKE_BUILD_TYPE Debug)
+#set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -Wall")
 set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
-set(PYTHON_LIBRARY /opt/rh/rh-python36/root/usr/lib64)
-set(PYTHON_INCLUDE_DIR /opt/rh/rh-python36/root/usr/include/python3.6m)
+#set(PYTHON_LIBRARIES /opt/rh/rh-python36/root/usr/lib64/libpython3.6m.so)
+#set(PYTHON_INCLUDE_DIRS /opt/rh/rh-python36/root/usr/include/python3.6m)
+#set(PYTHON_EXECUTABLE /opt/rh/rh-python36/root/usr/bin/python3.6)
+#execute_process(COMMAND python -c "from distutils.sysconfig import get_python_inc; print(get_python_inc())" OUTPUT_VARIABLE PYTHON_INCLUDE_DIR)
+#execute_process(COMMAND python -c "import distutils.sysconfig as sysconfig; print(sysconfig.get_config_var('LIBDIR'))" OUT_VARIABLE PYTHON_LIBRARY)
+#execute_process(COMMAND which python3 OUT_VARIABLE PYTHON_EXECUTABLE)
+
+FIND_PACKAGE(PkgConfig REQUIRED)
+#set(CMAKE_PREFIX_PATH "/opt/rh/rh-python36/root/usr/lib64/pkgconfig")
+#set(ENV{PKG_CONFIG_PATH} "$ENV{PKG_CONFIG_PATH}:/opt/rh/rh-python36/root/usr/lib64/pkgconfig")
+#PKG_CHECK_MODULES(PYTHON REQUIRED python3)
+#PKG_SEARCH_MODULE(PYTHON REQUIRED python3)
+
+# PYTHON_INCLUDE_DIRS & PYTHON_LIBRARIES are set here
+#message("PYTHON_INCLUDE_DIRS: ${PYTHON_INCLUDE_DIRS}")
+#message("PYTHON_LIBRARIES: ${PYTHON_LIBRARIES}")
+#message("PYTHON_LIBRARY_DIRS: ${PYTHON_LIBRARY_DIRS}")
+
+#set(PYTHON_LIBRARIES "${PYTHON_LIBRARY_DIRS}/${PYTHON_LIBRARIES}")
+
 set(SQLITE_INCLUDE_DIR /usr/local/include)
 set(SQLITE_LIBRARIES /usr/local/lib)
 

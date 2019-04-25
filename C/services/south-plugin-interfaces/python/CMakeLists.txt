@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.6.0)
+cmake_minimum_required(VERSION 2.8.12)
 
 project(south-plugin-python-interface)
 
@@ -12,13 +12,17 @@ set(SERVICE_COMMON_LIB services-common-lib)
 file(GLOB SOURCES python_plugin_interface.cpp pyobject_reading_parser.cpp)
 
 # Find Python.h 3.x dev/lib package
-find_package(PythonLibs 3 REQUIRED)
+#set(Python_ADDITIONAL_VERSIONS 3.6)
+#find_package(PythonLibs 3 REQUIRED)
+PKG_CHECK_MODULES(PYTHON REQUIRED python3)
 
 # Include header files
 include_directories(include ../../../common/include ../../../services/common/include ../../../services/south/include ../../../thirdparty/rapidjson/include)
 
 # Add Python 3.x header files
 include_directories(${PYTHON_INCLUDE_DIRS})
+
+link_directories(${PYTHON_LIBRARY_DIRS})
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../../../lib)
 

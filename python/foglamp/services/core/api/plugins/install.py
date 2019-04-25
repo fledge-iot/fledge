@@ -130,8 +130,8 @@ def extract_file(file_name: str, is_compressed: bool) -> list:
 
 
 def install_deb(file_name: str):
-    deb_file_path = "data/plugins/{}".format(file_name)
-    stdout_file_path = "data/plugins/output.txt"
+    deb_file_path = "/data/plugins/{}".format(file_name)
+    stdout_file_path = "/data/plugins/output.txt"
     cmd = "sudo apt -y install {} > {} 2>&1".format(_FOGLAMP_ROOT + deb_file_path, _FOGLAMP_ROOT + stdout_file_path)
     _LOGGER.debug("CMD....{}".format(cmd))
     ret_code = os.system(cmd)
@@ -204,9 +204,9 @@ def copy_file_install_requirement(dir_files: list, plugin_type: str, file_name: 
         _LOGGER.debug("Return code {} and msg {}".format(code, msg))
 
     # Also removed downloaded and extracted tar file
-    cmd = "{}/extras/C/cmdutil rm data/plugins/{}".format(_FOGLAMP_ROOT, file_name)
+    cmd = "{}/extras/C/cmdutil rm /data/plugins/{}".format(_FOGLAMP_ROOT, file_name)
     subprocess.run([cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-    cmd = "{}/extras/C/cmdutil rm data/plugins/{}".format(_FOGLAMP_ROOT, plugin_name)
+    cmd = "{}/extras/C/cmdutil rm /data/plugins/{}".format(_FOGLAMP_ROOT, plugin_name)
     subprocess.run([cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 
     return code, msg

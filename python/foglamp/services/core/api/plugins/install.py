@@ -58,7 +58,8 @@ async def add_plugin(request: web.Request) -> web.Response:
             raise ValueError("Invalid format. Must be 'tar' or 'deb'")
         if file_format == "tar" and not plugin_type:
             raise ValueError("Plugin type param is required.")
-        if file_format == "tar" and plugin_type not in ['south', 'north', 'filter', 'notificationDelivery', 'notificationRule']:
+        if file_format == "tar" and plugin_type not in ['south', 'north', 'filter', 'notificationDelivery',
+                                                        'notificationRule']:
             raise ValueError("Invalid plugin type. Must be 'north' or 'south' or 'filter' "
                              "or 'notificationDelivery' or 'notificationRule'")
         if compressed:
@@ -82,7 +83,9 @@ async def add_plugin(request: web.Request) -> web.Response:
         if file_format == 'tar':
             files = extract_file(file_name, is_compressed)
             _LOGGER.debug("Files {} {}".format(files, type(files)))
-            copy_file_install_requirement(files, plugin_type)
+            code, msg = copy_file_install_requirement(files, plugin_type, file_name)
+            if code != 0:
+                raise ValueError(msg)
         else:
             code, msg = install_deb(file_name)
             if code != 0:
@@ -149,7 +152,7 @@ def install_deb(file_name: str):
     return ret_code, msg
 
 
-def copy_file_install_requirement(dir_files: list, plugin_type: str):
+def copy_file_install_requirement(dir_files: list, plugin_type: str, file_name: str) -> tuple:
     py_file = any(f.endswith(".py") for f in dir_files)
     so_1_file = any(f.endswith(".so.1") for f in dir_files)  # regular file
     so_file = any(f.endswith(".so") for f in dir_files)  # symlink file
@@ -185,12 +188,25 @@ def copy_file_install_requirement(dir_files: list, plugin_type: str):
     subprocess.run([cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     _LOGGER.debug("{} File copied to {}".format(cmd, full_path))
 
-    # TODO: OPTIONAL (If any external dependency required to install plugin we will use this sh file),
-    # but this is most risky thing to run with as sudo
+    # TODO: FOGL-2760 Handle external dependency for plugins which can be installed via tar file
     # Use case: plugins like opcua, usb4704 (external dep)
-    # dht11- For pip packages we have requirements.txt file, as this plugin needs wiringpi apt package to install; so where to put this command?
-    # if "requirements.sh" in _dir:
-    #     _LOGGER.info("Installing external deps required for plugins.... {}".format(
-    #         full_path + plugin_name + "/" + "requirements.sh"))
-    #     subprocess.run(["sh {}".format(full_path + plugin_name + "/" + "requirements.sh")], shell=True)
-    # Also removed downloaded and extracted tar file at the end
+    # dht11- For pip packages we have requirements.txt file, as this plugin needs wiringpi apt package to install
+    py_req = filter(lambda x: x.startswith('requirement') and x.endswith('.txt'), _dir)
+    requirement = list(py_req)
+    code = 0
+    msg = ""
+    if requirement:
+        cmd = "{}/extras/C/cmdutil pip3-req {}{}/{}".format(_FOGLAMP_ROOT, _PATH, plugin_name, requirement[0])
+        s = subprocess.run([cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        code = s.returncode
+        msg = s.stderr.decode("utf-8") if code != 0 else s.stdout.decode("utf-8")
+        msg = msg.replace("\n", "").strip()
+        _LOGGER.debug("Return code {} and msg {}".format(code, msg))
+
+    # Also removed downloaded and extracted tar file
+    cmd = "{}/extras/C/cmdutil rm data/plugins/{}".format(_FOGLAMP_ROOT, file_name)
+    subprocess.run([cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+    cmd = "{}/extras/C/cmdutil rm data/plugins/{}".format(_FOGLAMP_ROOT, plugin_name)
+    subprocess.run([cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+
+    return code, msg

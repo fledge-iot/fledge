@@ -12,9 +12,8 @@ set(SERVICE_COMMON_LIB services-common-lib)
 file(GLOB SOURCES ingest_callback_pymodule.cpp ../pyobject_reading_parser.cpp)
 
 # Find Python 3.5 or higher dev/lib/interp package
-#find_package(PythonLibs 3.5 REQUIRED)
 #find_package(PythonInterp 3.5 REQUIRED)
-PKG_CHECK_MODULES(PYTHON REQUIRED python3)
+pkg_check_modules(PYTHON REQUIRED python3)
 
 # Include header files
 include_directories(include ../../../../common/include ../../../../services/common/include ../../../../services/south/include ../../../../thirdparty/rapidjson/include)

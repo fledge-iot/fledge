@@ -28,7 +28,6 @@ include_directories(../../services/common/include)
 include_directories(../../thirdparty/Simple-Web-Server)
 include_directories(../../thirdparty/rapidjson/include)
 
-link_directories(${PYTHON_LIBRARY_DIRS})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../../lib)
 
 # Create shared library

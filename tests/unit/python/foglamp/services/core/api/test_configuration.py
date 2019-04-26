@@ -728,7 +728,8 @@ class TestConfiguration:
         (500, Exception)
     ])
     async def test_update_bulk_config_exception(self, client,  code, exception_name, category_name='rest_api'):
-        payload = {"http_port": "8082", "authentication": "mandatory"}
+        config_item_name = "authentication"
+        payload = {config_item_name: "required"}
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
@@ -736,35 +737,29 @@ class TestConfiguration:
                 resp = await client.put('/foglamp/category/{}'.format(category_name), data=json.dumps(payload))
                 assert code == resp.status
                 assert resp.reason is None
-            assert 1 == patch_get_cat_item.call_count
-            calls = patch_get_cat_item.call_args_list
-            args, kwargs = calls[0]
-            assert category_name == args[0]
-            assert list(payload)[0] == args[1]
+            patch_get_cat_item.assert_called_once_with(category_name, config_item_name)
 
     async def test_update_bulk_config_item_not_found(self, client, category_name='rest_api'):
         async def async_mock(return_value):
             return return_value
 
-        payload = {"http_port": "8082", "authentication": "mandatory"}
+        config_item_name = "https"
+        payload = {config_item_name: "8082"}
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'get_category_item', return_value=async_mock(None)) as patch_get_cat_item:
                 resp = await client.put('/foglamp/category/{}'.format(category_name), data=json.dumps(payload))
                 assert 404 == resp.status
-                assert "'{} config item not found'".format(list(payload)[0]) == resp.reason
-            assert 1 == patch_get_cat_item.call_count
-            calls = patch_get_cat_item.call_args_list
-            args, kwargs = calls[0]
-            assert category_name == args[0]
-            assert list(payload)[0] == args[1]
+                assert "'{} config item not found'".format(config_item_name) == resp.reason
+            patch_get_cat_item.assert_called_once_with(category_name, config_item_name)
 
     async def test_update_bulk_config_not_allowed(self, client, category_name='rest_api'):
         async def async_mock(return_value):
             return return_value
 
-        payload = {"http_port": "8082", "authentication": "mandatory"}
+        config_item_name = "http_port"
+        payload = {config_item_name: "8082"}
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         storage_value_entry = {'description': 'Port to accept HTTP connections on', 'displayName': 'HTTP Port',
@@ -773,12 +768,8 @@ class TestConfiguration:
             with patch.object(c_mgr, 'get_category_item', return_value=async_mock(storage_value_entry)) as patch_get_cat_item:
                 resp = await client.put('/foglamp/category/{}'.format(category_name), data=json.dumps(payload))
                 assert 400 == resp.status
-                assert 'Bulk update not allowed for {} item_name as it has readonly attribute set'.format(list(payload)[0]) == resp.reason
-            assert 1 == patch_get_cat_item.call_count
-            calls = patch_get_cat_item.call_args_list
-            args, kwargs = calls[0]
-            assert category_name == args[0]
-            assert list(payload)[0] == args[1]
+                assert 'Bulk update not allowed for {} item_name as it has readonly attribute set'.format(config_item_name) == resp.reason
+            patch_get_cat_item.assert_called_once_with(category_name, config_item_name)
 
     @pytest.mark.parametrize("category_name", [
         "rest_api", "Rest $API"
@@ -809,13 +800,6 @@ class TestConfiguration:
                     patch_get_all_items.assert_called_once_with(category_name)
                 patch_update_bulk.assert_called_once_with(category_name, payload)
             assert 2 == patch_get_cat_item.call_count
-            calls = patch_get_cat_item.call_args_list
-            args, kwargs = calls[0]
-            assert category_name == args[0]
-            assert list(payload)[0] == args[1]
-            args, kwargs = calls[1]
-            assert category_name == args[0]
-            assert list(payload)[1] == args[1]
 
     async def test_delete_configuration(self, client, category_name='rest_api'):
         result = {'result': 'Category {} deleted successfully.'.format(category_name)}

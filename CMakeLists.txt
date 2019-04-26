@@ -1,15 +1,9 @@
 cmake_minimum_required (VERSION 2.8.8)
 project (FogLAMP)
 
-#set(CMAKE_BUILD_TYPE Debug)
-#set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -Wall")
 set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
-#execute_process(COMMAND which python3 OUT_VARIABLE PYTHON_EXECUTABLE)
 
-FIND_PACKAGE(PkgConfig REQUIRED)
-
-set(SQLITE_INCLUDE_DIR /usr/local/include)
-set(SQLITE_LIBRARIES /usr/local/lib)
+find_package(PkgConfig REQUIRED)
 
 add_subdirectory(C/common)
 add_subdirectory(C/services/common)

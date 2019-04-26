@@ -16,7 +16,8 @@ find_package(Boost 1.53.0 COMPONENTS ${BOOST_COMPONENTS} REQUIRED)
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 
 # Find python3.x dev/lib package
-find_package(PythonLibs 3 REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(PYTHON REQUIRED python3)
 
 include_directories(../../../C/common/include)
 include_directories(../../../C/plugins/common/include)

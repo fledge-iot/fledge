@@ -32,7 +32,7 @@ set(PLUGINS_COMMON_LIB plugins-common-lib)
 file(GLOB unittests "*.cpp")
  
 # Find python3.x dev/lib package
-find_package(PythonLibs 3 REQUIRED)
+pkg_check_modules(PYTHON REQUIRED python3)
 
 # Add Python 3.x header files
 include_directories(${PYTHON_INCLUDE_DIRS})

@@ -32,6 +32,7 @@ file(GLOB test_sources "../../../../../C/services/core/*.cpp")
 file(GLOB unittests "*.cpp")
  
 # Find python3.x dev/lib package
+find_package(PkgConfig REQUIRED)
 pkg_check_modules(PYTHON REQUIRED python3)
 
 # Add Python 3.x header files

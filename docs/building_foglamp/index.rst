@@ -10,6 +10,5 @@ Building FogLAMP Developers Guide
     building_foglamp
     04_installation
     06_testing
-    systemtest
     04_utilities
     05_tasks

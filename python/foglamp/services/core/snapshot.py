@@ -109,7 +109,7 @@ class SnapshotPluginBuilder:
     def extract_files(self, pyz):
         # Extraction methods are different for production env and dev env
         if path.exists("{}/bin".format(_FOGLAMP_ROOT)) and path.exists("{}/bin/foglamp".format(_FOGLAMP_ROOT)):
-            cmd = "{}/extras/C/extract_plugin_snapshot {}".format(_FOGLAMP_ROOT, pyz)
+            cmd = "{}/extras/C/cmdutil tar-extract {}".format(_FOGLAMP_ROOT, pyz)
             retcode = os.system(cmd)
             if retcode != 0:
                 raise OSError('Error {}: {}'.format(retcode, cmd))

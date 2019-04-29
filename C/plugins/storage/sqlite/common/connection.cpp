@@ -1414,9 +1414,9 @@ SQLBuffer	sql;
 						}
 						else
 						{
-							sql.append("\"");
-							sql.append(str);
-							sql.append("\"");
+							sql.append('\'');
+							sql.append(escape(str));
+							sql.append('\'');
 						}
 					}
 					else if (value.IsDouble())

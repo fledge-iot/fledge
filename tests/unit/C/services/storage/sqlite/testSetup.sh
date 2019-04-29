@@ -40,7 +40,8 @@ delete from foglamp.configuration;
 
 CREATE TABLE IF NOT EXISTS foglamp.configuration (
        key         character varying(255)      NOT NULL, -- Primary key
-       description character varying(255)      NOT NULL,                              -- Description, in plain text
+       display_name character varying(255)     NOT NULL, -- Display Name
+       description character varying(255)      NOT NULL, -- Description, in plain text
        value       JSON                       NOT NULL DEFAULT '{}',          -- JSON object containing the configuration values
        ts          DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')),          -- Timestamp, updated at every change
        CONSTRAINT configuration_pkey PRIMARY KEY (key) );

@@ -1,1 +1,1 @@
-{ "response" : "updated", "rows_affected"  : 1 }
+{"count":1,"rows":[{"description":"added'some'ch'''ars'"}]}

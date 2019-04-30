@@ -2555,12 +2555,12 @@ void Connection::logSQL(const char *tag, const char *stmt)
  * @return		-1 on error, >= 0 on success
  *
  * The new created table name has the name:
- * table_id
+ * $table_snap$id
  */
 int Connection::create_table_snapshot(const string& table, const string& id)
 {
 	string query = "SELECT * INTO TABLE foglamp.";
-	query += table + "_" +  id + " FROM foglamp." + table;
+	query += table + "_snap" +  id + " FROM foglamp." + table;
 
 	logSQL("CreateTableSnapshot", query.c_str());
 
@@ -2589,7 +2589,7 @@ int Connection::load_table_snapshot(const string& table, const string& id)
 	string purgeQuery = "DELETE FROM foglamp." + table;
 	string query = "START TRANSACTION; " + purgeQuery;
 	query += "; INSERT INTO foglamp." + table;
-	query += " SELECT * FROM foglamp." + table + "_" + id;
+	query += " SELECT * FROM foglamp." + table + "_snap" + id;
 	query += "; COMMIT;";
 
 	logSQL("LoadTableSnapshot", query.c_str());
@@ -2617,18 +2617,15 @@ int Connection::load_table_snapshot(const string& table, const string& id)
 }
 
 /**
- * Create snapshot of a common table
+ * Delete a snapshot of a common table
  *
  * @param table		The table to snapshot
  * @param id		The snapshot id
  * @return		-1 on error, >= 0 on success
- *
- * The new created table name has the name:
- * table_id
  */
 int Connection::delete_table_snapshot(const string& table, const string& id)
 {
-	string query = "DROP TABLE foglamp." + table + "_" + id;
+	string query = "DROP TABLE foglamp." + table + "_snap" + id;
 
 	logSQL("DeleteTableSnapshot", query.c_str());
 
@@ -2642,4 +2639,52 @@ int Connection::delete_table_snapshot(const string& table, const string& id)
 	raiseError("delete_table_snapshot", PQerrorMessage(dbConnection));
 	PQclear(res);
 	return -1;
+}
+
+/**
+ * Get list of snapshots for a given common table
+ *
+ * @param table         The given table name
+ * @param resultSet	Output data buffer
+ * @return		True on success, false on database errors
+ */
+bool Connection::get_table_snapshots(const string& table,
+                                     string& resultSet)
+{               
+SQLBuffer sql;  
+	try
+	{
+		sql.append("SELECT REPLACE(table_name, '");
+		sql.append(table);
+		sql.append("_snap', '') AS id FROM information_schema.tables ");
+		sql.append("WHERE table_schema = 'foglamp' AND table_name LIKE '");
+		sql.append(table);
+		sql.append("_snap%';");
+
+		const char *query = sql.coalesce();
+		logSQL("GetTableSnapshots", query);
+
+		PGresult *res = PQexec(dbConnection, query);
+		delete[] query;
+		if (PQresultStatus(res) == PGRES_TUPLES_OK)
+		{
+			mapResultSet(res, resultSet);
+			PQclear(res);
+
+			return true;
+		}
+		char *SQLState = PQresultErrorField(res, PG_DIAG_SQLSTATE);
+		if (!strcmp(SQLState, "22P02")) // Conversion error
+		{
+			raiseError("get_table_snapshots", "Unable to convert data to the required type");
+		}
+		else
+		{
+			raiseError("get_table_snapshots", PQerrorMessage(dbConnection));
+		}
+		PQclear(res);
+		return false;
+	} catch (exception e) {
+		raiseError("get_table_snapshots", "Internal error: %s", e.what());
+	}
 }

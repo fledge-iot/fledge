@@ -11,7 +11,7 @@ import urllib.parse
 import os
 
 from foglamp.services.core import connect
-from foglamp.common.configuration_manager import ConfigurationManager
+from foglamp.common.configuration_manager import ConfigurationManager, _optional_items
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.audit_logger import AuditLogger
 from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA
@@ -205,17 +205,17 @@ async def get_category_item(request):
 async def set_configuration_item(request):
     """
     Args:
-         request: category_name, config_item, {"value" : "<some value>"} are required
+         request: category_name, config_item, [{"value" : "<some value>"} OR {"optional_key": "some value"}] are required
 
     Returns:
             set the configuration item value in the given category.
 
     :Example:
         curl -X PUT -H "Content-Type: application/json" -d '{"value": "<some value>" }' http://localhost:8081/foglamp/category/{category_name}/{config_item}
-
         For {category_name}=>PURGE update value for {config_item}=>age
-        curl -X PUT -H "Content-Type: application/json" -d '{"value": "24"}' http://localhost:8081/foglamp/category/PURGE_READ/age
 
+        curl -X PUT -H "Content-Type: application/json" -d '{"value": "24"}' http://localhost:8081/foglamp/category/PURGE_READ/age
+        curl -X PUT -H "Content-Type: application/json" -d '{"displayName": "Age"}' http://localhost:8081/foglamp/category/PURGE_READ/age
     """
     category_name = request.match_info.get('category_name', None)
     config_item = request.match_info.get('config_item', None)
@@ -225,7 +225,9 @@ async def set_configuration_item(request):
 
     data = await request.json()
     cf_mgr = ConfigurationManager(connect.get_storage_async())
-
+    found_optional = {}
+    # if multiple param keys in data and if value key is found, then value update for config item will be tried first
+    # otherwise it will be looking for optional keys updation
     try:
         value = data['value']
         if isinstance(value, dict):
@@ -233,13 +235,29 @@ async def set_configuration_item(request):
         elif not isinstance(value, str):
             raise web.HTTPBadRequest(reason='{} should be a string literal, in double quotes'.format(value))
     except KeyError:
-        raise web.HTTPBadRequest(reason='Missing required value for {}'.format(config_item))
-
+        for k, v in data.items():
+            # if multiple optional keys are found, then it will be update only 1 whoever comes first
+            if k in _optional_items:
+                found_optional = {k: v}
+                break
+        if not found_optional:
+            raise web.HTTPBadRequest(reason='Missing required value for {}'.format(config_item))
     try:
-        await cf_mgr.set_category_item_value_entry(category_name, config_item, value)
+        if not found_optional:
+            try:
+                is_core_mgt = request.is_core_mgt
+            except AttributeError:
+                storage_value_entry = await cf_mgr.get_category_item(category_name, config_item)
+                if 'readonly' in storage_value_entry:
+                    if storage_value_entry['readonly'] == 'true':
+                        raise TypeError("Update not allowed for {} item_name as it has readonly attribute set".format(config_item))
+
+            await cf_mgr.set_category_item_value_entry(category_name, config_item, value)
+        else:
+            await cf_mgr.set_optional_value_entry(category_name, config_item, list(found_optional.keys())[0], list(found_optional.values())[0])
     except ValueError as ex:
-        raise web.HTTPNotFound(reason=ex)
-    except TypeError as ex:
+        raise web.HTTPNotFound(reason=ex) if not found_optional else web.HTTPBadRequest(reason=ex)
+    except (TypeError, KeyError) as ex:
         raise web.HTTPBadRequest(reason=ex)
 
     result = await cf_mgr.get_category_item(category_name, config_item)
@@ -263,6 +281,18 @@ async def update_configuration_item_bulk(request):
         if not data:
             return web.HTTPBadRequest(reason='Nothing to update')
         cf_mgr = ConfigurationManager(connect.get_storage_async())
+        try:
+            is_core_mgt = request.is_core_mgt
+        except AttributeError:
+            for item_name, new_val in data.items():
+                storage_value_entry = await cf_mgr.get_category_item(category_name, item_name)
+                if storage_value_entry is None:
+                    raise KeyError("{} config item not found".format(item_name))
+                else:
+                    if 'readonly' in storage_value_entry:
+                        if storage_value_entry['readonly'] == 'true':
+                            raise TypeError(
+                                "Bulk update not allowed for {} item_name as it has readonly attribute set".format(item_name))
         await cf_mgr.update_configuration_item_bulk(category_name, data)
     except (NameError, KeyError) as ex:
         raise web.HTTPNotFound(reason=ex)
@@ -367,16 +397,23 @@ async def delete_configuration_item_value(request):
     category_name = urllib.parse.unquote(category_name) if category_name is not None else None
     config_item = urllib.parse.unquote(config_item) if config_item is not None else None
 
-    # TODO: make it optimized and elegant
     cf_mgr = ConfigurationManager(connect.get_storage_async())
     try:
         category_item = await cf_mgr.get_category_item(category_name, config_item)
         if category_item is None:
             raise ValueError
-
+        try:
+            is_core_mgt = request.is_core_mgt
+        except AttributeError:
+            if 'readonly' in category_item:
+                if category_item['readonly'] == 'true':
+                    raise TypeError(
+                        "Delete not allowed for {} item_name as it has readonly attribute set".format(config_item))
         await cf_mgr.set_category_item_value_entry(category_name, config_item, category_item['default'])
     except ValueError:
         raise web.HTTPNotFound(reason="No detail found for the category_name: {} and config_item: {}".format(category_name, config_item))
+    except TypeError as ex:
+        raise web.HTTPBadRequest(reason=str(ex))
 
     result = await cf_mgr.get_category_item(category_name, config_item)
 

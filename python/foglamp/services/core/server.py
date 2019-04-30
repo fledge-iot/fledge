@@ -1327,11 +1327,13 @@ class Server:
 
     @classmethod
     async def update_configuration_item(cls, request):
+        request.is_core_mgt = True
         res = await conf_api.set_configuration_item(request)
         return res
 
     @classmethod
     async def delete_configuration_item(cls, request):
+        request.is_core_mgt = True
         res = await conf_api.delete_configuration_item_value(request)
         return res
 

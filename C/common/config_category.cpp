@@ -100,8 +100,8 @@ string ConfigCategoryDescription::toJSON() const
 {
 	ostringstream convert;
 
-	convert << "{\"key\": \"" << m_name << "\", ";
-	convert << "\"description\" : \"" << m_description << "\"}";
+	convert << "{\"key\": \"" << JSONescape(m_name) << "\", ";
+	convert << "\"description\" : \"" << JSONescape(m_description) << "\"}";
 
 	return convert.str();
 }
@@ -758,8 +758,8 @@ string ConfigCategory::toJSON(const bool full) const
 {
 ostringstream convert;
 
-	convert << "{ \"key\" : \"" << m_name << "\", ";
-	convert << "\"description\" : \"" << m_description << "\", \"value\" : ";
+	convert << "{ \"key\" : \"" << JSONescape(m_name) << "\", ";
+	convert << "\"description\" : \"" << JSONescape(m_description) << "\", \"value\" : ";
 	// Add items
 	convert << ConfigCategory::itemsToJSON(full);
 	convert << " }";
@@ -926,7 +926,7 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 			  // use current string
 			  strbuf.GetString() :
 			  // Unescape the string
-			  this->unescape(strbuf.GetString());
+			  JSONunescape(strbuf.GetString());
 
 		// If it's not a real eject, check the string buffer it is:
 		if (!item["value"].IsObject())
@@ -1027,7 +1027,7 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 			  // use current string
 			  strbuf.GetString() :
 			  // Unescape the string
-			  this->unescape(strbuf.GetString());
+			  JSONunescape(strbuf.GetString());
 
 		// If it's not a real eject, check the string buffer it is:
 		if (!item["default"].IsObject())
@@ -1187,8 +1187,8 @@ string ConfigCategory::CategoryItem::toJSON(const bool full) const
 {
 ostringstream convert;
 
-	convert << "\"" << m_name << "\" : { ";
-	convert << "\"description\" : \"" << m_description << "\", ";
+	convert << "\"" << JSONescape(m_name) << "\" : { ";
+	convert << "\"description\" : \"" << JSONescape(m_description) << "\", ";
 	if (! m_displayName.empty())
 	{
 		convert << "\"displayName\" : \"" << m_displayName << "\", ";
@@ -1210,8 +1210,8 @@ ostringstream convert;
 	    m_itemType == BoolItem ||
 	    m_itemType == EnumerationItem)
 	{
-		convert << "\"value\" : \"" << m_value << "\", ";
-		convert << "\"default\" : \"" << m_default << "\"";
+		convert << "\"value\" : \"" << JSONescape(m_value) << "\", ";
+		convert << "\"default\" : \"" << JSONescape(m_default) << "\"";
 	}
 	else if (m_itemType == JsonItem ||
 		 m_itemType == NumberItem ||
@@ -1272,8 +1272,8 @@ string ConfigCategory::CategoryItem::defaultToJSON() const
 {
 ostringstream convert;
 
-	convert << "\"" << m_name << "\" : { ";
-	convert << "\"description\" : \"" << m_description << "\", ";
+	convert << "\"" << JSONescape(m_name) << "\" : { ";
+	convert << "\"description\" : \"" << JSONescape(m_description) << "\", ";
 	convert << "\"type\" : \"" << m_type << "\"";
 
 	if (!m_order.empty())
@@ -1321,7 +1321,7 @@ ostringstream convert;
 	    m_itemType == EnumerationItem ||
 	    m_itemType == BoolItem)
 	{
-		convert << ", \"default\" : \"" << m_default << "\" }";
+		convert << ", \"default\" : \"" << JSONescape(m_default) << "\" }";
 	}
 	/**
 	 * NOTE:
@@ -1339,7 +1339,7 @@ ostringstream convert;
 		 m_itemType == DoubleItem ||
 		 m_itemType == ScriptItem)
 	{
-		convert << ", \"default\" : \"" << escape(m_default) << "\" }";
+		convert << ", \"default\" : \"" << JSONescape(m_default) << "\" }";
 	}
 	return convert.str();
 }
@@ -1368,8 +1368,8 @@ string DefaultConfigCategory::toJSON() const
 ostringstream convert;
 
 	convert << "{ ";
-	convert << "\"key\" : \"" << m_name << "\", ";
-	convert << "\"description\" : \"" << m_description << "\", \"value\" : ";
+	convert << "\"key\" : \"" << JSONescape(m_name) << "\", ";
+	convert << "\"description\" : \"" << JSONescape(m_description) << "\", \"value\" : ";
 	// Add items
 	convert << DefaultConfigCategory::itemsToJSON();
 	convert << " }";
@@ -1398,20 +1398,6 @@ ostringstream convert;
 	return convert.str();
 }
 
-std::string ConfigCategory::CategoryItem::escape(const std::string& subject) const
-{
-size_t pos = 0;
-string replace("\\\"");
-string escaped = subject;
-
-	while ((pos = escaped.find("\"", pos)) != std::string::npos)
-	{
-		escaped.replace(pos, 1, replace);
-		pos += replace.length();
-	}
-	return escaped;
-}
-
 /**
  * Return JSON string of a category item
  * @param itemName	The given item within current category
@@ -1433,39 +1419,6 @@ string ConfigCategory::itemToJSON(const string& itemName) const
 	convert << "}";
         
 	return convert.str();
-}
-
-/**
- * Return unescaped version of a JSON string
- *
- * Routine removes \" inside the string
- * and leading and trailing "
- *
- * @param subject	Input string
- * @return		Unescaped string
- */
-std::string ConfigCategory::CategoryItem::unescape(const std::string& subject) const
-{
-	size_t pos = 0;
-	string replace("");
-	string json = subject;
-
-	// Replace '\"' with '"'
-        while ((pos = json.find("\\\"", pos)) != std::string::npos)
-        {
-                json.replace(pos, 1, "");
-        }
-	// Remove leading '"'
-	if (json[0] == '\"')
-	{
-		json.erase(0, 1);
-	}
-	// Remove trainling '"'
-	if (json[json.length() - 1] == '\"')
-	{
-		json.erase(json.length() - 1, 1);
-	}
-        return json;
 }
 
 /**

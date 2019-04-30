@@ -15,6 +15,7 @@ __version__ = "${VERSION}"
 import aiohttp
 import http.client
 import json
+import time
 from abc import ABC, abstractmethod
 
 from foglamp.common import logger
@@ -310,6 +311,97 @@ class StorageClientAsync(AbstractStorage):
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
 
         return jdoc
+
+    async def post_snapshot(self, tbl_name):
+        """Create a table snapshot
+
+        :param tbl_name:
+        :return:
+
+        :Example:
+            curl -X POST http://0.0.0.0:8080/storage/table/configuration/snapshot
+        """
+        post_url = '/storage/table/{tbl_name}/snapshot'.format(tbl_name=tbl_name)
+        data = {"id": str(int(time.time()))}
+
+        url = 'http://' + self.base_url + post_url
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, data=json.dumps(data)) as resp:
+                status_code = resp.status
+                jdoc = await resp.text()
+                if status_code not in range(200, 209):
+                    _LOGGER.info("POST %s", post_url)
+                    _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
+                    raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
+        return json.loads(jdoc)
+
+    async def put_snapshot(self, tbl_name, snapshot_id):
+        """Restore a table snapshot
+
+        :param tbl_name:
+        :param snapshot_id:
+        :return:
+
+        :Example:
+            curl -X PUT http://0.0.0.0:8080/storage/table/configuration/snapshot/cea17db8-6ccc-11e7-907b-a6006ad3dba0
+        """
+        put_url = '/storage/table/{tbl_name}/snapshot/{id}'.format(tbl_name=tbl_name, id=snapshot_id)
+
+        url = 'http://' + self.base_url + put_url
+        async with aiohttp.ClientSession() as session:
+            async with session.put(url) as resp:
+                status_code = resp.status
+                jdoc = await resp.text()
+                if status_code not in range(200, 209):
+                    _LOGGER.info("PUT %s", put_url)
+                    _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
+                    raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
+        return json.loads(jdoc)
+
+    async def delete_snapshot(self, tbl_name, snapshot_id):
+        """Delete a table snapshot
+
+        :param tbl_name:
+        :param snapshot_id:
+        :return:
+
+        :Example:
+            curl -X DELETE http://0.0.0.0:8080/storage/table/configuration/snapshot/cea17db8-6ccc-11e7-907b-a6006ad3dba0
+        """
+        delete_url = '/storage/table/{tbl_name}/snapshot/{id}'.format(tbl_name=tbl_name, id=snapshot_id)
+
+        url = 'http://' + self.base_url + delete_url
+        async with aiohttp.ClientSession() as session:
+            async with session.delete(url) as resp:
+                status_code = resp.status
+                jdoc = await resp.text()
+                if status_code not in range(200, 209):
+                    _LOGGER.info("DELETE %s", delete_url)
+                    _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
+                    raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
+        return json.loads(jdoc)
+
+    async def get_snapshot(self, tbl_name):
+        """Get a table snapshot
+
+        :param tbl_name:
+        :return:
+
+        :Example:
+            curl -X GET http://0.0.0.0:8080/storage/table/configuration/snapshot
+        """
+        get_url = '/storage/table/{tbl_name}/snapshot'.format(tbl_name=tbl_name)
+
+        url = 'http://' + self.base_url + get_url
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                status_code = resp.status
+                jdoc = await resp.text()
+                if status_code not in range(200, 209):
+                    _LOGGER.info("GET %s", get_url)
+                    _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
+                    raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
+        return json.loads(jdoc)
 
 
 class ReadingsStorageClientAsync(StorageClientAsync):

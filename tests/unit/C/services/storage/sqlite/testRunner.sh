@@ -7,6 +7,8 @@ export TZ='Etc/UTC'
 
 show_configuration () {
 
+	echo "FogLAMP unit tests for the SQLite plugin"
+
 	echo "Starting storage layer      :$storage_exec:"
 	echo "timezone                    :$TZ:"
 	echo "expected dir                :$expected_dir:"

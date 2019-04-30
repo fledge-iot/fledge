@@ -17,6 +17,7 @@
 #include <map>
 #include <rapidjson/document.h>
 #include <asset_tracking.h>
+#include <json_utils.h>
 #include <thread>
 
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
@@ -71,8 +72,8 @@ private:
 
                                 // Build the JSON payload
                                 std::ostringstream payload;
-                                payload << "{ \"key\" : \"" << t.getName();
-                                payload << "\", \"description\" : \"" << t.getDescription();
+                                payload << "{ \"key\" : \"" << JSONescape(t.getName());
+                                payload << "\", \"description\" : \"" << JSONescape(t.getDescription());
                                 payload << "\", \"value\" : " << t.itemsToJSON();
 
 				/**

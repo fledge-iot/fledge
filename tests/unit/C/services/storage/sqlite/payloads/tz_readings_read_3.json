@@ -1,0 +1,17 @@
+{
+  "aggregate":{
+    "operation":"max",
+    "column":"user_ts",
+    "alias":"user_ts_max"
+  },
+  "group":{
+    "column":"user_ts",
+    "alias":"ts_timestamp",
+    "format":"YYYY-MM-DD HH24:MI:SS.MS"
+  },
+  "where":{
+    "column":"asset_code",
+    "condition":"=",
+    "value":"tz_02"
+  }
+}

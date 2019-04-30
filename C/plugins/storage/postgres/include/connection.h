@@ -34,6 +34,8 @@ class Connection {
 		int		create_table_snapshot(const std::string& table, const std::string& id);
 		int		load_table_snapshot(const std::string& table, const std::string& id);
 		int		delete_table_snapshot(const std::string& table, const std::string& id);
+		bool		get_table_snapshots(const std::string& table,
+						    std::string& resultSet);
 
 	private:
 		bool		m_logSQL;

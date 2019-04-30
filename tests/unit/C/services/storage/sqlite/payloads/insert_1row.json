@@ -1,0 +1,6 @@
+{
+  "id" : 1000,
+  "key" : "INSERT_1_1",
+  "description" : "insert - 1 rows",
+  "data" : { "json" : "inserted" }
+}

@@ -76,17 +76,17 @@ class TestE2eFogPairPi:
             """
         if remote_foglamp_path is None:
             remote_foglamp_path = '/home/{}/FogLAMP'.format(remote_user)
-        subprocess.run(["ssh -i {} {}@{} 'export FOGLAMP_ROOT={};$FOGLAMP_ROOT/scripts/foglamp kill'".format(key_path, remote_user,
+        subprocess.run(["ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} 'export FOGLAMP_ROOT={};$FOGLAMP_ROOT/scripts/foglamp kill'".format(key_path, remote_user,
                                                                                                       remote_ip,
                                                                                                       remote_foglamp_path)], shell=True, check=True)
         if storage_plugin == 'postgres':
-            subprocess.run(["ssh -i {} {}@{} sed -i 's/sqlite/postgres/g' {}/data/etc/storage.json".format(key_path, remote_user, remote_ip, remote_foglamp_path)], shell=True, check=True)
+            subprocess.run(["ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} sed -i 's/sqlite/postgres/g' {}/data/etc/storage.json".format(key_path, remote_user, remote_ip, remote_foglamp_path)], shell=True, check=True)
         else:
-            subprocess.run(["ssh -i {} {}@{} sed -i 's/postgres/sqlite/g' {}/data/etc/storage.json".format(key_path, remote_user, remote_ip, remote_foglamp_path)], shell=True, check=True)
+            subprocess.run(["ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} sed -i 's/postgres/sqlite/g' {}/data/etc/storage.json".format(key_path, remote_user, remote_ip, remote_foglamp_path)], shell=True, check=True)
 
-        subprocess.run(["ssh -i {} {}@{} 'export FOGLAMP_ROOT={};echo YES | $FOGLAMP_ROOT/scripts/foglamp reset'".format(key_path, remote_user, remote_ip, remote_foglamp_path)], shell=True, check=True)
-        subprocess.run(["ssh -i {} {}@{} 'export FOGLAMP_ROOT={};$FOGLAMP_ROOT/scripts/foglamp start'".format(key_path, remote_user, remote_ip, remote_foglamp_path)], shell=True)
-        stat = subprocess.run(["ssh -i {} {}@{} 'export FOGLAMP_ROOT={}; $FOGLAMP_ROOT/scripts/foglamp status'".format(key_path, remote_user, remote_ip, remote_foglamp_path)], shell=True, stdout=subprocess.PIPE)
+        subprocess.run(["ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} 'export FOGLAMP_ROOT={};echo YES | $FOGLAMP_ROOT/scripts/foglamp reset'".format(key_path, remote_user, remote_ip, remote_foglamp_path)], shell=True, check=True)
+        subprocess.run(["ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} 'export FOGLAMP_ROOT={};$FOGLAMP_ROOT/scripts/foglamp start'".format(key_path, remote_user, remote_ip, remote_foglamp_path)], shell=True)
+        stat = subprocess.run(["ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} 'export FOGLAMP_ROOT={}; $FOGLAMP_ROOT/scripts/foglamp status'".format(key_path, remote_user, remote_ip, remote_foglamp_path)], shell=True, stdout=subprocess.PIPE)
         assert "FogLAMP not running." not in stat.stdout.decode("utf-8")
 
     @pytest.fixture
@@ -114,9 +114,9 @@ class TestE2eFogPairPi:
         # Install http_south python plugin on remote machine
         try:
             subprocess.run([
-                "scp -i {} $FOGLAMP_ROOT/tests/system/python/scripts/install_python_plugin {}@{}:/tmp/".format(
+                "scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} $FOGLAMP_ROOT/tests/system/python/scripts/install_python_plugin {}@{}:/tmp/".format(
                     key_path, remote_user, remote_ip)], shell=True, check=True)
-            subprocess.run(["ssh -i {} {}@{} 'export FOGLAMP_ROOT={}; /tmp/install_python_plugin {} south {} {}'".format(
+            subprocess.run(["ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} 'export FOGLAMP_ROOT={}; /tmp/install_python_plugin {} south {} {}'".format(
                     key_path, remote_user, remote_ip, remote_foglamp_path, south_branch, south_plugin, use_pip_cache)],
                 shell=True, check=True)
 

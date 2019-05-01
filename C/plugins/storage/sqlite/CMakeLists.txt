@@ -28,7 +28,8 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}")
 find_package(sqlite3)
 
 # Link with SQLite3 library
-target_link_libraries(${PROJECT_NAME} -lsqlite3)
+#target_link_libraries(${PROJECT_NAME} -lsqlite3)
+target_link_libraries(${PROJECT_NAME} /usr/local/lib/libsqlite3.so)
 
 # Install library
 install(TARGETS ${PROJECT_NAME} DESTINATION foglamp/plugins/storage/${PROJECT_NAME})

@@ -5,4 +5,4 @@ cchardet==2.1.1
 pyjwt==1.6.4
 
 # Transformation of data, Apply JqFilter
-pyjq==2.2.0
+pyjq==2.3.1

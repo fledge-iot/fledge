@@ -9,11 +9,11 @@
 import os
 from os import path
 from os.path import basename
-import glob
 import json
 import tarfile
 import fnmatch
 import time
+from collections import OrderedDict
 
 from foglamp.common import logger
 from foglamp.common.common import _FOGLAMP_ROOT
@@ -27,6 +27,7 @@ __version__ = "${VERSION}"
 _LOGGER = logger.setup(__name__)
 _NO_OF_FILES_TO_RETAIN = 3
 SNAPSHOT_PREFIX = "snapshot-plugin"
+
 
 class SnapshotPluginBuilder:
 
@@ -51,6 +52,8 @@ class SnapshotPluginBuilder:
             tarinfo.uid = tarinfo.gid = 0
             tarinfo.uname = tarinfo.gname = "root"
             return tarinfo
+
+        tar_file_name = ""
         try:
             snapshot_id = str(int(time.time()))
             snapshot_filename = "{}-{}.tar.gz".format(SNAPSHOT_PREFIX, snapshot_id)
@@ -58,14 +61,16 @@ class SnapshotPluginBuilder:
             pyz = tarfile.open(tar_file_name, "w:gz")
             try:
                 # files are being added to tarfile with relative path and NOT with absolute path.
-                pyz.add("{}/python/foglamp/plugins".format(_FOGLAMP_ROOT), arcname="python/foglamp/plugins", recursive=True)
+                pyz.add("{}/python/foglamp/plugins".format(_FOGLAMP_ROOT),
+                        arcname="python/foglamp/plugins", recursive=True)
                 # C plugins location is different with "make install" and "make"
                 if path.exists("{}/bin".format(_FOGLAMP_ROOT)) and path.exists("{}/bin/foglamp".format(_FOGLAMP_ROOT)):
                     pyz.add("{}/plugins".format(_FOGLAMP_ROOT), arcname="plugins", recursive=True, filter=reset)
                 else:
                     pyz.add("{}/C/plugins".format(_FOGLAMP_ROOT), arcname="C/plugins", recursive=True)
                     pyz.add("{}/plugins".format(_FOGLAMP_ROOT), arcname="plugins", recursive=True)
-                    pyz.add("{}/cmake_build/C/plugins".format(_FOGLAMP_ROOT), arcname="cmake_build/C/plugins", recursive=True)
+                    pyz.add("{}/cmake_build/C/plugins".format(_FOGLAMP_ROOT), arcname="cmake_build/C/plugins",
+                            recursive=True)
             finally:
                 pyz.close()
         except Exception as ex:
@@ -80,21 +85,21 @@ class SnapshotPluginBuilder:
         return snapshot_id, snapshot_filename
 
     def check_and_delete_plugins_tar_files(self, snapshot_plugin_dir):
+        valid_extension = '.tar.gz'
+        valid_files_to_delete = dict()
         try:
-            valid_extension = '.tar.gz'
             for root, dirs, files in os.walk(snapshot_plugin_dir):
-                valid_files = list(
-                    filter(lambda f: f.endswith(valid_extension), files))
-                list_files = list(map(
-                    lambda x: {"id": x.split("snapshot-plugin-")[1].split(".tar.gz")[0],
-                               "name": x}, valid_files))
-                sorted_list = sorted(list_files, key=lambda k: k['id'], reverse=True)
-                if len(sorted_list) > _NO_OF_FILES_TO_RETAIN:
-                    for f in sorted_list[_NO_OF_FILES_TO_RETAIN:]:
-                        _LOGGER.warning("Removing plugin snapshot file %s.", os.path.join(snapshot_plugin_dir, f['name']))
-                        os.remove(os.path.join(snapshot_plugin_dir, f['name']))
-        except:
-            pass
+                for _file in files:
+                    if _file.endswith(valid_extension):
+                        valid_files_to_delete[_file.split(".")[0]] = os.path.join(root, _file)
+            valid_files_to_delete_sorted = OrderedDict(sorted(valid_files_to_delete.items(), reverse=True))
+            while len(valid_files_to_delete_sorted) > _NO_OF_FILES_TO_RETAIN:
+                _file, _path = valid_files_to_delete_sorted.popitem()
+                _LOGGER.warning("Removing plugin snapshot file %s.", _path)
+                os.remove(_path)
+        except OSError as ex:
+            _LOGGER.error("ERROR while deleting plugin file", str(ex))
+
     def check_and_delete_temp_files(self, snapshot_plugin_dir):
         # Delete all non *.tar.gz files
         for f in os.listdir(snapshot_plugin_dir):
@@ -109,7 +114,7 @@ class SnapshotPluginBuilder:
     def extract_files(self, pyz):
         # Extraction methods are different for production env and dev env
         if path.exists("{}/bin".format(_FOGLAMP_ROOT)) and path.exists("{}/bin/foglamp".format(_FOGLAMP_ROOT)):
-            cmd = "{}/extras/C/extract_plugin_snapshot {}".format(_FOGLAMP_ROOT, pyz)
+            cmd = "{}/extras/C/cmdutil tar-extract {}".format(_FOGLAMP_ROOT, pyz)
             retcode = os.system(cmd)
             if retcode != 0:
                 raise OSError('Error {}: {}'.format(retcode, cmd))

@@ -1,0 +1,1 @@
+%sudo ALL=(ALL) NOPASSWD: /usr/bin/yum -y update, /usr/bin/yum -y install foglamp, /usr/bin/yum -y install /usr/local/foglamp/data/plugins/foglamp*.rpm

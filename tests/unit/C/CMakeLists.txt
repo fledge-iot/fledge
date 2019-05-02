@@ -47,7 +47,6 @@ file(GLOB SERVICES_COMMON_LIB_SOURCES ../../../C/services/common/*.cpp)
 # Create shared library
 add_library(services-common-lib SHARED ${SERVICES_COMMON_LIB_SOURCES})
 target_link_libraries(services-common-lib ${COMMONLIB})
-target_link_libraries(services-common-lib ${PYTHON_LIBRARIES})
 set_target_properties(services-common-lib PROPERTIES SOVERSION 1)
 
 

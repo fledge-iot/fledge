@@ -89,7 +89,6 @@ FogLampProcess::FogLampProcess(int argc, char** argv) :
 	signal(SIGABRT, handler);
 
 	string myName = LOG_SERVICE_NAME;
-	m_logger = new Logger(myName);
 
 	try
 	{
@@ -101,6 +100,8 @@ FogLampProcess::FogLampProcess(int argc, char** argv) :
 	{
 		throw runtime_error(string("Error while parsing required options: ") + e.what());
 	}
+	myName = m_name;
+	m_logger = new Logger(myName);
 
 	if (m_core_mngt_host.empty())
 	{

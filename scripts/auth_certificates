@@ -169,7 +169,7 @@ else
     certificate_log "err" "Could not create SSL certificate ${SSL_NAME} at ${SSL_LOCATION}" "all" "pretty"
     exit 1
   fi
-
+  cat "${SSL_LOCATION}/${SSL_NAME}.key" "${SSL_LOCATION}/${SSL_NAME}.cert" >"${SSL_LOCATION}/${SSL_NAME}.pem"
   certificate_log "info" "${AUTH_TYPE} certificate created successfully for ${SSL_NAME}, and placed in ${SSL_LOCATION}" "outonly" "pretty"
 fi
 

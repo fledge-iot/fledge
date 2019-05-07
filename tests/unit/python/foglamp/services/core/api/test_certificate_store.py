@@ -40,12 +40,12 @@ class TestCertificateStore:
         return pathlib.Path(__file__).parent
 
     async def test_get_certs(self, client, certs_path):
-        response_content = [{"cert": "foglamp.cert", "key": "foglamp.key"},
-                            {"cert": "server.cert", "key": ""}]
+        response_content = [{"cert": "foglamp.cert", "key": "foglamp.key", "pem": "foglamp.pem"},
+                            {"cert": "server.cert", "key": "", "pem": ""}]
         with patch.object(certificate_store, '_get_certs_dir', return_value=certs_path / 'certs'):
             with patch('os.walk') as mockwalk:
                 mockwalk.return_value = [
-                    (certs_path / 'certs', [], ['foglamp.cert', 'foglamp.key', 'foglamp.txt', 'server.cert'])
+                    (certs_path / 'certs', [], ['foglamp.cert', 'foglamp.key', 'foglamp.txt', 'server.cert', 'foglamp.pem'])
                 ]
                 resp = await client.get('/foglamp/certificate')
                 assert 200 == resp.status
@@ -82,7 +82,7 @@ class TestCertificateStore:
             mockwalk.assert_called_once_with(certs_path / 'certs')
 
     async def test_get_certs_if_pair_is_missing(self, client, certs_path):
-        actual_response = {'certificates': [{'key': '', 'cert': 'server.cert'}]}
+        actual_response = {'certificates': [{'key': '', 'cert': 'server.cert', 'pem': ''}]}
         with patch.object(certificate_store, '_get_certs_dir', return_value=certs_path / 'certs'):
             with patch('os.walk') as mockwalk:
                 mockwalk.return_value = [(certs_path / 'certs', [], ['server.cert'])]

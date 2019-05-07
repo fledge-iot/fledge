@@ -8,6 +8,7 @@ import os
 from aiohttp import web
 from foglamp.services.core import connect
 from foglamp.common.configuration_manager import ConfigurationManager
+from foglamp.common.web.ssl_wrapper import SSLVerifier
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -37,7 +38,7 @@ async def get_certs(request):
     # Get certs directory path
     certs_dir = _get_certs_dir()
     total_files = []
-    valid_extensions = ('.key', '.cert')
+    valid_extensions = ('.pem', '.key', '.cert')
 
     for root, dirs, files in os.walk(certs_dir):
         total_files = [f for f in files if f.endswith(valid_extensions)]
@@ -57,9 +58,9 @@ async def get_certs(request):
     certs = []
     for fname in unique_list:
         cert_pair = {'key': search_file('{}.key'.format(fname)),
-                     'cert': search_file('{}.cert'.format(fname))}
+                     'cert': search_file('{}.cert'.format(fname)),
+                     'pem': search_file('{}.pem'.format(fname))}
         certs.append(cert_pair)
-
     return web.json_response({"certificates": certs})
 
 
@@ -75,6 +76,24 @@ async def upload(request):
     # contains the name of the file in string format
     key_file = data.get('key')
     cert_file = data.get('cert')
+    pem_file = data.get('pem')
+    if pem_file is not None:
+        pem_filename = pem_file.filename
+        if not pem_filename.endswith(".pem"):
+            raise web.HTTPBadRequest(reason="Accepted file extensions is .pem")
+        # TODO: overwrite?
+        certs_dir = _get_certs_dir()
+        pem_file_data = data['pem'].file
+        pem_file_content = pem_file_data.read()
+        pem_file_path = str(certs_dir) + '/{}'.format(pem_filename)
+        with open(pem_file_path, 'wb') as f:
+            f.write(pem_file_content)
+
+        if SSLVerifier.verify_pem(pem_file_path):
+            return web.json_response({"result": "{} has been uploaded successfully".format(pem_filename)})
+        else:
+            os.remove(pem_file_path)
+            raise web.HTTPBadRequest(reason="Invalid pem file")
 
     # accepted values for overwrite are '0 and 1'
     allow_overwrite = data.get('overwrite', '0')

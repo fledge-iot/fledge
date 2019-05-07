@@ -299,6 +299,16 @@ class Server:
         Put these in $FOGLAMP_DATA/etc/certs, $FOGLAMP_ROOT/data/etc/certs or /usr/local/foglamp/data/etc/certs
 
         """
+        pem = certs_dir + '/{}.pem'.format(cls.cert_file_name)
+        if not os.path.isfile(pem):
+            _logger.warning("%s pem file is missing. Hence using cert and key combination", cls.cert_file_name)
+        else:
+            # validate pem file
+            if SSLVerifier.verify_pem(pem):
+                return pem, None
+            else:
+                raise SSLVerifier.VerificationError('Invalid pem file')
+
         cert = certs_dir + '/{}.cert'.format(cls.cert_file_name)
         key = certs_dir + '/{}.key'.format(cls.cert_file_name)
 

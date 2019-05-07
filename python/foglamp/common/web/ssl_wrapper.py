@@ -210,3 +210,13 @@ class SSLVerifier(object):
     @classmethod
     def set_user_cert(cls, cert):
         cls.user_cert = cert
+
+    @classmethod
+    def verify_pem(cls, cert_path):
+        # FIXME: standard validation
+        with open(cert_path, 'r') as content_file:
+            content = content_file.read()
+            if "-----BEGIN CERTIFICATE-----" and "-----END CERTIFICATE-----" \
+                    "-----BEGIN RSA PRIVATE KEY-----" and "-----END RSA PRIVATE KEY-----" in content:
+                return True
+        return False

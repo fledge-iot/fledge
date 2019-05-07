@@ -3,6 +3,8 @@ project (FogLAMP)
 
 set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 
+find_package(PkgConfig REQUIRED)
+
 add_subdirectory(C/common)
 add_subdirectory(C/services/common)
 add_subdirectory(C/plugins/common)

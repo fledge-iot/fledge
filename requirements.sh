@@ -31,4 +31,5 @@ sudo apt install -y cmake g++ make build-essential autoconf automake uuid-dev
 sudo apt install -y libtool libboost-dev libboost-system-dev libboost-thread-dev libpq-dev libssl-dev libz-dev
 sudo apt install -y python-dbus python-dev python3-dev python3-pip
 sudo apt install -y sqlite3 libsqlite3-dev
+sudo apt install -y pkg-config
 # sudo apt install -y postgresql

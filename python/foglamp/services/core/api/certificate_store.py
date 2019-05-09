@@ -8,7 +8,6 @@ import os
 from aiohttp import web
 from foglamp.services.core import connect
 from foglamp.common.configuration_manager import ConfigurationManager
-from foglamp.common.web.ssl_wrapper import SSLVerifier
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -34,40 +33,35 @@ async def get_certs(request):
     :Example:
         curl -X GET http://localhost:8081/foglamp/certificate
     """
-
-    # Get certs directory path
-    certs_dir = _get_certs_dir()
-    total_files = []
-    valid_extensions = ('.pem', '.key', '.cert')
-
-    for root, dirs, files in os.walk(certs_dir):
-        total_files = [f for f in files if f.endswith(valid_extensions)]
-
-    # Get filenames without extension
-    file_names = [os.path.splitext(fname)[0] for fname in total_files]
-
-    # Get unique list from file_names
-    unique_list = list(set(file_names))
-
-    def search_file(fname):
-        # Search file with extension, if found then filename with extension else empty
-        if fname in total_files:
-            return fname
-        return ''
-
+    certs_dir = _get_certs_dir('/etc/certs')
     certs = []
-    for fname in unique_list:
-        cert_pair = {'key': search_file('{}.key'.format(fname)),
-                     'cert': search_file('{}.cert'.format(fname)),
-                     'pem': search_file('{}.pem'.format(fname))}
-        certs.append(cert_pair)
-    return web.json_response({"certificates": certs})
+    keys = []
+    key_valid_extensions = ('.key', '.pem')
+    for root, dirs, files in os.walk(certs_dir):
+        if root.endswith('json'):
+            for f in files:
+                if f.endswith('.json'):
+                    certs.append(f)
+        if root.endswith('pem'):
+            for f in files:
+                if f.endswith('.pem'):
+                    certs.append(f)
+        for f in files:
+            if f.endswith('.cert'):
+                certs.append(f)
+            if f.endswith(key_valid_extensions):
+                keys.append(f)
+    return web.json_response({"certs": certs, "keys": keys})
 
 
 async def upload(request):
     """ Upload a certificate
 
     :Example:
+        curl -F "cert=@filename.pem" http://localhost:8081/foglamp/certificate
+        curl -F "cert=@filename.json" http://localhost:8081/foglamp/certificate
+        curl -F "key=@filename.pem" -F "cert=@filename.pem" http://localhost:8081/foglamp/certificate
+        curl -F "key=@filename.key" -F "cert=@filename.json" http://localhost:8081/foglamp/certificate
         curl -F "key=@filename.key" -F "cert=@filename.cert" http://localhost:8081/foglamp/certificate
         curl -F "key=@filename.key" -F "cert=@filename.cert" -F "overwrite=1" http://localhost:8081/foglamp/certificate
     """
@@ -76,75 +70,71 @@ async def upload(request):
     # contains the name of the file in string format
     key_file = data.get('key')
     cert_file = data.get('cert')
-    pem_file = data.get('pem')
-    if pem_file is not None:
-        pem_filename = pem_file.filename
-        if not pem_filename.endswith(".pem"):
-            raise web.HTTPBadRequest(reason="Accepted file extensions is .pem")
-        # TODO: overwrite?
-        certs_dir = _get_certs_dir()
-        pem_file_data = data['pem'].file
-        pem_file_content = pem_file_data.read()
-        pem_file_path = str(certs_dir) + '/{}'.format(pem_filename)
-        with open(pem_file_path, 'wb') as f:
-            f.write(pem_file_content)
-
-        if SSLVerifier.verify_pem(pem_file_path):
-            return web.json_response({"result": "{} has been uploaded successfully".format(pem_filename)})
-        else:
-            os.remove(pem_file_path)
-            raise web.HTTPBadRequest(reason="Invalid pem file")
+    allow_overwrite = data.get('overwrite', '0')
 
     # accepted values for overwrite are '0 and 1'
-    allow_overwrite = data.get('overwrite', '0')
     if allow_overwrite in ('0', '1'):
         should_overwrite = True if int(allow_overwrite) == 1 else False
     else:
         raise web.HTTPBadRequest(reason="Accepted value for overwrite is 0 or 1")
 
-    if not key_file or not cert_file:
-        raise web.HTTPBadRequest(reason="key or certs file is missing")
+    if not cert_file:
+        raise web.HTTPBadRequest(reason="Cert file is missing")
 
-    key_filename = key_file.filename
     cert_filename = cert_file.filename
+    if cert_filename.endswith('.cert'):
+        if not key_file:
+            raise web.HTTPBadRequest(reason="key file is missing")
 
-    # accepted extensions are '.key and .cert'
-    valid_extensions = ('.key', '.cert')
-    if not cert_filename.endswith(valid_extensions) or not key_filename.endswith(valid_extensions):
-        raise web.HTTPBadRequest(reason="Accepted file extensions are .key and .cert")
+    cert_valid_extensions = ('.cert', '.json', '.pem')
+    key_valid_extensions = ('.key', '.pem')
+    key_filename = None
+    if key_file:
+        key_filename = key_file.filename
+        if not key_filename.endswith(key_valid_extensions):
+            raise web.HTTPBadRequest(reason="Accepted file extensions are .key and .pem for key file")
 
-    # certs and key filename should match
-    if cert_filename and key_filename:
-        if cert_filename.split(".")[0] != key_filename.split(".")[0]:
-            raise web.HTTPBadRequest(reason="key and certs file name should match")
+    if not cert_filename.endswith(cert_valid_extensions):
+        raise web.HTTPBadRequest(reason="Accepted file extensions are .cert, .json and .pem for cert file")
 
-    # Get certs directory path
-    certs_dir = _get_certs_dir()
+    certs_dir = ''
+    if cert_filename.endswith('.pem'):
+        certs_dir = _get_certs_dir('/etc/certs/pem')
+    if cert_filename.endswith('.json'):
+        certs_dir = _get_certs_dir('/etc/certs/json')
+
     found_files = _find_file(cert_filename, certs_dir)
     is_found = True if len(found_files) else False
     if is_found and should_overwrite is False:
         raise web.HTTPBadRequest(reason="Certificate with the same name already exists. "
                                         "To overwrite set the overwrite to 1")
 
-    if key_file:
-        key_file_data = data['key'].file
-        key_file_content = key_file_data.read()
-        key_file_path = str(certs_dir) + '/{}'.format(key_filename)
-        with open(key_file_path, 'wb') as f:
-            f.write(key_file_content)
-
+    keys_dir = _get_certs_dir('/etc/certs')
+    found_files = _find_file(key_filename, keys_dir)
+    is_found = True if len(found_files) else False
+    if is_found and should_overwrite is False:
+        raise web.HTTPBadRequest(reason="Key cert with the same name already exists. "
+                                        "To overwrite set the overwrite to 1")
     if cert_file:
         cert_file_data = data['cert'].file
         cert_file_content = cert_file_data.read()
         cert_file_path = str(certs_dir) + '/{}'.format(cert_filename)
         with open(cert_file_path, 'wb') as f:
             f.write(cert_file_content)
+    if key_file:
+        key_file_data = data['key'].file
+        key_file_content = key_file_data.read()
+        key_file_path = str(keys_dir) + '/{}'.format(key_filename)
+        with open(key_file_path, 'wb') as f:
+            f.write(key_file_content)
 
     # in order to bring this new cert usage into effect, make sure to
     # update config for category rest_api
     # and reboot
-    return web.json_response({"result": "{} and {} have been uploaded successfully"
-                             .format(key_filename, cert_filename)})
+    msg = "{} has been uploaded successfully".format(cert_filename)
+    if key_file:
+        msg = "{} and {} have been uploaded successfully".format(key_filename, cert_filename)
+    return web.json_response({"result": msg})
 
 
 async def delete_certificate(request):
@@ -189,12 +179,11 @@ async def delete_certificate(request):
     return web.json_response({'result': msg})
 
 
-def _get_certs_dir():
-    if _FOGLAMP_DATA:
-        certs_dir = os.path.expanduser(_FOGLAMP_DATA + '/etc/certs')
-    else:
-        certs_dir = os.path.expanduser(_FOGLAMP_ROOT + '/data/etc/certs')
-
+def _get_certs_dir(_path):
+    dir_path = _FOGLAMP_DATA + _path if _FOGLAMP_DATA else _FOGLAMP_ROOT + '/data' + _path
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+    certs_dir = os.path.expanduser(dir_path)
     return certs_dir
 
 

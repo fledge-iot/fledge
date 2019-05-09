@@ -38,6 +38,7 @@ async def get_certs(request):
     keys = []
     key_valid_extensions = ('.key', '.pem')
     for root, dirs, files in os.walk(certs_dir):
+        # FIXME: recursive duplicate entries for both key and certs
         if root.endswith('json'):
             for f in files:
                 if f.endswith('.json'):
@@ -141,42 +142,55 @@ async def delete_certificate(request):
     """ Delete a certificate
 
     :Example:
-          curl -X DELETE http://localhost:8081/foglamp/certificate/foglamp
+          curl -X DELETE http://localhost:8081/foglamp/certificate/foglamp.pem
+          curl -X DELETE http://localhost:8081/foglamp/certificate/foglamp.cert?type=cert
+          curl -X DELETE http://localhost:8081/foglamp/certificate/foglamp.json?type=cert
+          curl -X DELETE http://localhost:8081/foglamp/certificate/foglamp.pem?type=cert
+          curl -X DELETE http://localhost:8081/foglamp/certificate/foglamp.key?type=key
+          curl -X DELETE http://localhost:8081/foglamp/certificate/foglamp.pem?type=key
     """
     cert_name = request.match_info.get('name', None)
+    valid_extensions = ('.cert', '.json', '.key', '.pem')
+    if not cert_name.endswith(valid_extensions):
+        raise web.HTTPBadRequest(reason="Accepted file extensions are {}".format(valid_extensions))
 
-    certs_dir = _get_certs_dir()
-    cert_file = certs_dir + '/{}.cert'.format(cert_name)
-    key_file = certs_dir + '/{}.key'.format(cert_name)
+    certs_dir = _get_certs_dir('/etc/certs/')
+    is_found = False
+    dir_path = certs_dir + cert_name
+    if 'type' in request.query and request.query['type'] != '':
+        _type = request.query['type']
+        if _type not in ['cert', 'key']:
+            raise web.HTTPBadRequest(reason="Only cert and key are allowed for the value of type param")
+        if os.path.isfile(certs_dir + cert_name):
+            is_found = True
+        if _type == 'cert':
+            if os.path.isfile(certs_dir + 'pem/' + cert_name):
+                is_found = True
+                dir_path = certs_dir + 'pem/' + cert_name
+            if os.path.isfile(certs_dir + 'json/' + cert_name):
+                is_found = True
+                dir_path = certs_dir + 'json/' + cert_name
 
-    if not os.path.isfile(cert_file) and not os.path.isfile(key_file):
+    # FIXME: when type is not given and remove recursively
+    for root, dirs, files in os.walk(certs_dir):
+        for file in files:
+            if cert_name == file:
+                is_found = True
+
+    if not is_found:
         raise web.HTTPNotFound(reason='Certificate with name {} does not exist'.format(cert_name))
 
     # read config
     # if cert_name is currently set for 'certificateName' in config for 'rest_api'
     cf_mgr = ConfigurationManager(connect.get_storage_async())
     result = await cf_mgr.get_category_item(category_name='rest_api', item_name='certificateName')
-    if cert_name == result['value']:
+    if cert_name.split('.')[0] == result['value']:
         raise web.HTTPConflict(reason='Certificate with name {} is already in use, you can not delete'
                                .format(cert_name))
 
-    msg = ''
-    cert_file_found_and_removed = False
-    if os.path.isfile(cert_file):
-        os.remove(cert_file)
-        msg = "{}.cert has been deleted successfully".format(cert_name)
-        cert_file_found_and_removed = True
-
-    key_file_found_and_removed = False
-    if os.path.isfile(key_file):
-        os.remove(key_file)
-        msg = "{}.key has been deleted successfully".format(cert_name)
-        key_file_found_and_removed = True
-
-    if key_file_found_and_removed and cert_file_found_and_removed:
-        msg = "{}.key, {}.cert have been deleted successfully".format(cert_name, cert_name)
-
-    return web.json_response({'result': msg})
+    # Remove file
+    os.remove(dir_path)
+    return web.json_response({'result': "{} has been deleted successfully".format(cert_name)})
 
 
 def _get_certs_dir(_path):

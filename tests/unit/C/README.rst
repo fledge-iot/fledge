@@ -9,6 +9,9 @@ Prequisite
 
 These tests are written using the Google Test framework. This should be installed on your machine
 
+Ubuntu:
+-------
+
 - sudo apt-get install libgtest-dev
 
 Unfortunately this does not install the libraries and a manual build set is required

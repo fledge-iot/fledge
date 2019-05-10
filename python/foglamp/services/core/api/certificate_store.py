@@ -95,7 +95,7 @@ async def upload(request):
     if not cert_filename.endswith(cert_valid_extensions):
         raise web.HTTPBadRequest(reason="Accepted file extensions are .cert, .json and .pem for cert file")
 
-    certs_dir = ''
+    certs_dir = _get_certs_dir('/etc/certs/')
     if cert_filename.endswith('.pem'):
         certs_dir = _get_certs_dir('/etc/certs/pem')
     if cert_filename.endswith('.json'):
@@ -106,13 +106,12 @@ async def upload(request):
     if is_found and should_overwrite is False:
         raise web.HTTPBadRequest(reason="Certificate with the same name already exists. "
                                         "To overwrite set the overwrite to 1")
-
-    keys_dir = _get_certs_dir('/etc/certs')
-    found_files = _find_file(key_filename, keys_dir)
-    is_found = True if len(found_files) else False
-    if is_found and should_overwrite is False:
-        raise web.HTTPBadRequest(reason="Key cert with the same name already exists. "
-                                        "To overwrite set the overwrite to 1")
+    if key_file:
+        found_files = _find_file(key_filename, certs_dir)
+        is_found = True if len(found_files) else False
+        if is_found and should_overwrite is False:
+            raise web.HTTPBadRequest(reason="Key cert with the same name already exists. "
+                                            "To overwrite set the overwrite to 1")
     if cert_file:
         cert_file_data = data['cert'].file
         cert_file_content = cert_file_data.read()
@@ -122,7 +121,7 @@ async def upload(request):
     if key_file:
         key_file_data = data['key'].file
         key_file_content = key_file_data.read()
-        key_file_path = str(keys_dir) + '/{}'.format(key_filename)
+        key_file_path = str(certs_dir) + '/{}'.format(key_filename)
         with open(key_file_path, 'wb') as f:
             f.write(key_file_content)
 
@@ -140,10 +139,10 @@ async def delete_certificate(request):
 
     :Example:
           curl -X DELETE http://localhost:8081/foglamp/certificate/foglamp.pem
-          curl -X DELETE http://localhost:8081/foglamp/certificate/foglamp.cert?type=cert
+          curl -X DELETE http://localhost:8081/foglamp/certificate/foglamp.cert
           curl -X DELETE http://localhost:8081/foglamp/certificate/foglamp.json?type=cert
           curl -X DELETE http://localhost:8081/foglamp/certificate/foglamp.pem?type=cert
-          curl -X DELETE http://localhost:8081/foglamp/certificate/foglamp.key?type=key
+          curl -X DELETE http://localhost:8081/foglamp/certificate/foglamp.key
           curl -X DELETE http://localhost:8081/foglamp/certificate/foglamp.pem?type=key
     """
     cert_name = request.match_info.get('name', None)

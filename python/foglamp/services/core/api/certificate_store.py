@@ -8,15 +8,12 @@ import os
 from aiohttp import web
 from foglamp.services.core import connect
 from foglamp.common.configuration_manager import ConfigurationManager
+from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
-
-
-_FOGLAMP_DATA = os.getenv("FOGLAMP_DATA", default=None)
-_FOGLAMP_ROOT = os.getenv("FOGLAMP_ROOT", default='/usr/local/foglamp')
 
 
 _help = """
@@ -38,15 +35,16 @@ async def get_certs(request):
     keys = []
     key_valid_extensions = ('.key', '.pem')
     for root, dirs, files in os.walk(certs_dir):
-        # FIXME: recursive duplicate entries for both key and certs
         if root.endswith('json'):
             for f in files:
                 if f.endswith('.json'):
                     certs.append(f)
+                    files.remove(f)
         if root.endswith('pem'):
             for f in files:
                 if f.endswith('.pem'):
                     certs.append(f)
+                    files.remove(f)
         for f in files:
             if f.endswith('.cert'):
                 certs.append(f)
@@ -67,7 +65,6 @@ async def upload(request):
         curl -F "key=@filename.key" -F "cert=@filename.cert" -F "overwrite=1" http://localhost:8081/foglamp/certificate
     """
     data = await request.post()
-
     # contains the name of the file in string format
     key_file = data.get('key')
     cert_file = data.get('cert')
@@ -156,26 +153,47 @@ async def delete_certificate(request):
 
     certs_dir = _get_certs_dir('/etc/certs/')
     is_found = False
-    dir_path = certs_dir + cert_name
+    dir_path = [certs_dir + cert_name]
     if 'type' in request.query and request.query['type'] != '':
         _type = request.query['type']
         if _type not in ['cert', 'key']:
             raise web.HTTPBadRequest(reason="Only cert and key are allowed for the value of type param")
-        if os.path.isfile(certs_dir + cert_name):
-            is_found = True
         if _type == 'cert':
-            if os.path.isfile(certs_dir + 'pem/' + cert_name):
+            if not cert_name.endswith('.cert'):
+                if os.path.isfile(certs_dir + 'pem/' + cert_name):
+                    is_found = True
+                    dir_path = [certs_dir + 'pem/' + cert_name]
+                if os.path.isfile(certs_dir + 'json/' + cert_name):
+                    is_found = True
+                    dir_path = [certs_dir + 'json/' + cert_name]
+            else:
+                if os.path.isfile(certs_dir + cert_name):
+                    is_found = True
+                else:
+                    is_found = False
+        else:
+            if os.path.isfile(certs_dir + cert_name):
                 is_found = True
-                dir_path = certs_dir + 'pem/' + cert_name
-            if os.path.isfile(certs_dir + 'json/' + cert_name):
-                is_found = True
-                dir_path = certs_dir + 'json/' + cert_name
+            else:
+                is_found = False
 
-    # FIXME: when type is not given and remove recursively
-    for root, dirs, files in os.walk(certs_dir):
-        for file in files:
-            if cert_name == file:
-                is_found = True
+    if 'type' not in request.query:
+        for root, dirs, files in os.walk(certs_dir):
+            if root.endswith('json'):
+                for f in files:
+                    if cert_name == f:
+                        is_found = True
+                        dir_path.append(certs_dir + 'json/' + cert_name)
+                        files.remove(f)
+            if root.endswith('pem'):
+                for f in files:
+                    if cert_name == f:
+                        is_found = True
+                        dir_path.append(certs_dir + 'pem/' + cert_name)
+                        files.remove(f)
+            for f in files:
+                if cert_name == f:
+                    is_found = True
 
     if not is_found:
         raise web.HTTPNotFound(reason='Certificate with name {} does not exist'.format(cert_name))
@@ -189,7 +207,8 @@ async def delete_certificate(request):
                                .format(cert_name))
 
     # Remove file
-    os.remove(dir_path)
+    for fp in dir_path:
+        os.remove(fp)
     return web.json_response({'result': "{} has been deleted successfully".format(cert_name)})
 
 

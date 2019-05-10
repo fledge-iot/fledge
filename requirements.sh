@@ -28,8 +28,10 @@ is_rhel=`(lsb_release -ds 2>/dev/null || cat /etc/*release 2>/dev/null | head -n
 if [ "${is_rhel}" != "" ]; then
 	echo "Platform is ${is_rhel}"
 	centos=`echo $is_rhel | egrep 'CentOS' || echo ""`
+	set +e
 	sudo yum check-update
 	sudo yum update -y
+	set -e
 	if [ "${centos}" = "" ]; then
 		# RHEL 7 specific
 		sudo yum-config-manager --enable 'Red Hat Enterprise Linux Server 7 RHSCL (RPMs)'
@@ -72,8 +74,10 @@ EOF
 	make
 	cd $foglamp_location
 else
+	set +e
 	sudo apt update
 	sudo apt -y upgrade
+	set -e
 
 	sudo apt install -y avahi-daemon curl
 	sudo apt install -y cmake g++ make build-essential autoconf automake uuid-dev

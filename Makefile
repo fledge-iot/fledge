@@ -115,14 +115,17 @@ CERTIFICATES_SCRIPT_SRC     := scripts/certificates
 AUTH_CERTIFICATES_SCRIPT_SRC := scripts/auth_certificates
 PACKAGE_UPDATE_SCRIPT_SRC   := scripts/package
 
+# Custom location of SQLite3 library
+FOGLAMP_HAS_SQLITE3_PATH    := /tmp/foglamp-sqlite3-pkg/src
+
 # EXTRA SCRIPTS
 EXTRAS_SCRIPTS_SRC_DIR      := extras/scripts
 
 # FOGBENCH
-FOGBENCH_PYTHON_SRC_DIR    := extras/python/fogbench
+FOGBENCH_PYTHON_SRC_DIR     := extras/python/fogbench
 
 # FogLAMP Version file
-FOGLAMP_VERSION_FILE       := VERSION
+FOGLAMP_VERSION_FILE        := VERSION
 
 ###############################################################################
 ################################### OTHER VARS ################################
@@ -187,6 +190,7 @@ schema_check : apply_version
 	$(if $(SCHEMA_CHANGE_ERROR),$(error FogLAMP DB schema cannot be performed as pre-install task: $(SCHEMA_CHANGE_ERROR)),)
 	$(if $(SCHEMA_CHANGE_WARNING),$(warning $(SCHEMA_CHANGE_WARNING)),$(info -- FogLAMP DB schema check OK: $(SCHEMA_CHANGE_OUTPUT)))
 
+#
 # install
 # Creates a deployment structure in the default destination, /usr/local/foglamp
 # Destination may be overridden by use of the DESTDIR=<location> directive
@@ -218,6 +222,12 @@ generate_selfcertificate:
 # run make execute makefiles producer by cmake
 c_build : $(CMAKE_GEN_MAKEFILE)
 	$(CD) $(CMAKE_BUILD_DIR) ; $(MAKE)
+# Local copy of sqlite3 command line tool if needed
+# Copy the cmd line tool into sqlite plugin dir
+ifneq ("$(wildcard $(FOGLAMP_HAS_SQLITE3_PATH))","")
+	$(info  SQLite3 package has been found in $(FOGLAMP_HAS_SQLITE3_PATH))
+	$(CP) $(FOGLAMP_HAS_SQLITE3_PATH)/sqlite3 $(CMAKE_PLUGINS_DIR)/storage/sqlite/
+endif
 
 # run cmake to generate makefiles
 # always rerun cmake because:

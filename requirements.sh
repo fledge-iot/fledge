@@ -24,12 +24,19 @@
 set -e
 
 foglamp_location=`pwd`
-is_rhel=`(lsb_release -ds 2>/dev/null || cat /etc/*release 2>/dev/null | head -n1 || uname -om) | egrep '(Red Hat|CentOS)' || echo ""`
+is_rhel=`(lsb_release -ds 2>/dev/null || cat /etc/*release 2>/dev/null | head -n1 || uname -om) | egrep -o '(Red Hat|CentOS)' || echo ""`
 if [ "${is_rhel}" != "" ]; then
 	echo "Platform is ${is_rhel}"
+	centos=`echo $is_rhel | egrep 'CentOS' || echo ""`
 	sudo yum check-update
 	sudo yum update -y
-	sudo yum-config-manager --enable 'Red Hat Enterprise Linux Server 7 RHSCL (RPMs)'
+	if [ "${centos}" = "" ]; then
+		# RHEL 7 specific
+		sudo yum-config-manager --enable 'Red Hat Enterprise Linux Server 7 RHSCL (RPMs)'
+	else
+		# CentOS 7 specific
+		sudo yum install -y centos-release-scl-rh
+	fi
 	sudo yum install -y @development
 	sudo yum install -y boost-devel
 	sudo yum install -y glib2-devel

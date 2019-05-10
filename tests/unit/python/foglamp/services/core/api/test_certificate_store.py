@@ -134,7 +134,7 @@ class TestCertificateStore:
                  }
         resp = await client.post('/foglamp/certificate', data=files)
         assert 400 == resp.status
-        assert 'key file is missing' == resp.reason
+        assert 'key file is missing, or upload certificate with .pem or .json extension' == resp.reason
 
     async def test_bad_cert_file_upload(self, client, certs_path):
         files = {'bad_cert': open(str(certs_path / 'certs/foglamp.cert'), 'rb'),
@@ -218,14 +218,13 @@ class TestCertificateStore:
         assert 'Only cert and key are allowed for the value of type param' == resp.reason
 
     @pytest.mark.parametrize("cert_name, param", [
-        ('server.cert', ''),
         ('foglamp.cert', '?type=cert'),
         ('foglamp.json', '?type=cert'),
         ('foglamp.pem', '?type=cert'),
         ('foglamp.key', '?type=key'),
         ('rsa_private.pem', '?type=key'),
     ])
-    async def test_delete_cert(self, client, cert_name, param):
+    async def test_delete_cert_with_type(self, client, cert_name, param):
         async def async_mock():
             return {'value': 'test'}
 
@@ -241,3 +240,22 @@ class TestCertificateStore:
                         json_response = json.loads(result)
                         assert '{} has been deleted successfully'.format(cert_name) == json_response['result']
                     assert 1 == patch_remove.call_count
+
+    async def test_delete_cert(self, client, certs_path, cert_name='server.cert'):
+        async def async_mock():
+            return {'value': 'test'}
+
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(certificate_store, '_get_certs_dir', return_value=str(certs_path / 'certs') + '/'):
+            with patch('os.walk') as mockwalk:
+                mockwalk.return_value = [(str(certs_path / 'certs'), [], [cert_name])]
+                with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                    with patch.object(c_mgr, 'get_category_item', return_value=async_mock()):
+                        with patch('os.remove', return_value=True) as patch_remove:
+                            resp = await client.delete('/foglamp/certificate/{}'.format(cert_name))
+                            assert 200 == resp.status
+                            result = await resp.text()
+                            json_response = json.loads(result)
+                            assert '{} has been deleted successfully'.format(cert_name) == json_response['result']
+                        assert 1 == patch_remove.call_count

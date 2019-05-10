@@ -82,7 +82,7 @@ async def upload(request):
     cert_filename = cert_file.filename
     if cert_filename.endswith('.cert'):
         if not key_file:
-            raise web.HTTPBadRequest(reason="key file is missing")
+            raise web.HTTPBadRequest(reason="key file is missing, or upload certificate with .pem or .json extension")
 
     cert_valid_extensions = ('.cert', '.json', '.pem')
     key_valid_extensions = ('.key', '.pem')

@@ -38,8 +38,9 @@ fi
 source "${FOGLAMP_ROOT}/scripts/common/get_platform.sh"
 
 PLATFORM=`get_platform`
+IS_RHEL=`echo $PLATFORM | egrep '(Red Hat|CentOS)' || echo ""`
 
-if [[ "$PLATFORM" != "" ]]
+if [[ "$IS_RHEL" != "" ]]
 then
 	# platform RedHat/Centos
 

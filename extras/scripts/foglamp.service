@@ -1,9 +1,11 @@
 #!/bin/sh
 
-PLATFORM=`(lsb_release -ds 2>/dev/null || cat /etc/*release 2>/dev/null | head -n1 || uname -om) | egrep '(Red Hat|CentOS)' || echo ""`
+PLATFORM=`(lsb_release -ds 2>/dev/null || cat /etc/*release 2>/dev/null | head -n1 || uname -om)`
+IS_RHEL=`echo $PLATFORM | egrep '(Red Hat|CentOS)' || echo ""`
 
-# RedHat specific
-if [ "$PLATFORM" = "" ]; then
+if [ "IS_RHEL" = "" ]; then
+	# Ubuntu/Debian specific
+
 	# kFreeBSD do not accept scripts as interpreters, using #!/bin/sh and sourcing.
 	if [ true != "$INIT_D_SCRIPT_SOURCED" ] ; then
 	    set "$0" "$@"; INIT_D_SCRIPT_SOURCED=true . /lib/init/init-d-script

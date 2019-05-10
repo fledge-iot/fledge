@@ -25,5 +25,6 @@ __version__="1.0"
 #          empty     - Debian/Ubuntu
 get_platform() {
 
-	(lsb_release -ds 2>/dev/null || cat /etc/*release 2>/dev/null | head -n1 || uname -om) | egrep '(Red Hat|CentOS)' || echo ""
+	(lsb_release -ds 2>/dev/null || cat /etc/*release 2>/dev/null | head -n1 || uname -om)
+
 }

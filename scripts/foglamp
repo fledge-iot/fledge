@@ -39,9 +39,10 @@ source "${FOGLAMP_ROOT}/scripts/common/get_platform.sh"
 
 PLATFORM=`get_platform`
 
-# RedHat specific
 if [[ "$PLATFORM" != "" ]]
 then
+	# platform RedHat/Centos
+
 	# To avoid to stop the execution for any internal error of scl_source
 	set +e
 	source scl_source enable rh-python36

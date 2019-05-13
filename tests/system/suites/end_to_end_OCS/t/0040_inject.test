@@ -1,8 +1,0 @@
-#!/bin/bash
-
-# Reads configuration setting
-source ${SUITE_BASEDIR}/suite.cfg
-
-echo '[{"name":"'${ASSET_CODE}'","sensor_values":[{"name":"sensor","type":"number","min":10,"max":10,"precision":0}]}]' > $RESULT_DIR/$TEST_NAME.1.temp 2>&1
-$TEST_BASEDIR/bash/inject_fogbench_data.bash -t $RESULT_DIR/$TEST_NAME.1.temp > $RESULT_DIR/$TEST_NAME.2.temp 2>&1
-grep '^Total Messages Transferred: ' $RESULT_DIR/$TEST_NAME.2.temp

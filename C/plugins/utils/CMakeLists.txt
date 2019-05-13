@@ -12,8 +12,8 @@ include_directories(include ../../services/common/include)
 add_executable(${PROJECT_NAME} get_plugin_info.cpp)
 target_link_libraries(${PROJECT_NAME} -ldl)
 
-add_executable(extract_plugin_snapshot extract_plugin_snapshot.cpp)
+add_executable(cmdutil cmdutil.cpp)
 
 # Install library
 install(TARGETS ${PROJECT_NAME} DESTINATION foglamp/extras/C)
-install(TARGETS extract_plugin_snapshot DESTINATION foglamp/extras/C)
+install(TARGETS cmdutil DESTINATION foglamp/extras/C)

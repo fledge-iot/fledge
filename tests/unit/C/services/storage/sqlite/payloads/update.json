@@ -5,6 +5,6 @@
 				"value" : 2
 			},
 	"values" : {
-				"description" : "updated description"
-				}
+				"description" : "The 'description' has been \"updated\""
+		   }
 }

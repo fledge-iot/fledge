@@ -69,3 +69,50 @@ bool JSONStringToVectorString(std::vector<std::string>& vectorString,
 
 	return success;
 }
+
+string JSONescape(const std::string& subject)
+{
+size_t pos = 0;
+string replace("\\\"");
+string escaped = subject;
+
+        while ((pos = escaped.find("\"", pos)) != std::string::npos)
+        {
+                escaped.replace(pos, 1, replace);
+                pos += replace.length();
+        }
+        return escaped;
+}
+/**
+ * Return unescaped version of a JSON string
+ *
+ * Routine removes \" inside the string
+ * and leading and trailing "
+ *
+ * @param subject       Input string
+ * @return              Unescaped string
+ */
+std::string JSONunescape(const std::string& subject)
+{
+        size_t pos = 0;
+        string replace("");
+        string json = subject;
+
+        // Replace '\"' with '"'
+        while ((pos = json.find("\\\"", pos)) != std::string::npos)
+        {
+                json.replace(pos, 1, "");
+        }
+        // Remove leading '"'
+        if (json[0] == '\"')
+        {
+                json.erase(0, 1);
+        }
+        // Remove trainling '"'
+        if (json[json.length() - 1] == '\"')
+        {
+                json.erase(json.length() - 1, 1);
+        }
+        return json;
+}
+

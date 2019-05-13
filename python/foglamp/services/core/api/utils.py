@@ -2,7 +2,7 @@ import subprocess
 import os
 import json
 from foglamp.common import logger
-from foglamp.common.common import _FOGLAMP_ROOT
+from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_PLUGIN_PATH
 
 _logger = logger.setup(__name__)
 _lib_path = _FOGLAMP_ROOT + "/" + "plugins"
@@ -25,12 +25,14 @@ def get_plugin_info(name, dir):
 
 
 def _find_c_lib(name, dir):
-    _path =_lib_path + "/" + dir
-    for path, subdirs, files in os.walk(_path):
-        for fname in files:
-            # C-binary file
-            if fname.endswith(name + '.so'):
-                return os.path.join(path, fname)
+    _path = [_lib_path + "/" + dir]
+    _path = _find_plugins_from_env(_path)
+    for fp in _path:
+        for path, subdirs, files in os.walk(fp):
+            for fname in files:
+                # C-binary file
+                if fname.endswith(name + '.so'):
+                    return os.path.join(path, fname)
     return None
 
 
@@ -45,13 +47,33 @@ def _find_c_util(name):
 
 def find_c_plugin_libs(direction):
     libraries = []
-    for root, dirs, files in os.walk(_lib_path + "/" + direction):
-        for name in dirs:
-            p = os.path.join(root, name)
-            for path, subdirs, f in os.walk(p):
-                for fname in f:
-                    # C-binary file
-                    if fname.endswith('.so'):
-                        # Replace lib and .so from fname
-                        libraries.append(fname.replace("lib", "").replace(".so", ""))
+    _path = [_lib_path]
+    _path = _find_plugins_from_env(_path)
+    for fp in _path:
+        for root, dirs, files in os.walk(fp + "/" + direction):
+            for name in dirs:
+                p = os.path.join(root, name)
+                for path, subdirs, f in os.walk(p):
+                    for fname in f:
+                        # C-binary file
+                        if fname.endswith('.so'):
+                            # Replace lib and .so from fname
+                            libraries.append(fname.replace("lib", "").replace(".so", ""))
     return libraries
+
+
+def _find_plugins_from_env(_plugin_path: list) -> list:
+    if _FOGLAMP_PLUGIN_PATH:
+        my_list = _FOGLAMP_PLUGIN_PATH.split(";")
+        for l in my_list:
+            dir_found = os.path.isdir(l)
+            if dir_found:
+                subdirs = [dirs for x, dirs, files in os.walk(l)]
+                if subdirs[0]:
+                    _plugin_path.append(l)
+                else:
+                    _logger.warning("{} subdir type not found".format(l))
+            else:
+                _logger.warning("{} dir path not found".format(l))
+    _logger.warning("...{}".format(_plugin_path))
+    return _plugin_path

@@ -34,6 +34,25 @@ if [ -z ${FOGLAMP_ROOT+x} ]; then
     export FOGLAMP_ROOT
 fi
 
+# Check if the default directory exists
+if [[ ! -d "${FOGLAMP_ROOT}" ]]; then
+    logger -p local0.err -t "foglamp.script.foglamp" "FogLAMP cannot be executed: ${FOGLAMP_ROOT} is not a valid directory."
+    echo "FogLAMP cannot be executed: ${FOGLAMP_ROOT} is not a valid directory."
+    echo "Create the enviroment variable FOGLAMP_ROOT before using FogLAMP."
+    echo "Specify the base directory for FogLAMP and set the variable with:"
+    echo "export FOGLAMP_ROOT=<basedir>"
+    exit 1
+fi
+
+if [[ ! -e  "${FOGLAMP_ROOT}/scripts/common/get_platform.sh" ]]; then
+
+	msg_text="ERROR: FogLAMP not properly installed in the dir :${FOGLAMP_ROOT}:"
+	echo $msg_text
+	logger -p local0.err $msg_text
+
+	exit 1
+fi
+
 # Include common code
 source "${FOGLAMP_ROOT}/scripts/common/get_platform.sh"
 
@@ -52,24 +71,14 @@ then
 	if [[ "$status" != "0" ]]
 	then
 		msg_text="ERROR: FogLAMP cannot enable the python environment in RedHat/Centos platform."
-		logger -p local0.err -t msg_text
-		echo msg_text
+		logger -p local0.err $msg_text
+		echo $msg_text
 		exit 1
 	fi
 	set -e
 else
 	# platform Debian/Ubuntu
 	:
-fi
-
-# Check if the default directory exists
-if [[ ! -d "${FOGLAMP_ROOT}" ]]; then
-    logger -p local0.err -t "foglamp.script.foglamp" "FogLAMP cannot be executed: ${FOGLAMP_ROOT} is not a valid directory."
-    echo "FogLAMP cannot be executed: ${FOGLAMP_ROOT} is not a valid directory."
-    echo "Create the enviroment variable FOGLAMP_ROOT before using FogLAMP."
-    echo "Specify the base directory for FogLAMP and set the variable with:"
-    echo "export FOGLAMP_ROOT=<basedir>"
-    exit 1
 fi
 
 # Check/set LD_LIBRARY_PATH
@@ -109,10 +118,10 @@ foglamp_reset() {
   # Check the storage management script
   check_storage_management_script "be reset"
 
-  # We could have made it easier here, we will improve it later. 
+  # We could have made it easier here, we will improve it later.
   # For now, check the status of faoglamp, since the server must be down
   result=`foglamp_status "silent"`
-  
+
   if [[ $result != "2" ]]; then
       foglamp_log "info" "FogLAMP appears to be running and it cannot be reset. Stop FogLAMP first." "all" "pretty"
     exit 0
@@ -229,7 +238,7 @@ foglamp_start() {
 foglamp_stop() {
 
   result=`foglamp_status "silent"`
-  
+
   if [[ $result = "2" ]]; then
       foglamp_log "info" "It looks like FogLAMP is not running." "all" "pretty"
     exit 0
@@ -433,7 +442,7 @@ foglamp_status() {
                 foglamp_log "info" "FogLAMP v${FOGLAMP_VERSION} running${safe_mode}." "outonly" "pretty"
                 foglamp_log "info" "FogLAMP Uptime:  ${uptime_sec} seconds." "outonly" "pretty"
                 foglamp_log "info" "FogLAMP records: ${record_read} read, ${record_sent} sent, ${record_purged} purged." "outonly" "pretty"
-                
+
                 foglamp_log "info" "FogLAMP ${req_auth} authentication." "outonly" "pretty"
 
                 # Show Services
@@ -634,7 +643,7 @@ case "$1" in
         foglamp_status
         ;;
     version)
-        foglamp_print_version 
+        foglamp_print_version
         ;;
     help)
         foglamp_help

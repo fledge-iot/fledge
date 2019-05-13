@@ -62,14 +62,17 @@ sqlite_log() {
     write_log "Storage" "script.plugin.storage.sqlite" "$1" "$2" "$3" "$4"
 }
 
-
-# Check SQLite 3 command line is available
-if ! [[ -x "$(command -v sqlite3)" ]]; then
-    sqlite_log "info" "The sqlite3 command cannot be found. Is SQLite3 installed?" "outonly" "pretty"
-    sqlite_log "info" "If SQLite3 is installed, check if the bin dir is in the PATH." "outonly" "pretty"
-    exit 1
-else
-    SQLITE_SQL="$(command -v sqlite3)"
+# Check first SQLite 3 with static library command line is available
+SQLITE_SQL="$FOGLAMP_ROOT/plugins/storage/sqlite/sqlite3"
+if ! [[ -x "${SQLITE_SQL}" ]]; then
+# Check system default SQLite 3 command line is available
+    if ! [[ -x "$(command -v sqlite3)" ]]; then
+        sqlite_log "info" "The sqlite3 command cannot be found. Is SQLite3 installed?" "outonly" "pretty"
+        sqlite_log "info" "If SQLite3 is installed, check if the bin dir is in the PATH." "outonly" "pretty"
+        exit 1
+    else
+        SQLITE_SQL="$(command -v sqlite3)"
+    fi
 fi
 
 ## SQLite3 Start

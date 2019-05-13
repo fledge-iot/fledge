@@ -17,38 +17,44 @@
 ##--------------------------------------------------------------------
 
 ##
-## Author: Ashish Jabble, Massimiliano Pinto
+## Author: Ashish Jabble, Massimiliano Pinto, Vaibhav Singhal
 ##
 
 
 set -e
 
 foglamp_location=`pwd`
-is_rhel=`(lsb_release -ds 2>/dev/null || cat /etc/*release 2>/dev/null | head -n1 || uname -om) | egrep '(Red Hat|CentOS)' || echo ""`
-if [ "${is_rhel}" != "" ]; then
-	echo "Platform is ${is_rhel}"
-	sudo yum check-update
-	sudo yum update -y
-	sudo yum-config-manager --enable 'Red Hat Enterprise Linux Server 7 RHSCL (RPMs)'
-	sudo yum install -y @development
-	sudo yum install -y boost-devel
-	sudo yum install -y glib2-devel
-	sudo yum install -y rh-python36
-	sudo yum install -y rsyslog
-	sudo yum install -y openssl-devel
-	sudo yum install -y postgresql-devel
-	sudo yum install -y wget
-	sudo yum install -y zlib-devel
-	sudo yum install -y git
-	sudo yum install -y cmake
-	sudo yum install -y libuuid-devel
-	sudo yum install -y dbus-devel
+os_name=`(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
+os_version=`(grep -o '^VERSION_ID=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
+echo "Platform is ${os_name}, Version: ${os_version}"
 
-	sudo su - <<EOF
+if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *"7"* ]]; then
+	if [[ $os_name == *"Red Hat"* ]]; then
+		yum-config-manager --enable 'Red Hat Enterprise Linux Server 7 RHSCL (RPMs)'
+		yum install -y @development
+	else
+		yum groupinstall "Development tools" -y
+		yum install -y centos-release-scl 
+	fi
+	yum install -y boost-devel
+	yum install -y glib2-devel
+	yum install -y rh-python36
+	yum install -y rsyslog
+	yum install -y openssl-devel
+	yum install -y postgresql-devel
+	yum install -y wget
+	yum install -y zlib-devel
+	yum install -y git
+	yum install -y cmake
+	yum install -y libuuid-devel
+	yum install -y dbus-devel
+	echo "source scl_source enable rh-python36" >> /home/${SUDO_USER}/.bashrc
+
+	su - <<EOF
 scl enable rh-python36 bash
 pip install dbus-python
 EOF
-	sudo service rsyslog start
+	service rsyslog start
 
 # SQLite3 need to be compiled on CentOS|RHEL 
 	if [ -d /tmp/foglamp-sqlite3-pkg ]; then
@@ -64,15 +70,15 @@ EOF
 	autoreconf -f -i
 	make
 	cd $foglamp_location
-else
-	sudo apt update
-	sudo apt -y upgrade
-
-	sudo apt install -y avahi-daemon curl
-	sudo apt install -y cmake g++ make build-essential autoconf automake uuid-dev
-	sudo apt install -y libtool libboost-dev libboost-system-dev libboost-thread-dev libpq-dev libssl-dev libz-dev
-	sudo apt install -y python-dbus python-dev python3-dev python3-pip
-	sudo apt install -y sqlite3 libsqlite3-dev
-	sudo apt install -y pkg-config
+	sudo -u $SUDO_USER scl enable rh-python36 bash
+elif apt --version 2>/dev/null; then
+	apt install -y avahi-daemon curl
+	apt install -y cmake g++ make build-essential autoconf automake uuid-dev
+	apt install -y libtool libboost-dev libboost-system-dev libboost-thread-dev libpq-dev libssl-dev libz-dev
+	apt install -y python-dbus python-dev python3-dev python3-pip
+	apt install -y sqlite3 libsqlite3-dev
+	apt install -y pkg-config
 	# sudo apt install -y postgresql
+else
+	echo "Requirements cannot be automatically installed, please refer README.rst to install requirements manually"
 fi

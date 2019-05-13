@@ -34,6 +34,34 @@ if [ -z ${FOGLAMP_ROOT+x} ]; then
     export FOGLAMP_ROOT
 fi
 
+# Include common code
+source "${FOGLAMP_ROOT}/scripts/common/get_platform.sh"
+
+PLATFORM=`get_platform`
+IS_RHEL=`echo $PLATFORM | egrep '(Red Hat|CentOS)' || echo ""`
+
+if [[ "$IS_RHEL" != "" ]]
+then
+	# platform RedHat/Centos
+
+	# To avoid to stop the execution for any internal error of scl_source
+	set +e
+	source scl_source enable rh-python36
+	status=$?
+
+	if [[ "$status" != "0" ]]
+	then
+		msg_text="ERROR: FogLAMP cannot enable the python environment in RedHat/Centos platform."
+		logger -p local0.err -t msg_text
+		echo msg_text
+		exit 1
+	fi
+	set -e
+else
+	# platform Debian/Ubuntu
+	:
+fi
+
 # Check if the default directory exists
 if [[ ! -d "${FOGLAMP_ROOT}" ]]; then
     logger -p local0.err -t "foglamp.script.foglamp" "FogLAMP cannot be executed: ${FOGLAMP_ROOT} is not a valid directory."

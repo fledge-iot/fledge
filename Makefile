@@ -93,6 +93,7 @@ FOGLAMP_UPDATE_SRC         := scripts/extras/foglamp_update
 UPDATE_TASK_APT_SRC        := scripts/extras/update_task.apt
 UPDATE_TASK_SNAPPY_SRC     := scripts/extras/update_task.snappy
 SUDOERS_SRC                := scripts/extras/foglamp.sudoers
+SUDOERS_SRC_RH             := scripts/extras/foglamp.sudoers_rh
 
 # SCRIPTS TO INSTALL IN SCRIPTS DIR
 COMMON_SCRIPTS_SRC          := scripts/common
@@ -422,7 +423,11 @@ bin_install : $(BIN_INSTALL_DIR) $(FOGBENCH_SCRIPT_SRC) $(FOGLAMP_SCRIPT_SRC)
 	$(CP) $(FOGLAMP_UPDATE_SRC) $(BIN_INSTALL_DIR)
 	$(CP) $(UPDATE_TASK_APT_SRC) $(BIN_INSTALL_DIR)
 	$(CP) $(UPDATE_TASK_SNAPPY_SRC) $(BIN_INSTALL_DIR)
-	$(CP) $(SUDOERS_SRC)    $(BIN_INSTALL_DIR)
+ifneq ("$(PLATFORM_RH)","")
+	$(CP) $(SUDOERS_SRC_RH) $(BIN_INSTALL_DIR)
+else
+	$(CP) $(SUDOERS_SRC) $(BIN_INSTALL_DIR)
+endif
 
 # create bin install dir
 $(BIN_INSTALL_DIR) :

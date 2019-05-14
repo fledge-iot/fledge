@@ -380,7 +380,7 @@ vector<Reading *>* newQ = new vector<Reading *>();
 		lock_guard<mutex> guard(m_qMutex);
 
 		// BUffer current data in m_data
-		m_queue->insert(m_queue->cbegin(),
+		m_queue->insert(m_queue->begin(),
 				m_data->begin(),
 				m_data->end());
 		// Is it possible that some of the readings are stored in DB, and others are not?

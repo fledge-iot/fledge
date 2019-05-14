@@ -16,7 +16,8 @@ find_package(Boost 1.53.0 COMPONENTS ${BOOST_COMPONENTS} REQUIRED)
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 
 # Find python3.x dev/lib package
-find_package(PythonLibs 3 REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(PYTHON REQUIRED python3)
 
 include_directories(../../../C/common/include)
 include_directories(../../../C/plugins/common/include)
@@ -46,7 +47,6 @@ file(GLOB SERVICES_COMMON_LIB_SOURCES ../../../C/services/common/*.cpp)
 # Create shared library
 add_library(services-common-lib SHARED ${SERVICES_COMMON_LIB_SOURCES})
 target_link_libraries(services-common-lib ${COMMONLIB})
-target_link_libraries(services-common-lib ${PYTHON_LIBRARIES})
 set_target_properties(services-common-lib PROPERTIES SOVERSION 1)
 
 

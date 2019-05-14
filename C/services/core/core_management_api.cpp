@@ -32,6 +32,14 @@ void registerInterestWrapper(shared_ptr<HttpServer::Response> response,
 		  <<  "Content-type: application/json\r\n\r\n" << payload;
 }
 
+void replaceSubstr(std::string& str, const std::string& from, const std::string& to) {
+    size_t start_pos = 0;
+    while((start_pos = str.find(from, start_pos)) != std::string::npos) {
+         str.replace(start_pos, from.length(), to);
+         start_pos += to.length();
+	}
+}
+
 /**
  * Easy wrapper for getting a specific service.
  * It is called to get storage service details:
@@ -53,9 +61,12 @@ void getServiceWrapper(shared_ptr<HttpServer::Response> response,
 	{
 		string serviceName = queryString.substr(pos + strlen("name="));
 		// replace %20 with SPACE
-		serviceName = std::regex_replace(serviceName,
+		/*serviceName = std::regex_replace(serviceName,
 						 std::regex("%20"),
-						 " ");
+						 " "); */
+		// RHEL 7.6 gcc pkg "gcc (GCC) 4.8.5 20150623 (Red Hat 4.8.5-36)"
+		// doesn't support std:regex and std::regex_replace
+		replaceSubstr(serviceName, "%20", " ");
 		ServiceRegistry* registry = ServiceRegistry::getInstance();
 		ServiceRecord* foundService = registry->findService(serviceName);
 		string payload;

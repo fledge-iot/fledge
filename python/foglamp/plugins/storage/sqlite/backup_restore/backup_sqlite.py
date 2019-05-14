@@ -260,6 +260,21 @@ class BackupProcess(FoglampProcess):
         self._logger.debug("{func} - file_name |{file}|".format(func="_run_backup_command",
                                                                 file=_backup_file))
 
+        # Force the checkpoint - WAL mechanism
+        cmd = "{sqlite_cmd} {path}/{db} 'PRAGMA wal_checkpoint(PASSIVE);'".format(
+            sqlite_cmd=self._backup_lib.SQLITE_SQLITE,
+            path=self._backup_lib.dir_foglamp_data,
+            db=self._backup_lib.config['database-filename']
+        )
+
+        # noinspection PyArgumentEqualDefault
+        _exit_code, output = lib.exec_wait_retry(cmd,
+                                                 output_capture=True,
+                                                 exit_code_ok=0,
+                                                 max_retry=self._backup_lib.config['max_retry'],
+                                                 timeout=self._backup_lib.config['timeout']
+                                                 )
+
         # Prepares the backup command
         cmd = "{sqlite_cmd} {path}/{db} '{backup_cmd} {file}'".format(
                                                 sqlite_cmd=self._backup_lib.SQLITE_SQLITE,

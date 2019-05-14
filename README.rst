@@ -84,8 +84,8 @@ The packages needed to build FogLAMP can be installed manually or automatically
 using the `requirements.sh <requirements.sh>`_ script.
 
 
-Build on Ubuntu
----------------
+Install the requirements on Ubuntu
+----------------------------------
 
 On Ubuntu-based Linux distributions the packages can be installed with given `requirements.sh <requirements.sh>`_ or manual *apt-get*:
 ::
@@ -98,11 +98,11 @@ On Ubuntu-based Linux distributions the packages can be installed with given `re
 
 You may need to use *sudo* to allow *apt-get* to install packages dependent upon your access rights.
 
-Build on Red Hat/CentOS
------------------------
-On Red Hat and CentOS distributions the required packages can be installed with given `requirements.sh <requirements.sh>`_:
+Install the requirements on Red Hat/CentOS
+------------------------------------------
+On Red Hat and CentOS distributions the required packages can be installed automatically with given `requirements.sh <requirements.sh>`_:
 ::
-	./requirements.sh
+	sh ./requirements.sh
 
 You may need to use *sudo* upon your access rights.
 
@@ -112,8 +112,8 @@ Build
 To build FogLAMP run the command ``make`` in the top level directory. This will compile all the components that need to be compiled and will also create a runable structure of the Python code components of FogLAMP.
 
 **NOTE:**
-
 - *The GCC compiler version 5.4 available in Ubuntu 16.04 LTS raises warnings. This is a known bug of the compiler and it can be ignored.*
+
 - *openssl toolkit is a requirement if we want to use https based REST client and certificate based authentication.*
 
 Once the *make* has completed you can decide to test FogLAMP from your development environment or you can install it. 

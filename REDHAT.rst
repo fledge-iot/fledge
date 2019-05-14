@@ -2,7 +2,7 @@
 
 .. Links
 .. _download page: https://foglamp.readthedocs.io/en/master/92_downloads.html
-.. _repository: https://github.com/foglamp/foglamp-pkg
+.. _foglamp-pkg: https://github.com/foglamp/foglamp-pkg
 
 
    <br />
@@ -25,9 +25,9 @@ install and run FogLAMP on Red Hat or CentOS.
 Install FogLAMP on Red Hat/CentOS using the RPM package
 *******************************************************
 
-The FogLAMP RPM is available in the download page of the documentation available at `download page`_
+The FogLAMP RPM is available in the download page of the documentation available at `download page`_.
 
-The RPM can also be created through the `repository`_ using the make_rpm script and following the instruction in the README.rst.
+The RPM can also be created from the FogLAMP sources through the repository `foglamp-pkg`_ using the make_rpm script and following the instruction in the README.rst.
 
 
 Installation on Red Hat

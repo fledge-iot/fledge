@@ -11,9 +11,7 @@
 Building and using FogLAMP on RedHat/CentOS
 *******************************************
 
-FogLAMP can be build and installed on Red Hat or CentOS.
-
-It is tested against:
+FogLAMP can be build or installed on Red Hat or CentOS, it is tested against:
 
 - Red Hat 7.6
 - CentOS  7.6-1810

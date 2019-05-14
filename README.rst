@@ -80,10 +80,6 @@ FogLAMP can be build or installed in one of the following Linux distributions :
 - Red Hat
 - CentOS
 
-The packages needed to build FogLAMP can be installed manually or automatically
-using the `requirements.sh <requirements.sh>`_ script.
-
-
 Install the prerequisites on Ubuntu
 ----------------------------------
 

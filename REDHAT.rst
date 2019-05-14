@@ -1,11 +1,11 @@
 .. |br| raw:: html
 
+   <br />
+
 .. Links
 .. _download page: https://foglamp.readthedocs.io/en/master/92_downloads.html
 .. _foglamp-pkg: https://github.com/foglamp/foglamp-pkg
 
-
-   <br />
 
 *******************************************
 Building and using FogLAMP on RedHat/CentOS

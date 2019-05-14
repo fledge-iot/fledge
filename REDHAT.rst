@@ -34,20 +34,15 @@ Installation on Red Hat
 =======================
 
 A Red Hat package should be installed before the FogLAMP RPM, follow the instructions :
-
 ::
    sudo yum-config-manager --enable 'Red Hat Enterprise Linux Server 7 RHSCL (RPMs)'
    sudo yum -y  localinstall ~/foglamp-1.5.2-0.00.x86_64.rpm
 
-|br|
 
 Installation on CentOS
 ======================
 
 A CentOS package should be installed before the FogLAMP RPM, follow the instructions :
-
 ::
    sudo yum install -y  centos-release-scl-rh
    sudo yum -y  localinstall ~/foglamp-1.5.2-0.00.x86_64.rpm
-
-|br|

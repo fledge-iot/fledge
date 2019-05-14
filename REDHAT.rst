@@ -6,7 +6,6 @@
 .. _download page: https://foglamp.readthedocs.io/en/master/92_downloads.html
 .. _foglamp-pkg: https://github.com/foglamp/foglamp-pkg
 
-
 *******************************************
 Building and using FogLAMP on RedHat/CentOS
 *******************************************

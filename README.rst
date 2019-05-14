@@ -108,6 +108,7 @@ Build
 To build FogLAMP run the command ``make`` in the top level directory. This will compile all the components that need to be compiled and will also create a runable structure of the Python code components of FogLAMP.
 
 **NOTE:**
+
 - *The GCC compiler version 5.4 available in Ubuntu 16.04 LTS raises warnings. This is a known bug of the compiler and it can be ignored.*
 
 - *openssl toolkit is a requirement if we want to use https based REST client and certificate based authentication.*

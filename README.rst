@@ -81,7 +81,7 @@ FogLAMP can be build or installed in one of the following Linux distributions :
 - CentOS
 
 Install the prerequisites on Ubuntu
-----------------------------------
+-----------------------------------
 
 On Ubuntu-based Linux distributions the packages can be installed with given `requirements.sh <requirements.sh>`_ or manual *apt-get*:
 ::
@@ -95,7 +95,8 @@ On Ubuntu-based Linux distributions the packages can be installed with given `re
 You may need to use *sudo* to allow *apt-get* to install packages dependent upon your access rights.
 
 Install the prerequisites on Red Hat/CentOS
-------------------------------------------
+-------------------------------------------
+
 On Red Hat and CentOS distributions the required packages can be installed automatically with given `requirements.sh <requirements.sh>`_:
 ::
 	sh ./requirements.sh

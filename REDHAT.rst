@@ -7,7 +7,8 @@ Building and using FogLAMP on RedHat/CentOS
 *******************************************
 
 FogLAMP can be build and installed on Red Hat and CentOS.
-It is tested on :
+It is tested against:
+
 - Red Hat 7.6
 - CentOS  7.6-1810
 
@@ -18,7 +19,7 @@ install and run FogLAMP on Red Hat or CentOS.
 Install FogLAMP on RedHat/CentOS using the RPM package
 ******************************************************
 
-The FogLAMP RPM can is available in the download page of the
+The FogLAMP RPM is available in the download page of the
 documentation available at :
 
 https://foglamp.readthedocs.io/en/master/92_downloads.html
@@ -26,7 +27,7 @@ https://foglamp.readthedocs.io/en/master/92_downloads.html
 The RPM can also be created through the repository :
 https://github.com/foglamp/foglamp-pkg
 
-using the make_rpm script and following the instruction in README.rst.
+using the make_rpm script and following the instruction in the README.rst.
 
 
 Red Hat

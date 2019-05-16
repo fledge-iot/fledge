@@ -7,6 +7,7 @@
 """Common Plugin Discovery Class"""
 
 import os
+import importlib.util
 from foglamp.common import logger
 from foglamp.services.core.api import utils
 
@@ -62,9 +63,36 @@ class PluginDiscovery(object):
     def get_plugin_folders(cls, plugin_type):
         directories = []
         dir_name = utils._FOGLAMP_ROOT + "/python/foglamp/plugins/" + plugin_type
+        dir_path = []
+        l1 = [plugin_type]
+        if utils._FOGLAMP_PLUGIN_PATH:
+            my_list = utils._FOGLAMP_PLUGIN_PATH.split(";")
+            for l in my_list:
+                dir_found = os.path.isdir(l)
+                if dir_found:
+                    subdirs = [dirs for x, dirs, files in os.walk(l)]
+                    if subdirs[0]:
+                        result = any(elem in l1 for elem in subdirs[0])
+                        if result:
+                            dir_path.append(l)
+                    else:
+                        _logger.warning("{} subdir type not found".format(l))
+                else:
+                    _logger.warning("{} dir path not found".format(l))
         try:
             directories = [d for d in os.listdir(dir_name) if os.path.isdir(dir_name + "/" + d) and
                            not d.startswith("__") and d != "empty" and d != "common"]
+            if dir_path:
+                temp_list = []
+                for fp in dir_path:
+                    for root, dirs, files in os.walk(fp + "/" + plugin_type):
+                        for name in dirs:
+                            if not name.startswith("__"):
+                                # temp_list.append(name)
+                                p = os.path.join(root, name)
+                                temp_list.append(p)
+                directories = directories + temp_list
+            _logger.warning("After Foglamp plugin path directories...{}".format(directories))
         except FileNotFoundError:
             pass
         else:
@@ -118,6 +146,21 @@ class PluginDiscovery(object):
                 plugin_config.update({'config': plugin_info['config']})
         except ImportError as ex:
             _logger.error('Plugin "{}" import problem from path "{}". {}'.format(plugin_dir, plugin_module_path, str(ex)))
+            if utils._FOGLAMP_PLUGIN_PATH:
+                dir_found = os.path.isdir(plugin_dir)
+                if dir_found:
+                    spec = importlib.util.spec_from_file_location("module.name", "{}/{}.py".format(plugin_dir, plugin_dir.split('/')[-1]))
+                    _plugin = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(_plugin)
+                    plugin_info = _plugin.plugin_info()
+                    plugin_config = {
+                        'name': plugin_info['config']['plugin']['default'],
+                        'type': plugin_info['type'],
+                        'description': plugin_info['config']['plugin']['description'],
+                        'version': plugin_info['version']
+                    }
+                    if is_config:
+                        plugin_config.update({'config': plugin_info['config']})
         except Exception as ex:
             _logger.exception('Plugin "{}" raised exception "{}" while fetching config'.format(plugin_dir, str(ex)))
 

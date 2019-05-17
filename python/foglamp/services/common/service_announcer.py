@@ -25,9 +25,8 @@ class ServiceAnnouncer:
     def __init__(self, sname, stype, port, txt):
         host_name = socket.gethostname()
         host = self.get_ip()
-        service_name = "_" + sname.lower() + "._tcp.local."
-        desc = {'path': '/~paulsm/'}  # TODO: Change
-        _LOGGER.error(">>>>>>>>>>>>>>>>> %s", service_name)
+        service_name = "{}_{}.{}".format(host_name, sname, stype)
+        desc = {'serviceDescription': 'dummy' if txt[0] is None else txt[0]}
         """Create a service description.
                 type_: fully qualified service type name
                 name: fully qualified service name
@@ -41,14 +40,14 @@ class ServiceAnnouncer:
                 host_ttl: ttl used for A/SRV records
                 other_ttl: ttl used for PTR/TXT records"""
         info = ServiceInfo(
-            "_foglamp-manage._tcp.local.",
-            host_name + "._foglamp-manage._tcp.local.",
+            stype,
+            service_name,
             socket.inet_aton(host),
             port,
             0,
             0,
             desc,
-            "foglamp.local.",
+            "{}.local.".format(host_name),
         )
         zeroconf = Zeroconf()
         zeroconf.register_service(info)

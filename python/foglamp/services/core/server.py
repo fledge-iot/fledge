@@ -100,13 +100,13 @@ class Server:
         }
     }
 
-    _MANAGEMENT_SERVICE = '_foglamp-manage._tcp'
+    _MANAGEMENT_SERVICE = '_foglamp-manage._tcp.local.'
     """ The management service we advertise """
 
-    _ADMIN_API_SERVICE = '_foglamp-admin._tcp'
+    _ADMIN_API_SERVICE = '_foglamp-admin._tcp.local.'
     """ The admin REST service we advertise """
 
-    _USER_API_SERVICE = '_foglamp-user._tcp'
+    _USER_API_SERVICE = '_foglamp-user._tcp.local.'
     """ The user REST service we advertise """
 
     admin_announcer = None
@@ -719,7 +719,7 @@ class Server:
             # to allow other microservices to find FogLAMP
             loop.run_until_complete(cls.service_config())
             _logger.info('Announce management API service')
-            cls.management_announcer = ServiceAnnouncer(cls._service_name, cls._MANAGEMENT_SERVICE, cls.core_management_port,
+            cls.management_announcer = ServiceAnnouncer("core_{}".format(cls._service_name), cls._MANAGEMENT_SERVICE, cls.core_management_port,
                                                         ['The FogLAMP Core REST API'])
 
             cls.service_server, cls.service_server_handler = cls._start_app(loop, cls.service_app, host, cls.rest_server_port, ssl_ctx=ssl_ctx)
@@ -732,10 +732,10 @@ class Server:
                          address, service_server_port)
 
             # All services are up so now we can advertise the Admin and User REST API's
-            # cls.admin_announcer = ServiceAnnouncer(cls._service_name, cls._ADMIN_API_SERVICE, service_server_port,
-            #                                        [cls._service_description])
-            # cls.user_announcer = ServiceAnnouncer(cls._service_name, cls._USER_API_SERVICE, service_server_port,
-            #                                       [cls._service_description])
+            cls.admin_announcer = ServiceAnnouncer(cls._service_name, cls._ADMIN_API_SERVICE, service_server_port,
+                                                   [cls._service_description])
+            cls.user_announcer = ServiceAnnouncer(cls._service_name, cls._USER_API_SERVICE, service_server_port,
+                                                  [cls._service_description])
 
             # register core
             # a service with 2 web server instance,

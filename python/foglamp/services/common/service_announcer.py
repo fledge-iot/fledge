@@ -25,8 +25,9 @@ class ServiceAnnouncer:
     def __init__(self, sname, stype, port, txt):
         host_name = socket.gethostname()
         host = self.get_ip()
-        service_name = "{}_{}.{}".format(host_name, sname, stype)
-        desc = {'serviceDescription': 'dummy' if txt[0] is None else txt[0]}
+        service_name = "{}_{}.{}".format(sname,  host.split(".")[3], stype)
+        desc_txt = txt[0] if isinstance(txt, list) and txt[0] is not None else 'FogLAMP Service'
+        desc = {'serviceDescription': desc_txt}
         """Create a service description.
                 type_: fully qualified service type name
                 name: fully qualified service name
@@ -50,7 +51,7 @@ class ServiceAnnouncer:
             "{}.local.".format(host_name),
         )
         zeroconf = Zeroconf()
-        zeroconf.register_service(info)
+        zeroconf.register_service(info, allow_name_change=True)
 
     def get_ip(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

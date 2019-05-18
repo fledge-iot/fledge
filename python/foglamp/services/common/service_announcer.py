@@ -25,10 +25,15 @@ class ServiceAnnouncer:
     def __init__(self, sname, stype, port, txt):
         host_name = socket.gethostname()
         host = self.get_ip()
-        service_name = "{}_{}.{}".format(sname,  host.split(".")[3], stype)
-        desc_txt = txt[0] if isinstance(txt, list) and txt[0] is not None else 'FogLAMP Service'
-        desc = {'serviceDescription': desc_txt}
-        """Create a service description.
+        service_name = "{}.{}".format(sname, stype)
+        desc_txt = 'FogLAMP Service'
+        if isinstance(txt, list):
+            try:
+                desc_txt = txt[0]
+            except:
+                pass
+        desc = {'description': desc_txt}
+        """ Create a service description.
                 type_: fully qualified service type name
                 name: fully qualified service name
                 address: IP address as unsigned short, network byte order
@@ -45,10 +50,8 @@ class ServiceAnnouncer:
             service_name,
             socket.inet_aton(host),
             port,
-            0,
-            0,
-            desc,
-            "{}.local.".format(host_name),
+            properties=desc,
+            server="{}.local.".format(host_name)
         )
         zeroconf = Zeroconf()
         zeroconf.register_service(info, allow_name_change=True)
@@ -58,9 +61,9 @@ class ServiceAnnouncer:
         try:
             # doesn't even have to be reachable
             s.connect(('10.255.255.255', 1))
-            IP = s.getsockname()[0]
+            ip = s.getsockname()[0]
         except:
-            IP = '127.0.0.1'
+            ip = '127.0.0.1'
         finally:
             s.close()
-        return IP
+        return ip

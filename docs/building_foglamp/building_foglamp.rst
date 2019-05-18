@@ -45,7 +45,6 @@ General Requirements
 
 This version of FogLAMP requires the following software to be installed in the same environment:
 
-- **Avahi 0.6.32+**
 - **Python 3.5.3+**
 - **PostgreSQL 9.5+**
 - **SQLite 3.11+**
@@ -71,7 +70,6 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
 
 - autoconf
 - automake
-- avahi-daemon
 - build-essential
 - cmake
 - curl
@@ -100,7 +98,7 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
   ...
   All packages are up-to-date.
   $
-  $ sudo apt-get install avahi-daemon curl git cmake g++ make build-essential autoconf automake
+  $ sudo apt-get install curl git cmake g++ make build-essential autoconf automake
   Reading package lists... Done
   Building dependency tree
   ...
@@ -641,52 +639,6 @@ First, clone the Github repository with the usual command: |br| ``git clone http
 We need to apply these changes to *C/plugins/storage/postgres/CMakeLists.txt*:
 
 - Replace |br| ``include_directories(../../../thirdparty/rapidjson/include /usr/include/postgresql)`` |br| with: |br| ``include_directories(../../../thirdparty/rapidjson/include /usr/pgsql-9.6/include)`` |br| ``link_directories(/usr/pgsql-9.6/lib)`` |br|
-- Replace the content of *python/foglamp/services/common/service_announcer.py* with this code:
-
-.. code-block:: python
-
-  # -*- coding: utf-8 -*-
-  # FOGLAMP_BEGIN
-  # See: http://foglamp.readthedocs.io/
-  # FOGLAMP_END
-  """Common FoglampMicroservice Class"""
-
-  import foglamp.services.common.avahi as avahi
-  from foglamp.common import logger
-
-  _LOGGER = logger.setup(__name__)
-
-  class ServiceAnnouncer:
-      _service_name = None
-      """ The name of the service to advertise """
-
-      _group = None
-      """ The Avahi group """
-
-      def __init__(self, name, service, port, txt):
-
-        self._service_name = name
-        _LOGGER.error("Avahi not available, continuing without service discovery available")
-
-      @property
-      def get_service_name(self):
-          return self._service_name
-
-      def unregister(self):
-          if self._group is not None:
-              self._group.Reset()
-              self._group = None
-
-Finally, in *python/foglamp/services/common/avahi.py*, comment these lines:
-
-.. code-block:: python
-
-  # import dbus
-
-  <<< In the function string_to_byte_array(s) comment: >>>
-  #    for c in s:
-  #        r.append(dbus.Byte(ord(c)))
-
 
 You are now ready to execute the ``make`` command, as described here_.
 

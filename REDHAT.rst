@@ -3,7 +3,7 @@
    <br />
 
 .. Links
-.. _download page: https://foglamp.readthedocs.io/en/master/92_downloads.html
+.. _download page: http://dianomic.com/download-packages
 .. _foglamp-pkg: https://github.com/foglamp/foglamp-pkg
 
 *******************************************
@@ -13,7 +13,7 @@ Building and using FogLAMP on RedHat/CentOS
 FogLAMP can be build or installed on Red Hat or CentOS, it is currently tested against:
 
 - Red Hat 7.6
-- CentOS  7.6-1810
+- CentOS  7.6
 
 You may follow the instructions in the README file to build,
 install and run FogLAMP on Red Hat or CentOS.

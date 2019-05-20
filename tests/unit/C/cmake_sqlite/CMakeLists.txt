@@ -6,6 +6,9 @@ set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 
 set(STORAGE_COMMON_LIB storage-common-lib)
 
+# Path of compiled libsqlite3.a and .h files: /tmp/foglamp-sqlite3-pkg/src
+set(FOGLAMP_SQLITE3_LIBS "/tmp/foglamp-sqlite3-pkg/src" CACHE INTERNAL "")
+
 ## sqlitememory plugin
 include_directories(../../../../C/thirdparty/rapidjson/include)
 include_directories(../../../../C/common/include)
@@ -31,6 +34,13 @@ add_library(${PROJECT_NAME} SHARED ${SOURCES} ${COMMON_SOURCES})
 add_definitions(-DSQLITE_SPLIT_READINGS=1)
 add_definitions(-DPLUGIN_LOG_NAME="SQLite 3 in_memory")
 
-target_link_libraries(${PROJECT_NAME} -lsqlite3)
+if(EXISTS ${FOGLAMP_SQLITE3_LIBS})
+	include_directories(${FOGLAMP_SQLITE3_LIBS})
+	target_link_libraries(${PROJECT_NAME} -L"${FOGLAMP_SQLITE3_LIBS}/.libs" -lsqlite3)
+else()
+	
+	target_link_libraries(${PROJECT_NAME} -lsqlite3)
+endif()
+
 target_link_libraries(${PROJECT_NAME} ${STORAGE_COMMON_LIB})
 set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION 1)

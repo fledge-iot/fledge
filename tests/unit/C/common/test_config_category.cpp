@@ -599,3 +599,13 @@ TEST(CategoryTest, categoryValues)
         ASSERT_EQ(true, complex.getValue("plugin").compare("PI_Server_V2") == 0);
         ASSERT_EQ(true, complex.getValue("OMFMaxRetry").compare("3") == 0);
 }
+
+/**
+ * Check segfault
+ */
+TEST(CategoryTest, minMaxCheckSegFault)
+{
+ASSERT_DEATH({
+	raise(SIGSEGV);
+	 }, "");
+}

@@ -48,10 +48,6 @@ if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *
 	yum install -y cmake
 	yum install -y libuuid-devel
 	echo "source scl_source enable rh-python36" >> /home/${SUDO_USER}/.bashrc
-
-	su - <<EOF
-    scl enable rh-python36 bash
-EOF
 	service rsyslog start
 
 # SQLite3 need to be compiled on CentOS|RHEL 
@@ -70,7 +66,7 @@ EOF
 	cd $foglamp_location
 	sudo -u $SUDO_USER scl enable rh-python36 bash
 elif apt --version 2>/dev/null; then
-	apt install -y curl
+	apt install -y avahi-daemon curl
 	apt install -y cmake g++ make build-essential autoconf automake uuid-dev
 	apt install -y libtool libboost-dev libboost-system-dev libboost-thread-dev libpq-dev libssl-dev libz-dev
 	apt install -y python-dev python3-dev python3-pip

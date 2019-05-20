@@ -45,6 +45,7 @@ General Requirements
 
 This version of FogLAMP requires the following software to be installed in the same environment:
 
+- **Avahi 0.6.32+**
 - **Python 3.5.3+**
 - **PostgreSQL 9.5+**
 - **SQLite 3.11+**
@@ -70,6 +71,7 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
 
 - autoconf
 - automake
+- avahi-daemon
 - build-essential
 - cmake
 - curl
@@ -98,7 +100,7 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
   ...
   All packages are up-to-date.
   $
-  $ sudo apt-get install curl git cmake g++ make build-essential autoconf automake
+  $ sudo apt-get install avahi-daemon curl git cmake g++ make build-essential autoconf automake
   Reading package lists... Done
   Building dependency tree
   ...

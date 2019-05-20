@@ -99,7 +99,7 @@ Install the prerequisites on Red Hat/CentOS
 
 On Red Hat and CentOS distributions the required packages can be installed automatically with given `requirements.sh <requirements.sh>`_:
 ::
-	sh ./requirements.sh
+	./requirements.sh
 
 You may need to use *sudo* upon your access rights.
 

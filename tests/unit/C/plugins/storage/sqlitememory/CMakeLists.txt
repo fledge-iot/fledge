@@ -30,6 +30,13 @@ file(GLOB COMMON_SOURCES ../sqlite/common/*.cpp)
 file(GLOB COMMON_SOURCES ../sqlitememory/*.cpp)
 file(GLOB test_sources tests.cpp)
 
+# Check for SQLite3 source tree in specific location
+set(FOGLAMP_SQLITE3_LIBS "/tmp/foglamp-sqlite3-pkg/src" CACHE INTERNAL "")
+if(EXISTS ${FOGLAMP_SQLITE3_LIBS})
+	message(STATUS "Using SLITE3 source files in ${FOGLAMP_SQLITE3_LIBS}")
+	include_directories(${FOGLAMP_SQLITE3_LIBS})
+endif()
+
 # Exe creation
 link_directories(
         ${PROJECT_BINARY_DIR}/../../../../lib

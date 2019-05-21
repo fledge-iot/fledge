@@ -8,6 +8,8 @@
 
 import os
 import importlib.util
+from typing import Dict
+
 from foglamp.common import logger
 from foglamp.services.core.api import utils
 
@@ -80,7 +82,7 @@ class PluginDiscovery(object):
                 else:
                     _logger.warning("{} dir path not found".format(l))
         try:
-            directories = [d for d in os.listdir(dir_name) if os.path.isdir(dir_name + "/" + d) and
+            directories = [dir_name + '/' + d for d in os.listdir(dir_name) if os.path.isdir(dir_name + "/" + d) and
                            not d.startswith("__") and d != "empty" and d != "common"]
             if dir_path:
                 temp_list = []
@@ -92,7 +94,6 @@ class PluginDiscovery(object):
                                 p = os.path.join(root, name)
                                 temp_list.append(p)
                 directories = directories + temp_list
-            _logger.warning("After Foglamp plugin path directories...{}".format(directories))
         except FileNotFoundError:
             pass
         else:
@@ -121,17 +122,13 @@ class PluginDiscovery(object):
 
     @classmethod
     def get_plugin_config(cls, plugin_dir, plugin_type, is_config):
-        plugin_module_path = "foglamp.plugins.south" if plugin_type == 'south' else "foglamp.plugins.north"
+        plugin_module_path = plugin_dir
         plugin_config = None
 
         # Now load the plugin to fetch its configuration
         try:
-            plugin_module_name = plugin_dir
-            import_file_name = "{path}.{dir}.{file}".format(path=plugin_module_path, dir=plugin_dir, file=plugin_module_name)
-            _plugin = __import__(import_file_name, fromlist=[''])
-
+            plugin_info = load_python_plugin(plugin_module_path,  plugin_module_path.split('/')[-1], plugin_type)
             # Fetch configuration from the configuration defined in the plugin
-            plugin_info = _plugin.plugin_info()
             if plugin_info['type'] == plugin_type:
                 plugin_config = {
                     'name': plugin_info['config']['plugin']['default'],
@@ -144,24 +141,33 @@ class PluginDiscovery(object):
 
             if is_config:
                 plugin_config.update({'config': plugin_info['config']})
-        except ImportError as ex:
+        except FileNotFoundError as ex:
             _logger.error('Plugin "{}" import problem from path "{}". {}'.format(plugin_dir, plugin_module_path, str(ex)))
-            if utils._FOGLAMP_PLUGIN_PATH:
-                dir_found = os.path.isdir(plugin_dir)
-                if dir_found:
-                    spec = importlib.util.spec_from_file_location("module.name", "{}/{}.py".format(plugin_dir, plugin_dir.split('/')[-1]))
-                    _plugin = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(_plugin)
-                    plugin_info = _plugin.plugin_info()
-                    plugin_config = {
-                        'name': plugin_info['config']['plugin']['default'],
-                        'type': plugin_info['type'],
-                        'description': plugin_info['config']['plugin']['description'],
-                        'version': plugin_info['version']
-                    }
-                    if is_config:
-                        plugin_config.update({'config': plugin_info['config']})
         except Exception as ex:
             _logger.exception('Plugin "{}" raised exception "{}" while fetching config'.format(plugin_dir, str(ex)))
 
         return plugin_config
+
+
+def load_python_plugin(plugin_module_path: str, plugin: str, service_type: str) -> Dict:
+    _plugin = None
+    try:
+        spec = importlib.util.spec_from_file_location("module.name", "{}/{}.py".format(plugin_module_path, plugin))
+        _plugin = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(_plugin)
+    except FileNotFoundError as ex:
+        if utils._FOGLAMP_PLUGIN_PATH:
+            my_list = utils._FOGLAMP_PLUGIN_PATH.split(";")
+            for l in my_list:
+                dir_found = os.path.isdir(l)
+                if dir_found:
+                    plugin_module_path = "{}/{}/{}".format(l, service_type, plugin)
+                    spec = importlib.util.spec_from_file_location("module.name", "{}/{}.py".format(plugin_module_path, plugin))
+                    _plugin = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(_plugin)
+    # Fetch configuration from the configuration defined in the plugin
+    plugin_info = _plugin.plugin_info()
+    if plugin_info['type'] != service_type:
+        msg = "Plugin of {} type is not supported".format(plugin_info['type'])
+        raise TypeError(msg)
+    return plugin_info

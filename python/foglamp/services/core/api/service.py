@@ -5,6 +5,8 @@
 # FOGLAMP_END
 
 import asyncio
+import os
+import importlib.util
 import datetime
 import uuid
 from aiohttp import web
@@ -22,7 +24,7 @@ from foglamp.services.core.api import utils as apiutils
 from foglamp.services.core.scheduler.entities import StartUpSchedule
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
-
+from foglamp.common.common import _FOGLAMP_ROOT
 
 __author__ = "Mark Riddoch, Ashwin Gopalakrishnan, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -175,7 +177,7 @@ async def add_service(request):
             # "plugin_module_path" is fixed by design. It is MANDATORY to keep the plugin in the exactly similar named
             # folder, within the plugin_module_path.
             # if multiple plugin with same name are found, then python plugin import will be tried first
-            plugin_module_path = "foglamp.plugins.south"
+            plugin_module_path = "{}/python/foglamp/plugins/{}/{}".format(_FOGLAMP_ROOT, service_type, plugin)
             try:
                 plugin_info = load_python_plugin(plugin_module_path, plugin, service_type)
                 plugin_config = plugin_info['config']
@@ -184,7 +186,7 @@ async def add_service(request):
                     raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}".'.format(plugin, plugin_module_path))
                 process_name = 'south_c'
                 script = '["services/south_c"]'
-            except ImportError as ex:
+            except FileNotFoundError as ex:
                 # Checking for C-type plugins
                 plugin_config = load_c_plugin(plugin, service_type)
                 if not plugin_config:
@@ -289,9 +291,21 @@ async def add_service(request):
 
 
 def load_python_plugin(plugin_module_path: str, plugin: str, service_type: str) -> Dict:
-    import_file_name = "{path}.{dir}.{file}".format(path=plugin_module_path, dir=plugin, file=plugin)
-    _plugin = __import__(import_file_name, fromlist=[''])
-
+    _plugin = None
+    try:
+        spec = importlib.util.spec_from_file_location("module.name", "{}/{}.py".format(plugin_module_path, plugin))
+        _plugin = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(_plugin)
+    except FileNotFoundError as ex:
+        if apiutils._FOGLAMP_PLUGIN_PATH:
+            my_list = apiutils._FOGLAMP_PLUGIN_PATH.split(";")
+            for l in my_list:
+                dir_found = os.path.isdir(l)
+                if dir_found:
+                    plugin_module_path = "{}/{}/{}".format(l, service_type, plugin)
+                    spec = importlib.util.spec_from_file_location("module.name", "{}/{}.py".format(plugin_module_path, plugin))
+                    _plugin = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(_plugin)
     # Fetch configuration from the configuration defined in the plugin
     plugin_info = _plugin.plugin_info()
     if plugin_info['type'] != service_type:

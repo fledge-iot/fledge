@@ -6,27 +6,39 @@
 
 """shim layer between Python and C++"""
 
+import os
+import importlib.util
 import sys
 import json
 import logging
 
 from foglamp.common import logger
+from foglamp.common.common import _FOGLAMP_ROOT
+from foglamp.services.core.api import utils
 
 _LOGGER = logger.setup(__name__, level=logging.WARN)
 _plugin = None
 
 _LOGGER.info("Loading shim layer for python plugin '{}' ".format(sys.argv[1]))
 
+
 def _plugin_obj():
     plugin = sys.argv[1]
-    plugin_module_path = "foglamp.plugins.south"
+    plugin_module_path = "{}/python/foglamp/plugins/south/{}".format(_FOGLAMP_ROOT, plugin)
     try:
-        import_file_name = "{path}.{dir}.{file}".format(path=plugin_module_path, dir=plugin, file=plugin)
-        _plugin = __import__(import_file_name, fromlist=[''])
-    except ImportError as ex:
-        _LOGGER.exception("Plugin %s import problem from path %s. %s", plugin, plugin_module_path, str(ex))
-    except Exception as ex:
-        _LOGGER.exception("Failed to load plugin. %s", str(ex))
+        spec = importlib.util.spec_from_file_location("module.name", "{}/{}.py".format(plugin_module_path, plugin))
+        _plugin = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(_plugin)
+    except FileNotFoundError as ex:
+        if utils._FOGLAMP_PLUGIN_PATH:
+            my_list = utils._FOGLAMP_PLUGIN_PATH.split(";")
+            for l in my_list:
+                dir_found = os.path.isdir(l)
+                if dir_found:
+                    plugin_module_path = "{}/south/{}".format(l, plugin)
+                    spec = importlib.util.spec_from_file_location("module.name", "{}/{}.py".format(plugin_module_path, plugin))
+                    _plugin = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(_plugin)
     return _plugin
 
 

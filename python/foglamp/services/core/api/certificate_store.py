@@ -38,11 +38,12 @@ async def get_certs(request):
     key_valid_extensions = ('.key', '.pem')
     certs_root_dir = _get_certs_dir('/etc/certs')
     for root, dirs, files in os.walk(certs_root_dir):
-        for f in files:
-            if f.endswith('.cert'):
-                certs.append(f)
-            if f.endswith(key_valid_extensions):
-                keys.append(f)
+        if not root.endswith(("pem", "json")):
+            for f in files:
+                if f.endswith('.cert'):
+                    certs.append(f)
+                if f.endswith(key_valid_extensions):
+                    keys.append(f)
 
     json_certs_path = _get_certs_dir('/etc/certs/json')
     json_cert_files = os.listdir(json_certs_path)

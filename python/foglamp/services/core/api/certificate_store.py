@@ -5,7 +5,9 @@
 # FOGLAMP_END
 
 import os
+
 from aiohttp import web
+
 from foglamp.services.core import connect
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA
@@ -30,26 +32,28 @@ async def get_certs(request):
     :Example:
         curl -X GET http://localhost:8081/foglamp/certificate
     """
-    certs_dir = _get_certs_dir('/etc/certs')
     certs = []
     keys = []
+
     key_valid_extensions = ('.key', '.pem')
-    for root, dirs, files in os.walk(certs_dir):
-        if root.endswith('json'):
-            for f in files:
-                if f.endswith('.json'):
-                    certs.append(f)
-                    files.remove(f)
-        if root.endswith('pem'):
-            for f in files:
-                if f.endswith('.pem'):
-                    certs.append(f)
-                    files.remove(f)
+    certs_root_dir = _get_certs_dir('/etc/certs')
+    for root, dirs, files in os.walk(certs_root_dir):
         for f in files:
             if f.endswith('.cert'):
                 certs.append(f)
             if f.endswith(key_valid_extensions):
                 keys.append(f)
+
+    json_certs_path = _get_certs_dir('/etc/certs/json')
+    json_cert_files = os.listdir(json_certs_path)
+    json_certs = [f for f in json_cert_files if f.endswith('.json')]
+    certs += json_certs
+
+    pem_certs_path = _get_certs_dir('/etc/certs/pem')
+    pem_cert_files = os.listdir(pem_certs_path)
+    pem_certs = [f for f in pem_cert_files if f.endswith('.pem')]
+    certs += pem_certs
+
     return web.json_response({"certs": certs, "keys": keys})
 
 

@@ -205,9 +205,11 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
         ConfigCategory config = this->fetchConfiguration(sendingDefaultConfig,
 							 m_plugin_name);
 
+#if VERBOSE_LOG
         m_logger->debug("%s - stream-id :%d:",
 			LOG_SERVICE_NAME.c_str(),
 			m_stream_id);
+#endif
 
         // Checks if stream-id is undefined, it allocates a new one in the case
         if (m_stream_id == 0) {

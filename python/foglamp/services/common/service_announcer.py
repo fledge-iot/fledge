@@ -8,7 +8,7 @@
 
 
 import socket
-from zeroconf import ServiceInfo, Zeroconf
+from zeroconf import ServiceInfo, ServiceBrowser, ServiceStateChange, Zeroconf
 
 from foglamp.common import logger
 
@@ -54,6 +54,8 @@ class ServiceAnnouncer:
             server="{}.local.".format(host_name)
         )
         zeroconf = Zeroconf()
+        # Refresh zeroconf cache
+        browser = ServiceBrowser(zeroconf, stype, handlers=[self.on_service_state_change])
         zeroconf.register_service(info, allow_name_change=True)
 
     def get_ip(self):
@@ -67,3 +69,7 @@ class ServiceAnnouncer:
         finally:
             s.close()
         return ip
+
+    def on_service_state_change(self, zeroconf: Zeroconf, service_type: str, name: str, state_change: ServiceStateChange) -> None:
+        if state_change is ServiceStateChange.Added:
+            info = zeroconf.get_service_info(service_type, name)

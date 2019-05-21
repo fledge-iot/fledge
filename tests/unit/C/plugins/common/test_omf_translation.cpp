@@ -64,6 +64,78 @@ const char *readings_with_different_datapoints = R"(
     }
 )";
 
+// 3 readings JSON text with unsupported data types (array)
+const char *all_readings_with_unsupported_datapoints_types = R"(
+    {
+        "count" : 4, "rows" : [
+            {
+                "id": 1, "asset_code": "A",
+                "read_key": "5b3be500-ff95-41ae-b5a4-cc99d08bef4a",
+                "reading": { "lux": [45204.524] },
+                "user_ts": "2018-06-11 14:00:08.532958",
+                "ts": "2018-06-12 14:47:18.872708"
+            },
+            {
+                "id": 2, "asset_code": "B",
+                "read_key": "5b3be50c-ff95-41ae-b5a4-cc99d08bef4a",
+                "reading": { "temp": [87], "label" : [1] },
+                "user_ts": "2018-08-21 14:00:09.32958",
+                "ts": "2018-08-22 14:48:18.72708"
+            },
+            {
+                "id": 3, "asset_code": "C",
+                "read_key": "5b3be50c-ff95-41ae-b5a4-cc99d08bef4a",
+                "reading": { "temp": [23.2], "label" : [5] },
+                "user_ts": "2018-08-21 14:00:09.32958",
+                "ts": "2018-08-22 15:48:18.72708"
+	    }
+        ]
+    }
+)";
+
+// 5 readings JSON text with unsupported data types (array)
+const char *readings_with_unsupported_datapoints_types = R"(
+    {
+        "count" : 4, "rows" : [
+            {
+                "id": 1, "asset_code": "A",
+                "read_key": "5b3be500-ff95-41ae-b5a4-cc99d08bef4a",
+                "reading": { "lux": [45204.524] },
+                "user_ts": "2018-06-11 14:00:08.532958",
+                "ts": "2018-06-12 14:47:18.872708"
+            },
+            {
+                "id": 2, "asset_code": "B",
+                "read_key": "5b3be50c-ff95-41ae-b5a4-cc99d08bef4a",
+                "reading": { "temp": 87, "label" : [1] },
+                "user_ts": "2018-08-21 14:00:09.32958",
+                "ts": "2018-08-22 14:48:18.72708"
+            },
+            {
+                "id": 3, "asset_code": "C",
+                "read_key": "5b3be50c-ff95-41ae-b5a4-cc99d08bef4a",
+                "reading": { "temp": [23.2], "label" : [5] },
+                "user_ts": "2018-08-21 14:00:09.32958",
+                "ts": "2018-08-22 15:48:18.72708"
+            },
+            {
+                "id": 3, "asset_code": "D",
+                "read_key": "5b3be50c-ff95-41ae-b5a4-cc99d08bef4a",
+                "reading": { "temp": 23.2, "label" : 5 },
+                "user_ts": "2018-08-21 14:00:09.32958",
+                "ts": "2018-08-22 15:48:18.72708"
+            },
+            {
+                "id": 3, "asset_code": "E",
+                "read_key": "5b3be50c-ff95-41ae-b5a4-cc99d08bef4a",
+                "reading": { "temp": [23.2], "label" : [5] },
+                "user_ts": "2018-08-21 14:00:09.32958",
+                "ts": "2018-08-22 15:48:18.72708"
+            }
+        ]
+    }
+)";
+
 
 // 2 readings translated to OMF JSON text
 const string two_translated_readings = "[{\"containerid\": \"" + to_string(TYPE_ID) + \
@@ -172,4 +244,86 @@ TEST(OMF_transation, SuperSet)
 	omf.unsetMapObjectTypes(superSetDataPoints);
 	// Superset map is empty
 	ASSERT_EQ(0, superSetDataPoints.size());
+}
+
+// Compare translated readings with a provided JSON value
+TEST(OMF_transation, AllReadingsWithUnsupportedTypes)
+{
+	// Build a ReadingSet from JSON
+	ReadingSet readingSet(all_readings_with_unsupported_datapoints_types);
+
+	ostringstream jsonData;
+	jsonData << "[";
+
+	bool pendingSeparator = false;
+	// Iterate over Readings via readingSet.getAllReadings()
+	for (auto elem = readingSet.getAllReadings().begin();
+	     elem != readingSet.getAllReadings().end();
+	     ++elem)
+	{
+		string rData =  OMFData(**elem, TYPE_ID).OMFdataVal();
+		// Add into JSON string the OMF transformed Reading data
+		if (!rData.empty())
+		{
+			jsonData << (pendingSeparator ? ", " : "") << rData;
+			pendingSeparator = true;
+		}
+	}
+
+	jsonData << "]";
+
+	Document doc;
+	doc.Parse(jsonData.str().c_str());
+	if (doc.HasParseError())
+	{
+		ASSERT_FALSE(true);
+	}
+	else
+	{
+		// JSON is an array
+		ASSERT_TRUE(doc.IsArray());
+		// Array size is 1
+		ASSERT_EQ(doc.Size(), 0);
+	}
+}
+
+// Compare translated readings with a provided JSON value
+TEST(OMF_transation, ReadingsWithUnsupportedTypes)
+{
+	// Build a ReadingSet from JSON
+	ReadingSet readingSet(readings_with_unsupported_datapoints_types);
+
+	ostringstream jsonData;
+	jsonData << "[";
+
+	bool pendingSeparator = false;
+	// Iterate over Readings via readingSet.getAllReadings()
+	for (auto elem = readingSet.getAllReadings().begin();
+	     elem != readingSet.getAllReadings().end();
+	     ++elem)
+	{
+		string rData =  OMFData(**elem, TYPE_ID).OMFdataVal();
+		// Add into JSON string the OMF transformed Reading data
+		if (!rData.empty())
+		{
+			jsonData << (pendingSeparator ? ", " : "") << rData;
+			pendingSeparator = true;
+		}
+	}
+
+	jsonData << "]";
+
+	Document doc;
+	doc.Parse(jsonData.str().c_str());
+	if (doc.HasParseError())
+	{
+		ASSERT_FALSE(true);
+	}
+	else
+	{
+		// JSON is an array
+		ASSERT_TRUE(doc.IsArray());
+		// Array size is 1
+		ASSERT_EQ(doc.Size(), 2);
+	}
 }

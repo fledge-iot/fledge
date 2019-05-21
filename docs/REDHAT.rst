@@ -10,7 +10,7 @@
 Building and using FogLAMP on RedHat/CentOS
 *******************************************
 
-FogLAMP can be build or installed on Red Hat or CentOS, it is currently tested against:
+FogLAMP can be built or installed on Red Hat or CentOS, it is currently tested against:
 
 - Red Hat 7.6
 - CentOS  7.6
@@ -30,7 +30,7 @@ The RPM can also be created from the FogLAMP sources through the repository `fog
 Installation on Red Hat
 =======================
 
-A Red Hat package should be installed before the FogLAMP RPM, follow the instructions :
+It is necessary to install a Red Hat package before FogLAMP can be installed successfully. The installation sequence is as follows:
 ::
    sudo yum-config-manager --enable 'Red Hat Enterprise Linux Server 7 RHSCL (RPMs)'
    sudo yum -y  localinstall ~/foglamp-1.5.2-0.00.x86_64.rpm
@@ -39,7 +39,7 @@ A Red Hat package should be installed before the FogLAMP RPM, follow the instruc
 Installation on CentOS
 ======================
 
-A CentOS package should be installed before the FogLAMP RPM, follow the instructions :
+It is necessary to install a CentOS package before FogLAMP can be installed successfully. The installation sequence is as follows:
 ::
    sudo yum install -y  centos-release-scl-rh
    sudo yum -y  localinstall ~/foglamp-1.5.2-0.00.x86_64.rpm

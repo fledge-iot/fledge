@@ -16,4 +16,6 @@ Welcome to FogLAMP's documentation!
     building_foglamp/index
     91_version_history
     92_downloads
+    RASPBIAN
+    REDHAT
 

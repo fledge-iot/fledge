@@ -463,21 +463,25 @@ string saveSentDataTypes(CONNECTOR_INFO* connInfo)
 	unsigned long tSize = connInfo->assetsDataTypes.size();
 	if (tSize)
 	{
-		// DataTypes map is not empty
+		
+		// Prepare output data (skip empty data types)
 		newData << "\"" << SENT_TYPES_KEY << "\" : [";
+
+		bool pendingSeparator = false;
 		for (auto it = connInfo->assetsDataTypes.begin();
 			  it != connInfo->assetsDataTypes.end();
 			  ++it)
 		{
-			if (it != connInfo->assetsDataTypes.begin())
+			if (((*it).second).types.compare("{}") != 0)
 			{
-				newData << ", ";
+				newData << (pendingSeparator ? ", " : "");
+				newData << "{\"" << (*it).first << "\" : {\"" << TYPE_ID_KEY <<
+					   "\": " << to_string(((*it).second).typeId);
+				newData << ", \"" << DATA_KEY << "\": " <<
+					   (((*it).second).types.empty() ? "{}" : ((*it).second).types) <<
+					   "}}";
+				pendingSeparator = true;
 			}
-			newData << "{\"" << (*it).first << "\" : {\"" << TYPE_ID_KEY <<
-				   "\": " << to_string(((*it).second).typeId);
-			newData << ", \"" << DATA_KEY << "\": " <<
-				   (((*it).second).types.empty() ? "{}" : ((*it).second).types) <<
-				   "}}";
 		}
 
 		tSize = connInfo->assetsDataTypes.size();

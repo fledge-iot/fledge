@@ -14,7 +14,7 @@ import logging
 
 from foglamp.common import logger
 from foglamp.common.common import _FOGLAMP_ROOT
-from foglamp.services.core.api import utils
+from foglamp.services.core.api.plugins import common
 
 _LOGGER = logger.setup(__name__, level=logging.WARN)
 _plugin = None
@@ -24,21 +24,9 @@ _LOGGER.info("Loading shim layer for python plugin '{}' ".format(sys.argv[1]))
 
 def _plugin_obj():
     plugin = sys.argv[1]
-    plugin_module_path = "{}/python/foglamp/plugins/south/{}".format(_FOGLAMP_ROOT, plugin)
-    try:
-        spec = importlib.util.spec_from_file_location("module.name", "{}/{}.py".format(plugin_module_path, plugin))
-        _plugin = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(_plugin)
-    except FileNotFoundError as ex:
-        if utils._FOGLAMP_PLUGIN_PATH:
-            my_list = utils._FOGLAMP_PLUGIN_PATH.split(";")
-            for l in my_list:
-                dir_found = os.path.isdir(l)
-                if dir_found:
-                    plugin_module_path = "{}/south/{}".format(l, plugin)
-                    spec = importlib.util.spec_from_file_location("module.name", "{}/{}.py".format(plugin_module_path, plugin))
-                    _plugin = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(_plugin)
+    plugin_type = "south"
+    plugin_module_path = "{}/python/foglamp/plugins/{}/{}".format(_FOGLAMP_ROOT, plugin_type, plugin)
+    _plugin=common.load_python_plugin(plugin_module_path, plugin, plugin_type)
     return _plugin
 
 

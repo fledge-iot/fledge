@@ -7,11 +7,10 @@
 """Common Plugin Discovery Class"""
 
 import os
-import importlib.util
-from typing import Dict
 
 from foglamp.common import logger
 from foglamp.services.core.api import utils
+from foglamp.services.core.api.plugins import common
 
 __author__ = "Amarendra K Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -127,7 +126,7 @@ class PluginDiscovery(object):
 
         # Now load the plugin to fetch its configuration
         try:
-            plugin_info = load_python_plugin(plugin_module_path,  plugin_module_path.split('/')[-1], plugin_type)
+            plugin_info = common.load_and_fetch_python_plugin_info(plugin_module_path,  plugin_module_path.split('/')[-1], plugin_type)
             # Fetch configuration from the configuration defined in the plugin
             if plugin_info['type'] == plugin_type:
                 plugin_config = {
@@ -147,27 +146,3 @@ class PluginDiscovery(object):
             _logger.exception('Plugin "{}" raised exception "{}" while fetching config'.format(plugin_dir, str(ex)))
 
         return plugin_config
-
-
-def load_python_plugin(plugin_module_path: str, plugin: str, service_type: str) -> Dict:
-    _plugin = None
-    try:
-        spec = importlib.util.spec_from_file_location("module.name", "{}/{}.py".format(plugin_module_path, plugin))
-        _plugin = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(_plugin)
-    except FileNotFoundError as ex:
-        if utils._FOGLAMP_PLUGIN_PATH:
-            my_list = utils._FOGLAMP_PLUGIN_PATH.split(";")
-            for l in my_list:
-                dir_found = os.path.isdir(l)
-                if dir_found:
-                    plugin_module_path = "{}/{}/{}".format(l, service_type, plugin)
-                    spec = importlib.util.spec_from_file_location("module.name", "{}/{}.py".format(plugin_module_path, plugin))
-                    _plugin = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(_plugin)
-    # Fetch configuration from the configuration defined in the plugin
-    plugin_info = _plugin.plugin_info()
-    if plugin_info['type'] != service_type:
-        msg = "Plugin of {} type is not supported".format(plugin_info['type'])
-        raise TypeError(msg)
-    return plugin_info

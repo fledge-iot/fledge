@@ -25,6 +25,89 @@ Version History
 FogLAMP v1
 ==========
 
+v1.6.0
+-------
+
+Release Date: 2019-05-22
+
+- **FogLAMP Core**
+
+    - New Features:
+
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+       - The scope of the FogLAMP certificate store has been widen to allow it to store .pem certificates and keys for accessing cloud functions.
+       - 
+       - 
+       - The creation of a Docker container for FogLAMP has been added to the packaging options for FogLAMP in this version of FogLAMP.
+       - 
+       - Red Hat Enterprise Linux packages have been made available from this release of FogLAMp onwards. These packages include all the applicable plugins and notification service for FogLAMP.
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+       - The FogLAMP API now supports the creation of configuration snapshots which can be used to create configuration checkpoints  that be used to checkpoint and rollback configuration changes.
+       - 
+       - 
+       - The FogLAMP administration API has been extended to allow the installation of new plugins via that API.
+       - 
+       - 
+       - 
+       - Set, unset optional configuration attributes
+
+
+    - Bug Fix:
+
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+       - A bug that prevents multiple FogLAMP's on the same network being discoverable via multicast DNS lookup has been fixed.
+       - 
+
+
+- **GUI**
+
+    - New Features:
+
+       - Improvements have been made to the FogLAMP Graphical User Interface to allow more control of the time periods displayed in the graphs of asset values.
+       - The FogLAMP Graphical User Interface now has the ability to show sets of graphs over a time period for data such as the spectrum analysis produced but the Fast Fourier transform filter.
+       - 
+       - 
+       - The FogLAMP Graphical User Interface is now available as an RPM file that may be installed on Red Hat Enterprise Linux or CentOS.
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+       - Improvements have been made to the appearance of dropdown and other elements with the FogLAMP Graphical User Interface.
+
+
+    - Bug Fix:
+
+       - 
+       - 
+       - Some improvements to screen layout in the FogLAMP Graphical User Interface have been made in order to improve the look and reduce the screen space used in some of the screens.
+       - 
+       - 
+
+
 v1.5.2
 -------
 

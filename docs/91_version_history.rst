@@ -25,6 +25,65 @@ Version History
 FogLAMP v1
 ==========
 
+v1.6.0
+-------
+
+Release Date: 2019-05-22
+
+- **FogLAMP Core**
+
+    - New Features:
+
+       - The scope of the FogLAMP certificate store has been widen to allow it to store .pem certificates and keys for accessing cloud functions.
+       - The creation of a Docker container for FogLAMP has been added to the packaging options for FogLAMP in this version of FogLAMP.
+       - Red Hat Enterprise Linux packages have been made available from this release of FogLAMP onwards. These packages include all the applicable plugins and notification service for FogLAMP.
+       - The FogLAMP API now supports the creation of configuration snapshots which can be used to create configuration checkpoints and rollback configuration changes.
+       - The FogLAMP administration API has been extended to allow the installation of new plugins via API.
+       
+
+    - Improvements/Bug Fix:
+
+       - A bug that prevents multiple FogLAMP's on the same network being discoverable via multicast DNS lookup has been fixed.
+       - Set, unset optional configuration attributes
+
+
+- **GUI**
+
+    - New Features:
+       
+       - The FogLAMP Graphical User Interface now has the ability to show sets of graphs over a time period for data such as the spectrum analysis produced but the Fast Fourier transform filter.
+       - The FogLAMP Graphical User Interface is now available as an RPM file that may be installed on Red Hat Enterprise Linux or CentOS.
+
+
+    - Improvements/Bug Fix:
+
+       - Improvements have been made to the FogLAMP Graphical User Interface to allow more control of the time periods displayed in the graphs of asset values.
+       - Some improvements to screen layout in the FogLAMP Graphical User Interface have been made in order to improve the look and reduce the screen space used in some of the screens.
+       - Improvements have been made to the appearance of dropdown and other elements with the FogLAMP Graphical User Interface.
+
+
+- **Plugins**
+
+    - New Features:
+       - A new threshold filter has been added that can be used to block onward transmission of data until a configured expression evaluates too true.
+       - The Modbus RTU/TCP south plugin is now available on CentOS 7.6 and RHEL 7.6.
+       - A new north plugin has been added to allow data to be sent the Google Cloud Platform IoT Core interface.
+       - The FFT filter now has an option to output raw frequency spectra. Note this can not be accepted into all north bound systems.
+       - Changed the release status of the FFT filter plugin.
+       - Added the ability in the modbus plugin to define multiple registers that create composite values. For example two 16 bit registers can be put together to make one 32 bit value. This is does using an array of register values in a modbus map, e.g. {"name":"rpm","slave":1,"register":[33,34],"scale":0.1,"offset":0}. Register 33 contains the low 16 its of the RPM and register 34 the high 16 bits of the RPM.
+       - Addition of a new Notification Delivery plugin to send notifications to a Google Hangouts chatroom.
+       - A new plugin has been created that uses machine learning based on Google's TensorFlow technology to classify image data and populate derived information the north side systems. The current TensorFlow model in use will recognise hard written digits and populate those digits. This plugins is currently a proof of concept for machine learning. 
+
+
+    - Improvements/Bug Fix:
+       - Removal of unnecessary include directive from Modbus-C plugin.
+       - Improved error reporting for the modbus-c plugin and added documentation on the configuration of the plugin.
+       - Improved the subscription handling in the OPCUA south plugin.
+       - Stability improvements have been made to the notification service, these related to the handling of dynamic reconfigurations of the notifications.
+       - Removed erroneous default for script configuration option in Python35 notification delivery plugin.
+       - Corrected description of the enable configuration item.
+
+
 v1.5.2
 -------
 

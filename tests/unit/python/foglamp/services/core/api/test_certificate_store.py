@@ -43,43 +43,52 @@ class TestCertificateStore:
     async def test_get_certs(self, client, certs_path):
         response_content = {'keys': ['foglamp.key', 'rsa_private.pem'],
                             'certs': ['foglamp.cert', 'test.json', 'foglamp.pem']}
-        with patch.object(certificate_store, '_get_certs_dir', return_value=certs_path / 'certs'):
+        with patch.object(certificate_store, '_get_certs_dir', side_effect=[certs_path / 'certs',
+                                                                            certs_path / 'json', certs_path / 'pem']):
             with patch('os.walk') as mockwalk:
                 mockwalk.return_value = [(str(certs_path / 'certs'), [], ['foglamp.cert']),
                                          (str(certs_path / 'certs/pem'), [], ['foglamp.pem']),
                                          (str(certs_path / 'certs/json'), [], ['test.json']),
                                          (str(certs_path / 'certs'), [], ['foglamp.key', 'rsa_private.pem'])
                                          ]
-                resp = await client.get('/foglamp/certificate')
-                assert 200 == resp.status
-                res = await resp.text()
-                jdict = json.loads(res)
-                cert = jdict["certs"]
-                assert 3 == len(cert)
-                assert Counter(response_content['certs']) == Counter(cert)
-                key = jdict["keys"]
-                assert 2 == len(key)
-                assert Counter(response_content['keys']) == Counter(key)
+                with patch('os.listdir') as mocked_listdir:
+                    mocked_listdir.return_value = ['test.json', 'foglamp.pem']
+                    resp = await client.get('/foglamp/certificate')
+                    assert 200 == resp.status
+                    res = await resp.text()
+                    jdict = json.loads(res)
+                    cert = jdict["certs"]
+                    assert 3 == len(cert)
+                    assert Counter(response_content['certs']) == Counter(cert)
+                    key = jdict["keys"]
+                    assert 2 == len(key)
+                    assert Counter(response_content['keys']) == Counter(key)
+                assert 2 == mocked_listdir.call_count
             mockwalk.assert_called_once_with(certs_path / 'certs')
 
     @pytest.mark.parametrize("files", [
         [], ['foglamp.txt'],
     ])
     async def test_get_bad_certs(self, client, certs_path, files):
-        with patch.object(certificate_store, '_get_certs_dir', return_value=certs_path / 'certs'):
+        with patch.object(certificate_store, '_get_certs_dir', side_effect=[certs_path / 'certs',
+                                                                            certs_path / 'json', certs_path / 'pem']):
+
             with patch('os.walk') as mockwalk:
                 mockwalk.return_value = [(str(certs_path / 'certs'), [], files),
                                          (str(certs_path / 'certs/pem'), [], files),
                                          (str(certs_path / 'certs/json'), [], files),
                                          (str(certs_path / 'certs'), [], files)
                                          ]
-                resp = await client.get('/foglamp/certificate')
-                assert 200 == resp.status
-                result = await resp.text()
-                json_response = json.loads(result)
-                assert 0 == len(json_response['certs'])
-                assert 0 == len(json_response['keys'])
-                assert {'certs': [], 'keys': []} == json_response
+                with patch('os.listdir') as mocked_listdir:
+                    mocked_listdir.return_value = []
+                    resp = await client.get('/foglamp/certificate')
+                    assert 200 == resp.status
+                    result = await resp.text()
+                    json_response = json.loads(result)
+                    assert 0 == len(json_response['certs'])
+                    assert 0 == len(json_response['keys'])
+                    assert {'certs': [], 'keys': []} == json_response
+                assert 2 == mocked_listdir.call_count
             mockwalk.assert_called_once_with(certs_path / 'certs')
 
     async def test_upload(self, client, certs_path):
@@ -173,8 +182,8 @@ class TestCertificateStore:
             with patch.object(certificate_store, '_find_file', return_value=["v"]) as patch_file:
                 resp = await client.post('/foglamp/certificate', data=files)
                 assert 400 == resp.status
-                assert 'Certificate with the same name already exists. To overwrite set the ' \
-                       'overwrite to 1' == resp.reason
+                assert 'Certificate with the same name already exists! To overwrite, set the ' \
+                       'overwrite flag' == resp.reason
             assert 1 == patch_file.call_count
             args, kwargs = patch_file.call_args
             assert ('foglamp.cert', certificate_store._get_certs_dir('/certs')) == args
@@ -186,10 +195,24 @@ class TestCertificateStore:
         assert 'Internal Server Error' == resp.reason
 
     @pytest.mark.parametrize("cert_name, actual_code, actual_reason", [
-        ('', 404, "Not Found"),
-        ('root.txt', 400, "Accepted file extensions are ('.cert', '.json', '.key', '.pem')"),
         ('root.pem', 404, "Certificate with name root.pem does not exist"),
         ('rsa_private.key', 404, "Certificate with name rsa_private.key does not exist"),
+    ])
+    async def test_bad_delete_cert_with_invalid_filename(self, client, cert_name, actual_code, actual_reason):
+        async def async_mock():
+            return {'value': 'foglamp'}
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(c_mgr, 'get_category_item', return_value=async_mock()) as patch_cfg:
+                resp = await client.delete('/foglamp/certificate/{}'.format(cert_name))
+                assert actual_code == resp.status
+                assert actual_reason == resp.reason
+            assert 1 == patch_cfg.call_count
+
+    @pytest.mark.parametrize("cert_name, actual_code, actual_reason", [
+        ('', 404, "Not Found",),
+        ('root.txt', 400, "Accepted file extensions are ('.cert', '.json', '.key', '.pem')"),
     ])
     async def test_bad_delete_cert(self, client, cert_name, actual_code, actual_reason):
         resp = await client.delete('/foglamp/certificate/{}'.format(cert_name))
@@ -213,9 +236,16 @@ class TestCertificateStore:
                 assert ({'item_name': 'certificateName', 'category_name': 'rest_api'}) == kwargs
 
     async def test_bad_type_delete_cert(self, client):
-        resp = await client.delete('/foglamp/certificate/foglamp.key?type=pem')
-        assert 400 == resp.status
-        assert 'Only cert and key are allowed for the value of type param' == resp.reason
+        async def async_mock():
+            return {'value': 'foglamp'}
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(c_mgr, 'get_category_item', return_value=async_mock()) as patch_cfg:
+                resp = await client.delete('/foglamp/certificate/server.cert?type=pem')
+                assert 400 == resp.status
+                assert 'Only cert and key are allowed for the value of type param' == resp.reason
+            assert 1 == patch_cfg.call_count
 
     @pytest.mark.parametrize("cert_name, param", [
         ('foglamp.cert', '?type=cert'),

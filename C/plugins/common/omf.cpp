@@ -22,18 +22,23 @@
 using namespace std;
 using namespace rapidjson;
 
+static bool isTypeSupported(DatapointValue& dataPoint);
+
 /**
  * OMFData constructor
  */
 OMFData::OMFData(const Reading& reading, const long typeId)
 {
+	string outData;
+
 	// Convert reading data into the OMF JSON string
-	m_value.append("{\"containerid\": \"" + to_string(typeId) + "measurement_");
-	m_value.append(reading.getAssetName() + "\", \"values\": [{");
+	outData.append("{\"containerid\": \"" + to_string(typeId) + "measurement_");
+	outData.append(reading.getAssetName() + "\", \"values\": [{");
 
 
 	// Get reading data
 	const vector<Datapoint*> data = reading.getReadingData();
+	unsigned long skipDatapoints = 0;
 
 	/**
 	 * This loop creates:
@@ -41,15 +46,30 @@ OMFData::OMFData(const Reading& reading, const long typeId)
 	 */
 	for (vector<Datapoint*>::const_iterator it = data.begin(); it != data.end(); ++it)
 	{
-		// Add datapoint Name
-		m_value.append("\"" + (*it)->getName() + "\": " + (*it)->getData().toString());
-		m_value.append(", ");
+		if (!isTypeSupported((*it)->getData()))
+		{
+			skipDatapoints++;;	
+			continue;
+		}
+		else
+		{
+			// Add datapoint Name
+			outData.append("\"" + (*it)->getName() + "\": " + (*it)->getData().toString());
+			outData.append(", ");
+		}
 	}
 
 	// Append Z to getAssetDateTime(FMT_STANDARD)
-	m_value.append("\"Time\": \"" + reading.getAssetDateUserTime(Reading::FMT_STANDARD) + "Z" + "\"");
+	outData.append("\"Time\": \"" + reading.getAssetDateUserTime(Reading::FMT_STANDARD) + "Z" + "\"");
 
-	m_value.append("}]}");
+	outData.append("}]}");
+
+	// Append all, some or no datapoins
+	if (!skipDatapoints ||
+	    skipDatapoints < data.size())
+	{
+		m_value.append(outData);
+	}
 }
 
 /**
@@ -174,6 +194,16 @@ bool OMF::sendDataTypes(const Reading& row)
 	vector<pair<string, string>> resType = OMF::createMessageHeader("Type");
 	// Create data for Type message	
 	string typeData = OMF::createTypeData(row);
+
+	// If Datatyope in Reading row is not supported, just return true
+	if (typeData.empty())
+	{
+		return true;
+	}
+	else
+	{
+		// TODO: ADD LOG
+	}
 
 	// Build an HTTPS POST with 'resType' headers
 	// and 'typeData' JSON payload
@@ -416,6 +446,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	// Used for logging
 	string json_not_compressed;
 
+	bool pendingSeparator = false;
 	ostringstream jsonData;
 	jsonData << "[";
 
@@ -467,8 +498,12 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		}
 
 		// Add into JSON string the OMF transformed Reading data
-		jsonData << OMFData(**elem, typeId).OMFdataVal() <<
-			    (elem < (readings.end() - 1 ) ? ", " : "");
+		string outData = OMFData(**elem, typeId).OMFdataVal();
+		if (!outData.empty())
+		{
+			jsonData << (pendingSeparator ? ", " : "") << outData;
+			pendingSeparator = true;
+		}
 	}
 
 	// Remove all assets supersetDataPoints
@@ -832,6 +867,7 @@ const std::string OMF::createTypeData(const Reading& reading) const
 	 * 'string' for STRING
 	 */
 
+	bool ret = true;
 	const vector<Datapoint*> data = reading.getReadingData();
 
 	/**
@@ -840,9 +876,22 @@ const std::string OMF::createTypeData(const Reading& reading) const
 	 */
 	for (vector<Datapoint*>::const_iterator it = data.begin(); it != data.end(); ++it)
 	{
-	        string omfType = omfTypes[((*it)->getData()).getType()];
+		string omfType;
+		if (!isTypeSupported( (*it)->getData()))
+		{
+			omfType = OMF_TYPE_UNSUPPORTED;
+		}
+		else
+		{
+	        	omfType = omfTypes[((*it)->getData()).getType()];
+		}
 		string format = OMF::getFormatType(omfType);
-
+		if (format.compare(OMF_TYPE_UNSUPPORTED) == 0)
+		{
+			//TO DO: ADD LOG
+			ret = false;
+			continue;
+		}
 		// Add datapoint Name
 		tData.append("\"" + (*it)->getName() + "\"");
 		tData.append(": {\"type\": \"");
@@ -870,8 +919,17 @@ const std::string OMF::createTypeData(const Reading& reading) const
 
 	tData.append("\" }]");
 
-	// Return JSON string
-	return tData;
+	// Check we have to return empty data or not
+	if (!ret && data.size() == 1)
+	{
+		// TODO: ADD LOGGING
+		return string("");
+	}
+	else
+	{
+		// Return JSON string
+		return tData;
+	}
 }
 
 /**
@@ -1223,9 +1281,18 @@ void OMF::setMapObjectTypes(const vector<Reading*>& readings,
 		for (vector<Datapoint*>::const_iterator it = data.begin();
 							it != data.end();
 							++it)
-		{       
-			string omfType = omfTypes[((*it)->getData()).getType()];
+		{
+			string omfType;
+			if (!isTypeSupported((*it)->getData()))
+			{
+				omfType = OMF_TYPE_UNSUPPORTED;
+			}
+			else
+			{
+				omfType = omfTypes[((*it)->getData()).getType()];
+			}
 			string datapointName = (*it)->getName();
+
 			auto itr = readingAllDataPoints.find(assetName);
 			// Asset not found in the map
 			if (itr == readingAllDataPoints.end())
@@ -1290,6 +1357,12 @@ void OMF::setMapObjectTypes(const vector<Reading*>& readings,
 			{
 				DatapointValue vString("v_str");
 				values.push_back(new Datapoint((*dp).first, vString));
+			}
+			else if ((*dp).second.compare(OMF_TYPE_UNSUPPORTED) == 0)
+			{
+				std::vector<double> vData = {0};
+				DatapointValue vArray(vData);
+				values.push_back(new Datapoint((*dp).first, vArray));
 			}
 		}
 
@@ -1458,7 +1531,8 @@ bool OMF::setCreatedTypes(const Reading& row)
 	const vector<Datapoint*> data = row.getReadingData();
 	types.append("{");
 	for (vector<Datapoint*>::const_iterator it = data.begin();
-						it != data.end();
+						(it != data.end() &&
+						 isTypeSupported((*it)->getData()));
 						++it)
 	{
 		if (it != data.begin())
@@ -1466,7 +1540,17 @@ bool OMF::setCreatedTypes(const Reading& row)
 			types.append(", ");
 		}
 
-		string omfType = omfTypes[((*it)->getData()).getType()];
+		string omfType;
+		if (!isTypeSupported((*it)->getData()))
+		{
+			omfType = OMF_TYPE_UNSUPPORTED;
+			continue;
+		}
+		else
+		{
+			omfType = omfTypes[((*it)->getData()).getType()];
+		}
+
 		string format = OMF::getFormatType(omfType);
 
 		// Add datapoint Name
@@ -1568,4 +1652,25 @@ bool OMF::getCreatedTypes(const string& key)
 		ret = (it != m_OMFDataTypes->end()) && !(*m_OMFDataTypes)[key].types.empty();
 	}
 	return ret;
+}
+
+/**
+ * Check whether input Datapoint type is supported by OMF class
+ *
+ * @param    dataPoint		Input data
+ * @return			True is fupported, false otherwise
+ */ 
+
+static bool isTypeSupported(DatapointValue& dataPoint)
+{
+	if (dataPoint.getType() == DatapointValue::DatapointTag::T_FLOAT_ARRAY ||
+	    dataPoint.getType() == DatapointValue::DatapointTag::T_DP_DICT ||
+	    dataPoint.getType() == DatapointValue::DatapointTag::T_DP_LIST)
+	{
+		return false;
+	}
+	else
+	{
+		return true;
+	}
 }

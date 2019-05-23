@@ -8,6 +8,7 @@
 """
 
 import datetime
+import platform
 import os
 from os.path import basename
 import glob
@@ -29,6 +30,9 @@ __version__ = "${VERSION}"
 _LOGGER = logger.setup(__name__)
 _NO_OF_FILES_TO_RETAIN = 3
 _SYSLOG_FILE = '/var/log/syslog'
+
+if ('centos' in platform.platform()) or ('redhat' in platform.platform()):
+    _SYSLOG_FILE = '/var/log/messages'
 
 
 class SupportBuilder:

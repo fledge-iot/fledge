@@ -50,12 +50,12 @@ import os
 import signal
 import sqlite3
 
+from foglamp.common.parser import Parser
 from foglamp.common.process import FoglampProcess
 from foglamp.common import logger
 
 import foglamp.plugins.storage.common.lib as lib
 import foglamp.plugins.storage.common.exceptions as exceptions
-
 
 __author__ = "Stefano Simonelli"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -175,8 +175,9 @@ class RestoreProcess(FoglampProcess):
 
         # Handled Restore command line parameters
         try:
-            self._backup_id = super().get_arg_value("--backup-id")
-            self._file_name = super().get_arg_value("--file")
+            self._backup_id = Parser.get('--backup-id')
+            self._file_name = Parser.get('--file')
+
         except Exception as _ex:
 
             _message = _MESSAGES_LIST["e000003"].format(_ex)
@@ -561,6 +562,13 @@ class RestoreProcess(FoglampProcess):
 
         if status != 0:
             raise exceptions.RestoreFailed
+
+        # Delete files related to the WAL mechanism
+        cmd = "rm  {path}/foglamp.db-shm ".format(path=self._restore_lib.dir_foglamp_data)
+        status, output = lib.exec_wait_retry(cmd, True, timeout=self._restore_lib.config['timeout'])
+
+        cmd = "rm  {path}/foglamp.db-wal ".format(path=self._restore_lib.dir_foglamp_data)
+        status, output = lib.exec_wait_retry(cmd, True, timeout=self._restore_lib.config['timeout'])
 
     def _foglamp_start(self):
         """ Starts FogLAMP after the execution of the restore

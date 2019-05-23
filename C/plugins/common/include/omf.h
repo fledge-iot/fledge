@@ -17,10 +17,11 @@
 #include <zlib.h>
 
 #define TYPE_ID_DEFAULT 1
-#define FAKE_ASSET_KEY "_default_start_id_"
-#define OMF_TYPE_STRING  "string"
-#define OMF_TYPE_INTEGER "integer"
-#define OMF_TYPE_FLOAT   "number"
+#define FAKE_ASSET_KEY		"_default_start_id_"
+#define OMF_TYPE_STRING		"string"
+#define OMF_TYPE_INTEGER	"integer"
+#define OMF_TYPE_FLOAT		"number"
+#define OMF_TYPE_UNSUPPORTED	"unsupported"
 
 /**
  * Per asset dataTypes
@@ -202,13 +203,15 @@ class OMF
                 std::map<const std::string, std::string> m_formatTypes {
 			{OMF_TYPE_STRING, ""},
 			{OMF_TYPE_INTEGER,"int64"},
-			{OMF_TYPE_FLOAT,  "float64"}
+			{OMF_TYPE_FLOAT,  "float64"},
+			{OMF_TYPE_UNSUPPORTED,  "unsupported"}
 		};
 
     		// Vector with OMF_TYPES
 		const std::vector<std::string> omfTypes = { OMF_TYPE_STRING,
 							    OMF_TYPE_FLOAT,  // Forces the creation of float also for integer numbers
-							    OMF_TYPE_FLOAT };
+							    OMF_TYPE_FLOAT,
+							    OMF_TYPE_UNSUPPORTED};
 		// HTTP Sender interface
 		HttpSender&		m_sender;
 		bool			m_lastError;

@@ -12,5 +12,8 @@ include_directories(include ../../services/common/include)
 add_executable(${PROJECT_NAME} get_plugin_info.cpp)
 target_link_libraries(${PROJECT_NAME} -ldl)
 
+add_executable(cmdutil cmdutil.cpp)
+
 # Install library
 install(TARGETS ${PROJECT_NAME} DESTINATION foglamp/extras/C)
+install(TARGETS cmdutil DESTINATION foglamp/extras/C)

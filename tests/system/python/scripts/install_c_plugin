@@ -43,7 +43,7 @@ clone_repo () {
 
 install_requirement (){
     req_file=$(find /tmp/${REPO_NAME} -name requirement*.sh)
-    [[ ! -z "${req_file}" ]] && sh ${req_file} || echo "No external dependency needed for ${PLUGIN_NAME} plugin."
+    [[ ! -z "${req_file}" ]] && ${req_file} || echo "No external dependency needed for ${PLUGIN_NAME} plugin."
 }
 
 install_binary_file () {

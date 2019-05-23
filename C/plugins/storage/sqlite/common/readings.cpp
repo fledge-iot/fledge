@@ -621,7 +621,7 @@ bool		isAggregate = false;
 				 */
 				sql.append(" WHERE asset_code = asset_code");
 			}
-			if (!jsonModifiers(document, sql))
+			if (!jsonModifiers(document, sql, true))
 			{
 				return false;
 			}
@@ -931,8 +931,6 @@ int blocks = 0;
 		{
 			raiseError("purge - phase 3", zErrMsg);
 			sqlite3_free(zErrMsg);
-			// Release memory for 'query' var
-			delete[] query;
 			return 0;
 		}
 

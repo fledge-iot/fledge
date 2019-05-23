@@ -14,6 +14,8 @@ import ipaddress
 import datetime
 import os
 from math import *
+import collections
+import ast
 
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.storage_client import StorageClientAsync
@@ -33,6 +35,7 @@ _logger = logger.setup(__name__)
 # MAKE UPPER_CASE
 _valid_type_strings = sorted(['boolean', 'integer', 'float', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password', 'JSON',
                               'URL', 'enumeration', 'script'])
+_optional_items = sorted(['readonly', 'order', 'length', 'maximum', 'minimum', 'rule', 'deprecated', 'displayName'])
 RESERVED_CATG = ['South', 'North', 'General',
                   'Advanced', 'Utilities', 'rest_api',
                   'Security', 'service', 'SCHEDULER',
@@ -281,7 +284,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
                     d = {entry_name: entry_val}
                     expected_item_entries.update(d)
-
                 num_entries = expected_item_entries.get(entry_name)
                 if set_value_val_from_default_val and entry_name == 'value':
                     raise ValueError('Specifying value_name and value_val for item_name {} is not allowed if '
@@ -310,7 +312,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             if set_value_val_from_default_val:
                 item_val['default'] = self._clean(item_val['type'], item_val['default'])
                 item_val['value'] = item_val['default']
-
         return category_val_copy
 
     async def _create_new_category(self, category_name, category_val, category_description, display_name=None):
@@ -493,7 +494,20 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 old_value = cat_info[item_name]['value']
                 new_val = self._clean(cat_info[item_name]['type'], new_val)
 
-                if old_value != new_val:
+                old_value_for_check = old_value
+                new_val_for_check = new_val
+                if type(new_val) == dict:
+                    # it converts .old so both .new and .old are dicts
+                    # it uses OrderedDict to preserve the sequence of the keys
+                    try:
+                        old_value_dict = ast.literal_eval(old_value)
+                        old_value_for_check = collections.OrderedDict(old_value_dict)
+                        new_val_for_check = collections.OrderedDict(new_val)
+                    except:
+                        old_value_for_check = old_value
+                        new_val_for_check = new_val
+
+                if old_value_for_check != new_val_for_check:
                     payload_item = PayloadBuilder().SELECT("key", "description", "ts", "value") \
                         .JSON_PROPERTY(("value", [item_name, "value"], new_val)) \
                         .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")) \
@@ -728,6 +742,93 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         except:
             _logger.exception(
                 'Unable to run callbacks for category_name %s', category_name)
+            raise
+
+    async def set_optional_value_entry(self, category_name, item_name, optional_entry_name, new_value_entry):
+        """Set the "optional_key" entry of a given item within a given category.
+        Even we can reset the optional value by just passing new_value_entry=""
+
+        Keyword Arguments:
+        category_name -- name of the category (required)
+        item_name -- name of item within the category whose "optional_key" entry needs to be changed (required)
+        optional_entry_name -- name of the optional attribute
+        new_value_entry -- new value entry to replace old value entry
+
+        Return Values:
+        None
+        """
+        try:
+            storage_value_entry = None
+            if category_name in self._cacheManager:
+                if item_name not in self._cacheManager.cache[category_name]['value']:
+                    raise ValueError("No detail found for the category_name: {} and item_name: {}"
+                                     .format(category_name, item_name))
+                storage_value_entry = self._cacheManager.cache[category_name]['value'][item_name]
+                if optional_entry_name not in storage_value_entry:
+                    raise KeyError("{} does not exist".format(optional_entry_name))
+                if storage_value_entry[optional_entry_name] == new_value_entry:
+                    return
+            else:
+                # get storage_value_entry and compare against new_value_value with its type, update if different
+                storage_value_entry = await self._read_item_val(category_name, item_name)
+                # check for category_name and item_name combination existence in storage
+                if storage_value_entry is None:
+                    raise ValueError("No detail found for the category_name: {} and item_name: {}"
+                                     .format(category_name, item_name))
+                if storage_value_entry[optional_entry_name] == new_value_entry:
+                    return
+            # Validate optional types only when new_value_entry not empty; otherwise set empty value
+            if new_value_entry:
+                if optional_entry_name == 'readonly' or optional_entry_name == 'deprecated':
+                    if self._validate_type_value('boolean', new_value_entry) is False:
+                        raise ValueError('For {} category, entry value must be boolean for optional item name {}; got {}'
+                                         .format(category_name, optional_entry_name, type(new_value_entry)))
+                elif optional_entry_name == 'minimum' or optional_entry_name == 'maximum':
+                    if (self._validate_type_value('integer', new_value_entry) or self._validate_type_value('float', new_value_entry)) is False:
+                        raise ValueError('For {} category, entry value must be an integer or float for optional item '
+                                         '{}; got {}'.format(category_name, optional_entry_name, type(new_value_entry)))
+                elif optional_entry_name == 'rule' or optional_entry_name == 'displayName':
+                    if not isinstance(new_value_entry, str):
+                        raise ValueError('For {} category, entry value must be string for optional item {}; got {}'
+                                         .format(category_name, optional_entry_name, type(new_value_entry)))
+                else:
+                    if self._validate_type_value('integer', new_value_entry) is False:
+                        raise ValueError('For {} category, entry value must be an integer for optional item {}; got {}'
+                                         .format(category_name, optional_entry_name, type(new_value_entry)))
+
+                # Validation is fairly minimal, minimum, maximum like
+                # maximum should be greater than minimum or vice-versa
+                # And no link between minimum, maximum and length is needed.
+                # condition check with numeric operands (int or float) rather than with string operands
+                def convert(value, _type):
+                    return int(value) if _type == "integer" else float(value) if _type == "float" else value
+
+                if optional_entry_name == 'minimum':
+                    new = convert(new_value_entry, storage_value_entry['type'])
+                    old = convert(storage_value_entry['maximum'], storage_value_entry['type'])
+                    if new > old:
+                        raise ValueError('Minimum value should be less than equal to Maximum value')
+
+                if optional_entry_name == 'maximum':
+                    new = convert(new_value_entry, storage_value_entry['type'])
+                    old = convert(storage_value_entry['minimum'], storage_value_entry['type'])
+                    if new < old:
+                        raise ValueError('Maximum value should be greater than equal to Minimum value')
+            payload = PayloadBuilder().SELECT("key", "description", "ts", "value") \
+                .JSON_PROPERTY(("value", [item_name, optional_entry_name], new_value_entry)) \
+                .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")) \
+                .WHERE(["key", "=", category_name]).payload()
+            await self._storage.update_tbl("configuration", payload)
+            # always get value from storage
+            cat_item = await self._read_item_val(category_name, item_name)
+            if category_name in self._cacheManager.cache:
+                if item_name in self._cacheManager.cache[category_name]['value']:
+                    self._cacheManager.cache[category_name]['value'][item_name][optional_entry_name] = cat_item[optional_entry_name]
+                else:
+                    self._cacheManager.cache[category_name]['value'].update({item_name: cat_item[optional_entry_name]})
+        except:
+            _logger.exception(
+                'Unable to set optional %s entry based on category_name %s and item_name %s and value_item_entry %s', optional_entry_name, category_name, item_name, new_value_entry)
             raise
 
     async def create_category(self, category_name, category_value, category_description='', keep_original_items=False, display_name=None):

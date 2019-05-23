@@ -5,6 +5,7 @@
 # FOGLAMP_END
 
 import os
+import platform
 import subprocess
 from pathlib import Path
 from aiohttp import web
@@ -18,7 +19,12 @@ __version__ = "${VERSION}"
 
 _FOGLAMP_DATA = os.getenv("FOGLAMP_DATA", default=None)
 _FOGLAMP_ROOT = os.getenv("FOGLAMP_ROOT", default='/usr/local/foglamp')
+
 _SYSLOG_FILE = '/var/log/syslog'
+
+if ('centos' in platform.platform()) or ('redhat' in platform.platform()):
+    _SYSLOG_FILE = '/var/log/messages'
+
 __DEFAULT_LIMIT = 20
 __DEFAULT_OFFSET = 0
 __DEFAULT_LOG_SOURCE = 'FogLAMP'

@@ -11,6 +11,10 @@ const char *categories = "{\"categories\": ["
 	"{\"key\": \"cat1\", \"description\":\"First category\"},"
 	"{\"key\": \"cat2\", \"description\":\"Second\"}]}";
 
+const char *categories_quoted = "{\"categories\": ["
+	"{\"key\": \"cat \\\"1\\\"\", \"description\":\"First \\\"category\\\"\"},"
+	"{\"key\": \"cat \\\"2\\\"\", \"description\":\"Second\"}]}";
+
 const char *myCategory = "{\"description\": {"
 		"\"value\": \"The FogLAMP administrative API\","
 		"\"type\": \"string\","
@@ -21,6 +25,22 @@ const char *myCategory = "{\"description\": {"
 		"\"type\": \"string\","
 		"\"default\": \"FogLAMP\","
 		"\"description\": \"The name of this FogLAMP service\"},"
+        "\"complex\": {" \
+		"\"value\": { \"first\" : \"FogLAMP\", \"second\" : \"json\" },"
+		"\"type\": \"json\","
+		"\"default\": {\"first\" : \"FogLAMP\", \"second\" : \"json\" },"
+		"\"description\": \"A JSON configuration parameter\"}}";
+
+const char *myCategory_quoted = "{\"description\": {"
+		"\"value\": \"The \\\"FogLAMP\\\" administrative API\","
+		"\"type\": \"string\","
+		"\"default\": \"The \\\"FogLAMP\\\" administrative API\","
+		"\"description\": \"The description of this \\\"FogLAMP\\\" service\"},"
+	"\"name\": {"
+		"\"value\": \"\\\"FogLAMP\\\"\","
+		"\"type\": \"string\","
+		"\"default\": \"\\\"FogLAMP\\\"\","
+		"\"description\": \"The name of this \\\"FogLAMP\\\" service\"},"
         "\"complex\": {" \
 		"\"value\": { \"first\" : \"FogLAMP\", \"second\" : \"json\" },"
 		"\"type\": \"json\","
@@ -204,6 +224,24 @@ const char *json = "{ \"key\" : \"test\", \"description\" : \"Test description\"
 		"\"value\" : {\"first\":\"FogLAMP\",\"second\":\"json\"}, "
 		"\"default\" : {\"first\":\"FogLAMP\",\"second\":\"json\"} }} }";
 
+const char *json_quoted = "{ \"key\" : \"test \\\"a\\\"\", \"description\" : \"Test \\\"description\\\"\", "
+    "\"value\" : {"
+	"\"description\" : { "
+		"\"description\" : \"The description of this \\\"FogLAMP\\\" service\", "
+		"\"type\" : \"string\", "
+		"\"value\" : \"The \\\"FogLAMP\\\" administrative API\", "
+		"\"default\" : \"The \\\"FogLAMP\\\" administrative API\" }, "
+	"\"name\" : { "
+		"\"description\" : \"The name of this \\\"FogLAMP\\\" service\", "
+		"\"type\" : \"string\", "
+		"\"value\" : \"\\\"FogLAMP\\\"\", "
+		"\"default\" : \"\\\"FogLAMP\\\"\" }, "
+	"\"complex\" : { " 
+		"\"description\" : \"A JSON configuration parameter\", "
+		"\"type\" : \"json\", "
+		"\"value\" : {\"first\":\"FogLAMP\",\"second\":\"json\"}, "
+		"\"default\" : {\"first\":\"FogLAMP\",\"second\":\"json\"} }} }";
+
 const char *json_type_JSON = "{ \"key\" : \"test\", \"description\" : \"Test description\", "
 		"\"value\" : {\"filter\" : { \"description\" : \"filter\", \"type\" : \"JSON\", "
 		"\"value\" : {}, \"default\" : {\"pipeline\":[\"scale\",\"exceptional\"]} }} }";
@@ -216,6 +254,8 @@ const char *json_boolean_number = "{ \"key\" : \"test\", \"description\" : \"Tes
 			"\"value\" : \"true\", \"default\" : \"false\" }} }";
 
 const char *allCategories = "[{\"key\": \"cat1\", \"description\" : \"desc1\"}, {\"key\": \"cat2\", \"description\" : \"desc2\"}]";
+const char *allCategories_quoted = "[{\"key\": \"cat\\\"1\\\"\", \"description\" : \"desc\\\"1\\\"\"}, "
+				   "{\"key\": \"cat\\\"2\\\"\", \"description\" : \"desc\\\"2\\\"\"}]";
 
 const char *myCategoryEnumFull = "{\"description\": {"
 		"\"value\": \"The FogLAMP administrative API\","
@@ -275,6 +315,12 @@ TEST(CategoriesTest, Count)
 	ASSERT_EQ(2, confCategories.length());
 }
 
+TEST(CategoriesTestQuoted, CountQuoted)
+{
+	ConfigCategories confCategories(categories_quoted);
+	ASSERT_EQ(2, confCategories.length());
+}
+
 TEST(CategoriesTest, Index)
 {
 	ConfigCategories confCategories(categories);
@@ -303,6 +349,18 @@ TEST(CategoriesTest, toJSON)
 	string result =  categories.toJSON();
 	ASSERT_EQ(2, categories.length());
 	ASSERT_EQ(0, result.compare(allCategories));
+}
+
+TEST(CategoriesTestQuoted, toJSONQuoted)
+{
+	ConfigCategories categories;
+	ConfigCategoryDescription *one = new ConfigCategoryDescription(string("cat\"1\""), string("desc\"1\""));
+	ConfigCategoryDescription *two = new ConfigCategoryDescription(string("cat\"2\""), string("desc\"2\""));
+	categories.addCategoryDescription(one);
+	categories.addCategoryDescription(two);
+	string result =  categories.toJSON();
+	ASSERT_EQ(2, categories.length());
+	ASSERT_EQ(0, result.compare(allCategories_quoted));
 }
 
 TEST(CategoriesTest, toJSONParameters)
@@ -379,6 +437,13 @@ TEST(CategoryTest, toJSON)
 	ConfigCategory confCategory("test", myCategory);
 	confCategory.setDescription("Test description");
 	ASSERT_EQ(0, confCategory.toJSON().compare(json));
+}
+
+TEST(CategoryTestQuoted, toJSONQuoted)
+{
+	ConfigCategory confCategory("test \"a\"", myCategory_quoted);
+	confCategory.setDescription("Test \"description\"");
+	ASSERT_EQ(0, confCategory.toJSON().compare(json_quoted));
 }
 
 TEST(CategoryTest, bool_and_number_ok)
@@ -533,4 +598,14 @@ TEST(CategoryTest, categoryValues)
         ASSERT_EQ(true, complex.isString("plugin"));
         ASSERT_EQ(true, complex.getValue("plugin").compare("PI_Server_V2") == 0);
         ASSERT_EQ(true, complex.getValue("OMFMaxRetry").compare("3") == 0);
+}
+
+/**
+ * Check segfault
+ */
+TEST(CategoryTest, minMaxCheckSegFault)
+{
+ASSERT_DEATH({
+	raise(SIGSEGV);
+	 }, "");
 }

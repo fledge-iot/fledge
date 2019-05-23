@@ -20,6 +20,9 @@
 
 #define ASSET_NAME_INVALID_READING "error_invalid_reading"
 
+static const char* kTypeNames[] =
+    { "Null", "False", "True", "Object", "Array", "String", "Number" };
+
 using namespace std;
 using namespace rapidjson;
 
@@ -225,8 +228,28 @@ JSONReading::JSONReading(const Value& json)
 	{
 		m_has_id = false;
 	}
-	m_asset = json["asset_code"].GetString();
-	stringToTimestamp(json["user_ts"].GetString(), &m_userTimestamp);
+	if (json.HasMember("asset_code"))
+	{
+		m_asset = json["asset_code"].GetString();
+	}
+	else
+	{
+		string errMsg = "Malformed JSON reading, missing asset_code '";
+		errMsg.append("value");
+		errMsg += "'";
+		throw new ReadingSetException(errMsg.c_str());
+	}
+	if (json.HasMember("user_ts"))
+	{
+		stringToTimestamp(json["user_ts"].GetString(), &m_userTimestamp);
+	}
+	else
+	{
+		string errMsg = "Malformed JSON reading, missing user timestamp '";
+		errMsg.append("value");
+		errMsg += "'";
+		throw new ReadingSetException(errMsg.c_str());
+	}
 	if (json.HasMember("ts"))
 	{
 		stringToTimestamp(json["ts"].GetString(), &m_timestamp);
@@ -235,7 +258,10 @@ JSONReading::JSONReading(const Value& json)
 	{
 		m_timestamp = m_userTimestamp;
 	}
-	m_uuid = json["read_key"].GetString();
+	if (json.HasMember("read_key"))
+	{
+		m_uuid = json["read_key"].GetString();
+	}
 
 	// We have a single value here which is a number
 	if (json.HasMember("value") && json["value"].IsNumber())
@@ -277,7 +303,7 @@ JSONReading::JSONReading(const Value& json)
 			throw new ReadingSetException(errMsg.c_str());
 		}
 	}
-	else
+	else if (json.HasMember("reading"))
 	{
 		if (json["reading"].IsObject())
 		{
@@ -326,8 +352,36 @@ JSONReading::JSONReading(const Value& json)
 						}
 					}
 
+					case kArrayType:
+					    {
+						    vector<double> arrayValues;
+						    for (auto& v : m.value.GetArray())
+						    {
+							    if (v.IsDouble())
+							    {
+								    arrayValues.push_back(v.GetDouble());
+							    }
+							    else if (v.IsInt() || v.IsUint())
+							    {
+								    double i = (double)v.GetInt();
+								    arrayValues.push_back(i);
+							    }
+							    else if (v.IsInt64() || v.IsUint64())
+							    {
+								    double i = (double)v.GetInt64();
+								    arrayValues.push_back(i);
+							    }
+						    }
+						    DatapointValue value(arrayValues);
+						    this->addDatapoint(new Datapoint(m.name.GetString(),
+											 value));
+						    break;
+						    
+					    }
+
 					default: {
-						string errMsg = "Cannot handle unsupported type '" + m.value.GetType();
+						string errMsg = "Cannot handle unsupported type '";
+					        errMsg += kTypeNames[m.value.GetType()];
 						errMsg += "' of reading element '";
 						errMsg.append(m.name.GetString());
 						errMsg += "'";
@@ -389,6 +443,10 @@ JSONReading::JSONReading(const Value& json)
 
 			m_asset = string(ASSET_NAME_INVALID_READING) + string("_") + m_asset.c_str();
 		}
+	}
+	else
+	{
+		Logger::getLogger()->error("Missing reading property for JSON reading, %s", m_asset.c_str());
 	}
 }
 

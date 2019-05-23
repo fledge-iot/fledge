@@ -10,6 +10,16 @@ set(SQLITE_MIN_VERSION "3.11.0")
 find_path(SQLITE_INCLUDE_DIR sqlite3.h)
 find_library(SQLITE_LIBRARIES NAMES libsqlite3.so)
 
+# Check wether path of compiled libsqlite3.a and .h files exists
+if (EXISTS ${FOGLAMP_SQLITE3_LIBS})
+    find_path(SQLITE_INCLUDE_DIR sqlite3.h PATHS ${FOGLAMP_SQLITE3_LIBS})
+    find_library(SQLITE_LIBRARIES NAMES libsqlite3.a PATHS "${FOGLAMP_SQLITE3_LIBS}/.libs")
+else()
+    # Use system defaults
+    find_path(SQLITE_INCLUDE_DIR sqlite3.h)
+    find_library(SQLITE_LIBRARIES NAMES libsqlite3.so)
+endif()
+
 if (SQLITE_INCLUDE_DIR AND SQLITE_LIBRARIES)
   execute_process(COMMAND grep ".*#define.*SQLITE_VERSION " ${SQLITE_INCLUDE_DIR}/sqlite3.h
     COMMAND sed "s/.*\"\\(.*\\)\".*/\\1/"

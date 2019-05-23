@@ -1,0 +1,14 @@
+{
+  "return" : [
+      "asset_code",
+      "read_key",
+      "reading",
+      "user_ts"
+  ],
+
+  "where":{
+    "column":"asset_code",
+    "condition":"=",
+    "value":"tz_02"
+  }
+}

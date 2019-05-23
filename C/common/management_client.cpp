@@ -238,7 +238,7 @@ ostringstream convert;
 		return true;
 	}
 	try {
-		convert << "{ \"category\" : \"" << category << "\", ";
+		convert << "{ \"category\" : \"" << JSONescape(category) << "\", ";
 		convert << "\"service\" : \"" << *m_uuid << "\" }";
 		auto res = this->getHttpClient()->request("POST", "/foglamp/interest", convert.str());
 		Document doc;
@@ -483,7 +483,7 @@ string ManagementClient::addChildCategories(const string& parentCategory,
 
 		for (auto it = children.begin(); it != children.end(); ++it)
 		{
-			payload += "\"" + (*it)+ "\"";
+			payload += "\"" + JSONescape((*it)) + "\"";
 			if ((it + 1) != children.end())
 			{
 				 payload += ", ";
@@ -595,7 +595,7 @@ bool ManagementClient::addAssetTrackingTuple(const std::string& service,
 	ostringstream convert;
 
 	try {
-		convert << "{ \"service\" : \"" << service << "\", ";
+		convert << "{ \"service\" : \"" << JSONescape(service) << "\", ";
 		convert << " \"plugin\" : \"" << plugin << "\", ";
 		convert << " \"asset\" : \"" << asset << "\", ";
 		convert << " \"event\" : \"" << event << "\" }";

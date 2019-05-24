@@ -16,6 +16,7 @@
 #include <binary_plugin_handle.h>
 #include <python_plugin_handle.h>
 #include <dirent.h>
+#include <sys/param.h>
 
 using namespace std;
 
@@ -41,6 +42,50 @@ PluginManager::PluginManager()
   logger = Logger::getLogger();
 }
 
+enum PLUGIN_TYPE {
+	BINARY_PLUGIN,
+	PYTHON_PLUGIN
+};
+
+/**
+ * Find a specific plugin in the directories listed in FOGLAMP_PLUGIN_PATH
+ *
+ * @param    name		The plugin name
+ * @param    _type		The plugin type string
+ * @param    _plugin_path	Value of FOGLAMP_PLUGIN_PATH environment variable
+ * @param    type		The plugin type
+ * @return   string		The absolute path of plugin
+ */
+string findPlugin(string name, string _type, string _plugin_path, PLUGIN_TYPE type)
+{
+	if (type != BINARY_PLUGIN && type != PYTHON_PLUGIN)
+		return "";
+	
+	stringstream plugin_path(_plugin_path);
+	string temp;
+	
+	// Tokenizing w.r.t. semicolon ';' 
+	while(getline(plugin_path, temp, ';')) 
+	{
+		string path = temp+"/"+_type+"/"+name+"/";
+		switch(type)
+		{
+			case BINARY_PLUGIN:
+				path += "lib"+name+".so";
+				break;
+			case PYTHON_PLUGIN:
+				path += name+".py";
+				break;
+		}
+		if (access(path.c_str(), F_OK) == 0)
+		{
+			Logger::getLogger()->info("Found plugin @ %s", path.c_str());
+			return path;
+		}
+	}
+	return "";
+}
+
 /**
  * Load a given plugin
  */
@@ -48,7 +93,7 @@ PLUGIN_HANDLE PluginManager::loadPlugin(const string& name, const string& type)
 {
 PluginHandle *pluginHandle = NULL;
 PLUGIN_HANDLE hndl;
-char          buf[128];
+char		buf[MAXPATHLEN];
 
   if (pluginNames.find(name) != pluginNames.end())
   {
@@ -62,7 +107,8 @@ char          buf[128];
   }
 
   char *home = getenv("FOGLAMP_ROOT");
-
+  char *plugin_path = getenv("FOGLAMP_PLUGIN_PATH");
+  
   /*
    * Find and try to load the dynamic library that is the plugin
    */
@@ -76,6 +122,14 @@ char          buf[128];
 	         type.c_str(),
 	         name.c_str(),
 	         name.c_str());
+	if (access(buf, F_OK) != 0 && plugin_path)
+	{
+		string path = findPlugin(name, type, string(plugin_path), BINARY_PLUGIN);
+		if(path.compare("") != 0)
+		{
+			strncpy(buf, path.c_str(), sizeof(buf));
+		}
+	}
   }
   if (access(buf, F_OK|R_OK) == 0)
   {
@@ -130,7 +184,16 @@ char          buf[128];
              type.c_str(),
              name.c_str(),
              name.c_str());
-    
+
+  if (access(buf, F_OK) != 0 && plugin_path)
+  {
+	  string path = findPlugin(name, type, string(plugin_path), PYTHON_PLUGIN);
+	  if(path.compare("")!=0)
+	  {
+		  strncpy(buf, path.c_str(), sizeof(buf));
+	  }
+  }
+  
   if (access(buf, F_OK|R_OK) == 0)
   {
 	pluginHandle = new PythonPluginHandle(name.c_str(), buf);
@@ -235,12 +298,22 @@ void PluginManager::getInstalledPlugins(const string& type,
 					list<string>& plugins)
 {
 	char *home = getenv("FOGLAMP_ROOT");
+	char *plugin_path = getenv("FOGLAMP_PLUGIN_PATH");
+	string paths("");
 	if (home)
+		paths += string(home)+"/plugins";
+	if (plugin_path)
+		paths += (home?";":"")+string(plugin_path);
+
+	stringstream _paths(paths);
+	
+	string temp;
+	// Tokenize w.r.t. semicolon ';'
+	while(getline(_paths, temp, ';'))
 	{
 		struct dirent *entry;
 		DIR *dp;
-		string path = home;
-		path += "/plugins/" + type + "/";
+		string path = temp + "/" + type + "/";
 
 		// Open the plugins dir/type
 		dp = opendir(path.c_str());
@@ -250,10 +323,10 @@ void PluginManager::getInstalledPlugins(const string& type,
 			// Can not open specified dir path
 			char msg[128];
 			char* ret = strerror_r(errno, msg, 128);
-			logger->fatal("Can not access plugin directory %s: %s",
+			logger->error("Can not access plugin directory %s: %s",
 				      path.c_str(),
 				      ret);
-			return;
+			continue;
 		}
 
 		/**

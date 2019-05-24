@@ -43,3 +43,9 @@ It is necessary to install a CentOS package before FogLAMP can be installed succ
 ::
    sudo yum install -y  centos-release-scl-rh
    sudo yum -y  localinstall ~/foglamp-1.5.2-0.00.x86_64.rpm
+
+.. note::
+   By default, /var/log/messages are created with read-write permissions for ‘root’ user only.
+   Make sure to set the correct READ permissions.
+
+   `sudo chmod 644 /var/log/messages`

@@ -66,11 +66,6 @@ then
 	# To avoid to stop the execution for any internal error of scl_source
 	set +e
 	source scl_source enable rh-python36
-
-	# FIXME_I
-	source scl_source enable rh-postgresql96
-    export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/opt/rh/rh-postgresql96/root/usr/lib64
-
 	status=$?
 
 	if [[ "$status" != "0" ]]
@@ -80,6 +75,23 @@ then
 		echo $msg_text
 		exit 1
 	fi
+
+	# FIXME_I
+	if [[ -d /opt/rh/rh-postgresql96 ]]
+	then
+		export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/opt/rh/rh-postgresql96/root/usr/lib64
+		source scl_source enable rh-postgresql96
+		status=$?
+
+		if [[ "$status" != "0" ]]
+		then
+			msg_text="ERROR: FogLAMP cannot enable the python environment in RedHat/Centos platform."
+			logger -p local0.err $msg_text
+			echo $msg_text
+			exit 1
+		fi
+	fi
+
 	set -e
 else
 	# platform Debian/Ubuntu

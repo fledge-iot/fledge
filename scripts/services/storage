@@ -19,7 +19,7 @@ else
 		exit 1
 	else
 		if [ -x ${FOGLAMP_ROOT}/services/foglamp.services.storage ]; then
-			export LD_LIBRARY_PATH=${FOGLAMP_ROOT}:/usr/local/foglamp/lib
+			export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${FOGLAMP_ROOT}:/usr/local/foglamp/lib
 			${FOGLAMP_ROOT}/services/foglamp.services.storage "$@"
 		else
 			${FOGLAMP_ROOT}/services/storage "$@"

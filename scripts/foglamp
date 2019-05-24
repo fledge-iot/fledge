@@ -66,6 +66,11 @@ then
 	# To avoid to stop the execution for any internal error of scl_source
 	set +e
 	source scl_source enable rh-python36
+
+	# FIXME_I
+	source scl_source enable rh-postgresql96
+    export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/opt/rh/rh-postgresql96/root/usr/lib64
+
 	status=$?
 
 	if [[ "$status" != "0" ]]

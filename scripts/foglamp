@@ -77,7 +77,7 @@ then
 		exit 1
 	fi
 
-	if [[ -d /opt/rh/rh-postgresql96 ]]
+	if [[ -d /opt/rh/rh-postgresql96 && -e /opt/rh/rh-postgresql96/root/usr/bin/pg_isready ]]
 	then
 		export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/opt/rh/rh-postgresql96/root/usr/lib64
 		source scl_source enable rh-postgresql96

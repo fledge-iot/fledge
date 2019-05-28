@@ -38,10 +38,11 @@ if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *
 	fi
 	yum install -y boost-devel
 	yum install -y glib2-devel
-	yum install -y rh-python36
 	yum install -y rsyslog
 	yum install -y openssl-devel
-	yum install -y postgresql-devel
+	yum install -y rh-python36
+	yum install -y rh-postgresql96
+	yum install -y rh-postgresql96-postgresql-devel
 	yum install -y wget
 	yum install -y zlib-devel
 	yum install -y git
@@ -65,6 +66,18 @@ if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *
 	make
 	cd $foglamp_location
 	sudo -u $SUDO_USER scl enable rh-python36 bash
+
+	#
+	# A gcc version newer than 4.9.0 is needed to properly use <regex>
+	# the installation of these packages will not overwrite the previous compiler
+	# the new one will be available using the command 'source scl_source enable devtoolset-7'
+	# the previous gcc will be enabled again after a log-off/log-in.
+	#
+	sudo yum-config-manager --enable rhel-server-rhscl-7-rpms
+	sudo yum install -y devtoolset-7
+
+	source scl_source enable devtoolset-7
+
 elif apt --version 2>/dev/null; then
 	apt install -y avahi-daemon curl
 	apt install -y cmake g++ make build-essential autoconf automake uuid-dev

@@ -6,13 +6,23 @@ set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 set(STORAGE_COMMON_LIB storage-common-lib)
 
+# Handle Postgres on RedHat/CentOS
+set(FOGLAMP_RH_POSTGRES "/opt/rh/rh-postgresql96/root/usr/include" CACHE INTERNAL "")
+
 # Find source files
 file(GLOB SOURCES *.cpp)
 
 # Include header files
 include_directories(include ../../../common/include ../../../services/common/include ../common/include)
-include_directories(../../../thirdparty/rapidjson/include /usr/include/postgresql)
+include_directories(../../../thirdparty/rapidjson/include)
 link_directories(${PROJECT_BINARY_DIR}/../../../lib)
+
+if(EXISTS ${FOGLAMP_RH_POSTGRES})
+    include_directories(/opt/rh/rh-postgresql96/root/usr/include)
+    link_directories(AFTER /opt/rh/rh-postgresql96/root/usr/lib64)
+else()
+    include_directories(/usr/include/postgresql)
+endif()
 
 # Create shared library
 add_library(${PROJECT_NAME} SHARED ${SOURCES})

@@ -34,7 +34,7 @@ if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *
 		yum install -y @development
 	else
 		yum groupinstall "Development tools" -y
-		yum install -y centos-release-scl 
+		yum install -y centos-release-scl
 	fi
 	yum install -y boost-devel
 	yum install -y glib2-devel
@@ -51,9 +51,9 @@ if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *
 	echo "source scl_source enable rh-python36" >> /home/${SUDO_USER}/.bashrc
 	service rsyslog start
 
-# SQLite3 need to be compiled on CentOS|RHEL 
+# SQLite3 need to be compiled on CentOS|RHEL
 	if [ -d /tmp/foglamp-sqlite3-pkg ]; then
-		rm -rf /tmp/foglamp-sqlite3-pkg 
+		rm -rf /tmp/foglamp-sqlite3-pkg
 	fi
 	echo "Pulling SQLite3 from FogLAMP SQLite3 repository ..."
 	cd /tmp/
@@ -65,7 +65,11 @@ if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *
 	autoreconf -f -i
 	make
 	cd $foglamp_location
-	sudo -u $SUDO_USER scl enable rh-python36 bash
+
+	# To avoid to stop the execution for any internal error of scl_source
+	set +e
+	source scl_source enable rh-python36
+	set -e
 
 	#
 	# A gcc version newer than 4.9.0 is needed to properly use <regex>
@@ -76,7 +80,10 @@ if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *
 	sudo yum-config-manager --enable rhel-server-rhscl-7-rpms
 	sudo yum install -y devtoolset-7
 
+	# To avoid to stop the execution for any internal error of scl_source
+	set +e
 	source scl_source enable devtoolset-7
+	set -e
 
 elif apt --version 2>/dev/null; then
 	apt install -y avahi-daemon curl

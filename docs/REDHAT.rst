@@ -55,11 +55,13 @@ Build of FogLAMP on Red Hat/CentOS
 **********************************
 
 A gcc version newer than 4.9.0 is needed to properly use <regex> and build FogLAMP.
+
 The *requirements.sh* script, executed as follows:
 ::
 	sudo ./requirements.sh
 
 installs *devtoolset-7* that provides the newer compiler.
+
 It must be enabled before building FogLAMP using the command:
 ::
 	source scl_source enable devtoolset-7

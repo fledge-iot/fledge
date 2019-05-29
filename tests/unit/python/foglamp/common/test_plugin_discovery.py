@@ -7,11 +7,13 @@
 import asyncio
 import os
 import copy
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 import pytest
 
 from foglamp.common.plugin_discovery import PluginDiscovery, _logger
 from foglamp.services.core.api import utils
+from foglamp.services.core.api.plugins import common
+
 
 __author__ = "Amarendra K Sinha, Ashish Jabble "
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -320,7 +322,10 @@ class TestPluginDiscovery:
         mocker.patch.object(os, "listdir", return_value=next(mock_folders()))
         mocker.patch.object(os.path, "isdir", return_value=True)
         plugin_folders = PluginDiscovery.get_plugin_folders("north")
-        assert TestPluginDiscovery.mock_north_folders == plugin_folders
+        actual_plugin_folders = []
+        for dir_name in plugin_folders:
+            actual_plugin_folders.append(dir_name.split('/')[-1])
+        assert TestPluginDiscovery.mock_north_folders == actual_plugin_folders
 
     @pytest.mark.parametrize("info, expected, is_config", [
         ({'name': "furnace4", 'version': "1.1", 'type': "south", 'interface': "1.0",
@@ -332,10 +337,7 @@ class TestPluginDiscovery:
           'config': {'plugin': {'description': 'Modbus RTU plugin', 'type': 'string', 'default': 'modbus'}}}, True)
     ])
     def test_get_plugin_config(self, info, expected, is_config):
-        mock = MagicMock()
-        attrs = {"plugin_info.side_effect": [info]}
-        mock.configure_mock(**attrs)
-        with patch('builtins.__import__', return_value=mock):
+        with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[info]):
             actual = PluginDiscovery.get_plugin_config("modbus", "south", is_config)
             assert expected == actual
 
@@ -353,12 +355,8 @@ class TestPluginDiscovery:
                             }
                 }
         }
-
-        mock = MagicMock()
-        attrs = {"plugin_info.side_effect": [mock_plugin_info]}
-        mock.configure_mock(**attrs)
         with patch.object(_logger, "warning") as patch_log_warn:
-            with patch('builtins.__import__', return_value=mock):
+            with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[mock_plugin_info]):
                 actual = PluginDiscovery.get_plugin_config("http-north", "south", False)
                 assert actual is None
         patch_log_warn.assert_called_once_with('Plugin http-north is discarded due to invalid type')
@@ -406,32 +404,24 @@ class TestPluginDiscovery:
             assert exc_count == patch_log_exc.call_count
 
     @pytest.mark.parametrize("exc_name, log_exc_name, msg", [
-        (ImportError, "error", 'Plugin "modbus" import problem from path "foglamp.plugins.south".'),
+        (FileNotFoundError, "error", 'Plugin "modbus" import problem from path "modbus".'),
         (Exception, "exception", 'Plugin "modbus" raised exception "" while fetching config')
     ])
     def test_bad_get_south_plugin_config(self, exc_name, log_exc_name, msg):
-        mock = MagicMock()
-        attrs = {"plugin_info.side_effect": exc_name}
-        mock.configure_mock(**attrs)
-
         with patch.object(_logger, log_exc_name) as patch_log_exc:
-            with patch('builtins.__import__', return_value=mock):
+            with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[exc_name]):
                 PluginDiscovery.get_plugin_config("modbus", "south", False)
         assert 1 == patch_log_exc.call_count
         args, kwargs = patch_log_exc.call_args
         assert msg in args[0]
 
     @pytest.mark.parametrize("exc_name, log_exc_name, msg", [
-        (ImportError, "error", 'Plugin "http" import problem from path "foglamp.plugins.north".'),
+        (FileNotFoundError, "error", 'Plugin "http" import problem from path "http".'),
         (Exception, "exception", 'Plugin "http" raised exception "" while fetching config')
     ])
     def test_bad_get_north_plugin_config(self, exc_name, log_exc_name, msg):
-        mock = MagicMock()
-        attrs = {"plugin_info.side_effect": exc_name}
-        mock.configure_mock(**attrs)
-
         with patch.object(_logger, log_exc_name) as patch_log_exc:
-            with patch('builtins.__import__', return_value=mock):
+            with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[exc_name]):
                 PluginDiscovery.get_plugin_config("http", "north", False)
         assert 1 == patch_log_exc.call_count
         args, kwargs = patch_log_exc.call_args

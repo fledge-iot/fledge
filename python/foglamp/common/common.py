@@ -16,3 +16,4 @@ __version__ = "${VERSION}"
 
 _FOGLAMP_DATA = os.getenv("FOGLAMP_DATA", default=None)
 _FOGLAMP_ROOT = os.getenv("FOGLAMP_ROOT", default='/usr/local/foglamp')
+_FOGLAMP_PLUGIN_PATH = os.getenv("FOGLAMP_PLUGIN_PATH", default=None)

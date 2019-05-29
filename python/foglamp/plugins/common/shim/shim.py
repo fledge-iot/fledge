@@ -6,27 +6,27 @@
 
 """shim layer between Python and C++"""
 
+import os
+import importlib.util
 import sys
 import json
 import logging
 
 from foglamp.common import logger
+from foglamp.common.common import _FOGLAMP_ROOT
+from foglamp.services.core.api.plugins import common
 
 _LOGGER = logger.setup(__name__, level=logging.WARN)
 _plugin = None
 
 _LOGGER.info("Loading shim layer for python plugin '{}' ".format(sys.argv[1]))
 
+
 def _plugin_obj():
     plugin = sys.argv[1]
-    plugin_module_path = "foglamp.plugins.south"
-    try:
-        import_file_name = "{path}.{dir}.{file}".format(path=plugin_module_path, dir=plugin, file=plugin)
-        _plugin = __import__(import_file_name, fromlist=[''])
-    except ImportError as ex:
-        _LOGGER.exception("Plugin %s import problem from path %s. %s", plugin, plugin_module_path, str(ex))
-    except Exception as ex:
-        _LOGGER.exception("Failed to load plugin. %s", str(ex))
+    plugin_type = "south"
+    plugin_module_path = "{}/python/foglamp/plugins/{}/{}".format(_FOGLAMP_ROOT, plugin_type, plugin)
+    _plugin=common.load_python_plugin(plugin_module_path, plugin, plugin_type)
     return _plugin
 
 

@@ -3,8 +3,6 @@
 # FOGLAMP_BEGIN
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
-
-import asyncio
 import datetime
 import uuid
 from aiohttp import web
@@ -22,7 +20,8 @@ from foglamp.services.core.api import utils as apiutils
 from foglamp.services.core.scheduler.entities import StartUpSchedule
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
-
+from foglamp.common.common import _FOGLAMP_ROOT
+from foglamp.services.core.api.plugins import common
 
 __author__ = "Mark Riddoch, Ashwin Gopalakrishnan, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -175,16 +174,16 @@ async def add_service(request):
             # "plugin_module_path" is fixed by design. It is MANDATORY to keep the plugin in the exactly similar named
             # folder, within the plugin_module_path.
             # if multiple plugin with same name are found, then python plugin import will be tried first
-            plugin_module_path = "foglamp.plugins.south"
+            plugin_module_path = "{}/python/foglamp/plugins/{}/{}".format(_FOGLAMP_ROOT, service_type, plugin)
             try:
-                plugin_info = load_python_plugin(plugin_module_path, plugin, service_type)
+                plugin_info = common.load_and_fetch_python_plugin_info(plugin_module_path, plugin, service_type)
                 plugin_config = plugin_info['config']
                 if not plugin_config:
                     _logger.exception("Plugin %s import problem from path %s", plugin, plugin_module_path)
                     raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}".'.format(plugin, plugin_module_path))
                 process_name = 'south_c'
                 script = '["services/south_c"]'
-            except ImportError as ex:
+            except FileNotFoundError as ex:
                 # Checking for C-type plugins
                 plugin_config = load_c_plugin(plugin, service_type)
                 if not plugin_config:
@@ -286,18 +285,6 @@ async def add_service(request):
         raise web.HTTPBadRequest(reason=str(e))
     else:
         return web.json_response({'name': name, 'id': str(schedule.schedule_id)})
-
-
-def load_python_plugin(plugin_module_path: str, plugin: str, service_type: str) -> Dict:
-    import_file_name = "{path}.{dir}.{file}".format(path=plugin_module_path, dir=plugin, file=plugin)
-    _plugin = __import__(import_file_name, fromlist=[''])
-
-    # Fetch configuration from the configuration defined in the plugin
-    plugin_info = _plugin.plugin_info()
-    if plugin_info['type'] != service_type:
-        msg = "Plugin of {} type is not supported".format(plugin_info['type'])
-        raise TypeError(msg)
-    return plugin_info
 
 
 def load_c_plugin(plugin: str, service_type: str) -> Dict:

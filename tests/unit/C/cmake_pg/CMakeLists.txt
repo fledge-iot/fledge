@@ -16,9 +16,10 @@ include_directories(../../../../C/services/common/include)
 include_directories(../../../../C/plugins/storage/common/include)
 include_directories(../../../../C/plugins/storage/postgres/include)
 
+# Handle Postgres on RedHat/CentOS
 if(EXISTS ${FOGLAMP_RH_POSTGRES})
     include_directories(/opt/rh/rh-postgresql96/root/usr/include)
-    link_directories(AFTER /opt/rh/rh-postgresql96/root/usr/lib64)
+    link_directories(/opt/rh/rh-postgresql96/root/usr/lib64)
 else()
     include_directories(/usr/include/postgresql)
 endif()

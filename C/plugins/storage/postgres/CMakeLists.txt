@@ -19,7 +19,7 @@ link_directories(${PROJECT_BINARY_DIR}/../../../lib)
 
 if(EXISTS ${FOGLAMP_RH_POSTGRES})
     include_directories(/opt/rh/rh-postgresql96/root/usr/include)
-    link_directories(AFTER /opt/rh/rh-postgresql96/root/usr/lib64)
+    link_directories(/opt/rh/rh-postgresql96/root/usr/lib64)
 else()
     include_directories(/usr/include/postgresql)
 endif()

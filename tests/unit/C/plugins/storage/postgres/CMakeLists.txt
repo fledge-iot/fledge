@@ -13,17 +13,27 @@ set(PLUGINS_COMMON_LIB plugins-common-lib)
 set(PLUGIN_POSTGRES    postgres)
 set(STORAGE_COMMON_LIB storage-common-lib)
 
+# Handle Postgres on RedHat/CentOS
+set(FOGLAMP_RH_POSTGRES "/opt/rh/rh-postgresql96/root/usr/include" CACHE INTERNAL "")
+
 # Locate GTest
 find_package(GTest REQUIRED)
 
 # Include files
 include_directories(${GTEST_INCLUDE_DIRS})
-include_directories(/usr/include/postgresql)
 include_directories(../../../../../../C/common/include)
 include_directories(../../../../../../C/services/common/include)
 include_directories(../../../../../../C/plugins/storage/common/include)
 include_directories(../../../../../../C/plugins/storage/postgres/include)
 include_directories(../../../../../../C/thirdparty/rapidjson/include)
+
+# Handle Postgres on RedHat/CentOS
+if(EXISTS ${FOGLAMP_RH_POSTGRES})
+    include_directories(/opt/rh/rh-postgresql96/root/usr/include)
+    link_directories(/opt/rh/rh-postgresql96/root/usr/lib64)
+else()
+    include_directories(/usr/include/postgresql)
+endif()
 
 # Source files
 file(GLOB test_sources tests.cpp)

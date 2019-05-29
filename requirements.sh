@@ -77,8 +77,9 @@ if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *
 	# the new one will be available using the command 'source scl_source enable devtoolset-7'
 	# the previous gcc will be enabled again after a log-off/log-in.
 	#
-	sudo yum-config-manager --enable rhel-server-rhscl-7-rpms
-	sudo yum install -y devtoolset-7
+	yum install -y yum-utils
+	yum-config-manager --enable rhel-server-rhscl-7-rpms
+	yum install -y devtoolset-7
 
 	# To avoid to stop the execution for any internal error of scl_source
 	set +e

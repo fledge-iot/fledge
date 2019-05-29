@@ -62,11 +62,11 @@ The *requirements.sh* script, executed as follows:
 
 installs *devtoolset-7* that provides the newer compiler.
 
-It must be enabled before building FogLAMP using the command:
+It must be enabled before building FogLAMP using:
 ::
 	source scl_source enable devtoolset-7
 
-use the following command to verify which version is currently active:
+It is possible to use the following command to verify which version is currently active:
 ::
 	gcc --version
 

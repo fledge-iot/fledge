@@ -80,12 +80,13 @@ def remove_directories():
 @pytest.fixture
 def add_south():
     def _add_foglamp_south(south_plugin, south_branch, foglamp_url, service_name="play", config=None,
-                           plugin_lang="python", use_pip_cache=True, start_service=True):
+                           plugin_lang="python", use_pip_cache=True, start_service=True, plugin_discovery_name=None):
         """Add south plugin and start the service by default"""
 
+        plugin_discovery_name = south_plugin if plugin_discovery_name is None else plugin_discovery_name
         _config = config if config is not None else {}
         _enabled = "true" if start_service else "false"
-        data = {"name": "{}".format(service_name), "type": "South", "plugin": "{}".format(south_plugin),
+        data = {"name": "{}".format(service_name), "type": "South", "plugin": "{}".format(plugin_discovery_name),
                 "enabled": _enabled, "config": _config}
 
         conn = http.client.HTTPConnection(foglamp_url)

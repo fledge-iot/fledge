@@ -76,8 +76,8 @@ class TestE2EModbusCPI:
                ]}}
                }
 
-        add_south(PLUGIN_NAME, south_branch, foglamp_url, service_name=SVC_NAME, config=cfg,
-                  plugin_lang=SOUTH_PLUGIN_LANGUAGE, start_service=True)
+        add_south(SOUTH_PLUGIN, south_branch, foglamp_url, service_name=SVC_NAME, config=cfg,
+                  plugin_lang=SOUTH_PLUGIN_LANGUAGE, start_service=True, plugin_discovery_name=PLUGIN_NAME)
 
         start_north_pi_server_c(foglamp_url, pi_host, pi_port, pi_token)
 

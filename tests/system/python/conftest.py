@@ -362,6 +362,8 @@ def pytest_addoption(parser):
                      help="Kafka Server Port")
     parser.addoption("--kafka-topic", action="store", default="FogLAMP", help="Kafka topic")
     parser.addoption("--kafka-rest-port", action="store", default="8082", help="Kafka Rest Proxy Port")
+    parser.addoption("--modbus-host", action="store", default="localhost", help="Modbus simulator host")
+    parser.addoption("--modbus-port", action="store", default="502", type=int, help="Modbus simulator port")
 
 
 @pytest.fixture
@@ -527,6 +529,16 @@ def kafka_topic(request):
 @pytest.fixture
 def kafka_rest_port(request):
     return request.config.getoption("--kafka-rest-port")
+
+
+@pytest.fixture
+def modbus_host(request):
+    return request.config.getoption("--modbus-host")
+
+
+@pytest.fixture
+def modbus_port(request):
+    return request.config.getoption("--modbus-port")
 
 
 def pytest_itemcollected(item):

@@ -77,15 +77,28 @@ then
 		exit 1
 	fi
 
-	if [[ -d /opt/rh/rh-postgresql96 && -e /opt/rh/rh-postgresql96/root/usr/bin/pg_isready ]]
+	#
+	# Enables the RedHat Postgres environment if available
+	#
+	rhpg_package="rh-postgresql96"
+	source scl_source enable ${rhpg_package} > /dev/null
+	status=$?
+
+	if [[ "$status" == "0" ]]
 	then
-		export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/opt/rh/rh-postgresql96/root/usr/lib64
-		source scl_source enable rh-postgresql96
+		pg_isready_check=$(command -v pg_isready)
 		status=$?
 
-		if [[ "$status" != "0" ]]
+		if [[ "$status" == "0" ]]
 		then
-			msg_text="ERROR: FogLAMP cannot enable the rh-postgresql96 environment in RedHat/CentOS platform."
+			rhpg_path=${pg_isready_check/\/bin\/pg_isready/}
+
+			export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${rhpg_path}/lib64
+
+			msg_text="INFO: FogLAMP enabled ${rhpg_package} using the path ${rhpg_path}."
+			logger -p local0.info $msg_text
+		else
+			msg_text="ERROR: FogLAMP cannot use the ${rhpg_package} environment, the package is installed/available but not the pg_isready command."
 			logger -p local0.err $msg_text
 			echo $msg_text
 			exit 1

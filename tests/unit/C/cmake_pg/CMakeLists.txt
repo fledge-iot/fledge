@@ -7,7 +7,8 @@ set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 set(STORAGE_COMMON_LIB storage-common-lib)
 
 # Handle Postgres on RedHat/CentOS
-set(FOGLAMP_RH_POSTGRES "/opt/rh/rh-postgresql96/root/usr/include" CACHE INTERNAL "")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}")
+include(CheckRhPg)
 
 # postgres plugin
 include_directories(../../../../C/thirdparty/rapidjson/include)
@@ -17,7 +18,8 @@ include_directories(../../../../C/plugins/storage/common/include)
 include_directories(../../../../C/plugins/storage/postgres/include)
 
 # Handle Postgres on RedHat/CentOS
-if(EXISTS ${FOGLAMP_RH_POSTGRES})
+if(${RH_POSTGRES_FOUND} EQUAL 1)
+
     include_directories(/opt/rh/rh-postgresql96/root/usr/include)
     link_directories(/opt/rh/rh-postgresql96/root/usr/lib64)
 else()

@@ -6,7 +6,6 @@
 
 import datetime
 import uuid
-
 from aiohttp import web
 
 from foglamp.common import utils
@@ -19,6 +18,8 @@ from foglamp.services.core import server
 from foglamp.services.core import connect
 from foglamp.services.core.scheduler.entities import Schedule, TimedSchedule, IntervalSchedule, ManualSchedule
 from foglamp.services.core.api import utils as apiutils
+from foglamp.common.common import _FOGLAMP_ROOT
+from foglamp.services.core.api.plugins import common
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -33,6 +34,7 @@ _help = """
 """
 
 _logger = logger.setup()
+
 
 async def add_task(request):
     """ Create a new task to run a specific plugin
@@ -143,26 +145,17 @@ async def add_task(request):
         is_enabled = True if ((type(enabled) is str and enabled.lower() in ['true']) or (
             (type(enabled) is bool and enabled is True))) else False
 
-
         # Check if a valid plugin has been provided
         try:
             # "plugin_module_path" is fixed by design. It is MANDATORY to keep the plugin in the exactly similar named
             # folder, within the plugin_module_path.
             # if multiple plugin with same name are found, then python plugin import will be tried first
-            plugin_module_path = "foglamp.plugins.{}".format(task_type)
-            import_file_name = "{path}.{dir}.{file}".format(path=plugin_module_path, dir=plugin, file=plugin)
-            _plugin = __import__(import_file_name, fromlist=[''])
-
-            script = '["tasks/north"]'
-            # Fetch configuration from the configuration defined in the plugin
-            plugin_info = _plugin.plugin_info()
-            if plugin_info['type'] != task_type:
-                msg = "Plugin of {} type is not supported".format(plugin_info['type'])
-                _logger.exception(msg)
-                return web.HTTPBadRequest(reason=msg)
+            plugin_module_path = "{}/python/foglamp/plugins/{}/{}".format(_FOGLAMP_ROOT, task_type, plugin)
+            plugin_info = common.load_and_fetch_python_plugin_info(plugin_module_path, plugin, task_type)
             plugin_config = plugin_info['config']
+            script = '["tasks/north"]'
             process_name = 'north'
-        except ImportError as ex:
+        except FileNotFoundError as ex:
             # Checking for C-type plugins
             script = '["tasks/north_c"]'
             plugin_info = apiutils.get_plugin_info(plugin, dir=task_type)
@@ -175,6 +168,8 @@ async def add_task(request):
             if not plugin_config:
                 _logger.exception("Plugin %s import problem from path %s. %s", plugin, plugin_module_path, str(ex))
                 raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}"'.format(plugin, plugin_module_path))
+        except TypeError as ex:
+            raise web.HTTPBadRequest(reason=str(ex))
         except Exception as ex:
             _logger.exception("Failed to fetch plugin configuration. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration.')
@@ -332,3 +327,4 @@ async def check_schedules(storage, schedule_name):
 async def delete_statistics_key(storage, key):
     payload = PayloadBuilder().WHERE(['key', '=', key]).payload()
     await storage.delete_from_tbl('statistics', payload)
+

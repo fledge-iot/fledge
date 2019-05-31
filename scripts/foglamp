@@ -101,7 +101,6 @@ then
 			msg_text="ERROR: FogLAMP cannot use the ${rhpg_package} environment, the package is installed/available but not the pg_isready command."
 			logger -p local0.err $msg_text
 			echo $msg_text
-			exit 1
 		fi
 	fi
 

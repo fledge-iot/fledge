@@ -30,13 +30,11 @@ ASSET_NAME = "A15"
 
 class TestE2EModbusCPI:
     def check_connect(self, modbus_host, modbus_port):
-        try:
-            s = socket.socket()
-            # print("Host is {}, Port is {}".format(modbus_host, modbus_port))
-            s.connect((modbus_host, modbus_port))
-            # s.close()
-        except socket.error as e:
-            # print("Socket connection fail {}".format(e.strerror))
+        s = socket.socket()
+        print("Host is {}, Port is {}".format(modbus_host, modbus_port))
+        result = s.connect_ex((modbus_host, modbus_port))
+        if result != 0:
+            print("Socket connection fail!!")
             pytest.skip("Test requires a running simulator, please run before starting the test!!")
 
     def get_ping_status(self, foglamp_url):
@@ -95,7 +93,7 @@ class TestE2EModbusCPI:
                 on endpoint GET /foglamp/asset/<asset_name> with applied data processing filter value
                 data received from PI is same as data sent"""
 
-        time.sleep(wait_time)
+        time.sleep(wait_time * 2)
 
         ping_response = self.get_ping_status(foglamp_url)
         assert 0 < ping_response["dataRead"]
@@ -153,9 +151,17 @@ class TestE2EModbusCPI:
             assert False, "Failed to read data from PI"
 
         assert len(data_from_pi)
-        print("DATA FROM PI = {}".format(data_from_pi))
         assert "front right" in data_from_pi
         assert "rear right" in data_from_pi
         assert "front left" in data_from_pi
-        assert "front left" in data_from_pi
-        # TODO: Assert values of each data point
+        assert "rear left" in data_from_pi
+
+        assert isinstance(data_from_pi["front right"], list)
+        assert isinstance(data_from_pi["rear right"], list)
+        assert isinstance(data_from_pi["front left"], list)
+        assert isinstance(data_from_pi["front left"], list)
+
+        assert 11 == data_from_pi["front right"][-1]
+        assert 12 == data_from_pi["rear right"][-1]
+        assert 13 == data_from_pi["front left"][-1]
+        assert 14 == data_from_pi["rear left"][-1]

@@ -20,8 +20,8 @@ link_directories(${PROJECT_BINARY_DIR}/../../../lib)
 
 if(${RH_POSTGRES_FOUND} EQUAL 1)
 
-    include_directories(/opt/rh/rh-postgresql96/root/usr/include)
-    link_directories(/opt/rh/rh-postgresql96/root/usr/lib64)
+    include_directories(${RH_POSTGRES_INCLUDE})
+    link_directories(${RH_POSTGRES_LIB64})
 else()
     include_directories(/usr/include/postgresql)
 endif()

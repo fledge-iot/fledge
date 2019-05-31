@@ -71,3 +71,12 @@ It is possible to use the following command to verify which version is currently
 	gcc --version
 
 The previously installed gcc will be by default enabled again after a logoff/login.
+
+Build and use FogLAMP with PostgreSQL for Red Hat/CentOS
+========================================================
+
+The *rh-postgresql96* environment should be enabled using:
+::
+	source scl_source enable rh-postgresql96
+
+before building FogLAMP if the intention is to use the Postgres plugin.

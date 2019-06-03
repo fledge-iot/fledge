@@ -24,17 +24,16 @@ __version__ = "${VERSION}"
 SOUTH_PLUGIN = "modbus-c"
 PLUGIN_NAME = "ModbusC"
 SVC_NAME = "modbus-c"
-SOUTH_PLUGIN_LANGUAGE = "cpp"
 ASSET_NAME = "A15"
 
 
 class TestE2EModbusCPI:
     def check_connect(self, modbus_host, modbus_port):
         s = socket.socket()
-        print("Host is {}, Port is {}".format(modbus_host, modbus_port))
+        print("Connecting... Modbus simulator on {}:{}".format(modbus_host, modbus_port))
         result = s.connect_ex((modbus_host, modbus_port))
         if result != 0:
-            print("Socket connection fail!!")
+            print("Socket connection failed!!")
             pytest.skip("Test requires a running simulator, please run before starting the test!!")
 
     def get_ping_status(self, foglamp_url):
@@ -75,7 +74,7 @@ class TestE2EModbusCPI:
                }
 
         add_south(SOUTH_PLUGIN, south_branch, foglamp_url, service_name=SVC_NAME, config=cfg,
-                  plugin_lang=SOUTH_PLUGIN_LANGUAGE, start_service=True, plugin_discovery_name=PLUGIN_NAME)
+                  plugin_lang="C", start_service=True, plugin_discovery_name=PLUGIN_NAME)
 
         start_north_pi_server_c(foglamp_url, pi_host, pi_port, pi_token)
 

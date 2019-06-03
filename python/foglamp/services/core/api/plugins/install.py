@@ -54,8 +54,8 @@ async def add_plugin(request: web.Request) -> web.Response:
         checksum = data.get('checksum', None)
         if not url or not file_format or not checksum:
             raise TypeError('URL, checksum and format post params are mandatory.')
-        if file_format not in ["tar", "deb"]:
-            raise ValueError("Invalid format. Must be 'tar' or 'deb'")
+        if file_format not in ["tar", "deb", "rpm"]:
+            raise ValueError("Invalid format. Must be 'tar' or 'deb' or 'rpm'")
         if file_format == "tar" and not plugin_type:
             raise ValueError("Plugin type param is required.")
         if file_format == "tar" and plugin_type not in ['south', 'north', 'filter', 'notificationDelivery',
@@ -84,6 +84,10 @@ async def add_plugin(request: web.Request) -> web.Response:
             files = extract_file(file_name, is_compressed)
             _LOGGER.debug("Files {} {}".format(files, type(files)))
             code, msg = copy_file_install_requirement(files, plugin_type, file_name)
+            if code != 0:
+                raise ValueError(msg)
+        elif file_format == 'rpm':
+            code, msg = install_rpm(file_name)
             if code != 0:
                 raise ValueError(msg)
         else:
@@ -129,7 +133,7 @@ def extract_file(file_name: str, is_compressed: bool) -> list:
     return tar.getnames()
 
 
-def install_deb(file_name: str):
+def install_deb(file_name: str)-> tuple:
     deb_file_path = "/data/plugins/{}".format(file_name)
     stdout_file_path = "/data/plugins/output.txt"
     cmd = "sudo apt -y install {} > {} 2>&1".format(_FOGLAMP_ROOT + deb_file_path, _FOGLAMP_ROOT + stdout_file_path)
@@ -148,6 +152,29 @@ def install_deb(file_name: str):
 
     # Remove downloaded debian file
     cmd = "{}/extras/C/cmdutil rm {}".format(_FOGLAMP_ROOT, deb_file_path)
+    subprocess.run([cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+    return ret_code, msg
+
+
+def install_rpm(file_name: str)-> tuple:
+    rpm_file_path = "/data/plugins/{}".format(file_name)
+    stdout_file_path = "/data/plugins/output.txt"
+    cmd = "sudo yum -y install {} > {} 2>&1".format(_FOGLAMP_ROOT + rpm_file_path, _FOGLAMP_ROOT + stdout_file_path)
+    _LOGGER.debug("CMD....{}".format(cmd))
+    ret_code = os.system(cmd)
+    _LOGGER.debug("Return Code....{}".format(ret_code))
+    msg = ""
+    with open("{}".format(_FOGLAMP_ROOT + stdout_file_path), 'r') as fh:
+        for line in fh:
+            line = line.rstrip("\n")
+            msg += line
+    _LOGGER.debug("Message.....{}".format(msg))
+    # Remove stdout file
+    cmd = "{}/extras/C/cmdutil rm {}".format(_FOGLAMP_ROOT, stdout_file_path)
+    subprocess.run([cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+
+    # Remove downloaded debian file
+    cmd = "{}/extras/C/cmdutil rm {}".format(_FOGLAMP_ROOT, rpm_file_path)
     subprocess.run([cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     return ret_code, msg
 

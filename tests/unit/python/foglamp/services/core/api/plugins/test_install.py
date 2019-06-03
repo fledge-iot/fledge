@@ -51,7 +51,7 @@ class TestPluginInstall:
         ({"url": "http://blah.co.in", "format": "tar", "type": "blah", "checksum": "4015c2dea1cc71dbf70a23f6a203eeb6"},
          "Invalid plugin type. Must be 'north' or 'south' or 'filter' or 'notificationDelivery' or 'notificationRule'"),
         ({"url": "http://blah.co.in", "format": "blah", "type": "filter", "checksum": "4015c2dea1cc71dbf70a23f6a203ee"},
-         "Invalid format. Must be 'tar' or 'deb'"),
+         "Invalid format. Must be 'tar' or 'deb' or 'rpm'"),
         ({"url": "http://blah.co.in", "format": "tar", "type": "south", "checksum": "4015c2dea1cc71dbf70a23f6a203eeb6",
           "compressed": "blah"}, 'Only "true", "false", true, false are allowed for value of compressed.')
     ])
@@ -170,6 +170,7 @@ class TestPluginInstall:
                 with patch.object(plugins_install, 'install_deb', return_value=(0, 'Success')) as debian_patch:
                     resp = await client.post('/foglamp/plugins', data=json.dumps(param))
                     assert 200 == resp.status
+                    assert 'OK' == resp.reason
                 debian_patch.assert_called_once_with(plugin_name)
             checksum_patch.assert_called_once_with(checksum_value, plugin_name)
         download_patch.assert_called_once_with([url_value])
@@ -193,5 +194,53 @@ class TestPluginInstall:
                     assert 400 == resp.status
                     assert msg == resp.reason
                 debian_patch.assert_called_once_with(plugin_name)
+            checksum_patch.assert_called_once_with(checksum_value, plugin_name)
+        download_patch.assert_called_once_with([url_value])
+
+    async def test_post_plugins_install_with_rpm(self, client):
+        async def async_mock():
+            return [plugin_name, '{}/__init__.py'.format(plugin_name), '{}/README.rst'.format(plugin_name),
+                    '{}/{}.py'.format(plugin_name, plugin_name)]
+
+        plugin_name = 'sinusoid'
+        checksum_value = "04bd924371488d981d9a60bcb093bedc"
+        url_value = "http://10.2.5.26:5000/download/foglamp-south-sinusoid-1.6.0.rpm"
+        param = {"url": url_value, "format": "rpm", "type": "south", "checksum": checksum_value}
+        with patch.object(plugins_install, 'download', return_value=async_mock()) as download_patch:
+            with patch.object(plugins_install, 'validate_checksum', return_value=True) as checksum_patch:
+                with patch.object(plugins_install, 'install_rpm', return_value=(0, 'Success')) as rpm_patch:
+                    resp = await client.post('/foglamp/plugins', data=json.dumps(param))
+                    assert 200 == resp.status
+                    assert 'OK' == resp.reason
+                rpm_patch.assert_called_once_with(plugin_name)
+            checksum_patch.assert_called_once_with(checksum_value, plugin_name)
+        download_patch.assert_called_once_with([url_value])
+
+    async def test_bad_post_plugins_install_with_rpm(self, client):
+        async def async_mock():
+            return [plugin_name, '{}/__init__.py'.format(plugin_name), '{}/README.rst'.format(plugin_name),
+                    '{}/{}.py'.format(plugin_name, plugin_name)]
+
+        plugin_name = 'sinusoid'
+        checksum_value = "04bd924371488d981d9a60bcb093bedc"
+        url_value = "http://10.2.5.26:5000/download/foglamp-south-sinusoid-1.6.0.rpm"
+        param = {"url": url_value, "format": "rpm", "type": "south", "checksum": checksum_value}
+        msg = '400: Loaded plugins: amazon-id, rhui-lb, search-disabled-reposExamining ' \
+              '/usr/local/foglamp/data/plugins/foglamp-south-sinusoid-1.6.0.rpm: ' \
+              'foglamp-south-sinusoid-1.6.0-1.x86_64Marking ' \
+              '/usr/local/foglamp/data/plugins/foglamp-south-sinusoid-1.6.0-1.x86_64.rpm to be installed' \
+              'Resolving Dependencies--> Running transaction check---> Package ' \
+              'foglamp-south-sinusoid.x86_64 0:1.6.0-1 will be installed--> ' \
+              'Processing Dependency: foglamp >= 1.6 for package: foglamp-south-sinusoid-1.6.0-1.x86_64' \
+              'You could try using --skip-broken to work around the problem ' \
+              'You could try running: rpm -Va --nofiles --nodigest'
+        with patch.object(plugins_install, 'download', return_value=async_mock()) as download_patch:
+            with patch.object(plugins_install, 'validate_checksum', return_value=True) as checksum_patch:
+                with patch.object(plugins_install, 'install_rpm', return_value=(256, msg)) as rpm_patch:
+                    resp = await client.post('/foglamp/plugins', data=json.dumps(param))
+                    assert 400 == resp.status
+                    print("RSP....", resp.reason)
+                    assert msg == resp.reason
+                rpm_patch.assert_called_once_with(plugin_name)
             checksum_patch.assert_called_once_with(checksum_value, plugin_name)
         download_patch.assert_called_once_with([url_value])

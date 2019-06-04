@@ -241,7 +241,7 @@ async def post_notification(request):
             "rule": rule,
             "channel": channel,
             "notification_type": notification_type,
-            "enable":is_enabled,
+            "enable": is_enabled,
         }
         await _update_configurations(config_mgr, name, notification_config, rule_config, delivery_config)
 
@@ -253,6 +253,10 @@ async def post_notification(request):
         raise web.HTTPInternalServerError(reason=str(e))
     else:
         return web.json_response({'result': "Notification {} created successfully".format(name)})
+
+
+class NotFoundError(ValueError):
+    pass
 
 
 async def put_notification(request):
@@ -292,7 +296,7 @@ async def put_notification(request):
         delivery_config = data.get('delivery_config', {})
 
         if utils.check_reserved(notif) is False:
-            raise ValueError('Invalid notification name parameter.')
+            raise ValueError('Invalid notification instance name.')
         if rule is not None and utils.check_reserved(rule) is False:
             raise ValueError('Invalid rule property in payload.')
         if channel is not None and utils.check_reserved(channel) is False:
@@ -310,6 +314,10 @@ async def put_notification(request):
         config_mgr = ConfigurationManager(storage)
 
         current_config = await config_mgr._read_category_val(notif)
+
+        if current_config is None:
+            raise NotFoundError('No {} notification instance found'.format(notif))
+
         rule_changed = True if rule is not None and rule != current_config['rule']['value'] else False
         channel_changed = True if channel is not None and channel != current_config['channel']['value'] else False
 
@@ -327,12 +335,14 @@ async def put_notification(request):
             list_plugins = json.loads(await _hit_get_url(url, auth_token))
             search_rule = rule if rule_changed else current_config['rule']['value']
             r = list(filter(lambda rules: rules['name'] == search_rule, list_plugins['rules']))
-            if len(r) == 0: raise KeyError
+            if len(r) == 0:
+                raise KeyError
             rule_plugin_config = r[0]['config']
 
             search_channel = channel if channel_changed else current_config['channel']['value']
             c = list(filter(lambda channels: channels['name'] == search_channel, list_plugins['delivery']))
-            if len(c) == 0: raise KeyError
+            if len(c) == 0:
+                raise KeyError
             delivery_plugin_config = c[0]['config']
         except KeyError:
             raise ValueError("Invalid rule plugin:{} and/or delivery plugin:{} supplied.".format(rule, channel))
@@ -376,10 +386,12 @@ async def put_notification(request):
         if enabled is not None:
             notification_config.update({"enable": is_enabled})
         await _update_configurations(config_mgr, notif, notification_config, rule_config, delivery_config)
-    except ValueError as ex:
-        raise web.HTTPBadRequest(reason=str(ex))
-    except Exception as e:
-        raise web.HTTPInternalServerError(reason=str(e))
+    except ValueError as e:
+        raise web.HTTPBadRequest(reason=str(e))
+    except NotFoundError as e:
+        raise web.HTTPNotFound(reason=str(e))
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason=str(ex))
     else:
         # TODO: Start notification after update
         return web.json_response({'result': "Notification {} updated successfully".format(notif)})

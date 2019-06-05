@@ -255,7 +255,7 @@ async def post_notification(request):
         return web.json_response({'result': "Notification {} created successfully".format(name)})
 
 
-class NotFoundError(ValueError):
+class NotFoundError(Exception):
     pass
 
 

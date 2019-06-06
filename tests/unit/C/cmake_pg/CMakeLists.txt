@@ -6,13 +6,25 @@ set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 
 set(STORAGE_COMMON_LIB storage-common-lib)
 
+# Handle Postgres on RedHat/CentOS
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}")
+include(CheckRhPg)
+
 # postgres plugin
-include_directories(/usr/include/postgresql)
 include_directories(../../../../C/thirdparty/rapidjson/include)
 include_directories(../../../../C/common/include)
 include_directories(../../../../C/services/common/include)
 include_directories(../../../../C/plugins/storage/common/include)
 include_directories(../../../../C/plugins/storage/postgres/include)
+
+# Handle Postgres on RedHat/CentOS
+if(${RH_POSTGRES_FOUND} EQUAL 1)
+
+    include_directories(${RH_POSTGRES_INCLUDE})
+    link_directories(${RH_POSTGRES_LIB64})
+else()
+    include_directories(/usr/include/postgresql)
+endif()
 
 # Find source files
 file(GLOB SOURCES ../../../../C/plugins/storage/postgres/*.cpp)

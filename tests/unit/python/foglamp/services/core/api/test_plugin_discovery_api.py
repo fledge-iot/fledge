@@ -5,7 +5,7 @@
 # FOGLAMP_END
 
 import json
-from unittest.mock import patch
+from unittest.mock import patch, mock_open
 import pytest
 from aiohttp import web
 
@@ -113,3 +113,19 @@ class TestPluginDiscoveryApi:
         resp = await client.get('/foglamp/plugins/installed{}'.format(param))
         assert 400 == resp.status
         assert message == resp.reason
+
+    async def test_get_plugins_available(self, client):
+        with patch('os.path.exists', return_value=True):
+            with patch('os.system', return_value=0):
+                with patch('builtins.open', new_callable=mock_open()):
+                    with patch('subprocess.run', return_value=1):
+                        resp = await client.get('/foglamp/plugins/available')
+                        assert 200 == resp.status
+                        r = await resp.text()
+                        json_response = json.loads(r)
+                        assert [] == json_response['plugins']
+
+    async def test_bad_get_plugins_available(self, client):
+        resp = await client.get('/foglamp/plugins/available?type=blah')
+        assert 400 == resp.status
+        assert "Invalid package type. Must be 'north' or 'south' or 'filter' or 'notify' or 'rule' or 'service'." == resp.reason

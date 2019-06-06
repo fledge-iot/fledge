@@ -83,6 +83,15 @@ void Logger::debug(const string& msg, ...)
 	va_end(args);
 }
 
+void Logger::printLongString(const string& s)
+{
+	const int charsPerLine = 950;
+	int len = s.size();
+	const char *cstr = s.c_str();
+	for(int i=0; i<(len+charsPerLine-1)/charsPerLine; i++)
+		Logger::getLogger()->debug("%s:%d: cstr[%d]=%s", __FUNCTION__, __LINE__, i*charsPerLine, cstr+i*charsPerLine);
+}
+
 void Logger::info(const string& msg, ...)
 {
 	va_list args;

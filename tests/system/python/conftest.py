@@ -80,12 +80,13 @@ def remove_directories():
 @pytest.fixture
 def add_south():
     def _add_foglamp_south(south_plugin, south_branch, foglamp_url, service_name="play", config=None,
-                           plugin_lang="python", use_pip_cache=True, start_service=True):
+                           plugin_lang="python", use_pip_cache=True, start_service=True, plugin_discovery_name=None):
         """Add south plugin and start the service by default"""
 
+        plugin_discovery_name = south_plugin if plugin_discovery_name is None else plugin_discovery_name
         _config = config if config is not None else {}
         _enabled = "true" if start_service else "false"
-        data = {"name": "{}".format(service_name), "type": "South", "plugin": "{}".format(south_plugin),
+        data = {"name": "{}".format(service_name), "type": "South", "plugin": "{}".format(plugin_discovery_name),
                 "enabled": _enabled, "config": _config}
 
         conn = http.client.HTTPConnection(foglamp_url)
@@ -362,6 +363,8 @@ def pytest_addoption(parser):
                      help="Kafka Server Port")
     parser.addoption("--kafka-topic", action="store", default="FogLAMP", help="Kafka topic")
     parser.addoption("--kafka-rest-port", action="store", default="8082", help="Kafka Rest Proxy Port")
+    parser.addoption("--modbus-host", action="store", default="localhost", help="Modbus simulator host")
+    parser.addoption("--modbus-port", action="store", default="502", type=int, help="Modbus simulator port")
 
 
 @pytest.fixture
@@ -527,6 +530,16 @@ def kafka_topic(request):
 @pytest.fixture
 def kafka_rest_port(request):
     return request.config.getoption("--kafka-rest-port")
+
+
+@pytest.fixture
+def modbus_host(request):
+    return request.config.getoption("--modbus-host")
+
+
+@pytest.fixture
+def modbus_port(request):
+    return request.config.getoption("--modbus-port")
 
 
 def pytest_itemcollected(item):

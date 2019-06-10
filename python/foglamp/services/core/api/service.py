@@ -288,11 +288,17 @@ async def add_service(request):
 
 
 def load_c_plugin(plugin: str, service_type: str) -> Dict:
-    plugin_info = apiutils.get_plugin_info(plugin, dir=service_type)
-    if plugin_info['type'] != service_type:
-        msg = "Plugin of {} type is not supported".format(plugin_info['type'])
-        raise TypeError(msg)
-    plugin_config = plugin_info['config']
+    try:
+        plugin_info = apiutils.get_plugin_info(plugin, dir=service_type)
+        if plugin_info['type'] != service_type:
+            msg = "Plugin of {} type is not supported".format(plugin_info['type'])
+            raise TypeError(msg)
+        plugin_config = plugin_info['config']
+    except Exception:
+        # Now looking for hybrid plugins if exists
+        plugin_info = common.load_and_fetch_c_hybrid_plugin_info(plugin, True)
+        if plugin_info:
+            plugin_config = plugin_info['config']
     return plugin_config
 
 

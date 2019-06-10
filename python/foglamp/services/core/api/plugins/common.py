@@ -7,11 +7,14 @@
 """Common Definitions"""
 import logging
 import os
+import json
 import importlib.util
 from typing import Dict
 
 from foglamp.common import logger
-from foglamp.common.common import _FOGLAMP_PLUGIN_PATH
+from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_PLUGIN_PATH
+from foglamp.services.core.api import utils
+
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2019, Dianomic Systems Inc."
@@ -53,4 +56,49 @@ def load_and_fetch_python_plugin_info(plugin_module_path: str, plugin: str, _typ
     except Exception as ex:
         _logger.warning("Python plugin not found......{}, try C-plugin".format(ex))
         raise FileNotFoundError
+    return plugin_info
+
+
+def load_and_fetch_c_hybrid_plugin_info(plugin_name: str, is_config: bool, plugin_type='south') -> Dict:
+    plugin_info = None
+    if plugin_type == 'south':
+        plugin_dir = _FOGLAMP_ROOT + '/' + 'plugins' + '/' + plugin_type
+        if _FOGLAMP_PLUGIN_PATH:
+            plugin_paths = _FOGLAMP_PLUGIN_PATH.split(";")
+            for pp in plugin_paths:
+                if os.path.isdir(pp):
+                    plugin_dir = pp + '/' + plugin_type
+        if not os.path.isdir(plugin_dir + '/' + plugin_name):
+            plugin_dir = _FOGLAMP_ROOT + '/' + 'plugins' + '/' + plugin_type
+
+        file_name = plugin_dir + '/' + plugin_name + '/' + plugin_name + '.json'
+        with open(file_name) as f:
+            data = json.load(f)
+            json_file_keys = ('connection', 'name', 'defaults', 'description')
+            if all(k in data for k in json_file_keys):
+                connection_name = data['connection']
+                if _FOGLAMP_ROOT + '/' + 'plugins' + '/' + plugin_type or os.path.isdir(plugin_dir + '/' + connection_name):
+                    jdoc = utils.get_plugin_info(connection_name, dir=plugin_type)
+                    if jdoc:
+                        plugin_info = {'name': plugin_name, 'type': plugin_type,
+                                       'description': data['description'],
+                                       'version': jdoc['version']}
+                        keys_a = set(jdoc['config'].keys())
+                        keys_b = set(data['defaults'].keys())
+                        intersection = keys_a & keys_b
+                        # Merge default configuration of both connection plugin and hybrid plugin with intersection of 'config' keys
+                        # Use Hybrid Plugin name and description defined in json file
+                        temp = jdoc['config']
+                        temp['plugin']['default'] = plugin_name
+                        temp['plugin']['description'] = data['description']
+                        for _key in intersection:
+                            temp[_key]['default'] = json.dumps(data['defaults'][_key]['default']) if temp[_key]['type'] == 'JSON' else str(data['defaults'][_key]['default'])
+                        if is_config:
+                            plugin_info.update({'config': temp})
+                    else:
+                        _logger.warning("{} hybrid plugin is not installed which is required for {}".format(connection_name, plugin_name))
+                else:
+                    _logger.warning("{} hybrid plugin is not installed which is required for {}".format(connection_name, plugin_name))
+            else:
+                raise Exception('Required {} keys are missing for json file'.format(json_file_keys))
     return plugin_info

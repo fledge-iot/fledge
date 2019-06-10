@@ -58,7 +58,10 @@ def find_c_plugin_libs(direction):
                         # C-binary file
                         if fname.endswith('.so'):
                             # Replace lib and .so from fname
-                            libraries.append(fname.replace("lib", "").replace(".so", ""))
+                            libraries.append((fname.replace("lib", "").replace(".so", ""), 'binary'))
+                        # For Hybrid plugins
+                        if direction == 'south' and fname.endswith('.json'):
+                            libraries.append((fname.replace(".json", ""), 'json'))
     return libraries
 
 

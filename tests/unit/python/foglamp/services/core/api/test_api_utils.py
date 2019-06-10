@@ -19,16 +19,17 @@ class TestUtils:
             mockwalk.return_value = [([], [], [])]
             assert [] == utils.find_c_plugin_libs(direction)
 
-    @pytest.mark.parametrize("direction, plugin_name, libs", [
-        ('south', ['Random'], ['libRandom.so', 'libRandom.so.1']),
-        ('north', ['HttpNorthC'], ['libHttpNorthC.so', 'libHttpNorthC.so.1'])
+    @pytest.mark.parametrize("direction, plugin_name, plugin_type, libs", [
+        ('south', ['Random'], 'binary', ['libRandom.so', 'libRandom.so.1']),
+        ('south', ['FlirAX8'], 'json', ['FlirAX8.json']),
+        ('north', ['HttpNorthC'], 'binary', ['libHttpNorthC.so', 'libHttpNorthC.so.1'])
     ])
-    def test_find_c_plugin_libs(self, direction, plugin_name, libs):
+    def test_find_c_plugin_libs(self, direction, plugin_name, plugin_type, libs):
         with patch('os.walk') as mockwalk:
             mockwalk.return_value = [('', plugin_name, []),
                                      ('', [], libs)]
 
-            assert plugin_name == utils.find_c_plugin_libs(direction)
+            assert plugin_name, plugin_type == utils.find_c_plugin_libs(direction)
 
     def test_get_plugin_info_exception(self):
         plugin_name = 'Random'

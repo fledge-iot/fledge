@@ -7,7 +7,6 @@
 """Common Plugin Discovery Class"""
 
 import os
-
 from foglamp.common import logger
 from foglamp.services.core.api import utils
 from foglamp.services.core.api.plugins import common
@@ -102,18 +101,24 @@ class PluginDiscovery(object):
     def fetch_c_plugins_installed(cls, plugin_type, is_config):
         libs = utils.find_c_plugin_libs(plugin_type)
         configs = []
-        for l in libs:
+        for name, _type in libs:
             try:
-                jdoc = utils.get_plugin_info(l, dir=plugin_type)
-                if bool(jdoc):
-                    plugin_config = {'name': l,
-                                     'type': plugin_type,
-                                     'description': jdoc['config']['plugin']['description'],
-                                     'version': jdoc['version']
-                                     }
-                    if is_config:
-                        plugin_config.update({'config': jdoc['config']})
-                    configs.append(plugin_config)
+                if _type == 'binary':
+                    jdoc = utils.get_plugin_info(name, dir=plugin_type)
+                    if jdoc:
+                        plugin_config = {'name': name,
+                                         'type': plugin_type,
+                                         'description': jdoc['config']['plugin']['description'],
+                                         'version': jdoc['version']
+                                         }
+                        if is_config:
+                            plugin_config.update({'config': jdoc['config']})
+                        configs.append(plugin_config)
+                else:
+                    # for c-hybrid plugin
+                    hybrid_plugin_config = common.load_and_fetch_c_hybrid_plugin_info(name, is_config)
+                    if hybrid_plugin_config:
+                        configs.append(hybrid_plugin_config)
             except Exception as ex:
                 _logger.exception(ex)
 

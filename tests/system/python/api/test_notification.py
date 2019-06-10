@@ -173,8 +173,6 @@ class TestNotificationServiceAPI:
         assert 2 == len(jdoc['rules'])
 
     @pytest.mark.parametrize("test_input, expected_error", [
-        pytest.param({"name": "Test8"}, '400: Name update is not allowed.', marks=pytest.mark.xfail(reason="FOGL-2673")),
-        pytest.param({"name": "="}, '400: Invalid name property in payload.', marks=pytest.mark.xfail(reason="FOGL-2673")),
         ({"rule": "+"}, '400: Invalid rule property in payload.'),
         ({"channel": ":"}, '400: Invalid channel property in payload.'),
         ({"enabled": "bla"}, '400: Only "true", "false", true, false are allowed for value of enabled.'),
@@ -193,15 +191,14 @@ class TestNotificationServiceAPI:
         r = r.read().decode()
         assert expected_error == r
 
-    @pytest.mark.xfail(reason="FOGL-2738")
     def test_invalid_name_update_notification_instance(self, foglamp_url):
         conn = http.client.HTTPConnection(foglamp_url)
         changed_data = {"description": "changed_desc"}
-        conn.request("PUT", '/foglamp/notification/{}'.format('Invalid'), json.dumps(changed_data))
+        conn.request("PUT", '/foglamp/notification/{}'.format('nonExistent'), json.dumps(changed_data))
         r = conn.getresponse()
-        assert 400 == r.status
+        assert 404 == r.status
         r = r.read().decode()
-        assert '400: Notification instance not found.' == r
+        assert '404: No nonExistent notification instance found' == r
 
     def test_update_valid_notification_instance(self, foglamp_url):
         changed_data = {"description": "changed_desc"}

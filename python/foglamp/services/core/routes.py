@@ -159,6 +159,7 @@ def setup(app):
 
     # Plugins (install, discovery)
     app.router.add_route('GET', '/foglamp/plugins/installed', plugin_discovery.get_plugins_installed)
+    app.router.add_route('GET', '/foglamp/plugins/available', plugin_discovery.get_plugins_available)
     app.router.add_route('POST', '/foglamp/plugins', plugins_install.add_plugin)
 
     # Filters 

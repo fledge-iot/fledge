@@ -4,7 +4,6 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-import json
 import os
 import platform
 import subprocess
@@ -17,9 +16,10 @@ from aiohttp import web
 import aiohttp
 import async_timeout
 
-from foglamp.common import logger
 from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA
-from foglamp.common.storage_client.exceptions import StorageServerError
+from foglamp.services.core.api.plugins import common
+from foglamp.common import logger
+
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems"
@@ -44,9 +44,12 @@ async def add_plugin(request: web.Request) -> web.Response:
         curl -X POST http://localhost:8081/foglamp/plugins
         data:
             URL - The URL to pull the plugin file from
-            format - the format of the file. One of tar or package
+            format - the format of the file. One of tar or package (deb, rpm) or repository
             compressed - option boolean this is used to indicate the package is a compressed gzip image
             checksum - the checksum of the file, used to verify correct upload
+
+        curl -sX POST http://localhost:8081/foglamp/plugins -d '{"format":"repository", "name": "foglamp-south-sinusoid"}'
+        curl -sX POST http://localhost:8081/foglamp/plugins -d '{"format":"repository", "name": "foglamp-notify-slack", "version":"1.6.0"}'
     """
     try:
         data = await request.json()
@@ -67,17 +70,10 @@ async def add_plugin(request: web.Request) -> web.Response:
             if version:
                 delimiter = '.'
                 if str(version).count(delimiter) != 2:
-                    raise ValueError('Semantic version is incorrect; it should be like X.Y.Z')
+                    raise ValueError('Plugin Semantic version is incorrect; it should be like X.Y.Z')
 
-            url = '{}/available'.format(request.url)
-            try:
-                # When authentication is mandatory we need to pass token in request header
-                auth_token = request.token
-            except AttributeError:
-                auth_token = None
-
-            list_plugins = json.loads(await _hit_get_url(url, auth_token))
-            if name not in list_plugins['plugins']:
+            plugins = common.fetch_available_plugins()
+            if name not in plugins:
                 raise KeyError('{} plugin is not available in list'.format(name))
 
             _platform = platform.platform()
@@ -273,23 +269,6 @@ def copy_file_install_requirement(dir_files: list, plugin_type: str, file_name: 
     subprocess.run([cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 
     return code, msg
-
-
-async def _hit_get_url(get_url, token=None):
-    headers = {"Authorization": token} if token else None
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(get_url, headers=headers) as resp:
-                status_code = resp.status
-                jdoc = await resp.text()
-                if status_code not in range(200, 209):
-                    _LOGGER.error("Error code: %d, reason: %s, details: %s, url: %s", resp.status, resp.reason, jdoc,
-                                  get_url)
-                    raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
-    except Exception:
-        raise
-    else:
-        return jdoc
 
 
 def install_plugin(name: str, pkg_mgt: str, version: str) -> tuple:

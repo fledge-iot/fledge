@@ -4,15 +4,11 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-import os
-import platform
-import subprocess
 import logging
 
 from aiohttp import web
 from foglamp.common.plugin_discovery import PluginDiscovery
-from foglamp.services.core.api import utils
-from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA
+from foglamp.services.core.api.plugins import common
 from foglamp.common import logger
 
 __author__ = "Amarendra K Sinha, Ashish Jabble"
@@ -51,7 +47,7 @@ async def get_plugins_installed(request):
     if 'config' in request.query:
         config = request.query['config']
         if config not in ['true', 'false', True, False]:
-                raise web.HTTPBadRequest(reason='Only "true", "false", true, false'
+            raise web.HTTPBadRequest(reason='Only "true", "false", true, false'
                                                 ' are allowed for value of config.')
         is_config = True if ((type(config) is str and config.lower() in ['true']) or (
             (type(config) is bool and config is True))) else False
@@ -69,50 +65,16 @@ async def get_plugins_available(request: web.Request) -> web.Response:
             curl -X GET http://localhost:8081/foglamp/plugins/available?type=north | south | filter | notify | rule | service
     """
     try:
-        package_type = None
+        package_type = ""
         if 'type' in request.query and request.query['type'] != '':
             package_type = request.query['type'].lower()
 
-        if package_type is not None and package_type not in ['north', 'south', 'filter', 'notify', 'rule', 'service']:
+        if package_type and package_type not in ['north', 'south', 'filter', 'notify', 'rule', 'service']:
             raise ValueError("Invalid package type. Must be 'north' or 'south' or 'filter' or 'notify' or 'rule' or 'service'.")
-
-        plugins_list = []
-        plugin_dir = '/plugins/'
-        _PATH = _FOGLAMP_DATA + plugin_dir if _FOGLAMP_DATA else _FOGLAMP_ROOT + '/data{}'.format(plugin_dir)
-        stdout_file_name = "output.txt"
-        stdout_file_path = "/{}/{}".format(_PATH, stdout_file_name)
-
-        if not os.path.exists(_PATH):
-            os.makedirs(_PATH)
-
-        _platform = platform.platform()
-
-        pkg_type = "" if package_type is None else package_type
-        if 'centos' in _platform or 'redhat' in _platform:
-            cmd = "sudo yum list available foglamp-{}\* | grep foglamp | cut -d . -f1 > {} 2>&1".format(pkg_type, stdout_file_path)
-        else:
-            cmd = "sudo apt list | grep foglamp-{} | grep -v installed | cut -d / -f1  > {} 2>&1".format(pkg_type, stdout_file_path)
-
-        ret_code = os.system(cmd)
-        if ret_code != 0:
-            raise ValueError
-
-        with open("{}".format(stdout_file_path), 'r') as fh:
-            for line in fh:
-                line = line.rstrip("\n")
-                plugins_list.append(line)
-
-        # Remove stdout file
-        arg1 = utils._find_c_util('cmdutil')
-        # FIXME: (low priority) special case for cmdutil when FOGLAMP_DATA as we do not need absolute path for filename to delete
-        # and cmdutil commands only works with make install
-        # arg2 = plugin_dir if _FOGLAMP_DATA else '/data{}'.format(plugin_dir)
-        arg2 = '/data{}'.format(plugin_dir)
-        cmd = "{} rm {}{}".format(arg1, arg2, stdout_file_name)
-        subprocess.run([cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        plugins = common.fetch_available_plugins(package_type)
     except ValueError as ex:
         raise web.HTTPBadRequest(reason=ex)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
 
-    return web.json_response({"plugins": plugins_list})
+    return web.json_response({"plugins": plugins})

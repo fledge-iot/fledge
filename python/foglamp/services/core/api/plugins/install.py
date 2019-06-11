@@ -4,7 +4,9 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
+import json
 import os
+import platform
 import subprocess
 import logging
 import asyncio
@@ -17,6 +19,7 @@ import async_timeout
 
 from foglamp.common import logger
 from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA
+from foglamp.common.storage_client.exceptions import StorageServerError
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems"
@@ -52,56 +55,89 @@ async def add_plugin(request: web.Request) -> web.Response:
         compressed = data.get('compressed', None)
         plugin_type = data.get('type', None)
         checksum = data.get('checksum', None)
-        if not url or not file_format or not checksum:
-            raise TypeError('URL, checksum and format post params are mandatory.')
-        if file_format not in ["tar", "deb", "rpm"]:
-            raise ValueError("Invalid format. Must be 'tar' or 'deb' or 'rpm'")
-        if file_format == "tar" and not plugin_type:
-            raise ValueError("Plugin type param is required.")
-        if file_format == "tar" and plugin_type not in ['south', 'north', 'filter', 'notificationDelivery',
-                                                        'notificationRule']:
-            raise ValueError("Invalid plugin type. Must be 'north' or 'south' or 'filter' "
-                             "or 'notificationDelivery' or 'notificationRule'")
-        if compressed:
-            if compressed not in ['true', 'false', True, False]:
-                raise ValueError('Only "true", "false", true, false are allowed for value of compressed.')
-        is_compressed = ((isinstance(compressed, str) and compressed.lower() in ['true']) or (
-            (isinstance(compressed, bool) and compressed is True)))
+        if not file_format:
+            raise TypeError('file format post param is required')
+        if file_format not in ["tar", "deb", "rpm", "repository"]:
+            raise ValueError("Invalid format. Must be 'tar' or 'deb' or 'rpm' or 'repository'")
+        if file_format == 'repository':
+            name = data.get('name', None)
+            if name is None:
+                raise ValueError('name post param is required')
+            version = data.get('version', None)
+            if version:
+                delimiter = '.'
+                if str(version).count(delimiter) != 2:
+                    raise ValueError('Semantic version is incorrect; it should be like X.Y.Z')
 
-        # All stuff goes into _PATH
-        if not os.path.exists(_PATH):
-            os.makedirs(_PATH)
+            url = '{}/available'.format(request.url)
+            try:
+                # When authentication is mandatory we need to pass token in request header
+                auth_token = request.token
+            except AttributeError:
+                auth_token = None
 
-        result = await download([url])
-        file_name = result[0]
+            list_plugins = json.loads(await _hit_get_url(url, auth_token))
+            if name not in list_plugins['plugins']:
+                raise KeyError('{} plugin is not available in list'.format(name))
 
-        # validate checksum with MD5sum
-        if validate_checksum(checksum, file_name) is False:
-            raise ValueError("Checksum is failed.")
-
-        _LOGGER.debug("Found {} format with compressed {}".format(file_format, is_compressed))
-        if file_format == 'tar':
-            files = extract_file(file_name, is_compressed)
-            _LOGGER.debug("Files {} {}".format(files, type(files)))
-            code, msg = copy_file_install_requirement(files, plugin_type, file_name)
+            _platform = platform.platform()
+            pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
+            code, msg = install_plugin(name, pkg_mgt, version)
             if code != 0:
                 raise ValueError(msg)
-        elif file_format == 'rpm':
-            code, msg = install_rpm(file_name)
-            if code != 0:
-                raise ValueError(msg)
+
+            message = "{} is installed".format(name)
         else:
-            code, msg = install_deb(file_name)
-            if code != 0:
-                raise ValueError(msg)
-    except FileNotFoundError as ex:
+            if not url or not checksum:
+                raise TypeError('URL, checksum post params are required')
+            if file_format == "tar" and not plugin_type:
+                raise ValueError("Plugin type param is required")
+            if file_format == "tar" and plugin_type not in ['south', 'north', 'filter', 'notificationDelivery',
+                                                            'notificationRule']:
+                raise ValueError("Invalid plugin type. Must be 'north' or 'south' or 'filter' "
+                                 "or 'notificationDelivery' or 'notificationRule'")
+            if compressed:
+                if compressed not in ['true', 'false', True, False]:
+                    raise ValueError('Only "true", "false", true, false are allowed for value of compressed.')
+            is_compressed = ((isinstance(compressed, str) and compressed.lower() in ['true']) or (
+                (isinstance(compressed, bool) and compressed is True)))
+
+            # All stuff goes into _PATH
+            if not os.path.exists(_PATH):
+                os.makedirs(_PATH)
+
+            result = await download([url])
+            file_name = result[0]
+
+            # validate checksum with MD5sum
+            if validate_checksum(checksum, file_name) is False:
+                raise ValueError("Checksum is failed.")
+
+            _LOGGER.debug("Found {} format with compressed {}".format(file_format, is_compressed))
+            if file_format == 'tar':
+                files = extract_file(file_name, is_compressed)
+                _LOGGER.debug("Files {} {}".format(files, type(files)))
+                code, msg = copy_file_install_requirement(files, plugin_type, file_name)
+                if code != 0:
+                    raise ValueError(msg)
+            elif file_format == 'rpm':
+                code, msg = install_rpm(file_name)
+                if code != 0:
+                    raise ValueError(msg)
+            else:
+                code, msg = install_deb(file_name)
+                if code != 0:
+                    raise ValueError(msg)
+
+            message = "{} is successfully downloaded and installed".format(file_name)
+    except (FileNotFoundError, KeyError) as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except (TypeError, ValueError) as ex:
         raise web.HTTPBadRequest(reason=str(ex))
     except Exception as ex:
         raise web.HTTPException(reason=str(ex))
     else:
-        return web.json_response({"message": "{} is successfully downloaded and installed".format(file_name)})
+        return web.json_response({"message": message})
 
 
 async def get_url(url: str, session: aiohttp.ClientSession) -> str:
@@ -133,7 +169,7 @@ def extract_file(file_name: str, is_compressed: bool) -> list:
     return tar.getnames()
 
 
-def install_deb(file_name: str)-> tuple:
+def install_deb(file_name: str) -> tuple:
     deb_file_path = "/data/plugins/{}".format(file_name)
     stdout_file_path = "/data/plugins/output.txt"
     cmd = "sudo apt -y install {} > {} 2>&1".format(_FOGLAMP_ROOT + deb_file_path, _FOGLAMP_ROOT + stdout_file_path)
@@ -156,7 +192,7 @@ def install_deb(file_name: str)-> tuple:
     return ret_code, msg
 
 
-def install_rpm(file_name: str)-> tuple:
+def install_rpm(file_name: str) -> tuple:
     rpm_file_path = "/data/plugins/{}".format(file_name)
     stdout_file_path = "/data/plugins/output.txt"
     cmd = "sudo yum -y install {} > {} 2>&1".format(_FOGLAMP_ROOT + rpm_file_path, _FOGLAMP_ROOT + stdout_file_path)
@@ -237,3 +273,40 @@ def copy_file_install_requirement(dir_files: list, plugin_type: str, file_name: 
     subprocess.run([cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 
     return code, msg
+
+
+async def _hit_get_url(get_url, token=None):
+    headers = {"Authorization": token} if token else None
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(get_url, headers=headers) as resp:
+                status_code = resp.status
+                jdoc = await resp.text()
+                if status_code not in range(200, 209):
+                    _LOGGER.error("Error code: %d, reason: %s, details: %s, url: %s", resp.status, resp.reason, jdoc,
+                                  get_url)
+                    raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
+    except Exception:
+        raise
+    else:
+        return jdoc
+
+
+def install_plugin(name: str, pkg_mgt: str, version: str) -> tuple:
+    stdout_file_path = "/data/plugins/output.txt"
+    cmd = "sudo {} -y install {}".format(pkg_mgt, name)
+    if version:
+        cmd = "sudo {} -y install {}={}".format(pkg_mgt, name, version)
+
+    ret_code = os.system(cmd + " > {} 2>&1".format(_FOGLAMP_ROOT + stdout_file_path))
+    msg = ""
+    with open("{}".format(_FOGLAMP_ROOT + stdout_file_path), 'r') as fh:
+        for line in fh:
+            line = line.rstrip("\n")
+            msg += line
+
+    # Remove stdout file
+    cmd = "{}/extras/C/cmdutil rm {}".format(_FOGLAMP_ROOT, stdout_file_path)
+    subprocess.run([cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+
+    return ret_code, msg

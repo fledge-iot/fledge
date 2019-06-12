@@ -98,12 +98,23 @@ mkdir results
 cat testset | while read name method url payload optional; do
 echo -n "Test $testNum ${name}: "
 if [ "$payload" = "" ] ; then
-	curl -X $method $url -o results/$testNum >/dev/null 2>&1
+	output=$(curl -X $method $url -o results/$testNum 2>/dev/null)
 	curlstate=$?
 else
-	curl -X $method $url -d@payloads/$payload -o results/$testNum >/dev/null 2>&1
+	output=$(curl -X $method $url -d@payloads/$payload 2>/dev/null)
 	curlstate=$?
+
 fi
+
+# Forces the creation on an empty file if the output of the curl command is empty
+# it is needed for the behaviour of the curl command in RHEL/CentOS
+if [ "$output" = "" ] ; then
+
+	touch results/$testNum
+else
+	echo -n "${output}" > results/$testNum
+fi
+
 if [ "$optional" = "" ] ; then
 	if [ ! -f ${expected_dir}/$testNum ]; then
 		n_unchecked=`expr $n_unchecked + 1`

@@ -22,7 +22,7 @@ from foglamp.common import logger
 
 
 __author__ = "Ashish Jabble"
-__copyright__ = "Copyright (c) 2019 Dianomic Systems"
+__copyright__ = "Copyright (c) 2019 Dianomic Systems Inc."
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
@@ -59,33 +59,33 @@ async def add_plugin(request: web.Request) -> web.Response:
         plugin_type = data.get('type', None)
         checksum = data.get('checksum', None)
         if not file_format:
-            raise TypeError('file format post param is required')
+            raise TypeError('file format param is required')
         if file_format not in ["tar", "deb", "rpm", "repository"]:
             raise ValueError("Invalid format. Must be 'tar' or 'deb' or 'rpm' or 'repository'")
         if file_format == 'repository':
             name = data.get('name', None)
             if name is None:
-                raise ValueError('name post param is required')
+                raise ValueError('name param is required')
             version = data.get('version', None)
             if version:
                 delimiter = '.'
                 if str(version).count(delimiter) != 2:
-                    raise ValueError('Plugin Semantic version is incorrect; it should be like X.Y.Z')
+                    raise ValueError('Plugin semantic version is incorrect; it should be like X.Y.Z')
 
             plugins = common.fetch_available_plugins()
             if name not in plugins:
-                raise KeyError('{} plugin is not available in list'.format(name))
+                raise KeyError('{} plugin is not available for the given repository'.format(name))
 
             _platform = platform.platform()
             pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
-            code, msg = install_plugin(name, pkg_mgt, version)
+            code, msg = install_package_from_repo(name, pkg_mgt, version)
             if code != 0:
                 raise ValueError(msg)
 
-            message = "{} is installed".format(name)
+            message = "{} is successfully installed".format(name)
         else:
             if not url or not checksum:
-                raise TypeError('URL, checksum post params are required')
+                raise TypeError('URL, checksum params are required')
             if file_format == "tar" and not plugin_type:
                 raise ValueError("Plugin type param is required")
             if file_format == "tar" and plugin_type not in ['south', 'north', 'filter', 'notificationDelivery',
@@ -116,12 +116,9 @@ async def add_plugin(request: web.Request) -> web.Response:
                 code, msg = copy_file_install_requirement(files, plugin_type, file_name)
                 if code != 0:
                     raise ValueError(msg)
-            elif file_format == 'rpm':
-                code, msg = install_rpm(file_name)
-                if code != 0:
-                    raise ValueError(msg)
             else:
-                code, msg = install_deb(file_name)
+                pkg_mgt = 'yum' if file_format == 'rpm' else 'apt'
+                code, msg = install_package(file_name, pkg_mgt)
                 if code != 0:
                     raise ValueError(msg)
 
@@ -165,10 +162,10 @@ def extract_file(file_name: str, is_compressed: bool) -> list:
     return tar.getnames()
 
 
-def install_deb(file_name: str) -> tuple:
-    deb_file_path = "/data/plugins/{}".format(file_name)
+def install_package(file_name: str, pkg_mgt: str) -> tuple:
+    pkg_file_path = "/data/plugins/{}".format(file_name)
     stdout_file_path = "/data/plugins/output.txt"
-    cmd = "sudo apt -y install {} > {} 2>&1".format(_FOGLAMP_ROOT + deb_file_path, _FOGLAMP_ROOT + stdout_file_path)
+    cmd = "sudo {} -y install {} > {} 2>&1".format(pkg_mgt, _FOGLAMP_ROOT + pkg_file_path, _FOGLAMP_ROOT + stdout_file_path)
     _LOGGER.debug("CMD....{}".format(cmd))
     ret_code = os.system(cmd)
     _LOGGER.debug("Return Code....{}".format(ret_code))
@@ -183,30 +180,7 @@ def install_deb(file_name: str) -> tuple:
     subprocess.run([cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 
     # Remove downloaded debian file
-    cmd = "{}/extras/C/cmdutil rm {}".format(_FOGLAMP_ROOT, deb_file_path)
-    subprocess.run([cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-    return ret_code, msg
-
-
-def install_rpm(file_name: str) -> tuple:
-    rpm_file_path = "/data/plugins/{}".format(file_name)
-    stdout_file_path = "/data/plugins/output.txt"
-    cmd = "sudo yum -y install {} > {} 2>&1".format(_FOGLAMP_ROOT + rpm_file_path, _FOGLAMP_ROOT + stdout_file_path)
-    _LOGGER.debug("CMD....{}".format(cmd))
-    ret_code = os.system(cmd)
-    _LOGGER.debug("Return Code....{}".format(ret_code))
-    msg = ""
-    with open("{}".format(_FOGLAMP_ROOT + stdout_file_path), 'r') as fh:
-        for line in fh:
-            line = line.rstrip("\n")
-            msg += line
-    _LOGGER.debug("Message.....{}".format(msg))
-    # Remove stdout file
-    cmd = "{}/extras/C/cmdutil rm {}".format(_FOGLAMP_ROOT, stdout_file_path)
-    subprocess.run([cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-
-    # Remove downloaded debian file
-    cmd = "{}/extras/C/cmdutil rm {}".format(_FOGLAMP_ROOT, rpm_file_path)
+    cmd = "{}/extras/C/cmdutil rm {}".format(_FOGLAMP_ROOT, pkg_file_path)
     subprocess.run([cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     return ret_code, msg
 
@@ -271,7 +245,7 @@ def copy_file_install_requirement(dir_files: list, plugin_type: str, file_name: 
     return code, msg
 
 
-def install_plugin(name: str, pkg_mgt: str, version: str) -> tuple:
+def install_package_from_repo(name: str, pkg_mgt: str, version: str) -> tuple:
     stdout_file_path = "/data/plugins/output.txt"
     cmd = "sudo {} -y install {}".format(pkg_mgt, name)
     if version:

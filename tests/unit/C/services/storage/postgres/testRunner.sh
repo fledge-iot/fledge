@@ -107,7 +107,7 @@ else
 fi
 
 # Forces the creation on an empty file if the output of the curl command is empty
-# it is needed for the behaviour of the curl command in RHEL/CentOS
+# it is needed for the behavior of the curl command in RHEL/CentOS
 if [ "$output" = "" ] ; then
 
 	touch results/$testNum

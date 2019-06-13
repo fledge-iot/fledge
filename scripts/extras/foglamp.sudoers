@@ -1,1 +1,1 @@
-%sudo ALL=(ALL) NOPASSWD: /usr/bin/apt-get -y update, /usr/bin/apt-get -y install foglamp, /usr/bin/apt -y install /usr/local/foglamp/data/plugins/foglamp*.deb, /usr/bin/apt list
+%sudo ALL=(ALL) NOPASSWD: /usr/bin/apt-get -y update, /usr/bin/apt-get -y install foglamp, /usr/bin/apt -y install /usr/local/foglamp/data/plugins/foglamp*.deb, /usr/bin/apt list, /usr/bin/apt -y install foglamp*

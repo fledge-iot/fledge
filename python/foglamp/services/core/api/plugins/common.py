@@ -7,12 +7,14 @@
 """Common Definitions"""
 import logging
 import os
+import platform
+import subprocess
 import json
 import importlib.util
 from typing import Dict
 
 from foglamp.common import logger
-from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_PLUGIN_PATH
+from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA, _FOGLAMP_PLUGIN_PATH
 from foglamp.services.core.api import utils
 
 
@@ -102,3 +104,44 @@ def load_and_fetch_c_hybrid_plugin_info(plugin_name: str, is_config: bool, plugi
             else:
                 raise Exception('Required {} keys are missing for json file'.format(json_file_keys))
     return plugin_info
+
+
+def fetch_available_plugins(package_type: str = "") -> list:
+    plugins = []
+    plugin_dir = '/plugins/'
+    _PATH = _FOGLAMP_DATA + plugin_dir if _FOGLAMP_DATA else _FOGLAMP_ROOT + '/data{}'.format(plugin_dir)
+    stdout_file_name = "output.txt"
+    stdout_file_path = "/{}/{}".format(_PATH, stdout_file_name)
+
+    if not os.path.exists(_PATH):
+        os.makedirs(_PATH)
+
+    _platform = platform.platform()
+
+    pkg_type = "" if package_type is None else package_type
+    if 'centos' in _platform or 'redhat' in _platform:
+        cmd = "sudo yum list available foglamp-{}\* | grep foglamp | cut -d . -f1 > {} 2>&1".\
+            format(pkg_type, stdout_file_path)
+    else:
+        cmd = "sudo apt list | grep foglamp-{} | grep -v installed | cut -d / -f1  > {} 2>&1".\
+            format(pkg_type, stdout_file_path)
+
+    ret_code = os.system(cmd)
+    if ret_code != 0:
+        raise ValueError
+
+    with open("{}".format(stdout_file_path), 'r') as fh:
+        for line in fh:
+            line = line.rstrip("\n")
+            plugins.append(line)
+
+    # Remove stdout file
+    arg1 = utils._find_c_util('cmdutil')
+    # FIXME:(low priority)special case for cmdutil when FOGLAMP_DATA we do not need absolute path for filename deletion
+    # and cmdutil commands only works with make install
+    # arg2 = plugin_dir if _FOGLAMP_DATA else '/data{}'.format(plugin_dir)
+    arg2 = '/data{}'.format(plugin_dir)
+    cmd = "{} rm {}{}".format(arg1, arg2, stdout_file_name)
+    subprocess.run([cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+
+    return plugins

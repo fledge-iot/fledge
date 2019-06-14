@@ -68,6 +68,7 @@ if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *
 	exit_code=$?
 	if [[ $exit_code != 0 ]]; then
 
+		set -e
 		make
 	fi
 	cd $foglamp_location

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# 2
 
 ##--------------------------------------------------------------------
 ## Copyright (c) 2019 Dianomic Systems
@@ -62,14 +63,25 @@ if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *
 	cd src
 	echo "Compiling SQLite3 static library for FogLAMP ..."
 	./configure --enable-shared=false --enable-static=true --enable-static-shell CFLAGS="-DSQLITE_ENABLE_JSON1 -DSQLITE_ENABLE_LOAD_EXTENSION -DSQLITE_ENABLE_COLUMN_METADATA -fno-common -fPIC"
+	# FIXME_I
+	echo "DBG Step 1";sleep 3
 	autoreconf -f -i
+	exit_code=$?
+	# FIXME_I
+	echo "DBG Step 1.1 :$exit_code:";sleep 3
 	make
+	exit_code=$?
+	# FIXME_I
+	echo "DBG Step 2 :$exit_code:";sleep 3
 	cd $foglamp_location
 
 	# To avoid to stop the execution for any internal error of scl_source
 	set +e
 	source scl_source enable rh-python36
 	set -e
+
+	# FIXME_I
+	echo "DBG Step 3";sleep 3
 
 	#
 	# A gcc version newer than 4.9.0 is needed to properly use <regex>

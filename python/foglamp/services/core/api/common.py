@@ -86,7 +86,7 @@ async def ping(request):
     status_color = services_health_litmus_test()
     safe_mode = True if server.Server.running_in_safe_mode else False
 
-    return web.json_response({'uptime': since_started,
+    return web.json_response({'uptime': int(since_started),
                               'dataRead': data_read,
                               'dataSent': data_sent,
                               'dataPurged': data_purged,

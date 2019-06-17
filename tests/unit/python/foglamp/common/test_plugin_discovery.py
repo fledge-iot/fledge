@@ -7,11 +7,13 @@
 import asyncio
 import os
 import copy
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 import pytest
 
 from foglamp.common.plugin_discovery import PluginDiscovery, _logger
 from foglamp.services.core.api import utils
+from foglamp.services.core.api.plugins import common
+
 
 __author__ = "Amarendra K Sinha, Ashish Jabble "
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -24,11 +26,11 @@ __version__ = "${VERSION}"
 class TestPluginDiscovery:
     mock_north_folders = ["OMF", "foglamp-north"]
     mock_south_folders = ["modbus", "http"]
-    mock_c_north_folders = ["ocs"]
-    mock_c_south_folders = ["dummy"]
-    mock_c_filter_folders = ["scale"]
-    mock_c_notify_folders = ["email"]
-    mock_c_rule_folders = ["OverMaxRule"]
+    mock_c_north_folders = [("ocs", "binary")]
+    mock_c_south_folders = [("dummy", "binary")]
+    mock_c_filter_folders = [("scale", "binary")]
+    mock_c_notify_folders = [("email", "binary")]
+    mock_c_rule_folders = [("OverMaxRule", "binary")]
     mock_all_folders = ["OMF", "foglamp-north", "modbus", "http"]
     mock_plugins_config = [
         {
@@ -118,7 +120,7 @@ class TestPluginDiscovery:
     mock_c_notify_config = [
         {"name": "email",
          "version": "1.0.0",
-         "type": "notify",
+         "type": "notificationDelivery",
          "description": "Email notification plugin",
          "config": {"plugin": {"type": "string", "description": "Email notification plugin", "default": "email"}}}
     ]
@@ -126,7 +128,7 @@ class TestPluginDiscovery:
     mock_c_rule_config = [
         {"name": "OverMaxRule",
          "version": "1.0.0",
-         "type": "rule",
+         "type": "notificationRule",
          "description": "The OverMaxRule notification rule",
          "config": {"plugin": {"type": "string", "description": "The OverMaxRule notification rule plugin", "default": "OverMaxRule"}}}
     ]
@@ -154,14 +156,14 @@ class TestPluginDiscovery:
                  "default": "scale",
                  "type": "string",
                  "description": "Scale filter plugin"}}},
-        {"name": "email", "type": "notify", "version": "1.0.0", "description": "Email notification plugin",
+        {"name": "email", "type": "notificationDelivery", "version": "1.0.0", "description": "Email notification plugin",
          "config": {"plugin": {
              "type": "string",
              "description": "Email notification plugin",
              "default": "email"}}},
         {"name": "OverMaxRule",
          "version": "1.0.0",
-         "type": "rule",
+         "type": "notificationRule",
          "description": "The OverMaxRule notification rule",
          "config": {"plugin": {"type": "string", "description": "The OverMaxRule notification rule plugin",
                                "default": "OverMaxRule"}}}
@@ -273,7 +275,7 @@ class TestPluginDiscovery:
         mock_get_c_notify_folders = mocker.patch.object(utils, "find_c_plugin_libs", return_value=next(mock_notify_folders()))
         mock_get_c_notify_plugin_config = mocker.patch.object(utils, "get_plugin_info", side_effect=TestPluginDiscovery.mock_c_notify_config)
 
-        plugins = PluginDiscovery.get_plugins_installed("notify")
+        plugins = PluginDiscovery.get_plugins_installed("notificationDelivery")
         # expected_plugin = TestPluginDiscovery.mock_c_plugins_config[3]
         # FIXME: ordering issue
         # assert expected_plugin == plugins
@@ -288,7 +290,7 @@ class TestPluginDiscovery:
         mock_get_c_rule_folders = mocker.patch.object(utils, "find_c_plugin_libs", return_value=next(mock_rule_folders()))
         mock_get_c_rule_plugin_config = mocker.patch.object(utils, "get_plugin_info", side_effect=TestPluginDiscovery.mock_c_rule_config)
 
-        plugins = PluginDiscovery.get_plugins_installed("rule")
+        plugins = PluginDiscovery.get_plugins_installed("notificationRule")
         # expected_plugin = TestPluginDiscovery.mock_c_plugins_config[4]
         # FIXME: ordering issue
         # assert expected_plugin == plugins
@@ -320,7 +322,10 @@ class TestPluginDiscovery:
         mocker.patch.object(os, "listdir", return_value=next(mock_folders()))
         mocker.patch.object(os.path, "isdir", return_value=True)
         plugin_folders = PluginDiscovery.get_plugin_folders("north")
-        assert TestPluginDiscovery.mock_north_folders == plugin_folders
+        actual_plugin_folders = []
+        for dir_name in plugin_folders:
+            actual_plugin_folders.append(dir_name.split('/')[-1])
+        assert TestPluginDiscovery.mock_north_folders == actual_plugin_folders
 
     @pytest.mark.parametrize("info, expected, is_config", [
         ({'name': "furnace4", 'version': "1.1", 'type': "south", 'interface': "1.0",
@@ -332,10 +337,7 @@ class TestPluginDiscovery:
           'config': {'plugin': {'description': 'Modbus RTU plugin', 'type': 'string', 'default': 'modbus'}}}, True)
     ])
     def test_get_plugin_config(self, info, expected, is_config):
-        mock = MagicMock()
-        attrs = {"plugin_info.side_effect": [info]}
-        mock.configure_mock(**attrs)
-        with patch('builtins.__import__', return_value=mock):
+        with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[info]):
             actual = PluginDiscovery.get_plugin_config("modbus", "south", is_config)
             assert expected == actual
 
@@ -353,12 +355,8 @@ class TestPluginDiscovery:
                             }
                 }
         }
-
-        mock = MagicMock()
-        attrs = {"plugin_info.side_effect": [mock_plugin_info]}
-        mock.configure_mock(**attrs)
         with patch.object(_logger, "warning") as patch_log_warn:
-            with patch('builtins.__import__', return_value=mock):
+            with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[mock_plugin_info]):
                 actual = PluginDiscovery.get_plugin_config("http-north", "south", False)
                 assert actual is None
         patch_log_warn.assert_called_once_with('Plugin http-north is discarded due to invalid type')
@@ -367,15 +365,23 @@ class TestPluginDiscovery:
         (mock_c_plugins_config[0], "south"),
         (mock_c_plugins_config[1], "north"),
         (mock_c_plugins_config[2], "filter"),
-        (mock_c_plugins_config[3], "notify"),
-        (mock_c_plugins_config[4], "rule")
+        (mock_c_plugins_config[3], "notificationDelivery"),
+        (mock_c_plugins_config[4], "notificationRule")
     ])
     def test_fetch_c_plugins_installed(self, info, dir_name):
-        with patch.object(utils, "find_c_plugin_libs", return_value=[info['name']]) as patch_plugin_lib:
+        with patch.object(utils, "find_c_plugin_libs", return_value=[(info['name'], "binary")]) as patch_plugin_lib:
             with patch.object(utils, "get_plugin_info", return_value=info) as patch_plugin_info:
                 PluginDiscovery.fetch_c_plugins_installed(dir_name, True)
             patch_plugin_info.assert_called_once_with(info['name'], dir=dir_name)
         patch_plugin_lib.assert_called_once_with(dir_name)
+
+    def test_fetch_c_hybrid_plugins_installed(self):
+        info = {"version": "1.6.0", "name": "FlirAX8", "config": {"asset": {"description": "Default asset name", "default": "flir", "displayName": "Asset Name", "type": "string"}, "plugin": {"description": "A Modbus connected Flir AX8 infrared camera", "default": "FlirAX8", "readonly": "true", "type": "string"}}}
+        with patch.object(utils, "find_c_plugin_libs", return_value=[("FlirAX8", "json")]) as patch_plugin_lib:
+            with patch.object(common, "load_and_fetch_c_hybrid_plugin_info", return_value=info) as patch_hybrid_plugin_info:
+                PluginDiscovery.fetch_c_plugins_installed('south', True)
+            patch_hybrid_plugin_info.assert_called_once_with(info['name'], True)
+        patch_plugin_lib.assert_called_once_with('south')
 
     @pytest.mark.parametrize("info, exc_count", [
         ({}, 0),
@@ -384,7 +390,7 @@ class TestPluginDiscovery:
     ])
     def test_bad_fetch_c_south_plugin_installed(self, info, exc_count):
         with patch.object(_logger, "exception") as patch_log_exc:
-            with patch.object(utils, "find_c_plugin_libs", return_value=["Random"]) as patch_plugin_lib:
+            with patch.object(utils, "find_c_plugin_libs", return_value=[("Random", "binary")]) as patch_plugin_lib:
                 with patch.object(utils, "get_plugin_info",  return_value=info) as patch_plugin_info:
                     PluginDiscovery.fetch_c_plugins_installed("south", False)
                 patch_plugin_info.assert_called_once_with('Random', dir='south')
@@ -398,7 +404,7 @@ class TestPluginDiscovery:
     ])
     def test_bad_fetch_c_north_plugin_installed(self, info, exc_count):
         with patch.object(_logger, "exception") as patch_log_exc:
-            with patch.object(utils, "find_c_plugin_libs", return_value=["PI_Server"]) as patch_plugin_lib:
+            with patch.object(utils, "find_c_plugin_libs", return_value=[("PI_Server", "binary")]) as patch_plugin_lib:
                 with patch.object(utils, "get_plugin_info", return_value=info) as patch_plugin_info:
                     PluginDiscovery.fetch_c_plugins_installed("north", False)
                 patch_plugin_info.assert_called_once_with('PI_Server', dir='north')
@@ -406,32 +412,24 @@ class TestPluginDiscovery:
             assert exc_count == patch_log_exc.call_count
 
     @pytest.mark.parametrize("exc_name, log_exc_name, msg", [
-        (ImportError, "error", 'Plugin "modbus" import problem from path "foglamp.plugins.south".'),
+        (FileNotFoundError, "error", 'Plugin "modbus" import problem from path "modbus".'),
         (Exception, "exception", 'Plugin "modbus" raised exception "" while fetching config')
     ])
     def test_bad_get_south_plugin_config(self, exc_name, log_exc_name, msg):
-        mock = MagicMock()
-        attrs = {"plugin_info.side_effect": exc_name}
-        mock.configure_mock(**attrs)
-
         with patch.object(_logger, log_exc_name) as patch_log_exc:
-            with patch('builtins.__import__', return_value=mock):
+            with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[exc_name]):
                 PluginDiscovery.get_plugin_config("modbus", "south", False)
         assert 1 == patch_log_exc.call_count
         args, kwargs = patch_log_exc.call_args
         assert msg in args[0]
 
     @pytest.mark.parametrize("exc_name, log_exc_name, msg", [
-        (ImportError, "error", 'Plugin "http" import problem from path "foglamp.plugins.north".'),
+        (FileNotFoundError, "error", 'Plugin "http" import problem from path "http".'),
         (Exception, "exception", 'Plugin "http" raised exception "" while fetching config')
     ])
     def test_bad_get_north_plugin_config(self, exc_name, log_exc_name, msg):
-        mock = MagicMock()
-        attrs = {"plugin_info.side_effect": exc_name}
-        mock.configure_mock(**attrs)
-
         with patch.object(_logger, log_exc_name) as patch_log_exc:
-            with patch('builtins.__import__', return_value=mock):
+            with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[exc_name]):
                 PluginDiscovery.get_plugin_config("http", "north", False)
         assert 1 == patch_log_exc.call_count
         args, kwargs = patch_log_exc.call_args

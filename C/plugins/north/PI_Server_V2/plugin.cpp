@@ -29,7 +29,8 @@ using namespace rapidjson;
 
 #define PLUGIN_NAME "PI_Server_V2"
 #define TYPE_ID_KEY "type-id"
-#define TYPE_ID_DEFAULT "1"
+#define SENT_TYPES_KEY "sentDataTypes"
+#define DATA_KEY "dataTypes"
 
 /**
  * Plugin specific default configuration
@@ -92,7 +93,9 @@ using namespace rapidjson;
 		                        "["\
 			                        "\\\"Redefinition of the type with the same ID is not allowed\\\", "\
 						"\\\"Invalid value type for the property\\\", "\
-						"\\\"Property does not exist in the type definition\\\" "\
+						"\\\"Property does not exist in the type definition\\\", "\
+						"\\\"Container is not defined\\\", "\
+						"\\\"Unable to find the property of the container of type\\\" " \
 		                        "]"\
                                 "}\", " \
 				"\"order\": \"17\" ,"  \
@@ -105,6 +108,40 @@ using namespace rapidjson;
 
 #define PLUGIN_DEFAULT_CONFIG_INFO "{" OMF_PLUGIN_DESC ", " PLUGIN_DEFAULT_CONFIG "}"
 
+/**
+ * Historian PI Server connector info
+ */
+typedef struct
+{
+	SimpleHttps	*sender;	// HTTPS connection
+	OMF 		*omf;		// OMF data protocol
+	bool		compression;	// whether to compress readings' data
+	string		hostAndPort;	// hostname:port for SimpleHttps
+	unsigned int	retrySleepTime;	// Seconds between each retry
+	unsigned int	maxRetry;	// Max number of retries in the communication
+	unsigned int	timeout;	// connect and operation timeout
+	string		path;		// PI Server application path
+	long		typeId;		// OMF protocol type-id prefix
+	string		producerToken;	// PI Server connector token
+	string		formatNumber;	// OMF protocol Number format
+	string		formatInteger;	// OMF protocol Integer format
+	vector<pair<string, string>>
+			staticData;	// Static data
+        // Errors considered not blocking in the communication with the PI Server
+	std::vector<std::string>
+			notBlockingErrors;
+	// Per asset DataTypes
+	std::map<std::string, OMFDataTypes>
+			assetsDataTypes;
+} CONNECTOR_INFO;
+
+string saveSentDataTypes(CONNECTOR_INFO* connInfo);
+void loadSentDataTypes(CONNECTOR_INFO* connInfo, Document& JSONData);
+long getMaxTypeId(CONNECTOR_INFO* connInfo);
+
+/**
+ * Return the information about this plugin
+ */
 /**
  * The PI Server plugin interface
  */
@@ -121,28 +158,6 @@ static PLUGIN_INFORMATION info = {
 	"1.0.0",			// Interface version
 	PLUGIN_DEFAULT_CONFIG_INFO      // Configuration
 };
-
-/**
- * Historian PI Server connector info
- */
-typedef struct
-{
-	SimpleHttps	*sender;	// HTTPS connection
-	OMF 		*omf;		// OMF data protocol
-	bool		compression;	// whether to compress readings' data
-	string		hostAndPort;	// hostname:port for SimpleHttps
-	unsigned int	retrySleepTime;	// Seconds between each retry
-	unsigned int	maxRetry;	// Max number of retries in the communication
-	unsigned int	timeout;	// connect and operation timeout
-	string		path;		// PI Server application path
-	string		typeId;		// OMF protocol type-id prefix
-	string		producerToken;	// PI Server connector token
-	string		formatNumber;	// OMF protocol Number format
-	string		formatInteger;	// OMF protocol Integer format
-        // Errors considered not blocking in the communication with the PI Server
-	std::vector<std::string>
-			notBlockingErrors;
-} CONNECTOR_INFO;
 
 /**
  * Return the information about this plugin
@@ -172,6 +187,8 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 
 	string formatNumber = configData->getValue("formatNumber");
 	string formatInteger = configData->getValue("formatInteger");
+
+	
 
 	/**
 	 * Extract host, port, path from URL
@@ -214,6 +231,30 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	JSONStringToVectorString(connInfo->notBlockingErrors ,
 	                         configData->getValue("notBlockingErrors"),
 	                         std::string("errors400"));
+	/**
+	 * Add static data
+	 * Split the string up into each pair
+	 */
+	string staticData = configData->getValue("StaticData");
+	size_t pos = 0;
+	size_t start = 0;
+	do {
+		pos = staticData.find(",", start);
+		string item = staticData.substr(start, pos);
+		start = pos + 1;
+		size_t pos2 = 0;
+		if ((pos2 = item.find(":")) != string::npos)
+		{
+			string name = item.substr(0, pos2);
+			while (name[0] == ' ')
+				name = name.substr(1);
+			string value = item.substr(pos2 + 1);
+			while (value[0] == ' ')
+				value = value.substr(1);
+			pair<string, string> sData = make_pair(name, value);
+			connInfo->staticData.push_back(sData);
+		}
+	} while (pos != string::npos);
 
 #if VERBOSE_LOG
 	// Log plugin configuration
@@ -252,25 +293,41 @@ void plugin_start(const PLUGIN_HANDLE handle,
 			      storedData.c_str());
 	}
 	else if(JSONData.HasMember(TYPE_ID_KEY) &&
-		JSONData[TYPE_ID_KEY].IsString())
+		(JSONData[TYPE_ID_KEY].IsString() ||
+		 JSONData[TYPE_ID_KEY].IsNumber()))
 	{
 		// Update type-id in PLUGIN_HANDLE object
-		connInfo->typeId = JSONData[TYPE_ID_KEY].GetString();
+		if (JSONData[TYPE_ID_KEY].IsNumber())
+		{
+			connInfo->typeId = JSONData[TYPE_ID_KEY].GetInt();
+		}
+		else
+		{
+			connInfo->typeId = atol(JSONData[TYPE_ID_KEY].GetString());
+		}
+	}
+
+	// Load sentdataTypes
+	loadSentDataTypes(connInfo, JSONData);
+
+	// Log default type-id
+	if (connInfo->assetsDataTypes.size() == 1 &&
+	    connInfo->assetsDataTypes.find(FAKE_ASSET_KEY) != connInfo->assetsDataTypes.end())
+	{
+		// Only one value: we have the FAKE_ASSET_KEY and no other data
+		Logger::getLogger()->info("%s plugin is using global OMF prefix %s=%d",
+					  PLUGIN_NAME,
+					  TYPE_ID_KEY,
+					  connInfo->typeId);
 	}
 	else
 	{
-		logger->error("%s plugin error: key " TYPE_ID_KEY " not found "
-			      " or not valid in plugin data JSON object'%s'",
-			      PLUGIN_NAME,
-			      storedData.c_str());
+		Logger::getLogger()->info("%s plugin is using per asset OMF prefix %s=%d "
+					  "(max value found)",
+					  PLUGIN_NAME,
+					  TYPE_ID_KEY,
+					  getMaxTypeId(connInfo));
 	}
-#if VERBOSE_LOG
-	// Log plugin configuration
-	Logger::getLogger()->info("%s plugin is using OMF %s=%s",
-				  PLUGIN_NAME,
-				  TYPE_ID_KEY,
-				  connInfo->typeId.c_str());
-#endif
 }
 
 /**
@@ -295,7 +352,7 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	// Allocate the PI Server data protocol
 	connInfo->omf = new OMF(*connInfo->sender,
 				connInfo->path,
-				connInfo->typeId,
+				connInfo->assetsDataTypes,
 				connInfo->producerToken);
 
 	// Set OMF FormatTypes  
@@ -304,6 +361,7 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	connInfo->omf->setFormatType(OMF_TYPE_INTEGER,
 				     connInfo->formatInteger);
 
+	connInfo->omf->setStaticData(&connInfo->staticData);
 	connInfo->omf->setNotBlockingErrors(connInfo->notBlockingErrors);
 
 	// Send data
@@ -311,15 +369,15 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 						   connInfo->compression);
 
 	// Detect typeId change in OMF class
-	if (connInfo->omf->getTypeId().compare(connInfo->typeId) != 0)
+	if (connInfo->omf->getTypeId() != connInfo->typeId)
 	{
 		// Update typeId in plugin handle
 		connInfo->typeId = connInfo->omf->getTypeId();
 		// Log change
-		Logger::getLogger()->info("%s plugin: a new OMF %s (%s) has been created.",
+		Logger::getLogger()->info("%s plugin: a new OMF global %s (%d) has been created.",
 					  PLUGIN_NAME,
 					  TYPE_ID_KEY,
-					  connInfo->typeId.c_str());
+					  connInfo->typeId);
 	}
 	// Delete objects
 	delete connInfo->sender;
@@ -334,6 +392,8 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
  *
  * Delete allocated data
  *
+ * Note: the entry with FAKE_ASSET_KEY ios never saved.
+ *
  * @param handle    The plugin handle
  * @return	    A string with JSON plugin data
  *		    the caller will persist
@@ -344,19 +404,227 @@ string plugin_shutdown(PLUGIN_HANDLE handle)
 	CONNECTOR_INFO* connInfo = (CONNECTOR_INFO *) handle;
 
 	// Create save data
-	string saveData("{\"" TYPE_ID_KEY "\": \"" + connInfo->typeId + "\"}");
+	std::ostringstream saveData;
+	saveData << "{";
+
+	// Add sent data types
+	string typesData = saveSentDataTypes(connInfo);
+	if (!typesData.empty())
+	{
+		// Save datatypes
+		saveData << typesData;
+	}
+	else
+	{
+		// Just save type-id
+		saveData << "\"" << TYPE_ID_KEY << "\": " << to_string(connInfo->typeId);
+	}
+
+	saveData << "}";
 
         // Log saving the plugin configuration
-        Logger::getLogger()->info("%s plugin: saving plugin_data '%s'",
-                                  PLUGIN_NAME,
-                                  saveData.c_str());
+        Logger::getLogger()->debug("%s plugin: saving plugin_data '%s'",
+				   PLUGIN_NAME,
+				   saveData.str().c_str());
 
 	// Delete plugin handle
 	delete connInfo;
 
 	// Return current plugin data to save
-	return saveData;
+	return saveData.str();
 }
 
 // End of extern "C"
 };
+
+/**
+ * Return a JSON string with the dataTypes to save in plugion_data
+ *
+ * Note: the entry with FAKE_ASSET_KEY is never saved.
+ *
+ * @param   connInfo	The CONNECTOR_INFO data scructure
+ * @return		The string with JSON data
+ */
+string saveSentDataTypes(CONNECTOR_INFO* connInfo)
+{
+	string ret;
+	std::ostringstream newData;
+
+	auto it = connInfo->assetsDataTypes.find(FAKE_ASSET_KEY);
+	if (it != connInfo->assetsDataTypes.end())
+	{
+		// Set typeId in FAKE_ASSET_KEY
+		connInfo->typeId = (*it).second.typeId;
+		// Remove the entry
+		connInfo->assetsDataTypes.erase(it);
+	}
+
+
+	unsigned long tSize = connInfo->assetsDataTypes.size();
+	if (tSize)
+	{
+		
+		// Prepare output data (skip empty data types)
+		newData << "\"" << SENT_TYPES_KEY << "\" : [";
+
+		bool pendingSeparator = false;
+		for (auto it = connInfo->assetsDataTypes.begin();
+			  it != connInfo->assetsDataTypes.end();
+			  ++it)
+		{
+			if (((*it).second).types.compare("{}") != 0)
+			{
+				newData << (pendingSeparator ? ", " : "");
+				newData << "{\"" << (*it).first << "\" : {\"" << TYPE_ID_KEY <<
+					   "\": " << to_string(((*it).second).typeId);
+				newData << ", \"" << DATA_KEY << "\": " <<
+					   (((*it).second).types.empty() ? "{}" : ((*it).second).types) <<
+					   "}}";
+				pendingSeparator = true;
+			}
+		}
+
+		tSize = connInfo->assetsDataTypes.size();
+		if (!tSize)
+		{
+			// DataTypes map is empty
+			return ret;
+		}
+
+		newData << "]";
+
+		ret = newData.str();
+	}
+
+	return ret;
+}
+
+/**
+ * Load stored data types (already sent to PI server)
+ *
+ * Each element, the assetName,  has type-id and datatype for each datapoint
+ *
+ * If no data exists in the plugin_data table, then a map entry
+ * with FAKE_ASSET_KEY is made in order to set the start type-id
+ * sequence with default value set to 1:
+ * all new created OMF dataTypes have type-id prefix set to the value of 1.
+ *
+ * If data like {"type-id": 14} or {"type-id": "14" } is found, a map entry
+ * with FAKE_ASSET_KEY is made and the start type-id sequence value is set
+ * to the found value, i.e. 14:
+ * all new created OMF dataTypes have type-id prefix set to the value of 14.
+ *
+ * If proper per asset types data is loaded, the FAKE_ASSET_KEY is not set:
+ * all new created OMF dataTypes have type-id prefix set to the value of 1
+ * while existing (loaded) OMF dataTypes will keep their type-id values.
+ *
+ * @param   connInfo	The CONNECTOR_INFO data scructure
+ * @param   JSONData	The JSON document cotaining all saved data
+ */
+void loadSentDataTypes(CONNECTOR_INFO* connInfo,
+                        Document& JSONData)
+{
+	if (JSONData.HasMember(SENT_TYPES_KEY) &&
+	    JSONData[SENT_TYPES_KEY].IsArray())
+	{
+		const Value& cachedTypes = JSONData[SENT_TYPES_KEY];
+		for (Value::ConstValueIterator it = cachedTypes.Begin();
+						it != cachedTypes.End();
+						++it)
+		{
+			if (!it->IsObject())
+			{
+				Logger::getLogger()->warn("%s plugin: current element in '%s' " \
+							  "property is not an object, ignoring it",
+							  PLUGIN_NAME,
+							  SENT_TYPES_KEY);
+				continue;
+			}
+
+			for (Value::ConstMemberIterator itr = it->MemberBegin();
+							itr != it->MemberEnd();
+							++itr)
+			{
+				string key = itr->name.GetString();
+				const Value& cachedValue = itr->value;
+
+				// Add typeId and dataTypes to the in memory cache
+				long typeId;
+				if (cachedValue.HasMember(TYPE_ID_KEY) &&
+				    cachedValue[TYPE_ID_KEY].IsNumber())
+				{
+					typeId = cachedValue[TYPE_ID_KEY].GetInt();
+				}
+				else
+				{
+					Logger::getLogger()->warn("%s plugin: current element '%s'" \
+								  "doesn't have '%s' property, ignoring it",
+								  PLUGIN_NAME,
+								  key.c_str(),
+								  TYPE_ID_KEY);
+					continue;
+				}
+
+				string dataTypes;
+				if (cachedValue.HasMember(DATA_KEY) &&
+				    cachedValue[DATA_KEY].IsObject())
+				{
+					StringBuffer buffer;
+					Writer<StringBuffer> writer(buffer);
+					const Value& types = cachedValue[DATA_KEY];
+					types.Accept(writer);
+					dataTypes = buffer.GetString();
+				}
+				else
+				{
+					Logger::getLogger()->warn("%s plugin: current element '%s'" \
+								  "doesn't have '%s' property, ignoring it",
+								  PLUGIN_NAME,
+								  key.c_str(),
+								  DATA_KEY);
+
+					continue;
+				}
+
+				OMFDataTypes dataType;
+				dataType.typeId = typeId;
+				dataType.types = dataTypes;
+
+				// Add data into the map
+				connInfo->assetsDataTypes[key] = dataType;
+			}
+		}
+	}
+	else
+	{
+		OMFDataTypes dataType;
+		dataType.typeId = connInfo->typeId;
+		dataType.types = "{}";
+
+		// Add default data into the map
+		connInfo->assetsDataTypes[FAKE_ASSET_KEY] = dataType;
+	}
+}
+
+/**
+ * Return the maximum value of type-id, among all entries in the map
+ *
+ * If the array is empty the connInfo->typeId is returned.
+ *
+ * @param    connInfo	The CONNECTOR_INFO data scructure
+ * @return		The maximum value of type-id found
+ */
+long getMaxTypeId(CONNECTOR_INFO* connInfo)
+{
+	long maxId = connInfo->typeId;
+	for (auto it = connInfo->assetsDataTypes.begin();
+		  it != connInfo->assetsDataTypes.end();
+		  ++it)
+	{
+		if ((*it).second.typeId > maxId)
+		{
+			maxId = (*it).second.typeId;
+		}
+	}
+	return maxId;
+}

@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 #include <rapidjson/document.h>
+#include <json_utils.h>
 
 class ConfigCategoryDescription {
 	public:
@@ -79,6 +80,7 @@ class ConfigCategory {
 		std::string			getType(const std::string& name) const;
 		std::string			getDescription(const std::string& name) const;
 		std::string			getDefault(const std::string& name) const;
+		bool				setDefault(const std::string& name, const std::string& value);
 		std::string			getDisplayName(const std::string& name) const;
 		std::vector<std::string>	getOptions(const std::string& name) const;
 		std::string			getMinimum(const std::string& name) const;
@@ -119,8 +121,6 @@ class ConfigCategory {
 				std::string	toJSON(const bool full=false) const;
 				// Return only "default" items
 				std::string	defaultToJSON() const;
-				std::string	escape(const std::string& str) const;
-				std::string	unescape(const std::string& subject) const;
 
 			public:
 				std::string 	m_name;

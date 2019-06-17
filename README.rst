@@ -61,7 +61,6 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
 - libz-dev
 - make
 - postgresql
-- python-dbus
 - python3-pip
 - python-dev
 - python3-dev
@@ -69,16 +68,39 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
 - sqlite3
 - libsqlite3-dev
 
+
+Linux distributions
+-------------------
+
+FogLAMP can be built or installed in one of the following Linux distributions :
+
+- Ubuntu 16.04 and Ubuntu 18.04
+- Raspbian
+- Red Hat 7.6
+- CentOS 7.6
+
+Install the prerequisites on Ubuntu
+-----------------------------------
+
 On Ubuntu-based Linux distributions the packages can be installed with given `requirements.sh <requirements.sh>`_ or manual *apt-get*:
 ::
    apt-get install avahi-daemon curl
    apt-get install cmake g++ make build-essential autoconf automake uuid-dev
    apt-get install libtool libboost-dev libboost-system-dev libboost-thread-dev libpq-dev libssl-dev libz-dev
-   apt-get install python-dbus python-dev python3-dev python3-pip
+   apt-get install python-dev python3-dev python3-pip
    apt-get install postgresql
    apt-get install sqlite3 libsqlite3-dev
 
 You may need to use *sudo* to allow *apt-get* to install packages dependent upon your access rights.
+
+Install the prerequisites on Red Hat/CentOS
+-------------------------------------------
+
+On Red Hat and CentOS distributions the required packages can be installed automatically with given `requirements.sh <requirements.sh>`_:
+::
+	sudo ./requirements.sh
+
+You should run this as a user with *sudo* access rights.
 
 
 Build
@@ -86,10 +108,15 @@ Build
 
 To build FogLAMP run the command ``make`` in the top level directory. This will compile all the components that need to be compiled and will also create a runable structure of the Python code components of FogLAMP.
 
-**NOTE:** *The GCC compiler version 5.4 available in Ubuntu 16.04 LTS raises warnings. This is a known bug of the compiler and it can be ignored.*
+**NOTE:**
+
+- *The GCC compiler version 5.4 available in Ubuntu 16.04 LTS raises warnings. This is a known bug of the compiler and it can be ignored.*
+
+- *openssl toolkit is a requirement if we want to use https based REST client and certificate based authentication.*
 
 Once the *make* has completed you can decide to test FogLAMP from your development environment or you can install it. 
 |br| |br|
+
 
 Testing FogLAMP from Your Development Environment
 =================================================
@@ -120,6 +147,8 @@ The destination may be overriden by setting the variable *DESTDIR* in the make c
    export FOGLAMP_ROOT=/opt/usr/local/foglamp
 
 |br|
+
+
 
 Executing FogLAMP
 =================

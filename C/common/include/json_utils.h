@@ -14,4 +14,7 @@ bool JSONStringToVectorString(std::vector<std::string>& vectorString,
                               const std::string& JSONString,
                               const std::string& Key);
 
+std::string JSONescape(const std::string& subject);
+std::string JSONunescape(const std::string& subject);
+
 #endif

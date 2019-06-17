@@ -5,7 +5,7 @@
 # FOGLAMP_END
 
 import json
-from unittest.mock import patch
+from unittest.mock import patch, mock_open
 import pytest
 from aiohttp import web
 
@@ -45,59 +45,58 @@ class TestPluginDiscoveryApi:
             assert {'plugins': result} == json_response
         patch_get_plugin_installed.assert_called_once_with(None, is_config)
 
-    @pytest.mark.parametrize("param", [
-        "north",
-        "south",
-        "North",
-        "South",
-        "NORTH",
-        "SOUTH",
-        "filter",
-        "Filter",
-        "FILTER",
-        "notify",
-        "NOTIFY",
-        "rule",
-        "Rule",
-        "RULE"
+    @pytest.mark.parametrize("param, type", [
+        ("north", "north"),
+        ("south", "south"),
+        ("North", "north"),
+        ("South", "south"),
+        ("NORTH", "north"),
+        ("SOUTH", "south"),
+        ("filter", "filter"),
+        ("Filter", "filter"),
+        ("FILTER", "filter"),
+        ("notificationDelivery", "notificationDelivery"),
+        ("notificationRule", "notificationRule")
     ])
-    async def test_get_plugins_installed_by_params(self, client, param):
+    async def test_get_plugins_installed_by_params(self, client, param, type):
         with patch.object(PluginDiscovery, 'get_plugins_installed', return_value={}) as patch_get_plugin_installed:
             resp = await client.get('/foglamp/plugins/installed?type={}'.format(param))
             assert 200 == resp.status
             r = await resp.text()
             json_response = json.loads(r)
             assert {'plugins': {}} == json_response
-        patch_get_plugin_installed.assert_called_once_with(param.lower(), False)
+        patch_get_plugin_installed.assert_called_once_with(type, False)
 
-    @pytest.mark.parametrize("param, direction, result, is_config", [
+    @pytest.mark.parametrize("param, type, result, is_config", [
         ("?type=north&config=false", "north", {"name": "http", "version": "1.0.0", "type": "north", "description": "HTTP North-C plugin"}, False),
         ("?type=south&config=false", "south", {"name": "sinusoid", "version": "1.0", "type": "south", "description": "sinusoid plugin"}, False),
         ("?type=filter&config=false", "filter", {"name": "scale", "version": "1.0.0", "type": "filter", "description": "Filter Scale plugin"}, False),
-        ("?type=notify&config=false", "notify", {"name": "email", "version": "1.0.0", "type": "notify", "description": "Email notification plugin"}, False),
-        ("?type=rule&config=false", "rule", {"name": "OverMaxRule", "version": "1.0.0", "type": "rule", "description": "The OverMaxRule notification rule plugin"}, False),
+        ("?type=notificationDelivery&config=false", "notificationDelivery", {"name": "email", "version": "1.0.0", "type": "notify", "description": "Email notification plugin"}, False),
+        ("?type=notificationRule&config=false", "notificationRule", {"name": "OverMaxRule", "version": "1.0.0", "type": "rule", "description": "The OverMaxRule notification rule plugin"}, False),
         ("?type=north&config=true", "north", {"name": "http", "version": "1.0.0", "type": "north", "description": "HTTP North-C plugin",
                                               "config": {"plugin": {"description": "HTTP North-C plugin", "type": "string", "default": "http-north"}}}, True),
         ("?type=south&config=true", "south", {"name": "sinusoid", "version": "1.0", "type": "south", "description": "sinusoid plugin",
                                               "config": {"plugin": {"description": "sinusoid plugin", "type": "string", "default": "sinusoid", "readonly": "true"}}}, True),
         ("?type=filter&config=true", "filter", {"name": "scale", "version": "1.0.0", "type": "filter", "description": "Filter Scale plugin",
                                                 "config": {"offset": {"default": "0.0", "type": "float", "description": "A constant offset"}, "factor": {"default": "100.0", "type": "float", "description": "Scale factor for a reading."}, "plugin": {"default": "scale", "type": "string", "description": "Scale filter plugin"}, "enable": {"default": "false", "type": "boolean", "description": "A switch that can be used to enable or disable."}}}, True),
-        ("?type=notify&config=true", "notify", {"name": "email", "version": "1.0.0", "type": "notify", "description": "Email notification plugin",
+        ("?type=notificationDelivery&config=true", "notificationDelivery", {"name": "email", "version": "1.0.0", "type": "notify", "description": "Email notification plugin",
                                                 "config": {"plugin": {"type": "string", "description": "Email notification plugin", "default": "email"}}}, True),
-        ("?type=rule&config=true", "rule", {"name": "OverMaxRule", "version": "1.0.0", "type": "rule", "description": "The OverMaxRule notification rule plugin",
+        ("?type=notificationRule&config=true", "notificationRule", {"name": "OverMaxRule", "version": "1.0.0", "type": "rule", "description": "The OverMaxRule notification rule plugin",
                                             "config": {"plugin": {"type": "string", "description": "The OverMaxRule notification rule plugin", "default": "OverMaxRule"}}}, True)
     ])
-    async def test_get_plugins_installed_by_type_and_config(self, client, param, direction, result, is_config):
+    async def test_get_plugins_installed_by_type_and_config(self, client, param, type, result, is_config):
         with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=result) as patch_get_plugin_installed:
             resp = await client.get('/foglamp/plugins/installed{}'.format(param))
             assert 200 == resp.status
             r = await resp.text()
             json_response = json.loads(r)
             assert {'plugins': result} == json_response
-        patch_get_plugin_installed.assert_called_once_with(direction, is_config)
+        patch_get_plugin_installed.assert_called_once_with(type, is_config)
 
     @pytest.mark.parametrize("param, message", [
-        ("?type=blah", "Invalid plugin type. Must be 'north' or 'south' or 'filter' or 'notify' or 'rule'."),
+        ("?type=blah", "Invalid plugin type. Must be 'north' or 'south' or 'filter' or 'notificationDelivery' or 'notificationRule'."),
+        ("?type=notify", "Invalid plugin type. Must be 'north' or 'south' or 'filter' or 'notificationDelivery' or 'notificationRule'."),
+        ("?type=rule", "Invalid plugin type. Must be 'north' or 'south' or 'filter' or 'notificationDelivery' or 'notificationRule'."),
         ("?config=blah", 'Only "true", "false", true, false are allowed for value of config.'),
         ("?config=False", 'Only "true", "false", true, false are allowed for value of config.'),
         ("?config=True", 'Only "true", "false", true, false are allowed for value of config.'),
@@ -114,3 +113,19 @@ class TestPluginDiscoveryApi:
         resp = await client.get('/foglamp/plugins/installed{}'.format(param))
         assert 400 == resp.status
         assert message == resp.reason
+
+    async def test_get_plugins_available(self, client):
+        with patch('os.path.exists', return_value=True):
+            with patch('os.system', return_value=0):
+                with patch('builtins.open', new_callable=mock_open()):
+                    with patch('subprocess.run', return_value=1):
+                        resp = await client.get('/foglamp/plugins/available')
+                        assert 200 == resp.status
+                        r = await resp.text()
+                        json_response = json.loads(r)
+                        assert [] == json_response['plugins']
+
+    async def test_bad_get_plugins_available(self, client):
+        resp = await client.get('/foglamp/plugins/available?type=blah')
+        assert 400 == resp.status
+        assert "Invalid package type. Must be 'north' or 'south' or 'filter' or 'notify' or 'rule' or 'service'." == resp.reason

@@ -242,7 +242,7 @@ Reading* Py2C_parseReadingElement(PyObject *reading, std::string assetName)
 
 	if (!reading || !PyDict_Check(reading))
 		return NULL;
-	
+
 	while (PyDict_Next(reading, &dPos, &dKey, &dValue))
 	{
 		DatapointValue* dataPoint;
@@ -267,12 +267,22 @@ Reading* Py2C_parseReadingElement(PyObject *reading, std::string assetName)
 		// Add / Update the new Reading data			
 		if (newReading == NULL)
 		{
+			if (dataPoint == NULL)
+			{
+				Logger::getLogger()->info("%s:%d: dataPoint is NULL", __FUNCTION__, __LINE__);
+				continue;
+			}
 			newReading = new Reading(assetName,
 							new Datapoint(std::string(PyUnicode_AsUTF8(dKey)),
 								*dataPoint));
 		}
 		else
 		{
+			if (dataPoint == NULL)
+			{
+				Logger::getLogger()->info("%s:%d: dataPoint is NULL", __FUNCTION__, __LINE__);
+				continue;
+			}
 			newReading->addDatapoint(new Datapoint(std::string(PyUnicode_AsUTF8(dKey)),
 										*dataPoint));
 		}
@@ -340,8 +350,9 @@ Reading* Py2C_parseReadingObject(PyObject *element)
 	}
 
 	Reading* newReading = Py2C_parseReadingElement(reading, assetName);
-	setReadingAttr(newReading, element);
-
+	if (newReading)
+		setReadingAttr(newReading, element);
+	
 	return newReading;
 }
 

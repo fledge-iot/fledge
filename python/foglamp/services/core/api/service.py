@@ -3,8 +3,6 @@
 # FOGLAMP_BEGIN
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
-
-import asyncio
 import datetime
 import uuid
 from aiohttp import web
@@ -22,7 +20,8 @@ from foglamp.services.core.api import utils as apiutils
 from foglamp.services.core.scheduler.entities import StartUpSchedule
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
-
+from foglamp.common.common import _FOGLAMP_ROOT
+from foglamp.services.core.api.plugins import common
 
 __author__ = "Mark Riddoch, Ashwin Gopalakrishnan, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -88,6 +87,15 @@ async def delete_service(request):
         if result['count'] == 0:
             return web.HTTPNotFound(reason='{} service does not exist.'.format(svc))
 
+        config_mgr = ConfigurationManager(storage)
+
+        # In case of notification service, if notifications exists, then deletion is not allowed
+        if 'notification' in result['rows'][0]['process_name']:
+            notf_children = await config_mgr.get_category_child(category_name="Notifications")
+            children = [x['key'] for x in notf_children]
+            if len(notf_children) > 0:
+                return web.HTTPBadRequest(reason='Notification service `{}` can not be deleted, as {} notification instances exist.'.format(svc, children))
+
         # First disable the schedule
         svc_schedule = result['rows'][0]
         sch_id = uuid.UUID(svc_schedule['id'])
@@ -95,7 +103,6 @@ async def delete_service(request):
             await server.Server.scheduler.disable_schedule(sch_id)
 
         # Delete all configuration for the service name
-        config_mgr = ConfigurationManager(storage)
         await config_mgr.delete_category_and_children_recursively(svc)
 
         # Remove from registry as it has been already shutdown via disable_schedule() and since
@@ -139,15 +146,16 @@ async def add_service(request):
             raise web.HTTPBadRequest(reason='Missing name property in payload.')
         if utils.check_reserved(name) is False:
             raise web.HTTPBadRequest(reason='Invalid name property in payload.')
-
+        if utils.check_foglamp_reserved(name) is False:
+            raise web.HTTPBadRequest(reason="'{}' is reserved for FogLAMP and can not be used as service name!".format(name))
         if service_type is None:
             raise web.HTTPBadRequest(reason='Missing type property in payload.')
+
         service_type = str(service_type).lower()
         if service_type == 'north':
             raise web.HTTPNotAcceptable(reason='north type is not supported for the time being.')
         if service_type not in ['south', 'notification']:
             raise web.HTTPBadRequest(reason='Only south and notification type are supported.')
-
         if plugin is None and service_type == 'south':
             raise web.HTTPBadRequest(reason='Missing plugin property for type south in payload.')
         if plugin and utils.check_reserved(plugin) is False:
@@ -166,16 +174,16 @@ async def add_service(request):
             # "plugin_module_path" is fixed by design. It is MANDATORY to keep the plugin in the exactly similar named
             # folder, within the plugin_module_path.
             # if multiple plugin with same name are found, then python plugin import will be tried first
-            plugin_module_path = "foglamp.plugins.south"
+            plugin_module_path = "{}/python/foglamp/plugins/{}/{}".format(_FOGLAMP_ROOT, service_type, plugin)
             try:
-                plugin_info = load_python_plugin(plugin_module_path, plugin, service_type)
+                plugin_info = common.load_and_fetch_python_plugin_info(plugin_module_path, plugin, service_type)
                 plugin_config = plugin_info['config']
                 if not plugin_config:
                     _logger.exception("Plugin %s import problem from path %s", plugin, plugin_module_path)
                     raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}".'.format(plugin, plugin_module_path))
                 process_name = 'south_c'
                 script = '["services/south_c"]'
-            except ImportError as ex:
+            except FileNotFoundError as ex:
                 # Checking for C-type plugins
                 plugin_config = load_c_plugin(plugin, service_type)
                 if not plugin_config:
@@ -279,24 +287,18 @@ async def add_service(request):
         return web.json_response({'name': name, 'id': str(schedule.schedule_id)})
 
 
-def load_python_plugin(plugin_module_path: str, plugin: str, service_type: str) -> Dict:
-    import_file_name = "{path}.{dir}.{file}".format(path=plugin_module_path, dir=plugin, file=plugin)
-    _plugin = __import__(import_file_name, fromlist=[''])
-
-    # Fetch configuration from the configuration defined in the plugin
-    plugin_info = _plugin.plugin_info()
-    if plugin_info['type'] != service_type:
-        msg = "Plugin of {} type is not supported".format(plugin_info['type'])
-        raise TypeError(msg)
-    return plugin_info
-
-
 def load_c_plugin(plugin: str, service_type: str) -> Dict:
-    plugin_info = apiutils.get_plugin_info(plugin, dir=service_type)
-    if plugin_info['type'] != service_type:
-        msg = "Plugin of {} type is not supported".format(plugin_info['type'])
-        raise TypeError(msg)
-    plugin_config = plugin_info['config']
+    try:
+        plugin_info = apiutils.get_plugin_info(plugin, dir=service_type)
+        if plugin_info['type'] != service_type:
+            msg = "Plugin of {} type is not supported".format(plugin_info['type'])
+            raise TypeError(msg)
+        plugin_config = plugin_info['config']
+    except Exception:
+        # Now looking for hybrid plugins if exists
+        plugin_info = common.load_and_fetch_c_hybrid_plugin_info(plugin, True)
+        if plugin_info:
+            plugin_config = plugin_info['config']
     return plugin_config
 
 

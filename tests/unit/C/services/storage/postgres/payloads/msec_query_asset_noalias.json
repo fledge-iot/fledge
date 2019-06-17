@@ -1,0 +1,15 @@
+{
+        "where" : {
+                        "column"    : "asset_code",
+                        "condition" : "=",
+                        "value"     : "msec_009_OK"
+                  },
+
+        "return" : [
+                        "reading",
+                        {
+                            "column" : "user_ts"
+                        }
+
+                    ]
+}

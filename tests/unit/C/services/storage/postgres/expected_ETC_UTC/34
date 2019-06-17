@@ -1,0 +1,1 @@
+{ "entryPoint" : "retrieve", "message" : "ERROR:  relation \"foglamp.doesntexist\" does not existLINE 1: SELECT * FROM foglamp.doesntexist;                      ^", "retryable" : false}

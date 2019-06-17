@@ -9,6 +9,7 @@
 """
 import subprocess
 import os
+import sys
 import fnmatch
 import http.client
 import json
@@ -22,6 +23,9 @@ __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
+
+sys.path.append(os.path.join(os.path.dirname(__file__), 'helpers'))
+sys.path.append(os.path.join(os.path.dirname(__file__)))
 
 
 @pytest.fixture
@@ -40,8 +44,8 @@ def reset_and_start_foglamp(storage_plugin):
 
     subprocess.run(["echo YES | $FOGLAMP_ROOT/scripts/foglamp reset"], shell=True, check=True)
     subprocess.run(["$FOGLAMP_ROOT/scripts/foglamp start"], shell=True)
-    stat = subprocess.run(["$FOGLAMP_ROOT/scripts/foglamp status"], shell=True, stdout=subprocess.PIPE)
-    assert "FogLAMP not running." not in stat.stdout.decode("utf-8")
+    stat = subprocess.run(["$FOGLAMP_ROOT/scripts/foglamp status"], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    assert "FogLAMP not running." not in stat.stderr.decode("utf-8")
 
 
 def find(pattern, path):
@@ -76,12 +80,13 @@ def remove_directories():
 @pytest.fixture
 def add_south():
     def _add_foglamp_south(south_plugin, south_branch, foglamp_url, service_name="play", config=None,
-                           plugin_lang="python", use_pip_cache=True, start_service=True):
+                           plugin_lang="python", use_pip_cache=True, start_service=True, plugin_discovery_name=None):
         """Add south plugin and start the service by default"""
 
+        plugin_discovery_name = south_plugin if plugin_discovery_name is None else plugin_discovery_name
         _config = config if config is not None else {}
         _enabled = "true" if start_service else "false"
-        data = {"name": "{}".format(service_name), "type": "South", "plugin": "{}".format(south_plugin),
+        data = {"name": "{}".format(service_name), "type": "South", "plugin": "{}".format(plugin_discovery_name),
                 "enabled": _enabled, "config": _config}
 
         conn = http.client.HTTPConnection(foglamp_url)
@@ -109,9 +114,10 @@ def add_south():
 @pytest.fixture
 def start_north_pi_v2():
     def _start_north_pi_server_c(foglamp_url, pi_host, pi_port, pi_token, north_plugin="PI_Server_V2",
-                                 taskname="NorthReadingsToPI"):
+                                 taskname="NorthReadingsToPI", start_task=True):
         """Start north task"""
 
+        _enabled = "true" if start_task else "false"
         conn = http.client.HTTPConnection(foglamp_url)
         data = {"name": taskname,
                 "plugin": "{}".format(north_plugin),
@@ -120,7 +126,7 @@ def start_north_pi_v2():
                 "schedule_day": 0,
                 "schedule_time": 0,
                 "schedule_repeat": 30,
-                "schedule_enabled": "true",
+                "schedule_enabled": _enabled,
                 "config": {"producerToken": {"value": pi_token},
                            "URL": {"value": "https://{}:{}/ingress/messages".format(pi_host, pi_port)}
                            }
@@ -291,6 +297,18 @@ def pytest_addoption(parser):
                      help="Generic wait time between processes to run")
     parser.addoption("--retries", action="store", default=3, type=int,
                      help="Number of tries for polling")
+    # TODO: Temporary fixture, to be used with value False for environments where PI Web API is not stable
+    parser.addoption("--skip-verify-north-interface", action="store_false",
+                     help="Verify data from external north system api")
+
+    parser.addoption("--remote-user", action="store", default="ubuntu",
+                     help="Username on remote machine where FogLAMP will run")
+    parser.addoption("--remote-ip", action="store", default="127.0.0.1",
+                     help="IP of remote machine where FogLAMP will run")
+    parser.addoption("--key-path", action="store", default="~/.ssh/id_rsa.pub",
+                     help="Path of key file used for authentication to remote machine")
+    parser.addoption("--remote-foglamp-path", action="store",
+                     help="Path on the remote machine where FogLAMP is clone and built")
 
     # South/North Args
     parser.addoption("--south-branch", action="store", default="develop",
@@ -345,11 +363,38 @@ def pytest_addoption(parser):
                      help="Kafka Server Port")
     parser.addoption("--kafka-topic", action="store", default="FogLAMP", help="Kafka topic")
     parser.addoption("--kafka-rest-port", action="store", default="8082", help="Kafka Rest Proxy Port")
+    parser.addoption("--modbus-host", action="store", default="localhost", help="Modbus simulator host")
+    parser.addoption("--modbus-port", action="store", default="502", type=int, help="Modbus simulator port")
 
 
 @pytest.fixture
 def storage_plugin(request):
     return request.config.getoption("--storage-plugin")
+
+
+@pytest.fixture
+def remote_user(request):
+    return request.config.getoption("--remote-user")
+
+
+@pytest.fixture
+def remote_ip(request):
+    return request.config.getoption("--remote-ip")
+
+
+@pytest.fixture
+def key_path(request):
+    return request.config.getoption("--key-path")
+
+
+@pytest.fixture
+def remote_foglamp_path(request):
+    return request.config.getoption("--remote-foglamp-path")
+
+
+@pytest.fixture
+def skip_verify_north_interface(request):
+    return not request.config.getoption("--skip-verify-north-interface")
 
 
 @pytest.fixture
@@ -485,6 +530,16 @@ def kafka_topic(request):
 @pytest.fixture
 def kafka_rest_port(request):
     return request.config.getoption("--kafka-rest-port")
+
+
+@pytest.fixture
+def modbus_host(request):
+    return request.config.getoption("--modbus-host")
+
+
+@pytest.fixture
+def modbus_port(request):
+    return request.config.getoption("--modbus-port")
 
 
 def pytest_itemcollected(item):

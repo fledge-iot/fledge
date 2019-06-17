@@ -45,6 +45,8 @@ from foglamp.services.core.user_model import User
 from foglamp.common.storage_client import payload_builder
 from foglamp.services.core.asset_tracker.asset_tracker import AssetTracker
 from foglamp.services.core.api import asset_tracker as asset_tracker_api
+from foglamp.common.web.ssl_wrapper import SSLVerifier
+
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
@@ -98,13 +100,13 @@ class Server:
         }
     }
 
-    _MANAGEMENT_SERVICE = '_foglamp-manage._tcp'
+    _MANAGEMENT_SERVICE = '_foglamp-manage._tcp.local.'
     """ The management service we advertise """
 
-    _ADMIN_API_SERVICE = '_foglamp-admin._tcp'
+    _ADMIN_API_SERVICE = '_foglamp-admin._tcp.local.'
     """ The admin REST service we advertise """
 
-    _USER_API_SERVICE = '_foglamp-user._tcp'
+    _USER_API_SERVICE = '_foglamp-user._tcp.local.'
     """ The user REST service we advertise """
 
     admin_announcer = None
@@ -131,10 +133,19 @@ class Server:
     is_auth_required = False
     """ a var to decide to make authentication mandatory / optional for FogLAMP Admin/ User REST API"""
 
+    auth_method = 'any'
+
     cert_file_name = ''
     """ cert file name """
 
     _REST_API_DEFAULT_CONFIG = {
+        'enableHttp': {
+            'description': 'Enable HTTP (disable to use HTTPS)',
+            'type': 'boolean',
+            'default': 'true',
+            'displayName': 'Enable HTTP',
+            'order': '1'
+        },
         'httpPort': {
             'description': 'Port to accept HTTP connections on',
             'type': 'integer',
@@ -148,20 +159,6 @@ class Server:
             'default': '1995',
             'displayName': 'HTTPS Port',
             'order': '3'
-        },
-        'enableHttp': {
-            'description': 'Enable HTTP (disable to use HTTPS)',
-            'type': 'boolean',
-            'default': 'true',
-            'displayName': 'Enable HTTP',
-            'order': '1'
-        },
-        'authProviders': {
-            'description': 'Authentication providers to use for the interface (JSON array object)',
-            'type': 'JSON',
-            'default': '{"providers": ["username", "ldap"] }',
-            'displayName': 'Auth Providers',
-            'order': '8'
         },
         'certificateName': {
             'description': 'Certificate file name',
@@ -178,21 +175,43 @@ class Server:
             'displayName': 'Authentication',
             'order': '5'
         },
+        'authMethod': {
+            'description': 'Authentication method',
+            'type': 'enumeration',
+            'options': ["any", "password", "certificate"],
+            'default': 'any',
+            'displayName': 'Authentication method',
+            'order': '6'
+        },
+        'authCertificateName': {
+            'description': 'Auth Certificate name',
+            'type': 'string',
+            'default': 'ca',
+            'displayName': 'Auth Certificate',
+            'order': '7'
+        },
         'allowPing': {
             'description': 'Allow access to ping, regardless of the authentication required and'
                            ' authentication header',
             'type': 'boolean',
             'default': 'true',
             'displayName': 'Allow Ping',
-            'order': '6'
+            'order': '8'
         },
         'passwordChange': {
             'description': 'Number of days after which passwords must be changed',
             'type': 'integer',
             'default': '0',
             'displayName': 'Password Expiry Days',
-            'order': '7'
-        }
+            'order': '9'
+        },
+        'authProviders': {
+            'description': 'Authentication providers to use for the interface (JSON array object)',
+            'type': 'JSON',
+            'default': '{"providers": ["username", "ldap"] }',
+            'displayName': 'Auth Providers',
+            'order': '10'
+        },
     }
 
     _start_time = time.time()
@@ -307,6 +326,18 @@ class Server:
             config = await cls._configuration_manager.get_category_all_items(category)
 
             try:
+                cls.is_auth_required = True if config['authentication']['value'] == "mandatory" else False
+            except KeyError:
+                _logger.error("error in retrieving authentication info")
+                raise
+
+            try:
+                cls.auth_method = config['authMethod']['value']
+            except KeyError:
+                _logger.error("error in retrieving authentication method info")
+                raise
+
+            try:
                 cls.cert_file_name = config['certificateName']['value']
             except KeyError:
                 _logger.error("error in retrieving certificateName info")
@@ -328,13 +359,6 @@ class Server:
                 _logger.error("error in parsing port value, received %s with type %s",
                               port_from_config, type(port_from_config))
                 raise
-
-            try:
-                cls.is_auth_required = True if config['authentication']['value'] == "mandatory" else False
-            except KeyError:
-                _logger.error("error in retrieving authentication info")
-                raise
-
         except Exception as ex:
             _logger.exception(str(ex))
             raise
@@ -366,14 +390,26 @@ class Server:
             raise
 
     @staticmethod
-    def _make_app(auth_required=True):
+    def _make_app(auth_required=True, auth_method='any'):
         """Creates the REST server
 
         :rtype: web.Application
         """
-        app = web.Application(middlewares=[middleware.error_middleware, middleware.auth_middleware])
+        mwares = [middleware.error_middleware]
+
+        # Maintain this order. Middlewares are executed in reverse order.
+        if auth_method != "any":
+            if auth_method == "certificate":
+                mwares.append(middleware.certificate_login_middleware)
+            else:  # password
+                mwares.append(middleware.password_login_middleware)
+
         if not auth_required:
-            app = web.Application(middlewares=[middleware.error_middleware, middleware.optional_auth_middleware])
+            mwares.append(middleware.optional_auth_middleware)
+        else:
+            mwares.append(middleware.auth_middleware)
+
+        app = web.Application(middlewares=mwares)
         admin_routes.setup(app)
         return app
 
@@ -651,22 +687,39 @@ class Server:
             loop.run_until_complete(cls._start_service_monitor())
 
             loop.run_until_complete(cls.rest_api_config())
-            cls.service_app = cls._make_app(auth_required=cls.is_auth_required)
+            cls.service_app = cls._make_app(auth_required=cls.is_auth_required, auth_method=cls.auth_method)
             # ssl context
             ssl_ctx = None
             if not cls.is_rest_server_http_enabled:
-                # ensure TLS 1.2 and SHA-256
-                # handle expiry?
-                ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
                 cert, key = cls.get_certificates()
                 _logger.info('Loading certificates %s and key %s', cert, key)
-                ssl_ctx.load_cert_chain(cert, key)
+
+                # Verification handling of a tls cert
+                with open(cert, 'r') as tls_cert_content:
+                    tls_cert = tls_cert_content.read()
+                SSLVerifier.set_user_cert(tls_cert)
+                if SSLVerifier.is_expired():
+                    msg = 'Certificate `{}` expired on {}'.format(cls.cert_file_name, SSLVerifier.get_enddate())
+                    _logger.error(msg)
+
+                    if cls.running_in_safe_mode:
+                        cls.is_rest_server_http_enabled = True
+                        # TODO: Should cls.rest_server_port be set to configured http port, as is_rest_server_http_enabled has been set to True?
+                        msg = "Running in safe mode withOUT https on port {}".format(cls.rest_server_port)
+                        _logger.info(msg)
+                    else:
+                        msg = 'Start in safe-mode to fix this problem!'
+                        _logger.warning(msg)
+                        raise SSLVerifier.VerificationError(msg)
+                else:
+                    ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+                    ssl_ctx.load_cert_chain(cert, key)
 
             # Get the service data and advertise the management port of the core
             # to allow other microservices to find FogLAMP
             loop.run_until_complete(cls.service_config())
             _logger.info('Announce management API service')
-            cls.management_announcer = ServiceAnnouncer('core.{}'.format(cls._service_name), cls._MANAGEMENT_SERVICE, cls.core_management_port,
+            cls.management_announcer = ServiceAnnouncer("core-{}".format(cls._service_name), cls._MANAGEMENT_SERVICE, cls.core_management_port,
                                                         ['The FogLAMP Core REST API'])
 
             cls.service_server, cls.service_server_handler = cls._start_app(loop, cls.service_app, host, cls.rest_server_port, ssl_ctx=ssl_ctx)
@@ -683,6 +736,7 @@ class Server:
                                                    [cls._service_description])
             cls.user_announcer = ServiceAnnouncer(cls._service_name, cls._USER_API_SERVICE, service_server_port,
                                                   [cls._service_description])
+
             # register core
             # a service with 2 web server instance,
             # registering now only when service_port is ready to listen the request
@@ -702,7 +756,10 @@ class Server:
             loop.run_until_complete(cls._audit.information('START', audit_msg))
 
             loop.run_forever()
-
+        except SSLVerifier.VerificationError as e:
+            sys.stderr.write('Error: ' + format(str(e)) + "\n")
+            loop.run_until_complete(cls.stop_storage())
+            sys.exit(1)
         except (OSError, RuntimeError, TimeoutError) as e:
             sys.stderr.write('Error: ' + format(str(e)) + "\n")
             sys.exit(1)
@@ -898,7 +955,7 @@ class Server:
         """ health check
         """
         since_started = time.time() - cls._start_time
-        return web.json_response({'uptime': since_started})
+        return web.json_response({'uptime': int(since_started)})
 
     @classmethod
     async def register(cls, request):
@@ -1271,11 +1328,13 @@ class Server:
 
     @classmethod
     async def update_configuration_item(cls, request):
+        request.is_core_mgt = True
         res = await conf_api.set_configuration_item(request)
         return res
 
     @classmethod
     async def delete_configuration_item(cls, request):
+        request.is_core_mgt = True
         res = await conf_api.delete_configuration_item_value(request)
         return res
 

@@ -1,0 +1,14 @@
+{
+	"condition" : {
+				"column" : "key",
+				"condition" : "=",
+				"value" : "UPDA"
+	},
+	"json_properties" : [
+			{
+				"column" : "data",
+				"path"   : ["json"],
+				"value"  : "cos(x)"
+			}
+	]
+}

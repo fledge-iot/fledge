@@ -31,6 +31,7 @@
 #include <defaults.h>
 #include <filter_plugin.h>
 #include <config_handler.h>
+#include <syslog.h>
 
 extern int makeDaemon(void);
 extern void handler(int sig);
@@ -46,6 +47,7 @@ unsigned short corePort = 8082;
 string	       coreAddress = "localhost";
 bool	       daemonMode = true;
 string	       myName = SERVICE_NAME;
+string	       logLevel = "warning";
 
 	signal(SIGSEGV, handler);
 	signal(SIGILL, handler);
@@ -71,6 +73,10 @@ string	       myName = SERVICE_NAME;
 		{
 			coreAddress = &argv[i][10];
 		}
+		else if (!strncmp(argv[i], "--logLevel=", 11))
+		{
+			logLevel = &argv[i][11];
+		}
 	}
 
 	if (daemonMode && makeDaemon() == -1)
@@ -80,6 +86,7 @@ string	       myName = SERVICE_NAME;
 	}
 
 	SouthService *service = new SouthService(myName);
+	Logger::getLogger()->setMinLevel(logLevel);
 	service->start(coreAddress, corePort);
 	return 0;
 }
@@ -91,6 +98,8 @@ int makeDaemon()
 {
 pid_t pid;
 
+	/* Make the child process inherit the log level */
+	int logmask = setlogmask(0);
 	/* create new process */
 	if ((pid = fork()  ) == -1)
 	{
@@ -100,6 +109,7 @@ pid_t pid;
 	{
 		exit (EXIT_SUCCESS);  
 	}
+	setlogmask(logmask);
 
 	// If we got here we are a child process
 
@@ -184,6 +194,7 @@ void doIngestV2(Ingest *ingest, const vector<Reading *> *vec)
 SouthService::SouthService(const string& myName) : m_name(myName), m_shutdown(false), m_readingsPerSec(1)
 {
 	logger = new Logger(myName);
+	logger->setMinLevel("warning");
 }
 
 /**

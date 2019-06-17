@@ -12,13 +12,15 @@ set(SERVICE_COMMON_LIB services-common-lib)
 file(GLOB SOURCES python_plugin_interface.cpp pyobject_reading_parser.cpp)
 
 # Find Python.h 3.x dev/lib package
-find_package(PythonLibs 3 REQUIRED)
+pkg_check_modules(PYTHON REQUIRED python3)
 
 # Include header files
 include_directories(include ../../../common/include ../../../services/common/include ../../../services/south/include ../../../thirdparty/rapidjson/include)
 
 # Add Python 3.x header files
 include_directories(${PYTHON_INCLUDE_DIRS})
+
+link_directories(${PYTHON_LIBRARY_DIRS})
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../../../lib)
 

@@ -36,6 +36,8 @@ from foglamp.common.jqfilter import JQFilter
 from foglamp.common.audit_logger import AuditLogger
 from foglamp.common.process import FoglampProcess
 from foglamp.common import logger
+from foglamp.common.common import _FOGLAMP_ROOT
+from foglamp.services.core.api.plugins import common
 
 __author__ = "Stefano Simonelli, Massimiliano Pinto, Mark Riddoch, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -202,8 +204,6 @@ class SendingProcess(FoglampProcess):
     """ Maximum number of increments for the sleep handling, the amount of time is doubled at every sleep """
     TASK_SEND_UPDATE_POSITION_MAX = 10
     """ the position is updated after the specified numbers of interactions of the sending task """
-    _NORTH_PATH = "foglamp.plugins.north."
-    """Filesystem path where the norths reside"""
     _PLUGIN_TYPE = "north"
     """Define the type of the plugin managed by the Sending Process"""
 
@@ -262,7 +262,7 @@ class SendingProcess(FoglampProcess):
             'memory_buffer_size': int(self._CONFIG_DEFAULT['memory_buffer_size']['default']),
         }
         self._config_from_manager = ""
-        self._module_template = self._NORTH_PATH + "empty." + "empty"
+        self._module_template = "foglamp.plugins.north." + "empty." + "empty"
         self._plugin = importlib.import_module(self._module_template)
         self._plugin_info = {
             'name': "",
@@ -799,11 +799,11 @@ class SendingProcess(FoglampProcess):
         return north_ok
 
     def _plugin_load(self):
-        module_to_import = "{path_to}{foldername}.{filename}".format(path_to=self._NORTH_PATH,foldername=self._config['plugin'],filename=self._config['plugin'])
         try:
-            self._plugin = __import__(module_to_import, fromlist=[''])
-        except ImportError:
-            SendingProcess._logger.error(_MESSAGES_LIST["e000005"].format(module_to_import))
+            plugin_module_path = "{}/python/foglamp/plugins/{}/{}".format(_FOGLAMP_ROOT, self._PLUGIN_TYPE, self._config['plugin'])
+            self._plugin = common.load_python_plugin(plugin_module_path, self._config['plugin'], self._PLUGIN_TYPE)
+        except (ImportError, FileNotFoundError):
+            SendingProcess._logger.error(_MESSAGES_LIST["e000005"].format(plugin_module_path))
             raise
 
     def _fetch_configuration(self, cat_name=None, cat_desc=None, cat_config=None, cat_keep_original=False):
@@ -817,6 +817,12 @@ class SendingProcess(FoglampProcess):
             })
             self._core_microservice_management_client.create_configuration_category(config_payload)
             _config_from_manager = self._core_microservice_management_client.get_configuration_category(category_name=cat_name)
+
+            # Check and warn if pipeline exists in North task instance
+            if 'filter' in _config_from_manager:
+                _LOGGER.warning('Filter pipeline is not supported on Python North task instance [%s], plugin [%s]',
+                                cat_name,
+                                _config_from_manager['plugin']['value'])
 
             # Create the parent category for all north services
             try:

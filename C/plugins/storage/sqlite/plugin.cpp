@@ -39,7 +39,7 @@ static PLUGIN_INFORMATION info = {
 	"1.0.0",                  // Version
 	SP_COMMON|SP_READINGS,    // Flags
 	PLUGIN_TYPE_STORAGE,      // Type
-	"1.0.0"                   // Interface version
+	"1.2.0"                   // Interface version
 };
 
 /**
@@ -217,6 +217,94 @@ ConnectionManager *manager = (ConnectionManager *)handle;
   
 	manager->shutdown();
 	return true;
+}
+
+/**
+ * Create snapshot of a common table
+ *
+ * @param handle	The plugin handle
+ * @param table		The table to shapshot
+ * @param id		The snapshot id
+ * @return		-1 on error, >= o on success
+ *
+ * The new created table has the following name:
+ * table_id
+ */
+int plugin_create_table_snapshot(PLUGIN_HANDLE handle,
+				 char *table,
+				 char *id)
+{
+ConnectionManager *manager = (ConnectionManager *)handle;
+Connection        *connection = manager->allocate();
+
+        int result = connection->create_table_snapshot(std::string(table),
+							std::string(id));
+        manager->release(connection);
+        return result;
+}
+
+/**
+ * Load a snapshot of a common table
+ *
+ * @param handle	The plugin handle
+ * @param table		The table to fill from a given snapshot
+ * @param id		The table snapshot id
+ * @return		-1 on error, >= o on success
+ */
+int plugin_load_table_snapshot(PLUGIN_HANDLE handle,
+				char *table,
+				char *id)
+{
+ConnectionManager *manager = (ConnectionManager *)handle;
+Connection        *connection = manager->allocate();
+
+        int result = connection->load_table_snapshot(std::string(table),
+						     std::string(id));
+        manager->release(connection);
+        return result;
+}
+
+/**
+ * Delete a snapshot of a common table
+ *
+ * @param handle	The plugin handle
+ * @param table		The table which shapshot will be removed
+ * @param id		The snapshot id
+ * @return		-1 on error, >= o on success
+ *
+ */
+int plugin_delete_table_snapshot(PLUGIN_HANDLE handle,
+				 char *table,
+				 char *id)
+{
+ConnectionManager *manager = (ConnectionManager *)handle;
+Connection        *connection = manager->allocate();
+
+        int result = connection->delete_table_snapshot(std::string(table),
+							std::string(id));
+        manager->release(connection);
+        return result;
+}
+
+/**
+ * Get all snapshots of a given common table
+ *
+ * @param handle	The plugin handle
+ * @param table		The table name 
+ * @return		List of snapshots (even empty list) or NULL for errors
+ *
+ */
+const char* plugin_get_table_snapshots(PLUGIN_HANDLE handle,
+				char *table)
+{
+ConnectionManager *manager = (ConnectionManager *)handle;
+Connection        *connection = manager->allocate();
+std::string results;
+
+	bool rval = connection->get_table_snapshots(std::string(table), results);
+	manager->release(connection);
+
+	return rval ? strdup(results.c_str()) : NULL;
 }
 
 };

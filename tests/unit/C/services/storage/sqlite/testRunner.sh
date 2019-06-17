@@ -2,8 +2,20 @@
 
 # Default values
 export FOGLAMP_DATA=./plugin_cfg/sqlite          # Select the persistent storage plugin
-export storage_exec=""
+export storage_exec=$FOGLAMP_ROOT/services/foglamp.services.storage
 export TZ='Etc/UTC'
+
+show_configuration () {
+
+	echo "FogLAMP unit tests for the SQLite plugin"
+
+	echo "Starting storage layer      :$storage_exec:"
+	echo "timezone                    :$TZ:"
+	echo "expected dir                :$expected_dir:"
+	echo "configuration               :$FOGLAMP_DATA:"
+	echo "database file               :$DEFAULT_SQLITE_DB_FILE:"
+}
+
 
 #
 # evaluates : FOGLAMP_DATA, storage_exec, TZ, and expected_dir
@@ -44,18 +56,17 @@ step1="${TZ/\//_}"
 expected_dir="expected_${step1^^}"
 
 if [[ "$storage_exec" != "" ]] ; then
-	echo "Starting storage layer      :$storage_exec:"
-	echo "timezone                    :$TZ:"
-	echo "configuration               :$FOGLAMP_DATA:"
-	echo "database file               :$DEFAULT_SQLITE_DB_FILE:"
+
+	show_configuration
 	$storage_exec
-elif [[ "${FOGLAMP_ROOT}" != "" ]] ; then
-	echo "Starting storage service in :$FOGLAMP_ROOT:"
-	echo "timezone                    :$TZ:"
-	echo "configuration               :$FOGLAMP_DATA:"
-	echo "database file               :$DEFAULT_SQLITE_DB_FILE:"
-	$FOGLAMP_ROOT/services/foglamp.services.storage
 	sleep 1
+
+elif [[ "${FOGLAMP_ROOT}" != "" ]] ; then
+
+	show_configuration
+	$storage_exec
+	sleep 1
+
 else
 	echo Must either set FOGLAMP_ROOT or provide storage service to test
 	exit 1
@@ -77,12 +88,22 @@ cat testset | while read name method url payload optional; do
 #sleep 0.003
 echo -n "Test $testNum ${name}: "
 if [ "$payload" = "" ] ; then
-	curl -X $method $url -o results/$testNum >/dev/null 2>&1
+	output=$(curl -X $method $url -o results/$testNum 2>/dev/null)
 	curlstate=$?
 else
-	curl -X $method $url -d@payloads/$payload -o results/$testNum >/dev/null 2>&1
+	output=$(curl -X $method $url -d@payloads/$payload -o results/$testNum 2>/dev/null)
 	curlstate=$?
 fi
+
+# Forces the creation on an empty file if the output of the curl command is empty
+# it is needed for the behavior of the curl command in RHEL/CentOS
+if [ "$output" = "" ] ; then
+
+	touch results/$testNum
+else
+	echo -n "${output}" > results/$testNum
+fi
+
 if [ "$optional" = "" ] ; then
 	if [ ! -f ${expected_dir}/$testNum ]; then
 		n_unchecked=`expr $n_unchecked + 1`

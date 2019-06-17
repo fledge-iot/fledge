@@ -80,8 +80,8 @@ Older,PUT,http://localhost:8080/storage/table/test2/query,older.json
 Newer Bad,PUT,http://localhost:8080/storage/table/test2/query,newerBad.json
 Like,PUT,http://localhost:8080/storage/table/test2/query,where_like.json
 Group Time,PUT,http://localhost:8080/storage/reading/query,group_time.json
-Jira FOGL-690,POST,http://localhost:8080/storage/table/configuration,error-fogl690.json
-Jira FOGL-690 cleanup,DELETE,http://localhost:8080/storage/table/configuration,delete.json
+Jira FOGL-690,POST,http://localhost:8080/storage/table/configuration,fogl690-ok.json
+Set-FOGL-983,PUT,http://localhost:8080/storage/table/configuration,FOGL-983.json
 Add bad Readings,POST,http://localhost:8080/storage/reading,badreadings.json
 Query Readings Timebucket Bad,PUT,http://localhost:8080/storage/reading/query,query_readings_timebucket_bad.json
 Reading Rate Array,PUT,http://localhost:8080/storage/reading/query,reading_property_array.json
@@ -89,8 +89,8 @@ Common Read limit max_int,PUT,http://localhost:8080/storage/table/test/query,lim
 Common Read skip max_int,PUT,http://localhost:8080/storage/table/test/query,skip_max_int.json
 Timezone,PUT,http://localhost:8080/storage/table/test2/query,timezone.json
 Bad Timezone,PUT,http://localhost:8080/storage/table/test2/query,timezone_bad.json
-Set-FOGL-983,PUT,http://localhost:8080/storage/table/configuration,FOGL-983.json
 Get-FOGL-983,PUT,http://localhost:8080/storage/table/configuration/query,get-FOGL-983.json
+Jira FOGL-690 cleanup,DELETE,http://localhost:8080/storage/table/configuration,delete.json
 Numeric Column Name,PUT,http://localhost:8080/storage/table/test/query,where_numeric_column.json,
 Common table IN operator,PUT,http://localhost:8080/storage/table/test2/query,where_in.json
 Common table NOT IN operator,PUT,http://localhost:8080/storage/table/test2/query,where_not_in.json
@@ -98,4 +98,18 @@ Common table IN operator bad values,PUT,http://localhost:8080/storage/table/test
 Query Readings IN operator,PUT,http://localhost:8080/storage/reading/query,query_readings_in.json
 Query Readings NOT IN operator,PUT,http://localhost:8080/storage/reading/query,query_readings_not_in.json
 Query Readings IN operator bad values,PUT,http://localhost:8080/storage/reading/query,query_readings_in_bad_values.json
+microseconds - Purge Readings,PUT,http://localhost:8080/storage/reading/purge?age=1&sent=0&flags=purge,
+microseconds - Add Readings,POST,http://localhost:8080/storage/reading,msec_add_readings_user_ts.json
+microseconds - Query Readings,PUT,http://localhost:8080/storage/reading/query,msec_query_readings.json
+microseconds - Query asset NO alias,PUT,http://localhost:8080/storage/reading/query,msec_query_asset_noalias.json
+microseconds - Query asset alias,PUT,http://localhost:8080/storage/reading/query,msec_query_asset_alias.json
+microseconds - Query asset aggregate min,PUT,http://localhost:8080/storage/reading/query,msec_query_asset_aggmin.json
+microseconds - Query asset aggregate min array,PUT,http://localhost:8080/storage/reading/query,msec_query_asset_aggminarray.json
+Update JSON value as function,PUT,http://localhost:8080/storage/table/test,put_function_in_JSON.json
+Update JSON value in JSON value,PUT,http://localhost:8080/storage/table/test,put_json_in_JSON.json
+Get updated complex JSON value,PUT,http://localhost:8080/storage/table/test/query,get_updated_complex_JSON.json
+Add table snapshot,POST,http://localhost:8080/storage/table/test2/snapshot,add_snapshot.json
+Load table snapshot,PUT,http://localhost:8080/storage/table/test2/snapshot/99,
+Delete table snapshot,DELETE,http://localhost:8080/storage/table/test2/snapshot/99,
+Jira FOGL-690,POST,http://localhost:8080/storage/table/configuration,fogl690-error.json
 Shutdown,POST,http://localhost:1081/foglamp/service/shutdown,,checkstate

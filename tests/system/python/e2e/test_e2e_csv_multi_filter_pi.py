@@ -16,6 +16,7 @@ import os
 import json
 import time
 import pytest
+import utils
 
 
 __author__ = "Vaibhav Singhal"
@@ -33,6 +34,23 @@ NORTH_TASK_NAME = "NorthReadingsTo_PI"
 
 
 class TestE2eCsvMultiFltrPi:
+    def get_ping_status(self, foglamp_url):
+        _connection = http.client.HTTPConnection(foglamp_url)
+        _connection.request("GET", '/foglamp/ping')
+        r = _connection.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        return jdoc
+
+    def get_statistics_map(self, foglamp_url):
+        _connection = http.client.HTTPConnection(foglamp_url)
+        _connection.request("GET", '/foglamp/statistics')
+        r = _connection.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        return utils.serialize_stats_map(jdoc)
 
     @pytest.fixture
     def start_south_north(self, reset_and_start_foglamp, add_south, enable_schedule, remove_directories,
@@ -107,10 +125,11 @@ class TestE2eCsvMultiFltrPi:
         remove_data_file(csv_file_path)
 
     def test_end_to_end(self, start_south_north, disable_schedule, foglamp_url, read_data_from_pi, pi_host, pi_admin,
-                        pi_passwd, pi_db, wait_time, retries):
+                        pi_passwd, pi_db, wait_time, retries, skip_verify_north_interface):
         """ Test that data is inserted in FogLAMP using playback south plugin &
             Delta, RMS, Rate, Scale, Asset & Metadata filters, and sent to PI
             start_south_north: Fixture that starts FogLAMP with south service, add filter and north instance
+            skip_verify_north_interface: Flag for assertion of data from Pi web API
             Assertions:
                 on endpoint GET /foglamp/asset
                 on endpoint GET /foglamp/asset/<asset_name> with applied data processing filter value
@@ -123,7 +142,18 @@ class TestE2eCsvMultiFltrPi:
         # disable schedule to stop the service and sending data
         disable_schedule(foglamp_url, SVC_NAME)
 
-        self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
+        ping_response = self.get_ping_status(foglamp_url)
+        assert 1 == ping_response["dataRead"]
+        assert 1 == ping_response["dataSent"]
+
+        actual_stats_map = self.get_statistics_map(foglamp_url)
+        assert 1 == actual_stats_map["e2e_filters_RMS".upper()]
+        assert 1 == actual_stats_map['NorthReadingsToPI']
+        assert 1 == actual_stats_map['READINGS']
+        assert 1 == actual_stats_map['Readings Sent']
+
+        if not skip_verify_north_interface:
+            self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
 
     def _verify_ingest(self, conn):
 

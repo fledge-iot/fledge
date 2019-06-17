@@ -63,15 +63,8 @@ if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *
 	echo "Compiling SQLite3 static library for FogLAMP ..."
 	./configure --enable-shared=false --enable-static=true --enable-static-shell CFLAGS="-DSQLITE_ENABLE_JSON1 -DSQLITE_ENABLE_LOAD_EXTENSION -DSQLITE_ENABLE_COLUMN_METADATA -fno-common -fPIC"
 	autoreconf -f -i
-	echo "DBG 1"
-	sleep 5
 	make
-	echo "DBG 2"
-	sleep 5
-
 	cd $foglamp_location
-	echo "DBG 3"
-	sleep 5
 
 	# To avoid to stop the execution for any internal error of scl_source
 	set +e

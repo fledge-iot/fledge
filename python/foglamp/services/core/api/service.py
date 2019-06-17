@@ -5,6 +5,7 @@
 # FOGLAMP_END
 import datetime
 import uuid
+import platform
 from aiohttp import web
 
 from typing import Dict
@@ -22,6 +23,8 @@ from foglamp.services.core.service_registry.service_registry import ServiceRegis
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
 from foglamp.common.common import _FOGLAMP_ROOT
 from foglamp.services.core.api.plugins import common
+from foglamp.services.core.api.plugins import install
+
 
 __author__ = "Mark Riddoch, Ashwin Gopalakrishnan, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -31,6 +34,7 @@ __version__ = "${VERSION}"
 _help = """
     -------------------------------------------------------------------------------
     | GET POST            | /foglamp/service                                      |
+    | GET                 | /foglamp/service/available                            |
     -------------------------------------------------------------------------------
 """
 
@@ -129,6 +133,9 @@ async def add_service(request):
              curl -X POST http://localhost:8081/foglamp/service -d '{"name": "DHT 11", "plugin": "dht11", "type": "south", "enabled": true}'
              curl -sX POST http://localhost:8081/foglamp/service -d '{"name": "Sine", "plugin": "sinusoid", "type": "south", "enabled": true, "config": {"dataPointsPerSec": {"value": "10"}}}' | jq
              curl -X POST http://localhost:8081/foglamp/service -d '{"name": "NotificationServer", "type": "notification", "enabled": true}' | jq
+
+             curl -sX POST http://localhost:8081/foglamp/plugins -d '{"format":"repository", "name": "foglamp-service-notification"}?action=install'
+             curl -sX POST http://localhost:8081/foglamp/plugins -d '{"format":"repository", "name": "foglamp-service-notification", "version":"1.6.0"}?action=install'
     """
 
     try:
@@ -144,6 +151,33 @@ async def add_service(request):
 
         if name is None:
             raise web.HTTPBadRequest(reason='Missing name property in payload.')
+        if 'action' in request.query and request.query['action'] != '':
+            if request.query['action'] == 'install':
+                file_format = data.get('format', None)
+                if file_format is None:
+                    raise ValueError("format param is required")
+                if file_format not in ["repository"]:
+                    raise ValueError("Invalid format. Must be 'repository'")
+                version = data.get('version', None)
+                if version:
+                    delimiter = '.'
+                    if str(version).count(delimiter) != 2:
+                        raise ValueError('Service semantic version is incorrect; it should be like X.Y.Z')
+
+                services = common.fetch_available_plugins("service")
+                if name not in services:
+                    raise KeyError('{} service is not available for the given repository or already installed'.format(name))
+
+                _platform = platform.platform()
+                pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
+                code, msg = install.install_package_from_repo(name, pkg_mgt, version)
+                if code != 0:
+                    raise ValueError(msg)
+
+                message = "{} is successfully installed".format(name)
+                return web.json_response({'message': message})
+            else:
+                raise web.HTTPBadRequest(reason='{} is not a valid action'.format(request.query['action']))
         if utils.check_reserved(name) is False:
             raise web.HTTPBadRequest(reason='Invalid name property in payload.')
         if utils.check_foglamp_reserved(name) is False:
@@ -283,6 +317,8 @@ async def add_service(request):
 
     except ValueError as e:
         raise web.HTTPBadRequest(reason=str(e))
+    except KeyError as ex:
+        raise web.HTTPNotFound(reason=str(ex))
     else:
         return web.json_response({'name': name, 'id': str(schedule.schedule_id)})
 
@@ -324,3 +360,19 @@ async def check_notification_schedule(storage):
     payload = PayloadBuilder().SELECT("process_name").payload()
     result = await storage.query_tbl_with_payload('schedules', payload)
     return result
+
+
+async def get_available(request: web.Request) -> web.Response:
+    """ get list of a available services via package management i.e apt or yum
+
+        :Example:
+            curl -X GET http://localhost:8081/foglamp/service/available
+    """
+    try:
+        services = common.fetch_available_plugins("service")
+    except ValueError as ex:
+        raise web.HTTPBadRequest(reason=ex)
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason=ex)
+
+    return web.json_response({"service": services})

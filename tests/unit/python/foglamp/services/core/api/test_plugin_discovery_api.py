@@ -5,12 +5,13 @@
 # FOGLAMP_END
 
 import json
-from unittest.mock import patch, mock_open
+from unittest.mock import patch
 import pytest
 from aiohttp import web
 
 from foglamp.services.core import routes
 from foglamp.common.plugin_discovery import PluginDiscovery
+from foglamp.services.core.api.plugins import common
 
 
 __author__ = "Ashish Jabble"
@@ -45,7 +46,7 @@ class TestPluginDiscoveryApi:
             assert {'plugins': result} == json_response
         patch_get_plugin_installed.assert_called_once_with(None, is_config)
 
-    @pytest.mark.parametrize("param, type", [
+    @pytest.mark.parametrize("param, _type", [
         ("north", "north"),
         ("south", "south"),
         ("North", "north"),
@@ -58,16 +59,16 @@ class TestPluginDiscoveryApi:
         ("notificationDelivery", "notificationDelivery"),
         ("notificationRule", "notificationRule")
     ])
-    async def test_get_plugins_installed_by_params(self, client, param, type):
+    async def test_get_plugins_installed_by_params(self, client, param, _type):
         with patch.object(PluginDiscovery, 'get_plugins_installed', return_value={}) as patch_get_plugin_installed:
             resp = await client.get('/foglamp/plugins/installed?type={}'.format(param))
             assert 200 == resp.status
             r = await resp.text()
             json_response = json.loads(r)
             assert {'plugins': {}} == json_response
-        patch_get_plugin_installed.assert_called_once_with(type, False)
+        patch_get_plugin_installed.assert_called_once_with(_type, False)
 
-    @pytest.mark.parametrize("param, type, result, is_config", [
+    @pytest.mark.parametrize("param, _type, result, is_config", [
         ("?type=north&config=false", "north", {"name": "http", "version": "1.0.0", "type": "north", "description": "HTTP North-C plugin"}, False),
         ("?type=south&config=false", "south", {"name": "sinusoid", "version": "1.0", "type": "south", "description": "sinusoid plugin"}, False),
         ("?type=filter&config=false", "filter", {"name": "scale", "version": "1.0.0", "type": "filter", "description": "Filter Scale plugin"}, False),
@@ -84,14 +85,14 @@ class TestPluginDiscoveryApi:
         ("?type=notificationRule&config=true", "notificationRule", {"name": "OverMaxRule", "version": "1.0.0", "type": "rule", "description": "The OverMaxRule notification rule plugin",
                                             "config": {"plugin": {"type": "string", "description": "The OverMaxRule notification rule plugin", "default": "OverMaxRule"}}}, True)
     ])
-    async def test_get_plugins_installed_by_type_and_config(self, client, param, type, result, is_config):
+    async def test_get_plugins_installed_by_type_and_config(self, client, param, _type, result, is_config):
         with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=result) as patch_get_plugin_installed:
             resp = await client.get('/foglamp/plugins/installed{}'.format(param))
             assert 200 == resp.status
             r = await resp.text()
             json_response = json.loads(r)
             assert {'plugins': result} == json_response
-        patch_get_plugin_installed.assert_called_once_with(type, is_config)
+        patch_get_plugin_installed.assert_called_once_with(_type, is_config)
 
     @pytest.mark.parametrize("param, message", [
         ("?type=blah", "Invalid plugin type. Must be 'north' or 'south' or 'filter' or 'notificationDelivery' or 'notificationRule'."),
@@ -114,18 +115,25 @@ class TestPluginDiscoveryApi:
         assert 400 == resp.status
         assert message == resp.reason
 
-    async def test_get_plugins_available(self, client):
-        with patch('os.path.exists', return_value=True):
-            with patch('os.system', return_value=0):
-                with patch('builtins.open', new_callable=mock_open()):
-                    with patch('subprocess.run', return_value=1):
-                        resp = await client.get('/foglamp/plugins/available')
-                        assert 200 == resp.status
-                        r = await resp.text()
-                        json_response = json.loads(r)
-                        assert [] == json_response['plugins']
+    @pytest.mark.parametrize("param, output, result", [
+        ("", ['foglamp-south-sinusoid', 'foglamp-service-notification', 'foglamp-gui', 'foglamp-service-new',
+              'foglamp-quickstart'], ['foglamp-south-sinusoid']),
+        ("?type=south", ['foglamp-south-random'], ['foglamp-south-random']),
+        ("?type=north", ['foglamp-north-http'], ['foglamp-north-http']),
+        ("?type=filter", ['foglamp-filter-asset'], ['foglamp-filter-asset']),
+        ("?type=notify", ['foglamp-notify-slack'], ['foglamp-notify-slack'])
+    ])
+    async def test_get_plugins_available(self, client, param, output, result):
+        with patch.object(common, 'fetch_available_plugins', return_value=output) as patch_fetch_available_plugins:
+            resp = await client.get('/foglamp/plugins/available{}'.format(param))
+            assert 200 == resp.status
+            r = await resp.text()
+            json_response = json.loads(r)
+            assert result == json_response['plugins']
+        if param:
+            patch_fetch_available_plugins.assert_called_once_with(param.split("=")[1])
 
     async def test_bad_get_plugins_available(self, client):
         resp = await client.get('/foglamp/plugins/available?type=blah')
         assert 400 == resp.status
-        assert "Invalid package type. Must be 'north' or 'south' or 'filter' or 'notify' or 'rule' or 'service'." == resp.reason
+        assert "Invalid package type. Must be 'north' or 'south' or 'filter' or 'notify' or 'rule'." == resp.reason

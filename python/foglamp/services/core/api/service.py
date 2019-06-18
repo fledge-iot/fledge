@@ -134,8 +134,8 @@ async def add_service(request):
              curl -sX POST http://localhost:8081/foglamp/service -d '{"name": "Sine", "plugin": "sinusoid", "type": "south", "enabled": true, "config": {"dataPointsPerSec": {"value": "10"}}}' | jq
              curl -X POST http://localhost:8081/foglamp/service -d '{"name": "NotificationServer", "type": "notification", "enabled": true}' | jq
 
-             curl -sX POST http://localhost:8081/foglamp/plugins -d '{"format":"repository", "name": "foglamp-service-notification"}?action=install'
-             curl -sX POST http://localhost:8081/foglamp/plugins -d '{"format":"repository", "name": "foglamp-service-notification", "version":"1.6.0"}?action=install'
+             curl -sX POST http://localhost:8081/foglamp/service?action=install -d '{"format":"repository", "name": "foglamp-service-notification"}'
+             curl -sX POST http://localhost:8081/foglamp/service?action=install -d '{"format":"repository", "name": "foglamp-service-notification", "version":"1.6.0"}'
     """
 
     try:
@@ -375,4 +375,4 @@ async def get_available(request: web.Request) -> web.Response:
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
 
-    return web.json_response({"service": services})
+    return web.json_response({"services": services})

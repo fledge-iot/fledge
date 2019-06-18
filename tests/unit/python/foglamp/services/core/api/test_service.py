@@ -644,4 +644,13 @@ class TestService:
             assert "'{} service is not available for the given repository or already installed'".format(svc) == resp.reason
         patch_fetch_available_package.assert_called_once_with('service')
 
+    async def test_get_service_available(self, client):
+        with patch.object(common, 'fetch_available_packages', return_value=[]) as patch_fetch_available_package:
+            resp = await client.get('/foglamp/service/available')
+            assert 200 == resp.status
+            result = await resp.text()
+            json_response = json.loads(result)
+            assert {'services': []} == json_response
+        patch_fetch_available_package.assert_called_once_with('service')
+
 # TODO:  add negative tests and C type plugin add service tests

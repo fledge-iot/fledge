@@ -62,16 +62,19 @@ async def get_plugins_available(request: web.Request) -> web.Response:
 
         :Example:
             curl -X GET http://localhost:8081/foglamp/plugins/available
-            curl -X GET http://localhost:8081/foglamp/plugins/available?type=north | south | filter | notify | rule | service
+            curl -X GET http://localhost:8081/foglamp/plugins/available?type=north | south | filter | notify | rule
     """
     try:
         package_type = ""
         if 'type' in request.query and request.query['type'] != '':
             package_type = request.query['type'].lower()
 
-        if package_type and package_type not in ['north', 'south', 'filter', 'notify', 'rule', 'service']:
-            raise ValueError("Invalid package type. Must be 'north' or 'south' or 'filter' or 'notify' or 'rule' or 'service'.")
-        plugins = common.fetch_available_plugins(package_type)
+        if package_type and package_type not in ['north', 'south', 'filter', 'notify', 'rule']:
+            raise ValueError("Invalid package type. Must be 'north' or 'south' or 'filter' or 'notify' or 'rule'.")
+        plugins = common.fetch_available_packages(package_type)
+        # foglamp-gui, foglamp-quickstart and foglamp-service-* packages are excluded when no type is given
+        if not package_type:
+            plugins = [p for p in plugins if not str(p).startswith('foglamp-service-') and p not in ('foglamp-quickstart', 'foglamp-gui')]
     except ValueError as ex:
         raise web.HTTPBadRequest(reason=ex)
     except Exception as ex:

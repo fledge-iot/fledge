@@ -81,9 +81,9 @@ class TestPluginDiscoveryApi:
         ("?type=filter&config=true", "filter", {"name": "scale", "version": "1.0.0", "type": "filter", "description": "Filter Scale plugin",
                                                 "config": {"offset": {"default": "0.0", "type": "float", "description": "A constant offset"}, "factor": {"default": "100.0", "type": "float", "description": "Scale factor for a reading."}, "plugin": {"default": "scale", "type": "string", "description": "Scale filter plugin"}, "enable": {"default": "false", "type": "boolean", "description": "A switch that can be used to enable or disable."}}}, True),
         ("?type=notificationDelivery&config=true", "notificationDelivery", {"name": "email", "version": "1.0.0", "type": "notify", "description": "Email notification plugin",
-                                                "config": {"plugin": {"type": "string", "description": "Email notification plugin", "default": "email"}}}, True),
+                                                                            "config": {"plugin": {"type": "string", "description": "Email notification plugin", "default": "email"}}}, True),
         ("?type=notificationRule&config=true", "notificationRule", {"name": "OverMaxRule", "version": "1.0.0", "type": "rule", "description": "The OverMaxRule notification rule plugin",
-                                            "config": {"plugin": {"type": "string", "description": "The OverMaxRule notification rule plugin", "default": "OverMaxRule"}}}, True)
+                                                                    "config": {"plugin": {"type": "string", "description": "The OverMaxRule notification rule plugin", "default": "OverMaxRule"}}}, True)
     ])
     async def test_get_plugins_installed_by_type_and_config(self, client, param, _type, result, is_config):
         with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=result) as patch_get_plugin_installed:
@@ -124,14 +124,14 @@ class TestPluginDiscoveryApi:
         ("?type=notify", ['foglamp-notify-slack'], ['foglamp-notify-slack'])
     ])
     async def test_get_plugins_available(self, client, param, output, result):
-        with patch.object(common, 'fetch_available_plugins', return_value=output) as patch_fetch_available_plugins:
+        with patch.object(common, 'fetch_available_packages', return_value=output) as patch_fetch_available_package:
             resp = await client.get('/foglamp/plugins/available{}'.format(param))
             assert 200 == resp.status
             r = await resp.text()
             json_response = json.loads(r)
             assert result == json_response['plugins']
         if param:
-            patch_fetch_available_plugins.assert_called_once_with(param.split("=")[1])
+            patch_fetch_available_package.assert_called_once_with(param.split("=")[1])
 
     async def test_bad_get_plugins_available(self, client):
         resp = await client.get('/foglamp/plugins/available?type=blah')

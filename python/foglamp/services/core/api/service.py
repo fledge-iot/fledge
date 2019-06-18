@@ -164,7 +164,7 @@ async def add_service(request):
                     if str(version).count(delimiter) != 2:
                         raise ValueError('Service semantic version is incorrect; it should be like X.Y.Z')
 
-                services = common.fetch_available_plugins("service")
+                services = common.fetch_available_packages("service")
                 if name not in services:
                     raise KeyError('{} service is not available for the given repository or already installed'.format(name))
 
@@ -369,7 +369,7 @@ async def get_available(request: web.Request) -> web.Response:
             curl -X GET http://localhost:8081/foglamp/service/available
     """
     try:
-        services = common.fetch_available_plugins("service")
+        services = common.fetch_available_packages("service")
     except ValueError as ex:
         raise web.HTTPBadRequest(reason=ex)
     except Exception as ex:

@@ -498,13 +498,13 @@ class TestService:
                                                           return_value=self.async_mock("")) as patch_save_schedule:
                                             with patch.object(server.Server.scheduler, 'get_schedule_by_name',
                                                               return_value=async_mock_get_schedule()) as patch_get_schedule:
-                                                    resp = await client.post('/foglamp/service', data=payload)
-                                                    server.Server.scheduler = None
-                                                    assert 200 == resp.status
-                                                    result = await resp.text()
-                                                    json_response = json.loads(result)
-                                                    assert {'id': '2129cc95-c841-441a-ad39-6469a87dbc8b',
-                                                            'name': data['name']} == json_response
+                                                resp = await client.post('/foglamp/service', data=payload)
+                                                server.Server.scheduler = None
+                                                assert 200 == resp.status
+                                                result = await resp.text()
+                                                json_response = json.loads(result)
+                                                assert {'id': '2129cc95-c841-441a-ad39-6469a87dbc8b',
+                                                        'name': data['name']} == json_response
                                             patch_get_schedule.assert_called_once_with(data['name'])
                                         patch_save_schedule.called_once_with()
                                     patch_set_entry.assert_called_once_with(data['name'], 'dataPointsPerSec', '10')
@@ -611,7 +611,7 @@ class TestService:
         param = {"format": "repository", "name": svc_name}
         _platform = platform.platform()
         pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
-        with patch.object(common, 'fetch_available_plugins', return_value=[svc_name]) as avail_plugin_patch:
+        with patch.object(common, 'fetch_available_packages', return_value=[svc_name]) as patch_fetch_available_package:
             with patch.object(install, 'install_package_from_repo',
                               return_value=(0, 'Success')) as install_package_patch:
                 resp = await client.post('/foglamp/service?action=install', data=json.dumps(param))
@@ -620,7 +620,7 @@ class TestService:
                 response = json.loads(result)
                 assert {"message": "{} is successfully installed".format(svc_name)} == response
             install_package_patch.assert_called_once_with(svc_name, pkg_mgt, None)
-        avail_plugin_patch.assert_called_once_with('service')
+        patch_fetch_available_package.assert_called_once_with('service')
 
     @pytest.mark.parametrize("req_param, post_param, message", [
         ("?action=install", {"name": "blah"}, "format param is required"),
@@ -638,10 +638,10 @@ class TestService:
     async def test_post_service_package_from_repo_is_not_available(self, client):
         svc = "foglamp-service-notification"
         param = {"format": "repository", "name": svc}
-        with patch.object(common, 'fetch_available_plugins', return_value=[]) as avail_plugin_patch:
+        with patch.object(common, 'fetch_available_packages', return_value=[]) as patch_fetch_available_package:
             resp = await client.post('/foglamp/service?action=install', data=json.dumps(param))
             assert 404 == resp.status
             assert "'{} service is not available for the given repository or already installed'".format(svc) == resp.reason
-        avail_plugin_patch.assert_called_once_with('service')
+        patch_fetch_available_package.assert_called_once_with('service')
 
 # TODO:  add negative tests and C type plugin add service tests

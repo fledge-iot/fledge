@@ -31,6 +31,7 @@ SVC_NAME = "Expr #1"
 ASSET_NAME = "Expression"
 
 
+@pytest.mark.skip(reason="Flaky test, to be fixed")
 class TestE2eExprPi:
     def get_ping_status(self, foglamp_url):
         _connection = http.client.HTTPConnection(foglamp_url)

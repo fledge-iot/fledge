@@ -182,7 +182,7 @@ std::string OMF::compress_string(const std::string& str,
  * Sends all the data type messages for a Reading data row
  *
  * @param row    The current Reading data row
- * @return       True is all data types have been sent (HTTP 200/204 OK)
+ * @return       True is all data types have been sent (HTTP 2xx OK)
  *               False when first error occurs.
  */
 bool OMF::sendDataTypes(const Reading& row)
@@ -214,7 +214,7 @@ bool OMF::sendDataTypes(const Reading& row)
 					   m_path,
 					   resType,
 					   typeData);
-		if (res != 200 && res != 202 && res != 204)
+		if  ( ! (res >= 200 && res <= 299) )
 		{
 			Logger::getLogger()->error("Sending JSON dataType message 'Type' "
 						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
@@ -268,7 +268,7 @@ bool OMF::sendDataTypes(const Reading& row)
 					   m_path,
 					   resContainer,
 					   typeContainer);
-		if (res != 200 && res != 202 && res != 204)
+		if  ( ! (res >= 200 && res <= 299) )
 		{
 			Logger::getLogger()->error("Sending JSON dataType message 'Container' "
 						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
@@ -321,7 +321,7 @@ bool OMF::sendDataTypes(const Reading& row)
 					   m_path,
 					   resStaticData,
 					   typeStaticData);
-		if (res != 200 && res != 202 && res != 204)
+		if  ( ! (res >= 200 && res <= 299) )
 		{
 			Logger::getLogger()->error("Sending JSON dataType message 'StaticData' "
 						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
@@ -374,7 +374,7 @@ bool OMF::sendDataTypes(const Reading& row)
 					   m_path,
 					   resLinkData,
 					   typeLinkData);
-		if (res != 200 && res != 202 && res != 204)
+		if  ( ! (res >= 200 && res <= 299) )
 		{
 			Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) "
 						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
@@ -540,7 +540,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 					       m_path,
 					       readingData,
 					       json);
-		if (res != 200 && res != 202 && res != 204)
+		if  ( ! (res >= 200 && res <= 299) )
 		{
 			Logger::getLogger()->error("Sending JSON readings, "
 						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
@@ -707,7 +707,7 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 	{
 		int res = m_sender.sendRequest("POST", m_path, readingData, jsonData.str());
 
-		if (res != 200 && res != 202 && res != 204) {
+		if  ( ! (res >= 200 && res <= 299) ) {
 			Logger::getLogger()->error("Sending JSON readings data "
 						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
 				res,
@@ -782,7 +782,7 @@ uint32_t OMF::sendToServer(const Reading* reading,
 
 		int res = m_sender.sendRequest("POST", m_path, readingData, jsonData.str());
 
-		if (res != 200 && res != 202 && res != 204)
+		if  ( ! (res >= 200 && res <= 299) )
 		{
 			Logger::getLogger()->error("Sending JSON readings data "
 						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",

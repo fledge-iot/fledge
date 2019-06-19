@@ -88,13 +88,22 @@ def load_and_fetch_c_hybrid_plugin_info(plugin_name: str, is_config: bool, plugi
                         keys_a = set(jdoc['config'].keys())
                         keys_b = set(data['defaults'].keys())
                         intersection = keys_a & keys_b
-                        # Merge default configuration of both connection plugin and hybrid plugin with intersection of 'config' keys
+                        # Merge default and other configuration fields of both connection plugin and hybrid plugin with intersection of 'config' keys
                         # Use Hybrid Plugin name and description defined in json file
                         temp = jdoc['config']
                         temp['plugin']['default'] = plugin_name
                         temp['plugin']['description'] = data['description']
                         for _key in intersection:
-                            temp[_key]['default'] = json.dumps(data['defaults'][_key]['default']) if temp[_key]['type'] == 'JSON' else str(data['defaults'][_key]['default'])
+                            config_item_keys_a = set(temp[_key].keys())
+                            config_item_keys_b = set(data['defaults'][_key].keys())
+                            config_item_intersection = config_item_keys_a & config_item_keys_b
+                            for _config_key in config_item_intersection:
+                                if temp[_key]['type'] == 'JSON':
+                                    temp[_key][_config_key] = json.dumps(data['defaults'][_key][_config_key])
+                                elif temp[_key]['type'] == 'enumeration':
+                                    temp[_key][_config_key] = data['defaults'][_key][_config_key]
+                                else:
+                                    temp[_key][_config_key] = str(data['defaults'][_key][_config_key])
                         if is_config:
                             plugin_info.update({'config': temp})
                     else:

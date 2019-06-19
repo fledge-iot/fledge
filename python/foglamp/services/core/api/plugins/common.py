@@ -106,7 +106,7 @@ def load_and_fetch_c_hybrid_plugin_info(plugin_name: str, is_config: bool, plugi
     return plugin_info
 
 
-def fetch_available_plugins(package_type: str = "") -> list:
+def fetch_available_packages(package_type: str = "") -> list:
     plugins = []
     plugin_dir = '/plugins/'
     _PATH = _FOGLAMP_DATA + plugin_dir if _FOGLAMP_DATA else _FOGLAMP_ROOT + '/data{}'.format(plugin_dir)

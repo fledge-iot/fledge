@@ -63,7 +63,7 @@ class TestE2EModbusCPI:
             add_south: Fixture that adds a south service with given configuration with enabled or disabled mode
             remove_directories: Fixture that remove directories created during the tests
         """
-        #self.check_connect(modbus_host, modbus_port)
+        self.check_connect(modbus_host, modbus_port)
         cfg = {"protocol": {"value": "TCP"}, "asset": {"value": ""}, "address": {"value": modbus_host},
                "port": {"value": "{}".format(modbus_port)},
                "map": {"value": {"values": [

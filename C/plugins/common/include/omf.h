@@ -92,6 +92,9 @@ class OMF
 		// Set saved OMF formats
 		void setFormatType(const std::string &key, std::string &value);
 
+    		// Set which PIServer component should be used for the communication
+    		void setPIServerEndpoint(const std::string &PIServerEndpoint);
+
 		// Get saved OMF formats
 		std::string getFormatType(const std::string &key) const;
 
@@ -197,6 +200,7 @@ class OMF
 		const std::string	m_path;
 		long			m_typeId;
 		const std::string	m_producerToken;
+    		std::string		m_PIServerEndpoint;
 
 		// Define the OMF format to use for each type
 		// the format will not be applied if the string is empty

@@ -1009,29 +1009,34 @@ const std::string OMF::createLinkData(const Reading& reading) const
 	// Build the Link data (JSON Array)
 
 	string lData = "[{\"typeid\": \"__Link\", \"values\": [";
-#if ADD_ROOT_LINK
-	lData.append("{\"source\": {\"typeid\": \"");
 
-	// Add type_id + '_' + asset_name + '__typename_sensor'
-	OMF::setAssetTypeTag(assetName,
-			     "typename_sensor",
-			     lData);
+	// Handels the structure for the Connector Relay
+	// not supported by PI Web API
+	if (m_PIServerEndpoint == "c")
+	{
+		lData.append("{\"source\": {\"typeid\": \"");
 
-	lData.append("\", \"index\": \"_ROOT\"},");
-	lData.append("\"target\": {\"typeid\": \"");
+		// Add type_id + '_' + asset_name + '__typename_sensor'
+		OMF::setAssetTypeTag(assetName,
+				     "typename_sensor",
+				     lData);
 
-	// Add type_id + '_' + asset_name + '__typename_sensor'
-	OMF::setAssetTypeTag(assetName,
-			     "typename_sensor",
-			     lData);
+		lData.append("\", \"index\": \"_ROOT\"},");
+		lData.append("\"target\": {\"typeid\": \"");
 
-	lData.append("\", \"index\": \"");
+		// Add type_id + '_' + asset_name + '__typename_sensor'
+		OMF::setAssetTypeTag(assetName,
+				     "typename_sensor",
+				     lData);
 
-	// Add asset_name
-	lData.append(assetName);
+		lData.append("\", \"index\": \"");
 
-	lData.append("\"}},");
-#endif
+		// Add asset_name
+		lData.append(assetName);
+
+		lData.append("\"}},");
+	}
+
 	lData.append("{\"source\": {\"typeid\": \"");
 
 	// Add type_id + '_' + asset_name + '__typename_sensor'
@@ -1148,6 +1153,14 @@ void OMF::setFormatType(const string &key, string &value)
 {
 
 	m_formatTypes[key] = value;
+}
+
+/**
+ * Set which PIServer component should be used for the communication
+ */
+void OMF::setPIServerEndpoint(const string &PIServerEndpoint)
+{
+	m_PIServerEndpoint = PIServerEndpoint;
 }
 
 /**

@@ -84,6 +84,16 @@ using namespace rapidjson;
 				" among them the ID of the last object streamed.\", " \
 				"\"type\": \"integer\", \"default\": \"0\", " \
 				"\"readonly\": \"true\" }, " \
+			"\"PIServerEndpoint\": {" \
+				"\"description\": "\
+				      "\"Defines which PIServer component should be used for the communication:  " \
+					" PI Web API, Connector Relay or auto discovery.\" ," \
+				"\"type\": \"enumeration\", " \
+				"\"default\": \"discovery\", "\
+				"\"options\": [\"discovery\", \"piweb\", \"cr\"], " \
+				"\"order\": \"17\" ,"  \
+				"\"displayName\": \"PIServerEndpoint\" " \
+			"}, " \
 			"\"notBlockingErrors\": {" \
 				"\"description\": "\
 					"\"These errors are considered not blocking in the communication with the PI Server, " \
@@ -98,7 +108,7 @@ using namespace rapidjson;
 						"\\\"Unable to find the property of the container of type\\\" " \
 		                        "]"\
                                 "}\", " \
-				"\"order\": \"17\" ,"  \
+				"\"order\": \"18\" ,"  \
 				"\"readonly\": \"true\" " \
 			"} "
 
@@ -113,18 +123,20 @@ using namespace rapidjson;
  */
 typedef struct
 {
-	SimpleHttps	*sender;	// HTTPS connection
-	OMF 		*omf;		// OMF data protocol
-	bool		compression;	// whether to compress readings' data
-	string		hostAndPort;	// hostname:port for SimpleHttps
-	unsigned int	retrySleepTime;	// Seconds between each retry
-	unsigned int	maxRetry;	// Max number of retries in the communication
-	unsigned int	timeout;	// connect and operation timeout
-	string		path;		// PI Server application path
-	long		typeId;		// OMF protocol type-id prefix
-	string		producerToken;	// PI Server connector token
-	string		formatNumber;	// OMF protocol Number format
-	string		formatInteger;	// OMF protocol Integer format
+	SimpleHttps	*sender;	  // HTTPS connection
+	OMF 		*omf;		  // OMF data protocol
+	bool		compression;	  // whether to compress readings' data
+	string		hostAndPort;	  // hostname:port for SimpleHttps
+	unsigned int	retrySleepTime;	  // Seconds between each retry
+	unsigned int	maxRetry;	  // Max number of retries in the communication
+	unsigned int	timeout;	  // connect and operation timeout
+	string		path;		  // PI Server application path
+	long		typeId;		  // OMF protocol type-id prefix
+	string		producerToken;	  // PI Server connector token
+	string		formatNumber;	  // OMF protocol Number format
+	string		formatInteger;	  // OMF protocol Integer format
+    	string		PIServerEndpoint; // Defines which PIServer component should be used for the communication:
+    	                                  // a=auto discovery - p=PI Web API, c=Connector Relay
 	vector<pair<string, string>>
 			staticData;	// Static data
         // Errors considered not blocking in the communication with the PI Server
@@ -187,27 +199,26 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 
 	string formatNumber = configData->getValue("formatNumber");
 	string formatInteger = configData->getValue("formatInteger");
-
-	
+	string PIServerEndpoint = configData->getValue("PIServerEndpoint");
 
 	/**
 	 * Extract host, port, path from URL
 	 */
 	size_t findProtocol = url.find_first_of(":");
-	string protocol = url.substr(0,findProtocol);
+	string protocol = url.substr(0, findProtocol);
 
 	string tmpUrl = url.substr(findProtocol + 3);
 	size_t findPort = tmpUrl.find_first_of(":");
 	string hostName = tmpUrl.substr(0, findPort);
 
 	size_t findPath = tmpUrl.find_first_of("/");
-	string port = tmpUrl.substr(findPort + 1 , findPath - findPort -1);
+	string port = tmpUrl.substr(findPort + 1, findPath - findPort - 1);
 	string path = tmpUrl.substr(findPath);
 
-	string hostAndPort(hostName + ":" + port);	
+	string hostAndPort(hostName + ":" + port);
 
 	// Allocate connector struct
-	CONNECTOR_INFO* connInfo = new CONNECTOR_INFO;
+	CONNECTOR_INFO *connInfo = new CONNECTOR_INFO;
 	// Set configuration felds
 	connInfo->hostAndPort = hostAndPort;
 	connInfo->path = path;
@@ -218,6 +229,20 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	connInfo->producerToken = producerToken;
 	connInfo->formatNumber = formatNumber;
 	connInfo->formatInteger = formatInteger;
+
+	// Translate the PIServerEndpoint configuration
+	if (PIServerEndpoint == "discovery")
+		//# FIXME_I - to be implemented
+		//connInfo->PIServerEndpoint = "d";
+		connInfo->PIServerEndpoint = "p";
+
+	else if(PIServerEndpoint == "piweb")
+		connInfo->PIServerEndpoint = "p";
+
+	else if(PIServerEndpoint == "cr")
+		connInfo->PIServerEndpoint = "c";
+	else
+		connInfo->PIServerEndpoint = "d";
 
 	// Use compression ?
 	string compr = configData->getValue("compression");
@@ -354,6 +379,9 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 				connInfo->path,
 				connInfo->assetsDataTypes,
 				connInfo->producerToken);
+
+	// Set PIServerEndpoint configuration
+	connInfo->omf->setPIServerEndpoint(connInfo->PIServerEndpoint);
 
 	// Set OMF FormatTypes  
 	connInfo->omf->setFormatType(OMF_TYPE_FLOAT,

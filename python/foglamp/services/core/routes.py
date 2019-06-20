@@ -106,6 +106,7 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/service', service.get_health)
     app.router.add_route('DELETE', '/foglamp/service/{service_name}', service.delete_service)
     app.router.add_route('GET', '/foglamp/service/available', service.get_available)
+    app.router.add_route('GET', '/foglamp/service/installed', service.get_installed)
 
     # Task
     app.router.add_route('POST', '/foglamp/scheduled/task', task.add_task)

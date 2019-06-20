@@ -653,4 +653,13 @@ class TestService:
             assert {'services': []} == json_response
         patch_fetch_available_package.assert_called_once_with('service')
 
+    async def test_get_service_installed(self, client):
+        with patch('os.walk') as mockwalk:
+            mockwalk.return_value = [(['/usr/local/foglamp/services'], [], ['foglamp.services.south', 'foglamp.services.storage'])]
+            resp = await client.get('/foglamp/service/installed')
+            assert 200 == resp.status
+            result = await resp.text()
+            json_response = json.loads(result)
+            assert {'services': ['south', 'storage']} == json_response
+
 # TODO:  add negative tests and C type plugin add service tests

@@ -3,6 +3,7 @@
 # FOGLAMP_BEGIN
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
+import os
 import datetime
 import uuid
 import platform
@@ -35,6 +36,7 @@ _help = """
     -------------------------------------------------------------------------------
     | GET POST            | /foglamp/service                                      |
     | GET                 | /foglamp/service/available                            |
+    | GET                 | /foglamp/service/installed                            |
     -------------------------------------------------------------------------------
 """
 
@@ -374,5 +376,21 @@ async def get_available(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=ex)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
+
+    return web.json_response({"services": services})
+
+
+async def get_installed(request: web.Request) -> web.Response:
+    """ get list of a installed services
+
+        :Example:
+            curl -X GET http://localhost:8081/foglamp/service/installed
+    """
+    services = []
+    svc_prefix = 'foglamp.services.'
+    for root, dirs, files in os.walk(_FOGLAMP_ROOT + "/" + "services"):
+        for f in files:
+            if f.startswith(svc_prefix):
+                services.append(f.split(svc_prefix)[-1])
 
     return web.json_response({"services": services})

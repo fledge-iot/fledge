@@ -108,7 +108,7 @@ class TestE2ePiEgressWithScalesetFilter:
         subprocess.run(["cd $FOGLAMP_ROOT/extras/python; python3 -m fogbench -t ../../data/template.json -p http; cd -"]
                        , shell=True, check=True)
         # let the readings ingress
-        time.sleep(wait_time)
+        time.sleep(wait_time * 2)
 
         self._verify_ping_and_statistics(foglamp_url, count=1)
 

@@ -5,7 +5,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Massimiliano Pinto
+ * Author: Massimiliano Pinto, Stefano Simonelli
  */
 #include <plugin_api.h>
 #include <stdio.h>
@@ -92,7 +92,7 @@ using namespace rapidjson;
 				"\"default\": \"discovery\", "\
 				"\"options\": [\"discovery\", \"piweb\", \"cr\"], " \
 				"\"order\": \"17\" ,"  \
-				"\"displayName\": \"PIServerEndpoint\" " \
+				"\"displayName\": \"PI-Server Endpoint\" " \
 			"}, " \
 			"\"notBlockingErrors\": {" \
 				"\"description\": "\
@@ -148,8 +148,9 @@ typedef struct
 } CONNECTOR_INFO;
 
 string saveSentDataTypes(CONNECTOR_INFO* connInfo);
-void loadSentDataTypes(CONNECTOR_INFO* connInfo, Document& JSONData);
-long getMaxTypeId(CONNECTOR_INFO* connInfo);
+void   loadSentDataTypes(CONNECTOR_INFO* connInfo, Document& JSONData);
+long   getMaxTypeId(CONNECTOR_INFO* connInfo);
+string identifyPIServerEndpoint(CONNECTOR_INFO* connInfo);
 
 /**
  * Return the information about this plugin
@@ -232,19 +233,37 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 
 	// Translate the PIServerEndpoint configuration
 	if (PIServerEndpoint == "discovery")
-		//# FIXME_I - to be implemented
-		//connInfo->PIServerEndpoint = "d";
-		connInfo->PIServerEndpoint = "p";
-
+	{
+		Logger::getLogger()->debug("PI-Server end point auto discovery selected");
+		connInfo->PIServerEndpoint = identifyPIServerEndpoint(connInfo);
+	}
 	else if(PIServerEndpoint == "piweb")
+	{
+		Logger::getLogger()->debug("PI-Server end point manually selected - PI Web API ");
 		connInfo->PIServerEndpoint = "p";
 
+	}
 	else if(PIServerEndpoint == "cr")
+	{
+		Logger::getLogger()->debug("PI-Server end point manually selected - Connector Relay ");
 		connInfo->PIServerEndpoint = "c";
+	}
 	else
-		connInfo->PIServerEndpoint = "d";
+	{
+		Logger::getLogger()->debug("PI-Server end point manually selected, the value provided is invalid :%s:, auto discovery executed" , PIServerEndpoint.c_str());
+		connInfo->PIServerEndpoint = identifyPIServerEndpoint(connInfo);
+	}
 
-	// Use compression ?
+	if (connInfo->PIServerEndpoint == "p")
+		Logger::getLogger()->debug("PI-Server end point selected - PI Web API ");
+
+	else if (connInfo->PIServerEndpoint == "c")
+		Logger::getLogger()->debug("PI-Server end point selected - Connector Relay");
+	else
+		Logger::getLogger()->error("Invalid PI-Server end point");
+
+
+			// Use compression ?
 	string compr = configData->getValue("compression");
 	if (compr == "True" || compr == "true" || compr == "TRUE")
 		connInfo->compression = true;
@@ -656,3 +675,48 @@ long getMaxTypeId(CONNECTOR_INFO* connInfo)
 	}
 	return maxId;
 }
+
+/**
+ * Evaluate if the endpoint is a PI Web API or a Connector Relay.
+ *
+ * @param    connInfo	The CONNECTOR_INFO data structure
+ * @return		p=PI Web API, c=Connector Relay
+ */
+string identifyPIServerEndpoint(CONNECTOR_INFO* connInfo)
+{
+	string PIServerEndpoint;
+
+	SimpleHttps *endPoint;
+	const vector<pair<string, string>> headers;
+	int httpCode;
+
+	endPoint = new SimpleHttps(connInfo->hostAndPort,
+				   connInfo->timeout,
+				   connInfo->timeout,
+				   connInfo->retrySleepTime,
+				   connInfo->maxRetry);
+
+	try
+	{
+		httpCode = endPoint->sendRequest("GET",
+						  connInfo->path,
+						  headers,
+						  "");
+
+		if  (httpCode >= 200 && httpCode <= 399)
+			PIServerEndpoint = "p";
+		else
+			PIServerEndpoint = "c";
+
+	}
+	catch (exception &ex)
+	{
+		PIServerEndpoint = "c";
+	}
+
+	delete endPoint;
+
+	return (PIServerEndpoint);
+
+}
+

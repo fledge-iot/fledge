@@ -1010,7 +1010,7 @@ const std::string OMF::createLinkData(const Reading& reading) const
 
 	string lData = "[{\"typeid\": \"__Link\", \"values\": [";
 
-	// Handels the structure for the Connector Relay
+	// Handles the structure for the Connector Relay
 	// not supported by PI Web API
 	if (m_PIServerEndpoint == "c")
 	{

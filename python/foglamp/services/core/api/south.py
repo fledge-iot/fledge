@@ -12,6 +12,8 @@ from foglamp.services.core.service_registry.service_registry import ServiceRegis
 from foglamp.services.core.service_registry.exceptions import DoesNotExist
 from foglamp.services.core import connect
 from foglamp.common.configuration_manager import ConfigurationManager
+from foglamp.common.plugin_discovery import PluginDiscovery
+
 
 
 __author__ = "Praveen Garg"
@@ -43,9 +45,17 @@ async def _services_with_assets(storage_client, south_services):
         def is_svc_in_service_registry(name):
             return next((svc for svc in services_from_registry if svc._name == name), None)
 
+        installed_plugins = PluginDiscovery.get_plugins_installed("south", False)
+
         for s_record in services_from_registry:
             plugin, assets = await _get_tracked_plugin_assets_and_readings(storage_client, s_record._name)
-            # get plugin version info from installed plugin/ via discovery
+
+            plugin_version = ''
+            for p in installed_plugins:
+                if p["name"] == plugin:
+                    plugin_version = p["version"]
+                    break
+
             sr_list.append(
                 {
                     'name': s_record._name,
@@ -55,12 +65,17 @@ async def _services_with_assets(storage_client, south_services):
                     'protocol': s_record._protocol,
                     'status': ServiceRecord.Status(int(s_record._status)).name.lower(),
                     'assets': assets,
-                    'plugin': {'name': plugin, 'version': ''},
+                    'plugin': {'name': plugin, 'version': plugin_version},
                     'schedule_enabled': await _get_schedule_status(storage_client, s_record._name)
                 })
         for s_name in south_services:
             south_svc = is_svc_in_service_registry(s_name)
-            # get plugin version info from installed plugin/ via discovery
+
+            plugin_version = ''
+            for p in installed_plugins:
+                if p["name"] == plugin:
+                    plugin_version = p["version"]
+                    break
             if not south_svc:
                 plugin, assets = await _get_tracked_plugin_assets_and_readings(storage_client, s_name)
                 sr_list.append(
@@ -72,7 +87,7 @@ async def _services_with_assets(storage_client, south_services):
                         'protocol': '',
                         'status': '',
                         'assets': assets,
-                        'plugin': {'name': plugin, 'version': ''},
+                        'plugin': {'name': plugin, 'version': plugin_version},
                         'schedule_enabled': await _get_schedule_status(storage_client, s_name)
                     })
     except:

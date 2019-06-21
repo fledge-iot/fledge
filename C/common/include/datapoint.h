@@ -256,24 +256,39 @@ class Datapoint {
 			return rval;
 		}
 
-		// Return get Datapoint name
+		/**
+		 * Return the Datapoint name
+		 */
 		const std::string getName() const
 		{
 			return m_name;
 		}
 
-		// Return Datapoint value
+		/**
+		 * Rename the datapoint
+		 */
+		void setName(std::string name)
+		{
+			m_name = name;
+		}
+
+		/**
+		 * Return Datapoint value
+		 */
 		const DatapointValue getData() const
 		{
 			return m_value;
 		}
-		// Return reference to Datapoint value
+
+		/**
+		 * Return reference to Datapoint value
+		 */
 		DatapointValue& getData()
 		{
 			return m_value;
 		}
 	private:
-		const std::string	m_name;
+		std::string		m_name;
 		DatapointValue		m_value;
 };
 #endif

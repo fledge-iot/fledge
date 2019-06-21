@@ -64,6 +64,9 @@ def load_and_fetch_python_plugin_info(plugin_module_path: str, plugin: str, _typ
 def load_and_fetch_c_hybrid_plugin_info(plugin_name: str, is_config: bool, plugin_type='south') -> Dict:
     plugin_info = None
     if plugin_type == 'south':
+        config_items = ['default', 'type', 'description']
+        optional_items = ['readonly', 'order', 'length', 'maximum', 'minimum', 'rule', 'deprecated', 'displayName', 'options']
+        config_items.extend(optional_items)
         plugin_dir = _FOGLAMP_ROOT + '/' + 'plugins' + '/' + plugin_type
         if _FOGLAMP_PLUGIN_PATH:
             plugin_paths = _FOGLAMP_PLUGIN_PATH.split(";")
@@ -88,13 +91,21 @@ def load_and_fetch_c_hybrid_plugin_info(plugin_name: str, is_config: bool, plugi
                         keys_a = set(jdoc['config'].keys())
                         keys_b = set(data['defaults'].keys())
                         intersection = keys_a & keys_b
-                        # Merge default configuration of both connection plugin and hybrid plugin with intersection of 'config' keys
+                        # Merge default and other configuration fields of both connection plugin and hybrid plugin with intersection of 'config' keys
                         # Use Hybrid Plugin name and description defined in json file
                         temp = jdoc['config']
                         temp['plugin']['default'] = plugin_name
                         temp['plugin']['description'] = data['description']
                         for _key in intersection:
-                            temp[_key]['default'] = json.dumps(data['defaults'][_key]['default']) if temp[_key]['type'] == 'JSON' else str(data['defaults'][_key]['default'])
+                            config_item_keys = set(data['defaults'][_key].keys())
+                            for _config_key in config_item_keys:
+                                if _config_key in config_items:
+                                    if temp[_key]['type'] == 'JSON' and _config_key == 'default':
+                                        temp[_key][_config_key] = json.dumps(data['defaults'][_key][_config_key])
+                                    elif temp[_key]['type'] == 'enumeration' and _config_key == 'default':
+                                        temp[_key][_config_key] = data['defaults'][_key][_config_key]
+                                    else:
+                                        temp[_key][_config_key] = str(data['defaults'][_key][_config_key])
                         if is_config:
                             plugin_info.update({'config': temp})
                     else:

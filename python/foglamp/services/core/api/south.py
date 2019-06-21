@@ -71,13 +71,15 @@ async def _services_with_assets(storage_client, south_services):
         for s_name in south_services:
             south_svc = is_svc_in_service_registry(s_name)
 
-            plugin_version = ''
-            for p in installed_plugins:
-                if p["name"] == plugin:
-                    plugin_version = p["version"]
-                    break
             if not south_svc:
                 plugin, assets = await _get_tracked_plugin_assets_and_readings(storage_client, s_name)
+
+                plugin_version = ''
+                for p in installed_plugins:
+                    if p["name"] == plugin:
+                        plugin_version = p["version"]
+                        break
+
                 sr_list.append(
                     {
                         'name': s_name,

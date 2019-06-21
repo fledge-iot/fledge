@@ -44,6 +44,8 @@ async def _services_with_assets(storage_client, south_services):
             return next((svc for svc in services_from_registry if svc._name == name), None)
 
         for s_record in services_from_registry:
+            plugin, assets = await _get_tracked_plugin_assets_and_readings(storage_client, s_record._name)
+            # get plugin version info from installed plugin/ via discovery
             sr_list.append(
                 {
                     'name': s_record._name,
@@ -52,12 +54,15 @@ async def _services_with_assets(storage_client, south_services):
                     'service_port': s_record._port,
                     'protocol': s_record._protocol,
                     'status': ServiceRecord.Status(int(s_record._status)).name.lower(),
-                    'assets': await _get_tracked_assets_and_readings(storage_client, s_record._name),
+                    'assets': assets,
+                    'plugin': {'name': plugin, 'version': ''},
                     'schedule_enabled': await _get_schedule_status(storage_client, s_record._name)
                 })
         for s_name in south_services:
             south_svc = is_svc_in_service_registry(s_name)
+            # get plugin version info from installed plugin/ via discovery
             if not south_svc:
+                plugin, assets = await _get_tracked_plugin_assets_and_readings(storage_client, s_name)
                 sr_list.append(
                     {
                         'name': s_name,
@@ -66,7 +71,8 @@ async def _services_with_assets(storage_client, south_services):
                         'service_port': '',
                         'protocol': '',
                         'status': '',
-                        'assets': await _get_tracked_assets_and_readings(storage_client, s_name),
+                        'assets': assets,
+                        'plugin': {'name': plugin, 'version': ''},
                         'schedule_enabled': await _get_schedule_status(storage_client, s_name)
                     })
     except:
@@ -75,14 +81,14 @@ async def _services_with_assets(storage_client, south_services):
         return sr_list
 
 
-async def _get_tracked_assets_and_readings(storage_client, svc_name):
+async def _get_tracked_plugin_assets_and_readings(storage_client, svc_name):
     asset_json = []
-    payload = PayloadBuilder().SELECT("asset").WHERE(['service', '=', svc_name]).\
+    payload = PayloadBuilder().SELECT(["asset", "plugin"]).WHERE(['service', '=', svc_name]).\
         AND_WHERE(['event', '=', 'Ingest']).payload()
     try:
         result = await storage_client.query_tbl_with_payload('asset_tracker', payload)
         asset_records = result['rows']
-
+        plugin = result['rows'][0]
         _readings_client = connect.get_readings_async()
         for r in asset_records:
             payload = PayloadBuilder().SELECT("value").WHERE(["key", "=", r["asset"].upper()]).payload()
@@ -93,7 +99,7 @@ async def _get_tracked_assets_and_readings(storage_client, svc_name):
     except:
         raise
     else:
-        return asset_json
+        return plugin, asset_json
 
 
 async def get_south_services(request):

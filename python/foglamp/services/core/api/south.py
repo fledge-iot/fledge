@@ -110,7 +110,6 @@ async def _get_tracked_plugin_assets_and_readings(storage_client, svc_name):
         if len(result['rows']):
             plugin = result['rows'][0]['plugin']
 
-        _readings_client = connect.get_readings_async()
         for r in asset_records:
             payload = PayloadBuilder().SELECT("value").WHERE(["key", "=", r["asset"].upper()]).payload()
             results = await storage_client.query_tbl_with_payload("statistics", payload)

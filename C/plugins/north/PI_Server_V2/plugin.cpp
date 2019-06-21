@@ -27,6 +27,11 @@
 using namespace std;
 using namespace rapidjson;
 
+#define TO_STRING(...) DEFER(TO_STRING_)(__VA_ARGS__)
+#define DEFER(x) x
+#define TO_STRING_(...) #__VA_ARGS__
+#define QUOTE(...) TO_STRING(__VA_ARGS__)
+
 #define PLUGIN_NAME "PI_Server_V2"
 #define TYPE_ID_KEY "type-id"
 #define SENT_TYPES_KEY "sentDataTypes"
@@ -35,88 +40,131 @@ using namespace rapidjson;
 /**
  * Plugin specific default configuration
  */
-#define PLUGIN_DEFAULT_CONFIG \
-			"\"URL\": { " \
-				"\"description\": \"The URL of the PI Connector to send data to\", " \
-				"\"type\": \"string\", " \
-				"\"default\": \"https://pi-server:5460/ingress/messages\", " \
-				"\"order\": \"1\", \"displayName\": \"URL\" }, " \
-			"\"producerToken\": { " \
-				"\"description\": \"The producer token that represents this FogLAMP stream\", " \
-				"\"type\": \"string\", \"default\": \"omf_north_0001\", " \
-				"\"order\": \"2\", \"displayName\": \"Producer Token\" }, " \
-			"\"source\": {" \
-				"\"description\": \"Defines the source of the data to be sent on the stream, " \
-				"this may be one of either readings, statistics or audit.\", \"type\": \"enumeration\", " \
-				"\"default\": \"readings\", "\
-				"\"options\": [\"readings\", \"statistics\"], " \
-				"\"order\": \"3\", \"displayName\": \"Data Source\"  }, " \
-			"\"StaticData\": { " \
-				"\"description\": \"Static data to include in each sensor reading sent to the PI Server.\", " \
-				"\"type\": \"string\", \"default\": \"Location: Palo Alto, Company: Dianomic\", " \
-				"\"order\": \"4\", \"displayName\": \"Static Data\" }, " \
-			"\"OMFRetrySleepTime\": { " \
-        			"\"description\": \"Seconds between each retry for the communication with the OMF PI Connector Relay, " \
-                       		"NOTE : the time is doubled at each attempt.\", \"type\": \"integer\", \"default\": \"1\", " \
-				"\"order\": \"9\", \"displayName\": \"Sleep Time Retry\" }, " \
-			"\"OMFMaxRetry\": { " \
-				"\"description\": \"Max number of retries for the communication with the OMF PI Connector Relay\", " \
-				"\"type\": \"integer\", \"default\": \"3\", " \
-				"\"order\": \"10\", \"displayName\": \"Maximum Retry\" }, " \
-			"\"OMFHttpTimeout\": { " \
-				"\"description\": \"Timeout in seconds for the HTTP operations with the OMF PI Connector Relay\", " \
-				"\"type\": \"integer\", \"default\": \"10\", " \
-				"\"order\": \"13\", \"displayName\": \"HTTP Timeout\" }, " \
-			"\"formatInteger\": { " \
-        			"\"description\": \"OMF format property to apply to the type Integer\", " \
-				"\"type\": \"string\", \"default\": \"int64\", " \
-				"\"order\": \"14\", \"displayName\": \"Integer Format\" }, " \
-			"\"formatNumber\": { " \
-        			"\"description\": \"OMF format property to apply to the type Number\", " \
-				"\"type\": \"string\", \"default\": \"float64\", " \
-				"\"order\": \"15\", \"displayName\": \"Number Format\" }, " \
-			"\"compression\": { " \
-        			"\"description\": \"Compress readings data before sending to PI server\", " \
-				"\"type\": \"boolean\", \"default\": \"True\", " \
-				"\"order\": \"16\", \"displayName\": \"Compression\" }, " \
-			"\"streamId\": {" \
-				"\"description\": \"Identifies the specific stream to handle and the related information," \
-				" among them the ID of the last object streamed.\", " \
-				"\"type\": \"integer\", \"default\": \"0\", " \
-				"\"readonly\": \"true\" }, " \
-			"\"PIServerEndpoint\": {" \
-				"\"description\": "\
-				      "\"Defines which PIServer component should be used for the communication:  " \
-					" PI Web API, Connector Relay or auto discovery.\" ," \
-				"\"type\": \"enumeration\", " \
-				"\"default\": \"discovery\", "\
-				"\"options\": [\"discovery\", \"piweb\", \"cr\"], " \
-				"\"order\": \"17\" ,"  \
-				"\"displayName\": \"PI-Server Endpoint\" " \
-			"}, " \
-			"\"notBlockingErrors\": {" \
-				"\"description\": "\
-					"\"These errors are considered not blocking in the communication with the PI Server, " \
-					  " the sending operation will proceed with the next block of data if one of these is encountered\" ," \
-				"\"type\": \"JSON\", " \
-				"\"default\": \"{\\\"errors400\\\": "\
-		                        "["\
-			                        "\\\"Redefinition of the type with the same ID is not allowed\\\", "\
-						"\\\"Invalid value type for the property\\\", "\
-						"\\\"Property does not exist in the type definition\\\", "\
-						"\\\"Container is not defined\\\", "\
-						"\\\"Unable to find the property of the container of type\\\" " \
-		                        "]"\
-                                "}\", " \
-				"\"order\": \"18\" ,"  \
-				"\"readonly\": \"true\" " \
-			"} "
+
+
+string PLUGIN_DEFAULT_CONFIG = QUOTE(
+
+	"URL": { 
+		"description": "The URL of the PI Connector to send data to", 
+		"type": "string", 
+		"default": "https://pi-server:5460/ingress/messages", 
+		"order": "1", 
+		"displayName": "URL" 
+	},
+	"producerToken": {
+		"description": "The producer token that represents this FogLAMP stream",
+		"type": "string",
+		"default": "omf_north_0001",
+		"order": "2",
+		"displayName": "Producer Token"
+	},
+	"source": {
+		"description": "Defines the source of the data to be sent on the stream, this may be one of either readings, statistics or audit.",
+		"type": "enumeration",
+		"options": ["readings", "statistics"],
+		"default": "readings",
+		"order": "3",
+		"displayName": "Data Source"
+	},
+	"StaticData": {
+		"description": "Static data to include in each sensor reading sent to the PI Server.",
+		"type": "string",
+		"default": "Location: Palo Alto, Company: Dianomic",
+		"order": "4",
+		"displayName": "Static Data"
+	},
+	"OMFRetrySleepTime": {
+		"description": "Seconds between each retry for the communication with the OMF PI Connector Relay, NOTE : the time is doubled at each attempt.", 
+		"type": "integer", 
+		"default": "1",
+		"order": "9", 
+		"displayName": "Sleep Time Retry"
+	},
+	"OMFMaxRetry": {
+		"description": "Max number of retries for the communication with the OMF PI Connector Relay",
+		"type": "integer",
+		"default": "3",
+		"order": "10",
+		"displayName": "Maximum Retry"
+	},
+	"OMFHttpTimeout": {
+		"description": "Timeout in seconds for the HTTP operations with the OMF PI Connector Relay",
+		"type": "integer",
+		"default": "10",
+		"order": "13",
+		"displayName": "HTTP Timeout"
+	},
+	"formatInteger": {
+		"description": "OMF format property to apply to the type Integer",
+		"type": "string",
+		"default": "int64",
+		"order": "14",
+		"displayName": "Integer Format"
+	},
+	"formatNumber": {
+		"description": "OMF format property to apply to the type Number",
+		"type": "string",
+		"default": "float64",
+		"order": "15",
+		"displayName": "Number Format"
+	},
+	"compression": {
+		"description": "Compress readings data before sending to PI server",
+		"type": "boolean",
+		"default": "True",
+		"order": "16",
+		"displayName": "Compression"
+	},
+	"streamId": {
+		"description": "Identifies the specific stream to handle and the related information, among them the ID of the last object streamed.",
+		"type": "integer",
+		"default": "0",
+		"readonly": "true"
+	},
+	"PIServerEndpoint": {
+		"description": "Defines which PIServer component should be used for the communication: PI Web API, Connector Relay or auto discovery." ,
+		"type": "enumeration",
+		"options": ["discovery", "piweb", "cr"],
+		"default": "discovery",
+		"order": "17" ,
+		"displayName": "PI-Server Endpoint"
+	}
+);
+
+
+//,
+//"notBlockingErrors": {
+//"description": "These errors are considered not blocking in the communication with the PI Server, the sending operation will proceed with the next block of data if one of these is encountered",
+//"type": "JSON",
+//"default": {
+//"errors400": [
+//"Redefinition of the type with the same ID is not allowed",
+//"Invalid value type for the property",
+//"Property does not exist in the type definition",
+//"Container is not defined",
+//"Unable to find the property of the container of type"
+//]
+//},
+//"order": "18" ,
+//"readonly": "true"
+//}
+
 
 // "default": "{\"pipeline\": [\"DeltaFilter\"]}"
 
-#define OMF_PLUGIN_DESC "\"plugin\": {\"description\": \"PI Server North C Plugin\", \"type\": \"string\", \"default\": \"" PLUGIN_NAME "\", \"readonly\": \"true\"}"
 
-#define PLUGIN_DEFAULT_CONFIG_INFO "{" OMF_PLUGIN_DESC ", " PLUGIN_DEFAULT_CONFIG "}"
+string OMF_PLUGIN_DESC = QUOTE(
+
+	"plugin": {
+		"description": "PI Server North C Plugin",
+		"type": "string",
+		"default": PLUGIN_NAME,
+		"readonly": "true"
+	}
+	
+);
+			
+string PLUGIN_DEFAULT_CONFIG_INFO = "{" + OMF_PLUGIN_DESC +  ", " +  PLUGIN_DEFAULT_CONFIG + "}";
 
 /**
  * Historian PI Server connector info
@@ -164,12 +212,12 @@ extern "C" {
  * The C API plugin information structure
  */
 static PLUGIN_INFORMATION info = {
-	PLUGIN_NAME,		        // Name
-	"1.0.0",			// Version
-	SP_PERSIST_DATA,		// Flags
-	PLUGIN_TYPE_NORTH,		// Type
-	"1.0.0",			// Interface version
-	PLUGIN_DEFAULT_CONFIG_INFO      // Configuration
+	PLUGIN_NAME,		             // Name
+	"1.0.0",			     // Version
+	SP_PERSIST_DATA,		     // Flags
+	PLUGIN_TYPE_NORTH,		     // Type
+	"1.0.0",			     // Interface version
+	PLUGIN_DEFAULT_CONFIG_INFO.c_str()   // Configuration
 };
 
 /**

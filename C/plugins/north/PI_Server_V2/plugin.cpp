@@ -145,13 +145,19 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"default": "discovery",
 			"order": "17",
 			"displayName": "PI-Server Endpoint"
-		}
-		,
+		},
+		"AFHierarchy1Level": {
+			"description": "Defines the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.",
+			"type": "string",
+			"default": "foglamp_data_piweb",
+			"order": "18",
+			"displayName": "Asset Framework 1st hierarchy"
+		},
 		"notBlockingErrors": {
 			"description": "These errors are considered not blocking in the communication with the PI Server, the sending operation will proceed with the next block of data if one of these is encountered",
 			"type": "JSON",
 			"default": NOT_BLOCKING_ERRORS_DEFAULT,
-			"order": "18" ,
+			"order": "19" ,
 			"readonly": "true"
 		}
 	}
@@ -164,20 +170,22 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
  */
 typedef struct
 {
-	SimpleHttps	*sender;	  // HTTPS connection
-	OMF 		*omf;		  // OMF data protocol
-	bool		compression;	  // whether to compress readings' data
-	string		hostAndPort;	  // hostname:port for SimpleHttps
-	unsigned int	retrySleepTime;	  // Seconds between each retry
-	unsigned int	maxRetry;	  // Max number of retries in the communication
-	unsigned int	timeout;	  // connect and operation timeout
-	string		path;		  // PI Server application path
-	long		typeId;		  // OMF protocol type-id prefix
-	string		producerToken;	  // PI Server connector token
-	string		formatNumber;	  // OMF protocol Number format
-	string		formatInteger;	  // OMF protocol Integer format
-    	string		PIServerEndpoint; // Defines which PIServer component should be used for the communication:
-    	                                  // a=auto discovery - p=PI Web API, c=Connector Relay
+	SimpleHttps	*sender;	   // HTTPS connection
+	OMF 		*omf;		   // OMF data protocol
+	bool		compression;	   // whether to compress readings' data
+	string		hostAndPort;	   // hostname:port for SimpleHttps
+	unsigned int	retrySleepTime;	   // Seconds between each retry
+	unsigned int	maxRetry;	   // Max number of retries in the communication
+	unsigned int	timeout;	   // connect and operation timeout
+	string		path;		   // PI Server application path
+	long		typeId;		   // OMF protocol type-id prefix
+	string		producerToken;	   // PI Server connector token
+	string		formatNumber;	   // OMF protocol Number format
+	string		formatInteger;	   // OMF protocol Integer format
+    	string		PIServerEndpoint;  // Defines which PIServer component should be used for the communication:
+    	                                   // a=auto discovery - p=PI Web API, c=Connector Relay
+	string		AFHierarchy1Level; // 1st hierarchy in Asset Framework, PI Web API only.
+
 	vector<pair<string, string>>
 			staticData;	// Static data
         // Errors considered not blocking in the communication with the PI Server
@@ -242,6 +250,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	string formatNumber = configData->getValue("formatNumber");
 	string formatInteger = configData->getValue("formatInteger");
 	string PIServerEndpoint = configData->getValue("PIServerEndpoint");
+	string AFHierarchy1Level = configData->getValue("AFHierarchy1Level");
 
 	/**
 	 * Extract host, port, path from URL
@@ -271,6 +280,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	connInfo->producerToken = producerToken;
 	connInfo->formatNumber = formatNumber;
 	connInfo->formatInteger = formatInteger;
+	connInfo->AFHierarchy1Level = AFHierarchy1Level;
 
 	// Translate the PIServerEndpoint configuration
 	if (PIServerEndpoint.compare("discovery") == 0)
@@ -441,6 +451,8 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 
 	// Set PIServerEndpoint configuration
 	connInfo->omf->setPIServerEndpoint(connInfo->PIServerEndpoint);
+
+	connInfo->omf->setAFHierarchy1Level(connInfo->AFHierarchy1Level);
 
 	// Set OMF FormatTypes  
 	connInfo->omf->setFormatType(OMF_TYPE_FLOAT,

@@ -18,11 +18,63 @@
 #include <logger.h>
 #include <zlib.h>
 #include <rapidjson/document.h>
+#include "string_utils.h"
+
+// FIXME::
+#include <tmp_log.hpp>
 
 using namespace std;
 using namespace rapidjson;
 
+#define TO_STRING(...) DEFER(TO_STRING_)(__VA_ARGS__)
+#define DEFER(x) x
+#define TO_STRING_(...) #__VA_ARGS__
+#define QUOTE(...) TO_STRING(__VA_ARGS__)
+
 static bool isTypeSupported(DatapointValue& dataPoint);
+
+// Structures to generate and assign the 1st level of AF hierarchy if the end point is PI Web API
+const char *AF_HIERARCHY_1LEVEL_TYPE = QUOTE(
+	{
+		"id": "_placeholder_typeid_",
+		"version": "1.0.0.0",
+		"type": "object",
+		"classification": "static",
+		"properties": {
+			"Name": {
+				"type": "string",
+				"isindex": true
+			}
+		}
+	}
+);
+
+const char *AF_HIERARCHY_1LEVEL_STATIC = QUOTE(
+	{
+
+		"typeid": "_placeholder_typeid_",
+		"values": [
+			{
+			"Name": "_placeholder_"
+			}
+		]
+	}
+);
+
+
+const char *AF_HIERARCHY_1LEVEL_LINK = QUOTE(
+	{
+		"source": {
+			"typeid": "_placeholder_src_type_",
+			"index": "_placeholder_src_idx_"
+		},
+		"target": {
+			"typeid": "_placeholder_tgt_type_",
+			"index": "_placeholder_tgt_idx_"
+		}
+	}
+);
+
 
 /**
  * OMFData constructor
@@ -356,7 +408,7 @@ bool OMF::sendDataTypes(const Reading& row)
 					   e.what(),
 					   m_sender.getHostPort().c_str(),
 					   m_path.c_str(),
-					   typeData.c_str() );
+					   typeStaticData.c_str() );
 		return false;
 	}
 
@@ -404,7 +456,7 @@ bool OMF::sendDataTypes(const Reading& row)
 					   e.what(),
 					   m_sender.getHostPort().c_str(),
 					   m_path.c_str(),
-					   typeData.c_str() );
+					   typeLinkData.c_str() );
 		return false;
 	}
 	catch (const std::exception& e)
@@ -841,7 +893,19 @@ const std::string OMF::createTypeData(const Reading& reading) const
 
 	// Add the Static data part
 
-	string tData("[{ \"type\": \"object\", \"properties\": { ");
+	string tData="[";
+
+	// Add the 1st level of AF hierarchy if the end point is PI Web API
+	if (m_PIServerEndpoint.compare("p") == 0)
+	{
+		string tmpStr = AF_HIERARCHY_1LEVEL_TYPE;
+
+		StringReplace(tmpStr, "_placeholder_typeid_", m_AFHierarchy1Level + "_typeid");
+		tData.append(tmpStr);
+		tData.append(",");
+	}
+
+	tData.append("{ \"type\": \"object\", \"properties\": { ");
 	for (auto it = m_staticData->cbegin(); it != m_staticData->cend(); ++it)
 	{
 		tData.append("\"");
@@ -969,7 +1033,20 @@ const std::string OMF::createContainerData(const Reading& reading) const
 const std::string OMF::createStaticData(const Reading& reading) const
 {
 	// Build the Static data (JSON Array)
-	string sData = "[{\"typeid\": \"";
+	string sData = "[";
+
+	// Assign the name to the 1st level of AF hierarchy if the end point is PI Web API
+	if (m_PIServerEndpoint.compare("p") == 0)
+	{
+		string tmpStr = AF_HIERARCHY_1LEVEL_STATIC;
+		StringReplace(tmpStr, "_placeholder_typeid_" , m_AFHierarchy1Level + "_typeid");
+		StringReplace(tmpStr, "_placeholder_"        , m_AFHierarchy1Level);
+
+		sData.append(tmpStr);
+		sData.append(",");
+	}
+
+	sData.append("{\"typeid\": \"");
 
 	// Add type_id + '_' + asset_name + '_typename_sensor'
 	OMF::setAssetTypeTag(reading.getAssetName(),
@@ -1035,6 +1112,23 @@ const std::string OMF::createLinkData(const Reading& reading) const
 		lData.append(assetName);
 
 		lData.append("\"}},");
+	}
+	else if (m_PIServerEndpoint.compare("p") == 0)
+	{
+		// Link the asset to the 1st level of AF hierarchy if the end point is PI Web API
+
+		string tmpStr = AF_HIERARCHY_1LEVEL_LINK;
+		string targetTypeId;
+
+		OMF::setAssetTypeTag(assetName, "typename_sensor", targetTypeId);
+
+		StringReplace(tmpStr, "_placeholder_src_type_", m_AFHierarchy1Level + "_typeid");
+		StringReplace(tmpStr, "_placeholder_src_idx_",  m_AFHierarchy1Level );
+		StringReplace(tmpStr, "_placeholder_tgt_type_", targetTypeId);
+		StringReplace(tmpStr, "_placeholder_tgt_idx_",  assetName);
+
+		lData.append(tmpStr);
+		lData.append(",");
 	}
 
 	lData.append("{\"source\": {\"typeid\": \"");
@@ -1162,6 +1256,15 @@ void OMF::setPIServerEndpoint(const string &PIServerEndpoint)
 {
 	m_PIServerEndpoint = PIServerEndpoint;
 }
+
+/**
+ * Set the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.
+ */
+void OMF::setAFHierarchy1Level(const string &AFHierarchy1Level)
+{
+	m_AFHierarchy1Level = AFHierarchy1Level;
+}
+
 
 /**
  * Set the list of errors considered not blocking in the communication

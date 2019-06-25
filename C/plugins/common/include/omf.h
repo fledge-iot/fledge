@@ -95,6 +95,9 @@ class OMF
     		// Set which PIServer component should be used for the communication
     		void setPIServerEndpoint(const std::string &PIServerEndpoint);
 
+    		// Set the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.
+    		void setAFHierarchy1Level(const std::string &AFHierarchy1Level);
+
 		// Get saved OMF formats
 		std::string getFormatType(const std::string &key) const;
 
@@ -201,6 +204,7 @@ class OMF
 		long			m_typeId;
 		const std::string	m_producerToken;
     		std::string		m_PIServerEndpoint;
+    		std::string		m_AFHierarchy1Level;
 
 		// Define the OMF format to use for each type
 		// the format will not be applied if the string is empty

@@ -78,5 +78,4 @@ def _find_plugins_from_env(_plugin_path: list) -> list:
                     _logger.warning("{} subdir type not found".format(l))
             else:
                 _logger.warning("{} dir path not found".format(l))
-    _logger.warning("...{}".format(_plugin_path))
     return _plugin_path

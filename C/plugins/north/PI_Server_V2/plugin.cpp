@@ -135,7 +135,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 		"PIServerEndpoint": {
 			"description": "Defines which PIServer component should be used for the communication: PI Web API, Connector Relay or auto discovery.",
 			"type": "enumeration",
-			"options":["discovery", "piweb", "cr"],
+			"options":["discovery", "piwebapi", "cr"],
 			"default": "discovery",
 			"order": "17",
 			"displayName": "PI-Server Endpoint"

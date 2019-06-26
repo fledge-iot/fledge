@@ -199,12 +199,11 @@ class OMF
 		// Remove cached data types enttry for given asset name
 		void clearCreatedTypes(const std::string& key);
 
-		//# FIXME_I
-		void AFHierarchySendMessage(const std::string& msgType, std::string& jsonData);
-		void sendAFHierarchy();
-		void sendAFHierarchyTypes();
-		void sendAFHierarchyStatic();
-
+		// Add the 1st level of AF hierarchy if the end point is PI Web API
+    		bool sendAFHierarchy();
+    		bool sendAFHierarchyTypes();
+    		bool sendAFHierarchyStatic();
+    		bool AFHierarchySendMessage(const std::string& msgType, std::string& jsonData);
 
 	private:
 		const std::string	m_path;

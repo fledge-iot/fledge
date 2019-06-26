@@ -20,9 +20,6 @@
 #include <rapidjson/document.h>
 #include "string_utils.h"
 
-// FIXME::
-#include <tmp_log.hpp>
-
 using namespace std;
 using namespace rapidjson;
 
@@ -481,10 +478,10 @@ bool OMF::sendDataTypes(const Reading& row)
  * @param jsonData   OMF message to send
 
  */
-void OMF::AFHierarchySendMessage(const string& msgType, string& jsonData)
+bool OMF::AFHierarchySendMessage(const string& msgType, string& jsonData)
 {
 	bool success = true;
-	int res;
+	int res = 0;
 
 	vector<pair<string, string>> resType = OMF::createMessageHeader(msgType);
 
@@ -507,22 +504,25 @@ void OMF::AFHierarchySendMessage(const string& msgType, string& jsonData)
 
 	if (! success)
 	{
-		Logger::getLogger()->error("Sending JSON AFHierarchy, "
-					   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+		Logger::getLogger()->error("Sending JSON  Asset Framework hierarchy, "
+			                   "- error: HTTP code |%d| - HostPort |%s| - path |%s| message type |%s| - OMF message |%s|",
 					   res,
 					   m_sender.getHostPort().c_str(),
 					   m_path.c_str(),
+					   msgType.c_str(),
 					   jsonData.c_str() );
 	}
 
+	return success;
 }
 
 /**
  * AFHierarchy - handles OMF types definition
  *
  */
-void OMF::sendAFHierarchyTypes()
+bool OMF::sendAFHierarchyTypes()
 {
+	bool success;
 	string jsonData;
 	string tmpStr;
 
@@ -531,15 +531,18 @@ void OMF::sendAFHierarchyTypes()
 	StringReplace(tmpStr, "_placeholder_typeid_", m_AFHierarchy1Level + "_typeid");
 	jsonData.append(tmpStr);
 
-	AFHierarchySendMessage("Type", jsonData);
+	success = AFHierarchySendMessage("Type", jsonData);
+
+	return success;
 }
 
 /**
  *  AFHierarchy - handles OMF static data
  *
  */
-void OMF::sendAFHierarchyStatic()
+bool OMF::sendAFHierarchyStatic()
 {
+	bool success;
 	string jsonData;
 	string tmpStr;
 
@@ -549,7 +552,9 @@ void OMF::sendAFHierarchyStatic()
 	StringReplace(tmpStr, "_placeholder_"        , m_AFHierarchy1Level);
 	jsonData.append(tmpStr);
 
-	AFHierarchySendMessage("Data", jsonData);
+	success = AFHierarchySendMessage("Data", jsonData);
+
+	return success;
 }
 
 /**
@@ -557,13 +562,20 @@ void OMF::sendAFHierarchyStatic()
  * The hierarchy is created/recreated if an OMF type message is sent
  *
  */
-void OMF::sendAFHierarchy()
+bool OMF::sendAFHierarchy()
 {
+	bool success = true;
+
 	if (m_PIServerEndpoint.compare("p") == 0)
 	{
-		sendAFHierarchyTypes();
-		sendAFHierarchyStatic();
+		success = sendAFHierarchyTypes();
+		if (success)
+		{
+			success = sendAFHierarchyStatic();
+		}
+
 	}
+	return success;
 }
 
 /**

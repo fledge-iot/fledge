@@ -37,7 +37,7 @@ async def _get_schedule_status(storage_client, svc_name):
 
 @lru_cache(maxsize=1024)
 def _get_installed_plugins():
-    return PluginDiscovery.get_plugins_installed("north", False)
+    return PluginDiscovery.get_plugins_installed("south", False)
 
 
 async def _services_with_assets(storage_client, south_services):

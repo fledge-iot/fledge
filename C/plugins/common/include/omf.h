@@ -199,6 +199,13 @@ class OMF
 		// Remove cached data types enttry for given asset name
 		void clearCreatedTypes(const std::string& key);
 
+		//# FIXME_I
+		void AFHierarchySendMessage(const std::string& msgType, std::string& jsonData);
+		void sendAFHierarchy();
+		void sendAFHierarchyTypes();
+		void sendAFHierarchyStatic();
+
+
 	private:
 		const std::string	m_path;
 		long			m_typeId;

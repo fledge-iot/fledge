@@ -35,32 +35,35 @@ static bool isTypeSupported(DatapointValue& dataPoint);
 
 // Structures to generate and assign the 1st level of AF hierarchy if the end point is PI Web API
 const char *AF_HIERARCHY_1LEVEL_TYPE = QUOTE(
-	{
-		"id": "_placeholder_typeid_",
-		"version": "1.0.0.0",
-		"type": "object",
-		"classification": "static",
-		"properties": {
-			"Name": {
-				"type": "string",
-				"isindex": true
+	[
+		{
+			"id": "_placeholder_typeid_",
+			"version": "1.0.0.0",
+			"type": "object",
+			"classification": "static",
+			"properties": {
+				"Name": {
+					"type": "string",
+					"isindex": true
+				}
 			}
 		}
-	}
+	]
 );
 
 const char *AF_HIERARCHY_1LEVEL_STATIC = QUOTE(
-	{
+	[
+		{
 
-		"typeid": "_placeholder_typeid_",
-		"values": [
-			{
-			"Name": "_placeholder_"
-			}
-		]
-	}
+			"typeid": "_placeholder_typeid_",
+			"values": [
+				{
+				"Name": "_placeholder_"
+				}
+			]
+		}
+	]
 );
-
 
 const char *AF_HIERARCHY_1LEVEL_LINK = QUOTE(
 	{
@@ -472,6 +475,98 @@ bool OMF::sendDataTypes(const Reading& row)
 }
 
 /**
+ * AFHierarchy - send an OMF message
+ *
+ * @param msgType    message type : Type, Data
+ * @param jsonData   OMF message to send
+
+ */
+void OMF::AFHierarchySendMessage(const string& msgType, string& jsonData)
+{
+	bool success = true;
+	int res;
+
+	vector<pair<string, string>> resType = OMF::createMessageHeader(msgType);
+
+	try
+	{
+		res = m_sender.sendRequest("POST", m_path, resType, jsonData);
+		if  ( ! (res >= 200 && res <= 299) )
+		{
+			success = false;
+		}
+	}
+	catch (const BadRequest& e)
+	{
+		success = false;
+	}
+	catch (const std::exception& e)
+	{
+		success = false;
+	}
+
+	if (! success)
+	{
+		Logger::getLogger()->error("Sending JSON AFHierarchy, "
+					   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+					   res,
+					   m_sender.getHostPort().c_str(),
+					   m_path.c_str(),
+					   jsonData.c_str() );
+	}
+
+}
+
+/**
+ * AFHierarchy - handles OMF types definition
+ *
+ */
+void OMF::sendAFHierarchyTypes()
+{
+	string jsonData;
+	string tmpStr;
+
+	jsonData = "";
+	tmpStr = AF_HIERARCHY_1LEVEL_TYPE;
+	StringReplace(tmpStr, "_placeholder_typeid_", m_AFHierarchy1Level + "_typeid");
+	jsonData.append(tmpStr);
+
+	AFHierarchySendMessage("Type", jsonData);
+}
+
+/**
+ *  AFHierarchy - handles OMF static data
+ *
+ */
+void OMF::sendAFHierarchyStatic()
+{
+	string jsonData;
+	string tmpStr;
+
+	jsonData = "";
+	tmpStr = AF_HIERARCHY_1LEVEL_STATIC;
+	StringReplace(tmpStr, "_placeholder_typeid_" , m_AFHierarchy1Level + "_typeid");
+	StringReplace(tmpStr, "_placeholder_"        , m_AFHierarchy1Level);
+	jsonData.append(tmpStr);
+
+	AFHierarchySendMessage("Data", jsonData);
+}
+
+/**
+ * Add the 1st level of AF hierarchy if the end point is PI Web API
+ * The hierarchy is created/recreated if an OMF type message type is sent
+ *
+ */
+void OMF::sendAFHierarchy()
+{
+	if (m_PIServerEndpoint.compare("p") == 0)
+	{
+		sendAFHierarchyTypes();
+		sendAFHierarchyStatic();
+	}
+}
+
+/**
  * Send all the readings to the PI Server
  *
  * @param readings            A vector of readings data pointers
@@ -482,6 +577,8 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			   bool compression, bool skipSentDataTypes)
 {
 	std::map<string, Reading*> superSetDataPoints;
+
+	sendAFHierarchy();
 
 	// Create a superset of all found datapoints for each assetName
 	// the superset[assetName] is then passed to routines which handle
@@ -895,16 +992,6 @@ const std::string OMF::createTypeData(const Reading& reading) const
 
 	string tData="[";
 
-	// Add the 1st level of AF hierarchy if the end point is PI Web API
-	if (m_PIServerEndpoint.compare("p") == 0)
-	{
-		string tmpStr = AF_HIERARCHY_1LEVEL_TYPE;
-
-		StringReplace(tmpStr, "_placeholder_typeid_", m_AFHierarchy1Level + "_typeid");
-		tData.append(tmpStr);
-		tData.append(",");
-	}
-
 	tData.append("{ \"type\": \"object\", \"properties\": { ");
 	for (auto it = m_staticData->cbegin(); it != m_staticData->cend(); ++it)
 	{
@@ -921,6 +1008,7 @@ const std::string OMF::createTypeData(const Reading& reading) const
 			     tData);
 
 	tData.append("\" }, { \"type\": \"object\", \"properties\": {");
+
 
 	// Add the Dynamic data part
 
@@ -1034,17 +1122,6 @@ const std::string OMF::createStaticData(const Reading& reading) const
 {
 	// Build the Static data (JSON Array)
 	string sData = "[";
-
-	// Assign the name to the 1st level of AF hierarchy if the end point is PI Web API
-	if (m_PIServerEndpoint.compare("p") == 0)
-	{
-		string tmpStr = AF_HIERARCHY_1LEVEL_STATIC;
-		StringReplace(tmpStr, "_placeholder_typeid_" , m_AFHierarchy1Level + "_typeid");
-		StringReplace(tmpStr, "_placeholder_"        , m_AFHierarchy1Level);
-
-		sData.append(tmpStr);
-		sData.append(",");
-	}
 
 	sData.append("{\"typeid\": \"");
 

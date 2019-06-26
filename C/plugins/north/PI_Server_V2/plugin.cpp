@@ -132,12 +132,6 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"order": "16",
 			"displayName": "Compression"
 		},
-		"streamId": {
-			"description": "Identifies the specific stream to handle and the related information, among them the ID of the last object streamed.",
-			"type": "integer",
-			"default": "0",
-			"readonly": "true"
-		},
 		"PIServerEndpoint": {
 			"description": "Defines which PIServer component should be used for the communication: PI Web API, Connector Relay or auto discovery.",
 			"type": "enumeration",
@@ -149,9 +143,9 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 		"AFHierarchy1Level": {
 			"description": "Defines the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.",
 			"type": "string",
-			"default": "foglamp_data_piweb",
+			"default": "foglamp_data_piwebapi",
 			"order": "18",
-			"displayName": "Asset Framework 1st hierarchy"
+			"displayName": "Asset Framework 1st level hierarchy"
 		},
 		"notBlockingErrors": {
 			"description": "These errors are considered not blocking in the communication with the PI Server, the sending operation will proceed with the next block of data if one of these is encountered",
@@ -159,7 +153,15 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"default": NOT_BLOCKING_ERRORS_DEFAULT,
 			"order": "19" ,
 			"readonly": "true"
+		},
+		"streamId": {
+			"description": "Identifies the specific stream to handle and the related information, among them the ID of the last object streamed.",
+			"type": "integer",
+			"default": "0",
+			"order": "20" ,
+			"readonly": "true"
 		}
+
 	}
 );
 

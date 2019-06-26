@@ -554,7 +554,7 @@ void OMF::sendAFHierarchyStatic()
 
 /**
  * Add the 1st level of AF hierarchy if the end point is PI Web API
- * The hierarchy is created/recreated if an OMF type message type is sent
+ * The hierarchy is created/recreated if an OMF type message is sent
  *
  */
 void OMF::sendAFHierarchy()
@@ -576,9 +576,9 @@ void OMF::sendAFHierarchy()
 uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			   bool compression, bool skipSentDataTypes)
 {
-	std::map<string, Reading*> superSetDataPoints;
+	bool AFHierarchySent = false;
 
-	sendAFHierarchy();
+	std::map<string, Reading*> superSetDataPoints;
 
 	// Create a superset of all found datapoints for each assetName
 	// the superset[assetName] is then passed to routines which handle
@@ -625,6 +625,13 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			{
 				datatypeStructure = (*it).second;
 			}
+		}
+
+		// The AF hierarchy is created/recreated if an OMF type message is sent
+		if (sendDataTypes and ! AFHierarchySent)
+		{
+			sendAFHierarchy();
+			AFHierarchySent = true;
 		}
 
 		// Check first we have supersetDataPoints for the current reading

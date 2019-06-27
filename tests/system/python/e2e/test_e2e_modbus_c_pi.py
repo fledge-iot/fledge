@@ -63,7 +63,6 @@ class TestE2EModbusCPI:
             add_south: Fixture that adds a south service with given configuration with enabled or disabled mode
             remove_directories: Fixture that remove directories created during the tests
         """
-        self.check_connect(modbus_host, modbus_port)
         cfg = {"protocol": {"value": "TCP"}, "asset": {"value": ""}, "address": {"value": modbus_host},
                "port": {"value": "{}".format(modbus_port)},
                "map": {"value": {"values": [
@@ -75,7 +74,7 @@ class TestE2EModbusCPI:
                }
 
         add_south(SOUTH_PLUGIN, south_branch, foglamp_url, service_name=SVC_NAME, config=cfg,
-                  plugin_lang="C", start_service=True, plugin_discovery_name=PLUGIN_NAME)
+                  plugin_lang="C", start_service=False, plugin_discovery_name=PLUGIN_NAME)
 
         start_north_pi_server_c(foglamp_url, pi_host, pi_port, pi_token)
 
@@ -83,8 +82,8 @@ class TestE2EModbusCPI:
 
         remove_directories("/tmp/foglamp-south-{}".format(SOUTH_PLUGIN.lower()))
 
-    def test_end_to_end(self, start_south_north, disable_schedule, foglamp_url, read_data_from_pi, pi_host, pi_admin,
-                        pi_passwd, pi_db, wait_time, retries, skip_verify_north_interface):
+    def test_end_to_end(self, start_south_north, enable_schedule, disable_schedule, foglamp_url, read_data_from_pi, pi_host, pi_admin,
+                        pi_passwd, pi_db, wait_time, retries, skip_verify_north_interface, modbus_host, modbus_port):
         """ Test that data is inserted in FogLAMP using modbus-c south plugin and sent to PI
             start_south_north: Fixture that starts FogLAMP with south service and north instance
             skip_verify_north_interface: Flag for assertion of data from Pi web API
@@ -93,6 +92,13 @@ class TestE2EModbusCPI:
                 on endpoint GET /foglamp/asset/<asset_name> with applied data processing filter value
                 data received from PI is same as data sent"""
 
+        # self.check_connect(modbus_host, modbus_port)
+        """ $ docker logs --follow modbus-device
+            start listening at: port:502
+            start listening at: port:503
+            Quit the loop: Connection reset by peer // on check_connect
+        """
+        enable_schedule(foglamp_url, SVC_NAME)
         time.sleep(wait_time * 2)
 
         ping_response = self.get_ping_status(foglamp_url)

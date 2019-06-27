@@ -160,7 +160,6 @@ TEST(OMF_transation, TwoTranslationsCompareResult)
 							++elem)
 	{
 		// Add into JSON string the OMF transformed Reading data
-		//# FIXME_I
 		jsonData << OMFData(**elem, TYPE_ID).OMFdataVal() << (elem < (readingSet.getAllReadings().end() - 1 ) ? ", " : "");
 	}
 

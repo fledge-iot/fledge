@@ -91,7 +91,13 @@ class TestE2EModbusCPI:
                 on endpoint GET /foglamp/asset
                 on endpoint GET /foglamp/asset/<asset_name> with applied data processing filter value
                 data received from PI is same as data sent"""
-        self.check_connect(modbus_host, modbus_port)
+
+        # self.check_connect(modbus_host, modbus_port)
+        """ $ docker logs --follow modbus-device
+            start listening at: port:502
+            start listening at: port:503
+            Quit the loop: Connection reset by peer // on check_connect
+        """
         enable_schedule(foglamp_url, SVC_NAME)
         time.sleep(wait_time * 2)
 

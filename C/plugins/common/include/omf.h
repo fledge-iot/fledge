@@ -254,7 +254,10 @@ class OMF
 class OMFData
 {
 	public:
-		OMFData(const Reading& reading, const long typeId);
+		OMFData(const Reading& reading,
+			const long typeId,
+			const std::string& PIServerEndpoint,
+			const std::string&  AFHierarchy1Level);
 		const std::string& OMFdataVal() const;
 	private:
 		std::string	m_value;

@@ -79,13 +79,22 @@ const char *AF_HIERARCHY_1LEVEL_LINK = QUOTE(
 /**
  * OMFData constructor
  */
-OMFData::OMFData(const Reading& reading, const long typeId)
+OMFData::OMFData(const Reading& reading, const long typeId, const string& PIServerEndpoint,const string&  AFHierarchy1Level)
 {
 	string outData;
+	string measurementId;
+
+	measurementId = to_string(typeId) + "measurement_" + reading.getAssetName();
+
+	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
+	if (PIServerEndpoint.compare("p") == 0)
+	{
+		measurementId = AFHierarchy1Level + "_" + measurementId;
+	}
 
 	// Convert reading data into the OMF JSON string
-	outData.append("{\"containerid\": \"" + to_string(typeId) + "measurement_");
-	outData.append(reading.getAssetName() + "\", \"values\": [{");
+	outData.append("{\"containerid\": \"" + measurementId);
+	outData.append("\", \"values\": [{");
 
 
 	// Get reading data
@@ -666,7 +675,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		}
 
 		// Add into JSON string the OMF transformed Reading data
-		string outData = OMFData(**elem, typeId).OMFdataVal();
+		string outData = OMFData(**elem, typeId, m_PIServerEndpoint, m_AFHierarchy1Level ).OMFdataVal();
 		if (!outData.empty())
 		{
 			jsonData << (pendingSeparator ? ", " : "") << outData;
@@ -861,7 +870,7 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 		}
 
 		// Add into JSON string the OMF transformed Reading data
-		jsonData << OMFData(*elem, typeId).OMFdataVal() << (elem < (readings.end() -1 ) ? ", " : "");
+		jsonData << OMFData(*elem, typeId, m_PIServerEndpoint, m_AFHierarchy1Level).OMFdataVal() << (elem < (readings.end() -1 ) ? ", " : "");
 	}
 
 	jsonData << "]";
@@ -937,7 +946,7 @@ uint32_t OMF::sendToServer(const Reading* reading,
 
 	long typeId = OMF::getAssetTypeId((*reading).getAssetName());
 	// Add into JSON string the OMF transformed Reading data
-	jsonData << OMFData(*reading, typeId).OMFdataVal();
+	jsonData << OMFData(*reading, typeId, m_PIServerEndpoint, m_AFHierarchy1Level).OMFdataVal();
 	jsonData << "]";
 
 	// Build headers for Readings data
@@ -1112,6 +1121,9 @@ const std::string OMF::createTypeData(const Reading& reading) const
 const std::string OMF::createContainerData(const Reading& reading) const
 {
 	string assetName = reading.getAssetName();
+
+	string measurementId;
+
 	// Build the Container data (JSON Array)
 	string cData = "[{\"typeid\": \"";
 
@@ -1120,9 +1132,15 @@ const std::string OMF::createContainerData(const Reading& reading) const
 			     "typename_measurement",
 			     cData);
 
-	cData.append("\", \"id\": \"" + \
-		    to_string(OMF::getAssetTypeId(assetName)) + "measurement_");
-	cData.append(assetName);
+	measurementId = to_string(OMF::getAssetTypeId(assetName)) + "measurement_" + assetName;
+
+	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
+	if (m_PIServerEndpoint.compare("p") == 0)
+	{
+		measurementId = m_AFHierarchy1Level + "_" + measurementId;
+	}
+
+	cData.append("\", \"id\": \"" + measurementId);
 	cData.append("\"}]");
 
 	// Return JSON string
@@ -1178,6 +1196,7 @@ const std::string OMF::createStaticData(const Reading& reading) const
  */
 const std::string OMF::createLinkData(const Reading& reading) const
 {
+	string measurementId;
 	string assetName = reading.getAssetName();
 	// Build the Link data (JSON Array)
 
@@ -1239,11 +1258,15 @@ const std::string OMF::createLinkData(const Reading& reading) const
 	// Add asset_name
 	lData.append(assetName);
 
-	lData.append("\"}, \"target\": {\"containerid\": \"" + \
-		     to_string(OMF::getAssetTypeId(assetName)) + "measurement_");
+	measurementId = to_string(OMF::getAssetTypeId(assetName)) + "measurement_" + assetName;
 
-	// Add asset_name
-	lData.append(assetName);
+	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
+	if (m_PIServerEndpoint.compare("p") == 0)
+	{
+		measurementId = m_AFHierarchy1Level + "_" + measurementId;
+	}
+
+	lData.append("\"}, \"target\": {\"containerid\": \"" + measurementId);
 
 	lData.append("\"}}]}]");
 
@@ -1262,9 +1285,18 @@ void OMF::setAssetTypeTag(const string& assetName,
 			  const string& tagName,
 			  string& data) const
 {
+
+	string AssetTypeTag = to_string(this->getAssetTypeId(assetName)) +
+		              "_" + assetName +
+		              "_" + tagName;
+
+	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
+	if (m_PIServerEndpoint.compare("p") == 0)
+	{
+		AssetTypeTag = m_AFHierarchy1Level + "_" + AssetTypeTag;
+	}
 	// Add type-id + '_' + asset_name + '_' + tagName'
-	data.append(to_string(this->getAssetTypeId(assetName)) + \
-		    "_" + assetName +  "_" + tagName);
+	data.append(AssetTypeTag);
 }
 
 /**

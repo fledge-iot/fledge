@@ -4,11 +4,13 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
+from functools import lru_cache
 from aiohttp import web
 
 from foglamp.services.core import server
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
+from foglamp.common.plugin_discovery import PluginDiscovery
 from foglamp.services.core import connect
 from foglamp.services.core.scheduler.entities import Task
 
@@ -94,6 +96,25 @@ async def _get_north_schedules(storage_client):
     return schedules
 
 
+@lru_cache(maxsize=1024)
+def _get_installed_plugins():
+    return PluginDiscovery.get_plugins_installed("north", False)
+
+
+async def _get_tracked_plugin(storage_client, sch_name):
+    plugin = ''
+    payload = PayloadBuilder().SELECT("plugin").WHERE(['service', '=', sch_name]).\
+        AND_WHERE(['event', '=', 'Egress']).LIMIT(1).payload()
+    try:
+        result = await storage_client.query_tbl_with_payload('asset_tracker', payload)
+        if len(result['rows']):
+            plugin = result['rows'][0]['plugin']
+    except:
+        raise
+    else:
+        return plugin
+
+
 async def get_north_schedules(request):
     """
     Args:
@@ -106,13 +127,26 @@ async def get_north_schedules(request):
             curl -X GET http://localhost:8081/foglamp/north
     """
     try:
+        if 'cached' in request.query and request.query['cached'].lower() == 'false':
+            _get_installed_plugins.cache_clear()
+
         storage_client = connect.get_storage_async()
         north_schedules = await _get_north_schedules(storage_client)
         stats = await _get_sent_stats(storage_client)
 
+        installed_plugins = _get_installed_plugins()
+
         for sch in north_schedules:
             stat = next((s for s in stats if s["key"] == sch["name"]), None)
             sch["sent"] = stat["value"] if stat else -1
+
+            tracked_plugin = await _get_tracked_plugin(storage_client, sch["name"])
+            plugin_version = ''
+            for p in installed_plugins:
+                if p["name"] == tracked_plugin:
+                    plugin_version = p["version"]
+                    break
+            sch["plugin"] = {"name": tracked_plugin, "version": plugin_version}
 
     except (KeyError, ValueError) as e:  # Handles KeyError of _get_sent_stats
         return web.HTTPInternalServerError(reason=e)

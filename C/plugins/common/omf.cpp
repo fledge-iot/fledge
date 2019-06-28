@@ -1267,7 +1267,7 @@ void OMF::setMapObjectTypes(const vector<Reading*>& readings,
 	// Temporary map for [asset][datapoint] = type
 	std::map<string, map<string, string>> readingAllDataPoints;
 
-	// Fetch ALL Reading pointers in the input vecror
+	// Fetch ALL Reading pointers in the input vector
 	// and create a map of [assetName][datapoint1 .. datapointN] = type
 	for (vector<Reading *>::const_iterator elem = readings.begin();
 						elem != readings.end();

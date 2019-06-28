@@ -59,7 +59,6 @@ class TestAuthenticationAPI:
 
         def test_logout_me(self, foglamp_url):
                 conn = http.client.HTTPConnection(foglamp_url)
-                print(TOKEN)
                 conn.request("PUT", '/foglamp/logout', headers={"authorization": TOKEN})
                 r = conn.getresponse()
                 assert 200 == r.status
@@ -67,4 +66,48 @@ class TestAuthenticationAPI:
                 jdoc = json.loads(r)
                 assert jdoc['logout']
 
+        def test_login_username_admin(self, foglamp_url):
+                conn = http.client.HTTPConnection(foglamp_url)
+                conn.request("POST", "/foglamp/login", json.dumps({"username": "admin", "password": "foglamp"}))
+                r = conn.getresponse()
+                assert 200 == r.status
+                r = r.read().decode()
+                jdoc = json.loads(r)
+                assert "Logged in successfully" == jdoc['message']
+                assert "token" in jdoc
+                assert jdoc['admin']
+                global TOKEN
+                TOKEN = jdoc["token"]
 
+        @pytest.mark.parametrize(("query", "expected_values"), [
+                ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin'},
+                                {'userId': 2, 'roleId': 2, 'userName': 'user'}]}),
+                ('?id=2', {'userId': 2, 'roleId': 2, 'userName': 'user'}),
+                ('?username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin'}),
+                ('?id=1&username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin'}),
+        ])
+        def test_get_users(self, foglamp_url, query, expected_values):
+                conn = http.client.HTTPConnection(foglamp_url)
+                conn.request("GET", "/foglamp/user{}".format(query), headers={"authorization": TOKEN})
+                r = conn.getresponse()
+                assert 200 == r.status
+                r = r.read().decode()
+                jdoc = json.loads(r)
+                assert expected_values == jdoc
+
+        @pytest.mark.parametrize(("form_data", "expected_values"), [
+                ({"username": "any1", "password": "User@123"}, {'user': {'userName': 'any1', 'userId': 3, 'roleId': 2},
+                                                                'message': 'User has been created successfully'}),
+                ({"username": "admin1", "password": "F0gl@mp!", "role_id": 1},
+                 {'user': {'userName': 'admin1', 'userId': 4, 'roleId': 1},
+                  'message': 'User has been created successfully'}),
+        ])
+        def test_create_user(self, foglamp_url, form_data, expected_values):
+                conn = http.client.HTTPConnection(foglamp_url)
+                conn.request("POST", "/foglamp/admin/user", body=json.dumps(form_data),
+                             headers={"authorization": TOKEN})
+                r = conn.getresponse()
+                assert 200 == r.status
+                r = r.read().decode()
+                jdoc = json.loads(r)
+                assert expected_values == jdoc

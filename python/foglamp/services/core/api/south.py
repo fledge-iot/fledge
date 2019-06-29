@@ -4,6 +4,8 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
+from functools import lru_cache
+
 from aiohttp import web
 
 from foglamp.common.service_record import ServiceRecord
@@ -13,7 +15,6 @@ from foglamp.services.core.service_registry.exceptions import DoesNotExist
 from foglamp.services.core import connect
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.plugin_discovery import PluginDiscovery
-
 
 
 __author__ = "Praveen Garg"
@@ -34,6 +35,11 @@ async def _get_schedule_status(storage_client, svc_name):
     return True if result['rows'][0]['enabled'] == 't' else False
 
 
+@lru_cache(maxsize=1024)
+def _get_installed_plugins():
+    return PluginDiscovery.get_plugins_installed("south", False)
+
+
 async def _services_with_assets(storage_client, south_services):
     sr_list = list()
     try:
@@ -45,7 +51,7 @@ async def _services_with_assets(storage_client, south_services):
         def is_svc_in_service_registry(name):
             return next((svc for svc in services_from_registry if svc._name == name), None)
 
-        installed_plugins = PluginDiscovery.get_plugins_installed("south", False)
+        installed_plugins = _get_installed_plugins()
 
         for s_record in services_from_registry:
             plugin, assets = await _get_tracked_plugin_assets_and_readings(storage_client, s_record._name)
@@ -133,6 +139,9 @@ async def get_south_services(request):
     :Example:
             curl -X GET http://localhost:8081/foglamp/south
     """
+    if 'cached' in request.query and request.query['cached'].lower() == 'false':
+        _get_installed_plugins.cache_clear()
+
     storage_client = connect.get_storage_async()
     cf_mgr = ConfigurationManager(storage_client)
     try:

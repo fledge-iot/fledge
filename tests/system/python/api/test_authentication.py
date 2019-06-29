@@ -6,6 +6,7 @@
 
 """ Test authentication REST API """
 
+import os
 import http.client
 import json
 import time
@@ -95,6 +96,17 @@ class TestAuthenticationAPI:
                 jdoc = json.loads(r)
                 assert expected_values == jdoc
 
+        def test_get_roles(self, foglamp_url):
+                conn = http.client.HTTPConnection(foglamp_url)
+                conn.request("GET", "/foglamp/user/role", headers={"authorization": TOKEN})
+                r = conn.getresponse()
+                assert 200 == r.status
+                r = r.read().decode()
+                jdoc = json.loads(r)
+                assert {'roles': [{'description': 'All CRUD privileges', 'id': 1, 'name': 'admin'},
+                                  {'description': 'All CRUD operations and self profile management',
+                                   'id': 2, 'name': 'user'}]} == jdoc
+
         @pytest.mark.parametrize(("form_data", "expected_values"), [
                 ({"username": "any1", "password": "User@123"}, {'user': {'userName': 'any1', 'userId': 3, 'roleId': 2},
                                                                 'message': 'User has been created successfully'}),
@@ -111,3 +123,90 @@ class TestAuthenticationAPI:
                 r = r.read().decode()
                 jdoc = json.loads(r)
                 assert expected_values == jdoc
+
+        def test_update_password(self, foglamp_url):
+                conn = http.client.HTTPConnection(foglamp_url)
+                conn.request("PUT", "/foglamp/user/any1/password", body=json.dumps({"current_password": "User@123",
+                                                                                    "new_password": "F0gl@mp1"}),
+                             headers={"authorization": TOKEN})
+                r = conn.getresponse()
+                assert 200 == r.status
+                r = r.read().decode()
+                jdoc = json.loads(r)
+                assert {'message': 'Password has been updated successfully for user id:<3>'} == jdoc
+
+        def test_reset_user(self, foglamp_url):
+                conn = http.client.HTTPConnection(foglamp_url)
+                conn.request("PUT", "/foglamp/admin/3/reset", body=json.dumps({"role_id": 1, "password": "F0gl@mp!"}),
+                             headers={"authorization": TOKEN})
+                r = conn.getresponse()
+                assert 200 == r.status
+                r = r.read().decode()
+                jdoc = json.loads(r)
+                assert {'message': 'User with id:<3> has been updated successfully'} == jdoc
+
+        def test_delete_user(self, foglamp_url):
+                conn = http.client.HTTPConnection(foglamp_url)
+                conn.request("DELETE", "/foglamp/admin/4/delete", headers={"authorization": TOKEN})
+                r = conn.getresponse()
+                assert 200 == r.status
+                r = r.read().decode()
+                jdoc = json.loads(r)
+                assert {'message': "User has been deleted successfully"} == jdoc
+
+        def test_logout_all(self, foglamp_url):
+                conn = http.client.HTTPConnection(foglamp_url)
+                conn.request("PUT", '/foglamp/1/logout', headers={"authorization": TOKEN})
+                r = conn.getresponse()
+                assert 200 == r.status
+                r = r.read().decode()
+                jdoc = json.loads(r)
+                assert jdoc['logout']
+
+        def test_admin_actions_reg_user(self, foglamp_url):
+                """Test that regular user is not able to perform any actions that only an admin can"""
+                # Login with regular user
+                conn = http.client.HTTPConnection(foglamp_url)
+                conn.request("POST", "/foglamp/login", json.dumps({"username": "user", "password": "foglamp"}))
+                r = conn.getresponse()
+                assert 200 == r.status
+                r = r.read().decode()
+                jdoc = json.loads(r)
+                assert not jdoc['admin']
+                _token = jdoc["token"]
+
+                # Create User
+                conn.request("POST", "/foglamp/admin/user", body=json.dumps({"username": "other", "password": "User@123"}),
+                             headers={"authorization": _token})
+                r = conn.getresponse()
+                assert 403 == r.status
+                r = r.read().decode()
+                assert "403: Forbidden" == r
+
+                # Reset User
+                conn.request("PUT", "/foglamp/admin/2/reset", body=json.dumps({"role_id": 1, "password": "F0gl@p!"}),
+                             headers={"authorization": _token})
+                r = conn.getresponse()
+                assert 403 == r.status
+                r = r.read().decode()
+                assert "403: Forbidden" == r
+
+                # Delete User
+                conn.request("DELETE", "/foglamp/admin/2/delete", headers={"authorization": _token})
+                r = conn.getresponse()
+                assert 403 == r.status
+                r = r.read().decode()
+                assert "403: Forbidden" == r
+
+        def test_login_with_certificate(self, foglamp_url):
+                conn = http.client.HTTPConnection(foglamp_url)
+                cert_file_path = os.path.join(os.path.expandvars('${FOGLAMP_ROOT}'), 'data/etc/certs/user.cert')
+                with open(cert_file_path, 'r') as f:
+                        conn.request("POST", "/foglamp/login", body=f)
+                        r = conn.getresponse()
+                        assert 200 == r.status
+                        r = r.read().decode()
+                        jdoc = json.loads(r)
+                        assert "Logged in successfully" == jdoc['message']
+                        assert "token" in jdoc
+                        assert not jdoc['admin']

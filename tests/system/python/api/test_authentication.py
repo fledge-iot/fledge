@@ -177,7 +177,8 @@ class TestAuthenticationAPI:
                 _token = jdoc["token"]
 
                 # Create User
-                conn.request("POST", "/foglamp/admin/user", body=json.dumps({"username": "other", "password": "User@123"}),
+                conn.request("POST", "/foglamp/admin/user", body=json.dumps({"username": "other",
+                                                                             "password": "User@123"}),
                              headers={"authorization": _token})
                 r = conn.getresponse()
                 assert 403 == r.status
@@ -228,8 +229,11 @@ class TestAuthenticationAPI:
         def test_login_with_custom_certificate(self, foglamp_url, remove_data_file):
                 # Create a custom certificate and sign
                 subprocess.run(["openssl genrsa -out custom.key 1024 2> /dev/null"], shell=True)
-                subprocess.run(["openssl req -new -key custom.key -out custom.csr -subj '/C=IN/CN=user' 2> /dev/null"], shell=True)
-                subprocess.run(["openssl x509 -req -days 1 -in custom.csr -CA $FOGLAMP_ROOT/data/etc/certs/ca.cert -CAkey $FOGLAMP_ROOT/data/etc/certs/ca.key -set_serial 01 -out custom.cert 2> /dev/null"], shell=True)
+                subprocess.run(["openssl req -new -key custom.key -out custom.csr -subj '/C=IN/CN=user' 2> /dev/null"],
+                               shell=True)
+                subprocess.run(["openssl x509 -req -days 1 -in custom.csr "
+                                "-CA $FOGLAMP_ROOT/data/etc/certs/ca.cert -CAkey $FOGLAMP_ROOT/data/etc/certs/ca.key "
+                                "-set_serial 01 -out custom.cert 2> /dev/null"], shell=True)
 
                 # Login with custom certificate
                 conn = http.client.HTTPConnection(foglamp_url)
@@ -248,6 +252,3 @@ class TestAuthenticationAPI:
                 remove_data_file('custom.key')
                 remove_data_file('custom.csr')
                 remove_data_file('custom.cert')
-
-
-

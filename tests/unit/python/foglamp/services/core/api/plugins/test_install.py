@@ -226,11 +226,11 @@ class TestPluginInstall:
     async def test_post_bad_plugin_install_package_from_repo(self, client):
         plugin = "foglamp-south-sinusoid"
         param = {"format": "repository", "name": plugin}
-        with patch.object(common, 'fetch_available_plugins', return_value=[]) as avail_plugin_patch:
+        with patch.object(common, 'fetch_available_packages', return_value=[]) as patch_fetch_available_package:
             resp = await client.post('/foglamp/plugins', data=json.dumps(param))
             assert 404 == resp.status
             assert "'{} plugin is not available for the given repository'".format(plugin) == resp.reason
-        avail_plugin_patch.assert_called_once_with()
+        patch_fetch_available_package.assert_called_once_with()
 
     @pytest.mark.parametrize("plugin_name", [
         'foglamp-south-modbusc',
@@ -243,9 +243,9 @@ class TestPluginInstall:
         param = {"format": "repository", "name": plugin_name}
         _platform = platform.platform()
         pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
-        with patch.object(common, 'fetch_available_plugins',
+        with patch.object(common, 'fetch_available_packages',
                           return_value=[plugin_name, "foglamp-north-http",
-                                        "foglamp-service-notification"]) as avail_plugin_patch:
+                                        "foglamp-service-notification"]) as patch_fetch_available_package:
             with patch.object(plugins_install, 'install_package_from_repo',
                               return_value=(0, 'Success')) as install_package_patch:
                 resp = await client.post('/foglamp/plugins', data=json.dumps(param))
@@ -254,4 +254,4 @@ class TestPluginInstall:
                 response = json.loads(result)
                 assert {"message": "{} is successfully installed".format(plugin_name)} == response
             install_package_patch.assert_called_once_with(plugin_name, pkg_mgt, None)
-        avail_plugin_patch.assert_called_once_with()
+        patch_fetch_available_package.assert_called_once_with()

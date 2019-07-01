@@ -1,6 +1,14 @@
+# -*- coding: utf-8 -*-
+
+# FOGLAMP_BEGIN
+# See: http://foglamp.readthedocs.io/
+# FOGLAMP_END
+
+
 import subprocess
 import os
 import json
+
 from foglamp.common import logger
 from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_PLUGIN_PATH
 
@@ -78,5 +86,4 @@ def _find_plugins_from_env(_plugin_path: list) -> list:
                     _logger.warning("{} subdir type not found".format(l))
             else:
                 _logger.warning("{} dir path not found".format(l))
-    _logger.warning("...{}".format(_plugin_path))
     return _plugin_path

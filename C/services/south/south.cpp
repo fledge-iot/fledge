@@ -400,10 +400,10 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 			}
 		}
-		}
-
+		// do plugin shutdown before destroying Ingest object on stack
 		if (southPlugin)
 			southPlugin->shutdown();
+		}
 		
 		// Clean shutdown, unregister the storage service
 		m_mgtClient->unregisterService();

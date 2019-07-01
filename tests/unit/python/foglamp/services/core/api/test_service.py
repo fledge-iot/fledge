@@ -4,13 +4,14 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-
+import platform
 import asyncio
 import json
 from uuid import UUID
-from aiohttp import web
-import pytest
 from unittest.mock import MagicMock, patch, call
+import pytest
+from aiohttp import web
+
 from foglamp.services.core import routes
 from foglamp.services.core import connect
 from foglamp.common.storage_client.storage_client import StorageClientAsync
@@ -24,6 +25,8 @@ from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.services.core.api import service
 from foglamp.services.core.api.plugins import common
 from foglamp.services.core.api.service import _logger
+from foglamp.services.core.api.plugins import install
+
 
 __author__ = "Ashwin Gopalakrishnan, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -495,13 +498,13 @@ class TestService:
                                                           return_value=self.async_mock("")) as patch_save_schedule:
                                             with patch.object(server.Server.scheduler, 'get_schedule_by_name',
                                                               return_value=async_mock_get_schedule()) as patch_get_schedule:
-                                                    resp = await client.post('/foglamp/service', data=payload)
-                                                    server.Server.scheduler = None
-                                                    assert 200 == resp.status
-                                                    result = await resp.text()
-                                                    json_response = json.loads(result)
-                                                    assert {'id': '2129cc95-c841-441a-ad39-6469a87dbc8b',
-                                                            'name': data['name']} == json_response
+                                                resp = await client.post('/foglamp/service', data=payload)
+                                                server.Server.scheduler = None
+                                                assert 200 == resp.status
+                                                result = await resp.text()
+                                                json_response = json.loads(result)
+                                                assert {'id': '2129cc95-c841-441a-ad39-6469a87dbc8b',
+                                                        'name': data['name']} == json_response
                                             patch_get_schedule.assert_called_once_with(data['name'])
                                         patch_save_schedule.called_once_with()
                                     patch_set_entry.assert_called_once_with(data['name'], 'dataPointsPerSec', '10')
@@ -602,5 +605,61 @@ class TestService:
         resp = await client.delete("/foglamp/service/{}".format(name))
         assert 404 == resp.status
         assert '{} service does not exist.'.format(name) == resp.reason
+
+    async def test_post_service_package_from_repo(self, client):
+        svc_name = 'foglamp-service-notification'
+        param = {"format": "repository", "name": svc_name}
+        _platform = platform.platform()
+        pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
+        with patch.object(common, 'fetch_available_packages', return_value=[svc_name]) as patch_fetch_available_package:
+            with patch.object(install, 'install_package_from_repo',
+                              return_value=(0, 'Success')) as install_package_patch:
+                resp = await client.post('/foglamp/service?action=install', data=json.dumps(param))
+                assert 200 == resp.status
+                result = await resp.text()
+                response = json.loads(result)
+                assert {"message": "{} is successfully installed".format(svc_name)} == response
+            install_package_patch.assert_called_once_with(svc_name, pkg_mgt, None)
+        patch_fetch_available_package.assert_called_once_with('service')
+
+    @pytest.mark.parametrize("req_param, post_param, message", [
+        ("?action=install", {"name": "blah"}, "format param is required"),
+        ("?action=install", {"format": "repository"}, "Missing name property in payload."),
+        ("?action=install", {"format": "blah", "name": "blah"}, "Invalid format. Must be 'repository'"),
+        ("?action=blah", {"format": "blah", "name": "blah"}, "blah is not a valid action"),
+        ("?action=install", {"format": "repository", "name": "foglamp-service-notification", "version": "1.6"},
+         "Service semantic version is incorrect; it should be like X.Y.Z")
+    ])
+    async def test_bad_post_service_package_from_repo(self, client, req_param, post_param, message):
+        resp = await client.post('/foglamp/service{}'.format(req_param), data=json.dumps(post_param))
+        assert 400 == resp.status
+        assert message == resp.reason
+
+    async def test_post_service_package_from_repo_is_not_available(self, client):
+        svc = "foglamp-service-notification"
+        param = {"format": "repository", "name": svc}
+        with patch.object(common, 'fetch_available_packages', return_value=[]) as patch_fetch_available_package:
+            resp = await client.post('/foglamp/service?action=install', data=json.dumps(param))
+            assert 404 == resp.status
+            assert "'{} service is not available for the given repository or already installed'".format(svc) == resp.reason
+        patch_fetch_available_package.assert_called_once_with('service')
+
+    async def test_get_service_available(self, client):
+        with patch.object(common, 'fetch_available_packages', return_value=[]) as patch_fetch_available_package:
+            resp = await client.get('/foglamp/service/available')
+            assert 200 == resp.status
+            result = await resp.text()
+            json_response = json.loads(result)
+            assert {'services': []} == json_response
+        patch_fetch_available_package.assert_called_once_with('service')
+
+    async def test_get_service_installed(self, client):
+        with patch('os.walk') as mockwalk:
+            mockwalk.return_value = [(['/usr/local/foglamp/services'], [], ['foglamp.services.south', 'foglamp.services.storage'])]
+            resp = await client.get('/foglamp/service/installed')
+            assert 200 == resp.status
+            result = await resp.text()
+            json_response = json.loads(result)
+            assert {'services': ['south', 'storage']} == json_response
 
 # TODO:  add negative tests and C type plugin add service tests

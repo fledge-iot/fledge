@@ -1298,6 +1298,7 @@ class Server:
 
     @classmethod
     async def create_configuration_category(cls, request):
+        request.is_core_mgt = True
         res = await conf_api.create_category(request)
         return res
 
@@ -1318,11 +1319,13 @@ class Server:
 
     @classmethod
     async def get_configuration_category(cls, request):
+        request.is_core_mgt = True
         res = await conf_api.get_category(request)
         return res
 
     @classmethod
     async def get_configuration_item(cls, request):
+        request.is_core_mgt = True
         res = await conf_api.get_category_item(request)
         return res
 

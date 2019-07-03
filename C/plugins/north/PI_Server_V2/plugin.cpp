@@ -145,7 +145,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type": "string",
 			"default": "foglamp_data_piwebapi",
 			"order": "18",
-			"displayName": "Asset Framework 1st level hierarchy"
+			"displayName": "Asset Framework 1st Level Hierarchy"
 		},
 		"notBlockingErrors": {
 			"description": "These errors are considered not blocking in the communication with the PI Server, the sending operation will proceed with the next block of data if one of these is encountered",
@@ -160,8 +160,29 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"default": "0",
 			"order": "20" ,
 			"readonly": "true"
+		},
+		"PIWebAPIAuthentication": {
+			"description": "Defines the authentication method to be used with the PI Web API.",
+			"type": "enumeration",
+			"options":["anonymous", "basic", "kerberos"],
+			"default": "anonymous",
+			"order": "21",
+			"displayName": "PI Web API Authentication Method"
+		},
+		"PIWebAPIUserId": {
+			"description": "User id of PI Web API to be used with the basic access authentication.",
+			"type": "string",
+			"default": "xxx",
+			"order": "22",
+			"displayName": "PI Web API User Id"
+		},
+		"PIWebAPIPassword": {
+			"description": "Password of the user of PI Web API to be used with the basic access authentication.",
+			"type": "password",
+			"default": "xxx",
+			"order": "23" ,
+			"displayName": "PI Web API Password"
 		}
-
 	}
 );
 
@@ -172,21 +193,25 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
  */
 typedef struct
 {
-	SimpleHttps	*sender;	   // HTTPS connection
-	OMF 		*omf;		   // OMF data protocol
-	bool		compression;	   // whether to compress readings' data
-	string		hostAndPort;	   // hostname:port for SimpleHttps
-	unsigned int	retrySleepTime;	   // Seconds between each retry
-	unsigned int	maxRetry;	   // Max number of retries in the communication
-	unsigned int	timeout;	   // connect and operation timeout
-	string		path;		   // PI Server application path
-	long		typeId;		   // OMF protocol type-id prefix
-	string		producerToken;	   // PI Server connector token
-	string		formatNumber;	   // OMF protocol Number format
-	string		formatInteger;	   // OMF protocol Integer format
-    	string		PIServerEndpoint;  // Defines which PIServer component should be used for the communication:
-    	                                   // a=auto discovery - p=PI Web API, c=Connector Relay
-	string		AFHierarchy1Level; // 1st hierarchy in Asset Framework, PI Web API only.
+	SimpleHttps	*sender;	        // HTTPS connection
+	OMF 		*omf;		        // OMF data protocol
+	bool		compression;	        // whether to compress readings' data
+	string		hostAndPort;	        // hostname:port for SimpleHttps
+	unsigned int	retrySleepTime;	        // Seconds between each retry
+	unsigned int	maxRetry;	        // Max number of retries in the communication
+	unsigned int	timeout;	        // connect and operation timeout
+	string		path;		        // PI Server application path
+	long		typeId;		        // OMF protocol type-id prefix
+	string		producerToken;	        // PI Server connector token
+	string		formatNumber;	        // OMF protocol Number format
+	string		formatInteger;	        // OMF protocol Integer format
+    	string		PIServerEndpoint;       // Defines which PIServer component should be used for the communication:
+    	                                        // a=auto discovery - p=PI Web API, c=Connector Relay
+	string		AFHierarchy1Level;      // 1st hierarchy in Asset Framework, PI Web API only.
+    	string		PIWebAPIAuthentication; // Authentication method to be used with the PI Web API.
+    	string		PIWebAPICredentials;    // Credentials is the base64 encoding of id and password joined by a single colon (:)
+
+
 
 	vector<pair<string, string>>
 			staticData;	// Static data
@@ -202,6 +227,7 @@ string saveSentDataTypes(CONNECTOR_INFO* connInfo);
 void   loadSentDataTypes(CONNECTOR_INFO* connInfo, Document& JSONData);
 long   getMaxTypeId(CONNECTOR_INFO* connInfo);
 string identifyPIServerEndpoint(CONNECTOR_INFO* connInfo);
+string AuthBasicCredentialsGenerate(string& userId, string& password);
 
 /**
  * Return the information about this plugin
@@ -254,6 +280,10 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	string PIServerEndpoint = configData->getValue("PIServerEndpoint");
 	string AFHierarchy1Level = configData->getValue("AFHierarchy1Level");
 
+	string PIWebAPIAuthentication = configData->getValue("PIWebAPIAuthentication");
+	string PIWebAPIUserId = configData->getValue("PIWebAPIUserId");
+	string PIWebAPIPassword = configData->getValue("PIWebAPIPassword");
+
 	/**
 	 * Extract host, port, path from URL
 	 */
@@ -283,6 +313,30 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	connInfo->formatNumber = formatNumber;
 	connInfo->formatInteger = formatInteger;
 	connInfo->AFHierarchy1Level = AFHierarchy1Level;
+
+	// PI Web API end-point - evaluates the authentication method requested
+	if (PIWebAPIAuthentication.compare("anonymous") == 0)
+	{
+		Logger::getLogger()->debug("PI Web API end-point - anonymous authentication");
+		connInfo->PIWebAPIAuthentication = "a";
+	}
+	else if (PIWebAPIAuthentication.compare("basic") == 0)
+	{
+		Logger::getLogger()->debug("PI Web API end-point - basic authentication");
+		connInfo->PIWebAPIAuthentication = "b";
+		connInfo->PIWebAPICredentials = AuthBasicCredentialsGenerate(PIWebAPIUserId, PIWebAPIPassword);
+
+	}
+	else if (PIWebAPIAuthentication.compare("kerberos") == 0)
+	{
+		Logger::getLogger()->debug("PI Web API end-point - kerberos authentication");
+		connInfo->PIWebAPIAuthentication = "k";
+		// #Todo : to be implemented
+	}
+	else
+	{
+		Logger::getLogger()->error("Invalid authentication method for PI Web API :%s: ", PIWebAPIAuthentication.c_str());
+	}
 
 	// Translate the PIServerEndpoint configuration
 	if (PIServerEndpoint.compare("discovery") == 0)
@@ -314,6 +368,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 		Logger::getLogger()->debug("PI-Server end point selected - Connector Relay");
 	else
 		Logger::getLogger()->error("Invalid PI-Server end point");
+
 
 	// Use compression ?
 	string compr = configData->getValue("compression");
@@ -741,8 +796,12 @@ string identifyPIServerEndpoint(CONNECTOR_INFO* connInfo)
 	string PIServerEndpoint;
 
 	SimpleHttps *endPoint;
-	const vector<pair<string, string>> headers;
+	vector<pair<string, string>> header;
 	int httpCode;
+
+	// Handle basic authentication
+	if (connInfo->PIWebAPIAuthentication == "b")
+		header.push_back(make_pair("Authorization", "Basic " + connInfo->PIWebAPICredentials));
 
 	endPoint = new SimpleHttps(connInfo->hostAndPort,
 				   connInfo->timeout,
@@ -753,18 +812,23 @@ string identifyPIServerEndpoint(CONNECTOR_INFO* connInfo)
 	try
 	{
 		httpCode = endPoint->sendRequest("GET",
-						  connInfo->path,
-						  headers,
-						  "");
+						 connInfo->path,
+						 header,
+						 "");
 
-		if  (httpCode >= 200 && httpCode <= 399)
+		if (httpCode >= 200 && httpCode <= 399)
+		{
 			PIServerEndpoint = "p";
+			if (connInfo->PIWebAPIAuthentication == "b")
+				Logger::getLogger()->debug("PI Wab API end-point basic authorization granted");
+		}
 		else
 			PIServerEndpoint = "c";
 
 	}
 	catch (exception &ex)
 	{
+		Logger::getLogger()->warn("PI-Server end-point discovery encountered the error :%s:", ex.what());
 		PIServerEndpoint = "c";
 	}
 
@@ -773,3 +837,16 @@ string identifyPIServerEndpoint(CONNECTOR_INFO* connInfo)
 	return (PIServerEndpoint);
 }
 
+
+/**# FIXME_I
+ */
+string AuthBasicCredentialsGenerate(string& userId, string& password)
+{
+	string Credentials;
+
+	//# FIXME_I
+	//Credentials = "QWRtaW5pc3RyYXRvcjpGb2dMYW1wMjAw";
+	// Bad
+	Credentials = "xxx";
+	return (Credentials);
+}

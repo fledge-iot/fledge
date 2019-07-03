@@ -102,6 +102,10 @@ int SimpleHttps::sendRequest(const string& method,
 
 			retCode = res->status_code;
 			response = res->content.string();
+
+			if (response.compare("") == 0)
+				response = res->status_code;
+
 			http_code = atoi(retCode.c_str());
 		}
 		catch (BadRequest &ex)

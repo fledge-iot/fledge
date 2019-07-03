@@ -22,10 +22,13 @@
 #include "rapidjson/stringbuffer.h"
 #include "json_utils.h"
 
+#include "crypto.hpp"
+
 #define VERBOSE_LOG	0
 
 using namespace std;
 using namespace rapidjson;
+using namespace SimpleWeb;
 
 #define TO_STRING(...) DEFER(TO_STRING_)(__VA_ARGS__)
 #define DEFER(x) x
@@ -325,7 +328,6 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 		Logger::getLogger()->debug("PI Web API end-point - basic authentication");
 		connInfo->PIWebAPIAuthentication = "b";
 		connInfo->PIWebAPICredentials = AuthBasicCredentialsGenerate(PIWebAPIUserId, PIWebAPIPassword);
-
 	}
 	else if (PIWebAPIAuthentication.compare("kerberos") == 0)
 	{
@@ -820,7 +822,7 @@ string identifyPIServerEndpoint(CONNECTOR_INFO* connInfo)
 		{
 			PIServerEndpoint = "p";
 			if (connInfo->PIWebAPIAuthentication == "b")
-				Logger::getLogger()->debug("PI Wab API end-point basic authorization granted");
+				Logger::getLogger()->debug("PI Web API end-point basic authorization granted");
 		}
 		else
 			PIServerEndpoint = "c";
@@ -837,16 +839,19 @@ string identifyPIServerEndpoint(CONNECTOR_INFO* connInfo)
 	return (PIServerEndpoint);
 }
 
-
-/**# FIXME_I
+/**
+ * Generate the credentials for the basic authentication
+ * encoding user id and password joined by a single colon (:) using base64
+ *
+ * @param    userId	User id to be used for the generation of the credentials
+ * @param    password	Password to be used for the generation of the credentials
+ * @return		credentials to be used with the basic authentication
  */
 string AuthBasicCredentialsGenerate(string& userId, string& password)
 {
 	string Credentials;
 
-	//# FIXME_I
-	//Credentials = "QWRtaW5pc3RyYXRvcjpGb2dMYW1wMjAw";
-	// Bad
-	Credentials = "xxx";
+	Credentials = Crypto::Base64::encode(userId + ":" + password);
+
 	return (Credentials);
 }

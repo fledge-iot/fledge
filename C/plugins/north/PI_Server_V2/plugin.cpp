@@ -5,7 +5,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Massimiliano Pinto
+ * Author: Massimiliano Pinto, Stefano Simonelli
  */
 #include <plugin_api.h>
 #include <stdio.h>
@@ -27,6 +27,11 @@
 using namespace std;
 using namespace rapidjson;
 
+#define TO_STRING(...) DEFER(TO_STRING_)(__VA_ARGS__)
+#define DEFER(x) x
+#define TO_STRING_(...) #__VA_ARGS__
+#define QUOTE(...) TO_STRING(__VA_ARGS__)
+
 #define PLUGIN_NAME "PI_Server_V2"
 #define TYPE_ID_KEY "type-id"
 #define SENT_TYPES_KEY "sentDataTypes"
@@ -35,96 +40,154 @@ using namespace rapidjson;
 /**
  * Plugin specific default configuration
  */
-#define PLUGIN_DEFAULT_CONFIG \
-			"\"URL\": { " \
-				"\"description\": \"The URL of the PI Connector to send data to\", " \
-				"\"type\": \"string\", " \
-				"\"default\": \"https://pi-server:5460/ingress/messages\", " \
-				"\"order\": \"1\", \"displayName\": \"URL\" }, " \
-			"\"producerToken\": { " \
-				"\"description\": \"The producer token that represents this FogLAMP stream\", " \
-				"\"type\": \"string\", \"default\": \"omf_north_0001\", " \
-				"\"order\": \"2\", \"displayName\": \"Producer Token\" }, " \
-			"\"source\": {" \
-				"\"description\": \"Defines the source of the data to be sent on the stream, " \
-				"this may be one of either readings, statistics or audit.\", \"type\": \"enumeration\", " \
-				"\"default\": \"readings\", "\
-				"\"options\": [\"readings\", \"statistics\"], " \
-				"\"order\": \"3\", \"displayName\": \"Data Source\"  }, " \
-			"\"StaticData\": { " \
-				"\"description\": \"Static data to include in each sensor reading sent to the PI Server.\", " \
-				"\"type\": \"string\", \"default\": \"Location: Palo Alto, Company: Dianomic\", " \
-				"\"order\": \"4\", \"displayName\": \"Static Data\" }, " \
-			"\"OMFRetrySleepTime\": { " \
-        			"\"description\": \"Seconds between each retry for the communication with the OMF PI Connector Relay, " \
-                       		"NOTE : the time is doubled at each attempt.\", \"type\": \"integer\", \"default\": \"1\", " \
-				"\"order\": \"9\", \"displayName\": \"Sleep Time Retry\" }, " \
-			"\"OMFMaxRetry\": { " \
-				"\"description\": \"Max number of retries for the communication with the OMF PI Connector Relay\", " \
-				"\"type\": \"integer\", \"default\": \"3\", " \
-				"\"order\": \"10\", \"displayName\": \"Maximum Retry\" }, " \
-			"\"OMFHttpTimeout\": { " \
-				"\"description\": \"Timeout in seconds for the HTTP operations with the OMF PI Connector Relay\", " \
-				"\"type\": \"integer\", \"default\": \"10\", " \
-				"\"order\": \"13\", \"displayName\": \"HTTP Timeout\" }, " \
-			"\"formatInteger\": { " \
-        			"\"description\": \"OMF format property to apply to the type Integer\", " \
-				"\"type\": \"string\", \"default\": \"int64\", " \
-				"\"order\": \"14\", \"displayName\": \"Integer Format\" }, " \
-			"\"formatNumber\": { " \
-        			"\"description\": \"OMF format property to apply to the type Number\", " \
-				"\"type\": \"string\", \"default\": \"float64\", " \
-				"\"order\": \"15\", \"displayName\": \"Number Format\" }, " \
-			"\"compression\": { " \
-        			"\"description\": \"Compress readings data before sending to PI server\", " \
-				"\"type\": \"boolean\", \"default\": \"True\", " \
-				"\"order\": \"16\", \"displayName\": \"Compression\" }, " \
-			"\"streamId\": {" \
-				"\"description\": \"Identifies the specific stream to handle and the related information," \
-				" among them the ID of the last object streamed.\", " \
-				"\"type\": \"integer\", \"default\": \"0\", " \
-				"\"readonly\": \"true\" }, " \
-			"\"notBlockingErrors\": {" \
-				"\"description\": "\
-					"\"These errors are considered not blocking in the communication with the PI Server, " \
-					  " the sending operation will proceed with the next block of data if one of these is encountered\" ," \
-				"\"type\": \"JSON\", " \
-				"\"default\": \"{\\\"errors400\\\": "\
-		                        "["\
-			                        "\\\"Redefinition of the type with the same ID is not allowed\\\", "\
-						"\\\"Invalid value type for the property\\\", "\
-						"\\\"Property does not exist in the type definition\\\", "\
-						"\\\"Container is not defined\\\", "\
-						"\\\"Unable to find the property of the container of type\\\" " \
-		                        "]"\
-                                "}\", " \
-				"\"order\": \"17\" ,"  \
-				"\"readonly\": \"true\" " \
-			"} "
+
+#define NOT_BLOCKING_ERRORS_DEFAULT QUOTE(                                          \
+	{                                                                           \
+		"errors400" : [					                    \
+			"Redefinition of the type with the same ID is not allowed", \
+			"Invalid value type for the property",                      \
+			"Property does not exist in the type definition",           \
+			"Container is not defined",                                 \
+			"Unable to find the property of the container of type"      \
+		]					                            \
+	}                                                                           \
+)
+
+const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
+	{
+		"plugin": {
+			"description": "PI Server North C Plugin",
+			"type": "string",
+			"default": PLUGIN_NAME,
+			"readonly": "true"
+		},
+		"URL": {
+			"description": "The URL of the PI Connector to send data to",
+			"type": "string",
+			"default": "https://pi-server:5460/ingress/messages",
+			"order": "1",
+			"displayName": "URL"
+		},
+		"producerToken": {
+			"description": "The producer token that represents this FogLAMP stream",
+			"type": "string",
+			"default": "omf_north_0001",
+			"order": "2",
+			"displayName": "Producer Token"
+		},
+		"source": {
+			"description": "Defines the source of the data to be sent on the stream, this may be one of either readings, statistics or audit.",
+			"type": "enumeration",
+			"options":["readings", "statistics"],
+			"default": "readings",
+			"order": "3",
+			"displayName": "Data Source"
+		},
+		"StaticData": {
+			"description": "Static data to include in each sensor reading sent to the PI Server.",
+			"type": "string",
+			"default": "Location: Palo Alto, Company: Dianomic",
+			"order": "4",
+			"displayName": "Static Data"
+		},
+		"OMFRetrySleepTime": {
+			"description": "Seconds between each retry for the communication with the OMF PI Connector Relay, NOTE : the time is doubled at each attempt.",
+			"type": "integer",
+			"default": "1",
+			"order": "9",
+			"displayName": "Sleep Time Retry"
+		},
+		"OMFMaxRetry": {
+			"description": "Max number of retries for the communication with the OMF PI Connector Relay",
+			"type": "integer",
+			"default": "3",
+			"order": "10",
+			"displayName": "Maximum Retry"
+		},
+		"OMFHttpTimeout": {
+			"description": "Timeout in seconds for the HTTP operations with the OMF PI Connector Relay",
+			"type": "integer",
+			"default": "10",
+			"order": "13",
+			"displayName": "HTTP Timeout"
+		},
+		"formatInteger": {
+			"description": "OMF format property to apply to the type Integer",
+			"type": "string",
+			"default": "int64",
+			"order": "14",
+			"displayName": "Integer Format"
+		},
+		"formatNumber": {
+			"description": "OMF format property to apply to the type Number",
+			"type": "string",
+			"default": "float64",
+			"order": "15",
+			"displayName": "Number Format"
+		},
+		"compression": {
+			"description": "Compress readings data before sending to PI server",
+			"type": "boolean",
+			"default": "True",
+			"order": "16",
+			"displayName": "Compression"
+		},
+		"PIServerEndpoint": {
+			"description": "Defines which PIServer component should be used for the communication: PI Web API, Connector Relay or auto discovery.",
+			"type": "enumeration",
+			"options":["discovery", "piwebapi", "cr"],
+			"default": "discovery",
+			"order": "17",
+			"displayName": "PI-Server Endpoint"
+		},
+		"AFHierarchy1Level": {
+			"description": "Defines the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.",
+			"type": "string",
+			"default": "foglamp_data_piwebapi",
+			"order": "18",
+			"displayName": "Asset Framework 1st level hierarchy"
+		},
+		"notBlockingErrors": {
+			"description": "These errors are considered not blocking in the communication with the PI Server, the sending operation will proceed with the next block of data if one of these is encountered",
+			"type": "JSON",
+			"default": NOT_BLOCKING_ERRORS_DEFAULT,
+			"order": "19" ,
+			"readonly": "true"
+		},
+		"streamId": {
+			"description": "Identifies the specific stream to handle and the related information, among them the ID of the last object streamed.",
+			"type": "integer",
+			"default": "0",
+			"order": "20" ,
+			"readonly": "true"
+		}
+
+	}
+);
 
 // "default": "{\"pipeline\": [\"DeltaFilter\"]}"
-
-#define OMF_PLUGIN_DESC "\"plugin\": {\"description\": \"PI Server North C Plugin\", \"type\": \"string\", \"default\": \"" PLUGIN_NAME "\", \"readonly\": \"true\"}"
-
-#define PLUGIN_DEFAULT_CONFIG_INFO "{" OMF_PLUGIN_DESC ", " PLUGIN_DEFAULT_CONFIG "}"
 
 /**
  * Historian PI Server connector info
  */
 typedef struct
 {
-	SimpleHttps	*sender;	// HTTPS connection
-	OMF 		*omf;		// OMF data protocol
-	bool		compression;	// whether to compress readings' data
-	string		hostAndPort;	// hostname:port for SimpleHttps
-	unsigned int	retrySleepTime;	// Seconds between each retry
-	unsigned int	maxRetry;	// Max number of retries in the communication
-	unsigned int	timeout;	// connect and operation timeout
-	string		path;		// PI Server application path
-	long		typeId;		// OMF protocol type-id prefix
-	string		producerToken;	// PI Server connector token
-	string		formatNumber;	// OMF protocol Number format
-	string		formatInteger;	// OMF protocol Integer format
+	SimpleHttps	*sender;	   // HTTPS connection
+	OMF 		*omf;		   // OMF data protocol
+	bool		compression;	   // whether to compress readings' data
+	string		hostAndPort;	   // hostname:port for SimpleHttps
+	unsigned int	retrySleepTime;	   // Seconds between each retry
+	unsigned int	maxRetry;	   // Max number of retries in the communication
+	unsigned int	timeout;	   // connect and operation timeout
+	string		path;		   // PI Server application path
+	long		typeId;		   // OMF protocol type-id prefix
+	string		producerToken;	   // PI Server connector token
+	string		formatNumber;	   // OMF protocol Number format
+	string		formatInteger;	   // OMF protocol Integer format
+    	string		PIServerEndpoint;  // Defines which PIServer component should be used for the communication:
+    	                                   // a=auto discovery - p=PI Web API, c=Connector Relay
+	string		AFHierarchy1Level; // 1st hierarchy in Asset Framework, PI Web API only.
+
 	vector<pair<string, string>>
 			staticData;	// Static data
         // Errors considered not blocking in the communication with the PI Server
@@ -136,8 +199,9 @@ typedef struct
 } CONNECTOR_INFO;
 
 string saveSentDataTypes(CONNECTOR_INFO* connInfo);
-void loadSentDataTypes(CONNECTOR_INFO* connInfo, Document& JSONData);
-long getMaxTypeId(CONNECTOR_INFO* connInfo);
+void   loadSentDataTypes(CONNECTOR_INFO* connInfo, Document& JSONData);
+long   getMaxTypeId(CONNECTOR_INFO* connInfo);
+string identifyPIServerEndpoint(CONNECTOR_INFO* connInfo);
 
 /**
  * Return the information about this plugin
@@ -151,12 +215,12 @@ extern "C" {
  * The C API plugin information structure
  */
 static PLUGIN_INFORMATION info = {
-	PLUGIN_NAME,		        // Name
-	"1.0.0",			// Version
-	SP_PERSIST_DATA,		// Flags
-	PLUGIN_TYPE_NORTH,		// Type
-	"1.0.0",			// Interface version
-	PLUGIN_DEFAULT_CONFIG_INFO      // Configuration
+	PLUGIN_NAME,		   // Name
+	"1.0.0",		   // Version
+	SP_PERSIST_DATA,	   // Flags
+	PLUGIN_TYPE_NORTH,	   // Type
+	"1.0.0",		   // Interface version
+	PLUGIN_DEFAULT_CONFIG_INFO // Configuration
 };
 
 /**
@@ -187,27 +251,27 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 
 	string formatNumber = configData->getValue("formatNumber");
 	string formatInteger = configData->getValue("formatInteger");
-
-	
+	string PIServerEndpoint = configData->getValue("PIServerEndpoint");
+	string AFHierarchy1Level = configData->getValue("AFHierarchy1Level");
 
 	/**
 	 * Extract host, port, path from URL
 	 */
 	size_t findProtocol = url.find_first_of(":");
-	string protocol = url.substr(0,findProtocol);
+	string protocol = url.substr(0, findProtocol);
 
 	string tmpUrl = url.substr(findProtocol + 3);
 	size_t findPort = tmpUrl.find_first_of(":");
 	string hostName = tmpUrl.substr(0, findPort);
 
 	size_t findPath = tmpUrl.find_first_of("/");
-	string port = tmpUrl.substr(findPort + 1 , findPath - findPort -1);
+	string port = tmpUrl.substr(findPort + 1, findPath - findPort - 1);
 	string path = tmpUrl.substr(findPath);
 
-	string hostAndPort(hostName + ":" + port);	
+	string hostAndPort(hostName + ":" + port);
 
 	// Allocate connector struct
-	CONNECTOR_INFO* connInfo = new CONNECTOR_INFO;
+	CONNECTOR_INFO *connInfo = new CONNECTOR_INFO;
 	// Set configuration felds
 	connInfo->hostAndPort = hostAndPort;
 	connInfo->path = path;
@@ -218,6 +282,38 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	connInfo->producerToken = producerToken;
 	connInfo->formatNumber = formatNumber;
 	connInfo->formatInteger = formatInteger;
+	connInfo->AFHierarchy1Level = AFHierarchy1Level;
+
+	// Translate the PIServerEndpoint configuration
+	if (PIServerEndpoint.compare("discovery") == 0)
+	{
+		Logger::getLogger()->debug("PI-Server end point auto discovery selected");
+		connInfo->PIServerEndpoint = identifyPIServerEndpoint(connInfo);
+	}
+	else if(PIServerEndpoint.compare("piweb") == 0)
+	{
+		Logger::getLogger()->debug("PI-Server end point manually selected - PI Web API ");
+		connInfo->PIServerEndpoint = "p";
+
+	}
+	else if(PIServerEndpoint.compare("cr") == 0)
+	{
+		Logger::getLogger()->debug("PI-Server end point manually selected - Connector Relay ");
+		connInfo->PIServerEndpoint = "c";
+	}
+	else
+	{
+		Logger::getLogger()->debug("PI-Server end point manually selected, the value provided is invalid :%s:, auto discovery executed" , PIServerEndpoint.c_str());
+		connInfo->PIServerEndpoint = identifyPIServerEndpoint(connInfo);
+	}
+
+	if (connInfo->PIServerEndpoint.compare("p") == 0)
+		Logger::getLogger()->debug("PI-Server end point selected - PI Web API ");
+
+	else if (connInfo->PIServerEndpoint.compare("c") == 0)
+		Logger::getLogger()->debug("PI-Server end point selected - Connector Relay");
+	else
+		Logger::getLogger()->error("Invalid PI-Server end point");
 
 	// Use compression ?
 	string compr = configData->getValue("compression");
@@ -354,6 +450,11 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 				connInfo->path,
 				connInfo->assetsDataTypes,
 				connInfo->producerToken);
+
+	// Set PIServerEndpoint configuration
+	connInfo->omf->setPIServerEndpoint(connInfo->PIServerEndpoint);
+
+	connInfo->omf->setAFHierarchy1Level(connInfo->AFHierarchy1Level);
 
 	// Set OMF FormatTypes  
 	connInfo->omf->setFormatType(OMF_TYPE_FLOAT,
@@ -628,3 +729,47 @@ long getMaxTypeId(CONNECTOR_INFO* connInfo)
 	}
 	return maxId;
 }
+
+/**
+ * Evaluate if the endpoint is a PI Web API or a Connector Relay.
+ *
+ * @param    connInfo	The CONNECTOR_INFO data structure
+ * @return		p=PI Web API, c=Connector Relay
+ */
+string identifyPIServerEndpoint(CONNECTOR_INFO* connInfo)
+{
+	string PIServerEndpoint;
+
+	SimpleHttps *endPoint;
+	const vector<pair<string, string>> headers;
+	int httpCode;
+
+	endPoint = new SimpleHttps(connInfo->hostAndPort,
+				   connInfo->timeout,
+				   connInfo->timeout,
+				   connInfo->retrySleepTime,
+				   connInfo->maxRetry);
+
+	try
+	{
+		httpCode = endPoint->sendRequest("GET",
+						  connInfo->path,
+						  headers,
+						  "");
+
+		if  (httpCode >= 200 && httpCode <= 399)
+			PIServerEndpoint = "p";
+		else
+			PIServerEndpoint = "c";
+
+	}
+	catch (exception &ex)
+	{
+		PIServerEndpoint = "c";
+	}
+
+	delete endPoint;
+
+	return (PIServerEndpoint);
+}
+

@@ -92,6 +92,12 @@ class OMF
 		// Set saved OMF formats
 		void setFormatType(const std::string &key, std::string &value);
 
+    		// Set which PIServer component should be used for the communication
+    		void setPIServerEndpoint(const std::string &PIServerEndpoint);
+
+    		// Set the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.
+    		void setAFHierarchy1Level(const std::string &AFHierarchy1Level);
+
 		// Get saved OMF formats
 		std::string getFormatType(const std::string &key) const;
 
@@ -193,10 +199,18 @@ class OMF
 		// Remove cached data types enttry for given asset name
 		void clearCreatedTypes(const std::string& key);
 
+		// Add the 1st level of AF hierarchy if the end point is PI Web API
+    		bool sendAFHierarchy();
+    		bool sendAFHierarchyTypes();
+    		bool sendAFHierarchyStatic();
+    		bool AFHierarchySendMessage(const std::string& msgType, std::string& jsonData);
+
 	private:
 		const std::string	m_path;
 		long			m_typeId;
 		const std::string	m_producerToken;
+    		std::string		m_PIServerEndpoint;
+    		std::string		m_AFHierarchy1Level;
 
 		// Define the OMF format to use for each type
 		// the format will not be applied if the string is empty
@@ -240,7 +254,11 @@ class OMF
 class OMFData
 {
 	public:
-		OMFData(const Reading& reading, const long typeId);
+		OMFData(const Reading& reading,
+			const long typeId,
+			const std::string& PIServerEndpoint = std::string(),
+			const std::string& AFHierarchy1Level = std::string());
+
 		const std::string& OMFdataVal() const;
 	private:
 		std::string	m_value;

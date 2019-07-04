@@ -118,7 +118,7 @@ int SimpleHttps::sendRequest(const string& method,
 		}
 
 		if (exception_raised == none &&
-		    ((http_code >= 200) && (http_code <= 299)))
+		    ((http_code >= 200) && (http_code <= 399)))
 		{
 			retry = false;
 #if VERBOSE_LOG

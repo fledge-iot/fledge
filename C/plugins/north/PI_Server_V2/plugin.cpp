@@ -164,7 +164,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"order": "20" ,
 			"readonly": "true"
 		},
-		"PIWebAPIAuthentication": {
+		"PIWebAPIAuthenticationMethod": {
 			"description": "Defines the authentication method to be used with the PI Web API.",
 			"type": "enumeration",
 			"options":["anonymous", "basic", "kerberos"],
@@ -211,7 +211,7 @@ typedef struct
     	string		PIServerEndpoint;       // Defines which PIServer component should be used for the communication:
     	                                        // a=auto discovery - p=PI Web API, c=Connector Relay
 	string		AFHierarchy1Level;      // 1st hierarchy in Asset Framework, PI Web API only.
-    	string		PIWebAPIAuthentication; // Authentication method to be used with the PI Web API.
+    	string		PIWebAPIAuthenticationMethod; // Authentication method to be used with the PI Web API.
     	string		PIWebAPICredentials;    // Credentials is the base64 encoding of id and password joined by a single colon (:)
 
 
@@ -283,7 +283,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	string PIServerEndpoint = configData->getValue("PIServerEndpoint");
 	string AFHierarchy1Level = configData->getValue("AFHierarchy1Level");
 
-	string PIWebAPIAuthentication = configData->getValue("PIWebAPIAuthentication");
+	string PIWebAPIAuthenticationMethod = configData->getValue("PIWebAPIAuthenticationMethod");
 	string PIWebAPIUserId = configData->getValue("PIWebAPIUserId");
 	string PIWebAPIPassword = configData->getValue("PIWebAPIPassword");
 
@@ -318,26 +318,26 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	connInfo->AFHierarchy1Level = AFHierarchy1Level;
 
 	// PI Web API end-point - evaluates the authentication method requested
-	if (PIWebAPIAuthentication.compare("anonymous") == 0)
+	if (PIWebAPIAuthenticationMethod.compare("anonymous") == 0)
 	{
 		Logger::getLogger()->debug("PI Web API end-point - anonymous authentication");
-		connInfo->PIWebAPIAuthentication = "a";
+		connInfo->PIWebAPIAuthenticationMethod = "a";
 	}
-	else if (PIWebAPIAuthentication.compare("basic") == 0)
+	else if (PIWebAPIAuthenticationMethod.compare("basic") == 0)
 	{
 		Logger::getLogger()->debug("PI Web API end-point - basic authentication");
-		connInfo->PIWebAPIAuthentication = "b";
+		connInfo->PIWebAPIAuthenticationMethod = "b";
 		connInfo->PIWebAPICredentials = AuthBasicCredentialsGenerate(PIWebAPIUserId, PIWebAPIPassword);
 	}
-	else if (PIWebAPIAuthentication.compare("kerberos") == 0)
+	else if (PIWebAPIAuthenticationMethod.compare("kerberos") == 0)
 	{
 		Logger::getLogger()->debug("PI Web API end-point - kerberos authentication");
-		connInfo->PIWebAPIAuthentication = "k";
+		connInfo->PIWebAPIAuthenticationMethod = "k";
 		// #Todo : to be implemented
 	}
 	else
 	{
-		Logger::getLogger()->error("Invalid authentication method for PI Web API :%s: ", PIWebAPIAuthentication.c_str());
+		Logger::getLogger()->error("Invalid authentication method for PI Web API :%s: ", PIWebAPIAuthenticationMethod.c_str());
 	}
 
 	// Translate the PIServerEndpoint configuration
@@ -501,6 +501,9 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 					   connInfo->timeout,
 					   connInfo->retrySleepTime,
 					   connInfo->maxRetry);
+
+	connInfo->sender->setAuthMethod          (connInfo->PIWebAPIAuthenticationMethod);
+	connInfo->sender->setAuthBasicCredentials(connInfo->PIWebAPICredentials);
 
 	// Allocate the PI Server data protocol
 	connInfo->omf = new OMF(*connInfo->sender,
@@ -801,15 +804,15 @@ string identifyPIServerEndpoint(CONNECTOR_INFO* connInfo)
 	vector<pair<string, string>> header;
 	int httpCode;
 
-	// Handle basic authentication
-	if (connInfo->PIWebAPIAuthentication == "b")
-		header.push_back(make_pair("Authorization", "Basic " + connInfo->PIWebAPICredentials));
-
 	endPoint = new SimpleHttps(connInfo->hostAndPort,
 				   connInfo->timeout,
 				   connInfo->timeout,
 				   connInfo->retrySleepTime,
 				   connInfo->maxRetry);
+
+	// Set requested authentication
+	endPoint->setAuthMethod          (connInfo->PIWebAPIAuthenticationMethod);
+	endPoint->setAuthBasicCredentials(connInfo->PIWebAPICredentials);
 
 	try
 	{
@@ -821,7 +824,7 @@ string identifyPIServerEndpoint(CONNECTOR_INFO* connInfo)
 		if (httpCode >= 200 && httpCode <= 399)
 		{
 			PIServerEndpoint = "p";
-			if (connInfo->PIWebAPIAuthentication == "b")
+			if (connInfo->PIWebAPIAuthenticationMethod == "b")
 				Logger::getLogger()->debug("PI Web API end-point basic authorization granted");
 		}
 		else

@@ -74,6 +74,10 @@ int SimpleHttps::sendRequest(const string& method,
 		header.emplace((*it).first, (*it).second);
 	}
 
+	// Handle basic authentication
+	if (m_authMethod == "b")
+		header.emplace("Authorization", "Basic " + m_authBasicCredentials);
+
 	string retCode;
 	string response;
 	int http_code;

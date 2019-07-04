@@ -107,6 +107,8 @@ int SimpleHttps::sendRequest(const string& method,
 			retCode = res->status_code;
 			response = res->content.string();
 
+			// In same cases the response is an empty string
+			// and retCode contains code and the description
 			if (response.compare("") == 0)
 				response = res->status_code;
 

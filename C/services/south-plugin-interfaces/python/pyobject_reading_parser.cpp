@@ -205,7 +205,7 @@ void setReadingAttr(Reading* newReading, PyObject *element)
 	if (ts)
 	{
 		// Convert a timestamp of the from 2019-01-07 19:06:35.366100+01:00
-		char *ts_str = PyUnicode_AsUTF8(ts);
+		const char *ts_str = PyUnicode_AsUTF8(ts);
 		newReading->setTimestamp(ts_str);
 	}
 
@@ -214,7 +214,7 @@ void setReadingAttr(Reading* newReading, PyObject *element)
 	if (uts)
 	{
 		// Convert a timestamp of the from 2019-01-07 19:06:35.366100+01:00
-		char *ts_str = PyUnicode_AsUTF8(uts);
+		const char *ts_str = PyUnicode_AsUTF8(uts);
 		newReading->setUserTimestamp(ts_str);
 	}
 	

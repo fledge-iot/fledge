@@ -175,14 +175,14 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 		"PIWebAPIUserId": {
 			"description": "User id of PI Web API to be used with the basic access authentication.",
 			"type": "string",
-			"default": "xxx",
+			"default": "user_id",
 			"order": "22",
 			"displayName": "PI Web API User Id"
 		},
 		"PIWebAPIPassword": {
 			"description": "Password of the user of PI Web API to be used with the basic access authentication.",
 			"type": "password",
-			"default": "xxx",
+			"default": "password",
 			"order": "23" ,
 			"displayName": "PI Web API Password"
 		}

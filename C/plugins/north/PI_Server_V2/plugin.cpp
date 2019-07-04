@@ -828,12 +828,15 @@ string identifyPIServerEndpoint(CONNECTOR_INFO* connInfo)
 				Logger::getLogger()->debug("PI Web API end-point basic authorization granted");
 		}
 		else
+		{
 			PIServerEndpoint = "c";
+		}
 
 	}
 	catch (exception &ex)
 	{
-		Logger::getLogger()->warn("PI-Server end-point discovery encountered the error :%s:", ex.what());
+		Logger::getLogger()->warn("PI-Server end-point discovery encountered the error :%s: "
+			                  "trying selecting the Connector Relay as an end-point", ex.what());
 		PIServerEndpoint = "c";
 	}
 
@@ -855,6 +858,6 @@ string AuthBasicCredentialsGenerate(string& userId, string& password)
 	string Credentials;
 
 	Credentials = Crypto::Base64::encode(userId + ":" + password);
-
+	              	
 	return (Credentials);
 }

@@ -58,8 +58,6 @@ class SimpleHttp: public HttpSender
 
 		std::string	m_authMethod;             // Authentication method to be used
 		std::string	m_authBasicCredentials;   // Credentials is the base64 encoding of id and password joined by a single colon (:)
-
-
 };
 
 #endif

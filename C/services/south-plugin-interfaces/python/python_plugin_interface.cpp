@@ -563,8 +563,8 @@ PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal)
 	// dKey and dValue are borrowed references
 	while (PyDict_Next(pyRetVal, &dPos, &dKey, &dValue))
 	{
-		char* ckey = PyUnicode_AsUTF8(dKey);
-		char* cval = PyUnicode_AsUTF8(dValue);
+		const char* ckey = PyUnicode_AsUTF8(dKey);
+		const char* cval = PyUnicode_AsUTF8(dValue);
 		//Logger::getLogger()->info("Py2C_PluginInfo: ckey=%s, cval=%s", ckey, cval);
 
 		char *valStr = new char [string(cval).length()+1];

@@ -74,6 +74,10 @@ int SimpleHttps::sendRequest(const string& method,
 		header.emplace((*it).first, (*it).second);
 	}
 
+	// Handle basic authentication
+	if (m_authMethod == "b")
+		header.emplace("Authorization", "Basic " + m_authBasicCredentials);
+
 	string retCode;
 	string response;
 	int http_code;
@@ -102,6 +106,12 @@ int SimpleHttps::sendRequest(const string& method,
 
 			retCode = res->status_code;
 			response = res->content.string();
+
+			// In same cases the response is an empty string
+			// and retCode contains code and the description
+			if (response.compare("") == 0)
+				response = res->status_code;
+
 			http_code = atoi(retCode.c_str());
 		}
 		catch (BadRequest &ex)
@@ -118,7 +128,7 @@ int SimpleHttps::sendRequest(const string& method,
 		}
 
 		if (exception_raised == none &&
-		    ((http_code >= 200) && (http_code <= 299)))
+		    ((http_code >= 200) && (http_code <= 399)))
 		{
 			retry = false;
 #if VERBOSE_LOG

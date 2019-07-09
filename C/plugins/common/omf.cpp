@@ -18,22 +18,83 @@
 #include <logger.h>
 #include <zlib.h>
 #include <rapidjson/document.h>
+#include "string_utils.h"
 
 using namespace std;
 using namespace rapidjson;
 
+#define TO_STRING(...) DEFER(TO_STRING_)(__VA_ARGS__)
+#define DEFER(x) x
+#define TO_STRING_(...) #__VA_ARGS__
+#define QUOTE(...) TO_STRING(__VA_ARGS__)
+
 static bool isTypeSupported(DatapointValue& dataPoint);
+
+// Structures to generate and assign the 1st level of AF hierarchy if the end point is PI Web API
+const char *AF_HIERARCHY_1LEVEL_TYPE = QUOTE(
+	[
+		{
+			"id": "_placeholder_typeid_",
+			"version": "1.0.0.0",
+			"type": "object",
+			"classification": "static",
+			"properties": {
+				"Name": {
+					"type": "string",
+					"isindex": true
+				}
+			}
+		}
+	]
+);
+
+const char *AF_HIERARCHY_1LEVEL_STATIC = QUOTE(
+	[
+		{
+
+			"typeid": "_placeholder_typeid_",
+			"values": [
+				{
+				"Name": "_placeholder_"
+				}
+			]
+		}
+	]
+);
+
+const char *AF_HIERARCHY_1LEVEL_LINK = QUOTE(
+	{
+		"source": {
+			"typeid": "_placeholder_src_type_",
+			"index": "_placeholder_src_idx_"
+		},
+		"target": {
+			"typeid": "_placeholder_tgt_type_",
+			"index": "_placeholder_tgt_idx_"
+		}
+	}
+);
+
 
 /**
  * OMFData constructor
  */
-OMFData::OMFData(const Reading& reading, const long typeId)
+OMFData::OMFData(const Reading& reading, const long typeId, const string& PIServerEndpoint,const string&  AFHierarchy1Level)
 {
 	string outData;
+	string measurementId;
+
+	measurementId = to_string(typeId) + "measurement_" + reading.getAssetName();
+
+	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
+	if (PIServerEndpoint.compare("p") == 0)
+	{
+		measurementId = AFHierarchy1Level + "_" + measurementId;
+	}
 
 	// Convert reading data into the OMF JSON string
-	outData.append("{\"containerid\": \"" + to_string(typeId) + "measurement_");
-	outData.append(reading.getAssetName() + "\", \"values\": [{");
+	outData.append("{\"containerid\": \"" + measurementId);
+	outData.append("\", \"values\": [{");
 
 
 	// Get reading data
@@ -182,7 +243,7 @@ std::string OMF::compress_string(const std::string& str,
  * Sends all the data type messages for a Reading data row
  *
  * @param row    The current Reading data row
- * @return       True is all data types have been sent (HTTP 200/204 OK)
+ * @return       True is all data types have been sent (HTTP 2xx OK)
  *               False when first error occurs.
  */
 bool OMF::sendDataTypes(const Reading& row)
@@ -214,7 +275,7 @@ bool OMF::sendDataTypes(const Reading& row)
 					   m_path,
 					   resType,
 					   typeData);
-		if (res != 200 && res != 202 && res != 204)
+		if  ( ! (res >= 200 && res <= 299) )
 		{
 			Logger::getLogger()->error("Sending JSON dataType message 'Type' "
 						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
@@ -268,7 +329,7 @@ bool OMF::sendDataTypes(const Reading& row)
 					   m_path,
 					   resContainer,
 					   typeContainer);
-		if (res != 200 && res != 202 && res != 204)
+		if  ( ! (res >= 200 && res <= 299) )
 		{
 			Logger::getLogger()->error("Sending JSON dataType message 'Container' "
 						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
@@ -321,7 +382,7 @@ bool OMF::sendDataTypes(const Reading& row)
 					   m_path,
 					   resStaticData,
 					   typeStaticData);
-		if (res != 200 && res != 202 && res != 204)
+		if  ( ! (res >= 200 && res <= 299) )
 		{
 			Logger::getLogger()->error("Sending JSON dataType message 'StaticData' "
 						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
@@ -356,7 +417,7 @@ bool OMF::sendDataTypes(const Reading& row)
 					   e.what(),
 					   m_sender.getHostPort().c_str(),
 					   m_path.c_str(),
-					   typeData.c_str() );
+					   typeStaticData.c_str() );
 		return false;
 	}
 
@@ -374,7 +435,7 @@ bool OMF::sendDataTypes(const Reading& row)
 					   m_path,
 					   resLinkData,
 					   typeLinkData);
-		if (res != 200 && res != 202 && res != 204)
+		if  ( ! (res >= 200 && res <= 299) )
 		{
 			Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) "
 						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
@@ -404,7 +465,7 @@ bool OMF::sendDataTypes(const Reading& row)
 					   e.what(),
 					   m_sender.getHostPort().c_str(),
 					   m_path.c_str(),
-					   typeData.c_str() );
+					   typeLinkData.c_str() );
 		return false;
 	}
 	catch (const std::exception& e)
@@ -420,6 +481,113 @@ bool OMF::sendDataTypes(const Reading& row)
 }
 
 /**
+ * AFHierarchy - send an OMF message
+ *
+ * @param msgType    message type : Type, Data
+ * @param jsonData   OMF message to send
+
+ */
+bool OMF::AFHierarchySendMessage(const string& msgType, string& jsonData)
+{
+	bool success = true;
+	int res = 0;
+
+	vector<pair<string, string>> resType = OMF::createMessageHeader(msgType);
+
+	try
+	{
+		res = m_sender.sendRequest("POST", m_path, resType, jsonData);
+		if  ( ! (res >= 200 && res <= 299) )
+		{
+			success = false;
+		}
+	}
+	catch (const BadRequest& e)
+	{
+		success = false;
+	}
+	catch (const std::exception& e)
+	{
+		success = false;
+	}
+
+	if (! success)
+	{
+		Logger::getLogger()->error("Sending JSON  Asset Framework hierarchy, "
+			                   "- error: HTTP code |%d| - HostPort |%s| - path |%s| message type |%s| - OMF message |%s|",
+					   res,
+					   m_sender.getHostPort().c_str(),
+					   m_path.c_str(),
+					   msgType.c_str(),
+					   jsonData.c_str() );
+	}
+
+	return success;
+}
+
+/**
+ * AFHierarchy - handles OMF types definition
+ *
+ */
+bool OMF::sendAFHierarchyTypes()
+{
+	bool success;
+	string jsonData;
+	string tmpStr;
+
+	jsonData = "";
+	tmpStr = AF_HIERARCHY_1LEVEL_TYPE;
+	StringReplace(tmpStr, "_placeholder_typeid_", m_AFHierarchy1Level + "_typeid");
+	jsonData.append(tmpStr);
+
+	success = AFHierarchySendMessage("Type", jsonData);
+
+	return success;
+}
+
+/**
+ *  AFHierarchy - handles OMF static data
+ *
+ */
+bool OMF::sendAFHierarchyStatic()
+{
+	bool success;
+	string jsonData;
+	string tmpStr;
+
+	jsonData = "";
+	tmpStr = AF_HIERARCHY_1LEVEL_STATIC;
+	StringReplace(tmpStr, "_placeholder_typeid_" , m_AFHierarchy1Level + "_typeid");
+	StringReplace(tmpStr, "_placeholder_"        , m_AFHierarchy1Level);
+	jsonData.append(tmpStr);
+
+	success = AFHierarchySendMessage("Data", jsonData);
+
+	return success;
+}
+
+/**
+ * Add the 1st level of AF hierarchy if the end point is PI Web API
+ * The hierarchy is created/recreated if an OMF type message is sent
+ *
+ */
+bool OMF::sendAFHierarchy()
+{
+	bool success = true;
+
+	if (m_PIServerEndpoint.compare("p") == 0)
+	{
+		success = sendAFHierarchyTypes();
+		if (success)
+		{
+			success = sendAFHierarchyStatic();
+		}
+
+	}
+	return success;
+}
+
+/**
  * Send all the readings to the PI Server
  *
  * @param readings            A vector of readings data pointers
@@ -429,6 +597,8 @@ bool OMF::sendDataTypes(const Reading& row)
 uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			   bool compression, bool skipSentDataTypes)
 {
+	bool AFHierarchySent = false;
+
 	std::map<string, Reading*> superSetDataPoints;
 
 	// Create a superset of all found datapoints for each assetName
@@ -478,6 +648,13 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			}
 		}
 
+		// The AF hierarchy is created/recreated if an OMF type message is sent
+		if (sendDataTypes and ! AFHierarchySent)
+		{
+			sendAFHierarchy();
+			AFHierarchySent = true;
+		}
+
 		// Check first we have supersetDataPoints for the current reading
 		if ((sendDataTypes && datatypeStructure == NULL) ||
 		    // Handle the data types of the current reading
@@ -498,7 +675,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		}
 
 		// Add into JSON string the OMF transformed Reading data
-		string outData = OMFData(**elem, typeId).OMFdataVal();
+		string outData = OMFData(**elem, typeId, m_PIServerEndpoint, m_AFHierarchy1Level ).OMFdataVal();
 		if (!outData.empty())
 		{
 			jsonData << (pendingSeparator ? ", " : "") << outData;
@@ -540,7 +717,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 					       m_path,
 					       readingData,
 					       json);
-		if (res != 200 && res != 202 && res != 204)
+		if  ( ! (res >= 200 && res <= 299) )
 		{
 			Logger::getLogger()->error("Sending JSON readings, "
 						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
@@ -693,7 +870,7 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 		}
 
 		// Add into JSON string the OMF transformed Reading data
-		jsonData << OMFData(*elem, typeId).OMFdataVal() << (elem < (readings.end() -1 ) ? ", " : "");
+		jsonData << OMFData(*elem, typeId, m_PIServerEndpoint, m_AFHierarchy1Level).OMFdataVal() << (elem < (readings.end() -1 ) ? ", " : "");
 	}
 
 	jsonData << "]";
@@ -707,7 +884,7 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 	{
 		int res = m_sender.sendRequest("POST", m_path, readingData, jsonData.str());
 
-		if (res != 200 && res != 202 && res != 204) {
+		if  ( ! (res >= 200 && res <= 299) ) {
 			Logger::getLogger()->error("Sending JSON readings data "
 						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
 				res,
@@ -769,7 +946,7 @@ uint32_t OMF::sendToServer(const Reading* reading,
 
 	long typeId = OMF::getAssetTypeId((*reading).getAssetName());
 	// Add into JSON string the OMF transformed Reading data
-	jsonData << OMFData(*reading, typeId).OMFdataVal();
+	jsonData << OMFData(*reading, typeId, m_PIServerEndpoint, m_AFHierarchy1Level).OMFdataVal();
 	jsonData << "]";
 
 	// Build headers for Readings data
@@ -782,7 +959,7 @@ uint32_t OMF::sendToServer(const Reading* reading,
 
 		int res = m_sender.sendRequest("POST", m_path, readingData, jsonData.str());
 
-		if (res != 200 && res != 202 && res != 204)
+		if  ( ! (res >= 200 && res <= 299) )
 		{
 			Logger::getLogger()->error("Sending JSON readings data "
 						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
@@ -841,7 +1018,9 @@ const std::string OMF::createTypeData(const Reading& reading) const
 
 	// Add the Static data part
 
-	string tData("[{ \"type\": \"object\", \"properties\": { ");
+	string tData="[";
+
+	tData.append("{ \"type\": \"object\", \"properties\": { ");
 	for (auto it = m_staticData->cbegin(); it != m_staticData->cend(); ++it)
 	{
 		tData.append("\"");
@@ -857,6 +1036,7 @@ const std::string OMF::createTypeData(const Reading& reading) const
 			     tData);
 
 	tData.append("\" }, { \"type\": \"object\", \"properties\": {");
+
 
 	// Add the Dynamic data part
 
@@ -941,6 +1121,9 @@ const std::string OMF::createTypeData(const Reading& reading) const
 const std::string OMF::createContainerData(const Reading& reading) const
 {
 	string assetName = reading.getAssetName();
+
+	string measurementId;
+
 	// Build the Container data (JSON Array)
 	string cData = "[{\"typeid\": \"";
 
@@ -949,9 +1132,15 @@ const std::string OMF::createContainerData(const Reading& reading) const
 			     "typename_measurement",
 			     cData);
 
-	cData.append("\", \"id\": \"" + \
-		    to_string(OMF::getAssetTypeId(assetName)) + "measurement_");
-	cData.append(assetName);
+	measurementId = to_string(OMF::getAssetTypeId(assetName)) + "measurement_" + assetName;
+
+	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
+	if (m_PIServerEndpoint.compare("p") == 0)
+	{
+		measurementId = m_AFHierarchy1Level + "_" + measurementId;
+	}
+
+	cData.append("\", \"id\": \"" + measurementId);
 	cData.append("\"}]");
 
 	// Return JSON string
@@ -969,7 +1158,9 @@ const std::string OMF::createContainerData(const Reading& reading) const
 const std::string OMF::createStaticData(const Reading& reading) const
 {
 	// Build the Static data (JSON Array)
-	string sData = "[{\"typeid\": \"";
+	string sData = "[";
+
+	sData.append("{\"typeid\": \"");
 
 	// Add type_id + '_' + asset_name + '_typename_sensor'
 	OMF::setAssetTypeTag(reading.getAssetName(),
@@ -1005,18 +1196,57 @@ const std::string OMF::createStaticData(const Reading& reading) const
  */
 const std::string OMF::createLinkData(const Reading& reading) const
 {
+	string measurementId;
 	string assetName = reading.getAssetName();
 	// Build the Link data (JSON Array)
 
-	string lData = "[{\"typeid\": \"__Link\", \"values\": "
-"[{\"source\": {\"typeid\": \"";
+	string lData = "[{\"typeid\": \"__Link\", \"values\": [";
 
-	// Add type_id + '_' + asset_name + '__typename_sensor'
-	OMF::setAssetTypeTag(assetName,
-			     "typename_sensor",
-			     lData);
+	// Handles the structure for the Connector Relay
+	// not supported by PI Web API
+	if (m_PIServerEndpoint.compare("c") == 0)
+	{
+		lData.append("{\"source\": {\"typeid\": \"");
 
-	lData.append("\", \"index\": \"_ROOT\"}, \"target\": {\"typeid\": \"");
+		// Add type_id + '_' + asset_name + '__typename_sensor'
+		OMF::setAssetTypeTag(assetName,
+				     "typename_sensor",
+				     lData);
+
+		lData.append("\", \"index\": \"_ROOT\"},");
+		lData.append("\"target\": {\"typeid\": \"");
+
+		// Add type_id + '_' + asset_name + '__typename_sensor'
+		OMF::setAssetTypeTag(assetName,
+				     "typename_sensor",
+				     lData);
+
+		lData.append("\", \"index\": \"");
+
+		// Add asset_name
+		lData.append(assetName);
+
+		lData.append("\"}},");
+	}
+	else if (m_PIServerEndpoint.compare("p") == 0)
+	{
+		// Link the asset to the 1st level of AF hierarchy if the end point is PI Web API
+
+		string tmpStr = AF_HIERARCHY_1LEVEL_LINK;
+		string targetTypeId;
+
+		OMF::setAssetTypeTag(assetName, "typename_sensor", targetTypeId);
+
+		StringReplace(tmpStr, "_placeholder_src_type_", m_AFHierarchy1Level + "_typeid");
+		StringReplace(tmpStr, "_placeholder_src_idx_",  m_AFHierarchy1Level );
+		StringReplace(tmpStr, "_placeholder_tgt_type_", targetTypeId);
+		StringReplace(tmpStr, "_placeholder_tgt_idx_",  assetName);
+
+		lData.append(tmpStr);
+		lData.append(",");
+	}
+
+	lData.append("{\"source\": {\"typeid\": \"");
 
 	// Add type_id + '_' + asset_name + '__typename_sensor'
 	OMF::setAssetTypeTag(assetName,
@@ -1028,23 +1258,15 @@ const std::string OMF::createLinkData(const Reading& reading) const
 	// Add asset_name
 	lData.append(assetName);
 
-	lData.append("\"}}, {\"source\": {\"typeid\": \"");
+	measurementId = to_string(OMF::getAssetTypeId(assetName)) + "measurement_" + assetName;
 
-	// Add type_id + '_' + asset_name + '__typename_sensor'
-	OMF::setAssetTypeTag(assetName,
-			     "typename_sensor",
-			     lData);
+	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
+	if (m_PIServerEndpoint.compare("p") == 0)
+	{
+		measurementId = m_AFHierarchy1Level + "_" + measurementId;
+	}
 
-	lData.append("\", \"index\": \"");
-
-	// Add asset_name
-	lData.append(assetName);
-
-	lData.append("\"}, \"target\": {\"containerid\": \"" + \
-		     to_string(OMF::getAssetTypeId(assetName)) + "measurement_");
-
-	// Add asset_name
-	lData.append(assetName);
+	lData.append("\"}, \"target\": {\"containerid\": \"" + measurementId);
 
 	lData.append("\"}}]}]");
 
@@ -1063,9 +1285,18 @@ void OMF::setAssetTypeTag(const string& assetName,
 			  const string& tagName,
 			  string& data) const
 {
+
+	string AssetTypeTag = to_string(this->getAssetTypeId(assetName)) +
+		              "_" + assetName +
+		              "_" + tagName;
+
+	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
+	if (m_PIServerEndpoint.compare("p") == 0)
+	{
+		AssetTypeTag = m_AFHierarchy1Level + "_" + AssetTypeTag;
+	}
 	// Add type-id + '_' + asset_name + '_' + tagName'
-	data.append(to_string(this->getAssetTypeId(assetName)) + \
-		    "_" + assetName +  "_" + tagName);
+	data.append(AssetTypeTag);
 }
 
 /**
@@ -1145,6 +1376,23 @@ void OMF::setFormatType(const string &key, string &value)
 
 	m_formatTypes[key] = value;
 }
+
+/**
+ * Set which PIServer component should be used for the communication
+ */
+void OMF::setPIServerEndpoint(const string &PIServerEndpoint)
+{
+	m_PIServerEndpoint = PIServerEndpoint;
+}
+
+/**
+ * Set the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.
+ */
+void OMF::setAFHierarchy1Level(const string &AFHierarchy1Level)
+{
+	m_AFHierarchy1Level = AFHierarchy1Level;
+}
+
 
 /**
  * Set the list of errors considered not blocking in the communication
@@ -1267,7 +1515,7 @@ void OMF::setMapObjectTypes(const vector<Reading*>& readings,
 	// Temporary map for [asset][datapoint] = type
 	std::map<string, map<string, string>> readingAllDataPoints;
 
-	// Fetch ALL Reading pointers in the input vecror
+	// Fetch ALL Reading pointers in the input vector
 	// and create a map of [assetName][datapoint1 .. datapointN] = type
 	for (vector<Reading *>::const_iterator elem = readings.begin();
 						elem != readings.end();

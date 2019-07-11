@@ -365,6 +365,8 @@ def pytest_addoption(parser):
     parser.addoption("--kafka-rest-port", action="store", default="8082", help="Kafka Rest Proxy Port")
     parser.addoption("--modbus-host", action="store", default="localhost", help="Modbus simulator host")
     parser.addoption("--modbus-port", action="store", default="502", type=int, help="Modbus simulator port")
+    parser.addoption("--modbus-serial-port", action="store", default="/dev/ttyS1", help="Modbus serial port")
+    parser.addoption("--modbus-baudrate", action="store", default="9600", type=int, help="Serial port baudrate")
 
 
 @pytest.fixture
@@ -540,6 +542,16 @@ def modbus_host(request):
 @pytest.fixture
 def modbus_port(request):
     return request.config.getoption("--modbus-port")
+
+
+@pytest.fixture
+def modbus_serial_port(request):
+    return request.config.getoption("--modbus-serial-port")
+
+
+@pytest.fixture
+def modbus_baudrate(request):
+    return request.config.getoption("--modbus-baudrate")
 
 
 def pytest_itemcollected(item):

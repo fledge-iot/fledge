@@ -66,7 +66,8 @@ class TestE2EModbusC_RTU_PI:
             remove_directories: Fixture that remove directories created during the tests
         """
         self.check_connect(modbus_serial_port, modbus_baudrate)
-        cfg = {"protocol": {"value": "RTU"}, "asset": {"value": "modbus"}, "device": {"value": modbus_serial_port},
+        cfg = {"protocol": {"value": "RTU"}, "asset": {"value": "modbus"},
+               "device": {"value": modbus_serial_port}, "baud": {"value": modbus_baudrate},
                "map": {"value": {"values": [
                    {"offset": -1.1, "assetName": "adam4017", "slave": 2, "name": "dwyer_temperature", "register": 0,
                     "scale": 0.00178},

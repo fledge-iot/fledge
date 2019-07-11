@@ -28,7 +28,7 @@ ASSET_NAME_1 = "adam4015"
 ASSET_NAME_2 = "adam4017"
 
 
-class TestE2EModbusCMTUPI:
+class TestE2EModbusC_RTU_PI:
     def check_connect(self, modbus_serial_port, modbus_baudrate):
         print("Checking serial port {} at baudrate {}.....".format(modbus_serial_port, modbus_baudrate))
         try:
@@ -66,8 +66,7 @@ class TestE2EModbusCMTUPI:
             remove_directories: Fixture that remove directories created during the tests
         """
         self.check_connect(modbus_serial_port, modbus_baudrate)
-        cfg = {"protocol": {"value": "RTU"}, "asset": {"value": "modbus"}, "address": {"value": "127.0.0.1"},
-               "port": {"value": "{}".format("2222")}, "device": {"value": modbus_serial_port},
+        cfg = {"protocol": {"value": "RTU"}, "asset": {"value": "modbus"}, "device": {"value": modbus_serial_port},
                "map": {"value": {"values": [
                    {"offset": -1.1, "assetName": "adam4017", "slave": 2, "name": "dwyer_temperature", "register": 0,
                     "scale": 0.00178},

@@ -67,7 +67,7 @@ class TestE2EModbusCMTUPI:
         """
         self.check_connect(modbus_serial_port, modbus_baudrate)
         cfg = {"protocol": {"value": "RTU"}, "asset": {"value": "modbus"}, "address": {"value": "127.0.0.1"},
-               "port": {"value": "{}".format("2222")}, "device": {"value": "/dev/ttyS1"},
+               "port": {"value": "{}".format("2222")}, "device": {"value": modbus_serial_port},
                "map": {"value": {"values": [
                    {"offset": -1.1, "assetName": "adam4017", "slave": 2, "name": "dwyer_temperature", "register": 0,
                     "scale": 0.00178},

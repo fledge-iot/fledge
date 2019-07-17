@@ -10,6 +10,8 @@ import os
 from foglamp.common import logger
 from foglamp.services.core.api import utils
 from foglamp.services.core.api.plugins import common
+from foglamp.plugins.common import utils as api_utils
+
 
 __author__ = "Amarendra K Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -106,8 +108,8 @@ class PluginDiscovery(object):
                 if _type == 'binary':
                     jdoc = utils.get_plugin_info(name, dir=plugin_type)
                     if jdoc:
-                        if 'deprecated' in jdoc:
-                            if str_to_bool(jdoc['deprecated']):
+                        if 'flag' in jdoc:
+                            if api_utils.bit_at_given_position_set_or_unset(jdoc['flag'], api_utils.DEPRECATED_BIT_POSITION):
                                 raise DeprecationWarning
                         plugin_config = {'name': name,
                                          'type': plugin_type,
@@ -139,8 +141,8 @@ class PluginDiscovery(object):
             plugin_info = common.load_and_fetch_python_plugin_info(plugin_module_path,  plugin_module_path.split('/')[-1], plugin_type)
             # Fetch configuration from the configuration defined in the plugin
             if plugin_info['type'] == plugin_type:
-                if 'deprecated' in plugin_info:
-                    if plugin_info['deprecated']:
+                if 'flag' in plugin_info:
+                    if api_utils.bit_at_given_position_set_or_unset(plugin_info['flag'], api_utils.DEPRECATED_BIT_POSITION):
                         raise DeprecationWarning
                 plugin_config = {
                     'name': plugin_info['config']['plugin']['default'],
@@ -162,9 +164,3 @@ class PluginDiscovery(object):
 
         return plugin_config
 
-
-def str_to_bool(s):
-    if s == 'True':
-        return True
-    else:
-        return False

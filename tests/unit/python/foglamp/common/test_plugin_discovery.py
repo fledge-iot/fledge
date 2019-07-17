@@ -13,6 +13,7 @@ import pytest
 from foglamp.common.plugin_discovery import PluginDiscovery, _logger
 from foglamp.services.core.api import utils
 from foglamp.services.core.api.plugins import common
+from foglamp.plugins.common import utils as api_utils
 
 
 __author__ = "Amarendra K Sinha, Ashish Jabble "
@@ -344,9 +345,9 @@ class TestPluginDiscovery:
     @pytest.mark.parametrize("info, warn_count", [
         ({'name': "modbus", 'version': "1.1", 'type': "south", 'interface': "1.0",
           'config': {'plugin': {'description': 'Modbus RTU plugin', 'type': 'string', 'default': 'modbus'}}}, 0),
-        ({'name': "modbus", 'version': "1.1", 'type': "south", 'interface': "1.0", 'deprecated': True,
+        ({'name': "modbus", 'version': "1.1", 'type': "south", 'interface': "1.0", 'flag': api_utils.DEPRECATED_BIT_MASK_VALUE,
           'config': {'plugin': {'description': 'Modbus RTU plugin', 'type': 'string', 'default': 'modbus'}}}, 1),
-        ({'name': "modbus", 'version': "1.1", 'type': "south", 'interface': "1.0", 'deprecated': False,
+        ({'name': "modbus", 'version': "1.1", 'type': "south", 'interface': "1.0", 'flag': 0,
           'config': {'plugin': {'description': 'Modbus RTU plugin', 'type': 'string', 'default': 'modbus'}}}, 0),
     ])
     def test_deprecated_python_plugins(self, info, warn_count, is_config=True):
@@ -400,7 +401,7 @@ class TestPluginDiscovery:
         (mock_c_plugins_config[4], "notificationRule")
     ])
     def test_deprecated_c_plugins_installed(self, info, dir_name):
-        info['deprecated'] = "True"
+        info['flag'] = api_utils.DEPRECATED_BIT_MASK_VALUE
         with patch.object(_logger, "warning") as patch_log_warn:
             with patch.object(utils, "find_c_plugin_libs", return_value=[(info['name'], "binary")]) as patch_plugin_lib:
                 with patch.object(utils, "get_plugin_info", return_value=info) as patch_plugin_info:

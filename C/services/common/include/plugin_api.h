@@ -16,8 +16,7 @@ typedef struct {
         unsigned int	options;
         const char	*type;
         const char	*interface;
-	    const char	*config;
-	    bool        deprecated;
+	const char	*config;
 } PLUGIN_INFORMATION;
  
 typedef struct {
@@ -36,7 +35,8 @@ typedef void * PLUGIN_HANDLE;
 #define SP_ASYNC	0x0004
 #define SP_PERSIST_DATA	0x0008
 #define SP_INGEST	0x0010
- 
+#define SP_DEPRECATED 0x0020
+
 /**
  * Plugin types
  */

@@ -352,7 +352,7 @@ async def test_ping_https_allow_ping_false(aiohttp_server, ssl_ctx, aiohttp_clie
                     routes.setup(app)
 
                     server = await aiohttp_server(app, ssl=ssl_ctx)
-                    server.start_server(loop=loop)
+                    await server.start_server(loop=loop)
 
                     with pytest.raises(aiohttp.ClientConnectorSSLError) as error_exec:
                         client = await aiohttp_client(server)

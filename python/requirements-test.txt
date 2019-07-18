@@ -1,8 +1,8 @@
 pylint==1.9.1
-pytest==3.6.0
+pytest==3.6.4
 pytest-allure-adaptor==1.7.10
-pytest-asyncio==0.8.0
-pytest-mock==1.10.0
+pytest-asyncio==0.10.0
+pytest-mock==1.10.3
 pytest-cov==2.5.1
 pytest-aiohttp==0.3.0
 
@@ -10,7 +10,7 @@ pytest-aiohttp==0.3.0
 requests==2.20.0
 
 # Downgrade aiohttp to 2.3.8 (dependency of pytest-aiohttp) due to issue with aiohttp 3.3.1
-aiohttp==2.3.8
+# aiohttp==2.3.8
 
 # For RTU serial test
 pyserial==3.4

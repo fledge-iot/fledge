@@ -30,11 +30,6 @@ using namespace std;
 using namespace rapidjson;
 using namespace SimpleWeb;
 
-#define TO_STRING(...) DEFER(TO_STRING_)(__VA_ARGS__)
-#define DEFER(x) x
-#define TO_STRING_(...) #__VA_ARGS__
-#define QUOTE(...) TO_STRING(__VA_ARGS__)
-
 #define PLUGIN_NAME "PI_Server_V2"
 #define TYPE_ID_KEY "type-id"
 #define SENT_TYPES_KEY "sentDataTypes"

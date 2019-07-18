@@ -58,7 +58,7 @@ def get_machine_detail():
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
-async def test_ping_http_allow_ping_true(test_server, test_client, loop, get_machine_detail):
+async def test_ping_http_allow_ping_true(aiohttp_server, aiohttp_client, loop, get_machine_detail):
     payload = '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
     result = {"rows": [
         {"value": 1, "key": "PURGED", "description": "blah6"},
@@ -83,10 +83,10 @@ async def test_ping_http_allow_ping_true(test_server, test_client, loop, get_mac
                     # fill route table
                     routes.setup(app)
 
-                    server = await test_server(app)
-                    server.start_server(loop=loop)
+                    server = await aiohttp_server(app)
+                    await server.start_server(loop=loop)
 
-                    client = await test_client(server)
+                    client = await aiohttp_client(server)
                     # note: If the parameter is app aiohttp.web.Application
                     # the tool creates TestServer implicitly for serving the application.
                     time.sleep(1)
@@ -112,7 +112,7 @@ async def test_ping_http_allow_ping_true(test_server, test_client, loop, get_mac
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
-async def test_ping_http_allow_ping_false(test_server, test_client, loop, get_machine_detail):
+async def test_ping_http_allow_ping_false(aiohttp_server, aiohttp_client, loop, get_machine_detail):
     payload = '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
 
     @asyncio.coroutine
@@ -136,10 +136,10 @@ async def test_ping_http_allow_ping_false(test_server, test_client, loop, get_ma
                     # fill route table
                     routes.setup(app)
 
-                    server = await test_server(app)
-                    server.start_server(loop=loop)
+                    server = await aiohttp_server(app)
+                    await server.start_server(loop=loop)
 
-                    client = await test_client(server)
+                    client = await aiohttp_client(server)
                     # note: If the parameter is app aiohttp.web.Application
                     # the tool creates TestServer implicitly for serving the application.
                     resp = await client.get('/foglamp/ping', headers={'authorization': "token"})
@@ -163,7 +163,7 @@ async def test_ping_http_allow_ping_false(test_server, test_client, loop, get_ma
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
-async def test_ping_http_auth_required_allow_ping_true(test_server, test_client, loop, get_machine_detail):
+async def test_ping_http_auth_required_allow_ping_true(aiohttp_server, aiohttp_client, loop, get_machine_detail):
     payload = '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
     result = {"rows": [
                 {"value": 1, "key": "PURGED", "description": "blah6"},
@@ -191,10 +191,10 @@ async def test_ping_http_auth_required_allow_ping_true(test_server, test_client,
                     # fill route table
                     routes.setup(app)
 
-                    server = await test_server(app)
-                    server.start_server(loop=loop)
+                    server = await aiohttp_server(app)
+                    await server.start_server(loop=loop)
 
-                    client = await test_client(server)
+                    client = await aiohttp_client(server)
                     # note: If the parameter is app aiohttp.web.Application
                     # the tool creates TestServer implicitly for serving the application.
                     resp = await client.get('/foglamp/ping')
@@ -219,7 +219,7 @@ async def test_ping_http_auth_required_allow_ping_true(test_server, test_client,
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
-async def test_ping_http_auth_required_allow_ping_false(test_server, test_client, loop, get_machine_detail):
+async def test_ping_http_auth_required_allow_ping_false(aiohttp_server, aiohttp_client, loop, get_machine_detail):
     result = {"rows": [
         {"value": 1, "key": "PURGED", "description": "blah6"},
         {"value": 2, "key": "READINGS", "description": "blah1"},
@@ -246,10 +246,10 @@ async def test_ping_http_auth_required_allow_ping_false(test_server, test_client
                         # fill route table
                         routes.setup(app)
 
-                        server = await test_server(app)
-                        server.start_server(loop=loop)
+                        server = await aiohttp_server(app)
+                        await server.start_server(loop=loop)
 
-                        client = await test_client(server)
+                        client = await aiohttp_client(server)
                         # note: If the parameter is app aiohttp.web.Application
                         # the tool creates TestServer implicitly for serving the application.
                         resp = await client.get('/foglamp/ping')
@@ -263,7 +263,7 @@ async def test_ping_http_auth_required_allow_ping_false(test_server, test_client
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
-async def test_ping_https_allow_ping_true(test_server, ssl_ctx, test_client, loop, get_machine_detail):
+async def test_ping_https_allow_ping_true(aiohttp_server, ssl_ctx, aiohttp_client, loop, get_machine_detail):
     payload = '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
     result = {"rows": [
                 {"value": 1, "key": "PURGED", "description": "blah6"},
@@ -287,11 +287,11 @@ async def test_ping_https_allow_ping_true(test_server, ssl_ctx, test_client, loo
                     # fill route table
                     routes.setup(app)
 
-                    server = await test_server(app, ssl=ssl_ctx)
-                    server.start_server(loop=loop)
+                    server = await aiohttp_server(app, ssl=ssl_ctx)
+                    await server.start_server(loop=loop)
 
                     with pytest.raises(aiohttp.ClientConnectorSSLError) as error_exec:
-                        client = await test_client(server)
+                        client = await aiohttp_client(server)
                         await client.get('/foglamp/ping')
                     assert "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed" in str(error_exec)
 
@@ -299,12 +299,12 @@ async def test_ping_https_allow_ping_true(test_server, ssl_ctx, test_client, loo
                         # self signed certificate,
                         # and we are not using SSL context here for client as verifier
                         connector = aiohttp.TCPConnector(verify_ssl=True, loop=loop)
-                        client = await test_client(server, connector=connector)
+                        client = await aiohttp_client(server, connector=connector)
                         await client.get('/foglamp/ping')
                     assert "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed" in str(error_exec)
 
                     connector = aiohttp.TCPConnector(verify_ssl=False, loop=loop)
-                    client = await test_client(server, connector=connector)
+                    client = await aiohttp_client(server, connector=connector)
                     resp = await client.get('/foglamp/ping')
                     s = resp.request_info.url.human_repr()
                     assert "https" == s[:5]
@@ -327,7 +327,7 @@ async def test_ping_https_allow_ping_true(test_server, ssl_ctx, test_client, loo
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
-async def test_ping_https_allow_ping_false(test_server, ssl_ctx, test_client, loop, get_machine_detail):
+async def test_ping_https_allow_ping_false(aiohttp_server, ssl_ctx, aiohttp_client, loop, get_machine_detail):
     payload = '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
     result = {"rows": [
         {"value": 1, "key": "PURGED", "description": "blah6"},
@@ -351,11 +351,11 @@ async def test_ping_https_allow_ping_false(test_server, ssl_ctx, test_client, lo
                     # fill route table
                     routes.setup(app)
 
-                    server = await test_server(app, ssl=ssl_ctx)
+                    server = await aiohttp_server(app, ssl=ssl_ctx)
                     server.start_server(loop=loop)
 
                     with pytest.raises(aiohttp.ClientConnectorSSLError) as error_exec:
-                        client = await test_client(server)
+                        client = await aiohttp_client(server)
                         await client.get('/foglamp/ping')
                     assert "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed" in str(error_exec)
 
@@ -363,12 +363,12 @@ async def test_ping_https_allow_ping_false(test_server, ssl_ctx, test_client, lo
                         # self signed certificate,
                         # and we are not using SSL context here for client as verifier
                         connector = aiohttp.TCPConnector(verify_ssl=True, loop=loop)
-                        client = await test_client(server, connector=connector)
+                        client = await aiohttp_client(server, connector=connector)
                         await client.get('/foglamp/ping')
                     assert "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed" in str(error_exec)
 
                     connector = aiohttp.TCPConnector(verify_ssl=False, loop=loop)
-                    client = await test_client(server, connector=connector)
+                    client = await aiohttp_client(server, connector=connector)
                     resp = await client.get('/foglamp/ping')
                     s = resp.request_info.url.human_repr()
                     assert "https" == s[:5]
@@ -386,7 +386,7 @@ async def test_ping_https_allow_ping_false(test_server, ssl_ctx, test_client, lo
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
-async def test_ping_https_auth_required_allow_ping_true(test_server, ssl_ctx, test_client, loop, get_machine_detail):
+async def test_ping_https_auth_required_allow_ping_true(aiohttp_server, ssl_ctx, aiohttp_client, loop, get_machine_detail):
     payload = '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
     result = {"rows": [
                 {"value": 1, "key": "PURGED", "description": "blah6"},
@@ -414,11 +414,11 @@ async def test_ping_https_auth_required_allow_ping_true(test_server, ssl_ctx, te
                     # fill route table
                     routes.setup(app)
 
-                    server = await test_server(app, ssl=ssl_ctx)
-                    server.start_server(loop=loop)
+                    server = await aiohttp_server(app, ssl=ssl_ctx)
+                    await server.start_server(loop=loop)
 
                     with pytest.raises(aiohttp.ClientConnectorSSLError) as error_exec:
-                        client = await test_client(server)
+                        client = await aiohttp_client(server)
                         await client.get('/foglamp/ping')
                     assert "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed" in str(error_exec)
 
@@ -426,12 +426,12 @@ async def test_ping_https_auth_required_allow_ping_true(test_server, ssl_ctx, te
                         # self signed certificate,
                         # and we are not using SSL context here for client as verifier
                         connector = aiohttp.TCPConnector(verify_ssl=True, loop=loop)
-                        client = await test_client(server, connector=connector)
+                        client = await aiohttp_client(server, connector=connector)
                         await client.get('/foglamp/ping')
                     assert "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed" in str(error_exec)
 
                     connector = aiohttp.TCPConnector(verify_ssl=False, loop=loop)
-                    client = await test_client(server, connector=connector)
+                    client = await aiohttp_client(server, connector=connector)
                     resp = await client.get('/foglamp/ping')
                     s = resp.request_info.url.human_repr()
                     assert "https" == s[:5]
@@ -455,7 +455,7 @@ async def test_ping_https_auth_required_allow_ping_true(test_server, ssl_ctx, te
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
-async def test_ping_https_auth_required_allow_ping_false(test_server, ssl_ctx, test_client, loop, get_machine_detail):
+async def test_ping_https_auth_required_allow_ping_false(aiohttp_server, ssl_ctx, aiohttp_client, loop, get_machine_detail):
     @asyncio.coroutine
     def mock_coro(*args, **kwargs):
         result = {"rows": [
@@ -481,11 +481,11 @@ async def test_ping_https_auth_required_allow_ping_false(test_server, ssl_ctx, t
                         # fill route table
                         routes.setup(app)
 
-                        server = await test_server(app, ssl=ssl_ctx)
-                        server.start_server(loop=loop)
+                        server = await aiohttp_server(app, ssl=ssl_ctx)
+                        await server.start_server(loop=loop)
 
                         with pytest.raises(aiohttp.ClientConnectorSSLError) as error_exec:
-                            client = await test_client(server)
+                            client = await aiohttp_client(server)
                             await client.get('/foglamp/ping')
                         assert "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed" in str(error_exec)
 
@@ -493,12 +493,12 @@ async def test_ping_https_auth_required_allow_ping_false(test_server, ssl_ctx, t
                             # self signed certificate,
                             # and we are not using SSL context here for client as verifier
                             connector = aiohttp.TCPConnector(verify_ssl=True, loop=loop)
-                            client = await test_client(server, connector=connector)
+                            client = await aiohttp_client(server, connector=connector)
                             await client.get('/foglamp/ping')
                         assert "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed" in str(error_exec)
 
                         connector = aiohttp.TCPConnector(verify_ssl=False, loop=loop)
-                        client = await test_client(server, connector=connector)
+                        client = await aiohttp_client(server, connector=connector)
                         resp = await client.get('/foglamp/ping')
                         s = resp.request_info.url.human_repr()
                         assert "https" == s[:5]
@@ -511,15 +511,15 @@ async def test_ping_https_auth_required_allow_ping_false(test_server, ssl_ctx, t
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
-async def test_shutdown_http(test_server, test_client, loop):
+async def test_shutdown_http(aiohttp_server, aiohttp_client, loop):
     app = web.Application()
     # fill route table
     routes.setup(app)
 
-    server = await test_server(app)
-    server.start_server(loop=loop)
+    server = await aiohttp_server(app)
+    await server.start_server(loop=loop)
 
-    client = await test_client(server)
+    client = await aiohttp_client(server)
     resp = await client.put('/foglamp/shutdown', data=None)
     assert 200 == resp.status
     content = await resp.text()
@@ -529,16 +529,16 @@ async def test_shutdown_http(test_server, test_client, loop):
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
-async def test_restart_http(test_server, test_client, loop):
+async def test_restart_http(aiohttp_server, aiohttp_client, loop):
     app = web.Application()
     # fill route table
     routes.setup(app)
 
-    server = await test_server(app)
-    server.start_server(loop=loop)
+    server = await aiohttp_server(app)
+    await server.start_server(loop=loop)
 
     with patch.object(_logger, 'info') as logger_info:
-        client = await test_client(server)
+        client = await aiohttp_client(server)
         resp = await client.put('/foglamp/restart', data=None)
         assert 200 == resp.status
         content = await resp.text()

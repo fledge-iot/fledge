@@ -13,6 +13,7 @@ import pytest
 from foglamp.common.plugin_discovery import PluginDiscovery, _logger
 from foglamp.services.core.api import utils
 from foglamp.services.core.api.plugins import common
+from foglamp.plugins.common import utils as api_utils
 
 
 __author__ = "Amarendra K Sinha, Ashish Jabble "
@@ -341,6 +342,23 @@ class TestPluginDiscovery:
             actual = PluginDiscovery.get_plugin_config("modbus", "south", is_config)
             assert expected == actual
 
+    @pytest.mark.parametrize("info, warn_count", [
+        ({'name': "modbus", 'version': "1.1", 'type': "south", 'interface': "1.0",
+          'config': {'plugin': {'description': 'Modbus RTU plugin', 'type': 'string', 'default': 'modbus'}}}, 0),
+        ({'name': "modbus", 'version': "1.1", 'type': "south", 'interface': "1.0", 'flag': api_utils.DEPRECATED_BIT_MASK_VALUE,
+          'config': {'plugin': {'description': 'Modbus RTU plugin', 'type': 'string', 'default': 'modbus'}}}, 1),
+        ({'name': "modbus", 'version': "1.1", 'type': "south", 'interface': "1.0", 'flag': 0,
+          'config': {'plugin': {'description': 'Modbus RTU plugin', 'type': 'string', 'default': 'modbus'}}}, 0),
+    ])
+    def test_deprecated_python_plugins(self, info, warn_count, is_config=True):
+        with patch.object(_logger, "warning") as patch_log_warn:
+            with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[info]):
+                PluginDiscovery.get_plugin_config(info['name'], info['type'], is_config)
+        assert warn_count == patch_log_warn.call_count
+        if warn_count:
+            args, kwargs = patch_log_warn.call_args
+            assert '"{}" plugin is deprecated'.format(info['name']) == args[0]
+
     def test_bad_get_plugin_config(self):
         mock_plugin_info = {
                 'name': "HTTP",
@@ -374,6 +392,25 @@ class TestPluginDiscovery:
                 PluginDiscovery.fetch_c_plugins_installed(dir_name, True)
             patch_plugin_info.assert_called_once_with(info['name'], dir=dir_name)
         patch_plugin_lib.assert_called_once_with(dir_name)
+
+    @pytest.mark.parametrize("info, dir_name", [
+        (mock_c_plugins_config[0], "south"),
+        (mock_c_plugins_config[1], "north"),
+        (mock_c_plugins_config[2], "filter"),
+        (mock_c_plugins_config[3], "notificationDelivery"),
+        (mock_c_plugins_config[4], "notificationRule")
+    ])
+    def test_deprecated_c_plugins_installed(self, info, dir_name):
+        info['flag'] = api_utils.DEPRECATED_BIT_MASK_VALUE
+        with patch.object(_logger, "warning") as patch_log_warn:
+            with patch.object(utils, "find_c_plugin_libs", return_value=[(info['name'], "binary")]) as patch_plugin_lib:
+                with patch.object(utils, "get_plugin_info", return_value=info) as patch_plugin_info:
+                    PluginDiscovery.fetch_c_plugins_installed(dir_name, True)
+                patch_plugin_info.assert_called_once_with(info['name'], dir=dir_name)
+            patch_plugin_lib.assert_called_once_with(dir_name)
+        assert 1 == patch_log_warn.call_count
+        args, kwargs = patch_log_warn.call_args
+        assert '"{}" plugin is deprecated'.format(info['name']) == args[0]
 
     def test_fetch_c_hybrid_plugins_installed(self):
         info = {"version": "1.6.0", "name": "FlirAX8", "config": {"asset": {"description": "Default asset name", "default": "flir", "displayName": "Asset Name", "type": "string"}, "plugin": {"description": "A Modbus connected Flir AX8 infrared camera", "default": "FlirAX8", "readonly": "true", "type": "string"}}}

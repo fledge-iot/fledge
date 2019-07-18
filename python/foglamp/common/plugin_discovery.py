@@ -10,6 +10,8 @@ import os
 from foglamp.common import logger
 from foglamp.services.core.api import utils
 from foglamp.services.core.api.plugins import common
+from foglamp.plugins.common import utils as api_utils
+
 
 __author__ = "Amarendra K Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -106,6 +108,9 @@ class PluginDiscovery(object):
                 if _type == 'binary':
                     jdoc = utils.get_plugin_info(name, dir=plugin_type)
                     if jdoc:
+                        if 'flag' in jdoc:
+                            if api_utils.bit_at_given_position_set_or_unset(jdoc['flag'], api_utils.DEPRECATED_BIT_POSITION):
+                                raise DeprecationWarning
                         plugin_config = {'name': name,
                                          'type': plugin_type,
                                          'description': jdoc['config']['plugin']['description'],
@@ -119,6 +124,8 @@ class PluginDiscovery(object):
                     hybrid_plugin_config = common.load_and_fetch_c_hybrid_plugin_info(name, is_config)
                     if hybrid_plugin_config:
                         configs.append(hybrid_plugin_config)
+            except DeprecationWarning:
+                _logger.warning('"{}" plugin is deprecated'.format(name))
             except Exception as ex:
                 _logger.exception(ex)
 
@@ -134,6 +141,9 @@ class PluginDiscovery(object):
             plugin_info = common.load_and_fetch_python_plugin_info(plugin_module_path,  plugin_module_path.split('/')[-1], plugin_type)
             # Fetch configuration from the configuration defined in the plugin
             if plugin_info['type'] == plugin_type:
+                if 'flag' in plugin_info:
+                    if api_utils.bit_at_given_position_set_or_unset(plugin_info['flag'], api_utils.DEPRECATED_BIT_POSITION):
+                        raise DeprecationWarning
                 plugin_config = {
                     'name': plugin_info['config']['plugin']['default'],
                     'type': plugin_info['type'],
@@ -145,9 +155,12 @@ class PluginDiscovery(object):
 
             if is_config:
                 plugin_config.update({'config': plugin_info['config']})
+        except DeprecationWarning:
+            _logger.warning('"{}" plugin is deprecated'.format(plugin_dir.split('/')[-1]))
         except FileNotFoundError as ex:
             _logger.error('Plugin "{}" import problem from path "{}". {}'.format(plugin_dir, plugin_module_path, str(ex)))
         except Exception as ex:
             _logger.exception('Plugin "{}" raised exception "{}" while fetching config'.format(plugin_dir, str(ex)))
 
         return plugin_config
+

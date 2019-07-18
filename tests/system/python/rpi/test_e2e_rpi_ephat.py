@@ -45,7 +45,7 @@ SENSOR_READ_KEY_C = {"r", "g", "b"}
 TASK_NAME = "North v2 PI"
 
 
-@pytest.mark.skipif('raspberrypi' != os.uname()[1], reason="RPi only (ePhat) test")
+@pytest.mark.skipif('raspberrypi' != os.uname()[1] and 'raspizero' != os.uname()[1], reason="RPi only (ePhat) test")
 # sysname='Linux', nodename='raspberrypi', release='4.14.98+', version='#1200 ', machine='armv6l'
 class TestE2eRPiEphatEgress:
 
@@ -69,21 +69,23 @@ class TestE2eRPiEphatEgress:
 
     @pytest.fixture
     def start_south_north(self, reset_and_start_foglamp, add_south, south_branch, disable_schedule,
-                          remove_data_file, remove_directories, enable_schedule, foglamp_url,
-                          start_north_pi_server_c, pi_host, pi_port, pi_token, wait_time):
+                          remove_data_file, skip_verify_north_interface, remove_directories, enable_schedule,
+                          foglamp_url, start_north_pi_server_c, pi_host, pi_port, pi_token, wait_time):
         """ This fixture clones given south & filter plugin repo, and starts south and PI north C instance
 
         """
 
         add_south(SOUTH_PLUGIN, south_branch, foglamp_url, service_name=SVC_NAME)
 
-        start_north_pi_server_c(foglamp_url, pi_host, pi_port, pi_token, taskname=TASK_NAME, start_task=False)
+        if not skip_verify_north_interface:
+            start_north_pi_server_c(foglamp_url, pi_host, pi_port, pi_token, taskname=TASK_NAME, start_task=False)
 
         # let the readings ingress
         time.sleep(wait_time)
         disable_schedule(foglamp_url, SVC_NAME)
 
-        enable_schedule(foglamp_url, TASK_NAME)
+        if not skip_verify_north_interface:
+            enable_schedule(foglamp_url, TASK_NAME)
 
         yield self.start_south_north
 
@@ -94,17 +96,18 @@ class TestE2eRPiEphatEgress:
 
         # let the readings egress
         time.sleep(wait_time * 2)
-        self._verify_ping_and_statistics(foglamp_url)
+        self._verify_ping_and_statistics(foglamp_url, skip_verify_north_interface)
 
         self._verify_ingest(foglamp_url)
 
         if not skip_verify_north_interface:
             self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
 
-    def _verify_ping_and_statistics(self, foglamp_url):
+    def _verify_ping_and_statistics(self, foglamp_url, skip_verify_north_interface):
         ping_response = self.get_ping_status(foglamp_url)
         assert ping_response["dataRead"]
-        assert ping_response["dataSent"]
+        if not skip_verify_north_interface:
+            assert ping_response["dataSent"]
 
         actual_stats_map = self.get_statistics_map(foglamp_url)
         assert actual_stats_map["{}{}".format(ASSET_PREFIX.upper(), ASSET_NAME_W.upper())]
@@ -112,8 +115,9 @@ class TestE2eRPiEphatEgress:
         assert actual_stats_map["{}{}".format(ASSET_PREFIX.upper(), ASSET_NAME_A.upper())]
         assert actual_stats_map["{}{}".format(ASSET_PREFIX.upper(), ASSET_NAME_C.upper())]
         assert actual_stats_map['READINGS']
-        assert actual_stats_map[TASK_NAME]
-        assert actual_stats_map['Readings Sent']
+        if not skip_verify_north_interface:
+            assert actual_stats_map[TASK_NAME]
+            assert actual_stats_map['Readings Sent']
 
     def _verify_ingest(self, foglamp_url):
         asset_name_with_prefix_w = "{}{}".format(ASSET_PREFIX, ASSET_NAME_W)

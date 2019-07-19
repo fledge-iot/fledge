@@ -103,7 +103,7 @@ async def get_backups(request):
             res.append(r)
 
     except Exception as ex:
-        raise web.HTTPException(reason=str(ex))
+        raise web.HTTPInternalServerError(reason=str(ex))
 
     return web.json_response({"backups": res})
 
@@ -117,7 +117,7 @@ async def create_backup(request):
         backup = Backup(connect.get_storage_async())
         status = await backup.create_backup()
     except Exception as ex:
-        raise web.HTTPException(reason=str(ex))
+        raise web.HTTPInternalServerError(reason=str(ex))
 
     return web.json_response({"status": status})
 
@@ -143,7 +143,7 @@ async def get_backup_details(request):
     except exceptions.DoesNotExist:
         raise web.HTTPNotFound(reason='Backup id {} does not exist'.format(backup_id))
     except Exception as ex:
-        raise web.HTTPException(reason=(str(ex)))
+        raise web.HTTPInternalServerError(reason=(str(ex)))
 
     return web.json_response(resp)
 
@@ -180,7 +180,7 @@ async def get_backup_download(request):
     except exceptions.DoesNotExist:
         raise web.HTTPNotFound(reason='Backup id {} does not exist'.format(backup_id))
     except Exception as ex:
-        raise web.HTTPException(reason=(str(ex)))
+        raise web.HTTPInternalServerError(reason=(str(ex)))
 
     return web.FileResponse(path=gz_path)
 
@@ -201,7 +201,7 @@ async def delete_backup(request):
     except exceptions.DoesNotExist:
         raise web.HTTPNotFound(reason='Backup id {} does not exist'.format(backup_id))
     except Exception as ex:
-        raise web.HTTPException(reason=str(ex))
+        raise web.HTTPInternalServerError(reason=str(ex))
 
 
 async def restore_backup(request):
@@ -222,7 +222,7 @@ async def restore_backup(request):
     except exceptions.DoesNotExist:
         raise web.HTTPNotFound(reason='Backup with {} does not exist'.format(backup_id))
     except Exception as ex:
-        raise web.HTTPException(reason=str(ex))
+        raise web.HTTPInternalServerError(reason=str(ex))
 
 
 async def get_backup_status(request):

@@ -100,10 +100,11 @@ class TestBackup:
         assert response_message == resp.reason
 
     async def test_get_backups_exceptions(self, client):
-        with patch.object(connect, 'get_storage_async', return_value=Exception):
+        msg = "Internal Server Error"
+        with patch.object(connect, 'get_storage_async', side_effect=Exception(msg)):
             resp = await client.get('/foglamp/backup')
             assert 500 == resp.status
-            assert "Internal Server Error" == resp.reason
+            assert msg == resp.reason
 
     async def test_create_backup(self, client):
         async def mock_create():
@@ -117,11 +118,11 @@ class TestBackup:
                 assert '{"status": "running_or_failed"}' == await resp.text()
 
     async def test_create_backup_exception(self, client):
-        with patch.object(connect, 'get_storage_async', return_value=Exception):
-            with patch.object(Backup, 'create_backup', return_value=Exception):
-                resp = await client.post('/foglamp/backup')
-                assert 500 == resp.status
-                assert "Internal Server Error" == resp.reason
+        msg = "Internal Server Error"
+        with patch.object(connect, 'get_storage_async', side_effect=Exception(msg)):
+            resp = await client.post('/foglamp/backup')
+            assert 500 == resp.status
+            assert msg == resp.reason
 
     async def test_get_backup_details(self, client):
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -138,7 +139,7 @@ class TestBackup:
 
     @pytest.mark.parametrize("input_exception, response_code, response_message", [
         (exceptions.DoesNotExist, 404, "Backup id 8 does not exist"),
-        (Exception, 500, "Internal Server Error")
+        (Exception("Internal Server Error"), 500, "Internal Server Error")
     ])
     async def test_get_backup_details_exceptions(self, client, input_exception, response_code, response_message):
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -165,7 +166,7 @@ class TestBackup:
 
     @pytest.mark.parametrize("input_exception, response_code, response_message", [
         (exceptions.DoesNotExist, 404, "Backup id 8 does not exist"),
-        (Exception, 500, "Internal Server Error")
+        (Exception("Internal Server Error"), 500, "Internal Server Error")
     ])
     async def test_delete_backup_exceptions(self, client, input_exception, response_code, response_message):
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -195,7 +196,7 @@ class TestBackup:
     @pytest.mark.parametrize("input_exception, response_code, response_message", [
         (ValueError, 400, "Invalid backup id"),
         (exceptions.DoesNotExist, 404, "Backup id 8 does not exist"),
-        (Exception, 500, "Internal Server Error")
+        (Exception("Internal Server Error"), 500, "Internal Server Error")
     ])
     async def test_get_backup_download_exceptions(self, client, input_exception, response_code, response_message):
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -247,7 +248,7 @@ class TestRestore:
 
     @pytest.mark.parametrize("backup_id, input_exception, code, message", [
         (8, exceptions.DoesNotExist, 404, "Backup with 8 does not exist"),
-        (2, Exception, 500, "Internal Server Error"),
+        (2, Exception("Internal Server Error"), 500, "Internal Server Error"),
         ('blah', ValueError, 400, 'Invalid backup id')
     ])
     async def test_restore_backup_exceptions(self, client, backup_id, input_exception, code, message):

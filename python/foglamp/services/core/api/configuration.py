@@ -158,7 +158,7 @@ async def create_category(request):
     except LookupError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
-        raise web.HTTPException(reason=str(ex))
+        raise web.HTTPInternalServerError(reason=str(ex))
     return web.json_response(result)
 
 
@@ -395,7 +395,7 @@ async def add_configuration_item(request):
     except NameError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
-        raise web.HTTPException(reason=str(ex))
+        raise web.HTTPInternalServerError(reason=str(ex))
 
     return web.json_response({"message": "{} config item has been saved for {} category".format(new_config_item, category_name)})
 

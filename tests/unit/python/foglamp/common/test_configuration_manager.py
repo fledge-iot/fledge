@@ -842,7 +842,7 @@ class TestConfigurationManager:
         ((2, 'catvalue', 'catdesc'), "category_name must be a string"),
         (('catname', 'catvalue', 3), "category_description must be a string")
     ])
-    @ pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_bad_create_category(self, reset_singleton, mocker, payload, message):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)

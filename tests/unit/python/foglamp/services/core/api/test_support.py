@@ -236,7 +236,8 @@ class TestBundleSupport:
             assert message == resp.reason
 
     async def test_get_syslog_entries_cmd_exception(self, client):
-        with patch.object(subprocess, "Popen", side_effect=Exception):
+        msg = 'Internal Server Error'
+        with patch.object(subprocess, "Popen", side_effect=Exception(msg)):
             resp = await client.get('/foglamp/syslog')
             assert 500 == resp.status
-            assert 'Internal Server Error' == resp.reason
+            assert msg == resp.reason

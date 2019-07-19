@@ -515,10 +515,11 @@ class TestConfiguration:
     async def test_create_category_http_exception(self, client, name="test_cat", desc="Test desc"):
         info = {'info': {'type': 'boolean', 'value': 'False', 'description': 'Test', 'default': 'False'}}
         payload = {"key": name, "description": desc, "value": info}
-        with patch.object(connect, 'get_storage_async', side_effect=Exception):
+        msg = 'Something went wrong'
+        with patch.object(connect, 'get_storage_async', side_effect=Exception(msg)):
             resp = await client.post('/foglamp/category', data=json.dumps(payload))
             assert 500 == resp.status
-            assert 'Internal Server Error' == resp.reason
+            assert msg == resp.reason
 
     @pytest.mark.parametrize("payload, message", [
         # FIXME: keys order mismatch assertion
@@ -624,10 +625,11 @@ class TestConfiguration:
 
     async def test_unknown_exception_for_add_config_item(self, client):
         data = {"default": "d", "description": "Test description", "type": "boolean"}
-        with patch.object(connect, 'get_storage_async', side_effect=Exception):
+        msg = 'Internal Server Error'
+        with patch.object(connect, 'get_storage_async', side_effect=Exception(msg)):
             resp = await client.post('/foglamp/category/{}/{}'.format("blah", "blah"), data=json.dumps(data))
             assert 500 == resp.status
-            assert 'Internal Server Error' == resp.reason
+            assert msg == resp.reason
 
     async def test_get_child_category(self, client):
         @asyncio.coroutine

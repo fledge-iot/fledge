@@ -84,6 +84,9 @@ class TestPluginInstall:
         async def async_mock(ret_val):
             return ret_val
 
+        def sync_mock(ret_val):
+            return ret_val
+
         plugin_name = 'mqtt_sparkplug'
         sub_dir = 'sparkplug_b'
         tar_file_name = 'foglamp-south-mqtt_sparkplug-1.5.2.tar'
@@ -97,7 +100,7 @@ class TestPluginInstall:
         param = {"url": url_value, "format": "tar", "type": "south", "checksum": checksum_value}
         with patch.object(plugins_install, 'download', return_value=async_mock([tar_file_name])) as download_patch:
             with patch.object(plugins_install, 'validate_checksum', return_value=True) as checksum_patch:
-                with patch.object(plugins_install, 'extract_file', return_value=async_mock(files)) as extract_patch:
+                with patch.object(plugins_install, 'extract_file', return_value=sync_mock(files)) as extract_patch:
                     with patch.object(plugins_install, 'copy_file_install_requirement',
                                       return_value=(1, msg)) as copy_file_install_requirement_patch:
                         resp = await client.post('/foglamp/plugins', data=json.dumps(param))
@@ -112,6 +115,9 @@ class TestPluginInstall:
         async def async_mock(ret_val):
             return ret_val
 
+        def sync_mock(ret_val):
+            return ret_val
+
         plugin_name = 'coap'
         tar_file_name = 'foglamp-south-coap-1.5.2.tar'
         files = [plugin_name, '{}/__init__.py'.format(plugin_name), '{}/README.rst'.format(plugin_name),
@@ -121,7 +127,7 @@ class TestPluginInstall:
         param = {"url": url_value, "format": "tar", "type": "south", "checksum": checksum_value}
         with patch.object(plugins_install, 'download', return_value=async_mock([tar_file_name])) as download_patch:
             with patch.object(plugins_install, 'validate_checksum', return_value=True) as checksum_patch:
-                with patch.object(plugins_install, 'extract_file', return_value=async_mock(files)) as extract_patch:
+                with patch.object(plugins_install, 'extract_file', return_value=sync_mock(files)) as extract_patch:
                     with patch.object(plugins_install, 'copy_file_install_requirement', return_value=(0, 'Success')) \
                             as copy_file_install_requirement_patch:
                         resp = await client.post('/foglamp/plugins', data=json.dumps(param))
@@ -138,6 +144,9 @@ class TestPluginInstall:
         async def async_mock(ret_val):
             return ret_val
 
+        def sync_mock(ret_val):
+            return ret_val
+
         plugin_name = 'rms'
         tar_file_name = 'foglamp-filter-rms-1.5.2.tar.gz'
         files = [plugin_name, '{}/lib{}.so.1'.format(plugin_name, plugin_name),
@@ -147,7 +156,7 @@ class TestPluginInstall:
         param = {"url": url_value, "format": "tar", "type": "filter", "checksum": checksum_value, "compressed": "true"}
         with patch.object(plugins_install, 'download', return_value=async_mock([tar_file_name])) as download_patch:
             with patch.object(plugins_install, 'validate_checksum', return_value=True) as checksum_patch:
-                with patch.object(plugins_install, 'extract_file', return_value=async_mock(files)) as extract_patch:
+                with patch.object(plugins_install, 'extract_file', return_value=sync_mock(files)) as extract_patch:
                     with patch.object(plugins_install, 'copy_file_install_requirement', return_value=(0, 'Success')) \
                             as copy_file_install_requirement_patch:
                         resp = await client.post('/foglamp/plugins', data=json.dumps(param))

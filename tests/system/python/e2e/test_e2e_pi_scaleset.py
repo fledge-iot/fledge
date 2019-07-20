@@ -127,9 +127,10 @@ class TestE2ePiEgressWithScalesetFilter:
         key_asset_name_with_prefix = "{}{}".format(ASSET_PREFIX.upper(), ASSET_NAME.upper())
         assert count == actual_stats_map[key_asset_name_with_prefix]
         assert count == actual_stats_map['READINGS']
-        assert count == actual_stats_map[TASK_NAME]
+
         if not skip_verify_north_interface:
             assert count == actual_stats_map['Readings Sent']
+            assert count == actual_stats_map[TASK_NAME]
 
     def _verify_ingest(self, foglamp_url, value, read_count):
         asset_name_with_prefix = "{}{}".format(ASSET_PREFIX, ASSET_NAME)

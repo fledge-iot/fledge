@@ -140,13 +140,15 @@ class TestE2EAssetHttpPI:
 
         ping_response = self.get_ping_status(foglamp_url)
         assert 6 == ping_response["dataRead"]
-        assert 6 == ping_response["dataSent"]
+        if not skip_verify_north_interface:
+            assert 6 == ping_response["dataSent"]
 
         actual_stats_map = self.get_statistics_map(foglamp_url)
         assert 6 == actual_stats_map[asset_name.upper()]
-        assert 6 == actual_stats_map['NorthReadingsToPI']
         assert 6 == actual_stats_map['READINGS']
-        assert 6 == actual_stats_map['Readings Sent']
+        if not skip_verify_north_interface:
+            assert 6 == actual_stats_map['Readings Sent']
+            assert 6 == actual_stats_map['NorthReadingsToPI']
 
         conn.request("GET", '/foglamp/asset')
         r = conn.getresponse()

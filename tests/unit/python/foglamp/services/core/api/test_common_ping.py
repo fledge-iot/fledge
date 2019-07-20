@@ -290,12 +290,12 @@ async def test_ping_https_allow_ping_true(aiohttp_server, ssl_ctx, aiohttp_clien
                     server = await aiohttp_server(app, ssl=ssl_ctx)
                     await server.start_server(loop=loop)
 
-                    with pytest.raises(aiohttp.ClientConnectorSSLError) as error_exec:
+                    with pytest.raises(Exception) as error_exec:
                         client = await aiohttp_client(server)
                         await client.get('/foglamp/ping')
                     assert "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed" in str(error_exec)
 
-                    with pytest.raises(aiohttp.ClientConnectorSSLError) as error_exec:
+                    with pytest.raises(Exception) as error_exec:
                         # self signed certificate,
                         # and we are not using SSL context here for client as verifier
                         connector = aiohttp.TCPConnector(verify_ssl=True, loop=loop)
@@ -354,12 +354,12 @@ async def test_ping_https_allow_ping_false(aiohttp_server, ssl_ctx, aiohttp_clie
                     server = await aiohttp_server(app, ssl=ssl_ctx)
                     await server.start_server(loop=loop)
 
-                    with pytest.raises(aiohttp.ClientConnectorSSLError) as error_exec:
+                    with pytest.raises(Exception) as error_exec:
                         client = await aiohttp_client(server)
                         await client.get('/foglamp/ping')
                     assert "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed" in str(error_exec)
 
-                    with pytest.raises(aiohttp.ClientConnectorSSLError) as error_exec:
+                    with pytest.raises(Exception) as error_exec:
                         # self signed certificate,
                         # and we are not using SSL context here for client as verifier
                         connector = aiohttp.TCPConnector(verify_ssl=True, loop=loop)
@@ -417,12 +417,12 @@ async def test_ping_https_auth_required_allow_ping_true(aiohttp_server, ssl_ctx,
                     server = await aiohttp_server(app, ssl=ssl_ctx)
                     await server.start_server(loop=loop)
 
-                    with pytest.raises(aiohttp.ClientConnectorSSLError) as error_exec:
+                    with pytest.raises(Exception) as error_exec:
                         client = await aiohttp_client(server)
                         await client.get('/foglamp/ping')
                     assert "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed" in str(error_exec)
 
-                    with pytest.raises(aiohttp.ClientConnectorSSLError) as error_exec:
+                    with pytest.raises(Exception) as error_exec:
                         # self signed certificate,
                         # and we are not using SSL context here for client as verifier
                         connector = aiohttp.TCPConnector(verify_ssl=True, loop=loop)
@@ -484,12 +484,12 @@ async def test_ping_https_auth_required_allow_ping_false(aiohttp_server, ssl_ctx
                         server = await aiohttp_server(app, ssl=ssl_ctx)
                         await server.start_server(loop=loop)
 
-                        with pytest.raises(aiohttp.ClientConnectorSSLError) as error_exec:
+                        with pytest.raises(Exception) as error_exec:
                             client = await aiohttp_client(server)
                             await client.get('/foglamp/ping')
                         assert "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed" in str(error_exec)
 
-                        with pytest.raises(aiohttp.ClientConnectorSSLError) as error_exec:
+                        with pytest.raises(Exception) as error_exec:
                             # self signed certificate,
                             # and we are not using SSL context here for client as verifier
                             connector = aiohttp.TCPConnector(verify_ssl=True, loop=loop)

@@ -24,6 +24,7 @@ from foglamp.services.core.api import north
 from foglamp.services.core.api import filters
 from foglamp.services.core.api import notification
 from foglamp.services.core.api.plugins import install as plugins_install
+from foglamp.services.core.api.plugins import update as plugins_update
 from foglamp.services.core.api.snapshot import plugins as snapshot_plugins
 from foglamp.services.core.api.snapshot import table as snapshot_table
 
@@ -159,10 +160,11 @@ def setup(app):
     # Get Syslog
     app.router.add_route('GET', '/foglamp/syslog', support.get_syslog_entries)
 
-    # Plugins (install, discovery)
+    # Plugins (install, discovery, update)
     app.router.add_route('GET', '/foglamp/plugins/installed', plugin_discovery.get_plugins_installed)
     app.router.add_route('GET', '/foglamp/plugins/available', plugin_discovery.get_plugins_available)
     app.router.add_route('POST', '/foglamp/plugins', plugins_install.add_plugin)
+    app.router.add_route('PUT', '/foglamp/plugins/{type}/{name}/update', plugins_update.update_plugin)
 
     # Filters 
     app.router.add_route('POST', '/foglamp/filter', filters.create_filter)

@@ -24,7 +24,7 @@ __version__ = "${VERSION}"
 class TestMiddleware:
 
     @pytest.fixture
-    def client(self, loop, test_server, test_client):
+    def client(self, loop, aiohttp_server, aiohttp_client):
         async def handler0(request):
             raise RuntimeError('Error text')
 
@@ -45,9 +45,9 @@ class TestMiddleware:
         app.router.add_route('GET', '/test-web-ex2', handler2)
         app.router.add_route('GET', '/test-okay', handler4)
 
-        server = loop.run_until_complete(test_server(app))
-        server.start_server(loop=loop)
-        client = loop.run_until_complete(test_client(server))
+        server = loop.run_until_complete(aiohttp_server(app))
+        loop.run_until_complete(server.start_server(loop=loop))
+        client = loop.run_until_complete(aiohttp_client(server))
         return client
 
     async def test_middleware_for_unhandled_exception(self, client):

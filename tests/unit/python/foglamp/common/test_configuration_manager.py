@@ -842,9 +842,14 @@ class TestConfigurationManager:
         ((2, 'catvalue', 'catdesc'), "category_name must be a string"),
         (('catname', 'catvalue', 3), "category_description must be a string")
     ])
-    async def test_bad_create_category(self, reset_singleton, payload, message):
+    @pytest.mark.asyncio
+    async def test_bad_create_category(self, reset_singleton, mocker, payload, message):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
+
+        mocker.patch.object(AuditLogger, '__init__', return_value=None)
+        mocker.patch.object(AuditLogger, 'information', return_value=asyncio.sleep(.1))
+
         with pytest.raises(Exception) as excinfo:
             await c_mgr.create_category(category_name=payload[0], category_value=payload[1], category_description=payload[2])
         assert excinfo.type is TypeError

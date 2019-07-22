@@ -44,7 +44,7 @@ class TestUtils:
 
     utils._MAX_ATTEMPTS = 2
 
-    async def test_ping_service_pass(self, test_server, loop):
+    async def test_ping_service_pass(self, aiohttp_server, loop):
         # GIVEN a service is running at a given URL
         app = web.Application()
         with patch.object(FoglampMicroservice, "__init__", return_value=None):
@@ -53,8 +53,8 @@ class TestUtils:
             # fill route table
             routes.setup(app, m)
 
-            server = await test_server(app)
-            server.start_server(loop=loop)
+            server = await aiohttp_server(app)
+            await server.start_server(loop=loop)
 
             # WHEN the service is pinged with a valid URL
             with patch.object(utils._logger, "info") as log:
@@ -67,7 +67,7 @@ class TestUtils:
             assert resp is True
             log.assert_called_once_with(*log_params)
 
-    async def test_ping_service_fail_bad_url(self, test_server, loop):
+    async def test_ping_service_fail_bad_url(self, aiohttp_server, loop):
         # GIVEN a service is running at a given URL
         app = web.Application()
         with patch.object(FoglampMicroservice, "__init__", return_value=None):
@@ -76,8 +76,8 @@ class TestUtils:
             # fill route table
             routes.setup(app, m)
 
-            server = await test_server(app)
-            server.start_server(loop=loop)
+            server = await aiohttp_server(app)
+            await server.start_server(loop=loop)
 
             # WHEN the service is pinged with a BAD URL
             with patch.object(utils._logger, "error") as log:
@@ -91,7 +91,7 @@ class TestUtils:
             assert resp is False
             log.assert_called_once_with(*log_params)
 
-    async def test_shutdown_service_pass(self, test_server, loop):
+    async def test_shutdown_service_pass(self, aiohttp_server, loop):
         # GIVEN a service is running at a given URL
         app = web.Application()
         with patch.object(FoglampMicroservice, "__init__", return_value=None):
@@ -99,8 +99,8 @@ class TestUtils:
             # fill route table
             routes.setup(app, m)
 
-            server = await test_server(app)
-            server.start_server(loop=loop)
+            server = await aiohttp_server(app)
+            await server.start_server(loop=loop)
 
             # WHEN shutdown call is made at the valid URL
             with patch.object(utils._logger, "info") as log:
@@ -116,7 +116,7 @@ class TestUtils:
             log.assert_called_with(*log_params2)
             assert 2 == log.call_count
 
-    async def test_shutdown_service_fail_bad_url(self, test_server, loop):
+    async def test_shutdown_service_fail_bad_url(self, aiohttp_server, loop):
         # GIVEN a service is running at a given URL
         app = web.Application()
         with patch.object(FoglampMicroservice, "__init__", return_value=None):
@@ -124,8 +124,8 @@ class TestUtils:
             # fill route table
             routes.setup(app, m)
 
-            server = await test_server(app)
-            server.start_server(loop=loop)
+            server = await aiohttp_server(app)
+            await server.start_server(loop=loop)
 
             # WHEN shutdown call is made at the invalid URL
             with patch.object(utils._logger, "info") as log1:

@@ -134,13 +134,15 @@ class TestE2EKafka:
 
         ping_response = self.get_ping_status(foglamp_url)
         assert 1 == ping_response["dataRead"]
-        assert 1 == ping_response["dataSent"]
+        if not skip_verify_north_interface:
+            assert 1 == ping_response["dataSent"]
 
         actual_stats_map = self.get_statistics_map(foglamp_url)
         assert 1 == actual_stats_map[ASSET_NAME.upper()]
-        assert 1 == actual_stats_map["NorthReadingsTo{}".format(NORTH_PLUGIN_NAME)]
         assert 1 == actual_stats_map['READINGS']
-        assert 1 == actual_stats_map['Readings Sent']
+        if not skip_verify_north_interface:
+            assert 1 == actual_stats_map['Readings Sent']
+            assert 1 == actual_stats_map["NorthReadingsTo{}".format(NORTH_PLUGIN_NAME)]
 
         conn.request("GET", '/foglamp/asset')
         r = conn.getresponse()

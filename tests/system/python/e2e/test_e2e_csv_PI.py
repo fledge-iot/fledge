@@ -130,13 +130,15 @@ def test_e2e_csv_pi(start_south_north, read_data_from_pi, foglamp_url, pi_host, 
 
     ping_response = get_ping_status(foglamp_url)
     assert len(CSV_DATA) == ping_response["dataRead"]
-    assert len(CSV_DATA) == ping_response["dataSent"]
+    if not skip_verify_north_interface:
+        assert len(CSV_DATA) == ping_response["dataSent"]
 
     actual_stats_map = get_statistics_map(foglamp_url)
     assert len(CSV_DATA) == actual_stats_map[asset_name.upper()]
-    assert len(CSV_DATA) == actual_stats_map['NorthReadingsToPI']
     assert len(CSV_DATA) == actual_stats_map['READINGS']
-    assert len(CSV_DATA) == actual_stats_map['Readings Sent']
+    if not skip_verify_north_interface:
+        assert len(CSV_DATA) == actual_stats_map['Readings Sent']
+        assert len(CSV_DATA) == actual_stats_map['NorthReadingsToPI']
 
     conn.request("GET", '/foglamp/asset')
     r = conn.getresponse()

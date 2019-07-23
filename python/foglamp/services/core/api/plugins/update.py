@@ -4,6 +4,7 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
+import asyncio
 import os
 import logging
 import uuid
@@ -61,17 +62,16 @@ async def update_plugin(request: web.Request) -> web.Response:
                 if sch_info[0]['enabled'] == 't':
                     status, reason = await server.Server.scheduler.disable_schedule(uuid.UUID(sch_info[0]['id']))
                     if status:
-                        _logger.warning("{} {} instance is disabled as {} plugin is updating..".format(p['service'], _type, p['plugin']))
+                        _logger.warning("{} {} instance is disabled as {} plugin is updating..".format(
+                            p['service'], _type, p['plugin']))
                         sch_list.append(sch_info[0]['id'])
-        retcode, msg = update_repo_sources_and_plugin(_type, name)
-        if retcode != 0:
-            _logger.error("Plugin update failed..{}".format(msg))
 
-        # Restart the services which were disabled before plugin update
-        for s in sch_list:
-            await server.Server.scheduler.enable_schedule(uuid.UUID(s))
-
-        # TODO: should run as background task
+        # Plugin update is running as a background task
+        loop = request.loop
+        request._type = _type
+        request._name = name
+        request._sch_list = sch_list
+        loop.call_later(1, do_update, request)
     except KeyError as ex:
         raise web.HTTPNotFound(reason=ex)
     except ValueError as ex:
@@ -79,7 +79,7 @@ async def update_plugin(request: web.Request) -> web.Response:
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
 
-    return web.json_response({"message": "Plugin update in process. Wait for few minutes to complete."})
+    return web.json_response({"message": "{} plugin update in process. Wait for few minutes to complete.".format(name)})
 
 
 async def _get_plugin_and_sch_name_from_asset_tracker(_type: str) -> list:
@@ -97,14 +97,15 @@ async def _get_sch_id_and_enabled_by_name(name) -> list:
     return result['rows']
 
 
-def update_repo_sources_and_plugin(_type:str, name: str) -> tuple:
+def update_repo_sources_and_plugin(_type: str, name: str) -> tuple:
     # Below check is needed for python plugins
     # For Example: installed_plugin_dir=wind_turbine; package_name=wind-turbine
     if "_" in name:
         name = name.replace("_", "-")
 
     # For endpoint curl -X GET http://localhost:8081/foglamp/plugins/available we used
-    # sudo apt list command internal so package name always returns in lowercase; irrespective of package name defined in the configured repo.
+    # sudo apt list command internal so package name always returns in lowercase,
+    # irrespective of package name defined in the configured repo.
     name = name.lower()
     _platform = platform.platform()
     pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
@@ -128,3 +129,16 @@ def update_repo_sources_and_plugin(_type:str, name: str) -> tuple:
     os.remove(stdout_file_path)
 
     return ret_code, msg
+
+
+def do_update(request):
+    _logger.info("{} plugin update starts...".format(request._name))
+    code, msg = update_repo_sources_and_plugin(request._type, request._name)
+    if code != 0:
+        _logger.error("{} plugin update failed due to {}".format(request._name, msg))
+    else:
+        _logger.info("{} plugin update completed.".format(request._name))
+
+    # Restart the services which were disabled before plugin update
+    for s in request._sch_list:
+        asyncio.ensure_future(server.Server.scheduler.enable_schedule(uuid.UUID(s)))

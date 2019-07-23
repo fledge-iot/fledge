@@ -35,13 +35,13 @@ def mock_coro(*args, **kwargs):
 class TestAuthOptional:
 
     @pytest.fixture
-    def client(self, loop, test_server, test_client):
+    def client(self, loop, aiohttp_server, aiohttp_client):
         app = web.Application(loop=loop,  middlewares=[middleware.optional_auth_middleware])
         # fill the routes table
         routes.setup(app)
-        server = loop.run_until_complete(test_server(app))
-        server.start_server(loop=loop)
-        client = loop.run_until_complete(test_client(server))
+        server = loop.run_until_complete(aiohttp_server(app))
+        loop.run_until_complete(server.start_server(loop=loop))
+        client = loop.run_until_complete(aiohttp_client(server))
         return client
 
     async def test_get_roles(self, client):

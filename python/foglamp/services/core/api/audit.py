@@ -229,7 +229,7 @@ async def get_audit_entries(request):
             res.append(r)
 
     except Exception as ex:
-        raise web.HTTPException(reason=str(ex))
+        raise web.HTTPInternalServerError(reason=str(ex))
 
     return web.json_response({'audit': res, 'totalCount': total_count})
 

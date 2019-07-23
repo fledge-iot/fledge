@@ -15,6 +15,7 @@ from foglamp.services.core import connect
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.services.core import server
 from foglamp.common.plugin_discovery import PluginDiscovery
+from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA
 
 
 __author__ = "Ashish Jabble"
@@ -62,11 +63,9 @@ async def update_plugin(request: web.Request) -> web.Response:
                     if status:
                         _logger.warning("{} {} instance is disabled as {} plugin is updating..".format(p['service'], _type, p['plugin']))
                         sch_list.append(sch_info[0]['id'])
-
-        # TODO: fix and uncomment below def for actual update plugin process
-        # retcode = update_repo_sources_and_plugin
-        import time
-        time.sleep(20)
+        retcode, msg = update_repo_sources_and_plugin(_type, name)
+        if retcode != 0:
+            _logger.error("Plugin update failed..{}".format(msg))
 
         # Restart the services which were disabled before plugin update
         for s in sch_list:
@@ -98,12 +97,34 @@ async def _get_sch_id_and_enabled_by_name(name) -> list:
     return result['rows']
 
 
-def update_repo_sources_and_plugin(name: str) -> int:
+def update_repo_sources_and_plugin(_type:str, name: str) -> tuple:
+    # Below check is needed for python plugins
+    # For Example: installed_plugin_dir=wind_turbine; package_name=wind-turbine
+    if "_" in name:
+        name = name.replace("_", "-")
+
+    # For endpoint curl -X GET http://localhost:8081/foglamp/plugins/available we used
+    # sudo apt list command internal so package name always returns in lowercase; irrespective of package name defined in the configured repo.
+    name = name.lower()
     _platform = platform.platform()
     pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
-    cmd = "sudo {} update".format(pkg_mgt)
+    _PATH = _FOGLAMP_DATA + '/plugins/' if _FOGLAMP_DATA else _FOGLAMP_ROOT + '/data/plugins/'
+
+    stdout_file_path = _PATH + "output.txt"
+    if not os.path.exists(_PATH):
+        os.makedirs(_PATH)
+
+    cmd = "sudo {} update > {} 2>&1".format(pkg_mgt, stdout_file_path)
     ret_code = os.system(cmd)
+    msg = ""
     if ret_code == 0:
-        cmd = "sudo {} -y install {}".format(pkg_mgt, name)
+        cmd = "sudo {} -y install foglamp-{}-{} > {} 2>&1".format(pkg_mgt, _type, name, stdout_file_path)
         ret_code = os.system(cmd)
-    return ret_code
+        with open("{}".format(stdout_file_path), 'r') as fh:
+            for line in fh:
+                line = line.rstrip("\n")
+                msg += line
+    # Remove stdout file
+    os.remove(stdout_file_path)
+
+    return ret_code, msg

@@ -271,11 +271,11 @@ class TestSentAndReceiveNotification:
         assert 1 == len(val)
         assert {'sensor': self.SENSOR_VALUE} == val[0]["reading"]
 
-    def configure_rule_with_latest_eval_type(self, foglamp_url, cat_name):
+    def configure_rule_with_single_item_eval_type(self, foglamp_url, cat_name):
         conn = http.client.HTTPConnection(foglamp_url)
         data = {"asset": self.ASSET_NAME,
                 "datapoint": "sensor",
-                "evaluation_type": "latest",
+                "evaluation_data": "Single Item",
                 "condition": ">",
                 "trigger_value": str(self.SENSOR_VALUE - 10),
                 }
@@ -301,7 +301,7 @@ class TestSentAndReceiveNotification:
                 }
         name = data['name']
         _add_notification_instance(foglamp_url, data)
-        self.configure_rule_with_latest_eval_type(foglamp_url, name)
+        self.configure_rule_with_single_item_eval_type(foglamp_url, name)
 
         # upload script NotifyPython35::configure() -> lowercase(categoryName) + _script_ + method_name + ".py"
         cat_name = "delivery{}".format(name)

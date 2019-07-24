@@ -355,6 +355,43 @@ class TestStatistics:
         assert query_patch.called
         assert 2 == query_patch.call_count
 
+    async def test_get_statistics_history_with_multiple_keys(self, client):
+        output = {"interval": 15, 'statistics': [{"READINGS": 1, "PURGED": 0, "UNSENT": 0, "history_ts": "2018-02-20 13:16:24.321589"}, {"READINGS": 0, "PURGED": 0, "UNSENT": 0, "history_ts": "2018-02-20 13:16:09.321589"}]}
+        p1 = {'where': {'value': 'stats collector', 'condition': '=', 'column': 'process_name'}, 'return': ['schedule_interval']}
+        p2 = {'aggregate': {'column': '*', 'operation': 'count'}}
+        p3 = {"where": {"and": {"column": "key", "condition": "=", "value": "READINGS", "or": {"column": "key", "condition": "=", "value": "PURGED", "or": {"column": "key", "condition": "=", "value": "UNSENT"}}}, "column": "1", "condition": "=", "value": 1}, "return": [{"column": "history_ts", "alias": "history_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "key", "value"], "sort": {"direction": "desc", "column": "history_ts"}}
+        @asyncio.coroutine
+        def q_result(*args):
+            table = args[0]
+            payload = args[1]
+
+            if table == 'schedules':
+                assert p1 == json.loads(payload)
+                return {"rows": [{"schedule_interval": "00:00:15"}]}
+
+            if table == 'statistics':
+                assert p2 == json.loads(payload)
+                return {"rows": [{"count_*": 2}]}
+
+            if table == 'statistics_history':
+                assert p3 == json.loads(payload)
+                return {"rows": [{"key": "READINGS", "value": 1, "history_ts": "2018-02-20 13:16:24.321589"},
+                                 {"key": "PURGED", "value": 0, "history_ts": "2018-02-20 13:16:24.321589"},
+                                 {"key": "UNSENT", "value": 0, "history_ts": "2018-02-20 13:16:24.321589"},
+                                 {"key": "READINGS", "value": 0, "history_ts": "2018-02-20 13:16:09.321589"},
+                                 {"key": "PURGED", "value": 0, "history_ts": "2018-02-20 13:16:09.321589"},
+                                 {"key": "UNSENT", "value": 0, "history_ts": "2018-02-20 13:16:09.321589"}]}
+
+        mock_async_storage_client = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=mock_async_storage_client):
+            with patch.object(mock_async_storage_client, 'query_tbl_with_payload', side_effect=q_result) as query_patch:
+                resp = await client.get("/foglamp/statistics/history?key=READINGS,PURGED,UNSENT")
+            assert 200 == resp.status
+            r = await resp.text()
+            assert output == json.loads(r)
+        assert query_patch.called
+        assert 2 == query_patch.call_count
+
     async def test_get_statistics_history_by_key_with_limit(self, client):
         output = {"interval": 15, 'statistics': [{"READINGS": 1, "history_ts": "2018-02-20 13:16:24.321589"}]}
         p1 = {'where': {'value': 'stats collector', 'condition': '=', 'column': 'process_name'}, 'return': ['schedule_interval']}

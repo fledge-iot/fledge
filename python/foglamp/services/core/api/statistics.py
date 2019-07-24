@@ -15,7 +15,6 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-
 _help = """
     -------------------------------------------------------------------------------
     | GET             | /foglamp/statistics                                       |
@@ -57,9 +56,9 @@ async def get_statistics_history(request):
     :Example:
             curl -X GET http://localhost:8081/foglamp/statistics/history?limit=1
             curl -X GET http://localhost:8081/foglamp/statistics/history?key=READINGS
+            curl -X GET http://localhost:8081/foglamp/statistics/history?key=READINGS,PURGED,UNSENT&minutes=60
     """
     storage_client = connect.get_storage_async()
-
     # To find the interval in secs from stats collector schedule
     scheduler_payload = PayloadBuilder().SELECT("schedule_interval").WHERE(
         ['process_name', '=', 'stats collector']).payload()
@@ -76,8 +75,14 @@ async def get_statistics_history(request):
         .ORDER_BY(['history_ts', 'desc']).WHERE(['1', '=', 1]).chain_payload()
 
     if 'key' in request.query:
-        stats_history_chain_payload = PayloadBuilder(stats_history_chain_payload).AND_WHERE(['key', '=', request.query['key']]).chain_payload()
-
+        key = request.query['key']
+        split_list = key.split(',')
+        stats_history_chain_payload = PayloadBuilder(stats_history_chain_payload).AND_WHERE(
+            ['key', '=', split_list[0]]).chain_payload()
+        del split_list[0]
+        for i in split_list:
+            stats_history_chain_payload = PayloadBuilder(stats_history_chain_payload).OR_WHERE(
+                ['key', '=', i]).chain_payload()
     try:
         # get time based graphs for statistics history
         val = 0
@@ -142,5 +147,4 @@ async def get_statistics_history(request):
 
     # Append the last set of records which do not get appended above
     results.append(temp_dict)
-
     return web.json_response({"interval": interval_in_secs, 'statistics': results})

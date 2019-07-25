@@ -81,7 +81,7 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 	PyThreadState* save = PyEval_SaveThread(); // release Python GIT
 	PyGILState_STATE state = PyGILState_Ensure();
 
-	Logger::getLogger()->error("SouthPlugin PythonInterface %s:%d: "
+	Logger::getLogger()->debug("SouthPlugin PythonInterface %s:%d: "
 				   "shimLayerPath=%s, foglampPythonDir=%s, plugin '%s'",
 				   __FUNCTION__,
 				   __LINE__,

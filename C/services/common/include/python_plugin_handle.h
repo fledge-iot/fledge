@@ -76,7 +76,7 @@ class PythonPluginHandle : public PluginHandle
 				// Unable to find PluginInterfaceResolveSymbol entry point
 				Logger::getLogger()->error("Plugin library %s does not support "
 							   "%s function : %s",
-							   m_interfaceObjName,
+							   m_interfaceObjName.c_str(),
 							   "PluginInterfaceResolveSymbol",
 							   dlerror());
 				return NULL;

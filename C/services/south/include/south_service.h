@@ -20,6 +20,20 @@
 
 #define SERVICE_NAME  "FogLAMP South"
 
+/*
+ * Control the throttling of poll based plugins
+ *
+ * If the ingest queue grows then we reduce the poll rate, i.e. increase
+ * the interval between poll calls. If the ingest queue then drops below
+ * the threshold set in the advance configuration we then bring the poll
+ * rate back up.
+ */
+#define SOUTH_THROTTLE_HIGH_PERCENT	50	// Percentage above buffer threshold where we throttle down
+#define SOUTH_THROTTLE_LOW_PERCENT	10	// Percentage above buffer threshold where we throttle up
+#define SOUTH_THROTTLE_PERCENT		10	// The percentage we throttle poll by
+#define SOUTH_THROTTLE_DOWN_INTERVAL	10	// Interval between throttle down attmepts
+#define SOUTH_THROTTLE_UP_INTERVAL	15	// Interval between throttle up attempts
+
 /**
  * The SouthService class. This class is the core
  * of the service that provides south side services
@@ -39,6 +53,7 @@ class SouthService : public ServiceHandler {
 		bool 				loadPlugin();
 		int 				createTimerFd(struct timeval rate);
 		void 				createConfigCategories(DefaultConfigCategory configCategory, std::string parent_name,std::string current_name);
+		void				throttlePoll();
 	private:
 		SouthPlugin			*southPlugin;
 		const std::string&		m_name;
@@ -52,6 +67,13 @@ class SouthService : public ServiceHandler {
 		unsigned int			m_threshold;
 		unsigned long			m_timeout;
 		Ingest				*m_ingest;
+		bool				m_throttle;
+		bool				m_throttled;
+		unsigned int			m_highWater;
+		unsigned int			m_lowWater;
+		struct timeval			m_lastThrottle;
+		struct timeval			m_desiredRate;
+		struct timeval			m_currentRate;
 		int				m_timerfd;
 };
 #endif

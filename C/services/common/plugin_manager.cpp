@@ -15,7 +15,7 @@
 #include <unistd.h>
 #include <plugin_manager.h>
 #include <binary_plugin_handle.h>
-#include <python_plugin_handle.h>
+#include <south_python_plugin_handle.h>
 #include <dirent.h>
 #include <sys/param.h>
 #include "rapidjson/document.h"
@@ -393,7 +393,7 @@ char		buf[MAXPATHLEN];
   strncpy(buf, path.c_str(), sizeof(buf));
   if (buf[0] && access(buf, F_OK|R_OK) == 0)
   {
-	pluginHandle = new PythonPluginHandle(name.c_str(), buf);
+	pluginHandle = new SouthPythonPluginHandle(name.c_str(), buf);
 	hndl = pluginHandle->getHandle();
     if (hndl != NULL)
     {

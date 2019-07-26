@@ -1,0 +1,78 @@
+# -*- coding: utf-8 -*-
+
+# FOGLAMP_BEGIN
+# See: http://foglamp.readthedocs.io/
+# FOGLAMP_END
+
+"""shim layer between Python and C++"""
+
+import os
+import importlib.util
+import sys
+import json
+import logging
+
+from foglamp.common import logger
+from foglamp.common.common import _FOGLAMP_ROOT
+from foglamp.services.core.api.plugins import common
+
+_LOGGER = logger.setup(__name__, level=logging.INFO)
+_plugin = None
+
+_LOGGER.info("Loading shim layer for python plugin '{}', type '{}' ".format(sys.argv[1], sys.argv[2]))
+
+def _plugin_obj():
+    plugin = sys.argv[1]
+    plugin_type = sys.argv[2]
+    plugin_module_path = "{}/python/foglamp/plugins/{}/{}".format(_FOGLAMP_ROOT, plugin_type, plugin)
+    _plugin=common.load_python_plugin(plugin_module_path, plugin, plugin_type)
+    return _plugin
+
+_plugin = _plugin_obj()
+
+def plugin_info():
+    handle = _plugin.plugin_info()
+    handle['config'] = json.dumps(handle['config'])
+    return handle
+
+def plugin_init(config):
+    handle = _plugin.plugin_init(json.loads(config))
+    # TODO: FOGL-1827 - Config item value must be respected as per type given
+    revised_handle = _revised_config_for_json_item(handle)
+    return revised_handle
+
+def plugin_reason(handle):
+    return json.dumps(_plugin.plugin_reason(handle))
+
+def plugin_eval(handle, data):
+    return _plugin.plugin_eval(handle, data)
+
+def plugin_triggers(handle):
+    return json.dumps(_plugin.plugin_triggers(handle))
+
+def plugin_deliver(handle, deliveryName, notificationName, triggerReason, customMessage):
+    return _plugin.plugin_deliver(handle, notificationName, triggerReason, customMessage)
+
+def plugin_reconfigure(handle, new_config):
+    new_handle = _plugin.plugin_reconfigure(handle, json.loads(new_config))
+    # TODO: FOGL-1827 - Config item value must be respected as per type given
+    revised_handle = _revised_config_for_json_item(new_handle)
+    return revised_handle
+
+def plugin_shutdown(handle):
+    return _plugin.plugin_shutdown(handle)
+
+def _revised_config_for_json_item(config):
+    # South C server sends "config" argument as string in which all JSON type items' components,
+    # 'default' and 'value', gets converted to dict during json.loads(). Hence we need to restore
+    # them to str, which is the required format for configuration items.
+    revised_config_handle = {}
+    for k, v in config.items():
+        if isinstance(v, dict):
+            if 'type' in v and v['type'] == 'JSON':
+                if isinstance(v['default'], dict):
+                    v['default'] = json.dumps(v['default'])
+                if isinstance(v['value'], dict):
+                    v['value'] = json.dumps(v['value'])
+        revised_config_handle.update({k: v})
+    return revised_config_handle

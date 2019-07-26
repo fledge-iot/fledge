@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.6.0)
 
-project(south-plugin-python-interface)
+project(notification-plugin-python-interface)
 
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
@@ -9,7 +9,7 @@ set(COMMON_LIB common-lib)
 set(SERVICE_COMMON_LIB services-common-lib)
 
 # Find source files
-file(GLOB SOURCES python_plugin_interface.cpp pyobject_reading_parser.cpp)
+file(GLOB SOURCES python_plugin_interface.cpp)
 
 # Find Python.h 3.x dev/lib package
 pkg_check_modules(PYTHON REQUIRED python3)

@@ -712,11 +712,11 @@ int SouthService::createTimerFd(struct timeval rate)
 }
 
 /**
- * If enable, control the trottling of the poll rate in order to keep
+ * If enabled, control the throttling of the poll rate in order to keep
  * the buffer usage of the service within check.
  *
- * Although this is written as if rate is beign control, which it
- * logically is, the actual values are poll interfaces. Hence reducing
+ * Although this is written as if rate is being control, which it
+ * logically is, the actual values are poll intervals. Hence reducing
  * the poll rate increases the value of m_currentRate.
  */
 void SouthService::throttlePoll()

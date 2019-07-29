@@ -115,16 +115,19 @@ def update_repo_sources_and_plugin(_type: str, name: str) -> tuple:
     if not os.path.exists(_PATH):
         os.makedirs(_PATH)
 
+    msg = ""
     cmd = "sudo {} update > {} 2>&1".format(pkg_mgt, stdout_file_path)
     ret_code = os.system(cmd)
-    msg = ""
+    # sudo apt/yum -y install only happens when update is without any error
     if ret_code == 0:
         cmd = "sudo {} -y install foglamp-{}-{} > {} 2>&1".format(pkg_mgt, _type, name, stdout_file_path)
         ret_code = os.system(cmd)
-        with open("{}".format(stdout_file_path), 'r') as fh:
-            for line in fh:
-                line = line.rstrip("\n")
-                msg += line
+    # stdout_file_path only contains latest output
+    with open("{}".format(stdout_file_path), 'r') as fh:
+        for line in fh:
+            line = line.rstrip("\n")
+            msg += line
+
     # Remove stdout file
     os.remove(stdout_file_path)
 

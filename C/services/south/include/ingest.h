@@ -48,6 +48,7 @@ public:
 	bool		running();
 	void		processQueue();
 	void		waitForQueue();
+	size_t		queueLength() { return m_queue->size(); };
 	void		updateStats(void);
 	int 		createStatsDbEntry(const std::string& assetName);
 

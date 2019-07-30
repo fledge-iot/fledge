@@ -117,7 +117,7 @@ def load_and_fetch_c_hybrid_plugin_info(plugin_name: str, is_config: bool, plugi
 
 
 def fetch_available_packages(package_type: str = "") -> list:
-    plugins = []
+    log_output = []
     plugin_dir = '/plugins/'
     _PATH = _FOGLAMP_DATA + plugin_dir if _FOGLAMP_DATA else _FOGLAMP_ROOT + '/data{}'.format(plugin_dir)
     stdout_file_name = "output.txt"
@@ -144,12 +144,12 @@ def fetch_available_packages(package_type: str = "") -> list:
     with open("{}".format(stdout_file_path), 'r') as fh:
         for line in fh:
             line = line.rstrip("\n")
-            plugins.append(line)
+            log_output.append(line)
 
     # Remove stdout file
     os.remove(stdout_file_path)
 
     if ret_code != 0:
-        raise ValueError(plugins)
+        raise ValueError(log_output)
 
-    return plugins
+    return log_output

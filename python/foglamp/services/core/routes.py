@@ -16,14 +16,13 @@ from foglamp.services.core.api import update
 from foglamp.services.core.api import service
 from foglamp.services.core.api import certificate_store
 from foglamp.services.core.api import support
-from foglamp.services.core.api import plugin_discovery
 from foglamp.services.core.api import task
 from foglamp.services.core.api import asset_tracker
 from foglamp.services.core.api import south
 from foglamp.services.core.api import north
 from foglamp.services.core.api import filters
 from foglamp.services.core.api import notification
-from foglamp.services.core.api.plugins import install as plugins_install
+from foglamp.services.core.api.plugins import install as plugins_install, discovery as plugins_discovery
 from foglamp.services.core.api.plugins import update as plugins_update
 from foglamp.services.core.api.snapshot import plugins as snapshot_plugins
 from foglamp.services.core.api.snapshot import table as snapshot_table
@@ -161,8 +160,8 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/syslog', support.get_syslog_entries)
 
     # Plugins (install, discovery, update)
-    app.router.add_route('GET', '/foglamp/plugins/installed', plugin_discovery.get_plugins_installed)
-    app.router.add_route('GET', '/foglamp/plugins/available', plugin_discovery.get_plugins_available)
+    app.router.add_route('GET', '/foglamp/plugins/installed', plugins_discovery.get_plugins_installed)
+    app.router.add_route('GET', '/foglamp/plugins/available', plugins_discovery.get_plugins_available)
     app.router.add_route('POST', '/foglamp/plugins', plugins_install.add_plugin)
     app.router.add_route('PUT', '/foglamp/plugins/{type}/{name}/update', plugins_update.update_plugin)
 

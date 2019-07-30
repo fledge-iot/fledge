@@ -8,7 +8,6 @@
 import logging
 import os
 import platform
-import subprocess
 import json
 import importlib.util
 from typing import Dict
@@ -134,12 +133,12 @@ def fetch_available_packages(package_type: str = "") -> list:
     ret_code = os.system(cmd)
     # sudo apt/yum -y install only happens when update is without any error
     if ret_code == 0:
-        if 'centos' in _platform or 'redhat' in _platform:
-            cmd = "sudo yum list available foglamp-{}\* | grep foglamp | cut -d . -f1 > {} 2>&1".\
-                format(pkg_type, stdout_file_path)
+        if pkg_mgt == 'yum':
+            cmd = "sudo yum list available foglamp-{}\* | grep foglamp | cut -d . -f1 > {} 2>&1".format(
+                pkg_type, stdout_file_path)
         else:
-            cmd = "sudo apt list | grep foglamp-{} | grep -v installed | cut -d / -f1  > {} 2>&1".\
-                format(pkg_type, stdout_file_path)
+            cmd = "sudo apt list | grep foglamp-{} | grep -v installed | cut -d / -f1  > {} 2>&1".format(
+                pkg_type, stdout_file_path)
         ret_code = os.system(cmd)
 
     with open("{}".format(stdout_file_path), 'r') as fh:
@@ -147,12 +146,10 @@ def fetch_available_packages(package_type: str = "") -> list:
             line = line.rstrip("\n")
             plugins.append(line)
 
-    if ret_code != 0:
-        # Remove stdout file in case of error
-        os.remove(stdout_file_path)
-        raise ValueError(plugins)
-
-    # Remove stdout file in case of success
+    # Remove stdout file
     os.remove(stdout_file_path)
+
+    if ret_code != 0:
+        raise ValueError(plugins)
 
     return plugins

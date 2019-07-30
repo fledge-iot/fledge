@@ -246,20 +246,29 @@ def copy_file_install_requirement(dir_files: list, plugin_type: str, file_name: 
 
 
 def install_package_from_repo(name: str, pkg_mgt: str, version: str) -> tuple:
-    stdout_file_path = "/data/plugins/output.txt"
-    cmd = "sudo {} -y install {}".format(pkg_mgt, name)
-    if version:
-        cmd = "sudo {} -y install {}={}".format(pkg_mgt, name, version)
-
-    ret_code = os.system(cmd + " > {} 2>&1".format(_FOGLAMP_ROOT + stdout_file_path))
     msg = ""
-    with open("{}".format(_FOGLAMP_ROOT + stdout_file_path), 'r') as fh:
+    plugin_dir = '/plugins/'
+    stdout_file_name = "output.txt"
+    stdout_file_path = "/{}/{}".format(_PATH, stdout_file_name)
+
+    if not os.path.exists(_PATH):
+        os.makedirs(_PATH)
+
+    cmd = "sudo {} update > {} 2>&1".format(pkg_mgt, stdout_file_path)
+    ret_code = os.system(cmd)
+    # sudo apt/yum -y install only happens when update is without any error
+    if ret_code == 0:
+        cmd = "sudo {} -y install {}".format(pkg_mgt, name)
+        if version:
+            cmd = "sudo {} -y install {}={}".format(pkg_mgt, name, version)
+
+        ret_code = os.system(cmd + " > {} 2>&1".format(stdout_file_path))
+    with open("{}".format(stdout_file_path), 'r') as fh:
         for line in fh:
             line = line.rstrip("\n")
             msg += line
 
     # Remove stdout file
-    cmd = "{}/extras/C/cmdutil rm {}".format(_FOGLAMP_ROOT, stdout_file_path)
-    subprocess.run([cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+    os.remove(stdout_file_path)
 
     return ret_code, msg

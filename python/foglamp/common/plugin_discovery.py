@@ -10,7 +10,7 @@ import os
 from foglamp.common import logger
 from foglamp.services.core.api import utils
 from foglamp.services.core.api.plugins import common
-from foglamp.plugins.common import utils as api_utils
+from foglamp.plugins.common import utils as common_utils
 
 
 __author__ = "Amarendra K Sinha, Ashish Jabble"
@@ -109,7 +109,7 @@ class PluginDiscovery(object):
                     jdoc = utils.get_plugin_info(name, dir=plugin_type)
                     if jdoc:
                         if 'flag' in jdoc:
-                            if api_utils.bit_at_given_position_set_or_unset(jdoc['flag'], api_utils.DEPRECATED_BIT_POSITION):
+                            if common_utils.bit_at_given_position_set_or_unset(jdoc['flag'], common_utils.DEPRECATED_BIT_POSITION):
                                 raise DeprecationWarning
                         plugin_config = {'name': name,
                                          'type': plugin_type,
@@ -142,7 +142,7 @@ class PluginDiscovery(object):
             # Fetch configuration from the configuration defined in the plugin
             if plugin_info['type'] == plugin_type:
                 if 'flag' in plugin_info:
-                    if api_utils.bit_at_given_position_set_or_unset(plugin_info['flag'], api_utils.DEPRECATED_BIT_POSITION):
+                    if common_utils.bit_at_given_position_set_or_unset(plugin_info['flag'], common_utils.DEPRECATED_BIT_POSITION):
                         raise DeprecationWarning
                 plugin_config = {
                     'name': plugin_info['config']['plugin']['default'],

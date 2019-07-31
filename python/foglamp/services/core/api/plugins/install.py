@@ -72,7 +72,7 @@ async def add_plugin(request: web.Request) -> web.Response:
                 if str(version).count(delimiter) != 2:
                     raise ValueError('Plugin semantic version is incorrect; it should be like X.Y.Z')
 
-            plugins = common.fetch_available_packages()
+            plugins, log_path = common.fetch_available_packages()
             if name not in plugins:
                 raise KeyError('{} plugin is not available for the given repository'.format(name))
 

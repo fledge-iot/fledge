@@ -5,6 +5,7 @@
 # FOGLAMP_END
 
 import logging
+import json
 
 from aiohttp import web
 from foglamp.common.plugin_discovery import PluginDiscovery
@@ -71,13 +72,13 @@ async def get_plugins_available(request: web.Request) -> web.Response:
 
         if package_type and package_type not in ['north', 'south', 'filter', 'notify', 'rule']:
             raise ValueError("Invalid package type. Must be 'north' or 'south' or 'filter' or 'notify' or 'rule'.")
-        plugins = common.fetch_available_packages(package_type)
+        plugins, log_path = common.fetch_available_packages(package_type)
         # foglamp-gui, foglamp-quickstart and foglamp-service-* packages are excluded when no type is given
         if not package_type:
             plugins = [p for p in plugins if not str(p).startswith('foglamp-service-') and p not in ('foglamp-quickstart', 'foglamp-gui')]
-    except ValueError as ex:
-        raise web.HTTPBadRequest(reason=ex)
+    except ValueError as e:
+        raise web.HTTPBadRequest(body=json.dumps({"message": "Fetch plugins available package is failed", "link": str(e)}), reason="Fetch plugins available package is failed")
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
 
-    return web.json_response({"plugins": plugins})
+    return web.json_response({"plugins": plugins, "link": log_path})

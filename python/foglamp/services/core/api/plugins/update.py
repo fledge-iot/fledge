@@ -9,7 +9,6 @@ import os
 import logging
 import uuid
 import platform
-import json
 
 from aiohttp import web
 from foglamp.common import logger
@@ -21,7 +20,7 @@ from foglamp.services.core.api.plugins import common
 
 
 __author__ = "Ashish Jabble"
-__copyright__ = "Copyright (c) 2019 Dianomic Systems Inc."
+__copyright__ = "Copyright (c) 2019, Dianomic Systems Inc."
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 

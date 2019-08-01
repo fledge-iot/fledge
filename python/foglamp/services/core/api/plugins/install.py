@@ -11,6 +11,7 @@ import logging
 import asyncio
 import tarfile
 import hashlib
+import json
 
 from aiohttp import web
 import aiohttp
@@ -19,6 +20,7 @@ import async_timeout
 from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA
 from foglamp.services.core.api.plugins import common
 from foglamp.common import logger
+from foglamp.services.core.api.plugins.exceptions import *
 
 
 __author__ = "Ashish Jabble"
@@ -78,9 +80,9 @@ async def add_plugin(request: web.Request) -> web.Response:
 
             _platform = platform.platform()
             pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
-            code, msg = install_package_from_repo(name, pkg_mgt, version)
+            code, link = install_package_from_repo(name, pkg_mgt, version)
             if code != 0:
-                raise ValueError(msg)
+                raise PackageError(link)
 
             message = "{} is successfully installed".format(name)
         else:
@@ -127,6 +129,9 @@ async def add_plugin(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=str(ex))
     except (TypeError, ValueError) as ex:
         raise web.HTTPBadRequest(reason=str(ex))
+    except PackageError as e:
+        msg = "Plugin installation request failed"
+        raise web.HTTPBadRequest(body=json.dumps({"message": msg, "link": str(e)}), reason=msg)
     except Exception as ex:
         raise web.HTTPException(reason=str(ex))
     else:
@@ -246,13 +251,7 @@ def copy_file_install_requirement(dir_files: list, plugin_type: str, file_name: 
 
 
 def install_package_from_repo(name: str, pkg_mgt: str, version: str) -> tuple:
-    msg = ""
-    stdout_file_name = "output.txt"
-    stdout_file_path = "/{}/{}".format(_PATH, stdout_file_name)
-
-    if not os.path.exists(_PATH):
-        os.makedirs(_PATH)
-
+    stdout_file_path = common.create_log_file(name)
     cmd = "sudo {} update > {} 2>&1".format(pkg_mgt, stdout_file_path)
     ret_code = os.system(cmd)
     # sudo apt/yum -y install only happens when update is without any error
@@ -261,13 +260,9 @@ def install_package_from_repo(name: str, pkg_mgt: str, version: str) -> tuple:
         if version:
             cmd = "sudo {} -y install {}={}".format(pkg_mgt, name, version)
 
-        ret_code = os.system(cmd + " > {} 2>&1".format(stdout_file_path))
-    with open("{}".format(stdout_file_path), 'r') as fh:
-        for line in fh:
-            line = line.rstrip("\n")
-            msg += line
+        ret_code = os.system(cmd + " >> {} 2>&1".format(stdout_file_path))
 
-    # Remove stdout file
-    os.remove(stdout_file_path)
-
-    return ret_code, msg
+    # Replace .log extension from the log filename and return relative link
+    link = stdout_file_path.split("/")[-1].replace(".log", "")
+    link = "log/" + link
+    return ret_code, link

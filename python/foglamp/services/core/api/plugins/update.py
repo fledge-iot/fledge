@@ -9,6 +9,7 @@ import os
 import logging
 import uuid
 import platform
+import json
 
 from aiohttp import web
 from foglamp.common import logger
@@ -16,7 +17,7 @@ from foglamp.services.core import connect
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.services.core import server
 from foglamp.common.plugin_discovery import PluginDiscovery
-from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA
+from foglamp.services.core.api.plugins import common
 
 
 __author__ = "Ashish Jabble"
@@ -42,7 +43,7 @@ async def update_plugin(request: web.Request) -> web.Response:
     _type = request.match_info.get('type', None)
     name = request.match_info.get('name', None)
     try:
-        # TODO: filter and notification types will be handled in future
+        # TODO: FOGL-3063, FOGL-3064
         _type = _type.lower()
         if _type not in ['north', 'south']:
             raise ValueError("Invalid plugin type. Must be 'north' or 'south'")
@@ -109,38 +110,28 @@ def update_repo_sources_and_plugin(_type: str, name: str) -> tuple:
     name = name.lower()
     _platform = platform.platform()
     pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
-    _PATH = _FOGLAMP_DATA + '/plugins/' if _FOGLAMP_DATA else _FOGLAMP_ROOT + '/data/plugins/'
 
-    stdout_file_path = _PATH + "output.txt"
-    if not os.path.exists(_PATH):
-        os.makedirs(_PATH)
-
-    msg = ""
+    stdout_file_path = common.create_log_file(name)
     cmd = "sudo {} update > {} 2>&1".format(pkg_mgt, stdout_file_path)
     ret_code = os.system(cmd)
     # sudo apt/yum -y install only happens when update is without any error
     if ret_code == 0:
-        cmd = "sudo {} -y install foglamp-{}-{} > {} 2>&1".format(pkg_mgt, _type, name, stdout_file_path)
+        cmd = "sudo {} -y install foglamp-{}-{} >> {} 2>&1".format(pkg_mgt, _type, name, stdout_file_path)
         ret_code = os.system(cmd)
-    # stdout_file_path only contains latest output
-    with open("{}".format(stdout_file_path), 'r') as fh:
-        for line in fh:
-            line = line.rstrip("\n")
-            msg += line
 
-    # Remove stdout file
-    os.remove(stdout_file_path)
-
-    return ret_code, msg
+    # Replace .log extension from the log filename and return relative link
+    link = stdout_file_path.split("/")[-1].replace(".log", "")
+    link = "log/" + link
+    return ret_code, link
 
 
 def do_update(request):
     _logger.info("{} plugin update starts...".format(request._name))
-    code, msg = update_repo_sources_and_plugin(request._type, request._name)
+    code, link = update_repo_sources_and_plugin(request._type, request._name)
     if code != 0:
-        _logger.error("{} plugin update failed due to {}".format(request._name, msg))
+        _logger.error("{} plugin update failed. Logs available at {}".format(request._name, link))
     else:
-        _logger.info("{} plugin update completed.".format(request._name))
+        _logger.info("{} plugin update completed. Logs available at {}".format(request._name, link))
 
     # Restart the services which were disabled before plugin update
     for s in request._sch_list:

@@ -11,6 +11,7 @@ from aiohttp import web
 from foglamp.common.plugin_discovery import PluginDiscovery
 from foglamp.services.core.api.plugins import common
 from foglamp.common import logger
+from foglamp.services.core.api.plugins.exceptions import *
 
 __author__ = "Amarendra K Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -77,7 +78,10 @@ async def get_plugins_available(request: web.Request) -> web.Response:
         if not package_type:
             plugins = [p for p in plugins if not str(p).startswith('foglamp-service-') and p not in ('foglamp-quickstart', 'foglamp-gui')]
     except ValueError as e:
-        raise web.HTTPBadRequest(body=json.dumps({"message": "Fetch plugins available package is failed", "link": str(e)}), reason="Fetch plugins available package is failed")
+        raise web.HTTPBadRequest(reason=e)
+    except PackageError as e:
+        msg = "Fetch available plugins package request failed"
+        raise web.HTTPBadRequest(body=json.dumps({"message": msg, "link": str(e)}), reason=msg)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
 

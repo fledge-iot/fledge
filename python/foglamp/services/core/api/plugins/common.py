@@ -17,7 +17,7 @@ from datetime import datetime
 from foglamp.common import logger
 from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA, _FOGLAMP_PLUGIN_PATH
 from foglamp.services.core.api import utils
-
+from foglamp.services.core.api.plugins.exceptions import *
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2019, Dianomic Systems Inc."
@@ -140,12 +140,13 @@ def fetch_available_packages(package_type: str = "") -> tuple:
                 pkg_type, tmp_log_output_fp)
         ret_code = os.system(cmd)
 
+        # Below temporary file is for Output of above command which is needed to return in API response
         with open("{}".format(tmp_log_output_fp), 'r') as fh:
             for line in fh:
                 line = line.rstrip("\n")
                 log_output.append(line)
 
-    # combine output in logs file
+    # combine above output in logs file
     with open("{}".format(stdout_file_path), 'a') as fh:
         fh.write(" \n".join(log_output))
 
@@ -153,28 +154,29 @@ def fetch_available_packages(package_type: str = "") -> tuple:
     if os.path.isfile(tmp_log_output_fp):
         os.remove(tmp_log_output_fp)
 
+    # Replace .log extension from the log filename and return relative link
     link = stdout_file_path.split("/")[-1].replace(".log", "")
     link = "log/" + link
     if ret_code != 0:
-        raise ValueError(link)
+        raise PackageError(link)
     return log_output, link
 
 
-def create_log_file(plugin_name=""):
+def create_log_file(plugin_name: str = "") -> str:
     logs_dir = '/logs/'
     _PATH = _FOGLAMP_DATA + logs_dir if _FOGLAMP_DATA else _FOGLAMP_ROOT + '/data{}'.format(logs_dir)
-    today = datetime.now()
     # YYMMDD-HH-MM-SS-{plugin_name}.log
-    file_spec = today.strftime('%y%m%d-%H-%M-%S')
+    file_spec = datetime.now().strftime('%y%m%d-%H-%M-%S')
     log_file_name = "{}-{}.log".format(file_spec, plugin_name) if plugin_name else "{}.log".format(file_spec)
 
-    # Check logs dir
     if not os.path.exists(_PATH):
         os.makedirs(_PATH)
 
-    # Create log file name
+    # Create empty log file name
     open(_PATH + log_file_name, "w").close()
 
+    # A maximum of _NO_OF_FILES_TO_RETAIN log files will be maintained.
+    # When it exceeds the limit the very first log file will be removed on the basis of creation time
     files = glob.glob("{}*.log".format(_PATH))
     files.sort(key=os.path.getctime)
     if len(files) >= _NO_OF_FILES_TO_RETAIN:

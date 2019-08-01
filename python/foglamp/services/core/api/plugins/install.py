@@ -247,7 +247,6 @@ def copy_file_install_requirement(dir_files: list, plugin_type: str, file_name: 
 
 def install_package_from_repo(name: str, pkg_mgt: str, version: str) -> tuple:
     msg = ""
-    plugin_dir = '/plugins/'
     stdout_file_name = "output.txt"
     stdout_file_path = "/{}/{}".format(_PATH, stdout_file_name)
 

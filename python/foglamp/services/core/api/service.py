@@ -26,6 +26,7 @@ from foglamp.services.core.service_registry import exceptions as service_registr
 from foglamp.common.common import _FOGLAMP_ROOT
 from foglamp.services.core.api.plugins import common
 from foglamp.services.core.api.plugins import install
+from foglamp.services.core.api.plugins.exceptions import *
 
 
 __author__ = "Mark Riddoch, Ashwin Gopalakrishnan, Amarendra K Sinha"
@@ -373,8 +374,9 @@ async def get_available(request: web.Request) -> web.Response:
     """
     try:
         services, log_path = common.fetch_available_packages("service")
-    except ValueError as e:
-        raise web.HTTPBadRequest(body=json.dumps({"message": "Fetch service available package is failed", "link": str(e)}), reason="Fetch service available package is failed")
+    except PackageError as e:
+        msg = "Fetch available service package request failed"
+        raise web.HTTPBadRequest(body=json.dumps({"message": msg, "link": str(e)}), reason=msg)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
 

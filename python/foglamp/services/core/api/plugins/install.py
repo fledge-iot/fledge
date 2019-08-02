@@ -262,7 +262,7 @@ def install_package_from_repo(name: str, pkg_mgt: str, version: str) -> tuple:
 
         ret_code = os.system(cmd + " >> {} 2>&1".format(stdout_file_path))
 
-    # Replace .log extension from the log filename and return relative link
-    link = stdout_file_path.split("/")[-1].replace(".log", "")
+    # relative log file link
+    link = stdout_file_path.split("/")[-1]
     link = "log/" + link
     return ret_code, link

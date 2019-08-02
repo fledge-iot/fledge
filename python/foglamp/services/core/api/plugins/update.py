@@ -118,8 +118,8 @@ def update_repo_sources_and_plugin(_type: str, name: str) -> tuple:
         cmd = "sudo {} -y install foglamp-{}-{} >> {} 2>&1".format(pkg_mgt, _type, name, stdout_file_path)
         ret_code = os.system(cmd)
 
-    # Replace .log extension from the log filename and return relative link
-    link = stdout_file_path.split("/")[-1].replace(".log", "")
+    # relative log file link
+    link = stdout_file_path.split("/")[-1]
     link = "log/" + link
     return ret_code, link
 

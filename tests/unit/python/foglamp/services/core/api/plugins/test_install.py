@@ -236,7 +236,7 @@ class TestPluginInstall:
     async def test_post_bad_plugin_install_package_from_repo(self, client):
         plugin = "foglamp-south-sinusoid"
         param = {"format": "repository", "name": plugin}
-        with patch.object(common, 'fetch_available_packages', return_value=([], 'log/190801-12-41-13')) as patch_fetch_available_package:
+        with patch.object(common, 'fetch_available_packages', return_value=([], 'log/190801-12-41-13.log')) as patch_fetch_available_package:
             resp = await client.post('/foglamp/plugins', data=json.dumps(param))
             assert 404 == resp.status
             assert "'{} plugin is not available for the given repository'".format(plugin) == resp.reason
@@ -246,7 +246,7 @@ class TestPluginInstall:
         plugin = "foglamp-south-sinusoid"
         param = {"format": "repository", "name": plugin}
         msg = "Plugin installation request failed"
-        log_path = "log/190801-13-01-13-{}".format(plugin)
+        log_path = "log/190801-13-01-13-{}.log".format(plugin)
         with patch.object(common, 'fetch_available_packages', side_effect=PackageError(log_path)) as patch_fetch_available_package:
             resp = await client.post('/foglamp/plugins', data=json.dumps(param))
             assert 400 == resp.status
@@ -270,7 +270,7 @@ class TestPluginInstall:
         pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
         with patch.object(common, 'fetch_available_packages',
                           return_value=([plugin_name, "foglamp-north-http",
-                                        "foglamp-service-notification"], 'log/190801-12-41-13')) as patch_fetch_available_package:
+                                        "foglamp-service-notification"], 'log/190801-12-41-13.log')) as patch_fetch_available_package:
             with patch.object(plugins_install, 'install_package_from_repo',
                               return_value=(0, 'Success')) as install_package_patch:
                 resp = await client.post('/foglamp/plugins', data=json.dumps(param))

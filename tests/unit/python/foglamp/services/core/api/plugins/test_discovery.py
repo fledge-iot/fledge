@@ -125,13 +125,14 @@ class TestPluginDiscoveryApi:
         ("?type=notify", ['foglamp-notify-slack'], ['foglamp-notify-slack'])
     ])
     async def test_get_plugins_available(self, client, param, output, result):
-        with patch.object(common, 'fetch_available_packages', return_value=(output, 'log/190801-12-01-05')) as patch_fetch_available_package:
+        log_path = 'log/190801-12-01-05.log'
+        with patch.object(common, 'fetch_available_packages', return_value=(output, log_path)) as patch_fetch_available_package:
             resp = await client.get('/foglamp/plugins/available{}'.format(param))
             assert 200 == resp.status
             r = await resp.text()
             json_response = json.loads(r)
             assert result == json_response['plugins']
-            assert 'log/190801-12-01-05' == json_response['link']
+            assert log_path == json_response['link']
         if param:
             patch_fetch_available_package.assert_called_once_with(param.split("=")[1])
 
@@ -141,7 +142,7 @@ class TestPluginDiscoveryApi:
         assert "Invalid package type. Must be 'north' or 'south' or 'filter' or 'notify' or 'rule'." == resp.reason
 
     async def test_bad_get_plugins_available(self, client):
-        log_path = "log/190801-12-01-05"
+        log_path = "log/190801-12-01-05.log"
         msg = "Fetch available plugins package request failed"
         with patch.object(common, 'fetch_available_packages', side_effect=PackageError(log_path)) as patch_fetch_available_package:
             resp = await client.get('/foglamp/plugins/available')

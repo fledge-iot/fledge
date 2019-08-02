@@ -5,7 +5,7 @@
 # FOGLAMP_END
 
 import os
-
+from pathlib import Path
 from aiohttp import web
 
 from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA
@@ -41,27 +41,28 @@ async def get_logs(request: web.Request) -> web.Response:
     return web.json_response({"logs": found_files})
 
 
-async def get_log_by_name(request: web.Request) -> web.Response:
+async def get_log_by_name(request: web.Request) -> web.FileResponse:
     """ GET for a particular log file will return the content of the log file.
 
     :Example:
-        curl -sX GET http://localhost:8081/foglamp/package/log/190801-13-27-36-foglamp-south-randomwalk.log
+        a) Download file
+        curl -O http://localhost:8081/foglamp/package/log/190802-11-45-28-foglamp-south-sinusoid.log
+
+        b) See the content of a file
+        curl -sX GET http://localhost:8081/foglamp/package/log/190802-11-45-28-foglamp-south-sinusoid.log
     """
     # Get logs directory path
     file_name = request.match_info.get('name', None)
     if not file_name.endswith(valid_extension):
         raise web.HTTPBadRequest(reason="Accepted file extension is {}".format(valid_extension))
 
-    for root, dirs, files in os.walk(_get_logs_dir()):
+    logs_root_dir = _get_logs_dir()
+    for root, dirs, files in os.walk(logs_root_dir):
         if str(file_name) not in files:
             raise web.HTTPNotFound(reason='{} file not found'.format(file_name))
 
-    file_content = []
-    with open("{}{}".format(_get_logs_dir(), file_name), 'r') as fh:
-        for line in fh:
-            line = line.rstrip("\n")
-            file_content.append(line)
-    return web.json_response({"result": file_content})
+    fp = Path(logs_root_dir + "/" + str(file_name))
+    return web.FileResponse(path=fp)
 
 
 def _get_logs_dir(_path: str = '/logs/') -> str:

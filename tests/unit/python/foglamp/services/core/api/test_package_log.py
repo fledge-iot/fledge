@@ -7,8 +7,9 @@
 
 import json
 import pathlib
+from pathlib import PosixPath
 
-from unittest.mock import patch, mock_open
+from unittest.mock import Mock, MagicMock, patch, mock_open
 from collections import Counter
 
 from aiohttp import web
@@ -38,15 +39,15 @@ class TestPackageLog:
 
     @pytest.fixture
     def logs_path(self):
-        return pathlib.Path(__file__).parent
+        return "{}/logs".format(pathlib.Path(__file__).parent)
 
     async def test_get_logs(self, client, logs_path):
         files = ["190801-13-21-56.log", "190801-13-18-02-foglamp-north-httpc.log",
                  "190801-14-55-25-foglamp-south-sinusoid.log"]
         response_content = {'logs': files}
-        with patch.object(package_log, '_get_logs_dir', side_effect=[logs_path / 'logs']):
+        with patch.object(package_log, '_get_logs_dir', side_effect=[logs_path]):
             with patch('os.walk') as mockwalk:
-                mockwalk.return_value = [(str(logs_path / 'logs'), [], files)]
+                mockwalk.return_value = [(str(logs_path), [], files)]
                 resp = await client.get('/foglamp/package/log')
                 assert 200 == resp.status
                 res = await resp.text()
@@ -54,7 +55,7 @@ class TestPackageLog:
                 logs = jdict["logs"]
                 assert 3 == len(logs)
                 assert Counter(response_content['logs']) == Counter(logs)
-            mockwalk.assert_called_once_with(logs_path / 'logs')
+            mockwalk.assert_called_once_with(logs_path)
 
     async def test_get_log_by_name_with_invalid_extension(self, client):
         resp = await client.get('/foglamp/package/log/blah.txt')
@@ -63,19 +64,30 @@ class TestPackageLog:
 
     async def test_get_log_by_name_when_it_doesnot_exist(self, client, logs_path):
         files = ["190801-13-18-02-foglamp-north-httpc.log"]
-        with patch.object(package_log, '_get_logs_dir', side_effect=[logs_path / 'logs']):
+        with patch.object(package_log, '_get_logs_dir', side_effect=[logs_path]):
             with patch('os.walk') as mockwalk:
-                mockwalk.return_value = [(str(logs_path / 'logs'), [], files)]
+                mockwalk.return_value = [(str(logs_path), [], files)]
                 resp = await client.get('/foglamp/package/log/190801-13-21-56.log')
                 assert 404 == resp.status
                 assert "190801-13-21-56.log file not found" == resp.reason
 
     async def test_get_log_by_name(self, client, logs_path):
-        with patch.object(package_log, '_get_logs_dir', side_effect=[logs_path / 'logs', logs_path / 'logs/blah.log']):
+        log_filepath = Mock()
+        log_filepath.open = mock_open()
+        log_filepath.is_file.return_value = True
+        log_filepath.stat.return_value = MagicMock()
+        log_filepath.stat.st_size = 1024
+
+        filepath = Mock()
+        filepath.name = '190801-13-21-56.log'
+        filepath.open = mock_open()
+        filepath.with_name.return_value = log_filepath
+        with patch.object(package_log, '_get_logs_dir', return_value=logs_path):
             with patch('os.walk'):
-                with patch('builtins.open', new_callable=mock_open()):
-                    resp = await client.get('/foglamp/package/log/190801-13-21-56.log')
+                with patch("aiohttp.web.FileResponse", return_value=web.FileResponse(path=filepath)) as f_res:
+                    resp = await client.get('/foglamp/package/log/{}'.format(filepath.name))
                     assert 200 == resp.status
-                    res = await resp.text()
-                    jdict = json.loads(res)
-                    assert {'result': []} == jdict
+                    assert 'OK' == resp.reason
+                args, kwargs = f_res.call_args
+                assert {'path': PosixPath(pathlib.Path("{}/{}".format(logs_path, filepath.name)))} == kwargs
+                assert 1 == f_res.call_count

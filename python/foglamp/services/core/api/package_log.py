@@ -5,6 +5,8 @@
 # FOGLAMP_END
 
 import os
+from _datetime import datetime
+
 from pathlib import Path
 from aiohttp import web
 
@@ -38,7 +40,20 @@ async def get_logs(request: web.Request) -> web.Response:
     for root, dirs, files in os.walk(logs_root_dir):
         found_files = [f for f in files if f.endswith(valid_extension)]
 
-    return web.json_response({"logs": found_files})
+    result = []
+    for f in found_files:
+        # Empty log name for update cmd
+        name = ""
+        t1 = f.split(".log")
+        t2 = t1[0].split("-foglamp")
+        t3 = t2[0].split("-")
+        if len(t2) >= 2:
+            name = "foglamp{}".format(t2[1])
+        dt = "{}-{}-{}-{}".format(t3[0], t3[1], t3[2], t3[3])
+        ts = datetime.strptime(dt, "%y%m%d-%H-%M-%S").strftime('%Y-%m-%d %H:%M:%S')
+        result.append({"timestamp": ts, "name": name, "filepath": f})
+
+    return web.json_response({"logs": result})
 
 
 async def get_log_by_name(request: web.Request) -> web.FileResponse:

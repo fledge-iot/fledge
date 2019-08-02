@@ -179,8 +179,8 @@ def create_log_file(plugin_name: str = "") -> str:
     # When it exceeds the limit the very first log file will be removed on the basis of creation time
     files = glob.glob("{}*.log".format(_PATH))
     files.sort(key=os.path.getctime)
-    if len(files) >= _NO_OF_FILES_TO_RETAIN:
-        for f in files[:-(_NO_OF_FILES_TO_RETAIN - 1)]:
+    if len(files) > _NO_OF_FILES_TO_RETAIN:
+        for f in files[:-_NO_OF_FILES_TO_RETAIN]:
             if os.path.isfile(f):
                 os.remove(f)
 

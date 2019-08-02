@@ -51,7 +51,7 @@ async def get_logs(request: web.Request) -> web.Response:
             name = "foglamp{}".format(t2[1])
         dt = "{}-{}-{}-{}".format(t3[0], t3[1], t3[2], t3[3])
         ts = datetime.strptime(dt, "%y%m%d-%H-%M-%S").strftime('%Y-%m-%d %H:%M:%S')
-        result.append({"timestamp": ts, "name": name, "filepath": f})
+        result.append({"timestamp": ts, "name": name, "filename": f})
 
     return web.json_response({"logs": result})
 

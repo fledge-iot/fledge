@@ -53,13 +53,13 @@ class TestPackageLog:
                 jdict = json.loads(res)
                 logs = jdict["logs"]
                 assert 3 == len(logs)
-                assert files[0] == logs[0]['filepath']
+                assert files[0] == logs[0]['filename']
                 assert "2019-08-01 13:21:56" == logs[0]['timestamp']
                 assert "" == logs[0]['name']
-                assert files[1] == logs[1]['filepath']
+                assert files[1] == logs[1]['filename']
                 assert "2019-08-01 13:18:02" == logs[1]['timestamp']
                 assert "foglamp-north-httpc" == logs[1]['name']
-                assert files[2] == logs[2]['filepath']
+                assert files[2] == logs[2]['filename']
                 assert "2019-08-01 14:55:25" == logs[2]['timestamp']
                 assert "foglamp-south-sinusoid" == logs[2]['name']
             mockwalk.assert_called_once_with(logs_path)

@@ -252,15 +252,11 @@ def copy_file_install_requirement(dir_files: list, plugin_type: str, file_name: 
 
 def install_package_from_repo(name: str, pkg_mgt: str, version: str) -> tuple:
     stdout_file_path = common.create_log_file(name)
-    cmd = "sudo {} update > {} 2>&1".format(pkg_mgt, stdout_file_path)
-    ret_code = os.system(cmd)
-    # sudo apt/yum -y install only happens when update is without any error
-    if ret_code == 0:
-        cmd = "sudo {} -y install {}".format(pkg_mgt, name)
-        if version:
-            cmd = "sudo {} -y install {}={}".format(pkg_mgt, name, version)
+    cmd = "sudo {} -y install {}".format(pkg_mgt, name)
+    if version:
+        cmd = "sudo {} -y install {}={}".format(pkg_mgt, name, version)
 
-        ret_code = os.system(cmd + " >> {} 2>&1".format(stdout_file_path))
+    ret_code = os.system(cmd + " > {} 2>&1".format(stdout_file_path))
 
     # relative log file link
     link = stdout_file_path.split("/")[-1]

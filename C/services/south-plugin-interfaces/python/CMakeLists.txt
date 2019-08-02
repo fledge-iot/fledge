@@ -9,7 +9,7 @@ set(COMMON_LIB common-lib)
 set(SERVICE_COMMON_LIB services-common-lib)
 
 # Find source files
-file(GLOB SOURCES python_plugin_interface.cpp pyobject_reading_parser.cpp)
+file(GLOB SOURCES python_plugin_interface.cpp ../../common-plugin-interfaces/python/pyobject_reading_parser.cpp)
 
 # Find Python.h 3.x dev/lib package
 pkg_check_modules(PYTHON REQUIRED python3)

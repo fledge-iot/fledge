@@ -537,5 +537,106 @@ static void logErrorMessage()
 	Py_CLEAR(pValue);
 	Py_CLEAR(pTraceback);
 }
-};
 
+/**
+ * Create a list od dict Python object (PyList) from
+ * a vector of Readind pointers
+ *
+ * @param    readings	The input readings vector
+ * @return		PyList object on success or NULL on errors
+ */
+PyObject* createReadingsList(const std::vector<Reading *>& readings)
+{
+	// TODO add checks to all PyList_XYZ methods
+	PyObject* readingsList = PyList_New(0);
+
+	// Iterate the input readings
+	for (std::vector<Reading *>::const_iterator elem = readings.begin();
+                                                      elem != readings.end();
+                                                      ++elem)
+	{
+		// Create an object (dict) with 'asset_code' and 'readings' key
+		PyObject* readingObject = PyDict_New();
+
+		// Create object (dict) for reading Datapoints:
+		// this will be added as vale for key 'readings'
+		PyObject* newDataPoints = PyDict_New();
+
+		// Get all datapoints
+		std::vector<Datapoint *>& dataPoints = (*elem)->getReadingData();
+		for (auto it = dataPoints.begin(); it != dataPoints.end(); ++it)
+		{
+			PyObject* value;
+			DatapointValue::dataTagType dataType = (*it)->getData().getType();
+
+			if (dataType == DatapointValue::dataTagType::T_INTEGER)
+			{
+				value = PyLong_FromLong((*it)->getData().toInt());
+			}
+			else if (dataType == DatapointValue::dataTagType::T_FLOAT)
+			{
+				value = PyFloat_FromDouble((*it)->getData().toDouble());
+			}
+			else
+			{
+				value = PyUnicode_FromString((*it)->getData().toString().c_str());
+			}
+
+			// Add Datapoint: key and value
+			PyObject* key = PyUnicode_FromString((*it)->getName().c_str());
+			PyDict_SetItem(newDataPoints,
+					key,
+					value);
+			
+			Py_CLEAR(key);
+			Py_CLEAR(value);
+		}
+
+		// Add reading datapoints
+		PyDict_SetItemString(readingObject, "readings", newDataPoints);
+
+		// Add reading asset name
+		PyObject* assetVal = PyUnicode_FromString((*elem)->getAssetName().c_str());
+		PyDict_SetItemString(readingObject, "asset", assetVal);
+
+		/**
+		 * Set id, uuid, timestamp and user_timestamp
+		 */
+
+		// Add reading id
+		PyObject* readingId = PyLong_FromUnsignedLong((*elem)->getId());
+		PyDict_SetItemString(readingObject, "id", readingId);
+
+		// Add reading uuid
+		PyObject* assetKey = PyUnicode_FromString((*elem)->getUuid().c_str());
+		PyDict_SetItemString(readingObject, "uuid", assetKey);
+
+		// Add reading timestamp
+		//PyObject* readingTs = PyLong_FromUnsignedLong((*elem)->getTimestamp());
+		PyObject* readingTs =
+			PyUnicode_FromString(((*elem)->getAssetDateTime(Reading::FMT_DEFAULT) + "+00:00").c_str());
+		PyDict_SetItemString(readingObject, "ts", readingTs);
+
+		// Add reading user timestamp
+		//PyObject* readingUserTs = PyLong_FromUnsignedLong((*elem)->getUserTimestamp());
+		PyObject* readingUserTs =
+			PyUnicode_FromString(((*elem)->getAssetDateUserTime(Reading::FMT_DEFAULT) + "+00:00").c_str());
+		PyDict_SetItemString(readingObject, "user_ts", readingUserTs);
+
+		// Add new object to the list
+		PyList_Append(readingsList, readingObject);
+
+		// Remove temp objects
+		Py_CLEAR(newDataPoints);
+		Py_CLEAR(assetVal);
+		Py_CLEAR(readingId);
+		Py_CLEAR(assetKey);
+		Py_CLEAR(readingTs);
+		Py_CLEAR(readingUserTs);
+		Py_CLEAR(readingObject);
+	}
+
+	// Return pointer of new allocated list
+	return readingsList;
+}
+}; // End of extern C

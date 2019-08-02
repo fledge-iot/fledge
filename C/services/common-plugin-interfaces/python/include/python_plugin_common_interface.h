@@ -33,7 +33,7 @@ static void logErrorMessage();
  *    - Free up owned references
  *    - Unload python 3.5 interpreter
  */
-static void PluginInterfaceCleanup()
+void PluginInterfaceCleanup()
 {
 	// Decrement pModule reference count
 	Py_CLEAR(pModule);

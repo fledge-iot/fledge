@@ -317,8 +317,14 @@ TEST(CategoriesTest, Count)
 
 TEST(CategoriesTestQuoted, CountQuoted)
 {
+EXPECT_EXIT({
 	ConfigCategories confCategories(categories_quoted);
-	ASSERT_EQ(2, confCategories.length());
+	int num = confCategories.length();
+	if (num != 2)
+	{
+		cerr << "CountQuoted is not 2" << endl;
+	}
+	exit(!(num == 2)); }, ::testing::ExitedWithCode(0), "");
 }
 
 TEST(CategoriesTest, Index)
@@ -396,8 +402,14 @@ TEST(CategoryTest, ExistsTest)
 
 TEST(CategoryTest, getValue)
 {
+EXPECT_EXIT({
 	ConfigCategory confCategory("test", myCategory);
-	ASSERT_EQ(0, confCategory.getValue("name").compare("FogLAMP"));
+	bool ret = confCategory.getValue("name").compare("FogLAMP") == 0;
+	if (!ret)
+	{
+		cerr << "getValue failed" << endl;
+	}
+	exit(!ret); }, ::testing::ExitedWithCode(0), "");
 }
 
 TEST(CategoryTest, getType)
@@ -474,24 +486,28 @@ TEST(CategoryTest, handle_type_JSON_ok)
 
 TEST(CategoryTest, handle_type_JSON_fail)
 {
+EXPECT_EXIT({
+	bool ret = false;
 	try
 	{
 		ConfigCategory confCategory("test", myCategory_JSON_type_without_escaped_default);
 		confCategory.setDescription("Test description");
 
 		// test fails here!
-		ASSERT_TRUE(false);
+		cerr << "setting confCategory must fail" << endl;
 	}
 	catch (exception *e)
 	{
+		ret = true;
 		delete e;
 		// Test ok; exception found
 	} 
 	catch (...)
 	{
+		ret = true;
 		// Test ok; exception found
-		ASSERT_TRUE(true);
 	}
+	exit(!ret); }, ::testing::ExitedWithCode(0), "");
 }
 
 TEST(CategoryTest, enumerationTest)
@@ -598,14 +614,4 @@ TEST(CategoryTest, categoryValues)
         ASSERT_EQ(true, complex.isString("plugin"));
         ASSERT_EQ(true, complex.getValue("plugin").compare("PI_Server_V2") == 0);
         ASSERT_EQ(true, complex.getValue("OMFMaxRetry").compare("3") == 0);
-}
-
-/**
- * Check segfault
- */
-TEST(CategoryTest, minMaxCheckSegFault)
-{
-ASSERT_DEATH({
-	raise(SIGSEGV);
-	 }, "");
 }

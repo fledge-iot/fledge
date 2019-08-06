@@ -10,9 +10,9 @@ using namespace std;
 int main(int argc, char **argv) {
     testing::InitGoogleTest(&argc, argv);
 
-    testing::GTEST_FLAG(repeat) = 1000;
+    testing::GTEST_FLAG(repeat) = 50;
     testing::GTEST_FLAG(shuffle) = true;
-    testing::GTEST_FLAG(break_on_failure) = true;
+    testing::GTEST_FLAG(death_test_style) = "threadsafe";
 
     return RUN_ALL_TESTS();
 }
@@ -36,6 +36,7 @@ class TestFormatDate : public ::testing::TestWithParam<RowFormatDate> {
 
 TEST_P(TestFormatDate, TestConversions)
 {
+EXPECT_EXIT({
 	Connection a;
 	Logger::getLogger()->setMinLevel("debug");
 
@@ -48,8 +49,14 @@ TEST_P(TestFormatDate, TestConversions)
 	string test_case = formatted_date;
 	string expected = p.expected;
 
-	ASSERT_EQ(test_case, expected);
-	ASSERT_EQ(result, p.result);
+	bool ret = test_case.compare(expected) == 0;
+	if (!ret)
+	{
+		cerr << "TestConversions doesn't return expected value" << endl;
+		exit(1);
+	}
+	ret = result == p.result;
+	exit(!ret); }, ::testing::ExitedWithCode(0), "");
 }
 
 INSTANTIATE_TEST_CASE_P(

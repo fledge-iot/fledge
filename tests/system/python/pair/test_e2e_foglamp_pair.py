@@ -150,7 +150,7 @@ class TestE2eFogPairPi:
 
         conn = http.client.HTTPConnection(foglamp_url)
         data = {"name": task_name,
-                "plugin": "{}".format("HttpNorthC"),
+                "plugin": "{}".format("httpc"),
                 "type": "north",
                 "schedule_type": 3,
                 "schedule_day": 0,
@@ -316,15 +316,17 @@ class TestE2eFogPairPi:
 
         remote_ping_response = self.get_ping_status(foglamp_url_remote)
         assert 4 == remote_ping_response["dataRead"]
-        assert 4 == remote_ping_response["dataSent"]
 
         actual_stats_map = self.get_statistics_map(foglamp_url_remote)
         assert 'EXPRESSION' not in actual_stats_map.keys()
         assert 'SINUSOID' not in actual_stats_map.keys()
         assert 4 == actual_stats_map['FOGPAIR_PLAYBACK']
-        assert 4 == actual_stats_map['NorthReadingsToPI']
         assert 4 == actual_stats_map['READINGS']
-        assert 4 == actual_stats_map['Readings Sent']
+
+        if not skip_verify_north_interface:
+            assert 4 == remote_ping_response["dataSent"]
+            assert 4 == actual_stats_map['NorthReadingsToPI']
+            assert 4 == actual_stats_map['Readings Sent']
 
         conn_remote.request("GET", '/foglamp/asset/{}'.format("fogpair_playback"))
         r = conn_remote.getresponse()

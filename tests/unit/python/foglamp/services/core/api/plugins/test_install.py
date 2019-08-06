@@ -14,6 +14,7 @@ from aiohttp import web
 from foglamp.services.core import routes
 from foglamp.services.core.api.plugins import install as plugins_install
 from foglamp.services.core.api.plugins import common
+from foglamp.services.core.api.plugins.exceptions import *
 
 
 __author__ = "Ashish Jabble"
@@ -235,10 +236,25 @@ class TestPluginInstall:
     async def test_post_bad_plugin_install_package_from_repo(self, client):
         plugin = "foglamp-south-sinusoid"
         param = {"format": "repository", "name": plugin}
-        with patch.object(common, 'fetch_available_packages', return_value=[]) as patch_fetch_available_package:
+        with patch.object(common, 'fetch_available_packages', return_value=([], 'log/190801-12-41-13.log')) as patch_fetch_available_package:
             resp = await client.post('/foglamp/plugins', data=json.dumps(param))
             assert 404 == resp.status
             assert "'{} plugin is not available for the given repository'".format(plugin) == resp.reason
+        patch_fetch_available_package.assert_called_once_with()
+
+    async def test_package_error_exception_on_install_package_from_repo(self, client):
+        plugin = "foglamp-south-sinusoid"
+        param = {"format": "repository", "name": plugin}
+        msg = "Plugin installation request failed"
+        log_path = "log/190801-13-01-13-{}.log".format(plugin)
+        with patch.object(common, 'fetch_available_packages', side_effect=PackageError(log_path)) as patch_fetch_available_package:
+            resp = await client.post('/foglamp/plugins', data=json.dumps(param))
+            assert 400 == resp.status
+            assert msg == resp.reason
+            result = await resp.text()
+            json_response = json.loads(result)
+            assert log_path == json_response['link']
+            assert msg == json_response['message']
         patch_fetch_available_package.assert_called_once_with()
 
     @pytest.mark.parametrize("plugin_name", [
@@ -253,8 +269,8 @@ class TestPluginInstall:
         _platform = platform.platform()
         pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
         with patch.object(common, 'fetch_available_packages',
-                          return_value=[plugin_name, "foglamp-north-http",
-                                        "foglamp-service-notification"]) as patch_fetch_available_package:
+                          return_value=([plugin_name, "foglamp-north-http",
+                                        "foglamp-service-notification"], 'log/190801-12-41-13.log')) as patch_fetch_available_package:
             with patch.object(plugins_install, 'install_package_from_repo',
                               return_value=(0, 'Success')) as install_package_patch:
                 resp = await client.post('/foglamp/plugins', data=json.dumps(param))

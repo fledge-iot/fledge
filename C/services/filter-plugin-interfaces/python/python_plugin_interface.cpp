@@ -26,10 +26,6 @@ using namespace std;
 
 extern "C" {
 
-// Python object to instantiate
-PyObject* pModule = NULL;
-string sPluginName;
-
 // This is a C++ ReadingSet class instance passed through
 typedef ReadingSet READINGSET;
 // Data handle passed to function pointer
@@ -52,22 +48,32 @@ extern PyObject* createReadingsList(const vector<Reading *>& readings);
  */
 void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 {
-	if (!pModule)
+	if (!pythonModules)
+	{
+		Logger::getLogger()->error("pythonModules map is NULL "
+					   "in filter_plugin_ingest_fn plugin '%s'",
+					   gPluginName.c_str());
+		return;
+	}
+
+	auto it = pythonModules->find(gPluginName);
+	if (it == pythonModules->end() ||
+	    !it->second)
 	{
 		Logger::getLogger()->fatal("plugin_handle: plugin_ingest(): "
 					   "pModule is NULL for plugin '%s'",
-					   sPluginName.c_str());
+					   gPluginName.c_str());
 		return;
 	}
 	PyObject* pFunc;
 	PyGILState_STATE state = PyGILState_Ensure();
 	// Fetch required method in loaded object
-	pFunc = PyObject_GetAttrString(pModule, "plugin_ingest");
+	pFunc = PyObject_GetAttrString(it->second, "plugin_ingest");
 	if (!pFunc)
 	{
 		Logger::getLogger()->fatal("Cannot find 'plugin_ingest' "
 					   "method in loaded python module '%s'",
-					   sPluginName.c_str());
+					   gPluginName.c_str());
 	}
 	if (!pFunc || !PyCallable_Check(pFunc))
 	{
@@ -79,7 +85,7 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 
 		Logger::getLogger()->fatal("Cannot call method plugin_ingest"
 					   "in loaded python module '%s'",
-					   sPluginName.c_str());
+					   gPluginName.c_str());
 		Py_CLEAR(pFunc);
 
 		PyGILState_Release(state);
@@ -106,7 +112,7 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 		Py_CLEAR(readingsList);
 		Logger::getLogger()->error("Called python script method plugin_ingest "
 					   ": error while getting result object, plugin '%s'",
-					   sPluginName.c_str());
+					   gPluginName.c_str());
 		logErrorMessage();
 	}
 	else
@@ -114,7 +120,7 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 		Logger::getLogger()->debug("plugin_handle: plugin_ingest: "
 					   "got result object '%p', plugin '%s'",
 					   pReturn,
-					   sPluginName.c_str());
+					   gPluginName.c_str());
 	}
 	Py_CLEAR(pReturn);
 	PyGILState_Release(state);
@@ -140,23 +146,33 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 			  OUTPUT_HANDLE *outHandle,
 			  OUTPUT_STREAM output)
 {
-        if (!pModule)
+	if (!pythonModules)
+	{
+		Logger::getLogger()->error("pythonModules map is NULL "
+					   "in filter_plugin_init_fn, plugin '%s'",
+					   gPluginName.c_str());
+		return NULL;
+	}
+
+	auto it = pythonModules->find(gPluginName);
+	if (it == pythonModules->end() ||
+	    !it->second)
         {
                 Logger::getLogger()->fatal("plugin_handle: plugin_init(): "
                                            "pModule is NULL for plugin '%s'",
-                                           sPluginName.c_str());
+                                           gPluginName.c_str());
                 return NULL;
         }
         PyObject* pFunc;
         PyGILState_STATE state = PyGILState_Ensure();
 
         // Fetch required method in loaded object
-        pFunc = PyObject_GetAttrString(pModule, "plugin_init");
+        pFunc = PyObject_GetAttrString(it->second, "plugin_init");
         if (!pFunc)
         {
                 Logger::getLogger()->fatal("Cannot find 'plugin_init' "
                                            "method in loaded python module '%s'",
-                                           sPluginName.c_str());
+                                           gPluginName.c_str());
         }
 
         if (!pFunc || !PyCallable_Check(pFunc))
@@ -169,7 +185,7 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 
                 Logger::getLogger()->fatal("Cannot call method plugin_init "
                                            "in loaded python module '%s'",
-                                           sPluginName.c_str());
+                                           gPluginName.c_str());
                 Py_CLEAR(pFunc);
 
                 PyGILState_Release(state);
@@ -195,15 +211,15 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
         {
                 Logger::getLogger()->error("Called python script method plugin_init "
                                            ": error while getting result object, plugin '%s'",
-                                           sPluginName.c_str());
+                                           gPluginName.c_str());
                 logErrorMessage();
         }
         else
         {
-                Logger::getLogger()->debug("plugin_handle: plugin_register_init(): "
+                Logger::getLogger()->debug("plugin_handle: filter_plugin_init(): "
                                            "got result object '%p', plugin '%s'",
                                            pReturn,
-                                           sPluginName.c_str());
+                                           gPluginName.c_str());
         }
         PyGILState_Release(state);
 
@@ -221,8 +237,8 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
  */
 void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 {
-        // Set plugin name
-        sPluginName = pluginName;
+	// Set plugin name, also for methods in common-plugin-interfaces/python
+        gPluginName = pluginName;
         // Get FOGLAMP_ROOT dir
         string foglampRootDir(getenv("FOGLAMP_ROOT"));
 
@@ -241,9 +257,13 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 
         string foglampPythonDir = foglampRootDir + "/python";
         // Embedded Python 3.5 initialisation
-        Py_Initialize();
-        PyEval_InitThreads();
-        PyThreadState* save = PyEval_SaveThread(); // release Python GIT
+	if (!Py_IsInitialized())
+	{
+		Py_Initialize();
+		PyEval_InitThreads();
+		PyThreadState* save = PyEval_SaveThread(); // release Python GIT
+	}
+
         PyGILState_STATE state = PyGILState_Ensure();
 
         Logger::getLogger()->debug("SouthPlugin PythonInterface %s:%d: "
@@ -252,7 +272,7 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
                                    __LINE__,
                                    shimLayerPath.c_str(),
                                    foglampPythonDir.c_str(),
-                                   sPluginName.c_str());
+                                   gPluginName.c_str());
 
         // Set Python path for embedded Python 3.5
         // Get current sys.path - borrowed reference
@@ -268,7 +288,7 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
         PySys_SetArgv(argc, argv);
 
         // 2) Import Python script
-        pModule = PyImport_ImportModule(name.c_str());
+        PyObject *pModule = PyImport_ImportModule(name.c_str());
 
         // Check whether the Python module has been imported
         if (!pModule)
@@ -283,15 +303,38 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
                                            name.c_str(), path.c_str(),
                                            pythonScript.c_str(),
                                            shimLayerPath.c_str(),
-                                           sPluginName.c_str());
+                                           gPluginName.c_str());
         }
         else
         {
-                Logger::getLogger()->debug("%s:%d: python module loaded successfully, pModule=%p, plugin '%s'",
-                                           __FUNCTION__,
-                                           __LINE__,
-                                           pModule,
-                                           sPluginName.c_str());
+		std::pair<std::map<string, PyObject*>::iterator, bool> ret;
+		if (pythonModules)
+		{
+			// Add element
+			ret = pythonModules->insert(pair<string, PyObject*>(string(pluginName), pModule));
+		}
+
+		// Check result
+		if (!pythonModules ||
+		    ret.second == false)
+		{
+                	Logger::getLogger()->fatal("%s:%d: python module not added to the map "
+						   "of loaded plugins, pModule=%p, plugin '%s'i, aborting.",
+                        	                   __FUNCTION__,
+                                	           __LINE__,
+                                        	   pModule,
+                	                           gPluginName.c_str());
+			Py_CLEAR(pModule);
+			return NULL;
+		}
+		else
+		{
+                	Logger::getLogger()->debug("%s:%d: python module loaded successfully, pModule=%p, plugin '%s'",
+                        	                   __FUNCTION__,
+                                	           __LINE__,
+                                        	   pModule,
+                	                           gPluginName.c_str());
+		}
         }
 
         PyGILState_Release(state);
@@ -328,7 +371,7 @@ void* PluginInterfaceResolveSymbol(const char *_sym)
 					   "in the Filter Python plugin interface library, "
 					   "loaded plugin '%s'",
 					   _sym,
-					   sPluginName.c_str());
+					   gPluginName.c_str());
 		return NULL;
 	}
 }

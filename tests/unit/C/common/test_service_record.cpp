@@ -10,12 +10,18 @@ using namespace std;
  */
 TEST(ServiceRecordTest, JSON)
 {
+EXPECT_EXIT({
 ServiceRecord serviceRecord("test1", "testType", "http", "localhost", 1234, 4321);
 string json;
 string expected("{ \"name\" : \"test1\",\"type\" : \"testType\",\"protocol\" : \"http\",\"address\" : \"localhost\",\"management_port\" : 4321,\"service_port\" : 1234 }");
 
 	serviceRecord.asJSON(json);
 
-	ASSERT_EQ(json.compare(expected), 0);
+	bool ret = json.compare(expected) == 0;
+	if (!ret)
+	{
+		cerr << "serviceRecord 'test1' asJSON compare failed" << endl;
+	}
+	exit(!(ret)); }, ::testing::ExitedWithCode(0), "");
 }
 

@@ -26,6 +26,7 @@ from foglamp.services.core.api import service
 from foglamp.services.core.api.plugins import common
 from foglamp.services.core.api.service import _logger
 from foglamp.services.core.api.plugins import install
+from foglamp.services.core.api.plugins.exceptions import *
 
 
 __author__ = "Ashwin Gopalakrishnan, Ashish Jabble"
@@ -611,7 +612,7 @@ class TestService:
         param = {"format": "repository", "name": svc_name}
         _platform = platform.platform()
         pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
-        with patch.object(common, 'fetch_available_packages', return_value=[svc_name]) as patch_fetch_available_package:
+        with patch.object(common, 'fetch_available_packages', return_value=([svc_name], 'log/190801-12-19-24')) as patch_fetch_available_package:
             with patch.object(install, 'install_package_from_repo',
                               return_value=(0, 'Success')) as install_package_patch:
                 resp = await client.post('/foglamp/service?action=install', data=json.dumps(param))
@@ -638,19 +639,32 @@ class TestService:
     async def test_post_service_package_from_repo_is_not_available(self, client):
         svc = "foglamp-service-notification"
         param = {"format": "repository", "name": svc}
-        with patch.object(common, 'fetch_available_packages', return_value=[]) as patch_fetch_available_package:
+        with patch.object(common, 'fetch_available_packages', return_value=([], 'log/190801-12-19-24')) as patch_fetch_available_package:
             resp = await client.post('/foglamp/service?action=install', data=json.dumps(param))
             assert 404 == resp.status
             assert "'{} service is not available for the given repository or already installed'".format(svc) == resp.reason
         patch_fetch_available_package.assert_called_once_with('service')
 
     async def test_get_service_available(self, client):
-        with patch.object(common, 'fetch_available_packages', return_value=[]) as patch_fetch_available_package:
+        with patch.object(common, 'fetch_available_packages', return_value=([], 'log/190801-12-19-24')) as patch_fetch_available_package:
             resp = await client.get('/foglamp/service/available')
             assert 200 == resp.status
             result = await resp.text()
             json_response = json.loads(result)
-            assert {'services': []} == json_response
+            assert {'services': [], 'link': 'log/190801-12-19-24'} == json_response
+        patch_fetch_available_package.assert_called_once_with('service')
+
+    async def test_bad_get_service_available(self, client):
+        log_path = "log/190801-12-19-24"
+        msg = "Fetch available service package request failed"
+        with patch.object(common, 'fetch_available_packages', side_effect=PackageError(log_path)) as patch_fetch_available_package:
+            resp = await client.get('/foglamp/service/available')
+            assert 400 == resp.status
+            assert msg == resp.reason
+            r = await resp.text()
+            json_response = json.loads(r)
+            assert log_path == json_response['link']
+            assert msg == json_response['message']
         patch_fetch_available_package.assert_called_once_with('service')
 
     async def test_get_service_installed(self, client):

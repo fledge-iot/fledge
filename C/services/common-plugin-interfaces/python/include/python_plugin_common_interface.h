@@ -10,15 +10,19 @@
  * Author: Massimiliano Pinto, Amandeep Singh Arora
  */
 
+#include <map>
+
 using namespace std;
 
 extern "C" {
-// This is the Python object initialised in:
-// South, Notification, Filter and North python plugin interfaces
-extern PyObject* pModule;
+// This is the map of Python object initialised in each 
+// South, Notification, Filter  plugin interfaces
+static map<string, PyObject*> *pythonModules = new map<string, PyObject *>();;
 
-// PluginName set by PluginInterfaceInit
-extern string sPluginName;
+// Global variable gPluginName set by PluginInterfaceInit:
+// it has a different memory address when set/read by
+// PluginInterfaceInit in South, Filter or Notification
+static string gPluginName;
 
 // Common methods to all plugin interfaces
 static PLUGIN_INFORMATION *plugin_info_fn();
@@ -35,8 +39,31 @@ static void logErrorMessage();
  */
 void PluginInterfaceCleanup()
 {
-	// Decrement pModule reference count
-	Py_CLEAR(pModule);
+	if (!pythonModules)
+	{
+		Logger::getLogger()->error("pythonModules map is NULL "
+					   "in PluginInterfaceCleanup, plugin '%s'",
+					   gPluginName.c_str());
+	}
+	else
+	{
+		// Look for Python module for gPluginName key
+		auto it = pythonModules->find(gPluginName);
+		if (it != pythonModules->end())
+		{
+		
+			// Delete PyObject
+			Py_CLEAR(it->second);
+			// Remove this element
+			pythonModules->erase(it);
+		}
+
+		if (pythonModules->size() == 0)
+		{
+			// Remove map object
+			delete pythonModules;
+		}
+	}
 
 	// Cleanup Python 3.5
 	Py_Finalize();
@@ -115,23 +142,34 @@ static PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal)
  */
 static PLUGIN_INFORMATION *plugin_info_fn()
 {
-	if (!pModule)
+	if (!pythonModules)
+	{
+		Logger::getLogger()->error("pythonModules map is NULL "
+					   "in plugin_info_fn, plugin '%s'",
+					   gPluginName.c_str());
+		return NULL;
+	}
+
+	// Look for Python module for gPluginName key
+	auto it = pythonModules->find(gPluginName);
+	if (it == pythonModules->end() ||
+	    !it->second)
 	{
 		Logger::getLogger()->fatal("plugin_handle: plugin_info(): "
 					   "pModule is NULL for plugin '%s'",
-					   sPluginName.c_str());
+					   gPluginName.c_str());
 		return NULL;
 	}
 	PyObject* pFunc; 
 	PyGILState_STATE state = PyGILState_Ensure();
 
 	// Fetch required method in loaded object
-	pFunc = PyObject_GetAttrString(pModule, "plugin_info");
+	pFunc = PyObject_GetAttrString(it->second, "plugin_info");
 	if (!pFunc)
 	{
 		Logger::getLogger()->fatal("Cannot find method 'plugin_info' "
 					   "in loaded python module '%s'",
-					   sPluginName.c_str());
+					   gPluginName.c_str());
 	}
 
 	if (!pFunc || !PyCallable_Check(pFunc))
@@ -144,7 +182,7 @@ static PLUGIN_INFORMATION *plugin_info_fn()
 
 		Logger::getLogger()->fatal("Cannot call method 'plugin_info' "
 					   "in loaded python module '%s'",
-					   sPluginName.c_str());
+					   gPluginName.c_str());
 		Py_CLEAR(pFunc);
 
 		PyGILState_Release(state);
@@ -163,7 +201,7 @@ static PLUGIN_INFORMATION *plugin_info_fn()
 	{
 		Logger::getLogger()->error("Called python script method 'plugin_info' "
 					    ": error while getting result object, plugin '%s'",
-					   sPluginName.c_str());
+					   gPluginName.c_str());
 		logErrorMessage();
 		info = NULL;
 	}
@@ -188,7 +226,7 @@ static PLUGIN_INFORMATION *plugin_info_fn()
 						   "Updating interface version "
 						   "from '%s' to '2.0.0', plugin '%s'",
 						   info->interface,
-						   sPluginName.c_str());
+						   gPluginName.c_str());
 			delete info->interface;
 			char *valStr = new char[6];
 			std::strcpy(valStr, "2.0.0");
@@ -216,23 +254,35 @@ static PLUGIN_INFORMATION *plugin_info_fn()
  */
 static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 {
-	if (!pModule)
+
+	if (!pythonModules)
+	{
+		Logger::getLogger()->error("pythonModules map is NULL "
+					   "in plugin_init_fn, plugin '%s'",
+					   gPluginName.c_str());
+		return NULL;
+	}
+
+	// Look for Python module for gPluginName key
+	auto it = pythonModules->find(gPluginName);
+	if (it == pythonModules->end() ||
+	    !it->second)
 	{
 		Logger::getLogger()->fatal("plugin_handle: plugin_init(): "
 					   "pModule is NULLi for plugin '%s'",
-					   sPluginName.c_str());
+					   gPluginName.c_str());
 		return NULL;
 	}
 	PyObject* pFunc; 
 	PyGILState_STATE state = PyGILState_Ensure();
 
 	// Fetch required method in loaded object
-	pFunc = PyObject_GetAttrString(pModule, "plugin_init");
+	pFunc = PyObject_GetAttrString(it->second, "plugin_init");
 	if (!pFunc)
 	{
 		Logger::getLogger()->fatal("Cannot find method 'plugin_init' "
 					   "in loaded python module '%s'",
-					   sPluginName.c_str());
+					   gPluginName.c_str());
 	}
 
 	if (!pFunc || !PyCallable_Check(pFunc))
@@ -245,7 +295,7 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 
 		Logger::getLogger()->fatal("Cannot call method 'plugin_init' "
 					   "in loaded python module '%s'",
-					   sPluginName.c_str());
+					   gPluginName.c_str());
 		Py_CLEAR(pFunc);
 
 		PyGILState_Release(state);
@@ -268,7 +318,7 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 	{
 		Logger::getLogger()->error("Called python script method plugin_init : "
 					    "error while getting result object, plugin '%s'",
-					   sPluginName.c_str());
+					   gPluginName.c_str());
 		logErrorMessage();
 	}
 	else
@@ -277,7 +327,7 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 					   "got handle from python plugin='%p', *handle %p, plugin '%s'",
 					   pReturn,
 					   &pReturn,
-					   sPluginName.c_str());
+					   gPluginName.c_str());
 	}
 	PyGILState_Release(state);
 
@@ -293,18 +343,29 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 static void plugin_reconfigure_fn(PLUGIN_HANDLE* handle,
 				  const std::string& config)
 {
-	if (!pModule)
+	if (!pythonModules)
+	{
+		Logger::getLogger()->error("pythonModules map is NULL "
+					   "in plugin_reconfigure_fn, plugin '%s'",
+					   gPluginName.c_str());
+		return;
+	}
+
+	// Look for Python module for gPluginName key
+	auto it = pythonModules->find(gPluginName);
+	if (it == pythonModules->end() ||
+	    !it->second)
 	{
 		Logger::getLogger()->fatal("plugin_handle: plugin_reconfigure(): "
 					   "pModule is NULL for plugin '%s'",
-					   sPluginName.c_str());
+					   gPluginName.c_str());
 		return;
 	}
 	if (!handle)
 	{
 		Logger::getLogger()->fatal("plugin_handle: plugin_reconfigure(): "
 					   "handle is NULL for plugin '%s'",
-					   sPluginName.c_str());
+					   gPluginName.c_str());
 		return;
 	}
 	std::mutex mtx;
@@ -313,17 +374,17 @@ static void plugin_reconfigure_fn(PLUGIN_HANDLE* handle,
 	PyGILState_STATE state = PyGILState_Ensure();
 
 	Logger::getLogger()->debug("plugin_handle: plugin_reconfigure(): pModule=%p, *handle=%p, plugin '%s'",
-				   pModule,
+				   it->second,
 				   *handle,
-				   sPluginName.c_str());
+				   gPluginName.c_str());
 
 	// Fetch required method in loaded object
-	pFunc = PyObject_GetAttrString(pModule, "plugin_reconfigure");
+	pFunc = PyObject_GetAttrString(it->second, "plugin_reconfigure");
 	if (!pFunc)
 	{
 		Logger::getLogger()->fatal("Cannot find method 'plugin_reconfigure' "
 					   "in loaded python module '%s'",
-					   sPluginName.c_str());
+					   gPluginName.c_str());
 	}
 
 	if (!pFunc || !PyCallable_Check(pFunc))
@@ -336,7 +397,7 @@ static void plugin_reconfigure_fn(PLUGIN_HANDLE* handle,
 
 		Logger::getLogger()->fatal("Cannot call method plugin_reconfigure "
 					   "in loaded python module '%s'",
-					   sPluginName.c_str());
+					   gPluginName.c_str());
 		Py_CLEAR(pFunc);
 
 		PyGILState_Release(state);
@@ -358,7 +419,7 @@ static void plugin_reconfigure_fn(PLUGIN_HANDLE* handle,
 	{
 		Logger::getLogger()->error("Called python script method plugin_reconfigure "
 					    ": error while getting result object, plugin '%s'",
-					   sPluginName.c_str());
+					   gPluginName.c_str());
 		logErrorMessage();
 		//*handle = NULL; // not sure if this should be treated as unrecoverable failure on python plugin side
 	}
@@ -369,7 +430,7 @@ static void plugin_reconfigure_fn(PLUGIN_HANDLE* handle,
 		Logger::getLogger()->debug("plugin_handle: plugin_reconfigure(): "
 					   "got updated handle from python plugin=%p, plugin '%s'",
 					   *handle,
-					   sPluginName.c_str());
+					   gPluginName.c_str());
 	}
 
 	PyGILState_Release(state);
@@ -393,7 +454,7 @@ static void logErrorMessage()
 				    "no error description.";
 	Logger::getLogger()->fatal("logErrorMessage: Error '%s', plugin '%s'",
 				   pErrorMessage,
-				   sPluginName.c_str());
+				   gPluginName.c_str());
 
 	// Reset error
 	PyErr_Clear();
@@ -413,18 +474,29 @@ static void logErrorMessage()
  */
 static void plugin_shutdown_fn(PLUGIN_HANDLE handle)
 {
-	if (!pModule)
+	if (!pythonModules)
+	{
+		Logger::getLogger()->error("pythonModules map is NULL "
+					   "in plugin_shutdown_fn, plugin '%s'",
+					   gPluginName.c_str());
+		return;
+	}
+
+	// Look for Python module for gPluginName key
+	auto it = pythonModules->find(gPluginName);
+	if (it == pythonModules->end() ||
+	    !it->second)
 	{
 		Logger::getLogger()->fatal("plugin_handle: plugin_shutdown(): "
 					   "pModule is NULL for plugin '%s'",
-					   sPluginName.c_str());
+					   gPluginName.c_str());
 		return;
 	}
 	if (!handle)
 	{
 		Logger::getLogger()->fatal("plugin_handle: plugin_shutdown(): "
 					   "handle is NULL for plugin '%s'",
-					   sPluginName.c_str());
+					   gPluginName.c_str());
 		return;
 	}
 
@@ -432,12 +504,12 @@ static void plugin_shutdown_fn(PLUGIN_HANDLE handle)
 	PyGILState_STATE state = PyGILState_Ensure();
 
 	// Fetch required method in loaded object
-	pFunc = PyObject_GetAttrString(pModule, "plugin_shutdown");
+	pFunc = PyObject_GetAttrString(it->second, "plugin_shutdown");
 	if (!pFunc)
 	{
 		Logger::getLogger()->fatal("Cannot find method 'plugin_shutdown' "
 					   "in loaded python module '%s'",
-					   sPluginName.c_str());
+					   gPluginName.c_str());
 	}
 
 	if (!pFunc || !PyCallable_Check(pFunc))
@@ -450,7 +522,7 @@ static void plugin_shutdown_fn(PLUGIN_HANDLE handle)
 
 		Logger::getLogger()->fatal("Cannot call method 'plugin_shutdown' "
 					   "in loaded python module '%s'",
-					   sPluginName.c_str());
+					   gPluginName.c_str());
 		Py_CLEAR(pFunc);
 
 		PyGILState_Release(state);
@@ -469,7 +541,7 @@ static void plugin_shutdown_fn(PLUGIN_HANDLE handle)
 	{       
 		Logger::getLogger()->error("Called python script method plugin_shutdown "
 					    ": error while getting result object, plugin '%s'",
-					   sPluginName.c_str());
+					   gPluginName.c_str());
 		logErrorMessage();
 	}
 	PyGILState_Release(state);

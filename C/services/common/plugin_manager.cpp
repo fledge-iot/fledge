@@ -406,7 +406,14 @@ char		buf[MAXPATHLEN];
         return NULL;
       }
       PLUGIN_INFORMATION *info = (PLUGIN_INFORMATION *)(*infoEntry)();
-	  
+      if (!info)
+      {
+        // Unable to get data from plugin_info entry point
+        logger->error("Python plugin %s cannot get data from plugin_info entry point.\n", name.c_str());
+        delete pluginHandle;
+        return NULL;
+      }
+ 
       if (strcmp(info->type, type.c_str()) != 0)
       {
         // Log error, incorrect plugin type

@@ -26,7 +26,7 @@ from foglamp.services.core.api.plugins import install as plugins_install, discov
 from foglamp.services.core.api.plugins import update as plugins_update
 from foglamp.services.core.api.snapshot import plugins as snapshot_plugins
 from foglamp.services.core.api.snapshot import table as snapshot_table
-
+from foglamp.services.core.api import package_log
 
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
@@ -158,6 +158,10 @@ def setup(app):
 
     # Get Syslog
     app.router.add_route('GET', '/foglamp/syslog', support.get_syslog_entries)
+
+    # Package logs
+    app.router.add_route('GET', '/foglamp/package/log', package_log.get_logs)
+    app.router.add_route('GET', '/foglamp/package/log/{name}', package_log.get_log_by_name)
 
     # Plugins (install, discovery, update)
     app.router.add_route('GET', '/foglamp/plugins/installed', plugins_discovery.get_plugins_installed)

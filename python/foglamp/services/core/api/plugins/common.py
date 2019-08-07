@@ -9,13 +9,15 @@ import logging
 import os
 import platform
 import json
+import glob
 import importlib.util
 from typing import Dict
+from datetime import datetime
 
 from foglamp.common import logger
 from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA, _FOGLAMP_PLUGIN_PATH
 from foglamp.services.core.api import utils
-
+from foglamp.services.core.api.plugins.exceptions import *
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2019, Dianomic Systems Inc."
@@ -24,6 +26,7 @@ __version__ = "${VERSION}"
 
 
 _logger = logger.setup(__name__, level=logging.INFO)
+_NO_OF_FILES_TO_RETAIN = 10
 
 
 def load_python_plugin(plugin_module_path: str, plugin: str, _type: str) -> Dict:
@@ -116,15 +119,10 @@ def load_and_fetch_c_hybrid_plugin_info(plugin_name: str, is_config: bool, plugi
     return plugin_info
 
 
-def fetch_available_packages(package_type: str = "") -> list:
+def fetch_available_packages(package_type: str = "") -> tuple:
     log_output = []
-    plugin_dir = '/plugins/'
-    _PATH = _FOGLAMP_DATA + plugin_dir if _FOGLAMP_DATA else _FOGLAMP_ROOT + '/data{}'.format(plugin_dir)
-    stdout_file_name = "output.txt"
-    stdout_file_path = "/{}/{}".format(_PATH, stdout_file_name)
-    if not os.path.exists(_PATH):
-        os.makedirs(_PATH)
-
+    stdout_file_path = create_log_file()
+    tmp_log_output_fp = stdout_file_path.split('logs/')[:1][0] + "logs/output.txt"
     _platform = platform.platform()
     pkg_type = "" if package_type is None else package_type
     pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
@@ -133,23 +131,57 @@ def fetch_available_packages(package_type: str = "") -> list:
     ret_code = os.system(cmd)
     # sudo apt/yum -y install only happens when update is without any error
     if ret_code == 0:
+        open(tmp_log_output_fp, "w").close()
         if pkg_mgt == 'yum':
             cmd = "sudo yum list available foglamp-{}\* | grep foglamp | cut -d . -f1 > {} 2>&1".format(
-                pkg_type, stdout_file_path)
+                pkg_type, tmp_log_output_fp)
         else:
             cmd = "sudo apt list | grep foglamp-{} | grep -v installed | cut -d / -f1  > {} 2>&1".format(
-                pkg_type, stdout_file_path)
+                pkg_type, tmp_log_output_fp)
         ret_code = os.system(cmd)
 
-    with open("{}".format(stdout_file_path), 'r') as fh:
-        for line in fh:
-            line = line.rstrip("\n")
-            log_output.append(line)
+        # Below temporary file is for Output of above command which is needed to return in API response
+        with open("{}".format(tmp_log_output_fp), 'r') as fh:
+            for line in fh:
+                line = line.rstrip("\n")
+                log_output.append(line)
 
-    # Remove stdout file
-    os.remove(stdout_file_path)
+    # combine above output in logs file
+    with open("{}".format(stdout_file_path), 'a') as fh:
+        fh.write(" \n".join(log_output))
 
+    # Remove tmp_log_output_fp
+    if os.path.isfile(tmp_log_output_fp):
+        os.remove(tmp_log_output_fp)
+
+    # relative log file link
+    link = stdout_file_path.split("/")[-1]
+    link = "log/" + link
     if ret_code != 0:
-        raise ValueError(log_output)
+        raise PackageError(link)
+    return log_output, link
 
-    return log_output
+
+def create_log_file(plugin_name: str = "") -> str:
+    logs_dir = '/logs/'
+    _PATH = _FOGLAMP_DATA + logs_dir if _FOGLAMP_DATA else _FOGLAMP_ROOT + '/data{}'.format(logs_dir)
+    # YYMMDD-HH-MM-SS-{plugin_name}.log
+    file_spec = datetime.now().strftime('%y%m%d-%H-%M-%S')
+    log_file_name = "{}-{}.log".format(file_spec, plugin_name) if plugin_name else "{}.log".format(file_spec)
+
+    if not os.path.exists(_PATH):
+        os.makedirs(_PATH)
+
+    # Create empty log file name
+    open(_PATH + log_file_name, "w").close()
+
+    # A maximum of _NO_OF_FILES_TO_RETAIN log files will be maintained.
+    # When it exceeds the limit the very first log file will be removed on the basis of creation time
+    files = glob.glob("{}*.log".format(_PATH))
+    files.sort(key=os.path.getctime)
+    if len(files) > _NO_OF_FILES_TO_RETAIN:
+        for f in files[:-_NO_OF_FILES_TO_RETAIN]:
+            if os.path.isfile(f):
+                os.remove(f)
+
+    return _PATH + log_file_name

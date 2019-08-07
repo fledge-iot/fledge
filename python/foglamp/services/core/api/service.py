@@ -7,6 +7,7 @@ import os
 import datetime
 import uuid
 import platform
+import json
 from aiohttp import web
 
 from typing import Dict
@@ -25,6 +26,7 @@ from foglamp.services.core.service_registry import exceptions as service_registr
 from foglamp.common.common import _FOGLAMP_ROOT
 from foglamp.services.core.api.plugins import common
 from foglamp.services.core.api.plugins import install
+from foglamp.services.core.api.plugins.exceptions import *
 
 
 __author__ = "Mark Riddoch, Ashwin Gopalakrishnan, Amarendra K Sinha"
@@ -166,7 +168,7 @@ async def add_service(request):
                     if str(version).count(delimiter) != 2:
                         raise ValueError('Service semantic version is incorrect; it should be like X.Y.Z')
 
-                services = common.fetch_available_packages("service")
+                services, log_path = common.fetch_available_packages("service")
                 if name not in services:
                     raise KeyError('{} service is not available for the given repository or already installed'.format(name))
 
@@ -371,13 +373,14 @@ async def get_available(request: web.Request) -> web.Response:
             curl -X GET http://localhost:8081/foglamp/service/available
     """
     try:
-        services = common.fetch_available_packages("service")
-    except ValueError as ex:
-        raise web.HTTPBadRequest(reason=ex)
+        services, log_path = common.fetch_available_packages("service")
+    except PackageError as e:
+        msg = "Fetch available service package request failed"
+        raise web.HTTPBadRequest(body=json.dumps({"message": msg, "link": str(e)}), reason=msg)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
 
-    return web.json_response({"services": services})
+    return web.json_response({"services": services, "link": log_path})
 
 
 async def get_installed(request: web.Request) -> web.Response:

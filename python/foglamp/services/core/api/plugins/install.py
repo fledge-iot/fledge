@@ -16,12 +16,14 @@ import json
 from aiohttp import web
 import aiohttp
 import async_timeout
+from typing import Dict
 
 from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA
 from foglamp.services.core.api.plugins import common
 from foglamp.common import logger
 from foglamp.services.core.api.plugins.exceptions import *
-
+from foglamp.services.core import connect
+from foglamp.common.configuration_manager import ConfigurationManager
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems Inc."
@@ -80,7 +82,7 @@ async def add_plugin(request: web.Request) -> web.Response:
 
             _platform = platform.platform()
             pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
-            code, link = install_package_from_repo(name, pkg_mgt, version)
+            code, link = await install_package_from_repo(name, pkg_mgt, version)
             if code != 0:
                 raise PackageError(link)
 
@@ -250,15 +252,31 @@ def copy_file_install_requirement(dir_files: list, plugin_type: str, file_name: 
     return code, msg
 
 
-def install_package_from_repo(name: str, pkg_mgt: str, version: str) -> tuple:
+async def install_package_from_repo(name: str, pkg_mgt: str, version: str) -> tuple:
     stdout_file_path = common.create_log_file(name)
+    cat_item = await check_upgrade_on_install()
+    if 'value' in cat_item:
+        if cat_item['value'] == "true":
+            cmd = "sudo {} -y upgrade".format(pkg_mgt)
+            ret_code = os.system(cmd + " > {} 2>&1".format(stdout_file_path))
+            link = stdout_file_path.split("/")[-1]
+            link = "log/" + link
+            if ret_code != 0:
+                raise PackageError(link)
+
     cmd = "sudo {} -y install {}".format(pkg_mgt, name)
     if version:
         cmd = "sudo {} -y install {}={}".format(pkg_mgt, name, version)
 
-    ret_code = os.system(cmd + " > {} 2>&1".format(stdout_file_path))
+    ret_code = os.system(cmd + " >> {} 2>&1".format(stdout_file_path))
 
     # relative log file link
     link = stdout_file_path.split("/")[-1]
     link = "log/" + link
     return ret_code, link
+
+
+async def check_upgrade_on_install() -> Dict:
+    cf_mgr = ConfigurationManager(connect.get_storage_async())
+    category_item = await cf_mgr.get_category_item("Installation", "upgradeOnInstall")
+    return category_item

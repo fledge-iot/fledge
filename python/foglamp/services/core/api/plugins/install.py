@@ -254,13 +254,12 @@ def copy_file_install_requirement(dir_files: list, plugin_type: str, file_name: 
 
 async def install_package_from_repo(name: str, pkg_mgt: str, version: str) -> tuple:
     stdout_file_path = common.create_log_file(name)
+    link = "log/" + stdout_file_path.split("/")[-1]
     cat_item = await check_upgrade_on_install()
     if 'value' in cat_item:
         if cat_item['value'] == "true":
             cmd = "sudo {} -y upgrade".format(pkg_mgt)
             ret_code = os.system(cmd + " > {} 2>&1".format(stdout_file_path))
-            link = stdout_file_path.split("/")[-1]
-            link = "log/" + link
             if ret_code != 0:
                 raise PackageError(link)
 
@@ -269,10 +268,6 @@ async def install_package_from_repo(name: str, pkg_mgt: str, version: str) -> tu
         cmd = "sudo {} -y install {}={}".format(pkg_mgt, name, version)
 
     ret_code = os.system(cmd + " >> {} 2>&1".format(stdout_file_path))
-
-    # relative log file link
-    link = stdout_file_path.split("/")[-1]
-    link = "log/" + link
     return ret_code, link
 
 

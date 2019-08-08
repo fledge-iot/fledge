@@ -280,6 +280,6 @@ class TestPluginInstall:
                 assert 200 == resp.status
                 result = await resp.text()
                 response = json.loads(result)
-                assert {"message": "{} is successfully installed".format(plugin_name)} == response
+                assert {"link": "Success", "message": "{} is successfully installed".format(plugin_name)} == response
             install_package_patch.assert_called_once_with(plugin_name, pkg_mgt, None)
         patch_fetch_available_package.assert_called_once_with()

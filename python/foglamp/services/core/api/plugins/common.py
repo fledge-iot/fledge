@@ -155,8 +155,7 @@ def fetch_available_packages(package_type: str = "") -> tuple:
         os.remove(tmp_log_output_fp)
 
     # relative log file link
-    link = stdout_file_path.split("/")[-1]
-    link = "log/" + link
+    link = "log/" + stdout_file_path.split("/")[-1]
     if ret_code != 0:
         raise PackageError(link)
     return log_output, link

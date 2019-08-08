@@ -86,7 +86,7 @@ async def add_plugin(request: web.Request) -> web.Response:
             if code != 0:
                 raise PackageError(link)
 
-            message = "{} is successfully installed".format(name)
+            result_payload = {"message": "{} is successfully installed".format(name), "link": link}
         else:
             if not url or not checksum:
                 raise TypeError('URL, checksum params are required')
@@ -126,7 +126,7 @@ async def add_plugin(request: web.Request) -> web.Response:
                 if code != 0:
                     raise ValueError(msg)
 
-            message = "{} is successfully downloaded and installed".format(file_name)
+            result_payload = {"message": "{} is successfully downloaded and installed".format(file_name)}
     except (FileNotFoundError, KeyError) as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except (TypeError, ValueError) as ex:
@@ -137,7 +137,7 @@ async def add_plugin(request: web.Request) -> web.Response:
     except Exception as ex:
         raise web.HTTPException(reason=str(ex))
     else:
-        return web.json_response({"message": message})
+        return web.json_response(result_payload)
 
 
 async def get_url(url: str, session: aiohttp.ClientSession) -> str:

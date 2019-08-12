@@ -244,6 +244,15 @@ class Server:
     running_in_safe_mode = False
     """ FogLAMP running in Safe mode """
 
+    _INSTALLATION_DEFAULT_CONFIG = {
+        'upgradeOnInstall': {
+            'description': 'Run upgrade prior to installing new software',
+            'type': 'boolean',
+            'default': 'false',
+            'displayName': 'Upgrade on Install'
+        }
+    }
+
     service_app, service_server, service_server_handler = None, None, None
     core_app, core_server, core_server_handler = None, None, None
 
@@ -385,6 +394,24 @@ class Server:
                 cls._service_description = config['description']['value']
             except KeyError:
                 cls._service_description = 'FogLAMP REST Services'
+        except Exception as ex:
+            _logger.exception(str(ex))
+            raise
+
+    @classmethod
+    async def installation_config(cls):
+        """
+        Get the installation level configuration
+        """
+        try:
+            config = cls._INSTALLATION_DEFAULT_CONFIG
+            category = 'Installation'
+
+            if cls._configuration_manager is None:
+                _logger.error("No configuration manager available")
+            await cls._configuration_manager.create_category(category, config, 'Installation', True,
+                                                             display_name='Installation')
+            await cls._configuration_manager.get_category_all_items(category)
         except Exception as ex:
             _logger.exception(str(ex))
             raise
@@ -621,7 +648,7 @@ class Server:
         # Create the parent category for all general configuration categories
         try:
             await cls._configuration_manager.create_category("General", {}, 'General', True)
-            await cls._configuration_manager.create_child_category("General", ["service", "rest_api"])
+            await cls._configuration_manager.create_child_category("General", ["service", "rest_api", "Installation"])
         except KeyError:
             _logger.error('Failed to create General parent configuration category for service')
             raise
@@ -742,6 +769,9 @@ class Server:
             # registering now only when service_port is ready to listen the request
             # TODO: if ssl then register with protocol https
             cls._register_core(host, cls.core_management_port, service_server_port)
+
+            # Installation category
+            loop.run_until_complete(cls.installation_config())
 
             # Create the configuration category parents
             loop.run_until_complete(cls._config_parents())

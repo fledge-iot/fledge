@@ -265,6 +265,9 @@ class TestPluginInstall:
         'foglamp-rule-outofbound'
     ])
     async def test_post_plugins_install_package_from_repo(self, client, plugin_name):
+        async def async_mock(return_value):
+            return return_value
+
         param = {"format": "repository", "name": plugin_name}
         _platform = platform.platform()
         pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
@@ -272,11 +275,11 @@ class TestPluginInstall:
                           return_value=([plugin_name, "foglamp-north-http",
                                         "foglamp-service-notification"], 'log/190801-12-41-13.log')) as patch_fetch_available_package:
             with patch.object(plugins_install, 'install_package_from_repo',
-                              return_value=(0, 'Success')) as install_package_patch:
+                              return_value=async_mock((0, 'Success'))) as install_package_patch:
                 resp = await client.post('/foglamp/plugins', data=json.dumps(param))
                 assert 200 == resp.status
                 result = await resp.text()
                 response = json.loads(result)
-                assert {"message": "{} is successfully installed".format(plugin_name)} == response
+                assert {"link": "Success", "message": "{} is successfully installed".format(plugin_name)} == response
             install_package_patch.assert_called_once_with(plugin_name, pkg_mgt, None)
         patch_fetch_available_package.assert_called_once_with()

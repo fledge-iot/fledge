@@ -80,6 +80,22 @@ class TestServer:
     async def test_service_config(self):
         pass
 
+    async def test__installation_config(self):
+        async def async_mock(return_value):
+            return return_value
+
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        Server._configuration_manager = ConfigurationManager(storage_client_mock)
+
+        with patch.object(Server._configuration_manager, 'create_category',
+                          return_value=async_mock([])) as patch_create_cat:
+            with patch.object(Server._configuration_manager, 'get_category_all_items',
+                              return_value=async_mock([])) as patch_get_all_cat:
+                await Server.installation_config()
+            patch_get_all_cat.assert_called_once_with('Installation')
+        patch_create_cat.assert_called_once_with('Installation', Server._INSTALLATION_DEFAULT_CONFIG, 'Installation',
+                                                 True, display_name='Installation')
+
     @pytest.mark.asyncio
     @pytest.mark.skip(reason="To be implemented")
     async def test__make_app(self):

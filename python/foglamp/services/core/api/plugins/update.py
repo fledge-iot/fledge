@@ -119,8 +119,7 @@ def update_repo_sources_and_plugin(_type: str, name: str) -> tuple:
         ret_code = os.system(cmd)
 
     # relative log file link
-    link = stdout_file_path.split("/")[-1]
-    link = "log/" + link
+    link = "log/" + stdout_file_path.split("/")[-1]
     return ret_code, link
 
 

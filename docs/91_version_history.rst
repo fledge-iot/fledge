@@ -36,21 +36,19 @@ Release Date: 2019-08-15
 
        - Added support for Raspbian Buster
        - Additional, optional flow control has been added to the south service to prevent it from overwhelming the storage service. This is enabled via the throttling option in the south service advanced configuration.
-       - The system log was becoming flooded with messages from the plugin disco very utility. This utility now logs at the correct level and only logs errors and warning by default.
+       - The system log was becoming flooded with messages from the plugin discovery utility. This utility now logs at the correct level and only logs errors and warning by default.
        - The mechanism for including JSON configuration in C++ plugins has been improved and the macros for the inline coding moved to a standard location to prevent duplication.
        - An option has been added that allows the system to be updated to the latest version of the system packages prior to installing a new plugin or component.
        - A new feature has been added that allows the logs of plugin or other package installation to be retrieved.
        - Installation logs for package installations are now retained and available via the REST API.
        - A  mechanism has been added that allows plugins to be marked as deprecated prior to the removal of these plugins in future releases. Running a deprecated plugin will result in a warning being logged, but otherwise the plugin will operate as normal.
-       - The configuration options regarding notification evaluation of single items and windows has been improved tome it less confusing to end users.
-       - The OverMax and UnderMin notification rules have been combined into a single threshold rule plugin.
        - The FogLAMP Rest API has been updated to add a new entry point that will cause a plugin to be updated from the package repository.
        - An additional API has been added to fetch the set of installed services within a FogLAMP installation.
        - An API has been added that allows the caller to retrieve the list of plugins that are available in the FogLAMP package repository.
        - An API has been added to allow installation of plugins from the FogLAMP RPM repository.
        - The /foglamp/plugins REST API has been extended to allow plugins to be installed from an APT repository.
        - Addition of support for hybrid plugins. A hybrid plugin is a JSON file that defines another plugin to load along with some default configuration for that plugin. This gives a means to create a new plugin by customising the configuration of an existing plugin. An example might be a plugin for a specific modbus device type that uses the generic modbus plugin and a predefined modbus map.
-       - The notification service has been improved to allow the re-trigger time of a notification to be defined by the user on a per notification basis.\n\n
+       - The notification service has been improved to allow the re-trigger time of a notification to be defined by the user on a per notification basis.
        - A new environment variable, FOGLAMP_PLUGIN_PATH has been added to allow plugins to be stored in multiple locations or locations outside of the usual FogLAMP installation directory.
        - Added support for FOGLAMP_PLUGIN_PATH environment variable, that would be used for searching additional directory paths for plugins/filters to use with FogLamp.
        - FogLAMP packages for the Google Coral Edge TPU development board have been made available.
@@ -60,7 +58,6 @@ Release Date: 2019-08-15
 
        - An issue with the notification service becoming unresponsive on the Raspberry Pi Buster release has been resolved.
        - A debug message was being incorrectly logged as an error when adding a Python south plugin. The message level has now been corrected.
-       - A fatal error would be logged on the Buster release for the Raspberry Pi by the notification service and it would become unresponsive. This is now resolved.
        - A problem whereby not all properties of configuration items are updated when a new version of a configuration category is installed has been fixed.
        - The notification service was not correctly honouring the notification types for one shot, toggled and retriggered notifications. This has now be bought in line with the documentation.
 
@@ -111,7 +108,6 @@ Release Date: 2019-08-15
        - A south plugin based on the Google TensorFlow demo model for people recognition has been created. The plugin reads an image from a file and returns the people co-ordinates of the people it detects within the image.
        - A south plugin based not the Google TensorFlow demo model for object detection has been creates.
        - A new north plugin has been added that creates an OPC UA server based on the data ingested by the FogLAMP instance.
-       - A new south plugin has been created that implements a DNP3 master.
        - Support has been added for a Flir Thermal Imaging Camera connected via Modbus TCP. Both a south plugin to gather the data and a filter plugin, to clean the data, have been added.
        - A new south plugin has been created based on the Google TensorFlow demo model that accepts a live feed from a Raspberry Pi camera and classifies the images.
        - A new south plugin has been created based on the Google TensorFlow demo model for object detection. The plugin return object count, name position and confidence data.
@@ -134,6 +130,8 @@ Release Date: 2019-08-15
        - The system information plugin was missing a dependency that would cause it to fail to install on systems that did not already have the package it was depend on installed. This has been resolved.
        - The phidget south plugin reconfiguration method would crash the service on occasions, this has now been resolved.
        - The notification service would sometimes become unresponsive after calling the notify-python35 plugin, this has now been resolved.
+       - The configuration options regarding notification evaluation of single items and windows has been improved to make it less confusing to end users.
+       - The OverMax and UnderMin notification rules have been combined into a single threshold rule plugin.
 
 
 v1.6.0

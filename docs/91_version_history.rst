@@ -36,12 +36,11 @@ Release Date: 2019-08-15
 
        - Added support for Raspbian Buster
        - Additional, optional flow control has been added to the south service to prevent it from overwhelming the storage service. This is enabled via the throttling option in the south service advanced configuration.
-       - The system log was becoming flooded with messages from the plugin discovery utility. This utility now logs at the correct level and only logs errors and warning by default.
        - The mechanism for including JSON configuration in C++ plugins has been improved and the macros for the inline coding moved to a standard location to prevent duplication.
        - An option has been added that allows the system to be updated to the latest version of the system packages prior to installing a new plugin or component.
        - A new feature has been added that allows the logs of plugin or other package installation to be retrieved.
        - Installation logs for package installations are now retained and available via the REST API.
-       - A  mechanism has been added that allows plugins to be marked as deprecated prior to the removal of these plugins in future releases. Running a deprecated plugin will result in a warning being logged, but otherwise the plugin will operate as normal.
+       - A mechanism has been added that allows plugins to be marked as deprecated prior to the removal of these plugins in future releases. Running a deprecated plugin will result in a warning being logged, but otherwise the plugin will operate as normal.
        - The FogLAMP Rest API has been updated to add a new entry point that will cause a plugin to be updated from the package repository.
        - An additional API has been added to fetch the set of installed services within a FogLAMP installation.
        - An API has been added that allows the caller to retrieve the list of plugins that are available in the FogLAMP package repository.
@@ -60,34 +59,33 @@ Release Date: 2019-08-15
        - A debug message was being incorrectly logged as an error when adding a Python south plugin. The message level has now been corrected.
        - A problem whereby not all properties of configuration items are updated when a new version of a configuration category is installed has been fixed.
        - The notification service was not correctly honouring the notification types for one shot, toggled and retriggered notifications. This has now be bought in line with the documentation.
-
+       - The system log was becoming flooded with messages from the plugin discovery utility. This utility now logs at the correct level and only logs errors and warning by default.
+       - Improvements to the REST API allow for selective sets of statistic history to be retrieved. This reduces the size of the returned result set and improves performance.
 
 - **GUI**
 
     - New Features:
 
-       - The GUI was incorrectly showing FogLAMP as down in certain circumstances, this has now been resolved.
        - A new log option has been added to the GUI to show the logs of package installations.
-       - Improved editing of JSON configuration entities in the configuration editor.
        - It is now possible to edit Python scripts directly in the GUI for plugins that load Python snippets.
        - A new log retrieval option has been added to the GUI that will show only notification delivery events. This makes it easier for a user to see what notifications have been sent by the system.
        - The GUI asset graphs have been improved such that multiple tabs are now available for graphing and tabular display of asset data.
        - The GUI menu has been reorder to move the Notifications entry below the South and North entries.
        - FogLAMP now supports password type configuration items. This allows passwords to be hidden from the user in the user interface.
        - Support has been added to the FogLAMP GUI for entry of password fields. Data is obfuscated as it is entered or edited.
-       - Improvements have been made to the asset browser graphs in the GUI to make better use of the available space to show the graph itself.
        - The GUI now shows plugin name and version for each north task defined.
        - The GUI now shows the plugin name and version for each south service that is configured.
        - The GUI has been updated such that it can install new plugins from the FogLAMP package repository for south services and north tasks. A list of available packages from the repository is displayed to allow the user to pick from that list. The FogLAMP instance must have connectivity tot he package repository to allow this feature to succeed.
        - The GUI now supports using certificates to authenticate with the FogLAMP instance.
-       - Improvements to the REST API allow for selective sets of statistic history to be retrieved. This reduces the size of the returned result set and improves performance.
        - The GUI now support password type configuration items. This is used to allow the user to enter passwords or keys and keep the values hidden from onlookers. The data entered is replaced with ‘*' characters in the input field as the user types and will be displayed as '*’ characters when retrieved.
 
     - Bug Fix/Improvements:
 
+       - Improved editing of JSON configuration entities in the configuration editor.
+       - Improvements have been made to the asset browser graphs in the GUI to make better use of the available space to show the graph itself.
+       - The GUI was incorrectly showing FogLAMP as down in certain circumstances, this has now been resolved.
        - An issue in the edit dialog for the north plugin which sometimes prevented the enabled state from being correctly modified has been resolved.
        - Exported CSV data from the GUI would sometimes be missing column headers, these are now always present.
-       - The GUI now supports password obfuscation in the entry and display of password configuration items.
        - The exporting of data as a CSV file in the GUI has been improved such that it no longer outputs the readings as a block of JSON, but rather individual columns. This allows the data to be imported into a spreadsheet with ease.
        - Missing help text has been added for notification trigger and enabled elements.
        - A number of issues in the filter configuration editor have been resolved. These issue meant that sometimes new values were not honoured or when changes were made with multiple filters in a chain only one filter would be updated.

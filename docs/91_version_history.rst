@@ -34,67 +34,35 @@ Release Date: 2019-08-15
 
     - New Features:
 
+       - Added support for Raspbian Buster
        - Additional, optional flow control has been added to the south service to prevent it from overwhelming the storage service. This is enabled via the throttling option in the south service advanced configuration.
        - The system log was becoming flooded with messages from the plugin disco very utility. This utility now logs at the correct level and only logs errors and warning by default.
-       - A new filter has been created that looks for changes in values and only sends full rate data around the time of those changes. At other times the filter can be configured to send reduced rate averages of the data.
-       - The GUI asset graph has been improved to remove the text regarding non-numeric reading data and the display of such data has been improved.
-       - A new south plugin has been created to read the data files produced by a Sarcos Robotics exoskeleton.
        - The mechanism for including JSON configuration in C++ plugins has been improved and the macros for the inline coding moved to a standard location to prevent duplication.
-       - Flir south service has been modified to support the Flir camera range as currently available, i.e. a maximum of 10 areas as opposed to the 20 that were previously supported. This has improved performance, especially on low performance platforms.
        - An option has been added that allows the system to be updated to the latest version of the system packages prior to installing a new plugin or component.
        - A new feature has been added that allows the logs of plugin or other package installation to be retrieved.
        - Installation logs for package installations are now retained and available via the REST API.
-       - 
-       - A new rule plugin has been implemented that will create notifications if the value of a data point moves more than a defined percentage from the average for that data point. A moving average for each data point is calculated by the plugin, this may be a simple average or an exponential moving average.
-       - A new south plugin has been created that supports the DNP3 protocol.
        - A  mechanism has been added that allows plugins to be marked as deprecated prior to the removal of these plugins in future releases. Running a deprecated plugin will result in a warning being logged, but otherwise the plugin will operate as normal.
        - The configuration options regarding notification evaluation of single items and windows has been improved tome it less confusing to end users.
        - The OverMax and UnderMin notification rules have been combined into a single threshold rule plugin.
-       - The OPC UA south plugin has been updated to support subscriptions both using browse names and Node Id’s. Node ID is now the default subscription mechanism as this is much higher performance than traversing the object tree looking at browse names.
-       - The Python 35 filter plugin did not allow the Python code to add attributers to the data. This has now been resolved.
-       - The playback south plugin did not correctly take the timestamp data from he CSV file. An option is now available that will allow this.
-       - The rate filter has been enhanced to accept a list of assets that should be passed through the filter without having the rate of those assets altered.
        - The FogLAMP Rest API has been updated to add a new entry point that will cause a plugin to be updated from the package repository.
-       - A new south plugin has been created based on the Google TensorFlow demo model that accepts a live feed from a Raspberry Pi camera and classifies the images.
-       - A new south plugin has been created based on the Google TensorFlow demo model for object detection. The plugin return object count, name position and confidence data.
        - An additional API has been added to fetch the set of installed services within a FogLAMP installation.
-       - A south plugin based on the Google TensorFlow demo model for people recognition has been created. The plugin reads an image from a file and returns the people co-ordinates of the people it detects within the image.
-       - A south plugin based not the Google TensorFlow demo model for object detection has been creates.
-       - A new north plugin has been added that creates an OPC UA server based on the data ingested by the FogLAMP instance.
-       - Improvements have been made to the performance of the modbus plugin when large numbers of contiguous registers are read. Also the addition of support for floating point values in modbus registers.
-       - A new south plugin has been created that implements a DNP3 master.
-       - Support has been added for a Flir Thermal Imaging Camera connected via Modbus TCP. Both a south plugin to gather the data and a filter plugin, to clean the data, have been added.
-       - A south plugin has been created based on the Google TensorFlow people detection model. It uses a live feed from a video camera and returns data regarding the number of people detected and the position within the frame.
        - An API has been added that allows the caller to retrieve the list of plugins that are available in the FogLAMP package repository.
        - An API has been added to allow installation of plugins from the FogLAMP RPM repository.
        - The /foglamp/plugins REST API has been extended to allow plugins to be installed from an APT repository.
        - Addition of support for hybrid plugins. A hybrid plugin is a JSON file that defines another plugin to load along with some default configuration for that plugin. This gives a means to create a new plugin by customising the configuration of an existing plugin. An example might be a plugin for a specific modbus device type that uses the generic modbus plugin and a predefined modbus map.
-       - Support  for reading floating point values in a pair of 16 bit registers has been added to the modbus plugin.
        - The notification service has been improved to allow the re-trigger time of a notification to be defined by the user on a per notification basis.\n\n
        - A new environment variable, FOGLAMP_PLUGIN_PATH has been added to allow plugins to be stored in multiple locations or locations outside of the usual FogLAMP installation directory.
        - Added support for FOGLAMP_PLUGIN_PATH environment variable, that would be used for searching additional directory paths for plugins/filters to use with FogLamp.
        - FogLAMP packages for the Google Coral Edge TPU development board have been made available.
        - Support has been added to the OMF north plugin for the PI Web API OMF endpoint. The PI Server functionality to support this is currently in beta test.
-       - The GUI now support password type configuration items. This is used to allow the user to enter passwords or keys and keep the values hidden from onlookers. The data entered is replaced with ‘*' characters in the input field as the user types and will be displayed as '*’ characters when retrieved.
 
+    - Bug Fix/Improvements:
 
-    - Bug Fix:
-
-       - The filter plugin python35 crashed on the Buster release on the Rasperberry Pi, this has now been resolved.
-       - The FFT filter now enforces that the number of samples must be a power of 2.
        - An issue with the notification service becoming unresponsive on the Raspberry Pi Buster release has been resolved.
-       - The change filter has been made available on CentOS and RedHat 7 releases.
-       - The ThingSpeak north plugin was not updated in line with changes to the timestamp handling in FogLAMP, this resulted in a crash when it tried to send data to ThingSpeak. This has been resolved and the cause of the crash also fixed such that now an error will be logged rather than the task crashing.
        - A debug message was being incorrectly logged as an error when adding a Python south plugin. The message level has now been corrected.
-       - The notification service would sometimes become unresponsive after calling the notify-python35 plugin, this has now been resolved.
-       - The phidget south plugin reconfiguration method would crash the service on occasions, this has now been resolved.
        - A fatal error would be logged on the Buster release for the Raspberry Pi by the notification service and it would become unresponsive. This is now resolved.
-       - The system information plugin was missing a dependency that would cause it to fail to install on systems that did not already have the package it was depend on installed. This has been resolved.
-       - Added support for Raspbian Buster
        - A problem whereby not all properties of configuration items are updated when a new version of a configuration category is installed has been fixed.
-       - The configuration of the simple expression notification rule plugin has been simplified.
        - The notification service was not correctly honouring the notification types for one shot, toggled and retriggered notifications. This has now be bought in line with the documentation.
-       - The DHT 11 plugin mistakenly had a dependency on the Wiring PI package. This has now been removed.
 
 
 - **GUI**
@@ -116,9 +84,9 @@ Release Date: 2019-08-15
        - The GUI has been updated such that it can install new plugins from the FogLAMP package repository for south services and north tasks. A list of available packages from the repository is displayed to allow the user to pick from that list. The FogLAMP instance must have connectivity tot he package repository to allow this feature to succeed.
        - The GUI now supports using certificates to authenticate with the FogLAMP instance.
        - Improvements to the REST API allow for selective sets of statistic history to be retrieved. This reduces the size of the returned result set and improves performance.
+       - The GUI now support password type configuration items. This is used to allow the user to enter passwords or keys and keep the values hidden from onlookers. The data entered is replaced with ‘*' characters in the input field as the user types and will be displayed as '*’ characters when retrieved.
 
-
-    - Bug Fix:
+    - Bug Fix/Improvements:
 
        - An issue in the edit dialog for the north plugin which sometimes prevented the enabled state from being correctly modified has been resolved.
        - Exported CSV data from the GUI would sometimes be missing column headers, these are now always present.
@@ -130,6 +98,42 @@ Release Date: 2019-08-15
        - The FogLAMP GUI build and start commands did not work on Windows platforms and preventing the running on those platforms. This has now been resolved and the FogLAMP GUI can be built and run on Windows platforms.
        - The GUI was not correctly interpreting the value of the readonly attribute of configuration items when the value was anything other than true. This has been resolved.
        - The FogLAMP GUI RPM package had an error that caused installation to fail on some systems, this is now resolved.
+
+- **Plugins**
+
+    - New Features:
+
+       - A new filter has been created that looks for changes in values and only sends full rate data around the time of those changes. At other times the filter can be configured to send reduced rate averages of the data.
+       - A new south plugin has been created to read the data files produced by a Sarcos Robotics exoskeleton.
+       - A new rule plugin has been implemented that will create notifications if the value of a data point moves more than a defined percentage from the average for that data point. A moving average for each data point is calculated by the plugin, this may be a simple average or an exponential moving average.
+       - A new south plugin has been created that supports the DNP3 protocol.
+       - A south plugin has been created based on the Google TensorFlow people detection model. It uses a live feed from a video camera and returns data regarding the number of people detected and the position within the frame.
+       - A south plugin based on the Google TensorFlow demo model for people recognition has been created. The plugin reads an image from a file and returns the people co-ordinates of the people it detects within the image.
+       - A south plugin based not the Google TensorFlow demo model for object detection has been creates.
+       - A new north plugin has been added that creates an OPC UA server based on the data ingested by the FogLAMP instance.
+       - A new south plugin has been created that implements a DNP3 master.
+       - Support has been added for a Flir Thermal Imaging Camera connected via Modbus TCP. Both a south plugin to gather the data and a filter plugin, to clean the data, have been added.
+       - A new south plugin has been created based on the Google TensorFlow demo model that accepts a live feed from a Raspberry Pi camera and classifies the images.
+       - A new south plugin has been created based on the Google TensorFlow demo model for object detection. The plugin return object count, name position and confidence data.
+       - The change filter has been made available on CentOS and RedHat 7 releases.
+
+    - Bug Fix/Improvements:
+
+       - Support  for reading floating point values in a pair of 16 bit registers has been added to the modbus plugin.
+       - Improvements have been made to the performance of the modbus plugin when large numbers of contiguous registers are read. Also the addition of support for floating point values in modbus registers.
+       - Flir south service has been modified to support the Flir camera range as currently available, i.e. a maximum of 10 areas as opposed to the 20 that were previously supported. This has improved performance, especially on low performance platforms.
+       - The OPC UA south plugin has been updated to support subscriptions both using browse names and Node Id’s. Node ID is now the default subscription mechanism as this is much higher performance than traversing the object tree looking at browse names.
+       - The Python 35 filter plugin did not allow the Python code to add attributers to the data. This has now been resolved.
+       - The playback south plugin did not correctly take the timestamp data from he CSV file. An option is now available that will allow this.
+       - The rate filter has been enhanced to accept a list of assets that should be passed through the filter without having the rate of those assets altered.
+       - The filter plugin python35 crashed on the Buster release on the Rasperberry Pi, this has now been resolved.
+       - The FFT filter now enforces that the number of samples must be a power of 2.
+       - The ThingSpeak north plugin was not updated in line with changes to the timestamp handling in FogLAMP, this resulted in a crash when it tried to send data to ThingSpeak. This has been resolved and the cause of the crash also fixed such that now an error will be logged rather than the task crashing.
+       - The configuration of the simple expression notification rule plugin has been simplified.
+       - The DHT 11 plugin mistakenly had a dependency on the Wiring PI package. This has now been removed.
+       - The system information plugin was missing a dependency that would cause it to fail to install on systems that did not already have the package it was depend on installed. This has been resolved.
+       - The phidget south plugin reconfiguration method would crash the service on occasions, this has now been resolved.
+       - The notification service would sometimes become unresponsive after calling the notify-python35 plugin, this has now been resolved.
 
 
 v1.6.0

@@ -78,6 +78,7 @@ FogLAMP can be built or installed in one of the following Linux distributions :
 - Raspbian
 - Red Hat 7.6
 - CentOS 7.6
+- Mendel
 
 Install the prerequisites on Ubuntu
 -----------------------------------

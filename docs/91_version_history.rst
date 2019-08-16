@@ -101,7 +101,6 @@ Release Date: 2019-08-15
     - New Features:
 
        - A new filter has been created that looks for changes in values and only sends full rate data around the time of those changes. At other times the filter can be configured to send reduced rate averages of the data.
-       - A new south plugin has been created to read the data files produced by a Sarcos Robotics exoskeleton.
        - A new rule plugin has been implemented that will create notifications if the value of a data point moves more than a defined percentage from the average for that data point. A moving average for each data point is calculated by the plugin, this may be a simple average or an exponential moving average.
        - A new south plugin has been created that supports the DNP3 protocol.
        - A south plugin has been created based on the Google TensorFlow people detection model. It uses a live feed from a video camera and returns data regarding the number of people detected and the position within the frame.

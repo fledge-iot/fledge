@@ -338,8 +338,8 @@ bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFil
  */
 void FilterPipeline::cleanupFilters(const string& categoryName)
 {
-	// Cleanup filters
-	for (auto it = m_filters.begin(); it != m_filters.end(); ++it)
+	// Cleanup filters, in reverse order
+	for (auto it = m_filters.rbegin(); it != m_filters.rend(); ++it)
 	{
 		FilterPlugin* filter = *it;
 		//string filterCategoryName =  categoryName + "_" + filter->getName();

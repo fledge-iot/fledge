@@ -38,6 +38,7 @@ Release Date: 2019-08-15
        - Additional, optional flow control has been added to the south service to prevent it from overwhelming the storage service. This is enabled via the throttling option in the south service advanced configuration.
        - The mechanism for including JSON configuration in C++ plugins has been improved and the macros for the inline coding moved to a standard location to prevent duplication.
        - An option has been added that allows the system to be updated to the latest version of the system packages prior to installing a new plugin or component.
+       - FogLAMP now supports password type configuration items. This allows passwords to be hidden from the user in the user interface.
        - A new feature has been added that allows the logs of plugin or other package installation to be retrieved.
        - Installation logs for package installations are now retained and available via the REST API.
        - A mechanism has been added that allows plugins to be marked as deprecated prior to the removal of these plugins in future releases. Running a deprecated plugin will result in a warning being logged, but otherwise the plugin will operate as normal.
@@ -71,13 +72,11 @@ Release Date: 2019-08-15
        - A new log retrieval option has been added to the GUI that will show only notification delivery events. This makes it easier for a user to see what notifications have been sent by the system.
        - The GUI asset graphs have been improved such that multiple tabs are now available for graphing and tabular display of asset data.
        - The GUI menu has been reorder to move the Notifications entry below the South and North entries.
-       - FogLAMP now supports password type configuration items. This allows passwords to be hidden from the user in the user interface.
        - Support has been added to the FogLAMP GUI for entry of password fields. Data is obfuscated as it is entered or edited.
        - The GUI now shows plugin name and version for each north task defined.
        - The GUI now shows the plugin name and version for each south service that is configured.
        - The GUI has been updated such that it can install new plugins from the FogLAMP package repository for south services and north tasks. A list of available packages from the repository is displayed to allow the user to pick from that list. The FogLAMP instance must have connectivity tot he package repository to allow this feature to succeed.
        - The GUI now supports using certificates to authenticate with the FogLAMP instance.
-       - The GUI now support password type configuration items. This is used to allow the user to enter passwords or keys and keep the values hidden from onlookers. The data entered is replaced with ‘*' characters in the input field as the user types and will be displayed as '*’ characters when retrieved.
 
     - Bug Fix/Improvements:
 

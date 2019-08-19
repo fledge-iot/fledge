@@ -174,7 +174,7 @@ async def add_service(request):
 
                 _platform = platform.platform()
                 pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
-                code, msg = install.install_package_from_repo(name, pkg_mgt, version)
+                code, msg = await install.install_package_from_repo(name, pkg_mgt, version)
                 if code != 0:
                     raise ValueError(msg)
 

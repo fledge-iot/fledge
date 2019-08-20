@@ -57,6 +57,7 @@ SYMLINK_STORAGE_BINARY   := $(DEV_SERVICES_DIR)/foglamp.services.storage
 SYMLINK_SOUTH_BINARY     := $(DEV_SERVICES_DIR)/foglamp.services.south
 SYMLINK_NORTH_BINARY     := $(DEV_TASKS_DIR)/sending_process
 ASYNC_INGEST_PYMODULE    := $(CURRENT_DIR)/python/async_ingest.so*
+FILTER_INGEST_PYMODULE    := $(CURRENT_DIR)/python/filter_ingest.so*
 
 # PYTHON BUILD DIRS/FILES
 PYTHON_SRC_DIR := python
@@ -500,3 +501,4 @@ clean :
 	-$(RM_DIR) $(DEV_SERVICES_DIR)
 	-$(RM) $(SYMLINK_PLUGINS_DIR)
 	-$(RM) $(ASYNC_INGEST_PYMODULE)
+	-$(RM) $(FILTER_INGEST_PYMODULE)

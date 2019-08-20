@@ -62,6 +62,7 @@ Release Date: 2019-08-15
        - The notification service was not correctly honouring the notification types for one shot, toggled and retriggered notifications. This has now be bought in line with the documentation.
        - The system log was becoming flooded with messages from the plugin discovery utility. This utility now logs at the correct level and only logs errors and warning by default.
        - Improvements to the REST API allow for selective sets of statistic history to be retrieved. This reduces the size of the returned result set and improves performance.
+       - The order in which filters are shutdown in a pipeline of filters has been reversed to resolve an issue regarding releasing Python interpreters, under some circumstances shutdowns of later filters would fail if multiple Python filters were being used.
 
 - **GUI**
 
@@ -128,6 +129,10 @@ Release Date: 2019-08-15
        - The notification service would sometimes become unresponsive after calling the notify-python35 plugin, this has now been resolved.
        - The configuration options regarding notification evaluation of single items and windows has been improved to make it less confusing to end users.
        - The OverMax and UnderMin notification rules have been combined into a single threshold rule plugin.
+       - The OPCUA south plugin was incorrectly reporting itself as the upcua plugin. This is now resolved.
+       - In order to install the foglamp-south-modbus package on RedHat Enterprise Linux or CentOS 7 you must have configured the epel repository by executing the command:
+
+         `sudo yum install epel-release`
 
 
 v1.6.0

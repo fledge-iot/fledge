@@ -120,21 +120,34 @@ static void filter_plugin_reconfigure_fn(PLUGIN_HANDLE handle,
 					    ": error while getting result object, plugin '%s'",
 					   gPluginName.c_str());
 		logErrorMessage();
-		//*handle = NULL; // not sure if this should be treated as unrecoverable failure on python plugin side
 	}
 	else
 	{
-		// Save curreent handle
-		PyObject* tmp = (PyObject*)handle;
-		// Create a new handle
-		handle = PyObject_Init(pReturn, Py_TYPE(pReturn));
-		// Remove old handle
-		Py_CLEAR(tmp);
+		PyObject* tmp = (PyObject *)handle;
+		// Check current handle is Dict and pReturn is a Dict too
+		if (PyDict_Check(tmp) && PyDict_Check(pReturn))
+		{
+			// Clear Dict content
+			PyDict_Clear(tmp);
+			// Populate hadnle Dict with new data in pReturn
+			PyDict_Update(tmp, pReturn);
+			// Remove pReturn ojbect
+			Py_CLEAR(pReturn);
 
-		Logger::getLogger()->debug("plugin_handle: plugin_reconfigure(): "
-					   "got updated handle from python plugin=%p, plugin '%s'",
-					   handle,
-					   gPluginName.c_str());
+			Logger::getLogger()->debug("plugin_handle: plugin_reconfigure(): "
+						   "got updated handle from python plugin=%p, plugin '%s'",
+						   handle,
+						   gPluginName.c_str());
+		}
+		else
+		{
+			 Logger::getLogger()->error("plugin_handle: plugin_reconfigure(): "
+						    "got object type '%s' instead of Python Dict, "
+						    "python plugin=%p, plugin '%s'",
+						    Py_TYPE(pReturn)->tp_name,
+					   	    handle,
+					  	    gPluginName.c_str());
+		}
 	}
 
 	PyGILState_Release(state);

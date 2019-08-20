@@ -16,6 +16,7 @@
 #include <plugin_manager.h>
 #include <binary_plugin_handle.h>
 #include <south_python_plugin_handle.h>
+#include <notification_python_plugin_handle.h>
 #include <dirent.h>
 #include <sys/param.h>
 #include "rapidjson/document.h"
@@ -393,7 +394,15 @@ char		buf[MAXPATHLEN];
   strncpy(buf, path.c_str(), sizeof(buf));
   if (buf[0] && access(buf, F_OK|R_OK) == 0)
   {
-	pluginHandle = new SouthPythonPluginHandle(name.c_str(), buf);
+	// is it Notification Rule Python plugin ?
+	if (type.compare("notificationRule") == 0)
+	{
+		pluginHandle = new NotificationPythonPluginHandle(name.c_str(), buf);
+	}
+	else
+	{
+		pluginHandle = new SouthPythonPluginHandle(name.c_str(), buf);
+	}
 	hndl = pluginHandle->getHandle();
     if (hndl != NULL)
     {
@@ -517,9 +526,17 @@ void PluginManager::getInstalledPlugins(const string& type,
 	char *plugin_path = getenv("FOGLAMP_PLUGIN_PATH");
 	string paths("");
 	if (home)
+	{
+		// Binary C plugins
 		paths += string(home)+"/plugins";
+
+		// Python Plugins
+		paths += ";"+string(home)+"/python/foglamp/plugins";
+	}
 	if (plugin_path)
+	{
 		paths += (home?";":"")+string(plugin_path);
+	}
 
 	stringstream _paths(paths);
 	

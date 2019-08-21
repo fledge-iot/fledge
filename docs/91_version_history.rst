@@ -133,6 +133,21 @@ Release Date: 2019-08-15
        - In order to install the foglamp-south-modbus package on RedHat Enterprise Linux or CentOS 7 you must have configured the epel repository by executing the command:
 
          `sudo yum install epel-release`
+       - A number of packages have been renamed in order to obtain better consistency in the naming and to facilitate the upgrade of packages from the API and graphical interface to FogLAMP. This will result in duplication of certain plugins after upgrading to the release.  This is only an issue of the plugins had been previously installed, these old plugin should be manually removed form the system to alleviate this problem.
+
+         The plugins involved are,
+
+          * foglamp-north-http Vs foglamp-north-http-north
+
+          * foglamp-south-http Vs foglamp-south-http-south
+
+          * foglamp-south-Csv Vs foglamp-south-csv
+
+          * foglamp-south-Expression Vs foglamp-south-expression
+
+          * foglamp-south-dht Vs foglamp-south-dht11V2
+
+          * foglamp-south-modbusc Vs foglamp-south-modbus
 
 
 v1.6.0

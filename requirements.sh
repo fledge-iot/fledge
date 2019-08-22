@@ -105,6 +105,7 @@ elif apt --version 2>/dev/null; then
 	apt install -y python-dev python3-dev python3-pip
 	apt install -y sqlite3 libsqlite3-dev
 	apt install -y pkg-config
+	apt install -y cpulimit
 	# sudo apt install -y postgresql
 else
 	echo "Requirements cannot be automatically installed, please refer README.rst to install requirements manually"

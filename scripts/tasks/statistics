@@ -18,11 +18,11 @@ fi
 cd "${FOGLAMP_ROOT}/python"
 
 os_name=`(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
-os_version=`(grep -o '^VERSION_ID=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
 
-if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *"7"* ]]; then
+if [[ $os_name == *"Raspbian"*  ]]; then
 
-	python3 -m foglamp.tasks.statistics "$@"
-else
 	cpulimit -l 40 -- python3 -m foglamp.tasks.statistics "$@"
+else
+	# Standard execution on other platforms
+	python3 -m foglamp.tasks.statistics "$@"
 fi

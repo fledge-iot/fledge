@@ -29,7 +29,7 @@ using namespace std;
  * @param serviceName	Name of the service to which this pipeline applies
  */
 FilterPipeline::FilterPipeline(ManagementClient* mgtClient, StorageClient& storage, string serviceName) : 
-			mgtClient(mgtClient), storage(storage), serviceName(serviceName)
+			mgtClient(mgtClient), storage(storage), serviceName(serviceName), m_ready(false)
 {
 }
 
@@ -323,6 +323,9 @@ bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFil
 		Logger::getLogger()->fatal("%s error: %s", __FUNCTION__, errMsg.c_str());
 		return false;
 	}
+
+	// Set filter pipeline is ready for data ingest
+	m_ready = true;
 
 	//Success
 	return true;

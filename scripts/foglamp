@@ -450,7 +450,7 @@ foglamp_status() {
                 echo "0"
             else
 
-                uptime_sec=`echo ${result} | tr -d ' ' | grep -o '"uptime".*' | cut -d":" -f2 | cut -d"." -f1`
+                uptime_sec=`echo ${result} | tr -d ' ' | grep -o '"uptime".*' | cut -d":" -f2 | cut -d"," -f1`
                 record_read=`echo ${result} | tr -d ' ' | grep -o '"dataRead".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/}//g'`
                 record_sent=`echo ${result} | tr -d ' ' | grep -o '"dataSent".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/}//g'`
                 record_purged=`echo ${result} | tr -d ' ' | grep -o '"dataPurged".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/}//g'`

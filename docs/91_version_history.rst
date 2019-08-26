@@ -114,7 +114,6 @@ Release Date: 2019-08-15
        - Support  for reading floating point values in a pair of 16 bit registers has been added to the modbus plugin.
        - Improvements have been made to the performance of the modbus plugin when large numbers of contiguous registers are read. Also the addition of support for floating point values in modbus registers.
        - Flir south service has been modified to support the Flir camera range as currently available, i.e. a maximum of 10 areas as opposed to the 20 that were previously supported. This has improved performance, especially on low performance platforms.
-       - The OPC UA south plugin has been updated to support subscriptions both using browse names and Node Id’s. Node ID is now the default subscription mechanism as this is much higher performance than traversing the object tree looking at browse names.
        - The python35 filter plugin did not allow the Python code to add attributes to the data. This has now been resolved.
        - The playback south plugin did not correctly take the timestamp data from he CSV file. An option is now available that will allow this.
        - The rate filter has been enhanced to accept a list of assets that should be passed through the filter without having the rate of those assets altered.
@@ -129,6 +128,8 @@ Release Date: 2019-08-15
        - The configuration options regarding notification evaluation of single items and windows has been improved to make it less confusing to end users.
        - The OverMax and UnderMin notification rules have been combined into a single threshold rule plugin.
        - The OPCUA south plugin was incorrectly reporting itself as the upcua plugin. This is now resolved.
+       - The OPC UA south plugin has been updated to support subscriptions both using browse names and Node Id’s. Node ID is now the default subscription mechanism as this is much higher performance than traversing the object tree looking at browse names.
+       - Shutting down the OPCUA service when it has failed to connect to an OPCUA server, either because of an incorrect configuration or the OPCUA server being down resulted in the service crashing. The service now shuts down cleanly.
        - In order to install the foglamp-south-modbus package on RedHat Enterprise Linux or CentOS 7 you must have configured the epel repository by executing the command:
 
          `sudo yum install epel-release`

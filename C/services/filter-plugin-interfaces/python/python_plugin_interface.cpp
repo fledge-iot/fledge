@@ -37,8 +37,121 @@ extern PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject *);
 extern void logErrorMessage();
 extern PLUGIN_INFORMATION *plugin_info_fn();
 extern void plugin_shutdown_fn(PLUGIN_HANDLE);
-extern void plugin_reconfigure_fn(PLUGIN_HANDLE*, const std::string&);
 extern PyObject* createReadingsList(const vector<Reading *>& readings);
+
+/**
+ * Function to invoke 'plugin_reconfigure' function in python plugin
+ *
+ * @param    handle     The plugin handle from plugin_init_fn
+ * @param    config     The new configuration, as string
+ */
+static void filter_plugin_reconfigure_fn(PLUGIN_HANDLE handle,
+					 const std::string& config)
+{
+	if (!pythonModules)
+	{
+		Logger::getLogger()->error("pythonModules map is NULL "
+					   "in plugin_reconfigure_fn, plugin '%s'",
+					   gPluginName.c_str());
+		return;
+	}
+
+	// Look for Python module for gPluginName key
+	auto it = pythonModules->find(gPluginName);
+	if (it == pythonModules->end() ||
+	    !it->second)
+	{
+		Logger::getLogger()->fatal("plugin_handle: plugin_reconfigure(): "
+					   "pModule is NULL for plugin '%s'",
+					   gPluginName.c_str());
+		return;
+	}
+
+	std::mutex mtx;
+	PyObject* pFunc;
+	lock_guard<mutex> guard(mtx);
+	PyGILState_STATE state = PyGILState_Ensure();
+
+	Logger::getLogger()->debug("plugin_handle: plugin_reconfigure(): pModule=%p, *handle=%p, plugin '%s'",
+				   it->second,
+				   handle,
+				   gPluginName.c_str());
+
+	// Fetch required method in loaded object
+	pFunc = PyObject_GetAttrString(it->second, "plugin_reconfigure");
+	if (!pFunc)
+	{
+		Logger::getLogger()->fatal("Cannot find method 'plugin_reconfigure' "
+					   "in loaded python module '%s'",
+					   gPluginName.c_str());
+	}
+
+	if (!pFunc || !PyCallable_Check(pFunc))
+	{
+		// Failure
+		if (PyErr_Occurred())
+		{
+			logErrorMessage();
+		}
+
+		Logger::getLogger()->fatal("Cannot call method plugin_reconfigure "
+					   "in loaded python module '%s'",
+					   gPluginName.c_str());
+		Py_CLEAR(pFunc);
+
+		PyGILState_Release(state);
+		return;
+	}
+
+	Logger::getLogger()->debug("plugin_reconfigure with %s", config.c_str());
+
+	// Call Python method passing an object and a C string
+	PyObject* pReturn = PyObject_CallFunction(pFunc,
+						  "Os",
+						  handle,
+						  config.c_str());
+
+	Py_CLEAR(pFunc);
+
+	// Handle returned data
+	if (!pReturn)
+	{
+		Logger::getLogger()->error("Called python script method plugin_reconfigure "
+					    ": error while getting result object, plugin '%s'",
+					   gPluginName.c_str());
+		logErrorMessage();
+	}
+	else
+	{
+		PyObject* tmp = (PyObject *)handle;
+		// Check current handle is Dict and pReturn is a Dict too
+		if (PyDict_Check(tmp) && PyDict_Check(pReturn))
+		{
+			// Clear Dict content
+			PyDict_Clear(tmp);
+			// Populate hadnle Dict with new data in pReturn
+			PyDict_Update(tmp, pReturn);
+			// Remove pReturn ojbect
+			Py_CLEAR(pReturn);
+
+			Logger::getLogger()->debug("plugin_handle: plugin_reconfigure(): "
+						   "got updated handle from python plugin=%p, plugin '%s'",
+						   handle,
+						   gPluginName.c_str());
+		}
+		else
+		{
+			 Logger::getLogger()->error("plugin_handle: plugin_reconfigure(): "
+						    "got object type '%s' instead of Python Dict, "
+						    "python plugin=%p, plugin '%s'",
+						    Py_TYPE(pReturn)->tp_name,
+					   	    handle,
+					  	    gPluginName.c_str());
+		}
+	}
+
+	PyGILState_Release(state);
+}
 
 /**
  * Ingest data into filters chain
@@ -356,7 +469,7 @@ void* PluginInterfaceResolveSymbol(const char *_sym)
 	else if (!sym.compare("plugin_shutdown"))
 		return (void *) plugin_shutdown_fn;
 	else if (!sym.compare("plugin_reconfigure"))
-		return (void *) plugin_reconfigure_fn;
+		return (void *) filter_plugin_reconfigure_fn;
 	else if (!sym.compare("plugin_ingest"))
 		return (void *) filter_plugin_ingest_fn;
 	else if (!sym.compare("plugin_start"))

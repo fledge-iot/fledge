@@ -29,7 +29,7 @@ using namespace std;
  * @param serviceName	Name of the service to which this pipeline applies
  */
 FilterPipeline::FilterPipeline(ManagementClient* mgtClient, StorageClient& storage, string serviceName) : 
-			mgtClient(mgtClient), storage(storage), serviceName(serviceName)
+			mgtClient(mgtClient), storage(storage), serviceName(serviceName), m_ready(false)
 {
 }
 
@@ -324,6 +324,9 @@ bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFil
 		return false;
 	}
 
+	// Set filter pipeline is ready for data ingest
+	m_ready = true;
+
 	//Success
 	return true;
 }
@@ -338,8 +341,8 @@ bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFil
  */
 void FilterPipeline::cleanupFilters(const string& categoryName)
 {
-	// Cleanup filters
-	for (auto it = m_filters.begin(); it != m_filters.end(); ++it)
+	// Cleanup filters, in reverse order
+	for (auto it = m_filters.rbegin(); it != m_filters.rend(); ++it)
 	{
 		FilterPlugin* filter = *it;
 		//string filterCategoryName =  categoryName + "_" + filter->getName();

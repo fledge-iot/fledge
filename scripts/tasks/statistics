@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # Run a FogLAMP south service written in Python
 if [ "${FOGLAMP_ROOT}" = "" ]; then
 	FOGLAMP_ROOT=/usr/local/foglamp
@@ -17,4 +17,12 @@ fi
 # We run the Python code from the python directory
 cd "${FOGLAMP_ROOT}/python"
 
-python3 -m foglamp.tasks.statistics "$@"
+os_name=`(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
+
+if [[ $os_name == *"Raspbian"*  ]]; then
+
+	cpulimit -l 40 -- python3 -m foglamp.tasks.statistics "$@"
+else
+	# Standard execution on other platforms
+	python3 -m foglamp.tasks.statistics "$@"
+fi

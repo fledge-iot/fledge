@@ -52,7 +52,8 @@ class TestConfiguration:
         assert 3 == len(jdoc["categories"])
 
         expected_with_utilities = [
-            {'children': [{'children': [], 'displayName': 'Admin API', 'key': 'rest_api',
+            {'children': [{'children': [], 'key': 'Installation', 'description': 'Installation', 'displayName': 'Installation'},
+                          {'children': [], 'displayName': 'Admin API', 'key': 'rest_api',
                            'description': 'FogLAMP Admin and User REST API'},
                           {'children': [], 'displayName': 'FogLAMP Service', 'key': 'service',
                            'description': 'FogLAMP Service'}

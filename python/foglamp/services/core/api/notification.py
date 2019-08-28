@@ -438,7 +438,7 @@ async def delete_notification(request):
 async def _hit_get_url(get_url, token=None):
     headers = {"Authorization": token} if token else None
     try:
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
             async with session.get(get_url, headers=headers) as resp:
                 status_code = resp.status
                 jdoc = await resp.text()

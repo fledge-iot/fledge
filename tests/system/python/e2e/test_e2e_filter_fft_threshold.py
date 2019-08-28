@@ -17,20 +17,21 @@ import json
 import time
 import pytest
 import utils
-
+import subprocess
 
 __author__ = "Vaibhav Singhal"
-__copyright__ = "Copyright (c) 2019 Dianomic Systems"
+__copyright__ = "Copyright (c) 2019 Dianomic Systems Inc."
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
 SVC_NAME = "playfilter"
-CSV_NAME = "sample.csv"
-CSV_HEADERS = "ivalue"
-CSV_DATA = "10,20,21,40"
+CSV_NAME = "wind-data.csv"
+CSV_HEADERS = "10 Min Std Dev,10 Min Sampled Avg"
 
 NORTH_TASK_NAME = "NorthReadingsTo_PI"
+
+ASSET = "e2e_fft_threshold"
 
 
 class TestE2eFilterFFTThreshold:
@@ -55,7 +56,7 @@ class TestE2eFilterFFTThreshold:
     @pytest.fixture
     def start_south_north(self, reset_and_start_foglamp, add_south, enable_schedule, remove_directories,
                           remove_data_file, south_branch, foglamp_url, add_filter, filter_branch,
-                          start_north_pi_server_c, pi_host, pi_port, pi_token, asset_name="e2e_fft_threshold"):
+                          start_north_pi_server_c, pi_host, pi_port, pi_token, asset_name=ASSET):
         """ This fixture clone a south and north repo and starts both south and north instance
 
             reset_and_start_foglamp: Fixture that resets and starts foglamp, no explicit invocation, called at start
@@ -64,24 +65,29 @@ class TestE2eFilterFFTThreshold:
             remove_data_file: Fixture that remove data file created during the tests
         """
 
-        # Define configuration of foglamp south playback service
+        # Define configuration of FogLAMP playback service
         south_config = {"assetName": {"value": "{}".format(asset_name)},
                         "csvFilename": {"value": "{}".format(CSV_NAME)},
+                        "fieldNames": {"value": "10 Min Std Dev"},
                         "ingestMode": {"value": "batch"}}
 
-        # Define the CSV data and create expected lists to be verified later
-        csv_file_path = os.path.join(os.path.expandvars('${FOGLAMP_ROOT}'), 'data/{}'.format(CSV_NAME))
-        with open(csv_file_path, 'w') as f:
-            f.write(CSV_HEADERS)
-            for _items in CSV_DATA.split(","):
-                f.write("\n{}".format(_items))
+        csv_dest = os.path.join(os.path.expandvars('${FOGLAMP_ROOT}'), 'data/{}'.format(CSV_NAME))
+        csv_src_file = os.path.join(os.path.expandvars('${FOGLAMP_ROOT}'), 'tests/system/python/data/{}'.format(CSV_NAME))
+
+        cmd = 'cp {} {}'.format(csv_src_file, csv_dest)
+        status = subprocess.call(cmd, shell=True)
+        if status != 0:
+            if status < 0:
+                print("Killed by signal", status)
+            else:
+                print("copy command failed with return code - ", status)
 
         south_plugin = "playback"
         add_south(south_plugin, south_branch, foglamp_url, service_name=SVC_NAME,
                   config=south_config, start_service=False)
 
-        filter_cfg_fft = {"asset": "sample", "samples": "5", "lowPass": "5", "highPass": "5", "enable": "true"}
-        add_filter("fft", filter_branch, "fltr_fft", filter_cfg_fft, foglamp_url, SVC_NAME)
+        filter_cfg_fft = {"asset": ASSET, "lowPass": "10", "highPass": "30", "enable": "true"}
+        add_filter("fft", filter_branch, "FFT Filter", filter_cfg_fft, foglamp_url, SVC_NAME)
 
         # Since playback plugin reads all csv data at once, we cant keep it in enable mode before filter add
         # enable service when all filters all applied
@@ -91,7 +97,8 @@ class TestE2eFilterFFTThreshold:
                                 start_task=False)
 
         # Add threshold filter at north side
-        filter_cfg_threshold = {"expression": "x1 > 20", "enable": "true"}
+        filter_cfg_threshold = {"expression": "Band 00 > 30", "enable": "true"}
+        # TODO: Apply a better expression with AND / OR with data points e.g. OR Band 01 > 19
         add_filter("threshold", filter_branch, "fltr_threshold", filter_cfg_threshold, foglamp_url, NORTH_TASK_NAME)
         enable_schedule(foglamp_url, NORTH_TASK_NAME)
 
@@ -102,7 +109,7 @@ class TestE2eFilterFFTThreshold:
         for fltr in filters:
             remove_directories("/tmp/foglamp-filter-{}".format(fltr))
 
-        remove_data_file(csv_file_path)
+        remove_data_file(csv_dest)
 
     def test_end_to_end(self, start_south_north, disable_schedule, foglamp_url, read_data_from_pi, pi_host, pi_admin,
                         pi_passwd, pi_db, wait_time, retries, skip_verify_north_interface):
@@ -117,68 +124,60 @@ class TestE2eFilterFFTThreshold:
 
         time.sleep(wait_time)
         conn = http.client.HTTPConnection(foglamp_url)
+
         self._verify_ingest(conn)
 
         # disable schedule to stop the service and sending data
         disable_schedule(foglamp_url, SVC_NAME)
 
         ping_response = self.get_ping_status(foglamp_url)
-        assert 4 == ping_response["dataRead"]
+        assert 6 == ping_response["dataRead"]
         if not skip_verify_north_interface:
-            assert 1 == ping_response["dataSent"]
+            assert 6 == ping_response["dataSent"]
 
         actual_stats_map = self.get_statistics_map(foglamp_url)
-        # TODO: Fix based on FFT output
-        # assert 1 == actual_stats_map["e2e_filters_RMS".upper()]
-        assert 4 == actual_stats_map['READINGS']
+        assert 6 == actual_stats_map[ASSET.upper() + " FFT"]
+        assert 6 == actual_stats_map['READINGS']
         if not skip_verify_north_interface:
-            assert 1 == actual_stats_map['Readings Sent']
-            assert 1 == actual_stats_map['NorthReadingsToPI']
+            assert 6 == actual_stats_map['Readings Sent']
+            assert 6 == actual_stats_map['NorthReadingsToPI']
 
         if not skip_verify_north_interface:
             self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
 
     def _verify_ingest(self, conn):
-
         conn.request("GET", '/foglamp/asset')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        # TODO: Fix based on FFT output
-        # assert 1 == len(jdoc)
+        assert len(jdoc)
 
-        # TODO: Fix based on FFT output
-        # assert "e2e_filters_RMS" == jdoc[0]["assetCode"]
+        assert ASSET + " FFT" == jdoc[0]["assetCode"]
         assert 0 < jdoc[0]["count"]
 
-        # TODO: Fix based on FFT output
-        # conn.request("GET", '/foglamp/asset/{}'.format("e2e_filters_RMS"))
-        # r = conn.getresponse()
-        # assert 200 == r.status
-        # r = r.read().decode()
-        # jdoc = json.loads(r)
-        # assert 0 < len(jdoc)
-
-        # read = jdoc[0]["reading"]
-        # assert 2000.0 == read["ivaluepeak"]
-        # assert 3162.2776601684 == read["ivalue"]
-        # assert "value" == read["name"]
+        conn.request("GET", '/foglamp/asset/{}'.format(ASSET + "%20FFT"))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        assert 0 < len(jdoc)
+        # print(jdoc)
+        read = jdoc[0]["reading"]
+        assert read["Band 00"]
+        assert read["Band 01"]
+        assert read["Band 02"]
 
     def _verify_egress(self, read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries):
-
         retry_count = 0
         data_from_pi = None
         while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
             data_from_pi = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db,
-                                             "e2e_filters_RMS", {"ivalue", "ivaluepeak", "name"})
+                                             ASSET + " FFT", {"Band 00"})
             retry_count += 1
             time.sleep(wait_time * 2)
 
         if data_from_pi is None or retry_count == retries:
             assert False, "Failed to read data from PI"
 
-        # TODO: Fix based on FFT output
-        # assert 3162.2776601684 == data_from_pi["ivalue"][-1]
-        # assert 2000 == data_from_pi["ivaluepeak"][-1]
-        # assert "value" == data_from_pi["name"][-1]
+        assert 30 < data_from_pi["Band 00"][-1]

@@ -97,8 +97,8 @@ class TestE2eFilterFFTThreshold:
                                 start_task=False)
 
         # Add threshold filter at north side
-        filter_cfg_threshold = {"expression": "Band 00 > 30", "enable": "true"}
-        # TODO: Apply a better expression with AND / OR with data points e.g. OR Band 01 > 19
+        filter_cfg_threshold = {"expression": "Band00 > 30", "enable": "true"}
+        # TODO: Apply a better expression with AND / OR with data points e.g. OR Band01 > 19
         add_filter("threshold", filter_branch, "fltr_threshold", filter_cfg_threshold, foglamp_url, NORTH_TASK_NAME)
         enable_schedule(foglamp_url, NORTH_TASK_NAME)
 
@@ -133,14 +133,14 @@ class TestE2eFilterFFTThreshold:
         ping_response = self.get_ping_status(foglamp_url)
         assert 6 == ping_response["dataRead"]
         if not skip_verify_north_interface:
-            assert 6 == ping_response["dataSent"]
+            assert 1 == ping_response["dataSent"]
 
         actual_stats_map = self.get_statistics_map(foglamp_url)
         assert 6 == actual_stats_map[ASSET.upper() + " FFT"]
         assert 6 == actual_stats_map['READINGS']
         if not skip_verify_north_interface:
-            assert 6 == actual_stats_map['Readings Sent']
-            assert 6 == actual_stats_map['NorthReadingsToPI']
+            assert 1 == actual_stats_map['Readings Sent']
+            assert 1 == actual_stats_map[NORTH_TASK_NAME]
 
         if not skip_verify_north_interface:
             self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
@@ -164,20 +164,20 @@ class TestE2eFilterFFTThreshold:
         assert 0 < len(jdoc)
         # print(jdoc)
         read = jdoc[0]["reading"]
-        assert read["Band 00"]
-        assert read["Band 01"]
-        assert read["Band 02"]
+        assert read["Band00"]
+        assert read["Band01"]
+        assert read["Band02"]
 
     def _verify_egress(self, read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries):
         retry_count = 0
         data_from_pi = None
         while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
             data_from_pi = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db,
-                                             ASSET + " FFT", {"Band 00"})
+                                             ASSET + " FFT", {"Band00"})
             retry_count += 1
             time.sleep(wait_time * 2)
 
         if data_from_pi is None or retry_count == retries:
             assert False, "Failed to read data from PI"
 
-        assert 30 < data_from_pi["Band 00"][-1]
+        assert 30 < data_from_pi["Band00"][-1]

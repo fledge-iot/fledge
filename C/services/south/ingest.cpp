@@ -212,7 +212,7 @@ Ingest::Ingest(StorageClient& storage,
 	//m_assetTracker = new AssetTracker(m_mgtClient);
 	AssetTracker::getAssetTracker()->populateAssetTrackingCache(m_pluginName, "Ingest");
 
-	filterPipeline = NULL;
+	m_filterPipeline = NULL;
 }
 
 /**
@@ -238,11 +238,11 @@ Ingest::~Ingest()
 	delete m_statsThread;
 	//delete m_data;
 	
-	// Cleanup filters
-	if (filterPipeline)
+	// Cleanup filters - no other threads are running so no need for the lock
+	if (m_filterPipeline)
 	{
-		filterPipeline->cleanupFilters(m_serviceName);
-		delete filterPipeline;
+		m_filterPipeline->cleanupFilters(m_serviceName);
+		delete m_filterPipeline;
 	}
 }
 
@@ -324,34 +324,43 @@ vector<Reading *>* newQ = new vector<Reading *>();
 	 *
 	 * The final filter in the pipeline will pass the ReadingSet back into the
 	 * ingest class where it will repopulate the m_data member.
+	 *
+	 * We lock the filter pipeline here to prevent it being reconfigured whilst we
+	 * process the data. We do this because the qMutex is not good enough here as we
+	 * do not hold it, by deliberate policy. As we copy the queue holdign the qMutex
+	 * and then release it to enabl emore data to be queued while we process the previous
+	 * queue via the filter pipeline and up to the storage layer.
 	 */
-	if (filterPipeline)
 	{
-		FilterPlugin *firstFilter = filterPipeline->getFirstFilterPlugin();
-		if (firstFilter)
+		lock_guard<mutex> guard(m_pipelineMutex);
+		if (m_filterPipeline)
 		{
-			// Check whether filters are set before calling ingest
-			while (!filterPipeline->isReady())
+			FilterPlugin *firstFilter = m_filterPipeline->getFirstFilterPlugin();
+			if (firstFilter)
 			{
-				Logger::getLogger()->warn("Ingest called before "
-							  "filter pipeline is ready");
-				std::this_thread::sleep_for(std::chrono::milliseconds(150));
-			}
+				// Check whether filters are set before calling ingest
+				while (!m_filterPipeline->isReady())
+				{
+					Logger::getLogger()->warn("Ingest called before "
+								  "filter pipeline is ready");
+					std::this_thread::sleep_for(std::chrono::milliseconds(150));
+				}
 
-			ReadingSet *readingSet = new ReadingSet(m_data);
-			m_data->clear();
-			// Pass readingSet to filter chain
-			firstFilter->ingest(readingSet);
+				ReadingSet *readingSet = new ReadingSet(m_data);
+				m_data->clear();
+				// Pass readingSet to filter chain
+				firstFilter->ingest(readingSet);
 
-			/*
-			 * If filtering removed all the readings then simply clean up m_data and
-			 * return.
-			 */
-			if (m_data->size() == 0)
-			{
-				delete m_data;
-				m_data = NULL;
-				return;
+				/*
+				 * If filtering removed all the readings then simply clean up m_data and
+				 * return.
+				 */
+				if (m_data->size() == 0)
+				{
+					delete m_data;
+					m_data = NULL;
+					return;
+				}
 			}
 		}
 	}
@@ -428,7 +437,7 @@ vector<Reading *>* newQ = new vector<Reading *>();
  * Load filter plugins
  *
  * Filters found in configuration are loaded
- * and adde to the Ingest class instance
+ * and add to the Ingest class instance
  *
  * @param categoryName	Configuration category name
  * @param ingest	The Ingest class reference
@@ -441,7 +450,15 @@ vector<Reading *>* newQ = new vector<Reading *>();
 bool Ingest::loadFilters(const string& categoryName)
 {
 	Logger::getLogger()->info("Ingest::loadFilters(): categoryName=%s", categoryName.c_str());
-	filterPipeline = new FilterPipeline(m_mgtClient, m_storage, m_serviceName);
+	/*
+	 * We do everything to setup the pipeline using a local FitlerPipeline and then assign it
+	 * to the service m_filterPipeline once it is setup to guard against access to the pipeline
+	 * during setup.
+	 * This should not be an issue if the mutex is held, however this approach lessens the risk
+	 * in the case of this routine being called when the mutex is not held and ensure m_filterPipeline
+	 * only ever points to a fully configured filter pipeline.
+	 */
+	FilterPipeline *filterPipeline = new FilterPipeline(m_mgtClient, m_storage, m_serviceName);
 	
 	// Try to load filters:
 	if (!filterPipeline->loadFilters(categoryName))
@@ -451,7 +468,18 @@ bool Ingest::loadFilters(const string& categoryName)
 	}
 
 	// Set up the filter pipeline
-	return filterPipeline->setupFiltersPipeline((void *)passToOnwardFilter, (void *)useFilteredData, this);
+	bool rval = filterPipeline->setupFiltersPipeline((void *)passToOnwardFilter, (void *)useFilteredData, this);
+	if (rval)
+	{
+		lock_guard<mutex> guard(m_pipelineMutex);
+		m_filterPipeline = filterPipeline;
+	}
+	else
+	{
+		Logger::getLogger()->error("Failed to setup the filter pipeline, the fitlers are not attached tp the service");
+		filterPipeline->cleanupFilters(categoryName);
+	}
+	return rval;
 }
 
 /**
@@ -528,13 +556,14 @@ void Ingest::configChange(const string& category, const string& newConfig)
 			return;
 		}
 		pipelineCfgStr = config.getValue("filter");
-		lock_guard<mutex> guard(m_qMutex); // blocks ingest process while pipeline is being reconfigured
+		lock_guard<mutex> guard(m_pipelineMutex);
 		m_running = false;
-		if (filterPipeline)
+		if (m_filterPipeline)
 		{
 			Logger::getLogger()->info("Ingest::configChange(): filter pipeline has changed, recreating filter pipeline");
-			filterPipeline->cleanupFilters(m_serviceName);
-			delete filterPipeline;
+			m_filterPipeline->cleanupFilters(m_serviceName);
+			delete m_filterPipeline;
+			m_filterPipeline = NULL;
 		}
 		loadFilters(category);
 		m_running = true;
@@ -542,9 +571,10 @@ void Ingest::configChange(const string& category, const string& newConfig)
 	else // change to config of some filter(s)
 	{
 		Logger::getLogger()->info("Ingest::configChange(): change to config of some filter(s)");
-		if (filterPipeline)
+		lock_guard<mutex> guard(m_pipelineMutex);
+		if (m_filterPipeline)
 		{
-			filterPipeline->configChange(category, newConfig);
+			m_filterPipeline->configChange(category, newConfig);
 		}
 	}
 }

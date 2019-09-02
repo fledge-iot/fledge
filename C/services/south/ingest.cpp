@@ -544,32 +544,57 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
  */
 void Ingest::configChange(const string& category, const string& newConfig)
 {
-	//Logger::getLogger()->info("Ingest::configChange(): category=%s, newConfig=%s", category.c_str(), newConfig.c_str());
-	static string pipelineCfgStr("");
-	if (category == m_serviceName) // possible change to filter pipeline
+	Logger::getLogger()->debug("Ingest::configChange(): category=%s, newConfig=%s", category.c_str(), newConfig.c_str());
+	if (category == m_serviceName) 
 	{
+		/**
+		 * The category that has changed is the one for the south service itself.
+		 * The only item that concerns us here is the filter item that defines
+		 * the filter pipeline. We extract that item and check to see if it defines
+		 * a pipeline that is different to the one we currently have.
+		 *
+		 * If it is we destroy the current pipeline and create a new one.
+		 */
 		ConfigCategory config("tmp", newConfig);
-		if ( (!config.itemExists("filter") && pipelineCfgStr.compare("")==0) || 
-					pipelineCfgStr == config.getValue("filter") )
+		string newPipeline = "";
+		if (config.itemExists("filter"))
 		{
-			Logger::getLogger()->info("Ingest::configChange(): filter pipeline is not set or it hasn't changed");
-			return;
+		      newPipeline  = config.getValue("filter");
 		}
-		pipelineCfgStr = config.getValue("filter");
-		lock_guard<mutex> guard(m_pipelineMutex);
-		m_running = false;
 		if (m_filterPipeline)
 		{
+			lock_guard<mutex> guard(m_pipelineMutex);
+			if (newPipeline == "" || m_filterPipeline->hasChanged(newPipeline) == false)
+			{
+				Logger::getLogger()->info("Ingest::configChange(): filter pipeline is not set or it hasn't changed");
+				return;
+			}
+			/* The new filter pipeline is different to what we have already running
+			 * So remove the current pipeline and recreate.
+		 	 */
+			m_running = false;
 			Logger::getLogger()->info("Ingest::configChange(): filter pipeline has changed, recreating filter pipeline");
 			m_filterPipeline->cleanupFilters(m_serviceName);
 			delete m_filterPipeline;
 			m_filterPipeline = NULL;
 		}
+		/*
+		 * We have to setup a new pipeline to match the changed configuration.
+		 * Release the lock before reloading the filters as this will acquire
+		 * the lock again
+		 */
 		loadFilters(category);
 		m_running = true;
 	}
-	else // change to config of some filter(s)
+	else
 	{
+		/*
+		 * The category is for one fo the filters. We simply call the Filter Pipeline
+		 * instance and get it to deal with sending the configuration to the right filter.
+		 * This is done holding the pipeline mutex to prevent the pipeline being changed
+		 * during this call and also to hold the ingest thread from running the filters
+		 * during reconfiguration.
+		 */
 		Logger::getLogger()->info("Ingest::configChange(): change to config of some filter(s)");
 		lock_guard<mutex> guard(m_pipelineMutex);
 		if (m_filterPipeline)

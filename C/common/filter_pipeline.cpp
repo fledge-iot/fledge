@@ -198,6 +198,7 @@ bool FilterPipeline::loadFilters(const string& categoryName)
 			}
 		}
 
+		m_pipeline = filter;
 		/*
 		 * Put all the new catregories in the Filter category parent
 		 * Create an empty South category if one doesn't exist

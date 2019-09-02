@@ -50,6 +50,7 @@ public:
 					     void *ingest);
 	// Check FilterPipeline is ready for data ingest
 	bool		isReady() { return m_ready; };
+	bool		hasChanged(const std::string pipeline) const { return m_pipeline != pipeline; }
 
 private:
 	PLUGIN_HANDLE	loadFilterPlugin(const std::string& filterName);
@@ -59,8 +60,11 @@ protected:
 	ManagementClient*	mgtClient;
 	StorageClient&		storage;
 	std::string		serviceName;
-	std::vector<FilterPlugin *>	m_filters;
-	std::map<std::string, FilterPlugin *>	m_filterCategories;
+	std::vector<FilterPlugin *>
+				m_filters;
+	std::map<std::string, FilterPlugin *>
+				m_filterCategories;
+	std::string		m_pipeline;
 };
 
 #endif

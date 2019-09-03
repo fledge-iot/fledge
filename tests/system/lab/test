@@ -8,6 +8,15 @@ CRESET="${CPFX}0m"
 # Read config file for FOGLAMP IP, PI host and token etc.
 . ./test.config
 
+rm -f err.txt
+touch err.txt
+
+display_and_collect_err () {
+   echo -e "${CERR} $1 ${CRESET}"
+   echo $1 >> err.txt
+}
+
+
 URL="http://$FOGLAMP_IP:8081/foglamp"
 
 echo -e INFO: "${CINFO} Add Sinusoid South ${CRESET}"
@@ -27,11 +36,13 @@ for LOOP in $(seq ${MAX_RETRIES}); do
     COUNT=`echo ${RESULT} | jq '.services[].assets[]|select(.asset == "sinusoid").count // empty'`
     if [[ -n "${COUNT}" ]] && [[ ${COUNT} -gt 0 ]]; then break; fi
 done
-if [[ ${LOOP} -eq ${MAX_RETRIES} ]]; then echo -e "${CERR}TIMEOUT! $URL/south ${CRESET}"; exit 1; fi
-echo "    ---- sinusoid data seen in South tab ----"
-# echo $RESULT|jq '.services[].status'
-# "running"
-# {"services": [{"name": "Sine", "address": "localhost", "management_port": 41179, "service_port": null, "protocol": "http", "status": "running", "assets": [{"count": 1412, "asset": "sinusoid"}], "plugin": {"name": "sinusoid", "version": "1.6.0"}, "schedule_enabled": true}]}
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+ then
+   display_and_collect_err "TIMEOUT! sinusoid data not seen in South tab. $URL/south"
+   if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+ else
+   echo "---- sinusoid data seen in South tab ----"
+fi
 
 for LOOP in $(seq ${MAX_RETRIES}); do
     RESULT=`curl -sX GET "$URL/asset"`
@@ -39,8 +50,13 @@ for LOOP in $(seq ${MAX_RETRIES}); do
     COUNT=`echo ${RESULT} | jq '.[]|select(.assetCode == "sinusoid")|.count // empty'`
     if [[ -n "$COUNT" ]] && [[ ${COUNT} -gt 0 ]]; then break; fi
 done
-if [[ ${LOOP} -eq ${MAX_RETRIES} ]]; then echo -e "${CERR}TIMEOUT! $URL/asset ${CRESET}"; exit 1; fi
-echo "    ---- sinusoid data seen in Asset tab ----"
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+ then
+   display_and_collect_err "TIMEOUT! sinusoid data not seen in Asset tab. $URL/asset"
+   if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+ else
+  echo "---- sinusoid data seen in Asset tab ----"
+fi
 
 for LOOP in $(seq ${MAX_RETRIES}); do
     RESULT=`curl -sX GET "$URL/ping"`
@@ -48,8 +64,13 @@ for LOOP in $(seq ${MAX_RETRIES}); do
     READ=`echo ${RESULT} | jq '.dataRead // empty'`
     if [[ -n "$READ" ]] && [[ "$READ" -gt 0 ]]; then break; fi
 done
-if [[ ${LOOP} -eq ${MAX_RETRIES} ]]; then echo "timeout"; exit 1; fi
-echo "    ---- sinusoid data sent seen in ping header ----"
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+ then
+   display_and_collect_err "TIMEOUT! sinusoid data not seen in ping header. $URL/ping"
+   if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+ else
+   echo "---- sinusoid data seen in ping header ----"
+fi
 
 for LOOP in $(seq ${MAX_RETRIES}); do
     RESULT=`curl -sX GET "$URL/asset/sinusoid?seconds=600"`
@@ -57,8 +78,13 @@ for LOOP in $(seq ${MAX_RETRIES}); do
     POINT=`echo ${RESULT} | jq '.[0].reading.sinusoid // empty'`
     if [[ -n "$POINT" ]]; then break; fi
 done
-if [[ $LOOP -eq ${MAX_RETRIES} ]]; then echo -e "${CERR}TIMEOUT! $URL/asset/sinusoid?seconds=600 ${CRESET}"; exit 1; fi
-echo "    ---- sinusoid data seen in sinusoid graph ----"
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+  then
+    display_and_collect_err "TIMEOUT! sinusoid data not seen in sinusoid graph. $URL/asset/sinusoid?seconds=600"
+    if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+  else
+    echo "---- sinusoid data seen in sinusoid graph ----"
+fi
 # [
 #    {
 #       "reading": {
@@ -98,55 +124,41 @@ for LOOP in $(seq ${MAX_RETRIES}); do
     SENT=`echo ${RESULT} | jq '.[0].sent // empty'`
     if [[ -n "$SENT" ]] && [[ "$SENT" -gt 0 ]]; then break; fi
 done
-if [[ ${LOOP} -eq ${MAX_RETRIES} ]]; then echo -e "${CERR}TIMEOUT! $URL/north ${CRESET}"; exit 1; fi
-echo "    ---- PI data sent seen in North tab ----"
-# not setup: []
-# setup but nothing sent yet
-# [{"id": "1a9351f2-a33c-463f-8fab-9ef9c02246ee", "name": "PI Server", "processName": "north_c", "repeat": 30.0, "day": null, "enabled": true, "exclusive": true, "taskStatus": {"state": "Running", "startTime": "2019-08-28 15:19:55.566", "endTime": "", "exitCode": "", "reason": ""}, "sent": -1, "plugin": {"name": "", "version": ""}}]
-# setup and data sent
-#
-# [
-#    {
-#       "id": "1a9351f2-a33c-463f-8fab-9ef9c02246ee",
-#       "name": "PI Server",
-#       "processName": "north_c",
-#       "repeat": 30.0,
-#       "day": null,
-#       "enabled": true,
-#       "exclusive": true,
-#       "taskStatus": {
-#          "state": "Running",
-#          "startTime": "2019-08-28 15:19:55.566",
-#          "endTime": "",
-#          "exitCode": "",
-#          "reason": ""
-#       },
-#       "sent": 1562,
-#       "plugin": {
-#          "name": "PI_Server_V2",
-#          "version": "1.0.0"
-#       }
-#    }
-# ]
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+ then
+   display_and_collect_err "TIMEOUT! PI data sent not seen in North tab. $URL/north"
+   if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+ else
+   echo "---- PI data sent seen in North tab ----"
+fi
 
-for LOOP in $(seq $MAX_RETRIES); do
+for LOOP in $(seq ${MAX_RETRIES}); do
     RESULT=`curl -sX GET "$URL/ping"`
-    echo $RESULT
-    SENT=`echo $RESULT | jq '.dataSent // empty'`
-    if [ -n "$SENT" ] && [ "$SENT" -gt 0 ]; then break; fi
+    echo ${RESULT}
+    SENT=`echo ${RESULT} | jq '.dataSent // empty'`
+    if [[ -n "$SENT" ]] && [[ "$SENT" -gt 0 ]]; then break; fi
 done
-if [ $LOOP -eq $MAX_RETRIES ]; then echo "timeout"; exit 1; fi
-echo "    ---- PI data sent seen in ping header ----"
-# {"uptime": 1893, "dataRead": 1713, "dataSent": 1708, "dataPurged": 0, "authenticationOptional": true, "serviceName": "FogLAMP", "hostName": "fogcar", "ipAddresses": ["192.168.4.45", "2600:1700:daa0:3510:d700:d567:c8d7:78ef"], "health": "green", "safeMode": false}
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+ then
+   display_and_collect_err "TIMEOUT! PI data sent not seen in ping header. $URL/ping"
+   if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+ else
+   echo "---- PI data sent seen in ping header ----"
+fi
 
-for LOOP in $(seq $MAX_RETRIES); do
+for LOOP in $(seq ${MAX_RETRIES}); do
     RESULT=`curl -sX GET "$URL/statistics/history?minutes=10"`
-    echo $RESULT
-    POINT=`echo $RESULT | jq '.statistics[0]."PI Server" // empty'`
-    if [ -n "$POINT" ] && [ "$POINT" -gt 0 ]; then break; fi
+    echo ${RESULT}
+    POINT=`echo ${RESULT} | jq '.statistics[0]."PI Server" // empty'`
+    if [[ -n "$POINT" ]] && [[ "$POINT" -gt 0 ]]; then break; fi
 done
-if [ $LOOP -eq $MAX_RETRIES ]; then echo "timeout"; exit 1; fi
-echo "    ---- PI data sent seen in sent graph ----"
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+ then
+   display_and_collect_err "TIMEOUT! PI data sent not seen in sent graph. $URL/statistics/history?minutes=10"
+   if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+ else
+   echo "---- PI data sent seen in sent graph ----"
+fi
 # {
 #    "interval": 15.0,
 #    "statistics": [
@@ -162,7 +174,7 @@ echo "    ---- PI data sent seen in sent graph ----"
 #          "Readings Sent": 15,
 #          "PI Server": 15
 #       }, ...
-#    ]
+#    ]]
 # }
 
 echo "======================= PI SETUP COMPLETE ======================="
@@ -185,7 +197,7 @@ curl -sX PUT "$URL/filter/Sine/pipeline?allow_duplicates=true&append_filter=true
 '{
    "pipeline": [
       "Square"
-   ]
+   ]]
 }'
 echo
 echo "======================= SINUSOID SQUARE FILTER COMPLETE ======================="
@@ -206,19 +218,24 @@ curl -sX PUT "$URL/filter/Sine/pipeline?allow_duplicates=true&append_filter=true
 '{
    "pipeline": [
       "Max"
-   ]
+   ]]
 }'
 echo
 
-for LOOP in $(seq $MAX_RETRIES); do
+for LOOP in $(seq ${MAX_RETRIES}); do
     RESULT=`curl -sX GET "$URL/asset/sinusoid?seconds=600"`
-    echo $RESULT
-    SQUARE=`echo $RESULT | jq '.[0].reading.square // empty'`
-    MAX=`echo $RESULT | jq '.[0].reading.max // empty'`
-    if [ -n "$SQUARE" ] && [ -n "$MAX" ]; then break; fi
+    echo ${RESULT}
+    SQUARE=`echo ${RESULT} | jq '.[0].reading.square // empty'`
+    MAX=`echo ${RESULT} | jq '.[0].reading.max // empty'`
+    if [[ -n "$SQUARE" ]] && [[ -n "$MAX" ]]; then break; fi
 done
-if [ $LOOP -eq $MAX_RETRIES ]; then echo "timeout"; exit 1; fi
-echo "    ---- square and max data seen in sinusoid graph ----"
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+ then
+   display_and_collect_err "TIMEOUT! square and max data not seen in sinusoid graph. $URL/asset/sinusoid?seconds=600"
+   if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+ else
+   echo "---- square and max data seen in sinusoid graph ----"
+fi
 # [
 #    {
 #       "reading": {
@@ -228,7 +245,7 @@ echo "    ---- square and max data seen in sinusoid graph ----"
 #       },
 #       "timestamp": "2019-08-28 07:55:12.810924"
 #    }, ...
-# ]
+# ]]
 
 echo "======================= SINUSOID MAX FILTER COMPLETE ======================="
 
@@ -244,7 +261,7 @@ curl -sX POST "$URL/service" -d \
 }'
 echo
 # need to wait for FogLAMP to be ready to accept python file
-sleep $SLEEP_FIX
+sleep ${SLEEP_FIX}
 # Add Python35 Filter (ema)
 curl -sX POST "$URL/filter" -d \
 '{
@@ -263,22 +280,27 @@ curl -sX PUT "$URL/filter/Random/pipeline?allow_duplicates=true&append_filter=tr
 '{
    "pipeline": [
       "Ema"
-   ]
+   ]]
 }'
 echo
 # Upload Ema python script
 curl -sX POST "$URL/category/Random_Ema/script/upload" -F "script=@scripts/ema.py"
 echo
 
-for LOOP in $(seq $MAX_RETRIES); do
+for LOOP in $(seq ${MAX_RETRIES}); do
     RESULT=`curl -sX GET "$URL/asset/randomwalk?seconds=600"`
-    echo $RESULT
-    RANDOM=`echo $RESULT | jq '.[0].reading.randomwalk // empty'`
-    EMA=`echo $RESULT | jq '.[0].reading.ema // empty'`
-    if [ -n "$RANDOM" ] && [ -n "$EMA" ]; then break; fi
+    echo ${RESULT}
+    RANDOM=`echo ${RESULT} | jq '.[0].reading.randomwalk // empty'`
+    EMA=`echo ${RESULT} | jq '.[0].reading.ema // empty'`
+    if [[ -n "$RANDOM" ]] && [[ -n "$EMA" ]]; then break; fi
 done
-if [ $LOOP -eq $MAX_RETRIES ]; then echo "timeout"; exit 1; fi
-echo "    ---- randomwalk and ema data seen in randomwalk graph ----"
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+ then
+   display_and_collect_err "TIMEOUT! randomwalk and ema data not seen in randomwalk graph. $URL/asset/randomwalk?seconds=600"
+   if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+ else
+   echo "---- randomwalk and ema data seen in randomwalk graph ----"
+fi
 
 echo "======================= RANDOMWALK SETUP COMPLETE ======================="
 
@@ -314,20 +336,27 @@ curl -sX PUT "$URL/filter/Enviro/pipeline?allow_duplicates=true&append_filter=tr
 '{
    "pipeline": [
       "Fahrenheit"
-   ]
+   ]]
 }'
 echo
 
-for LOOP in $(seq $MAX_RETRIES); do
+for LOOP in $(seq ${MAX_RETRIES}); do
     RESULT=`curl -sX GET "$URL/asset/e_weather?seconds=600"`
-    echo $RESULT
-    TEMP=`echo $RESULT | jq '.[0].reading.temperature // empty'`
-    FAHR=`echo $RESULT | jq '.[0].reading.temp_fahr // empty'`
-    if [ -n "$TEMP" ] && [ -n "$FAHR" ]; then break; fi
+    echo ${RESULT}
+    TEMP=`echo ${RESULT} | jq '.[0].reading.temperature // empty'`
+    FAHR=`echo ${RESULT} | jq '.[0].reading.temp_fahr // empty'`
+    if [[ -n "$TEMP" ]] && [[ -n "$FAHR" ]]; then break; fi
 done
-if [ $LOOP -eq $MAX_RETRIES ]; then echo "timeout"; exit 1; fi
-echo "    ---- temperature and fahrenheit data seen in e_weather graph ----"
-echo "======================= ENVIRO-PHAT SETUP COMPLETE ======================="
+
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+ then
+   display_and_collect_err "TIMEOUT! temperature and fahrenheit data not seen in e_weather graph. $URL/asset/e_weather?seconds=600"
+   if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+ else
+   echo "---- temperature and fahrenheit data seen in e_weather graph ----"
+fi
+
+echo "======================= enviro-pHAT SETUP COMPLETE ======================="
 
 
 # Enable Event Engine
@@ -339,16 +368,22 @@ curl -sX POST "$URL/service" -d \
 }'
 echo
 # Need to wait for event engine to come up
-curl -sX GET localhost:8081/foglamp/service|jq '.services[]|select(.name=="FogLAMP Notifications").status'
-for LOOP in $(seq $MAX_RETRIES); do
+curl -sX GET "$URL/service" | jq '.services[]|select(.name=="FogLAMP Notifications").status'
+for LOOP in $(seq ${MAX_RETRIES}); do
     RESULT=`curl -sX GET "$URL/service"`
-    echo $RESULT
-    STATUS=`echo $RESULT | jq '.services[]|select(.name=="FogLAMP Notifications").status // empty'`
-    if [ -n "$STATUS" ] && [ $STATUS == "\"running\"" ]; then break; fi
+    echo ${RESULT}
+    STATUS=`echo ${RESULT} | jq '.services[]|select(.name=="FogLAMP Notifications").status // empty'`
+    if [[ -n "$STATUS" ]] && [[ ${STATUS} == "\"running\"" ]]; then break; fi
 done
-if [ $LOOP -eq $MAX_RETRIES ]; then echo "timeout"; exit 1; fi
-echo "    ---- service reports event engine is running  ----"
-# sleep $SLEEP_FIX
+
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+ then
+   display_and_collect_err "TIMEOUT! event engine is not running. $URL/service"
+   if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+ else
+   echo "---- service reports event engine is running ----"
+fi
+# sleep ${SLEEP_FIX}
 
 echo "======================= EVENT ENGINE ENABLED ======================="
 
@@ -380,17 +415,24 @@ curl -sX PUT "$URL/category/deliveryPositive%20Sine" -d \
 }'
 echo
 
-for LOOP in $(seq $MAX_RETRIES); do
+for LOOP in $(seq ${MAX_RETRIES}); do
     RESULT=`curl -sX GET "$URL/asset/positive_sine?seconds=600"`
-    echo $RESULT
-    EVENT=`echo $RESULT | jq '.[0].reading.event // empty'`
-    RULE=`echo $RESULT | jq '.[0].reading.rule // empty'`
-    if [ -n "$EVENT" ] && [ "$EVENT" == "\"triggered\"" ] && \
-        [ -n "$RULE" ] && [ "$RULE" == "\"Positive Sine\"" ]; then break; fi
+    echo ${RESULT}
+    EVENT=`echo ${RESULT} | jq '.[0].reading.event // empty'`
+    RULE=`echo ${RESULT} | jq '.[0].reading.rule // empty'`
+    if [[ -n "$EVENT" ]] && [[ "$EVENT" == "\"triggered\"" ]] && \
+        [[ -n "$RULE" ]] && [[ "$RULE" == "\"Positive Sine\"" ]]; then break; fi
     sleep 1
 done
-if [ $LOOP -eq $MAX_RETRIES ]; then echo "timeout"; exit 1; fi
-echo "    ---- positive_sine event fired ----"
+
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]];
+  then
+    display_and_collect_err "TIMEOUT! positive_sine event not fired. $URL/asset/positive_sine?seconds=600";
+    if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+  else
+    echo "---- positive_sine event fired ----"
+fi
+
 # [{"reading": {"description": "Notification alert", "event": "triggered", "rule": "Positive Sign"}, "timestamp": "2019-08-28 17:42:42.421744"}, {"reading": {"description": "Notification alert", "event": "triggered", "rule": "Positive Sign"}, "timestamp": "2019-08-28 17:41:37.002845"}, {"reading": {"description": "Notification alert", "event": "triggered", "rule": "Positive Sign"}, "timestamp": "2019-08-28 17:40:33.489106"}]
 
 echo "======================= EVENT POSITIVE SINE COMPLETE ======================="
@@ -427,20 +469,32 @@ curl -sX PUT "$URL/category/deliveryNegative%20Sine" -d \
 }'
 echo
 
-for LOOP in $(seq $MAX_RETRIES); do
-    if [ -f "/tmp/out" ]; then break; fi
+for LOOP in $(seq ${MAX_RETRIES}); do
+    if [[ -f "/tmp/out" ]]; then break; fi
     sleep 1
 done
-if [ $LOOP -eq $MAX_RETRIES ]; then echo "timeout"; exit 1; fi
-echo "    ---- negative_sine event fired ----"
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]];
+  then
+    display_and_collect_err "TIMEOUT! negative_sine event not fired. ";
+    if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+  else
+    echo "---- negative_sine event fired ----"
+fi
 
 echo "======================= EVENT NEGATIVE SINE COMPLETE ======================="
 
 
-
-echo "======================================================"
-echo "========== S U C C E S S ============================="
-echo "======================================================"
+ERRORS="$(wc -c <"err.txt")"
+if [[ ${ERRORS} -ne 0 ]]
+ then
+    echo "============================= TESTS FAILED! ============================="
+    cat err.txt
+    exit 1
+ else
+    echo "======================================================\
+          =================== S U C C E S S ====================\
+          ======================================================"
+fi
 echo
 
 exit 0
@@ -451,7 +505,6 @@ exit 0
 ##### These aren't included because they can't be automated easily
 #####
 
-# These are used to setup the actual lab, but aren't used in testing
 GREEN_TRIGGER=130
 TEMPERATURE_TRIGGER=31
 

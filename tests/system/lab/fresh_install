@@ -1,0 +1,11 @@
+#!/bin/bash
+sudo apt update && sudo apt upgrade -y && sudo apt update
+echo "==================== DONE UPDATING ============================"
+cd ~/foglamp
+time sudo apt install -y ./foglamp-1*
+echo "==================== DONE INSTALLING FOGLAMP =================="
+time sudo apt install -y ./foglamp-gui*
+echo "==================== DONE INSTALLING GUI ======================"
+cd plugins
+time sudo apt install -y ./foglamp*
+echo "==================== DONE INSTALLING PLUGINS =================="

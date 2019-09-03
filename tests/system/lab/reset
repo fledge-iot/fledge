@@ -1,0 +1,5 @@
+#!/bin/sh
+/usr/local/foglamp/bin/foglamp kill
+echo "YES" | /usr/local/foglamp/bin/foglamp reset || exit 1
+rm -rf /usr/local/foglamp/data/scripts/* || exit 1
+/usr/local/foglamp/bin/foglamp start

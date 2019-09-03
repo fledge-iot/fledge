@@ -1,0 +1,11 @@
+#!/bin/bash
+for i in $(seq 100); do
+	echo "***************"
+	echo "***************"
+	echo "Run $i"
+	echo "***************"
+	echo "***************"
+	./reset
+	./setup || break
+done
+

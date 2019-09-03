@@ -1,0 +1,4 @@
+#!/bin/bash
+time sudo apt remove -y foglamp foglamp-gui
+sudo rm -rf /usr/local/foglamp
+sudo reboot

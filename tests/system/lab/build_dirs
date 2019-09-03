@@ -1,0 +1,44 @@
+#!/bin/sh
+ARCHIVE='1.7.0RC/buster/armv7l'
+POST='-1.7.0-armv7l.deb'
+GUI_POST='-1.7.0.deb'
+#ARCHIVE='nightly/buster/armv7l'
+#POST='-1.6.0-armv7l.deb'
+#GUI_POST='-1.6.0next.deb'
+
+cd
+rm -rf foglamp-bak
+mv foglamp foglamp-bak
+mkdir -p foglamp/plugins/other
+cd foglamp/plugins/other
+wget -r --no-parent http://archives.dianomic.com/$ARCHIVE
+mv archives.dianomic.com/$ARCHIVE/* .
+rm -rf archives.dianomic.com
+cp \
+foglamp-service-notification$POST \
+foglamp-filter-expression$POST \
+foglamp-filter-python35$POST \
+foglamp-filter-rms$POST \
+foglamp-filter-fft$POST \
+foglamp-filter-delta$POST \
+foglamp-filter-metadata$POST \
+foglamp-filter-change$POST \
+foglamp-notify-asset$POST \
+foglamp-notify-python35$POST \
+foglamp-notify-email$POST \
+foglamp-rule-simple-expression$POST \
+foglamp-rule-average$POST \
+foglamp-north-httpc$POST \
+foglamp-south-sinusoid$POST \
+foglamp-south-envirophat$POST \
+foglamp-south-randomwalk$POST \
+foglamp-south-game$POST \
+foglamp-south-modbus$POST \
+foglamp-south-http-south$POST \
+foglamp-south-mqtt-sparkplug$POST \
+..
+cp \
+foglamp$POST \
+foglamp-gui$GUI_POST \
+../..
+cd ../..

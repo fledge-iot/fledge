@@ -2,4 +2,5 @@
 
 ./remove
 ./install 1.7.0RC
+./reset
 ./test

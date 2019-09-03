@@ -1,8 +1,20 @@
 #!/usr/bin/env bash
 
-ITERATIONS=100
+ITERATIONS=10
+if [[ $# -gt 0 ]]
+ then
+ ITERATIONS=$1
+fi
+
+VERSION="nightly"
+if [[ $# -gt 1 ]]
+ then
+ VERSION=$2
+fi
+
+
 ./remove
-./install 1.7.0RC
+./install ${VERSION}
 
 for i in $(seq ${ITERATIONS}); do
 	echo "***************"

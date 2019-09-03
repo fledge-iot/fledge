@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 
+VERSION="nightly"
+if [[ $# -gt 0 ]]
+ then
+ VERSION=$1
+fi
+
 ./remove
-./install 1.7.0RC
+./install ${VERSION}
 ./reset
 ./test

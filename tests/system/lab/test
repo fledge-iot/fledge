@@ -96,7 +96,6 @@ fi
 echo "======================= SINUSOID SETUP COMPLETE ======================="
 
 # Add PI North
-# TODO: allow to pass PI_ADMIN, PI_PWD, PI_DB in config
 curl -sX POST "$URL/scheduled/task" -d \
 '{
    "name": "PI Server",

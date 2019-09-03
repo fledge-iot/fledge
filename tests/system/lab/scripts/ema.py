@@ -1,24 +1,33 @@
-# generate exponential moving average
+# -*- coding: utf-8 -*-
 
-# rate default value: include 7% of current value (and 93% of history)
-rate = 0.07
 
-# latest ema value
-latest = None
-
+""" Generate exponential moving average
+"""
 import json
-# get configuration if provided.
-# set this JSON string in configuration:
-#      {"rate":0.07}
+
+rate = 0.07  # rate default value: include 7% of current value (and 93% of history)
+latest = None  # latest ema value
+
+
 def set_filter_config(configuration):
+    """ Set configuration if provided
+
+    :param configuration:
+    :return:
+    """
     global rate
     config = json.loads(configuration['config'])
-    if('rate' in config):
+    if'rate' in config:
         rate = config['rate']
     return True
 
-# Process a reading
+
 def doit(reading):
+    """ Process a reading
+
+    :param reading:
+    :return:
+    """
     global rate, latest
     for attribute in list(reading):
         if not latest:
@@ -26,8 +35,13 @@ def doit(reading):
         latest = reading[attribute] * rate + latest * (1 - rate)
         reading[b'ema'] = latest
 
-# process one or more readings
+
 def ema(readings):
+    """ Process one or more readings
+
+    :param readings:
+    :return:
+    """
     for elem in list(readings):
         doit(elem['reading'])
     return readings

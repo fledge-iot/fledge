@@ -1,11 +1,16 @@
-#!/bin/bash
-for i in $(seq 100); do
+#!/usr/bin/env bash
+
+ITERATIONS=100
+./remove
+./install 1.7.0RC
+
+for i in $(seq ${ITERATIONS}); do
 	echo "***************"
 	echo "***************"
 	echo "Run $i"
 	echo "***************"
 	echo "***************"
 	./reset
-	./setup || break
+	./test || break
 done
 

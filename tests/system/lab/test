@@ -1,11 +1,17 @@
 #!/bin/bash
 
+CPFX="\033["
+CINFO="${CPFX}1;32m"
+CERR="${CPFX}1;31m"
+CRESET="${CPFX}0m"
+
 # FogLAMP IP Address
-IP='192.168.4.45'
-# PI Server IP Address
+IP='localhost'
+
+# PI Server IP Address and Producer Token
 PI_IP='192.168.4.41'
-#PI Server Producer Token
 TOKEN='uid=x'
+
 # Max times to retry checking something before giving up and declaring a failed run
 MAX_RETRIES=100
 # Time to sleep to fix bugs. This should be zero.
@@ -17,7 +23,7 @@ TEMPERATURE_TRIGGER=31
 
 URL="http://$IP:8081/foglamp"
 
-# add Sinusoid South
+echo -e INFO: "${CINFO} Add Sinusoid South ${CRESET}"
 curl -sX POST "$URL/service" -d \
 '{
    "name": "Sine",
@@ -28,44 +34,43 @@ curl -sX POST "$URL/service" -d \
 }'
 echo
 
-for LOOP in $(seq $MAX_RETRIES); do
+for LOOP in $(seq ${MAX_RETRIES}); do
     RESULT=`curl -sX GET "$URL/south"`
-    echo $RESULT
-    COUNT=`echo $RESULT | jq '.services[].assets[]|select(.asset == "sinusoid").count // empty'`
-    if [ -n "$COUNT" ] && [ $COUNT -gt 0 ]; then break; fi
+    echo ${RESULT}
+    COUNT=`echo ${RESULT} | jq '.services[].assets[]|select(.asset == "sinusoid").count // empty'`
+    if [[ -n "${COUNT}" ]] && [[ ${COUNT} -gt 0 ]]; then break; fi
 done
-if [ $LOOP -eq $MAX_RETRIES ]; then echo "timeout"; exit 1; fi
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]; then echo -e "${CERR}TIMEOUT! $URL/south ${CRESET}"; exit 1; fi
 echo "    ---- sinusoid data seen in South tab ----"
 # echo $RESULT|jq '.services[].status'
 # "running"
 # {"services": [{"name": "Sine", "address": "localhost", "management_port": 41179, "service_port": null, "protocol": "http", "status": "running", "assets": [{"count": 1412, "asset": "sinusoid"}], "plugin": {"name": "sinusoid", "version": "1.6.0"}, "schedule_enabled": true}]}
 
-for LOOP in $(seq $MAX_RETRIES); do
+for LOOP in $(seq ${MAX_RETRIES}); do
     RESULT=`curl -sX GET "$URL/asset"`
-    echo $RESULT
-    COUNT=`echo $RESULT | jq '.[]|select(.assetCode == "sinusoid")|.count // empty'`
-    if [ -n "$COUNT" ] && [ $COUNT -gt 0 ]; then break; fi
+    echo ${RESULT}
+    COUNT=`echo ${RESULT} | jq '.[]|select(.assetCode == "sinusoid")|.count // empty'`
+    if [[ -n "$COUNT" ]] && [[ ${COUNT} -gt 0 ]]; then break; fi
 done
-if [ $LOOP -eq $MAX_RETRIES ]; then echo "timeout"; exit 1; fi
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]; then echo -e "${CERR}TIMEOUT! $URL/asset ${CRESET}"; exit 1; fi
 echo "    ---- sinusoid data seen in Asset tab ----"
 
-for LOOP in $(seq $MAX_RETRIES); do
+for LOOP in $(seq ${MAX_RETRIES}); do
     RESULT=`curl -sX GET "$URL/ping"`
-    echo $RESULT
-    READ=`echo $RESULT | jq '.dataRead // empty'`
-    if [ -n "$READ" ] && [ "$READ" -gt 0 ]; then break; fi
+    echo ${RESULT}
+    READ=`echo ${RESULT} | jq '.dataRead // empty'`
+    if [[ -n "$READ" ]] && [[ "$READ" -gt 0 ]]; then break; fi
 done
-if [ $LOOP -eq $MAX_RETRIES ]; then echo "timeout"; exit 1; fi
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]; then echo "timeout"; exit 1; fi
 echo "    ---- sinusoid data sent seen in ping header ----"
-# {"uptime": 1893, "dataRead": 1713, "dataSent": 1708, "dataPurged": 0, "authenticationOptional": true, "serviceName": "FogLAMP", "hostName": "fogcar", "ipAddresses": ["192.168.4.45", "2600:1700:daa0:3510:d700:d567:c8d7:78ef"], "health": "green", "safeMode": false}
 
-for LOOP in $(seq $MAX_RETRIES); do
+for LOOP in $(seq ${MAX_RETRIES}); do
     RESULT=`curl -sX GET "$URL/asset/sinusoid?seconds=600"`
-    echo $RESULT
-    POINT=`echo $RESULT | jq '.[0].reading.sinusoid // empty'`
-    if [ -n "$POINT" ]; then break; fi
+    echo ${RESULT}
+    POINT=`echo ${RESULT} | jq '.[0].reading.sinusoid // empty'`
+    if [[ -n "$POINT" ]]; then break; fi
 done
-if [ $LOOP -eq $MAX_RETRIES ]; then echo "timeout"; exit 1; fi
+if [[ $LOOP -eq ${MAX_RETRIES} ]]; then echo -e "${CERR}TIMEOUT! $URL/asset/sinusoid?seconds=600 ${CRESET}"; exit 1; fi
 echo "    ---- sinusoid data seen in sinusoid graph ----"
 # [
 #    {
@@ -88,10 +93,10 @@ curl -sX POST "$URL/scheduled/task" -d \
    "schedule_enabled": true,
    "config": {
       "URL": {
-         "value": "https://'$PI_IP':5460/ingress/messages"
+         "value": "https://'${PI_IP}':5460/ingress/messages"
       },
       "producerToken": {
-         "value": "'$TOKEN'"
+         "value": "'${TOKEN}'"
       },
       "compression": {
          "value": "false"
@@ -100,13 +105,13 @@ curl -sX POST "$URL/scheduled/task" -d \
 }'
 echo
 
-for LOOP in $(seq $MAX_RETRIES); do
+for LOOP in $(seq ${MAX_RETRIES}); do
     RESULT=`curl -sX GET "$URL/north"`
-    echo $RESULT
-    SENT=`echo $RESULT | jq '.[0].sent // empty'`
-    if [ -n "$SENT" ] && [ "$SENT" -gt 0 ]; then break; fi
+    echo ${RESULT}
+    SENT=`echo ${RESULT} | jq '.[0].sent // empty'`
+    if [[ -n "$SENT" ]] && [[ "$SENT" -gt 0 ]]; then break; fi
 done
-if [ $LOOP -eq $MAX_RETRIES ]; then echo "timeout"; exit 1; fi
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]; then echo -e "${CERR}TIMEOUT! $URL/north ${CRESET}"; exit 1; fi
 echo "    ---- PI data sent seen in North tab ----"
 # not setup: []
 # setup but nothing sent yet
@@ -275,7 +280,7 @@ curl -sX PUT "$URL/filter/Random/pipeline?allow_duplicates=true&append_filter=tr
 }'
 echo
 # Upload Ema python script
-curl -sX POST "$URL/category/Random_Ema/script/upload" -F "script=@ema.py"
+curl -sX POST "$URL/category/Random_Ema/script/upload" -F "script=@scripts/ema.py"
 echo
 
 for LOOP in $(seq $MAX_RETRIES); do
@@ -414,8 +419,8 @@ curl -sX POST "$URL/notification" -d \
    "enabled": true
 }'
 
-# Upload Negative Sine Python Script (flash_leds.py)
-curl  -sX POST "$URL/category/deliveryNegative%20Sine/script/upload" -F "script=@write_out.py"
+# Upload Python Script (write_out.py)
+curl  -sX POST "$URL/category/deliveryNegative%20Sine/script/upload" -F "script=@scripts/write_out.py"
 echo
 
 # Set Negative Sine Rule Config (sinusoid.sinusoid < 0)
@@ -521,7 +526,7 @@ curl -sX PUT "$URL/category/deliveryFlash%20on%20Green" -d \
 }'
 echo
 # Upload Flash on Green Python Script (flash_leds.py)
-curl -sX POST "$URL/category/deliveryFlash%20on%20Green/script/upload" -F "script=@flash_leds.py"
+curl -sX POST "$URL/category/deliveryFlash%20on%20Green/script/upload" -F "script=@scripts/flash_leds.py"
 echo
 # Set Flash on Green config (retrigger_time: 5)
 curl -sX PUT "$URL/category/Flash%20on%20Green" -d \

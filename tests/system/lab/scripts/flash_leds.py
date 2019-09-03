@@ -1,5 +1,8 @@
+# -*- coding: utf-8 -*-
+
 from time import sleep
 from envirophat import leds
+
 
 def flash_leds(message):
     for count in range(4):

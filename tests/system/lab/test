@@ -5,23 +5,10 @@ CINFO="${CPFX}1;32m"
 CERR="${CPFX}1;31m"
 CRESET="${CPFX}0m"
 
-# FogLAMP IP Address
-IP='localhost'
+# Read config file for FOGLAMP IP, PI host and token etc.
+. ./test.config
 
-# PI Server IP Address and Producer Token
-PI_IP='192.168.4.41'
-TOKEN='uid=x'
-
-# Max times to retry checking something before giving up and declaring a failed run
-MAX_RETRIES=100
-# Time to sleep to fix bugs. This should be zero.
-SLEEP_FIX=10
-
-# These are used to setup the actual lab, but aren't used in testing
-GREEN_TRIGGER=130
-TEMPERATURE_TRIGGER=31
-
-URL="http://$IP:8081/foglamp"
+URL="http://$FOGLAMP_IP:8081/foglamp"
 
 echo -e INFO: "${CINFO} Add Sinusoid South ${CRESET}"
 curl -sX POST "$URL/service" -d \
@@ -96,7 +83,7 @@ curl -sX POST "$URL/scheduled/task" -d \
          "value": "https://'${PI_IP}':5460/ingress/messages"
       },
       "producerToken": {
-         "value": "'${TOKEN}'"
+         "value": "'${PI_TOKEN}'"
       },
       "compression": {
          "value": "false"
@@ -464,6 +451,9 @@ exit 0
 ##### These aren't included because they can't be automated easily
 #####
 
+# These are used to setup the actual lab, but aren't used in testing
+GREEN_TRIGGER=130
+TEMPERATURE_TRIGGER=31
 
 # Add Notification with Threshold Rule and Asset Notification (Temperature Monitor)
 curl -sX POST "$URL/notification" -d \

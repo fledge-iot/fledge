@@ -8,5 +8,5 @@ fi
 
 ./remove
 ./install ${VERSION}
-./reset
+#./reset
 ./test

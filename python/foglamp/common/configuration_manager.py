@@ -1222,7 +1222,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         uploaded_scripts_dir = '{}/data/scripts/'.format(_FOGLAMP_ROOT)
         if _FOGLAMP_DATA:
             uploaded_scripts_dir = '{}/scripts/'.format(_FOGLAMP_DATA)
-        files = "{}/{}*".format(uploaded_scripts_dir, category_name.lower())
+        files = "{}/{}_*".format(uploaded_scripts_dir, category_name.lower())
         try:
             for f in glob.glob(files):
                 _logger.info("Removing file %s for category %s", f, category_name)

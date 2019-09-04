@@ -197,7 +197,7 @@ curl -sX PUT "$URL/filter/Sine/pipeline?allow_duplicates=true&append_filter=true
 '{
    "pipeline": [
       "Square"
-   ]]
+   ]
 }'
 echo
 echo "======================= SINUSOID SQUARE FILTER COMPLETE ======================="
@@ -218,7 +218,7 @@ curl -sX PUT "$URL/filter/Sine/pipeline?allow_duplicates=true&append_filter=true
 '{
    "pipeline": [
       "Max"
-   ]]
+   ]
 }'
 echo
 
@@ -280,7 +280,7 @@ curl -sX PUT "$URL/filter/Random/pipeline?allow_duplicates=true&append_filter=tr
 '{
    "pipeline": [
       "Ema"
-   ]]
+   ]
 }'
 echo
 # Upload Ema python script
@@ -336,7 +336,7 @@ curl -sX PUT "$URL/filter/Enviro/pipeline?allow_duplicates=true&append_filter=tr
 '{
    "pipeline": [
       "Fahrenheit"
-   ]]
+   ]
 }'
 echo
 

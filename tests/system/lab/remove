@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
 
-time sudo apt remove -y foglamp foglamp-gui # better to purge?
-sudo rm -rf /usr/local/foglamp # Should not be needed.
-#sudo reboot
+time sudo apt purge -y foglamp foglamp-gui
+sudo rm -rf /usr/local/foglamp

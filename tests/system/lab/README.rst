@@ -8,6 +8,8 @@ Script to automate FogLAMP Lab
 
 3. Check and set the configuration in `test.config`
 
+4. Make sure to enable I2C Interface for enviro-pHAT and reboot.
+
 For CI or individual's setup, `test.config` should be replaced (altered) per the parameters.
 
 Execute `./run` to run test once. Default version it will use is nightly, you can pass an argument e.g. `./run 1.7.0RC`
@@ -16,7 +18,7 @@ To run the test for required (say 10) iterations or until it fails - execute `./
 
 **`run` and `run_until_fails` use the following scripts in its execution:**
 
-**remove**: apt removes all foglamp packages; deletes /usr/local/foglamp; reboots
+**remove**: apt removes all foglamp packages; deletes /usr/local/foglamp;
 
 **install**: apt update; install foglamp; install gui; install other foglamp packages
 

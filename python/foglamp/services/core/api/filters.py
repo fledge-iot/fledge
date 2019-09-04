@@ -434,8 +434,9 @@ async def _delete_configuration_category(storage: StorageClientAsync, key: str) 
     payload = PayloadBuilder().WHERE(['key', '=', key]).payload()
     await storage.delete_from_tbl('configuration', payload)
 
-    # Removed key from configuration cache
+    # Removed category from configuration cache and other related stuff e.g. script files
     config_mgr = ConfigurationManager(storage)
+    config_mgr.delete_category_related_things(key)
     config_mgr._cacheManager.remove(key)
 
 

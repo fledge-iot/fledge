@@ -1,4 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+./check_env
+[[ $? -eq 0 ]]  || exit 1
 
 CPFX="\033["
 CINFO="${CPFX}1;32m"

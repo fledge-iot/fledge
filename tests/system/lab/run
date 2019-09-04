@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+./check_env
+[[ $? -eq 0 ]]  || exit 1
+
 VERSION="nightly"
 if [[ $# -gt 0 ]]
  then

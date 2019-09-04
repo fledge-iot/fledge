@@ -1,5 +1,4 @@
 def write_out(message):
-    file = open("/tmp/out", "w")
-    file.write("We have triggered.")
-    file.write(message)
-    file.close()
+    with open('/tmp/out', 'w') as f:
+        f.write("We have triggered.")
+        f.write(message)

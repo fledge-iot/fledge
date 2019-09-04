@@ -475,7 +475,7 @@ for LOOP in $(seq ${MAX_RETRIES}); do
 done
 if [[ ${LOOP} -eq ${MAX_RETRIES} ]];
   then
-    display_and_collect_err "TIMEOUT! negative_sine event not fired. ";
+    display_and_collect_err "TIMEOUT! negative_sine event not fired. No /tmp/out file.";
     if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
   else
     echo "---- negative_sine event fired ----"
@@ -524,7 +524,7 @@ curl -sX PUT "$URL/category/ruleTemperature%20Monitor" -d \
 '{
    "asset": "e_weather",
    "datapoint": "temperature",
-   "trigger_value": "'$TEMPERATURE_TRIGGER'"
+   "trigger_value": "'${TEMPERATURE_TRIGGER}'"
 }'
 echo
 # Set Temperature Monitor Delivery Config (temperature_monitor: "Too Hot!")
@@ -559,7 +559,7 @@ curl -sX PUT "$URL/category/ruleFlash%20on%20Green" -d \
 '{
    "asset": "e_rgb",
    "datapoint": "g",
-   "trigger_value": "'$GREEN_TRIGGER'"
+   "trigger_value": "'${GREEN_TRIGGER}'"
 }'
 echo
 # Set Flash on Green Delivery Config (enabled)

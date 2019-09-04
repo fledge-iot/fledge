@@ -22,7 +22,7 @@ if [[ $# -gt 0 ]]
  BUILD_VERSION=$1
 fi
 
-VERSION_CODENAME= $(cat /etc/os-release | grep VERSION_CODENAME | cut -f2 -d"=")
+VERSION_CODENAME=$(cat /etc/os-release | grep VERSION_CODENAME | cut -f2 -d"=")
 
 wget -q -O - http://archives.dianomic.com/KEY.gpg | sudo apt-key add -
 echo "deb http://archives.dianomic.com/${BUILD_VERSION}/${VERSION_CODENAME}/armv7l/ /" | sudo tee -a /etc/apt/sources.list

@@ -74,7 +74,6 @@ PyInit_async_ingest(void)
 
 void plugin_ingest_fn(PyObject *ingest_callback, PyObject *ingest_obj_ref_data, PyObject *readingsObj)
 {
-	PRINT_FUNC;
 	if (ingest_callback == NULL || ingest_obj_ref_data == NULL || readingsObj == NULL)
 	{
 		Logger::getLogger()->error("PyC interface: plugin_ingest_fn: ingest_callback=%p, ingest_obj_ref_data=%p, readingsObj=%p",

@@ -28,7 +28,7 @@ __version__ = "${VERSION}"
 SOUTH_PLUGIN = "envirophat"
 SVC_NAME = "Room-1"
 
-ASSET_PREFIX = "envirophat/"  # default for envirophat South plugin
+ASSET_PREFIX = "e_"  # default for envirophat South plugin
 
 ASSET_NAME_W = "weather"
 SENSOR_READ_KEY_W = {"temperature", "altitude", "pressure"}

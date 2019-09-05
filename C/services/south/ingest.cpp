@@ -458,6 +458,7 @@ bool Ingest::loadFilters(const string& categoryName)
 	 * in the case of this routine being called when the mutex is not held and ensure m_filterPipeline
 	 * only ever points to a fully configured filter pipeline.
 	 */
+	lock_guard<mutex> guard(m_pipelineMutex);
 	FilterPipeline *filterPipeline = new FilterPipeline(m_mgtClient, m_storage, m_serviceName);
 	
 	// Try to load filters:
@@ -471,7 +472,6 @@ bool Ingest::loadFilters(const string& categoryName)
 	bool rval = filterPipeline->setupFiltersPipeline((void *)passToOnwardFilter, (void *)useFilteredData, this);
 	if (rval)
 	{
-		lock_guard<mutex> guard(m_pipelineMutex);
 		m_filterPipeline = filterPipeline;
 	}
 	else

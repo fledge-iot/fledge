@@ -293,9 +293,9 @@ echo
 for LOOP in $(seq ${MAX_RETRIES}); do
     RESULT=`curl -sX GET "$URL/asset/randomwalk?seconds=600"`
     echo ${RESULT}
-    RANDOM=`echo ${RESULT} | jq '.[0].reading.randomwalk // empty'`
+    RANDOM_RESULT=`echo ${RESULT} | jq '.[0].reading.randomwalk // empty'`
     EMA=`echo ${RESULT} | jq '.[0].reading.ema // empty'`
-    if [[ -n "$RANDOM" ]] && [[ -n "$EMA" ]]; then break; fi
+    if [[ -n "RANDOM_RESULT" ]] && [[ -n "$EMA" ]]; then break; fi
 done
 if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
  then

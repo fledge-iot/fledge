@@ -98,89 +98,102 @@ fi
 # ]
 echo "======================= SINUSOID SETUP COMPLETE ======================="
 
-# Add PI North
-curl -sX POST "$URL/scheduled/task" -d \
-'{
-   "name": "PI Server",
-   "plugin": "PI_Server_V2",
-   "type": "north",
-   "schedule_repeat": 30,
-   "schedule_type": "3",
-   "schedule_enabled": true,
-   "config": {
-      "URL": {
-         "value": "https://'${PI_IP}':5460/ingress/messages"
-      },
-      "producerToken": {
-         "value": "'${PI_TOKEN}'"
-      },
-      "compression": {
-         "value": "false"
-      }
-   }
-}'
-echo
+setup_north_pi_egress () {
+    # Add PI North
+    curl -sX POST "$URL/scheduled/task" -d \
+    '{
+       "name": "PI Server",
+       "plugin": "PI_Server_V2",
+       "type": "north",
+       "schedule_repeat": 30,
+       "schedule_type": "3",
+       "schedule_enabled": true,
+       "config": {
+          "URL": {
+             "value": "https://'${PI_IP}':5460/ingress/messages"
+          },
+          "producerToken": {
+             "value": "'${PI_TOKEN}'"
+          },
+          "compression": {
+             "value": "false"
+          }
+       }
+    }'
+    echo
 
-for LOOP in $(seq ${MAX_RETRIES}); do
-    RESULT=`curl -sX GET "$URL/north"`
-    echo ${RESULT}
-    SENT=`echo ${RESULT} | jq '.[0].sent // empty'`
-    if [[ -n "$SENT" ]] && [[ "$SENT" -gt 0 ]]; then break; fi
-done
-if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
- then
-   display_and_collect_err "TIMEOUT! PI data sent not seen in North tab. $URL/north"
-   if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
- else
-   echo "---- PI data sent seen in North tab ----"
+    for LOOP in $(seq ${MAX_RETRIES}); do
+        RESULT=`curl -sX GET "$URL/north"`
+        echo ${RESULT}
+        SENT=`echo ${RESULT} | jq '.[0].sent // empty'`
+        if [[ -n "$SENT" ]] && [[ "$SENT" -gt 0 ]]; then break; fi
+    done
+    if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+     then
+       display_and_collect_err "TIMEOUT! PI data sent not seen in North tab. $URL/north"
+       if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+     else
+       echo "---- PI data sent seen in North tab ----"
+    fi
+
+    for LOOP in $(seq ${MAX_RETRIES}); do
+        RESULT=`curl -sX GET "$URL/ping"`
+        echo ${RESULT}
+        SENT=`echo ${RESULT} | jq '.dataSent // empty'`
+        if [[ -n "$SENT" ]] && [[ "$SENT" -gt 0 ]]; then break; fi
+    done
+    if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+     then
+       display_and_collect_err "TIMEOUT! PI data sent not seen in ping header. $URL/ping"
+       if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+     else
+       echo "---- PI data sent seen in ping header ----"
+    fi
+
+    for LOOP in $(seq ${MAX_RETRIES}); do
+        RESULT=`curl -sX GET "$URL/statistics/history?minutes=10"`
+        echo ${RESULT}
+        POINT=`echo ${RESULT} | jq '.statistics[0]."PI Server" // empty'`
+        if [[ -n "$POINT" ]] && [[ "$POINT" -gt 0 ]]; then break; fi
+    done
+    if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+     then
+       display_and_collect_err "TIMEOUT! PI data sent not seen in sent graph. $URL/statistics/history?minutes=10"
+       if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+     else
+       echo "---- PI data sent seen in sent graph ----"
+    fi
+    # {
+    #    "interval": 15.0,
+    #    "statistics": [
+    #       {
+    #          "history_ts": "2019-08-28 15:23:18.865",
+    #          "READINGS": 15,
+    #          "BUFFERED": 0,
+    #          "UNSENT": 0,
+    #          "PURGED": 0,
+    #          "UNSNPURGED": 0,
+    #          "DISCARDED": 0,
+    #          "SINUSOID": 15,
+    #          "Readings Sent": 15,
+    #          "PI Server": 15
+    #       }, ...
+    #    ]]
+    # }
+
+
+   echo "======================= PI SETUP COMPLETE ======================="
+
+}
+
+if [[  ${VERIFY_EGRESS_TO_PI} == 1 ]]
+  then
+     setup_north_pi_egress
+  else
+     echo "======================= SKIPPED PI EGRESS ======================="
 fi
 
-for LOOP in $(seq ${MAX_RETRIES}); do
-    RESULT=`curl -sX GET "$URL/ping"`
-    echo ${RESULT}
-    SENT=`echo ${RESULT} | jq '.dataSent // empty'`
-    if [[ -n "$SENT" ]] && [[ "$SENT" -gt 0 ]]; then break; fi
-done
-if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
- then
-   display_and_collect_err "TIMEOUT! PI data sent not seen in ping header. $URL/ping"
-   if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
- else
-   echo "---- PI data sent seen in ping header ----"
-fi
 
-for LOOP in $(seq ${MAX_RETRIES}); do
-    RESULT=`curl -sX GET "$URL/statistics/history?minutes=10"`
-    echo ${RESULT}
-    POINT=`echo ${RESULT} | jq '.statistics[0]."PI Server" // empty'`
-    if [[ -n "$POINT" ]] && [[ "$POINT" -gt 0 ]]; then break; fi
-done
-if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
- then
-   display_and_collect_err "TIMEOUT! PI data sent not seen in sent graph. $URL/statistics/history?minutes=10"
-   if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
- else
-   echo "---- PI data sent seen in sent graph ----"
-fi
-# {
-#    "interval": 15.0,
-#    "statistics": [
-#       {
-#          "history_ts": "2019-08-28 15:23:18.865",
-#          "READINGS": 15,
-#          "BUFFERED": 0,
-#          "UNSENT": 0,
-#          "PURGED": 0,
-#          "UNSNPURGED": 0,
-#          "DISCARDED": 0,
-#          "SINUSOID": 15,
-#          "Readings Sent": 15,
-#          "PI Server": 15
-#       }, ...
-#    ]]
-# }
-
-echo "======================= PI SETUP COMPLETE ======================="
 
 
 # Add Expression Filter (Square)

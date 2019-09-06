@@ -35,7 +35,7 @@ echo
 
 for LOOP in $(seq ${MAX_RETRIES}); do
     RESULT=`curl -sX GET "$URL/south"`
-    echo ${RESULT}
+    # echo ${RESULT}
     COUNT=`echo ${RESULT} | jq '.services[].assets[]|select(.asset == "sinusoid").count // empty'`
     if [[ -n "${COUNT}" ]] && [[ ${COUNT} -gt 0 ]]; then break; fi
 done
@@ -49,7 +49,7 @@ fi
 
 for LOOP in $(seq ${MAX_RETRIES}); do
     RESULT=`curl -sX GET "$URL/asset"`
-    echo ${RESULT}
+    # echo ${RESULT}
     COUNT=`echo ${RESULT} | jq '.[]|select(.assetCode == "sinusoid")|.count // empty'`
     if [[ -n "$COUNT" ]] && [[ ${COUNT} -gt 0 ]]; then break; fi
 done
@@ -63,7 +63,7 @@ fi
 
 for LOOP in $(seq ${MAX_RETRIES}); do
     RESULT=`curl -sX GET "$URL/ping"`
-    echo ${RESULT}
+    # echo ${RESULT}
     READ=`echo ${RESULT} | jq '.dataRead // empty'`
     if [[ -n "$READ" ]] && [[ "$READ" -gt 0 ]]; then break; fi
 done
@@ -77,7 +77,7 @@ fi
 
 for LOOP in $(seq ${MAX_RETRIES}); do
     RESULT=`curl -sX GET "$URL/asset/sinusoid?seconds=600"`
-    echo ${RESULT}
+    # echo ${RESULT}
     POINT=`echo ${RESULT} | jq '.[0].reading.sinusoid // empty'`
     if [[ -n "$POINT" ]]; then break; fi
 done
@@ -88,14 +88,7 @@ if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
   else
     echo "---- sinusoid data seen in sinusoid graph ----"
 fi
-# [
-#    {
-#       "reading": {
-#          "sinusoid": -0.809016994
-#       },
-#       "timestamp": "2019-08-28 07:55:12.810924"
-#    }, ...
-# ]
+
 echo "======================= SINUSOID SETUP COMPLETE ======================="
 
 setup_north_pi_egress () {
@@ -124,7 +117,7 @@ setup_north_pi_egress () {
 
     for LOOP in $(seq ${MAX_RETRIES}); do
         RESULT=`curl -sX GET "$URL/north"`
-        echo ${RESULT}
+        # echo ${RESULT}
         SENT=`echo ${RESULT} | jq '.[0].sent // empty'`
         if [[ -n "$SENT" ]] && [[ "$SENT" -gt 0 ]]; then break; fi
     done
@@ -138,7 +131,7 @@ setup_north_pi_egress () {
 
     for LOOP in $(seq ${MAX_RETRIES}); do
         RESULT=`curl -sX GET "$URL/ping"`
-        echo ${RESULT}
+        # echo ${RESULT}
         SENT=`echo ${RESULT} | jq '.dataSent // empty'`
         if [[ -n "$SENT" ]] && [[ "$SENT" -gt 0 ]]; then break; fi
     done
@@ -152,7 +145,7 @@ setup_north_pi_egress () {
 
     for LOOP in $(seq ${MAX_RETRIES}); do
         RESULT=`curl -sX GET "$URL/statistics/history?minutes=10"`
-        echo ${RESULT}
+        # echo ${RESULT}
         POINT=`echo ${RESULT} | jq '.statistics[0]."PI Server" // empty'`
         if [[ -n "$POINT" ]] && [[ "$POINT" -gt 0 ]]; then break; fi
     done
@@ -163,24 +156,6 @@ setup_north_pi_egress () {
      else
        echo "---- PI data sent seen in sent graph ----"
     fi
-    # {
-    #    "interval": 15.0,
-    #    "statistics": [
-    #       {
-    #          "history_ts": "2019-08-28 15:23:18.865",
-    #          "READINGS": 15,
-    #          "BUFFERED": 0,
-    #          "UNSENT": 0,
-    #          "PURGED": 0,
-    #          "UNSNPURGED": 0,
-    #          "DISCARDED": 0,
-    #          "SINUSOID": 15,
-    #          "Readings Sent": 15,
-    #          "PI Server": 15
-    #       }, ...
-    #    ]]
-    # }
-
 
    echo "======================= PI SETUP COMPLETE ======================="
 
@@ -240,7 +215,7 @@ echo
 
 for LOOP in $(seq ${MAX_RETRIES}); do
     RESULT=`curl -sX GET "$URL/asset/sinusoid?seconds=600"`
-    echo ${RESULT}
+    # echo ${RESULT}
     SQUARE=`echo ${RESULT} | jq '.[0].reading.square // empty'`
     MAX=`echo ${RESULT} | jq '.[0].reading.max // empty'`
     if [[ -n "$SQUARE" ]] && [[ -n "$MAX" ]]; then break; fi
@@ -252,16 +227,6 @@ if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
  else
    echo "---- square and max data seen in sinusoid graph ----"
 fi
-# [
-#    {
-#       "reading": {
-#          "sinusoid": -0.809016994
-#          "square": -0.809016994
-#          "max": -0.809016994
-#       },
-#       "timestamp": "2019-08-28 07:55:12.810924"
-#    }, ...
-# ]]
 
 echo "======================= SINUSOID MAX FILTER COMPLETE ======================="
 
@@ -305,7 +270,7 @@ echo
 
 for LOOP in $(seq ${MAX_RETRIES}); do
     RESULT=`curl -sX GET "$URL/asset/randomwalk?seconds=600"`
-    echo ${RESULT}
+    # echo ${RESULT}
     RANDOM_RESULT=`echo ${RESULT} | jq '.[0].reading.randomwalk // empty'`
     EMA=`echo ${RESULT} | jq '.[0].reading.ema // empty'`
     if [[ -n "$RANDOM_RESULT" ]] && [[ -n "$EMA" ]]; then break; fi
@@ -318,7 +283,116 @@ if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
    echo "---- randomwalk and ema data seen in randomwalk graph ----"
 fi
 
+# DELETE Randomwalk South
+curl -sX DELETE "$URL/service/Random" | jq
+echo
+
 echo "======================= RANDOMWALK SETUP COMPLETE ======================="
+
+
+# Add Randomwalk South Again
+curl -sX POST "$URL/service" -d \
+'{
+   "name": "Random1",
+   "type": "south",
+   "plugin": "randomwalk",
+   "enabled": true,
+   "config": {"assetName": {"value": "randomwalk1"}}
+}' | jq
+echo
+
+# need to wait for FogLAMP to be ready to accept python file
+sleep ${SLEEP_FIX}
+
+# Add Python35 Filter (PF)
+curl -sX POST "$URL/filter" -d \
+'{
+   "name": "PF",
+   "plugin": "python35",
+   "filter_config": {
+      "config": {
+         "rate": 0.07
+      },
+      "enable": "true"
+   }
+}' | jq
+echo
+
+# Apply PF to Random
+curl -sX PUT "$URL/filter/Random1/pipeline?allow_duplicates=true&append_filter=true" -d \
+'{
+   "pipeline": [
+      "PF"
+   ]
+}' | jq
+echo
+
+echo "upload trendc script..."
+curl -sX POST "$URL/category/Random1_PF/script/upload" -F "script=@scripts/trendc.py" | jq
+echo
+
+for LOOP in $(seq ${MAX_RETRIES}); do
+    RESULT=`curl -sX GET "$URL/asset/randomwalk1?seconds=60"`
+    # echo ${RESULT}
+    RANDOM_RESULT=`echo ${RESULT} | jq '.[0].reading.randomwalk // empty'`
+    TRENDC=`echo ${RESULT} | jq '.[0].reading.ema_long // empty'`
+    if [[ -n "$RANDOM_RESULT" ]] && [[ -n "$TRENDC" ]]; then break; fi
+done
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+ then
+   display_and_collect_err "TIMEOUT! randomwalk1 and ema_long data not seen in randomwalk1 graph. $URL/asset/randomwalk1?seconds=60"
+   if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+ else
+   echo "---- randomwalk and ema_long data seen in randomwalk1 graph ----"
+fi
+
+echo "upload trendc script with modified content..."
+
+cp scripts/trendc.py scripts/trendc.py.bak
+sed -i "s/reading\[b'ema_long/reading\[b'ema_longX/g" scripts/trendc.py
+
+curl -sX POST "$URL/category/Random1_PF/script/upload" -F "script=@scripts/trendc.py" | jq
+echo
+
+for LOOP in $(seq ${MAX_RETRIES}); do
+    RESULT=`curl -sX GET "$URL/asset/randomwalk1?seconds=60"`
+    # echo ${RESULT}
+    RANDOM_RESULT=`echo ${RESULT} | jq '.[0].reading.randomwalk // empty'`
+    TRENDCX=`echo ${RESULT} | jq '.[0].reading.ema_longX // empty'`
+    if [[ -n "$RANDOM_RESULT" ]] && [[ -n "$TRENDCX" ]]; then break; fi
+done
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+ then
+   display_and_collect_err "TIMEOUT! randomwalk1 and ema_longX data not seen in randomwalk1 graph. $URL/asset/randomwalk1?seconds=60"
+   if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+ else
+   echo "---- randomwalk and ema_longX data seen in randomwalk1 graph ----"
+fi
+
+
+mv scripts/trendc.py.bak scripts/trendc.py
+
+
+echo "upload ema script..."
+curl -sX POST "$URL/category/Random1_PF/script/upload" -F "script=@scripts/ema.py" | jq
+echo
+
+for LOOP in $(seq ${MAX_RETRIES}); do
+    RESULT=`curl -sX GET "$URL/asset/randomwalk1?seconds=600"`
+    # echo ${RESULT}
+    RANDOM_RESULT=`echo ${RESULT} | jq '.[0].reading.randomwalk // empty'`
+    EMA=`echo ${RESULT} | jq '.[0].reading.ema // empty'`
+    if [[ -n "$RANDOM_RESULT" ]] && [[ -n "$EMA" ]]; then break; fi
+done
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+ then
+   display_and_collect_err "TIMEOUT! randomwalk1 and ema data not seen in randomwalk1 graph. $URL/asset/randomwalk1?seconds=600"
+   if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+ else
+   echo "---- randomwalk1 and ema data seen in randomwalk1 graph ----"
+fi
+
+echo "======================= RANDOMWALK SETUP 2 COMPLETE ======================="
 
 
 # Add Enviro-pHAT South

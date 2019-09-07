@@ -1199,7 +1199,7 @@ class Server:
         except TimeoutError as err:
             raise web.HTTPInternalServerError(reason=str(err))
         except Exception as ex:
-            raise web.HTTPException(reason=str(ex))
+            raise web.HTTPInternalServerError(reason=str(ex))
 
     @classmethod
     async def restart(cls, request):
@@ -1224,7 +1224,7 @@ class Server:
         except TimeoutError as err:
             raise web.HTTPInternalServerError(reason=str(err))
         except Exception as ex:
-            raise web.HTTPException(reason=str(ex))
+            raise web.HTTPInternalServerError(reason=str(ex))
 
     @classmethod
     async def register_interest(cls, request):
@@ -1364,7 +1364,7 @@ class Server:
         except ValueError as ex:
             raise web.HTTPNotFound(reason=str(ex))
         except Exception as ex:
-            raise web.HTTPException(reason=ex)
+            raise web.HTTPInternalServerError(reason=ex)
 
         return web.json_response(result)
 
@@ -1447,6 +1447,6 @@ class Server:
         except ValueError as ex:
             raise web.HTTPNotFound(reason=str(ex))
         except Exception as ex:
-            raise web.HTTPException(reason=ex)
+            raise web.HTTPInternalServerError(reason=ex)
 
         return web.json_response(message)

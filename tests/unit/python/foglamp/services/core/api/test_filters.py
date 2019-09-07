@@ -170,7 +170,7 @@ class TestFilters:
             with patch.object(cf_mgr, 'get_category_all_items', side_effect=Exception) as get_cat_info_patch:
                 resp = await client.get('/foglamp/filter/{}'.format(filter_name))
                 assert 500 == resp.status
-                assert resp.reason is None
+                assert resp.reason is ''
             get_cat_info_patch.assert_called_once_with(filter_name)
 
     @pytest.mark.parametrize("data", [
@@ -291,7 +291,7 @@ class TestFilters:
                 with patch.object(_LOGGER, 'exception') as log_exc:
                     resp = await client.post('/foglamp/filter'.format("bench"), data=json.dumps({"name": name, "plugin": plugin_name}))
                     assert 500 == resp.status
-                    assert resp.reason is None
+                    assert resp.reason is ''
                 assert 1 == log_exc.call_count
                 log_exc.assert_called_once_with('Add filter, caught exception:  %s', '')
             get_cat_info_patch.assert_called_once_with(category_name=name)
@@ -652,7 +652,7 @@ class TestFilters:
             with patch.object(cf_mgr, 'get_category_all_items', side_effect=Exception) as get_cat_info_patch:
                 resp = await client.get('/foglamp/filter/{}/pipeline'.format(user))
                 assert 500 == resp.status
-                assert resp.reason is None
+                assert resp.reason is ''
             get_cat_info_patch.assert_called_once_with(category_name=user)
 
     @pytest.mark.skip(reason='Incomplete')

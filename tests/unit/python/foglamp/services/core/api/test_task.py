@@ -487,7 +487,7 @@ class TestTask:
         mocker.patch.object(task, "get_schedule", side_effect=Exception)
         resp = await client.delete("/foglamp/scheduled/task/Test")
         assert 500 == resp.status
-        assert resp.reason is None
+        assert resp.reason is ''
 
         async def mock_bad_result():
             return {"count": 0, "rows": []}

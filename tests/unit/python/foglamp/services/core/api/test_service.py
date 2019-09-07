@@ -595,7 +595,7 @@ class TestService:
         mocker.patch.object(service, "get_schedule", side_effect=Exception)
         resp = await client.delete("/foglamp/service/{}".format(name))
         assert 500 == resp.status
-        assert resp.reason is None
+        assert resp.reason is ''
 
         async def mock_bad_result():
             return {"count": 0, "rows": []}

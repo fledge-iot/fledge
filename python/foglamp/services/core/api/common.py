@@ -149,7 +149,7 @@ async def shutdown(request):
     except TimeoutError as err:
         raise web.HTTPInternalServerError(reason=str(err))
     except Exception as ex:
-        raise web.HTTPException(reason=str(ex))
+        raise web.HTTPInternalServerError(reason=str(ex))
 
 
 def do_shutdown(request):
@@ -177,4 +177,4 @@ async def restart(request):
         raise web.HTTPInternalServerError(reason=e)
     except Exception as ex:
         _logger.exception("Error while stopping FogLAMP server: %s", ex)
-        raise web.HTTPException(reason=ex)
+        raise web.HTTPInternalServerError(reason=ex)

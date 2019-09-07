@@ -163,7 +163,7 @@ class TestSchedules:
 
     @pytest.mark.parametrize("exception_name, response_code, response_message", [
         (ScheduleNotFoundError(_random_uuid), 404, 'Schedule not found: {}'.format(_random_uuid)),
-        (ValueError, 404, None),
+        (ValueError, 404, ''),
     ])
     async def test_get_schedule_exceptions(self, client, exception_name, response_code, response_message):
         with patch.object(server.Server.scheduler, 'get_schedule', side_effect=exception_name):
@@ -190,7 +190,7 @@ class TestSchedules:
 
     @pytest.mark.parametrize("exception_name, response_code, response_message", [
         (ScheduleNotFoundError(_random_uuid), 404, 'Schedule not found: {}'.format(_random_uuid)),
-        (ValueError, 404, None),
+        (ValueError, 404, ''),
     ])
     async def test_enable_schedule_exceptions(self, client, exception_name, response_code, response_message):
         with patch.object(server.Server.scheduler, 'enable_schedule', side_effect=exception_name):
@@ -217,7 +217,7 @@ class TestSchedules:
 
     @pytest.mark.parametrize("exception_name, response_code, response_message", [
         (ScheduleNotFoundError(_random_uuid), 404, 'Schedule not found: {}'.format(_random_uuid)),
-        (ValueError, 404, None),
+        (ValueError, 404, ''),
     ])
     async def test_disable_schedule_exceptions(self, client, exception_name, response_code, response_message):
         with patch.object(server.Server.scheduler, 'disable_schedule', side_effect=exception_name):
@@ -254,8 +254,8 @@ class TestSchedules:
 
     @pytest.mark.parametrize("exception_name, response_code, response_message", [
         (ScheduleNotFoundError(_random_uuid), 404, 'Schedule not found: {}'.format(_random_uuid)),
-        (NotReadyError(), 404, None),
-        (ValueError, 404, None),
+        (NotReadyError(), 404, ''),
+        (ValueError, 404, ''),
     ])
     async def test_start_schedule_exceptions(self, client, exception_name, response_code, response_message):
         with patch.object(server.Server.scheduler, 'get_schedule', side_effect=exception_name):
@@ -485,8 +485,8 @@ class TestSchedules:
 
     @pytest.mark.parametrize("exception_name, response_code, response_message", [
         (ScheduleNotFoundError(_random_uuid), 404, 'Schedule not found: {}'.format(_random_uuid)),
-        (NotReadyError(), 404, None),
-        (ValueError, 404, None),
+        (NotReadyError(), 404, ''),
+        (ValueError, 404, ''),
         (RuntimeWarning, 409, "Enabled Schedule {} cannot be deleted.".format(str(_random_uuid))),
     ])
     async def test_delete_schedule_exceptions(self, client, exception_name, response_code, response_message):
@@ -556,7 +556,7 @@ class TestTasks:
 
     @pytest.mark.parametrize("exception_name, response_code, response_message", [
         (TaskNotFoundError(_random_uuid), 404, 'Task not found: {}'.format(_random_uuid)),
-        (ValueError, 404, None),
+        (ValueError, 404, ''),
     ])
     async def test_get_task_exceptions(self, client, exception_name, response_code, response_message):
         with patch.object(server.Server.scheduler, 'get_task', side_effect=exception_name):
@@ -670,7 +670,7 @@ class TestTasks:
     @pytest.mark.parametrize("exception_name, response_code, response_message", [
         (TaskNotFoundError(_random_uuid), 404, 'Task not found: {}'.format(_random_uuid)),
         (TaskNotRunningError(_random_uuid), 404, 'Task is not running: {}'.format(_random_uuid)),
-        (ValueError, 404, None),
+        (ValueError, 404, ''),
     ])
     async def test_cancel_task_exceptions(self, client, exception_name, response_code, response_message):
         async def mock_coro():

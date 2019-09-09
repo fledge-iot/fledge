@@ -338,7 +338,7 @@ class TestConfiguration:
             with patch.object(c_mgr, 'set_optional_value_entry', side_effect=ValueError) as patch_set_entry:
                 resp = await client.put('/foglamp/category/{}/{}'.format(category_name, item_name), data=json.dumps(payload))
                 assert 400 == resp.status
-                assert resp.reason is None
+                assert resp.reason is ''
             patch_set_entry.assert_called_once_with(category_name, item_name, optional_key, payload[optional_key])
 
     @pytest.mark.parametrize("expected_result, hide_password", [
@@ -749,7 +749,7 @@ class TestConfiguration:
             with patch.object(c_mgr, 'get_category_item', side_effect=exception_name) as patch_get_cat_item:
                 resp = await client.put('/foglamp/category/{}'.format(category_name), data=json.dumps(payload))
                 assert code == resp.status
-                assert resp.reason is None
+                assert resp.reason is ''
             patch_get_cat_item.assert_called_once_with(category_name, config_item_name)
 
     async def test_update_bulk_config_item_not_found(self, client, category_name='rest_api'):

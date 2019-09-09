@@ -135,7 +135,7 @@ async def add_plugin(request: web.Request) -> web.Response:
         msg = "Plugin installation request failed"
         raise web.HTTPBadRequest(body=json.dumps({"message": msg, "link": str(e)}), reason=msg)
     except Exception as ex:
-        raise web.HTTPException(reason=str(ex))
+        raise web.HTTPInternalServerError(reason=str(ex))
     else:
         return web.json_response(result_payload)
 

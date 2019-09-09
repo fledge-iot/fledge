@@ -57,6 +57,6 @@ async def get_asset_tracker_events(request):
     except KeyError:
         raise web.HTTPBadRequest(reason=result['message'])
     except Exception as ex:
-        raise web.HTTPException(reason=ex)
+        raise web.HTTPInternalServerError(reason=ex)
 
     return web.json_response({'track': response})

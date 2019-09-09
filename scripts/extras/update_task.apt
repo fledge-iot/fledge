@@ -54,7 +54,7 @@ fi
 
 
 # Now run Foglamp update commands.
-UPDATE_CMD="sudo apt-get -y update"
+UPDATE_CMD="sudo apt -y update"
 FOGLAMP_UPDATE_CMD="sudo apt-get -y install foglamp"
 
 

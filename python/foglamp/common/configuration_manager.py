@@ -1332,6 +1332,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         Return Values:
         JSON
         """
+        import glob
         cat_value = copy.deepcopy(category_value)
         for k, v in cat_value.items():
             if v['type'] == 'script':
@@ -1348,12 +1349,13 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
                 script_dir = _FOGLAMP_DATA + '/scripts/' if _FOGLAMP_DATA else _FOGLAMP_ROOT + "/data/scripts/"
                 prefix_file_name = category_name.lower() + "_" + k.lower() + "_"
-
                 if not os.path.exists(script_dir):
                     os.makedirs(script_dir)
                 else:
-                    _all_files = os.listdir(script_dir)
-                    for name in _all_files:
-                        if name.startswith(prefix_file_name) and name.endswith('.py'):
-                            cat_value[k]["file"] = script_dir + name
+                    # find pattern with file_name
+                    list_of_files = glob.glob(script_dir + prefix_file_name + "*.py")
+                    if list_of_files:
+                        # get latest modified file
+                        latest_file = max(list_of_files, key=os.path.getmtime)
+                        cat_value[k]["file"] = latest_file
         return cat_value

@@ -13,7 +13,7 @@
 data/etc/storage.json
 data/etc/certs/*
 data/var
-data/tmp
+data/support
 data/scripts
 data/plugins
 data/snapshots

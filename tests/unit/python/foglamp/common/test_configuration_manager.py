@@ -36,8 +36,8 @@ class TestConfigurationManager:
         assert ['IPv4', 'IPv6', 'JSON', 'URL', 'X509 certificate', 'boolean', 'enumeration', 'float', 'integer', 'password', 'script', 'string'] == _valid_type_strings
 
     def test_supported_optional_items(self):
-        assert 8 == len(_optional_items)
-        assert ['deprecated', 'displayName', 'length', 'maximum', 'minimum', 'order', 'readonly', 'rule'] == _optional_items
+        assert 9 == len(_optional_items)
+        assert ['deprecated', 'displayName', 'length', 'maximum', 'minimum', 'order', 'readonly', 'rule', 'validity'] == _optional_items
 
     def test_constructor_no_storage_client_defined_no_storage_client_passed(
             self, reset_singleton):
@@ -2679,7 +2679,8 @@ class TestConfigurationManager:
         (None, 'rule', 2, "For catname category, entry value must be string for optional item rule; got <class 'int'>"),
         (None, 'displayName', 123, "For catname category, entry value must be string for optional item displayName; got <class 'int'>"),
         (None, 'length', '1a', "For catname category, entry value must be an integer for optional item length; got <class 'str'>"),
-        (None, 'maximum', 'blah', "For catname category, entry value must be an integer or float for optional item maximum; got <class 'str'>")
+        (None, 'maximum', 'blah', "For catname category, entry value must be an integer or float for optional item maximum; got <class 'str'>"),
+        (None, 'validity', 12, "For catname category, entry value must be string for optional item validity; got <class 'int'>")
     ])
     async def test_set_optional_value_entry_bad_update(self, reset_singleton, _type, optional_key_name, new_value_entry, exc_msg):
         async def async_mock(return_value):
@@ -2696,10 +2697,13 @@ class TestConfigurationManager:
         c_mgr = ConfigurationManager(storage_client_mock)
         category_name = 'catname'
         item_name = 'itemname'
-        storage_value_entry = {'length': '255', 'displayName': category_name, 'rule': 'value * 3 == 6', 'deprecated': 'false', 'readonly': 'true', 'type': 'string', 'order': '4', 'description': 'Test Optional', 'minimum': min, 'value': '13', 'maximum': max, 'default': '13'}
-        with patch.object(ConfigurationManager, '_read_item_val', return_value=async_mock(storage_value_entry)) as readpatch:
-            with pytest.raises(Exception) as excinfo:
-                await c_mgr.set_optional_value_entry(category_name, item_name, optional_key_name, new_value_entry)
-            assert excinfo.type is ValueError
-            assert exc_msg == str(excinfo.value)
-        readpatch.assert_called_once_with(category_name, item_name)
+        storage_value_entry = {'length': '255', 'displayName': category_name, 'rule': 'value * 3 == 6', 'deprecated': 'false', 'readonly': 'true', 'type': 'string', 'order': '4', 'description': 'Test Optional', 'minimum': min, 'value': '13', 'maximum': max, 'default': '13', 'validity': 'field X is set'}
+        with patch.object(_logger, "exception") as log_exc:
+            with patch.object(ConfigurationManager, '_read_item_val', return_value=async_mock(storage_value_entry)) as readpatch:
+                with pytest.raises(Exception) as excinfo:
+                    await c_mgr.set_optional_value_entry(category_name, item_name, optional_key_name, new_value_entry)
+                assert excinfo.type is ValueError
+                assert exc_msg == str(excinfo.value)
+            readpatch.assert_called_once_with(category_name, item_name)
+        assert 1 == log_exc.call_count
+        log_exc.assert_called_once_with('Unable to set optional %s entry based on category_name %s and item_name %s and value_item_entry %s', optional_key_name, 'catname', 'itemname', new_value_entry)

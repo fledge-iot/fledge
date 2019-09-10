@@ -21,24 +21,25 @@ __version__ = "${VERSION}"
 
 
 @pytest.fixture
-def reset_plugins():
+def reset_packages():
     try:
         subprocess.run(["$FOGLAMP_ROOT/tests/system/lab/remove"], shell=True, check=True)
     except subprocess.CalledProcessError:
-        assert False, "reset plugin script failed"
+        assert False, "reset package script failed"
 
 
 @pytest.fixture
 def setup_package(build_version):
     try:
-        subprocess.run(["$FOGLAMP_ROOT/tests/system/python/scripts/setup_package {}".format(build_version)], shell=True, check=True)
+        subprocess.run(["$FOGLAMP_ROOT/tests/system/python/scripts/setup_package {}".format(build_version)],
+                       shell=True, check=True)
     except subprocess.CalledProcessError:
         assert False, "setup package script failed"
 
 
 class TestPackages:
 
-    def test_reset_and_setup(self, reset_plugins, setup_package):
+    def test_reset_and_setup(self, reset_packages, setup_package):
         # TODO: Remove this workaround
         # Use better setup & teardown methods
         pass
@@ -51,11 +52,16 @@ class TestPackages:
         r = r.read().decode()
         jdoc = json.loads(r)
         assert len(jdoc), "No data found"
-        assert 56 == len(jdoc['plugins'])
+        plugins = jdoc['plugins']
+        assert len(plugins), "No plugin found"
         assert 'link' in jdoc
-
-    def test_install_plugin_package(self, foglamp_url):
-        pass
+        assert 'foglamp-filter-python35' in plugins
+        assert 'foglamp-north-http-north' in plugins
+        assert 'foglamp-north-kafka' in plugins
+        assert 'foglamp-notify-python35' in plugins
+        assert 'foglamp-rule-outofbound' in plugins
+        assert 'foglamp-south-modbus' in plugins
+        assert 'foglamp-south-playback' in plugins
 
     def test_available_service_packages(self, foglamp_url):
         conn = http.client.HTTPConnection(foglamp_url)
@@ -69,5 +75,26 @@ class TestPackages:
         assert 'foglamp-service-notification' == jdoc['services'][0]
         assert 'link' in jdoc
 
-    def test_install_service_package(self, foglamp_url):
+    def test_install_plugin_package(self, foglamp_url):
+        # TODO: install each plugin and verify
         pass
+
+    def test_install_service_package(self, foglamp_url):
+        conn = http.client.HTTPConnection(foglamp_url)
+        data = {"format": "repository", "name": "foglamp-service-notification"}
+        conn.request("POST", '/foglamp/service?action=install', json.dumps(data))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        assert {'message': '{} is successfully installed'.format(data['name'])} == jdoc
+
+        # verify service installed
+        conn.request("GET", '/foglamp/service/installed')
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        assert len(jdoc), "No data found"
+        assert 3 == len(jdoc['services'])
+        assert 'notification' in jdoc['services']

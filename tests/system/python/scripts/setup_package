@@ -15,21 +15,20 @@ BUILD_VERSION=$1
 
 [[ -z "${BUILD_VERSION}" ]] && echo "Build Version not found." && exit 1
 
-CODENAME=`lsb_release --codename | cut -f2`
+ID=$(cat /etc/os-release | grep -w ID | cut -f2 -d"=")
 UNAME=`uname -m`
-RELEASE_VERSION=`lsb_release --release | cut -f2`
+VERSION_ID=$(cat /etc/os-release | grep -w VERSION_ID | cut -f2 -d"=" |  tr -d '"')
 
 echo "Build version is "${BUILD_VERSION}
-echo "Code name is "${CODENAME}
+echo "ID is "${ID}
 echo "uname is "${UNAME}
-echo "Release version is "${RELEASE_VERSION}
+echo "version id is "${VERSION_ID}
 
-if [[ ${CODENAME} = "xenial" && ${RELEASE_VERSION} = "16.04" ]]; then
-    CODENAME="ubuntu1604";
-elif [[ ${CODENAME} = "xenial" && ${RELEASE_VERSION} = "18.04" ]]; then
-    CODENAME="ubuntu1804";
+if [[ ${ID} = "ubuntu" && ${VERSION_ID} = "16.04" ]]; then
+    ID="ubuntu1604";
+elif [[ ${ID} = "ubuntu" && ${VERSION_ID} = "18.04" ]]; then
+    ID="ubuntu1804";
 fi
-echo "Final Code name is "${CODENAME}
 
 sudo cp /etc/apt/sources.list /etc/apt/sources.list.bak
 sudo sed -i "/\b\(archives.dianomic.com\)\b/d" /etc/apt/sources.list
@@ -38,7 +37,8 @@ sudo apt update && sudo apt upgrade -y && sudo apt update
 echo "==================== DONE update, upgrade, update ============================"
 
 wget -q -O - http://archives.dianomic.com/KEY.gpg | sudo apt-key add -
-echo "deb http://archives.dianomic.com/${BUILD_VERSION}/${CODENAME}/${UNAME}/ /" | sudo tee -a /etc/apt/sources.list
+# FIXME: for centos/rhel
+echo "deb http://archives.dianomic.com/${BUILD_VERSION}/${ID}/${UNAME}/ /" | sudo tee -a /etc/apt/sources.list
 sudo apt update
 
 time sudo apt install -y foglamp

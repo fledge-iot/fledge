@@ -125,9 +125,12 @@ def fetch_available_packages(package_type: str = "") -> tuple:
     tmp_log_output_fp = stdout_file_path.split('logs/')[:1][0] + "logs/output.txt"
     _platform = platform.platform()
     pkg_type = "" if package_type is None else package_type
-    pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
+    pkg_mgt = 'apt'
+    cmd = "sudo {} -y update > {} 2>&1".format(pkg_mgt, stdout_file_path)
+    if 'centos' in _platform or 'redhat' in _platform:
+        pkg_mgt = 'yum'
+        cmd = "sudo {} check-update > {} 2>&1".format(pkg_mgt, stdout_file_path)
 
-    cmd = "sudo {} update > {} 2>&1".format(pkg_mgt, stdout_file_path)
     ret_code = os.system(cmd)
     # sudo apt/yum -y install only happens when update is without any error
     if ret_code == 0:
@@ -155,8 +158,7 @@ def fetch_available_packages(package_type: str = "") -> tuple:
         os.remove(tmp_log_output_fp)
 
     # relative log file link
-    link = stdout_file_path.split("/")[-1]
-    link = "log/" + link
+    link = "log/" + stdout_file_path.split("/")[-1]
     if ret_code != 0:
         raise PackageError(link)
     return log_output, link

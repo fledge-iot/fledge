@@ -1,0 +1,670 @@
+#!/usr/bin/env bash
+
+./check_env
+[[ $? -eq 0 ]]  || exit 1
+
+CPFX="\033["
+CINFO="${CPFX}1;32m"
+CERR="${CPFX}1;31m"
+CRESET="${CPFX}0m"
+
+# Read config file for FOGLAMP IP, PI host and token etc.
+. ./test.config
+
+rm -f err.txt
+touch err.txt
+
+display_and_collect_err () {
+   echo -e "${CERR} $1 ${CRESET}"
+   echo $1 >> err.txt
+}
+
+
+URL="http://$FOGLAMP_IP:8081/foglamp"
+
+echo -e INFO: "${CINFO} Add Sinusoid South ${CRESET}"
+curl -sX POST "$URL/service" -d \
+'{
+   "name": "Sine",
+   "type": "south",
+   "plugin": "sinusoid",
+   "enabled": true,
+   "config": {}
+}'
+echo
+
+for LOOP in $(seq ${MAX_RETRIES}); do
+    RESULT=`curl -sX GET "$URL/south"`
+    # echo ${RESULT}
+    COUNT=`echo ${RESULT} | jq '.services[].assets[]|select(.asset == "sinusoid").count // empty'`
+    if [[ -n "${COUNT}" ]] && [[ ${COUNT} -gt 0 ]]; then break; fi
+done
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+ then
+   display_and_collect_err "TIMEOUT! sinusoid data not seen in South tab. $URL/south"
+   if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+ else
+   echo "---- sinusoid data seen in South tab ----"
+fi
+
+for LOOP in $(seq ${MAX_RETRIES}); do
+    RESULT=`curl -sX GET "$URL/asset"`
+    # echo ${RESULT}
+    COUNT=`echo ${RESULT} | jq '.[]|select(.assetCode == "sinusoid")|.count // empty'`
+    if [[ -n "$COUNT" ]] && [[ ${COUNT} -gt 0 ]]; then break; fi
+done
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+ then
+   display_and_collect_err "TIMEOUT! sinusoid data not seen in Asset tab. $URL/asset"
+   if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+ else
+  echo "---- sinusoid data seen in Asset tab ----"
+fi
+
+for LOOP in $(seq ${MAX_RETRIES}); do
+    RESULT=`curl -sX GET "$URL/ping"`
+    # echo ${RESULT}
+    READ=`echo ${RESULT} | jq '.dataRead // empty'`
+    if [[ -n "$READ" ]] && [[ "$READ" -gt 0 ]]; then break; fi
+done
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+ then
+   display_and_collect_err "TIMEOUT! sinusoid data not seen in ping header. $URL/ping"
+   if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+ else
+   echo "---- sinusoid data seen in ping header ----"
+fi
+
+for LOOP in $(seq ${MAX_RETRIES}); do
+    RESULT=`curl -sX GET "$URL/asset/sinusoid?seconds=600"`
+    # echo ${RESULT}
+    POINT=`echo ${RESULT} | jq '.[0].reading.sinusoid // empty'`
+    if [[ -n "$POINT" ]]; then break; fi
+done
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+  then
+    display_and_collect_err "TIMEOUT! sinusoid data not seen in sinusoid graph. $URL/asset/sinusoid?seconds=600"
+    if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+  else
+    echo "---- sinusoid data seen in sinusoid graph ----"
+fi
+
+echo "======================= SINUSOID SETUP COMPLETE ======================="
+
+setup_north_pi_egress () {
+    # Add PI North
+    curl -sX POST "$URL/scheduled/task" -d \
+    '{
+       "name": "PI Server",
+       "plugin": "PI_Server_V2",
+       "type": "north",
+       "schedule_repeat": 30,
+       "schedule_type": "3",
+       "schedule_enabled": true,
+       "config": {
+          "URL": {
+             "value": "https://'${PI_IP}':5460/ingress/messages"
+          },
+          "producerToken": {
+             "value": "'${PI_TOKEN}'"
+          },
+          "compression": {
+             "value": "false"
+          }
+       }
+    }'
+    echo
+
+    for LOOP in $(seq ${MAX_RETRIES}); do
+        RESULT=`curl -sX GET "$URL/north"`
+        # echo ${RESULT}
+        SENT=`echo ${RESULT} | jq '.[0].sent // empty'`
+        if [[ -n "$SENT" ]] && [[ "$SENT" -gt 0 ]]; then break; fi
+    done
+    if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+     then
+       display_and_collect_err "TIMEOUT! PI data sent not seen in North tab. $URL/north"
+       if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+     else
+       echo "---- PI data sent seen in North tab ----"
+    fi
+
+    for LOOP in $(seq ${MAX_RETRIES}); do
+        RESULT=`curl -sX GET "$URL/ping"`
+        # echo ${RESULT}
+        SENT=`echo ${RESULT} | jq '.dataSent // empty'`
+        if [[ -n "$SENT" ]] && [[ "$SENT" -gt 0 ]]; then break; fi
+    done
+    if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+     then
+       display_and_collect_err "TIMEOUT! PI data sent not seen in ping header. $URL/ping"
+       if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+     else
+       echo "---- PI data sent seen in ping header ----"
+    fi
+
+    for LOOP in $(seq ${MAX_RETRIES}); do
+        RESULT=`curl -sX GET "$URL/statistics/history?minutes=10"`
+        # echo ${RESULT}
+        POINT=`echo ${RESULT} | jq '.statistics[0]."PI Server" // empty'`
+        if [[ -n "$POINT" ]] && [[ "$POINT" -gt 0 ]]; then break; fi
+    done
+    if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+     then
+       display_and_collect_err "TIMEOUT! PI data sent not seen in sent graph. $URL/statistics/history?minutes=10"
+       if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+     else
+       echo "---- PI data sent seen in sent graph ----"
+    fi
+
+   echo "======================= PI SETUP COMPLETE ======================="
+
+}
+
+if [[  ${VERIFY_EGRESS_TO_PI} == 1 ]]
+  then
+     setup_north_pi_egress
+  else
+     echo "======================= SKIPPED PI EGRESS ======================="
+fi
+
+
+
+
+# Add Expression Filter (Square)
+curl -sX POST "$URL/filter" -d \
+'{
+   "name": "Square",
+   "plugin": "expression",
+   "filter_config": {
+      "name": "square",
+      "expression": "if(sinusoid>0,0.5,-0.5)",
+      "enable": "true"
+   }
+}'
+echo
+# Apply Square to Sine
+curl -sX PUT "$URL/filter/Sine/pipeline?allow_duplicates=true&append_filter=true" -d \
+'{
+   "pipeline": [
+      "Square"
+   ]
+}'
+echo
+echo "======================= SINUSOID SQUARE FILTER COMPLETE ======================="
+# Add Expression Filter (Max)
+curl -sX POST "$URL/filter" -d \
+'{
+   "name": "Max",
+   "plugin": "expression",
+   "filter_config": {
+      "name": "max",
+      "expression": "max(sinusoid, square)",
+      "enable": "true"
+   }
+}'
+echo
+# Apply Max to Sine
+curl -sX PUT "$URL/filter/Sine/pipeline?allow_duplicates=true&append_filter=true" -d \
+'{
+   "pipeline": [
+      "Max"
+   ]
+}'
+echo
+
+for LOOP in $(seq ${MAX_RETRIES}); do
+    RESULT=`curl -sX GET "$URL/asset/sinusoid?seconds=600"`
+    # echo ${RESULT}
+    SQUARE=`echo ${RESULT} | jq '.[0].reading.square // empty'`
+    MAX=`echo ${RESULT} | jq '.[0].reading.max // empty'`
+    if [[ -n "$SQUARE" ]] && [[ -n "$MAX" ]]; then break; fi
+done
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+ then
+   display_and_collect_err "TIMEOUT! square and max data not seen in sinusoid graph. $URL/asset/sinusoid?seconds=600"
+   if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+ else
+   echo "---- square and max data seen in sinusoid graph ----"
+fi
+
+echo "======================= SINUSOID MAX FILTER COMPLETE ======================="
+
+
+# Add Randomwalk South
+curl -sX POST "$URL/service" -d \
+'{
+   "name": "Random",
+   "type": "south",
+   "plugin": "randomwalk",
+   "enabled": true,
+   "config": {}
+}'
+echo
+# need to wait for FogLAMP to be ready to accept python file
+sleep ${SLEEP_FIX}
+# Add Python35 Filter (ema)
+curl -sX POST "$URL/filter" -d \
+'{
+   "name": "Ema",
+   "plugin": "python35",
+   "filter_config": {
+      "config": {
+         "rate": 0.07
+      },
+      "enable": "true"
+   }
+}'
+echo
+# Apply Ema to Random
+curl -sX PUT "$URL/filter/Random/pipeline?allow_duplicates=true&append_filter=true" -d \
+'{
+   "pipeline": [
+      "Ema"
+   ]
+}'
+echo
+# Upload Ema python script
+curl -sX POST "$URL/category/Random_Ema/script/upload" -F "script=@scripts/ema.py"
+echo
+
+for LOOP in $(seq ${MAX_RETRIES}); do
+    RESULT=`curl -sX GET "$URL/asset/randomwalk?seconds=600"`
+    # echo ${RESULT}
+    RANDOM_RESULT=`echo ${RESULT} | jq '.[0].reading.randomwalk // empty'`
+    EMA=`echo ${RESULT} | jq '.[0].reading.ema // empty'`
+    if [[ -n "$RANDOM_RESULT" ]] && [[ -n "$EMA" ]]; then break; fi
+done
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+ then
+   display_and_collect_err "TIMEOUT! randomwalk and ema data not seen in randomwalk graph. $URL/asset/randomwalk?seconds=600"
+   if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+ else
+   echo "---- randomwalk and ema data seen in randomwalk graph ----"
+fi
+
+# DELETE Randomwalk South
+curl -sX DELETE "$URL/service/Random" | jq
+echo
+
+echo "======================= RANDOMWALK SETUP COMPLETE ======================="
+
+
+echo "Add Randomwalk south service again ..."
+curl -sX POST "$URL/service" -d \
+'{
+   "name": "Random1",
+   "type": "south",
+   "plugin": "randomwalk",
+   "enabled": true,
+   "config": {"assetName": {"value": "randomwalk1"}}
+}' | jq
+echo
+
+# need to wait for FogLAMP to be ready to accept python file
+sleep ${SLEEP_FIX}
+
+# Add Python35 Filter (PF)
+curl -sX POST "$URL/filter" -d \
+'{
+   "name": "PF",
+   "plugin": "python35",
+   "filter_config": {
+      "config": {
+         "rate": 0.07
+      },
+      "enable": "true"
+   }
+}' | jq
+echo
+
+# Apply PF to Random
+curl -sX PUT "$URL/filter/Random1/pipeline?allow_duplicates=true&append_filter=true" -d \
+'{
+   "pipeline": [
+      "PF"
+   ]
+}' | jq
+echo
+
+echo "upload trendc script..."
+curl -sX POST "$URL/category/Random1_PF/script/upload" -F "script=@scripts/trendc.py" | jq
+echo
+
+for LOOP in $(seq ${MAX_RETRIES}); do
+    RESULT=`curl -sX GET "$URL/asset/randomwalk1?seconds=60"`
+    # echo ${RESULT}
+    RANDOM_RESULT=`echo ${RESULT} | jq '.[0].reading.randomwalk // empty'`
+    TRENDC=`echo ${RESULT} | jq '.[0].reading.ema_long // empty'`
+    if [[ -n "$RANDOM_RESULT" ]] && [[ -n "$TRENDC" ]]; then break; fi
+done
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+ then
+   display_and_collect_err "TIMEOUT! randomwalk1 and ema_long data not seen in randomwalk1 graph. $URL/asset/randomwalk1?seconds=60"
+   if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+ else
+   echo "---- randomwalk and ema_long data seen in randomwalk1 graph ----"
+fi
+
+echo "upload trendc script with modified content..."
+
+cp scripts/trendc.py scripts/trendc.py.bak
+sed -i "s/reading\[b'ema_long/reading\[b'ema_longX/g" scripts/trendc.py
+
+curl -sX POST "$URL/category/Random1_PF/script/upload" -F "script=@scripts/trendc.py" | jq
+echo
+
+for LOOP in $(seq ${MAX_RETRIES}); do
+    RESULT=`curl -sX GET "$URL/asset/randomwalk1?seconds=60"`
+    # echo ${RESULT}
+    RANDOM_RESULT=`echo ${RESULT} | jq '.[0].reading.randomwalk // empty'`
+    TRENDCX=`echo ${RESULT} | jq '.[0].reading.ema_longX // empty'`
+    if [[ -n "$RANDOM_RESULT" ]] && [[ -n "$TRENDCX" ]]; then break; fi
+done
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+ then
+   display_and_collect_err "TIMEOUT! randomwalk1 and ema_longX data not seen in randomwalk1 graph. $URL/asset/randomwalk1?seconds=60"
+   if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+ else
+   echo "---- randomwalk and ema_longX data seen in randomwalk1 graph ----"
+fi
+
+
+mv scripts/trendc.py.bak scripts/trendc.py
+
+
+echo "upload ema script..."
+curl -sX POST "$URL/category/Random1_PF/script/upload" -F "script=@scripts/ema.py" | jq
+echo
+
+for LOOP in $(seq ${MAX_RETRIES}); do
+    RESULT=`curl -sX GET "$URL/asset/randomwalk1?seconds=60"`
+    # echo ${RESULT}
+    RANDOM_RESULT=`echo ${RESULT} | jq '.[0].reading.randomwalk // empty'`
+    EMA=`echo ${RESULT} | jq '.[0].reading.ema // empty'`
+    if [[ -n "$RANDOM_RESULT" ]] && [[ -n "$EMA" ]]; then break; fi
+done
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+ then
+   display_and_collect_err "TIMEOUT! randomwalk1 and ema data not seen in randomwalk1 graph. $URL/asset/randomwalk1?seconds=60"
+   if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+ else
+   echo "---- randomwalk1 and ema data seen in randomwalk1 graph ----"
+fi
+
+echo "======================= RANDOMWALK SETUP 2 COMPLETE ======================="
+
+
+# Add Enviro-pHAT South
+curl -sX POST "$URL/service" -d \
+'{
+   "name": "Enviro",
+   "type": "south",
+   "plugin": "envirophat",
+   "enabled": true,
+   "config": {
+      "assetNamePrefix": {
+         "value": "e_"
+      }
+   }
+}'
+echo
+# Add Expression Filter (Fahrenheit)
+curl -sX POST "$URL/filter" -d \
+'{
+   "name": "Fahrenheit",
+   "plugin": "expression",
+   "filter_config": {
+      "name": "temp_fahr",
+      "expression": "temperature*1.8+32",
+      "enable": "true"
+   }
+}'
+echo
+# Apply Fahrenheit to Enviro
+curl -sX PUT "$URL/filter/Enviro/pipeline?allow_duplicates=true&append_filter=true" -d \
+'{
+   "pipeline": [
+      "Fahrenheit"
+   ]
+}'
+echo
+
+for LOOP in $(seq ${MAX_RETRIES}); do
+    RESULT=`curl -sX GET "$URL/asset/e_weather?seconds=600"`
+    echo ${RESULT}
+    TEMP=`echo ${RESULT} | jq '.[0].reading.temperature // empty'`
+    FAHR=`echo ${RESULT} | jq '.[0].reading.temp_fahr // empty'`
+    if [[ -n "$TEMP" ]] && [[ -n "$FAHR" ]]; then break; fi
+done
+
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+ then
+   display_and_collect_err "TIMEOUT! temperature and fahrenheit data not seen in e_weather graph. $URL/asset/e_weather?seconds=600"
+   if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+ else
+   echo "---- temperature and fahrenheit data seen in e_weather graph ----"
+fi
+
+echo "======================= enviro-pHAT SETUP COMPLETE ======================="
+
+
+# Enable Event Engine
+curl -sX POST "$URL/service" -d \
+'{
+   "name": "FogLAMP Notifications",
+   "type": "notification",
+   "enabled": true
+}'
+echo
+# Need to wait for event engine to come up
+curl -sX GET "$URL/service" | jq '.services[]|select(.name=="FogLAMP Notifications").status'
+for LOOP in $(seq ${MAX_RETRIES}); do
+    RESULT=`curl -sX GET "$URL/service"`
+    echo ${RESULT}
+    STATUS=`echo ${RESULT} | jq '.services[]|select(.name=="FogLAMP Notifications").status // empty'`
+    if [[ -n "$STATUS" ]] && [[ ${STATUS} == "\"running\"" ]]; then break; fi
+done
+
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+ then
+   display_and_collect_err "TIMEOUT! event engine is not running. $URL/service"
+   if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+ else
+   echo "---- service reports event engine is running ----"
+fi
+# sleep ${SLEEP_FIX}
+
+echo "======================= EVENT ENGINE ENABLED ======================="
+
+
+# Add Notification with Threshold Rule and Asset Notification (Positive Sine)
+curl -sX POST "$URL/notification" -d \
+'{
+   "name": "Positive Sine",
+   "description": "Positive Sine notification instance",
+   "rule": "Threshold",
+   "channel": "asset",
+   "notification_type": "retriggered",
+   "enabled": true
+}'
+echo
+# Set Positive Sine Rule Config (sinusoid.sinusoid > 0)
+curl -sX PUT "$URL/category/rulePositive%20Sine" -d \
+'{
+   "asset": "sinusoid",
+   "datapoint": "sinusoid"
+}'
+echo
+# Set Positive Sine Delivery Config (positive_sine: "positive")
+curl -sX PUT "$URL/category/deliveryPositive%20Sine" -d \
+'{
+   "asset": "positive_sine",
+   "description": "positive",
+   "enable": "true"
+}'
+echo
+
+for LOOP in $(seq ${MAX_RETRIES}); do
+    RESULT=`curl -sX GET "$URL/asset/positive_sine?seconds=600"`
+    echo ${RESULT}
+    EVENT=`echo ${RESULT} | jq '.[0].reading.event // empty'`
+    RULE=`echo ${RESULT} | jq '.[0].reading.rule // empty'`
+    if [[ -n "$EVENT" ]] && [[ "$EVENT" == "\"triggered\"" ]] && \
+        [[ -n "$RULE" ]] && [[ "$RULE" == "\"Positive Sine\"" ]]; then break; fi
+    sleep 1
+done
+
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]];
+  then
+    display_and_collect_err "TIMEOUT! positive_sine event not fired. $URL/asset/positive_sine?seconds=600";
+    if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+  else
+    echo "---- positive_sine event fired ----"
+fi
+
+# [{"reading": {"description": "Notification alert", "event": "triggered", "rule": "Positive Sign"}, "timestamp": "2019-08-28 17:42:42.421744"}, {"reading": {"description": "Notification alert", "event": "triggered", "rule": "Positive Sign"}, "timestamp": "2019-08-28 17:41:37.002845"}, {"reading": {"description": "Notification alert", "event": "triggered", "rule": "Positive Sign"}, "timestamp": "2019-08-28 17:40:33.489106"}]
+
+echo "======================= EVENT POSITIVE SINE COMPLETE ======================="
+
+rm -f /tmp/out
+curl -sX POST "$URL/notification" -d \
+'{
+   "name": "Negative Sine",
+   "description": "Negative Sine notification instance",
+   "rule": "Threshold",
+   "channel": "python35",
+   "notification_type": "retriggered",
+   "enabled": true
+}'
+
+# Upload Python Script (write_out.py)
+curl  -sX POST "$URL/category/deliveryNegative%20Sine/script/upload" -F "script=@scripts/write_out.py"
+echo
+
+# Set Negative Sine Rule Config (sinusoid.sinusoid < 0)
+curl -sX PUT "$URL/category/ruleNegative%20Sine" -d \
+'{
+   "asset": "sinusoid",
+   "datapoint": "sinusoid",
+   "condition": "<"
+}'
+echo
+
+
+# Set Negative Sine Delivery Config (enabled)
+curl -sX PUT "$URL/category/deliveryNegative%20Sine" -d \
+'{
+   "enable": "true"
+}'
+echo
+
+for LOOP in $(seq ${MAX_RETRIES}); do
+    if [[ -f "/tmp/out" ]]; then break; fi
+    sleep 1
+done
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]];
+  then
+    display_and_collect_err "TIMEOUT! negative_sine event not fired. No /tmp/out file.";
+    if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+  else
+    echo "---- negative_sine event fired ----"
+fi
+
+echo "======================= EVENT NEGATIVE SINE COMPLETE ======================="
+
+
+ERRORS="$(wc -c <"err.txt")"
+if [[ ${ERRORS} -ne 0 ]]
+ then
+    echo "============================= TESTS FAILED! ============================="
+    cat err.txt
+    exit 1
+ else
+    echo "======================================================\
+          =================== S U C C E S S ====================\
+          ======================================================"
+fi
+echo
+
+exit 0
+
+
+#####
+##### The Remainder are the actual rule instances used in the lab
+##### These aren't included because they can't be automated easily
+#####
+
+GREEN_TRIGGER=130
+TEMPERATURE_TRIGGER=31
+
+# Add Notification with Threshold Rule and Asset Notification (Temperature Monitor)
+curl -sX POST "$URL/notification" -d \
+'{
+   "name": "Temperature Monitor",
+   "description": "Temperature Monitor notification instance",
+   "rule": "Threshold",
+   "channel": "asset",
+   "notification_type": "toggled",
+   "enabled": true
+}'
+echo
+# Set Temperature Monitor Rule Config (e_weather.temperature > 31)
+curl -sX PUT "$URL/category/ruleTemperature%20Monitor" -d \
+'{
+   "asset": "e_weather",
+   "datapoint": "temperature",
+   "trigger_value": "'${TEMPERATURE_TRIGGER}'"
+}'
+echo
+# Set Temperature Monitor Delivery Config (temperature_monitor: "Too Hot!")
+curl -sX PUT "$URL/category/deliveryTemperature%20Monitor" -d \
+'{
+   "asset": "temperature_monitor",
+   "description": "Too Hot!",
+   "enable": "true"
+}'
+echo
+# Set Temperature Monitor config (retrigger_time: 5)
+curl -sX PUT "$URL/category/Temperature%20Monitor" -d \
+'{
+   "retrigger_time": "5"
+}'
+echo
+echo "======================= TEMPERATURE MONITOR SETUP COMPLETE ======================="
+
+# Add Notification with Threshold Rule and Python35 Delivery (Flash on Green)
+curl -sX POST "$URL/notification" -d \
+'{
+   "name": "Flash on Green",
+   "description": "Flash on Green notification instance",
+   "rule": "Threshold",
+   "channel": "python35",
+   "notification_type": "retriggered",
+   "enabled": true
+}'
+echo
+# Set Flash on Green Rule Config (e_rgb.g > 130)
+curl -sX PUT "$URL/category/ruleFlash%20on%20Green" -d \
+'{
+   "asset": "e_rgb",
+   "datapoint": "g",
+   "trigger_value": "'${GREEN_TRIGGER}'"
+}'
+echo
+# Set Flash on Green Delivery Config (enabled)
+curl -sX PUT "$URL/category/deliveryFlash%20on%20Green" -d \
+'{
+   "enable": "true"
+}'
+echo
+# Upload Flash on Green Python Script (flash_leds.py)
+curl -sX POST "$URL/category/deliveryFlash%20on%20Green/script/upload" -F "script=@scripts/flash_leds.py"
+echo
+# Set Flash on Green config (retrigger_time: 5)
+curl -sX PUT "$URL/category/Flash%20on%20Green" -d \
+'{
+   "retrigger_time": "5"
+}'
+echo
+echo "======================= FLASH ON GREEN SETUP COMPLETE ======================="

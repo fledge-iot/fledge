@@ -44,7 +44,7 @@ You can test FogLAMP from your development environment or after installing FogLA
 To install the dependencies required to run python tests, run the following command from FOGLAMP_ROOT
 ::
    pip3 install -r python/requirements-test.txt --user
-   sudo apt-get install libxslt-dev
+   sudo apt install jq libxslt-dev
 
 
 Test Execution

@@ -47,7 +47,6 @@ from foglamp.services.core.asset_tracker.asset_tracker import AssetTracker
 from foglamp.services.core.api import asset_tracker as asset_tracker_api
 from foglamp.common.web.ssl_wrapper import SSLVerifier
 
-
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
@@ -63,6 +62,53 @@ _SCRIPTS_DIR = os.path.expanduser(_FOGLAMP_ROOT + '/scripts')
 # PID dir and filename
 _FOGLAMP_PID_DIR= "/var/run"
 _FOGLAMP_PID_FILE = "foglamp.core.pid"
+
+
+SSL_PROTOCOLS = (asyncio.sslproto.SSLProtocol,)
+
+
+def ignore_aiohttp_ssl_eror(loop):
+    """Ignore aiohttp #3535 / cpython #13548 issue with SSL data after close
+
+    There is an issue in Python 3.7 up to 3.7.3 that over-reports a
+    ssl.SSLError fatal error. See GitHub issues aio-libs/aiohttp#3535 and
+    python/cpython#13548.
+
+    Given a loop, this sets up an exception handler that ignores this specific
+    exception, but passes everything else on to the previous exception handler
+    this one replaces.
+
+    Checks for fixed Python versions, disabling itself when running on 3.7.4+
+    or 3.8.
+
+    """
+    if sys.version_info >= (3, 7, 4):
+        return
+
+    orig_handler = loop.get_exception_handler()
+
+    def ignore_ssl_error(loop, context):
+        if context.get("message") in {
+            "SSL error in data received",
+            "SSL handshake failed"
+        }:
+            # validate we have the right exception, transport and protocol
+            exception = context.get('exception')
+            protocol = context.get('protocol')
+            if (
+                isinstance(exception, ssl.SSLError)
+                and exception.reason == 'SSLV3_ALERT_CERTIFICATE_UNKNOWN'
+                and isinstance(protocol, SSL_PROTOCOLS)
+            ):
+                if loop.get_debug():
+                    asyncio.log.logger.debug('Ignoring asyncio SSL SSLV3_ALERT_CERTIFICATE_UNKNOWN error')
+                return
+        if orig_handler is not None:
+            orig_handler(loop, context)
+        else:
+            loop.default_exception_handler(context)
+
+    loop.set_exception_handler(ignore_ssl_error)
 
 
 class Server:
@@ -244,6 +290,15 @@ class Server:
     running_in_safe_mode = False
     """ FogLAMP running in Safe mode """
 
+    _INSTALLATION_DEFAULT_CONFIG = {
+        'upgradeOnInstall': {
+            'description': 'Run upgrade prior to installing new software',
+            'type': 'boolean',
+            'default': 'false',
+            'displayName': 'Upgrade on Install'
+        }
+    }
+
     service_app, service_server, service_server_handler = None, None, None
     core_app, core_server, core_server_handler = None, None, None
 
@@ -385,6 +440,24 @@ class Server:
                 cls._service_description = config['description']['value']
             except KeyError:
                 cls._service_description = 'FogLAMP REST Services'
+        except Exception as ex:
+            _logger.exception(str(ex))
+            raise
+
+    @classmethod
+    async def installation_config(cls):
+        """
+        Get the installation level configuration
+        """
+        try:
+            config = cls._INSTALLATION_DEFAULT_CONFIG
+            category = 'Installation'
+
+            if cls._configuration_manager is None:
+                _logger.error("No configuration manager available")
+            await cls._configuration_manager.create_category(category, config, 'Installation', True,
+                                                             display_name='Installation')
+            await cls._configuration_manager.get_category_all_items(category)
         except Exception as ex:
             _logger.exception(str(ex))
             raise
@@ -621,7 +694,7 @@ class Server:
         # Create the parent category for all general configuration categories
         try:
             await cls._configuration_manager.create_category("General", {}, 'General', True)
-            await cls._configuration_manager.create_child_category("General", ["service", "rest_api"])
+            await cls._configuration_manager.create_child_category("General", ["service", "rest_api", "Installation"])
         except KeyError:
             _logger.error('Failed to create General parent configuration category for service')
             raise
@@ -743,6 +816,9 @@ class Server:
             # TODO: if ssl then register with protocol https
             cls._register_core(host, cls.core_management_port, service_server_port)
 
+            # Installation category
+            loop.run_until_complete(cls.installation_config())
+
             # Create the configuration category parents
             loop.run_until_complete(cls._config_parents())
 
@@ -754,7 +830,8 @@ class Server:
             cls._audit = AuditLogger(cls._storage_client_async)
             audit_msg = {"message": "Running in safe mode"} if cls.running_in_safe_mode else None
             loop.run_until_complete(cls._audit.information('START', audit_msg))
-
+            if sys.version_info >= (3, 7, 1):
+                ignore_aiohttp_ssl_eror(loop)
             loop.run_forever()
         except SSLVerifier.VerificationError as e:
             sys.stderr.write('Error: ' + format(str(e)) + "\n")
@@ -1122,7 +1199,7 @@ class Server:
         except TimeoutError as err:
             raise web.HTTPInternalServerError(reason=str(err))
         except Exception as ex:
-            raise web.HTTPException(reason=str(ex))
+            raise web.HTTPInternalServerError(reason=str(ex))
 
     @classmethod
     async def restart(cls, request):
@@ -1147,7 +1224,7 @@ class Server:
         except TimeoutError as err:
             raise web.HTTPInternalServerError(reason=str(err))
         except Exception as ex:
-            raise web.HTTPException(reason=str(ex))
+            raise web.HTTPInternalServerError(reason=str(ex))
 
     @classmethod
     async def register_interest(cls, request):
@@ -1287,7 +1364,7 @@ class Server:
         except ValueError as ex:
             raise web.HTTPNotFound(reason=str(ex))
         except Exception as ex:
-            raise web.HTTPException(reason=ex)
+            raise web.HTTPInternalServerError(reason=ex)
 
         return web.json_response(result)
 
@@ -1370,6 +1447,6 @@ class Server:
         except ValueError as ex:
             raise web.HTTPNotFound(reason=str(ex))
         except Exception as ex:
-            raise web.HTTPException(reason=ex)
+            raise web.HTTPInternalServerError(reason=ex)
 
         return web.json_response(message)

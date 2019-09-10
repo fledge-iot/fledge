@@ -28,9 +28,15 @@ class FilterPipeline
 {
 
 public:
-	FilterPipeline(ManagementClient* mgtClient, StorageClient& storage, std::string serviceName);
+	FilterPipeline(ManagementClient* mgtClient,
+			StorageClient& storage,
+			std::string serviceName);
 	~FilterPipeline();
-	FilterPlugin *	getFirstFilterPlugin() { return (m_filters.begin() == m_filters.end()) ? NULL : *(m_filters.begin()); }
+	FilterPlugin *	getFirstFilterPlugin()
+	{
+		return (m_filters.begin() == m_filters.end()) ?
+			NULL : *(m_filters.begin());
+	};
 	unsigned int	getFilterCount() { return m_filters.size(); }
 	void		configChange(const std::string&, const std::string&);
 	
@@ -39,17 +45,26 @@ public:
 	// Load filters as specified in the configuration
 	bool		loadFilters(const std::string& categoryName);
 	// Setup the filter pipeline
-	bool		setupFiltersPipeline(void *passToOnwardFilter, void *useFilteredData, void *ingest);
+	bool		setupFiltersPipeline(void *passToOnwardFilter,
+					     void *useFilteredData,
+					     void *ingest);
+	// Check FilterPipeline is ready for data ingest
+	bool		isReady() { return m_ready; };
+	bool		hasChanged(const std::string pipeline) const { return m_pipeline != pipeline; }
 
 private:
 	PLUGIN_HANDLE	loadFilterPlugin(const std::string& filterName);
+	bool		m_ready;
 
 protected:
 	ManagementClient*	mgtClient;
 	StorageClient&		storage;
 	std::string		serviceName;
-	std::vector<FilterPlugin *>	m_filters;
-	std::map<std::string, FilterPlugin *>	m_filterCategories;
+	std::vector<FilterPlugin *>
+				m_filters;
+	std::map<std::string, FilterPlugin *>
+				m_filterCategories;
+	std::string		m_pipeline;
 };
 
 #endif

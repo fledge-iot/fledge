@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+./check_env
+[[ $? -eq 0 ]]  || exit 1
+
+ITERATIONS=10
+if [[ $# -gt 0 ]]
+ then
+ ITERATIONS=$1
+fi
+
+VERSION="nightly"
+if [[ $# -gt 1 ]]
+ then
+ VERSION=$2
+fi
+
+
+./remove
+./install ${VERSION}
+
+for i in $(seq ${ITERATIONS}); do
+	echo "***************"
+	echo "***************"
+	echo "Run $i"
+	echo "***************"
+	echo "***************"
+	./reset
+	./test || break
+done
+

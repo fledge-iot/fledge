@@ -186,7 +186,7 @@ bool 		add_row = false;
 			StringBuffer buffer;
 			Writer<StringBuffer> writer(buffer);
 			(*itr)["reading"].Accept(writer);
-			sql.append(buffer.GetString());
+			sql.append(escape(buffer.GetString()));
 			sql.append('\'');
 
 			sql.append(')');

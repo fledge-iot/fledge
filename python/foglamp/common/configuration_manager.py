@@ -74,6 +74,7 @@ class ConfigurationCache(object):
         self.miss += 1
         return False
 
+    # TODO: FOGL-3246 Add description
     def update(self, category_name, category_val, display_name=None):
         """Update the cache dictionary and remove the oldest item"""
         if category_name not in self.cache and len(self.cache) >= self.max_cache_size:
@@ -335,6 +336,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                               value=new_category_val, display_name=display_name).payload()
             result = await self._storage.insert_into_tbl("configuration", payload)
             response = result['response']
+            # TODO: FOGL-3246 Add description in cache
             self._cacheManager.update(category_name, new_category_val, display_name)
         except KeyError:
             raise ValueError(result['message'])
@@ -601,13 +603,20 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         """
         try:
             if category_name in self._cacheManager:
-                return self._cacheManager.cache[category_name]['value']
+                # Interim solution; to ensure script type config item file content handling
+                # Note: Make sure to pass display_name to cacheManager.update; Otherwise, in case of None, it will be set to category_name
+                # FOGL-3246 Add description in cache
+                category_value = self._handle_script_type(category_name, self._cacheManager.cache[category_name]['value'])
+                self._cacheManager.update(category_name, category_value, display_name=self._cacheManager.cache[category_name]['displayName'])
+                return category_value
 
             category_value = await self._read_category_val(category_name)
 
             if category_value is not None:
-                self._cacheManager.update(category_name, category_value)
                 category_value = self._handle_script_type(category_name, category_value)
+                # FIXME: FOGL-3246 Explicit set display_name otherwise it always None and add description
+                # For display_name we need to fetch from DB as above def returns only its value
+                self._cacheManager.update(category_name, category_value)
             return category_value
         except:
             _logger.exception(
@@ -635,9 +644,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 if cat_item is not None:
                     category_value = await self._read_category_val(category_name)
                     if category_value is not None:
-                        self._cacheManager.update(category_name, category_value)
-                        self._cacheManager.cache[category_name]['value'].update({item_name: cat_item})
                         category_value = self._handle_script_type(category_name, category_value)
+                        # FIXME: FOGL-3246 Explicit set display_name otherwise it always None and add description
+                        # For display_name we need to fetch from DB as above def returns only its value
+                        self._cacheManager.update(category_name, category_value)
                         cat_item = category_value[item_name]
                 return cat_item
         except:
@@ -1172,7 +1182,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             payload = PayloadBuilder().WHERE(["child", "=", cat]).payload()
             result = await self._storage.delete_from_tbl("category_children", payload)
             if result['response'] == 'deleted':
-                _logger.info('Deleted parent in catgory_children: %s', cat)
+                _logger.info('Deleted parent in category_children: %s', cat)
 
             # Remove category.
             payload = PayloadBuilder().WHERE(["key", "=", cat]).payload()
@@ -1184,9 +1194,14 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 # FIXME: FOGL-2140
                 await audit.information('CONCH', audit_details)
 
+            # delete_category_script_files is a better name in today's context. But in future there can be more stuff
+            #  related to the category; the definition of method should be extended as required
+            self.delete_category_related_things(cat)
+
             # Remove cat from cache
             if cat in self._cacheManager.cache:
                 self._cacheManager.remove(cat)
+
         except KeyError as ex:
             raise ValueError(ex)
         except StorageServerError as ex:
@@ -1194,6 +1209,27 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             raise ValueError(err_response)
         else:
             return {cat: result}
+
+    def delete_category_related_things(self, category_name):
+        """ On delete category request
+
+        - Delete category related files
+
+        :param category_name:
+        :return:
+        """
+        import glob
+        uploaded_scripts_dir = '{}/data/scripts/'.format(_FOGLAMP_ROOT)
+        if _FOGLAMP_DATA:
+            uploaded_scripts_dir = '{}/scripts/'.format(_FOGLAMP_DATA)
+        files = "{}/{}_*".format(uploaded_scripts_dir, category_name.lower())
+        try:
+            for f in glob.glob(files):
+                _logger.info("Removing file %s for category %s", f, category_name)
+                os.remove(f)
+        except Exception as ex:
+            _logger.error('Failed to delete file(s) for category %s. Exception %s', category_name, str(ex))
+            # raise ex
 
     def register_interest(self, category_name, callback):
         """Registers an interest in any changes to the category_value associated with category_name
@@ -1322,31 +1358,30 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         Return Values:
         JSON
         """
-        for k, v in category_value.items():
+        import glob
+        cat_value = copy.deepcopy(category_value)
+        for k, v in cat_value.items():
             if v['type'] == 'script':
                 try:
-                    category_value[k]["file"] = ""
-
+                    # cat_value[k]["file"] = ""
                     if v['value'] is not None and v['value'] != "":
-                        category_value[k]["value"] = binascii.unhexlify(v['value'].encode('utf-8')).decode("utf-8")
+                        cat_value[k]["value"] = binascii.unhexlify(v['value'].encode('utf-8')).decode("utf-8")
+                except binascii.Error:
+                    pass
                 except Exception as e:
                     _logger.warning(
-                        "Got an issue while decoding config item: {} | {}".format(category_value[k], str(e)))
+                        "Got an issue while decoding config item: {} | {}".format(cat_value[k], str(e)))
                     pass
 
                 script_dir = _FOGLAMP_DATA + '/scripts/' if _FOGLAMP_DATA else _FOGLAMP_ROOT + "/data/scripts/"
                 prefix_file_name = category_name.lower() + "_" + k.lower() + "_"
-
                 if not os.path.exists(script_dir):
                     os.makedirs(script_dir)
                 else:
-                    _all_files = os.listdir(script_dir)
-                    for name in _all_files:
-                        if name.startswith(prefix_file_name) and name.endswith('.py'):
-                            category_value[k]["file"] = script_dir + name
-
-                if self._cacheManager.cache[category_name]['value'][k]:
-                    self._cacheManager.cache[category_name]['value'][k]['value'] = category_value[k]["value"]
-                    self._cacheManager.cache[category_name]['value'][k]['file'] = category_value[k]["file"]
-
-        return category_value
+                    # find pattern with file_name
+                    list_of_files = glob.glob(script_dir + prefix_file_name + "*.py")
+                    if list_of_files:
+                        # get latest modified file
+                        latest_file = max(list_of_files, key=os.path.getmtime)
+                        cat_value[k]["file"] = latest_file
+        return cat_value

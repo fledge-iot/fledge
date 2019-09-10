@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+
+./check_env
+[[ $? -eq 0 ]]  || exit 1
+
+cat /etc/os-release | grep PRETTY_NAME | cut -f2 -d"="
+uname -a
+
+sudo cp /etc/apt/sources.list /etc/apt/sources.list.bak
+sudo sed -i "/\b\(archives.dianomic.com\)\b/d" /etc/apt/sources.list
+
+sudo apt update && sudo apt upgrade -y && sudo apt update
+echo "==================== DONE update, upgrade, update ============================"
+
+echo "==================== INSTALLING jq =================="
+sudo apt install -y jq
+echo "==================== DONE =================="
+
+BUILD_VERSION="nightly"
+if [[ $# -gt 0 ]]
+ then
+ BUILD_VERSION=$1
+fi
+
+VERSION_CODENAME=$(cat /etc/os-release | grep VERSION_CODENAME | cut -f2 -d"=")
+
+wget -q -O - http://archives.dianomic.com/KEY.gpg | sudo apt-key add -
+echo "deb http://archives.dianomic.com/${BUILD_VERSION}/${VERSION_CODENAME}/armv7l/ /" | sudo tee -a /etc/apt/sources.list
+sudo apt update
+
+time sudo apt install -y foglamp
+echo "==================== DONE INSTALLING FogLAMP =================="
+
+time sudo apt install -y foglamp-gui
+echo "==================== DONE INSTALLING FogLAMP GUI ======================"
+
+time sudo apt install -y foglamp-service-notification foglamp-filter-expression foglamp-filter-python35 foglamp-filter-rms \
+foglamp-filter-fft foglamp-filter-delta foglamp-filter-metadata foglamp-filter-change \
+foglamp-notify-asset foglamp-notify-python35 foglamp-notify-email \
+foglamp-rule-simple-expression foglamp-rule-average \
+foglamp-north-httpc \
+foglamp-south-sinusoid foglamp-south-envirophat foglamp-south-randomwalk foglamp-south-game foglamp-south-modbus foglamp-south-http-south
+echo "==================== DONE INSTALLING PLUGINS =================="

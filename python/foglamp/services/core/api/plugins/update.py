@@ -108,10 +108,12 @@ def update_repo_sources_and_plugin(_type: str, name: str) -> tuple:
     # irrespective of package name defined in the configured repo.
     name = name.lower()
     _platform = platform.platform()
-    pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
-
     stdout_file_path = common.create_log_file(name)
-    cmd = "sudo {} update > {} 2>&1".format(pkg_mgt, stdout_file_path)
+    pkg_mgt = 'apt'
+    cmd = "sudo {} -y update > {} 2>&1".format(pkg_mgt, stdout_file_path)
+    if 'centos' in _platform or 'redhat' in _platform:
+        pkg_mgt = 'yum'
+        cmd = "sudo {} check-update > {} 2>&1".format(pkg_mgt, stdout_file_path)
     ret_code = os.system(cmd)
     # sudo apt/yum -y install only happens when update is without any error
     if ret_code == 0:
@@ -119,8 +121,7 @@ def update_repo_sources_and_plugin(_type: str, name: str) -> tuple:
         ret_code = os.system(cmd)
 
     # relative log file link
-    link = stdout_file_path.split("/")[-1]
-    link = "log/" + link
+    link = "log/" + stdout_file_path.split("/")[-1]
     return ret_code, link
 
 

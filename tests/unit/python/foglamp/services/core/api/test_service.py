@@ -595,7 +595,7 @@ class TestService:
         mocker.patch.object(service, "get_schedule", side_effect=Exception)
         resp = await client.delete("/foglamp/service/{}".format(name))
         assert 500 == resp.status
-        assert resp.reason is None
+        assert resp.reason is ''
 
         async def mock_bad_result():
             return {"count": 0, "rows": []}
@@ -608,13 +608,16 @@ class TestService:
         assert '{} service does not exist.'.format(name) == resp.reason
 
     async def test_post_service_package_from_repo(self, client):
+        async def async_mock(return_value):
+            return return_value
+
         svc_name = 'foglamp-service-notification'
         param = {"format": "repository", "name": svc_name}
         _platform = platform.platform()
         pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
         with patch.object(common, 'fetch_available_packages', return_value=([svc_name], 'log/190801-12-19-24')) as patch_fetch_available_package:
             with patch.object(install, 'install_package_from_repo',
-                              return_value=(0, 'Success')) as install_package_patch:
+                              return_value=async_mock((0, 'Success'))) as install_package_patch:
                 resp = await client.post('/foglamp/service?action=install', data=json.dumps(param))
                 assert 200 == resp.status
                 result = await resp.text()

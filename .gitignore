@@ -13,7 +13,7 @@
 data/etc/storage.json
 data/etc/certs/*
 data/var
-data/tmp
+data/support
 data/scripts
 data/plugins
 data/snapshots
@@ -75,6 +75,8 @@ data/etc/backup_postgres_configuration_cache.json
 
 # Async ingest pymodule
 python/async_ingest.so*
+# Filter ingest pymodule
+python/filter_ingest.so*
 
 # Python south plugins
 python/foglamp/plugins/south/*

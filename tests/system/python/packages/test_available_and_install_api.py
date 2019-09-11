@@ -29,9 +29,9 @@ def reset_packages():
 
 
 @pytest.fixture
-def setup_package(build_version):
+def setup_package(package_build_version):
     try:
-        subprocess.run(["$FOGLAMP_ROOT/tests/system/python/scripts/setup_package {}".format(build_version)],
+        subprocess.run(["$FOGLAMP_ROOT/tests/system/python/scripts/package/setup {}".format(package_build_version)],
                        shell=True, check=True)
     except subprocess.CalledProcessError:
         assert False, "setup package script failed"

@@ -8,18 +8,18 @@ __version__="1.0.0"
 
 ######################################################################################################
 # Usage text for this script
-# $FOGLAMP_ROOT/tests/system/python/scripts/setup_package ${BUILD_VERSION}
+# $FOGLAMP_ROOT/tests/system/python/scripts/package/setup ${PACKAGE_BUILD_VERSION}
 ######################################################################################################
 
-BUILD_VERSION=$1
+PACKAGE_BUILD_VERSION=$1
 
-[[ -z "${BUILD_VERSION}" ]] && echo "Build Version not found." && exit 1
+[[ -z "${PACKAGE_BUILD_VERSION}" ]] && echo "Build Version not found." && exit 1
 
 ID=$(cat /etc/os-release | grep -w ID | cut -f2 -d"=")
 UNAME=`uname -m`
 VERSION_ID=$(cat /etc/os-release | grep -w VERSION_ID | cut -f2 -d"=" |  tr -d '"')
 
-echo "Build version is "${BUILD_VERSION}
+echo "Build version is "${PACKAGE_BUILD_VERSION}
 echo "ID is "${ID}
 echo "uname is "${UNAME}
 echo "version id is "${VERSION_ID}
@@ -41,7 +41,7 @@ echo "==================== DONE update, upgrade, update ========================
 
 wget -q -O - http://archives.dianomic.com/KEY.gpg | sudo apt-key add -
 # FIXME: for centos/rhel
-echo "deb http://archives.dianomic.com/${BUILD_VERSION}/${ID}/${UNAME}/ /" | sudo tee -a /etc/apt/sources.list
+echo "deb http://archives.dianomic.com/${PACKAGE_BUILD_VERSION}/${ID}/${UNAME}/ /" | sudo tee -a /etc/apt/sources.list
 sudo apt update
 
 time sudo apt install -y foglamp

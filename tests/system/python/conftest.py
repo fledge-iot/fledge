@@ -371,7 +371,7 @@ def pytest_addoption(parser):
     parser.addoption("--modbus-baudrate", action="store", default="9600", type=int, help="Serial port baudrate")
 
     # Packages
-    parser.addoption("--build-version", action="store", default="nightly", help="Package build version for http://archives.dianomic.com")
+    parser.addoption("--package-build-version", action="store", default="nightly", help="Package build version for http://archives.dianomic.com")
 
 
 @pytest.fixture
@@ -560,8 +560,8 @@ def modbus_baudrate(request):
 
 
 @pytest.fixture
-def build_version(request):
-    return request.config.getoption("--build-version")
+def package_build_version(request):
+    return request.config.getoption("--package-build-version")
 
 
 def pytest_itemcollected(item):

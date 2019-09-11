@@ -1,2 +1,2 @@
 -- Notification log code NTFCL
-DELETE from foglamp.log_codes WHERE code = 'NTFCL';
+DELETE from fledge.log_codes WHERE code = 'NTFCL';

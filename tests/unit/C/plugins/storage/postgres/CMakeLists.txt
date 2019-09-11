@@ -6,7 +6,7 @@ set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 # libraries
 set(PG_LIB     pq)
 
-# FogLAMP libraries
+# Fledge libraries
 set(COMMON_LIB         common-lib)
 set(SERVICE_COMMON_LIB services-common-lib)
 set(PLUGINS_COMMON_LIB plugins-common-lib)

@@ -2,7 +2,7 @@
 #define _CONFIGURATION_MANAGER_H
 
 /*
- * FogLAMP Configuration management.
+ * Fledge Configuration management.
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -19,53 +19,53 @@ class ConfigurationManager {
         public:
 		static ConfigurationManager*	getInstance(const std::string&, short unsigned int);
 		// Called by microservice management API or the admin API:
-		// GET /foglamp/service/category
-		// GET /foglamp//category
+		// GET /fledge/service/category
+		// GET /fledge//category
 		ConfigCategories		getAllCategoryNames() const;
 		// Called by microservice management API or the admin API:
-		// GET /foglamp/service/category/{category_name}
-		// GET /foglamp/category/{category_name}
+		// GET /fledge/service/category/{category_name}
+		// GET /fledge/category/{category_name}
 		ConfigCategory			getCategoryAllItems(const std::string& categoryName) const;
 		// Called by microservice management API or the admin API:
-		// POST /foglamp/service/category
-		// POST /foglamp/category
+		// POST /fledge/service/category
+		// POST /fledge/category
 		ConfigCategory			createCategory(const std::string& categoryName,
 							       const std::string& categoryDescription,
 							       const std::string& categoryItems,
 							       bool keepOriginalIterms = false) const;
 		// Called by microservice management API or the admin API:
-		// GET /foglamp/service/category/{categoryName}/{configItem}
-		// GET /foglamp/category/{categoryName}/{configItem}
+		// GET /fledge/service/category/{categoryName}/{configItem}
+		// GET /fledge/category/{categoryName}/{configItem}
 		std::string			getCategoryItem(const std::string& categoryName,
 								const std::string& itemName) const;
 		// Called by microservice management API or the admin API:
-		// PUT /foglamp/service/category/{categoryName}/{configItem}
-		// PUT /foglamp/service/{categoryName}/{configItem}
+		// PUT /fledge/service/category/{categoryName}/{configItem}
+		// PUT /fledge/service/{categoryName}/{configItem}
 		bool				setCategoryItemValue(const std::string& categoryName,
 								     const std::string& itemName,
 								     const std::string& newValue) const;
 		// Called by microservice management API or the admin API:
-		// POST /foglamp/service/category/{categoryName}/children
-		// POST /foglamp/category/{categoryName}/children
+		// POST /fledge/service/category/{categoryName}/children
+		// POST /fledge/category/{categoryName}/children
 		std::string			addChildCategory(const std::string& parentCategoryName,
 								 const std::string& childCategories) const;
 		// Called by microservice management API or the admin API:
-		// GET /foglamp/service/category/{categoryName}/children
-		// GET /foglamp/category/{categoryName}/children
+		// GET /fledge/service/category/{categoryName}/children
+		// GET /fledge/category/{categoryName}/children
 		ConfigCategories		getChildCategories(const std::string& parentCategoryName) const;
 		// Called by microservice management API or the admin API:
-		// DELETE /foglamp/service/category/{CategoryName}/children/{ChildCategory}
-		// DELETE /foglamp/category/{CategoryName}/children/{ChildCategory}
+		// DELETE /fledge/service/category/{CategoryName}/children/{ChildCategory}
+		// DELETE /fledge/category/{CategoryName}/children/{ChildCategory}
 		std::string			deleteChildCategory(const std::string& parentCategoryName,
 								    const std::string& childCategory) const;
 		// Called by microservice management API or the admin API:
-		// DELETE /foglamp/service/category/{categoryName}/{configItem}/value
-		// DELETE /foglamp/category/{categoryName}/{configItem}/value
+		// DELETE /fledge/service/category/{categoryName}/{configItem}/value
+		// DELETE /fledge/category/{categoryName}/{configItem}/value
 		std::string 			deleteCategoryItemValue(const std::string& categoryName,
 									const std::string& itemName) const;
 		// Called by microservice management API or the admin API:
-		// DELETE /foglamp/service/category/{categoryName}
-		// DELETE /foglamp/category/{categoryName}
+		// DELETE /fledge/service/category/{categoryName}
+		// DELETE /fledge/category/{categoryName}
 		ConfigCategories		deleteCategory(const std::string& categoryName) const;
 		// Internal usage
 		std::string			getCategoryItemValue(const std::string& categoryName,

@@ -1,4 +1,4 @@
-CREATE TABLE foglamp.destinations (
+CREATE TABLE fledge.destinations (
     id            INTEGER                     PRIMARY KEY AUTOINCREMENT,                  -- Sequence ID
     type          smallint                    NOT NULL DEFAULT 1,                         -- Enum : 1: OMF, 2: Elasticsearch
     description   character varying(255)      NOT NULL DEFAULT '',                        -- A brief description of the destination entry
@@ -7,17 +7,17 @@ CREATE TABLE foglamp.destinations (
     active        boolean                     NOT NULL DEFAULT 't',                       -- When false, all streams to this destination stop and are inactive
     ts            DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')));         -- Creation or last update
 
-INSERT INTO foglamp.destinations ( id, description )
+INSERT INTO fledge.destinations ( id, description )
        VALUES (0, 'none' );
 
 -- Add the constraint to the the table
 BEGIN TRANSACTION;
-DROP TABLE IF EXISTS foglamp.streams_old;
-ALTER TABLE foglamp.streams RENAME TO streams_old;
+DROP TABLE IF EXISTS fledge.streams_old;
+ALTER TABLE fledge.streams RENAME TO streams_old;
 
-CREATE TABLE foglamp.streams (
+CREATE TABLE fledge.streams (
     id            INTEGER                      PRIMARY KEY AUTOINCREMENT,         -- Sequence ID
-    destination_id integer                     NOT NULL,                          -- FK to foglamp.destinations
+    destination_id integer                     NOT NULL,                          -- FK to fledge.destinations
     description    character varying(255)      NOT NULL DEFAULT '',               -- A brief description of the stream entry
     properties     JSON                        NOT NULL DEFAULT '{}',             -- A generic set of properties
     object_stream  JSON                        NOT NULL DEFAULT '{}',             -- Definition of what must be streamed
@@ -32,7 +32,7 @@ CREATE TABLE foglamp.streams (
             ON UPDATE NO ACTION
             ON DELETE NO ACTION );
 
-INSERT INTO foglamp.streams
+INSERT INTO fledge.streams
         SELECT
             id,
             0,
@@ -45,9 +45,9 @@ INSERT INTO foglamp.streams
             active,
             last_object,
             ts
-        FROM foglamp.streams_old;
+        FROM fledge.streams_old;
 
-DROP TABLE foglamp.streams_old;
+DROP TABLE fledge.streams_old;
 COMMIT;
 
 CREATE INDEX fki_streams_fk1 ON streams (destination_id);

@@ -9,7 +9,7 @@ if "%SPHINXBUILD%" == "" (
 )
 set SOURCEDIR=.
 set BUILDDIR=_build
-set SPHINXPROJ=FogLAMP
+set SPHINXPROJ=Fledge
 
 if "%1" == "" goto help
 

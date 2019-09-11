@@ -1,4 +1,4 @@
-delete from foglamp.configuration where key in (
+delete from fledge.configuration where key in (
 	'North Readings to OCS',
 	'North Statistics to PI',
 	'North Readings to PI',
@@ -7,9 +7,9 @@ delete from foglamp.configuration where key in (
 	'DHT11 South C Plugin',
 	'North_Readings_to_HTTP',
 	'North_Readings_to_PI') and key not in (
-		select distinct process_name from foglamp.tasks);
+		select distinct process_name from fledge.tasks);
 
-delete from foglamp.scheduled_processes where name in (
+delete from fledge.scheduled_processes where name in (
 	'North Readings to OCS',
 	'North Statistics to PI',
 	'North Readings to PI',
@@ -18,9 +18,9 @@ delete from foglamp.scheduled_processes where name in (
 	'DHT11 South C Plugin',
 	'North_Readings_to_HTTP',
 	'North_Readings_to_PI') and name not in (
-		select distinct process_name from foglamp.tasks);
+		select distinct process_name from fledge.tasks);
 
-delete from foglamp.schedules where schedule_name in (
+delete from fledge.schedules where schedule_name in (
 	'North Readings to OCS',
 	'North Statistics to PI',
 	'North Readings to PI',
@@ -29,5 +29,5 @@ delete from foglamp.schedules where schedule_name in (
 	'DHT11 South C Plugin',
 	'North_Readings_to_HTTP',
 	'North_Readings_to_PI') and schedule_name not in (
-		select distinct process_name from foglamp.tasks);
+		select distinct process_name from fledge.tasks);
 

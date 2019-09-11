@@ -1,34 +1,34 @@
 #!/usr/bin/env bash
 
 # Default values
-export FOGLAMP_DATA=.
-export storage_exec=$FOGLAMP_ROOT/services/foglamp.services.storage
+export FLEDGE_DATA=.
+export storage_exec=$FLEDGE_ROOT/services/fledge.services.storage
 export TZ='Etc/UTC'
 
 show_configuration () {
 
-	echo "FogLAMP unit tests for the PostgreSQL plugin"
+	echo "Fledge unit tests for the PostgreSQL plugin"
 
 	echo "Starting storage layer      :$storage_exec:"
 	echo "timezone                    :$tz_exec:"
 	echo "expected dir                :$expected_dir:"
-	echo "configuration               :$FOGLAMP_DATA:"
+	echo "configuration               :$FLEDGE_DATA:"
 }
 
 restore_tz() {
 	#Restore the initial TZ
-	psql -d foglamp -c "ALTER DATABASE foglamp SET timezone TO '"$tz_original"';" > /dev/null
-	tz_current=`psql -qtAX -d foglamp -c "SHOW timezone ;"`
+	psql -d fledge -c "ALTER DATABASE fledge SET timezone TO '"$tz_original"';" > /dev/null
+	tz_current=`psql -qtAX -d fledge -c "SHOW timezone ;"`
 	echo -e "\nOriginal timezone restored   :$tz_current:\n"
 }
 
 # Set UTC as TZ for the proper execution of the tests
-tz_original=`psql -qtAX -d foglamp -c "SHOW timezone ;"`
+tz_original=`psql -qtAX -d fledge -c "SHOW timezone ;"`
 
 trap restore_tz 1 2 3 6 15
 
 #
-# evaluates : FOGLAMP_DATA, storage_exec, TZ and expected_dir
+# evaluates : FLEDGE_DATA, storage_exec, TZ and expected_dir
 #
 if [[ "$@" != "" ]];
 then
@@ -40,7 +40,7 @@ then
 	while true ; do
 	    case "$1" in
 	        -c|--configuration)
-	            export FOGLAMP_DATA="$2"
+	            export FLEDGE_DATA="$2"
 	            shift 2
 	            ;;
 
@@ -62,8 +62,8 @@ then
 fi
 
 # Set the timezone to UTC or to the requested one
-psql -d foglamp -c "ALTER DATABASE foglamp SET timezone TO '"${TZ}"';" > /dev/null
-tz_exec=`psql -qtAX -d foglamp -c "SHOW timezone ;"`
+psql -d fledge -c "ALTER DATABASE fledge SET timezone TO '"${TZ}"';" > /dev/null
+tz_exec=`psql -qtAX -d fledge -c "SHOW timezone ;"`
 
 # Converts '/' to '_' and to upper case
 step1="${TZ/\//_}"
@@ -75,14 +75,14 @@ if [[ "$storage_exec" != "" ]] ; then
 	$storage_exec
 	sleep 1
 
-elif [[ "${FOGLAMP_ROOT}" != "" ]] ; then
+elif [[ "${FLEDGE_ROOT}" != "" ]] ; then
 
 	show_configuration
 	$storage_exec
 	sleep 1
 
 else
-	echo Must either set FOGLAMP_ROOT or provide storage service to test
+	echo Must either set FLEDGE_ROOT or provide storage service to test
 	exit 1
 fi
 

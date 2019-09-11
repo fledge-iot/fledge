@@ -8,13 +8,13 @@ if [ "$1" != "" ]; then
   jobs="$1"
 fi
 
-if [ "$FOGLAMP_ROOT" = "" ]; then
-	echo You must set FOGLAMP_ROOT before running this script
+if [ "$FLEDGE_ROOT" = "" ]; then
+	echo You must set FLEDGE_ROOT before running this script
 	exit -1
 fi
 exitstate=0
 
-cd $FOGLAMP_ROOT/tests/unit/C
+cd $FLEDGE_ROOT/tests/unit/C
 if [ ! -d results ] ; then
 	mkdir results
 fi

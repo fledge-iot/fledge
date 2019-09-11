@@ -33,7 +33,7 @@ target_link_libraries(${PROJECT_NAME} -lpq)
 target_link_libraries(${PROJECT_NAME} ${STORAGE_COMMON_LIB})
 
 # Install library
-install(TARGETS ${PROJECT_NAME} DESTINATION foglamp/plugins/storage//${PROJECT_NAME})
+install(TARGETS ${PROJECT_NAME} DESTINATION fledge/plugins/storage//${PROJECT_NAME})
 
 # Install init.sql
-install(FILES ${CMAKE_SOURCE_DIR}/scripts/plugins/storage/${PROJECT_NAME}/init.sql DESTINATION foglamp/plugins/storage//${PROJECT_NAME})
+install(FILES ${CMAKE_SOURCE_DIR}/scripts/plugins/storage/${PROJECT_NAME}/init.sql DESTINATION fledge/plugins/storage//${PROJECT_NAME})

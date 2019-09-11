@@ -1,5 +1,5 @@
 /*
- * FogLAMP process class
+ * Fledge process class
  *
  * Copyright (c) 2018 Dianomic Systems
  *

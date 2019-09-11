@@ -18,20 +18,20 @@
 
 #
 # This script sets the user environment to facilitate the administration
-# of FogLAMP
+# of Fledge
 #
 # You can execute this script from shell, using for example this command:
 #
-# source /usr/local/foglamp/extras/scripts/setenv.sh
+# source /usr/local/fledge/extras/scripts/setenv.sh
 #
 # or you can add the same command at the bottom of your profile script
 # {HOME}/.profile.
 #
 
-export FOGLAMP_ROOT="/usr/local/foglamp"
-export FOGLAMP_DATA="${FOGLAMP_ROOT}/data"
+export FLEDGE_ROOT="/usr/local/fledge"
+export FLEDGE_DATA="${FLEDGE_ROOT}/data"
 
-export PATH="${FOGLAMP_ROOT}/bin:${PATH}"
+export PATH="${FLEDGE_ROOT}/bin:${PATH}"
 
-export LD_LIBRARY_PATH="${FOGLAMP_ROOT}/lib:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="${FLEDGE_ROOT}/lib:$LD_LIBRARY_PATH"
 

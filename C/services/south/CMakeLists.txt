@@ -7,7 +7,7 @@ set(DLLIB -ldl)
 set(UUIDLIB -luuid)
 set(COMMON_LIB common-lib)
 set(SERVICE_COMMON_LIB services-common-lib)
-set(EXEC foglamp.services.south)
+set(EXEC fledge.services.south)
 
 include_directories(. include ../../thirdparty/Simple-Web-Server ../../thirdparty/rapidjson/include  ../common/include ../../common/include)
 
@@ -40,7 +40,7 @@ target_link_libraries(${EXEC} ${UUIDLIB})
 target_link_libraries(${EXEC} ${COMMON_LIB})
 target_link_libraries(${EXEC} ${SERVICE_COMMON_LIB})
 
-install(TARGETS ${EXEC} RUNTIME DESTINATION foglamp/services)
+install(TARGETS ${EXEC} RUNTIME DESTINATION fledge/services)
 
 if(MSYS) #TODO: Is MSYS true when MSVC is true?
     target_link_libraries(${EXEC} ws2_32 wsock32)

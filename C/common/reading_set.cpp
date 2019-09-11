@@ -1,5 +1,5 @@
 /*
- * FogLAMP storage service client
+ * Fledge storage service client
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -58,7 +58,7 @@ ReadingSet::ReadingSet(vector<Reading *>* readings)
 
 /**
  * Construct a reading set from a JSON document returned from
- * the FogLAMP storage service query or notification.
+ * the Fledge storage service query or notification.
  *
  * @param json	The JSON document (as string) with readings data
  */

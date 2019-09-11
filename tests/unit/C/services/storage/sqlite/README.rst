@@ -3,4 +3,4 @@ by using the env var DEFAULT_SQLITE_DB_FILE
 
 Example:
 
-# export DEFAULT_SQLITE_DB_FILE=/tmp/foglamp.db
+# export DEFAULT_SQLITE_DB_FILE=/tmp/fledge.db

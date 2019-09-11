@@ -1,5 +1,5 @@
 /*
- * FogLAMP FogLAMP Configuration management.
+ * Fledge Fledge Configuration management.
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -53,7 +53,7 @@ ConfigurationManager* ConfigurationManager::getInstance(const string& host,
 }
 
 /**
- * Return all FogLAMP categories from storage layer
+ * Return all Fledge categories from storage layer
  *
  * @return	ConfigCategories class object with
  *		key and description for all found categories.
@@ -141,7 +141,7 @@ ConfigCategories ConfigurationManager::getAllCategoryNames() const
 
 ConfigCategory ConfigurationManager::getCategoryAllItems(const string& categoryName) const
 {
-	// SELECT * FROM foglamp.configuration WHERE key = categoryName
+	// SELECT * FROM fledge.configuration WHERE key = categoryName
 	const Condition conditionKey(Equals);
 	Where *wKey = new Where("key", conditionKey, categoryName);
 	Query qKey(wKey);
@@ -293,7 +293,7 @@ ConfigCategory ConfigurationManager::createCategory(const std::string& categoryN
 	// Set the JSON string for merged category values
 	string updatedItems;
 
-	// SELECT * FROM foglamp.configuration WHERE key = categoryName
+	// SELECT * FROM fledge.configuration WHERE key = categoryName
 	const Condition conditionKey(Equals);
 	Where *wKey = new Where("key", conditionKey, categoryName);
 	Query qKey(wKey);
@@ -376,7 +376,7 @@ ConfigCategory ConfigurationManager::createCategory(const std::string& categoryN
 			// Add the "value" DB field for UPDATE (inputValuea with merged data)
 			updateCategoryValues.push_back(InsertValue("value", inputValues));
 
-			// Perform UPDATE foglamp.configuration SET value = x WHERE okey = y
+			// Perform UPDATE fledge.configuration SET value = x WHERE okey = y
 			if (!m_storage->updateTable("configuration", updateCategoryValues, wKey))
 			{
 				throw ConfigCategoryEx();
@@ -636,7 +636,7 @@ bool ConfigurationManager::setCategoryItemValue(const std::string& categoryName,
 
 	try
 	{
-		// UPDATE foglamp.configuration SET vale = JSON(jsonValues)
+		// UPDATE fledge.configuration SET vale = JSON(jsonValues)
 		// WHERE key = 'categoryName';
 		return (!m_storage->updateTable("configuration", jsonValues, wKey)) ? false : true;
 	}
@@ -706,7 +706,7 @@ string ConfigurationManager::addChildCategory(const string& parentCategoryName,
 		string childCategory = (*itr).GetString();
 
 		// Note: all "children" categories must exist
-		// SELECT * FROM foglamp.configuration WHERE key = categoryName
+		// SELECT * FROM fledge.configuration WHERE key = categoryName
 		const Condition conditionKey(Equals);
 		Where *wKey = new Where("key", conditionKey, childCategory);
 		Query qKey(wKey);
@@ -820,7 +820,7 @@ string ConfigurationManager::fetchChildCategories(const string& parentCategoryNa
 	ostringstream currentChildCategories;
 
 	// Fetch current children of parentCategoryName;
-	// SELECT * FROM foglamp.category_children WHERE parent = 'parentCategoryName'
+	// SELECT * FROM fledge.category_children WHERE parent = 'parentCategoryName'
 	const Condition conditionCurrent(Equals);
 	Where *wCurrent = new Where("parent", conditionCurrent, parentCategoryName);
 	Query qCurrent(wCurrent);

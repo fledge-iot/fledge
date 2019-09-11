@@ -1,5 +1,5 @@
 /*
- * FogLAMP PI Server north plugin.
+ * Fledge PI Server north plugin.
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -67,7 +67,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"displayName": "URL"
 		},
 		"producerToken": {
-			"description": "The producer token that represents this FogLAMP stream",
+			"description": "The producer token that represents this Fledge stream",
 			"type": "string",
 			"default": "omf_north_0001",
 			"order": "2",
@@ -141,7 +141,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 		"AFHierarchy1Level": {
 			"description": "Defines the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.",
 			"type": "string",
-			"default": "foglamp_data_piwebapi",
+			"default": "fledge_data_piwebapi",
 			"order": "18",
 			"displayName": "Asset Framework 1st Level Hierarchy"
 		},

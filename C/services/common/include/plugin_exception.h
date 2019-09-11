@@ -1,5 +1,5 @@
 /*
- * FogLAMP services common.
+ * Fledge services common.
  *
  * Copyright (c) 2018 OSisoft, LLC
  *

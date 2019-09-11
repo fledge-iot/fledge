@@ -1,7 +1,7 @@
 #ifndef _DATAPOINT_H
 #define _DATAPOINT_H
 /*
- * FogLAMP
+ * Fledge
  *
  * Copyright (c) 2018 OSisoft, LLC
  *

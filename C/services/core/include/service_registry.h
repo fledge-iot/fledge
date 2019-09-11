@@ -1,7 +1,7 @@
 #ifndef _SERVICE_REGISTRY_H
 #define _SERVICE_REGISTRY_H
 /*
- * FogLAMP service registry.
+ * Fledge service registry.
  *
  * Copyright (c) 2017 OSisoft, LLC
  *

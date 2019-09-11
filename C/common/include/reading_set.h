@@ -1,7 +1,7 @@
 #ifndef _READINGSET_H
 #define _READINGSET_H
 /*
- * FogLAMP storage client.
+ * Fledge storage client.
  *
  * Copyright (c) 2018 Dianomic Systems
  *

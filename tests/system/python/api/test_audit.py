@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# FOGLAMP_BEGIN
-# See: http://foglamp.readthedocs.io/
-# FOGLAMP_END
+# FLEDGE_BEGIN
+# See: http://fledge.readthedocs.io/
+# FLEDGE_END
 
 """ Test Audit REST API """
 
@@ -21,13 +21,13 @@ __version__ = "${VERSION}"
 
 class TestAudit:
 
-    def test_get_log_codes(self, foglamp_url, reset_and_start_foglamp):
+    def test_get_log_codes(self, fledge_url, reset_and_start_fledge):
         expected_code_list = ['PURGE', 'LOGGN', 'STRMN', 'SYPRG', 'START', 'FSTOP',
                               'CONCH', 'CONAD', 'SCHCH', 'SCHAD', 'SRVRG', 'SRVUN',
                               'SRVFL', 'NHCOM', 'NHDWN', 'NHAVL', 'UPEXC', 'BKEXC',
                               'NTFDL', 'NTFAD', 'NTFSN', 'NTFCL', 'NTFST', 'NTFSD']
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/audit/logcode')
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("GET", '/fledge/audit/logcode')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -37,9 +37,9 @@ class TestAudit:
         codes = [key['code'] for key in jdoc['logCode']]
         assert Counter(expected_code_list) == Counter(codes)
 
-    def test_get_severity(self, foglamp_url):
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/audit/severity')
+    def test_get_severity(self, fledge_url):
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("GET", '/fledge/audit/severity')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -69,11 +69,11 @@ class TestAudit:
         ('?source=START&severity=information&limit=1', 1, 1, ''),
         ('?source=START&severity=information&limit=1&skip=1', 1, 0, '')
     ])
-    def test_default_get_audit(self, foglamp_url, wait_time, request_params, total_count, audit_count, cat_name):
+    def test_default_get_audit(self, fledge_url, wait_time, request_params, total_count, audit_count, cat_name):
         if request_params == '':
             time.sleep(wait_time)
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/audit{}'.format(request_params))
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("GET", '/fledge/audit{}'.format(request_params))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -88,12 +88,12 @@ class TestAudit:
     @pytest.mark.parametrize("payload, total_count", [
         ({"source": "LMTR", "severity": "warning", "details": {"message": "Engine oil pressure low"}}, 10),
         ({"source": "LMTR", "severity": "success", "details": {}}, 11),
-        ({"source": "START", "severity": "information", "details": {"message": "foglamp started"}}, 12),
+        ({"source": "START", "severity": "information", "details": {"message": "fledge started"}}, 12),
         ({"source": "CONCH", "severity": "failure", "details": {"message": "Scheduler configuration failed"}}, 13)
     ])
-    def test_create_audit_entry(self, foglamp_url, payload, total_count):
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request('POST', '/foglamp/audit', body=json.dumps(payload))
+    def test_create_audit_entry(self, fledge_url, payload, total_count):
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request('POST', '/fledge/audit', body=json.dumps(payload))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -104,7 +104,7 @@ class TestAudit:
         assert payload['details'] == jdoc['details']
 
         # Verify new audit log entries
-        conn.request("GET", '/foglamp/audit')
+        conn.request("GET", '/fledge/audit')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()

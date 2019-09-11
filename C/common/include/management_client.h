@@ -1,7 +1,7 @@
 #ifndef _MANAGEMENT_CLIENT_H
 #define _MANAGEMENT_CLIENT_H
 /*
- * FogLAMP storage service.
+ * Fledge storage service.
  *
  * Copyright (c) 2017-2018 OSisoft, LLC
  *
@@ -68,7 +68,7 @@ private:
 		template<class T> bool	addCategory(const T& t, bool keepOriginalItems = false)
 		{
 			try {
-				std::string url = "/foglamp/service/category";
+				std::string url = "/fledge/service/category";
 
                                 // Build the JSON payload
                                 std::ostringstream payload;
@@ -79,7 +79,7 @@ private:
 				/**
 				 * Note:
 				 * At the time being the keep_original_items is added into payload
-				 * and configuration manager in the FogLAMP handles it.
+				 * and configuration manager in the Fledge handles it.
 				 *
 				 * In the near future keep_original_items will be passed
 				 * as URL modifier, i.e: 'URL?keep_original_items=true'

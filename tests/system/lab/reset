@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
-echo "Stopping FogLAMP using systemctl ..."
-sudo systemctl stop foglamp
-echo "YES" | /usr/local/foglamp/bin/foglamp reset || exit 1
+echo "Stopping Fledge using systemctl ..."
+sudo systemctl stop fledge
+echo "YES" | /usr/local/fledge/bin/fledge reset || exit 1
 echo
 # TODO: FOGL-2349
-rm -rf /usr/local/foglamp/data/scripts/* || exit 1
-echo "Starting FogLAMP using systemctl ..."
-sudo systemctl start foglamp
-echo "FogLAMP Status"
-systemctl status foglamp | grep "Active"
+rm -rf /usr/local/fledge/data/scripts/* || exit 1
+echo "Starting Fledge using systemctl ..."
+sudo systemctl start fledge
+echo "Fledge Status"
+systemctl status fledge | grep "Active"

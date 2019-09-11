@@ -1,6 +1,6 @@
-# FOGLAMP_BEGIN
-# See: http://foglamp.readthedocs.io/
-# FOGLAMP_END
+# FLEDGE_BEGIN
+# See: http://fledge.readthedocs.io/
+# FLEDGE_END
 
 """ Async Plugin used for testing purpose """
 import asyncio
@@ -9,8 +9,8 @@ import uuid
 import logging
 import async_ingest
 
-from foglamp.common import logger
-from foglamp.services.south import exceptions
+from fledge.common import logger
+from fledge.services.south import exceptions
 from threading import Thread
 from datetime import datetime, timezone, timedelta
 

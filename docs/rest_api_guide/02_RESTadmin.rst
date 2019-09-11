@@ -28,7 +28,7 @@ This section presents the list of administrative API methods in alphabetical ord
 Audit Trail
 ===========
 
-The audit trail API is used to interact with the audit trail log tables in the storage microservice. In FogLAMP, log information is stored in the system log where the microservice is hosted. All the relevant information used for auditing are instead stored inside FogLAMP and they are accessible through the Admin REST API. The API allows the reading but also the addition of extra audit logs, as if such logs are created within the system.
+The audit trail API is used to interact with the audit trail log tables in the storage microservice. In Fledge, log information is stored in the system log where the microservice is hosted. All the relevant information used for auditing are instead stored inside Fledge and they are accessible through the Admin REST API. The API allows the reading but also the addition of extra audit logs, as if such logs are created within the system.
 
 
 audit
@@ -40,7 +40,7 @@ The *audit* methods implement the audit trail, they are used to create and retri
 GET Audit Entries
 ~~~~~~~~~~~~~~~~~
 
-``GET /foglamp/audit`` - return a list of audit trail entries sorted with most recent first.
+``GET /fledge/audit`` - return a list of audit trail entries sorted with most recent first.
 
 **Request Parameters**
 
@@ -76,7 +76,7 @@ The response payload is an array of JSON objects with the audit trail entries.
 
 .. code-block:: console
 
-  $ curl -s http://localhost:8081/foglamp/audit?limit=2
+  $ curl -s http://localhost:8081/fledge/audit?limit=2
   { "totalCount" : 24,
     "audit"      : [ { "timestamp" : "2018-02-25 18:58:07.748",
                        "source"    : "SRVRG",
@@ -92,7 +92,7 @@ The response payload is an array of JSON objects with the audit trail entries.
                        "severity"  : "INFORMATION" }
                    ]
   }
-  $ curl -s http://localhost:8081/foglamp/audit?source=SRVUN&limit=1
+  $ curl -s http://localhost:8081/fledge/audit?source=SRVUN&limit=1
   { "totalCount" : 4,
     "audit"      : [ { "timestamp" : "2018-02-25 05:22:11.053",
                        "source"    : "SRVUN",
@@ -108,9 +108,9 @@ The response payload is an array of JSON objects with the audit trail entries.
 POST Audit Entries
 ~~~~~~~~~~~~~~~~~~
 
-``POST /foglamp/audit`` - create a new audit trail entry.
+``POST /fledge/audit`` - create a new audit trail entry.
 
-The purpose of the create method on an audit trail entry is to allow a user interface or an application that is using the FogLAMP API to utilize the FogLAMP audit trail and notification mechanism to raise user defined audit trail entries.
+The purpose of the create method on an audit trail entry is to allow a user interface or an application that is using the Fledge API to utilize the Fledge audit trail and notification mechanism to raise user defined audit trail entries.
 
 
 **Request Payload**
@@ -158,7 +158,7 @@ The response payload is the newly created audit trail entry.
 
 .. code-block:: console
 
-  $ curl -X POST http://localhost:8081/foglamp/audit \
+  $ curl -X POST http://localhost:8081/fledge/audit \
   -d '{ "severity": "FAILURE", "details": { "message": "Internal System Error" }, "source": "LocalMonitor" }'
   { "source": "LocalMonitor",
     "timestamp": "2018-04-17 11:49:55.480",
@@ -166,7 +166,7 @@ The response payload is the newly created audit trail entry.
     "details": { "message": "Internal System Error" }
   }
   $
-  $ curl -X GET http://localhost:8081/foglamp/audit?severity=FAILURE
+  $ curl -X GET http://localhost:8081/fledge/audit?severity=FAILURE
   { "totalCount": 1,
     "audit": [ { "timestamp": "2018-04-16 18:32:28.427",
                  "source"   :    "LocalMonitor",
@@ -182,21 +182,21 @@ The response payload is the newly created audit trail entry.
 Configuration Management
 ========================
 
-Configuration management in an important aspect of the REST API, however due to the discoverable form of the configuration of FogLAMP the API itself is fairly small.
+Configuration management in an important aspect of the REST API, however due to the discoverable form of the configuration of Fledge the API itself is fairly small.
 
-The configuration REST API interacts with the configuration manager to create, retrieve, update and delete the configuration categories and values. Specifically all updates must go via the management layer as this is used to trigger the notifications to the components that have registered interest in configuration categories. This is the means by which the dynamic reconfiguration of FogLAMP is achieved.
+The configuration REST API interacts with the configuration manager to create, retrieve, update and delete the configuration categories and values. Specifically all updates must go via the management layer as this is used to trigger the notifications to the components that have registered interest in configuration categories. This is the means by which the dynamic reconfiguration of Fledge is achieved.
 
 
 category
 --------
 
-The *category* interface is part of the Configuration Management for FogLAMP and it is used to create, retrieve, update and delete configuration categories and items.
+The *category* interface is part of the Configuration Management for Fledge and it is used to create, retrieve, update and delete configuration categories and items.
 
 
 GET categor(ies)
 ~~~~~~~~~~~~~~~~
 
-``GET /foglamp/category`` - return the list of known categories in the configuration database
+``GET /fledge/category`` - return the list of known categories in the configuration database
 
 
 **Response Payload**
@@ -218,7 +218,7 @@ The response payload is a JSON object with an array of JSON objects, one per val
 
 .. code-block:: console
 
-  $ curl -X GET http://localhost:8081/foglamp/category
+  $ curl -X GET http://localhost:8081/fledge/category
   { "categories": [ { "key"         : "CC2650ASYN",
                       "description" : "TI SensorTag CC2650 async South Plugin" },
                     { "key"         : "CC2650POLL",
@@ -242,9 +242,9 @@ The response payload is a JSON object with an array of JSON objects, one per val
                     { "key"         : "South",
                       "description" : "South Service configuration" },
                     { "key"         : "rest_api",
-                      "description" : "The FogLAMP Admin and User REST API" },
+                      "description" : "The Fledge Admin and User REST API" },
                     { "key"         : "service",
-                      "description" : "The FogLAMP service configuration" } ] }
+                      "description" : "The Fledge service configuration" } ] }
   $
 
 |br|
@@ -253,12 +253,12 @@ The response payload is a JSON object with an array of JSON objects, one per val
 GET category
 ~~~~~~~~~~~~
 
-``GET /foglamp/category/{name}`` - return the configuration items in the given category.
+``GET /fledge/category/{name}`` - return the configuration items in the given category.
 
 
 **Path Parameters**
 
-- **name** is the name of one of the categories returned from the GET /foglamp/category call.
+- **name** is the name of one of the categories returned from the GET /fledge/category call.
 
 
 **Response Payload**
@@ -269,7 +269,7 @@ The response payload is a set of configuration items within the category, each i
 | Name        | Type   | Description                                                  | Example                       |
 +=============+========+==============================================================+===============================+
 | description | string | A description of the configuration item |br|                 | The IPv4 network address |br| |
-|             |        | that may be used in a user interface.                        | of the FogLAMP server         |
+|             |        | that may be used in a user interface.                        | of the Fledge server         |
 +-------------+--------+--------------------------------------------------------------+-------------------------------+
 | type        | string | A type that may be used by a user interface |br|             | IPv4                          |
 |             |        | to know how to display an item.                              |                               |
@@ -285,7 +285,7 @@ The response payload is a set of configuration items within the category, each i
 
 .. code-block:: console
 
-  $ curl -X GET http://localhost:8081/foglamp/category/rest_api
+  $ curl -X GET http://localhost:8081/fledge/category/rest_api
   { "authentication": {
         "type": "string",
         "default": "optional",
@@ -298,9 +298,9 @@ The response payload is a set of configuration items within the category, each i
         "value": "{\"providers\": [\"username\", \"ldap\"] }" },
     "certificateName": {
         "type": "string",
-        "default": "foglamp",
+        "default": "fledge",
         "description": "Certificate file name",
-        "value": "foglamp" },
+        "value": "fledge" },
     "enableHttp": {
         "type": "boolean",
         "default": "true",
@@ -335,12 +335,12 @@ The response payload is a set of configuration items within the category, each i
 GET category item
 ~~~~~~~~~~~~~~~~~
 
-``GET /foglamp/category/{name}/{item}`` - return the configuration item in the given category.
+``GET /fledge/category/{name}/{item}`` - return the configuration item in the given category.
 
 
 **Path Parameters**
 
-- **name** - the name of one of the categories returned from the GET /foglamp/category call.
+- **name** - the name of one of the categories returned from the GET /fledge/category call.
 - **item** - the item within the category to return.
 
 
@@ -352,7 +352,7 @@ The response payload is a configuration item within the category, each item is a
 | Name        | Type   | Description                                                  | Example                       |
 +=============+========+==============================================================+===============================+
 | description | string | A description of the configuration item |br|                 | The IPv4 network address |br| |
-|             |        | that may be used in a user interface.                        | of the FogLAMP server         |
+|             |        | that may be used in a user interface.                        | of the Fledge server         |
 +-------------+--------+--------------------------------------------------------------+-------------------------------+
 | type        | string | A type that may be used by a user interface |br|             | IPv4                          |
 |             |        | to know how to display an item.                              |                               |
@@ -368,7 +368,7 @@ The response payload is a configuration item within the category, each item is a
 
 .. code-block:: console
 
-  $ curl -X GET http://localhost:8081/foglamp/category/rest_api/httpsPort
+  $ curl -X GET http://localhost:8081/fledge/category/rest_api/httpsPort
   { "type": "integer",
     "default": "1995",
     "description": "The port to accept HTTPS connections on",
@@ -382,12 +382,12 @@ The response payload is a configuration item within the category, each item is a
 PUT category item
 ~~~~~~~~~~~~~~~~~
 
-``PUT /foglamp/category/{name}/{item}`` - set the configuration item value in the given category.
+``PUT /fledge/category/{name}/{item}`` - set the configuration item value in the given category.
 
 
 **Path Parameters**
 
-- **name** - the name of one of the categories returned from the GET /foglamp/category call.
+- **name** - the name of one of the categories returned from the GET /fledge/category call.
 - **item** - the the item within the category to set.
 
 
@@ -410,7 +410,7 @@ The response payload is the newly updated configuration item within the category
 | Name        | Type   | Description                                                  | Example                       |
 +=============+========+==============================================================+===============================+
 | description | string | A description of the configuration item |br|                 | The IPv4 network address |br| |
-|             |        | that may be used in a user interface.                        | of the FogLAMP server         |
+|             |        | that may be used in a user interface.                        | of the Fledge server         |
 +-------------+--------+--------------------------------------------------------------+-------------------------------+
 | type        | string | A type that may be used by a user interface |br|             | IPv4                          |
 |             |        | to know how to display an item.                              |                               |
@@ -427,7 +427,7 @@ The response payload is the newly updated configuration item within the category
 
 .. code-block:: console
 
-  $ curl -X PUT http://localhost:8081/foglamp/category/rest_api/httpsPort \
+  $ curl -X PUT http://localhost:8081/fledge/category/rest_api/httpsPort \
     -d '{ "value" : "1996" }'
   { "default": "1995",
     "type": "integer",
@@ -442,14 +442,14 @@ The response payload is the newly updated configuration item within the category
 DELETE category item
 ~~~~~~~~~~~~~~~~~~~~
 
-``DELETE /foglamp/category/{name}/{item}/value`` - unset the value of the configuration item in the given category.
+``DELETE /fledge/category/{name}/{item}/value`` - unset the value of the configuration item in the given category.
 
 This will result in the value being returned to the default value if one is defined. If not the value will be blank, i.e. the value property of the JSON object will exist with an empty value.
 
 
 **Path Parameters**
 
-- **name** - the name of one of the categories returned from the GET /foglamp/category call.
+- **name** - the name of one of the categories returned from the GET /fledge/category call.
 - **item** - the the item within the category to return.
 
 
@@ -461,7 +461,7 @@ The response payload is the newly updated configuration item within the category
 | Name        | Type   | Description                                                  | Example                       |
 +=============+========+==============================================================+===============================+
 | description | string | A description of the configuration item |br|                 | The IPv4 network address |br| |
-|             |        | that may be used in a user interface.                        | of the FogLAMP server         |
+|             |        | that may be used in a user interface.                        | of the Fledge server         |
 +-------------+--------+--------------------------------------------------------------+-------------------------------+
 | type        | string | A type that may be used by a user interface |br|             | IPv4                          |
 |             |        | to know how to display an item.                              |                               |
@@ -477,7 +477,7 @@ The response payload is the newly updated configuration item within the category
 
 .. code-block:: console
 
-  $ curl -X DELETE http://localhost:8081/foglamp/category/rest_api/httpsPort/value
+  $ curl -X DELETE http://localhost:8081/fledge/category/rest_api/httpsPort/value
   { "default": "1995",
     "type": "integer",
     "description": "The port to accept HTTPS connections on",
@@ -491,7 +491,7 @@ The response payload is the newly updated configuration item within the category
 POST category
 ~~~~~~~~~~~~~
 
-``POST /foglamp/category`` - creates a new category
+``POST /fledge/category`` - creates a new category
 
 
 **Request Payload**
@@ -527,7 +527,7 @@ A JSON object that defines the category.
 
 .. code-block:: console
 
-  $ curl -X POST http://localhost:8081/foglamp/category \
+  $ curl -X POST http://localhost:8081/fledge/category \
     -d '{ "key": "My Configuration", "description": "This is my new configuration",
         "value": { "item one": { "description": "The first item", "type": "string", "default": "one" },
                    "item two": { "description": "The second item", "type": "string", "default": "two" },
@@ -551,13 +551,13 @@ The task management API’s allow an administrative user to monitor and control 
 task
 ----
 
-The *task* interface allows an administrative user to monitor and control FogLAMP tasks.
+The *task* interface allows an administrative user to monitor and control Fledge tasks.
 
 
 GET task
 ~~~~~~~~
 
-``GET /foglamp/task`` - return the list of all known task running or completed
+``GET /fledge/task`` - return the list of all known task running or completed
 
 
 **Request Parameters**
@@ -597,7 +597,7 @@ The response payload is a JSON object with an array of task objects.
 
 .. code-block:: console
 
-  $ curl -X GET http://localhost:8081/foglamp/task
+  $ curl -X GET http://localhost:8081/fledge/task
   { "tasks": [ { "exitCode": 0,
                  "id": "0a787bf3-4f48-4235-ae9a-2816f8ac76cc",
                  "state": "Complete",
@@ -614,7 +614,7 @@ The response payload is a JSON object with an array of task objects.
                  "startTime": "2018-04-17 08:32:29.851" },
                  ... ] }
   $
-  $ curl -X GET http://localhost:8081/foglamp/task?name=purge
+  $ curl -X GET http://localhost:8081/fledge/task?name=purge
   { "tasks": [ { "exitCode": 0,
                  "id": "bddad550-463a-485d-9247-148e952452e0",
                  "state": "Complete",
@@ -631,7 +631,7 @@ The response payload is a JSON object with an array of task objects.
                  "startTime": "2018-04-17 10:31:59.850" },
                  ... ] }
   $
-  $ curl -X GET http://localhost:8081/foglamp/task?state=complete
+  $ curl -X GET http://localhost:8081/fledge/task?state=complete
   { "tasks": [ { "exitCode": 0,
                  "id": "0a787bf3-4f48-4235-ae9a-2816f8ac76cc",
                  "state": "Complete",
@@ -655,7 +655,7 @@ The response payload is a JSON object with an array of task objects.
 GET task latest
 ~~~~~~~~~~~~~~~
 
-``GET /foglamp/task/latest`` - return the list of most recent task execution for each name.
+``GET /fledge/task/latest`` - return the list of most recent task execution for each name.
 
 This call is designed to allow a monitoring interface to show when each task was last run and what the status of that task was.
 
@@ -697,7 +697,7 @@ The response payload is a JSON object with an array of task objects.
 
 .. code-block:: console
 
-  $ curl -X GET http://localhost:8081/foglamp/task/latest
+  $ curl -X GET http://localhost:8081/fledge/task/latest
   { "tasks": [ { "exitCode": 0,
                  "id": "a3759550-43e5-46b3-8048-e906847fc565",
                  "state": "Complete",
@@ -716,7 +716,7 @@ The response payload is a JSON object with an array of task objects.
                  "startTime": "2018-04-17 14:31:59.849" },
                  ... ] }
   $
-  $ curl -X GET http://localhost:8081/foglamp/task/latest?name=purge
+  $ curl -X GET http://localhost:8081/fledge/task/latest?name=purge
   { "tasks": [ { "exitCode": 0,
                  "id": "71bbc064-bb05-46c4-8059-5d70fc534ecf",
                  "state": "Complete",
@@ -733,7 +733,7 @@ The response payload is a JSON object with an array of task objects.
 GET task by ID
 ~~~~~~~~~~~~~~
 
-``GET /foglamp/task/{id}`` - return the task information for the given task
+``GET /fledge/task/{id}`` - return the task information for the given task
 
 
 **Path Parameters**
@@ -772,7 +772,7 @@ The response payload is a JSON object containing the task details.
 
 .. code-block:: console
 
-  $ curl -X GET http://localhost:8081/foglamp/task/0aadfb7d-73c1-4ac0-901c-81773b5583c1
+  $ curl -X GET http://localhost:8081/fledge/task/0aadfb7d-73c1-4ac0-901c-81773b5583c1
   { "exitCode": 0,
     "id": "0aadfb7d-73c1-4ac0-901c-81773b5583c1",
     "state": "Complete",
@@ -789,7 +789,7 @@ The response payload is a JSON object containing the task details.
 Cancel task by ID
 ~~~~~~~~~~~~~~~~~
 
-``PUT /foglamp/task/{id}/cancel`` - cancel a task
+``PUT /fledge/task/{id}/cancel`` - cancel a task
 
 
 **Path Parameters**
@@ -828,7 +828,7 @@ The response payload is a JSON object with the details of the cancelled task.
 
 .. code-block:: console
 
-  $ curl -X PUT http://localhost:8081/foglamp/task/0aadfb7d-73c1-4ac0-901c-81773b5583c1/cancel
+  $ curl -X PUT http://localhost:8081/fledge/task/0aadfb7d-73c1-4ac0-901c-81773b5583c1/cancel
   { "id": "0aadfb7d-73c1-4ac0-901c-81773b5583c1",
     "state": "Cancelled",
     "reason": "",
@@ -848,13 +848,13 @@ Other Administrative API calls
 ping
 ----
 
-The *ping* interface gives a basic confidence check that the FogLAMP appliance is running and the API aspect of the appliance is functional. It is designed to be a simple test that can  be applied by a user or by an HA monitoring system to test the liveness and responsiveness of the system.
+The *ping* interface gives a basic confidence check that the Fledge appliance is running and the API aspect of the appliance is functional. It is designed to be a simple test that can  be applied by a user or by an HA monitoring system to test the liveness and responsiveness of the system.
 
 
 GET ping
 ~~~~~~~~
 
-``GET /foglamp/ping`` - return liveness of FogLAMP
+``GET /fledge/ping`` - return liveness of Fledge
 
 *NOTE:* the GET method can be executed without authentication even when authentication is required. This behaviour is configurable via a configuration option.
 
@@ -876,7 +876,7 @@ The response payload is some basic health information in a JSON object.
 +------------------------+---------+-----------------------------------------------------------------+-------------------+
 | dataSent               | numeric | A count of the number of readings sent to PI                    | 347               |
 +------------------------+---------+-----------------------------------------------------------------+-------------------+
-| uptime                 | numeric | Time in seconds since FogLAMP started                           | 2113.076449394226 |
+| uptime                 | numeric | Time in seconds since Fledge started                           | 2113.076449394226 |
 +------------------------+---------+-----------------------------------------------------------------+-------------------+
 
 
@@ -884,7 +884,7 @@ The response payload is some basic health information in a JSON object.
 
 .. code-block:: console
 
-  $ curl -s http://localhost:8081/foglamp/ping
+  $ curl -s http://localhost:8081/fledge/ping
   { "authenticationOptional": true,
   "dataPurged": 226,
   "dataRead": 1452,
@@ -896,31 +896,31 @@ The response payload is some basic health information in a JSON object.
 statistics
 ----------
 
-The *statistics* interface allows the retrieval of live statistics and statistical history for the FogLAMP device.
+The *statistics* interface allows the retrieval of live statistics and statistical history for the Fledge device.
 
 
 GET statistics
 ~~~~~~~~~~~~~~
 
-``GET /foglamp/statistics`` - return a general set of statistics
+``GET /fledge/statistics`` - return a general set of statistics
 
 
 **Response Payload**
 
-The response payload is a JSON document with statistical information (all numerical), these statistics are absolute counts since FogLAMP started.
+The response payload is a JSON document with statistical information (all numerical), these statistics are absolute counts since Fledge started.
 
 +------------------------+-----------------------------------------------------------------------------+
 | Key                    | Description                                                                 |
 +========================+=============================================================================+
-| BUFFERED               | The number of readings currently in the FogLAMP buffer                      |
+| BUFFERED               | The number of readings currently in the Fledge buffer                      |
 +------------------------+-----------------------------------------------------------------------------+
-| DISCARDED              | The number of readings discarded at the input side by FogLAMP,       |br|   |
+| DISCARDED              | The number of readings discarded at the input side by Fledge,       |br|   |
 |                        | i.e. discarded before being  placed in the buffer. This may be due   |br|   |
 |                        | to some error in the readings themselves.                                   |
 +------------------------+-----------------------------------------------------------------------------+
 | PURGED                 | The number of readings removed from the buffer by the *Purge* task          |
 +------------------------+-----------------------------------------------------------------------------+
-| READINGS               | The number of readings received by FogLAMP since startup                    |
+| READINGS               | The number of readings received by Fledge since startup                    |
 +------------------------+-----------------------------------------------------------------------------+
 | SENT_1                 | The number of readings sent to the PI system via the OMF plugin             |
 +------------------------+-----------------------------------------------------------------------------+
@@ -932,7 +932,7 @@ The response payload is a JSON document with statistical information (all numeri
 +------------------------+-----------------------------------------------------------------------------+
 | UNSNPURGED             | The number of readings that were purged from the buffer before being sent   |
 +------------------------+-----------------------------------------------------------------------------+
-| *ASSET-CODE*           | The number of readings received by FogLAMP since startup               |br| |
+| *ASSET-CODE*           | The number of readings received by Fledge since startup               |br| |
 |                        | with name *asset-code*                                                      |
 +------------------------+-----------------------------------------------------------------------------+
 
@@ -941,12 +941,12 @@ The response payload is a JSON document with statistical information (all numeri
 
 .. code-block:: console
 
-  $ curl -s http://localhost:8081/foglamp/statistics
-  [ { "description" : "The number of readings currently in the FogLAMP buffer",
+  $ curl -s http://localhost:8081/fledge/statistics
+  [ { "description" : "The number of readings currently in the Fledge buffer",
       "key"         : "BUFFERED",
       "value"       : 0 },
   ...
-    { "description" : "The number of readings received by FogLAMP since startup for sensor FOGBENCH/ACCELEROMETER",
+    { "description" : "The number of readings received by Fledge since startup for sensor FOGBENCH/ACCELEROMETER",
       "key"         : "FOGBENCH/ACCELEROMETER",
       "value"       : 2 },
   ... ]
@@ -956,7 +956,7 @@ The response payload is a JSON document with statistical information (all numeri
 GET statistics/history
 ~~~~~~~~~~~~~~~~~~~~~~
 
-``GET /foglamp/statistics/history`` - return a historical set of statistics. This interface is normally used to check if a set of sensors or devices are sending data to FogLAMP, by comparing the recent statistics and the number of readings received for an asset.
+``GET /fledge/statistics/history`` - return a historical set of statistics. This interface is normally used to check if a set of sensors or devices are sending data to Fledge, by comparing the recent statistics and the number of readings received for an asset.
 
 
 **Reguest Parameters**
@@ -973,15 +973,15 @@ A JSON document containing an array of statistical information, these statistics
 +===========================+=============================================================================+
 | interval                  | The interval in seconds between successive statistics values                |
 +---------------------------+-----------------------------------------------------------------------------+
-| statistics[].BUFFERED     | The number of readings currently in the FogLAMP buffer                      |
+| statistics[].BUFFERED     | The number of readings currently in the Fledge buffer                      |
 +---------------------------+-----------------------------------------------------------------------------+
-| statistics[].DISCARDED    | The number of readings discarded at the input side by FogLAMP,       |br|   |
+| statistics[].DISCARDED    | The number of readings discarded at the input side by Fledge,       |br|   |
 |                           | i.e. discarded before being  placed in the buffer. This may be due   |br|   |
 |                           | to some error in the readings themselves.                                   |
 +---------------------------+-----------------------------------------------------------------------------+
 | statistics[].PURGED       | The number of readings removed from the buffer by the *Purge* task          |
 +---------------------------+-----------------------------------------------------------------------------+
-| statistics[].READINGS     | The number of readings received by FogLAMP since startup                    |
+| statistics[].READINGS     | The number of readings received by Fledge since startup                    |
 +---------------------------+-----------------------------------------------------------------------------+
 | statistics[].SENT_1       | The number of readings sent to the PI system via the OMF plugin             |
 +---------------------------+-----------------------------------------------------------------------------+
@@ -993,7 +993,7 @@ A JSON document containing an array of statistical information, these statistics
 +---------------------------+-----------------------------------------------------------------------------+
 | statistics[].UNSNPURGED   | The number of readings that were purged from the buffer before being sent   |
 +---------------------------+-----------------------------------------------------------------------------+
-| statistics[].*ASSET-CODE* | The number of readings received by FogLAMP since startup               |br| |
+| statistics[].*ASSET-CODE* | The number of readings received by Fledge since startup               |br| |
 |                           | with name *asset-code*                                                      |
 +---------------------------+-----------------------------------------------------------------------------+
 
@@ -1002,7 +1002,7 @@ A JSON document containing an array of statistical information, these statistics
 
 .. code-block:: console
 
-  $ curl -s http://localhost:8081/foglamp/statistics/history?limit=2
+  $ curl -s http://localhost:8081/fledge/statistics/history?limit=2
   { "interval"   : 15,
     "statistics" : [ { "READINGS": 0,
                        "FOGBENCH/LUXOMETER": 0,

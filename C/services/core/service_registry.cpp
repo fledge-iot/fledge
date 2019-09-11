@@ -1,5 +1,5 @@
 /*
- * FogLAMP service registry.
+ * Fledge service registry.
  *
  * Copyright (c) 2017 OSisoft, LLC
  *

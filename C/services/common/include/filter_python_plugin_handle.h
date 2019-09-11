@@ -2,7 +2,7 @@
 #ifndef _FILTER_PYTHON_PLUGIN_HANDLE_H
 #define _FILTER_PYTHON_PLUGIN_HANDLE_H
 /*
- * FogLAMP Notification Python plugin handle related
+ * Fledge Notification Python plugin handle related
  *
  * Copyright (c) 2019 Dianomic Systems
  *

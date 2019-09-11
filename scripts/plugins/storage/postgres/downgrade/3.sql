@@ -1,2 +1,2 @@
 -- Remove configuration category_children table
-DROP TABLE IF EXISTS foglamp.category_children;
+DROP TABLE IF EXISTS fledge.category_children;

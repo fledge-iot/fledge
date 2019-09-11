@@ -37,10 +37,10 @@ target_link_libraries(RunTests  ${Boost_LIBRARIES})
 target_link_libraries(RunTests  ${UUIDLIB})
 target_link_libraries(RunTests  ${COMMONLIB})
 
-# Create C++ FogLAMP Core executable
-add_executable(foglamp-core core_server.cpp ${core_services} ${common_services} ${common_sources})
-target_link_libraries(foglamp-core ${Boost_LIBRARIES})
-target_link_libraries(foglamp-core ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries(foglamp-core ${UUIDLIB})
-target_link_libraries(foglamp-core ${COMMONLIB})
-target_link_libraries(foglamp-core -lssl -lcrypto)
+# Create C++ Fledge Core executable
+add_executable(fledge-core core_server.cpp ${core_services} ${common_services} ${common_sources})
+target_link_libraries(fledge-core ${Boost_LIBRARIES})
+target_link_libraries(fledge-core ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(fledge-core ${UUIDLIB})
+target_link_libraries(fledge-core ${COMMONLIB})
+target_link_libraries(fledge-core -lssl -lcrypto)

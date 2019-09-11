@@ -1,24 +1,24 @@
 #!/bin/sh
-# Run FogLAMP fogbench
+# Run Fledge fogbench
 # execution sample :
-# "${FOGLAMP_ROOT}/scripts/extras/foglamp.fogbench" -t "${FOGLAMP_ROOT}/extras/python/fogbench/templates/fogbench_sensor_coap.template.json" -H localhost -P 5683  -O 100
+# "${FLEDGE_ROOT}/scripts/extras/fledge.fogbench" -t "${FLEDGE_ROOT}/extras/python/fogbench/templates/fogbench_sensor_coap.template.json" -H localhost -P 5683  -O 100
 
-if [ "${FOGLAMP_ROOT}" = "" ]; then
-	FOGLAMP_ROOT=/usr/local/foglamp
+if [ "${FLEDGE_ROOT}" = "" ]; then
+	FLEDGE_ROOT=/usr/local/fledge
 fi
 
-if [ ! -d "${FOGLAMP_ROOT}" ]; then
-	logger "FogLAMP home directory missing or incorrectly set environment"
+if [ ! -d "${FLEDGE_ROOT}" ]; then
+	logger "Fledge home directory missing or incorrectly set environment"
 	exit 1
 fi
 
-if [ ! -d "${FOGLAMP_ROOT}/extras/python" ]; then
-	logger "FogLAMP home directory is missing the Extras installation"
+if [ ! -d "${FLEDGE_ROOT}/extras/python" ]; then
+	logger "Fledge home directory is missing the Extras installation"
 	exit 1
 fi
 
 # Add fogbench code to the PYTHONPATH
-export PYTHONPATH=${FOGLAMP_ROOT}/extras/python:${PYTHONPATH}
+export PYTHONPATH=${FLEDGE_ROOT}/extras/python:${PYTHONPATH}
 
 python3 -m fogbench $@
 

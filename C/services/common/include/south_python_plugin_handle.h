@@ -2,7 +2,7 @@
 #ifndef _SOUTH_PYTHON_PLUGIN_HANDLE_H
 #define _SOUTH_PYTHON_PLUGIN_HANDLE_H
 /*
- * FogLAMP plugin handle related
+ * Fledge plugin handle related
  *
  * Copyright (c) 2019 Dianomic Systems
  *

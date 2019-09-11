@@ -3,7 +3,7 @@ project(RunTests)
 cmake_minimum_required(VERSION 2.6)
 set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 
-# FogLAMP libraries
+# Fledge libraries
 set(COMMON_LIB              common-lib)
 set(SERVICE_COMMON_LIB      services-common-lib)
 set(PLUGINS_COMMON_LIB      plugins-common-lib)
@@ -28,10 +28,10 @@ file(GLOB COMMON_SOURCES ../sqlitememory/*.cpp)
 file(GLOB test_sources tests.cpp)
 
 # Check for SQLite3 source tree in specific location
-set(FOGLAMP_SQLITE3_LIBS "/tmp/foglamp-sqlite3-pkg/src" CACHE INTERNAL "")
-if(EXISTS ${FOGLAMP_SQLITE3_LIBS})
-	message(STATUS "Using SLITE3 source files in ${FOGLAMP_SQLITE3_LIBS}")
-	include_directories(${FOGLAMP_SQLITE3_LIBS})
+set(FLEDGE_SQLITE3_LIBS "/tmp/fledge-sqlite3-pkg/src" CACHE INTERNAL "")
+if(EXISTS ${FLEDGE_SQLITE3_LIBS})
+	message(STATUS "Using SLITE3 source files in ${FLEDGE_SQLITE3_LIBS}")
+	include_directories(${FLEDGE_SQLITE3_LIBS})
 endif()
 
 # Exe creation

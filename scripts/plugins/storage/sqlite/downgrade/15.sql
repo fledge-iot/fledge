@@ -1,4 +1,4 @@
-CREATE TABLE foglamp.configuration_temp (
+CREATE TABLE fledge.configuration_temp (
        key         character varying(255)      NOT NULL,                          -- Primary key
        description character varying(255)      NOT NULL,                          -- Description, in plain text
        value       JSON                        NOT NULL DEFAULT '{}',             -- JSON object containing the configuration values
@@ -6,8 +6,8 @@ CREATE TABLE foglamp.configuration_temp (
        CONSTRAINT configuration_pkey PRIMARY KEY (key) );
 
 
-INSERT INTO foglamp.configuration_temp (key, description, value, ts) SELECT key, description, value, ts FROM foglamp.configuration;
+INSERT INTO fledge.configuration_temp (key, description, value, ts) SELECT key, description, value, ts FROM fledge.configuration;
 
-DROP TABLE foglamp.configuration;
+DROP TABLE fledge.configuration;
 
-ALTER TABLE foglamp.configuration_temp RENAME TO configuration;
+ALTER TABLE fledge.configuration_temp RENAME TO configuration;

@@ -1,10 +1,10 @@
 
-Script to automate FogLAMP Lab
+Script to automate Fledge Lab
 ------------------------------
 
 1. Install git i.e. `sudo apt install git`
 
-2. Clone FogLAMP repo and `cd tests/system/lab/`
+2. Clone Fledge repo and `cd tests/system/lab/`
 
 3. Check and set the configuration in `test.config`
 
@@ -18,10 +18,10 @@ To run the test for required (say 10) iterations or until it fails - execute `./
 
 **`run` and `run_until_fails` use the following scripts in its execution:**
 
-**remove**: apt removes all foglamp packages; deletes /usr/local/foglamp;
+**remove**: apt removes all fledge packages; deletes /usr/local/fledge;
 
-**install**: apt update; install foglamp; install gui; install other foglamp packages
+**install**: apt update; install fledge; install gui; install other fledge packages
 
 **test**: curl commands to simulate all gui actions in the lab (except game)
 
-**reset**: Reset script is to stop foglamp; reset the db and delete any python scripts.
+**reset**: Reset script is to stop fledge; reset the db and delete any python scripts.

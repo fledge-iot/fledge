@@ -10,10 +10,10 @@ using namespace std;
 int main(int argc, char **argv) {
 
 	// Select the proper storage.json file for the tests
-	string foglamp_root = getenv("FOGLAMP_ROOT");
-	string foglamp_data = foglamp_root + "/tests/unit/C/services/storage/postgres";
+	string fledge_root = getenv("FLEDGE_ROOT");
+	string fledge_data = fledge_root + "/tests/unit/C/services/storage/postgres";
 
-	setenv("FOGLAMP_DATA", foglamp_data.c_str(), 1 );
+	setenv("FLEDGE_DATA", fledge_data.c_str(), 1 );
 
 	testing::InitGoogleTest(&argc, argv);
 

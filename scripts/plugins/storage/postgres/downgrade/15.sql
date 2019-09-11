@@ -1,1 +1,1 @@
-ALTER TABLE foglamp.configuration DROP COLUMN display_name;
+ALTER TABLE fledge.configuration DROP COLUMN display_name;

@@ -1,0 +1,1 @@
+%sudo ALL=(ALL) NOPASSWD: /usr/bin/yum -y update, /usr/bin/yum -y install fledge, /usr/bin/yum -y install /usr/local/fledge/data/plugins/fledge*.rpm, /usr/bin/yum list available fledge-*, /usr/bin/yum -y install fledge*, /usr/bin/yum check-update

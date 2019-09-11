@@ -1,5 +1,5 @@
 /*
- * unit tests - FogLAMP Readings to OMF translation having PI Web API as end-point
+ * unit tests - Fledge Readings to OMF translation having PI Web API as end-point
  *
  * Copyright (c) 2019 Dianomic Systems
  *
@@ -24,8 +24,8 @@ using namespace rapidjson;
 #define QUOTE(...) TO_STRING(__VA_ARGS__)
 
 #define TYPE_ID             1234
-#define AF_HIERARCHY_1LEVEL "foglamp_data_piwebapi"
-#define CONTAINER_ID        "foglamp_data_piwebapi_1234measurement_luxometer"
+#define AF_HIERARCHY_1LEVEL "fledge_data_piwebapi"
+#define CONTAINER_ID        "fledge_data_piwebapi_1234measurement_luxometer"
 #define PI_SERVER_END_POINT "p"                       // p=PI Web API, c=Connector Relay
 
 // 2 readings JSON text

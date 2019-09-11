@@ -1,7 +1,7 @@
 #ifndef _DEFAULTS_H
 #define _DEFAULTS_H
 /*
- * FogLAMP reading ingest.
+ * Fledge reading ingest.
  *
  * Copyright (c) 2018 OSisoft, LLC
  *

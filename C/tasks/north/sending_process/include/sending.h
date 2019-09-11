@@ -2,7 +2,7 @@
 #define _SENDING_PROCESS_H
 
 /*
- * FogLAMP process class
+ * Fledge process class
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -20,7 +20,7 @@
 #include <asset_tracking.h>
 
 // SendingProcess class
-class SendingProcess : public FogLampProcess
+class SendingProcess : public FledgeProcess
 {
 	public:
 		// Constructor:

@@ -1,5 +1,5 @@
 /*
- * FogLAMP plugin handle related
+ * Fledge plugin handle related
  *
  * Copyright (c) 2019 Dianomic Systems
  *

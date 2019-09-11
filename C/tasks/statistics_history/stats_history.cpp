@@ -1,5 +1,5 @@
 /*
- * FogLAMP Statistics History
+ * Fledge Statistics History
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -27,7 +27,7 @@ static void signalHandler(int signal)
 /**
  * Constructor for Statistics history task
  */
-StatsHistory::StatsHistory(int argc, char** argv) : FogLampProcess(argc, argv)
+StatsHistory::StatsHistory(int argc, char** argv) : FledgeProcess(argc, argv)
 {
 	Logger::getLogger()->info("StatsHistory starting");
 }

@@ -26,7 +26,7 @@ target_link_libraries(statistics_history ${UUIDLIB})
 target_link_libraries(${PROJECT_NAME} ${COMMON_LIB})
 
 
-install(TARGETS statistics_history RUNTIME DESTINATION foglamp/tasks)
+install(TARGETS statistics_history RUNTIME DESTINATION fledge/tasks)
 
 if(MSYS) #TODO: Is MSYS true when MSVC is true?
     target_link_libraries(statistics_history ws2_32 wsock32)

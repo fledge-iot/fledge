@@ -23,7 +23,7 @@ __version__="1.0"
 # This script is called by Debian package "postint" script
 # only if package has been update.
 
-PKG_NAME="foglamp"
+PKG_NAME="fledge"
 
 # $1 is previous version passed by 'postinst" script
 if [ ! "$1" ]; then
@@ -34,7 +34,7 @@ previous_version=$1
 # Get current new installed package version
 this_version=`dpkg -s ${PKG_NAME} | grep '^Version:' | awk '{print $2}'`
 # Location of upgrade scripts
-UPGRADE_SCRIPTS_DIR="/usr/local/foglamp/scripts/package/debian/upgrade"
+UPGRADE_SCRIPTS_DIR="/usr/local/fledge/scripts/package/debian/upgrade"
 
 # We use dpkg --compare-versions for all version checks
 # Check first 'previous_version' is less than 'this_version':
@@ -69,7 +69,7 @@ if [ "${ret_code}" -eq "0" ]; then
 				else
 					# We can call the current update script
 					if [ -x "${upgrade_file}" ] && [ -s "${upgrade_file}" ] && [ -O "${upgrade_file}" ]; then
-						echo "Executing FogLAMP package upgrade from ${previous_version} to ${update_file_ver}, script ${upgrade_file} ..."
+						echo "Executing Fledge package upgrade from ${previous_version} to ${update_file_ver}, script ${upgrade_file} ..."
 						# Call upgrade script
 						${upgrade_file}
 					fi

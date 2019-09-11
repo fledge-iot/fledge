@@ -43,7 +43,7 @@ target_link_libraries(${PROJECT_NAME} ${COMMON_LIB})
 target_link_libraries(${PROJECT_NAME} ${SERVICE_COMMON_LIB})
 target_link_libraries(${PROJECT_NAME} ${PLUGINS_COMMON_LIB})
 
-install(TARGETS sending_process RUNTIME DESTINATION foglamp/tasks)
+install(TARGETS sending_process RUNTIME DESTINATION fledge/tasks)
 
 if(MSYS) #TODO: Is MSYS true when MSVC is true?
     target_link_libraries(sending_process ws2_32 wsock32)

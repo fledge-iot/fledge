@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# FOGLAMP_BEGIN
-# See: http://foglamp.readthedocs.io/
-# FOGLAMP_END
+# FLEDGE_BEGIN
+# See: http://fledge.readthedocs.io/
+# FLEDGE_END
 
 """Example of docstring of test purpose"""
 
@@ -11,8 +11,8 @@ import pytest
 from unittest import mock
 from unittest.mock import patch
 
-# FogLAMP imports
-# from foglamp.common.storage_client.payload_builder import PayloadBuilder
+# Fledge imports
+# from fledge.common.storage_client.payload_builder import PayloadBuilder
 
 
 __author__ = "${FULL_NAME}"

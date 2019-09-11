@@ -1,1 +1,1 @@
-DELETE from foglamp.log_codes WHERE code = 'NTFDL';
+DELETE from fledge.log_codes WHERE code = 'NTFDL';

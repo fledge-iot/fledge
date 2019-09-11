@@ -79,4 +79,4 @@ python/async_ingest.so*
 python/filter_ingest.so*
 
 # Python south plugins
-python/foglamp/plugins/south/*
+python/fledge/plugins/south/*

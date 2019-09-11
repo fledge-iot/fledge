@@ -1,5 +1,5 @@
 /*
- * FogLAMP filter plugin interface related
+ * Fledge filter plugin interface related
  *
  * Copyright (c) 2019 Dianomic Systems
  *
@@ -19,7 +19,7 @@
 #include <python_plugin_common_interface.h>
 #include <reading_set.h>
 
-#define SHIM_SCRIPT_REL_PATH  "/python/foglamp/plugins/common/shim/"
+#define SHIM_SCRIPT_REL_PATH  "/python/fledge/plugins/common/shim/"
 #define SHIM_SCRIPT_NAME "filter_shim"
 
 using namespace std;
@@ -352,10 +352,10 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 {
 	// Set plugin name, also for methods in common-plugin-interfaces/python
         gPluginName = pluginName;
-        // Get FOGLAMP_ROOT dir
-        string foglampRootDir(getenv("FOGLAMP_ROOT"));
+        // Get FLEDGE_ROOT dir
+        string fledgeRootDir(getenv("FLEDGE_ROOT"));
 
-        string path = foglampRootDir + SHIM_SCRIPT_REL_PATH;
+        string path = fledgeRootDir + SHIM_SCRIPT_REL_PATH;
         string name(SHIM_SCRIPT_NAME);
 
         // Python 3.5  script name
@@ -368,7 +368,7 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
         Py_SetProgramName(programName);
         PyMem_RawFree(programName);
 
-        string foglampPythonDir = foglampRootDir + "/python";
+        string fledgePythonDir = fledgeRootDir + "/python";
         // Embedded Python 3.5 initialisation
 	if (!Py_IsInitialized())
 	{
@@ -380,18 +380,18 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
         PyGILState_STATE state = PyGILState_Ensure();
 
         Logger::getLogger()->debug("SouthPlugin PythonInterface %s:%d: "
-                                   "shimLayerPath=%s, foglampPythonDir=%s, plugin '%s'",
+                                   "shimLayerPath=%s, fledgePythonDir=%s, plugin '%s'",
                                    __FUNCTION__,
                                    __LINE__,
                                    shimLayerPath.c_str(),
-                                   foglampPythonDir.c_str(),
+                                   fledgePythonDir.c_str(),
                                    gPluginName.c_str());
 
         // Set Python path for embedded Python 3.5
         // Get current sys.path - borrowed reference
         PyObject* sysPath = PySys_GetObject((char *)"path");
         PyList_Append(sysPath, PyUnicode_FromString((char *) shimLayerPath.c_str()));
-        PyList_Append(sysPath, PyUnicode_FromString((char *) foglampPythonDir.c_str()));
+        PyList_Append(sysPath, PyUnicode_FromString((char *) fledgePythonDir.c_str()));
 
         // Set sys.argv for embedded Python 3.5
         int argc = 2;

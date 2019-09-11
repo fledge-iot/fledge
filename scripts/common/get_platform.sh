@@ -19,7 +19,7 @@
 __author__="Stefano Simonelli"
 __version__="1.0"
 
-# Identifies the platform on which FogLAMP reside
+# Identifies the platform on which Fledge reside
 # output :
 #          not empty - Centos or RedHat
 #          empty     - Debian/Ubuntu

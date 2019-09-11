@@ -1,5 +1,5 @@
 /*
- * FogLAMP OCS north plugin.
+ * Fledge OCS north plugin.
  *
  * Copyright (c) 2018 Dianomic Systems
  *

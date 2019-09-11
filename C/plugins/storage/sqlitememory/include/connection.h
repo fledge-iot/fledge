@@ -1,7 +1,7 @@
 #ifndef _CONNECTION_H
 #define _CONNECTION_H
 /*
- * FogLAMP storage service.
+ * Fledge storage service.
  *
  * Copyright (c) 2018 OSisoft, LLC
  *

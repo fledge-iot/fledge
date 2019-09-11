@@ -1,0 +1,686 @@
+#!/bin/bash
+
+##--------------------------------------------------------------------
+## Copyright (c) 2017-2018 OSIsoft, LLC
+##
+## Licensed under the Apache License, Version 2.0 (the "License");
+## you may not use this file except in compliance with the License.
+## You may obtain a copy of the License at
+##
+##     http://www.apache.org/licenses/LICENSE-2.0
+##
+## Unless required by applicable law or agreed to in writing, software
+## distributed under the License is distributed on an "AS IS" BASIS,
+## WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+## See the License for the specific language governing permissions and
+## limitations under the License.
+##--------------------------------------------------------------------
+
+set -e
+#set -x
+
+#
+# This is the startup script for fledge
+#
+USAGE="Usage: `basename ${0}` {start|start --safe-mode|stop|status|reset|kill|help|version}"
+
+# Remove any token cache left over from a previous execution
+rm -f ~/.fledge_token
+
+# Check FLEDGE_ROOT
+if [ -z ${FLEDGE_ROOT+x} ]; then
+    # Set FLEDGE_ROOT as the default directory
+    FLEDGE_ROOT="/usr/local/fledge"
+    export FLEDGE_ROOT
+fi
+
+# Check if the default directory exists
+if [[ ! -d "${FLEDGE_ROOT}" ]]; then
+    logger -p local0.err -t "fledge.script.fledge" "Fledge cannot be executed: ${FLEDGE_ROOT} is not a valid directory."
+    echo "Fledge cannot be executed: ${FLEDGE_ROOT} is not a valid directory."
+    echo "Create the enviroment variable FLEDGE_ROOT before using Fledge."
+    echo "Specify the base directory for Fledge and set the variable with:"
+    echo "export FLEDGE_ROOT=<basedir>"
+    exit 1
+fi
+
+if [[ ! -e  "${FLEDGE_ROOT}/scripts/common/get_platform.sh" ]]; then
+
+	msg_text="ERROR: Fledge not properly installed in the dir :${FLEDGE_ROOT}:"
+	echo $msg_text
+	logger -p local0.err $msg_text
+
+	exit 1
+fi
+
+# Include common code
+source "${FLEDGE_ROOT}/scripts/common/get_platform.sh"
+
+PLATFORM=`get_platform`
+IS_RHEL=`echo $PLATFORM | egrep '(Red Hat|CentOS)' || echo ""`
+
+if [[ "$IS_RHEL" != "" ]]
+then
+	# platform RedHat/Centos
+
+	# To avoid to stop the execution for any internal error of scl_source
+	set +e
+
+	source scl_source enable rh-python36
+	status=$?
+
+	if [[ "$status" != "0" ]]
+	then
+		msg_text="ERROR: Fledge cannot enable the rh-python36 environment in RedHat/CentOS platform."
+		logger -p local0.err $msg_text
+		echo $msg_text
+		exit 1
+	fi
+
+	#
+	# Enables the RedHat Postgres environment if available
+	#
+	rhpg_package="rh-postgresql96"
+	source scl_source enable ${rhpg_package} > /dev/null
+	status=$?
+
+	if [[ "$status" == "0" ]]
+	then
+		pg_isready_check=$(command -v pg_isready)
+		status=$?
+
+		if [[ "$status" == "0" ]]
+		then
+			rhpg_path=${pg_isready_check/\/bin\/pg_isready/}
+
+			export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${rhpg_path}/lib64
+
+			msg_text="INFO: Fledge enabled ${rhpg_package} using the path ${rhpg_path}."
+			logger -p local0.info $msg_text
+		else
+			msg_text="ERROR: Fledge cannot use the ${rhpg_package} environment, the package is installed/available but not the pg_isready command."
+			logger -p local0.err $msg_text
+			echo $msg_text
+		fi
+	fi
+
+	set -e
+else
+	# platform Debian/Ubuntu
+	:
+fi
+
+# Check/set LD_LIBRARY_PATH
+libPathSet=0
+libdir=${FLEDGE_ROOT}/lib; [ -d ${libdir} ] && LD_LIBRARY_PATH=$(echo $LD_LIBRARY_PATH | sed "s|${libdir}||g") && export LD_LIBRARY_PATH=${libdir}:${LD_LIBRARY_PATH} && libPathSet=1
+libdir=${FLEDGE_ROOT}/cmake_build/C/lib; [ -d ${libdir} ] && LD_LIBRARY_PATH=$(echo $LD_LIBRARY_PATH | sed "s|${libdir}||g") && export LD_LIBRARY_PATH=${libdir}:${LD_LIBRARY_PATH} && libPathSet=1
+[ "$libPathSet" -eq "0" ] && echo "Unable to set/update LD_LIBRARY_PATH to include path of Fledge shared libraries: check whether ${FLEDGE_ROOT}/lib or ${FLEDGE_ROOT}/cmake_build/C/lib exists" && exit 1
+
+
+##########
+## INCLUDE SECTION
+##########
+. $FLEDGE_ROOT/scripts/common/write_log.sh
+
+
+## Check the Storage management script
+check_storage_management_script() {
+
+  if [[ ! -e "$FLEDGE_ROOT/scripts/storage" ]]; then
+      fledge_log "info" "Fledge cannot ${1}." "all" "pretty"
+      fledge_log "err" "Fledge Storage Plugin script not found." "all" "pretty"
+      exit 1
+  fi
+
+}
+
+## Logger wrapper
+fledge_log() {
+    write_log "" "script.fledge" "$1" "$2" "$3" "$4"
+}
+
+
+## Fledge Reset
+## Reset means that the database is removed and all the data will be lost!
+fledge_reset() {
+
+  # Check the storage management script
+  check_storage_management_script "be reset"
+
+  # We could have made it easier here, we will improve it later.
+  # For now, check the status of faoglamp, since the server must be down
+  result=`fledge_status "silent"`
+
+  if [[ $result != "2" ]]; then
+      fledge_log "info" "Fledge appears to be running and it cannot be reset. Stop Fledge first." "all" "pretty"
+    exit 0
+  fi
+
+  # Execute the Storage Plugin Script
+  # NOTE: this script prepares the storage,
+  #       but it does not start the microservice
+  source "$FLEDGE_ROOT/scripts/storage" reset
+
+}
+
+
+## Fledge Start
+fledge_start() {
+    # Check the storage management script
+    check_storage_management_script "start"
+
+    # Check the Python environment
+    if ! [[ -x "$(command -v python3)" ]]; then
+        fledge_log "err" "Python interpreter not found, Fledge cannot start." "all" "pretty"
+        exit 1
+    fi
+
+    # Execute the Storage Plugin Script
+    # NOTE: this script prepares the storage,
+    #       but it does not start the microservice
+    # Pass FLEDGE_SCHEMA to 'storage' script
+    source "$FLEDGE_ROOT/scripts/storage" start ${FLEDGE_SCHEMA}
+
+    result=`fledge_status "silent"`
+    case "$result" in
+
+        "0")
+            #Fledge already running
+            fledge_log "info" "Fledge is already running." "all" "pretty"
+            ;;
+
+        "1")
+            #Fledge already running - starting
+            fledge_log "info" "Fledge is already starting." "all" "pretty"
+            ;;
+
+        "2")
+            #Fledge not running
+            if [[ "$SAFE_MODE" == "safe-mode" ]]; then
+                echo -n "Starting Fledge v${FLEDGE_VERSION} in safe mode."
+            else
+                echo -n "Starting Fledge v${FLEDGE_VERSION}."
+            fi
+            PYTHONPATH=${FLEDGE_ROOT}/python
+            export PYTHONPATH
+            if [[ ! -e "$PYTHONPATH/fledge/services/core/__main__.py" ]]; then
+                fledge_log "err" "Fledge core not found." "all" "pretty"
+                exit 1
+            fi
+
+            python3 -m fledge.services.core "$SAFE_MODE" > /dev/null 2> "$FLEDGE_DATA/core.err" & disown
+
+            attempts=60
+            while [ $attempts -gt 0 ]; do
+                sleep 1
+                new_attempt=`fledge_status "silent"`
+                case "$new_attempt" in
+
+                  "0")  # Started
+                    echo
+                    fledge_log "info" "Fledge started." "all" "pretty"
+                    let attempts=0
+                    ;;
+
+                  "1")  # Starting
+                    let attempts=attempts-1
+
+                    # Check the status of the attempts - is the time over?
+                    if [[ attempts -gt 0 ]]; then
+
+                      # Print an extra dot
+                      echo -n "."
+
+                    else
+
+                      # Time is over - exit with error
+                      fledge_log "err" "Fledge cannot start." "all" "pretty"
+                      fledge_log "err" "Number of attempts exceeded: Fledge may be in an inconsistent state." "all" "pretty"
+                      exit 1
+
+                    fi
+                    ;;
+
+                  "2")  # Not running
+                    fledge_log "err" "Fledge cannot start." "all" "pretty"
+                    fledge_log "err" "Check ${FLEDGE_DATA}/core.err for more information." "outonly" "pretty"
+                    exit 1
+                    ;;
+
+                  *)
+                    echo "Result X${new_attempt}X"
+                    ;;
+                esac
+            done
+            ;;
+
+        *)
+            fledge_log "err" "Unknown return status, $result." "all"
+            exit 1
+            ;;
+    esac
+
+}
+
+## Fledge Stop
+#
+fledge_stop() {
+
+  result=`fledge_status "silent"`
+
+  if [[ $result = "2" ]]; then
+      fledge_log "info" "It looks like Fledge is not running." "all" "pretty"
+    exit 0
+  fi
+
+  result=`curl -k -s -X PUT ${REST_API_URL}/fledge/shutdown`
+
+  if [[ "${result}" =~ "Forbidden" ]]; then
+    token=`fledge_authenticate`
+    if [[ "${token}" =~ "failed" ]]; then
+        fledge_log "info" "Failed authentication when attempting to stop fledge." "all" "pretty"
+        echo "Authentication failed."
+	exit 0
+    fi
+    result=`curl -k -s -H "authorization: $token" -X PUT ${REST_API_URL}/fledge/shutdown`
+  fi
+
+  if [[ "${result}" =~ "Fledge shutdown has been scheduled" ]]; then
+    echo -n "Stopping Fledge."
+  fi
+
+  attempts=60
+
+  while [ $attempts -gt 0 ]; do
+    sleep 1
+    new_attempt=`fledge_status "silent"`
+    case "$new_attempt" in
+
+      0|1 )  # Still running
+
+        let attempts=attempts-1
+
+        # Check the status of the attempts - is the time over?
+        if [[ attempts -gt 0 ]]; then
+
+          # Print an extra dot
+          echo -n "."
+
+        else
+
+          # Time is over - exit with error
+          fledge_log "err" "Fledge cannot be stopped." "all" "pretty"
+          fledge_log "err" "Number of attempts exceeded: Fledge may be in an inconsistent state." "all" "pretty"
+          exit 1
+
+        fi
+        ;;
+
+      2 )  # Not running
+
+        echo
+        fledge_log "info" "Fledge stopped." "all" "pretty"
+        let attempts=0
+        ;;
+
+    esac
+  done
+
+}
+
+## Fledge Kill
+#
+# We know this is not the best way to stop Fledge, but for the moment this is all we have got
+#
+fledge_kill() {
+
+    # Check the storage management script
+    if [[ ! -e "$FLEDGE_ROOT/scripts/storage" ]]; then
+        fledge_log "info" "Fledge cannot be killed." "all" "pretty"
+        fledge_log "err" "Fledge Storage Plugin script not found." "all" "pretty"
+        exit 1
+    fi
+
+    # Kills the python processes
+    list_to_kill=`ps -ef | grep 'python3 -m fledge' | grep -v 'grep' | grep -v 'backup_restore' | awk '{print $2}'`
+    if [[ "${list_to_kill}" != "" ]]
+    then
+        echo ${list_to_kill} | xargs kill -9
+    fi
+
+    # Kill the services processes
+    list_to_kill=`ps -ef | grep 'fledge.services' | grep -v 'grep' | awk '{print $2}'`
+    if [[ "${list_to_kill}" != "" ]]
+    then
+        echo ${list_to_kill} | xargs kill -9
+    fi
+
+    # Kill Fledge tasks - parent tasks
+    list_to_kill=`ps -ef | grep '/bin/sh tasks' | grep -v 'grep' | awk '{print $2}'`
+    if [[ "${list_to_kill}" != "" ]]
+    then
+        echo ${list_to_kill} | xargs kill -9
+    fi
+
+    # Kill Fledge tasks - child tasks
+    # TODO: improve the mechanism for the recognition of the C tasks
+    list_to_kill=`ps -ef | grep './tasks' | grep -v 'grep' | awk '{print $2}'`
+    if [[ "${list_to_kill}" != "" ]]
+    then
+        echo ${list_to_kill} | xargs kill -9
+    fi
+
+    # Kill the shell script processes
+    list_to_kill=`ps -ef | grep '/bin/sh services' | grep -v 'grep' | awk '{print $2}'`
+    if [[ "${list_to_kill}" != "" ]]
+    then
+        echo ${list_to_kill} | xargs kill -9
+    fi
+
+    # Execute the Storage Plugin script
+    # NOTE: This script does not stop the microservice,
+    #       it deals with the database engine.
+    source "$FLEDGE_ROOT/scripts/storage" stop
+
+    fledge_log "info" "Fledge killed." "all" "pretty"
+
+}
+
+
+fledge_authenticate() {
+
+    if [[ -f ~/.fledge_token ]]; then
+	cat ~/.fledge_token
+	exit 0
+    fi
+    fd=0
+    if [[ -t "$fd" ]]; then
+	# We have an interactive shell
+        if [ -z ${USERNAME+x} ]; then
+	    read -p "Username: " USERNAME
+	fi
+        if [ -z ${PASSWORD+x} ]; then
+	    read -s -p "Password: " PASSWORD
+	fi
+    fi
+
+    # Get/Updates the rest API URL
+    get_rest_api_url
+    payload='{ "username" : "'${USERNAME}'", "password" : "'${PASSWORD}'" }'
+    result=`curl -X POST -k -s ${REST_API_URL}/fledge/login -d"$payload" || true`
+    if [[ ! "$result" =~ "Logged in successfully" ]]; then
+	echo "failed"
+    else
+    	token=`echo ${result} | tr -d ' ' | grep -o '"token".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/"//g' -e 's/}//'`
+	echo $token >~/.fledge_token
+	echo $token
+    fi
+}
+
+
+
+## Fledge status
+#  NOTE: this command works only with the default REST API Port
+#
+# Echo Output:
+# 0 - Fledge core is running
+# 1 - Fledge core is starting
+# 2 - Fledge core is not running
+#
+fledge_status() {
+
+    # Get/Updates the rest API URL
+    get_rest_api_url
+    result=`curl -k -s ${REST_API_URL}/fledge/ping || true`
+
+    if [[ "${result}" =~ "Forbidden" ]]; then
+      token=`fledge_authenticate`
+      if [[ "${token}" =~ "failed" ]]; then
+          fledge_log "info" "Failed authentication when attempting to get fledge status." "all" "pretty"
+          echo "Authentication failed."
+          exit -1
+      fi
+      result=`curl -H "authorization: $token" -k -s ${REST_API_URL}/fledge/ping || true`
+    fi
+
+    case "$result" in
+
+        *uptime*)
+            if [[ "$1" == "silent" ]]; then
+                echo "0"
+            else
+
+                uptime_sec=`echo ${result} | tr -d ' ' | grep -o '"uptime".*' | cut -d":" -f2 | cut -d"," -f1`
+                record_read=`echo ${result} | tr -d ' ' | grep -o '"dataRead".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/}//g'`
+                record_sent=`echo ${result} | tr -d ' ' | grep -o '"dataSent".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/}//g'`
+                record_purged=`echo ${result} | tr -d ' ' | grep -o '"dataPurged".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/}//g'`
+                auth_opt=`echo ${result} | tr -d ' ' | grep -o '"authenticationOptional".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/}//g'`
+                safe_mode=`echo ${result} | tr -d ' ' | grep -o '"safeMode".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/}//g'`
+                if [[ "${auth_opt}" == "true" ]]; then
+                  req_auth="does not require"
+                else
+                  req_auth="requires"
+                fi
+
+                if [[ "${safe_mode}" == "true" ]]; then
+                  safe_mode=" in safe mode"
+                else
+                  safe_mode=""
+                fi
+
+                fledge_log "info" "Fledge v${FLEDGE_VERSION} running${safe_mode}." "outonly" "pretty"
+                fledge_log "info" "Fledge Uptime:  ${uptime_sec} seconds." "outonly" "pretty"
+                fledge_log "info" "Fledge records: ${record_read} read, ${record_sent} sent, ${record_purged} purged." "outonly" "pretty"
+
+                fledge_log "info" "Fledge ${req_auth} authentication." "outonly" "pretty"
+
+                # Show Services
+                fledge_log "info" "=== Fledge services:" "outonly" "pretty"
+                fledge_log "info" "fledge.services.core" "outonly" "pretty"
+                ps -ef | grep "fledge.services.storage" | grep -v 'grep' | grep -v awk | awk '{print "fledge.services.storage " $9 " " $10}' || true
+                ps -ef | grep "fledge.services.south" |grep python3| grep -v 'grep' | awk '{print "fledge.services.south " $11 " " $12 " " $13}' || true
+                ps -ef | grep "fledge.services.south" |grep -v python3| grep -v 'grep' | grep -v awk | awk '{print "fledge.services.south " $9 " " $10 " " $11}' || true
+                ps -ef | grep "fledge.services.north" | grep -v 'grep' | grep -v awk | awk '{print "fledge.services.north " $9 " " $10}' || true
+                ps -ef | grep "fledge.services.notification" |grep -v python3| grep -v 'grep' | grep -v awk | awk '{print "fledge.services.notification " $9 " " $10 " " $11}' || true
+
+                # Show Tasks
+                fledge_log "info" "=== Fledge tasks:" "outonly" "pretty"
+                ps -ef | grep -v 'cpulimit*' | grep -o 'python3 -m fledge.tasks.*' | grep -o 'fledge.tasks.*'    | grep -v 'fledge.tasks\.\*' || true
+
+                # Show Tasks in C code
+                ps -ef | grep './tasks.' | grep -v python3 | grep -v grep | grep -v awk | awk '{print substr($8, 3, length($8))" "$9" "$10 }' || true
+            fi
+            ;;
+        *)
+            if [[ `pgrep -c -f 'python3.*-m.*fledge.services.core'` -ne 0 ]]; then
+                if [[ "$1" == "silent" ]]; then
+                    echo "1"
+                else
+                    fledge_log "info" "Fledge starting." "outonly" "pretty"
+                fi
+            else
+                if [[ "$1" == "silent" ]]; then
+                    echo "2"
+                else
+                    fledge_log "info" "Fledge not running." "outonly" "pretty"
+                fi
+            fi
+            ;;
+    esac
+}
+
+
+##
+## Print Fledge Version
+##
+fledge_print_version() {
+    echo "Fledge version ${FLEDGE_VERSION}, DB schema version ${FLEDGE_SCHEMA}"
+}
+
+
+##
+## Get Fledge version from VERSION file
+##
+get_fledge_version() {
+    FLEDGE_VERSION_FILE="${FLEDGE_ROOT}/VERSION"
+    FLEDGE_VERSION=`cat ${FLEDGE_VERSION_FILE} | tr -d ' ' | grep -i "FLEDGE_VERSION=" | sed -e 's/\(.*\)=\(.*\)/\2/g'`
+    FLEDGE_SCHEMA=`cat ${FLEDGE_VERSION_FILE} | tr -d ' ' | grep -i "FLEDGE_SCHEMA=" | sed -e 's/\(.*\)=\(.*\)/\2/g'`
+
+    if [ ! "${FLEDGE_VERSION}" ]; then
+        echo "Error FLEDGE_VERSION is not set, check [${FLEDGE_VERSION_FILE}]. Exiting."
+        return  1
+    fi
+    if [ ! "${FLEDGE_SCHEMA}" ]; then
+        echo "Error FLEDGE_SCHEMA is not set, check [${FLEDGE_VERSION_FILE}]. Exiting."
+        return 1
+    fi
+}
+
+
+##
+## Get Fledge rest API URL
+##
+get_rest_api_url() {
+
+    pid_file=${FLEDGE_DATA}/var/run/fledge.core.pid
+    export PYTHONPATH=${FLEDGE_ROOT}
+
+    if [[ -f ${pid_file} ]]; then
+        REST_API_URL=`cat ${pid_file} | python3 -m scripts.common.json_parse  get_rest_api_url_from_pid`
+    fi
+
+    # Sets a default value if it not possible to determine the proper value using the pid file
+    if [ ! "${REST_API_URL}" ]; then
+        export REST_API_URL=http://localhost:8081
+    fi
+}
+
+
+##
+## Fledge Script Help
+##
+fledge_help() {
+
+    echo "${USAGE}
+Fledge v${FLEDGE_VERSION} admin script
+The script is used to start Fledge
+Arguments:
+ start             - Start Fledge core (core will start other services)
+ start --safe-mode - Start in safe mode (only core and storage services will be started)
+ stop              - Stop all Fledge services and processes
+ kill              - Kill all Fledge services and processes
+ status            - Show the status for the Fledge services
+ reset             - Restore Fledge factory settings
+                     WARNING! This command will destroy all your data!
+ version           - Print Fledge version
+ help              - This text"
+}
+
+
+### Main Logic ###
+
+# Set FLEDGE_DATA if it does not exist
+if [ -z ${FLEDGE_DATA+x} ]; then
+    FLEDGE_DATA="${FLEDGE_ROOT}/data"
+    export FLEDGE_DATA
+fi
+
+# Check if $FLEDGE_DATA exists and is a directory
+if [[ ! -d ${FLEDGE_DATA} ]]; then
+    fledge_log "err" "Fledge cannot be executed: ${FLEDGE_DATA} is not a valid directory." "all" "pretty"
+    exit 1
+fi
+
+# Check if curl is present
+if [[ ! `command -v curl` ]]; then
+    fledge_log "err" "Missing dependency: curl." "all" "pretty"
+    fledge_log "info" "Install curl and run Fledge again." "outonly" "pretty"
+    exit 1
+fi
+
+# Get Fledge version
+get_fledge_version
+
+# Get Fledge rest API URL
+get_rest_api_url
+
+# Call getopt to get any command line options for username and password
+while getopts "u:p:" option; do
+    case "$option" in
+    u)
+        USERNAME=${OPTARG}
+        ;;
+    p)
+        PASSWORD=${OPTARG}
+        ;;
+    esac
+done
+shift $((OPTIND-1))
+
+if [ -z ${USERNAME+x} ]; then
+	# If username is not set on the command line use environment variable if set
+	if [ ! -z ${FLEDGE_USER+x} ]; then
+		USERNAME=$FLEDGE_USER
+	fi
+fi
+
+if [ -z ${PASSWORD+x} ]; then
+	# If password is not set on the command line use environment variable if set
+	if [ ! -z ${FLEDGE_PASSWORD+x} ]; then
+		PASSWORD=$FLEDGE_PASSWORD
+	fi
+fi
+
+if [ -f ~/.fledge ] ; then
+	# if ~/.fledge is mode 0600 then fetch username and password
+	# from it if they are not already set
+	perm=`stat -c %A ~/.fledge`
+	if [ "$perm" == "-rw-------" ]; then
+		if [ -z ${USERNAME+x} ]; then
+			USERNAME=`awk -F: '{ print $1 }' < ~/.fledge`
+		fi
+		if [ -z ${PASSWORD+x} ]; then
+			PASSWORD=`awk -F: '{ print $2 }' < ~/.fledge`
+		fi
+	fi
+fi
+
+SAFE_MODE=''
+# Handle commands
+case "$1" in
+    reset)
+        fledge_reset
+        ;;
+    start)
+        if [ ! -z "$2" ]; then
+            if [ $2 = "--safe-mode" ]; then
+               SAFE_MODE='safe-mode'
+            else
+               echo "An invalid option has been entered: $2. Use --safe-mode"
+               exit 1
+            fi
+        fi
+        fledge_start
+        ;;
+    stop)
+        fledge_stop
+        ;;
+    kill)
+        fledge_kill
+        ;;
+    status)
+        fledge_status
+        ;;
+    version)
+        fledge_print_version
+        ;;
+    help)
+        fledge_help
+        ;;
+    *)
+        echo "${USAGE}"
+        exit 1
+esac
+
+rm -f ~/.fledge_token
+exit $?

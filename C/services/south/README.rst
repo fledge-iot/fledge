@@ -4,12 +4,12 @@
 
 
 *********************
-FogLAMP South Service
+Fledge South Service
 *********************
 
-This is the south service of the FogLAMP platform written in C.
+This is the south service of the Fledge platform written in C.
 This service is responsible for gathering readings and sending
-then to the FogLAMP buffer for storage.
+then to the Fledge buffer for storage.
 |br| |br|
 
 
@@ -65,5 +65,5 @@ can however be overridden by the use of the command line argument
 microservice.
 
 The South service will look for South plugins in the current directory
-or in the directory *$FOGLAMP_ROOT/plugins/south*.
+or in the directory *$FLEDGE_ROOT/plugins/south*.
 |br| |br|

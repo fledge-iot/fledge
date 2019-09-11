@@ -22,9 +22,9 @@
 User API Reference
 ******************
 
-The user API provides a mechanism to access the data that is buffered within FogLAMP. It is designed to allow users and applications to get a view of the data that is available in the buffer and do analysis and possibly trigger actions based on recently received sensor readings.
+The user API provides a mechanism to access the data that is buffered within Fledge. It is designed to allow users and applications to get a view of the data that is available in the buffer and do analysis and possibly trigger actions based on recently received sensor readings.
 
-In order to use the entry points in the user API, with the exception of the ``/foglamp/authenticate`` entry point, there must be an authenticated client calling the API. The client must provide a header field in each request, authtoken, the value of which is the token that was retrieved via a call to ``/foglamp/authenticate``. This token must be checked for validity and also that the authenticated entity has user or admin permissions.
+In order to use the entry points in the user API, with the exception of the ``/fledge/authenticate`` entry point, there must be an authenticated client calling the API. The client must provide a header field in each request, authtoken, the value of which is the token that was retrieved via a call to ``/fledge/authenticate``. This token must be checked for validity and also that the authenticated entity has user or admin permissions.
 
 
 Browsing Assets
@@ -40,7 +40,7 @@ The asset method is used to browse all or some assets, based on search and filte
 GET all assets
 ~~~~~~~~~~~~~~
 
-``GET /foglamp/asset`` - Return an arraty of asset codes buffered in FogLAMP and a count of assets by code.
+``GET /fledge/asset`` - Return an arraty of asset codes buffered in Fledge and a count of assets by code.
 
 
 **Response Payload**
@@ -60,7 +60,7 @@ An array of JSON objects, one per asset.
 
 .. code-block:: console
 
-  $ curl -s http://localhost:8081/foglamp/asset
+  $ curl -s http://localhost:8081/fledge/asset
   [ { "count": 18, "assetCode": "fogbench/accelerometer" },
     { "count": 18, "assetCode": "fogbench/gyroscope" },
     { "count": 18, "assetCode": "fogbench/humidity" },
@@ -77,7 +77,7 @@ An array of JSON objects, one per asset.
 GET asset readings
 ~~~~~~~~~~~~~~~~~~
 
-``GET /foglamp/asset/{code}`` - Return an array of readings for a given asset code.
+``GET /fledge/asset/{code}`` - Return an array of readings for a given asset code.
 
 
 **Path Parameters**
@@ -107,7 +107,7 @@ An array of JSON objects with the readings data for a series of readings sorted 
 
 .. code-block:: console
 
-  $ curl -s http://localhost:8081/foglamp/asset/fogbench%2Faccelerometer
+  $ curl -s http://localhost:8081/fledge/asset/fogbench%2Faccelerometer
   [ { "reading": { "x": 0, "y": -2, "z": 0 }, "timestamp": "2018-04-19 14:20:59.692" },
     { "reading": { "x": 0, "y": 0, "z": -1 }, "timestamp": "2018-04-19 14:20:54.643" },
     { "reading": { "x": -1, "y": 2, "z": 1 }, "timestamp": "2018-04-19 14:20:49.899" },
@@ -127,7 +127,7 @@ An array of JSON objects with the readings data for a series of readings sorted 
     { "reading": { "x": 0, "y": -2, "z": 1 }, "timestamp": "2018-04-19 14:06:05.864" },
     { "reading": { "x": -1, "y": -2, "z": 0 }, "timestamp": "2018-04-19 13:45:15.881" } ]
   $
-  $ curl -s http://localhost:8081/foglamp/asset/fogbench%2Faccelerometer?limit=5
+  $ curl -s http://localhost:8081/fledge/asset/fogbench%2Faccelerometer?limit=5
   [ { "reading": { "x": 0, "y": -2, "z": 0 }, "timestamp": "2018-04-19 14:20:59.692" },
     { "reading": { "x": 0, "y": 0, "z": -1 }, "timestamp": "2018-04-19 14:20:54.643" },
     { "reading": { "x": -1, "y": 2, "z": 1 }, "timestamp": "2018-04-19 14:20:49.899" },
@@ -139,7 +139,7 @@ An array of JSON objects with the readings data for a series of readings sorted 
 GET asset reading
 ~~~~~~~~~~~~~~~~~
 
-``GET /foglamp/asset/{code}/{reading}`` - Return an array of single readings for a given asset code.
+``GET /fledge/asset/{code}/{reading}`` - Return an array of single readings for a given asset code.
 
 
 **Path Parameters**
@@ -170,7 +170,7 @@ An array of JSON objects with a series of readings sorted in reverse chronologic
 
 .. code-block:: console
 
-  $ curl -s http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature
+  $ curl -s http://localhost:8081/fledge/asset/fogbench%2Fhumidity/temperature
   [ { "temperature": 20, "timestamp": "2018-04-19 14:20:59.692" },
     { "temperature": 33, "timestamp": "2018-04-19 14:20:54.643" },
     { "temperature": 35, "timestamp": "2018-04-19 14:20:49.899" },
@@ -190,7 +190,7 @@ An array of JSON objects with a series of readings sorted in reverse chronologic
     { "temperature": 46, "timestamp": "2018-04-19 14:06:05.864" },
     { "temperature": 10, "timestamp": "2018-04-19 13:45:15.881" } ]
   $
-  $ curl -s http://localhost:8081/foglamp/asset/fogbench%2Faccelerometer?limit=5
+  $ curl -s http://localhost:8081/fledge/asset/fogbench%2Faccelerometer?limit=5
   [ { "temperature": 20, "timestamp": "2018-04-19 14:20:59.692" },
     { "temperature": 33, "timestamp": "2018-04-19 14:20:54.643" },
     { "temperature": 35, "timestamp": "2018-04-19 14:20:49.899" },
@@ -202,7 +202,7 @@ An array of JSON objects with a series of readings sorted in reverse chronologic
 GET asset reading summary
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-``GET /foglamp/asset/{code}/{reading}/summary`` - Return minimum, maximum and average values of a reading by asset code.
+``GET /fledge/asset/{code}/{reading}/summary`` - Return minimum, maximum and average values of a reading by asset code.
 
 
 **Path Parameters**
@@ -233,7 +233,7 @@ An array of JSON objects with a series of readings sorted in reverse chronologic
 
 .. code-block:: console
 
-  $ curl -s http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/summary
+  $ curl -s http://localhost:8081/fledge/asset/fogbench%2Fhumidity/temperature/summary
   { "temperature": { "max": 47, "min": 0, "average": 27 } }
   $
 
@@ -241,7 +241,7 @@ An array of JSON objects with a series of readings sorted in reverse chronologic
 GET timed average asset reading
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-``GET /foglamp/asset/{code}/{reading}/series`` - Return minimum, maximum and average values of a reading by asset code in a time series. The default interval in the series is one second.
+``GET /fledge/asset/{code}/{reading}/series`` - Return minimum, maximum and average values of a reading by asset code in a time series. The default interval in the series is one second.
 
 
 **Path Parameters**
@@ -279,7 +279,7 @@ An array of JSON objects with a series of readings sorted in reverse chronologic
 
 .. code-block:: console
 
-  $ curl -s http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series
+  $ curl -s http://localhost:8081/fledge/asset/fogbench%2Fhumidity/temperature/series
   [ { "timestamp": "2018-04-19 14:20:59", "max": 20, "min": 20, "average": 20 },
     { "timestamp": "2018-04-19 14:20:54", "max": 33, "min": 33, "average": 33 },
     { "timestamp": "2018-04-19 14:20:49", "max": 35, "min": 35, "average": 35 },
@@ -290,7 +290,7 @@ An array of JSON objects with a series of readings sorted in reverse chronologic
     { "timestamp": "2018-04-19 14:06:05", "max": 46, "min": 5,  "average": 27.8 },
     { "timestamp": "2018-04-19 13:45:15", "max": 10, "min": 10, "average": 10 } ]
   $
-  $ curl -s http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series
+  $ curl -s http://localhost:8081/fledge/asset/fogbench%2Fhumidity/temperature/series
   [ { "timestamp": "2018-04-19 14:20:59", "max": 20, "min": 20, "average": 20 },
     { "timestamp": "2018-04-19 14:20:54", "max": 33, "min": 33, "average": 33 },
     { "timestamp": "2018-04-19 14:20:49", "max": 35, "min": 35, "average": 35 },

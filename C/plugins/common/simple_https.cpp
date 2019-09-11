@@ -1,5 +1,5 @@
 /*
- * FogLAMP HTTP Sender implementation using the
+ * Fledge HTTP Sender implementation using the
  * HTTPS Simple Web Server library
  *
  * Copyright (c) 2018 Dianomic Systems
@@ -65,7 +65,7 @@ int SimpleHttps::sendRequest(const string& method,
 {
 	SimpleWeb::CaseInsensitiveMultimap header;
 
-	// Add FogLAMP UserAgent
+	// Add Fledge UserAgent
 	header.emplace("User-Agent", HTTP_SENDER_USER_AGENT);
 
 	// Add custom headers

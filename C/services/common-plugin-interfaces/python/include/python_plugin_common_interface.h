@@ -1,7 +1,7 @@
 #ifndef _PYTHON_PLUGIN_BASE_INTERFACE_H
 #define _PYTHON_PLUGIN_BASE_INTERFACE_H
 /*
- * FogLAMP common plugin interface
+ * Fledge common plugin interface
  *
  * Copyright (c) 2019 Dianomic Systems
  *

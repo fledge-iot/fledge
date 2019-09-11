@@ -2,16 +2,16 @@
 
 # -*- coding: utf-8 -*-
 
-# FOGLAMP_BEGIN
-# See: http://foglamp.readthedocs.io/
-# FOGLAMP_END
+# FLEDGE_BEGIN
+# See: http://fledge.readthedocs.io/
+# FLEDGE_END
 
 
-""" fogbench -- a Python script used to test FogLAMP.
+""" fogbench -- a Python script used to test Fledge.
 
 The objective is to simulate payloads for input, REST and other requests against one or
-more FogLAMP instances. This version of fogbench is meant to test the CoAP and HTTP plugins
-interface of FogLAMP southbound services.
+more Fledge instances. This version of fogbench is meant to test the CoAP and HTTP plugins
+interface of Fledge southbound services.
 
 fogbench
 
@@ -22,15 +22,15 @@ fogbench
  [IN]   -p --payload     Type of payload and protocol (default: coap)
  [IN]   -t --template    Set the template to use
  [IN]   -v --version     Display the version and exit
- [IN]   -H --host        The FogLAMP host (default: localhost)
+ [IN]   -H --host        The Fledge host (default: localhost)
         -I --iterations  The number of iterations of the test (default: 1)
  [IN]   -O --occurrences The number of occurrences of the template (default: 1)
- [IN]   -P --port        The FogLAMP port. Default depends on payload and protocol
+ [IN]   -P --port        The Fledge port. Default depends on payload and protocol
  [IN]   -S --statistic   The type of statistics to collect
 
  Example:
 
-     $ cd $FOGLAMP_ROOT/bin
+     $ cd $FLEDGE_ROOT/bin
      $ ./fogbench
 
  Help:
@@ -300,9 +300,9 @@ def check_server(payload_type='coap'):
 
 
 parser = argparse.ArgumentParser(prog='fogbench')
-parser.description = '%(prog)s -- a Python script used to test FogLAMP (simulate payloads)'
+parser.description = '%(prog)s -- a Python script used to test Fledge (simulate payloads)'
 parser.epilog = 'The initial version of %(prog)s is meant to test the south plugin interface of ' \
-                'FogLAMP using CoAP or HTTP'
+                'Fledge using CoAP or HTTP'
 parser.add_argument('-v', '--version', action='version', version='%(prog)s {0!s}'.format(_FOGBENCH_VERSION))
 parser.add_argument('-k', '--keep', default=False, choices=['y', 'yes', 'n', 'no'],
                     help='Do not delete the running sample (default: no)')
@@ -314,7 +314,7 @@ parser.add_argument('-I', '--iterations', help='The number of iterations of the 
 parser.add_argument('-O', '--occurrences', help='The number of occurrences of the template (default: 1)')
 
 parser.add_argument('-H', '--host', help='Server host address (default: localhost)')
-parser.add_argument('-P', '--port', help='The FogLAMP port. (default: 5683)')
+parser.add_argument('-P', '--port', help='The Fledge port. (default: 5683)')
 parser.add_argument('-i', '--interval', default=0, help='The interval in seconds for each iteration (default: 0)')
 
 parser.add_argument('-S', '--statistics', default='total', choices=['total'], help='The type of statistics to collect '
@@ -343,7 +343,7 @@ default_port = 6683 if arg_payload_protocol == 'http' else 5683
 arg_port = int(namespace.port) if namespace.port else default_port
 
 check_server(arg_payload_protocol)
-sample_file = os.path.join("/tmp", "foglamp_running_sample.{}".format(os.getpid()))
+sample_file = os.path.join("/tmp", "fledge_running_sample.{}".format(os.getpid()))
 parse_template_and_prepare_json(_template_file=infile, _write_to_file=sample_file, _occurrences=arg_occurrences)
 read_out_file(_file=sample_file, _keep=keep_the_file, _iterations=arg_iterations, _interval=arg_interval,
               send_to=arg_payload_protocol)

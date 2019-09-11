@@ -1,7 +1,7 @@
 #ifndef _PURGE_RESULT_H
 #define _PURGE_RESULT_H
 /*
- * FogLAMP storage client.
+ * Fledge storage client.
  *
  * Copyright (c) 2018 Dianomic Systems
  *

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# FOGLAMP_BEGIN
-# See: http://foglamp.readthedocs.io/
-# FOGLAMP_END
+# FLEDGE_BEGIN
+# See: http://fledge.readthedocs.io/
+# FLEDGE_END
 
 """ Test add service using poll and async plugins for both python & C version REST API """
 
@@ -45,8 +45,8 @@ def install_plugins():
     plugin_and_service.install('south', plugin='csv-async', plugin_lang='C')
 
 
-def get_service(foglamp_url, path):
-    conn = http.client.HTTPConnection(foglamp_url)
+def get_service(fledge_url, path):
+    conn = http.client.HTTPConnection(fledge_url)
     conn.request("GET", path)
     res = conn.getresponse()
     r = res.read().decode()
@@ -57,12 +57,12 @@ def get_service(foglamp_url, path):
 
 class TestService:
 
-    def test_cleanup_and_setup(self, reset_and_start_foglamp, install_plugins):
+    def test_cleanup_and_setup(self, reset_and_start_fledge, install_plugins):
         # TODO: FOGL-2669 Better setup & teardown fixtures
         pass
 
-    def test_default_service(self, foglamp_url):
-        jdoc = get_service(foglamp_url, '/foglamp/service')
+    def test_default_service(self, fledge_url):
+        jdoc = get_service(fledge_url, '/fledge/service')
         assert len(jdoc), "No data found"
 
         # Only storage and core service is expected by default
@@ -76,7 +76,7 @@ class TestService:
         assert 'running' == storage_svc['status']
         assert 'Storage' == storage_svc['type']
         assert 'localhost' == storage_svc['address']
-        assert 'FogLAMP Storage' == storage_svc['name']
+        assert 'Fledge Storage' == storage_svc['name']
         assert 'http' == storage_svc['protocol']
 
         core_svc = jdoc['services'][1]
@@ -85,10 +85,10 @@ class TestService:
         assert 'running' == core_svc['status']
         assert 'Core' == core_svc['type']
         assert '0.0.0.0' == core_svc['address']
-        assert 'FogLAMP Core' == core_svc['name']
+        assert 'Fledge Core' == core_svc['name']
         assert 'http' == core_svc['protocol']
 
-    C_ASYNC_CONFIG = {"file": {"value": os.getenv("FOGLAMP_ROOT", "") + '/tests/system/python/data/vibration.csv'}}
+    C_ASYNC_CONFIG = {"file": {"value": os.getenv("FLEDGE_ROOT", "") + '/tests/system/python/data/vibration.csv'}}
 
     @pytest.mark.parametrize("plugin, svc_name, display_svc_name, config, enabled, svc_count", [
         ("randomwalk", SVC_NAME_1, SVC_NAME_1, None, True, 3),
@@ -97,14 +97,14 @@ class TestService:
         ("Random", SVC_NAME_4, SVC_NAME_3, None, False, 4),
         ("CSV-Async", SVC_NAME_C_ASYNC, SVC_NAME_C_ASYNC, C_ASYNC_CONFIG, True, 5)
     ])
-    def test_add_service(self, foglamp_url, wait_time, plugin, svc_name, display_svc_name, config, enabled, svc_count):
+    def test_add_service(self, fledge_url, wait_time, plugin, svc_name, display_svc_name, config, enabled, svc_count):
 
-        jdoc = plugin_and_service.add_south_service(plugin, foglamp_url, svc_name, config, enabled)
+        jdoc = plugin_and_service.add_south_service(plugin, fledge_url, svc_name, config, enabled)
         assert svc_name == jdoc['name']
         assert UUID(jdoc['id'], version=4)
 
         time.sleep(wait_time)
-        jdoc = get_service(foglamp_url, '/foglamp/service')
+        jdoc = get_service(fledge_url, '/fledge/service')
         assert len(jdoc), "No data found"
         assert svc_count == len(jdoc['services'])
 
@@ -117,7 +117,7 @@ class TestService:
         assert 'localhost' == southbound_svc['address']
         assert 'http' == southbound_svc['protocol']
 
-    def test_add_service_with_config(self, foglamp_url, wait_time):
+    def test_add_service_with_config(self, fledge_url, wait_time):
         # add service with config param
         data = {"name": SVC_NAME_6,
                 "type": "South",
@@ -125,8 +125,8 @@ class TestService:
                 "config": {"maxValue": {"value": "20"}, "assetName": {"value": "Random"}},
                 "enabled": True
                 }
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("POST", '/foglamp/service', json.dumps(data))
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("POST", '/fledge/service', json.dumps(data))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -135,7 +135,7 @@ class TestService:
         assert UUID(jdoc['id'], version=4)
 
         # verify config is correctly saved
-        conn.request("GET", '/foglamp/category/{}'.format(SVC_NAME_6))
+        conn.request("GET", '/fledge/category/{}'.format(SVC_NAME_6))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -145,21 +145,21 @@ class TestService:
         assert data['config']['maxValue']['value'] == jdoc['maxValue']['value']
 
         time.sleep(wait_time)
-        jdoc = get_service(foglamp_url, '/foglamp/service')
+        jdoc = get_service(fledge_url, '/fledge/service')
         assert len(jdoc), "No data found"
         assert 6 == len(jdoc['services'])
         assert SVC_NAME_6 == jdoc['services'][5]['name']
 
     @pytest.mark.parametrize("svc_name, status, svc_count", [
-        ("FogLAMP Storage", 404, 2),
-        ("FogLAMP Core", 404, 2),
+        ("Fledge Storage", 404, 2),
+        ("Fledge Core", 404, 2),
         (SVC_NAME_1, 200, 5),
         (SVC_NAME_2, 200, 5),
         (SVC_NAME_3, 200, 4)
     ])
-    def test_delete_service(self, svc_name, status, svc_count, foglamp_url, wait_time):
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("DELETE", '/foglamp/service/{}'.format(quote(svc_name)))
+    def test_delete_service(self, svc_name, status, svc_count, fledge_url, wait_time):
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("DELETE", '/fledge/service/{}'.format(quote(svc_name)))
         res = conn.getresponse()
         assert status == res.status
 
@@ -173,26 +173,26 @@ class TestService:
 
             time.sleep(wait_time)
 
-            jdoc = get_service(foglamp_url, '/foglamp/service')
+            jdoc = get_service(fledge_url, '/fledge/service')
             assert len(jdoc), "No data found"
             assert svc_count == len(jdoc['services'])
             services = [s['name'] for s in jdoc['services']]
             assert svc_name not in services
 
             # no category (including its children) exists anymore for serviceName
-            conn = http.client.HTTPConnection(foglamp_url)
-            conn.request("GET", '/foglamp/category/{}'.format(quote(svc_name)))
+            conn = http.client.HTTPConnection(fledge_url)
+            conn.request("GET", '/fledge/category/{}'.format(quote(svc_name)))
             res = conn.getresponse()
             r = res.read().decode()
             assert 404 == res.status
 
-            conn.request("GET", '/foglamp/category/{}/children'.format(quote(svc_name)))
+            conn.request("GET", '/fledge/category/{}/children'.format(quote(svc_name)))
             res = conn.getresponse()
             r = res.read().decode()
             assert 404 == res.status
 
             # no schedule exists anymore for serviceName
-            conn.request("GET", '/foglamp/schedule')
+            conn.request("GET", '/fledge/schedule')
             res = conn.getresponse()
             r = res.read().decode()
             jdoc = json.loads(r)
@@ -200,48 +200,48 @@ class TestService:
 
             # TODO: verify FOGL-2718 no category interest exists anymore for serviceId in InterestRegistry
 
-    def test_service_with_enable_schedule(self, foglamp_url, wait_time, enable_schedule):
-        enable_schedule(foglamp_url, SVC_NAME_4)
+    def test_service_with_enable_schedule(self, fledge_url, wait_time, enable_schedule):
+        enable_schedule(fledge_url, SVC_NAME_4)
 
         time.sleep(wait_time)
-        jdoc = get_service(foglamp_url, '/foglamp/service')
+        jdoc = get_service(fledge_url, '/fledge/service')
         assert len(jdoc), "No data found"
         assert 5 == len(jdoc['services'])
         assert SVC_NAME_4 in [s['name'] for s in jdoc['services']]
 
-    def test_service_with_disable_schedule(self, foglamp_url, wait_time, disable_schedule):
-        disable_schedule(foglamp_url, SVC_NAME_4)
+    def test_service_with_disable_schedule(self, fledge_url, wait_time, disable_schedule):
+        disable_schedule(fledge_url, SVC_NAME_4)
 
         time.sleep(wait_time)
-        jdoc = get_service(foglamp_url, '/foglamp/service')
+        jdoc = get_service(fledge_url, '/fledge/service')
         assert len(jdoc), "No data found"
         assert 5 == len(jdoc['services'])
         assert (SVC_NAME_4, 'shutdown') in [(s['name'], s['status']) for s in jdoc['services']]
 
-    def test_service_on_restart(self, foglamp_url, wait_time):
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("PUT", '/foglamp/restart')
+    def test_service_on_restart(self, fledge_url, wait_time):
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("PUT", '/fledge/restart')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
         assert len(jdoc), "No data found"
-        assert 'FogLAMP restart has been scheduled.' == jdoc['message']
+        assert 'Fledge restart has been scheduled.' == jdoc['message']
 
         time.sleep(wait_time * 4)
-        jdoc = get_service(foglamp_url, '/foglamp/service')
+        jdoc = get_service(fledge_url, '/fledge/service')
         assert len(jdoc), "No data found"
         assert 4 == len(jdoc['services'])
         services = [name['name'] for name in jdoc['services']]
         assert SVC_NAME_4 not in services
 
-    def test_delete_service_with_filters(self, foglamp_url, wait_time, add_filter, filter_branch, enable_schedule):
+    def test_delete_service_with_filters(self, fledge_url, wait_time, add_filter, filter_branch, enable_schedule):
         # add filter
-        add_filter(PLUGIN_FILTER, filter_branch, FILTER_NAME, {"enable": "true"}, foglamp_url, SVC_NAME_6)
+        add_filter(PLUGIN_FILTER, filter_branch, FILTER_NAME, {"enable": "true"}, fledge_url, SVC_NAME_6)
 
         # delete service
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("DELETE", '/foglamp/service/{}'.format(SVC_NAME_6))
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("DELETE", '/fledge/service/{}'.format(SVC_NAME_6))
         r = conn.getresponse()
         r = r.read().decode()
         jdoc = json.loads(r)
@@ -249,7 +249,7 @@ class TestService:
 
         # verify service does not exist
         time.sleep(wait_time)
-        jdoc = get_service(foglamp_url, '/foglamp/service')
+        jdoc = get_service(fledge_url, '/fledge/service')
         assert len(jdoc), "No data found"
         assert 3 == len(jdoc['services'])
         services = [name['name'] for name in jdoc['services']]
@@ -257,7 +257,7 @@ class TestService:
 
         # filter linked with SVC_NAME_4
         data = {"pipeline": [FILTER_NAME]}
-        conn.request("PUT", '/foglamp/filter/{}/pipeline?allow_duplicates=true&append_filter=true'
+        conn.request("PUT", '/fledge/filter/{}/pipeline?allow_duplicates=true&append_filter=true'
                      .format(quote(SVC_NAME_4)), json.dumps(data))
         r = conn.getresponse()
         r = r.read().decode()
@@ -265,18 +265,18 @@ class TestService:
         assert "Filter pipeline {{'pipeline': ['{}']}} updated successfully".format(FILTER_NAME) == jdoc['result']
 
         # enable SVC_NAME_4 schedule
-        enable_schedule(foglamp_url, SVC_NAME_4)
+        enable_schedule(fledge_url, SVC_NAME_4)
 
         # verify SVC_NAME_4 exist
         time.sleep(wait_time)
-        jdoc = get_service(foglamp_url, '/foglamp/service')
+        jdoc = get_service(fledge_url, '/fledge/service')
         assert len(jdoc), "No data found"
         assert 4 == len(jdoc['services'])
         services = [s['name'] for s in jdoc['services']]
         assert SVC_NAME_4 in services
 
         # delete SVC_NAME_4
-        conn.request("DELETE", '/foglamp/service/{}'.format(quote(SVC_NAME_4)))
+        conn.request("DELETE", '/fledge/service/{}'.format(quote(SVC_NAME_4)))
         r = conn.getresponse()
         r = r.read().decode()
         jdoc = json.loads(r)
@@ -284,7 +284,7 @@ class TestService:
 
         # verify SVC_NAME_4 does not exist anymore
         time.sleep(wait_time)
-        jdoc = get_service(foglamp_url, '/foglamp/service')
+        jdoc = get_service(fledge_url, '/fledge/service')
         assert len(jdoc), "No data found"
         assert 3 == len(jdoc['services'])
         services = [s['name'] for s in jdoc['services']]

@@ -1,7 +1,7 @@
 #ifndef _SOUTH_SERVICE_H
 #define _SOUTH_SERVICE_H
 /*
- * FogLAMP south service.
+ * Fledge south service.
  *
  * Copyright (c) 2018 OSisoft, LLC
  *
@@ -18,7 +18,7 @@
 #include <ingest.h>
 #include <filter_plugin.h>
 
-#define SERVICE_NAME  "FogLAMP South"
+#define SERVICE_NAME  "Fledge South"
 
 /*
  * Control the throttling of poll based plugins
@@ -37,7 +37,7 @@
 /**
  * The SouthService class. This class is the core
  * of the service that provides south side services
- * to FogLAMP.
+ * to Fledge.
  */
 class SouthService : public ServiceHandler {
 	public:

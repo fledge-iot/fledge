@@ -1,7 +1,7 @@
 #ifndef _JSON_PROPERTIES_H
 #define _JSON_PROPERTIES_H
 /*
- * FogLAMP storage client.
+ * Fledge storage client.
  *
  * Copyright (c) 2018 Dianomic Systems
  *

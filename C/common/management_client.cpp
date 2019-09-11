@@ -1,5 +1,5 @@
 /*
- * FogLAMP storage service.
+ * Fledge storage service.
  *
  * Copyright (c) 2017-2018 OSisoft, LLC
  *
@@ -94,7 +94,7 @@ string payload;
 	try {
 		service.asJSON(payload);
 
-		auto res = this->getHttpClient()->request("POST", "/foglamp/service", payload);
+		auto res = this->getHttpClient()->request("POST", "/fledge/service", payload);
 		Document doc;
 		string response = res->content.string();
 		doc.Parse(response.c_str());
@@ -140,7 +140,7 @@ bool ManagementClient::unregisterService()
 		return false;	// Not registered
 	}
 	try {
-		string url = "/foglamp/service/";
+		string url = "/fledge/service/";
 		url += url_encode(*m_uuid);
 		auto res = this->getHttpClient()->request("DELETE", url.c_str());
 		Document doc;
@@ -181,7 +181,7 @@ bool ManagementClient::getService(ServiceRecord& service)
 string payload;
 
 	try {
-		string url = "/foglamp/service";
+		string url = "/fledge/service";
 		if (!service.getName().empty())
 		{
 			url += "?name=" + url_encode(service.getName());
@@ -240,7 +240,7 @@ ostringstream convert;
 	try {
 		convert << "{ \"category\" : \"" << JSONescape(category) << "\", ";
 		convert << "\"service\" : \"" << *m_uuid << "\" }";
-		auto res = this->getHttpClient()->request("POST", "/foglamp/interest", convert.str());
+		auto res = this->getHttpClient()->request("POST", "/fledge/interest", convert.str());
 		Document doc;
 		string content = res->content.string();
 		doc.Parse(content.c_str());
@@ -285,7 +285,7 @@ bool ManagementClient::unregisterCategory(const string& category)
 ostringstream convert;
         
         try {   
-		string url = "/foglamp/interest/";
+		string url = "/fledge/interest/";
 		url += url_encode(m_categories[category]);
         auto res = this->getHttpClient()->request("DELETE", url.c_str());
         } catch (const SimpleWeb::system_error &e) {
@@ -301,7 +301,7 @@ ostringstream convert;
 ConfigCategories ManagementClient::getCategories()
 {
 	try {
-		string url = "/foglamp/service/category";
+		string url = "/fledge/service/category";
 		auto res = this->getHttpClient()->request("GET", url.c_str());
 		Document doc;
 		string response = res->content.string();
@@ -332,7 +332,7 @@ ConfigCategories ManagementClient::getCategories()
 
 /**
  * Return the content of the named category by calling the
- * management API of the FogLAMP core.
+ * management API of the Fledge core.
  *
  * @param  categoryName		The name of the categpry to return
  * @return ConfigCategory	The configuration category
@@ -342,7 +342,7 @@ ConfigCategories ManagementClient::getCategories()
 ConfigCategory ManagementClient::getCategory(const string& categoryName)
 {
 	try {
-		string url = "/foglamp/service/category/" + url_encode(categoryName);
+		string url = "/fledge/service/category/" + url_encode(categoryName);
 		auto res = this->getHttpClient()->request("GET", url.c_str());
 		Document doc;
 		string response = res->content.string();
@@ -386,7 +386,7 @@ string ManagementClient::setCategoryItemValue(const string& categoryName,
 					      const string& itemValue)
 {
 	try {
-		string url = "/foglamp/service/category/" + url_encode(categoryName) + "/" + url_encode(itemName);
+		string url = "/fledge/service/category/" + url_encode(categoryName) + "/" + url_encode(itemName);
 		string payload = "{ \"value\" : \"" + itemValue + "\" }";
 		auto res = this->getHttpClient()->request("PUT", url.c_str(), payload);
 		Document doc;
@@ -427,7 +427,7 @@ ConfigCategories ManagementClient::getChildCategories(const string& categoryName
 {
 	try
 	{
-		string url = "/foglamp/service/category/" + url_encode(categoryName) + "/children";
+		string url = "/fledge/service/category/" + url_encode(categoryName) + "/children";
 		auto res = this->getHttpClient()->request("GET", url.c_str());
 		Document doc;
 		string response = res->content.string();
@@ -478,7 +478,7 @@ string ManagementClient::addChildCategories(const string& parentCategory,
 					    const vector<string>& children)
 {
 	try {
-		string url = "/foglamp/service/category/" + url_encode(parentCategory) + "/children";
+		string url = "/fledge/service/category/" + url_encode(parentCategory) + "/children";
 		string payload = "{ \"children\" : [";
 
 		for (auto it = children.begin(); it != children.end(); ++it)
@@ -529,7 +529,7 @@ std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples(const
 	std::vector<AssetTrackingTuple*> *vec = new std::vector<AssetTrackingTuple*>();
 	
 	try {
-		string url = "/foglamp/track?service="+url_encode(serviceName);
+		string url = "/fledge/track?service="+url_encode(serviceName);
 		auto res = this->getHttpClient()->request("GET", url.c_str());
 		Document doc;
 		string response = res->content.string();
@@ -600,7 +600,7 @@ bool ManagementClient::addAssetTrackingTuple(const std::string& service,
 		convert << " \"asset\" : \"" << asset << "\", ";
 		convert << " \"event\" : \"" << event << "\" }";
 
-		auto res = this->getHttpClient()->request("POST", "/foglamp/track", convert.str());
+		auto res = this->getHttpClient()->request("POST", "/fledge/track", convert.str());
 		Document doc;
 		string content = res->content.string();
 		doc.Parse(content.c_str());
@@ -612,9 +612,9 @@ bool ManagementClient::addAssetTrackingTuple(const std::string& service,
 								content.c_str());
 			return false;
 		}
-		if (doc.HasMember("foglamp"))
+		if (doc.HasMember("fledge"))
 		{
-			const char *reg_id = doc["foglamp"].GetString();
+			const char *reg_id = doc["fledge"].GetString();
 			return true;
 		}
 		else if (doc.HasMember("message"))
@@ -667,11 +667,11 @@ string ManagementClient::url_encode(const string &s) const
 /**
  * Add an Audit Entry
  *
- * Foglamp API call example :
+ * Fledge API call example :
  *
  *  curl -X POST -d '{"source":"LMTR", "severity":"WARNING",
  *		      "details":{"message":"Engine oil pressure low"}}'
- *  http://localhost:8081/foglamp/audit
+ *  http://localhost:8081/fledge/audit
  *
  * @param   code	The log code for the entry 
  * @param   severity	The severity level
@@ -689,7 +689,7 @@ bool ManagementClient::addAuditEntry(const std::string& code,
 		convert << " \"details\" : " << message << " }";
 
 		auto res = this->getHttpClient()->request("POST",
-							  "/foglamp/audit",
+							  "/fledge/audit",
 							  convert.str());
 		Document doc;
 		string content = res->content.string();

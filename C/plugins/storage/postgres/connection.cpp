@@ -1,5 +1,5 @@
 /*
- * FogLAMP storage service.
+ * Fledge storage service.
  *
  * Copyright (c) 2017 OSisoft, LLC
  *
@@ -45,7 +45,7 @@ const vector<string>  pg_column_reserved_words = {
  */
 Connection::Connection()
 {
-	const char *defaultConninfo = "dbname = foglamp";
+	const char *defaultConninfo = "dbname = fledge";
 	char *connInfo = NULL;
 	
 	if ((connInfo = getenv("DB_CONNECTION")) == NULL)
@@ -90,7 +90,7 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 	try {
 		if (condition.empty())
 		{
-			sql.append("SELECT * FROM foglamp.");
+			sql.append("SELECT * FROM fledge.");
 			sql.append(table);
 		}
 		else
@@ -112,7 +112,7 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 				{
 					return false;
 				}
-				sql.append(" FROM foglamp.");
+				sql.append(" FROM fledge.");
 			}
 			else if (document.HasMember("return"))
 			{
@@ -206,7 +206,7 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 					}
 					col++;
 				}
-				sql.append(" FROM foglamp.");
+				sql.append(" FROM fledge.");
 			}
 			else
 			{
@@ -216,7 +216,7 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 					sql.append(document["modifier"].GetString());
 					sql.append(' ');
 				}
-				sql.append(" * FROM foglamp.");
+				sql.append(" * FROM fledge.");
 			}
 			sql.append(table);
 			if (document.HasMember("where"))
@@ -301,7 +301,7 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 						reading,
 						to_char(user_ts, ')" F_DATEH24_US R"(') as user_ts,
 						to_char(ts, ')" F_DATEH24_US R"(') as ts
-					FROM foglamp.)";
+					FROM fledge.)";
 
 			sql.append(sql_cmd);
 			sql.append(table);
@@ -325,7 +325,7 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 				{
 					return false;
 				}
-				sql.append(" FROM foglamp.");
+				sql.append(" FROM fledge.");
 			}
 			else if (document.HasMember("return"))
 			{
@@ -454,7 +454,7 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 					}
 					col++;
 				}
-				sql.append(" FROM foglamp.");
+				sql.append(" FROM fledge.");
 			}
 			else
 			{
@@ -472,7 +472,7 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 						reading,
 						to_char(user_ts, ')" F_DATEH24_US R"(') as user_ts,
 						to_char(ts, ')" F_DATEH24_US R"(') as ts
-					FROM foglamp.)";
+					FROM fledge.)";
 
 				sql.append(sql_cmd);
 			}
@@ -589,7 +589,7 @@ std::size_t arr = data.find("inserts");
 		int col = 0;
 		SQLBuffer values;
 
-	 	sql.append("INSERT INTO foglamp.");
+	 	sql.append("INSERT INTO fledge.");
 		sql.append(table);
 		sql.append(" (");
 
@@ -711,7 +711,7 @@ SQLBuffer	sql;
 					   "Each entry in the update array must be an object");
 				return -1;
 			}
-			sql.append("UPDATE foglamp.");
+			sql.append("UPDATE fledge.");
 			sql.append(table);
 			sql.append(" SET ");
 
@@ -1022,7 +1022,7 @@ int Connection::deleteRows(const string& table, const string& condition)
 Document document;  // Default template parameter uses UTF8 and MemoryPoolAllocator.
 SQLBuffer	sql;
  
-	sql.append("DELETE FROM foglamp.");
+	sql.append("DELETE FROM fledge.");
 	sql.append(table);
 	if (! condition.empty())
 	{
@@ -1198,7 +1198,7 @@ bool 		add_row = false;
 		return -1;
 	}
 
-	sql.append("INSERT INTO foglamp.readings ( user_ts, asset_code, read_key, reading ) VALUES ");
+	sql.append("INSERT INTO fledge.readings ( user_ts, asset_code, read_key, reading ) VALUES ");
 
 	if (!doc.HasMember("readings"))
 	{
@@ -1316,7 +1316,7 @@ bool Connection::fetchReadings(unsigned long id, unsigned int blksize, std::stri
 char	sqlbuffer[200];
 
 	snprintf(sqlbuffer, sizeof(sqlbuffer),
-		"SELECT id, asset_code, read_key, reading, user_ts AT TIME ZONE 'UTC' as \"user_ts\", ts AT TIME ZONE 'UTC' as \"ts\" FROM foglamp.readings WHERE id >= %ld ORDER BY id LIMIT %d;", id, blksize);
+		"SELECT id, asset_code, read_key, reading, user_ts AT TIME ZONE 'UTC' as \"user_ts\", ts AT TIME ZONE 'UTC' as \"ts\" FROM fledge.readings WHERE id >= %ld ORDER BY id LIMIT %d;", id, blksize);
 	
 	logSQL("ReadingsFetch", sqlbuffer);
 	PGresult *res = PQexec(dbConnection, sqlbuffer);
@@ -1348,7 +1348,7 @@ long numReadings = 0;
 		 * So set age based on the data we have and continue.
 		 */
 		SQLBuffer oldest;
-		oldest.append("SELECT round(extract(epoch FROM (now() - min(user_ts)))/360) from foglamp.readings;");
+		oldest.append("SELECT round(extract(epoch FROM (now() - min(user_ts)))/360) from fledge.readings;");
 		const char *query = oldest.coalesce();
 		logSQL("ReadingsPurge", query);
 		PGresult *res = PQexec(dbConnection, query);
@@ -1369,7 +1369,7 @@ long numReadings = 0;
 	{
 		// Get number of unsent rows we are about to remove
 		SQLBuffer unsentBuffer;
-		unsentBuffer.append("SELECT count(*) FROM foglamp.readings WHERE  user_ts < now() - INTERVAL '");
+		unsentBuffer.append("SELECT count(*) FROM fledge.readings WHERE  user_ts < now() - INTERVAL '");
 		unsentBuffer.append(age);
 		unsentBuffer.append(" hours' AND id > ");
 		unsentBuffer.append(sent);
@@ -1390,7 +1390,7 @@ long numReadings = 0;
 		}
 	}
 	
-	sql.append("DELETE FROM foglamp.readings WHERE user_ts < now() - INTERVAL '");
+	sql.append("DELETE FROM fledge.readings WHERE user_ts < now() - INTERVAL '");
 	sql.append(age);
 	sql.append(" hours'");
 	if ((flags & 0x01) == 0x01)	// Don't delete unsent rows
@@ -1413,7 +1413,7 @@ long numReadings = 0;
 	PQclear(res);
 
 	SQLBuffer retainedBuffer;
-	retainedBuffer.append("SELECT count(*) FROM foglamp.readings WHERE id > ");
+	retainedBuffer.append("SELECT count(*) FROM fledge.readings WHERE id > ");
 	retainedBuffer.append(sent);
 	retainedBuffer.append(';');
 	const char *query1 = retainedBuffer.coalesce();
@@ -1430,7 +1430,7 @@ long numReadings = 0;
 	}
 	PQclear(res);
 
-	res = PQexec(dbConnection, "SELECT count(*) FROM foglamp.readings;");
+	res = PQexec(dbConnection, "SELECT count(*) FROM fledge.readings;");
 	if (PQresultStatus(res) == PGRES_TUPLES_OK)
 	{
 		numReadings = atol(PQgetvalue(res, 0, 0));
@@ -2559,8 +2559,8 @@ void Connection::logSQL(const char *tag, const char *stmt)
  */
 int Connection::create_table_snapshot(const string& table, const string& id)
 {
-	string query = "SELECT * INTO TABLE foglamp.";
-	query += table + "_snap" +  id + " FROM foglamp." + table;
+	string query = "SELECT * INTO TABLE fledge.";
+	query += table + "_snap" +  id + " FROM fledge." + table;
 
 	logSQL("CreateTableSnapshot", query.c_str());
 
@@ -2586,10 +2586,10 @@ int Connection::create_table_snapshot(const string& table, const string& id)
  */
 int Connection::load_table_snapshot(const string& table, const string& id)
 {
-	string purgeQuery = "DELETE FROM foglamp." + table;
+	string purgeQuery = "DELETE FROM fledge." + table;
 	string query = "START TRANSACTION; " + purgeQuery;
-	query += "; INSERT INTO foglamp." + table;
-	query += " SELECT * FROM foglamp." + table + "_snap" + id;
+	query += "; INSERT INTO fledge." + table;
+	query += " SELECT * FROM fledge." + table + "_snap" + id;
 	query += "; COMMIT;";
 
 	logSQL("LoadTableSnapshot", query.c_str());
@@ -2625,7 +2625,7 @@ int Connection::load_table_snapshot(const string& table, const string& id)
  */
 int Connection::delete_table_snapshot(const string& table, const string& id)
 {
-	string query = "DROP TABLE foglamp." + table + "_snap" + id;
+	string query = "DROP TABLE fledge." + table + "_snap" + id;
 
 	logSQL("DeleteTableSnapshot", query.c_str());
 
@@ -2657,7 +2657,7 @@ SQLBuffer sql;
 		sql.append("SELECT REPLACE(table_name, '");
 		sql.append(table);
 		sql.append("_snap', '') AS id FROM information_schema.tables ");
-		sql.append("WHERE table_schema = 'foglamp' AND table_name LIKE '");
+		sql.append("WHERE table_schema = 'fledge' AND table_name LIKE '");
 		sql.append(table);
 		sql.append("_snap%';");
 

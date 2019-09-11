@@ -1,1 +1,1 @@
-{ "entryPoint" : "retrieve", "message" : "ERROR:  relation \"foglamp.doesntexist\" does not existLINE 1: SELECT * FROM foglamp.doesntexist;                      ^", "retryable" : false}
+{ "entryPoint" : "retrieve", "message" : "ERROR:  relation \"fledge.doesntexist\" does not existLINE 1: SELECT * FROM fledge.doesntexist;                      ^", "retryable" : false}

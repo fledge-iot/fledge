@@ -22,22 +22,22 @@ set -e
 PLUGIN="postgres"
 USAGE="Usage: `basename ${0}` {start|stop|status|init|reset|help}"
 
-# Check FOGLAMP_ROOT
-if [ -z ${FOGLAMP_ROOT+x} ]; then
-    # Set FOGLAMP_ROOT as the default directory
-    FOGLAMP_ROOT="/usr/local/foglamp"
+# Check FLEDGE_ROOT
+if [ -z ${FLEDGE_ROOT+x} ]; then
+    # Set FLEDGE_ROOT as the default directory
+    FLEDGE_ROOT="/usr/local/fledge"
 fi
 
 # Check if the default directory exists
-if [[ ! -d "${FOGLAMP_ROOT}" ]]; then
+if [[ ! -d "${FLEDGE_ROOT}" ]]; then
 
     # Here we cannot use the logger because we cannot find the write_log script.
     # But it is ok, because the script is called with source and if it is called
     # as standalone script the echo will be captured.
-    echo "FogLAMP cannot be executed: ${FOGLAMP_ROOT} is not a valid directory."
-    echo "Create the enviroment variable FOGLAMP_ROOT before using FogLAMP."
-    echo "Specify the base directory for FogLAMP and set the variable with:"
-    echo "export FOGLAMP_ROOT=<basedir>"
+    echo "Fledge cannot be executed: ${FLEDGE_ROOT} is not a valid directory."
+    echo "Create the enviroment variable FLEDGE_ROOT before using Fledge."
+    echo "Specify the base directory for Fledge and set the variable with:"
+    echo "export FLEDGE_ROOT=<basedir>"
     exit 1
 
 fi
@@ -46,8 +46,8 @@ fi
 ##########
 ## INCLUDE SECTION
 ##########
-. $FOGLAMP_ROOT/scripts/common/get_engine_management.sh
-. $FOGLAMP_ROOT/scripts/common/write_log.sh
+. $FLEDGE_ROOT/scripts/common/get_engine_management.sh
+. $FLEDGE_ROOT/scripts/common/write_log.sh
 
 
 # Logger wrapper
@@ -74,9 +74,9 @@ pg_start() {
         "2")
             if [[ "$MANAGED" = false ]]; then
                 if [[ "$1" == "noisy" ]]; then
-                    postgres_log "info" "Unable to start PostgreSQL. The server is not managed by FogLAMP." "all" "pretty"
+                    postgres_log "info" "Unable to start PostgreSQL. The server is not managed by Fledge." "all" "pretty"
                 else
-                    postgres_log "info" "Unable to start PostgreSQL. The server is not managed by FogLAMP." "logonly" "pretty"
+                    postgres_log "info" "Unable to start PostgreSQL. The server is not managed by Fledge." "logonly" "pretty"
                 fi
                 exit 2
             fi
@@ -108,13 +108,13 @@ pg_start() {
             ;;
     esac
 
-    # Check if the foglamp database has been created
-    if [[ `$PG_SQL -l | grep -c '^ foglamp'` -ne 1 ]]; then
-        # Create the FogLAMP database
+    # Check if the fledge database has been created
+    if [[ `$PG_SQL -l | grep -c '^ fledge'` -ne 1 ]]; then
+        # Create the Fledge database
         pg_reset "$1" "immediate" 
     fi
 
-    # FogLAMP DB schema update: FogLAMP version is $2
+    # Fledge DB schema update: Fledge version is $2
     pg_schema_update $2
 }
 
@@ -129,9 +129,9 @@ pg_stop() {
         # UNMANAGED part
 
         if [[ "$1" == "noisy" ]]; then
-            postgres_log "info" "Unable to stop PostgreSQL. The server is not managed by FogLAMP." "all" "pretty"
+            postgres_log "info" "Unable to stop PostgreSQL. The server is not managed by Fledge." "all" "pretty"
         else
-            postgres_log "info" "Unable to stop PostgreSQL. The server is not managed by FogLAMP." "logonly" "pretty"
+            postgres_log "info" "Unable to stop PostgreSQL. The server is not managed by Fledge." "logonly" "pretty"
         fi
 
     else
@@ -201,9 +201,9 @@ pg_reset() {
     fi
 
     if [[ "$1" == "noisy" ]]; then
-        postgres_log "info" "Building the metadata for the FogLAMP Plugin..." "all" "pretty"
+        postgres_log "info" "Building the metadata for the Fledge Plugin..." "all" "pretty"
     else
-        postgres_log "info" "Building the metadata for the FogLAMP Plugin..." "logonly" "pretty"
+        postgres_log "info" "Building the metadata for the Fledge Plugin..." "logonly" "pretty"
     fi
        
     eval $PG_SQL -d postgres -q -f $INIT_SQL > /dev/null 2>&1
@@ -226,10 +226,10 @@ pg_reset() {
 #   2 - Server not running
 pg_status() {
 
-    # Check if the database server is managed by FogLAMP
+    # Check if the database server is managed by Fledge
     if [[ "$MANAGED" = true ]]; then
 
-        # Check if the PostgreSQL directory in $FOGLAMP_DATA exists and create it
+        # Check if the PostgreSQL directory in $FLEDGE_DATA exists and create it
         # This is necessary to avoid an error in the PG_CTL command,
         # when the log is set
         if ! [[ -d "$PG_DIR" ]]; then
@@ -313,42 +313,42 @@ pg_status() {
 ## PostgreSQL schema update entry point
 #
 pg_schema_update() {
-    # Current starting FogLAMP version
+    # Current starting Fledge version
     NEW_VERSION=$1
     # DB table
-    VERSION_TABLE="foglamp.version"
+    VERSION_TABLE="fledge.version"
     # Check first if the version table exists
-    CURR_VERR=`${PG_SQL} -d foglamp -q -A -t -c "SELECT to_regclass('${VERSION_TABLE}')"`
+    CURR_VERR=`${PG_SQL} -d fledge -q -A -t -c "SELECT to_regclass('${VERSION_TABLE}')"`
     ret_code=$?
     if [ ! "${CURR_VERR}" ] || [ "${ret_code}" -ne 0 ]; then
-        postgres_log "error" "Error checking FogLAMP DB schema version: "\
+        postgres_log "error" "Error checking Fledge DB schema version: "\
 "the table '${VERSION_TABLE}' doesn't exist. Exiting" "all" "pretty"
         return 1
     fi
 
-    # Fetch FogLAMP DB version
-    CURR_VERR=`${PG_SQL} -d foglamp -q -A -t -c "SELECT id FROM ${VERSION_TABLE}" | tr -d ' '`
+    # Fetch Fledge DB version
+    CURR_VERR=`${PG_SQL} -d fledge -q -A -t -c "SELECT id FROM ${VERSION_TABLE}" | tr -d ' '`
     if [ ! "${CURR_VERR}" ]; then
         # No version found set DB version now
-        CURR_VERR=`${PG_SQL} -d foglamp -q -A -t -c "INSERT INTO ${VERSION_TABLE} (id) VALUES('${NEW_VERSION}')"`
-        SET_VERSION_MSG="FogLAMP DB version not found in '${VERSION_TABLE}', setting version [${NEW_VERSION}]"
+        CURR_VERR=`${PG_SQL} -d fledge -q -A -t -c "INSERT INTO ${VERSION_TABLE} (id) VALUES('${NEW_VERSION}')"`
+        SET_VERSION_MSG="Fledge DB version not found in '${VERSION_TABLE}', setting version [${NEW_VERSION}]"
         if [[ "$1" == "noisy" ]]; then
             postgres_log "info" "${SET_VERSION_MSG}" "all" "pretty"
         else 
             postgres_log "info" "${SET_VERSION_MSG}" "logonly" "pretty"
         fi
     else
-        # Only if DB version is not equal to starting FogLAMP version we try schema update
+        # Only if DB version is not equal to starting Fledge version we try schema update
         if [ "${CURR_VERR}" != "${NEW_VERSION}" ]; then
-            postgres_log "info" "Detected '${PLUGIN}' FogLAMP DB schema change from version [${CURR_VERR}]"\
+            postgres_log "info" "Detected '${PLUGIN}' Fledge DB schema change from version [${CURR_VERR}]"\
 " to [${NEW_VERSION}], applying Upgrade/Downgrade ..." "all" "pretty"
             # Call the schema update script
-            $FOGLAMP_ROOT/scripts/plugins/storage/postgres/schema_update.sh "${CURR_VERR}" "${NEW_VERSION}" "${PG_SQL}"
+            $FLEDGE_ROOT/scripts/plugins/storage/postgres/schema_update.sh "${CURR_VERR}" "${NEW_VERSION}" "${PG_SQL}"
             update_code=$?
             return ${update_code}
         else
             # Just log up-to-date
-            postgres_log "info" "FogLAMP DB schema is up to date to version [${CURR_VERR}]" "logonly" "pretty"
+            postgres_log "info" "Fledge DB schema is up to date to version [${CURR_VERR}]" "logonly" "pretty"
             return 0
         fi
     fi
@@ -359,7 +359,7 @@ pg_help() {
 
     echo "${USAGE}
 PostgreSQL Storage Layer plugin init script. 
-The script is used to control the PostgreSQL plugin as database for FogLAMP
+The script is used to control the PostgreSQL plugin as database for Fledge
 Arguments:
  start   - Start the database server (when managed)
            If the server has not been initialized, it also initialize it
@@ -370,8 +370,8 @@ Arguments:
            WARNING: all the data stored in the server will be lost!
  help    - This text
 
- managed   - The database server is embedded in FogLAMP
- unmanaged - The database server is not embedded in FogLAMP"
+ managed   - The database server is embedded in Fledge
+ unmanaged - The database server is not embedded in Fledge"
 
 }
 
@@ -380,20 +380,20 @@ Arguments:
 ### Main Logic ###
 ##################
 
-# Set FOGLAMP_DATA if it does not exist
-if [ -z ${FOGLAMP_DATA+x} ]; then
-    FOGLAMP_DATA="${FOGLAMP_ROOT}/data"
+# Set FLEDGE_DATA if it does not exist
+if [ -z ${FLEDGE_DATA+x} ]; then
+    FLEDGE_DATA="${FLEDGE_ROOT}/data"
 fi
 
-# Check if $FOGLAMP_DATA exists
-if [[ ! -d ${FOGLAMP_DATA} ]]; then
-    postgres_log "err" "FogLAMP cannot be executed: ${FOGLAMP_DATA} is not a valid directory." "all" "pretty"
+# Check if $FLEDGE_DATA exists
+if [[ ! -d ${FLEDGE_DATA} ]]; then
+    postgres_log "err" "Fledge cannot be executed: ${FLEDGE_DATA} is not a valid directory." "all" "pretty"
     exit 1
 fi
 
 # Extract plugin
 engine_management=`get_engine_management $PLUGIN`
-# Settings if the database is managed by FogLAMP
+# Settings if the database is managed by Fledge
 case "$engine_management" in
     "true")
 
@@ -405,12 +405,12 @@ case "$engine_management" in
             export PGHOST
         fi
 
-        PG_DIR="${FOGLAMP_DATA}/storage/postgres/pgsql"
+        PG_DIR="${FLEDGE_DATA}/storage/postgres/pgsql"
         PG_DATA="${PG_DIR}/data"
         PG_LOG="${PG_DIR}/logger"
 
         # Check if pg_ctl is present in the expected path
-        PG_CTL="$FOGLAMP_ROOT/plugins/storage/postgres/pgsql/bin/pg_ctl"
+        PG_CTL="$FLEDGE_ROOT/plugins/storage/postgres/pgsql/bin/pg_ctl"
         PG_CTL_COMMAND="$PG_CTL -w -D $PG_DATA -l $PG_LOG"
         if ! [[ -x "${PG_CTL}" ]]; then
             postgres_log "err" "PostgreSQL program pg_ctl not found: the database server cannot be managed." "all" "pretty"
@@ -418,7 +418,7 @@ case "$engine_management" in
         fi
 
         # Check if psql is present in the expected path
-        PG_SQL="$FOGLAMP_ROOT/plugins/storage/postgres/pgsql/bin/psql"
+        PG_SQL="$FLEDGE_ROOT/plugins/storage/postgres/pgsql/bin/psql"
         if ! [[ -x "${PG_SQL}" ]]; then
             postgres_log "err" "PostgreSQL program psql not found: the database server cannot be managed." "all" "pretty"
             exit 1
@@ -448,7 +448,7 @@ case "$engine_management" in
     *)
 
         # Unexpected value from the configuration file
-        postgres_log "err" "FogLAMP cannot start." "all" "pretty"
+        postgres_log "err" "Fledge cannot start." "all" "pretty"
         postgres_log "err" "Missing plugin information from the storage microservice" "all" "pretty"
         exit 1
         ;;
@@ -457,12 +457,12 @@ esac
 
 # Check if the init.sql file exists
 # Attempt 1: deployment path
-if [[ -e "$FOGLAMP_ROOT/plugins/storage/postgres/init.sql" ]]; then
-    INIT_SQL="$FOGLAMP_ROOT/plugins/storage/postgres/init.sql"
+if [[ -e "$FLEDGE_ROOT/plugins/storage/postgres/init.sql" ]]; then
+    INIT_SQL="$FLEDGE_ROOT/plugins/storage/postgres/init.sql"
 else
     # Attempt 2: development path
-    if [[ -e "$FOGLAMP_ROOT/scripts/plugins/storage/postgres/init.sql" ]]; then
-        INIT_SQL="$FOGLAMP_ROOT/scripts/plugins/storage/postgres/init.sql"
+    if [[ -e "$FLEDGE_ROOT/scripts/plugins/storage/postgres/init.sql" ]]; then
+        INIT_SQL="$FLEDGE_ROOT/scripts/plugins/storage/postgres/init.sql"
     else
         postgres_log "err" "Missing initialization file init.sql." "all" "pretty"
         exit 1

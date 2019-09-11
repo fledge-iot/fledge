@@ -1,7 +1,7 @@
 #ifndef _AGGREGRATE_H
 #define _AGGREGRATE_H
 /*
- * FogLAMP storage client.
+ * Fledge storage client.
  *
  * Copyright (c) 2018 OSisoft, LLC
  *

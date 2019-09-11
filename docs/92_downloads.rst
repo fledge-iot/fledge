@@ -10,22 +10,22 @@
 
 .. Links in new tabs
 
-.. |foglamp repo| raw:: html
+.. |fledge repo| raw:: html
 
-   <a href="https://github.com/foglamp/FogLAMP" target="_blank">https://github.com/foglamp/FogLAMP</a>
+   <a href="https://github.com/fledge/Fledge" target="_blank">https://github.com/fledge/Fledge</a>
 
-.. |foglamp prj| raw:: html
+.. |fledge prj| raw:: html
 
-   <a href="https://github.com/foglamp" target="_blank">https://github.com/foglamp</a>
+   <a href="https://github.com/fledge" target="_blank">https://github.com/fledge</a>
 
-.. |foglamp gui| raw:: html
+.. |fledge gui| raw:: html
 
-   <a href="https://github.com/foglamp/foglamp-gui" target="_blank">https://github.com/foglamp/foglamp-gui</a>
+   <a href="https://github.com/fledge/fledge-gui" target="_blank">https://github.com/fledge/fledge-gui</a>
 
 
-.. |postgres for foglamp| raw:: html
+.. |postgres for fledge| raw:: html
 
-   <a href="https://github.com/foglamp/storage-postgres" target="_blank">https://github.com/foglamp/storage-postgres</a>
+   <a href="https://github.com/fledge/storage-postgres" target="_blank">https://github.com/fledge/storage-postgres</a>
 
 .. |downloads| raw:: html
 
@@ -51,9 +51,9 @@ Debian packages for both Intel and Arm architectures are available via the Diano
 Download/Clone from GitHub
 ==========================
 
-FogLAMP and the FogLAMP tools are on GitHub. You can view and download them here:
+Fledge and the Fledge tools are on GitHub. You can view and download them here:
 
-- **FogLAMP**: This is the main project for the FogLAMP platform. |br| |foglamp repo|
-- **FogLAMP GUI**: This is an experimental GUI that connects to the FogLAMP REST API to configure and administer the platform and to retrieve the data buffered in it. |br| |foglamp gui|
+- **Fledge**: This is the main project for the Fledge platform. |br| |fledge repo|
+- **Fledge GUI**: This is an experimental GUI that connects to the Fledge REST API to configure and administer the platform and to retrieve the data buffered in it. |br| |fledge gui|
  
-There are many south, north, and filter plugins available on github: |br| |foglamp prj|
+There are many south, north, and filter plugins available on github: |br| |fledge prj|

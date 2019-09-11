@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# FogLAMP documentation build configuration file, created by
+# Fledge documentation build configuration file, created by
 # sphinx-quickstart on Fri Sep 22 02:34:49 2017.
 #
 # This file is execfile()d with the current directory set to its
@@ -45,7 +45,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'FogLAMP'
+project = u'Fledge'
 copyright = u'2018, Dianomic Systems'
 author = u'Dianomic Systems'
 
@@ -114,7 +114,7 @@ html_sidebars = {
 # -- Options for HTMLHelp output ------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'FogLAMPdoc'
+htmlhelp_basename = 'Fledgedoc'
 
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -141,7 +141,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'FogLAMP.tex', u'FogLAMP Documentation',
+    (master_doc, 'Fledge.tex', u'Fledge Documentation',
      u'Dianomic Systems', 'manual'),
 ]
 
@@ -151,7 +151,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'foglamp', u'FogLAMP Documentation',
+    (master_doc, 'fledge', u'Fledge Documentation',
      [author], 1)
 ]
 
@@ -162,8 +162,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'FogLAMP', u'FogLAMP Documentation',
-     author, 'FogLAMP', 'One line description of project.',
+    (master_doc, 'Fledge', u'Fledge Documentation',
+     author, 'Fledge', 'One line description of project.',
      'Miscellaneous'),
 ]
 

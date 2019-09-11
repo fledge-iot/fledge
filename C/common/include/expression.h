@@ -1,7 +1,7 @@
 #ifndef _EXPRESSION_H
 #define _EXPRESSION_H
 /*
- * FogLAMP storage client.
+ * Fledge storage client.
  *
  * Copyright (c) 2018 OSisoft, LLC
  *

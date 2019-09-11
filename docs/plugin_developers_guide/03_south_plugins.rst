@@ -1,4 +1,4 @@
-.. Writing and Using Plugins describes how to implement a plugin for FogLAMP and how to use it
+.. Writing and Using Plugins describes how to implement a plugin for Fledge and how to use it
 .. https://docs.google.com/document/d/1IKGXLWbyN6a7vx8UO3uDbq5Df0VvE4oCQIULgZVZbjM
 
 .. |br| raw:: html
@@ -92,7 +92,7 @@ In asyncio mode the plugin inserts itself into the event processing loop of the 
 Plugin Start
 ~~~~~~~~~~~~
 
-The *plugin_start* method, as with other plugin calls, is called with the plugin handle data that was returned from the *plugin_init* call. The *plugin_start* call will only be called once for a plugin, it is the responsibility of *plugin_start* to install the plugin code into the python event handling system for asyncIO. Assuming an example whereby the interface to a sensor is via HTTP and the sensor will make HTTP POST calls to our plugin in order to send data into FogLAMP, a *plugin_start* for this scenario would create a web application endpoint for reception of the POST command.
+The *plugin_start* method, as with other plugin calls, is called with the plugin handle data that was returned from the *plugin_init* call. The *plugin_start* call will only be called once for a plugin, it is the responsibility of *plugin_start* to install the plugin code into the python event handling system for asyncIO. Assuming an example whereby the interface to a sensor is via HTTP and the sensor will make HTTP POST calls to our plugin in order to send data into Fledge, a *plugin_start* for this scenario would create a web application endpoint for reception of the POST command.
 
 .. code-block:: python
 
@@ -109,7 +109,7 @@ This code first gets the event loop for this Python execution, it then creates t
 Async Handler
 ~~~~~~~~~~~~~
 
-The async handler is defined for incoming message has the responsibility of taking the sensor data and ingesting that into FogLAMP. Unlike the poll mechanism, this is done from within the handler rather than by passing the data back to the South service itself. A convenient method exists for ingesting readings, *Ingest.add_readings*. This call is passed an asset, timestamp, key and readings document for the asset and will do everything else required to make sure the readings are stored in the FogLAMP buffer. |br| In the case of our HTTP based example above, the code would create the items needed to generate the arguments to the *Ingest.add_readings* call, by creating data items and retrieving them from the payload sent by the sensor.
+The async handler is defined for incoming message has the responsibility of taking the sensor data and ingesting that into Fledge. Unlike the poll mechanism, this is done from within the handler rather than by passing the data back to the South service itself. A convenient method exists for ingesting readings, *Ingest.add_readings*. This call is passed an asset, timestamp, key and readings document for the asset and will do everything else required to make sure the readings are stored in the Fledge buffer. |br| In the case of our HTTP based example above, the code would create the items needed to generate the arguments to the *Ingest.add_readings* call, by creating data items and retrieving them from the payload sent by the sensor.
 
 .. code-block:: python
 

@@ -1,7 +1,7 @@
 #ifndef _FILTER_PIPELINE_H
 #define _FILTER_PIPELINE_H
 /*
- * FogLAMP filter pipeline class.
+ * Fledge filter pipeline class.
  *
  * Copyright (c) 2018 Dianomic Systems
  *

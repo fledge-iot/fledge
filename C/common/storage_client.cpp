@@ -1,5 +1,5 @@
 /*
- * FogLAMP storage service client
+ * Fledge storage service client
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -201,7 +201,7 @@ ResultSet *StorageClient::readingQuery(const Query& query)
 
 /**
  * Retrieve a set of readings for sending on the northbound
- * interface of FogLAMP
+ * interface of Fledge
  *
  * @param readingId	The ID of the reading which should be the first one to send
  * @param count		Maximum number if readings to return

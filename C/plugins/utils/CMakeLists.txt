@@ -15,5 +15,5 @@ target_link_libraries(${PROJECT_NAME} -ldl)
 add_executable(cmdutil cmdutil.cpp)
 
 # Install library
-install(TARGETS ${PROJECT_NAME} DESTINATION foglamp/extras/C)
-install(TARGETS cmdutil DESTINATION foglamp/extras/C)
+install(TARGETS ${PROJECT_NAME} DESTINATION fledge/extras/C)
+install(TARGETS cmdutil DESTINATION fledge/extras/C)

@@ -3,9 +3,9 @@
 ############################################################
 # Run with --help for description.
 #
-# FOGLAMP_BEGIN
-# See: http://foglamp.readthedocs.io/
-# FOGLAMP_END
+# FLEDGE_BEGIN
+# See: http://fledge.readthedocs.io/
+# FLEDGE_END
 ############################################################
 
 __author__="${FULL_NAME}"

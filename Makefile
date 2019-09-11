@@ -29,7 +29,7 @@ RM_FILE := rm
 MAKE_INSTALL = $(MAKE) install
 CP            := cp
 CP_DIR        := cp -r
-SSL_NAME      := "foglamp"
+SSL_NAME      := "fledge"
 AUTH_NAME     := "ca"
 SSL_DAYS      := "365"
 
@@ -46,15 +46,15 @@ CMAKE_BUILD_DIR          := cmake_build
 CMAKE_GEN_MAKEFILE       := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/Makefile
 CMAKE_SERVICES_DIR       := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/services
 CMAKE_TASKS_DIR          := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/tasks
-CMAKE_STORAGE_BINARY     := $(CMAKE_SERVICES_DIR)/storage/foglamp.services.storage
-CMAKE_SOUTH_BINARY       := $(CMAKE_SERVICES_DIR)/south/foglamp.services.south
+CMAKE_STORAGE_BINARY     := $(CMAKE_SERVICES_DIR)/storage/fledge.services.storage
+CMAKE_SOUTH_BINARY       := $(CMAKE_SERVICES_DIR)/south/fledge.services.south
 CMAKE_NORTH_BINARY       := $(CMAKE_TASKS_DIR)/north/sending_process/sending_process
 CMAKE_PLUGINS_DIR        := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/plugins
 DEV_SERVICES_DIR         := $(CURRENT_DIR)/services
 DEV_TASKS_DIR            := $(CURRENT_DIR)/tasks
 SYMLINK_PLUGINS_DIR      := $(CURRENT_DIR)/plugins
-SYMLINK_STORAGE_BINARY   := $(DEV_SERVICES_DIR)/foglamp.services.storage
-SYMLINK_SOUTH_BINARY     := $(DEV_SERVICES_DIR)/foglamp.services.south
+SYMLINK_STORAGE_BINARY   := $(DEV_SERVICES_DIR)/fledge.services.storage
+SYMLINK_SOUTH_BINARY     := $(DEV_SERVICES_DIR)/fledge.services.south
 SYMLINK_NORTH_BINARY     := $(DEV_TASKS_DIR)/sending_process
 ASYNC_INGEST_PYMODULE    := $(CURRENT_DIR)/python/async_ingest.so*
 FILTER_INGEST_PYMODULE    := $(CURRENT_DIR)/python/filter_ingest.so*
@@ -70,7 +70,7 @@ PYTHON_SETUP_FILE := $(PYTHON_SRC_DIR)/setup.py
 DATA_SRC_DIR := data
 
 # INSTALL DIRS
-INSTALL_DIR=$(DESTDIR)/usr/local/foglamp
+INSTALL_DIR=$(DESTDIR)/usr/local/fledge
 PYTHON_INSTALL_DIR=$(INSTALL_DIR)/python
 SCRIPTS_INSTALL_DIR=$(INSTALL_DIR)/scripts
 BIN_INSTALL_DIR=$(INSTALL_DIR)/bin
@@ -89,12 +89,12 @@ SQLITE_SCHEMA_UPDATE_DIR := $(SCRIPTS_INSTALL_DIR)/plugins/storage/sqlite
 
 # SCRIPTS TO INSTALL IN BIN DIR
 FOGBENCH_SCRIPT_SRC        := scripts/extras/fogbench
-FOGLAMP_SCRIPT_SRC         := scripts/foglamp
-FOGLAMP_UPDATE_SRC         := scripts/extras/foglamp_update
+FLEDGE_SCRIPT_SRC         := scripts/fledge
+FLEDGE_UPDATE_SRC         := scripts/extras/fledge_update
 UPDATE_TASK_APT_SRC        := scripts/extras/update_task.apt
 UPDATE_TASK_SNAPPY_SRC     := scripts/extras/update_task.snappy
-SUDOERS_SRC                := scripts/extras/foglamp.sudoers
-SUDOERS_SRC_RH             := scripts/extras/foglamp.sudoers_rh
+SUDOERS_SRC                := scripts/extras/fledge.sudoers
+SUDOERS_SRC_RH             := scripts/extras/fledge.sudoers_rh
 
 # SCRIPTS TO INSTALL IN SCRIPTS DIR
 COMMON_SCRIPTS_SRC          := scripts/common
@@ -117,7 +117,7 @@ AUTH_CERTIFICATES_SCRIPT_SRC := scripts/auth_certificates
 PACKAGE_UPDATE_SCRIPT_SRC   := scripts/package
 
 # Custom location of SQLite3 library
-FOGLAMP_HAS_SQLITE3_PATH    := /tmp/foglamp-sqlite3-pkg/src
+FLEDGE_HAS_SQLITE3_PATH    := /tmp/fledge-sqlite3-pkg/src
 
 # EXTRA SCRIPTS
 EXTRAS_SCRIPTS_SRC_DIR      := extras/scripts
@@ -125,14 +125,14 @@ EXTRAS_SCRIPTS_SRC_DIR      := extras/scripts
 # FOGBENCH
 FOGBENCH_PYTHON_SRC_DIR     := extras/python/fogbench
 
-# FogLAMP Version file
-FOGLAMP_VERSION_FILE        := VERSION
+# Fledge Version file
+FLEDGE_VERSION_FILE        := VERSION
 
 ###############################################################################
 ################################### OTHER VARS ################################
 ###############################################################################
 # ETC
-PACKAGE_NAME=FogLAMP
+PACKAGE_NAME=Fledge
 
 ###############################################################################
 ############################ PRIMARY TARGETS ##################################
@@ -146,18 +146,18 @@ default : apply_version \
 	python_build python_requirements_user
 
 apply_version :
-# VERSION : this file contains FogLAMP app version and FogLAMP DB schema revision
+# VERSION : this file contains Fledge app version and Fledge DB schema revision
 #
 # Example:
-# foglamp_version=1.2
-# foglamp_schema=3
+# fledge_version=1.2
+# fledge_schema=3
 #
 # Note: variable names are case insensitive, all spaces are removed
-# Get variables and export FOGLAMP_VERSION and FOGLAMP_SCHEMA
-	$(eval FOGLAMP_VERSION := $(shell cat $(FOGLAMP_VERSION_FILE) | tr -d ' ' | grep -i "FOGLAMP_VERSION=" | sed -e 's/\(.*\)=\(.*\)/\2/g'))
-	$(eval FOGLAMP_SCHEMA := $(shell cat $(FOGLAMP_VERSION_FILE) | tr -d ' ' | grep -i "FOGLAMP_SCHEMA=" | sed -e 's/\(.*\)=\(.*\)/\2/g'))
-	$(if $(FOGLAMP_VERSION),$(eval FOGLAMP_VERSION=$(FOGLAMP_VERSION)),$(error FOGLAMP_VERSION is not set, check VERSION file))
-	$(if $(FOGLAMP_SCHEMA),$(eval FOGLAMP_SCHEMA=$(FOGLAMP_SCHEMA)),$(error FOGLAMP_SCHEMA is not set, check VERSION file))
+# Get variables and export FLEDGE_VERSION and FLEDGE_SCHEMA
+	$(eval FLEDGE_VERSION := $(shell cat $(FLEDGE_VERSION_FILE) | tr -d ' ' | grep -i "FLEDGE_VERSION=" | sed -e 's/\(.*\)=\(.*\)/\2/g'))
+	$(eval FLEDGE_SCHEMA := $(shell cat $(FLEDGE_VERSION_FILE) | tr -d ' ' | grep -i "FLEDGE_SCHEMA=" | sed -e 's/\(.*\)=\(.*\)/\2/g'))
+	$(if $(FLEDGE_VERSION),$(eval FLEDGE_VERSION=$(FLEDGE_VERSION)),$(error FLEDGE_VERSION is not set, check VERSION file))
+	$(if $(FLEDGE_SCHEMA),$(eval FLEDGE_SCHEMA=$(FLEDGE_SCHEMA)),$(error FLEDGE_SCHEMA is not set, check VERSION file))
 
 # Print build or install message based on MAKECMDGOALS var
 ifeq ($(MAKECMDGOALS),install)
@@ -165,7 +165,7 @@ ifeq ($(MAKECMDGOALS),install)
 else
 	$(eval ACTION="Building")
 endif
-	@echo "$(ACTION) $(PACKAGE_NAME) version $(FOGLAMP_VERSION), DB schema $(FOGLAMP_SCHEMA)"
+	@echo "$(ACTION) $(PACKAGE_NAME) version $(FLEDGE_VERSION), DB schema $(FLEDGE_SCHEMA)"
 
 # Use cache for python requirements depending on the value of USE_PIP_CACHE
 ifeq ($(USE_PIP_CACHE), yes)
@@ -174,32 +174,32 @@ else
     $(eval NO_CACHE_DIR= --no-cache-dir)
 endif
 
-# Check where this FogLAMP can be installed over an existing one:
+# Check where this Fledge can be installed over an existing one:
 schema_check : apply_version
 ###
-# Call check_schema_update.sh (param 1 is installed FogLAMP VERSION file path, param2 is the new VERSION file path)
+# Call check_schema_update.sh (param 1 is installed Fledge VERSION file path, param2 is the new VERSION file path)
 # and grab it's output
 # Note: DATA_INSTALL_DIR is passed to the called script via export
 ###
-	@$(eval SCHEMA_CHANGE_OUTPUT=$(shell export DATA_INSTALL_DIR=$(DATA_INSTALL_DIR); scripts/common/check_schema_update.sh "$(INSTALL_DIR)/${FOGLAMP_VERSION_FILE}" "${FOGLAMP_VERSION_FILE}"))
+	@$(eval SCHEMA_CHANGE_OUTPUT=$(shell export DATA_INSTALL_DIR=$(DATA_INSTALL_DIR); scripts/common/check_schema_update.sh "$(INSTALL_DIR)/${FLEDGE_VERSION_FILE}" "${FLEDGE_VERSION_FILE}"))
 
 # Check for "error" "warning"
 	@$(eval SCHEMA_CHANGE_ERROR=$(shell echo $(SCHEMA_CHANGE_OUTPUT) | grep -i error))
 	@$(eval SCHEMA_CHANGE_WARNING=$(shell echo $(SCHEMA_CHANGE_OUTPUT) | grep -i warning))
 
 # Abort, print warning or info message
-	$(if $(SCHEMA_CHANGE_ERROR),$(error FogLAMP DB schema cannot be performed as pre-install task: $(SCHEMA_CHANGE_ERROR)),)
-	$(if $(SCHEMA_CHANGE_WARNING),$(warning $(SCHEMA_CHANGE_WARNING)),$(info -- FogLAMP DB schema check OK: $(SCHEMA_CHANGE_OUTPUT)))
+	$(if $(SCHEMA_CHANGE_ERROR),$(error Fledge DB schema cannot be performed as pre-install task: $(SCHEMA_CHANGE_ERROR)),)
+	$(if $(SCHEMA_CHANGE_WARNING),$(warning $(SCHEMA_CHANGE_WARNING)),$(info -- Fledge DB schema check OK: $(SCHEMA_CHANGE_OUTPUT)))
 
 #
 # install
-# Creates a deployment structure in the default destination, /usr/local/foglamp
+# Creates a deployment structure in the default destination, /usr/local/fledge
 # Destination may be overridden by use of the DESTDIR=<location> directive
 # This first does a make to build anything needed for the installation.
 install : $(INSTALL_DIR) \
     generate_selfcertificate \
 	schema_check \
-	foglamp_version_file_install \
+	fledge_version_file_install \
 	c_install \
 	python_install \
 	python_requirements \
@@ -225,9 +225,9 @@ c_build : $(CMAKE_GEN_MAKEFILE)
 	$(CD) $(CMAKE_BUILD_DIR) ; $(MAKE)
 # Local copy of sqlite3 command line tool if needed
 # Copy the cmd line tool into sqlite plugin dir
-ifneq ("$(wildcard $(FOGLAMP_HAS_SQLITE3_PATH))","")
-	$(info  SQLite3 package has been found in $(FOGLAMP_HAS_SQLITE3_PATH))
-	$(CP) $(FOGLAMP_HAS_SQLITE3_PATH)/sqlite3 $(CMAKE_PLUGINS_DIR)/storage/sqlite/
+ifneq ("$(wildcard $(FLEDGE_HAS_SQLITE3_PATH))","")
+	$(info  SQLite3 package has been found in $(FLEDGE_HAS_SQLITE3_PATH))
+	$(CP) $(FLEDGE_HAS_SQLITE3_PATH)/sqlite3 $(CMAKE_PLUGINS_DIR)/storage/sqlite/
 endif
 
 # run cmake to generate makefiles
@@ -292,9 +292,9 @@ $(PYTHON_INSTALL_DIR) :
 python_install : python_build $(PYTHON_INSTALL_DIR)
 	$(CP_DIR) $(PYTHON_LIB_DIR)/* $(PYTHON_INSTALL_DIR)
 
-# copy FogLAMP version info file into install dir
-foglamp_version_file_install :
-	$(CP) $(FOGLAMP_VERSION_FILE) $(INSTALL_DIR)
+# copy Fledge version info file into install dir
+fledge_version_file_install :
+	$(CP) $(FLEDGE_VERSION_FILE) $(INSTALL_DIR)
 
 ###############################################################################
 ###################### SCRIPTS INSTALL TARGETS ################################
@@ -418,10 +418,10 @@ $(SQLITE_SCHEMA_UPDATE_DIR) :
 ########################## BIN INSTALL TARGETS ################################
 ###############################################################################
 # install bin
-bin_install : $(BIN_INSTALL_DIR) $(FOGBENCH_SCRIPT_SRC) $(FOGLAMP_SCRIPT_SRC)
+bin_install : $(BIN_INSTALL_DIR) $(FOGBENCH_SCRIPT_SRC) $(FLEDGE_SCRIPT_SRC)
 	$(CP) $(FOGBENCH_SCRIPT_SRC) $(BIN_INSTALL_DIR)
-	$(CP) $(FOGLAMP_SCRIPT_SRC) $(BIN_INSTALL_DIR)
-	$(CP) $(FOGLAMP_UPDATE_SRC) $(BIN_INSTALL_DIR)
+	$(CP) $(FLEDGE_SCRIPT_SRC) $(BIN_INSTALL_DIR)
+	$(CP) $(FLEDGE_UPDATE_SRC) $(BIN_INSTALL_DIR)
 	$(CP) $(UPDATE_TASK_APT_SRC) $(BIN_INSTALL_DIR)
 	$(CP) $(UPDATE_TASK_SNAPPY_SRC) $(BIN_INSTALL_DIR)
 ifneq ("$(PLATFORM_RH)","")
@@ -449,8 +449,8 @@ $(FOGBENCH_PYTHON_INSTALL_DIR) :
 install_extras_scripts : $(EXTRAS_INSTALL_DIR) $(EXTRAS_SCRIPTS_SRC_DIR)
 	$(CP_DIR) $(EXTRAS_SCRIPTS_SRC_DIR) $(EXTRAS_INSTALL_DIR)
 
-	sed -i "s|export FOGLAMP_ROOT=.*|export FOGLAMP_ROOT=\"$(INSTALL_DIR)\"|" $(EXTRAS_INSTALL_DIR)/scripts/setenv.sh
-	sed -i "s|^FOGLAMP_ROOT=.*|FOGLAMP_ROOT=\"$(INSTALL_DIR)\"|" $(EXTRAS_INSTALL_DIR)/scripts/foglamp.service
+	sed -i "s|export FLEDGE_ROOT=.*|export FLEDGE_ROOT=\"$(INSTALL_DIR)\"|" $(EXTRAS_INSTALL_DIR)/scripts/setenv.sh
+	sed -i "s|^FLEDGE_ROOT=.*|FLEDGE_ROOT=\"$(INSTALL_DIR)\"|" $(EXTRAS_INSTALL_DIR)/scripts/fledge.service
 
 # create extras install dir
 $(EXTRAS_INSTALL_DIR) :
@@ -465,7 +465,7 @@ data_install : $(DATA_INSTALL_DIR) install_data
 install_data : $(DATA_INSTALL_DIR) $(DATA_SRC_DIR)
 	$(CP_DIR) $(DATA_SRC_DIR) $(INSTALL_DIR)
 
-# data and etc directories, should be owned by the user running foglamp
+# data and etc directories, should be owned by the user running fledge
 # If install is executed with sudo and the sudo user is root, the data and etc
 # directories must be set to be owned by the calling user.
 ifdef SUDO_USER

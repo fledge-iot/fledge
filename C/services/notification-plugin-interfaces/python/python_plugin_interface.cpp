@@ -1,5 +1,5 @@
 /*
- * FogLAMP south plugin interface related
+ * Fledge south plugin interface related
  *
  * Copyright (c) 2019 Dianomic Systems
  *
@@ -17,7 +17,7 @@
 
 #include <python_plugin_common_interface.h>
 
-#define SHIM_SCRIPT_REL_PATH  "/python/foglamp/plugins/common/shim/"
+#define SHIM_SCRIPT_REL_PATH  "/python/fledge/plugins/common/shim/"
 #define SHIM_SCRIPT_NAME "notification_shim"
 
 using namespace std;
@@ -62,10 +62,10 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 {
 	// Set plugin name for common-plugin-interfaces/python
 	gPluginName = pluginName;
-	// Get FOGLAMP_ROOT dir
-	string foglampRootDir(getenv("FOGLAMP_ROOT"));
+	// Get FLEDGE_ROOT dir
+	string fledgeRootDir(getenv("FLEDGE_ROOT"));
 
-	string path = foglampRootDir + SHIM_SCRIPT_REL_PATH;
+	string path = fledgeRootDir + SHIM_SCRIPT_REL_PATH;
 	string name(SHIM_SCRIPT_NAME);
 
 	// Python 3.5  script name
@@ -78,7 +78,7 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 	Py_SetProgramName(programName);
 	PyMem_RawFree(programName);
 
-	string foglampPythonDir = foglampRootDir + "/python";
+	string fledgePythonDir = fledgeRootDir + "/python";
 
 	// Embedded Python 3.5 initialisation
 	if (!Py_IsInitialized())
@@ -92,19 +92,19 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 
 	Logger::getLogger()->info("NotificationPlugin PythonInterface %s:%d: "
 				  "shimLayerPath=%s, shimFile=%s, "
-				  "foglampPythonDir=%s, plugin '%s",
+				  "fledgePythonDir=%s, plugin '%s",
 				   __FUNCTION__,
 				   __LINE__,
 				   shimLayerPath.c_str(),
 				   name.c_str(),
-				   foglampPythonDir.c_str(),
+				   fledgePythonDir.c_str(),
 				   gPluginName.c_str());
 
 	// Set Python path for embedded Python 3.5
 	// Get current sys.path - borrowed reference
 	PyObject* sysPath = PySys_GetObject((char *)"path");
 	PyList_Append(sysPath, PyUnicode_FromString((char *) shimLayerPath.c_str()));
-	PyList_Append(sysPath, PyUnicode_FromString((char *) foglampPythonDir.c_str()));
+	PyList_Append(sysPath, PyUnicode_FromString((char *) fledgePythonDir.c_str()));
 
 	// Set sys.argv for embedded Python 3.5
 	int argc = 3;
@@ -220,7 +220,7 @@ void* PluginInterfaceResolveSymbol(const char *_sym)
  * Invoke 'plugin_triggers' function in notification rule python plugin
  *
  * Returned JSON data will be used for notification data subscription
- * to FogLAMP storage service
+ * to Fledge storage service
  *
  * @param    handle	The plugin handle from plugin_init_fn
  * @return		JSON string with array of

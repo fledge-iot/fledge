@@ -2,7 +2,7 @@
 #define _STATISTICS_HISTORY_H
 
 /*
- * FogLAMP Statistics History
+ * Fledge Statistics History
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -17,7 +17,7 @@
 /**
  * StatisticsHisotry class
  */
-class StatsHistory : public FogLampProcess
+class StatsHistory : public FledgeProcess
 {
 	public:
 		// Constructor:

@@ -1,11 +1,11 @@
--- FogLAMP expects to have foglamp.readings.user_ts in a precise fixed format
--- the upgrade updates the contents of the foglamp.readings table
+-- Fledge expects to have fledge.readings.user_ts in a precise fixed format
+-- the upgrade updates the contents of the fledge.readings table
 -- to the handled format
 
 -- Backup readings data
-DROP TABLE IF EXISTS foglamp.readings_backup;
+DROP TABLE IF EXISTS fledge.readings_backup;
 
-CREATE TABLE foglamp.readings_backup (
+CREATE TABLE fledge.readings_backup (
     id         INTEGER                     PRIMARY KEY AUTOINCREMENT,
     asset_code character varying(50)       NOT NULL,                         -- The provided asset code. Not necessarily located in the
                                                                              -- assets table.
@@ -15,12 +15,12 @@ CREATE TABLE foglamp.readings_backup (
     ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW'))       -- UTC time
 );
 
-INSERT INTO foglamp.readings_backup
+INSERT INTO fledge.readings_backup
           (id, asset_code, read_key, reading, user_ts, ts)
-    SELECT id, asset_code, read_key, reading, user_ts, ts FROM foglamp.readings;
+    SELECT id, asset_code, read_key, reading, user_ts, ts FROM fledge.readings;
 
 -- Apply user_ts changes
-UPDATE foglamp.readings
+UPDATE fledge.readings
   SET user_ts =
     CASE instr(user_ts,'.') -- Checks for the presence of sub-seconds
         WHEN 0  THEN

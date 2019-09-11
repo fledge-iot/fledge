@@ -1,5 +1,5 @@
 /*
- * FogLAMP readings ingest.
+ * Fledge readings ingest.
  *
  * Copyright (c) 2018 OSisoft, LLC
  *
@@ -47,11 +47,11 @@ static void statsThread(Ingest *ingest)
  */
 int Ingest::createStatsDbEntry(const string& assetName)
 {
-	// Prepare foglamp.statistics update
+	// Prepare fledge.statistics update
 	string statistics_key = assetName;
 	for (auto & c: statistics_key) c = toupper(c);
 	
-	// SELECT * FROM foglamp.configuration WHERE key = categoryName
+	// SELECT * FROM fledge.configuration WHERE key = categoryName
 	const Condition conditionKey(Equals);
 	Where *wKey = new Where("key", conditionKey, statistics_key);
 	Query qKey(wKey);
@@ -121,7 +121,7 @@ void Ingest::updateStats()
 		
 		if (it->second)
 			{
-			// Prepare foglamp.statistics update
+			// Prepare fledge.statistics update
 			key = it->first;
 			for (auto & c: key) c = toupper(c);
 

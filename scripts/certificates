@@ -23,7 +23,7 @@
 # The first implementation is to create a new self-signed SSL Certificate
 #
 # USAGE: this command will ask for the certificate name and number in days it will expire
-# $ ./certificates foglamp 365
+# $ ./certificates fledge 365
 #
 # Create a certificate key.
 # Create the certificate signing request (CSR) which contains details such as the domain name and address details.
@@ -107,7 +107,7 @@ fi
 
 # Email
 if [ -z ${6+x} ]; then
-  SSL_EMAIL="foglamp@googlegroups.com"
+  SSL_EMAIL="fledge@googlegroups.com"
 else
   SSL_EMAIL="$6"
 fi
@@ -127,9 +127,9 @@ certificate_log "info"  "Creating a self signed SSL certificate ..." "outonly" "
 # Add more info /C=$country/ST=$state/L=$locality/O=$organization/OU=$organizational_unit/CN=$common_name/emailAddress=$email
 SUBJ="/C=${SSL_COUNTRY}/ST=${SSL_STATE}/O=${SSL_ORGANIZATION}/CN=${SSL_NAME}/emailAddress=${SSL_EMAIL}"
 
-openssl genpkey -out "${SSL_LOCATION}/foglamp.pass.key" -pass pass:foglamp -algorithm RSA 2> /dev/null
-openssl rsa -passin pass:foglamp -in "${SSL_LOCATION}/foglamp.pass.key" -out "${SSL_LOCATION}/${SSL_NAME}.key" 2> /dev/null
-rm "${SSL_LOCATION}/foglamp.pass.key"
+openssl genpkey -out "${SSL_LOCATION}/fledge.pass.key" -pass pass:fledge -algorithm RSA 2> /dev/null
+openssl rsa -passin pass:fledge -in "${SSL_LOCATION}/fledge.pass.key" -out "${SSL_LOCATION}/${SSL_NAME}.key" 2> /dev/null
+rm "${SSL_LOCATION}/fledge.pass.key"
 openssl req -new -key "${SSL_LOCATION}/${SSL_NAME}.key" -subj "${SUBJ}" -out "${SSL_LOCATION}/${SSL_NAME}.csr" 2> /dev/null
 openssl x509 -req -sha256 -days "${SSL_EXPIRATION_DAYS}" -in "${SSL_LOCATION}/${SSL_NAME}.csr" -signkey "${SSL_LOCATION}/${SSL_NAME}.key" -out "${SSL_LOCATION}/${SSL_NAME}.cert" 2> /dev/null
 

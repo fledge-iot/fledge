@@ -1,7 +1,7 @@
 #ifndef _VALUE_H
 #define _VALUE_H
 /*
- * FogLAMP storage client.
+ * Fledge storage client.
  *
  * Copyright (c) 2018 OSisoft, LLC
  *

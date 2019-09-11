@@ -23,7 +23,7 @@
 
 set -e
 
-foglamp_location=`pwd`
+fledge_location=`pwd`
 os_name=`(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
 os_version=`(grep -o '^VERSION_ID=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
 echo "Platform is ${os_name}, Version: ${os_version}"
@@ -52,15 +52,15 @@ if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *
 	service rsyslog start
 
 # SQLite3 need to be compiled on CentOS|RHEL
-	if [ -d /tmp/foglamp-sqlite3-pkg ]; then
-		rm -rf /tmp/foglamp-sqlite3-pkg
+	if [ -d /tmp/fledge-sqlite3-pkg ]; then
+		rm -rf /tmp/fledge-sqlite3-pkg
 	fi
-	echo "Pulling SQLite3 from FogLAMP SQLite3 repository ..."
+	echo "Pulling SQLite3 from Fledge SQLite3 repository ..."
 	cd /tmp/
-	git clone https://github.com/foglamp/foglamp-sqlite3-pkg.git
-	cd foglamp-sqlite3-pkg
+	git clone https://github.com/fledge/fledge-sqlite3-pkg.git
+	cd fledge-sqlite3-pkg
 	cd src
-	echo "Compiling SQLite3 static library for FogLAMP ..."
+	echo "Compiling SQLite3 static library for Fledge ..."
 	./configure --enable-shared=false --enable-static=true --enable-static-shell CFLAGS="-DSQLITE_ENABLE_JSON1 -DSQLITE_ENABLE_LOAD_EXTENSION -DSQLITE_ENABLE_COLUMN_METADATA -fno-common -fPIC"
 	autoreconf -f -i
 
@@ -73,10 +73,10 @@ if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *
 		set -e
 		make
 	fi
-	cd $foglamp_location
+	cd $fledge_location
 	set -e
 
-	cd $foglamp_location
+	cd $fledge_location
 
 	# To avoid to stop the execution for any internal error of scl_source
 	set +e

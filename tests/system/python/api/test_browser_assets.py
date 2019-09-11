@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# FOGLAMP_BEGIN
-# See: http://foglamp.readthedocs.io/
-# FOGLAMP_END
+# FLEDGE_BEGIN
+# See: http://fledge.readthedocs.io/
+# FLEDGE_END
 
 """ Test Browser Assets REST API """
 
@@ -40,14 +40,14 @@ def validate_date_format(dt_txt, fmt):
 class TestBrowserAssets:
 
     @pytest.fixture
-    def start_south(self, reset_and_start_foglamp, remove_directories, foglamp_url, south_plugin=SOUTH_PLUGIN_NAME):
+    def start_south(self, reset_and_start_fledge, remove_directories, fledge_url, south_plugin=SOUTH_PLUGIN_NAME):
         """ This fixture clone a south repo and starts south instance
-            reset_and_start_foglamp: Fixture that resets and starts foglamp, no explicit invocation, called at start
+            reset_and_start_fledge: Fixture that resets and starts fledge, no explicit invocation, called at start
             remove_directories: Fixture that remove directories created during the tests"""
 
         # Create a south plugin
-        plugin_dir = os.path.join(os.path.expandvars('${FOGLAMP_ROOT}'), 'python/foglamp/plugins/south/dummyplugin')
-        plugin_file = os.path.join(os.path.expandvars('${FOGLAMP_ROOT}'), 'tests/system/python/data/dummyplugin.py')
+        plugin_dir = os.path.join(os.path.expandvars('${FLEDGE_ROOT}'), 'python/fledge/plugins/south/dummyplugin')
+        plugin_file = os.path.join(os.path.expandvars('${FLEDGE_ROOT}'), 'tests/system/python/data/dummyplugin.py')
         try:
             os.mkdir(plugin_dir)
         except FileExistsError:
@@ -55,10 +55,10 @@ class TestBrowserAssets:
 
         shutil.copy2(plugin_file, plugin_dir)
         # Create south service
-        conn = http.client.HTTPConnection(foglamp_url)
+        conn = http.client.HTTPConnection(fledge_url)
         data = {"name": "{}".format(SERVICE_NAME), "type": "South", "plugin": "{}".format(south_plugin),
                 "enabled": "true", "config": {}}
-        conn.request("POST", '/foglamp/service', json.dumps(data))
+        conn.request("POST", '/fledge/service', json.dumps(data))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -70,11 +70,11 @@ class TestBrowserAssets:
         # Cleanup code that runs after the caller test is over
         remove_directories(plugin_dir)
 
-    def test_get_asset_counts(self, start_south, foglamp_url, wait_time):
+    def test_get_asset_counts(self, start_south, fledge_url, wait_time):
         """Test that browsing an asset gives correct asset name and asset count"""
         time.sleep(wait_time * 2)
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/asset')
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("GET", '/fledge/asset')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -83,10 +83,10 @@ class TestBrowserAssets:
         assert ASSET_NAME == jdoc[0]["assetCode"]
         assert 6 == jdoc[0]["count"]
 
-    def test_get_asset(self, foglamp_url):
+    def test_get_asset(self, fledge_url):
         """Test that browsing an asset gives correct asset values"""
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/asset/{}'.format(ASSET_NAME))
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("GET", '/fledge/asset/{}'.format(ASSET_NAME))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -107,10 +107,10 @@ class TestBrowserAssets:
         ('?limit=&hours=&minutes=&seconds=', 6, SENSOR_VALUES)
         # In case of empty params, all values are returned
     ])
-    def test_get_asset_query(self, foglamp_url, query, expected_count, expected_values):
+    def test_get_asset_query(self, fledge_url, query, expected_count, expected_values):
         """Test that browsing an asset with query parameters gives correct asset values"""
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/asset/{}{}'.format(ASSET_NAME, query))
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("GET", '/fledge/asset/{}{}'.format(ASSET_NAME, query))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -133,19 +133,19 @@ class TestBrowserAssets:
         ('?hours=-1', 400, "Time must be a positive integer"),
         ('?hours=blah', 400, "Time must be a positive integer")
     ])
-    def test_get_asset_query_bad_data(self, foglamp_url, request_params, response_code, response_message):
+    def test_get_asset_query_bad_data(self, fledge_url, request_params, response_code, response_message):
         """Test that browsing an asset with invalid query parameters generates http errors"""
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/asset/{}{}'.format(ASSET_NAME, request_params))
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("GET", '/fledge/asset/{}{}'.format(ASSET_NAME, request_params))
         r = conn.getresponse()
         conn.close()
         assert response_code == r.status
         assert response_message == r.reason
 
-    def test_get_asset_reading(self, foglamp_url):
+    def test_get_asset_reading(self, fledge_url):
         """Test that browsing an asset's data point gives correct asset data point values"""
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/asset/{}/{}'.format(ASSET_NAME, SENSOR))
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("GET", '/fledge/asset/{}/{}'.format(ASSET_NAME, SENSOR))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -166,10 +166,10 @@ class TestBrowserAssets:
         ('?limit=&hours=&minutes=&seconds=', 6, SENSOR_VALUES)
         # In case of empty params, all values are returned
     ])
-    def test_get_asset_readings_query(self, foglamp_url, query, expected_count, expected_values):
+    def test_get_asset_readings_query(self, fledge_url, query, expected_count, expected_values):
         """Test that browsing an asset's data point with query parameters gives correct asset data point values"""
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/asset/{}/{}{}'.format(ASSET_NAME, SENSOR, query))
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("GET", '/fledge/asset/{}/{}{}'.format(ASSET_NAME, SENSOR, query))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -180,10 +180,10 @@ class TestBrowserAssets:
             assert item == jdoc[i][SENSOR]
             i += 1
 
-    def test_get_asset_summary(self, foglamp_url):
+    def test_get_asset_summary(self, fledge_url):
         """Test that browsing an asset's summary gives correct min, max and average values"""
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/asset/{}/summary'.format(ASSET_NAME))
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("GET", '/fledge/asset/{}/summary'.format(ASSET_NAME))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -195,11 +195,11 @@ class TestBrowserAssets:
         assert max(SENSOR_VALUES) == summary['max']
         assert min(SENSOR_VALUES) == summary['min']
 
-    def test_get_asset_readings_summary_invalid_sensor(self, foglamp_url):
+    def test_get_asset_readings_summary_invalid_sensor(self, fledge_url):
         """Test that browsing a non existing asset's data point summary gives blank min, max and average values"""
-        conn = http.client.HTTPConnection(foglamp_url)
+        conn = http.client.HTTPConnection(fledge_url)
         invalid_sensor = "invalid"
-        conn.request("GET", '/foglamp/asset/{}/{}/summary'.format(ASSET_NAME, invalid_sensor))
+        conn.request("GET", '/fledge/asset/{}/{}/summary'.format(ASSET_NAME, invalid_sensor))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -209,10 +209,10 @@ class TestBrowserAssets:
         assert "" == summary['max']
         assert "" == summary['min']
 
-    def test_get_asset_readings_summary(self, foglamp_url):
+    def test_get_asset_readings_summary(self, fledge_url):
         """Test that browsing an asset's data point summary gives correct min, max and average values"""
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/asset/{}/{}/summary'.format(ASSET_NAME, SENSOR))
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("GET", '/fledge/asset/{}/{}/summary'.format(ASSET_NAME, SENSOR))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -224,11 +224,11 @@ class TestBrowserAssets:
         assert max(SENSOR_VALUES) == summary['max']
         assert min(SENSOR_VALUES) == summary['min']
 
-    def test_get_asset_series(self, foglamp_url):
+    def test_get_asset_series(self, fledge_url):
         """Test that browsing an asset's data point time series gives correct min, max and average values
          for all timestamps"""
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/asset/{}/{}/series'.format(ASSET_NAME, SENSOR))
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("GET", '/fledge/asset/{}/{}/series'.format(ASSET_NAME, SENSOR))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -252,11 +252,11 @@ class TestBrowserAssets:
         ('?limit=&hours=&minutes=&seconds=', 6, SENSOR_VALUES)
         # In case of empty params, all values are returned
     ])
-    def test_get_asset_series_query_time_limit(self, foglamp_url, query, expected_count, expected_values):
+    def test_get_asset_series_query_time_limit(self, fledge_url, query, expected_count, expected_values):
         """Test that browsing an asset's data point time series with query parameter
          gives correct min, max and average values for all timestamps"""
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/asset/{}/{}/series{}'.format(ASSET_NAME, SENSOR, query))
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("GET", '/fledge/asset/{}/{}/series{}'.format(ASSET_NAME, SENSOR, query))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -269,11 +269,11 @@ class TestBrowserAssets:
             assert item == jdoc[i]['max']
             i += 1
 
-    def test_get_asset_series_query_group_sec(self, foglamp_url):
+    def test_get_asset_series_query_group_sec(self, fledge_url):
         """Test that browsing an asset's data point time series with seconds grouping
                  gives correct min, max and average values"""
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/asset/{}/{}/series{}'.format(ASSET_NAME, SENSOR, '?group=seconds'))
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("GET", '/fledge/asset/{}/{}/series{}'.format(ASSET_NAME, SENSOR, '?group=seconds'))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -285,11 +285,11 @@ class TestBrowserAssets:
             assert SENSOR_VALUES[i] == jdoc[i]['max']
             assert validate_date_format(jdoc[i]['timestamp'], '%Y-%m-%d %H:%M:%S'), "timestamp format do not match"
 
-    def test_get_asset_series_query_group_min(self, foglamp_url):
+    def test_get_asset_series_query_group_min(self, fledge_url):
         """Test that browsing an asset's data point time series with minutes grouping
                          gives correct min, max and average values"""
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/asset/{}/{}/series{}'.format(ASSET_NAME, SENSOR, '?group=minutes'))
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("GET", '/fledge/asset/{}/{}/series{}'.format(ASSET_NAME, SENSOR, '?group=minutes'))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -307,11 +307,11 @@ class TestBrowserAssets:
             assert SENSOR_VALUES[i + 1] == jdoc[i]['max']
             assert validate_date_format(jdoc[i + 1]['timestamp'], '%Y-%m-%d %H:%M'), "timestamp format do not match"
 
-    def test_get_asset_series_query_group_hrs(self, foglamp_url):
+    def test_get_asset_series_query_group_hrs(self, fledge_url):
         """Test that browsing an asset's data point time series with hour grouping
                                  gives correct min, max and average values"""
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/asset/{}/{}/series{}'.format(ASSET_NAME, SENSOR, '?group=hours'))
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("GET", '/fledge/asset/{}/{}/series{}'.format(ASSET_NAME, SENSOR, '?group=hours'))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -329,11 +329,11 @@ class TestBrowserAssets:
             assert SENSOR_VALUES[i] == jdoc[i - 3]['max']
             assert validate_date_format(jdoc[i - 3]['timestamp'], '%Y-%m-%d %H'), "timestamp format do not match"
 
-    def test_get_asset_sensor_readings_invalid_group(self, foglamp_url):
+    def test_get_asset_sensor_readings_invalid_group(self, fledge_url):
         """Test that browsing an asset's data point time series with invalid grouping
                                  gives http error"""
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/asset/{}/{}/series?group=blah'.format(ASSET_NAME, SENSOR))
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("GET", '/fledge/asset/{}/{}/series?group=blah'.format(ASSET_NAME, SENSOR))
         r = conn.getresponse()
         conn.close()
         assert r.status == 400

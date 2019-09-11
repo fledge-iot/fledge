@@ -1,12 +1,12 @@
-CREATE SEQUENCE foglamp.destinations_id_seq
+CREATE SEQUENCE fledge.destinations_id_seq
     INCREMENT 1
     START 1
     MINVALUE 1
     MAXVALUE 9223372036854775807
     CACHE 1;
 
-CREATE TABLE foglamp.destinations (
-       id            integer                     NOT NULL DEFAULT nextval('foglamp.destinations_id_seq'::regclass),   -- Sequence ID
+CREATE TABLE fledge.destinations (
+       id            integer                     NOT NULL DEFAULT nextval('fledge.destinations_id_seq'::regclass),   -- Sequence ID
        type          smallint                    NOT NULL DEFAULT 1,                                                  -- Enum : 1: OMF, 2: Elasticsearch
        description   character varying(255)      NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default", -- A brief description of the destination entry
        properties    jsonb                       NOT NULL DEFAULT '{ "streaming" : "all" }'::jsonb,                   -- A generic set of properties
@@ -15,19 +15,19 @@ CREATE TABLE foglamp.destinations (
        ts            timestamp(6) with time zone NOT NULL DEFAULT now(),                                              -- Creation or last update
        CONSTRAINT destination_pkey PRIMARY KEY (id) );
 
-INSERT INTO foglamp.destinations ( id, description )
+INSERT INTO fledge.destinations ( id, description )
        VALUES (0, 'none' );
 
 -- Add the constraint to the the table
 BEGIN TRANSACTION;
-DROP TABLE IF EXISTS foglamp.streams_old;
-ALTER TABLE foglamp.streams RENAME TO streams_old;
+DROP TABLE IF EXISTS fledge.streams_old;
+ALTER TABLE fledge.streams RENAME TO streams_old;
 
-ALTER TABLE foglamp.streams_old RENAME CONSTRAINT strerams_pkey TO strerams_pkey_old;
+ALTER TABLE fledge.streams_old RENAME CONSTRAINT strerams_pkey TO strerams_pkey_old;
 
-CREATE TABLE foglamp.streams (
-       id             integer                     NOT NULL DEFAULT nextval('foglamp.streams_id_seq'::regclass),         -- Sequence ID
-       destination_id integer                     NOT NULL ,                                                            -- FK to foglamp.destinations
+CREATE TABLE fledge.streams (
+       id             integer                     NOT NULL DEFAULT nextval('fledge.streams_id_seq'::regclass),         -- Sequence ID
+       destination_id integer                     NOT NULL ,                                                            -- FK to fledge.destinations
        description    character varying(255)      NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default",  -- A brief description of the stream entry
        properties     jsonb                       NOT NULL DEFAULT '{}'::jsonb,                                         -- A generic set of properties
        object_stream  jsonb                       NOT NULL DEFAULT '{}'::jsonb,                                         -- Definition of what must be streamed
@@ -39,11 +39,11 @@ CREATE TABLE foglamp.streams (
        ts             timestamp(6) with time zone NOT NULL DEFAULT now(),                                               -- Creation or last update
        CONSTRAINT strerams_pkey PRIMARY KEY (id),
        CONSTRAINT streams_fk1 FOREIGN KEY (destination_id)
-       REFERENCES foglamp.destinations (id) MATCH SIMPLE
+       REFERENCES fledge.destinations (id) MATCH SIMPLE
                ON UPDATE NO ACTION
                ON DELETE NO ACTION );
 
-INSERT INTO foglamp.streams
+INSERT INTO fledge.streams
         SELECT
             id,
             0,
@@ -56,9 +56,9 @@ INSERT INTO foglamp.streams
             active,
             last_object,
             ts
-        FROM foglamp.streams_old;
+        FROM fledge.streams_old;
 
-DROP TABLE foglamp.streams_old;
+DROP TABLE fledge.streams_old;
 COMMIT;
 
-CREATE INDEX fki_streams_fk1 ON foglamp.streams USING btree (destination_id);
+CREATE INDEX fki_streams_fk1 ON fledge.streams USING btree (destination_id);

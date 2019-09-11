@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# FOGLAMP_BEGIN
-# See: http://foglamp.readthedocs.io/
-# FOGLAMP_END
+# FLEDGE_BEGIN
+# See: http://fledge.readthedocs.io/
+# FLEDGE_END
 
 """ Test system/python/e2e/test_e2e_vary_asset_http_pi.py
 
@@ -24,18 +24,18 @@ __version__ = "${VERSION}"
 
 
 class TestE2EAssetHttpPI:
-    def get_ping_status(self, foglamp_url):
-        _connection = http.client.HTTPConnection(foglamp_url)
-        _connection.request("GET", '/foglamp/ping')
+    def get_ping_status(self, fledge_url):
+        _connection = http.client.HTTPConnection(fledge_url)
+        _connection.request("GET", '/fledge/ping')
         r = _connection.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
         return jdoc
 
-    def get_statistics_map(self, foglamp_url):
-        _connection = http.client.HTTPConnection(foglamp_url)
-        _connection.request("GET", '/foglamp/statistics')
+    def get_statistics_map(self, fledge_url):
+        _connection = http.client.HTTPConnection(fledge_url)
+        _connection.request("GET", '/fledge/statistics')
         r = _connection.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -83,40 +83,40 @@ class TestE2EAssetHttpPI:
         assert data_from_pi["a2"][-6] == 0.0
 
     @pytest.fixture
-    def start_south_north(self, reset_and_start_foglamp, add_south, start_north_pi_server_c, remove_directories,
-                          south_branch, foglamp_url, pi_host, pi_port, pi_token):
+    def start_south_north(self, reset_and_start_fledge, add_south, start_north_pi_server_c, remove_directories,
+                          south_branch, fledge_url, pi_host, pi_port, pi_token):
         """ This fixture clone a south repo and starts both south and north instance
-            reset_and_start_foglamp: Fixture that resets and starts foglamp, no explicit invocation, called at start
+            reset_and_start_fledge: Fixture that resets and starts fledge, no explicit invocation, called at start
             add_south: Fixture that adds a south service with given configuration
             start_north_pi_server_c: Fixture that starts PI north task
             remove_directories: Fixture that remove directories created during the tests"""
 
         south_plugin = "http"
-        add_south("http_south", south_branch, foglamp_url, config={"assetNamePrefix": {"value": ""}},
+        add_south("http_south", south_branch, fledge_url, config={"assetNamePrefix": {"value": ""}},
                   service_name="http_south")
-        start_north_pi_server_c(foglamp_url, pi_host, pi_port, pi_token)
+        start_north_pi_server_c(fledge_url, pi_host, pi_port, pi_token)
 
         yield self.start_south_north
 
         # Cleanup code that runs after the caller test is over
-        remove_directories("/tmp/foglamp-south-{}".format(south_plugin))
+        remove_directories("/tmp/fledge-south-{}".format(south_plugin))
 
-    def test_end_to_end(self, start_south_north, read_data_from_pi, foglamp_url, pi_host, pi_admin, pi_passwd, pi_db,
+    def test_end_to_end(self, start_south_north, read_data_from_pi, fledge_url, pi_host, pi_admin, pi_passwd, pi_db,
                         wait_time, retries, skip_verify_north_interface):
-        """ Test that data is inserted in FogLAMP and sent to PI
-            start_south_north: Fixture that starts FogLAMP with south and north instance
+        """ Test that data is inserted in Fledge and sent to PI
+            start_south_north: Fixture that starts Fledge with south and north instance
             read_data_from_pi: Fixture to read data from PI
             skip_verify_north_interface: Flag for assertion of data from Pi web API
             Assertions:
-                on endpoint GET /foglamp/asset
-                on endpoint GET /foglamp/asset/<asset_name>
+                on endpoint GET /fledge/asset
+                on endpoint GET /fledge/asset/<asset_name>
                 data received from PI is same as data sent"""
 
         # Allow http_south service to come up and register before sending data
         time.sleep(wait_time)
-        conn = http.client.HTTPConnection(foglamp_url)
+        conn = http.client.HTTPConnection(fledge_url)
 
-        # Send data to foglamp-south-http
+        # Send data to fledge-south-http
         conn_http_south = http.client.HTTPConnection("localhost:6683")
 
         asset_name = "e2e_varying"
@@ -138,19 +138,19 @@ class TestE2EAssetHttpPI:
         # Allow some buffer so that data is ingested before retrieval
         time.sleep(wait_time)
 
-        ping_response = self.get_ping_status(foglamp_url)
+        ping_response = self.get_ping_status(fledge_url)
         assert 6 == ping_response["dataRead"]
         if not skip_verify_north_interface:
             assert 6 == ping_response["dataSent"]
 
-        actual_stats_map = self.get_statistics_map(foglamp_url)
+        actual_stats_map = self.get_statistics_map(fledge_url)
         assert 6 == actual_stats_map[asset_name.upper()]
         assert 6 == actual_stats_map['READINGS']
         if not skip_verify_north_interface:
             assert 6 == actual_stats_map['Readings Sent']
             assert 6 == actual_stats_map['NorthReadingsToPI']
 
-        conn.request("GET", '/foglamp/asset')
+        conn.request("GET", '/fledge/asset')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -159,7 +159,7 @@ class TestE2EAssetHttpPI:
         assert asset_name == retval[0]["assetCode"]
         assert 6 == retval[0]["count"]
 
-        conn.request("GET", '/foglamp/asset/{}'.format(asset_name))
+        conn.request("GET", '/fledge/asset/{}'.format(asset_name))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()

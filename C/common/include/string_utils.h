@@ -1,7 +1,7 @@
 #ifndef _STRING_UTILS_H
 #define _STRING_UTILS_H
 /*
- * FogLAMP utilities functions for handling stringa
+ * Fledge utilities functions for handling stringa
  *
  * Copyright (c) 2019 Dianomic Systems
  *

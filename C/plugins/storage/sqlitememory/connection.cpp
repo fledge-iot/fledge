@@ -1,5 +1,5 @@
 /*
- * FogLAMP storage service.
+ * Fledge storage service.
  *
  * Copyright (c) 2019 OSIsoft, LLC
  *
@@ -12,7 +12,7 @@
 #include <common.h>
 
 /**
- * SQLite3 storage plugin for FogLAMP
+ * SQLite3 storage plugin for Fledge
  */
 
 using namespace std;
@@ -30,7 +30,7 @@ static time_t connectErrorTime = 0;
  */
 Connection::Connection()
 {
-	if (getenv("FOGLAMP_TRACE_SQL"))
+	if (getenv("FLEDGE_TRACE_SQL"))
 	{
 		m_logSQL = true;
 	}
@@ -45,7 +45,7 @@ Connection::Connection()
 	const char *dbHandleConn = "file:?cache=shared";
 
 	// UTC time as default
-	const char * createReadings = "CREATE TABLE foglamp.readings (" \
+	const char * createReadings = "CREATE TABLE fledge.readings (" \
 					"id		INTEGER			PRIMARY KEY AUTOINCREMENT," \
 					"asset_code	character varying(50)	NOT NULL," \
 					"read_key	uuid			UNIQUE," \
@@ -85,9 +85,9 @@ Connection::Connection()
 		int rc;
                 // Exec the statements without getting error messages, for now
 
-		// ATTACH 'foglamp' as in memory shared DB
+		// ATTACH 'fledge' as in memory shared DB
 		rc = sqlite3_exec(dbHandle,
-				  "ATTACH DATABASE 'file::memory:?cache=shared' AS 'foglamp'",
+				  "ATTACH DATABASE 'file::memory:?cache=shared' AS 'fledge'",
 				  NULL,
 				  NULL,
 				  NULL);
@@ -134,7 +134,7 @@ bool 		add_row = false;
 		return -1;
 	}
 
-	sql.append("INSERT INTO foglamp.readings ( user_ts, asset_code, read_key, reading ) VALUES ");
+	sql.append("INSERT INTO fledge.readings ( user_ts, asset_code, read_key, reading ) VALUES ");
 
 	if (!doc.HasMember("readings"))
 	{

@@ -1,41 +1,41 @@
 --- Start :  updates omf_created_objects avoiding the problem of the constraint
-CREATE TABLE foglamp.tmp_omf_created_objects (
+CREATE TABLE fledge.tmp_omf_created_objects (
     configuration_key character varying(255)    NOT NULL,
     type_id           integer                   NOT NULL,
     asset_code        character varying(50)     NOT NULL,
     CONSTRAINT tmp_omf_created_objects_pkey PRIMARY KEY (configuration_key,type_id, asset_code)
   );
 
-INSERT INTO foglamp.tmp_omf_created_objects
-SELECT * FROM foglamp.omf_created_objects;
+INSERT INTO fledge.tmp_omf_created_objects
+SELECT * FROM fledge.omf_created_objects;
 
-UPDATE foglamp.tmp_omf_created_objects  SET configuration_key = 'North Readings to PI'   WHERE configuration_key = 'SEND_PR_1';
-UPDATE foglamp.tmp_omf_created_objects  SET configuration_key = 'North Statistics to PI' WHERE configuration_key = 'SEND_PR_2';
-UPDATE foglamp.tmp_omf_created_objects  SET configuration_key = 'North Readings to OCS'  WHERE configuration_key = 'SEND_PR_4';
+UPDATE fledge.tmp_omf_created_objects  SET configuration_key = 'North Readings to PI'   WHERE configuration_key = 'SEND_PR_1';
+UPDATE fledge.tmp_omf_created_objects  SET configuration_key = 'North Statistics to PI' WHERE configuration_key = 'SEND_PR_2';
+UPDATE fledge.tmp_omf_created_objects  SET configuration_key = 'North Readings to OCS'  WHERE configuration_key = 'SEND_PR_4';
 
-DELETE FROM foglamp.omf_created_objects;
+DELETE FROM fledge.omf_created_objects;
 
-INSERT INTO foglamp.omf_created_objects
-SELECT * FROM foglamp.tmp_omf_created_objects;
+INSERT INTO fledge.omf_created_objects
+SELECT * FROM fledge.tmp_omf_created_objects;
 
-DROP TABLE foglamp.tmp_omf_created_objects;
+DROP TABLE fledge.tmp_omf_created_objects;
 --- End
 
-UPDATE foglamp.configuration SET key = 'North Readings to PI' WHERE key = 'SEND_PR_1';
-UPDATE foglamp.configuration SET key = 'North Statistics to PI' WHERE key = 'SEND_PR_2';
-UPDATE foglamp.configuration SET key = 'North Readings to OCS' WHERE key = 'SEND_PR_4';
+UPDATE fledge.configuration SET key = 'North Readings to PI' WHERE key = 'SEND_PR_1';
+UPDATE fledge.configuration SET key = 'North Statistics to PI' WHERE key = 'SEND_PR_2';
+UPDATE fledge.configuration SET key = 'North Readings to OCS' WHERE key = 'SEND_PR_4';
 
 -- Insert entries for DHT11 C++ south plugin
 
-INSERT INTO foglamp.configuration ( key, description, value )
+INSERT INTO fledge.configuration ( key, description, value )
      VALUES ( 'dht11',
               'DHT11 South C Plugin',
               ' { "plugin" : { "type" : "string", "value" : "dht11", "default" : "dht11", "description" : "Module that DHT11 South Plugin will load" } } '
             );
 
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'dht11',   '["services/south_c"]' );
+INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'dht11',   '["services/south_c"]' );
 
-INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
+INSERT INTO fledge.schedules ( id, schedule_name, process_name, schedule_type,
                                 schedule_time, schedule_interval, exclusive, enabled )
        VALUES ( '6b25f4d9-c7f3-4fc8-bd4a-4cf79f7055ca', -- id
                 'dht11',                                -- schedule_name
@@ -48,25 +48,25 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
               );
 
 -- North_Readings_to_PI - OMF Translator for readings - C Code
-INSERT INTO foglamp.configuration ( key, description, value )
+INSERT INTO fledge.configuration ( key, description, value )
      VALUES ( 'North_Readings_to_PI',
               'OMF North Plugin - C Code',
               ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that OMF North Plugin will load" } } '
             );
 
 -- North_Statistics_to_PI - OMF Translator for statistics - C Code
-INSERT INTO foglamp.configuration ( key, description, value )
+INSERT INTO fledge.configuration ( key, description, value )
      VALUES ( 'North_Statistics_to_PI',
               'OMF North Plugin - C Code',
               ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that OMF North Plugin will load" } } '
             );
 
 -- North Tasks - C code
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North_Readings_to_PI',   '["tasks/north_c"]' );
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North_Statistics_to_PI', '["tasks/north_c"]' );
+INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'North_Readings_to_PI',   '["tasks/north_c"]' );
+INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'North_Statistics_to_PI', '["tasks/north_c"]' );
 
 -- Readings OMF to PI - C Code
-INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
+INSERT INTO fledge.schedules ( id, schedule_name, process_name, schedule_type,
                                 schedule_time, schedule_interval, exclusive, enabled )
        VALUES ( '1cdf1ef8-7e02-11e8-adc0-fa7ae01bbebc', -- id
                 'OMF_to_PI_north_C',                    -- schedule_name
@@ -79,7 +79,7 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
               );
 
 -- Statistics OMF to PI - C Code
-INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
+INSERT INTO fledge.schedules ( id, schedule_name, process_name, schedule_type,
                                 schedule_time, schedule_interval, exclusive, enabled )
        VALUES ( 'f1e3b377-5acb-4bde-93d5-b6a792f76e07', -- id
                 'Stats_OMF_to_PI_north_C',              -- schedule_name
@@ -91,5 +91,5 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 'f'                                     -- disabled
               );
 -- Statistics
-INSERT INTO foglamp.statistics ( key, description, value, previous_value ) VALUES ( 'NORTH_READINGS_TO_PI', 'Statistics sent to historian', 0, 0 );
-INSERT INTO foglamp.statistics ( key, description, value, previous_value ) VALUES ( 'NORTH_STATISTICS_TO_PI', 'Statistics sent to historian', 0, 0 );
+INSERT INTO fledge.statistics ( key, description, value, previous_value ) VALUES ( 'NORTH_READINGS_TO_PI', 'Statistics sent to historian', 0, 0 );
+INSERT INTO fledge.statistics ( key, description, value, previous_value ) VALUES ( 'NORTH_STATISTICS_TO_PI', 'Statistics sent to historian', 0, 0 );

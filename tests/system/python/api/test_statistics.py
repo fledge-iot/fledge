@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# FOGLAMP_BEGIN
-# See: http://foglamp.readthedocs.io/
-# FOGLAMP_END
+# FLEDGE_BEGIN
+# See: http://fledge.readthedocs.io/
+# FLEDGE_END
 
 """ Test Statistics & Statistics history REST API """
 
@@ -33,35 +33,35 @@ ASSET_NAME = "COAP"
 
 @pytest.fixture
 def start_south_coap(add_south, remove_data_file, remove_directories, south_branch,
-                     foglamp_url, south_plugin=PLUGIN_NAME, asset_name=ASSET_NAME):
+                     fledge_url, south_plugin=PLUGIN_NAME, asset_name=ASSET_NAME):
     # Define the template file for fogbench
     fogbench_template_path = os.path.join(
-        os.path.expandvars('${FOGLAMP_ROOT}'), 'data/{}'.format(TEMPLATE_NAME))
+        os.path.expandvars('${FLEDGE_ROOT}'), 'data/{}'.format(TEMPLATE_NAME))
     with open(fogbench_template_path, "w") as f:
         f.write(
             '[{"name": "%s", "sensor_values": '
             '[{"name": "sensor", "type": "number", "min": %d, "max": %d, "precision": 0}]}]' % (
                 asset_name, SENSOR_VALUE, SENSOR_VALUE))
 
-    add_south(south_plugin, south_branch, foglamp_url, service_name=PLUGIN_NAME)
+    add_south(south_plugin, south_branch, fledge_url, service_name=PLUGIN_NAME)
 
     yield start_south_coap
 
     # Cleanup code that runs after the caller test is over
     remove_data_file(fogbench_template_path)
-    remove_directories("/tmp/foglamp-south-{}".format(south_plugin))
+    remove_directories("/tmp/fledge-south-{}".format(south_plugin))
 
 
 class TestStatistics:
 
-    def test_cleanup(self, reset_and_start_foglamp):
+    def test_cleanup(self, reset_and_start_fledge):
         # TODO: Remove this workaround
         # Use better setup & teardown methods
         pass
 
-    def test_default_statistics(self, foglamp_url):
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/statistics')
+    def test_default_statistics(self, fledge_url):
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("GET", '/fledge/statistics')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -71,9 +71,9 @@ class TestStatistics:
         keys = [key['key'] for key in jdoc]
         assert Counter(STATS_KEYS) == Counter(keys)
 
-    def test_default_statistics_history(self, foglamp_url):
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/statistics/history')
+    def test_default_statistics_history(self, fledge_url):
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("GET", '/fledge/statistics/history')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -82,12 +82,12 @@ class TestStatistics:
         assert 15 == jdoc['interval']
         assert {} == jdoc['statistics'][0]
 
-    def test_statistics_history_with_stats_collector_schedule(self, foglamp_url, wait_time, retries):
+    def test_statistics_history_with_stats_collector_schedule(self, fledge_url, wait_time, retries):
         # wait for sometime for stats collector schedule to start
         time.sleep(wait_time * retries)
 
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/statistics/history')
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("GET", '/fledge/statistics/history')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -107,9 +107,9 @@ class TestStatistics:
         ('?key=READINGS&limit=1', {'history_ts', 'READINGS'}),
         ('?key=READINGS&limit=0', {}),
     ])
-    def test_statistics_history_with_params(self, foglamp_url, request_params, keys):
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/statistics/history{}'.format(request_params))
+    def test_statistics_history_with_params(self, fledge_url, request_params, keys):
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("GET", '/fledge/statistics/history{}'.format(request_params))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -119,19 +119,19 @@ class TestStatistics:
         assert 1 == len(jdoc['statistics'])
         assert Counter(keys) == Counter(jdoc['statistics'][0].keys())
 
-    def test_statistics_history_with_service_enabled(self, start_south_coap, foglamp_url, wait_time):
+    def test_statistics_history_with_service_enabled(self, start_south_coap, fledge_url, wait_time):
         # Allow CoAP listener to start
         time.sleep(wait_time)
 
         # ingest one reading via fogbench
-        subprocess.run(["cd $FOGLAMP_ROOT/extras/python; python3 -m fogbench -t ../../data/{}; cd -"
+        subprocess.run(["cd $FLEDGE_ROOT/extras/python; python3 -m fogbench -t ../../data/{}; cd -"
                        .format(TEMPLATE_NAME)], shell=True, check=True)
         # Let the readings to be Ingressed
         time.sleep(wait_time)
 
         # verify stats
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/statistics')
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("GET", '/fledge/statistics')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -145,7 +145,7 @@ class TestStatistics:
         time.sleep(wait_time * 2 + 1)
 
         # check stats history
-        conn.request("GET", '/foglamp/statistics/history')
+        conn.request("GET", '/fledge/statistics/history')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -162,7 +162,7 @@ class TestStatistics:
                 assert 1 == asset[ASSET_NAME.upper()]
 
         # verify stats history by READINGS key only
-        conn.request("GET", '/foglamp/statistics/history?key={}'.format('READINGS'))
+        conn.request("GET", '/fledge/statistics/history?key={}'.format('READINGS'))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -173,7 +173,7 @@ class TestStatistics:
         assert 1 == read.count(1)
 
         # verify stats history by ASSET_NAME key only
-        conn.request("GET", '/foglamp/statistics/history?key={}'.format(ASSET_NAME.upper()))
+        conn.request("GET", '/fledge/statistics/history?key={}'.format(ASSET_NAME.upper()))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()

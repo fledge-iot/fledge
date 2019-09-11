@@ -1,5 +1,5 @@
 /*
- * FogLAMP storage service.
+ * Fledge storage service.
  *
  * Copyright (c) 2017-2018 OSisoft, LLC
  *
@@ -20,7 +20,7 @@ static const char *defaultConfiguration =
 " { \"plugin\" : { \"value\" : \"sqlite\", \"description\" : \"The main storage plugin to load\"},"
 " \"readingPlugin\" : { \"value\" : \"\", \"description\" : \"The storage plugin to load for readings data. If blank the main storage plugin is used.\"},"
 " \"threads\" : { \"value\" : \"1\", \"description\" : \"The number of threads to run\" },"
-" \"managedStatus\" : { \"value\" : \"false\", \"description\" : \"Control if FogLAMP should manage the storage provider\" },"
+" \"managedStatus\" : { \"value\" : \"false\", \"description\" : \"Control if Fledge should manage the storage provider\" },"
 " \"port\" : { \"value\" : \"0\", \"description\" : \"The port to listen on\" },"
 " \"managementPort\" : { \"value\" : \"0\", \"description\" : \"The management port to listen on.\" } }";
 
@@ -143,10 +143,10 @@ string	cachefile;
  *
  * If a configuration cache exists in the current directory then it is used
  *
- * If not and the environment variable FOGLAMP_DATA exists then the
+ * If not and the environment variable FLEDGE_DATA exists then the
  * configuration file under etc in that directory will be used.
  *
- * If that does not exist and the configuration variable FOGLAMP_HONE
+ * If that does not exist and the configuration variable FLEDGE_HONE
  * exists then a configuration file under etc in that dirstory is used
  */
 void StorageConfiguration::getConfigCache(string& cache)
@@ -158,7 +158,7 @@ char buf[512], *basedir;
 		cache = CONFIGURATION_CACHE_FILE;
 		return;
 	}
-	if ((basedir = getenv("FOGLAMP_DATA")) != NULL)
+	if ((basedir = getenv("FLEDGE_DATA")) != NULL)
 	{
 		snprintf(buf, sizeof(buf), "%s/etc/%s", basedir, CONFIGURATION_CACHE_FILE);
 		if (access(buf, F_OK) == 0)
@@ -167,7 +167,7 @@ char buf[512], *basedir;
 			return;
 		}
 	}
-	else if ((basedir = getenv("FOGLAMP_ROOT")) != NULL)
+	else if ((basedir = getenv("FLEDGE_ROOT")) != NULL)
 	{
 		snprintf(buf, sizeof(buf), "%s/etc/%s", basedir, CONFIGURATION_CACHE_FILE);
 		if (access(buf, F_OK) == 0)

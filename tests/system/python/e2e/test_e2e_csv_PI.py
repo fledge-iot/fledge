@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# FOGLAMP_BEGIN
-# See: http://foglamp.readthedocs.io/
-# FOGLAMP_END
+# FLEDGE_BEGIN
+# See: http://fledge.readthedocs.io/
+# FLEDGE_END
 
 """ Test system/python/test_e2e_csv_PI.py
 
@@ -32,9 +32,9 @@ NORTH_TASK_NAME = "NorthReadingsTo_PI"
 _data_str = {}
 
 
-def get_ping_status(foglamp_url):
-    _connection = http.client.HTTPConnection(foglamp_url)
-    _connection.request("GET", '/foglamp/ping')
+def get_ping_status(fledge_url):
+    _connection = http.client.HTTPConnection(fledge_url)
+    _connection.request("GET", '/fledge/ping')
     r = _connection.getresponse()
     assert 200 == r.status
     r = r.read().decode()
@@ -42,9 +42,9 @@ def get_ping_status(foglamp_url):
     return jdoc
 
 
-def get_statistics_map(foglamp_url):
-    _connection = http.client.HTTPConnection(foglamp_url)
-    _connection.request("GET", '/foglamp/statistics')
+def get_statistics_map(fledge_url):
+    _connection = http.client.HTTPConnection(fledge_url)
+    _connection.request("GET", '/fledge/statistics')
     r = _connection.getresponse()
     assert 200 == r.status
     r = r.read().decode()
@@ -53,22 +53,22 @@ def get_statistics_map(foglamp_url):
 
 
 @pytest.fixture
-def start_south_north(reset_and_start_foglamp, add_south, start_north_pi_server_c, remove_data_file,
-                      remove_directories, south_branch, foglamp_url, pi_host, pi_port, pi_token,
+def start_south_north(reset_and_start_fledge, add_south, start_north_pi_server_c, remove_data_file,
+                      remove_directories, south_branch, fledge_url, pi_host, pi_port, pi_token,
                       asset_name="end_to_end_csv"):
     """ This fixture clone a south repo and starts both south and north instance
-        reset_and_start_foglamp: Fixture that resets and starts foglamp, no explicit invocation, called at start
+        reset_and_start_fledge: Fixture that resets and starts fledge, no explicit invocation, called at start
         add_south: Fixture that starts any south service with given configuration
         start_north_pi_server_c: Fixture that starts PI north task
         remove_data_file: Fixture that remove data file created during the tests
         remove_directories: Fixture that remove directories created during the tests"""
 
-    # Define configuration of foglamp south playback service
+    # Define configuration of fledge south playback service
     south_config = {"assetName": {"value": "{}".format(asset_name)}, "csvFilename": {"value": "{}".format(CSV_NAME)},
                     "ingestMode": {"value": "batch"}}
 
     # Define the CSV data and create expected lists to be verified later
-    csv_file_path = os.path.join(os.path.expandvars('${FOGLAMP_ROOT}'), 'data/{}'.format(CSV_NAME))
+    csv_file_path = os.path.join(os.path.expandvars('${FLEDGE_ROOT}'), 'data/{}'.format(CSV_NAME))
     f = open(csv_file_path, "w")
     f.write(CSV_HEADERS)
     _heads = CSV_HEADERS.split(",")
@@ -88,14 +88,14 @@ def start_south_north(reset_and_start_foglamp, add_south, start_north_pi_server_
         _data_str[_head] = tmp_list
 
     south_plugin = "playback"
-    add_south(south_plugin, south_branch, foglamp_url, config=south_config)
-    start_north_pi_server_c(foglamp_url, pi_host, pi_port, pi_token)
+    add_south(south_plugin, south_branch, fledge_url, config=south_config)
+    start_north_pi_server_c(fledge_url, pi_host, pi_port, pi_token)
 
     yield start_south_north
 
     # Cleanup code that runs after the caller test is over
     remove_data_file(csv_file_path)
-    remove_directories("/tmp/foglamp-south-{}".format(south_plugin))
+    remove_directories("/tmp/fledge-south-{}".format(south_plugin))
 
 
 def _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name):
@@ -114,33 +114,33 @@ def _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_
         assert Counter(data_from_pi[_head][-len(CSV_DATA):]) == Counter(_data_str[_head])
 
 
-def test_e2e_csv_pi(start_south_north, read_data_from_pi, foglamp_url, pi_host, pi_admin, pi_passwd, pi_db,
+def test_e2e_csv_pi(start_south_north, read_data_from_pi, fledge_url, pi_host, pi_admin, pi_passwd, pi_db,
                     wait_time, retries, skip_verify_north_interface, asset_name="end_to_end_csv"):
-    """ Test that data is inserted in FogLAMP and sent to PI
-        start_south_north: Fixture that starts FogLAMP with south and north instance
+    """ Test that data is inserted in Fledge and sent to PI
+        start_south_north: Fixture that starts Fledge with south and north instance
         read_data_from_pi: Fixture to read data from PI
         skip_verify_north_interface: Flag for assertion of data from Pi web API
         Assertions:
-            on endpoint GET /foglamp/asset
-            on endpoint GET /foglamp/asset/<asset_name>
+            on endpoint GET /fledge/asset
+            on endpoint GET /fledge/asset/<asset_name>
             data received from PI is same as data sent"""
 
-    conn = http.client.HTTPConnection(foglamp_url)
+    conn = http.client.HTTPConnection(fledge_url)
     time.sleep(wait_time)
 
-    ping_response = get_ping_status(foglamp_url)
+    ping_response = get_ping_status(fledge_url)
     assert len(CSV_DATA) == ping_response["dataRead"]
     if not skip_verify_north_interface:
         assert len(CSV_DATA) == ping_response["dataSent"]
 
-    actual_stats_map = get_statistics_map(foglamp_url)
+    actual_stats_map = get_statistics_map(fledge_url)
     assert len(CSV_DATA) == actual_stats_map[asset_name.upper()]
     assert len(CSV_DATA) == actual_stats_map['READINGS']
     if not skip_verify_north_interface:
         assert len(CSV_DATA) == actual_stats_map['Readings Sent']
         assert len(CSV_DATA) == actual_stats_map['NorthReadingsToPI']
 
-    conn.request("GET", '/foglamp/asset')
+    conn.request("GET", '/fledge/asset')
     r = conn.getresponse()
     assert 200 == r.status
     r = r.read().decode()
@@ -150,7 +150,7 @@ def test_e2e_csv_pi(start_south_north, read_data_from_pi, foglamp_url, pi_host, 
     assert len(CSV_DATA) == retval[0]["count"]
 
     for _head in CSV_HEADERS.split(","):
-        conn.request("GET", '/foglamp/asset/{}/{}'.format(asset_name, _head))
+        conn.request("GET", '/fledge/asset/{}/{}'.format(asset_name, _head))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()

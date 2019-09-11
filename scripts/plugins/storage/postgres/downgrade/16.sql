@@ -1,2 +1,2 @@
 -- Remove plugin_data table
-DROP TABLE IF EXISTS foglamp.plugin_data;
+DROP TABLE IF EXISTS fledge.plugin_data;

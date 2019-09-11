@@ -2,7 +2,7 @@
 #ifndef _PLUGIN_HANDLE_H
 #define _PLUGIN_HANDLE_H
 /*
- * FogLAMP plugin handle related
+ * Fledge plugin handle related
  *
  * Copyright (c) 2018 OSisoft, LLC
  *

@@ -77,7 +77,7 @@ write_log() {
 
   # Log to syslog
   if [[ "$5" =~ ^(logonly|all)$ ]]; then
-      tag="FogLAMP ${1}[${BASHPID}] ${severity}: ${2}"
+      tag="Fledge ${1}[${BASHPID}] ${severity}: ${2}"
       logger -t "${tag}" "${4}"
   fi
 

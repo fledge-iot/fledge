@@ -1,5 +1,5 @@
 /*
- * FogLAMP plugin filter class
+ * Fledge plugin filter class
  *
  * Copyright (c) 2018 Dianomic Systems
  *

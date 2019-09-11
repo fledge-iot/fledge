@@ -7,5 +7,5 @@ pyjwt==1.6.4
 # Transformation of data, Apply JqFilter
 pyjq==2.3.1
 
-# Foglamp discovery
+# Fledge discovery
 zeroconf==0.22.0

@@ -1,7 +1,7 @@
 #ifndef _WHERE_H
 #define _WHERE_H
 /*
- * FogLAMP storage client.
+ * Fledge storage client.
  *
  * Copyright (c) 2018 OSisoft, LLC
  *

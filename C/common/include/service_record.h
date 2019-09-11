@@ -1,7 +1,7 @@
 #ifndef _SERVICE_RECORD_H
 #define _SERVICE_RECORD_H
 /*
- * FogLAMP storage service.
+ * Fledge storage service.
  *
  * Copyright (c) 2017 OSisoft, LLC
  *

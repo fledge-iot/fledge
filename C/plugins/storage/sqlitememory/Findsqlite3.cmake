@@ -11,9 +11,9 @@ find_path(SQLITE_INCLUDE_DIR sqlite3.h)
 find_library(SQLITE_LIBRARIES NAMES libsqlite3.so)
 
 # Check wether path of compiled libsqlite3.a and .h files exists
-if (EXISTS ${FOGLAMP_SQLITE3_LIBS})
-    find_path(SQLITE_INCLUDE_DIR sqlite3.h PATHS ${FOGLAMP_SQLITE3_LIBS})
-    find_library(SQLITE_LIBRARIES NAMES libsqlite3.a PATHS "${FOGLAMP_SQLITE3_LIBS}/.libs")
+if (EXISTS ${FLEDGE_SQLITE3_LIBS})
+    find_path(SQLITE_INCLUDE_DIR sqlite3.h PATHS ${FLEDGE_SQLITE3_LIBS})
+    find_library(SQLITE_LIBRARIES NAMES libsqlite3.a PATHS "${FLEDGE_SQLITE3_LIBS}/.libs")
 else()
     # Use system defaults
     find_path(SQLITE_INCLUDE_DIR sqlite3.h)

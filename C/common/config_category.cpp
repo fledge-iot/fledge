@@ -1,5 +1,5 @@
 /*
- * FogLAMP category management
+ * Fledge category management
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -36,7 +36,7 @@ ConfigCategories::ConfigCategories()
 
 /**
  * Construct a ConfigCategories object from a JSON document returned from
- * the FogLAMP configuratrion service.
+ * the Fledge configuratrion service.
  */
 ConfigCategories::ConfigCategories(const std::string& json)
 {

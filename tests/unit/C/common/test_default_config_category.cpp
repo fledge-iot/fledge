@@ -17,34 +17,34 @@ const char *default_categories_quoted = "{\"categories\": ["
 
 const char *default_myCategory = "{\"description\": {"
 		"\"type\": \"string\","
-		"\"value\": \"The FogLAMP administrative API\","
-		"\"default\": \"The FogLAMP administrative API\","
-		"\"description\": \"The description of this FogLAMP service\"},"
+		"\"value\": \"The Fledge administrative API\","
+		"\"default\": \"The Fledge administrative API\","
+		"\"description\": \"The description of this Fledge service\"},"
 	"\"name\": {"
 		"\"type\": \"string\","
-		"\"value\": \"FogLAMP\","
-		"\"default\": \"FogLAMP\","
-		"\"description\": \"The name of this FogLAMP service\"},"
+		"\"value\": \"Fledge\","
+		"\"default\": \"Fledge\","
+		"\"description\": \"The name of this Fledge service\"},"
         "\"complex\": {" \
 		"\"type\": \"json\","
-		"\"value\": {\"first\" : \"FogLAMP\", \"second\" : \"json\" },"
-		"\"default\": {\"first\" : \"FogLAMP\", \"second\" : \"json\" },"
+		"\"value\": {\"first\" : \"Fledge\", \"second\" : \"json\" },"
+		"\"default\": {\"first\" : \"Fledge\", \"second\" : \"json\" },"
 		"\"description\": \"A JSON configuration parameter\"}}";
 
 const char *default_myCategory_quoted = "{\"description\": {"
 		"\"type\": \"string\","
-		"\"value\": \"The \\\"FogLAMP\\\" administrative API\","
-		"\"default\": \"The \\\"FogLAMP\\\" administrative API\","
-		"\"description\": \"The description of this \\\"FogLAMP\\\" service\"},"
+		"\"value\": \"The \\\"Fledge\\\" administrative API\","
+		"\"default\": \"The \\\"Fledge\\\" administrative API\","
+		"\"description\": \"The description of this \\\"Fledge\\\" service\"},"
 	"\"name\": {"
 		"\"type\": \"string\","
-		"\"value\": \"\\\"FogLAMP\\\"\","
-		"\"default\": \"\\\"FogLAMP\\\"\","
-		"\"description\": \"The name of this \\\"FogLAMP\\\" service\"},"
+		"\"value\": \"\\\"Fledge\\\"\","
+		"\"default\": \"\\\"Fledge\\\"\","
+		"\"description\": \"The name of this \\\"Fledge\\\" service\"},"
         "\"complex\": {" \
 		"\"type\": \"json\","
-		"\"value\": {\"first\" : \"FogLAMP\", \"second\" : \"json\" },"
-		"\"default\": {\"first\" : \"FogLAMP\", \"second\" : \"json\" },"
+		"\"value\": {\"first\" : \"Fledge\", \"second\" : \"json\" },"
+		"\"default\": {\"first\" : \"Fledge\", \"second\" : \"json\" },"
 		"\"description\": \"A JSON configuration parameter\"}}";
 /**
  * The JSON output from DefaulltCategory::toJSON has "default" values olny
@@ -52,32 +52,32 @@ const char *default_myCategory_quoted = "{\"description\": {"
 const char *default_json = "{ \"key\" : \"test\", \"description\" : \"Test description\", "
     "\"value\" : {"
 	"\"description\" : { "
-		"\"description\" : \"The description of this FogLAMP service\", "
+		"\"description\" : \"The description of this Fledge service\", "
 		"\"type\" : \"string\", "
-		"\"default\" : \"The FogLAMP administrative API\" }, "
+		"\"default\" : \"The Fledge administrative API\" }, "
 	"\"name\" : { "
-		"\"description\" : \"The name of this FogLAMP service\", "
+		"\"description\" : \"The name of this Fledge service\", "
 		"\"type\" : \"string\", "
-		"\"default\" : \"FogLAMP\" }, "
+		"\"default\" : \"Fledge\" }, "
 	"\"complex\" : { " 
 		"\"description\" : \"A JSON configuration parameter\", "
 		"\"type\" : \"json\", "
-		"\"default\" : \"{\\\"first\\\":\\\"FogLAMP\\\",\\\"second\\\":\\\"json\\\"}\" }} }";
+		"\"default\" : \"{\\\"first\\\":\\\"Fledge\\\",\\\"second\\\":\\\"json\\\"}\" }} }";
 
 const char *default_json_quoted = "{ \"key\" : \"test \\\"a\\\"\", \"description\" : \"Test \\\"description\\\"\", "
     "\"value\" : {"
 	"\"description\" : { "
-		"\"description\" : \"The description of this \\\"FogLAMP\\\" service\", "
+		"\"description\" : \"The description of this \\\"Fledge\\\" service\", "
 		"\"type\" : \"string\", "
-		"\"default\" : \"The \\\"FogLAMP\\\" administrative API\" }, "
+		"\"default\" : \"The \\\"Fledge\\\" administrative API\" }, "
 	"\"name\" : { "
-		"\"description\" : \"The name of this \\\"FogLAMP\\\" service\", "
+		"\"description\" : \"The name of this \\\"Fledge\\\" service\", "
 		"\"type\" : \"string\", "
-		"\"default\" : \"\\\"FogLAMP\\\"\" }, "
+		"\"default\" : \"\\\"Fledge\\\"\" }, "
 	"\"complex\" : { " 
 		"\"description\" : \"A JSON configuration parameter\", "
 		"\"type\" : \"json\", "
-		"\"default\" : \"{\\\"first\\\":\\\"FogLAMP\\\",\\\"second\\\":\\\"json\\\"}\" }} }";
+		"\"default\" : \"{\\\"first\\\":\\\"Fledge\\\",\\\"second\\\":\\\"json\\\"}\" }} }";
 
 const char *default_myCategory_number_and_boolean_items =  "{\"factor\": {"
 		"\"value\": \"101\","
@@ -190,13 +190,13 @@ TEST(DefaultCategoryTestQuoted, ExistsTestQuoted)
 TEST(DefaultCategoryTest, getValue)
 {
 	DefaultConfigCategory confCategory("test", default_myCategory);
-	ASSERT_EQ(0, confCategory.getValue("name").compare("FogLAMP"));
+	ASSERT_EQ(0, confCategory.getValue("name").compare("Fledge"));
 }
 
 TEST(DefaultCategoryTestQuoted, getValueQuoted)
 {
 	DefaultConfigCategory confCategory("test", default_myCategory_quoted);
-	ASSERT_EQ(0, confCategory.getValue("name").compare("\"FogLAMP\""));
+	ASSERT_EQ(0, confCategory.getValue("name").compare("\"Fledge\""));
 }
 
 TEST(DefaultCategoryTest, getType)
@@ -208,25 +208,25 @@ TEST(DefaultCategoryTest, getType)
 TEST(DefaultCategoryTest, getDefault)
 {
 	DefaultConfigCategory confCategory("test", default_myCategory);
-	ASSERT_EQ(0, confCategory.getDefault("name").compare("FogLAMP"));
+	ASSERT_EQ(0, confCategory.getDefault("name").compare("Fledge"));
 }
 
 TEST(DefaultCategoryTestQuoted, getDefaultQuoted)
 {
 	DefaultConfigCategory confCategory("test", default_myCategory_quoted);
-	ASSERT_EQ(0, confCategory.getDefault("name").compare("\"FogLAMP\""));
+	ASSERT_EQ(0, confCategory.getDefault("name").compare("\"Fledge\""));
 }
 
 TEST(DefaultCategoryTest, getDescription)
 {
 	DefaultConfigCategory confCategory("test", default_myCategory);
-	ASSERT_EQ(0, confCategory.getDescription("name").compare("The name of this FogLAMP service"));
+	ASSERT_EQ(0, confCategory.getDescription("name").compare("The name of this Fledge service"));
 }
 
 TEST(DefaultCategoryTestQuoted, getDescriptionQuoted)
 {
 	DefaultConfigCategory confCategory("test", default_myCategory_quoted);
-	ASSERT_EQ(0, confCategory.getDescription("name").compare("The name of this \"FogLAMP\" service"));
+	ASSERT_EQ(0, confCategory.getDescription("name").compare("The name of this \"Fledge\" service"));
 }
 
 TEST(DefaultCategoryTestQuoted, isStringQuoted)

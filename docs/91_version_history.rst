@@ -1,4 +1,4 @@
-.. Version History presents a list of versions of FogLAMP released.
+.. Version History presents a list of versions of Fledge released.
 
 .. |br| raw:: html
 
@@ -12,7 +12,7 @@
 
 .. |1.1 requirements| raw:: html
 
-   <a href="https://github.com/foglamp/FogLAMP/blob/1.1/python/requirements.txt" target="_blank">check here</a>
+   <a href="https://github.com/fledge/Fledge/blob/1.1/python/requirements.txt" target="_blank">check here</a>
 
 
 .. =============================================
@@ -22,7 +22,7 @@
 Version History
 ***************
 
-FogLAMP v1
+Fledge v1
 ==========
 
 v1.6.0
@@ -30,20 +30,20 @@ v1.6.0
 
 Release Date: 2019-05-22
 
-- **FogLAMP Core**
+- **Fledge Core**
 
     - New Features:
 
-       - The scope of the FogLAMP certificate store has been widen to allow it to store .pem certificates and keys for accessing cloud functions.
-       - The creation of a Docker container for FogLAMP has been added to the packaging options for FogLAMP in this version of FogLAMP.
-       - Red Hat Enterprise Linux packages have been made available from this release of FogLAMP onwards. These packages include all the applicable plugins and notification service for FogLAMP.
-       - The FogLAMP API now supports the creation of configuration snapshots which can be used to create configuration checkpoints and rollback configuration changes.
-       - The FogLAMP administration API has been extended to allow the installation of new plugins via API.
+       - The scope of the Fledge certificate store has been widen to allow it to store .pem certificates and keys for accessing cloud functions.
+       - The creation of a Docker container for Fledge has been added to the packaging options for Fledge in this version of Fledge.
+       - Red Hat Enterprise Linux packages have been made available from this release of Fledge onwards. These packages include all the applicable plugins and notification service for Fledge.
+       - The Fledge API now supports the creation of configuration snapshots which can be used to create configuration checkpoints and rollback configuration changes.
+       - The Fledge administration API has been extended to allow the installation of new plugins via API.
        
 
     - Improvements/Bug Fix:
 
-       - A bug that prevents multiple FogLAMP's on the same network being discoverable via multicast DNS lookup has been fixed.
+       - A bug that prevents multiple Fledge's on the same network being discoverable via multicast DNS lookup has been fixed.
        - Set, unset optional configuration attributes
 
 
@@ -51,15 +51,15 @@ Release Date: 2019-05-22
 
     - New Features:
        
-       - The FogLAMP Graphical User Interface now has the ability to show sets of graphs over a time period for data such as the spectrum analysis produced but the Fast Fourier transform filter.
-       - The FogLAMP Graphical User Interface is now available as an RPM file that may be installed on Red Hat Enterprise Linux or CentOS.
+       - The Fledge Graphical User Interface now has the ability to show sets of graphs over a time period for data such as the spectrum analysis produced but the Fast Fourier transform filter.
+       - The Fledge Graphical User Interface is now available as an RPM file that may be installed on Red Hat Enterprise Linux or CentOS.
 
 
     - Improvements/Bug Fix:
 
-       - Improvements have been made to the FogLAMP Graphical User Interface to allow more control of the time periods displayed in the graphs of asset values.
-       - Some improvements to screen layout in the FogLAMP Graphical User Interface have been made in order to improve the look and reduce the screen space used in some of the screens.
-       - Improvements have been made to the appearance of dropdown and other elements with the FogLAMP Graphical User Interface.
+       - Improvements have been made to the Fledge Graphical User Interface to allow more control of the time periods displayed in the graphs of asset values.
+       - Some improvements to screen layout in the Fledge Graphical User Interface have been made in order to improve the look and reduce the screen space used in some of the screens.
+       - Improvements have been made to the appearance of dropdown and other elements with the Fledge Graphical User Interface.
 
 
 - **Plugins**
@@ -89,11 +89,11 @@ v1.5.2
 
 Release Date: 2019-04-08
 
-- **FogLAMP Core**
+- **Fledge Core**
 
     - New Features:
        - Notification service, notification rule and delivery plugins
-       - Addition of a new notification delivery plugin that will create an asset reading when a notification is delivered. This can then be sent to any system north of the FogLAMP instance via the usual mechanisms
+       - Addition of a new notification delivery plugin that will create an asset reading when a notification is delivered. This can then be sent to any system north of the Fledge instance via the usual mechanisms
        - Bulk insert support for SQLite and Postgres storage plugins
 
     - Enhancements / Bug Fix:
@@ -101,7 +101,7 @@ Release Date: 2019-04-08
        - Improved performance of data browsing where large datasets have been acquired
        - Optimized statistics history collection
        - Optimized purge task
-       - The readings count shown on GUI and south page and corresponding API endpoints now shows total readings count and not what is currently buffered by FogLAMP. So these counts don't reduce when purge task runs
+       - The readings count shown on GUI and south page and corresponding API endpoints now shows total readings count and not what is currently buffered by Fledge. So these counts don't reduce when purge task runs
        - Static data in the OMF plugin was not being correctly taken from the plugin configuration
        - Reduced the number of informational log messages being sent to the syslog
 
@@ -120,7 +120,7 @@ v1.5.1
 
 Release Date: 2019-03-12
 
-- **FogLAMP Core**
+- **Fledge Core**
 
     - Bug Fix: plugin loading errors
 
@@ -135,10 +135,10 @@ v1.5.0
 
 Release Date: 2019-02-21
 
-- **FogLAMP Core**
+- **Fledge Core**
 
     - Performance improvements and Bug Fixes
-    - Introduction of Safe Mode in case FogLAMP is accidentally configured to generate so much data that it is overwhelmed and can no longer be managed.
+    - Introduction of Safe Mode in case Fledge is accidentally configured to generate so much data that it is overwhelmed and can no longer be managed.
 
 
 - **GUI**
@@ -160,7 +160,7 @@ Release Date: 2019-02-21
     - Kafka
 
 
-- **Filters**: Perform data pre-processing, and allow distributed applications to be built on FogLAMP.
+- **Filters**: Perform data pre-processing, and allow distributed applications to be built on Fledge.
 
     - Delta: only send data upon change
     - Expression: run a complex mathematical expression across one or more data streams
@@ -229,8 +229,8 @@ New Features
   
 - **Removal of south plugins**
 
-  - **coap**: coap south plugin was moved into its own repository https://github.com/foglamp/foglamp-south-coap
-  - **http**: http south plugin was moved into its own repository https://github.com/foglamp/foglamp-south-http
+  - **coap**: coap south plugin was moved into its own repository https://github.com/fledge/fledge-south-coap
+  - **http**: http south plugin was moved into its own repository https://github.com/fledge/fledge-south-http
 
 
 Known Issues
@@ -238,7 +238,7 @@ Known Issues
 
 - **Issues in Documentation**
 
-  - **plugin documentation**: testing FogLAMP requires user to first install southbound plugins necessary (CoAP, http)
+  - **plugin documentation**: testing Fledge requires user to first install southbound plugins necessary (CoAP, http)
 
 
 
@@ -253,7 +253,7 @@ New Features
 
 - **Changes in the REST API**
 
-  - **ping Method**: the ping method now returns uptime, number of records read/sent/purged and if FogLAMP requires REST API authentication.
+  - **ping Method**: the ping method now returns uptime, number of records read/sent/purged and if Fledge requires REST API authentication.
 
 - **Storage Layer**
 
@@ -261,9 +261,9 @@ New Features
   
 - **Admin and Maintenance Scripts**
 
-  - **foglamp status**: the command now shows what the ``ping`` REST method provides.
-  - **setenv script**: a new script has been added to simplify the user interaction. The script is in *$FOGLAMP_ROOT/extras/scripts* and it is called *setenv.sh*.
-  - **foglamp service script**: a new service script has been added to setup FogLAMP as a service. The script is in *$FOGLAMP_ROOT/extras/scripts* and it is called *foglamp.service*.
+  - **fledge status**: the command now shows what the ``ping`` REST method provides.
+  - **setenv script**: a new script has been added to simplify the user interaction. The script is in *$FLEDGE_ROOT/extras/scripts* and it is called *setenv.sh*.
+  - **fledge service script**: a new service script has been added to setup Fledge as a service. The script is in *$FLEDGE_ROOT/extras/scripts* and it is called *fledge.service*.
 
 
 Known Issues
@@ -285,7 +285,7 @@ New Features
 ~~~~~~~~~~~~
 
 - **Fixed aiohttp incompatibility**: This fix is for the incompatibility of *aiohttp* with *yarl*, discovered in the previous version. The issue has been fixed.
-- **Fixed avahi-daemon issue**: Avahi daemon is a pre-requisite of FogLAMP, FogLAMP can now run as a snap or build from source without avahi daemon installed.
+- **Fixed avahi-daemon issue**: Avahi daemon is a pre-requisite of Fledge, Fledge can now run as a snap or build from source without avahi daemon installed.
 
 
 Known Issues
@@ -305,14 +305,14 @@ New Features
 
 - **Startup Script**:
 
-  - ``foglamp start`` script now checks if the Core microservice has started.
-  - ``foglamp start`` creates a *core.err* file in *$FOGLAMP_DATA* and writes the stderr there. 
+  - ``fledge start`` script now checks if the Core microservice has started.
+  - ``fledge start`` creates a *core.err* file in *$FLEDGE_DATA* and writes the stderr there. 
 
 
 Known Issues
 ~~~~~~~~~~~~
 
-- **Incompatibility between aiohttp and yarl when FogLAMP is built from source**: in this version we use *aiohttp 2.3.6* (|1.1 requirements|). This version is incompatible with updated versions of *yarl* (0.18.0+). If you intend to use this version, change the requirements for *aiohttp* for version 2.3.8 or higher.
+- **Incompatibility between aiohttp and yarl when Fledge is built from source**: in this version we use *aiohttp 2.3.6* (|1.1 requirements|). This version is incompatible with updated versions of *yarl* (0.18.0+). If you intend to use this version, change the requirements for *aiohttp* for version 2.3.8 or higher.
 - **PostgreSQL with Snap**: the issue described in version 1.0 still persists, see :ref:`1.0-known_issues` in v1.0.
 
 
@@ -332,7 +332,7 @@ Features
 
 - South plugins available in the main repository:
 
-  - **CoAP Listener**: A CoAP microservice plugin listening to client applications that send data to FogLAMP
+  - **CoAP Listener**: A CoAP microservice plugin listening to client applications that send data to Fledge
 
 - North plugins available in the main repository:
 
@@ -344,9 +344,9 @@ Features
 Known Issues
 ~~~~~~~~~~~~
 
-- **Startup Script**: ``foglamp start`` does not check if the Core microservice has started correctly, hence it may report that "FogLAMP started." when the process has died. As a workaround, check with ``foglamp status`` the presence of the FogLAMP microservices.
-- **Snap Execution on Raspbian**: there is an issue on Raspbian when the FogLAMP snap package is used. It is an issue with the snap environment, it looks for a shared object to preload on Raspian, but the object is not available. As a workaround, a superuser should comment a line in the file */etc/ld.so.preload*. Add a ``#`` at the beginning of this line: ``/usr/lib/arm-linux-gnueabihf/libarmmem.so``. Save the file and you will be able to immediately use the snap.
-- **OMF Translator North Plugin for FogLAMP Statistics**: in this version the statistics collected by FogLAMP are not sent automatically to the PI System via the OMF Translator plugin, as it is supposed to be. The issue will be fixed in a future release.
-- **Snap installed in an environment with an existing version of PostgreSQL**: the FogLAMP snap does not check if another version of PostgreSQL is available on the machine. The result may be a conflict between the tailored version of PostgreSQL installed with the snap and the version of PostgreSQL generally available on the machine. You can check if PostgreSQL is installed using the command ``sudo dpkg -l | grep 'postgres'``. All packages should be removed with ``sudo dpkg --purge <package>``.
+- **Startup Script**: ``fledge start`` does not check if the Core microservice has started correctly, hence it may report that "Fledge started." when the process has died. As a workaround, check with ``fledge status`` the presence of the Fledge microservices.
+- **Snap Execution on Raspbian**: there is an issue on Raspbian when the Fledge snap package is used. It is an issue with the snap environment, it looks for a shared object to preload on Raspian, but the object is not available. As a workaround, a superuser should comment a line in the file */etc/ld.so.preload*. Add a ``#`` at the beginning of this line: ``/usr/lib/arm-linux-gnueabihf/libarmmem.so``. Save the file and you will be able to immediately use the snap.
+- **OMF Translator North Plugin for Fledge Statistics**: in this version the statistics collected by Fledge are not sent automatically to the PI System via the OMF Translator plugin, as it is supposed to be. The issue will be fixed in a future release.
+- **Snap installed in an environment with an existing version of PostgreSQL**: the Fledge snap does not check if another version of PostgreSQL is available on the machine. The result may be a conflict between the tailored version of PostgreSQL installed with the snap and the version of PostgreSQL generally available on the machine. You can check if PostgreSQL is installed using the command ``sudo dpkg -l | grep 'postgres'``. All packages should be removed with ``sudo dpkg --purge <package>``.
 
 

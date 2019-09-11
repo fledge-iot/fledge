@@ -3,8 +3,8 @@ cmake_minimum_required(VERSION 2.6.0)
 project(ocs_V2)
 
 set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
-# Add here all needed FogLAMP libraries as list
-set(NEEDED_FOGLAMP_LIBS common-lib plugins-common-lib)
+# Add here all needed Fledge libraries as list
+set(NEEDED_FLEDGE_LIBS common-lib plugins-common-lib)
 
 set(COMMON_LIBS -lssl -lcrypto)
 
@@ -22,9 +22,9 @@ link_directories(${PROJECT_BINARY_DIR}/../../../lib)
 
 # Create shared library
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
-target_link_libraries(${PROJECT_NAME} ${NEEDED_FOGLAMP_LIBS})
+target_link_libraries(${PROJECT_NAME} ${NEEDED_FLEDGE_LIBS})
 target_link_libraries(${PROJECT_NAME} ${COMMON_LIBS})
 set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION 1)
 
 # Install library
-install(TARGETS ${PROJECT_NAME} DESTINATION foglamp/plugins/north/${PROJECT_NAME})
+install(TARGETS ${PROJECT_NAME} DESTINATION fledge/plugins/north/${PROJECT_NAME})

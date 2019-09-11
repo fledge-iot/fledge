@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# FOGLAMP_BEGIN
-# See: http://foglamp.readthedocs.io/
-# FOGLAMP_END
+# FLEDGE_BEGIN
+# See: http://fledge.readthedocs.io/
+# FLEDGE_END
 
 """ Test notification REST API """
 
@@ -34,53 +34,53 @@ DATA = {"name": "Test - 1",
 
 
 class TestNotificationServiceAPI:
-    def test_notification_without_install(self, reset_and_start_foglamp, foglamp_url, wait_time):
-        # Wait for foglamp server to start
+    def test_notification_without_install(self, reset_and_start_fledge, fledge_url, wait_time):
+        # Wait for fledge server to start
         time.sleep(wait_time)
-        conn = http.client.HTTPConnection(foglamp_url)
+        conn = http.client.HTTPConnection(fledge_url)
 
-        conn.request("GET", '/foglamp/notification/plugin')
+        conn.request("GET", '/fledge/notification/plugin')
         r = conn.getresponse()
         assert 404 == r.status
         r = r.read().decode()
         assert "404: No Notification service available." == r
 
-        conn.request("GET", '/foglamp/notification/type')
+        conn.request("GET", '/fledge/notification/type')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
         assert {"notification_type": ["one shot", "retriggered", "toggled"]} == jdoc
 
-        conn.request("POST", '/foglamp/notification', json.dumps({}))
+        conn.request("POST", '/fledge/notification', json.dumps({}))
         r = conn.getresponse()
         assert 404 == r.status
         r = r.read().decode()
         assert "404: No Notification service available." == r
 
         pytest.xfail("FOGL-2748")
-        conn.request("GET", '/foglamp/notification')
+        conn.request("GET", '/fledge/notification')
         r = conn.getresponse()
         assert 404 == r.status
         r = r.read().decode()
         assert "404: No Notification service available." == r
 
-    def test_notification_service_add(self, service_branch, foglamp_url, wait_time, remove_directories):
+    def test_notification_service_add(self, service_branch, fledge_url, wait_time, remove_directories):
         try:
-            subprocess.run(["$FOGLAMP_ROOT/tests/system/python/scripts/install_c_service {} {}"
+            subprocess.run(["$FLEDGE_ROOT/tests/system/python/scripts/install_c_service {} {}"
                            .format(service_branch, SERVICE)], shell=True, check=True)
         except subprocess.CalledProcessError:
             assert False, "{} installation failed".format(SERVICE)
         finally:
-            remove_directories("/tmp/foglamp-service-{}".format(SERVICE))
+            remove_directories("/tmp/fledge-service-{}".format(SERVICE))
 
         # Start service
-        conn = http.client.HTTPConnection(foglamp_url)
+        conn = http.client.HTTPConnection(fledge_url)
         data = {"name": SERVICE_NAME,
                 "type": "notification",
                 "enabled": "true"
                 }
-        conn.request("POST", '/foglamp/service', json.dumps(data))
+        conn.request("POST", '/fledge/service', json.dumps(data))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -90,7 +90,7 @@ class TestNotificationServiceAPI:
 
         # Wait for service to get created
         time.sleep(wait_time)
-        conn.request("GET", '/foglamp/service')
+        conn.request("GET", '/fledge/service')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -99,15 +99,15 @@ class TestNotificationServiceAPI:
 
     def test_install_delivery_plugin(self, notify_branch, remove_directories):
         # Remove any external plugins if installed
-        remove_directories(os.path.expandvars('$FOGLAMP_ROOT/plugins/notificationDelivery'))
-        remove_directories(os.path.expandvars('$FOGLAMP_ROOT/plugins/notificationRule'))
+        remove_directories(os.path.expandvars('$FLEDGE_ROOT/plugins/notificationDelivery'))
+        remove_directories(os.path.expandvars('$FLEDGE_ROOT/plugins/notificationRule'))
         try:
-            subprocess.run(["$FOGLAMP_ROOT/tests/system/python/scripts/install_c_plugin {} notify {}".format(
+            subprocess.run(["$FLEDGE_ROOT/tests/system/python/scripts/install_c_plugin {} notify {}".format(
                 notify_branch, NOTIFY_PLUGIN)], shell=True, check=True)
         except subprocess.CalledProcessError:
             assert False, "{} installation failed".format(NOTIFY_PLUGIN)
         finally:
-            remove_directories("/tmp/foglamp-notify-{}".format(NOTIFY_PLUGIN))
+            remove_directories("/tmp/fledge-notify-{}".format(NOTIFY_PLUGIN))
 
     @pytest.mark.parametrize("test_input, expected_error", [
         ({"description": "Test4_Notification", "rule": NOTIFY_INBUILT_RULES[0], "channel": NOTIFY_PLUGIN,
@@ -133,24 +133,24 @@ class TestNotificationServiceAPI:
           "channel": "InvalidChannelPlugin", "enabled": True, "notification_type": "one shot"},
          '400: Invalid rule plugin InvalidRulePlugin and/or delivery plugin InvalidChannelPlugin supplied.')
     ])
-    def test_invalid_create_notification_instance(self, foglamp_url, test_input, expected_error):
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("POST", '/foglamp/notification', json.dumps(test_input))
+    def test_invalid_create_notification_instance(self, fledge_url, test_input, expected_error):
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("POST", '/fledge/notification', json.dumps(test_input))
         r = conn.getresponse()
         assert 400 == r.status
         r = r.read().decode()
         assert expected_error == r
 
-    def test_create_valid_notification_instance(self, foglamp_url):
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("POST", '/foglamp/notification', json.dumps(DATA))
+    def test_create_valid_notification_instance(self, fledge_url):
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("POST", '/fledge/notification', json.dumps(DATA))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
         assert "Notification {} created successfully".format(DATA['name']) == jdoc['result']
 
-        conn.request("GET", '/foglamp/notification')
+        conn.request("GET", '/fledge/notification')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -162,7 +162,7 @@ class TestNotificationServiceAPI:
         assert DATA['notification_type'] == actual_data['notificationType']
         assert DATA['rule'] == actual_data['rule']
 
-        conn.request("GET", '/foglamp/notification/plugin')
+        conn.request("GET", '/fledge/notification/plugin')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -183,52 +183,52 @@ class TestNotificationServiceAPI:
         ({"rule": "InvalidRulePlugin", "channel": "InvalidChannelPlugin"},
          '400: Invalid rule plugin:InvalidRulePlugin and/or delivery plugin:InvalidChannelPlugin supplied.')
     ])
-    def test_invalid_update_notification_instance(self, foglamp_url, test_input, expected_error):
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("PUT", '/foglamp/notification/{}'.format(urllib.parse.quote(DATA['name'])), json.dumps(test_input))
+    def test_invalid_update_notification_instance(self, fledge_url, test_input, expected_error):
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("PUT", '/fledge/notification/{}'.format(urllib.parse.quote(DATA['name'])), json.dumps(test_input))
         r = conn.getresponse()
         assert 400 == r.status
         r = r.read().decode()
         assert expected_error == r
 
-    def test_invalid_name_update_notification_instance(self, foglamp_url):
-        conn = http.client.HTTPConnection(foglamp_url)
+    def test_invalid_name_update_notification_instance(self, fledge_url):
+        conn = http.client.HTTPConnection(fledge_url)
         changed_data = {"description": "changed_desc"}
-        conn.request("PUT", '/foglamp/notification/{}'.format('nonExistent'), json.dumps(changed_data))
+        conn.request("PUT", '/fledge/notification/{}'.format('nonExistent'), json.dumps(changed_data))
         r = conn.getresponse()
         assert 404 == r.status
         r = r.read().decode()
         assert '404: No nonExistent notification instance found' == r
 
-    def test_update_valid_notification_instance(self, foglamp_url):
+    def test_update_valid_notification_instance(self, fledge_url):
         changed_data = {"description": "changed_desc"}
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("PUT", '/foglamp/notification/{}'.format(urllib.parse.quote(DATA['name'])), json.dumps(changed_data))
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("PUT", '/fledge/notification/{}'.format(urllib.parse.quote(DATA['name'])), json.dumps(changed_data))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
         assert "Notification {} updated successfully".format(DATA["name"]) == jdoc['result']
 
-    def test_delete_service_without_notification_delete(self, foglamp_url):
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("DELETE", '/foglamp/service/{}'.format(urllib.parse.quote(SERVICE_NAME)))
+    def test_delete_service_without_notification_delete(self, fledge_url):
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("DELETE", '/fledge/service/{}'.format(urllib.parse.quote(SERVICE_NAME)))
         r = conn.getresponse()
         assert 400 == r.status
         r = r.read().decode()
         assert "400: Notification service `{}` can not be deleted, as ['{}'] " \
                "notification instances exist.".format(SERVICE_NAME, DATA['name']) == r
 
-    def test_delete_notification_and_service(self, foglamp_url):
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("DELETE", '/foglamp/notification/{}'.format(urllib.parse.quote(DATA['name'])))
+    def test_delete_notification_and_service(self, fledge_url):
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("DELETE", '/fledge/notification/{}'.format(urllib.parse.quote(DATA['name'])))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
         assert "Notification {} deleted successfully.".format(DATA['name']) == jdoc['result']
 
-        conn.request("DELETE", '/foglamp/service/{}'.format(urllib.parse.quote(SERVICE_NAME)))
+        conn.request("DELETE", '/fledge/service/{}'.format(urllib.parse.quote(SERVICE_NAME)))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()

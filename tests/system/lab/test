@@ -8,7 +8,7 @@ CINFO="${CPFX}1;32m"
 CERR="${CPFX}1;31m"
 CRESET="${CPFX}0m"
 
-# Read config file for FOGLAMP IP, PI host and token etc.
+# Read config file for FLEDGE IP, PI host and token etc.
 . ./test.config
 
 rm -f err.txt
@@ -20,7 +20,7 @@ display_and_collect_err () {
 }
 
 
-URL="http://$FOGLAMP_IP:8081/foglamp"
+URL="http://$FLEDGE_IP:8081/fledge"
 
 echo -e INFO: "${CINFO} Add Sinusoid South ${CRESET}"
 curl -sX POST "$URL/service" -d \
@@ -241,7 +241,7 @@ curl -sX POST "$URL/service" -d \
    "config": {}
 }'
 echo
-# need to wait for FogLAMP to be ready to accept python file
+# need to wait for Fledge to be ready to accept python file
 sleep ${SLEEP_FIX}
 # Add Python35 Filter (ema)
 curl -sX POST "$URL/filter" -d \
@@ -301,7 +301,7 @@ curl -sX POST "$URL/service" -d \
 }' | jq
 echo
 
-# need to wait for FogLAMP to be ready to accept python file
+# need to wait for Fledge to be ready to accept python file
 sleep ${SLEEP_FIX}
 
 # Add Python35 Filter (PF)
@@ -452,17 +452,17 @@ echo "======================= enviro-pHAT SETUP COMPLETE =======================
 # Enable Event Engine
 curl -sX POST "$URL/service" -d \
 '{
-   "name": "FogLAMP Notifications",
+   "name": "Fledge Notifications",
    "type": "notification",
    "enabled": true
 }'
 echo
 # Need to wait for event engine to come up
-curl -sX GET "$URL/service" | jq '.services[]|select(.name=="FogLAMP Notifications").status'
+curl -sX GET "$URL/service" | jq '.services[]|select(.name=="Fledge Notifications").status'
 for LOOP in $(seq ${MAX_RETRIES}); do
     RESULT=`curl -sX GET "$URL/service"`
     echo ${RESULT}
-    STATUS=`echo ${RESULT} | jq '.services[]|select(.name=="FogLAMP Notifications").status // empty'`
+    STATUS=`echo ${RESULT} | jq '.services[]|select(.name=="Fledge Notifications").status // empty'`
     if [[ -n "$STATUS" ]] && [[ ${STATUS} == "\"running\"" ]]; then break; fi
 done
 

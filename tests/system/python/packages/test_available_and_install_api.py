@@ -128,7 +128,8 @@ class TestPackages:
 
     def test_install_plugin_package(self, foglamp_url, package_build_list):
         json_data = load_data_from_json()
-        for pkg_list_cat in package_build_list:
+        my_list = package_build_list.split(",")
+        for pkg_list_cat in my_list:
             for pkg_list_name in json_data[pkg_list_cat][0].values():
                 for pkg_name in pkg_list_name:
                     if pkg_name in available_pkg:

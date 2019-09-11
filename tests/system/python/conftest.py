@@ -372,7 +372,7 @@ def pytest_addoption(parser):
 
     # Packages
     parser.addoption("--package-build-version", action="store", default="nightly", help="Package build version for http://archives.dianomic.com")
-    parser.addoption("--package-build-list", action="store", default=["p0"], type=list, help="Package to build as per key defined in tests/system/python/packages/data/package_list.json")
+    parser.addoption("--package-build-list", action="store", default="p0", help="Package to build as per key defined in tests/system/python/packages/data/package_list.json and comma separated values are accepted if more than one to build with")
 
 
 @pytest.fixture

@@ -289,8 +289,25 @@ void Ingest::waitForQueue()
 {
 	mutex mtx;
 	unique_lock<mutex> lck(mtx);
-	if (m_running)
-		m_cv.wait_for(lck,chrono::milliseconds(m_timeout));
+	if (m_running && m_queue->size() < m_queueSizeThreshold)
+	{
+		// Work out how long to wait based on age of oldest queued reading
+		long timeout = m_timeout;
+		if (!m_queue->empty())
+		{
+			Reading *reading = (*m_queue)[0];
+			struct timeval tm, now;
+			reading->getUserTimestamp(&tm);
+			gettimeofday(&now, NULL);
+			long ageMS = (now.tv_sec - tm.tv_sec) * 1000 +
+				(now.tv_usec - tm.tv_usec) / 1000;
+			timeout = m_timeout - ageMS;
+		}
+		if (timeout > 0)
+		{
+			m_cv.wait_for(lck,chrono::milliseconds(timeout));
+		}
+	}
 }
 
 /**
@@ -377,6 +394,22 @@ vector<Reading *>* newQ = new vector<Reading *>();
 		}
 		++statsEntriesCurrQueue[reading->getAssetName()];
 	}
+
+	/*
+	 * Check the first reading in the list to see if we are meeting the
+	 * latency configuration we have been set
+	 */
+	const vector<Reading *>::const_iterator itr = m_data->cbegin();
+	if (itr != m_data->cend())
+	{
+		const Reading *firstReading = *itr;
+		time_t now = time(0);
+		unsigned long latency = now - firstReading->getUserTimestamp();
+		if (latency > m_timeout / 1000)	// m_timeout is in milliseconds
+		{
+			m_logger->warn("Current send latency of %d seconds exceeds requested maximum latency of %d seconds", latency, m_timeout);
+		}
+	}
 		
 	/**
 	 * 'm_data' vector is ready to be sent to storage service.
@@ -396,7 +429,7 @@ vector<Reading *>* newQ = new vector<Reading *>();
 		m_logger->error("Failed to write readings to storage layer, buffering");
 		lock_guard<mutex> guard(m_qMutex);
 
-		// BUffer current data in m_data
+		// Buffer current data in m_data
 		m_queue->insert(m_queue->begin(),
 				m_data->begin(),
 				m_data->end());

@@ -638,6 +638,7 @@ INSERT INTO foglamp.log_codes ( code, description )
             ( 'NTFDL', 'Notification Deleted' ),
             ( 'NTFAD', 'Notification Added' ),
             ( 'NTFSN', 'Notification Sent' ),
+            ( 'NTFCL', 'Notification Cleared' ),
             ( 'NTFST', 'Notification Server Startup' ),
             ( 'NTFSD', 'Notification Server Shutdown' );
 

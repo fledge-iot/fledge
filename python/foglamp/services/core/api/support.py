@@ -165,8 +165,8 @@ async def get_syslog_entries(request):
 
 def _get_support_dir():
     if _FOGLAMP_DATA:
-        support_dir = os.path.expanduser(_FOGLAMP_DATA + '/tmp/support')
+        support_dir = os.path.expanduser(_FOGLAMP_DATA + '/support')
     else:
-        support_dir = os.path.expanduser(_FOGLAMP_ROOT + '/data/tmp/support')
+        support_dir = os.path.expanduser(_FOGLAMP_ROOT + '/data/support')
 
     return support_dir

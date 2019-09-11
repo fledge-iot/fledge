@@ -17,6 +17,13 @@
 #include "logger.h"
 #include "strings.h"
 #include "client_http.hpp"
+#include <chrono>
+
+#define CHECK_QTIMES	0	// Turn on to check length of time data is queued
+#define QTIME_THRESHOLD 3	// Threshold to report long queue times
+
+#define REGISTRY_SLEEP_TIME	5	// Time to sleep in the register process thread
+					// between checks for chutdown
 
 using namespace std;
 using namespace rapidjson;
@@ -78,8 +85,10 @@ StorageRegistry::process(const string& payload)
 		char *data = NULL;
 		if ((data = strdup(payload.c_str())) != NULL)
 		{
+			time_t now = time(0);
+			Item item = make_pair(now, data);
 			lock_guard<mutex> guard(m_qMutex);
-			m_queue.push(data);
+			m_queue.push(item);
 			m_cv.notify_all();
 		}
 	}
@@ -132,14 +141,30 @@ StorageRegistry::run()
 	while (m_running)
 	{
 		char *data = NULL;
+		time_t qTime;
 		{
 			unique_lock<mutex> mlock(m_cvMutex);
-			m_cv.wait(mlock);
-			data = m_queue.front();
+			while (m_queue.size() == 0)
+			{
+				m_cv.wait_for(mlock, std::chrono::seconds(REGISTRY_SLEEP_TIME));
+				if (!m_running)
+				{
+					return;
+				}
+			}
+			Item item = m_queue.front();
 			m_queue.pop();
+			data = item.second;
+			qTime = item.first;
 		}
 		if (data)
 		{
+#if CHECK_QTIMES
+			if (time(0) - qTime > QTIME_THRESHOLD)
+			{
+				Logger::getLogger()->error("Data has been queued for %d seconds to be sent to registered party", (time(0) - qTime));
+			}
+#endif
 			processPayload(data);
 			free(data);
 		}

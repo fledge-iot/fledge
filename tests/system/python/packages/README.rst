@@ -14,3 +14,5 @@ TODO Items
 
 1. Script should run on CentOS 7 & RHEL 7 platforms
 2. We need to think for those plugins their discovery totally depend upon on the sensor attached like foglamp-south-sensehat etc
+3. `--package-build-list=["p0", "p1"]` is not working by default p0 is set
+

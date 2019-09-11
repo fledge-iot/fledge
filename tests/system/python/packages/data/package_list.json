@@ -1,0 +1,16 @@
+{
+	"p0": [{
+		"south": ["foglamp-south-modbus", "foglamp-south-sinusoid", "foglamp-south-opcua"],
+		"north": ["foglamp-north-http-north", "foglamp-north-kafka"],
+		"filter": ["foglamp-filter-python35"],
+		"notificationDelivery": ["foglamp-notify-python35"],
+		"notificationRule": ["foglamp-rule-outofbound"]
+	}],
+	"p1": [{
+		"south": ["foglamp-south-randomwalk", "foglamp-south-playback"],
+		"north": ["foglamp-north-httpc"],
+		"filter": ["foglamp-filter-threshold"],
+		"notificationDelivery": ["foglamp-notify-slack"],
+		"notificationRule": ["foglamp-rule-average"]
+	}]
+}

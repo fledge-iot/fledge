@@ -29,8 +29,7 @@ if [[ ${ID} = "ubuntu" && ${VERSION_ID} = "16.04" ]]; then
 elif [[ ${ID} = "ubuntu" && ${VERSION_ID} = "18.04" ]]; then
     ID="ubuntu1804";
 elif [[ ${ID} = "raspbian" ]]; then
-    VERSION_CODENAME=$(cat /etc/os-release | grep VERSION_CODENAME | cut -f2 -d"=")
-    ID=VERSION_CODENAME
+    ID=$(cat /etc/os-release | grep VERSION_CODENAME | cut -f2 -d"=")
 fi
 
 sudo cp /etc/apt/sources.list /etc/apt/sources.list.bak

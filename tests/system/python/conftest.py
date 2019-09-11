@@ -372,6 +372,7 @@ def pytest_addoption(parser):
 
     # Packages
     parser.addoption("--package-build-version", action="store", default="nightly", help="Package build version for http://archives.dianomic.com")
+    parser.addoption("--package-build-list", action="store", default=["p0"], type=list, help="Package to build as per key defined in tests/system/python/packages/data/package_list.json")
 
 
 @pytest.fixture
@@ -562,6 +563,11 @@ def modbus_baudrate(request):
 @pytest.fixture
 def package_build_version(request):
     return request.config.getoption("--package-build-version")
+
+
+@pytest.fixture
+def package_build_list(request):
+    return request.config.getoption("--package-build-list")
 
 
 def pytest_itemcollected(item):

@@ -21,10 +21,17 @@ using namespace std;
  */
 static void ingestThread(Ingest *ingest)
 {
-	while (ingest->running())
+	while (! ingest->isStopping())
 	{
-		ingest->waitForQueue();
-		ingest->processQueue();
+		if (ingest->running())
+		{
+			ingest->waitForQueue();
+			ingest->processQueue();
+		}
+		else
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		}
 	}
 }
 
@@ -200,6 +207,7 @@ Ingest::Ingest(StorageClient& storage,
 			m_pluginName(pluginName),
 			m_mgtClient(mgmtClient)
 {
+	m_shutdown = false;
 	m_running = true;
 	m_queue = new vector<Reading *>();
 	m_thread = new thread(ingestThread, this);
@@ -226,6 +234,7 @@ Ingest::Ingest(StorageClient& storage,
  */
 Ingest::~Ingest()
 {
+	m_shutdown = true;
 	m_running = false;
 	m_cv.notify_one();
 	m_thread->join();
@@ -250,11 +259,20 @@ Ingest::~Ingest()
  * Check if the ingest process is still running.
  * This becomes false when the service is shutdown
  * and is used to allow the queue to drain and then
- * the procssing routine to terminate.
+ * the processing routine to terminate.
  */
 bool Ingest::running()
 {
+	lock_guard<mutex> guard(m_pipelineMutex);
 	return m_running;
+}
+
+/**
+ * Check if a shutdown is requested
+ */
+bool Ingest::isStopping()
+{
+	return m_shutdown;
 }
 
 /**
@@ -594,29 +612,41 @@ void Ingest::configChange(const string& category, const string& newConfig)
 		{
 		      newPipeline  = config.getValue("filter");
 		}
-		if (m_filterPipeline)
+
 		{
 			lock_guard<mutex> guard(m_pipelineMutex);
-			if (newPipeline == "" || m_filterPipeline->hasChanged(newPipeline) == false)
+			if (m_filterPipeline)
 			{
-				Logger::getLogger()->info("Ingest::configChange(): filter pipeline is not set or it hasn't changed");
-				return;
+				if (newPipeline == "" ||
+				    m_filterPipeline->hasChanged(newPipeline) == false)
+				{
+					Logger::getLogger()->info("Ingest::configChange(): "
+								  "filter pipeline is not set or "
+								  "it hasn't changed");
+					return;
+				}
+				/* The new filter pipeline is different to what we have already running
+				 * So remove the current pipeline and recreate.
+			 	 */
+				m_running = false;
+				Logger::getLogger()->info("Ingest::configChange(): "
+							  "filter pipeline has changed, "
+							  "recreating filter pipeline");
+				m_filterPipeline->cleanupFilters(m_serviceName);
+				delete m_filterPipeline;
+				m_filterPipeline = NULL;
 			}
-			/* The new filter pipeline is different to what we have already running
-			 * So remove the current pipeline and recreate.
-		 	 */
-			m_running = false;
-			Logger::getLogger()->info("Ingest::configChange(): filter pipeline has changed, recreating filter pipeline");
-			m_filterPipeline->cleanupFilters(m_serviceName);
-			delete m_filterPipeline;
-			m_filterPipeline = NULL;
 		}
+
 		/*
 		 * We have to setup a new pipeline to match the changed configuration.
 		 * Release the lock before reloading the filters as this will acquire
 		 * the lock again
 		 */
 		loadFilters(category);
+
+		// Set m_running holding the lock
+		lock_guard<mutex> guard(m_pipelineMutex);
 		m_running = true;
 	}
 	else

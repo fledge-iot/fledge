@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+set -e
+
+__author__="Ashish Jabble"
+__copyright__="Copyright (c) 2019 Dianomic Systems Inc."
+__license__="Apache 2.0"
+__version__="1.0.0"
+
+######################################################################################################
+# Usage text for this script
+# $FOGLAMP_ROOT/tests/system/python/scripts/package/setup ${PACKAGE_BUILD_VERSION}
+######################################################################################################
+
+PACKAGE_BUILD_VERSION=$1
+
+[[ -z "${PACKAGE_BUILD_VERSION}" ]] && echo "Build Version not found." && exit 1
+
+ID=$(cat /etc/os-release | grep -w ID | cut -f2 -d"=")
+UNAME=`uname -m`
+VERSION_ID=$(cat /etc/os-release | grep -w VERSION_ID | cut -f2 -d"=" |  tr -d '"')
+
+echo "Build version is "${PACKAGE_BUILD_VERSION}
+echo "ID is "${ID}
+echo "uname is "${UNAME}
+echo "version id is "${VERSION_ID}
+
+if [[ ${ID} = "ubuntu" && ${VERSION_ID} = "16.04" ]]; then
+    ID="ubuntu1604";
+elif [[ ${ID} = "ubuntu" && ${VERSION_ID} = "18.04" ]]; then
+    ID="ubuntu1804";
+elif [[ ${ID} = "raspbian" ]]; then
+    ID=$(cat /etc/os-release | grep VERSION_CODENAME | cut -f2 -d"=")
+fi
+
+sudo cp /etc/apt/sources.list /etc/apt/sources.list.bak
+sudo sed -i "/\b\(archives.dianomic.com\)\b/d" /etc/apt/sources.list
+
+sudo apt update && sudo apt upgrade -y && sudo apt update
+echo "==================== DONE update, upgrade, update ============================"
+
+wget -q -O - http://archives.dianomic.com/KEY.gpg | sudo apt-key add -
+# FIXME: for centos/rhel
+echo "deb http://archives.dianomic.com/${PACKAGE_BUILD_VERSION}/${ID}/${UNAME}/ /" | sudo tee -a /etc/apt/sources.list
+sudo apt update
+
+time sudo apt install -y foglamp
+echo "==================== DONE INSTALLING FogLAMP =================="
+
+time sudo apt install -y foglamp-gui
+echo "==================== DONE INSTALLING FogLAMP GUI ======================"

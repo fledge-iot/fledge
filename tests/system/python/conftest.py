@@ -363,10 +363,17 @@ def pytest_addoption(parser):
                      help="Kafka Server Port")
     parser.addoption("--kafka-topic", action="store", default="FogLAMP", help="Kafka topic")
     parser.addoption("--kafka-rest-port", action="store", default="8082", help="Kafka Rest Proxy Port")
+
+    # Modbus Config
     parser.addoption("--modbus-host", action="store", default="localhost", help="Modbus simulator host")
     parser.addoption("--modbus-port", action="store", default="502", type=int, help="Modbus simulator port")
     parser.addoption("--modbus-serial-port", action="store", default="/dev/ttyS1", help="Modbus serial port")
     parser.addoption("--modbus-baudrate", action="store", default="9600", type=int, help="Serial port baudrate")
+
+    # Packages
+    parser.addoption("--package-build-version", action="store", default="nightly", help="Package build version for http://archives.dianomic.com")
+    parser.addoption("--package-build-list", action="store", default="p0", help="Package to build as per key defined in tests/system/python/packages/data/package_list.json and comma separated values are accepted if more than one to build with")
+    parser.addoption("--package-build-source-list", action="store", default="false", help="Package to build from apt/yum sources list")
 
 
 @pytest.fixture
@@ -552,6 +559,21 @@ def modbus_serial_port(request):
 @pytest.fixture
 def modbus_baudrate(request):
     return request.config.getoption("--modbus-baudrate")
+
+
+@pytest.fixture
+def package_build_version(request):
+    return request.config.getoption("--package-build-version")
+
+
+@pytest.fixture
+def package_build_list(request):
+    return request.config.getoption("--package-build-list")
+
+
+@pytest.fixture
+def package_build_source_list(request):
+    return request.config.getoption("--package-build-source-list")
 
 
 def pytest_itemcollected(item):

@@ -18,10 +18,6 @@ PACKAGE_BUILD_VERSION=$1
 ID=$(cat /etc/os-release | grep -w ID | cut -f2 -d"=")
 UNAME=`uname -m`
 VERSION_ID=$(cat /etc/os-release | grep -w VERSION_ID | cut -f2 -d"=" |  tr -d '"')
-
-echo "Build version is "${PACKAGE_BUILD_VERSION}
-echo "ID is "${ID}
-echo "uname is "${UNAME}
 echo "version id is "${VERSION_ID}
 
 if [[ ${ID} = "ubuntu" && ${VERSION_ID} = "16.04" ]]; then
@@ -30,7 +26,12 @@ elif [[ ${ID} = "ubuntu" && ${VERSION_ID} = "18.04" ]]; then
     ID="ubuntu1804";
 elif [[ ${ID} = "raspbian" ]]; then
     ID=$(cat /etc/os-release | grep VERSION_CODENAME | cut -f2 -d"=")
+    UNAME="armv7l"
 fi
+
+echo "Build version is "${PACKAGE_BUILD_VERSION}
+echo "ID is "${ID}
+echo "uname is "${UNAME}
 
 sudo cp /etc/apt/sources.list /etc/apt/sources.list.bak
 sudo sed -i "/\b\(archives.dianomic.com\)\b/d" /etc/apt/sources.list

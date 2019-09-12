@@ -373,6 +373,7 @@ def pytest_addoption(parser):
     # Packages
     parser.addoption("--package-build-version", action="store", default="nightly", help="Package build version for http://archives.dianomic.com")
     parser.addoption("--package-build-list", action="store", default="p0", help="Package to build as per key defined in tests/system/python/packages/data/package_list.json and comma separated values are accepted if more than one to build with")
+    parser.addoption("--package-build-source-list", action="store", default="false", help="Package to build from apt/yum sources list")
 
 
 @pytest.fixture
@@ -568,6 +569,11 @@ def package_build_version(request):
 @pytest.fixture
 def package_build_list(request):
     return request.config.getoption("--package-build-list")
+
+
+@pytest.fixture
+def package_build_source_list(request):
+    return request.config.getoption("--package-build-source-list")
 
 
 def pytest_itemcollected(item):

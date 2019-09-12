@@ -1,16 +1,23 @@
 {
 	"p0": [{
-		"south": ["foglamp-south-modbus", "foglamp-south-sinusoid", "foglamp-south-opcua"],
-		"north": ["foglamp-north-http-north", "foglamp-north-kafka"],
-		"filter": ["foglamp-filter-python35"],
-		"notificationDelivery": ["foglamp-notify-python35"],
-		"notificationRule": ["foglamp-rule-outofbound"]
+		"south": ["dnp3", "envirophat", "game", "modbus", "mqtt-sparkplug", "playback", "phidget", "opcua", "sinusoid", "flirax8"],
+		"north": ["httpc", "kafka", "opcua"],
+		"filter": ["change", "delta", "expression", "fft", "flirvalidity", "metadata", "python35", "rms"],
+		"notify": ["asset", "email", "python35"],
+		"rule": ["average", "simple-expression"]
 	}],
 	"p1": [{
-		"south": ["foglamp-south-randomwalk", "foglamp-south-playback"],
-		"north": ["foglamp-north-httpc"],
-		"filter": ["foglamp-filter-threshold"],
-		"notificationDelivery": ["foglamp-notify-slack"],
-		"notificationRule": ["foglamp-rule-average"]
+		"south": ["benchmark", "cc2650", "coap", "csv", "dht11V2", "expression", "http-south", "modbustcp", "openweathermap", "random", "randomwalk", "systeminfo", "wind-turbine"],
+		"north": ["http-north", "thingspeak"],
+		"filter": ["asset", "rate", "rms-trigger", "scale", "threshold"],
+		"notify": ["slack"],
+		"rule": ["outofbound"]
+	}],
+	"p2": [{
+		"south": ["am2315", "csv-async", "dht11", "ina219", "pt100", "roxtec", "raspi-classify", "sensehat", "sensorphone"],
+		"north": [],
+		"filter": ["python27", "scale-set"],
+		"notify": ["alexa", "blynk", "hangouts", "ifttt", "telegram"],
+		"rule": []
 	}]
 }

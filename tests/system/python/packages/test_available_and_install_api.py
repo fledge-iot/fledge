@@ -19,7 +19,7 @@ __copyright__ = "Copyright (c) 2019 Dianomic Systems Inc."
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-available_pkg = None
+available_pkg = []
 # plugins installed by default 4
 counter = 4
 
@@ -126,16 +126,28 @@ class TestPackages:
         assert 3 == len(jdoc['services'])
         assert 'notification' in jdoc['services']
 
-    def test_install_plugin_package(self, foglamp_url, package_build_list):
-        json_data = load_data_from_json()
-        my_list = package_build_list.split(",")
-        for pkg_list_cat in my_list:
-            for pkg_list_name in json_data[pkg_list_cat][0].values():
-                for pkg_name in pkg_list_name:
-                    if pkg_name in available_pkg:
-                        self._verify_and_install_package(foglamp_url, pkg_name)
-                    else:
-                        print("{} not found in available package list".format(pkg_name))
+    def test_install_plugin_package(self, foglamp_url, package_build_source_list, package_build_list):
+        # When "package_build_source_list" is true then it will install all available packages
+        # Otherwise install from list as we defined in JSON file
+        if package_build_source_list.lower() == 'true':
+            for pkg_name in available_pkg:
+                self._verify_and_install_package(foglamp_url, pkg_name)
+        else:
+            json_data = load_data_from_json()
+            # If 'all' in 'package_build_list' then it will iterate each key in JSON file
+            if 'all' in package_build_list:
+                package_build_list = ",".join(json_data.keys())
+            my_list = package_build_list.split(",")
+
+            for pkg_list_cat in my_list:
+                for k, pkg_list_name in json_data[pkg_list_cat][0].items():
+                    for pkg_name in pkg_list_name:
+                        full_pkg_name = 'foglamp-{}-{}'.format(k, pkg_name)
+                        if full_pkg_name in available_pkg:
+                            self._verify_and_install_package(foglamp_url, pkg_name)
+                        else:
+                            # TODO: Add them into some csv (report)
+                            print("{} not found in available package list".format(full_pkg_name))
 
     def _verify_and_install_package(self, foglamp_url, pkg_name):
         global counter

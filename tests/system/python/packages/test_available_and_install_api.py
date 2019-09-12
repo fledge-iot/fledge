@@ -144,7 +144,7 @@ class TestPackages:
                     for pkg_name in pkg_list_name:
                         full_pkg_name = 'foglamp-{}-{}'.format(k, pkg_name)
                         if full_pkg_name in available_pkg:
-                            self._verify_and_install_package(foglamp_url, pkg_name)
+                            self._verify_and_install_package(foglamp_url, full_pkg_name)
                         else:
                             # TODO: Add them into some csv (report)
                             print("{} not found in available package list".format(full_pkg_name))

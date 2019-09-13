@@ -228,7 +228,7 @@ class TestService:
         assert len(jdoc), "No data found"
         assert 'FogLAMP restart has been scheduled.' == jdoc['message']
 
-        time.sleep(wait_time * 3)
+        time.sleep(wait_time * 4)
         jdoc = get_service(foglamp_url, '/foglamp/service')
         assert len(jdoc), "No data found"
         assert 4 == len(jdoc['services'])

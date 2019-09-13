@@ -142,7 +142,7 @@ class TestStatistics:
         assert 1 == stats['READINGS']
 
         # Allow stats collector schedule to run
-        time.sleep(wait_time * 2)
+        time.sleep(wait_time * 2 + 1)
 
         # check stats history
         conn.request("GET", '/foglamp/statistics/history')

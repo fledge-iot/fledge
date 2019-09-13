@@ -65,16 +65,45 @@ then
 
 	# To avoid to stop the execution for any internal error of scl_source
 	set +e
+
 	source scl_source enable rh-python36
 	status=$?
 
 	if [[ "$status" != "0" ]]
 	then
-		msg_text="ERROR: FogLAMP cannot enable the python environment in RedHat/Centos platform."
+		msg_text="ERROR: FogLAMP cannot enable the rh-python36 environment in RedHat/CentOS platform."
 		logger -p local0.err $msg_text
 		echo $msg_text
 		exit 1
 	fi
+
+	#
+	# Enables the RedHat Postgres environment if available
+	#
+	rhpg_package="rh-postgresql96"
+	source scl_source enable ${rhpg_package} > /dev/null
+	status=$?
+
+	if [[ "$status" == "0" ]]
+	then
+		pg_isready_check=$(command -v pg_isready)
+		status=$?
+
+		if [[ "$status" == "0" ]]
+		then
+			rhpg_path=${pg_isready_check/\/bin\/pg_isready/}
+
+			export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${rhpg_path}/lib64
+
+			msg_text="INFO: FogLAMP enabled ${rhpg_package} using the path ${rhpg_path}."
+			logger -p local0.info $msg_text
+		else
+			msg_text="ERROR: FogLAMP cannot use the ${rhpg_package} environment, the package is installed/available but not the pg_isready command."
+			logger -p local0.err $msg_text
+			echo $msg_text
+		fi
+	fi
+
 	set -e
 else
 	# platform Debian/Ubuntu
@@ -421,7 +450,7 @@ foglamp_status() {
                 echo "0"
             else
 
-                uptime_sec=`echo ${result} | tr -d ' ' | grep -o '"uptime".*' | cut -d":" -f2 | cut -d"." -f1`
+                uptime_sec=`echo ${result} | tr -d ' ' | grep -o '"uptime".*' | cut -d":" -f2 | cut -d"," -f1`
                 record_read=`echo ${result} | tr -d ' ' | grep -o '"dataRead".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/}//g'`
                 record_sent=`echo ${result} | tr -d ' ' | grep -o '"dataSent".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/}//g'`
                 record_purged=`echo ${result} | tr -d ' ' | grep -o '"dataPurged".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/}//g'`
@@ -456,7 +485,7 @@ foglamp_status() {
 
                 # Show Tasks
                 foglamp_log "info" "=== FogLAMP tasks:" "outonly" "pretty"
-                ps -ef | grep -o 'python3 -m foglamp.tasks.*' | grep -o 'foglamp.tasks.*' | grep -v 'foglamp.tasks\.\*' || true
+                ps -ef | grep -v 'cpulimit*' | grep -o 'python3 -m foglamp.tasks.*' | grep -o 'foglamp.tasks.*'    | grep -v 'foglamp.tasks\.\*' || true
 
                 # Show Tasks in C code
                 ps -ef | grep './tasks.' | grep -v python3 | grep -v grep | grep -v awk | awk '{print substr($8, 3, length($8))" "$9" "$10 }' || true

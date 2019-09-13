@@ -3,10 +3,11 @@
 # FOGLAMP_BEGIN
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
-
-import asyncio
+import os
 import datetime
 import uuid
+import platform
+import json
 from aiohttp import web
 
 from typing import Dict
@@ -22,6 +23,10 @@ from foglamp.services.core.api import utils as apiutils
 from foglamp.services.core.scheduler.entities import StartUpSchedule
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
+from foglamp.common.common import _FOGLAMP_ROOT
+from foglamp.services.core.api.plugins import common
+from foglamp.services.core.api.plugins import install
+from foglamp.services.core.api.plugins.exceptions import *
 
 
 __author__ = "Mark Riddoch, Ashwin Gopalakrishnan, Amarendra K Sinha"
@@ -32,6 +37,8 @@ __version__ = "${VERSION}"
 _help = """
     -------------------------------------------------------------------------------
     | GET POST            | /foglamp/service                                      |
+    | GET                 | /foglamp/service/available                            |
+    | GET                 | /foglamp/service/installed                            |
     -------------------------------------------------------------------------------
 """
 
@@ -130,6 +137,9 @@ async def add_service(request):
              curl -X POST http://localhost:8081/foglamp/service -d '{"name": "DHT 11", "plugin": "dht11", "type": "south", "enabled": true}'
              curl -sX POST http://localhost:8081/foglamp/service -d '{"name": "Sine", "plugin": "sinusoid", "type": "south", "enabled": true, "config": {"dataPointsPerSec": {"value": "10"}}}' | jq
              curl -X POST http://localhost:8081/foglamp/service -d '{"name": "NotificationServer", "type": "notification", "enabled": true}' | jq
+
+             curl -sX POST http://localhost:8081/foglamp/service?action=install -d '{"format":"repository", "name": "foglamp-service-notification"}'
+             curl -sX POST http://localhost:8081/foglamp/service?action=install -d '{"format":"repository", "name": "foglamp-service-notification", "version":"1.6.0"}'
     """
 
     try:
@@ -145,6 +155,33 @@ async def add_service(request):
 
         if name is None:
             raise web.HTTPBadRequest(reason='Missing name property in payload.')
+        if 'action' in request.query and request.query['action'] != '':
+            if request.query['action'] == 'install':
+                file_format = data.get('format', None)
+                if file_format is None:
+                    raise ValueError("format param is required")
+                if file_format not in ["repository"]:
+                    raise ValueError("Invalid format. Must be 'repository'")
+                version = data.get('version', None)
+                if version:
+                    delimiter = '.'
+                    if str(version).count(delimiter) != 2:
+                        raise ValueError('Service semantic version is incorrect; it should be like X.Y.Z')
+
+                services, log_path = common.fetch_available_packages("service")
+                if name not in services:
+                    raise KeyError('{} service is not available for the given repository or already installed'.format(name))
+
+                _platform = platform.platform()
+                pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
+                code, msg = await install.install_package_from_repo(name, pkg_mgt, version)
+                if code != 0:
+                    raise ValueError(msg)
+
+                message = "{} is successfully installed".format(name)
+                return web.json_response({'message': message})
+            else:
+                raise web.HTTPBadRequest(reason='{} is not a valid action'.format(request.query['action']))
         if utils.check_reserved(name) is False:
             raise web.HTTPBadRequest(reason='Invalid name property in payload.')
         if utils.check_foglamp_reserved(name) is False:
@@ -175,16 +212,16 @@ async def add_service(request):
             # "plugin_module_path" is fixed by design. It is MANDATORY to keep the plugin in the exactly similar named
             # folder, within the plugin_module_path.
             # if multiple plugin with same name are found, then python plugin import will be tried first
-            plugin_module_path = "foglamp.plugins.south"
+            plugin_module_path = "{}/python/foglamp/plugins/{}/{}".format(_FOGLAMP_ROOT, service_type, plugin)
             try:
-                plugin_info = load_python_plugin(plugin_module_path, plugin, service_type)
+                plugin_info = common.load_and_fetch_python_plugin_info(plugin_module_path, plugin, service_type)
                 plugin_config = plugin_info['config']
                 if not plugin_config:
                     _logger.exception("Plugin %s import problem from path %s", plugin, plugin_module_path)
                     raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}".'.format(plugin, plugin_module_path))
                 process_name = 'south_c'
                 script = '["services/south_c"]'
-            except ImportError as ex:
+            except FileNotFoundError as ex:
                 # Checking for C-type plugins
                 plugin_config = load_c_plugin(plugin, service_type)
                 if not plugin_config:
@@ -284,28 +321,24 @@ async def add_service(request):
 
     except ValueError as e:
         raise web.HTTPBadRequest(reason=str(e))
+    except KeyError as ex:
+        raise web.HTTPNotFound(reason=str(ex))
     else:
         return web.json_response({'name': name, 'id': str(schedule.schedule_id)})
 
 
-def load_python_plugin(plugin_module_path: str, plugin: str, service_type: str) -> Dict:
-    import_file_name = "{path}.{dir}.{file}".format(path=plugin_module_path, dir=plugin, file=plugin)
-    _plugin = __import__(import_file_name, fromlist=[''])
-
-    # Fetch configuration from the configuration defined in the plugin
-    plugin_info = _plugin.plugin_info()
-    if plugin_info['type'] != service_type:
-        msg = "Plugin of {} type is not supported".format(plugin_info['type'])
-        raise TypeError(msg)
-    return plugin_info
-
-
 def load_c_plugin(plugin: str, service_type: str) -> Dict:
-    plugin_info = apiutils.get_plugin_info(plugin, dir=service_type)
-    if plugin_info['type'] != service_type:
-        msg = "Plugin of {} type is not supported".format(plugin_info['type'])
-        raise TypeError(msg)
-    plugin_config = plugin_info['config']
+    try:
+        plugin_info = apiutils.get_plugin_info(plugin, dir=service_type)
+        if plugin_info['type'] != service_type:
+            msg = "Plugin of {} type is not supported".format(plugin_info['type'])
+            raise TypeError(msg)
+        plugin_config = plugin_info['config']
+    except Exception:
+        # Now looking for hybrid plugins if exists
+        plugin_info = common.load_and_fetch_c_hybrid_plugin_info(plugin, True)
+        if plugin_info:
+            plugin_config = plugin_info['config']
     return plugin_config
 
 
@@ -331,3 +364,36 @@ async def check_notification_schedule(storage):
     payload = PayloadBuilder().SELECT("process_name").payload()
     result = await storage.query_tbl_with_payload('schedules', payload)
     return result
+
+
+async def get_available(request: web.Request) -> web.Response:
+    """ get list of a available services via package management i.e apt or yum
+
+        :Example:
+            curl -X GET http://localhost:8081/foglamp/service/available
+    """
+    try:
+        services, log_path = common.fetch_available_packages("service")
+    except PackageError as e:
+        msg = "Fetch available service package request failed"
+        raise web.HTTPBadRequest(body=json.dumps({"message": msg, "link": str(e)}), reason=msg)
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason=ex)
+
+    return web.json_response({"services": services, "link": log_path})
+
+
+async def get_installed(request: web.Request) -> web.Response:
+    """ get list of a installed services
+
+        :Example:
+            curl -X GET http://localhost:8081/foglamp/service/installed
+    """
+    services = []
+    svc_prefix = 'foglamp.services.'
+    for root, dirs, files in os.walk(_FOGLAMP_ROOT + "/" + "services"):
+        for f in files:
+            if f.startswith(svc_prefix):
+                services.append(f.split(svc_prefix)[-1])
+
+    return web.json_response({"services": services})

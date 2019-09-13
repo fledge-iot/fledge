@@ -4,11 +4,12 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-
+import copy
 from aiohttp import web
 import binascii
 import urllib.parse
 import os
+from typing import Dict
 
 from foglamp.services.core import connect
 from foglamp.common.configuration_manager import ConfigurationManager, _optional_items
@@ -94,6 +95,11 @@ async def get_category(request):
     if category is None:
         raise web.HTTPNotFound(reason="No such Category found for {}".format(category_name))
 
+    try:
+        request.is_core_mgt
+    except AttributeError:
+        category = hide_password(category)
+
     return web.json_response(category)
 
 
@@ -143,12 +149,16 @@ async def create_category(request):
         if data.get('children'):
             r = await cf_mgr.create_child_category(category_name, data.get('children'))
             result.update(r)
+        try:
+            request.is_core_mgt
+        except AttributeError:
+            result['value'] = hide_password(result['value'])
     except (KeyError, ValueError, TypeError) as ex:
         raise web.HTTPBadRequest(reason=str(ex))
     except LookupError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
-        raise web.HTTPException(reason=str(ex))
+        raise web.HTTPInternalServerError(reason=str(ex))
     return web.json_response(result)
 
 
@@ -198,6 +208,11 @@ async def get_category_item(request):
     category_item = await cf_mgr.get_category_item(category_name, config_item)
     if category_item is None:
         raise web.HTTPNotFound(reason="No such Category item found for {}".format(config_item))
+
+    try:
+        request.is_core_mgt
+    except AttributeError:
+        category_item = hide_password(category_item)
 
     return web.json_response(category_item)
 
@@ -260,11 +275,16 @@ async def set_configuration_item(request):
     except (TypeError, KeyError) as ex:
         raise web.HTTPBadRequest(reason=ex)
 
-    result = await cf_mgr.get_category_item(category_name, config_item)
-    if result is None:
+    category_item = await cf_mgr.get_category_item(category_name, config_item)
+    if category_item is None:
         raise web.HTTPNotFound(reason="No detail found for the category_name: {} and config_item: {}".format(category_name, config_item))
 
-    return web.json_response(result)
+    try:
+        request.is_core_mgt
+    except AttributeError:
+        category_item = hide_password(category_item)
+
+    return web.json_response(category_item)
 
 
 async def update_configuration_item_bulk(request):
@@ -301,8 +321,12 @@ async def update_configuration_item_bulk(request):
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
     else:
-        result = await cf_mgr.get_category_all_items(category_name)
-        return web.json_response(result)
+        cat = await cf_mgr.get_category_all_items(category_name)
+        try:
+            request.is_core_mgt
+        except AttributeError:
+            cat = hide_password(cat)
+        return web.json_response(cat)
 
 
 async def add_configuration_item(request):
@@ -371,7 +395,7 @@ async def add_configuration_item(request):
     except NameError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
-        raise web.HTTPException(reason=str(ex))
+        raise web.HTTPInternalServerError(reason=str(ex))
 
     return web.json_response({"message": "{} config item has been saved for {} category".format(new_config_item, category_name)})
 
@@ -419,6 +443,11 @@ async def delete_configuration_item_value(request):
 
     if result is None:
         raise web.HTTPNotFound(reason="No detail found for the category_name: {} and config_item: {}".format(category_name, config_item))
+
+    try:
+        request.is_core_mgt
+    except AttributeError:
+        result = hide_password(result)
 
     return web.json_response(result)
 
@@ -596,3 +625,15 @@ async def upload_script(request):
     else:
         result = await cf_mgr.get_category_item(category_name, config_item)
         return web.json_response(result)
+
+
+def hide_password(config: dict) -> Dict:
+    new_config = copy.deepcopy(config)
+    try:
+        for k, v in new_config.items():
+            if v['type'] == 'password':
+                v['value'] = "****"
+    except TypeError:
+        if new_config['type'] == 'password':
+            new_config['value'] = "****"
+    return new_config

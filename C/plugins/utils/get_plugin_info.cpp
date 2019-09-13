@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <dlfcn.h>
+#include <syslog.h>
 #include "plugin_api.h"
 
 typedef PLUGIN_INFORMATION *(*func_t)();
@@ -41,6 +42,9 @@ int main(int argc, char *argv[])
     exit(2);
   }
 
+  openlog(argv[0], LOG_PID|LOG_CONS, LOG_USER);
+  setlogmask(LOG_UPTO(LOG_WARNING));
+
   if ((hndl = dlopen(argv[1], RTLD_GLOBAL|RTLD_LAZY)) != NULL)
   {
     func_t infoEntry = (func_t)dlsym(hndl, argv[2]);
@@ -49,16 +53,18 @@ int main(int argc, char *argv[])
       // Unable to find plugin_info entry point
       fprintf(stderr, "Plugin library %s does not support %s function : %s\n", argv[1], argv[2], dlerror());
       dlclose(hndl);
+      closelog();
       exit(3);
     }
     PLUGIN_INFORMATION *info = (PLUGIN_INFORMATION *)(*infoEntry)();
-    printf("{\"name\": \"%s\", \"version\": \"%s\", \"type\": \"%s\", \"interface\": \"%s\", \"config\": %s}\n", info->name, info->version, info->type, info->interface, info->config);
+    printf("{\"name\": \"%s\", \"version\": \"%s\", \"type\": \"%s\", \"interface\": \"%s\", \"flag\": %d, \"config\": %s}\n", info->name, info->version, info->type, info->interface, info->options, info->config);
   }
   else
   {
     fprintf(stderr, "dlopen failed: %s\n", dlerror());
   }
-
+  closelog();
+  
   return 0;
 }
 

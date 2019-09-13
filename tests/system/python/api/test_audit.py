@@ -53,16 +53,16 @@ class TestAudit:
         assert Counter([0, 1, 2, 4]) == Counter(index)
 
     @pytest.mark.parametrize("request_params, total_count, audit_count, cat_name", [
-        ('', 8, 8, ''),
-        ('?limit=1', 8, 1, ''),
-        ('?skip=4', 8, 4, 'service'),
-        ('?limit=1&skip=8', 8, 0, ''),
+        ('', 9, 9, ''),
+        ('?limit=1', 9, 1, ''),
+        ('?skip=4', 9, 5, 'Installation'),
+        ('?limit=1&skip=8', 9, 1, 'SCHEDULER'),
         ('?source=START', 1, 1, ''),
-        ('?source=CONAD', 7, 7, 'Utilities'),
-        ('?source=CONAD&limit=1', 7, 1, 'Utilities'),
-        ('?source=CONAD&skip=1', 7, 6, 'Advanced'),
-        ('?source=CONAD&skip=6&limit=1', 7, 1, 'SCHEDULER'),
-        ('?severity=INFORMATION', 8, 8, ''),
+        ('?source=CONAD', 8, 8, 'Utilities'),
+        ('?source=CONAD&limit=1', 8, 1, 'Utilities'),
+        ('?source=CONAD&skip=1', 8, 7, 'Advanced'),
+        ('?source=CONAD&skip=6&limit=1', 8, 1, 'SMNTR'),
+        ('?severity=INFORMATION', 9, 9, ''),
         ('?severity=failure', 0, 0, ''),
         ('?source=CONAD&severity=failure', 0, 0, ''),
         ('?source=START&severity=INFORMATION', 1, 1, ''),
@@ -86,10 +86,10 @@ class TestAudit:
                 assert cat_name == jdoc['audit'][0]['details']['name']
 
     @pytest.mark.parametrize("payload, total_count", [
-        ({"source": "LMTR", "severity": "warning", "details": {"message": "Engine oil pressure low"}}, 9),
-        ({"source": "LMTR", "severity": "success", "details": {}}, 10),
-        ({"source": "START", "severity": "information", "details": {"message": "foglamp started"}}, 11),
-        ({"source": "CONCH", "severity": "failure", "details": {"message": "Scheduler configuration failed"}}, 12)
+        ({"source": "LMTR", "severity": "warning", "details": {"message": "Engine oil pressure low"}}, 10),
+        ({"source": "LMTR", "severity": "success", "details": {}}, 11),
+        ({"source": "START", "severity": "information", "details": {"message": "foglamp started"}}, 12),
+        ({"source": "CONCH", "severity": "failure", "details": {"message": "Scheduler configuration failed"}}, 13)
     ])
     def test_create_audit_entry(self, foglamp_url, payload, total_count):
         conn = http.client.HTTPConnection(foglamp_url)

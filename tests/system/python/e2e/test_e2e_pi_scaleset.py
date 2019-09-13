@@ -108,26 +108,29 @@ class TestE2ePiEgressWithScalesetFilter:
         subprocess.run(["cd $FOGLAMP_ROOT/extras/python; python3 -m fogbench -t ../../data/template.json -p http; cd -"]
                        , shell=True, check=True)
         # let the readings ingress
-        time.sleep(wait_time)
+        time.sleep(wait_time * 2)
 
-        self._verify_ping_and_statistics(foglamp_url, count=1)
+        self._verify_ping_and_statistics(foglamp_url, count=1, skip_verify_north_interface=skip_verify_north_interface)
 
         self._verify_ingest(foglamp_url, SENSOR_VALUE, read_count=1)
 
         if not skip_verify_north_interface:
             self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
 
-    def _verify_ping_and_statistics(self, foglamp_url, count):
+    def _verify_ping_and_statistics(self, foglamp_url, count, skip_verify_north_interface=False):
         ping_response = self.get_ping_status(foglamp_url)
         assert count == ping_response["dataRead"]
-        assert count == ping_response["dataSent"]
+        if not skip_verify_north_interface:
+            assert count == ping_response["dataSent"]
 
         actual_stats_map = self.get_statistics_map(foglamp_url)
         key_asset_name_with_prefix = "{}{}".format(ASSET_PREFIX.upper(), ASSET_NAME.upper())
         assert count == actual_stats_map[key_asset_name_with_prefix]
         assert count == actual_stats_map['READINGS']
-        assert count == actual_stats_map[TASK_NAME]
-        assert count == actual_stats_map['Readings Sent']
+
+        if not skip_verify_north_interface:
+            assert count == actual_stats_map['Readings Sent']
+            assert count == actual_stats_map[TASK_NAME]
 
     def _verify_ingest(self, foglamp_url, value, read_count):
         asset_name_with_prefix = "{}{}".format(ASSET_PREFIX, ASSET_NAME)

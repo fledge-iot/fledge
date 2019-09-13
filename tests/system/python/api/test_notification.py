@@ -23,10 +23,10 @@ __version__ = "${VERSION}"
 SERVICE = "notification"
 SERVICE_NAME = "Notification Server #1"
 NOTIFY_PLUGIN = "slack"
-NOTIFY_INBUILT_RULES = ["OverMaxRule", "UnderMinRule"]
+NOTIFY_INBUILT_RULES = ["Threshold"]
 DATA = {"name": "Test - 1",
         "description": "Test4_Notification",
-        "rule": NOTIFY_INBUILT_RULES[1],
+        "rule": NOTIFY_INBUILT_RULES[0],
         "channel": NOTIFY_PLUGIN,
         "enabled": True,
         "notification_type": "one shot"
@@ -110,23 +110,23 @@ class TestNotificationServiceAPI:
             remove_directories("/tmp/foglamp-notify-{}".format(NOTIFY_PLUGIN))
 
     @pytest.mark.parametrize("test_input, expected_error", [
-        ({"description": "Test4_Notification", "rule": NOTIFY_INBUILT_RULES[1], "channel": NOTIFY_PLUGIN,
+        ({"description": "Test4_Notification", "rule": NOTIFY_INBUILT_RULES[0], "channel": NOTIFY_PLUGIN,
           "enabled": True, "notification_type": "one shot"}, '400: Missing name property in payload.'),
-        ({"name": "Test4", "rule": NOTIFY_INBUILT_RULES[1], "channel": NOTIFY_PLUGIN, "enabled": True,
+        ({"name": "Test4", "rule": NOTIFY_INBUILT_RULES[0], "channel": NOTIFY_PLUGIN, "enabled": True,
           "notification_type": "one shot"}, '400: Missing description property in payload.'),
         ({"name": "Test4", "description": "Test4_Notification", "channel": NOTIFY_PLUGIN, "enabled": True,
           "notification_type": "one shot"}, '400: Missing rule property in payload.'),
-        ({"name": "Test4", "description": "Test4_Notification", "rule": NOTIFY_INBUILT_RULES[1], "enabled": True,
+        ({"name": "Test4", "description": "Test4_Notification", "rule": NOTIFY_INBUILT_RULES[0], "enabled": True,
           "notification_type": "one shot"}, '400: Missing channel property in payload.'),
-        ({"name": "Test4", "description": "Test4_Notification", "rule": NOTIFY_INBUILT_RULES[1],
+        ({"name": "Test4", "description": "Test4_Notification", "rule": NOTIFY_INBUILT_RULES[0],
           "channel": NOTIFY_PLUGIN, "enabled": True}, '400: Missing notification_type property in payload.'),
-        ({"name": "=", "description": "Test4_Notification", "rule": NOTIFY_INBUILT_RULES[1], "channel": NOTIFY_PLUGIN,
+        ({"name": "=", "description": "Test4_Notification", "rule": NOTIFY_INBUILT_RULES[0], "channel": NOTIFY_PLUGIN,
           "enabled": True, "notification_type": "one shot"}, '400: Invalid name property in payload.'),
         ({"name": "Test4", "description": "Test4_Notification", "rule": "+", "channel": NOTIFY_PLUGIN, "enabled": True,
           "notification_type": "one shot"}, '400: Invalid rule property in payload.'),
-        ({"name": "Test4", "description": "Test4_Notification", "rule": NOTIFY_INBUILT_RULES[1], "channel": ":",
+        ({"name": "Test4", "description": "Test4_Notification", "rule": NOTIFY_INBUILT_RULES[0], "channel": ":",
           "enabled": True, "notification_type": "one shot"}, '400: Invalid channel property in payload.'),
-        ({"name": "Test4", "description": "Test4_Notification", "rule": NOTIFY_INBUILT_RULES[1],
+        ({"name": "Test4", "description": "Test4_Notification", "rule": NOTIFY_INBUILT_RULES[0],
           "channel": NOTIFY_PLUGIN, "enabled": "bla", "notification_type": "one shot"},
          '400: Only "true", "false", true, false are allowed for value of enabled.'),
         ({"name": "Test4", "description": "Test4_Notification", "rule": "InvalidRulePlugin",
@@ -170,11 +170,9 @@ class TestNotificationServiceAPI:
         assert 2 == len(jdoc)
         assert NOTIFY_PLUGIN == jdoc['delivery'][0]['name']
         assert "notificationDelivery" == jdoc['delivery'][0]['type']
-        assert 2 == len(jdoc['rules'])
+        assert 1 == len(jdoc['rules'])
 
     @pytest.mark.parametrize("test_input, expected_error", [
-        pytest.param({"name": "Test8"}, '400: Name update is not allowed.', marks=pytest.mark.xfail(reason="FOGL-2673")),
-        pytest.param({"name": "="}, '400: Invalid name property in payload.', marks=pytest.mark.xfail(reason="FOGL-2673")),
         ({"rule": "+"}, '400: Invalid rule property in payload.'),
         ({"channel": ":"}, '400: Invalid channel property in payload.'),
         ({"enabled": "bla"}, '400: Only "true", "false", true, false are allowed for value of enabled.'),
@@ -193,15 +191,14 @@ class TestNotificationServiceAPI:
         r = r.read().decode()
         assert expected_error == r
 
-    @pytest.mark.xfail(reason="FOGL-2738")
     def test_invalid_name_update_notification_instance(self, foglamp_url):
         conn = http.client.HTTPConnection(foglamp_url)
         changed_data = {"description": "changed_desc"}
-        conn.request("PUT", '/foglamp/notification/{}'.format('Invalid'), json.dumps(changed_data))
+        conn.request("PUT", '/foglamp/notification/{}'.format('nonExistent'), json.dumps(changed_data))
         r = conn.getresponse()
-        assert 400 == r.status
+        assert 404 == r.status
         r = r.read().decode()
-        assert '400: Notification instance not found.' == r
+        assert '404: No nonExistent notification instance found' == r
 
     def test_update_valid_notification_instance(self, foglamp_url):
         changed_data = {"description": "changed_desc"}

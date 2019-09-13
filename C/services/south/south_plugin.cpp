@@ -13,8 +13,13 @@
 #include <exception>
 #include <typeinfo>
 #include <stdexcept>
+#include <mutex>
 
 using namespace std;
+
+// mutex between various plugin methods, since reconfigure changes the handle 
+// object itself and marks previous handle as garbage collectible by Python runtime
+std::mutex mtx2;
 
 /**
  * Constructor for the class that wraps the south plugin
@@ -93,6 +98,7 @@ SouthPlugin::SouthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category) :
  */
 void SouthPlugin::start()
 {
+	lock_guard<mutex> guard(mtx2);
 	try {
 		return this->pluginStartPtr(instance);
 	} catch (exception& e) {
@@ -112,6 +118,7 @@ void SouthPlugin::start()
  */
 Reading SouthPlugin::poll()
 {
+	lock_guard<mutex> guard(mtx2);
 	try {
 		return this->pluginPollPtr(instance);
 	} catch (exception& e) {
@@ -131,6 +138,7 @@ Reading SouthPlugin::poll()
  */
 vector<Reading *>* SouthPlugin::pollV2()
 {
+	lock_guard<mutex> guard(mtx2);
 	try {
 		return this->pluginPollPtrV2(instance);
 	} catch (exception& e) {
@@ -150,6 +158,7 @@ vector<Reading *>* SouthPlugin::pollV2()
  */
 void SouthPlugin::reconfigure(const string& newConfig)
 {
+	lock_guard<mutex> guard(mtx2);
 	try {
 		this->pluginReconfigurePtr(&instance, newConfig);
 		if (!instance)
@@ -175,6 +184,7 @@ void SouthPlugin::reconfigure(const string& newConfig)
  */
 void SouthPlugin::shutdown()
 {
+	lock_guard<mutex> guard(mtx2);
 	try {
 		return this->pluginShutdownPtr(instance);
 	} catch (exception& e) {
@@ -191,6 +201,7 @@ void SouthPlugin::shutdown()
 
 void SouthPlugin::registerIngest(INGEST_CB cb, void *data)
 {
+	lock_guard<mutex> guard(mtx2);
 	try {
 		return this->pluginRegisterPtr(instance, cb, data);
 	} catch (exception& e) {
@@ -207,6 +218,7 @@ void SouthPlugin::registerIngest(INGEST_CB cb, void *data)
 
 void SouthPlugin::registerIngestV2(INGEST_CB2 cb, void *data)
 {
+	lock_guard<mutex> guard(mtx2);
 	try {
 		return this->pluginRegisterPtrV2(instance, cb, data);
 	} catch (exception& e) {

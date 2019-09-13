@@ -170,7 +170,7 @@ class TestFilters:
             with patch.object(cf_mgr, 'get_category_all_items', side_effect=Exception) as get_cat_info_patch:
                 resp = await client.get('/foglamp/filter/{}'.format(filter_name))
                 assert 500 == resp.status
-                assert resp.reason is None
+                assert resp.reason is ''
             get_cat_info_patch.assert_called_once_with(filter_name)
 
     @pytest.mark.parametrize("data", [
@@ -291,7 +291,7 @@ class TestFilters:
                 with patch.object(_LOGGER, 'exception') as log_exc:
                     resp = await client.post('/foglamp/filter'.format("bench"), data=json.dumps({"name": name, "plugin": plugin_name}))
                     assert 500 == resp.status
-                    assert resp.reason is None
+                    assert resp.reason is ''
                 assert 1 == log_exc.call_count
                 log_exc.assert_called_once_with('Add filter, caught exception:  %s', '')
             get_cat_info_patch.assert_called_once_with(category_name=name)
@@ -652,7 +652,7 @@ class TestFilters:
             with patch.object(cf_mgr, 'get_category_all_items', side_effect=Exception) as get_cat_info_patch:
                 resp = await client.get('/foglamp/filter/{}/pipeline'.format(user))
                 assert 500 == resp.status
-                assert resp.reason is None
+                assert resp.reason is ''
             get_cat_info_patch.assert_called_once_with(category_name=user)
 
     @pytest.mark.skip(reason='Incomplete')
@@ -773,12 +773,17 @@ class TestFilters:
         mock_payload = {"where": {"column": "name", "condition": "=", "value": "meta1", "and": {"column": "user", "condition": "=", "value": "random1"}}}
 
         storage_client_mock = MagicMock(StorageClientAsync)
-        c_mgr_mock = MagicMock(ConfigurationManager)
+        c_mgr_mock = ConfigurationManager(storage_client_mock)
+
+        @asyncio.coroutine
+        def del_x():
+            return {}
 
         connect_mock = mocker.patch.object(connect, 'get_storage_async', return_value=storage_client_mock)
-        delete_child_category_mock = mocker.patch.object(c_mgr_mock, 'delete_child_category', return_value=asyncio.sleep(.1))
-        delete_tbl_patch = mocker.patch.object(storage_client_mock, 'delete_from_tbl', return_value=asyncio.sleep(.1))
-        delete_configuration_category_mock = mocker.patch.object(filters, '_delete_configuration_category', return_value=asyncio.sleep(.1))
+        delete_child_category_mock = mocker.patch.object(c_mgr_mock, 'delete_child_category', return_value=self.async_mock(None))
+        delete_tbl_patch = mocker.patch.object(storage_client_mock, 'delete_from_tbl', return_value=del_x())
+        delete_configuration_category_mock = mocker.patch.object(filters, '_delete_configuration_category',
+                                                                 return_value=del_x())
 
         # WHEN
         await filters._delete_child_filters(storage_client_mock, c_mgr_mock, user_name_mock, new_list_mock, old_list_mock)

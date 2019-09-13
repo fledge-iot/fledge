@@ -74,6 +74,7 @@ class ConfigurationCache(object):
         self.miss += 1
         return False
 
+    # TODO: FOGL-3246 Add description
     def update(self, category_name, category_val, display_name=None):
         """Update the cache dictionary and remove the oldest item"""
         if category_name not in self.cache and len(self.cache) >= self.max_cache_size:
@@ -189,6 +190,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         for item_name_new, item_val_new in category_val_new_copy.items():
             item_val_storage = category_val_storage_copy.get(item_name_new)
             if item_val_storage is not None:
+                for o_attr in item_val_storage.keys():
+                    # Merge optional attributes
+                    if o_attr in _optional_items:
+                        item_val_new[o_attr] = item_val_storage.get(o_attr)
                 item_val_new['value'] = item_val_storage.get('value')
                 category_val_storage_copy.pop(item_name_new)
             if "deprecated" in item_val_new and item_val_new['deprecated'] == 'true':
@@ -331,6 +336,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                               value=new_category_val, display_name=display_name).payload()
             result = await self._storage.insert_into_tbl("configuration", payload)
             response = result['response']
+            # TODO: FOGL-3246 Add description in cache
             self._cacheManager.update(category_name, new_category_val, display_name)
         except KeyError:
             raise ValueError(result['message'])
@@ -597,13 +603,20 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         """
         try:
             if category_name in self._cacheManager:
-                return self._cacheManager.cache[category_name]['value']
+                # Interim solution; to ensure script type config item file content handling
+                # Note: Make sure to pass display_name to cacheManager.update; Otherwise, in case of None, it will be set to category_name
+                # FOGL-3246 Add description in cache
+                category_value = self._handle_script_type(category_name, self._cacheManager.cache[category_name]['value'])
+                self._cacheManager.update(category_name, category_value, display_name=self._cacheManager.cache[category_name]['displayName'])
+                return category_value
 
             category_value = await self._read_category_val(category_name)
 
             if category_value is not None:
-                self._cacheManager.update(category_name, category_value)
                 category_value = self._handle_script_type(category_name, category_value)
+                # FIXME: FOGL-3246 Explicit set display_name otherwise it always None and add description
+                # For display_name we need to fetch from DB as above def returns only its value
+                self._cacheManager.update(category_name, category_value)
             return category_value
         except:
             _logger.exception(
@@ -631,9 +644,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 if cat_item is not None:
                     category_value = await self._read_category_val(category_name)
                     if category_value is not None:
-                        self._cacheManager.update(category_name, category_value)
-                        self._cacheManager.cache[category_name]['value'].update({item_name: cat_item})
                         category_value = self._handle_script_type(category_name, category_value)
+                        # FIXME: FOGL-3246 Explicit set display_name otherwise it always None and add description
+                        # For display_name we need to fetch from DB as above def returns only its value
+                        self._cacheManager.update(category_name, category_value)
                         cat_item = category_value[item_name]
                 return cat_item
         except:
@@ -1318,31 +1332,30 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         Return Values:
         JSON
         """
-        for k, v in category_value.items():
+        import glob
+        cat_value = copy.deepcopy(category_value)
+        for k, v in cat_value.items():
             if v['type'] == 'script':
                 try:
-                    category_value[k]["file"] = ""
-
+                    # cat_value[k]["file"] = ""
                     if v['value'] is not None and v['value'] != "":
-                        category_value[k]["value"] = binascii.unhexlify(v['value'].encode('utf-8')).decode("utf-8")
+                        cat_value[k]["value"] = binascii.unhexlify(v['value'].encode('utf-8')).decode("utf-8")
+                except binascii.Error:
+                    pass
                 except Exception as e:
                     _logger.warning(
-                        "Got an issue while decoding config item: {} | {}".format(category_value[k], str(e)))
+                        "Got an issue while decoding config item: {} | {}".format(cat_value[k], str(e)))
                     pass
 
                 script_dir = _FOGLAMP_DATA + '/scripts/' if _FOGLAMP_DATA else _FOGLAMP_ROOT + "/data/scripts/"
                 prefix_file_name = category_name.lower() + "_" + k.lower() + "_"
-
                 if not os.path.exists(script_dir):
                     os.makedirs(script_dir)
                 else:
-                    _all_files = os.listdir(script_dir)
-                    for name in _all_files:
-                        if name.startswith(prefix_file_name) and name.endswith('.py'):
-                            category_value[k]["file"] = script_dir + name
-
-                if self._cacheManager.cache[category_name]['value'][k]:
-                    self._cacheManager.cache[category_name]['value'][k]['value'] = category_value[k]["value"]
-                    self._cacheManager.cache[category_name]['value'][k]['file'] = category_value[k]["file"]
-
-        return category_value
+                    # find pattern with file_name
+                    list_of_files = glob.glob(script_dir + prefix_file_name + "*.py")
+                    if list_of_files:
+                        # get latest modified file
+                        latest_file = max(list_of_files, key=os.path.getmtime)
+                        cat_value[k]["file"] = latest_file
+        return cat_value

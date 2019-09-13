@@ -191,7 +191,8 @@ void doIngestV2(Ingest *ingest, const vector<Reading *> *vec)
 /**
  * Constructor for the south service
  */
-SouthService::SouthService(const string& myName) : m_name(myName), m_shutdown(false), m_readingsPerSec(1)
+SouthService::SouthService(const string& myName) : m_name(myName), m_shutdown(false), m_readingsPerSec(1),
+						m_throttle(false), m_throttled(false)
 {
 	logger = new Logger(myName);
 	logger->setMinLevel("warning");
@@ -266,6 +267,23 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				pluginName = m_config.getValue("plugin");
 			if (m_configAdvanced.itemExists("logLevel"))
 				logger->setMinLevel(m_configAdvanced.getValue("logLevel"));
+			if (m_configAdvanced.itemExists("throttle"))
+			{
+				string throt = m_configAdvanced.getValue("throttle");
+				if (throt[0] == 't' || throt[0] == 'T')
+				{
+					m_throttle = true;
+					m_highWater = threshold
+					       	+ (((float)threshold * SOUTH_THROTTLE_HIGH_PERCENT) / 100.0);
+					m_lowWater = threshold
+					       	+ (((float)threshold * SOUTH_THROTTLE_LOW_PERCENT) / 100.0);
+					logger->info("Throttling is enabled, high water mark is set to %ld", m_highWater);
+				}
+				else
+				{
+					m_throttle = false;
+				}
+			}
 		} catch (ConfigItemNotFound e) {
 			logger->info("Defaulting to inline defaults for south configuration");
 		}
@@ -305,10 +323,10 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			else if (units.compare("hour") == 0)
 				dividend = 3600000000;
 			unsigned long usecs = dividend / m_readingsPerSec;
-			struct timeval rate;
-			rate.tv_sec  = (int)(usecs / 1000000);
-			rate.tv_usec = (int)(usecs % 1000000);
-			m_timerfd = createTimerFd(rate); // interval to be passed is in usecs
+			m_desiredRate.tv_sec  = (int)(usecs / 1000000);
+			m_desiredRate.tv_usec = (int)(usecs % 1000000);
+			m_timerfd = createTimerFd(m_desiredRate); // interval to be passed is in usecs
+			m_currentRate = m_desiredRate;
 			if (m_timerfd < 0)
 			{
 				logger->fatal("Could not create timer FD");
@@ -356,6 +374,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 						pollCount += (int) vec->size();
 						delete vec; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
 					}
+					throttlePoll();
 				}
 			}
 			if (clock_gettime(CLOCK_MONOTONIC, &end) == -1)
@@ -400,10 +419,10 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 			}
 		}
-		}
-
+		// do plugin shutdown before destroying Ingest object on stack
 		if (southPlugin)
 			southPlugin->shutdown();
+		}
 		
 		// Clean shutdown, unregister the storage service
 		m_mgtClient->unregisterService();
@@ -573,17 +592,19 @@ void SouthService::configChange(const string& categoryName, const string& catego
 				m_readingsPerSec = newval;
 				close(m_timerfd);
 				unsigned long usecs = dividend / m_readingsPerSec;
-				struct timeval rate;
-				rate.tv_sec  = (int)(usecs / 1000000);
-				rate.tv_usec = (int)(usecs % 1000000);
-				m_timerfd = createTimerFd(rate); // interval to be passed is in usecs
+				m_desiredRate.tv_sec  = (int)(usecs / 1000000);
+				m_desiredRate.tv_usec = (int)(usecs % 1000000);
+				m_currentRate = m_desiredRate;
+				m_timerfd = createTimerFd(m_desiredRate); // interval to be passed is in usecs
 			}
 		} catch (ConfigItemNotFound e) {
 			logger->error("Failed to update poll interval following configuration change");
 		}
+		unsigned long threshold;
 		if (m_configAdvanced.itemExists("bufferThreshold"))
 		{
-			m_ingest->setThreshold((unsigned int)strtol(m_configAdvanced.getValue("bufferThreshold").c_str(), NULL, 10));
+			threshold = (unsigned int)strtol(m_configAdvanced.getValue("bufferThreshold").c_str(), NULL, 10);
+			m_ingest->setThreshold(threshold);
 		}
 		if (m_configAdvanced.itemExists("maxSendLatency"))
 		{
@@ -592,6 +613,23 @@ void SouthService::configChange(const string& categoryName, const string& catego
 		if (m_configAdvanced.itemExists("logLevel"))
 		{
 			logger->setMinLevel(m_configAdvanced.getValue("logLevel"));
+		}
+		if (m_configAdvanced.itemExists("throttle"))
+		{
+			string throt = m_configAdvanced.getValue("throttle");
+			if (throt[0] == 't' || throt[0] == 'T')
+			{
+				m_throttle = true;
+				m_highWater = threshold
+				       	+ (((float)threshold * SOUTH_THROTTLE_HIGH_PERCENT) / 100.0);
+				m_lowWater = threshold
+				       	+ (((float)threshold * SOUTH_THROTTLE_LOW_PERCENT) / 100.0);
+				logger->info("Throttling is enabled, high water mark is set to %ld", m_highWater);
+			}
+			else
+			{
+				m_throttle = false;
+			}
 		}
 	}
 }
@@ -673,3 +711,61 @@ int SouthService::createTimerFd(struct timeval rate)
 	return fd;
 }
 
+/**
+ * If enabled, control the throttling of the poll rate in order to keep
+ * the buffer usage of the service within check.
+ *
+ * Although this is written as if rate is being control, which it
+ * logically is, the actual values are poll intervals. Hence reducing
+ * the poll rate increases the value of m_currentRate.
+ */
+void SouthService::throttlePoll()
+{
+struct timeval now, res;
+
+	if (!m_throttle)
+	{
+		return;
+	}
+	double desired = m_desiredRate.tv_sec + ((double)m_desiredRate.tv_usec / 1000000);
+	gettimeofday(&now, NULL);
+	timersub(&now, &m_lastThrottle, &res);
+	if (m_ingest->queueLength() > m_highWater && res.tv_sec > SOUTH_THROTTLE_DOWN_INTERVAL)
+	{
+		double rate = m_currentRate.tv_sec + ((double)m_currentRate.tv_usec / 1000000);
+		rate *= (1.0 + ((double)SOUTH_THROTTLE_PERCENT / 100.0));
+		m_currentRate.tv_sec = (long)rate;
+		m_currentRate.tv_usec = (rate - m_currentRate.tv_sec) * 1000000;
+		close(m_timerfd);
+		m_timerfd = createTimerFd(m_currentRate); // interval to be passed is in usecs
+		m_lastThrottle = now;
+		m_throttled = true;
+		logger->warn("%s Throttled down poll, rate is now %.1f%% of desired rate", m_name.c_str(), (desired * 100) / rate);
+	}
+	else if (m_throttled && m_ingest->queueLength() < m_lowWater && res.tv_sec > SOUTH_THROTTLE_UP_INTERVAL)
+	{
+		// We are current throttle back but the queue is below the low water mark
+		timersub(&m_desiredRate, &m_currentRate, &res);
+		if (res.tv_sec != 0 || res.tv_usec != 0)
+		{
+			double rate = m_currentRate.tv_sec + ((double)m_currentRate.tv_usec / 1000000);
+			rate *= (1.0 - ((double)SOUTH_THROTTLE_PERCENT / 100.0));
+			m_currentRate.tv_sec = (long)rate;
+			m_currentRate.tv_usec = (rate - m_currentRate.tv_sec) * 1000000;
+			if (m_currentRate.tv_sec <= m_desiredRate.tv_sec
+					&& m_currentRate.tv_usec < m_desiredRate.tv_usec)
+			{
+				m_currentRate = m_desiredRate;
+				m_throttled = false;
+				logger->warn("%s Poll rate returned to configured value", m_name.c_str());
+			}
+			else
+			{
+				logger->warn("%s Throttled up poll, rate is now %.1f%% of desired rate", m_name.c_str(), (desired * 100) / rate);
+			}
+			close(m_timerfd);
+			m_timerfd = createTimerFd(m_currentRate); // interval to be passed is in usecs
+			m_lastThrottle = now;
+		}
+	}
+}

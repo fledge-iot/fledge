@@ -4,10 +4,16 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
+import logging
+import json
+
 from aiohttp import web
 from foglamp.common.plugin_discovery import PluginDiscovery
+from foglamp.services.core.api.plugins import common
+from foglamp.common import logger
+from foglamp.services.core.api.plugins.exceptions import *
 
-__author__ = "Amarendra K Sinha"
+__author__ = "Amarendra K Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -16,8 +22,10 @@ __version__ = "${VERSION}"
 _help = """
     -------------------------------------------------------------------------------
     | GET             | /foglamp/plugins/installed                                |
+    | GET             | /foglamp/plugins/available                                |
     -------------------------------------------------------------------------------
 """
+_logger = logger.setup(__name__, level=logging.INFO)
 
 
 async def get_plugins_installed(request):
@@ -41,7 +49,7 @@ async def get_plugins_installed(request):
     if 'config' in request.query:
         config = request.query['config']
         if config not in ['true', 'false', True, False]:
-                raise web.HTTPBadRequest(reason='Only "true", "false", true, false'
+            raise web.HTTPBadRequest(reason='Only "true", "false", true, false'
                                                 ' are allowed for value of config.')
         is_config = True if ((type(config) is str and config.lower() in ['true']) or (
             (type(config) is bool and config is True))) else False
@@ -49,3 +57,32 @@ async def get_plugins_installed(request):
     plugins_list = PluginDiscovery.get_plugins_installed(plugin_type, is_config)
 
     return web.json_response({"plugins": plugins_list})
+
+
+async def get_plugins_available(request: web.Request) -> web.Response:
+    """ get list of a available plugins via package management i.e apt or yum
+
+        :Example:
+            curl -X GET http://localhost:8081/foglamp/plugins/available
+            curl -X GET http://localhost:8081/foglamp/plugins/available?type=north | south | filter | notify | rule
+    """
+    try:
+        package_type = ""
+        if 'type' in request.query and request.query['type'] != '':
+            package_type = request.query['type'].lower()
+
+        if package_type and package_type not in ['north', 'south', 'filter', 'notify', 'rule']:
+            raise ValueError("Invalid package type. Must be 'north' or 'south' or 'filter' or 'notify' or 'rule'.")
+        plugins, log_path = common.fetch_available_packages(package_type)
+        # foglamp-gui, foglamp-quickstart and foglamp-service-* packages are excluded when no type is given
+        if not package_type:
+            plugins = [p for p in plugins if not str(p).startswith('foglamp-service-') and p not in ('foglamp-quickstart', 'foglamp-gui')]
+    except ValueError as e:
+        raise web.HTTPBadRequest(reason=e)
+    except PackageError as e:
+        msg = "Fetch available plugins package request failed"
+        raise web.HTTPBadRequest(body=json.dumps({"message": msg, "link": str(e)}), reason=msg)
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason=ex)
+
+    return web.json_response({"plugins": plugins, "link": log_path})

@@ -4,7 +4,7 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-
+import copy
 import asyncio
 import json
 from unittest.mock import MagicMock, patch
@@ -159,15 +159,15 @@ class TestConfiguration:
                 assert 'No such Category found for {}'.format(category_name) == resp.reason
             patch_get_all_items.assert_called_once_with(category_name)
 
-    async def test_get_category(self, client, category_name='rest_api'):
-        result = {'httpPort': {'default': '8081', 'value': '8081', 'type': 'integer',
-                               'description': 'The port to accept HTTP connections on'},
-                  'certificateName': {'default': 'foglamp', 'value': 'foglamp', 'type': 'string',
-                                      'description': 'Certificate file name'}}
-
+    @pytest.mark.parametrize("expected_result, hide_password", [
+        ({'httpPort': {'default': '8081', 'value': '8081', 'type': 'integer', 'description': 'The port to accept HTTP'},
+          'certificateName': {'default': 'foglamp', 'value': 'foglamp', 'type': 'string', 
+                              'description': 'Certificate file name'}}, False),
+        ({"p2": {"type": "password", "description": "Test Password", "default": "foglamp", "value": "FogLAMP"}}, True)
+    ])
+    async def test_get_category(self, client, expected_result, hide_password, category_name='rest_api'):
         async def async_mock():
-            return result
-
+            return expected_result
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
@@ -176,7 +176,9 @@ class TestConfiguration:
                 assert 200 == resp.status
                 r = await resp.text()
                 json_response = json.loads(r)
-                assert result == json_response
+                if hide_password:
+                    expected_result[list(expected_result.keys())[0]]['value'] = "****"
+                assert expected_result == json_response
             patch_get_all_items.assert_called_once_with(category_name)
 
     async def test_get_category_item_not_found(self, client, category_name='rest_api', item_name='blah'):
@@ -192,13 +194,14 @@ class TestConfiguration:
                 assert 'No such Category item found for {}'.format(item_name) == resp.reason
             patch_get_cat_item.assert_called_once_with(category_name, item_name)
 
-    async def test_get_category_item(self, client, category_name='rest_api', item_name='http_port'):
-        result = {'value': '8081', 'type': 'integer', 'default': '8081',
-                  'description': 'The port to accept HTTP connections on'}
-
+    @pytest.mark.parametrize("expected_result, hide_password", [
+        ({'value': '8081', 'type': 'integer', 'default': '8081', 'description': 'Port to accept HTTP conn on'}, False),
+        ({'type': 'password', 'description': 'Test Password', 'default': 'foglamp', 'value': 'FogLAMP'}, True)
+    ])
+    async def test_get_category_item(self, client, expected_result, hide_password, category_name='rest_api',
+                                     item_name='http_port'):
         async def async_mock():
-            return result
-
+            return expected_result
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
@@ -207,27 +210,33 @@ class TestConfiguration:
                 assert 200 == resp.status
                 r = await resp.text()
                 json_response = json.loads(r)
-                assert result == json_response
+                if hide_password:
+                    expected_result['value'] = "****"
+                assert expected_result == json_response
             patch_get_cat_item.assert_called_once_with(category_name, item_name)
 
-    async def test_set_config_item(self, client, category_name='rest_api', item_name='http_port'):
+    @pytest.mark.parametrize("expected_result, hide_password", [
+        ({'value': '8082', 'type': 'integer', 'default': '8081', 'description': 'Port to accept HTTP conn on'}, False),
+        ({'type': 'password', 'description': 'Test Password', 'default': 'foglamp', 'value': 'FogLAMP'}, True)
+    ])
+    async def test_set_config_item(self, client, expected_result, hide_password, category_name='rest_api',
+                                   item_name='http_port'):
         async def async_mock(return_value):
             return return_value
-
-        payload = {"value": '8082'}
-        result = {'value': '8082', 'type': 'integer', 'default': '8081',
-                  'description': 'The port to accept HTTP connections on'}
+        payload = {"value": expected_result['value']}
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'set_category_item_value_entry', return_value=async_mock(None)) as patch_set_entry:
-                with patch.object(c_mgr, 'get_category_item', side_effect=[async_mock(result), async_mock(result)]) as patch_get_cat_item:
+                with patch.object(c_mgr, 'get_category_item', side_effect=[async_mock(expected_result), async_mock(expected_result)]) as patch_get_cat_item:
                     resp = await client.put('/foglamp/category/{}/{}'.format(category_name, item_name),
                                             data=json.dumps(payload))
                     assert 200 == resp.status
                     r = await resp.text()
                     json_response = json.loads(r)
-                    assert result == json_response
+                    if hide_password:
+                        expected_result['value'] = "****"
+                    assert expected_result == json_response
                 assert 2 == patch_get_cat_item.call_count
                 calls = patch_get_cat_item.call_args_list
                 args, kwargs = calls[0]
@@ -329,30 +338,31 @@ class TestConfiguration:
             with patch.object(c_mgr, 'set_optional_value_entry', side_effect=ValueError) as patch_set_entry:
                 resp = await client.put('/foglamp/category/{}/{}'.format(category_name, item_name), data=json.dumps(payload))
                 assert 400 == resp.status
-                assert resp.reason is None
+                assert resp.reason is ''
             patch_set_entry.assert_called_once_with(category_name, item_name, optional_key, payload[optional_key])
 
-    async def test_delete_config_item(self, client, category_name='rest_api', item_name='http_port'):
-        result = {'value': '8081', 'type': 'integer', 'default': '8081',
-                  'description': 'The port to accept HTTP connections on'}
-
-        async def async_mock_set_item():
-            return None
-
-        async def async_mock():
-            return result
+    @pytest.mark.parametrize("expected_result, hide_password", [
+        ({'value': '8082', 'type': 'integer', 'default': '8081', 'description': 'Port to accept HTTP conn on'}, False),
+        ({'type': 'password', 'description': 'Test Password', 'default': 'foglamp', 'value': 'FogLAMP'}, True)
+    ])
+    async def test_delete_config_item(self, client, expected_result, hide_password, category_name='rest_api',
+                                      item_name='http_port'):
+        async def async_mock(return_value):
+            return return_value
 
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_category_item', side_effect=[async_mock(), async_mock()]) as patch_get_cat_item:
-                with patch.object(c_mgr, 'set_category_item_value_entry', return_value=async_mock_set_item()) as patch_set_entry:
+            with patch.object(c_mgr, 'get_category_item', side_effect=[async_mock(expected_result), async_mock(expected_result)]) as patch_get_cat_item:
+                with patch.object(c_mgr, 'set_category_item_value_entry', return_value=async_mock(None)) as patch_set_entry:
                     resp = await client.delete('/foglamp/category/{}/{}/value'.format(category_name, item_name))
                     assert 200 == resp.status
                     r = await resp.text()
                     json_response = json.loads(r)
-                    assert result == json_response
-                patch_set_entry.assert_called_once_with(category_name, item_name, result['default'])
+                    if hide_password:
+                        expected_result['value'] = "****"
+                    assert expected_result == json_response
+                patch_set_entry.assert_called_once_with(category_name, item_name, expected_result['default'])
             assert 2 == patch_get_cat_item.call_count
             args, kwargs = patch_get_cat_item.call_args
             assert category_name == args[0]
@@ -431,19 +441,18 @@ class TestConfiguration:
             assert 400 == resp.status
             assert message == resp.reason
 
-    @pytest.mark.parametrize("payload", [
-        {"key": "T1", "description": "Test"},
-        {"key": "T2", "description": "Test 2", "display_name": "Test Display"}
+    @pytest.mark.parametrize("payload, hide_password", [
+        ({"key": "T1", "description": "Test"}, False),
+        ({"key": "T2", "description": "Test 2", "display_name": "Test Display"}, False),
+        ({"key": "T3", "description": "Test 3"}, True)
     ])
-    async def test_create_category(self, client, reset_singleton, payload):
-        info = {'info': {'type': 'boolean', 'value': 'False', 'description': 'Test', 'default': 'False'}}
-        payload.update({"value": info})
+    async def test_create_category(self, client, reset_singleton, payload, hide_password):
+        info = {'p1': {'type': 'password', 'description': 'P1', 'default': 'P1', 'value': 'P1'}} if hide_password else {'info': {'type': 'boolean', 'value': 'False', 'description': 'Test', 'default': 'False'}}
+        new_info = copy.deepcopy(info)
+        payload["value"] = new_info
 
-        async def async_mock_create_cat():
-            return None
-
-        async def async_mock():
-            return info
+        async def async_mock(return_value):
+            return return_value
 
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
@@ -452,14 +461,16 @@ class TestConfiguration:
         else:
             payload.update({'displayName': payload['key']})
 
-        c_mgr._cacheManager.update(payload['key'], info, payload['displayName'])
+        c_mgr._cacheManager.update(payload['key'], new_info, payload['displayName'])
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'create_category', return_value=async_mock_create_cat()) as patch_create_cat:
-                with patch.object(c_mgr, 'get_category_all_items', return_value=async_mock()) as patch_cat_all_item:
+            with patch.object(c_mgr, 'create_category', return_value=async_mock(None)) as patch_create_cat:
+                with patch.object(c_mgr, 'get_category_all_items', return_value=async_mock(new_info)) as patch_cat_all_item:
                     resp = await client.post('/foglamp/category', data=json.dumps(payload))
                     assert 200 == resp.status
                     r = await resp.text()
                     json_response = json.loads(r)
+                    if hide_password:
+                        payload['value'][list(payload['value'].keys())[0]]['value'] = "****"
                     assert payload == json_response
                 patch_cat_all_item.assert_called_once_with(category_name=payload['key'])
             patch_create_cat.assert_called_once_with(category_name=payload['key'], category_description=payload['description'],
@@ -504,10 +515,11 @@ class TestConfiguration:
     async def test_create_category_http_exception(self, client, name="test_cat", desc="Test desc"):
         info = {'info': {'type': 'boolean', 'value': 'False', 'description': 'Test', 'default': 'False'}}
         payload = {"key": name, "description": desc, "value": info}
-        with patch.object(connect, 'get_storage_async', side_effect=Exception):
+        msg = 'Something went wrong'
+        with patch.object(connect, 'get_storage_async', side_effect=Exception(msg)):
             resp = await client.post('/foglamp/category', data=json.dumps(payload))
             assert 500 == resp.status
-            assert 'Internal Server Error' == resp.reason
+            assert msg == resp.reason
 
     @pytest.mark.parametrize("payload, message", [
         # FIXME: keys order mismatch assertion
@@ -613,10 +625,11 @@ class TestConfiguration:
 
     async def test_unknown_exception_for_add_config_item(self, client):
         data = {"default": "d", "description": "Test description", "type": "boolean"}
-        with patch.object(connect, 'get_storage_async', side_effect=Exception):
+        msg = 'Internal Server Error'
+        with patch.object(connect, 'get_storage_async', side_effect=Exception(msg)):
             resp = await client.post('/foglamp/category/{}/{}'.format("blah", "blah"), data=json.dumps(data))
             assert 500 == resp.status
-            assert 'Internal Server Error' == resp.reason
+            assert msg == resp.reason
 
     async def test_get_child_category(self, client):
         @asyncio.coroutine
@@ -736,7 +749,7 @@ class TestConfiguration:
             with patch.object(c_mgr, 'get_category_item', side_effect=exception_name) as patch_get_cat_item:
                 resp = await client.put('/foglamp/category/{}'.format(category_name), data=json.dumps(payload))
                 assert code == resp.status
-                assert resp.reason is None
+                assert resp.reason is ''
             patch_get_cat_item.assert_called_once_with(category_name, config_item_name)
 
     async def test_update_bulk_config_item_not_found(self, client, category_name='rest_api'):

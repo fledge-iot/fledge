@@ -27,8 +27,10 @@ class StorageRegistry {
 		void		processPayload(char *payload);
 		void		sendPayload(const std::string& url, char *payload);
 		void		filterPayload(const std::string& url, char *payload, const std::string& asset);
+		typedef 	std::pair<time_t, char *> Item;
 		REGISTRY			m_registrations;
-		std::queue<char *>		m_queue;
+		std::queue<StorageRegistry::Item>
+						m_queue;
 		std::mutex			m_qMutex;
 		std::thread			*m_thread;
 		std::condition_variable		m_cv;

@@ -6,7 +6,7 @@
 
 """ Test end to end flow with:
         Notification service with
-        OverMaxRule & UnderMinRule in-built rules plugin
+        Threshold in-built rule plugin
         notify-python35 delivery channel plugin
 """
 
@@ -30,7 +30,7 @@ __version__ = "${VERSION}"
 SERVICE = "notification"
 SERVICE_NAME = "NotificationServer #1"
 NOTIFY_PLUGIN = "python35"
-NOTIFY_INBUILT_RULES = ["OverMaxRule", "UnderMinRule"]
+NOTIFY_INBUILT_RULES = ["Threshold"]
 
 
 def _configure_and_start_service(service_branch, foglamp_url, remove_directories):
@@ -139,9 +139,8 @@ class TestNotificationService:
         remove_directories(os.environ['FOGLAMP_ROOT'] + 'cmake_build/C/plugins/notificationRule')
         jdoc = _get_result(foglamp_url, '/foglamp/notification/plugin')
         assert [] == jdoc['delivery']
-        assert 2 == len(jdoc['rules'])
+        assert 1 == len(jdoc['rules'])
         assert NOTIFY_INBUILT_RULES[0] == jdoc['rules'][0]['name']
-        assert NOTIFY_INBUILT_RULES[1] == jdoc['rules'][1]['name']
 
 
 class TestNotificationCRUD:
@@ -165,9 +164,8 @@ class TestNotificationCRUD:
         jdoc = _get_result(foglamp_url, '/foglamp/notification/plugin')
         assert 1 == len(jdoc['delivery'])
         assert NOTIFY_PLUGIN == jdoc['delivery'][0]['name']
-        assert 2 == len(jdoc['rules'])
+        assert 1 == len(jdoc['rules'])
         assert NOTIFY_INBUILT_RULES[0] == jdoc['rules'][0]['name']
-        assert NOTIFY_INBUILT_RULES[1] == jdoc['rules'][1]['name']
 
     def test_get_notifications_and_audit_entry(self, foglamp_url):
         jdoc = _get_result(foglamp_url, '/foglamp/notification')
@@ -273,12 +271,13 @@ class TestSentAndReceiveNotification:
         assert 1 == len(val)
         assert {'sensor': self.SENSOR_VALUE} == val[0]["reading"]
 
-    def configure_rule_with_latest_eval_type(self, foglamp_url, cat_name):
+    def configure_rule_with_single_item_eval_type(self, foglamp_url, cat_name):
         conn = http.client.HTTPConnection(foglamp_url)
         data = {"asset": self.ASSET_NAME,
                 "datapoint": "sensor",
-                "evaluation_type": "latest",
-                "trigger_value": str(self.SENSOR_VALUE + 1),
+                "evaluation_data": "Single Item",
+                "condition": ">",
+                "trigger_value": str(self.SENSOR_VALUE - 10),
                 }
         conn.request("PUT", '/foglamp/category/rule{}'.format(cat_name), json.dumps(data))
         r = conn.getresponse()
@@ -295,14 +294,14 @@ class TestSentAndReceiveNotification:
     def test_sent_and_receive_notification(self, foglamp_url, start_south, wait_time):
         data = {"name": "Test4",
                 "description": "Test4_Notification",
-                "rule": NOTIFY_INBUILT_RULES[1],
+                "rule": NOTIFY_INBUILT_RULES[0],
                 "channel": NOTIFY_PLUGIN,
                 "enabled": True,
                 "notification_type": "one shot"
                 }
         name = data['name']
         _add_notification_instance(foglamp_url, data)
-        self.configure_rule_with_latest_eval_type(foglamp_url, name)
+        self.configure_rule_with_single_item_eval_type(foglamp_url, name)
 
         # upload script NotifyPython35::configure() -> lowercase(categoryName) + _script_ + method_name + ".py"
         cat_name = "delivery{}".format(name)

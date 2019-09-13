@@ -4,13 +4,14 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-
+import platform
 import asyncio
 import json
 from uuid import UUID
-from aiohttp import web
-import pytest
 from unittest.mock import MagicMock, patch, call
+import pytest
+from aiohttp import web
+
 from foglamp.services.core import routes
 from foglamp.services.core import connect
 from foglamp.common.storage_client.storage_client import StorageClientAsync
@@ -22,8 +23,11 @@ from foglamp.services.core.scheduler.scheduler import Scheduler
 from foglamp.services.core.scheduler.entities import StartUpSchedule
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.services.core.api import service
-
+from foglamp.services.core.api.plugins import common
 from foglamp.services.core.api.service import _logger
+from foglamp.services.core.api.plugins import install
+from foglamp.services.core.api.plugins.exceptions import *
+
 
 __author__ = "Ashwin Gopalakrishnan, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -150,34 +154,6 @@ class TestService:
         assert code == resp.status
         assert message == resp.reason
 
-    async def test_plugin_not_supported(self, client):
-        data = {"name": "HTTP", "type": "south", "plugin": "http-north"}
-
-        mock_plugin_info = {
-            'name': "HTTP",
-            'version': "1.1",
-            'type': "north",
-            'interface': "1.0.0",
-            'mode': "async",
-            'config': {
-                'plugin': {
-                    'description': "HTTP North Plugin",
-                    'type': 'string',
-                    'default': 'http-north'
-                }
-            }
-        }
-
-        mock = MagicMock()
-        attrs = {"plugin_info.side_effect": [mock_plugin_info]}
-        mock.configure_mock(**attrs)
-        with patch('builtins.__import__', return_value=mock):
-            with patch.object(_logger, 'exception') as ex_logger:
-                resp = await client.post('/foglamp/service', data=json.dumps(data))
-                assert 400 == resp.status
-                assert 'Plugin of north type is not supported' == resp.reason
-            assert 1 == ex_logger.call_count
-
     async def test_insert_scheduled_process_exception_add_service(self, client):
         data = {"name": "furnace4", "type": "south", "plugin": "dht11"}
 
@@ -199,13 +175,9 @@ class TestService:
                 }
             }
         }
-
-        mock = MagicMock()
-        attrs = {"plugin_info.side_effect": [mock_plugin_info]}
-        mock.configure_mock(**attrs)
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        with patch('builtins.__import__', return_value=mock):
+        with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[mock_plugin_info]):
             with patch.object(_logger, 'exception') as ex_logger:
                 with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                     with patch.object(c_mgr, 'get_category_all_items',
@@ -238,15 +210,10 @@ class TestService:
                 }
             }
         }
-
-        mock = MagicMock()
-        attrs = {"plugin_info.side_effect": [mock_plugin_info]}
-        mock.configure_mock(**attrs)
-
         data = {"name": "furnace4", "type": "south", "plugin": "dht11"}
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        with patch('builtins.__import__', return_value=mock):
+        with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[mock_plugin_info]):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(c_mgr, 'get_category_all_items', return_value=self.async_mock(mock_plugin_info)) as patch_get_cat_info:
                     resp = await client.post('/foglamp/service', data=json.dumps(data))
@@ -279,15 +246,10 @@ class TestService:
                 }
             }
         }
-
-        mock = MagicMock()
-        attrs = {"plugin_info.side_effect": [mock_plugin_info]}
-        mock.configure_mock(**attrs)
-
         data = {"name": "furnace4", "type": "south", "plugin": "dht11"}
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        with patch('builtins.__import__', return_value=mock):
+        with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[mock_plugin_info]):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(c_mgr, 'get_category_all_items', return_value=self.async_mock(None)) as patch_get_cat_info:
                     with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
@@ -340,15 +302,10 @@ class TestService:
                 }
             }
         }
-
-        mock = MagicMock()
-        attrs = {"plugin_info.side_effect": [mock_plugin_info]}
-        mock.configure_mock(**attrs)
-
         server.Server.scheduler = Scheduler(None, None)
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        with patch('builtins.__import__', return_value=mock):
+        with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[mock_plugin_info]):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(c_mgr, 'get_category_all_items', return_value=self.async_mock(None)) as patch_get_cat_info:
                     with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
@@ -524,14 +481,10 @@ class TestService:
                 }
             }
         }
-
-        mock = MagicMock()
-        attrs = {"plugin_info.side_effect": [mock_plugin_info]}
-        mock.configure_mock(**attrs)
         server.Server.scheduler = Scheduler(None, None)
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        with patch('builtins.__import__', return_value=mock):
+        with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[mock_plugin_info]):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(c_mgr, 'get_category_all_items', return_value=self.async_mock(None)) as patch_get_cat_info:
                     with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
@@ -546,13 +499,13 @@ class TestService:
                                                           return_value=self.async_mock("")) as patch_save_schedule:
                                             with patch.object(server.Server.scheduler, 'get_schedule_by_name',
                                                               return_value=async_mock_get_schedule()) as patch_get_schedule:
-                                                    resp = await client.post('/foglamp/service', data=payload)
-                                                    server.Server.scheduler = None
-                                                    assert 200 == resp.status
-                                                    result = await resp.text()
-                                                    json_response = json.loads(result)
-                                                    assert {'id': '2129cc95-c841-441a-ad39-6469a87dbc8b',
-                                                            'name': data['name']} == json_response
+                                                resp = await client.post('/foglamp/service', data=payload)
+                                                server.Server.scheduler = None
+                                                assert 200 == resp.status
+                                                result = await resp.text()
+                                                json_response = json.loads(result)
+                                                assert {'id': '2129cc95-c841-441a-ad39-6469a87dbc8b',
+                                                        'name': data['name']} == json_response
                                             patch_get_schedule.assert_called_once_with(data['name'])
                                         patch_save_schedule.called_once_with()
                                     patch_set_entry.assert_called_once_with(data['name'], 'dataPointsPerSec', '10')
@@ -638,20 +591,92 @@ class TestService:
         name = 'Test'
         mock_registry = [ServiceRecord(reg_id, name, "Southbound", "http", "localhost", "8118", "8118")]
 
+        mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(service, "get_schedule", side_effect=Exception)
         resp = await client.delete("/foglamp/service/{}".format(name))
         assert 500 == resp.status
-        assert resp.reason is None
+        assert resp.reason is ''
 
         async def mock_bad_result():
             return {"count": 0, "rows": []}
 
-        mocker.patch.object(connect, 'get_storage_async')
         mock_registry[0]._status = ServiceRecord.Status.Shutdown
         mocker.patch.object(service, "get_schedule", return_value=mock_bad_result())
 
         resp = await client.delete("/foglamp/service/{}".format(name))
         assert 404 == resp.status
         assert '{} service does not exist.'.format(name) == resp.reason
+
+    async def test_post_service_package_from_repo(self, client):
+        async def async_mock(return_value):
+            return return_value
+
+        svc_name = 'foglamp-service-notification'
+        param = {"format": "repository", "name": svc_name}
+        _platform = platform.platform()
+        pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
+        with patch.object(common, 'fetch_available_packages', return_value=([svc_name], 'log/190801-12-19-24')) as patch_fetch_available_package:
+            with patch.object(install, 'install_package_from_repo',
+                              return_value=async_mock((0, 'Success'))) as install_package_patch:
+                resp = await client.post('/foglamp/service?action=install', data=json.dumps(param))
+                assert 200 == resp.status
+                result = await resp.text()
+                response = json.loads(result)
+                assert {"message": "{} is successfully installed".format(svc_name)} == response
+            install_package_patch.assert_called_once_with(svc_name, pkg_mgt, None)
+        patch_fetch_available_package.assert_called_once_with('service')
+
+    @pytest.mark.parametrize("req_param, post_param, message", [
+        ("?action=install", {"name": "blah"}, "format param is required"),
+        ("?action=install", {"format": "repository"}, "Missing name property in payload."),
+        ("?action=install", {"format": "blah", "name": "blah"}, "Invalid format. Must be 'repository'"),
+        ("?action=blah", {"format": "blah", "name": "blah"}, "blah is not a valid action"),
+        ("?action=install", {"format": "repository", "name": "foglamp-service-notification", "version": "1.6"},
+         "Service semantic version is incorrect; it should be like X.Y.Z")
+    ])
+    async def test_bad_post_service_package_from_repo(self, client, req_param, post_param, message):
+        resp = await client.post('/foglamp/service{}'.format(req_param), data=json.dumps(post_param))
+        assert 400 == resp.status
+        assert message == resp.reason
+
+    async def test_post_service_package_from_repo_is_not_available(self, client):
+        svc = "foglamp-service-notification"
+        param = {"format": "repository", "name": svc}
+        with patch.object(common, 'fetch_available_packages', return_value=([], 'log/190801-12-19-24')) as patch_fetch_available_package:
+            resp = await client.post('/foglamp/service?action=install', data=json.dumps(param))
+            assert 404 == resp.status
+            assert "'{} service is not available for the given repository or already installed'".format(svc) == resp.reason
+        patch_fetch_available_package.assert_called_once_with('service')
+
+    async def test_get_service_available(self, client):
+        with patch.object(common, 'fetch_available_packages', return_value=([], 'log/190801-12-19-24')) as patch_fetch_available_package:
+            resp = await client.get('/foglamp/service/available')
+            assert 200 == resp.status
+            result = await resp.text()
+            json_response = json.loads(result)
+            assert {'services': [], 'link': 'log/190801-12-19-24'} == json_response
+        patch_fetch_available_package.assert_called_once_with('service')
+
+    async def test_bad_get_service_available(self, client):
+        log_path = "log/190801-12-19-24"
+        msg = "Fetch available service package request failed"
+        with patch.object(common, 'fetch_available_packages', side_effect=PackageError(log_path)) as patch_fetch_available_package:
+            resp = await client.get('/foglamp/service/available')
+            assert 400 == resp.status
+            assert msg == resp.reason
+            r = await resp.text()
+            json_response = json.loads(r)
+            assert log_path == json_response['link']
+            assert msg == json_response['message']
+        patch_fetch_available_package.assert_called_once_with('service')
+
+    async def test_get_service_installed(self, client):
+        with patch('os.walk') as mockwalk:
+            mockwalk.return_value = [(['/usr/local/foglamp/services'], [], ['foglamp.services.south', 'foglamp.services.storage'])]
+            resp = await client.get('/foglamp/service/installed')
+            assert 200 == resp.status
+            result = await resp.text()
+            json_response = json.loads(result)
+            assert {'services': ['south', 'storage']} == json_response
 
 # TODO:  add negative tests and C type plugin add service tests

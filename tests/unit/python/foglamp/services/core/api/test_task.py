@@ -19,8 +19,9 @@ from foglamp.services.core import server
 from foglamp.services.core.scheduler.scheduler import Scheduler
 from foglamp.services.core.scheduler.entities import TimedSchedule
 from foglamp.common.configuration_manager import ConfigurationManager
-from foglamp.services.core.api.service import _logger
 from foglamp.services.core.api import task
+from foglamp.services.core.api.plugins import common
+from foglamp.services.core.api.service import _logger
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -30,7 +31,7 @@ __version__ = "${VERSION}"
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "task")
-class TestService:
+class TestTask:
     def setup_method(self):
         ServiceRegistry._registry = list()
 
@@ -60,32 +61,6 @@ class TestService:
         resp = await client.post('/foglamp/scheduled/task', data=json.dumps(payload))
         assert code == resp.status
         assert message == resp.reason
-
-    async def test_plugin_not_supported(self, client):
-        mock_plugin_info = {
-            'name': "north bound",
-            'version': "1.1",
-            'type': "south",
-            'interface': "1.0",
-            'config': {
-                'plugin': {
-                    'description': "North OMF plugin",
-                    'type': 'string',
-                    'default': 'omf'
-                }
-            }
-        }
-
-        mock = MagicMock()
-        attrs = {"plugin_info.side_effect": [mock_plugin_info]}
-        mock.configure_mock(**attrs)
-        data = {"name": "north bound", "type": "north", "schedule_type": 3, "plugin": "omf", "schedule_repeat": 30}
-        with patch('builtins.__import__', return_value=mock):
-            with patch.object(_logger, 'exception') as ex_logger:
-                resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
-                assert 400 == resp.status
-                assert 'Plugin of south type is not supported' == resp.reason
-            assert 1 == ex_logger.call_count
 
     async def test_insert_scheduled_process_exception_add_task(self, client):
         data = {"name": "north bound", "type": "north", "schedule_type": 3, "plugin": "omf", "schedule_repeat": 30}
@@ -121,12 +96,9 @@ class TestService:
             }
         }
 
-        mock = MagicMock()
-        attrs = {"plugin_info.side_effect": [mock_plugin_info]}
-        mock.configure_mock(**attrs)
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        with patch('builtins.__import__', return_value=mock):
+        with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[mock_plugin_info]):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(_logger, 'exception') as ex_logger:
                     with patch.object(c_mgr, 'get_category_all_items',
@@ -161,15 +133,10 @@ class TestService:
                 }
             }
         }
-
-        mock = MagicMock()
-        attrs = {"plugin_info.side_effect": [mock_plugin_info]}
-        mock.configure_mock(**attrs)
-
         data = {"name": "north bound", "plugin": "omf", "type": "north", "schedule_type": 3, "schedule_repeat": 30}
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        with patch('builtins.__import__', return_value=mock):
+        with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[mock_plugin_info]):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(c_mgr, 'get_category_all_items', return_value=self.async_mock(mock_plugin_info)) as patch_get_cat_info:
                     with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
@@ -205,15 +172,10 @@ class TestService:
                 }
             }
         }
-
-        mock = MagicMock()
-        attrs = {"plugin_info.side_effect": [mock_plugin_info]}
-        mock.configure_mock(**attrs)
-
         data = {"name": "north bound", "plugin": "omf", "type": "north", "schedule_type": 3, "schedule_repeat": 30}
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        with patch('builtins.__import__', return_value=mock):
+        with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[mock_plugin_info]):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(c_mgr, 'get_category_all_items', return_value=self.async_mock(None)) as patch_get_cat_info:
                     with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
@@ -259,11 +221,6 @@ class TestService:
                 }
             }
         }
-
-        mock = MagicMock()
-        attrs = {"plugin_info.side_effect": [mock_plugin_info]}
-        mock.configure_mock(**attrs)
-
         server.Server.scheduler = Scheduler(None, None)
         data = {
             "name": "north bound",
@@ -278,7 +235,7 @@ class TestService:
 
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        with patch('builtins.__import__', return_value=mock):
+        with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[mock_plugin_info]):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(c_mgr, 'get_category_all_items', return_value=self.async_mock(None)) as patch_get_cat_info:
                     with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
@@ -348,11 +305,6 @@ class TestService:
                 }
             }
         }
-
-        mock = MagicMock()
-        attrs = {"plugin_info.side_effect": [mock_plugin_info]}
-        mock.configure_mock(**attrs)
-
         data = {
             "name": "north bound",
             "plugin": "omf",
@@ -365,15 +317,15 @@ class TestService:
         }
 
         storage_client_mock = MagicMock(StorageClientAsync)
-        with patch('builtins.__import__', return_value=mock):
-            with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                    with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
-
-                        resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
-                        result = await resp.text()
-
-                        assert resp.status == expected_http_code
-                        assert result == expected_message
+        with patch.object(_logger, 'exception') as ex_logger:
+            with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[mock_plugin_info]):
+                with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                        with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
+                            resp = await client.post('/foglamp/scheduled/task', data=json.dumps(data))
+                            result = await resp.text()
+                            assert resp.status == expected_http_code
+                            assert result == expected_message
+        assert 1 == ex_logger.call_count
 
     async def test_add_task_with_config(self, client):
         async def async_mock_get_schedule():
@@ -418,11 +370,6 @@ class TestService:
                 }
             }
         }
-
-        mock = MagicMock()
-        attrs = {"plugin_info.side_effect": [mock_plugin_info]}
-        mock.configure_mock(**attrs)
-
         server.Server.scheduler = Scheduler(None, None)
         data = {
             "name": "north bound",
@@ -439,7 +386,7 @@ class TestService:
 
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        with patch('builtins.__import__', return_value=mock):
+        with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[mock_plugin_info]):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(c_mgr, 'get_category_all_items', return_value=self.async_mock(None)) as patch_get_cat_info:
                     with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
@@ -536,15 +483,15 @@ class TestService:
         assert 405 == resp.status
         assert 'Method Not Allowed' == resp.reason
 
+        mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(task, "get_schedule", side_effect=Exception)
         resp = await client.delete("/foglamp/scheduled/task/Test")
         assert 500 == resp.status
-        assert resp.reason is None
+        assert resp.reason is ''
 
         async def mock_bad_result():
             return {"count": 0, "rows": []}
 
-        mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(task, "get_schedule", return_value=mock_bad_result())
         resp = await client.delete("/foglamp/scheduled/task/Test")
         assert 404 == resp.status

@@ -22,7 +22,9 @@ static struct {
 	{ "bufferThreshold",	"Maximum buffered Readings",
 			"Number of readings to buffer before sending", "integer", "100" },
 	{ "readingsPerSec",	"Reading Rate",
-			"Number of readings to generate per interval",	"integer", "1" },
+			"Number of readings to generate per interval", "integer", "1" },
+	{ "throttle",	"Throttle",
+			"Enable flow control by reducing the poll rate", "boolean", "false" },
 	{ NULL, NULL, NULL, NULL, NULL }
 };
 #endif

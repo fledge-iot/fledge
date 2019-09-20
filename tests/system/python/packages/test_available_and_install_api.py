@@ -127,6 +127,14 @@ class TestPackages:
         assert 'notification' in jdoc['services']
 
     def test_install_plugin_package(self, foglamp_url, package_build_source_list, package_build_list):
+        # FIXME: FOGL-3276 (Remove below once we have dedicated Rpi with sensehat device attached; otherwise its discovery fails)
+        if 'foglamp-south-sensehat' in available_pkg:
+            available_pkg.remove('foglamp-south-sensehat')
+
+        # FIXME: FOGL-3288
+        if 'foglamp-south-usb4704' in available_pkg:
+            available_pkg.remove('foglamp-south-usb4704')
+
         # When "package_build_source_list" is true then it will install all available packages
         # Otherwise install from list as we defined in JSON file
         if package_build_source_list.lower() == 'true':
@@ -160,9 +168,12 @@ class TestPackages:
         jdoc = json.loads(r)
         assert '{} is successfully installed'.format(pkg_name) == jdoc['message']
         assert 'link' in jdoc
-
+        # Special case: On flirax8 package installation this installs modbus package too as it depends upon
+        # available package list always in alphabetically sorted order
+        if pkg_name == 'foglamp-south-flirax8':
+            available_pkg.remove('foglamp-south-modbus')
+            counter += 1
         counter += 1
-
         conn.request("GET", '/foglamp/plugins/installed')
         r = conn.getresponse()
         assert 200 == r.status

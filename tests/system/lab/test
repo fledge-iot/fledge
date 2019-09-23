@@ -596,7 +596,7 @@ event_toggled_sent_clear () {
     fi
 
 #    echo "Add and enable Notification"
-#    curl -sX POST "$URL/service" -d '{"name":"FogLAMP Notifications","type":"notification","enabled":true}'
+#    curl -sX POST "$URL/service" -d '{"name":"Fledge Notifications","type":"notification","enabled":true}'
 
     echo "Create event instance with threshold and asset; with notification trigger type toggled"
     CREATE_EVENT_INSTANCE=`curl -sX POST "$URL/notification" -d '{"name":"test","description":"test notification instance","rule":"Threshold","channel":"asset","notification_type":"toggled","enabled":true}' | jq .`

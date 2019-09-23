@@ -8,7 +8,7 @@ __version__="1.0.0"
 
 ######################################################################################################
 # Usage text for this script
-# $FOGLAMP_ROOT/tests/system/python/scripts/package/setup ${PACKAGE_BUILD_VERSION}
+# $FLEDGE_ROOT/tests/system/python/scripts/package/setup ${PACKAGE_BUILD_VERSION}
 ######################################################################################################
 
 PACKAGE_BUILD_VERSION=$1
@@ -44,8 +44,8 @@ wget -q -O - http://archives.dianomic.com/KEY.gpg | sudo apt-key add -
 echo "deb http://archives.dianomic.com/${PACKAGE_BUILD_VERSION}/${ID}/${UNAME}/ /" | sudo tee -a /etc/apt/sources.list
 sudo apt update
 
-time sudo apt install -y foglamp
-echo "==================== DONE INSTALLING FogLAMP =================="
+time sudo apt install -y fledge
+echo "==================== DONE INSTALLING Fledge =================="
 
-time sudo apt install -y foglamp-gui
-echo "==================== DONE INSTALLING FogLAMP GUI ======================"
+time sudo apt install -y fledge-gui
+echo "==================== DONE INSTALLING Fledge GUI ======================"

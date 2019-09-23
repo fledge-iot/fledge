@@ -284,9 +284,16 @@ if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
 fi
 
 # DELETE Randomwalk South
-curl -sX DELETE "$URL/service/Random" | jq
-echo
-
+DEL_RAND=`curl -sX DELETE "$URL/service/Random"`
+#echo "$DEL_RAND"
+RESULT_DEL_RAND=`echo ${DEL_RAND} | jq '.result // empty'`
+if [[ -n "$RESULT_DEL_RAND" ]];
+  then
+    echo "$RESULT_DEL_RAND"
+ else
+   display_and_collect_err "ERROR! Failed to delete randomwalk service"
+   if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+fi
 echo "======================= RANDOMWALK SETUP COMPLETE ======================="
 
 
@@ -298,7 +305,7 @@ curl -sX POST "$URL/service" -d \
    "plugin": "randomwalk",
    "enabled": true,
    "config": {"assetName": {"value": "randomwalk1"}}
-}' | jq
+}'
 echo
 
 # need to wait for Fledge to be ready to accept python file
@@ -315,7 +322,7 @@ curl -sX POST "$URL/filter" -d \
       },
       "enable": "true"
    }
-}' | jq
+}'
 echo
 
 # Apply PF to Random
@@ -324,11 +331,11 @@ curl -sX PUT "$URL/filter/Random1/pipeline?allow_duplicates=true&append_filter=t
    "pipeline": [
       "PF"
    ]
-}' | jq
+}'
 echo
 
 echo "upload trendc script..."
-curl -sX POST "$URL/category/Random1_PF/script/upload" -F "script=@scripts/trendc.py" | jq
+curl -sX POST "$URL/category/Random1_PF/script/upload" -F "script=@scripts/trendc.py"
 echo
 
 for LOOP in $(seq ${MAX_RETRIES}); do
@@ -351,7 +358,7 @@ echo "upload trendc script with modified content..."
 cp scripts/trendc.py scripts/trendc.py.bak
 sed -i "s/reading\[b'ema_long/reading\[b'ema_longX/g" scripts/trendc.py
 
-curl -sX POST "$URL/category/Random1_PF/script/upload" -F "script=@scripts/trendc.py" | jq
+curl -sX POST "$URL/category/Random1_PF/script/upload" -F "script=@scripts/trendc.py"
 echo
 
 for LOOP in $(seq ${MAX_RETRIES}); do
@@ -374,7 +381,7 @@ mv scripts/trendc.py.bak scripts/trendc.py
 
 
 echo "upload ema script..."
-curl -sX POST "$URL/category/Random1_PF/script/upload" -F "script=@scripts/ema.py" | jq
+curl -sX POST "$URL/category/Random1_PF/script/upload" -F "script=@scripts/ema.py"
 echo
 
 for LOOP in $(seq ${MAX_RETRIES}); do
@@ -572,6 +579,60 @@ if [[ ${LOOP} -eq ${MAX_RETRIES} ]];
 fi
 
 echo "======================= EVENT NEGATIVE SINE COMPLETE ======================="
+
+
+event_toggled_sent_clear () {
+    echo "Add sinusoid"
+    ADD_SIN_RES=`curl -sX POST "$URL/service" -d '{"name": "sin #1", "plugin": "sinusoid", "type": "south", "enabled":true}'`
+    ID=`echo ${ADD_SIN_RES} | jq '.id // empty'`
+    NAME=`echo ${ADD_SIN_RES} | jq '.name // empty'`
+    echo "$ADD_SIN_RES"
+    if [[ -n "$ID" ]]  || [[ -n "$NAME" ]];
+      then
+        echo
+      else
+        display_and_collect_err "ERROR! Failed to add sin #1"
+        if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+    fi
+
+#    echo "Add and enable Notification"
+#    curl -sX POST "$URL/service" -d '{"name":"FogLAMP Notifications","type":"notification","enabled":true}'
+
+    echo "Create event instance with threshold and asset; with notification trigger type toggled"
+    CREATE_EVENT_INSTANCE=`curl -sX POST "$URL/notification" -d '{"name":"test","description":"test notification instance","rule":"Threshold","channel":"asset","notification_type":"toggled","enabled":true}' | jq .`
+    echo "$CREATE_EVENT_INSTANCE"
+
+    echo "Set rule"
+    SET_RULE=`curl -sX PUT "$URL/category/ruletest" -d '{"asset":"sinusoid", "datapoint":"sinusoid", "trigger_value": "0.8"}' | jq .`
+    echo "$SET_RULE"
+
+    echo "Set delivery"
+    SET_DELIVERY_CHN=`curl -sX PUT "$URL/category/deliverytest" -d '{"asset": "sin0.8", "description":"asset notification", "enable":"true"}' | jq .`
+    echo "$SET_DELIVERY_CHN"
+
+    # TODO: exact time to sleep?
+    echo "Sleeping for 20 seconds"
+    sleep 20
+
+    # TODO: verify asset tracker has entry for sin0.8
+
+    echo "Verify sin0.8 has been created"
+    GET_ASSET=`curl -sX GET "$URL/asset/sin0.8?seconds=600" | jq .`
+    echo "$GET_ASSET"
+    # TODO: verify tabular data
+
+
+    echo "When rule is triggred, There should be 2 entries in Logs->notifications NTFCL and NTFSN"
+    NTFSN_AUDIT=`curl -sX GET "$URL/audit?limit=1&source=NTFSN&severity=INFORMATION" | jq .`
+    NTFCL_AUDIT=`curl -sX GET "$URL/audit?limit=1&source=NTFCL&severity=INFORMATION" | jq .`
+    echo "$NTFSN_AUDIT"
+    echo "$NTFCL_AUDIT"
+    # TODO: verify name: test for each
+}
+
+event_toggled_sent_clear
+
+echo "======================= TOGGLE EVENT NTFSN and NTFCL TEST COMPLETE ======================="
 
 
 ERRORS="$(wc -c <"err.txt")"

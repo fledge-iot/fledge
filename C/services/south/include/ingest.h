@@ -46,6 +46,7 @@ public:
 	void		ingest(const Reading& reading);
 	void		ingest(const std::vector<Reading *> *vec);
 	bool		running();
+    	bool		isStopping();
 	void		processQueue();
 	void		waitForQueue();
 	size_t		queueLength() { return m_queue->size(); };
@@ -66,6 +67,7 @@ public:
 private:
 	StorageClient&			m_storage;
 	unsigned long			m_timeout;
+	bool				m_shutdown;
 	unsigned int			m_queueSizeThreshold;
 	bool				m_running;
 	std::string 			m_serviceName;

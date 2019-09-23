@@ -25,6 +25,132 @@ Version History
 Fledge v1
 ==========
 
+v1.7.0
+-------
+
+Release Date: 2019-08-15
+
+- **FogLAMP Core**
+
+    - New Features:
+
+       - Added support for Raspbian Buster
+       - Additional, optional flow control has been added to the south service to prevent it from overwhelming the storage service. This is enabled via the throttling option in the south service advanced configuration.
+       - The mechanism for including JSON configuration in C++ plugins has been improved and the macros for the inline coding moved to a standard location to prevent duplication.
+       - An option has been added that allows the system to be updated to the latest version of the system packages prior to installing a new plugin or component.
+       - FogLAMP now supports password type configuration items. This allows passwords to be hidden from the user in the user interface.
+       - A new feature has been added that allows the logs of plugin or other package installation to be retrieved.
+       - Installation logs for package installations are now retained and available via the REST API.
+       - A mechanism has been added that allows plugins to be marked as deprecated prior to the removal of these plugins in future releases. Running a deprecated plugin will result in a warning being logged, but otherwise the plugin will operate as normal.
+       - The FogLAMP REST API has been updated to add a new entry point that will allow a plugin to be updated from the package repository.
+       - An additional API has been added to fetch the set of installed services within a FogLAMP installation.
+       - An API has been added that allows the caller to retrieve the list of plugins that are available in the FogLAMP package repository.
+       - The /foglamp/plugins REST API has been extended to allow plugins to be installed from an APT/RPM repository.
+       - Addition of support for hybrid plugins. A hybrid plugin is a JSON file that defines another plugin to load along with some default configuration for that plugin. This gives a means to create a new plugin by customising the configuration of an existing plugin. An example might be a plugin for a specific modbus device type that uses the generic modbus plugin and a predefined modbus map.
+       - The notification service has been improved to allow the re-trigger time of a notification to be defined by the user on a per notification basis.
+       - A new environment variable, FOGLAMP_PLUGIN_PATH has been added to allow plugins to be stored in multiple locations or locations outside of the usual FogLAMP installation directory.
+       - Added support for FOGLAMP_PLUGIN_PATH environment variable, that would be used for searching additional directory paths for plugins/filters to use with FogLAMP.
+       - FogLAMP packages for the Google Coral Edge TPU development board have been made available.
+       - Support has been added to the OMF north plugin for the PI Web API OMF endpoint. The PI Server functionality to support this is currently in beta test.
+
+    - Bug Fix/Improvements:
+
+       - An issue with the notification service becoming unresponsive on the Raspberry Pi Buster release has been resolved.
+       - A debug message was being incorrectly logged as an error when adding a Python south plugin. The message level has now been corrected.
+       - A problem whereby not all properties of configuration items are updated when a new version of a configuration category is installed has been fixed.
+       - The notification service was not correctly honouring the notification types for one shot, toggled and retriggered notifications. This has now be bought in line with the documentation.
+       - The system log was becoming flooded with messages from the plugin discovery utility. This utility now logs at the correct level and only logs errors and warning by default.
+       - Improvements to the REST API allow for selective sets of statistic history to be retrieved. This reduces the size of the returned result set and improves performance.
+       - The order in which filters are shutdown in a pipeline of filters has been reversed to resolve an issue regarding releasing Python interpreters, under some circumstances shutdowns of later filters would fail if multiple Python filters were being used.
+       - The output of the `foglamp status` command was corrupt, showing random text after the number of seconds for which foglamp has been up. This has now been resolved.
+
+- **GUI**
+
+    - New Features:
+
+       - A new log option has been added to the GUI to show the logs of package installations.
+       - It is now possible to edit Python scripts directly in the GUI for plugins that load Python snippets.
+       - A new log retrieval option has been added to the GUI that will show only notification delivery events. This makes it easier for a user to see what notifications have been sent by the system.
+       - The GUI asset graphs have been improved such that multiple tabs are now available for graphing and tabular display of asset data.
+       - The GUI menu has been reordered to move the Notifications entry below the South and North entries.
+       - Support has been added to the FogLAMP GUI for entry of password fields. Data is obfuscated as it is entered or edited.
+       - The GUI now shows plugin name and version for each north task defined.
+       - The GUI now shows the plugin name and version for each south service that is configured.
+       - The GUI has been updated such that it can install new plugins from the FogLAMP package repository for south services and north tasks. A list of available packages from the repository is displayed to allow the user to pick from that list. The FogLAMP instance must have connectivity tot he package repository to allow this feature to succeed.
+       - The GUI now supports using certificates to authenticate with the FogLAMP instance.
+
+    - Bug Fix/Improvements:
+
+       - Improved editing of JSON configuration entities in the configuration editor.
+       - Improvements have been made to the asset browser graphs in the GUI to make better use of the available space to show the graph itself.
+       - The GUI was incorrectly showing FogLAMP as down in certain circumstances, this has now been resolved.
+       - An issue in the edit dialog for the north plugin which sometimes prevented the enabled state from being correctly modified has been resolved.
+       - Exported CSV data from the GUI would sometimes be missing column headers, these are now always present.
+       - The exporting of data as a CSV file in the GUI has been improved such that it no longer outputs the readings as a block of JSON, but rather individual columns. This allows the data to be imported into a spreadsheet with ease.
+       - Missing help text has been added for notification trigger and enabled elements.
+       - A number of issues in the filter configuration editor have been resolved. These issues meant that sometimes new values were not honoured or when changes were made with multiple filters in a chain only one filter would be updated.
+       - Under some rare circumstances the GUI asset graph may show incorrect dates, this issue has now been resolved.
+       - The FogLAMP GUI build and start commands did not work on Windows platforms and preventing the running on those platforms. This has now been resolved and the FogLAMP GUI can be built and run on Windows platforms.
+       - The GUI was not correctly interpreting the value of the readonly attribute of configuration items when the value was anything other than true. This has been resolved.
+       - The FogLAMP GUI RPM package had an error that caused installation to fail on some systems, this is now resolved.
+
+- **Plugins**
+
+    - New Features:
+
+       - A new filter has been created that looks for changes in values and only sends full rate data around the time of those changes. At other times the filter can be configured to send reduced rate averages of the data.
+       - A new rule plugin has been implemented that will create notifications if the value of a data point moves more than a defined percentage from the average for that data point. A moving average for each data point is calculated by the plugin, this may be a simple average or an exponential moving average.
+       - A new south plugin has been created that supports the DNP3 protocol.
+       - A south plugin has been created based on the Google TensorFlow people detection model. It uses a live feed from a video camera and returns data regarding the number of people detected and the position within the frame.
+       - A south plugin based on the Google TensorFlow demo model for people recognition has been created. The plugin reads an image from a file and returns the people co-ordinates of the people it detects within the image.
+       - A new north plugin has been added that creates an OPC UA server based on the data ingested by the FogLAMP instance.
+       - Support has been added for a Flir Thermal Imaging Camera connected via Modbus TCP. Both a south plugin to gather the data and a filter plugin, to clean the data, have been added.
+       - A new south plugin has been created based on the Google TensorFlow demo model that accepts a live feed from a Raspberry Pi camera and classifies the images.
+       - A new south plugin has been created based on the Google TensorFlow demo model for object detection. The plugin return object count, name position and confidence data.
+       - The change filter has been made available on CentOS and RedHat 7 releases.
+
+    - Bug Fix/Improvements:
+
+       - Support  for reading floating point values in a pair of 16 bit registers has been added to the modbus plugin.
+       - Improvements have been made to the performance of the modbus plugin when large numbers of contiguous registers are read. Also the addition of support for floating point values in modbus registers.
+       - Flir south service has been modified to support the Flir camera range as currently available, i.e. a maximum of 10 areas as opposed to the 20 that were previously supported. This has improved performance, especially on low performance platforms.
+       - The python35 filter plugin did not allow the Python code to add attributes to the data. This has now been resolved.
+       - The playback south plugin did not correctly take the timestamp data from he CSV file. An option is now available that will allow this.
+       - The rate filter has been enhanced to accept a list of assets that should be passed through the filter without having the rate of those assets altered.
+       - The filter plugin python35 crashed on the Buster release on the Raspberry Pi, this has now been resolved.
+       - The FFT filter now enforces that the number of samples must be a power of 2.
+       - The ThingSpeak north plugin was not updated in line with changes to the timestamp handling in FogLAMP, this resulted in a crash when it tried to send data to ThingSpeak. This has been resolved and the cause of the crash also fixed such that now an error will be logged rather than the task crashing.
+       - The configuration of the simple expression notification rule plugin has been simplified.
+       - The DHT 11 plugin mistakenly had a dependency on the Wiring PI package. This has now been removed.
+       - The system information plugin was missing a dependency that would cause it to fail to install on systems that did not already have the package it was depend on installed. This has been resolved.
+       - The phidget south plugin reconfiguration method would crash the service on occasions, this has now been resolved.
+       - The notification service would sometimes become unresponsive after calling the notify-python35 plugin, this has now been resolved.
+       - The configuration options regarding notification evaluation of single items and windows has been improved to make it less confusing to end users.
+       - The OverMax and UnderMin notification rules have been combined into a single threshold rule plugin.
+       - The OPCUA south plugin was incorrectly reporting itself as the upcua plugin. This is now resolved.
+       - The OPC UA south plugin has been updated to support subscriptions both using browse names and Node Id’s. Node ID is now the default subscription mechanism as this is much higher performance than traversing the object tree looking at browse names.
+       - Shutting down the OPCUA service when it has failed to connect to an OPCUA server, either because of an incorrect configuration or the OPCUA server being down resulted in the service crashing. The service now shuts down cleanly.
+       - In order to install the foglamp-south-modbus package on RedHat Enterprise Linux or CentOS 7 you must have configured the epel repository by executing the command:
+
+         `sudo yum install epel-release`
+
+       - A number of packages have been renamed in order to obtain better consistency in the naming and to facilitate the upgrade of packages from the API and graphical interface to FogLAMP. This will result in duplication of certain plugins after upgrading to the release. This is only an issue of the plugins had been previously installed, these old plugin should be manually removed form the system to alleviate this problem.
+
+         The plugins involved are,
+
+          * foglamp-north-http Vs foglamp-north-http-north
+
+          * foglamp-south-http Vs foglamp-south-http-south
+
+          * foglamp-south-Csv Vs foglamp-south-csv
+
+          * foglamp-south-Expression Vs foglamp-south-expression
+
+          * foglamp-south-dht Vs foglamp-south-dht11V2
+
+          * foglamp-south-modbusc Vs foglamp-south-modbus
+
+
 v1.6.0
 -------
 

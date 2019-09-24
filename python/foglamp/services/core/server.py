@@ -205,7 +205,7 @@ class Server:
             'default': '1995',
             'displayName': 'HTTPS Port',
             'order': '3',
-            'validity': 'enableHttp=="true"'
+            'validity': 'enableHttp=="false"'
         },
         'certificateName': {
             'description': 'Certificate file name',
@@ -213,7 +213,7 @@ class Server:
             'default': 'foglamp',
             'displayName': 'Certificate Name',
             'order': '4',
-            'validity': 'enableHttp=="true"'
+            'validity': 'enableHttp=="false"'
         },
         'authentication': {
             'description': 'API Call Authentication',

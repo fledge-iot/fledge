@@ -204,14 +204,16 @@ class Server:
             'type': 'integer',
             'default': '1995',
             'displayName': 'HTTPS Port',
-            'order': '3'
+            'order': '3',
+            'validity': 'enableHttp=="false"'
         },
         'certificateName': {
             'description': 'Certificate file name',
             'type': 'string',
             'default': 'foglamp',
             'displayName': 'Certificate Name',
-            'order': '4'
+            'order': '4',
+            'validity': 'enableHttp=="false"'
         },
         'authentication': {
             'description': 'API Call Authentication',

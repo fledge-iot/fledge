@@ -23,6 +23,87 @@
 
 set -e
 
+# Upgrades curl to the version related to FogLAMP
+curl_upgrade(){
+
+
+    if [ -d "${curl_tmp_path}" ]; then
+        rm -rf "${curl_tmp_path}"
+    fi
+
+    echo "Pulling curl from the FogLAMP curl repository ..."
+    cd /tmp/
+
+    curl -s -L -O "${curl_url}" && \
+    unzip -q "${curl_filename}"
+
+    cd "${curl_tmp_path}"
+
+    # curl in RHEL/CentOS is installed in /bin/curl
+    # but curl installs by default in /usr/local,
+    # so we select the proper target directories
+    echo "Building curl ..."
+    ./buildconf && \
+    ./configure --with-ssl --with-gssapi  --includedir=/usr/include --libdir=/usr/lib64 --bindir=/usr/bin && \
+    make && \
+    make install
+}
+
+# Check if the curl version related to FogLAMP has been installed
+curl_version_check () {
+
+    set +e
+
+    curl_version=$(curl -V | head -n 1)
+    curl_version_check=$(echo "${curl_version}" | grep -c "${curl_foglamp_version}")
+
+    if (( $curl_version_check >= 1 )); then
+        echo "curl version ${curl_foglamp_version} installed."
+    else
+        echo "WARNING: curl version ${curl_foglamp_version} not installed, current version :${curl_version}:"
+    fi
+
+    set -e
+}
+
+# Evaluates the current version of curl and upgrades it if needed
+curl_upgrade_evaluates(){
+
+    set +e
+    curl_version=$(curl -V | head -n 1)
+    curl_version_check=$(echo "${curl_version}" | grep -c "${curl_rhel_version}")
+    set -e
+
+    # Evaluates if the curl is the default one and so it needs to be upgraded
+    if (( $curl_version_check >= 1 )); then
+
+        echo "curl version ${curl_rhel_version} detected, the standard RHEL/CentOS, upgrading to ${curl_foglamp_version}"
+        curl_upgrade
+
+        curl_version_check
+    else
+        echo "A curl version different from the default ${curl_rhel_version} detected, upgrade to a newer one if FogLAMP make fails."
+        echo "version detected :${curl_version}:"
+
+        # Evaluates if the installed version support Kerberos
+        curl_kerberos=$(curl -V | grep -ic "Kerberos")
+        curl_gssapi=$(curl -V | grep -ic "GSS-API")
+
+        if [[ $curl_kerberos == 0 || curl_gssapi == 0 ]]; then
+
+            echo "WARNING : the curl version detected doesn't support Kerberos."
+        fi
+    fi
+
+}
+
+# Variables for curl upgrade, if needed
+curl_filename="curl-7.65.3"
+curl_url="https://github.com/curl/curl/releases/download/curl-7_65_3/${curl_filename}.zip"
+curl_tmp_path="/tmp/${curl_filename}"
+curl_foglamp_version="7.65.3"
+curl_rhel_version="7.29"
+
 foglamp_location=`pwd`
 os_name=`(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
 os_version=`(grep -o '^VERSION_ID=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
@@ -48,10 +129,14 @@ if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *
 	yum install -y git
 	yum install -y cmake
 	yum install -y libuuid-devel
+	# for Kerberos authentication
+	yum install -y krb5-workstation
+	yum install -y curl-devel
+
 	echo "source scl_source enable rh-python36" >> /home/${SUDO_USER}/.bashrc
 	service rsyslog start
 
-# SQLite3 need to be compiled on CentOS|RHEL
+	# SQLite3 need to be compiled on CentOS|RHEL
 	if [ -d /tmp/foglamp-sqlite3-pkg ]; then
 		rm -rf /tmp/foglamp-sqlite3-pkg
 	fi
@@ -76,6 +161,9 @@ if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *
 	cd $foglamp_location
 	set -e
 
+	# Upgrade curl if needed
+	curl_upgrade_evaluates
+
 	cd $foglamp_location
 
 	# To avoid to stop the execution for any internal error of scl_source
@@ -99,14 +187,22 @@ if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *
 	set -e
 
 elif apt --version 2>/dev/null; then
+	# avoid interactive questions
+	DEBIAN_FRONTEND=noninteractive apt install -yq libssl-dev
+
 	apt install -y avahi-daemon curl
 	apt install -y cmake g++ make build-essential autoconf automake uuid-dev
-	apt install -y libtool libboost-dev libboost-system-dev libboost-thread-dev libpq-dev libssl-dev libz-dev
+	apt install -y libtool libboost-dev libboost-system-dev libboost-thread-dev libpq-dev libz-dev
 	apt install -y python-dev python3-dev python3-pip
 	apt install -y sqlite3 libsqlite3-dev
 	apt install -y pkg-config
+
+	# for Kerberos authentication, avoid interactive questions
+	DEBIAN_FRONTEND=noninteractive apt install -yq krb5-user
+	DEBIAN_FRONTEND=noninteractive apt install -yq libcurl4-openssl-dev
+
 	apt install -y cpulimit
-	# sudo apt install -y postgresql
+	# apt install -y postgresql
 else
 	echo "Requirements cannot be automatically installed, please refer README.rst to install requirements manually"
 fi

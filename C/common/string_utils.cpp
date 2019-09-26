@@ -34,3 +34,25 @@ void StringReplace(std::string& StringToManage,
 				       StringReplacement);
 	}
 }
+
+/**
+ * Strips Line feed and carige return
+ *
+ */
+void StringStripCRLF(std::string& StringToManage)
+{
+	string::size_type pos = 0;
+
+	pos = StringToManage.find ('\r',pos);
+	if (pos != string::npos )
+	{
+		StringToManage.erase ( pos, 2 );
+	}
+
+	pos = StringToManage.find ('\n',pos);
+	if (pos != string::npos )
+	{
+		StringToManage.erase ( pos, 2 );
+	}
+
+}

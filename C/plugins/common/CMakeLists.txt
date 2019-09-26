@@ -6,6 +6,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 set(NEEDED_FOGLAMP_LIBS common-lib services-common-lib)
+set(LIBCURL_LIB -lcurl)
 
 set(BOOST_COMPONENTS system thread)
 # Late 2017 TODO: remove the following checks and always use std::regex
@@ -33,6 +34,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../../lib)
 # Create shared library
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
 target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES} ${NEEDED_FOGLAMP_LIBS} z ssl crypto)
+target_link_libraries(${PROJECT_NAME} ${LIBCURL_LIB})
 set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION 1)
 
 # Install library

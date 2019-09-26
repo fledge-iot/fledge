@@ -872,7 +872,7 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 	else
 	{
 		m_maximum = "";
-  }
+	}
 
 	if (item.HasMember("file"))
 	{
@@ -891,15 +891,17 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 	{
 		m_readonly = "";
 	}
-	if  (m_type.compare("category") == 0)
+	if (m_type.compare("category") == 0)
 	{
-
 		m_itemType = CategoryType;
 	}
-	if  (m_type.compare("script") == 0)
+	if (m_type.compare("script") == 0)
 	{
-
 		m_itemType = ScriptItem;
+	}
+	if (m_type.compare("code") == 0)
+	{
+		m_itemType = CodeItem;
 	}
 
 	if (item.HasMember("deprecated"))
@@ -991,7 +993,8 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 	// Item "value" is just a string
 	else if (item.HasMember("value") && item["value"].IsString())
 	{
-		if (m_itemType == ScriptItem)
+		if (m_itemType == ScriptItem ||
+		    m_itemType == CodeItem)
 		{
 			// Get content of script type item as is
 			rapidjson::StringBuffer strbuf;
@@ -1093,7 +1096,8 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 	// Item "default" is just a string
 	else if (item.HasMember("default") && item["default"].IsString())
 	{
-		if (m_itemType == ScriptItem)
+		if (m_itemType == ScriptItem ||
+		    m_itemType == CodeItem)
 		{
 			// Get content of script type item as is
 			rapidjson::StringBuffer strbuf;
@@ -1237,7 +1241,8 @@ ostringstream convert;
 	else if (m_itemType == JsonItem ||
 		 m_itemType == NumberItem ||
 		 m_itemType == DoubleItem ||
-		 m_itemType == ScriptItem)
+		 m_itemType == ScriptItem ||
+		 m_itemType == CodeItem)
 	{
 		convert << "\"value\" : " << m_value << ", ";
 		convert << "\"default\" : " << m_default;
@@ -1358,7 +1363,8 @@ ostringstream convert;
 	else if (m_itemType == JsonItem ||
 		 m_itemType == NumberItem ||
 		 m_itemType == DoubleItem ||
-		 m_itemType == ScriptItem)
+		 m_itemType == ScriptItem ||
+		 m_itemType == CodeItem)
 	{
 		convert << ", \"default\" : \"" << JSONescape(m_default) << "\" }";
 	}

@@ -39,11 +39,11 @@ The North plugin supports the configurable option *PIServerEndpoint* for allowin
 
 *Auto Discovery* will let the North plugin to evaluate if the provided URL is related to an either *Connector Relay* or *PI Web API* endpoint.
 
-The *URL* should be set to reference your end point server, these are the address to be used against the OSIsoft components:
+The *URL* should be set to reference your end point server, these are the addresses to be used against the OSIsoft components:
 ::
 
-    - *PI Web API* - https://pi-server:443/piwebapi/omf
-    - *Connector Relay*  - https://pi-server:5460/ingress/messages
+    - PI Web API       - https://pi-server:443/piwebapi/omf
+    - Connector Relay  - https://pi-server:5460/ingress/messages
 
 **NOTE:**
 

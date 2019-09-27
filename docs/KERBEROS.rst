@@ -28,7 +28,10 @@ The Windows Active directory should be installed and properly configured for all
 
 FogLAMP North plugin
 ====================
-Configure the *URL* options to the proper value, for example:
+The North plugin has a set of configurable options that should be changed, using either the FogLAMP API or the FogLAMP GUI,
+to select the Kerberos authentication.
+
+The *URL* should be set to reference your end point server, an example:
     https://pi-server:443/piwebapi/omf
 
 **NOTE:**
@@ -165,16 +168,16 @@ Troubleshooting the Kerberos authentication
 
 Kerberos authentication on RedHat/CentOS
 ========================================
-RedHat and CentOS version 7.6 provide by default an old version of curl and the related libcurl,
+RedHat and CentOS version 7.6 provide by default an old version of curl and the related libcurl
 and it does not support Kerberos, output of the curl provided by CentOS:
 ::
-	$ curl -V
+    $ curl -V
     curl 7.29.0 (x86_64-redhat-linux-gnu) libcurl/7.29.0 NSS/3.36 zlib/1.2.7 libidn/1.28 libssh2/1.4.3
     Protocols: dict file ftp ftps gopher http https imap imaps ldap ldaps pop3 pop3s rtsp scp sftp smtp smtps telnet tftp
     Features: AsynchDNS GSS-Negotiate IDN IPv6 Largefile NTLM NTLM_WB SSL libz unix-sockets
 
-The *requirements.sh* evaluates if the default version 7.29.0 is installed and in this case it will build from the sources
-a defined and stable version of curl to provide Kerberos authentication, output of the curl after the upgrade:
+The *requirements.sh* evaluates if the default version 7.29.0 is installed and in this case it will download the sources, build and install
+the version 7.65.3 to provide Kerberos authentication, output of the curl after the upgrade:
 ::
     $ curl -V
     curl 7.65.3 (x86_64-unknown-linux-gnu) libcurl/7.65.3 OpenSSL/1.0.2k-fips zlib/1.2.7
@@ -182,10 +185,7 @@ a defined and stable version of curl to provide Kerberos authentication, output 
     Protocols: dict file ftp ftps gopher http https imap imaps pop3 pop3s rtsp smb smbs smtp smtps telnet tftp
     Features: AsynchDNS GSS-API HTTPS-proxy IPv6 Kerberos Largefile libz NTLM NTLM_WB SPNEGO SSL UnixSockets
 
-At the current stage as described at `curl homepage`_, the most recent stable version is the 7.65.3, released on 19th of July 2019,
-so *requirements.sh* will install this version downloading the sources directly from `curl sources`_
-
-
+The sources are downloaded from the curl repository `curl sources`_, the curl homepage is available at `curl homepage`_.
 
 Kerberos authentication on Raspbian/Ubuntu
 ==========================================

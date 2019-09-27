@@ -72,6 +72,7 @@ A set of commands for an usual configuration
 	curl -X PUT http://localhost:8081/foglamp/category/North_statistics_to_PI/AFHierarchy1Level                -d '{ "value" : "foglamp_data_piwebapi_stat" }'
 
 **NOTE:**
+
 - *North_statistics_to_PI should correspond to the name of the North plugin you have created in FogLAMP*
 
 

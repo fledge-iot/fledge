@@ -107,6 +107,7 @@ try the resolution of the name using the usual *ping* command:
 	64 bytes from pi-server.dianomic.com (192.168.1.51): icmp_seq=3 ttl=128 time=0.455 ms
 
 **NOTE:**
+
 - *the name of the KDC should be the first in the list of aliases*
 
 
@@ -155,15 +156,18 @@ Troubleshooting the Kerberos authentication
 	-rw-rw-r-- 1 foglamp foglamp 199 Aug 13 15:30 README.rst
 
 3) verify the reachability of the Kerberos server (usually the PI-Server)
+
+Network reachability
 ::
-    # Network reachability
+
     $ ping pi-server.dianomic.com
     PING pi-server.dianomic.com (192.168.1.51) 56(84) bytes of data.
     64 bytes from pi-server.dianomic.com (192.168.1.51): icmp_seq=1 ttl=128 time=5.07 ms
     64 bytes from pi-server.dianomic.com (192.168.1.51): icmp_seq=2 ttl=128 time=1.92 ms
 
+Kerberos reachability and keys retrival
 ::
-    # Kerberos reachability and keys retrival
+
     $ kinit -p HTTPS/pi-server@DIANOMIC.COM
     Password for HTTPS/pi-server@DIANOMIC.COM:
     $ klist

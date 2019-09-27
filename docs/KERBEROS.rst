@@ -142,9 +142,9 @@ The way the keytab file is generated depends on the type of the Kerberos server,
 
 	ktpass -princ HTTPS/pi-server@DIANOMIC.COM -mapuser Administrator@DIANOMIC.COM -pass Password -crypto AES256-SHA1 -ptype KRB5_NT_PRINCIPAL -out C:\Temp\piwebapi_kerberos_https.keytab
 
-
 Troubleshooting the Kerberos authentication
 --------------------------------------------
+
 1) check the North plugin configuration, a sample command
 ::
     curl -s -S -X GET http://localhost:8081/foglamp/category/North_Readings_to_PI | jq ".|{URL,"PIServerEndpoint",PIWebAPIAuthenticationMethod,PIWebAPIKerberosKeytabFileName,AFHierarchy1Level}"
@@ -155,9 +155,7 @@ Troubleshooting the Kerberos authentication
 	-rwxrwxrwx 1 foglamp foglamp  91 Jul 17 09:07 piwebapi_kerberos_https.keytab
 	-rw-rw-r-- 1 foglamp foglamp 199 Aug 13 15:30 README.rst
 
-3) verify the reachability of the Kerberos server (usually the PI-Server)
-
-Network reachability
+3) verify the reachability of the Kerberos server (usually the PI-Server) - Network reachability
 ::
 
     $ ping pi-server.dianomic.com

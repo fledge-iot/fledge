@@ -31,10 +31,6 @@ FogLAMP North plugin
 The North plugin has a set of configurable options that should be changed, using either the FogLAMP API or the FogLAMP GUI,
 to select the Kerberos authentication.
 
-The *URL* should be set to reference your end point server, an example: *https://pi-server:443/piwebapi/omf*.
-
-*pi-server* should be substituted with the name/IP-Address of your PI-Server node
-
 The North plugin supports the configurable option *PIServerEndpoint* for allowing to select the target among:
 ::
 	Connector Relay
@@ -42,6 +38,16 @@ The North plugin supports the configurable option *PIServerEndpoint* for allowin
 	Auto Discovery
 
 *Auto Discovery* will let the North plugin to evaluate if the provided URL is related to an either *Connector Relay* or *PI Web API* endpoint.
+
+The *URL* should be set to reference your end point server, these are the address to be used against the OSIsoft components:
+::
+
+    - *PI Web API* - https://pi-server:443/piwebapi/omf
+    - *Connector Relay*  - https://pi-server:5460/ingress/messages
+
+**NOTE:**
+
+- *pi-server* should be substituted with the name/IP-Address of your PI-Server node
 
 the *PIWebAPIAuthenticationMethod* option permits to select the desired authentication among:
 ::

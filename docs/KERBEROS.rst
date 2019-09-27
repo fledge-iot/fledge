@@ -39,7 +39,7 @@ The North plugin supports the configurable option *PIServerEndpoint* for allowin
 
 *Auto Discovery* will let the North plugin to evaluate if the provided URL is related to an either *Connector Relay* or *PI Web API* endpoint.
 
-The *URL* should be set to reference your end point server, these are the addresses to be used against the OSIsoft components:
+The *URL* should be set to reference your endpoint server, these are the addresses to be used against the OSIsoft components:
 ::
 
     - PI Web API       - https://pi-server:443/piwebapi/omf
@@ -64,16 +64,19 @@ directory:
 
 - *A keytab is a file containing pairs of Kerberos principals and encrypted keys (which are derived from the Kerberos password). A keytab file allows to authenticate to various remote systems using Kerberos without entering a password.*
 
-A set of commands for an usual configuration
+the *AFHierarchy1Level* option allows to specific the first level of the hierarchy that will be created into the Asset Framework and will contain the information for the specific
+North plugin.
+
+A sample set of commands for selecting *PI Web API* usingthe *Kerberos* authentication:
 ::
 	curl -X PUT http://localhost:8081/foglamp/category/North_statistics_to_PI/URL                              -d '{ "value" : "https://pi-server:443/piwebapi/omf" }'
 	curl -X PUT http://localhost:8081/foglamp/category/North_statistics_to_PI/PIServerEndpoint                 -d '{ "value" : "PI Web API" }'
 	curl -X PUT http://localhost:8081/foglamp/category/North_statistics_to_PI/PIWebAPIAuthenticationMethod     -d '{ "value" : "kerberos" }'
-	curl -X PUT http://localhost:8081/foglamp/category/North_statistics_to_PI/AFHierarchy1Level                -d '{ "value" : "foglamp_data_piwebapi_stat" }'
+	curl -X PUT http://localhost:8081/foglamp/category/North_statistics_to_PI/AFHierarchy1Level                -d '{ "value" : "foglamp_data_piwebapi" }'
 
 **NOTE:**
 
-- *North_statistics_to_PI should correspond to the name of the North plugin you have created in FogLAMP*
+- *North_statistics_to_PI* should correspond to the name of the North plugin you have created in FogLAMP
 
 
 FogLAMP server configuration
@@ -159,6 +162,7 @@ Troubleshooting the Kerberos authentication
     64 bytes from pi-server.dianomic.com (192.168.1.51): icmp_seq=1 ttl=128 time=5.07 ms
     64 bytes from pi-server.dianomic.com (192.168.1.51): icmp_seq=2 ttl=128 time=1.92 ms
 
+::
     # Kerberos reachability and keys retrival
     $ kinit -p HTTPS/pi-server@DIANOMIC.COM
     Password for HTTPS/pi-server@DIANOMIC.COM:

@@ -15,7 +15,7 @@ Introduction
 ============
 FogLAMP implements through his North plugin PI_server Token, Basic and Kerberos authentication, the latter is especially relevant for the integration with PI Web API using `OMF`_.
 
-The *requirements.sh* script installs the Kerberos client to allow the integration with what in the specific terminology is called KDC (the Kerberos server).
+The FogLAMP *requirements.sh* script installs the Kerberos client to allow the integration with what in the specific terminology is called KDC (the Kerberos server).
 
 PI-Server as the North endpoint
 ===============================
@@ -197,8 +197,3 @@ the version 7.65.3 to provide Kerberos authentication, output of the curl after 
     Features: AsynchDNS GSS-API HTTPS-proxy IPv6 Kerberos Largefile libz NTLM NTLM_WB SPNEGO SSL UnixSockets
 
 The sources are downloaded from the curl repository `curl sources`_, the curl homepage is available at `curl homepage`_.
-
-Kerberos authentication on Raspbian/Ubuntu
-==========================================
-
-

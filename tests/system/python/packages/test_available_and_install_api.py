@@ -131,10 +131,6 @@ class TestPackages:
         if 'foglamp-south-sensehat' in available_pkg:
             available_pkg.remove('foglamp-south-sensehat')
 
-        # FIXME: FOGL-3288
-        if 'foglamp-south-usb4704' in available_pkg:
-            available_pkg.remove('foglamp-south-usb4704')
-
         # When "package_build_source_list" is true then it will install all available packages
         # Otherwise install from list as we defined in JSON file
         if package_build_source_list.lower() == 'true':

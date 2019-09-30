@@ -368,7 +368,7 @@ void FilterPipeline::cleanupFilters(const string& categoryName)
 		else
 		{
 			// Call filter plugin shutdown
-			(*it)->shutdown();
+			filter->shutdown();
 		}
 
 		// Free filter

@@ -83,9 +83,9 @@ class TestConfiguration:
         assert expected_with_utilities == jdoc["categories"]
 
     def test_get_category(self, fledge_url):
-        expected = {'httpsPort': {'displayName': 'HTTPS Port', 'description': 'Port to accept HTTPS connections on', 'type': 'integer', 'order': '3', 'value': '1995', 'default': '1995'},
+        expected = {'httpsPort': {'displayName': 'HTTPS Port', 'description': 'Port to accept HTTPS connections on', 'type': 'integer', 'order': '3', 'value': '1995', 'default': '1995', 'validity': 'enableHttp=="false"'},
                     'authCertificateName': {'displayName': 'Auth Certificate', 'description': 'Auth Certificate name', 'type': 'string', 'order': '7', 'value': 'ca', 'default': 'ca'},
-                    'certificateName': {'displayName': 'Certificate Name', 'description': 'Certificate file name', 'type': 'string', 'order': '4', 'value': 'fledge', 'default': 'fledge'},
+                    'certificateName': {'displayName': 'Certificate Name', 'description': 'Certificate file name', 'type': 'string', 'order': '4', 'value': 'fledge', 'default': 'fledge', 'validity': 'enableHttp=="false"'},
                     'authProviders': {'displayName': 'Auth Providers', 'description': 'Authentication providers to use for the interface (JSON array object)', 'type': 'JSON', 'order': '10', 'value': '{"providers": ["username", "ldap"] }', 'default': '{"providers": ["username", "ldap"] }'},
                     'passwordChange': {'displayName': 'Password Expiry Days', 'description': 'Number of days after which passwords must be changed', 'type': 'integer', 'order': '9', 'value': '0', 'default': '0'},
                     'authentication': {'displayName': 'Authentication', 'description': 'API Call Authentication', 'type': 'enumeration', 'options': ['mandatory', 'optional'], 'order': '5', 'value': 'optional', 'default': 'optional'},

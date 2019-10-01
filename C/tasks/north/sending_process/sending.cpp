@@ -332,7 +332,7 @@ void SendingProcess::run() const
 	std::signal(SIGINT,  signalHandler);
 	std::signal(SIGSTOP, signalHandler);
 	std::signal(SIGTERM, signalHandler);
-        std::signal(SIGABRT, signalHandler);   // Catches the FogLAMP kill command
+        std::signal(SIGABRT, signalHandler);   // Catches the Fledge kill command
 
         // Check running time
 	time_t elapsedSeconds = 0;

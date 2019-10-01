@@ -7,6 +7,8 @@
  *
  * Author: Massimiliano Pinto, Stefano Simonelli
  */
+#include <unistd.h>
+
 #include <plugin_api.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,6 +23,8 @@
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 #include "json_utils.h"
+#include "libcurl_https.h"
+#include "utils.h"
 
 #include "crypto.hpp"
 
@@ -133,8 +137,8 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 		"PIServerEndpoint": {
 			"description": "Defines which PIServer component should be used for the communication: PI Web API, Connector Relay or auto discovery.",
 			"type": "enumeration",
-			"options":["discovery", "piwebapi", "cr"],
-			"default": "cr",
+			"options":["Auto Discovery", "PI Web API", "Connector Relay"],
+			"default": "Connector Relay",
 			"order": "17",
 			"displayName": "PI-Server Endpoint"
 		},
@@ -180,6 +184,13 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"default": "password",
 			"order": "23" ,
 			"displayName": "PI Web API Password"
+		},
+		"PIWebAPIKerberosKeytabFileName": {
+			"description": "Keytab file name used for Kerberos authentication in PI Web API.",
+			"type": "string",
+			"default": "piwebapi_kerberos_https.keytab",
+			"order": "24" ,
+			"displayName": "PI Web API Kerberos keytab file"
 		}
 	}
 );
@@ -191,7 +202,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
  */
 typedef struct
 {
-	SimpleHttps	*sender;	        // HTTPS connection
+	HttpSender	*sender;	        // HTTPS connection
 	OMF 		*omf;		        // OMF data protocol
 	bool		compression;	        // whether to compress readings' data
 	string		hostAndPort;	        // hostname:port for SimpleHttps
@@ -208,10 +219,16 @@ typedef struct
 	string		AFHierarchy1Level;      // 1st hierarchy in Asset Framework, PI Web API only.
     	string		PIWebAPIAuthMethod;     // Authentication method to be used with the PI Web API.
     	string		PIWebAPICredentials;    // Credentials is the base64 encoding of id and password joined by a single colon (:)
+	string 		KerberosKeytab;         // Kerberos authentication keytab file
+	                                        //   stores the environment variable value about the keytab file path
+	                                        //   to allow the environment to persist for all the execution of the plugin
+	                                        //
+	                                        //   Note : A keytab is a file containing pairs of Kerberos principals
+	                                        //   and encrypted keys (which are derived from the Kerberos password).
+	                                        //   You can use a keytab file to authenticate to various remote systems
+	                                        //   using Kerberos without entering a password.
 
-
-
-	vector<pair<string, string>>
+    vector<pair<string, string>>
 			staticData;	// Static data
         // Errors considered not blocking in the communication with the PI Server
 	std::vector<std::string>
@@ -221,11 +238,12 @@ typedef struct
 			assetsDataTypes;
 } CONNECTOR_INFO;
 
-string saveSentDataTypes(CONNECTOR_INFO* connInfo);
-void   loadSentDataTypes(CONNECTOR_INFO* connInfo, Document& JSONData);
-long   getMaxTypeId(CONNECTOR_INFO* connInfo);
-string identifyPIServerEndpoint(CONNECTOR_INFO* connInfo);
-string AuthBasicCredentialsGenerate(string& userId, string& password);
+string saveSentDataTypes            (CONNECTOR_INFO* connInfo);
+void   loadSentDataTypes            (CONNECTOR_INFO* connInfo, Document& JSONData);
+long   getMaxTypeId                 (CONNECTOR_INFO* connInfo);
+string identifyPIServerEndpoint     (CONNECTOR_INFO* connInfo);
+string AuthBasicCredentialsGenerate (string& userId, string& password);
+void   AuthKerberosSetup            (string& keytabFile, string& keytabFileName);
 
 /**
  * Return the information about this plugin
@@ -278,9 +296,10 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	string PIServerEndpoint = configData->getValue("PIServerEndpoint");
 	string AFHierarchy1Level = configData->getValue("AFHierarchy1Level");
 
-	string PIWebAPIAuthMethod = configData->getValue("PIWebAPIAuthenticationMethod");
-	string PIWebAPIUserId = configData->getValue("PIWebAPIUserId");
-	string PIWebAPIPassword = configData->getValue("PIWebAPIPassword");
+	string PIWebAPIAuthMethod     = configData->getValue("PIWebAPIAuthenticationMethod");
+	string PIWebAPIUserId         = configData->getValue("PIWebAPIUserId");
+	string PIWebAPIPassword       = configData->getValue("PIWebAPIPassword");
+	string KerberosKeytabFileName = configData->getValue("PIWebAPIKerberosKeytabFileName");
 
 	/**
 	 * Extract host, port, path from URL
@@ -328,7 +347,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	{
 		Logger::getLogger()->debug("PI Web API end-point - kerberos authentication");
 		connInfo->PIWebAPIAuthMethod = "k";
-		// #Todo : to be implemented
+		AuthKerberosSetup(connInfo->KerberosKeytab, KerberosKeytabFileName);
 	}
 	else
 	{
@@ -336,18 +355,18 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	}
 
 	// Translate the PIServerEndpoint configuration
-	if (PIServerEndpoint.compare("discovery") == 0)
+	if (PIServerEndpoint.compare("Auto Discovery") == 0)
 	{
 		Logger::getLogger()->debug("PI-Server end point auto discovery selected");
 		connInfo->PIServerEndpoint = identifyPIServerEndpoint(connInfo);
 	}
-	else if(PIServerEndpoint.compare("piweb") == 0)
+	else if(PIServerEndpoint.compare("PI Web API") == 0)
 	{
 		Logger::getLogger()->debug("PI-Server end point manually selected - PI Web API ");
 		connInfo->PIServerEndpoint = "p";
 
 	}
-	else if(PIServerEndpoint.compare("cr") == 0)
+	else if(PIServerEndpoint.compare("Connector Relay") == 0)
 	{
 		Logger::getLogger()->debug("PI-Server end point manually selected - Connector Relay ");
 		connInfo->PIServerEndpoint = "c";
@@ -491,11 +510,23 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	 * connect_timeout and request_timeout.
 	 * Default is no timeout at all
 	 */
-	connInfo->sender = new SimpleHttps(connInfo->hostAndPort,
-					   connInfo->timeout,
-					   connInfo->timeout,
-					   connInfo->retrySleepTime,
-					   connInfo->maxRetry);
+	if (connInfo->PIWebAPIAuthMethod.compare("k") == 0)
+	{
+		connInfo->sender = new LibcurlHttps(connInfo->hostAndPort,
+						    connInfo->timeout,
+						    connInfo->timeout,
+						    connInfo->retrySleepTime,
+						    connInfo->maxRetry);
+	}
+	else
+	{
+		connInfo->sender = new SimpleHttps(connInfo->hostAndPort,
+						   connInfo->timeout,
+						   connInfo->timeout,
+						   connInfo->retrySleepTime,
+						   connInfo->maxRetry);
+	}
+
 
 	connInfo->sender->setAuthMethod          (connInfo->PIWebAPIAuthMethod);
 	connInfo->sender->setAuthBasicCredentials(connInfo->PIWebAPICredentials);
@@ -795,15 +826,27 @@ string identifyPIServerEndpoint(CONNECTOR_INFO* connInfo)
 {
 	string PIServerEndpoint;
 
-	SimpleHttps *endPoint;
+	HttpSender *endPoint;
 	vector<pair<string, string>> header;
 	int httpCode;
 
-	endPoint = new SimpleHttps(connInfo->hostAndPort,
-				   connInfo->timeout,
-				   connInfo->timeout,
-				   connInfo->retrySleepTime,
-				   connInfo->maxRetry);
+
+	if (connInfo->PIWebAPIAuthMethod.compare("k") == 0)
+	{
+		endPoint = new LibcurlHttps(connInfo->hostAndPort,
+					    connInfo->timeout,
+					    connInfo->timeout,
+					    connInfo->retrySleepTime,
+					    connInfo->maxRetry);
+	}
+	else
+	{
+		endPoint = new SimpleHttps(connInfo->hostAndPort,
+					   connInfo->timeout,
+					   connInfo->timeout,
+					   connInfo->retrySleepTime,
+					   connInfo->maxRetry);
+	}
 
 	// Set requested authentication
 	endPoint->setAuthMethod          (connInfo->PIWebAPIAuthMethod);
@@ -855,4 +898,29 @@ string AuthBasicCredentialsGenerate(string& userId, string& password)
 	Credentials = Crypto::Base64::encode(userId + ":" + password);
 	              	
 	return (Credentials);
+}
+
+/**
+ * Configures for Kerberos authentication :
+ *   - set the environment KRB5_CLIENT_KTNAME to the position containing the
+ *     Kerberos keys, the keytab file.
+ *
+ * @param   out  keytabEnv       string containing the command to set the
+ *                               KRB5_CLIENT_KTNAME environment variable
+ * @param        keytabFileName  File name of the keytab file
+ *
+ */
+void AuthKerberosSetup(string& keytabEnv, string& keytabFileName)
+{
+	string fogLAMPData = getDataDir ();
+	string keytabFullPath = fogLAMPData + "/etc/kerberos" + "/" + keytabFileName;
+
+	keytabEnv = "KRB5_CLIENT_KTNAME=" + keytabFullPath;
+	putenv((char *) keytabEnv.c_str());
+
+	if (access(keytabFullPath.c_str(), F_OK) != 0)
+	{
+		Logger::getLogger()->error("Kerberos authentication not possible, the keytab file :%s: is missing.", keytabFullPath.c_str());
+	}
+
 }

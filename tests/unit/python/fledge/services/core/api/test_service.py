@@ -612,17 +612,19 @@ class TestService:
             return return_value
 
         svc_name = 'fledge-service-notification'
+        log = 'log/190801-12-19-24'
+        link = "{}-{}.log".format(log, svc_name)
         param = {"format": "repository", "name": svc_name}
         _platform = platform.platform()
         pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
-        with patch.object(common, 'fetch_available_packages', return_value=([svc_name], 'log/190801-12-19-24')) as patch_fetch_available_package:
+        with patch.object(common, 'fetch_available_packages', return_value=([svc_name], log)) as patch_fetch_available_package:
             with patch.object(install, 'install_package_from_repo',
-                              return_value=async_mock((0, 'Success'))) as install_package_patch:
+                              return_value=async_mock((0, link))) as install_package_patch:
                 resp = await client.post('/fledge/service?action=install', data=json.dumps(param))
                 assert 200 == resp.status
                 result = await resp.text()
                 response = json.loads(result)
-                assert {"message": "{} is successfully installed".format(svc_name)} == response
+                assert {"link": link, "message": "{} is successfully installed".format(svc_name)} == response
             install_package_patch.assert_called_once_with(svc_name, pkg_mgt, None)
         patch_fetch_available_package.assert_called_once_with('service')
 
@@ -646,6 +648,22 @@ class TestService:
             resp = await client.post('/fledge/service?action=install', data=json.dumps(param))
             assert 404 == resp.status
             assert "'{} service is not available for the given repository or already installed'".format(svc) == resp.reason
+        patch_fetch_available_package.assert_called_once_with('service')
+
+    async def test_package_error_exception_on_install_package_from_repo(self, client):
+        svc = "fledge-service-notification"
+        param = {"format": "repository", "name": svc}
+        msg = "Service installation request failed"
+        link = "log/190930-16-52-23-{}.log".format(svc)
+        with patch.object(common, 'fetch_available_packages',
+                          side_effect=PackageError(link)) as patch_fetch_available_package:
+            resp = await client.post('/fledge/service?action=install', data=json.dumps(param))
+            assert 400 == resp.status
+            assert msg == resp.reason
+            result = await resp.text()
+            json_response = json.loads(result)
+            assert link == json_response['link']
+            assert msg == json_response['message']
         patch_fetch_available_package.assert_called_once_with('service')
 
     async def test_get_service_available(self, client):

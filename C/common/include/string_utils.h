@@ -18,5 +18,6 @@ void StringReplace(std::string& StringToManage,
 		   const std::string& StringToSearch,
 		   const std::string& StringReplacement);
 
+void StringStripCRLF(std::string& StringToManage);
 
 #endif

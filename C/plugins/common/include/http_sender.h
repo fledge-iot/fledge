@@ -37,6 +37,9 @@ class HttpSender
 				const std::string& payload = std::string()) = 0;
 
                 virtual std::string getHostPort() = 0;
+
+    		virtual void setAuthMethod          (std::string& authMethod) = 0;
+    		virtual void setAuthBasicCredentials(std::string& authBasicCredentials) = 0;
 };
 
 /**

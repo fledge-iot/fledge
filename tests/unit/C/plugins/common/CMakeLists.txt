@@ -3,7 +3,8 @@ cmake_minimum_required(VERSION 2.6)
 set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 set(UUIDLIB -luuid)
 set(COMMONLIB -ldl)
- 
+set(LIBCURL_LIB -lcurl)
+
 # Locate GTest
 find_package(GTest REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
@@ -52,6 +53,7 @@ target_link_libraries(RunTests -lssl -lcrypto -lz)
 target_link_libraries(RunTests ${COMMON_LIB})
 target_link_libraries(RunTests ${SERVICE_COMMON_LIB})
 target_link_libraries(RunTests ${PLUGINS_COMMON_LIB})
+target_link_libraries(RunTests ${LIBCURL_LIB})
 
 # Add Python 3.x library
 target_link_libraries(RunTests ${PYTHON_LIBRARIES})

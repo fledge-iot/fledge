@@ -174,12 +174,12 @@ async def add_service(request):
 
                 _platform = platform.platform()
                 pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
-                code, msg = await install.install_package_from_repo(name, pkg_mgt, version)
+                code, link = await install.install_package_from_repo(name, pkg_mgt, version)
                 if code != 0:
-                    raise ValueError(msg)
+                    raise PackageError(link)
 
                 message = "{} is successfully installed".format(name)
-                return web.json_response({'message': message})
+                return web.json_response({'message': message, "link": link})
             else:
                 raise web.HTTPBadRequest(reason='{} is not a valid action'.format(request.query['action']))
         if utils.check_reserved(name) is False:
@@ -319,6 +319,9 @@ async def add_service(request):
             _logger.exception("Failed to create service. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to create service.')
 
+    except PackageError as e:
+        msg = "Service installation request failed"
+        raise web.HTTPBadRequest(body=json.dumps({"message": msg, "link": str(e)}), reason=msg)
     except ValueError as e:
         raise web.HTTPBadRequest(reason=str(e))
     except KeyError as ex:

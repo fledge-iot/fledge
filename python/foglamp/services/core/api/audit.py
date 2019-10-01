@@ -140,6 +140,8 @@ async def get_audit_entries(request):
 
         curl -X GET http://localhost:8081/foglamp/audit?source=PURGE
 
+        curl -X GET http://localhost:8081/foglamp/audit?source=NTFSD,NTFSN,NTFAD,NTFST,NTFDL,NTFCL
+
         curl -X GET http://localhost:8081/foglamp/audit?severity=FAILURE
 
         curl -X GET http://localhost:8081/foglamp/audit?source=LOGGN&severity=INFORMATION&limit=10
@@ -164,17 +166,20 @@ async def get_audit_entries(request):
             raise web.HTTPBadRequest(reason="Skip/Offset must be a positive integer")
 
     source = None
+    source_list = []
     if 'source' in request.query and request.query['source'] != '':
         try:
             source = request.query.get('source')
+            source_list = source.split(',')
             # SELECT * FROM log_codes
             storage_client = connect.get_storage_async()
             result = await storage_client.query_tbl("log_codes")
             log_codes = [key['code'] for key in result['rows']]
-            if source not in log_codes:
-                raise ValueError
-        except ValueError:
-            raise web.HTTPBadRequest(reason="{} is not a valid source".format(source))
+            for code in source_list:
+                if code not in log_codes:
+                    raise ValueError(code)
+        except ValueError as e:
+            raise web.HTTPBadRequest(reason="{} is not a valid source".format(str(e)))
 
     severity = None
     if 'severity' in request.query and request.query['severity'] != '':
@@ -191,8 +196,13 @@ async def get_audit_entries(request):
             .WHERE(['1', '=', 1])
 
         if source is not None:
-            payload.AND_WHERE(['code', '=', source])
-
+            if len(source_list) == 1:
+                payload.AND_WHERE(['code', '=', source])
+            else:
+                payload = PayloadBuilder().SELECT("code", "level", "log", "ts") \
+                    .ALIAS("return", ("ts", 'timestamp')).FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS"))
+                for code in source_list:
+                    payload.OR_WHERE(['code', '=', code])
         if severity is not None:
             payload.AND_WHERE(['level', '=', severity])
 

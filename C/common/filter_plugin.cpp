@@ -54,6 +54,9 @@ FilterPlugin::FilterPlugin(const std::string& name,
 				      manager->resolveSymbol(handle,
 							     "plugin_reconfigure");
 
+	// Set m_instance default value
+	m_instance = NULL;
+
 	// Persist data initialised
 	m_plugin_data = NULL;	
 }
@@ -91,7 +94,9 @@ PLUGIN_HANDLE FilterPlugin::init(const ConfigCategory& config,
  */
 void FilterPlugin::shutdown()
 {
-	if (this->pluginShutdownPtr)
+	// Check if m_instance has been set
+	// and function pointer exists
+	if (m_instance && this->pluginShutdownPtr)
 	{
 		return this->pluginShutdownPtr(m_instance);
 	}
@@ -106,7 +111,9 @@ void FilterPlugin::shutdown()
 string FilterPlugin::shutdownSaveData()
 {
 	string ret("");
-	if (this->pluginShutdownDataPtr)
+	// Check if m_instance has been set
+	// and function pointer exists
+	if (m_instance && this->pluginShutdownDataPtr)
 	{
 		ret = this->pluginShutdownDataPtr(m_instance);
 	}

@@ -21,7 +21,7 @@
 		"rule": []
 	}],
 	"p3": [{
-		"south": ["am2315", "csv-async", "dht11", "ina219", "pt100", "roxtec", "raspi-classify", "sensehat", "sensorphone"],
+		"south": ["am2315", "csv-async", "dht11", "ina219", "pt100", "roxtec", "sensehat", "sensorphone"],
 		"north": [],
 		"filter": ["python27", "scale-set"],
 		"notify": ["alexa", "blynk", "hangouts", "ifttt"],

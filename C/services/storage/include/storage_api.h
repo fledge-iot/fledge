@@ -26,7 +26,7 @@ using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 #define READING_ACCESS  	"^/storage/reading$"
 #define READING_QUERY   	"^/storage/reading/query"
 #define READING_PURGE   	"^/storage/reading/purge"
-#define READING_INTEREST	"^/storage/reading/interest/([A-Za-z\\*][a-zA-Z0-9_]*)$"
+#define READING_INTEREST	"^/storage/reading/interest/([A-Za-z\\*][a-zA-Z0-9_%]*)$"
 #define GET_TABLE_SNAPSHOTS	"^/storage/table/([A-Za-z][a-zA-Z_0-9_]*)/snapshot$"
 #define CREATE_TABLE_SNAPSHOT	GET_TABLE_SNAPSHOTS
 #define LOAD_TABLE_SNAPSHOT	"^/storage/table/([A-Za-z][a-zA-Z_0-9_]*)/snapshot/([a-zA-Z_0-9_]*)$"

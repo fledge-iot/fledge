@@ -25,6 +25,8 @@
 #include "crypto.hpp"
 #endif
 
+#include <string_utils.h>
+
 // Enable worker threads for readings append and fetch
 #define WORKER_THREADS		1
 
@@ -933,19 +935,23 @@ static std::atomic<bool> already_running(false);
 /**
  * Register interest in readings for an asset
  */
-void StorageApi::readingRegister(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+void StorageApi::readingRegister(shared_ptr<HttpServer::Response> response,
+				 shared_ptr<HttpServer::Request> request)
 {
 string		asset;
 string		payload;
 Document	doc;
 
 	payload = request->content.string();
-	asset = request->path_match[ASSET_NAME_COMPONENT];
+	// URL decode asset name
+	asset = urlDecode(request->path_match[ASSET_NAME_COMPONENT]);
 	doc.Parse(payload.c_str());
 	if (doc.HasParseError())
 	{
 			string resp = "{ \"error\" : \"Badly formed payload\" }";
-			respond(response, SimpleWeb::StatusCode::client_error_bad_request, resp);
+			respond(response,
+				SimpleWeb::StatusCode::client_error_bad_request,
+				resp);
 	}
 	else
 	{
@@ -966,19 +972,23 @@ Document	doc;
 /**
  * Unregister interest in readings for an asset
  */
-void StorageApi::readingUnregister(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+void StorageApi::readingUnregister(shared_ptr<HttpServer::Response> response,
+				   shared_ptr<HttpServer::Request> request)
 {
 string		asset;
 string		payload;
 Document	doc;
 
 	payload = request->content.string();
-	asset = request->path_match[ASSET_NAME_COMPONENT];
+	// URL decode asset name
+	asset = urlDecode(request->path_match[ASSET_NAME_COMPONENT]);
 	doc.Parse(payload.c_str());
 	if (doc.HasParseError())
 	{
 			string resp = "{ \"error\" : \"Badly formed payload\" }";
-			respond(response, SimpleWeb::StatusCode::client_error_bad_request, resp);
+			respond(response,
+				SimpleWeb::StatusCode::client_error_bad_request,
+				resp);
 	}
 	else
 	{
@@ -991,7 +1001,9 @@ Document	doc;
 		else
 		{
 			string resp = "{ \"error\" : \"Missing url element in payload\" }";
-			respond(response, SimpleWeb::StatusCode::client_error_bad_request, resp);
+			respond(response,
+				SimpleWeb::StatusCode::client_error_bad_request,
+				resp);
 		}
 	}
 }

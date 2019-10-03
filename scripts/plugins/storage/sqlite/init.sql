@@ -642,7 +642,7 @@ INSERT INTO foglamp.log_codes ( code, description )
             ( 'NTFST', 'Notification Server Startup' ),
             ( 'NTFSD', 'Notification Server Shutdown' ),
             ( 'PKGIN', 'Package installation' ),
-            ( 'PKGUP', 'Package upgraded' );
+            ( 'PKGUP', 'Package updated' );
 
 --
 -- Configuration parameters

@@ -114,7 +114,9 @@ class TestPackages:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': '{} is successfully installed'.format(data['name'])} == jdoc
+        assert 'message' in jdoc
+        assert 'link' in jdoc
+        assert '{} is successfully installed'.format(data['name']) == jdoc['message']
 
         # verify service installed
         conn.request("GET", '/foglamp/service/installed')

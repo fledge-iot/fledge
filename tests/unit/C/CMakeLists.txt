@@ -54,8 +54,11 @@ set_target_properties(services-common-lib PROPERTIES SOVERSION 1)
 file(GLOB PLUGINS_COMMON_LIB_SOURCES ../../../C/plugins/common/*.cpp)
 
 # Create shared library
+set(LIBCURL_LIB -lcurl)
+
 add_library(plugins-common-lib SHARED ${PLUGINS_COMMON_LIB_SOURCES})
 target_link_libraries(plugins-common-lib ${Boost_LIBRARIES} common-lib services-common-lib z ssl crypto)
+target_link_libraries(plugins-common-lib ${LIBCURL_LIB})
 
 set_target_properties(plugins-common-lib PROPERTIES SOVERSION 1)
 

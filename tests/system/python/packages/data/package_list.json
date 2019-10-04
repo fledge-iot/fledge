@@ -7,21 +7,21 @@
 		"rule": ["average", "simple-expression"]
 	}],
 	"p1": [{
-		"south": ["coral-object-detection", "dnp3", "envirophat", "flirax8", "game", "mqtt-sparkplug", "opcua", "people", "playback", "phidget", "randomwalk"],
+		"south": ["dnp3", "envirophat", "flirax8", "game", "mqtt-sparkplug", "opcua", "playback", "phidget", "randomwalk"],
 		"north": ["kafka", "opcua"],
-		"filter": ["change", "delta", "fft", "flirvalidity", "metadata", "rms"],
+		"filter": ["change", "delta", "fft", "flirvalidity", "metadata", "rms", "simple-python"],
 		"notify": ["email"],
 		"rule": ["outofbound"]
 	}],
 	"p2": [{
-		"south": ["benchmark", "cc2650", "coap", "coral-classify", "coral-people-image", "csv", "dht11V2", "expression", "http-south", "modbustcp", "openweathermap", "random", "systeminfo", "wind-turbine"],
+		"south": ["benchmark", "cc2650", "coap", "csv", "dht11V2", "expression", "http-south", "modbustcp", "openweathermap", "random", "systeminfo", "wind-turbine"],
 		"north": ["http-north", "thingspeak"],
 		"filter": ["asset", "rate", "rms-trigger", "scale", "threshold"],
 		"notify": ["slack", "telegram"],
 		"rule": []
 	}],
 	"p3": [{
-		"south": ["am2315", "csv-async", "dht11", "ina219", "pt100", "roxtec", "raspi-classify", "sensehat", "sensorphone"],
+		"south": ["am2315", "csv-async", "dht11", "ina219", "pt100", "roxtec", "sensehat", "sensorphone"],
 		"north": [],
 		"filter": ["python27", "scale-set"],
 		"notify": ["alexa", "blynk", "hangouts", "ifttt"],

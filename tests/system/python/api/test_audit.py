@@ -25,7 +25,8 @@ class TestAudit:
         expected_code_list = ['PURGE', 'LOGGN', 'STRMN', 'SYPRG', 'START', 'FSTOP',
                               'CONCH', 'CONAD', 'SCHCH', 'SCHAD', 'SRVRG', 'SRVUN',
                               'SRVFL', 'NHCOM', 'NHDWN', 'NHAVL', 'UPEXC', 'BKEXC',
-                              'NTFDL', 'NTFAD', 'NTFSN', 'NTFCL', 'NTFST', 'NTFSD']
+                              'NTFDL', 'NTFAD', 'NTFSN', 'NTFCL', 'NTFST', 'NTFSD',
+                              'PKGIN', 'PKGUP']
         conn = http.client.HTTPConnection(foglamp_url)
         conn.request("GET", '/foglamp/audit/logcode')
         r = conn.getresponse()
@@ -33,7 +34,7 @@ class TestAudit:
         r = r.read().decode()
         jdoc = json.loads(r)
         assert len(jdoc), "No data found"
-        assert 24 == len(jdoc['logCode'])
+        assert 26 == len(jdoc['logCode'])
         codes = [key['code'] for key in jdoc['logCode']]
         assert Counter(expected_code_list) == Counter(codes)
 

@@ -20,8 +20,9 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 available_pkg = []
-# plugins installed by default 4
 counter = 4
+"""  By default 4 plugins are installed i.e. all north
+"""
 
 
 @pytest.fixture
@@ -53,7 +54,7 @@ class TestPackages:
 
     def test_reset_and_setup(self, reset_packages, setup_package):
         # TODO: Remove this workaround
-        # Use better setup & teardown methods
+        #  Use better setup & teardown methods
         pass
 
     def test_ping(self, foglamp_url):
@@ -129,7 +130,9 @@ class TestPackages:
         assert 'notification' in jdoc['services']
 
     def test_install_plugin_package(self, foglamp_url, package_build_source_list, package_build_list):
-        # FIXME: FOGL-3276 (Remove below once we have dedicated Rpi with sensehat device attached; otherwise its discovery fails)
+        # FIXME: FOGL-3276 Remove once we have dedicated RPi with sensehat device attached
+        #  otherwise its discovery fails
+
         if 'foglamp-south-sensehat' in available_pkg:
             available_pkg.remove('foglamp-south-sensehat')
 

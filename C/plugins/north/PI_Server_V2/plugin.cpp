@@ -912,8 +912,8 @@ string AuthBasicCredentialsGenerate(string& userId, string& password)
  */
 void AuthKerberosSetup(string& keytabEnv, string& keytabFileName)
 {
-	string fogLAMPData = getDataDir ();
-	string keytabFullPath = fogLAMPData + "/etc/kerberos" + "/" + keytabFileName;
+	string fledgeData = getDataDir ();
+	string keytabFullPath = fledgeData + "/etc/kerberos" + "/" + keytabFileName;
 
 	keytabEnv = "KRB5_CLIENT_KTNAME=" + keytabFullPath;
 	putenv((char *) keytabEnv.c_str());

@@ -129,7 +129,7 @@ class TestPackages:
         assert 3 == len(jdoc['services'])
         assert 'notification' in jdoc['services']
 
-    def test_install_plugin_package(self, foglamp_url, package_build_source_list, package_build_list):
+    def test_install_plugin_package(self, fledge_url, package_build_source_list, package_build_list):
         # FIXME: FOGL-3276 Remove once we have dedicated RPi with sensehat device attached
         #  otherwise its discovery fails
 

@@ -18,7 +18,7 @@ import aiohttp
 import async_timeout
 from typing import Dict
 
-from fledge.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA
+from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
 from fledge.services.core.api.plugins import common
 from fledge.common import logger
 from fledge.services.core.api.plugins.exceptions import *

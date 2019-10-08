@@ -23,7 +23,7 @@ from fledge.services.core.api import utils as apiutils
 from fledge.services.core.scheduler.entities import StartUpSchedule
 from fledge.services.core.service_registry.service_registry import ServiceRegistry
 from fledge.services.core.service_registry import exceptions as service_registry_exceptions
-from fledge.common.common import _FOGLAMP_ROOT
+from fledge.common.common import _FLEDGE_ROOT
 from fledge.services.core.api.plugins import common
 from fledge.services.core.api.plugins import install
 from fledge.services.core.api.plugins.exceptions import *

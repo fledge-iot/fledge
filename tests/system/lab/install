@@ -32,16 +32,16 @@ echo "deb http://archives.dianomic.com/${BUILD_VERSION}/${VERSION_CODENAME}/armv
 sudo apt update
 
 time sudo -E apt install -yq fledge
-echo "==================== DONE INSTALLING FogLAMP =================="
+echo "==================== DONE INSTALLING Fedge =================="
 
 time sudo apt install -y fledge-gui
-echo "==================== DONE INSTALLING FogLAMP GUI ======================"
+echo "==================== DONE INSTALLING Fedge GUI ======================"
 
-time sudo apt install -y foglamp-service-notification foglamp-filter-expression foglamp-filter-python35 foglamp-filter-rms \
-foglamp-filter-fft foglamp-filter-delta foglamp-filter-metadata foglamp-filter-change \
-foglamp-filter-simple-python \
-foglamp-notify-asset foglamp-notify-python35 foglamp-notify-email \
-foglamp-rule-simple-expression foglamp-rule-average \
-foglamp-north-httpc \
-foglamp-south-sinusoid foglamp-south-envirophat foglamp-south-randomwalk foglamp-south-game foglamp-south-modbus foglamp-south-http-south
+time sudo apt install -y fledge-service-notification fledge-filter-expression fledge-filter-python35 fledge-filter-rms \
+fledge-filter-fft fledge-filter-delta fledge-filter-metadata fledge-filter-change \
+fledge-filter-simple-python \
+fledge-notify-asset fledge-notify-python35 fledge-notify-email \
+fledge-rule-simple-expression fledge-rule-average \
+fledge-north-httpc \
+fledge-south-sinusoid fledge-south-envirophat fledge-south-randomwalk fledge-south-game fledge-south-modbus fledge-south-http-south
 echo "==================== DONE INSTALLING PLUGINS =================="

@@ -44,7 +44,7 @@ wget -q -O - http://archives.dianomic.com/KEY.gpg | sudo apt-key add -
 echo "deb http://archives.dianomic.com/${PACKAGE_BUILD_VERSION}/${ID}/${UNAME}/ /" | sudo tee -a /etc/apt/sources.list
 sudo apt update
 
-time sudo apt install -y fledge
+time sudo DEBIAN_FRONTEND=noninteractive apt install -yq fledge
 echo "==================== DONE INSTALLING Fledge =================="
 
 time sudo apt install -y fledge-gui

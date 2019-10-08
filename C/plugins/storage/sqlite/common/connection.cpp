@@ -2011,10 +2011,10 @@ bool Connection::jsonAggregates(const Value& payload,
 
 				if (tb.HasMember("size"))
 				{
-					// Use JulianDay, with microseconds
+					// Use Unix epoch, without microseconds
 					sql.append(tb["size"].GetString());
 					sql.append(" * round(");
-					sql.append("strftime('%J', ");
+					sql.append("strftime('%s', ");
 					sql.append(tb["timestamp"].GetString());
 					sql.append(") / ");
 					sql.append(tb["size"].GetString());
@@ -2024,7 +2024,7 @@ bool Connection::jsonAggregates(const Value& payload,
 				{
 					sql.append(tb["timestamp"].GetString());
 				}
-				sql.append(")");
+				sql.append(", 'unixepoch')");
 			}
 			else
 			{
@@ -2032,7 +2032,7 @@ bool Connection::jsonAggregates(const Value& payload,
 				 * No date format found: we should return an error.
 				 * Note: currently if input Json payload has no 'result' member
 				 * raiseError() results in no data being sent to the client
-				 * For the time being we just use JulianDay, with microseconds
+				 * We use Unix epoch without microseconds
 				 */
 				sql.append(", datetime(");
 				if (tb.HasMember("size"))
@@ -2040,8 +2040,8 @@ bool Connection::jsonAggregates(const Value& payload,
 					sql.append(tb["size"].GetString());
 					sql.append(" * round(");
 				}
-				// Use JulianDay, with microseconds
-				sql.append("strftime('%J', ");
+				// Use Unix epoch, without microseconds
+				sql.append("strftime('%s', ");
 				sql.append(tb["timestamp"].GetString());
 				if (tb.HasMember("size"))
 				{
@@ -2053,7 +2053,7 @@ bool Connection::jsonAggregates(const Value& payload,
 				{
 					sql.append(")");
 				}
-				sql.append(")");
+				sql.append(", 'unixepoch')");
 			}
 		}
 		else
@@ -2067,9 +2067,9 @@ bool Connection::jsonAggregates(const Value& payload,
 
 			/*
 			 * Default format when no format is specified:
-			 * - we use JulianDay in order to get milliseconds.
+			 * - we use Unix time without milliseconds.
 			 */
-			sql.append("strftime('%J', ");
+			sql.append("strftime('%s', ");
 			sql.append(tb["timestamp"].GetString());
 			if (tb.HasMember("size"))
 			{
@@ -2081,8 +2081,7 @@ bool Connection::jsonAggregates(const Value& payload,
 			{
 				sql.append(")");
 			}
-
-			sql.append(")");
+			sql.append(", 'unixepoch')");
 		}
 
 		sql.append(" AS \"");
@@ -2231,15 +2230,28 @@ bool Connection::jsonModifiers(const Value& payload,
 			sql.append(" GROUP BY ");
 		}
 
-		// Use DateTime Y-m-d H:M:S from JulianDay
-                sql.append("datetime(strftime('%J', ");
-                sql.append(tb["timestamp"].GetString());
-                sql.append("))");
+		// Divide by "size"
+		if (tb.HasMember("size"))
+		{
+			// Use Unix epoch without milliseconds
+			sql.append("round(strftime('%s', ");
+			sql.append(tb["timestamp"].GetString());
+			sql.append(") / ");
+			sql.append(tb["size"].GetString());
+			sql.append(", 6)");
+		}
+		else
+		{
+			// Use Unix epoch
+			sql.append("strftime('%s', ");
+			sql.append(tb["timestamp"].GetString());
+			sql.append(")");
+		}
 
 		sql.append(" ORDER BY ");
 
-		// Use DateTime Y-m-d H:M:S fromt JulianDay
-                sql.append("datetime(strftime('%J', ");
+                // Use Unix epoch without milliseconds
+                sql.append("datetime(strftime('%s', ");
                 sql.append(tb["timestamp"].GetString());
                 sql.append("))");
 

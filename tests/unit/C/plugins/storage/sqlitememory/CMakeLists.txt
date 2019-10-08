@@ -3,6 +3,9 @@ project(RunTests)
 cmake_minimum_required(VERSION 2.6)
 set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 
+# libraries
+set(LIBCURL_LIB -lcurl)
+
 # Fledge libraries
 set(COMMON_LIB              common-lib)
 set(SERVICE_COMMON_LIB      services-common-lib)
@@ -47,5 +50,6 @@ target_link_libraries(${PROJECT_NAME} ${PLUGINS_COMMON_LIB})
 
 target_link_libraries(${PROJECT_NAME} ${PLUGIN_SQLITEMEMORY})
 target_link_libraries(${PROJECT_NAME} ${STORAGE_COMMON_LIB})
+target_link_libraries(${PROJECT_NAME} ${LIBCURL_LIB})
 
 target_link_libraries(${PROJECT_NAME} ${GTEST_LIBRARIES} pthread)

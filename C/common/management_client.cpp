@@ -10,11 +10,7 @@
 #include <management_client.h>
 #include <rapidjson/document.h>
 #include <service_record.h>
-#include <string>
-#include <sstream>
-#include <iostream>
-#include <cctype>
-#include <iomanip>
+#include <string_utils.h>
 #include <asset_tracking.h>
 
 using namespace std;
@@ -141,7 +137,7 @@ bool ManagementClient::unregisterService()
 	}
 	try {
 		string url = "/fledge/service/";
-		url += url_encode(*m_uuid);
+		url += urlEncode(*m_uuid);
 		auto res = this->getHttpClient()->request("DELETE", url.c_str());
 		Document doc;
 		string response = res->content.string();
@@ -184,11 +180,11 @@ string payload;
 		string url = "/fledge/service";
 		if (!service.getName().empty())
 		{
-			url += "?name=" + url_encode(service.getName());
+			url += "?name=" + urlEncode(service.getName());
 		}
 		else if (!service.getType().empty())
 		{
-			url += "?type=" + url_encode(service.getType());
+			url += "?type=" + urlEncode(service.getType());
 		}
 		auto res = this->getHttpClient()->request("GET", url.c_str());
 		Document doc;
@@ -286,7 +282,7 @@ ostringstream convert;
         
         try {   
 		string url = "/fledge/interest/";
-		url += url_encode(m_categories[category]);
+		url += urlEncode(m_categories[category]);
         auto res = this->getHttpClient()->request("DELETE", url.c_str());
         } catch (const SimpleWeb::system_error &e) {
                 m_logger->error("Unregister configuration category failed %s.", e.what());
@@ -342,7 +338,7 @@ ConfigCategories ManagementClient::getCategories()
 ConfigCategory ManagementClient::getCategory(const string& categoryName)
 {
 	try {
-		string url = "/fledge/service/category/" + url_encode(categoryName);
+		string url = "/fledge/service/category/" + urlEncode(categoryName);
 		auto res = this->getHttpClient()->request("GET", url.c_str());
 		Document doc;
 		string response = res->content.string();
@@ -386,7 +382,7 @@ string ManagementClient::setCategoryItemValue(const string& categoryName,
 					      const string& itemValue)
 {
 	try {
-		string url = "/fledge/service/category/" + url_encode(categoryName) + "/" + url_encode(itemName);
+		string url = "/fledge/service/category/" + urlEncode(categoryName) + "/" + urlEncode(itemName);
 		string payload = "{ \"value\" : \"" + itemValue + "\" }";
 		auto res = this->getHttpClient()->request("PUT", url.c_str(), payload);
 		Document doc;
@@ -427,7 +423,7 @@ ConfigCategories ManagementClient::getChildCategories(const string& categoryName
 {
 	try
 	{
-		string url = "/fledge/service/category/" + url_encode(categoryName) + "/children";
+		string url = "/fledge/service/category/" + urlEncode(categoryName) + "/children";
 		auto res = this->getHttpClient()->request("GET", url.c_str());
 		Document doc;
 		string response = res->content.string();
@@ -478,7 +474,7 @@ string ManagementClient::addChildCategories(const string& parentCategory,
 					    const vector<string>& children)
 {
 	try {
-		string url = "/fledge/service/category/" + url_encode(parentCategory) + "/children";
+		string url = "/fledge/service/category/" + urlEncode(parentCategory) + "/children";
 		string payload = "{ \"children\" : [";
 
 		for (auto it = children.begin(); it != children.end(); ++it)
@@ -529,7 +525,7 @@ std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples(const
 	std::vector<AssetTrackingTuple*> *vec = new std::vector<AssetTrackingTuple*>();
 	
 	try {
-		string url = "/fledge/track?service="+url_encode(serviceName);
+		string url = "/fledge/track?service="+urlEncode(serviceName);
 		auto res = this->getHttpClient()->request("GET", url.c_str());
 		Document doc;
 		string response = res->content.string();
@@ -632,36 +628,6 @@ bool ManagementClient::addAssetTrackingTuple(const std::string& service,
 				return false;
 		}
 		return false;
-}
-
-/**
- * URL-encode a given string
- *
- * @param s		Input string that is to be URL-encoded
- * @return		URL-encoded output string
- */
-string ManagementClient::url_encode(const string &s) const
-{
-    ostringstream escaped;
-    escaped.fill('0');
-    escaped << hex;
-
-    for (string::const_iterator i = s.begin(), n = s.end(); i != n; ++i) {
-        string::value_type c = (*i);
-
-        // Keep alphanumeric and other accepted characters intact
-        if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
-            escaped << c;
-            continue;
-        }
-
-        // Any other characters are percent-encoded
-        escaped << uppercase;
-        escaped << '%' << setw(2) << int((unsigned char) c);
-        escaped << nouppercase;
-    }
-
-    return escaped.str();
 }
 
 /**

@@ -4,9 +4,10 @@
 # See: http://fledge.readthedocs.io/
 # FLEDGE_END
 
+import asyncio
 import platform
 import json
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 import pytest
 
 from aiohttp import web
@@ -15,6 +16,9 @@ from fledge.services.core import routes
 from fledge.services.core.api.plugins import install as plugins_install
 from fledge.services.core.api.plugins import common
 from fledge.services.core.api.plugins.exceptions import *
+from fledge.common.audit_logger import AuditLogger
+from fledge.services.core import connect
+from fledge.common.storage_client.storage_client import StorageClientAsync
 
 
 __author__ = "Ashish Jabble"
@@ -236,7 +240,8 @@ class TestPluginInstall:
     async def test_post_bad_plugin_install_package_from_repo(self, client):
         plugin = "fledge-south-sinusoid"
         param = {"format": "repository", "name": plugin}
-        with patch.object(common, 'fetch_available_packages', return_value=([], 'log/190801-12-41-13.log')) as patch_fetch_available_package:
+        with patch.object(common, 'fetch_available_packages', return_value=([], 'log/190801-12-41-13.log')) \
+                as patch_fetch_available_package:
             resp = await client.post('/fledge/plugins', data=json.dumps(param))
             assert 404 == resp.status
             assert "'{} plugin is not available for the given repository'".format(plugin) == resp.reason
@@ -247,7 +252,8 @@ class TestPluginInstall:
         param = {"format": "repository", "name": plugin}
         msg = "Plugin installation request failed"
         log_path = "log/190801-13-01-13-{}.log".format(plugin)
-        with patch.object(common, 'fetch_available_packages', side_effect=PackageError(log_path)) as patch_fetch_available_package:
+        with patch.object(common, 'fetch_available_packages', side_effect=PackageError(log_path)) \
+                as patch_fetch_available_package:
             resp = await client.post('/fledge/plugins', data=json.dumps(param))
             assert 400 == resp.status
             assert msg == resp.reason
@@ -264,22 +270,33 @@ class TestPluginInstall:
         'fledge-notify-email',
         'fledge-rule-outofbound'
     ])
-    async def test_post_plugins_install_package_from_repo(self, client, plugin_name):
+    async def test_post_plugins_install_package_from_repo(self, client, plugin_name, loop):
         async def async_mock(return_value):
             return return_value
 
+        storage_client_mock = MagicMock(StorageClientAsync)
         param = {"format": "repository", "name": plugin_name}
         _platform = platform.platform()
         pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
+        msg = "installed"
         with patch.object(common, 'fetch_available_packages',
                           return_value=([plugin_name, "fledge-north-http",
-                                        "fledge-service-notification"], 'log/190801-12-41-13.log')) as patch_fetch_available_package:
+                                        "fledge-service-notification"], 'log/190801-12-41-13.log')) \
+                as patch_fetch_available_package:
             with patch.object(plugins_install, 'install_package_from_repo',
-                              return_value=async_mock((0, 'Success'))) as install_package_patch:
-                resp = await client.post('/fledge/plugins', data=json.dumps(param))
-                assert 200 == resp.status
-                result = await resp.text()
-                response = json.loads(result)
-                assert {"link": "Success", "message": "{} is successfully installed".format(plugin_name)} == response
+                              return_value=async_mock((0, 'Success', msg))) as install_package_patch:
+                with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                    with patch.object(AuditLogger, '__init__', return_value=None):
+                        with patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(
+                                async_mock(None), loop=loop)) as audit_info_patch:
+                            resp = await client.post('/fledge/plugins', data=json.dumps(param))
+                            assert 200 == resp.status
+                            result = await resp.text()
+                            response = json.loads(result)
+                            assert {"link": "Success", "message": "{} is successfully {}".format(
+                                plugin_name, msg)} == response
+                        args, kwargs = audit_info_patch.call_args
+                        assert 'PKGIN' == args[0]
+                        assert {'packageName': plugin_name} == args[1]
             install_package_patch.assert_called_once_with(plugin_name, pkg_mgt, None)
         patch_fetch_available_package.assert_called_once_with()

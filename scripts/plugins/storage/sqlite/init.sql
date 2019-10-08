@@ -640,7 +640,9 @@ INSERT INTO fledge.log_codes ( code, description )
             ( 'NTFSN', 'Notification Sent' ),
             ( 'NTFCL', 'Notification Cleared' ),
             ( 'NTFST', 'Notification Server Startup' ),
-            ( 'NTFSD', 'Notification Server Shutdown' );
+            ( 'NTFSD', 'Notification Server Shutdown' ),
+            ( 'PKGIN', 'Package installation' ),
+            ( 'PKGUP', 'Package updated' );
 
 --
 -- Configuration parameters

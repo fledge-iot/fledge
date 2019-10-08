@@ -23,10 +23,11 @@ from fledge.services.core.api import utils as apiutils
 from fledge.services.core.scheduler.entities import StartUpSchedule
 from fledge.services.core.service_registry.service_registry import ServiceRegistry
 from fledge.services.core.service_registry import exceptions as service_registry_exceptions
-from fledge.common.common import _FLEDGE_ROOT
+from fledge.common.common import _FOGLAMP_ROOT
 from fledge.services.core.api.plugins import common
 from fledge.services.core.api.plugins import install
 from fledge.services.core.api.plugins.exceptions import *
+from fledge.common.audit_logger import AuditLogger
 
 
 __author__ = "Mark Riddoch, Ashwin Gopalakrishnan, Amarendra K Sinha"
@@ -174,11 +175,16 @@ async def add_service(request):
 
                 _platform = platform.platform()
                 pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
-                code, link = await install.install_package_from_repo(name, pkg_mgt, version)
+                code, link, msg = await install.install_package_from_repo(name, pkg_mgt, version)
                 if code != 0:
                     raise PackageError(link)
 
-                message = "{} is successfully installed".format(name)
+                message = "{} is successfully {}".format(name, msg)
+                storage = connect.get_storage_async()
+                audit = AuditLogger(storage)
+                audit_detail = {'packageName': name}
+                log_code = 'PKGUP' if msg == 'updated' else 'PKGIN'
+                await audit.information(log_code, audit_detail)
                 return web.json_response({'message': message, "link": link})
             else:
                 raise web.HTTPBadRequest(reason='{} is not a valid action'.format(request.query['action']))

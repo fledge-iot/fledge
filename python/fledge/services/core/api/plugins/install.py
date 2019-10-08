@@ -18,12 +18,13 @@ import aiohttp
 import async_timeout
 from typing import Dict
 
-from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
+from fledge.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA
 from fledge.services.core.api.plugins import common
 from fledge.common import logger
 from fledge.services.core.api.plugins.exceptions import *
 from fledge.services.core import connect
 from fledge.common.configuration_manager import ConfigurationManager
+from fledge.common.audit_logger import AuditLogger
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems Inc."
@@ -82,11 +83,15 @@ async def add_plugin(request: web.Request) -> web.Response:
 
             _platform = platform.platform()
             pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
-            code, link = await install_package_from_repo(name, pkg_mgt, version)
+            code, link, msg = await install_package_from_repo(name, pkg_mgt, version)
             if code != 0:
                 raise PackageError(link)
-
-            result_payload = {"message": "{} is successfully installed".format(name), "link": link}
+            storage = connect.get_storage_async()
+            audit = AuditLogger(storage)
+            audit_detail = {'packageName': name}
+            log_code = 'PKGUP' if msg == 'updated' else 'PKGIN'
+            await audit.information(log_code, audit_detail)
+            result_payload = {"message": "{} is successfully {}".format(name, msg), "link": link}
         else:
             if not url or not checksum:
                 raise TypeError('URL, checksum params are required')
@@ -255,6 +260,7 @@ def copy_file_install_requirement(dir_files: list, plugin_type: str, file_name: 
 async def install_package_from_repo(name: str, pkg_mgt: str, version: str) -> tuple:
     stdout_file_path = common.create_log_file(name)
     link = "log/" + stdout_file_path.split("/")[-1]
+    msg = "installed"
     cat_item = await check_upgrade_on_install()
     if 'value' in cat_item:
         if cat_item['value'] == "true":
@@ -262,13 +268,13 @@ async def install_package_from_repo(name: str, pkg_mgt: str, version: str) -> tu
             ret_code = os.system(cmd + " > {} 2>&1".format(stdout_file_path))
             if ret_code != 0:
                 raise PackageError(link)
-
+            msg = "updated"
     cmd = "sudo {} -y install {}".format(pkg_mgt, name)
     if version:
         cmd = "sudo {} -y install {}={}".format(pkg_mgt, name, version)
 
     ret_code = os.system(cmd + " >> {} 2>&1".format(stdout_file_path))
-    return ret_code, link
+    return ret_code, link, msg
 
 
 async def check_upgrade_on_install() -> Dict:

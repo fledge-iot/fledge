@@ -18,6 +18,7 @@
 #include <iostream>
 #include <thread>
 #include <map>
+#include <string_utils.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -890,7 +891,7 @@ bool StorageClient::registerAssetNotification(const string& assetName,
 		convert << callbackUrl;
 		convert << "\" }";
 		auto res = this->getHttpClient()->request("POST",
-							  "/storage/reading/interest/" + assetName,
+							  "/storage/reading/interest/" + urlEncode(assetName),
 							  convert.str());
 		if (res->status_code.compare("200 OK") == 0)
 		{
@@ -931,7 +932,7 @@ bool StorageClient::unregisterAssetNotification(const string& assetName,
 		convert << callbackUrl;
 		convert << "\" }";
 		auto res = this->getHttpClient()->request("DELETE",
-							  "/storage/reading/interest/" + assetName,
+							  "/storage/reading/interest/" + urlEncode(assetName),
 							  convert.str());
 		if (res->status_code.compare("200 OK") == 0)
 		{

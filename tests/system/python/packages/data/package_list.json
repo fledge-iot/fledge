@@ -9,7 +9,7 @@
 	"p1": [{
 		"south": ["dnp3", "envirophat", "flirax8", "game", "mqtt-sparkplug", "opcua", "playback", "phidget", "randomwalk"],
 		"north": ["kafka", "opcua"],
-		"filter": ["change", "delta", "fft", "flirvalidity", "metadata", "rms"],
+		"filter": ["change", "delta", "fft", "flirvalidity", "metadata", "rms", "simple-python"],
 		"notify": ["email"],
 		"rule": ["outofbound"]
 	}],

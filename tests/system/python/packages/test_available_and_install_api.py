@@ -20,8 +20,9 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 available_pkg = []
-# plugins installed by default 4
 counter = 4
+"""  By default 4 plugins are installed i.e. all north
+"""
 
 
 @pytest.fixture
@@ -53,7 +54,7 @@ class TestPackages:
 
     def test_reset_and_setup(self, reset_packages, setup_package):
         # TODO: Remove this workaround
-        # Use better setup & teardown methods
+        #  Use better setup & teardown methods
         pass
 
     def test_ping(self, fledge_url):
@@ -114,7 +115,9 @@ class TestPackages:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': '{} is successfully installed'.format(data['name'])} == jdoc
+        assert 'message' in jdoc
+        assert 'link' in jdoc
+        assert '{} is successfully installed'.format(data['name']) == jdoc['message']
 
         # verify service installed
         conn.request("GET", '/fledge/service/installed')
@@ -126,14 +129,12 @@ class TestPackages:
         assert 3 == len(jdoc['services'])
         assert 'notification' in jdoc['services']
 
-    def test_install_plugin_package(self, fledge_url, package_build_source_list, package_build_list):
-        # FIXME: FOGL-3276 (Remove below once we have dedicated Rpi with sensehat device attached; otherwise its discovery fails)
+    def test_install_plugin_package(self, foglamp_url, package_build_source_list, package_build_list):
+        # FIXME: FOGL-3276 Remove once we have dedicated RPi with sensehat device attached
+        #  otherwise its discovery fails
+
         if 'fledge-south-sensehat' in available_pkg:
             available_pkg.remove('fledge-south-sensehat')
-
-        # FIXME: FOGL-3288
-        if 'fledge-south-usb4704' in available_pkg:
-            available_pkg.remove('fledge-south-usb4704')
 
         # When "package_build_source_list" is true then it will install all available packages
         # Otherwise install from list as we defined in JSON file

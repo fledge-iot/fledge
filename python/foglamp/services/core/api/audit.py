@@ -201,8 +201,7 @@ async def get_audit_entries(request):
             else:
                 payload = PayloadBuilder().SELECT("code", "level", "log", "ts") \
                     .ALIAS("return", ("ts", 'timestamp')).FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS"))
-                for code in source_list:
-                    payload.OR_WHERE(['code', '=', code])
+                payload.WHERE(['code', 'in', source_list])
         if severity is not None:
             payload.AND_WHERE(['level', '=', severity])
 

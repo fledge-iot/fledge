@@ -100,6 +100,7 @@ class TestAudit:
     @pytest.mark.parametrize("request_params, payload", [
         ('', {"return": ["code", "level", "log", {"column": "ts", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias": "timestamp"}], "where": {"column": "1", "condition": "=", "value": 1}, "sort": {"column": "ts", "direction": "desc"}, "limit": 20}),
         ('?source=PURGE', {'return': ['code', 'level', 'log', {'format': 'YYYY-MM-DD HH24:MI:SS.MS', 'column': 'ts', 'alias': 'timestamp'}], 'where': {'value': 1, 'and': {'value': 'PURGE', 'column': 'code', 'condition': '='}, 'column': '1', 'condition': '='}, 'sort': {'direction': 'desc', 'column': 'ts'}, 'limit': 20}),
+        ('?source=PURGE,START,CONAD', {'return': ['code', 'level', 'log', {'format': 'YYYY-MM-DD HH24:MI:SS.MS', 'column': 'ts', 'alias': 'timestamp'}], 'where': {'value': ['PURGE', 'START', 'CONAD'], 'column': 'code', 'condition': 'in'}, 'sort': {'direction': 'desc', 'column': 'ts'}, 'limit': 20}),
         ('?skip=1', {'where': {'value': 1, 'column': '1', 'condition': '='}, 'limit': 20, 'return': ['code', 'level', 'log', {'column': 'ts', 'format': 'YYYY-MM-DD HH24:MI:SS.MS', 'alias': 'timestamp'}], 'skip': 1, 'sort': {'direction': 'desc', 'column': 'ts'}}),
         ('?severity=failure', {'where': {'and': {'value': 1, 'column': 'level', 'condition': '='}, 'value': 1, 'column': '1', 'condition': '='}, 'limit': 20, 'return': ['code', 'level', 'log', {'column': 'ts', 'format': 'YYYY-MM-DD HH24:MI:SS.MS', 'alias': 'timestamp'}], 'sort': {'direction': 'desc', 'column': 'ts'}}),
         ('?severity=FAILURE&limit=1', {'limit': 1, 'sort': {'direction': 'desc', 'column': 'ts'}, 'return': ['code', 'level', 'log', {'column': 'ts', 'format': 'YYYY-MM-DD HH24:MI:SS.MS', 'alias': 'timestamp'}], 'where': {'value': 1, 'condition': '=', 'and': {'value': 1, 'condition': '=', 'column': 'level'}, 'column': '1'}}),
@@ -138,6 +139,7 @@ class TestAudit:
     @pytest.mark.parametrize("request_params, response_code, response_message", [
         ('?source=BLA', 400, "BLA is not a valid source"),
         ('?source=1234', 400, "1234 is not a valid source"),
+        ('?source=PURGE,NTF', 400, "NTF is not a valid source"),
         ('?limit=invalid', 400, "Limit must be a positive integer"),
         ('?limit=-1', 400, "Limit must be a positive integer"),
         ('?skip=invalid', 400, "Skip/Offset must be a positive integer"),

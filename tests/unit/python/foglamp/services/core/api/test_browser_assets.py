@@ -70,7 +70,7 @@ class TestBrowserAssets:
         return loop.run_until_complete(test_client(app))
 
     def test_routes_count(self, app):
-        assert 6 == len(app.router.resources())
+        assert 7 == len(app.router.resources())
 
     def test_routes_info(self, app):
         for index, route in enumerate(app.router.routes()):
@@ -125,7 +125,6 @@ class TestBrowserAssets:
             args, kwargs = query_patch.call_args
             assert json.loads(payload) == json.loads(args[0])
             query_patch.assert_called_once_with(args[0])
-
 
     @pytest.mark.parametrize("request_url, response_code, payload", FIXTURE_2)
     async def test_bad_request(self, client, request_url, response_code, payload):
@@ -257,3 +256,22 @@ class TestBrowserAssets:
             # assert '{"return": ["reading"], "where": {"column": "asset_code", "condition": "=", "value": "fogbench_humidity"}}' in args0
             # FIXME: ordering issue and add tests for datetimeunits request param
             # assert '{"aggregate": [{"operation": "min", "json": {"column": "reading", "properties": "humidity"}, "alias": "min"}, {"operation": "max", "json": {"column": "reading", "properties": "humidity"}, "alias": "max"}, {"operation": "avg", "json": {"column": "reading", "properties": "humidity"}, "alias": "average"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench_humidity"}, "limit": 20}' in args1
+
+    async def test_asset_readings_with_bucket_size(self, client):
+        import datetime
+        payload = {"aggregate": [{"operation": "min", "json": {"properties": "temperature", "column": "reading"}, "alias": "min"}, {"operation": "max", "json": {"properties": "temperature", "column": "reading"}, "alias": "max"}, {"operation": "avg", "json": {"properties": "temperature", "column": "reading"}, "alias": "average"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": ">=", "value": "1570732140.0"}}, "timebucket": {"timestamp": "user_ts", "size": "60", "format": "YYYY-MM-DD HH24:MI:SS", "alias": "timestamp"}, "limit": 1}
+        result = {'rows': [{"min": 15082, "average": 15083, "timestamp": "2019-10-11 06:22:30", "max": 15086}], 'count': 1}
+        readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
+        target = datetime.datetime(2019, 10, 11)
+        with patch.object(datetime, 'datetime', MagicMock(wraps=datetime.datetime)) as dt_patch:
+            dt_patch.now.return_value = target
+            with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
+                with patch.object(readings_storage_client_mock, 'query', return_value=mock_coro(result)) as query_patch:
+                    resp = await client.get('foglamp/asset/fogbench%2fhumidity/temperature/bucket/60')
+                    assert 200 == resp.status
+                    r = await resp.text()
+                    json_response = json.loads(r)
+                    assert result['rows'] == json_response
+                args, kwargs = query_patch.call_args
+                assert payload == json.loads(args[0])
+                query_patch.assert_called_once_with(args[0])

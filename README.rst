@@ -149,7 +149,28 @@ The destination may be overriden by setting the variable *DESTDIR* in the make c
 
 |br|
 
+Upgrading FogLAMP on Debian based systems
+=========================================
 
+FogLAMP supports the Kerberos authentication starting from the version 1.7.1 and so the related packages are installed by the script `requirements.sh <requirements.sh>`_.
+The *krb5-user* package prompt a question during the installation process asking for the KDC definition, the packages are installed setting the environment *DEBIAN_FRONTEND*
+to avoid this interaction:
+::
+
+	# for Kerberos authentication, avoid interactive questions
+	DEBIAN_FRONTEND=noninteractive apt install -yq krb5-user
+	apt install -y libcurl4-openssl-dev
+
+The upgrade of the FogLAMP package should follow the same philosophy, it should be done executing the command:
+::
+    sudo DEBIAN_FRONTEND=noninteractive apt -y upgrade
+
+before the upgrade of FogLAMP, *SETENV:* should be set/added in */etc/sudoers.d/foglamp* to allow *sudo* to support the handling of the environment variables, a sample of the file:
+::
+
+    %sudo ALL=(ALL) NOPASSWD:SETENV: /usr/bin/apt -y update, /usr/bin/apt-get -y install foglamp, /usr/bin/apt -y install /usr/local/foglamp/data/plugins/foglamp*.deb, /usr/bin/apt list, /usr/bin/apt -y install foglamp*, /usr/bin/apt -y upgrade
+
+|br|
 
 Executing FogLAMP
 =================

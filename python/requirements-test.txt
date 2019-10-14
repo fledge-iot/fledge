@@ -11,3 +11,6 @@ requests==2.20.0
 
 # For RTU serial test
 pyserial==3.4
+
+# keep this in sync with requirement.txt, as otherwise pytest-aiohttp always pulls the latest
+aiohttp==3.6.2

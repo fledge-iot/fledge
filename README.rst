@@ -196,3 +196,20 @@ This version of FogLAMP relies on SQLite to run. SQLite is embedded into the Sto
 where *user* is the name of the Linux user that will run FogLAMP. The FogLAMP database user must have *createdb* privileges (i.e. the *-d* argument).
 |br| |br|
 
+
+Troubleshooting
+===============
+
+FogLAMP version 1.7.0
+---------------------
+
+$FOGLAMP_ROOT/data/etc directory ownership
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The execution of the *sudo make install* immediately after *git clone* will create a *data/etc* directory owned by the *root* user,
+it should be owned by the user that will run FogLAMP, to fix it:
+::
+    chown -R <user>:<user> $FOGLAMP_ROOT/data
+
+where *user* is the name of the Linux user that will run FogLAMP.
+|br| |br|

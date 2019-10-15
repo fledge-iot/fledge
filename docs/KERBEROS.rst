@@ -129,11 +129,15 @@ Kerberos keytab file
 --------------------
 The keytab file should be generated on the Kerberos server and copied into the FogLAMP server in the directory:
 ::
-	${FOGLAMP_ROOT}/data/etc/kerberos
+	${FOGLAMP_DATA}/etc/kerberos
+
+**NOTE:**
+
+- if **FOGLAMP_DATA** is not set its value should be *$FOGLAMP_ROOT/data*.
 
 The name of the file should match the value of the North plugin option *PIWebAPIKerberosKeytabFileName*, by default *piwebapi_kerberos_https.keytab*
 ::
-	$ ls -l ${FOGLAMP_ROOT}/data/etc/kerberos
+	$ ls -l ${FOGLAMP_DATA}/etc/kerberos
 	-rwxrwxrwx 1 foglamp foglamp  91 Jul 17 09:07 piwebapi_kerberos_https.keytab
 	-rw-rw-r-- 1 foglamp foglamp 199 Aug 13 15:30 README.rst
 
@@ -151,7 +155,7 @@ Troubleshooting the Kerberos authentication
 
 2) check the presence of the keytab file
 ::
-	$ ls -l ${FOGLAMP_ROOT}/data/etc/kerberos
+	$ ls -l ${FOGLAMP_DATA}/etc/kerberos
 	-rwxrwxrwx 1 foglamp foglamp  91 Jul 17 09:07 piwebapi_kerberos_https.keytab
 	-rw-rw-r-- 1 foglamp foglamp 199 Aug 13 15:30 README.rst
 

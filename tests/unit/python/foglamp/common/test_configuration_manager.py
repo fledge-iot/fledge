@@ -36,8 +36,8 @@ class TestConfigurationManager:
         assert ['IPv4', 'IPv6', 'JSON', 'URL', 'X509 certificate', 'boolean', 'code', 'enumeration', 'float', 'integer', 'password', 'script', 'string'] == _valid_type_strings
 
     def test_supported_optional_items(self):
-        assert 9 == len(_optional_items)
-        assert ['deprecated', 'displayName', 'length', 'maximum', 'minimum', 'order', 'readonly', 'rule', 'validity'] == _optional_items
+        assert 10 == len(_optional_items)
+        assert ['deprecated', 'displayName', 'length', 'mandatory', 'maximum', 'minimum', 'order', 'readonly', 'rule', 'validity'] == _optional_items
 
     def test_constructor_no_storage_client_defined_no_storage_client_passed(
             self, reset_singleton):
@@ -392,7 +392,15 @@ class TestConfigurationManager:
                  "default": "test default val",
                  "maximum": "unexpected",
              },
-         }, "maximum", "an integer or float")
+         }, "maximum", "an integer or float"),
+        ({
+             ITEM_NAME: {
+                 "description": "test description val",
+                 "type": "string",
+                 "default": "test default val",
+                 "mandatory": "1",
+             },
+         }, "mandatory", "boolean")
     ])
     async def test__validate_category_val_optional_attributes_unrecognized_entry_name(self, config, item_name, message):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
@@ -537,6 +545,17 @@ class TestConfigurationManager:
             await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=test_config, set_value_val_from_default_val=False)
         assert excinfo.type is exception_name
         assert exception_msg == str(excinfo.value)
+
+    @pytest.mark.asyncio
+    async def test__validate_category_val_with_optional_mandatory(self):
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        test_config = {ITEM_NAME: {"description": "test description", "type": "string", "default": "", "mandatory": "true"}}
+        with pytest.raises(Exception) as excinfo:
+            await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=test_config,
+                                               set_value_val_from_default_val=False)
+        assert excinfo.type is ValueError
+        assert "For {} category, A default value must be given for {}".format(CAT_NAME, ITEM_NAME) == str(excinfo.value)
 
     @pytest.mark.asyncio
     async def test__validate_category_val_with_enum_type(self, reset_singleton):
@@ -2519,7 +2538,6 @@ class TestConfigurationManager:
             assert 1 == patch_log_exc.call_count
         patch_get_all_items.assert_called_once_with(category_name)
 
-
     async def test_update_configuration_item_bulk(self, category_name='rest_api'):
         async def async_mock(return_value):
             return return_value
@@ -2680,7 +2698,8 @@ class TestConfigurationManager:
         (None, 'displayName', 123, "For catname category, entry value must be string for optional item displayName; got <class 'int'>"),
         (None, 'length', '1a', "For catname category, entry value must be an integer for optional item length; got <class 'str'>"),
         (None, 'maximum', 'blah', "For catname category, entry value must be an integer or float for optional item maximum; got <class 'str'>"),
-        (None, 'validity', 12, "For catname category, entry value must be string for optional item validity; got <class 'int'>")
+        (None, 'validity', 12, "For catname category, entry value must be string for optional item validity; got <class 'int'>"),
+        (None, 'mandatory', '1', "For catname category, entry value must be boolean for optional item name mandatory; got <class 'str'>"),
     ])
     async def test_set_optional_value_entry_bad_update(self, reset_singleton, _type, optional_key_name, new_value_entry, exc_msg):
         async def async_mock(return_value):
@@ -2697,7 +2716,7 @@ class TestConfigurationManager:
         c_mgr = ConfigurationManager(storage_client_mock)
         category_name = 'catname'
         item_name = 'itemname'
-        storage_value_entry = {'length': '255', 'displayName': category_name, 'rule': 'value * 3 == 6', 'deprecated': 'false', 'readonly': 'true', 'type': 'string', 'order': '4', 'description': 'Test Optional', 'minimum': min, 'value': '13', 'maximum': max, 'default': '13', 'validity': 'field X is set'}
+        storage_value_entry = {'length': '255', 'displayName': category_name, 'rule': 'value * 3 == 6', 'deprecated': 'false', 'readonly': 'true', 'type': 'string', 'order': '4', 'description': 'Test Optional', 'minimum': min, 'value': '13', 'maximum': max, 'default': '13', 'validity': 'field X is set', 'mandatory': 'false'}
         with patch.object(_logger, "exception") as log_exc:
             with patch.object(ConfigurationManager, '_read_item_val', return_value=async_mock(storage_value_entry)) as readpatch:
                 with pytest.raises(Exception) as excinfo:

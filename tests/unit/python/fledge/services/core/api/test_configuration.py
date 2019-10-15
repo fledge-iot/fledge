@@ -286,20 +286,22 @@ class TestConfiguration:
                 assert item_name == args[1]
             patch_set_entry.assert_called_once_with(category_name, item_name, payload['value'])
 
-    async def test_set_config_item_not_allowed(self, client, category_name='rest_api', item_name='http_port'):
+    @pytest.mark.parametrize("payload, optional_item, message", [
+        ({"value": '8082'}, "readonly", "Update not allowed for {} item_name as it has readonly attribute set"),
+        ({"value": ''}, "mandatory", "A value must be given for {}")
+    ])
+    async def test_set_config_item_not_allowed(self, client, payload, message, optional_item, category_name='rest_api', item_name='http_port'):
         async def async_mock(return_value):
             return return_value
-
-        payload = {"value": '8082'}
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         storage_value_entry = {'value': '8082', 'type': 'integer', 'default': '8081',
-                               'description': 'The port to accept HTTP connections on', 'readonly': 'true'}
+                               'description': 'The port to accept HTTP connections on', optional_item: 'true'}
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'get_category_item', return_value=async_mock(storage_value_entry)) as patch_get_cat:
                 resp = await client.put('/fledge/category/{}/{}'.format(category_name, item_name), data=json.dumps(payload))
                 assert 400 == resp.status
-                assert 'Update not allowed for {} item_name as it has readonly attribute set'.format(item_name) == resp.reason
+                assert message.format(item_name) == resp.reason
             patch_get_cat.assert_called_once_with(category_name, item_name)
 
     @pytest.mark.parametrize("value", [
@@ -433,6 +435,9 @@ class TestConfiguration:
         ({"key": "test", "description": "des"}, "\"'value' param required to create a category\""),
         ({"key": "test", "value": "val"}, "\"'description' param required to create a category\""),
         ({"description": "desc", "value": "val"}, "\"'key' param required to create a category\""),
+        ({"key":"test", "description":"test", "value": {"test1": {"type": "string", "description": "d", "default": "",
+                                                                  "mandatory": "true"}}},
+         "For test category, A default value must be given for test1")
     ])
     async def test_create_category_bad_request(self, client, payload, message):
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -767,21 +772,25 @@ class TestConfiguration:
                 assert "'{} config item not found'".format(config_item_name) == resp.reason
             patch_get_cat_item.assert_called_once_with(category_name, config_item_name)
 
-    async def test_update_bulk_config_not_allowed(self, client, category_name='rest_api'):
+    @pytest.mark.parametrize("payload, optional_item, message", [
+        ({"http_port": '8082'}, "readonly", "Bulk update not allowed for {} item_name as it has readonly attribute set"),
+        ({"http_port": ''}, "mandatory", "A value must be given for {}")
+    ])
+    async def test_update_bulk_config_not_allowed(self, client, payload, optional_item, message,
+                                                  category_name='rest_api'):
         async def async_mock(return_value):
             return return_value
 
-        config_item_name = "http_port"
-        payload = {config_item_name: "8082"}
+        config_item_name = list(payload)[0]
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         storage_value_entry = {'description': 'Port to accept HTTP connections on', 'displayName': 'HTTP Port',
-                               'value': '8081', 'default': '8081', 'order': '2', 'type': 'integer', 'readonly': 'true'}
+                               'value': '8081', 'default': '8081', 'order': '2', 'type': 'integer', optional_item: 'true'}
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'get_category_item', return_value=async_mock(storage_value_entry)) as patch_get_cat_item:
                 resp = await client.put('/fledge/category/{}'.format(category_name), data=json.dumps(payload))
                 assert 400 == resp.status
-                assert 'Bulk update not allowed for {} item_name as it has readonly attribute set'.format(config_item_name) == resp.reason
+                assert message.format(config_item_name) == resp.reason
             patch_get_cat_item.assert_called_once_with(category_name, config_item_name)
 
     @pytest.mark.parametrize("category_name", [

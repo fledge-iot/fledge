@@ -149,7 +149,28 @@ The destination may be overriden by setting the variable *DESTDIR* in the make c
 
 |br|
 
+Upgrading Fledge on Debian based systems
+========================================
 
+Fledge supports the Kerberos authentication starting from the version 1.7.1 and so the related packages are installed by the script `requirements.sh <requirements.sh>`_.
+The *krb5-user* package prompt a question during the installation process asking for the KDC definition, the packages are installed setting the environment *DEBIAN_FRONTEND*
+to avoid this interaction:
+::
+
+	# for Kerberos authentication, avoid interactive questions
+	DEBIAN_FRONTEND=noninteractive apt install -yq krb5-user
+	apt install -y libcurl4-openssl-dev
+
+The upgrade of the Fledge package should follow the same philosophy, it should be done executing the command:
+::
+    sudo DEBIAN_FRONTEND=noninteractive apt -y upgrade
+
+before the upgrade of Fledge, *SETENV:* should be set/added in */etc/sudoers.d/fledg* to allow *sudo* to support the handling of the environment variables, a sample of the file:
+::
+
+    %sudo ALL=(ALL) NOPASSWD:SETENV: /usr/bin/apt -y update, /usr/bin/apt-get -y install fledg, /usr/bin/apt -y install /usr/local/fledg/data/plugins/fledg*.deb, /usr/bin/apt list, /usr/bin/apt -y install fledg*, /usr/bin/apt -y upgrade
+
+|br|
 
 Executing Fledge
 =================
@@ -175,3 +196,20 @@ This version of Fledge relies on SQLite to run. SQLite is embedded into the Stor
 where *user* is the name of the Linux user that will run Fledge. The Fledge database user must have *createdb* privileges (i.e. the *-d* argument).
 |br| |br|
 
+
+Troubleshooting
+===============
+
+Fledge version 1.7.0
+--------------------
+
+$FLEDGE_ROOT/data/etc directory ownership
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The execution of the *sudo make install* immediately after *git clone* will create a *data/etc* directory owned by the *root* user,
+it should be owned by the user that will run Fledge, to fix it:
+::
+    chown -R <user>:<user> $FLEDGE_ROOT/data
+
+where *user* is the name of the Linux user that will run Fledge.
+|br| |br|

@@ -129,11 +129,15 @@ Kerberos keytab file
 --------------------
 The keytab file should be generated on the Kerberos server and copied into the Fledge server in the directory:
 ::
-	${FLEDGE_ROOT}/data/etc/kerberos
+	${FLEDGE_DATA}/etc/kerberos
+
+**NOTE:**
+
+- if **FLEDGE_DATA** is not set its value should be *$FLEDGE_ROOT/data*.
 
 The name of the file should match the value of the North plugin option *PIWebAPIKerberosKeytabFileName*, by default *piwebapi_kerberos_https.keytab*
 ::
-	$ ls -l ${FLEDGE_ROOT}/data/etc/kerberos
+	$ ls -l ${FLEDGE_DATA}/etc/kerberos
 	-rwxrwxrwx 1 fledge fledge  91 Jul 17 09:07 piwebapi_kerberos_https.keytab
 	-rw-rw-r-- 1 fledge fledge 199 Aug 13 15:30 README.rst
 

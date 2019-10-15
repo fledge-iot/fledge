@@ -88,8 +88,9 @@ private:
 	unsigned int			m_discardedReadings; // discarded readings since last update to statistics table
 	FilterPipeline*			m_filterPipeline;
 	
-	std::unordered_set<std::string>   		statsDbEntriesCache;  // confirmed stats table entries
-	std::map<std::string, int>		statsPendingEntries;  // pending stats table entries
+	std::unordered_set<std::string> statsDbEntriesCache;  // confirmed stats table entries
+	std::map<std::string, int>	statsPendingEntries;  // pending stats table entries
+	bool				m_highLatency;	      // Flag to indicate we are exceeding latency request
 };
 
 #endif

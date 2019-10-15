@@ -18,6 +18,8 @@ import os
 import time
 import urllib.parse
 
+SCRIPTS_DIR_ROOT = os.environ.get("FOGLAMP_ROOT") + "/tests/system/lab/scripts/"
+
 
 # TODO:pass version to install script
 def setup_module(module):
@@ -234,8 +236,7 @@ class TestRandomwalk:
         put_request(foglamp_url, put_url, data)
 
         url = foglamp_url + '/foglamp/category/Random_Ema/script/upload'
-        script_path_root = os.environ.get("FOGLAMP_ROOT") + "/tests/system/lab"
-        script_path = 'script=@{}/scripts/ema.py'.format(script_path_root)
+        script_path = 'script=@{}/ema.py'.format(SCRIPTS_DIR_ROOT)
         upload_script = "curl -sX POST '{}' -F '{}'".format(url, script_path)
         exit_code = os.system(upload_script)
         assert exit_code == 0
@@ -296,8 +297,7 @@ class TestRandomwalk2:
         print("upload trendc script...")
         url = foglamp_url + '/foglamp/category/Random1_PF/script/upload'
 
-        script_path_root = os.environ.get("FOGLAMP_ROOT") + "/tests/system/lab"
-        script_path = 'script=@{}/scripts/trendc.py'.format(script_path_root)
+        script_path = 'script=@{}/trendc.py'.format(SCRIPTS_DIR_ROOT)
         upload_script = "curl -sX POST '{}' -F '{}'".format(url, script_path)
         exit_code = os.system(upload_script)
         assert exit_code == 0
@@ -318,18 +318,16 @@ class TestRandomwalk2:
             assert "TIMEOUT! randomwalk and ema_long data not seen in randomwalk graph." + foglamp_url + "/foglamp/asset/randomwalk?seconds=600"
 
     def test_randomwalk2_python35_filter(self, foglamp_url, retries, wait_time):
-        script_path_root = os.environ.get("FOGLAMP_ROOT") + "/tests/system/lab"
-        copy_file = "cp {}/scripts/trendc.py {}/scripts/trendc.py.bak".format(script_path_root, script_path_root)
+        copy_file = "cp {}/trendc.py {}/trendc.py.bak".format(SCRIPTS_DIR_ROOT, SCRIPTS_DIR_ROOT)
         exit_code = os.system(copy_file)
         assert exit_code == 0
 
-        sed_cmd = "sed -i \"s/reading\[b'ema_long/reading\[b'ema_longX/g\" {}/scripts/trendc.py".format(script_path_root)
+        sed_cmd = "sed -i \"s/reading\[b'ema_long/reading\[b'ema_longX/g\" {}/trendc.py".format(SCRIPTS_DIR_ROOT)
         exit_code = os.system(sed_cmd)
         assert exit_code == 0
 
         url = foglamp_url + '/foglamp/category/Random1_PF/script/upload'
-        script_path_root = os.environ.get("FOGLAMP_ROOT") + "/tests/system/lab"
-        script_path = 'script=@{}/scripts/trendc.py'.format(script_path_root)
+        script_path = 'script=@{}/trendc.py'.format(SCRIPTS_DIR_ROOT)
         upload_script = "curl -sX POST '{}' -F '{}'".format(url, script_path)
         exit_code = os.system(upload_script)
         assert exit_code == 0
@@ -351,14 +349,12 @@ class TestRandomwalk2:
             assert "TIMEOUT! randomwalk and ema_longX data not seen in randomwalk graph." + foglamp_url + "/foglamp/asset/randomwalk?seconds=600"
 
     def test_updated_randomwalk2_python35_filter(self, foglamp_url, retries, wait_time):
-        script_path_root = os.environ.get("FOGLAMP_ROOT") + "/tests/system/lab"
-        move_file = "mv {}/scripts/trendc.py.bak {}/scripts/trendc.py".format(script_path_root, script_path_root)
+        move_file = "mv {}/trendc.py.bak {}/trendc.py".format(SCRIPTS_DIR_ROOT, SCRIPTS_DIR_ROOT)
         exit_code = os.system(move_file)
         assert exit_code == 0
 
         url = foglamp_url + '/foglamp/category/Random1_PF/script/upload'
-        script_path_root = os.environ.get("FOGLAMP_ROOT") + "/tests/system/lab"
-        script_path = 'script=@{}/scripts/ema.py'.format(script_path_root)
+        script_path = 'script=@{}/ema.py'.format(SCRIPTS_DIR_ROOT)
         upload_script = "curl -sX POST '{}' -F '{}'".format(url, script_path)
         exit_code = os.system(upload_script)
         assert exit_code == 0
@@ -470,8 +466,7 @@ class TestEventEngine:
 
         # Upload Python Script (write_out.py)
         url = foglamp_url + urllib.parse.quote('/foglamp/category/deliveryNegative Sine/script/upload')
-        script_path_root = os.environ.get("FOGLAMP_ROOT") + "/tests/system/lab"
-        script_path = 'script=@{}/scripts/write_out.py'.format(script_path_root)
+        script_path = 'script=@{}/write_out.py'.format(SCRIPTS_DIR_ROOT)
         upload_script = "curl -sX POST '{}' -F '{}'".format(url, script_path)
         exit_code = os.system(upload_script)
         assert exit_code == 0

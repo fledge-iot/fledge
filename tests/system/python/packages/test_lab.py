@@ -243,6 +243,8 @@ class TestRandomwalk:
         exit_code = os.system(upload_script)
         assert exit_code == 0
 
+        time.sleep(wait_time)
+
         while retries:
             get_url = "/foglamp/asset/randomwalk?seconds=600"
             data = get_request(foglamp_url, get_url)
@@ -275,8 +277,9 @@ class TestRandomwalk:
         assert "Random" not in [sch["name"] for sch in result["schedules"]]
 
 
-class TestRandomwalk2:
-    def test_randomwalk2_south_filter(self, foglamp_url, wait_time, retries):
+class TestRandomwalk1:
+
+    def test_randomwalk1_south_with_python35_filter(self, foglamp_url, wait_time, retries):
         print("Add Randomwalk south service again ...")
         data = {"name": "Random1", "type": "south", "plugin": "randomwalk", "enabled": True,
                 "config": {"assetName": {"value": "randomwalk1"}}}
@@ -309,14 +312,15 @@ class TestRandomwalk2:
             if len(data) and "randomwalk" in data[0]["reading"] and "ema_long" in data[0]["reading"]:
                 assert 0 < data[0]["reading"]["randomwalk"]
                 assert 0 < data[0]["reading"]["ema_long"]
+                # TODO: verify ema_short and trend in reading
                 # TODO: verify asset tracker entry
                 break
             retries -= 1
 
         if retries == 0:
-            assert False, "TIMEOUT! randomwalk and ema_long data not seen in randomwalk graph." + foglamp_url + "/foglamp/asset/randomwalk?seconds=600"
+            assert False, "TIMEOUT! randomwalk and ema_long data not seen in randomwalk1 graph." + foglamp_url + "/foglamp/asset/randomwalk1?seconds=600"
 
-    def test_randomwalk2_python35_filter(self, foglamp_url, retries, wait_time):
+    def test_randomwalk1_python35_filter_script_content_reconfig(self, foglamp_url, retries, wait_time):
         copy_file = "cp {}/trendc.py {}/trendc.py.bak".format(SCRIPTS_DIR_ROOT, SCRIPTS_DIR_ROOT)
         exit_code = os.system(copy_file)
         assert exit_code == 0
@@ -325,6 +329,7 @@ class TestRandomwalk2:
         exit_code = os.system(sed_cmd)
         assert exit_code == 0
 
+        print("upload modified trendc script...")
         url = foglamp_url + '/foglamp/category/Random1_PF/script/upload'
         script_path = 'script=@{}/trendc.py'.format(SCRIPTS_DIR_ROOT)
         upload_script = "curl -sX POST '{}' -F '{}'".format(url, script_path)
@@ -337,20 +342,20 @@ class TestRandomwalk2:
             get_url = "/foglamp/asset/randomwalk1?seconds=600"
             data = get_request(foglamp_url, get_url)
             if len(data) and "randomwalk" in data[0]["reading"] and "ema_longX" in data[0]["reading"]:
-                assert data[0]["reading"]["randomwalk"] != ""
-                assert data[0]["reading"]["ema_longX"] != ""
+                assert 0 < data[0]["reading"]["randomwalk"]
+                assert 0 < data[0]["reading"]["ema_longX"]
                 break
                 # TODO: verify asset tracker entry
             retries -= 1
 
-        if retries == 0:
-            assert False, "TIMEOUT! randomwalk and ema_longX data not seen in randomwalk graph." + foglamp_url + "/foglamp/asset/randomwalk?seconds=600"
-
-    def test_updated_randomwalk2_python35_filter(self, foglamp_url, retries, wait_time):
         move_file = "mv {}/trendc.py.bak {}/trendc.py".format(SCRIPTS_DIR_ROOT, SCRIPTS_DIR_ROOT)
         exit_code = os.system(move_file)
-        assert exit_code == 0
+        assert exit_code == 0, "{} cmd failed!".format(move_file)
 
+        if retries == 0:
+            assert False, "TIMEOUT! randomwalk and ema_longX data not seen in randomwalk1 graph." + foglamp_url + "/foglamp/asset/randomwalk1?seconds=600"
+
+    def test_randomwalk1_python35_filter_script_reconfig(self, foglamp_url, retries, wait_time):
         url = foglamp_url + '/foglamp/category/Random1_PF/script/upload'
         script_path = 'script=@{}/ema.py'.format(SCRIPTS_DIR_ROOT)
         upload_script = "curl -sX POST '{}' -F '{}'".format(url, script_path)
@@ -370,7 +375,7 @@ class TestRandomwalk2:
             retries -= 1
 
         if retries == 0:
-            assert False, "TIMEOUT! randomwalk and ema data not seen in randomwalk graph." + foglamp_url + "/foglamp/asset/randomwalk?seconds=600"
+            assert False, "TIMEOUT! randomwalk and ema data not seen in randomwalk1 graph." + foglamp_url + "/foglamp/asset/randomwalk1?seconds=600"
 
 
 @pytest.mark.skipif(os.uname()[4][:3] != 'arm', reason="only compatible with arm architecture")
@@ -406,18 +411,24 @@ class TestEnviroPhat:
 class TestEventEngine:
     """This will test the Notification service in foglamp."""
 
-    def test_event_engine(self, foglamp_url, retries):
+    def test_event_engine(self, foglamp_url, retries, wait_time):
         payload = {"name": "FogLAMP Notifications", "type": "notification", "enabled": True}
         post_url = "/foglamp/service"
         post_request(foglamp_url, post_url, payload)
 
+        time.sleep(wait_time)
+
+        svc_found = False
         while retries:
             get_url = "/foglamp/service"
             resp = get_request(foglamp_url, get_url)
             for item in resp["services"]:
                 if item['name'] == "FogLAMP Notifications":
+                    svc_found = True
                     assert item['status'] == "running"
-                    break
+                    break  # break for loop
+            if svc_found:
+                break  # break while loop
             retries -= 1
 
         if retries == 0:
@@ -425,30 +436,29 @@ class TestEventEngine:
 
     def test_positive_sine_notification(self, foglamp_url, retries, wait_time):
         """Add Notification with Threshold Rule and Asset Notification (Positive Sine)"""
-        time.sleep(wait_time * 2)
+
         payload = {"name": "Positive Sine", "description": "Positive Sine notification instance", "rule": "Threshold",
                    "channel": "asset", "notification_type": "retriggered", "enabled": True}
         post_url = "/foglamp/notification"
         post_request(foglamp_url, post_url, payload)
 
         payload = {"asset": "sinusoid", "datapoint": "sinusoid"}
-        put_url = "/foglamp/category/rulePositive%20Sine"
-        put_request(foglamp_url, put_url, payload)
+        put_url = "/foglamp/category/rulePositive Sine"
+        put_request(foglamp_url, urllib.parse.quote(put_url), payload)
 
         payload = {"asset": "positive_sine", "description": "positive", "enable": "true"}
-        put_url = "/foglamp/category/deliveryPositive%20Sine"
-        put_request(foglamp_url, put_url, payload)
+        put_url = "/foglamp/category/deliveryPositive Sine"
+        put_request(foglamp_url, urllib.parse.quote(put_url), payload)
 
         time.sleep(wait_time)
 
         while retries:
             get_url = "/foglamp/asset/positive_sine?seconds=600"
             resp = get_request(foglamp_url, get_url)
-            if len(resp) > 0:
-                if "event" in resp[0]["reading"] and "rule" in resp[0]["reading"]:
-                    assert resp[0]["reading"]["event"] == "triggered"
-                    assert resp[0]["reading"]["rule"] == "Positive Sine"
-                    break
+            if len(resp) and "event" in resp[0]["reading"] and "rule" in resp[0]["reading"]:
+                assert resp[0]["reading"]["event"] == "triggered"
+                assert resp[0]["reading"]["rule"] == "Positive Sine"
+                break
             retries -= 1
 
         if retries == 0:
@@ -490,12 +500,12 @@ class TestEventEngine:
         payload = {"name": "sin #1", "plugin": "sinusoid", "type": "south", "enabled": True}
         post_url = "/foglamp/service"
         resp = post_request(foglamp_url, post_url, payload)
-        assert resp["id"] != "", "ERROR! Failed to add sin #1"
-        assert resp["name"] == "sin #1", "ERROR! Failed to add sin #1"
+        assert resp["id"] != "", "Failed to add sin #1"
+        assert resp["name"] == "sin #1", "Failed to add sin #1"
 
         print("Create event instance with threshold and asset; with notification trigger type toggled")
         payload = {"name": "test #1", "description": "test notification instance", "rule": "Threshold",
-                   "channel": "asset","notification_type": "toggled", "enabled": True}
+                   "channel": "asset", "notification_type": "toggled", "enabled": True}
         post_url = "/foglamp/notification"
         post_request(foglamp_url, post_url, payload)
         
@@ -510,15 +520,22 @@ class TestEventEngine:
         
         get_url = "/foglamp/category/ruletest #1"
         resp = get_request(foglamp_url, urllib.parse.quote(get_url))
-        assert len(resp) > 0
+        assert resp["asset"]["value"] == "sinusoid"
+        assert resp["datapoint"]["value"] == "sinusoid"
+        assert resp["trigger_value"]["value"] == "0.8"
 
         print("Set delivery")
         payload = {"asset": "sin 0.8", "description": "asset notification", "enable": "true"}
         put_url = "/foglamp/category/deliverytest #1"
         put_request(foglamp_url, urllib.parse.quote(put_url), payload)
 
-        # TODO: FOGL-3115 verify asset tracker entry
+        get_url = "/foglamp/category/deliverytest #1"
+        resp = get_request(foglamp_url, urllib.parse.quote(get_url))
+        assert resp["asset"]["value"] == "sin 0.8"
+        assert resp["enable"]["value"] == "true"
+
         s = wait_time*2
+
         print("Verify sin 0.8 has been created")
         while retries:
             time.sleep(s)
@@ -529,10 +546,12 @@ class TestEventEngine:
                 break
             retries -= 1
 
+        # TODO: FOGL-3115 verify asset tracker entry
+
         if retries == 0:
             assert False, "TIMEOUT! sin 0.8 event not fired." + foglamp_url + "/foglamp/asset/sin 0.8"
 
-        print("When rule is triggred, There should be 2 entries in Logs->notifications NTFCL and NTFSN")
+        print("When rule is triggred, There should be audit entries for NTFSN & NTFCL")
         get_url = "/foglamp/audit?limit=1&source=NTFSN&severity=INFORMATION"
         resp = get_request(foglamp_url, get_url)
         assert len(resp['audit'])
@@ -542,7 +561,7 @@ class TestEventEngine:
                 assert "INFORMATION" == audit_detail['severity']
                 assert "NTFSN" == audit_detail['source']
 
-        time.sleep(1)  # let clear event to trigger
+        time.sleep(2)  # let clear event to trigger
 
         get_url = "/foglamp/audit?limit=1&source=NTFCL&severity=INFORMATION"
         resp = get_request(foglamp_url, get_url)

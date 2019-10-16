@@ -600,7 +600,7 @@ void SouthService::configChange(const string& categoryName, const string& catego
 		} catch (ConfigItemNotFound e) {
 			logger->error("Failed to update poll interval following configuration change");
 		}
-		unsigned long threshold;
+		unsigned long threshold = 5000;	// This should never be used
 		if (m_configAdvanced.itemExists("bufferThreshold"))
 		{
 			threshold = (unsigned int)strtol(m_configAdvanced.getValue("bufferThreshold").c_str(), NULL, 10);

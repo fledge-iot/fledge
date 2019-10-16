@@ -197,7 +197,7 @@ schema_check : apply_version
 # Destination may be overridden by use of the DESTDIR=<location> directive
 # This first does a make to build anything needed for the installation.
 install : $(INSTALL_DIR) \
-    generate_selfcertificate \
+	generate_selfcertificate \
 	schema_check \
 	foglamp_version_file_install \
 	c_install \
@@ -470,6 +470,8 @@ install_data : $(DATA_INSTALL_DIR) $(DATA_SRC_DIR)
 # directories must be set to be owned by the calling user.
 ifdef SUDO_USER
 ifeq ("$(USER)","root")
+
+	chown -R ${SUDO_USER}:${SUDO_USER} $(DATA_SRC_DIR)
 	chown -R ${SUDO_USER}:${SUDO_USER} $(INSTALL_DIR)/$(DATA_SRC_DIR)
 endif
 endif

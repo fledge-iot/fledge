@@ -378,6 +378,87 @@ JSONReading::JSONReading(const Value& json)
 						    break;
 						    
 					    }
+					case kObjectType:
+					    {
+						    // TODO This should be recursive
+						vector<Datapoint *> *obj = new vector<Datapoint *>;
+						for (auto &mo : m.value.GetObject()) {
+							switch (mo.value.GetType()) {
+								// String
+								case (kStringType): {
+									DatapointValue value(mo.value.GetString());
+									obj->push_back(new Datapoint(mo.name.GetString(),
+													 value));
+									break;
+								}
+
+									// Number
+								case (kNumberType): {
+									if (mo.value.IsInt() ||
+									    mo.value.IsUint() ||
+									    mo.value.IsInt64() ||
+									    mo.value.IsUint64()) {
+
+										DatapointValue *value;
+										if (mo.value.IsInt() ||
+										    mo.value.IsUint()) {
+											value = new DatapointValue((long) mo.value.GetInt());
+										} else {
+											value = new DatapointValue((long) mo.value.GetInt64());
+										}
+										obj->push_back(new Datapoint(mo.name.GetString(),
+														 *value));
+										delete value;
+										break;
+									} else if (mo.value.IsDouble()) {
+										DatapointValue value(mo.value.GetDouble());
+										obj->push_back(new Datapoint(mo.name.GetString(),
+														 value));
+										break;
+									} else {
+										string errMsg = "Cannot parse the numeric type";
+										errMsg += " of reading element '";
+										errMsg.append(mo.name.GetString());
+										errMsg += "'";
+
+										throw new ReadingSetException(errMsg.c_str());
+										break;
+									}
+								}
+
+								case kArrayType:
+								    {
+									    vector<double> arrayValues;
+									    for (auto& v : mo.value.GetArray())
+									    {
+										    if (v.IsDouble())
+										    {
+											    arrayValues.push_back(v.GetDouble());
+										    }
+										    else if (v.IsInt() || v.IsUint())
+										    {
+											    double i = (double)v.GetInt();
+											    arrayValues.push_back(i);
+										    }
+										    else if (v.IsInt64() || v.IsUint64())
+										    {
+											    double i = (double)v.GetInt64();
+											    arrayValues.push_back(i);
+										    }
+									    }
+									    DatapointValue value(arrayValues);
+									    obj->push_back(new Datapoint(mo.name.GetString(),
+														 value));
+									    break;
+									    
+								}
+							}
+						}
+						DatapointValue value(obj, true);
+						this->addDatapoint(new Datapoint(m.name.GetString(),
+											 value));
+					    break;
+					    }
 
 					default: {
 						string errMsg = "Cannot handle unsupported type '";

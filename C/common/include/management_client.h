@@ -53,9 +53,6 @@ class ManagementClient {
 						      const std::string& details);
 
 private:
-    std::string 	url_encode(const std::string &s) const;
-
-private:
     std::ostringstream 			m_urlbase;
 		std::map<std::thread::id, HttpClient *> m_client_map;
 		HttpClient				*m_client;

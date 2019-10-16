@@ -215,6 +215,7 @@ Ingest::Ingest(StorageClient& storage,
 	m_logger = Logger::getLogger();
 	m_data = NULL;
 	m_discardedReadings = 0;
+	m_highLatency = false;
 	
 	// populate asset tracking cache
 	//m_assetTracker = new AssetTracker(m_mgtClient);
@@ -423,9 +424,15 @@ vector<Reading *>* newQ = new vector<Reading *>();
 		const Reading *firstReading = *itr;
 		time_t now = time(0);
 		unsigned long latency = now - firstReading->getUserTimestamp();
-		if (latency > m_timeout / 1000)	// m_timeout is in milliseconds
+		if (latency > m_timeout / 1000 && m_highLatency == false)	// m_timeout is in milliseconds
 		{
-			m_logger->warn("Current send latency of %d seconds exceeds requested maximum latency of %d seconds", latency, m_timeout);
+			m_logger->warn("Current send latency of %d seconds exceeds requested maximum latency of %d seconds", latency, m_timeout / 1000);
+			m_highLatency = true;
+		}
+		else if (latency <= m_timeout / 1000 && m_highLatency)
+		{
+			m_logger->warn("Send latency now within requested limits");
+			m_highLatency = false;
 		}
 	}
 		

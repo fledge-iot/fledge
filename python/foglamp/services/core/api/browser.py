@@ -35,6 +35,7 @@ Supports a number of REST API:
   will have an effect.
   Note: if datetime units are supplied then limit will not respect i.e mutually exclusive
 """
+import datetime
 
 from aiohttp import web
 
@@ -59,6 +60,7 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/asset/{asset_code}/{reading}', asset_reading)
     app.router.add_route('GET', '/foglamp/asset/{asset_code}/{reading}/summary', asset_summary)
     app.router.add_route('GET', '/foglamp/asset/{asset_code}/{reading}/series', asset_averages)
+    app.router.add_route('GET', '/foglamp/asset/{asset_code}/{reading}/bucket/{bucket_size}', asset_readings_with_bucket_size)
 
 
 def prepare_limit_skip_payload(request, _dict):
@@ -295,17 +297,26 @@ async def asset_summary(request):
     """
     asset_code = request.match_info.get('asset_code', '')
     reading = request.match_info.get('reading', '')
-    _aggregate = PayloadBuilder().AGGREGATE(["min", ["reading", reading]], ["max", ["reading", reading]],
-                                            ["avg", ["reading", reading]]) \
-        .ALIAS('aggregate', ('reading', 'min', 'min'), ('reading', 'max', 'max'),
-               ('reading', 'avg', 'average')).chain_payload()
-    _where = PayloadBuilder(_aggregate).WHERE(["asset_code", "=", asset_code]).chain_payload()
-    _and_where = where_clause(request, _where)
-    payload = PayloadBuilder(_and_where).payload()
-
-    results = {}
     try:
+        payload = PayloadBuilder().SELECT("reading").WHERE(["asset_code", "=", asset_code]).LIMIT(1).ORDER_BY(
+            ["user_ts", "desc"]).payload()
         _readings = connect.get_readings_async()
+        results = await _readings.query(payload)
+        if not results['rows']:
+            raise web.HTTPNotFound(reason="{} asset_code not found".format(asset_code))
+
+        # TODO: FOGL-1768 when support available from storage layer then avoid multiple calls
+        reading_keys = list(results['rows'][-1]['reading'].keys())
+        if reading not in reading_keys:
+            raise web.HTTPNotFound(reason="{} reading key is not found".format(reading))
+
+        _aggregate = PayloadBuilder().AGGREGATE(["min", ["reading", reading]], ["max", ["reading", reading]],
+                                                ["avg", ["reading", reading]]) \
+            .ALIAS('aggregate', ('reading', 'min', 'min'), ('reading', 'max', 'max'),
+                   ('reading', 'avg', 'average')).chain_payload()
+        _where = PayloadBuilder(_aggregate).WHERE(["asset_code", "=", asset_code]).chain_payload()
+        _and_where = where_clause(request, _where)
+        payload = PayloadBuilder(_and_where).payload()
         results = await _readings.query(payload)
         # for aggregates, so there can only ever be one row
         response = results['rows'][0]
@@ -422,3 +433,65 @@ def where_clause(request, where):
 
     payload = PayloadBuilder(where).AND_WHERE(['user_ts', 'newer', val]).chain_payload()
     return payload
+
+
+async def asset_readings_with_bucket_size(request: web.Request) -> web.Response:
+    """ Retrieve readings for a single asset between two points in time.
+        These points are defined as a relative value in seconds back in time from the current time and a number of seconds worth of data.
+        For example: For asset XYZ from (now - 60) for 60 seconds to get a minutes worth of data from a minute in the passed.
+        The samples returned are averages grouped over a period of time, know as a bucket size.
+        If 60 seconds worth of data is requested and a bucket size of 10 seconds is given then 6 values will be returned.
+        Each of those 6 readings is an average over a 10 seconds period.
+
+        If bucket_size is not given then the bucket size is 1
+        If start is not given then the start point is now - 60 seconds.
+        If length is not given then length is 60 seconds. And length is calculated with length / bucket_size
+
+       :Example:
+               curl -sX GET http://localhost:8081/foglamp/asset/{asset_code}/{reading}/bucket/{bucket_size}
+               curl -sX GET http://localhost:8081/foglamp/asset/{asset_code}/{reading}/bucket/{bucket_size}?start=<start point>
+               curl -sX GET http://localhost:8081/foglamp/asset/{asset_code}/{reading}/bucket/{bucket_size}?length=<length>
+               curl -sX GET "http://localhost:8081/foglamp/asset/{asset_code}/{reading}/bucket/{bucket_size}?start=<start point>&length=<length>"
+       """
+    try:
+        asset_code = request.match_info.get('asset_code', '')
+        reading = request.match_info.get('reading', '')
+        bucket_size = request.match_info.get('bucket_size', 1)
+        length = 60
+        ts = datetime.datetime.now().timestamp()
+        start = ts - 60
+        _aggregate = PayloadBuilder().AGGREGATE(["min", ["reading", reading]], ["max", ["reading", reading]],
+                                                ["avg", ["reading", reading]]) \
+            .ALIAS('aggregate', ('reading', 'min', 'min'), ('reading', 'max', 'max'),
+                   ('reading', 'avg', 'average')).chain_payload()
+        if 'start' in request.query and request.query['start'] != '':
+            try:
+                start = float(request.query['start'])
+                if start < 0:
+                    raise ValueError
+            except ValueError:
+                raise web.HTTPBadRequest(reason="start must be a positive integer")
+
+        _where = PayloadBuilder(_aggregate).WHERE(["asset_code", "=", asset_code]).AND_WHERE(["user_ts", ">=", str(start)]).chain_payload()
+        _bucket = PayloadBuilder(_where).TIMEBUCKET('user_ts', bucket_size, 'YYYY-MM-DD HH24:MI:SS', 'timestamp').chain_payload()
+        if 'length' in request.query and request.query['length'] != '':
+            try:
+                length = int(request.query['length'])
+                if length < 0:
+                    raise ValueError
+            except ValueError:
+                raise web.HTTPBadRequest(reason="length must be a positive integer")
+        payload = PayloadBuilder(_bucket).LIMIT(int(length / int(bucket_size))).payload()
+        # Sort & timebucket modifiers can not be used in same payload
+        # payload = PayloadBuilder(limit).ORDER_BY(["user_ts", "desc"]).payload()
+        _readings = connect.get_readings_async()
+        results = await _readings.query(payload)
+        response = results['rows']
+    except (KeyError, IndexError) as e:
+        raise web.HTTPNotFound(reason=e)
+    except (TypeError, ValueError) as e:
+        raise web.HTTPBadRequest(reason=e)
+    except Exception as e:
+        raise web.HTTPInternalServerError(reason=e)
+    else:
+        return web.json_response(response)

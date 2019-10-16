@@ -27,6 +27,7 @@ from foglamp.services.core.api.plugins import common
 from foglamp.services.core.api.service import _logger
 from foglamp.services.core.api.plugins import install
 from foglamp.services.core.api.plugins.exceptions import *
+from foglamp.common.audit_logger import AuditLogger
 
 
 __author__ = "Ashwin Gopalakrishnan, Ashish Jabble"
@@ -607,24 +608,33 @@ class TestService:
         assert 404 == resp.status
         assert '{} service does not exist.'.format(name) == resp.reason
 
-    async def test_post_service_package_from_repo(self, client):
+    async def test_post_service_package_from_repo(self, client, loop):
         async def async_mock(return_value):
             return return_value
 
         svc_name = 'foglamp-service-notification'
         log = 'log/190801-12-19-24'
         link = "{}-{}.log".format(log, svc_name)
+        msg = "installed"
         param = {"format": "repository", "name": svc_name}
         _platform = platform.platform()
         pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
+        storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(common, 'fetch_available_packages', return_value=([svc_name], log)) as patch_fetch_available_package:
             with patch.object(install, 'install_package_from_repo',
-                              return_value=async_mock((0, link))) as install_package_patch:
-                resp = await client.post('/foglamp/service?action=install', data=json.dumps(param))
-                assert 200 == resp.status
-                result = await resp.text()
-                response = json.loads(result)
-                assert {"link": link, "message": "{} is successfully installed".format(svc_name)} == response
+                              return_value=async_mock((0, link, msg))) as install_package_patch:
+                with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                    with patch.object(AuditLogger, '__init__', return_value=None):
+                        with patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(
+                                async_mock(None), loop=loop)) as audit_info_patch:
+                            resp = await client.post('/foglamp/service?action=install', data=json.dumps(param))
+                            assert 200 == resp.status
+                            result = await resp.text()
+                            response = json.loads(result)
+                            assert {"link": link, "message": "{} is successfully {}".format(svc_name, msg)} == response
+                    args, kwargs = audit_info_patch.call_args
+                    assert 'PKGIN' == args[0]
+                    assert {'packageName': svc_name} == args[1]
             install_package_patch.assert_called_once_with(svc_name, pkg_mgt, None)
         patch_fetch_available_package.assert_called_once_with('service')
 

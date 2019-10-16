@@ -20,16 +20,16 @@ fi
 ./install ${VERSION}
 
 for i in $(seq ${ITERATIONS}); do
-	echo "***************"
-	echo "***************"
-	echo "Run $i"
-	echo "***************"
-	echo "***************"
-	./reset
-	./test
-	if [[ $? -eq 1 ]]
-	then
-		exit 1
-	fi
+  echo "***************"
+  echo "***************"
+  echo "Run $i"
+  echo "***************"
+  echo "***************"
+  ./reset
+  ./test
+  if [[ $? -eq 1 ]]
+  then
+    exit 1
+  fi
 done
 

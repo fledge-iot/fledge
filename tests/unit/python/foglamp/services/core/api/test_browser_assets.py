@@ -26,19 +26,16 @@ __version__ = "${VERSION}"
 URLS = ['foglamp/asset',
         '/foglamp/asset/fogbench%2fhumidity',
         '/foglamp/asset/fogbench%2fhumidity/temperature',
-        '/foglamp/asset/fogbench%2fhumidity/temperature/summary',
         '/foglamp/asset/fogbench%2fhumidity/temperature/series']
 
 PAYLOADS = ['{"aggregate": {"column": "*", "alias": "count", "operation": "count"}, "group": "asset_code"}',
             '{"return": ["reading", {"column": "user_ts", "alias": "timestamp"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 20, "sort": {"column": "user_ts", "direction": "desc"}}',
             '{"return": [{"column": "user_ts", "alias": "timestamp"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 20, "sort": {"column": "user_ts", "direction": "desc"}}',
-            '{"aggregate": [{"operation": "min", "alias": "min", "json": {"properties": "temperature", "column": "reading"}}, {"operation": "max", "alias": "max", "json": {"properties": "temperature", "column": "reading"}}, {"operation": "avg", "alias": "average", "json": {"properties": "temperature", "column": "reading"}}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}}',
             '{"aggregate": [{"operation": "min", "alias": "min", "json": {"properties": "temperature", "column": "reading"}}, {"operation": "max", "alias": "max", "json": {"properties": "temperature", "column": "reading"}}, {"operation": "avg", "alias": "average", "json": {"properties": "temperature", "column": "reading"}}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "group": {"format": "YYYY-MM-DD HH24:MI:SS", "column": "user_ts", "alias": "timestamp"}, "limit": 20, "sort": {"column": "user_ts", "direction": "desc"}}'
             ]
 RESULTS = [{'rows': [{'count': 10, 'asset_code': 'TI sensorTag/luxometer'}], 'count': 1},
            {'rows': [{'reading': {'temperature': 26, 'humidity': 93}, 'timestamp': '2018-02-16 15:08:51.026'}], 'count': 1},
            {'rows': [{'temperature': 26, 'timestamp': '2018-02-16 15:08:51.026'}], 'count': 1},
-           {'rows': [{'max': '9', 'min': '9', 'average': '9'}], 'count': 1},
            {'rows': [{'average': '26', 'timestamp': '2018-02-16 15:08:51', 'max': '26', 'min': '26'}], 'count': 1}
            ]
 
@@ -145,6 +142,59 @@ class TestBrowserAssets:
             resp = await client.get(request_url)
             assert 500 == resp.status
             assert 'Internal Server Error' == resp.reason
+
+    @pytest.mark.parametrize("status_code, message, storage_result, payload", [
+        (400, "ERROR: something went wrong", {'message': 'ERROR: something went wrong', 'retryable': False,
+                                             'entryPoint': 'retrieve'},
+         '{"where": {"value": "fogbench/humidity", "column": "asset_code", "condition": "="}, "return": ["reading"], '
+         '"sort": {"column": "user_ts", "direction": "desc"}, "limit": 1}'),
+        (404, "fogbench/humidity asset_code not found", {"rows": [], "count": 0},
+         '{"where": {"value": "fogbench/humidity", "column": "asset_code", "condition": "="}, "return": ["reading"], '
+         '"sort": {"column": "user_ts", "direction": "desc"}, "limit": 1}'),
+        (404, "temperature reading key is not found", {"count": 1, "rows": [{"reading": {"temp": 286.8, "visibility": 10000,
+                                                                                 "pressure": 1000, "humidity": 93}}]},
+         '{"where": {"value": "fogbench/humidity", "column": "asset_code", "condition": "="}, "return": ["reading"], '
+         '"sort": {"column": "user_ts", "direction": "desc"}, "limit": 1}')
+    ])
+    async def test_bad_summary(self, client, status_code, message, storage_result, payload):
+        readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
+        with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
+            with patch.object(readings_storage_client_mock, 'query', return_value=mock_coro(storage_result)) \
+                    as query_patch:
+                resp = await client.get('/foglamp/asset/fogbench%2fhumidity/temperature/summary')
+                assert status_code == resp.status
+                assert message == resp.reason
+            args, kwargs = query_patch.call_args
+            assert json.loads(payload) == json.loads(args[0])
+            query_patch.assert_called_once_with(args[0])
+
+    async def test_good_summary(self, client):
+        result1 = {"count": 1, "rows": [{"reading": {"temperature": 286.8, "visibility": 10000, "pressure": 1000,
+                                                     "humidity": 93}}]}
+        result2 = {'rows': [{'max': '9', 'min': '9', 'average': '9'}], 'count': 1}
+        payload = '{"aggregate": [{"operation": "min", "alias": "min", "json": {"properties": "temperature", "column": ' \
+                  '"reading"}}, {"operation": "max", "alias": "max", "json": {"properties": "temperature", "column": ' \
+                  '"reading"}}, {"operation": "avg", "alias": "average", "json": {"properties": "temperature", ' \
+                  '"column": "reading"}}], "where": {"column": "asset_code", "condition": "=", ' \
+                  '"value": "fogbench/humidity"}}'
+        asset_payload = '{"return": ["reading"], "where": {"column": "asset_code", "condition": "=", ' \
+            '"value": "fogbench/humidity"}, "limit": 1, "sort": {"column": "user_ts", "direction": "desc"}}'
+        readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
+        with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
+            with patch.object(readings_storage_client_mock, 'query', side_effect=[mock_coro(result1),
+                                                                                  mock_coro(result2)]) as query_patch:
+                resp = await client.get('/foglamp/asset/fogbench%2fhumidity/temperature/summary')
+                assert 200 == resp.status
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert {'temperature': result2['rows'][0]} == json_response
+            args, kwargs = query_patch.call_args
+            assert json.loads(payload) == json.loads(args[0])
+            assert 2 == query_patch.call_count
+            args0, kwargs0 = query_patch.call_args_list[0]
+            args1, kwargs1 = query_patch.call_args_list[1]
+            assert json.loads(asset_payload) == json.loads(args0[0])
+            assert json.loads(payload) == json.loads(args1[0])
 
     @pytest.mark.parametrize("group_name, payload, result", [
         ('seconds', '{"aggregate": [{"alias": "min", "operation": "min", "json": {"properties": "temperature", "column": "reading"}}, {"alias": "max", "operation": "max", "json": {"properties": "temperature", "column": "reading"}}, {"alias": "average", "operation": "avg", "json": {"properties": "temperature", "column": "reading"}}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "group": {"alias": "timestamp", "format": "YYYY-MM-DD HH24:MI:SS", "column": "user_ts"}, "limit": 20, "sort": {"column": "user_ts", "direction": "desc"}}',

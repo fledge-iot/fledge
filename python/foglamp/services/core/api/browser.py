@@ -297,17 +297,26 @@ async def asset_summary(request):
     """
     asset_code = request.match_info.get('asset_code', '')
     reading = request.match_info.get('reading', '')
-    _aggregate = PayloadBuilder().AGGREGATE(["min", ["reading", reading]], ["max", ["reading", reading]],
-                                            ["avg", ["reading", reading]]) \
-        .ALIAS('aggregate', ('reading', 'min', 'min'), ('reading', 'max', 'max'),
-               ('reading', 'avg', 'average')).chain_payload()
-    _where = PayloadBuilder(_aggregate).WHERE(["asset_code", "=", asset_code]).chain_payload()
-    _and_where = where_clause(request, _where)
-    payload = PayloadBuilder(_and_where).payload()
-
-    results = {}
     try:
+        payload = PayloadBuilder().SELECT("reading").WHERE(["asset_code", "=", asset_code]).LIMIT(1).ORDER_BY(
+            ["user_ts", "desc"]).payload()
         _readings = connect.get_readings_async()
+        results = await _readings.query(payload)
+        if not results['rows']:
+            raise web.HTTPNotFound(reason="{} asset_code not found".format(asset_code))
+
+        # TODO: FOGL-1768 when support available from storage layer then avoid multiple calls
+        reading_keys = list(results['rows'][-1]['reading'].keys())
+        if reading not in reading_keys:
+            raise web.HTTPNotFound(reason="{} reading key is not found".format(reading))
+
+        _aggregate = PayloadBuilder().AGGREGATE(["min", ["reading", reading]], ["max", ["reading", reading]],
+                                                ["avg", ["reading", reading]]) \
+            .ALIAS('aggregate', ('reading', 'min', 'min'), ('reading', 'max', 'max'),
+                   ('reading', 'avg', 'average')).chain_payload()
+        _where = PayloadBuilder(_aggregate).WHERE(["asset_code", "=", asset_code]).chain_payload()
+        _and_where = where_clause(request, _where)
+        payload = PayloadBuilder(_and_where).payload()
         results = await _readings.query(payload)
         # for aggregates, so there can only ever be one row
         response = results['rows'][0]

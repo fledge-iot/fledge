@@ -26,6 +26,10 @@ for i in $(seq ${ITERATIONS}); do
 	echo "***************"
 	echo "***************"
 	./reset
-	./test || break
+	./test
+	if [[ $? -eq 1 ]]
+	then
+		exit 1
+	fi
 done
 

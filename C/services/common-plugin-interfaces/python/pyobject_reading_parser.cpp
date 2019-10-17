@@ -218,6 +218,15 @@ void setReadingAttr(Reading* newReading, PyObject *element)
 		newReading->setUserTimestamp(ts_str);
 	}
 	
+	// Get 'ts' value: borrowed reference.
+	PyObject* userts = PyDict_GetItemString(element, "user_ts");
+	if (userts)
+	{
+		// Convert a timestamp of the from 2019-01-07 19:06:35.366100+01:00
+		const char *ts_str = PyUnicode_AsUTF8(userts);
+		newReading->setUserTimestamp(ts_str);
+	}
+
 	// Get 'uuid' value: borrowed reference.
 	PyObject* uuid = PyDict_GetItemString(element, "key");
 	if (uuid && PyUnicode_Check(uuid))

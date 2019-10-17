@@ -201,13 +201,8 @@ class TestBrowserAssets:
         invalid_sensor = "invalid"
         conn.request("GET", '/foglamp/asset/{}/{}/summary'.format(ASSET_NAME, invalid_sensor))
         r = conn.getresponse()
-        assert 200 == r.status
-        r = r.read().decode()
-        jdoc = json.loads(r)
-        summary = jdoc[invalid_sensor]
-        assert "" == summary['average']
-        assert "" == summary['max']
-        assert "" == summary['min']
+        assert 404 == r.status
+        assert '{} reading key is not found'.format(invalid_sensor) == r.reason
 
     def test_get_asset_readings_summary(self, foglamp_url):
         """Test that browsing an asset's data point summary gives correct min, max and average values"""

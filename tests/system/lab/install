@@ -9,6 +9,9 @@ uname -a
 sudo cp /etc/apt/sources.list /etc/apt/sources.list.bak
 sudo sed -i "/\b\(archives.dianomic.com\)\b/d" /etc/apt/sources.list
 
+
+export DEBIAN_FRONTEND=noninteractive
+
 sudo apt update && sudo apt upgrade -y && sudo apt update
 echo "==================== DONE update, upgrade, update ============================"
 
@@ -28,7 +31,7 @@ wget -q -O - http://archives.dianomic.com/KEY.gpg | sudo apt-key add -
 echo "deb http://archives.dianomic.com/${BUILD_VERSION}/${VERSION_CODENAME}/armv7l/ /" | sudo tee -a /etc/apt/sources.list
 sudo apt update
 
-time sudo apt install -y foglamp
+time sudo -E apt install -yq foglamp
 echo "==================== DONE INSTALLING FogLAMP =================="
 
 time sudo apt install -y foglamp-gui
@@ -36,6 +39,7 @@ echo "==================== DONE INSTALLING FogLAMP GUI ======================"
 
 time sudo apt install -y foglamp-service-notification foglamp-filter-expression foglamp-filter-python35 foglamp-filter-rms \
 foglamp-filter-fft foglamp-filter-delta foglamp-filter-metadata foglamp-filter-change \
+foglamp-filter-simple-python \
 foglamp-notify-asset foglamp-notify-python35 foglamp-notify-email \
 foglamp-rule-simple-expression foglamp-rule-average \
 foglamp-north-httpc \

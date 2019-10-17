@@ -1,0 +1,1 @@
+DELETE from log_codes WHERE code LIKE 'PKG%';

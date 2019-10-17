@@ -277,7 +277,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                              .format(category_name, entry_name, type(entry_val)))
                         else:
                             if entry_name == 'mandatory' and entry_val == 'true':
-                                if not len(item_val['default']):
+                                if not len(item_val['default'].strip()):
                                     raise ValueError('For {} category, A default value must be given for {}'.format(
                                         category_name, item_name))
                     elif entry_name == 'minimum' or entry_name == 'maximum':
@@ -506,7 +506,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         raise TypeError('Unrecognized value name for item_name {}'.format(item_name))
 
                 if 'mandatory' in cat_info[item_name]:
-                    if cat_info[item_name]['mandatory'] == 'true' and not len(new_val):
+                    if cat_info[item_name]['mandatory'] == 'true' and not len(new_val.strip()):
                         raise ValueError("A value must be given for {}".format(item_name))
                 old_value = cat_info[item_name]['value']
                 new_val = self._clean(cat_info[item_name]['type'], new_val)
@@ -735,7 +735,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 if self._validate_type_value(storage_value_entry['type'], new_value_entry) is False:
                     raise TypeError('Unrecognized value name for item_name {}'.format(item_name))
             if 'mandatory' in storage_value_entry:
-                if storage_value_entry['mandatory'] == 'true' and not len(new_value_entry):
+                if storage_value_entry['mandatory'] == 'true' and not len(new_value_entry.strip()):
                     raise ValueError("A value must be given for {}".format(item_name))
             new_value_entry = self._clean(storage_value_entry['type'], new_value_entry)
             # Evaluate new_value_entry as per rule if defined

@@ -236,7 +236,7 @@ async def add_task(request):
         except Exception as ex:
             await config_mgr.delete_category_and_children_recursively(name)
             _logger.exception("Failed to create plugin configuration. %s", str(ex))
-            raise web.HTTPInternalServerError(reason='Failed to create plugin configuration.')
+            raise web.HTTPInternalServerError(reason='Failed to create plugin configuration. {}'.format(ex))
 
         # If all successful then lastly add a schedule to run the new task at startup
         try:

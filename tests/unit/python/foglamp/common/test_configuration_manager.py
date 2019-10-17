@@ -1132,17 +1132,20 @@ class TestConfigurationManager:
             updatepatch.assert_called_once_with(category_name, item_name, new_value_entry)
         readpatch.assert_called_once_with(category_name, item_name)
 
+    @pytest.mark.parametrize("new_value_entry, storage_result", [
+        ('', {'value': 'test', 'description': 'Test desc', 'type': 'string', 'default': 'test', 'mandatory': 'true'}),
+        ('newvalueentry', {'value': 'test', 'description': 'Test desc', 'type': 'string', 'default': 'test'})
+    ])
     @pytest.mark.asyncio
-    async def test_set_category_item_value_entry_bad_update(self, reset_singleton):
+    async def test_set_category_item_value_entry_bad_update(self, reset_singleton, new_value_entry, storage_result):
 
         async def async_mock():
-            return {'value': 'test', 'description': 'Test desc', 'type': 'string', 'default': 'test'}
+            return storage_result
 
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         category_name = 'catname'
         item_name = 'itemname'
-        new_value_entry = 'newvalentry'
         with patch.object(_logger, 'exception') as log_exc:
             with patch.object(ConfigurationManager, '_read_item_val', return_value=async_mock()) as readpatch:
                 with patch.object(ConfigurationManager, '_update_value_val', side_effect=Exception()) as updatepatch:
@@ -1150,10 +1153,11 @@ class TestConfigurationManager:
                         with pytest.raises(Exception):
                             await c_mgr.set_category_item_value_entry(category_name, item_name, new_value_entry)
                     callbackpatch.assert_not_called()
-                updatepatch.assert_called_once_with(category_name, item_name, new_value_entry)
+                if len(new_value_entry):
+                    updatepatch.assert_called_once_with(category_name, item_name, new_value_entry)
             readpatch.assert_called_once_with(category_name, item_name)
         assert 1 == log_exc.call_count
-        log_exc.assert_called_once_with('Unable to set item value entry based on category_name %s and item_name %s and value_item_entry %s', 'catname', 'itemname', 'newvalentry')
+        log_exc.assert_called_once_with('Unable to set item value entry based on category_name %s and item_name %s and value_item_entry %s', category_name, item_name, new_value_entry)
 
     @pytest.mark.asyncio
     async def test_set_category_item_value_entry_bad_storage(self, reset_singleton):
@@ -2520,7 +2524,9 @@ class TestConfigurationManager:
         ({'authProviders': {'default': '{"providers": ["username", "ldap"] }', 'description': 'Authentication providers to use for the interface', 'type': 'JSON', 'value': '{"providers": ["username", "ldap"] }'}},
          {"authProviders": 3}, TypeError, "new value should be a valid dict Or a string literal, in double quotes"),
         ({'enableHttp': {'default': 'true', 'description': 'Enable HTTP', 'type': 'boolean', 'value': 'true'}},
-         {"enableHttp": "blah"}, TypeError, "Unrecognized value name for item_name enableHttp")
+         {"enableHttp": "blah"}, TypeError, "Unrecognized value name for item_name enableHttp"),
+        ({'asset': {'default': 'sinusoid', 'description': 'Asset Name', 'type': 'string', 'value': 'sinusoid',
+                    'mandatory': 'true'}}, {"asset": ''}, ValueError, "A value must be given for asset")
     ])
     async def test_update_configuration_item_bulk_exceptions(self, cat_info, config_item_list, exc_type, exc_msg,
                                                              category_name='testcat'):

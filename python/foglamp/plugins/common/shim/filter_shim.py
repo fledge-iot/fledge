@@ -26,14 +26,13 @@ def _plugin_obj():
     plugin = sys.argv[1]
     plugin_type = "filter"
     plugin_module_path = "{}/python/foglamp/plugins/filter/{}".format(_FOGLAMP_ROOT, plugin)
-    _plugin=common.load_python_plugin(plugin_module_path, plugin, plugin_type)
+    _plugin = common.load_python_plugin(plugin_module_path, plugin, plugin_type)
     return _plugin
 
-#_plugin = _plugin_obj()
+_plugin = _plugin_obj()
 
 def plugin_info():
     global _plugin
-    _plugin = _plugin_obj()
     handle = _plugin.plugin_info()
     handle['config'] = json.dumps(handle['config'])
     return handle

@@ -29,10 +29,25 @@ class TestPluginDiscovery:
     mock_south_folders = ["modbus", "http"]
     mock_c_north_folders = [("ocs", "binary")]
     mock_c_south_folders = [("dummy", "binary")]
+    mock_py_filter_folders = [("foo", "bar")]
     mock_c_filter_folders = [("scale", "binary")]
     mock_c_notify_folders = [("email", "binary")]
     mock_c_rule_folders = [("OverMaxRule", "binary")]
     mock_all_folders = ["OMF", "foglamp-north", "modbus", "http"]
+    mock_filter_config = [
+        {"name": "foo",
+         "version": "1.0.0",
+         "type": "filter",
+         "description": "Filter foo plugin",
+         "config": {"plugin": {"default": "foo", "type": "string", "description": "Foo filter plugin"}}
+         },
+        {"name": "bar",
+         "version": "1.0.0",
+         "type": "filter",
+         "description": "Filter bar plugin",
+         "config": {"plugin": {"default": "bar", "type": "string", "description": "Bar filter plugin"}}
+         }
+    ]
     mock_plugins_config = [
         {
             "name": "OMF",
@@ -59,6 +74,8 @@ class TestPluginDiscovery:
             "version": "1.4"
         }
     ]
+    mock_plugins_config += mock_filter_config
+
     mock_plugins_north_config = [
         {
             "name": "OMF",
@@ -175,6 +192,7 @@ class TestPluginDiscovery:
         def mock_folders():
             yield TestPluginDiscovery.mock_north_folders
             yield TestPluginDiscovery.mock_south_folders
+            yield TestPluginDiscovery.mock_filter_folders
 
         @asyncio.coroutine
         def mock_c_folders():
@@ -196,8 +214,8 @@ class TestPluginDiscovery:
         expected_plugin.extend(TestPluginDiscovery.mock_c_plugins_config)
         # FIXME: ordering issue
         # assert expected_plugin == plugins
-        assert 2 == mock_get_folders.call_count
-        assert 4 == mock_get_plugin_config.call_count
+        assert 3 == mock_get_folders.call_count
+        assert 6 == mock_get_plugin_config.call_count
         assert 5 == mock_get_c_folders.call_count
         assert 5 == mock_get_c_plugin_config.call_count
 
@@ -253,18 +271,26 @@ class TestPluginDiscovery:
         assert 1 == mock_get_c_folders.call_count
         assert 1 == mock_get_c_plugin_config.call_count
 
-    def test_get_c_filter_plugins_installed(self, mocker):
+    def test_get_filter_plugins_installed(self, mocker):
         @asyncio.coroutine
-        def mock_filter_folders():
+        def mock_c_filter_folders():
             yield TestPluginDiscovery.mock_c_filter_folders
 
-        mock_get_c_filter_folders = mocker.patch.object(utils, "find_c_plugin_libs", return_value=next(mock_filter_folders()))
+        @asyncio.coroutine
+        def mock_filter_folders():
+            yield TestPluginDiscovery.mock_py_filter_folders
+
+        mock_get_filter_folders = mocker.patch.object(PluginDiscovery, "get_plugin_folders", return_value=next(mock_filter_folders()))
+        mock_get_filter_config = mocker.patch.object(PluginDiscovery, "get_plugin_config", side_effect=TestPluginDiscovery.mock_filter_config)
+        mock_get_c_filter_folders = mocker.patch.object(utils, "find_c_plugin_libs", return_value=next(mock_c_filter_folders()))
         mock_get_c_filter_plugin_config = mocker.patch.object(utils, "get_plugin_info", side_effect=TestPluginDiscovery.mock_c_filter_config)
 
         plugins = PluginDiscovery.get_plugins_installed("filter")
         # expected_plugin = TestPluginDiscovery.mock_c_plugins_config[2]
         # FIXME: ordering issue
         # assert expected_plugin == plugins
+        assert 1 == mock_get_filter_folders.call_count
+        assert 1 == mock_get_filter_config.call_count
         assert 1 == mock_get_c_filter_folders.call_count
         assert 1 == mock_get_c_filter_plugin_config.call_count
 

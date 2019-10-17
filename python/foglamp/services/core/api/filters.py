@@ -17,6 +17,8 @@ from foglamp.common import logger
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.exceptions import StorageServerError
 from foglamp.common.storage_client.storage_client import StorageClientAsync
+from foglamp.common.common import _FOGLAMP_ROOT
+from foglamp.services.core.api.plugins import common
 
 __author__ = "Massimiliano Pinto, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -74,8 +76,16 @@ async def create_filter(request: web.Request) -> web.Response:
         if category_info is not None:
             raise ValueError("This '{}' filter already exists".format(filter_name))
 
-        # Load C filter plugin info
-        loaded_plugin_info = apiutils.get_plugin_info(plugin_name, dir='filter')
+        # Load C/Python filter plugin info
+        #loaded_plugin_info = apiutils.get_plugin_info(plugin_name, dir='filter')
+        try:
+            # Try fetching Python filter
+            plugin_module_path = "{}/python/foglamp/plugins/filter/{}".format(_FOGLAMP_ROOT, plugin_name)
+            loaded_plugin_info = common.load_and_fetch_python_plugin_info(plugin_module_path, plugin_name, "filter")
+        except FileNotFoundError as ex:
+            # Load C filter plugin
+            loaded_plugin_info = apiutils.get_plugin_info(plugin_name, dir='filter')
+
         if not loaded_plugin_info or 'config' not in loaded_plugin_info:
             message = "Can not get 'plugin_info' detail from plugin '{}'".format(plugin_name)
             raise ValueError(message)

@@ -22,14 +22,17 @@ _plugin = None
 _LOGGER.info("Loading shim layer for python plugin '{}', type '{}' ".format(sys.argv[1], sys.argv[2]))
 
 def _plugin_obj():
+    global _plugin
     plugin = sys.argv[1]
     plugin_type = sys.argv[2]
     plugin_module_path = "{}/python/foglamp/plugins/{}/{}".format(_FOGLAMP_ROOT, plugin_type, plugin)
-    return common.load_python_plugin(plugin_module_path, plugin, plugin_type)
+    _plugin = common.load_python_plugin(plugin_module_path, plugin, plugin_type)
+    return _plugin
+
+_plugin = _plugin_obj()
 
 def plugin_info():
     global _plugin
-    _plugin = _plugin_obj()
     handle = _plugin.plugin_info()
     handle['config'] = json.dumps(handle['config'])
     return handle
@@ -56,7 +59,7 @@ def plugin_triggers(handle):
 
 def plugin_deliver(handle, deliveryName, notificationName, triggerReason, customMessage):
     global _plugin
-    return _plugin.plugin_deliver(handle, notificationName, triggerReason, customMessage)
+    return _plugin.plugin_deliver(handle, deliveryName, notificationName, triggerReason, customMessage)
 
 def plugin_reconfigure(handle, new_config):
     global _plugin

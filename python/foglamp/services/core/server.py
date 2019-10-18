@@ -298,6 +298,18 @@ class Server:
             'type': 'boolean',
             'default': 'false',
             'displayName': 'Upgrade on Install'
+        },
+        'maxUpdate': {
+            'description': 'Maximum updates per day',
+            'type': 'integer',
+            'default': '1',
+            'displayName': 'Maximum Update'
+        },
+        'maxUpgrade': {
+            'description': 'Maximum upgrades per day',
+            'type': 'integer',
+            'default': '1',
+            'displayName': 'Maximum Upgrade'
         }
     }
 

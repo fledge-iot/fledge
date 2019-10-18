@@ -17,8 +17,8 @@
 #include <plugin_handle.h>
 #include <Python.h>
 
-typedef void* (*pluginResolveSymbolFn)(const char *);
-typedef void (*pluginCleanupFn)();
+typedef void* (*pluginResolveSymbolFn)(const char *, const std::string&);
+typedef void (*pluginCleanupFn)(const std::string&);
 
 /**
  * The PythonPluginHandle class is the base class used to represent an interface to
@@ -52,9 +52,10 @@ class PythonPluginHandle : public PluginHandle
 			}
 			else
 			{
-				cleanupFn();
+				cleanupFn(m_name);
 			}
 			dlclose(m_hndl);
+			m_hndl = NULL;
 		};
 
 		/**
@@ -81,7 +82,7 @@ class PythonPluginHandle : public PluginHandle
 							   dlerror());
 				return NULL;
 			}
-			void *rv = resolvSymFn(sym);
+			void *rv = resolvSymFn(sym, m_name);
 			if (!rv)
 			{
 				Logger::getLogger()->warn("PythonPluginHandle::ResolveSymbol "

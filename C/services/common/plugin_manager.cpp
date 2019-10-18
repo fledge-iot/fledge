@@ -17,6 +17,7 @@
 #include <binary_plugin_handle.h>
 #include <south_python_plugin_handle.h>
 #include <notification_python_plugin_handle.h>
+#include <filter_python_plugin_handle.h>
 #include <dirent.h>
 #include <sys/param.h>
 #include "rapidjson/document.h"
@@ -395,60 +396,72 @@ char		buf[MAXPATHLEN];
   if (buf[0] && access(buf, F_OK|R_OK) == 0)
   {
 	// is it Notification Rule Python plugin ?
-	if (type.compare("notificationRule") == 0)
+	if (type.compare(PLUGIN_TYPE_NOTIFICATION_RULE) == 0 ||
+	   type.compare(PLUGIN_TYPE_NOTIFICATION_DELIVERY) == 0)
 	{
 		pluginHandle = new NotificationPythonPluginHandle(name.c_str(), buf);
+	}
+	else if (type.compare(PLUGIN_TYPE_FILTER) == 0)
+	{
+		pluginHandle = new FilterPythonPluginHandle(name.c_str(), buf);
 	}
 	else
 	{
 		pluginHandle = new SouthPythonPluginHandle(name.c_str(), buf);
 	}
+
 	hndl = pluginHandle->getHandle();
-    if (hndl != NULL)
-    {
-      func_t infoEntry = (func_t)pluginHandle->GetInfo();
-      if (infoEntry == NULL)
-      {
-        // Unable to find plugin_info entry point
-        logger->error("Python plugin %s does not support plugin_info entry point.\n", name.c_str());
-        delete pluginHandle;
-        return NULL;
-      }
-      PLUGIN_INFORMATION *info = (PLUGIN_INFORMATION *)(*infoEntry)();
-      if (!info)
-      {
-        // Unable to get data from plugin_info entry point
-        logger->error("Python plugin %s cannot get data from plugin_info entry point.\n", name.c_str());
-        delete pluginHandle;
-        return NULL;
-      }
+
+	if (hndl != NULL)
+	{
+		func_t infoEntry = (func_t)pluginHandle->GetInfo();
+		if (infoEntry == NULL)
+		{
+			// Unable to find plugin_info entry point
+			logger->error("Python plugin %s does not support plugin_info entry point.\n", name.c_str());
+			delete pluginHandle;
+			return NULL;
+		}
+		PLUGIN_INFORMATION *info = (PLUGIN_INFORMATION *)(*infoEntry)();
+		if (!info)
+		{
+			// Unable to get data from plugin_info entry point
+			logger->error("Python plugin %s cannot get data from plugin_info entry point.\n", name.c_str());
+			delete pluginHandle;
+			return NULL;
+		}
  
-      if (strcmp(info->type, type.c_str()) != 0)
-      {
-        // Log error, incorrect plugin type
-        logger->error("C plugin %s is not of the expected type %s, it is of type %s.\n",
-          name.c_str(), type.c_str(), info->type);
-        delete pluginHandle;
-        return NULL;
-      }
-	  if (json_plugin)
-	  {
-		updateJsonPluginConfig(info, json_plugin_name, json_plugin_defaults, json_plugin_description);
-	  }
-	  
-      plugins.push_back(pluginHandle);
-      pluginNames[name] = hndl;
-      pluginTypes[name] = type;
-      pluginInfo[hndl] = info;
-      pluginHandleMap[hndl] = pluginHandle;
-    }
-    else
-    {
-      logger->error("PluginManager: Failed to load python plugin %s in %s",
-                    name.c_str(),
-                    buf);
-    }
-    return hndl;
+		if (strcmp(info->type, type.c_str()) != 0)
+		{
+			// Log error, incorrect plugin type
+			logger->error("C plugin %s is not of the expected type %s, it is of type %s.\n",
+					name.c_str(),
+					type.c_str(),
+					info->type);
+			delete pluginHandle;
+			return NULL;
+		}
+		if (json_plugin)
+		{
+			updateJsonPluginConfig(info,
+						json_plugin_name,
+						json_plugin_defaults,
+						json_plugin_description);
+		}
+ 
+		plugins.push_back(pluginHandle);
+		pluginNames[name] = hndl;
+		pluginTypes[name] = type;
+		pluginInfo[hndl] = info;
+		pluginHandleMap[hndl] = pluginHandle;
+	}
+	else
+	{
+		logger->error("PluginManager: Failed to load python plugin %s in %s",
+				name.c_str(),
+				buf);
+	}
+	return hndl;
   }
   
   if(json_plugin) // if base plugin had been found, this function would have returned already

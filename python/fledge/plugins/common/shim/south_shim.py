@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
-# FLEDGE_END
+# FOGLAMP_BEGIN
+# See: http://foglamp.readthedocs.io/
+# FOGLAMP_END
 
 """shim layer between Python and C++"""
 
@@ -12,65 +12,69 @@ import sys
 import json
 import logging
 
-from fledge.common import logger
-from fledge.common.common import _FLEDGE_ROOT
-from fledge.services.core.api.plugins import common
+from foglamp.common import logger
+from foglamp.common.common import _FOGLAMP_ROOT
+from foglamp.services.core.api.plugins import common
 
 _LOGGER = logger.setup(__name__, level=logging.WARN)
 _plugin = None
 
-_LOGGER.info("Loading shim layer for python plugin '{}', type '{}' ".format(sys.argv[1], sys.argv[2]))
+_LOGGER.info("Loading shim layer for python plugin '{}' ".format(sys.argv[1]))
+
 
 def _plugin_obj():
-    global _plugin
     plugin = sys.argv[1]
-    plugin_type = sys.argv[2]
-    plugin_module_path = "{}/python/fledge/plugins/{}/{}".format(_FOGLAMP_ROOT, plugin_type, plugin)
-    _plugin = common.load_python_plugin(plugin_module_path, plugin, plugin_type)
+    plugin_type = "south"
+    plugin_module_path = "{}/python/foglamp/plugins/{}/{}".format(_FOGLAMP_ROOT, plugin_type, plugin)
+    _plugin=common.load_python_plugin(plugin_module_path, plugin, plugin_type)
     return _plugin
+
 
 _plugin = _plugin_obj()
 
+
 def plugin_info():
-    global _plugin
+    _LOGGER.info("plugin_info called")
     handle = _plugin.plugin_info()
     handle['config'] = json.dumps(handle['config'])
     return handle
 
+
 def plugin_init(config):
-    global _plugin
+    _LOGGER.info("plugin_init called")
     handle = _plugin.plugin_init(json.loads(config))
     # TODO: FOGL-1827 - Config item value must be respected as per type given
     revised_handle = _revised_config_for_json_item(handle)
     return revised_handle
 
-def plugin_reason(handle):
-    global _plugin
-    return json.dumps(_plugin.plugin_reason(handle))
 
-def plugin_eval(handle, data):
-    global _plugin
-    # data is a C string
-    return _plugin.plugin_eval(handle, data)
+def plugin_poll(handle):
+    reading = _plugin.plugin_poll(handle)
+    return reading
 
-def plugin_triggers(handle):
-    global _plugin
-    return json.dumps(_plugin.plugin_triggers(handle))
-
-def plugin_deliver(handle, deliveryName, notificationName, triggerReason, customMessage):
-    global _plugin
-    return _plugin.plugin_deliver(handle, deliveryName, notificationName, triggerReason, customMessage)
 
 def plugin_reconfigure(handle, new_config):
-    global _plugin
+    _LOGGER.info("plugin_reconfigure")
     new_handle = _plugin.plugin_reconfigure(handle, json.loads(new_config))
     # TODO: FOGL-1827 - Config item value must be respected as per type given
     revised_handle = _revised_config_for_json_item(new_handle)
     return revised_handle
 
+
 def plugin_shutdown(handle):
-    global _plugin
+    _LOGGER.info("plugin_shutdown")
     return _plugin.plugin_shutdown(handle)
+
+
+def plugin_start(handle):
+    _LOGGER.info("plugin_start")
+    return _plugin.plugin_start(handle)
+
+
+def plugin_register_ingest(handle, callback, ingest_ref):
+    _LOGGER.info("plugin_register_ingest")
+    return _plugin.plugin_register_ingest(handle, callback, ingest_ref)
+
 
 def _revised_config_for_json_item(config):
     # South C server sends "config" argument as string in which all JSON type items' components,

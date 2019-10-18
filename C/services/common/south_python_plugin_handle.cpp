@@ -54,6 +54,7 @@ SouthPythonPluginHandle::SouthPythonPluginHandle(const char *pluginName,
 					   "PluginInterfaceInit",
 					   dlerror());
 		dlclose(m_hndl);
+		m_hndl = NULL;
 		return;
 	}
 
@@ -65,6 +66,7 @@ SouthPythonPluginHandle::SouthPythonPluginHandle(const char *pluginName,
 			"Plugin library %s : PluginInterfaceInit returned failure",
 			libPath.c_str());
 		dlclose(m_hndl);
+		m_hndl = NULL;
 		return;
 	}
 }

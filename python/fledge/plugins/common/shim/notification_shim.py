@@ -25,7 +25,7 @@ def _plugin_obj():
     global _plugin
     plugin = sys.argv[1]
     plugin_type = sys.argv[2]
-    plugin_module_path = "{}/python/fledge/plugins/{}/{}".format(_FOGLAMP_ROOT, plugin_type, plugin)
+    plugin_module_path = "{}/python/fledge/plugins/{}/{}".format(_FLEDGE_ROOT, plugin_type, plugin)
     _plugin = common.load_python_plugin(plugin_module_path, plugin, plugin_type)
     return _plugin
 

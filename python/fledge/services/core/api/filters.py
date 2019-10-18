@@ -17,7 +17,7 @@ from fledge.common import logger
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.storage_client.storage_client import StorageClientAsync
-from fledge.common.common import _FOGLAMP_ROOT
+from fledge.common.common import _FLEDGE_ROOT
 from fledge.services.core.api.plugins import common
 
 __author__ = "Massimiliano Pinto, Amarendra K Sinha"
@@ -80,7 +80,7 @@ async def create_filter(request: web.Request) -> web.Response:
         #loaded_plugin_info = apiutils.get_plugin_info(plugin_name, dir='filter')
         try:
             # Try fetching Python filter
-            plugin_module_path = "{}/python/fledge/plugins/filter/{}".format(_FOGLAMP_ROOT, plugin_name)
+            plugin_module_path = "{}/python/fledge/plugins/filter/{}".format(_FLEDGE_ROOT, plugin_name)
             loaded_plugin_info = common.load_and_fetch_python_plugin_info(plugin_module_path, plugin_name, "filter")
         except FileNotFoundError as ex:
             # Load C filter plugin

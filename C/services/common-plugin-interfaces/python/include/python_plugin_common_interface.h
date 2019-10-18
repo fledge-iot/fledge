@@ -12,7 +12,7 @@
 
 #include <plugin_manager.h>
 
-#define SHIM_SCRIPT_REL_PATH  "/python/foglamp/plugins/common/shim/"
+#define SHIM_SCRIPT_REL_PATH  "/python/fledge/plugins/common/shim/"
 #define SHIM_SCRIPT_POSTFIX "_shim"
 
 using namespace std;
@@ -74,7 +74,7 @@ static void plugin_reconfigure_fn(PLUGIN_HANDLE*, const std::string&);
 static void plugin_shutdown_fn(PLUGIN_HANDLE);
 
 static void logErrorMessage();
-void setImportParameters(string& shimLayerPath, string& foglampPythonDir);
+void setImportParameters(string& shimLayerPath, string& fledgePythonDir);
 
 /**
  * Destructor for PythonPluginHandle
@@ -479,10 +479,10 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 		}
 
 		string shimLayerPath;
-		string foglampPythonDir;
+		string fledgePythonDir;
 	
 		// Python 3.x set parameters for import
-		setImportParameters(shimLayerPath, foglampPythonDir);
+		setImportParameters(shimLayerPath, fledgePythonDir);
 
 		string name;
 		int argc = 2;
@@ -490,7 +490,7 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 		// Set Python path for embedded Python 3.x
 		// Get current sys.path - borrowed reference
 		PyObject* sysPath = PySys_GetObject((char *)"path");
-		PyList_Append(sysPath, PyUnicode_FromString((char *) foglampPythonDir.c_str()));
+		PyList_Append(sysPath, PyUnicode_FromString((char *) fledgePythonDir.c_str()));
 		PyList_Append(sysPath, PyUnicode_FromString((char *) shimLayerPath.c_str()));
 
 		// For notificationRUle/Delivery plugins we need another import parameter
@@ -937,14 +937,14 @@ static void plugin_shutdown_fn(PLUGIN_HANDLE handle)
  * Fill input string parameters with needed values for Python import
  *
  * @param shimLayerPath		Full path of Python shim layer file
- * @param foglampPythonDir	Location of Python module files under FOGLAMP_ROOT
+ * @param fledgePythonDir	Location of Python module files under FLEDGE_ROOT
  */
-void setImportParameters(string&shimLayerPath, string& foglampPythonDir)
+void setImportParameters(string&shimLayerPath, string& fledgePythonDir)
 {
-	// Get FOGLAMP_ROOT dir
-	string foglampRootDir(getenv("FOGLAMP_ROOT"));
-	string path = foglampRootDir + SHIM_SCRIPT_REL_PATH;
-	foglampPythonDir = foglampRootDir + "/python";
+	// Get FLEDGE_ROOT dir
+	string fledgeRootDir(getenv("FLEDGE_ROOT"));
+	string path = fledgeRootDir + SHIM_SCRIPT_REL_PATH;
+	fledgePythonDir = fledgeRootDir + "/python";
 
 	// Python 3.x script name
 	std::size_t found = path.find_last_of("/");

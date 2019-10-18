@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# FOGLAMP_BEGIN
-# See: http://foglamp.readthedocs.io/
-# FOGLAMP_END
+# FLEDGE_BEGIN
+# See: http://fledge.readthedocs.io/
+# FLEDGE_END
 
 """shim layer between Python and C++"""
 
@@ -12,9 +12,9 @@ import sys
 import json
 import logging
 
-from foglamp.common import logger
-from foglamp.common.common import _FOGLAMP_ROOT
-from foglamp.services.core.api.plugins import common
+from fledge.common import logger
+from fledge.common.common import _FLEDGE_ROOT
+from fledge.services.core.api.plugins import common
 
 _LOGGER = logger.setup(__name__, level=logging.WARN)
 _plugin = None
@@ -25,7 +25,7 @@ _LOGGER.info("Loading shim layer for python plugin '{}' ".format(sys.argv[1]))
 def _plugin_obj():
     plugin = sys.argv[1]
     plugin_type = "south"
-    plugin_module_path = "{}/python/foglamp/plugins/{}/{}".format(_FOGLAMP_ROOT, plugin_type, plugin)
+    plugin_module_path = "{}/python/fledge/plugins/{}/{}".format(_FLEDGE_ROOT, plugin_type, plugin)
     _plugin=common.load_python_plugin(plugin_module_path, plugin, plugin_type)
     return _plugin
 

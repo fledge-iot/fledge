@@ -68,4 +68,7 @@ FilterPythonPluginHandle::FilterPythonPluginHandle(const char *pluginName,
 		m_hndl = NULL;
 		return;
 	}
+
+	// Set type
+	m_type = PLUGIN_TYPE_FILTER;
 }

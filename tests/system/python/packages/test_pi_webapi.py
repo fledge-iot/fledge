@@ -175,7 +175,7 @@ def test_end_to_end(start_south_north, read_data_from_pi, foglamp_url, pi_host, 
         assert len(egress_tracking_details["track"]), "Failed to track Egress event"
         tracked_item = egress_tracking_details["track"][0]
         assert "NorthReadingsToPI_WebAPI" == tracked_item["service"]
-        assert "FOGL-2964-e2e-CoAP" == tracked_item["asset"]
+        assert asset_name == tracked_item["asset"]
         assert "PI_Server_V2" == tracked_item["plugin"]
 
         _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name)

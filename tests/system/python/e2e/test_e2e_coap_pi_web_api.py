@@ -48,6 +48,19 @@ def get_statistics_map(foglamp_url):
     return utils.serialize_stats_map(jdoc)
 
 
+def get_asset_tracking_details(foglamp_url, event=None):
+    _connection = http.client.HTTPConnection(foglamp_url)
+    uri = '/foglamp/track'
+    if event:
+        uri += '?event={}'.format(event)
+    _connection.request("GET", uri)
+    r = _connection.getresponse()
+    assert 200 == r.status
+    r = r.read().decode()
+    jdoc = json.loads(r)
+    return jdoc
+
+
 def _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name):
     retry_count = 0
     data_from_pi = None
@@ -160,4 +173,11 @@ def test_end_to_end(start_south_north, read_data_from_pi, foglamp_url, pi_host, 
     assert {DATAPOINT: DATAPOINT_VALUE} == retval[0]["reading"]
 
     if not skip_verify_north_interface:
+        egress_tracking_details = get_asset_tracking_details(foglamp_url, "Egress")
+        assert len(egress_tracking_details["track"]), "Failed to track Egress event"
+        tracked_item = egress_tracking_details["track"][0]
+        assert "NorthReadingsToPI_WebAPI" == tracked_item["service"]
+        assert "FOGL-2964-e2e-CoAP" == tracked_item["asset"]
+        assert "PI_Server_V2" == tracked_item["plugin"]
+
         _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name)

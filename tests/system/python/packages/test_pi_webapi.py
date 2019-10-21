@@ -26,6 +26,7 @@ SCRIPTS_DIR_ROOT = os.environ.get("FOGLAMP_ROOT") + "/tests/system/lab/scripts/"
 
 TEMPLATE_NAME = "template.json"
 SENSOR_VALUE = 20
+ASSET = "FOGL-2964-e2e-CoAP"
 
 
 def get_ping_status(foglamp_url):
@@ -51,20 +52,26 @@ def get_statistics_map(foglamp_url):
 def _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name):
     retry_count = 0
     data_from_pi = None
+
+    # See C/plugins/common/omf.cpp
+    af_hierarchy_level = "foglamp_data_piwebapi"
+    type_id = 1
+    datapoint = "{}_{}measurement_{}.{}".format(af_hierarchy_level, type_id, asset_name, "sensor")
+
     while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
-        data_from_pi = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db, asset_name, {"sensor"})
+        data_from_pi = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db, asset_name, {datapoint})
         retry_count += 1
         time.sleep(wait_time*2)
 
     if data_from_pi is None or retry_count == retries:
         assert False, "Failed to read data from PI"
 
-    assert data_from_pi["sensor"][-1] == SENSOR_VALUE
+    assert data_from_pi[datapoint][-1] == SENSOR_VALUE
 
 
 @pytest.fixture
 def start_south_north(clean_setup_foglamp_packages, add_south, start_north_pi_server_c_web_api, remove_data_file,
-                      foglamp_url, pi_host, pi_port, pi_admin, pi_passwd, asset_name="end_to_end_coap"):
+                      foglamp_url, pi_host, pi_port, pi_admin, pi_passwd, asset_name=ASSET):
     """ This fixture
         clean_setup_foglamp_packages:
         add_south: Fixture that adds a south service with given configuration
@@ -82,7 +89,7 @@ def start_south_north(clean_setup_foglamp_packages, add_south, start_north_pi_se
 
     south_plugin = "coap"
     # south_branch does not matter as these are archives.dianomic.com version install
-    add_south(south_plugin, None, foglamp_url, service_name="CoAP FOGL-2964", make_install=False)
+    add_south(south_plugin, None, foglamp_url, service_name="CoAP FOGL-2964", installation_type='package')
     start_north_pi_server_c_web_api(foglamp_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd)
 
     yield start_south_north
@@ -92,7 +99,7 @@ def start_south_north(clean_setup_foglamp_packages, add_south, start_north_pi_se
 
 
 def test_end_to_end(start_south_north, read_data_from_pi, foglamp_url, pi_host, pi_admin, pi_passwd, pi_db,
-                    wait_time, retries, skip_verify_north_interface, asset_name="FOGL-2964-e2e-CoAP"):
+                    wait_time, retries, skip_verify_north_interface, asset_name=ASSET):
     """ Test that data is inserted in FogLAMP and sent to PI
         start_south_north: Fixture that add south and north instance
         read_data_from_pi: Fixture to read data from PI
@@ -105,15 +112,28 @@ def test_end_to_end(start_south_north, read_data_from_pi, foglamp_url, pi_host, 
             data received from PI is same as data sent"""
 
     conn = http.client.HTTPConnection(foglamp_url)
-    time.sleep(wait_time)
     subprocess.run(["cd $FOGLAMP_ROOT/extras/python; python3 -m fogbench -t ../../data/{}; cd -".format(TEMPLATE_NAME)],
                    shell=True, check=True)
+
     time.sleep(wait_time)
 
     ping_response = get_ping_status(foglamp_url)
     assert 1 == ping_response["dataRead"]
+
+    retry_count = 1
+    sent = 0
     if not skip_verify_north_interface:
-        assert 1 == ping_response["dataSent"]
+        while retries > retry_count:
+            sent = ping_response["dataSent"]
+            if sent == 1:
+                break
+            else:
+                time.sleep(wait_time)
+
+            retry_count += 1
+            ping_response = get_ping_status(foglamp_url)
+
+        assert 1 == sent, "Failed to send data via PI Web API using Basic auth"
 
     actual_stats_map = get_statistics_map(foglamp_url)
     assert 1 == actual_stats_map[asset_name.upper()]
@@ -140,4 +160,3 @@ def test_end_to_end(start_south_north, read_data_from_pi, foglamp_url, pi_host, 
 
     if not skip_verify_north_interface:
         _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name)
-

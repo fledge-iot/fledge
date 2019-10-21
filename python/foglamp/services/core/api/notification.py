@@ -483,7 +483,7 @@ async def _update_configurations(config_mgr, name, notification_config, rule_con
             await config_mgr.update_configuration_item_bulk(category_name, delivery_config)
     except Exception as ex:
         _logger.exception("Failed to update notification configuration. %s", str(ex))
-        raise web.HTTPInternalServerError(reason='Failed to update notification configuration.')
+        raise web.HTTPInternalServerError(reason='Failed to update notification configuration. {}'.format(ex))
 
 
 async def _hit_delete_url(delete_url, data=None):

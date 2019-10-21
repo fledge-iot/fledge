@@ -908,7 +908,7 @@ class TestConfigurationManager:
                 with pytest.raises(Exception) as excinfo:
                     await c_mgr.create_category('catname', 'catvalue', 'catdesc')
                 assert excinfo.type is ValueError
-                assert 'For catname category, Proposed value for item_name info is not allowed as per rule defined' == str(excinfo.value)
+                assert 'For catname category, The value of info is not valid, please supply a valid value' == str(excinfo.value)
             valpatch.assert_called_once_with('catname', 'catvalue', True)
         assert 1 == log_exc.call_count
 
@@ -1288,7 +1288,7 @@ class TestConfigurationManager:
                 with pytest.raises(Exception) as excinfo:
                     await c_mgr.set_category_item_value_entry(category_name, item_name, new_value_entry)
                 assert excinfo.type is ValueError
-                assert 'Proposed value for item_name {} is not allowed as per rule defined'.format(item_name) == str(excinfo.value)
+                assert 'The value of {} is not valid, please supply a valid value'.format(item_name) == str(excinfo.value)
             readpatch.assert_called_once_with(category_name, item_name)
         assert 1 == log_exc.call_count
 
@@ -2666,7 +2666,7 @@ class TestConfigurationManager:
                 with pytest.raises(Exception) as exc_info:
                     await c_mgr.update_configuration_item_bulk(category_name, config_item_list)
                 assert exc_info.type is ValueError
-                assert 'Proposed value for item_name info is not allowed as per rule defined' == str(exc_info.value)
+                assert 'The value of info is not valid, please supply a valid value' == str(exc_info.value)
             assert 1 == patch_log_exc.call_count
         patch_get_all_items.assert_called_once_with(category_name)
 

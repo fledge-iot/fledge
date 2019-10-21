@@ -487,7 +487,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 if 'rule' in cat_info[item_name]:
                     rule = cat_info[item_name]['rule'].replace("value", new_val)
                     if eval(rule) is False:
-                        raise ValueError('Proposed value for item_name {} is not allowed as per rule defined'.format(item_name))
+                        raise ValueError('The value of {} is not valid, please supply a valid value'.format(item_name))
                 if cat_info[item_name]['type'] == 'JSON':
                     if isinstance(new_val, dict):
                         pass
@@ -742,7 +742,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             if 'rule' in storage_value_entry:
                 rule = storage_value_entry['rule'].replace("value", new_value_entry)
                 if eval(rule) is False:
-                    raise ValueError('Proposed value for item_name {} is not allowed as per rule defined'.format(item_name))
+                    raise ValueError('The value of {} is not valid, please supply a valid value'.format(item_name))
             await self._update_value_val(category_name, item_name, new_value_entry)
             # always get value from storage
             cat_item = await self._read_item_val(category_name, item_name)
@@ -929,7 +929,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 if 'rule' in category_val_prepared[item_name]:
                     rule = category_val_prepared[item_name]['rule'].replace("value", category_val_prepared[item_name]['value'])
                     if eval(rule) is False:
-                        raise ValueError('For {} category, Proposed value for item_name {} is not allowed as per rule defined'.format(category_name, item_name))
+                        raise ValueError('For {} category, The value of {} is not valid, please supply a valid value'.format(category_name, item_name))
             # check if category_name is already in storage
             category_val_storage = await self._read_category_val(category_name)
             if category_val_storage is None:

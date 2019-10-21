@@ -29,6 +29,7 @@ class PythonPluginHandle : public PluginHandle
 	public:
 		// Base constructor
 		PythonPluginHandle(const char *name, const char *path) : m_name(name) {};
+
 		/**
 		 * Base destructor
 		 *    - Call cleanup on python plugin interface
@@ -85,9 +86,24 @@ class PythonPluginHandle : public PluginHandle
 			void *rv = resolvSymFn(sym, m_name);
 			if (!rv)
 			{
-				Logger::getLogger()->warn("PythonPluginHandle::ResolveSymbol "
-							  "returning NULL for sym=%s",
-							  sym);
+				// Python filter plugins do not support plugin_start
+				// just log a debug message
+				if (m_type.compare(PLUGIN_TYPE_FILTER) == 0)
+				{
+					Logger::getLogger()->debug("PythonPluginHandle::ResolveSymbol "
+								   "returning NULL for sym=%s, plugin %s, type %s",
+								   sym,
+								   m_name.c_str(),
+								   m_type.c_str());
+				}
+				else
+				{
+					Logger::getLogger()->error("PythonPluginHandle::ResolveSymbol "
+								   "returning NULL for sym=%s, plugin %s, type %s",
+								   sym,
+								   m_name.c_str(),
+								   m_type.c_str());
+				}
 			}
 
 			return rv;
@@ -112,6 +128,9 @@ class PythonPluginHandle : public PluginHandle
 
 		// Set plugin name
 		std::string	m_name;
+
+		// plugin type
+		std::string	m_type;
 };
 
 #endif

@@ -21,12 +21,11 @@ import os
 import time
 import utils
 
-SCRIPTS_DIR_ROOT = os.environ.get("FOGLAMP_ROOT") + "/tests/system/lab/scripts/"
-
 
 TEMPLATE_NAME = "template.json"
-SENSOR_VALUE = 20
 ASSET = "FOGL-2964-e2e-CoAP"
+DATAPOINT = "sensor"
+DATAPOINT_VALUE = 20
 
 
 def get_ping_status(foglamp_url):
@@ -56,26 +55,26 @@ def _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_
     # See C/plugins/common/omf.cpp
     af_hierarchy_level = "foglamp_data_piwebapi"
     type_id = 1
-    datapoint = "{}_{}measurement_{}.{}".format(af_hierarchy_level, type_id, asset_name, "sensor")
+    recorded_datapoint = "{}_{}measurement_{}.{}".format(af_hierarchy_level, type_id, asset_name, DATAPOINT)
 
     while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
-        data_from_pi = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db, asset_name, {datapoint})
+        data_from_pi = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db, asset_name, {recorded_datapoint})
         retry_count += 1
         time.sleep(wait_time*2)
 
     if data_from_pi is None or retry_count == retries:
         assert False, "Failed to read data from PI"
 
-    assert data_from_pi[datapoint][-1] == SENSOR_VALUE
+    assert data_from_pi[recorded_datapoint][-1] == DATAPOINT_VALUE
 
 
 @pytest.fixture
 def start_south_north(clean_setup_foglamp_packages, add_south, start_north_pi_server_c_web_api, remove_data_file,
                       foglamp_url, pi_host, pi_port, pi_admin, pi_passwd, asset_name=ASSET):
     """ This fixture
-        clean_setup_foglamp_packages:
+        clean_setup_foglamp_packages: purge the foglamp* packages and install latest for given repo url
         add_south: Fixture that adds a south service with given configuration
-        start_north_pi_server_c: Fixture that starts PI north task
+        start_north_pi_server_c_web_api: Fixture that starts PI north task
         remove_data_file: Fixture that remove data file created during the tests """
 
     # Define the template file for fogbench
@@ -84,8 +83,8 @@ def start_south_north(clean_setup_foglamp_packages, add_south, start_north_pi_se
     with open(fogbench_template_path, "w") as f:
         f.write(
             '[{"name": "%s", "sensor_values": '
-            '[{"name": "sensor", "type": "number", "min": %d, "max": %d, "precision": 0}]}]' % (
-                asset_name, SENSOR_VALUE, SENSOR_VALUE))
+            '[{"name": "%s", "type": "number", "min": %d, "max": %d, "precision": 0}]}]' % (
+                asset_name, DATAPOINT, DATAPOINT_VALUE, DATAPOINT_VALUE))
 
     south_plugin = "coap"
     # south_branch does not matter as these are archives.dianomic.com version install
@@ -156,7 +155,7 @@ def test_end_to_end(start_south_north, read_data_from_pi, foglamp_url, pi_host, 
     assert 200 == r.status
     r = r.read().decode()
     retval = json.loads(r)
-    assert {'sensor': SENSOR_VALUE} == retval[0]["reading"]
+    assert {DATAPOINT: DATAPOINT_VALUE} == retval[0]["reading"]
 
     if not skip_verify_north_interface:
         _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name)

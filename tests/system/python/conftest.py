@@ -172,7 +172,7 @@ def start_north_pi_v2():
 
 @pytest.fixture
 def start_north_pi_v2_web_api():
-    def _start_north_pi_server_c_web_api(foglamp_url, pi_host, pi_port, auth_method='basic',
+    def _start_north_pi_server_c_web_api(foglamp_url, pi_host, pi_port, pi_db="Dianomic", auth_method='basic',
                                          pi_user=None, pi_pwd=None, north_plugin="PI_Server_V2",
                                          taskname="NorthReadingsToPI_WebAPI", start_task=True):
         """Start north task"""
@@ -273,9 +273,12 @@ def read_data_from_pi():
                             for _el in elx:
                                 _recoded_value_list.append(_el["Value"])
                             _data_pi[_head] = _recoded_value_list
+
+                # Delete recorded elements
                 conn.request("DELETE", '/piwebapi/elements/{}'.format(web_id), headers=headers)
                 res = conn.getresponse()
                 res.read()
+
                 return _data_pi
         except (KeyError, IndexError, Exception):
             return None

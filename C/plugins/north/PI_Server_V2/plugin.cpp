@@ -75,7 +75,8 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type": "string",
 			"default": "omf_north_0001",
 			"order": "2",
-			"displayName": "Producer Token"
+			"displayName": "Producer Token",
+			"validity" : "PIServerEndpoint != \"PI Web API\""
 		},
 		"source": {
 			"description": "Defines the source of the data to be sent on the stream, this may be one of either readings, statistics or audit.",
@@ -147,7 +148,8 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type": "string",
 			"default": "foglamp_data_piwebapi",
 			"order": "18",
-			"displayName": "Asset Framework 1st Level Hierarchy"
+			"displayName": "Asset Framework 1st Level Hierarchy",
+			"validity" : "PIServerEndpoint != \"Connector Relay\""
 		},
 		"notBlockingErrors": {
 			"description": "These errors are considered not blocking in the communication with the PI Server, the sending operation will proceed with the next block of data if one of these is encountered",
@@ -169,28 +171,32 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"options":["anonymous", "basic", "kerberos"],
 			"default": "anonymous",
 			"order": "21",
-			"displayName": "PI Web API Authentication Method"
+			"displayName": "PI Web API Authentication Method",
+			"validity" : "PIServerEndpoint != \"Connector Relay\""
 		},
 		"PIWebAPIUserId": {
 			"description": "User id of PI Web API to be used with the basic access authentication.",
 			"type": "string",
 			"default": "user_id",
 			"order": "22",
-			"displayName": "PI Web API User Id"
+			"displayName": "PI Web API User Id",
+			"validity" : "PIWebAPIAuthenticationMethod == \"basic\""
 		},
 		"PIWebAPIPassword": {
 			"description": "Password of the user of PI Web API to be used with the basic access authentication.",
 			"type": "password",
 			"default": "password",
 			"order": "23" ,
-			"displayName": "PI Web API Password"
+			"displayName": "PI Web API Password",
+			"validity" : "PIWebAPIAuthenticationMethod == \"basic\""
 		},
 		"PIWebAPIKerberosKeytabFileName": {
 			"description": "Keytab file name used for Kerberos authentication in PI Web API.",
 			"type": "string",
 			"default": "piwebapi_kerberos_https.keytab",
 			"order": "24" ,
-			"displayName": "PI Web API Kerberos keytab file"
+			"displayName": "PI Web API Kerberos keytab file",
+			"validity" : "PIWebAPIAuthenticationMethod == \"kerberos\""
 		}
 	}
 );

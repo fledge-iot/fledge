@@ -238,9 +238,12 @@ class TestPluginInstall:
         download_patch.assert_called_once_with([url_value])
 
     async def test_post_bad_plugin_install_package_from_repo(self, client):
+        async def async_mock(return_value):
+            return return_value
+
         plugin = "foglamp-south-sinusoid"
         param = {"format": "repository", "name": plugin}
-        with patch.object(common, 'fetch_available_packages', return_value=([], 'log/190801-12-41-13.log')) \
+        with patch.object(common, 'fetch_available_packages', return_value=(async_mock(([], 'log/190801-12-41-13.log')))) \
                 as patch_fetch_available_package:
             resp = await client.post('/foglamp/plugins', data=json.dumps(param))
             assert 404 == resp.status
@@ -280,8 +283,8 @@ class TestPluginInstall:
         pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
         msg = "installed"
         with patch.object(common, 'fetch_available_packages',
-                          return_value=([plugin_name, "foglamp-north-http",
-                                        "foglamp-service-notification"], 'log/190801-12-41-13.log')) \
+                          return_value=(async_mock(([plugin_name, "foglamp-north-http",
+                                        "foglamp-service-notification"], 'log/190801-12-41-13.log')))) \
                 as patch_fetch_available_package:
             with patch.object(plugins_install, 'install_package_from_repo',
                               return_value=async_mock((0, 'Success', msg))) as install_package_patch:

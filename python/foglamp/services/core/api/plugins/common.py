@@ -18,6 +18,7 @@ from foglamp.common import logger
 from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA, _FOGLAMP_PLUGIN_PATH
 from foglamp.services.core.api import utils
 from foglamp.services.core.api.plugins.exceptions import *
+from foglamp.services.core import server
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2019, Dianomic Systems Inc."
@@ -119,19 +120,37 @@ def load_and_fetch_c_hybrid_plugin_info(plugin_name: str, is_config: bool, plugi
     return plugin_info
 
 
-def fetch_available_packages(package_type: str = "") -> tuple:
-    log_output = []
+async def fetch_available_packages(package_type: str = "") -> tuple:
+    available_packages = []
     stdout_file_path = create_log_file()
     tmp_log_output_fp = stdout_file_path.split('logs/')[:1][0] + "logs/output.txt"
     _platform = platform.platform()
     pkg_type = "" if package_type is None else package_type
     pkg_mgt = 'apt'
-    cmd = "sudo {} -y update > {} 2>&1".format(pkg_mgt, stdout_file_path)
-    if 'centos' in _platform or 'redhat' in _platform:
-        pkg_mgt = 'yum'
-        cmd = "sudo {} check-update > {} 2>&1".format(pkg_mgt, stdout_file_path)
+    ret_code = 0
+    category = await server.Server._configuration_manager.get_category_all_items("Installation")
+    max_update_cat_item = category['maxUpdate']
+    pkg_cache_mgr = server.Server._package_cache_manager
+    last_accessed_time = pkg_cache_mgr['update']['last_accessed_time']
+    now = datetime.now()
+    then = last_accessed_time if last_accessed_time else now
+    duration_in_sec = (now - then).total_seconds()
+    # If max update per day is set to 1, then an update can not occurs until 24 hours after the last accessed update.
+    # If set to 2 then this drops to 12 hours between updates, 3 would result in 8 hours between calls and so on.
+    if duration_in_sec > (24 / int(max_update_cat_item['value'])) * 60 * 60 or duration_in_sec == 0.0:
+        _logger.info("Attempting update on {}".format(now))
+        cmd = "sudo {} -y update > {} 2>&1".format(pkg_mgt, stdout_file_path)
+        if 'centos' in _platform or 'redhat' in _platform:
+            pkg_mgt = 'yum'
+            cmd = "sudo {} check-update > {} 2>&1".format(pkg_mgt, stdout_file_path)
 
-    ret_code = os.system(cmd)
+        ret_code = os.system(cmd)
+        if ret_code == 0:
+            pkg_cache_mgr['update']['last_accessed_time'] = now
+    else:
+        _logger.warning("Maximum update exceeds the limit for the day")
+
+    # TODO: lru cache for below code
     # sudo apt/yum -y install only happens when update is without any error
     if ret_code == 0:
         open(tmp_log_output_fp, "w").close()
@@ -147,11 +166,11 @@ def fetch_available_packages(package_type: str = "") -> tuple:
         with open("{}".format(tmp_log_output_fp), 'r') as fh:
             for line in fh:
                 line = line.rstrip("\n")
-                log_output.append(line)
+                available_packages.append(line)
 
     # combine above output in logs file
     with open("{}".format(stdout_file_path), 'a') as fh:
-        fh.write(" \n".join(log_output))
+        fh.write(" \n".join(available_packages))
 
     # Remove tmp_log_output_fp
     if os.path.isfile(tmp_log_output_fp):
@@ -161,7 +180,7 @@ def fetch_available_packages(package_type: str = "") -> tuple:
     link = "log/" + stdout_file_path.split("/")[-1]
     if ret_code != 0:
         raise PackageError(link)
-    return log_output, link
+    return available_packages, link
 
 
 def create_log_file(plugin_name: str = "") -> str:

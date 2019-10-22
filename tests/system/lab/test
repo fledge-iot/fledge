@@ -604,32 +604,153 @@ event_toggled_sent_clear () {
     CREATE_EVENT_INSTANCE=`curl -sX POST "$URL/notification" -d '{"name":"test","description":"test notification instance","rule":"Threshold","channel":"asset","notification_type":"toggled","enabled":true}' | jq .`
     echo "$CREATE_EVENT_INSTANCE"
 
+    for LOOP in $(seq ${MAX_RETRIES}); do
+        RESULT=`curl -sX GET "$URL/notification"`
+        echo ${RESULT}
+        EVENT_NAME=`echo ${RESULT} | jq '.notifications[]|select(.name=="test").name'`
+        RULE=`echo ${RESULT} | jq '.notifications[]|select(.name=="test").rule'`
+        TYPE=`echo ${RESULT} | jq '.notifications[]|select(.name=="test").notificationType'`
+        if [[ -n "$EVENT_NAME" ]] && [[ "$EVENT_NAME" == "\"test\"" ]] && \
+        [[ -n "$RULE" ]] && [[ "$RULE" == "\"Threshold\"" ]] && \
+        [[ -n "$TYPE" ]] && [[ "$TYPE" == "\"toggled\"" ]]; then break; fi
+    done
+
+    if [[ ${LOOP} -eq ${MAX_RETRIES} ]];
+      then
+        display_and_collect_err "TIMEOUT! event instance not created successfully . $URL/notification";
+        if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+      else
+        echo "---- event instance created successfully ----"
+    fi
+
     echo "Set rule"
     SET_RULE=`curl -sX PUT "$URL/category/ruletest" -d '{"asset":"sinusoid", "datapoint":"sinusoid", "trigger_value": "0.8"}' | jq .`
     echo "$SET_RULE"
+
+    for LOOP in $(seq ${MAX_RETRIES}); do
+      RESULT=`curl -sX GET "$URL/category/ruletest"`
+      echo ${RESULT}
+      ASSET=`echo ${RESULT} | jq .asset.value`
+      DATAPOINT=`echo ${RESULT} | jq .datapoint.value`
+      TRIGGER_VALUE=` echo ${RESULT} | jq .trigger_value.value`
+      if [[ -n "$ASSET" ]] && [[ "$ASSET" == "\"sinusoid\"" ]] &&\
+      [[ -n "$DATAPOINT" ]] && [[ "$DATAPOINT" == "\"sinusoid\"" ]] &&\
+      [[ -n "$TRIGGER_VALUE" ]] && [[ "$TRIGGER_VALUE" == "\"0.8\"" ]]; then break; fi
+    done
+
+    if [[ ${LOOP} -eq ${MAX_RETRIES} ]];
+      then
+        display_and_collect_err "TIMEOUT! Rule not  set successfully . $URL/category/ruletest";
+        if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+      else
+        echo "---- Rule set successfully ----"
+    fi
 
     echo "Set delivery"
     SET_DELIVERY_CHN=`curl -sX PUT "$URL/category/deliverytest" -d '{"asset": "sin0.8", "description":"asset notification", "enable":"true"}' | jq .`
     echo "$SET_DELIVERY_CHN"
 
-    # TODO: exact time to sleep?
-    echo "Sleeping for 20 seconds"
-    sleep 20
+    for LOOP in $(seq ${MAX_RETRIES}); do
+      RESULT=`curl -sX GET "$URL/category/deliverytest"`
+      echo ${RESULT}
+      ASSET=`echo ${RESULT} | jq .asset.value`
+      ENABLE_VALUE=`echo ${RESULT} | jq .enable.value`
+      if [[ -n "$ASSET" ]] && [[ "$ASSET" == "\"sin0.8\"" ]] &&\
+      [[ -n "$ENABLE_VALUE" ]] && [[ "$ENABLE_VALUE" == "\"true\"" ]]; then break; fi
+    done
 
-    # TODO: verify asset tracker has entry for sin0.8
+    if [[ ${LOOP} -eq ${MAX_RETRIES} ]];
+      then
+        display_and_collect_err "TIMEOUT! Delivery channel not set successfully . $URL/category/deliverytest";
+        if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+      else
+        echo "---- Delivery channel set successfully ----"
+    fi
+
+    echo "Sleeping for 20 seconds until sin0.8 is added in asset table"
+    sleep 20
 
     echo "Verify sin0.8 has been created"
     GET_ASSET=`curl -sX GET "$URL/asset/sin0.8?seconds=600" | jq .`
     echo "$GET_ASSET"
-    # TODO: verify tabular data
+    for LOOP in $(seq ${MAX_RETRIES}); do
+      RESULT=`curl -sX GET "$URL/asset/sin0.8?seconds=600"`
+      echo ${RESULT}
+      RULE=`echo ${RESULT} | jq '.[0].reading.rule // empty'`
+      if [[ -n "$RESULT" ]] &&  [[ -n "$RULE" ]] && \
+      [[ "$RULE" == "\"test\"" ]]; then break; fi
+    done
+
+    if [[ ${LOOP} -eq ${MAX_RETRIES} ]];
+      then
+        display_and_collect_err "TIMEOUT! sin0.8 has not been created. $URL/asset/sin0.8?seconds=600";
+        if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+      else
+        echo "---- sin0.8 has been created ----"
+    fi
 
 
-    echo "When rule is triggred, There should be 2 entries in Logs->notifications NTFCL and NTFSN"
-    NTFSN_AUDIT=`curl -sX GET "$URL/audit?limit=1&source=NTFSN&severity=INFORMATION" | jq .`
-    NTFCL_AUDIT=`curl -sX GET "$URL/audit?limit=1&source=NTFCL&severity=INFORMATION" | jq .`
-    echo "$NTFSN_AUDIT"
-    echo "$NTFCL_AUDIT"
-    # TODO: verify name: test for each
+    echo "TODO: FOGL-3285 Verify sin0.8 asset tracker entry"
+#   GET_ASSET_TRACKER=`curl -sX GET "$URL/track" | jq .` # May be ?asset=sin0.8
+#   echo "$GET_ASSET_TRACKER"
+#   for LOOP in $(seq ${MAX_RETRIES}); do
+#        RESULT=`curl -sX GET "$URL/track"`
+#        echo ${RESULT}
+#        ASSET_NAME=`echo ${RESULT} | jq '.track[]|select(.asset=="sin0.8").asset'`
+#        ASSET_CREATION_EVENT=`echo ${RESULT} | jq '.track[]|select(.asset=="sin0.8").event'`
+#        ASSET_CREATED_BY=`echo ${RESULT} | jq '.track[]|select(.asset=="sin0.8").service'`
+#        # verify ASSET_CREATION_EVENT event & ASSET_CREATED_BY service
+#        if [[ -n "$ASSET_NAME" ]] && [[ "$ASSET_NAME" == "\"sin0.8\"" ]]; then break; fi
+#    done
+#
+#    if [[ ${LOOP} -eq ${MAX_RETRIES} ]];
+#      then
+#        display_and_collect_err "TIMEOUT! sin0.8 entry not found in asset tracker. $URL/track";
+#        if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+#      else
+#        echo "---- sin0.8 entry found in asset tracker ----"
+#    fi
+
+    echo "When rule is triggred, There should be audit entries for NTFSN & NTFCL"
+
+    for LOOP in $(seq ${MAX_RETRIES}); do
+      RESULT=`curl -sX GET "$URL/audit?limit=1&source=NTFSN&severity=INFORMATION"`
+      echo ${RESULT}
+      AUDIT_NAME=`echo ${RESULT} | jq '.audit[].details.name'`
+      SOURCE=`echo ${RESULT} | jq '.audit[].source'`
+      if [[ -n "$AUDIT_NAME" ]] && [[ "$AUDIT_NAME" == "\"test\"" ]] && \
+      [[ -n "$SOURCE" ]] && [[ "$SOURCE" == "\"NTFSN\"" ]]; then break; fi
+      # added sleep of 1s as next event fot sin0.8 will trigger when sinusoid datapoint value will be 0.8 again
+      # and with LIMIT 1 there will be entries for postive and negatives sine events from last test setup
+      sleep 1
+    done
+
+    if [[ ${LOOP} -eq ${MAX_RETRIES} ]];
+      then
+        display_and_collect_err "TIMEOUT! entry for test not found in NTFSN. $URL/audit?limit=1&source=NTFSN&severity=INFORMATION";
+        if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+      else
+        echo "---- Found NTFSN entry for test ----"
+    fi
+
+
+    for LOOP in $(seq ${MAX_RETRIES}); do
+        RESULT=`curl -sX GET "$URL/audit?limit=1&source=NTFCL&severity=INFORMATION"`
+        echo ${RESULT}
+        AUDIT_NAME=`echo ${RESULT} | jq '.audit[].details.name'`
+        SOURCE=`echo ${RESULT} | jq '.audit[].source'`
+        if [[ -n "$AUDIT_NAME" ]] && [[ "$AUDIT_NAME" == "\"test\"" ]] && \
+        [[ -n "$SOURCE" ]] && [[ "$SOURCE" == "\"NTFCL\"" ]]; then break; fi
+    done
+
+    if [[ ${LOOP} -eq ${MAX_RETRIES} ]];
+      then
+        display_and_collect_err "TIMEOUT! entry for test not found in NTFCL. $URL/audit?limit=1&source=NTFCL&severity=INFORMATION";
+        if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+      else
+        echo "---- Found NTFCL entry for test ----"
+    fi
+
 }
 
 event_toggled_sent_clear

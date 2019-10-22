@@ -110,72 +110,74 @@ def start_south_north(clean_setup_foglamp_packages, add_south, start_north_pi_se
     remove_data_file(fogbench_template_path)
 
 
-def test_end_to_end(start_south_north, read_data_from_pi, foglamp_url, pi_host, pi_admin, pi_passwd, pi_db,
-                    wait_time, retries, skip_verify_north_interface, asset_name=ASSET):
-    """ Test that data is inserted in FogLAMP and sent to PI
-        start_south_north: Fixture that add south and north instance
-        read_data_from_pi: Fixture to read data from PI
-        skip_verify_north_interface: Flag for assertion of data using PI web API
-        Assertions:
-            on endpoint GET /foglamp/ping
-            on endpoint GET /foglamp/statistics
-            on endpoint GET /foglamp/asset
-            on endpoint GET /foglamp/asset/<asset_name>
-            data received from PI is same as data sent"""
+class TestPackagesCoAP_PI_WebAPI:
 
-    conn = http.client.HTTPConnection(foglamp_url)
-    subprocess.run(["cd $FOGLAMP_ROOT/extras/python; python3 -m fogbench -t ../../data/{}; cd -".format(TEMPLATE_NAME)],
-                   shell=True, check=True)
+    def test_end_to_end(self, start_south_north, read_data_from_pi, foglamp_url, pi_host, pi_admin, pi_passwd, pi_db,
+                        wait_time, retries, skip_verify_north_interface, asset_name=ASSET):
+        """ Test that data is inserted in FogLAMP and sent to PI
+            start_south_north: Fixture that add south and north instance
+            read_data_from_pi: Fixture to read data from PI
+            skip_verify_north_interface: Flag for assertion of data using PI web API
+            Assertions:
+                on endpoint GET /foglamp/ping
+                on endpoint GET /foglamp/statistics
+                on endpoint GET /foglamp/asset
+                on endpoint GET /foglamp/asset/<asset_name>
+                data received from PI is same as data sent"""
 
-    time.sleep(wait_time)
+        conn = http.client.HTTPConnection(foglamp_url)
+        subprocess.run(["cd $FOGLAMP_ROOT/extras/python; python3 -m fogbench -t ../../data/{}; cd -".format(TEMPLATE_NAME)],
+                       shell=True, check=True)
 
-    ping_response = get_ping_status(foglamp_url)
-    assert 1 == ping_response["dataRead"]
+        time.sleep(wait_time)
 
-    retry_count = 1
-    sent = 0
-    if not skip_verify_north_interface:
-        while retries > retry_count:
-            sent = ping_response["dataSent"]
-            if sent == 1:
-                break
-            else:
-                time.sleep(wait_time)
+        ping_response = get_ping_status(foglamp_url)
+        assert 1 == ping_response["dataRead"]
 
-            retry_count += 1
-            ping_response = get_ping_status(foglamp_url)
+        retry_count = 1
+        sent = 0
+        if not skip_verify_north_interface:
+            while retries > retry_count:
+                sent = ping_response["dataSent"]
+                if sent == 1:
+                    break
+                else:
+                    time.sleep(wait_time)
 
-        assert 1 == sent, "Failed to send data via PI Web API using Basic auth"
+                retry_count += 1
+                ping_response = get_ping_status(foglamp_url)
 
-    actual_stats_map = get_statistics_map(foglamp_url)
-    assert 1 == actual_stats_map[asset_name.upper()]
-    assert 1 == actual_stats_map['READINGS']
-    if not skip_verify_north_interface:
-        assert 1 == actual_stats_map['Readings Sent']
-        assert 1 == actual_stats_map['NorthReadingsToPI_WebAPI']
+            assert 1 == sent, "Failed to send data via PI Web API using Basic auth"
 
-    conn.request("GET", '/foglamp/asset')
-    r = conn.getresponse()
-    assert 200 == r.status
-    r = r.read().decode()
-    retval = json.loads(r)
-    assert len(retval) == 1
-    assert asset_name == retval[0]["assetCode"]
-    assert 1 == retval[0]["count"]
+        actual_stats_map = get_statistics_map(foglamp_url)
+        assert 1 == actual_stats_map[asset_name.upper()]
+        assert 1 == actual_stats_map['READINGS']
+        if not skip_verify_north_interface:
+            assert 1 == actual_stats_map['Readings Sent']
+            assert 1 == actual_stats_map['NorthReadingsToPI_WebAPI']
 
-    conn.request("GET", '/foglamp/asset/{}'.format(asset_name))
-    r = conn.getresponse()
-    assert 200 == r.status
-    r = r.read().decode()
-    retval = json.loads(r)
-    assert {DATAPOINT: DATAPOINT_VALUE} == retval[0]["reading"]
+        conn.request("GET", '/foglamp/asset')
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        retval = json.loads(r)
+        assert len(retval) == 1
+        assert asset_name == retval[0]["assetCode"]
+        assert 1 == retval[0]["count"]
 
-    if not skip_verify_north_interface:
-        egress_tracking_details = get_asset_tracking_details(foglamp_url, "Egress")
-        assert len(egress_tracking_details["track"]), "Failed to track Egress event"
-        tracked_item = egress_tracking_details["track"][0]
-        assert "NorthReadingsToPI_WebAPI" == tracked_item["service"]
-        assert asset_name == tracked_item["asset"]
-        assert "PI_Server_V2" == tracked_item["plugin"]
+        conn.request("GET", '/foglamp/asset/{}'.format(asset_name))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        retval = json.loads(r)
+        assert {DATAPOINT: DATAPOINT_VALUE} == retval[0]["reading"]
 
-        _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name)
+        if not skip_verify_north_interface:
+            egress_tracking_details = get_asset_tracking_details(foglamp_url, "Egress")
+            assert len(egress_tracking_details["track"]), "Failed to track Egress event"
+            tracked_item = egress_tracking_details["track"][0]
+            assert "NorthReadingsToPI_WebAPI" == tracked_item["service"]
+            assert asset_name == tracked_item["asset"]
+            assert "PI_Server_V2" == tracked_item["plugin"]
+
+            _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name)

@@ -484,8 +484,8 @@ class Server:
                                                              display_name='Installation')
             await cls._configuration_manager.get_category_all_items(category)
 
-            cls._package_cache_manager = {"update": {"last_accessed_time": datetime.now()},
-                                          "upgrade": {"last_accessed_time": datetime.now()}}
+            cls._package_cache_manager = {"update": {"last_accessed_time": ""},
+                                          "upgrade": {"last_accessed_time": ""}}
         except Exception as ex:
             _logger.exception(str(ex))
             raise

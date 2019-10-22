@@ -292,24 +292,35 @@ class Server:
     running_in_safe_mode = False
     """ FogLAMP running in Safe mode """
 
+    _package_cache_manager = None
+    """ Package Cache Manager """
+
     _INSTALLATION_DEFAULT_CONFIG = {
-        'upgradeOnInstall': {
-            'description': 'Run upgrade prior to installing new software',
-            'type': 'boolean',
-            'default': 'false',
-            'displayName': 'Upgrade on Install'
-        },
         'maxUpdate': {
             'description': 'Maximum updates per day',
             'type': 'integer',
             'default': '1',
-            'displayName': 'Maximum Update'
+            'displayName': 'Maximum Update',
+            'order': '1',
+            'minimum': '1',
+            'maximum': '8'
         },
         'maxUpgrade': {
             'description': 'Maximum upgrades per day',
             'type': 'integer',
             'default': '1',
-            'displayName': 'Maximum Upgrade'
+            'displayName': 'Maximum Upgrade',
+            'order': '2',
+            'minimum': '1',
+            'maximum': '8',
+            'validity': 'upgradeOnInstall == "true"'
+        },
+        'upgradeOnInstall': {
+            'description': 'Run upgrade prior to installing new software',
+            'type': 'boolean',
+            'default': 'false',
+            'displayName': 'Upgrade on Install',
+            'order': '3'
         }
     }
 
@@ -472,6 +483,9 @@ class Server:
             await cls._configuration_manager.create_category(category, config, 'Installation', True,
                                                              display_name='Installation')
             await cls._configuration_manager.get_category_all_items(category)
+
+            cls._package_cache_manager = {"update": {"last_accessed_time": datetime.now()},
+                                          "upgrade": {"last_accessed_time": datetime.now()}}
         except Exception as ex:
             _logger.exception(str(ex))
             raise

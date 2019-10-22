@@ -90,51 +90,52 @@ def start_south_north(reset_and_start_foglamp, add_south, start_north_pi_server_
     remove_directories("/tmp/foglamp-south-{}".format(south_plugin))
 
 
-def test_end_to_end(start_south_north, read_data_from_pi, foglamp_url, pi_host, pi_admin, pi_passwd, pi_db,
-                    wait_time, retries, skip_verify_north_interface, asset_name="end_to_end_coap"):
-    """ Test that data is inserted in FogLAMP and sent to PI
-        start_south_north: Fixture that starts FogLAMP with south and north instance
-        read_data_from_pi: Fixture to read data from PI
-        skip_verify_north_interface: Flag for assertion of data from Pi web API
-        Assertions:
-            on endpoint GET /foglamp/asset
-            on endpoint GET /foglamp/asset/<asset_name>
-            data received from PI is same as data sent"""
+class TestE2E_CoAP_PI:
+    def test_end_to_end(self, start_south_north, read_data_from_pi, foglamp_url, pi_host, pi_admin, pi_passwd, pi_db,
+                        wait_time, retries, skip_verify_north_interface, asset_name="end_to_end_coap"):
+        """ Test that data is inserted in FogLAMP and sent to PI
+            start_south_north: Fixture that starts FogLAMP with south and north instance
+            read_data_from_pi: Fixture to read data from PI
+            skip_verify_north_interface: Flag for assertion of data from Pi web API
+            Assertions:
+                on endpoint GET /foglamp/asset
+                on endpoint GET /foglamp/asset/<asset_name>
+                data received from PI is same as data sent"""
 
-    conn = http.client.HTTPConnection(foglamp_url)
-    time.sleep(wait_time)
-    subprocess.run(["cd $FOGLAMP_ROOT/extras/python; python3 -m fogbench -t ../../data/{}; cd -".format(TEMPLATE_NAME)],
-                   shell=True, check=True)
-    time.sleep(wait_time)
+        conn = http.client.HTTPConnection(foglamp_url)
+        time.sleep(wait_time)
+        subprocess.run(["cd $FOGLAMP_ROOT/extras/python; python3 -m fogbench -t ../../data/{}; cd -".format(TEMPLATE_NAME)],
+                       shell=True, check=True)
+        time.sleep(wait_time)
 
-    ping_response = get_ping_status(foglamp_url)
-    assert 1 == ping_response["dataRead"]
-    if not skip_verify_north_interface:
-        assert 1 == ping_response["dataSent"]
+        ping_response = get_ping_status(foglamp_url)
+        assert 1 == ping_response["dataRead"]
+        if not skip_verify_north_interface:
+            assert 1 == ping_response["dataSent"]
 
-    actual_stats_map = get_statistics_map(foglamp_url)
-    assert 1 == actual_stats_map[asset_name.upper()]
-    assert 1 == actual_stats_map['READINGS']
-    if not skip_verify_north_interface:
-        assert 1 == actual_stats_map['Readings Sent']
-        assert 1 == actual_stats_map['NorthReadingsToPI']
+        actual_stats_map = get_statistics_map(foglamp_url)
+        assert 1 == actual_stats_map[asset_name.upper()]
+        assert 1 == actual_stats_map['READINGS']
+        if not skip_verify_north_interface:
+            assert 1 == actual_stats_map['Readings Sent']
+            assert 1 == actual_stats_map['NorthReadingsToPI']
 
-    conn.request("GET", '/foglamp/asset')
-    r = conn.getresponse()
-    assert 200 == r.status
-    r = r.read().decode()
-    retval = json.loads(r)
-    assert len(retval) == 1
-    assert asset_name == retval[0]["assetCode"]
-    assert 1 == retval[0]["count"]
+        conn.request("GET", '/foglamp/asset')
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        retval = json.loads(r)
+        assert len(retval) == 1
+        assert asset_name == retval[0]["assetCode"]
+        assert 1 == retval[0]["count"]
 
-    conn.request("GET", '/foglamp/asset/{}'.format(asset_name))
-    r = conn.getresponse()
-    assert 200 == r.status
-    r = r.read().decode()
-    retval = json.loads(r)
-    assert {'sensor': SENSOR_VALUE} == retval[0]["reading"]
+        conn.request("GET", '/foglamp/asset/{}'.format(asset_name))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        retval = json.loads(r)
+        assert {'sensor': SENSOR_VALUE} == retval[0]["reading"]
 
-    if not skip_verify_north_interface:
-        _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name)
+        if not skip_verify_north_interface:
+            _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name)
 

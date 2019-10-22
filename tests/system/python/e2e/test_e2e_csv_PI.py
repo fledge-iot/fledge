@@ -114,51 +114,52 @@ def _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_
         assert Counter(data_from_pi[_head][-len(CSV_DATA):]) == Counter(_data_str[_head])
 
 
-def test_e2e_csv_pi(start_south_north, read_data_from_pi, foglamp_url, pi_host, pi_admin, pi_passwd, pi_db,
-                    wait_time, retries, skip_verify_north_interface, asset_name="end_to_end_csv"):
-    """ Test that data is inserted in FogLAMP and sent to PI
-        start_south_north: Fixture that starts FogLAMP with south and north instance
-        read_data_from_pi: Fixture to read data from PI
-        skip_verify_north_interface: Flag for assertion of data from Pi web API
-        Assertions:
-            on endpoint GET /foglamp/asset
-            on endpoint GET /foglamp/asset/<asset_name>
-            data received from PI is same as data sent"""
+class TestE2E_CSV_PI:
+    def test_e2e_csv_pi(self, start_south_north, read_data_from_pi, foglamp_url, pi_host, pi_admin, pi_passwd, pi_db,
+                        wait_time, retries, skip_verify_north_interface, asset_name="end_to_end_csv"):
+        """ Test that data is inserted in FogLAMP and sent to PI
+            start_south_north: Fixture that starts FogLAMP with south and north instance
+            read_data_from_pi: Fixture to read data from PI
+            skip_verify_north_interface: Flag for assertion of data from Pi web API
+            Assertions:
+                on endpoint GET /foglamp/asset
+                on endpoint GET /foglamp/asset/<asset_name>
+                data received from PI is same as data sent"""
 
-    conn = http.client.HTTPConnection(foglamp_url)
-    time.sleep(wait_time)
+        conn = http.client.HTTPConnection(foglamp_url)
+        time.sleep(wait_time)
 
-    ping_response = get_ping_status(foglamp_url)
-    assert len(CSV_DATA) == ping_response["dataRead"]
-    if not skip_verify_north_interface:
-        assert len(CSV_DATA) == ping_response["dataSent"]
+        ping_response = get_ping_status(foglamp_url)
+        assert len(CSV_DATA) == ping_response["dataRead"]
+        if not skip_verify_north_interface:
+            assert len(CSV_DATA) == ping_response["dataSent"]
 
-    actual_stats_map = get_statistics_map(foglamp_url)
-    assert len(CSV_DATA) == actual_stats_map[asset_name.upper()]
-    assert len(CSV_DATA) == actual_stats_map['READINGS']
-    if not skip_verify_north_interface:
-        assert len(CSV_DATA) == actual_stats_map['Readings Sent']
-        assert len(CSV_DATA) == actual_stats_map['NorthReadingsToPI']
+        actual_stats_map = get_statistics_map(foglamp_url)
+        assert len(CSV_DATA) == actual_stats_map[asset_name.upper()]
+        assert len(CSV_DATA) == actual_stats_map['READINGS']
+        if not skip_verify_north_interface:
+            assert len(CSV_DATA) == actual_stats_map['Readings Sent']
+            assert len(CSV_DATA) == actual_stats_map['NorthReadingsToPI']
 
-    conn.request("GET", '/foglamp/asset')
-    r = conn.getresponse()
-    assert 200 == r.status
-    r = r.read().decode()
-    retval = json.loads(r)
-    assert len(retval) == 1
-    assert asset_name == retval[0]["assetCode"]
-    assert len(CSV_DATA) == retval[0]["count"]
-
-    for _head in CSV_HEADERS.split(","):
-        conn.request("GET", '/foglamp/asset/{}/{}'.format(asset_name, _head))
+        conn.request("GET", '/foglamp/asset')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         retval = json.loads(r)
-        _actual_read_list = []
-        for _el in retval:
-            _actual_read_list.append(_el[_head])
-        assert Counter(_actual_read_list) == Counter(_data_str[_head])
+        assert len(retval) == 1
+        assert asset_name == retval[0]["assetCode"]
+        assert len(CSV_DATA) == retval[0]["count"]
 
-    if not skip_verify_north_interface:
-        _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name)
+        for _head in CSV_HEADERS.split(","):
+            conn.request("GET", '/foglamp/asset/{}/{}'.format(asset_name, _head))
+            r = conn.getresponse()
+            assert 200 == r.status
+            r = r.read().decode()
+            retval = json.loads(r)
+            _actual_read_list = []
+            for _el in retval:
+                _actual_read_list.append(_el[_head])
+            assert Counter(_actual_read_list) == Counter(_data_str[_head])
+
+        if not skip_verify_north_interface:
+            _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name)

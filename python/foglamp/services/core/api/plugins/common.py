@@ -13,6 +13,7 @@ import glob
 import importlib.util
 from typing import Dict
 from datetime import datetime
+from functools import lru_cache
 
 from foglamp.common import logger
 from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA, _FOGLAMP_PLUGIN_PATH
@@ -118,12 +119,32 @@ def load_and_fetch_c_hybrid_plugin_info(plugin_name: str, is_config: bool, plugi
                 raise Exception('Required {} keys are missing for json file'.format(json_file_keys))
     return plugin_info
 
+# FIXME: There is no support for time to live in lru cache, we need to clear cache for below method on every 15 minutes
+@lru_cache(maxsize=128, typed=True)
+def _get_available_packages(code: int, tmp_log_output_fp: str, pkg_mgt: str, pkg_type: str) -> tuple:
+    available_packages = []
+    if code == 0:
+        open(tmp_log_output_fp, "w").close()
+        if pkg_mgt == 'yum':
+            cmd = "sudo yum list available foglamp-{}\* | grep foglamp | cut -d . -f1 > {} 2>&1".format(
+                pkg_type, tmp_log_output_fp)
+        else:
+            cmd = "sudo apt list | grep foglamp-{} | grep -v installed | cut -d / -f1  > {} 2>&1".format(
+                pkg_type, tmp_log_output_fp)
+        code = os.system(cmd)
+
+        # Below temporary file is for Output of above command which is needed to return in API response
+        with open("{}".format(tmp_log_output_fp), 'r') as fh:
+            for line in fh:
+                line = line.rstrip("\n")
+                available_packages.append(line)
+    return code, available_packages
+
 
 async def fetch_available_packages(package_type: str = "") -> tuple:
     # Require a local import in order to avoid circular import references
     from foglamp.services.core import server
 
-    available_packages = []
     stdout_file_path = create_log_file()
     tmp_log_output_fp = stdout_file_path.split('logs/')[:1][0] + "logs/output.txt"
     _platform = platform.platform()
@@ -139,7 +160,7 @@ async def fetch_available_packages(package_type: str = "") -> tuple:
     duration_in_sec = (now - then).total_seconds()
     # If max update per day is set to 1, then an update can not occurs until 24 hours after the last accessed update.
     # If set to 2 then this drops to 12 hours between updates, 3 would result in 8 hours between calls and so on.
-    if duration_in_sec > (24 / int(max_update_cat_item['value'])) * 60 * 60 or duration_in_sec == 0.0:
+    if duration_in_sec > (24 / int(max_update_cat_item['value'])) * 60 * 60 or not last_accessed_time:
         _logger.info("Attempting update on {}".format(now))
         cmd = "sudo {} -y update > {} 2>&1".format(pkg_mgt, stdout_file_path)
         if 'centos' in _platform or 'redhat' in _platform:
@@ -149,26 +170,12 @@ async def fetch_available_packages(package_type: str = "") -> tuple:
         ret_code = os.system(cmd)
         if ret_code == 0:
             pkg_cache_mgr['update']['last_accessed_time'] = now
+            # fetch available package caching always clear on every update request
+            _get_available_packages.cache_clear()
     else:
         _logger.warning("Maximum update exceeds the limit for the day")
 
-    # TODO: lru cache for below code
-    # sudo apt/yum -y install only happens when update is without any error
-    if ret_code == 0:
-        open(tmp_log_output_fp, "w").close()
-        if pkg_mgt == 'yum':
-            cmd = "sudo yum list available foglamp-{}\* | grep foglamp | cut -d . -f1 > {} 2>&1".format(
-                pkg_type, tmp_log_output_fp)
-        else:
-            cmd = "sudo apt list | grep foglamp-{} | grep -v installed | cut -d / -f1  > {} 2>&1".format(
-                pkg_type, tmp_log_output_fp)
-        ret_code = os.system(cmd)
-
-        # Below temporary file is for Output of above command which is needed to return in API response
-        with open("{}".format(tmp_log_output_fp), 'r') as fh:
-            for line in fh:
-                line = line.rstrip("\n")
-                available_packages.append(line)
+    ret_code, available_packages = _get_available_packages(ret_code, tmp_log_output_fp, pkg_mgt, pkg_type)
 
     # combine above output in logs file
     with open("{}".format(stdout_file_path), 'a') as fh:

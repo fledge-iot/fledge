@@ -275,7 +275,7 @@ async def install_package_from_repo(name: str, pkg_mgt: str, version: str) -> tu
             duration_in_sec = (now - then).total_seconds()
             # If max upgrade per day is set to 1, then an upgrade can not occurs until 24 hours after the last accessed upgrade.
             # If set to 2 then this drops to 12 hours between upgrades, 3 would result in 8 hours between calls and so on.
-            if duration_in_sec > (24 / int(max_upgrade_cat_item['value'])) * 60 * 60 or duration_in_sec == 0.0:
+            if duration_in_sec > (24 / int(max_upgrade_cat_item['value'])) * 60 * 60 or not last_accessed_time:
                 _LOGGER.info("Attempting upgrade on {}".format(now))
                 cmd = "sudo {} -y upgrade".format(pkg_mgt) if pkg_mgt == 'apt' else "sudo {} -y update".format(pkg_mgt)
                 ret_code = os.system(cmd + " > {} 2>&1".format(stdout_file_path))

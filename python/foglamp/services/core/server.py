@@ -321,6 +321,13 @@ class Server:
             'default': 'false',
             'displayName': 'Upgrade on Install',
             'order': '3'
+        },
+        'listAvailablePackagesCacheTTL': {
+            'description': 'Caching of fetch available packages time to live in minutes',
+            'type': 'integer',
+            'default': '15',
+            'displayName': 'Available Packages Cache',
+            'order': '4'
         }
     }
 
@@ -485,7 +492,7 @@ class Server:
             await cls._configuration_manager.get_category_all_items(category)
 
             cls._package_cache_manager = {"update": {"last_accessed_time": ""},
-                                          "upgrade": {"last_accessed_time": ""}}
+                                          "upgrade": {"last_accessed_time": ""}, "list": {"last_accessed_time"}}
         except Exception as ex:
             _logger.exception(str(ex))
             raise

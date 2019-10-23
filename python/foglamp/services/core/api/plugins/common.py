@@ -119,8 +119,12 @@ def load_and_fetch_c_hybrid_plugin_info(plugin_name: str, is_config: bool, plugi
                 raise Exception('Required {} keys are missing for json file'.format(json_file_keys))
     return plugin_info
 
-# FIXME: There is no support for time to live in lru cache, we need to clear cache for below method on every 15 minutes
-@lru_cache(maxsize=128, typed=True)
+# FIXME: There is no support for time to live in lru cache, we need to clear cache for below method on minutes
+#  configured in configuration item listAvailablePackagesCacheTTL and check timedelta with
+#  pkg_cache_mgr = server.Server._package_cache_manager
+#  last_accessed_time = pkg_cache_mgr['listAvailablePackagesCacheTTL']['last_accessed_time']
+#  if the duration is greater than configured minutes then invalidate cache
+@lru_cache(maxsize=1, typed=True)
 def _get_available_packages(code: int, tmp_log_output_fp: str, pkg_mgt: str, pkg_type: str) -> tuple:
     available_packages = []
     if code == 0:
@@ -145,6 +149,8 @@ async def fetch_available_packages(package_type: str = "") -> tuple:
     # Require a local import in order to avoid circular import references
     from foglamp.services.core import server
 
+    # FIXME: log file create only on action NOT on caching and update restriction case
+    # Also add "action" param to create_log_file
     stdout_file_path = create_log_file()
     tmp_log_output_fp = stdout_file_path.split('logs/')[:1][0] + "logs/output.txt"
     _platform = platform.platform()

@@ -90,6 +90,7 @@ def start_south_north(reset_and_start_fledge, add_south, start_north_pi_server_c
     remove_directories("/tmp/fledge-south-{}".format(south_plugin))
 
 
+<<<<<<< HEAD
 def test_end_to_end(start_south_north, read_data_from_pi, fledge_url, pi_host, pi_admin, pi_passwd, pi_db,
                     wait_time, retries, skip_verify_north_interface, asset_name="end_to_end_coap"):
     """ Test that data is inserted in Fledge and sent to PI
@@ -137,4 +138,54 @@ def test_end_to_end(start_south_north, read_data_from_pi, fledge_url, pi_host, p
 
     if not skip_verify_north_interface:
         _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name)
+=======
+class TestE2E_CoAP_PI:
+    def test_end_to_end(self, start_south_north, read_data_from_pi, fledge_url, pi_host, pi_admin, pi_passwd, pi_db,
+                        wait_time, retries, skip_verify_north_interface, asset_name="end_to_end_coap"):
+        """ Test that data is inserted in Fledge and sent to PI
+            start_south_north: Fixture that starts Fledge with south and north instance
+            read_data_from_pi: Fixture to read data from PI
+            skip_verify_north_interface: Flag for assertion of data from Pi web API
+            Assertions:
+                on endpoint GET /fledge/asset
+                on endpoint GET /fledge/asset/<asset_name>
+                data received from PI is same as data sent"""
+
+        conn = http.client.HTTPConnection(fledge_url)
+        time.sleep(wait_time)
+        subprocess.run(["cd $FLEDGE_ROOT/extras/python; python3 -m fogbench -t ../../data/{}; cd -".format(TEMPLATE_NAME)],
+                       shell=True, check=True)
+        time.sleep(wait_time)
+
+        ping_response = get_ping_status(fledge_url)
+        assert 1 == ping_response["dataRead"]
+        if not skip_verify_north_interface:
+            assert 1 == ping_response["dataSent"]
+
+        actual_stats_map = get_statistics_map(fledge_url)
+        assert 1 == actual_stats_map[asset_name.upper()]
+        assert 1 == actual_stats_map['READINGS']
+        if not skip_verify_north_interface:
+            assert 1 == actual_stats_map['Readings Sent']
+            assert 1 == actual_stats_map['NorthReadingsToPI']
+
+        conn.request("GET", '/fledge/asset')
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        retval = json.loads(r)
+        assert len(retval) == 1
+        assert asset_name == retval[0]["assetCode"]
+        assert 1 == retval[0]["count"]
+
+        conn.request("GET", '/fledge/asset/{}'.format(asset_name))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        retval = json.loads(r)
+        assert {'sensor': SENSOR_VALUE} == retval[0]["reading"]
+
+        if not skip_verify_north_interface:
+            _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name)
+>>>>>>> develop
 

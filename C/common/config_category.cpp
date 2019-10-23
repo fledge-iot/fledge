@@ -460,6 +460,8 @@ string ConfigCategory::getItemAttribute(const string& itemName,
 					return m_items[i]->m_order;
 				case READONLY_ATTR:
 					return m_items[i]->m_readonly;
+				case MANDATORY_ATTR:
+				    return m_items[i]->m_mandatory;
 				case FILE_ATTR:
 					return m_items[i]->m_file;
 				default:
@@ -891,6 +893,15 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 	{
 		m_readonly = "";
 	}
+
+	if (item.HasMember("mandatory"))
+	{
+		m_mandatory = item["mandatory"].GetString();
+	}
+	else
+	{
+		m_mandatory = "";
+	}
 	if (m_type.compare("category") == 0)
 	{
 		m_itemType = CategoryType;
@@ -1190,6 +1201,7 @@ ConfigCategory::CategoryItem::CategoryItem(const CategoryItem& rhs)
 	m_description = rhs.m_description;
        	m_order = rhs.m_order;
        	m_readonly = rhs.m_readonly;
+       	m_mandatory = rhs.m_mandatory;
        	m_deprecated = rhs.m_deprecated;
        	m_minimum = rhs.m_minimum;
        	m_maximum = rhs.m_maximum;
@@ -1270,6 +1282,11 @@ ostringstream convert;
 			convert << ", \"readonly\" : \"" << m_readonly << "\"";
 		}
 
+        if (!m_mandatory.empty())
+        {
+            convert << ", \"mandatory\" : \"" << m_mandatory << "\"";
+        }
+
 		if (!m_file.empty())
 		{
 			convert << ", \"file\" : \"" << m_file << "\"";
@@ -1326,6 +1343,11 @@ ostringstream convert;
 	{
 		convert << ", \"readonly\" : \"" << m_readonly << "\"";
 	}
+
+    if (!m_mandatory.empty())
+    {
+        convert << ", \"mandatory\" : \"" << m_mandatory << "\"";
+    }
 
 	if (!m_file.empty())
 	{

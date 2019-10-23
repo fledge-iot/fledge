@@ -113,6 +113,7 @@ class ConfigCategory {
 		enum ItemAttribute {
 					ORDER_ATTR,
 					READONLY_ATTR,
+					MANDATORY_ATTR,
 					FILE_ATTR};
 		std::string			getItemAttribute(const std::string& itemName,
 								 ItemAttribute itemAttribute) const;
@@ -142,6 +143,7 @@ class ConfigCategory {
 				std::string 	m_description;
 				std::string 	m_order;
 				std::string 	m_readonly;
+				std::string 	m_mandatory;
 				std::string 	m_deprecated;
 				std::string	m_minimum;
 				std::string	m_maximum;

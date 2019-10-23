@@ -287,8 +287,7 @@ class TestConfiguration:
             patch_set_entry.assert_called_once_with(category_name, item_name, payload['value'])
 
     @pytest.mark.parametrize("payload, optional_item, message", [
-        ({"value": '8082'}, "readonly", "Update not allowed for {} item_name as it has readonly attribute set"),
-        ({"value": ''}, "mandatory", "A value must be given for {}")
+        ({"value": '8082'}, "readonly", "Update not allowed for {} item_name as it has readonly attribute set")
     ])
     async def test_set_config_item_not_allowed(self, client, payload, message, optional_item, category_name='rest_api', item_name='http_port'):
         async def async_mock(return_value):
@@ -773,8 +772,7 @@ class TestConfiguration:
             patch_get_cat_item.assert_called_once_with(category_name, config_item_name)
 
     @pytest.mark.parametrize("payload, optional_item, message", [
-        ({"http_port": '8082'}, "readonly", "Bulk update not allowed for {} item_name as it has readonly attribute set"),
-        ({"http_port": ''}, "mandatory", "A value must be given for {}")
+        ({"http_port": '8082'}, "readonly", "Bulk update not allowed for {} item_name as it has readonly attribute set")
     ])
     async def test_update_bulk_config_not_allowed(self, client, payload, optional_item, message,
                                                   category_name='rest_api'):

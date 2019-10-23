@@ -571,6 +571,7 @@ class TestEventEngine:
             if "test #1" == audit_detail['details']['name']:
                 assert "INFORMATION" == audit_detail['severity']
                 assert "NTFCL" == audit_detail['source']
+<<<<<<< HEAD
 
 
 def teardown_module(module):
@@ -578,3 +579,5 @@ def teardown_module(module):
         subprocess.run(["cd $FLEDGE_ROOT/tests/system/lab && ./remove"], shell=True, check=True)
     except subprocess.CalledProcessError:
         assert False, "remove package script failed!"
+=======
+>>>>>>> develop

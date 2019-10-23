@@ -66,4 +66,9 @@ NotificationPythonPluginHandle::NotificationPythonPluginHandle(const char *plugi
 		dlclose(m_hndl);
 		return;
 	}
+
+	// Set type
+	m_type = strstr(pluginPathName, PLUGIN_TYPE_NOTIFICATION_RULE) != NULL ?
+		PLUGIN_TYPE_NOTIFICATION_RULE :
+		PLUGIN_TYPE_NOTIFICATION_DELIVERY;
 }

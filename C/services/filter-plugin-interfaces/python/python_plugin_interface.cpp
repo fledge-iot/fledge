@@ -318,7 +318,7 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 		auto it = pythonModules->find(pName);
 		if (it == pythonModules->end())
 		{
-			Logger::getLogger()->error("plugin_handle: filter_plugin_init(): "
+			Logger::getLogger()->debug("plugin_handle: filter_plugin_init(): "
 						   "pModule not found for plugin '%s': "
 						   "import Python module using a new interpreter.",
 						   pName.c_str());
@@ -732,9 +732,9 @@ void *PluginInterfaceResolveSymbol(const char *_sym, const string& pName)
 		return (void *) filter_plugin_ingest_fn;
 	else if (!sym.compare("plugin_start"))
 	{
-		Logger::getLogger()->warn("FilterPluginInterface currently "
-					  "does not support 'plugin_start', plugin '%s'",
-					  pName.c_str());
+		Logger::getLogger()->debug("FilterPluginInterface currently "
+					   "does not support 'plugin_start', plugin '%s'",
+					   pName.c_str());
 		return NULL;
 	}
 	else

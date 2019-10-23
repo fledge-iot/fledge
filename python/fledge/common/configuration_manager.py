@@ -277,7 +277,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                              .format(category_name, entry_name, type(entry_val)))
                         else:
                             if entry_name == 'mandatory' and entry_val == 'true':
-                                if not len(item_val['default']):
+                                if not len(item_val['default'].strip()):
                                     raise ValueError('For {} category, A default value must be given for {}'.format(
                                         category_name, item_name))
                     elif entry_name == 'minimum' or entry_name == 'maximum':
@@ -487,7 +487,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 if 'rule' in cat_info[item_name]:
                     rule = cat_info[item_name]['rule'].replace("value", new_val)
                     if eval(rule) is False:
-                        raise ValueError('Proposed value for item_name {} is not allowed as per rule defined'.format(item_name))
+                        raise ValueError('The value of {} is not valid, please supply a valid value'.format(item_name))
                 if cat_info[item_name]['type'] == 'JSON':
                     if isinstance(new_val, dict):
                         pass
@@ -505,6 +505,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     if self._validate_type_value(cat_info[item_name]['type'], new_val) is False:
                         raise TypeError('Unrecognized value name for item_name {}'.format(item_name))
 
+                if 'mandatory' in cat_info[item_name]:
+                    if cat_info[item_name]['mandatory'] == 'true' and not len(new_val.strip()):
+                        raise ValueError("A value must be given for {}".format(item_name))
                 old_value = cat_info[item_name]['value']
                 new_val = self._clean(cat_info[item_name]['type'], new_val)
 
@@ -731,13 +734,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             else:
                 if self._validate_type_value(storage_value_entry['type'], new_value_entry) is False:
                     raise TypeError('Unrecognized value name for item_name {}'.format(item_name))
-
+            if 'mandatory' in storage_value_entry:
+                if storage_value_entry['mandatory'] == 'true' and not len(new_value_entry.strip()):
+                    raise ValueError("A value must be given for {}".format(item_name))
             new_value_entry = self._clean(storage_value_entry['type'], new_value_entry)
             # Evaluate new_value_entry as per rule if defined
             if 'rule' in storage_value_entry:
                 rule = storage_value_entry['rule'].replace("value", new_value_entry)
                 if eval(rule) is False:
-                    raise ValueError('Proposed value for item_name {} is not allowed as per rule defined'.format(item_name))
+                    raise ValueError('The value of {} is not valid, please supply a valid value'.format(item_name))
             await self._update_value_val(category_name, item_name, new_value_entry)
             # always get value from storage
             cat_item = await self._read_item_val(category_name, item_name)
@@ -924,7 +929,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 if 'rule' in category_val_prepared[item_name]:
                     rule = category_val_prepared[item_name]['rule'].replace("value", category_val_prepared[item_name]['value'])
                     if eval(rule) is False:
-                        raise ValueError('For {} category, Proposed value for item_name {} is not allowed as per rule defined'.format(category_name, item_name))
+                        raise ValueError('For {} category, The value of {} is not valid, please supply a valid value'.format(category_name, item_name))
             # check if category_name is already in storage
             category_val_storage = await self._read_category_val(category_name)
             if category_val_storage is None:

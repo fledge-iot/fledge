@@ -9,6 +9,7 @@
 """
 import subprocess
 import os
+import platform
 import sys
 import fnmatch
 import http.client
@@ -29,8 +30,29 @@ sys.path.append(os.path.join(os.path.dirname(__file__)))
 
 
 @pytest.fixture
+<<<<<<< HEAD
 def reset_and_start_fledge(storage_plugin):
     """Fixture that kills fledge, reset database and starts fledge again
+=======
+def clean_setup_fledge_packages(package_build_version):
+    assert os.environ.get('FLEDGE_ROOT') is not None
+
+    try:
+        subprocess.run(["cd $FLEDGE_ROOT/tests/system/lab && ./remove"], shell=True, check=True)
+    except subprocess.CalledProcessError:
+        assert False, "remove package script failed!"
+
+    try:
+        subprocess.run(["$FLEDGE_ROOT/tests/system/python/scripts/package/setup {}".format(package_build_version)],
+                       shell=True, check=True)
+    except subprocess.CalledProcessError:
+        assert False, "install package script failed"
+
+
+@pytest.fixture
+def reset_and_start_fledge(storage_plugin):
+    """Fixture that kills fledge, reset database and starts fledge again
+>>>>>>> develop
         storage_plugin: Fixture that defines the storage plugin to be used for tests
     """
 
@@ -79,8 +101,14 @@ def remove_directories():
 
 @pytest.fixture
 def add_south():
+<<<<<<< HEAD
     def _add_fledge_south(south_plugin, south_branch, fledge_url, service_name="play", config=None,
                            plugin_lang="python", use_pip_cache=True, start_service=True, plugin_discovery_name=None):
+=======
+    def _add_fledge_south(south_plugin, south_branch, fledge_url, service_name="play", config=None,
+                           plugin_lang="python", use_pip_cache=True, start_service=True, plugin_discovery_name=None,
+                           installation_type='make'):
+>>>>>>> develop
         """Add south plugin and start the service by default"""
 
         plugin_discovery_name = south_plugin if plugin_discovery_name is None else plugin_discovery_name
@@ -91,6 +119,7 @@ def add_south():
 
         conn = http.client.HTTPConnection(fledge_url)
 
+<<<<<<< HEAD
         try:
             if plugin_lang == "python":
                 subprocess.run(["$FLEDGE_ROOT/tests/system/python/scripts/install_python_plugin {} south {} {}".format(
@@ -100,6 +129,30 @@ def add_south():
                     south_branch, south_plugin)], shell=True, check=True)
         except subprocess.CalledProcessError:
             assert False, "{} plugin installation failed".format(south_plugin)
+=======
+        def clone_make_install():
+            try:
+                if plugin_lang == "python":
+                    subprocess.run(["$FLEDGE_ROOT/tests/system/python/scripts/install_python_plugin {} south {} {}".format(
+                        south_branch, south_plugin, use_pip_cache)], shell=True, check=True)
+                else:
+                    subprocess.run(["$FLEDGE_ROOT/tests/system/python/scripts/install_c_plugin {} south {}".format(
+                        south_branch, south_plugin)], shell=True, check=True)
+            except subprocess.CalledProcessError:
+                assert False, "{} plugin installation failed".format(south_plugin)
+
+        if installation_type == 'make':
+            clone_make_install()
+        elif installation_type == 'package':
+            try:
+                os_platform = platform.platform()
+                pkg_mgr = 'yum' if 'centos' in os_platform or 'redhat' in os_platform else 'apt'
+                subprocess.run(["sudo {} install -y fledge-south-{}".format(pkg_mgr, south_plugin)], shell=True, check=True)
+            except subprocess.CalledProcessError:
+                assert False, "{} package installation failed!".format(south_plugin)
+        else:
+            print("Skipped {} plugin installation. Installation mechanism is set to {}.".format(south_plugin, installation_type))
+>>>>>>> develop
 
         # Create south service
         conn.request("POST", '/fledge/service', json.dumps(data))
@@ -139,7 +192,42 @@ def start_north_pi_v2():
     return _start_north_pi_server_c
 
 
+@pytest.fixture
+def start_north_pi_v2_web_api():
+    def _start_north_pi_server_c_web_api(fledge_url, pi_host, pi_port, pi_db="Dianomic", auth_method='basic',
+                                         pi_user=None, pi_pwd=None, north_plugin="PI_Server_V2",
+                                         taskname="NorthReadingsToPI_WebAPI", start_task=True):
+        """Start north task"""
+
+        _enabled = True if start_task else False
+        conn = http.client.HTTPConnection(fledge_url)
+        data = {"name": taskname,
+                "plugin": "{}".format(north_plugin),
+                "type": "north",
+                "schedule_type": 3,
+                "schedule_day": 0,
+                "schedule_time": 0,
+                "schedule_repeat": 10,
+                "schedule_enabled": _enabled,
+                "config": {"PIServerEndpoint": {"value": "PI Web API"},
+                           "PIWebAPIAuthenticationMethod": {"value": auth_method},
+                           "PIWebAPIUserId":  {"value": pi_user},
+                           "PIWebAPIPassword": {"value": pi_pwd},
+                           "URL": {"value": "https://{}:{}/piwebapi/omf".format(pi_host, pi_port)},
+                           "compression": {"value": "true"}
+                           }
+                }
+
+        conn.request("POST", '/fledge/scheduled/task', json.dumps(data))
+        r = conn.getresponse()
+        assert 200 == r.status
+        retval = r.read().decode()
+        return retval
+    return _start_north_pi_server_c_web_api
+
+
 start_north_pi_server_c = start_north_pi_v2
+start_north_pi_server_c_web_api = start_north_pi_v2_web_api
 
 
 @pytest.fixture
@@ -207,9 +295,12 @@ def read_data_from_pi():
                             for _el in elx:
                                 _recoded_value_list.append(_el["Value"])
                             _data_pi[_head] = _recoded_value_list
+
+                # Delete recorded elements
                 conn.request("DELETE", '/piwebapi/elements/{}'.format(web_id), headers=headers)
                 res = conn.getresponse()
                 res.read()
+
                 return _data_pi
         except (KeyError, IndexError, Exception):
             return None

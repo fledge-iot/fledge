@@ -18,7 +18,6 @@ from foglamp.common import logger
 from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA, _FOGLAMP_PLUGIN_PATH
 from foglamp.services.core.api import utils
 from foglamp.services.core.api.plugins.exceptions import *
-from foglamp.services.core import server
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2019, Dianomic Systems Inc."
@@ -121,6 +120,9 @@ def load_and_fetch_c_hybrid_plugin_info(plugin_name: str, is_config: bool, plugi
 
 
 async def fetch_available_packages(package_type: str = "") -> tuple:
+    # Require a local import in order to avoid circular import references
+    from foglamp.services.core import server
+
     available_packages = []
     stdout_file_path = create_log_file()
     tmp_log_output_fp = stdout_file_path.split('logs/')[:1][0] + "logs/output.txt"

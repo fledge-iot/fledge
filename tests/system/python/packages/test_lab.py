@@ -571,10 +571,3 @@ class TestEventEngine:
             if "test #1" == audit_detail['details']['name']:
                 assert "INFORMATION" == audit_detail['severity']
                 assert "NTFCL" == audit_detail['source']
-
-
-def teardown_module(module):
-    try:
-        subprocess.run(["cd $FOGLAMP_ROOT/tests/system/lab && ./remove"], shell=True, check=True)
-    except subprocess.CalledProcessError:
-        assert False, "remove package script failed!"

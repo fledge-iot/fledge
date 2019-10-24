@@ -145,9 +145,7 @@ async def fetch_available_packages(package_type: str = "") -> tuple:
     # Require a local import in order to avoid circular import references
     from foglamp.services.core import server
 
-    # FIXME: log file create only on action NOT on caching and update restriction case
-    # Also add "action" param to create_log_file
-    stdout_file_path = create_log_file()
+    stdout_file_path = create_log_file(action="list")
     tmp_log_output_fp = stdout_file_path.split('logs/')[:1][0] + "logs/output.txt"
     _platform = platform.platform()
     pkg_type = "" if package_type is None else package_type
@@ -209,13 +207,15 @@ async def fetch_available_packages(package_type: str = "") -> tuple:
     return available_packages, link
 
 
-def create_log_file(plugin_name: str = "") -> str:
+def create_log_file(action: str = "", plugin_name: str = "") -> str:
     logs_dir = '/logs/'
     _PATH = _FOGLAMP_DATA + logs_dir if _FOGLAMP_DATA else _FOGLAMP_ROOT + '/data{}'.format(logs_dir)
     # YYMMDD-HH-MM-SS-{plugin_name}.log
     file_spec = datetime.now().strftime('%y%m%d-%H-%M-%S')
-    log_file_name = "{}-{}.log".format(file_spec, plugin_name) if plugin_name else "{}.log".format(file_spec)
-
+    if not action:
+        log_file_name = "{}-{}.log".format(file_spec, plugin_name) if plugin_name else "{}.log".format(file_spec)
+    else:
+        log_file_name = "{}-{}-{}.log".format(file_spec, plugin_name, action) if plugin_name else "{}-{}.log".format(file_spec, action)
     if not os.path.exists(_PATH):
         os.makedirs(_PATH)
 

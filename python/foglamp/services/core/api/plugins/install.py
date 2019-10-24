@@ -260,7 +260,7 @@ def copy_file_install_requirement(dir_files: list, plugin_type: str, file_name: 
 
 
 async def install_package_from_repo(name: str, pkg_mgt: str, version: str) -> tuple:
-    stdout_file_path = common.create_log_file(name)
+    stdout_file_path = common.create_log_file(action="install", plugin_name=name)
     link = "log/" + stdout_file_path.split("/")[-1]
     msg = "installed"
     cat = await check_upgrade_on_install()

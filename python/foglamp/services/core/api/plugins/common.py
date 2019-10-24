@@ -119,11 +119,7 @@ def load_and_fetch_c_hybrid_plugin_info(plugin_name: str, is_config: bool, plugi
                 raise Exception('Required {} keys are missing for json file'.format(json_file_keys))
     return plugin_info
 
-# FIXME: There is no support for time to live in lru cache, we need to clear cache for below method on minutes
-#  configured in configuration item listAvailablePackagesCacheTTL and check timedelta with
-#  pkg_cache_mgr = server.Server._package_cache_manager
-#  last_accessed_time = pkg_cache_mgr['listAvailablePackagesCacheTTL']['last_accessed_time']
-#  if the duration is greater than configured minutes then invalidate cache
+
 @lru_cache(maxsize=1, typed=True)
 def _get_available_packages(code: int, tmp_log_output_fp: str, pkg_mgt: str, pkg_type: str) -> tuple:
     available_packages = []
@@ -180,6 +176,21 @@ async def fetch_available_packages(package_type: str = "") -> tuple:
             _get_available_packages.cache_clear()
     else:
         _logger.warning("Maximum update exceeds the limit for the day")
+
+    ttl_cat_item_val = int(category['listAvailablePackagesCacheTTL']['value'])
+    if ttl_cat_item_val > 0:
+        last_accessed_time = pkg_cache_mgr['list']['last_accessed_time']
+        now = datetime.now()
+        if not last_accessed_time:
+            last_accessed_time = now
+            pkg_cache_mgr['list']['last_accessed_time'] = now
+        duration_in_sec = (now - last_accessed_time).total_seconds()
+        if duration_in_sec > ttl_cat_item_val * 60:
+            _get_available_packages.cache_clear()
+            pkg_cache_mgr['list']['last_accessed_time'] = datetime.now()
+    else:
+        _get_available_packages.cache_clear()
+        pkg_cache_mgr['list']['last_accessed_time'] = ""
 
     ret_code, available_packages = _get_available_packages(ret_code, tmp_log_output_fp, pkg_mgt, pkg_type)
 

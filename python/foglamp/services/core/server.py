@@ -327,7 +327,8 @@ class Server:
             'type': 'integer',
             'default': '15',
             'displayName': 'Available Packages Cache',
-            'order': '4'
+            'order': '4',
+            'minimum': '0'
         }
     }
 
@@ -492,7 +493,7 @@ class Server:
             await cls._configuration_manager.get_category_all_items(category)
 
             cls._package_cache_manager = {"update": {"last_accessed_time": ""},
-                                          "upgrade": {"last_accessed_time": ""}, "list": {"last_accessed_time"}}
+                                          "upgrade": {"last_accessed_time": ""}, "list": {"last_accessed_time": ""}}
         except Exception as ex:
             _logger.exception(str(ex))
             raise

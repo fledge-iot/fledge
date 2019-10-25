@@ -161,6 +161,9 @@ foglamp_reset() {
   #       but it does not start the microservice
   source "$FOGLAMP_ROOT/scripts/storage" reset
 
+  # Remove user data: scripts
+  rm -rf "$FOGLAMP_DATA/scripts"
+  echo "Removed user data in $FOGLAMP_DATA/scripts"
 }
 
 

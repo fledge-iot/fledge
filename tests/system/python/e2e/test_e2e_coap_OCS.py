@@ -23,6 +23,17 @@ __version__ = "${VERSION}"
 TEMPLATE_NAME = "template.json"
 SENSOR_VALUE = 20
 
+def get_asset_tracking_details(foglamp_url, event=None):
+        _connection = http.client.HTTPConnection(foglamp_url)
+        uri = '/foglamp/track'
+        if event:
+            uri += '?event={}'.format(event)
+        _connection.request("GET", uri)
+        r = _connection.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        return jdoc
 
 @pytest.fixture
 def prepare_template_reading_from_fogbench():
@@ -197,3 +208,17 @@ class TestE2EOCS:
             assert False, "Failed to read data from OCS"
 
         assert data_from_ocs[-1]['sensor'] == SENSOR_VALUE
+
+        tracking_details = get_asset_tracking_details(foglamp_url, "Ingest")
+        assert len(tracking_details["track"]), "Failed to track Ingest event"
+        tracked_item = tracking_details["track"][0]
+        assert "CoAP #1" == tracked_item["service"]
+        assert asset_name == tracked_item["asset"]
+        assert "coap" == tracked_item["plugin"]
+
+        egress_tracking_details = get_asset_tracking_details(foglamp_url,"Egress")
+        assert len(egress_tracking_details["track"]), "Failed to track Egress event"
+        tracked_item = egress_tracking_details["track"][0]
+        assert "NorthReadingsToOCS" == tracked_item["service"]
+        assert asset_name == tracked_item["asset"]
+        assert "ocs_V2" == tracked_item["plugin"]

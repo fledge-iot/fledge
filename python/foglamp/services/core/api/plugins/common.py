@@ -138,6 +138,8 @@ def _get_available_packages(code: int, tmp_log_output_fp: str, pkg_mgt: str, pkg
             for line in fh:
                 line = line.rstrip("\n")
                 available_packages.append(line)
+    if not len(available_packages):
+        available_packages.append("No package available to install")
     return code, available_packages
 
 

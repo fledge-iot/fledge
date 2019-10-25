@@ -310,7 +310,7 @@ class Server:
             'type': 'integer',
             'default': '1',
             'displayName': 'Maximum Upgrade',
-            'order': '2',
+            'order': '3',
             'minimum': '1',
             'maximum': '8',
             'validity': 'upgradeOnInstall == "true"'
@@ -320,7 +320,7 @@ class Server:
             'type': 'boolean',
             'default': 'false',
             'displayName': 'Upgrade on Install',
-            'order': '3'
+            'order': '2'
         },
         'listAvailablePackagesCacheTTL': {
             'description': 'Caching of fetch available packages time to live in minutes',

@@ -138,8 +138,7 @@ def _get_available_packages(code: int, tmp_log_output_fp: str, pkg_mgt: str, pkg
             for line in fh:
                 line = line.rstrip("\n")
                 available_packages.append(line)
-    if not len(available_packages):
-        available_packages.append("No package available to install")
+
     return code, available_packages
 
 
@@ -197,6 +196,8 @@ async def fetch_available_packages(package_type: str = "") -> tuple:
     # combine above output in logs file
     with open("{}".format(stdout_file_path), 'a') as fh:
         fh.write(" \n".join(available_packages))
+        if not len(available_packages):
+            fh.write("No package available to install")
 
     # Remove tmp_log_output_fp
     if os.path.isfile(tmp_log_output_fp):

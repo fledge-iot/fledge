@@ -308,8 +308,10 @@ class TestBrowserAssets:
             # assert '{"aggregate": [{"operation": "min", "json": {"column": "reading", "properties": "humidity"}, "alias": "min"}, {"operation": "max", "json": {"column": "reading", "properties": "humidity"}, "alias": "max"}, {"operation": "avg", "json": {"column": "reading", "properties": "humidity"}, "alias": "average"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench_humidity"}, "limit": 20}' in args1
 
     async def test_asset_readings_with_bucket_size(self, client):
-        payload = {"aggregate": [{"operation": "min", "json": {"properties": "temperature", "column": "reading"}, "alias": "min"}, {"operation": "max", "json": {"properties": "temperature", "column": "reading"}, "alias": "max"}, {"operation": "avg", "json": {"properties": "temperature", "column": "reading"}, "alias": "average"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": ">=", "value": "1570732140.0"}}, "timebucket": {"timestamp": "user_ts", "size": "60", "format": "YYYY-MM-DD HH24:MI:SS", "alias": "timestamp"}, "limit": 1}
-        result = {'rows': [{"min": 15082, "average": 15083, "timestamp": "2019-10-11 06:22:30", "max": 15086}], 'count': 1}
+        payload2 = {"aggregate": [{"operation": "min", "json": {"properties": "temperature", "column": "reading"}, "alias": "min"}, {"operation": "max", "json": {"properties": "temperature", "column": "reading"}, "alias": "max"}, {"operation": "avg", "json": {"properties": "temperature", "column": "reading"}, "alias": "average"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": ">=", "value": "1570732140.0"}}, "timebucket": {"timestamp": "user_ts", "size": "60", "format": "YYYY-MM-DD HH24:MI:SS", "alias": "timestamp"}, "limit": 1}
+        result2 = {'rows': [{"min": 15082, "average": 15083, "timestamp": "2019-10-11 06:22:30", "max": 15086}], 'count': 1}
+        payload1 = '{"return": ["reading"], "where": {"column": "asset_code", "condition": "in", "value": ["fogbench/humidity"]}, "limit": 1, "sort": {"column": "user_ts", "direction": "desc"}}'
+        result1 = {'rows': [{'reading': {'temperature': 70}}], 'count': 1}
         readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
         # FIXME: datetime.now() patch
         # import datetime
@@ -317,14 +319,51 @@ class TestBrowserAssets:
         # with patch.object(datetime, 'datetime.now', MagicMock(wraps=datetime.datetime)) as dt_patch:
         #     dt_patch.now.return_value = target
         with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
-            with patch.object(readings_storage_client_mock, 'query', return_value=mock_coro(result)) as query_patch:
+            with patch.object(readings_storage_client_mock, 'query', side_effect=[mock_coro(result1),
+                                                                                  mock_coro(result2)]) as query_patch:
                 resp = await client.get('foglamp/asset/fogbench%2fhumidity/temperature/bucket/60')
                 assert 200 == resp.status
                 r = await resp.text()
                 json_response = json.loads(r)
-                assert result['rows'] == json_response
-            args, kwargs = query_patch.call_args
-            assert payload.keys() == json.loads(args[0]).keys()
+                assert result2['rows'] == json_response
+            assert 2 == query_patch.call_count
+            args, kwargs = query_patch.call_args_list[0]
+            assert json.loads(payload1) == json.loads(args[0])
+            args, kwargs = query_patch.call_args_list[1]
+            assert payload2.keys() == json.loads(args[0]).keys()
             # TODO: After datetime patch assert full payload
             # assert payload == json.loads(args[0])
-            query_patch.assert_called_once_with(args[0])
+
+    @pytest.mark.parametrize("storage_result, message", [
+        ({'rows': [], 'count': 0}, "'fogbench/humidity asset code not found'"),
+        ({'count': 1, 'rows': [{'reading': {'temp': 70}}]}, "'temperature reading key is not found for fogbench/humidity asset code'")
+    ])
+    async def test_bad_asset_readings_with_bucket_size(self, client, storage_result, message):
+        payload = '{"return": ["reading"], "where": {"column": "asset_code", "condition": "in", "value": ["fogbench/humidity"]}, "limit": 1, "sort": {"column": "user_ts", "direction": "desc"}}'
+        readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
+        with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
+            with patch.object(readings_storage_client_mock, 'query', return_value=mock_coro(storage_result)) as query_patch:
+                resp = await client.get('foglamp/asset/fogbench%2fhumidity/temperature/bucket/60')
+                assert 404 == resp.status
+                assert message == resp.reason
+        assert 1 == query_patch.call_count
+        args, kwargs = query_patch.call_args_list[0]
+        assert json.loads(payload) == json.loads(args[0])
+
+    @pytest.mark.parametrize("code, storage_result, message, patch_count, request_params", [
+        (404, {'rows': [], 'count': 0}, "'fogbench/humidity asset code not found'", 1, ""),
+        (500, {'rows': [{'reading': {'fogbench/temp': 13.45}}], 'count': 1}, "", 3, ""),
+        (400, {'rows': [{'reading': {'fogbench/temp': 13.45}}], 'count': 1}, "length must be a positive integer", 2, "?length=-10"),
+        (400, {'rows': [{'reading': {'fogbench/temp': 13.45}}], 'count': 1}, "start must be a positive integer", 2, "?start=-1"),
+    ])
+    async def test_bad_multiple_asset_readings_with_bucket_size(self, client, code, storage_result, message, patch_count, request_params):
+        url = 'foglamp/asset/fogbench%2fhumidity,fogbench%2ftemp/temperature/bucket/60'
+        if request_params:
+            url += request_params
+        readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
+        with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
+            with patch.object(readings_storage_client_mock, 'query', side_effect=[mock_coro(storage_result), mock_coro(storage_result)]) as query_patch:
+                resp = await client.get(url)
+                assert code == resp.status
+                assert message == resp.reason
+        assert patch_count == query_patch.call_count

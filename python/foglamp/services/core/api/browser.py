@@ -446,9 +446,11 @@ async def asset_readings_with_bucket_size(request: web.Request) -> web.Response:
         If bucket_size is not given then the bucket size is 1
         If start is not given then the start point is now - 60 seconds.
         If length is not given then length is 60 seconds. And length is calculated with length / bucket_size
+        For multiple assets use comma separated values in request and this will allow data from one or more asset to be returned.
 
        :Example:
                curl -sX GET http://localhost:8081/foglamp/asset/{asset_code}/{reading}/bucket/{bucket_size}
+               curl -sX GET http://localhost:8081/foglamp/asset/{asset_code_1},{asset_code_2}/{reading}/bucket/{bucket_size}
                curl -sX GET http://localhost:8081/foglamp/asset/{asset_code}/{reading}/bucket/{bucket_size}?start=<start point>
                curl -sX GET http://localhost:8081/foglamp/asset/{asset_code}/{reading}/bucket/{bucket_size}?length=<length>
                curl -sX GET "http://localhost:8081/foglamp/asset/{asset_code}/{reading}/bucket/{bucket_size}?start=<start point>&length=<length>"
@@ -460,31 +462,43 @@ async def asset_readings_with_bucket_size(request: web.Request) -> web.Response:
         length = 60
         ts = datetime.datetime.now().timestamp()
         start = ts - 60
-        _aggregate = PayloadBuilder().AGGREGATE(["min", ["reading", reading]], ["max", ["reading", reading]],
-                                                ["avg", ["reading", reading]]) \
-            .ALIAS('aggregate', ('reading', 'min', 'min'), ('reading', 'max', 'max'),
-                   ('reading', 'avg', 'average')).chain_payload()
-        if 'start' in request.query and request.query['start'] != '':
-            try:
-                start = float(request.query['start'])
-                if start < 0:
-                    raise ValueError
-            except ValueError:
-                raise web.HTTPBadRequest(reason="start must be a positive integer")
+        asset_code_list = asset_code.split(',')
+        _readings = connect.get_readings_async()
+        for code in asset_code_list:
+            verify_asset_reading = PayloadBuilder().SELECT("reading").WHERE(["asset_code", "in", [code]]).LIMIT(1).ORDER_BY(
+                ["user_ts", "desc"]).payload()
+            res = await _readings.query(verify_asset_reading)
+            if not res['rows']:
+                raise KeyError("{} asset code not found".format(code))
+            # TODO: FOGL-1768 when support available from storage layer then avoid multiple calls
+            reading_keys = list(res['rows'][-1]['reading'].keys())
+            # reading key does not matter when multiple asset code requested as with aggregate operation to all
+            if reading not in reading_keys and len(asset_code_list) == 1:
+                raise KeyError("{} reading key is not found for {} asset code".format(reading, code))
 
-        _where = PayloadBuilder(_aggregate).WHERE(["asset_code", "=", asset_code]).AND_WHERE(["user_ts", ">=", str(start)]).chain_payload()
+        if len(asset_code_list) >= 2:
+            _aggregate = PayloadBuilder().AGGREGATE(["all"]).chain_payload()
+            asset_payload = ["asset_code", "in", asset_code_list]
+        else:
+            _aggregate = PayloadBuilder().AGGREGATE(["min", ["reading", reading]], ["max", ["reading", reading]],
+                                                    ["avg", ["reading", reading]]) \
+                .ALIAS('aggregate', ('reading', 'min', 'min'), ('reading', 'max', 'max'),
+                       ('reading', 'avg', 'average')).chain_payload()
+            asset_payload = ["asset_code", "=", asset_code]
+        if 'start' in request.query and request.query['start'] != '':
+            start = float(request.query['start'])
+            if start < 0:
+                raise ValueError('start must be a positive integer')
+
+        _where = PayloadBuilder(_aggregate).WHERE(asset_payload).AND_WHERE(["user_ts", ">=", str(start)]).chain_payload()
         _bucket = PayloadBuilder(_where).TIMEBUCKET('user_ts', bucket_size, 'YYYY-MM-DD HH24:MI:SS', 'timestamp').chain_payload()
         if 'length' in request.query and request.query['length'] != '':
-            try:
-                length = int(request.query['length'])
-                if length < 0:
-                    raise ValueError
-            except ValueError:
-                raise web.HTTPBadRequest(reason="length must be a positive integer")
+            length = int(request.query['length'])
+            if length < 0:
+                raise ValueError('length must be a positive integer')
         payload = PayloadBuilder(_bucket).LIMIT(int(length / int(bucket_size))).payload()
         # Sort & timebucket modifiers can not be used in same payload
         # payload = PayloadBuilder(limit).ORDER_BY(["user_ts", "desc"]).payload()
-        _readings = connect.get_readings_async()
         results = await _readings.query(payload)
         response = results['rows']
     except (KeyError, IndexError) as e:

@@ -18,6 +18,7 @@
 
 #include <python_plugin_common_interface.h>
 #include <reading_set.h>
+#include <filter_plugin.h>
 
 using namespace std;
 
@@ -81,7 +82,8 @@ static void filter_plugin_reconfigure_fn(PLUGIN_HANDLE handle,
 	lock_guard<mutex> guard(mtx);
 	PyGILState_STATE state = PyGILState_Ensure();
 
-	Logger::getLogger()->debug("plugin_handle: plugin_reconfigure(): pModule=%p, *handle=%p, plugin '%s'",
+	Logger::getLogger()->debug("plugin_handle: plugin_reconfigure(): "
+				   "pModule=%p, *handle=%p, plugin '%s'",
 				   it->second->m_module,
 				   handle,
 				   pName.c_str());
@@ -224,6 +226,21 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 
 		PyGILState_Release(state);
 		return;
+	}
+
+	// Call asset tracker
+	vector<Reading *>* readings = ((ReadingSet *)data)->getAllReadingsPtr();
+	for (vector<Reading *>::const_iterator elem = readings->begin();
+						      elem != readings->end();
+						      ++elem)
+	{
+		AssetTracker* atr = AssetTracker::getAssetTracker();
+		if (atr)
+		{
+			AssetTracker::getAssetTracker()->addAssetTrackingTuple(it->second->getCategoryName(),
+										(*elem)->getAssetName(),
+										string("Filter"));
+		}
 	}
 
 	// Create a dict of readings
@@ -417,6 +434,9 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 				return NULL;
 			}
 
+			// Set category name
+			newModule->setCategoryName(config->getName());
+
 			// Set module
 			module = newModule;
 		}
@@ -432,6 +452,11 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 						   pName.c_str());
 			return NULL;
 		}
+	}
+	else
+	{
+		// Set category name
+		module->setCategoryName(config->getName());
 	}
 
 	Logger::getLogger()->debug("filter_plugin_init_fn for '%s', pModule '%p', "

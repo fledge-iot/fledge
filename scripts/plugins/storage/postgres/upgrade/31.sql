@@ -1,0 +1,1 @@
+ALTER TABLE foglamp.tasks ADD COLUMN schedule_id uuid;

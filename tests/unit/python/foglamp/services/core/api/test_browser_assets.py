@@ -324,7 +324,7 @@ class TestBrowserAssets:
     async def test_asset_datapoints_with_bucket_size(self, asset_code, client):
         payload2 = {"aggregate": {"operation": "all"}, "where": {"and": {"column": "user_ts", "value": "1572851627.341446", "condition": ">="}, "column": "asset_code", "value": ["fogbench/humidity"], "condition": "in"}, "timebucket": {"timestamp": "user_ts", "size": "60", "alias": "timestamp", "format": "YYYY-MM-DD HH24:MI:SS"}, "limit": 1}
         result2 = {'rows': [{"min": 15082, "average": 15083, "timestamp": "2019-10-11 06:22:30", "max": 15086}], 'count': 1}
-        payload1 = '{"return": ["reading"], "where": {"column": "asset_code", "condition": "in", "value": ["fogbench/humidity"]}, "limit": 1, "sort": {"column": "user_ts", "direction": "desc"}}'
+        payload1 = '{"sort": {"direction": "desc", "column": "user_ts"}, "where": {"column": "asset_code", "value": ["fogbench/humidity"], "condition": "in"}, "limit": 1}'
         result1 = {'rows': [{'reading': {'temperature': 70}}], 'count': 1}
         readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
         res = [mock_coro(result1), mock_coro(result2)]

@@ -10,7 +10,7 @@ DROP TABLE IF EXISTS foglamp.tasks_new;
 
 CREATE TABLE foglamp.tasks_new (
              id           uuid                        NOT NULL,                               -- PK
-             schedule_id  uuid                        NOT NULL,                               -- Link between schedule & task table
+             schedule_id  uuid,                                                               -- Link between schedule & task table
              schedule_name character varying(255),                                            -- Name of the task
              process_name character varying(255)      NOT NULL,                               -- Name of the task's process
              state        smallint                    NOT NULL,                               -- 1-Running, 2-Complete, 3-Cancelled, 4-Interrupted
@@ -26,11 +26,12 @@ CREATE TABLE foglamp.tasks_new (
              ON DELETE NO ACTION );
 
 INSERT INTO foglamp.tasks_new (id, schedule_id, schedule_name, process_name, state, start_time, end_time, reason, pid, exit_code) SELECT id, "", schedule_name, process_name, state, start_time, end_time, reason, pid, exit_code FROM foglamp.tasks;
+UPDATE foglamp.tasks_new SET schedule_id = (SELECT id FROM foglamp.schedules WHERE foglamp.tasks_new.schedule_name = foglamp.schedules.schedule_name AND foglamp.tasks_new.process_name = foglamp.schedules.process_name);
 DROP TABLE IF EXISTS foglamp.tasks;
 
 CREATE TABLE foglamp.tasks (
              id           uuid                        NOT NULL,                               -- PK
-             schedule_id  uuid                        NOT NULL,                               -- Link between schedule & task table
+             schedule_id  uuid,                                                               -- Link between schedule & task table
              schedule_name character varying(255),                                            -- Name of the task
              process_name character varying(255)      NOT NULL,                               -- Name of the task's process
              state        smallint                    NOT NULL,                               -- 1-Running, 2-Complete, 3-Cancelled, 4-Interrupted

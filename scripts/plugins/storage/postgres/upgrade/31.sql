@@ -1,1 +1,2 @@
 ALTER TABLE foglamp.tasks ADD COLUMN schedule_id uuid;
+UPDATE foglamp.tasks SET schedule_id = (SELECT id FROM foglamp.schedules WHERE foglamp.tasks.schedule_name = foglamp.schedules.schedule_name AND foglamp.tasks.process_name = foglamp.schedules.process_name)

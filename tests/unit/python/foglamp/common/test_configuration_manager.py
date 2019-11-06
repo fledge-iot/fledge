@@ -21,6 +21,7 @@ __version__ = "${VERSION}"
 CAT_NAME = 'test'
 ITEM_NAME = "test_item_name"
 
+
 @pytest.allure.feature("unit")
 @pytest.allure.story("common", "configuration_manager")
 class TestConfigurationManager:
@@ -1561,34 +1562,34 @@ class TestConfigurationManager:
         attrs = {"query_tbl_with_payload.return_value": async_mock()}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
         c_mgr = ConfigurationManager(storage_client_mock)
-        ret_val = await c_mgr._read_category("cat_name")
+        ret_val = await c_mgr._read_category(CAT_NAME)
         assert ret_val is None
         args, kwargs = storage_client_mock.query_tbl_with_payload.call_args
         assert 'configuration' == args[0]
         p = json.loads(args[1])
         assert {"return": ["key", "description", "value", "display_name",
                            {"column": "ts", "alias": "timestamp", "format": "YYYY-MM-DD HH24:MI:SS.MS"}],
-                "where": {"column": "key", "condition": "=", "value": "cat_name"}} == p
+                "where": {"column": "key", "condition": "=", "value": CAT_NAME}} == p
 
-    async def test__read_category_1_row(self, reset_singleton, cat_name="test"):
+    async def test__read_category_1_row(self, reset_singleton):
         async def async_mock():
             return {"rows": storage_result, "count": 1}
 
-        storage_result = [{'display_name': 'test', 'key': 'test', 'description': 'Test Des',
+        storage_result = [{'display_name': CAT_NAME, 'key': CAT_NAME, 'description': 'Test Des',
                            'value': {'config_item': {'default': 'blah', 'value': 'blah', 'description': 'Des',
                                                      'type': 'string'}}}]
 
         attrs = {"query_tbl_with_payload.return_value": async_mock()}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
         c_mgr = ConfigurationManager(storage_client_mock)
-        ret_val = await c_mgr._read_category(cat_name)
+        ret_val = await c_mgr._read_category(CAT_NAME)
         assert storage_result == ret_val
         args, kwargs = storage_client_mock.query_tbl_with_payload.call_args
         assert 'configuration' == args[0]
         p = json.loads(args[1])
         assert {"return": ["key", "description", "value", "display_name",
                            {"column": "ts", "alias": "timestamp", "format": "YYYY-MM-DD HH24:MI:SS.MS"}],
-                "where": {"column": "key", "condition": "=", "value": cat_name}} == p
+                "where": {"column": "key", "condition": "=", "value": CAT_NAME}} == p
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("value, expected_result", [
@@ -2057,9 +2058,9 @@ class TestConfigurationManager:
                 ret_val = await c_mgr.delete_child_category(cat_name, child_name)
                 assert [child_name] == ret_val
             patch_read_all_child.assert_called_once_with(cat_name)
-        args, kwargs = storage_client_mock.delete_from_tbl.call_args
-        assert 'category_children' == args[0]
-        assert payload == json.loads(args[1])
+        del_args, del_kwargs = storage_client_mock.delete_from_tbl.call_args
+        assert 'category_children' == del_args[0]
+        assert payload == json.loads(del_args[1])
 
     async def test_delete_child_category_key_error(self, reset_singleton):
         @asyncio.coroutine
@@ -2642,8 +2643,9 @@ class TestConfigurationManager:
         async def async_mock(return_value):
             return return_value
 
-        cat_info = {'providers': {'default': '{"providers": ["username", "ldap"] }', 'description': 'descr', 'type': 'JSON', 'value':'{"providers": ["username", "ldap"] }' }}
-        config_item_list = {"providers": {"providers": ["username", "ldap"] }}
+        cat_info = {'providers': {'default': '{"providers": ["username", "ldap"] }', 'description': 'descr',
+                                  'type': 'JSON', 'value': '{"providers": ["username", "ldap"] }'}}
+        config_item_list = {"providers": {"providers": ["username", "ldap"]}}
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(c_mgr, 'get_category_all_items', return_value=async_mock(cat_info)) as patch_get_all_items:
@@ -2661,8 +2663,9 @@ class TestConfigurationManager:
         async def async_mock(return_value):
             return return_value
 
-        cat_info = {'providers': {'default': '{"providers": ["username", "ldap"] }', 'description': 'descr', 'type': 'JSON', 'value':'{"providers": ["username", "ldap"] }' }}
-        config_item_list = {"providers": {"providers": ["username", "ldap_new"] }}
+        cat_info = {'providers': {'default': '{"providers": ["username", "ldap"] }', 'description': 'descr',
+                                  'type': 'JSON', 'value': '{"providers": ["username", "ldap"] }'}}
+        config_item_list = {"providers": {"providers": ["username", "ldap_new"]}}
 
         update_result = {"response": "updated", "rows_affected": 1}
         read_val = {'allowPing': {'default': 'true', 'description': 'Allow access to ping', 'value': 'true', 'type': 'boolean'},
@@ -2755,18 +2758,21 @@ class TestConfigurationManager:
         async def async_mock(return_value):
             return return_value
 
-        min = '2'
-        max = '20'
+        minimum = '2'
+        maximum = '20'
         if _type is not None:
             if isinstance(1.1, _type):
-                min = '12.5'
-                max = '40.3'
+                minimum = '12.5'
+                maximum = '40.3'
 
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         category_name = 'catname'
         item_name = 'itemname'
-        storage_value_entry = {'length': '255', 'displayName': category_name, 'rule': 'value * 3 == 6', 'deprecated': 'false', 'readonly': 'true', 'type': 'string', 'order': '4', 'description': 'Test Optional', 'minimum': min, 'value': '13', 'maximum': max, 'default': '13', 'validity': 'field X is set', 'mandatory': 'false'}
+        storage_value_entry = {'length': '255', 'displayName': category_name, 'rule': 'value * 3 == 6',
+                               'deprecated': 'false', 'readonly': 'true', 'type': 'string', 'order': '4',
+                               'description': 'Test Optional', 'minimum': minimum, 'value': '13', 'maximum': maximum,
+                               'default': '13', 'validity': 'field X is set', 'mandatory': 'false'}
         with patch.object(_logger, "exception") as log_exc:
             with patch.object(ConfigurationManager, '_read_item_val', return_value=async_mock(storage_value_entry)) as readpatch:
                 with pytest.raises(Exception) as excinfo:

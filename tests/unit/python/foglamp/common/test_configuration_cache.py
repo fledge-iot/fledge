@@ -30,7 +30,8 @@ class TestConfigurationCache:
 
     def test_contains_with_cache(self):
         cached_manager = ConfigurationCache()
-        cached_manager.cache = {"test_cat": {'value': {'config_item': {'default': 'woo', 'description': 'foo', 'type': 'string'}}}}
+        cached_manager.cache = {"test_cat": {'value': {'config_item': {'default': 'woo', 'description': 'foo',
+                                                                       'type': 'string'}}}}
         assert cached_manager.__contains__("test_cat") is True
 
     def test_update(self):

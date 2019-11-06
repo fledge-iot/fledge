@@ -67,7 +67,9 @@ class PayloadBuilder(object):
     def verify_aggregation(arg):
         retval = False
         if isinstance(arg, list):
-            if len(arg) == 2:
+            if len(arg) == 1 and arg[0] == "all":
+                retval = True
+            elif len(arg) == 2:
                 if arg[0] in ['min', 'max', 'avg', 'sum', 'count']:
                     retval = True
         return retval
@@ -454,6 +456,8 @@ class PayloadBuilder(object):
             {"aggregate": [{"operation": "min", "column": "values", "alias": "min_values"},
                            {"operation": "max", "column": "values", "alias": "max_values"},
                            {"operation": "avg", "column": "values", "alias": "avg_values"}]}
+
+        PayloadBuilder().AGGREGATE(["all"])
         """
 
         # Pass multiple arguments in a single tuple also. Useful when called from external process i.e. api, test.
@@ -462,12 +466,13 @@ class PayloadBuilder(object):
             aggregate = OrderedDict()
             if cls.verify_aggregation(arg):
                 aggregate["operation"] = arg[0]
-                if isinstance(arg[1], list):
-                    aggregate["json"] = {'column': arg[1][0], 'properties': arg[1][1]}
-                elif isinstance(arg[1], str):
-                    aggregate["column"] = arg[1]
-                else:
-                    continue
+                if len(arg) >= 2:
+                    if isinstance(arg[1], list):
+                        aggregate["json"] = {'column': arg[1][0], 'properties': arg[1][1]}
+                    elif isinstance(arg[1], str):
+                        aggregate["column"] = arg[1]
+                    else:
+                        continue
                 if 'aggregate' in cls.query_payload:
                     if not isinstance(cls.query_payload['aggregate'], list):
                         cls.query_payload['aggregate'] = [cls.query_payload.get('aggregate')]

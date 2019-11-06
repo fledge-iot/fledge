@@ -369,7 +369,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             .ALIAS("return", ("ts", 'timestamp')) \
             .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")).WHERE(["key", "=", cat_name]).payload()
         result = await self._storage.query_tbl_with_payload('configuration', payload)
-        return result['rows']
+        return result['rows'] if result['rows'] else None
 
     async def _read_all_groups(self, root, children):
         async def nested_children(child):
@@ -631,8 +631,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 return category_value
 
             category = await self._read_category(category_name)  # await self._read_category_val(category_name)
-            category_value = []
-            if category:
+            category_value = None
+            if category is not None:
                 category_value = self._handle_script_type(category_name, category[0]["value"])
                 self._cacheManager.update(category_name, category[0]["description"], category_value,
                                           category[0]["display_name"])
@@ -662,7 +662,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 cat_item = await self._read_item_val(category_name, item_name)
                 if cat_item is not None:
                     category = await self._read_category(category_name)  # await self._read_category_val(category_name)
-                    if category:
+                    if category is not None:
                         category_value = self._handle_script_type(category_name, category[0]["value"])
                         self._cacheManager.update(category_name, category[0]["description"], category_value,
                                                   category[0]["display_name"])

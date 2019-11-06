@@ -1562,7 +1562,7 @@ class TestConfigurationManager:
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
         c_mgr = ConfigurationManager(storage_client_mock)
         ret_val = await c_mgr._read_category("cat_name")
-        assert [] == ret_val
+        assert ret_val is None
         args, kwargs = storage_client_mock.query_tbl_with_payload.call_args
         assert 'configuration' == args[0]
         p = json.loads(args[1])

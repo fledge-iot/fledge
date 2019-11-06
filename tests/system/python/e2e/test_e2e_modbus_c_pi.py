@@ -54,6 +54,18 @@ class TestE2EModbusCPI:
         jdoc = json.loads(r)
         return utils.serialize_stats_map(jdoc)
 
+    def get_asset_tracking_details(self, foglamp_url, event=None):
+        _connection = http.client.HTTPConnection(foglamp_url)
+        uri = '/foglamp/track'
+        if event:
+            uri += '?event={}'.format(event)
+        _connection.request("GET", uri)
+        r = _connection.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        return jdoc
+
     @pytest.fixture
     def start_south_north(self, reset_and_start_foglamp, add_south, remove_directories, south_branch, foglamp_url,
                           start_north_pi_server_c, pi_host, pi_port, pi_token, modbus_host, modbus_port):
@@ -121,6 +133,21 @@ class TestE2EModbusCPI:
         disable_schedule(foglamp_url, SVC_NAME)
         if not skip_verify_north_interface:
             self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
+
+        tracking_details = self.get_asset_tracking_details(foglamp_url, "Ingest")
+        assert len(tracking_details["track"]), "Failed to track Ingest event"
+        tracked_item = tracking_details["track"][0]
+        assert "modbus-c" == tracked_item["service"]
+        assert asset_name == tracked_item["asset"]
+        assert "ModbusC" == tracked_item["plugin"]
+
+        if not skip_verify_north_interface:
+            egress_tracking_details = self.get_asset_tracking_details(foglamp_url,"Egress")
+            assert len(egress_tracking_details["track"]), "Failed to track Egress event"
+            tracked_item = egress_tracking_details["track"][0]
+            assert "NorthReadingsToPI" == tracked_item["service"]
+            assert asset_name == tracked_item["asset"]
+            assert "PI_Server_V2" == tracked_item["plugin"]
 
     def _verify_ingest(self, conn):
 

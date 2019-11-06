@@ -1127,7 +1127,7 @@ class TestConfigurationManager:
         item_name = 'itemname'
         new_value_entry = 'newvalentry'
         storage_value_entry = {'value': 'test', 'description': 'Test desc', 'type': 'string', 'default': 'test'}
-        c_mgr._cacheManager.update(category_name, {item_name: storage_value_entry})
+        c_mgr._cacheManager.update(category_name, "desc", {item_name: storage_value_entry})
         with patch.object(ConfigurationManager, '_read_item_val', return_value=async_mock(storage_value_entry)) as readpatch:
             with patch.object(ConfigurationManager, '_update_value_val', return_value=async_mock(None)) as updatepatch:
                 with patch.object(ConfigurationManager, '_run_callbacks', return_value=async_mock(None)) as callbackpatch:
@@ -1240,7 +1240,7 @@ class TestConfigurationManager:
         item_name = 'itemname'
         new_value_entry = 'foo'
         storage_value_entry = {"value": "woo", "default": "woo", "description": "enum types", "type": "enumeration", "options": ["foo", "woo"]}
-        c_mgr._cacheManager.update(category_name, {item_name: storage_value_entry})
+        c_mgr._cacheManager.update(category_name, "desc", {item_name: storage_value_entry})
         with patch.object(ConfigurationManager, '_read_item_val', return_value=async_mock(storage_value_entry)) as readpatch:
             with patch.object(ConfigurationManager, '_update_value_val', return_value=async_mock(None)) as updatepatch:
                 with patch.object(ConfigurationManager, '_run_callbacks', return_value=async_mock(None)) as callbackpatch:
@@ -1340,12 +1340,13 @@ class TestConfigurationManager:
             return return_value
 
         category_name = 'catname'
-        cat_info = {"catname": {"type": "string", "default": "blah", "description": "Blah", "value": "blah"}}
+        cat_value = {"config_item": {"type": "string", "default": "blah", "description": "Des", "value": "blah"}}
+        cat_info = [{'display_name': category_name, 'key': category_name, 'description': 'Test Des', "value": cat_value}]
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        with patch.object(ConfigurationManager, '_read_category_val', return_value=async_mock(cat_info)) as readpatch:
+        with patch.object(ConfigurationManager, '_read_category', return_value=async_mock(cat_info)) as readpatch:
             ret_val = await c_mgr.get_category_all_items(category_name)
-            assert cat_info == ret_val
+            assert cat_value == ret_val
         readpatch.assert_called_once_with(category_name)
 
     @pytest.mark.asyncio
@@ -1354,7 +1355,7 @@ class TestConfigurationManager:
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(_logger, 'exception') as log_exc:
-            with patch.object(ConfigurationManager, '_read_category_val', side_effect=Exception()) as readpatch:
+            with patch.object(ConfigurationManager, '_read_category', side_effect=Exception()) as readpatch:
                 with pytest.raises(Exception):
                     await c_mgr.get_category_all_items(category_name)
             readpatch.assert_called_once_with(category_name)
@@ -1372,7 +1373,7 @@ class TestConfigurationManager:
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(ConfigurationManager, '_read_item_val', return_value=async_mock('bla')) as read_item_patch:
-            with patch.object(ConfigurationManager, '_read_category_val', return_value=async_mock(None)) as read_cat_patch:
+            with patch.object(ConfigurationManager, '_read_category', return_value=async_mock(None)) as read_cat_patch:
                 ret_val = await c_mgr.get_category_item(category_name, item_name)
                 assert 'bla' == ret_val
             read_cat_patch.assert_called_once_with(category_name)
@@ -1552,6 +1553,42 @@ class TestConfigurationManager:
         p = json.loads(args[1])
         assert {"return": ["key", "description", "value", "display_name", {"column": "ts", "alias": "timestamp", "format": "YYYY-MM-DD HH24:MI:SS.MS"}]} == p
         assert [] == ret_val
+
+    async def test__read_category_0_row(self, reset_singleton):
+        async def async_mock():
+            return {"rows": []}
+
+        attrs = {"query_tbl_with_payload.return_value": async_mock()}
+        storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        ret_val = await c_mgr._read_category("cat_name")
+        assert [] == ret_val
+        args, kwargs = storage_client_mock.query_tbl_with_payload.call_args
+        assert 'configuration' == args[0]
+        p = json.loads(args[1])
+        assert {"return": ["key", "description", "value", "display_name",
+                           {"column": "ts", "alias": "timestamp", "format": "YYYY-MM-DD HH24:MI:SS.MS"}],
+                "where": {"column": "key", "condition": "=", "value": "cat_name"}} == p
+
+    async def test__read_category_1_row(self, reset_singleton, cat_name="test"):
+        async def async_mock():
+            return {"rows": storage_result, "count": 1}
+
+        storage_result = [{'display_name': 'test', 'key': 'test', 'description': 'Test Des',
+                           'value': {'config_item': {'default': 'blah', 'value': 'blah', 'description': 'Des',
+                                                     'type': 'string'}}}]
+
+        attrs = {"query_tbl_with_payload.return_value": async_mock()}
+        storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        ret_val = await c_mgr._read_category(cat_name)
+        assert storage_result == ret_val
+        args, kwargs = storage_client_mock.query_tbl_with_payload.call_args
+        assert 'configuration' == args[0]
+        p = json.loads(args[1])
+        assert {"return": ["key", "description", "value", "display_name",
+                           {"column": "ts", "alias": "timestamp", "format": "YYYY-MM-DD HH24:MI:SS.MS"}],
+                "where": {"column": "key", "condition": "=", "value": cat_name}} == p
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("value, expected_result", [

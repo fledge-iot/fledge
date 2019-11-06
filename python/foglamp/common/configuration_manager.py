@@ -75,13 +75,13 @@ class ConfigurationCache(object):
         self.miss += 1
         return False
 
-    # TODO: FOGL-3246 Add description
-    def update(self, category_name, category_val, display_name=None):
+    def update(self, category_name, category_description, category_val, display_name=None):
         """Update the cache dictionary and remove the oldest item"""
         if category_name not in self.cache and len(self.cache) >= self.max_cache_size:
             self.remove_oldest()
         display_name = category_name if display_name is None else display_name
-        self.cache[category_name] = {'date_accessed': datetime.datetime.now(), 'value': category_val, 'displayName': display_name}
+        self.cache[category_name] = {'date_accessed': datetime.datetime.now(), 'description': category_description,
+                                     'value': category_val, 'displayName': display_name}
         _logger.info("Updated Configuration Cache %s", self.cache)
 
     def remove_oldest(self):
@@ -344,8 +344,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                               value=new_category_val, display_name=display_name).payload()
             result = await self._storage.insert_into_tbl("configuration", payload)
             response = result['response']
-            # TODO: FOGL-3246 Add description in cache
-            self._cacheManager.update(category_name, new_category_val, display_name)
+            self._cacheManager.update(category_name, category_description, new_category_val, display_name)
         except KeyError:
             raise ValueError(result['message'])
         except StorageServerError as ex:
@@ -363,6 +362,14 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         for row in results['rows']:
             category_info.append((row['key'], row['description'], row["display_name"]))
         return category_info
+
+    async def _read_category(self, cat_name):
+        # SELECT configuration.key, configuration.description, configuration.value, configuration.display_name, configuration.ts FROM configuration
+        payload = PayloadBuilder().SELECT("key", "description", "value", "display_name", "ts") \
+            .ALIAS("return", ("ts", 'timestamp')) \
+            .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")).WHERE(["key", "=", cat_name]).payload()
+        result = await self._storage.query_tbl_with_payload('configuration', payload)
+        return result['rows']
 
     async def _read_all_groups(self, root, children):
         async def nested_children(child):
@@ -570,10 +577,13 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             # Re-read category from DB
             new_category_val_db = await self._read_category_val(category_name)
             if category_name in self._cacheManager.cache:
+                self._cacheManager.cache[category_name]['description'] = category_description
                 self._cacheManager.cache[category_name]['value'] = new_category_val_db
                 self._cacheManager.cache[category_name]['displayName'] = display_name
             else:
-                self._cacheManager.cache.update({category_name: {"value": new_category_val_db, "displayName": display_name}})
+                self._cacheManager.cache.update({category_name: {"description": category_description,
+                                                                 "value": new_category_val_db,
+                                                                 "displayName": display_name}})
         except KeyError:
             raise ValueError(result['message'])
         except StorageServerError as ex:
@@ -615,19 +625,17 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         try:
             if category_name in self._cacheManager:
                 # Interim solution; to ensure script type config item file content handling
-                # Note: Make sure to pass display_name to cacheManager.update; Otherwise, in case of None, it will be set to category_name
-                # FOGL-3246 Add description in cache
                 category_value = self._handle_script_type(category_name, self._cacheManager.cache[category_name]['value'])
-                self._cacheManager.update(category_name, category_value, display_name=self._cacheManager.cache[category_name]['displayName'])
+                self._cacheManager.update(category_name, self._cacheManager.cache[category_name]['description'],
+                                          category_value, self._cacheManager.cache[category_name]['displayName'])
                 return category_value
 
-            category_value = await self._read_category_val(category_name)
-
-            if category_value is not None:
-                category_value = self._handle_script_type(category_name, category_value)
-                # FIXME: FOGL-3246 Explicit set display_name otherwise it always None and add description
-                # For display_name we need to fetch from DB as above def returns only its value
-                self._cacheManager.update(category_name, category_value)
+            category = await self._read_category(category_name)  # await self._read_category_val(category_name)
+            category_value = []
+            if category:
+                category_value = self._handle_script_type(category_name, category[0]["value"])
+                self._cacheManager.update(category_name, category[0]["description"], category_value,
+                                          category[0]["display_name"])
             return category_value
         except:
             _logger.exception(
@@ -653,12 +661,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             else:
                 cat_item = await self._read_item_val(category_name, item_name)
                 if cat_item is not None:
-                    category_value = await self._read_category_val(category_name)
-                    if category_value is not None:
-                        category_value = self._handle_script_type(category_name, category_value)
-                        # FIXME: FOGL-3246 Explicit set display_name otherwise it always None and add description
-                        # For display_name we need to fetch from DB as above def returns only its value
-                        self._cacheManager.update(category_name, category_value)
+                    category = await self._read_category(category_name)  # await self._read_category_val(category_name)
+                    if category:
+                        category_value = self._handle_script_type(category_name, category[0]["value"])
+                        self._cacheManager.update(category_name, category[0]["description"], category_value,
+                                                  category[0]["display_name"])
                         cat_item = category_value[item_name]
                 return cat_item
         except:

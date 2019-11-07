@@ -138,7 +138,7 @@ class TestE2EModbusCPI:
         assert len(tracking_details["track"]), "Failed to track Ingest event"
         tracked_item = tracking_details["track"][0]
         assert "modbus-c" == tracked_item["service"]
-        assert asset_name == tracked_item["asset"]
+        assert ASSET_NAME == tracked_item["asset"]
         assert "ModbusC" == tracked_item["plugin"]
 
         if not skip_verify_north_interface:
@@ -146,7 +146,7 @@ class TestE2EModbusCPI:
             assert len(egress_tracking_details["track"]), "Failed to track Egress event"
             tracked_item = egress_tracking_details["track"][0]
             assert "NorthReadingsToPI" == tracked_item["service"]
-            assert asset_name == tracked_item["asset"]
+            assert ASSET_NAME == tracked_item["asset"]
             assert "PI_Server_V2" == tracked_item["plugin"]
 
     def _verify_ingest(self, conn):

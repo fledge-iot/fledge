@@ -44,6 +44,18 @@ def get_statistics_map(foglamp_url):
     jdoc = json.loads(r)
     return utils.serialize_stats_map(jdoc)
 
+def get_asset_tracking_details(foglamp_url, event=None):
+    _connection = http.client.HTTPConnection(foglamp_url)
+    uri = '/foglamp/track'
+    if event:
+        uri += '?event={}'.format(event)
+    _connection.request("GET", uri)
+    r = _connection.getresponse()
+    assert 200 == r.status
+    r = r.read().decode()
+    jdoc = json.loads(r)
+    return jdoc
+
 
 @pytest.fixture
 def start_south_coap(reset_and_start_foglamp, add_south, remove_data_file, remove_directories, south_branch,
@@ -110,3 +122,10 @@ def test_smoke(start_south_coap, foglamp_url, wait_time, asset_name="smoke"):
     r = r.read().decode()
     retval = json.loads(r)
     assert {'sensor': SENSOR_VALUE} == retval[0]["reading"]
+
+    tracking_details = get_asset_tracking_details(foglamp_url, "Ingest")
+    assert len(tracking_details["track"]), "Failed to track Ingest event"
+    tracked_item = tracking_details["track"][0]
+    assert "coap" == tracked_item["service"]
+    assert "smoke" == tracked_item["asset"]
+    assert "coap" == tracked_item["plugin"]

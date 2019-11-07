@@ -88,7 +88,8 @@ class Connection {
 						unsigned long sent, std::string& results);
 		long		tableSize(const std::string& table);
 		void		setTrace(bool);
-    		bool 		formatDate(char *formatted_date, size_t formatted_date_size, const char *date);
+		bool		formatDate(char *formatted_date, size_t formatted_date_size, const char *date);
+		bool		aggregateQuery(const rapidjson::Value& payload, std::string& resultSet);
 
 	private:
 		int		m_queuing;

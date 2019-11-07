@@ -186,6 +186,7 @@ class TestPayloadBuilderRead:
         (["sum", "values"], _payload("data/payload_aggregate4.json")),
         (["count", "values"], _payload("data/payload_aggregate5.json")),
         ((["min", "values"], ["max", "values"], ["avg", "values"]), _payload("data/payload_aggregate6.json")),
+        ((["all"], {'all'}), _payload("data/payload_aggregate_all.json")),
         (["invalid", "values"], {})
     ])
     def test_aggregate_payload(self, test_input, expected):

@@ -114,45 +114,6 @@ def _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_
         assert Counter(data_from_pi[_head][-len(CSV_DATA):]) == Counter(_data_str[_head])
 
 
-<<<<<<< HEAD
-def test_e2e_csv_pi(start_south_north, read_data_from_pi, fledge_url, pi_host, pi_admin, pi_passwd, pi_db,
-                    wait_time, retries, skip_verify_north_interface, asset_name="end_to_end_csv"):
-    """ Test that data is inserted in Fledge and sent to PI
-        start_south_north: Fixture that starts Fledge with south and north instance
-        read_data_from_pi: Fixture to read data from PI
-        skip_verify_north_interface: Flag for assertion of data from Pi web API
-        Assertions:
-            on endpoint GET /fledge/asset
-            on endpoint GET /fledge/asset/<asset_name>
-            data received from PI is same as data sent"""
-
-    conn = http.client.HTTPConnection(fledge_url)
-    time.sleep(wait_time)
-
-    ping_response = get_ping_status(fledge_url)
-    assert len(CSV_DATA) == ping_response["dataRead"]
-    if not skip_verify_north_interface:
-        assert len(CSV_DATA) == ping_response["dataSent"]
-
-    actual_stats_map = get_statistics_map(fledge_url)
-    assert len(CSV_DATA) == actual_stats_map[asset_name.upper()]
-    assert len(CSV_DATA) == actual_stats_map['READINGS']
-    if not skip_verify_north_interface:
-        assert len(CSV_DATA) == actual_stats_map['Readings Sent']
-        assert len(CSV_DATA) == actual_stats_map['NorthReadingsToPI']
-
-    conn.request("GET", '/fledge/asset')
-    r = conn.getresponse()
-    assert 200 == r.status
-    r = r.read().decode()
-    retval = json.loads(r)
-    assert len(retval) == 1
-    assert asset_name == retval[0]["assetCode"]
-    assert len(CSV_DATA) == retval[0]["count"]
-
-    for _head in CSV_HEADERS.split(","):
-        conn.request("GET", '/fledge/asset/{}/{}'.format(asset_name, _head))
-=======
 class TestE2E_CSV_PI:
     def test_e2e_csv_pi(self, start_south_north, read_data_from_pi, fledge_url, pi_host, pi_admin, pi_passwd, pi_db,
                         wait_time, retries, skip_verify_north_interface, asset_name="end_to_end_csv"):
@@ -181,7 +142,6 @@ class TestE2E_CSV_PI:
             assert len(CSV_DATA) == actual_stats_map['NorthReadingsToPI']
 
         conn.request("GET", '/fledge/asset')
->>>>>>> develop
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()

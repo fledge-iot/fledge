@@ -620,7 +620,7 @@ class TestService:
         _platform = platform.platform()
         pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
         storage_client_mock = MagicMock(StorageClientAsync)
-        with patch.object(common, 'fetch_available_packages', return_value=([svc_name], log)) as patch_fetch_available_package:
+        with patch.object(common, 'fetch_available_packages', return_value=async_mock(([svc_name], log))) as patch_fetch_available_package:
             with patch.object(install, 'install_package_from_repo',
                               return_value=async_mock((0, link, msg))) as install_package_patch:
                 with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
@@ -652,9 +652,12 @@ class TestService:
         assert message == resp.reason
 
     async def test_post_service_package_from_repo_is_not_available(self, client):
+        async def async_mock(return_value):
+            return return_value
+
         svc = "fledge-service-notification"
         param = {"format": "repository", "name": svc}
-        with patch.object(common, 'fetch_available_packages', return_value=([], 'log/190801-12-19-24')) as patch_fetch_available_package:
+        with patch.object(common, 'fetch_available_packages', return_value=async_mock(([], 'log/190801-12-19-24'))) as patch_fetch_available_package:
             resp = await client.post('/fledge/service?action=install', data=json.dumps(param))
             assert 404 == resp.status
             assert "'{} service is not available for the given repository or already installed'".format(svc) == resp.reason
@@ -677,7 +680,10 @@ class TestService:
         patch_fetch_available_package.assert_called_once_with('service')
 
     async def test_get_service_available(self, client):
-        with patch.object(common, 'fetch_available_packages', return_value=([], 'log/190801-12-19-24')) as patch_fetch_available_package:
+        async def async_mock(return_value):
+            return return_value
+
+        with patch.object(common, 'fetch_available_packages', return_value=async_mock(([], 'log/190801-12-19-24'))) as patch_fetch_available_package:
             resp = await client.get('/fledge/service/available')
             assert 200 == resp.status
             result = await resp.text()

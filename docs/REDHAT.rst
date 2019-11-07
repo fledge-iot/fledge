@@ -32,7 +32,7 @@ Installation on Red Hat
 
 It is necessary to install a Red Hat package before Fledge can be installed successfully. The installation sequence is as follows:
 ::
-   sudo yum-config-manager --enable 'Red Hat Enterprise Linux Server 7 RHSCL (RPMs)'
+   sudo yum-config-manager --enable 'Red Hat Software Collections RPMs for Red Hat Enterprise Linux 7 Server from RHUI'
    sudo yum -y  localinstall ~/fledge-1.5.2-0.00.x86_64.rpm
 
 

@@ -30,10 +30,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__)))
 
 
 @pytest.fixture
-<<<<<<< HEAD
-def reset_and_start_fledge(storage_plugin):
-    """Fixture that kills fledge, reset database and starts fledge again
-=======
 def clean_setup_fledge_packages(package_build_version):
     assert os.environ.get('FLEDGE_ROOT') is not None
 
@@ -52,7 +48,6 @@ def clean_setup_fledge_packages(package_build_version):
 @pytest.fixture
 def reset_and_start_fledge(storage_plugin):
     """Fixture that kills fledge, reset database and starts fledge again
->>>>>>> develop
         storage_plugin: Fixture that defines the storage plugin to be used for tests
     """
 
@@ -101,14 +96,9 @@ def remove_directories():
 
 @pytest.fixture
 def add_south():
-<<<<<<< HEAD
-    def _add_fledge_south(south_plugin, south_branch, fledge_url, service_name="play", config=None,
-                           plugin_lang="python", use_pip_cache=True, start_service=True, plugin_discovery_name=None):
-=======
     def _add_fledge_south(south_plugin, south_branch, fledge_url, service_name="play", config=None,
                            plugin_lang="python", use_pip_cache=True, start_service=True, plugin_discovery_name=None,
                            installation_type='make'):
->>>>>>> develop
         """Add south plugin and start the service by default"""
 
         plugin_discovery_name = south_plugin if plugin_discovery_name is None else plugin_discovery_name
@@ -119,17 +109,6 @@ def add_south():
 
         conn = http.client.HTTPConnection(fledge_url)
 
-<<<<<<< HEAD
-        try:
-            if plugin_lang == "python":
-                subprocess.run(["$FLEDGE_ROOT/tests/system/python/scripts/install_python_plugin {} south {} {}".format(
-                    south_branch, south_plugin, use_pip_cache)], shell=True, check=True)
-            else:
-                subprocess.run(["$FLEDGE_ROOT/tests/system/python/scripts/install_c_plugin {} south {}".format(
-                    south_branch, south_plugin)], shell=True, check=True)
-        except subprocess.CalledProcessError:
-            assert False, "{} plugin installation failed".format(south_plugin)
-=======
         def clone_make_install():
             try:
                 if plugin_lang == "python":
@@ -152,7 +131,6 @@ def add_south():
                 assert False, "{} package installation failed!".format(south_plugin)
         else:
             print("Skipped {} plugin installation. Installation mechanism is set to {}.".format(south_plugin, installation_type))
->>>>>>> develop
 
         # Create south service
         conn.request("POST", '/fledge/service', json.dumps(data))

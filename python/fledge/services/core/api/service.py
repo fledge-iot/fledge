@@ -169,7 +169,7 @@ async def add_service(request):
                     if str(version).count(delimiter) != 2:
                         raise ValueError('Service semantic version is incorrect; it should be like X.Y.Z')
 
-                services, log_path = common.fetch_available_packages("service")
+                services, log_path = await common.fetch_available_packages("service")
                 if name not in services:
                     raise KeyError('{} service is not available for the given repository or already installed'.format(name))
 
@@ -382,7 +382,7 @@ async def get_available(request: web.Request) -> web.Response:
             curl -X GET http://localhost:8081/fledge/service/available
     """
     try:
-        services, log_path = common.fetch_available_packages("service")
+        services, log_path = await common.fetch_available_packages("service")
     except PackageError as e:
         msg = "Fetch available service package request failed"
         raise web.HTTPBadRequest(body=json.dumps({"message": msg, "link": str(e)}), reason=msg)

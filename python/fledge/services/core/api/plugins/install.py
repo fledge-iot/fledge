@@ -17,6 +17,7 @@ from aiohttp import web
 import aiohttp
 import async_timeout
 from typing import Dict
+from datetime import datetime
 
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
 from fledge.services.core.api.plugins import common
@@ -25,6 +26,7 @@ from fledge.services.core.api.plugins.exceptions import *
 from fledge.services.core import connect
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.audit_logger import AuditLogger
+from fledge.services.core import server
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems Inc."
@@ -77,7 +79,7 @@ async def add_plugin(request: web.Request) -> web.Response:
                 if str(version).count(delimiter) != 2:
                     raise ValueError('Plugin semantic version is incorrect; it should be like X.Y.Z')
 
-            plugins, log_path = common.fetch_available_packages()
+            plugins, log_path = await common.fetch_available_packages()
             if name not in plugins:
                 raise KeyError('{} plugin is not available for the given repository'.format(name))
 
@@ -258,16 +260,30 @@ def copy_file_install_requirement(dir_files: list, plugin_type: str, file_name: 
 
 
 async def install_package_from_repo(name: str, pkg_mgt: str, version: str) -> tuple:
-    stdout_file_path = common.create_log_file(name)
+    stdout_file_path = common.create_log_file(action="install", plugin_name=name)
     link = "log/" + stdout_file_path.split("/")[-1]
     msg = "installed"
-    cat_item = await check_upgrade_on_install()
-    if 'value' in cat_item:
-        if cat_item['value'] == "true":
-            cmd = "sudo {} -y upgrade".format(pkg_mgt) if pkg_mgt == 'apt' else "sudo {} -y update".format(pkg_mgt)
-            ret_code = os.system(cmd + " > {} 2>&1".format(stdout_file_path))
-            if ret_code != 0:
-                raise PackageError(link)
+    cat = await check_upgrade_on_install()
+    upgrade_install_cat_item = cat["upgradeOnInstall"]
+    max_upgrade_cat_item = cat['maxUpdate']
+    if 'value' in upgrade_install_cat_item:
+        if upgrade_install_cat_item['value'] == "true":
+            pkg_cache_mgr = server.Server._package_cache_manager
+            last_accessed_time = pkg_cache_mgr['upgrade']['last_accessed_time']
+            now = datetime.now()
+            then = last_accessed_time if last_accessed_time else now
+            duration_in_sec = (now - then).total_seconds()
+            # If max upgrade per day is set to 1, then an upgrade can not occurs until 24 hours after the last accessed upgrade.
+            # If set to 2 then this drops to 12 hours between upgrades, 3 would result in 8 hours between calls and so on.
+            if duration_in_sec > (24 / int(max_upgrade_cat_item['value'])) * 60 * 60 or not last_accessed_time:
+                _LOGGER.info("Attempting upgrade on {}".format(now))
+                cmd = "sudo {} -y upgrade".format(pkg_mgt) if pkg_mgt == 'apt' else "sudo {} -y update".format(pkg_mgt)
+                ret_code = os.system(cmd + " > {} 2>&1".format(stdout_file_path))
+                if ret_code != 0:
+                    raise PackageError(link)
+                pkg_cache_mgr['upgrade']['last_accessed_time'] = now
+            else:
+                _LOGGER.warning("Maximum upgrade exceeds the limit for the day")
             msg = "updated"
     cmd = "sudo {} -y install {}".format(pkg_mgt, name)
     if version:
@@ -279,5 +295,5 @@ async def install_package_from_repo(name: str, pkg_mgt: str, version: str) -> tu
 
 async def check_upgrade_on_install() -> Dict:
     cf_mgr = ConfigurationManager(connect.get_storage_async())
-    category_item = await cf_mgr.get_category_item("Installation", "upgradeOnInstall")
-    return category_item
+    category = await cf_mgr.get_category_all_items("Installation")
+    return category

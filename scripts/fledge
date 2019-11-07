@@ -161,6 +161,9 @@ fledge_reset() {
   #       but it does not start the microservice
   source "$FLEDGE_ROOT/scripts/storage" reset
 
+  # Remove user data: scripts
+  rm -rf "$FLEDGE_DATA/scripts"
+  echo "Removed user data in $FLEDGE_DATA/scripts"
 }
 
 

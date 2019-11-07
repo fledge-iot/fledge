@@ -125,8 +125,11 @@ class TestPluginDiscoveryApi:
         ("?type=notify", ['fledge-notify-slack'], ['fledge-notify-slack'])
     ])
     async def test_get_plugins_available(self, client, param, output, result):
+        async def async_mock(return_value):
+            return return_value
+
         log_path = 'log/190801-12-01-05.log'
-        with patch.object(common, 'fetch_available_packages', return_value=(output, log_path)) as patch_fetch_available_package:
+        with patch.object(common, 'fetch_available_packages', return_value=async_mock((output, log_path))) as patch_fetch_available_package:
             resp = await client.get('/fledge/plugins/available{}'.format(param))
             assert 200 == resp.status
             r = await resp.text()

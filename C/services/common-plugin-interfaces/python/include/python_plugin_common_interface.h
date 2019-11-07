@@ -46,12 +46,23 @@ class PythonModule
 			m_module = NULL;
 		};
 
+		void	setCategoryName(string category)
+		{
+			m_categoryName = category;
+		};
+
+		string&	getCategoryName()
+		{
+			return m_categoryName;
+		};
+
 	public:
 		PyObject* m_module;
 		bool      m_init;
 		string    m_name;
 		string    m_type;
 		PyThreadState*	m_tState;
+		string    m_categoryName;
 };
 
 extern "C" {

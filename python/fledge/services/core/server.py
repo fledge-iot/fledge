@@ -292,12 +292,43 @@ class Server:
     running_in_safe_mode = False
     """ Fledge running in Safe mode """
 
+    _package_cache_manager = None
+    """ Package Cache Manager """
+
     _INSTALLATION_DEFAULT_CONFIG = {
+        'maxUpdate': {
+            'description': 'Maximum updates per day',
+            'type': 'integer',
+            'default': '1',
+            'displayName': 'Maximum Update',
+            'order': '1',
+            'minimum': '1',
+            'maximum': '8'
+        },
+        'maxUpgrade': {
+            'description': 'Maximum upgrades per day',
+            'type': 'integer',
+            'default': '1',
+            'displayName': 'Maximum Upgrade',
+            'order': '3',
+            'minimum': '1',
+            'maximum': '8',
+            'validity': 'upgradeOnInstall == "true"'
+        },
         'upgradeOnInstall': {
             'description': 'Run upgrade prior to installing new software',
             'type': 'boolean',
             'default': 'false',
-            'displayName': 'Upgrade on Install'
+            'displayName': 'Upgrade on Install',
+            'order': '2'
+        },
+        'listAvailablePackagesCacheTTL': {
+            'description': 'Caching of fetch available packages time to live in minutes',
+            'type': 'integer',
+            'default': '15',
+            'displayName': 'Available Packages Cache',
+            'order': '4',
+            'minimum': '0'
         }
     }
 
@@ -460,6 +491,9 @@ class Server:
             await cls._configuration_manager.create_category(category, config, 'Installation', True,
                                                              display_name='Installation')
             await cls._configuration_manager.get_category_all_items(category)
+
+            cls._package_cache_manager = {"update": {"last_accessed_time": ""},
+                                          "upgrade": {"last_accessed_time": ""}, "list": {"last_accessed_time": ""}}
         except Exception as ex:
             _logger.exception(str(ex))
             raise

@@ -124,4 +124,6 @@ timezone - readings   - read 1,GET,http://localhost:8080/storage/reading?id=1&co
 timezone - readings   - read 2,PUT,http://localhost:8080/storage/reading/query,tz_readings_read_2.json
 timezone - readings   - read 3,PUT,http://localhost:8080/storage/reading/query,tz_readings_read_3.json
 timezone - readings   - read 4,PUT,http://localhost:8080/storage/reading/query,tz_readings_read_4.json
+Add more Readings,POST,http://localhost:8080/storage/reading,readings_timebucket.json
+Query Readings Timebucket,PUT,http://localhost:8080/storage/reading/query,query_timebucket_datapoints.json
 Shutdown,POST,http://localhost:1081/fledge/service/shutdown,,checkstate

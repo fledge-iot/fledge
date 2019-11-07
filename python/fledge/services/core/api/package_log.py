@@ -47,8 +47,11 @@ async def get_logs(request: web.Request) -> web.Response:
         t1 = f.split(".log")
         t2 = t1[0].split("-fledge")
         t3 = t2[0].split("-")
+        t4 = t1[0].split("-list")
         if len(t2) >= 2:
             name = "fledge{}".format(t2[1])
+        if len(t4) >= 2:
+            name = "list"
         dt = "{}-{}-{}-{}".format(t3[0], t3[1], t3[2], t3[3])
         ts = datetime.strptime(dt, "%y%m%d-%H-%M-%S").strftime('%Y-%m-%d %H:%M:%S')
         result.append({"timestamp": ts, "name": name, "filename": f})

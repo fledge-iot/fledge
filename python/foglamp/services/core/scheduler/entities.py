@@ -115,7 +115,7 @@ class Task(object):
                                                      'end_time', 'exit_code'])
 
     __slots__ = ['task_id', 'process_name', 'schedule_name', 'state', 'cancel_requested', 'start_time',
-                 'end_time', 'state', 'exit_code', 'reason']
+                 'end_time', 'state', 'exit_code', 'reason', 'schedule_id']
 
     def __init__(self):
         # Instance attributes
@@ -123,6 +123,7 @@ class Task(object):
         """Unique identifier"""
         self.process_name = None  # type: str
         self.schedule_name = None  # type: str
+        self.schedule_id = None  # type: uuid.UUID
         self.reason = None  # type: str
         self.state = None  # type: Task.State
         self.cancel_requested = None  # type: datetime.datetime

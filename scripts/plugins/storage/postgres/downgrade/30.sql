@@ -1,0 +1,1 @@
+ALTER TABLE foglamp.tasks DROP COLUMN schedule_id;

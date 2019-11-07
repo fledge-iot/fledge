@@ -336,6 +336,7 @@ class Scheduler(object):
                         pid=(self._schedule_executions[schedule.id].
                              task_processes[task_id].process.pid),
                         schedule_name=schedule.name,
+                        schedule_id=str(schedule.id),
                         process_name=schedule.process_name,
                         state=int(Task.State.RUNNING),
                         start_time=str(common_utils.local_timestamp())) \
@@ -1463,6 +1464,7 @@ class Scheduler(object):
                 task.state = Task.State(int(row.get('state')))
                 task.start_time = row.get('start_time')
                 task.schedule_name = row.get('schedule_name')
+                task.schedule_id = row.get('schedule_id')
                 task.process_name = row.get('process_name')
                 task.end_time = row.get('end_time')
                 task.exit_code = row.get('exit_code')
@@ -1514,6 +1516,7 @@ class Scheduler(object):
                 task.state = Task.State(int(row.get('state')))
                 task.start_time = row.get('start_time')
                 task.schedule_name = row.get('schedule_name')
+                task.schedule_id = row.get('schedule_id')
                 task.process_name = row.get('process_name')
                 task.end_time = row.get('end_time')
                 task.exit_code = row.get('exit_code')

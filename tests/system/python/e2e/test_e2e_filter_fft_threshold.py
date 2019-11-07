@@ -164,6 +164,13 @@ class TestE2eFilterFFTThreshold:
         assert "e2e_fft_threshold FFT" == tracked_item["asset"]
         assert "playback" == tracked_item["plugin"]
 
+        tracking_details = self.get_asset_tracking_details(foglamp_url, "Filter")
+        assert len(tracking_details["track"]), "Failed to track Ingest event"
+        tracked_item = tracking_details["track"][0]
+        assert "playfilter" == tracked_item["service"]
+        assert "e2e_fft_threshold FFT" == tracked_item["asset"]
+        assert "FFT Filter" == tracked_item["plugin"]
+
         if not skip_verify_north_interface:
             egress_tracking_details = self.get_asset_tracking_details(foglamp_url,"Egress")
             assert len(egress_tracking_details["track"]), "Failed to track Egress event"

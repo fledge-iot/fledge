@@ -137,7 +137,7 @@ class TestE2ePiEgressWithScalesetFilter:
         assert "http_south" == tracked_item["plugin"]
 
         tracking_details = self.get_asset_tracking_details(foglamp_url, "Filter")
-        assert len(tracking_details["track"]), "Failed to track Ingest event"
+        assert len(tracking_details["track"]), "Failed to track Filter event"
         tracked_item = tracking_details["track"][0]
         assert "North v2 PI" == tracked_item["service"]
         assert "http-e1" == tracked_item["asset"]

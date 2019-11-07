@@ -178,50 +178,50 @@ class TestE2eCsvMultiFltrPi:
         assert "playback" == tracked_item["plugin"]
 
         tracking_details = self.get_asset_tracking_details(foglamp_url, "Filter")
-        assert len(tracking_details["track"]), "Failed to track Ingest event"
+        assert len(tracking_details["track"]), "Failed to track Filter event"
         tracked_item = tracking_details["track"][0]
         assert "playfilter" == tracked_item["service"]
         assert "e2e_csv_filter_pi" == tracked_item["asset"]
         assert "fscale" == tracked_item["plugin"]
 
         tracking_details = self.get_asset_tracking_details(foglamp_url, "Filter")
-        assert len(tracking_details["track"]), "Failed to track Ingest event"
-        tracked_item = tracking_details["track"][0]
+        assert len(tracking_details["track"]), "Failed to track Filter event"
+        tracked_item = tracking_details["track"][1]
         assert "playfilter" == tracked_item["service"]
         assert "e2e_csv_filter_pi" == tracked_item["asset"]
         assert "fasset" == tracked_item["plugin"]
 
         tracking_details = self.get_asset_tracking_details(foglamp_url, "Filter")
-        assert len(tracking_details["track"]), "Failed to track Ingest event"
-        tracked_item = tracking_details["track"][0]
+        assert len(tracking_details["track"]), "Failed to track Filter event"
+        tracked_item = tracking_details["track"][2]
         assert "playfilter" == tracked_item["service"]
         assert "e2e_filters" == tracked_item["asset"]
         assert "fasset" == tracked_item["plugin"]
 
         tracking_details = self.get_asset_tracking_details(foglamp_url, "Filter")
-        assert len(tracking_details["track"]), "Failed to track Ingest event"
-        tracked_item = tracking_details["track"][0]
+        assert len(tracking_details["track"]), "Failed to track Filter event"
+        tracked_item = tracking_details["track"][3]
         assert "playfilter" == tracked_item["service"]
-        assert "e2e_filters_RMS" == tracked_item["asset"]
+        assert "e2e_filters" == tracked_item["asset"]
         assert "frate" == tracked_item["plugin"]
 
         tracking_details = self.get_asset_tracking_details(foglamp_url, "Filter")
-        assert len(tracking_details["track"]), "Failed to track Ingest event"
-        tracked_item = tracking_details["track"][0]
+        assert len(tracking_details["track"]), "Failed to track Filter event"
+        tracked_item = tracking_details["track"][4]
         assert "playfilter" == tracked_item["service"]
         assert "e2e_filters" == tracked_item["asset"]
         assert "fdelta" == tracked_item["plugin"]
 
         tracking_details = self.get_asset_tracking_details(foglamp_url, "Filter")
-        assert len(tracking_details["track"]), "Failed to track Ingest event"
-        tracked_item = tracking_details["track"][0]
+        assert len(tracking_details["track"]), "Failed to track Filter event"
+        tracked_item = tracking_details["track"][5]
         assert "playfilter" == tracked_item["service"]
         assert "e2e_filters_RMS" == tracked_item["asset"]
         assert "frms" == tracked_item["plugin"]
 
         tracking_details = self.get_asset_tracking_details(foglamp_url, "Filter")
-        assert len(tracking_details["track"]), "Failed to track Ingest event"
-        tracked_item = tracking_details["track"][0]
+        assert len(tracking_details["track"]), "Failed to track Filter event"
+        tracked_item = tracking_details["track"][6]
         assert "playfilter" == tracked_item["service"]
         assert "e2e_filters_RMS" == tracked_item["asset"]
         assert "fmeta" == tracked_item["plugin"]

@@ -367,9 +367,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         # SELECT configuration.key, configuration.description, configuration.value, configuration.display_name, configuration.ts FROM configuration
         payload = PayloadBuilder().SELECT("key", "description", "value", "display_name", "ts") \
             .ALIAS("return", ("ts", 'timestamp')) \
-            .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")).WHERE(["key", "=", cat_name]).payload()
+            .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")).WHERE(["key", "=", cat_name]).LIMIT(1).payload()
         result = await self._storage.query_tbl_with_payload('configuration', payload)
-        return result['rows'] if result['rows'] else None
+        return result['rows'][0] if result['rows'] else None
 
     async def _read_all_groups(self, root, children):
         async def nested_children(child):
@@ -633,9 +633,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             category = await self._read_category(category_name)  # await self._read_category_val(category_name)
             category_value = None
             if category is not None:
-                category_value = self._handle_script_type(category_name, category[0]["value"])
-                self._cacheManager.update(category_name, category[0]["description"], category_value,
-                                          category[0]["display_name"])
+                category_value = self._handle_script_type(category_name, category["value"])
+                self._cacheManager.update(category_name, category["description"], category_value,
+                                          category["display_name"])
             return category_value
         except:
             _logger.exception(
@@ -663,9 +663,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 if cat_item is not None:
                     category = await self._read_category(category_name)  # await self._read_category_val(category_name)
                     if category is not None:
-                        category_value = self._handle_script_type(category_name, category[0]["value"])
-                        self._cacheManager.update(category_name, category[0]["description"], category_value,
-                                                  category[0]["display_name"])
+                        category_value = self._handle_script_type(category_name, category["value"])
+                        self._cacheManager.update(category_name, category["description"], category_value,
+                                                  category["display_name"])
                         cat_item = category_value[item_name]
                 return cat_item
         except:

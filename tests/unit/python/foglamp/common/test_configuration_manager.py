@@ -1342,7 +1342,7 @@ class TestConfigurationManager:
 
         category_name = 'catname'
         cat_value = {"config_item": {"type": "string", "default": "blah", "description": "Des", "value": "blah"}}
-        cat_info = [{'display_name': category_name, 'key': category_name, 'description': 'Test Des', "value": cat_value}]
+        cat_info = {'display_name': category_name, 'key': category_name, 'description': 'Test Des', "value": cat_value}
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(ConfigurationManager, '_read_category', return_value=async_mock(cat_info)) as readpatch:
@@ -1569,7 +1569,7 @@ class TestConfigurationManager:
         p = json.loads(args[1])
         assert {"return": ["key", "description", "value", "display_name",
                            {"column": "ts", "alias": "timestamp", "format": "YYYY-MM-DD HH24:MI:SS.MS"}],
-                "where": {"column": "key", "condition": "=", "value": CAT_NAME}} == p
+                "where": {"column": "key", "condition": "=", "value": CAT_NAME}, "limit": 1} == p
 
     async def test__read_category_1_row(self, reset_singleton):
         async def async_mock():
@@ -1583,13 +1583,13 @@ class TestConfigurationManager:
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
         c_mgr = ConfigurationManager(storage_client_mock)
         ret_val = await c_mgr._read_category(CAT_NAME)
-        assert storage_result == ret_val
+        assert storage_result[0] == ret_val
         args, kwargs = storage_client_mock.query_tbl_with_payload.call_args
         assert 'configuration' == args[0]
         p = json.loads(args[1])
         assert {"return": ["key", "description", "value", "display_name",
                            {"column": "ts", "alias": "timestamp", "format": "YYYY-MM-DD HH24:MI:SS.MS"}],
-                "where": {"column": "key", "condition": "=", "value": CAT_NAME}} == p
+                "where": {"column": "key", "condition": "=", "value": CAT_NAME},  "limit": 1} == p
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("value, expected_result", [

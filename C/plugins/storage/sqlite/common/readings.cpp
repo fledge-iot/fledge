@@ -77,6 +77,229 @@ static int purgeBlockSize = PURGE_DELETE_BLOCK_SIZE;
 
 static time_t connectErrorTime = 0;
 
+
+/**
+ * Check whether to compute timebucket query with min,max,avg for all datapoints
+ *
+ * @param    payload	JSON payload
+ * @return		True if aggregation is 'all'
+ */
+bool aggregateAll(const Value& payload)
+{
+	if (payload.HasMember("aggregate") &&
+	    payload["aggregate"].IsObject())
+	{
+		const Value& agg = payload["aggregate"];
+		if (agg.HasMember("operation") &&
+		    (strcmp(agg["operation"].GetString(), "all") == 0))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
+ * Build, exucute and return data of a timebucket query with min,max,avg for all datapoints
+ *
+ * @param    payload	JSON object for timebucket query
+ * @param    resultSet	JSON Output buffer
+ * @return		True of success, false on any error
+ */
+bool Connection::aggregateQuery(const Value& payload, string& resultSet)
+{
+	if (!payload.HasMember("where") ||
+	    !payload.HasMember("timebucket"))
+	{
+		raiseError("retrieve", "aggregateQuery is missing "
+			   "'where' and/or 'timebucket' properties");
+		return false;
+	}
+
+	SQLBuffer sql;
+
+	sql.append("SELECT asset_code, ");
+
+	int size = 1;
+	string timeColumn;
+
+	// Check timebucket object
+	if (payload.HasMember("timebucket"))
+	{
+		const Value& bucket = payload["timebucket"];
+		if (!bucket.HasMember("timestamp"))
+		{
+			raiseError("retrieve", "aggregateQuery is missing "
+				   "'timestamp' property for 'timebucket'");
+			return false;
+		}
+
+		// Time column
+		timeColumn = bucket["timestamp"].GetString();
+
+		// Bucket size
+		if (bucket.HasMember("size"))
+		{
+			size = atoi(bucket["size"].GetString());
+			if (!size)
+			{
+				size = 1;
+			}
+		}
+
+		// Time format for output
+		if (bucket.HasMember("format"))
+		{
+			string newFormat;
+			applyColumnDateFormatLocaltime(bucket["format"].GetString(),
+							"timestamp",
+							newFormat,
+							true);
+			sql.append(newFormat);
+		}
+		else
+		{
+			sql.append("timestamp");
+		}
+
+		// Time output alias
+		if (bucket.HasMember("alias"))
+		{
+			sql.append(" AS ");
+			sql.append(bucket["alias"].GetString());
+		}
+	}
+
+	// JSON format aggregated data
+	sql.append(", '{' || group_concat('\"' || x || '\" : ' || resd, ', ') || '}' AS reading ");
+
+	// subquery
+	sql.append("FROM ( SELECT  x, asset_code, max(timestamp) AS timestamp, ");
+	// Add min
+	sql.append("'{\"min\" : ' || min(theval) || ', ");
+	// Add max
+	sql.append("\"max\" : ' || max(theval) || ', ");
+	// Add avg
+	sql.append("\"average\" : ' || avg(theval) || ', ");
+	// Add count
+	sql.append("\"count\" : ' || count(theval) || ', ");
+	// Add sum
+	sql.append("\"sum\" : ' || sum(theval) || '}' AS resd ");
+
+	// subquery
+	sql.append("FROM ( SELECT asset_code, ");
+	sql.append(timeColumn);
+	sql.append(", datetime(");
+
+	// Add timebucket size
+	if (size > 1)
+	{
+		sql.append(to_string(size));
+		sql.append(" * round(strftime('%s', ");
+		sql.append(timeColumn);
+		sql.append(") / ");
+		sql.append(to_string(size));
+		sql.append(", 6), 'unixepoch') ");
+	}
+	else
+	{
+		sql.append("round(strftime('%s', ");
+		sql.append(timeColumn);
+		sql.append(") / 1, 6), 'unixepoch') ");
+	}
+	sql.append("AS \"timestamp\", reading, ");
+
+	// Get all datapoints in 'reading' field
+	sql.append("json_each.key AS x, json_each.value AS theval FROM foglamp.readings, json_each(readings.reading) ");
+
+	// Add where condition
+	sql.append("WHERE ");
+	if (!jsonWhereClause(payload["where"], sql))
+	{
+		raiseError("retrieve", "aggregateQuery: failure while building WHERE clause");
+		return false;
+	}
+
+	// sort results
+	sql.append(" ORDER BY ");
+	sql.append(timeColumn);
+	sql.append(" DESC) tmp ");
+
+	// Add group by
+	sql.append("GROUP BY x, asset_code, ");
+	sql.append("round(strftime('%s', ");
+	sql.append(timeColumn);
+	sql.append(") / ");
+	if (size > 1)
+	{
+		sql.append(to_string(size));
+	}
+	else
+	{
+		sql.append('1');
+	}
+	sql.append(") ");
+
+	// sort results
+	sql.append("ORDER BY timestamp DESC) tbl ");
+
+	// Add final group and sort
+	sql.append("GROUP BY timestamp, asset_code ORDER BY timestamp DESC");
+
+	// Add limit
+	if (payload.HasMember("limit"))
+	{
+		if (!payload["limit"].IsInt())
+		{
+			raiseError("retrieve", "aggregateQuery: limit must be specfied as an integer");
+			return false;
+		}
+		sql.append(" LIMIT ");
+		try {
+			sql.append(payload["limit"].GetInt());
+		} catch (exception e) {
+			raiseError("retrieve", "aggregateQuery: bad value for limit parameter: %s", e.what());
+			return false;
+		}
+	}
+	sql.append(';');
+
+	// Execute query
+	const char *query = sql.coalesce();
+	int rc;
+	sqlite3_stmt *stmt;
+
+	logSQL("CommonRetrieve", query);
+
+	// Prepare the SQL statement and get the result set
+	rc = sqlite3_prepare_v2(dbHandle, query, -1, &stmt, NULL);
+
+	// Release memory for 'query' var
+	delete[] query;
+
+	if (rc != SQLITE_OK)
+	{
+		raiseError("retrieve", sqlite3_errmsg(dbHandle));
+		return false;
+	}
+
+	// Call result set mapping
+	rc = mapResultSet(stmt, resultSet);
+
+	// Delete result set
+	sqlite3_finalize(stmt);
+
+	// Check result set mapping errors
+	if (rc != SQLITE_DONE)
+	{
+		raiseError("retrieve", sqlite3_errmsg(dbHandle));
+		// Failure
+		return false;
+	}
+
+	return true;
+}
+
 #ifndef SQLITE_SPLIT_READINGS
 /**
  * Append a set of readings to the readings table
@@ -362,6 +585,13 @@ bool		isAggregate = false;
 				raiseError("retrieve", "Failed to parse JSON payload");
 				return false;
 			}
+
+			// timebucket aggregate all datapoints
+			if (aggregateAll(document))
+			{       
+				return aggregateQuery(document, resultSet);
+			}
+
 			if (document.HasMember("aggregate"))
 			{
 				isAggregate = true;

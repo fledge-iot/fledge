@@ -63,6 +63,7 @@ class TestE2ePiEgressWithScalesetFilter:
         jdoc = json.loads(r)
         return utils.serialize_stats_map(jdoc)
 
+
     @pytest.fixture
     def start_south_north_with_filter(self, reset_and_start_foglamp, add_south, south_branch,
                                       remove_data_file, remove_directories, enable_schedule,
@@ -116,6 +117,28 @@ class TestE2ePiEgressWithScalesetFilter:
 
         if not skip_verify_north_interface:
             self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
+
+        tracking_details = utils.get_asset_tracking_details(foglamp_url, "Ingest")
+        assert len(tracking_details["track"]), "Failed to track Ingest event"
+        tracked_item = tracking_details["track"][0]
+        assert SVC_NAME == tracked_item["service"]
+        assert "http-e1" == tracked_item["asset"]
+        assert "http_south" == tracked_item["plugin"]
+
+        tracking_details = utils.get_asset_tracking_details(foglamp_url, "Filter")
+        assert len(tracking_details["track"]), "Failed to track Filter event"
+        tracked_item = tracking_details["track"][0]
+        assert TASK_NAME == tracked_item["service"]
+        assert "http-e1" == tracked_item["asset"]
+        assert "SS #1" == tracked_item["plugin"]
+
+        if not skip_verify_north_interface:
+            egress_tracking_details = utils.get_asset_tracking_details(foglamp_url,"Egress")
+            assert len(egress_tracking_details["track"]), "Failed to track Egress event"
+            tracked_item = egress_tracking_details["track"][0]
+            assert TASK_NAME == tracked_item["service"]
+            assert "http-e1" == tracked_item["asset"]
+            assert "PI_Server_V2" == tracked_item["plugin"]
 
     def _verify_ping_and_statistics(self, foglamp_url, count, skip_verify_north_interface=False):
         ping_response = self.get_ping_status(foglamp_url)

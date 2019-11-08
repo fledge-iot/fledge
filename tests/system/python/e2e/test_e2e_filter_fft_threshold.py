@@ -53,6 +53,7 @@ class TestE2eFilterFFTThreshold:
         jdoc = json.loads(r)
         return utils.serialize_stats_map(jdoc)
 
+
     @pytest.fixture
     def start_south_north(self, reset_and_start_foglamp, add_south, enable_schedule, remove_directories,
                           remove_data_file, south_branch, foglamp_url, add_filter, filter_branch,
@@ -144,6 +145,30 @@ class TestE2eFilterFFTThreshold:
 
         if not skip_verify_north_interface:
             self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
+
+        tracking_details = utils.get_asset_tracking_details(foglamp_url, "Ingest")
+        assert len(tracking_details["track"]), "Failed to track Ingest event"
+        tracked_item = tracking_details["track"][0]
+        assert SVC_NAME == tracked_item["service"]
+        assert "e2e_fft_threshold FFT" == tracked_item["asset"]
+        assert "playback" == tracked_item["plugin"]
+
+        # TODO: FOGL:3440,FOGL:3441 Add asset tracker entry for fft and threshold filters
+        # tracking_details = self.get_asset_tracking_details(foglamp_url, "Filter")
+        # assert len(tracking_details["track"]), "Failed to track Ingest event"
+        # tracked_item = tracking_details["track"][0]
+        # assert "playfilter" == tracked_item["service"]
+        # assert "e2e_fft_threshold FFT" == tracked_item["asset"]
+        # assert "FFT Filter" == tracked_item["plugin"]
+
+        if not skip_verify_north_interface:
+            egress_tracking_details = utils.get_asset_tracking_details(foglamp_url,"Egress")
+            assert len(egress_tracking_details["track"]), "Failed to track Egress event"
+            tracked_item = egress_tracking_details["track"][0]
+            assert NORTH_TASK_NAME == tracked_item["service"]
+            assert "e2e_fft_threshold FFT" == tracked_item["asset"]
+            assert "PI_Server_V2" == tracked_item["plugin"]
+
 
     def _verify_ingest(self, conn):
         conn.request("GET", '/foglamp/asset')

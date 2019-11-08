@@ -51,6 +51,7 @@ class TestE2EKafka:
         jdoc = json.loads(r)
         return utils.serialize_stats_map(jdoc)
 
+
     def _prepare_template_reading_from_fogbench(self):
         """ Define the template file for fogbench readings """
 
@@ -163,6 +164,22 @@ class TestE2EKafka:
 
         if not skip_verify_north_interface:
             self._read_from_kafka(kafka_host, kafka_rest_port, kafka_topic)
+
+        tracking_details = utils.get_asset_tracking_details(foglamp_url, "Ingest")
+        assert len(tracking_details["track"]), "Failed to track Ingest event"
+        tracked_item = tracking_details["track"][0]
+        assert "coap" == tracked_item["service"]
+        assert ASSET_NAME == tracked_item["asset"]
+        assert SOUTH_PLUGIN_NAME == tracked_item["plugin"]
+
+        if not skip_verify_north_interface:
+            egress_tracking_details = utils.get_asset_tracking_details(foglamp_url,"Egress")
+            assert len(egress_tracking_details["track"]), "Failed to track Egress event"
+            tracked_item = egress_tracking_details["track"][0]
+            assert "NorthReadingsTo{}".format(NORTH_PLUGIN_NAME) == tracked_item["service"]
+            assert ASSET_NAME == tracked_item["asset"]
+            assert NORTH_PLUGIN_NAME == tracked_item["plugin"]
+
 
     def _read_from_kafka(self, host, rest_port, topic):
         conn = http.client.HTTPConnection("{}:{}".format(host, rest_port))

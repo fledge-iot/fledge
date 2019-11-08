@@ -52,6 +52,7 @@ class TestE2eCsvMultiFltrPi:
         jdoc = json.loads(r)
         return utils.serialize_stats_map(jdoc)
 
+
     @pytest.fixture
     def start_south_north(self, reset_and_start_foglamp, add_south, enable_schedule, remove_directories,
                           remove_data_file, south_branch, foglamp_url, add_filter, filter_branch,
@@ -156,6 +157,58 @@ class TestE2eCsvMultiFltrPi:
 
         if not skip_verify_north_interface:
             self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
+
+        tracking_details = utils.get_asset_tracking_details(foglamp_url, "Ingest")
+        assert len(tracking_details["track"]), "Failed to track Ingest event"
+        tracked_item = tracking_details["track"][0]
+        assert SVC_NAME == tracked_item["service"]
+        assert "e2e_filters_RMS" == tracked_item["asset"]
+        assert "playback" == tracked_item["plugin"]
+
+        tracking_details = utils.get_asset_tracking_details(foglamp_url, "Filter")
+        assert len(tracking_details["track"]), "Failed to track Filter event"
+        tracked_item = tracking_details["track"][0]
+        assert SVC_NAME == tracked_item["service"]
+        assert "e2e_csv_filter_pi" == tracked_item["asset"]
+        assert "fscale" == tracked_item["plugin"]
+
+        tracked_item = tracking_details["track"][1]
+        assert SVC_NAME == tracked_item["service"]
+        assert "e2e_csv_filter_pi" == tracked_item["asset"]
+        assert "fasset" == tracked_item["plugin"]
+
+        tracked_item = tracking_details["track"][2]
+        assert SVC_NAME == tracked_item["service"]
+        assert "e2e_filters" == tracked_item["asset"]
+        assert "fasset" == tracked_item["plugin"]
+
+        tracked_item = tracking_details["track"][3]
+        assert SVC_NAME == tracked_item["service"]
+        assert "e2e_filters" == tracked_item["asset"]
+        assert "frate" == tracked_item["plugin"]
+
+        tracked_item = tracking_details["track"][4]
+        assert SVC_NAME == tracked_item["service"]
+        assert "e2e_filters" == tracked_item["asset"]
+        assert "fdelta" == tracked_item["plugin"]
+
+        tracked_item = tracking_details["track"][5]
+        assert SVC_NAME == tracked_item["service"]
+        assert "e2e_filters_RMS" == tracked_item["asset"]
+        assert "frms" == tracked_item["plugin"]
+
+        tracked_item = tracking_details["track"][6]
+        assert SVC_NAME == tracked_item["service"]
+        assert "e2e_filters_RMS" == tracked_item["asset"]
+        assert "fmeta" == tracked_item["plugin"]
+
+        if not skip_verify_north_interface:
+            egress_tracking_details = utils.get_asset_tracking_details(foglamp_url,"Egress")
+            assert len(egress_tracking_details["track"]), "Failed to track Egress event"
+            tracked_item = egress_tracking_details["track"][0]
+            assert "NorthReadingsToPI" == tracked_item["service"]
+            assert "e2e_filters_RMS" == tracked_item["asset"]
+            assert "PI_Server_V2" == tracked_item["plugin"]
 
     def _verify_ingest(self, conn):
 

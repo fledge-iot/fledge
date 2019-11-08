@@ -139,3 +139,17 @@ class TestE2E_CoAP_PI:
         if not skip_verify_north_interface:
             _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name)
 
+        tracking_details = utils.get_asset_tracking_details(foglamp_url, "Ingest")
+        assert len(tracking_details["track"]), "Failed to track Ingest event"
+        tracked_item = tracking_details["track"][0]
+        assert "coap" == tracked_item["service"]
+        assert "end_to_end_coap" == tracked_item["asset"]
+        assert "coap" == tracked_item["plugin"]
+
+        if not skip_verify_north_interface:
+            egress_tracking_details = utils.get_asset_tracking_details(foglamp_url,"Egress")
+            assert len(egress_tracking_details["track"]), "Failed to track Egress event"
+            tracked_item = egress_tracking_details["track"][0]
+            assert "NorthReadingsToPI" == tracked_item["service"]
+            assert "end_to_end_coap" == tracked_item["asset"]
+            assert "PI_Server_V2" == tracked_item["plugin"]

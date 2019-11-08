@@ -170,7 +170,7 @@ class TestE2EKafka:
         tracked_item = tracking_details["track"][0]
         assert "coap" == tracked_item["service"]
         assert ASSET_NAME == tracked_item["asset"]
-        assert "coap" == tracked_item["plugin"]
+        assert SOUTH_PLUGIN_NAME == tracked_item["plugin"]
 
         if not skip_verify_north_interface:
             egress_tracking_details = utils.get_asset_tracking_details(foglamp_url,"Egress")

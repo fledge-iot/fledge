@@ -121,14 +121,14 @@ class TestE2ePiEgressWithScalesetFilter:
         tracking_details = utils.get_asset_tracking_details(foglamp_url, "Ingest")
         assert len(tracking_details["track"]), "Failed to track Ingest event"
         tracked_item = tracking_details["track"][0]
-        assert "Room #1" == tracked_item["service"]
+        assert SVC_NAME == tracked_item["service"]
         assert "http-e1" == tracked_item["asset"]
         assert "http_south" == tracked_item["plugin"]
 
         tracking_details = utils.get_asset_tracking_details(foglamp_url, "Filter")
         assert len(tracking_details["track"]), "Failed to track Filter event"
         tracked_item = tracking_details["track"][0]
-        assert "North v2 PI" == tracked_item["service"]
+        assert TASK_NAME == tracked_item["service"]
         assert "http-e1" == tracked_item["asset"]
         assert "SS #1" == tracked_item["plugin"]
 
@@ -136,7 +136,7 @@ class TestE2ePiEgressWithScalesetFilter:
             egress_tracking_details = utils.get_asset_tracking_details(foglamp_url,"Egress")
             assert len(egress_tracking_details["track"]), "Failed to track Egress event"
             tracked_item = egress_tracking_details["track"][0]
-            assert "North v2 PI" == tracked_item["service"]
+            assert TASK_NAME == tracked_item["service"]
             assert "http-e1" == tracked_item["asset"]
             assert "PI_Server_V2" == tracked_item["plugin"]
 

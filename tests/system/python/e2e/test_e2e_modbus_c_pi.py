@@ -126,7 +126,7 @@ class TestE2EModbusCPI:
         tracking_details = utils.get_asset_tracking_details(foglamp_url, "Ingest")
         assert len(tracking_details["track"]), "Failed to track Ingest event"
         tracked_item = tracking_details["track"][0]
-        assert "modbus-c" == tracked_item["service"]
+        assert SVC_NAME == tracked_item["service"]
         assert ASSET_NAME == tracked_item["asset"]
         assert "ModbusC" == tracked_item["plugin"]
 

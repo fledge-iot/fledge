@@ -1,0 +1,16 @@
+{
+	"where" : {
+			"column" : "asset_code",
+			"condition" : "in",
+			"value" : ["Asset1", "Asset2"]
+	},
+	"aggregate" : {
+		"operation" : "all"
+	},
+	"timebucket" :  {
+		   "timestamp" : "user_ts",
+		   "size"      : "20",
+		   "alias": "time"
+	},
+	"limit" : 40
+}

@@ -41,6 +41,222 @@ const vector<string>  pg_column_reserved_words = {
 };
 
 /**
+ * Check whether to compute timebucket query with min,max,avg for all datapoints
+ *
+ * @param    payload	JSON payload
+ * @return		True if aggregation is 'all'
+ */
+bool aggregateAll(const Value& payload)
+{
+	if (payload.HasMember("aggregate") &&
+	    payload["aggregate"].IsObject())
+	{       
+		const Value& agg = payload["aggregate"];
+		if (agg.HasMember("operation") &&
+		    strcmp(agg["operation"].GetString(), "all") == 0)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
+ * Build, exucute and return data of a timebucket query with min,max,avg for all datapoints
+ *
+ * @param    payload	JSON object for timebucket query
+ * @param    resultSet	JSON Output buffer
+ * @return		True of success, false on any error
+ */
+bool Connection::aggregateQuery(const Value& payload, string& resultSet)
+{
+	if (!payload.HasMember("where") ||
+	    !payload.HasMember("timebucket"))
+	{
+		raiseError("retrieve", "aggregateQuery is missing "
+			   "'where' and/or 'timebucket' properties");
+		return false;
+	}
+
+	SQLBuffer sql;
+
+	sql.append("SELECT asset_code, ");
+
+	int size = 1;
+	string timeColumn;
+
+	// Check timebucket object
+	if (payload.HasMember("timebucket"))
+	{
+		const Value& bucket = payload["timebucket"];
+		if (!bucket.HasMember("timestamp"))
+		{
+			raiseError("retrieve", "aggregateQuery is missing "
+				   "'timestamp' property for 'timebucket'");
+			return false;
+		}
+
+		// Time column
+		timeColumn = bucket["timestamp"].GetString();
+
+		// Bucket size
+		if (bucket.HasMember("size"))
+		{
+			size = atoi(bucket["size"].GetString());
+			if (!size)
+			{
+				size = 1;
+			}
+		}
+
+		// Time format for output
+		if (bucket.HasMember("format"))
+		{
+			sql.append("to_char(");
+			sql.append("\"");
+			sql.append("timestamp");
+			sql.append("\"");
+			sql.append(", '");
+			sql.append(bucket["format"].GetString());
+			sql.append("')");
+		}
+		else
+		{
+			sql.append("timestamp");
+		}
+
+		// Time output alias
+		if (bucket.HasMember("alias"))
+		{
+			sql.append(" AS ");
+			sql.append(bucket["alias"].GetString());
+		}
+	}
+
+	// JSON format aggregated data
+	sql.append(", (('{' || string_agg('\"' || x || '\" : ' || resd, ', ') || '}')::jsonb) AS reading ");
+
+	// subquery
+	sql.append("FROM ( SELECT  x, asset_code, max(timestamp) AS timestamp, ");
+	// Add mon
+	sql.append("'{\"min\" : ' || min((reading->>x)::float) || ', ");
+	// Add max
+	sql.append("\"max\" : ' || max((reading->>x)::float) || ', ");
+	// Add avg
+	sql.append("\"average\" : ' || avg((reading->>x)::float) || ', ");
+	// Add count
+	sql.append("\"count\" : ' || count(reading->>x) || ', ");
+	// Add sum
+	sql.append("\"sum\" : ' || sum((reading->>x)::float) || '}' AS resd ");
+
+	// subquery
+	sql.append("FROM ( SELECT asset_code, ");
+	sql.append(timeColumn);
+	sql.append(", to_timestamp(");
+
+	// Add timebucket size
+	if (size > 1)
+	{
+		sql.append(to_string(size));
+		sql.append(" * floor(extract(epoch from ");
+		sql.append(timeColumn);
+		sql.append(" ) / ");
+		sql.append(to_string(size));
+		sql.append(")) ");
+	}
+	else
+	{
+		sql.append(" floor(extract(epoch from ");
+		sql.append(timeColumn);
+		sql.append(") / 1)) ");
+	}
+	sql.append("AS \"timestamp\", reading, ");
+
+	// Get all datapoints in 'reading' field
+	sql.append("jsonb_object_keys(reading) AS x FROM foglamp.readings ");
+
+	// Add where condition
+	sql.append("WHERE ");
+	if (!jsonWhereClause(payload["where"], sql))
+	{
+		raiseError("retrieve", "aggregateQuery: failure while building WHERE clause");
+		return false;
+	}
+
+	// sort results
+	sql.append(" ORDER BY ");
+	sql.append(timeColumn);
+	sql.append(" DESC) tmp ");
+
+	// Add group by
+	sql.append("GROUP BY x, asset_code, ");
+
+	sql.append("floor(extract(epoch from ");
+	sql.append(timeColumn);
+	sql.append(") / ");
+	if (size > 1)
+	{
+		sql.append(to_string(size));
+	}
+	else
+	{
+		sql.append('1'); 
+	}
+	sql.append(") ");
+
+	// sort results
+	sql.append("ORDER BY timestamp DESC) tbl ");
+
+	// Add final group and sort
+	sql.append("GROUP BY timestamp, asset_code ORDER BY timestamp DESC");
+
+	// Add limit
+	if (payload.HasMember("limit"))
+	{
+		if (!payload["limit"].IsInt())
+		{
+			raiseError("retrieve", "aggregateQuery: limit must be specfied as an integer");
+			return false;
+		}
+		sql.append(" LIMIT ");
+		try {
+			sql.append(payload["limit"].GetInt());
+		} catch (exception e) {
+			raiseError("retrieve", "aggregateQuery: bad value for limit parameter: %s", e.what());
+			return false;
+		}
+	}
+	sql.append(';');
+
+	// Execute query
+	const char *query = sql.coalesce();
+
+	logSQL("CommonRetrieve", query);
+
+	PGresult *res = PQexec(dbConnection, query);
+
+	delete[] query;
+
+	if (PQresultStatus(res) == PGRES_TUPLES_OK)
+	{
+		mapResultSet(res, resultSet);
+		PQclear(res);
+		return true;
+	}
+	char *SQLState = PQresultErrorField(res, PG_DIAG_SQLSTATE);
+	if (!strcmp(SQLState, "22P02")) // Conversion error
+	{
+		raiseError("retrieve", "Unable to convert data to the required type");
+	}
+	else
+	{
+		raiseError("retrieve", PQerrorMessage(dbConnection));
+	}
+	PQclear(res);
+	return false;
+}
+
+/**
  * Create a database connection
  */
 Connection::Connection()
@@ -313,6 +529,13 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 				raiseError("retrieve", "Failed to parse JSON payload");
 				return false;
 			}
+
+			// timebucket aggregate all datapoints
+			if (aggregateAll(document))
+			{
+				return aggregateQuery(document, resultSet);
+			}
+
 			if (document.HasMember("aggregate"))
 			{
 				sql.append("SELECT ");
@@ -1740,6 +1963,7 @@ bool Connection::jsonAggregates(const Value& payload,
 				raiseError("Select aggregation", "Missing property \"operation\"");
 				return false;
 			}
+
 			if (index)
 				sql.append(", ");
 			index++;

@@ -111,7 +111,7 @@ echo "Platform is ${os_name}, Version: ${os_version}"
 
 if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *"7"* ]]; then
 	if [[ $os_name == *"Red Hat"* ]]; then
-		yum-config-manager --enable 'Red Hat Enterprise Linux Server 7 RHSCL (RPMs)'
+		yum-config-manager --enable 'Red Hat Software Collections RPMs for Red Hat Enterprise Linux 7 Server from RHUI'
 		yum install -y @development
 	else
 		yum groupinstall "Development tools" -y

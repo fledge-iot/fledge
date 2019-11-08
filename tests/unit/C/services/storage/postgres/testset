@@ -112,4 +112,6 @@ Add table snapshot,POST,http://localhost:8080/storage/table/test2/snapshot,add_s
 Load table snapshot,PUT,http://localhost:8080/storage/table/test2/snapshot/99,
 Delete table snapshot,DELETE,http://localhost:8080/storage/table/test2/snapshot/99,
 Jira FOGL-690,POST,http://localhost:8080/storage/table/configuration,fogl690-error.json
+Add more Readings,POST,http://localhost:8080/storage/reading,readings_timebucket.json
+Query Readings Timebucket,PUT,http://localhost:8080/storage/reading/query,query_timebucket_datapoints.json
 Shutdown,POST,http://localhost:1081/foglamp/service/shutdown,,checkstate

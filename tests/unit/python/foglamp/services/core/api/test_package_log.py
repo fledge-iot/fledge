@@ -42,8 +42,8 @@ class TestPackageLog:
         return "{}/logs".format(pathlib.Path(__file__).parent)
 
     async def test_get_logs(self, client, logs_path):
-        files = ["190801-13-21-56.log", "190801-13-18-02-foglamp-north-httpc.log",
-                 "190801-14-55-25-foglamp-south-sinusoid.log"]
+        files = ["190801-13-21-56.log", "190801-13-18-02-foglamp-north-httpc-install.log",
+                 "190801-14-55-25-foglamp-south-sinusoid-install.log", "191024-04-21-56-list.log"]
         with patch.object(package_log, '_get_logs_dir', side_effect=[logs_path]):
             with patch('os.walk') as mockwalk:
                 mockwalk.return_value = [(str(logs_path), [], files)]
@@ -52,16 +52,19 @@ class TestPackageLog:
                 res = await resp.text()
                 jdict = json.loads(res)
                 logs = jdict["logs"]
-                assert 3 == len(logs)
+                assert 4 == len(logs)
                 assert files[0] == logs[0]['filename']
                 assert "2019-08-01 13:21:56" == logs[0]['timestamp']
                 assert "" == logs[0]['name']
                 assert files[1] == logs[1]['filename']
                 assert "2019-08-01 13:18:02" == logs[1]['timestamp']
-                assert "foglamp-north-httpc" == logs[1]['name']
+                assert "foglamp-north-httpc-install" == logs[1]['name']
                 assert files[2] == logs[2]['filename']
                 assert "2019-08-01 14:55:25" == logs[2]['timestamp']
-                assert "foglamp-south-sinusoid" == logs[2]['name']
+                assert "foglamp-south-sinusoid-install" == logs[2]['name']
+                assert files[3] == logs[3]['filename']
+                assert "2019-10-24 04:21:56" == logs[3]['timestamp']
+                assert "list" == logs[3]['name']
             mockwalk.assert_called_once_with(logs_path)
 
     async def test_get_log_by_name_with_invalid_extension(self, client):

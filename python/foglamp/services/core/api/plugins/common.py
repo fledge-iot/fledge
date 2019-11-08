@@ -13,6 +13,7 @@ import glob
 import importlib.util
 from typing import Dict
 from datetime import datetime
+from functools import lru_cache
 
 from foglamp.common import logger
 from foglamp.common.common import _FOGLAMP_ROOT, _FOGLAMP_DATA, _FOGLAMP_PLUGIN_PATH
@@ -119,21 +120,10 @@ def load_and_fetch_c_hybrid_plugin_info(plugin_name: str, is_config: bool, plugi
     return plugin_info
 
 
-def fetch_available_packages(package_type: str = "") -> tuple:
-    log_output = []
-    stdout_file_path = create_log_file()
-    tmp_log_output_fp = stdout_file_path.split('logs/')[:1][0] + "logs/output.txt"
-    _platform = platform.platform()
-    pkg_type = "" if package_type is None else package_type
-    pkg_mgt = 'apt'
-    cmd = "sudo {} -y update > {} 2>&1".format(pkg_mgt, stdout_file_path)
-    if 'centos' in _platform or 'redhat' in _platform:
-        pkg_mgt = 'yum'
-        cmd = "sudo {} check-update > {} 2>&1".format(pkg_mgt, stdout_file_path)
-
-    ret_code = os.system(cmd)
-    # sudo apt/yum -y install only happens when update is without any error
-    if ret_code == 0:
+@lru_cache(maxsize=1, typed=True)
+def _get_available_packages(code: int, tmp_log_output_fp: str, pkg_mgt: str, pkg_type: str) -> tuple:
+    available_packages = []
+    if code == 0:
         open(tmp_log_output_fp, "w").close()
         if pkg_mgt == 'yum':
             cmd = "sudo yum list available foglamp-{}\* | grep foglamp | cut -d . -f1 > {} 2>&1".format(
@@ -141,17 +131,73 @@ def fetch_available_packages(package_type: str = "") -> tuple:
         else:
             cmd = "sudo apt list | grep foglamp-{} | grep -v installed | cut -d / -f1  > {} 2>&1".format(
                 pkg_type, tmp_log_output_fp)
-        ret_code = os.system(cmd)
+        code = os.system(cmd)
 
         # Below temporary file is for Output of above command which is needed to return in API response
         with open("{}".format(tmp_log_output_fp), 'r') as fh:
             for line in fh:
                 line = line.rstrip("\n")
-                log_output.append(line)
+                available_packages.append(line)
+
+    return code, available_packages
+
+
+async def fetch_available_packages(package_type: str = "") -> tuple:
+    # Require a local import in order to avoid circular import references
+    from foglamp.services.core import server
+
+    stdout_file_path = create_log_file(action="list")
+    tmp_log_output_fp = stdout_file_path.split('logs/')[:1][0] + "logs/output.txt"
+    _platform = platform.platform()
+    pkg_type = "" if package_type is None else package_type
+    pkg_mgt = 'apt'
+    ret_code = 0
+    category = await server.Server._configuration_manager.get_category_all_items("Installation")
+    max_update_cat_item = category['maxUpdate']
+    pkg_cache_mgr = server.Server._package_cache_manager
+    last_accessed_time = pkg_cache_mgr['update']['last_accessed_time']
+    now = datetime.now()
+    then = last_accessed_time if last_accessed_time else now
+    duration_in_sec = (now - then).total_seconds()
+    # If max update per day is set to 1, then an update can not occurs until 24 hours after the last accessed update.
+    # If set to 2 then this drops to 12 hours between updates, 3 would result in 8 hours between calls and so on.
+    if duration_in_sec > (24 / int(max_update_cat_item['value'])) * 60 * 60 or not last_accessed_time:
+        _logger.info("Attempting update on {}".format(now))
+        cmd = "sudo {} -y update > {} 2>&1".format(pkg_mgt, stdout_file_path)
+        if 'centos' in _platform or 'redhat' in _platform:
+            pkg_mgt = 'yum'
+            cmd = "sudo {} check-update > {} 2>&1".format(pkg_mgt, stdout_file_path)
+
+        ret_code = os.system(cmd)
+        if ret_code == 0:
+            pkg_cache_mgr['update']['last_accessed_time'] = now
+            # fetch available package caching always clear on every update request
+            _get_available_packages.cache_clear()
+    else:
+        _logger.warning("Maximum update exceeds the limit for the day")
+
+    ttl_cat_item_val = int(category['listAvailablePackagesCacheTTL']['value'])
+    if ttl_cat_item_val > 0:
+        last_accessed_time = pkg_cache_mgr['list']['last_accessed_time']
+        now = datetime.now()
+        if not last_accessed_time:
+            last_accessed_time = now
+            pkg_cache_mgr['list']['last_accessed_time'] = now
+        duration_in_sec = (now - last_accessed_time).total_seconds()
+        if duration_in_sec > ttl_cat_item_val * 60:
+            _get_available_packages.cache_clear()
+            pkg_cache_mgr['list']['last_accessed_time'] = datetime.now()
+    else:
+        _get_available_packages.cache_clear()
+        pkg_cache_mgr['list']['last_accessed_time'] = ""
+
+    ret_code, available_packages = _get_available_packages(ret_code, tmp_log_output_fp, pkg_mgt, pkg_type)
 
     # combine above output in logs file
     with open("{}".format(stdout_file_path), 'a') as fh:
-        fh.write(" \n".join(log_output))
+        fh.write(" \n".join(available_packages))
+        if not len(available_packages):
+            fh.write("No package available to install")
 
     # Remove tmp_log_output_fp
     if os.path.isfile(tmp_log_output_fp):
@@ -161,16 +207,18 @@ def fetch_available_packages(package_type: str = "") -> tuple:
     link = "log/" + stdout_file_path.split("/")[-1]
     if ret_code != 0:
         raise PackageError(link)
-    return log_output, link
+    return available_packages, link
 
 
-def create_log_file(plugin_name: str = "") -> str:
+def create_log_file(action: str = "", plugin_name: str = "") -> str:
     logs_dir = '/logs/'
     _PATH = _FOGLAMP_DATA + logs_dir if _FOGLAMP_DATA else _FOGLAMP_ROOT + '/data{}'.format(logs_dir)
     # YYMMDD-HH-MM-SS-{plugin_name}.log
     file_spec = datetime.now().strftime('%y%m%d-%H-%M-%S')
-    log_file_name = "{}-{}.log".format(file_spec, plugin_name) if plugin_name else "{}.log".format(file_spec)
-
+    if not action:
+        log_file_name = "{}-{}.log".format(file_spec, plugin_name) if plugin_name else "{}.log".format(file_spec)
+    else:
+        log_file_name = "{}-{}-{}.log".format(file_spec, plugin_name, action) if plugin_name else "{}-{}.log".format(file_spec, action)
     if not os.path.exists(_PATH):
         os.makedirs(_PATH)
 

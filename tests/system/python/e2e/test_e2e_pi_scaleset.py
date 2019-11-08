@@ -63,17 +63,6 @@ class TestE2ePiEgressWithScalesetFilter:
         jdoc = json.loads(r)
         return utils.serialize_stats_map(jdoc)
 
-    def get_asset_tracking_details(self, foglamp_url, event=None):
-        _connection = http.client.HTTPConnection(foglamp_url)
-        uri = '/foglamp/track'
-        if event:
-            uri += '?event={}'.format(event)
-        _connection.request("GET", uri)
-        r = _connection.getresponse()
-        assert 200 == r.status
-        r = r.read().decode()
-        jdoc = json.loads(r)
-        return jdoc
 
     @pytest.fixture
     def start_south_north_with_filter(self, reset_and_start_foglamp, add_south, south_branch,
@@ -129,14 +118,14 @@ class TestE2ePiEgressWithScalesetFilter:
         if not skip_verify_north_interface:
             self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
 
-        tracking_details = self.get_asset_tracking_details(foglamp_url, "Ingest")
+        tracking_details = utils.get_asset_tracking_details(foglamp_url, "Ingest")
         assert len(tracking_details["track"]), "Failed to track Ingest event"
         tracked_item = tracking_details["track"][0]
         assert "Room #1" == tracked_item["service"]
         assert "http-e1" == tracked_item["asset"]
         assert "http_south" == tracked_item["plugin"]
 
-        tracking_details = self.get_asset_tracking_details(foglamp_url, "Filter")
+        tracking_details = utils.get_asset_tracking_details(foglamp_url, "Filter")
         assert len(tracking_details["track"]), "Failed to track Filter event"
         tracked_item = tracking_details["track"][0]
         assert "North v2 PI" == tracked_item["service"]
@@ -144,7 +133,7 @@ class TestE2ePiEgressWithScalesetFilter:
         assert "SS #1" == tracked_item["plugin"]
 
         if not skip_verify_north_interface:
-            egress_tracking_details = self.get_asset_tracking_details(foglamp_url,"Egress")
+            egress_tracking_details = utils.get_asset_tracking_details(foglamp_url,"Egress")
             assert len(egress_tracking_details["track"]), "Failed to track Egress event"
             tracked_item = egress_tracking_details["track"][0]
             assert "North v2 PI" == tracked_item["service"]

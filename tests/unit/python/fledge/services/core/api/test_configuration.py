@@ -465,7 +465,7 @@ class TestConfiguration:
         else:
             payload.update({'displayName': payload['key']})
 
-        c_mgr._cacheManager.update(payload['key'], new_info, payload['displayName'])
+        c_mgr._cacheManager.update(payload['key'], payload['description'], new_info, payload['displayName'])
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'create_category', return_value=async_mock(None)) as patch_create_cat:
                 with patch.object(c_mgr, 'get_category_all_items', return_value=async_mock(new_info)) as patch_cat_all_item:
@@ -718,7 +718,7 @@ class TestConfiguration:
 
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        c_mgr._cacheManager.update(name, info, name)
+        c_mgr._cacheManager.update(name, desc, info, name)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'create_category', return_value=async_mock_create_cat()) as patch_create_cat:
                 with patch.object(c_mgr, 'get_category_all_items', return_value=async_mock()) as patch_cat_all_item:

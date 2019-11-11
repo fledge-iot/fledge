@@ -48,19 +48,6 @@ def get_statistics_map(fledge_url):
     return utils.serialize_stats_map(jdoc)
 
 
-def get_asset_tracking_details(fledge_url, event=None):
-    _connection = http.client.HTTPConnection(fledge_url)
-    uri = '/fledge/track'
-    if event:
-        uri += '?event={}'.format(event)
-    _connection.request("GET", uri)
-    r = _connection.getresponse()
-    assert 200 == r.status
-    r = r.read().decode()
-    jdoc = json.loads(r)
-    return jdoc
-
-
 def _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name):
     retry_count = 0
     data_from_pi = None
@@ -174,7 +161,11 @@ class TestE2E_CoAP_PI_WebAPI:
         assert {DATAPOINT: DATAPOINT_VALUE} == retval[0]["reading"]
 
         if not skip_verify_north_interface:
+<<<<<<< HEAD
             egress_tracking_details = get_asset_tracking_details(fledge_url, "Egress")
+=======
+            egress_tracking_details = utils.get_asset_tracking_details(fledge_url, "Egress")
+>>>>>>> develop
             assert len(egress_tracking_details["track"]), "Failed to track Egress event"
             tracked_item = egress_tracking_details["track"][0]
             assert "NorthReadingsToPI_WebAPI" == tracked_item["service"]

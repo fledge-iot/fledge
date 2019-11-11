@@ -5,7 +5,6 @@
 # FLEDGE_END
 
 """ Test system/python/test_e2e_coap_OCS.py
-
 """
 import os
 import subprocess

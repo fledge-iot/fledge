@@ -30,32 +30,43 @@ class TestConfigurationCache:
 
     def test_contains_with_cache(self):
         cached_manager = ConfigurationCache()
-        cached_manager.cache = {"test_cat": {'value': {'config_item': {'default': 'woo', 'description': 'foo', 'type': 'string'}}}}
+        cached_manager.cache = {"test_cat": {'value': {'config_item': {'default': 'woo', 'description': 'foo',
+                                                                       'type': 'string'}}}}
         assert cached_manager.__contains__("test_cat") is True
 
     def test_update(self):
         cached_manager = ConfigurationCache()
         cat_name = "test_cat"
+        cat_desc = "test_desc"
         cat_val = {'config_item': {'default': 'woo', 'description': 'foo', 'type': 'string'}}
+        cat_display_name = "AJ"
         cached_manager.cache = {cat_name: {'value': {}}}
-        cached_manager.update(cat_name, cat_val)
+        cached_manager.update(cat_name, cat_desc, cat_val)
         assert 'date_accessed' in cached_manager.cache[cat_name]
+        assert cat_desc == cached_manager.cache[cat_name]['description']
         assert cat_val == cached_manager.cache[cat_name]['value']
+        assert cat_name == cached_manager.cache[cat_name]['displayName']
+
+        cached_manager.update(cat_name, cat_desc, cat_val, cat_display_name)
+        assert 'date_accessed' in cached_manager.cache[cat_name]
+        assert cat_desc == cached_manager.cache[cat_name]['description']
+        assert cat_val == cached_manager.cache[cat_name]['value']
+        assert cat_display_name == cached_manager.cache[cat_name]['displayName']
 
     def test_remove_oldest(self):
         cached_manager = ConfigurationCache()
-        cached_manager.update("cat1", {'value': {}})
-        cached_manager.update("cat2", {'value': {}})
-        cached_manager.update("cat3", {'value': {}})
-        cached_manager.update("cat4", {'value': {}})
-        cached_manager.update("cat5", {'value': {}})
-        cached_manager.update("cat6", {'value': {}})
-        cached_manager.update("cat7", {'value': {}})
-        cached_manager.update("cat8", {'value': {}})
-        cached_manager.update("cat9", {'value': {}})
-        cached_manager.update("cat10", {'value': {}})
+        cached_manager.update("cat1", "desc1", {'value': {}})
+        cached_manager.update("cat2", "desc2", {'value': {}})
+        cached_manager.update("cat3", "desc3", {'value': {}})
+        cached_manager.update("cat4", "desc4", {'value': {}})
+        cached_manager.update("cat5", "desc5", {'value': {}})
+        cached_manager.update("cat6", "desc6", {'value': {}})
+        cached_manager.update("cat7", "desc7", {'value': {}})
+        cached_manager.update("cat8", "desc8", {'value': {}})
+        cached_manager.update("cat9", "desc9", {'value': {}})
+        cached_manager.update("cat10", "desc10", {'value': {}})
         assert 10 == cached_manager.size
-        cached_manager.update("cat11", {'value': {}})
+        cached_manager.update("cat11", "desc11", {'value': {}})
         assert 'cat1' not in cached_manager.cache
         assert 'cat2' in cached_manager.cache
         assert 'cat3' in cached_manager.cache
@@ -71,10 +82,10 @@ class TestConfigurationCache:
 
     def test_remove(self):
         cached_manager = ConfigurationCache()
-        cached_manager.update("cat1", {'value': {}})
-        cached_manager.update("cat2", {'value': {}})
-        cached_manager.update("cat3", {'value': {}})
-        cached_manager.update("cat4", {'value': {}})
+        cached_manager.update("cat1", "desc1", {'value': {}})
+        cached_manager.update("cat2", "desc2", {'value': {}})
+        cached_manager.update("cat3", "desc3", {'value': {}})
+        cached_manager.update("cat4", "desc4", {'value': {}})
         assert 4 == cached_manager.size
         cached_manager.remove("cat2")
         assert 3 == cached_manager.size

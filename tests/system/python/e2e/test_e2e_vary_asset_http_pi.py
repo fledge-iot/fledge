@@ -42,6 +42,7 @@ class TestE2EAssetHttpPI:
         jdoc = json.loads(r)
         return utils.serialize_stats_map(jdoc)
 
+
     def _verify_egress(self, read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name,
                        sensor_data, sensor_data_2):
         retry_count = 0
@@ -178,6 +179,20 @@ class TestE2EAssetHttpPI:
             self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name,
                                 sensor_data, sensor_data_2)
 
+        tracking_details = utils.get_asset_tracking_details(fledge_url, "Ingest")
+        assert len(tracking_details["track"]), "Failed to track Ingest event"
+        tracked_item = tracking_details["track"][0]
+        assert "http_south" == tracked_item["service"]
+        assert asset_name == tracked_item["asset"]
+        assert "http_south" == tracked_item["plugin"]
+
+        if not skip_verify_north_interface:
+            egress_tracking_details = utils.get_asset_tracking_details(fledge_url,"Egress")
+            assert len(egress_tracking_details["track"]), "Failed to track Egress event"
+            tracked_item = egress_tracking_details["track"][0]
+            assert "NorthReadingsToPI" == tracked_item["service"]
+            assert asset_name == tracked_item["asset"]
+            assert "PI_Server_V2" == tracked_item["plugin"]
 
 
 

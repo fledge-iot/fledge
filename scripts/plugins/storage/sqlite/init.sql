@@ -506,9 +506,10 @@ CREATE TABLE fledge.schedules (
 CREATE TABLE fledge.tasks (
              id           uuid                        NOT NULL,                          -- PK
              schedule_name character varying(255),                                       -- Name of the task
+             schedule_id  uuid                        NOT NULL,                          -- Link between schedule & task table
              process_name character varying(255)      NOT NULL,                          -- Name of the task's process
              state        smallint                    NOT NULL,                          -- 1-Running, 2-Complete, 3-Cancelled, 4-Interrupted
-             start_time   DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')), -- The date and time the task started UTC
+             start_time   DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),       -- The date and time the task started UTC
              end_time     DATETIME,                                                      -- The date and time the task ended
              reason       character varying(255),                                        -- The reason why the task ended
              pid          integer                     NOT NULL,                          -- Linux process id

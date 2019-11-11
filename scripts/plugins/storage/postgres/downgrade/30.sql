@@ -1,0 +1,1 @@
+ALTER TABLE fledge.tasks DROP COLUMN schedule_id;

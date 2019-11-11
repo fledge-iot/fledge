@@ -110,3 +110,10 @@ def test_smoke(start_south_coap, fledge_url, wait_time, asset_name="smoke"):
     r = r.read().decode()
     retval = json.loads(r)
     assert {'sensor': SENSOR_VALUE} == retval[0]["reading"]
+
+    tracking_details = utils.get_asset_tracking_details(fledge_url, "Ingest")
+    assert len(tracking_details["track"]), "Failed to track Ingest event"
+    tracked_item = tracking_details["track"][0]
+    assert "coap" == tracked_item["service"]
+    assert "smoke" == tracked_item["asset"]
+    assert "coap" == tracked_item["plugin"]

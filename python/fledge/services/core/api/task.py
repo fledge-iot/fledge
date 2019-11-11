@@ -293,6 +293,9 @@ async def delete_task(request):
         # delete it
         await server.Server.scheduler.delete_schedule(sch_id)
 
+        # delete tasks
+        await delete_task_entry_with_schedule_id(storage, sch_id)
+
         # delete all configuration for the north task instance name
         config_mgr = ConfigurationManager(storage)
         await config_mgr.delete_category_and_children_recursively(north_instance)
@@ -328,3 +331,7 @@ async def delete_statistics_key(storage, key):
     payload = PayloadBuilder().WHERE(['key', '=', key]).payload()
     await storage.delete_from_tbl('statistics', payload)
 
+
+async def delete_task_entry_with_schedule_id(storage, sch_id):
+    payload = PayloadBuilder().WHERE(["schedule_id", "=", str(sch_id)]).payload()
+    await storage.delete_from_tbl("tasks", payload)

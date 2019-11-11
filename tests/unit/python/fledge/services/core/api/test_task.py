@@ -448,9 +448,11 @@ class TestTask:
         get_schedule = mocker.patch.object(task, "get_schedule", return_value=mock_result())
         scheduler = mocker.patch.object(server.Server, "scheduler", MagicMock())
         delete_schedule = mocker.patch.object(scheduler, "delete_schedule", return_value=asyncio.sleep(.1))
-        disable_schedule = mocker.patch.object(scheduler, "disable_schedule",
-                                               return_value=asyncio.sleep(.1))
-        delete_configuration = mocker.patch.object(ConfigurationManager, "delete_category_and_children_recursively", return_value=asyncio.sleep(.1))
+        disable_schedule = mocker.patch.object(scheduler, "disable_schedule", return_value=asyncio.sleep(.1))
+        delete_task_entry_with_schedule_id = mocker.patch.object(task, "delete_task_entry_with_schedule_id",
+                                                                 return_value=asyncio.sleep(.1))
+        delete_configuration = mocker.patch.object(ConfigurationManager, "delete_category_and_children_recursively",
+                                                   return_value=asyncio.sleep(.1))
         delete_statistics_key = mocker.patch.object(task, "delete_statistics_key", return_value=asyncio.sleep(.1))
 
         resp = await client.delete("/fledge/scheduled/task/{}".format(sch_name))
@@ -463,12 +465,16 @@ class TestTask:
         assert sch_name in args
 
         assert 1 == delete_schedule.call_count
-        delete_schedule_calls = [call(UUID('0178f7b6-d55c-4427-9106-245513e46416'))]
+        delete_schedule_calls = [call(UUID(sch_id))]
         delete_schedule.assert_has_calls(delete_schedule_calls, any_order=True)
 
         assert 1 == disable_schedule.call_count
-        disable_schedule_calls = [call(UUID('0178f7b6-d55c-4427-9106-245513e46416'))]
+        disable_schedule_calls = [call(UUID(sch_id))]
         disable_schedule.assert_has_calls(disable_schedule_calls, any_order=True)
+
+        assert 1 == delete_task_entry_with_schedule_id.call_count
+        args, kwargs = delete_task_entry_with_schedule_id.call_args_list[0]
+        assert UUID(sch_id) in args
 
         assert 1 == delete_configuration.call_count
         args, kwargs = delete_configuration.call_args_list[0]

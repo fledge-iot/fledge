@@ -175,11 +175,18 @@ class SupportBuilder:
     def add_psinfo(self, pyz, file_spec):
         # A PS listing of al the python applications running on the machine
         temp_file = self._interim_file_path + "/" + "psinfo-{}".format(file_spec)
-        a = subprocess.Popen(
-            'ps -eaf | grep python3', shell=True, stdout=subprocess.PIPE).stdout.readlines()[:-2]  # remove ps command
+        a = subprocess.Popen('ps -aufx | egrep "(%MEM|foglamp\.)" | grep -v grep', shell=True,
+                             stdout=subprocess.PIPE).stdout.readlines()
         c = [b.decode() for b in a]  # Since "a" contains return value in bytes, convert it to string
+
+        c_tasks = subprocess.Popen('ps -aufx | grep "./tasks" | grep -v grep', shell=True,
+                                   stdout=subprocess.PIPE).stdout.readlines()
+        c_tasks_decode = [t.decode() for t in c_tasks]
+        if c_tasks_decode:
+            c.extend(c_tasks_decode)
+        # Remove "/n" from the c list output
         data = {
-            "runningPythonProcesses": c
+            "runningProcesses": list(map(str.strip, c))
         }
         self.write_to_tar(pyz, temp_file, data)
 

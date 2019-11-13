@@ -185,9 +185,8 @@ class SupportBuilder:
         if c_tasks_decode:
             c.extend(c_tasks_decode)
         # Remove "/n" from the c list output
-        d = list(map(lambda x: x.strip(), c))
         data = {
-            "runningProcesses": d
+            "runningProcesses": list(map(str.strip, c))
         }
         self.write_to_tar(pyz, temp_file, data)
 

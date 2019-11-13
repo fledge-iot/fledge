@@ -750,6 +750,17 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 rule = storage_value_entry['rule'].replace("value", new_value_entry)
                 if eval(rule) is False:
                     raise ValueError('The value of {} is not valid, please supply a valid value'.format(item_name))
+            if 'minimum' in storage_value_entry and 'maximum' in storage_value_entry:
+                if int(new_value_entry) not in range(int(storage_value_entry['minimum']),
+                                                     int(storage_value_entry['maximum']) + 1):  # Python range doesn't include upper range value
+                    raise ValueError('You cannot set the new value, value should be in range ({},{})'.format(
+                        storage_value_entry['minimum'], storage_value_entry['maximum']))
+            elif 'minimum' in storage_value_entry:
+                if int(new_value_entry) < int(storage_value_entry['minimum']):
+                    raise ValueError('You cannot set the new value as it beyonds the minimum limit')
+            elif 'maximum' in storage_value_entry:
+                if int(new_value_entry) > int(storage_value_entry['maximum']):
+                    raise ValueError('You cannot set the new value as it exceeds the maximum limit')
             await self._update_value_val(category_name, item_name, new_value_entry)
             # always get value from storage
             cat_item = await self._read_item_val(category_name, item_name)

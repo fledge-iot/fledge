@@ -33,14 +33,12 @@ __version__ = "${VERSION}"
 _logger = logger.setup(__name__)
 
 # MAKE UPPER_CASE
-_valid_type_strings = sorted(['boolean', 'integer', 'float', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password', 'JSON',
-                              'URL', 'enumeration', 'script', 'code'])
+_valid_type_strings = sorted(['boolean', 'integer', 'float', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password',
+                              'JSON', 'URL', 'enumeration', 'script', 'code'])
 _optional_items = sorted(['readonly', 'order', 'length', 'maximum', 'minimum', 'rule', 'deprecated', 'displayName',
                           'validity', 'mandatory'])
-RESERVED_CATG = ['South', 'North', 'General',
-                  'Advanced', 'Utilities', 'rest_api',
-                  'Security', 'service', 'SCHEDULER',
-                  'SMNTR', 'PURGE_READ', 'Notifications']
+RESERVED_CATG = ['South', 'North', 'General', 'Advanced', 'Utilities', 'rest_api', 'Security', 'service', 'SCHEDULER',
+                 'SMNTR', 'PURGE_READ', 'Notifications']
 
 
 class ConfigurationCache(object):
@@ -517,6 +515,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         raise ValueError("A value must be given for {}".format(item_name))
                 old_value = cat_info[item_name]['value']
                 new_val = self._clean(cat_info[item_name]['type'], new_val)
+                # Validations on the basis of optional attributes
+                self._val_validation_as_per_optional_attribute(cat_info[item_name], new_val)
 
                 old_value_for_check = old_value
                 new_val_for_check = new_val
@@ -750,17 +750,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 rule = storage_value_entry['rule'].replace("value", new_value_entry)
                 if eval(rule) is False:
                     raise ValueError('The value of {} is not valid, please supply a valid value'.format(item_name))
-            if 'minimum' in storage_value_entry and 'maximum' in storage_value_entry:
-                if int(new_value_entry) not in range(int(storage_value_entry['minimum']),
-                                                     int(storage_value_entry['maximum']) + 1):  # Python range doesn't include upper range value
-                    raise ValueError('You cannot set the new value, value should be in range ({},{})'.format(
-                        storage_value_entry['minimum'], storage_value_entry['maximum']))
-            elif 'minimum' in storage_value_entry:
-                if int(new_value_entry) < int(storage_value_entry['minimum']):
-                    raise ValueError('You cannot set the new value as it beyonds the minimum limit')
-            elif 'maximum' in storage_value_entry:
-                if int(new_value_entry) > int(storage_value_entry['maximum']):
-                    raise ValueError('You cannot set the new value as it exceeds the maximum limit')
+            # Validations on the basis of optional attributes
+            self._val_validation_as_per_optional_attribute(storage_value_entry, new_value_entry)
+
             await self._update_value_val(category_name, item_name, new_value_entry)
             # always get value from storage
             cat_item = await self._read_item_val(category_name, item_name)
@@ -1416,3 +1408,49 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         latest_file = max(list_of_files, key=os.path.getmtime)
                         cat_value[k]["file"] = latest_file
         return cat_value
+
+    def _val_validation_as_per_optional_attribute(self, storage_value_entry, new_value_entry):
+        # FIXME: Logically below exception throw as ValueError; TypeError used ONLY to get right HTTP status code returned from API endpoint.
+        # As we used same defs for optional attribute value & config item value save
+        def in_range(n, start, end):
+            return start <= n <= end  # start and end inclusive
+
+        config_item_type = storage_value_entry['type']
+        if config_item_type == 'string':
+            if 'length' in storage_value_entry:
+                if len(new_value_entry) > int(storage_value_entry['length']):
+                    raise TypeError('You cannot set the new value, beyond a certain length {}'.format(
+                        storage_value_entry['length']))
+
+        if config_item_type == 'integer' or config_item_type == 'float':
+            if 'minimum' in storage_value_entry and 'maximum' in storage_value_entry:
+                if config_item_type == 'integer':
+                    _new_value = int(new_value_entry)
+                    _min_value = int(storage_value_entry['minimum'])
+                    _max_value = int(storage_value_entry['maximum'])
+                else:
+                    _new_value = float(new_value_entry)
+                    _min_value = float(storage_value_entry['minimum'])
+                    _max_value = float(storage_value_entry['maximum'])
+
+                if not in_range(_new_value, _min_value, _max_value):
+                    raise TypeError('You cannot set the new value, value should be in range ({},{})'.format(
+                        storage_value_entry['minimum'], storage_value_entry['maximum']))
+            elif 'minimum' in storage_value_entry:
+                if config_item_type == 'integer':
+                    _new_value = int(new_value_entry)
+                    _min_value = int(storage_value_entry['minimum'])
+                else:
+                    _new_value = float(new_value_entry)
+                    _min_value = float(storage_value_entry['minimum'])
+                if _new_value < _min_value:
+                    raise TypeError('You cannot set the new value, beyonds the minimum limit {}'.format(_min_value))
+            elif 'maximum' in storage_value_entry:
+                if config_item_type == 'integer':
+                    _new_value = int(new_value_entry)
+                    _max_value = int(storage_value_entry['maximum'])
+                else:
+                    _new_value = float(new_value_entry)
+                    _max_value = float(storage_value_entry['maximum'])
+                if _new_value > _max_value:
+                    raise TypeError('You cannot set the new value, exceeds the maximum limit {}'.format(_max_value))

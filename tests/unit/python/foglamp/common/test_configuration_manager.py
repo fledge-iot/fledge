@@ -2782,3 +2782,60 @@ class TestConfigurationManager:
             readpatch.assert_called_once_with(category_name, item_name)
         assert 1 == log_exc.call_count
         log_exc.assert_called_once_with('Unable to set optional %s entry based on category_name %s and item_name %s and value_item_entry %s', optional_key_name, 'catname', 'itemname', new_value_entry)
+
+    @pytest.mark.parametrize("new_value_entry, storage_value_entry, exc_msg", [
+        ("FogLAMP", {'default': 'FOG', 'length': '3', 'displayName': 'Length Test', 'value': 'fog', 'type': 'string',
+                     'description': 'Test value '}, 'beyond a certain length 3'),
+        ("0", {'order': '4', 'default': '10', 'minimum': '10', 'maximum': '19', 'displayName': 'RangeMin Test',
+               'value': '15', 'type': 'integer', 'description': 'Test value'}, 'value should be in range (10,19)'),
+        ("20", {'order': '4', 'default': '10', 'minimum': '10', 'maximum': '19', 'displayName': 'RangeMax Test',
+                'value': '19', 'type': 'integer', 'description': 'Test value'}, 'value should be in range (10,19)'),
+        ("1", {'order': '5', 'default': '2', 'minimum': '2', 'displayName': 'MIN', 'value': '10', 'type': 'integer',
+               'description': 'Test value '}, 'beyonds the minimum limit 2'),
+        ("11", {'default': '10', 'maximum': '10', 'displayName': 'MAX', 'value': '10', 'type': 'integer',
+                'description': 'Test value'}, 'exceeds the maximum limit 10'),
+        ("19.0", {'default': '19.3', 'minimum': '19.1', 'maximum': '19.5', 'displayName': 'RangeMin Test',
+                  'value': '19.1', 'type': 'float', 'description': 'Test val'}, 'value should be in range (19.1,19.5)'),
+        ("19.6", {'default': '19.4', 'minimum': '19.1', 'maximum': '19.5', 'displayName': 'RangeMax Test',
+                  'value': '19.5', 'type': 'float', 'description': 'Test val'}, 'value should be in range (19.1,19.5)'),
+        ("20", {'order': '8', 'default': '10.1', 'maximum': '19.8', 'displayName': 'MAX Test', 'value': '10.1',
+                'type': 'float', 'description': 'Test value'}, 'exceeds the maximum limit 19.8'),
+        ("0.7", {'order': '9', 'default': '0.9', 'minimum': '0.8', 'displayName': 'MIN Test', 'value': '0.9',
+                 'type': 'float', 'description': 'Test value'}, 'beyonds the minimum limit 0.8')
+    ])
+    def test_bad__val_validation_as_per_optional_attribute(self, new_value_entry, storage_value_entry, exc_msg):
+        message = "You cannot set the new value, {}".format(exc_msg)
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with pytest.raises(Exception) as excinfo:
+            c_mgr._val_validation_as_per_optional_attribute(storage_value_entry, new_value_entry)
+        assert excinfo.type is TypeError
+        assert message == str(excinfo.value)
+
+    @pytest.mark.parametrize("new_value_entry, storage_value_entry", [
+        ("FogLAMP", {'default': 'FOG', 'length': '7', 'displayName': 'Length Test', 'value': 'foglamp',
+                     'type': 'string', 'description': 'Test value '}),
+        ("2", {'order': '5', 'default': '10', 'minimum': '2', 'displayName': 'MIN', 'value': '10', 'type': 'integer',
+               'description': 'Test value '}),
+        ("19.1", {'default': '19.4', 'minimum': '19.1', 'maximum': '19.5', 'displayName': 'RangeMin Test',
+                  'value': '19.5', 'type': 'float', 'description': 'Test val'}),
+        ("19.5", {'default': '19.4', 'minimum': '19.1', 'maximum': '19.5', 'displayName': 'RangeMax Test',
+                  'value': '19.5', 'type': 'float', 'description': 'Test val'}),
+        ("19.2", {'default': '19.4', 'minimum': '19.1', 'maximum': '19.5', 'displayName': 'Range Test',
+                  'value': '19.5', 'type': 'float', 'description': 'Test val'}),
+        ("10", {'order': '4', 'default': '10', 'minimum': '10', 'maximum': '19', 'displayName': 'RangeMin Test',
+              'value': '15', 'type': 'integer', 'description': 'Test value'}),
+        ("19", {'order': '4', 'default': '10', 'minimum': '10', 'maximum': '19', 'displayName': 'RangeMax Test',
+                'value': '15', 'type': 'integer', 'description': 'Test value'}),
+        ("15", {'order': '4', 'default': '10', 'minimum': '10', 'maximum': '19', 'displayName': 'Range Test',
+                'value': '15', 'type': 'integer', 'description': 'Test value'})
+    ])
+    def test_good__val_validation_as_per_optional_attribute(self, new_value_entry, storage_value_entry):
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        raised = False
+        try:
+            c_mgr._val_validation_as_per_optional_attribute(storage_value_entry, new_value_entry)
+        except Exception:
+            raised = True
+        assert raised is False

@@ -516,7 +516,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 old_value = cat_info[item_name]['value']
                 new_val = self._clean(cat_info[item_name]['type'], new_val)
                 # Validations on the basis of optional attributes
-                self._val_validation_as_per_optional_attribute(cat_info[item_name], new_val)
+                self.validate_value_per_optional_attribute(cat_info[item_name], new_val)
 
                 old_value_for_check = old_value
                 new_val_for_check = new_val
@@ -751,7 +751,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 if eval(rule) is False:
                     raise ValueError('The value of {} is not valid, please supply a valid value'.format(item_name))
             # Validations on the basis of optional attributes
-            self._val_validation_as_per_optional_attribute(storage_value_entry, new_value_entry)
+            self.validate_value_per_optional_attribute(storage_value_entry, new_value_entry)
 
             await self._update_value_val(category_name, item_name, new_value_entry)
             # always get value from storage
@@ -1409,7 +1409,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         cat_value[k]["file"] = latest_file
         return cat_value
 
-    def _val_validation_as_per_optional_attribute(self, storage_value_entry, new_value_entry):
+    def validate_value_per_optional_attribute(self, storage_value_entry, new_value_entry):
         # FIXME: Logically below exception throw as ValueError; TypeError used ONLY to get right HTTP status code returned from API endpoint.
         # As we used same defs for optional attribute value & config item value save
         def in_range(n, start, end):
@@ -1419,7 +1419,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         if config_item_type == 'string':
             if 'length' in storage_value_entry:
                 if len(new_value_entry) > int(storage_value_entry['length']):
-                    raise TypeError('You cannot set the new value, beyond a certain length {}'.format(
+                    raise TypeError('You cannot set the new value, beyond the length {}'.format(
                         storage_value_entry['length']))
 
         if config_item_type == 'integer' or config_item_type == 'float':
@@ -1434,7 +1434,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     _max_value = float(storage_value_entry['maximum'])
 
                 if not in_range(_new_value, _min_value, _max_value):
-                    raise TypeError('You cannot set the new value, value should be in range ({},{})'.format(
+                    raise TypeError('You cannot set the new value, beyond the range ({},{})'.format(
                         storage_value_entry['minimum'], storage_value_entry['maximum']))
             elif 'minimum' in storage_value_entry:
                 if config_item_type == 'integer':
@@ -1444,7 +1444,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     _new_value = float(new_value_entry)
                     _min_value = float(storage_value_entry['minimum'])
                 if _new_value < _min_value:
-                    raise TypeError('You cannot set the new value, beyonds the minimum limit {}'.format(_min_value))
+                    raise TypeError('You cannot set the new value, below {}'.format(_min_value))
             elif 'maximum' in storage_value_entry:
                 if config_item_type == 'integer':
                     _new_value = int(new_value_entry)
@@ -1453,4 +1453,4 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     _new_value = float(new_value_entry)
                     _max_value = float(storage_value_entry['maximum'])
                 if _new_value > _max_value:
-                    raise TypeError('You cannot set the new value, exceeds the maximum limit {}'.format(_max_value))
+                    raise TypeError('You cannot set the new value, above {}'.format(_max_value))

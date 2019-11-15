@@ -263,6 +263,9 @@ async def set_configuration_item(request):
                 is_core_mgt = request.is_core_mgt
             except AttributeError:
                 storage_value_entry = await cf_mgr.get_category_item(category_name, config_item)
+                if storage_value_entry is None:
+                    raise ValueError("No detail found for the category_name: {} and item_name: {}"
+                               .format(category_name, config_item))
                 if 'readonly' in storage_value_entry:
                     if storage_value_entry['readonly'] == 'true':
                         raise TypeError("Update not allowed for {} item_name as it has readonly attribute set".format(config_item))

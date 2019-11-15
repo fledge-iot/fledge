@@ -570,6 +570,25 @@ string ConfigCategory::getDisplayName(const string& name) const
 }
 
 /**
+ * Return the length value of the configuration category item
+ *
+ * @param name	The name of the configuration item to return
+ * @return string	The configuration item name
+ * @throws exception if the item does not exist in the category
+ */
+string ConfigCategory::getLength(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return m_items[i]->m_length;
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
  * Return the minimum value of the configuration category item
  *
  * @param name	The name of the configuration item to return
@@ -857,6 +876,14 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		m_order = "";
 	}
 
+    if (item.HasMember("length"))
+	{
+		m_length = item["length"].GetString();
+	}
+	else
+	{
+		m_length = "";
+	}
 
 	if (item.HasMember("minimum"))
 	{
@@ -1203,6 +1230,7 @@ ConfigCategory::CategoryItem::CategoryItem(const CategoryItem& rhs)
        	m_readonly = rhs.m_readonly;
        	m_mandatory = rhs.m_mandatory;
        	m_deprecated = rhs.m_deprecated;
+       	m_length = rhs.m_length;
        	m_minimum = rhs.m_minimum;
        	m_maximum = rhs.m_maximum;
        	m_filename = rhs.m_filename;
@@ -1267,6 +1295,11 @@ ostringstream convert;
 			convert << ", \"order\" : \"" << m_order << "\"";
 		}
 
+        if (!m_length.empty())
+		{
+			convert << ", \"length\" : \"" << m_length << "\"";
+		}
+
 		if (!m_minimum.empty())
 		{
 			convert << ", \"minimum\" : \"" << m_minimum << "\"";
@@ -1327,6 +1360,11 @@ ostringstream convert;
 	if (!m_displayName.empty())
 	{
 		convert << ", \"displayName\" : \"" << m_displayName << "\"";
+	}
+
+    if (!m_length.empty())
+	{
+		convert << ", \"length\" : \"" << m_length << "\"";
 	}
 
 	if (!m_minimum.empty())

@@ -2804,11 +2804,11 @@ class TestConfigurationManager:
                  'type': 'float', 'description': 'Test value'}, 'below 0.8')
     ])
     def test_bad__validate_value_per_optional_attribute(self, new_value_entry, storage_value_entry, exc_msg):
-        message = "You cannot set the new value, {}".format(exc_msg)
+        message = "For config item {} you cannot set the new value, {}".format(ITEM_NAME, exc_msg)
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with pytest.raises(Exception) as excinfo:
-            c_mgr.validate_value_per_optional_attribute(storage_value_entry, new_value_entry)
+            c_mgr._validate_value_per_optional_attribute(ITEM_NAME, storage_value_entry, new_value_entry)
         assert excinfo.type is TypeError
         assert message == str(excinfo.value)
 
@@ -2835,7 +2835,7 @@ class TestConfigurationManager:
         c_mgr = ConfigurationManager(storage_client_mock)
         raised = False
         try:
-            c_mgr.validate_value_per_optional_attribute(storage_value_entry, new_value_entry)
+            c_mgr._validate_value_per_optional_attribute(ITEM_NAME, storage_value_entry, new_value_entry)
         except Exception:
             raised = True
         assert raised is False

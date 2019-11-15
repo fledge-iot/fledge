@@ -28,9 +28,9 @@ counter = 4
 @pytest.fixture
 def reset_packages():
     try:
-        subprocess.run(["$FOGLAMP_ROOT/tests/system/lab/remove"], shell=True, check=True)
+        subprocess.run(["$FOGLAMP_ROOT/tests/system/python/scripts/package/remove"], shell=True, check=True)
     except subprocess.CalledProcessError:
-        assert False, "reset package script failed"
+        assert False, "remove package script failed"
 
 
 @pytest.fixture
@@ -129,7 +129,9 @@ class TestPackages:
         assert 3 == len(jdoc['services'])
         assert 'notification' in jdoc['services']
 
-    def test_install_plugin_package(self, foglamp_url, package_build_source_list, package_build_list):
+    # FIXME: when package_build_list do not call parameterized test
+    @pytest.mark.parametrize("pkg_name", available_pkg)
+    def test_install_plugin_package(self, foglamp_url, pkg_name, package_build_source_list, package_build_list):
         # FIXME: FOGL-3276 Remove once we have dedicated RPi with sensehat device attached
         #  otherwise its discovery fails
 
@@ -139,8 +141,7 @@ class TestPackages:
         # When "package_build_source_list" is true then it will install all available packages
         # Otherwise install from list as we defined in JSON file
         if package_build_source_list.lower() == 'true':
-            for pkg_name in available_pkg:
-                self._verify_and_install_package(foglamp_url, pkg_name)
+            self._verify_and_install_package(foglamp_url, pkg_name)
         else:
             json_data = load_data_from_json()
             # If 'all' in 'package_build_list' then it will iterate each key in JSON file
@@ -155,10 +156,10 @@ class TestPackages:
                         if full_pkg_name in available_pkg:
                             self._verify_and_install_package(foglamp_url, full_pkg_name)
                         else:
-                            # TODO: Add them into some csv (report)
                             print("{} not found in available package list".format(full_pkg_name))
 
     def _verify_and_install_package(self, foglamp_url, pkg_name):
+        print("Installing ", pkg_name)
         global counter
         conn = http.client.HTTPConnection(foglamp_url)
         data = {"format": "repository", "name": pkg_name}
@@ -181,4 +182,5 @@ class TestPackages:
         r = r.read().decode()
         jdoc = json.loads(r)
         assert len(jdoc), "No data found"
+        print("Discovery counter value is: - ", counter, jdoc['plugins'])
         assert counter == len(jdoc['plugins'])

@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+time sudo apt purge -y foglamp foglamp-gui
+sudo rm -rf /usr/local/foglamp

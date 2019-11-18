@@ -138,6 +138,8 @@ async def create_category(request):
         category_value = data.get('value')
         category_display_name = data.get('display_name')
         should_keep_original_items = True if keep_original_items == 'true' else False
+        if not len(category_name.strip()):
+            raise ValueError('Key should not be empty')
 
         await cf_mgr.create_category(category_name=category_name, category_description=category_desc,
                                      category_value=category_value, display_name=category_display_name, keep_original_items=should_keep_original_items)

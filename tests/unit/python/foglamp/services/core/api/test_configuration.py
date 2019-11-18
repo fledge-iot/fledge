@@ -436,7 +436,9 @@ class TestConfiguration:
         ({"description": "desc", "value": "val"}, "\"'key' param required to create a category\""),
         ({"key":"test", "description":"test", "value": {"test1": {"type": "string", "description": "d", "default": "",
                                                                   "mandatory": "true"}}},
-         "For test category, A default value must be given for test1")
+         "For test category, A default value must be given for test1"),
+        ({"key": "", "description": "test", "value": "val"}, "Key should not be empty"),
+        ({"key": " ", "description": "test", "value": "val"}, "Key should not be empty")
     ])
     async def test_create_category_bad_request(self, client, payload, message):
         storage_client_mock = MagicMock(StorageClientAsync)

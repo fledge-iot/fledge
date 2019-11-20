@@ -163,7 +163,35 @@ foglamp_reset() {
 
   # Remove user data: scripts
   rm -rf "$FOGLAMP_DATA/scripts"
-  echo "Removed user data in $FOGLAMP_DATA/scripts"
+  echo "Removed user data from $FOGLAMP_DATA/scripts"
+  # Remove user data: logs
+  rm -rf ${FOGLAMP_DATA}/logs/*
+  echo "Removed user data from $FOGLAMP_DATA/logs"
+  # Remove user data: var
+  find "$FOGLAMP_DATA/var" -depth -type f -exec rm {} \;
+  echo "Removed user data from $FOGLAMP_DATA/var"
+  # Remove user data: extras, with one exclusion
+  find "$FOGLAMP_DATA/extras" -depth -type f -not -name fogbench_sensor_coap.template.json -exec rm {} \;
+  echo "Removed user data from $FOGLAMP_DATA/extras"
+  # Remove user etc/kerberos: extras, with one exclusion
+  find "$FOGLAMP_DATA/etc/kerberos" -depth -type f -not -name "README.rst" -exec rm {} \;
+  # Remove user etc/certs: extras, with exclusions
+  find "$FOGLAMP_DATA/etc/certs" -depth -type f -not -name user.* -not -name foglamp.* -not -name ca.* -not -name admin.* -exec rm {} \;
+  # Remove user etc/ files: extras, with one exclusion
+  find "$FOGLAMP_DATA/etc/" -maxdepth 1 -type f -not -name storage.json -exec rm {} \;
+  echo "Removed user data from $FOGLAMP_DATA/etc"
+  # Remove core.err file
+  rm -f "$FOGLAMP_DATA/core.err"
+  echo "Removed core.err from $FOGLAMP_DATA"
+  # Remove backup, snapshots, support and CSV files
+  rm -rf "$FOGLAMP_DATA/snapshots"
+  echo "Removed user data from $FOGLAMP_DATA/snapshots"
+  rm -rf "$FOGLAMP_DATA/backup"
+  echo "Removed user data from $FOGLAMP_DATA/backup"
+  rm -rf "$FOGLAMP_DATA/support"
+  echo "Removed user data from $FOGLAMP_DATA/support"
+  find "$FOGLAMP_DATA" -depth -type f -name *.csv -exec rm {} \;
+  echo "Removed user CSV files from $FOGLAMP_DATA"
 }
 
 

@@ -163,7 +163,39 @@ fledge_reset() {
 
   # Remove user data: scripts
   rm -rf "$FLEDGE_DATA/scripts"
-  echo "Removed user data in $FLEDGE_DATA/scripts"
+  echo "Removed user data from $FLEDGE_DATA/scripts"
+  # Remove user data: logs
+  rm -rf ${FLEDGE_DATA}/logs/*
+  echo "Removed user data from $FLEDGE_DATA/logs"
+  # Remove user data: var
+  if [[ -d "$FLEDGE_DATA/var" ]]; then
+    find "$FLEDGE_DATA/var" -depth -type f -exec rm {} \;
+    echo "Removed user data from $FLEDGE_DATA/var"
+  fi
+  # Remove user data: extras, with one exclusion
+  find "$FLEDGE_DATA/extras" -depth -type f -not -name fogbench_sensor_coap.template.json -exec rm {} \;
+  echo "Removed user data from $FLEDGE_DATA/extras"
+  # Remove user etc/kerberos: extras, with one exclusion
+  if [[ -d "$FLEDGE_DATA/etc/kerberos" ]]; then
+    find "$FLEDGE_DATA/etc/kerberos" -depth -type f -not -name "README.rst" -exec rm {} \;
+  fi
+  # Remove user etc/certs: extras, with exclusions
+  find "$FLEDGE_DATA/etc/certs" -depth -type f -not -name user.* -not -name fledge.* -not -name ca.* -not -name admin.* -exec rm {} \;
+  # Remove user etc/ files: extras, with one exclusion
+  find "$FLEDGE_DATA/etc/" -maxdepth 1 -type f -not -name storage.json -exec rm {} \;
+  echo "Removed user data from $FLEDGE_DATA/etc"
+  # Remove core.err file
+  rm -f "$FLEDGE_DATA/core.err"
+  echo "Removed core.err from $FLEDGE_DATA"
+  # Remove backup, snapshots, support and CSV files
+  rm -rf "$FLEDGE_DATA/snapshots"
+  echo "Removed user data from $FLEDGE_DATA/snapshots"
+  rm -rf "$FLEDGE_DATA/backup"
+  echo "Removed user data from $FLEDGE_DATA/backup"
+  rm -rf "$FLEDGE_DATA/support"
+  echo "Removed user data from $FLEDGE_DATA/support"
+  find "$FLEDGE_DATA" -depth -type f -name *.csv -exec rm {} \;
+  echo "Removed user CSV files from $FLEDGE_DATA"
 }
 
 
@@ -483,7 +515,6 @@ fledge_status() {
                 ps -ef | grep "fledge.services.storage" | grep -v 'grep' | grep -v awk | awk '{print "fledge.services.storage " $9 " " $10}' || true
                 ps -ef | grep "fledge.services.south" |grep python3| grep -v 'grep' | awk '{print "fledge.services.south " $11 " " $12 " " $13}' || true
                 ps -ef | grep "fledge.services.south" |grep -v python3| grep -v 'grep' | grep -v awk | awk '{print "fledge.services.south " $9 " " $10 " " $11}' || true
-                ps -ef | grep "fledge.services.north" | grep -v 'grep' | grep -v awk | awk '{print "fledge.services.north " $9 " " $10}' || true
                 ps -ef | grep "fledge.services.notification" |grep -v python3| grep -v 'grep' | grep -v awk | awk '{print "fledge.services.notification " $9 " " $10 " " $11}' || true
 
                 # Show Tasks

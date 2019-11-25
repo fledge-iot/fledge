@@ -161,11 +161,7 @@ class TestE2E_CoAP_PI_WebAPI:
         assert {DATAPOINT: DATAPOINT_VALUE} == retval[0]["reading"]
 
         if not skip_verify_north_interface:
-<<<<<<< HEAD
-            egress_tracking_details = get_asset_tracking_details(fledge_url, "Egress")
-=======
             egress_tracking_details = utils.get_asset_tracking_details(fledge_url, "Egress")
->>>>>>> develop
             assert len(egress_tracking_details["track"]), "Failed to track Egress event"
             tracked_item = egress_tracking_details["track"][0]
             assert "NorthReadingsToPI_WebAPI" == tracked_item["service"]

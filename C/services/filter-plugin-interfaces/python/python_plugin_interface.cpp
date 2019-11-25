@@ -260,14 +260,18 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 	// Handle returned data
 	if (!pReturn)
 	{
-		Py_CLEAR(readingsList);
 		Logger::getLogger()->error("Called python script method plugin_ingest "
 					   ": error while getting result object, plugin '%s'",
 					   pName.c_str());
 		logErrorMessage();
 	}
 
+	// Remove readings to dict
+	Py_CLEAR(readingsList);
+	// Remove CallFunction result
 	Py_CLEAR(pReturn);
+
+	// Release GIL
 	PyGILState_Release(state);
 }
 

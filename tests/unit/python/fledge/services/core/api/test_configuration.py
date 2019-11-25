@@ -436,7 +436,9 @@ class TestConfiguration:
         ({"description": "desc", "value": "val"}, "\"'key' param required to create a category\""),
         ({"key":"test", "description":"test", "value": {"test1": {"type": "string", "description": "d", "default": "",
                                                                   "mandatory": "true"}}},
-         "For test category, A default value must be given for test1")
+         "For test category, A default value must be given for test1"),
+        ({"key": "", "description": "test", "value": "val"}, "Key should not be empty"),
+        ({"key": " ", "description": "test", "value": "val"}, "Key should not be empty")
     ])
     async def test_create_category_bad_request(self, client, payload, message):
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -448,7 +450,9 @@ class TestConfiguration:
     @pytest.mark.parametrize("payload, hide_password", [
         ({"key": "T1", "description": "Test"}, False),
         ({"key": "T2", "description": "Test 2", "display_name": "Test Display"}, False),
-        ({"key": "T3", "description": "Test 3"}, True)
+        ({"key": "T3", "description": "Test 3"}, True),
+        ({"key": "T4", "description": "Test 4", "display_name": ""}, False),
+        ({"key": "T5", "description": "Test 5", "display_name": " "}, True)
     ])
     async def test_create_category(self, client, reset_singleton, payload, hide_password):
         info = {'p1': {'type': 'password', 'description': 'P1', 'default': 'P1', 'value': 'P1'}} if hide_password else {'info': {'type': 'boolean', 'value': 'False', 'description': 'Test', 'default': 'False'}}
@@ -461,7 +465,11 @@ class TestConfiguration:
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         if 'display_name' in payload:
-            payload['displayName'] = payload.pop('display_name')
+            if not len(payload['display_name'].strip()):
+                payload.pop('display_name')
+                payload['displayName'] = payload['key']
+            else:
+                payload['displayName'] = payload.pop('display_name')
         else:
             payload.update({'displayName': payload['key']})
 

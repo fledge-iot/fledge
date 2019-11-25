@@ -94,6 +94,7 @@ class ConfigCategory {
 		bool				setDefault(const std::string& name, const std::string& value);
 		std::string			getDisplayName(const std::string& name) const;
 		std::vector<std::string>	getOptions(const std::string& name) const;
+		std::string			getLength(const std::string& name) const;
 		std::string			getMinimum(const std::string& name) const;
 		std::string			getMaximum(const std::string& name) const;
 		bool				isString(const std::string& name) const;
@@ -145,6 +146,7 @@ class ConfigCategory {
 				std::string 	m_readonly;
 				std::string 	m_mandatory;
 				std::string 	m_deprecated;
+				std::string	m_length;
 				std::string	m_minimum;
 				std::string	m_maximum;
 				std::string 	m_filename;

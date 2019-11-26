@@ -1,0 +1,3 @@
+I, Bill Hunt hereby sign-off-by all of my past commits to this repo subject to
+the Developer Certificate of Origin (DCO), Version 1.1. In the past I have
+used emails: bill@dianomic.com, bill@thomlex.com

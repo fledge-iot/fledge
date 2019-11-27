@@ -21,6 +21,7 @@ __version__ = "${VERSION}"
 
 available_pkg = []
 counter = 4
+errors = []
 """  By default 4 plugins are installed i.e. all north
 """
 
@@ -28,9 +29,9 @@ counter = 4
 @pytest.fixture
 def reset_packages():
     try:
-        subprocess.run(["$FOGLAMP_ROOT/tests/system/lab/remove"], shell=True, check=True)
+        subprocess.run(["$FOGLAMP_ROOT/tests/system/python/scripts/package/remove"], shell=True, check=True)
     except subprocess.CalledProcessError:
-        assert False, "reset package script failed"
+        assert False, "remove package script failed"
 
 
 @pytest.fixture
@@ -141,6 +142,7 @@ class TestPackages:
         if package_build_source_list.lower() == 'true':
             for pkg_name in available_pkg:
                 self._verify_and_install_package(foglamp_url, pkg_name)
+            assert not errors, "Package errors have occurred: \n {}".format("\n".join(errors))
         else:
             json_data = load_data_from_json()
             # If 'all' in 'package_build_list' then it will iterate each key in JSON file
@@ -155,16 +157,22 @@ class TestPackages:
                         if full_pkg_name in available_pkg:
                             self._verify_and_install_package(foglamp_url, full_pkg_name)
                         else:
-                            # TODO: Add them into some csv (report)
                             print("{} not found in available package list".format(full_pkg_name))
+            assert not errors, "Package errors have occurred: \n {}".format("\n".join(errors))
 
     def _verify_and_install_package(self, foglamp_url, pkg_name):
+        print("Installing %s package" % pkg_name)
         global counter
+        global errors
         conn = http.client.HTTPConnection(foglamp_url)
         data = {"format": "repository", "name": pkg_name}
         conn.request("POST", '/foglamp/plugins', json.dumps(data))
         r = conn.getresponse()
-        assert 200 == r.status
+        # assert 200 == r.status
+        if r.status != 200:
+            print("POST Install plugin failed due to %s while attempting %s" % (r.reason, pkg_name))
+            errors.append("POST Install plugin failed due to {} while attempting {}".format(r.reason, pkg_name))
+            return
         r = r.read().decode()
         jdoc = json.loads(r)
         assert '{} is successfully installed'.format(pkg_name) == jdoc['message']
@@ -177,8 +185,17 @@ class TestPackages:
         counter += 1
         conn.request("GET", '/foglamp/plugins/installed')
         r = conn.getresponse()
-        assert 200 == r.status
+        # assert 200 == r.status
+        if r.status != 200:
+            print("GET Plugins installed failed due to %s while attempting %s" % (r.reason, pkg_name))
+            errors.append("GET Plugins installed failed due to {} while attempting {}".format(r.reason, pkg_name))
+            counter -= 1
+            return
         r = r.read().decode()
         jdoc = json.loads(r)
         assert len(jdoc), "No data found"
-        assert counter == len(jdoc['plugins'])
+        # assert counter == len(jdoc['plugins'])
+        if counter != len(jdoc['plugins']):
+            print("Error in discovery of %s package" % pkg_name)
+            errors.append("{} package discovery failed".format(pkg_name))
+            counter -= 1

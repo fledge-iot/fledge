@@ -21,6 +21,7 @@ __version__ = "${VERSION}"
 
 available_pkg = []
 counter = 4
+errors = []
 """  By default 4 plugins are installed i.e. all north
 """
 
@@ -129,9 +130,7 @@ class TestPackages:
         assert 3 == len(jdoc['services'])
         assert 'notification' in jdoc['services']
 
-    # FIXME: when package_build_list do not call parameterized test
-    @pytest.mark.parametrize("pkg_name", available_pkg)
-    def test_install_plugin_package(self, foglamp_url, pkg_name, package_build_source_list, package_build_list):
+    def test_install_plugin_package(self, foglamp_url, package_build_source_list, package_build_list):
         # FIXME: FOGL-3276 Remove once we have dedicated RPi with sensehat device attached
         #  otherwise its discovery fails
 
@@ -141,7 +140,9 @@ class TestPackages:
         # When "package_build_source_list" is true then it will install all available packages
         # Otherwise install from list as we defined in JSON file
         if package_build_source_list.lower() == 'true':
-            self._verify_and_install_package(foglamp_url, pkg_name)
+            for pkg_name in available_pkg:
+                self._verify_and_install_package(foglamp_url, pkg_name)
+            assert not errors, "Package errors have been occurred: \n {}".format("\n".join(errors))
         else:
             json_data = load_data_from_json()
             # If 'all' in 'package_build_list' then it will iterate each key in JSON file
@@ -157,15 +158,21 @@ class TestPackages:
                             self._verify_and_install_package(foglamp_url, full_pkg_name)
                         else:
                             print("{} not found in available package list".format(full_pkg_name))
+            assert not errors, "Package errors have been occurred: \n {}".format("\n".join(errors))
 
     def _verify_and_install_package(self, foglamp_url, pkg_name):
-        print("Installing ", pkg_name)
+        print("Installing %s package" % pkg_name)
         global counter
+        global errors
         conn = http.client.HTTPConnection(foglamp_url)
         data = {"format": "repository", "name": pkg_name}
         conn.request("POST", '/foglamp/plugins', json.dumps(data))
         r = conn.getresponse()
-        assert 200 == r.status
+        # assert 200 == r.status
+        if r.status != 200:
+            print("Install plugin POST fails due to %s while attempting %s" % (r.reason, pkg_name))
+            errors.append("Install plugin POST fails due to {} while attempting {}".format(r.reason, pkg_name))
+            return
         r = r.read().decode()
         jdoc = json.loads(r)
         assert '{} is successfully installed'.format(pkg_name) == jdoc['message']
@@ -178,9 +185,17 @@ class TestPackages:
         counter += 1
         conn.request("GET", '/foglamp/plugins/installed')
         r = conn.getresponse()
-        assert 200 == r.status
+        # assert 200 == r.status
+        if r.status != 200:
+            print("Plugins installed GET fails due to %s while attempting %s" % (r.reason, pkg_name))
+            errors.append("Plugins installed GET fails due to {} while attempting {}".format(r.reason, pkg_name))
+            counter -= 1
+            return
         r = r.read().decode()
         jdoc = json.loads(r)
         assert len(jdoc), "No data found"
-        print("Discovery counter value is: - ", counter, jdoc['plugins'])
-        assert counter == len(jdoc['plugins'])
+        # assert counter == len(jdoc['plugins'])
+        if counter != len(jdoc['plugins']):
+            print("Discovery error in %s package" % pkg_name)
+            errors.append("{} package discovery failed".format(pkg_name))
+            counter -= 1

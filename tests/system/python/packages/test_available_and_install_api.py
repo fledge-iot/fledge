@@ -142,7 +142,7 @@ class TestPackages:
         if package_build_source_list.lower() == 'true':
             for pkg_name in available_pkg:
                 self._verify_and_install_package(foglamp_url, pkg_name)
-            assert not errors, "Package errors have been occurred: \n {}".format("\n".join(errors))
+            assert not errors, "Package errors have occurred: \n {}".format("\n".join(errors))
         else:
             json_data = load_data_from_json()
             # If 'all' in 'package_build_list' then it will iterate each key in JSON file
@@ -158,7 +158,7 @@ class TestPackages:
                             self._verify_and_install_package(foglamp_url, full_pkg_name)
                         else:
                             print("{} not found in available package list".format(full_pkg_name))
-            assert not errors, "Package errors have been occurred: \n {}".format("\n".join(errors))
+            assert not errors, "Package errors have occurred: \n {}".format("\n".join(errors))
 
     def _verify_and_install_package(self, foglamp_url, pkg_name):
         print("Installing %s package" % pkg_name)
@@ -170,8 +170,8 @@ class TestPackages:
         r = conn.getresponse()
         # assert 200 == r.status
         if r.status != 200:
-            print("Install plugin POST fails due to %s while attempting %s" % (r.reason, pkg_name))
-            errors.append("Install plugin POST fails due to {} while attempting {}".format(r.reason, pkg_name))
+            print("POST Install plugin failed due to %s while attempting %s" % (r.reason, pkg_name))
+            errors.append("POST Install plugin failed due to {} while attempting {}".format(r.reason, pkg_name))
             return
         r = r.read().decode()
         jdoc = json.loads(r)
@@ -187,8 +187,8 @@ class TestPackages:
         r = conn.getresponse()
         # assert 200 == r.status
         if r.status != 200:
-            print("Plugins installed GET fails due to %s while attempting %s" % (r.reason, pkg_name))
-            errors.append("Plugins installed GET fails due to {} while attempting {}".format(r.reason, pkg_name))
+            print("GET Plugins installed failed due to %s while attempting %s" % (r.reason, pkg_name))
+            errors.append("GET Plugins installed failed due to {} while attempting {}".format(r.reason, pkg_name))
             counter -= 1
             return
         r = r.read().decode()
@@ -196,6 +196,6 @@ class TestPackages:
         assert len(jdoc), "No data found"
         # assert counter == len(jdoc['plugins'])
         if counter != len(jdoc['plugins']):
-            print("Discovery error in %s package" % pkg_name)
+            print("Error in discovery of %s package" % pkg_name)
             errors.append("{} package discovery failed".format(pkg_name))
             counter -= 1

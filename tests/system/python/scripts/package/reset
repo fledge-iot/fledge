@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+echo "Stopping FogLAMP using systemctl ..."
+sudo systemctl stop foglamp
+echo "YES" | /usr/local/foglamp/bin/foglamp reset || exit 1
+echo
+echo "Starting FogLAMP using systemctl ..."
+sudo systemctl start foglamp
+echo "FogLAMP Status"
+sudo systemctl status foglamp | grep "Active"

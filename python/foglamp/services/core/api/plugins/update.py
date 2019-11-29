@@ -46,7 +46,7 @@ async def update_plugin(request: web.Request) -> web.Response:
         # TODO: FOGL-3064
         _type = _type.lower()
         if _type not in ['north', 'south', 'filter']:
-            raise ValueError("Invalid plugin type. Must be 'north' or 'south' or 'filter'")
+            raise ValueError("Invalid plugin type. Must be 'north', 'south', 'filter'")
 
         # Check requested plugin name is installed or not
         installed_plugins = PluginDiscovery.get_plugins_installed(_type, False)
@@ -57,7 +57,7 @@ async def update_plugin(request: web.Request) -> web.Response:
         # Tracked plugins from asset tracker
         tracked_plugins = await _get_plugin_and_sch_name_from_asset_tracker(_type)
         sch_list = []
-        filters_used = []
+        filters_used_by = []
         if _type == 'filter':
             # In case of filter, for asset_tracker table we are inserting filter category_name in plugin column
             # instead of filter plugin name by Design
@@ -65,9 +65,9 @@ async def update_plugin(request: web.Request) -> web.Response:
             storage_client = connect.get_storage_async()
             payload = PayloadBuilder().SELECT("name").WHERE(['plugin', '=', name]).payload()
             result = await storage_client.query_tbl_with_payload('filters', payload)
-            filters_used = [name['name'] for name in result['rows']]
+            filters_used_by = [r['name'] for r in result['rows']]
         for p in tracked_plugins:
-            if (name == p['plugin'] and not _type == 'filter') or (p['plugin'] in filters_used and _type == 'filter'):
+            if (name == p['plugin'] and not _type == 'filter') or (p['plugin'] in filters_used_by and _type == 'filter'):
                 sch_info = await _get_sch_id_and_enabled_by_name(p['service'])
                 if sch_info[0]['enabled'] == 't':
                     status, reason = await server.Server.scheduler.disable_schedule(uuid.UUID(sch_info[0]['id']))

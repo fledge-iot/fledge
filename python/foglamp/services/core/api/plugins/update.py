@@ -36,16 +36,17 @@ async def update_plugin(request: web.Request) -> web.Response:
     """ update plugin
 
     :Example:
-        curl -X PUT http://localhost:8081/foglamp/plugins/south/sinusoid/update
-        curl -X PUT http://localhost:8081/foglamp/plugins/north/http_north/update
+        curl -sX PUT http://localhost:8081/foglamp/plugins/south/sinusoid/update
+        curl -sX PUT http://localhost:8081/foglamp/plugins/north/http_north/update
+        curl -sX PUT http://localhost:8081/foglamp/plugins/filter/metadata/update
     """
     _type = request.match_info.get('type', None)
     name = request.match_info.get('name', None)
     try:
-        # TODO: FOGL-3063, FOGL-3064
+        # TODO: FOGL-3064
         _type = _type.lower()
-        if _type not in ['north', 'south']:
-            raise ValueError("Invalid plugin type. Must be 'north' or 'south'")
+        if _type not in ['north', 'south', 'filter']:
+            raise ValueError("Invalid plugin type. Must be 'north' or 'south' or 'filter'")
 
         # Check requested plugin name is installed or not
         installed_plugins = PluginDiscovery.get_plugins_installed(_type, False)
@@ -56,14 +57,23 @@ async def update_plugin(request: web.Request) -> web.Response:
         # Tracked plugins from asset tracker
         tracked_plugins = await _get_plugin_and_sch_name_from_asset_tracker(_type)
         sch_list = []
+        filters_used = []
+        if _type == 'filter':
+            # In case of filter, for asset_tracker table we are inserting filter category_name in plugin column
+            # instead of filter plugin name by Design
+            # Hence below query is required to get actual plugin name from filters table
+            storage_client = connect.get_storage_async()
+            payload = PayloadBuilder().SELECT("name").WHERE(['plugin', '=', name]).payload()
+            result = await storage_client.query_tbl_with_payload('filters', payload)
+            filters_used = [name['name'] for name in result['rows']]
         for p in tracked_plugins:
-            if name == p['plugin']:
+            if (name == p['plugin'] and not _type == 'filter') or (p['plugin'] in filters_used and _type == 'filter'):
                 sch_info = await _get_sch_id_and_enabled_by_name(p['service'])
                 if sch_info[0]['enabled'] == 't':
                     status, reason = await server.Server.scheduler.disable_schedule(uuid.UUID(sch_info[0]['id']))
                     if status:
                         _logger.warning("{} {} instance is disabled as {} plugin is updating..".format(
-                            p['service'], _type, p['plugin']))
+                            p['service'], _type, name))
                         sch_list.append(sch_info[0]['id'])
 
         # Plugin update is running as a background task
@@ -73,17 +83,22 @@ async def update_plugin(request: web.Request) -> web.Response:
         request._sch_list = sch_list
         loop.call_later(1, do_update, request)
     except KeyError as ex:
-        raise web.HTTPNotFound(reason=ex)
+        raise web.HTTPNotFound(reason=str(ex))
     except ValueError as ex:
-        raise web.HTTPBadRequest(reason=ex)
+        raise web.HTTPBadRequest(reason=str(ex))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=ex)
+        raise web.HTTPInternalServerError(reason=str(ex))
 
     return web.json_response({"message": "{} plugin update in process. Wait for few minutes to complete.".format(name)})
 
 
 async def _get_plugin_and_sch_name_from_asset_tracker(_type: str) -> list:
-    event_name = "Ingest" if _type == "south" else "Egress"
+    if _type == "south":
+        event_name = "Ingest"
+    elif _type == 'filter':
+        event_name = "Filter"
+    else:
+        event_name = "Egress"
     storage_client = connect.get_storage_async()
     payload = PayloadBuilder().SELECT("plugin", "service").WHERE(['event', '=', event_name]).payload()
     result = await storage_client.query_tbl_with_payload('asset_tracker', payload)

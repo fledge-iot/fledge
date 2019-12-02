@@ -78,5 +78,6 @@ python/async_ingest.so*
 # Filter ingest pymodule
 python/filter_ingest.so*
 
-# Python south plugins
+# Python south & filter plugins
 python/foglamp/plugins/south/*
+python/foglamp/plugins/filter/*

@@ -1,7 +1,7 @@
 #ifndef _STORAGE_CLIENT_H
 #define _STORAGE_CLIENT_H
 /*
- * FogLAMP storage client.
+ * Fledge storage client.
  *
  * Copyright (c) 2018 OSisoft, LLC
  *

@@ -8,7 +8,7 @@ using namespace rapidjson;
 // Get all found category names and description
 TEST(ConfigurationManagerTest, getAllCategoryNames)
 {
-	// Before the test start the storage layer with FOGLAMP_DATA=.
+	// Before the test start the storage layer with FLEDGE_DATA=.
 	// TCP port will be 8080
 	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
 
@@ -36,17 +36,17 @@ TEST(ConfigurationManagerTest, getAllCategoryNames)
 // Get all items of "service" category
 TEST(ConfigurationManagerTest, getCategoryItems)
 {
-	// Before the test start the storage layer with FOGLAMP_DATA=.
+	// Before the test start the storage layer with FLEDGE_DATA=.
 	// TCP port will be 8080
 	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
 	ConfigCategory category = cfgManager->getCategoryAllItems("service");
-	ASSERT_EQ(0, category.getDescription().compare("FogLAMP Service"));
+	ASSERT_EQ(0, category.getDescription().compare("Fledge Service"));
 }
 
 // Test check we cannot create a category with both value and default for one item
 TEST(ConfigurationManagerTest, addCategoryWithValueAndDefaultForOneItem)
 {
-	// Before the test start the storage layer with FOGLAMP_DATA=.
+	// Before the test start the storage layer with FLEDGE_DATA=.
 	// TCP port will be 8080
 	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
 	try
@@ -71,7 +71,7 @@ TEST(ConfigurationManagerTest, addCategoryWithValueAndDefaultForOneItem)
 // Create a category
 TEST(ConfigurationManagerTest, addCategoryWithDefaultValues)
 {
-	// Before the test start the storage layer with FOGLAMP_DATA=.
+	// Before the test start the storage layer with FLEDGE_DATA=.
 	// TCP port will be 8080
 	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
 	try
@@ -93,7 +93,7 @@ TEST(ConfigurationManagerTest, addCategoryWithDefaultValues)
 // Update category and keep original items
 TEST(ConfigurationManagerTest, updateCategoryKeepItems)
 {
-	// Before the test start the storage layer with FOGLAMP_DATA=.
+	// Before the test start the storage layer with FLEDGE_DATA=.
 	// TCP port will be 8080
 	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
 	try
@@ -119,7 +119,7 @@ TEST(ConfigurationManagerTest, updateCategoryKeepItems)
 // Update a category
 TEST(ConfigurationManagerTest, UpdateCategory)
 {
-	// Before the test start the storage layer with FOGLAMP_DATA=.
+	// Before the test start the storage layer with FLEDGE_DATA=.
 	// TCP port will be 8080
 	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
 	try
@@ -146,7 +146,7 @@ TEST(ConfigurationManagerTest, UpdateCategory)
 // Get a not existing category name
 TEST(ConfigurationManagerTest, GetNoExistentCategoryItem)
 {
-	// Before the test start the storage layer with FOGLAMP_DATA=.
+	// Before the test start the storage layer with FLEDGE_DATA=.
 	// TCP port will be 8080
 	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
 	try
@@ -169,7 +169,7 @@ TEST(ConfigurationManagerTest, GetNoExistentCategoryItem)
 // Get all details of existing category item
 TEST(ConfigurationManagerTest, GetCategoryItem)
 {
-	// Before the test start the storage layer with FOGLAMP_DATA=.
+	// Before the test start the storage layer with FLEDGE_DATA=.
 	// TCP port will be 8080
 	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
 	try
@@ -190,7 +190,7 @@ TEST(ConfigurationManagerTest, GetCategoryItem)
 // Get existing value of a category item
 TEST(ConfigurationManagerTest, GetCategoryItemValue)
 {
-	// Before the test start the storage layer with FOGLAMP_DATA=.
+	// Before the test start the storage layer with FLEDGE_DATA=.
 	// TCP port will be 8080
 	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
 	try
@@ -210,7 +210,7 @@ TEST(ConfigurationManagerTest, GetCategoryItemValue)
 //Set category item value of an existing item
 TEST(ConfigurationManagerTest, SetCategoryItemValue)
 {
-	// Before the test start the storage layer with FOGLAMP_DATA=.
+	// Before the test start the storage layer with FLEDGE_DATA=.
 	// TCP port will be 8080
 	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
 	try
@@ -230,7 +230,7 @@ TEST(ConfigurationManagerTest, SetCategoryItemValue)
 //Set category item value of a not existing item
 TEST(ConfigurationManagerTest, SetCategoryNotExistingItemValue)
 {
-	// Before the test start the storage layer with FOGLAMP_DATA=.
+	// Before the test start the storage layer with FLEDGE_DATA=.
 	// TCP port will be 8080
 	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
 	try
@@ -256,7 +256,7 @@ TEST(ConfigurationManagerTest, SetCategoryNotExistingItemValue)
 // Create category A
 TEST(ConfigurationManagerTest, addCategoryA)
 {       
-        // Before the test start the storage layer with FOGLAMP_DATA=.
+        // Before the test start the storage layer with FLEDGE_DATA=.
         // TCP port will be 8080
         ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
         try
@@ -278,7 +278,7 @@ TEST(ConfigurationManagerTest, addCategoryA)
 // Create category B
 TEST(ConfigurationManagerTest, addCategoryB)
 {       
-        // Before the test start the storage layer with FOGLAMP_DATA=.
+        // Before the test start the storage layer with FLEDGE_DATA=.
         // TCP port will be 8080
         ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
         try
@@ -301,7 +301,7 @@ TEST(ConfigurationManagerTest, addCategoryB)
 // Success when adding 2 or 1 child categories
 TEST(ConfigurationManagerTest, AddChildCategories)
 {
-	// Before the test start the storage layer with FOGLAMP_DATA=.
+	// Before the test start the storage layer with FLEDGE_DATA=.
 	// TCP port will be 8080
 	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
 	try
@@ -324,7 +324,7 @@ TEST(ConfigurationManagerTest, AddChildCategories)
 // If we catch ExistingChildCategories test is successful
 TEST(ConfigurationManagerTest, AddExistingChildCategories)
 {
-	// Before the test start the storage layer with FOGLAMP_DATA=.
+	// Before the test start the storage layer with FLEDGE_DATA=.
 	// TCP port will be 8080
 	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
 	try
@@ -349,7 +349,7 @@ TEST(ConfigurationManagerTest, AddExistingChildCategories)
 // A child categories to a noin existent parent
 TEST(ConfigurationManagerTest, AddChildCategoriesToNotExistentParent)
 {
-	// Before the test start the storage layer with FOGLAMP_DATA=.
+	// Before the test start the storage layer with FLEDGE_DATA=.
 	// TCP port will be 8080
 	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
 	try
@@ -373,7 +373,7 @@ TEST(ConfigurationManagerTest, AddChildCategoriesToNotExistentParent)
 // Get the child categories
 TEST(ConfigurationManagerTest, GetChildCategories)
 {
-	// Before the test start the storage layer with FOGLAMP_DATA=.
+	// Before the test start the storage layer with FLEDGE_DATA=.
 	// TCP port will be 8080
 	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
 	try
@@ -393,7 +393,7 @@ TEST(ConfigurationManagerTest, GetChildCategories)
 // Delete a non existent child categories
 TEST(ConfigurationManagerTest, DeleteNotExistentChildCategory)
 {
-	// Before the test start the storage layer with FOGLAMP_DATA=.
+	// Before the test start the storage layer with FLEDGE_DATA=.
 	// TCP port will be 8080
 	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
 	try
@@ -419,7 +419,7 @@ TEST(ConfigurationManagerTest, DeleteNotExistentChildCategory)
 // Delete a category item value (set to "")
 TEST(ConfigurationManagerTest, DeleteCategoryItemValue)
 {
-	// Before the test start the storage layer with FOGLAMP_DATA=.
+	// Before the test start the storage layer with FLEDGE_DATA=.
 	// TCP port will be 8080
 	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
 	try
@@ -439,7 +439,7 @@ TEST(ConfigurationManagerTest, DeleteCategoryItemValue)
 // Delete a child category
 TEST(ConfigurationManagerTest, DeleteChildCategory)
 {
-	// Before the test start the storage layer with FOGLAMP_DATA=.
+	// Before the test start the storage layer with FLEDGE_DATA=.
 	// TCP port will be 8080
 	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
 	try
@@ -465,7 +465,7 @@ TEST(ConfigurationManagerTest, DeleteChildCategory)
 // Delete a category
 TEST(ConfigurationManagerTest, DeleteCategory)
 {
-	// Before the test start the storage layer with FOGLAMP_DATA=.
+	// Before the test start the storage layer with FLEDGE_DATA=.
 	// TCP port will be 8080
 	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
 	try

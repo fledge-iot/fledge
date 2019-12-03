@@ -1,20 +1,20 @@
 #!/bin/sh
 
-if [ "${FOGLAMP_ROOT}" = "" ] ; then
-        echo "Must set FOGLAMP_ROOT variable"
+if [ "${FLEDGE_ROOT}" = "" ] ; then
+        echo "Must set FLEDGE_ROOT variable"
         exit 1
 fi
 
-export DEFAULT_SQLITE_DB_FILE=${FOGLAMP_ROOT}/data/foglamp.db
+export DEFAULT_SQLITE_DB_FILE=${FLEDGE_ROOT}/data/fledge.db
 
 testNum=1
 n_failed=0
 n_passed=0
 n_unchecked=0
 
-export foglamp_core_port=9393
+export fledge_core_port=9393
 
-# Start FoglampCore an storage service
+# Start FledgeCore an storage service
 ./testSetup.sh
 
 rm -f failed
@@ -22,8 +22,8 @@ rm -rf results
 mkdir results
 
 cat testset | while read name method url payload optional; do
-	# Add FogLAMP core port
-	url=`echo ${url} | sed -e "s/_CORE_PORT_/${foglamp_core_port}/"`
+	# Add Fledge core port
+	url=`echo ${url} | sed -e "s/_CORE_PORT_/${fledge_core_port}/"`
 
 	echo -n "Test [$testNum] ${name}: "
 	if [ "$payload" = "" ] ; then
@@ -82,10 +82,10 @@ fi
 # Core shutdown not implemented yet
 # Storage can be done thss way
 #
-#  storageServiceURL="http://127.0.0.1:${foglamp_core_port}/foglamp/service?name=FogLAMP%20Storage"
+#  storageServiceURL="http://127.0.0.1:${fledge_core_port}/fledge/service?name=Fledge%20Storage"
 #  storageInfo=`curl -s ${storageServiceURL}`
 #  storageManagementPort=`echo ${storageInfo} | grep -o '"management_port".*:.*,' | awk -F':' '{print $2}' | tr -d ', '`
-#  storageShutdownURL="http://127.0.0.1:${storageManagementPort}/foglamp/service/shutdown"
+#  storageShutdownURL="http://127.0.0.1:${storageManagementPort}/fledge/service/shutdown"
 #
 #  curl -s -X POST ${storageShutdownURL}
 

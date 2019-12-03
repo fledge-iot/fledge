@@ -1,7 +1,7 @@
 #include <utility>
 
 /*
- * FogLAMP OSI Soft OMF interface to PI Server.
+ * Fledge OSI Soft OMF interface to PI Server.
  *
  * Copyright (c) 2018 Dianomic Systems
  *

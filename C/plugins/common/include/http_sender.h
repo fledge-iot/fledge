@@ -1,7 +1,7 @@
 #ifndef _HTTP_SENDER_H
 #define _HTTP_SENDER_H
 /*
- * FogLAMP HTTP Sender wrapper.
+ * Fledge HTTP Sender wrapper.
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -13,7 +13,7 @@
 #include <string>
 #include <vector>
 
-#define HTTP_SENDER_USER_AGENT     "FogLAMP http sender"
+#define HTTP_SENDER_USER_AGENT     "Fledge http sender"
 #define HTTP_SENDER_DEFAULT_METHOD "GET"
 #define HTTP_SENDER_DEFAULT_PATH   "/"
 

@@ -30,10 +30,10 @@ Common Update,PUT,http://localhost:8080/storage/table/test,updateKey.json
 Common Read back,GET,http://localhost:8080/storage/table/test?key=UPDA,
 Common Update no values,PUT,http://localhost:8080/storage/table/test,bad_update.json
 Common Read group,PUT,http://localhost:8080/storage/table/test/query,group.json
-Bad URL,GET,http://localhost:8080/foglamp/nothing,
+Bad URL,GET,http://localhost:8080/fledge/nothing,
 Bad table,GET,http://localhost:8080/storage/table/doesntexist,
 Bad column,GET,http://localhost:8080/storage/table/test?doesntexist=9,
-Ping interface,GET,http://localhost:1081/foglamp/service/ping,,checkstate
+Ping interface,GET,http://localhost:1081/fledge/service/ping,,checkstate
 Add Readings,POST,http://localhost:8080/storage/reading,asset.json
 Fetch Readings,GET,http://localhost:8080/storage/reading?id=1&count=1000,,checkstate
 Fetch Readings zero count,GET,http://localhost:8080/storage/reading?id=1&count=0,
@@ -126,4 +126,4 @@ timezone - readings   - read 3,PUT,http://localhost:8080/storage/reading/query,t
 timezone - readings   - read 4,PUT,http://localhost:8080/storage/reading/query,tz_readings_read_4.json
 Add more Readings,POST,http://localhost:8080/storage/reading,readings_timebucket.json
 Query Readings Timebucket,PUT,http://localhost:8080/storage/reading/query,query_timebucket_datapoints.json
-Shutdown,POST,http://localhost:1081/foglamp/service/shutdown,,checkstate
+Shutdown,POST,http://localhost:1081/fledge/service/shutdown,,checkstate

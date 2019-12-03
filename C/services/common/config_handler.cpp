@@ -1,5 +1,5 @@
 /*
- * FogLAMP config manager.
+ * Fledge config manager.
  *
  * Copyright (c) 2018 Dianomic Systems
  *

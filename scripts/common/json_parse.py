@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# FOGLAMP_BEGIN
-# See: http://foglamp.readthedocs.io/
-# FOGLAMP_END
+# FLEDGE_BEGIN
+# See: http://fledge.readthedocs.io/
+# FLEDGE_END
 
 """Command line JSON parsing utility Class"""
 
@@ -15,9 +15,9 @@ It prints the requested JSON value.
 In case of errors it pronts the exception and returns 1 to the caller
 
 Current implemented methods:
-- get_rest_api_url() return the REST API url of FogLAMP
-- get_category_item_default() returns the default value of a FogLAMP category name
-- get_category_item_value() returns the value of a FogLAMP category name
+- get_rest_api_url() return the REST API url of Fledge
+- get_category_item_default() returns the default value of a Fledge category name
+- get_category_item_value() returns the value of a Fledge category name
 - get_category_key() returns the match for a given category name
 - get_schedule_id() returns the cheduled_id of a given schedule name
 - get_current_schedule_id() returns the cheduled_id of new created schedule name
@@ -42,7 +42,7 @@ class ExtractJson(object):
         self._json = json_input
         self._method = method
 
-    # Return REST API URL from 'FogLAMP' PID file in JSON input
+    # Return REST API URL from 'Fledge' PID file in JSON input
     def get_rest_api_url_from_pid(self, unused=None):
 
         try:
@@ -56,14 +56,14 @@ class ExtractJson(object):
 
             return str(scheme + "://" + address + ":" + port)
         except Exception as ex:
-            raise Exception(self.set_error_message("FogLAMP PID", ex))
+            raise Exception(self.set_error_message("Fledge PID", ex))
 
     # Set error message for rasing exceptions class methods
     def set_error_message(self, name, ex):
         return ("Error parsing JSON '" + self._method + "', '" +
                 name + "': " + ex.__class__.__name__ + ": " + str(ex))
 
-    # Return REST API URL from 'FogLAMP Core' service in JSON input
+    # Return REST API URL from 'Fledge Core' service in JSON input
     def get_rest_api_url(self, unused=None):
         try:
             scheme = self._json['services'][0]['protocol']
@@ -75,9 +75,9 @@ class ExtractJson(object):
 
             return str(scheme + "://" + address + ":" + port)
         except Exception as ex:
-            raise Exception(self.set_error_message("FogLAMP Core", ex))
+            raise Exception(self.set_error_message("Fledge Core", ex))
 
-    # Return the default value of a FogLAMP category item from JSON input
+    # Return the default value of a Fledge category item from JSON input
     def get_category_item_default(self, item):
         try:
             # Get the specified category item name
@@ -87,7 +87,7 @@ class ExtractJson(object):
         except Exception as ex:
             raise Exception(self.set_error_message(name, ex))
 
-    # Return the default value of a FogLAMP category item from JSON input
+    # Return the default value of a Fledge category item from JSON input
     def get_category_item_value(self, item):
         try:
             # Get the specified category item name
@@ -97,7 +97,7 @@ class ExtractJson(object):
         except Exception as ex:
             raise Exception(self.set_error_message(name, ex))
 
-    # Return the value of a FogLAMP category name from JSON input
+    # Return the value of a Fledge category name from JSON input
     def get_category_key(self, key):
         try:
             # Get the specified category name
@@ -111,7 +111,7 @@ class ExtractJson(object):
         except KeyError:
             raise Exception(self.set_error_message(name, ex))
 
-    # Return the ID of a FogLAMP schedule name just created
+    # Return the ID of a Fledge schedule name just created
     def get_current_schedule_id(self, name):
         try:
             # Get the specified schedule name
@@ -127,7 +127,7 @@ class ExtractJson(object):
         except Exception as ex:
             raise Exception(self.set_error_message(name, ex))
 
-    # Return the ID of a FogLAMP schedule name from JSON input with all schedules
+    # Return the ID of a Fledge schedule name from JSON input with all schedules
     def get_schedule_id(self, name):
         try:
             # Get the specified schedule name

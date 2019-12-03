@@ -1,7 +1,7 @@
 #ifndef PLUGIN_MANAGER_H
 #define PLUGIN_MANAGER_H
 /*
- * FogLAMP storage service.
+ * Fledge storage service.
  *
  * Copyright (c) 2017, 2018 OSisoft, LLC
  *

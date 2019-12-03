@@ -1,4 +1,4 @@
-.. Writing and Using Plugins describes how to implement a plugin for FogLAMP and how to use it
+.. Writing and Using Plugins describes how to implement a plugin for Fledge and how to use it
 .. https://docs.google.com/document/d/1IKGXLWbyN6a7vx8UO3uDbq5Df0VvE4oCQIULgZVZbjM
 
 .. |br| raw:: html
@@ -7,8 +7,8 @@
 
 .. Images
 
-.. |DHT11 in PI| image:: https://s3.amazonaws.com/foglamp/readthedocs/images/06_dht11_tags_in_PI.jpg
-   :target: https://s3.amazonaws.com/foglamp/readthedocs/images/06_dht11_tags_in_PI.jpg 
+.. |DHT11 in PI| image:: https://s3.amazonaws.com/fledge/readthedocs/images/06_dht11_tags_in_PI.jpg
+   :target: https://s3.amazonaws.com/fledge/readthedocs/images/06_dht11_tags_in_PI.jpg 
 
 .. Links
 .. |these INSTALLATION| raw:: html
@@ -17,7 +17,7 @@
 
 .. |Getting Started| raw:: html
 
-   <a href="../03_getting_started.html#building-foglamp">here</a>
+   <a href="../03_getting_started.html#building-fledge">here</a>
 
 .. Links in new tabs
 .. |setting OMF| raw:: html
@@ -26,7 +26,7 @@
 
 .. |DHT Repo| raw:: html
 
-   <a href="https://github.com/foglamp/foglamp-south-dht11" target="_blank">FogLAMP DHT11 South Plugin</a>
+   <a href="https://github.com/fledge/fledge-south-dht11" target="_blank">Fledge DHT11 South Plugin</a>
 
 .. |ADAFruit| raw:: html
 
@@ -38,19 +38,19 @@
 
 .. |DHT Manual| raw:: html
 
-   <a href="https://s3.amazonaws.com/foglamp/docs/v1/Common/plugins/South/DHT11/DHT11.pdf" target="_blank">DHT11 Product Manual</a>
+   <a href="https://s3.amazonaws.com/fledge/docs/v1/Common/plugins/South/DHT11/DHT11.pdf" target="_blank">DHT11 Product Manual</a>
 
 .. |DHT Resistor| raw:: html
 
-   <a href="https://s3.amazonaws.com/foglamp/docs/v1/Common/plugins/South/DHT11/DHT11-with-resistor.jpg" target="_blank">This picture</a>
+   <a href="https://s3.amazonaws.com/fledge/docs/v1/Common/plugins/South/DHT11/DHT11-with-resistor.jpg" target="_blank">This picture</a>
 
 .. |DHT Wired| raw:: html
 
-   <a href="https://s3.amazonaws.com/foglamp/docs/v1/Common/plugins/South/DHT11/DHT11-RaspPI-wired.jpg" target="_blank">This picture</a>
+   <a href="https://s3.amazonaws.com/fledge/docs/v1/Common/plugins/South/DHT11/DHT11-RaspPI-wired.jpg" target="_blank">This picture</a>
 
 .. |DHT Pins| raw:: html
 
-   <a href="https://s3.amazonaws.com/foglamp/docs/v1/Common/plugins/South/DHT11/DHT11-RaspPI-pins.jpg" target="_blank">this</a>
+   <a href="https://s3.amazonaws.com/fledge/docs/v1/Common/plugins/South/DHT11/DHT11-RaspPI-pins.jpg" target="_blank">this</a>
 
 .. |GPIO| raw:: html
 
@@ -125,9 +125,9 @@ This is the code for the plugin:
 
   # -*- coding: utf-8 -*-
 
-  # FOGLAMP_BEGIN
-  # See: http://foglamp.readthedocs.io/
-  # FOGLAMP_END
+  # FLEDGE_BEGIN
+  # See: http://fledge.readthedocs.io/
+  # FLEDGE_END
 
   """ Plugin for a DHT11 temperature and humidity sensor attached directly
       to the GPIO pins of a Raspberry Pi
@@ -140,18 +140,18 @@ This is the code for the plugin:
           sudo apt-get install build-essential python-dev
           sudo python setup.py install
 
-      To access the GPIO pins foglamp must be able to access /dev/gpiomem,
+      To access the GPIO pins fledge must be able to access /dev/gpiomem,
       the default access for this is owner and group read/write. Either
-      FogLAMP must be added to the group or the permissions altered to
-      allow FogLAMP access to the device.
+      Fledge must be added to the group or the permissions altered to
+      allow Fledge access to the device.
       """
 
 
   from datetime import datetime, timezone
   import uuid
 
-  from foglamp.common import logger
-  from foglamp.services.south import exceptions
+  from fledge.common import logger
+  from fledge.services.south import exceptions
 
   __author__ = "Mark Riddoch"
   __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -178,7 +178,7 @@ This is the code for the plugin:
   }
 
   _LOGGER = logger.setup(__name__)
-  """ Setup the access to the logging system of FogLAMP """
+  """ Setup the access to the logging system of Fledge """
 
 
   def plugin_info():
@@ -277,35 +277,35 @@ This is the code for the plugin:
       pass
 
 
-Building FogLAMP and Adding the Plugin
+Building Fledge and Adding the Plugin
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If you have not built FogLAMP yet, follow the steps described |Getting Started|. After the build, you can optionally install FogLAMP following |these INSTALLATION| steps.
+If you have not built Fledge yet, follow the steps described |Getting Started|. After the build, you can optionally install Fledge following |these INSTALLATION| steps.
 
 
-- If you have started FogLAMP from the build directory, copy the structure of the *foglamp-south-dht11/python/* directory into the *python* directory:
-
-.. code-block:: console
-
-  $ cd ~/FogLAMP
-  $ cp -R ~/foglamp-south-dht11/python/foglamp/plugins/south/dht11 python/foglamp/plugin/south/
-  $
-
-- If you have installed FogLAMP by executing ``sudo make install``, copy the structure of the *foglamp-south-dht11/python/* directory into the installed *python* directory:
+- If you have started Fledge from the build directory, copy the structure of the *fledge-south-dht11/python/* directory into the *python* directory:
 
 .. code-block:: console
 
-  $ sudo cp -R ~/foglamp-south-dht11/python/foglamp/plugins/south/dht11 /usr/local/foglamp/python/foglamp/plugin/south/
+  $ cd ~/Fledge
+  $ cp -R ~/fledge-south-dht11/python/fledge/plugins/south/dht11 python/fledge/plugin/south/
   $
 
-.. note:: If you have installed FogLAMP using an alternative *DESTDIR*, remember to add the path to the destination directory to the ``cp`` command.
+- If you have installed Fledge by executing ``sudo make install``, copy the structure of the *fledge-south-dht11/python/* directory into the installed *python* directory:
+
+.. code-block:: console
+
+  $ sudo cp -R ~/fledge-south-dht11/python/fledge/plugins/south/dht11 /usr/local/fledge/python/fledge/plugin/south/
+  $
+
+.. note:: If you have installed Fledge using an alternative *DESTDIR*, remember to add the path to the destination directory to the ``cp`` command.
 
 
 - Add service
 
 .. code-block:: console
 
-   $ curl -sX POST http://localhost:8081/foglamp/service -d '{"name": "dht11", "type": "south", "plugin": "dht11", "enabled": true}'
+   $ curl -sX POST http://localhost:8081/fledge/service -d '{"name": "dht11", "type": "south", "plugin": "dht11", "enabled": true}'
 
 .. note:: Each plugin repo has its own debian packaging script and documentation, And that is the recommended way to go! As above method(s) may need explicit action for linux and/or python dependencies installation.
 
@@ -316,13 +316,13 @@ Once south plugin is added as an enabled service, You are ready to use the DHT11
 
 .. code-block:: console
 
-   $ curl -X GET http://localhost:8081/foglamp/service | jq
+   $ curl -X GET http://localhost:8081/fledge/service | jq
 
 Let's see what we have collected so far:
 
 .. code-block:: console
 
-  $ curl -s http://localhost:8081/foglamp/asset | jq
+  $ curl -s http://localhost:8081/fledge/asset | jq
   [
     {
       "count": 158,
@@ -335,7 +335,7 @@ Finally, let's extract some values:
 
 .. code-block:: console
 
-  $ curl -s http://localhost:8081/foglamp/asset/dht11?limit=5 | jq
+  $ curl -s http://localhost:8081/fledge/asset/dht11?limit=5 | jq
   [
     {
       "timestamp": "2017-12-30 14:41:39.672",
@@ -380,7 +380,7 @@ Clearly we will not see many changes in temperature or humidity, unless we place
 
 .. code-block:: console
 
-  $ curl -s http://localhost:8081/foglamp/asset/dht11?limit=5 | jq
+  $ curl -s http://localhost:8081/fledge/asset/dht11?limit=5 | jq
   [
     {
       "timestamp": "2017-12-30 14:43:16.787",

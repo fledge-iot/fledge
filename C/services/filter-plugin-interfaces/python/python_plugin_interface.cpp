@@ -1,5 +1,5 @@
 /*
- * FogLAMP filter plugin interface related
+ * Fledge filter plugin interface related
  *
  * Copyright (c) 2019 Dianomic Systems
  *
@@ -36,7 +36,7 @@ extern void logErrorMessage();
 extern PLUGIN_INFORMATION *plugin_info_fn();
 extern void plugin_shutdown_fn(PLUGIN_HANDLE);
 extern PyObject* createReadingsList(const vector<Reading *>& readings);
-extern void setImportParameters(string& shimLayerPath, string& foglampPythonDir);
+extern void setImportParameters(string& shimLayerPath, string& fledgePythonDir);
 
 /**
  * Function to invoke 'plugin_reconfigure' function in python plugin
@@ -388,16 +388,16 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 		}
 
 		string shimLayerPath;
-		string foglampPythonDir;
+		string fledgePythonDir;
 		// Python 3.x set parameters for import
-		setImportParameters(shimLayerPath, foglampPythonDir);
+		setImportParameters(shimLayerPath, fledgePythonDir);
 
 		string name(string(PLUGIN_TYPE_FILTER) + string(SHIM_SCRIPT_POSTFIX));
 
 		// Set Python path for embedded Python 3.x
 		// Get current sys.path - borrowed reference
 		PyObject* sysPath = PySys_GetObject((char *)"path");
-		PyList_Append(sysPath, PyUnicode_FromString((char *) foglampPythonDir.c_str()));
+		PyList_Append(sysPath, PyUnicode_FromString((char *) fledgePythonDir.c_str()));
 		PyList_Append(sysPath, PyUnicode_FromString((char *) shimLayerPath.c_str()));
 
 		// Set sys.argv for embedded Python 3.x
@@ -574,9 +574,9 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 	gPluginName = pluginName;
 
 	string shimLayerPath;
-	string foglampPythonDir;
+	string fledgePythonDir;
 	// Python 3.x set parameters for import
-	setImportParameters(shimLayerPath, foglampPythonDir);
+	setImportParameters(shimLayerPath, fledgePythonDir);
 
 	string name(string(PLUGIN_TYPE_FILTER) + string(SHIM_SCRIPT_POSTFIX));
 
@@ -626,18 +626,18 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 	}
 
 	Logger::getLogger()->debug("FilterPlugin PluginInterfaceInit %s:%d: "
-				   "shimLayerPath=%s, foglampPythonDir=%s, plugin '%s'",
+				   "shimLayerPath=%s, fledgePythonDir=%s, plugin '%s'",
 				   __FUNCTION__,
 				   __LINE__,
 				   shimLayerPath.c_str(),
-				   foglampPythonDir.c_str(),
+				   fledgePythonDir.c_str(),
 				   pluginName);
 
 	// Set Python path for embedded Python 3.x
 	// Get current sys.path - borrowed reference
 	PyObject* sysPath = PySys_GetObject((char *)"path");
 	PyList_Append(sysPath, PyUnicode_FromString((char *) shimLayerPath.c_str()));
-	PyList_Append(sysPath, PyUnicode_FromString((char *) foglampPythonDir.c_str()));
+	PyList_Append(sysPath, PyUnicode_FromString((char *) fledgePythonDir.c_str()));
 
 	// Set sys.argv for embedded Python 3.x
 	int argc = 2;

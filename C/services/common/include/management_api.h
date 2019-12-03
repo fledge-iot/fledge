@@ -1,7 +1,7 @@
 #ifndef _MANAGEMENT_API_H
 #define _MANAGEMENT_API_H
 /*
- * FogLAMP storage service.
+ * Fledge storage service.
  *
  * Copyright (c) 2017 OSisoft, LLC
  *
@@ -17,9 +17,9 @@
 #include <time.h>
 #include <thread>
 
-#define PING			"/foglamp/service/ping"
-#define SERVICE_SHUTDOWN	"/foglamp/service/shutdown"
-#define CONFIG_CHANGE		"/foglamp/change"
+#define PING			"/fledge/service/ping"
+#define SERVICE_SHUTDOWN	"/fledge/service/shutdown"
+#define CONFIG_CHANGE		"/fledge/change"
 
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 

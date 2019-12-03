@@ -1,5 +1,5 @@
 /*
- * FogLAMP core microservice management API.
+ * Fledge core microservice management API.
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -43,7 +43,7 @@ void replaceSubstr(std::string& str, const std::string& from, const std::string&
 /**
  * Easy wrapper for getting a specific service.
  * It is called to get storage service details:
- * example: GET /foglamp/service?name=FogLAMP%20Storage
+ * example: GET /fledge/service?name=Fledge%20Storage
  *
  * Immediate utility is to get the management_port of
  * storage service when running tests.
@@ -140,9 +140,9 @@ void getCategoryWrapper(shared_ptr<HttpServer::Response> response,
  * Also handle th special item name 'children'
  * return ing child categoriies instead of the given item
  *
- * GET /foglamp/service/category/{categoryName}/{itemName}
+ * GET /fledge/service/category/{categoryName}/{itemName}
  * returns JSON string with item properties
- * GET /foglamp/service/category/{categoryName}/children
+ * GET /fledge/service/category/{categoryName}/children
  * returns JSON string with child categories
  */
 void getCategoryItemWrapper(shared_ptr<HttpServer::Response> response,
@@ -213,7 +213,7 @@ void addChildCategoryWrapper(shared_ptr<HttpServer::Response> response,
 }
 
 /**
- * Received a GET /foglamp/service/category/{categoryName}
+ * Received a GET /fledge/service/category/{categoryName}
  */
 void CoreManagementApi::getCategory(shared_ptr<HttpServer::Response> response,
 				    shared_ptr<HttpServer::Request> request)
@@ -248,7 +248,7 @@ void CoreManagementApi::getCategory(shared_ptr<HttpServer::Response> response,
 }
 
 /**
- * Received a GET /foglamp/service/category/{categoryName}/{itemName]
+ * Received a GET /fledge/service/category/{categoryName}/{itemName]
  */
 void CoreManagementApi::getCategoryItem(shared_ptr<HttpServer::Response> response,
 					shared_ptr<HttpServer::Request> request)
@@ -310,7 +310,7 @@ void CoreManagementApi::getCategoryItem(shared_ptr<HttpServer::Response> respons
 }
 
 /**
- * Received a GET /foglamp/service/category
+ * Received a GET /fledge/service/category
  */
 void CoreManagementApi::getAllCategories(shared_ptr<HttpServer::Response> response,
 					 shared_ptr<HttpServer::Request> request)
@@ -635,7 +635,7 @@ void CoreManagementApi::setConfigurationEntryPoints()
 }
 
 /**
- * Received a DELETE /foglamp/service/category/{categoryName}/{configItem}/value
+ * Received a DELETE /fledge/service/category/{categoryName}/{configItem}/value
  */
 void CoreManagementApi::deleteCategoryItemValue(shared_ptr<HttpServer::Response> response,
 						shared_ptr<HttpServer::Request> request)
@@ -665,7 +665,7 @@ void CoreManagementApi::deleteCategoryItemValue(shared_ptr<HttpServer::Response>
 }
 
 /**
- * Received PUT /foglamp/service/category/{categoryName}/{configItem}
+ * Received PUT /fledge/service/category/{categoryName}/{configItem}
  * Payload is {"value" : "some_data"}
  * Send to client the JSON string of category item properties
  */
@@ -731,7 +731,7 @@ void CoreManagementApi::setCategoryItemValue(shared_ptr<HttpServer::Response> re
 
 /**
  * Delete a config category
- * Received DELETE /foglamp/service/category/{categoryName}
+ * Received DELETE /fledge/service/category/{categoryName}
  * Send to client the JSON string of all remaining categories
  */
 void CoreManagementApi::deleteCategory(shared_ptr<HttpServer::Response> response,
@@ -762,7 +762,7 @@ void CoreManagementApi::deleteCategory(shared_ptr<HttpServer::Response> response
 
 /**
  * Delete child categories of a config category
- * Received DELETE /foglamp/service/category/{categoryName}/children/{childCategory}
+ * Received DELETE /fledge/service/category/{categoryName}/children/{childCategory}
  * Send to client the JSON string of all remaining categories
  */
 void CoreManagementApi::deleteChildCategory(shared_ptr<HttpServer::Response> response,
@@ -794,7 +794,7 @@ void CoreManagementApi::deleteChildCategory(shared_ptr<HttpServer::Response> res
 
 /**
  * Create a new configuration category
- * Received POST /foglamp/service/category
+ * Received POST /fledge/service/category
  *
  * Send to client the JSON string of new category's items
  */
@@ -893,7 +893,7 @@ void CoreManagementApi::createCategory(shared_ptr<HttpServer::Response> response
 
 /**
  * Add child categories to a given category name
- * Received POST /foglamp/service/category/{categoryName}/children
+ * Received POST /fledge/service/category/{categoryName}/children
  *
  * Send to client the JSON string with child categories
  */

@@ -1,6 +1,6 @@
-DROP TABLE IF EXISTS foglamp.tasks_old;
+DROP TABLE IF EXISTS fledge.tasks_old;
 
-CREATE TABLE foglamp.tasks_old (
+CREATE TABLE fledge.tasks_old (
              id           uuid                        NOT NULL,                               -- PK
              schedule_name character varying(255),                                            -- Name of the task
              process_name character varying(255)      NOT NULL,                               -- Name of the task's process
@@ -16,10 +16,10 @@ CREATE TABLE foglamp.tasks_old (
              ON UPDATE NO ACTION
              ON DELETE NO ACTION );
 
-INSERT INTO foglamp.tasks_old (id, schedule_name, process_name, state, start_time, end_time, reason, pid, exit_code) SELECT id, schedule_name, process_name, state, start_time, end_time, reason, pid, exit_code FROM foglamp.tasks;
-DROP TABLE IF EXISTS foglamp.tasks;
+INSERT INTO fledge.tasks_old (id, schedule_name, process_name, state, start_time, end_time, reason, pid, exit_code) SELECT id, schedule_name, process_name, state, start_time, end_time, reason, pid, exit_code FROM fledge.tasks;
+DROP TABLE IF EXISTS fledge.tasks;
 
-CREATE TABLE foglamp.tasks (
+CREATE TABLE fledge.tasks (
              id           uuid                        NOT NULL,                               -- PK
              schedule_name character varying(255),                                            -- Name of the task
              process_name character varying(255)      NOT NULL,                               -- Name of the task's process
@@ -35,8 +35,8 @@ CREATE TABLE foglamp.tasks (
              ON UPDATE NO ACTION
              ON DELETE NO ACTION );
 
-INSERT INTO foglamp.tasks SELECT id, schedule_name, process_name, state, start_time, end_time, reason, pid, exit_code FROM foglamp.tasks_old;
-DROP TABLE IF EXISTS foglamp.tasks_old;
+INSERT INTO fledge.tasks SELECT id, schedule_name, process_name, state, start_time, end_time, reason, pid, exit_code FROM fledge.tasks_old;
+DROP TABLE IF EXISTS fledge.tasks_old;
 
 DROP INDEX IF EXISTS tasks_ix1;
 CREATE INDEX tasks_ix1

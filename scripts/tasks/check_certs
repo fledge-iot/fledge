@@ -21,28 +21,28 @@
 #
 # Bash Script to check for expired certificates and repalce with temporary certificates
 
-if [ -z ${FOGLAMP_ROOT+x} ]; then
-    # Set FOGLAMP_ROOT as the default directory
-    FOGLAMP_ROOT="/usr/local/foglamp"
-    export FOGLAMP_ROOT
+if [ -z ${FLEDGE_ROOT+x} ]; then
+    # Set FLEDGE_ROOT as the default directory
+    FLEDGE_ROOT="/usr/local/fledge"
+    export FLEDGE_ROOT
 fi
 
 # Check if the default directory exists
-if [[ ! -d "${FOGLAMP_ROOT}" ]]; then
-    logger -p local0.err -t "foglamp.script.tasks.cjeck_certs" "Check_certs cannot be executed: ${FOGLAMP_ROOT} is not a valid directory."
-    echo "FogLAMP cannot be executed: ${FOGLAMP_ROOT} is not a valid directory."
-    echo "Create the enviroment variable FOGLAMP_ROOT before using check_certs."
-    echo "Specify the base directory for FogLAMP and set the variable with:"
-    echo "export FOGLAMP_ROOT=<basedir>"
+if [[ ! -d "${FLEDGE_ROOT}" ]]; then
+    logger -p local0.err -t "fledge.script.tasks.cjeck_certs" "Check_certs cannot be executed: ${FLEDGE_ROOT} is not a valid directory."
+    echo "Fledge cannot be executed: ${FLEDGE_ROOT} is not a valid directory."
+    echo "Create the enviroment variable FLEDGE_ROOT before using check_certs."
+    echo "Specify the base directory for Fledge and set the variable with:"
+    echo "export FLEDGE_ROOT=<basedir>"
     exit 1
 fi
 
-. $FOGLAMP_ROOT/scripts/common/write_log.sh
+. $FLEDGE_ROOT/scripts/common/write_log.sh
 
-if [ -z ${FOGLAMP_DATA+x} ]; then
-	export dir=$FOGLAMP_ROOT/data/etc/certs
+if [ -z ${FLEDGE_DATA+x} ]; then
+	export dir=$FLEDGE_ROOT/data/etc/certs
 else
-	export dir=$FOGLAMP_DATA/etc/certs
+	export dir=$FLEDGE_DATA/etc/certs
 fi
 
 export day=`expr 60 \* 60 \* 24`
@@ -52,13 +52,13 @@ for cert in $certs
 do
 	openssl x509 -noout -checkend $day -in $cert >/dev/null
 	if [ $? -eq 1 ]; then
-			write_log "" "foglamp.check_certs" "err" "Certificate $cert will expire in less than a day" "all" "pretty"
-			cd $FOGLAMP_ROOT
+			write_log "" "fledge.check_certs" "err" "Certificate $cert will expire in less than a day" "all" "pretty"
+			cd $FLEDGE_ROOT
 			scripts/certificates `basename $cert .cert` 7 "" "" "" ""
 	else
 		openssl x509 -noout -checkend $week -in $cert >/dev/null
 		if [ $? -eq 1 ]; then
-			write_log "" "foglamp.check_certs" "warn" "Certificate $cert will expire in less than a week" "all" "pretty"
+			write_log "" "fledge.check_certs" "warn" "Certificate $cert will expire in less than a week" "all" "pretty"
 		fi
 	fi
 done

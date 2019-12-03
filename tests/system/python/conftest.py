@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# FOGLAMP_BEGIN
-# See: http://foglamp.readthedocs.io/
-# FOGLAMP_END
+# FLEDGE_BEGIN
+# See: http://fledge.readthedocs.io/
+# FLEDGE_END
 
 """ Configuration system/python/conftest.py
 
@@ -30,39 +30,39 @@ sys.path.append(os.path.join(os.path.dirname(__file__)))
 
 
 @pytest.fixture
-def clean_setup_foglamp_packages(package_build_version):
-    assert os.environ.get('FOGLAMP_ROOT') is not None
+def clean_setup_fledge_packages(package_build_version):
+    assert os.environ.get('FLEDGE_ROOT') is not None
 
     try:
-        subprocess.run(["cd $FOGLAMP_ROOT/tests/system/lab && ./remove"], shell=True, check=True)
+        subprocess.run(["cd $FLEDGE_ROOT/tests/system/lab && ./remove"], shell=True, check=True)
     except subprocess.CalledProcessError:
         assert False, "remove package script failed!"
 
     try:
-        subprocess.run(["$FOGLAMP_ROOT/tests/system/python/scripts/package/setup {}".format(package_build_version)],
+        subprocess.run(["$FLEDGE_ROOT/tests/system/python/scripts/package/setup {}".format(package_build_version)],
                        shell=True, check=True)
     except subprocess.CalledProcessError:
         assert False, "install package script failed"
 
 
 @pytest.fixture
-def reset_and_start_foglamp(storage_plugin):
-    """Fixture that kills foglamp, reset database and starts foglamp again
+def reset_and_start_fledge(storage_plugin):
+    """Fixture that kills fledge, reset database and starts fledge again
         storage_plugin: Fixture that defines the storage plugin to be used for tests
     """
 
-    assert os.environ.get('FOGLAMP_ROOT') is not None
+    assert os.environ.get('FLEDGE_ROOT') is not None
 
-    subprocess.run(["$FOGLAMP_ROOT/scripts/foglamp kill"], shell=True, check=True)
+    subprocess.run(["$FLEDGE_ROOT/scripts/fledge kill"], shell=True, check=True)
     if storage_plugin == 'postgres':
-        subprocess.run(["sed -i 's/sqlite/postgres/g' $FOGLAMP_ROOT/data/etc/storage.json"], shell=True, check=True)
+        subprocess.run(["sed -i 's/sqlite/postgres/g' $FLEDGE_ROOT/data/etc/storage.json"], shell=True, check=True)
     else:
-        subprocess.run(["sed -i 's/postgres/sqlite/g' $FOGLAMP_ROOT/data/etc/storage.json"], shell=True, check=True)
+        subprocess.run(["sed -i 's/postgres/sqlite/g' $FLEDGE_ROOT/data/etc/storage.json"], shell=True, check=True)
 
-    subprocess.run(["echo YES | $FOGLAMP_ROOT/scripts/foglamp reset"], shell=True, check=True)
-    subprocess.run(["$FOGLAMP_ROOT/scripts/foglamp start"], shell=True)
-    stat = subprocess.run(["$FOGLAMP_ROOT/scripts/foglamp status"], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    assert "FogLAMP not running." not in stat.stderr.decode("utf-8")
+    subprocess.run(["echo YES | $FLEDGE_ROOT/scripts/fledge reset"], shell=True, check=True)
+    subprocess.run(["$FLEDGE_ROOT/scripts/fledge start"], shell=True)
+    stat = subprocess.run(["$FLEDGE_ROOT/scripts/fledge status"], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    assert "Fledge not running." not in stat.stderr.decode("utf-8")
 
 
 def find(pattern, path):
@@ -96,7 +96,7 @@ def remove_directories():
 
 @pytest.fixture
 def add_south():
-    def _add_foglamp_south(south_plugin, south_branch, foglamp_url, service_name="play", config=None,
+    def _add_fledge_south(south_plugin, south_branch, fledge_url, service_name="play", config=None,
                            plugin_lang="python", use_pip_cache=True, start_service=True, plugin_discovery_name=None,
                            installation_type='make'):
         """Add south plugin and start the service by default"""
@@ -107,15 +107,15 @@ def add_south():
         data = {"name": "{}".format(service_name), "type": "South", "plugin": "{}".format(plugin_discovery_name),
                 "enabled": _enabled, "config": _config}
 
-        conn = http.client.HTTPConnection(foglamp_url)
+        conn = http.client.HTTPConnection(fledge_url)
 
         def clone_make_install():
             try:
                 if plugin_lang == "python":
-                    subprocess.run(["$FOGLAMP_ROOT/tests/system/python/scripts/install_python_plugin {} south {} {}".format(
+                    subprocess.run(["$FLEDGE_ROOT/tests/system/python/scripts/install_python_plugin {} south {} {}".format(
                         south_branch, south_plugin, use_pip_cache)], shell=True, check=True)
                 else:
-                    subprocess.run(["$FOGLAMP_ROOT/tests/system/python/scripts/install_c_plugin {} south {}".format(
+                    subprocess.run(["$FLEDGE_ROOT/tests/system/python/scripts/install_c_plugin {} south {}".format(
                         south_branch, south_plugin)], shell=True, check=True)
             except subprocess.CalledProcessError:
                 assert False, "{} plugin installation failed".format(south_plugin)
@@ -126,30 +126,30 @@ def add_south():
             try:
                 os_platform = platform.platform()
                 pkg_mgr = 'yum' if 'centos' in os_platform or 'redhat' in os_platform else 'apt'
-                subprocess.run(["sudo {} install -y foglamp-south-{}".format(pkg_mgr, south_plugin)], shell=True, check=True)
+                subprocess.run(["sudo {} install -y fledge-south-{}".format(pkg_mgr, south_plugin)], shell=True, check=True)
             except subprocess.CalledProcessError:
                 assert False, "{} package installation failed!".format(south_plugin)
         else:
             print("Skipped {} plugin installation. Installation mechanism is set to {}.".format(south_plugin, installation_type))
 
         # Create south service
-        conn.request("POST", '/foglamp/service', json.dumps(data))
+        conn.request("POST", '/fledge/service', json.dumps(data))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         retval = json.loads(r)
         assert service_name == retval["name"]
-    return _add_foglamp_south
+    return _add_fledge_south
 
 
 @pytest.fixture
 def start_north_pi_v2():
-    def _start_north_pi_server_c(foglamp_url, pi_host, pi_port, pi_token, north_plugin="PI_Server_V2",
+    def _start_north_pi_server_c(fledge_url, pi_host, pi_port, pi_token, north_plugin="PI_Server_V2",
                                  taskname="NorthReadingsToPI", start_task=True):
         """Start north task"""
 
         _enabled = "true" if start_task else "false"
-        conn = http.client.HTTPConnection(foglamp_url)
+        conn = http.client.HTTPConnection(fledge_url)
         data = {"name": taskname,
                 "plugin": "{}".format(north_plugin),
                 "type": "north",
@@ -162,7 +162,7 @@ def start_north_pi_v2():
                            "URL": {"value": "https://{}:{}/ingress/messages".format(pi_host, pi_port)}
                            }
                 }
-        conn.request("POST", '/foglamp/scheduled/task', json.dumps(data))
+        conn.request("POST", '/fledge/scheduled/task', json.dumps(data))
         r = conn.getresponse()
         assert 200 == r.status
         retval = r.read().decode()
@@ -172,13 +172,13 @@ def start_north_pi_v2():
 
 @pytest.fixture
 def start_north_pi_v2_web_api():
-    def _start_north_pi_server_c_web_api(foglamp_url, pi_host, pi_port, pi_db="Dianomic", auth_method='basic',
+    def _start_north_pi_server_c_web_api(fledge_url, pi_host, pi_port, pi_db="Dianomic", auth_method='basic',
                                          pi_user=None, pi_pwd=None, north_plugin="PI_Server_V2",
                                          taskname="NorthReadingsToPI_WebAPI", start_task=True):
         """Start north task"""
 
         _enabled = True if start_task else False
-        conn = http.client.HTTPConnection(foglamp_url)
+        conn = http.client.HTTPConnection(fledge_url)
         data = {"name": taskname,
                 "plugin": "{}".format(north_plugin),
                 "type": "north",
@@ -196,7 +196,7 @@ def start_north_pi_v2_web_api():
                            }
                 }
 
-        conn.request("POST", '/foglamp/scheduled/task', json.dumps(data))
+        conn.request("POST", '/fledge/scheduled/task', json.dumps(data))
         r = conn.getresponse()
         assert 200 == r.status
         retval = r.read().decode()
@@ -287,27 +287,27 @@ def read_data_from_pi():
 
 @pytest.fixture
 def add_filter():
-    def _add_filter(filter_plugin, filter_plugin_branch, filter_name, filter_config, foglamp_url, filter_user_svc_task):
+    def _add_filter(filter_plugin, filter_plugin_branch, filter_name, filter_config, fledge_url, filter_user_svc_task):
         """
 
-        :param filter_plugin: filter plugin `foglamp-filter-?`
+        :param filter_plugin: filter plugin `fledge-filter-?`
         :param filter_plugin_branch:
         :param filter_name: name of the filter with which it will be added to pipeline
         :param filter_config:
-        :param foglamp_url:
+        :param fledge_url:
         :param filter_user_svc_task: south service or north task instance name
         """
 
         try:
-            subprocess.run(["$FOGLAMP_ROOT/tests/system/python/scripts/install_c_plugin {} filter {}".format(
+            subprocess.run(["$FLEDGE_ROOT/tests/system/python/scripts/install_c_plugin {} filter {}".format(
                 filter_plugin_branch, filter_plugin)], shell=True, check=True)
         except subprocess.CalledProcessError:
             assert False, "{} filter plugin installation failed".format(filter_plugin)
 
         data = {"name": "{}".format(filter_name), "plugin": "{}".format(filter_plugin), "filter_config": filter_config}
-        conn = http.client.HTTPConnection(foglamp_url)
+        conn = http.client.HTTPConnection(fledge_url)
 
-        conn.request("POST", '/foglamp/filter', json.dumps(data))
+        conn.request("POST", '/fledge/filter', json.dumps(data))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -316,7 +316,7 @@ def add_filter():
 
         uri = "{}/pipeline?allow_duplicates=true&append_filter=true".format(quote(filter_user_svc_task))
         filters_in_pipeline = [filter_name]
-        conn.request("PUT", '/foglamp/filter/' + uri, json.dumps({"pipeline": filters_in_pipeline}))
+        conn.request("PUT", '/fledge/filter/' + uri, json.dumps({"pipeline": filters_in_pipeline}))
         r = conn.getresponse()
         assert 200 == r.status
         res = r.read().decode()
@@ -329,9 +329,9 @@ def add_filter():
 
 @pytest.fixture
 def enable_schedule():
-    def _enable_sch(foglamp_url, sch_name):
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("PUT", '/foglamp/schedule/enable', json.dumps({"schedule_name": sch_name}))
+    def _enable_sch(fledge_url, sch_name):
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("PUT", '/fledge/schedule/enable', json.dumps({"schedule_name": sch_name}))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -343,9 +343,9 @@ def enable_schedule():
 
 @pytest.fixture
 def disable_schedule():
-    def _disable_sch(foglamp_url, sch_name):
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("PUT", '/foglamp/schedule/disable', json.dumps({"schedule_name": sch_name}))
+    def _disable_sch(fledge_url, sch_name):
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("PUT", '/fledge/schedule/disable', json.dumps({"schedule_name": sch_name}))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -358,8 +358,8 @@ def disable_schedule():
 def pytest_addoption(parser):
     parser.addoption("--storage-plugin", action="store", default="sqlite",
                      help="Database plugin to use for tests")
-    parser.addoption("--foglamp-url", action="store", default="localhost:8081",
-                     help="FogLAMP client api url")
+    parser.addoption("--fledge-url", action="store", default="localhost:8081",
+                     help="Fledge client api url")
     parser.addoption("--use-pip-cache", action="store", default=False,
                      help="use pip cache is requirement is available")
     parser.addoption("--wait-time", action="store", default=5, type=int,
@@ -371,13 +371,13 @@ def pytest_addoption(parser):
                      help="Verify data from external north system api")
 
     parser.addoption("--remote-user", action="store", default="ubuntu",
-                     help="Username on remote machine where FogLAMP will run")
+                     help="Username on remote machine where Fledge will run")
     parser.addoption("--remote-ip", action="store", default="127.0.0.1",
-                     help="IP of remote machine where FogLAMP will run")
+                     help="IP of remote machine where Fledge will run")
     parser.addoption("--key-path", action="store", default="~/.ssh/id_rsa.pub",
                      help="Path of key file used for authentication to remote machine")
-    parser.addoption("--remote-foglamp-path", action="store",
-                     help="Path on the remote machine where FogLAMP is clone and built")
+    parser.addoption("--remote-fledge-path", action="store",
+                     help="Path on the remote machine where Fledge is clone and built")
 
     # South/North Args
     parser.addoption("--south-branch", action="store", default="develop",
@@ -393,7 +393,7 @@ def pytest_addoption(parser):
     parser.addoption("--filter-branch", action="store", default="develop", help="Filter plugin repo branch")
     parser.addoption("--filter-name", action="store", default="Meta #1", help="Filter name to be added to pipeline")
 
-    # External Services Arg foglamp-service-* e.g. foglamp-service-notification
+    # External Services Arg fledge-service-* e.g. fledge-service-notification
     parser.addoption("--service-branch", action="store", default="develop",
                      help="service branch name")
     # Notify Arg
@@ -430,7 +430,7 @@ def pytest_addoption(parser):
                      help="Kafka Server Host Name/IP")
     parser.addoption("--kafka-port", action="store", default="9092", type=int,
                      help="Kafka Server Port")
-    parser.addoption("--kafka-topic", action="store", default="FogLAMP", help="Kafka topic")
+    parser.addoption("--kafka-topic", action="store", default="Fledge", help="Kafka topic")
     parser.addoption("--kafka-rest-port", action="store", default="8082", help="Kafka Rest Proxy Port")
 
     # Modbus Config
@@ -466,8 +466,8 @@ def key_path(request):
 
 
 @pytest.fixture
-def remote_foglamp_path(request):
-    return request.config.getoption("--remote-foglamp-path")
+def remote_fledge_path(request):
+    return request.config.getoption("--remote-fledge-path")
 
 
 @pytest.fixture
@@ -521,8 +521,8 @@ def asset_name(request):
 
 
 @pytest.fixture
-def foglamp_url(request):
-    return request.config.getoption("--foglamp-url")
+def fledge_url(request):
+    return request.config.getoption("--fledge-url")
 
 
 @pytest.fixture

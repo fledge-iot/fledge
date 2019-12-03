@@ -3,16 +3,16 @@
    <br />
 
 **************************************
-Building and using FogLAMP on Raspbian
+Building and using Fledge on Raspbian
 **************************************
 
-FogLAMP requires the use of Python 3.5.3+ in order to support the
-asynchronous IO mechanisms used by FogLAMP. Earlier Raspberry Pi Raspbian
+Fledge requires the use of Python 3.5.3+ in order to support the
+asynchronous IO mechanisms used by Fledge. Earlier Raspberry Pi Raspbian
 distributions support Python 3.4 as the latest version of Python.
-In order to build and run FogLAMP on Raspbian the version of Python
+In order to build and run Fledge on Raspbian the version of Python
 must be updated manually if your distribution has an older version.
 
-**NOTE**: These steps must be executed *in addition* to what is described in the README file when you install FogLAMP on Raspbian.
+**NOTE**: These steps must be executed *in addition* to what is described in the README file when you install Fledge on Raspbian.
 
 Check your Python version by running the command
 ::
@@ -62,5 +62,5 @@ You may also link tothe new version if you wish
     sudo ln -s /usr/bin/pip3 /usr/local/bin/pip3
 |br|
 Once python3.5 has been installed you may follow the instructions
-in the README file to build, install and run FogLAMP on Raspberry
+in the README file to build, install and run Fledge on Raspberry
 Pi using the Raspbian distribution.

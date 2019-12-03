@@ -4,10 +4,10 @@
 
 
 ***********************
-FogLAMP Storage Service
+Fledge Storage Service
 ***********************
 
-This is the Storage service of the FogLAMP platform, it provides a
+This is the Storage service of the Fledge platform, it provides a
 storage layer with REST interface and a pluggable mechanism to attach
 to data storage systems, e.g. databases or document stores.
 |br| |br|
@@ -66,7 +66,7 @@ the command line argument *--port=* and *--address=* to set the port and
 address of the core microservice.
 
 The Storage layer will look for Storage plugins in the current directory
-or in the directory *$FOGLAMP_ROOT/plugins/storage*.
+or in the directory *$FLEDGE_ROOT/plugins/storage*.
 |br| |br|
 
 
@@ -82,9 +82,9 @@ these ports by connecting to the core and requesting for the Storage
 layer registration information.
 
 To run the Storage service with fixed ports modify the configuration
-cache file, *storage.json* in *$FOGLAMP_DATA/etc* to pass explicit ports
-rather than 0. Note that if not set, *$FOGLAMP_DATA* has the same value of
-*$FOGLAMP_ROOT*. 
+cache file, *storage.json* in *$FLEDGE_DATA/etc* to pass explicit ports
+rather than 0. Note that if not set, *$FLEDGE_DATA* has the same value of
+*$FLEDGE_ROOT*. 
 
 config.json file
 ----------------

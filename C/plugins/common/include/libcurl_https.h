@@ -1,7 +1,7 @@
 #ifndef _LIBCURL_HTTPS_H
 #define _LIBCURL_HTTPS_H
 /*
- * FogLAMP HTTP Sender wrapper.
+ * Fledge HTTP Sender wrapper.
  *
  * Copyright (c) 2019 Diamnomic Systems
  *

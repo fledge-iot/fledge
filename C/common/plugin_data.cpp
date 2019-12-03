@@ -1,5 +1,5 @@
 /*
- * FogLAMP persist plugin data class.
+ * Fledge persist plugin data class.
  *
  * Copyright (c) 2018 Dianomic Systems
  *

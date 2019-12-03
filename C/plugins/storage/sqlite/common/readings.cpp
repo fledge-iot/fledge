@@ -1,5 +1,5 @@
 /*
- * FogLAMP storage service.
+ * Fledge storage service.
  *
  * Copyright (c) 2018 OSIsoft, LLC
  *
@@ -33,7 +33,7 @@
 //#endif
 
 /**
- * SQLite3 storage plugin for FogLAMP
+ * SQLite3 storage plugin for Fledge
  */
 
 using namespace std;
@@ -73,7 +73,7 @@ static int purgeBlockSize = PURGE_DELETE_BLOCK_SIZE;
 #define END_TIME std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now(); \
 				 auto usecs = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
 
-#define _DB_NAME              "/foglamp.sqlite"
+#define _DB_NAME              "/fledge.sqlite"
 
 static time_t connectErrorTime = 0;
 
@@ -210,7 +210,7 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 	sql.append("AS \"timestamp\", reading, ");
 
 	// Get all datapoints in 'reading' field
-	sql.append("json_each.key AS x, json_each.value AS theval FROM foglamp.readings, json_each(readings.reading) ");
+	sql.append("json_each.key AS x, json_each.value AS theval FROM fledge.readings, json_each(readings.reading) ");
 
 	// Add where condition
 	sql.append("WHERE ");
@@ -319,7 +319,7 @@ bool 		add_row = false;
 		return -1;
 	}
 
-	sql.append("INSERT INTO foglamp.readings ( user_ts, asset_code, read_key, reading ) VALUES ");
+	sql.append("INSERT INTO fledge.readings ( user_ts, asset_code, read_key, reading ) VALUES ");
 
 	if (!doc.HasMember("readings"))
 	{
@@ -479,7 +479,7 @@ char *zErrMsg = NULL;
 int rc;
 int retrieve;
 
-	// SQL command to extract the data from the foglamp.readings
+	// SQL command to extract the data from the fledge.readings
 	const char *sql_cmd = R"(
 	SELECT
 		id,
@@ -489,7 +489,7 @@ int retrieve;
 		strftime('%%Y-%%m-%%d %%H:%%M:%%S', user_ts, 'utc')  ||
 		substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
 		strftime('%%Y-%%m-%%d %%H:%%M:%%f', ts, 'utc') AS ts
-	FROM foglamp.readings
+	FROM fledge.readings
 	WHERE id >= %lu
 	ORDER BY id ASC
 	LIMIT %u;
@@ -574,7 +574,7 @@ bool		isAggregate = false;
 						strftime(')" F_DATEH24_SEC R"(', user_ts, 'localtime')  ||
 						substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
 						strftime(')" F_DATEH24_MS R"(', ts, 'localtime') AS ts
-					FROM foglamp.readings)";
+					FROM fledge.readings)";
 
 			sql.append(sql_cmd);
 		}
@@ -605,7 +605,7 @@ bool		isAggregate = false;
 				{
 					return false;
 				}
-				sql.append(" FROM foglamp.");
+				sql.append(" FROM fledge.");
 			}
 			else if (document.HasMember("return"))
 			{
@@ -794,7 +794,7 @@ bool		isAggregate = false;
 					}
 					col++;
 				}
-				sql.append(" FROM foglamp.");
+				sql.append(" FROM fledge.");
 			}
 			else
 			{
@@ -813,7 +813,7 @@ bool		isAggregate = false;
 						strftime(')" F_DATEH24_SEC R"(', user_ts, 'localtime')  ||
 						substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
 						strftime(')" F_DATEH24_MS R"(', ts, 'localtime') AS ts
-					FROM foglamp.)";
+					FROM fledge.)";
 
 				sql.append(sql_cmd);
 			}
@@ -931,7 +931,7 @@ int blocks = 0;
 		char *zErrMsg = NULL;
 		int rc;
 		rc = SQLexec(dbHandle,
-		     "select max(rowid) from foglamp.readings;",
+		     "select max(rowid) from fledge.readings;",
 	  	     rowidCallback,
 		     &rowidLimit,
 		     &zErrMsg);
@@ -949,7 +949,7 @@ int blocks = 0;
 		char *zErrMsg = NULL;
 		int rc;
 		rc = SQLexec(dbHandle,
-		     "select min(rowid) from foglamp.readings;",
+		     "select min(rowid) from fledge.readings;",
 	  	     rowidCallback,
 		     &minrowidLimit,
 		     &zErrMsg);
@@ -969,7 +969,7 @@ int blocks = 0;
 		 * So set age based on the data we have and continue.
 		 */
 		SQLBuffer oldest;
-		oldest.append("SELECT (strftime('%s','now', 'utc') - strftime('%s', MIN(user_ts)))/360 FROM foglamp.readings where rowid <= ");
+		oldest.append("SELECT (strftime('%s','now', 'utc') - strftime('%s', MIN(user_ts)))/360 FROM fledge.readings where rowid <= ");
 		oldest.append(rowidLimit);
 		oldest.append(';');
 		const char *query = oldest.coalesce();
@@ -1025,7 +1025,7 @@ int blocks = 0;
 
 			// e.g. select id from readings where rowid = 219867307 AND user_ts < datetime('now' , '-24 hours', 'utc');
 			SQLBuffer sqlBuffer;
-			sqlBuffer.append("select id from foglamp.readings where rowid = ");
+			sqlBuffer.append("select id from fledge.readings where rowid = ");
 			sqlBuffer.append(m);
 			sqlBuffer.append(" AND user_ts < datetime('now' , '-");
 			sqlBuffer.append(age);
@@ -1078,7 +1078,7 @@ int blocks = 0;
 		int rc;
 		int lastPurgedId;
 		SQLBuffer idBuffer;
-		idBuffer.append("select id from foglamp.readings where rowid = ");
+		idBuffer.append("select id from fledge.readings where rowid = ");
 		idBuffer.append(rowidLimit);
 		idBuffer.append(';');
 		const char *idQuery = idBuffer.coalesce();
@@ -1126,7 +1126,7 @@ int blocks = 0;
 			rowidMin = rowidLimit;
 		}
 		SQLBuffer sql;
-		sql.append("DELETE FROM foglamp.readings WHERE rowid <= ");
+		sql.append("DELETE FROM fledge.readings WHERE rowid <= ");
 		sql.append(rowidMin);
 		sql.append(';');
 		const char *query = sql.coalesce();

@@ -1,7 +1,7 @@
 #ifndef _READING_H
 #define _READING_H
 /*
- * FogLAMP storage client.
+ * Fledge storage client.
  *
  * Copyright (c) 2018 OSisoft, LLC
  *

@@ -1,30 +1,30 @@
 #!/bin/sh
-if [ "${FOGLAMP_ROOT}" = "" ]; then
-	if [ ! -x /usr/local/foglamp/services/foglamp.services.storage ] && [ ! -x /usr/local/foglamp/services/storage ]; then
-		logger "Unable to find FogLAMP storage microservice in the default location"
+if [ "${FLEDGE_ROOT}" = "" ]; then
+	if [ ! -x /usr/local/fledge/services/fledge.services.storage ] && [ ! -x /usr/local/fledge/services/storage ]; then
+		logger "Unable to find Fledge storage microservice in the default location"
 		exit 1
 	else
-		if [ -x /usr/local/foglamp/services/foglamp.services.storage ]; then
-			export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/local/foglamp/lib
-			/usr/local/foglamp/services/foglamp.services.storage "$@"
+		if [ -x /usr/local/fledge/services/fledge.services.storage ]; then
+			export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/local/fledge/lib
+			/usr/local/fledge/services/fledge.services.storage "$@"
 		else
-			/usr/local/foglamp/services/storage "$@"
+			/usr/local/fledge/services/storage "$@"
 		fi
-		logger "FogLAMP storage microservice in the default location: /usr/local/foglamp"
+		logger "Fledge storage microservice in the default location: /usr/local/fledge"
 		exit 0
 	fi
 else
-	if [ ! -x ${FOGLAMP_ROOT}/services/foglamp.services.storage ] && [ ! -x ${FOGLAMP_ROOT}/services/storage ]; then
-		logger "Unable to find FogLAMP storage microservice in ${FOGLAMP_ROOT}/services/storage"
+	if [ ! -x ${FLEDGE_ROOT}/services/fledge.services.storage ] && [ ! -x ${FLEDGE_ROOT}/services/storage ]; then
+		logger "Unable to find Fledge storage microservice in ${FLEDGE_ROOT}/services/storage"
 		exit 1
 	else
-		if [ -x ${FOGLAMP_ROOT}/services/foglamp.services.storage ]; then
-			export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${FOGLAMP_ROOT}/lib:/usr/local/foglamp/lib
-			${FOGLAMP_ROOT}/services/foglamp.services.storage "$@"
+		if [ -x ${FLEDGE_ROOT}/services/fledge.services.storage ]; then
+			export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${FLEDGE_ROOT}/lib:/usr/local/fledge/lib
+			${FLEDGE_ROOT}/services/fledge.services.storage "$@"
 		else
-			${FOGLAMP_ROOT}/services/storage "$@"
+			${FLEDGE_ROOT}/services/storage "$@"
 		fi
-		logger "FogLAMP storage microservice found in FOGLAMP_ROOT location: ${FOGLAMP_ROOT}"
+		logger "Fledge storage microservice found in FLEDGE_ROOT location: ${FLEDGE_ROOT}"
 		exit 0
 	fi
 fi

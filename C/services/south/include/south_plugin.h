@@ -1,7 +1,7 @@
 #ifndef _SOUTH_PLUGIN
 #define _SOUTH_PLUGIN
 /*
- * FogLAMP south service.
+ * Fledge south service.
  *
  * Copyright (c) 2018 OSisoft, LLC
  *

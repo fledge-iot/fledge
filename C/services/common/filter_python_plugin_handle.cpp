@@ -1,5 +1,5 @@
 /*
- * FogLAMP Filter Python plugin handle related
+ * Fledge Filter Python plugin handle related
  *
  * Copyright (c) 2019 Dianomic Systems
  *

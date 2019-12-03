@@ -1,7 +1,7 @@
 #ifndef _PLUGIN_API
 #define _PLUGIN_API
 /*
- * FogLAMP storage service.
+ * Fledge storage service.
  *
  * Copyright (c) 2017,2018 OSisoft, LLC
  *

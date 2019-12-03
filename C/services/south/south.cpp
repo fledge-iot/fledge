@@ -1,5 +1,5 @@
 /*
- * FogLAMP storage service.
+ * Fledge storage service.
  *
  * Copyright (c) 2018 OSisoft, LLC
  *
@@ -172,7 +172,7 @@ int	size;
 
 
 /**
- * Callback called by south plugin to ingest readings into FogLAMP
+ * Callback called by south plugin to ingest readings into Fledge
  *
  * @param ingest	The ingest class to use
  * @param reading	The Reading to ingest
@@ -242,7 +242,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		configHandler->registerCategory(this, m_name+"Advanced");
 
 		// Get a handle on the storage layer
-		ServiceRecord storageRecord("FogLAMP Storage");
+		ServiceRecord storageRecord("Fledge Storage");
 		if (!m_mgtClient->getService(storageRecord))
 		{
 			logger->fatal("Unable to find storage service");

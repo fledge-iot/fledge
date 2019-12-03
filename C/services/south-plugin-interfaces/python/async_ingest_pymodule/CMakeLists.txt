@@ -42,4 +42,4 @@ set_target_properties(${PROJECT_NAME} PROPERTIES VERSION 1)
 set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "")
 
 # Install libraries
-install(TARGETS ${PROJECT_NAME} DESTINATION foglamp/python)
+install(TARGETS ${PROJECT_NAME} DESTINATION fledge/python)

@@ -126,7 +126,7 @@ fi
 
 # Email
 if [ -z ${7+x} ]; then
-  SSL_EMAIL="foglamp@googlegroups.com"
+  SSL_EMAIL="fledge@googlegroups.com"
 else
   SSL_EMAIL="$7"
 fi

@@ -2,7 +2,7 @@
 #define _CONFIG_CATEGORY_H
 
 /*
- * FogLAMP category management
+ * Fledge category management
  *
  * Copyright (c) 2017-2018 OSisoft, LLC
  *

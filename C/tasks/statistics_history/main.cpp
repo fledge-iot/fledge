@@ -1,5 +1,5 @@
 /*
- * FogLAMP statistics history task
+ * Fledge statistics history task
  *
  * Copyright (c) 2018 Dianomic Systems
  *

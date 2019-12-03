@@ -1,5 +1,5 @@
 /*
- * Utility to run some commands for foglamp as root using setuid
+ * Utility to run some commands for fledge as root using setuid
  *
  * Copyright (c) 2019 Dianomic Systems
  *
@@ -19,10 +19,10 @@
 extern int errno;
 
 /**
- * Check whether file/dir exists within FOGLAMP_ROOT
+ * Check whether file/dir exists within FLEDGE_ROOT
  *
- * @param rootdir	FOGLAMP_ROOT path
- * @param file		relative path of file or dir inside FOGLAMP_ROOT
+ * @param rootdir	FLEDGE_ROOT path
+ * @param file		relative path of file or dir inside FLEDGE_ROOT
  */
 bool checkFile(char *rootdir, char *file)
 {
@@ -67,14 +67,14 @@ int getCmdType(const char *cmd)
  *
  *		Example command to execute						Way to invoke cmdutil to do so
  *		--------------------------						-------------------------------
- * 		sudo tar -C $FOGLAMP_ROOT -xf abc.tar.gz		cmdutil tar-extract abc.tar.gz
- *		sudo cp -r abc $FOGLAMP_ROOT/xyz				cmdutil cp abc xyz
- *		sudo rm -rf $FOGLAMP_ROOT/abc					cmdutil rm abc
+ * 		sudo tar -C $FLEDGE_ROOT -xf abc.tar.gz		cmdutil tar-extract abc.tar.gz
+ *		sudo cp -r abc $FLEDGE_ROOT/xyz				cmdutil cp abc xyz
+ *		sudo rm -rf $FLEDGE_ROOT/abc					cmdutil rm abc
  *
  *		sudo pip3 install aiocoap==0.3 --no-cache-dir	cmdutil pip3-pkg aiocoap==0.3
  *		sudo pip3 install -Ir requirements.txt --no-cache-dir	cmdutil pip3-req requirements.txt
  *
- *		sudo mkdir -p $FOGLAMP_ROOT/abc					cmdutil mkdir abc
+ *		sudo mkdir -p $FLEDGE_ROOT/abc					cmdutil mkdir abc
  */
 int main(int argc, char *argv[])
 {
@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	char *rootdir = getenv("FOGLAMP_ROOT");
+	char *rootdir = getenv("FLEDGE_ROOT");
 	if (!rootdir || rootdir[0]==0)
 	{
 		printf("Unable to find path where archive is to be extracted\n");
@@ -98,13 +98,13 @@ int main(int argc, char *argv[])
 		return 2;
 	}
 	
-	if (!checkFile(rootdir, (char *) "bin/foglamp") || 
-		!checkFile(rootdir, (char *) "services/foglamp.services.storage") || 
-		!checkFile(rootdir, (char *) "python/foglamp/services/core/routes.py") || 
+	if (!checkFile(rootdir, (char *) "bin/fledge") || 
+		!checkFile(rootdir, (char *) "services/fledge.services.storage") || 
+		!checkFile(rootdir, (char *) "python/fledge/services/core/routes.py") || 
 		!checkFile(rootdir, (char *) "lib/libcommon-lib.so") || 
 		!checkFile(rootdir, (char *) "tasks/sending_process"))
 	{
-		printf("Unable to find foglamp insallation\n");
+		printf("Unable to find fledge insallation\n");
 		return 2;
 	}
 

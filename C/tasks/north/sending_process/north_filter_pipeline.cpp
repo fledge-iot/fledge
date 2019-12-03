@@ -1,5 +1,5 @@
 /*
- * FogLAMP filter pipeline class for sending process
+ * Fledge filter pipeline class for sending process
  *
  * Copyright (c) 2019 Dianomic Systems
  *

@@ -1,5 +1,5 @@
 /*
- * FogLAMP storage service client
+ * Fledge storage service client
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -18,7 +18,7 @@ using namespace rapidjson;
 
 /**
  * Construct a result set from a JSON document returned from
- * the FogLAMP storage service.
+ * the Fledge storage service.
  *
  * @param json	The JSON document to construct the result set from
  */

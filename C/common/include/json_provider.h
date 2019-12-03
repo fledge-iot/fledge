@@ -1,7 +1,7 @@
 #ifndef _JSONPROVIDER_H
 #define _JSONPROVIDER_H
 /*
- * FogLAMP storage service.
+ * Fledge storage service.
  *
  * Copyright (c) 2017 OSisoft, LLC
  *

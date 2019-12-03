@@ -1,5 +1,5 @@
 /*
- * FogLAMP storage service client
+ * Fledge storage service client
  *
  * Copyright (c) 2018 OSIsoft, LLC
  *

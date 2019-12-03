@@ -1,2 +1,2 @@
-DROP TABLE foglamp.filters;
-DROP TABLE foglamp.filter_users;
+DROP TABLE fledge.filters;
+DROP TABLE fledge.filter_users;

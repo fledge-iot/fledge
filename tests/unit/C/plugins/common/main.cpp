@@ -4,7 +4,7 @@
 #include <string>
 
 /*
- * FogLAMP Readings to OMF translation unit tests
+ * Fledge Readings to OMF translation unit tests
  *
  * Copyright (c) 2018 Dianomic Systems
  *

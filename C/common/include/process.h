@@ -1,7 +1,7 @@
 #ifndef _PROCESS_H
 #define _PROCESS_H
 /*
- * FogLAMP process base class
+ * Fledge process base class
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -15,13 +15,13 @@
 #include <string.h>
 
 /**
- * FogLAMP process base class
+ * Fledge process base class
  */
-class FogLampProcess
+class FledgeProcess
 {
 	public:
-		FogLampProcess(int argc, char** argv);
-		virtual ~FogLampProcess();
+		FledgeProcess(int argc, char** argv);
+		virtual ~FledgeProcess();
 		StorageClient*          getStorageClient() const;
 		ManagementClient*	getManagementClient() const;
 		Logger			*getLogger() const;
@@ -36,7 +36,7 @@ class FogLampProcess
 		const time_t		m_stime;    // Start time
 		const int		m_argc;
 		const char**		m_arg_vals;
-		// FogLAMP core management service details
+		// Fledge core management service details
 		std::string		m_name;
 		int			m_core_mngt_port;
 		std::string		m_core_mngt_host;

@@ -1,1 +1,1 @@
-ALTER TABLE foglamp.tasks DROP COLUMN schedule_id;
+ALTER TABLE fledge.tasks DROP COLUMN schedule_id;

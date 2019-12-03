@@ -1,7 +1,7 @@
 #ifndef _NORTH_FILTER_PIPELINE_H
 #define _NORTH_FILTER_PIPELINE_H
 /*
- * FogLAMP filter pipeline class for sending process
+ * Fledge filter pipeline class for sending process
  *
  * Copyright (c) 2019 Dianomic Systems
  *

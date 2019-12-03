@@ -1,7 +1,7 @@
 #ifndef _RETURNS_H
 #define _RETURNS_H
 /*
- * FogLAMP storage client.
+ * Fledge storage client.
  *
  * Copyright (c) 2018 OSisoft, LLC
  *

@@ -1,5 +1,5 @@
 /*
- * FogLAMP
+ * Fledge
  *
  * Copyright (c) 2019 Dianomic Systems
  *

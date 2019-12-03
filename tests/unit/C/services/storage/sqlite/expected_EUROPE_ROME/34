@@ -1,1 +1,1 @@
-{ "entryPoint" : "retrieve", "message" : "no such table: foglamp.doesntexist", "retryable" : false}
+{ "entryPoint" : "retrieve", "message" : "no such table: fledge.doesntexist", "retryable" : false}

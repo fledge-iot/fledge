@@ -1,5 +1,5 @@
 /*
- * FogLAMP process class
+ * Fledge process class
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -9,7 +9,7 @@
  */
 
 /**
- * FogLAMP process base class
+ * Fledge process base class
  */
 #include <iostream>
 #include <logger.h>
@@ -21,7 +21,7 @@
 #include <cxxabi.h>
 
 
-#define LOG_SERVICE_NAME  "FogLAMP Process"
+#define LOG_SERVICE_NAME  "Fledge Process"
 
 using namespace std;
 
@@ -69,7 +69,7 @@ int	size;
 }
 
 // Destructor
-FogLampProcess::~FogLampProcess()
+FledgeProcess::~FledgeProcess()
 {
 	delete m_client;
 	delete m_storage;
@@ -77,7 +77,7 @@ FogLampProcess::~FogLampProcess()
 }
 
 // Constructor
-FogLampProcess::FogLampProcess(int argc, char** argv) :
+FledgeProcess::FledgeProcess(int argc, char** argv) :
 				m_stime(time(NULL)),
 				m_argc(argc),
 				m_arg_vals((const char**) argv)
@@ -130,11 +130,11 @@ FogLampProcess::FogLampProcess(int argc, char** argv) :
 		throw runtime_error(string("Error while parsing optional options: ") + e.what());
 	}
 
-	// Connection to FogLamp core microservice
+	// Connection to Fledge core microservice
 	m_client = new ManagementClient(m_core_mngt_host, m_core_mngt_port);
 
 	// Storage layer handle
-	ServiceRecord storageInfo("FogLAMP Storage");
+	ServiceRecord storageInfo("Fledge Storage");
 
 	if (!m_client->getService(storageInfo))
 	{
@@ -165,7 +165,7 @@ FogLampProcess::FogLampProcess(int argc, char** argv) :
  * @param name    The argument name (--xyz=)
  * @return        The argument value if found or an emopty string
  */
-string FogLampProcess::getArgValue(const string& name) const
+string FledgeProcess::getArgValue(const string& name) const
 {
 	for (int i=1; i < m_argc; i++)
 	{
@@ -182,7 +182,7 @@ string FogLampProcess::getArgValue(const string& name) const
 /**
  * Return storage client
  */
-StorageClient* FogLampProcess::getStorageClient() const
+StorageClient* FledgeProcess::getStorageClient() const
 {
         return m_storage;
 }
@@ -190,7 +190,7 @@ StorageClient* FogLampProcess::getStorageClient() const
 /**
  * Return management client
  */
-ManagementClient* FogLampProcess::getManagementClient() const
+ManagementClient* FledgeProcess::getManagementClient() const
 {
 	return m_client;
 }
@@ -198,7 +198,7 @@ ManagementClient* FogLampProcess::getManagementClient() const
 /**
  * Return Logger
  */
-Logger *FogLampProcess::getLogger() const
+Logger *FledgeProcess::getLogger() const
 {
 	return m_logger;
 }

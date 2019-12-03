@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# FOGLAMP_BEGIN
-# See: http://foglamp.readthedocs.io/
-# FOGLAMP_END
+# FLEDGE_BEGIN
+# See: http://fledge.readthedocs.io/
+# FLEDGE_END
 
 """ Test end to end flow with:
         Ingress: ePhat south plugin
@@ -49,18 +49,18 @@ TASK_NAME = "North v2 PI"
 # sysname='Linux', nodename='raspberrypi', release='4.14.98+', version='#1200 ', machine='armv6l'
 class TestE2eRPiEphatEgress:
 
-    def get_ping_status(self, foglamp_url):
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/ping')
+    def get_ping_status(self, fledge_url):
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("GET", '/fledge/ping')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
         return jdoc
 
-    def get_statistics_map(self, foglamp_url):
-        conn = http.client.HTTPConnection(foglamp_url)
-        conn.request("GET", '/foglamp/statistics')
+    def get_statistics_map(self, fledge_url):
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("GET", '/fledge/statistics')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -68,48 +68,48 @@ class TestE2eRPiEphatEgress:
         return utils.serialize_stats_map(jdoc)
 
     @pytest.fixture
-    def start_south_north(self, reset_and_start_foglamp, add_south, south_branch, disable_schedule,
+    def start_south_north(self, reset_and_start_fledge, add_south, south_branch, disable_schedule,
                           remove_data_file, skip_verify_north_interface, remove_directories, enable_schedule,
-                          foglamp_url, start_north_pi_server_c, pi_host, pi_port, pi_token, wait_time):
+                          fledge_url, start_north_pi_server_c, pi_host, pi_port, pi_token, wait_time):
         """ This fixture clones given south & filter plugin repo, and starts south and PI north C instance
 
         """
 
-        add_south(SOUTH_PLUGIN, south_branch, foglamp_url, service_name=SVC_NAME)
+        add_south(SOUTH_PLUGIN, south_branch, fledge_url, service_name=SVC_NAME)
 
         if not skip_verify_north_interface:
-            start_north_pi_server_c(foglamp_url, pi_host, pi_port, pi_token, taskname=TASK_NAME, start_task=False)
+            start_north_pi_server_c(fledge_url, pi_host, pi_port, pi_token, taskname=TASK_NAME, start_task=False)
 
         # let the readings ingress
         time.sleep(wait_time)
-        disable_schedule(foglamp_url, SVC_NAME)
+        disable_schedule(fledge_url, SVC_NAME)
 
         if not skip_verify_north_interface:
-            enable_schedule(foglamp_url, TASK_NAME)
+            enable_schedule(fledge_url, TASK_NAME)
 
         yield self.start_south_north
 
-        remove_directories("/tmp/foglamp-south-{}".format(SOUTH_PLUGIN))
+        remove_directories("/tmp/fledge-south-{}".format(SOUTH_PLUGIN))
 
-    def test_end_to_end(self, start_south_north, read_data_from_pi, foglamp_url, pi_host, pi_admin,
+    def test_end_to_end(self, start_south_north, read_data_from_pi, fledge_url, pi_host, pi_admin,
                         pi_passwd, pi_db, wait_time, retries, skip_verify_north_interface):
 
         # let the readings egress
         time.sleep(wait_time * 2)
-        self._verify_ping_and_statistics(foglamp_url, skip_verify_north_interface)
+        self._verify_ping_and_statistics(fledge_url, skip_verify_north_interface)
 
-        self._verify_ingest(foglamp_url)
+        self._verify_ingest(fledge_url)
 
         if not skip_verify_north_interface:
             self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
 
-    def _verify_ping_and_statistics(self, foglamp_url, skip_verify_north_interface):
-        ping_response = self.get_ping_status(foglamp_url)
+    def _verify_ping_and_statistics(self, fledge_url, skip_verify_north_interface):
+        ping_response = self.get_ping_status(fledge_url)
         assert ping_response["dataRead"]
         if not skip_verify_north_interface:
             assert ping_response["dataSent"]
 
-        actual_stats_map = self.get_statistics_map(foglamp_url)
+        actual_stats_map = self.get_statistics_map(fledge_url)
         assert actual_stats_map["{}{}".format(ASSET_PREFIX.upper(), ASSET_NAME_W.upper())]
         assert actual_stats_map["{}{}".format(ASSET_PREFIX.upper(), ASSET_NAME_M.upper())]
         assert actual_stats_map["{}{}".format(ASSET_PREFIX.upper(), ASSET_NAME_A.upper())]
@@ -119,14 +119,14 @@ class TestE2eRPiEphatEgress:
             assert actual_stats_map[TASK_NAME]
             assert actual_stats_map['Readings Sent']
 
-    def _verify_ingest(self, foglamp_url):
+    def _verify_ingest(self, fledge_url):
         asset_name_with_prefix_w = "{}{}".format(ASSET_PREFIX, ASSET_NAME_W)
         asset_name_with_prefix_m = "{}{}".format(ASSET_PREFIX, ASSET_NAME_M)
         asset_name_with_prefix_a = "{}{}".format(ASSET_PREFIX, ASSET_NAME_A)
         asset_name_with_prefix_c = "{}{}".format(ASSET_PREFIX, ASSET_NAME_C)
-        conn = http.client.HTTPConnection(foglamp_url)
+        conn = http.client.HTTPConnection(fledge_url)
 
-        conn.request("GET", '/foglamp/asset')
+        conn.request("GET", '/fledge/asset')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -142,8 +142,8 @@ class TestE2eRPiEphatEgress:
                                    asset_name_with_prefix_a, asset_name_with_prefix_c])
         assert Counter(actual_assets) == expected_assets
 
-        # foglamp/asset/envirophat%2Fweather
-        conn.request("GET", '/foglamp/asset/{}'.format(quote(asset_name_with_prefix_w, safe='')))
+        # fledge/asset/envirophat%2Fweather
+        conn.request("GET", '/fledge/asset/{}'.format(quote(asset_name_with_prefix_w, safe='')))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -152,15 +152,15 @@ class TestE2eRPiEphatEgress:
         for _sensor in SENSOR_READ_KEY_W:
             assert len(jdoc_asset), "No data found for asset '{}'".format(asset_name_with_prefix_w)
             assert jdoc_asset[0]["reading"][_sensor] is not None
-            conn.request("GET", '/foglamp/asset/{}/{}'.format(quote(asset_name_with_prefix_w, safe=''), _sensor))
+            conn.request("GET", '/fledge/asset/{}/{}'.format(quote(asset_name_with_prefix_w, safe=''), _sensor))
             r = conn.getresponse()
             assert 200 == r.status
             r = r.read().decode()
             jdoc = json.loads(r)
             assert len(jdoc), "No data found for asset '{}' and datapoint '{}'".format(asset_name_with_prefix_w, _sensor)
 
-        # foglamp/asset/envirophat%2Fmagnetometer
-        conn.request("GET", '/foglamp/asset/{}'.format(quote(asset_name_with_prefix_m, safe='')))
+        # fledge/asset/envirophat%2Fmagnetometer
+        conn.request("GET", '/fledge/asset/{}'.format(quote(asset_name_with_prefix_m, safe='')))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -169,7 +169,7 @@ class TestE2eRPiEphatEgress:
         for _sensor in SENSOR_READ_KEY_M:
             assert len(jdoc_asset), "No data found for asset '{}'".format(asset_name_with_prefix_m)
             assert jdoc_asset[0]["reading"][_sensor] is not None
-            conn.request("GET", '/foglamp/asset/{}/{}'.format(quote(asset_name_with_prefix_m, safe=''), _sensor))
+            conn.request("GET", '/fledge/asset/{}/{}'.format(quote(asset_name_with_prefix_m, safe=''), _sensor))
             r = conn.getresponse()
             assert 200 == r.status
             r = r.read().decode()
@@ -177,8 +177,8 @@ class TestE2eRPiEphatEgress:
             assert len(jdoc), "No data found for asset '{}' and datapoint '{}'".format(asset_name_with_prefix_m,
                                                                                        _sensor)
 
-        # foglamp/asset/envirophat%2Faccelerometer
-        conn.request("GET", '/foglamp/asset/{}'.format(quote(asset_name_with_prefix_a, safe='')))
+        # fledge/asset/envirophat%2Faccelerometer
+        conn.request("GET", '/fledge/asset/{}'.format(quote(asset_name_with_prefix_a, safe='')))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -187,15 +187,15 @@ class TestE2eRPiEphatEgress:
         for _sensor in SENSOR_READ_KEY_A:
             assert len(jdoc_asset), "No data found for asset '{}'".format(asset_name_with_prefix_a)
             assert jdoc_asset[0]["reading"][_sensor] is not None
-            conn.request("GET", '/foglamp/asset/{}/{}'.format(quote(asset_name_with_prefix_a, safe=''), _sensor))
+            conn.request("GET", '/fledge/asset/{}/{}'.format(quote(asset_name_with_prefix_a, safe=''), _sensor))
             r = conn.getresponse()
             assert 200 == r.status
             r = r.read().decode()
             jdoc = json.loads(r)
             assert len(jdoc), "No data found for asset '{}' and datapoint '{}'".format(asset_name_with_prefix_a,
                                                                                        _sensor)
-        # foglamp/asset/envirophat%2Frgb
-        conn.request("GET", '/foglamp/asset/{}'.format(quote(asset_name_with_prefix_c, safe='')))
+        # fledge/asset/envirophat%2Frgb
+        conn.request("GET", '/fledge/asset/{}'.format(quote(asset_name_with_prefix_c, safe='')))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -204,7 +204,7 @@ class TestE2eRPiEphatEgress:
         for _sensor in SENSOR_READ_KEY_C:
             assert len(jdoc_asset), "No data found for asset '{}'".format(asset_name_with_prefix_c)
             assert jdoc_asset[0]["reading"][_sensor] is not None
-            conn.request("GET", '/foglamp/asset/{}/{}'.format(quote(asset_name_with_prefix_c, safe=''), _sensor))
+            conn.request("GET", '/fledge/asset/{}/{}'.format(quote(asset_name_with_prefix_c, safe=''), _sensor))
             r = conn.getresponse()
             assert 200 == r.status
             r = r.read().decode()

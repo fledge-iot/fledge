@@ -1,11 +1,11 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='FogLAMP',
+    name='Fledge',
     python_requires='~=3.5',
     version='0.1',
-    description='FogLAMP',
-    url='http://github.com/foglamp/FogLAMP',
+    description='Fledge',
+    url='http://github.com/fledge/Fledge',
     author='OSIsoft, LLC',
     author_email='info@dianomic.com',
     license='Apache 2.0',

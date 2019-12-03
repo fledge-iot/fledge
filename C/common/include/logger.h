@@ -1,7 +1,7 @@
 #ifndef _LOGGER_H
 #define _LOGGER_H
 /*
- * FogLAMP storage service.
+ * Fledge storage service.
  *
  * Copyright (c) 2017-2018 OSisoft, LLC
  *
@@ -15,7 +15,7 @@
 #define PRINT_FUNC	Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 
 /**
- * FogLAMP Logger class used to log to syslog
+ * Fledge Logger class used to log to syslog
  *
  * At startup this class should be constructed
  * using the standard constructor. To log a message

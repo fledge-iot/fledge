@@ -1,7 +1,7 @@
 #ifndef _SIMPLE_HTTPS_H
 #define _SIMPLE_HTTPS_H
 /*
- * FogLAMP HTTP Sender wrapper.
+ * Fledge HTTP Sender wrapper.
  *
  * Copyright (c) 2018 Diamnomic Systems
  *

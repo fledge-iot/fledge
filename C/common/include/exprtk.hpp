@@ -33,7 +33,7 @@
  * Mark Riddoch	3rd September 2019
  *
  * A modified version of the mathematical expression toolkit is
- * included here for use by various FogLAMP plugins. The modification
+ * included here for use by various Fledge plugins. The modification
  * allows for the use of escape characters in the definition and use
  * of symbols.
  */

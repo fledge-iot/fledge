@@ -19,13 +19,13 @@
 #
 # This script is used to call the PosegreSQL storage plugin script
 # to store and retrieve the sensor data when the database
-# is embedded in FogLAMP
+# is embedded in Fledge
 #
 
 #set -x
 
 # Include common code
-source "${FOGLAMP_ROOT}/scripts/common/get_storage_plugin.sh"
+source "${FLEDGE_ROOT}/scripts/common/get_storage_plugin.sh"
 
 PLUGIN_TO_USE=""
 
@@ -41,20 +41,20 @@ storage_log() {
 
 PLUGIN_TO_USE=`get_storage_plugin`
 if [[ "${#PLUGIN_TO_USE}" -eq 0 ]]; then
-    storage_log "err" "Missing plugin from FogLAMP storage service" "all" "pretty"
+    storage_log "err" "Missing plugin from Fledge storage service" "all" "pretty"
 fi
 
-PLUGIN_SCRIPT="$FOGLAMP_ROOT/scripts/plugins/storage/$PLUGIN_TO_USE.sh"
+PLUGIN_SCRIPT="$FLEDGE_ROOT/scripts/plugins/storage/$PLUGIN_TO_USE.sh"
 if [[ ! -x "$PLUGIN_SCRIPT" ]]; then
 
     # Missing storage plugin script
-    storage_log "err" "FogLAMP cannot start." "all" "pretty"
+    storage_log "err" "Fledge cannot start." "all" "pretty"
     storage_log "err" "Missing Storage Plugin script $PLUGIN_SCRIPT." "all" "pretty"
     exit 1
 
 fi
 
-# Pass action in $1 and FOGLAMP_VERSION in $2
+# Pass action in $1 and FLEDGE_VERSION in $2
 source "$PLUGIN_SCRIPT" $1 $2
 
 # exit cannot be used because the script is sourced.

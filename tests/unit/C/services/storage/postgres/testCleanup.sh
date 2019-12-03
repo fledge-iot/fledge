@@ -1,6 +1,6 @@
-psql -d foglamp << EOF
-delete from foglamp.test;
-drop table foglamp.test;
-delete from foglamp.test2;
-drop table foglamp.test2;
+psql -d fledge << EOF
+delete from fledge.test;
+drop table fledge.test;
+delete from fledge.test2;
+drop table fledge.test2;
 EOF

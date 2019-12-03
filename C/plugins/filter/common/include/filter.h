@@ -1,7 +1,7 @@
-#ifndef _FOGLAMP_FITER_H
-#define _FOGLAMP_FITER_H
+#ifndef _FLEDGE_FITER_H
+#define _FLEDGE_FITER_H
 /*
- * FogLAMP base FogLampFilter class
+ * Fledge base FledgeFilter class
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -14,13 +14,13 @@
 #include <config_category.h>
 #include <filter_plugin.h>
 
-class FogLampFilter{
+class FledgeFilter{
 	public:
-		FogLampFilter(const std::string& filterName,
+		FledgeFilter(const std::string& filterName,
 			      ConfigCategory& filterConfig,
 			      OUTPUT_HANDLE *outHandle,
 			      OUTPUT_STREAM output);
-		~FogLampFilter() {};
+		~FledgeFilter() {};
 		const std::string&
 				getName() const { return m_name; };
 		bool		isEnabled() const { return m_enabled; };

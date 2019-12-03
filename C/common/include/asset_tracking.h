@@ -1,7 +1,7 @@
 #ifndef _ASSET_TRACKING_H
 #define _ASSET_TRACKING_H
 /*
- * FogLAMP asset tracking related
+ * Fledge asset tracking related
  *
  * Copyright (c) 2018 OSisoft, LLC
  *

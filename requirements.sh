@@ -23,7 +23,7 @@
 
 set -e
 
-# Upgrades curl to the version related to FogLAMP
+# Upgrades curl to the version related to Fledge
 curl_upgrade(){
 
 
@@ -31,7 +31,7 @@ curl_upgrade(){
         rm -rf "${curl_tmp_path}"
     fi
 
-    echo "Pulling curl from the FogLAMP curl repository ..."
+    echo "Pulling curl from the Fledge curl repository ..."
     cd /tmp/
 
     curl -s -L -O "${curl_url}" && \
@@ -49,18 +49,18 @@ curl_upgrade(){
     make install
 }
 
-# Check if the curl version related to FogLAMP has been installed
+# Check if the curl version related to Fledge has been installed
 curl_version_check () {
 
     set +e
 
     curl_version=$(curl -V | head -n 1)
-    curl_version_check=$(echo "${curl_version}" | grep -c "${curl_foglamp_version}")
+    curl_version_check=$(echo "${curl_version}" | grep -c "${curl_fledge_version}")
 
     if (( $curl_version_check >= 1 )); then
-        echo "curl version ${curl_foglamp_version} installed."
+        echo "curl version ${curl_fledge_version} installed."
     else
-        echo "WARNING: curl version ${curl_foglamp_version} not installed, current version :${curl_version}:"
+        echo "WARNING: curl version ${curl_fledge_version} not installed, current version :${curl_version}:"
     fi
 
     set -e
@@ -77,12 +77,12 @@ curl_upgrade_evaluates(){
     # Evaluates if the curl is the default one and so it needs to be upgraded
     if (( $curl_version_check >= 1 )); then
 
-        echo "curl version ${curl_rhel_version} detected, the standard RHEL/CentOS, upgrading to ${curl_foglamp_version}"
+        echo "curl version ${curl_rhel_version} detected, the standard RHEL/CentOS, upgrading to ${curl_fledge_version}"
         curl_upgrade
 
         curl_version_check
     else
-        echo "A curl version different from the default ${curl_rhel_version} detected, upgrade to a newer one if FogLAMP make fails."
+        echo "A curl version different from the default ${curl_rhel_version} detected, upgrade to a newer one if Fledge make fails."
         echo "version detected :${curl_version}:"
 
         # Evaluates if the installed version support Kerberos
@@ -101,10 +101,10 @@ curl_upgrade_evaluates(){
 curl_filename="curl-7.65.3"
 curl_url="https://github.com/curl/curl/releases/download/curl-7_65_3/${curl_filename}.zip"
 curl_tmp_path="/tmp/${curl_filename}"
-curl_foglamp_version="7.65.3"
+curl_fledge_version="7.65.3"
 curl_rhel_version="7.29"
 
-foglamp_location=`pwd`
+fledge_location=`pwd`
 os_name=`(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
 os_version=`(grep -o '^VERSION_ID=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
 echo "Platform is ${os_name}, Version: ${os_version}"
@@ -137,15 +137,15 @@ if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *
 	service rsyslog start
 
 	# SQLite3 need to be compiled on CentOS|RHEL
-	if [ -d /tmp/foglamp-sqlite3-pkg ]; then
-		rm -rf /tmp/foglamp-sqlite3-pkg
+	if [ -d /tmp/fledge-sqlite3-pkg ]; then
+		rm -rf /tmp/fledge-sqlite3-pkg
 	fi
-	echo "Pulling SQLite3 from FogLAMP SQLite3 repository ..."
+	echo "Pulling SQLite3 from Fledge SQLite3 repository ..."
 	cd /tmp/
-	git clone https://github.com/foglamp/foglamp-sqlite3-pkg.git
-	cd foglamp-sqlite3-pkg
+	git clone https://github.com/fledge/fledge-sqlite3-pkg.git
+	cd fledge-sqlite3-pkg
 	cd src
-	echo "Compiling SQLite3 static library for FogLAMP ..."
+	echo "Compiling SQLite3 static library for Fledge ..."
 	./configure --enable-shared=false --enable-static=true --enable-static-shell CFLAGS="-DSQLITE_ENABLE_JSON1 -DSQLITE_ENABLE_LOAD_EXTENSION -DSQLITE_ENABLE_COLUMN_METADATA -fno-common -fPIC"
 	autoreconf -f -i
 
@@ -158,13 +158,13 @@ if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *
 		set -e
 		make
 	fi
-	cd $foglamp_location
+	cd $fledge_location
 	set -e
 
 	# Upgrade curl if needed
 	curl_upgrade_evaluates
 
-	cd $foglamp_location
+	cd $fledge_location
 
 	# To avoid to stop the execution for any internal error of scl_source
 	set +e

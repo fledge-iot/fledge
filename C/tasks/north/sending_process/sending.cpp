@@ -1,5 +1,5 @@
 /*
- * FogLAMP process class
+ * Fledge process class
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -123,7 +123,7 @@ SendingProcess::~SendingProcess()
 }
 
 // SendingProcess Class Constructor
-SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, argv)
+SendingProcess::SendingProcess(int argc, char** argv) : FledgeProcess(argc, argv)
 {
         m_logger = Logger::getLogger();
 
@@ -157,7 +157,7 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 
 	/**
 	 * Get Configuration from sending process and loaded plugin
-	 * Create or update configuration via FogLAMP API
+	 * Create or update configuration via Fledge API
 	 */
 
 	// Reads the sending process configuration
@@ -262,7 +262,7 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
                 }
         }
 
-        // Init plugin with merged configuration from FogLAMP API
+        // Init plugin with merged configuration from Fledge API
 	this->m_plugin->init(config);
 
 	if (this->m_plugin->m_plugin_data)
@@ -280,7 +280,7 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 		m_plugin->start();
 	}
 
-	// Fetch last_object sent from foglamp.streams
+	// Fetch last_object sent from fledge.streams
 	if (!this->getLastSentReadingId())
 	{
                 m_logger->warn(LOG_SERVICE_NAME + " - Last object id for stream '" + to_string(m_stream_id) + "' NOT found, creating a new stream.");
@@ -332,7 +332,7 @@ void SendingProcess::run() const
 	std::signal(SIGINT,  signalHandler);
 	std::signal(SIGSTOP, signalHandler);
 	std::signal(SIGTERM, signalHandler);
-        std::signal(SIGABRT, signalHandler);   // Catches the FogLAMP kill command
+        std::signal(SIGABRT, signalHandler);   // Catches the Fledge kill command
 
         // Check running time
 	time_t elapsedSeconds = 0;
@@ -470,7 +470,7 @@ void SendingProcess::updateStreamLastSentId(long lastSentId)
 	InsertValues lastId;
 	lastId.push_back(InsertValue("last_object",lastSentId));
 
-	// Perform UPDATE foglamp.streams SET last_object = x WHERE id = y
+	// Perform UPDATE fledge.streams SET last_object = x WHERE id = y
 	this->getStorageClient()->updateTable("streams",
 	                                      lastId,
 	                                      wStreamId);
@@ -532,7 +532,7 @@ void SendingProcess::updateStatistics(string& stat_key, const string& stat_descr
 				      "+",
 				      (int)this->getSentReadings()));
 
-		// Perform UPDATE foglamp.statistics SET value = value + x WHERE key = 'name'
+		// Perform UPDATE fledge.statistics SET value = value + x WHERE key = 'name'
 		int row_affected = this->getStorageClient()->updateTable("statistics",
 									 updateValue,
 									 wLastStat);
@@ -597,7 +597,7 @@ string SendingProcess::retrieveTableInformationName(const char* dataSource)
  */
 bool SendingProcess::getLastSentReadingId()
 {
-	// Fetch last_object sent from foglamp.streams
+	// Fetch last_object sent from fledge.streams
 
 	bool foundId = false;
 	const Condition conditionId(Equals);
@@ -606,7 +606,7 @@ bool SendingProcess::getLastSentReadingId()
 				     conditionId,
 				     streamId);
 
-	// SELECT * FROM foglamp.streams WHERE id = x
+	// SELECT * FROM fledge.streams WHERE id = x
 	Query qLastId(wStreamId);
 
 	ResultSet* lastObjectId = this->getStorageClient()->queryTable("streams", qLastId);
@@ -756,7 +756,7 @@ void SendingProcess::createConfigCategories(DefaultConfigCategory configCategory
 
 /**
  * Create or Update the sending process configuration
- * by accessing FogLAMP rest API service
+ * by accessing Fledge rest API service
  *
  * SendingProcess + plugin DEFAULT configuration is passed to
  * configuration manager and a merged one with "value" and "default"

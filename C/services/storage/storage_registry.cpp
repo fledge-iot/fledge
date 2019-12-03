@@ -1,5 +1,5 @@
 /*
- * FogLAMP storage service.
+ * Fledge storage service.
  *
  * Copyright (c) 2018 Dianomic Systems
  *

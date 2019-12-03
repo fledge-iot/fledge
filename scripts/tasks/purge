@@ -1,20 +1,20 @@
 #!/bin/sh
-# Run a FogLAMP task written in Python
-if [ "${FOGLAMP_ROOT}" = "" ]; then
-	FOGLAMP_ROOT=/usr/local/foglamp
+# Run a Fledge task written in Python
+if [ "${FLEDGE_ROOT}" = "" ]; then
+	FLEDGE_ROOT=/usr/local/fledge
 fi
 
-if [ ! -d "${FOGLAMP_ROOT}" ]; then
-	logger "FogLAMP home directory missing or incorrectly set environment"
+if [ ! -d "${FLEDGE_ROOT}" ]; then
+	logger "Fledge home directory missing or incorrectly set environment"
 	exit 1
 fi
 
-if [ ! -d "${FOGLAMP_ROOT}/python" ]; then
-	logger "FogLAMP home directory is missing the Python installation"
+if [ ! -d "${FLEDGE_ROOT}/python" ]; then
+	logger "Fledge home directory is missing the Python installation"
 	exit 1
 fi
 
 # We run the Python code from the python directory
-cd "${FOGLAMP_ROOT}/python"
+cd "${FLEDGE_ROOT}/python"
 
-python3 -m foglamp.tasks.purge "$@"
+python3 -m fledge.tasks.purge "$@"

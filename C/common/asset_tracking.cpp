@@ -1,5 +1,5 @@
 /*
- * FogLAMP asset tracking related
+ * Fledge asset tracking related
  *
  * Copyright (c) 2019 Dianomic Systems
  *

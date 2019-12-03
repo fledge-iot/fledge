@@ -22,7 +22,7 @@
 
 get_engine_management() {
 
-  storage_info=( $($FOGLAMP_ROOT/scripts/services/storage --plugin) )
+  storage_info=( $($FLEDGE_ROOT/scripts/services/storage --plugin) )
 
   if [ "${storage_info[0]}" != "$1" ]; then
     echo ""

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# FOGLAMP_BEGIN
-# See: http://foglamp.readthedocs.io/
-# FOGLAMP_END
+# FLEDGE_BEGIN
+# See: http://fledge.readthedocs.io/
+# FLEDGE_END
 
 import http.client
 import json
@@ -16,9 +16,9 @@ def serialize_stats_map(jdoc):
         actual_stats_map[itm['key']] = itm['value']
     return actual_stats_map
 
-def get_asset_tracking_details(foglamp_url, event=None):
-    _connection = http.client.HTTPConnection(foglamp_url)
-    uri = '/foglamp/track'
+def get_asset_tracking_details(fledge_url, event=None):
+    _connection = http.client.HTTPConnection(fledge_url)
+    uri = '/fledge/track'
     if event:
         uri += '?event={}'.format(event)
     _connection.request("GET", uri)

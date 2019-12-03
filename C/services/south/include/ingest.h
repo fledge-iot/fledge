@@ -1,7 +1,7 @@
 #ifndef _INGEST_H
 #define _INGEST_H
 /*
- * FogLAMP reading ingest.
+ * Fledge reading ingest.
  *
  * Copyright (c) 2018 OSisoft, LLC
  *
@@ -24,7 +24,7 @@
 #include <asset_tracking.h>
 #include <service_handler.h>
 
-#define SERVICE_NAME  "FogLAMP South"
+#define SERVICE_NAME  "Fledge South"
 
 /**
  * The ingest class is used to ingest asset readings.

@@ -2,7 +2,7 @@
 #ifndef _PYTHON_PLUGIN_HANDLE_H
 #define _PYTHON_PLUGIN_HANDLE_H
 /*
- * FogLAMP Base plugin handle class
+ * Fledge Base plugin handle class
  *
  * Copyright (c) 2019 Dianomic Systems
  *

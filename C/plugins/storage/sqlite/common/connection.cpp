@@ -1,5 +1,5 @@
 /*
- * FogLAMP storage service.
+ * Fledge storage service.
  *
  * Copyright (c) 2018 OSIsoft, LLC
  *
@@ -30,7 +30,7 @@
 #define PURGE_SLOWDOWN_SLEEP_MS 500
 
 /**
- * SQLite3 storage plugin for FogLAMP
+ * SQLite3 storage plugin for Fledge
  */
 
 using namespace std;
@@ -70,7 +70,7 @@ static int purgeBlockSize = PURGE_DELETE_BLOCK_SIZE;
 #define END_TIME std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now(); \
 				 auto usecs = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
 
-#define _DB_NAME              "/foglamp.sqlite"
+#define _DB_NAME              "/fledge.sqlite"
 
 static time_t connectErrorTime = 0;
 
@@ -105,7 +105,7 @@ int dateCallback(void *data,
 }
 
 /**
- * Apply FogLAMP default datetime formatting
+ * Apply Fledge default datetime formatting
  * to a detected DATETIME datatype column
  *
  * @param pStmt    Current SQLite3 result set
@@ -150,7 +150,7 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 			 * (sqlite3_column_table_name() == "DATETIME")
 			 * we assume the column has not been formatted
 			 * by any datetime() or strftime() SQLite function.
-			 * Thus we apply default FOGLAMP formatting:
+			 * Thus we apply default FLEDGE formatting:
 			 * "%Y-%m-%d %H:%M:%f"
 			 */
 			if (sqlite3_column_database_name(pStmt, i) != NULL &&
@@ -169,7 +169,7 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 				// Check whether to Apply dateformat
 				if (pzDataType != NULL &&
 				    retType == SQLITE_OK &&
-				    strcmp(pzDataType, SQLITE3_FOGLAMP_DATETIME_TYPE) == 0 &&
+				    strcmp(pzDataType, SQLITE3_FLEDGE_DATETIME_TYPE) == 0 &&
 				    strcmp(sqlite3_column_origin_name(pStmt, i),
 					   sqlite3_column_name(pStmt, i)) == 0)
 				{
@@ -462,11 +462,11 @@ Connection::Connection()
 
 		/*
 		 * Build the ATTACH DATABASE command in order to get
-		 * 'foglamp.' prefix in all SQL queries
+		 * 'fledge.' prefix in all SQL queries
 		 */
 		SQLBuffer attachDb;
 		attachDb.append("ATTACH DATABASE '");
-		attachDb.append(dbPath + "' AS foglamp;");
+		attachDb.append(dbPath + "' AS fledge;");
 
 		const char *sqlStmt = attachDb.coalesce();
 
@@ -480,7 +480,7 @@ Connection::Connection()
 		// Check result
 		if (rc != SQLITE_OK)
 		{
-			const char* errMsg = "Failed to attach 'foglamp' database in";
+			const char* errMsg = "Failed to attach 'fledge' database in";
 			Logger::getLogger()->error("%s '%s': error %s",
 						   errMsg,
 						   sqlStmt,
@@ -761,7 +761,7 @@ SQLBuffer	jsonConstraints;
 
 		if (condition.empty())
 		{
-			sql.append("SELECT * FROM foglamp.");
+			sql.append("SELECT * FROM fledge.");
 			sql.append(table);
 		}
 		else
@@ -783,7 +783,7 @@ SQLBuffer	jsonConstraints;
 				{
 					return false;
 				}
-				sql.append(" FROM foglamp.");
+				sql.append(" FROM fledge.");
 			}
 			else if (document.HasMember("return"))
 			{
@@ -886,7 +886,7 @@ SQLBuffer	jsonConstraints;
 					}
 					col++;
 				}
-				sql.append(" FROM foglamp.");
+				sql.append(" FROM fledge.");
 			}
 			else
 			{
@@ -896,7 +896,7 @@ SQLBuffer	jsonConstraints;
 					sql.append(document["modifier"].GetString());
 					sql.append(' ');
 				}
-				sql.append(" * FROM foglamp.");
+				sql.append(" * FROM fledge.");
 			}
 			sql.append(table);
 			if (document.HasMember("where"))
@@ -1032,7 +1032,7 @@ std::size_t arr = data.find("inserts");
 		int col = 0;
 		SQLBuffer values;
 
-	 	sql.append("INSERT INTO foglamp.");
+	 	sql.append("INSERT INTO fledge.");
 		sql.append(table);
 		sql.append(" (");
 
@@ -1204,7 +1204,7 @@ SQLBuffer	sql;
 					   "Each entry in the update array must be an object");
 				return -1;
 			}
-			sql.append("UPDATE foglamp.");
+			sql.append("UPDATE fledge.");
 			sql.append(table);
 			sql.append(" SET ");
 
@@ -2800,7 +2800,7 @@ int Connection::deleteRows(const string& table, const string& condition)
 Document document;
 SQLBuffer	sql;
  
-	sql.append("DELETE FROM foglamp.");
+	sql.append("DELETE FROM fledge.");
 	sql.append(table);
 	if (! condition.empty())
 	{
@@ -2879,8 +2879,8 @@ SQLBuffer	sql;
  */
 int Connection::create_table_snapshot(const string& table, const string& id)
 {
-	string query = "CREATE TABLE foglamp.";
-	query += table + "_snap" +  id + " AS SELECT * FROM foglamp." + table;
+	string query = "CREATE TABLE fledge.";
+	query += table + "_snap" +  id + " AS SELECT * FROM fledge." + table;
 
 	logSQL("CreateTableSnapshot", query.c_str());
 
@@ -2914,10 +2914,10 @@ int Connection::create_table_snapshot(const string& table, const string& id)
  */
 int Connection::load_table_snapshot(const string& table, const string& id)
 {
-	string purgeQuery = "DELETE FROM foglamp." + table;
+	string purgeQuery = "DELETE FROM fledge." + table;
 	string query = "BEGIN TRANSACTION; ";
-	query += purgeQuery +"; INSERT INTO foglamp." + table;
-	query += " SELECT * FROM foglamp." + table + "_snap" + id;
+	query += purgeQuery +"; INSERT INTO fledge." + table;
+	query += " SELECT * FROM fledge." + table + "_snap" + id;
 	query += "; COMMIT TRANSACTION;";
 
 	logSQL("LoadTableSnapshot", query.c_str());
@@ -2967,7 +2967,7 @@ int Connection::load_table_snapshot(const string& table, const string& id)
  */
 int Connection::delete_table_snapshot(const string& table, const string& id)
 {
-	string query = "DROP TABLE foglamp." + table + "_snap" + id;
+	string query = "DROP TABLE fledge." + table + "_snap" + id;
 
 	logSQL("DeleteTableSnapshot", query.c_str());
 

@@ -1,5 +1,5 @@
 /*
- * FogLAMP Notification Python plugin handle related
+ * Fledge Notification Python plugin handle related
  *
  * Copyright (c) 2019 Dianomic Systems
  *

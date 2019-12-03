@@ -27,4 +27,4 @@ target_link_libraries(${PROJECT_NAME} ${DLLIB})
 set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION 1)
 
 # Install library
-install(TARGETS ${PROJECT_NAME} DESTINATION foglamp/lib)
+install(TARGETS ${PROJECT_NAME} DESTINATION fledge/lib)

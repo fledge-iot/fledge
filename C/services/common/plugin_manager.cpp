@@ -1,5 +1,5 @@
 /*
- * FogLAMP plugin manager.
+ * Fledge plugin manager.
  *
  * Copyright (c) 2017, 2018 OSisoft, LLC
  *
@@ -203,11 +203,11 @@ void updateJsonPluginConfig(PLUGIN_INFORMATION *info, string json_plugin_name, s
 }
 
 /**
- * Find a specific plugin in the directories listed in FOGLAMP_PLUGIN_PATH
+ * Find a specific plugin in the directories listed in FLEDGE_PLUGIN_PATH
  *
  * @param    name		The plugin name
  * @param    _type		The plugin type string
- * @param    _plugin_path	Value of FOGLAMP_PLUGIN_PATH environment variable
+ * @param    _plugin_path	Value of FLEDGE_PLUGIN_PATH environment variable
  * @param    type		The plugin type
  * @return   string		The absolute path of plugin
  */
@@ -271,13 +271,13 @@ char		buf[MAXPATHLEN];
     return pluginNames[name];
   }
 
-  const char *home = getenv("FOGLAMP_ROOT");
-  const char *plugin_path = getenv("FOGLAMP_PLUGIN_PATH");
+  const char *home = getenv("FLEDGE_ROOT");
+  const char *plugin_path = getenv("FLEDGE_PLUGIN_PATH");
   string paths("");
   if (home)
   {
 	paths += string(home)+"/plugins";
-	paths += ";"+string(home)+"/python/foglamp/plugins";
+	paths += ";"+string(home)+"/python/fledge/plugins";
   }
   if (plugin_path)
 	paths += (home ? ";" : "")+string(plugin_path);
@@ -525,7 +525,7 @@ PLUGIN_HANDLE PluginManager::resolveSymbol(PLUGIN_HANDLE handle, const string& s
 
 /**
  * Get the installed plugins in the given plugin type
- * subdirectory of "plugins" under FOGLAMP_ROOT
+ * subdirectory of "plugins" under FLEDGE_ROOT
  * Plugin type is one of:
  * south, north, filter, notificationRule, notificationDelivery
  *
@@ -535,8 +535,8 @@ PLUGIN_HANDLE PluginManager::resolveSymbol(PLUGIN_HANDLE handle, const string& s
 void PluginManager::getInstalledPlugins(const string& type,
 					list<string>& plugins)
 {
-	char *home = getenv("FOGLAMP_ROOT");
-	char *plugin_path = getenv("FOGLAMP_PLUGIN_PATH");
+	char *home = getenv("FLEDGE_ROOT");
+	char *plugin_path = getenv("FLEDGE_PLUGIN_PATH");
 	string paths("");
 	if (home)
 	{
@@ -544,7 +544,7 @@ void PluginManager::getInstalledPlugins(const string& type,
 		paths += string(home)+"/plugins";
 
 		// Python Plugins
-		paths += ";"+string(home)+"/python/foglamp/plugins";
+		paths += ";"+string(home)+"/python/fledge/plugins";
 	}
 	if (plugin_path)
 	{

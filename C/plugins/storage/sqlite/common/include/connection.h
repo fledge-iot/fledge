@@ -1,7 +1,7 @@
 #ifndef _CONNECTION_H
 #define _CONNECTION_H
 /*
- * FogLAMP storage service.
+ * Fledge storage service.
  *
  * Copyright (c) 2018 OSisoft, LLC
  *
@@ -21,14 +21,14 @@
 #define F_DATEH24_S             "%Y-%m-%d %H:%M:%S"
 #define F_DATEH24_M             "%Y-%m-%d %H:%M"
 #define F_DATEH24_H             "%Y-%m-%d %H"
-// This is the default datetime format in FogLAMP: 2018-05-03 18:15:00.622
+// This is the default datetime format in Fledge: 2018-05-03 18:15:00.622
 #define F_DATEH24_MS            "%Y-%m-%d %H:%M:%f"
 // Format up to seconds
 #define F_DATEH24_SEC           "%Y-%m-%d %H:%M:%S"
 #define SQLITE3_NOW             "strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime')"
 // The default precision is milliseconds, it adds microseconds and timezone
 #define SQLITE3_NOW_READING     "strftime('%Y-%m-%d %H:%M:%f000+00:00', 'now')"
-#define SQLITE3_FOGLAMP_DATETIME_TYPE "DATETIME"
+#define SQLITE3_FLEDGE_DATETIME_TYPE "DATETIME"
 
 // Set plugin name for log messages
 #ifndef PLUGIN_LOG_NAME

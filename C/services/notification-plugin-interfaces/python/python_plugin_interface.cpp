@@ -1,5 +1,5 @@
 /*
- * FogLAMP south plugin interface related
+ * Fledge south plugin interface related
  *
  * Copyright (c) 2019 Dianomic Systems
  *
@@ -26,7 +26,7 @@ extern void logErrorMessage();
 extern PLUGIN_INFORMATION *plugin_info_fn();
 extern PLUGIN_HANDLE plugin_init_fn(ConfigCategory *);
 extern void plugin_shutdown_fn(PLUGIN_HANDLE);
-extern void setImportParameters(string& shimLayerPath, string& foglampPythonDir);
+extern void setImportParameters(string& shimLayerPath, string& fledgePythonDir);
 
 // Reconfigure entry point for rule and delivery plugings
 void notification_plugin_reconfigure_fn(PLUGIN_HANDLE,
@@ -65,10 +65,10 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 	string name("notification" + string(SHIM_SCRIPT_POSTFIX));
 
 	string shimLayerPath;
-	string foglampPythonDir;
+	string fledgePythonDir;
 
 	// Python 3.x set parameters for import
-	setImportParameters(shimLayerPath, foglampPythonDir);
+	setImportParameters(shimLayerPath, fledgePythonDir);
 
 	// Embedded Python 3.x program name
 	wchar_t *programName = Py_DecodeLocale(name.c_str(), NULL);
@@ -123,7 +123,7 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 	// Get current sys.path - borrowed reference
 	PyObject* sysPath = PySys_GetObject((char *)"path");
 	PyList_Append(sysPath, PyUnicode_FromString((char *) shimLayerPath.c_str()));
-	PyList_Append(sysPath, PyUnicode_FromString((char *) foglampPythonDir.c_str()));
+	PyList_Append(sysPath, PyUnicode_FromString((char *) fledgePythonDir.c_str()));
 
 	// Set sys.argv for embedded Python 3.x
 	int argc = 3;
@@ -280,7 +280,7 @@ void* PluginInterfaceResolveSymbol(const char *_sym, const string& name)
  * Invoke 'plugin_triggers' function in notification rule python plugin
  *
  * Returned JSON data will be used for notification data subscription
- * to FogLAMP storage service
+ * to Fledge storage service
  *
  * @param    handle	The plugin handle from plugin_init_fn
  * @return		JSON string with array of

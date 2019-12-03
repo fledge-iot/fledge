@@ -1,5 +1,5 @@
 /*
- * FogLAMP south plugin interface related
+ * Fledge south plugin interface related
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -52,11 +52,10 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 
 	// Set plugin name, also for methods in common-plugin-interfaces/python
 	gPluginName = pluginName;
+	// Get FLEDGE_ROOT dir
+	string fledgeRootDir(getenv("FLEDGE_ROOT"));
 
-	// Get FOGLAMP_ROOT dir
-	string foglampRootDir(getenv("FOGLAMP_ROOT"));
-
-	string path = foglampRootDir + SHIM_SCRIPT_REL_PATH;
+	string path = fledgeRootDir + SHIM_SCRIPT_REL_PATH;
 	string name(string(PLUGIN_TYPE_SOUTH) + string(SHIM_SCRIPT_POSTFIX));
 	
 	// Python 3.5  script name
@@ -69,7 +68,7 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 	Py_SetProgramName(programName);
 	PyMem_RawFree(programName);
 
-	string foglampPythonDir = foglampRootDir + "/python";
+	string fledgePythonDir = fledgeRootDir + "/python";
 	
 	// Embedded Python 3.5 initialisation
 	if (!Py_IsInitialized())
@@ -88,18 +87,18 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 	// Note: for South service plugin we don't set a new Python interpreter
 
 	Logger::getLogger()->debug("SouthPlugin PythonInterface %s:%d: "
-				   "shimLayerPath=%s, foglampPythonDir=%s, plugin '%s'",
+				   "shimLayerPath=%s, fledgePythonDir=%s, plugin '%s'",
 				   __FUNCTION__,
 				   __LINE__,
 				   shimLayerPath.c_str(),
-				   foglampPythonDir.c_str(),
+				   fledgePythonDir.c_str(),
 				   pluginName);
 	
 	// Set Python path for embedded Python 3.5
 	// Get current sys.path - borrowed reference
 	PyObject* sysPath = PySys_GetObject((char *)"path");
 	PyList_Append(sysPath, PyUnicode_FromString((char *) shimLayerPath.c_str()));
-	PyList_Append(sysPath, PyUnicode_FromString((char *) foglampPythonDir.c_str()));
+	PyList_Append(sysPath, PyUnicode_FromString((char *) fledgePythonDir.c_str()));
 
 	// Set sys.argv for embedded Python 3.5
 	int argc = 2;

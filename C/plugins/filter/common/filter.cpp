@@ -1,5 +1,5 @@
 /*
- * FogLAMP base FogLampFilter class
+ * Fledge base FledgeFilter class
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -13,17 +13,17 @@
 using namespace std;
 
 /**
- * FogLampFilter constructor
+ * FledgeFilter constructor
  *
  * This class or a derived one has to be used
- * as return object from FogLAMP filters C interface "plugin_init"A
+ * as return object from Fledge filters C interface "plugin_init"A
  *
  * @param filterName	The filter plugin name
  * @param filterConfig	The filter plugin configuration
  * @param outHandle	A handle passed to the filter output stream function
  * @param output	The The output stream function pointer
  */
-FogLampFilter::FogLampFilter(const string& filterName,
+FledgeFilter::FledgeFilter(const string& filterName,
 			     ConfigCategory& filterConfig,
 			     OUTPUT_HANDLE *outHandle,
 			     OUTPUT_STREAM output) : m_name(filterName),
@@ -46,7 +46,7 @@ FogLampFilter::FogLampFilter(const string& filterName,
  *
  * @param newConfig	The new configuration
  */
-void FogLampFilter::setConfig(const string& newConfig)
+void FledgeFilter::setConfig(const string& newConfig)
 {
 	m_config = ConfigCategory(m_name, newConfig);
 	m_enabled = m_config.getValue("enable").compare("true") == 0 ||

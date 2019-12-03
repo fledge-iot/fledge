@@ -1,5 +1,5 @@
 /*
- * FogLAMP storage service client
+ * Fledge storage service client
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -17,7 +17,7 @@ using namespace rapidjson;
 
 /**
  * Construct a purge result from a JSON document returned from
- * the FogLAMP storage service.
+ * the Fledge storage service.
  */
 PurgeResult::PurgeResult(const std::string& json)
 {

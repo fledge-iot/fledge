@@ -1,5 +1,5 @@
 /*
- * FogLAMP python module for filter plugin ingest callback
+ * Fledge python module for filter plugin ingest callback
  *
  * Copyright (c) 2019 Dianomic Systems
  *

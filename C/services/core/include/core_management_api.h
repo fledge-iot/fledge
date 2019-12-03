@@ -1,7 +1,7 @@
 #ifndef _CORE_MANAGEMENT_API_H
 #define _CORE_MANAGEMENT_API_H
 /*
- * FogLAMP core microservice management API.
+ * Fledge core microservice management API.
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -13,18 +13,18 @@
 #include <configuration_manager.h>
 
 
-#define REGISTER_SERVICE		"/foglamp/service"
-#define UNREGISTER_SERVICE		"/foglamp/service/([0-9A-F][0-9A-F\\-]*)"
-#define GET_ALL_CATEGORIES		"/foglamp/service/category"
+#define REGISTER_SERVICE		"/fledge/service"
+#define UNREGISTER_SERVICE		"/fledge/service/([0-9A-F][0-9A-F\\-]*)"
+#define GET_ALL_CATEGORIES		"/fledge/service/category"
 #define CREATE_CATEGORY			GET_ALL_CATEGORIES
-#define GET_CATEGORY			"/foglamp/service/category/([A-Za-z][a-zA-Z_0-9]*)"
-#define GET_CATEGORY_ITEM		"/foglamp/service/category/([A-Za-z][a-zA-Z_0-9]*)/([A-Za-z][a-zA-Z_0-9]*)"
-#define DELETE_CATEGORY_ITEM_VALUE	"/foglamp/service/category/([A-Za-z][a-zA-Z_0-9]*)/([A-Za-z][a-zA-Z_0-9]*)/(value)"
+#define GET_CATEGORY			"/fledge/service/category/([A-Za-z][a-zA-Z_0-9]*)"
+#define GET_CATEGORY_ITEM		"/fledge/service/category/([A-Za-z][a-zA-Z_0-9]*)/([A-Za-z][a-zA-Z_0-9]*)"
+#define DELETE_CATEGORY_ITEM_VALUE	"/fledge/service/category/([A-Za-z][a-zA-Z_0-9]*)/([A-Za-z][a-zA-Z_0-9]*)/(value)"
 #define SET_CATEGORY_ITEM_VALUE		GET_CATEGORY_ITEM
 #define DELETE_CATEGORY			GET_CATEGORY
-#define DELETE_CHILD_CATEGORY		"/foglamp/service/category/([A-Za-z][a-zA-Z_0-9]*)/(children)/([A-Za-z][a-zA-Z_0-9]*)"
-#define ADD_CHILD_CATEGORIES		"/foglamp/service/category/([A-Za-z][a-zA-Z_0-9]*)/(children)"
-#define REGISTER_CATEGORY_INTEREST	"/foglamp/interest"	// TODO implment this, right now it's a fake.
+#define DELETE_CHILD_CATEGORY		"/fledge/service/category/([A-Za-z][a-zA-Z_0-9]*)/(children)/([A-Za-z][a-zA-Z_0-9]*)"
+#define ADD_CHILD_CATEGORIES		"/fledge/service/category/([A-Za-z][a-zA-Z_0-9]*)/(children)"
+#define REGISTER_CATEGORY_INTEREST	"/fledge/interest"	// TODO implment this, right now it's a fake.
 #define GET_SERVICE			REGISTER_SERVICE
 
 #define UUID_COMPONENT			1
@@ -47,32 +47,32 @@ class CoreManagementApi : public ManagementApi {
 							     std::shared_ptr<HttpServer::Request> request);
 		void			unRegisterMicroService(std::shared_ptr<HttpServer::Response> response,
 							       std::shared_ptr<HttpServer::Request> request);
-		// GET /foglamp/service/category
+		// GET /fledge/service/category
 		void			getAllCategories(std::shared_ptr<HttpServer::Response> response,
 							 std::shared_ptr<HttpServer::Request> request);
-		// GET /foglamp/service/category/{categoryName}
+		// GET /fledge/service/category/{categoryName}
 		void			getCategory(std::shared_ptr<HttpServer::Response> response,
 						    std::shared_ptr<HttpServer::Request> request);
-		// GET /foglamp/service/category/{categoryName}/{configItem}
-		// GET /foglamp/service/category/{categoryName}/children
+		// GET /fledge/service/category/{categoryName}/{configItem}
+		// GET /fledge/service/category/{categoryName}/children
 		void			getCategoryItem(std::shared_ptr<HttpServer::Response> response,
 							std::shared_ptr<HttpServer::Request> request);
-		// DELETE /foglamp/service/category/{categoryName}/{configItem}/value
+		// DELETE /fledge/service/category/{categoryName}/{configItem}/value
 		void			deleteCategoryItemValue(std::shared_ptr<HttpServer::Response> response,
 								std::shared_ptr<HttpServer::Request> request);
-		//  PUT /foglamp/service/category/{categoryName}/{configItemn}
+		//  PUT /fledge/service/category/{categoryName}/{configItemn}
 		void			setCategoryItemValue(std::shared_ptr<HttpServer::Response> response,
 							     std::shared_ptr<HttpServer::Request> request);
-                // Called by DELETE /foglamp/service/category/{categoryName}
+                // Called by DELETE /fledge/service/category/{categoryName}
 		void			deleteCategory(std::shared_ptr<HttpServer::Response> response,
 						       std::shared_ptr<HttpServer::Request> request);
-		// Called by DELETE /foglamp/service/category/{CategoryName}/children/{ChildCategory}
+		// Called by DELETE /fledge/service/category/{CategoryName}/children/{ChildCategory}
 		void			deleteChildCategory(std::shared_ptr<HttpServer::Response> response,
 							    std::shared_ptr<HttpServer::Request> request);
-		// Called by POST /foglamp/service/category
+		// Called by POST /fledge/service/category
 		void			createCategory(std::shared_ptr<HttpServer::Response> response,
 						       std::shared_ptr<HttpServer::Request> request);
-		// Called by POST /foglamp/service/category/{categoryName}/children
+		// Called by POST /fledge/service/category/{categoryName}/children
 		void			addChildCategory(std::shared_ptr<HttpServer::Response> response,
 							 std::shared_ptr<HttpServer::Request> request);
 		// Default handler for unsupported URLs

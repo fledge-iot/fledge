@@ -1,7 +1,7 @@
 #ifndef _PLUGIN_DATA_H
 #define _PLUGIN_DATA_H
 /*
- * FogLAMP persist plugin data class.
+ * Fledge persist plugin data class.
  *
  * Copyright (c) 2018 Dianomic Systems
  *

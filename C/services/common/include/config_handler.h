@@ -1,7 +1,7 @@
 #ifndef _CONFIG_HANDLER_H
 #define _CONFIG_HANDLER_H
 /*
- * FogLAMP 
+ * Fledge 
  *
  * Copyright (c) 2018 Dianomic Systems
  *

@@ -1,7 +1,7 @@
-#ifndef _FOGLAMP_UTILS_H
-#define _FOGLAMP_UTILS_H
+#ifndef _FLEDGE_UTILS_H
+#define _FLEDGE_UTILS_H
 /*
- * FogLAMP general utilities
+ * Fledge general utilities
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -12,35 +12,35 @@
 
 #include <string>
 
-#define _FOGLAMP_ROOT_PATH    "/usr/local/foglamp"
+#define _FLEDGE_ROOT_PATH    "/usr/local/fledge"
 
 using namespace std;
 
 /**
- * Return FogLAMP root dir
+ * Return Fledge root dir
  *
- * Return current value of FOGLAMP_ROOT env var or
- * default path _FOGLAMP_ROOT_PATH
+ * Return current value of FLEDGE_ROOT env var or
+ * default path _FLEDGE_ROOT_PATH
  *
- * @return	Return FogLAMP root dir
+ * @return	Return Fledge root dir
  */
 const string getRootDir()
 {
-	const char* rootDir = getenv("FOGLAMP_ROOT");
-	return (rootDir ? string(rootDir) : string(_FOGLAMP_ROOT_PATH));
+	const char* rootDir = getenv("FLEDGE_ROOT");
+	return (rootDir ? string(rootDir) : string(_FLEDGE_ROOT_PATH));
 }
 
 /**
- * Return FogLAMP data dir
+ * Return Fledge data dir
  *
- * Return current value of FOGLAMP_DATA env var or
+ * Return current value of FLEDGE_DATA env var or
  * default value: getRootDir + /data
  *
- * @return	Return FogLAMP data dir
+ * @return	Return Fledge data dir
  */
 const string getDataDir()
 {
-	const char* dataDir = getenv("FOGLAMP_DATA");
+	const char* dataDir = getenv("FLEDGE_DATA");
 	return (dataDir ? string(dataDir) : string(getRootDir() + "/data"));
 }
 

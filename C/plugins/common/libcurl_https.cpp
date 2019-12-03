@@ -1,9 +1,9 @@
 /*
- * FogLAMP HTTPS Sender implementation using the libcurl library
+ * Fledge HTTPS Sender implementation using the libcurl library
  *  - https://curl.haxx.se/libcurl/
  *  - https://github.com/curl/curl
  *
- * FogLAMP uses the libcurl library to support the Kerberos authentication
+ * Fledge uses the libcurl library to support the Kerberos authentication
  *
  * Copyright (c) 2019 Dianomic Systems
  *

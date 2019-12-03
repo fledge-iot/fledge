@@ -1,5 +1,5 @@
 /*
- * FogLAMP storage service.
+ * Fledge storage service.
  *
  * Copyright (c) 2017 OSisoft, LLC
  *
@@ -20,7 +20,7 @@ ConnectionManager::ConnectionManager()
 {
 	lastError.message = NULL;
 	lastError.entryPoint = NULL;
-	if (getenv("FOGLAMP_TRACE_SQL"))
+	if (getenv("FLEDGE_TRACE_SQL"))
 		m_trace = true;
 	else
 		m_trace = false;

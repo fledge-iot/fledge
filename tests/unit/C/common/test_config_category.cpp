@@ -16,64 +16,64 @@ const char *categories_quoted = "{\"categories\": ["
 	"{\"key\": \"cat \\\"2\\\"\", \"description\":\"Second\"}]}";
 
 const char *myCategory = "{\"description\": {"
-		"\"value\": \"The FogLAMP administrative API\","
+		"\"value\": \"The Fledge administrative API\","
 		"\"type\": \"string\","
-		"\"default\": \"The FogLAMP administrative API\","
-		"\"description\": \"The description of this FogLAMP service\"},"
+		"\"default\": \"The Fledge administrative API\","
+		"\"description\": \"The description of this Fledge service\"},"
 	"\"name\": {"
-		"\"value\": \"FogLAMP\","
+		"\"value\": \"Fledge\","
 		"\"type\": \"string\","
-		"\"default\": \"FogLAMP\","
-		"\"description\": \"The name of this FogLAMP service\"},"
+		"\"default\": \"Fledge\","
+		"\"description\": \"The name of this Fledge service\"},"
         "\"complex\": {" \
-		"\"value\": { \"first\" : \"FogLAMP\", \"second\" : \"json\" },"
+		"\"value\": { \"first\" : \"Fledge\", \"second\" : \"json\" },"
 		"\"type\": \"json\","
-		"\"default\": {\"first\" : \"FogLAMP\", \"second\" : \"json\" },"
+		"\"default\": {\"first\" : \"Fledge\", \"second\" : \"json\" },"
 		"\"description\": \"A JSON configuration parameter\"}}";
 
 const char *myCategory_quoted = "{\"description\": {"
-		"\"value\": \"The \\\"FogLAMP\\\" administrative API\","
+		"\"value\": \"The \\\"Fledge\\\" administrative API\","
 		"\"type\": \"string\","
-		"\"default\": \"The \\\"FogLAMP\\\" administrative API\","
-		"\"description\": \"The description of this \\\"FogLAMP\\\" service\"},"
+		"\"default\": \"The \\\"Fledge\\\" administrative API\","
+		"\"description\": \"The description of this \\\"Fledge\\\" service\"},"
 	"\"name\": {"
-		"\"value\": \"\\\"FogLAMP\\\"\","
+		"\"value\": \"\\\"Fledge\\\"\","
 		"\"type\": \"string\","
-		"\"default\": \"\\\"FogLAMP\\\"\","
-		"\"description\": \"The name of this \\\"FogLAMP\\\" service\"},"
+		"\"default\": \"\\\"Fledge\\\"\","
+		"\"description\": \"The name of this \\\"Fledge\\\" service\"},"
         "\"complex\": {" \
-		"\"value\": { \"first\" : \"FogLAMP\", \"second\" : \"json\" },"
+		"\"value\": { \"first\" : \"Fledge\", \"second\" : \"json\" },"
 		"\"type\": \"json\","
-		"\"default\": {\"first\" : \"FogLAMP\", \"second\" : \"json\" },"
+		"\"default\": {\"first\" : \"Fledge\", \"second\" : \"json\" },"
 		"\"description\": \"A JSON configuration parameter\"}}";
 
 const char *myCategoryDisplayName = "{\"description\": {"
-		"\"value\": \"The FogLAMP administrative API\","
+		"\"value\": \"The Fledge administrative API\","
 		"\"type\": \"string\","
-		"\"default\": \"The FogLAMP administrative API\","
-		"\"description\": \"The description of this FogLAMP service\"},"
+		"\"default\": \"The Fledge administrative API\","
+		"\"description\": \"The description of this Fledge service\"},"
 	"\"name\": {"
-		"\"value\": \"FogLAMP\","
-		"\"displayName\" : \"My FogLAMP\","
+		"\"value\": \"Fledge\","
+		"\"displayName\" : \"My Fledge\","
 		"\"type\": \"string\","
-		"\"default\": \"FogLAMP\","
-		"\"description\": \"The name of this FogLAMP service\"},"
+		"\"default\": \"Fledge\","
+		"\"description\": \"The name of this Fledge service\"},"
         "\"complex\": {" \
-		"\"value\": { \"first\" : \"FogLAMP\", \"second\" : \"json\" },"
+		"\"value\": { \"first\" : \"Fledge\", \"second\" : \"json\" },"
 		"\"type\": \"json\","
-		"\"default\": {\"first\" : \"FogLAMP\", \"second\" : \"json\" },"
+		"\"default\": {\"first\" : \"Fledge\", \"second\" : \"json\" },"
 		"\"description\": \"A JSON configuration parameter\"}}";
 
 const char *myCategoryEnum = "{\"description\": {"
-		"\"value\": \"The FogLAMP administrative API\","
+		"\"value\": \"The Fledge administrative API\","
 		"\"type\": \"string\","
-		"\"default\": \"The FogLAMP administrative API\","
-		"\"description\": \"The description of this FogLAMP service\"},"
+		"\"default\": \"The Fledge administrative API\","
+		"\"description\": \"The description of this Fledge service\"},"
 	"\"name\": {"
-		"\"value\": \"FogLAMP\","
+		"\"value\": \"Fledge\","
 		"\"type\": \"string\","
-		"\"default\": \"FogLAMP\","
-		"\"description\": \"The name of this FogLAMP service\"},"
+		"\"default\": \"Fledge\","
+		"\"description\": \"The name of this Fledge service\"},"
         "\"enum\": {" \
 		"\"value\": \"first\","
 		"\"type\": \"enumeration\","
@@ -81,7 +81,7 @@ const char *myCategoryEnum = "{\"description\": {"
 		"\"options\": [\"first\",\"second\",\"third\"], "
 		"\"description\": \"An enumeration configuration parameter\"}}";
 
-const char *enum_JSON = "{ \"key\" : \"test\", \"description\" : \"\", \"value\" : {\"description\" : { \"description\" : \"The description of this FogLAMP service\", \"type\" : \"string\", \"value\" : \"The FogLAMP administrative API\", \"default\" : \"The FogLAMP administrative API\" }, \"name\" : { \"description\" : \"The name of this FogLAMP service\", \"type\" : \"string\", \"value\" : \"FogLAMP\", \"default\" : \"FogLAMP\" }, \"enum\" : { \"description\" : \"An enumeration configuration parameter\", \"type\" : \"enumeration\", \"options\" : [ \"first\",\"second\",\"third\"], \"value\" : \"first\", \"default\" : \"first\" }} }";
+const char *enum_JSON = "{ \"key\" : \"test\", \"description\" : \"\", \"value\" : {\"description\" : { \"description\" : \"The description of this Fledge service\", \"type\" : \"string\", \"value\" : \"The Fledge administrative API\", \"default\" : \"The Fledge administrative API\" }, \"name\" : { \"description\" : \"The name of this Fledge service\", \"type\" : \"string\", \"value\" : \"Fledge\", \"default\" : \"Fledge\" }, \"enum\" : { \"description\" : \"An enumeration configuration parameter\", \"type\" : \"enumeration\", \"options\" : [ \"first\",\"second\",\"third\"], \"value\" : \"first\", \"default\" : \"first\" }} }";
 
 const char *myCategory_JSON_type_with_escaped_default = "{ "
 	"\"filter\": { "
@@ -91,10 +91,10 @@ const char *myCategory_JSON_type_with_escaped_default = "{ "
 		"\"value\": \"{}\" } }";
 
 const char *myCategoryMinMax = "{\"description\": {"
-		"\"value\": \"The FogLAMP administrative API\","
+		"\"value\": \"The Fledge administrative API\","
 		"\"type\": \"string\","
-		"\"default\": \"The FogLAMP administrative API\","
-		"\"description\": \"The description of this FogLAMP service\"},"
+		"\"default\": \"The Fledge administrative API\","
+		"\"description\": \"The description of this Fledge service\"},"
 	"\"range\": {"
 		"\"value\": \"1\","
 		"\"type\": \"integer\","
@@ -103,9 +103,9 @@ const char *myCategoryMinMax = "{\"description\": {"
 		"\"maximum\": \"10\","
 		"\"description\": \"A constrained value\"},"
         "\"complex\": {" \
-		"\"value\": { \"first\" : \"FogLAMP\", \"second\" : \"json\" },"
+		"\"value\": { \"first\" : \"Fledge\", \"second\" : \"json\" },"
 		"\"type\": \"json\","
-		"\"default\": {\"first\" : \"FogLAMP\", \"second\" : \"json\" },"
+		"\"default\": {\"first\" : \"Fledge\", \"second\" : \"json\" },"
 		"\"description\": \"A JSON configuration parameter\"}}";
 
 const char *myCategoryRemoveItems = "{" \
@@ -147,13 +147,13 @@ const char *myCategoryScript = "{\"config\": {\"displayName\": \"Configuration\"
 					"\"description\": \"A switch that can be used to enable or disable execution of the Python 2.7 filter.\"}, "
 				"\"script\": {\"displayName\": \"Python Script\", \"order\": \"2\", "
 					"\"default\": \"\", "
-					"\"value\": \"\\\"\\\"\\\"\\nFogLAMP filtering for readings data\\\"\\\"\\\"\\n"
+					"\"value\": \"\\\"\\\"\\\"\\nFledge filtering for readings data\\\"\\\"\\\"\\n"
 						"def set_filter_config(configuration):\\n"
 						"    print configuration\\n"
 						"    global filter_config\\n"
 						"    filter_config = json.loads(configuration['config'])\\n\\n"
 						"    return True\\n\\n\", "
-					"\"file\": \"/home/ubuntu/source/develop/FogLAMP/data/scripts/pumpa_powerfilter_script_file27.py\", "
+					"\"file\": \"/home/ubuntu/source/develop/Fledge/data/scripts/pumpa_powerfilter_script_file27.py\", "
 					"\"type\": \"script\", "
 					"\"description\": \"Python 2.7 module to load.\" } }";
 
@@ -166,15 +166,15 @@ const char *myCategory_JSON_type_without_escaped_default = "{ "
 		"\"value\": \"{}\" } }";
 
 const char *myCategoryDeprecated = "{\"description\": {"
-		"\"value\": \"The FogLAMP administrative API\","
+		"\"value\": \"The Fledge administrative API\","
 		"\"type\": \"string\","
-		"\"default\": \"The FogLAMP administrative API\","
-		"\"description\": \"The description of this FogLAMP service\"},"
+		"\"default\": \"The Fledge administrative API\","
+		"\"description\": \"The description of this Fledge service\"},"
 	"\"name\": {"
-		"\"value\": \"FogLAMP\","
+		"\"value\": \"Fledge\","
 		"\"type\": \"string\","
-		"\"default\": \"FogLAMP\","
-		"\"description\": \"The name of this FogLAMP service\"},"
+		"\"default\": \"Fledge\","
+		"\"description\": \"The name of this Fledge service\"},"
         "\"location\": {" \
 		"\"value\": \"remote\","
 		"\"type\": \"string\","
@@ -209,38 +209,38 @@ const char *myCategory_to_json_parameters = "{"\
 const char *json = "{ \"key\" : \"test\", \"description\" : \"Test description\", "
     "\"value\" : {"
 	"\"description\" : { "
-		"\"description\" : \"The description of this FogLAMP service\", "
+		"\"description\" : \"The description of this Fledge service\", "
 		"\"type\" : \"string\", "
-		"\"value\" : \"The FogLAMP administrative API\", "
-		"\"default\" : \"The FogLAMP administrative API\" }, "
+		"\"value\" : \"The Fledge administrative API\", "
+		"\"default\" : \"The Fledge administrative API\" }, "
 	"\"name\" : { "
-		"\"description\" : \"The name of this FogLAMP service\", "
+		"\"description\" : \"The name of this Fledge service\", "
 		"\"type\" : \"string\", "
-		"\"value\" : \"FogLAMP\", "
-		"\"default\" : \"FogLAMP\" }, "
+		"\"value\" : \"Fledge\", "
+		"\"default\" : \"Fledge\" }, "
 	"\"complex\" : { " 
 		"\"description\" : \"A JSON configuration parameter\", "
 		"\"type\" : \"json\", "
-		"\"value\" : {\"first\":\"FogLAMP\",\"second\":\"json\"}, "
-		"\"default\" : {\"first\":\"FogLAMP\",\"second\":\"json\"} }} }";
+		"\"value\" : {\"first\":\"Fledge\",\"second\":\"json\"}, "
+		"\"default\" : {\"first\":\"Fledge\",\"second\":\"json\"} }} }";
 
 const char *json_quoted = "{ \"key\" : \"test \\\"a\\\"\", \"description\" : \"Test \\\"description\\\"\", "
     "\"value\" : {"
 	"\"description\" : { "
-		"\"description\" : \"The description of this \\\"FogLAMP\\\" service\", "
+		"\"description\" : \"The description of this \\\"Fledge\\\" service\", "
 		"\"type\" : \"string\", "
-		"\"value\" : \"The \\\"FogLAMP\\\" administrative API\", "
-		"\"default\" : \"The \\\"FogLAMP\\\" administrative API\" }, "
+		"\"value\" : \"The \\\"Fledge\\\" administrative API\", "
+		"\"default\" : \"The \\\"Fledge\\\" administrative API\" }, "
 	"\"name\" : { "
-		"\"description\" : \"The name of this \\\"FogLAMP\\\" service\", "
+		"\"description\" : \"The name of this \\\"Fledge\\\" service\", "
 		"\"type\" : \"string\", "
-		"\"value\" : \"\\\"FogLAMP\\\"\", "
-		"\"default\" : \"\\\"FogLAMP\\\"\" }, "
+		"\"value\" : \"\\\"Fledge\\\"\", "
+		"\"default\" : \"\\\"Fledge\\\"\" }, "
 	"\"complex\" : { " 
 		"\"description\" : \"A JSON configuration parameter\", "
 		"\"type\" : \"json\", "
-		"\"value\" : {\"first\":\"FogLAMP\",\"second\":\"json\"}, "
-		"\"default\" : {\"first\":\"FogLAMP\",\"second\":\"json\"} }} }";
+		"\"value\" : {\"first\":\"Fledge\",\"second\":\"json\"}, "
+		"\"default\" : {\"first\":\"Fledge\",\"second\":\"json\"} }} }";
 
 const char *json_type_JSON = "{ \"key\" : \"test\", \"description\" : \"Test description\", "
 		"\"value\" : {\"filter\" : { \"description\" : \"filter\", \"type\" : \"JSON\", "
@@ -258,26 +258,26 @@ const char *allCategories_quoted = "[{\"key\": \"cat\\\"1\\\"\", \"description\"
 				   "{\"key\": \"cat\\\"2\\\"\", \"description\" : \"desc\\\"2\\\"\"}]";
 
 const char *myCategoryEnumFull = "{\"description\": {"
-		"\"value\": \"The FogLAMP administrative API\","
+		"\"value\": \"The Fledge administrative API\","
 		"\"type\": \"string\", \"order\" : \"1\", "
-		"\"default\": \"The FogLAMP administrative API\", "
-		"\"description\": \"The description of this FogLAMP service\"}, "
+		"\"default\": \"The Fledge administrative API\", "
+		"\"description\": \"The description of this Fledge service\"}, "
 	"\"name\": {"
-		"\"value\": \"FogLAMP\", \"readonly\" : \"false\", "
+		"\"value\": \"Fledge\", \"readonly\" : \"false\", "
 		"\"type\": \"string\", \"order\" : \"2\", "
-		"\"default\": \"FogLAMP\", \"displayName\" : \"FogLAMP service\", "
-		"\"description\": \"The name of this FogLAMP service\"}, "
+		"\"default\": \"Fledge\", \"displayName\" : \"Fledge service\", "
+		"\"description\": \"The name of this Fledge service\"}, "
 	"\"range\": {"
 		"\"value\": \"1\","
 		"\"type\": \"integer\","
 		"\"default\": \"1\","
 		"\"minimum\": \"1\", "
-		"\"maximum\": \"10\", \"order\" : \"4\",  \"displayName\" : \"FogLAMP range parameter\", "
+		"\"maximum\": \"10\", \"order\" : \"4\",  \"displayName\" : \"Fledge range parameter\", "
 		"\"description\": \"A constrained value\"},"
         "\"enum\": {" \
 		"\"value\": \"first\","
 		"\"type\": \"enumeration\", \"order\" : \"3\", "
-		"\"default\": \"first\", \"displayName\" : \"FogLAMP configuration parameter\", "
+		"\"default\": \"first\", \"displayName\" : \"Fledge configuration parameter\", "
 		"\"options\": [\"first\",\"second\",\"third\"], "
 		"\"description\": \"An enumeration configuration parameter\"}}";
 
@@ -404,7 +404,7 @@ TEST(CategoryTest, getValue)
 {
 EXPECT_EXIT({
 	ConfigCategory confCategory("test", myCategory);
-	bool ret = confCategory.getValue("name").compare("FogLAMP") == 0;
+	bool ret = confCategory.getValue("name").compare("Fledge") == 0;
 	if (!ret)
 	{
 		cerr << "getValue failed" << endl;
@@ -421,13 +421,13 @@ TEST(CategoryTest, getType)
 TEST(CategoryTest, getDefault)
 {
 	ConfigCategory confCategory("test", myCategory);
-	ASSERT_EQ(0, confCategory.getDefault("name").compare("FogLAMP"));
+	ASSERT_EQ(0, confCategory.getDefault("name").compare("Fledge"));
 }
 
 TEST(CategoryTest, getDescription)
 {
 	ConfigCategory confCategory("test", myCategory);
-	ASSERT_EQ(0, confCategory.getDescription("name").compare("The name of this FogLAMP service"));
+	ASSERT_EQ(0, confCategory.getDescription("name").compare("The name of this Fledge service"));
 }
 
 TEST(CategoryTest, isString)
@@ -530,7 +530,7 @@ TEST(CategoryTest, enumerationJSONTest)
 TEST(CategoryTest, displayName)
 {
 	ConfigCategory confCategory("test", myCategoryDisplayName);
-	ASSERT_EQ("My FogLAMP", confCategory.getDisplayName("name"));
+	ASSERT_EQ("My Fledge", confCategory.getDisplayName("name"));
 }
 
 TEST(CategoryTest, deprecated)
@@ -571,7 +571,7 @@ TEST(CategoryTest, removeItemsType)
  */
 TEST(CategoryTest, scriptItem)
 {
-	string file = "/home/ubuntu/source/develop/FogLAMP/data/scripts/pumpa_powerfilter_script_file27.py";
+	string file = "/home/ubuntu/source/develop/Fledge/data/scripts/pumpa_powerfilter_script_file27.py";
 	ConfigCategory scriptCategory("script", myCategoryScript);
 	ConfigCategory newCategory("scriptNew", scriptCategory.itemsToJSON(true));
 	// Check we have file attribute in Category object

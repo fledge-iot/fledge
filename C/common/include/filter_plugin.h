@@ -1,7 +1,7 @@
 #ifndef _FILTER_PLUGIN_H
 #define _FILTER_PLUGIN_H
 /*
- * FogLAMP filter plugin class.
+ * Fledge filter plugin class.
  *
  * Copyright (c) 2018 Dianomic Systems
  *

@@ -25,27 +25,27 @@ PLUGIN="sqlite"
 
 # Set default DB file
 if [ ! "${DEFAULT_SQLITE_DB_FILE}" ]; then
-    export DEFAULT_SQLITE_DB_FILE="${FOGLAMP_DATA}/foglamp.db"
+    export DEFAULT_SQLITE_DB_FILE="${FLEDGE_DATA}/fledge.db"
 fi
 
 USAGE="Usage: `basename ${0}` {start|stop|status|init|reset|help}"
 
-# Check FOGLAMP_ROOT
-if [ -z ${FOGLAMP_ROOT+x} ]; then
-    # Set FOGLAMP_ROOT as the default directory
-    FOGLAMP_ROOT="/usr/local/foglamp"
+# Check FLEDGE_ROOT
+if [ -z ${FLEDGE_ROOT+x} ]; then
+    # Set FLEDGE_ROOT as the default directory
+    FLEDGE_ROOT="/usr/local/fledge"
 fi
 
 # Check if the default directory exists
-if [[ ! -d "${FOGLAMP_ROOT}" ]]; then
+if [[ ! -d "${FLEDGE_ROOT}" ]]; then
 
     # Here we cannot use the logger because we cannot find the write_log script.
     # But it is ok, because the script is called with source and if it is called
     # as standalone script the echo will be captured.
-    echo "FogLAMP cannot be executed: ${FOGLAMP_ROOT} is not a valid directory."
-    echo "Create the enviroment variable FOGLAMP_ROOT before using FogLAMP."
-    echo "Specify the base directory for FogLAMP and set the variable with:"
-    echo "export FOGLAMP_ROOT=<basedir>"
+    echo "Fledge cannot be executed: ${FLEDGE_ROOT} is not a valid directory."
+    echo "Create the enviroment variable FLEDGE_ROOT before using Fledge."
+    echo "Specify the base directory for Fledge and set the variable with:"
+    echo "export FLEDGE_ROOT=<basedir>"
     exit 1
 
 fi
@@ -53,8 +53,8 @@ fi
 ##########
 ## INCLUDE SECTION
 ##########
-. $FOGLAMP_ROOT/scripts/common/get_engine_management.sh
-. $FOGLAMP_ROOT/scripts/common/write_log.sh
+. $FLEDGE_ROOT/scripts/common/get_engine_management.sh
+. $FLEDGE_ROOT/scripts/common/write_log.sh
 
 
 # Logger wrapper
@@ -63,7 +63,7 @@ sqlite_log() {
 }
 
 # Check first SQLite 3 with static library command line is available
-SQLITE_SQL="$FOGLAMP_ROOT/plugins/storage/sqlite/sqlite3"
+SQLITE_SQL="$FLEDGE_ROOT/plugins/storage/sqlite/sqlite3"
 if ! [[ -x "${SQLITE_SQL}" ]]; then
 # Check system default SQLite 3 command line is available
     if ! [[ -x "$(command -v sqlite3)" ]]; then
@@ -113,15 +113,15 @@ sqlite_start() {
             ;;
     esac
 
-    # Check if the foglamp database has been created
-    FOUND_SCHEMAS=`${SQLITE_SQL} ${DEFAULT_SQLITE_DB_FILE} "ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}' AS 'foglamp'; SELECT name FROM sqlite_master WHERE type='table'"`
+    # Check if the fledge database has been created
+    FOUND_SCHEMAS=`${SQLITE_SQL} ${DEFAULT_SQLITE_DB_FILE} "ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}' AS 'fledge'; SELECT name FROM sqlite_master WHERE type='table'"`
 
     if [ ! "${FOUND_SCHEMAS}" ]; then
-        # Create the FogLAMP database
+        # Create the Fledge database
          sqlite_reset "$1" "immediate" 
     fi
 
-    # FogLAMP DB schema update: FogLAMP version is $2
+    # Fledge DB schema update: Fledge version is $2
     sqlite_schema_update $2
 }
 
@@ -133,9 +133,9 @@ sqlite_stop() {
     # and the else must be maintained because exit can't be used
 
     if [[ "$1" == "noisy" ]]; then
-        sqlite_log "info" "FogLAMP database is SQLite3. No stop/start actions available" "all" "pretty"
+        sqlite_log "info" "Fledge database is SQLite3. No stop/start actions available" "all" "pretty"
     else
-        sqlite_log "info" "FogLAMP database is SQLite3. No stop/start actions available" "logonly" "pretty"
+        sqlite_log "info" "Fledge database is SQLite3. No stop/start actions available" "logonly" "pretty"
     fi
 
     return 0
@@ -157,21 +157,21 @@ sqlite_reset() {
     fi
 
     if [[ "$1" == "noisy" ]]; then
-        sqlite_log "info" "Building the metadata for the FogLAMP Plugin '${PLUGIN}' ..." "all" "pretty"
+        sqlite_log "info" "Building the metadata for the Fledge Plugin '${PLUGIN}' ..." "all" "pretty"
     else
-        sqlite_log "info" "Building the metadata for the FogLAMP Plugin '${PLUGIN}' ..." "logonly" "pretty"
+        sqlite_log "info" "Building the metadata for the Fledge Plugin '${PLUGIN}' ..." "logonly" "pretty"
     fi
 
     # 1- Drop all databases in DEFAULT_SQLITE_DB_FILE
     if [ -f "${DEFAULT_SQLITE_DB_FILE}" ]; then
         rm ${DEFAULT_SQLITE_DB_FILE} ||
-        sqlite_log "err" "Cannot drop database '${DEFAULT_SQLITE_DB_FILE}' for the FogLAMP Plugin '${PLUGIN}'" "all" "pretty"
+        sqlite_log "err" "Cannot drop database '${DEFAULT_SQLITE_DB_FILE}' for the Fledge Plugin '${PLUGIN}'" "all" "pretty"
     fi
     rm -f ${DEFAULT_SQLITE_DB_FILE}-journal ${DEFAULT_SQLITE_DB_FILE}-wal ${DEFAULT_SQLITE_DB_FILE}-shm
     # 2- Create new datafile an apply init file
     INIT_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
 PRAGMA page_size = 4096;
-ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}' AS 'foglamp';
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}' AS 'fledge';
 .read '${INIT_SQL}'
 .quit
 EOF`
@@ -179,15 +179,15 @@ EOF`
     RET_CODE=$?
     # Exit on failure
     if [ "${RET_CODE}" -ne 0 ]; then
-        sqlite_log "err" "Cannot initialize '${DEFAULT_SQLITE_DB_FILE}' for the FogLAMP Plugin '${PLUGIN}': ${INIT_OUTPUT}. Exiting" "all" "pretty"
+        sqlite_log "err" "Cannot initialize '${DEFAULT_SQLITE_DB_FILE}' for the Fledge Plugin '${PLUGIN}': ${INIT_OUTPUT}. Exiting" "all" "pretty"
         exit 2
     fi
 
     # Log success
     if [[ "$1" == "noisy" ]]; then
-        sqlite_log "info" "Build complete for FogLAMP Plugin '${PLUGIN} in database '${DEFAULT_SQLITE_DB_FILE}'." "all" "pretty"
+        sqlite_log "info" "Build complete for Fledge Plugin '${PLUGIN} in database '${DEFAULT_SQLITE_DB_FILE}'." "all" "pretty"
     else
-        sqlite_log "info" "Build complete for FogLAMP Plugin '${PLUGIN} in database '${DEFAULT_SQLITE_DB_FILE}'." "logonly" "pretty"
+        sqlite_log "info" "Build complete for Fledge Plugin '${PLUGIN} in database '${DEFAULT_SQLITE_DB_FILE}'." "logonly" "pretty"
     fi
 }
 
@@ -222,7 +222,7 @@ sqlite_status() {
 #
 sqlite_schema_update() {
 
-    # Current starting FogLAMP version
+    # Current starting Fledge version
     NEW_VERSION=$1
     # DB table
     VERSION_TABLE="version"
@@ -232,32 +232,32 @@ sqlite_schema_update() {
     CURR_VER=`eval ${COMMAND_VERSION}`
     ret_code=$?
     if [ ! "${CURR_VER}" ] || [ "${ret_code}" -ne 0 ]; then
-        sqlite_log "error" "Error checking FogLAMP DB schema version: "\
+        sqlite_log "error" "Error checking Fledge DB schema version: "\
 "the table '${VERSION_TABLE}' doesn't exist. Exiting" "all" "pretty"
         return 1
     fi
 
-    # Fetch FogLAMP DB version
-    CURR_VER=`${SQLITE_SQL} ${DEFAULT_SQLITE_DB_FILE} "ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}' AS 'foglamp'; SELECT id FROM foglamp.${VERSION_TABLE}" | tr -d ' '`
+    # Fetch Fledge DB version
+    CURR_VER=`${SQLITE_SQL} ${DEFAULT_SQLITE_DB_FILE} "ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}' AS 'fledge'; SELECT id FROM fledge.${VERSION_TABLE}" | tr -d ' '`
     if [ ! "${CURR_VER}" ]; then
         # No version found set DB version now
-        INSERT_QUERY="ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}' AS 'foglamp'; BEGIN; INSERT INTO foglamp.${VERSION_TABLE} (id) VALUES('${NEW_VERSION}'); COMMIT;"
+        INSERT_QUERY="ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}' AS 'fledge'; BEGIN; INSERT INTO fledge.${VERSION_TABLE} (id) VALUES('${NEW_VERSION}'); COMMIT;"
         COMMAND_INSERT="${SQLITE_SQL} ${DEFAULT_SQLITE_DB_FILE} \"${INSERT_QUERY}\""
         CURR_VER=`eval "${COMMAND_INSERT}"`
         ret_code=$?
 
-        SET_VERSION_MSG="FogLAMP DB version not found in foglamp.'${VERSION_TABLE}', setting version [${NEW_VERSION}]"
+        SET_VERSION_MSG="Fledge DB version not found in fledge.'${VERSION_TABLE}', setting version [${NEW_VERSION}]"
         if [[ "$1" == "noisy" ]]; then
             sqlite_log "info" "${SET_VERSION_MSG}" "all" "pretty"
         else 
             sqlite_log "info" "${SET_VERSION_MSG}" "logonly" "pretty"
         fi
     else
-        # Only if DB version is not equal to starting FogLAMP version we try schema update
+        # Only if DB version is not equal to starting Fledge version we try schema update
         if [ "${CURR_VER}" != "${NEW_VERSION}" ]; then
-            sqlite_log "info" "Detected '${PLUGIN}' FogLAMP DB schema change from version [${CURR_VER}]"\
+            sqlite_log "info" "Detected '${PLUGIN}' Fledge DB schema change from version [${CURR_VER}]"\
 " to [${NEW_VERSION}], applying Upgrade/Downgrade ..." "all" "pretty"
-            SCHEMA_UPDATE_SCRIPT="$FOGLAMP_ROOT/scripts/plugins/storage/${PLUGIN}/schema_update.sh"
+            SCHEMA_UPDATE_SCRIPT="$FLEDGE_ROOT/scripts/plugins/storage/${PLUGIN}/schema_update.sh"
             if [ -s "${SCHEMA_UPDATE_SCRIPT}" ] && [ -x "${SCHEMA_UPDATE_SCRIPT}" ]; then
                 # Call the schema update script
                 ${SCHEMA_UPDATE_SCRIPT} "${CURR_VER}" "${NEW_VERSION}" "${SQLITE_SQL}"
@@ -269,7 +269,7 @@ sqlite_schema_update() {
             fi
         else
             # Just log up-to-date
-            sqlite_log "info" "FogLAMP DB schema is up to date to version [${CURR_VER}]" "logonly" "pretty"
+            sqlite_log "info" "Fledge DB schema is up to date to version [${CURR_VER}]" "logonly" "pretty"
             return 0
         fi
     fi
@@ -281,7 +281,7 @@ sqlite_help() {
 
     echo "${USAGE}
 SQLite3 Storage Layer plugin init script. 
-The script is used to control the SQLite3 plugin as database for FogLAMP
+The script is used to control the SQLite3 plugin as database for Fledge
 Arguments:
  start   - Start the database server (when managed)
            If the server has not been initialized, it also initialize it
@@ -292,8 +292,8 @@ Arguments:
            WARNING: all the data stored in the server will be lost!
  help    - This text
 
- managed   - The database server is embedded in FogLAMP
- unmanaged - The database server is not embedded in FogLAMP"
+ managed   - The database server is embedded in Fledge
+ unmanaged - The database server is not embedded in Fledge"
 
 }
 
@@ -302,20 +302,20 @@ Arguments:
 ### Main Logic ###
 ##################
 
-# Set FOGLAMP_DATA if it does not exist
-if [ -z ${FOGLAMP_DATA+x} ]; then
-    FOGLAMP_DATA="${FOGLAMP_ROOT}/data"
+# Set FLEDGE_DATA if it does not exist
+if [ -z ${FLEDGE_DATA+x} ]; then
+    FLEDGE_DATA="${FLEDGE_ROOT}/data"
 fi
 
-# Check if $FOGLAMP_DATA exists
-if [[ ! -d ${FOGLAMP_DATA} ]]; then
-    sqlite_log "err" "FogLAMP cannot be executed: ${FOGLAMP_DATA} is not a valid directory." "all" "pretty"
+# Check if $FLEDGE_DATA exists
+if [[ ! -d ${FLEDGE_DATA} ]]; then
+    sqlite_log "err" "Fledge cannot be executed: ${FLEDGE_DATA} is not a valid directory." "all" "pretty"
     exit 1
 fi
 
 # Extract plugin
 engine_management=`get_engine_management $PLUGIN`
-# Settings if the database is managed by FogLAMP
+# Settings if the database is managed by Fledge
 case "$engine_management" in
     "true")
 
@@ -324,7 +324,7 @@ case "$engine_management" in
         # Check if sqlitei3 is present in the expected path
         # We don't need to manage SQLite3 db
         # This will be removed in next commits
-        SQLITE_SQL="$FOGLAMP_ROOT/plugins/storage/sqlite/bin/psql"
+        SQLITE_SQL="$FLEDGE_ROOT/plugins/storage/sqlite/bin/psql"
         if ! [[ -x "${SQLITE_SQL}" ]]; then
             sqlite_log "err" "SQLite program not found: the database server cannot be managed." "all" "pretty"
             exit 1
@@ -344,7 +344,7 @@ case "$engine_management" in
     *)
 
         # Unexpected value from the configuration file
-        sqlite_log "err" "FogLAMP cannot start." "all" "pretty"
+        sqlite_log "err" "Fledge cannot start." "all" "pretty"
         sqlite_log "err" "Missing plugin information from the storage microservice" "all" "pretty"
         exit 1
         ;;
@@ -353,12 +353,12 @@ esac
 
 # Check if the init.sql file exists
 # Attempt 1: deployment path
-if [[ -e "$FOGLAMP_ROOT/plugins/storage/sqlite/init.sql" ]]; then
-    INIT_SQL="$FOGLAMP_ROOT/plugins/storage/sqlite/init.sql"
+if [[ -e "$FLEDGE_ROOT/plugins/storage/sqlite/init.sql" ]]; then
+    INIT_SQL="$FLEDGE_ROOT/plugins/storage/sqlite/init.sql"
 else
     # Attempt 2: development path
-    if [[ -e "$FOGLAMP_ROOT/scripts/plugins/storage/sqlite/init.sql" ]]; then
-        INIT_SQL="$FOGLAMP_ROOT/scripts/plugins/storage/sqlite/init.sql"
+    if [[ -e "$FLEDGE_ROOT/scripts/plugins/storage/sqlite/init.sql" ]]; then
+        INIT_SQL="$FLEDGE_ROOT/scripts/plugins/storage/sqlite/init.sql"
     else
         sqlite_log "err" "Missing plugin '${PLUGIN}' initialization file init.sql." "all" "pretty"
         exit 1

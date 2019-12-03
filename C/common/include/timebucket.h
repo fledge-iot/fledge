@@ -1,7 +1,7 @@
 #ifndef _TIMEBUCKET_H
 #define _TIMEBUCKET_H
 /*
- * FogLAMP storage client.
+ * Fledge storage client.
  *
  * Copyright (c) 2018 OSisoft, LLC
  *

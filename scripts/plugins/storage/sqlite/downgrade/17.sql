@@ -1,4 +1,4 @@
-CREATE TABLE foglamp.tasks_temporary (
+CREATE TABLE fledge.tasks_temporary (
              id           uuid                        NOT NULL,                          -- PK
              process_name character varying(255)      NOT NULL,                          -- Name of the task's process
              state        smallint                    NOT NULL,                          -- 1-Running, 2-Complete, 3-Cancelled, 4-Interrupted
@@ -12,10 +12,10 @@ CREATE TABLE foglamp.tasks_temporary (
   REFERENCES scheduled_processes ( name ) MATCH SIMPLE
              ON UPDATE NO ACTION
              ON DELETE NO ACTION );
-INSERT INTO foglamp.tasks_temporary SELECT id, process_name, state, start_time, end_time, reason, pid, exit_code FROM foglamp.tasks;
-DROP TABLE foglamp.tasks;
+INSERT INTO fledge.tasks_temporary SELECT id, process_name, state, start_time, end_time, reason, pid, exit_code FROM fledge.tasks;
+DROP TABLE fledge.tasks;
 
-CREATE TABLE foglamp.tasks (
+CREATE TABLE fledge.tasks (
              id           uuid                        NOT NULL,                          -- PK
              process_name character varying(255)      NOT NULL,                          -- Name of the task's process
              state        smallint                    NOT NULL,                          -- 1-Running, 2-Complete, 3-Cancelled, 4-Interrupted
@@ -29,8 +29,8 @@ CREATE TABLE foglamp.tasks (
   REFERENCES scheduled_processes ( name ) MATCH SIMPLE
              ON UPDATE NO ACTION
              ON DELETE NO ACTION );
-INSERT INTO foglamp.tasks SELECT id, process_name, state, start_time, end_time, reason, pid, exit_code FROM foglamp.tasks_temporary;
-DROP TABLE foglamp.tasks_temporary;
+INSERT INTO fledge.tasks SELECT id, process_name, state, start_time, end_time, reason, pid, exit_code FROM fledge.tasks_temporary;
+DROP TABLE fledge.tasks_temporary;
 
 DROP INDEX IF EXISTS tasks_ix1;
 CREATE INDEX tasks_ix1

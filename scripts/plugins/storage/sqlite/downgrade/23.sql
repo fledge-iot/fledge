@@ -1,5 +1,5 @@
 -- List of tasks
-CREATE TABLE foglamp.new_tasks (
+CREATE TABLE fledge.new_tasks (
              id           uuid                        NOT NULL,                          -- PK
              schedule_name character varying(255),                                       -- Name of the task
              process_name character varying(255)      NOT NULL,                          -- Name of the task's process
@@ -26,8 +26,8 @@ CREATE INDEX tasks_ix1
     ON tasks(schedule_name, start_time);
 
 
--- General log table for FogLAMP.
-CREATE TABLE foglamp.new_log (
+-- General log table for Fledge.
+CREATE TABLE fledge.new_log (
        id    INTEGER                PRIMARY KEY AUTOINCREMENT,
        code  CHARACTER(5)           NOT NULL,                  -- The process that logged the action
        level SMALLINT               NOT NULL,                  -- 0 Success - 1 Failure - 2 Warning - 4 Info

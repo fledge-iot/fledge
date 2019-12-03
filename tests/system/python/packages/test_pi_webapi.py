@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# FOGLAMP_BEGIN
-# See: http://foglamp.readthedocs.io/
-# FOGLAMP_END
+# FLEDGE_BEGIN
+# See: http://fledge.readthedocs.io/
+# FLEDGE_END
 
 """ Test sending data to PI using Web API
 
@@ -28,9 +28,9 @@ DATAPOINT = "sensor"
 DATAPOINT_VALUE = 20
 
 
-def get_ping_status(foglamp_url):
-    _connection = http.client.HTTPConnection(foglamp_url)
-    _connection.request("GET", '/foglamp/ping')
+def get_ping_status(fledge_url):
+    _connection = http.client.HTTPConnection(fledge_url)
+    _connection.request("GET", '/fledge/ping')
     r = _connection.getresponse()
     assert 200 == r.status
     r = r.read().decode()
@@ -38,9 +38,9 @@ def get_ping_status(foglamp_url):
     return jdoc
 
 
-def get_statistics_map(foglamp_url):
-    _connection = http.client.HTTPConnection(foglamp_url)
-    _connection.request("GET", '/foglamp/statistics')
+def get_statistics_map(fledge_url):
+    _connection = http.client.HTTPConnection(fledge_url)
+    _connection.request("GET", '/fledge/statistics')
     r = _connection.getresponse()
     assert 200 == r.status
     r = r.read().decode()
@@ -48,9 +48,9 @@ def get_statistics_map(foglamp_url):
     return utils.serialize_stats_map(jdoc)
 
 
-def get_asset_tracking_details(foglamp_url, event=None):
-    _connection = http.client.HTTPConnection(foglamp_url)
-    uri = '/foglamp/track'
+def get_asset_tracking_details(fledge_url, event=None):
+    _connection = http.client.HTTPConnection(fledge_url)
+    uri = '/fledge/track'
     if event:
         uri += '?event={}'.format(event)
     _connection.request("GET", uri)
@@ -66,7 +66,7 @@ def _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_
     data_from_pi = None
 
     # See C/plugins/common/omf.cpp
-    af_hierarchy_level = "foglamp_data_piwebapi"
+    af_hierarchy_level = "fledge_data_piwebapi"
     type_id = 1
     recorded_datapoint = "{}_{}measurement_{}.{}".format(af_hierarchy_level, type_id, asset_name, DATAPOINT)
 
@@ -82,17 +82,17 @@ def _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_
 
 
 @pytest.fixture
-def start_south_north(clean_setup_foglamp_packages, add_south, start_north_pi_server_c_web_api, remove_data_file,
-                      foglamp_url, pi_host, pi_port, pi_admin, pi_passwd, asset_name=ASSET):
+def start_south_north(clean_setup_fledge_packages, add_south, start_north_pi_server_c_web_api, remove_data_file,
+                      fledge_url, pi_host, pi_port, pi_admin, pi_passwd, asset_name=ASSET):
     """ This fixture
-        clean_setup_foglamp_packages: purge the foglamp* packages and install latest for given repo url
+        clean_setup_fledge_packages: purge the fledge* packages and install latest for given repo url
         add_south: Fixture that adds a south service with given configuration
         start_north_pi_server_c_web_api: Fixture that starts PI north task
         remove_data_file: Fixture that remove data file created during the tests """
 
     # Define the template file for fogbench
     fogbench_template_path = os.path.join(
-        os.path.expandvars('${FOGLAMP_ROOT}'), 'data/{}'.format(TEMPLATE_NAME))
+        os.path.expandvars('${FLEDGE_ROOT}'), 'data/{}'.format(TEMPLATE_NAME))
     with open(fogbench_template_path, "w") as f:
         f.write(
             '[{"name": "%s", "sensor_values": '
@@ -101,8 +101,8 @@ def start_south_north(clean_setup_foglamp_packages, add_south, start_north_pi_se
 
     south_plugin = "coap"
     # south_branch does not matter as these are archives.dianomic.com version install
-    add_south(south_plugin, None, foglamp_url, service_name="CoAP FOGL-2964", installation_type='package')
-    start_north_pi_server_c_web_api(foglamp_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd)
+    add_south(south_plugin, None, fledge_url, service_name="CoAP FOGL-2964", installation_type='package')
+    start_north_pi_server_c_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd)
 
     yield start_south_north
 
@@ -112,26 +112,26 @@ def start_south_north(clean_setup_foglamp_packages, add_south, start_north_pi_se
 
 class TestPackagesCoAP_PI_WebAPI:
 
-    def test_end_to_end(self, start_south_north, read_data_from_pi, foglamp_url, pi_host, pi_admin, pi_passwd, pi_db,
+    def test_end_to_end(self, start_south_north, read_data_from_pi, fledge_url, pi_host, pi_admin, pi_passwd, pi_db,
                         wait_time, retries, skip_verify_north_interface, asset_name=ASSET):
-        """ Test that data is inserted in FogLAMP and sent to PI
+        """ Test that data is inserted in Fledge and sent to PI
             start_south_north: Fixture that add south and north instance
             read_data_from_pi: Fixture to read data from PI
             skip_verify_north_interface: Flag for assertion of data using PI web API
             Assertions:
-                on endpoint GET /foglamp/ping
-                on endpoint GET /foglamp/statistics
-                on endpoint GET /foglamp/asset
-                on endpoint GET /foglamp/asset/<asset_name>
+                on endpoint GET /fledge/ping
+                on endpoint GET /fledge/statistics
+                on endpoint GET /fledge/asset
+                on endpoint GET /fledge/asset/<asset_name>
                 data received from PI is same as data sent"""
 
-        conn = http.client.HTTPConnection(foglamp_url)
-        subprocess.run(["cd $FOGLAMP_ROOT/extras/python; python3 -m fogbench -t ../../data/{}; cd -".format(TEMPLATE_NAME)],
+        conn = http.client.HTTPConnection(fledge_url)
+        subprocess.run(["cd $FLEDGE_ROOT/extras/python; python3 -m fogbench -t ../../data/{}; cd -".format(TEMPLATE_NAME)],
                        shell=True, check=True)
 
         time.sleep(wait_time)
 
-        ping_response = get_ping_status(foglamp_url)
+        ping_response = get_ping_status(fledge_url)
         assert 1 == ping_response["dataRead"]
 
         retry_count = 1
@@ -145,18 +145,18 @@ class TestPackagesCoAP_PI_WebAPI:
                     time.sleep(wait_time)
 
                 retry_count += 1
-                ping_response = get_ping_status(foglamp_url)
+                ping_response = get_ping_status(fledge_url)
 
             assert 1 == sent, "Failed to send data via PI Web API using Basic auth"
 
-        actual_stats_map = get_statistics_map(foglamp_url)
+        actual_stats_map = get_statistics_map(fledge_url)
         assert 1 == actual_stats_map[asset_name.upper()]
         assert 1 == actual_stats_map['READINGS']
         if not skip_verify_north_interface:
             assert 1 == actual_stats_map['Readings Sent']
             assert 1 == actual_stats_map['NorthReadingsToPI_WebAPI']
 
-        conn.request("GET", '/foglamp/asset')
+        conn.request("GET", '/fledge/asset')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -165,7 +165,7 @@ class TestPackagesCoAP_PI_WebAPI:
         assert asset_name == retval[0]["assetCode"]
         assert 1 == retval[0]["count"]
 
-        conn.request("GET", '/foglamp/asset/{}'.format(asset_name))
+        conn.request("GET", '/fledge/asset/{}'.format(asset_name))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -173,7 +173,7 @@ class TestPackagesCoAP_PI_WebAPI:
         assert {DATAPOINT: DATAPOINT_VALUE} == retval[0]["reading"]
 
         if not skip_verify_north_interface:
-            egress_tracking_details = get_asset_tracking_details(foglamp_url, "Egress")
+            egress_tracking_details = get_asset_tracking_details(fledge_url, "Egress")
             assert len(egress_tracking_details["track"]), "Failed to track Egress event"
             tracked_item = egress_tracking_details["track"][0]
             assert "NorthReadingsToPI_WebAPI" == tracked_item["service"]

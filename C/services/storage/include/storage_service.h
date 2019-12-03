@@ -1,7 +1,7 @@
 #ifndef _STORAGE_SERVICE_H
 #define _STORAGE_SERVICE_H
 /*
- * FogLAMP storage service.
+ * Fledge storage service.
  *
  * Copyright (c) 2017 OSisoft, LLC
  *
@@ -16,11 +16,11 @@
 #include <storage_plugin.h>
 #include <service_handler.h>
 
-#define SERVICE_NAME  "FogLAMP Storage"
+#define SERVICE_NAME  "Fledge Storage"
 
 /**
  * The StorageService class. This class is the core
- * of the service that offers access to the FogLAMP
+ * of the service that offers access to the Fledge
  * storage layer. It maintains the API and provides
  * the hooks for incoming management API requests.
  */

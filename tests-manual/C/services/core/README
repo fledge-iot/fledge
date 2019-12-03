@@ -4,19 +4,19 @@ ConfigurationManger class tests.
 
 Steps:
 
-1) make sure FogLAMP storage layer is running on port 8080
+1) make sure Fledge storage layer is running on port 8080
 
-	if not, set FOGLAMP_DATA to "." and start it.
-	# export FOGLAMP_DATA=.
+	if not, set FLEDGE_DATA to "." and start it.
+	# export FLEDGE_DATA=.
 
-	Set FOGLAMP_ROOT if needed
-	# export FOGLAMP_ROOT=/some/path
+	Set FLEDGE_ROOT if needed
+	# export FLEDGE_ROOT=/some/path
 
-	Make we have a FogLAMP SQlite3 database:
-	# export DEFAULT_SQLITE_DB_FILE=/some_path/foglamp.db
+	Make we have a Fledge SQlite3 database:
+	# export DEFAULT_SQLITE_DB_FILE=/some_path/fledge.db
 
 	Start storage service
-	# $FOGLAMP_ROOT/services/storage	
+	# $FLEDGE_ROOT/services/storage	
 
 2) delete category "testcategory" and its child categories
 
@@ -36,15 +36,15 @@ Steps:
 
 =====================================================================
 Integration tests for classes:
- - FogLAMP Core C++
+ - Fledge Core C++
  - ConfigurationManager C++ (which needs a running Storage Service)
 =====================================================================
 
 
 Steps:
 
-1) Set FOGLAMP_ROOT
+1) Set FLEDGE_ROOT
 2) ./testRunner.sh
-3) Manually kill FogLAMP Core and Storage Service processes (this is required at the time being)
+3) Manually kill Fledge Core and Storage Service processes (this is required at the time being)
 
 

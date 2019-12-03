@@ -1,7 +1,7 @@
 #ifndef _PROFILE_H
 #define _PROFILE_H
 /*
- * FogLAMP storage service.
+ * Fledge storage service.
  *
  * Copyright (c) 2018 OSisoft, LLC
  *

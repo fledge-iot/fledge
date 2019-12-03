@@ -8,39 +8,39 @@ __version__="1.0.0"
 
 #########################################################
 # Usage text for this script
-# $FOGLAMP_ROOT/tests/system/python/scripts/reset_plugins
+# $FLEDGE_ROOT/tests/system/python/scripts/reset_plugins
 #########################################################
 
 remove_south_python () {
-    path="$FOGLAMP_ROOT/python/foglamp/plugins/south"
+    path="$FLEDGE_ROOT/python/fledge/plugins/south"
     find ${path} -maxdepth 1 | grep -v "^${path}$" | egrep -v '(__init__.py)' | xargs rm -rf
 }
 
 remove_south_c () {
-    rm -rf $FOGLAMP_ROOT/plugins/south
+    rm -rf $FLEDGE_ROOT/plugins/south
 }
 
 remove_north_python () {
-    path="$FOGLAMP_ROOT/python/foglamp/plugins/north"
+    path="$FLEDGE_ROOT/python/fledge/plugins/north"
     find ${path} -maxdepth 1 | grep -v "^${path}$" | egrep -v '(pi_server|ocs|common|empty|README.rst|__init__.py)' | xargs rm -rf
 }
 
 remove_north_c () {
-    path="$FOGLAMP_ROOT/plugins/north"
+    path="$FLEDGE_ROOT/plugins/north"
     find ${path} -maxdepth 1 | grep -v "^${path}$" | egrep -v '(PI_Server_V2|ocs_V2)' | xargs rm -rf
 }
 
 remove_filter () {
-    path="$FOGLAMP_ROOT/plugins/filter"
+    path="$FLEDGE_ROOT/plugins/filter"
     find ${path} -maxdepth 1 | grep -v "^${path}$" | egrep -v '(common)' | xargs rm -rf
 }
 
 remove_notification_delivery () {
-    rm -rf $FOGLAMP_ROOT/plugins/notificationDelivery
+    rm -rf $FLEDGE_ROOT/plugins/notificationDelivery
 }
 
 remove_notification_rule () {
-    rm -rf $FOGLAMP_ROOT/plugins/notificationRule
+    rm -rf $FLEDGE_ROOT/plugins/notificationRule
 }
 
 remove_all () {

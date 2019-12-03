@@ -13,9 +13,9 @@ Kerberos authentication
 
 Introduction
 ============
-FogLAMP implements through his North plugin PI_server Token, Basic and Kerberos authentication, the latter is especially relevant for the integration with PI Web API using `OMF`_.
+Fledge implements through his North plugin PI_server Token, Basic and Kerberos authentication, the latter is especially relevant for the integration with PI Web API using `OMF`_.
 
-The FogLAMP *requirements.sh* script installs the Kerberos client to allow the integration with what in the specific terminology is called KDC (the Kerberos server).
+The Fledge *requirements.sh* script installs the Kerberos client to allow the integration with what in the specific terminology is called KDC (the Kerberos server).
 
 PI-Server as the North endpoint
 ===============================
@@ -26,9 +26,9 @@ the easiest one is the Windows server on which the PI-Server is executed act as 
 
 The Windows Active directory should be installed and properly configured for allowing the Windows server to authenticate Kerberos requests.
 
-FogLAMP North plugin
+Fledge North plugin
 ====================
-The North plugin has a set of configurable options that should be changed, using either the FogLAMP API or the FogLAMP GUI,
+The North plugin has a set of configurable options that should be changed, using either the Fledge API or the Fledge GUI,
 to select the Kerberos authentication.
 
 The North plugin supports the configurable option *PIServerEndpoint* for allowing to select the target among:
@@ -58,7 +58,7 @@ the *PIWebAPIAuthenticationMethod* option permits to select the desired authenti
 the Kerberos authentication requires a keytab file, the *PIWebAPIKerberosKeytabFileName* option specifies the name of the file expected under the
 directory:
 ::
-	${FOGLAMP_ROOT}/data/etc/kerberos
+	${FLEDGE_ROOT}/data/etc/kerberos
 
 **NOTE:**
 
@@ -69,19 +69,19 @@ North plugin.
 
 A sample set of commands for selecting *PI Web API* usingthe *Kerberos* authentication:
 ::
-	curl -X PUT http://localhost:8081/foglamp/category/North_statistics_to_PI/URL                              -d '{ "value" : "https://pi-server:443/piwebapi/omf" }'
-	curl -X PUT http://localhost:8081/foglamp/category/North_statistics_to_PI/PIServerEndpoint                 -d '{ "value" : "PI Web API" }'
-	curl -X PUT http://localhost:8081/foglamp/category/North_statistics_to_PI/PIWebAPIAuthenticationMethod     -d '{ "value" : "kerberos" }'
-	curl -X PUT http://localhost:8081/foglamp/category/North_statistics_to_PI/AFHierarchy1Level                -d '{ "value" : "foglamp_data_piwebapi" }'
+	curl -X PUT http://localhost:8081/fledge/category/North_statistics_to_PI/URL                              -d '{ "value" : "https://pi-server:443/piwebapi/omf" }'
+	curl -X PUT http://localhost:8081/fledge/category/North_statistics_to_PI/PIServerEndpoint                 -d '{ "value" : "PI Web API" }'
+	curl -X PUT http://localhost:8081/fledge/category/North_statistics_to_PI/PIWebAPIAuthenticationMethod     -d '{ "value" : "kerberos" }'
+	curl -X PUT http://localhost:8081/fledge/category/North_statistics_to_PI/AFHierarchy1Level                -d '{ "value" : "fledge_data_piwebapi" }'
 
 **NOTE:**
 
-- *North_statistics_to_PI* should correspond to the name of the North plugin you have created in FogLAMP
+- *North_statistics_to_PI* should correspond to the name of the North plugin you have created in Fledge
 
 
-FogLAMP server configuration
+Fledge server configuration
 ============================
-The server on which FogLAMP is going to be executed needs to be properly configured to allow the Kerberos authentication.
+The server on which Fledge is going to be executed needs to be properly configured to allow the Kerberos authentication.
 
 The following steps are needed:
 
@@ -113,7 +113,7 @@ try the resolution of the name using the usual *ping* command:
 
 Kerberos client configuration
 -----------------------------
-The server on which FogLAMP runs act like a Kerberos client and the related configuration file should be edited for allowing the proper Kerberos server identification.
+The server on which Fledge runs act like a Kerberos client and the related configuration file should be edited for allowing the proper Kerberos server identification.
 The information should be added into the */etc/krb5.conf* file in the corresponding section, for example:
 ::
 	[libdefaults]
@@ -127,19 +127,19 @@ The information should be added into the */etc/krb5.conf* file in the correspond
 
 Kerberos keytab file
 --------------------
-The keytab file should be generated on the Kerberos server and copied into the FogLAMP server in the directory:
+The keytab file should be generated on the Kerberos server and copied into the Fledge server in the directory:
 ::
-	${FOGLAMP_DATA}/etc/kerberos
+	${FLEDGE_DATA}/etc/kerberos
 
 **NOTE:**
 
-- if **FOGLAMP_DATA** is not set its value should be *$FOGLAMP_ROOT/data*.
+- if **FLEDGE_DATA** is not set its value should be *$FLEDGE_ROOT/data*.
 
 The name of the file should match the value of the North plugin option *PIWebAPIKerberosKeytabFileName*, by default *piwebapi_kerberos_https.keytab*
 ::
-	$ ls -l ${FOGLAMP_DATA}/etc/kerberos
-	-rwxrwxrwx 1 foglamp foglamp  91 Jul 17 09:07 piwebapi_kerberos_https.keytab
-	-rw-rw-r-- 1 foglamp foglamp 199 Aug 13 15:30 README.rst
+	$ ls -l ${FLEDGE_DATA}/etc/kerberos
+	-rwxrwxrwx 1 fledge fledge  91 Jul 17 09:07 piwebapi_kerberos_https.keytab
+	-rw-rw-r-- 1 fledge fledge 199 Aug 13 15:30 README.rst
 
 The way the keytab file is generated depends on the type of the Kerberos server, in the case of Windows Active Directory this is an sample command:
 ::
@@ -151,13 +151,13 @@ Troubleshooting the Kerberos authentication
 
 1) check the North plugin configuration, a sample command
 ::
-    curl -s -S -X GET http://localhost:8081/foglamp/category/North_Readings_to_PI | jq ".|{URL,"PIServerEndpoint",PIWebAPIAuthenticationMethod,PIWebAPIKerberosKeytabFileName,AFHierarchy1Level}"
+    curl -s -S -X GET http://localhost:8081/fledge/category/North_Readings_to_PI | jq ".|{URL,"PIServerEndpoint",PIWebAPIAuthenticationMethod,PIWebAPIKerberosKeytabFileName,AFHierarchy1Level}"
 
 2) check the presence of the keytab file
 ::
-	$ ls -l ${FOGLAMP_DATA}/etc/kerberos
-	-rwxrwxrwx 1 foglamp foglamp  91 Jul 17 09:07 piwebapi_kerberos_https.keytab
-	-rw-rw-r-- 1 foglamp foglamp 199 Aug 13 15:30 README.rst
+	$ ls -l ${FLEDGE_ROOT}/data/etc/kerberos
+	-rwxrwxrwx 1 fledge fledge  91 Jul 17 09:07 piwebapi_kerberos_https.keytab
+	-rw-rw-r-- 1 fledge fledge 199 Aug 13 15:30 README.rst
 
 3) verify the reachability of the Kerberos server (usually the PI-Server) - Network reachability
 ::

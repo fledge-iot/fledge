@@ -8,7 +8,7 @@ __version__="1.0.0"
 
 ###########################################################################################################
 # Usage text for this script
-# $FOGLAMP_ROOT/tests/system/python/scripts/install_python_plugin {BRANCH_NAME} {PLUGIN_TYPE} {PLUGIN_NAME}
+# $FLEDGE_ROOT/tests/system/python/scripts/install_python_plugin {BRANCH_NAME} {PLUGIN_TYPE} {PLUGIN_NAME}
 ###########################################################################################################
 
 BRANCH_NAME=$1
@@ -24,27 +24,27 @@ USE_PIP_CACHE=${USE_PIP_CACHE,,}
 if [[ "${USE_PIP_CACHE}" = false ]]; then USE_PIP_CACHE="--no-cache-dir"; else USE_PIP_CACHE=""; fi
 
 
-REPO_NAME=foglamp-${PLUGIN_TYPE}-${PLUGIN_NAME}
+REPO_NAME=fledge-${PLUGIN_TYPE}-${PLUGIN_NAME}
 
 if [ "${PLUGIN_NAME}" == "http_south" ] || [ "${PLUGIN_NAME}" == "http_north" ] ; then
-   REPO_NAME=foglamp-${PLUGIN_TYPE}-http
+   REPO_NAME=fledge-${PLUGIN_TYPE}-http
 fi
 
 
 clean () {
    rm -rf /tmp/${REPO_NAME}
-   rm -rf ${FOGLAMP_ROOT}/python/foglamp/plugins/${PLUGIN_TYPE}/foglamp-${PLUGIN_TYPE}-${PLUGIN_NAME}
+   rm -rf ${FLEDGE_ROOT}/python/fledge/plugins/${PLUGIN_TYPE}/fledge-${PLUGIN_TYPE}-${PLUGIN_NAME}
 }
 
 clone_repo () {
-   git clone -b ${BRANCH_NAME} --single-branch https://github.com/foglamp/${REPO_NAME}.git /tmp/${REPO_NAME}
+   git clone -b ${BRANCH_NAME} --single-branch https://github.com/fledge/${REPO_NAME}.git /tmp/${REPO_NAME}
 }
 
 copy_file_and_requirement () {
     if [ "$PLUGIN_NAME" = "http" ]; then
-        cp -r /tmp/${REPO_NAME}/python/foglamp/plugins/${PLUGIN_TYPE}/${PLUGIN_NAME}_${PLUGIN_TYPE} $FOGLAMP_ROOT/python/foglamp/plugins/${PLUGIN_TYPE}/
+        cp -r /tmp/${REPO_NAME}/python/fledge/plugins/${PLUGIN_TYPE}/${PLUGIN_NAME}_${PLUGIN_TYPE} $FLEDGE_ROOT/python/fledge/plugins/${PLUGIN_TYPE}/
     else
-        cp -r /tmp/${REPO_NAME}/python/foglamp/plugins/${PLUGIN_TYPE}/${PLUGIN_NAME} $FOGLAMP_ROOT/python/foglamp/plugins/${PLUGIN_TYPE}/
+        cp -r /tmp/${REPO_NAME}/python/fledge/plugins/${PLUGIN_TYPE}/${PLUGIN_NAME} $FLEDGE_ROOT/python/fledge/plugins/${PLUGIN_TYPE}/
     fi
     req_file=$(find /tmp/${REPO_NAME} -name requirement*.txt)
     [ ! -z "${req_file}" ] && pip3 install --user -Ir ${req_file} ${USE_PIP_CACHE} || echo "No such external dependency needed for ${PLUGIN_NAME} plugin."

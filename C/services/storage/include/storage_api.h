@@ -1,7 +1,7 @@
 #ifndef _STORAGE_API_H
 #define _STORAGE_API_H
 /*
- * FogLAMP storage service.
+ * Fledge storage service.
  *
  * Copyright (c) 2017 OSisoft, LLC
  *

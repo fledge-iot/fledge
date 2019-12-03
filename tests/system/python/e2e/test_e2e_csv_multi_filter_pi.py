@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# FOGLAMP_BEGIN
-# See: http://foglamp.readthedocs.io/
-# FOGLAMP_END
+# FLEDGE_BEGIN
+# See: http://fledge.readthedocs.io/
+# FLEDGE_END
 
 """ Test end to end flow with:
         Playback south plugin
@@ -34,18 +34,18 @@ NORTH_TASK_NAME = "NorthReadingsTo_PI"
 
 
 class TestE2eCsvMultiFltrPi:
-    def get_ping_status(self, foglamp_url):
-        _connection = http.client.HTTPConnection(foglamp_url)
-        _connection.request("GET", '/foglamp/ping')
+    def get_ping_status(self, fledge_url):
+        _connection = http.client.HTTPConnection(fledge_url)
+        _connection.request("GET", '/fledge/ping')
         r = _connection.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
         return jdoc
 
-    def get_statistics_map(self, foglamp_url):
-        _connection = http.client.HTTPConnection(foglamp_url)
-        _connection.request("GET", '/foglamp/statistics')
+    def get_statistics_map(self, fledge_url):
+        _connection = http.client.HTTPConnection(fledge_url)
+        _connection.request("GET", '/fledge/statistics')
         r = _connection.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -54,101 +54,101 @@ class TestE2eCsvMultiFltrPi:
 
 
     @pytest.fixture
-    def start_south_north(self, reset_and_start_foglamp, add_south, enable_schedule, remove_directories,
-                          remove_data_file, south_branch, foglamp_url, add_filter, filter_branch,
+    def start_south_north(self, reset_and_start_fledge, add_south, enable_schedule, remove_directories,
+                          remove_data_file, south_branch, fledge_url, add_filter, filter_branch,
                           start_north_pi_server_c, pi_host, pi_port, pi_token, asset_name="e2e_csv_filter_pi"):
         """ This fixture clone a south and north repo and starts both south and north instance
 
-            reset_and_start_foglamp: Fixture that resets and starts foglamp, no explicit invocation, called at start
+            reset_and_start_fledge: Fixture that resets and starts fledge, no explicit invocation, called at start
             add_south: Fixture that adds a south service with given configuration with enabled or disabled mode
             remove_directories: Fixture that remove directories created during the tests
             remove_data_file: Fixture that remove data file created during the tests
         """
 
-        # Define configuration of foglamp south playback service
+        # Define configuration of fledge south playback service
         south_config = {"assetName": {"value": "{}".format(asset_name)},
                         "csvFilename": {"value": "{}".format(CSV_NAME)},
                         "ingestMode": {"value": "batch"}}
 
         # Define the CSV data and create expected lists to be verified later
-        csv_file_path = os.path.join(os.path.expandvars('${FOGLAMP_ROOT}'), 'data/{}'.format(CSV_NAME))
+        csv_file_path = os.path.join(os.path.expandvars('${FLEDGE_ROOT}'), 'data/{}'.format(CSV_NAME))
         with open(csv_file_path, 'w') as f:
             f.write(CSV_HEADERS)
             for _items in CSV_DATA.split(","):
                 f.write("\n{}".format(_items))
 
         south_plugin = "playback"
-        add_south(south_plugin, south_branch, foglamp_url, service_name=SVC_NAME,
+        add_south(south_plugin, south_branch, fledge_url, service_name=SVC_NAME,
                   config=south_config, start_service=False)
 
         filter_cfg_scale = {"enable": "true"}
         # I/P 10, 20, 21, 40 -> O/P 1000, 2000, 2100, 4000
-        add_filter("scale", filter_branch, "fscale", filter_cfg_scale, foglamp_url, SVC_NAME)
+        add_filter("scale", filter_branch, "fscale", filter_cfg_scale, fledge_url, SVC_NAME)
 
         # I/P asset_name : e2e_csv_filter_pi > O/P e2e_filters
         filter_cfg_asset = {"config": {"rules": [{"new_asset_name": "e2e_filters",
                                                   "action": "rename",
                                                   "asset_name": asset_name}]},
                             "enable": "true"}
-        add_filter("asset", filter_branch, "fasset", filter_cfg_asset, foglamp_url, SVC_NAME)
+        add_filter("asset", filter_branch, "fasset", filter_cfg_asset, fledge_url, SVC_NAME)
 
         # I/P 1000, 2000, 2100, 4000 -> O/P 2000, 2100, 4000
         filter_cfg_rate = {"trigger": "ivalue > 1200", "untrigger": "ivalue < 1100", "preTrigger": "0", "enable": "true"}
-        add_filter("rate", filter_branch, "frate", filter_cfg_rate, foglamp_url, SVC_NAME)
+        add_filter("rate", filter_branch, "frate", filter_cfg_rate, fledge_url, SVC_NAME)
 
         # I/P 1000, 2000, 2100, 4000 -> O/P 2000, 4000
         # Delta in 1st pair (2000-1000) = 1000 (> 20% of 1000) so 2000 is output
         # Delta in second pair (2100-2000) = 100 (<20% of 2000) so 2100 not in output
         # Delta in third pair (4000-2100) = 1900 (>20% of 2100) so 4000 in output
         filter_cfg_delta = {"tolerance": "20", "enable": "true"}
-        add_filter("delta", filter_branch, "fdelta", filter_cfg_delta , foglamp_url, SVC_NAME)
+        add_filter("delta", filter_branch, "fdelta", filter_cfg_delta , fledge_url, SVC_NAME)
 
         # I/P 2000, 4000 -> O/P rms=3162.2776601684, rms_peak=2000
         filter_cfg_rms = {"assetName": "%a_RMS", "samples": "2", "peak": "true", "enable": "true"}
-        add_filter("rms", filter_branch, "frms", filter_cfg_rms, foglamp_url, SVC_NAME)
+        add_filter("rms", filter_branch, "frms", filter_cfg_rms, fledge_url, SVC_NAME)
 
         filter_cfg_meta = {"enable": "true"}
-        add_filter("metadata", filter_branch, "fmeta", filter_cfg_meta, foglamp_url, SVC_NAME)
+        add_filter("metadata", filter_branch, "fmeta", filter_cfg_meta, fledge_url, SVC_NAME)
 
         # Since playback plugin reads all csv data at once, we cant keep it in enable mode before filter add
         # enable service when all filters all applied
-        enable_schedule(foglamp_url, SVC_NAME)
+        enable_schedule(fledge_url, SVC_NAME)
 
-        start_north_pi_server_c(foglamp_url, pi_host, pi_port, pi_token)
+        start_north_pi_server_c(fledge_url, pi_host, pi_port, pi_token)
 
         yield self.start_south_north
 
-        remove_directories("/tmp/foglamp-south-{}".format(south_plugin))
+        remove_directories("/tmp/fledge-south-{}".format(south_plugin))
         filters = ["scale", "asset", "rate", "delta", "rms", "metadata"]
         for fltr in filters:
-            remove_directories("/tmp/foglamp-filter-{}".format(fltr))
+            remove_directories("/tmp/fledge-filter-{}".format(fltr))
 
         remove_data_file(csv_file_path)
 
-    def test_end_to_end(self, start_south_north, disable_schedule, foglamp_url, read_data_from_pi, pi_host, pi_admin,
+    def test_end_to_end(self, start_south_north, disable_schedule, fledge_url, read_data_from_pi, pi_host, pi_admin,
                         pi_passwd, pi_db, wait_time, retries, skip_verify_north_interface):
-        """ Test that data is inserted in FogLAMP using playback south plugin &
+        """ Test that data is inserted in Fledge using playback south plugin &
             Delta, RMS, Rate, Scale, Asset & Metadata filters, and sent to PI
-            start_south_north: Fixture that starts FogLAMP with south service, add filter and north instance
+            start_south_north: Fixture that starts Fledge with south service, add filter and north instance
             skip_verify_north_interface: Flag for assertion of data from Pi web API
             Assertions:
-                on endpoint GET /foglamp/asset
-                on endpoint GET /foglamp/asset/<asset_name> with applied data processing filter value
+                on endpoint GET /fledge/asset
+                on endpoint GET /fledge/asset/<asset_name> with applied data processing filter value
                 data received from PI is same as data sent"""
 
         time.sleep(wait_time)
-        conn = http.client.HTTPConnection(foglamp_url)
+        conn = http.client.HTTPConnection(fledge_url)
         self._verify_ingest(conn)
 
         # disable schedule to stop the service and sending data
-        disable_schedule(foglamp_url, SVC_NAME)
+        disable_schedule(fledge_url, SVC_NAME)
 
-        ping_response = self.get_ping_status(foglamp_url)
+        ping_response = self.get_ping_status(fledge_url)
         assert 1 == ping_response["dataRead"]
         if not skip_verify_north_interface:
             assert 1 == ping_response["dataSent"]
 
-        actual_stats_map = self.get_statistics_map(foglamp_url)
+        actual_stats_map = self.get_statistics_map(fledge_url)
         assert 1 == actual_stats_map["e2e_filters_RMS".upper()]
         assert 1 == actual_stats_map['READINGS']
         if not skip_verify_north_interface:
@@ -158,14 +158,14 @@ class TestE2eCsvMultiFltrPi:
         if not skip_verify_north_interface:
             self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
 
-        tracking_details = utils.get_asset_tracking_details(foglamp_url, "Ingest")
+        tracking_details = utils.get_asset_tracking_details(fledge_url, "Ingest")
         assert len(tracking_details["track"]), "Failed to track Ingest event"
         tracked_item = tracking_details["track"][0]
         assert SVC_NAME == tracked_item["service"]
         assert "e2e_filters_RMS" == tracked_item["asset"]
         assert "playback" == tracked_item["plugin"]
 
-        tracking_details = utils.get_asset_tracking_details(foglamp_url, "Filter")
+        tracking_details = utils.get_asset_tracking_details(fledge_url, "Filter")
         assert len(tracking_details["track"]), "Failed to track Filter event"
         tracked_item = tracking_details["track"][0]
         assert SVC_NAME == tracked_item["service"]
@@ -203,7 +203,7 @@ class TestE2eCsvMultiFltrPi:
         assert "fmeta" == tracked_item["plugin"]
 
         if not skip_verify_north_interface:
-            egress_tracking_details = utils.get_asset_tracking_details(foglamp_url,"Egress")
+            egress_tracking_details = utils.get_asset_tracking_details(fledge_url,"Egress")
             assert len(egress_tracking_details["track"]), "Failed to track Egress event"
             tracked_item = egress_tracking_details["track"][0]
             assert "NorthReadingsToPI" == tracked_item["service"]
@@ -212,7 +212,7 @@ class TestE2eCsvMultiFltrPi:
 
     def _verify_ingest(self, conn):
 
-        conn.request("GET", '/foglamp/asset')
+        conn.request("GET", '/fledge/asset')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -221,7 +221,7 @@ class TestE2eCsvMultiFltrPi:
         assert "e2e_filters_RMS" == jdoc[0]["assetCode"]
         assert 0 < jdoc[0]["count"]
 
-        conn.request("GET", '/foglamp/asset/{}'.format("e2e_filters_RMS"))
+        conn.request("GET", '/fledge/asset/{}'.format("e2e_filters_RMS"))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()

@@ -1,5 +1,5 @@
 /*
- * FogLAMP north plugin
+ * Fledge north plugin
  *
  * Copyright (c) 2018 Dianomic Systems
  *

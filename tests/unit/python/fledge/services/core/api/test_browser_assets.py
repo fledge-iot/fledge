@@ -397,15 +397,20 @@ class TestBrowserAssets:
          {'rows': [{'reading': {'temp': 13.45}}], 'count': 1}, "length must be a positive integer",
          "?length=-10", False),
         ('fledge/asset/fogbench%2ftemp/bucket/10', 400,
-         {'rows': [{'reading': {'temp': 13.45}}], 'count': 1}, "start must be a positive integer", "?start=-1", False),
+         {'rows': [{'reading': {'temp': 13.45}}], 'count': 1}, "Invalid value for start. Error: year is out of range",
+         "?start=1491613677888", False),
+        ('fledge/asset/fogbench%2ftemp/bucket/10', 400,
+         {'rows': [{'reading': {'temp': 13.45}}], 'count': 1},
+         "Invalid value for start. Error: [Errno 75] Value too large for defined data type",
+         "?start=567199223456346457", False),
         ('fledge/asset/fogbench%2ftemp/temperature/bucket/60', 404, {'rows': [], 'count': 0},
          "'fogbench/temp asset code not found'", "", True),
         ('fledge/asset/fogbench%2ftemp/temperature/bucket/60', 400,
          {'rows': [{'reading': {'temperature': 13.45}}], 'count': 1}, "length must be a positive integer",
          "?length=-10", True),
         ('fledge/asset/fogbench%2ftemp/temperature/bucket/60', 400,
-         {'rows': [{'reading': {'temperature': 13.45}}], 'count': 1}, "start must be a positive integer", "?start=-1",
-         True)
+         {'rows': [{'reading': {'temperature': 13.45}}], 'count': 1},
+         "Invalid value for start. Error: timestamp out of range for platform time_t", "?start=149199235346457788234", True)
     ])
     async def test_bad_asset_bucket_size_and_optional_params(self, client, url, code, storage_result, message,
                                                              request_params, with_readings):

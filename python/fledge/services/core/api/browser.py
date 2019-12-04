@@ -463,9 +463,11 @@ async def asset_datapoints_with_bucket_size(request: web.Request) -> web.Respons
             if not res['rows']:
                 raise KeyError("{} asset code not found".format(code))
         if 'start' in request.query and request.query['start'] != '':
-            start = float(request.query['start'])
-            if start < 0:
-                raise ValueError('start must be a positive integer')
+            try:
+                start = float(request.query['start'])
+                datetime.datetime.fromtimestamp(start)
+            except Exception as e:
+                raise ValueError('Invalid value for start. Error: {}'.format(str(e)))
 
         _aggregate = PayloadBuilder().AGGREGATE(["all"]).chain_payload()
         _and_where = PayloadBuilder(_aggregate).WHERE(["asset_code", "in", asset_code_list]).AND_WHERE([
@@ -532,10 +534,11 @@ async def asset_readings_with_bucket_size(request: web.Request) -> web.Response:
         if reading not in reading_keys:
             raise KeyError("{} reading key is not found for {} asset code".format(reading, asset_code))
         if 'start' in request.query and request.query['start'] != '':
-            start = float(request.query['start'])
-            if start < 0:
-                raise ValueError('start must be a positive integer')
-
+            try:
+                start = float(request.query['start'])
+                datetime.datetime.fromtimestamp(start)
+            except Exception as e:
+                raise ValueError('Invalid value for start. Error: {}'.format(str(e)))
         _where = PayloadBuilder(_aggregate).WHERE(["asset_code", "=", asset_code]).AND_WHERE(["user_ts", ">=",
                                                                                               str(start)]).chain_payload()
         _bucket = PayloadBuilder(_where).TIMEBUCKET('user_ts', bucket_size, 'YYYY-MM-DD HH24:MI:SS',

@@ -7,7 +7,7 @@
         fledge-filter-expression, fledge-filter-python35, fledge-filter-simple-python, fledge-filter-ema filter plugins
 """
 
-# Note: This test requires aiocoap,cbor pip packages installed explicitly due to FOGL:3500
+# FIXME: This test requires aiocoap,cbor pip packages installed explicitly due to FOGL-3500
 
 __author__ = "Yash Tatkondawar"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems Inc."
@@ -22,22 +22,16 @@ import time
 import urllib.parse
 from pathlib import Path
 
-PROJECT_ROOT = ""
-SCRIPTS_DIR_ROOT = ""
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
+SCRIPTS_DIR_ROOT = "{}/tests/system/python/packages/data/".format(PROJECT_ROOT)
+
 ASSET_NAME_PY35 = "end_to_end_py35"
 ASSET_NAME_SP = "end_to_end_sp"
 ASSET_NAME_EMA = "end_to_end_ema"
 TEMPLATE_NAME = "template.json"
 SENSOR_VALUE = 12.25
-# TODO : pass package_build_version to setup script from conftest.py
+# TODO: pass package_build_version to setup script from conftest.py
 package_build_version = "nightly"
-
-
-def set_project_root():
-    global PROJECT_ROOT, SCRIPTS_DIR_ROOT
-    # This  gives the path of directory where fledge is cloned. test_file < packages < python < system < tests < ROOT
-    PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
-    SCRIPTS_DIR_ROOT = "{}/tests/system/python/packages/data/".format(PROJECT_ROOT)
 
 
 def post_request(fledge_url, post_url, payload):
@@ -132,8 +126,7 @@ def verify_readings(fledge_url, ASSET_NAME):
 class TestPython35:
     HTTP_SOUTH_SVC_NAME = "South_http #1"
 
-    set_project_root()
-
+    @classmethod
     def setup_class(cls):
         try:
             subprocess.run(["cd {}/tests/system/python/scripts/package && ./remove"
@@ -382,6 +375,7 @@ class TestPython35:
         filepath = "$FLEDGE_ROOT/data/scripts/{}".format(filename)
         assert False == os.path.isfile('{}'.format(filepath))
 
+    @classmethod
     def teardown_class(cls):
         try:
             subprocess.run(["cd {}/tests/system/python/scripts/package && ./reset"
@@ -394,6 +388,7 @@ class TestPython35:
 class TestSimplePython:
     HTTP_SOUTH_SVC_NAME = "South_http #2"
 
+    @classmethod
     def setup_class(cls):
         try:
             subprocess.run(["sudo apt install -y fledge-filter-simple-python"], shell=True, check=True)
@@ -600,6 +595,7 @@ class TestSimplePython:
         result = get_request(fledge_url, get_url)
         assert 0 == len(result["services"])
 
+    @classmethod
     def teardown_class(cls):
         try:
             subprocess.run(["cd {}/tests/system/python/scripts/package && ./reset"
@@ -612,6 +608,7 @@ class TestSimplePython:
 class TestEma:
     HTTP_SOUTH_SVC_NAME = "South_http #3"
 
+    @classmethod
     def setup_class(cls):
         try:
             subprocess.run(["sudo apt install -y fledge-filter-ema"], shell=True, check=True)
@@ -815,6 +812,7 @@ class TestEma:
         result = get_request(fledge_url, get_url)
         assert 0 == len(result["services"])
 
+    @classmethod
     def teardown_class(cls):
         try:
             subprocess.run(["cd {}/tests/system/python/scripts/package && ./reset"

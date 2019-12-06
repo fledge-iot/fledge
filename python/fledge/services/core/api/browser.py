@@ -35,6 +35,7 @@ Supports a number of REST API:
   will have an effect.
   Note: if datetime units are supplied then limit will not respect i.e mutually exclusive
 """
+import time
 import datetime
 
 from aiohttp import web
@@ -469,9 +470,14 @@ async def asset_datapoints_with_bucket_size(request: web.Request) -> web.Respons
             except Exception as e:
                 raise ValueError('Invalid value for start. Error: {}'.format(str(e)))
 
+        # Build datetime from timestamp
+        start_time = time.gmtime(start)
+        start_date = time.strftime("%Y-%m-%d %H:%M:%S", start_time)
+
+        # Prepare payload
         _aggregate = PayloadBuilder().AGGREGATE(["all"]).chain_payload()
         _and_where = PayloadBuilder(_aggregate).WHERE(["asset_code", "in", asset_code_list]).AND_WHERE([
-            "user_ts", ">=", str(start)]).chain_payload()
+            "user_ts", ">=", str(start_date)]).chain_payload()
         _bucket = PayloadBuilder(_and_where).TIMEBUCKET('user_ts', bucket_size,
                                                         'YYYY-MM-DD HH24:MI:SS', 'timestamp').chain_payload()
         if 'length' in request.query and request.query['length'] != '':
@@ -539,8 +545,14 @@ async def asset_readings_with_bucket_size(request: web.Request) -> web.Response:
                 datetime.datetime.fromtimestamp(start)
             except Exception as e:
                 raise ValueError('Invalid value for start. Error: {}'.format(str(e)))
+
+        # Build datetime from timestamp
+        start_time = time.gmtime(start)
+        start_date = time.strftime("%Y-%m-%d %H:%M:%S", start_time)
+
+        # Prepare payload
         _where = PayloadBuilder(_aggregate).WHERE(["asset_code", "=", asset_code]).AND_WHERE(["user_ts", ">=",
-                                                                                              str(start)]).chain_payload()
+                                                                                              str(start_date)]).chain_payload()
         _bucket = PayloadBuilder(_where).TIMEBUCKET('user_ts', bucket_size, 'YYYY-MM-DD HH24:MI:SS',
                                                     'timestamp').chain_payload()
         if 'length' in request.query and request.query['length'] != '':

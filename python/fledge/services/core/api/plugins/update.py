@@ -102,7 +102,7 @@ async def update_plugin(request: web.Request) -> web.Response:
                     if sch_info[0]['enabled'] == 't':
                         status, reason = await server.Server.scheduler.disable_schedule(uuid.UUID(sch_info[0]['id']))
                         if status:
-                            _logger.warning("{} {} instance is disabled as {} plugin is updating..".format(
+                            _logger.warning("Disabling {} {} instance, as {} plugin is updating...".format(
                                 p['service'], _type, name))
                             sch_list.append(sch_info[0]['id'])
 
@@ -146,8 +146,7 @@ async def _get_sch_id_and_enabled_by_name(name) -> list:
 def update_repo_sources_and_plugin(_type: str, name: str) -> tuple:
     # Below check is needed for python plugins
     # For Example: installed_plugin_dir=wind_turbine; package_name=wind-turbine
-    if "_" in name:
-        name = name.replace("_", "-")
+    name = name.replace("_", "-")
 
     # For endpoint curl -X GET http://localhost:8081/fledge/plugins/available we used
     # sudo apt list command internal so package name always returns in lowercase,
@@ -172,7 +171,7 @@ def update_repo_sources_and_plugin(_type: str, name: str) -> tuple:
 
 
 def do_update(request):
-    _logger.info("{} plugin update starts...".format(request._name))
+    _logger.info("{} plugin update started...".format(request._name))
     code, link = update_repo_sources_and_plugin(request._type, request._name)
     if code != 0:
         _logger.error("{} plugin update failed. Logs available at {}".format(request._name, link))
@@ -181,9 +180,7 @@ def do_update(request):
         # PKGUP audit log entry
         storage_client = connect.get_storage_async()
         audit = AuditLogger(storage_client)
-        if "_" in request._name:
-            request._name = request._name.replace("_", "-")
-        audit_detail = {'packageName': "fledge-{}-{}".format(request._type, request._name)}
+        audit_detail = {'packageName': "fledge-{}-{}".format(request._type, request._name.replace("_", "-"))}
         asyncio.ensure_future(audit.information('PKGUP', audit_detail))
 
     # Restart the services which were disabled before plugin update
@@ -192,7 +189,7 @@ def do_update(request):
 
     # Below case is applicable for the notification plugins ONLY
     # Enabled back configuration categories which were disabled during update process
-    if request._type in ['notificationDelivery', 'notificationRule']:
+    if request._type in ['notify', 'rule']:
         storage_client = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage_client)
         for n in request._notification_list:

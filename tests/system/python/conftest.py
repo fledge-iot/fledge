@@ -139,6 +139,7 @@ def add_south():
         r = r.read().decode()
         retval = json.loads(r)
         assert service_name == retval["name"]
+        return retval
     return _add_fledge_south
 
 
@@ -323,6 +324,7 @@ def add_filter():
         jdoc = json.loads(res)
         # Asset newly added filter exist in request's response
         assert filter_name in jdoc["result"]
+        return jdoc
 
     return _add_filter
 
@@ -337,6 +339,7 @@ def enable_schedule():
         r = r.read().decode()
         jdoc = json.loads(r)
         assert "scheduleId" in jdoc
+        return jdoc
 
     return _enable_sch
 
@@ -351,6 +354,7 @@ def disable_schedule():
         r = r.read().decode()
         jdoc = json.loads(r)
         assert jdoc["status"]
+        return jdoc
 
     return _disable_sch
 

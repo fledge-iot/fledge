@@ -450,11 +450,12 @@ async def asset_datapoints_with_bucket_size(request: web.Request) -> web.Respons
                curl -sX GET http://localhost:8081/fledge/asset/{asset_code_1},{asset_code_2}/bucket/{bucket_size}
        """
     try:
+        start_found = False
         asset_code = request.match_info.get('asset_code', '')
         bucket_size = request.match_info.get('bucket_size', 1)
         length = 60
         ts = datetime.datetime.now().timestamp()
-        start = ts - 60
+        start = ts - length
         asset_code_list = asset_code.split(',')
         _readings = connect.get_readings_async()
         for code in asset_code_list:
@@ -467,8 +468,17 @@ async def asset_datapoints_with_bucket_size(request: web.Request) -> web.Respons
             try:
                 start = float(request.query['start'])
                 datetime.datetime.fromtimestamp(start)
+                start_found = True
             except Exception as e:
                 raise ValueError('Invalid value for start. Error: {}'.format(str(e)))
+
+        if 'length' in request.query and request.query['length'] != '':
+            length = int(request.query['length'])
+            if length < 0:
+                raise ValueError('length must be a positive integer')
+            # No user start parameter: decrease default start by the user provided length
+            if start_found == False:
+                start = ts - length
 
         # Build datetime from timestamp
         start_time = time.gmtime(start)
@@ -480,11 +490,9 @@ async def asset_datapoints_with_bucket_size(request: web.Request) -> web.Respons
             "user_ts", ">=", str(start_date)]).chain_payload()
         _bucket = PayloadBuilder(_and_where).TIMEBUCKET('user_ts', bucket_size,
                                                         'YYYY-MM-DD HH24:MI:SS', 'timestamp').chain_payload()
-        if 'length' in request.query and request.query['length'] != '':
-            length = int(request.query['length'])
-            if length < 0:
-                raise ValueError('length must be a positive integer')
+
         payload = PayloadBuilder(_bucket).LIMIT(int(length / int(bucket_size))).payload()
+
         # Sort & timebucket modifiers can not be used in same payload
         # payload = PayloadBuilder(limit).ORDER_BY(["user_ts", "desc"]).payload()
         results = await _readings.query(payload)

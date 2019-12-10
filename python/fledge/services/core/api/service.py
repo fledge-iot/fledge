@@ -123,6 +123,8 @@ async def delete_service(request):
         sch_id = uuid.UUID(svc_schedule['id'])
         if svc_schedule['enabled'].lower() == 't':
             await server.Server.scheduler.disable_schedule(sch_id)
+            # return control to event loop
+            await asyncio.sleep(1)
 
         # Delete all configuration for the service name
         await config_mgr.delete_category_and_children_recursively(svc)

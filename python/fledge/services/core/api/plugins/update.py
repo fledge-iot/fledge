@@ -121,7 +121,7 @@ def update_repo_sources_and_plugin(_type: str, name: str) -> tuple:
     # For endpoint curl -X GET http://localhost:8081/fledge/plugins/available we used
     # sudo apt list command internal so package name always returns in lowercase,
     # irrespective of package name defined in the configured repo.
-    name = "foglamp-{}-{}".format(_type, name.lower())
+    name = "fledge-{}-{}".format(_type, name.lower())
     _platform = platform.platform()
     stdout_file_path = common.create_log_file(action="update", plugin_name=name)
     pkg_mgt = 'apt'
@@ -132,11 +132,7 @@ def update_repo_sources_and_plugin(_type: str, name: str) -> tuple:
     ret_code = os.system(cmd)
     # sudo apt/yum -y install only happens when update is without any error
     if ret_code == 0:
-<<<<<<< HEAD:python/foglamp/services/core/api/plugins/update.py
         cmd = "sudo {} -y install {} >> {} 2>&1".format(pkg_mgt, name, stdout_file_path)
-=======
-        cmd = "sudo {} -y install fledge-{}-{} >> {} 2>&1".format(pkg_mgt, _type, name, stdout_file_path)
->>>>>>> Fledge:python/fledge/services/core/api/plugins/update.py
         ret_code = os.system(cmd)
 
     # relative log file link

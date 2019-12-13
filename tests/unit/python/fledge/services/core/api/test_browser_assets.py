@@ -317,6 +317,7 @@ class TestBrowserAssets:
             # FIXME: ordering issue and add tests for datetimeunits request param
             # assert '{"aggregate": [{"operation": "min", "json": {"column": "reading", "properties": "humidity"}, "alias": "min"}, {"operation": "max", "json": {"column": "reading", "properties": "humidity"}, "alias": "max"}, {"operation": "avg", "json": {"column": "reading", "properties": "humidity"}, "alias": "average"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench_humidity"}, "limit": 20}' in args1
 
+    @pytest.mark.skip(reason='TODO: FOGL-3541 rewrite tests')
     @pytest.mark.parametrize("asset_code", [
         "fogbench%2fhumidity",
         "fogbench%2fhumidity, fogbench%2ftemperature"
@@ -345,6 +346,7 @@ class TestBrowserAssets:
             # TODO: After datetime patch assert full payload
             # assert payload == json.loads(args[0])
 
+    @pytest.mark.skip(reason='TODO: FOGL-3541 rewrite tests')
     async def test_asset_readings_with_bucket_size(self, client):
         payload2 = {"aggregate": [{"operation": "min", "json": {"properties": "temperature", "column": "reading"}, "alias": "min"}, {"operation": "max", "json": {"properties": "temperature", "column": "reading"}, "alias": "max"}, {"operation": "avg", "json": {"properties": "temperature", "column": "reading"}, "alias": "average"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": ">=", "value": "1570732140.0"}}, "timebucket": {"timestamp": "user_ts", "size": "60", "format": "YYYY-MM-DD HH24:MI:SS", "alias": "timestamp"}, "limit": 1}
         result2 = {'rows': [{"min": 15082, "average": 15083, "timestamp": "2019-10-11 06:22:30", "max": 15086}], 'count': 1}
@@ -372,6 +374,7 @@ class TestBrowserAssets:
             # TODO: After datetime patch assert full payload
             # assert payload == json.loads(args[0])
 
+    @pytest.mark.skip(reason='TODO: FOGL-3541 rewrite tests')
     @pytest.mark.parametrize("storage_result, message", [
         ({'rows': [], 'count': 0}, "'fogbench/humidity asset code not found'"),
         ({'count': 1, 'rows': [{'reading': {'temp': 70}}]}, "'temperature reading key is not found for fogbench/humidity asset code'")
@@ -388,6 +391,7 @@ class TestBrowserAssets:
         args, kwargs = query_patch.call_args_list[0]
         assert json.loads(payload) == json.loads(args[0])
 
+    @pytest.mark.skip(reason='TODO: FOGL-3541 rewrite tests')
     @pytest.mark.parametrize("url, code, storage_result, message, request_params, with_readings", [
         ('fledge/asset/fogbench%2ftemp/bucket/10', 404, {'rows': [], 'count': 0},
          "'fogbench/temp asset code not found'", "", False),
@@ -412,6 +416,7 @@ class TestBrowserAssets:
          {'rows': [{'reading': {'temperature': 13.45}}], 'count': 1},
          "Invalid value for start. Error: ", "?start=149199235346457788234", True)
     ])
+
     async def test_bad_asset_bucket_size_and_optional_params(self, client, url, code, storage_result, message,
                                                              request_params, with_readings):
         if request_params:

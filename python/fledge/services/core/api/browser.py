@@ -458,12 +458,7 @@ async def asset_datapoints_with_bucket_size(request: web.Request) -> web.Respons
         start = ts - length
         asset_code_list = asset_code.split(',')
         _readings = connect.get_readings_async()
-        for code in asset_code_list:
-            verify_asset_payload = PayloadBuilder().WHERE(["asset_code", "in", [code]]).LIMIT(1).\
-                ORDER_BY(["user_ts", "desc"]).payload()
-            res = await _readings.query(verify_asset_payload)
-            if not res['rows']:
-                raise KeyError("{} asset code not found".format(code))
+
         if 'start' in request.query and request.query['start'] != '':
             try:
                 start = float(request.query['start'])
@@ -526,6 +521,7 @@ async def asset_readings_with_bucket_size(request: web.Request) -> web.Response:
                curl -sX GET "http://localhost:8081/fledge/asset/{asset_code}/{reading}/bucket/{bucket_size}?start=<start point>&length=<length>"
        """
     try:
+        start_found = False
         asset_code = request.match_info.get('asset_code', '')
         reading = request.match_info.get('reading', '')
         bucket_size = request.match_info.get('bucket_size', 1)
@@ -538,21 +534,21 @@ async def asset_readings_with_bucket_size(request: web.Request) -> web.Response:
                    ('reading', 'avg', 'average')).chain_payload()
         _readings = connect.get_readings_async()
 
-        verify_asset_reading_payload = PayloadBuilder().SELECT("reading").WHERE(["asset_code", "=", asset_code]).LIMIT(1).\
-            ORDER_BY(["user_ts", "desc"]).payload()
-        res = await _readings.query(verify_asset_reading_payload)
-        if not res['rows']:
-            raise KeyError("{} asset code not found".format(asset_code))
-        # TODO: FOGL-1768 when support available from storage layer then avoid multiple calls
-        reading_keys = list(res['rows'][-1]['reading'].keys())
-        if reading not in reading_keys:
-            raise KeyError("{} reading key is not found for {} asset code".format(reading, asset_code))
         if 'start' in request.query and request.query['start'] != '':
             try:
                 start = float(request.query['start'])
                 datetime.datetime.fromtimestamp(start)
+                start_found = True
             except Exception as e:
                 raise ValueError('Invalid value for start. Error: {}'.format(str(e)))
+
+        if 'length' in request.query and request.query['length'] != '':
+            length = int(request.query['length'])
+            if length < 0:
+                raise ValueError('length must be a positive integer')
+            # No user start parameter: decrease default start by the user provided length
+            if start_found == False:
+                start = ts - length
 
         # Build datetime from timestamp
         start_time = time.gmtime(start)
@@ -563,11 +559,9 @@ async def asset_readings_with_bucket_size(request: web.Request) -> web.Response:
                                                                                               str(start_date)]).chain_payload()
         _bucket = PayloadBuilder(_where).TIMEBUCKET('user_ts', bucket_size, 'YYYY-MM-DD HH24:MI:SS',
                                                     'timestamp').chain_payload()
-        if 'length' in request.query and request.query['length'] != '':
-            length = int(request.query['length'])
-            if length < 0:
-                raise ValueError('length must be a positive integer')
+
         payload = PayloadBuilder(_bucket).LIMIT(int(length / int(bucket_size))).payload()
+
         # Sort & timebucket modifiers can not be used in same payload
         # payload = PayloadBuilder(limit).ORDER_BY(["user_ts", "desc"]).payload()
         results = await _readings.query(payload)

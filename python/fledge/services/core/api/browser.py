@@ -478,11 +478,13 @@ async def asset_datapoints_with_bucket_size(request: web.Request) -> web.Respons
         # Build datetime from timestamp
         start_time = time.gmtime(start)
         start_date = time.strftime("%Y-%m-%d %H:%M:%S", start_time)
+        stop_time = time.gmtime(start + length)
+        stop_date = time.strftime("%Y-%m-%d %H:%M:%S", stop_time)
 
         # Prepare payload
         _aggregate = PayloadBuilder().AGGREGATE(["all"]).chain_payload()
         _and_where = PayloadBuilder(_aggregate).WHERE(["asset_code", "in", asset_code_list]).AND_WHERE([
-            "user_ts", ">=", str(start_date)]).chain_payload()
+            "user_ts", ">=", str(start_date)], ["user_ts", "<=", str(stop_date)]).chain_payload()
         _bucket = PayloadBuilder(_and_where).TIMEBUCKET('user_ts', bucket_size,
                                                         'YYYY-MM-DD HH24:MI:SS', 'timestamp').chain_payload()
 
@@ -553,10 +555,13 @@ async def asset_readings_with_bucket_size(request: web.Request) -> web.Response:
         # Build datetime from timestamp
         start_time = time.gmtime(start)
         start_date = time.strftime("%Y-%m-%d %H:%M:%S", start_time)
+        stop_time = time.gmtime(start + length)
+        stop_date = time.strftime("%Y-%m-%d %H:%M:%S", stop_time)
 
         # Prepare payload
-        _where = PayloadBuilder(_aggregate).WHERE(["asset_code", "=", asset_code]).AND_WHERE(["user_ts", ">=",
-                                                                                              str(start_date)]).chain_payload()
+        _where = PayloadBuilder(_aggregate).WHERE(["asset_code", "=", asset_code]).AND_WHERE([
+            "user_ts", ">=", str(start_date)], ["user_ts", "<=", str(stop_date)], [
+            "user_ts", "<=", str(stop_date)]).chain_payload()
         _bucket = PayloadBuilder(_where).TIMEBUCKET('user_ts', bucket_size, 'YYYY-MM-DD HH24:MI:SS',
                                                     'timestamp').chain_payload()
 

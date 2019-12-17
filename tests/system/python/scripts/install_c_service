@@ -25,7 +25,7 @@ clean () {
 }
 
 clone_repo () {
-   git clone -b ${BRANCH_NAME} --single-branch https://github.com/fledge/${REPO_NAME}.git /tmp/${REPO_NAME}
+   git clone -b ${BRANCH_NAME} --single-branch https://github.com/fledge-iot/${REPO_NAME}.git /tmp/${REPO_NAME}
 }
 
 install_binary_file () {

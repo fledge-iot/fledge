@@ -75,7 +75,7 @@ class TestE2eFogPairPi:
                 remote_fledge_path: Path where Fledge is cloned and built
             """
         if remote_fledge_path is None:
-            remote_fledge_path = '/home/{}/Fledge'.format(remote_user)
+            remote_fledge_path = '/home/{}/fledge'.format(remote_user)
         subprocess.run(["ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} 'export FLEDGE_ROOT={};$FLEDGE_ROOT/scripts/fledge kill'".format(key_path, remote_user,
                                                                                                       remote_ip,
                                                                                                       remote_fledge_path)], shell=True, check=True)
@@ -106,7 +106,7 @@ class TestE2eFogPairPi:
             """
 
         if remote_fledge_path is None:
-            remote_fledge_path = '/home/{}/Fledge'.format(remote_user)
+            remote_fledge_path = '/home/{}/fledge'.format(remote_user)
         fledge_url = "{}:8081".format(remote_ip)
         south_plugin = "http"
         south_service = "http_south"

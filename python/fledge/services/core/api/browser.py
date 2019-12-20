@@ -43,7 +43,7 @@ from aiohttp import web
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.services.core import connect
 
-__author__ = "Mark Riddoch, Ashish Jabble"
+__author__ = "Mark Riddoch, Ashish Jabble, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -451,10 +451,12 @@ async def asset_datapoints_with_bucket_size(request: web.Request) -> web.Respons
        """
     try:
         start_found = False
+        length_found = False
         asset_code = request.match_info.get('asset_code', '')
         bucket_size = request.match_info.get('bucket_size', 1)
         length = 60
-        ts = datetime.datetime.now().timestamp()
+
+        ts = datetime.datetime.timestamp(datetime.datetime.now())
         start = ts - length
         asset_code_list = asset_code.split(',')
         _readings = connect.get_readings_async()
@@ -462,33 +464,47 @@ async def asset_datapoints_with_bucket_size(request: web.Request) -> web.Respons
         if 'start' in request.query and request.query['start'] != '':
             try:
                 start = float(request.query['start'])
-                datetime.datetime.fromtimestamp(start)
                 start_found = True
             except Exception as e:
                 raise ValueError('Invalid value for start. Error: {}'.format(str(e)))
 
         if 'length' in request.query and request.query['length'] != '':
-            length = int(request.query['length'])
+            length = float(request.query['length'])
             if length < 0:
                 raise ValueError('length must be a positive integer')
+            length_found = True
             # No user start parameter: decrease default start by the user provided length
             if start_found == False:
                 start = ts - length
 
-        # Build datetime from timestamp
-        start_time = time.gmtime(start)
-        start_date = time.strftime("%Y-%m-%d %H:%M:%S", start_time)
-        stop_time = time.gmtime(start + length)
-        stop_date = time.strftime("%Y-%m-%d %H:%M:%S", stop_time)
+        use_microseconds = False
+        # Check subsecond request in start
+        start_micros = "{:.6f}".format(start).split('.')[1]
+        if start_found == True and start_micros != '000000':
+            use_microseconds = True
+        else:
+            # No decimal part, check subsecond request in length
+            start_micros = "{:.6f}".format(length).split('.')[1]
+            if length_found == True and start_micros != '000000':
+                use_microseconds = True
+
+        # Build UTC datetime start/stop from start timestamp with/without microseconds
+        if use_microseconds == False:
+            start_date = datetime.datetime.fromtimestamp(start, datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+            stop_date = datetime.datetime.fromtimestamp(start + length, datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            start_date = datetime.datetime.fromtimestamp(start, datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")
+            stop_date = datetime.datetime.fromtimestamp(start + length, datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")
 
         # Prepare payload
         _aggregate = PayloadBuilder().AGGREGATE(["all"]).chain_payload()
         _and_where = PayloadBuilder(_aggregate).WHERE(["asset_code", "in", asset_code_list]).AND_WHERE([
             "user_ts", ">=", str(start_date)], ["user_ts", "<=", str(stop_date)]).chain_payload()
+
         _bucket = PayloadBuilder(_and_where).TIMEBUCKET('user_ts', bucket_size,
                                                         'YYYY-MM-DD HH24:MI:SS', 'timestamp').chain_payload()
 
-        payload = PayloadBuilder(_bucket).LIMIT(int(length / int(bucket_size))).payload()
+        payload = PayloadBuilder(_bucket).LIMIT(int(float(length / float(bucket_size)))).payload()
 
         # Sort & timebucket modifiers can not be used in same payload
         # payload = PayloadBuilder(limit).ORDER_BY(["user_ts", "desc"]).payload()

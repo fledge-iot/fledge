@@ -25,6 +25,7 @@
 #include <logger.h>
 #include <time.h>
 #include <algorithm>
+#include <math.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -82,7 +83,7 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 
 	sql.append("SELECT asset_code, ");
 
-	int size = 1;
+	double size = 1;
 	string timeColumn;
 
 	// Check timebucket object
@@ -102,7 +103,7 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 		// Bucket size
 		if (bucket.HasMember("size"))
 		{
-			size = atoi(bucket["size"].GetString());
+			size = atof(bucket["size"].GetString());
 			if (!size)
 			{
 				size = 1;
@@ -110,7 +111,7 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 		}
 
 		// Time format for output
-		if (bucket.HasMember("format"))
+		if (bucket.HasMember("format") && size >= 1)
 		{
 			sql.append("to_char(");
 			sql.append("\"");
@@ -122,7 +123,22 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 		}
 		else
 		{
-			sql.append("timestamp");
+			if (size < 1)
+			{
+				// sub-second granularity to time bucket size:
+				// force output formatting with microseconds
+				sql.append("to_char(");
+				sql.append("\"");
+				sql.append("timestamp");
+				sql.append("\"");
+				sql.append(", '");
+				sql.append("YYYY-MM-DD HH24:MI:SS.US");
+				sql.append("')");
+			}
+			else
+			{
+				sql.append("timestamp");
+			}
 		}
 
 		// Time output alias
@@ -154,23 +170,49 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 	sql.append(timeColumn);
 	sql.append(", to_timestamp(");
 
-	// Add timebucket size
-	if (size > 1)
+	// Size formatted string
+	string size_format;
+	if (fmod(size, 1.0) == 0.0)
 	{
-		sql.append(to_string(size));
-		sql.append(" * floor(extract(epoch from ");
-		sql.append(timeColumn);
-		sql.append(" ) / ");
-		sql.append(to_string(size));
-		sql.append(")) ");
+		size_format = to_string(int(size));
 	}
 	else
 	{
-		sql.append(" floor(extract(epoch from ");
+		size_format = to_string(size);
+	}
+
+	// Add timebucket size
+	if (size != 1)
+	{
+		sql.append(size_format);
+		if (size > 1)
+		{
+			sql.append(" * round(extract(epoch from ");
+		}
+		else
+		{
+			sql.append(" * round((extract(epoch from ");
+		}
+		sql.append(timeColumn);
+		sql.append(" ) / ");
+		sql.append(size_format);
+		sql.append(')');
+		if (size > 1)
+		{
+			sql.append(')');
+		}
+		else
+		{
+			sql.append("::numeric, 6))");
+		}
+	}
+	else
+	{
+		sql.append(" round(extract(epoch from ");
 		sql.append(timeColumn);
 		sql.append(") / 1)) ");
 	}
-	sql.append("AS \"timestamp\", reading, ");
+	sql.append(" AS \"timestamp\", reading, ");
 
 	// Get all datapoints in 'reading' field
 	sql.append("jsonb_object_keys(reading) AS x FROM fledge.readings ");
@@ -191,12 +233,12 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 	// Add group by
 	sql.append("GROUP BY x, asset_code, ");
 
-	sql.append("floor(extract(epoch from ");
+	sql.append("round(extract(epoch from ");
 	sql.append(timeColumn);
 	sql.append(") / ");
-	if (size > 1)
+	if (size != 1)
 	{
-		sql.append(to_string(size));
+		sql.append(size_format);
 	}
 	else
 	{

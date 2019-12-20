@@ -7,6 +7,8 @@
  *
  * Author: Massimiliano Pinto
  */
+
+#include <math.h>
 #include <connection.h>
 #include <connection_manager.h>
 #include <common.h>
@@ -27,6 +29,10 @@
 
 #define PURGE_SLOWDOWN_AFTER_BLOCKS 5
 #define PURGE_SLOWDOWN_SLEEP_MS 500
+
+#define SECONDS_PER_DAY "86400.0"
+// 2440587.5 is the julian day at 1/1/1970 0:00 UTC.
+#define JULIAN_DAY_START_UNIXTIME "2440587.5"
 
 //#ifndef PLUGIN_LOG_NAME
 //#define PLUGIN_LOG_NAME "SQLite 3"
@@ -120,7 +126,7 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 
 	sql.append("SELECT asset_code, ");
 
-	int size = 1;
+	double size = 1;
 	string timeColumn;
 
 	// Check timebucket object
@@ -140,7 +146,7 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 		// Bucket size
 		if (bucket.HasMember("size"))
 		{
-			size = atoi(bucket["size"].GetString());
+			size = atof(bucket["size"].GetString());
 			if (!size)
 			{
 				size = 1;
@@ -148,9 +154,9 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 		}
 
 		// Time format for output
-		if (bucket.HasMember("format"))
+		string newFormat;
+		if (bucket.HasMember("format") && size >= 1)
 		{
-			string newFormat;
 			applyColumnDateFormatLocaltime(bucket["format"].GetString(),
 							"timestamp",
 							newFormat,
@@ -159,7 +165,19 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 		}
 		else
 		{
-			sql.append("timestamp");
+			if (size < 1) 
+			{
+				// sub-second granularity to time bucket size:
+				// force output formatting with microseconds	
+				newFormat = "strftime('%Y-%m-%d %H:%M:%S', " + timeColumn + 
+					    ", 'localtime') || substr(" + timeColumn	  +
+					    ", instr(" + timeColumn + ", '.'), 7)";
+				sql.append(newFormat);
+			}
+			else
+			{
+				sql.append("timestamp");
+			}
 		}
 
 		// Time output alias
@@ -186,28 +204,61 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 	// Add sum
 	sql.append("\"sum\" : ' || sum(theval) || '}' AS resd ");
 
+	if (size < 1)
+	{
+		// Add max(user_ts)
+		sql.append(", max(" + timeColumn + ") AS " + timeColumn + " ");
+	}
+
 	// subquery
 	sql.append("FROM ( SELECT asset_code, ");
 	sql.append(timeColumn);
-	sql.append(", datetime(");
 
-	// Add timebucket size
-	if (size > 1)
+	if (size >= 1)
 	{
-		sql.append(to_string(size));
-		sql.append(" * round(strftime('%s', ");
-		sql.append(timeColumn);
-		sql.append(") / ");
-		sql.append(to_string(size));
-		sql.append(", 6), 'unixepoch') ");
+		sql.append(", datetime(");
 	}
 	else
 	{
-		sql.append("round(strftime('%s', ");
-		sql.append(timeColumn);
-		sql.append(") / 1, 6), 'unixepoch') ");
+		sql.append(", (");
 	}
-	sql.append("AS \"timestamp\", reading, ");
+
+	// Size formatted string
+	string size_format;
+	if (fmod(size, 1.0) == 0.0)
+	{
+		size_format = to_string(int(size));
+	}
+	else
+	{
+		size_format = to_string(size);
+	}
+
+	// Add timebucket size
+	// Unix Time is (Julian Day - JulianDay(1/1/1970 0:00 UTC) * Seconds_per_day
+	if (size != 1)
+	{
+		sql.append(size_format);
+		sql.append(" * round((julianday(");
+		sql.append(timeColumn);
+		sql.append(") - " + string(JULIAN_DAY_START_UNIXTIME) + ") * " + string(SECONDS_PER_DAY) + " / ");
+		sql.append(size_format);
+		sql.append(")");
+	}
+	else
+	{
+		sql.append("round((julianday(");
+		sql.append(timeColumn);
+		sql.append(") - " + string(JULIAN_DAY_START_UNIXTIME) + ") * " + string(SECONDS_PER_DAY) + " / 1)");
+	}
+	if (size >= 1)
+	{
+		sql.append(", 'unixepoch') AS \"timestamp\", reading, ");
+	}
+	else
+	{
+		sql.append(") AS \"timestamp\", reading, ");
+	}
 
 	// Get all datapoints in 'reading' field
 	sql.append("json_each.key AS x, json_each.value AS theval FROM fledge.readings, json_each(readings.reading) ");
@@ -220,19 +271,19 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 		return false;
 	}
 
-	// sort results
-	sql.append(" ORDER BY ");
-	sql.append(timeColumn);
-	sql.append(" DESC) tmp ");
+	// close subquery
+	sql.append(") tmp ");
 
 	// Add group by
-	sql.append("GROUP BY x, asset_code, ");
-	sql.append("round(strftime('%s', ");
+	// Unix Time is (Julian Day - JulianDay(1/1/1970 0:00 UTC) * Seconds_per_day
+	sql.append(" GROUP BY x, asset_code, ");
+	sql.append("round((julianday(");
 	sql.append(timeColumn);
-	sql.append(") / ");
-	if (size > 1)
+	sql.append(") - " + string(JULIAN_DAY_START_UNIXTIME) + ") * " + string(SECONDS_PER_DAY) + " / ");
+
+	if (size != 1)
 	{
-		sql.append(to_string(size));
+		sql.append(size_format);
 	}
 	else
 	{
@@ -240,8 +291,8 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 	}
 	sql.append(") ");
 
-	// sort results
-	sql.append("ORDER BY timestamp DESC) tbl ");
+	// close subquery
+	sql.append(") tbl ");
 
 	// Add final group and sort
 	sql.append("GROUP BY timestamp, asset_code ORDER BY timestamp DESC");

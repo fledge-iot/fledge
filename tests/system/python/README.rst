@@ -5,19 +5,19 @@
 
 .. |installed| raw:: html
 
-   <a href="https://github.com/fledge/Fledge#build-prerequisites" target="_blank">installed</a>
+   <a href="https://github.com/fledge-iot/fledge#build-prerequisites" target="_blank">installed</a>
 
 .. |build| raw:: html
 
-   <a href="https://github.com/fledge/Fledge#build" target="_blank">build</a>
+   <a href="https://github.com/fledge-iot/fledge#build" target="_blank">build</a>
 
 .. |set| raw:: html
 
-   <a href="https://github.com/fledge/Fledge#testing-fledge-from-your-development-environment" target="_blank">set</a>
+   <a href="https://github.com/fledge-iot/fledge#testing-fledge-from-your-development-environment" target="_blank">set</a>
 
 .. |kafka-build| raw:: html
 
-   <a href="https://github.com/fledge/fledge-north-kafka#build" target="_blank">kafka-build</a>
+   <a href="https://github.com/fledge-iot/fledge-north-kafka#build" target="_blank">kafka-build</a>
 
 .. |confluent| raw:: html
 

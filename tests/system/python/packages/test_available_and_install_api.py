@@ -141,12 +141,8 @@ class TestPackages:
         # Otherwise install from list as we defined in JSON file
         if package_build_source_list.lower() == 'true':
             for pkg_name in available_pkg:
-<<<<<<< HEAD
-                self._verify_and_install_package(foglamp_url, pkg_name)
-            assert not errors, "Package errors have occurred: \n {}".format("\n".join(errors))
-=======
                 self._verify_and_install_package(fledge_url, pkg_name)
->>>>>>> Fledge
+            assert not errors, "Package errors have occurred: \n {}".format("\n".join(errors))
         else:
             json_data = load_data_from_json()
             # If 'all' in 'package_build_list' then it will iterate each key in JSON file
@@ -164,17 +160,11 @@ class TestPackages:
                             print("{} not found in available package list".format(full_pkg_name))
             assert not errors, "Package errors have occurred: \n {}".format("\n".join(errors))
 
-<<<<<<< HEAD
-    def _verify_and_install_package(self, foglamp_url, pkg_name):
+    def _verify_and_install_package(self, fledge_url, pkg_name):
         print("Installing %s package" % pkg_name)
         global counter
         global errors
-        conn = http.client.HTTPConnection(foglamp_url)
-=======
-    def _verify_and_install_package(self, fledge_url, pkg_name):
-        global counter
         conn = http.client.HTTPConnection(fledge_url)
->>>>>>> Fledge
         data = {"format": "repository", "name": pkg_name}
         conn.request("POST", '/fledge/plugins', json.dumps(data))
         r = conn.getresponse()

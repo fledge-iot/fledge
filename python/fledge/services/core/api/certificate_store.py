@@ -40,7 +40,7 @@ async def get_certs(request):
     for root, dirs, files in os.walk(certs_root_dir):
         if not root.endswith(("pem", "json")):
             for f in files:
-                if f.endswith('.cert'):
+                if f.endswith('.cert') or f.endswith('.cer') or f.endswith('.crt'):
                     certs.append(f)
                 if f.endswith(key_valid_extensions):
                     keys.append(f)
@@ -67,6 +67,9 @@ async def upload(request):
         curl -F "key=@filename.pem" -F "cert=@filename.pem" http://localhost:8081/fledge/certificate
         curl -F "key=@filename.key" -F "cert=@filename.json" http://localhost:8081/fledge/certificate
         curl -F "key=@filename.key" -F "cert=@filename.cert" http://localhost:8081/fledge/certificate
+        curl -F "cert=@filename.cert" http://localhost:8081/fledge/certificate
+        curl -F "cert=@filename.cer" http://localhost:8081/fledge/certificate
+        curl -F "cert=@filename.crt" http://localhost:8081/fledge/certificate
         curl -F "key=@filename.key" -F "cert=@filename.cert" -F "overwrite=1" http://localhost:8081/fledge/certificate
     """
     data = await request.post()
@@ -85,21 +88,17 @@ async def upload(request):
         raise web.HTTPBadRequest(reason="Cert file is missing")
 
     cert_filename = cert_file.filename
-    if cert_filename.endswith('.cert'):
-        if not key_file:
-            raise web.HTTPBadRequest(reason="key file is missing, or upload certificate with .pem or .json extension")
-
     key_valid_extensions = ('.key', '.pem')
-    cert_valid_extensions = ('.cert', '.json', '.pem')
+    cert_valid_extensions = ('.cert', '.cer', '.crt', '.json', '.pem')
 
     key_filename = None
     if key_file:
         key_filename = key_file.filename
         if not key_filename.endswith(key_valid_extensions):
-            raise web.HTTPBadRequest(reason="Accepted file extensions are .key and .pem for key file")
+            raise web.HTTPBadRequest(reason="Accepted file extensions are {} for key file".format(key_valid_extensions))
 
     if not cert_filename.endswith(cert_valid_extensions):
-        raise web.HTTPBadRequest(reason="Accepted file extensions are .cert, .json and .pem for cert file")
+        raise web.HTTPBadRequest(reason="Accepted file extensions are {} for cert file".format(cert_valid_extensions))
 
     certs_dir = _get_certs_dir('/etc/certs/')
     if cert_filename.endswith('.pem'):
@@ -144,6 +143,8 @@ async def delete_certificate(request):
     :Example:
           curl -X DELETE http://localhost:8081/fledge/certificate/fledge.pem
           curl -X DELETE http://localhost:8081/fledge/certificate/fledge.cert
+          curl -X DELETE http://localhost:8081/fledge/certificate/filename.cer
+          curl -X DELETE http://localhost:8081/fledge/certificate/filename.crt
           curl -X DELETE http://localhost:8081/fledge/certificate/fledge.json?type=cert
           curl -X DELETE http://localhost:8081/fledge/certificate/fledge.pem?type=cert
           curl -X DELETE http://localhost:8081/fledge/certificate/fledge.key
@@ -151,7 +152,7 @@ async def delete_certificate(request):
     """
     file_name = request.match_info.get('name', None)
 
-    valid_extensions = ('.cert', '.json', '.key', '.pem')
+    valid_extensions = ('.cert', '.cer', '.crt', '.json', '.key', '.pem')
     if not file_name.endswith(valid_extensions):
         raise web.HTTPBadRequest(reason="Accepted file extensions are {}".format(valid_extensions))
 

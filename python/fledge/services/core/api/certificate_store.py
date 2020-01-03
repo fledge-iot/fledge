@@ -174,7 +174,8 @@ async def delete_certificate(request):
     cert_path = list()
 
     if _type and _type == 'cert':
-        if not file_name.endswith('.cert'):
+        short_cert_name_valid_extensions = ('.cert', '.cer', '.crt')
+        if not file_name.endswith(short_cert_name_valid_extensions):
             if os.path.isfile(certs_dir + 'pem/' + file_name):
                 is_found = True
                 cert_path = [certs_dir + 'pem/' + file_name]

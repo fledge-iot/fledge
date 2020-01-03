@@ -1,5 +1,5 @@
 """
-FogLAMP filtering for readings data
+Fledge filtering for readings data
 using Python 3.5
 """
 

@@ -39,7 +39,6 @@ echo "==================== DONE INSTALLING Fedge GUI ======================"
 
 time sudo apt install -y fledge-service-notification fledge-filter-expression fledge-filter-python35 fledge-filter-rms \
 fledge-filter-fft fledge-filter-delta fledge-filter-metadata fledge-filter-change \
-fledge-filter-simple-python \
 fledge-notify-asset fledge-notify-python35 fledge-notify-email \
 fledge-rule-simple-expression fledge-rule-average \
 fledge-north-httpc \

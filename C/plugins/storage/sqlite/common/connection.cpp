@@ -105,6 +105,43 @@ int dateCallback(void *data,
 }
 
 /**
+ * Retrieves the current datetime (now ()) from SQlite
+ *
+ * @param Now      Output parameter - now ()
+ * @return         True, operations succeded
+ *
+ */
+bool Connection::getNow(string& Now)
+{
+	bool retCode;
+	char* zErrMsg = NULL;
+	char nowDate[100] = "";
+
+	string nowSqlCMD = "SELECT " SQLITE3_NOW_READING;
+
+	int rc = SQLexec(dbHandle,
+	                 nowSqlCMD.c_str(),
+	                 dateCallback,
+	                 nowDate,
+	                 &zErrMsg);
+
+	if (rc == SQLITE_OK )
+	{
+		Now = nowDate;
+		retCode = true;
+	}
+	else
+	{
+		Logger::getLogger()->error("SELECT NOW() error :%s:", nowSqlCMD.c_str(), zErrMsg);
+		sqlite3_free(zErrMsg);
+		Now = "";
+		retCode = false;
+	}
+	return retCode;
+}
+
+//###   #########################################################################################:
+/**
  * Apply Fledge default datetime formatting
  * to a detected DATETIME datatype column
  *
@@ -396,6 +433,7 @@ Connection::Connection()
 
 	m_logSQL = false;
 	m_queuing = 0;
+	m_streamOpenTransaction = true;
 
 	if (defaultConnection == NULL)
 	{
@@ -2251,9 +2289,9 @@ bool Connection::jsonModifiers(const Value& payload,
 		sql.append(" ORDER BY ");
 
                 // Use Unix epoch without milliseconds
-                sql.append("datetime(strftime('%s', ");
+                sql.append("strftime('%s', ");
                 sql.append(tb["timestamp"].GetString());
-                sql.append("))");
+                sql.append(")");
 
 		sql.append(" DESC");
 	}

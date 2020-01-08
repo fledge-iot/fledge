@@ -227,13 +227,6 @@ void setReadingAttr(Reading* newReading, PyObject *element)
 		newReading->setUserTimestamp(ts_str);
 	}
 
-	// Get 'uuid' value: borrowed reference.
-	PyObject* uuid = PyDict_GetItemString(element, "key");
-	if (uuid && PyUnicode_Check(uuid))
-	{
-		// Set uuid
-		newReading->setUuid(std::string(PyUnicode_AsUTF8(uuid)));
-	}
 }
 
 /**
@@ -616,10 +609,6 @@ PyObject* createReadingsList(const std::vector<Reading *>& readings)
 		PyObject* readingId = PyLong_FromUnsignedLong((*elem)->getId());
 		PyDict_SetItemString(readingObject, "id", readingId);
 
-		// Add reading uuid
-		PyObject* assetKey = PyUnicode_FromString((*elem)->getUuid().c_str());
-		PyDict_SetItemString(readingObject, "uuid", assetKey);
-
 		// Add reading timestamp
 		//PyObject* readingTs = PyLong_FromUnsignedLong((*elem)->getTimestamp());
 		PyObject* readingTs =
@@ -639,7 +628,6 @@ PyObject* createReadingsList(const std::vector<Reading *>& readings)
 		Py_CLEAR(newDataPoints);
 		Py_CLEAR(assetVal);
 		Py_CLEAR(readingId);
-		Py_CLEAR(assetKey);
 		Py_CLEAR(readingTs);
 		Py_CLEAR(readingUserTs);
 		Py_CLEAR(readingObject);

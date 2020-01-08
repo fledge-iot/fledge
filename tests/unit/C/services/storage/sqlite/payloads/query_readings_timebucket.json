@@ -33,6 +33,7 @@
 	"group" : "asset_code",
 	"timebucket" :  {
 			   "timestamp" : "user_ts",
+		       "format"    : "YYYYY-MM-DD HH24:MI:SS",
 			   "size"      : "2"
 			}
 }

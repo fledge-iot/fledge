@@ -10,4 +10,4 @@ allure/
 allure-report/
 
 # Test certificates
-!/unit/python/foglamp/services/core/api/certs/*
+!/unit/python/fledge/services/core/api/certs/*

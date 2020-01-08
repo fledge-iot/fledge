@@ -258,10 +258,6 @@ JSONReading::JSONReading(const Value& json)
 	{
 		m_timestamp = m_userTimestamp;
 	}
-	if (json.HasMember("read_key"))
-	{
-		m_uuid = json["read_key"].GetString();
-	}
 
 	// We have a single value here which is a number
 	if (json.HasMember("value") && json["value"].IsNumber())

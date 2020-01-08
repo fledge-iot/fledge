@@ -10,6 +10,7 @@
 #include <storage_client.h>
 #include <reading.h>
 #include <reading_set.h>
+#include <reading_stream.h>
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
 #include <service_record.h>
@@ -19,6 +20,14 @@
 #include <thread>
 #include <map>
 #include <string_utils.h>
+#include <sys/uio.h>
+#include <errno.h>
+
+#define INSTRUMENT	0
+
+#if INSTRUMENT
+#include <sys/time.h>
+#endif
 
 using namespace std;
 using namespace rapidjson;
@@ -30,8 +39,9 @@ std::mutex sto_mtx_client_map;
 /**
  * Storage Client constructor
  */
-StorageClient::StorageClient(const string& hostname, const unsigned short port)
+StorageClient::StorageClient(const string& hostname, const unsigned short port) : m_streaming(false)
 {
+	m_host = hostname;
 	m_pid = getpid();
 	m_logger = Logger::getLogger();
 	m_urlbase << hostname << ":" << port;
@@ -41,7 +51,8 @@ StorageClient::StorageClient(const string& hostname, const unsigned short port)
  * Storage Client constructor
  * stores the provided HttpClient into the map
  */
-StorageClient::StorageClient(HttpClient *client) {
+StorageClient::StorageClient(HttpClient *client) : m_streaming(false)
+{
 
 	std::thread::id thread_id = std::this_thread::get_id();
 
@@ -125,9 +136,35 @@ bool StorageClient::readingAppend(Reading& reading)
 
 /**
  * Append multiple readings
+ *
+ * TODO implement a mechanism to force streamed or non-streamed mode
  */
 bool StorageClient::readingAppend(const vector<Reading *>& readings)
 {
+#if INSTRUMENT
+	struct timeval	start, t1, t2;
+#endif
+	if (m_streaming)
+	{
+		return streamReadings(readings);
+	}
+	// See if we should switch to stream mode
+	struct timeval tmFirst, tmLast, dur;
+	readings[0]->getUserTimestamp(&tmFirst);
+	readings[readings.size()-1]->getUserTimestamp(&tmLast);
+	timersub(&tmLast, &tmFirst, &dur);
+	double timeSpan = dur.tv_sec + ((double)dur.tv_usec / 1000000);
+	double rate = (double)readings.size() / timeSpan;
+	if (rate > STREAM_THRESHOLD)
+	{
+		m_logger->info("Reading rate %.1f readings per second above threshold, attmempting to switch to stream mode", rate);
+		if (openStream())
+		{
+			m_logger->info("Successfully switch to stream mode for readings");
+			return streamReadings(readings);
+		}
+		m_logger->warn("Failed to switch to streaming mode");
+	}
 	static HttpClient *httpClient = this->getHttpClient(); // to initialize m_seqnum_map[thread_id] for this thread
 	try {
 		std::thread::id thread_id = std::this_thread::get_id();
@@ -139,6 +176,9 @@ bool StorageClient::readingAppend(const vector<Reading *>& readings)
 
 		SimpleWeb::CaseInsensitiveMultimap headers = {{"SeqNum", ss.str()}};
 
+#if INSTRUMENT
+		gettimeofday(&start, NULL);
+#endif
 		ostringstream convert;
 		convert << "{ \"readings\" : [ ";
 		for (vector<Reading *>::const_iterator it = readings.cbegin();
@@ -151,9 +191,27 @@ bool StorageClient::readingAppend(const vector<Reading *>& readings)
 			convert << (*it)->toJSON();
 		}
 		convert << " ] }";
+#if INSTRUMENT
+		gettimeofday(&t1, NULL);
+#endif
 		auto res = this->getHttpClient()->request("POST", "/storage/reading", convert.str(), headers);
+#if INSTRUMENT
+		gettimeofday(&t2, NULL);
+#endif
 		if (res->status_code.compare("200 OK") == 0)
 		{
+#if INSTRUMENT
+			struct timeval tm;
+			timersub(&t1, &start, &tm);
+			double buildTime, requestTime;
+			buildTime = tm.tv_sec + ((double)tm.tv_usec / 1000000);
+			timersub(&t2, &t1, &tm);
+			requestTime = tm.tv_sec + ((double)tm.tv_usec / 1000000);
+			m_logger->info("Appended %d readings in %.3f seconds. Took %.3f seconds to build request", readings.size(), requestTime, buildTime);
+			m_logger->info("%.1f Readings per second, request building %.2f%% of time", readings.size() / (buildTime + requestTime),
+					(buildTime * 100) / (requestTime + buildTime));
+			m_logger->info("Request block size %dK", strlen(convert.str().c_str())/1024);
+#endif
 			return true;
 		}
 		ostringstream resultPayload;
@@ -161,7 +219,7 @@ bool StorageClient::readingAppend(const vector<Reading *>& readings)
 		handleUnexpectedResponse("Append readings", res->status_code, resultPayload.str());
 		return false;
 	} catch (exception& ex) {
-		m_logger->error("Failed to append reading: %s", ex.what());
+		m_logger->error("Failed to append readings: %s", ex.what());
 	}
 	return false;
 }
@@ -952,4 +1010,237 @@ bool StorageClient::unregisterAssetNotification(const string& assetName,
 				ex.what());
 	}
 	return false;
+}
+
+bool StorageClient::openStream()
+{
+	try {
+		auto res = this->getHttpClient()->request("POST", "/storage/reading/stream");
+		m_logger->info("POST /storage/reading/stream returned: %s", res->status_code.c_str());
+		if (res->status_code.compare("200 OK") == 0)
+		{
+			ostringstream resultPayload;
+			resultPayload << res->content.rdbuf();
+			Document doc;
+			doc.Parse(resultPayload.str().c_str());
+			if (doc.HasParseError())
+			{
+				m_logger->info("POST result %s.", res->status_code.c_str());
+				m_logger->error("Failed to parse result of createStream. %s. Document is %s",
+						GetParseError_En(doc.GetParseError()),
+						resultPayload.str().c_str());
+				return false;
+			}
+			else if (doc.HasMember("message"))
+			{
+				m_logger->error("Failed to switch to stream mode: %s",
+					doc["message"].GetString());
+				return false;
+			}
+			int port, token;
+			if ((!doc.HasMember("port")) || (!doc.HasMember("token")))
+			{
+				m_logger->error("Missing items in stream creation response");
+				return false;
+			}
+		       	port = doc["port"].GetInt();
+			token = doc["token"].GetInt();
+			if ((m_stream = socket(AF_INET, SOCK_STREAM, 0)) == -1)
+        		{
+				m_logger->error("Unable to create socket");
+				return false;
+			}
+			struct sockaddr_in serv_addr;
+			hostent *server;
+			if ((server = gethostbyname(m_host.c_str())) == NULL)
+			{
+				m_logger->error("Unable to resolve hostname for reading stream: %s", m_host.c_str());
+				return false;
+			}
+			bzero((char *) &serv_addr, sizeof(serv_addr));
+			serv_addr.sin_family = AF_INET;
+			bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+			serv_addr.sin_port = htons(port);
+			if (connect(m_stream, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
+			{
+				Logger::getLogger()->warn("Unable to connect to storage streaming server: %s, %d", m_host.c_str(), port);
+				return false;
+			}
+			RDSConnectHeader conhdr;
+			conhdr.magic = RDS_CONNECTION_MAGIC;
+			conhdr.token = token;
+			if (write(m_stream, &conhdr, sizeof(conhdr)) != sizeof(conhdr))
+			{
+				Logger::getLogger()->warn("Failed to write connection header: %s", strerror(errno));
+				return false;
+			}
+			m_streaming = true;
+			m_logger->info("Storage stream succesfully created");
+			return true;
+		}
+		ostringstream resultPayload;
+		resultPayload << res->content.rdbuf();
+		handleUnexpectedResponse("Create reading stream", res->status_code, resultPayload.str());
+		return false;
+	} catch (exception& ex) {
+		m_logger->error("Failed to create reading stream: %s", ex.what());
+	}
+	m_logger->error("Fallen through!");
+	return false;
+}
+
+/**
+ * Stream a set of readings to the storage service.
+ *
+ * TODO Deal with acknowledgements, add error checking/recovery
+ *
+ * @param readings	The readings to stream
+ * @return bool		True if the readings have been sent
+ */
+bool StorageClient::streamReadings(const std::vector<Reading *> & readings)
+{
+RDSBlockHeader   		blkhdr;
+RDSReadingHeader 		rdhdrs[STREAM_BLK_SIZE];
+register RDSReadingHeader	*phdr;
+struct { const void *iov_base; size_t iov_len;} iovs[STREAM_BLK_SIZE * 4], *iovp;
+string				payloads[STREAM_BLK_SIZE];
+struct timeval			tm[STREAM_BLK_SIZE];
+ssize_t				n, length = 0;
+string				lastAsset;
+
+
+	if (!m_streaming)
+	{
+		return false;
+	}
+
+	/*
+	 * Assemble and write the block header. This header contains information
+	 * to synchronise the blocks of data and also the number of readings
+	 * to expect within the block.
+	 */
+	blkhdr.magic = RDS_BLOCK_MAGIC;
+	blkhdr.blockNumber = m_readingBlock++;
+	blkhdr.count = readings.size();
+	if ((n = write(m_stream, &blkhdr, sizeof(blkhdr))) != sizeof(blkhdr))
+	{
+		if (errno == EPIPE || errno == ECONNRESET)
+		{
+			Logger::getLogger()->warn("Storage service has closed stream unexpectedly");
+			m_streaming = false;
+		}
+		else
+		{
+			Logger::getLogger()->error("Failed to write block header: %s", sys_errlist[errno]);
+		}
+		return false;
+	}
+
+	/*
+	 * Use the writev scatter/gather interface to send the reading headers and reading data.
+	 * We sent chunks of data in order to allow the parallel sendign and unpacking process
+	 * at the two ends. The chunk size is STREAM_BLK_SIZE readings.
+	 */
+	iovp = iovs;
+	phdr = rdhdrs;
+	int offset = 0;
+	for (int i = 0; i < readings.size(); i++)
+	{
+		phdr->magic = RDS_READING_MAGIC;
+		phdr->readingNo = i;
+		string assetCode = readings[i]->getAssetName();
+		if (i > 0 && assetCode.compare(lastAsset) == 0)
+		{
+			// Asset name is unchanged so don't send it
+			phdr->assetLength = 0;
+		}
+		else
+		{
+			// Asset name has changed or this is the first asset in the block
+			lastAsset = assetCode;
+			phdr->assetLength = assetCode.length() + 1;
+		}
+
+		// Alwayts generate the JSON variant of the data points and send
+		payloads[offset] = readings[i]->getDatapointsJSON();
+		phdr->payloadLength = payloads[offset].length() + 1;
+
+		// Add the reading header
+		iovp->iov_base = phdr;
+		iovp->iov_len = sizeof(RDSReadingHeader);
+		length += iovp->iov_len;
+		iovp++;
+
+		// Reading user timestamp
+		readings[i]->getUserTimestamp(&tm[offset]);
+		iovp->iov_base = &tm[offset];
+		iovp->iov_len = sizeof(struct timeval);
+		length += iovp->iov_len;
+		iovp++;
+
+		// If the asset code has changed than add that
+		if (phdr->assetLength)
+		{
+			iovp->iov_base = readings[i]->getAssetName().c_str();
+			iovp->iov_len = phdr->assetLength;
+			length += iovp->iov_len;
+			iovp++;
+		}
+
+		// Add the data points themselves
+		iovp->iov_base = payloads[offset].c_str();
+		iovp->iov_len = phdr->payloadLength;
+		length += iovp->iov_len;
+		iovp++;
+
+		offset++;
+		if (offset == STREAM_BLK_SIZE - 1)
+		{
+			n = writev(m_stream, (const iovec *)iovs, iovp - iovs);
+			if (n < length)
+			{
+				if (errno == EPIPE || errno == ECONNRESET)
+				{
+					Logger::getLogger()->error("Stream has been closed by the storage service");
+					m_streaming = false;
+				}
+				else
+				{
+					Logger::getLogger()->error("Write of block short, %d < %d: %s",
+							n, length, sys_errlist[errno]);
+				}
+				return false;
+			}
+			else if (n > length)
+				Logger::getLogger()->fatal("Long write %d < %d", length, n);
+			offset = 0;
+			length = 0;
+			iovp = iovs;
+			phdr = rdhdrs;
+		}
+		else
+		{
+			phdr++;
+		}
+	}
+	if (length)	// Remaining data to be sent to finish the block
+	{
+		if ((n = writev(m_stream, (const iovec *)iovs, iovp - iovs)) < length)
+		{
+			if (errno == EPIPE || errno == ECONNRESET)
+			{
+				Logger::getLogger()->error("Stream has been closed by the storage service");
+				m_streaming = false;
+			}
+			else
+			{
+				Logger::getLogger()->error("Write of block short, %d < %d: %s",
+						n, length, sys_errlist[errno]);
+			}
+			return false;
+		}
+		else if (n > length)
+			Logger::getLogger()->fatal("Long write %d < %d", length, n);
+	}
+	return true;
 }

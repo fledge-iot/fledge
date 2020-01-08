@@ -555,7 +555,6 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 					SELECT
 						id,
 						asset_code,
-						read_key,
 						reading,
 						to_char(user_ts, ')" F_DATEH24_US R"(') as user_ts,
 						to_char(ts, ')" F_DATEH24_US R"(') as ts
@@ -733,7 +732,6 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 				const char *sql_cmd = R"(
 						id,
 						asset_code,
-						read_key,
 						reading,
 						to_char(user_ts, ')" F_DATEH24_US R"(') as user_ts,
 						to_char(ts, ')" F_DATEH24_US R"(') as ts
@@ -1463,7 +1461,7 @@ bool 		add_row = false;
 		return -1;
 	}
 
-	sql.append("INSERT INTO fledge.readings ( user_ts, asset_code, read_key, reading ) VALUES ");
+	sql.append("INSERT INTO fledge.readings ( user_ts, asset_code, reading ) VALUES ");
 
 	if (!doc.HasMember("readings"))
 	{
@@ -1531,20 +1529,7 @@ bool 		add_row = false;
 			// Handles - asset_code
 			sql.append(",\'");
 			sql.append((*itr)["asset_code"].GetString());
-
-			// Handles - read_key
-			// Python code is passing the string None when here is no read_key in the payload
-			if (itr->HasMember("read_key") && strcmp((*itr)["read_key"].GetString(), "None") != 0)
-			{
-				sql.append("', \'");
-				sql.append((*itr)["read_key"].GetString());
-				sql.append("', \'");
-			}
-			else
-			{
-				// No "read_key" in this reading, insert NULL
-				sql.append("', NULL, '");
-			}
+			sql.append("', '");
 
 			// Handles - reading
 			StringBuffer buffer;
@@ -1581,8 +1566,8 @@ bool Connection::fetchReadings(unsigned long id, unsigned int blksize, std::stri
 char	sqlbuffer[200];
 
 	snprintf(sqlbuffer, sizeof(sqlbuffer),
-		"SELECT id, asset_code, read_key, reading, user_ts AT TIME ZONE 'UTC' as \"user_ts\", ts AT TIME ZONE 'UTC' as \"ts\" FROM fledge.readings WHERE id >= %ld ORDER BY id LIMIT %d;", id, blksize);
-	
+		"SELECT id, asset_code, reading, user_ts AT TIME ZONE 'UTC' as \"user_ts\", ts AT TIME ZONE 'UTC' as \"ts\" FROM fledge.readings WHERE id >= %ld ORDER BY id LIMIT %d;", id, blksize);
+
 	logSQL("ReadingsFetch", sqlbuffer);
 	PGresult *res = PQexec(dbConnection, sqlbuffer);
 	if (PQresultStatus(res) == PGRES_TUPLES_OK)

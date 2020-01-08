@@ -250,7 +250,7 @@ class Datapoint {
 		 */
 		std::string	toJSONProperty()
 		{
-			std::string rval = "\"" + m_name + "\" : ";
+			std::string rval = "\"" + m_name + "\":";
 			rval += m_value.toString();
 
 			return rval;

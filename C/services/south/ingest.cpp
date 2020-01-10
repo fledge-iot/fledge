@@ -544,13 +544,10 @@ void Ingest::processQueue()
 				{
 					Reading *reading = *it;
 					string	assetName = reading->getAssetName();
-					if (statsPendingEntries.find(assetName) != statsPendingEntries.end())
+					AssetTrackingTuple tuple(m_serviceName, m_pluginName, assetName, "Ingest");
+					if (!tracker->checkAssetTrackingCache(tuple))
 					{
-						AssetTrackingTuple tuple(m_serviceName, m_pluginName, assetName, "Ingest");
-						if (!tracker->checkAssetTrackingCache(tuple))
-						{
-							tracker->addAssetTrackingTuple(tuple);
-						}
+						tracker->addAssetTrackingTuple(tuple);
 					}
 					++statsEntriesCurrQueue[assetName];
 					delete reading;

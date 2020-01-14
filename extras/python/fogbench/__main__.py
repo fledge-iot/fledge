@@ -53,7 +53,6 @@ import random
 import json
 from datetime import datetime, timezone
 import argparse
-import uuid
 import collections
 
 import asyncio
@@ -150,7 +149,6 @@ def _prepare_sensor_reading(data, supported_format_types):
         sensor_value_object["asset"] = d['name']
         sensor_value_object["readings"] = x_sensor_values
         sensor_value_object["timestamp"] = "{!s}".format(local_timestamp())
-        sensor_value_object["key"] = str(uuid.uuid4())
         # print(json.dumps(sensor_value_object))
         ord_dict = collections.OrderedDict(sorted(sensor_value_object.items()))
         readings.append(ord_dict)
@@ -180,8 +178,7 @@ def read_out_file(_file=None, _keep=False, _iterations=1, _interval=0, send_to='
         msg_transferred_itr = 0  # Messages transferred in every iteration
         byte_transferred_itr = 0  # Bytes transferred in every iteration
 
-        for idx, r in enumerate(readings_list):
-            readings_list[idx]["key"] = str(uuid.uuid4())
+        for r in readings_list:
             msg_transferred_itr += 1
             byte_transferred_itr += sys.getsizeof(r)
 

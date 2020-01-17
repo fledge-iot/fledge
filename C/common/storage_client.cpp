@@ -5,7 +5,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 #include <storage_client.h>
 #include <reading.h>
@@ -244,6 +244,41 @@ ResultSet *StorageClient::readingQuery(const Query& query)
 			ostringstream resultPayload;
 			resultPayload << res->content.rdbuf();
 			ResultSet *result = new ResultSet(resultPayload.str().c_str());
+			return result;
+		}
+		ostringstream resultPayload;
+		resultPayload << res->content.rdbuf();
+		handleUnexpectedResponse("Query readings", res->status_code, resultPayload.str());
+	} catch (exception& ex) {
+		m_logger->error("Failed to query readings: %s", ex.what());
+		throw;
+	} catch (exception* ex) {
+		m_logger->error("Failed to query readings: %s", ex->what());
+		delete ex;
+		throw exception();
+	}
+	return 0;
+}
+
+/**
+ * Perform a generic query against the readings data,
+ * returning ReadingSet object
+ *
+ * @param query		The query to execute
+ * @return ReadingSet	The result of the query
+ */
+ReadingSet *StorageClient::readingQueryToReadings(const Query& query)
+{
+	try {
+		ostringstream convert;
+
+		convert << query.toJSON();
+		auto res = this->getHttpClient()->request("PUT", "/storage/reading/query", convert.str());
+		if (res->status_code.compare("200 OK") == 0)
+		{
+			ostringstream resultPayload;
+			resultPayload << res->content.rdbuf();
+			ReadingSet* result = new ReadingSet(resultPayload.str().c_str());
 			return result;
 		}
 		ostringstream resultPayload;

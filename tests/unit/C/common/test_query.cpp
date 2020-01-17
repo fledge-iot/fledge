@@ -222,3 +222,30 @@ string expected("{ \"return\" : [ \"c1\" ], \"modifier\" : \"distinct\" }");
 	json = query.toJSON();
 	ASSERT_EQ(json.compare(expected), 0);
 }
+
+TEST(QueryTest, whereInSingle)
+{
+	// Add one element for IN
+	Query query(new Where("c1", In, "10"));
+
+	string json;
+	string expected("{ \"where\" : { \"column\" : \"c1\", \"condition\" : \"in\", \"value\" : [\"10\"] } }");
+        
+	json = query.toJSON();
+	ASSERT_EQ(json.compare(expected), 0);
+}
+
+TEST(QueryTest, whereIn)
+{
+	// Add one element for IN
+	Where* two = new Where("c1", In, "10");
+	// Add second element
+	two->addIn("20");
+	Query query(two);
+
+	string json;
+	string expected("{ \"where\" : { \"column\" : \"c1\", \"condition\" : \"in\", \"value\" : [\"10\", \"20\"] } }");
+        
+	json = query.toJSON();
+	ASSERT_EQ(json.compare(expected), 0);
+}

@@ -190,7 +190,6 @@ static void loadDataThread(SendingProcess *loadData)
 				{
 					// SELECT id,
 					//	  key AS asset_code,
-					//	  key AS read_key,
 					//	  ts,
 					//	  history_ts AS user_ts,
 					//	  value
@@ -207,7 +206,6 @@ static void loadDataThread(SendingProcess *loadData)
 					// Add colums and needed aliases
 					columns.push_back(new Returns("id"));
 					columns.push_back(new Returns("key", "asset_code"));
-					columns.push_back(new Returns("key", "read_key"));
 					columns.push_back(new Returns("ts"));
 
 					Returns *tmpReturn = new Returns("history_ts", "user_ts");

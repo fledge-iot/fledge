@@ -25,7 +25,6 @@ import logging
 import datetime
 import signal
 import json
-import uuid
 
 import fledge.plugins.north.common.common as plugin_common
 from fledge.common.parser import Parser
@@ -441,7 +440,6 @@ class SendingProcess(FledgeProcess):
                     new_row = {
                         'id': row['id'],
                         'asset_code': asset_code,
-                        'read_key': str(uuid.uuid4()),
                         'reading': {'value': row['value']},
                         'user_ts': timestamp,
                     }
@@ -501,7 +499,6 @@ class SendingProcess(FledgeProcess):
                     new_row = {
                         'id': row['id'],
                         'asset_code': asset_code,
-                        'read_key': row['read_key'],
                         'reading': payload,
                         'user_ts': timestamp
                     }

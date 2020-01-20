@@ -48,15 +48,12 @@ Connection::Connection()
 	const char * createReadings = "CREATE TABLE fledge.readings (" \
 					"id		INTEGER			PRIMARY KEY AUTOINCREMENT," \
 					"asset_code	character varying(50)	NOT NULL," \
-					"read_key	uuid			UNIQUE," \
 					"reading	JSON			NOT NULL DEFAULT '{}'," \
 					"user_ts	DATETIME 		DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW' ))," \
 					"ts		DATETIME 		DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW' ))" \
 					");";
 
 	const char * createReadingsFk = "CREATE INDEX fki_readings_fk1 ON readings (asset_code);";
-
-	const char * createReadingsIdx = "CREATE INDEX readings_ix1 ON readings (read_key);";
 
 	// Allow usage of URI for filename
         sqlite3_config(SQLITE_CONFIG_URI, 1);
@@ -106,12 +103,6 @@ Connection::Connection()
 				  NULL,
 				  NULL);
 
-		// INDEX
-		rc = sqlite3_exec(dbHandle,
-				  createReadingsIdx,
-				  NULL,
-				  NULL,
-				  NULL);
 	}
 
 }
@@ -134,7 +125,7 @@ bool 		add_row = false;
 		return -1;
 	}
 
-	sql.append("INSERT INTO fledge.readings ( user_ts, asset_code, read_key, reading ) VALUES ");
+	sql.append("INSERT INTO fledge.readings ( user_ts, asset_code, reading ) VALUES ");
 
 	if (!doc.HasMember("readings"))
 	{
@@ -205,20 +196,6 @@ bool 		add_row = false;
 			// Handles - asset_code
 			sql.append(",\'");
 			sql.append((*itr)["asset_code"].GetString());
-
-			// Handles - read_key
-			// Python code is passing the string None when here is no read_key in the payload
-			if (itr->HasMember("read_key") && strcmp((*itr)["read_key"].GetString(), "None") != 0)
-			{
-				sql.append("', \'");
-				sql.append((*itr)["read_key"].GetString());
-				sql.append("', \'");
-			}
-			else
-			{
-				// No "read_key" in this reading, insert NULL
-				sql.append("', NULL, '");
-			}
 
 			// Handles - reading
 			StringBuffer buffer;

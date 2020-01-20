@@ -370,7 +370,6 @@ class TestIngest:
         data = {
                 "timestamp": "2017-01-02T01:02:03.23232Z-05:00",
                 "asset": "pump1",
-                "key": uuid.uuid4(),
                 "readings": {
                     "velocity": "500",
                     "temperature": {
@@ -397,7 +396,6 @@ class TestIngest:
         # WHEN
         await Ingest.add_readings(asset=data['asset'],
                                   timestamp=data['timestamp'],
-                                  key=data['key'],
                                   readings=data['readings'])
 
         # THEN
@@ -409,7 +407,6 @@ class TestIngest:
         data = {
                 "timestamp": "2017-01-02T01:02:03.23232Z-05:00",
                 "asset": "pump1",
-                "key": uuid.uuid4(),
                 "readings": {
                     "velocity": "500",
                     "temperature": {
@@ -434,7 +431,6 @@ class TestIngest:
         # WHEN
         await Ingest.add_readings(asset=data['asset'],
                                   timestamp=data['timestamp'],
-                                  key=data['key'],
                                   readings=data['readings'])
 
         # THEN
@@ -448,7 +444,6 @@ class TestIngest:
         data = {
                 "timestamp": "2017-01-02T01:02:03.23232Z-05:00",
                 "asset": "pump1",
-                "key": uuid.uuid4(),
                 "readings": {
                     "velocity": "500",
                     "temperature": {
@@ -473,7 +468,6 @@ class TestIngest:
         with pytest.raises(RuntimeError):
             await Ingest.add_readings(asset=data['asset'],
                                       timestamp=data['timestamp'],
-                                      key=data['key'],
                                       readings=data['readings'])
 
         # THEN
@@ -485,7 +479,6 @@ class TestIngest:
         data = {
                 "timestamp": "2017-01-02T01:02:03.23232Z-05:00",
                 "asset": "pump1",
-                "key": uuid.uuid4(),
                 "readings": {
                     "velocity": "500",
                     "temperature": {
@@ -511,35 +504,24 @@ class TestIngest:
         with pytest.raises(ValueError):
             await Ingest.add_readings(asset=None,
                                       timestamp=data['timestamp'],
-                                      key=data['key'],
                                       readings=data['readings'])
 
         # Check for asset not string
         with pytest.raises(TypeError):
             await Ingest.add_readings(asset=123,
                                       timestamp=None,
-                                      key=data['key'],
                                       readings=data['readings'])
 
         # Check for timestamp None
         with pytest.raises(ValueError):
             await Ingest.add_readings(asset=data['asset'],
                                       timestamp=None,
-                                      key=data['key'],
-                                      readings=data['readings'])
-
-        # Check for key str
-        with pytest.raises(TypeError):
-            await Ingest.add_readings(asset=data['asset'],
-                                      timestamp=data['timestamp'],
-                                      key=123,
                                       readings=data['readings'])
 
         # Check for readings dict
         with pytest.raises(TypeError):
             await Ingest.add_readings(asset=data['asset'],
                                       timestamp=data['timestamp'],
-                                      key=data['key'],
                                       readings=123)
         # THEN
         assert 0 == len(Ingest._readings_lists[0])
@@ -550,7 +532,6 @@ class TestIngest:
         data = {
                 "timestamp": "2017-01-02T01:02:03.23232Z-05:00",
                 "asset": "pump1",
-                "key": uuid.uuid4(),
                 "readings": {
                     "velocity": "500",
                     "temperature": {
@@ -584,12 +565,10 @@ class TestIngest:
         # WHEN
         await Ingest.add_readings(asset=data['asset'],
                                   timestamp=data['timestamp'],
-                                  key=data['key'],
                                   readings=data['readings'])
         # First reading_list is full, so now add to second list
         await Ingest.add_readings(asset=data['asset'],
                                   timestamp=data['timestamp'],
-                                  key=data['key'],
                                   readings=data['readings'])
 
         # THEN

@@ -9,7 +9,6 @@
 import asyncio
 import datetime
 import time
-import uuid
 from typing import List, Union
 import json
 
@@ -461,15 +460,12 @@ class Ingest(object):
 
     @classmethod
     async def add_readings(cls, asset: str, timestamp: Union[str, datetime.datetime],
-                           key: Union[str, uuid.UUID] = None, readings: dict = None) -> None:
+                           readings: dict = None) -> None:
         """Adds an asset readings record to Fledge
 
         Args:
             asset: Identifies the asset to which the readings belong
             timestamp: When the readings were taken
-            key:
-                Unique key for these readings. If this method is called multiple with the same
-                key, the readings are only written to storage once
             readings: A dictionary of sensor readings
 
         Raises:
@@ -504,14 +500,6 @@ class Ingest(object):
             #     # validate
             #     timestamp = dateutil.parser.parse(timestamp)
 
-            if key is not None and not isinstance(key, uuid.UUID):
-                # Validate
-                if not isinstance(key, str):
-                    raise TypeError('key must be a uuid.UUID or a string')
-                # If key is not a string, uuid.UUID throws an Exception that appears to
-                # be a TypeError but can not be caught as a TypeError
-                key = uuid.UUID(key)
-
             if readings is None:
                 readings = dict()
             elif not isinstance(readings, dict):
@@ -521,9 +509,6 @@ class Ingest(object):
         except Exception:
             cls.increment_discarded_readings()
             raise
-
-        # Comment out to test IntegrityError
-        # key = '123e4567-e89b-12d3-a456-426655440000'
 
         # If an empty slot is not available, discard the reading
         if not cls.is_available():
@@ -535,7 +520,6 @@ class Ingest(object):
 
         read = dict()
         read['asset_code'] = asset
-        read['read_key'] = str(key)
         read['reading'] = readings
         read['user_ts'] = timestamp
         readings_list.append(read)

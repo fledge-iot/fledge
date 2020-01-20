@@ -6,9 +6,6 @@
 
 """ Test GCP Gateway plugin
 
-Prerequisite: This test expects gcp certificates in $FOGLAMP_ROOT/tests/system/python/packages/data/gcp directory.
-              Also export the GOOGLE_APPLICATION_CREDENTIALS variable to the JSON file which has details of service account.
-              Example: export GOOGLE_APPLICATION_CREDENTIALS="[PATH]"
 """
 
 import os
@@ -35,13 +32,6 @@ FOGLAMP_ROOT = os.environ.get('FOGLAMP_ROOT')
 CERTS_DIR = "{}/gcp".format(SCRIPTS_DIR_ROOT)
 FOGLAMP_CERTS_DIR = "{}/data/etc/certs/".format(FOGLAMP_ROOT)
 
-# [[ GCP project specific configuration ]]
-project_id = "nomadic-groove-264509"
-registry_id = "fl-nerd--registry"
-device_id = "fl-nerd-gateway"
-
-subscription_name = "my-subscription"
-# [[ GCP project specific configuration ]]
 
 @pytest.fixture
 def reset_foglamp(wait_time):
@@ -106,17 +96,17 @@ def get_statistics_map(foglamp_url):
     return utils.serialize_stats_map(jdoc)
 
 
-def copy_certs():
-    copy_file = "cp {}/rsa_private.pem {}/roots.pem {}".format(CERTS_DIR, CERTS_DIR, FOGLAMP_CERTS_DIR)
+def copy_certs(gcp_cert_path):
+    copy_file = "cp {} {}/roots.pem {}".format(gcp_cert_path, CERTS_DIR, FOGLAMP_CERTS_DIR)
     exit_code = os.system(copy_file)
     assert 0 == exit_code
 
 
 @pytest.fixture
-def verify_prerequisites():
-    assert os.path.exists("{}/rsa_private.pem".format(CERTS_DIR)), "Private key not found in {} directory".format(
-        CERTS_DIR)
-    assert os.environ.get('GOOGLE_APPLICATION_CREDENTIALS') is not None, "Please set GOOGLE_APPLICATION_CREDENTIALS"
+def verify_and_set_prerequisites(gcp_cert_path, google_app_credentials):
+    assert os.path.exists("{}".format(gcp_cert_path)), "Private key not found at {}"\
+        .format(gcp_cert_path)
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = google_app_credentials
 
 
 def verify_received_messages(project_id, subscription_name, timeout=None):
@@ -138,9 +128,9 @@ def verify_received_messages(project_id, subscription_name, timeout=None):
     )
 
     def callback(message):
-        msgJSON = json.loads(message.data.decode('utf8'))
-        ts = msgJSON["sinusoid"][0]["ts"]
-        # recieved messages may not be in order (and latest). verify date part only
+        msg_json = json.loads(message.data.decode('utf8'))
+        ts = msg_json["sinusoid"][0]["ts"]
+        # received messages may not be in order (and latest). verify date part only
         # until we found a way to fetch latest sent and stats count from GCP
         assert ts[:10] == datetime.now().strftime("%Y-%m-%d")
         message.ack()
@@ -160,8 +150,9 @@ def verify_received_messages(project_id, subscription_name, timeout=None):
 
 
 class TestGCPGateway:
-    def test_gcp_gateway(self, verify_prerequisites, remove_and_add_pkgs, reset_foglamp, foglamp_url, wait_time,
-                         remove_data_file):
+    def test_gcp_gateway(self, verify_and_set_prerequisites, remove_and_add_pkgs, reset_foglamp, foglamp_url,
+                         wait_time, remove_data_file, gcp_project_id, gcp_device_gateway_id, gcp_registry_id,
+                         gcp_subscription_name, gcp_cert_path):
         payload = {"name": "Sine", "type": "south", "plugin": "sinusoid", "enabled": True, "config": {}}
         post_url = "/foglamp/service"
         conn = http.client.HTTPConnection(foglamp_url)
@@ -169,11 +160,11 @@ class TestGCPGateway:
         res = conn.getresponse()
         assert 200 == res.status, "ERROR! POST {} request failed".format(post_url)
 
-        copy_certs()
+        copy_certs(gcp_cert_path)
 
-        gcp_project_cfg = {"project_id": {"value": "{}".format(project_id)},
-                           "registry_id": {"value": "{}".format(registry_id)},
-                           "device_id": {"value": "{}".format(device_id)},
+        gcp_project_cfg = {"project_id": {"value": "{}".format(gcp_project_id)},
+                           "registry_id": {"value": "{}".format(gcp_registry_id)},
+                           "device_id": {"value": "{}".format(gcp_device_gateway_id)},
                            "key": {"value": "rsa_private"}}
 
         payload = {"name": task_name,
@@ -203,7 +194,7 @@ class TestGCPGateway:
         assert 0 < actual_stats_map['Readings Sent']
         assert 0 < actual_stats_map[task_name]
 
-        verify_received_messages(project_id, subscription_name, timeout=3)
+        verify_received_messages(gcp_project_id, gcp_subscription_name, timeout=3)
 
         remove_data_file("{}/rsa_private.pem".format(FOGLAMP_CERTS_DIR))
         remove_data_file("{}/roots.pem".format(FOGLAMP_CERTS_DIR))

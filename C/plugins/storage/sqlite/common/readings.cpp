@@ -27,7 +27,7 @@
 #define	RDS_PAYLOAD(stream, x)			&(stream[x]->assetCode[0]) + stream[x]->assetCodeLength
 
 // Retry mechanism
-#define PREP_CMD_MAX_RETRIES		200	// Maximum no. of retries when a lock is encountered
+#define PREP_CMD_MAX_RETRIES		6	// Maximum no. of retries when a lock is encountered
 #define PREP_CMD_RETRY_BACKOFF		10 	// Multipler to backoff DB retry on lock
 
 /*

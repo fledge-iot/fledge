@@ -57,8 +57,7 @@ import collections
 
 import asyncio
 import aiohttp
-from aiocoap import *
-from cbor2 import dumps
+
 
 from .exceptions import *
 
@@ -213,9 +212,13 @@ async def send_to_coap(payload):
      URI "/other/sensor-values".
 
     """
+    from aiocoap import Context, Message
+    from aiocoap.numbers.codes import Code
+    from cbor2 import dumps
+
     context = await Context.create_client_context()
 
-    request = Message(payload=dumps(payload), code=POST)
+    request = Message(payload=dumps(payload), code=Code.POST)
     request.opt.uri_host = arg_host
     request.opt.uri_port = arg_port
     request.opt.uri_path = ("other", "sensor-values")

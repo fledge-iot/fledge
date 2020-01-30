@@ -169,8 +169,7 @@ int	size;
 	free(messages);
 	exit(1);
 }
-
-
+		
 /**
  * Callback called by south plugin to ingest readings into Fledge
  *
@@ -196,6 +195,13 @@ SouthService::SouthService(const string& myName) : m_name(myName), m_shutdown(fa
 {
 	logger = new Logger(myName);
 	logger->setMinLevel("warning");
+}
+
+ManagementClient *SouthService::m_mgtClient = NULL;
+
+ManagementClient * SouthService::getMgmtClient()
+{
+	return m_mgtClient;
 }
 
 /**

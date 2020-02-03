@@ -1,5 +1,6 @@
 #include "client_http.hpp"
 #include "server_http.hpp"
+#include <future>
 
 // Added for the json-example
 #define BOOST_SPIRIT_THREADSAFE
@@ -89,7 +90,7 @@ int main() {
   // Responds with request-information
   server.resource["^/info$"]["GET"] = [](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
     stringstream stream;
-    stream << "<h1>Request from " << request->remote_endpoint_address() << ":" << request->remote_endpoint_port() << "</h1>";
+    stream << "<h1>Request from " << request->remote_endpoint().address().to_string() << ":" << request->remote_endpoint().port() << "</h1>";
 
     stream << request->method << " " << request->path << " HTTP/" << request->http_version;
 
@@ -205,13 +206,15 @@ int main() {
     // Note that connection timeouts will also call this handle with ec set to SimpleWeb::errc::operation_canceled
   };
 
-  thread server_thread([&server]() {
+  // Start server and receive assigned port when server is listening for requests
+  promise<unsigned short> server_port;
+  thread server_thread([&server, &server_port]() {
     // Start server
-    server.start();
+    server.start([&server_port](unsigned short port) {
+      server_port.set_value(port);
+    });
   });
-
-  // Wait for server to start so that the client can connect
-  this_thread::sleep_for(chrono::seconds(1));
+  cout << "Server listening on port " << server_port.get_future().get() << endl << endl;
 
   // Client examples
   HttpClient client("localhost:8080");
@@ -220,20 +223,23 @@ int main() {
 
   // Synchronous request examples
   try {
+    cout << "Example GET request to http://localhost:8080/match/123" << endl;
     auto r1 = client.request("GET", "/match/123");
-    cout << r1->content.rdbuf() << endl; // Alternatively, use the convenience function r1->content.string()
+    cout << "Response content: " << r1->content.rdbuf() << endl << endl; // Alternatively, use the convenience function r1->content.string()
 
+    cout << "Example POST request to http://localhost:8080/string" << endl;
     auto r2 = client.request("POST", "/string", json_string);
-    cout << r2->content.rdbuf() << endl;
+    cout << "Response content: " << r2->content.rdbuf() << endl << endl;
   }
   catch(const SimpleWeb::system_error &e) {
     cerr << "Client request error: " << e.what() << endl;
   }
 
   // Asynchronous request example
+  cout << "Example POST request to http://localhost:8080/json" << endl;
   client.request("POST", "/json", json_string, [](shared_ptr<HttpClient::Response> response, const SimpleWeb::error_code &ec) {
     if(!ec)
-      cout << response->content.rdbuf() << endl;
+      cout << "Response content: " << response->content.rdbuf() << endl;
   });
   client.io_service->run();
 

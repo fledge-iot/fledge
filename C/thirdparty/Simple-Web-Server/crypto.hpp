@@ -27,7 +27,8 @@ namespace SimpleWeb {
   public:
     class Base64 {
     public:
-      static std::string encode(const std::string &ascii) noexcept {
+      /// Returns Base64 encoded string from input string.
+      static std::string encode(const std::string &input) noexcept {
         std::string base64;
 
         BIO *bio, *b64;
@@ -40,13 +41,13 @@ namespace SimpleWeb {
         BIO_set_mem_buf(b64, bptr, BIO_CLOSE);
 
         // Write directly to base64-buffer to avoid copy
-        auto base64_length = static_cast<std::size_t>(round(4 * ceil(static_cast<double>(ascii.size()) / 3.0)));
+        auto base64_length = static_cast<std::size_t>(round(4 * ceil(static_cast<double>(input.size()) / 3.0)));
         base64.resize(base64_length);
         bptr->length = 0;
         bptr->max = base64_length + 1;
         bptr->data = &base64[0];
 
-        if(BIO_write(b64, &ascii[0], static_cast<int>(ascii.size())) <= 0 || BIO_flush(b64) <= 0)
+        if(BIO_write(b64, &input[0], static_cast<int>(input.size())) <= 0 || BIO_flush(b64) <= 0)
           base64.clear();
 
         // To keep &base64[0] through BIO_free_all(b64)
@@ -59,6 +60,7 @@ namespace SimpleWeb {
         return base64;
       }
 
+      /// Returns Base64 decoded string from base64 input.
       static std::string decode(const std::string &base64) noexcept {
         std::string ascii;
 
@@ -68,9 +70,9 @@ namespace SimpleWeb {
 
         b64 = BIO_new(BIO_f_base64());
         BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
-// TODO: Remove in 2020
-#if(defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER <= 0x1000115fL) || (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x2080000fL)
-        bio = BIO_new_mem_buf((char *)&base64[0], static_cast<int>(base64.size()));
+// TODO: Remove in 2022 or later
+#if(defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER < 0x1000214fL) || (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x2080000fL)
+        bio = BIO_new_mem_buf(const_cast<char *>(&base64[0]), static_cast<int>(base64.size()));
 #else
         bio = BIO_new_mem_buf(&base64[0], static_cast<int>(base64.size()));
 #endif
@@ -88,7 +90,7 @@ namespace SimpleWeb {
       }
     };
 
-    /// Return hex string from bytes in input string.
+    /// Returns hex string from bytes in input string.
     static std::string to_hex_string(const std::string &input) noexcept {
       std::stringstream hex_stream;
       hex_stream << std::hex << std::internal << std::setfill('0');
@@ -97,6 +99,7 @@ namespace SimpleWeb {
       return hex_stream.str();
     }
 
+    /// Returns md5 hash value from input string.
     static std::string md5(const std::string &input, std::size_t iterations = 1) noexcept {
       std::string hash;
 
@@ -109,6 +112,7 @@ namespace SimpleWeb {
       return hash;
     }
 
+    /// Returns md5 hash value from input stream.
     static std::string md5(std::istream &stream, std::size_t iterations = 1) noexcept {
       MD5_CTX context;
       MD5_Init(&context);
@@ -126,6 +130,7 @@ namespace SimpleWeb {
       return hash;
     }
 
+    /// Returns sha1 hash value from input string.
     static std::string sha1(const std::string &input, std::size_t iterations = 1) noexcept {
       std::string hash;
 
@@ -138,6 +143,7 @@ namespace SimpleWeb {
       return hash;
     }
 
+    /// Returns sha1 hash value from input stream.
     static std::string sha1(std::istream &stream, std::size_t iterations = 1) noexcept {
       SHA_CTX context;
       SHA1_Init(&context);
@@ -155,6 +161,7 @@ namespace SimpleWeb {
       return hash;
     }
 
+    /// Returns sha256 hash value from input string.
     static std::string sha256(const std::string &input, std::size_t iterations = 1) noexcept {
       std::string hash;
 
@@ -167,6 +174,7 @@ namespace SimpleWeb {
       return hash;
     }
 
+    /// Returns sha256 hash value from input stream.
     static std::string sha256(std::istream &stream, std::size_t iterations = 1) noexcept {
       SHA256_CTX context;
       SHA256_Init(&context);
@@ -184,6 +192,7 @@ namespace SimpleWeb {
       return hash;
     }
 
+    /// Returns sha512 hash value from input string.
     static std::string sha512(const std::string &input, std::size_t iterations = 1) noexcept {
       std::string hash;
 
@@ -196,6 +205,7 @@ namespace SimpleWeb {
       return hash;
     }
 
+    /// Returns sha512 hash value from input stream.
     static std::string sha512(std::istream &stream, std::size_t iterations = 1) noexcept {
       SHA512_CTX context;
       SHA512_Init(&context);
@@ -213,7 +223,19 @@ namespace SimpleWeb {
       return hash;
     }
 
-    /// key_size is number of bytes of the returned key.
+    /// Returns PBKDF2 hash value from the given password
+    /// Input parameter key_size  number of bytes of the returned key.
+
+    /**
+     * Returns PBKDF2 derived key from the given password.
+     *
+     * @param password   The password to derive key from.
+     * @param salt       The salt to be used in the algorithm.
+     * @param iterations Number of iterations to be used in the algorithm.
+     * @param key_size   Number of bytes of the returned key.
+     *
+     * @return The PBKDF2 derived key.
+     */
     static std::string pbkdf2(const std::string &password, const std::string &salt, int iterations, int key_size) noexcept {
       std::string key;
       key.resize(static_cast<std::size_t>(key_size));

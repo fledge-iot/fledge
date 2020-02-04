@@ -290,6 +290,8 @@ bool OMF::sendDataTypes(const Reading& row)
 	// Then get HTTPS POST ret code and return 0 to client on error
 	try
 	{
+		Logger::getLogger()->debug("Sending JSON dataType message 'Type' ");
+
 		res = m_sender.sendRequest("POST",
 					   m_path,
 					   resType,
@@ -676,6 +678,36 @@ bool OMF::sendAFHierarchy()
 }
 
 /**
+ * Sets the value of the prefix used for the objects naming
+ *
+ */
+void OMF::setAFHierarchy()
+{
+	std::string level;
+
+	if (m_PIServerEndpoint.compare("p") == 0)
+	{
+		// Implementation onfly for PI Web API
+		std::stringstream defaultAFLocation(m_DefaultAFLocation);
+
+		if (m_DefaultAFLocation.find(AFHierarchySeparator) == string::npos)
+		{
+			// only 1 single level of hierarchy
+			m_AFHierarchyLevel = m_DefaultAFLocation;
+		}
+		else
+		{
+			// multiple hierarchy levels
+			while (std::getline(defaultAFLocation, level, AFHierarchySeparator))
+			{
+				;
+			}
+			m_AFHierarchyLevel = level;
+		}
+	}
+}
+
+/**
  * Send all the readings to the PI Server
  *
  * @param readings            A vector of readings data pointers
@@ -718,6 +750,11 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		// Create the key for dataTypes sending once
 		long typeId = OMF::getAssetTypeId((**elem).getAssetName());
 		string key((**elem).getAssetName());
+
+		if (! AFHierarchySent)
+		{
+			setAFHierarchy();
+		}
 
 		sendDataTypes = (m_lastError == false && skipSentDataTypes == true) ?
 				 // Send if not already sent
@@ -2025,14 +2062,25 @@ void OMF::clearCreatedTypes(const string& key)
 bool OMF::getCreatedTypes(const string& key)
 {
 	bool ret;
+	string keyComplete;
+
+	if (m_PIServerEndpoint.compare("c") == 0)
+	{
+		keyComplete = key;
+	}
+	else if (m_PIServerEndpoint.compare("p") == 0)
+	{
+		keyComplete = m_AFHierarchyLevel + "_" + key;
+	}
+
 	if (!m_OMFDataTypes)
 	{
 		ret = false;
 	}
 	else
 	{
-		auto it = m_OMFDataTypes->find(key);
-		ret = (it != m_OMFDataTypes->end()) && !(*m_OMFDataTypes)[key].types.empty();
+		auto it = m_OMFDataTypes->find(keyComplete);
+		ret = (it != m_OMFDataTypes->end()) && !(*m_OMFDataTypes)[keyComplete].types.empty();
 	}
 	return ret;
 }

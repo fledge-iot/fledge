@@ -202,6 +202,7 @@ class OMF
 		void clearCreatedTypes(const std::string& key);
 
 		// Add the 1st level of AF hierarchy if the end point is PI Web API
+		void setAFHierarchy();
 		bool sendAFHierarchy();
 		bool sendAFHierarchyTypes(const std::string AFHierarchyLevel);
 		bool sendAFHierarchyStatic(const std::string AFHierarchyLevel);

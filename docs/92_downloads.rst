@@ -42,7 +42,7 @@ Downloads
 Debian Packages
 ===============
 
-Debian packages for both Intel and Arm architectures are available via the Dianomic web site's downlaod page.
+Debian packages for both Intel and Arm architectures are available via the Dianomic web site's download page.
 
 - |downloads|
 

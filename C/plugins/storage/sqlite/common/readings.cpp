@@ -13,6 +13,7 @@
 #include <connection_manager.h>
 #include <common.h>
 #include <reading_stream.h>
+#include <random>
 
 // 1 enable performance tracking
 #define INSTRUMENT	0
@@ -27,8 +28,9 @@
 #define	RDS_PAYLOAD(stream, x)			&(stream[x]->assetCode[0]) + stream[x]->assetCodeLength
 
 // Retry mechanism
-#define PREP_CMD_MAX_RETRIES		6	// Maximum no. of retries when a lock is encountered
-#define PREP_CMD_RETRY_BACKOFF		10 	// Multipler to backoff DB retry on lock
+#define PREP_CMD_MAX_RETRIES		20	    // Maximum no. of retries when a lock is encountered
+#define PREP_CMD_RETRY_BASE 		5000    // Base time to wait for
+#define PREP_CMD_RETRY_BACKOFF		5000 	// Variable time to wait for
 
 /*
  * Control the way purge deletes readings. The block size sets a limit as to how many rows
@@ -495,19 +497,22 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 
 						if (sqlite3_resut == SQLITE_LOCKED  )
 						{
-							sleep_time_ms = (1 * PREP_CMD_RETRY_BACKOFF);
+							sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
 							retries++;
 
-							Logger::getLogger()->warn("SQLITE_LOCKED - record :%d: - retry number :%d: sleep time ms :%d:",i, retries, sleep_time_ms);
+							Logger::getLogger()->info("SQLITE_LOCKED - record :%d: - retry number :%d: sleep time ms :%d:",i, retries, sleep_time_ms);
 
 							std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
 						}
 						if (sqlite3_resut == SQLITE_BUSY)
 						{
-							sleep_time_ms = (1 * PREP_CMD_RETRY_BACKOFF);
+							ostringstream threadId;
+							threadId << std::this_thread::get_id();
+
+							sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
 							retries++;
 
-							Logger::getLogger()->warn("SQLITE_BUSY - record :%d: - retry number :%d: sleep time ms :%d:",i, retries, sleep_time_ms);
+							Logger::getLogger()->info("SQLITE_BUSY - thread :%s: - record :%d: - retry number :%d: sleep time ms :%d:", threadId.str().c_str() ,i , retries, sleep_time_ms);
 
 							std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
 						}
@@ -719,19 +724,22 @@ int sleep_time_ms = 0;
 					}
 					if (sqlite3_resut == SQLITE_LOCKED  )
 					{
-						sleep_time_ms = (1 * PREP_CMD_RETRY_BACKOFF);
+						sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
 						retries++;
 
-						Logger::getLogger()->warn("SQLITE_LOCKED - record :%d: - retry number :%d: sleep time ms :%d:" ,row ,retries ,sleep_time_ms);
+						Logger::getLogger()->info("SQLITE_LOCKED - record :%d: - retry number :%d: sleep time ms :%d:" ,row ,retries ,sleep_time_ms);
 
 						std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
 					}
 					if (sqlite3_resut == SQLITE_BUSY)
 					{
-						sleep_time_ms = (1 * PREP_CMD_RETRY_BACKOFF);
+						ostringstream threadId;
+						threadId << std::this_thread::get_id();
+
+						sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
 						retries++;
 
-						Logger::getLogger()->warn("SQLITE_BUSY - record :%d: - retry number :%d: sleep time ms :%d:" ,row ,retries ,sleep_time_ms);
+						Logger::getLogger()->info("SQLITE_BUSY - thread :%s: - record :%d: - retry number :%d: sleep time ms :%d:", threadId.str().c_str() ,row, retries, sleep_time_ms);
 
 						std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
 					}

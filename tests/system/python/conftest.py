@@ -229,7 +229,12 @@ def read_data_from_pi():
         headers = {'Authorization': 'Basic %s' % username_password_b64}
 
         try:
-            conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
+            ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+            ctx.options |= ssl.PROTOCOL_TLSv1_1
+            # With ssl.CERT_NONE as verify_mode, validation errors such as untrusted or expired cert
+            # are ignored and do not abort the TLS/SSL handshake.
+            ctx.verify_mode = ssl.CERT_NONE
+            conn = http.client.HTTPSConnection(host, context=ctx)
             conn.request("GET", '/piwebapi/assetservers', headers=headers)
             res = conn.getresponse()
             r = json.loads(res.read().decode())

@@ -26,7 +26,13 @@ namespace SimpleWeb {
      */
     Client(const std::string &server_port_path, bool verify_certificate = true, const std::string &certification_file = std::string(),
            const std::string &private_key_file = std::string(), const std::string &verify_file = std::string())
-        : ClientBase<HTTPS>::ClientBase(server_port_path, 443), context(asio::ssl::context::tlsv12) {
+        : ClientBase<HTTPS>::ClientBase(server_port_path, 443), 
+#ifdef RHEL_CENTOS_7
+	  context(asio::ssl::context::tlsv1) 
+#else
+	  context(asio::ssl::context::tlsv12) 
+#endif
+    {
       if(certification_file.size() > 0 && private_key_file.size() > 0) {
         context.use_certificate_chain_file(certification_file);
         context.use_private_key_file(private_key_file, asio::ssl::context::pem);

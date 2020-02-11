@@ -19,6 +19,7 @@
 #include <iostream>
 #include <omf.h>
 #include <simple_https.h>
+#include <simple_http.h>
 #include <config_category.h>
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
@@ -211,8 +212,9 @@ typedef struct
 {
 	HttpSender	*sender;	        // HTTPS connection
 	OMF 		*omf;		        // OMF data protocol
-	bool		compression;	        // whether to compress readings' data
-	string		hostAndPort;	        // hostname:port for SimpleHttps
+	bool		compression;           // whether to compress readings' data
+	string		protocol;              // http / https
+	string		hostAndPort;           // hostname:port for SimpleHttps
 	unsigned int	retrySleepTime;	        // Seconds between each retry
 	unsigned int	maxRetry;	        // Max number of retries in the communication
 	unsigned int	timeout;	        // connect and operation timeout
@@ -328,6 +330,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	// Allocate connector struct
 	CONNECTOR_INFO *connInfo = new CONNECTOR_INFO;
 	// Set configuration felds
+	connInfo->protocol = protocol;
 	connInfo->hostAndPort = hostAndPort;
 	connInfo->path = path;
 	connInfo->retrySleepTime = retrySleepTime;
@@ -533,11 +536,22 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	}
 	else
 	{
-		connInfo->sender = new SimpleHttps(connInfo->hostAndPort,
-						   connInfo->timeout,
-						   connInfo->timeout,
-						   connInfo->retrySleepTime,
-						   connInfo->maxRetry);
+		if (connInfo->protocol.compare("http") == 0)
+		{
+			connInfo->sender = new SimpleHttp(connInfo->hostAndPort,
+											  connInfo->timeout,
+											  connInfo->timeout,
+											  connInfo->retrySleepTime,
+											  connInfo->maxRetry);
+		}
+		else
+		{
+			connInfo->sender = new SimpleHttps(connInfo->hostAndPort,
+											   connInfo->timeout,
+											   connInfo->timeout,
+											   connInfo->retrySleepTime,
+											   connInfo->maxRetry);
+		}
 	}
 
 

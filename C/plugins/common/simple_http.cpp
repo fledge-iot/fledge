@@ -62,6 +62,7 @@ int SimpleHttp::sendRequest(const string& method,
 
 	// Add Fledge UserAgent
 	header.emplace("User-Agent", HTTP_SENDER_USER_AGENT);
+	header.emplace("Content-Type", "application/json");
 
 	// Add custom headers
 	for (auto it = headers.begin(); it != headers.end(); ++it)

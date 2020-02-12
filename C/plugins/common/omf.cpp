@@ -20,6 +20,7 @@
 #include <rapidjson/document.h>
 #include "string_utils.h"
 #include <plugin_api.h>
+#include <string_utils.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -27,6 +28,13 @@ using namespace rapidjson;
 static bool isTypeSupported(DatapointValue& dataPoint);
 
 #define  AFHierarchySeparator '/'
+
+// Handling escapes for AF Hierarchies
+#define AFH_SLASH            "/"
+#define AFH_SLASH_ESCAPE     "@/"
+#define AFH_SLASH_ESCAPE_TMP "##"
+#define AFH_ESCAPE_SEQ       "@@"
+#define AFH_ESCAPE_CHAR      "@"
 
 // Structures to generate and assign the 1st level of AF hierarchy if the end point is PI Web API
 const char *AF_HIERARCHY_1LEVEL_TYPE = QUOTE(
@@ -641,11 +649,14 @@ bool OMF::sendAFHierarchy()
 	if (m_PIServerEndpoint.compare("p") == 0)
 	{
 		// Implementation onfly for PI Web API
+		StringReplaceAll(m_DefaultAFLocation, AFH_ESCAPE_SEQ ,AFH_ESCAPE_CHAR);
+		StringReplaceAll(m_DefaultAFLocation, AFH_SLASH_ESCAPE ,AFH_SLASH_ESCAPE_TMP);
 		std::stringstream defaultAFLocation(m_DefaultAFLocation);
 
 		if (m_DefaultAFLocation.find(AFHierarchySeparator) == string::npos)
 		{
 			// only 1 single level of hierarchy
+			StringReplaceAll(m_DefaultAFLocation, AFH_SLASH_ESCAPE_TMP ,AFH_SLASH);
 			success = sendAFHierarchyTypes(m_DefaultAFLocation);
 			if (success)
 			{
@@ -658,6 +669,7 @@ bool OMF::sendAFHierarchy()
 			// multiple hierarchy levels
 			while (std::getline(defaultAFLocation, level, AFHierarchySeparator))
 			{
+				StringReplaceAll(level, AFH_SLASH_ESCAPE_TMP ,AFH_SLASH);
 				success = sendAFHierarchyTypes(level);
 				if (success)
 				{
@@ -673,6 +685,7 @@ bool OMF::sendAFHierarchy()
 			}
 			m_AFHierarchyLevel = level;
 		}
+
 	}
 	return success;
 }
@@ -684,16 +697,20 @@ bool OMF::sendAFHierarchy()
 void OMF::setAFHierarchy()
 {
 	std::string level;
+	std::string AFLocation;
 
+	AFLocation = m_DefaultAFLocation;
 	if (m_PIServerEndpoint.compare("p") == 0)
 	{
 		// Implementation onfly for PI Web API
-		std::stringstream defaultAFLocation(m_DefaultAFLocation);
+		StringReplaceAll(AFLocation, AFH_ESCAPE_SEQ,   AFH_ESCAPE_CHAR);
+		StringReplaceAll(AFLocation, AFH_SLASH_ESCAPE ,AFH_SLASH_ESCAPE_TMP);
+		std::stringstream defaultAFLocation(AFLocation);
 
-		if (m_DefaultAFLocation.find(AFHierarchySeparator) == string::npos)
+		if (AFLocation.find(AFHierarchySeparator) == string::npos)
 		{
 			// only 1 single level of hierarchy
-			m_AFHierarchyLevel = m_DefaultAFLocation;
+			m_AFHierarchyLevel = AFLocation;
 		}
 		else
 		{
@@ -704,6 +721,7 @@ void OMF::setAFHierarchy()
 			}
 			m_AFHierarchyLevel = level;
 		}
+		StringReplaceAll(m_AFHierarchyLevel, AFH_SLASH_ESCAPE_TMP ,AFH_SLASH);
 	}
 }
 
@@ -1542,7 +1560,7 @@ void OMF::setPIServerEndpoint(const string &PIServerEndpoint)
  */
 void OMF::setDefaultAFLocation(const string &DefaultAFLocation)
 {
-	m_DefaultAFLocation = DefaultAFLocation;
+	m_DefaultAFLocation = StringSlashFix(DefaultAFLocation);
 }
 
 /**

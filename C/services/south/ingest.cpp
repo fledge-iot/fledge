@@ -83,9 +83,11 @@ int Ingest::createStatsDbEntry(const string& assetName)
 			if (!m_storage.insertTable("statistics", newStatsEntry))
 			{
 				m_logger->error("%s:%d : Insert new row into statistics table failed, newStatsEntry='%s'", __FUNCTION__, __LINE__, newStatsEntry.toJSON().c_str());
+				delete result;
 				return -1;
 			}
 		}
+		delete result;
 	}
 	catch (...)
 	{
@@ -107,24 +109,24 @@ void Ingest::updateStats()
 		m_statsCv.wait(lck);
 
 	if (statsPendingEntries.empty())
-		{
+	{
 		//Logger::getLogger()->info("statsPendingEntries is empty, returning from updateStats()");
 		return;
-		}
-	
+	}
+
 	int readings=0;
 	vector<pair<ExpressionValues *, Where *>> statsUpdates;
 	string key;
 	const Condition conditionStat(Equals);
 	
 	for (auto it = statsPendingEntries.begin(); it != statsPendingEntries.end(); ++it)
-		{
+	{
 		if (statsDbEntriesCache.find(it->first) == statsDbEntriesCache.end())
-			{
+		{
 			createStatsDbEntry(it->first);
 			statsDbEntriesCache.insert(it->first);
 			//Logger::getLogger()->info("%s:%d : Created stats entry for asset name %s and added to cache", __FUNCTION__, __LINE__, it->first.c_str());
-			}
+		}
 		
 		if (it->second)
 			{
@@ -141,45 +143,43 @@ void Ingest::updateStats()
 
 			statsUpdates.emplace_back(updateValue, wPluginStat);
 			readings += it->second;
-			}
 		}
+	}
 
 	if(readings)
-		{
+	{
 		Where *wPluginStat = new Where("key", conditionStat, "READINGS");
 		ExpressionValues *updateValue = new ExpressionValues;
 		updateValue->push_back(Expression("value", "+", (int) readings));
 		statsUpdates.emplace_back(updateValue, wPluginStat);
-		}
+	}
 	if (m_discardedReadings)
-		{
+	{
 		Where *wPluginStat = new Where("key", conditionStat, "DISCARDED");
 		ExpressionValues *updateValue = new ExpressionValues;
 		updateValue->push_back(Expression("value", "+", (int) m_discardedReadings));
 		statsUpdates.emplace_back(updateValue, wPluginStat);
- 		}
+ 	}
 	
-	try
-		{
+	try {
 		int rv = m_storage.updateTable("statistics", statsUpdates);
 		
 		if (rv<0)
 			Logger::getLogger()->info("%s:%d : Update stats failed, rv=%d", __FUNCTION__, __LINE__, rv);
 		else
-			{
-			m_discardedReadings=0;
-			for (auto it = statsUpdates.begin(); it != statsUpdates.end(); ++it)
-				{
-				delete it->first;
-				delete it->second;
-				}
-			statsPendingEntries.clear();
-			}
-		}
-	catch (...)
 		{
-		Logger::getLogger()->info("%s:%d : Statistics table update failed, will retry on next iteration", __FUNCTION__, __LINE__);
+			m_discardedReadings=0;
+			statsPendingEntries.clear();
 		}
+	}
+	catch (...) {
+		Logger::getLogger()->info("%s:%d : Statistics table update failed, will retry on next iteration", __FUNCTION__, __LINE__);
+	}
+	for (auto it = statsUpdates.begin(); it != statsUpdates.end(); ++it)
+	{
+		delete it->first;
+		delete it->second;
+	}
 }
 
 /**

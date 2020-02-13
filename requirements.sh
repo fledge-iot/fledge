@@ -136,14 +136,15 @@ if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *
 	echo "source scl_source enable rh-python36" >> /home/${SUDO_USER}/.bashrc
 	service rsyslog start
 
-	# SQLite3 need to be compiled on CentOS|RHEL
-	if [ -d /tmp/foglamp-sqlite3-pkg ]; then
-		rm -rf /tmp/foglamp-sqlite3-pkg
+	# SQLite3 needs to be compiled on CentOS|RHEL
+	SQLITE_PKG_REPO_NAME="sqlite3-pkg"
+	if [ -d /tmp/${SQLITE_PKG_REPO_NAME} ]; then
+		rm -rf /tmp/${SQLITE_PKG_REPO_NAME}
 	fi
-	echo "Pulling SQLite3 from Dianomic SQLite3 repository ..."
+	echo "Pulling SQLite3 from Dianomic ${SQLITE_PKG_REPO_NAME} repository ..."
 	cd /tmp/
-	git clone https://github.com/dianomic/foglamp-sqlite3-pkg.git
-	cd foglamp-sqlite3-pkg
+	git clone https://github.com/dianomic/${SQLITE_PKG_REPO_NAME}.git ${SQLITE_PKG_REPO_NAME}
+	cd ${SQLITE_PKG_REPO_NAME}
 	cd src
 	echo "Compiling SQLite3 static library for Fledge ..."
 	./configure --enable-shared=false --enable-static=true --enable-static-shell CFLAGS="-DSQLITE_ENABLE_JSON1 -DSQLITE_ENABLE_LOAD_EXTENSION -DSQLITE_ENABLE_COLUMN_METADATA -fno-common -fPIC"

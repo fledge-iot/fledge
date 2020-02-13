@@ -5,7 +5,6 @@
 # FLEDGE_END
 
 """ Configuration system/python/conftest.py
-
 """
 import subprocess
 import os
@@ -139,6 +138,7 @@ def add_south():
         r = r.read().decode()
         retval = json.loads(r)
         assert service_name == retval["name"]
+        return retval
     return _add_fledge_south
 
 
@@ -192,7 +192,8 @@ def start_north_pi_v2_web_api():
                            "PIWebAPIUserId":  {"value": pi_user},
                            "PIWebAPIPassword": {"value": pi_pwd},
                            "URL": {"value": "https://{}:{}/piwebapi/omf".format(pi_host, pi_port)},
-                           "compression": {"value": "true"}
+                           "compression": {"value": "true"},
+                           "DefaultAFLocation": {"value": "fledge/room1/machine1"}
                            }
                 }
 
@@ -206,7 +207,6 @@ def start_north_pi_v2_web_api():
 
 start_north_pi_server_c = start_north_pi_v2
 start_north_pi_server_c_web_api = start_north_pi_v2_web_api
-
 
 @pytest.fixture
 def read_data_from_pi():
@@ -229,7 +229,12 @@ def read_data_from_pi():
         headers = {'Authorization': 'Basic %s' % username_password_b64}
 
         try:
-            conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
+            ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+            ctx.options |= ssl.PROTOCOL_TLSv1_1
+            # With ssl.CERT_NONE as verify_mode, validation errors such as untrusted or expired cert
+            # are ignored and do not abort the TLS/SSL handshake.
+            ctx.verify_mode = ssl.CERT_NONE
+            conn = http.client.HTTPSConnection(host, context=ctx)
             conn.request("GET", '/piwebapi/assetservers', headers=headers)
             res = conn.getresponse()
             r = json.loads(res.read().decode())
@@ -284,6 +289,103 @@ def read_data_from_pi():
             return None
     return _read_data_from_pi
 
+@pytest.fixture
+def read_data_from_pi_web_api():
+    def _read_data_from_pi_web_api(host, admin, password, pi_database, af_hierarchy_list, asset, sensor):
+        """ This method reads data from pi web api """
+
+        # List of pi databases
+        dbs = None
+        # PI logical grouping of attributes and child elements
+        elements = None
+        # List of elements
+        url_elements_list = None
+        # Element's recorded data url
+        url_recorded_data = None
+        # Resources in the PI Web API are addressed by WebID, parameter used for deletion of element
+        web_id = None
+        # List of elements
+        url_elements_data_list=None
+
+        username_password = "{}:{}".format(admin, password)
+        username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
+        headers = {'Authorization': 'Basic %s' % username_password_b64}
+
+        try:
+            conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
+            conn.request("GET", '/piwebapi/assetservers', headers=headers)
+            res = conn.getresponse()
+            r = json.loads(res.read().decode())
+            dbs = r["Items"][0]["Links"]["Databases"]
+
+            if dbs is not None:
+                conn.request("GET", dbs, headers=headers)
+                res = conn.getresponse()
+                r = json.loads(res.read().decode())
+                for el in r["Items"]:
+                    if el["Name"] == pi_database:
+                        url_elements_list = el["Links"]["Elements"]
+
+            # This block is for iteration when we have multi-level hierarchy.
+            # For example, if we have DefaultAFLocation as "fledge/room1/machine1" then
+            # it will recursively find elements of "fledge" and then "room1".
+            # And next block is for finding element of "machine1".
+
+            af_level_count = 0
+            for level in af_hierarchy_list[:-1]:
+                if url_elements_list is not None:
+                    conn.request("GET", url_elements_list, headers=headers)
+                    res = conn.getresponse()
+                    r = json.loads(res.read().decode())
+                    for el in r["Items"]:
+                        if el["Name"] == af_hierarchy_list[af_level_count]:
+                            url_elements_list = el["Links"]["Elements"]
+                            af_level_count = af_level_count+1
+
+            if url_elements_list is not None:
+                conn.request("GET", url_elements_list, headers=headers)
+                res = conn.getresponse()
+                r = json.loads(res.read().decode())
+                items = r["Items"]
+                for el in items:
+                    if el["Name"] == af_hierarchy_list[-1]:
+                        url_elements_data_list = el["Links"]["Elements"]
+
+            if url_elements_data_list is not None:
+                conn.request("GET", url_elements_data_list, headers=headers)
+                res = conn.getresponse()
+                r = json.loads(res.read().decode())
+                items = r["Items"]
+                for el2 in items:
+                    if el2["Name"] == asset:
+                        url_recorded_data = el2["Links"]["RecordedData"]
+                        web_id = el2["WebId"]
+
+            _data_pi = {}
+            if url_recorded_data is not None:
+                conn.request("GET", url_recorded_data, headers=headers)
+                res = conn.getresponse()
+                r = json.loads(res.read().decode())
+                _items = r["Items"]
+                for el in _items:
+                    _recoded_value_list = []
+                    for _head in sensor:
+                        if el["Name"] == _head:
+                            elx = el["Items"]
+                            for _el in elx:
+                                _recoded_value_list.append(_el["Value"])
+                            _data_pi[_head] = _recoded_value_list
+
+                # Delete recorded elements
+                conn.request("DELETE", '/piwebapi/elements/{}'.format(web_id), headers=headers)
+                res = conn.getresponse()
+                res.read()
+
+                return _data_pi
+        except (KeyError, IndexError, Exception):
+            return None
+    return _read_data_from_pi_web_api
+
 
 @pytest.fixture
 def add_filter():
@@ -323,6 +425,7 @@ def add_filter():
         jdoc = json.loads(res)
         # Asset newly added filter exist in request's response
         assert filter_name in jdoc["result"]
+        return jdoc
 
     return _add_filter
 
@@ -337,6 +440,7 @@ def enable_schedule():
         r = r.read().decode()
         jdoc = json.loads(r)
         assert "scheduleId" in jdoc
+        return jdoc
 
     return _enable_sch
 
@@ -351,6 +455,7 @@ def disable_schedule():
         r = r.read().decode()
         jdoc = json.loads(r)
         assert jdoc["status"]
+        return jdoc
 
     return _disable_sch
 
@@ -444,6 +549,13 @@ def pytest_addoption(parser):
     parser.addoption("--package-build-list", action="store", default="p0", help="Package to build as per key defined in tests/system/python/packages/data/package_list.json and comma separated values are accepted if more than one to build with")
     parser.addoption("--package-build-source-list", action="store", default="false", help="Package to build from apt/yum sources list")
 
+    # GCP config
+    parser.addoption("--gcp-project-id", action="store", default="nomadic-groove-264509", help="GCP Project ID")
+    parser.addoption("--gcp-registry-id", action="store", default="fl-nerd--registry", help="GCP Registry ID")
+    parser.addoption("--gcp-device-gateway-id", action="store", default="fl-nerd-gateway", help="GCP Device ID")
+    parser.addoption("--gcp-subscription-name", action="store", default="my-subscription", help="GCP Subscription name")
+    parser.addoption("--google-app-credentials", action="store", help="GCP JSON credentials file path")
+    parser.addoption("--gcp-cert-path", action="store", default="./data/gcp/rsa_private.pem", help="GCP certificate path")
 
 @pytest.fixture
 def storage_plugin(request):
@@ -643,6 +755,36 @@ def package_build_list(request):
 @pytest.fixture
 def package_build_source_list(request):
     return request.config.getoption("--package-build-source-list")
+
+
+@pytest.fixture
+def gcp_project_id(request):
+    return request.config.getoption("--gcp-project-id")
+
+
+@pytest.fixture
+def gcp_registry_id(request):
+    return request.config.getoption("--gcp-registry-id")
+
+
+@pytest.fixture
+def gcp_device_gateway_id(request):
+    return request.config.getoption("--gcp-device-gateway-id")
+
+
+@pytest.fixture
+def gcp_subscription_name(request):
+    return request.config.getoption("--gcp-subscription-name")
+
+
+@pytest.fixture
+def google_app_credentials(request):
+    return request.config.getoption("--google-app-credentials")
+
+
+@pytest.fixture
+def gcp_cert_path(request):
+    return request.config.getoption("--gcp-cert-path")
 
 
 def pytest_itemcollected(item):

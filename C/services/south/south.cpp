@@ -169,8 +169,7 @@ int	size;
 	free(messages);
 	exit(1);
 }
-
-
+		
 /**
  * Callback called by south plugin to ingest readings into Fledge
  *
@@ -196,6 +195,13 @@ SouthService::SouthService(const string& myName) : m_name(myName), m_shutdown(fa
 {
 	logger = new Logger(myName);
 	logger->setMinLevel("warning");
+}
+
+ManagementClient *SouthService::m_mgtClient = NULL;
+
+ManagementClient * SouthService::getMgmtClient()
+{
+	return m_mgtClient;
 }
 
 /**
@@ -256,13 +262,13 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		StorageClient storage(storageRecord.getAddress(),
 						storageRecord.getPort());
 		unsigned int threshold = 100;
-		unsigned long timeout = 5000;
+		long timeout = 5000;
 		std::string pluginName;
 		try {
 			if (m_configAdvanced.itemExists("bufferThreshold"))
 				threshold = (unsigned int)strtol(m_configAdvanced.getValue("bufferThreshold").c_str(), NULL, 10);
 			if (m_configAdvanced.itemExists("maxSendLatency"))
-				timeout = (unsigned long)strtol(m_configAdvanced.getValue("maxSendLatency").c_str(), NULL, 10);
+				timeout = strtol(m_configAdvanced.getValue("maxSendLatency").c_str(), NULL, 10);
 			if (m_config.itemExists("plugin"))
 				pluginName = m_config.getValue("plugin");
 			if (m_configAdvanced.itemExists("logLevel"))
@@ -608,7 +614,7 @@ void SouthService::configChange(const string& categoryName, const string& catego
 		}
 		if (m_configAdvanced.itemExists("maxSendLatency"))
 		{
-			m_ingest->setTimeout((unsigned long)strtol(m_configAdvanced.getValue("maxSendLatency").c_str(), NULL, 10));
+			m_ingest->setTimeout(strtol(m_configAdvanced.getValue("maxSendLatency").c_str(), NULL, 10));
 		}
 		if (m_configAdvanced.itemExists("logLevel"))
 		{

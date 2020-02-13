@@ -35,6 +35,64 @@ void StringReplace(std::string& StringToManage,
 }
 
 /**
+ * Search and replace all the occurances of a string
+ *
+ * @param out StringToManage    string in which apply the search and replacement
+ * @param     StringToSearch    string to search and replace
+ * @param     StringToReplace   substitution string
+ *
+ */
+void StringReplaceAll(std::string& StringToManage,
+				   const std::string& StringToSearch,
+				   const std::string& StringReplacement)
+{
+
+	while (StringToManage.find(StringToSearch) != string::npos)
+	{
+		StringReplace(StringToManage,StringToSearch, StringReplacement);
+	}
+}
+
+/**
+ * Removes slash when not needed, at the beggining and at the end,
+ * substitutes // with /
+ *
+ * @param     stringToFix    string to handle
+ *
+ */
+std::string StringSlashFix(const std::string& stringToFix)
+{
+	std::string stringFixed;
+
+	stringFixed = stringToFix;
+
+	if (!stringFixed.empty()) {
+
+		char singleChar;
+
+		// Remove first char if '/'
+		for (singleChar = stringFixed.front() ; singleChar == '/' ; singleChar = stringFixed.front())
+		{
+			stringFixed.erase(0, 1);
+		}
+
+		// Remove last char if '/'
+		for (singleChar = stringFixed.back() ; singleChar == '/' ; singleChar = stringFixed.back())
+		{
+			stringFixed.pop_back();
+		}
+
+		// Substitute // with /
+		while (stringFixed.find("//") != string::npos)
+		{
+			StringReplace(stringFixed, "//", "/");
+		}
+	}
+
+	return stringFixed;
+}
+
+/**
  * Strips Line feed and carige return
  *
  */

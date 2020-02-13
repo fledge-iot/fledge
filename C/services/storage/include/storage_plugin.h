@@ -13,6 +13,7 @@
 #include <plugin.h>
 #include <plugin_manager.h>
 #include <string>
+#include <reading_stream.h>
 
 #define	STORAGE_PURGE_RETAIN	0x0001U
 #define STORAGE_PURGE_SIZE	0x0002U
@@ -49,6 +50,8 @@ public:
 	int		deleteTableSnapshot(const std::string& table, const std::string& id);
 	char		*getTableSnapshots(const std::string& table);
 	PLUGIN_ERROR	*lastError();
+	bool		hasStreamSupport() { return readingStreamPtr != NULL; };
+	int		readingStream(ReadingStream **stream, bool commit);
 
 private:
 	PLUGIN_HANDLE	instance;
@@ -65,6 +68,7 @@ private:
 	int		(*loadTableSnapshotPtr)(PLUGIN_HANDLE, const char *, const char *);
 	int		(*deleteTableSnapshotPtr)(PLUGIN_HANDLE, const char *, const char *);
 	char		*(*getTableSnapshotsPtr)(PLUGIN_HANDLE, const char *);
+	int		(*readingStreamPtr)(PLUGIN_HANDLE, ReadingStream **, bool);
 	PLUGIN_ERROR	*(*lastErrorPtr)(PLUGIN_HANDLE);
 };
 

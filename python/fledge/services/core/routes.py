@@ -107,6 +107,7 @@ def setup(app):
     app.router.add_route('DELETE', '/fledge/service/{service_name}', service.delete_service)
     app.router.add_route('GET', '/fledge/service/available', service.get_available)
     app.router.add_route('GET', '/fledge/service/installed', service.get_installed)
+    app.router.add_route('PUT', '/fledge/service/{type}/{name}/update', service.update_service)
 
     # Task
     app.router.add_route('POST', '/fledge/scheduled/task', task.add_task)

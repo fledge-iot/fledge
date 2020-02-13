@@ -2,9 +2,9 @@
 #include <iostream>
 #include <string>
 #include "string_utils.h"
+#include <vector>
 
 using namespace std;
-
 
 class Row  {
 	public:
@@ -23,6 +23,67 @@ class Row  {
 
 class StringUtilsTestClass : public ::testing::TestWithParam<Row> {
 };
+
+TEST(StringSlashFixTestClass, goodCases)
+{
+	vector<pair<string, string>> testCases = {
+
+		// TestCase        - Expected
+		{"fledge_test1",    "fledge_test1"},
+
+		{"/fledge_test1",   "fledge_test1"},
+		{"//fledge_test1",  "fledge_test1"},
+		{"///fledge_test1", "fledge_test1"},
+
+		{"fledge_test1/",   "fledge_test1"},
+		{"fledge_test1//",  "fledge_test1"},
+		{"fledge_test1///", "fledge_test1"},
+
+		{"/a//b/c/",         "a/b/c"},
+		{"fledge/test1",    "fledge/test1"},
+		{"fledge//test1",   "fledge/test1"},
+		{"fledge//test//1", "fledge/test/1"},
+
+		{"//fledge_test1//",    "fledge_test1"},
+		{"//fledge//test//1//", "fledge/test/1"}
+	};
+	string result;
+
+	for(auto &testCase : testCases)
+	{
+		result = StringSlashFix(testCase.first);
+		ASSERT_EQ(result, testCase.second);
+	}
+}
+
+
+TEST(StringReplaceAllTestClass, goodCases)
+{
+	vector<std::tuple<string, string, string, string>> testCases = {
+
+		// TestCase               - to search - to repplace   - Expected
+		{std::make_tuple("fledge@@test1",        "@@",       "@",            "fledge@test1")},
+		{std::make_tuple("fledge@@test@@2",      "@@",       "@",            "fledge@test@2")},
+		{std::make_tuple("@@fledge@@test@@3@@",  "@@",       "@",            "@fledge@test@3@")}
+	};
+	string test;
+	string toSearch;
+	string toReplace;
+	string Expected;
+
+	for(auto &testCase : testCases)
+	{
+		test = std::get<0>(testCase);
+		toSearch = std::get<1>(testCase);
+		toReplace = std::get<2>(testCase);
+		Expected = std::get<3>(testCase);
+
+		StringReplaceAll(test, toSearch, toReplace);
+		ASSERT_EQ(test, Expected);
+	}
+}
+
+
 
 // Test Code
 TEST_P(StringUtilsTestClass, StringUtilsTestCase)

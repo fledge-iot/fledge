@@ -34,14 +34,12 @@ const char *pi_web_api_two_readings = R"(
         "count" : 2, "rows" : [
             {
                 "id": 1, "asset_code": "luxometer",
-                "read_key": "5b3be500-ff95-41ae-b5a4-cc99d08bef4a",
                 "reading": { "lux": 45204.524 },
                 "user_ts": "2018-06-11 14:00:08.532958",
                 "ts": "2add_subdirectory(tests/unit/C/common)018-06-12 14:47:18.872708"
             },
             {
                 "id": 2, "asset_code": "luxometer",
-                "read_key": "5b3be50c-ff95-41ae-b5a4-cc99d08bef4a",
                 "reading": { "lux": 76834.361 },
                 "user_ts": "2018-08-21 14:00:09.32958",
                 "ts": "2018-08-22 14:48:18.72708"

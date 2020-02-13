@@ -190,7 +190,6 @@ static void loadDataThread(SendingProcess *loadData)
 				{
 					// SELECT id,
 					//	  key AS asset_code,
-					//	  key AS read_key,
 					//	  ts,
 					//	  history_ts AS user_ts,
 					//	  value
@@ -207,7 +206,6 @@ static void loadDataThread(SendingProcess *loadData)
 					// Add colums and needed aliases
 					columns.push_back(new Returns("id"));
 					columns.push_back(new Returns("key", "asset_code"));
-					columns.push_back(new Returns("key", "read_key"));
 					columns.push_back(new Returns("ts"));
 
 					Returns *tmpReturn = new Returns("history_ts", "user_ts");
@@ -433,7 +431,32 @@ static void sendDataThread(SendingProcess *sendData)
 			{
 				// We have some readings to send
 				const vector<Reading *> &readingData = sendData->m_buffer.at(sendIdx)->getAllReadings();
-				sentReadings = sendData->m_plugin->send(readingData);
+				if (readingData.size() <= sendData->getReadBlockSize())
+				{
+					sentReadings = sendData->m_plugin->send(readingData);
+				}
+				else
+				{
+					Logger::getLogger()->debug("Breaking up incomming readings block");
+					// Filtering has made the readings too long, split into smaller
+					// vectors for sending
+					unsigned int bs = (unsigned int)sendData->getReadBlockSize();
+					vector<Reading *>v;
+					for (unsigned int i = 0; i < readingData.size(); i++)
+					{
+						v.push_back(readingData[i]);
+						if (i > 0 && (i % bs) == 0)
+						{
+							sentReadings += sendData->m_plugin->send(v);
+							v.clear();
+						}
+					}
+					if (v.size() > 0)	// Flush final partial block
+					{
+						sentReadings += sendData->m_plugin->send(v);
+						v.clear();
+					}
+				}
 				// Check sent readings result
 				if (sentReadings)
 				{

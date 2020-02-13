@@ -33,8 +33,9 @@ class TestConfigurationManager:
         ConfigurationManagerSingleton._shared_state = {}
 
     def test_supported_validate_type_strings(self):
-        assert 13 == len(_valid_type_strings)
-        assert ['IPv4', 'IPv6', 'JSON', 'URL', 'X509 certificate', 'boolean', 'code', 'enumeration', 'float', 'integer', 'password', 'script', 'string'] == _valid_type_strings
+        assert 14 == len(_valid_type_strings)
+        assert ['IPv4', 'IPv6', 'JSON', 'URL', 'X509 certificate', 'boolean', 'code', 'enumeration', 'float', 'integer',
+                'northTask', 'password', 'script', 'string'] == _valid_type_strings
 
     def test_supported_optional_items(self):
         assert 10 == len(_optional_items)
@@ -605,7 +606,8 @@ class TestConfigurationManager:
         ("IPv6", "2001:db8::", "2001:db8::"),
         ("password", "not implemented", "not implemented"),
         ("X509 certificate", "not implemented", "not implemented"),
-        ("JSON", "{\"foo\": \"bar\"}", '{"foo": "bar"}')
+        ("JSON", "{\"foo\": \"bar\"}", '{"foo": "bar"}'),
+        ("northTask", "north_task_category", "north_task_category")
     ])
     @pytest.mark.asyncio
     async def test__validate_category_val_valid_type(self, reset_singleton, test_input, test_value, clean_value):
@@ -2509,7 +2511,8 @@ class TestConfigurationManager:
         ("URL", "coap://host.co.in", True),
         ("URL", "coaps://host:6683", True),
         ("password", "not implemented", None),
-        ("X509 certificate", "not implemented", None)
+        ("X509 certificate", "not implemented", None),
+        ("northTask", "valid_north_task", True)
     ])
     async def test__validate_type_value(self, item_type, item_val, result):
         storage_client_mock = MagicMock(spec=StorageClientAsync)

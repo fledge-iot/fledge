@@ -376,7 +376,6 @@ CREATE TABLE fledge.readings (
     id         bigint                      NOT NULL DEFAULT nextval('fledge.readings_id_seq'::regclass),
     asset_code character varying(50)       NOT NULL,                      -- The provided asset code. Not necessarily located in the
                                                                           -- assets table.
-    read_key   uuid                        UNIQUE,                        -- An optional unique key used to avoid double-loading.
     reading    jsonb                       NOT NULL DEFAULT '{}'::jsonb,  -- The json object received
     user_ts    timestamp(6) with time zone NOT NULL DEFAULT now(),        -- The user timestamp extracted by the received message
     ts         timestamp(6) with time zone NOT NULL DEFAULT now(),

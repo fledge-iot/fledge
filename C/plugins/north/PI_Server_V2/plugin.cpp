@@ -19,6 +19,7 @@
 #include <iostream>
 #include <omf.h>
 #include <simple_https.h>
+#include <simple_http.h>
 #include <config_category.h>
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
@@ -27,6 +28,7 @@
 #include "utils.h"
 
 #include "crypto.hpp"
+
 
 #define VERBOSE_LOG	0
 
@@ -143,12 +145,12 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"order": "17",
 			"displayName": "PI-Server Endpoint"
 		},
-		"AFHierarchy1Level": {
-			"description": "Defines the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.",
+		"DefaultAFLocation": {
+			"description": "Defines the hierarchies tree in Asset Framework in which the assets will be created, each level is separated by /, PI Web API only.",
 			"type": "string",
 			"default": "fledge_data_piwebapi",
 			"order": "18",
-			"displayName": "Asset Framework 1st Level Hierarchy",
+			"displayName": "Asset Framework hierarchies tree",
 			"validity" : "PIServerEndpoint != \"Connector Relay\""
 		},
 		"notBlockingErrors": {
@@ -210,8 +212,9 @@ typedef struct
 {
 	HttpSender	*sender;	        // HTTPS connection
 	OMF 		*omf;		        // OMF data protocol
-	bool		compression;	        // whether to compress readings' data
-	string		hostAndPort;	        // hostname:port for SimpleHttps
+	bool		compression;           // whether to compress readings' data
+	string		protocol;              // http / https
+	string		hostAndPort;           // hostname:port for SimpleHttps
 	unsigned int	retrySleepTime;	        // Seconds between each retry
 	unsigned int	maxRetry;	        // Max number of retries in the communication
 	unsigned int	timeout;	        // connect and operation timeout
@@ -220,11 +223,12 @@ typedef struct
 	string		producerToken;	        // PI Server connector token
 	string		formatNumber;	        // OMF protocol Number format
 	string		formatInteger;	        // OMF protocol Integer format
-    	string		PIServerEndpoint;       // Defines which PIServer component should be used for the communication:
-    	                                        // a=auto discovery - p=PI Web API, c=Connector Relay
-	string		AFHierarchy1Level;      // 1st hierarchy in Asset Framework, PI Web API only.
-    	string		PIWebAPIAuthMethod;     // Authentication method to be used with the PI Web API.
-    	string		PIWebAPICredentials;    // Credentials is the base64 encoding of id and password joined by a single colon (:)
+	string		PIServerEndpoint;       // Defines which PIServer component should be used for the communication:
+	// a=auto discovery - p=PI Web API, c=Connector Relay
+	string		DefaultAFLocation;      // 1st hierarchy in Asset Framework, PI Web API only.
+	string		prefixAFAsset;       	// Prefix to generate unique asste id
+	string		PIWebAPIAuthMethod;     // Authentication method to be used with the PI Web API.
+	string		PIWebAPICredentials;    // Credentials is the base64 encoding of id and password joined by a single colon (:)
 	string 		KerberosKeytab;         // Kerberos authentication keytab file
 	                                        //   stores the environment variable value about the keytab file path
 	                                        //   to allow the environment to persist for all the execution of the plugin
@@ -300,7 +304,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	string formatNumber = configData->getValue("formatNumber");
 	string formatInteger = configData->getValue("formatInteger");
 	string PIServerEndpoint = configData->getValue("PIServerEndpoint");
-	string AFHierarchy1Level = configData->getValue("AFHierarchy1Level");
+	string DefaultAFLocation = configData->getValue("DefaultAFLocation");
 
 	string PIWebAPIAuthMethod     = configData->getValue("PIWebAPIAuthenticationMethod");
 	string PIWebAPIUserId         = configData->getValue("PIWebAPIUserId");
@@ -326,6 +330,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	// Allocate connector struct
 	CONNECTOR_INFO *connInfo = new CONNECTOR_INFO;
 	// Set configuration felds
+	connInfo->protocol = protocol;
 	connInfo->hostAndPort = hostAndPort;
 	connInfo->path = path;
 	connInfo->retrySleepTime = retrySleepTime;
@@ -335,7 +340,12 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	connInfo->producerToken = producerToken;
 	connInfo->formatNumber = formatNumber;
 	connInfo->formatInteger = formatInteger;
-	connInfo->AFHierarchy1Level = AFHierarchy1Level;
+	connInfo->DefaultAFLocation = DefaultAFLocation;
+
+	// Generates the prefix to have unique asset_id across different levels of hierarchies
+	long hostId = gethostid();
+	std::size_t hierarchyHash = std::hash<std::string>{}(DefaultAFLocation);
+	connInfo->prefixAFAsset = std::to_string(hostId) + "_" + std::to_string(hierarchyHash);
 
 	// PI Web API end-point - evaluates the authentication method requested
 	if (PIWebAPIAuthMethod.compare("anonymous") == 0)
@@ -526,11 +536,22 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	}
 	else
 	{
-		connInfo->sender = new SimpleHttps(connInfo->hostAndPort,
-						   connInfo->timeout,
-						   connInfo->timeout,
-						   connInfo->retrySleepTime,
-						   connInfo->maxRetry);
+		if (connInfo->protocol.compare("http") == 0)
+		{
+			connInfo->sender = new SimpleHttp(connInfo->hostAndPort,
+											  connInfo->timeout,
+											  connInfo->timeout,
+											  connInfo->retrySleepTime,
+											  connInfo->maxRetry);
+		}
+		else
+		{
+			connInfo->sender = new SimpleHttps(connInfo->hostAndPort,
+											   connInfo->timeout,
+											   connInfo->timeout,
+											   connInfo->retrySleepTime,
+											   connInfo->maxRetry);
+		}
 	}
 
 
@@ -545,8 +566,8 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 
 	// Set PIServerEndpoint configuration
 	connInfo->omf->setPIServerEndpoint(connInfo->PIServerEndpoint);
-
-	connInfo->omf->setAFHierarchy1Level(connInfo->AFHierarchy1Level);
+	connInfo->omf->setDefaultAFLocation(connInfo->DefaultAFLocation);
+	connInfo->omf->setPrefixAFAsset(connInfo->prefixAFAsset);
 
 	// Set OMF FormatTypes  
 	connInfo->omf->setFormatType(OMF_TYPE_FLOAT,

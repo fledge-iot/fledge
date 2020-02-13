@@ -3,6 +3,16 @@ project (Fledge)
 
 set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 
+EXECUTE_PROCESS( COMMAND grep -o ^NAME=.* /etc/os-release COMMAND cut -f2 -d\" COMMAND sed s/\"//g OUTPUT_VARIABLE os_name )
+EXECUTE_PROCESS( COMMAND grep -o ^VERSION_ID=.* /etc/os-release COMMAND cut -f2 -d\" COMMAND sed s/\"//g OUTPUT_VARIABLE os_version )
+
+if ( ( ${os_name} MATCHES "Red Hat" OR ${os_name} MATCHES "CentOS") AND ( ${os_version} MATCHES "7" ) )
+	add_compile_options(-D RHEL_CENTOS_7)
+	message( "System is RHEL/CentOS 7" )
+else()
+	message( "System is not RHEL/CentOS 7" )
+endif()
+
 find_package(PkgConfig REQUIRED)
 
 add_subdirectory(C/common)
@@ -24,4 +34,3 @@ add_subdirectory(C/tasks/north)
 add_subdirectory(C/plugins/utils)
 add_subdirectory(C/plugins/north/PI_Server_V2)
 add_subdirectory(C/plugins/north/ocs_V2)
-

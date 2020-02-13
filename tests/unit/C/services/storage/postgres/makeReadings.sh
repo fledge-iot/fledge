@@ -12,7 +12,6 @@ ts=`date --rfc-3339=ns | sed -e 's/\+.*//'`
 reading=`shuf -i 1-100 -n 1`
 echo "		{"
 echo "			\"asset_code\": \"MyAsset\","
-echo "			\"read_key\" : \"$uuid\","
 echo "			\"reading\" : { \"rate\" : $reading },"
 echo "			\"user_ts\" : \"$ts\""
 echo "		},"
@@ -24,7 +23,6 @@ ts=`date --rfc-3339=ns | sed -e 's/\+.*//'`
 reading=`shuf -i 1-100 -n 1`
 echo "		{"
 echo "			\"asset_code\": \"MyAsset\","
-echo "			\"read_key\" : \"$uuid\","
 echo "			\"reading\" : { \"rate\" : $reading },"
 echo "			\"user_ts\" : \"$ts\""
 echo "		}"

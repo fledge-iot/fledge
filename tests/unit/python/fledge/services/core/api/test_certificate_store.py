@@ -42,11 +42,11 @@ class TestCertificateStore:
 
     async def test_get_certs(self, client, certs_path):
         response_content = {'keys': ['fledge.key', 'rsa_private.pem'],
-                            'certs': ['fledge.cert', 'test.json', 'fledge.pem']}
+                            'certs': ['fledge.cert', 'test.cer', 'test.crt', 'test.json', 'fledge.pem']}
         with patch.object(certificate_store, '_get_certs_dir', side_effect=[certs_path / 'certs',
                                                                             certs_path / 'json', certs_path / 'pem']):
             with patch('os.walk') as mockwalk:
-                mockwalk.return_value = [(str(certs_path / 'certs'), [], ['fledge.cert']),
+                mockwalk.return_value = [(str(certs_path / 'certs'), [], ['fledge.cert', 'test.cer', 'test.crt']),
                                          (str(certs_path / 'certs/pem'), [], ['fledge.pem']),
                                          (str(certs_path / 'certs/json'), [], ['test.json']),
                                          (str(certs_path / 'certs'), [], ['fledge.key', 'rsa_private.pem'])
@@ -58,7 +58,7 @@ class TestCertificateStore:
                     res = await resp.text()
                     jdict = json.loads(res)
                     cert = jdict["certs"]
-                    assert 3 == len(cert)
+                    assert 5 == len(cert)
                     assert Counter(response_content['certs']) == Counter(cert)
                     key = jdict["keys"]
                     assert 2 == len(key)
@@ -107,18 +107,19 @@ class TestCertificateStore:
             args, kwargs = patch_find_file.call_args_list[1]
             assert ('fledge.key', certificate_store._get_certs_dir('/certs/')) == args
 
-    async def test_upload_with_cert_only(self, client, certs_path):
-        files = {'cert': open(str(certs_path / 'certs/fledge.pem'), 'rb')}
+    @pytest.mark.parametrize("filename", ["fledge.pem", "fledge.cert", "test.cer", "test.crt"])
+    async def test_upload_with_cert_only(self, client, certs_path, filename):
+        files = {'cert': open(str(certs_path / 'certs/{}'.format(filename)), 'rb')}
         with patch.object(certificate_store, '_get_certs_dir', return_value=certs_path / 'certs/pem'):
             with patch.object(certificate_store, '_find_file', return_value=[]) as patch_find_file:
                 resp = await client.post('/fledge/certificate', data=files)
                 assert 200 == resp.status
                 result = await resp.text()
                 json_response = json.loads(result)
-                assert 'fledge.pem has been uploaded successfully' == json_response['result']
+                assert '{} has been uploaded successfully'.format(filename) == json_response['result']
             assert 1 == patch_find_file.call_count
             args, kwargs = patch_find_file.call_args
-            assert ('fledge.pem', certificate_store._get_certs_dir('/certs/pem')) == args
+            assert (filename, certificate_store._get_certs_dir('/certs/pem')) == args
 
     async def test_file_upload_with_overwrite(self, client, certs_path):
         files = {'key': open(str(certs_path / 'certs/fledge.key'), 'rb'),
@@ -137,14 +138,6 @@ class TestCertificateStore:
             args, kwargs = patch_find_file.call_args_list[1]
             assert ('fledge.key', certificate_store._get_certs_dir('/certs/')) == args
 
-    async def test_bad_key_file_upload(self, client, certs_path):
-        files = {'bad_key': open(str(certs_path / 'certs/fledge.key'), 'rb'),
-                 'cert': open(str(certs_path / 'certs/fledge.cert'), 'rb')
-                 }
-        resp = await client.post('/fledge/certificate', data=files)
-        assert 400 == resp.status
-        assert 'key file is missing, or upload certificate with .pem or .json extension' == resp.reason
-
     async def test_bad_cert_file_upload(self, client, certs_path):
         files = {'bad_cert': open(str(certs_path / 'certs/fledge.cert'), 'rb'),
                  'key': open(str(certs_path / 'certs/fledge.key'), 'rb')}
@@ -153,18 +146,20 @@ class TestCertificateStore:
         assert 'Cert file is missing' == resp.reason
 
     async def test_bad_extension_cert_file_upload(self, client, certs_path):
+        cert_valid_extensions = ('.cert', '.cer', '.crt', '.json', '.pem')
         files = {'cert': open(str(certs_path / 'certs/fledge.txt'), 'rb'),
                  'key': open(str(certs_path / 'certs/fledge.key'), 'rb')}
         resp = await client.post('/fledge/certificate', data=files)
         assert 400 == resp.status
-        assert 'Accepted file extensions are .cert, .json and .pem for cert file' == resp.reason
+        assert 'Accepted file extensions are {} for cert file'.format(cert_valid_extensions) == resp.reason
 
     async def test_bad_extension_key_file_upload(self, client, certs_path):
+        key_valid_extensions = ('.key', '.pem')
         files = {'cert': open(str(certs_path / 'certs/fledge.cert'), 'rb'),
                  'key': open(str(certs_path / 'certs/fledge.txt'), 'rb')}
         resp = await client.post('/fledge/certificate', data=files)
         assert 400 == resp.status
-        assert 'Accepted file extensions are .key and .pem for key file' == resp.reason
+        assert 'Accepted file extensions are {} for key file'.format(key_valid_extensions) == resp.reason
 
     @pytest.mark.parametrize("overwrite", ['blah', '2'])
     async def test_bad_overwrite_file_upload(self, client, certs_path, overwrite):
@@ -212,7 +207,7 @@ class TestCertificateStore:
 
     @pytest.mark.parametrize("cert_name, actual_code, actual_reason", [
         ('', 404, "Not Found",),
-        ('root.txt', 400, "Accepted file extensions are ('.cert', '.json', '.key', '.pem')"),
+        ('root.txt', 400, "Accepted file extensions are ('.cert', '.cer', '.crt', '.json', '.key', '.pem')"),
     ])
     async def test_bad_delete_cert(self, client, cert_name, actual_code, actual_reason):
         resp = await client.delete('/fledge/certificate/{}'.format(cert_name))
@@ -252,11 +247,13 @@ class TestCertificateStore:
         ('fledge.json', '?type=cert'),
         ('fledge.pem', '?type=cert'),
         ('fledge.key', '?type=key'),
+        ('test.cer', '?type=cert'),
+        ('test.crt', '?type=cert'),
         ('rsa_private.pem', '?type=key'),
     ])
     async def test_delete_cert_with_type(self, client, cert_name, param):
         async def async_mock():
-            return {'value': 'test'}
+            return {'value': 'foo'}
 
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)

@@ -2,187 +2,156 @@
    "readings" : [
 		{
 			"asset_code": "Asset1",
-			"read_key" : "a1cfff7a-3769-4f47-9ded-00f0975d66f5",
 			"reading" : { "rate" : 90 },
 			"user_ts" : "2019-10-11 15:10:51.927191906"
 		},
 		{
 			"asset_code": "Asset1",
-			"read_key" : "a8f73c9f-bc11-4b8d-a246-58863adf66b5",
 			"reading" : { "rate" : 13 },
 			"user_ts" : "2019-10-11 15:10:51.930077316"
 		},
 		{
 			"asset_code": "Asset2",
-			"read_key" : "a7c6b0ab-8743-466e-84af-4303cfb894eb",
 			"reading" : { "temp" : 84, "pressure": 1001 },
 			"user_ts" : "2019-10-11 15:10:51.933029946"
 		},
 		{
 			"asset_code": "Asset1",
-			"read_key" : "aad6be0f-3f3a-44fa-bdd0-f1fa6e99c199",
 			"reading" : { "rate" : 96, "rms": 10 },
 			"user_ts" : "2019-10-11 15:10:51.936351551"
 		},
 		{
 			"asset_code": "Asset1",
-			"read_key" : "a9884a0e-f7fc-48c4-a481-f65135a3d55c",
 			"reading" : { "rate" : 2 },
 			"user_ts" : "2019-10-11 15:10:51.939633486"
 		},
 		{
 			"asset_code": "Asset2",
-			"read_key" : "afa68434-5d8d-439f-a26a-7eef8d6ee34a",
 			"reading" : { "temp" : 54 },
 			"user_ts" : "2019-10-11 15:10:51.942860303"
 		},
 		{
 			"asset_code": "Asset1",
-			"read_key" : "a6fbd574-de9d-4465-926f-586d510ba2ce",
 			"reading" : { "rate" : 28 },
 			"user_ts" : "2019-10-11 15:10:51.946072705"
 		},
 		{
 			"asset_code": "Asset1",
-			"read_key" : "a24f787a-5970-44f0-a05d-cf03c75be500",
 			"reading" : { "rate" : 3 },
 			"user_ts" : "2019-10-11 15:10:51.949303775"
 		},
 		{
 			"asset_code": "Asset1",
-			"read_key" : "aefbfc69-66fd-4bb5-908f-28c768c21ee4",
 			"reading" : { "rms" : 70 },
 			"user_ts" : "2019-10-11 15:10:51.993641575"
 		},
 		{
 			"asset_code": "Asset1",
-			"read_key" : "ae92ab6c-e018-4489-bdfd-c8a3fa72d7d8",
 			"reading" : { "rate" : 17, "rms" : 81 },
 			"user_ts" : "2019-10-11 15:10:51.996855039"
 		},
 		{
 			"asset_code": "Asset2",
-			"read_key" : "abe8efce-f50c-4d76-89cd-b37fcf38ee1d",
 			"reading" : { "temp" : 21 },
 			"user_ts" : "2019-10-11 15:10:52.000131125"
 		},
 		{
 			"asset_code": "Asset2",
-			"read_key" : "a56253e7-f4be-49f3-8dae-9149f42fcd25",
 			"reading" : { "pressure" : 918 },
 			"user_ts" : "2019-10-11 15:10:52.005780345"
 		},
 		{
 			"asset_code": "Asset1",
-			"read_key" : "a5607b7a-581c-439a-bb85-e403d3ba034e",
 			"reading" : { "rate" : 52 },
 			"user_ts" : "2019-10-11 15:10:52.009004973"
 		},
 		{
 			"asset_code": "Asset1",
-			"read_key" : "a526608b-9fbd-4ce1-89fa-73fcdba75c35",
 			"reading" : { "rate" : 62 },
 			"user_ts" : "2019-10-11 15:10:52.012432720"
 		},
 		{
 			"asset_code": "Asset1",
-			"read_key" : "a8c9a1f5-0667-4a06-9e6e-60ccc9e5a17c",
 			"reading" : { "rate" : 47, "rms" : 19 },
 			"user_ts" : "2019-10-11 15:10:52.015931562"
 		},
 		{
 			"asset_code": "Asset2",
-			"read_key" : "a31f1277-111e-4c8e-aaa9-cfed7bbe453e",
 			"reading" : { "temp" : 73, "pressure" : 1023 },
 			"user_ts" : "2019-10-11 15:10:52.019228599"
 		},
 		{
 			"asset_code": "Asset1",
-			"read_key" : "a8f76a76-f76d-4c50-baeb-efa44808419c",
 			"reading" : { "rate" : 9 },
 			"user_ts" : "2019-10-11 15:10:52.022430891"
 		},
 		{
 			"asset_code": "Asset1",
-			"read_key" : "a0e22aed-f0fc-43a4-b79c-efaff49f1ff6",
 			"reading" : { "rate" : 66, "rms" : 15 },
 			"user_ts" : "2019-10-11 15:10:52.026312804"
 		},
 		{
 			"asset_code": "Asset1",
-			"read_key" : "a6f62e22-7157-437b-845d-70992f95b7d3",
 			"reading" : { "rate" : 30 },
 			"user_ts" : "2019-10-11 15:10:52.029248210"
 		},
 		{
 			"asset_code": "Asset1",
-			"read_key" : "a2860ec5-b07d-47da-bee4-4a57d2832062",
 			"reading" : { "rate" : 70 },
 			"user_ts" : "2019-10-11 15:10:52.031930036"
 		},
 		{
 			"asset_code": "Asset1",
-			"read_key" : "afa165b4-aaa6-4913-a240-05ab2a90c470",
 			"reading" : { "rate" : 41 },
 			"user_ts" : "2019-10-11 15:10:52.034759931"
 		},
 		{
 			"asset_code": "Asset2",
-			"read_key" : "a266136f-cacf-4c98-984d-5851b4ebfb5a",
 			"reading" : { "pressure" : 30, "temp" : 19 },
 			"user_ts" : "2019-10-11 15:10:54.189544659"
 		},
 		{
 			"asset_code": "Asset2",
-			"read_key" : "a18d95ba-ad6b-437a-90d0-84429151b26a",
 			"reading" : { "temp" : 12.306 },
 			"user_ts" : "2019-10-11 15:10:54.192069519"
 		},
 		{
 			"asset_code": "Asset1",
-			"read_key" : "ad6e9728-b6b7-4137-818d-a417de3a29e2",
 			"reading" : { "rate" : 33, "rms": 99 },
 			"user_ts" : "2019-10-11 15:10:54.195018406"
 		},
 		{
 			"asset_code": "Asset2",
-			"read_key" : "acbb6401-5574-4a07-bba2-e8427c15e257",
 			"reading" : { "temp" : 87 },
 			"user_ts" : "2019-10-11 15:10:54.197861237"
 		},
 		{
 			"asset_code": "Asset1",
-			"read_key" : "a2954115-c54a-4b82-83ee-0a61f6b934fd",
 			"reading" : { "rate" : 67, "rms" : 11 },
 			"user_ts" : "2019-10-11 15:10:54.200490704"
 		},
 		{
 			"asset_code": "Asset2",
-			"read_key" : "aa54a24b-756b-4760-8699-8356446b9427",
 			"reading" : { "temp" : 40 },
 			"user_ts" : "2019-10-11 15:10:53.203486404"
 		},
 		{
 			"asset_code": "Asset2",
-			"read_key" : "c3d499fa-326f-415b-8d30-b75cd9521afc",
 			"reading" : { "pressure" : 44, "temp": 90 },
 			"user_ts" : "2019-10-11 15:10:53.206153509"
 		},
 		{
 			"asset_code": "Asset1",
-			"read_key" : "ade20bd0-90ff-47ae-a284-367bd6ac67de",
 			"reading" : { "rate" : 7 },
 			"user_ts" : "2019-10-11 15:10:53.208776100"
 		},
 		{
 			"asset_code": "Asset2",
-			"read_key" : "ad570935-2b81-4863-bba2-5023687e14ea",
 			"reading" : { "pressure" : 8, "temp" : 19, "lux": 3456 },
 			"user_ts" : "2019-10-11 15:10:54.225401299"
 		},
 		{
 			"asset_code": "Asset1",
-			"read_key" : "a84fb4da-e329-447c-96f0-42d5f7286225",
 			"reading" : { "rate" : 79 },
 			"user_ts" : "2019-10-11 15:10:54.228495495"
 		}

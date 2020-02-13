@@ -29,23 +29,23 @@ TEST(StringSlashFixTestClass, goodCases)
 	vector<pair<string, string>> testCases = {
 
 		// TestCase        - Expected
-		{"foglamp_test1",    "foglamp_test1"},
+		{"fledge_test1",    "fledge_test1"},
 
-		{"/foglamp_test1",   "foglamp_test1"},
-		{"//foglamp_test1",  "foglamp_test1"},
-		{"///foglamp_test1", "foglamp_test1"},
+		{"/fledge_test1",   "fledge_test1"},
+		{"//fledge_test1",  "fledge_test1"},
+		{"///fledge_test1", "fledge_test1"},
 
-		{"foglamp_test1/",   "foglamp_test1"},
-		{"foglamp_test1//",  "foglamp_test1"},
-		{"foglamp_test1///", "foglamp_test1"},
+		{"fledge_test1/",   "fledge_test1"},
+		{"fledge_test1//",  "fledge_test1"},
+		{"fledge_test1///", "fledge_test1"},
 
 		{"/a//b/c/",         "a/b/c"},
-		{"foglamp/test1",    "foglamp/test1"},
-		{"foglamp//test1",   "foglamp/test1"},
-		{"foglamp//test//1", "foglamp/test/1"},
+		{"fledge/test1",    "fledge/test1"},
+		{"fledge//test1",   "fledge/test1"},
+		{"fledge//test//1", "fledge/test/1"},
 
-		{"//foglamp_test1//",    "foglamp_test1"},
-		{"//foglamp//test//1//", "foglamp/test/1"}
+		{"//fledge_test1//",    "fledge_test1"},
+		{"//fledge//test//1//", "fledge/test/1"}
 	};
 	string result;
 
@@ -62,9 +62,9 @@ TEST(StringReplaceAllTestClass, goodCases)
 	vector<std::tuple<string, string, string, string>> testCases = {
 
 		// TestCase               - to search - to repplace   - Expected
-		{std::make_tuple("foglamp@@test1",        "@@",       "@",            "foglamp@test1")},
-		{std::make_tuple("foglamp@@test@@2",      "@@",       "@",            "foglamp@test@2")},
-		{std::make_tuple("@@foglamp@@test@@3@@",  "@@",       "@",            "@foglamp@test@3@")}
+		{std::make_tuple("fledge@@test1",        "@@",       "@",            "fledge@test1")},
+		{std::make_tuple("fledge@@test@@2",      "@@",       "@",            "fledge@test@2")},
+		{std::make_tuple("@@fledge@@test@@3@@",  "@@",       "@",            "@fledge@test@3@")}
 	};
 	string test;
 	string toSearch;

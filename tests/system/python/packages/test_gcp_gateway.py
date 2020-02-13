@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# FOGLAMP_BEGIN
-# See: http://foglamp.readthedocs.io/
-# FOGLAMP_END
+# FLEDGE_BEGIN
+# See: http://fledge.readthedocs.io/
+# FLEDGE_END
 
 """ Test GCP Gateway plugin
 
@@ -25,23 +25,23 @@ __version__ = "${VERSION}"
 
 task_name = "gcp-gateway"
 north_plugin = "GCP"
-# This  gives the path of directory where FogLAMP is cloned. test_file < packages < python < system < tests < ROOT
+# This  gives the path of directory where fledge is cloned. test_file < packages < python < system < tests < ROOT
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 SCRIPTS_DIR_ROOT = "{}/tests/system/python/packages/data/".format(PROJECT_ROOT)
-FOGLAMP_ROOT = os.environ.get('FOGLAMP_ROOT')
+FLEDGE_ROOT = os.environ.get('FLEDGE_ROOT')
 CERTS_DIR = "{}/gcp".format(SCRIPTS_DIR_ROOT)
-FOGLAMP_CERTS_DIR = "{}/data/etc/certs/".format(FOGLAMP_ROOT)
+FLEDGE_CERTS_DIR = "{}/data/etc/certs/".format(FLEDGE_ROOT)
 
 
 @pytest.fixture
-def reset_foglamp(wait_time):
+def reset_fledge(wait_time):
     try:
         subprocess.run(["cd {}/tests/system/python/scripts/package && ./reset"
                        .format(PROJECT_ROOT)], shell=True, check=True)
     except subprocess.CalledProcessError:
         assert False, "reset package script failed!"
 
-    # Wait for foglamp server to start
+    # Wait for fledge server to start
     time.sleep(wait_time)
 
 
@@ -60,7 +60,7 @@ def remove_and_add_pkgs(package_build_version):
         assert False, "setup package script failed"
 
     try:
-        subprocess.run(["sudo apt install -y foglamp-north-gcp foglamp-south-sinusoid"], shell=True, check=True)
+        subprocess.run(["sudo apt install -y fledge-north-gcp fledge-south-sinusoid"], shell=True, check=True)
     except subprocess.CalledProcessError:
         assert False, "installation of gcp-gateway and sinusoid packages failed"
 
@@ -76,9 +76,9 @@ def remove_and_add_pkgs(package_build_version):
         assert False, "download of roots.pem failed"
 
 
-def get_ping_status(foglamp_url):
-    _connection = http.client.HTTPConnection(foglamp_url)
-    _connection.request("GET", '/foglamp/ping')
+def get_ping_status(fledge_url):
+    _connection = http.client.HTTPConnection(fledge_url)
+    _connection.request("GET", '/fledge/ping')
     r = _connection.getresponse()
     assert 200 == r.status
     r = r.read().decode()
@@ -86,9 +86,9 @@ def get_ping_status(foglamp_url):
     return jdoc
 
 
-def get_statistics_map(foglamp_url):
-    _connection = http.client.HTTPConnection(foglamp_url)
-    _connection.request("GET", '/foglamp/statistics')
+def get_statistics_map(fledge_url):
+    _connection = http.client.HTTPConnection(fledge_url)
+    _connection.request("GET", '/fledge/statistics')
     r = _connection.getresponse()
     assert 200 == r.status
     r = r.read().decode()
@@ -97,7 +97,7 @@ def get_statistics_map(foglamp_url):
 
 
 def copy_certs(gcp_cert_path):
-    copy_file = "cp {} {}/roots.pem {}".format(gcp_cert_path, CERTS_DIR, FOGLAMP_CERTS_DIR)
+    copy_file = "cp {} {}/roots.pem {}".format(gcp_cert_path, CERTS_DIR, FLEDGE_CERTS_DIR)
     exit_code = os.system(copy_file)
     assert 0 == exit_code
 
@@ -150,12 +150,12 @@ def verify_received_messages(project_id, subscription_name, timeout=None):
 
 
 class TestGCPGateway:
-    def test_gcp_gateway(self, verify_and_set_prerequisites, remove_and_add_pkgs, reset_foglamp, foglamp_url,
+    def test_gcp_gateway(self, verify_and_set_prerequisites, remove_and_add_pkgs, reset_fledge, fledge_url,
                          wait_time, remove_data_file, gcp_project_id, gcp_device_gateway_id, gcp_registry_id,
                          gcp_subscription_name, gcp_cert_path):
         payload = {"name": "Sine", "type": "south", "plugin": "sinusoid", "enabled": True, "config": {}}
-        post_url = "/foglamp/service"
-        conn = http.client.HTTPConnection(foglamp_url)
+        post_url = "/fledge/service"
+        conn = http.client.HTTPConnection(fledge_url)
         conn.request("POST", post_url, json.dumps(payload))
         res = conn.getresponse()
         assert 200 == res.status, "ERROR! POST {} request failed".format(post_url)
@@ -176,19 +176,19 @@ class TestGCPGateway:
                    "config": gcp_project_cfg
                    }
 
-        post_url = "/foglamp/scheduled/task"
-        conn = http.client.HTTPConnection(foglamp_url)
+        post_url = "/fledge/scheduled/task"
+        conn = http.client.HTTPConnection(fledge_url)
         conn.request("POST", post_url, json.dumps(payload))
         res = conn.getresponse()
         assert 200 == res.status, "ERROR! POST {} request failed".format(post_url)
 
         time.sleep(wait_time)
 
-        ping_response = get_ping_status(foglamp_url)
+        ping_response = get_ping_status(fledge_url)
         assert 0 < ping_response["dataRead"]
         assert 0 < ping_response["dataSent"]
 
-        actual_stats_map = get_statistics_map(foglamp_url)
+        actual_stats_map = get_statistics_map(fledge_url)
         assert 0 < actual_stats_map['SINUSOID']
         assert 0 < actual_stats_map['READINGS']
         assert 0 < actual_stats_map['Readings Sent']
@@ -196,5 +196,5 @@ class TestGCPGateway:
 
         verify_received_messages(gcp_project_id, gcp_subscription_name, timeout=3)
 
-        remove_data_file("{}/rsa_private.pem".format(FOGLAMP_CERTS_DIR))
-        remove_data_file("{}/roots.pem".format(FOGLAMP_CERTS_DIR))
+        remove_data_file("{}/rsa_private.pem".format(FLEDGE_CERTS_DIR))
+        remove_data_file("{}/roots.pem".format(FLEDGE_CERTS_DIR))

@@ -117,7 +117,7 @@ AUTH_CERTIFICATES_SCRIPT_SRC := scripts/auth_certificates
 PACKAGE_UPDATE_SCRIPT_SRC   := scripts/package
 
 # Custom location of SQLite3 library
-FLEDGE_HAS_SQLITE3_PATH    := /tmp/fledge-sqlite3-pkg/src
+FLEDGE_HAS_SQLITE3_PATH    := /tmp/sqlite3-pkg/src
 
 # EXTRA SCRIPTS
 EXTRAS_SCRIPTS_SRC_DIR      := extras/scripts

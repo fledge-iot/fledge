@@ -31,7 +31,7 @@ file(GLOB COMMON_SOURCES ../sqlitememory/*.cpp)
 file(GLOB test_sources tests.cpp)
 
 # Check for SQLite3 source tree in specific location
-set(FLEDGE_SQLITE3_LIBS "/tmp/fledge-sqlite3-pkg/src" CACHE INTERNAL "")
+set(FLEDGE_SQLITE3_LIBS "/tmp/sqlite3-pkg/src" CACHE INTERNAL "")
 if(EXISTS ${FLEDGE_SQLITE3_LIBS})
 	message(STATUS "Using SLITE3 source files in ${FLEDGE_SQLITE3_LIBS}")
 	include_directories(${FLEDGE_SQLITE3_LIBS})

@@ -1875,7 +1875,7 @@ void OMF::setTypeId()
  */
 void OMF::clearCreatedTypes(const string& key)
 {
-	// FIXME_I: test
+	// FIXME_I: test - v2
 	if (m_OMFDataTypes)
 	{
 		auto it = m_OMFDataTypes->find(key);

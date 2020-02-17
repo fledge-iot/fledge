@@ -4,6 +4,16 @@ set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 set(UUIDLIB -luuid)
 set(COMMONLIB -ldl)
  
+EXECUTE_PROCESS( COMMAND grep -o ^NAME=.* /etc/os-release COMMAND cut -f2 -d\" COMMAND sed s/\"//g OUTPUT_VARIABLE os_name )
+EXECUTE_PROCESS( COMMAND grep -o ^VERSION_ID=.* /etc/os-release COMMAND cut -f2 -d\" COMMAND sed s/\"//g OUTPUT_VARIABLE os_version )
+
+if ( ( ${os_name} MATCHES "Red Hat" OR ${os_name} MATCHES "CentOS") AND ( ${os_version} MATCHES "7" ) )
+        add_compile_options(-D RHEL_CENTOS_7)
+        message( "System is RHEL/CentOS 7" )
+else()
+        message( "System is not RHEL/CentOS 7" )
+endif()
+
 set(BOOST_COMPONENTS system thread)
 # Late 2017 TODO: remove the following checks and always use std::regex
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")

@@ -98,6 +98,8 @@ class OMF
 		// Set the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.
 		void setDefaultAFLocation(const std::string &DefaultAFLocation);
 
+		void setAFMap(const std::string &AFMap);
+
 		void setPrefixAFAsset(const std::string &prefixAFAsset);
 
 		// Get saved OMF formats
@@ -203,7 +205,11 @@ class OMF
 
 		// Add the 1st level of AF hierarchy if the end point is PI Web API
 		void setAFHierarchy();
+
 		bool sendAFHierarchy();
+		bool sendAFHierarchySystemWide();
+		bool sendAFHierarchyMetadataMap();
+
 		bool sendAFHierarchyTypes(const std::string AFHierarchyLevel);
 		bool sendAFHierarchyStatic(const std::string AFHierarchyLevel);
 		bool sendAFHierarchyLink(std::string parent, std::string child);
@@ -215,6 +221,7 @@ class OMF
 		const std::string	m_producerToken;
 		std::string		m_PIServerEndpoint;
 		std::string		m_DefaultAFLocation;
+		std::string		m_AFMap;
 		std::string		m_AFHierarchyLevel;
 		std::string		m_prefixAFAsset;
 

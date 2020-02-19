@@ -18,6 +18,7 @@
 #include <logger.h>
 #include <zlib.h>
 #include <rapidjson/document.h>
+#include "rapidjson/error/en.h"
 #include "string_utils.h"
 #include <plugin_api.h>
 #include <string_utils.h>
@@ -634,14 +635,14 @@ bool OMF::sendAFHierarchyLink(std::string parent, std::string child)
 }
 
 /**
- * Creates the hierarchies tree in the AF as defined in the configuration item DefaultAFLocation
+  * Creates the hierarchies tree in the AF as defined in the configuration item DefaultAFLocation
  * each level is separated by /
  * the implementation is available for PI Web API only
- * The hierarchy is created/recreated if an OMF type message is sent
+ * The hierarchy is created/recreated if an OMF type message is sent*
  *
  */
-bool OMF::sendAFHierarchy()
-{
+bool OMF::sendAFHierarchySystemWide() {
+
 	bool success = true;
 	std::string level;
 	std::string previousLevel;
@@ -688,6 +689,119 @@ bool OMF::sendAFHierarchy()
 
 	}
 	return success;
+}
+
+/**
+ * // FIXME_I:
+ * @brief
+ * @return
+ */
+
+bool OMF::sendAFHierarchyMetadataMap() {
+
+	bool success = true;
+
+	Document JSon;
+	string name;
+	string value;
+
+	ParseResult ok = JSon.Parse(m_AFMap.c_str());
+	if (!ok)
+	{
+		Logger::getLogger()->error("Invalid Asset Framework Map, error :%s:", GetParseError_En(JSon.GetParseError()));
+		return false;
+	}
+
+	if (!JSon.HasMember("metadata"))
+	{
+		Logger::getLogger()->debug("metadata not defined");
+		return true;
+	}
+	Value &JsonMetadata = JSon["metadata"];
+
+	// --- Handling exit section
+	if (JsonMetadata.HasMember("exist"))
+	{
+		Value &JSonExist = JsonMetadata["exist"];
+
+		for (Value::ConstMemberIterator itr = JSonExist.MemberBegin(); itr != JSonExist.MemberEnd(); ++itr)
+		{
+			name = itr->name.GetString();
+			value = itr->value.GetString();
+			// FIXME_I:
+			Logger::getLogger()->debug("exist name :%s: value :%s:", name.c_str(), value.c_str());
+		}
+	}
+
+	// --- Handling nonexist section
+	if (JsonMetadata.HasMember("nonexist"))
+	{
+		Value &JSonNonExist = JsonMetadata["nonexist"];
+		for (Value::ConstMemberIterator itr = JSonNonExist.MemberBegin(); itr != JSonNonExist.MemberEnd(); ++itr)
+		{
+			name = itr->name.GetString();
+			value = itr->value.GetString();
+			// FIXME_I:
+			Logger::getLogger()->debug("nonexist name :%s: value :%s:", name.c_str(), value.c_str());
+		}
+	}
+
+	// --- Handling equal section
+	if (JsonMetadata.HasMember("equal"))
+	{
+		Value &JSonEqual = JsonMetadata["equal"];
+
+		for (Value::ConstMemberIterator itr = JSonEqual.MemberBegin(); itr != JSonEqual.MemberEnd(); ++itr)
+		{
+			name = itr->name.GetString();
+
+			for (Value::ConstMemberIterator itrL2 = itr->value.MemberBegin(); itrL2 != itr->value.MemberEnd(); ++itrL2)
+			{
+				name = itrL2->name.GetString();
+				value = itrL2->value.GetString();
+
+				// FIXME_I:
+				Logger::getLogger()->debug("equal name :%s: value :%s:", name.c_str(), value.c_str());
+
+			}
+		}
+	}
+
+	// --- Handling notequal section
+	if (JsonMetadata.HasMember("notequal"))
+	{
+		Value &JSonNotEqual = JsonMetadata["notequal"];
+
+		for (Value::ConstMemberIterator itr = JSonNotEqual.MemberBegin(); itr != JSonNotEqual.MemberEnd(); ++itr)
+		{
+			name = itr->name.GetString();
+
+			for (Value::ConstMemberIterator itrL2 = itr->value.MemberBegin(); itrL2 != itr->value.MemberEnd(); ++itrL2)
+			{
+				name = itrL2->name.GetString();
+				value = itrL2->value.GetString();
+
+				// FIXME_I:
+				Logger::getLogger()->debug("JSonNotEqual name :%s: value :%s:", name.c_str(), value.c_str());
+
+			}
+		}
+	}
+
+	return success;
+}
+
+
+
+
+/**
+// FIXME_I:
+ *
+ */
+bool OMF::sendAFHierarchy()
+{
+	sendAFHierarchySystemWide();
+	sendAFHierarchyMetadataMap();
 }
 
 /**
@@ -1562,6 +1676,15 @@ void OMF::setDefaultAFLocation(const string &DefaultAFLocation)
 {
 	m_DefaultAFLocation = StringSlashFix(DefaultAFLocation);
 }
+
+/**
+ * Set the rules to address where assets should be placed in the AF hierarchy.
+ */
+void OMF::setAFMap(const string &AFMap)
+{
+	m_AFMap = AFMap;
+}
+
 
 /**
  * Set the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.

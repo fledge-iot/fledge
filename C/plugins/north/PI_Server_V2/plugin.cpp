@@ -57,6 +57,31 @@ using namespace SimpleWeb;
 	}                                                                           \
 )
 
+#define AF_HIERARCH_RULES QUOTE(                                          \
+	{                                                                     \
+		"metadata" : {                                                    \
+			"exist" : {                                                   \
+				"temperature"   : "temperatures",                         \
+				"power"         : "/Electrical/Power"                     \
+			},                                                            \
+			"nonexist" : {                                                \
+				"unit"          : "Uncalibrated"                          \
+			},                                                            \
+			"equal" : {                                                   \
+				"room" : {                                                \
+					"4" : "ElecticalLab",                                 \
+					"6" : "FluidLab"                                      \
+				}                                                         \
+			},                                                            \
+			"notequal" : {                                                \
+				"building" : {                                            \
+					"plant" : "/Office/Environment"                       \
+				}                                                         \
+			}                                                            \
+		}                                                                 \
+	}                                                                     \
+)
+
 const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 	{
 		"plugin": {
@@ -153,18 +178,26 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"displayName": "Asset Framework hierarchies tree",
 			"validity" : "PIServerEndpoint != \"Connector Relay\""
 		},
+		"AFMap": {
+			"description": "Defines a set of rules to address where assets should be placed in the AF hierarchy.",
+			"type": "JSON",
+			"default": AF_HIERARCH_RULES,
+			"order": "19",
+			"displayName": "Asset Framework hierarchies rules",
+			"validity" : "PIServerEndpoint != \"Connector Relay\""
+		},
 		"notBlockingErrors": {
 			"description": "These errors are considered not blocking in the communication with the PI Server, the sending operation will proceed with the next block of data if one of these is encountered",
 			"type": "JSON",
 			"default": NOT_BLOCKING_ERRORS_DEFAULT,
-			"order": "19" ,
+			"order": "20" ,
 			"readonly": "true"
 		},
 		"streamId": {
 			"description": "Identifies the specific stream to handle and the related information, among them the ID of the last object streamed.",
 			"type": "integer",
 			"default": "0",
-			"order": "20" ,
+			"order": "21" ,
 			"readonly": "true"
 		},
 		"PIWebAPIAuthenticationMethod": {
@@ -172,7 +205,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type": "enumeration",
 			"options":["anonymous", "basic", "kerberos"],
 			"default": "anonymous",
-			"order": "21",
+			"order": "22",
 			"displayName": "PI Web API Authentication Method",
 			"validity" : "PIServerEndpoint != \"Connector Relay\""
 		},
@@ -180,7 +213,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "User id of PI Web API to be used with the basic access authentication.",
 			"type": "string",
 			"default": "user_id",
-			"order": "22",
+			"order": "23",
 			"displayName": "PI Web API User Id",
 			"validity" : "PIWebAPIAuthenticationMethod == \"basic\""
 		},
@@ -188,7 +221,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "Password of the user of PI Web API to be used with the basic access authentication.",
 			"type": "password",
 			"default": "password",
-			"order": "23" ,
+			"order": "24" ,
 			"displayName": "PI Web API Password",
 			"validity" : "PIWebAPIAuthenticationMethod == \"basic\""
 		},
@@ -196,7 +229,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "Keytab file name used for Kerberos authentication in PI Web API.",
 			"type": "string",
 			"default": "piwebapi_kerberos_https.keytab",
-			"order": "24" ,
+			"order": "25" ,
 			"displayName": "PI Web API Kerberos keytab file",
 			"validity" : "PIWebAPIAuthenticationMethod == \"kerberos\""
 		}
@@ -226,6 +259,8 @@ typedef struct
 	string		PIServerEndpoint;       // Defines which PIServer component should be used for the communication:
 	// a=auto discovery - p=PI Web API, c=Connector Relay
 	string		DefaultAFLocation;      // 1st hierarchy in Asset Framework, PI Web API only.
+	string		AFMap;                  // Defines a set of rules to address where assets should be placed in the AF hierarchy.
+
 	string		prefixAFAsset;       	// Prefix to generate unique asste id
 	string		PIWebAPIAuthMethod;     // Authentication method to be used with the PI Web API.
 	string		PIWebAPICredentials;    // Credentials is the base64 encoding of id and password joined by a single colon (:)
@@ -305,6 +340,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	string formatInteger = configData->getValue("formatInteger");
 	string PIServerEndpoint = configData->getValue("PIServerEndpoint");
 	string DefaultAFLocation = configData->getValue("DefaultAFLocation");
+	string AFMap = configData->getValue("AFMap");
 
 	string PIWebAPIAuthMethod     = configData->getValue("PIWebAPIAuthenticationMethod");
 	string PIWebAPIUserId         = configData->getValue("PIWebAPIUserId");
@@ -341,6 +377,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	connInfo->formatNumber = formatNumber;
 	connInfo->formatInteger = formatInteger;
 	connInfo->DefaultAFLocation = DefaultAFLocation;
+	connInfo->AFMap = AFMap;
 
 	// Generates the prefix to have unique asset_id across different levels of hierarchies
 	long hostId = gethostid();
@@ -567,6 +604,8 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	// Set PIServerEndpoint configuration
 	connInfo->omf->setPIServerEndpoint(connInfo->PIServerEndpoint);
 	connInfo->omf->setDefaultAFLocation(connInfo->DefaultAFLocation);
+	// FIXME_I:
+	connInfo->omf->setAFMap(connInfo->AFMap);
 	connInfo->omf->setPrefixAFAsset(connInfo->prefixAFAsset);
 
 	// Set OMF FormatTypes  

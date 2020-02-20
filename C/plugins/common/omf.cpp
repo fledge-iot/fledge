@@ -1,5 +1,3 @@
-#include <utility>
-
 /*
  * Fledge OSI Soft OMF interface to PI Server.
  *
@@ -10,7 +8,7 @@
  * Author: Massimiliano Pinto
  */
 
-
+#include <utility>
 #include <iostream>
 #include <string>
 #include <cstring>
@@ -641,63 +639,106 @@ bool OMF::sendAFHierarchyLink(std::string parent, std::string child)
  * The hierarchy is created/recreated if an OMF type message is sent*
  *
  */
-bool OMF::sendAFHierarchySystemWide() {
+bool OMF::handleAFHierarchySystemWide() {
 
 	bool success = true;
 	std::string level;
 	std::string previousLevel;
 
-	if (m_PIServerEndpoint.compare("p") == 0)
-	{
-		// Implementation onfly for PI Web API
-		StringReplaceAll(m_DefaultAFLocation, AFH_ESCAPE_SEQ ,AFH_ESCAPE_CHAR);
-		StringReplaceAll(m_DefaultAFLocation, AFH_SLASH_ESCAPE ,AFH_SLASH_ESCAPE_TMP);
-		std::stringstream defaultAFLocation(m_DefaultAFLocation);
+	// FIXME_I:
+	// Implementation onfly for PI Web API
+	m_AFHierarchyLevel = sendAFHierarchyLevels(m_DefaultAFLocation);
 
-		if (m_DefaultAFLocation.find(AFHierarchySeparator) == string::npos)
-		{
-			// only 1 single level of hierarchy
-			StringReplaceAll(m_DefaultAFLocation, AFH_SLASH_ESCAPE_TMP ,AFH_SLASH);
-			success = sendAFHierarchyTypes(m_DefaultAFLocation);
-			if (success)
-			{
-				success = sendAFHierarchyStatic(m_DefaultAFLocation);
-			}
-			m_AFHierarchyLevel = m_DefaultAFLocation;
-		}
-		else
-		{
-			// multiple hierarchy levels
-			while (std::getline(defaultAFLocation, level, AFHierarchySeparator))
-			{
-				StringReplaceAll(level, AFH_SLASH_ESCAPE_TMP ,AFH_SLASH);
-				success = sendAFHierarchyTypes(level);
-				if (success)
-				{
-					success = sendAFHierarchyStatic(level);
-				}
-
-				// Creates the link between the AF level
-				if (previousLevel != "")
-				{
-					sendAFHierarchyLink(previousLevel, level);
-				}
-				previousLevel = level;
-			}
-			m_AFHierarchyLevel = level;
-		}
-
-	}
 	return success;
 }
 
 /**
- * // FIXME_I:
- * @brief
- * @return
+ * Creates all the AF hierarchies levels as requested by the input parameter
+ *
+ * @param AFHierarchy   Hierarchies levels to be created as relative or absolute path
+ * @param out		    true if succeded
  */
+bool OMF::sendAFHierarchy(string AFHierarchy)
+{
+	bool success = true;
+	string path;
 
-bool OMF::sendAFHierarchyMetadataMap() {
+	if (AFHierarchy.at(0) == '/')
+	{
+		// Absolute path
+		path = AFHierarchy;
+	}
+	else
+	{
+		// relative  path
+		path = m_DefaultAFLocation + "/" + AFHierarchy;
+	}
+
+	sendAFHierarchyLevels(path);
+
+	return success;
+}
+
+/**
+ * Creates all the AF hierarchies level as requested by the input parameter
+ *
+ * @param path	    Full path of hierarchies to create
+ * @param out		last level of the created hierarchy
+ */
+string OMF::sendAFHierarchyLevels(string path) {
+
+	bool success;
+	std::string lastLevel;
+	std::string level;
+	std::string previousLevel;
+
+	StringReplaceAll(path, AFH_ESCAPE_SEQ ,AFH_ESCAPE_CHAR);
+	StringReplaceAll(path, AFH_SLASH_ESCAPE ,AFH_SLASH_ESCAPE_TMP);
+
+	if (path.find(AFHierarchySeparator) == string::npos)
+	{
+		// only 1 single level of hierarchy
+		StringReplaceAll(path, AFH_SLASH_ESCAPE_TMP ,AFH_SLASH);
+		success = sendAFHierarchyTypes(path);
+		if (success)
+		{
+			success = sendAFHierarchyStatic(path);
+		}
+		lastLevel = path;
+	}
+	else
+	{
+		std::stringstream pathStream(path);
+
+		// multiple hierarchy levels
+		while (std::getline(pathStream, level, AFHierarchySeparator))
+		{
+			StringReplaceAll(level, AFH_SLASH_ESCAPE_TMP ,AFH_SLASH);
+			success = sendAFHierarchyTypes(level);
+			if (success)
+			{
+				success = sendAFHierarchyStatic(level);
+			}
+
+			// Creates the link between the AF level
+			if (previousLevel != "")
+			{
+				sendAFHierarchyLink(previousLevel, level);
+			}
+			previousLevel = level;
+		}
+		lastLevel = level;
+	}
+
+	return lastLevel;
+}
+
+/**
+ * Handle the AF hierarchies for the Metadata Map
+ *
+ * @param out		true if succeded
+ */
+bool OMF::handleAFHierarchiesMetadataMap() {
 
 	bool success = true;
 
@@ -708,13 +749,13 @@ bool OMF::sendAFHierarchyMetadataMap() {
 	ParseResult ok = JSon.Parse(m_AFMap.c_str());
 	if (!ok)
 	{
-		Logger::getLogger()->error("Invalid Asset Framework Map, error :%s:", GetParseError_En(JSon.GetParseError()));
+		Logger::getLogger()->error("AFHierarchiesMetadataMap - Invalid Asset Framework Map, error :%s:", GetParseError_En(JSon.GetParseError()));
 		return false;
 	}
 
 	if (!JSon.HasMember("metadata"))
 	{
-		Logger::getLogger()->debug("metadata not defined");
+		Logger::getLogger()->debug("AFHierarchiesMetadataMap - metadata section not defined");
 		return true;
 	}
 	Value &JsonMetadata = JSon["metadata"];
@@ -728,8 +769,9 @@ bool OMF::sendAFHierarchyMetadataMap() {
 		{
 			name = itr->name.GetString();
 			value = itr->value.GetString();
-			// FIXME_I:
-			Logger::getLogger()->debug("exist name :%s: value :%s:", name.c_str(), value.c_str());
+			Logger::getLogger()->debug("AFHierarchiesMetadataMap - exist name :%s: value :%s:", name.c_str(), value.c_str());
+
+			sendAFHierarchy(value.c_str());
 		}
 	}
 
@@ -741,8 +783,8 @@ bool OMF::sendAFHierarchyMetadataMap() {
 		{
 			name = itr->name.GetString();
 			value = itr->value.GetString();
-			// FIXME_I:
-			Logger::getLogger()->debug("nonexist name :%s: value :%s:", name.c_str(), value.c_str());
+			Logger::getLogger()->debug("AFHierarchiesMetadataMap - nonexist name :%s: value :%s:", name.c_str(), value.c_str());
+			sendAFHierarchy(value.c_str());
 		}
 	}
 
@@ -759,10 +801,8 @@ bool OMF::sendAFHierarchyMetadataMap() {
 			{
 				name = itrL2->name.GetString();
 				value = itrL2->value.GetString();
-
-				// FIXME_I:
-				Logger::getLogger()->debug("equal name :%s: value :%s:", name.c_str(), value.c_str());
-
+				Logger::getLogger()->debug("AFHierarchiesMetadataMap - equal name :%s: value :%s:", name.c_str(), value.c_str());
+				sendAFHierarchy(value.c_str());
 			}
 		}
 	}
@@ -780,10 +820,8 @@ bool OMF::sendAFHierarchyMetadataMap() {
 			{
 				name = itrL2->name.GetString();
 				value = itrL2->value.GetString();
-
-				// FIXME_I:
-				Logger::getLogger()->debug("JSonNotEqual name :%s: value :%s:", name.c_str(), value.c_str());
-
+				Logger::getLogger()->debug("AFHierarchiesMetadataMap - notequal name :%s: value :%s:", name.c_str(), value.c_str());
+				sendAFHierarchy(value.c_str());
 			}
 		}
 	}
@@ -792,16 +830,25 @@ bool OMF::sendAFHierarchyMetadataMap() {
 }
 
 
-
-
 /**
-// FIXME_I:
+ * Handle the creation of AF hierarchies
  *
+ * @param out		true if succeded
  */
-bool OMF::sendAFHierarchy()
+bool OMF::handleAFHierarchy()
 {
-	sendAFHierarchySystemWide();
-	sendAFHierarchyMetadataMap();
+	bool success = true;
+
+	if (m_PIServerEndpoint.compare("p") == 0)
+	{
+
+		success = handleAFHierarchySystemWide();
+		if (success)
+		{
+			success = handleAFHierarchiesMetadataMap();
+		}
+	}
+	return success;
 }
 
 /**
@@ -906,9 +953,10 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		}
 
 		// The AF hierarchy is created/recreated if an OMF type message is sent
+		// it sends the hierarchy once
 		if (sendDataTypes and ! AFHierarchySent)
 		{
-			sendAFHierarchy();
+			handleAFHierarchy();
 			AFHierarchySent = true;
 		}
 

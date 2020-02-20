@@ -173,7 +173,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 		"DefaultAFLocation": {
 			"description": "Defines the hierarchies tree in Asset Framework in which the assets will be created, each level is separated by /, PI Web API only.",
 			"type": "string",
-			"default": "fledge_data_piwebapi",
+			"default": "/fledge/data_piwebapi/default",
 			"order": "18",
 			"displayName": "Asset Framework hierarchies tree",
 			"validity" : "PIServerEndpoint != \"Connector Relay\""
@@ -604,7 +604,6 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	// Set PIServerEndpoint configuration
 	connInfo->omf->setPIServerEndpoint(connInfo->PIServerEndpoint);
 	connInfo->omf->setDefaultAFLocation(connInfo->DefaultAFLocation);
-	// FIXME_I:
 	connInfo->omf->setAFMap(connInfo->AFMap);
 	connInfo->omf->setPrefixAFAsset(connInfo->prefixAFAsset);
 

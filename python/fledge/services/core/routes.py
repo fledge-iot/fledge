@@ -27,6 +27,8 @@ from fledge.services.core.api.plugins import update as plugins_update
 from fledge.services.core.api.snapshot import plugins as snapshot_plugins
 from fledge.services.core.api.snapshot import table as snapshot_table
 from fledge.services.core.api import package_log
+from fledge.services.core.api.plugins import remove
+
 
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
@@ -164,11 +166,12 @@ def setup(app):
     app.router.add_route('GET', '/fledge/package/log', package_log.get_logs)
     app.router.add_route('GET', '/fledge/package/log/{name}', package_log.get_log_by_name)
 
-    # Plugins (install, discovery, update)
+    # Plugins (install, discovery, update, delete)
     app.router.add_route('GET', '/fledge/plugins/installed', plugins_discovery.get_plugins_installed)
     app.router.add_route('GET', '/fledge/plugins/available', plugins_discovery.get_plugins_available)
     app.router.add_route('POST', '/fledge/plugins', plugins_install.add_plugin)
     app.router.add_route('PUT', '/fledge/plugins/{type}/{name}/update', plugins_update.update_plugin)
+    app.router.add_route('DELETE', '/fledge/plugins/{type}/{name}', remove.plugin_delete)
 
     # Filters 
     app.router.add_route('POST', '/fledge/filter', filters.create_filter)

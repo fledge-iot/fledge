@@ -210,12 +210,14 @@ class OMF
 		bool handleAFHierarchySystemWide();
 		bool handleAFHierarchiesMetadataMap();
 		bool sendAFHierarchy(std::string AFHierarchy);
-		std::string sendAFHierarchyLevels(std::string path);
 
+		bool sendAFHierarchyLevels(std::string parentPath, std::string path, std::string &lastLevel);
 		bool sendAFHierarchyTypes(const std::string AFHierarchyLevel);
-		bool sendAFHierarchyStatic(const std::string AFHierarchyLevel);
-		bool sendAFHierarchyLink(std::string parent, std::string child);
+		bool sendAFHierarchyStatic(const std::string AFHierarchyLevel, const std::string prefix);
+		bool sendAFHierarchyLink(std::string parent, std::string child , std::string prefixId);
 		bool AFHierarchySendMessage(const std::string& msgType, std::string& jsonData);
+
+		std::string generateUniquePrefixId(const std::string &path);
 
 	private:
 		const std::string	m_path;

@@ -46,6 +46,10 @@ const char *AF_HIERARCHY_1LEVEL_TYPE = QUOTE(
 			"properties": {
 				"Name": {
 					"type": "string",
+					"isname": true
+				},
+				"AssetId": {
+					"type": "string",
 					"isindex": true
 				}
 			}
@@ -60,7 +64,8 @@ const char *AF_HIERARCHY_1LEVEL_STATIC = QUOTE(
 			"typeid": "_placeholder_typeid_",
 			"values": [
 				{
-				"Name": "_placeholder_"
+				"Name": "_placeholder_Name_",
+				"AssetId": "_placeholder_AssetId_"
 				}
 			]
 		}
@@ -591,7 +596,7 @@ bool OMF::sendAFHierarchyTypes(const std::string AFHierarchyLevel)
  *  AFHierarchy - handles OMF static data
  *
  */
-bool OMF::sendAFHierarchyStatic(const std::string AFHierarchyLevel)
+bool OMF::sendAFHierarchyStatic(const std::string AFHierarchyLevel, const std::string prefix)
 {
 	bool success;
 	string jsonData;
@@ -599,8 +604,9 @@ bool OMF::sendAFHierarchyStatic(const std::string AFHierarchyLevel)
 
 	jsonData = "";
 	tmpStr = AF_HIERARCHY_1LEVEL_STATIC;
-	StringReplace(tmpStr, "_placeholder_typeid_" , AFHierarchyLevel + "_typeid");
-	StringReplace(tmpStr, "_placeholder_"        , AFHierarchyLevel);
+	StringReplace(tmpStr, "_placeholder_typeid_"  , AFHierarchyLevel + "_typeid");
+	StringReplace(tmpStr, "_placeholder_Name_"    , AFHierarchyLevel);
+	StringReplace(tmpStr, "_placeholder_AssetId_" , prefix + "_" + AFHierarchyLevel);
 	jsonData.append(tmpStr);
 
 	success = AFHierarchySendMessage("Data", jsonData);
@@ -612,7 +618,7 @@ bool OMF::sendAFHierarchyStatic(const std::string AFHierarchyLevel)
  *  AFHierarchy - creates the link between 2 elements in the AF hierarchy
  *
  */
-bool OMF::sendAFHierarchyLink(std::string parent, std::string child)
+bool OMF::sendAFHierarchyLink(std::string parent, std::string child, std::string prefixId)
 {
 	bool success;
 	string jsonData;
@@ -622,9 +628,9 @@ bool OMF::sendAFHierarchyLink(std::string parent, std::string child)
 	tmpStr = AF_HIERARCHY_LEVEL_LINK;
 
 	StringReplace(tmpStr, "_placeholder_src_type_", parent + "_typeid");
-	StringReplace(tmpStr, "_placeholder_src_idx_",  parent );
+	StringReplace(tmpStr, "_placeholder_src_idx_",  prefixId + "_" + parent );
 	StringReplace(tmpStr, "_placeholder_tgt_type_", child + "_typeid");
-	StringReplace(tmpStr, "_placeholder_tgt_idx_",  child);
+	StringReplace(tmpStr, "_placeholder_tgt_idx_",  prefixId + "_" + child);
 	jsonData.append(tmpStr);
 
 	success = AFHierarchySendMessage("Data", jsonData);
@@ -645,9 +651,7 @@ bool OMF::handleAFHierarchySystemWide() {
 	std::string level;
 	std::string previousLevel;
 
-	// FIXME_I:
-	// Implementation onfly for PI Web API
-	m_AFHierarchyLevel = sendAFHierarchyLevels(m_DefaultAFLocation);
+	success = sendAFHierarchyLevels(m_DefaultAFLocation, m_DefaultAFLocation, m_AFHierarchyLevel);
 
 	return success;
 }
@@ -662,19 +666,23 @@ bool OMF::sendAFHierarchy(string AFHierarchy)
 {
 	bool success = true;
 	string path;
+	string dummy;
+	string parentPath;
 
 	if (AFHierarchy.at(0) == '/')
 	{
 		// Absolute path
 		path = AFHierarchy;
+		parentPath = AFHierarchy;
 	}
 	else
 	{
 		// relative  path
 		path = m_DefaultAFLocation + "/" + AFHierarchy;
+		parentPath = m_DefaultAFLocation;
 	}
 
-	sendAFHierarchyLevels(path);
+	success = sendAFHierarchyLevels(parentPath, path, dummy);
 
 	return success;
 }
@@ -685,10 +693,9 @@ bool OMF::sendAFHierarchy(string AFHierarchy)
  * @param path	    Full path of hierarchies to create
  * @param out		last level of the created hierarchy
  */
-string OMF::sendAFHierarchyLevels(string path) {
+bool OMF::sendAFHierarchyLevels(string parentPath, string path, std::string &lastLevel) {
 
 	bool success;
-	std::string lastLevel;
 	std::string level;
 	std::string previousLevel;
 
@@ -702,35 +709,44 @@ string OMF::sendAFHierarchyLevels(string path) {
 		success = sendAFHierarchyTypes(path);
 		if (success)
 		{
-			success = sendAFHierarchyStatic(path);
+			success = sendAFHierarchyStatic(path, generateUniquePrefixId(path) );
 		}
 		lastLevel = path;
 	}
 	else
 	{
-		std::stringstream pathStream(path);
+		string prefixId;
+
+		// removes unwanted '/'
+		string pathFixed = StringSlashFix(path);
+		string parentPathFixed = StringSlashFix(parentPath);
+
+		prefixId = generateUniquePrefixId(parentPathFixed);
+		std::stringstream pathStream(pathFixed);
+
 
 		// multiple hierarchy levels
 		while (std::getline(pathStream, level, AFHierarchySeparator))
 		{
+
 			StringReplaceAll(level, AFH_SLASH_ESCAPE_TMP ,AFH_SLASH);
 			success = sendAFHierarchyTypes(level);
 			if (success)
 			{
-				success = sendAFHierarchyStatic(level);
+				success = sendAFHierarchyStatic(level, prefixId);
 			}
 
 			// Creates the link between the AF level
 			if (previousLevel != "")
 			{
-				sendAFHierarchyLink(previousLevel, level);
+				sendAFHierarchyLink(previousLevel, level, prefixId);
 			}
 			previousLevel = level;
 		}
 		lastLevel = level;
 	}
 
-	return lastLevel;
+	return success;
 }
 
 /**
@@ -1563,7 +1579,7 @@ const std::string OMF::createLinkData(const Reading& reading) const
 		OMF::setAssetTypeTag(assetName, "typename_sensor", targetTypeId);
 
 		StringReplace(tmpStr, "_placeholder_src_type_", m_AFHierarchyLevel + "_typeid");
-		StringReplace(tmpStr, "_placeholder_src_idx_",  m_AFHierarchyLevel );
+		StringReplace(tmpStr, "_placeholder_src_idx_",  m_prefixAFAsset + "_" + m_AFHierarchyLevel );
 		StringReplace(tmpStr, "_placeholder_tgt_type_", targetTypeId);
 		StringReplace(tmpStr, "_placeholder_tgt_idx_",  m_prefixAFAsset + "_" + assetName);
 
@@ -1742,7 +1758,21 @@ void OMF::setPrefixAFAsset(const string &prefixAFAsset)
 	m_prefixAFAsset = prefixAFAsset;
 }
 
+/**
+ * Generate an unique prefix for AF objects
+ */
+string OMF::generateUniquePrefixId(const string &path)
+{
+	string prefix;
 
+	long hostId = gethostid();
+	std::size_t hierarchyHash = std::hash<std::string>{}(path);
+	// FIXME_I:
+	//prefix = std::to_string(hostId) + "_" + std::to_string(hierarchyHash);
+	prefix = std::to_string(hierarchyHash);
+
+	return prefix;
+}
 
 /**
  * Set the list of errors considered not blocking in the communication
@@ -2294,3 +2324,4 @@ static bool isTypeSupported(DatapointValue& dataPoint)
 		return true;
 	}
 }
+

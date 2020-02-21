@@ -26,6 +26,8 @@
 #include "json_utils.h"
 #include "libcurl_https.h"
 #include "utils.h"
+#include "string_utils.h"
+
 
 #include "crypto.hpp"
 
@@ -76,11 +78,15 @@ using namespace SimpleWeb;
 			"notequal" : {                                                \
 				"building" : {                                            \
 					"plant" : "/Office/Environment"                       \
+				},                                                        \
+				"block" : {                                               \
+					"plant" : "/Office/default"                           \
 				}                                                         \
-			}                                                            \
+			}                                                             \
 		}                                                                 \
 	}                                                                     \
 )
+
 
 const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 	{
@@ -381,8 +387,11 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 
 	// Generates the prefix to have unique asset_id across different levels of hierarchies
 	long hostId = gethostid();
+	DefaultAFLocation = StringSlashFix(DefaultAFLocation);
 	std::size_t hierarchyHash = std::hash<std::string>{}(DefaultAFLocation);
-	connInfo->prefixAFAsset = std::to_string(hostId) + "_" + std::to_string(hierarchyHash);
+	// FIXME_I:
+	//connInfo->prefixAFAsset = std::to_string(hostId) + "_" + std::to_string(hierarchyHash);
+	connInfo->prefixAFAsset = std::to_string(hierarchyHash);
 
 	// PI Web API end-point - evaluates the authentication method requested
 	if (PIWebAPIAuthMethod.compare("anonymous") == 0)

@@ -171,7 +171,7 @@ def setup(app):
     app.router.add_route('GET', '/fledge/plugins/available', plugins_discovery.get_plugins_available)
     app.router.add_route('POST', '/fledge/plugins', plugins_install.add_plugin)
     app.router.add_route('PUT', '/fledge/plugins/{type}/{name}/update', plugins_update.update_plugin)
-    app.router.add_route('DELETE', '/fledge/plugins/{type}/{name}', remove.plugin_delete)
+    app.router.add_route('DELETE', '/fledge/plugins/{type}/{name}', remove.plugin_remove)
 
     # Filters 
     app.router.add_route('POST', '/fledge/filter', filters.create_filter)

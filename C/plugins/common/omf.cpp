@@ -673,7 +673,7 @@ bool OMF::sendAFHierarchy(string AFHierarchy)
 	{
 		// Absolute path
 		path = AFHierarchy;
-		parentPath = AFHierarchy;
+		parentPath = evaluateParentPath(path, AFHierarchySeparator);
 	}
 	else
 	{

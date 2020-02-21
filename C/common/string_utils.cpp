@@ -54,6 +54,32 @@ void StringReplaceAll(std::string& StringToManage,
 }
 
 /**
+ * Removes the last level of the hierarchy
+ *
+ */
+std::string evaluateParentPath(const std::string& path, char separator)
+{
+	std::string parent;
+
+	parent = path;
+	if (parent.length() > 1)
+	{
+		while (parent.back() != separator)
+		{
+			parent.erase(parent.size() - 1);
+		}
+		if (parent.back() == separator)
+		{
+			parent.erase(parent.size()-1);
+		}
+	}
+
+	return parent;
+}
+
+
+
+/**
  * Removes slash when not needed, at the beggining and at the end,
  * substitutes // with /
  *

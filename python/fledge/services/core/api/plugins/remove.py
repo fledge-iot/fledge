@@ -13,6 +13,7 @@ from fledge.common.plugin_discovery import PluginDiscovery
 from fledge.services.core.api.plugins import common
 from fledge.services.core import connect
 from fledge.common.storage_client.payload_builder import PayloadBuilder
+from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.common import _FLEDGE_ROOT
 from fledge.common.audit_logger import AuditLogger
 
@@ -52,15 +53,21 @@ async def plugin_remove(request):
         if name not in [plugin['name'] for plugin in installed_plugin]:
             raise KeyError("Invalid {} plugin name or plugin is not installed".format(name))
         if plugin_type in ['notificationDelivery', 'notificationRule']:
+            get_all_notification_instance = await check_plugin_usage_in_notification_instances(name)
+            if get_all_notification_instance:
+                raise RuntimeError("{} cannot be removed. This is being used by {} instances".
+                                   format(name, get_all_notification_instance))
             plugin_type = 'notify' if plugin_type == 'notificationDelivery' else 'rule'
-        get_tracked_plugins = await check_plugin_usage(plugin_type, name)
-        if get_tracked_plugins:
-            e = "{} cannot be removed. This is being used by {} instances".format(name, get_tracked_plugins[0]['service_list'])
-            _logger.error(e)
-            raise RuntimeError(e)
         else:
-            _logger.info("No entry found for {name} plugin in asset tracker; or "
-                         "{name} plugin may have been added in disabled state & never used".format(name=name))
+            get_tracked_plugins = await check_plugin_usage(plugin_type, name)
+            if get_tracked_plugins:
+                e = "{} cannot be removed. This is being used by {} instances".\
+                    format(name, get_tracked_plugins[0]['service_list'])
+                _logger.error(e)
+                raise RuntimeError(e)
+            else:
+                _logger.info("No entry found for {name} plugin in asset tracker; or "
+                             "{name} plugin may have been added in disabled state & never used".format(name=name))
         res, log_path = purge_plugin(plugin_type, name)
         if res != 0:
             _logger.error("Something went wrong. Please check log {}".format(log_path))
@@ -76,6 +83,7 @@ async def plugin_remove(request):
         return web.json_response({'error': '{}'.format(ex)}, status=404)
     except RuntimeError as ex:
         return web.json_response({'error': '{}'.format(ex)}, status=400)
+    _logger.info('{} plugin removed successfully'.format(name))
     return web.json_response({'message': '{} plugin removed successfully'.format(name)}, status=200)
 
 
@@ -86,7 +94,6 @@ async def check_plugin_usage(plugin_type: str, plugin_name: str):
     filter_used = []
     service_list = []
     storage_client = connect.get_storage_async()
-    # TODO: add check for notification plugins
     if plugin_type == 'south':
         event = 'Ingest'
     elif plugin_type == 'filter':
@@ -118,17 +125,42 @@ async def check_plugin_usage(plugin_type: str, plugin_name: str):
     return plugin_users
 
 
-# TODO: Check notification instance state using the given rule or delivery plugin?
-async def check_plugin_usage_in_notification_instances(plugin_type: str, plugin_name: str):
-    pass
+async def check_plugin_usage_in_notification_instances(plugin_name: str):
+    """
+    Check notification instance state using the given rule or delivery plugin
+    """
+    list_of_notification_instance = []
+    storage_client = connect.get_storage_async()
+    configuration_mgr = ConfigurationManager(storage_client)
+    notifications = await configuration_mgr.get_category_child("Notifications")
+    if notifications:
+        for notification in notifications:
+            notification_config = await configuration_mgr._read_category_val(notification['key'])
+            name = notification_config['name']['value']
+            channel = notification_config['channel']['value']
+            rule = notification_config['rule']['value']
+            enabled = True if notification_config['enable']['value'] == 'true' else False
+            if (channel == plugin_name and enabled) or (rule == plugin_name and enabled):
+                list_of_notification_instance.append(name)
+    return list_of_notification_instance
 
 
 def purge_plugin(plugin_type: str, name: str):
     """
         Remove plugin based on platform
+
+        Need to replace name ('_' to '-')
+
+        Example:
+        Package name : http-south
+        Installed dir: http_south
+        Remove:
+        '''
+        curl -X DELETE http://host-ip:port/fledge/plugin/south/http_south
+        '''
     """
     _logger.info("Plugin removal started...")
-    org_name = name
+    original_name = name
     name = name.replace('_', '-').lower()
     plugin_name = 'fledge-{}-{}'.format(plugin_type, name)
     stdout_file_path = common.create_log_file(action='remove', plugin_name=plugin_name)
@@ -140,12 +172,15 @@ def purge_plugin(plugin_type: str, name: str):
         else:
             cmd = "sudo {} -y purge {} > {} 2>&1".format(package_manager, plugin_name, stdout_file_path)
         code = os.system(cmd)
+        if code != 0:
+            raise RuntimeError("Something went wrong. Please check log: {}".format(stdout_file_path))
         installed_plugin = PluginDiscovery.get_plugins_installed(plugin_type, False)
-        if org_name or name in [plugin['name'] for plugin in installed_plugin]:
-            raise KeyError("Plugin is not installed by package manager.".format(org_name))
+        if installed_plugin:
+            if original_name or name in [plugin['name'] for plugin in installed_plugin]:
+                raise KeyError("Plugin is not installed by package manager ".format(original_name))
     except KeyError:
         try:
-            path = PYTHON_PLUGIN_PATH+'{}/{}'.format(plugin_type, org_name)
+            path = PYTHON_PLUGIN_PATH+'{}/{}'.format(plugin_type, original_name)
             if os.path.isdir(path):
                 for root, dirs, files in os.walk(path):
                     if '__pycache__' in dirs:
@@ -157,14 +192,17 @@ def purge_plugin(plugin_type: str, name: str):
                             os.rmdir(os.path.join(root, name))
                 code = os.system('rm -rf {}'.format(path))
             else:
-                path = C_PLUGINS_PATH + '{}/{}'.format(plugin_type, org_name)
-                for root, dirs, files in os.walk(path):
-                    for file in files:
-                        os.remove(os.path.join(root, file))
-                    for name in dirs:
-                        os.rmdir(os.path.join(root, name))
-                code = os.system('rm -rf {}'.format(path))
-        except (OSError, Exception) as ex:
-            _logger.error("Error in removing plugin:{}".format(str(ex)))
+                path = C_PLUGINS_PATH + '{}/{}'.format(plugin_type, original_name)
+                if os.path.isdir(path):
+                    for root, dirs, files in os.walk(path):
+                        for file in files:
+                            os.remove(os.path.join(root, file))
+                        for name in dirs:
+                            os.rmdir(os.path.join(root, name))
+                    code = os.system('rm -rf {}'.format(path))
+                else:
+                    raise OSError("Invalid plugin path.")
+        except (OSError, Exception, RuntimeError) as ex:
+            _logger.error("Error in removing plugin: {}".format(str(ex)))
             code = 1
     return code, stdout_file_path

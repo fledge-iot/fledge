@@ -23,6 +23,8 @@
 #define OMF_TYPE_FLOAT		"number"
 #define OMF_TYPE_UNSUPPORTED	"unsupported"
 
+using namespace std;
+
 /**
  * Per asset dataTypes
  *
@@ -42,7 +44,7 @@ class OMFDataTypes
  */
 class OMF
 {
-        public:
+	public:
 		/**
 		 * Constructor:
 		 * pass server URL path, OMF_type_id and producerToken.
@@ -98,7 +100,7 @@ class OMF
 		// Set the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.
 		void setDefaultAFLocation(const std::string &DefaultAFLocation);
 
-		void setAFMap(const std::string &AFMap);
+		bool setAFMap(const std::string &AFMap);
 
 		void setPrefixAFAsset(const std::string &prefixAFAsset);
 
@@ -130,6 +132,8 @@ class OMF
 			m_staticData = staticData;
 		};
 
+		void generateAFHierarchyPrefixLevel(string& path, string& prefix, string& AFHierarchyLevel);
+
 	private:
 		/**
 		 * Builds the HTTP header to send
@@ -149,7 +153,8 @@ class OMF
 		const std::string createStaticData(const Reading& reading) const;
 
 		// Create data Link message, with 'Data', for current row
-		const std::string createLinkData(const Reading& reading) const;
+		// FIXME_I:
+		std::string createLinkData(const Reading& reading);
 
 		/**
 		 * Creata data for readings data content, with 'Data', for one row
@@ -214,10 +219,11 @@ class OMF
 		bool sendAFHierarchyLevels(std::string parentPath, std::string path, std::string &lastLevel);
 		bool sendAFHierarchyTypes(const std::string AFHierarchyLevel);
 		bool sendAFHierarchyStatic(const std::string AFHierarchyLevel, const std::string prefix);
-		bool sendAFHierarchyLink(std::string parent, std::string child , std::string prefixId);
+		bool sendAFHierarchyLink(std::string parent, std::string child, std::string prefixIdParent, std::string prefixId);
 		bool AFHierarchySendMessage(const std::string& msgType, std::string& jsonData);
 
 		std::string generateUniquePrefixId(const std::string &path);
+		void evaluateAFHierarchyMetadataRules(const Reading& reading, std::string& prefix, std::string& AFHierarchyLevel);
 
 	private:
 		const std::string	m_path;
@@ -225,7 +231,15 @@ class OMF
 		const std::string	m_producerToken;
 		std::string		m_PIServerEndpoint;
 		std::string		m_DefaultAFLocation;
+
+		// AF hierarchies handling - Metadata MAP
 		std::string		m_AFMap;
+		map<string, string>  m_MetadataRulesExist={
+
+			// Property       - Asset Framework path
+			// {"",   ""}
+		};
+
 		std::string		m_AFHierarchyLevel;
 		std::string		m_prefixAFAsset;
 

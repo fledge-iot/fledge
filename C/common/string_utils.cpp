@@ -77,6 +77,35 @@ std::string evaluateParentPath(const std::string& path, char separator)
 	return parent;
 }
 
+/**
+ * Extract last level of the hierarchy
+ *
+ */
+std::string extractLastLevel(const std::string& path, char separator)
+{
+	std::string level;
+	std::string tmpPath;
+	char end_char;
+
+	tmpPath = path;
+
+	if (tmpPath.length() > 1)
+	{
+		if (tmpPath.find(separator) != string::npos)
+		{
+			end_char = tmpPath.back();
+			while (end_char != separator)
+			{
+				level.insert(0, 1, end_char);
+				tmpPath.erase(tmpPath.size() - 1);
+				end_char = tmpPath.back();
+			}
+		}
+	}
+
+	return level;
+}
+
 
 
 /**

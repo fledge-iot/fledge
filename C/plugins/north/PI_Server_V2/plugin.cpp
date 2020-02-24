@@ -385,14 +385,6 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	connInfo->DefaultAFLocation = DefaultAFLocation;
 	connInfo->AFMap = AFMap;
 
-	// Generates the prefix to have unique asset_id across different levels of hierarchies
-	long hostId = gethostid();
-	DefaultAFLocation = StringSlashFix(DefaultAFLocation);
-	std::size_t hierarchyHash = std::hash<std::string>{}(DefaultAFLocation);
-	// FIXME_I:
-	//connInfo->prefixAFAsset = std::to_string(hostId) + "_" + std::to_string(hierarchyHash);
-	connInfo->prefixAFAsset = std::to_string(hierarchyHash);
-
 	// PI Web API end-point - evaluates the authentication method requested
 	if (PIWebAPIAuthMethod.compare("anonymous") == 0)
 	{
@@ -614,6 +606,11 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	connInfo->omf->setPIServerEndpoint(connInfo->PIServerEndpoint);
 	connInfo->omf->setDefaultAFLocation(connInfo->DefaultAFLocation);
 	connInfo->omf->setAFMap(connInfo->AFMap);
+
+	// Generates the prefix to have unique asset_id across different levels of hierarchies
+	string AFHierarchyLevel;
+	connInfo->omf->generateAFHierarchyPrefixLevel(connInfo->DefaultAFLocation, connInfo->prefixAFAsset, AFHierarchyLevel);
+
 	connInfo->omf->setPrefixAFAsset(connInfo->prefixAFAsset);
 
 	// Set OMF FormatTypes  

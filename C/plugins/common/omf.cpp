@@ -618,7 +618,7 @@ bool OMF::sendAFHierarchyStatic(const std::string AFHierarchyLevel, const std::s
  *  AFHierarchy - creates the link between 2 elements in the AF hierarchy
  *
  */
-bool OMF::sendAFHierarchyLink(std::string parent, std::string child, std::string prefixId)
+bool OMF::sendAFHierarchyLink(std::string parent, std::string child, std::string prefixIdParent, std::string prefixId)
 {
 	bool success;
 	string jsonData;
@@ -628,7 +628,7 @@ bool OMF::sendAFHierarchyLink(std::string parent, std::string child, std::string
 	tmpStr = AF_HIERARCHY_LEVEL_LINK;
 
 	StringReplace(tmpStr, "_placeholder_src_type_", parent + "_typeid");
-	StringReplace(tmpStr, "_placeholder_src_idx_",  prefixId + "_" + parent );
+	StringReplace(tmpStr, "_placeholder_src_idx_",  prefixIdParent + "_" + parent );
 	StringReplace(tmpStr, "_placeholder_tgt_type_", child + "_typeid");
 	StringReplace(tmpStr, "_placeholder_tgt_idx_",  prefixId + "_" + child);
 	jsonData.append(tmpStr);
@@ -650,8 +650,10 @@ bool OMF::handleAFHierarchySystemWide() {
 	bool success = true;
 	std::string level;
 	std::string previousLevel;
+	string parentPath;
 
-	success = sendAFHierarchyLevels(m_DefaultAFLocation, m_DefaultAFLocation, m_AFHierarchyLevel);
+	parentPath = evaluateParentPath(m_DefaultAFLocation, AFHierarchySeparator);
+	success = sendAFHierarchyLevels(parentPath, m_DefaultAFLocation, m_AFHierarchyLevel);
 
 	return success;
 }
@@ -715,32 +717,40 @@ bool OMF::sendAFHierarchyLevels(string parentPath, string path, std::string &las
 	}
 	else
 	{
+		string pathFixed;
+		string parentPathFixed;
 		string prefixId;
+		string prefixIdParent;
+		string previousLevelPath;
+		string AFHierarchyLevel;
+		string levelPath;
 
-		// removes unwanted '/'
-		string pathFixed = StringSlashFix(path);
-		string parentPathFixed = StringSlashFix(parentPath);
-
-		prefixId = generateUniquePrefixId(parentPathFixed);
+		pathFixed = StringSlashFix(path);
 		std::stringstream pathStream(pathFixed);
 
-
+		// FIXME_I:
 		// multiple hierarchy levels
 		while (std::getline(pathStream, level, AFHierarchySeparator))
 		{
-
 			StringReplaceAll(level, AFH_SLASH_ESCAPE_TMP ,AFH_SLASH);
 			success = sendAFHierarchyTypes(level);
 			if (success)
 			{
+				levelPath = previousLevelPath + AFHierarchySeparator + level;
+				levelPath = StringSlashFix(levelPath);
+				prefixId = generateUniquePrefixId(levelPath);
 				success = sendAFHierarchyStatic(level, prefixId);
 			}
 
 			// Creates the link between the AF level
 			if (previousLevel != "")
 			{
-				sendAFHierarchyLink(previousLevel, level, prefixId);
+				parentPathFixed = StringSlashFix(previousLevelPath);
+				prefixIdParent = generateUniquePrefixId(parentPathFixed);
+
+				sendAFHierarchyLink(previousLevel, level, prefixIdParent, prefixId);
 			}
+			previousLevelPath = levelPath;
 			previousLevel = level;
 		}
 		lastLevel = level;
@@ -1535,7 +1545,7 @@ const std::string OMF::createStaticData(const Reading& reading) const
  * @param reading    A reading data
  * @return           Type JSON message as string
  */
-const std::string OMF::createLinkData(const Reading& reading) const
+std::string OMF::createLinkData(const Reading& reading)
 {
 	string measurementId;
 	string assetName = reading.getAssetName();
@@ -1575,12 +1585,18 @@ const std::string OMF::createLinkData(const Reading& reading) const
 
 		string tmpStr = AF_HIERARCHY_1LEVEL_LINK;
 		string targetTypeId;
+		string AFHierarchyPrefix;
+		string AFHierarchyLevel;
 
 		OMF::setAssetTypeTag(assetName, "typename_sensor", targetTypeId);
 
-		StringReplace(tmpStr, "_placeholder_src_type_", m_AFHierarchyLevel + "_typeid");
-		StringReplace(tmpStr, "_placeholder_src_idx_",  m_prefixAFAsset + "_" + m_AFHierarchyLevel );
+		// FIXME_I:
+		evaluateAFHierarchyMetadataRules(reading, AFHierarchyPrefix, AFHierarchyLevel);
+
+		StringReplace(tmpStr, "_placeholder_src_type_", AFHierarchyLevel + "_typeid");
+		StringReplace(tmpStr, "_placeholder_src_idx_",  AFHierarchyPrefix + "_" + AFHierarchyLevel );
 		StringReplace(tmpStr, "_placeholder_tgt_type_", targetTypeId);
+		// FIXME_I:
 		StringReplace(tmpStr, "_placeholder_tgt_idx_",  m_prefixAFAsset + "_" + assetName);
 
 		lData.append(tmpStr);
@@ -1620,6 +1636,57 @@ const std::string OMF::createLinkData(const Reading& reading) const
 
 	// Return JSON string
 	return lData;
+}
+
+/**
+ * // FIXME_I:
+ */
+void OMF::generateAFHierarchyPrefixLevel(string& path, string& prefix, string& AFHierarchyLevel)
+{
+	string pathFixed;
+
+	AFHierarchyLevel = extractLastLevel(path, AFHierarchySeparator);
+	// FIXME_I:
+	//parentPath = evaluateParentPath(path, AFHierarchySeparator);
+	//parentPath = StringSlashFix(parentPath);
+	//prefix = generateUniquePrefixId(parentPath);
+
+	pathFixed = StringSlashFix(path);
+	prefix = generateUniquePrefixId(pathFixed);
+}
+
+/**
+ * // FIXME_I:
+ */
+void OMF::evaluateAFHierarchyMetadataRules(const Reading& reading, string& prefix, string& AFHierarchyLevel)
+{
+	string path;
+	string assetName;
+
+	auto values = reading.getReadingData();
+
+	// case - No rules mateched
+	generateAFHierarchyPrefixLevel(m_DefaultAFLocation, prefix, AFHierarchyLevel);
+
+	// Metadata Rules - Exist
+	for (auto it = values.begin(); it != values.end(); it++)
+	{
+		assetName =  (*it)->getName();
+		auto rule = m_MetadataRulesExist.find(assetName);
+		if (rule != m_MetadataRulesExist.end())
+		{
+			path = rule->second;
+			if (path.at(0) != '/')
+			{
+				// relative  path
+				path = m_DefaultAFLocation + "/" + path;
+			}
+			generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
+		}
+	}
+
+
+
 }
 
 /**
@@ -1743,10 +1810,46 @@ void OMF::setDefaultAFLocation(const string &DefaultAFLocation)
 
 /**
  * Set the rules to address where assets should be placed in the AF hierarchy.
+ * Decodes the JSON and assign to the structures the values about the Metadata rulues
+ *
  */
-void OMF::setAFMap(const string &AFMap)
+bool OMF::setAFMap(const string &AFMap)
 {
+	bool success = true;
+	Document JSon;
+	string name;
+	string value;
+
 	m_AFMap = AFMap;
+
+	ParseResult ok = JSon.Parse(m_AFMap.c_str());
+	if (!ok)
+	{
+		Logger::getLogger()->error("setAFMap - Invalid Asset Framework Map, error :%s:", GetParseError_En(JSon.GetParseError()));
+		return false;
+	}
+
+	if (!JSon.HasMember("metadata"))
+	{
+		Logger::getLogger()->debug("setAFMap - metadata section not defined");
+		return true;
+	}
+	Value &JsonMetadata = JSon["metadata"];
+
+	// --- Handling exit section
+	if (JsonMetadata.HasMember("exist"))
+	{
+		Value &JSonExist = JsonMetadata["exist"];
+
+		for (Value::ConstMemberIterator itr = JSonExist.MemberBegin(); itr != JSonExist.MemberEnd(); ++itr)
+		{
+			name = itr->name.GetString();
+			value = itr->value.GetString();
+			Logger::getLogger()->debug("setAFMap - exist name :%s: value :%s:", name.c_str(), value.c_str());
+
+			m_MetadataRulesExist.insert ( std::pair<string,string>(name,value) );
+		}
+	}
 }
 
 

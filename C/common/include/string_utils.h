@@ -26,6 +26,7 @@ void StringReplaceAll(std::string& StringToManage,
 
 string StringSlashFix(const string& stringToFix);
 std::string evaluateParentPath(const std::string& path, char separator);
+std::string extractLastLevel(const std::string& path, char separator);
 
 void StringStripCRLF(std::string& StringToManage);
 string urlEncode(const string& s);

@@ -7,10 +7,13 @@
 import platform
 import os
 import logging
+import json
+
 from aiohttp import web
 from fledge.common import logger
 from fledge.common.plugin_discovery import PluginDiscovery
 from fledge.services.core.api.plugins import common
+from fledge.services.core.api.plugins.exceptions import *
 from fledge.services.core import connect
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.configuration_manager import ConfigurationManager
@@ -29,13 +32,11 @@ PYTHON_PLUGIN_PATH = _FLEDGE_ROOT+'/python/fledge/plugins/'
 C_PLUGINS_PATH = _FLEDGE_ROOT+'/plugins/'
 
 
-async def plugin_remove(request):
+async def remove_plugin(request):
     """
     Remove plugin from fledge
+    name: installed_directory name
 
-    '''
-    EndPoint: curl -X DELETE http://host-ip:port/fledge/plugins/{type}/{name}
-    '''
     Example:
         curl -X DELETE http://host-ip:port/fledge/plugins/south/sinusoid
         curl -X DELETE http://host-ip:port/fledge/plugins/north/http_north
@@ -77,12 +78,13 @@ async def plugin_remove(request):
             audit_log = AuditLogger(storage_client)
             audit_detail = {'package_name': "fledge-{}-{}".format(plugin_type, name)}
             await audit_log.information('PKGRM', audit_detail)
-    except ValueError as ex:
-        return web.json_response({'error': '{}'.format(ex)}, status=400)
+    except (ValueError, RuntimeError) as ex:
+        raise web.HTTPBadRequest(reason=str(ex))
     except KeyError as ex:
-        return web.json_response({'error': '{}'.format(ex)}, status=404)
-    except RuntimeError as ex:
-        return web.json_response({'error': '{}'.format(ex)}, status=400)
+        raise web.HTTPNotFound(reason=str(ex))
+    except PackageError as e:
+        msg = "Plugin removal request failed"
+        raise web.HTTPBadRequest(body=json.dumps({"message": msg, "link": str(e)}), reason=msg)
     _logger.info('{} plugin removed successfully'.format(name))
     return web.json_response({'message': '{} plugin removed successfully'.format(name)}, status=200)
 
@@ -145,64 +147,41 @@ async def check_plugin_usage_in_notification_instances(plugin_name: str):
     return list_of_notification_instance
 
 
-def purge_plugin(plugin_type: str, name: str):
-    """
-        Remove plugin based on platform
-
-        Need to replace name ('_' to '-')
-
-        Example:
-        Package name : http-south
-        Installed dir: http_south
-        Remove:
-        '''
-        curl -X DELETE http://host-ip:port/fledge/plugin/south/http_south
-        '''
-    """
+def purge_plugin(plugin_type: str, name: str) -> tuple:
     _logger.info("Plugin removal started...")
     original_name = name
+    # Special case handling - installed directory name Vs package name
+    # For example: Plugins like http_south Vs http-south
     name = name.replace('_', '-').lower()
     plugin_name = 'fledge-{}-{}'.format(plugin_type, name)
     stdout_file_path = common.create_log_file(action='remove', plugin_name=plugin_name)
+    link = "log/" + stdout_file_path.split("/")[-1]
     get_platform = platform.platform()
     try:
-        package_manager = 'yum' if 'centos' in get_platform or 'redhat' in get_platform else 'apt'
-        if package_manager == 'yum':
-            cmd = "sudo {} -y remove {} > {} 2>&1".format(package_manager, plugin_name, stdout_file_path)
+        if 'centos' in get_platform or 'redhat' in get_platform:
+            cmd = "sudo yum -y remove {} > {} 2>&1".format(plugin_name, stdout_file_path)
         else:
-            cmd = "sudo {} -y purge {} > {} 2>&1".format(package_manager, plugin_name, stdout_file_path)
+            cmd = "sudo apt -y purge {} > {} 2>&1".format(plugin_name, stdout_file_path)
         code = os.system(cmd)
         if code != 0:
-            raise RuntimeError("Something went wrong. Please check log: {}".format(stdout_file_path))
+            # TODO: If package repo is NOT configured but we have installation of plugin with make or make install
+            raise PackageError(link)
         installed_plugin = PluginDiscovery.get_plugins_installed(plugin_type, False)
         if installed_plugin:
             if original_name or name in [plugin['name'] for plugin in installed_plugin]:
-                raise KeyError("Plugin is not installed by package manager ".format(original_name))
+                raise KeyError("Requested plugin is not installed".format(original_name))
     except KeyError:
+        # This case is for non-package installation - python plugin path will be tried first and then C
         try:
             path = PYTHON_PLUGIN_PATH+'{}/{}'.format(plugin_type, original_name)
             if os.path.isdir(path):
-                for root, dirs, files in os.walk(path):
-                    if '__pycache__' in dirs:
-                        os.system('rm -rf {}'.format(os.path.join(root, '__pycache__')))
-                    else:
-                        for file in files:
-                            os.remove(os.path.join(root, file))
-                        for name in dirs:
-                            os.rmdir(os.path.join(root, name))
-                code = os.system('rm -rf {}'.format(path))
+                code = os.system('rm -rv {}'.format(path))
             else:
                 path = C_PLUGINS_PATH + '{}/{}'.format(plugin_type, original_name)
-                if os.path.isdir(path):
-                    for root, dirs, files in os.walk(path):
-                        for file in files:
-                            os.remove(os.path.join(root, file))
-                        for name in dirs:
-                            os.rmdir(os.path.join(root, name))
-                    code = os.system('rm -rf {}'.format(path))
-                else:
-                    raise OSError("Invalid plugin path.")
-        except (OSError, Exception, RuntimeError) as ex:
-            _logger.error("Error in removing plugin: {}".format(str(ex)))
+                code = os.system('rm -rv {}'.format(path))
+            if code != 0:
+                raise OSError("While deleting invalid plugin path found for requested {}".format(original_name))
+        except Exception as ex:
             code = 1
+            _logger.error("Error in removing plugin: {}".format(str(ex)))
     return code, stdout_file_path

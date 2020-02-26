@@ -1689,15 +1689,7 @@ void OMF::retrieveAFHierarchyPrefix(const Reading& reading, string& prefix, stri
 
 	assetName =  reading.getAssetName();
 
-	// Metadata Rules - Exist
-	auto rule = m_AssetNamePrefix.find(assetName);
-	if (rule != m_AssetNamePrefix.end())
-	{
-		auto item  = rule->second;
-		AFHierarchyLevel = std::get<0>(item);
-		prefix =std::get<1>(item);
-	}
-
+	retrieveAFHierarchyPrefixAssetName(assetName, prefix, AFHierarchyLevel);
 }
 
 // FIXME_I:

@@ -60,32 +60,8 @@ using namespace SimpleWeb;
 )
 
 //// FIXME_I:
-// temporary for debug purpose
 #define AF_HIERARCH_RULES QUOTE(                                          \
 	{                                                                     \
-		"metadata" : {                                                    \
-			"exist" : {                                                   \
-				"temperature"   : "temperatures",                         \
-				"power"         : "/Electrical/Power"                     \
-			},                                                            \
-			"nonexist" : {                                                \
-				"unit"          : "Uncalibrated"                          \
-			},                                                            \
-			"equal" : {                                                   \
-				"room" : {                                                \
-					"4" : "ElecticalLab",                                 \
-					"6" : "FluidLab"                                      \
-				}                                                         \
-			},                                                            \
-			"notequal" : {                                                \
-				"building" : {                                            \
-					"plant" : "/Office/Environment"                       \
-				},                                                        \
-				"block" : {                                               \
-					"plant" : "/Office/temperatures"                      \
-				}                                                         \
-			}                                                             \
-		}                                                                 \
 	}                                                                     \
 )
 

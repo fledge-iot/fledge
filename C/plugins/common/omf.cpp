@@ -110,7 +110,7 @@ const char *AF_HIERARCHY_1LEVEL_LINK = QUOTE(
 /**
  * OMFData constructor
  */
-OMFData::OMFData(const Reading& reading, const long typeId, const string& PIServerEndpoint,const string&  AFHierarchyLevel)
+OMFData::OMFData(const Reading& reading, const long typeId, const string& PIServerEndpoint,const string&  AFHierarchyPrefix)
 {
 	string outData;
 	string measurementId;
@@ -121,8 +121,7 @@ OMFData::OMFData(const Reading& reading, const long typeId, const string& PIServ
 	if (PIServerEndpoint.compare("p") == 0)
 	{
 		// FIXME_I:
-		measurementId = AFHierarchyLevel + "_" + measurementId;
-		//measurementId = DefaultAFLocation + "_" + measurementId;
+		measurementId = AFHierarchyPrefix + "_" + measurementId;
 	}
 
 	// Convert reading data into the OMF JSON string
@@ -1013,7 +1012,9 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			return 0;
 		}
 
-		string outData = OMFData(**elem, typeId, m_PIServerEndpoint, AFHierarchyLevel ).OMFdataVal();
+		// FIXME_I:
+		string outData = OMFData(**elem, typeId, m_PIServerEndpoint, AFHierarchyPrefix ).OMFdataVal();
+		//string outData = OMFData(**elem, typeId, m_PIServerEndpoint, AFHierarchyLevel ).OMFdataVal();
 		if (!outData.empty())
 		{
 			jsonData << (pendingSeparator ? ", " : "") << outData;
@@ -1491,7 +1492,8 @@ const std::string OMF::createContainerData(const Reading& reading)
 		// FIXME_I:
 		retrieveAFHierarchyPrefix(reading, AFHierarchyPrefix, AFHierarchyLevel);
 
-		measurementId = AFHierarchyLevel + "_" + measurementId;
+		measurementId = AFHierarchyPrefix + "_" + measurementId;
+		//measurementId = AFHierarchyLevel + "_" + measurementId;
 	}
 
 	cData.append("\", \"id\": \"" + measurementId);
@@ -1647,7 +1649,9 @@ std::string OMF::createLinkData(const Reading& reading)
 	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
 	if (m_PIServerEndpoint.compare("p") == 0)
 	{
-		measurementId = AFHierarchyLevel + "_" + measurementId;
+		// FIXME_I:
+		measurementId = AFHierarchyPrefix + "_" + measurementId;
+		//measurementId = AFHierarchyLevel + "_" + measurementId;
 	}
 
 	lData.append("\"}, \"target\": {\"containerid\": \"" + measurementId);

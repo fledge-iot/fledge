@@ -59,6 +59,8 @@ using namespace SimpleWeb;
 	}                                                                           \
 )
 
+//// FIXME_I:
+// temporary for debug purpose
 #define AF_HIERARCH_RULES QUOTE(                                          \
 	{                                                                     \
 		"metadata" : {                                                    \
@@ -80,7 +82,7 @@ using namespace SimpleWeb;
 					"plant" : "/Office/Environment"                       \
 				},                                                        \
 				"block" : {                                               \
-					"plant" : "/Office/default"                           \
+					"plant" : "/Office/temperatures"                      \
 				}                                                         \
 			}                                                             \
 		}                                                                 \

@@ -144,13 +144,13 @@ class OMF
 			createMessageHeader(const std::string& type) const;
 
 		// Create data for Type message for current row
-		const std::string createTypeData(const Reading& reading) const;
+		const std::string createTypeData(const Reading& reading);
 
 		// Create data for Container message for current row
-		const std::string createContainerData(const Reading& reading) const;
+		const std::string createContainerData(const Reading& reading);
 
 		// Create data for additional type message, with 'Data' for current row
-		const std::string createStaticData(const Reading& reading) const;
+		const std::string createStaticData(const Reading& reading);
 
 		// Create data Link message, with 'Data', for current row
 		// FIXME_I:
@@ -166,7 +166,7 @@ class OMF
 		// Set the the tagName in an assetName Type message
 		void setAssetTypeTag(const std::string& assetName,
 				     const std::string& tagName,
-				     std::string& data) const;
+				     std::string& data);
 
 		// Create the OMF data types if needed
 		bool handleDataTypes(const Reading& row,
@@ -224,6 +224,8 @@ class OMF
 
 		std::string generateUniquePrefixId(const std::string &path);
 		void evaluateAFHierarchyMetadataRules(const Reading& reading, std::string& prefix, std::string& AFHierarchyLevel);
+		void retrieveAFHierarchyPrefix(const Reading& reading, string& prefix, string& AFHierarchyLevel);
+		void retrieveAFHierarchyPrefixAssetName(string assetName, string& prefix, string& AFHierarchyLevel);
 
 	private:
 		const std::string	m_path;
@@ -234,11 +236,18 @@ class OMF
 
 		// AF hierarchies handling - Metadata MAP
 		std::string		m_AFMap;
-		map<string, string>  m_MetadataRulesExist={
+		map<std::string, std::string>  m_MetadataRulesExist={
 
-			// Property       - Asset Framework path
-			// {"",   ""}
+			// Property   - Asset Framework path
+			// {"",         ""}
 		};
+
+		map<std::string, pair<string, string>>  m_AssetNamePrefix ={
+
+			// Property   - Hierarchy - prefix
+			// {"",         {"",        ""} }
+		};
+
 
 		std::string		m_AFHierarchyLevel;
 		std::string		m_prefixAFAsset;

@@ -54,10 +54,10 @@ async def remove_plugin(request):
         if name not in [plugin['name'] for plugin in installed_plugin]:
             raise KeyError("Invalid {} plugin name or plugin is not installed".format(name))
         if plugin_type in ['notificationDelivery', 'notificationRule']:
-            get_all_notification_instance = await check_plugin_usage_in_notification_instances(name)
-            if get_all_notification_instance:
+            notification_instances_plugin_used_in = await check_plugin_usage_in_notification_instances(name)
+            if notification_instances_plugin_used_in:
                 raise RuntimeError("{} cannot be removed. This is being used by {} instances".
-                                   format(name, get_all_notification_instance))
+                                   format(name, notification_instances_plugin_used_in))
             plugin_type = 'notify' if plugin_type == 'notificationDelivery' else 'rule'
         else:
             get_tracked_plugins = await check_plugin_usage(plugin_type, name)
@@ -110,10 +110,9 @@ async def check_plugin_usage(plugin_type: str, plugin_name: str):
         filter_res = await storage_client.query_tbl_with_payload("filters", filter_payload)
         filter_used = [f['name'] for f in filter_res['rows']]
         for r in range(0, len(list_of_tracked_plugin['rows'])):
-            service_in_list1 = await check_service_in_schedules(list_of_tracked_plugin['rows'][r]['service'])
-            _logger.info(f"servicee in list:{service_in_list1}")
+            service_in_schedules_list = await check_service_in_schedules(list_of_tracked_plugin['rows'][r]['service'])
             for p in filter_used:
-                if p in list_of_tracked_plugin['rows'][r]['plugin'] and service_in_list1:
+                if p in list_of_tracked_plugin['rows'][r]['plugin'] and service_in_schedules_list:
                     service_list.append(list_of_tracked_plugin['rows'][r]['service'])
                     break
     if list_of_tracked_plugin['rows']:
@@ -143,11 +142,10 @@ async def check_plugin_usage_in_notification_instances(plugin_name: str):
     """
     Check notification instance state using the given rule or delivery plugin
     """
-    list_of_notification_instance = []
+    notification_instances = []
     storage_client = connect.get_storage_async()
     configuration_mgr = ConfigurationManager(storage_client)
     notifications = await configuration_mgr.get_category_child("Notifications")
-    _logger.info(f"notification:{notifications}")
     if notifications:
         for notification in notifications:
             notification_config = await configuration_mgr._read_category_val(notification['key'])
@@ -156,13 +154,12 @@ async def check_plugin_usage_in_notification_instances(plugin_name: str):
             rule = notification_config['rule']['value']
             enabled = True if notification_config['enable']['value'] == 'true' else False
             if (channel == plugin_name and enabled) or (rule == plugin_name and enabled):
-                list_of_notification_instance.append(name)
-    return list_of_notification_instance
+                notification_instances.append(name)
+    return notification_instances
 
 
 def purge_plugin(plugin_type: str, name: str) -> tuple:
     _logger.info("Plugin removal started...")
-    _logger.exception(f"plugin_type: {plugin_type}")
     original_name = name
     # Special case handling - installed directory name Vs package name
     # For example: Plugins like http_south Vs http-south
@@ -187,7 +184,6 @@ def purge_plugin(plugin_type: str, name: str) -> tuple:
         else:
             plugin_type = plugin_type
         installed_plugin = PluginDiscovery.get_plugins_installed(plugin_type, False)
-        _logger.info(f"installed_plugin: {installed_plugin}")
         if [plugin['name'] for plugin in installed_plugin if plugin['name'] in [original_name, name]]:
             raise KeyError("Requested plugin is not installed".format(original_name))
     except KeyError:

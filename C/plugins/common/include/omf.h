@@ -154,7 +154,7 @@ class OMF
 
 		// Create data Link message, with 'Data', for current row
 		// FIXME_I:
-		std::string createLinkData(const Reading& reading);
+		std::string createLinkData(const Reading& reading, std::string& AFHierarchyLevel, std::string&  prefix, std::string&  objectPrefix);
 
 		/**
 		 * Creata data for readings data content, with 'Data', for one row
@@ -223,7 +223,7 @@ class OMF
 		bool AFHierarchySendMessage(const std::string& msgType, std::string& jsonData);
 
 		std::string generateUniquePrefixId(const std::string &path);
-		void evaluateAFHierarchyMetadataRules(const Reading& reading, std::string& prefix, std::string& AFHierarchyLevel);
+		void evaluateAFHierarchyMetadataRules(const Reading& reading);
 		void retrieveAFHierarchyPrefix(const Reading& reading, string& prefix, string& AFHierarchyLevel);
 		void retrieveAFHierarchyPrefixAssetName(string assetName, string& prefix, string& AFHierarchyLevel);
 
@@ -248,10 +248,10 @@ class OMF
 			// {"",         ""}
 		};
 
-		map<std::string, pair<string, string>>  m_AssetNamePrefix ={
+		map<std::string, vector<pair<string, string>>>  m_AssetNamePrefix ={
 
 			// Property   - Hierarchy - prefix
-			// {"",         {"",        ""} }
+			// {"",         {{"",        ""}} }
 		};
 
 

@@ -457,61 +457,87 @@ bool OMF::sendDataTypes(const Reading& row)
 
 	// Create header for Link data
 	vector<pair<string, string>> resLinkData = OMF::createMessageHeader("Data");
-	// Create data for Static Data message	
-	string typeLinkData = OMF::createLinkData(row);
 
-	// Build an HTTPS POST with 'resLinkData' headers
-	// and 'typeLinkData' JSON payload
-	// Then get HTTPS POST ret code and return 0 to client on error
-	try
+	string assetName = row.getAssetName();
+	string AFHierarchyLevel;
+	string prefix;
+	string objectPrefix;
+
+	auto rule = m_AssetNamePrefix.find(assetName);
+	if (rule != m_AssetNamePrefix.end())
 	{
-		res = m_sender.sendRequest("POST",
-					   m_path,
-					   resLinkData,
-					   typeLinkData);
-		if  ( ! (res >= 200 && res <= 299) )
+		auto itemArray  = rule->second;
+		objectPrefix = "";
+
+		for(auto &item : itemArray)
 		{
-			Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) "
-						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
-						   res,
-						   m_sender.getHostPort().c_str(),
-						   m_path.c_str(),
-						   typeLinkData.c_str() );
-			return false;
-		}
-		else
-		{
-			// All data types sent: success
-			return true;
+			AFHierarchyLevel = std::get<0>(item);
+			prefix =std::get<1>(item);
+
+			if (objectPrefix.empty())
+			{
+				objectPrefix = prefix;
+			}
+
+			// Create data for Static Data message
+			string typeLinkData = OMF::createLinkData(row, AFHierarchyLevel, prefix, objectPrefix);
+
+			// Build an HTTPS POST with 'resLinkData' headers
+			// and 'typeLinkData' JSON payload
+			// Then get HTTPS POST ret code and return 0 to client on error
+			try
+			{
+				res = m_sender.sendRequest("POST",
+										   m_path,
+										   resLinkData,
+										   typeLinkData);
+				if  ( ! (res >= 200 && res <= 299) )
+				{
+					Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) "
+											   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+											   res,
+											   m_sender.getHostPort().c_str(),
+											   m_path.c_str(),
+											   typeLinkData.c_str() );
+					return false;
+				}
+			}
+				// Exception raised fof HTTP 400 Bad Request
+			catch (const BadRequest& e)
+			{
+				if (OMF::isDataTypeError(e.what()))
+				{
+					// Data type error: force type-id change
+					m_changeTypeId = true;
+				}
+				Logger::getLogger()->warn("Sending JSON dataType message 'Data' (lynk) "
+										  "not blocking issue: |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+										  (m_changeTypeId ? "Data Type " : "" ),
+										  e.what(),
+										  m_sender.getHostPort().c_str(),
+										  m_path.c_str(),
+										  typeLinkData.c_str() );
+				return false;
+			}
+			catch (const std::exception& e)
+			{
+				Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) "
+										   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+										   e.what(),
+										   m_sender.getHostPort().c_str(),
+										   m_path.c_str(),
+										   typeLinkData.c_str() );
+				return false;
+			}
 		}
 	}
-	// Exception raised fof HTTP 400 Bad Request
-	catch (const BadRequest& e)
+	else
 	{
-		if (OMF::isDataTypeError(e.what()))
-		{
-			// Data type error: force type-id change
-			m_changeTypeId = true;
-		}
-		Logger::getLogger()->warn("Sending JSON dataType message 'Data' (lynk) "
-					   "not blocking issue: |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-					   (m_changeTypeId ? "Data Type " : "" ),
-					   e.what(),
-					   m_sender.getHostPort().c_str(),
-					   m_path.c_str(),
-					   typeLinkData.c_str() );
-		return false;
+		// FIXME_I:
+		Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) - asset Name |%s|",assetName.c_str());
 	}
-	catch (const std::exception& e)
-	{
-		Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) "
-					   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-					   e.what(),
-					   m_sender.getHostPort().c_str(),
-					   m_path.c_str(),
-					   typeLinkData.c_str() );
-		return false;
-	}
+	// All data types sent: success
+	return true;
 }
 
 /**
@@ -924,6 +950,8 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			   bool compression, bool skipSentDataTypes)
 {
 	bool AFHierarchySent = false;
+	string AFHierarchyPrefix;
+	string AFHierarchyLevel;
 
 	std::map<string, Reading*> superSetDataPoints;
 
@@ -953,11 +981,10 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	{
 		bool sendDataTypes;
 
-		// Add into JSON string the OMF transformed Reading data
-		string AFHierarchyPrefix;
-		string AFHierarchyLevel;
 		// FIXME_I:
-		evaluateAFHierarchyMetadataRules (**elem, AFHierarchyPrefix, AFHierarchyLevel);
+		evaluateAFHierarchyMetadataRules (**elem);
+
+		// Add into JSON string the OMF transformed Reading data
 
 		// Create the key for dataTypes sending once
 		long typeId = OMF::getAssetTypeId((**elem).getAssetName());
@@ -990,6 +1017,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		if (sendDataTypes and ! AFHierarchySent)
 		{
 			handleAFHierarchy();
+
 			AFHierarchySent = true;
 		}
 
@@ -1013,6 +1041,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		}
 
 		// FIXME_I:
+		retrieveAFHierarchyPrefix(**elem, AFHierarchyPrefix, AFHierarchyLevel);
 		string outData = OMFData(**elem, typeId, m_PIServerEndpoint, AFHierarchyPrefix ).OMFdataVal();
 		//string outData = OMFData(**elem, typeId, m_PIServerEndpoint, AFHierarchyLevel ).OMFdataVal();
 		if (!outData.empty())
@@ -1565,11 +1594,9 @@ const std::string OMF::createStaticData(const Reading& reading)
  * @param reading    A reading data
  * @return           Type JSON message as string
  */
-std::string OMF::createLinkData(const Reading& reading)
+std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarchyLevel, std::string&  AFHierarchyPrefix, std::string&  objectPrefix)
 {
 	string targetTypeId;
-	string AFHierarchyPrefix;
-	string AFHierarchyLevel;
 
 	string measurementId;
 	string assetName = reading.getAssetName();
@@ -1609,17 +1636,13 @@ std::string OMF::createLinkData(const Reading& reading)
 
 		string tmpStr = AF_HIERARCHY_1LEVEL_LINK;
 
-
 		OMF::setAssetTypeTag(assetName, "typename_sensor", targetTypeId);
 
 		// FIXME_I:
-		retrieveAFHierarchyPrefix(reading, AFHierarchyPrefix, AFHierarchyLevel);
-
 		StringReplace(tmpStr, "_placeholder_src_type_", AFHierarchyLevel + "_typeid");
 		StringReplace(tmpStr, "_placeholder_src_idx_",  AFHierarchyPrefix + "_" + AFHierarchyLevel );
 		StringReplace(tmpStr, "_placeholder_tgt_type_", targetTypeId);
-		// FIXME_I:
-		StringReplace(tmpStr, "_placeholder_tgt_idx_",  AFHierarchyPrefix + "_" + assetName);
+		StringReplace(tmpStr, "_placeholder_tgt_idx_", objectPrefix + "_" + assetName);
 
 		lData.append(tmpStr);
 		lData.append(",");
@@ -1641,7 +1664,7 @@ std::string OMF::createLinkData(const Reading& reading)
 	}
 	else if (m_PIServerEndpoint.compare("p") == 0)
 	{
-		lData.append(AFHierarchyPrefix + "_" + assetName);
+		lData.append(objectPrefix + "_" + assetName);
 	}
 
 	measurementId = to_string(OMF::getAssetTypeId(assetName)) + "measurement_" + assetName;
@@ -1650,7 +1673,7 @@ std::string OMF::createLinkData(const Reading& reading)
 	if (m_PIServerEndpoint.compare("p") == 0)
 	{
 		// FIXME_I:
-		measurementId = AFHierarchyPrefix + "_" + measurementId;
+		measurementId = objectPrefix + "_" + measurementId;
 		//measurementId = AFHierarchyLevel + "_" + measurementId;
 	}
 
@@ -1700,7 +1723,8 @@ void OMF::retrieveAFHierarchyPrefixAssetName(string assetName, string& prefix, s
 	auto rule = m_AssetNamePrefix.find(assetName);
 	if (rule != m_AssetNamePrefix.end())
 	{
-		auto item  = rule->second;
+		auto itemArray  = rule->second;
+		auto item  = itemArray[0];
 		AFHierarchyLevel = std::get<0>(item);
 		prefix =std::get<1>(item);
 	}
@@ -1709,17 +1733,17 @@ void OMF::retrieveAFHierarchyPrefixAssetName(string assetName, string& prefix, s
 /**
  * // FIXME_I:
  */
-void OMF::evaluateAFHierarchyMetadataRules(const Reading& reading, string& prefix, string& AFHierarchyLevel)
+void OMF::evaluateAFHierarchyMetadataRules(const Reading& reading)
 {
+	bool ruleMatched = false;
 	string path;
 	string propertyName;
 	string assetName;
+	string prefix;
+	string AFHierarchyLevel;
 
 	auto values = reading.getReadingData();
 	assetName = reading.getAssetName();
-
-	// case - No rules mateched
-	generateAFHierarchyPrefixLevel(m_DefaultAFLocation, prefix, AFHierarchyLevel);
 
 	// Metadata Rules - Exist
 	for (auto it = values.begin(); it != values.end(); it++)
@@ -1735,6 +1759,10 @@ void OMF::evaluateAFHierarchyMetadataRules(const Reading& reading, string& prefi
 				path = m_DefaultAFLocation + "/" + path;
 			}
 			generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
+			ruleMatched = true;
+
+			auto item = make_pair(AFHierarchyLevel,prefix);
+			m_AssetNamePrefix[assetName].push_back(item);
 		}
 	}
 
@@ -1762,12 +1790,22 @@ void OMF::evaluateAFHierarchyMetadataRules(const Reading& reading, string& prefi
 				path = m_DefaultAFLocation + "/" + path;
 			}
 			generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
+			ruleMatched = true;
+
+			auto item = make_pair(AFHierarchyLevel,prefix);
+			m_AssetNamePrefix[assetName].push_back(item);
 		}
 	}
 
-	auto item = make_pair(AFHierarchyLevel,prefix);
-	auto newMapValue = make_pair(assetName,item);
-	m_AssetNamePrefix.insert(newMapValue);
+	if (! ruleMatched)
+	{
+		// case - No rules matched
+		generateAFHierarchyPrefixLevel(m_DefaultAFLocation, prefix, AFHierarchyLevel);
+
+		auto item = make_pair(AFHierarchyLevel,prefix);
+		m_AssetNamePrefix[assetName].push_back(item);
+	}
+
 }
 
 /**

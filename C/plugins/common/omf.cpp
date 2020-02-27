@@ -1738,6 +1738,33 @@ void OMF::evaluateAFHierarchyMetadataRules(const Reading& reading, string& prefi
 		}
 	}
 
+	// Metadata Rules - NonExist
+	bool found;
+	string rule;
+	for (auto it = m_MetadataRulesNonExist.begin(); it != m_MetadataRulesNonExist.end(); it++)
+	{
+		found = false;
+		rule = it->first;
+		path = it->second;;
+		for (auto itL2 = values.begin(); found == false && itL2 != values.end(); itL2++)
+		{
+			propertyName =  (*itL2)->getName();
+			if (propertyName.compare(rule) ==0)
+			{
+				found = true;
+			}
+		}
+		if (! found)
+		{
+			if (path.at(0) != '/')
+			{
+				// relative  path
+				path = m_DefaultAFLocation + "/" + path;
+			}
+			generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
+		}
+	}
+
 	auto item = make_pair(AFHierarchyLevel,prefix);
 	auto newMapValue = make_pair(assetName,item);
 	m_AssetNamePrefix.insert(newMapValue);
@@ -1897,7 +1924,7 @@ bool OMF::setAFMap(const string &AFMap)
 	}
 	Value &JsonMetadata = JSon["metadata"];
 
-	// --- Handling exit section
+	// --- Handling Exist section
 	if (JsonMetadata.HasMember("exist"))
 	{
 		Value &JSonExist = JsonMetadata["exist"];
@@ -1906,13 +1933,31 @@ bool OMF::setAFMap(const string &AFMap)
 		{
 			name = itr->name.GetString();
 			value = itr->value.GetString();
-			Logger::getLogger()->debug("setAFMap - exist name :%s: value :%s:", name.c_str(), value.c_str());
+			Logger::getLogger()->debug("setAFMap - Exist name :%s: value :%s:", name.c_str(), value.c_str());
 
 			auto newMapValue = make_pair(name,value);
 
 			m_MetadataRulesExist.insert (newMapValue);
 		}
 	}
+
+	// --- Handling Non Exist section
+	if (JsonMetadata.HasMember("nonexist"))
+	{
+		Value &JSonNonExist = JsonMetadata["nonexist"];
+
+		for (Value::ConstMemberIterator itr = JSonNonExist.MemberBegin(); itr != JSonNonExist.MemberEnd(); ++itr)
+		{
+			name = itr->name.GetString();
+			value = itr->value.GetString();
+			Logger::getLogger()->debug("setAFMap - Non Exist name :%s: value :%s:", name.c_str(), value.c_str());
+
+			auto newMapValue = make_pair(name,value);
+
+			m_MetadataRulesNonExist.insert (newMapValue);
+		}
+	}
+
 }
 
 

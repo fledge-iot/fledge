@@ -242,6 +242,12 @@ class OMF
 			// {"",         ""}
 		};
 
+		map<std::string, std::string>  m_MetadataRulesNonExist={
+
+			// Property   - Asset Framework path
+			// {"",         ""}
+		};
+
 		map<std::string, pair<string, string>>  m_AssetNamePrefix ={
 
 			// Property   - Hierarchy - prefix

@@ -110,21 +110,33 @@ async def check_plugin_usage(plugin_type: str, plugin_name: str):
         filter_res = await storage_client.query_tbl_with_payload("filters", filter_payload)
         filter_used = [f['name'] for f in filter_res['rows']]
         for r in range(0, len(list_of_tracked_plugin['rows'])):
+            service_in_list1 = await check_service_in_schedules(list_of_tracked_plugin['rows'][r]['service'])
+            _logger.info(f"servicee in list:{service_in_list1}")
             for p in filter_used:
-                if p in list_of_tracked_plugin['rows'][r]['plugin']:
+                if p in list_of_tracked_plugin['rows'][r]['plugin'] and service_in_list1:
                     service_list.append(list_of_tracked_plugin['rows'][r]['service'])
                     break
     if list_of_tracked_plugin['rows']:
         for e in list_of_tracked_plugin['rows']:
             if (plugin_name == e['plugin'] and plugin_type != 'filter') or (e['plugin'] in filter_used and
                                                                             plugin_type == 'filter'):
-                if plugin_name in [x['plugin'] for x in list_of_tracked_plugin['rows']] or e['plugin'] in filter_used:
+                service_in_list = await check_service_in_schedules(e['service'])
+                if (plugin_name in [x['plugin'] for x in list_of_tracked_plugin['rows']] and service_in_list) \
+                        or (e['plugin'] in filter_used and service_in_list):
                     if service_list:
                         plugin_users.append({'e': e, 'service_list': service_list})
                     else:
                         service_list.append(e['service'])
                         plugin_users.append({'e': e, 'service_list': service_list})
     return plugin_users
+
+
+async def check_service_in_schedules(service_name: str):
+    storage_client = connect.get_storage_async()
+    payload_data = PayloadBuilder().SELECT('id', 'enabled').WHERE(['schedule_name', '=', service_name]).payload()
+    enabled_service_list = await storage_client.query_tbl_with_payload('schedules', payload_data)
+    is_service_list = True if enabled_service_list['rows'] else False
+    return is_service_list
 
 
 async def check_plugin_usage_in_notification_instances(plugin_name: str):
@@ -135,6 +147,7 @@ async def check_plugin_usage_in_notification_instances(plugin_name: str):
     storage_client = connect.get_storage_async()
     configuration_mgr = ConfigurationManager(storage_client)
     notifications = await configuration_mgr.get_category_child("Notifications")
+    _logger.info(f"notification:{notifications}")
     if notifications:
         for notification in notifications:
             notification_config = await configuration_mgr._read_category_val(notification['key'])
@@ -149,6 +162,7 @@ async def check_plugin_usage_in_notification_instances(plugin_name: str):
 
 def purge_plugin(plugin_type: str, name: str) -> tuple:
     _logger.info("Plugin removal started...")
+    _logger.exception(f"plugin_type: {plugin_type}")
     original_name = name
     # Special case handling - installed directory name Vs package name
     # For example: Plugins like http_south Vs http-south
@@ -166,10 +180,16 @@ def purge_plugin(plugin_type: str, name: str) -> tuple:
         if code != 0:
             # TODO: If package repo is NOT configured but we have installation of plugin with make or make install
             raise PackageError(link)
+
+        # plugin_type = 'notificationDelivery' if plugin_type == 'notify' else 'notificationRule'
+        if plugin_type in ['notify', 'rule']:
+            plugin_type = 'notificationDelivery' if plugin_type == 'notify' else 'notificationRule'
+        else:
+            plugin_type = plugin_type
         installed_plugin = PluginDiscovery.get_plugins_installed(plugin_type, False)
-        if installed_plugin:
-            if original_name or name in [plugin['name'] for plugin in installed_plugin]:
-                raise KeyError("Requested plugin is not installed".format(original_name))
+        _logger.info(f"installed_plugin: {installed_plugin}")
+        if [plugin['name'] for plugin in installed_plugin if plugin['name'] in [original_name, name]]:
+            raise KeyError("Requested plugin is not installed".format(original_name))
     except KeyError:
         # This case is for non-package installation - python plugin path will be tried first and then C
         try:
@@ -184,4 +204,7 @@ def purge_plugin(plugin_type: str, name: str) -> tuple:
         except Exception as ex:
             code = 1
             _logger.error("Error in removing plugin: {}".format(str(ex)))
+    except Exception as e:
+        code = 1
+        _logger.error("MAIN EXCEPTION BLOCK: {}".format(str(e)))
     return code, stdout_file_path

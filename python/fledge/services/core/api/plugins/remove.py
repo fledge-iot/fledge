@@ -159,7 +159,7 @@ async def check_plugin_usage_in_notification_instances(plugin_name: str):
 
 
 def purge_plugin(plugin_type: str, name: str) -> tuple:
-    _logger.info("Plugin removal started...")
+    _logger.info("{} plugin removal started...".format(name))
     original_name = name
     # Special case handling - installed directory name Vs package name
     # For example: Plugins like http_south Vs http-south
@@ -178,14 +178,13 @@ def purge_plugin(plugin_type: str, name: str) -> tuple:
             # TODO: If package repo is NOT configured but we have installation of plugin with make or make install
             raise PackageError(link)
 
-        # plugin_type = 'notificationDelivery' if plugin_type == 'notify' else 'notificationRule'
         if plugin_type in ['notify', 'rule']:
             plugin_type = 'notificationDelivery' if plugin_type == 'notify' else 'notificationRule'
         else:
             plugin_type = plugin_type
         installed_plugin = PluginDiscovery.get_plugins_installed(plugin_type, False)
         if [plugin['name'] for plugin in installed_plugin if plugin['name'] in [original_name, name]]:
-            raise KeyError("Requested plugin is not installed".format(original_name))
+            raise KeyError("Requested plugin is not installed: {}".format(original_name))
     except KeyError:
         # This case is for non-package installation - python plugin path will be tried first and then C
         try:
@@ -196,11 +195,11 @@ def purge_plugin(plugin_type: str, name: str) -> tuple:
                 path = C_PLUGINS_PATH + '{}/{}'.format(plugin_type, original_name)
                 code = os.system('rm -rv {}'.format(path))
             if code != 0:
-                raise OSError("While deleting invalid plugin path found for requested {}".format(original_name))
+                raise OSError("While deleting, invalid plugin path found for {}".format(original_name))
         except Exception as ex:
             code = 1
             _logger.error("Error in removing plugin: {}".format(str(ex)))
     except Exception as e:
         code = 1
-        _logger.error("MAIN EXCEPTION BLOCK: {}".format(str(e)))
+        _logger.error("Error in removing plugin: {}".format(str(e)))
     return code, stdout_file_path

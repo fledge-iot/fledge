@@ -198,6 +198,8 @@ def purge_plugin(plugin_type: str, name: str) -> tuple:
     except KeyError:
         # This case is for non-package installation - python plugin path will be tried first and then C
         _logger.info("Trying removal of manually installed plugin...")
+        if plugin_type in ['notify', 'rule']:
+            plugin_type = 'notificationDelivery' if plugin_type == 'notify' else 'notificationRule'
         try:
             path = PYTHON_PLUGIN_PATH+'{}/{}'.format(plugin_type, original_name)
             if os.path.isdir(path):

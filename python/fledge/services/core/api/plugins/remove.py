@@ -211,8 +211,4 @@ def purge_plugin(plugin_type: str, name: str) -> tuple:
         except Exception as ex:
             code = 1
             _logger.error("Error in removing plugin: {}".format(str(ex)))
-    except Exception as e:
-        code = 1
-        _logger.error("Error in removing plugin: {}".format(str(e)))
-    else:
-        return code, stdout_file_path
+    return code, stdout_file_path

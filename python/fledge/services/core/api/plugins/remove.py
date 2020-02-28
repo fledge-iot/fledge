@@ -93,8 +93,6 @@ async def remove_plugin(request):
     except PackageError as e:
         msg = "Failed to remove package for plugin {}".format(name)
         raise web.HTTPBadRequest(body=json.dumps({"message": msg, "link": str(e)}), reason=msg)
-    except Exception as ex:
-        _logger.error(ex)
     else:
         _logger.info('{} plugin removed successfully'.format(name))
         return web.json_response({'message': '{} plugin removed successfully'.format(name)}, status=200)

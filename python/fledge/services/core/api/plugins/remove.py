@@ -201,10 +201,10 @@ def purge_plugin(plugin_type: str, name: str) -> tuple:
         try:
             path = PYTHON_PLUGIN_PATH+'{}/{}'.format(plugin_type, original_name)
             if os.path.isdir(path):
-                code = os.system('sudo rm -rv {}'.format(path))
+                code = os.system('rm -rv {}'.format(path))
             else:
                 path = C_PLUGINS_PATH + '{}/{}'.format(plugin_type, original_name)
-                code = os.system('sudo rm -rv {}'.format(path))
+                code = os.system('rm -rv {}'.format(path))
             if code != 0:
                 raise OSError("While deleting, invalid plugin path found for {}".format(original_name))
         except Exception as ex:

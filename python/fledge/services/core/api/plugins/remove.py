@@ -77,7 +77,6 @@ async def remove_plugin(request):
                 _logger.info("No entry found for {name} plugin in asset tracker; or "
                              "{name} plugin may have been added in disabled state & never used".format(name=name))
         res, log_path = purge_plugin(plugin_type, name)
-        _logger.error("------ %s", res)
         if res != 0:
             e_msg = "Something went wrong. Please check log {}".format(log_path)
             _logger.error(e_msg)

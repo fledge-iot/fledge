@@ -248,6 +248,18 @@ class OMF
 			// {"",         ""}
 		};
 
+		map<std::string, vector<pair<string, string>>>   m_MetadataRulesEqual={
+
+			// Property    - Value  - Asset Framework path
+			// {"",         {{"",        ""}} }
+		};
+
+		map<std::string, vector<pair<string, string>>>   m_MetadataRulesNotEqual={
+
+			// Property    - Value  - Asset Framework path
+			// {"",         {{"",        ""}} }
+		};
+
 		map<std::string, vector<pair<string, string>>>  m_AssetNamePrefix ={
 
 			// Property   - Hierarchy - prefix

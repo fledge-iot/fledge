@@ -179,11 +179,10 @@ def purge_plugin(plugin_type: str, name: str) -> tuple:
     link = "log/" + stdout_file_path.split("/")[-1]
     get_platform = platform.platform()
     try:
-
         if 'centos' in get_platform or 'redhat' in get_platform:
+            # TODO: Add yum based package / repo check
             cmd = "sudo yum -y remove {} > {} 2>&1".format(plugin_name, stdout_file_path)
         else:
-
             dpkg_list = os.popen('dpkg --list fledge* 2>/dev/null')
             ls_output = dpkg_list.read()
             _logger.debug("dpkg list output: {}".format(ls_output))

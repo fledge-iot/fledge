@@ -25,34 +25,41 @@ __copyright__ = "Copyright (c) 2020, Dianomic Systems Inc."
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+_help = """
+    -------------------------------------------------------------------------------
+    | DELETE             | /fledge/plugins/{plugin-type}/{plugin-name}            |
+    -------------------------------------------------------------------------------
+"""
+
 _logger = logger.setup(__name__, level=logging.INFO)
 
-valid_plugin = ['north', 'south', 'filter', 'notificationDelivery', 'notificationRule']
+valid_plugin_types = ['north', 'south', 'filter', 'notificationDelivery', 'notificationRule']
 PYTHON_PLUGIN_PATH = _FLEDGE_ROOT+'/python/fledge/plugins/'
 C_PLUGINS_PATH = _FLEDGE_ROOT+'/plugins/'
 
 
 async def remove_plugin(request):
-    """
-    Remove plugin from fledge
-    name: installed_directory name
+    """ Remove installed plugin from fledge
+
+    type: installed plugin type
+    name: installed plugin name
 
     Example:
-        curl -X DELETE http://host-ip:port/fledge/plugins/south/sinusoid
-        curl -X DELETE http://host-ip:port/fledge/plugins/north/http_north
-        curl -X DELETE http://host-ip:port/fledge/plugins/filter/expression
-        curl -X DELETE http://host-ip:port/fledge/plugins/notificationDelivery/alexa
-        curl -X DELETE http://host-ip:port/fledge/plugins/notificationRule/Average
+        curl -X DELETE http://localhost:8081/fledge/plugins/south/sinusoid
+        curl -X DELETE http://localhost:8081/fledge/plugins/north/http_north
+        curl -X DELETE http://localhost:8081/fledge/plugins/filter/expression
+        curl -X DELETE http://localhost:8081/fledge/plugins/notificationDelivery/alexa
+        curl -X DELETE http://localhost:8081/fledge/plugins/notificationRule/Average
     """
     plugin_type = request.match_info.get('type', None)
     name = request.match_info.get('name', None)
     try:
         plugin_type = str(plugin_type).lower() if not str(plugin_type).startswith('notification') else plugin_type
-        if plugin_type not in valid_plugin:
-            raise ValueError("Invalid plugin type. Please provide valid type: {}".format(valid_plugin))
+        if plugin_type not in valid_plugin_types:
+            raise ValueError("Invalid plugin type. Please provide valid type: {}".format(valid_plugin_types))
         installed_plugin = PluginDiscovery.get_plugins_installed(plugin_type, False)
         if name not in [plugin['name'] for plugin in installed_plugin]:
-            raise KeyError("Invalid {} plugin name or plugin is not installed".format(name))
+            raise KeyError("Invalid plugin name {} or plugin is not installed".format(name))
         if plugin_type in ['notificationDelivery', 'notificationRule']:
             notification_instances_plugin_used_in = await check_plugin_usage_in_notification_instances(name)
             if notification_instances_plugin_used_in:
@@ -71,8 +78,9 @@ async def remove_plugin(request):
                              "{name} plugin may have been added in disabled state & never used".format(name=name))
         res, log_path = purge_plugin(plugin_type, name)
         if res != 0:
-            _logger.error("Something went wrong. Please check log {}".format(log_path))
-            raise RuntimeError("Something went wrong. Please check log {}".format(log_path))
+            e_msg = "Something went wrong. Please check log {}".format(log_path)
+            _logger.error(e_msg)
+            raise RuntimeError(e_msg)
         else:
             storage_client = connect.get_storage_async()
             audit_log = AuditLogger(storage_client)
@@ -83,10 +91,11 @@ async def remove_plugin(request):
     except KeyError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except PackageError as e:
-        msg = "Plugin removal request failed"
+        msg = "Failed to remove package for plugin {}".format(name)
         raise web.HTTPBadRequest(body=json.dumps({"message": msg, "link": str(e)}), reason=msg)
-    _logger.info('{} plugin removed successfully'.format(name))
-    return web.json_response({'message': '{} plugin removed successfully'.format(name)}, status=200)
+    else:
+        _logger.info('{} plugin removed successfully'.format(name))
+        return web.json_response({'message': '{} plugin removed successfully'.format(name)}, status=200)
 
 
 async def check_plugin_usage(plugin_type: str, plugin_name: str):
@@ -139,8 +148,7 @@ async def check_service_in_schedules(service_name: str):
 
 
 async def check_plugin_usage_in_notification_instances(plugin_name: str):
-    """
-    Check notification instance state using the given rule or delivery plugin
+    """ Check notification instance state using the given rule or delivery plugin
     """
     notification_instances = []
     storage_client = connect.get_storage_async()
@@ -170,23 +178,28 @@ def purge_plugin(plugin_type: str, name: str) -> tuple:
     get_platform = platform.platform()
     try:
         if 'centos' in get_platform or 'redhat' in get_platform:
+            # TODO: Add yum based package / repo check
             cmd = "sudo yum -y remove {} > {} 2>&1".format(plugin_name, stdout_file_path)
         else:
+            dpkg_list = os.popen('dpkg --list fledge* 2>/dev/null')
+            ls_output = dpkg_list.read()
+            _logger.debug("dpkg list output: {}".format(ls_output))
+            if len(ls_output) :
+                f = ls_output.find(plugin_name)
+                if f == -1:
+                    raise KeyError
+            else:
+                raise KeyError
             cmd = "sudo apt -y purge {} > {} 2>&1".format(plugin_name, stdout_file_path)
-        code = os.system(cmd)
-        if code != 0:
-            # TODO: If package repo is NOT configured but we have installation of plugin with make or make install
-            raise PackageError(link)
 
-        if plugin_type in ['notify', 'rule']:
-            plugin_type = 'notificationDelivery' if plugin_type == 'notify' else 'notificationRule'
-        else:
-            plugin_type = plugin_type
-        installed_plugin = PluginDiscovery.get_plugins_installed(plugin_type, False)
-        if [plugin['name'] for plugin in installed_plugin if plugin['name'] in [original_name, name]]:
-            raise KeyError("Requested plugin is not installed: {}".format(original_name))
+        code = os.system(cmd)
+        if code:
+            raise PackageError(link)
     except KeyError:
         # This case is for non-package installation - python plugin path will be tried first and then C
+        _logger.info("Trying removal of manually installed plugin...")
+        if plugin_type in ['notify', 'rule']:
+            plugin_type = 'notificationDelivery' if plugin_type == 'notify' else 'notificationRule'
         try:
             path = PYTHON_PLUGIN_PATH+'{}/{}'.format(plugin_type, original_name)
             if os.path.isdir(path):
@@ -199,7 +212,4 @@ def purge_plugin(plugin_type: str, name: str) -> tuple:
         except Exception as ex:
             code = 1
             _logger.error("Error in removing plugin: {}".format(str(ex)))
-    except Exception as e:
-        code = 1
-        _logger.error("Error in removing plugin: {}".format(str(e)))
     return code, stdout_file_path

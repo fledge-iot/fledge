@@ -11,8 +11,8 @@
 import http.client
 import json
 import time
-import pytest
 import socket
+import pytest
 import utils
 
 
@@ -54,7 +54,6 @@ class TestE2EModbusCPI:
         jdoc = json.loads(r)
         return utils.serialize_stats_map(jdoc)
 
-
     @pytest.fixture
     def start_south_north(self, reset_and_start_fledge, add_south, remove_directories, south_branch, fledge_url,
                           start_north_pi_server_c, pi_host, pi_port, pi_token, modbus_host, modbus_port):
@@ -65,13 +64,13 @@ class TestE2EModbusCPI:
             remove_directories: Fixture that remove directories created during the tests
         """
 
-        cfg = {"protocol": {"value": "TCP"}, "asset": {"value": ""}, "address": {"value": modbus_host},
+        cfg = {"protocol": {"value": "TCP"}, "address": {"value": modbus_host},
                "port": {"value": "{}".format(modbus_port)},
                "map": {"value": {"values": [
-                   {"slave": 1, "scale": 1, "offset": 0, "register": 1, "assetName": "A15", "name": "front right"},
-                   {"slave": 1, "scale": 1, "offset": 0, "register": 2, "assetName": "A15", "name": "rear right"},
-                   {"slave": 1, "scale": 1, "offset": 0, "register": 3, "assetName": "A15", "name": "front left"},
-                   {"slave": 1, "scale": 1, "offset": 0, "register": 4, "assetName": "A15", "name": "rear left"}
+                   {"slave": 1, "scale": 1, "offset": 0, "register": 1, "assetName": ASSET_NAME, "name": "front right"},
+                   {"slave": 1, "scale": 1, "offset": 0, "register": 2, "assetName": ASSET_NAME, "name": "rear right"},
+                   {"slave": 1, "scale": 1, "offset": 0, "register": 3, "assetName": ASSET_NAME, "name": "front left"},
+                   {"slave": 1, "scale": 1, "offset": 0, "register": 4, "assetName": ASSET_NAME, "name": "rear left"}
                ]}}
                }
 
@@ -84,8 +83,9 @@ class TestE2EModbusCPI:
 
         remove_directories("/tmp/fledge-south-{}".format(SOUTH_PLUGIN.lower()))
 
-    def test_end_to_end(self, start_south_north, enable_schedule, disable_schedule, fledge_url, read_data_from_pi, pi_host, pi_admin,
-                        pi_passwd, pi_db, wait_time, retries, skip_verify_north_interface, modbus_host, modbus_port):
+    def test_end_to_end(self, start_south_north, enable_schedule, disable_schedule, fledge_url, read_data_from_pi,
+                        pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, skip_verify_north_interface,
+                        modbus_host, modbus_port):
         """ Test that data is inserted in Fledge using modbus-c south plugin and sent to PI
             start_south_north: Fixture that starts Fledge with south service and north instance
             skip_verify_north_interface: Flag for assertion of data from Pi web API
@@ -128,10 +128,10 @@ class TestE2EModbusCPI:
         tracked_item = tracking_details["track"][0]
         assert SVC_NAME == tracked_item["service"]
         assert ASSET_NAME == tracked_item["asset"]
-        assert "ModbusC" == tracked_item["plugin"]
+        assert PLUGIN_NAME == tracked_item["plugin"]
 
         if not skip_verify_north_interface:
-            egress_tracking_details = utils.get_asset_tracking_details(fledge_url,"Egress")
+            egress_tracking_details = utils.get_asset_tracking_details(fledge_url, "Egress")
             assert len(egress_tracking_details["track"]), "Failed to track Egress event"
             tracked_item = egress_tracking_details["track"][0]
             assert "NorthReadingsToPI" == tracked_item["service"]
@@ -139,7 +139,6 @@ class TestE2EModbusCPI:
             assert "PI_Server_V2" == tracked_item["plugin"]
 
     def _verify_ingest(self, conn):
-
         conn.request("GET", '/fledge/asset')
         r = conn.getresponse()
         assert 200 == r.status
@@ -163,7 +162,6 @@ class TestE2EModbusCPI:
         assert 14 == read["rear left"]
 
     def _verify_egress(self, read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries):
-
         retry_count = 0
         data_from_pi = None
         while (data_from_pi is None or data_from_pi == []) and retry_count < retries:

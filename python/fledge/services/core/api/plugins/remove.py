@@ -186,8 +186,11 @@ def purge_plugin(plugin_type: str, name: str) -> tuple:
             dpkg_list = os.popen('dpkg --list fledge* 2>/dev/null')
             ls_output = dpkg_list.read()
             _logger.debug("dpkg list output: {}".format(ls_output))
-            if not len(ls_output) :
-                # f = ls_output.find("fledge-<t>-<n>")
+            if len(ls_output) :
+                f = ls_output.find(plugin_name)
+                if f == -1:
+                    raise KeyError
+            else:
                 raise KeyError
             cmd = "sudo apt -y purge {} > {} 2>&1".format(plugin_name, stdout_file_path)
 
@@ -200,10 +203,10 @@ def purge_plugin(plugin_type: str, name: str) -> tuple:
         try:
             path = PYTHON_PLUGIN_PATH+'{}/{}'.format(plugin_type, original_name)
             if os.path.isdir(path):
-                code = os.system('rm -rv {}'.format(path))
+                code = os.system('sudo rm -rv {}'.format(path))
             else:
                 path = C_PLUGINS_PATH + '{}/{}'.format(plugin_type, original_name)
-                code = os.system('rm -rv {}'.format(path))
+                code = os.system('sudo rm -rv {}'.format(path))
             if code != 0:
                 raise OSError("While deleting, invalid plugin path found for {}".format(original_name))
         except Exception as ex:

@@ -64,13 +64,16 @@ std::string evaluateParentPath(const std::string& path, char separator)
 	parent = path;
 	if (parent.length() > 1)
 	{
-		while (parent.back() != separator)
+		if (parent.find(separator) != string::npos)
 		{
-			parent.erase(parent.size() - 1);
-		}
-		if (parent.back() == separator)
-		{
-			parent.erase(parent.size()-1);
+			while (parent.back() != separator)
+			{
+				parent.erase(parent.size() - 1);
+			}
+			if (parent.back() == separator)
+			{
+				parent.erase(parent.size() - 1);
+			}
 		}
 	}
 
@@ -100,6 +103,10 @@ std::string extractLastLevel(const std::string& path, char separator)
 				tmpPath.erase(tmpPath.size() - 1);
 				end_char = tmpPath.back();
 			}
+		}
+		else
+		{
+			level = path;
 		}
 	}
 

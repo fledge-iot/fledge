@@ -603,7 +603,7 @@ bool OMF::AFHierarchySendMessage(const string& msgType, string& jsonData)
  * AFHierarchy - handles OMF types definition
  *
  */
-bool OMF::sendAFHierarchyTypes(const std::string AFHierarchyLevel)
+bool OMF::sendAFHierarchyTypes(const std::string AFHierarchyLevel, const std::string prefix)
 {
 	bool success;
 	string jsonData;
@@ -611,7 +611,7 @@ bool OMF::sendAFHierarchyTypes(const std::string AFHierarchyLevel)
 
 	jsonData = "";
 	tmpStr = AF_HIERARCHY_1LEVEL_TYPE;
-	StringReplace(tmpStr, "_placeholder_typeid_", AFHierarchyLevel + "_typeid");
+	StringReplace(tmpStr, "_placeholder_typeid_", prefix + "_" + AFHierarchyLevel + "_typeid");
 	jsonData.append(tmpStr);
 
 	success = AFHierarchySendMessage("Type", jsonData);
@@ -631,7 +631,7 @@ bool OMF::sendAFHierarchyStatic(const std::string AFHierarchyLevel, const std::s
 
 	jsonData = "";
 	tmpStr = AF_HIERARCHY_1LEVEL_STATIC;
-	StringReplace(tmpStr, "_placeholder_typeid_"  , AFHierarchyLevel + "_typeid");
+	StringReplace(tmpStr, "_placeholder_typeid_"  , prefix + "_" + AFHierarchyLevel + "_typeid");
 	StringReplace(tmpStr, "_placeholder_Name_"    , AFHierarchyLevel);
 	StringReplace(tmpStr, "_placeholder_AssetId_" , prefix + "_" + AFHierarchyLevel);
 	jsonData.append(tmpStr);
@@ -654,9 +654,9 @@ bool OMF::sendAFHierarchyLink(std::string parent, std::string child, std::string
 	jsonData = "";
 	tmpStr = AF_HIERARCHY_LEVEL_LINK;
 
-	StringReplace(tmpStr, "_placeholder_src_type_", parent + "_typeid");
+	StringReplace(tmpStr, "_placeholder_src_type_", prefixIdParent + "_" + parent + "_typeid");
 	StringReplace(tmpStr, "_placeholder_src_idx_",  prefixIdParent + "_" + parent );
-	StringReplace(tmpStr, "_placeholder_tgt_type_", child + "_typeid");
+	StringReplace(tmpStr, "_placeholder_tgt_type_", prefixId       + "_" + child + "_typeid");
 	StringReplace(tmpStr, "_placeholder_tgt_idx_",  prefixId + "_" + child);
 	jsonData.append(tmpStr);
 
@@ -733,12 +733,16 @@ bool OMF::sendAFHierarchyLevels(string parentPath, string path, std::string &las
 
 	if (path.find(AFHierarchySeparator) == string::npos)
 	{
+		string prefixId;
+
 		// only 1 single level of hierarchy
 		StringReplaceAll(path, AFH_SLASH_ESCAPE_TMP ,AFH_SLASH);
-		success = sendAFHierarchyTypes(path);
+		prefixId = generateUniquePrefixId(path);
+
+		success = sendAFHierarchyTypes(path, prefixId);
 		if (success)
 		{
-			success = sendAFHierarchyStatic(path, generateUniquePrefixId(path) );
+			success = sendAFHierarchyStatic(path,prefixId);
 		}
 		lastLevel = path;
 	}
@@ -760,12 +764,14 @@ bool OMF::sendAFHierarchyLevels(string parentPath, string path, std::string &las
 		while (std::getline(pathStream, level, AFHierarchySeparator))
 		{
 			StringReplaceAll(level, AFH_SLASH_ESCAPE_TMP ,AFH_SLASH);
-			success = sendAFHierarchyTypes(level);
+
+			levelPath = previousLevelPath + AFHierarchySeparator + level;
+			levelPath = StringSlashFix(levelPath);
+			prefixId = generateUniquePrefixId(levelPath);
+
+			success = sendAFHierarchyTypes(level, prefixId);
 			if (success)
 			{
-				levelPath = previousLevelPath + AFHierarchySeparator + level;
-				levelPath = StringSlashFix(levelPath);
-				prefixId = generateUniquePrefixId(levelPath);
 				success = sendAFHierarchyStatic(level, prefixId);
 			}
 
@@ -1639,7 +1645,7 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 		OMF::setAssetTypeTag(assetName, "typename_sensor", targetTypeId);
 
 		// FIXME_I:
-		StringReplace(tmpStr, "_placeholder_src_type_", AFHierarchyLevel + "_typeid");
+		StringReplace(tmpStr, "_placeholder_src_type_", AFHierarchyPrefix + "_" + AFHierarchyLevel + "_typeid");
 		StringReplace(tmpStr, "_placeholder_src_idx_",  AFHierarchyPrefix + "_" + AFHierarchyLevel );
 		StringReplace(tmpStr, "_placeholder_tgt_type_", targetTypeId);
 		StringReplace(tmpStr, "_placeholder_tgt_idx_", objectPrefix + "_" + assetName);
@@ -1958,7 +1964,7 @@ void OMF::setAssetTypeTag(const string& assetName,
 		// FIXME_I:
 		retrieveAFHierarchyPrefixAssetName (assetName, AFHierarchyPrefix, AFHierarchyLevel);
 
-		AssetTypeTag = AFHierarchyLevel + "_" + AssetTypeTag;
+		AssetTypeTag = AFHierarchyPrefix + "_" + AFHierarchyLevel + "_" + AssetTypeTag;
 		//AssetTypeTag = m_AFHierarchyLevel + "_" + AssetTypeTag;
 	}
 	// Add type-id + '_' + asset_name + '_' + tagName'

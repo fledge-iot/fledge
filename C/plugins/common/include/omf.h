@@ -217,7 +217,7 @@ class OMF
 		bool sendAFHierarchy(std::string AFHierarchy);
 
 		bool sendAFHierarchyLevels(std::string parentPath, std::string path, std::string &lastLevel);
-		bool sendAFHierarchyTypes(const std::string AFHierarchyLevel);
+		bool sendAFHierarchyTypes(const std::string AFHierarchyLevel, const std::string prefix);
 		bool sendAFHierarchyStatic(const std::string AFHierarchyLevel, const std::string prefix);
 		bool sendAFHierarchyLink(std::string parent, std::string child, std::string prefixIdParent, std::string prefixId);
 		bool AFHierarchySendMessage(const std::string& msgType, std::string& jsonData);

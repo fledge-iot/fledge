@@ -76,16 +76,17 @@ async def remove_plugin(request):
             else:
                 _logger.info("No entry found for {name} plugin in asset tracker; or "
                              "{name} plugin may have been added in disabled state & never used".format(name=name))
-        res, log_path = purge_plugin(plugin_type, name)
+        res, log_path, is_package = purge_plugin(plugin_type, name)
         if res != 0:
             e_msg = "Something went wrong. Please check log {}".format(log_path)
             _logger.error(e_msg)
             raise RuntimeError(e_msg)
         else:
-            storage_client = connect.get_storage_async()
-            audit_log = AuditLogger(storage_client)
-            audit_detail = {'package_name': "fledge-{}-{}".format(plugin_type, name)}
-            await audit_log.information('PKGRM', audit_detail)
+            if is_package:
+                storage_client = connect.get_storage_async()
+                audit_log = AuditLogger(storage_client)
+                audit_detail = {'package_name': "fledge-{}-{}".format(plugin_type, name)}
+                await audit_log.information('PKGRM', audit_detail)
     except (ValueError, RuntimeError) as ex:
         raise web.HTTPBadRequest(reason=str(ex))
     except KeyError as ex:
@@ -168,28 +169,40 @@ async def check_plugin_usage_in_notification_instances(plugin_name: str):
 
 def purge_plugin(plugin_type: str, name: str) -> tuple:
     _logger.info("{} plugin removal started...".format(name))
+    is_package = True
+    stdout_file_path = ''
     original_name = name
     # Special case handling - installed directory name Vs package name
     # For example: Plugins like http_south Vs http-south
     name = name.replace('_', '-').lower()
     plugin_name = 'fledge-{}-{}'.format(plugin_type, name)
-    stdout_file_path = common.create_log_file(action='remove', plugin_name=plugin_name)
-    link = "log/" + stdout_file_path.split("/")[-1]
+
     get_platform = platform.platform()
     try:
         if 'centos' in get_platform or 'redhat' in get_platform:
-            # TODO: Add yum based package / repo check
+            rpm_list = os.popen('rpm -qa | grep fledge*').read()
+            _logger.debug("rpm list : {}".format(rpm_list))
+            if len(rpm_list):
+                f = rpm_list.find(plugin_name)
+                if f == -1:
+                    raise KeyError
+            else:
+                raise KeyError
+            stdout_file_path = common.create_log_file(action='remove', plugin_name=plugin_name)
+            link = "log/" + stdout_file_path.split("/")[-1]
             cmd = "sudo yum -y remove {} > {} 2>&1".format(plugin_name, stdout_file_path)
         else:
             dpkg_list = os.popen('dpkg --list fledge* 2>/dev/null')
             ls_output = dpkg_list.read()
             _logger.debug("dpkg list output: {}".format(ls_output))
-            if len(ls_output) :
+            if len(ls_output):
                 f = ls_output.find(plugin_name)
                 if f == -1:
                     raise KeyError
             else:
                 raise KeyError
+            stdout_file_path = common.create_log_file(action='remove', plugin_name=plugin_name)
+            link = "log/" + stdout_file_path.split("/")[-1]
             cmd = "sudo apt -y purge {} > {} 2>&1".format(plugin_name, stdout_file_path)
 
         code = os.system(cmd)
@@ -198,6 +211,7 @@ def purge_plugin(plugin_type: str, name: str) -> tuple:
     except KeyError:
         # This case is for non-package installation - python plugin path will be tried first and then C
         _logger.info("Trying removal of manually installed plugin...")
+        is_package = False
         if plugin_type in ['notify', 'rule']:
             plugin_type = 'notificationDelivery' if plugin_type == 'notify' else 'notificationRule'
         try:
@@ -212,4 +226,4 @@ def purge_plugin(plugin_type: str, name: str) -> tuple:
         except Exception as ex:
             code = 1
             _logger.error("Error in removing plugin: {}".format(str(ex)))
-    return code, stdout_file_path
+    return code, stdout_file_path, is_package

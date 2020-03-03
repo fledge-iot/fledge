@@ -805,6 +805,10 @@ bool OMF::handleAFHierarchiesMetadataMap() {
 	string name;
 	string value;
 
+	// FIXME_I:
+	// FIXME_I:
+	Logger::getLogger()->debug("xxx DEBUG handleAFHierarchiesMetadataMap :%s: ", m_AFMap.c_str() );
+
 	ParseResult ok = JSon.Parse(m_AFMap.c_str());
 	if (!ok)
 	{
@@ -2127,6 +2131,7 @@ bool OMF::setAFMap(const string &AFMap)
 		}
 	}
 
+
 	// --- Handling Equal section
 	if (JsonMetadata.HasMember("equal"))
 	{
@@ -2139,6 +2144,7 @@ bool OMF::setAFMap(const string &AFMap)
 		for (Value::ConstMemberIterator itr = JSonEqual.MemberBegin(); itr != JSonEqual.MemberEnd(); ++itr)
 		{
 			property = itr->name.GetString();
+			m_MetadataRulesEqual.insert( std::make_pair(property, NULL));
 
 			for (Value::ConstMemberIterator itrL2 = itr->value.MemberBegin(); itrL2 != itr->value.MemberEnd(); ++itrL2)
 			{
@@ -2163,6 +2169,7 @@ bool OMF::setAFMap(const string &AFMap)
 		for (Value::ConstMemberIterator itr = JSonEqual.MemberBegin(); itr != JSonEqual.MemberEnd(); ++itr)
 		{
 			property = itr->name.GetString();
+			m_MetadataRulesNotEqual.insert( std::make_pair(property, NULL));
 
 			for (Value::ConstMemberIterator itrL2 = itr->value.MemberBegin(); itrL2 != itr->value.MemberEnd(); ++itrL2)
 			{
@@ -2175,7 +2182,7 @@ bool OMF::setAFMap(const string &AFMap)
 			}
 		}
 	}
-
+	return success;
 }
 
 

@@ -59,12 +59,10 @@ using namespace SimpleWeb;
 	}                                                                           \
 )
 
-//// FIXME_I:
 #define AF_HIERARCH_RULES QUOTE(                                          \
 	{                                                                     \
 	}                                                                     \
 )
-
 
 const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 	{

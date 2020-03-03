@@ -812,13 +812,13 @@ bool OMF::handleAFHierarchiesMetadataMap() {
 	ParseResult ok = JSon.Parse(m_AFMap.c_str());
 	if (!ok)
 	{
-		Logger::getLogger()->error("AFHierarchiesMetadataMap - Invalid Asset Framework Map, error :%s:", GetParseError_En(JSon.GetParseError()));
+		Logger::getLogger()->error("MetadataMap - Invalid Asset Framework Map, error :%s:", GetParseError_En(JSon.GetParseError()));
 		return false;
 	}
 
 	if (!JSon.HasMember("metadata"))
 	{
-		Logger::getLogger()->debug("AFHierarchiesMetadataMap - metadata section not defined");
+		Logger::getLogger()->debug("MetadataMap - metadata section not defined");
 		return true;
 	}
 	Value &JsonMetadata = JSon["metadata"];

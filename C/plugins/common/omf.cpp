@@ -1579,7 +1579,7 @@ const std::string OMF::createStaticData(const Reading& reading)
 
 		sData.append(assetName);
 		sData.append("\", \"AssetId\": \"");
-		sData.append(AFHierarchyPrefix + "_" + assetName);
+		sData.append("A_" + AFHierarchyPrefix + "_" + assetName);
 	}
 
 	sData.append("\"}]}]");
@@ -1643,7 +1643,7 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 		StringReplace(tmpStr, "_placeholder_src_type_", AFHierarchyPrefix + "_" + AFHierarchyLevel + "_typeid");
 		StringReplace(tmpStr, "_placeholder_src_idx_",  AFHierarchyPrefix + "_" + AFHierarchyLevel );
 		StringReplace(tmpStr, "_placeholder_tgt_type_", targetTypeId);
-		StringReplace(tmpStr, "_placeholder_tgt_idx_", objectPrefix + "_" + assetName);
+		StringReplace(tmpStr, "_placeholder_tgt_idx_",  "A_" + objectPrefix + "_" + assetName);
 
 		lData.append(tmpStr);
 		lData.append(",");
@@ -1665,7 +1665,7 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 	}
 	else if (m_PIServerEndpoint.compare("p") == 0)
 	{
-		lData.append(objectPrefix + "_" + assetName);
+		lData.append("A_" + objectPrefix + "_" + assetName);
 	}
 
 	measurementId = to_string(OMF::getAssetTypeId(assetName)) + "measurement_" + assetName;
@@ -1933,7 +1933,7 @@ void OMF::setAssetTypeTag(const string& assetName,
 
 		retrieveAFHierarchyPrefixAssetName (assetName, AFHierarchyPrefix, AFHierarchyLevel);
 
-		AssetTypeTag = AFHierarchyPrefix + "_" + AFHierarchyLevel + "_" + AssetTypeTag;
+		AssetTypeTag = "A_" + AFHierarchyPrefix + "_" + AFHierarchyLevel + "_" + AssetTypeTag;
 	}
 	// Add type-id + '_' + asset_name + '_' + tagName'
 	data.append(AssetTypeTag);

@@ -8,10 +8,10 @@
 #
 # Pre-requisites:
 # 1. Add the repository key to your apt key list:
-#        wget -q -O - http://archives.dianomic.com/KEY.gpg | sudo apt-key add -
+#        wget -q -O - http://archives.fledge-iot.org/KEY.gpg | sudo apt-key add -
 # 2. Add the repository location to your sources list.
 #    Add the following lines to your "/etc/apt/sources.list" file.
-#        deb http://archives.dianomic.com/ /
+#        deb http://archives.fledge-iot.org/ /
 ##
 
 __author__="Amarendra K Sinha"

@@ -153,7 +153,6 @@ class OMF
 		const std::string createStaticData(const Reading& reading);
 
 		// Create data Link message, with 'Data', for current row
-		// FIXME_I:
 		std::string createLinkData(const Reading& reading, std::string& AFHierarchyLevel, std::string&  prefix, std::string&  objectPrefix);
 
 		/**
@@ -223,7 +222,7 @@ class OMF
 		bool AFHierarchySendMessage(const std::string& msgType, std::string& jsonData);
 
 		std::string generateUniquePrefixId(const std::string &path);
-		void evaluateAFHierarchyMetadataRules(const Reading& reading);
+		void evaluateAFHierarchyMetadataRules(const string& assetName, const Reading& reading);
 		void retrieveAFHierarchyPrefix(const Reading& reading, string& prefix, string& AFHierarchyLevel);
 		void retrieveAFHierarchyPrefixAssetName(string assetName, string& prefix, string& AFHierarchyLevel);
 
@@ -235,6 +234,7 @@ class OMF
 		std::string		m_DefaultAFLocation;
 
 		// AF hierarchies handling - Metadata MAP
+		bool            m_AFMapEmpty;  // true if there are norules to manage
 		std::string		m_AFMap;
 		map<std::string, std::string>  m_MetadataRulesExist={
 

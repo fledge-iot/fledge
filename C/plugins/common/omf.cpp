@@ -120,7 +120,6 @@ OMFData::OMFData(const Reading& reading, const long typeId, const string& PIServ
 	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
 	if (PIServerEndpoint.compare("p") == 0)
 	{
-		// FIXME_I:
 		measurementId = AFHierarchyPrefix + "_" + measurementId;
 	}
 
@@ -533,8 +532,7 @@ bool OMF::sendDataTypes(const Reading& row)
 	}
 	else
 	{
-		// FIXME_I:
-		Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) - asset Name |%s|",assetName.c_str());
+		Logger::getLogger()->error("AF hiererachy is not defined for the asset Name |%s|",assetName.c_str());
 	}
 	// All data types sent: success
 	return true;
@@ -759,7 +757,6 @@ bool OMF::sendAFHierarchyLevels(string parentPath, string path, std::string &las
 		pathFixed = StringSlashFix(path);
 		std::stringstream pathStream(pathFixed);
 
-		// FIXME_I:
 		// multiple hierarchy levels
 		while (std::getline(pathStream, level, AFHierarchySeparator))
 		{
@@ -804,10 +801,6 @@ bool OMF::handleAFHierarchiesMetadataMap() {
 	Document JSon;
 	string name;
 	string value;
-
-	// FIXME_I:
-	// FIXME_I:
-	Logger::getLogger()->debug("xxx DEBUG handleAFHierarchiesMetadataMap :%s: ", m_AFMap.c_str() );
 
 	ParseResult ok = JSon.Parse(m_AFMap.c_str());
 	if (!ok)
@@ -991,14 +984,13 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	{
 		bool sendDataTypes;
 
-		// FIXME_I:
-		evaluateAFHierarchyMetadataRules (**elem);
-
 		// Add into JSON string the OMF transformed Reading data
 
 		// Create the key for dataTypes sending once
 		long typeId = OMF::getAssetTypeId((**elem).getAssetName());
 		string key((**elem).getAssetName());
+
+		evaluateAFHierarchyMetadataRules (key, **elem);
 
 		if (! AFHierarchySent)
 		{
@@ -1050,8 +1042,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			return 0;
 		}
 
-		// FIXME_I:
-		retrieveAFHierarchyPrefix(**elem, AFHierarchyPrefix, AFHierarchyLevel);
+		retrieveAFHierarchyPrefixAssetName(key, AFHierarchyPrefix, AFHierarchyLevel);
 		string outData = OMFData(**elem, typeId, m_PIServerEndpoint, AFHierarchyPrefix ).OMFdataVal();
 		//string outData = OMFData(**elem, typeId, m_PIServerEndpoint, AFHierarchyLevel ).OMFdataVal();
 		if (!outData.empty())
@@ -1528,11 +1519,9 @@ const std::string OMF::createContainerData(const Reading& reading)
 	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
 	if (m_PIServerEndpoint.compare("p") == 0)
 	{
-		// FIXME_I:
-		retrieveAFHierarchyPrefix(reading, AFHierarchyPrefix, AFHierarchyLevel);
+		retrieveAFHierarchyPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchyLevel);
 
 		measurementId = AFHierarchyPrefix + "_" + measurementId;
-		//measurementId = AFHierarchyLevel + "_" + measurementId;
 	}
 
 	cData.append("\", \"id\": \"" + measurementId);
@@ -1552,13 +1541,16 @@ const std::string OMF::createContainerData(const Reading& reading)
  */
 const std::string OMF::createStaticData(const Reading& reading)
 {
+	string assetName;
 	// Build the Static data (JSON Array)
 	string sData = "[";
 
 	sData.append("{\"typeid\": \"");
 
+	assetName = reading.getAssetName();
+
 	// Add type_id + '_' + asset_name + '_typename_sensor'
-	OMF::setAssetTypeTag(reading.getAssetName(),
+	OMF::setAssetTypeTag(assetName,
 			     "typename_sensor",
 			     sData);
 
@@ -1576,18 +1568,18 @@ const std::string OMF::createStaticData(const Reading& reading)
 	// Add asset_name
 	if (m_PIServerEndpoint.compare("c") == 0)
 	{
-		sData.append(reading.getAssetName());
+		sData.append(assetName);
 	}
 	else if (m_PIServerEndpoint.compare("p") == 0)
 	{
 		string AFHierarchyPrefix;
 		string AFHierarchyLevel;
 
-		retrieveAFHierarchyPrefix(reading, AFHierarchyPrefix, AFHierarchyLevel);
+		retrieveAFHierarchyPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchyLevel);
 
-		sData.append(reading.getAssetName());
+		sData.append(assetName);
 		sData.append("\", \"AssetId\": \"");
-		sData.append(AFHierarchyPrefix + "_" + reading.getAssetName());
+		sData.append(AFHierarchyPrefix + "_" + assetName);
 	}
 
 	sData.append("\"}]}]");
@@ -1648,7 +1640,6 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 
 		OMF::setAssetTypeTag(assetName, "typename_sensor", targetTypeId);
 
-		// FIXME_I:
 		StringReplace(tmpStr, "_placeholder_src_type_", AFHierarchyPrefix + "_" + AFHierarchyLevel + "_typeid");
 		StringReplace(tmpStr, "_placeholder_src_idx_",  AFHierarchyPrefix + "_" + AFHierarchyLevel );
 		StringReplace(tmpStr, "_placeholder_tgt_type_", targetTypeId);
@@ -1682,9 +1673,7 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
 	if (m_PIServerEndpoint.compare("p") == 0)
 	{
-		// FIXME_I:
 		measurementId = objectPrefix + "_" + measurementId;
-		//measurementId = AFHierarchyLevel + "_" + measurementId;
 	}
 
 	lData.append("\"}, \"target\": {\"containerid\": \"" + measurementId);
@@ -1703,27 +1692,11 @@ void OMF::generateAFHierarchyPrefixLevel(string& path, string& prefix, string& A
 	string pathFixed;
 
 	AFHierarchyLevel = extractLastLevel(path, AFHierarchySeparator);
-	// FIXME_I:
-	//parentPath = evaluateParentPath(path, AFHierarchySeparator);
-	//parentPath = StringSlashFix(parentPath);
-	//prefix = generateUniquePrefixId(parentPath);
 
 	pathFixed = StringSlashFix(path);
 	prefix = generateUniquePrefixId(pathFixed);
 }
 
-/**
- * // FIXME_I:
- */
-void OMF::retrieveAFHierarchyPrefix(const Reading& reading, string& prefix, string& AFHierarchyLevel)
-{
-	string path;
-	string assetName;
-
-	assetName =  reading.getAssetName();
-
-	retrieveAFHierarchyPrefixAssetName(assetName, prefix, AFHierarchyLevel);
-}
 
 // FIXME_I:
 void OMF::retrieveAFHierarchyPrefixAssetName(string assetName, string& prefix, string& AFHierarchyLevel)
@@ -1743,204 +1716,197 @@ void OMF::retrieveAFHierarchyPrefixAssetName(string assetName, string& prefix, s
 /**
  * // FIXME_I:
  */
-void OMF::evaluateAFHierarchyMetadataRules(const Reading& reading)
+void OMF::evaluateAFHierarchyMetadataRules(const string& assetName, const Reading& reading)
 {
-	string assetName;
 	bool ruleMatched = false;
 
-	assetName = reading.getAssetName();
-
-	// Metadata Rules - Exist
-	if (m_MetadataRulesExist.size() > 0)
+	// Check if there are any rules defined or not
+	if (! m_AFMapEmpty)
 	{
-		string path;
-		string propertyName;
-		string prefix;
-		string AFHierarchyLevel;
-
 		auto values = reading.getReadingData();
 
-		for (auto it = values.begin(); it != values.end(); it++)
+		// Metadata Rules - Exist
+		if (m_MetadataRulesExist.size() > 0)
 		{
-			propertyName = (*it)->getName();
-			auto rule = m_MetadataRulesExist.find(propertyName);
-			if (rule != m_MetadataRulesExist.end())
+			string path;
+			string propertyName;
+			string prefix;
+			string AFHierarchyLevel;
+
+			for (auto it = values.begin(); it != values.end(); it++)
 			{
-				path = rule->second;;
-				if (path.at(0) != '/')
+				propertyName = (*it)->getName();
+				auto rule = m_MetadataRulesExist.find(propertyName);
+				if (rule != m_MetadataRulesExist.end())
 				{
-					// relative  path
-					path = m_DefaultAFLocation + "/" + path;
-				}
-				generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
-				ruleMatched = true;
-
-				auto item = make_pair(AFHierarchyLevel, prefix);
-				m_AssetNamePrefix[assetName].push_back(item);
-			}
-		}
-	}
-
-	// Metadata Rules - NonExist
-	if (m_MetadataRulesNonExist.size() > 0)
-	{
-		string path;
-		string propertyName;
-		string prefix;
-		string AFHierarchyLevel;
-
-		auto values = reading.getReadingData();
-
-		bool found;
-		string rule;
-		for (auto it = m_MetadataRulesNonExist.begin(); it != m_MetadataRulesNonExist.end(); it++)
-		{
-			found = false;
-			rule = it->first;
-			path = it->second;
-			for (auto itL2 = values.begin(); found == false && itL2 != values.end(); itL2++)
-			{
-				propertyName =  (*itL2)->getName();
-				if (propertyName.compare(rule) ==0)
-				{
-					found = true;
-				}
-			}
-			if (! found)
-			{
-				if (path.at(0) != '/')
-				{
-					// relative  path
-					path = m_DefaultAFLocation + "/" + path;
-				}
-				generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
-				ruleMatched = true;
-
-				auto item = make_pair(AFHierarchyLevel,prefix);
-				m_AssetNamePrefix[assetName].push_back(item);
-			}
-		}
-	}
-
-	// Metadata Rules - equal
-	if (m_MetadataRulesEqual.size() > 0)
-	{
-		string path;
-		string propertyName;
-		string prefix;
-		string AFHierarchyLevel;
-
-		auto values = reading.getReadingData();
-
-		bool found;
-		string rule;
-		for (auto it = m_MetadataRulesEqual.begin(); it != m_MetadataRulesEqual.end(); it++)
-		{
-			found = false;
-			rule = it->first;
-			for (auto itL2 = values.begin(); found == false && itL2 != values.end(); itL2++)
-			{
-				propertyName =  (*itL2)->getName();
-				DatapointValue data  =  (*itL2)->getData();
-				string dataValue = data.toString();
-				if (propertyName.compare(rule) ==0)
-				{
-					for (auto itL3 = it->second.begin(); found == false && itL3 != it->second.end(); itL3++)
+					path = rule->second;;
+					if (path.at(0) != '/')
 					{
-						auto value = itL3->first;
-						path = itL3->second;
-						if (value.compare(dataValue) == 0)
-						{
-							found = true;
-						}
+						// relative  path
+						path = m_DefaultAFLocation + "/" + path;
+					}
+					generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
+					ruleMatched = true;
+
+					auto item = make_pair(AFHierarchyLevel, prefix);
+					m_AssetNamePrefix[assetName].push_back(item);
+				}
+			}
+		}
+
+		// Metadata Rules - NonExist
+		if (m_MetadataRulesNonExist.size() > 0)
+		{
+			string path;
+			string propertyName;
+			string prefix;
+			string AFHierarchyLevel;
+
+			bool found;
+			string rule;
+			for (auto it = m_MetadataRulesNonExist.begin(); it != m_MetadataRulesNonExist.end(); it++)
+			{
+				found = false;
+				rule = it->first;
+				path = it->second;
+				for (auto itL2 = values.begin(); found == false && itL2 != values.end(); itL2++)
+				{
+					propertyName = (*itL2)->getName();
+					if (propertyName.compare(rule) == 0)
+					{
+						found = true;
 					}
 				}
-			}
-			if (found)
-			{
-				if (path.at(0) != '/')
+				if (!found)
 				{
-					// relative  path
-					path = m_DefaultAFLocation + "/" + path;
-				}
-				generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
-				ruleMatched = true;
+					if (path.at(0) != '/')
+					{
+						// relative  path
+						path = m_DefaultAFLocation + "/" + path;
+					}
+					generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
+					ruleMatched = true;
 
-				auto item = make_pair(AFHierarchyLevel,prefix);
-				m_AssetNamePrefix[assetName].push_back(item);
+					auto item = make_pair(AFHierarchyLevel, prefix);
+					m_AssetNamePrefix[assetName].push_back(item);
+				}
 			}
 		}
-	}
 
-	// Metadata Rules - Not equal
-	if (m_MetadataRulesNotEqual.size() > 0)
-	{
-		string path;
-		string propertyName;
-		string prefix;
-		string AFHierarchyLevel;
-		string rule;
-		bool NotEqual;
-
-		auto values = reading.getReadingData();
-
-		for (auto it = m_MetadataRulesNotEqual.begin(); it != m_MetadataRulesNotEqual.end(); it++)
+		// Metadata Rules - equal
+		if (m_MetadataRulesEqual.size() > 0)
 		{
-			NotEqual = false;
-			rule = it->first;
-			for (auto itL2 = values.begin(); NotEqual == false && itL2 != values.end(); itL2++)
-			{
-				propertyName =  (*itL2)->getName();
+			string path;
+			string propertyName;
+			string prefix;
+			string AFHierarchyLevel;
 
-				if (propertyName.compare(rule) ==0)
+			bool found;
+			string rule;
+			for (auto it = m_MetadataRulesEqual.begin(); it != m_MetadataRulesEqual.end(); it++)
+			{
+				found = false;
+				rule = it->first;
+				for (auto itL2 = values.begin(); found == false && itL2 != values.end(); itL2++)
 				{
-					DatapointValue data  =  (*itL2)->getData();
+					propertyName = (*itL2)->getName();
+					DatapointValue data = (*itL2)->getData();
 					string dataValue = data.toString();
-					StringReplaceAll(dataValue,"\"","");
-
-					for (auto itL3 = it->second.begin(); NotEqual == false && itL3 != it->second.end(); itL3++)
+					if (propertyName.compare(rule) == 0)
 					{
-						auto value = itL3->first;
-						path = itL3->second;
-
-						if (value.compare(dataValue) != 0)
+						for (auto itL3 = it->second.begin(); found == false && itL3 != it->second.end(); itL3++)
 						{
-							NotEqual = true;
+							auto value = itL3->first;
+							path = itL3->second;
+							if (value.compare(dataValue) == 0)
+							{
+								found = true;
+							}
 						}
 					}
 				}
-			}
-			if (NotEqual)
-			{
-				if (path.at(0) != '/')
+				if (found)
 				{
-					// relative  path
-					path = m_DefaultAFLocation + "/" + path;
-				}
-				generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
-				ruleMatched = true;
+					if (path.at(0) != '/')
+					{
+						// relative  path
+						path = m_DefaultAFLocation + "/" + path;
+					}
+					generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
+					ruleMatched = true;
 
-				auto item = make_pair(AFHierarchyLevel,prefix);
-				m_AssetNamePrefix[assetName].push_back(item);
+					auto item = make_pair(AFHierarchyLevel, prefix);
+					m_AssetNamePrefix[assetName].push_back(item);
+				}
 			}
 		}
+
+		// Metadata Rules - Not equal
+		if (m_MetadataRulesNotEqual.size() > 0)
+		{
+			string path;
+			string propertyName;
+			string prefix;
+			string AFHierarchyLevel;
+			string rule;
+			bool NotEqual;
+
+			for (auto it = m_MetadataRulesNotEqual.begin(); it != m_MetadataRulesNotEqual.end(); it++)
+			{
+				NotEqual = false;
+				rule = it->first;
+				for (auto itL2 = values.begin(); NotEqual == false && itL2 != values.end(); itL2++)
+				{
+					propertyName = (*itL2)->getName();
+
+					if (propertyName.compare(rule) == 0)
+					{
+						DatapointValue data = (*itL2)->getData();
+						string dataValue = data.toString();
+						StringReplaceAll(dataValue, "\"", "");
+
+						for (auto itL3 = it->second.begin(); NotEqual == false && itL3 != it->second.end(); itL3++)
+						{
+							auto value = itL3->first;
+							path = itL3->second;
+
+							if (value.compare(dataValue) != 0)
+							{
+								NotEqual = true;
+							}
+						}
+					}
+				}
+				if (NotEqual)
+				{
+					if (path.at(0) != '/')
+					{
+						// relative  path
+						path = m_DefaultAFLocation + "/" + path;
+					}
+					generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
+					ruleMatched = true;
+
+					auto item = make_pair(AFHierarchyLevel, prefix);
+					m_AssetNamePrefix[assetName].push_back(item);
+				}
+			}
+		}
+
+
 	}
 
-
-
-
-	if (! ruleMatched)
+	// If no rules matched se the AF default location
+	if (!ruleMatched)
 	{
 		string prefix;
 		string AFHierarchyLevel;
 
-		// case - No rules matched
 		generateAFHierarchyPrefixLevel(m_DefaultAFLocation, prefix, AFHierarchyLevel);
 
-		auto item = make_pair(AFHierarchyLevel,prefix);
+		auto item = make_pair(AFHierarchyLevel, prefix);
 		m_AssetNamePrefix[assetName].push_back(item);
 	}
-
 }
 
 /**
@@ -1965,11 +1931,9 @@ void OMF::setAssetTypeTag(const string& assetName,
 		string AFHierarchyPrefix;
 		string AFHierarchyLevel;
 
-		// FIXME_I:
 		retrieveAFHierarchyPrefixAssetName (assetName, AFHierarchyPrefix, AFHierarchyLevel);
 
 		AssetTypeTag = AFHierarchyPrefix + "_" + AFHierarchyLevel + "_" + AssetTypeTag;
-		//AssetTypeTag = m_AFHierarchyLevel + "_" + AssetTypeTag;
 	}
 	// Add type-id + '_' + asset_name + '_' + tagName'
 	data.append(AssetTypeTag);
@@ -2081,6 +2045,8 @@ bool OMF::setAFMap(const string &AFMap)
 	string name;
 	string value;
 
+	m_AFMapEmpty = true;
+
 	m_AFMap = AFMap;
 
 	ParseResult ok = JSon.Parse(m_AFMap.c_str());
@@ -2111,6 +2077,8 @@ bool OMF::setAFMap(const string &AFMap)
 			auto newMapValue = make_pair(name,value);
 
 			m_MetadataRulesExist.insert (newMapValue);
+
+			m_AFMapEmpty = false;
 		}
 	}
 
@@ -2128,6 +2096,8 @@ bool OMF::setAFMap(const string &AFMap)
 			auto newMapValue = make_pair(name,value);
 
 			m_MetadataRulesNonExist.insert (newMapValue);
+
+			m_AFMapEmpty = false;
 		}
 	}
 
@@ -2154,6 +2124,8 @@ bool OMF::setAFMap(const string &AFMap)
 
 				auto item = make_pair(value,path);
 				m_MetadataRulesEqual[property].push_back(item);
+
+				m_AFMapEmpty = false;
 			}
 		}
 	}
@@ -2179,6 +2151,8 @@ bool OMF::setAFMap(const string &AFMap)
 
 				auto item = make_pair(value,path);
 				m_MetadataRulesNotEqual[property].push_back(item);
+
+				m_AFMapEmpty = false;
 			}
 		}
 	}

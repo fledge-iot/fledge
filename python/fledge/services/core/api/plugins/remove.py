@@ -216,11 +216,12 @@ def purge_plugin(plugin_type: str, name: str) -> tuple:
             plugin_type = 'notificationDelivery' if plugin_type == 'notify' else 'notificationRule'
         try:
             path = PYTHON_PLUGIN_PATH+'{}/{}'.format(plugin_type, original_name)
-            if os.path.isdir(path):
-                code = os.system('rm -rv {}'.format(path))
-            else:
+            if not os.path.isdir(path):
                 path = C_PLUGINS_PATH + '{}/{}'.format(plugin_type, original_name)
-                code = os.system('rm -rv {}'.format(path))
+            rm_cmd = 'rm -rv {}'.format(path)
+            if os.path.exists("{}/bin".format(_FLEDGE_ROOT)) and os.path.exists("{}/bin/fledge".format(_FLEDGE_ROOT)):
+                rm_cmd = 'sudo rm -rv {}'.format(path)
+            code = os.system(rm_cmd)
             if code != 0:
                 raise OSError("While deleting, invalid plugin path found for {}".format(original_name))
         except Exception as ex:

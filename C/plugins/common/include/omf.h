@@ -234,8 +234,11 @@ class OMF
 		std::string		m_DefaultAFLocation;
 
 		// AF hierarchies handling - Metadata MAP
-		bool            m_AFMapEmpty;  // true if there are norules to manage
 		std::string		m_AFMap;
+		bool            m_AFMapEmpty;  // true if there are norules to manage
+		std::string		m_AFHierarchyLevel;
+		std::string		m_prefixAFAsset;
+
 		map<std::string, std::string>  m_MetadataRulesExist={
 
 			// Property   - Asset Framework path
@@ -265,10 +268,6 @@ class OMF
 			// Property   - Hierarchy - prefix
 			// {"",         {{"",        ""}} }
 		};
-
-
-		std::string		m_AFHierarchyLevel;
-		std::string		m_prefixAFAsset;
 
 		// Define the OMF format to use for each type
 		// the format will not be applied if the string is empty

@@ -1685,7 +1685,12 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 }
 
 /**
- * // FIXME_I:
+ * Calculate the prefix to be used for AF objects and the last level of the hiererachies
+ * from a given AF path
+ *
+ * @param path                   Path to evaluate
+ * @param out/prefix		     Calculated prefix
+ * @param out/AFHierarchyLevel   last level of the hiererachies evaluated form the path
  */
 void OMF::generateAFHierarchyPrefixLevel(string& path, string& prefix, string& AFHierarchyLevel)
 {
@@ -1698,7 +1703,13 @@ void OMF::generateAFHierarchyPrefixLevel(string& path, string& prefix, string& A
 }
 
 
-// FIXME_I:
+/**
+ * Retrieve from the map the prefix and the hiererachy name from a given assetname
+ *
+ * @param path                   assetName to evaluate
+ * @param out/prefix		     Calculated prefix
+ * @param out/AFHierarchyLevel   hiererachy name
+ */
 void OMF::retrieveAFHierarchyPrefixAssetName(string assetName, string& prefix, string& AFHierarchyLevel)
 {
 	string path;
@@ -1713,8 +1724,13 @@ void OMF::retrieveAFHierarchyPrefixAssetName(string assetName, string& prefix, s
 	}
 
 }
+
 /**
- * // FIXME_I:
+ * Evaluated the maps containing the Metadata rules to fill the map m_AssetNamePrefix
+ * containing for each assetname the related prefix and hierarchy name
+ *
+ * @param path                   assetName to evaluate
+ * @param reading		         reading row from which will be extracted the datapoint for the evaluation of the rules
  */
 void OMF::evaluateAFHierarchyMetadataRules(const string& assetName, const Reading& reading)
 {

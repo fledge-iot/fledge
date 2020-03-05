@@ -19,6 +19,7 @@ from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.common import _FLEDGE_ROOT
 from fledge.common.audit_logger import AuditLogger
+from fledge.services.core.server import Server
 
 __author__ = "Rajesh Kumar"
 __copyright__ = "Copyright (c) 2020, Dianomic Systems Inc."
@@ -178,6 +179,7 @@ def purge_plugin(plugin_type: str, name: str) -> tuple:
     plugin_name = 'fledge-{}-{}'.format(plugin_type, name)
 
     get_platform = platform.platform()
+    pkg_cache_mgr = Server._package_cache_manager
     try:
         if 'centos' in get_platform or 'redhat' in get_platform:
             rpm_list = os.popen('rpm -qa | grep fledge*').read()
@@ -210,6 +212,7 @@ def purge_plugin(plugin_type: str, name: str) -> tuple:
             raise PackageError(link)
         else:
             common._get_available_packages.cache_clear()
+            pkg_cache_mgr['list']['last_accessed_time'] = ""
     except KeyError:
         # This case is for non-package installation - python plugin path will be tried first and then C
         _logger.info("Trying removal of manually installed plugin...")

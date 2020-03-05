@@ -208,6 +208,8 @@ def purge_plugin(plugin_type: str, name: str) -> tuple:
         code = os.system(cmd)
         if code:
             raise PackageError(link)
+        else:
+            common._get_available_packages.cache_clear()
     except KeyError:
         # This case is for non-package installation - python plugin path will be tried first and then C
         _logger.info("Trying removal of manually installed plugin...")

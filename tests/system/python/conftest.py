@@ -545,7 +545,7 @@ def pytest_addoption(parser):
     parser.addoption("--modbus-baudrate", action="store", default="9600", type=int, help="Serial port baudrate")
 
     # Packages
-    parser.addoption("--package-build-version", action="store", default="nightly", help="Package build version for http://archives.dianomic.com")
+    parser.addoption("--package-build-version", action="store", default="nightly", help="Package build version for http://archives.fledge-iot.org")
     parser.addoption("--package-build-list", action="store", default="p0", help="Package to build as per key defined in tests/system/python/packages/data/package_list.json and comma separated values are accepted if more than one to build with")
     parser.addoption("--package-build-source-list", action="store", default="false", help="Package to build from apt/yum sources list")
 

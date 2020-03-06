@@ -19,7 +19,6 @@ from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.common import _FLEDGE_ROOT
 from fledge.common.audit_logger import AuditLogger
-from fledge.services.core.server import Server
 
 __author__ = "Rajesh Kumar"
 __copyright__ = "Copyright (c) 2020, Dianomic Systems Inc."
@@ -169,6 +168,9 @@ async def check_plugin_usage_in_notification_instances(plugin_name: str):
 
 
 def purge_plugin(plugin_type: str, name: str) -> tuple:
+
+    from fledge.services.core.server import Server
+
     _logger.info("{} plugin removal started...".format(name))
     is_package = True
     stdout_file_path = ''

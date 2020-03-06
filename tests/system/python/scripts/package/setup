@@ -34,14 +34,14 @@ echo "ID is "${ID}
 echo "uname is "${UNAME}
 
 sudo cp /etc/apt/sources.list /etc/apt/sources.list.bak
-sudo sed -i "/\b\(archives.dianomic.com\)\b/d" /etc/apt/sources.list
+sudo sed -i "/\b\(archives.fledge-iot.org\)\b/d" /etc/apt/sources.list
 
 sudo apt update && sudo apt upgrade -y && sudo apt update
 echo "==================== DONE update, upgrade, update ============================"
 
-wget -q -O - http://archives.dianomic.com/KEY.gpg | sudo apt-key add -
+wget -q -O - http://archives.fledge-iot.org/KEY.gpg | sudo apt-key add -
 # FIXME: for centos/rhel
-echo "deb http://archives.dianomic.com/${PACKAGE_BUILD_VERSION}/${ID}/${UNAME}/ /" | sudo tee -a /etc/apt/sources.list
+echo "deb http://archives.fledge-iot.org/${PACKAGE_BUILD_VERSION}/${ID}/${UNAME}/ /" | sudo tee -a /etc/apt/sources.list
 sudo apt update
 
 time sudo DEBIAN_FRONTEND=noninteractive apt install -yq fledge

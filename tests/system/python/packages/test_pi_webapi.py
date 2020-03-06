@@ -100,7 +100,7 @@ def start_south_north(clean_setup_fledge_packages, add_south, start_north_pi_ser
                 asset_name, DATAPOINT, DATAPOINT_VALUE, DATAPOINT_VALUE))
 
     south_plugin = "coap"
-    # south_branch does not matter as these are archives.dianomic.com version install
+    # south_branch does not matter as these are archives.fledge-iot.org version install
     add_south(south_plugin, None, fledge_url, service_name="CoAP FOGL-2964", installation_type='package')
     start_north_pi_server_c_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd)
 

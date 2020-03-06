@@ -168,6 +168,9 @@ async def check_plugin_usage_in_notification_instances(plugin_name: str):
 
 
 def purge_plugin(plugin_type: str, name: str) -> tuple:
+
+    from fledge.services.core.server import Server
+
     _logger.info("{} plugin removal started...".format(name))
     is_package = True
     stdout_file_path = ''
@@ -178,6 +181,7 @@ def purge_plugin(plugin_type: str, name: str) -> tuple:
     plugin_name = 'fledge-{}-{}'.format(plugin_type, name)
 
     get_platform = platform.platform()
+    pkg_cache_mgr = Server._package_cache_manager
     try:
         if 'centos' in get_platform or 'redhat' in get_platform:
             rpm_list = os.popen('rpm -qa | grep fledge*').read()
@@ -208,6 +212,9 @@ def purge_plugin(plugin_type: str, name: str) -> tuple:
         code = os.system(cmd)
         if code:
             raise PackageError(link)
+        else:
+            common._get_available_packages.cache_clear()
+            pkg_cache_mgr['list']['last_accessed_time'] = ""
     except KeyError:
         # This case is for non-package installation - python plugin path will be tried first and then C
         _logger.info("Trying removal of manually installed plugin...")

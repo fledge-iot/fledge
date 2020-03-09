@@ -37,7 +37,7 @@
 Fledge System Tests using pytest framework
 *******************************************
 
-This is PR tester.
+This is PR tester
 
 System tests are the third category of test in Fledge. These test ensures that end to end flow of a Fledge system is
 working as expected.

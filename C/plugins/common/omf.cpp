@@ -2109,7 +2109,11 @@ void OMF::setDefaultAFLocation(const string &DefaultAFLocation)
 	m_DefaultAFLocation = StringSlashFix(DefaultAFLocation);
 }
 
-// FIXME_I:
+/**
+ * Set the rules to address where assets should be placed in the AF hierarchy.
+ * Decodes the JSON and assign to the structures the values about the Names rulues
+ *
+ */
 bool OMF::HandleAFMapNames(Document& JSon)
 {
 	bool success = true;
@@ -2134,7 +2138,11 @@ bool OMF::HandleAFMapNames(Document& JSon)
 	return success;
 }
 
-// FIXME_I:
+/**
+ * Set the rules to address where assets should be placed in the AF hierarchy.
+ * Decodes the JSON and assign to the structures the values about the Metadata rulues
+ *
+ */
 bool OMF::HandleAFMapMetedata(Document& JSon)
 {
 	bool success = true;
@@ -2240,8 +2248,7 @@ bool OMF::HandleAFMapMetedata(Document& JSon)
 }
 
 /**
- * Set the rules to address where assets should be placed in the AF hierarchy.
- * Decodes the JSON and assign to the structures the values about the Metadata rulues
+ * Set the Names and Metadata rules to address where assets should be placed in the AF hierarchy.
  *
  */
 bool OMF::setAFMap(const string &AFMap)
@@ -2263,7 +2270,6 @@ bool OMF::setAFMap(const string &AFMap)
 	if (JSon.HasMember("names"))
 	{
 		HandleAFMapNames(JSon);
-
 	}
 	if (JSon.HasMember("metadata"))
 	{
@@ -2272,7 +2278,6 @@ bool OMF::setAFMap(const string &AFMap)
 
 	return success;
 }
-
 
 /**
  * Set the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.

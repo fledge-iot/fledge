@@ -136,6 +136,13 @@ class OMF
 
 		void generateAFHierarchyPrefixLevel(string& path, string& prefix, string& AFHierarchyLevel);
 
+		// Retrieve private objects
+		map<std::string, std::string> getNamesRules() const { return m_NamesRules; };
+		map<std::string, std::string> getMetadataRulesExist() const { return m_MetadataRulesExist; };
+
+		bool getAFMapEmptyNames() const { return m_AFMapEmptyNames; };
+		bool getAFMapEmptyMetadata() const { return m_AFMapEmptyMetadata; };
+
 	private:
 		/**
 		 * Builds the HTTP header to send

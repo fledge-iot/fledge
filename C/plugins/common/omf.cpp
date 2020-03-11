@@ -911,7 +911,6 @@ bool OMF::handleAFHierarchiesMetadataMap() {
 	return success;
 }
 
-
 /**
  * Handle the creation of AF hierarchies
  *
@@ -926,11 +925,11 @@ bool OMF::handleAFHierarchy()
 
 		success = handleAFHierarchySystemWide();
 
-		if (success)
+		if (success and ! m_AFMapEmptyNames)
 		{
 			success = handleAFHierarchiesNamesMap();
 		}
-		if (success)
+		if (success and ! m_AFMapEmptyMetadata)
 		{
 			success = handleAFHierarchiesMetadataMap();
 		}

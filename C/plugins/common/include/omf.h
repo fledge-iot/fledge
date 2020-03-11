@@ -252,7 +252,6 @@ class OMF
 			// {"",         ""}
 		};
 
-
 		map<std::string, std::string>  m_MetadataRulesExist={
 
 			// Property   - Asset Framework path

@@ -15,6 +15,7 @@
 #include <reading.h>
 #include <http_sender.h>
 #include <zlib.h>
+#include <rapidjson/document.h>
 
 #define TYPE_ID_DEFAULT 1
 #define FAKE_ASSET_KEY		"_default_start_id_"
@@ -24,6 +25,7 @@
 #define OMF_TYPE_UNSUPPORTED	"unsupported"
 
 using namespace std;
+using namespace rapidjson;
 
 /**
  * Per asset dataTypes
@@ -134,6 +136,13 @@ class OMF
 
 		void generateAFHierarchyPrefixLevel(string& path, string& prefix, string& AFHierarchyLevel);
 
+		// Retrieve private objects
+		map<std::string, std::string> getNamesRules() const { return m_NamesRules; };
+		map<std::string, std::string> getMetadataRulesExist() const { return m_MetadataRulesExist; };
+
+		bool getAFMapEmptyNames() const { return m_AFMapEmptyNames; };
+		bool getAFMapEmptyMetadata() const { return m_AFMapEmptyMetadata; };
+
 	private:
 		/**
 		 * Builds the HTTP header to send
@@ -212,6 +221,7 @@ class OMF
 
 		bool handleAFHierarchy();
 		bool handleAFHierarchySystemWide();
+		bool handleAFHierarchiesNamesMap();
 		bool handleAFHierarchiesMetadataMap();
 		bool sendAFHierarchy(std::string AFHierarchy);
 
@@ -222,9 +232,12 @@ class OMF
 		bool AFHierarchySendMessage(const std::string& msgType, std::string& jsonData);
 
 		std::string generateUniquePrefixId(const std::string &path);
-		void evaluateAFHierarchyMetadataRules(const string& assetName, const Reading& reading);
+		void evaluateAFHierarchyRules(const string& assetName, const Reading& reading);
 		void retrieveAFHierarchyPrefix(const Reading& reading, string& prefix, string& AFHierarchyLevel);
 		void retrieveAFHierarchyPrefixAssetName(string assetName, string& prefix, string& AFHierarchyLevel);
+
+		bool HandleAFMapNames(Document& JSon);
+		bool HandleAFMapMetedata(Document& JSon);
 
 	private:
 		const std::string	m_path;
@@ -235,9 +248,16 @@ class OMF
 
 		// AF hierarchies handling - Metadata MAP
 		std::string		m_AFMap;
-		bool            m_AFMapEmpty;  // true if there are norules to manage
+		bool            m_AFMapEmptyNames;  // true if there are norules to manage
+		bool            m_AFMapEmptyMetadata;
 		std::string		m_AFHierarchyLevel;
 		std::string		m_prefixAFAsset;
+
+		map<std::string, std::string>  m_NamesRules={
+
+			// Asset_name   - Asset Framework path
+			// {"",         ""}
+		};
 
 		map<std::string, std::string>  m_MetadataRulesExist={
 

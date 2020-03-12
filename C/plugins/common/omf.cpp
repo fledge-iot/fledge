@@ -790,6 +790,32 @@ bool OMF::sendAFHierarchyLevels(string parentPath, string path, std::string &las
 }
 
 /**
+ * Creates all the hierarcies defined in the Names map rules
+ *
+ * @param out		true if succeded
+ */
+bool OMF::handleAFHierarchiesNamesMap() {
+
+	bool success = true;
+	string asset_name;
+	string hierarchy;
+
+	for (auto itr = m_NamesRules.begin(); itr != m_NamesRules.end(); ++itr)
+	{
+		asset_name = itr->first.c_str();
+		hierarchy = itr->second.c_str();
+
+		Logger::getLogger()->debug("handleAFHierarchiesNamesMap - asset_name :%s: hierarchy :%s:",
+								   asset_name.c_str(),
+								   hierarchy.c_str());
+
+		success = sendAFHierarchy(hierarchy.c_str());
+	}
+
+	return success;
+}
+
+/**
  * Handle the AF hierarchies for the Metadata Map
  *
  * @param out		true if succeded
@@ -885,7 +911,6 @@ bool OMF::handleAFHierarchiesMetadataMap() {
 	return success;
 }
 
-
 /**
  * Handle the creation of AF hierarchies
  *
@@ -899,7 +924,12 @@ bool OMF::handleAFHierarchy()
 	{
 
 		success = handleAFHierarchySystemWide();
-		if (success)
+
+		if (success and ! m_AFMapEmptyNames)
+		{
+			success = handleAFHierarchiesNamesMap();
+		}
+		if (success and ! m_AFMapEmptyMetadata)
 		{
 			success = handleAFHierarchiesMetadataMap();
 		}
@@ -990,7 +1020,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		long typeId = OMF::getAssetTypeId((**elem).getAssetName());
 		string key((**elem).getAssetName());
 
-		evaluateAFHierarchyMetadataRules (key, **elem);
+		evaluateAFHierarchyRules(key, **elem);
 
 		if (! AFHierarchySent)
 		{
@@ -1726,18 +1756,49 @@ void OMF::retrieveAFHierarchyPrefixAssetName(string assetName, string& prefix, s
 }
 
 /**
- * Evaluated the maps containing the Metadata rules to fill the map m_AssetNamePrefix
+ * Evaluated the maps containing the Named and Metadata rules to fill the map m_AssetNamePrefix
  * containing for each assetname the related prefix and hierarchy name
  *
  * @param path                   assetName to evaluate
  * @param reading		         reading row from which will be extracted the datapoint for the evaluation of the rules
  */
-void OMF::evaluateAFHierarchyMetadataRules(const string& assetName, const Reading& reading)
+void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& reading)
 {
 	bool ruleMatched = false;
+	bool ruleMatchedNames = false;
 
-	// Check if there are any rules defined or not
-	if (! m_AFMapEmpty)
+	// names rules - Check if there are any rules defined or not
+	if (! m_AFMapEmptyNames)
+	{
+		if (m_NamesRules.size() > 0)
+		{
+			string path;
+			string prefix;
+			string AFHierarchyLevel;
+
+			auto it = m_NamesRules.find(assetName);
+			if (it != m_NamesRules.end())
+			{
+				path = it->second;
+
+				if (path.at(0) != '/')
+				{
+					// relative  path
+					path = m_DefaultAFLocation + "/" + path;
+				}
+				generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
+				ruleMatched = true;
+				ruleMatchedNames = true;
+
+				auto item = make_pair(AFHierarchyLevel, prefix);
+				m_AssetNamePrefix[assetName].push_back(item);
+			}
+		}
+	}
+
+
+	// Metata rules - Check if there are any rules defined or not
+	if (! m_AFMapEmptyMetadata && ! ruleMatchedNames)
 	{
 		auto values = reading.getReadingData();
 
@@ -1908,8 +1969,6 @@ void OMF::evaluateAFHierarchyMetadataRules(const string& assetName, const Readin
 				}
 			}
 		}
-
-
 	}
 
 	// If no rules matched se the AF default location
@@ -2051,32 +2110,44 @@ void OMF::setDefaultAFLocation(const string &DefaultAFLocation)
 
 /**
  * Set the rules to address where assets should be placed in the AF hierarchy.
- * Decodes the JSON and assign to the structures the values about the Metadata rulues
+ * Decodes the JSON and assign to the structures the values about the Names rulues
  *
  */
-bool OMF::setAFMap(const string &AFMap)
+bool OMF::HandleAFMapNames(Document& JSon)
 {
 	bool success = true;
-	Document JSon;
 	string name;
 	string value;
 
-	m_AFMapEmpty = true;
+	Value &JsonNames = JSon["names"];
 
-	m_AFMap = AFMap;
-
-	ParseResult ok = JSon.Parse(m_AFMap.c_str());
-	if (!ok)
+	for (Value::ConstMemberIterator itr = JsonNames.MemberBegin(); itr != JsonNames.MemberEnd(); ++itr)
 	{
-		Logger::getLogger()->error("setAFMap - Invalid Asset Framework Map, error :%s:", GetParseError_En(JSon.GetParseError()));
-		return false;
+		name = itr->name.GetString();
+		value = itr->value.GetString();
+		Logger::getLogger()->debug("HandleAFMapNames - Exist name :%s: value :%s:", name.c_str(), value.c_str());
+
+		auto newMapValue = make_pair(name,value);
+
+		m_NamesRules.insert (newMapValue);
+
+		m_AFMapEmptyNames = false;
 	}
 
-	if (!JSon.HasMember("metadata"))
-	{
-		Logger::getLogger()->debug("setAFMap - metadata section not defined");
-		return true;
-	}
+	return success;
+}
+
+/**
+ * Set the rules to address where assets should be placed in the AF hierarchy.
+ * Decodes the JSON and assign to the structures the values about the Metadata rulues
+ *
+ */
+bool OMF::HandleAFMapMetedata(Document& JSon)
+{
+	bool success = true;
+	string name;
+	string value;
+
 	Value &JsonMetadata = JSon["metadata"];
 
 	// --- Handling Exist section
@@ -2088,13 +2159,13 @@ bool OMF::setAFMap(const string &AFMap)
 		{
 			name = itr->name.GetString();
 			value = itr->value.GetString();
-			Logger::getLogger()->debug("setAFMap - Exist name :%s: value :%s:", name.c_str(), value.c_str());
+			Logger::getLogger()->debug("HandleAFMapMetedata - Exist name :%s: value :%s:", name.c_str(), value.c_str());
 
 			auto newMapValue = make_pair(name,value);
 
 			m_MetadataRulesExist.insert (newMapValue);
 
-			m_AFMapEmpty = false;
+			m_AFMapEmptyMetadata = false;
 		}
 	}
 
@@ -2107,13 +2178,13 @@ bool OMF::setAFMap(const string &AFMap)
 		{
 			name = itr->name.GetString();
 			value = itr->value.GetString();
-			Logger::getLogger()->debug("setAFMap - Non Exist name :%s: value :%s:", name.c_str(), value.c_str());
+			Logger::getLogger()->debug("HandleAFMapMetedata - Non Exist name :%s: value :%s:", name.c_str(), value.c_str());
 
 			auto newMapValue = make_pair(name,value);
 
 			m_MetadataRulesNonExist.insert (newMapValue);
 
-			m_AFMapEmpty = false;
+			m_AFMapEmptyMetadata = false;
 		}
 	}
 
@@ -2136,12 +2207,12 @@ bool OMF::setAFMap(const string &AFMap)
 			{
 				value = itrL2->name.GetString();
 				path  = itrL2->value.GetString();
-				Logger::getLogger()->debug("setAFMap - equal property :%s: name :%s: value :%s:", property.c_str() , value.c_str(), path.c_str());
+				Logger::getLogger()->debug("HandleAFMapMetedata - equal property :%s: name :%s: value :%s:", property.c_str() , value.c_str(), path.c_str());
 
 				auto item = make_pair(value,path);
 				m_MetadataRulesEqual[property].push_back(item);
 
-				m_AFMapEmpty = false;
+				m_AFMapEmptyMetadata = false;
 			}
 		}
 	}
@@ -2163,18 +2234,49 @@ bool OMF::setAFMap(const string &AFMap)
 			{
 				value = itrL2->name.GetString();
 				path  = itrL2->value.GetString();
-				Logger::getLogger()->debug("setAFMap - Not equal property :%s: name :%s: value :%s:", property.c_str() , value.c_str(), path.c_str());
+				Logger::getLogger()->debug("HandleAFMapMetedata - Not equal property :%s: name :%s: value :%s:", property.c_str() , value.c_str(), path.c_str());
 
 				auto item = make_pair(value,path);
 				m_MetadataRulesNotEqual[property].push_back(item);
 
-				m_AFMapEmpty = false;
+				m_AFMapEmptyMetadata = false;
 			}
 		}
 	}
 	return success;
 }
 
+/**
+ * Set the Names and Metadata rules to address where assets should be placed in the AF hierarchy.
+ *
+ */
+bool OMF::setAFMap(const string &AFMap)
+{
+	bool success = true;
+	Document JSon;
+
+	m_AFMapEmptyNames = true;
+	m_AFMapEmptyMetadata = true;
+	m_AFMap = AFMap;
+
+	ParseResult ok = JSon.Parse(m_AFMap.c_str());
+	if (!ok)
+	{
+		Logger::getLogger()->error("setAFMap - Invalid Asset Framework Map, error :%s:", GetParseError_En(JSon.GetParseError()));
+		return false;
+	}
+
+	if (JSon.HasMember("names"))
+	{
+		HandleAFMapNames(JSon);
+	}
+	if (JSon.HasMember("metadata"))
+	{
+		HandleAFMapMetedata(JSon);
+	}
+
+	return success;
+}
 
 /**
  * Set the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.

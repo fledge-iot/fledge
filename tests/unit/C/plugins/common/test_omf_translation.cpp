@@ -21,6 +21,52 @@ using namespace rapidjson;
 #define TYPE_ID 1234
 
 // 2 readings JSON text
+const char *af_hierarchy_test01 = R"(
+{
+	"names" :
+			{
+					"3814_asset2" : "/Building1/EastWing/GroundFloor/Room4",
+					"3814_asset3" : "Room14",
+					"3814_asset4" : "names_asset4"
+			},
+	"metadata" : {
+		"exist" : {
+			"sinusoid4"     : "md_asset4",
+			"sinusoid4_1"   : "md_asset4_1",
+			"sinusoid2"     : "md_asset5"
+		}
+	}
+}
+)";
+
+const char *af_hierarchy_test02 = R"(
+{
+}
+)";
+
+map<std::string, std::string> af_hierarchy_check01 ={
+	// Asset_name   - Asset Framework path
+	{"3814_asset2",         "/Building1/EastWing/GroundFloor/Room4"},
+	{"3814_asset3",         "Room14"},
+	{"3814_asset4",         "names_asset4"}
+};
+
+map<std::string, std::string> af_hierarchy_check02 ={
+
+	// Asset_name   - Asset Framework path
+	{"sinusoid4",         "md_asset4"},
+	{"sinusoid4_1",       "md_asset4_1"},
+	{"sinusoid2",         "md_asset5"}
+};
+
+map<std::string, std::string> af_hierarchy_check03 ={
+
+	// Asset_name   - Asset Framework path
+	{"sinusoid4",         "md_asset4"}
+};
+
+
+// 2 readings JSON text
 const char *two_readings = R"(
     {
         "count" : 2, "rows" : [
@@ -314,4 +360,76 @@ TEST(OMF_transation, ReadingsWithUnsupportedTypes)
 		// Array size is 1
 		ASSERT_EQ(doc.Size(), 2);
 	}
+}
+
+// Test the Asset Framework hierarchy fucntionlities
+TEST(OMF_AfHierarchy, HandleAFMapNamesGood)
+{
+	Document JSon;
+
+	map<std::string, std::string> NamesRules;
+	map<std::string, std::string> MetadataRulesExist;
+
+	bool AFMapEmptyNames;
+	bool AFMapEmptyMetadata;
+
+	// Dummy initializations
+	SimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
+	OMF omf(sender, "/", 1, "ABC");
+
+	omf.setAFMap(af_hierarchy_test01);
+
+	NamesRules = omf.getNamesRules();
+	MetadataRulesExist = omf.getMetadataRulesExist();
+
+	// Test
+	ASSERT_EQ(NamesRules,         af_hierarchy_check01);
+	ASSERT_EQ(MetadataRulesExist, af_hierarchy_check02);
+
+	AFMapEmptyNames = omf.getAFMapEmptyNames();
+	AFMapEmptyMetadata = omf.getAFMapEmptyMetadata();
+
+	ASSERT_EQ(AFMapEmptyNames, false);
+	ASSERT_EQ(AFMapEmptyMetadata, false);
+}
+
+TEST(OMF_AfHierarchy, HandleAFMapEmpty)
+{
+	Document JSon;
+
+	map<std::string, std::string> NamesRules;
+	map<std::string, std::string> MetadataRulesExist;
+
+	bool AFMapEmptyNames;
+	bool AFMapEmptyMetadata;
+
+	// Dummy initializations
+	SimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
+	OMF omf(sender, "/", 1, "ABC");
+	
+	// Test
+	omf.setAFMap(af_hierarchy_test02);
+
+	AFMapEmptyNames = omf.getAFMapEmptyNames();
+	AFMapEmptyMetadata = omf.getAFMapEmptyMetadata();
+
+	ASSERT_EQ(AFMapEmptyNames, true);
+	ASSERT_EQ(AFMapEmptyMetadata, true);
+}
+
+TEST(OMF_AfHierarchy, HandleAFMapNamesBad)
+{
+	Document JSon;
+
+	map<std::string, std::string> MetadataRulesExist;
+	
+	// Dummy initializations
+	SimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
+	OMF omf(sender, "/", 1, "ABC");
+
+	omf.setAFMap(af_hierarchy_test01);
+	MetadataRulesExist = omf.getMetadataRulesExist();
+
+	// Test 02
+	ASSERT_NE(MetadataRulesExist, af_hierarchy_check03);
 }

@@ -1578,4 +1578,130 @@ int blocks = 0;
 	return deletedRows;
 }
 
+/**
+ * Purge readings from the reading table
+ */
+unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
+					unsigned int flags,
+					unsigned long sent,
+					std::string& result)
+{
+unsigned long  deletedRows = 0, unsentPurged = 0, unsentRetained = 0, numReadings = 0;
+unsigned long limit = 0;
+
+	Logger *logger = Logger::getLogger();
+
+	logger->info("Purge by Rows called");
+	if ((flags & 0x01) == 0x01)
+	{
+		limit = sent;
+		logger->info("Sent is %d", sent);
+	}
+	logger->info("Purge by Rows called with flags %x", flags);
+	// Don't save unsent rows
+	int rowcount;
+	do {
+		char *zErrMsg = NULL;
+		int rc;
+		rc = SQLexec(dbHandle,
+		     "select count(rowid) from readings;",
+		     rowidCallback,
+		     &rowcount,
+		     &zErrMsg);
+
+		if (rc != SQLITE_OK)
+		{
+			raiseError("purge - phaase 0, fetching row count", zErrMsg);
+			sqlite3_free(zErrMsg);
+			return 0;
+		}
+		if (rowcount <= rows)
+		{
+			logger->info("Row count %d is less than required rows %d", rowcount, rows);
+			break;
+		}
+		int minId;
+		rc = SQLexec(dbHandle,
+		     "select min(id) from readings;",
+		     rowidCallback,
+		     &minId,
+		     &zErrMsg);
+
+		if (rc != SQLITE_OK)
+		{
+			raiseError("purge - phaase 0, fetching minimum id", zErrMsg);
+			sqlite3_free(zErrMsg);
+			return 0;
+		}
+		int maxId;
+		rc = SQLexec(dbHandle,
+		     "select max(id) from readings;",
+		     rowidCallback,
+		     &maxId,
+		     &zErrMsg);
+
+		if (rc != SQLITE_OK)
+		{
+			raiseError("purge - phaase 0, fetching maximum id", zErrMsg);
+			sqlite3_free(zErrMsg);
+			return 0;
+		}
+		int deletePoint = minId + 1000;
+		if (maxId - deletePoint < rows)
+			deletePoint = maxId - rows;
+		if (limit && limit > deletePoint)
+		{
+			deletePoint = limit;
+		}
+		SQLBuffer sql;
+
+		logger->info("Max Id %d, min Id %d, delete point %d", maxId, minId, deletePoint);
+
+		sql.append("delete from readings where id < ");
+		sql.append(deletePoint);
+		const char *query = sql.coalesce();
+		{
+			unique_lock<mutex> lck(db_mutex);
+			if (m_writeAccessOngoing) db_cv.wait(lck);
+
+			// Exec DELETE query: no callback, no resultset
+			rc = SQLexec(dbHandle, query, NULL, NULL, &zErrMsg);
+			int rowsAffected = sqlite3_changes(dbHandle);
+			deletedRows += rowsAffected;
+			numReadings = rowcount - rowsAffected;
+			// Release memory for 'query' var
+			delete[] query;
+			logger->info("Deleted %d rows", rowsAffected);
+			if (rowsAffected == 0)
+			{
+				break;
+			}
+			if (limit != 0 && sent != 0)
+			{
+				unsentPurged = deletePoint - sent;
+			}
+			else if (!limit)
+			{
+				unsentPurged += rowsAffected;
+			}
+		}
+	} while (rowcount > rows);
+
+	if (limit)
+	{
+		unsentRetained = numReadings - rows;
+	}
+
+
+	ostringstream convert;
+
+	convert << "{ \"removed\" : " << deletedRows << ", ";
+	convert << " \"unsentPurged\" : " << unsentPurged << ", ";
+	convert << " \"unsentRetained\" : " << unsentRetained << ", ";
+    	convert << " \"readings\" : " << numReadings << " }";
+
+	result = convert.str();
+	logger->info("Purge by Rows complete: %s", result.c_str());
+}
+
 

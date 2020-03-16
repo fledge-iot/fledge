@@ -2829,24 +2829,29 @@ class TestConfigurationManager:
             raised = True
         assert raised is False
 
-    def test__ignore_unsupported_key_in_config_items(self):
+
+    async def test__ignore_not_supported_key_in_config_items(self):
+
+        async def mock(return_value):
+            return return_value
+
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        raised_err = False
-        entry_name = "test"
+        CAT_NAME = 'test'
+        entry_name = "test_12"
         item_name = "ignore_entry_name"
         test_config = {
-            item_name: {
+            item_name: {    
                 "description": "Test with entry_name",
                 "type": "string",
                 "default": "test_default_value",
-                entry_name: "some_value"
-
+                entry_name: "test_with_invalid_value"
             }
         }
-        try:
-            c_mgr._validate_category_val(category_name=CAT_NAME, category_val=test_config,
-                                         set_value_val_from_default_val=True)
-        except Exception:
-            raised_err = True
-        assert raised_err is False
+        with patch.object(_logger, 'warning') as wlog:
+            # with patch.object(ConfigurationManager, '_validate_category_val', return_value=mock(item_name)) as val_patch:
+            await c_mgr._validate_category_val(CAT_NAME, test_config)
+            assert 1 == wlog.call_count
+        # val_patch.assert_called_once_with(CAT_NAME, test_config)
+
+        wlog.assert_called_once_with('For {} category, DISCARDING unrecognized entry name {} for item name {}'.format(CAT_NAME, entry_name, item_name))

@@ -44,6 +44,12 @@ public:
     void setAuthMethod          (std::string& authMethod)           {m_authMethod = authMethod; }
     void setAuthBasicCredentials(std::string& authBasicCredentials) {m_authBasicCredentials = authBasicCredentials; }
 
+	// OCS configurations
+	void setOCSNamespace         (std::string& OCSNamespace)          {m_OCSNamespace    = OCSNamespace; }
+	void setOCSTenantId          (std::string& OCSTenantId)           {m_OCSTenantId     = OCSTenantId; }
+	void setOCSClientId          (std::string& OCSClientId)           {m_OCSClientId     = OCSClientId; }
+	void setOCSClientSecret      (std::string& OCSClientSecret)       {m_OCSClientSecret = OCSClientSecret; }
+
     std::string getHostPort() { return m_host_port; };
 
 private:
@@ -63,6 +69,12 @@ private:
     	struct curl_slist  *m_chunk = NULL;
 	unsigned int        m_request_timeout;
 	unsigned int        m_connect_timeout;
+
+	// OCS configurations
+	std::string	m_OCSNamespace;
+	std::string	m_OCSTenantId;
+	std::string	m_OCSClientId;
+	std::string	m_OCSClientSecret;
 };
 
 #endif

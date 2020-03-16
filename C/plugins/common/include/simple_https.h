@@ -41,10 +41,16 @@ class SimpleHttps: public HttpSender
 				const std::vector<std::pair<std::string, std::string>>& headers = {},
 				const std::string& payload = std::string());
 
-                void setAuthMethod          (std::string& authMethod)           {m_authMethod = authMethod; }
-    		void setAuthBasicCredentials(std::string& authBasicCredentials) {m_authBasicCredentials = authBasicCredentials; }
+		void setAuthMethod          (std::string& authMethod)           {m_authMethod = authMethod; }
+		void setAuthBasicCredentials(std::string& authBasicCredentials) {m_authBasicCredentials = authBasicCredentials; }
 
-    		std::string getHostPort() { return m_host_port; };
+		// OCS configurations
+		void setOCSNamespace         (std::string& OCSNamespace)          {m_OCSNamespace    = OCSNamespace; }
+		void setOCSTenantId          (std::string& OCSTenantId)           {m_OCSTenantId     = OCSTenantId; }
+		void setOCSClientId          (std::string& OCSClientId)           {m_OCSClientId     = OCSClientId; }
+		void setOCSClientSecret      (std::string& OCSClientSecret)       {m_OCSClientSecret = OCSClientSecret; }
+
+		std::string getHostPort() { return m_host_port; };
 	private:
 		// Make private the copy constructor and operator=
 		SimpleHttps(const SimpleHttps&);
@@ -52,11 +58,18 @@ class SimpleHttps: public HttpSender
 	private:
 		std::string	m_host_port;
 		HttpsClient	*m_sender;
-    		unsigned int	m_retry_sleep_time;       // Seconds between each retry
-    		unsigned int	m_max_retry;              // Max number of retries in the communication
+		unsigned int	m_retry_sleep_time;       // Seconds between each retry
+		unsigned int	m_max_retry;              // Max number of retries in the communication
 
-    		std::string	m_authMethod;             // Authentication method to be used
-    		std::string	m_authBasicCredentials;   // Credentials is the base64 encoding of id and password joined by a single colon (:)
+		std::string	m_authMethod;             // Authentication method to be used
+		std::string	m_authBasicCredentials;   // Credentials is the base64 encoding of id and password joined by a single colon (:)
+
+		// OCS configurations
+		std::string	m_OCSNamespace;
+		std::string	m_OCSTenantId;
+		std::string	m_OCSClientId;
+		std::string	m_OCSClientSecret;
+
 };
 
 #endif

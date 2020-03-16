@@ -214,7 +214,36 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"order": "25" ,
 			"displayName": "PI Web API Kerberos keytab file",
 			"validity" : "PIWebAPIAuthenticationMethod == \"kerberos\""
-		}
+		},
+		"OCSNamespace" : {
+			"description" : "Specifies the OCS namespace where the information are stored and it is used for the interaction with the OCS API",
+			"type" : "string",
+			"default": "name_space",
+			"order": "26",
+			"displayName" : "Namespace"
+		},
+		"OCSTenantId" : {
+			"description" : "Tenant id associated to the specific OCS account",
+			"type" : "string",
+			"default": "ocs_tenant_id",
+			"order": "27",
+			"displayName" : "Tenant ID"
+		},
+		"OCSClientId" : {
+			"description" : "Client id associated to the specific OCS account, it is used to authenticate the source for using the OCS API",
+			"type" : "string",
+			"default": "ocs_client_id",
+			"order": "28",
+			"displayName" : "Client ID"
+		},
+		"OCSClientSecret" : {
+			"description" : "Client secret associated to the specific OCS account, it is used to authenticate the source for using the OCS API",
+			"type" : "string",
+			"default": "ocs_client_secret",
+			"order": "29",
+			"displayName" : "Client Secret"
+		},
+
 	}
 );
 
@@ -247,15 +276,20 @@ typedef struct
 	string		PIWebAPIAuthMethod;     // Authentication method to be used with the PI Web API.
 	string		PIWebAPICredentials;    // Credentials is the base64 encoding of id and password joined by a single colon (:)
 	string 		KerberosKeytab;         // Kerberos authentication keytab file
-	                                        //   stores the environment variable value about the keytab file path
-	                                        //   to allow the environment to persist for all the execution of the plugin
-	                                        //
-	                                        //   Note : A keytab is a file containing pairs of Kerberos principals
-	                                        //   and encrypted keys (which are derived from the Kerberos password).
-	                                        //   You can use a keytab file to authenticate to various remote systems
-	                                        //   using Kerberos without entering a password.
+	                                    //   stores the environment variable value about the keytab file path
+	                                    //   to allow the environment to persist for all the execution of the plugin
+	                                    //
+	                                    //   Note : A keytab is a file containing pairs of Kerberos principals
+	                                    //   and encrypted keys (which are derived from the Kerberos password).
+	                                    //   You can use a keytab file to authenticate to various remote systems
+	                                    //   using Kerberos without entering a password.
 
-    vector<pair<string, string>>
+	string		OCSNamespace;           // OCS configurations
+	string		OCSTenantId;            // OCS configurations
+	string		OCSClientId;            // OCS configurations
+	string		OCSClientSecret;        // OCS configurations
+
+	vector<pair<string, string>>
 			staticData;	// Static data
         // Errors considered not blocking in the communication with the PI Server
 	std::vector<std::string>
@@ -329,6 +363,12 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	string PIWebAPIPassword       = configData->getValue("PIWebAPIPassword");
 	string KerberosKeytabFileName = configData->getValue("PIWebAPIKerberosKeytabFileName");
 
+	// OCS configurations
+	string OCSNamespace    = configData->getValue("OCSNamespace");
+	string OCSTenantId     = configData->getValue("OCSTenantId");
+	string OCSClientId     = configData->getValue("OCSClientId");
+	string OCSClientSecret = configData->getValue("OCSClientSecret");
+
 	/**
 	 * Extract host, port, path from URL
 	 */
@@ -360,6 +400,12 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	connInfo->formatInteger = formatInteger;
 	connInfo->DefaultAFLocation = DefaultAFLocation;
 	connInfo->AFMap = AFMap;
+
+	// OCS configurations
+	connInfo->OCSNamespace    = OCSNamespace;
+	connInfo->OCSTenantId     = OCSTenantId;
+	connInfo->OCSClientId     = OCSClientId;
+	connInfo->OCSClientSecret = OCSClientSecret;
 
 	// PI Web API end-point - evaluates the authentication method requested
 	if (PIWebAPIAuthMethod.compare("anonymous") == 0)
@@ -571,6 +617,13 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 
 	connInfo->sender->setAuthMethod          (connInfo->PIWebAPIAuthMethod);
 	connInfo->sender->setAuthBasicCredentials(connInfo->PIWebAPICredentials);
+
+	// OCS configurations
+	// FIXME_I:
+	connInfo->sender->setOCSNamespace        (connInfo->OCSNamespace);
+	connInfo->sender->setOCSTenantId         (connInfo->OCSTenantId);
+	connInfo->sender->setOCSClientId         (connInfo->OCSClientId);
+	connInfo->sender->setOCSClientSecret     (connInfo->OCSClientSecret);
 
 	// Allocate the PI Server data protocol
 	connInfo->omf = new OMF(*connInfo->sender,

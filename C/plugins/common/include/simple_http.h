@@ -45,6 +45,13 @@ class SimpleHttp: public HttpSender
 		void setAuthBasicCredentials(std::string& authBasicCredentials) {m_authBasicCredentials = authBasicCredentials; }
 
 		std::string getHostPort() { return m_host_port; };
+
+		// OCS configurations
+		void setOCSNamespace         (std::string& OCSNamespace)          {m_OCSNamespace    = OCSNamespace; }
+		void setOCSTenantId          (std::string& OCSTenantId)           {m_OCSTenantId     = OCSTenantId; }
+		void setOCSClientId          (std::string& OCSClientId)           {m_OCSClientId     = OCSClientId; }
+		void setOCSClientSecret      (std::string& OCSClientSecret)       {m_OCSClientSecret = OCSClientSecret; }
+
 	private:
 		// Make private the copy constructor and operator=
 		SimpleHttp(const SimpleHttp&);
@@ -58,6 +65,12 @@ class SimpleHttp: public HttpSender
 
 		std::string	m_authMethod;             // Authentication method to be used
 		std::string	m_authBasicCredentials;   // Credentials is the base64 encoding of id and password joined by a single colon (:)
+
+		// OCS configurations
+		std::string	m_OCSNamespace;
+		std::string	m_OCSTenantId;
+		std::string	m_OCSClientId;
+		std::string	m_OCSClientSecret;
 };
 
 #endif

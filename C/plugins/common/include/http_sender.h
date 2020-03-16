@@ -36,10 +36,17 @@ class HttpSender
 				const std::vector<std::pair<std::string, std::string>>& headers = {},
 				const std::string& payload = std::string()) = 0;
 
-                virtual std::string getHostPort() = 0;
+		virtual std::string getHostPort() = 0;
 
-    		virtual void setAuthMethod          (std::string& authMethod) = 0;
-    		virtual void setAuthBasicCredentials(std::string& authBasicCredentials) = 0;
+		virtual void setAuthMethod          (std::string& authMethod) = 0;
+		virtual void setAuthBasicCredentials(std::string& authBasicCredentials) = 0;
+
+		// OCS configurations
+		virtual void setOCSNamespace         (std::string& OCSNamespace) = 0;
+		virtual void setOCSTenantId          (std::string& OCSTenantId) = 0;
+		virtual	void setOCSClientId          (std::string& OCSClientId) = 0;
+		virtual void setOCSClientSecret      (std::string& OCSClientSecret) = 0;
+
 };
 
 /**

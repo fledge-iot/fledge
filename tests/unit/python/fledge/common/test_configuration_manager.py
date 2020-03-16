@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
 
 import asyncio
-import json
 import ipaddress
-from unittest.mock import MagicMock, patch, call
+import json
 import pytest
 
-
-from fledge.common.configuration_manager import ConfigurationManager, ConfigurationManagerSingleton, _valid_type_strings, _logger, _optional_items
+from unittest.mock import MagicMock, patch, call
+from fledge.common.audit_logger import AuditLogger
+from fledge.common.configuration_manager import ConfigurationManager, ConfigurationManagerSingleton, \
+    _valid_type_strings, _logger, _optional_items
+from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.storage_client import StorageClientAsync
-from fledge.common.storage_client.exceptions import StorageServerError
-from fledge.common.audit_logger import AuditLogger
 
 __author__ = "Ashwin Gopalakrishnan"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -40,6 +40,8 @@ class TestConfigurationManager:
     def test_supported_optional_items(self):
         assert 10 == len(_optional_items)
         assert ['deprecated', 'displayName', 'length', 'mandatory', 'maximum', 'minimum', 'order', 'readonly', 'rule', 'validity'] == _optional_items
+
+
 
     def test_constructor_no_storage_client_defined_no_storage_client_passed(
             self, reset_singleton):
@@ -509,22 +511,22 @@ class TestConfigurationManager:
         assert 'For {} category, entry value must be a string for item name {} ' \
                'and entry name {}; got {}'.format(CAT_NAME, item_name, entry_name, type(entry_value)) == str(excinfo.value)
 
-    @pytest.mark.asyncio
-    async def test__validate_category_val_config_unrecognized_entry_name(self):
-        storage_client_mock = MagicMock(spec=StorageClientAsync)
-        c_mgr = ConfigurationManager(storage_client_mock)
-        test_config = {
-            ITEM_NAME: {
-                "description": "test description val",
-                "type": "string",
-                "default": "test default val",
-                "unrecognized": "unexpected",
-            },
-        }
-        with pytest.raises(ValueError) as excinfo:
-            await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=test_config, set_value_val_from_default_val=True)
-        assert 'For {} category, unrecognized entry name unrecognized for item name {}'.format(
-            CAT_NAME, ITEM_NAME) == str(excinfo.value)
+    # @pytest.mark.asyncio
+    # async def test__validate_category_val_config_unrecognized_entry_name(self):
+    #     storage_client_mock = MagicMock(spec=StorageClientAsync)
+    #     c_mgr = ConfigurationManager(storage_client_mock)
+    #     test_config = {
+    #         ITEM_NAME: {
+    #             "description": "test description val",
+    #             "type": "string",
+    #             "default": "test default val",
+    #             "unrecognized": "unexpected",
+    #         },
+    #     }
+    #     with pytest.raises(ValueError) as excinfo:
+    #         await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=test_config, set_value_val_from_default_val=True)
+    #     assert 'For {} category, unrecognized entry name unrecognized for item name {}'.format(
+    #         CAT_NAME, ITEM_NAME) == str(excinfo.value)
 
     @pytest.mark.parametrize("config, exception_name, exception_msg", [
         ({"description": "test description", "type": "enumeration", "default": "A"},
@@ -2842,3 +2844,25 @@ class TestConfigurationManager:
         except Exception:
             raised = True
         assert raised is False
+
+    def test__ignore_unsupported_key_in_config_items(self):
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        raised_err = False
+        entry_name = "test"
+        item_name = "ignore_entry_name"
+        test_config = {
+            item_name: {
+                "description": "Test with entry_name",
+                "type": "string",
+                "default": "test_default_value",
+                entry_name: "test_with_invalid_value"
+
+            }
+        }
+        try:
+            c_mgr._validate_category_val(category_name=CAT_NAME, category_val=test_config,
+                                         set_value_val_from_default_val=True)
+        except Exception:
+            raised_err = True
+        assert raised_err is False

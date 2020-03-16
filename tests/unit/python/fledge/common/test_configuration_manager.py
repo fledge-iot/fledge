@@ -511,22 +511,6 @@ class TestConfigurationManager:
         assert 'For {} category, entry value must be a string for item name {} ' \
                'and entry name {}; got {}'.format(CAT_NAME, item_name, entry_name, type(entry_value)) == str(excinfo.value)
 
-    # @pytest.mark.asyncio
-    # async def test__validate_category_val_config_unrecognized_entry_name(self):
-    #     storage_client_mock = MagicMock(spec=StorageClientAsync)
-    #     c_mgr = ConfigurationManager(storage_client_mock)
-    #     test_config = {
-    #         ITEM_NAME: {
-    #             "description": "test description val",
-    #             "type": "string",
-    #             "default": "test default val",
-    #             "unrecognized": "unexpected",
-    #         },
-    #     }
-    #     with pytest.raises(ValueError) as excinfo:
-    #         await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=test_config, set_value_val_from_default_val=True)
-    #     assert 'For {} category, unrecognized entry name unrecognized for item name {}'.format(
-    #         CAT_NAME, ITEM_NAME) == str(excinfo.value)
 
     @pytest.mark.parametrize("config, exception_name, exception_msg", [
         ({"description": "test description", "type": "enumeration", "default": "A"},
@@ -2856,7 +2840,7 @@ class TestConfigurationManager:
                 "description": "Test with entry_name",
                 "type": "string",
                 "default": "test_default_value",
-                entry_name: "test_with_invalid_value"
+                entry_name: "some_value"
 
             }
         }

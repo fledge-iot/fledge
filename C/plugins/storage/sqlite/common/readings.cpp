@@ -1646,7 +1646,7 @@ unsigned long limit = 0;
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
-		int deletePoint = minId + 1000;
+		int deletePoint = minId + 10000;
 		if (maxId - deletePoint < rows)
 			deletePoint = maxId - rows;
 		if (limit && limit > deletePoint)
@@ -1685,6 +1685,7 @@ unsigned long limit = 0;
 				unsentPurged += rowsAffected;
 			}
 		}
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	} while (rowcount > rows);
 
 	if (limit)

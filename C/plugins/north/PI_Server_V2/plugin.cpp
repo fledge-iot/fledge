@@ -18,6 +18,7 @@
 #include <plugin_exception.h>
 #include <iostream>
 #include <omf.h>
+#include <ocs.h>
 #include <simple_https.h>
 #include <simple_http.h>
 #include <config_category.h>
@@ -147,7 +148,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 		"PIServerEndpoint": {
 			"description": "Defines which PIServer component should be used for the communication: PI Web API, Connector Relay or auto discovery.",
 			"type": "enumeration",
-			"options":["Auto Discovery", "PI Web API", "Connector Relay"],
+			"options":["Auto Discovery", "PI Web API", "Connector Relay", "OSIsoft Cloud Services", "Edge Data Store"],
 			"default": "Connector Relay",
 			"order": "17",
 			"displayName": "PI-Server Endpoint"
@@ -238,12 +239,11 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 		},
 		"OCSClientSecret" : {
 			"description" : "Client secret associated to the specific OCS account, it is used to authenticate the source for using the OCS API",
-			"type" : "string",
+			"type" : "password",
 			"default": "ocs_client_secret",
 			"order": "29",
 			"displayName" : "Client Secret"
-		},
-
+		}
 	}
 );
 
@@ -254,25 +254,26 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
  */
 typedef struct
 {
-	HttpSender	*sender;	        // HTTPS connection
-	OMF 		*omf;		        // OMF data protocol
-	bool		compression;           // whether to compress readings' data
-	string		protocol;              // http / https
-	string		hostAndPort;           // hostname:port for SimpleHttps
-	unsigned int	retrySleepTime;	        // Seconds between each retry
+	HttpSender	*sender;                // HTTPS connection
+	OMF 		*omf;                   // OMF data protocol
+	bool		compression;            // whether to compress readings' data
+	string		protocol;               // http / https
+	string		hostAndPort;            // hostname:port for SimpleHttps
+	unsigned int	retrySleepTime;     // Seconds between each retry
 	unsigned int	maxRetry;	        // Max number of retries in the communication
 	unsigned int	timeout;	        // connect and operation timeout
-	string		path;		        // PI Server application path
-	long		typeId;		        // OMF protocol type-id prefix
+	string		path;		            // PI Server application path
+	long		typeId;		            // OMF protocol type-id prefix
 	string		producerToken;	        // PI Server connector token
 	string		formatNumber;	        // OMF protocol Number format
 	string		formatInteger;	        // OMF protocol Integer format
+	// FIXME_I:
 	string		PIServerEndpoint;       // Defines which PIServer component should be used for the communication:
-	// a=auto discovery - p=PI Web API, c=Connector Relay
+	                                    // a=auto discovery - p=PI Web API, c=Connector Relay
 	string		DefaultAFLocation;      // 1st hierarchy in Asset Framework, PI Web API only.
 	string		AFMap;                  // Defines a set of rules to address where assets should be placed in the AF hierarchy.
 
-	string		prefixAFAsset;       	// Prefix to generate unique asste id
+	string		prefixAFAsset;          // Prefix to generate unique asste id
 	string		PIWebAPIAuthMethod;     // Authentication method to be used with the PI Web API.
 	string		PIWebAPICredentials;    // Credentials is the base64 encoding of id and password joined by a single colon (:)
 	string 		KerberosKeytab;         // Kerberos authentication keytab file
@@ -285,9 +286,10 @@ typedef struct
 	                                    //   using Kerberos without entering a password.
 
 	string		OCSNamespace;           // OCS configurations
-	string		OCSTenantId;            // OCS configurations
-	string		OCSClientId;            // OCS configurations
-	string		OCSClientSecret;        // OCS configurations
+	string		OCSTenantId;
+	string		OCSClientId;
+	string		OCSClientSecret;
+	string		OCSToken;
 
 	vector<pair<string, string>>
 			staticData;	// Static data
@@ -305,6 +307,7 @@ long   getMaxTypeId                 (CONNECTOR_INFO* connInfo);
 string identifyPIServerEndpoint     (CONNECTOR_INFO* connInfo);
 string AuthBasicCredentialsGenerate (string& userId, string& password);
 void   AuthKerberosSetup            (string& keytabFile, string& keytabFileName);
+string OCSRetrieveAuthToken         (CONNECTOR_INFO* connInfo);
 
 /**
  * Return the information about this plugin
@@ -369,6 +372,10 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	string OCSClientId     = configData->getValue("OCSClientId");
 	string OCSClientSecret = configData->getValue("OCSClientSecret");
 
+	// TENANT_ID_PLACEHOLDER and NAMESPACE_ID_PLACEHOLDER, if present, will be replaced with the values of OCSTenantId and OCSNamespace
+	StringReplace(url, "TENANT_ID_PLACEHOLDER",    OCSTenantId);
+	StringReplace(url, "NAMESPACE_ID_PLACEHOLDER", OCSClientId);
+
 	/**
 	 * Extract host, port, path from URL
 	 */
@@ -430,7 +437,12 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 		Logger::getLogger()->error("Invalid authentication method for PI Web API :%s: ", PIWebAPIAuthMethod.c_str());
 	}
 
+	// FIXME_I:
 	// Translate the PIServerEndpoint configuration
+	// p = PI Web API
+	// c = Connector Relay
+	// o = OCS
+	// e = EDS
 	if (PIServerEndpoint.compare("Auto Discovery") == 0)
 	{
 		Logger::getLogger()->debug("PI-Server end point auto discovery selected");
@@ -446,6 +458,16 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	{
 		Logger::getLogger()->debug("PI-Server end point manually selected - Connector Relay ");
 		connInfo->PIServerEndpoint = "c";
+	}
+	else if(PIServerEndpoint.compare("OSIsoft Cloud Services") == 0)
+	{
+		Logger::getLogger()->debug("End point manually selected - OSIsoft Cloud Services");
+		connInfo->PIServerEndpoint = "o";
+	}
+	else if(PIServerEndpoint.compare("Edge Data Store") == 0)
+	{
+		Logger::getLogger()->debug("End point manually selected - OSIsoft Cloud Services");
+		connInfo->PIServerEndpoint = "e";
 	}
 	else
 	{
@@ -624,6 +646,13 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	connInfo->sender->setOCSTenantId         (connInfo->OCSTenantId);
 	connInfo->sender->setOCSClientId         (connInfo->OCSClientId);
 	connInfo->sender->setOCSClientSecret     (connInfo->OCSClientSecret);
+
+	// OCS - retreievs the authentication token
+	if (connInfo->PIServerEndpoint.compare("o") == 0)
+	{
+		connInfo->OCSToken = OCSRetrieveAuthToken(connInfo);
+		connInfo->sender->setOCSToken  (connInfo->OCSToken);
+	}
 
 	// Allocate the PI Server data protocol
 	connInfo->omf = new OMF(*connInfo->sender,
@@ -914,6 +943,21 @@ long getMaxTypeId(CONNECTOR_INFO* connInfo)
 		}
 	}
 	return maxId;
+}
+
+// FIXME_I:
+string OCSRetrieveAuthToken(CONNECTOR_INFO* connInfo)
+{
+	string token;
+	OCS *ocs;
+
+	ocs = new OCS();
+
+	token = ocs->retrieveToken(connInfo->OCSClientId , connInfo->OCSClientSecret);
+
+	delete ocs;
+
+	return token;
 }
 
 /**

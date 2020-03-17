@@ -31,12 +31,15 @@ class HttpSender
 		/**
 		 * HTTP(S) request: pass method and path, HTTP headers and POST/PUT payload.
 		 */
-		virtual int sendRequest(const std::string& method = std::string(HTTP_SENDER_DEFAULT_METHOD),
+		virtual int sendRequest(
+				const std::string& method = std::string(HTTP_SENDER_DEFAULT_METHOD),
 				const std::string& path = std::string(HTTP_SENDER_DEFAULT_PATH),
 				const std::vector<std::pair<std::string, std::string>>& headers = {},
-				const std::string& payload = std::string()) = 0;
+				const std::string& payload = std::string()
+		) = 0;
 
 		virtual std::string getHostPort() = 0;
+		virtual std::string getHTTPResponse() = 0;
 
 		virtual void setAuthMethod          (std::string& authMethod) = 0;
 		virtual void setAuthBasicCredentials(std::string& authBasicCredentials) = 0;
@@ -46,6 +49,7 @@ class HttpSender
 		virtual void setOCSTenantId          (std::string& OCSTenantId) = 0;
 		virtual	void setOCSClientId          (std::string& OCSClientId) = 0;
 		virtual void setOCSClientSecret      (std::string& OCSClientSecret) = 0;
+		virtual void setOCSToken             (std::string& OCSToken) = 0;
 
 };
 

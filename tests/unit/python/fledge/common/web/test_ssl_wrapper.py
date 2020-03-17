@@ -88,9 +88,9 @@ AShK4DM84LGNChzbdD6EVAl066+d9FRDuoX0KJj2/qepeevh2LC8dqG/QHcl75Ef
         assert 'Dec 18 10:00:29 2020 GMT' == SSLVerifier.get_enddate()
 
         # Test is_expired(). It should return False if cert end time is yet to come.
-        dt_format = "%b %d %X %Y %Z"  # Mar 12 12:31:57 2020 GMT
+        dt_format = "%b %d %X %Y %Z"
         cert_end_time = time.mktime(
-            datetime.datetime.strptime('Mar 11 03:50:33 2020 GMT',
+            datetime.datetime.strptime('Dec 18 10:00:29 2020 GMT',
                                        dt_format).timetuple())
         run_time = time.time()
         expected = False if cert_end_time > run_time else True

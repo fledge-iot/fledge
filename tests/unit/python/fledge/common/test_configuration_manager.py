@@ -1,17 +1,19 @@
 # -*- coding: utf-8 -*-
 
 import asyncio
-import ipaddress
 import json
+import ipaddress
+from unittest.mock import MagicMock, patch, call
 import pytest
 
-from unittest.mock import MagicMock, patch, call
-from fledge.common.audit_logger import AuditLogger
+
 from fledge.common.configuration_manager import ConfigurationManager, ConfigurationManagerSingleton, \
     _valid_type_strings, _logger, _optional_items
-from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.storage_client import StorageClientAsync
+from fledge.common.storage_client.exceptions import StorageServerError
+from fledge.common.audit_logger import AuditLogger
+
 
 __author__ = "Ashwin Gopalakrishnan"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -40,8 +42,6 @@ class TestConfigurationManager:
     def test_supported_optional_items(self):
         assert 10 == len(_optional_items)
         assert ['deprecated', 'displayName', 'length', 'mandatory', 'maximum', 'minimum', 'order', 'readonly', 'rule', 'validity'] == _optional_items
-
-
 
     def test_constructor_no_storage_client_defined_no_storage_client_passed(
             self, reset_singleton):
@@ -2829,29 +2829,20 @@ class TestConfigurationManager:
             raised = True
         assert raised is False
 
-
-    async def test__ignore_not_supported_key_in_config_items(self):
-
-        async def mock(return_value):
-            return return_value
-
+    async def test__ignore_unrecognized_key_in_config_items(self):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        CAT_NAME = 'test'
-        entry_name = "test_12"
-        item_name = "ignore_entry_name"
+        entry_name = "test_entry"
+        ITEM_NAME = "ignore_entry_name"
         test_config = {
-            item_name: {    
+            ITEM_NAME: {
                 "description": "Test with entry_name",
                 "type": "string",
                 "default": "test_default_value",
-                entry_name: "test_with_invalid_value"
+                entry_name: "some_value"
             }
         }
         with patch.object(_logger, 'warning') as wlog:
-            # with patch.object(ConfigurationManager, '_validate_category_val', return_value=mock(item_name)) as val_patch:
             await c_mgr._validate_category_val(CAT_NAME, test_config)
-            assert 1 == wlog.call_count
-        # val_patch.assert_called_once_with(CAT_NAME, test_config)
-
-        wlog.assert_called_once_with('For {} category, DISCARDING unrecognized entry name {} for item name {}'.format(CAT_NAME, entry_name, item_name))
+        assert 1 == wlog.call_count
+        wlog.assert_called_once_with('For {} category, DISCARDING unrecognized entry name {} for item name {}'.format(CAT_NAME, entry_name, ITEM_NAME))

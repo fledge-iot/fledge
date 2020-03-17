@@ -294,16 +294,17 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     d = {entry_name: entry_val}
                     expected_item_entries.update(d)
                 num_entries = expected_item_entries.get(entry_name)
+                if set_value_val_from_default_val and entry_name == 'value':
+                    raise ValueError('Specifying value_name and value_val for item_name {} is not allowed if '
+                                     'desired behavior is to use default_val as value_val'.format(item_name))
                 if num_entries is None:
                     _logger.warning('For {} category, DISCARDING unrecognized entry name {} for item name {}'
                                     .format(category_name, entry_name, item_name))
                     try:
                         del category_val_copy[item_name][entry_name]
-                    except RuntimeError:
+                    except Exception:
                             raise KeyError
-                if set_value_val_from_default_val and entry_name == 'value':
-                    raise ValueError('Specifying value_name and value_val for item_name {} is not allowed if '
-                                     'desired behavior is to use default_val as value_val'.format(item_name))
+
                 if entry_name == 'type':
                     if entry_val not in _valid_type_strings:
                         raise ValueError('For {} category, invalid entry value for entry name "type" for item name {}.'

@@ -1701,7 +1701,7 @@ unsigned long limit = 0;
     	convert << " \"readings\" : " << numReadings << " }";
 
 	result = convert.str();
-	logger->info("Purge by Rows complete: %s", result.c_str());
+	logger->warn("Purge by Rows complete: %s", result.c_str());
 }
 
 

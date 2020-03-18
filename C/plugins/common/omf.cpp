@@ -2201,7 +2201,6 @@ bool OMF::HandleAFMapMetedata(Document& JSon)
 		for (Value::ConstMemberIterator itr = JSonEqual.MemberBegin(); itr != JSonEqual.MemberEnd(); ++itr)
 		{
 			property = itr->name.GetString();
-			m_MetadataRulesEqual.insert( std::make_pair(property, NULL));
 
 			for (Value::ConstMemberIterator itrL2 = itr->value.MemberBegin(); itrL2 != itr->value.MemberEnd(); ++itrL2)
 			{
@@ -2228,7 +2227,6 @@ bool OMF::HandleAFMapMetedata(Document& JSon)
 		for (Value::ConstMemberIterator itr = JSonEqual.MemberBegin(); itr != JSonEqual.MemberEnd(); ++itr)
 		{
 			property = itr->name.GetString();
-			m_MetadataRulesNotEqual.insert( std::make_pair(property, NULL));
 
 			for (Value::ConstMemberIterator itrL2 = itr->value.MemberBegin(); itrL2 != itr->value.MemberEnd(); ++itrL2)
 			{

@@ -1597,7 +1597,7 @@ unsigned long limit = 0;
 		limit = sent;
 		logger->info("Sent is %d", sent);
 	}
-	logger->warn("Purge by Rows called with flags %x, rows %d, limit %d", flags, rows, limit);
+	logger->info("Purge by Rows called with flags %x, rows %d, limit %d", flags, rows, limit);
 	// Don't save unsent rows
 	int rowcount;
 	do {
@@ -1655,7 +1655,7 @@ unsigned long limit = 0;
 		}
 		SQLBuffer sql;
 
-		logger->warn("RowCount %d, Max Id %d, min Id %d, delete point %d", rowcount, maxId, minId, deletePoint);
+		logger->debug("RowCount %d, Max Id %d, min Id %d, delete point %d", rowcount, maxId, minId, deletePoint);
 
 		sql.append("delete from readings where id < ");
 		sql.append(deletePoint);
@@ -1671,7 +1671,7 @@ unsigned long limit = 0;
 			numReadings = rowcount - rowsAffected;
 			// Release memory for 'query' var
 			delete[] query;
-			logger->warn("Deleted %d rows", rowsAffected);
+			logger->debug("Deleted %d rows", rowsAffected);
 			if (rowsAffected == 0)
 			{
 				break;
@@ -1702,7 +1702,7 @@ unsigned long limit = 0;
     	convert << " \"readings\" : " << numReadings << " }";
 
 	result = convert.str();
-	logger->warn("Purge by Rows complete: %s", result.c_str());
+	logger->info("Purge by Rows complete: %s", result.c_str());
 	return deletedRows;
 }
 

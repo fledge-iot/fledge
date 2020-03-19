@@ -196,6 +196,7 @@ bool 		add_row = false;
 			// Handles - asset_code
 			sql.append(",\'");
 			sql.append((*itr)["asset_code"].GetString());
+			sql.append("\',\'");
 
 			// Handles - reading
 			StringBuffer buffer;

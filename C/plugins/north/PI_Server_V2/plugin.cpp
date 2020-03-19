@@ -374,7 +374,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 
 	// TENANT_ID_PLACEHOLDER and NAMESPACE_ID_PLACEHOLDER, if present, will be replaced with the values of OCSTenantId and OCSNamespace
 	StringReplace(url, "TENANT_ID_PLACEHOLDER",    OCSTenantId);
-	StringReplace(url, "NAMESPACE_ID_PLACEHOLDER", OCSClientId);
+	StringReplace(url, "NAMESPACE_ID_PLACEHOLDER", OCSNamespace);
 
 	/**
 	 * Extract host, port, path from URL
@@ -447,12 +447,19 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	{
 		Logger::getLogger()->debug("PI-Server end point auto discovery selected");
 		connInfo->PIServerEndpoint = identifyPIServerEndpoint(connInfo);
+
+		if (connInfo->PIServerEndpoint.compare("p") == 0)
+			Logger::getLogger()->debug("PI-Server end point selected - PI Web API ");
+
+		else if (connInfo->PIServerEndpoint.compare("c") == 0)
+			Logger::getLogger()->debug("PI-Server end point selected - Connector Relay");
+		else
+			Logger::getLogger()->error("Invalid PI-Server end point");
 	}
 	else if(PIServerEndpoint.compare("PI Web API") == 0)
 	{
 		Logger::getLogger()->debug("PI-Server end point manually selected - PI Web API ");
 		connInfo->PIServerEndpoint = "p";
-
 	}
 	else if(PIServerEndpoint.compare("Connector Relay") == 0)
 	{
@@ -471,18 +478,8 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	}
 	else
 	{
-		Logger::getLogger()->debug("PI-Server end point manually selected, the value provided is invalid :%s:, auto discovery executed" , PIServerEndpoint.c_str());
-		connInfo->PIServerEndpoint = identifyPIServerEndpoint(connInfo);
+		Logger::getLogger()->error("The provided end point is invalid :%s:" , PIServerEndpoint.c_str());
 	}
-
-	if (connInfo->PIServerEndpoint.compare("p") == 0)
-		Logger::getLogger()->debug("PI-Server end point selected - PI Web API ");
-
-	else if (connInfo->PIServerEndpoint.compare("c") == 0)
-		Logger::getLogger()->debug("PI-Server end point selected - Connector Relay");
-	else
-		Logger::getLogger()->error("Invalid PI-Server end point");
-
 
 	// Use compression ?
 	string compr = configData->getValue("compression");

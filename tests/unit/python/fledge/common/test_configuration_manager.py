@@ -5,13 +5,13 @@ import json
 import ipaddress
 from unittest.mock import MagicMock, patch, call
 import pytest
-
-
-from fledge.common.configuration_manager import ConfigurationManager, ConfigurationManagerSingleton, _valid_type_strings, _logger, _optional_items
+from fledge.common.configuration_manager import ConfigurationManager, ConfigurationManagerSingleton, \
+    _valid_type_strings, _logger, _optional_items
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.audit_logger import AuditLogger
+
 
 __author__ = "Ashwin Gopalakrishnan"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -508,23 +508,6 @@ class TestConfigurationManager:
             await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=test_config, set_value_val_from_default_val=False)
         assert 'For {} category, entry value must be a string for item name {} ' \
                'and entry name {}; got {}'.format(CAT_NAME, item_name, entry_name, type(entry_value)) == str(excinfo.value)
-
-    @pytest.mark.asyncio
-    async def test__validate_category_val_config_unrecognized_entry_name(self):
-        storage_client_mock = MagicMock(spec=StorageClientAsync)
-        c_mgr = ConfigurationManager(storage_client_mock)
-        test_config = {
-            ITEM_NAME: {
-                "description": "test description val",
-                "type": "string",
-                "default": "test default val",
-                "unrecognized": "unexpected",
-            },
-        }
-        with pytest.raises(ValueError) as excinfo:
-            await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=test_config, set_value_val_from_default_val=True)
-        assert 'For {} category, unrecognized entry name unrecognized for item name {}'.format(
-            CAT_NAME, ITEM_NAME) == str(excinfo.value)
 
     @pytest.mark.parametrize("config, exception_name, exception_msg", [
         ({"description": "test description", "type": "enumeration", "default": "A"},
@@ -2842,3 +2825,43 @@ class TestConfigurationManager:
         except Exception:
             raised = True
         assert raised is False
+
+    async def test__ignore_unrecognized_key_in_config_items(self):
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        entry_name = "test_entry"
+        test_config = {
+            ITEM_NAME: {
+                "description": "Test with entry_name",
+                "type": "string",
+                "default": "test_default_value",
+                entry_name: "some_value"
+            }
+        }
+        with patch.object(_logger, 'warning') as log_warn:
+            await c_mgr._validate_category_val(CAT_NAME, test_config)
+        assert 1 == log_warn.call_count
+        log_warn.assert_called_once_with('For {} category, DISCARDING unrecognized entry name {} for item name {}'.
+                                         format(CAT_NAME, entry_name, ITEM_NAME))
+
+    async def test__ignore_unrecognized_key_in_config_items_without_set_value_val_from_default_val(self):
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        entry_name = "blah"
+        test_config = {
+            ITEM_NAME: {
+                "description": "test description val",
+                "type": "integer",
+                "default": "test default val",
+                entry_name: "some_value"
+            },
+        }
+        with patch.object(_logger, 'warning') as log_warn:
+            with pytest.raises(ValueError) as excinfo:
+                await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=test_config,
+                                                   set_value_val_from_default_val=False)
+            assert 'For {} category, missing entry name value for item name {}'.format(
+                CAT_NAME, ITEM_NAME) == str(excinfo.value)
+        assert 1 == log_warn.call_count
+        log_warn.assert_called_once_with('For {} category, DISCARDING unrecognized entry name {} for item name {}'.
+                                         format(CAT_NAME, entry_name, ITEM_NAME))

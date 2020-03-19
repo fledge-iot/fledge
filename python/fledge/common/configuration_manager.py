@@ -236,7 +236,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 v = [val for name, val in item_val.items() if name == k]
                 return v[0]
 
-            for entry_name, entry_val in item_val.items():
+            for entry_name, entry_val in item_val.copy().items():
                 if type(entry_name) is not str:
                     raise TypeError('For {} category, entry name {} must be a string for item name {}; got {}'
                                     .format(category_name, entry_name, item_name, type(entry_name)))
@@ -298,8 +298,13 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     raise ValueError('Specifying value_name and value_val for item_name {} is not allowed if '
                                      'desired behavior is to use default_val as value_val'.format(item_name))
                 if num_entries is None:
-                    raise ValueError('For {} category, unrecognized entry name {} for item name {}'
-                                     .format(category_name, entry_name, item_name))
+                    _logger.warning('For {} category, DISCARDING unrecognized entry name {} for item name {}'
+                                    .format(category_name, entry_name, item_name))
+                    try:
+                        del category_val_copy[item_name][entry_name]
+                    except Exception:
+                            raise KeyError
+
                 if entry_name == 'type':
                     if entry_val not in _valid_type_strings:
                         raise ValueError('For {} category, invalid entry value for entry name "type" for item name {}.'
@@ -706,6 +711,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         Registered callbacks will be invoked only if an update is issued.
 
         Exceptions Raised:
+
         ImportError if callback module does not exist for relevant callbacks
         AttributeError if callback module does not implement run(category_name) for relevant callbacks
 

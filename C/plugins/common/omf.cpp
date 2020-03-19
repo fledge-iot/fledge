@@ -2675,7 +2675,6 @@ bool OMF::setCreatedTypes(const Reading& row)
 	{
 		return false;
 	}
-
 	string types;
 	string key;
 
@@ -2685,7 +2684,14 @@ bool OMF::setCreatedTypes(const Reading& row)
 	}
 	else if (m_PIServerEndpoint.compare("p") == 0)
 	{
-		key = m_AFHierarchyLevel + "_" + row.getAssetName();
+		string assetName;
+		string AFHierarchyPrefix;
+		string AFHierarchyLevel;
+
+		assetName = row.getAssetName();
+		retrieveAFHierarchyPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchyLevel);
+
+		key = AFHierarchyPrefix + "_" + assetName;
 	}
 
 

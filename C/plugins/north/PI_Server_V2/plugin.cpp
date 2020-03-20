@@ -86,7 +86,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"default": "omf_north_0001",
 			"order": "2",
 			"displayName": "Producer Token",
-			"validity" : "PIServerEndpoint != \"PI Web API\""
+			"validity" : "PIServerEndpoint == \"Connector Relay\""
 		},
 		"source": {
 			"description": "Defines the source of the data to be sent on the stream, this may be one of either readings, statistics or audit.",
@@ -159,7 +159,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"default": "/fledge/data_piwebapi/default",
 			"order": "18",
 			"displayName": "Asset Framework hierarchies tree",
-			"validity" : "PIServerEndpoint != \"Connector Relay\""
+			"validity" : "PIServerEndpoint == \"PI Web API\""
 		},
 		"AFMap": {
 			"description": "Defines a set of rules to address where assets should be placed in the AF hierarchy.",
@@ -167,7 +167,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"default": AF_HIERARCH_RULES,
 			"order": "19",
 			"displayName": "Asset Framework hierarchies rules",
-			"validity" : "PIServerEndpoint != \"Connector Relay\""
+			"validity" : "PIServerEndpoint == \"PI Web API\""
 		},
 		"notBlockingErrors": {
 			"description": "These errors are considered not blocking in the communication with the PI Server, the sending operation will proceed with the next block of data if one of these is encountered",
@@ -190,7 +190,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"default": "anonymous",
 			"order": "22",
 			"displayName": "PI Web API Authentication Method",
-			"validity" : "PIServerEndpoint != \"Connector Relay\""
+			"validity" : "PIServerEndpoint == \"PI Web API\""
 		},
 		"PIWebAPIUserId": {
 			"description": "User id of PI Web API to be used with the basic access authentication.",
@@ -221,28 +221,32 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type" : "string",
 			"default": "name_space",
 			"order": "26",
-			"displayName" : "Namespace"
+			"displayName" : "OCS Namespace",
+			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\""
 		},
 		"OCSTenantId" : {
 			"description" : "Tenant id associated to the specific OCS account",
 			"type" : "string",
 			"default": "ocs_tenant_id",
 			"order": "27",
-			"displayName" : "Tenant ID"
+			"displayName" : "OCS Tenant ID",
+			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\""
 		},
 		"OCSClientId" : {
 			"description" : "Client id associated to the specific OCS account, it is used to authenticate the source for using the OCS API",
 			"type" : "string",
 			"default": "ocs_client_id",
 			"order": "28",
-			"displayName" : "Client ID"
+			"displayName" : "OCS Client ID",
+			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\""
 		},
 		"OCSClientSecret" : {
 			"description" : "Client secret associated to the specific OCS account, it is used to authenticate the source for using the OCS API",
 			"type" : "password",
 			"default": "ocs_client_secret",
 			"order": "29",
-			"displayName" : "Client Secret"
+			"displayName" : "OCS Client Secret",
+			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\""
 		}
 	}
 );

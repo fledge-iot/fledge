@@ -151,7 +151,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"options":["Auto Discovery", "PI Web API", "Connector Relay", "OSIsoft Cloud Services", "Edge Data Store"],
 			"default": "Connector Relay",
 			"order": "17",
-			"displayName": "PI-Server Endpoint"
+			"displayName": "Endpoint"
 		},
 		"DefaultAFLocation": {
 			"description": "Defines the hierarchies tree in Asset Framework in which the assets will be created, each level is separated by /, PI Web API only.",
@@ -267,9 +267,8 @@ typedef struct
 	string		producerToken;	        // PI Server connector token
 	string		formatNumber;	        // OMF protocol Number format
 	string		formatInteger;	        // OMF protocol Integer format
-	// FIXME_I:
-	string		PIServerEndpoint;       // Defines which PIServer component should be used for the communication:
-	                                    // a=auto discovery - p=PI Web API, c=Connector Relay
+	string		PIServerEndpoint;       // Defines which End point should be used for the communication:
+	                                    // a=auto discovery - p=PI Web API, c=Connector Relay, o=OCS, e=EDS
 	string		DefaultAFLocation;      // 1st hierarchy in Asset Framework, PI Web API only.
 	string		AFMap;                  // Defines a set of rules to address where assets should be placed in the AF hierarchy.
 
@@ -437,7 +436,6 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 		Logger::getLogger()->error("Invalid authentication method for PI Web API :%s: ", PIWebAPIAuthMethod.c_str());
 	}
 
-	// FIXME_I:
 	// Translate the PIServerEndpoint configuration
 	// p = PI Web API
 	// c = Connector Relay
@@ -448,10 +446,10 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 		Logger::getLogger()->debug("PI-Server end point auto discovery selected");
 		connInfo->PIServerEndpoint = identifyPIServerEndpoint(connInfo);
 
-		if (connInfo->PIServerEndpoint.compare("p") == 0)
+		if (connInfo->PIServerEndpoint.compare(END_POINT_PIWEB_API) == 0)
 			Logger::getLogger()->debug("PI-Server end point selected - PI Web API ");
 
-		else if (connInfo->PIServerEndpoint.compare("c") == 0)
+		else if (connInfo->PIServerEndpoint.compare(END_POINT_CR) == 0)
 			Logger::getLogger()->debug("PI-Server end point selected - Connector Relay");
 		else
 			Logger::getLogger()->error("Invalid PI-Server end point");
@@ -459,22 +457,22 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	else if(PIServerEndpoint.compare("PI Web API") == 0)
 	{
 		Logger::getLogger()->debug("PI-Server end point manually selected - PI Web API ");
-		connInfo->PIServerEndpoint = "p";
+		connInfo->PIServerEndpoint = END_POINT_PIWEB_API;
 	}
 	else if(PIServerEndpoint.compare("Connector Relay") == 0)
 	{
 		Logger::getLogger()->debug("PI-Server end point manually selected - Connector Relay ");
-		connInfo->PIServerEndpoint = "c";
+		connInfo->PIServerEndpoint = END_POINT_CR;
 	}
 	else if(PIServerEndpoint.compare("OSIsoft Cloud Services") == 0)
 	{
 		Logger::getLogger()->debug("End point manually selected - OSIsoft Cloud Services");
-		connInfo->PIServerEndpoint = "o";
+		connInfo->PIServerEndpoint = END_POINT_OCS;
 	}
 	else if(PIServerEndpoint.compare("Edge Data Store") == 0)
 	{
 		Logger::getLogger()->debug("End point manually selected - OSIsoft Cloud Services");
-		connInfo->PIServerEndpoint = "e";
+		connInfo->PIServerEndpoint = END_POINT_EDS;
 	}
 	else
 	{
@@ -633,19 +631,17 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 		}
 	}
 
-
 	connInfo->sender->setAuthMethod          (connInfo->PIWebAPIAuthMethod);
 	connInfo->sender->setAuthBasicCredentials(connInfo->PIWebAPICredentials);
 
 	// OCS configurations
-	// FIXME_I:
 	connInfo->sender->setOCSNamespace        (connInfo->OCSNamespace);
 	connInfo->sender->setOCSTenantId         (connInfo->OCSTenantId);
 	connInfo->sender->setOCSClientId         (connInfo->OCSClientId);
 	connInfo->sender->setOCSClientSecret     (connInfo->OCSClientSecret);
 
 	// OCS - retreievs the authentication token
-	if (connInfo->PIServerEndpoint.compare("o") == 0)
+	if (connInfo->PIServerEndpoint.compare(END_POINT_OCS) == 0)
 	{
 		connInfo->OCSToken = OCSRetrieveAuthToken(connInfo);
 		connInfo->sender->setOCSToken  (connInfo->OCSToken);
@@ -942,7 +938,9 @@ long getMaxTypeId(CONNECTOR_INFO* connInfo)
 	return maxId;
 }
 
-// FIXME_I:
+/**
+ * Calls the OCS api to retrieve the authentication token
+ */
 string OCSRetrieveAuthToken(CONNECTOR_INFO* connInfo)
 {
 	string token;
@@ -1002,13 +1000,13 @@ string identifyPIServerEndpoint(CONNECTOR_INFO* connInfo)
 
 		if (httpCode >= 200 && httpCode <= 399)
 		{
-			PIServerEndpoint = "p";
+			PIServerEndpoint = END_POINT_PIWEB_API;
 			if (connInfo->PIWebAPIAuthMethod == "b")
 				Logger::getLogger()->debug("PI Web API end-point basic authorization granted");
 		}
 		else
 		{
-			PIServerEndpoint = "c";
+			PIServerEndpoint = END_POINT_CR;
 		}
 
 	}
@@ -1016,7 +1014,7 @@ string identifyPIServerEndpoint(CONNECTOR_INFO* connInfo)
 	{
 		Logger::getLogger()->warn("PI-Server end-point discovery encountered the error :%s: "
 			                  "trying selecting the Connector Relay as an end-point", ex.what());
-		PIServerEndpoint = "c";
+		PIServerEndpoint = END_POINT_CR;
 	}
 
 	delete endPoint;

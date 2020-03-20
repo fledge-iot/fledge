@@ -920,7 +920,7 @@ bool OMF::handleAFHierarchy()
 {
 	bool success = true;
 
-	if (m_PIServerEndpoint.compare("p") == 0)
+	if (m_PIServerEndpoint.compare(END_POINT_PIWEB_API) == 0)
 	{
 
 		success = handleAFHierarchySystemWide();
@@ -947,7 +947,7 @@ void OMF::setAFHierarchy()
 	std::string AFLocation;
 
 	AFLocation = m_DefaultAFLocation;
-	if (m_PIServerEndpoint.compare("p") == 0)
+	if (m_PIServerEndpoint.compare(END_POINT_PIWEB_API) == 0)
 	{
 		// Implementation onfly for PI Web API
 		StringReplaceAll(AFLocation, AFH_ESCAPE_SEQ,   AFH_ESCAPE_CHAR);
@@ -978,6 +978,7 @@ void OMF::setAFHierarchy()
  * @param readings            A vector of readings data pointers
  * @param skipSendDataTypes   Send datatypes only once (default is true)
  * @return                    != on success, 0 otherwise
+ * xxx
  */
 uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			   bool compression, bool skipSentDataTypes)
@@ -1427,12 +1428,16 @@ const std::string OMF::createTypeData(const Reading& reading)
 		tData.append("\": {\"type\": \"string\"},");
 	}
 
-	if (m_PIServerEndpoint.compare("c") == 0)
+	// Connector relay / ODS / EDS
+	if (m_PIServerEndpoint.compare(END_POINT_CR) == 0 ||
+	    m_PIServerEndpoint.compare(END_POINT_OCS) == 0 ||
+		m_PIServerEndpoint.compare(END_POINT_EDS) == 0
+	   )
 	{
 		tData.append("\"Name\": { \"type\": \"string\", \"isindex\": true } }, "
 					 "\"classification\": \"static\", \"id\": \"");
 	}
-	else if (m_PIServerEndpoint.compare("p") == 0)
+	else if (m_PIServerEndpoint.compare(END_POINT_PIWEB_API) == 0)
 	{
 		tData.append("\"Name\": { \"type\": \"string\", \"isname\": true }, ");
 		tData.append("\"AssetId\": { \"type\": \"string\", \"isindex\": true } ");
@@ -1547,7 +1552,7 @@ const std::string OMF::createContainerData(const Reading& reading)
 	measurementId = to_string(OMF::getAssetTypeId(assetName)) + "measurement_" + assetName;
 
 	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
-	if (m_PIServerEndpoint.compare("p") == 0)
+	if (m_PIServerEndpoint.compare(END_POINT_PIWEB_API) == 0)
 	{
 		retrieveAFHierarchyPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchyLevel);
 
@@ -1596,11 +1601,15 @@ const std::string OMF::createStaticData(const Reading& reading)
 	sData.append(" \"Name\": \"");
 
 	// Add asset_name
-	if (m_PIServerEndpoint.compare("c") == 0)
+	// Connector relay / ODS / EDS
+	if (m_PIServerEndpoint.compare(END_POINT_CR) == 0 ||
+		m_PIServerEndpoint.compare(END_POINT_OCS) == 0 ||
+		m_PIServerEndpoint.compare(END_POINT_EDS) == 0
+		)
 	{
 		sData.append(assetName);
 	}
-	else if (m_PIServerEndpoint.compare("p") == 0)
+	else if (m_PIServerEndpoint.compare(END_POINT_PIWEB_API) == 0)
 	{
 		string AFHierarchyPrefix;
 		string AFHierarchyLevel;
@@ -1638,7 +1647,11 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 
 	// Handles the structure for the Connector Relay
 	// not supported by PI Web API
-	if (m_PIServerEndpoint.compare("c") == 0)
+	// Connector relay / ODS / EDS
+	if (m_PIServerEndpoint.compare(END_POINT_CR) == 0 ||
+		m_PIServerEndpoint.compare(END_POINT_OCS) == 0 ||
+		m_PIServerEndpoint.compare(END_POINT_EDS) == 0
+		)
 	{
 		lData.append("{\"source\": {\"typeid\": \"");
 
@@ -1662,7 +1675,7 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 
 		lData.append("\"}},");
 	}
-	else if (m_PIServerEndpoint.compare("p") == 0)
+	else if (m_PIServerEndpoint.compare(END_POINT_PIWEB_API) == 0)
 	{
 		// Link the asset to the 1st level of AF hierarchy if the end point is PI Web API
 
@@ -1688,12 +1701,16 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 
 	lData.append("\", \"index\": \"");
 
-	if (m_PIServerEndpoint.compare("c") == 0)
+	// Connector relay / ODS / EDS
+	if (m_PIServerEndpoint.compare(END_POINT_CR) == 0 ||
+		m_PIServerEndpoint.compare(END_POINT_OCS) == 0 ||
+		m_PIServerEndpoint.compare(END_POINT_EDS) == 0
+		)
 	{
 		// Add asset_name
 		lData.append(assetName);
 	}
-	else if (m_PIServerEndpoint.compare("p") == 0)
+	else if (m_PIServerEndpoint.compare(END_POINT_PIWEB_API) == 0)
 	{
 		lData.append("A_" + objectPrefix + "_" + assetName);
 	}
@@ -1701,7 +1718,7 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 	measurementId = to_string(OMF::getAssetTypeId(assetName)) + "measurement_" + assetName;
 
 	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
-	if (m_PIServerEndpoint.compare("p") == 0)
+	if (m_PIServerEndpoint.compare(END_POINT_PIWEB_API) == 0)
 	{
 		measurementId = objectPrefix + "_" + measurementId;
 	}
@@ -2001,7 +2018,7 @@ void OMF::setAssetTypeTag(const string& assetName,
 		              "_" + tagName;
 
 	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
-	if (m_PIServerEndpoint.compare("p") == 0)
+	if (m_PIServerEndpoint.compare(END_POINT_PIWEB_API) == 0)
 	{
 		string AFHierarchyPrefix;
 		string AFHierarchyLevel;
@@ -2681,11 +2698,15 @@ bool OMF::setCreatedTypes(const Reading& row)
 	string types;
 	string key;
 
-	if (m_PIServerEndpoint.compare("c") == 0)
+	// Connector relay / ODS / EDS
+	if (m_PIServerEndpoint.compare(END_POINT_CR) == 0  ||
+		m_PIServerEndpoint.compare(END_POINT_OCS) == 0 ||
+		m_PIServerEndpoint.compare(END_POINT_EDS) == 0
+		)
 	{
 		key = row.getAssetName();
 	}
-	else if (m_PIServerEndpoint.compare("p") == 0)
+	else if (m_PIServerEndpoint.compare(END_POINT_PIWEB_API) == 0)
 	{
 		key = m_AFHierarchyLevel + "_" + row.getAssetName();
 	}
@@ -2808,11 +2829,15 @@ bool OMF::getCreatedTypes(const string& key)
 	bool ret;
 	string keyComplete;
 
-	if (m_PIServerEndpoint.compare("c") == 0)
+	// Connector relay / ODS / EDS
+	if (m_PIServerEndpoint.compare(END_POINT_CR) == 0 ||
+		m_PIServerEndpoint.compare(END_POINT_OCS) == 0 ||
+		m_PIServerEndpoint.compare(END_POINT_EDS) == 0
+		)
 	{
 		keyComplete = key;
 	}
-	else if (m_PIServerEndpoint.compare("p") == 0)
+	else if (m_PIServerEndpoint.compare(END_POINT_PIWEB_API) == 0)
 	{
 		keyComplete = m_AFHierarchyLevel + "_" + key;
 	}

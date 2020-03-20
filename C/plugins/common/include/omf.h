@@ -24,6 +24,11 @@
 #define OMF_TYPE_FLOAT		"number"
 #define OMF_TYPE_UNSUPPORTED	"unsupported"
 
+#define END_POINT_PIWEB_API  "p"
+#define END_POINT_CR         "c"     // Connector RELAY
+#define END_POINT_OCS        "o"
+#define END_POINT_EDS        "e"
+
 using namespace std;
 using namespace rapidjson;
 

@@ -13,6 +13,7 @@
 #include <utility>
 
 #include <ocs.h>
+#include <string_utils.h>
 #include <logger.h>
 #include <simple_https.h>
 #include <rapidjson/document.h>
@@ -30,8 +31,9 @@ OCS::~OCS()
 {
 }
 
-// FIXME_I:
-
+/**
+ * Extracts the OCS token from the JSON returned by the OCS api
+ */
 std::string OCS::extractToken(const string& response)
 {
 	Document JSon;
@@ -42,16 +44,20 @@ std::string OCS::extractToken(const string& response)
 	{
 		Logger::getLogger()->error("OCS token extract, invalid json - HTTP response :%s:", response.c_str());
 	}
-
-	if (JSon.HasMember("access_token"))
+	else
 	{
-		token = JSon["access_token"].GetString();
+		if (JSon.HasMember("access_token"))
+		{
+			token = JSon["access_token"].GetString();
+		}
 	}
 
 	return(token);
 }
 
-// FIXME_I:
+/**
+ * Calls the OCS api to retrieve the authentication token related to the the clientId and clientSecret
+ */
 std::string OCS::retrieveToken(const string& clientId, const string& clientSecret)
 {
 	string token;
@@ -71,7 +77,10 @@ std::string OCS::retrieveToken(const string& clientId, const string& clientSecre
 	header.push_back( std::make_pair("Content-Type", "application/x-www-form-urlencoded"));
 	header.push_back( std::make_pair("Accept", " text/plain"));
 
-	payload =  "grant_type=client_credentials&client_id=" + clientId + "&client_secret=" + clientSecret;
+	payload =  PAYLOAD_RETRIEVE_TOKEN;
+
+	StringReplace(payload, "CLIENT_ID_PLACEHOLDER",        clientId);
+	StringReplace(payload, "CLIENT_SECRET_ID_PLACEHOLDER", clientSecret);
 
 	// Anonymous auth
 	string authMethod = "a";

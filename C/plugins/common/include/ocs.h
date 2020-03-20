@@ -22,7 +22,7 @@ using namespace std;
 
 #define URL_RETRIEVE_TOKEN "/identity/connect/token"
 
-
+#define PAYLOAD_RETRIEVE_TOKEN "grant_type=client_credentials&client_id=CLIENT_ID_PLACEHOLDER&client_secret=CLIENT_SECRET_ID_PLACEHOLDER"
 
 /**
  * The OCS class.

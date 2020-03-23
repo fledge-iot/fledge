@@ -51,11 +51,11 @@ class Purge(FledgeProcess):
             "order": "1"
         },
         "size": {
-            "description": "Maximum size of data to be retained (in Kbytes). Oldest data will be removed to keep "
-                           "below this size, unless retained.",
+            "description": "Maximum number of rows of data to be retained. Oldest data will be removed to keep "
+                           "below this row count, unless retained.",
             "type": "integer",
             "default": "1000000",
-            "displayName": "Max Size Of Data To Be Retained (In kB)",
+            "displayName": "Max rows of data to retain",
             "order": "2"
         },
         "retainUnsent": {

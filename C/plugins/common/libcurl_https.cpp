@@ -301,6 +301,8 @@ int LibcurlHttps::sendRequest(
 			// NOTE : the text should be considered only if the HTTP code is not an ACK
 			httpResponseText = httpHeaderBuffer;
 			StringStripCRLF(httpResponseText);
+
+			m_HTTPResponse = httpResponseText;
 		}
 		catch (exception &ex)
 		{

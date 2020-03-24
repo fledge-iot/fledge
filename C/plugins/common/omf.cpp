@@ -302,8 +302,6 @@ bool OMF::sendDataTypes(const Reading& row)
 	// Then get HTTPS POST ret code and return 0 to client on error
 	try
 	{
-		Logger::getLogger()->debug("Sending JSON dataType message 'Type' ");
-
 		res = m_sender.sendRequest("POST",
 					   m_path,
 					   resType,
@@ -2843,7 +2841,13 @@ bool OMF::getCreatedTypes(const string& key)
 	}
 	else if (m_PIServerEndpoint.compare(END_POINT_PIWEB_API) == 0)
 	{
-		keyComplete = m_AFHierarchyLevel + "_" + key;
+		string AFHierarchyPrefix;
+		string AFHierarchyLevel;
+
+		retrieveAFHierarchyPrefixAssetName(key, AFHierarchyPrefix, AFHierarchyLevel);
+		keyComplete = AFHierarchyPrefix + "_" + key;
+
+		Logger::getLogger()->debug("DBG getCreatedTypes :%s: :%s:", key.c_str(), keyComplete.c_str() );
 	}
 
 	if (!m_OMFDataTypes)

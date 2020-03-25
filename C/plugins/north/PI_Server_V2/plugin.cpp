@@ -271,7 +271,7 @@ typedef struct
 	string		producerToken;	        // PI Server connector token
 	string		formatNumber;	        // OMF protocol Number format
 	string		formatInteger;	        // OMF protocol Integer format
-	string		PIServerEndpoint;       // Defines which End point should be used for the communication:
+	OMF_END_POINT PIServerEndpoint;     // Defines which End point should be used for the communication:
 	                                    // a=auto discovery - p=PI Web API, c=Connector Relay, o=OCS, e=EDS
 	string		DefaultAFLocation;      // 1st hierarchy in Asset Framework, PI Web API only.
 	string		AFMap;                  // Defines a set of rules to address where assets should be placed in the AF hierarchy.
@@ -304,13 +304,13 @@ typedef struct
 			assetsDataTypes;
 } CONNECTOR_INFO;
 
-string saveSentDataTypes            (CONNECTOR_INFO* connInfo);
-void   loadSentDataTypes            (CONNECTOR_INFO* connInfo, Document& JSONData);
-long   getMaxTypeId                 (CONNECTOR_INFO* connInfo);
-string identifyPIServerEndpoint     (CONNECTOR_INFO* connInfo);
-string AuthBasicCredentialsGenerate (string& userId, string& password);
-void   AuthKerberosSetup            (string& keytabFile, string& keytabFileName);
-string OCSRetrieveAuthToken         (CONNECTOR_INFO* connInfo);
+string        saveSentDataTypes            (CONNECTOR_INFO* connInfo);
+void          loadSentDataTypes            (CONNECTOR_INFO* connInfo, Document& JSONData);
+long          getMaxTypeId                 (CONNECTOR_INFO* connInfo);
+OMF_END_POINT identifyPIServerEndpoint     (CONNECTOR_INFO* connInfo);
+string        AuthBasicCredentialsGenerate (string& userId, string& password);
+void          AuthKerberosSetup            (string& keytabFile, string& keytabFileName);
+string        OCSRetrieveAuthToken         (CONNECTOR_INFO* connInfo);
 
 /**
  * Return the information about this plugin
@@ -450,10 +450,10 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 		Logger::getLogger()->debug("PI-Server end point auto discovery selected");
 		connInfo->PIServerEndpoint = identifyPIServerEndpoint(connInfo);
 
-		if (connInfo->PIServerEndpoint.compare(END_POINT_PIWEB_API) == 0)
+		if (connInfo->PIServerEndpoint == END_POINT_PIWEB_API)
 			Logger::getLogger()->debug("PI-Server end point selected - PI Web API ");
 
-		else if (connInfo->PIServerEndpoint.compare(END_POINT_CR) == 0)
+		else if (connInfo->PIServerEndpoint == END_POINT_CR)
 			Logger::getLogger()->debug("PI-Server end point selected - Connector Relay");
 		else
 			Logger::getLogger()->error("Invalid PI-Server end point");
@@ -645,7 +645,7 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	connInfo->sender->setOCSClientSecret     (connInfo->OCSClientSecret);
 
 	// OCS - retreievs the authentication token
-	if (connInfo->PIServerEndpoint.compare(END_POINT_OCS) == 0)
+	if (connInfo->PIServerEndpoint == END_POINT_OCS)
 	{
 		connInfo->OCSToken = OCSRetrieveAuthToken(connInfo);
 		connInfo->sender->setOCSToken  (connInfo->OCSToken);
@@ -963,11 +963,11 @@ string OCSRetrieveAuthToken(CONNECTOR_INFO* connInfo)
  * Evaluate if the endpoint is a PI Web API or a Connector Relay.
  *
  * @param    connInfo	The CONNECTOR_INFO data structure
- * @return		p=PI Web API, c=Connector Relay
+ * @return		p=PI Web API, c=Connector Relayf
  */
-string identifyPIServerEndpoint(CONNECTOR_INFO* connInfo)
+OMF_END_POINT identifyPIServerEndpoint(CONNECTOR_INFO* connInfo)
 {
-	string PIServerEndpoint;
+	OMF_END_POINT PIServerEndpoint;
 
 	HttpSender *endPoint;
 	vector<pair<string, string>> header;

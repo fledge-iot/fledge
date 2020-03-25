@@ -24,10 +24,12 @@
 #define OMF_TYPE_FLOAT		"number"
 #define OMF_TYPE_UNSUPPORTED	"unsupported"
 
-#define END_POINT_PIWEB_API  "p"
-#define END_POINT_CR         "c"     // Connector RELAY
-#define END_POINT_OCS        "o"
-#define END_POINT_EDS        "e"
+enum OMF_END_POINT {
+	END_POINT_PIWEB_API,
+	END_POINT_CR,
+	END_POINT_OCS,
+	END_POINT_EDS
+};
 
 using namespace std;
 using namespace rapidjson;
@@ -102,7 +104,7 @@ class OMF
 		void setFormatType(const std::string &key, std::string &value);
 
 		// Set which PIServer component should be used for the communication
-		void setPIServerEndpoint(const std::string &PIServerEndpoint);
+		void setPIServerEndpoint(const OMF_END_POINT PIServerEndpoint);
 
 		// Set the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.
 		void setDefaultAFLocation(const std::string &DefaultAFLocation);
@@ -246,10 +248,10 @@ class OMF
 
 	private:
 		const std::string	m_path;
-		long			m_typeId;
+		long			    m_typeId;
 		const std::string	m_producerToken;
-		std::string		m_PIServerEndpoint;
-		std::string		m_DefaultAFLocation;
+		OMF_END_POINT		m_PIServerEndpoint;
+		std::string		    m_DefaultAFLocation;
 
 		// AF hierarchies handling - Metadata MAP
 		std::string		m_AFMap;
@@ -338,7 +340,7 @@ class OMFData
 	public:
 		OMFData(const Reading& reading,
 			const long typeId,
-			const std::string& PIServerEndpoint = std::string(),
+			const OMF_END_POINT PIServerEndpoint = END_POINT_CR,
 			const std::string& DefaultAFLocation = std::string());
 
 		const std::string& OMFdataVal() const;

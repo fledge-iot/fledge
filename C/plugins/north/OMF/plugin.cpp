@@ -39,7 +39,7 @@ using namespace std;
 using namespace rapidjson;
 using namespace SimpleWeb;
 
-#define PLUGIN_NAME "PI_Server_V2"
+#define PLUGIN_NAME "OMF"
 #define TYPE_ID_KEY "type-id"
 #define SENT_TYPES_KEY "sentDataTypes"
 #define DATA_KEY "dataTypes"

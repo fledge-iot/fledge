@@ -84,7 +84,7 @@ static const string sendingAdvancedConfig =
 			"\"description\": \"How long the sending process " \
 			"should run (in seconds) before stopping.\", " \
 			"\"type\": \"integer\", \"default\": \"60\" , " \
-			"\"order\": \"7\", \"displayName\" : \"Duration\" }, " \
+			"\"order\": \"6\", \"displayName\" : \"Duration\" }, " \
 	        "\"blockSize\": {" \
 			"\"description\": \"The size of a block of readings to send " \
 			"in each transmission.\", " \
@@ -94,11 +94,11 @@ static const string sendingAdvancedConfig =
 		"\"description\": \"A period of time, expressed in seconds, " \
 			"to wait between attempts to send readings when there are no " \
 			"readings to be sent.\", \"type\": \"integer\", \"default\": \"1\", " \
-			"\"order\": \"11\", \"displayName\" : \"Sleep Interval\"  }, " \
+			"\"order\": \"7\", \"displayName\" : \"Sleep Interval\"  }, " \
 		"\"memoryBufferSize\": {" \
 			"\"description\": \"Number of elements of blockSize size to be buffered in memory\", " \
 			"\"type\": \"integer\", \"default\": \"10\", " \
-			"\"order\": \"12\", \"displayName\" : \"Memory Buffer Size\" ," \
+			"\"order\": \"8\", \"displayName\" : \"Memory Buffer Size\" ," \
 			"\"readonly\": \"false\" } " \
 	"}";
 

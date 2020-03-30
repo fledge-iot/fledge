@@ -137,7 +137,7 @@ def apply_date_format(in_data):
     # Look for timezone start with '-' a the end of the date (-XY:WZ)
     zone_index = in_data.rfind("-")
     # If index is less than 10 we don't have the trailing zone with -
-    if (zone_index < 10):
+    if zone_index < 10:
         #  Look for timezone start with '+' (+XY:ZW)
         zone_index = in_data.rfind("+")
     if zone_index == -1:
@@ -154,7 +154,9 @@ def apply_date_format(in_data):
     else:
         # Replace space with T (i.e b/w date & time) and UTC Zulu time
         timestamp = in_data[:zone_index].replace(" ", "T") + "Z"
-        _LOGGER.warning(" {} datetime with timezone is found. Hence replaced with Zulu time: {}".format(in_data, timestamp))
+        if in_data[zone_index:] not in ('+00', '+00:00'):
+            _LOGGER.warning("Non-UTC {} timezone is found. Hence no date conversion is done at the time being "
+                            "this routine expects UTC date time values".format(in_data[zone_index:]))
     return timestamp
 
 

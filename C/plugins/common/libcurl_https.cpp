@@ -205,10 +205,12 @@ void LibcurlHttps::setLibCurlOptions(CURL *sender, const string& path, const vec
  *		    std::exception as generic exception for all the
  *		    cases >= 401 Client errors / 5xx Server errors
  */
-int LibcurlHttps::sendRequest(const string& method,
-			     const string& path,
-			     const vector<pair<string, string>>& headers,
-			     const string& payload)
+int LibcurlHttps::sendRequest(
+		const string& method,
+		const string& path,
+		const vector<pair<string, string>>& headers,
+		const string& payload
+)
 {
 	// Variables definition
 	long   httpCode = 0;
@@ -299,6 +301,8 @@ int LibcurlHttps::sendRequest(const string& method,
 			// NOTE : the text should be considered only if the HTTP code is not an ACK
 			httpResponseText = httpHeaderBuffer;
 			StringStripCRLF(httpResponseText);
+
+			m_HTTPResponse = httpResponseText;
 		}
 		catch (exception &ex)
 		{

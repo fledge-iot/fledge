@@ -197,6 +197,13 @@ where *user* is the name of the Linux user that will run Fledge. The Fledge data
 |br| |br|
 
 
+Known issues
+============
+
+The integration with OCS (OSIsoft Cloud Services) in CentOS 7.6 doesn't work for a problem related to the boost library.
+------------------------------------------------------------------------------------------------------------------------
+|br| |br|
+
 Troubleshooting
 ===============
 

@@ -18,6 +18,7 @@
 #include <plugin_exception.h>
 #include <iostream>
 #include <omf.h>
+#include <ocs.h>
 #include <simple_https.h>
 #include <simple_http.h>
 #include <config_category.h>
@@ -85,7 +86,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"default": "omf_north_0001",
 			"order": "2",
 			"displayName": "Producer Token",
-			"validity" : "PIServerEndpoint != \"PI Web API\""
+			"validity" : "PIServerEndpoint == \"Connector Relay\""
 		},
 		"source": {
 			"description": "Defines the source of the data to be sent on the stream, this may be one of either readings, statistics or audit.",
@@ -147,10 +148,10 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 		"PIServerEndpoint": {
 			"description": "Defines which PIServer component should be used for the communication: PI Web API, Connector Relay or auto discovery.",
 			"type": "enumeration",
-			"options":["Auto Discovery", "PI Web API", "Connector Relay"],
+			"options":["Auto Discovery", "PI Web API", "Connector Relay", "OSIsoft Cloud Services", "Edge Data Store"],
 			"default": "Connector Relay",
 			"order": "17",
-			"displayName": "PI-Server Endpoint"
+			"displayName": "Endpoint"
 		},
 		"DefaultAFLocation": {
 			"description": "Defines the hierarchies tree in Asset Framework in which the assets will be created, each level is separated by /, PI Web API only.",
@@ -158,7 +159,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"default": "/fledge/data_piwebapi/default",
 			"order": "18",
 			"displayName": "Asset Framework hierarchies tree",
-			"validity" : "PIServerEndpoint != \"Connector Relay\""
+			"validity" : "PIServerEndpoint == \"PI Web API\""
 		},
 		"AFMap": {
 			"description": "Defines a set of rules to address where assets should be placed in the AF hierarchy.",
@@ -166,7 +167,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"default": AF_HIERARCH_RULES,
 			"order": "19",
 			"displayName": "Asset Framework hierarchies rules",
-			"validity" : "PIServerEndpoint != \"Connector Relay\""
+			"validity" : "PIServerEndpoint == \"PI Web API\""
 		},
 		"notBlockingErrors": {
 			"description": "These errors are considered not blocking in the communication with the PI Server, the sending operation will proceed with the next block of data if one of these is encountered",
@@ -189,7 +190,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"default": "anonymous",
 			"order": "22",
 			"displayName": "PI Web API Authentication Method",
-			"validity" : "PIServerEndpoint != \"Connector Relay\""
+			"validity" : "PIServerEndpoint == \"PI Web API\""
 		},
 		"PIWebAPIUserId": {
 			"description": "User id of PI Web API to be used with the basic access authentication.",
@@ -214,6 +215,38 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"order": "25" ,
 			"displayName": "PI Web API Kerberos keytab file",
 			"validity" : "PIWebAPIAuthenticationMethod == \"kerberos\""
+		},
+		"OCSNamespace" : {
+			"description" : "Specifies the OCS namespace where the information are stored and it is used for the interaction with the OCS API",
+			"type" : "string",
+			"default": "name_space",
+			"order": "26",
+			"displayName" : "OCS Namespace",
+			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\""
+		},
+		"OCSTenantId" : {
+			"description" : "Tenant id associated to the specific OCS account",
+			"type" : "string",
+			"default": "ocs_tenant_id",
+			"order": "27",
+			"displayName" : "OCS Tenant ID",
+			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\""
+		},
+		"OCSClientId" : {
+			"description" : "Client id associated to the specific OCS account, it is used to authenticate the source for using the OCS API",
+			"type" : "string",
+			"default": "ocs_client_id",
+			"order": "28",
+			"displayName" : "OCS Client ID",
+			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\""
+		},
+		"OCSClientSecret" : {
+			"description" : "Client secret associated to the specific OCS account, it is used to authenticate the source for using the OCS API",
+			"type" : "password",
+			"default": "ocs_client_secret",
+			"order": "29",
+			"displayName" : "OCS Client Secret",
+			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\""
 		}
 	}
 );
@@ -225,37 +258,43 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
  */
 typedef struct
 {
-	HttpSender	*sender;	        // HTTPS connection
-	OMF 		*omf;		        // OMF data protocol
-	bool		compression;           // whether to compress readings' data
-	string		protocol;              // http / https
-	string		hostAndPort;           // hostname:port for SimpleHttps
-	unsigned int	retrySleepTime;	        // Seconds between each retry
+	HttpSender	*sender;                // HTTPS connection
+	OMF 		*omf;                   // OMF data protocol
+	bool		compression;            // whether to compress readings' data
+	string		protocol;               // http / https
+	string		hostAndPort;            // hostname:port for SimpleHttps
+	unsigned int	retrySleepTime;     // Seconds between each retry
 	unsigned int	maxRetry;	        // Max number of retries in the communication
 	unsigned int	timeout;	        // connect and operation timeout
-	string		path;		        // PI Server application path
-	long		typeId;		        // OMF protocol type-id prefix
+	string		path;		            // PI Server application path
+	long		typeId;		            // OMF protocol type-id prefix
 	string		producerToken;	        // PI Server connector token
 	string		formatNumber;	        // OMF protocol Number format
 	string		formatInteger;	        // OMF protocol Integer format
-	string		PIServerEndpoint;       // Defines which PIServer component should be used for the communication:
-	// a=auto discovery - p=PI Web API, c=Connector Relay
+	OMF_END_POINT PIServerEndpoint;     // Defines which End point should be used for the communication:
+	                                    // a=auto discovery - p=PI Web API, c=Connector Relay, o=OCS, e=EDS
 	string		DefaultAFLocation;      // 1st hierarchy in Asset Framework, PI Web API only.
 	string		AFMap;                  // Defines a set of rules to address where assets should be placed in the AF hierarchy.
 
-	string		prefixAFAsset;       	// Prefix to generate unique asste id
+	string		prefixAFAsset;          // Prefix to generate unique asste id
 	string		PIWebAPIAuthMethod;     // Authentication method to be used with the PI Web API.
 	string		PIWebAPICredentials;    // Credentials is the base64 encoding of id and password joined by a single colon (:)
 	string 		KerberosKeytab;         // Kerberos authentication keytab file
-	                                        //   stores the environment variable value about the keytab file path
-	                                        //   to allow the environment to persist for all the execution of the plugin
-	                                        //
-	                                        //   Note : A keytab is a file containing pairs of Kerberos principals
-	                                        //   and encrypted keys (which are derived from the Kerberos password).
-	                                        //   You can use a keytab file to authenticate to various remote systems
-	                                        //   using Kerberos without entering a password.
+	                                    //   stores the environment variable value about the keytab file path
+	                                    //   to allow the environment to persist for all the execution of the plugin
+	                                    //
+	                                    //   Note : A keytab is a file containing pairs of Kerberos principals
+	                                    //   and encrypted keys (which are derived from the Kerberos password).
+	                                    //   You can use a keytab file to authenticate to various remote systems
+	                                    //   using Kerberos without entering a password.
 
-    vector<pair<string, string>>
+	string		OCSNamespace;           // OCS configurations
+	string		OCSTenantId;
+	string		OCSClientId;
+	string		OCSClientSecret;
+	string		OCSToken;
+
+	vector<pair<string, string>>
 			staticData;	// Static data
         // Errors considered not blocking in the communication with the PI Server
 	std::vector<std::string>
@@ -265,12 +304,13 @@ typedef struct
 			assetsDataTypes;
 } CONNECTOR_INFO;
 
-string saveSentDataTypes            (CONNECTOR_INFO* connInfo);
-void   loadSentDataTypes            (CONNECTOR_INFO* connInfo, Document& JSONData);
-long   getMaxTypeId                 (CONNECTOR_INFO* connInfo);
-string identifyPIServerEndpoint     (CONNECTOR_INFO* connInfo);
-string AuthBasicCredentialsGenerate (string& userId, string& password);
-void   AuthKerberosSetup            (string& keytabFile, string& keytabFileName);
+string        saveSentDataTypes            (CONNECTOR_INFO* connInfo);
+void          loadSentDataTypes            (CONNECTOR_INFO* connInfo, Document& JSONData);
+long          getMaxTypeId                 (CONNECTOR_INFO* connInfo);
+OMF_END_POINT identifyPIServerEndpoint     (CONNECTOR_INFO* connInfo);
+string        AuthBasicCredentialsGenerate (string& userId, string& password);
+void          AuthKerberosSetup            (string& keytabFile, string& keytabFileName);
+string        OCSRetrieveAuthToken         (CONNECTOR_INFO* connInfo);
 
 /**
  * Return the information about this plugin
@@ -329,6 +369,16 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	string PIWebAPIPassword       = configData->getValue("PIWebAPIPassword");
 	string KerberosKeytabFileName = configData->getValue("PIWebAPIKerberosKeytabFileName");
 
+	// OCS configurations
+	string OCSNamespace    = configData->getValue("OCSNamespace");
+	string OCSTenantId     = configData->getValue("OCSTenantId");
+	string OCSClientId     = configData->getValue("OCSClientId");
+	string OCSClientSecret = configData->getValue("OCSClientSecret");
+
+	// TENANT_ID_PLACEHOLDER and NAMESPACE_ID_PLACEHOLDER, if present, will be replaced with the values of OCSTenantId and OCSNamespace
+	StringReplace(url, "TENANT_ID_PLACEHOLDER",    OCSTenantId);
+	StringReplace(url, "NAMESPACE_ID_PLACEHOLDER", OCSNamespace);
+
 	/**
 	 * Extract host, port, path from URL
 	 */
@@ -361,6 +411,12 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	connInfo->DefaultAFLocation = DefaultAFLocation;
 	connInfo->AFMap = AFMap;
 
+	// OCS configurations
+	connInfo->OCSNamespace    = OCSNamespace;
+	connInfo->OCSTenantId     = OCSTenantId;
+	connInfo->OCSClientId     = OCSClientId;
+	connInfo->OCSClientSecret = OCSClientSecret;
+
 	// PI Web API end-point - evaluates the authentication method requested
 	if (PIWebAPIAuthMethod.compare("anonymous") == 0)
 	{
@@ -385,36 +441,47 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	}
 
 	// Translate the PIServerEndpoint configuration
+	// p = PI Web API
+	// c = Connector Relay
+	// o = OCS
+	// e = EDS
 	if (PIServerEndpoint.compare("Auto Discovery") == 0)
 	{
 		Logger::getLogger()->debug("PI-Server end point auto discovery selected");
 		connInfo->PIServerEndpoint = identifyPIServerEndpoint(connInfo);
+
+		if (connInfo->PIServerEndpoint == END_POINT_PIWEB_API)
+			Logger::getLogger()->debug("PI-Server end point selected - PI Web API ");
+
+		else if (connInfo->PIServerEndpoint == END_POINT_CR)
+			Logger::getLogger()->debug("PI-Server end point selected - Connector Relay");
+		else
+			Logger::getLogger()->error("Invalid PI-Server end point");
 	}
 	else if(PIServerEndpoint.compare("PI Web API") == 0)
 	{
 		Logger::getLogger()->debug("PI-Server end point manually selected - PI Web API ");
-		connInfo->PIServerEndpoint = "p";
-
+		connInfo->PIServerEndpoint = END_POINT_PIWEB_API;
 	}
 	else if(PIServerEndpoint.compare("Connector Relay") == 0)
 	{
 		Logger::getLogger()->debug("PI-Server end point manually selected - Connector Relay ");
-		connInfo->PIServerEndpoint = "c";
+		connInfo->PIServerEndpoint = END_POINT_CR;
+	}
+	else if(PIServerEndpoint.compare("OSIsoft Cloud Services") == 0)
+	{
+		Logger::getLogger()->debug("End point manually selected - OSIsoft Cloud Services");
+		connInfo->PIServerEndpoint = END_POINT_OCS;
+	}
+	else if(PIServerEndpoint.compare("Edge Data Store") == 0)
+	{
+		Logger::getLogger()->debug("End point manually selected - OSIsoft Cloud Services");
+		connInfo->PIServerEndpoint = END_POINT_EDS;
 	}
 	else
 	{
-		Logger::getLogger()->debug("PI-Server end point manually selected, the value provided is invalid :%s:, auto discovery executed" , PIServerEndpoint.c_str());
-		connInfo->PIServerEndpoint = identifyPIServerEndpoint(connInfo);
+		Logger::getLogger()->error("The provided end point is invalid :%s:" , PIServerEndpoint.c_str());
 	}
-
-	if (connInfo->PIServerEndpoint.compare("p") == 0)
-		Logger::getLogger()->debug("PI-Server end point selected - PI Web API ");
-
-	else if (connInfo->PIServerEndpoint.compare("c") == 0)
-		Logger::getLogger()->debug("PI-Server end point selected - Connector Relay");
-	else
-		Logger::getLogger()->error("Invalid PI-Server end point");
-
 
 	// Use compression ?
 	string compr = configData->getValue("compression");
@@ -568,9 +635,21 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 		}
 	}
 
-
 	connInfo->sender->setAuthMethod          (connInfo->PIWebAPIAuthMethod);
 	connInfo->sender->setAuthBasicCredentials(connInfo->PIWebAPICredentials);
+
+	// OCS configurations
+	connInfo->sender->setOCSNamespace        (connInfo->OCSNamespace);
+	connInfo->sender->setOCSTenantId         (connInfo->OCSTenantId);
+	connInfo->sender->setOCSClientId         (connInfo->OCSClientId);
+	connInfo->sender->setOCSClientSecret     (connInfo->OCSClientSecret);
+
+	// OCS - retreievs the authentication token
+	if (connInfo->PIServerEndpoint == END_POINT_OCS)
+	{
+		connInfo->OCSToken = OCSRetrieveAuthToken(connInfo);
+		connInfo->sender->setOCSToken  (connInfo->OCSToken);
+	}
 
 	// Allocate the PI Server data protocol
 	connInfo->omf = new OMF(*connInfo->sender,
@@ -864,14 +943,31 @@ long getMaxTypeId(CONNECTOR_INFO* connInfo)
 }
 
 /**
+ * Calls the OCS api to retrieve the authentication token
+ */
+string OCSRetrieveAuthToken(CONNECTOR_INFO* connInfo)
+{
+	string token;
+	OCS *ocs;
+
+	ocs = new OCS();
+
+	token = ocs->retrieveToken(connInfo->OCSClientId , connInfo->OCSClientSecret);
+
+	delete ocs;
+
+	return token;
+}
+
+/**
  * Evaluate if the endpoint is a PI Web API or a Connector Relay.
  *
  * @param    connInfo	The CONNECTOR_INFO data structure
- * @return		p=PI Web API, c=Connector Relay
+ * @return		p=PI Web API, c=Connector Relayf
  */
-string identifyPIServerEndpoint(CONNECTOR_INFO* connInfo)
+OMF_END_POINT identifyPIServerEndpoint(CONNECTOR_INFO* connInfo)
 {
-	string PIServerEndpoint;
+	OMF_END_POINT PIServerEndpoint;
 
 	HttpSender *endPoint;
 	vector<pair<string, string>> header;
@@ -908,13 +1004,13 @@ string identifyPIServerEndpoint(CONNECTOR_INFO* connInfo)
 
 		if (httpCode >= 200 && httpCode <= 399)
 		{
-			PIServerEndpoint = "p";
+			PIServerEndpoint = END_POINT_PIWEB_API;
 			if (connInfo->PIWebAPIAuthMethod == "b")
 				Logger::getLogger()->debug("PI Web API end-point basic authorization granted");
 		}
 		else
 		{
-			PIServerEndpoint = "c";
+			PIServerEndpoint = END_POINT_CR;
 		}
 
 	}
@@ -922,7 +1018,7 @@ string identifyPIServerEndpoint(CONNECTOR_INFO* connInfo)
 	{
 		Logger::getLogger()->warn("PI-Server end-point discovery encountered the error :%s: "
 			                  "trying selecting the Connector Relay as an end-point", ex.what());
-		PIServerEndpoint = "c";
+		PIServerEndpoint = END_POINT_CR;
 	}
 
 	delete endPoint;

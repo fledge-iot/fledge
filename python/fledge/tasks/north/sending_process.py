@@ -115,18 +115,20 @@ class InvalidCommandLineParameters(RuntimeError):
 
 
 def apply_date_format(in_data):
-    """ This routine adds the default UTC zone format to the input date time string
-    If a timezone (strting with + or -) is found, all the following chars
-    are replaced by +00, otherwise +00 is added.
+    """ This routine adds the UTC Zulu time to the input date time string
+    a) Space in datetime string is replaced with "T"
+    b) If a timezone (strting with + or -) is found, all the following chars
+    are replaced by "Z", otherwise Z is added.
     Note: if the input zone is +02:00 no date conversion is done,
           at the time being this routine expects UTC date time values.
     Examples:
-        2018-05-28 16:56:55              ==> 2018-05-28 16:56:55.000000+00
-        2018-05-28 13:42:28.84           ==> 2018-05-28 13:42:28.840000+00
-        2018-03-22 17:17:17.166347       ==> 2018-03-22 17:17:17.166347+00
-        2018-03-22 17:17:17.166347+00:00 ==> 2018-03-22 17:17:17.166347+00
-        2018-03-22 17:17:17.166347+00    ==> 2018-03-22 17:17:17.166347+00
-        2018-03-22 17:17:17.166347+02:00 ==> 2018-03-22 17:17:17.166347+00
+        2018-05-28 16:56:55              ==> 2018-05-28T16:56:55.000000Z
+        2018-05-28 13:42:28.84           ==> 2018-05-28T13:42:28.840000Z
+        2018-03-22 17:17:17.166347       ==> 2018-03-22T17:17:17.166347Z
+        2020-03-30 05:35:24.066553Z      ==> 2020-03-30T05:35:24.066553Z
+        2018-03-22 17:17:17.166347+00:00 ==> 2018-03-22T17:17:17.166347Z
+        2018-03-22 17:17:17.166347+00    ==> 2018-03-22T17:17:17.166347Z
+        2018-03-22 17:17:17.166347+02:00 ==> 2018-03-22T17:17:17.166347Z
     Args:
         the date time string to format
     Returns:
@@ -144,11 +146,15 @@ def apply_date_format(in_data):
             in_data += ".000000"
         # Pads with 0 if needed
         in_data = in_data.ljust(26, '0')
-        # Just add +00
-        timestamp = in_data + "+00"
+        # Replace space with T (i.e b/w date & time)
+        timestamp = in_data.replace(" ", "T")
+        # Just add UTC Zulu time if Z not present in in_data
+        if 'Z' not in in_data:
+            timestamp = timestamp + "Z"
     else:
-        # Remove everything after - or + and add +00
-        timestamp = in_data[:zone_index] + "+00"
+        # Replace space with T (i.e b/w date & time) and UTC Zulu time
+        timestamp = in_data[:zone_index].replace(" ", "T") + "Z"
+        _LOGGER.warning(" {} datetime with timezone is found. Hence replaced with Zulu time: {}".format(in_data, timestamp))
     return timestamp
 
 

@@ -70,7 +70,8 @@ static int purgeBlockSize = PURGE_DELETE_BLOCK_SIZE;
 #define END_TIME std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now(); \
 				 auto usecs = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
 
-#define _DB_NAME              "/fledge.sqlite"
+#define _DB_NAME              	"/fledge.sqlite"
+#define READINGS_DB_NAME        "/readings.db"
 
 static time_t connectErrorTime = 0;
 
@@ -428,8 +429,9 @@ bool retCode;
  */
 Connection::Connection()
 {
-	string dbPath;
+	string dbPath, dbPathReadings;
 	const char *defaultConnection = getenv("DEFAULT_SQLITE_DB_FILE");
+	const char *defaultReadingsConnection = getenv("DEFAULT_SQLITE_DB_READINGS_FILE");
 
 	m_logSQL = false;
 	m_queuing = 0;
@@ -445,6 +447,18 @@ Connection::Connection()
 	else
 	{
 		dbPath = defaultConnection;
+	}
+
+	if (defaultReadingsConnection == NULL)
+	{
+		// Set DB base path
+		dbPathReadings = getDataDir();
+		// Add the filename
+		dbPathReadings += READINGS_DB_NAME;
+	}
+	else
+	{
+		dbPathReadings = defaultReadingsConnection;
 	}
 
 	// Allow usage of URI for filename
@@ -535,6 +549,41 @@ Connection::Connection()
 		}
 		//Release sqlStmt buffer
 		delete[] sqlStmt;
+
+		// Attach readings database
+		SQLBuffer attachReadingsDb;
+		attachReadingsDb.append("ATTACH DATABASE '");
+		attachReadingsDb.append(dbPathReadings + "' AS readings;");
+
+		const char *sqlReadingsStmt = attachReadingsDb.coalesce();
+
+		// Exec the statement
+		rc = SQLexec(dbHandle,
+			     sqlReadingsStmt,
+			     NULL,
+			     NULL,
+			     &zErrMsg);
+
+		// Check result
+		if (rc != SQLITE_OK)
+		{
+			const char* errMsg = "Failed to attach 'readings' database in";
+			Logger::getLogger()->error("%s '%s': error %s",
+						   errMsg,
+						   sqlReadingsStmt,
+						   zErrMsg);
+			connectErrorTime = time(0);
+
+			sqlite3_free(zErrMsg);
+			sqlite3_close_v2(dbHandle);
+		}
+		else
+		{
+			Logger::getLogger()->info("Connected to SQLite3 database: %s",
+						  dbPath.c_str());
+		}
+		//Release sqlStmt buffer
+		delete[] sqlReadingsStmt;
 	}
 }
 #endif

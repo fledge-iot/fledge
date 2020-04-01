@@ -98,8 +98,6 @@ static int purgeBlockSize = PURGE_DELETE_BLOCK_SIZE;
 #define END_TIME std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now(); \
 				 auto usecs = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
 
-#define _DB_NAME              "/fledge.sqlite"
-
 static time_t connectErrorTime = 0;
 
 
@@ -280,7 +278,7 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 	}
 
 	// Get all datapoints in 'reading' field
-	sql.append("json_each.key AS x, json_each.value AS theval FROM fledge.readings, json_each(readings.reading) ");
+	sql.append("json_each.key AS x, json_each.value AS theval FROM readings.readings, json_each(readings.reading) ");
 
 	// Add where condition
 	sql.append("WHERE ");
@@ -404,7 +402,7 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 	struct timeval start, t1, t2, t3, t4, t5;
 #endif
 
-	const char *sql_cmd = "INSERT INTO fledge.readings ( asset_code, reading, user_ts ) VALUES  (?,?,?)";
+	const char *sql_cmd = "INSERT INTO readings.readings ( asset_code, reading, user_ts ) VALUES  (?,?,?)";
 
 	if (sqlite3_prepare_v2(dbHandle, sql_cmd, strlen(sql_cmd), &stmt, NULL) != SQLITE_OK)
 	{
@@ -649,7 +647,7 @@ int sleep_time_ms = 0;
 		return -1;
 	}
 
-	const char *sql_cmd="INSERT INTO fledge.readings ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
+	const char *sql_cmd="INSERT INTO readings.readings ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
 
 	sqlite3_prepare_v2(dbHandle, sql_cmd, strlen(sql_cmd), &stmt, NULL);
 	sqlite3_exec(dbHandle, "BEGIN TRANSACTION", NULL, NULL, NULL);
@@ -836,7 +834,7 @@ char *zErrMsg = NULL;
 int rc;
 int retrieve;
 
-	// SQL command to extract the data from the fledge.readings
+	// SQL command to extract the data from the readings.readings
 	const char *sql_cmd = R"(
 	SELECT
 		id,
@@ -845,7 +843,7 @@ int retrieve;
 		strftime('%%Y-%%m-%%d %%H:%%M:%%S', user_ts, 'utc')  ||
 		substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
 		strftime('%%Y-%%m-%%d %%H:%%M:%%f', ts, 'utc') AS ts
-	FROM fledge.readings
+	FROM readings.readings
 	WHERE id >= %lu
 	ORDER BY id ASC
 	LIMIT %u;
@@ -929,7 +927,7 @@ bool		isAggregate = false;
 						strftime(')" F_DATEH24_SEC R"(', user_ts, 'localtime')  ||
 						substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
 						strftime(')" F_DATEH24_MS R"(', ts, 'localtime') AS ts
-					FROM fledge.readings)";
+					FROM readings.readings)";
 
 			sql.append(sql_cmd);
 		}
@@ -960,7 +958,7 @@ bool		isAggregate = false;
 				{
 					return false;
 				}
-				sql.append(" FROM fledge.");
+				sql.append(" FROM readings.");
 			}
 			else if (document.HasMember("return"))
 			{
@@ -1149,7 +1147,7 @@ bool		isAggregate = false;
 					}
 					col++;
 				}
-				sql.append(" FROM fledge.");
+				sql.append(" FROM readings.");
 			}
 			else
 			{
@@ -1167,7 +1165,7 @@ bool		isAggregate = false;
 						strftime(')" F_DATEH24_SEC R"(', user_ts, 'localtime')  ||
 						substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
 						strftime(')" F_DATEH24_MS R"(', ts, 'localtime') AS ts
-					FROM fledge.)";
+					FROM readings.)";
 
 				sql.append(sql_cmd);
 			}
@@ -1285,7 +1283,7 @@ int blocks = 0;
 		char *zErrMsg = NULL;
 		int rc;
 		rc = SQLexec(dbHandle,
-		     "select max(rowid) from fledge.readings;",
+		     "select max(rowid) from readings.readings;",
 	  	     rowidCallback,
 		     &rowidLimit,
 		     &zErrMsg);
@@ -1303,7 +1301,7 @@ int blocks = 0;
 		char *zErrMsg = NULL;
 		int rc;
 		rc = SQLexec(dbHandle,
-		     "select min(rowid) from fledge.readings;",
+		     "select min(rowid) from readings.readings;",
 	  	     rowidCallback,
 		     &minrowidLimit,
 		     &zErrMsg);
@@ -1323,7 +1321,7 @@ int blocks = 0;
 		 * So set age based on the data we have and continue.
 		 */
 		SQLBuffer oldest;
-		oldest.append("SELECT (strftime('%s','now', 'utc') - strftime('%s', MIN(user_ts)))/360 FROM fledge.readings where rowid <= ");
+		oldest.append("SELECT (strftime('%s','now', 'utc') - strftime('%s', MIN(user_ts)))/360 FROM readings.readings where rowid <= ");
 		oldest.append(rowidLimit);
 		oldest.append(';');
 		const char *query = oldest.coalesce();
@@ -1379,7 +1377,7 @@ int blocks = 0;
 
 			// e.g. select id from readings where rowid = 219867307 AND user_ts < datetime('now' , '-24 hours', 'utc');
 			SQLBuffer sqlBuffer;
-			sqlBuffer.append("select id from fledge.readings where rowid = ");
+			sqlBuffer.append("select id from readings.readings where rowid = ");
 			sqlBuffer.append(m);
 			sqlBuffer.append(" AND user_ts < datetime('now' , '-");
 			sqlBuffer.append(age);
@@ -1432,7 +1430,7 @@ int blocks = 0;
 		int rc;
 		int lastPurgedId;
 		SQLBuffer idBuffer;
-		idBuffer.append("select id from fledge.readings where rowid = ");
+		idBuffer.append("select id from readings.readings where rowid = ");
 		idBuffer.append(rowidLimit);
 		idBuffer.append(';');
 		const char *idQuery = idBuffer.coalesce();
@@ -1480,7 +1478,7 @@ int blocks = 0;
 			rowidMin = rowidLimit;
 		}
 		SQLBuffer sql;
-		sql.append("DELETE FROM fledge.readings WHERE rowid <= ");
+		sql.append("DELETE FROM readings.readings WHERE rowid <= ");
 		sql.append(rowidMin);
 		sql.append(';');
 		const char *query = sql.coalesce();

@@ -16,7 +16,7 @@
 #include <random>
 
 // 1 enable performance tracking
-#define INSTRUMENT	0
+#define INSTRUMENT	1
 
 #if INSTRUMENT
 #include <sys/time.h>
@@ -29,8 +29,8 @@
 
 // Retry mechanism
 #define PREP_CMD_MAX_RETRIES		20	    // Maximum no. of retries when a lock is encountered
-#define PREP_CMD_RETRY_BASE 		5000    // Base time to wait for
-#define PREP_CMD_RETRY_BACKOFF		5000 	// Variable time to wait for
+#define PREP_CMD_RETRY_BASE 		50    // Base time to wait for
+#define PREP_CMD_RETRY_BACKOFF		50 	// Variable time to wait for
 
 /*
  * Control the way purge deletes readings. The block size sets a limit as to how many rows
@@ -622,7 +622,14 @@ string        now;
 int retries = 0;
 int sleep_time_ms = 0;
 
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
+
 #if INSTRUMENT
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("appendReadings start thread :%s:", threadId.str().c_str());
+	Logger::getLogger()->setMinLevel("warning");
+
 	struct timeval	start, t1, t2, t3, t4, t5;
 #endif
 
@@ -651,6 +658,10 @@ int sleep_time_ms = 0;
 
 	const char *sql_cmd="INSERT INTO fledge.readings ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
 
+	// Execute one transaction at time
+	m_writeAccessOngoing.fetch_add(1);
+	unique_lock<mutex> lck(db_mutex);
+
 	sqlite3_prepare_v2(dbHandle, sql_cmd, strlen(sql_cmd), &stmt, NULL);
 	sqlite3_exec(dbHandle, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
@@ -664,6 +675,10 @@ int sleep_time_ms = 0;
 		{
 			raiseError("appendReadings","Each reading in the readings array must be an object");
 			sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+
+			// Unlock
+			m_writeAccessOngoing.fetch_sub(1);
+			db_cv.notify_all();
 			return -1;
 		}
 
@@ -713,33 +728,30 @@ int sleep_time_ms = 0;
 				// Retry mechanism in case SQLlite DB is locked
 				do {
 					// Insert the row using a lock to ensure one insert at time
-					{
-						m_writeAccessOngoing.fetch_add(1);
-						unique_lock<mutex> lck(db_mutex);
+					sqlite3_resut = sqlite3_step(stmt);
 
-						sqlite3_resut = sqlite3_step(stmt);
-
-						m_writeAccessOngoing.fetch_sub(1);
-						db_cv.notify_all();
-					}
 					if (sqlite3_resut == SQLITE_LOCKED  )
 					{
 						sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
 						retries++;
 
-						Logger::getLogger()->info("SQLITE_LOCKED - record :%d: - retry number :%d: sleep time ms :%d:" ,row ,retries ,sleep_time_ms);
-
+						Logger::getLogger()->info("SQLITE_LOCKED - thread :%s: - record N. :%d: - retry number :%d: sleep time ms :%d:" ,
+							threadId.str().c_str(),
+							row,
+							retries,
+							sleep_time_ms);
 						std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
 					}
 					if (sqlite3_resut == SQLITE_BUSY)
 					{
-						ostringstream threadId;
-						threadId << std::this_thread::get_id();
-
 						sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
 						retries++;
 
-						Logger::getLogger()->info("SQLITE_BUSY - thread :%s: - record :%d: - retry number :%d: sleep time ms :%d:", threadId.str().c_str() ,row, retries, sleep_time_ms);
+						Logger::getLogger()->info("SQLITE_BUSY - thread :%s: - record N. :%d: - retry number :%d: sleep time ms :%d:",
+							threadId.str().c_str(),
+							row,
+							retries,
+							sleep_time_ms);
 
 						std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
 					}
@@ -760,6 +772,10 @@ int sleep_time_ms = 0;
 						reading.c_str());
 
 					sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+
+					// Unlock
+					m_writeAccessOngoing.fetch_sub(1);
+					db_cv.notify_all();
 					return -1;
 				}
 			}
@@ -772,6 +788,11 @@ int sleep_time_ms = 0;
 		raiseError("appendReadings", "Executing the commit of the transaction :%s:", sqlite3_errmsg(dbHandle));
 		row = -1;
 	}
+
+	// Unlock
+	m_writeAccessOngoing.fetch_sub(1);
+	db_cv.notify_all();
+
 
 #if INSTRUMENT
 		gettimeofday(&t2, NULL);
@@ -802,13 +823,18 @@ int sleep_time_ms = 0;
 		timersub(&t3, &t2, &tm);
 		timeT3 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
 
-		Logger::getLogger()->debug("Appended readings buffer size :%d: row count :%d:", strlen(readings), row);
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("Appended readings buffer size :%d: row count :%d: :%s: ", strlen(readings), row, threadId.str().c_str());
 
-		Logger::getLogger()->debug("Timing - JSON handling %.3f seconds - inserts execution %.3f seconds - sqlite3_finalize %.3f seconds",
+		Logger::getLogger()->debug("Timing - thread :%s: - JSON handling %.3f seconds - inserts execution %.3f seconds - sqlite3_finalize %.3f seconds ",
+								   threadId.str().c_str(),
 		                           timeT1,
 		                           timeT2,
 		                           timeT3
+
 		);
+		Logger::getLogger()->debug("appendReadings end thread :%s:", threadId.str().c_str());
+		Logger::getLogger()->setMinLevel("warning");
 #endif
 
 	return row;

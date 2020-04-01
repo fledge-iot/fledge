@@ -650,6 +650,9 @@ int sleep_time_ms = 0;
 	const char *sql_cmd="INSERT INTO readings.readings ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
 
 	sqlite3_prepare_v2(dbHandle, sql_cmd, strlen(sql_cmd), &stmt, NULL);
+	{
+	m_writeAccessOngoing.fetch_add(1);
+	unique_lock<mutex> lck(db_mutex);
 	sqlite3_exec(dbHandle, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
 #if INSTRUMENT
@@ -712,13 +715,9 @@ int sleep_time_ms = 0;
 				do {
 					// Insert the row using a lock to ensure one insert at time
 					{
-						m_writeAccessOngoing.fetch_add(1);
-						unique_lock<mutex> lck(db_mutex);
 
 						sqlite3_resut = sqlite3_step(stmt);
 
-						m_writeAccessOngoing.fetch_sub(1);
-						db_cv.notify_all();
 					}
 					if (sqlite3_resut == SQLITE_LOCKED  )
 					{
@@ -769,6 +768,9 @@ int sleep_time_ms = 0;
 	{
 		raiseError("appendReadings", "Executing the commit of the transaction :%s:", sqlite3_errmsg(dbHandle));
 		row = -1;
+	}
+	m_writeAccessOngoing.fetch_sub(1);
+	db_cv.notify_all();
 	}
 
 #if INSTRUMENT

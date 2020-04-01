@@ -485,12 +485,12 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 						// Insert the row using a lock to ensure one insert at time
 						{
 							m_writeAccessOngoing.fetch_add(1);
-							unique_lock<mutex> lck(db_mutex);
+							//unique_lock<mutex> lck(db_mutex);
 
 							sqlite3_resut = sqlite3_step(stmt);
 
 							m_writeAccessOngoing.fetch_sub(1);
-							db_cv.notify_all();
+							//db_cv.notify_all();
 						}
 
 						if (sqlite3_resut == SQLITE_LOCKED  )
@@ -652,7 +652,7 @@ int sleep_time_ms = 0;
 	sqlite3_prepare_v2(dbHandle, sql_cmd, strlen(sql_cmd), &stmt, NULL);
 	{
 	m_writeAccessOngoing.fetch_add(1);
-	unique_lock<mutex> lck(db_mutex);
+	//unique_lock<mutex> lck(db_mutex);
 	sqlite3_exec(dbHandle, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
 #if INSTRUMENT
@@ -770,7 +770,7 @@ int sleep_time_ms = 0;
 		row = -1;
 	}
 	m_writeAccessOngoing.fetch_sub(1);
-	db_cv.notify_all();
+	//db_cv.notify_all();
 	}
 
 #if INSTRUMENT
@@ -1488,8 +1488,8 @@ int blocks = 0;
 
 		int rc;
 		{
-		unique_lock<mutex> lck(db_mutex);
-		if (m_writeAccessOngoing) db_cv.wait(lck);
+		//unique_lock<mutex> lck(db_mutex);
+//		if (m_writeAccessOngoing) db_cv.wait(lck);
 
 		START_TIME;
 		// Exec DELETE query: no callback, no resultset
@@ -1661,8 +1661,8 @@ unsigned long limit = 0;
 		sql.append(deletePoint);
 		const char *query = sql.coalesce();
 		{
-			unique_lock<mutex> lck(db_mutex);
-			if (m_writeAccessOngoing) db_cv.wait(lck);
+			//unique_lock<mutex> lck(db_mutex);
+//			if (m_writeAccessOngoing) db_cv.wait(lck);
 
 			// Exec DELETE query: no callback, no resultset
 			rc = SQLexec(dbHandle, query, NULL, NULL, &zErrMsg);

@@ -49,7 +49,7 @@ if [ "${ret_code}" -eq "0" ]; then
 	for upgrade_file in `ls -1 ${UPGRADE_SCRIPTS_DIR}/*.sh | sort -V`
 		do
 			# Extract script version file from name
-			update_file_ver=`basename -s '.sh' $upgrade_file)`
+			update_file_ver=`basename -s '.sh' $upgrade_file`
 			# Check update_file_ver is less than previous_version
 			discard_out=`dpkg --compare-versions ${update_file_ver} le ${previous_version}`
 			file_check=$?

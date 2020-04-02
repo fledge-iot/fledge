@@ -27,7 +27,7 @@ remove_north_python () {
 
 remove_north_c () {
     path="$FLEDGE_ROOT/plugins/north"
-    find ${path} -maxdepth 1 | grep -v "^${path}$" | egrep -v '(PI_Server_V2|ocs_V2)' | xargs rm -rf
+    find ${path} -maxdepth 1 | grep -v "^${path}$" | egrep -v '(OMF)' | xargs rm -rf
 }
 
 remove_filter () {

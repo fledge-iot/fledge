@@ -1647,7 +1647,7 @@ unsigned long limit = 0;
 			return 0;
 		}
 		int deletePoint = minId + 10000;
-		if (maxId - deletePoint < rows)
+		if (maxId - deletePoint < rows || deletePoint > maxId)
 			deletePoint = maxId - rows;
 		if (limit && limit > deletePoint)
 		{
@@ -1655,9 +1655,9 @@ unsigned long limit = 0;
 		}
 		SQLBuffer sql;
 
-		logger->debug("RowCount %d, Max Id %d, min Id %d, delete point %d", rowcount, maxId, minId, deletePoint);
+		logger->info("RowCount %d, Max Id %d, min Id %d, delete point %d", rowcount, maxId, minId, deletePoint);
 
-		sql.append("delete from readings where id < ");
+		sql.append("delete from readings where id <= ");
 		sql.append(deletePoint);
 		const char *query = sql.coalesce();
 		{

@@ -62,7 +62,7 @@ UPDATE configuration SET value =
             '$.ServerHostname.value',
             substr(json_extract(value, '$.URL.value'),
                    instr(json_extract(value, '$.URL.value'), '://') + 3,
-                   instr(replace(json_extract(value, '$.URL.value'), '://', 'xxx'), ':') -
+                   instr(REPLACE(json_extract(value, '$.URL.value'), '://', 'xxx'), ':') -
                    instr(json_extract(value, '$.URL.value'), '://') - 3)
     )
 WHERE json_extract(value, '$.plugin.value') = 'OMF';
@@ -93,9 +93,9 @@ UPDATE configuration SET value =
              value,
              '$.ServerPort.value',
              substr(json_extract(value, '$.URL.value'),
-                    instr(replace(json_extract(value, '$.URL.value'), '://', 'xxx'), ':') + 1,
-                    instr(replace(json_extract(value, '$.URL.value'), '://', 'xxx'), '/') -
-                    instr(replace(json_extract(value, '$.URL.value'), '://', 'xxx'), ':') - 1
+                    instr(REPLACE(json_extract(value, '$.URL.value'), '://', 'xxx'), ':') + 1,
+                    instr(REPLACE(json_extract(value, '$.URL.value'), '://', 'xxx'), '/') -
+                    instr(REPLACE(json_extract(value, '$.URL.value'), '://', 'xxx'), ':') - 1
                  )
     )
 WHERE json_extract(value, '$.plugin.value') = 'OMF';
@@ -366,7 +366,7 @@ WHERE json_extract(value, '$.plugin.value') = 'OMF';
 --- plugin_data -------------------------------------------------------------------------------------------------------
 -- plugin_data
 --
-UPDATE plugin_data SET key = replace(key,'PI_Server_V2','OMF')
+UPDATE plugin_data SET key = REPLACE(key,'PI_Server_V2','OMF')
 WHERE instr(key, 'PI_Server_V2') > 0;
 
 --- asset_tracker -------------------------------------------------------------------------------------------------------

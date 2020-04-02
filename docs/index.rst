@@ -10,6 +10,7 @@ Welcome to Fledge's documentation!
 .. toctree::
 
     quick_start
+    fledge_plugins
     fledge_architecture
     plugin_developers_guide/index
     rest_api_guide/index

@@ -208,7 +208,7 @@ class TestE2eCsvMultiFltrPi:
             tracked_item = egress_tracking_details["track"][0]
             assert "NorthReadingsToPI" == tracked_item["service"]
             assert "e2e_filters_RMS" == tracked_item["asset"]
-            assert "PI_Server_V2" == tracked_item["plugin"]
+            assert "OMF" == tracked_item["plugin"]
 
     def _verify_ingest(self, conn):
 

@@ -74,18 +74,19 @@ def start_north_ocs_v2():
         """Start north task"""
         conn = http.client.HTTPConnection(fledge_url)
         data = {"name": taskname,
-                "plugin": "{}".format("ocs_V2"),
+                "plugin": "{}".format("OMF"),
                 "type": "north",
                 "schedule_type": 3,
                 "schedule_day": 0,
                 "schedule_time": 0,
                 "schedule_repeat": 30,
                 "schedule_enabled": "true",
-                "config": {"tenant_id": {"value": ocs_tenant},
-                           "client_id": {"value": ocs_client_id},
-                           "client_secret": {"value": ocs_client_secret},
-                           "namespace": {"value": ocs_namespace},
-                           "producerToken": {"value": ocs_token},
+                "config": {
+                           "PIServerEndpoint": {"value": "OSIsoft Cloud Services"},
+                           "OCSTenantId": {"value": ocs_tenant},
+                           "OCSClientId": {"value": ocs_client_id},
+                           "OCSClientSecret": {"value": ocs_client_secret},
+                           "OCSNamespace": {"value": ocs_namespace}
                            }
                 }
         conn.request("POST", '/fledge/scheduled/task', json.dumps(data))

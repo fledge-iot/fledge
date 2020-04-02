@@ -80,8 +80,8 @@ class TestPluginDiscovery:
         ("/fledge/plugins/installed?type=filter", 0, None),
         ("/fledge/plugins/installed?type=notificationDelivery", 0, None),
         ("/fledge/plugins/installed?type=notificationRule", 0, None),
-        ("/fledge/plugins/installed?type=north&config=false", 4, False),
-        ("/fledge/plugins/installed?type=north&config=true", 4, True)
+        ("/fledge/plugins/installed?type=north&config=false", 3, False),
+        ("/fledge/plugins/installed?type=north&config=true", 3, True)
     ])
     def test_default_plugins_installed_by_type(self, fledge_url, method, count, config):
         conn = http.client.HTTPConnection(fledge_url)
@@ -95,9 +95,9 @@ class TestPluginDiscovery:
         for plugin in jdoc['plugins']:
             assert 'config' in plugin if config else 'config' not in plugin
             name.append(plugin['name'])
-        # Verify only 4 north plugins when type is north
-        if count == 4:
-            assert Counter(['ocs', 'pi_server', 'PI_Server_V2', 'ocs_V2']) == Counter(name)
+        # Verify only 3 north plugins when type is north
+        if count == 3:
+            assert Counter(['ocs', 'pi_server', 'OMF']) == Counter(name)
 
     def test_south_plugins_installed(self, fledge_url, _type='south'):
         # install south plugin (Python version)
@@ -139,9 +139,8 @@ class TestPluginDiscovery:
         plugins = jdoc['plugins']
         plugin_names = [name['name'] for name in plugins]
         # verify north plugins which is 4 by default and a new one (http)
-        assert 5 == len(plugins)
-        assert Counter(['ocs', 'http_north', 'pi_server', 'PI_Server_V2',
-                        'ocs_V2']) == Counter(plugin_names)
+        assert 4 == len(plugins)
+        assert Counter(['ocs', 'http_north', 'pi_server', 'OMF']) == Counter(plugin_names)
 
         # install one more north plugin (C version)
         install_plugin(_type, plugin='thingspeak', plugin_lang='C')
@@ -154,9 +153,8 @@ class TestPluginDiscovery:
         plugins = jdoc['plugins']
         plugin_names = [name['name'] for name in plugins]
         # verify north plugins which is 4 by default and 2 new one (Python & C version)
-        assert 6 == len(plugins)
-        assert Counter(['ocs', 'http_north', 'pi_server', 'PI_Server_V2', 'ThingSpeak',
-                        'ocs_V2']) == Counter(plugin_names)
+        assert 5 == len(plugins)
+        assert Counter(['ocs', 'http_north', 'pi_server', 'OMF', 'ThingSpeak']) == Counter(plugin_names)
 
     def test_filter_plugins_installed(self, fledge_url, _type='filter'):
         # install rms filter plugin

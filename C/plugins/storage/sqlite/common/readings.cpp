@@ -16,7 +16,7 @@
 #include <random>
 
 // 1 enable performance tracking
-#define INSTRUMENT	1
+#define INSTRUMENT	0
 
 #if INSTRUMENT
 #include <sys/time.h>

@@ -15,8 +15,11 @@
 #include <reading_stream.h>
 #include <random>
 
+// FIXME::
+#include <tmp_log.hpp>
+
 // 1 enable performance tracking
-#define INSTRUMENT	0
+#define INSTRUMENT	1
 
 #if INSTRUMENT
 #include <sys/time.h>
@@ -620,7 +623,14 @@ string        now;
 int retries = 0;
 int sleep_time_ms = 0;
 
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
+
 #if INSTRUMENT
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("appendReadings start thread :%s:", threadId.str().c_str());
+	Logger::getLogger()->setMinLevel("warning");
+
 	struct timeval	start, t1, t2, t3, t4, t5;
 #endif
 
@@ -802,13 +812,43 @@ int sleep_time_ms = 0;
 		timersub(&t3, &t2, &tm);
 		timeT3 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
 
-		Logger::getLogger()->debug("Appended readings buffer size :%d: row count :%d:", strlen(readings), row);
-
-		Logger::getLogger()->debug("Timing - JSON handling %.3f seconds - inserts execution %.3f seconds - sqlite3_finalize %.3f seconds",
-		                           timeT1,
-		                           timeT2,
-		                           timeT3
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("appendReadings end   thread :%s: buffer :%10lu: count :%5d: JSON :%6.3f: inserts :%6.3f: finalize :%6.3f:",
+								   threadId.str().c_str(),
+								   strlen(readings),
+								   row,
+								   timeT1,
+								   timeT2,
+								   timeT3
 		);
+		Logger::getLogger()->setMinLevel("warning");
+
+		// FIXME_I:
+		char tmp_buffer[500000];
+		snprintf (tmp_buffer,500000, "Timing - thread :%s: buffer :%10lu: count - JSON - inserts - finalize - %5d \t %6.3f \t %6.3f \t %6.3f",
+				  threadId.str().c_str(),
+				  strlen(readings),
+				  row,
+				  timeT1,
+				  timeT2,
+				  timeT3);
+		tmpLogger (tmp_buffer);
+
+		// FIXME_I:
+		{
+			timeval curTime;
+			gettimeofday(&curTime, NULL);
+			int milli = curTime.tv_usec / 1000;
+
+			char buffer [80];
+			strftime(buffer, 80, "%Y-%m-%d %H:%M:%S", localtime(&curTime.tv_sec));
+
+			char currentTime[84] = "";
+			sprintf(currentTime, "%s:%03d", buffer, milli);
+
+			Logger::getLogger()->debug("Step_a2 appendReadings end thread :%s: time :%s:", threadId.str().c_str(), currentTime);
+		}
+
 #endif
 
 	return row;

@@ -160,7 +160,7 @@ def start_north_pi_v2():
                 "schedule_enabled": _enabled,
                 "config": {"producerToken": {"value": pi_token},
                            "ServerHostname": {"value": pi_host},
-                           "ServerPort": {"value": pi_port}
+                           "ServerPort": {"value": str(pi_port)}
                            }
                 }
         conn.request("POST", '/fledge/scheduled/task', json.dumps(data))
@@ -193,7 +193,7 @@ def start_north_pi_v2_web_api():
                            "PIWebAPIUserId":  {"value": pi_user},
                            "PIWebAPIPassword": {"value": pi_pwd},
                            "ServerHostname": {"value": pi_host},
-                           "ServerPort": {"value": pi_port},
+                           "ServerPort": {"value": str(pi_port)},
                            "compression": {"value": "true"},
                            "DefaultAFLocation": {"value": "fledge/room1/machine1"}
                            }

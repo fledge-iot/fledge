@@ -24,11 +24,11 @@
 #define OMF_TYPE_FLOAT		"number"
 #define OMF_TYPE_UNSUPPORTED	"unsupported"
 
-enum OMF_END_POINT {
-	END_POINT_PIWEB_API,
-	END_POINT_CR,
-	END_POINT_OCS,
-	END_POINT_EDS
+enum OMF_ENDPOINT {
+	ENDPOINT_PIWEB_API,
+	ENDPOINT_CR,
+	ENDPOINT_OCS,
+	ENDPOINT_EDS
 };
 
 using namespace std;
@@ -104,7 +104,7 @@ class OMF
 		void setFormatType(const std::string &key, std::string &value);
 
 		// Set which PIServer component should be used for the communication
-		void setPIServerEndpoint(const OMF_END_POINT PIServerEndpoint);
+		void setPIServerEndpoint(const OMF_ENDPOINT PIServerEndpoint);
 
 		// Set the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.
 		void setDefaultAFLocation(const std::string &DefaultAFLocation);
@@ -250,7 +250,7 @@ class OMF
 		const std::string	m_path;
 		long			    m_typeId;
 		const std::string	m_producerToken;
-		OMF_END_POINT		m_PIServerEndpoint;
+		OMF_ENDPOINT		m_PIServerEndpoint;
 		std::string		    m_DefaultAFLocation;
 
 		// AF hierarchies handling - Metadata MAP
@@ -340,7 +340,7 @@ class OMFData
 	public:
 		OMFData(const Reading& reading,
 			const long typeId,
-			const OMF_END_POINT PIServerEndpoint = END_POINT_CR,
+			const OMF_ENDPOINT PIServerEndpoint = ENDPOINT_CR,
 			const std::string& DefaultAFLocation = std::string());
 
 		const std::string& OMFdataVal() const;

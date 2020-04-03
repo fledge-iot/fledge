@@ -138,7 +138,7 @@ class TestE2ePiEgressWithScalesetFilter:
             tracked_item = egress_tracking_details["track"][0]
             assert TASK_NAME == tracked_item["service"]
             assert "http-e1" == tracked_item["asset"]
-            assert "PI_Server_V2" == tracked_item["plugin"]
+            assert "OMF" == tracked_item["plugin"]
 
     def _verify_ping_and_statistics(self, fledge_url, count, skip_verify_north_interface=False):
         ping_response = self.get_ping_status(fledge_url)

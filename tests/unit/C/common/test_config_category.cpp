@@ -298,8 +298,8 @@ const char* bigCategory =
 		"\"plugin\": { " \
 			"\"type\": \"string\", " \
 			"\"description\": \"PI Server North C Plugin\", " \
-			"\"default\": \"PI_Server_V2\", " \
-			"\"value\": \"PI_Server_V2\", \"readonly\": \"true\"}, " \
+			"\"default\": \"OMF\", " \
+			"\"value\": \"OMF\", \"readonly\": \"true\"}, " \
 		"\"source\": { " \
 			"\"type\": \"enumeration\", " \
 			"\"options\": [\"readings\", \"statistics\"], " \
@@ -612,6 +612,6 @@ TEST(CategoryTest, categoryValues)
         ASSERT_EQ(true, complex.isBool("compression"));
         ASSERT_EQ(true, complex.isEnumeration("source"));
         ASSERT_EQ(true, complex.isString("plugin"));
-        ASSERT_EQ(true, complex.getValue("plugin").compare("PI_Server_V2") == 0);
+        ASSERT_EQ(true, complex.getValue("plugin").compare("OMF") == 0);
         ASSERT_EQ(true, complex.getValue("OMFMaxRetry").compare("3") == 0);
 }

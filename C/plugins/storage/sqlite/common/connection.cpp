@@ -500,18 +500,6 @@ Connection::Connection()
 		int rc;
 		char *zErrMsg = NULL;
 
-		rc = sqlite3_exec(dbHandle, "PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;", NULL, NULL, &zErrMsg);
-		if (rc != SQLITE_OK)
-		{
-			const char* errMsg = "Failed to set 'PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;'";
-			Logger::getLogger()->error("%s : error %s",
-						   errMsg,
-						   zErrMsg);
-			connectErrorTime = time(0);
-
-			sqlite3_free(zErrMsg);
-		}
-
 		/*
 		 * Build the ATTACH DATABASE command in order to get
 		 * 'fledge.' prefix in all SQL queries
@@ -550,6 +538,18 @@ Connection::Connection()
 		//Release sqlStmt buffer
 		delete[] sqlStmt;
 
+		rc = sqlite3_exec(dbHandle, "PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;", NULL, NULL, &zErrMsg);
+		if (rc != SQLITE_OK)
+		{
+			const char* errMsg = "Failed to set 'PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;'";
+			Logger::getLogger()->error("%s : error %s",
+									   errMsg,
+									   zErrMsg);
+			connectErrorTime = time(0);
+
+			sqlite3_free(zErrMsg);
+		}
+
 		// Attach readings database
 		SQLBuffer attachReadingsDb;
 		attachReadingsDb.append("ATTACH DATABASE '");
@@ -584,6 +584,19 @@ Connection::Connection()
 		}
 		//Release sqlStmt buffer
 		delete[] sqlReadingsStmt;
+
+		// PRAGMA is needed twice to allow both the DBs to be handled in WAL mode
+		rc = sqlite3_exec(dbHandle, "PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;", NULL, NULL, &zErrMsg);
+		if (rc != SQLITE_OK)
+		{
+			const char* errMsg = "Failed to set 'PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;'";
+			Logger::getLogger()->error("%s : error %s",
+									   errMsg,
+									   zErrMsg);
+			connectErrorTime = time(0);
+
+			sqlite3_free(zErrMsg);
+		}
 	}
 }
 #endif

@@ -538,12 +538,14 @@ Connection::Connection()
 		//Release sqlStmt buffer
 		delete[] sqlStmt;
 
-		rc = sqlite3_exec(dbHandle, "PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;", NULL, NULL, &zErrMsg);
+		string dbConfiguration = "PRAGMA busy_timeout = 100; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;";
+
+		rc = sqlite3_exec(dbHandle, dbConfiguration.c_str(),NULL, NULL, &zErrMsg);
 		if (rc != SQLITE_OK)
 		{
-			const char* errMsg = "Failed to set 'PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;'";
+			string errMsg = "Failed to set " + dbConfiguration;
 			Logger::getLogger()->error("%s : error %s",
-									   errMsg,
+									   errMsg.c_str(),
 									   zErrMsg);
 			connectErrorTime = time(0);
 
@@ -586,12 +588,12 @@ Connection::Connection()
 		delete[] sqlReadingsStmt;
 
 		// PRAGMA is needed twice to allow both the DBs to be handled in WAL mode
-		rc = sqlite3_exec(dbHandle, "PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;", NULL, NULL, &zErrMsg);
+		rc = sqlite3_exec(dbHandle, dbConfiguration.c_str(), NULL, NULL, &zErrMsg);
 		if (rc != SQLITE_OK)
 		{
-			const char* errMsg = "Failed to set 'PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;'";
+			string errMsg = "Failed to set " + dbConfiguration;
 			Logger::getLogger()->error("%s : error %s",
-									   errMsg,
+									   dbConfiguration.c_str(),
 									   zErrMsg);
 			connectErrorTime = time(0);
 

@@ -500,6 +500,21 @@ Connection::Connection()
 		int rc;
 		char *zErrMsg = NULL;
 
+		string dbConfiguration = "PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;";
+
+		// Enable the WAL for the fledge DB
+		rc = sqlite3_exec(dbHandle, dbConfiguration.c_str(), NULL, NULL, &zErrMsg);
+		if (rc != SQLITE_OK)
+		{
+			string errMsg = "Failed to set WAL from the fledge DB - " + dbConfiguration;
+			Logger::getLogger()->error("%s : error %s",
+									   dbConfiguration.c_str(),
+									   zErrMsg);
+			connectErrorTime = time(0);
+
+			sqlite3_free(zErrMsg);
+		}
+
 		/*
 		 * Build the ATTACH DATABASE command in order to get
 		 * 'fledge.' prefix in all SQL queries
@@ -538,20 +553,6 @@ Connection::Connection()
 		//Release sqlStmt buffer
 		delete[] sqlStmt;
 
-		string dbConfiguration = "PRAGMA busy_timeout = 100; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;";
-
-		rc = sqlite3_exec(dbHandle, dbConfiguration.c_str(),NULL, NULL, &zErrMsg);
-		if (rc != SQLITE_OK)
-		{
-			string errMsg = "Failed to set " + dbConfiguration;
-			Logger::getLogger()->error("%s : error %s",
-									   errMsg.c_str(),
-									   zErrMsg);
-			connectErrorTime = time(0);
-
-			sqlite3_free(zErrMsg);
-		}
-
 		// Attach readings database
 		SQLBuffer attachReadingsDb;
 		attachReadingsDb.append("ATTACH DATABASE '");
@@ -587,18 +588,19 @@ Connection::Connection()
 		//Release sqlStmt buffer
 		delete[] sqlReadingsStmt;
 
-		// PRAGMA is needed twice to allow both the DBs to be handled in WAL mode
-		rc = sqlite3_exec(dbHandle, dbConfiguration.c_str(), NULL, NULL, &zErrMsg);
+		// Enable the WAL for the readings DB
+		rc = sqlite3_exec(dbHandle, dbConfiguration.c_str(),NULL, NULL, &zErrMsg);
 		if (rc != SQLITE_OK)
 		{
-			string errMsg = "Failed to set " + dbConfiguration;
+			string errMsg = "Failed to set WAL from the readings DB - " + dbConfiguration;
 			Logger::getLogger()->error("%s : error %s",
-									   dbConfiguration.c_str(),
+									   errMsg.c_str(),
 									   zErrMsg);
 			connectErrorTime = time(0);
 
 			sqlite3_free(zErrMsg);
 		}
+
 	}
 }
 #endif

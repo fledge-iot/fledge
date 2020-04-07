@@ -67,8 +67,8 @@ class TestPluginDiscovery:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        # Only north plugins (2 north_c and 2 north python) are expected by default
-        assert 4 == len(jdoc['plugins'])
+        # Only north plugins (1-C based and 2-Python based) are expected by default
+        assert 3 == len(jdoc['plugins'])
         for plugin in jdoc['plugins']:
             assert 'north' == plugin['type']
             assert plugin['type'] not in ['south', 'filter', 'notificationDelivery', 'notificationRule']
@@ -138,7 +138,7 @@ class TestPluginDiscovery:
         assert len(jdoc), "No data found"
         plugins = jdoc['plugins']
         plugin_names = [name['name'] for name in plugins]
-        # verify north plugins which is 4 by default and a new one (http)
+        # verify north plugins which is 3 by default and a new one (http)
         assert 4 == len(plugins)
         assert Counter(['ocs', 'http_north', 'pi_server', 'OMF']) == Counter(plugin_names)
 

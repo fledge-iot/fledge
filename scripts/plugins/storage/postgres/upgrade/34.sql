@@ -21,21 +21,25 @@ UPDATE configuration SET value = jsonb_set(value, '{PIServerEndpoint, value}', '
 -- Note: This is a new config item and its value extract from old URL config item
 --
 UPDATE configuration SET value = value || '{"ServerHostname": {"default": "localhost", "validity": "PIServerEndpoint != \"OSIsoft Cloud Services\"", "description": "Hostname of the server running the endpoint either PI Web API or Connector Relay or Edge Data Store", "displayName": "Server hostname", "type": "string", "order": "2"}}'::jsonb WHERE value->'plugin'->>'value'='OMF';
-
--- FIXME:
--- SELECT json_extract_path_text(value::json,'URL', 'value') FROM configuration WHERE value ->'plugin'->>'value'='OMF';
--- SELECT value->'URL'->>'value' FROM configuration WHERE value ->'plugin'->>'value'='OMF';
---UPDATE configuration SET value = jsonb_set(value, '{ServerHostname, value}', '"<>"') WHERE value ->'plugin'->>'value'='OMF';
+WITH K AS (
+SELECT key from configuration where (value->>'plugin')::jsonb->'value'='"OMF"'
+)
+UPDATE configuration AS t_cfg SET value=jsonb_set(value, '{ServerHostname, value}',
+(SELECT to_json((string_to_array(split_part(((value->>'URL')::jsonb->'value')::text, '/', 3), ':'))[1])::jsonb
+FROM configuration c where (value->>'plugin')::jsonb->'value'='"OMF"' AND t_cfg.key = c.key)
+) WHERE key in (select key from K);
 
 -- ServerPort
 -- Note: This is a new config item and its value extract from old URL config item
 --
 UPDATE configuration SET value = value || '{"ServerPort": {"default": "0", "validity": "PIServerEndpoint != \"OSIsoft Cloud Services\"", "description": "Port on which the endpoint either PI Web API or Connector Relay or Edge Data Store is listening, 0 will use the default one", "displayName": "Server port, 0=use the default", "type": "integer", "order": "3"}}'::jsonb WHERE value->'plugin'->>'value'='OMF';
--- FIXME:
---UPDATE configuration SET value = jsonb_set(value, '{ServerPort, value}', '"<>"') WHERE value ->'plugin'->>'value'='OMF';
---UPDATE configuration SET value = jsonb_set(value, '{ServerPort, value}', value->'URL'->>'value')::jsonb WHERE value ->'plugin'->>'value'='OMF';
---UPDATE configuration SET value = jsonb_set(value, '{ServerPort, value}', value->'URL')::jsonb WHERE value ->'plugin'->>'value'='OMF';
-
+WITH K AS (
+SELECT key from configuration where (value->>'plugin')::jsonb->'value'='"OMF"'
+)
+UPDATE configuration AS t_cfg SET value=jsonb_set(value, '{ServerPort, value}',
+(SELECT to_json((string_to_array(split_part(((value->>'URL')::jsonb->'value')::text, '/', 3), ':'))[2])::jsonb
+FROM configuration c where (value->>'plugin')::jsonb->'value'='"OMF"' AND t_cfg.key = c.key)
+) WHERE key in (select key from K);
 
 -- URL
 -- Note: Removed URL config item as it is replaced by ServerHostname & ServerPort
@@ -83,9 +87,21 @@ UPDATE configuration SET value = jsonb_set(value, '{compression, order}', '"12"'
 -- Note: This is a new config item and its default & value extract from old AFHierarchy1Level config item
 --
 UPDATE configuration SET value = value || '{"DefaultAFLocation": {"validity": "PIServerEndpoint != \"PI Web API\"", "description": "Defines the hierarchies tree in Asset Framework in which the assets will be created, each level is separated by /, PI Web API only.", "displayName": "Asset Framework hierarchies tree", "type": "string", "order": "13"}}'::jsonb WHERE value->'plugin'->>'value'='OMF';
--- FIXME: This needs to be improved
-UPDATE configuration SET value = jsonb_set(value, '{DefaultAFLocation, default}', (SELECT value->'AFHierarchy1Level'->'default' from configuration WHERE value ->'plugin'->>'value'='OMF')) WHERE value ->'plugin'->>'value'='OMF';
-UPDATE configuration SET value = jsonb_set(value, '{DefaultAFLocation, value}', (SELECT value->'AFHierarchy1Level'->'value' from configuration WHERE value ->'plugin'->>'value'='OMF')) WHERE value ->'plugin'->>'value'='OMF';
+WITH K AS (
+SELECT key from configuration where (value->>'plugin')::jsonb->'value'='"OMF"'
+)
+UPDATE configuration AS t_cfg SET value=jsonb_set(value, '{DefaultAFLocation, default}',
+(SELECT value->'AFHierarchy1Level'->'default'
+FROM configuration c where (value->>'plugin')::jsonb->'value'='"OMF"' AND t_cfg.key = c.key)
+) WHERE key in (select key from K);
+
+WITH K AS (
+SELECT key from configuration where (value->>'plugin')::jsonb->'value'='"OMF"'
+)
+UPDATE configuration AS t_cfg SET value=jsonb_set(value, '{DefaultAFLocation, value}',
+(SELECT value->'AFHierarchy1Level'->'value'
+FROM configuration c where (value->>'plugin')::jsonb->'value'='"OMF"' AND t_cfg.key = c.key)
+) WHERE key in (select key from K);
 
 -- AFHierarchy1Level
 -- Note: Removed AFHierarchy1Level config item as it is replaced by new config item DefaultAFLocation
@@ -151,11 +167,3 @@ UPDATE plugin_data SET key = REPLACE(key,'PI_Server_V2','OMF') WHERE POSITION('P
 
 --- asset_tracker -------------------------------------------------------------------------------------------------------
 UPDATE asset_tracker SET plugin = 'OMF' WHERE plugin in ('PI_Server_V2', 'ocs_V2');
-
-
-
-
-
-
-
-

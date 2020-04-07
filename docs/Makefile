@@ -3,7 +3,7 @@
 
 # You can set these variables from the command line.
 SPHINXOPTS    =
-SPHINXBUILD   = python -msphinx
+SPHINXBUILD   = python3 -msphinx
 SPHINXPROJ    = Fledge
 SOURCEDIR     = .
 BUILDDIR      = _build
@@ -22,3 +22,7 @@ help:	fledge_plugins.rst
 fledge_plugins.rst: 
 	@echo Building page with table of plugins
 	@bash scripts/fledge_plugin_list fledge_plugins.rst
+
+clean:
+	@rm -f fledge_plugins.rst
+	@rm -rf "$(BUILDDIR)"

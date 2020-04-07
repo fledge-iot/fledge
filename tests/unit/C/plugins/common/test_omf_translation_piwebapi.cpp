@@ -26,7 +26,6 @@ using namespace rapidjson;
 #define TYPE_ID             1234
 #define AF_HIERARCHY_1LEVEL "fledge_data_piwebapi"
 #define CONTAINER_ID        "fledge_data_piwebapi_1234measurement_luxometer"
-#define PI_SERVER_END_POINT "p"                       // p=PI Web API, c=Connector Relay
 
 // 2 readings JSON text
 const char *pi_web_api_two_readings = R"(
@@ -65,6 +64,8 @@ TEST(PIWEBAPI_OMF_transation, TwoTranslationsCompareResult)
 
 	ostringstream jsonData;
 	jsonData << "[";
+
+	const OMF_ENDPOINT PI_SERVER_END_POINT = ENDPOINT_PIWEB_API;
 
 	// Iterate over Readings via readingSet.getAllReadings()
 	for (vector<Reading *>::const_iterator elem = readingSet.getAllReadings().begin();

@@ -40,16 +40,15 @@ output=$1
 token=`cat ~/.gittoken`
 header="Authorization: token $token" 
 fledgeRepos=`curl -s -H "$header" https://api.github.com/orgs/fledge-iot/repos\?per_page=1000 | jq '.[].name' | sed -e 's/"//g' | sort`
-foglampRepos=`curl -s -H "$header" https://api.github.com/orgs/dianomic/repos\?per_page=1000 | jq '.[].name' | sed -e 's/"//g' | sort`
 REPOSITORIES=`echo $fledgeRepos | sort`
 
 cat >> $output << EOF1
 Fledge Plugins
 ==============
 
-The following set of plugin s are available for Fledge. These plugins
-extend the functonality by addign new sources of data, new destinations,
-processing fitlers that can enhance or modify the data, rules for
+The following set of plugins are available for Fledge. These plugins
+extend the functionality by adding new sources of data, new destinations,
+processing filters that can enhance or modify the data, rules for
 notification delivery and notification delivery mechanisms.
 
 EOF1
@@ -57,7 +56,7 @@ cat >>$output << EOF2
 South Plugins
 -------------
 
-South plugins add new ways to get data into Fledge, a numebr of south
+South plugins add new ways to get data into Fledge, a number of south
 plugins are avialable ready built or users may add new south plugins of
 their own by writing them in Python or C/C++.
 
@@ -86,7 +85,7 @@ or users may add new north plugins of their own by writing them in Python
 or C/C++.
 
 It is also possible, using particular filters, to supply expressions
-or script snipets that can operate onthe data as well. This provides a
+or script snipets that can operate on the data as well. This provides a
 simple way to process the data in Fledge as it is read from devices or
 written to destination systems.
 

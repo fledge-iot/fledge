@@ -57,7 +57,7 @@ South Plugins
 -------------
 
 South plugins add new ways to get data into Fledge, a number of south
-plugins are avialable ready built or users may add new south plugins of
+plugins are available ready built or users may add new south plugins of
 their own by writing them in Python or C/C++.
 
 EOF2
@@ -68,7 +68,7 @@ North Plugins
 -------------
 
 North plugins add new destinations to which data may be sent by Fledge. A
-number of north plugins are avialable ready built or users may add new
+number of north plugins are available ready built or users may add new
 north plugins of their own by writing them in Python or C/C++.
 
 EOF3
@@ -80,7 +80,7 @@ Filter Plugins
 
 Filter plugins add new ways in which data may be modified, enhanced
 or cleaned as part of the ingress via a south service or egress to a
-destination system. A number of north plugins are avialable ready built
+destination system. A number of north plugins are available ready built
 or users may add new north plugins of their own by writing them in Python
 or C/C++.
 

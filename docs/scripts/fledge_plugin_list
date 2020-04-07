@@ -110,7 +110,7 @@ cat >>$output << EOF6
 Notification Delivery Plugins
 -----------------------------
 
-Notification delivery plugins provide the mechansims to deliver the
+Notification delivery plugins provide the mechanisms to deliver the
 notification messages to the systems that will receive them.  A number
 of notification delivery plugins are available as standard, however as
 with any plugin the user is able to write new plugins in Python or C/C++

@@ -522,7 +522,7 @@ fledge_status() {
                 ps -ef | grep -v 'cpulimit*' | grep -o 'python3 -m fledge.tasks.*' | grep -o 'fledge.tasks.*'    | grep -v 'fledge.tasks\.\*' || true
 
                 # Show Tasks in C code
-                ps -ef | grep './tasks.' | grep -v python3 | grep -v grep | grep -v awk | awk '{print substr($8, 3, length($8))" "$9" "$10 }' || true
+                ps -ef | grep './tasks.' | grep -v python3 | grep -v grep | grep -v awk | awk '{print substr($8, 3, length($8))" "$9" "$10" "$11}' || true
             fi
             ;;
         *)

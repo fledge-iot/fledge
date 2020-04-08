@@ -13,7 +13,7 @@ UPDATE configuration SET value = jsonb_set(value, '{PIServerEndpoint, descriptio
 UPDATE configuration SET value = jsonb_set(value, '{PIServerEndpoint, order}', '"1"') WHERE value->'plugin'->>'value'='OMF';
 UPDATE configuration SET value = jsonb_set(value, '{PIServerEndpoint, displayName}', '"Endpoint"') WHERE value->'plugin'->>'value'='OMF';
 UPDATE configuration SET value = jsonb_set(value, '{PIServerEndpoint, default}', '"Connector Relay"') WHERE value->'plugin'->>'value'='OMF';
-UPDATE configuration SET value = jsonb_set(value, '{PIServerEndpoint, value}', '"Connector Relay"') WHERE value->'plugin'->>'value'='OMF' AND value->'PIServerEndpoint'->>'value'='discovery';
+UPDATE configuration SET value = jsonb_set(value, '{PIServerEndpoint, value}', '"Connector Relay"') WHERE value->'plugin'->>'value'='OMF' AND value->'PIServerEndpoint'->>'value'='Auto Discovery';
 UPDATE configuration SET value = jsonb_set(value, '{PIServerEndpoint, value}', '"Connector Relay"') WHERE value->'plugin'->>'value'='OMF' AND value->'PIServerEndpoint'->>'value'='cr';
 UPDATE configuration SET value = jsonb_set(value, '{PIServerEndpoint, value}', '"PI Web API"') WHERE value->'plugin'->>'value'='OMF' AND value->'PIServerEndpoint'->>'value'='piwebapi';
 
@@ -117,21 +117,21 @@ UPDATE configuration SET value = value || '{"AFMap": {"default": "{}", "value": 
 --
 UPDATE configuration SET value = jsonb_set(value, '{notBlockingErrors, order}', '"15"') WHERE value->'plugin'->>'value'='OMF';
 
--- configuration - streamId
+-- streamId
 --
 UPDATE configuration SET value = jsonb_set(value, '{streamId, order}', '"16"') WHERE value->'plugin'->>'value'='OMF';
 
--- configuration - PIWebAPIAuthenticationMethod
+-- PIWebAPIAuthenticationMethod
 --
 UPDATE configuration SET value = jsonb_set(value, '{PIWebAPIAuthenticationMethod, order}', '"17"') WHERE value->'plugin'->>'value'='OMF';
 UPDATE configuration SET value = jsonb_set(value, '{PIWebAPIAuthenticationMethod, validity}', '"PIServerEndpoint != \"PI Web API\""') WHERE value->'plugin'->>'value'='OMF';
 
--- configuration - PIWebAPIUserId
+-- PIWebAPIUserId
 --
 UPDATE configuration SET value = jsonb_set(value, '{PIWebAPIUserId, order}', '"18"') WHERE value->'plugin'->>'value'='OMF';
 UPDATE configuration SET value = jsonb_set(value, '{PIWebAPIUserId, validity}', '"PIServerEndpoint != \"PI Web API\""') WHERE value->'plugin'->>'value'='OMF';
 
--- configuration - PIWebAPIPassword
+-- PIWebAPIPassword
 --
 UPDATE configuration SET value = jsonb_set(value, '{PIWebAPIPassword, order}', '"19"') WHERE value->'plugin'->>'value'='OMF';
 UPDATE configuration SET value = jsonb_set(value, '{PIWebAPIPassword, validity}', '"PIServerEndpoint != \"PI Web API\""') WHERE value->'plugin'->>'value'='OMF';

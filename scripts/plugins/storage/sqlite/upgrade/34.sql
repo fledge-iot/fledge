@@ -27,7 +27,7 @@ UPDATE configuration SET value = json_set(value, '$.PIServerEndpoint.default', '
 WHERE json_extract(value, '$.plugin.value') = 'OMF';
 
 UPDATE configuration SET value = json_set(value, '$.PIServerEndpoint.value', 'Connector Relay')
-WHERE json_extract(value, '$.plugin.value') = 'OMF' AND json_extract(value, '$.PIServerEndpoint.value') = 'discovery';
+WHERE json_extract(value, '$.plugin.value') = 'OMF' AND json_extract(value, '$.PIServerEndpoint.value') = 'Auto Discovery';
 
 UPDATE configuration SET value = json_set(value, '$.PIServerEndpoint.value', 'Connector Relay')
 WHERE json_extract(value, '$.plugin.value') = 'OMF' AND json_extract(value, '$.PIServerEndpoint.value') = 'cr';
@@ -213,12 +213,12 @@ WHERE json_extract(value, '$.plugin.value') = 'OMF';
 UPDATE configuration SET value = json_set(value, '$.notBlockingErrors.order', '15')
 WHERE json_extract(value, '$.plugin.value') = 'OMF';
 
--- configuration - streamId
+-- streamId
 --
 UPDATE configuration SET value = json_set(value, '$.streamId.order', '16')
 WHERE json_extract(value, '$.plugin.value') = 'OMF';
 
--- configuration - PIWebAPIAuthenticationMethod
+-- PIWebAPIAuthenticationMethod
 --
 UPDATE configuration SET value = json_set(value, '$.PIWebAPIAuthenticationMethod.order', '17')
 WHERE json_extract(value, '$.plugin.value') = 'OMF';
@@ -226,7 +226,7 @@ WHERE json_extract(value, '$.plugin.value') = 'OMF';
 UPDATE configuration SET value = json_set(value, '$.PIWebAPIAuthenticationMethod.validity', 'PIServerEndpoint == "PI Web API"')
 WHERE json_extract(value, '$.plugin.value') = 'OMF';
 
--- configuration - PIWebAPIUserId
+-- PIWebAPIUserId
 --
 UPDATE configuration SET value = json_set(value, '$.PIWebAPIUserId.order', '18')
 WHERE json_extract(value, '$.plugin.value') = 'OMF';
@@ -234,7 +234,7 @@ WHERE json_extract(value, '$.plugin.value') = 'OMF';
 UPDATE configuration SET value = json_set(value, '$.PIWebAPIUserId.validity', 'PIServerEndpoint == "PI Web API"')
 WHERE json_extract(value, '$.plugin.value') = 'OMF';
 
--- configuration - PIWebAPIPassword
+-- PIWebAPIPassword
 --
 UPDATE configuration SET value = json_set(value, '$.PIWebAPIPassword.order', '19')
 WHERE json_extract(value, '$.plugin.value') = 'OMF';

@@ -12,15 +12,15 @@
 
 .. |fledge repo| raw:: html
 
-   <a href="https://github.com/fledge/Fledge" target="_blank">https://github.com/fledge/Fledge</a>
+   <a href="https://github.com/fledge-iot/fledge" target="_blank">https://github.com/fledge-iot/fledge</a>
 
 .. |fledge prj| raw:: html
 
-   <a href="https://github.com/fledge" target="_blank">https://github.com/fledge</a>
+   <a href="https://github.com/fledge-iot" target="_blank">https://github.com/fledge-iot</a>
 
 .. |fledge gui| raw:: html
 
-   <a href="https://github.com/fledge/fledge-gui" target="_blank">https://github.com/fledge/fledge-gui</a>
+   <a href="https://github.com/fledge-iot/fledge-gui" target="_blank">https://github.com/fledge-iot/fledge-gui</a>
 
 
 .. |postgres for fledge| raw:: html

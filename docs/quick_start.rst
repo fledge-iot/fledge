@@ -3,7 +3,6 @@
 .. |south_services| image:: images/south_services.JPG
 .. |south_service_config| image:: images/south_service_config.JPG
 .. |north_services| image:: images/north_services.JPG
-.. |north_services| image:: images/north_services.JPG
 .. |pi_plugin_config| image:: images/pi_plugin_config.JPG
 .. |settings| image:: images/settings.JPG
 .. |backup| image:: images/backup.JPG
@@ -12,7 +11,10 @@
 .. |PI_connect| image:: images/PI_connect.jpg
 .. |PI_connectors| image:: images/PI_connectors.jpg
 .. |PI_token| image:: images/PI_token.jpg
-.. |omf_plugin_config| image:: images/omf_plugin_config.JPG
+.. |omf_plugin_pi_web_config| image:: images/omf-plugin-pi-web.jpg
+.. |omf_plugin_connector_relay_config| image:: images/omf-plugin-connector-relay.jpg
+.. |omf_plugin_eds_config| image:: images/omf-plugin-eds.jpg
+.. |omf_plugin_ocs_config| image:: images/omf-plugin-ocs.jpg
 
 
 *****************
@@ -216,7 +218,7 @@ OSISoft data historians are one of the most common destinations for Fledge data.
 PI Connector Relay
 ------------------
 
-To use the Reconnector Relay, open and sign into the PI Relay Data Connection Manager.
+To use the Connector Relay, open and sign into the PI Relay Data Connection Manager.
 
 +-----------------+
 | |PI_connectors| |
@@ -239,9 +241,9 @@ Finally, select the new Fledge application. Click "More" at the bottom of the Co
 Now go to the Fledge user interface, create a new North instance and select the “OMF” plugin on the first screen.
 The second screen will request the following information:
 
-+---------------------+
-| |omf_plugin_config| |
-+---------------------+
++-------------------------------------+
+| |omf_plugin_connector_relay_config| |
++-------------------------------------+
 
 - Basic Information
    - **Endpoint:** Select what you wish to connect to, in this case the Connector Relay.
@@ -262,14 +264,14 @@ The second screen will request the following information:
 PI Web API OMF Endpoint
 -----------------------
 
-To use the PI Web API OMF endpint first  ensure the OMF option was included in your PI Server when it was installed.  
+To use the PI Web API OMF endpoint first  ensure the OMF option was included in your PI Server when it was installed.  
 
 Now go to the Fledge user interface, create a new North instance and select the “OMF” plugin on the first screen.
 The second screen will request the following information:
 
-+---------------------+
-| |omf_plugin_config| |
-+---------------------+
++----------------------------+
+| |omf_plugin_pi_web_config| |
++----------------------------+
 
 Select PI Web API from the Endpoint options.
 
@@ -280,10 +282,10 @@ Select PI Web API from the Endpoint options.
    - **Data Source:** Defines which data is sent to the PI Server. The readings or Fledge's internal statistics.
    - **Static Data:** Data to include in every reading sent to PI.  For example, you can use this to specify the location of the devices being monitored by the Fledge server.
 - Asset Framework
-   - **Asset Framework Hierarchies Tree:** The location in the asset framework into which the data will be inserted. All data will be inserted at this point in the asset framework unless a later rule overrides this.
-   - **Asset Framework Hierarchies Rules:** A set of rules that allow specific readings to be placed elewhere in the asset freamework. These rules can be based on the name of the asset itself or some metadata associated with the asset.
+   - **Asset Framework Hierarchies Tree:** The location in the Asset Framework into which the data will be inserted. All data will be inserted at this point in the Asset Framework unless a later rule overrides this.
+   - **Asset Framework Hierarchies Rules:** A set of rules that allow specific readings to be placed elewhere in the Asset Framework. These rules can be based on the name of the asset itself or some metadata associated with the asset.
 - PI Web API authentication
-   - **PI Web API Authentication Method:** The authentication method to be used, anonymous equates to no authentication, basic authenetication requires a user name and password and Kerberos allows integration with your single sign on environment.
+   - **PI Web API Authentication Method:** The authentication method to be used, anonymous equates to no authentication, basic authentication requires a user name and password and Kerberos allows integration with your single sign on environment.
    - **PI Web API User Id:**  The user name to authenticate with the PI Web API.
    - **PI Web API Password:** The password of the user we are using to authenticate.
    - **PI Web API Kerberos keytab file:** The Kerberos keytab file used to authenticate.
@@ -304,9 +306,9 @@ To use the OSISoft Edge Data Store first install Edge Data Store on the same mac
 Now go to the Fledge user interface, create a new North instance and select the “OMF” plugin on the first screen.
 The second screen will request the following information:
 
-+---------------------+
-| |omf_plugin_config| |
-+---------------------+
++-------------------------+
+| |omf_plugin_eds_config| |
++-------------------------+
 
 Select Edge Data Store from the Endpoint options.
 
@@ -331,9 +333,9 @@ OCS OMF Endpoint
 Go to the Fledge user interface, create a new North instance and select the “OMF” plugin on the first screen.
 The second screen will request the following information:
 
-+---------------------+
-| |omf_plugin_config| |
-+---------------------+
++-------------------------+
+| |omf_plugin_ocs_config| |
++-------------------------+
 
 Select OSIsoft Cloud Services from the Endpoint options.
 
@@ -375,7 +377,7 @@ Troubleshooting and Support Information
 Fledge keep detailed logs of system events for both auditing and troubleshooting use.  To access them, click "Logs" in the left menu bar.  There are five logs in the system:
 
   - **Audit:** Tracks all configuration changes and data uploads performed on the Fledge system.
-  - **Notifications:** If you are using the Fledge notifcation service this log will give details of notifications that have been triggered
+  - **Notifications:** If you are using the Fledge notification service this log will give details of notifications that have been triggered
   - **Packages:** This log will give you information about the installation and upgrade of Fledge packages for services and plugins.
   - **System:** All events and scheduled tasks and their status.
   - **Tasks:** The most recent scheduled tasks that have run and their status

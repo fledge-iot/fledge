@@ -1,0 +1,120 @@
+#!/bin/bash
+function table {
+	list="$1"
+	title=$2
+	tableType=$3
+	echo ".. list-table:: $title" >> $output
+	echo "    :widths: 20 50" >> $output
+	echo "    :header-rows: 1" >> $output
+	echo "    :stub-columns: 1" >> $output
+	echo "" >> $output
+	echo "    * - Name" >> $output
+	echo "      - Description" >> $output
+	for repo in $list
+	do
+		product=`echo $repo | sed -e 's/-.*//'`
+		if [ $product = "foglamp" ]; then
+			org=dianomic
+		else
+			org=fledge-iot
+		fi
+		type=`echo $repo | sed -e 's/fledge-//' -e 's/foglamp-//' -e 's/-.*//'`
+		name=`echo $repo | sed -e 's/fledge-//' -e 's/foglamp-//' -e "s/${type}-//"`
+		echo $repo, $name, $type >>/tmp/repos
+		if [ "$type" = "$tableType" ]; then
+			description=`curl -s -H "$header" https://api.github.com/repos/$org/$repo | jq '.description' | sed -e 's/"//g'`
+			echo "    * - $name" >> $output
+			echo "      - $description" >> $output
+		fi
+	done
+	echo "" >> $output
+}
+
+if [ ! -f ~/.gittoken ]; then
+	echo "You must have a git access token in the file ~/.gittoken"
+	exit 1
+fi
+
+output=$1
+
+token=`cat ~/.gittoken`
+header="Authorization: token $token" 
+fledgeRepos=`curl -s -H "$header" https://api.github.com/orgs/fledge-iot/repos\?per_page=1000 | jq '.[].name' | sed -e 's/"//g' | sort`
+REPOSITORIES=`echo $fledgeRepos | sort`
+
+cat >> $output << EOF1
+Fledge Plugins
+==============
+
+The following set of plugins are available for Fledge. These plugins
+extend the functionality by adding new sources of data, new destinations,
+processing filters that can enhance or modify the data, rules for
+notification delivery and notification delivery mechanisms.
+
+EOF1
+cat >>$output << EOF2
+South Plugins
+-------------
+
+South plugins add new ways to get data into Fledge, a number of south
+plugins are available ready built or users may add new south plugins of
+their own by writing them in Python or C/C++.
+
+EOF2
+table "$REPOSITORIES" "Fledge South Plugins" south
+cat >>$output << EOF3
+
+North Plugins
+-------------
+
+North plugins add new destinations to which data may be sent by Fledge. A
+number of north plugins are available ready built or users may add new
+north plugins of their own by writing them in Python or C/C++.
+
+EOF3
+table "$REPOSITORIES" "Fledge North Plugins" north
+cat >>$output << EOF4
+
+Filter Plugins
+--------------
+
+Filter plugins add new ways in which data may be modified, enhanced
+or cleaned as part of the ingress via a south service or egress to a
+destination system. A number of north plugins are available ready built
+or users may add new north plugins of their own by writing them in Python
+or C/C++.
+
+It is also possible, using particular filters, to supply expressions
+or script snipets that can operate on the data as well. This provides a
+simple way to process the data in Fledge as it is read from devices or
+written to destination systems.
+
+EOF4
+table "$REPOSITORIES" "Fledge Filter Plugins" filter
+cat >>$output << EOF5
+
+Notification Rule Plugins
+-------------------------
+
+Notification rule plugins provide the logic that is used by the
+notification service to determine if a condition has been met that should
+trigger or clear that condition and hence send a notification. A number of
+notification plugins are available as standard, however as with any plugin the
+user is able to write new plugins in Python or C/C++ to extend the set of
+notifcation rules.
+
+EOF5
+table "$REPOSITORIES" "Fledge Notification Rule Plugins" rule
+cat >>$output << EOF6
+
+Notification Delivery Plugins
+-----------------------------
+
+Notification delivery plugins provide the mechanisms to deliver the
+notification messages to the systems that will receive them.  A number
+of notification delivery plugins are available as standard, however as
+with any plugin the user is able to write new plugins in Python or C/C++
+to extend the set of notifcation rules.
+
+EOF6
+table "$REPOSITORIES" "Fledge Notification Delivery Plugins" notify

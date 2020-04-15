@@ -14,7 +14,7 @@
 .. Links in new tabs
 .. |Fledge Repo| raw:: html
 
-   <a href="https://github.com/fledge/Fledge" target="_blank">https://github.com/fledge/Fledge</a>
+   <a href="https://github.com/fledge-iot/Fledge" target="_blank">https://github.com/fledge-iot/Fledge</a>
 
 .. |GCC Bug| raw:: html
 
@@ -133,7 +133,7 @@ Fledge is available on GitHub. The link to the repository is |Fledge Repo|. In o
 
 .. code-block:: console
 
-  $ git clone https://github.com/fledge/Fledge.git
+  $ git clone https://github.com/fledge-iot/Fledge.git
   Cloning into 'Fledge'...
   remote: Counting objects: 15639, done.
   remote: Compressing objects: 100% (88/88), done.
@@ -636,7 +636,7 @@ Building Fledge
 
 We are finally ready to install Fledge, but we need to apply some little changes to the code and the make files. These changes will be removed in the future, but for the moment they are necessary to complete the procedure.
 
-First, clone the Github repository with the usual command: |br| ``git clone https://github.com/fledge/Fledge.git`` |br| The project should have been added to your machine under the *Fledge* directory.
+First, clone the Github repository with the usual command: |br| ``git clone https://github.com/fledge-iot/Fledge.git`` |br| The project should have been added to your machine under the *Fledge* directory.
 
 We need to apply these changes to *C/plugins/storage/postgres/CMakeLists.txt*:
 

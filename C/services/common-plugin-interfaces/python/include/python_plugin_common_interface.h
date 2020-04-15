@@ -785,29 +785,51 @@ static void plugin_reconfigure_fn(PLUGIN_HANDLE* handle,
  */
 static void logErrorMessage()
 {
-	//Get error message
-	PyObject *pType, *pValue, *pTraceback;
-	PyErr_Fetch(&pType, &pValue, &pTraceback);
-	PyErr_NormalizeException(&pType, &pValue, &pTraceback);
+	PyObject* type;
+	PyObject* value;
+	PyObject* traceback;
 
-	PyObject* str_exc_value = PyObject_Repr(pValue);
+	PyErr_Fetch(&type, &value, &traceback);
+	PyErr_NormalizeException(&type, &value, &traceback);
+
+	PyObject* str_exc_value = PyObject_Repr(value);
 	PyObject* pyExcValueStr = PyUnicode_AsEncodedString(str_exc_value, "utf-8", "Error ~");
-	const char* pErrorMessage = pValue ?
+	const char* pErrorMessage = value ?
 				    PyBytes_AsString(pyExcValueStr) :
 				    "no error description.";
 	Logger::getLogger()->fatal("logErrorMessage: Error '%s', plugin '%s'",
 				   pErrorMessage,
 				   gPluginName.c_str());
+	
+	std::string fcn = "";
+	fcn += "def get_pretty_traceback(exc_type, exc_value, exc_tb):\n";
+	fcn += "    import sys, traceback\n";
+	fcn += "    lines = []\n"; 
+	fcn += "    lines = traceback.format_exception(exc_type, exc_value, exc_tb)\n";
+	fcn += "    output = '\\n'.join(lines)\n";
+	fcn += "    return output\n";
+
+	PyRun_SimpleString(fcn.c_str());
+	PyObject* mod = PyImport_ImportModule("__main__");
+	PyObject* method = PyObject_GetAttrString(mod, "get_pretty_traceback");
+	PyObject* outStr = PyObject_CallObject(method, Py_BuildValue("OOO", type, value, traceback));
+	std::string pretty = PyBytes_AsString(PyUnicode_AsASCIIString(outStr));
+
+	Logger::getLogger()->fatal("%s", pretty.c_str());
+	Logger::getLogger()->printLongString(pretty.c_str());
 
 	// Reset error
 	PyErr_Clear();
 
 	// Remove references
-	Py_CLEAR(pType);
-	Py_CLEAR(pValue);
-	Py_CLEAR(pTraceback);
+	Py_CLEAR(type);
+	Py_CLEAR(value);
+	Py_CLEAR(traceback);
 	Py_CLEAR(str_exc_value);
 	Py_CLEAR(pyExcValueStr);
+	Py_CLEAR(mod);
+	Py_CLEAR(method);
+	Py_CLEAR(outStr);
 }
 
 /**

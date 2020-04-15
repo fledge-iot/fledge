@@ -33,7 +33,7 @@ NotificationPythonPluginHandle::NotificationPythonPluginHandle(const char *plugi
 	//same dir as where lib-services-common.so is present
 	m_interfaceObjName = PYTHON_PLUGIN_INTF_LIB;
 
-	// Open interfacxe library object
+	// Open interface library object
 	m_hndl = dlopen(m_interfaceObjName.c_str(), RTLD_NOW | RTLD_GLOBAL);
 	if (!m_hndl)
 	{
@@ -53,6 +53,7 @@ NotificationPythonPluginHandle::NotificationPythonPluginHandle(const char *plugi
 					   "PluginInterfaceInit",
 					   dlerror());
 		dlclose(m_hndl);
+		m_hndl = NULL;
 		return;
 	}
 
@@ -64,6 +65,7 @@ NotificationPythonPluginHandle::NotificationPythonPluginHandle(const char *plugi
 			"Plugin library %s : PluginInterfaceInit returned failure",
 			m_interfaceObjName.c_str());
 		dlclose(m_hndl);
+		m_hndl = NULL;
 		return;
 	}
 

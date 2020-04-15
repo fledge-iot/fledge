@@ -180,12 +180,12 @@ fogbench: a Brief Intro
 
 Fledge comes with a little but pretty handy tool called **fogbench**. The tools is written in Python and it uses the same libraries of other modules of Fledge, therefore no extra libraries are needed. With *fogbench* you can do many things, like inserting data stored in files, running benchmarks to understand how Fledge performs in a given environment, or test an end-to-end installation.
 
-Note: This following instructions assume you have downloaded and installed the CoAP south plugin from https://github.com/fledge/fledge-south-coap.
+Note: This following instructions assume you have downloaded and installed the CoAP south plugin from https://github.com/fledge-iot/fledge-south-coap.
 
 
 .. code-block:: console
 
-  $ git clone https://github.com/fledge/fledge-south-coap
+  $ git clone https://github.com/fledge-iot/fledge-south-coap
   $ cd fledge-south-coap
   $ sudo cp -r python /usr/local/fledge/python/fledge/plugins/south/
   $ sudo pip3 install -r /usr/local/fledge/python/requirements-coap.txt

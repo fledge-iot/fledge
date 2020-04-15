@@ -24,7 +24,7 @@
 
 .. |fledge-snap issues| raw:: html
 
-   <a href="https://github.com/fledge/fledge-snap/issues" target="_blank">GitHub issues database</a>
+   <a href="https://github.com/fledge-iot/fledge-snap/issues" target="_blank">GitHub issues database</a>
 
 .. |x86 Package| raw:: html
 

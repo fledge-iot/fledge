@@ -14,7 +14,7 @@
 
 .. |GH Issues| raw:: html
 
-   <a href="https://github.com/fledge/Fledge/issues" target="_blank">GitHub</a>
+   <a href="https://github.com/fledge-iot/Fledge/issues" target="_blank">GitHub</a>
 
 
 .. =============================================

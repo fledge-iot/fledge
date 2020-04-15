@@ -25,7 +25,7 @@
 
 .. |postgres for fledge| raw:: html
 
-   <a href="https://github.com/fledge/storage-postgres" target="_blank">https://github.com/fledge/storage-postgres</a>
+   <a href="https://github.com/fledge-iot/storage-postgres" target="_blank">https://github.com/fledge-iot/storage-postgres</a>
 
 .. |downloads| raw:: html
 

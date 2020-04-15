@@ -81,7 +81,8 @@ class SupportBuilder:
                     north_cat = await cf_mgr.get_category_child("North")
                     north_categories = [nc["key"] for nc in north_cat]
                     for task in north_categories:
-                        self.add_syslog_service(pyz, file_spec, task)
+                        if task != "OMF_TYPE":
+                            self.add_syslog_service(pyz, file_spec, task)
                 except:
                     pass
                 await self.add_table_configuration(pyz, file_spec)
@@ -142,7 +143,7 @@ class SupportBuilder:
         pyz.add(temp_file, arcname=basename(temp_file))
 
     def add_syslog_service(self, pyz, file_spec, service):
-        # The fledge entries from the syslog file
+        # The fledge entries from the syslog file for a service or task
         temp_file = self._interim_file_path + "/" + "syslog-{}-{}".format(service, file_spec)
         try:
             subprocess.call("grep '{}\\[' {} > {}".format(service, _SYSLOG_FILE, temp_file), shell=True)

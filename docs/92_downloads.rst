@@ -23,14 +23,9 @@
    <a href="https://github.com/fledge-iot/fledge-gui" target="_blank">https://github.com/fledge-iot/fledge-gui</a>
 
 
-.. |postgres for fledge| raw:: html
-
-   <a href="https://github.com/fledge-iot/storage-postgres" target="_blank">https://github.com/fledge-iot/storage-postgres</a>
-
 .. |downloads| raw:: html
 
    <a href="http://dianomic.com/download-packages/">Downloads Page</a>
-
 
 
    

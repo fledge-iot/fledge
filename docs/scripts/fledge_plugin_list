@@ -35,6 +35,7 @@ if [ ! -f ~/.gittoken ]; then
 fi
 
 output=$1
+rm -f $output
 
 token=`cat ~/.gittoken`
 header="Authorization: token $token" 

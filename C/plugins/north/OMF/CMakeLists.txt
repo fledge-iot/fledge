@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.6.0)
 
-project(PI_Server_V2)
+project(OMF)
 
 set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 # Add here all needed Fledge libraries as list

@@ -29,8 +29,8 @@
 
 // Retry mechanism
 #define PREP_CMD_MAX_RETRIES		20	    // Maximum no. of retries when a lock is encountered
-#define PREP_CMD_RETRY_BASE 		5000    // Base time to wait for
-#define PREP_CMD_RETRY_BACKOFF		5000 	// Variable time to wait for
+#define PREP_CMD_RETRY_BASE 		50    // Base time to wait for
+#define PREP_CMD_RETRY_BACKOFF		50 	// Variable time to wait for
 
 /*
  * Control the way purge deletes readings. The block size sets a limit as to how many rows
@@ -622,7 +622,14 @@ string        now;
 int retries = 0;
 int sleep_time_ms = 0;
 
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
+
 #if INSTRUMENT
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("appendReadings start thread :%s:", threadId.str().c_str());
+	Logger::getLogger()->setMinLevel("warning");
+
 	struct timeval	start, t1, t2, t3, t4, t5;
 #endif
 
@@ -651,6 +658,10 @@ int sleep_time_ms = 0;
 
 	const char *sql_cmd="INSERT INTO fledge.readings ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
 
+	// Execute one transaction at time
+	m_writeAccessOngoing.fetch_add(1);
+	unique_lock<mutex> lck(db_mutex);
+
 	sqlite3_prepare_v2(dbHandle, sql_cmd, strlen(sql_cmd), &stmt, NULL);
 	sqlite3_exec(dbHandle, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
@@ -664,6 +675,10 @@ int sleep_time_ms = 0;
 		{
 			raiseError("appendReadings","Each reading in the readings array must be an object");
 			sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+
+			// Unlock
+			m_writeAccessOngoing.fetch_sub(1);
+			db_cv.notify_all();
 			return -1;
 		}
 
@@ -713,33 +728,30 @@ int sleep_time_ms = 0;
 				// Retry mechanism in case SQLlite DB is locked
 				do {
 					// Insert the row using a lock to ensure one insert at time
-					{
-						m_writeAccessOngoing.fetch_add(1);
-						unique_lock<mutex> lck(db_mutex);
+					sqlite3_resut = sqlite3_step(stmt);
 
-						sqlite3_resut = sqlite3_step(stmt);
-
-						m_writeAccessOngoing.fetch_sub(1);
-						db_cv.notify_all();
-					}
 					if (sqlite3_resut == SQLITE_LOCKED  )
 					{
 						sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
 						retries++;
 
-						Logger::getLogger()->info("SQLITE_LOCKED - record :%d: - retry number :%d: sleep time ms :%d:" ,row ,retries ,sleep_time_ms);
-
+						Logger::getLogger()->info("SQLITE_LOCKED - thread :%s: - record N. :%d: - retry number :%d: sleep time ms :%d:" ,
+							threadId.str().c_str(),
+							row,
+							retries,
+							sleep_time_ms);
 						std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
 					}
 					if (sqlite3_resut == SQLITE_BUSY)
 					{
-						ostringstream threadId;
-						threadId << std::this_thread::get_id();
-
 						sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
 						retries++;
 
-						Logger::getLogger()->info("SQLITE_BUSY - thread :%s: - record :%d: - retry number :%d: sleep time ms :%d:", threadId.str().c_str() ,row, retries, sleep_time_ms);
+						Logger::getLogger()->info("SQLITE_BUSY - thread :%s: - record N. :%d: - retry number :%d: sleep time ms :%d:",
+							threadId.str().c_str(),
+							row,
+							retries,
+							sleep_time_ms);
 
 						std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
 					}
@@ -760,6 +772,10 @@ int sleep_time_ms = 0;
 						reading.c_str());
 
 					sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+
+					// Unlock
+					m_writeAccessOngoing.fetch_sub(1);
+					db_cv.notify_all();
 					return -1;
 				}
 			}
@@ -772,6 +788,11 @@ int sleep_time_ms = 0;
 		raiseError("appendReadings", "Executing the commit of the transaction :%s:", sqlite3_errmsg(dbHandle));
 		row = -1;
 	}
+
+	// Unlock
+	m_writeAccessOngoing.fetch_sub(1);
+	db_cv.notify_all();
+
 
 #if INSTRUMENT
 		gettimeofday(&t2, NULL);
@@ -802,13 +823,18 @@ int sleep_time_ms = 0;
 		timersub(&t3, &t2, &tm);
 		timeT3 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
 
-		Logger::getLogger()->debug("Appended readings buffer size :%d: row count :%d:", strlen(readings), row);
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("Appended readings buffer size :%d: row count :%d: :%s: ", strlen(readings), row, threadId.str().c_str());
 
-		Logger::getLogger()->debug("Timing - JSON handling %.3f seconds - inserts execution %.3f seconds - sqlite3_finalize %.3f seconds",
+		Logger::getLogger()->debug("Timing - thread :%s: - JSON handling %.3f seconds - inserts execution %.3f seconds - sqlite3_finalize %.3f seconds ",
+								   threadId.str().c_str(),
 		                           timeT1,
 		                           timeT2,
 		                           timeT3
+
 		);
+		Logger::getLogger()->debug("appendReadings end thread :%s:", threadId.str().c_str());
+		Logger::getLogger()->setMinLevel("warning");
 #endif
 
 	return row;
@@ -1575,6 +1601,134 @@ int blocks = 0;
 	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
 	logger->info("Purge process complete in %d blocks in %lduS", blocks, duration);
 
+	return deletedRows;
+}
+
+/**
+ * Purge readings from the reading table
+ */
+unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
+					unsigned int flags,
+					unsigned long sent,
+					std::string& result)
+{
+unsigned long  deletedRows = 0, unsentPurged = 0, unsentRetained = 0, numReadings = 0;
+unsigned long limit = 0;
+
+	Logger *logger = Logger::getLogger();
+
+	logger->info("Purge by Rows called");
+	if ((flags & 0x01) == 0x01)
+	{
+		limit = sent;
+		logger->info("Sent is %d", sent);
+	}
+	logger->info("Purge by Rows called with flags %x, rows %d, limit %d", flags, rows, limit);
+	// Don't save unsent rows
+	int rowcount;
+	do {
+		char *zErrMsg = NULL;
+		int rc;
+		rc = SQLexec(dbHandle,
+		     "select count(rowid) from readings;",
+		     rowidCallback,
+		     &rowcount,
+		     &zErrMsg);
+
+		if (rc != SQLITE_OK)
+		{
+			raiseError("purge - phaase 0, fetching row count", zErrMsg);
+			sqlite3_free(zErrMsg);
+			return 0;
+		}
+		if (rowcount <= rows)
+		{
+			logger->info("Row count %d is less than required rows %d", rowcount, rows);
+			break;
+		}
+		int minId;
+		rc = SQLexec(dbHandle,
+		     "select min(id) from readings;",
+		     rowidCallback,
+		     &minId,
+		     &zErrMsg);
+
+		if (rc != SQLITE_OK)
+		{
+			raiseError("purge - phaase 0, fetching minimum id", zErrMsg);
+			sqlite3_free(zErrMsg);
+			return 0;
+		}
+		int maxId;
+		rc = SQLexec(dbHandle,
+		     "select max(id) from readings;",
+		     rowidCallback,
+		     &maxId,
+		     &zErrMsg);
+
+		if (rc != SQLITE_OK)
+		{
+			raiseError("purge - phaase 0, fetching maximum id", zErrMsg);
+			sqlite3_free(zErrMsg);
+			return 0;
+		}
+		int deletePoint = minId + 10000;
+		if (maxId - deletePoint < rows || deletePoint > maxId)
+			deletePoint = maxId - rows;
+		if (limit && limit > deletePoint)
+		{
+			deletePoint = limit;
+		}
+		SQLBuffer sql;
+
+		logger->info("RowCount %d, Max Id %d, min Id %d, delete point %d", rowcount, maxId, minId, deletePoint);
+
+		sql.append("delete from readings where id <= ");
+		sql.append(deletePoint);
+		const char *query = sql.coalesce();
+		{
+			unique_lock<mutex> lck(db_mutex);
+			if (m_writeAccessOngoing) db_cv.wait(lck);
+
+			// Exec DELETE query: no callback, no resultset
+			rc = SQLexec(dbHandle, query, NULL, NULL, &zErrMsg);
+			int rowsAffected = sqlite3_changes(dbHandle);
+			deletedRows += rowsAffected;
+			numReadings = rowcount - rowsAffected;
+			// Release memory for 'query' var
+			delete[] query;
+			logger->debug("Deleted %d rows", rowsAffected);
+			if (rowsAffected == 0)
+			{
+				break;
+			}
+			if (limit != 0 && sent != 0)
+			{
+				unsentPurged = deletePoint - sent;
+			}
+			else if (!limit)
+			{
+				unsentPurged += rowsAffected;
+			}
+		}
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+	} while (rowcount > rows);
+
+	if (limit)
+	{
+		unsentRetained = numReadings - rows;
+	}
+
+
+	ostringstream convert;
+
+	convert << "{ \"removed\" : " << deletedRows << ", ";
+	convert << " \"unsentPurged\" : " << unsentPurged << ", ";
+	convert << " \"unsentRetained\" : " << unsentRetained << ", ";
+    	convert << " \"readings\" : " << numReadings << " }";
+
+	result = convert.str();
+	logger->info("Purge by Rows complete: %s", result.c_str());
 	return deletedRows;
 }
 

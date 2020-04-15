@@ -84,21 +84,21 @@ static const string sendingAdvancedConfig =
 			"\"description\": \"How long the sending process " \
 			"should run (in seconds) before stopping.\", " \
 			"\"type\": \"integer\", \"default\": \"60\" , " \
-			"\"order\": \"7\", \"displayName\" : \"Duration\" }, " \
+			"\"order\": \"30\", \"displayName\" : \"Duration\" }, " \
 	        "\"blockSize\": {" \
 			"\"description\": \"The size of a block of readings to send " \
 			"in each transmission.\", " \
-			"\"type\": \"integer\", \"default\": \"500\", \"order\": \"8\", " \
+			"\"type\": \"integer\", \"default\": \"500\", \"order\": \"31\", " \
 			"\"displayName\" : \"Readings Block Size\" }, " \
 		        "\"sleepInterval\": {" \
 		"\"description\": \"A period of time, expressed in seconds, " \
 			"to wait between attempts to send readings when there are no " \
 			"readings to be sent.\", \"type\": \"integer\", \"default\": \"1\", " \
-			"\"order\": \"11\", \"displayName\" : \"Sleep Interval\"  }, " \
+			"\"order\": \"32\", \"displayName\" : \"Sleep Interval\"  }, " \
 		"\"memoryBufferSize\": {" \
 			"\"description\": \"Number of elements of blockSize size to be buffered in memory\", " \
 			"\"type\": \"integer\", \"default\": \"10\", " \
-			"\"order\": \"12\", \"displayName\" : \"Memory Buffer Size\" ," \
+			"\"order\": \"33\", \"displayName\" : \"Memory Buffer Size\" ," \
 			"\"readonly\": \"false\" } " \
 	"}";
 

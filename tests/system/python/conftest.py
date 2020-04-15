@@ -144,7 +144,7 @@ def add_south():
 
 @pytest.fixture
 def start_north_pi_v2():
-    def _start_north_pi_server_c(fledge_url, pi_host, pi_port, pi_token, north_plugin="PI_Server_V2",
+    def _start_north_pi_server_c(fledge_url, pi_host, pi_port, pi_token, north_plugin="OMF",
                                  taskname="NorthReadingsToPI", start_task=True):
         """Start north task"""
 
@@ -159,7 +159,8 @@ def start_north_pi_v2():
                 "schedule_repeat": 30,
                 "schedule_enabled": _enabled,
                 "config": {"producerToken": {"value": pi_token},
-                           "URL": {"value": "https://{}:{}/ingress/messages".format(pi_host, pi_port)}
+                           "ServerHostname": {"value": pi_host},
+                           "ServerPort": {"value": str(pi_port)}
                            }
                 }
         conn.request("POST", '/fledge/scheduled/task', json.dumps(data))
@@ -173,7 +174,7 @@ def start_north_pi_v2():
 @pytest.fixture
 def start_north_pi_v2_web_api():
     def _start_north_pi_server_c_web_api(fledge_url, pi_host, pi_port, pi_db="Dianomic", auth_method='basic',
-                                         pi_user=None, pi_pwd=None, north_plugin="PI_Server_V2",
+                                         pi_user=None, pi_pwd=None, north_plugin="OMF",
                                          taskname="NorthReadingsToPI_WebAPI", start_task=True):
         """Start north task"""
 
@@ -191,7 +192,8 @@ def start_north_pi_v2_web_api():
                            "PIWebAPIAuthenticationMethod": {"value": auth_method},
                            "PIWebAPIUserId":  {"value": pi_user},
                            "PIWebAPIPassword": {"value": pi_pwd},
-                           "URL": {"value": "https://{}:{}/piwebapi/omf".format(pi_host, pi_port)},
+                           "ServerHostname": {"value": pi_host},
+                           "ServerPort": {"value": str(pi_port)},
                            "compression": {"value": "true"},
                            "DefaultAFLocation": {"value": "fledge/room1/machine1"}
                            }

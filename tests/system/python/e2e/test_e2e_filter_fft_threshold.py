@@ -167,7 +167,7 @@ class TestE2eFilterFFTThreshold:
             tracked_item = egress_tracking_details["track"][0]
             assert NORTH_TASK_NAME == tracked_item["service"]
             assert "e2e_fft_threshold FFT" == tracked_item["asset"]
-            assert "PI_Server_V2" == tracked_item["plugin"]
+            assert "OMF" == tracked_item["plugin"]
 
 
     def _verify_ingest(self, conn):

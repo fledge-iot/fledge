@@ -20,9 +20,9 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 available_pkg = []
-counter = 4
+counter = 3
 errors = []
-"""  By default 4 plugins are installed i.e. all north
+"""  By default 3 plugins are pre-installed i.e. all north
 """
 
 

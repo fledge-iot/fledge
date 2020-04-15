@@ -190,11 +190,7 @@ unsigned long	  age, size;
 	// TODO put flags in common header file
 	if (flags & 0x0002)	// Purge by size
 	{
-		/**
-		 * Throw PluginNotImplementedException for purge by size in SQLite 
-		 */
-		manager->release(connection);
-		throw PluginNotImplementedException("Purge by size is not supported by 'SQLite' storage engine.");
+		(void)connection->purgeReadingsByRows(param, flags, sent, results);
 	}
 	else
 	{

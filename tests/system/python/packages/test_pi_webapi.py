@@ -178,6 +178,6 @@ class TestPackagesCoAP_PI_WebAPI:
             tracked_item = egress_tracking_details["track"][0]
             assert "NorthReadingsToPI_WebAPI" == tracked_item["service"]
             assert asset_name == tracked_item["asset"]
-            assert "PI_Server_V2" == tracked_item["plugin"]
+            assert "OMF" == tracked_item["plugin"]
 
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name)

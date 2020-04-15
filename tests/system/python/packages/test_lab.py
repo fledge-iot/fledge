@@ -138,9 +138,11 @@ class TestSouth:
 class TestNorth:
 
     def test_north_pi_egress(self, fledge_url, pi_host, pi_port, pi_token, retries):
-        payload = {"name": "PI Server", "plugin": "PI_Server_V2", "type": "north", "schedule_repeat": 30,
+        payload = {"name": "PI Server", "plugin": "OMF", "type": "north", "schedule_repeat": 30,
                    "schedule_type": "3", "schedule_enabled": True,
-                   "config": {"URL": {"value": "https://{}:{}/ingress/messages".format(pi_host, pi_port)},
+                   "config": {
+                              "ServerHostname": {"value": pi_host},
+                              "ServerPort": {"value": pi_port},
                               "producerToken": {"value": pi_token}, "compression": {"value": "false"}}}
         post_request(fledge_url, "/fledge/scheduled/task", payload)
 

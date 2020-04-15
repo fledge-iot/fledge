@@ -22,7 +22,7 @@ North plugins are used in North tasks and microservices to extract data buffered
 The OMF Plugin
 --------------
 
-The OMF Plugin is used by a North task to send data to an OSIsoft PI server via a PI Connector Relay OMF. *OMF* stands for OSIsoft Message Format, it is the JSON format defined by OSIsoft to send IoT data to a PI server via a Connector Relay server.
+The OMF Plugin is used by a North task to send data to an OSIsoft PI server via a PI Connector Relay or PI Web API, it can also send to Edge Data Store or OSIsoft Cloud Services. All these destinations share a single protocol for communication, OMF. *OMF* stands for OSIsoft Message Format, it is the JSON format defined by OSIsoft to send IoT data to a PI server via a Connector Relay server.
 
 The plugin is designed to send two streams of data:
 

@@ -6,7 +6,6 @@ function table {
 	echo ".. list-table:: $title" >> $output
 	echo "    :widths: 20 50" >> $output
 	echo "    :header-rows: 1" >> $output
-	echo "    :stub-columns: 1" >> $output
 	echo "" >> $output
 	echo "    * - Name" >> $output
 	echo "      - Description" >> $output

@@ -22,6 +22,8 @@ from fledge.services.core.connect import *
 from fledge.common import logger
 from fledge.services.core.api.service import get_service_records
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
+from fledge.common.configuration_manager import ConfigurationManager
+from fledge.common.storage_client import payload_builder
 
 
 __author__ = "Amarendra K Sinha"
@@ -67,10 +69,27 @@ class SupportBuilder:
             try:
                 self.add_syslog_fledge(pyz, file_spec)
                 self.add_syslog_storage(pyz, file_spec)
+                cf_mgr = ConfigurationManager(self._storage)
+                try:
+                    south_cat = await cf_mgr.get_category_child("South")
+                    south_categories = [sc["key"] for sc in south_cat]
+                    for service in south_categories:
+                        self.add_syslog_service(pyz, file_spec, service)
+                except:
+                    pass
+                try:
+                    north_cat = await cf_mgr.get_category_child("North")
+                    north_categories = [nc["key"] for nc in north_cat]
+                    for task in north_categories:
+                        if task != "OMF_TYPE":
+                            self.add_syslog_service(pyz, file_spec, task)
+                except:
+                    pass
                 await self.add_table_configuration(pyz, file_spec)
                 await self.add_table_audit_log(pyz, file_spec)
                 await self.add_table_schedules(pyz, file_spec)
                 await self.add_table_scheduled_processes(pyz, file_spec)
+                await self.add_table_statistics_history(pyz, file_spec)
                 self.add_service_registry(pyz, file_spec)
                 self.add_machine_resources(pyz, file_spec)
                 self.add_psinfo(pyz, file_spec)
@@ -123,6 +142,15 @@ class SupportBuilder:
             raise RuntimeError("Error in creating {}. Error-{}".format(temp_file, str(ex)))
         pyz.add(temp_file, arcname=basename(temp_file))
 
+    def add_syslog_service(self, pyz, file_spec, service):
+        # The fledge entries from the syslog file for a service or task
+        temp_file = self._interim_file_path + "/" + "syslog-{}-{}".format(service, file_spec)
+        try:
+            subprocess.call("grep '{}\\[' {} > {}".format(service, _SYSLOG_FILE, temp_file), shell=True)
+        except OSError as ex:
+            raise RuntimeError("Error in creating {}. Error-{}".format(temp_file, str(ex)))
+        pyz.add(temp_file, arcname=basename(temp_file))
+
     async def add_table_configuration(self, pyz, file_spec):
         # The contents of the configuration table from the storage layer
         temp_file = self._interim_file_path + "/" + "configuration-{}".format(file_spec)
@@ -144,6 +172,16 @@ class SupportBuilder:
     async def add_table_scheduled_processes(self, pyz, file_spec):
         temp_file = self._interim_file_path + "/" + "scheduled_processes-{}".format(file_spec)
         data = await self._storage.query_tbl("scheduled_processes")
+        self.write_to_tar(pyz, temp_file, data)
+
+    async def add_table_statistics_history(self, pyz, file_spec):
+        # The contents of the statistics history from the storage layer
+        temp_file = self._interim_file_path + "/" + "statistics-history-{}".format(file_spec)
+        payload = payload_builder.PayloadBuilder() \
+            .LIMIT(1000) \
+            .ORDER_BY(['history_ts', 'DESC']) \
+            .payload()
+        data = await self._storage.query_tbl_with_payload("statistics_history", payload)
         self.write_to_tar(pyz, temp_file, data)
 
     def add_service_registry(self, pyz, file_spec):

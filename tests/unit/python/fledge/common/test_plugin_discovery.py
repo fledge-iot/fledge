@@ -183,6 +183,8 @@ class TestPluginDiscovery:
         }
     ]
 
+    mock_plugins_config += mock_py_notify_config + mock_py_rule_config
+
     mock_c_plugins_config = [
         {"interface": "1.0.0",
          "version": "1.0.0",
@@ -225,7 +227,7 @@ class TestPluginDiscovery:
         def mock_folders():
             yield TestPluginDiscovery.mock_north_folders
             yield TestPluginDiscovery.mock_south_folders
-            yield TestPluginDiscovery.mock_filter_folders
+            yield TestPluginDiscovery.mock_py_filter_folders
             yield TestPluginDiscovery.mock_py_notify_folders
             yield TestPluginDiscovery.mock_py_rule_folders
 
@@ -249,8 +251,8 @@ class TestPluginDiscovery:
         expected_plugin.extend(TestPluginDiscovery.mock_c_plugins_config)
         # FIXME: ordering issue
         # assert expected_plugin == plugins
-        assert 3 == mock_get_folders.call_count
-        assert 6 == mock_get_plugin_config.call_count
+        assert 5 == mock_get_folders.call_count
+        assert 10 == mock_get_plugin_config.call_count
         assert 5 == mock_get_c_folders.call_count
         assert 5 == mock_get_c_plugin_config.call_count
 

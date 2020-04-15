@@ -8,6 +8,9 @@
 .. Images
 
 .. Links
+.. |C++ Support Classes| raw:: html
+
+   <a href="035_CPP.html">C++ Support Classes</a>
 
 .. Links in new tabs
 
@@ -167,7 +170,7 @@ A C/C++ plugin should return a value in a *void* pointer that can then be derefe
           return (PLUGIN_HANDLE)plugin;
   }
 
-It should also be observed in the abovbe example that in C/C++ the *plugin_init* call is passed a pointer to a *ConfigCategory* class that encapsulates the JSON configuration category for the plugin. Details of the ConfigCategory class are available below.
+It should also be observed in the above C/C++ example the *plugin_init* call is passed a pointer to a *ConfigCategory* class that encapsulates the JSON configuration category for the plugin. Details of the ConfigCategory class are available in the section |C++ Support Classes|.
 
 |br|
 
@@ -236,4 +239,4 @@ In C/C++ the *plugin_reconfigure* class is very similar, note however that the *
           plugin->configure(&config);
   }
 
-It is worth noting, that the *plugin_reconfigure* call may be delivered in a seperate thread for a C/C++ plugin and that the plugin should implement any mutual exclusion mechanisms that are required based on the actions of the *plugin_reconfigure* method.
+It should be noted that the *plugin_reconfigure* call may be delivered in a seperate thread for a C/C++ plugin and that the plugin should implement any mutual exclusion mechanisms that are required based on the actions of the *plugin_reconfigure* method.

@@ -186,7 +186,7 @@ This is the code for the plugin.cpp file that provides the plugin API:
   }
   };
 
-The full source code, includign the *DHT11* class can be found in GitHub |fledge DHT|
+The full source code, including the *DHT11* class can be found in GitHub |fledge DHT|
 
 Building Fledge and Adding the Plugin
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -202,15 +202,17 @@ If you have not built Fledge yet, follow the steps described |Getting Started|. 
   ...
   $
 
-- Set the environment variable FLEDGE_ROOT to the diretory in which you built Fledge
+- Set the environment variable FLEDGE_ROOT to the directory in which you built Fledge
 
 .. code-block:: console
+
   $ export FLEDGE_ROOT=~/fledge
   $
 
 - Go to the location in which you cloned the fledge-south-dht repository and create a build directory and run cmake in that directory
 
 .. code-block:: console
+
   $ cd ~/fledge-south-dht
   $ mkdir build
   $ cd build
@@ -221,6 +223,7 @@ If you have not built Fledge yet, follow the steps described |Getting Started|. 
 - Now make the plugin
 
 .. code-block:: console
+
   $ make
   $
 

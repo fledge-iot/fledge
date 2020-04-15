@@ -64,9 +64,9 @@ The *Reading* class and the associated *Datapoint* and *DatapointValue* classes 
                   const std::string getAssetDateUserTime(readingTimeFormat datetimeFmt = FMT_DEFAULT, bool addMs = true) const;
   }
 
-The *Reading* class contains a number of items that are mapped tothe JSON representation of data that is sent to the Fledge storage service and are used by the various services and plugins within Fledge.
+The *Reading* class contains a number of items that are mapped to the JSON representation of data that is sent to the Fledge storage service and are used by the various services and plugins within Fledge.
 
-  - **Asset Name**: The name of the asset. The asset naem is set in the construtor of the reading and retrieved via the *getAssetName()* method.
+  - **Asset Name**: The name of the asset. The asset name is set in the construtor of the reading and retrieved via the *getAssetName()* method.
 
   - **Timestamp**: The timestamp when the reading was first seen within Fledge.
 
@@ -97,9 +97,10 @@ The *Datapoint* class provides a name for each data point within a *Reading* and
                   DatapointValue& getData();
   }
 
-Closely associated with the *Datapoint* is the *DatapointValue* which uses a tagged union to store the values. The public defintion of the *DatapointValue*  is as follows;
+Closely associated with the *Datapoint* is the *DatapointValue* which uses a tagged union to store the values. The public definition of the *DatapointValue*  is as follows;
 
 .. code-block:: C
+
   class DatapointValue {
           public:
                   /**
@@ -151,6 +152,7 @@ Configuration Category
 The *ConfigCategory* class is a support class for managing configuration information within a plugin and is passed to the plugin entry points. The public definition of the class is as follows;
 
 .. code-block:: C
+
   class ConfigCategory {
           public:
                   enum ItemType {
@@ -218,7 +220,7 @@ The *ConfigCategory* class is a support class for managing configuration informa
 Although *ConfigCategory* is a complex class, only a few of the methods are commonly used within a plugin
 
   - **itemExists:** - used to test if an expected configuration item exists within the configuration category.
-  - **getValue:** - return the value of a configuration item from within the configuration category.
+  - **getValue:** - return the value of a configuration item from within the configuration category
   - **isBool:** - tests if a configuration item is of boolean type
   - **isNumber:** - tests if a configuration item is a number
   - **isDouble:** - tests if a configuration item is valid to be repesented as a double
@@ -230,6 +232,7 @@ Logger
 The *Logger* class is used to write entries to the syslog system within Fledge. A singleton *Logger* exists which can be obtained using the following code snippet;
 
 .. code-block:: C
+
   Logger *logger = Logger::getLogger();
   logger->error("An error has occured within the plugin processing");
 
@@ -237,6 +240,7 @@ The *Logger* class is used to write entries to the syslog system within Fledge. 
 It is then possible to log messages at one of five different log levels; *debug*, *info*, *warn*, *error* or *fatal*. Messages may be logged using standard printf formatting strings. The public defintion of the *Logger* class is as follows;
 
 .. code-block:: C
+
   class Logger {
           public:
                   Logger(const std::string& application);
@@ -253,8 +257,8 @@ It is then possible to log messages at one of five different log levels; *debug*
 
 The various log levels should be used as follows;
 
-  - **debug**: should be used to output messages that are relavent only to a programmgn that is debugging the plugin.
+  - **debug**: should be used to output messages that are relavent only to a programmer that is debugging the plugin.
   - **info**: should be used for information that is measningful to the end users, but should not normally be logged.
   - **warn**: should be used for warning messages that will normally be logged but reflect a condition that does not prevent the plugin from operating.
   - **error**: should be used for conditions that cause a temporary failure in processing within the plugin.
-  - **fatal**: should be used for conditions that cause the plugin to fail processing permenantly, possibly requiring a restart of the microservce in order to resolve.
+  - **fatal**: should be used for conditions that cause the plugin to fail processing permenantly, possibly requiring a restart of the microservice in order to resolve.

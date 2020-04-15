@@ -8,6 +8,9 @@
 .. Images
 
 .. Links
+.. |C++ Support Classes| raw:: html
+
+   <a href="035_CPP.html">C++ Support Classes</a>
 
 .. =============================================
 
@@ -15,19 +18,19 @@
 South Plugins in C
 ==================
 
-South plugins written in C/C++ are no different in use to those written in Python, it is meremyl a case that they are implemented in a different language. The same options of polled or asynchronous methods still exist and the enduser of Fledge is not aware of which language the plugin has been written in.
+South plugins written in C/C++ are no different in use to those written in Python, it is merely a case that they are implemented in a different language. The same options of polled or asynchronous methods still exist and the enduser of Fledge is not aware in which language the plugin has been written.
 
 
 Polled Mode
 -----------
 
-Polled mode is the simplest form of South plugin that can be written, a poll routine is called at an interval defined in the plugin configuration. The South service determines the type of the plugin by examining at the mode property in the information the plugin returns from the *plugin_info* call.
+Polled mode is the simplest form of South plugin that can be written, a poll routine is called at an interval defined in the plugin advanced configuration. The South service determines the type of the plugin by examining the mode property in the information the plugin returns from the *plugin_info* call.
 
 
 Plugin Poll
 ~~~~~~~~~~~
 
-The plugin *poll* method is called periodically to collect the readings from a poll mode sensor. As with all other calls the argument passed to the method is the handle returned by the initialization call, the return of the method should be a *Reading* instance that contains the data read.
+The plugin *poll* method is called periodically to collect the readings from a poll mode sensor. As with all other calls the argument passed to the method is the handle returned by the *plugin_init* call, the return of the method should be a *Reading* instance that contains the data read.
 
 The *Reading* class consists of
 
@@ -41,8 +44,9 @@ The *Reading* class consists of
 | datapoints    | The reading data itself as a set if datapoint instances |
 +---------------+---------------------------------------------------------+
 
-It is important that the *poll* method does not block as this will prevent the proper operation of the South microservice.
-Using the example of our simple DHT11 device attached to a GPIO pin, the *poll* routine could be:
+More detail regarding the *Reading* class can be found in the section |C++ Support classes|.
+
+It is important that the *poll* method does not block as this will prevent the proper operation of the South microservice.  Using the example of our simple DHT11 device attached to a GPIO pin, the *poll* routine could be:
 
 .. code-block:: C
 
@@ -100,7 +104,7 @@ We are creating two *DatapointValues* for the Humidity and Temperature values re
 Plugin Poll Returning Multiple Values
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-It is possible in a C/C++ plugin to have a plugin that returns multiple readings in a single call to a poll routine. This is done by setting the interface version of 2.0.0 rather than 1.0.0. In this interface version the *plugin_poll* call returns a vector of *Readings* rather than a single *Reading*.
+It is possible in a C/C++ plugin to have a plugin that returns multiple readings in a single call to a poll routine. This is done by setting the interface version of 2.0.0 rather than 1.0.0. In this interface version the *plugin_poll* call returns a vector of *Reading* rather than a single *Reading*.
 
 .. code-block:: C
 
@@ -119,12 +123,12 @@ It is possible in a C/C++ plugin to have a plugin that returns multiple readings
 Async IO Mode
 -------------
 
-In asyncio mode the plugin runs either a seperate thread or using some incoming event from a device to trigger sending data to Fledge. The asynchronous mode uses two additional entry points to the plugin, one to register a callback on which the plugin sends data, *plugin_register_ingest*  and another to start the asynchronous behavior *plugin_start*.
+In asyncio mode the plugin runs either a seperate thread or uses some incoming event from a device or callback mechanism to trigger sending data to Fledge. The asynchronous mode uses two additional entry points to the plugin, one to register a callback on which the plugin sends data, *plugin_register_ingest*  and another to start the asynchronous behavior *plugin_start*.
 
 Plugin Register Ingest
 ~~~~~~~~~~~~~~~~~~~~~~
 
-The *plugin_resgister_ingest* call is used to allow the sout service to pass a callback function to the plugin that the plugin uses to send data to the service every time the plugin has soem new data.
+The *plugin_resgister_ingest* call is used to allow the south service to pass a callback function to the plugin that the plugin uses to send data to the service every time the plugin has some new data.
 
 .. code-block:: C
 
@@ -140,7 +144,7 @@ The *plugin_resgister_ingest* call is used to allow the sout service to pass a c
           plugin->registerIngest(data, cb);
   }
 
-The plugin should recored the callback function pointer and the data associated with the callback such that it can use that information to pass a reading to the south service. The following code snipets show how a plugin class might store the callback and data and then use it to send readings into Fledge at a later stage.
+The plugin should store the callback function pointer and the data associated with the callback such that it can use that information to pass a reading to the south service. The following code snipets show how a plugin class might store the callback and data and then use it to send readings into Fledge at a later stage.
 
 .. code-block:: C
 
@@ -171,7 +175,7 @@ The plugin should recored the callback function pointer and the data associated 
 Plugin Start
 ~~~~~~~~~~~~
 
-The *plugin_start* method, as with other plugin calls, is called with the plugin handle data that was returned from the *plugin_init* call. The *plugin_start* call will only be called once for a plugin, it is the responsibility of *plugin_start* to take whatever action is required in the plugin in order to start the asynchronous actions of the plugin. This might be to start a thread, regiser an endpoint for a remote connection or call an entry point in a thrd party library to start asynchornous processing. 
+The *plugin_start* method, as with other plugin calls, is called with the plugin handle data that was returned from the *plugin_init* call. The *plugin_start* call will only be called once for a plugin, it is the responsibility of *plugin_start* to take whatever action is required in the plugin in order to start the asynchronous actions of the plugin. This might be to start a thread, register an endpoint for a remote connection or call an entry point in a third party library to start asynchornous processing. 
 
 .. code-block:: C
 

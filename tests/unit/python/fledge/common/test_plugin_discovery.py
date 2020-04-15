@@ -32,7 +32,9 @@ class TestPluginDiscovery:
     mock_py_filter_folders = [("foo", "bar")]
     mock_c_filter_folders = [("scale", "binary")]
     mock_c_notify_folders = [("email", "binary")]
+    mock_py_notify_folders = [("notify1", "notify2")]
     mock_c_rule_folders = [("OverMaxRule", "binary")]
+    mock_py_rule_folders = [("bad_bearing", "engine_failure")]
     mock_all_folders = ["OMF", "fledge-north", "modbus", "http"]
     mock_filter_config = [
         {"name": "foo",
@@ -143,6 +145,21 @@ class TestPluginDiscovery:
          "config": {"plugin": {"type": "string", "description": "Email notification plugin", "default": "email"}}}
     ]
 
+    mock_py_notify_config = [
+        {
+          "version": "1.7.0",
+          "description": "notify1 delivery plugin",
+          "type": "notificationDelivery",
+          "name": "notify1"
+        },
+        {
+            "version": "1.7.0",
+            "description": "notify2 delivery plugin",
+            "type": "notificationDelivery",
+            "name": "notify2"
+        }
+    ]
+
     mock_c_rule_config = [
         {"name": "OverMaxRule",
          "version": "1.0.0",
@@ -150,6 +167,22 @@ class TestPluginDiscovery:
          "description": "The OverMaxRule notification rule",
          "config": {"plugin": {"type": "string", "description": "The OverMaxRule notification rule plugin", "default": "OverMaxRule"}}}
     ]
+
+    mock_py_rule_config = [
+        {
+          "version": "1.7.0",
+          "description": "Notification rule plugin to detect bad bearing",
+          "type": "notificationRule",
+          "name": "bad_bearing"
+        },
+        {
+          "version": "1.6.2",
+          "description": "Notification rule plugin which detects imminent engine failure",
+          "type": "notificationRule",
+          "name": "engine_failure"
+        }
+    ]
+
     mock_c_plugins_config = [
         {"interface": "1.0.0",
          "version": "1.0.0",
@@ -193,6 +226,8 @@ class TestPluginDiscovery:
             yield TestPluginDiscovery.mock_north_folders
             yield TestPluginDiscovery.mock_south_folders
             yield TestPluginDiscovery.mock_filter_folders
+            yield TestPluginDiscovery.mock_py_notify_folders
+            yield TestPluginDiscovery.mock_py_rule_folders
 
         @asyncio.coroutine
         def mock_c_folders():

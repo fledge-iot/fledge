@@ -18,6 +18,7 @@
 #include <plugin_exception.h>
 #include <iostream>
 #include <omf.h>
+#include <piwebapi.h>
 #include <ocs.h>
 #include <simple_https.h>
 #include <simple_http.h>
@@ -297,6 +298,8 @@ typedef struct
 	string		AFMap;                  // Defines a set of rules to address where assets should be placed in the AF hierarchy.
 
 	string		prefixAFAsset;          // Prefix to generate unique asste id
+	string		PIWebAPIProductTitle;
+	string		PIWebAPIVersion;
 	string		PIWebAPIAuthMethod;     // Authentication method to be used with the PI Web API.
 	string		PIWebAPICredentials;    // Credentials is the base64 encoding of id and password joined by a single colon (:)
 	string 		KerberosKeytab;         // Kerberos authentication keytab file
@@ -331,6 +334,7 @@ OMF_ENDPOINT  identifyPIServerEndpoint     (CONNECTOR_INFO* connInfo);
 string        AuthBasicCredentialsGenerate (string& userId, string& password);
 void          AuthKerberosSetup            (string& keytabFile, string& keytabFileName);
 string        OCSRetrieveAuthToken         (CONNECTOR_INFO* connInfo);
+string        PIWebAPIGetVersion           (CONNECTOR_INFO* connInfo);
 
 /**
  * Return the information about this plugin
@@ -538,6 +542,13 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 		}
 	} while (pos != string::npos);
 
+	// retrieves the Pi Web Api Version
+	if (connInfo->PIServerEndpoint == ENDPOINT_PIWEB_API)
+	{
+		connInfo->PIWebAPIVersion = PIWebAPIGetVersion(connInfo);
+		Logger::getLogger()->info("PIWebAPI version :%s:" ,connInfo->PIWebAPIVersion.c_str() );
+	}
+
 #if VERBOSE_LOG
 	// Log plugin configuration
 	Logger::getLogger()->info("%s plugin configured: URL=%s, "
@@ -619,7 +630,7 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 		     const vector<Reading *>& readings)
 {
 	CONNECTOR_INFO* connInfo = (CONNECTOR_INFO *)handle;
-        
+
 	/**
 	 * Allocate the HTTPS handler for "Hostname : port"
 	 * connect_timeout and request_timeout.
@@ -959,6 +970,25 @@ long getMaxTypeId(CONNECTOR_INFO* connInfo)
 	}
 	return maxId;
 }
+
+
+/**
+ * Calls the PIWebAPI api to retrieve the version
+ */
+string PIWebAPIGetVersion(CONNECTOR_INFO* connInfo)
+{
+	string version;
+	PIWebAPI *_PIWebAPI;
+
+	_PIWebAPI = new PIWebAPI();
+
+	version = _PIWebAPI->GetVersion(connInfo->hostAndPort);
+
+	delete _PIWebAPI;
+
+	return version;
+}
+
 
 /**
  * Calls the OCS api to retrieve the authentication token

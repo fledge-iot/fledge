@@ -585,7 +585,7 @@ The response payload is a JSON object with an array of task objects.
 | startTime | timestamp | The date and time the task started      | 2018-04-17 08:32:15.071              |
 +-----------+-----------+-----------------------------------------+--------------------------------------+
 | endTime   | timestamp | The date and time the task ended   |br| | 2018-04-17 08:32:14.872              |
-|           |           | This may not exist if the tast is  |br| |                                      |
+|           |           | This may not exist if the task is  |br| |                                      |
 |           |           | not completed.                          |                                      |
 +-----------+-----------+-----------------------------------------+--------------------------------------+
 | reason    | string    | An optional reason string that     |br| | No destination available |br|        |
@@ -685,7 +685,7 @@ The response payload is a JSON object with an array of task objects.
 | startTime | timestamp | The date and time the task started      | 2018-04-17 08:32:15.071              |
 +-----------+-----------+-----------------------------------------+--------------------------------------+
 | endTime   | timestamp | The date and time the task ended   |br| | 2018-04-17 08:32:14.872              |
-|           |           | This may not exist if the tast is  |br| |                                      |
+|           |           | This may not exist if the task is  |br| |                                      |
 |           |           | not completed.                          |                                      |
 +-----------+-----------+-----------------------------------------+--------------------------------------+
 | reason    | string    | An optional reason string that     |br| | No destination available |br|        |
@@ -760,7 +760,7 @@ The response payload is a JSON object containing the task details.
 | startTime | timestamp | The date and time the task started      | 2018-04-17 08:32:15.071              |
 +-----------+-----------+-----------------------------------------+--------------------------------------+
 | endTime   | timestamp | The date and time the task ended   |br| | 2018-04-17 08:32:14.872              |
-|           |           | This may not exist if the tast is  |br| |                                      |
+|           |           | This may not exist if the task is  |br| |                                      |
 |           |           | not completed.                          |                                      |
 +-----------+-----------+-----------------------------------------+--------------------------------------+
 | reason    | string    | An optional reason string that     |br| | No destination available |br|        |
@@ -816,7 +816,7 @@ The response payload is a JSON object with the details of the cancelled task.
 | startTime | timestamp | The date and time the task started      | 2018-04-17 08:32:15.071              |
 +-----------+-----------+-----------------------------------------+--------------------------------------+
 | endTime   | timestamp | The date and time the task ended   |br| | 2018-04-17 08:32:14.872              |
-|           |           | This may not exist if the tast is  |br| |                                      |
+|           |           | This may not exist if the task is  |br| |                                      |
 |           |           | not completed.                          |                                      |
 +-----------+-----------+-----------------------------------------+--------------------------------------+
 | reason    | string    | An optional reason string that     |br| | No destination available |br|        |
@@ -959,7 +959,7 @@ GET statistics/history
 ``GET /fledge/statistics/history`` - return a historical set of statistics. This interface is normally used to check if a set of sensors or devices are sending data to Fledge, by comparing the recent statistics and the number of readings received for an asset.
 
 
-**Reguest Parameters**
+**Request Parameters**
 
 - **limit** - limit the result set to the *N* most recent entries.
 

@@ -283,7 +283,7 @@ Select PI Web API from the Endpoint options.
    - **Static Data:** Data to include in every reading sent to PI.  For example, you can use this to specify the location of the devices being monitored by the Fledge server.
 - Asset Framework
    - **Asset Framework Hierarchies Tree:** The location in the Asset Framework into which the data will be inserted. All data will be inserted at this point in the Asset Framework unless a later rule overrides this.
-   - **Asset Framework Hierarchies Rules:** A set of rules that allow specific readings to be placed elewhere in the Asset Framework. These rules can be based on the name of the asset itself or some metadata associated with the asset.
+   - **Asset Framework Hierarchies Rules:** A set of rules that allow specific readings to be placed elsewhere in the Asset Framework. These rules can be based on the name of the asset itself or some metadata associated with the asset.
 - PI Web API authentication
    - **PI Web API Authentication Method:** The authentication method to be used, anonymous equates to no authentication, basic authentication requires a user name and password and Kerberos allows integration with your single sign on environment.
    - **PI Web API User Id:**  The user name to authenticate with the PI Web API.

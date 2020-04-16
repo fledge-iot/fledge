@@ -40,7 +40,7 @@ The asset method is used to browse all or some assets, based on search and filte
 GET all assets
 ~~~~~~~~~~~~~~
 
-``GET /fledge/asset`` - Return an arraty of asset codes buffered in Fledge and a count of assets by code.
+``GET /fledge/asset`` - Return an array of asset codes buffered in Fledge and a count of assets by code.
 
 
 **Response Payload**

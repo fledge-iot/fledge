@@ -67,7 +67,7 @@ directory:
 the *AFHierarchy1Level* option allows to specific the first level of the hierarchy that will be created into the Asset Framework and will contain the information for the specific
 North plugin.
 
-A sample set of commands for selecting *PI Web API* usingthe *Kerberos* authentication:
+A sample set of commands for selecting *PI Web API* using the *Kerberos* authentication:
 ::
 	curl -X PUT http://localhost:8081/fledge/category/North_statistics_to_PI/URL                              -d '{ "value" : "https://pi-server:443/piwebapi/omf" }'
 	curl -X PUT http://localhost:8081/fledge/category/North_statistics_to_PI/PIServerEndpoint                 -d '{ "value" : "PI Web API" }'

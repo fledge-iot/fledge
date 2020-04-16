@@ -58,6 +58,8 @@ class PluginDiscovery(object):
     @classmethod
     def fetch_plugins_installed(cls, plugin_type, is_config):
         directories = cls.get_plugin_folders(plugin_type)
+        # Check is required only for notificationDelivery & notificationRule python plugins as NS is an external service
+        # Hence we are not creating empty directories, as we had for south & filters
         if directories is None:
             directories = []
         configs = []

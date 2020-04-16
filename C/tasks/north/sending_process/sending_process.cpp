@@ -63,7 +63,7 @@ int main(int argc, char** argv)
 {
 	try
 	{
-                // Instantiate SendingProcess class
+		// Instantiate SendingProcess class
 		SendingProcess sendingProcess(argc, argv);
 
 		memoryBufferSize = sendingProcess.getMemoryBufferSize();

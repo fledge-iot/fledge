@@ -5,7 +5,7 @@
    <br />
 
 .. Images
-.. |fledge_all_round| image:: images/fledge_all_round_solution.jpg
+.. |fledge_all_round| image:: ../images/fledge_all_round_solution.jpg
 
 .. Links
 .. _here: #id1

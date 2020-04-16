@@ -26,7 +26,7 @@
 
 .. |DHT Repo| raw:: html
 
-   <a href="https://github.com/fledge/fledge-south-dht11" target="_blank">Fledge DHT11 South Plugin</a>
+   <a href="https://github.com/fledge-iot/fledge-south-dht11" target="_blank">Fledge DHT11 South Plugin</a>
 
 .. |ADAFruit| raw:: html
 

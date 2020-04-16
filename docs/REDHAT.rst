@@ -4,7 +4,7 @@
 
 .. Links
 .. _download page: http://dianomic.com/download-packages
-.. _fledge-pkg: https://github.com/fledge/fledge-pkg
+.. _fledge-pkg: https://github.com/fledge-iot/fledge-pkg
 
 *******************************************
 Building and using Fledge on RedHat/CentOS

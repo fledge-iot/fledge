@@ -12,7 +12,7 @@
 
 .. |1.1 requirements| raw:: html
 
-   <a href="https://github.com/fledge/Fledge/blob/1.1/python/requirements.txt" target="_blank">check here</a>
+   <a href="https://github.com/fledge-iot/Fledge/blob/1.1/python/requirements.txt" target="_blank">check here</a>
 
 
 .. =============================================
@@ -355,8 +355,8 @@ New Features
   
 - **Removal of south plugins**
 
-  - **coap**: coap south plugin was moved into its own repository https://github.com/fledge/fledge-south-coap
-  - **http**: http south plugin was moved into its own repository https://github.com/fledge/fledge-south-http
+  - **coap**: coap south plugin was moved into its own repository https://github.com/fledge-iot/fledge-south-coap
+  - **http**: http south plugin was moved into its own repository https://github.com/fledge-iot/fledge-south-http
 
 
 Known Issues

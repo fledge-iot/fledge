@@ -1,10 +1,6 @@
 .. Writing and Using Plugins describes how to implement a plugin for Fledge and how to use it
 .. https://docs.google.com/document/d/1IKGXLWbyN6a7vx8UO3uDbq5Df0VvE4oCQIULgZVZbjM
 
-.. |br| raw:: html
-
-   <br />
-
 .. Images
 
 .. |DHT11 in PI| image:: https://s3.amazonaws.com/fledge/readthedocs/images/06_dht11_tags_in_PI.jpg

@@ -176,7 +176,7 @@ The following table presents the list of configuration options available for the
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
 | plugin            | string   | omf                                     | OMF North Plugin name                                  |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| producerToken     | string   | omf_north_0001                          | The producer token that represents this Fledge stream |
+| producerToken     | string   | omf_north_0001                          | The producer token that represents this Fledge stream  |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
 | sleepInterval     | integer  | 5                                       | A period of time, expressed in seconds, to wait |br|   |
 |                   |          |                                         | between attempts to send readings when there are |br|  |
@@ -229,7 +229,7 @@ The following table presents the list of configuration options available for the
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
 | plugin            | string   | omf                                     | OMF North Plugin name                                  |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| producerToken     | string   | omf_north_0001                          | The producer token that represents this Fledge stream |
+| producerToken     | string   | omf_north_0001                          | The producer token that represents this Fledge stream  |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
 | sleepInterval     | integer  | 5                                       | A period of time, expressed in seconds, to wait |br|   |
 |                   |          |                                         | between attempts to send readings when there are |br|  |
@@ -294,7 +294,7 @@ Once the North plugins have been set properly, you should expect to see data aut
 +-----------+--------------------+--------------------------------------------------------------------------+
 | System    | Object             | Value                                                                    |
 +===========+====================+==========================================================================+
-| Fledge   | Producer Token     | readings_001                                                             |
+| Fledge    | Producer Token     | readings_001                                                             |
 |           +--------------------+--------------------------------------------------------------------------+
 |           | OMF Type           | 0001                                                                     |
 |           +--------------------+--------------------------------------------------------------------------+
@@ -316,7 +316,7 @@ Once the North plugins have been set properly, you should expect to see data aut
 |           |                    +----------+---------------------------------------------------------------+
 |           |                    | z        | Excluded, Int64                                               |
 |           +--------------------+----------+---------------------------------------------------------------+
-|           | Element            | fledge > readings_001 > fogbench/accelerometer                          |
+|           | Element            | fledge > readings_001 > fogbench/accelerometer                           |
 |           +--------------------+----------+---------------+-----------------------------------------------+
 |           | Attributes         | **Name** | **Value**     | **Timestamp**                                 |
 |           |                    +----------+---------------+-----------------------------------------------+

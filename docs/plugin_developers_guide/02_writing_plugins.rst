@@ -183,6 +183,7 @@ The plugin shutdown method is called as part of the shutdown sequence of the ser
 A C/C++ plugin might use this *plugin_shutdown* call to delete the plugin class instance it created in the corresponding *plugin_init* call.
 
 .. code-block:: C
+
   /**
    * Shutdown the plugin
    */
@@ -228,6 +229,7 @@ Using a simple Python example of our sensor reading a GPIO pin, we extract the n
 In C/C++ the *plugin_reconfigure* class is very similar, note however that the *plugin_reconfigure* call is passed the JSON configuration category as a string and not a *ConfigCategory*, it is easy to parse and create the C++ class however, a name for the category must be given however.
 
 .. code-block:: C
+
   /**
    * Reconfigure the plugin
    */

@@ -74,7 +74,6 @@ This version of Fledge provides the following plugins in the main repository:
 In addition to the plugins in the main repository, there are many other plugins available in separate repositories, a list of the |available plugins| is maintained within this document.
 
 
-
 Installing New Plugins
 ----------------------
 

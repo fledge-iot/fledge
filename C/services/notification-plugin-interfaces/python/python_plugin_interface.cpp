@@ -23,6 +23,7 @@ extern "C" {
 
 extern PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject *);
 extern void logErrorMessage();
+extern bool numpyImportError;
 extern PLUGIN_INFORMATION *plugin_info_fn();
 extern PLUGIN_HANDLE plugin_init_fn(ConfigCategory *);
 extern void plugin_shutdown_fn(PLUGIN_HANDLE);
@@ -162,6 +163,13 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 					   name.c_str(),
 					   shimLayerPath.c_str(),
 					   pluginName);
+		if (numpyImportError)
+		{
+			Logger::getLogger()->warn("Above import error is possibly caused by loading of Numpy library (or any library like Pandas/SciPy etc. that uses numpy internally) " \
+				"in python plugins multiple times (once per plugin, but same process) and that is a known issue because Numpy does not support working with multiple " \
+				"Python sub-interpreters in the same process. Also see: https://github.com/numpy/numpy/issues/14384");
+			numpyImportError = false;
+		}
 	}
 	else
 	{

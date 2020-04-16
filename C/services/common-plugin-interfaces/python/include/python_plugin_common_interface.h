@@ -85,6 +85,7 @@ static void plugin_reconfigure_fn(PLUGIN_HANDLE*, const std::string&);
 static void plugin_shutdown_fn(PLUGIN_HANDLE);
 
 static void logErrorMessage();
+static bool numpyImportError = false;
 void setImportParameters(string& shimLayerPath, string& fledgePythonDir);
 
 /**
@@ -789,6 +790,8 @@ static void logErrorMessage()
 	PyObject* value;
 	PyObject* traceback;
 
+	numpyImportError = false;
+
 	PyErr_Fetch(&type, &value, &traceback);
 	PyErr_NormalizeException(&type, &value, &traceback);
 
@@ -800,6 +803,12 @@ static void logErrorMessage()
 	Logger::getLogger()->fatal("logErrorMessage: Error '%s', plugin '%s'",
 				   pErrorMessage,
 				   gPluginName.c_str());
+	
+	// Check for numpy/pandas import errors
+	const char *err1 = "implement_array_function method already has a docstring";
+	const char *err2 = "cannot import name 'check_array_indexer' from 'pandas.core.indexers'";
+
+	numpyImportError = strstr(pErrorMessage, err1) || strstr(pErrorMessage, err2);
 	
 	std::string fcn = "";
 	fcn += "def get_pretty_traceback(exc_type, exc_value, exc_tb):\n";

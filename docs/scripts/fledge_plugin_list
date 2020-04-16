@@ -29,15 +29,15 @@ function table {
 	echo "" >> $output
 }
 
-if [ ! -f ~/.gittoken ]; then
-	echo "You must have a git access token in the file ~/.gittoken"
+if [[ `printenv GITTOKEN` == "" ]]; then
+	echo "You must have a git access token set."
 	exit 1
 fi
 
 output=$1
 rm -f $output
 
-token=`cat ~/.gittoken`
+token=`printenv GITTOKEN`
 header="Authorization: token $token" 
 fledgeRepos=`curl -s -H "$header" https://api.github.com/orgs/fledge-iot/repos\?per_page=1000 | jq '.[].name' | sed -e 's/"//g' | sort`
 REPOSITORIES=`echo $fledgeRepos | sort`

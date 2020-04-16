@@ -164,13 +164,13 @@ The following table presents the list of configuration options available for the
 | north             | string   | omf                                     | The name of the north to use to translate the |br|     |
 |                   |          |                                         | readings into the output format and send them          |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| OMFHttpTimeout    | interger | 10                                      | Timeout in seconds for the HTTP operations |br|        |
+| OMFHttpTimeout    | integer  | 10                                      | Timeout in seconds for the HTTP operations |br|        |
 |                   |          |                                         | with the OMF PI Connector Relay                        |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| OMFMaxRetry       | interger | 3                                       | Max number of retries for the communication |br|       |
+| OMFMaxRetry       | integer  | 3                                       | Max number of retries for the communication |br|       |
 |                   |          |                                         | with the OMF PI Connector Relay                        |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| OMFRetrySleepTime | interger | 1                                       | Seconds between each retry for the communication |br|  |
+| OMFRetrySleepTime | integer  | 1                                       | Seconds between each retry for the communication |br|  |
 |                   |          |                                         | with the OMF PI Connector Relay, |br|                  |
 |                   |          |                                         | NOTE : the time is doubled at each attempt.            |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
@@ -217,13 +217,13 @@ The following table presents the list of configuration options available for the
 | north             | string   | omf                                     | The name of the north to use to translate the |br|     |
 |                   |          |                                         | readings into the output format and send them          |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| OMFHttpTimeout    | interger | 10                                      | Timeout in seconds for the HTTP operations |br|        |
+| OMFHttpTimeout    | integer  | 10                                      | Timeout in seconds for the HTTP operations |br|        |
 |                   |          |                                         | with the OMF PI Connector Relay                        |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| OMFMaxRetry       | interger | 3                                       | Max number of retries for the communication |br|       |
+| OMFMaxRetry       | integer  | 3                                       | Max number of retries for the communication |br|       |
 |                   |          |                                         | with the OMF PI Connector Relay                        |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| OMFRetrySleepTime | interger | 1                                       | Seconds between each retry for the communication |br|  |
+| OMFRetrySleepTime | integer  | 1                                       | Seconds between each retry for the communication |br|  |
 |                   |          |                                         | with the OMF PI Connector Relay, |br|                  |
 |                   |          |                                         | NOTE : the time is doubled at each attempt.            |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
@@ -270,7 +270,7 @@ If you change the value, you can easily identify the set of data sent to and the
 Changing the OMF Plugin Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Before you send data to the PI server, it is likey that you need to apply more changes to the configuration. The most important items to change are:
+Before you send data to the PI server, it is likely that you need to apply more changes to the configuration. The most important items to change are:
 
 - **URL** : the URL to the PI Connector Relay OMF. It is usually composed by the name or address of the Windows server where the Connector Relay service is running, the port associated to the service and the ingress/messages API call. The communication is via HTTPS protocol.
 - **producerToken** : the token provided by the Data Collection Manager when the PI administrator sets the use of Fledge. 

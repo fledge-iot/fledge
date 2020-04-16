@@ -32,7 +32,7 @@ Fledge makes extensive use of plugin components to extend the base functionality
 
 This chapter presents the plugins that are bundled with Fledge, how to write and use new plugins to support different sensors, protocols, historians and storage devices. It will guide you through the process and entry points that are required for the various different types of plugin.
 
-There are also numerous plugins that are available as seperate packages or in seperate repositories that may be used with Fledge.
+There are also numerous plugins that are available as separate packages or in separate repositories that may be used with Fledge.
 
 
 Fledge Plugins
@@ -45,7 +45,7 @@ In this version of Fledge you have six types of plugins:
 - **Storage Plugins** - They sit between the Storage microservice and the physical data storage mechanism that stores the Fledge configuration and readings data. Storage plugins differ from other plugins in that they are written exclusively in C/C++, however they share the same common attributes and entry points that the other filter must support.
 - **Filter Plugins** - Filter plugins are used to modify data as it flows through Fledge. Filter plugins may be combined into a set of ordered filters that are applied as a pipeline to either the south ingress service or the north egress task that sends data to external systems.
 - **Notification Rule Plugins** - These are used by the optional notification service in order to evaluate data that flows into the notification service to determine if a notification should be sent.
-- **Notification Delivery Pluigns** - These plugins are used by the optional notification service to deliver a notification to a system when a notification rule has triggered. These plugins allow the mechanisms to deliver notifications to be extended.
+- **Notification Delivery Plugins** - These plugins are used by the optional notification service to deliver a notification to a system when a notification rule has triggered. These plugins allow the mechanisms to deliver notifications to be extended.
 
 
 Plugins in this version of Fledge
@@ -71,7 +71,7 @@ This version of Fledge provides the following plugins in the main repository:
 +---------+------------+------------+-----------------------------+----------------------------+----------------------------------------+
 
 
-In addition to the plugins in the main repository, there are many other plugins available in seperate respositories, a list of the |available plugins| is maintained within this document.
+In addition to the plugins in the main repository, there are many other plugins available in separate repositories, a list of the |available plugins| is maintained within this document.
 
 
 
@@ -141,4 +141,4 @@ For example, this is the command to use to install the *OpenWeather* South plugi
   === Fledge tasks:
   $
 
-You may also install new plugins directly from within the Fledge GUI, however you will need to have setup your Linux machine to include the Fledge package respository in the list of respositories the Linux package manager searches for new packages.
+You may also install new plugins directly from within the Fledge GUI, however you will need to have setup your Linux machine to include the Fledge package repository in the list of repositories the Linux package manager searches for new packages.

@@ -85,7 +85,7 @@ or users may add new north plugins of their own by writing them in Python
 or C/C++.
 
 It is also possible, using particular filters, to supply expressions
-or script snipets that can operate on the data as well. This provides a
+or script snippets that can operate on the data as well. This provides a
 simple way to process the data in Fledge as it is read from devices or
 written to destination systems.
 
@@ -101,7 +101,7 @@ notification service to determine if a condition has been met that should
 trigger or clear that condition and hence send a notification. A number of
 notification plugins are available as standard, however as with any plugin the
 user is able to write new plugins in Python or C/C++ to extend the set of
-notifcation rules.
+notification rules.
 
 EOF5
 table "$REPOSITORIES" "Fledge Notification Rule Plugins" rule
@@ -114,7 +114,7 @@ Notification delivery plugins provide the mechanisms to deliver the
 notification messages to the systems that will receive them.  A number
 of notification delivery plugins are available as standard, however as
 with any plugin the user is able to write new plugins in Python or C/C++
-to extend the set of notifcation rules.
+to extend the set of notification rules.
 
 EOF6
 table "$REPOSITORIES" "Fledge Notification Delivery Plugins" notify

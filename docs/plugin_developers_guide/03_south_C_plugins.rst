@@ -123,12 +123,12 @@ It is possible in a C/C++ plugin to have a plugin that returns multiple readings
 Async IO Mode
 -------------
 
-In asyncio mode the plugin runs either a seperate thread or uses some incoming event from a device or callback mechanism to trigger sending data to Fledge. The asynchronous mode uses two additional entry points to the plugin, one to register a callback on which the plugin sends data, *plugin_register_ingest*  and another to start the asynchronous behavior *plugin_start*.
+In asyncio mode the plugin runs either a separate thread or uses some incoming event from a device or callback mechanism to trigger sending data to Fledge. The asynchronous mode uses two additional entry points to the plugin, one to register a callback on which the plugin sends data, *plugin_register_ingest*  and another to start the asynchronous behavior *plugin_start*.
 
 Plugin Register Ingest
 ~~~~~~~~~~~~~~~~~~~~~~
 
-The *plugin_resgister_ingest* call is used to allow the south service to pass a callback function to the plugin that the plugin uses to send data to the service every time the plugin has some new data.
+The *plugin_register_ingest* call is used to allow the south service to pass a callback function to the plugin that the plugin uses to send data to the service every time the plugin has some new data.
 
 .. code-block:: C
 
@@ -137,14 +137,14 @@ The *plugin_resgister_ingest* call is used to allow the south service to pass a 
    */
   void plugin_register_ingest(PLUGIN_HANDLE *handle, INGEST_CB cb, void *data)
   {
-  MyPluginClass *pluign = (MyPluginClass *)handle;
+  MyPluginClass *plugin = (MyPluginClass *)handle;
 
           if (!handle)
                   throw new exception();
           plugin->registerIngest(data, cb);
   }
 
-The plugin should store the callback function pointer and the data associated with the callback such that it can use that information to pass a reading to the south service. The following code snipets show how a plugin class might store the callback and data and then use it to send readings into Fledge at a later stage.
+The plugin should store the callback function pointer and the data associated with the callback such that it can use that information to pass a reading to the south service. The following code snippets show how a plugin class might store the callback and data and then use it to send readings into Fledge at a later stage.
 
 .. code-block:: C
 
@@ -175,7 +175,7 @@ The plugin should store the callback function pointer and the data associated wi
 Plugin Start
 ~~~~~~~~~~~~
 
-The *plugin_start* method, as with other plugin calls, is called with the plugin handle data that was returned from the *plugin_init* call. The *plugin_start* call will only be called once for a plugin, it is the responsibility of *plugin_start* to take whatever action is required in the plugin in order to start the asynchronous actions of the plugin. This might be to start a thread, register an endpoint for a remote connection or call an entry point in a third party library to start asynchornous processing. 
+The *plugin_start* method, as with other plugin calls, is called with the plugin handle data that was returned from the *plugin_init* call. The *plugin_start* call will only be called once for a plugin, it is the responsibility of *plugin_start* to take whatever action is required in the plugin in order to start the asynchronous actions of the plugin. This might be to start a thread, register an endpoint for a remote connection or call an entry point in a third party library to start asynchronous processing.
 
 .. code-block:: C
 
@@ -193,7 +193,7 @@ The *plugin_start* method, as with other plugin calls, is called with the plugin
   }
 
   /**
-   * Start the asynchronous processign thread
+   * Start the asynchronous processing thread
    */
   void MyPluginClass::start()
   {

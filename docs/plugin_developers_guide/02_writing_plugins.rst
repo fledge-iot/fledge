@@ -20,7 +20,7 @@
 Writing and Using Plugins
 =========================
 
-A plugin has a small set of external entry points that must exist in order for Fledge to load and execute that plugin. Currently plugins may be written in either Python or C/C++, the set of entry points is the same for both langauges. The entry points detailed here will be presented for both langauages, a more indepth discussion of writing plugins in C/C++ will then follow.
+A plugin has a small set of external entry points that must exist in order for Fledge to load and execute that plugin. Currently plugins may be written in either Python or C/C++, the set of entry points is the same for both languages. The entry points detailed here will be presented for both languages, a more indepth discussion of writing plugins in C/C++ will then follow.
 
 Common Fledge Plugin API
 -------------------------
@@ -202,7 +202,7 @@ Plugin Reconfigure
 
 The plugin reconfigure method is called whenever the configuration of the plugin is changed. It allows for the dynamic reconfiguration of the plugin whilst it is running. The method is called with the handle of the plugin and the updated configuration document. The plugin should take whatever action it needs to and return a new or updated copy of the handle that will be passed to future calls.
 
-The plugin reconfigure method is shared between most but not all plugin types. In particular it does not exist for the shorted lived plugins that are created to perform a single operstion and then terminated. These are the north plugins and the notification delivery plugins.
+The plugin reconfigure method is shared between most but not all plugin types. In particular it does not exist for the shorted lived plugins that are created to perform a single operation and then terminated. These are the north plugins and the notification delivery plugins.
 
 Using a simple Python example of our sensor reading a GPIO pin, we extract the new pin number from the new configuration data and return that as the new handle for the plugin instance.
 
@@ -239,4 +239,4 @@ In C/C++ the *plugin_reconfigure* class is very similar, note however that the *
           plugin->configure(&config);
   }
 
-It should be noted that the *plugin_reconfigure* call may be delivered in a seperate thread for a C/C++ plugin and that the plugin should implement any mutual exclusion mechanisms that are required based on the actions of the *plugin_reconfigure* method.
+It should be noted that the *plugin_reconfigure* call may be delivered in a separate thread for a C/C++ plugin and that the plugin should implement any mutual exclusion mechanisms that are required based on the actions of the *plugin_reconfigure* method.

@@ -420,7 +420,7 @@ Clearly we will not see many changes in temperature or humidity, unless we place
   ]
   $
 
-Needless to say, the North plugin will send the buffered data to the PI system using the OMF plugin or any otehr north system using the appropriate north plugin.
+Needless to say, the North plugin will send the buffered data to the PI system using the OMF plugin or any other north system using the appropriate north plugin.
 
 |DHT11 in PI|
 

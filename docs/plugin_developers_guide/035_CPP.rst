@@ -17,7 +17,7 @@ A number of support classes exist within the common library that forms part of e
 Reading
 -------
 
-The *Reading* class and the associated *Datapoint* and *DatapointValue* classes provide the mechanism within C++ classes to maniplated the reading asset data. The public part of the *Reading* class is currently defined as follows;
+The *Reading* class and the associated *Datapoint* and *DatapointValue* classes provide the mechanism within C++ classes to manipulated the reading asset data. The public part of the *Reading* class is currently defined as follows;
 
 .. code-block:: C
 
@@ -66,11 +66,11 @@ The *Reading* class and the associated *Datapoint* and *DatapointValue* classes 
 
 The *Reading* class contains a number of items that are mapped to the JSON representation of data that is sent to the Fledge storage service and are used by the various services and plugins within Fledge.
 
-  - **Asset Name**: The name of the asset. The asset name is set in the construtor of the reading and retrieved via the *getAssetName()* method.
+  - **Asset Name**: The name of the asset. The asset name is set in the constructor of the reading and retrieved via the *getAssetName()* method.
 
   - **Timestamp**: The timestamp when the reading was first seen within Fledge.
 
-  - **User Timestamp**: The tiemstamp for the actual data in the reading. This may differ from the value of Timestamp if the device itself is able to supply a timestamp value.
+  - **User Timestamp**: The timestamp for the actual data in the reading. This may differ from the value of Timestamp if the device itself is able to supply a timestamp value.
 
   - **Datapoints**: The actual data of a reading stored in a Datapoint class.
 
@@ -223,7 +223,7 @@ Although *ConfigCategory* is a complex class, only a few of the methods are comm
   - **getValue:** - return the value of a configuration item from within the configuration category
   - **isBool:** - tests if a configuration item is of boolean type
   - **isNumber:** - tests if a configuration item is a number
-  - **isDouble:** - tests if a configuration item is valid to be repesented as a double
+  - **isDouble:** - tests if a configuration item is valid to be represented as a double
   - **isString:** - tests if a configuration item is a string
 
 Logger
@@ -234,10 +234,10 @@ The *Logger* class is used to write entries to the syslog system within Fledge. 
 .. code-block:: C
 
   Logger *logger = Logger::getLogger();
-  logger->error("An error has occured within the plugin processing");
+  logger->error("An error has occurred within the plugin processing");
 
 
-It is then possible to log messages at one of five different log levels; *debug*, *info*, *warn*, *error* or *fatal*. Messages may be logged using standard printf formatting strings. The public defintion of the *Logger* class is as follows;
+It is then possible to log messages at one of five different log levels; *debug*, *info*, *warn*, *error* or *fatal*. Messages may be logged using standard printf formatting strings. The public definition of the *Logger* class is as follows;
 
 .. code-block:: C
 
@@ -257,8 +257,8 @@ It is then possible to log messages at one of five different log levels; *debug*
 
 The various log levels should be used as follows;
 
-  - **debug**: should be used to output messages that are relavent only to a programmer that is debugging the plugin.
-  - **info**: should be used for information that is measningful to the end users, but should not normally be logged.
+  - **debug**: should be used to output messages that are relevant only to a programmer that is debugging the plugin.
+  - **info**: should be used for information that is meaningful to the end users, but should not normally be logged.
   - **warn**: should be used for warning messages that will normally be logged but reflect a condition that does not prevent the plugin from operating.
   - **error**: should be used for conditions that cause a temporary failure in processing within the plugin.
-  - **fatal**: should be used for conditions that cause the plugin to fail processing permenantly, possibly requiring a restart of the microservice in order to resolve.
+  - **fatal**: should be used for conditions that cause the plugin to fail processing permanently, possibly requiring a restart of the microservice in order to resolve.

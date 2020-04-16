@@ -20,7 +20,7 @@
 Fledge Utilities and Scripts
 *****************************
 
-The Fledge platform comes with a set of utilities and scripts to help users, developers and administrators with their day-by-day operations. These tools are under heavy development and you may expect incompatibilities in future versions, therefore it is higly recommended to check the revision history to verify the changes in new versions.
+The Fledge platform comes with a set of utilities and scripts to help users, developers and administrators with their day-by-day operations. These tools are under heavy development and you may expect incompatibilities in future versions, therefore it is highly recommended to check the revision history to verify the changes in new versions.
 
 
 fledge

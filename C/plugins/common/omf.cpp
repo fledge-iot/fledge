@@ -20,11 +20,15 @@
 #include "string_utils.h"
 #include <plugin_api.h>
 #include <string_utils.h>
+#include <thread>
 
 using namespace std;
 using namespace rapidjson;
 
 static bool isTypeSupported(DatapointValue& dataPoint);
+
+// 1 enable performance tracking
+#define INSTRUMENT	1
 
 #define  AFHierarchySeparator '/'
 
@@ -985,12 +989,29 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	string AFHierarchyPrefix;
 	string AFHierarchyLevel;
 
+#if INSTRUMENT
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
+
+	struct timeval	start, t1, t2, t3, t4, t5;
+
+#endif
+
+
+#if INSTRUMENT
+	gettimeofday(&start, NULL);
+#endif
+
 	std::map<string, Reading*> superSetDataPoints;
 
 	// Create a superset of all found datapoints for each assetName
 	// the superset[assetName] is then passed to routines which handle
 	// creation of OMF data types
 	OMF::setMapObjectTypes(readings, superSetDataPoints);
+
+#if INSTRUMENT
+	gettimeofday(&t1, NULL);
+#endif
 
 	/*
 	 * Iterate over readings:
@@ -1005,6 +1026,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	bool pendingSeparator = false;
 	ostringstream jsonData;
 	jsonData << "[";
+
 
 	// Fetch Reading* data
 	for (vector<Reading *>::const_iterator elem = readings.begin();
@@ -1080,6 +1102,10 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		}
 	}
 
+#if INSTRUMENT
+	gettimeofday(&t2, NULL);
+#endif
+
 	// Remove all assets supersetDataPoints
 	OMF::unsetMapObjectTypes(superSetDataPoints);
 
@@ -1092,6 +1118,10 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	{
 		json = compress_string(json);
 	}
+
+#if INSTRUMENT
+	gettimeofday(&t3, NULL);
+#endif
 
 	/**
 	 * Types messages sent, now transform each reading to OMF format.
@@ -1127,6 +1157,38 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		}
 		// Reset error indicator
 		m_lastError = false;
+
+#if INSTRUMENT
+		gettimeofday(&t4, NULL);
+#endif
+
+#if INSTRUMENT
+	struct timeval tm;
+	double timeT1, timeT2, timeT3, timeT4;
+
+	timersub(&t1, &start, &tm);
+	timeT1 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
+
+	timersub(&t2, &t1, &tm);
+	timeT2 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
+
+	timersub(&t3, &t2, &tm);
+	timeT3 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
+
+	timersub(&t4, &t3, &tm);
+	timeT4 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
+
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("Timing seconds - thread :%s: - superSet :%6.3f: - Loop :%6.3f: - compress :%6.3f:  - send data :%6.3f:",
+							   threadId.str().c_str(),
+							   timeT1,
+							   timeT2,
+							   timeT3,
+							   timeT4
+	);
+	Logger::getLogger()->setMinLevel("warning");
+#endif
+
 
 		// Return number of sent readings to the caller
 		return readings.size();

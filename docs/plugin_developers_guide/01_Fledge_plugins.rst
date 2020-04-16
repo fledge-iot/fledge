@@ -65,32 +65,32 @@ In addition to the plugins in the main repository, these plugins are also availa
 +-------+----------------+------------------------------+---------------------------------------+---------------+----------------------------------------+
 | Type  | Name           | Repository                   | Description                           | Availability  | Notes                                  |
 +=======+================+==============================+=======================================+===============+========================================+
-| South | dht11pi        | fledge-south-dht11          | Wired DHT11 Sensor in polling mode    | Raspbian      |                                        |
+| South | dht11pi        | fledge-south-dht11           | Wired DHT11 Sensor in polling mode    | Raspbian      |                                        |
 +-------+----------------+------------------------------+---------------------------------------+---------------+----------------------------------------+
-| South | envirophat     | fledge-south-envirophat     | Enviro pHAT sensor set                | Raspbian                                               |
+| South | envirophat     | fledge-south-envirophat      | Enviro pHAT sensor set                | Raspbian                                               |
 +-------+----------------+------------------------------+---------------------------------------+---------------+----------------------------------------+
-| South | openweathermap | fledge-south-openweathermap | Data pull from the OpenWeatherMap API | Ubuntu x86_64 |                                        |
+| South | openweathermap | fledge-south-openweathermap  | Data pull from the OpenWeatherMap API | Ubuntu x86_64 |                                        |
 |       |                |                              |                                       | Raspbian      |                                        |
 +-------+----------------+------------------------------+---------------------------------------+---------------+----------------------------------------+
-| South | pt100          | fledge-south-pt100          | Wired PT100 temperature sensor        | Raspbian      |                                        |
+| South | pt100          | fledge-south-pt100           | Wired PT100 temperature sensor        | Raspbian      |                                        |
 +-------+----------------+------------------------------+---------------------------------------+---------------+----------------------------------------+
-| South | CoAP           | fledge-south-coap           | CoAP Listener                         | Ubuntu x86_64 |                                        |
+| South | CoAP           | fledge-south-coap            | CoAP Listener                         | Ubuntu x86_64 |                                        |
 |       |                |                              |                                       | Ubuntu Core   |                                        |
 |       |                |                              |                                       | Raspbian      |                                        |
 +-------+----------------+------------------------------+---------------------------------------+---------------+----------------------------------------+
-| South | CC2650POLL     | fledge-south--cc2650poll    | TI SensorTag CC2650 |br|              | Ubuntu x86_64 | It requires BLE support. |br|          |
+| South | CC2650POLL     | fledge-south--cc2650poll     | TI SensorTag CC2650 |br|              | Ubuntu x86_64 | It requires BLE support. |br|          |
 |       |                |                              | in polling mode                       | Ubuntu Core   | There are issues with Ubuntu Core |br| |
 |       |                |                              |                                       | Raspbian      | on ARM, reported |here BT|             |
 +-------+----------------+------------------------------+---------------------------------------+---------------+----------------------------------------+
-| South | CC2650ASYN     | fledge-south-cc2650asyn     | TI SensorTag CC2650 |br|              | Ubuntu x86_64 | It requires BLE support. |br|          |
+| South | CC2650ASYN     | fledge-south-cc2650asyn      | TI SensorTag CC2650 |br|              | Ubuntu x86_64 | It requires BLE support. |br|          |
 |       |                |                              | asynchronous |br|                     | Ubuntu Core   | There are issues with Ubuntu Core |br| |
 |       |                |                              | (listening) mode                      | Raspbian      | on ARM, reported |here BT|             |
 +-------+----------------+------------------------------+---------------------------------------+---------------+----------------------------------------+
-| South | HTTP_SOUTH     | fledge-south-http           | HTTP Listener                         | Ubuntu x86_64 |                                        |
+| South | HTTP_SOUTH     | fledge-south-http            | HTTP Listener                         | Ubuntu x86_64 |                                        |
 |       |                |                              |                                       | Ubuntu Core   |                                        |
 |       |                |                              |                                       | Raspbian      |                                        |
 +-------+----------------+------------------------------+---------------------------------------+---------------+----------------------------------------+
-| North | HTTP           | fledge-north-http           | HTTP Sender                           | Ubuntu x86_64 |                                        |
+| North | HTTP           | fledge-north-http            | HTTP Sender                           | Ubuntu x86_64 |                                        |
 |       |                |                              |                                       | Ubuntu Core   |                                        |
 |       |                |                              |                                       | Raspbian      |                                        |
 +-------+----------------+------------------------------+---------------------------------------+---------------+----------------------------------------+

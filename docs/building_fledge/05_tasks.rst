@@ -134,8 +134,8 @@ The following table shows the list of parameters that can be changed in the *Pur
 |                   |          |                                         | that is older than this value, will be purged.         |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
 | size              | integer  | 1000000                                 | Size in KBytes of data that will be retained in   |br| | 
-|                   |          |                                         | Fledge. Older data will be removed to keep the   |br| |
-|                   |          |                                         | data stored in Fledge below this size.                |
+|                   |          |                                         | Fledge. Older data will be removed to keep the   |br|  |
+|                   |          |                                         | data stored in Fledge below this size.                 |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
 
 

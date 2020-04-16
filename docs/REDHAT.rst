@@ -31,18 +31,22 @@ Installation on Red Hat
 =======================
 
 It is necessary to install a Red Hat package before Fledge can be installed successfully. The installation sequence is as follows:
-::
-   sudo yum-config-manager --enable 'Red Hat Software Collections RPMs for Red Hat Enterprise Linux 7 Server from RHUI'
-   sudo yum -y  localinstall ~/fledge-1.5.2-0.00.x86_64.rpm
+
+.. code-block:: console 
+
+   $ sudo yum-config-manager --enable 'Red Hat Software Collections RPMs for Red Hat Enterprise Linux 7 Server from RHUI'
+   $ sudo yum -y  localinstall ~/fledge-1.5.2-0.00.x86_64.rpm
 
 
 Installation on CentOS
 ======================
 
 It is necessary to install a CentOS package before Fledge can be installed successfully. The installation sequence is as follows:
-::
-   sudo yum install -y  centos-release-scl-rh
-   sudo yum -y  localinstall ~/fledge-1.5.2-0.00.x86_64.rpm
+
+.. code-block:: console 
+
+   $ sudo yum install -y  centos-release-scl-rh
+   $ sudo yum -y  localinstall ~/fledge-1.5.2-0.00.x86_64.rpm
 
 .. note::
    By default, /var/log/messages are created with read-write permissions for ‘root’ user only.
@@ -57,18 +61,24 @@ Build of Fledge on Red Hat/CentOS
 A gcc version newer than 4.9.0 is needed to properly use <regex> and build Fledge.
 
 The *requirements.sh* script, executed as follows:
-::
-	sudo ./requirements.sh
+
+.. code-block:: console 
+
+	$ sudo ./requirements.sh
 
 installs *devtoolset-7* that provides the newer compiler.
 
 It must be enabled before building Fledge using:
-::
-	source scl_source enable devtoolset-7
+
+.. code-block:: console 
+
+	$ source scl_source enable devtoolset-7
 
 It is possible to use the following command to verify which version is currently active:
-::
-	gcc --version
+
+.. code-block:: console 
+
+	$ gcc --version
 
 The previously installed gcc will be by default enabled again after a logoff/login.
 
@@ -76,7 +86,9 @@ Build and use Fledge with PostgreSQL for Red Hat/CentOS
 ========================================================
 
 The *rh-postgresql96* environment should be enabled using:
-::
-	source scl_source enable rh-postgresql96
+
+.. code-block:: console
+
+	$ source scl_source enable rh-postgresql96
 
 before building Fledge if the intention is to use the Postgres plugin.

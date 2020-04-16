@@ -126,7 +126,7 @@ The following table shows the list of parameters that can be changed in the *Pur
 | retainUnsent      | boolean  | False                                   | Retain data that has not been sent to "North" yet |br| |
 |                   |          |                                         | When *True*, data that has not yet been retrieved |br| |
 |                   |          |                                         | by any North service or task, will not be purged. |br| |
-|                   |          |                                         | When *False*, data is purged withouth checking    |br| |
+|                   |          |                                         | When *False*, data is purged without checking     |br| |
 |                   |          |                                         | whether it has been sent to a North destination   |br| |
 |                   |          |                                         | yet or not.                                            |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
@@ -134,7 +134,7 @@ The following table shows the list of parameters that can be changed in the *Pur
 |                   |          |                                         | that is older than this value, will be purged.         |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
 | size              | integer  | 1000000                                 | Size in KBytes of data that will be retained in   |br| | 
-|                   |          |                                         | Fledge. Older data will be removed to keep the   |br|  |
+|                   |          |                                         | Fledge. Older data will be removed to keep the    |br| |
 |                   |          |                                         | data stored in Fledge below this size.                 |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
 

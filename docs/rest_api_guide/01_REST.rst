@@ -22,7 +22,7 @@
 The Fledge REST API
 ********************
 
-Users, admnistrators and applications interact with Fledge via a REST API. This section presents a full reference of the API.
+Users, administrators and applications interact with Fledge via a REST API. This section presents a full reference of the API.
 
 .. note:: The Fledge REST API should not be confused with the internal REST API used by Fledge tasks and microservices to communicate with each other.
 

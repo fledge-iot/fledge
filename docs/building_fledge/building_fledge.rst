@@ -213,7 +213,7 @@ Building Fledge
 ----------------
 
 You are now ready to build your first Fledge project. If you want to install Fledge on CentOS, Fedora or Red Hat, we recommend you to read this section first and then look at `this section`_. |br| |br|
-Move to the *Fledge* project directory, type the ``make`` comand and let the magic happen.
+Move to the *Fledge* project directory, type the ``make`` command and let the magic happen.
 
 .. code-block:: console
 
@@ -320,7 +320,7 @@ If you are curious to see a proper output from Fledge, you can query the Core mi
   [{"key": "BUFFERED", "description": "The number of readings currently in the Fledge buffer", "value": 0}, {"key": "DISCARDED", "description": "The number of readings discarded at the input side by Fledge, i.e. discarded before being  placed in the buffer. This may be due to some error in the readings themselves.", "value": 0}, {"key": "PURGED", "description": "The number of readings removed from the buffer by the purge process", "value": 0}, {"key": "READINGS", "description": "The number of readings received by Fledge since startup", "value": 0}, {"key": "SENT_1", "description": "The number of readings sent to the historian", "value": 0}, {"key": "SENT_2", "description": "The number of statistics data sent to the historian", "value": 0}, {"key": "UNSENT", "description": "The number of readings filtered out in the send process", "value": 0}, {"key": "UNSNPURGED", "description": "The number of readings that were purged from the buffer before being sent", "value": 0}]
   $
 
-Congratulations! You have installed and tested Fledge! If you want to go extra mile (and make the output of the REST API more readible, download the *jq* JSON processor and pipe the output of the *curl* command to it:
+Congratulations! You have installed and tested Fledge! If you want to go extra mile (and make the output of the REST API more readable, download the *jq* JSON processor and pipe the output of the *curl* command to it:
 
 .. code-block:: console
 

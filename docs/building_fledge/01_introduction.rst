@@ -23,7 +23,7 @@ essential component in **Fog Computing**.  It uses a modular
 
 By providing a modular and distributable framework under an open source Apache v2 license, Fledge is the best platform to manage the data infrastructure for IoT. The modules can be distributed in any layer - Edge, Fog and Cloud - and they act together to provide scalability, elasticity and resilience.
 
-Fledge offers an "all-round" solution for data managementi, combining a bi-directional **Northbound/Southbound** data and metadata communication with a **Eastbound/Westbound** service and object distribution.
+Fledge offers an "all-round" solution for data management, combining a bi-directional **Northbound/Southbound** data and metadata communication with a **Eastbound/Westbound** service and object distribution.
 
 
 Fledge Positioning in an IoT and IIoT Infrastructure

@@ -292,7 +292,7 @@ Release Date: 2019-02-21
     - Expression: run a complex mathematical expression across one or more data streams
     - Python: run arbitrary python code to modify a data stream
     - Asset: modify Asset metadata
-    - RMS: Generate new asset with Root Mean Squared and Peak calcuations across data streams
+    - RMS: Generate new asset with Root Mean Squared and Peak calculations across data streams
     - FFT (beta): execute a Fast Fourier Transform across a data stream. Valuable for Vibration Analysis
     - Many others
 
@@ -330,7 +330,7 @@ Release Date: 2018-07-13
 Fixed Issues
 ~~~~~~~~~~~~
 
-- **Open File Descriptiors**
+- **Open File Descriptors**
 
   - **open file descriptors**: Storage service did not close open files, leading to multiple open file descriptors
 

@@ -56,8 +56,8 @@
 .. =============================================
 
 
-A South Plugin Example: the DHT11 Sensor
-----------------------------------------
+A South Plugin Example In Python: the DHT11 Sensor
+--------------------------------------------------
 
 Let's try to put all the information together and write a plugin. We can continue to use the example of an inexpensive sensor, the DHT11, used to measure temperature and humidity, directly wired to a Raspberry PI. This plugin is available on github, |DHT Repo|.
 
@@ -416,7 +416,7 @@ Clearly we will not see many changes in temperature or humidity, unless we place
   ]
   $
 
-Needless to say, the North plugin will send the buffered data to the PI system using the PI Connector Relay OMF. Do not forget to set the correct IP address for the PI Connector Relay, as it is described |setting OMF|.
+Needless to say, the North plugin will send the buffered data to the PI system using the OMF plugin or any other north system using the appropriate north plugin.
 
 |DHT11 in PI|
 

@@ -32,7 +32,9 @@ class TestPluginDiscovery:
     mock_py_filter_folders = [("foo", "bar")]
     mock_c_filter_folders = [("scale", "binary")]
     mock_c_notify_folders = [("email", "binary")]
+    mock_py_notify_folders = [("notify1", "notify2")]
     mock_c_rule_folders = [("OverMaxRule", "binary")]
+    mock_py_rule_folders = [("bad_bearing", "engine_failure")]
     mock_all_folders = ["OMF", "fledge-north", "modbus", "http"]
     mock_filter_config = [
         {"name": "foo",
@@ -74,8 +76,6 @@ class TestPluginDiscovery:
             "version": "1.4"
         }
     ]
-    mock_plugins_config += mock_filter_config
-
     mock_plugins_north_config = [
         {
             "name": "OMF",
@@ -143,6 +143,21 @@ class TestPluginDiscovery:
          "config": {"plugin": {"type": "string", "description": "Email notification plugin", "default": "email"}}}
     ]
 
+    mock_py_notify_config = [
+        {
+          "version": "1.7.0",
+          "description": "notify1 delivery plugin",
+          "type": "notificationDelivery",
+          "name": "notify1"
+        },
+        {
+            "version": "1.7.0",
+            "description": "notify2 delivery plugin",
+            "type": "notificationDelivery",
+            "name": "notify2"
+        }
+    ]
+
     mock_c_rule_config = [
         {"name": "OverMaxRule",
          "version": "1.0.0",
@@ -150,6 +165,24 @@ class TestPluginDiscovery:
          "description": "The OverMaxRule notification rule",
          "config": {"plugin": {"type": "string", "description": "The OverMaxRule notification rule plugin", "default": "OverMaxRule"}}}
     ]
+
+    mock_py_rule_config = [
+        {
+          "version": "1.7.0",
+          "description": "Notification rule plugin to detect bad bearing",
+          "type": "notificationRule",
+          "name": "bad_bearing"
+        },
+        {
+          "version": "1.6.2",
+          "description": "Notification rule plugin which detects imminent engine failure",
+          "type": "notificationRule",
+          "name": "engine_failure"
+        }
+    ]
+
+    mock_plugins_config += mock_filter_config + mock_py_notify_config + mock_py_rule_config
+
     mock_c_plugins_config = [
         {"interface": "1.0.0",
          "version": "1.0.0",
@@ -192,7 +225,9 @@ class TestPluginDiscovery:
         def mock_folders():
             yield TestPluginDiscovery.mock_north_folders
             yield TestPluginDiscovery.mock_south_folders
-            yield TestPluginDiscovery.mock_filter_folders
+            yield TestPluginDiscovery.mock_py_filter_folders
+            yield TestPluginDiscovery.mock_py_notify_folders
+            yield TestPluginDiscovery.mock_py_rule_folders
 
         @asyncio.coroutine
         def mock_c_folders():
@@ -214,8 +249,8 @@ class TestPluginDiscovery:
         expected_plugin.extend(TestPluginDiscovery.mock_c_plugins_config)
         # FIXME: ordering issue
         # assert expected_plugin == plugins
-        assert 3 == mock_get_folders.call_count
-        assert 6 == mock_get_plugin_config.call_count
+        assert 5 == mock_get_folders.call_count
+        assert 10 == mock_get_plugin_config.call_count
         assert 5 == mock_get_c_folders.call_count
         assert 5 == mock_get_c_plugin_config.call_count
 
@@ -294,35 +329,56 @@ class TestPluginDiscovery:
         assert 1 == mock_get_c_filter_folders.call_count
         assert 1 == mock_get_c_filter_plugin_config.call_count
 
-    def test_get_c_notify_plugins_installed(self, mocker):
+    def test_get_notify_plugins_installed(self, mocker):
         @asyncio.coroutine
-        def mock_notify_folders():
+        def mock_folders():
+            yield TestPluginDiscovery.mock_py_notify_folders
+
+        @asyncio.coroutine
+        def mock_c_folders():
             yield TestPluginDiscovery.mock_c_notify_folders
 
-        mock_get_c_notify_folders = mocker.patch.object(utils, "find_c_plugin_libs", return_value=next(mock_notify_folders()))
-        mock_get_c_notify_plugin_config = mocker.patch.object(utils, "get_plugin_info", side_effect=TestPluginDiscovery.mock_c_notify_config)
-
+        mock_get_py_folders = mocker.patch.object(PluginDiscovery, "get_plugin_folders", return_value=next(mock_folders()))
+        mock_get_py_plugin_config = mocker.patch.object(PluginDiscovery, "get_plugin_config",
+                                                        side_effect=TestPluginDiscovery.mock_py_notify_config)
+        mock_get_c_folders = mocker.patch.object(utils, "find_c_plugin_libs",
+                                                        return_value=next(mock_c_folders()))
+        mock_get_c_plugin_config = mocker.patch.object(utils, "get_plugin_info",
+                                                              side_effect=TestPluginDiscovery.mock_c_notify_config)
         plugins = PluginDiscovery.get_plugins_installed("notificationDelivery")
         # expected_plugin = TestPluginDiscovery.mock_c_plugins_config[3]
         # FIXME: ordering issue
         # assert expected_plugin == plugins
-        assert 1 == mock_get_c_notify_folders.call_count
-        assert 1 == mock_get_c_notify_plugin_config.call_count
+        assert 1 == mock_get_py_folders.call_count
+        assert 1 == mock_get_py_plugin_config.call_count
+        assert 1 == mock_get_c_folders.call_count
+        assert 1 == mock_get_c_plugin_config.call_count
 
-    def test_get_c_rules_plugins_installed(self, mocker):
+    def test_get_rules_plugins_installed(self, mocker):
         @asyncio.coroutine
-        def mock_rule_folders():
+        def mock_folders():
+            yield TestPluginDiscovery.mock_py_rule_folders
+
+        @asyncio.coroutine
+        def mock_c_folders():
             yield TestPluginDiscovery.mock_c_rule_folders
 
-        mock_get_c_rule_folders = mocker.patch.object(utils, "find_c_plugin_libs", return_value=next(mock_rule_folders()))
-        mock_get_c_rule_plugin_config = mocker.patch.object(utils, "get_plugin_info", side_effect=TestPluginDiscovery.mock_c_rule_config)
+        mock_get_py_folders = mocker.patch.object(PluginDiscovery, "get_plugin_folders",
+                                                  return_value=next(mock_folders()))
+        mock_get_py_plugin_config = mocker.patch.object(PluginDiscovery, "get_plugin_config",
+                                                        side_effect=TestPluginDiscovery.mock_py_rule_config)
+        mock_get_c_folders = mocker.patch.object(utils, "find_c_plugin_libs", return_value=next(mock_c_folders()))
+        mock_get_c_plugin_config = mocker.patch.object(utils, "get_plugin_info",
+                                                            side_effect=TestPluginDiscovery.mock_c_rule_config)
 
         plugins = PluginDiscovery.get_plugins_installed("notificationRule")
         # expected_plugin = TestPluginDiscovery.mock_c_plugins_config[4]
         # FIXME: ordering issue
         # assert expected_plugin == plugins
-        assert 1 == mock_get_c_rule_folders.call_count
-        assert 1 == mock_get_c_rule_plugin_config.call_count
+        assert 1 == mock_get_py_folders.call_count
+        assert 1 == mock_get_py_plugin_config.call_count
+        assert 1 == mock_get_c_folders.call_count
+        assert 1 == mock_get_c_plugin_config.call_count
 
     def test_fetch_plugins_installed(self, mocker):
         @asyncio.coroutine

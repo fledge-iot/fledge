@@ -22,7 +22,7 @@ North plugins are used in North tasks and microservices to extract data buffered
 The OMF Plugin
 --------------
 
-The OMF Plugin is used by a North task to send data to an OSIsoft PI server via a PI Connector Relay OMF. *OMF* stands for OSIsoft Message Format, it is the JSON format defined by OSIsoft to send IoT data to a PI server via a Connector Relay server.
+The OMF Plugin is used by a North task to send data to an OSIsoft PI server via a PI Connector Relay or PI Web API, it can also send to Edge Data Store or OSIsoft Cloud Services. All these destinations share a single protocol for communication, OMF. *OMF* stands for OSIsoft Message Format, it is the JSON format defined by OSIsoft to send IoT data to a PI server via a Connector Relay server.
 
 The plugin is designed to send two streams of data:
 
@@ -164,19 +164,19 @@ The following table presents the list of configuration options available for the
 | north             | string   | omf                                     | The name of the north to use to translate the |br|     |
 |                   |          |                                         | readings into the output format and send them          |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| OMFHttpTimeout    | interger | 10                                      | Timeout in seconds for the HTTP operations |br|        |
+| OMFHttpTimeout    | integer  | 10                                      | Timeout in seconds for the HTTP operations |br|        |
 |                   |          |                                         | with the OMF PI Connector Relay                        |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| OMFMaxRetry       | interger | 3                                       | Max number of retries for the communication |br|       |
+| OMFMaxRetry       | integer  | 3                                       | Max number of retries for the communication |br|       |
 |                   |          |                                         | with the OMF PI Connector Relay                        |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| OMFRetrySleepTime | interger | 1                                       | Seconds between each retry for the communication |br|  |
+| OMFRetrySleepTime | integer  | 1                                       | Seconds between each retry for the communication |br|  |
 |                   |          |                                         | with the OMF PI Connector Relay, |br|                  |
 |                   |          |                                         | NOTE : the time is doubled at each attempt.            |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
 | plugin            | string   | omf                                     | OMF North Plugin name                                  |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| producerToken     | string   | omf_north_0001                          | The producer token that represents this Fledge stream |
+| producerToken     | string   | omf_north_0001                          | The producer token that represents this Fledge stream  |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
 | sleepInterval     | integer  | 5                                       | A period of time, expressed in seconds, to wait |br|   |
 |                   |          |                                         | between attempts to send readings when there are |br|  |
@@ -217,19 +217,19 @@ The following table presents the list of configuration options available for the
 | north             | string   | omf                                     | The name of the north to use to translate the |br|     |
 |                   |          |                                         | readings into the output format and send them          |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| OMFHttpTimeout    | interger | 10                                      | Timeout in seconds for the HTTP operations |br|        |
+| OMFHttpTimeout    | integer  | 10                                      | Timeout in seconds for the HTTP operations |br|        |
 |                   |          |                                         | with the OMF PI Connector Relay                        |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| OMFMaxRetry       | interger | 3                                       | Max number of retries for the communication |br|       |
+| OMFMaxRetry       | integer  | 3                                       | Max number of retries for the communication |br|       |
 |                   |          |                                         | with the OMF PI Connector Relay                        |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| OMFRetrySleepTime | interger | 1                                       | Seconds between each retry for the communication |br|  |
+| OMFRetrySleepTime | integer  | 1                                       | Seconds between each retry for the communication |br|  |
 |                   |          |                                         | with the OMF PI Connector Relay, |br|                  |
 |                   |          |                                         | NOTE : the time is doubled at each attempt.            |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
 | plugin            | string   | omf                                     | OMF North Plugin name                                  |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| producerToken     | string   | omf_north_0001                          | The producer token that represents this Fledge stream |
+| producerToken     | string   | omf_north_0001                          | The producer token that represents this Fledge stream  |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
 | sleepInterval     | integer  | 5                                       | A period of time, expressed in seconds, to wait |br|   |
 |                   |          |                                         | between attempts to send readings when there are |br|  |
@@ -270,7 +270,7 @@ If you change the value, you can easily identify the set of data sent to and the
 Changing the OMF Plugin Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Before you send data to the PI server, it is likey that you need to apply more changes to the configuration. The most important items to change are:
+Before you send data to the PI server, it is likely that you need to apply more changes to the configuration. The most important items to change are:
 
 - **URL** : the URL to the PI Connector Relay OMF. It is usually composed by the name or address of the Windows server where the Connector Relay service is running, the port associated to the service and the ingress/messages API call. The communication is via HTTPS protocol.
 - **producerToken** : the token provided by the Data Collection Manager when the PI administrator sets the use of Fledge. 
@@ -294,7 +294,7 @@ Once the North plugins have been set properly, you should expect to see data aut
 +-----------+--------------------+--------------------------------------------------------------------------+
 | System    | Object             | Value                                                                    |
 +===========+====================+==========================================================================+
-| Fledge   | Producer Token     | readings_001                                                             |
+| Fledge    | Producer Token     | readings_001                                                             |
 |           +--------------------+--------------------------------------------------------------------------+
 |           | OMF Type           | 0001                                                                     |
 |           +--------------------+--------------------------------------------------------------------------+
@@ -316,7 +316,7 @@ Once the North plugins have been set properly, you should expect to see data aut
 |           |                    +----------+---------------------------------------------------------------+
 |           |                    | z        | Excluded, Int64                                               |
 |           +--------------------+----------+---------------------------------------------------------------+
-|           | Element            | fledge > readings_001 > fogbench/accelerometer                          |
+|           | Element            | fledge > readings_001 > fogbench/accelerometer                           |
 |           +--------------------+----------+---------------+-----------------------------------------------+
 |           | Attributes         | **Name** | **Value**     | **Timestamp**                                 |
 |           |                    +----------+---------------+-----------------------------------------------+

@@ -7,6 +7,9 @@
 .. Images
 
 .. Links
+.. |available plugins| raw:: html
+
+   <a href="../fledge_plugins.html">available plugins</a>
 
 .. Links in new tabs
 
@@ -18,19 +21,31 @@
 .. =============================================
 
 
-Fledge makes extensive use of plugin components to extend the base functionality of the platform. In particular, plugins are used to extend the set of sensors and actuators that Fledge supports, the set of services to which Fledge will push accumulated data gathered from those sensors and the mechanism by which Fledge buffers data internally.
+Fledge makes extensive use of plugin components to extend the base functionality of the platform. In particular, plugins are used to;
 
-This chapter presents the plugins available for Fledge, how to write and use new plugins to support different sensors, protocols, historians and storage devices. It will guide you through the process and entry points that are required for the various different type of plugin.
+  - Extend the set of sensors and actuators that Fledge supports.
+  - Extend the set of services to which Fledge will push accumulated data gathered from those sensors.
+  - The mechanism by which Fledge buffers data internally.
+  - Filter plugins may be used to augment, edit or remove data as it flows through Fledge.
+  - Rule plugins extend the rules that may trigger the delivery of notifications at the edge.
+  - Notification delivery plugins allow for new delivery mechanisms to be integrated into Fledge.
+
+This chapter presents the plugins that are bundled with Fledge, how to write and use new plugins to support different sensors, protocols, historians and storage devices. It will guide you through the process and entry points that are required for the various different types of plugin.
+
+There are also numerous plugins that are available as separate packages or in separate repositories that may be used with Fledge.
 
 
 Fledge Plugins
-===============
+==============
 
-In this version of Fledge you have three types of plugins:
+In this version of Fledge you have six types of plugins:
 
 - **South Plugins** - They are responsible for communication between Fledge and the sensors and actuators they support. Each instance of a Fledge South microservice will use a plugin for the actual communication to the sensors or actuators that that instance of the South microservice supports.
 - **North Plugins** - They are responsible for taking reading data passed to them from the South bound service and doing any necessary conversion to the data and providing the protocol to send that converted data to a north-side task.
-- **Storage Plugins** - They sit between the Storage microservice and the physical data storage mechanism that stores the Fledge configuration and readings data. Storage plugins differ from other plugins in that they interface to a storage system which is written in C/C++ rather than Python, however they share the same common attributes and entry points that the Python based plugins must support.
+- **Storage Plugins** - They sit between the Storage microservice and the physical data storage mechanism that stores the Fledge configuration and readings data. Storage plugins differ from other plugins in that they are written exclusively in C/C++, however they share the same common attributes and entry points that the other filter must support.
+- **Filter Plugins** - Filter plugins are used to modify data as it flows through Fledge. Filter plugins may be combined into a set of ordered filters that are applied as a pipeline to either the south ingress service or the north egress task that sends data to external systems.
+- **Notification Rule Plugins** - These are used by the optional notification service in order to evaluate data that flows into the notification service to determine if a notification should be sent.
+- **Notification Delivery Plugins** - These plugins are used by the optional notification service to deliver a notification to a system when a notification rule has triggered. These plugins allow the mechanisms to deliver notifications to be extended.
 
 
 Plugins in this version of Fledge
@@ -51,49 +66,12 @@ This version of Fledge provides the following plugins in the main repository:
 |         |            |            |                             | Raspbian                   |                                        |
 +---------+------------+------------+-----------------------------+----------------------------+----------------------------------------+
 | North   | OMF        | Disabled   | OSIsoft Message Format |br| | Ubuntu: x86_64 |br|        | It works with PI Connector |br|        |
-|         |            |            | sender to PI Connector |br| | Ubuntu Core: x86, ARM |br| | Relay OMF 1.2.X and 2.2                |
-|         |            |            | Relay OMF                   | Raspbian                   |                                        |
-+---------+------------+------------+-----------------------------+----------------------------+----------------------------------------+
-| North   | OCS        | Disabled   | OSIsoft Message Format |br| | Ubuntu: x86_64 |br|        |                                        |
-|         |            |            | sender to the OSIsoft  |br| | Ubuntu Core: x86, ARM |br| |                                        |
-|         |            |            | Cloud Service               | Raspbian                   |                                        |
+|         |            |            | sender to PI Connector |br| | Ubuntu Core: x86, ARM |br| | Relay OMF 1.2.X and 2.2. The plugin    |
+|         |            |            | Relay OMF                   | Raspbian                   | also works against EDS and OCS.        |
 +---------+------------+------------+-----------------------------+----------------------------+----------------------------------------+
 
 
-In addition to the plugins in the main repository, these plugins are also available:
-
-+-------+----------------+------------------------------+---------------------------------------+---------------+----------------------------------------+
-| Type  | Name           | Repository                   | Description                           | Availability  | Notes                                  |
-+=======+================+==============================+=======================================+===============+========================================+
-| South | dht11pi        | fledge-south-dht11          | Wired DHT11 Sensor in polling mode    | Raspbian      |                                        |
-+-------+----------------+------------------------------+---------------------------------------+---------------+----------------------------------------+
-| South | envirophat     | fledge-south-envirophat     | Enviro pHAT sensor set                | Raspbian                                               |
-+-------+----------------+------------------------------+---------------------------------------+---------------+----------------------------------------+
-| South | openweathermap | fledge-south-openweathermap | Data pull from the OpenWeatherMap API | Ubuntu x86_64 |                                        |
-|       |                |                              |                                       | Raspbian      |                                        |
-+-------+----------------+------------------------------+---------------------------------------+---------------+----------------------------------------+
-| South | pt100          | fledge-south-pt100          | Wired PT100 temperature sensor        | Raspbian      |                                        |
-+-------+----------------+------------------------------+---------------------------------------+---------------+----------------------------------------+
-| South | CoAP           | fledge-south-coap           | CoAP Listener                         | Ubuntu x86_64 |                                        |
-|       |                |                              |                                       | Ubuntu Core   |                                        |
-|       |                |                              |                                       | Raspbian      |                                        |
-+-------+----------------+------------------------------+---------------------------------------+---------------+----------------------------------------+
-| South | CC2650POLL     | fledge-south--cc2650poll    | TI SensorTag CC2650 |br|              | Ubuntu x86_64 | It requires BLE support. |br|          |
-|       |                |                              | in polling mode                       | Ubuntu Core   | There are issues with Ubuntu Core |br| |
-|       |                |                              |                                       | Raspbian      | on ARM, reported |here BT|             |
-+-------+----------------+------------------------------+---------------------------------------+---------------+----------------------------------------+
-| South | CC2650ASYN     | fledge-south-cc2650asyn     | TI SensorTag CC2650 |br|              | Ubuntu x86_64 | It requires BLE support. |br|          |
-|       |                |                              | asynchronous |br|                     | Ubuntu Core   | There are issues with Ubuntu Core |br| |
-|       |                |                              | (listening) mode                      | Raspbian      | on ARM, reported |here BT|             |
-+-------+----------------+------------------------------+---------------------------------------+---------------+----------------------------------------+
-| South | HTTP_SOUTH     | fledge-south-http           | HTTP Listener                         | Ubuntu x86_64 |                                        |
-|       |                |                              |                                       | Ubuntu Core   |                                        |
-|       |                |                              |                                       | Raspbian      |                                        |
-+-------+----------------+------------------------------+---------------------------------------+---------------+----------------------------------------+
-| North | HTTP           | fledge-north-http           | HTTP Sender                           | Ubuntu x86_64 |                                        |
-|       |                |                              |                                       | Ubuntu Core   |                                        |
-|       |                |                              |                                       | Raspbian      |                                        |
-+-------+----------------+------------------------------+---------------------------------------+---------------+----------------------------------------+
+In addition to the plugins in the main repository, there are many other plugins available in separate repositories, a list of the |available plugins| is maintained within this document.
 
 
 Installing New Plugins
@@ -101,10 +79,8 @@ Installing New Plugins
 
 As a general rule and unless the documentation states otherwise, plugins should be installed in two ways:
 
-- When the plugin is available as **source code**, it should be installed when **Fledge is not running**. |br| This is the recommended method because you may want to manually move the plugin code into the right location where Fledge is installed, add pre-requisites and execute the REST commands necessary to start the plugin.
 - When the plugin is available as **package**, it should be installed when **Fledge is running**. |br| This is the required method because the package executed pre and post-installation tasks that require Fledge to run. 
-
-In general, Fledge must be restarted when a new plugin has been installed.
+- When the plugin is available as **source code**, it should be installed when **Fledge is either running or not**. |br| You will want to manually move the plugin code into the right location where Fledge is installed, add pre-requisites and execute the REST commands necessary to start the plugin **after** you have started Fledge if it is not running when you start this process.
 
 For example, this is the command to use to install the *OpenWeather* South plugin:
 
@@ -163,3 +139,5 @@ For example, this is the command to use to install the *OpenWeather* South plugi
   fledge.services.south --port=42066 --address=127.0.0.1 --name=openweathermap
   === Fledge tasks:
   $
+
+You may also install new plugins directly from within the Fledge GUI, however you will need to have setup your Linux machine to include the Fledge package repository in the list of repositories the Linux package manager searches for new packages.

@@ -5,7 +5,7 @@
    <br />
 
 .. Images
-.. |fledge_all_round| image:: images/fledge_all_round_solution.jpg
+.. |fledge_all_round| image:: ../images/fledge_all_round_solution.jpg
 
 .. Links
 .. _here: #id1
@@ -14,7 +14,7 @@
 .. Links in new tabs
 .. |Fledge Repo| raw:: html
 
-   <a href="https://github.com/fledge/Fledge" target="_blank">https://github.com/fledge/Fledge</a>
+   <a href="https://github.com/fledge-iot/Fledge" target="_blank">https://github.com/fledge-iot/Fledge</a>
 
 .. |GCC Bug| raw:: html
 
@@ -133,7 +133,7 @@ Fledge is available on GitHub. The link to the repository is |Fledge Repo|. In o
 
 .. code-block:: console
 
-  $ git clone https://github.com/fledge/Fledge.git
+  $ git clone https://github.com/fledge-iot/Fledge.git
   Cloning into 'Fledge'...
   remote: Counting objects: 15639, done.
   remote: Compressing objects: 100% (88/88), done.
@@ -213,7 +213,7 @@ Building Fledge
 ----------------
 
 You are now ready to build your first Fledge project. If you want to install Fledge on CentOS, Fedora or Red Hat, we recommend you to read this section first and then look at `this section`_. |br| |br|
-Move to the *Fledge* project directory, type the ``make`` comand and let the magic happen.
+Move to the *Fledge* project directory, type the ``make`` command and let the magic happen.
 
 .. code-block:: console
 
@@ -320,7 +320,7 @@ If you are curious to see a proper output from Fledge, you can query the Core mi
   [{"key": "BUFFERED", "description": "The number of readings currently in the Fledge buffer", "value": 0}, {"key": "DISCARDED", "description": "The number of readings discarded at the input side by Fledge, i.e. discarded before being  placed in the buffer. This may be due to some error in the readings themselves.", "value": 0}, {"key": "PURGED", "description": "The number of readings removed from the buffer by the purge process", "value": 0}, {"key": "READINGS", "description": "The number of readings received by Fledge since startup", "value": 0}, {"key": "SENT_1", "description": "The number of readings sent to the historian", "value": 0}, {"key": "SENT_2", "description": "The number of statistics data sent to the historian", "value": 0}, {"key": "UNSENT", "description": "The number of readings filtered out in the send process", "value": 0}, {"key": "UNSNPURGED", "description": "The number of readings that were purged from the buffer before being sent", "value": 0}]
   $
 
-Congratulations! You have installed and tested Fledge! If you want to go extra mile (and make the output of the REST API more readible, download the *jq* JSON processor and pipe the output of the *curl* command to it:
+Congratulations! You have installed and tested Fledge! If you want to go extra mile (and make the output of the REST API more readable, download the *jq* JSON processor and pipe the output of the *curl* command to it:
 
 .. code-block:: console
 
@@ -636,7 +636,7 @@ Building Fledge
 
 We are finally ready to install Fledge, but we need to apply some little changes to the code and the make files. These changes will be removed in the future, but for the moment they are necessary to complete the procedure.
 
-First, clone the Github repository with the usual command: |br| ``git clone https://github.com/fledge/Fledge.git`` |br| The project should have been added to your machine under the *Fledge* directory.
+First, clone the Github repository with the usual command: |br| ``git clone https://github.com/fledge-iot/Fledge.git`` |br| The project should have been added to your machine under the *Fledge* directory.
 
 We need to apply these changes to *C/plugins/storage/postgres/CMakeLists.txt*:
 

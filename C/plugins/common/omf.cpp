@@ -1188,7 +1188,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 							  m_sender.getHostPort().c_str(),
 							  m_path.c_str(),
 							  json_not_compressed.c_str());
-                        }
+			}
 
 			// Reset error indicator
 			m_lastError = false;
@@ -2827,7 +2827,7 @@ void OMF::clearCreatedTypes(const string& key)
  */
 bool OMF::getCreatedTypes(const string& key)
 {
-	bool ret;
+	bool ret = false;
 	string keyComplete;
 
 	// Connector relay / ODS / EDS
@@ -2856,7 +2856,19 @@ bool OMF::getCreatedTypes(const string& key)
 	else
 	{
 		auto it = m_OMFDataTypes->find(keyComplete);
-		ret = (it != m_OMFDataTypes->end()) && !(*m_OMFDataTypes)[keyComplete].types.empty();
+		if (it != m_OMFDataTypes->end())
+		{
+			// Considers empty also the case "{}"
+			ret = ! (*m_OMFDataTypes)[keyComplete].types.empty();
+			if (ret)
+			{
+				if ((*m_OMFDataTypes)[keyComplete].types.compare("{}") == 0)
+				{
+					ret = false;
+				}
+			}
+
+		}
 	}
 	return ret;
 }

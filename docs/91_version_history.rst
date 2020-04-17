@@ -12,7 +12,7 @@
 
 .. |1.1 requirements| raw:: html
 
-   <a href="https://github.com/fledge/Fledge/blob/1.1/python/requirements.txt" target="_blank">check here</a>
+   <a href="https://github.com/fledge-iot/Fledge/blob/1.1/python/requirements.txt" target="_blank">check here</a>
 
 
 .. =============================================
@@ -292,7 +292,7 @@ Release Date: 2019-02-21
     - Expression: run a complex mathematical expression across one or more data streams
     - Python: run arbitrary python code to modify a data stream
     - Asset: modify Asset metadata
-    - RMS: Generate new asset with Root Mean Squared and Peak calcuations across data streams
+    - RMS: Generate new asset with Root Mean Squared and Peak calculations across data streams
     - FFT (beta): execute a Fast Fourier Transform across a data stream. Valuable for Vibration Analysis
     - Many others
 
@@ -308,21 +308,21 @@ Release Date: 2019-02-21
 
 
 v1.4.1
-----
+------
 
 Release Date: 2018-10-10
 
 
 
 v1.4.0
-----
+------
 
 Release Date: 2018-09-25
 
 
 
 v1.3.1
-----
+------
 
 Release Date: 2018-07-13
 
@@ -330,7 +330,7 @@ Release Date: 2018-07-13
 Fixed Issues
 ~~~~~~~~~~~~
 
-- **Open File Descriptiors**
+- **Open File Descriptors**
 
   - **open file descriptors**: Storage service did not close open files, leading to multiple open file descriptors
 
@@ -355,8 +355,8 @@ New Features
   
 - **Removal of south plugins**
 
-  - **coap**: coap south plugin was moved into its own repository https://github.com/fledge/fledge-south-coap
-  - **http**: http south plugin was moved into its own repository https://github.com/fledge/fledge-south-http
+  - **coap**: coap south plugin was moved into its own repository https://github.com/fledge-iot/fledge-south-coap
+  - **http**: http south plugin was moved into its own repository https://github.com/fledge-iot/fledge-south-http
 
 
 Known Issues

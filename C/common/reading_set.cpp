@@ -322,10 +322,10 @@ JSONReading::JSONReading(const Value& json)
 						    m.value.IsUint64()) {
 
 							DatapointValue *value;
-							if (m.value.IsInt() ||
-							    m.value.IsUint()) {
+							if (m.value.IsInt()) {
 								value = new DatapointValue((long) m.value.GetInt());
 							} else {
+								// Handle Uint as 64 bits
 								value = new DatapointValue((long) m.value.GetInt64());
 							}
 							this->addDatapoint(new Datapoint(m.name.GetString(),

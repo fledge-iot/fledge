@@ -269,7 +269,7 @@ The response payload is a set of configuration items within the category, each i
 | Name        | Type   | Description                                                  | Example                       |
 +=============+========+==============================================================+===============================+
 | description | string | A description of the configuration item |br|                 | The IPv4 network address |br| |
-|             |        | that may be used in a user interface.                        | of the Fledge server         |
+|             |        | that may be used in a user interface.                        | of the Fledge server          |
 +-------------+--------+--------------------------------------------------------------+-------------------------------+
 | type        | string | A type that may be used by a user interface |br|             | IPv4                          |
 |             |        | to know how to display an item.                              |                               |
@@ -352,7 +352,7 @@ The response payload is a configuration item within the category, each item is a
 | Name        | Type   | Description                                                  | Example                       |
 +=============+========+==============================================================+===============================+
 | description | string | A description of the configuration item |br|                 | The IPv4 network address |br| |
-|             |        | that may be used in a user interface.                        | of the Fledge server         |
+|             |        | that may be used in a user interface.                        | of the Fledge server          |
 +-------------+--------+--------------------------------------------------------------+-------------------------------+
 | type        | string | A type that may be used by a user interface |br|             | IPv4                          |
 |             |        | to know how to display an item.                              |                               |
@@ -410,7 +410,7 @@ The response payload is the newly updated configuration item within the category
 | Name        | Type   | Description                                                  | Example                       |
 +=============+========+==============================================================+===============================+
 | description | string | A description of the configuration item |br|                 | The IPv4 network address |br| |
-|             |        | that may be used in a user interface.                        | of the Fledge server         |
+|             |        | that may be used in a user interface.                        | of the Fledge server          |
 +-------------+--------+--------------------------------------------------------------+-------------------------------+
 | type        | string | A type that may be used by a user interface |br|             | IPv4                          |
 |             |        | to know how to display an item.                              |                               |
@@ -461,7 +461,7 @@ The response payload is the newly updated configuration item within the category
 | Name        | Type   | Description                                                  | Example                       |
 +=============+========+==============================================================+===============================+
 | description | string | A description of the configuration item |br|                 | The IPv4 network address |br| |
-|             |        | that may be used in a user interface.                        | of the Fledge server         |
+|             |        | that may be used in a user interface.                        | of the Fledge server          |
 +-------------+--------+--------------------------------------------------------------+-------------------------------+
 | type        | string | A type that may be used by a user interface |br|             | IPv4                          |
 |             |        | to know how to display an item.                              |                               |
@@ -527,7 +527,7 @@ A JSON object that defines the category.
 
 .. code-block:: console
 
-  $ curl -X POST http://localhost:8081/fledge/category \
+  $ curl -X POST http://localhost:8081/fledge/category
     -d '{ "key": "My Configuration", "description": "This is my new configuration",
         "value": { "item one": { "description": "The first item", "type": "string", "default": "one" },
                    "item two": { "description": "The second item", "type": "string", "default": "two" },
@@ -585,7 +585,7 @@ The response payload is a JSON object with an array of task objects.
 | startTime | timestamp | The date and time the task started      | 2018-04-17 08:32:15.071              |
 +-----------+-----------+-----------------------------------------+--------------------------------------+
 | endTime   | timestamp | The date and time the task ended   |br| | 2018-04-17 08:32:14.872              |
-|           |           | This may not exist if the tast is  |br| |                                      |
+|           |           | This may not exist if the task is  |br| |                                      |
 |           |           | not completed.                          |                                      |
 +-----------+-----------+-----------------------------------------+--------------------------------------+
 | reason    | string    | An optional reason string that     |br| | No destination available |br|        |
@@ -685,7 +685,7 @@ The response payload is a JSON object with an array of task objects.
 | startTime | timestamp | The date and time the task started      | 2018-04-17 08:32:15.071              |
 +-----------+-----------+-----------------------------------------+--------------------------------------+
 | endTime   | timestamp | The date and time the task ended   |br| | 2018-04-17 08:32:14.872              |
-|           |           | This may not exist if the tast is  |br| |                                      |
+|           |           | This may not exist if the task is  |br| |                                      |
 |           |           | not completed.                          |                                      |
 +-----------+-----------+-----------------------------------------+--------------------------------------+
 | reason    | string    | An optional reason string that     |br| | No destination available |br|        |
@@ -760,7 +760,7 @@ The response payload is a JSON object containing the task details.
 | startTime | timestamp | The date and time the task started      | 2018-04-17 08:32:15.071              |
 +-----------+-----------+-----------------------------------------+--------------------------------------+
 | endTime   | timestamp | The date and time the task ended   |br| | 2018-04-17 08:32:14.872              |
-|           |           | This may not exist if the tast is  |br| |                                      |
+|           |           | This may not exist if the task is  |br| |                                      |
 |           |           | not completed.                          |                                      |
 +-----------+-----------+-----------------------------------------+--------------------------------------+
 | reason    | string    | An optional reason string that     |br| | No destination available |br|        |
@@ -816,7 +816,7 @@ The response payload is a JSON object with the details of the cancelled task.
 | startTime | timestamp | The date and time the task started      | 2018-04-17 08:32:15.071              |
 +-----------+-----------+-----------------------------------------+--------------------------------------+
 | endTime   | timestamp | The date and time the task ended   |br| | 2018-04-17 08:32:14.872              |
-|           |           | This may not exist if the tast is  |br| |                                      |
+|           |           | This may not exist if the task is  |br| |                                      |
 |           |           | not completed.                          |                                      |
 +-----------+-----------+-----------------------------------------+--------------------------------------+
 | reason    | string    | An optional reason string that     |br| | No destination available |br|        |
@@ -876,7 +876,7 @@ The response payload is some basic health information in a JSON object.
 +------------------------+---------+-----------------------------------------------------------------+-------------------+
 | dataSent               | numeric | A count of the number of readings sent to PI                    | 347               |
 +------------------------+---------+-----------------------------------------------------------------+-------------------+
-| uptime                 | numeric | Time in seconds since Fledge started                           | 2113.076449394226 |
+| uptime                 | numeric | Time in seconds since Fledge started                            | 2113.076449394226 |
 +------------------------+---------+-----------------------------------------------------------------+-------------------+
 
 
@@ -912,15 +912,15 @@ The response payload is a JSON document with statistical information (all numeri
 +------------------------+-----------------------------------------------------------------------------+
 | Key                    | Description                                                                 |
 +========================+=============================================================================+
-| BUFFERED               | The number of readings currently in the Fledge buffer                      |
+| BUFFERED               | The number of readings currently in the Fledge buffer                       |
 +------------------------+-----------------------------------------------------------------------------+
-| DISCARDED              | The number of readings discarded at the input side by Fledge,       |br|   |
+| DISCARDED              | The number of readings discarded at the input side by Fledge,       |br|    |
 |                        | i.e. discarded before being  placed in the buffer. This may be due   |br|   |
 |                        | to some error in the readings themselves.                                   |
 +------------------------+-----------------------------------------------------------------------------+
 | PURGED                 | The number of readings removed from the buffer by the *Purge* task          |
 +------------------------+-----------------------------------------------------------------------------+
-| READINGS               | The number of readings received by Fledge since startup                    |
+| READINGS               | The number of readings received by Fledge since startup                     |
 +------------------------+-----------------------------------------------------------------------------+
 | SENT_1                 | The number of readings sent to the PI system via the OMF plugin             |
 +------------------------+-----------------------------------------------------------------------------+
@@ -932,7 +932,7 @@ The response payload is a JSON document with statistical information (all numeri
 +------------------------+-----------------------------------------------------------------------------+
 | UNSNPURGED             | The number of readings that were purged from the buffer before being sent   |
 +------------------------+-----------------------------------------------------------------------------+
-| *ASSET-CODE*           | The number of readings received by Fledge since startup               |br| |
+| *ASSET-CODE*           | The number of readings received by Fledge since startup               |br|  |
 |                        | with name *asset-code*                                                      |
 +------------------------+-----------------------------------------------------------------------------+
 
@@ -959,7 +959,7 @@ GET statistics/history
 ``GET /fledge/statistics/history`` - return a historical set of statistics. This interface is normally used to check if a set of sensors or devices are sending data to Fledge, by comparing the recent statistics and the number of readings received for an asset.
 
 
-**Reguest Parameters**
+**Request Parameters**
 
 - **limit** - limit the result set to the *N* most recent entries.
 
@@ -973,15 +973,15 @@ A JSON document containing an array of statistical information, these statistics
 +===========================+=============================================================================+
 | interval                  | The interval in seconds between successive statistics values                |
 +---------------------------+-----------------------------------------------------------------------------+
-| statistics[].BUFFERED     | The number of readings currently in the Fledge buffer                      |
+| statistics[].BUFFERED     | The number of readings currently in the Fledge buffer                       |
 +---------------------------+-----------------------------------------------------------------------------+
-| statistics[].DISCARDED    | The number of readings discarded at the input side by Fledge,       |br|   |
+| statistics[].DISCARDED    | The number of readings discarded at the input side by Fledge,       |br|    |
 |                           | i.e. discarded before being  placed in the buffer. This may be due   |br|   |
 |                           | to some error in the readings themselves.                                   |
 +---------------------------+-----------------------------------------------------------------------------+
 | statistics[].PURGED       | The number of readings removed from the buffer by the *Purge* task          |
 +---------------------------+-----------------------------------------------------------------------------+
-| statistics[].READINGS     | The number of readings received by Fledge since startup                    |
+| statistics[].READINGS     | The number of readings received by Fledge since startup                     |
 +---------------------------+-----------------------------------------------------------------------------+
 | statistics[].SENT_1       | The number of readings sent to the PI system via the OMF plugin             |
 +---------------------------+-----------------------------------------------------------------------------+
@@ -993,7 +993,7 @@ A JSON document containing an array of statistical information, these statistics
 +---------------------------+-----------------------------------------------------------------------------+
 | statistics[].UNSNPURGED   | The number of readings that were purged from the buffer before being sent   |
 +---------------------------+-----------------------------------------------------------------------------+
-| statistics[].*ASSET-CODE* | The number of readings received by Fledge since startup               |br| |
+| statistics[].*ASSET-CODE* | The number of readings received by Fledge since startup               |br|  |
 |                           | with name *asset-code*                                                      |
 +---------------------------+-----------------------------------------------------------------------------+
 

@@ -1,5 +1,4 @@
 #!/bin/bash
-
 function table {
 	list="$1"
 	title=$2
@@ -7,7 +6,6 @@ function table {
 	echo ".. list-table:: $title" >> $output
 	echo "    :widths: 20 50" >> $output
 	echo "    :header-rows: 1" >> $output
-	echo "    :stub-columns: 1" >> $output
 	echo "" >> $output
 	echo "    * - Name" >> $output
 	echo "      - Description" >> $output
@@ -23,19 +21,19 @@ function table {
 		name=`echo $repo | sed -e 's/fledge-//' -e 's/foglamp-//' -e "s/${type}-//"`
 		echo $repo, $name, $type >>/tmp/repos
 		if [ "$type" = "$tableType" ]; then
-			description=`curl -s https://api.github.com/repos/$org/$repo | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj["description"])' | sed -e 's/"//g'`
-			echo "    * - $name" >> $output
+			description=`echo $fledgeRepos | python3 -c 'import json,sys;obj=json.load(sys.stdin);repo = [ sub for sub in obj if sub["name"] == "'$repo'" ];print(repo[0]["description"])'`
+      echo "    * - $name" >> $output
 			echo "      - $description" >> $output
 		fi
 	done
 	echo "" >> $output
 }
 
-
 output=$1
-fledgeRepos=`curl -s  https://api.github.com/orgs/fledge-iot/repos\?per_page=1000 | python3 -c 'import json,sys;obj=json.load(sys.stdin);repo = [ sub["name"] for sub in obj ];print("\n".join(repo))' | sort`
-REPOSITORIES=`echo $fledgeRepos | sort`
+rm -f $output
 
+fledgeRepos=`curl -s  https://api.github.com/orgs/fledge-iot/repos\?per_page=1000`
+REPOSITORIES=`echo $fledgeRepos | python3 -c 'import json,sys;obj=json.load(sys.stdin);repo = [ sub["name"] for sub in obj ];print("\n".join(repo))' | sort`
 cat >> $output << EOF1
 Fledge Plugins
 ==============
@@ -79,7 +77,7 @@ or users may add new north plugins of their own by writing them in Python
 or C/C++.
 
 It is also possible, using particular filters, to supply expressions
-or script snipets that can operate on the data as well. This provides a
+or script snippets that can operate on the data as well. This provides a
 simple way to process the data in Fledge as it is read from devices or
 written to destination systems.
 
@@ -95,7 +93,7 @@ notification service to determine if a condition has been met that should
 trigger or clear that condition and hence send a notification. A number of
 notification plugins are available as standard, however as with any plugin the
 user is able to write new plugins in Python or C/C++ to extend the set of
-notifcation rules.
+notification rules.
 
 EOF5
 table "$REPOSITORIES" "Fledge Notification Rule Plugins" rule
@@ -108,7 +106,7 @@ Notification delivery plugins provide the mechanisms to deliver the
 notification messages to the systems that will receive them.  A number
 of notification delivery plugins are available as standard, however as
 with any plugin the user is able to write new plugins in Python or C/C++
-to extend the set of notifcation rules.
+to extend the set of notification rules.
 
 EOF6
 table "$REPOSITORIES" "Fledge Notification Delivery Plugins" notify

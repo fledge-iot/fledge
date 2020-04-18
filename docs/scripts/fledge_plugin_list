@@ -22,7 +22,7 @@ function table {
 		echo $repo, $name, $type >>/tmp/repos
 		if [ "$type" = "$tableType" ]; then
 			description=`echo $fledgeRepos | python3 -c 'import json,sys;obj=json.load(sys.stdin);repo = [ sub for sub in obj if sub["name"] == "'$repo'" ];print(repo[0]["description"])'`
-      echo "    * - $name" >> $output
+			echo "    * - $name" >> $output
 			echo "      - $description" >> $output
 		fi
 	done
@@ -33,7 +33,7 @@ output=$1
 rm -f $output
 
 fledgeRepos=`curl -s  https://api.github.com/orgs/fledge-iot/repos\?per_page=1000`
-REPOSITORIES=`echo $fledgeRepos | python3 -c 'import json,sys;obj=json.load(sys.stdin);repo = [ sub["name"] for sub in obj ];print("\n".join(repo))' | sort`
+REPOSITORIES=`echo $fledgeRepos | python3 -c 'import json,sys;obj=json.load(sys.stdin);repo = [ sub["name"] for sub in obj ];print("\n".join(repo))' | sort -f`
 cat >> $output << EOF1
 Fledge Plugins
 ==============

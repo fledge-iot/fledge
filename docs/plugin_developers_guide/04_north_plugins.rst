@@ -277,7 +277,7 @@ Before you send data to the PI server, it is likely that you need to apply more 
 - **type-id** : the measurement type for the stream of data.
 - **source** : this parameter should be set to *readings* (default) when the plugin is used to send data collected by South microservices, and to *statistics* when the plugin is used to send Fledge statistics to the PI system.
 
-An example of the changes to apply to the plugins to send data to the PI system is available here `here <../05_testing.html#sending-greetings-to-the-northern-hemisphere>`_.
+An example of the changes to apply to the plugins to send data to the PI system is available here `here <../building_fledge/06_testing.html#sending-greetings-to-the-northern-hemisphere>`_.
 
 
 Data in the PI System

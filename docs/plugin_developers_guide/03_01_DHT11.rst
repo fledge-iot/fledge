@@ -16,9 +16,6 @@
    <a href="../03_getting_started.html#building-fledge">here</a>
 
 .. Links in new tabs
-.. |setting OMF| raw:: html
-
-   <a href="../05_testing.html#setting-the-omf-translator-plugin">here</a>
 
 .. |DHT Repo| raw:: html
 

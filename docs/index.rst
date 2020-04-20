@@ -13,6 +13,7 @@ Welcome to Fledge's documentation!
     processing_data
     fledge_architecture
     fledge_plugins
+    securing_fledge
     plugin_developers_guide/index
     rest_api_guide/index
     building_fledge/index

@@ -13,7 +13,7 @@
 .. Links
 .. |filter_plugins| raw:: html
 
-   <a href="fledge_plugins.html#filer-plugins">Filter Plugins</a>
+   <a href="fledge_plugins.html#filter-plugins">Filter Plugins</a>
 
 
 ***************
@@ -151,7 +151,7 @@ The filter *fledge-filter-scale* applies a scale factor and offset to the numeri
 Metadata
 --------
 
-The filter *fledge-filter-metadata* will add metadata to an asset. This could be used to add information such as unit of measurement, machine data (make, model, erial no)  or the location of the asset to the data.
+The filter *fledge-filter-metadata* will add metadata to an asset. This could be used to add information such as unit of measurement, machine data (make, model, serial no)  or the location of the asset to the data.
 
 Delta
 -----

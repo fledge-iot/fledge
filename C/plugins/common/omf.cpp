@@ -20,7 +20,12 @@
 #include "string_utils.h"
 #include <plugin_api.h>
 #include <string_utils.h>
+#include <datapoint.h>
 #include <thread>
+
+// FIXME::
+#include <tmp_log.hpp>
+
 
 using namespace std;
 using namespace rapidjson;
@@ -283,6 +288,9 @@ std::string OMF::compress_string(const std::string& str,
  */
 bool OMF::sendDataTypes(const Reading& row)
 {
+	// FIXME_I:
+	//return true;
+
 	int res;
 	m_changeTypeId = false;
 
@@ -557,7 +565,9 @@ bool OMF::AFHierarchySendMessage(const string& msgType, string& jsonData)
 
 	try
 	{
+		// FIXME_I:
 		res = m_sender.sendRequest("POST", m_path, resType, jsonData);
+		//res = 200;
 		if  ( ! (res >= 200 && res <= 299) )
 		{
 			success = false;
@@ -1002,6 +1012,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	gettimeofday(&start, NULL);
 #endif
 
+
 	std::map<string, Reading*> superSetDataPoints;
 
 	// Create a superset of all found datapoints for each assetName
@@ -1027,6 +1038,51 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	ostringstream jsonData;
 	jsonData << "[";
 
+	// FIXME_I:
+	//### // FIXME_I: to be removed  #########################################################################################:
+
+//	vector<Reading *>::const_iterator tmp_elem = readings.begin();
+//
+//
+//#if INSTRUMENT
+//	gettimeofday(&start, NULL);
+//#endif
+//	int n;
+//	int max = 50 * 1000;
+//
+//	for (n= 0 ; n < max ; n++)
+//	{
+//		unsigned long tmp = generateTypeDefinition ((**tmp_elem));
+//	}
+//
+//
+//
+//#if INSTRUMENT
+//	gettimeofday(&t1, NULL);
+//#endif
+//
+//
+//
+//#if INSTRUMENT
+//	struct timeval tm;
+//	double timeT1, timeT2, timeT3, timeT4, timeT5;
+//
+//	timersub(&t1, &start, &tm);
+//	timeT1 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
+//
+//	Logger::getLogger()->setMinLevel("debug");
+//	Logger::getLogger()->debug("Timing seconds - thread :%s: - generateTypeDefinition :%6.3f: - max :%6d:",
+//							   threadId.str().c_str(),
+//							   timeT1,
+//							   max
+//	);
+//	Logger::getLogger()->setMinLevel("warning");
+//#endif
+//	return 0;
+
+
+
+	//###   #########################################################################################:
 
 	// Fetch Reading* data
 	for (vector<Reading *>::const_iterator elem = readings.begin();
@@ -1043,6 +1099,19 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 
 		evaluateAFHierarchyRules(key, **elem);
 
+		//### Perf  #########################################################################################:
+		// FIXME_I:
+//		string assetType = generateTypesString((**elem));
+//		std::size_t hash = std::hash<std::string>{}(assetType);
+//		unsigned long value_to_check = 14395431954020454576ull;
+//
+//		if (value_to_check == hash)
+//		{
+//			 ret = true;
+//		}
+		//### Perf  #########################################################################################:
+
+
 		if (! AFHierarchySent)
 		{
 			setAFHierarchy();
@@ -1050,13 +1119,36 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 
 		sendDataTypes = (m_lastError == false && skipSentDataTypes == true) ?
 				 // Send if not already sent
-				 !OMF::getCreatedTypes(key) :
+				 !OMF::getCreatedTypes(key, (**elem)) :
 				 // Always send types
 				 true;
 
 		Reading* datatypeStructure = NULL;
 		if (sendDataTypes)
 		{
+			string keyComplete;
+			if (m_PIServerEndpoint == ENDPOINT_CR  ||
+				m_PIServerEndpoint == ENDPOINT_OCS ||
+				m_PIServerEndpoint == ENDPOINT_EDS
+				)
+			{
+				keyComplete = key;
+			}
+			else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
+			{
+				string AFHierarchyPrefix;
+				string AFHierarchyLevel;
+
+				retrieveAFHierarchyPrefixAssetName(key, AFHierarchyPrefix, AFHierarchyLevel);
+				keyComplete = AFHierarchyPrefix + "_" + key;
+			}
+
+			// FIXME_I:
+			// Increment type-id of assetName in in memory cache
+			OMF::incrementAssetTypeId(keyComplete);
+			// Remove data and keep type-id
+			OMF::clearCreatedTypes(keyComplete);
+
 			// Get the supersetDataPoints for current assetName
 			auto it = superSetDataPoints.find((**elem).getAssetName());
 			if (it != superSetDataPoints.end())
@@ -1080,7 +1172,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		    (sendDataTypes &&
 		    // Send data type
 		    !OMF::handleDataTypes(*datatypeStructure, skipSentDataTypes) &&
-		    // Data type not sent: 
+		    // Data type not sent:
 		    (!m_changeTypeId ||
 		     // Increment type-id and re-send data types
 		     !OMF::handleTypeErrors(*datatypeStructure))))
@@ -1140,6 +1232,8 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	// Then get HTTPS POST ret code and return 0 to client on error
 	try
 	{
+		// FIXME_I:
+		//int res = 200;
 		int res = m_sender.sendRequest("POST",
 					       m_path,
 					       readingData,
@@ -1164,7 +1258,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 
 #if INSTRUMENT
 	struct timeval tm;
-	double timeT1, timeT2, timeT3, timeT4;
+	double timeT1, timeT2, timeT3, timeT4, timeT5;
 
 	timersub(&t1, &start, &tm);
 	timeT1 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
@@ -1178,7 +1272,11 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	timersub(&t4, &t3, &tm);
 	timeT4 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
 
-	Logger::getLogger()->setMinLevel("debug");
+	timersub(&t5, &t4, &tm);
+	timeT5 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
+
+
+		Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug("Timing seconds - thread :%s: - superSet :%6.3f: - Loop :%6.3f: - compress :%6.3f:  - send data :%6.3f:",
 							   threadId.str().c_str(),
 							   timeT1,
@@ -1186,6 +1284,17 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 							   timeT3,
 							   timeT4
 	);
+
+//		char tmp_buffer[500000];
+//		snprintf (tmp_buffer,500000, "Timing seconds - thread :%s: - superSet :%6.3f: - Loop :%6.3f: - compress :%6.3f:  - send data :%6.3f:",
+//				  threadId.str().c_str(),
+//				  timeT1,
+//				  timeT2,
+//				  timeT3,
+//				  timeT4
+//		);
+//		tmpLogger (tmp_buffer);
+
 	Logger::getLogger()->setMinLevel("warning");
 #endif
 
@@ -1316,7 +1425,7 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 
 		sendDataTypes = (m_lastError == false && skipSentDataTypes == true) ?
 				 // Send if not already sent
-				 !OMF::getCreatedTypes(key) :
+				 !OMF::getCreatedTypes(key, (*elem)) :
 				 // Always send types
 				 true;
 
@@ -2109,7 +2218,7 @@ bool OMF::handleDataTypes(const Reading& row,
 	// Check whether to create and send Data Types
 	bool sendTypes = (skipSending == true) ?
 			  // Send if not already sent
-			  !OMF::getCreatedTypes(key) :
+			  !OMF::getCreatedTypes(key, row) :
 			  // Always send types
 			  true;
 
@@ -2737,6 +2846,139 @@ void OMF::incrementAssetTypeId(const std::string& assetName)
 	}
 }
 
+// FIXME_I:
+unsigned long OMF::generateTypeDefinition(const Reading& row)
+{
+	union t_typeCount {
+		struct
+		{
+			unsigned char tTotal;
+			unsigned char tFloat;
+			unsigned char tString;
+			unsigned char spare0;
+
+			unsigned char spare1;
+			unsigned char spare2;
+			unsigned char spare3;
+			unsigned char spare4;
+		} cnt;
+		unsigned long valueLong = 0;
+
+	} typeCount;
+
+	int type;
+
+	const vector<Datapoint*> data = row.getReadingData();
+	for (vector<Datapoint*>::const_iterator it = data.begin();
+		 (it != data.end() &&
+		  isTypeSupported((*it)->getData()));
+		 ++it)
+	{
+
+		if (!isTypeSupported((*it)->getData()))
+		{
+			continue;
+		}
+
+		type = ((*it)->getData()).getType();
+
+		// Integer is handled as float in the OMF integration
+		if (type == DatapointValue::dataTagType::T_INTEGER)
+		{
+			typeCount.cnt.tFloat++;
+		}
+
+		if (type == DatapointValue::dataTagType::T_FLOAT)
+		{
+			typeCount.cnt.tFloat++;
+		}
+
+		if (type == DatapointValue::dataTagType::T_STRING)
+		{
+			typeCount.cnt.tString++;
+		}
+		typeCount.cnt.tTotal++;
+
+	}
+	// FIXME_I: dummy for text
+	//typeCount.cnt.spare0=0xff;
+	//typeCount.cnt.spare4=0x3f;
+
+	return typeCount.valueLong;
+}
+
+
+// FIXME_I:
+string OMF::generateTypesString(const Reading& row)
+{
+	string types;
+	string key;
+
+	// Connector relay / ODS / EDS
+	if (m_PIServerEndpoint == ENDPOINT_CR  ||
+		m_PIServerEndpoint == ENDPOINT_OCS ||
+		m_PIServerEndpoint == ENDPOINT_EDS
+		)
+	{
+		key = row.getAssetName();
+	}
+	else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
+	{
+		string assetName;
+		string AFHierarchyPrefix;
+		string AFHierarchyLevel;
+
+		assetName = row.getAssetName();
+		retrieveAFHierarchyPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchyLevel);
+
+		key = AFHierarchyPrefix + "_" + assetName;
+	}
+
+	const vector<Datapoint*> data = row.getReadingData();
+	types.append("{");
+	for (vector<Datapoint*>::const_iterator it = data.begin();
+		 (it != data.end() &&
+		  isTypeSupported((*it)->getData()));
+		 ++it)
+	{
+		if (it != data.begin())
+		{
+			types.append(", ");
+		}
+
+		string omfType;
+		if (!isTypeSupported((*it)->getData()))
+		{
+			omfType = OMF_TYPE_UNSUPPORTED;
+			continue;
+		}
+		else
+		{
+			omfType = omfTypes[((*it)->getData()).getType()];
+		}
+
+		string format = OMF::getFormatType(omfType);
+
+		// Add datapoint Name
+		types.append("\"" + (*it)->getName() + "\"");
+		types.append(": {\"type\": \"");
+		// Add datapoint Type
+		types.append(omfType);
+
+		// Applies a format if it is defined
+		if (!format.empty())
+		{
+			types.append("\", \"format\": \"");
+			types.append(format);
+		}
+
+		types.append("\"}");
+	}
+	types.append("}");
+
+	return types;
+}
+
 /**
  * Add the reading asset namekey into a map
  * That key is checked by getCreatedTypes in order
@@ -2833,6 +3075,9 @@ bool OMF::setCreatedTypes(const Reading& row)
 		(*m_OMFDataTypes)[key].types = types;
 	}
 
+	// FIXME_I:
+	(*m_OMFDataTypes)[key].typesDefinition =  generateTypeDefinition (row);
+
 	return true;
 }
 
@@ -2887,9 +3132,11 @@ void OMF::clearCreatedTypes(const string& key)
  *		 must be sent again with the new type-id.
  *               Return false if the key is not found or found but empty.
  */
-bool OMF::getCreatedTypes(const string& key)
+bool OMF::getCreatedTypes(const string& key, const Reading& row)
 {
+	unsigned long typesDefinition;
 	bool ret = false;
+	bool found = false;
 	string keyComplete;
 
 	// Connector relay / ODS / EDS
@@ -2921,12 +3168,47 @@ bool OMF::getCreatedTypes(const string& key)
 		if (it != m_OMFDataTypes->end())
 		{
 			// Considers empty also the case "{}"
-			ret = ! (*m_OMFDataTypes)[keyComplete].types.empty();
+			// FIXME_I:
+			ret = ! it->second.types.empty();
+			//ret = ! (*m_OMFDataTypes)[keyComplete].types.empty();
 			if (ret)
 			{
-				if ((*m_OMFDataTypes)[keyComplete].types.compare("{}") == 0)
+				// FIXME_I:
+				if (it->second.types.compare("{}") == 0)
+				//if ((*m_OMFDataTypes)[keyComplete].types.compare("{}") == 0)
 				{
 					ret = false;
+				}
+				else
+				{
+					typesDefinition =  generateTypeDefinition (row);
+
+					if (it->second.typesDefinition != typesDefinition)
+					{
+						ret = false;
+					}
+
+					// Evaluates if the type has changed
+					// FIXME_I:
+					//std::size_t hash = std::hash<std::string>{}((*m_OMFDataTypes)[keyComplete].types);
+					//string assetType = "{\"FOGL_3954_002\": {\"type\": \"number\", \"format\": \"float64\"}, \"FOGL_3954_021\": {\"type\": \"number\", \"format\": \"float64\"}}";
+
+//					string assetType = generateTypesString(row);
+//					std::size_t hash = std::hash<std::string>{}(assetType);
+//
+////					std::size_t hash1 = (*m_OMFDataTypes)[keyComplete].typesHash;
+////					std::size_t hash2 = it->second.typesHash;
+//
+////					std::size_t hash = 14395431954020454576ul;
+//
+//					//if ( 14395431954020454576ul != hash)
+//					if (it->second.typesHash != hash)
+//////					//if ((*m_OMFDataTypes)[keyComplete].typesHash != hash)
+//					{
+//						ret = false;
+//					}
+//					// FIXME_I:
+//					ret = true;
 				}
 			}
 

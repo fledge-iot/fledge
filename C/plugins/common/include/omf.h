@@ -46,6 +46,8 @@ class OMFDataTypes
         public:
                 long typeId;
                 std::string types;
+                // FIXME_I:
+                unsigned long typesDefinition;
 };
 
 /**
@@ -191,12 +193,16 @@ class OMF
 		bool sendDataTypes(const Reading& row);
 
 		// Get saved dataType
-		bool getCreatedTypes(const std::string& key);
+		bool getCreatedTypes(const std::string& key, const Reading& row);
 
 		// Set saved dataType
 		bool setCreatedTypes(const std::string& key);
+		// FIXME_I:
+		string generateTypesString(const Reading& row);
+		unsigned long generateTypeDefinition(const Reading& row);
 
-		// Clear data types cache
+
+	// Clear data types cache
 		void clearCreatedTypes();
 
 		// Increment type-id value

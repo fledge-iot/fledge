@@ -44,6 +44,7 @@ using namespace SimpleWeb;
 #define TYPE_ID_KEY "type-id"
 #define SENT_TYPES_KEY "sentDataTypes"
 #define DATA_KEY "dataTypes"
+#define DATA_KEY_SHORT "dataTypesShort"
 
 #define ENDPOINT_URL_PI_WEB_API "https://HOST_PLACEHOLDER:PORT_PLACEHOLDER/piwebapi/omf"
 #define ENDPOINT_URL_CR         "https://HOST_PLACEHOLDER:PORT_PLACEHOLDER/ingress/messages"
@@ -819,6 +820,14 @@ string saveSentDataTypes(CONNECTOR_INFO* connInfo)
 				newData << (pendingSeparator ? ", " : "");
 				newData << "{\"" << (*it).first << "\" : {\"" << TYPE_ID_KEY <<
 					   "\": " << to_string(((*it).second).typeId);
+
+				// FIXME_I:
+				std::stringstream sstream;
+				sstream << std::hex << ((*it).second).typesDefinition;
+				std::string typesDefinitionHex = sstream.str();
+
+				newData << ", \"" << DATA_KEY_SHORT << "\": \"0x" << typesDefinitionHex << "\"";
+
 				newData << ", \"" << DATA_KEY << "\": " <<
 					   (((*it).second).types.empty() ? "{}" : ((*it).second).types) <<
 					   "}}";
@@ -907,6 +916,25 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 					continue;
 				}
 
+				// FIXME_I:
+				long dataTypesShort;
+				if (cachedValue.HasMember(DATA_KEY_SHORT) &&
+					cachedValue[DATA_KEY_SHORT].IsString())
+				{
+					string strDataTypesShort = cachedValue[DATA_KEY_SHORT].GetString();
+					dataTypesShort = stoi (strDataTypesShort,nullptr,16);
+				}
+				else
+				{
+					Logger::getLogger()->warn("%s plugin: current element '%s'" \
+								  "doesn't have '%s' property, ignoring it",
+											  PLUGIN_NAME,
+											  key.c_str(),
+											  DATA_KEY_SHORT);
+					continue;
+				}
+
+
 				string dataTypes;
 				if (cachedValue.HasMember(DATA_KEY) &&
 				    cachedValue[DATA_KEY].IsObject())
@@ -931,6 +959,8 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 				OMFDataTypes dataType;
 				dataType.typeId = typeId;
 				dataType.types = dataTypes;
+				// FIXME_I:
+				dataType.typesDefinition = dataTypesShort;
 
 				// Add data into the map
 				connInfo->assetsDataTypes[key] = dataType;

@@ -12,7 +12,7 @@
 
 .. |build fledge| raw:: html
 
-   <a href="03_getting_started.html#building-fledge" target="_blank">here</a>
+   <a href="building_fledge.html" target="_blank">here</a>
 
 .. |snappy| raw:: html
 

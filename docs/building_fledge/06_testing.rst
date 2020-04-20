@@ -45,7 +45,7 @@
 
 .. |get start| raw:: html
 
-   <a href="03_getting_started.html" target="_blank">Getting Started</a>
+   <a href="building_fledge.html" target="_blank">Building Fledge</a>
 
 
 .. =============================================

@@ -79,3 +79,5 @@ python/filter_ingest.so*
 # Python south & filter plugins
 python/fledge/plugins/south/*
 python/fledge/plugins/filter/*
+python/fledge/plugins/notificationDelivery/*
+python/fledge/plugins/notificationRule/*

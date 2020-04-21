@@ -17,6 +17,7 @@
 .. |update_certificate| image:: images/update_certificate.jpg
 
 
+
 ***************
 Securing Fledge
 ***************

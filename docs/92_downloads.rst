@@ -37,7 +37,7 @@ Downloads
 Packages
 ========
 
-Packages for a number of different Linux platforms are avialable for both Intel and Arm architectures via the Dianomic web site's download page.
+Packages for a number of different Linux platforms are available for both Intel and Arm architectures via the Dianomic web site's download page.
 
 - |downloads|
 

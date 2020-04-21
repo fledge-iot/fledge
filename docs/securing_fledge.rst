@@ -10,15 +10,12 @@
 .. |password| image:: images/password.jpg
 .. |user_management| image:: images/user_management.jpg
 .. |add_user| image:: images/add_user.jpg
+.. |delete_user| image:: images/delete_user.jpg
 .. |change_role| image:: images/change_role.jpg
 .. |reset_password| image:: images/reset_password.jpg
 .. |certificate_store| image:: images/certificate_store.jpg
 .. |update_certificate| image:: images/update_certificate.jpg
 
-.. Links
-.. |filter_plugins| raw:: html
-
-   <a href="fledge_plugins.html#filer-plugins">Filter Plugins</a>
 
 
 ***************
@@ -49,7 +46,7 @@ The *Certificate Name* is the name of the certificate that will be used for encr
 After enabling HTTPS and selecting save you must restart Fledge in order for the change to take effect. You must also update the connection setting in the GUI to use the HTTPS transport and the correct port.
 
 +--------------------+
-| |connection_deselected| |
+| |connection_https| |
 +--------------------+
 
 Requiring User Login
@@ -169,6 +166,10 @@ Delete A User
 -------------
 
 Users may be deleted from the *User Management* page. Select the *delete* link to the right of the user you wish to delete. A confirmation dialog will appear. Select *Delete* and the user will be deleted.
+
++---------------+
+| |delete_user| |
++---------------+
 
 You can not delete the last user with role *admin* as this will prevent you from being able to manage Fledge.
 

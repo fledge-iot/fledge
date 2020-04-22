@@ -821,12 +821,12 @@ string saveSentDataTypes(CONNECTOR_INFO* connInfo)
 				newData << "{\"" << (*it).first << "\" : {\"" << TYPE_ID_KEY <<
 					   "\": " << to_string(((*it).second).typeId);
 
-				// FIXME_I:
-				std::stringstream sstream;
-				sstream << std::hex << ((*it).second).typesDefinition;
-				std::string typesDefinitionHex = sstream.str();
+				// The information should be stored as string in hexadecimal format
+				std::stringstream tmpStream;
+				tmpStream << std::hex << ((*it).second).typesShort;
+				std::string typesShort = tmpStream.str();
 
-				newData << ", \"" << DATA_KEY_SHORT << "\": \"0x" << typesDefinitionHex << "\"";
+				newData << ", \"" << DATA_KEY_SHORT << "\": \"0x" << typesShort << "\"";
 
 				newData << ", \"" << DATA_KEY << "\": " <<
 					   (((*it).second).types.empty() ? "{}" : ((*it).second).types) <<
@@ -916,12 +916,12 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 					continue;
 				}
 
-				// FIXME_I:
 				long dataTypesShort;
 				if (cachedValue.HasMember(DATA_KEY_SHORT) &&
 					cachedValue[DATA_KEY_SHORT].IsString())
 				{
 					string strDataTypesShort = cachedValue[DATA_KEY_SHORT].GetString();
+					// The information are stored as string in hexadecimal format
 					dataTypesShort = stoi (strDataTypesShort,nullptr,16);
 				}
 				else
@@ -959,8 +959,7 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 				OMFDataTypes dataType;
 				dataType.typeId = typeId;
 				dataType.types = dataTypes;
-				// FIXME_I:
-				dataType.typesDefinition = dataTypesShort;
+				dataType.typesShort = dataTypesShort;
 
 				// Add data into the map
 				connInfo->assetsDataTypes[key] = dataType;

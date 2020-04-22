@@ -17,7 +17,7 @@
 #include <zlib.h>
 #include <rapidjson/document.h>
 
-#define TYPE_ID_DEFAULT 1
+#define TYPE_ID_DEFAULT 0
 #define FAKE_ASSET_KEY		"_default_start_id_"
 #define OMF_TYPE_STRING		"string"
 #define OMF_TYPE_INTEGER	"integer"
@@ -44,10 +44,9 @@ using namespace rapidjson;
 class OMFDataTypes
 {
         public:
-                long typeId;
-                std::string types;
-                // FIXME_I:
-                unsigned long typesDefinition;
+                long          typeId;
+                std::string   types;
+                unsigned long typesShort;
 };
 
 /**
@@ -186,20 +185,19 @@ class OMF
 				     std::string& data);
 
 		// Create the OMF data types if needed
-		bool handleDataTypes(const Reading& row,
-				     bool skipSendingTypes);
+		bool handleDataTypes(const string keyComplete,
+			                 const Reading& row,
+				             bool skipSendingTypes);
 
 		// Send OMF data types
 		bool sendDataTypes(const Reading& row);
 
 		// Get saved dataType
-		bool getCreatedTypes(const std::string& key, const Reading& row);
+		bool getCreatedTypes(const std::string& keyComplete, const Reading& row);
 
 		// Set saved dataType
 		bool setCreatedTypes(const std::string& key);
-		// FIXME_I:
-		string generateTypesString(const Reading& row);
-		unsigned long generateTypeDefinition(const Reading& row);
+		unsigned long calcTypeShort(const Reading& row);
 
 
 	// Clear data types cache
@@ -209,16 +207,16 @@ class OMF
 		void incrementTypeId();
 
                 // Handle data type errors
-		bool handleTypeErrors(const Reading& reading);
+		bool handleTypeErrors(const string& keyComplete, const Reading& reading);
 
 		// Extract assetName from erro message
 		std::string getAssetNameFromError(const char* message);
 
 		// Get asset type-id from cached data
-		long getAssetTypeId(const std::string& assetName) const;
+		long getAssetTypeId(const std::string& assetName);
 
 		// Increment per asset type-id value
-		void incrementAssetTypeId(const std::string& assetName);
+		void incrementAssetTypeId(const std::string& keyComplete);
 
 		// Set global type-id as the maximum value of all per asset type-ids
 		void setTypeId();
@@ -227,7 +225,7 @@ class OMF
 		bool setCreatedTypes(const Reading& row);
 
 		// Remove cached data types enttry for given asset name
-		void clearCreatedTypes(const std::string& key);
+		void clearCreatedTypes(const std::string& keyComplete);
 
 		// Add the 1st level of AF hierarchy if the end point is PI Web API
 		void setAFHierarchy();
@@ -246,8 +244,7 @@ class OMF
 
 		std::string generateUniquePrefixId(const std::string &path);
 		void evaluateAFHierarchyRules(const string& assetName, const Reading& reading);
-		void retrieveAFHierarchyPrefix(const Reading& reading, string& prefix, string& AFHierarchyLevel);
-		void retrieveAFHierarchyPrefixAssetName(string assetName, string& prefix, string& AFHierarchyLevel);
+		void retrieveAFHierarchyPrefixAssetName(const string& assetName, string& prefix, string& AFHierarchyLevel);
 
 		bool HandleAFMapNames(Document& JSon);
 		bool HandleAFMapMetedata(Document& JSon);

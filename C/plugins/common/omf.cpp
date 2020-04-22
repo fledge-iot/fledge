@@ -1184,45 +1184,35 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 #endif
 
 #if INSTRUMENT
-	struct timeval tm;
-	double timeT1, timeT2, timeT3, timeT4, timeT5;
+		struct timeval tm;
+		double timeT1, timeT2, timeT3, timeT4, timeT5;
 
-	timersub(&t1, &start, &tm);
-	timeT1 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
+		timersub(&t1, &start, &tm);
+		timeT1 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
 
-	timersub(&t2, &t1, &tm);
-	timeT2 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
+		timersub(&t2, &t1, &tm);
+		timeT2 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
 
-	timersub(&t3, &t2, &tm);
-	timeT3 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
+		timersub(&t3, &t2, &tm);
+		timeT3 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
 
-	timersub(&t4, &t3, &tm);
-	timeT4 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
+		timersub(&t4, &t3, &tm);
+		timeT4 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
 
-	timersub(&t5, &t4, &tm);
-	timeT5 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
+		timersub(&t5, &t4, &tm);
+		timeT5 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
 
 
 		Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("Timing seconds - thread :%s: - superSet :%6.3f: - Loop :%6.3f: - compress :%6.3f:  - send data :%6.3f:",
-							   threadId.str().c_str(),
-							   timeT1,
-							   timeT2,
-							   timeT3,
-							   timeT4
-	);
+		Logger::getLogger()->debug("Timing seconds - thread :%s: - superSet :%6.3f: - Loop :%6.3f: - compress :%6.3f:  - send data :%6.3f:",
+								   threadId.str().c_str(),
+								   timeT1,
+								   timeT2,
+								   timeT3,
+								   timeT4
+		);
 
-//		char tmp_buffer[500000];
-//		snprintf (tmp_buffer,500000, "Timing seconds - thread :%s: - superSet :%6.3f: - Loop :%6.3f: - compress :%6.3f:  - send data :%6.3f:",
-//				  threadId.str().c_str(),
-//				  timeT1,
-//				  timeT2,
-//				  timeT3,
-//				  timeT4
-//		);
-//		tmpLogger (tmp_buffer);
-
-	Logger::getLogger()->setMinLevel("warning");
+		Logger::getLogger()->setMinLevel("warning");
 #endif
 
 

@@ -175,3 +175,4 @@ html_context = {
      }
 
 subprocess.run(["make fledge_plugins.rst"], shell=True, check=True)
+subprocess.run(["make plugins"], shell=True, check=True)

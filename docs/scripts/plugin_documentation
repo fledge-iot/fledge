@@ -1,0 +1,94 @@
+#!/bin/bash
+function plugin_doc {
+	plugin=$1
+	dest=$2
+	product=`echo $plugin | sed -e 's/-.*//'`
+	if [ $product = "foglamp" ]; then
+		org=dianomic
+	else
+		org=fledge-iot
+	fi
+	type=`echo $plugin | sed -e 's/fledge-//' -e 's/foglamp-//' -e 's/-.*//'`
+	name=`echo $plugin | sed -e 's/fledge-//' -e 's/foglamp-//' -e "s/${type}-//"`
+	mkdir -p /tmp/doc.$$
+	(
+		cd /tmp/doc.$$
+		git clone https://github.com/${org}/${plugin}.git
+		if [ "$DOCBRANCH" != "" ]; then
+			cd $plugin
+			git checkout $DOCBRANCH
+		fi
+	)
+	if [ -d /tmp/doc.$$/${plugin}/docs ]; then
+		rm -rf plugins/${plugin}
+		mkdir -p plugins/${plugin}
+		cp -r /tmp/doc.$$/${plugin}/docs/. plugins/${plugin}
+		if [ -f plugins/${plugin}/index.rst ]; then
+			echo "    ${plugin}/index" >> $dest
+		else
+			files=`ls ${plugin}/*.rst`
+			file=`basename $files .rst`
+			echo "    ${plugin}/${file}" >> $dest
+		fi
+	fi
+	rm -rf /tmp/doc/$$
+}
+
+# Always create a fresh set of documentation
+if [ -d plugins ]; then
+	rm -rf plugins
+fi
+mkdir plugins
+
+cat > plugins/south.rst << EOFSOUTH
+********************
+Fledge South Plugins
+********************
+
+.. toctree::
+
+EOFSOUTH
+cat > plugins/north.rst << EOFNORTH
+********************
+Fledge North Plugins
+********************
+
+.. toctree::
+
+EOFNORTH
+cat > plugins/filter.rst << EOFFILTER
+*********************
+Fledge Filter Plugins
+*********************
+
+.. toctree::
+
+EOFFILTER
+cat > plugins/rule.rst << EOFRULE
+********************************
+Fledge Notification Rule Plugins
+********************************
+
+.. toctree::
+
+EOFRULE
+cat > plugins/notify.rst << EOFRULE
+************************************
+Fledge Notification Delivery Plugins
+************************************
+
+.. toctree::
+
+EOFRULE
+
+fledgeRepos=`curl -s  https://api.github.com/orgs/fledge-iot/repos\?per_page=100`
+REPOSITORIES=`echo $fledgeRepos | python3 -c 'import json,sys;repos=json.load(sys.stdin);fRepos = [r["name"] for r in repos];print("\n".join(fRepos))' | sort -f`
+
+for repo in $REPOSITORIES
+do
+	type=`echo $repo | sed -e 's/fledge-//' -e 's/foglamp-//' -e 's/-.*//'`
+	if [ "$type" = "south" -o "$type" = "north" -o $type = "filter" -o $type = "rule" -o $type = "notify" ]; then
+		dest=plugins/${type}.rst
+		plugin_doc $repo $dest
+	fi
+done

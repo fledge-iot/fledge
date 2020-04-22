@@ -23,3 +23,8 @@ Welcome to Fledge's documentation!
     RASPBIAN
     REDHAT
     KERBEROS
+    plugins/south
+    plugins/north
+    plugins/filter
+    plugins/rule
+    plugins/notify

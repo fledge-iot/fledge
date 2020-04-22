@@ -8,6 +8,7 @@
 .. |user_pulldown| image:: images/user_pulldown.jpg
 .. |profile| image:: images/profile.jpg
 .. |password| image:: images/password.jpg
+.. |password_rotation| image:: images/password_rotation.jpg
 .. |user_management| image:: images/user_management.jpg
 .. |add_user| image:: images/add_user.jpg
 .. |delete_user| image:: images/delete_user.jpg
@@ -107,6 +108,18 @@ Towards the bottom of this profile display the *change password* option appears.
 +------------+
 
 This popup can be used to change your password. On successfully changing your password you will be logged out of the user interface and will be required to log back in using this new password.
+
+Password Rotation Mechanism
+---------------------------
+
+Fledge provides a mechanism to limit the age of passwords in use within the system. A value for the maximum allowed age of a password is defined in the configuration page of the user interface.
+
++---------------------+
+| |password_rotation| |
++---------------------+
+
+Whenever a user logs into Fledge the age of their password is checked against the maximum allowed password age. If their password has reached that age then the user is not logged in, but is instead forced to enter a new password. They must then login with that new password. In addition the system maintains a history of the last three passwords the user has used and prevents them being reused.
+
 
 User Management
 ===============

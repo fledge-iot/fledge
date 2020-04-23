@@ -1698,8 +1698,6 @@ const std::string OMF::createStaticData(const Reading& reading)
 	else if (m_PIServerEndpoint == ENDPOINT_OCS ||
 	         m_PIServerEndpoint == ENDPOINT_EDS)
 	{
-		// FIXME_I: to be verified
-		//sData.append(assetName + AF_TYPES_SUFFIX + to_string(typeId));
 		sData.append(assetName);
 
 	}
@@ -1797,13 +1795,15 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 
 	lData.append("\", \"index\": \"");
 
-	if (m_PIServerEndpoint == ENDPOINT_CR  ||
-		m_PIServerEndpoint == ENDPOINT_OCS ||
-		m_PIServerEndpoint == ENDPOINT_EDS
-		)
+	if (m_PIServerEndpoint == ENDPOINT_CR)
 	{
 		// Add asset_name
-		// FIXME_I: to be verified
+		lData.append(assetName);
+	}
+	else if (m_PIServerEndpoint == ENDPOINT_OCS ||
+			 m_PIServerEndpoint == ENDPOINT_EDS)
+	{
+		// Add asset_name
 		lData.append(assetName);
 	}
 	else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)

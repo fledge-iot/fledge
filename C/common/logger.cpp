@@ -32,28 +32,26 @@ Logger *Logger::instance = 0;
 
 Logger::Logger(const string& application)
 {
-	m_app_name = new string(application);
+static char ident[80];
+
 	/* Prepend "Fledge " is not already there.
-	 *
-	 * NB: We can not simply change m_app_name
-	 * as it breaks various things later in the startup processing.
 	 */
-	if (m_app_name->substr(0, strlen("Fledge")).compare("Fledge") != 0)
+	if (application.substr(0, strlen("Fledge")).compare("Fledge") != 0)
 	{
-		string logname = string("Fledge ") + m_app_name->c_str();
-		openlog(logname.c_str(), LOG_PID|LOG_CONS, LOG_USER);
+		string logname = string("Fledge ") + application.c_str();
+		snprintf(ident, sizeof(ident), "Fledge %s", logname.c_str());
 	}
 	else
 	{
-		openlog(m_app_name->c_str(), LOG_PID|LOG_CONS, LOG_USER);
+		strncpy(ident, application.c_str(), sizeof(ident));
 	}
+	openlog(ident, LOG_PID|LOG_CONS, LOG_USER);
 	instance = this;
 }
 
 Logger::~Logger()
 {
 	closelog();
-	delete m_app_name;
 }
 
 Logger *Logger::getLogger()

@@ -17,8 +17,8 @@
 #include <zlib.h>
 #include <rapidjson/document.h>
 
-#define TYPE_ID_DEFAULT 0
-#define FAKE_ASSET_KEY		"_default_start_id_"
+#define TYPE_ID_DEFAULT     1
+#define FAKE_ASSET_KEY      "_default_start_id_"
 #define OMF_TYPE_STRING		"string"
 #define OMF_TYPE_INTEGER	"integer"
 #define OMF_TYPE_FLOAT		"number"

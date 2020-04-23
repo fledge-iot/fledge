@@ -29,8 +29,7 @@ using namespace rapidjson;
 static bool isTypeSupported(DatapointValue& dataPoint);
 
 // 1 enable performance tracking
-// FIXME_I:
-#define INSTRUMENT	1
+#define INSTRUMENT	0
 
 #define  AFHierarchySeparator '/'
 #define  AF_TYPES_SUFFIX       "-type"
@@ -2761,9 +2760,10 @@ long OMF::getAssetTypeId(const string& assetName)
 		else
 		{
 			// Use current value of m_typeId
-			typeId = m_typeId;
+			typeId = TYPE_ID_DEFAULT;
 		}
 	}
+
 	return typeId;
 }
 
@@ -2949,7 +2949,8 @@ bool OMF::setCreatedTypes(const Reading& row)
 		// New entry
 		OMFDataTypes newData;
 		// Start from default as we don't have anything in the cache
-		newData.typeId = m_typeId;
+		newData.typeId = TYPE_ID_DEFAULT;
+
 		newData.types = types;
 		(*m_OMFDataTypes)[keyComplete] = newData;
 	}

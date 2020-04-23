@@ -9,6 +9,8 @@ import platform
 import subprocess
 from pathlib import Path
 from aiohttp import web
+import urllib.parse
+
 from fledge.services.core.support import SupportBuilder
 
 __author__ = "Ashish Jabble"
@@ -110,6 +112,7 @@ async def get_syslog_entries(request):
         curl -X GET "http://localhost:8081/fledge/syslog?limit=5"
         curl -X GET "http://localhost:8081/fledge/syslog?offset=5"
         curl -X GET "http://localhost:8081/fledge/syslog?source=storage"
+        curl -X GET "http://localhost:8081/fledge/syslog?source=<svc_name>|<task_name>"
         curl -X GET "http://localhost:8081/fledge/syslog?level=error"
         curl -X GET "http://localhost:8081/fledge/syslog?limit=5&source=storage"
         curl -X GET "http://localhost:8081/fledge/syslog?limit=5&offset=5&source=storage"
@@ -129,13 +132,12 @@ async def get_syslog_entries(request):
     except (Exception, ValueError):
         raise web.HTTPBadRequest(reason="Offset must be a positive integer OR Zero")
 
-    try:
-        source = request.query['source'] if 'source' in request.query and request.query['source'] != '' else __DEFAULT_LOG_SOURCE
-        if source.lower() not in ['fledge', 'storage']:
-            raise ValueError
+    source = urllib.parse.unquote(request.query['source']) if 'source' in request.query and request.query['source'] != '' else __DEFAULT_LOG_SOURCE
+    if source.lower() in ['fledge', 'storage']:
+        source = source.lower()
         valid_source = {'fledge': "Fledge.*", 'storage': 'Fledge Storage'}
-    except ValueError:
-        raise web.HTTPBadRequest(reason="{} is not a valid source".format(source))
+    else:
+        valid_source = {source: "Fledge {}".format(source)}
 
     try:
         # Get filtered lines
@@ -151,10 +153,10 @@ async def get_syslog_entries(request):
                 lines = __GET_SYSLOG_WARNING_MATCHED_LINES
 
         # Get total lines
-        cmd = lines.format(valid_source[source.lower()], _SYSLOG_FILE)
+        cmd = lines.format(valid_source[source], _SYSLOG_FILE)
         t = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
         total_lines = int(t[0].decode())
-        cmd = template.format(valid_source[source.lower()], _SYSLOG_FILE, total_lines - offset, limit)
+        cmd = template.format(valid_source[source], _SYSLOG_FILE, total_lines - offset, limit)
         a = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
         c = [b.decode() for b in a]  # Since "a" contains return value in bytes, convert it to string
     except (OSError, Exception) as ex:

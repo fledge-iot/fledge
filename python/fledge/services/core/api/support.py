@@ -133,7 +133,7 @@ async def get_syslog_entries(request):
         source = request.query['source'] if 'source' in request.query and request.query['source'] != '' else __DEFAULT_LOG_SOURCE
         if source.lower() not in ['fledge', 'storage']:
             raise ValueError
-        valid_source = {'fledge': "Fledge|Fledge Storage", 'storage': 'Fledge Storage'}
+        valid_source = {'fledge': "Fledge.*", 'storage': 'Fledge Storage'}
     except ValueError:
         raise web.HTTPBadRequest(reason="{} is not a valid source".format(source))
 

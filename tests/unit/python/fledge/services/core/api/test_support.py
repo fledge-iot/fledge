@@ -144,7 +144,10 @@ class TestBundleSupport:
         Mar 19 14:00:58 nerd51-ThinkPad Fledge[18809] INFO: scheduler: fledge.services.core.scheduler.scheduler: Starting Scheduler: Management port received is 38311
         Mar 19 14:00:58 nerd51-ThinkPad Fledge[18809] INFO: scheduler: fledge.services.core.scheduler.scheduler: Scheduled task for schedule 'purge' to start at 2018-03-19 15:00:58.912532
         Mar 19 14:00:58 nerd51-ThinkPad Fledge[18809] INFO: scheduler: fledge.services.core.scheduler.scheduler: Scheduled task for schedule 'stats collection' to start at 2018-03-19 14:01:13.912532
-        Mar 19 14:00:58 nerd51-ThinkPad Fledge[18809] INFO: scheduler: fledge.services.core.scheduler.scheduler: Scheduled task for schedule 'certificate checker' to start at 2018-03-19 15:05:00"
+        Mar 19 14:00:58 nerd51-ThinkPad Fledge[18809] INFO: scheduler: fledge.services.core.scheduler.scheduler: Scheduled task for schedule 'certificate checker' to start at 2018-03-19 15:05:00
+        Apr 22 13:59:39 aj Fledge S1[28584] INFO: sinusoid: module.name: Sinusoid plugin_init called
+        Apr 22 13:57:08 aj Fledge S2[26398] INFO: sinusoid: module.name: Sinusoid plugin_reconfigure called
+        Apr 22 14:04:59 aj Fledge HT[7080] INFO: sending_process: sending_process_HT: Started"
         """
 
         with patch.object(support, "__GET_SYSLOG_CMD_TEMPLATE", mock_syslog()):
@@ -161,7 +164,7 @@ class TestBundleSupport:
     async def test_get_syslog_entries_all_with_level_error(self, client):
         def mock_syslog():
             return """
-            echo "Sep 12 13:31:41 nerd-034 Fledge[9241] ERROR: sending_process: sending_process_PI: cannot complete the sending operation"
+            echo "Sep 12 13:31:41 nerd-034 Fledge PI[9241] ERROR: sending_process: sending_process_PI: cannot complete the sending operation"
             """
 
         with patch.object(support, "__GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE", mock_syslog()):

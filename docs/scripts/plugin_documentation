@@ -31,7 +31,7 @@ function plugin_doc {
 			echo "    ${plugin}/${file}" >> $dest
 		fi
 	fi
-	rm -rf /tmp/doc/$$
+	rm -rf /tmp/doc.$$
 }
 
 # Always create a fresh set of documentation

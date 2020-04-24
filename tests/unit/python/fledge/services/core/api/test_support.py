@@ -151,12 +151,12 @@ class TestBundleSupport:
         """
 
         with patch.object(support, "__GET_SYSLOG_CMD_TEMPLATE", mock_syslog()):
-            with patch.object(support, "__GET_SYSLOG_TOTAL_MATCHED_LINES", """echo "10" """):
+            with patch.object(support, "__GET_SYSLOG_TOTAL_MATCHED_LINES", """echo "13" """):
                 resp = await client.get('/fledge/syslog')
                 res = await resp.text()
                 jdict = json.loads(res)
                 assert 200 == resp.status
-                assert 10 == jdict['count']
+                assert 13 == jdict['count']
                 assert 'INFO' in jdict['logs'][0]
                 assert 'Fledge' in jdict['logs'][0]
                 assert 'Fledge Storage' in jdict['logs'][5]
@@ -230,7 +230,6 @@ class TestBundleSupport:
     @pytest.mark.parametrize("param, message", [
         ("__DEFAULT_LIMIT", "Limit must be a positive integer"),
         ("__DEFAULT_OFFSET", "Offset must be a positive integer OR Zero"),
-        ("__DEFAULT_LOG_SOURCE", "garbage is not a valid source")
     ])
     async def test_get_syslog_entries_exception(self, client, param, message):
         with patch.object(support, param, "garbage"):
@@ -244,3 +243,40 @@ class TestBundleSupport:
             resp = await client.get('/fledge/syslog')
             assert 500 == resp.status
             assert msg == resp.reason
+
+    async def test_get_syslog_entries_from_name(self, client):
+        def mock_syslog():
+            return """
+            echo "Apr 23 18:30:21 aj Fledge Sine 1[21288] ERROR: sinusoid: module.name: Sinusoid plugin_init: module.name#012NoneType
+            "
+            """
+        with patch.object(support, "__GET_SYSLOG_CMD_TEMPLATE", mock_syslog()):
+            with patch.object(support, "__GET_SYSLOG_TOTAL_MATCHED_LINES", """echo "1" """):
+                resp = await client.get('/fledge/syslog?source=Sine 1')
+                res = await resp.text()
+                jdict = json.loads(res)
+                assert 200 == resp.status
+                assert 1 == jdict['count']
+                assert 'Fledge Sine 1' in jdict['logs'][0]
+
+    @pytest.mark.parametrize("level, actual_count", [
+        ('error', 0),
+        ('info', 3)
+    ])
+    async def test_get_syslog_entries_from_name_with_level(self, client, level, actual_count):
+        def mock_syslog():
+            return """
+            echo "Apr 23 18:30:21 aj Fledge HT[31901] INFO: sending_process: sending_process_HT: Started
+            Apr 23 18:48:52 aj Fledge HT[31901] INFO: sending_process: sending_process_HT: Stopped
+            Apr 23 18:48:52 aj Fledge HT[31901] INFO: sending_process: sending_process_HT: Execution completed."
+            """
+        with patch.object(support, "__GET_SYSLOG_CMD_TEMPLATE", mock_syslog()):
+            with patch.object(support, "__GET_SYSLOG_TOTAL_MATCHED_LINES", """echo "3" """):
+                resp = await client.get('/fledge/syslog?source=HT&level={}'.format(level))
+                res = await resp.text()
+                jdict = json.loads(res)
+                assert 200 == resp.status
+                assert actual_count == jdict['count']
+                if level == 'info':
+                    assert 3 == jdict['count']
+                    assert 'HT' in jdict['logs'][0]

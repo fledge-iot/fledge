@@ -38,8 +38,7 @@ static char ident[80];
 	 */
 	if (application.substr(0, strlen("Fledge")).compare("Fledge") != 0)
 	{
-		string logname = string("Fledge ") + application.c_str();
-		snprintf(ident, sizeof(ident), "Fledge %s", logname.c_str());
+		snprintf(ident, sizeof(ident), "Fledge %s", application.c_str());
 	}
 	else
 	{

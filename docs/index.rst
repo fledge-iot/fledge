@@ -10,8 +10,11 @@ Welcome to Fledge's documentation!
 .. toctree::
 
     quick_start
+    processing_data
     fledge_architecture
     fledge_plugins
+    securing_fledge
+    notifications
     plugin_developers_guide/index
     rest_api_guide/index
     building_fledge/index

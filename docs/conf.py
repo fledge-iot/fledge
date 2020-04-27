@@ -19,7 +19,7 @@
 # import os
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
-
+import subprocess
 
 # -- General configuration ------------------------------------------------
 
@@ -46,7 +46,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Fledge'
-copyright = u'2018, Dianomic Systems'
+copyright = u'2020, Dianomic Systems'
 author = u'Dianomic Systems'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -173,3 +173,5 @@ html_context = {
         '_static/theme_overrides.css',  # override wide tables in RTD theme
         ],
      }
+
+subprocess.run(["make fledge_plugins.rst"], shell=True, check=True)

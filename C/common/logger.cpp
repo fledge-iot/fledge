@@ -34,10 +34,9 @@ Logger::Logger(const string& application)
 {
 static char ident[80];
 
-	/* Prepend "Fledge " is not already there.
+	/* Prepend "Fledge " in all casaes other than Fledge itelf and Fledge Storage..
 	 */
-	if (application.substr(0, strlen("Fledge ")).compare("Fledge ") != 0 &&
-	   application.compare("Fledge") != 0 && application.compare("Fledge Storage") != 0)
+	if (application.compare("Fledge") != 0 && application.compare("Fledge Storage") != 0)
 	{
 		snprintf(ident, sizeof(ident), "Fledge %s", application.c_str());
 	}

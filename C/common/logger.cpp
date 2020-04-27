@@ -36,7 +36,8 @@ static char ident[80];
 
 	/* Prepend "Fledge " is not already there.
 	 */
-	if (application.substr(0, strlen("Fledge")).compare("Fledge") != 0)
+	if (application.substr(0, strlen("Fledge ")).compare("Fledge ") != 0 &&
+	   application.compare("Fledge") != 0 && application.compare("Fledge Storage") != 0)
 	{
 		snprintf(ident, sizeof(ident), "Fledge %s", application.c_str());
 	}

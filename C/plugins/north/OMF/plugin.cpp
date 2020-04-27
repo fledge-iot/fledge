@@ -94,12 +94,12 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"displayName": "Endpoint"
 		},
 		"ServerHostname": {
-			"description": "Hostname of the server running the endpoint either PI Web API or Connector Relay or Edge Data Store",
+			"description": "Hostname of the server running the endpoint either PI Web API or Connector Relay",
 			"type": "string",
-			"default": "localhost",
+			"default": "localhost2",
 			"order": "2",
 			"displayName": "Server hostname",
-			"validity" : "PIServerEndpoint != \"OSIsoft Cloud Services\""
+			"validity" : "PIServerEndpoint != \"Edge Data Store\" && PIServerEndpoint != \"OSIsoft Cloud Services\""
 		},
 		"ServerPort": {
 			"description": "Port on which the endpoint either PI Web API or Connector Relay or Edge Data Store is listening, 0 will use the default one",

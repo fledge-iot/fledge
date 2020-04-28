@@ -32,15 +32,25 @@ Logger *Logger::instance = 0;
 
 Logger::Logger(const string& application)
 {
-	m_app_name = new string(application);
-	openlog(m_app_name->c_str(), LOG_PID|LOG_CONS, LOG_USER);
+static char ident[80];
+
+	/* Prepend "Fledge " in all casaes other than Fledge itelf and Fledge Storage..
+	 */
+	if (application.compare("Fledge") != 0 && application.compare("Fledge Storage") != 0)
+	{
+		snprintf(ident, sizeof(ident), "Fledge %s", application.c_str());
+	}
+	else
+	{
+		strncpy(ident, application.c_str(), sizeof(ident));
+	}
+	openlog(ident, LOG_PID|LOG_CONS, LOG_USER);
 	instance = this;
 }
 
 Logger::~Logger()
 {
 	closelog();
-	delete m_app_name;
 }
 
 Logger *Logger::getLogger()

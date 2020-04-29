@@ -18,6 +18,7 @@
 #include <plugin_exception.h>
 #include <iostream>
 #include <omf.h>
+#include <piwebapi.h>
 #include <ocs.h>
 #include <simple_https.h>
 #include <simple_http.h>
@@ -43,6 +44,7 @@ using namespace SimpleWeb;
 #define TYPE_ID_KEY "type-id"
 #define SENT_TYPES_KEY "sentDataTypes"
 #define DATA_KEY "dataTypes"
+#define DATA_KEY_SHORT "dataTypesShort"
 
 #define ENDPOINT_URL_PI_WEB_API "https://HOST_PLACEHOLDER:PORT_PLACEHOLDER/piwebapi/omf"
 #define ENDPOINT_URL_CR         "https://HOST_PLACEHOLDER:PORT_PLACEHOLDER/ingress/messages"
@@ -297,6 +299,8 @@ typedef struct
 	string		AFMap;                  // Defines a set of rules to address where assets should be placed in the AF hierarchy.
 
 	string		prefixAFAsset;          // Prefix to generate unique asste id
+	string		PIWebAPIProductTitle;
+	string		PIWebAPIVersion;
 	string		PIWebAPIAuthMethod;     // Authentication method to be used with the PI Web API.
 	string		PIWebAPICredentials;    // Credentials is the base64 encoding of id and password joined by a single colon (:)
 	string 		KerberosKeytab;         // Kerberos authentication keytab file
@@ -331,6 +335,7 @@ OMF_ENDPOINT  identifyPIServerEndpoint     (CONNECTOR_INFO* connInfo);
 string        AuthBasicCredentialsGenerate (string& userId, string& password);
 void          AuthKerberosSetup            (string& keytabFile, string& keytabFileName);
 string        OCSRetrieveAuthToken         (CONNECTOR_INFO* connInfo);
+string        PIWebAPIGetVersion           (CONNECTOR_INFO* connInfo);
 
 /**
  * Return the information about this plugin
@@ -538,6 +543,13 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 		}
 	} while (pos != string::npos);
 
+	// retrieves the Pi Web Api Version
+	if (connInfo->PIServerEndpoint == ENDPOINT_PIWEB_API)
+	{
+		connInfo->PIWebAPIVersion = PIWebAPIGetVersion(connInfo);
+		Logger::getLogger()->info("PIWebAPI version :%s:" ,connInfo->PIWebAPIVersion.c_str() );
+	}
+
 #if VERBOSE_LOG
 	// Log plugin configuration
 	Logger::getLogger()->info("%s plugin configured: URL=%s, "
@@ -619,7 +631,7 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 		     const vector<Reading *>& readings)
 {
 	CONNECTOR_INFO* connInfo = (CONNECTOR_INFO *)handle;
-        
+
 	/**
 	 * Allocate the HTTPS handler for "Hostname : port"
 	 * connect_timeout and request_timeout.
@@ -808,6 +820,14 @@ string saveSentDataTypes(CONNECTOR_INFO* connInfo)
 				newData << (pendingSeparator ? ", " : "");
 				newData << "{\"" << (*it).first << "\" : {\"" << TYPE_ID_KEY <<
 					   "\": " << to_string(((*it).second).typeId);
+
+				// The information should be stored as string in hexadecimal format
+				std::stringstream tmpStream;
+				tmpStream << std::hex << ((*it).second).typesShort;
+				std::string typesShort = tmpStream.str();
+
+				newData << ", \"" << DATA_KEY_SHORT << "\": \"0x" << typesShort << "\"";
+
 				newData << ", \"" << DATA_KEY << "\": " <<
 					   (((*it).second).types.empty() ? "{}" : ((*it).second).types) <<
 					   "}}";
@@ -896,6 +916,25 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 					continue;
 				}
 
+				long dataTypesShort;
+				if (cachedValue.HasMember(DATA_KEY_SHORT) &&
+					cachedValue[DATA_KEY_SHORT].IsString())
+				{
+					string strDataTypesShort = cachedValue[DATA_KEY_SHORT].GetString();
+					// The information are stored as string in hexadecimal format
+					dataTypesShort = stoi (strDataTypesShort,nullptr,16);
+				}
+				else
+				{
+					Logger::getLogger()->warn("%s plugin: current element '%s'" \
+								  "doesn't have '%s' property, ignoring it",
+											  PLUGIN_NAME,
+											  key.c_str(),
+											  DATA_KEY_SHORT);
+					continue;
+				}
+
+
 				string dataTypes;
 				if (cachedValue.HasMember(DATA_KEY) &&
 				    cachedValue[DATA_KEY].IsObject())
@@ -920,6 +959,7 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 				OMFDataTypes dataType;
 				dataType.typeId = typeId;
 				dataType.types = dataTypes;
+				dataType.typesShort = dataTypesShort;
 
 				// Add data into the map
 				connInfo->assetsDataTypes[key] = dataType;
@@ -959,6 +999,25 @@ long getMaxTypeId(CONNECTOR_INFO* connInfo)
 	}
 	return maxId;
 }
+
+
+/**
+ * Calls the PIWebAPI api to retrieve the version
+ */
+string PIWebAPIGetVersion(CONNECTOR_INFO* connInfo)
+{
+	string version;
+	PIWebAPI *_PIWebAPI;
+
+	_PIWebAPI = new PIWebAPI();
+
+	version = _PIWebAPI->GetVersion(connInfo->hostAndPort);
+
+	delete _PIWebAPI;
+
+	return version;
+}
+
 
 /**
  * Calls the OCS api to retrieve the authentication token

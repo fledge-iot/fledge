@@ -81,7 +81,7 @@ class SupportBuilder:
                     north_cat = await cf_mgr.get_category_child("North")
                     north_categories = [nc["key"] for nc in north_cat]
                     for task in north_categories:
-                        if task != "OMF_TYPE":
+                        if task != "OMF_TYPES":
                             self.add_syslog_service(pyz, file_spec, task)
                 except:
                     pass
@@ -144,12 +144,14 @@ class SupportBuilder:
 
     def add_syslog_service(self, pyz, file_spec, service):
         # The fledge entries from the syslog file for a service or task
-        temp_file = self._interim_file_path + "/" + "syslog-{}-{}".format(service, file_spec)
+        # Replace space occurrences with hyphen for service or task - so that file is created
+        tmp_svc = service.replace(' ', '-')
+        temp_file = self._interim_file_path + "/" + "syslog-{}-{}".format(tmp_svc, file_spec)
         try:
-            subprocess.call("grep '{}\\[' {} > {}".format(service, _SYSLOG_FILE, temp_file), shell=True)
-        except OSError as ex:
+            subprocess.call("grep -a -E '(Fledge {})\[' {} > {}".format(service, _SYSLOG_FILE, temp_file), shell=True)
+            pyz.add(temp_file, arcname=basename(temp_file))
+        except Exception as ex:
             raise RuntimeError("Error in creating {}. Error-{}".format(temp_file, str(ex)))
-        pyz.add(temp_file, arcname=basename(temp_file))
 
     async def add_table_configuration(self, pyz, file_spec):
         # The contents of the configuration table from the storage layer

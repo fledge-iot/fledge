@@ -2,7 +2,7 @@
 Fledge Plugin Documentation
 ***************************
 
-The following externl plugins are currently available to extend the functionality of Fledge.
+The following external plugins are currently available to extend the functionality of Fledge.
 
 .. toctree::
 

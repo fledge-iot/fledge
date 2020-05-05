@@ -3041,12 +3041,17 @@ bool OMF::getCreatedTypes(const string& keyComplete, const Reading& row)
 				}
 				else
 				{
-					// Check if the types are changed
-					typesDefinition = calcTypeShort(row);
-
-					if (it->second.typesShort != typesDefinition)
+					// The Connector Relay recreates the type only when an error is received from the PI-Server
+					// not in advance
+					if (m_PIServerEndpoint != ENDPOINT_CR)
 					{
-						ret = false;
+						// Check if the types are changed
+						typesDefinition = calcTypeShort(row);
+
+						if (it->second.typesShort != typesDefinition)
+						{
+							ret = false;
+						}
 					}
 				}
 			}

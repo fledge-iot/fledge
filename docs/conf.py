@@ -174,4 +174,4 @@ html_context = {
         ],
      }
 
-subprocess.run(["make fledge_plugins.rst"], shell=True, check=True)
+subprocess.run(["make generated"], shell=True, check=True)

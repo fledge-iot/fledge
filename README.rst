@@ -165,10 +165,10 @@ The upgrade of the Fledge package should follow the same philosophy, it should b
 ::
     sudo DEBIAN_FRONTEND=noninteractive apt -y upgrade
 
-before the upgrade of Fledge, *SETENV:* should be set/added in */etc/sudoers.d/fledg* to allow *sudo* to support the handling of the environment variables, a sample of the file:
+before the upgrade of Fledge, *SETENV:* should be set/added in */etc/sudoers.d/fledge* to allow *sudo* to support the handling of the environment variables, a sample of the file:
 ::
 
-    %sudo ALL=(ALL) NOPASSWD:SETENV: /usr/bin/apt -y update, /usr/bin/apt-get -y install fledg, /usr/bin/apt -y install /usr/local/fledg/data/plugins/fledg*.deb, /usr/bin/apt list, /usr/bin/apt -y install fledg*, /usr/bin/apt -y upgrade
+    %sudo ALL=(ALL) NOPASSWD:SETENV: /usr/bin/apt -y update, /usr/bin/apt-get -y install fledge, /usr/bin/apt -y install /usr/local/fledge/data/plugins/fledge*.deb, /usr/bin/apt list, /usr/bin/apt -y install fledge*, /usr/bin/apt -y upgrade
 
 |br|
 

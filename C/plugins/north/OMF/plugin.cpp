@@ -221,7 +221,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"default": "user_id",
 			"order": "18",
 			"displayName": "PI Web API User Id",
-			"validity" : "PIWebAPIAuthenticationMethod == \"basic\""
+			"validity" : "PIServerEndpoint == \"PI Web API\" && PIWebAPIAuthenticationMethod == \"basic\""
 		},
 		"PIWebAPIPassword": {
 			"description": "Password of the user of PI Web API to be used with the basic access authentication.",
@@ -229,7 +229,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"default": "password",
 			"order": "19" ,
 			"displayName": "PI Web API Password",
-			"validity" : "PIWebAPIAuthenticationMethod == \"basic\""
+			"validity" : "PIServerEndpoint == \"PI Web API\" && PIWebAPIAuthenticationMethod == \"basic\""
 		},
 		"PIWebAPIKerberosKeytabFileName": {
 			"description": "Keytab file name used for Kerberos authentication in PI Web API.",
@@ -237,7 +237,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"default": "piwebapi_kerberos_https.keytab",
 			"order": "20" ,
 			"displayName": "PI Web API Kerberos keytab file",
-			"validity" : "PIWebAPIAuthenticationMethod == \"kerberos\""
+			"validity" : "PIServerEndpoint == \"PI Web API\" && PIWebAPIAuthenticationMethod == \"kerberos\""
 		},
 		"OCSNamespace" : {
 			"description" : "Specifies the OCS namespace where the information are stored and it is used for the interaction with the OCS API",

@@ -66,7 +66,7 @@ long step2()
 	long  i;
 	string  v;
 	long var = 1;
-	for (i=0 ; i < 4 * 1000 * 1000 ; ++i){
+	for (i=0 ; i < 3 * 1000 * 1000 ; ++i){
 
 		var = random() & 1000;
 		//v = "test 2";
@@ -81,7 +81,7 @@ long step3()
 	long i;
 	string  v;
 	long var = 1;
-	for (i=0 ; i < 10 * 1000 * 1000 ; ++i){
+	for (i=0 ; i < 1 * 1000 * 1000 ; ++i){
 
 		var = random() & 1000;
 		//v = "test 3";
@@ -141,7 +141,7 @@ int main(int argc, char** argv)
 //
 //	printf ("\n exit \n");
 //	exit (1);
-
+//
 
 	try
 	{

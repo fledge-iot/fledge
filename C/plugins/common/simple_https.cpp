@@ -15,6 +15,9 @@
 
 #define VERBOSE_LOG	0
 
+// FIXME_I:
+#define PI_SEND 1
+
 using namespace std;
 
 // Using https://github.com/eidheim/Simple-Web-Server
@@ -111,19 +114,30 @@ int SimpleHttps::sendRequest(
 
 			// Call HTTPS method
 			// FIXME_I:
-			//auto res = m_sender->request(method, path, payload, header);
+#if PI_SEND
+			auto res = m_sender->request(method, path, payload, header);
+			retCode = res->status_code;
+			response = res->content.string();
 
-			//retCode = res->status_code;
-			//response = res->content.string();
+#else
 			retCode = "200";
 			response = "DBG";
+#endif
 			m_HTTPResponse = response;
 
 			// In same cases the response is an empty string
 			// and retCode contains code and the description
 			if (response.compare("") == 0)
+				// FIXME_I:
+
+#if PI_SEND
+				response = res->status_code;
+
+#else
 				response =  "DBG";
-				//response = res->status_code;
+
+#endif
+
 
 			http_code = atoi(retCode.c_str());
 		}

@@ -31,6 +31,10 @@ static bool isTypeSupported(DatapointValue& dataPoint);
 // 1 enable performance tracking
 #define INSTRUMENT	1
 
+// FIXME_I:
+#define PI_SEND 1
+#define CODE_TUNE 1
+
 #define  AFHierarchySeparator '/'
 #define  AF_TYPES_SUFFIX       "-type"
 
@@ -560,8 +564,14 @@ bool OMF::AFHierarchySendMessage(const string& msgType, string& jsonData)
 	try
 	{
 		// FIXME_I:
-		//res = m_sender.sendRequest("POST", m_path, resType, jsonData);
+
+#if PI_SEND
+		res = m_sender.sendRequest("POST", m_path, resType, jsonData);
+#else
 		res = 200;
+#endif
+
+
 		if  ( ! (res >= 200 && res <= 299) )
 		{
 			success = false;
@@ -1163,11 +1173,17 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	try
 	{
 		// FIXME_I:
+#if PI_SEND
+		int res = m_sender.sendRequest("POST",
+					       m_path,
+					       readingData,
+					       json);
+
+#else
 		int res = 200;
-//		int res = m_sender.sendRequest("POST",
-//					       m_path,
-//					       readingData,
-//					       json);
+#endif
+
+
 		if  ( ! (res >= 200 && res <= 299) )
 		{
 			Logger::getLogger()->error("Sending JSON readings, "
@@ -1860,15 +1876,34 @@ void OMF::generateAFHierarchyPrefixLevel(string& path, string& prefix, string& A
 void OMF::retrieveAFHierarchyPrefixAssetName(const string& assetName, string& prefix, string& AFHierarchyLevel)
 {
 	string path;
-	// Metadata Rules - Exist
+	// FIXME_I:
+//	prefix = "16634532276179036866";
+//	AFHierarchyLevel = "fledge";
+
+	//Metadata Rules - Exist
 	auto rule = m_AssetNamePrefix.find(assetName);
 	if (rule != m_AssetNamePrefix.end())
 	{
+
+#if CODE_TUNE
+		AFHierarchyLevel = std::get<0>(rule->second[0]);
+		prefix =std::get<1>(rule->second[0]);
+#else
 		auto itemArray  = rule->second;
 		auto item  = itemArray[0];
+
 		AFHierarchyLevel = std::get<0>(item);
 		prefix =std::get<1>(item);
+
+#endif
+
+
 	}
+
+	//	Logger::getLogger()->debug("DBG retrieveAFHierarchyPrefixAssetName :%s: :%s: :%s:",
+//							   assetName.c_str(),
+//							   prefix.c_str(),
+//							   AFHierarchyLevel.c_str());
 
 }
 

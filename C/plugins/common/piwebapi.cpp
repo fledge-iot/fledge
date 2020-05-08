@@ -21,6 +21,9 @@
 #include <rapidjson/document.h>
 #include "rapidjson/error/en.h"
 
+// FIXME_I:
+#define PI_SEND 1
+
 using namespace std;
 using namespace rapidjson;
 
@@ -110,20 +113,30 @@ std::string PIWebAPI::GetVersion(const string& host)
 	try
 	{
 		// FIXME_I:
-//		httpCode = endPoint->sendRequest("GET",
-//										 URL_GET_VERSION,
-//										 header,
-//										 payload);
-//
-//		response = endPoint->getHTTPResponse();
+#if PI_SEND
+		httpCode = endPoint->sendRequest("GET",
+										 URL_GET_VERSION,
+										 header,
+										 payload);
+
+		response = endPoint->getHTTPResponse();
+
+#else
 		httpCode = 200;
 		response = "DBG version";
+
+#endif
+
 
 		if (httpCode >= 200 && httpCode <= 399)
 		{
 			// FIXME_I:
-			//version = ExtractVersion(response);
+#if PI_SEND
+		version = ExtractVersion(response);
+#else
 			version =response;
+#endif
+
 		}
 		else
 		{

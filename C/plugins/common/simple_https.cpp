@@ -110,16 +110,20 @@ int SimpleHttps::sendRequest(
 			http_code = 0;
 
 			// Call HTTPS method
-			auto res = m_sender->request(method, path, payload, header);
+			// FIXME_I:
+			//auto res = m_sender->request(method, path, payload, header);
 
-			retCode = res->status_code;
-			response = res->content.string();
+			//retCode = res->status_code;
+			//response = res->content.string();
+			retCode = "200";
+			response = "DBG";
 			m_HTTPResponse = response;
 
 			// In same cases the response is an empty string
 			// and retCode contains code and the description
 			if (response.compare("") == 0)
-				response = res->status_code;
+				response =  "DBG";
+				//response = res->status_code;
 
 			http_code = atoi(retCode.c_str());
 		}

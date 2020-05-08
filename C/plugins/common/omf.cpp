@@ -29,7 +29,7 @@ using namespace rapidjson;
 static bool isTypeSupported(DatapointValue& dataPoint);
 
 // 1 enable performance tracking
-#define INSTRUMENT	0
+#define INSTRUMENT	1
 
 #define  AFHierarchySeparator '/'
 #define  AF_TYPES_SUFFIX       "-type"
@@ -559,7 +559,9 @@ bool OMF::AFHierarchySendMessage(const string& msgType, string& jsonData)
 
 	try
 	{
-		res = m_sender.sendRequest("POST", m_path, resType, jsonData);
+		// FIXME_I:
+		//res = m_sender.sendRequest("POST", m_path, resType, jsonData);
+		res = 200;
 		if  ( ! (res >= 200 && res <= 299) )
 		{
 			success = false;
@@ -1160,10 +1162,12 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	// Then get HTTPS POST ret code and return 0 to client on error
 	try
 	{
-		int res = m_sender.sendRequest("POST",
-					       m_path,
-					       readingData,
-					       json);
+		// FIXME_I:
+		int res = 200;
+//		int res = m_sender.sendRequest("POST",
+//					       m_path,
+//					       readingData,
+//					       json);
 		if  ( ! (res >= 200 && res <= 299) )
 		{
 			Logger::getLogger()->error("Sending JSON readings, "

@@ -59,8 +59,90 @@ static void loadDataThread(SendingProcess *loadData);
 // Send data from historian
 static void sendDataThread(SendingProcess *sendData);
 
+#include <random>
+
+long step2()
+{
+	long  i;
+	string  v;
+	long var = 1;
+	for (i=0 ; i < 4 * 1000 * 1000 ; ++i){
+
+		var = random() & 1000;
+		//v = "test 2";
+		//printf ("test 2");
+	}
+	return var;
+}
+
+
+long step3()
+{
+	long i;
+	string  v;
+	long var = 1;
+	for (i=0 ; i < 10 * 1000 * 1000 ; ++i){
+
+		var = random() & 1000;
+		//v = "test 3";
+		//printf ("test 3");
+	}
+	return var;
+}
+
+inline std::string tmpGetCurrentDateTime( std::string s ){
+
+	//###   #########################################################################################:
+	char bufferFull[50];
+	char buffer[26];
+	int millisec;
+	struct tm* tm_info;
+	struct timeval tv;
+
+	gettimeofday(&tv, NULL);
+
+	millisec = lrint(tv.tv_usec/1000.0); // Round to nearest millisec
+	if (millisec>=1000) { // Allow for rounding up to nearest second
+		millisec -=1000;
+		tv.tv_sec++;
+	}
+	tm_info = localtime(&tv.tv_sec);
+	//###   #########################################################################################:
+
+	strftime(buffer, 26, "%Y:%m:%d %H:%M:%S", tm_info);
+	sprintf(bufferFull,"%s.%03d", buffer, millisec);
+
+	string fNow(bufferFull);
+
+	return (fNow);
+};
+
+void now()
+{
+	std::string now = tmpGetCurrentDateTime("now");
+	printf("NOW :%s: \n", now.c_str());
+}
+
 int main(int argc, char** argv)
 {
+//	long v;
+//	printf ("Start \n");
+//	printf ("\n step 2 \n");
+//	now();
+//	v = step2();
+//	now();
+//	printf ("\n step 2 value :%ld:\n", v);
+//
+//	printf ("\n step 3 \n");
+//	now();
+//	v = step3();
+//	now();
+//	printf ("\n step 3 value :%ld:\n", v);
+//
+//	printf ("\n exit \n");
+//	exit (1);
+
+
 	try
 	{
 		// Instantiate SendingProcess class

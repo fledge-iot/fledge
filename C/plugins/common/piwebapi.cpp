@@ -109,16 +109,21 @@ std::string PIWebAPI::GetVersion(const string& host)
 
 	try
 	{
-		httpCode = endPoint->sendRequest("GET",
-										 URL_GET_VERSION,
-										 header,
-										 payload);
-
-		response = endPoint->getHTTPResponse();
+		// FIXME_I:
+//		httpCode = endPoint->sendRequest("GET",
+//										 URL_GET_VERSION,
+//										 header,
+//										 payload);
+//
+//		response = endPoint->getHTTPResponse();
+		httpCode = 200;
+		response = "DBG version";
 
 		if (httpCode >= 200 && httpCode <= 399)
 		{
-			version = ExtractVersion(response);
+			// FIXME_I:
+			//version = ExtractVersion(response);
+			version =response;
 		}
 		else
 		{

@@ -35,8 +35,8 @@ This chapter presents the plugins that are bundled with Fledge, how to write and
 There are also numerous plugins that are available as separate packages or in separate repositories that may be used with Fledge.
 
 
-Fledge Plugins
-==============
+Plugins
+=======
 
 In this version of Fledge you have six types of plugins:
 

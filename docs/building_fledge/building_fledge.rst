@@ -37,7 +37,7 @@ Let's get started! In this chapter we will see where to find and how to build, i
 Fledge Platforms
 =================
 
-Due to the use of standard libraries, Fledge can run on a large number of platforms and operating environments, but its primary target is Linux distributions. |br| Our testing environment includes Ubuntu LTS 16.04, Ubuntu LTS 18.04, Ubuntu Core 16 and Raspbian, but we have installed and tested Fledge on other Linux distributions. In addition to the native support, Fledge can also run on Virtual Machines, Docker and LXC containers.
+Due to the use of standard libraries, Fledge can run on a large number of platforms and operating environments, but its primary target is Linux distributions. |br| Our testing environment includes Ubuntu LTS 18.04 and Raspbian, but we have installed and tested Fledge on other Linux distributions. In addition to the native support, Fledge can also run on Virtual Machines, Docker and LXC containers.
 
 
 General Requirements
@@ -46,7 +46,7 @@ General Requirements
 This version of Fledge requires the following software to be installed in the same environment:
 
 - **Avahi 0.6.32+**
-- **Python 3.5.3+**
+- **Python 3.6.9+**
 - **PostgreSQL 9.5+**
 - **SQLite 3.11+**
 
@@ -61,7 +61,7 @@ You may also want to install some utilities to make your life easier when you us
 Building Fledge
 ================
 
-In this section we will describe how to build Fledge on Ubuntu 16.04 LTS (Server or Desktop), Ubuntu 18.04 LTS (Server or Desktop). Other Linux distributions, Debian or Red-Hat based, or even other versions of Ubuntu may differ. If you are not familiar with Linux and you do not want to build Fledge from the source code, you can download a ready-made Debian package (the list of packages is `available here <92_downloads.html>`_).
+In this section we will describe how to build Fledge on Ubuntu 18.04 LTS (Server or Desktop). Other Linux distributions, Debian or Red-Hat based, or even other versions of Ubuntu may differ. If you are not familiar with Linux and you do not want to build Fledge from the source code, you can download a ready-made Debian package (the list of packages is `available here <92_downloads.html>`_).
 
 
 Build Pre-Requisites
@@ -418,7 +418,7 @@ If you intend to use the PostgreSQL database as storage engine, make sure that P
   ubuntu   15198  1225  0 17:22 pts/0    00:00:00 grep --color=auto postgres
   $
 
-PostgreSQL 9.5 is the version available for Ubuntu 16.04 and Ubuntu 18.04 when we have published this page. Other versions of PostgreSQL, such as 9.6 or 10.1, work just fine. |br| |br| When you install the Ubuntu package, PostreSQL is set for a *peer authentication*, i.e. the database user must match with the Linux user. Other packages may differ. You may quickly check the authentication mode set in the *pg_hba.conf* file. The file is in the same directory of the *postgresql.conf* file you may see as output from the *ps* command shown above, in our case */etc/postgresql/9.5/main*:
+PostgreSQL 9.5 is the version available for Ubuntu 18.04 when we have published this page. Other versions of PostgreSQL, such as 9.6 or 10.1, work just fine. |br| |br| When you install the Ubuntu package, PostreSQL is set for a *peer authentication*, i.e. the database user must match with the Linux user. Other packages may differ. You may quickly check the authentication mode set in the *pg_hba.conf* file. The file is in the same directory of the *postgresql.conf* file you may see as output from the *ps* command shown above, in our case */etc/postgresql/9.5/main*:
 
 .. code-block:: console
 
@@ -588,29 +588,6 @@ Finally, add ``/usr/pgsql-9.6/bin`` to your PATH environment variable in ``$HOME
 .. code-block:: console
 
   PATH=$PATH:$HOME/.local/bin:$HOME/bin:/usr/pgsql-9.6/bin
-
-
-Installing Python 3.5
----------------------
-
-Fledge requires Python 3.5, CentOS provides Python 2.7. The commands to install the new version are:
-
-.. code-block:: console
-
-  sudo yum install yum-utils
-  sudo yum groupinstall development
-  sudo yum install https://centos7.iuscommunity.org/ius-release.rpm
-  sudo yum install python35u
-  sudo yum -y install python35u-pip
-  sudo yum install python35u-devel
-
-In order to use the new version, you need to create two symbolic links in the ``/usr/bin`` directory:
-
-.. code-block:: console
-
-  cd /usr/bin
-  sudo ln -s python3.5 python3
-  sudo ln -s pip3.5 pip3
 
 
 Installing SQLite3

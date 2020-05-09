@@ -74,18 +74,22 @@ Fledge is currently based on C/C++ and Python code. The packages needed to build
 - avahi-daemon
 - build-essential
 - cmake
+- cpulimit
 - curl
 - g++
 - git
+- krb5-user
 - libboost-dev
 - libboost-system-dev
 - libboost-thread-dev
+- libcurl4-openssl-dev
 - libssl-dev
 - libpq-dev
 - libsqlite3-dev
 - libtool
 - libz-dev
 - make
+- pkg-config
 - postgresql
 - python3-dev
 - python3-pip
@@ -124,6 +128,24 @@ Fledge is currently based on C/C++ and Python code. The packages needed to build
   Reading package lists... Done
   Building dependency tree
   $
+  ...
+  $
+  $ sudo apt-get install pkg-config cpulimit
+  Reading package lists... Done
+  Building dependency tree
+  $
+  ...
+  $
+  $ DEBIAN_FRONTEND=noninteractive sudo apt-get install -yq krb5-user
+  Reading package lists... Done
+  Building dependency tree
+  $
+  ...
+  $
+  $ DEBIAN_FRONTEND=noninteractive sudo apt-get install -yq libcurl4-openssl-dev
+  Reading package lists... Done
+  Building dependency tree
+  $
 
 
 Obtaining the Source Code
@@ -158,7 +180,6 @@ The code should be now in your home directory. The name of the repository direct
   -rw-rw-r-- 1 ubuntu ubuntu  5869 Dec  8 18:00 Jenkinsfile
   -rw-rw-r-- 1 ubuntu ubuntu 11342 Dec  8 18:00 LICENSE
   -rw-rw-r-- 1 ubuntu ubuntu 10654 Dec  8 18:00 Makefile
-  -rw-rw-r-- 1 ubuntu ubuntu  5842 Dec  8 18:00 pr_tester.sh
   drwxrwxr-x 4 ubuntu ubuntu  4096 Dec  8 18:00 python
   -rw-rw-r-- 1 ubuntu ubuntu  5916 Dec  8 18:00 README.rst
   drwxrwxr-x 8 ubuntu ubuntu  4096 Dec  8 18:00 scripts
@@ -249,7 +270,7 @@ The other issue is related to the version of pip (more specifically pip3), the P
 
 .. code-block:: console
 
-  /usr/lib/python3.5/distutils/dist.py:261: UserWarning: Unknown distribution option: 'python_requires'
+  /usr/lib/python3.6/distutils/dist.py:261: UserWarning: Unknown distribution option: 'python_requires'
     warnings.warn(msg)
 
 ...and this output at the end of the build process:

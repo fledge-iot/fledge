@@ -38,19 +38,19 @@ Release Date: 2020-05-08
        - The support bundle functionality has been improved to include more detail in order to aid tracking down issues in installations.
        - Improvements have been made to the documentation of the OMF plugin in line with the enhancements to the code. This includes the documentation of OCS and EDS support as well as PI Web API.
        - An issue with forwarding data between two Fledge instances in different time zones has been resolved.
-       - A new API entry point has been added to the FogLAMP REST API to allow the removal of plugin packages.
+       - A new API entry point has been added to the Fledge REST API to allow the removal of plugin packages.
        - The notification service has been updated to allow for the delivery of multiple notifications in parallel.
-       - Improvements have been made to the handling of asset codes within the buffer in order to improve the ingest performance of FogLAMP. This is transparent to all services outside of the storage service and has no impact on the public APIs.
+       - Improvements have been made to the handling of asset codes within the buffer in order to improve the ingest performance of Fledge. This is transparent to all services outside of the storage service and has no impact on the public APIs.
        - Extra information has been added to the notification trigger such that trigger time and the asset that triggered the notification is included.
-       - A new configuration item type of “northTask” has been introduced. It allows the user to enter the name of a northTask in the configuration of another category within FogLAMP. 
-       - Data on multiple assets may now be requested in a a single call to the asset growing API within FogLAMP.
+       - A new configuration item type of “northTask” has been introduced. It allows the user to enter the name of a northTask in the configuration of another category within Fledge.
+       - Data on multiple assets may now be requested in a a single call to the asset growing API within Fledge.
        - An additional API has been added to the asset browser to allow time bucketed data to be returned for multiple data points of multiple assets in a single call.
        - Support has been added for nested readings within the reading data.
        - Messages about exceeding the configured latency of the south service may be repeated when the latency is above the configured value for a period of time. These have now been replaced with a single emessgae when the latency is exceeded and another when the condition is cleared.
        - The feedback provided to the user when a configuration item is set to an invalid value has been improved.
        - Configuration items can now be marked as mandatory, this improves the user experience when configuring plugins.
        - A new configuration item type, code, has been added to improve the user experience when adding code snippets in configuration data.
-       - Improvements have been made to the caching of configuration data within the core of FogLAMP.
+       - Improvements have been made to the caching of configuration data within the core of Fledge.
        - The logging of package installation has been improved.
        - Additions have been adde to the public API to allow multiple audit log sources to be extracted extracted in a single API call.
        - The audit trail has been improved to show all package additions and updates in the audit trail.
@@ -69,8 +69,8 @@ Release Date: 2020-05-08
        - The purge by size (number of readings) would remove all data if the number of rows to retain was less than 1000, this has now been resolved.
        - On occasions plugins woudl disappear from he list of available plugins, this has now been resolved.
        - Improvements have been made to the management of the certificate store to ensure the correct files are uploaded to the store.
-       - An expensive and unnecessary test was being performed in the asset browsing API of FogLAMP. This slowed down the user interface and put load n the server. This has now been removed and has improved the performance of examining the buffered data within the FogLAMP instance.
-       - The FogBench utility used to send data to FogLAMP has been updated in line with new Python packages for the CoAP protocol.
+       - An expensive and unnecessary test was being performed in the asset browsing API of Fledge. This slowed down the user interface and put load n the server. This has now been removed and has improved the performance of examining the buffered data within the Fledge instance.
+       - The FogBench utility used to send data to Fledge has been updated in line with new Python packages for the CoAP protocol.
        - Configuration category relationships were not always correctly cleaned up when a filter is deleted, this has now been resolved.
        - The support bundle functionality has been updated to provide information on the Python processes.
        - The REST API incorrectly allowed configuration categories with a blank name to be created. This has now been prevented.
@@ -81,11 +81,11 @@ Release Date: 2020-05-08
        - The asset tracker was not correctly adding entries to the asset tracker, this has now been resolved.
        - An intermittent issue that prevented the notification service being enabled on the Buster release on Raspberry Pi has been resolved.
        - An intermittent problem that woudl prevent the north sending process to fail has been resolved.
-       - Performance improvements have been made to the installation of new packages from the package repository from within the FogLAMP API and user interface.
+       - Performance improvements have been made to the installation of new packages from the package repository from within the Fledge API and user interface.
        - It is now possible to reuse the name of a north process after deleting one with the same name.
        - The incorrect HTTP error code is returned by the asset summary API call if an asset does not exist, this has now been resolved.
        - Deleting and recreating a south service may cause errors in the log to appear. These have now been resolved.
-       - The SQLite and SQLiteInMemory storage engines have been updated to enable a purge to be defined that reduces the number of readings to a specified value rather than simply allowing a purge by the age of the data. This is designed to allow tighter controls on the size of the buffer database when high frequency data in particular is being stored within the FogLAMP buffer.
+       - The SQLite and SQLiteInMemory storage engines have been updated to enable a purge to be defined that reduces the number of readings to a specified value rather than simply allowing a purge by the age of the data. This is designed to allow tighter controls on the size of the buffer database when high frequency data in particular is being stored within the Fledge buffer.
 
 
 - **GUI**
@@ -96,7 +96,7 @@ Release Date: 2020-05-08
        - The requirement that a key file is uploaded with every certificate file has been removed from the graphical user interface as this is not always true.
        - The performance of adding a new notification via the graphical user interface has been improved.
        - The feedback in the graphical user interface has been improved when installation of the notification service fails.
-       - Installing the FogLAMP graphical user interface on OSX platforms fails due to the new version of the brew package manager. This has now been resolved.
+       - Installing the Fledge graphical user interface on OSX platforms fails due to the new version of the brew package manager. This has now been resolved.
        - Improve script editing has been added to the graphical user interface.
        - Improvements have been made to the user interface for the installations and enabling of the notification service.
        - The notification audit log user interface has been improved in the GUI to allow all the logs relating to notifications to be viewed in a single screen.
@@ -144,7 +144,7 @@ Release Date: 2020-05-08
        - The configuration of the OMF north plugin for connecting to the PI Server has been improved to give the user better feedback as to what elements are valid based on choice of connection method and security options chosen.
        - Support has been added for simple Python code to be entered into a filter that does not require all of the support code. This is designed to allow a user to very quickly develop filters with limited programming.
        - Support has been added for filters written entirely in Python, these are full featured filters as supported by the C++ filtering mechanism and include dynamic reconfiguration.
-       - The foglamp-filter-expression filter has been modified to better deal with streams which contain multiple assets. It is now possible to use the syntax <assetName>.<datapointName> in an expression in addition to the previous <datapointName>. The result is that if two assets in the data stream have the same data point names it is now possible to differentiate between them.
+       - The fledge-filter-expression filter has been modified to better deal with streams which contain multiple assets. It is now possible to use the syntax <assetName>.<datapointName> in an expression in addition to the previous <datapointName>. The result is that if two assets in the data stream have the same data point names it is now possible to differentiate between them.
        - A new plugin to collect variables from Beckhoff PLC's has been written. The plugin uses the TwinCAT 2 or TwinCAT 3 protocols to collect specified variable from the running PLC.
 
 
@@ -155,11 +155,11 @@ Release Date: 2020-05-08
        - Use of the asset filter in a north task could result in the north task terminating. This has now resolved.
        - A small memory leak in the south service statistics handling code was impacting the performance of the south service, this is now resolved.
        - An issue has been discovered in the Fair camera plugin with the validity attribute of the spot temperatures, this has now been resolved.
-       - It was not possible to send data for the same asset from two different FogLAMP’s into the PI Server using PI Web API, this has now been resolved.
-       - The filter FogLAMP RMS Trigger was not able to be dynamically reconfigured, this has now been resolved.
+       - It was not possible to send data for the same asset from two different Fledge’s into the PI Server using PI Web API, this has now been resolved.
+       - The filter Fledge RMS Trigger was not able to be dynamically reconfigured, this has now been resolved.
        - If a filter in the north sending process increased the number of readings it was possible that the limit of the number of readings sent in a single block . The sending process will now ensure this can not happen.
        - RMS filter plugin was not able to be dynamically reconfigured, this has now been resolved.
-       - The HTTP South plugin that is used to receive data from another FogLAMP instance may fail with some combinations of filters applied to the service. This issue has now been resolved.
+       - The HTTP South plugin that is used to receive data from another Fledge instance may fail with some combinations of filters applied to the service. This issue has now been resolved.
        - The rule filter may give errors if expressions have variables not satisfied in the reading data. Under some circumstances it has been seen that the filter fails to process data after giving this error. This has been resolved by changes to make the rate filter more robust.
        - Blank values for asset names in the south service may cause the service to become unresponsive. Blank asset names have now been correctly detected, asset names are required configuration values.
        - A new version of the driver software for the USB-4704 Data Acquisition Module has been released, the plugin has been updated to use this driver version.

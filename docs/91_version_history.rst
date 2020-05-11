@@ -43,16 +43,16 @@ Release Date: 2020-05-08
        - Improvements have been made to the handling of asset codes within the buffer in order to improve the ingest performance of Fledge. This is transparent to all services outside of the storage service and has no impact on the public APIs.
        - Extra information has been added to the notification trigger such that trigger time and the asset that triggered the notification is included.
        - A new configuration item type of “northTask” has been introduced. It allows the user to enter the name of a northTask in the configuration of another category within Fledge.
-       - Data on multiple assets may now be requested in a a single call to the asset growing API within Fledge.
+       - Data on multiple assets may now be requested in a single call to the asset growing API within Fledge.
        - An additional API has been added to the asset browser to allow time bucketed data to be returned for multiple data points of multiple assets in a single call.
        - Support has been added for nested readings within the reading data.
-       - Messages about exceeding the configured latency of the south service may be repeated when the latency is above the configured value for a period of time. These have now been replaced with a single emessgae when the latency is exceeded and another when the condition is cleared.
+       - Messages about exceeding the configured latency of the south service may be repeated when the latency is above the configured value for a period of time. These have now been replaced with a single message when the latency is exceeded and another when the condition is cleared.
        - The feedback provided to the user when a configuration item is set to an invalid value has been improved.
        - Configuration items can now be marked as mandatory, this improves the user experience when configuring plugins.
        - A new configuration item type, code, has been added to improve the user experience when adding code snippets in configuration data.
        - Improvements have been made to the caching of configuration data within the core of Fledge.
        - The logging of package installation has been improved.
-       - Additions have been adde to the public API to allow multiple audit log sources to be extracted extracted in a single API call.
+       - Additions have been added to the public API to allow multiple audit log sources to be extracted in a single API call.
        - The audit trail has been improved to show all package additions and updates in the audit trail.
        - A new API has been added to allow notification plugin packages to be updated.
        - A new API has been added to allow filter code versions to be updated.
@@ -67,7 +67,7 @@ Release Date: 2020-05-08
        - Improvements have been made to the generation of the support bundle.
        - An issue in the reporting of the task names in the fledge status script has been resolved.
        - The purge by size (number of readings) would remove all data if the number of rows to retain was less than 1000, this has now been resolved.
-       - On occasions plugins woudl disappear from he list of available plugins, this has now been resolved.
+       - On occasions plugins would disappear from the list of available plugins, this has now been resolved.
        - Improvements have been made to the management of the certificate store to ensure the correct files are uploaded to the store.
        - An expensive and unnecessary test was being performed in the asset browsing API of Fledge. This slowed down the user interface and put load n the server. This has now been removed and has improved the performance of examining the buffered data within the Fledge instance.
        - The FogBench utility used to send data to Fledge has been updated in line with new Python packages for the CoAP protocol.
@@ -80,7 +80,7 @@ Release Date: 2020-05-08
        - An issue that cause notifications for asset whose names contain special characters has been resolved.
        - The asset tracker was not correctly adding entries to the asset tracker, this has now been resolved.
        - An intermittent issue that prevented the notification service being enabled on the Buster release on Raspberry Pi has been resolved.
-       - An intermittent problem that woudl prevent the north sending process to fail has been resolved.
+       - An intermittent problem that would prevent the north sending process to fail has been resolved.
        - Performance improvements have been made to the installation of new packages from the package repository from within the Fledge API and user interface.
        - It is now possible to reuse the name of a north process after deleting one with the same name.
        - The incorrect HTTP error code is returned by the asset summary API call if an asset does not exist, this has now been resolved.
@@ -109,11 +109,11 @@ Release Date: 2020-05-08
     - Bug Fix:
 
        - Improvements have been made to the zoom and pan options within the graph displays.
-       - The wizard used for the creation of new notifications in the graphical user interface woudl loose values when going back and forth between pages, this has now been resolved.
+       - The wizard used for the creation of new notifications in the graphical user interface would loose values when going back and forth between pages, this has now been resolved.
        - A memory leak that was affecting the performance of the graphical user interface has been fixed, improving performance of the interface.
        - Incorrect category names may be displayed int he graphical user interface, this has now be resolved.
        - Issues with the layout of the graphical user interface when viewed on an Apple iPad have been resolved.
-       - The asset graph in the graphical user interface woudl sometimes not resize to fit the screen correctly, this has now been resolved.
+       - The asset graph in the graphical user interface would sometimes not resize to fit the screen correctly, this has now been resolved.
        - The “Asset & Readings” option in the graphical user interface was initially slow to respond, this has now been improved.
        - The pagination of audit logs has bene improved when multiple sources are displayed.
        - The counts in the user interface for notifications have been corrected.
@@ -136,7 +136,7 @@ Release Date: 2020-05-08
        - A new plugin that support the Digiducer 333D01 vibration sensor has been added.
        - A new simple Python filter has been added that calculates an exponential moving average,
        - Some typos in the OPCUA south and north plugin configuration have been fixed.
-       - The OPCUA north plugin has been updated to support nested reading objects correctly and also to allow a name to be set for the OPCUA server. Thee have also been some stability fixes in the underlying OPCUA layer used by this and the south OPCUA plugin.
+       - The OPCUA north plugin has been updated to support nested reading objects correctly and also to allow a name to be set for the OPCUA server. These have also been some stability fixes in the underlying OPCUA layer used by this and the south OPCUA plugin.
        - The modbus map configuration now supports byte swapping and word swapping by use of the {{swap}} property of the map. This may take the values {{bytes}}, {{words}} or {{both}}.
        - The people detection machine learning plugin now supports RTSP streams as input.
        - The option list items in the OMF plugin have been updated to make them more user friendly and descriptive.
@@ -154,7 +154,7 @@ Release Date: 2020-05-08
        - The playback south plugin was not correctly replaying timestamps within the file, this has now been resolved.
        - Use of the asset filter in a north task could result in the north task terminating. This has now resolved.
        - A small memory leak in the south service statistics handling code was impacting the performance of the south service, this is now resolved.
-       - An issue has been discovered in the Fair camera plugin with the validity attribute of the spot temperatures, this has now been resolved.
+       - An issue has been discovered in the Flir camera plugin with the validity attribute of the spot temperatures, this has now been resolved.
        - It was not possible to send data for the same asset from two different Fledge’s into the PI Server using PI Web API, this has now been resolved.
        - The filter Fledge RMS Trigger was not able to be dynamically reconfigured, this has now been resolved.
        - If a filter in the north sending process increased the number of readings it was possible that the limit of the number of readings sent in a single block . The sending process will now ensure this can not happen.
@@ -163,7 +163,7 @@ Release Date: 2020-05-08
        - The rule filter may give errors if expressions have variables not satisfied in the reading data. Under some circumstances it has been seen that the filter fails to process data after giving this error. This has been resolved by changes to make the rate filter more robust.
        - Blank values for asset names in the south service may cause the service to become unresponsive. Blank asset names have now been correctly detected, asset names are required configuration values.
        - A new version of the driver software for the USB-4704 Data Acquisition Module has been released, the plugin has been updated to use this driver version.
-       - The OPC UA North plugin might report incorrect counts for sent readings on some platforms, this has now been resolved.
+       - The OPCUA North plugin might report incorrect counts for sent readings on some platforms, this has now been resolved.
        - The simple Python filter plugin was not adding correct asset tracking data, this has now been updated.
        - An issue with the asset filter failing when incorrect configuration was present has bene resolved.
        - The benchmark plugin now enforces a minimum number of asset of 1.
@@ -249,7 +249,7 @@ Release Date: 2019-08-15
        - A new south plugin has been created that supports the DNP3 protocol.
        - A south plugin has been created based on the Google TensorFlow people detection model. It uses a live feed from a video camera and returns data regarding the number of people detected and the position within the frame.
        - A south plugin based on the Google TensorFlow demo model for people recognition has been created. The plugin reads an image from a file and returns the people co-ordinates of the people it detects within the image.
-       - A new north plugin has been added that creates an OPC UA server based on the data ingested by the Fledge instance.
+       - A new north plugin has been added that creates an OPCUA server based on the data ingested by the Fledge instance.
        - Support has been added for a Flir Thermal Imaging Camera connected via Modbus TCP. Both a south plugin to gather the data and a filter plugin, to clean the data, have been added.
        - A new south plugin has been created based on the Google TensorFlow demo model that accepts a live feed from a Raspberry Pi camera and classifies the images.
        - A new south plugin has been created based on the Google TensorFlow demo model for object detection. The plugin return object count, name position and confidence data.
@@ -274,7 +274,7 @@ Release Date: 2019-08-15
        - The configuration options regarding notification evaluation of single items and windows has been improved to make it less confusing to end users.
        - The OverMax and UnderMin notification rules have been combined into a single threshold rule plugin.
        - The OPCUA south plugin was incorrectly reporting itself as the upcua plugin. This is now resolved.
-       - The OPC UA south plugin has been updated to support subscriptions both using browse names and Node Id’s. Node ID is now the default subscription mechanism as this is much higher performance than traversing the object tree looking at browse names.
+       - The OPCUA south plugin has been updated to support subscriptions both using browse names and Node Id’s. Node ID is now the default subscription mechanism as this is much higher performance than traversing the object tree looking at browse names.
        - Shutting down the OPCUA service when it has failed to connect to an OPCUA server, either because of an incorrect configuration or the OPCUA server being down resulted in the service crashing. The service now shuts down cleanly.
        - In order to install the fledge-south-modbus package on RedHat Enterprise Linux or CentOS 7 you must have configured the epel repository by executing the command:
 

@@ -28,9 +28,9 @@
    <a href="fledge_plugins.html#notification-delivery-plugins">Notification Delivery Plugins</a>
 
 
-****************************
-Fledge Notifications Service
-****************************
+*********************
+Notifications Service
+*********************
 
 Fledge supports an optional service, known as the notification service that adds an event engine to the Fledge installation. The notification services observed data as it flows into the Fledge storage service buffer and processes that data against a set of rules that are configurable by the user to determine if an event has occurred. Events may be either when a condition that was previously not met being is, or a condition that was previously met becoming no longer true. The notification service can then send a notification when an event occurs or, in the case of a condition that is met, it can send notifications as long as that condition is met.
 

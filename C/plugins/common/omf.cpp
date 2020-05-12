@@ -1860,10 +1860,9 @@ void OMF::retrieveAFHierarchyPrefixAssetName(const string& assetName, string& pr
 	auto rule = m_AssetNamePrefix.find(assetName);
 	if (rule != m_AssetNamePrefix.end())
 	{
-		auto itemArray  = rule->second;
-		auto item  = itemArray[0];
-		AFHierarchyLevel = std::get<0>(item);
-		prefix =std::get<1>(item);
+		AFHierarchyLevel = std::get<0>(rule->second[0]);
+		prefix =std::get<1>(rule->second[0]);
+
 	}
 
 }

@@ -32,11 +32,18 @@ std::string DatapointValue::toString() const
 		return ss.str();
 	case T_FLOAT:
 		{
-		ss << std::fixed << std::setprecision(10) << m_value.f;
-		std::string s = ss.str();
-		s.erase(s.find_last_not_of('0') + 1, std::string::npos); // remove trailing 0's
-		s = (s[s.size()-1] == '.') ? s+'0' : s; // add '0' if string ends with decimal
-		return s;
+			long m_valueLong;
+			std::string s;
+			char tmpBuffer[100];
+			snprintf(tmpBuffer, sizeof(tmpBuffer), "%.9g", m_value.f);
+			s= tmpBuffer;
+
+			m_valueLong = m_value.f;
+			if (m_valueLong == m_value.f)
+			{
+				s.append(".0");
+			}
+			return s;
 		}
 	case T_FLOAT_ARRAY:
 		ss << "[";

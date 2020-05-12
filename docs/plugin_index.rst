@@ -1,6 +1,6 @@
-***************************
-Fledge Plugin Documentation
-***************************
+********************
+Plugin Documentation
+********************
 
 The following external plugins are currently available to extend the functionality of Fledge.
 

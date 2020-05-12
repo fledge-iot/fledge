@@ -231,12 +231,8 @@ The response payload is a JSON object with an array of JSON objects, one per val
                       "description" : "South Plugin polling template" },
                     { "key"         : "SCHEDULER",
                       "description" : "Scheduler configuration" },
-                    { "key"         : "SEND_PR_1",
+                    { "key"         : "North_Readings_to_PI",
                       "description" : "OMF North Plugin Configuration" },
-                    { "key"         : "SEND_PR_2",
-                      "description" : "OMF North Statistics Plugin Configuration" },
-                    { "key"         : "SEND_PR_4",
-                      "description" : "OCS North Plugin Configuration" },
                     { "key"         : "SMNTR",
                       "description" : "Service Monitor configuration" },
                     { "key"         : "South",
@@ -265,20 +261,30 @@ GET category
 
 The response payload is a set of configuration items within the category, each item is a JSON object with the following set of properties.
 
-+-------------+--------+--------------------------------------------------------------+-------------------------------+
-| Name        | Type   | Description                                                  | Example                       |
-+=============+========+==============================================================+===============================+
-| description | string | A description of the configuration item |br|                 | The IPv4 network address |br| |
-|             |        | that may be used in a user interface.                        | of the Fledge server          |
-+-------------+--------+--------------------------------------------------------------+-------------------------------+
-| type        | string | A type that may be used by a user interface |br|             | IPv4                          |
-|             |        | to know how to display an item.                              |                               |
-+-------------+--------+--------------------------------------------------------------+-------------------------------+
-| default     | string | An optional default value for the configuration item.        | 127.0.0.1                     |
-+-------------+--------+--------------------------------------------------------------+-------------------------------+
-| value       | string | The current configured value of the configuration item. |br| | 192.168.0.27                  |
-|             |        | This may be empty if no value has been set.                  |                               |
-+-------------+--------+--------------------------------------------------------------+-------------------------------+
+.. list-table::
+    :widths: 20 20 50 50
+    :header-rows: 1
+
+    * - Name
+      - Type
+      - Description
+      - Example
+    * - description
+      - string
+      - A description of the configuration item that may be used in a user interface.
+      - The IPv4 network address of the FogLAMP server
+    * - type
+      - string
+      - A type that may be used by a user interface to know how to display an item.
+      - IPv4
+    * - default
+      - string
+      - An optional default value for the configuration item.
+      - 127.0.0.1
+    * - value
+      - string
+      - The current configured value of the configuration item. This may be empty if no value has been set.
+      - 192.168.0.27
 
 
 **Example**
@@ -348,20 +354,30 @@ GET category item
 
 The response payload is a configuration item within the category, each item is a JSON object with the following set of properties.
 
-+-------------+--------+--------------------------------------------------------------+-------------------------------+
-| Name        | Type   | Description                                                  | Example                       |
-+=============+========+==============================================================+===============================+
-| description | string | A description of the configuration item |br|                 | The IPv4 network address |br| |
-|             |        | that may be used in a user interface.                        | of the Fledge server          |
-+-------------+--------+--------------------------------------------------------------+-------------------------------+
-| type        | string | A type that may be used by a user interface |br|             | IPv4                          |
-|             |        | to know how to display an item.                              |                               |
-+-------------+--------+--------------------------------------------------------------+-------------------------------+
-| default     | string | An optional default value for the configuration item.        | 127.0.0.1                     |
-+-------------+--------+--------------------------------------------------------------+-------------------------------+
-| value       | string | The current configured value of the configuration item. |br| | 192.168.0.27                  |
-|             |        | This may be empty if no value has been set.                  |                               |
-+-------------+--------+--------------------------------------------------------------+-------------------------------+
+.. list-table::
+    :widths: 20 20 50 50
+    :header-rows: 1
+
+    * - Name
+      - Type
+      - Description
+      - Example
+    * - description
+      - string
+      - A description of the configuration item that may be used in a user interface.
+      - The IPv4 network address of the Fledge server
+    * - type
+      - string
+      - A type that may be used by a user interface to know how to display an item.
+      - IPv4
+    * - default
+      - string
+      - An optional default value for the configuration item.
+      - 127.0.0.1
+    * - value
+      - string
+      - The current configured value of the configuration item. This may be empty if no value has been set.
+      - 192.168.0.27
 
 
 **Example**
@@ -406,21 +422,30 @@ A JSON object with the new value to assign to the configuration item.
 
 The response payload is the newly updated configuration item within the category, the item is a JSON object object with the following set of properties.
 
-+-------------+--------+--------------------------------------------------------------+-------------------------------+
-| Name        | Type   | Description                                                  | Example                       |
-+=============+========+==============================================================+===============================+
-| description | string | A description of the configuration item |br|                 | The IPv4 network address |br| |
-|             |        | that may be used in a user interface.                        | of the Fledge server          |
-+-------------+--------+--------------------------------------------------------------+-------------------------------+
-| type        | string | A type that may be used by a user interface |br|             | IPv4                          |
-|             |        | to know how to display an item.                              |                               |
-+-------------+--------+--------------------------------------------------------------+-------------------------------+
-| default     | string | An optional default value for the configuration item.        | 127.0.0.1                     |
-+-------------+--------+--------------------------------------------------------------+-------------------------------+
-| value       | string | The current configured value of the configuration item. |br| | 192.168.0.27                  |
-|             |        | This may be empty if no value has been set.                  |                               |
-+-------------+--------+--------------------------------------------------------------+-------------------------------+
+.. list-table::
+    :widths: 20 20 50 50
+    :header-rows: 1
 
+    * - Name
+      - Type
+      - Description
+      - Example
+    * - description
+      - string
+      - A description of the configuration item that may be used in a user interface.
+      - The IPv4 network address of the Fledge server
+    * - type
+      - string
+      - A type that may be used by a user interface to know how to display an item.
+      - IPv4
+    * - default
+      - string
+      - An optional default value for the configuration item.
+      - 127.0.0.1
+    * - value
+      - string
+      - The current configured value of the configuration item. This may be empty if no value has been set.
+      - 192.168.0.27
 
 
 **Example**
@@ -457,20 +482,30 @@ This will result in the value being returned to the default value if one is defi
 
 The response payload is the newly updated configuration item within the category, the item is a JSON object object with the following set of properties.
 
-+-------------+--------+--------------------------------------------------------------+-------------------------------+
-| Name        | Type   | Description                                                  | Example                       |
-+=============+========+==============================================================+===============================+
-| description | string | A description of the configuration item |br|                 | The IPv4 network address |br| |
-|             |        | that may be used in a user interface.                        | of the Fledge server          |
-+-------------+--------+--------------------------------------------------------------+-------------------------------+
-| type        | string | A type that may be used by a user interface |br|             | IPv4                          |
-|             |        | to know how to display an item.                              |                               |
-+-------------+--------+--------------------------------------------------------------+-------------------------------+
-| default     | string | An optional default value for the configuration item.        | 127.0.0.1                     |
-+-------------+--------+--------------------------------------------------------------+-------------------------------+
-| value       | string | The current configured value of the configuration item. |br| | 192.168.0.27                  |
-|             |        | This may be empty if no value has been set.                  |                               |
-+-------------+--------+--------------------------------------------------------------+-------------------------------+
+.. list-table::
+    :widths: 20 20 50 50
+    :header-rows: 1
+
+    * - Name
+      - Type
+      - Description
+      - Example
+    * - description
+      - string
+      - A description of the configuration item that may be used in a user interface.
+      - The IPv4 network address of the Fledge server
+    * - type
+      - string
+      - A type that may be used by a user interface to know how to display an item.
+      - IPv4
+    * - default
+      - string
+      - An optional default value for the configuration item.
+      - 127.0.0.1
+    * - value
+      - string
+      - The current configured value of the configuration item. This may be empty if no value has been set.
+      - 127.0.0.1
 
 
 **Example**
@@ -863,21 +898,34 @@ GET ping
 
 The response payload is some basic health information in a JSON object.
 
-+------------------------+---------+-----------------------------------------------------------------+-------------------+
-| Name                   | Type    | Description                                                     | Example           |
-+========================+=========+=================================================================+===================+
-| authenticationOptional | boolean | When true, the REST API does not require authentication. |br|   | true              |
-|                        |         | When false, users must successfully login in order to call |br| |                   |
-|                        |         | the rest API. Default is *true*                                 |                   |
-+------------------------+---------+-----------------------------------------------------------------+-------------------+
-| dataPurged             | numeric | A count of the number of readings purged                        | 226               |
-+------------------------+---------+-----------------------------------------------------------------+-------------------+
-| dataRead               | numeric | A count of the number of sensor readings                        | 1452              |
-+------------------------+---------+-----------------------------------------------------------------+-------------------+
-| dataSent               | numeric | A count of the number of readings sent to PI                    | 347               |
-+------------------------+---------+-----------------------------------------------------------------+-------------------+
-| uptime                 | numeric | Time in seconds since Fledge started                            | 2113.076449394226 |
-+------------------------+---------+-----------------------------------------------------------------+-------------------+
+.. list-table::
+    :widths: 20 20 80 20
+    :header-rows: 1
+
+    * - Name
+      - Type
+      - Description
+      - Example
+    * - authenticationOptional
+      - boolean
+      - When true, the REST API does not require authentication. When false, users must successfully login in order to call the rest API. Default is *true*
+      - true
+    * - dataPurged
+      - numeric
+      - A count of the number of readings purged
+      - 226
+    * - dataRead
+      - numeric
+      - A count of the number of sensor readings
+      - 1452
+    * - dataSent
+      - numeric
+      - A count of the number of readings sent to PI
+      - 347
+    * - uptime
+      - numeric
+      - Time in seconds since Fledge started
+      - 2113.076449394226
 
 
 **Example**
@@ -909,32 +957,28 @@ GET statistics
 
 The response payload is a JSON document with statistical information (all numerical), these statistics are absolute counts since Fledge started.
 
-+------------------------+-----------------------------------------------------------------------------+
-| Key                    | Description                                                                 |
-+========================+=============================================================================+
-| BUFFERED               | The number of readings currently in the Fledge buffer                       |
-+------------------------+-----------------------------------------------------------------------------+
-| DISCARDED              | The number of readings discarded at the input side by Fledge,       |br|    |
-|                        | i.e. discarded before being  placed in the buffer. This may be due   |br|   |
-|                        | to some error in the readings themselves.                                   |
-+------------------------+-----------------------------------------------------------------------------+
-| PURGED                 | The number of readings removed from the buffer by the *Purge* task          |
-+------------------------+-----------------------------------------------------------------------------+
-| READINGS               | The number of readings received by Fledge since startup                     |
-+------------------------+-----------------------------------------------------------------------------+
-| SENT_1                 | The number of readings sent to the PI system via the OMF plugin             |
-+------------------------+-----------------------------------------------------------------------------+
-| SENT_2                 | The number of statistics sent to the PI system via the OMF plugin           |
-+------------------------+-----------------------------------------------------------------------------+
-| SENT_4                 | The number of readings sent to the OSIsoft Cloud Service via the OCS plugin |
-+------------------------+-----------------------------------------------------------------------------+
-| UNSENT                 | The number of readings filtered out in the send process                     |
-+------------------------+-----------------------------------------------------------------------------+
-| UNSNPURGED             | The number of readings that were purged from the buffer before being sent   |
-+------------------------+-----------------------------------------------------------------------------+
-| *ASSET-CODE*           | The number of readings received by Fledge since startup               |br|  |
-|                        | with name *asset-code*                                                      |
-+------------------------+-----------------------------------------------------------------------------+
+.. list-table::
+    :widths: 20 50
+    :header-rows: 1
+
+    * - Key
+      - Description
+    * - BUFFERED
+      - The number of readings currently in the Fledge buffer
+    * - DISCARDED
+      - The number of readings discarded at the input side by Fledge, i.e. discarded before being  placed in the buffer. This may be due to some error in the readings themselves.
+    * - PURGED
+      - The number of readings removed from the buffer by the *Purge* task
+    * - READINGS
+      - The number of readings received by Fledge since startup
+    * - *NORTH_TASK_NAME*
+      - The number of readings sent to the PI system via the OMF plugin with north instance name
+    * - UNSENT
+      - The number of readings filtered out in the send process
+    * - UNSNPURGED
+      - The number of readings that were purged from the buffer before being sent
+    * - *ASSET-CODE*
+      - The number of readings received by Fledge since startup with name *asset-code*
 
 
 **Example**
@@ -968,34 +1012,30 @@ GET statistics/history
 
 A JSON document containing an array of statistical information, these statistics are delta counts since the previous entry in the array. The time interval between values is a constant defined that runs the gathering process which populates the history statistics in the storage layer.
 
-+---------------------------+-----------------------------------------------------------------------------+
-| Key                       | Description                                                                 |
-+===========================+=============================================================================+
-| interval                  | The interval in seconds between successive statistics values                |
-+---------------------------+-----------------------------------------------------------------------------+
-| statistics[].BUFFERED     | The number of readings currently in the Fledge buffer                       |
-+---------------------------+-----------------------------------------------------------------------------+
-| statistics[].DISCARDED    | The number of readings discarded at the input side by Fledge,       |br|    |
-|                           | i.e. discarded before being  placed in the buffer. This may be due   |br|   |
-|                           | to some error in the readings themselves.                                   |
-+---------------------------+-----------------------------------------------------------------------------+
-| statistics[].PURGED       | The number of readings removed from the buffer by the *Purge* task          |
-+---------------------------+-----------------------------------------------------------------------------+
-| statistics[].READINGS     | The number of readings received by Fledge since startup                     |
-+---------------------------+-----------------------------------------------------------------------------+
-| statistics[].SENT_1       | The number of readings sent to the PI system via the OMF plugin             |
-+---------------------------+-----------------------------------------------------------------------------+
-| statistics[].SENT_2       | The number of statistics sent to the PI system via the OMF plugin           |
-+---------------------------+-----------------------------------------------------------------------------+
-| statistics[].SENT_4       | The number of readings sent to the OSIsoft Cloud Service via the OCS plugin |
-+---------------------------+-----------------------------------------------------------------------------+
-| statistics[].UNSENT       | The number of readings filtered out in the send process                     |
-+---------------------------+-----------------------------------------------------------------------------+
-| statistics[].UNSNPURGED   | The number of readings that were purged from the buffer before being sent   |
-+---------------------------+-----------------------------------------------------------------------------+
-| statistics[].*ASSET-CODE* | The number of readings received by Fledge since startup               |br|  |
-|                           | with name *asset-code*                                                      |
-+---------------------------+-----------------------------------------------------------------------------+
+.. list-table::
+    :widths: 20 50
+    :header-rows: 1
+
+    * - Key
+      - Description
+    * - interval
+      - The interval in seconds between successive statistics values
+    * - statistics[].BUFFERED
+      - The number of readings currently in the Fledge buffer
+    * - statistics[].DISCARDED
+      - The number of readings discarded at the input side by Fledge, i.e. discarded before being  placed in the buffer. This may be due to some error in the readings themselves.
+    * - statistics[].PURGED
+      - The number of readings removed from the buffer by the *Purge* task
+    * - statistics[].READINGS
+      - The number of readings received by Fledge since startup
+    * - statistics[].*NORTH_TASK_NAME*
+      - The number of readings sent to the PI system via the OMF plugin with north instance name
+    * - statistics[].UNSENT
+      - The number of readings filtered out in the send process
+    * - statistics[].UNSNPURGED
+      - The number of readings that were purged from the buffer before being sent
+    * - statistics[].*ASSET-CODE*
+      - The number of readings received by Fledge since startup with name *asset-code*
 
 
 **Example**
@@ -1010,8 +1050,6 @@ A JSON document containing an array of statistical information, these statistics
                        "FOGBENCH/HUMIDITY": 0,
                        "FOGBENCH/ACCELEROMETER": 0,
                        "UNSENT": 0,
-                       "SENT_2": 0,
-                       "SENT_4": 0,
                        "FOGBENCH/TEMPERATURE": 0,
                        "FOGBENCH/GYROSCOPE": 0,
                        "UNSNPURGED": 0,
@@ -1020,7 +1058,7 @@ A JSON document containing an array of statistical information, these statistics
                        "FOGBENCH/MAGNETOMETER": 0,
                        "PURGED": 0,
                        "FOGBENCH/WALL CLOCK": 0,
-                       "SENT_1": 0,
+                       "North_Readings_to_PI": 0,
                        "FOGBENCH/PRESSURE": 0,
                        "FOGBENCH/SWITCH": 0,
                        "history_ts": "2018-05-15 22:39:10.374" },
@@ -1030,8 +1068,6 @@ A JSON document containing an array of statistical information, these statistics
                        "FOGBENCH/HUMIDITY": 0,
                        "FOGBENCH/ACCELEROMETER": 0,
                        "UNSENT": 0,
-                       "SENT_2": 0,
-                       "SENT_4": 0,
                        "FOGBENCH/TEMPERATURE": 0,
                        "FOGBENCH/GYROSCOPE": 0,
                        "UNSNPURGED": 0,
@@ -1040,7 +1076,7 @@ A JSON document containing an array of statistical information, these statistics
                        "FOGBENCH/MAGNETOMETER": 0,
                        "PURGED": 0,
                        "FOGBENCH/WALL CLOCK": 0,
-                       "SENT_1": 0,
+                       "North_Readings_to_PI": 0,
                        "FOGBENCH/PRESSURE": 0,
                        "FOGBENCH/SWITCH": 0,
                        "history_ts": "2018-05-15 22:38:55.653" } ]

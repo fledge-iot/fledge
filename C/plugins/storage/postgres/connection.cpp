@@ -18,7 +18,7 @@
 #include "rapidjson/error/error.h"
 #include "rapidjson/error/en.h"
 #include <string>
-#include <regex>
+#include <vector>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <sstream>
@@ -877,9 +877,7 @@ std::size_t arr = data.find("inserts");
 			{
 				const char *str = itr->value.GetString();
 				// Check if the string is a function
-				string s (str);
-				regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
-				if (regex_match (s,e))
+				if (isFunction(str))
 				{
 					values.append(str);
 				}
@@ -998,9 +996,7 @@ SQLBuffer	sql;
 					{
 						const char *str = itr->value.GetString();
 						// Check if the string is a function
-						string s (str);
-						regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
-						if (regex_match (s,e))
+						if (isFunction(str))
 						{
 							sql.append(str);
 						}
@@ -1081,9 +1077,7 @@ SQLBuffer	sql;
 					{
 						const char *str = value.GetString();
 						// Check if the string is a function
-						string s (str);
-						regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
-						if (regex_match (s,e))
+						if (isFunction(str))
 						{
 							sql.append(str);
 						}
@@ -1190,9 +1184,7 @@ SQLBuffer	sql;
 					{
 						const char *str = value.GetString();
 						// Check if the string is a function
-						string s (str);
-						regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
-						if (regex_match (s,e))
+						if (isFunction(str))
 						{
 							sql.append("'\"");
 							sql.append(str);
@@ -1486,9 +1478,7 @@ bool 		add_row = false;
 
 		const char *str = (*itr)["user_ts"].GetString();
 		// Check if the string is a function
-		string s (str);
-		regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
-		if (regex_match (s,e))
+		if (isFunction(str))
 		{
 			if (row)
 				sql.append(", (");
@@ -2938,4 +2928,29 @@ SQLBuffer sql;
 	} catch (exception e) {
 		raiseError("get_table_snapshots", "Internal error: %s", e.what());
 	}
+}
+
+/**
+ * Check to see if the str is a function
+ *
+ * @param str   The string to check
+ * @return true if the string contains a function call
+ */
+bool Connection::isFunction(const char *str) const
+{
+const char *p;
+
+	p = str + strlen(str) - 1;
+	// A function would have a closing bracket followed pnly by white space at the end
+	while (p > str && isspace(*p))
+		p--;
+	if (*p != ')')
+		return false;
+
+	// We found the closing bracket now check for the opening bracket
+	while (p > str && *p != '(')
+		p--;
+	if (*p == '(')
+		return true;
+	return false;
 }

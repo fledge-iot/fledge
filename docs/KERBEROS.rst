@@ -13,12 +13,14 @@ Kerberos authentication
 
 Introduction
 ============
-Fledge implements through his North plugin PI_server Token, Basic and Kerberos authentication, the latter is especially relevant for the integration with PI Web API using `OMF`_.
+
+The bundled OMF nprth plugin in Fledge can use a number of different authentication schemes when communicatign wih the various OSIsoft products. The PI Web API method in the `OMF`_ plugin supports the use of a Kerberos scheme.
 
 The Fledge *requirements.sh* script installs the Kerberos client to allow the integration with what in the specific terminology is called KDC (the Kerberos server).
 
 PI-Server as the North endpoint
 ===============================
+
 The OSI *Connector Relay* allows token authentication while *PI Web API* supports Basic and Kerberos.
 
 There could be more than one configuration to allow the Kerberos authentication,
@@ -28,34 +30,27 @@ The Windows Active directory should be installed and properly configured for all
 
 Fledge North plugin
 ====================
+
 The North plugin has a set of configurable options that should be changed, using either the Fledge API or the Fledge GUI,
 to select the Kerberos authentication.
 
 The North plugin supports the configurable option *PIServerEndpoint* for allowing to select the target among:
 
   - Connector Relay
+
   - PI Web API
-  - Auto Discovery
 
-*Auto Discovery* will let the North plugin to evaluate if the provided URL is related to an either *Connector Relay* or *PI Web API* endpoint.
+  - End Data Store
 
-The *URL* should be set to reference your endpoint server, these are the addresses to be used against the OSIsoft components:
-::
+  - OSIsoft Cloud Services
 
-    - PI Web API       - https://pi-server:443/piwebapi/omf
-    - Connector Relay  - https://pi-server:5460/ingress/messages
-
-**NOTE:**
-
-- *pi-server* should be substituted with the name/IP-Address of your PI-Server node
-
-the *PIWebAPIAuthenticationMethod* option permits to select the desired authentication among:
+The *PIWebAPIAuthenticationMethod* option permits to select the desired authentication among:
 
   - anonymous
   - basic
   - kerberos
 
-the Kerberos authentication requires a keytab file, the *PIWebAPIKerberosKeytabFileName* option specifies the name of the file expected under the
+The Kerberos authentication requires a keytab file, the *PIWebAPIKerberosKeytabFileName* option specifies the name of the file expected under the
 directory:
 
 .. code-block:: console
@@ -68,19 +63,6 @@ directory:
 
 the *AFHierarchy1Level* option allows to specific the first level of the hierarchy that will be created into the Asset Framework and will contain the information for the specific
 North plugin.
-
-A sample set of commands for selecting *PI Web API* usingthe *Kerberos* authentication:
-
-.. code-block:: console
-
-	curl -X PUT http://localhost:8081/fledge/category/North_statistics_to_PI/URL                              -d '{ "value" : "https://pi-server:443/piwebapi/omf" }'
-	curl -X PUT http://localhost:8081/fledge/category/North_statistics_to_PI/PIServerEndpoint                 -d '{ "value" : "PI Web API" }'
-	curl -X PUT http://localhost:8081/fledge/category/North_statistics_to_PI/PIWebAPIAuthenticationMethod     -d '{ "value" : "kerberos" }'
-	curl -X PUT http://localhost:8081/fledge/category/North_statistics_to_PI/AFHierarchy1Level                -d '{ "value" : "fledge_data_piwebapi" }'
-
-**NOTE:**
-
-- *North_statistics_to_PI* should correspond to the name of the North plugin you have created in Fledge
 
 
 Fledge server configuration

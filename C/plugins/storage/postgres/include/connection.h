@@ -52,5 +52,6 @@ class Connection {
 		const std::string	escape(const std::string&);
     		const std::string 	double_quote_reserved_column_name(const std::string &column_name);
 		void		logSQL(const char *, const char *);
+		bool		isFunction(const char *) const;
 };
 #endif

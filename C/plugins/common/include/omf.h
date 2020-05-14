@@ -326,6 +326,10 @@ class OMF
 		// Data types cache[key] = (key_type_id, key data types)
 		std::map<std::string, OMFDataTypes>*
 					m_OMFDataTypes;
+
+		// Stores the type for the block of data containing all the used properties
+		std::map<string, Reading*> m_SuperSetDataPoints;
+
 		/**
 		 * Static data to send to OMF
 		 */

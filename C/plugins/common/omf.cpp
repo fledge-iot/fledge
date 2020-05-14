@@ -1006,13 +1006,10 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	gettimeofday(&start, NULL);
 #endif
 
-
-	std::map<string, Reading*> superSetDataPoints;
-
 	// Create a superset of all found datapoints for each assetName
 	// the superset[assetName] is then passed to routines which handle
 	// creation of OMF data types
-	OMF::setMapObjectTypes(readings, superSetDataPoints);
+	OMF::setMapObjectTypes(readings, m_SuperSetDataPoints);
 
 #if INSTRUMENT
 	gettimeofday(&t1, NULL);
@@ -1076,8 +1073,8 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			OMF::clearCreatedTypes(keyComplete);
 
 			// Get the supersetDataPoints for current assetName
-			auto it = superSetDataPoints.find((**elem).getAssetName());
-			if (it != superSetDataPoints.end())
+			auto it = m_SuperSetDataPoints.find((**elem).getAssetName());
+			if (it != m_SuperSetDataPoints.end())
 			{
 				datatypeStructure = (*it).second;
 			}
@@ -1104,7 +1101,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		     !OMF::handleTypeErrors(keyComplete, *datatypeStructure))))
 		{
 			// Remove all assets supersetDataPoints
-			OMF::unsetMapObjectTypes(superSetDataPoints);
+			OMF::unsetMapObjectTypes(m_SuperSetDataPoints);
 
 			// Failure
 			m_lastError = true;
@@ -1127,7 +1124,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 #endif
 
 	// Remove all assets supersetDataPoints
-	OMF::unsetMapObjectTypes(superSetDataPoints);
+	OMF::unsetMapObjectTypes(m_SuperSetDataPoints);
 
 	jsonData << "]";
 
@@ -3045,12 +3042,20 @@ bool OMF::getCreatedTypes(const string& keyComplete, const Reading& row)
 					// not in advance
 					if (m_PIServerEndpoint != ENDPOINT_CR)
 					{
-						// Check if the types are changed
-						typesDefinition = calcTypeShort(row);
+						// Check if the defined type has changed respect the superset type
+						Reading* datatypeStructure = NULL;
 
-						if (it->second.typesShort != typesDefinition)
+						auto itSuper = m_SuperSetDataPoints.find(row.getAssetName());
+						if (itSuper != m_SuperSetDataPoints.end())
 						{
-							ret = false;
+							datatypeStructure = (*itSuper).second;
+
+							// Check if the types are changed
+							typesDefinition = calcTypeShort(*datatypeStructure);
+							if (it->second.typesShort != typesDefinition)
+							{
+								ret = false;
+							}
 						}
 					}
 				}

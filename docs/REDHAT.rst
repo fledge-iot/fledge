@@ -35,7 +35,7 @@ It is necessary to install a Red Hat package before Fledge can be installed succ
 .. code-block:: console 
 
    $ sudo yum-config-manager --enable 'Red Hat Software Collections RPMs for Red Hat Enterprise Linux 7 Server from RHUI'
-   $ sudo yum -y  localinstall ~/fledge-1.5.2-0.00.x86_64.rpm
+   $ sudo yum -y  localinstall ~/fledge-1.8.0-1.00.x86_64.rpm
 
 
 Installation on CentOS
@@ -46,7 +46,7 @@ It is necessary to install a CentOS package before Fledge can be installed succe
 .. code-block:: console 
 
    $ sudo yum install -y  centos-release-scl-rh
-   $ sudo yum -y  localinstall ~/fledge-1.5.2-0.00.x86_64.rpm
+   $ sudo yum -y  localinstall ~/fledge-1.8.0-1.00.x86_64.rpm
 
 .. note::
    By default, /var/log/messages are created with read-write permissions for ‘root’ user only.

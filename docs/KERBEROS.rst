@@ -14,7 +14,7 @@ Kerberos authentication
 Introduction
 ============
 
-The bundled OMF north plugin in Fledge can use a number of different authentication schemes when communicatign wih the various OSIsoft products. The PI Web API method in the `OMF`_ plugin supports the use of a Kerberos scheme.
+The bundled OMF north plugin in Fledge can use a number of different authentication schemes when communicating with the various OSIsoft products. The PI Web API method in the `OMF`_ plugin supports the use of a Kerberos scheme.
 
 The Fledge *requirements.sh* script installs the Kerberos client to allow the integration with what in the specific terminology is called KDC (the Kerberos server).
 

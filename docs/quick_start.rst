@@ -160,8 +160,18 @@ To add a data source, you will first need to install the plugin for that sensor 
 Once the plugin is installed return to the Fledge GUI and click on “Add+” in the upper right of the South Services screen.  Fledge will display a series of 3 screens to add the data source:
 
 1. The first screen will ask you to select the plugin for the data source from the list of installed plugins.  If you do not see the plugin you need, refer to the Installing Fledge section of this manual.  In addition, this screen allows you to specify a display name for the data source.
-2. The second screen allows you to configure the plugin and the data assets it will provide.  Note that every data asset in Fledge must have a unique name.  If you have multiple sensors using the same plugin, modify the asset names on this screen so they are unique. (Some plugins allow you to specify an asset name prefix that will apply to all the asset names for that sensor.)  Refer to the individual plugin documentation for descriptions of the fields on this screen.  If you modify any of the configuration fields, click on the “save” button to save them.
-3. The final screen loads the plugin.  You can specify whether it will be enabled immediately for data collection or to await enabling in the future.
+
+2. The second screen allows you to configure the plugin and the data assets it will provide. 
+
+   .. note::
+
+      Every data asset in Fledge must have a unique name.  If you have multiple sensors using the same plugin, modify the asset names on this screen so they are unique. 
+      
+   Some plugins allow you to specify an asset name prefix that will apply to all the asset names for that sensor. Refer to the individual plugin documentation for descriptions of the fields on this screen.
+
+3. If you modify any of the configuration fields, click on the “save” button to save them.
+
+4. The final screen allows you to specify whether the service will be enabled immediately for data collection or await enabling in the future.
 
 Configuring Data Sources
 ########################

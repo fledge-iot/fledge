@@ -171,7 +171,7 @@ Once the plugin is installed return to the Fledge GUI and click on “Add+” in
 
 3. If you modify any of the configuration fields, click on the “save” button to save them.
 
-4. The final screen allows you to specify whether the service will be enabled immediately for data collection or await await enabling in the future.
+4. The final screen allows you to specify whether the service will be enabled immediately for data collection or await enabling in the future.
 
 Configuring Data Sources
 ########################

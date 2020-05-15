@@ -483,6 +483,7 @@ async def _delete_child_filters(storage: StorageClientAsync, cf_mgr: Configurati
         try:
             filter_child_category_name = "{}_{}".format(user_name, child)
             await cf_mgr.delete_child_category(user_name, filter_child_category_name)
+            await cf_mgr.delete_child_category("{} Filters".format(user_name), filter_child_category_name)
         except:
             pass
         await _delete_configuration_category(storage, "{}_{}".format(user_name, child))

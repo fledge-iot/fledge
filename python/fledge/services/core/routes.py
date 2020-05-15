@@ -24,9 +24,11 @@ from fledge.services.core.api import filters
 from fledge.services.core.api import notification
 from fledge.services.core.api.plugins import install as plugins_install, discovery as plugins_discovery
 from fledge.services.core.api.plugins import update as plugins_update
+from fledge.services.core.api.plugins import remove as plugins_remove
 from fledge.services.core.api.snapshot import plugins as snapshot_plugins
 from fledge.services.core.api.snapshot import table as snapshot_table
 from fledge.services.core.api import package_log
+
 
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
@@ -107,6 +109,7 @@ def setup(app):
     app.router.add_route('DELETE', '/fledge/service/{service_name}', service.delete_service)
     app.router.add_route('GET', '/fledge/service/available', service.get_available)
     app.router.add_route('GET', '/fledge/service/installed', service.get_installed)
+    app.router.add_route('PUT', '/fledge/service/{type}/{name}/update', service.update_service)
 
     # Task
     app.router.add_route('POST', '/fledge/scheduled/task', task.add_task)
@@ -163,11 +166,12 @@ def setup(app):
     app.router.add_route('GET', '/fledge/package/log', package_log.get_logs)
     app.router.add_route('GET', '/fledge/package/log/{name}', package_log.get_log_by_name)
 
-    # Plugins (install, discovery, update)
+    # Plugins (install, discovery, update, delete)
     app.router.add_route('GET', '/fledge/plugins/installed', plugins_discovery.get_plugins_installed)
     app.router.add_route('GET', '/fledge/plugins/available', plugins_discovery.get_plugins_available)
     app.router.add_route('POST', '/fledge/plugins', plugins_install.add_plugin)
     app.router.add_route('PUT', '/fledge/plugins/{type}/{name}/update', plugins_update.update_plugin)
+    app.router.add_route('DELETE', '/fledge/plugins/{type}/{name}', plugins_remove.remove_plugin)
 
     # Filters 
     app.router.add_route('POST', '/fledge/filter', filters.create_filter)

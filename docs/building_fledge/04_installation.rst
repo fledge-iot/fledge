@@ -12,7 +12,7 @@
 
 .. |build fledge| raw:: html
 
-   <a href="03_getting_started.html#building-fledge" target="_blank">here</a>
+   <a href="building_fledge.html" target="_blank">here</a>
 
 .. |snappy| raw:: html
 
@@ -21,10 +21,6 @@
 .. |snapcraft| raw:: html
 
    <a href="https://snapcraft.io" target="_blank">snapcraft.io</a>
-
-.. |fledge-snap issues| raw:: html
-
-   <a href="https://github.com/fledge/fledge-snap/issues" target="_blank">GitHub issues database</a>
 
 .. |x86 Package| raw:: html
 
@@ -430,156 +426,3 @@ Use the ``apt`` or the ``apt-get`` command to uninstall Fledge:
 The command also removes the service installed. |br| You may notice the warning in the last row of the command output: this is due to the fact that the data directory (``/usr/local/fledge/data`` by default) has not been removed, in case an administrator might want to analyze or reuse the data.
 
 |br|
-
-
-DEPRECATED: Installing the Snap Package
----------------------------------------
-
-.. note:: The use of |snappy| allows you to install packages up to version 1.1.1. Newer versions are available with Debian packages.
-
-|snappy| is a software deployment and package management system originally designed and built by Canonical. Snappy is now available for many Linux distributions, including Ubuntu, Ubuntu Core, Debian, Fedora, Archlinux, Raspbian, Suse, the Yocto project and many others. The package management is based on snap packages that can be installed in a *transactional* environment, i.e. the packages have a current installation and the system can maintain a given number of previous installations. In case of issues with the new packages, Administrators can easily revert to previous installations.
-
-More information regarding the package manager are available on the |snapcraft| website.
-
-.. note:: The snap package is still experimental, if you find any issue you should report them to the |fledge-snap issues| for the *fledge-snap* project.
-
-
-Obtaining the Snap Package
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Check the |Downloads page| to find the package to install.
-
-Once you have downloaded the package, install it using the ``snap install`` command. Note that you may need to install it as superuser (or by using the ``sudo`` command). The current version of Fledge must be installed using the *--devmode* argument, since there are currently no security confinments.
-
-For example, if you are installing Fledge on an Intel x86/64 machine, you can type:
-
-.. code-block:: console
-
-  $ sudo snap install --devmode fledge_<version>_amd64.snap
-  fledge <version> installed 
-  $
-
-... where *<version>* is the selected version that you are installing.
-
-Congratulations! This is all you need to do, now Fledge is ready to run.
-
-
-Starting Fledge from Snap
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-You can use the same ``fledge`` command we discussed in the previous section to start the core microservice of Fledge:
-
-
-.. code-block:: console
-
-  $ fledge start
-  Starting PostgreSQL...
-  PostgreSQL started.
-  Building the metadata for the Fledge Plugin...
-  Build complete.
-  Starting Fledge......
-  Fledge started.
-  $
-  $ fledge status
-  Fledge starting.
-  $
-  $ fledge status
-  Fledge running.
-  Fledge uptime:  16 seconds.
-  Fledge Records: 0 read, 0 sent, 0 purged.
-  Fledge does not require authentication.
-  === Fledge services:
-  fledge.services.core
-  fledge.services.south --port=37829 --address=127.0.0.1 --name=COAP
-  === Fledge tasks:
-  fledge.tasks.north.sending_process --stream_id 1 --debug_level 1 --port=37829 --address=127.0.0.1 --name=sending process
-  fledge.tasks.statistics --port=37829 --address=127.0.0.1 --name=stats collector
-  $
-  $ fledge stop
-  Stopping Fledge.............
-  Stopping PostgreSQL...
-  PostgreSQL stopped.
-  Fledge stopped.
-  $
-
-From the output of the *fledge* command you can notice that now the PostgreSQL database is managed by Fledge itself. In fact, the snap package also installs an embedded version of PostgreSQL that should be exclusively used by Fledge. 
-
-
-Data Directories with the Snap Package
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Snap is designed to be self-contained and it does not require any user setting, therefore there are no *FLEDGE_ROOT* or *FLEDGE_DATA* variables to set. The Fledge package is installed in readonly and it is visible by the user in the */snap/fledge* directory, data is stored in the *snap/fledge* directory under the user home directory. The data directory also contains the PostgreSQL database.
-
-
-.. code-block:: console
-
-  $ ls -l /snap
-  total 20
-  drwxr-xr-x  5 root root 4096 Dec 11 15:06 ./
-  drwxr-xr-x 23 root root 4096 Dec 11 14:14 ../
-  drwxr-xr-x  2 root root 4096 Dec 11 15:06 bin/
-  drwxr-xr-x  3 root root 4096 Dec 11 14:41 core/
-  drwxr-xr-x  3 root root 4096 Dec 11 15:06 fledge/
-  $
-  $ ls -l /snap/fledge
-  total 8
-  drwxr-xr-x 3 root root 4096 Dec 11 15:06 ./
-  drwxr-xr-x 5 root root 4096 Dec 11 15:06 ../
-  lrwxrwxrwx 1 root root    2 Dec 11 15:06 current -> x1/
-  drwxr-xr-x 8 root root  137 Dec 11 15:04 x1/ 
-  $
-  $ ls -l /snap/fledge/x1
-  total 5
-  drwxr-xr-x  8 root root  137 Dec 11 15:04 ./
-  drwxr-xr-x  3 root root 4096 Dec 11 15:06 ../
-  drwxr-xr-x  2 root root   95 Dec 11 14:16 bin/
-  -rwxr-xr-x  1 root root  378 Dec 11 15:04 command-fledge.wrapper*
-  drwxr-xr-x 13 root root  279 Dec 11 15:04 etc/
-  drwxr-xr-x  5 root root   71 Nov 21  2016 lib/
-  drwxr-xr-x  3 root root   43 Dec 11 14:16 meta/
-  drwxr-xr-x  7 root root   99 Dec 11 15:04 usr/
-  drwxr-xr-x  4 root root   37 Dec 11 15:04 var/
-  $
-  $  $ ls -l $HOME/snap
-  total 4
-  drwxr-xr-x 4 ubuntu ubuntu 4096 Dec 11 15:07 fledge
-  $ ls -l /home/ubuntu/snap/fledge/
-  total 8
-  drwxr-xr-x 4 ubuntu ubuntu 4096 Dec 11 15:07 common
-  lrwxrwxrwx 1 ubuntu ubuntu    2 Dec 11 14:54 current -> x1
-  drwxr-xr-x 2 ubuntu ubuntu 4096 Dec 11 15:07 x1
-  $ ls -l /home/ubuntu/snap/fledge/common/
-  total 8
-  drwxr-xr-x 2 ubuntu ubuntu 4096 Dec 11 15:07 etc
-  drwxrwxr-x 3 ubuntu ubuntu 4096 Dec 11 15:07 storage
-  $ ls -l /home/ubuntu/snap/fledge/common/storage/postgres/pgsql/
-  total 8
-  drwx------ 19 ubuntu ubuntu 4096 Dec 11 15:07 data
-  -rw-------  1 ubuntu ubuntu  506 Dec 11 15:17 logger
-  $ ls -l /home/ubuntu/snap/fledge/common/storage/postgres/pgsql/data/
-  total 120
-  drwx------ 6 ubuntu ubuntu  4096 Dec 11 15:07 base
-  drwx------ 2 ubuntu ubuntu  4096 Dec 11 15:08 global
-  drwx------ 2 ubuntu ubuntu  4096 Dec 11 15:07 pg_clog
-  drwx------ 2 ubuntu ubuntu  4096 Dec 11 15:07 pg_commit_ts
-  drwx------ 2 ubuntu ubuntu  4096 Dec 11 15:07 pg_dynshmem
-  -rw------- 1 ubuntu ubuntu  4462 Dec 11 15:07 pg_hba.conf
-  -rw------- 1 ubuntu ubuntu  1636 Dec 11 15:07 pg_ident.conf
-  drwx------ 4 ubuntu ubuntu  4096 Dec 11 15:07 pg_logical
-  drwx------ 4 ubuntu ubuntu  4096 Dec 11 15:07 pg_multixact
-  drwx------ 2 ubuntu ubuntu  4096 Dec 11 15:07 pg_notify
-  drwx------ 2 ubuntu ubuntu  4096 Dec 11 15:07 pg_replslot
-  drwx------ 2 ubuntu ubuntu  4096 Dec 11 15:07 pg_serial
-  drwx------ 2 ubuntu ubuntu  4096 Dec 11 15:07 pg_snapshots
-  drwx------ 2 ubuntu ubuntu  4096 Dec 11 15:07 pg_stat
-  drwx------ 2 ubuntu ubuntu  4096 Dec 11 15:18 pg_stat_tmp
-  drwx------ 2 ubuntu ubuntu  4096 Dec 11 15:07 pg_subtrans
-  drwx------ 2 ubuntu ubuntu  4096 Dec 11 15:07 pg_tblspc
-  drwx------ 2 ubuntu ubuntu  4096 Dec 11 15:07 pg_twophase
-  -rw------- 1 ubuntu ubuntu     4 Dec 11 15:07 PG_VERSION
-  drwx------ 3 ubuntu ubuntu  4096 Dec 11 15:07 pg_xlog
-  -rw------- 1 ubuntu ubuntu    88 Dec 11 15:07 postgresql.auto.conf
-  -rw------- 1 ubuntu ubuntu 21344 Dec 11 15:07 postgresql.conf
-  -rw------- 1 ubuntu ubuntu   121 Dec 11 15:07 postmaster.opts
-  -rw------- 1 ubuntu ubuntu   117 Dec 11 15:07 postmaster.pid
-  $

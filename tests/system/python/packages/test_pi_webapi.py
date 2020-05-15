@@ -61,17 +61,17 @@ def get_asset_tracking_details(fledge_url, event=None):
     return jdoc
 
 
-def _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name):
+def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name):
     retry_count = 0
     data_from_pi = None
 
-    # See C/plugins/common/omf.cpp
-    af_hierarchy_level = "fledge_data_piwebapi"
+    af_hierarchy_level = "fledge/room1/machine1"
+    af_hierarchy_level_list = af_hierarchy_level.split("/")
     type_id = 1
-    recorded_datapoint = "{}_{}measurement_{}.{}".format(af_hierarchy_level, type_id, asset_name, DATAPOINT)
+    recorded_datapoint = "{}_{}measurement_{}.{}".format(af_hierarchy_level_list[-1], type_id, asset_name, DATAPOINT)
 
     while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
-        data_from_pi = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db, asset_name, {recorded_datapoint})
+        data_from_pi = read_data_from_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db, af_hierarchy_level_list, asset_name, {recorded_datapoint})
         retry_count += 1
         time.sleep(wait_time*2)
 
@@ -100,7 +100,7 @@ def start_south_north(clean_setup_fledge_packages, add_south, start_north_pi_ser
                 asset_name, DATAPOINT, DATAPOINT_VALUE, DATAPOINT_VALUE))
 
     south_plugin = "coap"
-    # south_branch does not matter as these are archives.dianomic.com version install
+    # south_branch does not matter as these are archives.fledge-iot.org version install
     add_south(south_plugin, None, fledge_url, service_name="CoAP FOGL-2964", installation_type='package')
     start_north_pi_server_c_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd)
 
@@ -112,7 +112,7 @@ def start_south_north(clean_setup_fledge_packages, add_south, start_north_pi_ser
 
 class TestPackagesCoAP_PI_WebAPI:
 
-    def test_end_to_end(self, start_south_north, read_data_from_pi, fledge_url, pi_host, pi_admin, pi_passwd, pi_db,
+    def test_end_to_end(self, start_south_north, read_data_from_pi_web_api, fledge_url, pi_host, pi_admin, pi_passwd, pi_db,
                         wait_time, retries, skip_verify_north_interface, asset_name=ASSET):
         """ Test that data is inserted in Fledge and sent to PI
             start_south_north: Fixture that add south and north instance
@@ -178,6 +178,6 @@ class TestPackagesCoAP_PI_WebAPI:
             tracked_item = egress_tracking_details["track"][0]
             assert "NorthReadingsToPI_WebAPI" == tracked_item["service"]
             assert asset_name == tracked_item["asset"]
-            assert "PI_Server_V2" == tracked_item["plugin"]
+            assert "OMF" == tracked_item["plugin"]
 
-            _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name)
+            _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name)

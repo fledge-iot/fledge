@@ -30,10 +30,6 @@ scripts/extras/*.db
 /etc/certs/*
 storage.json
 
-*.cert
-*.key
-*.csr
-
 # Docs
 docs/_build
 docs/__pycache__/
@@ -62,6 +58,8 @@ docs/.cache/
 *.cert
 *.csr
 *.key
+*.cer
+*.crt
 
 .cache/
 
@@ -78,5 +76,8 @@ python/async_ingest.so*
 # Filter ingest pymodule
 python/filter_ingest.so*
 
-# Python south plugins
+# Python south & filter plugins
 python/fledge/plugins/south/*
+python/fledge/plugins/filter/*
+python/fledge/plugins/notificationDelivery/*
+python/fledge/plugins/notificationRule/*

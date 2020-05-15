@@ -53,15 +53,18 @@ SimpleHttp::~SimpleHttp()
  * @param payload   The optional data payload (for POST, PUT)
  * @return          The HTTP code on success or 0 on execptions
  */
-int SimpleHttp::sendRequest(const string& method,
-			    const string& path,
-			    const vector<pair<string, string>>& headers,
-			    const string& payload)
+int SimpleHttp::sendRequest(
+		const string& method,
+		const string& path,
+		const vector<pair<string, string>>& headers,
+		const string& payload
+)
 {
 	SimpleWeb::CaseInsensitiveMultimap header;
 
 	// Add Fledge UserAgent
 	header.emplace("User-Agent", HTTP_SENDER_USER_AGENT);
+	header.emplace("Content-Type", "application/json");
 
 	// Add custom headers
 	for (auto it = headers.begin(); it != headers.end(); ++it)
@@ -101,6 +104,8 @@ int SimpleHttp::sendRequest(const string& method,
 
 			retCode = res->status_code;
 			response = res->content.string();
+
+			m_HTTPResponse = response;
 
 			// In same cases the response is an empty string
 			// and retCode contains code and the description

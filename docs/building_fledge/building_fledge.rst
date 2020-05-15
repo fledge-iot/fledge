@@ -5,7 +5,7 @@
    <br />
 
 .. Images
-.. |fledge_all_round| image:: images/fledge_all_round_solution.jpg
+.. |fledge_all_round| image:: ../images/fledge_all_round_solution.jpg
 
 .. Links
 .. _here: #id1
@@ -14,7 +14,7 @@
 .. Links in new tabs
 .. |Fledge Repo| raw:: html
 
-   <a href="https://github.com/fledge/Fledge" target="_blank">https://github.com/fledge/Fledge</a>
+   <a href="https://github.com/fledge-iot/Fledge" target="_blank">https://github.com/fledge-iot/Fledge</a>
 
 .. |GCC Bug| raw:: html
 
@@ -37,7 +37,7 @@ Let's get started! In this chapter we will see where to find and how to build, i
 Fledge Platforms
 =================
 
-Due to the use of standard libraries, Fledge can run on a large number of platforms and operating environments, but its primary target is Linux distributions. |br| Our testing environment includes Ubuntu LTS 16.04, Ubuntu LTS 18.04, Ubuntu Core 16 and Raspbian, but we have installed and tested Fledge on other Linux distributions. In addition to the native support, Fledge can also run on Virtual Machines, Docker and LXC containers.
+Due to the use of standard libraries, Fledge can run on a large number of platforms and operating environments, but its primary target is Linux distributions. |br| Our testing environment includes Ubuntu LTS 18.04 and Raspbian, but we have installed and tested Fledge on other Linux distributions. In addition to the native support, Fledge can also run on Virtual Machines, Docker and LXC containers.
 
 
 General Requirements
@@ -46,7 +46,7 @@ General Requirements
 This version of Fledge requires the following software to be installed in the same environment:
 
 - **Avahi 0.6.32+**
-- **Python 3.5.3+**
+- **Python 3.6.9+**
 - **PostgreSQL 9.5+**
 - **SQLite 3.11+**
 
@@ -61,7 +61,7 @@ You may also want to install some utilities to make your life easier when you us
 Building Fledge
 ================
 
-In this section we will describe how to build Fledge on Ubuntu 16.04 LTS (Server or Desktop), Ubuntu 18.04 LTS (Server or Desktop). Other Linux distributions, Debian or Red-Hat based, or even other versions of Ubuntu may differ. If you are not familiar with Linux and you do not want to build Fledge from the source code, you can download a ready-made Debian package (the list of packages is `available here <92_downloads.html>`_).
+In this section we will describe how to build Fledge on Ubuntu 18.04 LTS (Server or Desktop). Other Linux distributions, Debian or Red-Hat based, or even other versions of Ubuntu may differ. If you are not familiar with Linux and you do not want to build Fledge from the source code, you can download a ready-made Debian package (the list of packages is `available here <92_downloads.html>`_).
 
 
 Build Pre-Requisites
@@ -74,18 +74,22 @@ Fledge is currently based on C/C++ and Python code. The packages needed to build
 - avahi-daemon
 - build-essential
 - cmake
+- cpulimit
 - curl
 - g++
 - git
+- krb5-user
 - libboost-dev
 - libboost-system-dev
 - libboost-thread-dev
+- libcurl4-openssl-dev
 - libssl-dev
 - libpq-dev
 - libsqlite3-dev
 - libtool
 - libz-dev
 - make
+- pkg-config
 - postgresql
 - python3-dev
 - python3-pip
@@ -124,6 +128,24 @@ Fledge is currently based on C/C++ and Python code. The packages needed to build
   Reading package lists... Done
   Building dependency tree
   $
+  ...
+  $
+  $ sudo apt-get install pkg-config cpulimit
+  Reading package lists... Done
+  Building dependency tree
+  $
+  ...
+  $
+  $ DEBIAN_FRONTEND=noninteractive sudo apt-get install -yq krb5-user
+  Reading package lists... Done
+  Building dependency tree
+  $
+  ...
+  $
+  $ DEBIAN_FRONTEND=noninteractive sudo apt-get install -yq libcurl4-openssl-dev
+  Reading package lists... Done
+  Building dependency tree
+  $
 
 
 Obtaining the Source Code
@@ -133,7 +155,7 @@ Fledge is available on GitHub. The link to the repository is |Fledge Repo|. In o
 
 .. code-block:: console
 
-  $ git clone https://github.com/fledge/Fledge.git
+  $ git clone https://github.com/fledge-iot/Fledge.git
   Cloning into 'Fledge'...
   remote: Counting objects: 15639, done.
   remote: Compressing objects: 100% (88/88), done.
@@ -148,21 +170,24 @@ The code should be now in your home directory. The name of the repository direct
 .. code-block:: console
 
   $ ls -l Fledge
-  total 84
-  drwxrwxr-x 5 ubuntu ubuntu  4096 Dec  8 18:00 C
-  -rw-rw-r-- 1 ubuntu ubuntu   180 Dec  8 18:00 CMakeLists.txt
-  drwxrwxr-x 3 ubuntu ubuntu  4096 Dec  8 18:00 data
-  drwxrwxr-x 3 ubuntu ubuntu  4096 Dec  8 18:00 docs
-  dtrwxrwxr-x 3 ubuntu ubuntu  4096 Dec  8 18:00 examples
-  drwxrwxr-x 3 ubuntu ubuntu  4096 Dec  8 18:00 extras
-  -rw-rw-r-- 1 ubuntu ubuntu  5869 Dec  8 18:00 Jenkinsfile
-  -rw-rw-r-- 1 ubuntu ubuntu 11342 Dec  8 18:00 LICENSE
-  -rw-rw-r-- 1 ubuntu ubuntu 10654 Dec  8 18:00 Makefile
-  -rw-rw-r-- 1 ubuntu ubuntu  5842 Dec  8 18:00 pr_tester.sh
-  drwxrwxr-x 4 ubuntu ubuntu  4096 Dec  8 18:00 python
-  -rw-rw-r-- 1 ubuntu ubuntu  5916 Dec  8 18:00 README.rst
-  drwxrwxr-x 8 ubuntu ubuntu  4096 Dec  8 18:00 scripts
-  drwxrwxr-x 3 ubuntu ubuntu  4096 Dec  8 18:00 tests
+  total 128
+  drwxr-xr-x   7 ubuntu ubuntu    224 Jan  3 20:08 C
+  -rw-r--r--   1 ubuntu ubuntu   1480 May  7 00:29 CMakeLists.txt
+  -rw-r--r--   1 ubuntu ubuntu  11346 Jan  3 20:08 LICENSE
+  -rw-r--r--   1 ubuntu ubuntu  20660 Mar 13 00:25 Makefile
+  -rw-r--r--   1 ubuntu ubuntu   9173 May  7 00:29 README.rst
+  -rwxr-xr-x   1 ubuntu ubuntu     38 May  9 19:50 VERSION
+  drwxr-xr-x   3 ubuntu ubuntu     96 Jan  3 20:08 contrib
+  drwxr-xr-x   4 ubuntu ubuntu    128 Jan  3 20:08 data
+  drwxr-xr-x  15 ubuntu ubuntu    480 Jan  3 20:08 dco-signoffs
+  drwxr-xr-x  24 ubuntu ubuntu    768 May 11 00:44 docs
+  drwxr-xr-x   3 ubuntu ubuntu     96 Jan  3 20:08 examples
+  drwxr-xr-x   4 ubuntu ubuntu    128 Jan  3 20:08 extras
+  drwxr-xr-x  14 ubuntu ubuntu    448 Jan  3 20:08 python
+  -rwxr-xr-x   1 ubuntu ubuntu   6804 Mar 13 00:25 requirements.sh
+  drwxr-xr-x  13 ubuntu ubuntu    416 May  7 00:29 scripts
+  drwxr-xr-x   7 ubuntu ubuntu    224 Mar 13 00:25 tests
+  drwxr-xr-x   3 ubuntu ubuntu     96 Jan  3 20:08 tests-manual
   $
 
 
@@ -213,7 +238,7 @@ Building Fledge
 ----------------
 
 You are now ready to build your first Fledge project. If you want to install Fledge on CentOS, Fedora or Red Hat, we recommend you to read this section first and then look at `this section`_. |br| |br|
-Move to the *Fledge* project directory, type the ``make`` comand and let the magic happen.
+Move to the *Fledge* project directory, type the ``make`` command and let the magic happen.
 
 .. code-block:: console
 
@@ -249,7 +274,7 @@ The other issue is related to the version of pip (more specifically pip3), the P
 
 .. code-block:: console
 
-  /usr/lib/python3.5/distutils/dist.py:261: UserWarning: Unknown distribution option: 'python_requires'
+  /usr/lib/python3.6/distutils/dist.py:261: UserWarning: Unknown distribution option: 'python_requires'
     warnings.warn(msg)
 
 ...and this output at the end of the build process:
@@ -320,7 +345,7 @@ If you are curious to see a proper output from Fledge, you can query the Core mi
   [{"key": "BUFFERED", "description": "The number of readings currently in the Fledge buffer", "value": 0}, {"key": "DISCARDED", "description": "The number of readings discarded at the input side by Fledge, i.e. discarded before being  placed in the buffer. This may be due to some error in the readings themselves.", "value": 0}, {"key": "PURGED", "description": "The number of readings removed from the buffer by the purge process", "value": 0}, {"key": "READINGS", "description": "The number of readings received by Fledge since startup", "value": 0}, {"key": "SENT_1", "description": "The number of readings sent to the historian", "value": 0}, {"key": "SENT_2", "description": "The number of statistics data sent to the historian", "value": 0}, {"key": "UNSENT", "description": "The number of readings filtered out in the send process", "value": 0}, {"key": "UNSNPURGED", "description": "The number of readings that were purged from the buffer before being sent", "value": 0}]
   $
 
-Congratulations! You have installed and tested Fledge! If you want to go extra mile (and make the output of the REST API more readible, download the *jq* JSON processor and pipe the output of the *curl* command to it:
+Congratulations! You have installed and tested Fledge! If you want to go extra mile (and make the output of the REST API more readable, download the *jq* JSON processor and pipe the output of the *curl* command to it:
 
 .. code-block:: console
 
@@ -418,7 +443,7 @@ If you intend to use the PostgreSQL database as storage engine, make sure that P
   ubuntu   15198  1225  0 17:22 pts/0    00:00:00 grep --color=auto postgres
   $
 
-PostgreSQL 9.5 is the version available for Ubuntu 16.04 and Ubuntu 18.04 when we have published this page. Other versions of PostgreSQL, such as 9.6 or 10.1, work just fine. |br| |br| When you install the Ubuntu package, PostreSQL is set for a *peer authentication*, i.e. the database user must match with the Linux user. Other packages may differ. You may quickly check the authentication mode set in the *pg_hba.conf* file. The file is in the same directory of the *postgresql.conf* file you may see as output from the *ps* command shown above, in our case */etc/postgresql/9.5/main*:
+PostgreSQL 9.5 is the version available for Ubuntu 18.04 when we have published this page. Other versions of PostgreSQL, such as 9.6 or 10.1, work just fine. |br| |br| When you install the Ubuntu package, PostreSQL is set for a *peer authentication*, i.e. the database user must match with the Linux user. Other packages may differ. You may quickly check the authentication mode set in the *pg_hba.conf* file. The file is in the same directory of the *postgresql.conf* file you may see as output from the *ps* command shown above, in our case */etc/postgresql/9.5/main*:
 
 .. code-block:: console
 
@@ -590,29 +615,6 @@ Finally, add ``/usr/pgsql-9.6/bin`` to your PATH environment variable in ``$HOME
   PATH=$PATH:$HOME/.local/bin:$HOME/bin:/usr/pgsql-9.6/bin
 
 
-Installing Python 3.5
----------------------
-
-Fledge requires Python 3.5, CentOS provides Python 2.7. The commands to install the new version are:
-
-.. code-block:: console
-
-  sudo yum install yum-utils
-  sudo yum groupinstall development
-  sudo yum install https://centos7.iuscommunity.org/ius-release.rpm
-  sudo yum install python35u
-  sudo yum -y install python35u-pip
-  sudo yum install python35u-devel
-
-In order to use the new version, you need to create two symbolic links in the ``/usr/bin`` directory:
-
-.. code-block:: console
-
-  cd /usr/bin
-  sudo ln -s python3.5 python3
-  sudo ln -s pip3.5 pip3
-
-
 Installing SQLite3
 ------------------
 
@@ -636,7 +638,7 @@ Building Fledge
 
 We are finally ready to install Fledge, but we need to apply some little changes to the code and the make files. These changes will be removed in the future, but for the moment they are necessary to complete the procedure.
 
-First, clone the Github repository with the usual command: |br| ``git clone https://github.com/fledge/Fledge.git`` |br| The project should have been added to your machine under the *Fledge* directory.
+First, clone the Github repository with the usual command: |br| ``git clone https://github.com/fledge-iot/Fledge.git`` |br| The project should have been added to your machine under the *Fledge* directory.
 
 We need to apply these changes to *C/plugins/storage/postgres/CMakeLists.txt*:
 

@@ -1,5 +1,3 @@
-#include <utility>
-
 /*
  * Fledge OSI Soft OMF interface to PI Server.
  *
@@ -10,7 +8,7 @@
  * Author: Massimiliano Pinto
  */
 
-
+#include <utility>
 #include <iostream>
 #include <string>
 #include <cstring>
@@ -18,13 +16,30 @@
 #include <logger.h>
 #include <zlib.h>
 #include <rapidjson/document.h>
+#include "rapidjson/error/en.h"
 #include "string_utils.h"
 #include <plugin_api.h>
+#include <string_utils.h>
+#include <datapoint.h>
+#include <thread>
 
 using namespace std;
 using namespace rapidjson;
 
 static bool isTypeSupported(DatapointValue& dataPoint);
+
+// 1 enable performance tracking
+#define INSTRUMENT	0
+
+#define  AFHierarchySeparator '/'
+#define  AF_TYPES_SUFFIX       "-type"
+
+// Handling escapes for AF Hierarchies
+#define AFH_SLASH            "/"
+#define AFH_SLASH_ESCAPE     "@/"
+#define AFH_SLASH_ESCAPE_TMP "##"
+#define AFH_ESCAPE_SEQ       "@@"
+#define AFH_ESCAPE_CHAR      "@"
 
 // Structures to generate and assign the 1st level of AF hierarchy if the end point is PI Web API
 const char *AF_HIERARCHY_1LEVEL_TYPE = QUOTE(
@@ -36,6 +51,10 @@ const char *AF_HIERARCHY_1LEVEL_TYPE = QUOTE(
 			"classification": "static",
 			"properties": {
 				"Name": {
+					"type": "string",
+					"isname": true
+				},
+				"AssetId": {
 					"type": "string",
 					"isindex": true
 				}
@@ -51,11 +70,33 @@ const char *AF_HIERARCHY_1LEVEL_STATIC = QUOTE(
 			"typeid": "_placeholder_typeid_",
 			"values": [
 				{
-				"Name": "_placeholder_"
+				"Name": "_placeholder_Name_",
+				"AssetId": "_placeholder_AssetId_"
 				}
 			]
 		}
 	]
+);
+
+
+const char *AF_HIERARCHY_LEVEL_LINK = QUOTE(
+[
+  {
+    "typeid": "__Link",
+	"values": [
+		{
+			"source": {
+				"typeid": "_placeholder_src_type_",
+				"index":  "_placeholder_src_idx_"
+			},
+			"target": {
+				"typeid": "_placeholder_tgt_type_",
+				"index":  "_placeholder_tgt_idx_"
+			}
+		}
+	]
+  }
+]
 );
 
 const char *AF_HIERARCHY_1LEVEL_LINK = QUOTE(
@@ -75,7 +116,7 @@ const char *AF_HIERARCHY_1LEVEL_LINK = QUOTE(
 /**
  * OMFData constructor
  */
-OMFData::OMFData(const Reading& reading, const long typeId, const string& PIServerEndpoint,const string&  AFHierarchy1Level)
+OMFData::OMFData(const Reading& reading, const long typeId, const OMF_ENDPOINT PIServerEndpoint,const string&  AFHierarchyPrefix)
 {
 	string outData;
 	string measurementId;
@@ -83,9 +124,9 @@ OMFData::OMFData(const Reading& reading, const long typeId, const string& PIServ
 	measurementId = to_string(typeId) + "measurement_" + reading.getAssetName();
 
 	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
-	if (PIServerEndpoint.compare("p") == 0)
+	if (PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
-		measurementId = AFHierarchy1Level + "_" + measurementId;
+		measurementId = AFHierarchyPrefix + "_" + measurementId;
 	}
 
 	// Convert reading data into the OMF JSON string
@@ -419,61 +460,86 @@ bool OMF::sendDataTypes(const Reading& row)
 
 	// Create header for Link data
 	vector<pair<string, string>> resLinkData = OMF::createMessageHeader("Data");
-	// Create data for Static Data message	
-	string typeLinkData = OMF::createLinkData(row);
 
-	// Build an HTTPS POST with 'resLinkData' headers
-	// and 'typeLinkData' JSON payload
-	// Then get HTTPS POST ret code and return 0 to client on error
-	try
+	string assetName = row.getAssetName();
+	string AFHierarchyLevel;
+	string prefix;
+	string objectPrefix;
+
+	auto rule = m_AssetNamePrefix.find(assetName);
+	if (rule != m_AssetNamePrefix.end())
 	{
-		res = m_sender.sendRequest("POST",
-					   m_path,
-					   resLinkData,
-					   typeLinkData);
-		if  ( ! (res >= 200 && res <= 299) )
+		auto itemArray  = rule->second;
+		objectPrefix = "";
+
+		for(auto &item : itemArray)
 		{
-			Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) "
-						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
-						   res,
-						   m_sender.getHostPort().c_str(),
-						   m_path.c_str(),
-						   typeLinkData.c_str() );
-			return false;
-		}
-		else
-		{
-			// All data types sent: success
-			return true;
+			AFHierarchyLevel = std::get<0>(item);
+			prefix =std::get<1>(item);
+
+			if (objectPrefix.empty())
+			{
+				objectPrefix = prefix;
+			}
+
+			// Create data for Static Data message
+			string typeLinkData = OMF::createLinkData(row, AFHierarchyLevel, prefix, objectPrefix);
+
+			// Build an HTTPS POST with 'resLinkData' headers
+			// and 'typeLinkData' JSON payload
+			// Then get HTTPS POST ret code and return 0 to client on error
+			try
+			{
+				res = m_sender.sendRequest("POST",
+										   m_path,
+										   resLinkData,
+										   typeLinkData);
+				if  ( ! (res >= 200 && res <= 299) )
+				{
+					Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) "
+											   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+											   res,
+											   m_sender.getHostPort().c_str(),
+											   m_path.c_str(),
+											   typeLinkData.c_str() );
+					return false;
+				}
+			}
+				// Exception raised fof HTTP 400 Bad Request
+			catch (const BadRequest& e)
+			{
+				if (OMF::isDataTypeError(e.what()))
+				{
+					// Data type error: force type-id change
+					m_changeTypeId = true;
+				}
+				Logger::getLogger()->warn("Sending JSON dataType message 'Data' (lynk) "
+										  "not blocking issue: |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+										  (m_changeTypeId ? "Data Type " : "" ),
+										  e.what(),
+										  m_sender.getHostPort().c_str(),
+										  m_path.c_str(),
+										  typeLinkData.c_str() );
+				return false;
+			}
+			catch (const std::exception& e)
+			{
+				Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) "
+										   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+										   e.what(),
+										   m_sender.getHostPort().c_str(),
+										   m_path.c_str(),
+										   typeLinkData.c_str() );
+				return false;
+			}
 		}
 	}
-	// Exception raised fof HTTP 400 Bad Request
-	catch (const BadRequest& e)
+	else
 	{
-		if (OMF::isDataTypeError(e.what()))
-		{
-			// Data type error: force type-id change
-			m_changeTypeId = true;
-		}
-		Logger::getLogger()->warn("Sending JSON dataType message 'Data' (lynk) "
-					   "not blocking issue: |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-					   (m_changeTypeId ? "Data Type " : "" ),
-					   e.what(),
-					   m_sender.getHostPort().c_str(),
-					   m_path.c_str(),
-					   typeLinkData.c_str() );
-		return false;
+		Logger::getLogger()->error("AF hiererachy is not defined for the asset Name |%s|",assetName.c_str());
 	}
-	catch (const std::exception& e)
-	{
-		Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) "
-					   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-					   e.what(),
-					   m_sender.getHostPort().c_str(),
-					   m_path.c_str(),
-					   typeLinkData.c_str() );
-		return false;
-	}
+	// All data types sent: success
+	return true;
 }
 
 /**
@@ -539,7 +605,7 @@ bool OMF::AFHierarchySendMessage(const string& msgType, string& jsonData)
  * AFHierarchy - handles OMF types definition
  *
  */
-bool OMF::sendAFHierarchyTypes()
+bool OMF::sendAFHierarchyTypes(const std::string AFHierarchyLevel, const std::string prefix)
 {
 	bool success;
 	string jsonData;
@@ -547,7 +613,7 @@ bool OMF::sendAFHierarchyTypes()
 
 	jsonData = "";
 	tmpStr = AF_HIERARCHY_1LEVEL_TYPE;
-	StringReplace(tmpStr, "_placeholder_typeid_", m_AFHierarchy1Level + "_typeid");
+	StringReplace(tmpStr, "_placeholder_typeid_", prefix + "_" + AFHierarchyLevel + "_typeid");
 	jsonData.append(tmpStr);
 
 	success = AFHierarchySendMessage("Type", jsonData);
@@ -559,7 +625,7 @@ bool OMF::sendAFHierarchyTypes()
  *  AFHierarchy - handles OMF static data
  *
  */
-bool OMF::sendAFHierarchyStatic()
+bool OMF::sendAFHierarchyStatic(const std::string AFHierarchyLevel, const std::string prefix)
 {
 	bool success;
 	string jsonData;
@@ -567,8 +633,9 @@ bool OMF::sendAFHierarchyStatic()
 
 	jsonData = "";
 	tmpStr = AF_HIERARCHY_1LEVEL_STATIC;
-	StringReplace(tmpStr, "_placeholder_typeid_" , m_AFHierarchy1Level + "_typeid");
-	StringReplace(tmpStr, "_placeholder_"        , m_AFHierarchy1Level);
+	StringReplace(tmpStr, "_placeholder_typeid_"  , prefix + "_" + AFHierarchyLevel + "_typeid");
+	StringReplace(tmpStr, "_placeholder_Name_"    , AFHierarchyLevel);
+	StringReplace(tmpStr, "_placeholder_AssetId_" , prefix + "_" + AFHierarchyLevel);
 	jsonData.append(tmpStr);
 
 	success = AFHierarchySendMessage("Data", jsonData);
@@ -577,24 +644,336 @@ bool OMF::sendAFHierarchyStatic()
 }
 
 /**
- * Add the 1st level of AF hierarchy if the end point is PI Web API
- * The hierarchy is created/recreated if an OMF type message is sent
+ *  AFHierarchy - creates the link between 2 elements in the AF hierarchy
  *
  */
-bool OMF::sendAFHierarchy()
+bool OMF::sendAFHierarchyLink(std::string parent, std::string child, std::string prefixIdParent, std::string prefixId)
+{
+	bool success;
+	string jsonData;
+	string tmpStr;
+
+	jsonData = "";
+	tmpStr = AF_HIERARCHY_LEVEL_LINK;
+
+	StringReplace(tmpStr, "_placeholder_src_type_", prefixIdParent + "_" + parent + "_typeid");
+	StringReplace(tmpStr, "_placeholder_src_idx_",  prefixIdParent + "_" + parent );
+	StringReplace(tmpStr, "_placeholder_tgt_type_", prefixId       + "_" + child + "_typeid");
+	StringReplace(tmpStr, "_placeholder_tgt_idx_",  prefixId + "_" + child);
+	jsonData.append(tmpStr);
+
+	success = AFHierarchySendMessage("Data", jsonData);
+
+	return success;
+}
+
+/**
+  * Creates the hierarchies tree in the AF as defined in the configuration item DefaultAFLocation
+ * each level is separated by /
+ * the implementation is available for PI Web API only
+ * The hierarchy is created/recreated if an OMF type message is sent*
+ *
+ */
+bool OMF::handleAFHierarchySystemWide() {
+
+	bool success = true;
+	std::string level;
+	std::string previousLevel;
+	string parentPath;
+
+	parentPath = evaluateParentPath(m_DefaultAFLocation, AFHierarchySeparator);
+	success = sendAFHierarchyLevels(parentPath, m_DefaultAFLocation, m_AFHierarchyLevel);
+
+	return success;
+}
+
+/**
+ * Creates all the AF hierarchies levels as requested by the input parameter
+ *
+ * @param AFHierarchy   Hierarchies levels to be created as relative or absolute path
+ * @param out		    true if succeded
+ */
+bool OMF::sendAFHierarchy(string AFHierarchy)
+{
+	bool success = true;
+	string path;
+	string dummy;
+	string parentPath;
+
+	if (AFHierarchy.at(0) == '/')
+	{
+		// Absolute path
+		path = AFHierarchy;
+		parentPath = evaluateParentPath(path, AFHierarchySeparator);
+	}
+	else
+	{
+		// relative  path
+		path = m_DefaultAFLocation + "/" + AFHierarchy;
+		parentPath = m_DefaultAFLocation;
+	}
+
+	success = sendAFHierarchyLevels(parentPath, path, dummy);
+
+	return success;
+}
+
+/**
+ * Creates all the AF hierarchies level as requested by the input parameter
+ *
+ * @param path	    Full path of hierarchies to create
+ * @param out		last level of the created hierarchy
+ */
+bool OMF::sendAFHierarchyLevels(string parentPath, string path, std::string &lastLevel) {
+
+	bool success;
+	std::string level;
+	std::string previousLevel;
+
+	StringReplaceAll(path, AFH_ESCAPE_SEQ ,AFH_ESCAPE_CHAR);
+	StringReplaceAll(path, AFH_SLASH_ESCAPE ,AFH_SLASH_ESCAPE_TMP);
+
+	if (path.find(AFHierarchySeparator) == string::npos)
+	{
+		string prefixId;
+
+		// only 1 single level of hierarchy
+		StringReplaceAll(path, AFH_SLASH_ESCAPE_TMP ,AFH_SLASH);
+		prefixId = generateUniquePrefixId(path);
+
+		success = sendAFHierarchyTypes(path, prefixId);
+		if (success)
+		{
+			success = sendAFHierarchyStatic(path,prefixId);
+		}
+		lastLevel = path;
+	}
+	else
+	{
+		string pathFixed;
+		string parentPathFixed;
+		string prefixId;
+		string prefixIdParent;
+		string previousLevelPath;
+		string AFHierarchyLevel;
+		string levelPath;
+
+		pathFixed = StringSlashFix(path);
+		std::stringstream pathStream(pathFixed);
+
+		// multiple hierarchy levels
+		while (std::getline(pathStream, level, AFHierarchySeparator))
+		{
+			StringReplaceAll(level, AFH_SLASH_ESCAPE_TMP ,AFH_SLASH);
+
+			levelPath = previousLevelPath + AFHierarchySeparator + level;
+			levelPath = StringSlashFix(levelPath);
+			prefixId = generateUniquePrefixId(levelPath);
+
+			success = sendAFHierarchyTypes(level, prefixId);
+			if (success)
+			{
+				success = sendAFHierarchyStatic(level, prefixId);
+			}
+
+			// Creates the link between the AF level
+			if (previousLevel != "")
+			{
+				parentPathFixed = StringSlashFix(previousLevelPath);
+				prefixIdParent = generateUniquePrefixId(parentPathFixed);
+
+				sendAFHierarchyLink(previousLevel, level, prefixIdParent, prefixId);
+			}
+			previousLevelPath = levelPath;
+			previousLevel = level;
+		}
+		lastLevel = level;
+	}
+
+	return success;
+}
+
+/**
+ * Creates all the hierarcies defined in the Names map rules
+ *
+ * @param out		true if succeded
+ */
+bool OMF::handleAFHierarchiesNamesMap() {
+
+	bool success = true;
+	string asset_name;
+	string hierarchy;
+
+	for (auto itr = m_NamesRules.begin(); itr != m_NamesRules.end(); ++itr)
+	{
+		asset_name = itr->first.c_str();
+		hierarchy = itr->second.c_str();
+
+		Logger::getLogger()->debug("handleAFHierarchiesNamesMap - asset_name :%s: hierarchy :%s:",
+								   asset_name.c_str(),
+								   hierarchy.c_str());
+
+		success = sendAFHierarchy(hierarchy.c_str());
+	}
+
+	return success;
+}
+
+/**
+ * Handle the AF hierarchies for the Metadata Map
+ *
+ * @param out		true if succeded
+ */
+bool OMF::handleAFHierarchiesMetadataMap() {
+
+	bool success = true;
+
+	Document JSon;
+	string name;
+	string value;
+
+	ParseResult ok = JSon.Parse(m_AFMap.c_str());
+	if (!ok)
+	{
+		Logger::getLogger()->error("MetadataMap - Invalid Asset Framework Map, error :%s:", GetParseError_En(JSon.GetParseError()));
+		return false;
+	}
+
+	if (!JSon.HasMember("metadata"))
+	{
+		Logger::getLogger()->debug("MetadataMap - metadata section not defined");
+		return true;
+	}
+	Value &JsonMetadata = JSon["metadata"];
+
+	// --- Handling exit section
+	if (JsonMetadata.HasMember("exist"))
+	{
+		Value &JSonExist = JsonMetadata["exist"];
+
+		for (Value::ConstMemberIterator itr = JSonExist.MemberBegin(); itr != JSonExist.MemberEnd(); ++itr)
+		{
+			name = itr->name.GetString();
+			value = itr->value.GetString();
+			Logger::getLogger()->debug("AFHierarchiesMetadataMap - exist name :%s: value :%s:", name.c_str(), value.c_str());
+
+			sendAFHierarchy(value.c_str());
+		}
+	}
+
+	// --- Handling nonexist section
+	if (JsonMetadata.HasMember("nonexist"))
+	{
+		Value &JSonNonExist = JsonMetadata["nonexist"];
+		for (Value::ConstMemberIterator itr = JSonNonExist.MemberBegin(); itr != JSonNonExist.MemberEnd(); ++itr)
+		{
+			name = itr->name.GetString();
+			value = itr->value.GetString();
+			Logger::getLogger()->debug("AFHierarchiesMetadataMap - nonexist name :%s: value :%s:", name.c_str(), value.c_str());
+			sendAFHierarchy(value.c_str());
+		}
+	}
+
+	// --- Handling equal section
+	if (JsonMetadata.HasMember("equal"))
+	{
+		Value &JSonEqual = JsonMetadata["equal"];
+
+		for (Value::ConstMemberIterator itr = JSonEqual.MemberBegin(); itr != JSonEqual.MemberEnd(); ++itr)
+		{
+			name = itr->name.GetString();
+
+			for (Value::ConstMemberIterator itrL2 = itr->value.MemberBegin(); itrL2 != itr->value.MemberEnd(); ++itrL2)
+			{
+				name = itrL2->name.GetString();
+				value = itrL2->value.GetString();
+				Logger::getLogger()->debug("AFHierarchiesMetadataMap - equal name :%s: value :%s:", name.c_str(), value.c_str());
+				sendAFHierarchy(value.c_str());
+			}
+		}
+	}
+
+	// --- Handling notequal section
+	if (JsonMetadata.HasMember("notequal"))
+	{
+		Value &JSonNotEqual = JsonMetadata["notequal"];
+
+		for (Value::ConstMemberIterator itr = JSonNotEqual.MemberBegin(); itr != JSonNotEqual.MemberEnd(); ++itr)
+		{
+			name = itr->name.GetString();
+
+			for (Value::ConstMemberIterator itrL2 = itr->value.MemberBegin(); itrL2 != itr->value.MemberEnd(); ++itrL2)
+			{
+				name = itrL2->name.GetString();
+				value = itrL2->value.GetString();
+				Logger::getLogger()->debug("AFHierarchiesMetadataMap - notequal name :%s: value :%s:", name.c_str(), value.c_str());
+				sendAFHierarchy(value.c_str());
+			}
+		}
+	}
+
+	return success;
+}
+
+/**
+ * Handle the creation of AF hierarchies
+ *
+ * @param out		true if succeded
+ */
+bool OMF::handleAFHierarchy()
 {
 	bool success = true;
 
-	if (m_PIServerEndpoint.compare("p") == 0)
+	if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
-		success = sendAFHierarchyTypes();
-		if (success)
-		{
-			success = sendAFHierarchyStatic();
-		}
 
+		success = handleAFHierarchySystemWide();
+
+		if (success and ! m_AFMapEmptyNames)
+		{
+			success = handleAFHierarchiesNamesMap();
+		}
+		if (success and ! m_AFMapEmptyMetadata)
+		{
+			success = handleAFHierarchiesMetadataMap();
+		}
 	}
 	return success;
+}
+
+/**
+ * Sets the value of the prefix used for the objects naming
+ *
+ */
+void OMF::setAFHierarchy()
+{
+	std::string level;
+	std::string AFLocation;
+
+	AFLocation = m_DefaultAFLocation;
+	if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
+	{
+		// Implementation onfly for PI Web API
+		StringReplaceAll(AFLocation, AFH_ESCAPE_SEQ,   AFH_ESCAPE_CHAR);
+		StringReplaceAll(AFLocation, AFH_SLASH_ESCAPE ,AFH_SLASH_ESCAPE_TMP);
+		std::stringstream defaultAFLocation(AFLocation);
+
+		if (AFLocation.find(AFHierarchySeparator) == string::npos)
+		{
+			// only 1 single level of hierarchy
+			m_AFHierarchyLevel = AFLocation;
+		}
+		else
+		{
+			// multiple hierarchy levels
+			while (std::getline(defaultAFLocation, level, AFHierarchySeparator))
+			{
+				;
+			}
+			m_AFHierarchyLevel = level;
+		}
+		StringReplaceAll(m_AFHierarchyLevel, AFH_SLASH_ESCAPE_TMP ,AFH_SLASH);
+	}
 }
 
 /**
@@ -603,18 +982,38 @@ bool OMF::sendAFHierarchy()
  * @param readings            A vector of readings data pointers
  * @param skipSendDataTypes   Send datatypes only once (default is true)
  * @return                    != on success, 0 otherwise
+ * xxx
  */
 uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			   bool compression, bool skipSentDataTypes)
 {
 	bool AFHierarchySent = false;
+	bool sendDataTypes;
+	string keyComplete;
+	string AFHierarchyPrefix;
+	string AFHierarchyLevel;
 
-	std::map<string, Reading*> superSetDataPoints;
+#if INSTRUMENT
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
+
+	struct timeval	start, t1, t2, t3, t4, t5;
+
+#endif
+
+
+#if INSTRUMENT
+	gettimeofday(&start, NULL);
+#endif
 
 	// Create a superset of all found datapoints for each assetName
 	// the superset[assetName] is then passed to routines which handle
 	// creation of OMF data types
-	OMF::setMapObjectTypes(readings, superSetDataPoints);
+	OMF::setMapObjectTypes(readings, m_SuperSetDataPoints);
+
+#if INSTRUMENT
+	gettimeofday(&t1, NULL);
+#endif
 
 	/*
 	 * Iterate over readings:
@@ -635,33 +1034,58 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 						    elem != readings.end();
 						    ++elem)
 	{
-		bool sendDataTypes;
 
-		// Create the key for dataTypes sending once
-		long typeId = OMF::getAssetTypeId((**elem).getAssetName());
-		string key((**elem).getAssetName());
+		// Add into JSON string the OMF transformed Reading data
+		string assetName((**elem).getAssetName());
+
+		evaluateAFHierarchyRules(assetName, **elem);
+
+		if (m_PIServerEndpoint == ENDPOINT_CR  ||
+			m_PIServerEndpoint == ENDPOINT_OCS ||
+			m_PIServerEndpoint == ENDPOINT_EDS
+			)
+		{
+			keyComplete = assetName;
+		}
+		else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
+		{
+			retrieveAFHierarchyPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchyLevel);
+			keyComplete = AFHierarchyPrefix + "_" + assetName;
+		}
+
+		if (! AFHierarchySent)
+		{
+			setAFHierarchy();
+		}
 
 		sendDataTypes = (m_lastError == false && skipSentDataTypes == true) ?
 				 // Send if not already sent
-				 !OMF::getCreatedTypes(key) :
+				 !OMF::getCreatedTypes(keyComplete, (**elem)) :
 				 // Always send types
 				 true;
 
 		Reading* datatypeStructure = NULL;
 		if (sendDataTypes)
 		{
+			// Increment type-id of assetName in in memory cache
+			OMF::incrementAssetTypeId(keyComplete);
+			// Remove data and keep type-id
+			OMF::clearCreatedTypes(keyComplete);
+
 			// Get the supersetDataPoints for current assetName
-			auto it = superSetDataPoints.find((**elem).getAssetName());
-			if (it != superSetDataPoints.end())
+			auto it = m_SuperSetDataPoints.find((**elem).getAssetName());
+			if (it != m_SuperSetDataPoints.end())
 			{
 				datatypeStructure = (*it).second;
 			}
 		}
 
 		// The AF hierarchy is created/recreated if an OMF type message is sent
+		// it sends the hierarchy once
 		if (sendDataTypes and ! AFHierarchySent)
 		{
-			sendAFHierarchy();
+			handleAFHierarchy();
+
 			AFHierarchySent = true;
 		}
 
@@ -670,22 +1094,24 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		    // Handle the data types of the current reading
 		    (sendDataTypes &&
 		    // Send data type
-		    !OMF::handleDataTypes(*datatypeStructure, skipSentDataTypes) &&
-		    // Data type not sent: 
+		    !OMF::handleDataTypes(keyComplete, *datatypeStructure, skipSentDataTypes) &&
+		    // Data type not sent:
 		    (!m_changeTypeId ||
 		     // Increment type-id and re-send data types
-		     !OMF::handleTypeErrors(*datatypeStructure))))
+		     !OMF::handleTypeErrors(keyComplete, *datatypeStructure))))
 		{
 			// Remove all assets supersetDataPoints
-			OMF::unsetMapObjectTypes(superSetDataPoints);
+			OMF::unsetMapObjectTypes(m_SuperSetDataPoints);
 
 			// Failure
 			m_lastError = true;
 			return 0;
 		}
 
-		// Add into JSON string the OMF transformed Reading data
-		string outData = OMFData(**elem, typeId, m_PIServerEndpoint, m_AFHierarchy1Level ).OMFdataVal();
+		// Create the key for dataTypes sending once
+		long typeId = OMF::getAssetTypeId(assetName);
+
+		string outData = OMFData(**elem, typeId, m_PIServerEndpoint, AFHierarchyPrefix ).OMFdataVal();
 		if (!outData.empty())
 		{
 			jsonData << (pendingSeparator ? ", " : "") << outData;
@@ -693,8 +1119,12 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		}
 	}
 
+#if INSTRUMENT
+	gettimeofday(&t2, NULL);
+#endif
+
 	// Remove all assets supersetDataPoints
-	OMF::unsetMapObjectTypes(superSetDataPoints);
+	OMF::unsetMapObjectTypes(m_SuperSetDataPoints);
 
 	jsonData << "]";
 
@@ -705,6 +1135,10 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	{
 		json = compress_string(json);
 	}
+
+#if INSTRUMENT
+	gettimeofday(&t3, NULL);
+#endif
 
 	/**
 	 * Types messages sent, now transform each reading to OMF format.
@@ -740,6 +1174,43 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		}
 		// Reset error indicator
 		m_lastError = false;
+
+#if INSTRUMENT
+		gettimeofday(&t4, NULL);
+#endif
+
+#if INSTRUMENT
+		struct timeval tm;
+		double timeT1, timeT2, timeT3, timeT4, timeT5;
+
+		timersub(&t1, &start, &tm);
+		timeT1 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
+
+		timersub(&t2, &t1, &tm);
+		timeT2 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
+
+		timersub(&t3, &t2, &tm);
+		timeT3 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
+
+		timersub(&t4, &t3, &tm);
+		timeT4 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
+
+		timersub(&t5, &t4, &tm);
+		timeT5 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
+
+
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("Timing seconds - thread :%s: - superSet :%6.3f: - Loop :%6.3f: - compress :%6.3f:  - send data :%6.3f:",
+								   threadId.str().c_str(),
+								   timeT1,
+								   timeT2,
+								   timeT3,
+								   timeT4
+		);
+
+		Logger::getLogger()->setMinLevel("warning");
+#endif
+
 
 		// Return number of sent readings to the caller
 		return readings.size();
@@ -801,7 +1272,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 							  m_sender.getHostPort().c_str(),
 							  m_path.c_str(),
 							  json_not_compressed.c_str());
-                        }
+			}
 
 			// Reset error indicator
 			m_lastError = false;
@@ -867,12 +1338,12 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 
 		sendDataTypes = (m_lastError == false && skipSentDataTypes == true) ?
 				 // Send if not already sent
-				 !OMF::getCreatedTypes(key) :
+				 !OMF::getCreatedTypes(key, (*elem)) :
 				 // Always send types
 				 true;
 
 		// Handle the data types of the current reading
-		if (sendDataTypes && !OMF::handleDataTypes(*elem, skipSentDataTypes))
+		if (sendDataTypes && !OMF::handleDataTypes(key, *elem, skipSentDataTypes))
 		{
 			// Failure
 			m_lastError = true;
@@ -880,7 +1351,7 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 		}
 
 		// Add into JSON string the OMF transformed Reading data
-		jsonData << OMFData(*elem, typeId, m_PIServerEndpoint, m_AFHierarchy1Level).OMFdataVal() << (elem < (readings.end() -1 ) ? ", " : "");
+		jsonData << OMFData(*elem, typeId, m_PIServerEndpoint, m_AFHierarchyLevel).OMFdataVal() << (elem < (readings.end() -1 ) ? ", " : "");
 	}
 
 	jsonData << "]";
@@ -948,7 +1419,9 @@ uint32_t OMF::sendToServer(const Reading* reading,
 	ostringstream jsonData;
 	jsonData << "[";
 
-	if (!OMF::handleDataTypes(*reading, skipSentDataTypes))
+	string key(reading->getAssetName());
+
+	if (!OMF::handleDataTypes(key, *reading, skipSentDataTypes))
 	{
 		// Failure
 		return 0;
@@ -956,7 +1429,7 @@ uint32_t OMF::sendToServer(const Reading* reading,
 
 	long typeId = OMF::getAssetTypeId((*reading).getAssetName());
 	// Add into JSON string the OMF transformed Reading data
-	jsonData << OMFData(*reading, typeId, m_PIServerEndpoint, m_AFHierarchy1Level).OMFdataVal();
+	jsonData << OMFData(*reading, typeId, m_PIServerEndpoint, m_AFHierarchyLevel).OMFdataVal();
 	jsonData << "]";
 
 	// Build headers for Readings data
@@ -1022,7 +1495,7 @@ const vector<pair<string, string>> OMF::createMessageHeader(const std::string& t
  * @param reading    A reading data
  * @return           Type JSON message as string
  */
-const std::string OMF::createTypeData(const Reading& reading) const
+const std::string OMF::createTypeData(const Reading& reading)
 {
 	// Build the Type data message (JSON Array)
 
@@ -1037,8 +1510,22 @@ const std::string OMF::createTypeData(const Reading& reading) const
 		tData.append(it->first.c_str());
 		tData.append("\": {\"type\": \"string\"},");
 	}
-	tData.append("\"Name\": { \"type\": \"string\", \"isindex\": true } }, "
-			"\"classification\": \"static\", \"id\": \"");
+
+	// Connector relay / ODS / EDS
+	if (m_PIServerEndpoint == ENDPOINT_CR  ||
+	    m_PIServerEndpoint == ENDPOINT_OCS ||
+		m_PIServerEndpoint == ENDPOINT_EDS
+	   )
+	{
+		tData.append("\"Name\": { \"type\": \"string\", \"isindex\": true } }, "
+					 "\"classification\": \"static\", \"id\": \"");
+	}
+	else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
+	{
+		tData.append("\"Name\": { \"type\": \"string\", \"isname\": true }, ");
+		tData.append("\"AssetId\": { \"type\": \"string\", \"isindex\": true } ");
+		tData.append(" }, \"classification\": \"static\", \"id\": \"");
+	}
 
 	// Add type_id + '_' + asset_name + '_typename_sensor'
 	OMF::setAssetTypeTag(reading.getAssetName(),
@@ -1128,8 +1615,11 @@ const std::string OMF::createTypeData(const Reading& reading) const
  * @param reading    A reading data
  * @return           Type JSON message as string
  */
-const std::string OMF::createContainerData(const Reading& reading) const
+const std::string OMF::createContainerData(const Reading& reading)
 {
+	string AFHierarchyPrefix;
+	string AFHierarchyLevel;
+
 	string assetName = reading.getAssetName();
 
 	string measurementId;
@@ -1145,9 +1635,11 @@ const std::string OMF::createContainerData(const Reading& reading) const
 	measurementId = to_string(OMF::getAssetTypeId(assetName)) + "measurement_" + assetName;
 
 	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
-	if (m_PIServerEndpoint.compare("p") == 0)
+	if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
-		measurementId = m_AFHierarchy1Level + "_" + measurementId;
+		retrieveAFHierarchyPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchyLevel);
+
+		measurementId = AFHierarchyPrefix + "_" + measurementId;
 	}
 
 	cData.append("\", \"id\": \"" + measurementId);
@@ -1165,15 +1657,20 @@ const std::string OMF::createContainerData(const Reading& reading) const
  * @param reading    A reading data
  * @return           Type JSON message as string
  */
-const std::string OMF::createStaticData(const Reading& reading) const
+const std::string OMF::createStaticData(const Reading& reading)
 {
+	string assetName;
 	// Build the Static data (JSON Array)
 	string sData = "[";
 
 	sData.append("{\"typeid\": \"");
 
+	assetName = reading.getAssetName();
+
+	long typeId = getAssetTypeId(assetName);
+
 	// Add type_id + '_' + asset_name + '_typename_sensor'
-	OMF::setAssetTypeTag(reading.getAssetName(),
+	OMF::setAssetTypeTag(assetName,
 			     "typename_sensor",
 			     sData);
 
@@ -1189,7 +1686,30 @@ const std::string OMF::createStaticData(const Reading& reading) const
 	sData.append(" \"Name\": \"");
 
 	// Add asset_name
-	sData.append(reading.getAssetName());
+	// Connector relay / ODS / EDS
+	if (m_PIServerEndpoint == ENDPOINT_CR)
+	{
+		sData.append(assetName);
+
+	}
+	else if (m_PIServerEndpoint == ENDPOINT_OCS ||
+	         m_PIServerEndpoint == ENDPOINT_EDS)
+	{
+		sData.append(assetName);
+
+	}
+	else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
+	{
+		string AFHierarchyPrefix;
+		string AFHierarchyLevel;
+
+		retrieveAFHierarchyPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchyLevel);
+
+		sData.append(assetName + AF_TYPES_SUFFIX + to_string(typeId));
+		sData.append("\", \"AssetId\": \"");
+		sData.append("A_" + AFHierarchyPrefix + "_" + assetName + AF_TYPES_SUFFIX + to_string(typeId));
+	}
+
 	sData.append("\"}]}]");
 
 	// Return JSON string
@@ -1204,17 +1724,25 @@ const std::string OMF::createStaticData(const Reading& reading) const
  * @param reading    A reading data
  * @return           Type JSON message as string
  */
-const std::string OMF::createLinkData(const Reading& reading) const
+std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarchyLevel, std::string&  AFHierarchyPrefix, std::string&  objectPrefix)
 {
+	string targetTypeId;
+
 	string measurementId;
 	string assetName = reading.getAssetName();
 	// Build the Link data (JSON Array)
+
+	long typeId = getAssetTypeId(assetName);
 
 	string lData = "[{\"typeid\": \"__Link\", \"values\": [";
 
 	// Handles the structure for the Connector Relay
 	// not supported by PI Web API
-	if (m_PIServerEndpoint.compare("c") == 0)
+	// Connector relay / ODS / EDS
+	if (m_PIServerEndpoint == ENDPOINT_CR  ||
+		m_PIServerEndpoint == ENDPOINT_OCS ||
+		m_PIServerEndpoint == ENDPOINT_EDS
+		)
 	{
 		lData.append("{\"source\": {\"typeid\": \"");
 
@@ -1238,19 +1766,18 @@ const std::string OMF::createLinkData(const Reading& reading) const
 
 		lData.append("\"}},");
 	}
-	else if (m_PIServerEndpoint.compare("p") == 0)
+	else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
 		// Link the asset to the 1st level of AF hierarchy if the end point is PI Web API
 
 		string tmpStr = AF_HIERARCHY_1LEVEL_LINK;
-		string targetTypeId;
 
 		OMF::setAssetTypeTag(assetName, "typename_sensor", targetTypeId);
 
-		StringReplace(tmpStr, "_placeholder_src_type_", m_AFHierarchy1Level + "_typeid");
-		StringReplace(tmpStr, "_placeholder_src_idx_",  m_AFHierarchy1Level );
+		StringReplace(tmpStr, "_placeholder_src_type_", AFHierarchyPrefix + "_" + AFHierarchyLevel + "_typeid");
+		StringReplace(tmpStr, "_placeholder_src_idx_",  AFHierarchyPrefix + "_" + AFHierarchyLevel );
 		StringReplace(tmpStr, "_placeholder_tgt_type_", targetTypeId);
-		StringReplace(tmpStr, "_placeholder_tgt_idx_",  assetName);
+		StringReplace(tmpStr, "_placeholder_tgt_idx_",  "A_" + objectPrefix + "_" + assetName + AF_TYPES_SUFFIX +  to_string(typeId));
 
 		lData.append(tmpStr);
 		lData.append(",");
@@ -1265,15 +1792,28 @@ const std::string OMF::createLinkData(const Reading& reading) const
 
 	lData.append("\", \"index\": \"");
 
-	// Add asset_name
-	lData.append(assetName);
+	if (m_PIServerEndpoint == ENDPOINT_CR)
+	{
+		// Add asset_name
+		lData.append(assetName);
+	}
+	else if (m_PIServerEndpoint == ENDPOINT_OCS ||
+			 m_PIServerEndpoint == ENDPOINT_EDS)
+	{
+		// Add asset_name
+		lData.append(assetName);
+	}
+	else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
+	{
+		lData.append("A_" + objectPrefix + "_" + assetName + AF_TYPES_SUFFIX + to_string(typeId));
+	}
 
 	measurementId = to_string(OMF::getAssetTypeId(assetName)) + "measurement_" + assetName;
 
 	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
-	if (m_PIServerEndpoint.compare("p") == 0)
+	if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
-		measurementId = m_AFHierarchy1Level + "_" + measurementId;
+		measurementId = objectPrefix + "_" + measurementId;
 	}
 
 	lData.append("\"}, \"target\": {\"containerid\": \"" + measurementId);
@@ -1285,6 +1825,276 @@ const std::string OMF::createLinkData(const Reading& reading) const
 }
 
 /**
+ * Calculate the prefix to be used for AF objects and the last level of the hiererachies
+ * from a given AF path
+ *
+ * @param path                   Path to evaluate
+ * @param out/prefix		     Calculated prefix
+ * @param out/AFHierarchyLevel   last level of the hiererachies evaluated form the path
+ */
+void OMF::generateAFHierarchyPrefixLevel(string& path, string& prefix, string& AFHierarchyLevel)
+{
+	string pathFixed;
+
+	AFHierarchyLevel = extractLastLevel(path, AFHierarchySeparator);
+
+	pathFixed = StringSlashFix(path);
+	prefix = generateUniquePrefixId(pathFixed);
+}
+
+
+/**
+ * Retrieve from the map the prefix and the hiererachy name from a given assetname
+ *
+ * @param path                   assetName to evaluate
+ * @param out/prefix		     Calculated prefix
+ * @param out/AFHierarchyLevel   hiererachy name
+ */
+void OMF::retrieveAFHierarchyPrefixAssetName(const string& assetName, string& prefix, string& AFHierarchyLevel)
+{
+	string path;
+	// Metadata Rules - Exist
+	auto rule = m_AssetNamePrefix.find(assetName);
+	if (rule != m_AssetNamePrefix.end())
+	{
+		auto itemArray  = rule->second;
+		auto item  = itemArray[0];
+		AFHierarchyLevel = std::get<0>(item);
+		prefix =std::get<1>(item);
+	}
+
+}
+
+/**
+ * Evaluated the maps containing the Named and Metadata rules to fill the map m_AssetNamePrefix
+ * containing for each assetname the related prefix and hierarchy name
+ *
+ * @param path                   assetName to evaluate
+ * @param reading		         reading row from which will be extracted the datapoint for the evaluation of the rules
+ */
+void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& reading)
+{
+	bool ruleMatched = false;
+	bool ruleMatchedNames = false;
+
+	// names rules - Check if there are any rules defined or not
+	if (! m_AFMapEmptyNames)
+	{
+		if (m_NamesRules.size() > 0)
+		{
+			string path;
+			string prefix;
+			string AFHierarchyLevel;
+
+			auto it = m_NamesRules.find(assetName);
+			if (it != m_NamesRules.end())
+			{
+				path = it->second;
+
+				if (path.at(0) != '/')
+				{
+					// relative  path
+					path = m_DefaultAFLocation + "/" + path;
+				}
+				generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
+				ruleMatched = true;
+				ruleMatchedNames = true;
+
+				auto item = make_pair(AFHierarchyLevel, prefix);
+				m_AssetNamePrefix[assetName].push_back(item);
+			}
+		}
+	}
+
+
+	// Metata rules - Check if there are any rules defined or not
+	if (! m_AFMapEmptyMetadata && ! ruleMatchedNames)
+	{
+		auto values = reading.getReadingData();
+
+		// Metadata Rules - Exist
+		if (m_MetadataRulesExist.size() > 0)
+		{
+			string path;
+			string propertyName;
+			string prefix;
+			string AFHierarchyLevel;
+
+			for (auto it = values.begin(); it != values.end(); it++)
+			{
+				propertyName = (*it)->getName();
+				auto rule = m_MetadataRulesExist.find(propertyName);
+				if (rule != m_MetadataRulesExist.end())
+				{
+					path = rule->second;;
+					if (path.at(0) != '/')
+					{
+						// relative  path
+						path = m_DefaultAFLocation + "/" + path;
+					}
+					generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
+					ruleMatched = true;
+
+					auto item = make_pair(AFHierarchyLevel, prefix);
+					m_AssetNamePrefix[assetName].push_back(item);
+				}
+			}
+		}
+
+		// Metadata Rules - NonExist
+		if (m_MetadataRulesNonExist.size() > 0)
+		{
+			string path;
+			string propertyName;
+			string prefix;
+			string AFHierarchyLevel;
+
+			bool found;
+			string rule;
+			for (auto it = m_MetadataRulesNonExist.begin(); it != m_MetadataRulesNonExist.end(); it++)
+			{
+				found = false;
+				rule = it->first;
+				path = it->second;
+				for (auto itL2 = values.begin(); found == false && itL2 != values.end(); itL2++)
+				{
+					propertyName = (*itL2)->getName();
+					if (propertyName.compare(rule) == 0)
+					{
+						found = true;
+					}
+				}
+				if (!found)
+				{
+					if (path.at(0) != '/')
+					{
+						// relative  path
+						path = m_DefaultAFLocation + "/" + path;
+					}
+					generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
+					ruleMatched = true;
+
+					auto item = make_pair(AFHierarchyLevel, prefix);
+					m_AssetNamePrefix[assetName].push_back(item);
+				}
+			}
+		}
+
+		// Metadata Rules - equal
+		if (m_MetadataRulesEqual.size() > 0)
+		{
+			string path;
+			string propertyName;
+			string prefix;
+			string AFHierarchyLevel;
+
+			bool found;
+			string rule;
+			for (auto it = m_MetadataRulesEqual.begin(); it != m_MetadataRulesEqual.end(); it++)
+			{
+				found = false;
+				rule = it->first;
+				for (auto itL2 = values.begin(); found == false && itL2 != values.end(); itL2++)
+				{
+					propertyName = (*itL2)->getName();
+					DatapointValue data = (*itL2)->getData();
+					string dataValue = data.toString();
+					if (propertyName.compare(rule) == 0)
+					{
+						for (auto itL3 = it->second.begin(); found == false && itL3 != it->second.end(); itL3++)
+						{
+							auto value = itL3->first;
+							path = itL3->second;
+							if (value.compare(dataValue) == 0)
+							{
+								found = true;
+							}
+						}
+					}
+				}
+				if (found)
+				{
+					if (path.at(0) != '/')
+					{
+						// relative  path
+						path = m_DefaultAFLocation + "/" + path;
+					}
+					generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
+					ruleMatched = true;
+
+					auto item = make_pair(AFHierarchyLevel, prefix);
+					m_AssetNamePrefix[assetName].push_back(item);
+				}
+			}
+		}
+
+		// Metadata Rules - Not equal
+		if (m_MetadataRulesNotEqual.size() > 0)
+		{
+			string path;
+			string propertyName;
+			string prefix;
+			string AFHierarchyLevel;
+			string rule;
+			bool NotEqual;
+
+			for (auto it = m_MetadataRulesNotEqual.begin(); it != m_MetadataRulesNotEqual.end(); it++)
+			{
+				NotEqual = false;
+				rule = it->first;
+				for (auto itL2 = values.begin(); NotEqual == false && itL2 != values.end(); itL2++)
+				{
+					propertyName = (*itL2)->getName();
+
+					if (propertyName.compare(rule) == 0)
+					{
+						DatapointValue data = (*itL2)->getData();
+						string dataValue = data.toString();
+						StringReplaceAll(dataValue, "\"", "");
+
+						for (auto itL3 = it->second.begin(); NotEqual == false && itL3 != it->second.end(); itL3++)
+						{
+							auto value = itL3->first;
+							path = itL3->second;
+
+							if (value.compare(dataValue) != 0)
+							{
+								NotEqual = true;
+							}
+						}
+					}
+				}
+				if (NotEqual)
+				{
+					if (path.at(0) != '/')
+					{
+						// relative  path
+						path = m_DefaultAFLocation + "/" + path;
+					}
+					generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
+					ruleMatched = true;
+
+					auto item = make_pair(AFHierarchyLevel, prefix);
+					m_AssetNamePrefix[assetName].push_back(item);
+				}
+			}
+		}
+	}
+
+	// If no rules matched se the AF default location
+	if (!ruleMatched)
+	{
+		string prefix;
+		string AFHierarchyLevel;
+
+		generateAFHierarchyPrefixLevel(m_DefaultAFLocation, prefix, AFHierarchyLevel);
+
+		auto item = make_pair(AFHierarchyLevel, prefix);
+		m_AssetNamePrefix[assetName].push_back(item);
+	}
+}
+
+/**
  * Set the tag ID_XYZ_typename_sensor|typename_measurement
  *
  * @param assetName    The assetName
@@ -1293,17 +2103,31 @@ const std::string OMF::createLinkData(const Reading& reading) const
  */
 void OMF::setAssetTypeTag(const string& assetName,
 			  const string& tagName,
-			  string& data) const
+			  string& data)
 {
+	string AFHierarchyPrefix;
+	string AFHierarchyLevel;
+	string keyComplete;
+
+	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
+	if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
+	{
+		retrieveAFHierarchyPrefixAssetName (assetName, AFHierarchyPrefix, AFHierarchyLevel);
+		keyComplete = AFHierarchyPrefix + "_" + assetName;
+	}
+	else
+	{
+		keyComplete = assetName;
+	}
 
 	string AssetTypeTag = to_string(this->getAssetTypeId(assetName)) +
 		              "_" + assetName +
 		              "_" + tagName;
 
 	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
-	if (m_PIServerEndpoint.compare("p") == 0)
+	if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
-		AssetTypeTag = m_AFHierarchy1Level + "_" + AssetTypeTag;
+		AssetTypeTag = "A_" + AFHierarchyPrefix + "_" + AFHierarchyLevel + "_" + AssetTypeTag;
 	}
 	// Add type-id + '_' + asset_name + '_' + tagName'
 	data.append(AssetTypeTag);
@@ -1319,16 +2143,15 @@ void OMF::setAssetTypeTag(const string& assetName,
  * @return               True if data types have been sent or already sent.
  *                       False if the sending has failed.
  */ 
-bool OMF::handleDataTypes(const Reading& row,
-			  bool skipSending)
+bool OMF::handleDataTypes(const string keyComplete, const Reading& row, bool skipSending)
 {
 	// Create the key for dataTypes sending once
-	const string key(skipSending ? (row.getAssetName()) : "");
+	const string key(skipSending ? (keyComplete) : "");
 
 	// Check whether to create and send Data Types
 	bool sendTypes = (skipSending == true) ?
 			  // Send if not already sent
-			  !OMF::getCreatedTypes(key) :
+			  !OMF::getCreatedTypes(key, row) :
 			  // Always send types
 			  true;
 
@@ -1390,7 +2213,7 @@ void OMF::setFormatType(const string &key, string &value)
 /**
  * Set which PIServer component should be used for the communication
  */
-void OMF::setPIServerEndpoint(const string &PIServerEndpoint)
+void OMF::setPIServerEndpoint(const OMF_ENDPOINT PIServerEndpoint)
 {
 	m_PIServerEndpoint = PIServerEndpoint;
 }
@@ -1398,11 +2221,199 @@ void OMF::setPIServerEndpoint(const string &PIServerEndpoint)
 /**
  * Set the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.
  */
-void OMF::setAFHierarchy1Level(const string &AFHierarchy1Level)
+void OMF::setDefaultAFLocation(const string &DefaultAFLocation)
 {
-	m_AFHierarchy1Level = AFHierarchy1Level;
+	m_DefaultAFLocation = StringSlashFix(DefaultAFLocation);
 }
 
+/**
+ * Set the rules to address where assets should be placed in the AF hierarchy.
+ * Decodes the JSON and assign to the structures the values about the Names rulues
+ *
+ */
+bool OMF::HandleAFMapNames(Document& JSon)
+{
+	bool success = true;
+	string name;
+	string value;
+
+	Value &JsonNames = JSon["names"];
+
+	for (Value::ConstMemberIterator itr = JsonNames.MemberBegin(); itr != JsonNames.MemberEnd(); ++itr)
+	{
+		name = itr->name.GetString();
+		value = itr->value.GetString();
+		Logger::getLogger()->debug("HandleAFMapNames - Exist name :%s: value :%s:", name.c_str(), value.c_str());
+
+		auto newMapValue = make_pair(name,value);
+
+		m_NamesRules.insert (newMapValue);
+
+		m_AFMapEmptyNames = false;
+	}
+
+	return success;
+}
+
+/**
+ * Set the rules to address where assets should be placed in the AF hierarchy.
+ * Decodes the JSON and assign to the structures the values about the Metadata rulues
+ *
+ */
+bool OMF::HandleAFMapMetedata(Document& JSon)
+{
+	bool success = true;
+	string name;
+	string value;
+
+	Value &JsonMetadata = JSon["metadata"];
+
+	// --- Handling Exist section
+	if (JsonMetadata.HasMember("exist"))
+	{
+		Value &JSonExist = JsonMetadata["exist"];
+
+		for (Value::ConstMemberIterator itr = JSonExist.MemberBegin(); itr != JSonExist.MemberEnd(); ++itr)
+		{
+			name = itr->name.GetString();
+			value = itr->value.GetString();
+			Logger::getLogger()->debug("HandleAFMapMetedata - Exist name :%s: value :%s:", name.c_str(), value.c_str());
+
+			auto newMapValue = make_pair(name,value);
+
+			m_MetadataRulesExist.insert (newMapValue);
+
+			m_AFMapEmptyMetadata = false;
+		}
+	}
+
+	// --- Handling Non Exist section
+	if (JsonMetadata.HasMember("nonexist"))
+	{
+		Value &JSonNonExist = JsonMetadata["nonexist"];
+
+		for (Value::ConstMemberIterator itr = JSonNonExist.MemberBegin(); itr != JSonNonExist.MemberEnd(); ++itr)
+		{
+			name = itr->name.GetString();
+			value = itr->value.GetString();
+			Logger::getLogger()->debug("HandleAFMapMetedata - Non Exist name :%s: value :%s:", name.c_str(), value.c_str());
+
+			auto newMapValue = make_pair(name,value);
+
+			m_MetadataRulesNonExist.insert (newMapValue);
+
+			m_AFMapEmptyMetadata = false;
+		}
+	}
+
+
+	// --- Handling Equal section
+	if (JsonMetadata.HasMember("equal"))
+	{
+		string property;
+		string value;
+		string path;
+
+		Value &JSonEqual = JsonMetadata["equal"];
+
+		for (Value::ConstMemberIterator itr = JSonEqual.MemberBegin(); itr != JSonEqual.MemberEnd(); ++itr)
+		{
+			property = itr->name.GetString();
+
+			for (Value::ConstMemberIterator itrL2 = itr->value.MemberBegin(); itrL2 != itr->value.MemberEnd(); ++itrL2)
+			{
+				value = itrL2->name.GetString();
+				path  = itrL2->value.GetString();
+				Logger::getLogger()->debug("HandleAFMapMetedata - equal property :%s: name :%s: value :%s:", property.c_str() , value.c_str(), path.c_str());
+
+				auto item = make_pair(value,path);
+				m_MetadataRulesEqual[property].push_back(item);
+
+				m_AFMapEmptyMetadata = false;
+			}
+		}
+	}
+	// --- Handling Not Equal section
+	if (JsonMetadata.HasMember("notequal"))
+	{
+		string property;
+		string value;
+		string path;
+
+		Value &JSonEqual = JsonMetadata["notequal"];
+
+		for (Value::ConstMemberIterator itr = JSonEqual.MemberBegin(); itr != JSonEqual.MemberEnd(); ++itr)
+		{
+			property = itr->name.GetString();
+
+			for (Value::ConstMemberIterator itrL2 = itr->value.MemberBegin(); itrL2 != itr->value.MemberEnd(); ++itrL2)
+			{
+				value = itrL2->name.GetString();
+				path  = itrL2->value.GetString();
+				Logger::getLogger()->debug("HandleAFMapMetedata - Not equal property :%s: name :%s: value :%s:", property.c_str() , value.c_str(), path.c_str());
+
+				auto item = make_pair(value,path);
+				m_MetadataRulesNotEqual[property].push_back(item);
+
+				m_AFMapEmptyMetadata = false;
+			}
+		}
+	}
+	return success;
+}
+
+/**
+ * Set the Names and Metadata rules to address where assets should be placed in the AF hierarchy.
+ *
+ */
+bool OMF::setAFMap(const string &AFMap)
+{
+	bool success = true;
+	Document JSon;
+
+	m_AFMapEmptyNames = true;
+	m_AFMapEmptyMetadata = true;
+	m_AFMap = AFMap;
+
+	ParseResult ok = JSon.Parse(m_AFMap.c_str());
+	if (!ok)
+	{
+		Logger::getLogger()->error("setAFMap - Invalid Asset Framework Map, error :%s:", GetParseError_En(JSon.GetParseError()));
+		return false;
+	}
+
+	if (JSon.HasMember("names"))
+	{
+		HandleAFMapNames(JSon);
+	}
+	if (JSon.HasMember("metadata"))
+	{
+		HandleAFMapMetedata(JSon);
+	}
+
+	return success;
+}
+
+/**
+ * Set the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.
+ */
+void OMF::setPrefixAFAsset(const string &prefixAFAsset)
+{
+	m_prefixAFAsset = prefixAFAsset;
+}
+
+/**
+ * Generate an unique prefix for AF objects
+ */
+string OMF::generateUniquePrefixId(const string &path)
+{
+	string prefix;
+
+	std::size_t hierarchyHash = std::hash<std::string>{}(path);
+	prefix = std::to_string(hierarchyHash);
+
+	return prefix;
+}
 
 /**
  * Set the list of errors considered not blocking in the communication
@@ -1467,25 +2478,25 @@ bool OMF::isDataTypeError(const char* message)
  * @return              True if data types with new-id
  *                      have been sent, false otherwise.
  */
-bool OMF::handleTypeErrors(const Reading& reading)
+bool OMF::handleTypeErrors(const string& keyComplete, const Reading& reading)
 {
 	bool ret = true;
-	string key = reading.getAssetName();
+	string assetName = reading.getAssetName();
 
 	// Reset change type-id indicator
 	m_changeTypeId = false;
 
 	// Increment per asset type-id in memory cache:
 	// Note: if key is not found the global type-id is incremented
-	OMF::incrementAssetTypeId(key);
+	OMF::incrementAssetTypeId(keyComplete);
 
 	// Clear per asset data (but keep the type-id) if key found
 	// or remove all data otherwise
-	auto it = m_OMFDataTypes->find(key);
+	auto it = m_OMFDataTypes->find(keyComplete);
 	if (it != m_OMFDataTypes->end())
 	{
 		// Clear teh OMF types cache per asset, keep type-id
-		OMF::clearCreatedTypes(key);
+		OMF::clearCreatedTypes(keyComplete);
 	}
 	else
 	{
@@ -1494,13 +2505,12 @@ bool OMF::handleTypeErrors(const Reading& reading)
 	}
 
 	// Force re-send data types with a new type-id
-	if (!OMF::handleDataTypes(reading,
-				  false))
+	if (!OMF::handleDataTypes(keyComplete, reading, false))
 	{
 		Logger::getLogger()->error("Failure re-sending JSON dataType messages "
 					   "with new type-id=%d for asset %s",
-					   OMF::getAssetTypeId(key),
-					   key.c_str());
+								   OMF::getAssetTypeId(assetName),
+								   assetName.c_str());
 		// Failure
 		m_lastError = true;
 		ret = false;
@@ -1709,9 +2719,28 @@ string OMF::getAssetNameFromError(const char* message)
  * @return		The found type-id
  *			or the generic value
  */
-long OMF::getAssetTypeId(const string& assetName) const
+long OMF::getAssetTypeId(const string& assetName)
 {
 	long typeId;
+	string keyComplete;
+	string AFHierarchyPrefix;
+	string AFHierarchyLevel;
+
+	// Connector relay / ODS / EDS
+	if (m_PIServerEndpoint == ENDPOINT_CR  ||
+		m_PIServerEndpoint == ENDPOINT_OCS ||
+		m_PIServerEndpoint == ENDPOINT_EDS
+		)
+	{
+		keyComplete = assetName;
+	}
+	else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
+	{
+		retrieveAFHierarchyPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchyLevel);
+		keyComplete = AFHierarchyPrefix + "_" + assetName;
+	}
+
+
 	if (!m_OMFDataTypes)
 	{
 		// Use current value of m_typeId
@@ -1719,7 +2748,7 @@ long OMF::getAssetTypeId(const string& assetName) const
 	}
 	else
 	{
-		auto it = m_OMFDataTypes->find(assetName);
+		auto it = m_OMFDataTypes->find(keyComplete);
 		if (it != m_OMFDataTypes->end())
 		{
 			// Set the type-id of found element
@@ -1728,9 +2757,10 @@ long OMF::getAssetTypeId(const string& assetName) const
 		else
 		{
 			// Use current value of m_typeId
-			typeId = m_typeId;
+			typeId = TYPE_ID_DEFAULT;
 		}
 	}
+
 	return typeId;
 }
 
@@ -1740,11 +2770,11 @@ long OMF::getAssetTypeId(const string& assetName) const
  * If cached data pointer is NULL or asset name is not set
  * the global m_typeId is incremented.
  *
- * @param    assetName		The asset name
+ * @param    keyComplete		The asset name
  *				which type-id sequence
  *				has to be incremented.
  */
-void OMF::incrementAssetTypeId(const std::string& assetName)
+void OMF::incrementAssetTypeId(const std::string& keyComplete)
 {
 	long typeId;
 	if (!m_OMFDataTypes)
@@ -1754,7 +2784,7 @@ void OMF::incrementAssetTypeId(const std::string& assetName)
         }
 	else
 	{
-		auto it = m_OMFDataTypes->find(assetName);
+		auto it = m_OMFDataTypes->find(keyComplete);
 		if (it != m_OMFDataTypes->end())
 		{
 			// Increment value of found type-id
@@ -1766,6 +2796,68 @@ void OMF::incrementAssetTypeId(const std::string& assetName)
 			OMF::incrementTypeId();
 		}
 	}
+}
+
+/**
+ * Generate a 64 bit number containing  a set of counts,
+ * number of datapoint in an asset and the number of datapoint of each type we support.
+ *
+ */
+unsigned long OMF::calcTypeShort(const Reading& row)
+{
+	union t_typeCount {
+		struct
+		{
+			unsigned char tTotal;
+			unsigned char tFloat;
+			unsigned char tString;
+			unsigned char spare0;
+
+			unsigned char spare1;
+			unsigned char spare2;
+			unsigned char spare3;
+			unsigned char spare4;
+		} cnt;
+		unsigned long valueLong = 0;
+
+	} typeCount;
+
+	int type;
+
+	const vector<Datapoint*> data = row.getReadingData();
+	for (vector<Datapoint*>::const_iterator it = data.begin();
+		 (it != data.end() &&
+		  isTypeSupported((*it)->getData()));
+		 ++it)
+	{
+
+		if (!isTypeSupported((*it)->getData()))
+		{
+			continue;
+		}
+
+		type = ((*it)->getData()).getType();
+
+		// Integer is handled as float in the OMF integration
+		if (type == DatapointValue::dataTagType::T_INTEGER)
+		{
+			typeCount.cnt.tFloat++;
+		}
+
+		if (type == DatapointValue::dataTagType::T_FLOAT)
+		{
+			typeCount.cnt.tFloat++;
+		}
+
+		if (type == DatapointValue::dataTagType::T_STRING)
+		{
+			typeCount.cnt.tString++;
+		}
+		typeCount.cnt.tTotal++;
+
+	}
+
+	return typeCount.valueLong;
 }
 
 /**
@@ -1782,10 +2874,31 @@ bool OMF::setCreatedTypes(const Reading& row)
 	{
 		return false;
 	}
-
 	string types;
-	string key = row.getAssetName();
-	long typeId = OMF::getAssetTypeId(key);
+	string keyComplete;
+
+	// Connector relay / ODS / EDS
+	if (m_PIServerEndpoint == ENDPOINT_CR  ||
+		m_PIServerEndpoint == ENDPOINT_OCS ||
+		m_PIServerEndpoint == ENDPOINT_EDS
+		)
+	{
+		keyComplete = row.getAssetName();
+	}
+	else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
+	{
+		string assetName;
+		string AFHierarchyPrefix;
+		string AFHierarchyLevel;
+
+		assetName = row.getAssetName();
+		retrieveAFHierarchyPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchyLevel);
+
+		keyComplete = AFHierarchyPrefix + "_" + assetName;
+	}
+
+
+	long typeId = OMF::getAssetTypeId(keyComplete);
 	const vector<Datapoint*> data = row.getReadingData();
 	types.append("{");
 	for (vector<Datapoint*>::const_iterator it = data.begin();
@@ -1828,20 +2941,23 @@ bool OMF::setCreatedTypes(const Reading& row)
 	}
 	types.append("}");
 
-	if (m_OMFDataTypes->find(key) == m_OMFDataTypes->end())
+	if (m_OMFDataTypes->find(keyComplete) == m_OMFDataTypes->end())
 	{
 		// New entry
 		OMFDataTypes newData;
 		// Start from default as we don't have anything in the cache
-		newData.typeId = m_typeId;
+		newData.typeId = TYPE_ID_DEFAULT;
+
 		newData.types = types;
-		(*m_OMFDataTypes)[key] = newData;
+		(*m_OMFDataTypes)[keyComplete] = newData;
 	}
 	else
 	{
 		// Just update dataTypes and keep the typeId
-		(*m_OMFDataTypes)[key].types = types;
+		(*m_OMFDataTypes)[keyComplete].types = types;
 	}
+
+	(*m_OMFDataTypes)[keyComplete].typesShort = calcTypeShort(row);
 
 	return true;
 }
@@ -1873,11 +2989,11 @@ void OMF::setTypeId()
  * Clear OMF types cache for given asset name
  * but keep the type-id
  */
-void OMF::clearCreatedTypes(const string& key)
+void OMF::clearCreatedTypes(const string& keyComplete)
 {
 	if (m_OMFDataTypes)
 	{
-		auto it = m_OMFDataTypes->find(key);
+		auto it = m_OMFDataTypes->find(keyComplete);
 		if (it != m_OMFDataTypes->end())
 		{
 			// Just clear data types
@@ -1890,24 +3006,61 @@ void OMF::clearCreatedTypes(const string& key)
  * Check the key (assetName) is set and not empty
  * in the per asset data types cache.
  *
- * @param key    The data type key (assetName) from the Reading row
+ * @param keyComplete    The data type key (assetName) from the Reading row
  * @return       True is the key exists and data value is not empty:
  *		 this means the dataTypes were already sent
  *		 Found key with empty value means the data types
  *		 must be sent again with the new type-id.
  *               Return false if the key is not found or found but empty.
  */
-bool OMF::getCreatedTypes(const string& key)
+bool OMF::getCreatedTypes(const string& keyComplete, const Reading& row)
 {
-	bool ret;
+	unsigned long typesDefinition;
+	bool ret = false;
+	bool found = false;
+
 	if (!m_OMFDataTypes)
 	{
 		ret = false;
 	}
 	else
 	{
-		auto it = m_OMFDataTypes->find(key);
-		ret = (it != m_OMFDataTypes->end()) && !(*m_OMFDataTypes)[key].types.empty();
+		auto it = m_OMFDataTypes->find(keyComplete);
+		if (it != m_OMFDataTypes->end())
+		{
+			ret = ! it->second.types.empty();
+			if (ret)
+			{
+				// Considers empty also the case "{}"
+				if (it->second.types.compare("{}") == 0)
+				{
+					ret = false;
+				}
+				else
+				{
+					// The Connector Relay recreates the type only when an error is received from the PI-Server
+					// not in advance
+					if (m_PIServerEndpoint != ENDPOINT_CR)
+					{
+						// Check if the defined type has changed respect the superset type
+						Reading* datatypeStructure = NULL;
+
+						auto itSuper = m_SuperSetDataPoints.find(row.getAssetName());
+						if (itSuper != m_SuperSetDataPoints.end())
+						{
+							datatypeStructure = (*itSuper).second;
+
+							// Check if the types are changed
+							typesDefinition = calcTypeShort(*datatypeStructure);
+							if (it->second.typesShort != typesDefinition)
+							{
+								ret = false;
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 	return ret;
 }
@@ -1932,3 +3085,4 @@ static bool isTypeSupported(DatapointValue& dataPoint)
 		return true;
 	}
 }
+

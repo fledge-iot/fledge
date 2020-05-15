@@ -96,14 +96,17 @@ setup_north_pi_egress () {
     curl -sX POST "$URL/scheduled/task" -d \
     '{
        "name": "PI Server",
-       "plugin": "PI_Server_V2",
+       "plugin": "OMF",
        "type": "north",
        "schedule_repeat": 30,
        "schedule_type": "3",
        "schedule_enabled": true,
        "config": {
-          "URL": {
-             "value": "https://'${PI_IP}':5460/ingress/messages"
+          "ServerHostname": {
+             "value": "'${PI_IP}'"
+          },
+          "ServerPort": {
+             "value": "5460"
           },
           "producerToken": {
              "value": "'${PI_TOKEN}'"

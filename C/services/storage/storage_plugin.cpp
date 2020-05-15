@@ -60,6 +60,9 @@ StoragePlugin::StoragePlugin(PLUGIN_HANDLE handle) : Plugin(handle)
 	getTableSnapshotsPtr =
 			(char * (*)(PLUGIN_HANDLE, const char*))
 			      manager->resolveSymbol(handle, "plugin_get_table_snapshots");
+	readingStreamPtr =
+			(int (*)(PLUGIN_HANDLE, ReadingStream **, bool))
+			      manager->resolveSymbol(handle, "plugin_readingStream");
 }
 
 /**
@@ -172,4 +175,12 @@ int StoragePlugin::deleteTableSnapshot(const string& table, const string& id)
 char *StoragePlugin::getTableSnapshots(const string& table)
 {
         return this->getTableSnapshotsPtr(instance, table.c_str());
+}
+
+/**
+ * Call the reading stream method in the plugin
+ */
+int StoragePlugin::readingStream(ReadingStream **stream, bool commit)
+{
+        return this->readingStreamPtr(instance, stream, commit);
 }

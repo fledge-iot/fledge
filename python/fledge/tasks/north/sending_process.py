@@ -25,7 +25,6 @@ import logging
 import datetime
 import signal
 import json
-import uuid
 
 import fledge.plugins.north.common.common as plugin_common
 from fledge.common.parser import Parser
@@ -116,18 +115,20 @@ class InvalidCommandLineParameters(RuntimeError):
 
 
 def apply_date_format(in_data):
-    """ This routine adds the default UTC zone format to the input date time string
-    If a timezone (strting with + or -) is found, all the following chars
-    are replaced by +00, otherwise +00 is added.
+    """ This routine adds the UTC Zulu time to the input date time string
+    a) Space in datetime string is replaced with "T"
+    b) If a timezone (strting with + or -) is found, all the following chars
+    are replaced by "Z", otherwise Z is added.
     Note: if the input zone is +02:00 no date conversion is done,
           at the time being this routine expects UTC date time values.
     Examples:
-        2018-05-28 16:56:55              ==> 2018-05-28 16:56:55.000000+00
-        2018-05-28 13:42:28.84           ==> 2018-05-28 13:42:28.840000+00
-        2018-03-22 17:17:17.166347       ==> 2018-03-22 17:17:17.166347+00
-        2018-03-22 17:17:17.166347+00:00 ==> 2018-03-22 17:17:17.166347+00
-        2018-03-22 17:17:17.166347+00    ==> 2018-03-22 17:17:17.166347+00
-        2018-03-22 17:17:17.166347+02:00 ==> 2018-03-22 17:17:17.166347+00
+        2018-05-28 16:56:55              ==> 2018-05-28T16:56:55.000000Z
+        2018-05-28 13:42:28.84           ==> 2018-05-28T13:42:28.840000Z
+        2018-03-22 17:17:17.166347       ==> 2018-03-22T17:17:17.166347Z
+        2020-03-30 05:35:24.066553Z      ==> 2020-03-30T05:35:24.066553Z
+        2018-03-22 17:17:17.166347+00:00 ==> 2018-03-22T17:17:17.166347Z
+        2018-03-22 17:17:17.166347+00    ==> 2018-03-22T17:17:17.166347Z
+        2018-03-22 17:17:17.166347+02:00 ==> 2018-03-22T17:17:17.166347Z
     Args:
         the date time string to format
     Returns:
@@ -136,7 +137,7 @@ def apply_date_format(in_data):
     # Look for timezone start with '-' a the end of the date (-XY:WZ)
     zone_index = in_data.rfind("-")
     # If index is less than 10 we don't have the trailing zone with -
-    if (zone_index < 10):
+    if zone_index < 10:
         #  Look for timezone start with '+' (+XY:ZW)
         zone_index = in_data.rfind("+")
     if zone_index == -1:
@@ -145,11 +146,17 @@ def apply_date_format(in_data):
             in_data += ".000000"
         # Pads with 0 if needed
         in_data = in_data.ljust(26, '0')
-        # Just add +00
-        timestamp = in_data + "+00"
+        # Replace space with T (i.e b/w date & time)
+        timestamp = in_data.replace(" ", "T")
+        # Just add UTC Zulu time if Z not present in in_data
+        if 'Z' not in in_data:
+            timestamp = timestamp + "Z"
     else:
-        # Remove everything after - or + and add +00
-        timestamp = in_data[:zone_index] + "+00"
+        # Replace space with T (i.e b/w date & time) and UTC Zulu time
+        timestamp = in_data[:zone_index].replace(" ", "T") + "Z"
+        if in_data[zone_index:] not in ('+00', '+00:00'):
+            _LOGGER.warning("Non-UTC {} timezone is found. Hence no date conversion is done at the time being "
+                            "this routine expects UTC date time values".format(in_data[zone_index:]))
     return timestamp
 
 
@@ -441,7 +448,6 @@ class SendingProcess(FledgeProcess):
                     new_row = {
                         'id': row['id'],
                         'asset_code': asset_code,
-                        'read_key': str(uuid.uuid4()),
                         'reading': {'value': row['value']},
                         'user_ts': timestamp,
                     }
@@ -501,7 +507,6 @@ class SendingProcess(FledgeProcess):
                     new_row = {
                         'id': row['id'],
                         'asset_code': asset_code,
-                        'read_key': row['read_key'],
                         'reading': payload,
                         'user_ts': timestamp
                     }

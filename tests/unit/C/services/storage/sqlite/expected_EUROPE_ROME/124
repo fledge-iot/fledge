@@ -1,1 +1,1 @@
-{"count":1,"rows":[{"asset_code":"tz_02","read_key":"f1cfff7a-3769-4f47-9ded-100000000001","reading":{"test":"2"},"user_ts":"2019-04-17 16:01:02.123456"}]}
+{"count":1,"rows":[{"asset_code":"tz_02","reading":{"test":"2"},"user_ts":"2019-04-17 16:01:02.123456"}]}

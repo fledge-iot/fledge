@@ -26,7 +26,6 @@ using namespace rapidjson;
 #define TYPE_ID             1234
 #define AF_HIERARCHY_1LEVEL "fledge_data_piwebapi"
 #define CONTAINER_ID        "fledge_data_piwebapi_1234measurement_luxometer"
-#define PI_SERVER_END_POINT "p"                       // p=PI Web API, c=Connector Relay
 
 // 2 readings JSON text
 const char *pi_web_api_two_readings = R"(
@@ -34,14 +33,12 @@ const char *pi_web_api_two_readings = R"(
         "count" : 2, "rows" : [
             {
                 "id": 1, "asset_code": "luxometer",
-                "read_key": "5b3be500-ff95-41ae-b5a4-cc99d08bef4a",
                 "reading": { "lux": 45204.524 },
                 "user_ts": "2018-06-11 14:00:08.532958",
                 "ts": "2add_subdirectory(tests/unit/C/common)018-06-12 14:47:18.872708"
             },
             {
                 "id": 2, "asset_code": "luxometer",
-                "read_key": "5b3be50c-ff95-41ae-b5a4-cc99d08bef4a",
                 "reading": { "lux": 76834.361 },
                 "user_ts": "2018-08-21 14:00:09.32958",
                 "ts": "2018-08-22 14:48:18.72708"
@@ -67,6 +64,8 @@ TEST(PIWEBAPI_OMF_transation, TwoTranslationsCompareResult)
 
 	ostringstream jsonData;
 	jsonData << "[";
+
+	const OMF_ENDPOINT PI_SERVER_END_POINT = ENDPOINT_PIWEB_API;
 
 	// Iterate over Readings via readingSet.getAllReadings()
 	for (vector<Reading *>::const_iterator elem = readingSet.getAllReadings().begin();

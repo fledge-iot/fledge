@@ -13,6 +13,7 @@
 #include <string>
 #include <ctime>
 #include <vector>
+#include <sys/time.h>
 
 #define DEFAULT_DATE_TIME_FORMAT      "%Y-%m-%d %H:%M:%S"
 #define COMBINED_DATE_STANDARD_FORMAT "%Y-%m-%dT%H:%M:%S"
@@ -38,15 +39,14 @@ class Reading {
 		~Reading();
 		void				addDatapoint(Datapoint *value);
 		Datapoint			*removeDatapoint(const std::string& name);
-		std::string			toJSON() const;
+		std::string			toJSON(bool minimal = false) const;
+		std::string			getDatapointsJSON() const;
 		// Return AssetName
 		const std::string&              getAssetName() const { return m_asset; };
 		// Set AssetName
 		void				setAssetName(std::string assetName) { m_asset = assetName; };
 		unsigned int			getDatapointCount() { return m_values.size(); };
 		void				removeAllDatapoints();
-		// Return UUID
-		const std::string&              getUuid() const { return m_uuid; };
 		// Return Reading datapoints
 		const std::vector<Datapoint *>	getReadingData() const { return m_values; };
 		// Return refrerence to Reading datapoints
@@ -55,7 +55,6 @@ class Reading {
 		unsigned long			getTimestamp() const { return (unsigned long)m_timestamp.tv_sec; };
 		unsigned long			getUserTimestamp() const { return (unsigned long)m_userTimestamp.tv_sec; };
 		void				setId(unsigned long id) { m_id = id; };
-		void				setUuid(const std::string& uuid) { m_uuid = uuid; };
 		void				setTimestamp(unsigned long ts) { m_timestamp.tv_sec = (time_t)ts; };
 		void				setTimestamp(struct timeval tm) { m_timestamp = tm; };
 		void				setTimestamp(const std::string& timestamp);
@@ -82,7 +81,6 @@ class Reading {
 		struct timeval			m_timestamp;
 		struct timeval			m_userTimestamp;
 		std::vector<Datapoint *>	m_values;
-		std::string			m_uuid;
 		// Supported date time formats for 'm_timestamp'
 		static std::vector<std::string>	m_dateTypes;
 };

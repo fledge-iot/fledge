@@ -23,7 +23,6 @@ CREATE TABLE IF NOT EXISTS fledge.readings (
     id         INTEGER                PRIMARY KEY AUTOINCREMENT,
     asset_code character varying(50)       NOT NULL,               -- The provided asset code. Not necessarily located in the
                                                                    -- assets table.
-    read_key   uuid                        UNIQUE,                 -- An optional unique key used to avoid double-loading.
     reading    JSON                        NOT NULL DEFAULT '{}',  -- The json object received
     user_ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')), -- UTC time
     ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW'))  -- UTC time
@@ -31,9 +30,6 @@ CREATE TABLE IF NOT EXISTS fledge.readings (
 
 -- CREATE INDEX fki_readings_fk1
 --    ON readings (asset_code);
-
--- CREATE INDEX readings_ix1
---    ON readings (read_key);
 
 delete from fledge.readings;
 delete from fledge.configuration;

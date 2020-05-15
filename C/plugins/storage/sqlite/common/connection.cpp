@@ -105,6 +105,43 @@ int dateCallback(void *data,
 }
 
 /**
+ * Retrieves the current datetime (now ()) from SQlite
+ *
+ * @param Now      Output parameter - now ()
+ * @return         True, operations succeded
+ *
+ */
+bool Connection::getNow(string& Now)
+{
+	bool retCode;
+	char* zErrMsg = NULL;
+	char nowDate[100] = "";
+
+	string nowSqlCMD = "SELECT " SQLITE3_NOW_READING;
+
+	int rc = SQLexec(dbHandle,
+	                 nowSqlCMD.c_str(),
+	                 dateCallback,
+	                 nowDate,
+	                 &zErrMsg);
+
+	if (rc == SQLITE_OK )
+	{
+		Now = nowDate;
+		retCode = true;
+	}
+	else
+	{
+		Logger::getLogger()->error("SELECT NOW() error :%s:", nowSqlCMD.c_str(), zErrMsg);
+		sqlite3_free(zErrMsg);
+		Now = "";
+		retCode = false;
+	}
+	return retCode;
+}
+
+//###   #########################################################################################:
+/**
  * Apply Fledge default datetime formatting
  * to a detected DATETIME datatype column
  *
@@ -396,6 +433,7 @@ Connection::Connection()
 
 	m_logSQL = false;
 	m_queuing = 0;
+	m_streamOpenTransaction = true;
 
 	if (defaultConnection == NULL)
 	{
@@ -448,10 +486,10 @@ Connection::Connection()
 		int rc;
 		char *zErrMsg = NULL;
 
-		rc = sqlite3_exec(dbHandle, "PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;", NULL, NULL, &zErrMsg);
+		rc = sqlite3_exec(dbHandle, "PRAGMA busy_timeout = 100; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;", NULL, NULL, &zErrMsg);
 		if (rc != SQLITE_OK)
 		{
-			const char* errMsg = "Failed to set 'PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;'";
+			const char* errMsg = "Failed to set 'PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;'";
 			Logger::getLogger()->error("%s : error %s",
 						   errMsg,
 						   zErrMsg);
@@ -2251,9 +2289,9 @@ bool Connection::jsonModifiers(const Value& payload,
 		sql.append(" ORDER BY ");
 
                 // Use Unix epoch without milliseconds
-                sql.append("datetime(strftime('%s', ");
+                sql.append("strftime('%s', ");
                 sql.append(tb["timestamp"].GetString());
-                sql.append("))");
+                sql.append(")");
 
 		sql.append(" DESC");
 	}

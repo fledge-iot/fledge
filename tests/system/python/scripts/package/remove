@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+time sudo apt purge -y fledge fledge-gui
+sudo rm -rf /usr/local/fledge

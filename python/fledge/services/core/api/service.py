@@ -3,6 +3,8 @@
 # FLEDGE_BEGIN
 # See: http://fledge.readthedocs.io/
 # FLEDGE_END
+
+import asyncio
 import os
 import datetime
 import uuid
@@ -10,7 +12,7 @@ import platform
 import json
 from aiohttp import web
 
-from typing import Dict
+from typing import Dict, List
 from fledge.common import utils
 from fledge.common import logger
 from fledge.common.service_record import ServiceRecord
@@ -36,11 +38,12 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 _help = """
-    -------------------------------------------------------------------------------
+    ------------------------------------------------------------------------------
     | GET POST            | /fledge/service                                      |
     | GET                 | /fledge/service/available                            |
     | GET                 | /fledge/service/installed                            |
-    -------------------------------------------------------------------------------
+    | PUT                 | /fledge/service/{type}/{name}/update                |
+    ------------------------------------------------------------------------------
 """
 
 _logger = logger.setup()
@@ -65,6 +68,16 @@ def get_service_records():
             })
     recs = {'services': sr_list}
     return recs
+
+
+def get_service_installed() -> List:
+    services = []
+    svc_prefix = 'fledge.services.'
+    for root, dirs, files in os.walk(_FLEDGE_ROOT + "/" + "services"):
+        for f in files:
+            if f.startswith(svc_prefix):
+                services.append(f.split(svc_prefix)[-1])
+    return services
 
 
 async def get_health(request):
@@ -110,6 +123,8 @@ async def delete_service(request):
         sch_id = uuid.UUID(svc_schedule['id'])
         if svc_schedule['enabled'].lower() == 't':
             await server.Server.scheduler.disable_schedule(sch_id)
+            # return control to event loop
+            await asyncio.sleep(1)
 
         # Delete all configuration for the service name
         await config_mgr.delete_category_and_children_recursively(svc)
@@ -125,7 +140,7 @@ async def delete_service(request):
         # Delete schedule
         await server.Server.scheduler.delete_schedule(sch_id)
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=ex)
+        raise web.HTTPInternalServerError(reason=str(ex))
     else:
         return web.json_response({'result': 'Service {} deleted successfully.'.format(svc)})
 
@@ -387,7 +402,7 @@ async def get_available(request: web.Request) -> web.Response:
         msg = "Fetch available service package request failed"
         raise web.HTTPBadRequest(body=json.dumps({"message": msg, "link": str(e)}), reason=msg)
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=ex)
+        raise web.HTTPInternalServerError(reason=str(ex))
 
     return web.json_response({"services": services, "link": log_path})
 
@@ -398,11 +413,88 @@ async def get_installed(request: web.Request) -> web.Response:
         :Example:
             curl -X GET http://localhost:8081/fledge/service/installed
     """
-    services = []
-    svc_prefix = 'fledge.services.'
-    for root, dirs, files in os.walk(_FLEDGE_ROOT + "/" + "services"):
-        for f in files:
-            if f.startswith(svc_prefix):
-                services.append(f.split(svc_prefix)[-1])
-
+    services = get_service_installed()
     return web.json_response({"services": services})
+
+
+async def update_service(request: web.Request) -> web.Response:
+    """ update service
+
+    :Example:
+        curl -sX PUT http://localhost:8081/fledge/service/notification/notification/update
+    """
+    _type = request.match_info.get('type', None)
+    name = request.match_info.get('name', None)
+    try:
+        _type = _type.lower()
+        if _type != 'notification':
+            raise ValueError("Invalid service type. Must be 'notification'")
+
+        # Check requested service name is installed or not
+        installed_services = get_service_installed()
+        if name not in installed_services:
+            raise KeyError("{} service is not installed yet. Hence update is not possible.".format(name))
+
+        storage_client = connect.get_storage_async()
+        # TODO: process_name ends with "_c" suffix
+        payload = PayloadBuilder().SELECT("id", "enabled", "schedule_name").WHERE(['process_name', '=', '{}_c'.format(
+            _type)]).payload()
+        result = await storage_client.query_tbl_with_payload('schedules', payload)
+        sch_info = result['rows']
+        sch_list = []
+        if sch_info and sch_info[0]['enabled'] == 't':
+            status, reason = await server.Server.scheduler.disable_schedule(uuid.UUID(sch_info[0]['id']))
+            if status:
+                _logger.warning("Schedule is disabled for {}, as {} service of type {} is being updated...".format(
+                    sch_info[0]['schedule_name'], name, _type))
+                # TODO: SCHCH Audit log entry
+                sch_list.append(sch_info[0]['id'])
+
+        # service update is running as a background task
+        loop = request.loop
+        request._type = _type
+        request._name = name
+        request._sch_list = sch_list
+        loop.call_later(1, do_update, request)
+    except KeyError as ex:
+        raise web.HTTPNotFound(reason=str(ex))
+    except ValueError as ex:
+        raise web.HTTPBadRequest(reason=str(ex))
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason=str(ex))
+
+    return web.json_response({"message": "{} service update in process. Wait for few minutes to complete.".format(
+        name)})
+
+
+def do_update(request):
+    _logger.info("{} service update started...".format(request._name))
+    name = "fledge-service-{}".format(request._name.lower())
+    _platform = platform.platform()
+    stdout_file_path = common.create_log_file("update", name)
+    pkg_mgt = 'apt'
+    cmd = "sudo {} -y update > {} 2>&1".format(pkg_mgt, stdout_file_path)
+    if 'centos' in _platform or 'redhat' in _platform:
+        pkg_mgt = 'yum'
+        cmd = "sudo {} check-update > {} 2>&1".format(pkg_mgt, stdout_file_path)
+    ret_code = os.system(cmd)
+    # sudo apt/yum -y install only happens when update is without any error
+    if ret_code == 0:
+        cmd = "sudo {} -y install {} >> {} 2>&1".format(pkg_mgt, name, stdout_file_path)
+        ret_code = os.system(cmd)
+
+    # relative log file link
+    link = "log/" + stdout_file_path.split("/")[-1]
+    if ret_code != 0:
+        _logger.error("{} service update failed. Logs available at {}".format(request._name, link))
+    else:
+        _logger.info("{} service update completed. Logs available at {}".format(request._name, link))
+        # PKGUP audit log entry
+        storage_client = connect.get_storage_async()
+        audit = AuditLogger(storage_client)
+        audit_detail = {'packageName': name}
+        asyncio.ensure_future(audit.information('PKGUP', audit_detail))
+
+    # Restart the service which was disabled before update
+    for s in request._sch_list:
+        asyncio.ensure_future(server.Server.scheduler.enable_schedule(uuid.UUID(s)))

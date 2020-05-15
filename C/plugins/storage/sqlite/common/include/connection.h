@@ -15,6 +15,8 @@
 #include <rapidjson/document.h>
 #include <sqlite3.h>
 #include <mutex>
+#include <reading_stream.h>
+
 
 #define LEN_BUFFER_DATE 100
 #define F_TIMEH24_S             "%H:%M:%S"
@@ -80,18 +82,23 @@ class Connection {
 		bool		get_table_snapshots(const std::string& table, std::string& resultSet);
 #endif
 		int		appendReadings(const char *readings);
+		int 	readingStream(ReadingStream **readings, bool commit);
 		bool		fetchReadings(unsigned long id, unsigned int blksize,
 						std::string& resultSet);
 		bool		retrieveReadings(const std::string& condition,
 						 std::string& resultSet);
 		unsigned int	purgeReadings(unsigned long age, unsigned int flags,
 						unsigned long sent, std::string& results);
+		unsigned int	purgeReadingsByRows(unsigned long rowcount, unsigned int flags,
+						unsigned long sent, std::string& results);
 		long		tableSize(const std::string& table);
 		void		setTrace(bool);
 		bool		formatDate(char *formatted_date, size_t formatted_date_size, const char *date);
 		bool		aggregateQuery(const rapidjson::Value& payload, std::string& resultSet);
+		bool        getNow(std::string& Now);
 
 	private:
+		bool 		m_streamOpenTransaction;
 		int		m_queuing;
 		std::mutex	m_qMutex;
 		int 		SQLexec(sqlite3 *db, const char *sql,

@@ -1,1 +1,1 @@
-%sudo ALL=(ALL) NOPASSWD:SETENV: /usr/bin/apt -y update, /usr/bin/apt-get -y install fledge, /usr/bin/apt -y install /usr/local/fledge/data/plugins/fledge*.deb, /usr/bin/apt list, /usr/bin/apt -y install fledge*, /usr/bin/apt -y upgrade
+%sudo ALL=(ALL) NOPASSWD:SETENV: /usr/bin/apt -y update, /usr/bin/apt-get -y install fledge, /usr/bin/apt -y install /usr/local/fledge/data/plugins/fledge*.deb, /usr/bin/apt list, /usr/bin/apt -y install fledge*, /usr/bin/apt -y upgrade, /usr/bin/apt -y purge fledge*

@@ -7,7 +7,7 @@ cat /etc/os-release | grep PRETTY_NAME | cut -f2 -d"="
 uname -a
 
 sudo cp /etc/apt/sources.list /etc/apt/sources.list.bak
-sudo sed -i "/\b\(archives.dianomic.com\)\b/d" /etc/apt/sources.list
+sudo sed -i "/\b\(archives.fledge-iot.org\)\b/d" /etc/apt/sources.list
 
 
 export DEBIAN_FRONTEND=noninteractive
@@ -27,8 +27,8 @@ fi
 
 VERSION_CODENAME=$(cat /etc/os-release | grep VERSION_CODENAME | cut -f2 -d"=")
 
-wget -q -O - http://archives.dianomic.com/KEY.gpg | sudo apt-key add -
-echo "deb http://archives.dianomic.com/${BUILD_VERSION}/${VERSION_CODENAME}/armv7l/ /" | sudo tee -a /etc/apt/sources.list
+wget -q -O - http://archives.fledge-iot.org/KEY.gpg | sudo apt-key add -
+echo "deb http://archives.fledge-iot.org/${BUILD_VERSION}/${VERSION_CODENAME}/armv7l/ /" | sudo tee -a /etc/apt/sources.list
 sudo apt update
 
 time sudo -E apt install -yq fledge
@@ -39,7 +39,6 @@ echo "==================== DONE INSTALLING Fedge GUI ======================"
 
 time sudo apt install -y fledge-service-notification fledge-filter-expression fledge-filter-python35 fledge-filter-rms \
 fledge-filter-fft fledge-filter-delta fledge-filter-metadata fledge-filter-change \
-fledge-filter-simple-python \
 fledge-notify-asset fledge-notify-python35 fledge-notify-email \
 fledge-rule-simple-expression fledge-rule-average \
 fledge-north-httpc \

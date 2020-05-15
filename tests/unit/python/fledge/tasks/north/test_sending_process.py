@@ -17,7 +17,7 @@ import pytest
 import fledge.tasks.north.sending_process as sp_module
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.storage_client.storage_client import StorageClientAsync, ReadingsStorageClientAsync
-from fledge.tasks.north.sending_process import SendingProcess
+from fledge.tasks.north.sending_process import SendingProcess, _LOGGER
 from fledge.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient
 
 __author__ = "Stefano Simonelli"
@@ -29,6 +29,7 @@ __version__ = "${VERSION}"
 pytestmark = pytest.mark.asyncio
 
 STREAM_ID = 1
+
 
 @asyncio.coroutine
 def mock_coro(*args, **kwargs):
@@ -80,34 +81,33 @@ def fixture_sp(event_loop):
     return sp
 
 
-@pytest.mark.parametrize(
-    "p_data, "
-    "expected_data",
-    [
-        ("2018-05-28 16:56:55",              "2018-05-28 16:56:55.000000+00"),
-        ("2018-05-28 13:42:28.8",            "2018-05-28 13:42:28.800000+00"),
-        ("2018-05-28 13:42:28.84",           "2018-05-28 13:42:28.840000+00"),
-        ("2018-05-28 13:42:28.840000",       "2018-05-28 13:42:28.840000+00"),
+@pytest.mark.parametrize("p_data, expected_data, is_warn", [
+    ("2018-05-28 16:56:55", "2018-05-28T16:56:55.000000Z", False),
+    ("2018-05-28 13:42:28.8", "2018-05-28T13:42:28.800000Z", False),
+    ("2018-05-28 13:42:28.84", "2018-05-28T13:42:28.840000Z", False),
+    ("2018-05-28 13:42:28.840000", "2018-05-28T13:42:28.840000Z", False),
 
-        ("2018-03-22 17:17:17.166347",       "2018-03-22 17:17:17.166347+00"),
+    ("2018-03-22 17:17:17.166347", "2018-03-22T17:17:17.166347Z", False),
+    ("2020-03-30 05:35:24.066553Z", "2020-03-30T05:35:24.066553Z", False),
 
-        ("2018-03-22 17:17:17.166347+00",    "2018-03-22 17:17:17.166347+00"),
-        ("2018-03-22 17:17:17.166347+00:00", "2018-03-22 17:17:17.166347+00"),
-        ("2018-03-22 17:17:17.166347+02:00", "2018-03-22 17:17:17.166347+00"),
-        ("2018-03-22 17:17:17.166347+00:02", "2018-03-22 17:17:17.166347+00"),
-        ("2018-03-22 17:17:17.166347+02:02", "2018-03-22 17:17:17.166347+00"),
-
-        ("2018-03-22 17:17:17.166347-00",    "2018-03-22 17:17:17.166347+00"),
-        ("2018-03-22 17:17:17.166347-00:00", "2018-03-22 17:17:17.166347+00"),
-        ("2018-03-22 17:17:17.166347-02:00", "2018-03-22 17:17:17.166347+00"),
-        ("2018-03-22 17:17:17.166347-00:02", "2018-03-22 17:17:17.166347+00"),
-        ("2018-03-22 17:17:17.166347-02:02", "2018-03-22 17:17:17.166347+00"),
-
-    ]
-)
-async def test_apply_date_format(p_data, expected_data):
-
-    assert expected_data == sp_module.apply_date_format(p_data)
+    ("2018-03-22 17:17:17.166347+00", "2018-03-22T17:17:17.166347Z", False),
+    ("2018-03-22 17:17:17.166347+00:00", "2018-03-22T17:17:17.166347Z", False),
+    ("2018-03-22 17:17:17.166347+02:00", "2018-03-22T17:17:17.166347Z", True),
+    ("2018-03-22 17:17:17.166347+00:02", "2018-03-22T17:17:17.166347Z", True),
+    ("2018-03-22 17:17:17.166347+02:02", "2018-03-22T17:17:17.166347Z", True),
+    ("2018-03-22 17:17:17.166347-02:00", "2018-03-22T17:17:17.166347Z", True),
+    ("2018-03-22 17:17:17.166347-02:02", "2018-03-22T17:17:17.166347Z", True)
+])
+async def test_apply_date_format(p_data, expected_data, is_warn):
+    with patch.object(_LOGGER, "warning") as patch_log_warn:
+        assert expected_data == sp_module.apply_date_format(p_data)
+    if is_warn:
+        assert 1 == patch_log_warn.call_count
+        args, kwargs = patch_log_warn.call_args
+        zone_index = p_data.rfind("-")
+        if zone_index < 10:
+            zone_index = p_data.rfind("+")
+        assert 'Non-UTC {} timezone is found. Hence no date conversion is done at the time being this routine expects UTC date time values'.format(p_data[zone_index:]) in args[0]
 
 
 @pytest.mark.parametrize(
@@ -438,7 +438,6 @@ class TestSendingProcess:
                         {
                             "id": 1,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 11, "temperature": 38},
                             "user_ts": "16/04/2018 16:32:55"
                         },
@@ -451,9 +450,8 @@ class TestSendingProcess:
                     {
                         "id": 1,
                         "asset_code": "test_asset_code",
-                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                         "reading": {"humidity": 11, "temperature": 38},
-                        "user_ts": "16/04/2018 16:32:55.000000+00"
+                        "user_ts": "16/04/2018T16:32:55.000000Z"
                     },
                 ]
 
@@ -504,7 +502,6 @@ class TestSendingProcess:
                     {
                         "id": 1,
                         "asset_code": "test_asset_code",
-                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                         "reading": {"humidity": 11, "temperature": 38},
                         "user_ts": "16/04/2018 16:32:55"
                     },
@@ -514,9 +511,8 @@ class TestSendingProcess:
                     {
                         "id": 1,
                         "asset_code": "test_asset_code",
-                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                         "reading": {"humidity": 11, "temperature": 38},
-                        "user_ts": "16/04/2018 16:32:55.000000+00"
+                        "user_ts": "16/04/2018T16:32:55.000000Z"
                     },
                 ]
 
@@ -529,7 +525,6 @@ class TestSendingProcess:
                         {
                             "id": 1,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": "180.2"},
                             "user_ts": "16/04/2018 16:32:55"
                         },
@@ -541,9 +536,8 @@ class TestSendingProcess:
                         {
                             "id": 1,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 180.2},
-                            "user_ts": "16/04/2018 16:32:55.000000+00"
+                            "user_ts": "16/04/2018T16:32:55.000000Z"
                         },
                     ]
 
@@ -579,7 +573,6 @@ class TestSendingProcess:
                     {
                         "id": 1,
                         "asset_code": "test_asset_code",
-                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                         "user_ts": "16/04/2018 16:32:55"
                     }
                 ]
@@ -589,7 +582,6 @@ class TestSendingProcess:
                     {
                         "id": 1,
                         "asset_code": "test_asset_code",
-                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                         "reading": '',
                         "user_ts": "16/04/2018 16:32:55"
                     }
@@ -600,7 +592,6 @@ class TestSendingProcess:
                     {
                         "id": 1,
                         "asset_code": "test_asset_code",
-                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                         "reading": '{"value"',
                         "user_ts": "16/04/2018 16:32:55"
                     }
@@ -611,7 +602,6 @@ class TestSendingProcess:
                     {
                         "id": 2,
                         "asset_code": "test_asset_code",
-                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                         "reading": '{"value":02}',
                         "user_ts": "16/04/2018 16:32:55"
                     }
@@ -622,7 +612,6 @@ class TestSendingProcess:
                     {
                         "id": 2,
                         "asset_code": "test_asset_code",
-                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                         "reading": 100,
                         "user_ts": "16/04/2018 16:32:55"
                     }
@@ -633,7 +622,6 @@ class TestSendingProcess:
                     {
                         "id": 2,
                         "asset_code": "test_asset_code",
-                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                         "reading": "none",
                         "user_ts": "16/04/2018 16:32:55"
                     }
@@ -662,7 +650,6 @@ class TestSendingProcess:
             #    reading format handling
             #
             # Note :
-            #    read_key is not handled
             #    Time generated with UTC timezone
             (
                 # p_rows
@@ -671,7 +658,6 @@ class TestSendingProcess:
                         {
                             "id": 1,
                             "key": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "value": 20,
                             "history_ts": "16/04/2018 20:00:00",
                             "ts": "16/04/2018 16:32:55",
@@ -684,8 +670,7 @@ class TestSendingProcess:
                         "id": 1,
                         "asset_code": "test_asset_code",
                         "reading": {"value": 20},
-                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                        "user_ts": "16/04/2018 20:00:00.000000+00"
+                        "user_ts": "16/04/2018T20:00:00.000000Z"
                     },
                 ]
 
@@ -699,7 +684,6 @@ class TestSendingProcess:
                             {
                                 "id": 1,
                                 "key": " test_asset_code ",
-                                "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                                 "value": 21,
                                 "history_ts": "16/04/2018 20:00:00",
                                 "ts": "16/04/2018 16:32:55"
@@ -712,8 +696,7 @@ class TestSendingProcess:
                             "id": 1,
                             "asset_code": "test_asset_code",
                             "reading": {"value": 21},
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                            "user_ts": "16/04/2018 20:00:00.000000+00"
+                            "user_ts": "16/04/2018T20:00:00.000000Z"
                         },
                     ]
 
@@ -759,7 +742,6 @@ class TestSendingProcess:
             #    reading format handling
             #
             # Note :
-            #    read_key is not handled
             #    Time generated with UTC timezone
             (
                 # p_rows
@@ -767,7 +749,6 @@ class TestSendingProcess:
                         {
                             "id": 1,
                             "key": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "value": 20,
                             "history_ts": "16/04/2018 20:00:00",
                             "ts": "16/04/2018 16:32:55"
@@ -779,8 +760,7 @@ class TestSendingProcess:
                         "id": 1,
                         "asset_code": "test_asset_code",
                         "reading": {"value": 20},
-                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                        "user_ts": "16/04/2018 20:00:00.000000+00"
+                        "user_ts": "16/04/2018T20:00:00.000000Z"
                     },
                 ]
 
@@ -793,7 +773,6 @@ class TestSendingProcess:
                         {
                             "id": 1,
                             "key": " test_asset_code ",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "value": 21,
                             "history_ts": "16/04/2018 20:00:00",
                             "ts": "16/04/2018 16:32:55"
@@ -805,8 +784,7 @@ class TestSendingProcess:
                             "id": 1,
                             "asset_code": "test_asset_code",
                             "reading": {"value": 21},
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                            "user_ts": "16/04/2018 20:00:00.000000+00"
+                            "user_ts": "16/04/2018T20:00:00.000000Z"
                         },
                     ]
 
@@ -975,14 +953,12 @@ class TestSendingProcess:
                         {
                             "id": 1,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 10, "temperature": 101},
                             "user_ts": "16/04/2018 16:32:55"
                         },
                         {
                             "id": 2,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 20, "temperature": 201},
                             "user_ts": "16/04/2018 16:32:55"
                         },
@@ -991,7 +967,6 @@ class TestSendingProcess:
                         {
                             "id": 3,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 30, "temperature": 301},
                             "user_ts": "16/04/2018 16:32:55"
                         },
@@ -1000,21 +975,18 @@ class TestSendingProcess:
                         {
                             "id": 4,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 40, "temperature": 401},
                             "user_ts": "16/04/2018 16:32:55"
                         },
                         {
                             "id": 5,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 50, "temperature": 501},
                             "user_ts": "16/04/2018 16:32:55"
                         },
                         {
                             "id": 6,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 60, "temperature": 601},
                             "user_ts": "16/04/2018 16:32:55"
                         },
@@ -1032,14 +1004,12 @@ class TestSendingProcess:
                         {
                             "id": 1,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 10, "temperature": 101},
                             "user_ts": "16/04/2018 16:32:55"
                         },
                         {
                             "id": 2,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 20, "temperature": 201},
                             "user_ts": "16/04/2018 16:32:55"
                         },
@@ -1048,7 +1018,6 @@ class TestSendingProcess:
                         {
                             "id": 3,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 30, "temperature": 301},
                             "user_ts": "16/04/2018 16:32:55"
                         }
@@ -1057,21 +1026,18 @@ class TestSendingProcess:
                         {
                             "id": 4,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 40, "temperature": 401},
                             "user_ts": "16/04/2018 16:32:55"
                         },
                         {
                             "id": 5,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 50, "temperature": 501},
                             "user_ts": "16/04/2018 16:32:55"
                         },
                         {
                             "id": 6,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 60, "temperature": 601},
                             "user_ts": "16/04/2018 16:32:55"
                         },
@@ -1161,14 +1127,12 @@ class TestSendingProcess:
                         {
                             "id": 1,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 10, "temperature": 101},
                             "user_ts": "16/04/2018 16:32:55"
                         },
                         {
                             "id": 2,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 20, "temperature": 201},
                             "user_ts": "16/04/2018 16:32:55"
                         },
@@ -1177,7 +1141,6 @@ class TestSendingProcess:
                         {
                             "id": 3,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 30, "temperature": 301},
                             "user_ts": "16/04/2018 16:32:55"
                         },
@@ -1186,21 +1149,18 @@ class TestSendingProcess:
                         {
                             "id": 4,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 40, "temperature": 401},
                             "user_ts": "16/04/2018 16:32:55"
                         },
                         {
                             "id": 5,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 50, "temperature": 501},
                             "user_ts": "16/04/2018 16:32:55"
                         },
                         {
                             "id": 6,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 60, "temperature": 601},
                             "user_ts": "16/04/2018 16:32:55"
                         },
@@ -1211,7 +1171,6 @@ class TestSendingProcess:
                         {
                             "id": 10,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 100, "temperature": 1001},
                             "user_ts": "16/04/2018 16:32:55"
                         },
@@ -1230,7 +1189,6 @@ class TestSendingProcess:
                         {
                             "id": 10,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 100, "temperature": 1001},
                             "user_ts": "16/04/2018 16:32:55"
                         },
@@ -1240,7 +1198,6 @@ class TestSendingProcess:
                         {
                             "id": 3,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 30, "temperature": 301},
                             "user_ts": "16/04/2018 16:32:55"
                         }
@@ -1249,21 +1206,18 @@ class TestSendingProcess:
                         {
                             "id": 4,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 40, "temperature": 401},
                             "user_ts": "16/04/2018 16:32:55"
                         },
                         {
                             "id": 5,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 50, "temperature": 501},
                             "user_ts": "16/04/2018 16:32:55"
                         },
                         {
                             "id": 6,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 60, "temperature": 601},
                             "user_ts": "16/04/2018 16:32:55"
                         },
@@ -1356,14 +1310,12 @@ class TestSendingProcess:
                         {
                             "id": 1,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 10, "temperature": 101},
                             "user_ts": "16/04/2018 16:32:55"
                         },
                         {
                             "id": 2,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 20, "temperature": 201},
                             "user_ts": "16/04/2018 16:32:55"
                         },
@@ -1372,7 +1324,6 @@ class TestSendingProcess:
                         {
                             "id": 3,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 30, "temperature": 301},
                             "user_ts": "16/04/2018 16:32:55"
                         },
@@ -1389,14 +1340,12 @@ class TestSendingProcess:
                         {
                             "id": 1,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 10, "temperature": 101},
                             "user_ts": "16/04/2018 16:32:55"
                         },
                         {
                             "id": 2,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 20, "temperature": 201},
                             "user_ts": "16/04/2018 16:32:55"
                         },
@@ -1405,7 +1354,6 @@ class TestSendingProcess:
                         {
                             "id": 3,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 30, "temperature": 301},
                             "user_ts": "16/04/2018 16:32:55"
                         },
@@ -1502,7 +1450,6 @@ class TestSendingProcess:
                         {
                             "id": 1,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {
                                 "humidity": 11, "temperature": 38
                             },
@@ -1513,7 +1460,6 @@ class TestSendingProcess:
                         {
                             "id": 2,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {
                                 "humidity": 20, "temperature": 201
                             },
@@ -1524,7 +1470,6 @@ class TestSendingProcess:
                         {
                             "id": 3,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {
                                 "humidity": 30, "temperature": 301
                             },
@@ -1543,7 +1488,6 @@ class TestSendingProcess:
                 [
                     [
                         {
-                            'read_key': 'ef6e1368-4182-11e8-842f-0ed5f89f718b',
                             'id': 1,
                             'reading': {
                                 'humidity': 11,
@@ -1556,7 +1500,6 @@ class TestSendingProcess:
                     ],
                     [
                         {
-                            'read_key': 'ef6e1368-4182-11e8-842f-0ed5f89f718b',
                             'id': 2,
                             'reading': {
                                 'humidity': 20,
@@ -1569,7 +1512,6 @@ class TestSendingProcess:
                     ],
                     [
                         {
-                            'read_key': 'ef6e1368-4182-11e8-842f-0ed5f89f718b',
                             'id': 3,
                             'reading': {
                                 'humidity': 30,
@@ -1663,7 +1605,6 @@ class TestSendingProcess:
                             {
                                 "id": 1,
                                 "asset_code": "test_asset_code",
-                                "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                                 "reading": {
                                     "humidity": 11, "temperature": 38
                                 },
@@ -1703,7 +1644,6 @@ class TestSendingProcess:
                         {
                             "id": 1,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {
                                 "humidity": 11, "temperature": 38
                             },
@@ -1714,7 +1654,6 @@ class TestSendingProcess:
                         {
                             "id": 2,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {
                                 "humidity": 20, "temperature": 201
                             },
@@ -1725,7 +1664,6 @@ class TestSendingProcess:
                         {
                             "id": 4,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {
                                 "humidity": 30, "temperature": 301
                             },
@@ -1860,7 +1798,6 @@ class TestSendingProcess:
                         {
                             "id": 1,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {
                                 "humidity": 11, "temperature": 38
                             },
@@ -1871,7 +1808,6 @@ class TestSendingProcess:
                         {
                             "id": 2,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {
                                 "humidity": 20, "temperature": 201
                             },
@@ -1882,7 +1818,6 @@ class TestSendingProcess:
                         {
                             "id": 4,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {
                                 "humidity": 30, "temperature": 301
                             },
@@ -1896,7 +1831,6 @@ class TestSendingProcess:
                         {
                             "id": 5,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {
                                 "humidity": 50, "temperature": 501
                             },
@@ -2061,7 +1995,6 @@ class TestSendingProcess:
                         {
                             "id": 1,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {
                                 "humidity": 11, "temperature": 38
                             },
@@ -2072,7 +2005,6 @@ class TestSendingProcess:
                         {
                             "id": 2,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {
                                 "humidity": 20, "temperature": 201
                             },
@@ -2083,7 +2015,6 @@ class TestSendingProcess:
                         {
                             "id": 4,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {
                                 "humidity": 30, "temperature": 301
                             },
@@ -2120,7 +2051,6 @@ class TestSendingProcess:
                         {
                             "id": 4,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {
                                 "humidity": 30, "temperature": 301
                             },

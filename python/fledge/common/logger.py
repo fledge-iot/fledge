@@ -5,7 +5,8 @@
 # FLEDGE_END
 
 """ Fledge Logger """
-
+import os
+import subprocess
 import sys
 import logging
 from logging.handlers import SysLogHandler
@@ -64,6 +65,15 @@ def setup(logger_name: str = None,
     .. _logging.getLogger: https://docs.python.org/3/library/logging.html#logging.getLogger
     """
 
+    def _get_process_name():
+        # Example: ps -eaf | grep 5175 | grep -v grep | awk -F '--name=' '{print $2}'
+        pid = os.getpid()
+        cmd = "ps -eaf | grep {} | grep -v grep | awk -F '--name=' '{{print $2}}'| tr -d '\n'".format(pid)
+        read_process_name = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
+        binary_to_string = [b.decode() for b in read_process_name]
+        pname = 'Fledge ' + binary_to_string[0] if binary_to_string else 'Fledge'
+        return pname
+
     logger = logging.getLogger(logger_name)
 
     if destination == SYSLOG:
@@ -74,12 +84,11 @@ def setup(logger_name: str = None,
         raise ValueError("Invalid destination {}".format(destination))
 
     # TODO: Consider using %r with message when using syslog .. \n looks better than #
-    formatter = logging.Formatter(fmt='Fledge[%(process)d] %(levelname)s: %(module)s: %(name)s: %(message)s')
-
+    process_name = _get_process_name()
+    fmt = '{}[%(process)d] %(levelname)s: %(module)s: %(name)s: %(message)s'.format(process_name)
+    formatter = logging.Formatter(fmt=fmt)
     handler.setFormatter(formatter)
-
     logger.setLevel(level)
     logger.propagate = propagate
     logger.addHandler(handler)
-
     return logger

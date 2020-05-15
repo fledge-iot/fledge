@@ -63,7 +63,7 @@ int main(int argc, char** argv)
 {
 	try
 	{
-                // Instantiate SendingProcess class
+		// Instantiate SendingProcess class
 		SendingProcess sendingProcess(argc, argv);
 
 		memoryBufferSize = sendingProcess.getMemoryBufferSize();
@@ -190,7 +190,6 @@ static void loadDataThread(SendingProcess *loadData)
 				{
 					// SELECT id,
 					//	  key AS asset_code,
-					//	  key AS read_key,
 					//	  ts,
 					//	  history_ts AS user_ts,
 					//	  value
@@ -207,7 +206,6 @@ static void loadDataThread(SendingProcess *loadData)
 					// Add colums and needed aliases
 					columns.push_back(new Returns("id"));
 					columns.push_back(new Returns("key", "asset_code"));
-					columns.push_back(new Returns("key", "read_key"));
 					columns.push_back(new Returns("ts"));
 
 					Returns *tmpReturn = new Returns("history_ts", "user_ts");
@@ -292,19 +290,6 @@ static void loadDataThread(SendingProcess *loadData)
 				{
 					// No filters: just set buffer with current data
 					loadData->m_buffer.at(readIdx) = readings;
-				}
-
-				// Update asset tracker table/cache, if required
-				vector<Reading *> *vec = loadData->m_buffer.at(readIdx)->getAllReadingsPtr();
-				for (vector<Reading *>::iterator it = vec->begin(); it != vec->end(); ++it)
-				{
-					Reading *reading = *it;
-					AssetTrackingTuple tuple(loadData->getName(), loadData->getPluginName(), reading->getAssetName(), "Egress");
-					if (!AssetTracker::getAssetTracker()->checkAssetTrackingCache(tuple))
-					{
-						AssetTracker::getAssetTracker()->addAssetTrackingTuple(tuple);
-						Logger::getLogger()->info("loadDataThread(): Adding new asset tracking tuple seen during readings' egress: %s", tuple.assetToString().c_str());
-					}
 				}
 
 				readMutex.unlock();
@@ -433,12 +418,52 @@ static void sendDataThread(SendingProcess *sendData)
 			{
 				// We have some readings to send
 				const vector<Reading *> &readingData = sendData->m_buffer.at(sendIdx)->getAllReadings();
-				sentReadings = sendData->m_plugin->send(readingData);
+				if (readingData.size() <= sendData->getReadBlockSize())
+				{
+					sentReadings = sendData->m_plugin->send(readingData);
+				}
+				else
+				{
+					Logger::getLogger()->debug("Breaking up incomming readings block");
+					// Filtering has made the readings too long, split into smaller
+					// vectors for sending
+					unsigned int bs = (unsigned int)sendData->getReadBlockSize();
+					vector<Reading *>v;
+					for (unsigned int i = 0; i < readingData.size(); i++)
+					{
+						v.push_back(readingData[i]);
+						if (i > 0 && (i % bs) == 0)
+						{
+							sentReadings += sendData->m_plugin->send(v);
+							v.clear();
+						}
+					}
+					if (v.size() > 0)	// Flush final partial block
+					{
+						sentReadings += sendData->m_plugin->send(v);
+						v.clear();
+					}
+				}
 				// Check sent readings result
 				if (sentReadings)
 				{
 					processUpdate = true;
 					exitCode = 0;
+
+					// Update asset tracker table/cache, if required
+					vector<Reading *> *vec = sendData->m_buffer.at(sendIdx)->getAllReadingsPtr();
+
+					for (vector<Reading *>::iterator it = vec->begin(); it != vec->end(); ++it)
+					{
+						Reading *reading = *it;
+
+						AssetTrackingTuple tuple(sendData->getName(), sendData->getPluginName(), reading->getAssetName(), "Egress");
+						if (!AssetTracker::getAssetTracker()->checkAssetTrackingCache(tuple))
+						{
+							AssetTracker::getAssetTracker()->addAssetTrackingTuple(tuple);
+							Logger::getLogger()->info("sendDataThread:  Adding new asset tracking tuple - egress: %s", tuple.assetToString().c_str());
+						}
+					}
 				}
 			}
 			else

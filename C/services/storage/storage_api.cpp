@@ -296,9 +296,20 @@ void getTableSnapshotsWrapper(shared_ptr<HttpServer::Response> response,
 }
 
 /**
+ * Wrapper function for the create storage stream API call.
+ */
+void createStorageStreamWrapper(shared_ptr<HttpServer::Response> response,
+				shared_ptr<HttpServer::Request> request)
+{
+	StorageApi *api = StorageApi::getInstance();
+	api->createStorageStream(response, request);
+}
+
+/**
  * Construct the singleton Storage API 
  */
-StorageApi::StorageApi(const unsigned short port, const unsigned int threads) : readingPlugin(0) {
+StorageApi::StorageApi(const unsigned short port, const unsigned int threads) : readingPlugin(0), streamHandler(0)
+{
 
 	m_port = port;
 	m_threads = threads;
@@ -360,6 +371,8 @@ void StorageApi::initResources()
 	m_server->resource[READING_ACCESS]["GET"] = readingFetchWrapper;
 	m_server->resource[READING_QUERY]["PUT"] = readingQueryWrapper;
 	m_server->resource[READING_PURGE]["PUT"] = readingPurgeWrapper;
+
+	m_server->resource[CREATE_STORAGE_STREAM]["POST"] = createStorageStreamWrapper;
 
 	m_server->on_error = on_error;
 
@@ -1006,6 +1019,89 @@ Document	doc;
 				resp);
 		}
 	}
+}
+
+/**
+ * Create a stream for high speed storage ingestion
+ *
+ * @param response	The response stream to send the response on
+ * @param request	The HTTP request
+ */
+void StorageApi::createStorageStream(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+string	responsePayload;
+
+	
+	try {
+		if (!streamHandler)
+		{
+			streamHandler = new StreamHandler(this);
+		}
+		uint32_t token;
+		uint32_t port = streamHandler->createStream(&token);
+		if (port != 0)
+		{
+			responsePayload = "{ \"port\":"; 
+			responsePayload += to_string(port);
+			responsePayload += ", \"token\":"; 
+			responsePayload += to_string(token);
+			responsePayload += " }";
+			respond(response, responsePayload);
+		}
+		else
+		{
+			respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
+		}
+
+	} catch (exception ex) {
+		internalError(response, ex);
+		}
+}
+
+/**
+ * Append the readings that have arrived via a stream to the storage plugin
+ *
+ * @param readings	A Null terminiunated array of points to ReadingStream structures
+ * @param commit	A flag to commit the readings block
+ */
+bool StorageApi::readingStream(ReadingStream **readings, bool commit)
+{
+	int c;
+	for (c = 0; readings[c]; c++);
+	Logger::getLogger()->debug("ReadingStream called with %d", c);
+	if ((readingPlugin ? readingPlugin : plugin)->hasStreamSupport())
+	{
+		return (readingPlugin ? readingPlugin : plugin)->readingStream(readings, commit);
+	}
+	else
+	{
+		// Plugin does not support streaming input
+		ostringstream convert;
+		char	ts[60], micro_s[10];
+		
+
+		convert << "{\"readings\":[";
+		for (int i = 0; readings[i]; i++)
+		{
+			if (i > 0)
+				convert << ",";
+			convert << "{\"asset_code\":\"";
+			convert << readings[i]->assetCode;
+			convert << "\",\"user_ts\":\"";
+			struct tm timeinfo;
+			gmtime_r(&readings[i]->userTs.tv_sec, &timeinfo);
+			std::strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", &timeinfo);
+			snprintf(micro_s, sizeof(micro_s), ".%06lu", readings[i]->userTs.tv_usec);
+			convert << ts << micro_s;
+			convert << "\",\"reading\":";
+			convert << &(readings[i]->assetCode[readings[i]->assetCodeLength]);
+			convert << "}";
+		}
+		convert << "]}";
+		Logger::getLogger()->debug("Fallback created payload: %s", convert.str().c_str());
+		(readingPlugin ? readingPlugin : plugin)->readingsAppend(convert.str());
+	}	
+	return false;
 }
 
 /**

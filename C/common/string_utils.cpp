@@ -35,6 +35,126 @@ void StringReplace(std::string& StringToManage,
 }
 
 /**
+ * Search and replace all the occurances of a string
+ *
+ * @param out StringToManage    string in which apply the search and replacement
+ * @param     StringToSearch    string to search and replace
+ * @param     StringToReplace   substitution string
+ *
+ */
+void StringReplaceAll(std::string& StringToManage,
+				   const std::string& StringToSearch,
+				   const std::string& StringReplacement)
+{
+
+	while (StringToManage.find(StringToSearch) != string::npos)
+	{
+		StringReplace(StringToManage,StringToSearch, StringReplacement);
+	}
+}
+
+/**
+ * Removes the last level of the hierarchy
+ *
+ */
+std::string evaluateParentPath(const std::string& path, char separator)
+{
+	std::string parent;
+
+	parent = path;
+	if (parent.length() > 1)
+	{
+		if (parent.find(separator) != string::npos)
+		{
+			while (parent.back() != separator)
+			{
+				parent.erase(parent.size() - 1);
+			}
+			if (parent.back() == separator)
+			{
+				parent.erase(parent.size() - 1);
+			}
+		}
+	}
+
+	return parent;
+}
+
+/**
+ * Extract last level of the hierarchy
+ *
+ */
+std::string extractLastLevel(const std::string& path, char separator)
+{
+	std::string level;
+	std::string tmpPath;
+	char end_char;
+
+	tmpPath = path;
+
+	if (tmpPath.length() > 1)
+	{
+		if (tmpPath.find(separator) != string::npos)
+		{
+			end_char = tmpPath.back();
+			while (end_char != separator)
+			{
+				level.insert(0, 1, end_char);
+				tmpPath.erase(tmpPath.size() - 1);
+				end_char = tmpPath.back();
+			}
+		}
+		else
+		{
+			level = path;
+		}
+	}
+
+	return level;
+}
+
+
+
+/**
+ * Removes slash when not needed, at the beggining and at the end,
+ * substitutes // with /
+ *
+ * @param     stringToFix    string to handle
+ *
+ */
+std::string StringSlashFix(const std::string& stringToFix)
+{
+	std::string stringFixed;
+
+	stringFixed = stringToFix;
+
+	if (!stringFixed.empty()) {
+
+		char singleChar;
+
+		// Remove first char if '/'
+		for (singleChar = stringFixed.front() ; singleChar == '/' ; singleChar = stringFixed.front())
+		{
+			stringFixed.erase(0, 1);
+		}
+
+		// Remove last char if '/'
+		for (singleChar = stringFixed.back() ; singleChar == '/' ; singleChar = stringFixed.back())
+		{
+			stringFixed.pop_back();
+		}
+
+		// Substitute // with /
+		while (stringFixed.find("//") != string::npos)
+		{
+			StringReplace(stringFixed, "//", "/");
+		}
+	}
+
+	return stringFixed;
+}
+
+/**
  * Strips Line feed and carige return
  *
  */

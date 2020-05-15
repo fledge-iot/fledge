@@ -12,10 +12,6 @@
 
 .. Links in new tabs
 
-.. |GH Issues| raw:: html
-
-   <a href="https://github.com/fledge/Fledge/issues" target="_blank">GitHub</a>
-
 
 .. =============================================
 
@@ -24,7 +20,7 @@
 Fledge Utilities and Scripts
 *****************************
 
-The Fledge platform comes with a set of utilities and scripts to help users, developers and administrators with their day-by-day operations. These tools are under heavy development and you may expect incompatibilities in future versions, therefore it is higly recommended to check the revision history to verify the changes in new versions.
+The Fledge platform comes with a set of utilities and scripts to help users, developers and administrators with their day-by-day operations. These tools are under heavy development and you may expect incompatibilities in future versions, therefore it is highly recommended to check the revision history to verify the changes in new versions.
 
 
 fledge
@@ -79,7 +75,7 @@ If Fledge Does Not Stop
 
 If Fledge does not stop, i.e. if by using the process status command ``ps`` you see Fledge processes still running, you can use ``fledge kill`` to kill them.
 
-.. note:: The command issues a ``kill -9`` against the processes associated to Fledge. This is not recommended, unless Fledge cannot be stopped. The *stop* command. In other words, *kill* is your last resort before a reboot. If you must use the kill command, it means that there is a problem: let us know about that by submitting an issue on |GH Issues|.
+.. note:: The command issues a ``kill -9`` against the processes associated to Fledge. This is not recommended, unless Fledge cannot be stopped. The *stop* command. In other words, *kill* is your last resort before a reboot. If you must use the kill command, it means that there is a problem: please report this to the Fledge project slack channel.
 
 
 Checking the Status of Fledge

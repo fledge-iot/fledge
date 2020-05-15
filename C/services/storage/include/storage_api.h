@@ -14,6 +14,7 @@
 #include <storage_plugin.h>
 #include <storage_stats.h>
 #include <storage_registry.h>
+#include <stream_handler.h>
 
 using namespace std;
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
@@ -31,6 +32,7 @@ using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 #define CREATE_TABLE_SNAPSHOT	GET_TABLE_SNAPSHOTS
 #define LOAD_TABLE_SNAPSHOT	"^/storage/table/([A-Za-z][a-zA-Z_0-9_]*)/snapshot/([a-zA-Z_0-9_]*)$"
 #define DELETE_TABLE_SNAPSHOT	LOAD_TABLE_SNAPSHOT
+#define CREATE_STORAGE_STREAM	"^/storage/reading/stream$"
 
 #define PURGE_FLAG_RETAIN	"retain"
 #define PURGE_FLAG_PURGE	"purge"
@@ -38,6 +40,7 @@ using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 #define TABLE_NAME_COMPONENT	1
 #define ASSET_NAME_COMPONENT	1
 #define SNAPSHOT_ID_COMPONENT	2
+
 
 /**
  * The Storage API class - this class is responsible for the registration of all API
@@ -73,6 +76,8 @@ public:
 	void	loadTableSnapshot(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 	void	deleteTableSnapshot(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 	void	getTableSnapshots(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
+	void	createStorageStream(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
+	bool	readingStream(ReadingStream **readings, bool commit);
 	void	printList();
 
 public:
@@ -96,6 +101,7 @@ private:
 	void			respond(shared_ptr<HttpServer::Response>, SimpleWeb::StatusCode, const string&);
 	void			internalError(shared_ptr<HttpServer::Response>, const exception&);
 	void			mapError(string&, PLUGIN_ERROR *);
+	StreamHandler		*streamHandler;
 };
 
 #endif

@@ -23,25 +23,25 @@ class TestSSLVerifier:
     @pytest.fixture
     def user_cert(self):
         user_cert = """-----BEGIN CERTIFICATE-----
-MIIDeTCCAWECAQEwDQYJKoZIhvcNAQELBQAwHTELMAkGA1UEBhMCVVMxDjAMBgNV
-BAMMBU1ZLUNBMB4XDTE5MDMxMjAzNTAzM1oXDTIwMDMxMTAzNTAzM1owbDELMAkG
+MIIDeDCCAWACAQEwDQYJKoZIhvcNAQELBQAwHTELMAkGA1UEBhMCVVMxDjAMBgNV
+BAMMBU1ZLUNBMB4XDTE5MTIxOTEwMDAyOVoXDTIwMTIxODEwMDAyOVowazELMAkG
 A1UEBhMCVVMxEzARBgNVBAgMCkNhbGlmb3JuaWExEDAOBgNVBAoMB09TSXNvZnQx
-DTALBgNVBAMMBHVzZXIxJzAlBgkqhkiG9w0BCQEWGGZvZ2xhbXBAZ29vZ2xlZ3Jv
-dXBzLmNvbTCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEAukBTH+FVzIQfawlF
-VX+YBe5E8b/NDXYaauDrX9s61Crm+eezs50U2Lr1lCN2nDdiSYsyIulsK11dNFaf
-/ka/Uyz4Ty89dxcQbZ0on0zOE2sRrEnpznPC5D5dbdFOlTDq04YoNj4XrACxnzD/
-GrHdwRdwFbkL/exT77+yS0K4IQMCAwEAATANBgkqhkiG9w0BAQsFAAOCAgEA1SRb
-z8YMLLQJxKDRpasdt07jxNwzOHK592YXiNHKZjMMqqOWbixnLQEg9socDmqq8AFA
-m1jm6RXIL9rr79monNRRhbWf61cq4CnV2YlzcmVgcSRC9eK1OMHsrRUSX45V6Urx
-X9S2mj8VR48R31pJ5u0wAMN35Dcw2KuUlMykfVgCGVXRKkvNx5Ju6CvOLyS+SgAk
-vxe2wOQ771aG6o2ej8y68kfcgdh4mUBbbTQ8ZmvSIdn5Je9Fru4Xa9/ubz68Jplh
-+odQ78wSEgduNYcRAbZKdRgXJF26Zv8JfbClJ9ByKn1OuYNi6Q/fzre9WxUu8ebh
-vb3fFM1M5Jr1N/cP7PYGqlLclbUzV2CQDNPjFK2eIqt2y/1RdeHF+gQOU324UBEV
-UOwDqaXkY/a8oHQuosU4UBBAvdWT4iWv1ohNB2IO0JOh3tfyQ4czxYH2x8CAB1vl
-oWtOz3Rc8Qft9sboD9ZohDNpGP7mxgQ9D6Nr45yNU4u+9BrvknLSivqj0/Rgkm58
-v70YDJwNZbe8YH2HXeZeT2MxoPeCo1fGz+E4zdo5VOtnfKx3+LB654Wvjj4zPSaw
-7s75YazaQIaa52eDABGrHEjHLc/s4TeMGT+G/03RvHhf3BlS/Yp3fJMXpepbxaDh
-49uU39h2BzBoHqvPLjW4sFZIe562Y3u2a9SKYoo=
+DTALBgNVBAMMBHVzZXIxJjAkBgkqhkiG9w0BCQEWF2ZsZWRnZUBnb29nbGVncm91
+cHMuY29tMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC2vbHDyp5teGbEaLb/
+G5BnRcXcLMs9fbimyYYt7Xhb5OEVuiGPD8npwBfsd0aE12BfoJVARjn/xjkk1rib
+Zj0LEocKWfQoYgRjIwzVSdR/uczF/0Xpj68UlvcRxoPsP3LzYQ7i8Smdqn5NI9R1
+P4i8GGOSY/+c+8umd44T6H/jBwIDAQABMA0GCSqGSIb3DQEBCwUAA4ICAQAU+lnr
+ImUhPb8U6Tmf4diphJCTADK3zy3qYNmqndLiVutsK32Q/1Gg+My8rtxv7gpPztpF
+H+xPtSsYLfdJtcI2xM9nnx3G442/3Zf5tEGDZdsIvedzPw6kjO9coKD1lwkKtXkl
+Ky9TjsnUIkHe91l5c7KwVcxu6b/Zb2ye7uS/CQEC14QVeKbitsovNzAuNZt1JgHl
+cwPAsrobjL+VgJ1O8l/PLijCh6bgeUZQlTdPqIAZN5hFusx8vPYzfRclNteUQGAh
+K020oXuZNRIb9bb8z8wL6g2JBs4c9cDz6/JgdQs226UEsMrUiTGZTyxR5PucCqc7
+09l8vVHInD+mC1HNW4n3aJNSl2qGUAWLU9dWmsKOKQYPxZ8R3UShJnNsxJY476iQ
+dIU5RZzJqVTmFiYLs62Tap+1thTQDjIqf8bKR7bZ3vL08eyiayEeMRGbkClqWIbl
+duLdJ28ZzNMDfSuPF5yk/y8L5dc2XCbYCj3puOXgzrMlmVdAPUdGX6952dLLlqxz
+87hMLe+ZB709EN/sPGt9SmifLal3rx+/dv5ZiHsiCSi/FXdVBRpim+aLh99MG2WS
+PYPBNg5UKCYfUESU1F7V8fZMwH9Go3Qi+YjfL+K9wjN+c+Il/VXBYsLxypJy7QF0
+5eCXag4hEQPihXbjPAgO+LNezaaOuNeW79upfw==
 -----END CERTIFICATE-----
 """
         return user_cert
@@ -82,15 +82,15 @@ AShK4DM84LGNChzbdD6EVAl066+d9FRDuoX0KJj2/qepeevh2LC8dqG/QHcl75Ef
         assert {'email': 'fledge@googlegroups.com', 'commonName': 'user',
                 'organisation': 'OSIsoft', 'state': 'California',
                 'country': 'US'} == SSLVerifier.get_subject()
-        assert 'E1:25:2F:8E:53:54:FE:EE:D2:F0:CD:D3:25:33:D3:5E:85:DD:FA:25' == SSLVerifier.get_fingerprint()
+        assert '69:5A:CC:85:3C:8E:D4:14:05:65:21:31:E3:91:9B:BA:35:74:4D:A3' == SSLVerifier.get_fingerprint()
         assert '-----BEGIN PUBLIC KEY-----' == SSLVerifier.get_pubkey()
-        assert 'Mar 12 03:50:33 2019 GMT' == SSLVerifier.get_startdate()
-        assert 'Mar 11 03:50:33 2020 GMT' == SSLVerifier.get_enddate()
+        assert 'Dec 19 10:00:29 2019 GMT' == SSLVerifier.get_startdate()
+        assert 'Dec 18 10:00:29 2020 GMT' == SSLVerifier.get_enddate()
 
         # Test is_expired(). It should return False if cert end time is yet to come.
-        dt_format = "%b %d %X %Y %Z"  # Mar 12 12:31:57 2020 GMT
+        dt_format = "%b %d %X %Y %Z"
         cert_end_time = time.mktime(
-            datetime.datetime.strptime('Mar 11 03:50:33 2020 GMT',
+            datetime.datetime.strptime('Dec 18 10:00:29 2020 GMT',
                                        dt_format).timetuple())
         run_time = time.time()
         expected = False if cert_end_time > run_time else True

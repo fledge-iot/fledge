@@ -52,9 +52,32 @@ ostringstream json;
 	case GreaterThan:
 		json << ">";
 		break;
+	case In:
+		json << "in";
+		break;
 	}
 	json << "\", ";
-	json << "\"value\" : \"" << m_value << "\"";
+
+	if (m_condition != In)
+	{
+		json << "\"value\" : \"" << m_value << "\"";
+	}
+	else
+	{
+		json << "\"value\" : [";
+		for (auto v = m_in.begin();
+		     v != m_in.end();
+		     ++v)
+		{
+			json << "\"" << *v << "\"";
+			if (next(v, 1) != m_in.end())
+			{
+				json << ", ";
+			}
+		}
+		json << "]";
+	}
+
 	if (m_and || m_or)
 	{
 		if (m_and)

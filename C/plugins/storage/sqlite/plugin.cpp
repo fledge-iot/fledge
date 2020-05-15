@@ -22,6 +22,7 @@
 #include <string>
 #include <logger.h>
 #include <plugin_exception.h>
+#include <reading_stream.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -36,10 +37,10 @@ extern "C" {
  */
 static PLUGIN_INFORMATION info = {
 	"SQLite3",                // Name
-	"1.0.0",                  // Version
+	"1.1.0",                  // Version
 	SP_COMMON|SP_READINGS,    // Flags
 	PLUGIN_TYPE_STORAGE,      // Type
-	"1.2.0"                   // Interface version
+	"1.3.0"                   // Interface version
 };
 
 /**
@@ -134,6 +135,21 @@ Connection        *connection = manager->allocate();
 }
 
 /**
+ * Append a stream of readings to the readings buffer
+ */
+int plugin_readingStream(PLUGIN_HANDLE handle, ReadingStream **readings, bool commit)
+{
+	int result = 0;
+	ConnectionManager *manager = (ConnectionManager *)handle;
+	Connection        *connection = manager->allocate();
+
+	result = connection->readingStream(readings, commit);
+
+	manager->release(connection);
+	return result;;
+}
+
+/**
  * Fetch a block of readings from the readings buffer
  */
 char *plugin_reading_fetch(PLUGIN_HANDLE handle, unsigned long id, unsigned int blksize)
@@ -174,11 +190,7 @@ unsigned long	  age, size;
 	// TODO put flags in common header file
 	if (flags & 0x0002)	// Purge by size
 	{
-		/**
-		 * Throw PluginNotImplementedException for purge by size in SQLite 
-		 */
-		manager->release(connection);
-		throw PluginNotImplementedException("Purge by size is not supported by 'SQLite' storage engine.");
+		(void)connection->purgeReadingsByRows(param, flags, sent, results);
 	}
 	else
 	{

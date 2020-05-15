@@ -177,4 +177,4 @@ class TestE2E_CSV_PI:
             tracked_item = egress_tracking_details["track"][0]
             assert "NorthReadingsToPI" == tracked_item["service"]
             assert asset_name == tracked_item["asset"]
-            assert "PI_Server_V2" == tracked_item["plugin"]
+            assert "OMF" == tracked_item["plugin"]

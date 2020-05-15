@@ -256,7 +256,6 @@ class TestPiServer:
                 {
                     "id": 10,
                     "asset_code": "test_asset_code",
-                    "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                     "reading": {"humidity": 100, "temperature": 1001},
                     "user_ts": '2018-04-20 09:38:50.163164+00'
                 }
@@ -270,7 +269,6 @@ class TestPiServer:
                 {
                     "id": 10,
                     "asset_code": "test_asset_code",
-                    "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                     "reading": {"humidity": 100, "temperature": 1001},
                     "user_ts": '2018-04-20 09:38:50.163164+00'
                 }
@@ -338,7 +336,6 @@ class TestPiServer:
                 {
                     "id": 10,
                     "asset_code": "test_asset_code",
-                    "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                     "reading": {"humidity": 100, "temperature": 1001},
                     "user_ts": '2018-04-20 09:38:50.163164+00'
                 }
@@ -984,7 +981,6 @@ class TestPIServerNorthPlugin:
                     {
                         "id": 10,
                         "asset_code": "test_asset_code",
-                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                         "reading": {"humidity": 10, "temperature": 20},
                         "user_ts": '2018-04-20 09:38:50.163164+00'
                     }
@@ -1008,7 +1004,6 @@ class TestPIServerNorthPlugin:
                         {
                             "id": 10,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 10, "temperature": 20},
                             "user_ts": '2018-04-20 09:38:50.163164+00'
                         }
@@ -1411,7 +1406,6 @@ class TestPIServerNorthPlugin:
                         {
                             "id": 10,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"humidity": 11, "temperature": 38},
                             "user_ts": '2018-04-20 09:38:50.163164+00'
                         }
@@ -1439,7 +1433,6 @@ class TestPIServerNorthPlugin:
                         {
                             "id": 11,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"tick": "tock"},
                             "user_ts": '2018-04-20 09:38:50.163164+00'
                         }
@@ -1467,14 +1460,12 @@ class TestPIServerNorthPlugin:
                         {
                             "id": 12,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"pressure": 957.2},
                             "user_ts": '2018-04-20 09:38:50.163164+00'
                         },
                         {
                             "id": 20,
                             "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {"y": 34, "z": 114, "x": -174},
                             "user_ts": '2018-04-20 09:38:50.163164+00'
                         }

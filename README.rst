@@ -165,10 +165,10 @@ The upgrade of the Fledge package should follow the same philosophy, it should b
 ::
     sudo DEBIAN_FRONTEND=noninteractive apt -y upgrade
 
-before the upgrade of Fledge, *SETENV:* should be set/added in */etc/sudoers.d/fledg* to allow *sudo* to support the handling of the environment variables, a sample of the file:
+before the upgrade of Fledge, *SETENV:* should be set/added in */etc/sudoers.d/fledge* to allow *sudo* to support the handling of the environment variables, a sample of the file:
 ::
 
-    %sudo ALL=(ALL) NOPASSWD:SETENV: /usr/bin/apt -y update, /usr/bin/apt-get -y install fledg, /usr/bin/apt -y install /usr/local/fledg/data/plugins/fledg*.deb, /usr/bin/apt list, /usr/bin/apt -y install fledg*, /usr/bin/apt -y upgrade
+    %sudo ALL=(ALL) NOPASSWD:SETENV: /usr/bin/apt -y update, /usr/bin/apt-get -y install fledge, /usr/bin/apt -y install /usr/local/fledge/data/plugins/fledge*.deb, /usr/bin/apt list, /usr/bin/apt -y install fledge*, /usr/bin/apt -y upgrade
 
 |br|
 
@@ -189,13 +189,20 @@ The command returns the status of Fledge on the machine it has been executed.
 If You Use PostgreSQL: Creating the Database Repository
 =======================================================
 
-This version of Fledge relies on SQLite to run. SQLite is embedded into the Storage service, but you may want to use PostgreSQL as a buffer and metadata storage (refer to the documentation on `ReadTheDocs <http://fledge.readthedocs.io>`_ for more info. With a version of PostgreSQL installed via *apt-get* first you need to create a new database user with:
+This version of Fledge relies on SQLite to run. SQLite is embedded into the Storage service, but you may want to use PostgreSQL as a buffer and metadata storage (refer to the documentation on `ReadTheDocs <http://fledge-iot.readthedocs.io>`_ for more info. With a version of PostgreSQL installed via *apt-get* first you need to create a new database user with:
 ::
    sudo -u postgres createuser -d <user>
 
 where *user* is the name of the Linux user that will run Fledge. The Fledge database user must have *createdb* privileges (i.e. the *-d* argument).
 |br| |br|
 
+
+Known issues
+============
+
+The integration with OCS (OSIsoft Cloud Services) in CentOS 7.6 doesn't work for a problem related to the boost library.
+------------------------------------------------------------------------------------------------------------------------
+|br| |br|
 
 Troubleshooting
 ===============

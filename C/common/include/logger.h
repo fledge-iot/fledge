@@ -38,7 +38,6 @@ class Logger {
 	private:
 		std::string 	*format(const std::string& msg, va_list ap);
 		static Logger   *instance;
-		std::string 	*m_app_name;
 };
 
 #endif

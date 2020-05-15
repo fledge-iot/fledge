@@ -191,12 +191,10 @@ class Server(FledgeMicroservice):
                         for reading in data:
                             asyncio.ensure_future(Ingest.add_readings(asset=reading['asset'],
                                                                         timestamp=reading['timestamp'],
-                                                                        key=reading['key'],
                                                                         readings=reading['readings']))
                     elif isinstance(data, dict):
                         asyncio.ensure_future(Ingest.add_readings(asset=data['asset'],
                                                                   timestamp=data['timestamp'],
-                                                                  key=data['key'],
                                                                   readings=data['readings']))
                 delta = self._event_loop.time() - t1
                 # If delta somehow becomes > sleep_seconds, then ignore delta

@@ -13,8 +13,9 @@
 #include <logger.h>
 #include <string>
 #include <rapidjson/document.h>
+#include <config_category.h>
 
-#define STORAGE_CATEGORY	  "STORAGE"
+#define STORAGE_CATEGORY	  "Storage"
 #define CONFIGURATION_CACHE_FILE  "storage.json"
 
 /**
@@ -33,9 +34,10 @@ class StorageConfiguration {
     bool		  hasValue(const std::string& key);
     bool                  setValue(const std::string& key, const std::string& value);
     void                  updateCategory(const std::string& json);
+    DefaultConfigCategory *getDefaultCategory();
   private:
     void		  getConfigCache(std::string& cache);
-    rapidjson::Document   document;
+    Document		  *document;
     void                  readCache();
     void                  writeCache();
     Logger                *logger;

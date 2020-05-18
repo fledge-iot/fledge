@@ -29,7 +29,8 @@ using namespace rapidjson;
 static bool isTypeSupported(DatapointValue& dataPoint);
 
 // 1 enable performance tracking
-#define INSTRUMENT	0
+// FIXME_I:
+#define INSTRUMENT	1
 
 #define  AFHierarchySeparator '/'
 #define  AF_TYPES_SUFFIX       "-type"
@@ -1200,12 +1201,14 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 
 
 		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("Timing seconds - thread :%s: - superSet :%6.3f: - Loop :%6.3f: - compress :%6.3f:  - send data :%6.3f:",
+		Logger::getLogger()->debug("Timing seconds - thread :%s: - superSet :%6.3f: - Loop :%6.3f: - compress :%6.3f: - send data :%6.3f: - msg size |%d| - msg size compressed |%d| ",
 								   threadId.str().c_str(),
 								   timeT1,
 								   timeT2,
 								   timeT3,
-								   timeT4
+								   timeT4,
+								   json_not_compressed.length(),
+								   json.length()
 		);
 
 		Logger::getLogger()->setMinLevel("warning");

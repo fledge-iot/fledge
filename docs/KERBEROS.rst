@@ -5,7 +5,7 @@
 .. Links
 .. _curl homepage: https://curl.haxx.se/
 .. _curl sources: https://github.com/curl/curl/releases
-.. _OMF: https://omf-docs.readthedocs.io/en/v1.1/
+.. _OMF: https://omf-docs.osisoft.com/
 
 ***********************
 Kerberos authentication
@@ -40,7 +40,7 @@ The North plugin supports the configurable option *PIServerEndpoint* for allowin
 
   - PI Web API
 
-  - End Data Store
+  - Edge Data Store
 
   - OSIsoft Cloud Services
 
@@ -50,8 +50,7 @@ The *PIWebAPIAuthenticationMethod* option permits to select the desired authenti
   - basic
   - kerberos
 
-The Kerberos authentication requires a keytab file, the *PIWebAPIKerberosKeytabFileName* option specifies the name of the file expected under the
-directory:
+The Kerberos authentication requires a keytab file, the *PIWebAPIKerberosKeytabFileName* option specifies the name of the file expected under the directory:
 
 .. code-block:: console
 

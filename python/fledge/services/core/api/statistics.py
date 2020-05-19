@@ -215,4 +215,4 @@ async def get_statistics_rate(request: web.Request) -> web.Response:
     for d in resp:
         for k, v in d.items():
             rate_dict[k] = {**rate_dict[k], **v} if k in rate_dict else v
-    return web.json_response({"rates": rate_dict})
+    return web.json_response({"rates": [rate_dict]})

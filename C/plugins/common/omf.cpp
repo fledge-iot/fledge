@@ -29,8 +29,7 @@ using namespace rapidjson;
 static bool isTypeSupported(DatapointValue& dataPoint);
 
 // 1 enable performance tracking
-// FIXME_I:
-#define INSTRUMENT	1
+#define INSTRUMENT	0
 
 #define  AFHierarchySeparator '/'
 #define  AF_TYPES_SUFFIX       "-type"

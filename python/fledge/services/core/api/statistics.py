@@ -175,11 +175,21 @@ async def get_statistics_rate(request: web.Request) -> web.Response:
 
     if params['periods'] == '':
         raise web.HTTPBadRequest(reason="periods cannot be an empty. Also comma separated list of values required "
-                                        "in case of multiple periods of time.")
+                                        "in case of multiple periods of time")
     if params['statistics'] == '':
         raise web.HTTPBadRequest(reason="statistics cannot be an empty. Also comma separated list of statistics values "
                                         "required in case of multiple assets")
 
+    periods = params['periods']
+    period_split_list = list(filter(None, periods.split(',')))
+    if not all(p.isdigit() for p in period_split_list):
+        raise web.HTTPBadRequest(reason="periods should contain numbers")
+    # 1 week = 10080 mins
+    if any(int(p) > 10800 for p in period_split_list):
+        raise web.HTTPBadRequest(reason="The maximum allowed value for a period is 10080 minutes")
+
+    stats = params['statistics']
+    stat_split_list = list(filter(None, [x.upper() for x in stats.split(',')]))
     storage_client = connect.get_storage_async()
     # To find the interval in secs from stats collector schedule
     scheduler_payload = PayloadBuilder().SELECT("schedule_interval").WHERE(
@@ -194,16 +204,9 @@ async def get_statistics_rate(request: web.Request) -> web.Response:
     else:
         raise web.HTTPNotFound(reason="No stats collector schedule found")
     formula_str = "(sum(value) / count(value)) * 60 / {}".format(int(interval_in_secs))
-    period_key = params['periods']
-    period_split_list = period_key.split(',')
-    stat_key = params['statistics']
-    stat_split_list = [x.upper() for x in stat_key.split(',')]
     ts = datetime.datetime.now().timestamp()
     resp = []
     for x, y in [(x, y) for x in period_split_list for y in stat_split_list]:
-        # 1 week = 10080 mins
-        if int(x) > 10080:
-            raise web.HTTPBadRequest(reason="The maximum allowed value for a period is 10080 minutes")
         time_diff = ts - int(x)
         _payload = PayloadBuilder().SELECT(("key", formula_str)).ALIAS("return", (formula_str, "readings")).WHERE(
             ['history_ts', '>=', str(time_diff)]).AND_WHERE(['key', '=', y]).chain_payload()
@@ -215,4 +218,4 @@ async def get_statistics_rate(request: web.Request) -> web.Response:
     for d in resp:
         for k, v in d.items():
             rate_dict[k] = {**rate_dict[k], **v} if k in rate_dict else v
-    return web.json_response({"rates": [rate_dict]})
+    return web.json_response({"rates": rate_dict})

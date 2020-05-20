@@ -455,3 +455,55 @@ class TestStatistics:
             assert output == json.loads(r)
         assert query_patch.called
         assert 2 == query_patch.call_count
+
+    @pytest.mark.parametrize("params, msg", [
+        ("", "periods request parameter is required"),
+        ("?period", "periods request parameter is required"),
+        ("?periods", "statistics request parameter is required"),
+        ("?statistics", "periods request parameter is required"),
+        ("?periods=&statistics=", "periods cannot be an empty. Also comma separated list of values required "
+                                  "in case of multiple periods of time"),
+        ("?periods=1&statistics=", "statistics cannot be an empty. Also comma separated list of statistics values "
+                                   "required in case of multiple assets"),
+        ("?periods=&statistics=readings", "periods cannot be an empty. Also comma separated list of values "
+                                          "required in case of multiple periods of time"),
+        ("?periods=1,blah&statistics=READINGS", "periods should contain numbers"),
+        ("?periods=1,,blah&statistics=READINGS", "periods should contain numbers"),
+        ("?periods=,1,10801&statistics=1234,READINGS,", "The maximum allowed value for a period is 10080 minutes")
+    ])
+    async def test_bad_get_statistics_rate(self, client, params, msg):
+        resp = await client.get("/fledge/statistics/rate{}".format(params))
+        assert 400 == resp.status
+        assert msg == resp.reason
+
+    async def test_get_statistics_rate(self, client, params='?periods=1,5&statistics=readings'):
+        output = {'rates': {'READINGS': {'1': 240, '5': 240}}}
+        p1 = {'where': {'value': 'stats collector', 'condition': '=', 'column': 'process_name'},
+              'return': ['schedule_interval']}
+        p2 = {"return": ["key", {"column": "(sum(value) / count(value)) * 60 / 15", "alias": "readings"}],
+              "where": {"column": "history_ts", "condition": ">=", "value": "1589956964.663594",
+                        "and": {"column": "key", "condition": "=", "value": "READINGS"}}, "group": "key"}
+
+        @asyncio.coroutine
+        def q_result(*args):
+            table = args[0]
+            payload = args[1]
+
+            if table == 'schedules':
+                assert p1 == json.loads(payload)
+                return {"rows": [{"schedule_interval": "00:00:15"}]}
+
+            if table == 'statistics_history':
+                # TODO: datetime patch required which is a bit tricky
+                # assert p2 == json.loads(payload)
+                return {"rows": [{"readings": 240, "key": "READINGS"}], "count": 1}
+
+        mock_async_storage_client = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=mock_async_storage_client):
+            with patch.object(mock_async_storage_client, 'query_tbl_with_payload', side_effect=q_result) as query_patch:
+                resp = await client.get("/fledge/statistics/rate{}".format(params))
+                assert 200 == resp.status
+                r = await resp.text()
+                assert output == json.loads(r)
+            assert query_patch.called
+            assert 3 == query_patch.call_count

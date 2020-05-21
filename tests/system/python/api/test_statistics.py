@@ -141,7 +141,7 @@ class TestStatistics:
         assert 1 == stats[ASSET_NAME.upper()]
         assert 1 == stats['READINGS']
 
-        # Allow stats collector schedule to run
+        # Allow stats collector schedule to run i.e. by default 15s
         time.sleep(wait_time * 2 + 1)
 
         # check stats history
@@ -157,6 +157,7 @@ class TestStatistics:
         read = [r['READINGS'] for r in stats_history]
         assert 1 in read
         assert 1 == read.count(1)
+        print(stats_history)
         for asset in stats_history:
             if ASSET_NAME.upper() in asset.keys():
                 assert 1 == asset[ASSET_NAME.upper()]

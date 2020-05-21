@@ -3,6 +3,7 @@
 # FLEDGE_BEGIN
 # See: http://fledge.readthedocs.io/
 # FLEDGE_END
+import time
 import datetime
 from aiohttp import web
 
@@ -203,16 +204,26 @@ async def get_statistics_rate(request: web.Request) -> web.Response:
         interval_in_secs = interval.total_seconds()
     else:
         raise web.HTTPNotFound(reason="No stats collector schedule found")
-    formula_str = "(sum(value) / count(value)) * 60 / {}".format(int(interval_in_secs))
     ts = datetime.datetime.now().timestamp()
     resp = []
     for x, y in [(x, y) for x in period_split_list for y in stat_split_list]:
         time_diff = ts - int(x)
-        _payload = PayloadBuilder().SELECT(("key", formula_str)).ALIAS("return", (formula_str, "readings")).WHERE(
-            ['history_ts', '>=', str(time_diff)]).AND_WHERE(['key', '=', y]).chain_payload()
+        dt = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(time_diff))
+        # FIXME:
+        # For example:
+        # time_diff = 1590066814.037321
+        # ERROR: PostgreSQL storage plugin raising error: ERROR:  invalid input syntax for type timestamp with time zone: "1590066814.037321"
+        # "where": {"column": "history_ts", "condition": ">=", "value": "1590066814.037321"} - Payload works with sqlite engine BUT not with postgres
+        # To overcome above problem on postgres - I have used "dt = 2020-05-21 13:13:34" - but I see some deviations in results for both engines when we use datetime format
+        _payload = PayloadBuilder().SELECT("key").AGGREGATE(["sum", "value"]).AGGREGATE(["count", "value"]).WHERE(
+            ['history_ts', '>=', str(dt)]).AND_WHERE(['key', '=', y]).chain_payload()
         stats_rate_payload = PayloadBuilder(_payload).GROUP_BY("key").payload()
         result = await storage_client.query_tbl_with_payload("statistics_history", stats_rate_payload)
-        temp_dict = {y: {x: result['rows'][0]['readings']}} if result['rows'] else {y: {x: 0}}
+        if result['rows']:
+            formula_str = (int(result['rows'][0]['sum_value']) / int(result['rows'][0]['count_value'])) * (60 / int(interval_in_secs))
+            temp_dict = {y: {x: formula_str}}
+        else:
+            temp_dict = {y: {x: 0}}
         resp.append(temp_dict)
     rate_dict = {}
     for d in resp:

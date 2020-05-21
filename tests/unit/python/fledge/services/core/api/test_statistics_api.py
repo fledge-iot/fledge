@@ -477,11 +477,12 @@ class TestStatistics:
         assert msg == resp.reason
 
     async def test_get_statistics_rate(self, client, params='?periods=1,5&statistics=readings'):
-        output = {'rates': {'READINGS': {'1': 240, '5': 240}}}
+        output = {'rates': {'READINGS': {'1': 120.52585669781932, '5': 120.52585669781932}}}
         p1 = {'where': {'value': 'stats collector', 'condition': '=', 'column': 'process_name'},
               'return': ['schedule_interval']}
-        p2 = {"return": ["key", {"column": "(sum(value) / count(value)) * 60 / 15", "alias": "readings"}],
-              "where": {"column": "history_ts", "condition": ">=", "value": "1589956964.663594",
+        p2 = {"return": ["key"], "aggregate": [{"operation": "sum", "column": "value"},
+                                               {"operation": "count", "column": "value"}],
+              "where": {"column": "history_ts", "condition": ">=", "value": "2020-05-21 13:03:03",
                         "and": {"column": "key", "condition": "=", "value": "READINGS"}}, "group": "key"}
 
         @asyncio.coroutine
@@ -496,7 +497,7 @@ class TestStatistics:
             if table == 'statistics_history':
                 # TODO: datetime patch required which is a bit tricky
                 # assert p2 == json.loads(payload)
-                return {"rows": [{"readings": 240, "key": "READINGS"}], "count": 1}
+                return {"rows": [{'sum_value': 96722, 'count_value': 3210, "key": "READINGS"}], "count": 1}
 
         mock_async_storage_client = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=mock_async_storage_client):

@@ -199,7 +199,7 @@ class SupportBuilder:
         self.write_to_tar(pyz, temp_file, data)
 
     async def add_table_streams(self, pyz, file_spec):
-        # The contents of the sstreams from the storage layer
+        # The contents of the streams from the storage layer
         temp_file = self._interim_file_path + "/" + "streams-{}".format(file_spec)
         payload = payload_builder.PayloadBuilder() \
             .LIMIT(1000) \

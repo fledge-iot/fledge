@@ -482,7 +482,11 @@ class TestStatistics:
               'return': ['schedule_interval']}
         p2 = {"return": ["key"], "aggregate": [{"operation": "sum", "column": "value"},
                                                {"operation": "count", "column": "value"}],
-              "where": {"column": "history_ts", "condition": ">=", "value": "2020-05-21 13:03:03",
+              "where": {"column": "history_ts", "condition": ">=", "value": "1590126369.123255",
+                        "and": {"column": "key", "condition": "=", "value": "READINGS"}}, "group": "key"}
+        p3 = {"return": ["key"], "aggregate": [{"operation": "sum", "column": "value"},
+                                               {"operation": "count", "column": "value"}],
+              "where": {"column": "history_ts", "condition": ">=", "value": "1590126369.123255",
                         "and": {"column": "key", "condition": "=", "value": "READINGS"}}, "group": "key"}
 
         @asyncio.coroutine

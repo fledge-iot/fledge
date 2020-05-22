@@ -16,10 +16,11 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 _help = """
-    -------------------------------------------------------------------------------
+    ------------------------------------------------------------------------------
     | GET             | /fledge/statistics                                       |
     | GET             | /fledge/statistics/history                               |
-    -------------------------------------------------------------------------------
+    | GET             | /fledge/statistics/rate                                  |
+    ------------------------------------------------------------------------------
 """
 
 
@@ -148,3 +149,81 @@ async def get_statistics_history(request):
     # Append the last set of records which do not get appended above
     results.append(temp_dict)
     return web.json_response({"interval": interval_in_secs, 'statistics': results})
+
+
+async def get_statistics_rate(request: web.Request) -> web.Response:
+    """
+      Args:
+          request:
+      Returns:
+              A JSON document with the rates for each of the statistics
+      :Example:
+              curl -X GET http://localhost:8081/fledge/statistics/rate?periods=1,5,15&statistics=SINUSOID,FASTSINUSOID,READINGS
+
+      Implementation:
+          Calculation via: (sum(value) / count(value)) * 60 / (<statistic history interval>)
+          Queries for above example:
+          select key, 4 * (sum(value) / count(value)) from statistics_history where history_ts >= datetime('now', '-1 Minute') and key in ("SINUSOID", "FASTSINUSOID", "READINGS" ) group by key;
+          select key, 4 * (sum(value) / count(value)) from statistics_history where history_ts >= datetime('now', '-5 Minute') and key in ("SINUSOID", "FASTSINUSOID", "READINGS" ) group by key;
+          select key, 4 * (sum(value) / count(value)) from statistics_history where history_ts >= datetime('now', '-15 Minute') and key in ("SINUSOID", "FASTSINUSOID", "READINGS" ) group by key;
+      """
+    params = request.query
+    if 'periods' not in params:
+        raise web.HTTPBadRequest(reason="periods request parameter is required")
+    if 'statistics' not in params:
+        raise web.HTTPBadRequest(reason="statistics request parameter is required")
+
+    if params['periods'] == '':
+        raise web.HTTPBadRequest(reason="periods cannot be an empty. Also comma separated list of values required "
+                                        "in case of multiple periods of time")
+    if params['statistics'] == '':
+        raise web.HTTPBadRequest(reason="statistics cannot be an empty. Also comma separated list of statistics values "
+                                        "required in case of multiple assets")
+
+    periods = params['periods']
+    period_split_list = list(filter(None, periods.split(',')))
+    if not all(p.isdigit() for p in period_split_list):
+        raise web.HTTPBadRequest(reason="periods should contain numbers")
+    # 1 week = 10080 mins
+    if any(int(p) > 10800 for p in period_split_list):
+        raise web.HTTPBadRequest(reason="The maximum allowed value for a period is 10080 minutes")
+
+    stats = params['statistics']
+    stat_split_list = list(filter(None, [x.upper() for x in stats.split(',')]))
+    storage_client = connect.get_storage_async()
+    # To find the interval in secs from stats collector schedule
+    scheduler_payload = PayloadBuilder().SELECT("schedule_interval").WHERE(
+        ['process_name', '=', 'stats collector']).payload()
+    result = await storage_client.query_tbl_with_payload('schedules', scheduler_payload)
+    if len(result['rows']) > 0:
+        scheduler = Scheduler()
+        interval_days, interval_dt = scheduler.extract_day_time_from_interval(result['rows'][0]['schedule_interval'])
+        interval_in_secs = datetime.timedelta(days=interval_days, hours=interval_dt.hour, minutes=interval_dt.minute,
+                                              seconds=interval_dt.second).total_seconds()
+    else:
+        raise web.HTTPNotFound(reason="No stats collector schedule found")
+    ts = datetime.datetime.now().timestamp()
+    resp = []
+    for x, y in [(x, y) for x in period_split_list for y in stat_split_list]:
+        time_diff = ts - int(x)
+        # TODO: FOGL-4102
+        # For example:
+        # time_diff = 1590066814.037321
+        # ERROR: PostgreSQL storage plugin raising error: ERROR:  invalid input syntax for type timestamp with time zone: "1590066814.037321"
+        # "where": {"column": "history_ts", "condition": ">=", "value": "1590066814.037321"} - Payload works with sqlite engine BUT not with postgres
+        # To overcome above problem on postgres - I have used "dt = 2020-05-21 13:13:34" - but I see some deviations in results for both engines when we use datetime format
+        _payload = PayloadBuilder().SELECT("key").AGGREGATE(["sum", "value"]).AGGREGATE(["count", "value"]).WHERE(
+            ['history_ts', '>=', str(time_diff)]).AND_WHERE(['key', '=', y]).chain_payload()
+        stats_rate_payload = PayloadBuilder(_payload).GROUP_BY("key").payload()
+        result = await storage_client.query_tbl_with_payload("statistics_history", stats_rate_payload)
+        temp_dict = {y: {x: 0}}
+        if result['rows']:
+            calculated_formula_str = (int(result['rows'][0]['sum_value']) / int(result['rows'][0]['count_value'])
+                                      ) * (60 / int(interval_in_secs))
+            temp_dict = {y: {x: calculated_formula_str}}
+        resp.append(temp_dict)
+    rate_dict = {}
+    for d in resp:
+        for k, v in d.items():
+            rate_dict[k] = {**rate_dict[k], **v} if k in rate_dict else v
+    return web.json_response({"rates": rate_dict})

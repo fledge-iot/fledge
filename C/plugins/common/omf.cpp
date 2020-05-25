@@ -29,7 +29,6 @@ using namespace rapidjson;
 static bool isTypeSupported(DatapointValue& dataPoint);
 
 // 1 enable performance tracking
-// FIXME_I:
 #define INSTRUMENT	0
 
 #define  AFHierarchySeparator '/'
@@ -2694,7 +2693,9 @@ string OMF::getAssetNameFromError(const char* message)
 				if (found != std::string::npos &&
 				    found < tmp.length())
 				{
-					assetName = assetName.substr(found + 1 );
+					// bug fixed
+					//assetName = assetName.substr(found + 1 );
+					assetName = tmp.substr(found + 1 );
 				}
 			}
 		}

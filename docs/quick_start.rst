@@ -54,7 +54,7 @@ If your system does not have Raspbian pre-installed, you can find instructions o
 
 You can obtain Fledge in two ways:
 
-- Dianomic Systems offers pre-built, certified binaries of Fledge for Debian using either Intel or ARM architectures. This is the recommended method, especially for new users. You can download these from https://Fledge.readthedocs.io/en/latest/92_downloads.html.
+- Dianomic Systems offers pre-built, certified binaries of Fledge for Debian using either Intel or ARM architectures. This is the recommended method, especially for new users. You can download these from https://fledge-iot.readthedocs.io/en/latest/92_downloads.html.
 - As source code from https://github.com/fledge-iot/.  Instructions for downloading and building Fledge source code can be found in the Fledge Developer’s Guide
 
 In general, Fledge installation will require the following packages:

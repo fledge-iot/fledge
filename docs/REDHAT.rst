@@ -3,7 +3,7 @@
    <br />
 
 .. Links
-.. _download page: http://dianomic.com/download-packages
+.. _download page: http://dianomic.com/download-fledge
 .. _fledge-pkg: https://github.com/fledge-iot/fledge-pkg
 
 *******************************************

@@ -141,7 +141,7 @@ class TestStatistics:
         assert 1 == stats[ASSET_NAME.upper()]
         assert 1 == stats['READINGS']
 
-        # Allow stats collector schedule to run
+        # Allow stats collector schedule to run i.e. by default 15s
         time.sleep(wait_time * 2 + 1)
 
         # check stats history
@@ -153,13 +153,14 @@ class TestStatistics:
         assert len(jdoc), "No data found"
         stats_history = jdoc['statistics']
 
-        # READINGS & ASSET_NAME keys and verify no duplicate entry found
+        # READINGS & ASSET_NAME keys and verify no duplicate entry found with value 1
         read = [r['READINGS'] for r in stats_history]
         assert 1 in read
         assert 1 == read.count(1)
-        for asset in stats_history:
-            if ASSET_NAME.upper() in asset.keys():
-                assert 1 == asset[ASSET_NAME.upper()]
+        # print(stats_history)
+        asset_stats_history = [a for a in stats_history if ASSET_NAME.upper() in a.keys()]
+        assert any(ash[ASSET_NAME.upper()] == 1 for ash in asset_stats_history), "Failed to find statistics history " \
+                                                                                 "record for " + ASSET_NAME.upper()
 
         # verify stats history by READINGS key only
         conn.request("GET", '/fledge/statistics/history?key={}'.format('READINGS'))

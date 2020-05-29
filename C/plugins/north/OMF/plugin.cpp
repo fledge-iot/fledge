@@ -46,6 +46,11 @@ using namespace SimpleWeb;
 #define DATA_KEY "dataTypes"
 #define DATA_KEY_SHORT "dataTypesShort"
 
+#define PROPERTY_TYPE   "type"
+#define PROPERTY_NUMBER "number"
+#define PROPERTY_STRING "string"
+
+
 #define ENDPOINT_URL_PI_WEB_API "https://HOST_PLACEHOLDER:PORT_PLACEHOLDER/piwebapi/omf"
 #define ENDPOINT_URL_CR         "https://HOST_PLACEHOLDER:PORT_PLACEHOLDER/ingress/messages"
 #define ENDPOINT_URL_OCS        "https://dat-b.osisoft.com:PORT_PLACEHOLDER/api/v1/tenants/TENANT_ID_PLACEHOLDER/Namespaces/NAMESPACE_ID_PLACEHOLDER/omf"
@@ -328,6 +333,7 @@ typedef struct
 			assetsDataTypes;
 } CONNECTOR_INFO;
 
+unsigned long calcTypeShort                (const string& dataTypes);
 string        saveSentDataTypes            (CONNECTOR_INFO* connInfo);
 void          loadSentDataTypes            (CONNECTOR_INFO* connInfo, Document& JSONData);
 long          getMaxTypeId                 (CONNECTOR_INFO* connInfo);
@@ -850,6 +856,76 @@ string saveSentDataTypes(CONNECTOR_INFO* connInfo)
 	return ret;
 }
 
+
+/**
+ * Calculate the TypeShort in the case it is missing loading type definition
+ *
+ * Generate a 64 bit number containing  a set of counts,
+ * number of datapoint in an asset and the number of datapoint of each type we support.
+ *
+ */
+unsigned long calcTypeShort(const string& dataTypes)
+{
+	union t_typeCount {
+		struct
+		{
+			unsigned char tTotal;
+			unsigned char tFloat;
+			unsigned char tString;
+			unsigned char spare0;
+
+			unsigned char spare1;
+			unsigned char spare2;
+			unsigned char spare3;
+			unsigned char spare4;
+		} cnt;
+		unsigned long valueLong = 0;
+
+	} typeCount;
+
+	Document JSONData;
+	JSONData.Parse(dataTypes.c_str());
+
+	if (JSONData.HasParseError())
+	{
+		Logger::getLogger()->error("calcTypeShort - unable to calculate TypeShort on :%s: ", dataTypes.c_str());
+		return (0);
+	}
+
+	for (Value::ConstMemberIterator it = JSONData.MemberBegin(); it != JSONData.MemberEnd(); ++it)
+	{
+
+		string key = it->name.GetString();
+		const Value& value = it->value;
+
+		if (value.HasMember(PROPERTY_TYPE) && value[PROPERTY_TYPE].IsString())
+		{
+			string type =value[PROPERTY_TYPE].GetString();
+
+			// Integer is handled as float in the OMF integration
+			if (type.compare(PROPERTY_NUMBER) == 0)
+			{
+				typeCount.cnt.tFloat++;
+			} else if (type.compare(PROPERTY_STRING) == 0)
+			{
+				typeCount.cnt.tString++;
+			} else {
+
+				Logger::getLogger()->error("calcTypeShort - unrecognized type :%s: ", type.c_str());
+			}
+			typeCount.cnt.tTotal++;
+		}
+		else
+		{
+			Logger::getLogger()->error("calcTypeShort - unable to extract the type for :%s: ", key.c_str());
+			return (0);
+		}
+	}
+
+	return typeCount.valueLong;
+}
+
+
 /**
  * Load stored data types (already sent to PI server)
  *
@@ -916,25 +992,6 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 					continue;
 				}
 
-				long dataTypesShort;
-				if (cachedValue.HasMember(DATA_KEY_SHORT) &&
-					cachedValue[DATA_KEY_SHORT].IsString())
-				{
-					string strDataTypesShort = cachedValue[DATA_KEY_SHORT].GetString();
-					// The information are stored as string in hexadecimal format
-					dataTypesShort = stoi (strDataTypesShort,nullptr,16);
-				}
-				else
-				{
-					Logger::getLogger()->warn("%s plugin: current element '%s'" \
-								  "doesn't have '%s' property, ignoring it",
-											  PLUGIN_NAME,
-											  key.c_str(),
-											  DATA_KEY_SHORT);
-					continue;
-				}
-
-
 				string dataTypes;
 				if (cachedValue.HasMember(DATA_KEY) &&
 				    cachedValue[DATA_KEY].IsObject())
@@ -956,6 +1013,35 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 					continue;
 				}
 
+				unsigned long dataTypesShort;
+				if (cachedValue.HasMember(DATA_KEY_SHORT) &&
+					cachedValue[DATA_KEY_SHORT].IsString())
+				{
+					string strDataTypesShort = cachedValue[DATA_KEY_SHORT].GetString();
+					// The information are stored as string in hexadecimal format
+					dataTypesShort = stoi (strDataTypesShort,nullptr,16);
+				}
+				else
+				{
+					dataTypesShort = calcTypeShort(dataTypes);
+					if (dataTypesShort == 0)
+					{
+						Logger::getLogger()->warn("%s plugin: current element '%s'" \
+                                      "doesn't have '%s' property",
+												  PLUGIN_NAME,
+												  key.c_str(),
+												  DATA_KEY_SHORT);
+					}
+					else
+					{
+						Logger::getLogger()->warn("%s plugin: current element '%s'" \
+                                      " doesn't have '%s' property, calculated '0x%X'",
+												  PLUGIN_NAME,
+												  key.c_str(),
+												  DATA_KEY_SHORT,
+												  dataTypesShort);
+					}
+				}
 				OMFDataTypes dataType;
 				dataType.typeId = typeId;
 				dataType.types = dataTypes;

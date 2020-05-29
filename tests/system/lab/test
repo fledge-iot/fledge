@@ -10,7 +10,7 @@ CRESET="${CPFX}0m"
 
 # Read config file
 . ./test.config
-if [[  ${STORAGE} == "postgres" ]] then
+if [[  ${STORAGE} == "postgres" ]]; then
    sudo apt install -y postgresql
    sudo -u postgres createuser -d "$(whoami)"
    sudo cp /usr/local/fledge/data/etc/storage.json /usr/local/fledge/data/etc/storage.json.bak

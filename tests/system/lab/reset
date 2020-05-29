@@ -4,8 +4,6 @@ echo "Stopping Fledge using systemctl ..."
 sudo systemctl stop fledge
 echo "YES" | /usr/local/fledge/bin/fledge reset || exit 1
 echo
-# TODO: FOGL-2349
-rm -rf /usr/local/fledge/data/scripts/* || exit 1
 echo "Starting Fledge using systemctl ..."
 sudo systemctl start fledge
 echo "Fledge Status"

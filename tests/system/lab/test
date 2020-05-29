@@ -8,8 +8,16 @@ CINFO="${CPFX}1;32m"
 CERR="${CPFX}1;31m"
 CRESET="${CPFX}0m"
 
-# Read config file for FLEDGE IP, PI host and token etc.
+# Read config file
 . ./test.config
+if [[  ${STORAGE} == "postgres" ]] then
+   sudo apt install -y postgresql
+   sudo -u postgres createuser -d "$(whoami)"
+   sudo cp /usr/local/fledge/data/etc/storage.json /usr/local/fledge/data/etc/storage.json.bak
+   sudo sed -i 's/sqlite/postgres/g' /usr/local/fledge/data/etc/storage.json
+   ./reset
+fi
+
 
 rm -f err.txt
 touch err.txt

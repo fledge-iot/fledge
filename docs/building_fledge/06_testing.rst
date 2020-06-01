@@ -7,13 +7,13 @@
 .. Images
 
 .. |postman_ping| image:: https://s3.amazonaws.com/fledge/readthedocs/images/05_postman_ping.jpg
-   :target: https://s3.amazonaws.com/fledge/readthedocs/images/05_postman_ping.jpg
+   :target: https://s3.amazonaws.com/fledge-iot/readthedocs/images/05_postman_ping.jpg
 
 .. |win_server_waiting| image:: https://s3.amazonaws.com/fledge/readthedocs/images/05_win_server_waiting.jpg
-   :target: https://s3.amazonaws.com/fledge/readthedocs/images/05_win_server_waiting.jpg
+   :target: https://s3.amazonaws.com/fledge-iot/readthedocs/images/05_win_server_waiting.jpg
 
 .. |pi_loaded| image:: https://s3.amazonaws.com/fledge/readthedocs/images/05_pi_loaded.jpg
-   :target: https://s3.amazonaws.com/fledge/readthedocs/images/05_pi_loaded.jpg
+   :target: https://s3.amazonaws.com/fledge-iot/readthedocs/images/05_pi_loaded.jpg
 
 .. Links
 
@@ -79,15 +79,18 @@ When you have a running Fledge, check the extra information provided by the ``fl
 .. code-block:: console
 
   $ fledge status
-  Fledge running.
-  Fledge uptime:  282 seconds.
-  Fledge Records: 10 read, 0 sent, 0 purged.
+  Fledge v1.8.0 running.
+  Fledge Uptime:  9065 seconds.
+  Fledge records: 86299 read, 86851 sent, 0 purged.
   Fledge does not require authentication.
   === Fledge services:
   fledge.services.core
+  fledge.services.storage --address=0.0.0.0 --port=42583
+  fledge.services.south --port=42583 --address=127.0.0.1 --name=Sine
+  fledge.services.notification --port=42583 --address=127.0.0.1 --name=Fledge Notifications
   === Fledge tasks:
-  fledge.tasks.north.sending_process --stream_id 1 --debug_level 1 --port=44180 --address=127.0.0.1 --name=sending process
-  fledge.tasks.north.sending_process --stream_id 2 --debug_level 1 --port=44180 --address=127.0.0.1 --name=statistics to pi
+  fledge.tasks.purge --port=42583 --address=127.0.0.1 --name=purge
+  tasks/sending_process --port=42583 --address=127.0.0.1 --name=PI Server
   $
 
 Let's analyze the output of the command:
@@ -155,7 +158,7 @@ The default port for the REST API is 8081. Using curl, try this command:
 .. code-block:: console
 
   $ curl -s http://localhost:8081/fledge/ping ; echo
-  {"dataPurged": 0, "dataRead": 10, "uptime": 2646.8824095726013, "dataSent": 0, "authenticationOptional": true}
+  {"uptime": 10480, "dataRead": 0, "dataSent": 0, "dataPurged": 0, "authenticationOptional": true, "serviceName": "Fledge", "hostName": "fledge", "ipAddresses": ["x.x.x.x", "x:x:x:x:x:x:x:x"], "health": "green", "safeMode": false}
   $
 
 The ``echo`` at the end of the line is simply used to add an extra new line to the output.
@@ -252,42 +255,40 @@ In order to use *fogbench* you need a template file. The template is a set of JS
 
 - In a development environment, look in *data/extras/fogbench* in the project repository folder.
 - In an environment deployed using ``sudo make install``, look in *$FLEDGE_DATA/extras/fogbench*.
-- In a snap installation, look in */snap/fledge/current/usr/local/fledge/data/extras/fogbench* (the directory is readonly).
-
 The template file looks like this:
 
 
 .. code-block:: console
 
-  $ cat /snap/fledge/current/usr/local/fledge/data/extras/fogbench/fogbench_sensor_coap.template.json
+  $ cat /usr/local/fledge/data/extras/fogbench/fogbench_sensor_coap.template.json
   [
-    { "name"          : "fogbench/luxometer",
+    { "name"          : "fogbench_luxometer",
       "sensor_values" : [ { "name": "lux", "type": "number", "min": 0, "max": 130000, "precision":3 } ] },
-    { "name"          : "fogbench/pressure",
+    { "name"          : "fogbench_pressure",
       "sensor_values" : [ { "name": "pressure", "type": "number", "min": 800.0, "max": 1100.0, "precision":1 } ] },
-    { "name"          : "fogbench/humidity",
+    { "name"          : "fogbench_humidity",
       "sensor_values" : [ { "name": "humidity",    "type": "number", "min": 0.0, "max": 100.0 },
                           { "name": "temperature", "type": "number", "min": 0.0, "max": 50.0  } ] },
-    { "name"          : "fogbench/temperature",
+    { "name"          : "fogbench_temperature",
       "sensor_values" : [ { "name": "object", "type": "number", "min": 0.0, "max": 50.0 },
                           { "name": "ambient", "type": "number", "min": 0.0, "max": 50.0 } ] },
-    { "name"          : "fogbench/accelerometer",
+    { "name"          : "fogbench_accelerometer",
       "sensor_values" : [ { "name": "x", "type": "number", "min": -2.0, "max": 2.0 },
                           { "name": "y", "type": "number", "min": -2.0, "max": 2.0 },
                           { "name": "z", "type": "number", "min": -2.0, "max": 2.0 } ] },
-    { "name"          : "fogbench/gyroscope",
+    { "name"          : "fogbench_gyroscope",
       "sensor_values" : [ { "name": "x", "type": "number", "min": -255.0, "max": 255.0 },
                           { "name": "y", "type": "number", "min": -255.0, "max": 255.0 },
                           { "name": "z", "type": "number", "min": -255.0, "max": 255.0 } ] },
-    { "name"          : "fogbench/magnetometer",
+    { "name"          : "fogbench_magnetometer",
       "sensor_values" : [ { "name": "x", "type": "number", "min": -255.0, "max": 255.0 },
                           { "name": "y", "type": "number", "min": -255.0, "max": 255.0 },
                           { "name": "z", "type": "number", "min": -255.0, "max": 255.0 } ] },
-    { "name"          : "mouse",
+    { "name"          : "fogbench_mouse",
       "sensor_values" : [ { "name": "button", "type": "enum", "list": [ "up", "down" ] } ] },
-    { "name"          : "switch",
+    { "name"          : "fogbench_switch",
       "sensor_values" : [ { "name": "button", "type": "enum", "list": [ "up", "down" ] } ] },
-    { "name"          : "wall clock",
+    { "name"          : "fogbench_wall clock",
       "sensor_values" : [ { "name": "tick", "type": "enum", "list": [ "tock" ] } ] }
   ]
   $
@@ -510,15 +511,15 @@ First, we can see the list of all the scheduled tasks (the process of sending da
   {
     "schedules": [
       {
-        "name": "OMF to OCS north",
+        "id": "ef8bd42b-da9f-47c4-ade8-751ce9a504be",
+        "name": "OMF to PI north",
+        "processName": "north_c",
+        "type": "INTERVAL",
         "repeat": 30,
         "time": 0,
-        "processName": "North Readings to OCS",
-        "exclusive": true,
-        "type": "INTERVAL",
-        "enabled": false,
         "day": null,
-        "id": "5d7fed92-fb9a-11e7-8c3f-9a214cf093ae"
+        "exclusive": true,
+        "enabled": true
       },
   ...
   $
@@ -529,15 +530,15 @@ First, we can see the list of all the scheduled tasks (the process of sending da
 
   $ curl -s http://localhost:8081/fledge/schedule | jq '.schedules[] | select( .name == "OMF to PI north")'
   {
-    "id": "2b614d26-760f-11e7-b5a5-be2e44b06b34",
+    "id": "ef8bd42b-da9f-47c4-ade8-751ce9a504be",
     "name": "OMF to PI north",
+    "processName": "north_c",
     "type": "INTERVAL",
     "repeat": 30,
     "time": 0,
     "day": null,
     "exclusive": true,
-    "processName": "North Readings to PI",
-    "enabled": false
+    "enabled": true
   }
   $
 
@@ -557,10 +558,11 @@ Now let's identify the plugin used to send data to the PI Connector Relay OMF. T
 
 .. code-block:: console
 
-  $ curl -s http://localhost:8081/fledge/category | jq '.categories[] | select ( .key == "SEND_PR_1" )'
+  $ curl -s http://localhost:8081/fledge/category | jq '.categories[] | select ( .key == "OMF to PI north" )'
   {
-    "key":         "SEND_PR_1",
-    "description": "OMF North Plugin Configuration"
+    "key": "OMF to PI north",
+    "description": "Configuration of the Sending Process",
+    "displayName": "OMF to PI north"
   }
   $
 
@@ -568,84 +570,292 @@ We can get the specific information adding the name of the task to the URL:
 
 .. code-block:: console
 
-  $  curl -s http://localhost:8081/fledge/category/SEND_PR_1 | jq
+  $  curl -s http://localhost:8081/fledge/category/OMF%20to%20PI%20north | jq .plugin
   {
-    "plugin": {
-      "description": "Python module name of the plugin to load",
-      "type":        "string",
-      "value":       "omf",
-      "default":     "omf"
+    "description": "PI Server North C Plugin",
+    "type": "string",
+    "default": "OMF",
+    "readonly": "true",
+    "value": "OMF"
+  }
+  $
+
+Now, the output returned does not say much: this is because the plugin has never been enabled, so the configuration has not been loaded yet. First, let's enabled the schedule. From a the previous query of the schedulable tasks, we know the id is *ef8bd42b-da9f-47c4-ade8-751ce9a504be*:
+
+.. code-block:: console
+
+  $ curl  -X PUT http://localhost:8081/fledge/schedule/ef8bd42b-da9f-47c4-ade8-751ce9a504be -d '{ "enabled" : true }'
+  {
+    "schedule": {
+      "id": "ef8bd42b-da9f-47c4-ade8-751ce9a504be",
+      "name": "OMF to PI north",
+      "processName": "north_c",
+      "type": "INTERVAL",
+      "repeat": 30,
+      "time": 0,
+      "day": null,
+      "exclusive": true,
+      "enabled": true
     }
   }
   $
 
-Now, the output returned does not say much: this is because the plugin has never been enabled, so the configuration has not been loaded yet. First, let's enabled the schedule. From a the previous query of the schedulable tasks, we know the id is *2b614d26-760f-11e7-b5a5-be2e44b06b34*:
+Once enabled, the plugin will be executed inside the *OMF to PI north* task within 30 seconds, so you have to wait up to 30 seconds to see the new, full configuration. After 30 seconds or so, you should see something like this:
 
 .. code-block:: console
 
-  $ curl  -X PUT http://localhost:8081/fledge/schedule/2b614d26-760f-11e7-b5a5-be2e44b06b34 -d '{ "enabled" : true }'
-  { "schedule": { "id":          "2b614d26-760f-11e7-b5a5-be2e44b06b34",
-                  "name":        "OMF to PI north",
-                  "type":        "INTERVAL",
-                  "repeat":      30.0,
-                  "time":        0,
-                  "day":         null,
-                  "exclusive":   true,
-                  "processName": "North Readings to PI",
-                  "enabled":     true
-                }
+  $ curl -s http://localhost:8081/fledge/category/OMF%20to%20PI%20north | jq
+  {
+    "enable": {
+      "description": "A switch that can be used to enable or disable execution of the sending process.",
+      "type": "boolean",
+      "readonly": "true",
+      "default": "true",
+      "value": "true"
+    },
+    "streamId": {
+      "description": "Identifies the specific stream to handle and the related information, among them the ID of the last object streamed.",
+      "type": "integer",
+      "readonly": "true",
+      "default": "0",
+      "value": "4",
+      "order": "16"
+    },
+    "plugin": {
+      "description": "PI Server North C Plugin",
+      "type": "string",
+      "default": "OMF",
+      "readonly": "true",
+      "value": "OMF"
+    },
+    "PIServerEndpoint": {
+      "description": "Select the endpoint among PI Web API, Connector Relay, OSIsoft Cloud Services or Edge Data Store",
+      "type": "enumeration",
+      "options": [
+      "PI Web API",
+      "Connector Relay",
+      "OSIsoft Cloud Services",
+      "Edge Data Store"
+    ],
+      "default": "Connector Relay",
+      "order": "1",
+      "displayName": "Endpoint",
+      "value": "Connector Relay"
+    },
+    "ServerHostname": {
+      "description": "Hostname of the server running the endpoint either PI Web API or Connector Relay",
+      "type": "string",
+      "default": "localhost",
+      "order": "2",
+      "displayName": "Server hostname",
+      "validity": "PIServerEndpoint != \"Edge Data Store\" && PIServerEndpoint != \"OSIsoft Cloud Services\"",
+      "value": "localhost"
+    },
+    "ServerPort": {
+      "description": "Port on which the endpoint either PI Web API or Connector Relay or Edge Data Store is listening, 0 will use the default one",
+      "type": "integer",
+      "default": "0",
+      "order": "3",
+      "displayName": "Server port, 0=use the default",
+      "validity": "PIServerEndpoint != \"OSIsoft Cloud Services\"",
+      "value": "0"
+    },
+    "producerToken": {
+      "description": "The producer token that represents this Fledge stream",
+      "type": "string",
+      "default": "omf_north_0001",
+      "order": "4",
+      "displayName": "Producer Token",
+      "validity": "PIServerEndpoint == \"Connector Relay\"",
+      "value": "omf_north_0001"
+    },
+    "source": {
+      "description": "Defines the source of the data to be sent on the stream, this may be one of either readings, statistics or audit.",
+      "type": "enumeration",
+      "options": [
+        "readings",
+        "statistics"
+      ],
+      "default": "readings",
+      "order": "5",
+      "displayName": "Data Source",
+      "value": "readings"
+    },
+    "StaticData": {
+      "description": "Static data to include in each sensor reading sent to the PI Server.",
+      "type": "string",
+      "default": "Location: Palo Alto, Company: Dianomic",
+      "order": "6",
+      "displayName": "Static Data",
+      "value": "Location: Palo Alto, Company: Dianomic"
+    },
+    "OMFRetrySleepTime": {
+      "description": "Seconds between each retry for the communication with the OMF PI Connector Relay, NOTE : the time is doubled at each attempt.",
+      "type": "integer",
+      "default": "1",
+      "order": "7",
+      "displayName": "Sleep Time Retry",
+      "value": "1"
+    },
+	  "OMFMaxRetry": {
+		  "description": "Max number of retries for the communication with the OMF PI Connector Relay",
+		  "type": "integer",
+		  "default": "3",
+		  "order": "8",
+		  "displayName": "Maximum Retry",
+		  "value": "3"
+	  },
+    "OMFHttpTimeout": {
+      "description": "Timeout in seconds for the HTTP operations with the OMF PI Connector Relay",
+      "type": "integer",
+      "default": "10",
+      "order": "9",
+      "displayName": "HTTP Timeout",
+      "value": "10"
+    },
+    "formatInteger": {
+      "description": "OMF format property to apply to the type Integer",
+      "type": "string",
+      "default": "int64",
+      "order": "10",
+      "displayName": "Integer Format",
+      "value": "int64"
+    },
+    "formatNumber": {
+      "description": "OMF format property to apply to the type Number",
+      "type": "string",
+      "default": "float64",
+      "order": "11",
+      "displayName": "Number Format",
+      "value": "float64"
+    },
+    "compression": {
+      "description": "Compress readings data before sending to PI server",
+      "type": "boolean",
+      "default": "true",
+      "order": "12",
+      "displayName": "Compression",
+      "value": "false"
+    },
+    "DefaultAFLocation": {
+      "description": "Defines the hierarchies tree in Asset Framework in which the assets will be created, each level is separated by /, PI Web API only.",
+      "type": "string",
+      "default": "/fledge/data_piwebapi/default",
+      "order": "13",
+      "displayName": "Asset Framework hierarchies tree",
+      "validity": "PIServerEndpoint == \"PI Web API\"",
+      "value": "/fledge/data_piwebapi/default"
+    },
+    "AFMap": {
+      "description": "Defines a set of rules to address where assets should be placed in the AF hierarchy.",
+      "type": "JSON",
+      "default": "{ }",
+      "order": "14",
+      "displayName": "Asset Framework hierarchies rules",
+      "validity": "PIServerEndpoint == \"PI Web API\"",
+      "value": "{ }"
+    },
+    "notBlockingErrors": {
+      "description": "These errors are considered not blocking in the communication with the PI Server, the sending operation will proceed with the next block of data if one of these is encountered",
+      "type": "JSON",
+      "default": "{ \"errors400\" : [ \"Redefinition of the type with the same ID is not allowed\", \"Invalid value type for the property\", \"Property does not exist in the type definition\", \"Container is not defined\", \"Unable to find the property of the container of type\" ] }",
+      "order": "15",
+      "readonly": "true",
+      "value": "{ \"errors400\" : [ \"Redefinition of the type with the same ID is not allowed\", \"Invalid value type for the property\", \"Property does not exist in the type definition\", \"Container is not defined\", \"Unable to find the property of the container of type\" ] }"
+    },
+    "PIWebAPIAuthenticationMethod": {
+      "description": "Defines the authentication method to be used with the PI Web API.",
+      "type": "enumeration",
+      "options": [
+        "anonymous",
+        "basic",
+        "kerberos"
+      ],
+      "default": "anonymous",
+      "order": "17",
+      "displayName": "PI Web API Authentication Method",
+      "validity": "PIServerEndpoint == \"PI Web API\"",
+      "value": "anonymous"
+    },
+    "PIWebAPIUserId": {
+      "description": "User id of PI Web API to be used with the basic access authentication.",
+      "type": "string",
+      "default": "user_id",
+      "order": "18",
+      "displayName": "PI Web API User Id",
+      "validity": "PIServerEndpoint == \"PI Web API\" && PIWebAPIAuthenticationMethod == \"basic\"",
+      "value": "user_id"
+    },
+    "PIWebAPIPassword": {
+      "description": "Password of the user of PI Web API to be used with the basic access authentication.",
+      "type": "password",
+      "default": "password",
+      "order": "19",
+      "displayName": "PI Web API Password",
+      "validity": "PIServerEndpoint == \"PI Web API\" && PIWebAPIAuthenticationMethod == \"basic\"",
+      "value": "****"
+    },
+    "PIWebAPIKerberosKeytabFileName": {
+      "description": "Keytab file name used for Kerberos authentication in PI Web API.",
+      "type": "string",
+      "default": "piwebapi_kerberos_https.keytab",
+      "order": "20",
+      "displayName": "PI Web API Kerberos keytab file",
+      "validity": "PIServerEndpoint == \"PI Web API\" && PIWebAPIAuthenticationMethod == \"kerberos\"",
+      "value": "piwebapi_kerberos_https.keytab"
+    },
+    "OCSNamespace": {
+      "description": "Specifies the OCS namespace where the information are stored and it is used for the interaction with the OCS API",
+      "type": "string",
+      "default": "name_space",
+      "order": "21",
+      "displayName": "OCS Namespace",
+      "validity": "PIServerEndpoint == \"OSIsoft Cloud Services\"",
+      "value": "name_space"
+    },
+    "OCSTenantId": {
+      "description": "Tenant id associated to the specific OCS account",
+      "type": "string",
+      "default": "ocs_tenant_id",
+      "order": "22",
+      "displayName": "OCS Tenant ID",
+      "validity": "PIServerEndpoint == \"OSIsoft Cloud Services\"",
+      "value": "ocs_tenant_id"
+    },
+    "OCSClientId": {
+      "description": "Client id associated to the specific OCS account, it is used to authenticate the source for using the OCS API",
+      "type": "string",
+      "default": "ocs_client_id",
+      "order": "23",
+      "displayName": "OCS Client ID",
+      "validity": "PIServerEndpoint == \"OSIsoft Cloud Services\"",
+      "value": "ocs_client_id"
+    },
+    "OCSClientSecret": {
+      "description": "Client secret associated to the specific OCS account, it is used to authenticate the source for using the OCS API",
+      "type": "password",
+      "default": "ocs_client_secret",
+      "order": "24",
+      "displayName": "OCS Client Secret",
+      "validity": "PIServerEndpoint == \"OSIsoft Cloud Services\"",
+      "value": "****"
+    }
   }
   $
 
-Once enabled, the plugin will be executed inside the *SEND_PR_1* task within 30 seconds, so you have to wait up to 30 seconds to see the new, full configuration. After 30 seconds or so, you should see something like this:
+You can look at the descriptions to have a taste of what you can control with this plugin. The default configuration should be fine, with the exception of the *ServerHostname*, which of course should refer to the IP address of the machine and the port used by the PI Connector Relay OMF. The PI Connector Relay OMF 1.0 used the HTTP protocol with port 8118 and version 1.2, or higher, uses the HTTPS and port 5460. Assuming that the port is *5460* and the IP address is *192.168.56.101*, you can set the new ServerHostname with this PUT method:
 
 .. code-block:: console
 
-  $ curl -s http://localhost:8081/fledge/category/SEND_PR_1 | jq
-  { "north":             { "description": "The name of the north to use to translate the readings into the output format and send them",
-                           "type": "string", "value": "omf", "default": "omf" },
-    "OMFRetrySleepTime": { "description": "Seconds between each retry for the communication with the OMF PI Connector Relay",
-                           "type": "integer", "value": "1", "default": "1" },
-    "filterRule":        { "description": "JQ formatted filter to apply (applicable if applyFilter is True)",
-                           "type": "string", "value": ".[]", "default": ".[]" },
-    "URL":               { "description": "The URL of the PI Connector to send data to",
-                           "type": "string", "value": "https://pi-server:5460/ingress/messages", "default": "https://pi-server:5460/ingress/messages" },
-    "plugin":            { "description": "OMF North Plugin",
-                           "type": "string", "value": "omf", "default": "omf" },
-    "producerToken":     { "description": "The producer token that represents this Fledge stream",
-                           "type": "string", "value": "omf_north_0001", "default": "omf_north_0001" },
-    "OMFMaxRetry":       { "description": "Max number of retries for the communication with the OMF PI Connector Relay",
-                           "type": "integer", "value": "5", "default": "5" },
-    "enable":            { "description": "A switch that can be used to enable or disable execution of the sending process.",
-                           "type": "boolean", "value": "True", "default": "True" },
-    "OMFHttpTimeout":    { "description": "Timeout in seconds for the HTTP operations with the OMF PI Connector Relay",
-                           "type": "integer", "value": "30", "default": "30" },
-    "StaticData":        { "description": "Static data to include in each sensor reading sent to OMF.",
-                           "type": "JSON", "value": "{\"Company\": \"Dianomic\", \"Location\": \"Palo Alto\"}", "default": "{\"Company\": \"Dianomic\", \"Location\": \"Palo Alto\"}" },
-    "duration":          { "description": "How long the sending process should run (in seconds) before stopping.",
-                           "type": "integer", "value": "60", "default": "60" },
-    "sleepInterval":     { "description": "A period of time, expressed in seconds, to wait between attempts to send readings when there are no readings to be sent.",
-                           "type": "integer", "value": "5", "default": "5" },
-    "source":            { "description": "Defines the source of the data to be sent on the stream, this may be one of either readings, statistics or audit.",
-                           "type": "string", "value": "readings", "default": "readings" },
-    "blockSize":         { "description": "The size of a block of readings to send in each transmission.",
-                           "type": "integer", "value": "5000", "default": "5000" },
-    "applyFilter":       { "description": "Whether to apply filter before processing the data",
-                           "type": "boolean", "value": "False", "default": "False" },
-    "stream_id":         { "description": "Stream ID",
-                           "type": "integer", "value": "1", "default": "1" }
-  }
-  $
-
-You can look at the descriptions to have a taste of what you can control with this plugin. The default configuration should be fine, with the exception of the *URL*, which of course should refer to the IP address of the machine and the port used by the PI Connector Relay OMF. The PI Connector Relay OMF 1.0 used the HTTP protocol with port 8118 and version 1.2, or higher, uses the HTTPS and port 5460. Assuming that the port is *5460* and the IP address is *192.168.56.101*, you can set the new URL with this PUT method:
-
-.. code-block:: console
-
-  $ curl -sH'Content-Type: application/json' -X PUT -d '{ "value": "https://192.168.56.101:5460/ingress/messages" }' http://localhost:8081/fledge/category/SEND_PR_1/URL | jq
-  { "description": "The URL of the PI Connector to send data to",
-    "type":        "string",
-    "value":       "https://192.168.56.101:5460/ingress/messages",
-    "default":     "https://pi-server:5460/ingress/messages"
+  $ curl -sH'Content-Type: application/json' -X PUT -d '{ "ServerHostname": "192.168.56.101" }' http://localhost:8081/fledge/category/OMF%20to%20PI%20north | jq
+  "ServerHostname": {
+    "description": "Hostname of the server running the endpoint either PI Web API or Connector Relay",
+    "type": "string",
+    "default": "localhost",
+    "order": "2",
+    "displayName": "Server hostname",
+    "validity": "PIServerEndpoint != \"Edge Data Store\" && PIServerEndpoint != \"OSIsoft Cloud Services\"",
+    "value": "192.168.56.101"
   }
   $
 

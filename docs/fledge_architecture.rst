@@ -130,4 +130,11 @@ A GUI enables administration of Fledge. All GUI capability is through the REST A
 
 **Backup & Restore**: backup/restore Fledge
 
-**Logs**: see system, notification, audit logging information
+**Logs**: see system, notification, audit, packages and tasks logging information
+
+**Configuration Management**: manage configuration of all components
+
+**Schedules**: flexible scheduler management for processes and tasks
+
+**Support**: support bundle contents with system diagnostic reports
+

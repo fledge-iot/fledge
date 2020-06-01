@@ -61,7 +61,7 @@ You may also want to install some utilities to make your life easier when you us
 Building Fledge
 ================
 
-In this section we will describe how to build Fledge on Ubuntu 18.04 LTS (Server or Desktop). Other Linux distributions, Debian or Red-Hat based, or even other versions of Ubuntu may differ. If you are not familiar with Linux and you do not want to build Fledge from the source code, you can download a ready-made Debian package (the list of packages is `available here <92_downloads.html>`_).
+In this section we will describe how to build Fledge on Ubuntu 18.04 LTS (Server or Desktop). Other Linux distributions, Debian or Red-Hat based, or even other versions of Ubuntu may differ. If you are not familiar with Linux and you do not want to build Fledge from the source code, you can download a ready-made Debian package (the list of packages is `available here <../92_downloads.html>`_).
 
 
 Build Pre-Requisites
@@ -323,15 +323,18 @@ You can check the status of Fledge with the ``fledge status`` command. For few s
   Fledge starting.
   $
   $ scripts/fledge status
-  Fledge v1.3.1 running.
-  Fledge uptime:  175 seconds.
-  Fledge Records: 0 read, 0 sent, 0 purged.
+  Fledge v1.8.0 running.
+  Fledge Uptime:  9065 seconds.
+  Fledge records: 86299 read, 86851 sent, 0 purged.
   Fledge does not require authentication.
   === Fledge services:
   fledge.services.core
+  fledge.services.storage --address=0.0.0.0 --port=42583
+  fledge.services.south --port=42583 --address=127.0.0.1 --name=Sine
+  fledge.services.notification --port=42583 --address=127.0.0.1 --name=Fledge Notifications
   === Fledge tasks:
-  fledge.tasks.north.sending_process --stream_id 1 --debug_level 1 --port=40417 --address=127.0.0.1 --name=sending process
-  fledge.tasks.north.sending_process --stream_id 2 --debug_level 1 --port=40417 --address=127.0.0.1 --name=statistics to pi
+  fledge.tasks.purge --port=42583 --address=127.0.0.1 --name=purge
+  tasks/sending_process --port=42583 --address=127.0.0.1 --name=PI Server
   $
 
 If you are curious to see a proper output from Fledge, you can query the Core microservice using the REST API:
@@ -339,10 +342,10 @@ If you are curious to see a proper output from Fledge, you can query the Core mi
 .. code-block:: console
 
   $ curl -s http://localhost:8081/fledge/ping ; echo
-  {"dataPurged": 0, "dataRead": 10, "uptime": 308.42881059646606, "dataSent": 0, "authenticationOptional": true}
+  {"uptime": 10480, "dataRead": 0, "dataSent": 0, "dataPurged": 0, "authenticationOptional": true, "serviceName": "Fledge", "hostName": "fledge", "ipAddresses": ["x.x.x.x", "x:x:x:x:x:x:x:x"], "health": "green", "safeMode": false}
   $
   $ curl -s http://localhost:8081/fledge/statistics ; echo
-  [{"key": "BUFFERED", "description": "The number of readings currently in the Fledge buffer", "value": 0}, {"key": "DISCARDED", "description": "The number of readings discarded at the input side by Fledge, i.e. discarded before being  placed in the buffer. This may be due to some error in the readings themselves.", "value": 0}, {"key": "PURGED", "description": "The number of readings removed from the buffer by the purge process", "value": 0}, {"key": "READINGS", "description": "The number of readings received by Fledge since startup", "value": 0}, {"key": "SENT_1", "description": "The number of readings sent to the historian", "value": 0}, {"key": "SENT_2", "description": "The number of statistics data sent to the historian", "value": 0}, {"key": "UNSENT", "description": "The number of readings filtered out in the send process", "value": 0}, {"key": "UNSNPURGED", "description": "The number of readings that were purged from the buffer before being sent", "value": 0}]
+  [{"key": "BUFFERED", "description": "Readings currently in the Fledge buffer", "value": 0}, {"key": "DISCARDED", "description": "Readings discarded by the South Service before being  placed in the buffer. This may be due to an error in the readings themselves.", "value": 0}, {"key": "PURGED", "description": "Readings removed from the buffer by the purge process", "value": 0}, {"key": "READINGS", "description": "Readings received by Fledge", "value": 0}, {"key": "UNSENT", "description": "Readings filtered out in the send process", "value": 0}, {"key": "UNSNPURGED", "description": "Readings that were purged from the buffer before being sent", "value": 0}]
   $
 
 Congratulations! You have installed and tested Fledge! If you want to go extra mile (and make the output of the REST API more readable, download the *jq* JSON processor and pipe the output of the *curl* command to it:
@@ -356,42 +359,32 @@ Congratulations! You have installed and tested Fledge! If you want to go extra m
   [
     {
       "key": "BUFFERED",
-      "description": "The number of readings currently in the Fledge buffer",
+      "description": "Readings currently in the Fledge buffer",
       "value": 0
     },
     {
       "key": "DISCARDED",
-      "description": "The number of readings discarded at the input side by Fledge, i.e. discarded before being  placed in the buffer. This may be due to some error in the readings themselves.",
+      "description": "Readings discarded by the South Service before being  placed in the buffer. This may be due to an error in the readings themselves.",
       "value": 0
     },
     {
       "key": "PURGED",
-      "description": "The number of readings removed from the buffer by the purge process",
+      "description": "Readings removed from the buffer by the purge process",
       "value": 0
     },
     {
       "key": "READINGS",
-      "description": "The number of readings received by Fledge since startup",
-      "value": 0
-    },
-    {
-      "key": "SENT_1",
-      "description": "The number of readings sent to the historian",
-      "value": 0
-    },
-    {
-      "key": "SENT_2",
-      "description": "The number of statistics data sent to the historian",
+      "description": "Readings received by Fledge",
       "value": 0
     },
     {
       "key": "UNSENT",
-      "description": "The number of readings filtered out in the send process",
+      "description": "Readings filtered out in the send process",
       "value": 0
     },
     {
       "key": "UNSNPURGED",
-      "description": "The number of readings that were purged from the buffer before being sent",
+      "description": "Readings that were purged from the buffer before being sent",
       "value": 0
     }
   ]
@@ -659,7 +652,7 @@ Here are some extra notes for the CentOS users.
 
 .. code-block:: console
 
-  Starting Fledge v1.3.1.Fledge cannot start.
+  Starting Fledge v1.8.0.Fledge cannot start.
   Check /home/fledge/Fledge/data/core.err for more information.
 
 Check the *core.err* file, but if it is empty and *fledge status* shows Fledge running, it means that the services are up and running.
@@ -667,11 +660,11 @@ Check the *core.err* file, but if it is empty and *fledge status* shows Fledge r
 .. code-block:: console
 
   $ fledge start
-  Starting Fledge v1.3.1.Fledge cannot start.
+  Starting Fledge v1.8.0.Fledge cannot start.
   Check /home/fledge/Fledge/data/core.err for more information.
   $
   $ fledge status
-  Fledge v1.3.1 running.
+  Fledge v1.8.0 running.
   Fledge uptime:  6 seconds.
   Fledge Records: 0 read, 0 sent, 0 purged.
   Fledge does not require authentication.
@@ -694,7 +687,7 @@ Check the *core.err* file, but if it is empty and *fledge status* shows Fledge r
 .. code-block:: console
 
   $ fledge status
-  Fledge v1.3.1 running.
+  Fledge v1.8.0 running.
   Fledge uptime:  6 seconds.
   Fledge Records: 0 read, 0 sent, 0 purged.
   Fledge does not require authentication.

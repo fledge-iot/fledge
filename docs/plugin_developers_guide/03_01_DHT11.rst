@@ -4,16 +4,16 @@
 .. Images
 
 .. |DHT11 in PI| image:: https://s3.amazonaws.com/fledge/readthedocs/images/06_dht11_tags_in_PI.jpg
-   :target: https://s3.amazonaws.com/fledge/readthedocs/images/06_dht11_tags_in_PI.jpg 
+   :target: https://s3.amazonaws.com/fledge-iot/readthedocs/images/06_dht11_tags_in_PI.jpg
 
 .. Links
 .. |these INSTALLATION| raw:: html
 
-   <a href="../04_installation.html">these</a>
+   <a href="../building_fledge/04_installation.html">these</a>
 
 .. |Getting Started| raw:: html
 
-   <a href="../03_getting_started.html#building-fledge">here</a>
+   <a href="../building_fledge/building_fledge.html">here</a>
 
 .. Links in new tabs
 
@@ -31,19 +31,19 @@
 
 .. |DHT Manual| raw:: html
 
-   <a href="https://s3.amazonaws.com/fledge/docs/v1/Common/plugins/South/DHT11/DHT11.pdf" target="_blank">DHT11 Product Manual</a>
+   <a href="https://s3.amazonaws.com/fledge-iot/docs/v1/Common/plugins/South/DHT11/DHT11.pdf" target="_blank">DHT11 Product Manual</a>
 
 .. |DHT Resistor| raw:: html
 
-   <a href="https://s3.amazonaws.com/fledge/docs/v1/Common/plugins/South/DHT11/DHT11-with-resistor.jpg" target="_blank">This picture</a>
+   <a href="https://s3.amazonaws.com/fledge-iot/docs/v1/Common/plugins/South/DHT11/DHT11-with-resistor.jpg" target="_blank">This picture</a>
 
 .. |DHT Wired| raw:: html
 
-   <a href="https://s3.amazonaws.com/fledge/docs/v1/Common/plugins/South/DHT11/DHT11-RaspPI-wired.jpg" target="_blank">This picture</a>
+   <a href="https://s3.amazonaws.com/fledge-iot/docs/v1/Common/plugins/South/DHT11/DHT11-RaspPI-wired.jpg" target="_blank">This picture</a>
 
 .. |DHT Pins| raw:: html
 
-   <a href="https://s3.amazonaws.com/fledge/docs/v1/Common/plugins/South/DHT11/DHT11-RaspPI-pins.jpg" target="_blank">this</a>
+   <a href="https://s3.amazonaws.com/fledge-iot/docs/v1/Common/plugins/South/DHT11/DHT11-RaspPI-pins.jpg" target="_blank">this</a>
 
 .. |GPIO| raw:: html
 
@@ -119,7 +119,7 @@ This is the code for the plugin:
   # -*- coding: utf-8 -*-
 
   # FLEDGE_BEGIN
-  # See: http://fledge.readthedocs.io/
+  # See: http://fledge-iot.readthedocs.io/
   # FLEDGE_END
 
   """ Plugin for a DHT11 temperature and humidity sensor attached directly

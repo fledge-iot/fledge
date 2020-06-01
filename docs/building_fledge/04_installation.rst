@@ -32,7 +32,7 @@
 
 .. |Downloads page| raw:: html
 
-   <a href="92_downloads.html" target="_blank">Downloads page</a>
+   <a href="../92_downloads.html" target="_blank">Downloads page</a>
 
 
 .. =============================================
@@ -54,7 +54,7 @@ Once you have built Fledge following the instructions presented |build fledge|, 
 
   $ sudo make install
   mkdir -p /usr/local/fledge
-  Installing Fledge version 1.3.1, DB schema 2
+  Installing Fledge version 1.8.0, DB schema 2
   -- Fledge DB schema check OK: Info: /usr/local/fledge is empty right now. Skipping DB schema check.
   cp VERSION /usr/local/fledge
   cd cmake_build ; cmake /home/fledge/Fledge/
@@ -105,49 +105,26 @@ Fledge is now present in */usr/local/fledge* and ready to start. The start scrip
   -rwxr-xr-x 1 root    root      37 Apr 24 18:07 VERSION
   $
   $ bin/fledge
-  Usage: fledge {start|stop|status|reset|kill|help|version}
+  Usage: fledge {start|start --safe-mode|stop|status|reset|kill|help|version}
   $
   $ bin/fledge help
-  Usage: fledge {start|stop|status|reset|kill|help|version}
+  Usage: fledge {start|start --safe-mode|stop|status|reset|kill|help|version}
   Fledge v1.3.1 admin script
   The script is used to start Fledge
   Arguments:
-   start   - Start Fledge core (core will start other services).
-   stop    - Stop all Fledge services and processes
-   kill    - Kill all Fledge services and processes
-   status  - Show the status for the Fledge services
-   reset   - Restore Fledge factory settings
-             WARNING! This command will destroy all your data!
-   version - Print Fledge version
-   help    - This text
+   start             - Start Fledge core (core will start other services).
+   start --safe-mode - Start in safe mode (only core and storage services will be started)
+   stop              - Stop all Fledge services and processes
+   kill              - Kill all Fledge services and processes
+   status            - Show the status for the Fledge services
+   reset             - Restore Fledge factory settings
+                       WARNING! This command will destroy all your data!
+   version           - Print Fledge version
+   help              - This text
   $
   $ bin/fledge start
   Starting Fledge......
   Fledge started.
-  $ 
-
-
-Installing Fledge in a Different Destination Directory
--------------------------------------------------------
-
-The destination directory for Fledge is the root directory */*.  You can change the destination by setting the *make* variable *DESTDIR*. For example, if you want to install Fledge in */opt* you should execute this command:
-
-.. code-block:: console
-
-  $ sudo make install DESTDIR=/opt
-  mkdir -p /opt/usr/local/fledge
-  ...
-  $ ls -l
-  total 36
-  drwxr-xr-x 9 root   root   4096 Dec 11 13:49 ./
-  drwxr-xr-x 3 root   root   4096 Dec 11 13:49 ../
-  drwxr-xr-x 2 root   root   4096 Dec 11 13:49 bin/
-  drwxr-xr-x 3 ubuntu ubuntu 4096 Dec 11 13:49 data/
-  drwxr-xr-x 3 root   root   4096 Dec 11 13:49 extras/
-  drwxr-xr-x 3 root   root   4096 Dec 11 13:49 plugins/
-  drwxr-xr-x 3 root   root   4096 Dec 11 13:49 python/
-  drwxr-xr-x 6 root   root   4096 Dec 11 13:49 scripts/
-  drwxr-xr-x 2 root   root   4096 Dec 11 13:49 services/
   $ 
 
 
@@ -281,19 +258,20 @@ For example, if you are installing Fledge on an Intel x86_64 machine, you can ty
 
 .. code-block:: console
 
-  $ wget https://s3.amazonaws.com/fledge/debian/x86_64/fledge-1.3.1-x86_64_ubuntu_16_04.deb
-  --2018-04-24 18:22:08--  https://s3.amazonaws.com/fledge/debian/x86_64/fledge-1.3.1-x86_64_ubuntu_16_04.deb
-  Resolving s3.amazonaws.com (s3.amazonaws.com)... 52.216.133.221
-  Connecting to s3.amazonaws.com (s3.amazonaws.com)|52.216.133.221|:443... connected.
+  $ wget https://fledge-iot.s3.amazonaws.com/1.8.0/ubuntu1804/x86_64/fledge-1.8.0_x86_64_ubuntu1804.tgz
+  --2020-05-28 18:24:12--  https://fledge-iot.s3.amazonaws.com/1.8.0/ubuntu1804/x86_64/fledge-1.8.0_x86_64_ubuntu1804.tgz
+  Resolving fledge-iot.s3.amazonaws.com (fledge-iot.s3.amazonaws.com)... 52.217.40.188
+  Connecting to fledge-iot.s3.amazonaws.com (fledge-iot.s3.amazonaws.com)|52.217.40.188|:443... connected.
   HTTP request sent, awaiting response... 200 OK
-  Length: 496094 (484K) [application/x-deb]
-  Saving to: ‘fledge-1.3.1-x86_64_ubuntu_16_04.deb’
+  Length: 24638625 (23M) [application/x-tar]
+  Saving to: ‘fledge-1.8.0_x86_64_ubuntu1804.tgz’
 
-  fledge-1.3.1-x86_64_ubuntu_16_04.deb     100%[=============================================================>] 484.47K   521KB/s    in 0.9s
-  2018-04-24 18:22:10 (521 KB/s) - ‘fledge-1.3.1-x86_64_ubuntu_16_04.deb’ saved [496094/496094]
+  fledge-1.8.0_x86_64_ubuntu1804.tg 100%[============================================================>]  23.50M  4.30MB/s    in 8.3s
+
+  2020-05-28 18:24:26 (2.84 MB/s) - ‘fledge-1.8.0_x86_64_ubuntu1804.tgz’ saved [24638625/24638625]
   $
 
-We recommend to execute an *update-upgrade-update* of the system first, then you may copy the Fledge package in the *apt cache* directory and install it.
+We recommend to execute an *update-upgrade-update* of the system first, then you may untar the fledge-1.8.0_x86_64_ubuntu1804.tgz file and copy the Fledge package in the *apt cache* directory and install it.
 
 
 .. code-block:: console
@@ -305,17 +283,17 @@ We recommend to execute an *update-upgrade-update* of the system first, then you
   ...
   $ sudo apt update
   ...
-  $ sudo cp fledge-1.3.1-x86_64_ubuntu_16_04.deb /var/cache/apt/archives/.
+  $ sudo cp fledge-1.8.0-x86_64.deb /var/cache/apt/archives/.
   ...
-  $ sudo apt install /var/cache/apt/archives/fledge-1.3.1-x86_64_ubuntu_16_04.deb
+  $ sudo apt install /var/cache/apt/archives/fledge-1.8.0-x86_64.deb
   Reading package lists... Done
   Building dependency tree
   Reading state information... Done
-  Note, selecting 'fledge' instead of '/var/cache/apt/archives/fledge-1.3.1-x86_64_ubuntu_16_04.deb'
+  Note, selecting 'fledge' instead of '/var/cache/apt/archives/fledge-1.8.0-x86_64.deb'
   The following packages were automatically installed and are no longer required:
   ...
-  Unpacking fledge (1.3.1) ...
-  Setting up fledge (1.3.1) ...
+  Unpacking fledge (1.8.0) ...
+  Setting up fledge (1.8.0) ...
   Resolving data directory
   Data directory does not exist. Using new data directory
   Installing service script
@@ -323,10 +301,27 @@ We recommend to execute an *update-upgrade-update* of the system first, then you
   Certificate files do not exist. Generating new certificate files.
   Creating a self signed SSL certificate ...
   Certificates created successfully, and placed in data/etc/certs
+  Generating auth certificate files
+  CA Certificate file does not exist. Generating new CA certificate file.
+  Creating ca SSL certificate ...
+  ca certificate created successfully, and placed in data/etc/certs
+  Admin Certificate file does not exist. Generating new admin certificate file.
+  Creating user SSL certificate ...
+  user certificate created successfully for admin, and placed in data/etc/certs
+  User Certificate file does not exist. Generating new user certificate file.
+  Creating user SSL certificate ...
+  user certificate created successfully for user, and placed in data/etc/certs
   Setting ownership of Fledge files
+  Calling Fledge package update script
+  Linking update task
+  Changing setuid of update_task.apt
+  Removing task/update
+  Create link file
+  Copying sudoers file
+  Setting setuid bit of cmdutil
   Enabling Fledge service
-  fledge.service is not a native service, redirecting to systemd-sysv-install
-  Executing /lib/systemd/systemd-sysv-install enable fledge
+  fledge.service is not a native service, redirecting to systemd-sysv-install.
+  Executing: /lib/systemd/systemd-sysv-install enable fledge
   Starting Fledge service
   $ 
 
@@ -337,7 +332,7 @@ Check the newly installed package:
 .. code-block:: console
 
   $ sudo dpkg -l | grep fledge
-  ii  fledge            1.3.1             amd64        Fledge, the open source platform for the Internet of Things
+  ii  fledge     1.8.0       amd64        Fledge, the open source platform for the Internet of Things
   $
 
 
@@ -347,16 +342,16 @@ You can also check the service currently running:
 
   $ sudo systemctl status fledge.service
   ● fledge.service - LSB: Fledge
-   Loaded: loaded (/etc/init.d/fledge; bad; vendor preset: enabled)
-   Active: active (running) since Thu 2018-05-10 03:48:20 BST; 1min 31s ago
+   Loaded: loaded (/etc/init.d/fledge; generated)
+   Active: active (running) since Thu 2020-05-28 18:42:07 IST; 9min ago
      Docs: man:systemd-sysv-generator(8)
-  Process: 1088 ExecStart=/etc/init.d/fledge start (code=exited, status=0/SUCCESS)
-    Tasks: 14
-   Memory: 87.2M
-      CPU: 2.603s
+   Process: 5047 ExecStart=/etc/init.d/fledge start (code=exited, status=0/SUCCESS)
+     Tasks: 27 (limit: 4680)
    CGroup: /system.slice/fledge.service
-           ├─1218 python3 -m fledge.services.core
-           └─1226 /usr/local/fledge/services/storage --address=0.0.0.0 --port=44530
+           ├─5123 python3 -m fledge.services.core
+           ├─5331 /usr/local/fledge/services/fledge.services.storage --address=0.0.0.0 --port=34827
+           ├─8119 /bin/sh tasks/north_c --port=34827 --address=127.0.0.1 --name=OMF to PI north
+           └─8120 ./tasks/sending_process --port=34827 --address=127.0.0.1 --name=OMF to PI north
 
   ...
   $
@@ -367,7 +362,7 @@ Check if Fledge is up and running with the ``fledge`` command:
 .. code-block:: console
 
   $ /usr/local/fledge/bin/fledge status
-  Fledge v1.3.1 running.
+  Fledge v1.8.0 running.
   Fledge Uptime:  162 seconds.
   Fledge records: 0 read, 0 sent, 0 purged.
   Fledge does not require authentication.
@@ -398,28 +393,34 @@ Use the ``apt`` or the ``apt-get`` command to uninstall Fledge:
 
 .. code-block:: console
 
-  $ sudo apt remove fledge
+  $ sudo apt purge fledge
   Reading package lists... Done
-  ...
-  The following packages will be REMOVED
-  fledge
-  0 to upgrade, 0 to newly install, 1 to remove and 2 not to upgrade.
+  Building dependency tree
+  Reading state information... Done
+  The following packages were automatically installed and are no longer required:
+    libmodbus-dev libmodbus5
+  Use 'sudo apt autoremove' to remove them.
+  The following packages will be REMOVED:
+    fledge*
+  0 upgraded, 0 newly installed, 1 to remove and 0 not upgraded.
   After this operation, 0 B of additional disk space will be used.
-  Do you want to continue? [Y/n]
-  (Reading database ... 211747 files and directories currently installed.)
-  Removing fledge (1.3.1) ...
+  Do you want to continue? [Y/n] y
+  (Reading database ... 160251 files and directories currently installed.)
+  Removing fledge (1.8.0) ...
   Fledge is currently running.
   Stop Fledge service.
   Kill Fledge.
-  Remove python cache files.
-  find: ‘/usr/local/fledge/scripts/common/__pycache__’: No such file or directory
   Disable Fledge service.
-  fledge.service is not a native service, redirecting to systemd-sysv-install
-  Executing /lib/systemd/systemd-sysv-install disable fledge
-  insserv: warning: current start runlevel(s) (empty) of script `fledge' overrides LSB defaults (2 3 4 5).
-  insserv: warning: current stop runlevel(s) (0 1 2 3 4 5 6) of script `fledge' overrides LSB defaults (0 1 6).
+  fledge.service is not a native service, redirecting to systemd-sysv-install.
+  Executing: /lib/systemd/systemd-sysv-install disable fledge
   Remove Fledge service script
   Reset systemctl
+  Cleanup of files
+  Remove fledge sudoers file
+  (Reading database ... 159822 files and directories currently installed.)
+  Purging configuration files for fledge (1.8.0) ...
+  Cleanup of files
+  Remove fledge sudoers file
   dpkg: warning: while removing fledge, directory '/usr/local/fledge' not empty so not removed
   $
 

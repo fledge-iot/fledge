@@ -66,7 +66,7 @@ In general, Fledge installation will require the following packages:
 - One or more Fledge North service (OSI PI and OCS north services are included in Fledge core)
 
 Using the package repository to install Fledge
-##############################################
+###############################################
 
 If you choose to use the Dianomic Systems package repository to install the packages you will need to follow the steps outlined below for the particular platform you are using.
 
@@ -135,8 +135,8 @@ You may also install multiple packages in a single command. To install the base 
 
 
 
-RedhHat & CentOS
-~~~~~~~~~~~~~~~~
+RedHat & CentOS
+~~~~~~~~~~~~~~~
 
 The RedHat and CentOS flavors of Linux use a different package management system, known as *yum*. Fledge also supports a package management system for the yum package manager.
 

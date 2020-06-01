@@ -8,7 +8,7 @@ The following is a set of guidelines for contributing to Fledge IoT
 project and its plugins, which are hosted in
 the [fledge-iot Organization](https://github.com/fledge-iot) on GitHub.
 
-To give us feedback or make suggestions use the [Fledge Slack Channel](https://slack/lfedge.org/).
+To give us feedback or make suggestions use the [Fledge Slack Channel](https://lfedge.slack.com/archives/CLJ7CNCAX).
 
 ## Pull requests
 

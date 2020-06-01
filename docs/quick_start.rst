@@ -91,7 +91,7 @@ Once complete you can add the repository itself into the apt configuration file 
     
     .. code-block:: console
 
-       deb  http://archives.fledge-iot.org/latest/buster/arm7l/ /
+       deb  http://archives.fledge-iot.org/latest/buster/armv7l/ /
 
     to the end of the file.
 
@@ -113,7 +113,7 @@ Once complete you can add the repository itself into the apt configuration file 
 
     .. code-block:: console
 
-       deb http://archives.fledge-iot.org/latest/mendel/aarch64/
+       deb http://archives.fledge-iot.org/latest/mendel/aarch64/ /
 
 Once the repository has been added you must inform the package manager to go and fetch a list of the packages it supports. To do this run the command
 
@@ -179,7 +179,7 @@ On CentOS run the commands
    sudo yum install -y epel-release
 
 
-On RehHat run the command
+On RedHat run the command
 
 .. code-block:: console
 
@@ -189,11 +189,11 @@ You can now install and upgrade fledge packages using the yum command. For examp
 
 .. code-block:: console
 
-   sudo yum install fledge fledge-gui
+   sudo yum install -y fledge fledge-gui
 
 
 Installing Fledge downloaded packages
-#####################################
+######################################
 
 Assuming you have downloaded the packages from the download link given above. Use SSH to login to the system that will host Fledge services. For each Fledge package that you choose to install, type the following command::
 

@@ -16,7 +16,7 @@ To give us feedback or make suggestions use the [Fledge Slack Channel](https://s
 refactoring code etc.), otherwise you risk spending a lot of time working on something that might
 already be underway or is unlikely to be merged into the project.
 
-Join the Fledge slack channel on [LFEdge](https://slack.lfedge.org/). This
+Join the Fledge slack channel on [LFEdge](https://lfedge.slack.com/archives/CLJ7CNCAX). This
 will allow you to talk to the wider fledge community and discuss your
 proposed changes and get help from the maintainers when needed.
 

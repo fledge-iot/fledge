@@ -325,7 +325,7 @@ You can inspect all the data buffered by the Fledge system on the Assets page.  
 This screen will display a list of every data asset in the system.  Alongside each asset are two icons; one to display a graph of the asset and another to download the data stored for that asset as a CSV file.
 
 Display Graph
--------------
+~~~~~~~~~~~~~
 
 .. image:: images/graph_icon.jpg
    :align: left
@@ -355,7 +355,7 @@ A summary tab is also available, this will show the minimum, maximum and average
 +----------------+
 
 Download Data
--------------
+~~~~~~~~~~~~~
 
 .. image:: images/download_icon.jpg
    :align: left
@@ -404,7 +404,7 @@ Using the OMF plugin
 OSISoft data historians are one of the most common destinations for Fledge data.  Fledge supports the full range of OSISoft historians; the PI System, Edge Data Store (EDS) and OSISoft Cloud Services (OCS). To send data to a PI server you may use either the older PI Connector Relay or the newer PI Web API OMF endpoint. It is recommended that new users use the PI Web API OMF endpoint rather then the Connector Relay which is no longer supported.
 
 PI Connector Relay
-------------------
+~~~~~~~~~~~~~~~~~~
 
 To use the Connector Relay, open and sign into the PI Relay Data Connection Manager.
 
@@ -450,7 +450,7 @@ The second screen will request the following information:
    - **Compression:** Compress the readings data before sending it to the PI System.
 
 PI Web API OMF Endpoint
------------------------
+~~~~~~~~~~~~~~~~~~~~~~~
 
 To use the PI Web API OMF endpoint first  ensure the OMF option was included in your PI Server when it was installed.  
 
@@ -487,7 +487,7 @@ Select PI Web API from the Endpoint options.
    - **Compression:** Compress the readings data before sending it to the PI System.
 
 EDS OMF Endpoint
-----------------
+~~~~~~~~~~~~~~~~
 
 To use the OSISoft Edge Data Store first install Edge Data Store on the same machine as your Fledge instance. It is a limitation of Edge Data Store that it must reside on the same host as any system that connects to it with OMF.
 
@@ -516,7 +516,7 @@ Select Edge Data Store from the Endpoint options.
    - **Compression:** Compress the readings data before sending it to the PI System.
 
 OCS OMF Endpoint
-----------------
+~~~~~~~~~~~~~~~~
 
 Go to the Fledge user interface, create a new North instance and select the “OMF” plugin on the first screen.
 The second screen will request the following information:

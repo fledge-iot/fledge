@@ -226,16 +226,18 @@ You can install Fledge as a service following these simple steps:
   $ sudo systemctl start fledge.service
   $ sudo systemctl status fledge.service
   ● fledge.service - LSB: Fledge
-     Loaded: loaded (/etc/init.d/fledge; bad; vendor preset: enabled)
-     Active: active (running) since Sun 2018-03-25 13:03:31 BST; 2min 8s ago
-       Docs: man:systemd-sysv-generator(8)
-    Process: 1661 ExecStart=/etc/init.d/fledge start (code=exited, status=0/SUCCESS)
-      Tasks: 14
-     Memory: 79.5M
-        CPU: 2.888s
-     CGroup: /system.slice/fledge.service
-             ├─1759 python3 -m fledge.services.core
-             └─1764 /usr/local/fledge/services/storage --address=0.0.0.0 --port=46309
+   Loaded: loaded (/etc/init.d/fledge; generated)
+   Active: active (running) since Thu 2020-05-28 18:42:07 IST; 9min ago
+     Docs: man:systemd-sysv-generator(8)
+   Process: 5047 ExecStart=/etc/init.d/fledge start (code=exited, status=0/SUCCESS)
+     Tasks: 27 (limit: 4680)
+   CGroup: /system.slice/fledge.service
+           ├─5123 python3 -m fledge.services.core
+           ├─5331 /usr/local/fledge/services/fledge.services.storage --address=0.0.0.0 --port=34827
+           ├─8119 /bin/sh tasks/north_c --port=34827 --address=127.0.0.1 --name=OMF to PI north
+           └─8120 ./tasks/sending_process --port=34827 --address=127.0.0.1 --name=OMF to PI north
+
+  ...
   $
 
 |br|

@@ -222,50 +222,50 @@ The response payload is a JSON object with an array of JSON objects, one per val
 
   $ curl -X GET http://localhost:8081/fledge/category
   {
-		"categories":
-			[
-				{
-					"key": "SCHEDULER",
-					"description": "Scheduler configuration",
-					"displayName": "Scheduler"
-				},
-				{
-					"key": "SMNTR",
-					"description": "Service Monitor",
-					"displayName": "Service Monitor"
-				},
-				{
-					"key": "rest_api",
-					"description": "Fledge Admin and User REST API",
-					"displayName": "Admin API"
-				},
-				{
-					"key": "service",
-					"description": "Fledge Service",
-					"displayName": "Fledge Service"
-				},
-				{
-					"key": "Installation",
-					"description": "Installation",
-					"displayName": "Installation"
-				},
-				{
-					"key": "General",
-					"description": "General",
-					"displayName": "General"
-				},
-				{
-					"key": "Advanced",
-					"description": "Advanced",
-					"displayName": "Advanced"
-				},
-				{
-					"key": "Utilities",
-					"description": "Utilities",
-					"displayName": "Utilities"
-				}
-			]
-	}
+    "categories":
+    [
+      {
+        "key": "SCHEDULER",
+         "description": "Scheduler configuration",
+         "displayName": "Scheduler"
+      },
+      {
+        "key": "SMNTR",
+        "description": "Service Monitor",
+        "displayName": "Service Monitor"
+      },
+      {
+        "key": "rest_api",
+        "description": "Fledge Admin and User REST API",
+        "displayName": "Admin API"
+      },
+      {
+        "key": "service",
+        "description": "Fledge Service",
+        "displayName": "Fledge Service"
+      },
+      {
+        "key": "Installation",
+        "description": "Installation",
+        "displayName": "Installation"
+      },
+      {
+        "key": "General",
+        "description": "General",
+        "displayName": "General"
+      },
+      {
+        "key": "Advanced",
+        "description": "Advanced",
+        "displayName": "Advanced"
+      },
+      {
+        "key": "Utilities",
+        "description": "Utilities",
+        "displayName": "Utilities"
+      }
+    ]
+  }
   $
 
 |br|
@@ -326,97 +326,97 @@ The response payload is a set of configuration items within the category, each i
 
   $ curl -X GET http://localhost:8081/fledge/category/rest_api
   {
-			"enableHttp": {
-				"description": "Enable HTTP (disable to use HTTPS)",
-				"type": "boolean",
-				"default": "true",
-				"displayName": "Enable HTTP",
-				"order": "1",
-				"value": "true"
-			},
-			"httpPort": {
-				"description": "Port to accept HTTP connections on",
-				"type": "integer",
-				"default": "8081",
-				"displayName": "HTTP Port",
-				"order": "2",
-				"value": "8081"
-			},
-			"httpsPort": {
-				"description": "Port to accept HTTPS connections on",
-				"type": "integer",
-				"default": "1995",
-				"displayName": "HTTPS Port",
-				"order": "3",
-				"validity": "enableHttp==\"false\"",
-				"value": "1995"
-			},
-			"certificateName": {
-				"description": "Certificate file name",
-				"type": "string",
-				"default": "fledge",
-				"displayName": "Certificate Name",
-				"order": "4",
-				"validity": "enableHttp==\"false\"",
-				"value": "fledge"
-			},
-			"authentication": {
-				"description": "API Call Authentication",
-				"type": "enumeration",
-				"options": [
-					"mandatory",
-					"optional"
-				],
-				"default": "optional",
-				"displayName": "Authentication",
-				"order": "5",
-				"value": "optional"
-			},
-			"authMethod": {
-				"description": "Authentication method",
-				"type": "enumeration",
-				"options": [
-					"any",
-					"password",
-					"certificate"
-				],
-				"default": "any",
-				"displayName": "Authentication method",
-				"order": "6",
-				"value": "any"
-			},
-			"authCertificateName": {
-				"description": "Auth Certificate name",
-				"type": "string",
-				"default": "ca",
-				"displayName": "Auth Certificate",
-				"order": "7",
-				"value": "ca"
-			},
-			"allowPing": {
-				"description": "Allow access to ping, regardless of the authentication required and authentication header",
-				"type": "boolean",
-				"default": "true",
-				"displayName": "Allow Ping",
-				"order": "8",
-				"value": "true"
-			},
-			"passwordChange": {
-				"description": "Number of days after which passwords must be changed",
-				"type": "integer",
-				"default": "0",
-				"displayName": "Password Expiry Days",
-				"order": "9",
-				"value": "0"
-			},
-			"authProviders": {
-				"description": "Authentication providers to use for the interface (JSON array object)",
-				"type": "JSON",
-				"default": "{\"providers\": [\"username\", \"ldap\"] }",
-				"displayName": "Auth Providers",
-				"order": "10",
-				"value": "{\"providers\": [\"username\", \"ldap\"] }"
-			}
+    "enableHttp": {
+       "description": "Enable HTTP (disable to use HTTPS)",
+       "type": "boolean",
+       "default": "true",
+       "displayName": "Enable HTTP",
+       "order": "1",
+       "value": "true"
+    },
+    "httpPort": {
+       "description": "Port to accept HTTP connections on",
+       "type": "integer",
+       "default": "8081",
+       "displayName": "HTTP Port",
+       "order": "2",
+       "value": "8081"
+    },
+    "httpsPort": {
+       "description": "Port to accept HTTPS connections on",
+       "type": "integer",
+       "default": "1995",
+       "displayName": "HTTPS Port",
+       "order": "3",
+       "validity": "enableHttp==\"false\"",
+       "value": "1995"
+    },
+    "certificateName": {
+      "description": "Certificate file name",
+      "type": "string",
+      "default": "fledge",
+      "displayName": "Certificate Name",
+      "order": "4",
+      "validity": "enableHttp==\"false\"",
+			"value": "fledge"
+    },
+    "authentication": {
+      "description": "API Call Authentication",
+      "type": "enumeration",
+      "options": [
+        "mandatory",
+        "optional"
+      ],
+      "default": "optional",
+      "displayName": "Authentication",
+       "order": "5",
+       "value": "optional"
+    },
+    "authMethod": {
+      "description": "Authentication method",
+      "type": "enumeration",
+      "options": [
+        "any",
+        "password",
+        "certificate"
+      ],
+      "default": "any",
+      "displayName": "Authentication method",
+      "order": "6",
+      "value": "any"
+    },
+    "authCertificateName": {
+      "description": "Auth Certificate name",
+      "type": "string",
+      "default": "ca",
+      "displayName": "Auth Certificate",
+      "order": "7",
+      "value": "ca"
+    },
+    "allowPing": {
+      "description": "Allow access to ping, regardless of the authentication required and authentication header",
+      "type": "boolean",
+      "default": "true",
+      "displayName": "Allow Ping",
+      "order": "8",
+      "value": "true"
+    },
+    "passwordChange": {
+      "description": "Number of days after which passwords must be changed",
+      "type": "integer",
+      "default": "0",
+      "displayName": "Password Expiry Days",
+      "order": "9",
+      "value": "0"
+    },
+    "authProviders": {
+       "description": "Authentication providers to use for the interface (JSON array object)",
+       "type": "JSON",
+       "default": "{\"providers\": [\"username\", \"ldap\"] }",
+       "displayName": "Auth Providers",
+       "order": "10",
+       "value": "{\"providers\": [\"username\", \"ldap\"] }"
+    }
 	}
   $
 
@@ -639,7 +639,7 @@ The response payload is the newly updated configuration item within the category
     "order": "3",
     "validity": "enableHttp==\"false\"",
     "value": "1995"
-}
+  }
   $
 
 |br|
@@ -912,22 +912,21 @@ The response payload is a JSON object with an array of task objects.
   $
   $ curl -X GET http://localhost:8081/fledge/task/latest?name=purge
   {
-  "tasks":
-		[
-				{
-					"id": "609f35e6-4e89-4749-ac17-841ae3ee2b31",
-					"name": "purge",
-					"processName": "purge",
-					"state": "Complete",
-					"startTime": "2020-05-28 09:44:15.165",
-					"endTime": "2020-05-28 09:44:28.154",
-					"exitCode": 0,
-					"reason": "",
-					"pid": 20914
-				}
+  "tasks":  [
+    {
+      "id": "609f35e6-4e89-4749-ac17-841ae3ee2b31",
+      "name": "purge",
+      "processName": "purge",
+      "state": "Complete",
+      "startTime": "2020-05-28 09:44:15.165",
+      "endTime": "2020-05-28 09:44:28.154",
+      "exitCode": 0,
+      "reason": "",
+      "pid": 20914
+    }
   	]
   }
-   $
+  $
 
 |br|
 
@@ -978,14 +977,14 @@ The response payload is a JSON object containing the task details.
 
   $ curl -X GET http://localhost:8081/fledge/task/ea334d3b-8a33-4a29-845c-8be50efd44a4
   {
-			"id": "ea334d3b-8a33-4a29-845c-8be50efd44a4",
-			"name": "certificate checker",
-			"processName": "certificate checker",
-			"state": "Complete",
-			"startTime": "2020-05-28 09:35:00.009",
-			"endTime": "2020-05-28 09:35:00.057",
-			"exitCode": 0,
-			"reason": ""
+    "id": "ea334d3b-8a33-4a29-845c-8be50efd44a4",
+    "name": "certificate checker",
+    "processName": "certificate checker",
+    "state": "Complete",
+    "startTime": "2020-05-28 09:35:00.009",
+    "endTime": "2020-05-28 09:35:00.057",
+    "exitCode": 0,
+    "reason": ""
   }
   $
 

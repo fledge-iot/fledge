@@ -472,15 +472,50 @@ If you are curious to see which categories are available in Fledge, simply type:
 .. code-block:: console
 
   $ curl -s http://localhost:8081/fledge/category ; echo
-  { "categories": [ { "key": "SCHEDULER",  "description": "Scheduler configuration"                   },
-                    { "key": "SEND_PR_1",  "description": "OMF North Plugin Configuration"            },
-                    { "key": "SEND_PR_2",  "description": "OMF North Statistics Plugin Configuration" },
-                    { "key": "SEND_PR_4",  "description": "OCS North Plugin Configuration"            },
-                    { "key": "SMNTR",      "description": "Service Monitor configuration"             },
-                    { "key": "South",      "description": "South Service configuration"               },
-                    { "key": "rest_api",   "description": "The Fledge Admin and User REST API"       },
-                    { "key": "service",    "description": "The Fledge service configuration"         }
-                  ]
+  {
+    "categories":
+    [
+      {
+        "key": "SCHEDULER",
+         "description": "Scheduler configuration",
+         "displayName": "Scheduler"
+      },
+      {
+        "key": "SMNTR",
+        "description": "Service Monitor",
+        "displayName": "Service Monitor"
+      },
+      {
+        "key": "rest_api",
+        "description": "Fledge Admin and User REST API",
+        "displayName": "Admin API"
+      },
+      {
+        "key": "service",
+        "description": "Fledge Service",
+        "displayName": "Fledge Service"
+      },
+      {
+        "key": "Installation",
+        "description": "Installation",
+        "displayName": "Installation"
+      },
+      {
+        "key": "General",
+        "description": "General",
+        "displayName": "General"
+      },
+      {
+        "key": "Advanced",
+        "description": "Advanced",
+        "displayName": "Advanced"
+      },
+      {
+        "key": "Utilities",
+        "description": "Utilities",
+        "displayName": "Utilities"
+      }
+    ]
   }
   $
 
@@ -491,14 +526,80 @@ The configuration for the OMF Translator used to stream the South data is initia
 .. code-block:: console
 
   $ curl -s http://localhost:8081/fledge/category/SEND_PR_1 ; echo
+  $ curl -sX GET   http://localhost:8081/fledge/category/OMF%20to%20PI%20north
   {
+    "enable": {
+      "description": "A switch that can be used to enable or disable execution of the sending process.",
+      "type": "boolean",
+      "readonly": "true",
+      "default": "true",
+      "value": "true"
+    },
+    "streamId": {
+      "description": "Identifies the specific stream to handle and the related information, among them the ID of the last object streamed.",
+      "type": "integer",
+      "readonly": "true",
+      "default": "0",
+      "value": "4",
+      "order": "16"
+    },
     "plugin": {
-      "value": "omf",
+      "description": "PI Server North C Plugin",
       "type": "string",
-      "default": "omf",
-      "description": "Python module name of the plugin to load"
-    }
-  }
+      "default": "OMF",
+      "readonly": "true",
+      "value": "OMF"
+    },
+    "source": {
+       "description": "Defines the source of the data to be sent on the stream, this may be one of either readings, statistics or audit.",
+       "type": "enumeration",
+       "options": [
+         "readings",
+         "statistics"
+        ],
+      "default": "readings",
+      "order": "5",
+      "displayName": "Data Source",
+      "value": "readings"
+    },
+  ...}
+  $ curl -sX GET   http://localhost:8081/fledge/category/Stats%20OMF%20to%20PI%20north
+  {
+    "enable": {
+      "description": "A switch that can be used to enable or disable execution of the sending process.",
+      "type": "boolean",
+      "readonly": "true",
+      "default": "true",
+      "value": "true"
+    },
+    "streamId": {
+      "description": "Identifies the specific stream to handle and the related information, among them the ID of the last object streamed.",
+      "type": "integer",
+      "readonly": "true",
+      "default": "0",
+      "value": "5",
+      "order": "16"
+    },
+    "plugin": {
+      "description": "PI Server North C Plugin",
+      "type": "string",
+      "default": "OMF",
+      "readonly": "true",
+      "value": "OMF"
+    },
+    "source": {
+      "description": "Defines the source of the data to be sent on the stream, this may be one of either readings, statistics or audit.",
+      "type": "enumeration",
+      "options": [
+        "readings",
+        "statistics"
+       ],
+      "default": "readings",
+      "order": "5",
+      "displayName": "Data Source",
+      "value": "statistics"
+    },
+  ...}
   $
 
 At this point it may be a good idea to familiarize with the |jq| tool, it will help you a lot in selecting and using data via the REST API. You may remember, we discussed it in the |get start| chapter.
@@ -515,13 +616,26 @@ First, we can see the list of all the scheduled tasks (the process of sending da
         "name": "OMF to PI north",
         "processName": "north_c",
         "type": "INTERVAL",
-        "repeat": 30,
+        "repeat": 30.0,
+        "time": 0,
+        "day": null,
+        "exclusive": true,
+        "enabled": false
+      },
+      {
+        "id": "27501b35-e0cd-4340-afc2-a4465fe877d6",
+        "name": "Stats OMF to PI north",
+        "processName": "north_c",
+        "type": "INTERVAL",
+        "repeat": 30.0,
         "time": 0,
         "day": null,
         "exclusive": true,
         "enabled": true
       },
-  ...
+    ...
+    ]
+  }
   $
 
 ...which means: "show me all the tasks that can be scheduled", The output has been made more readable by jq. There are several tasks, we need to identify the one we need and extract its unique id. We can achieve that with the power of jq: first we can select the JSON object that shows the elements of the sending task:

@@ -16,6 +16,8 @@
 #include <config_category.h>
 
 #define STORAGE_CATEGORY	  "Storage"
+#define CATEGORY_DESCRIPTION	  "Storage configuration"
+#define ADVANCED		  "Advanced"
 #define CONFIGURATION_CACHE_FILE  "storage.json"
 
 /**
@@ -37,7 +39,7 @@ class StorageConfiguration {
     DefaultConfigCategory *getDefaultCategory();
   private:
     void		  getConfigCache(std::string& cache);
-    Document		  *document;
+    rapidjson::Document   *document;
     void                  readCache();
     void                  writeCache();
     Logger                *logger;

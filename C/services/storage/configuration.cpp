@@ -137,7 +137,7 @@ bool StorageConfiguration::setValue(const string& key, const string& value)
  */
 void StorageConfiguration::updateCategory(const string& json)
 {
-	logger->warn("New storage configuration %s", json.c_str());
+	logger->info("New storage configuration %s", json.c_str());
 	Document *newdoc = new Document();
 	newdoc->Parse(json.c_str());
 	if (newdoc->HasParseError())
@@ -145,15 +145,12 @@ void StorageConfiguration::updateCategory(const string& json)
 		logger->error("New configuration failed to parse. %s at %d",
 				GetParseError_En(newdoc->GetParseError()),
 				newdoc->GetErrorOffset());
+		delete newdoc;
 	}
 	else
 	{
-		logger->error("New config is GOOD");
-		logger->error("Delete 0x%x", document);
 		delete document;
-		logger->error("Assignment");
 		document = newdoc;
-		logger->error("rewrite cache");
 		writeCache();
 	}
 }

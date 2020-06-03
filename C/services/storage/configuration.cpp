@@ -11,18 +11,63 @@
 #include <rapidjson/document.h>
 #include <rapidjson/istreamwrapper.h>
 #include <rapidjson/ostreamwrapper.h>
+#include <rapidjson/error/en.h>
 #include <rapidjson/writer.h>
 #include <fstream>
 #include <iostream>
 #include <unistd.h>
+#include <plugin_api.h>
 
-static const char *defaultConfiguration =
-" { \"plugin\" : { \"value\" : \"sqlite\", \"description\" : \"The main storage plugin to load\"},"
-" \"readingPlugin\" : { \"value\" : \"\", \"description\" : \"The storage plugin to load for readings data. If blank the main storage plugin is used.\"},"
-" \"threads\" : { \"value\" : \"1\", \"description\" : \"The number of threads to run\" },"
-" \"managedStatus\" : { \"value\" : \"false\", \"description\" : \"Control if Fledge should manage the storage provider\" },"
-" \"port\" : { \"value\" : \"0\", \"description\" : \"The port to listen on\" },"
-" \"managementPort\" : { \"value\" : \"0\", \"description\" : \"The management port to listen on.\" } }";
+static const char *defaultConfiguration = QUOTE({
+	"plugin" : {
+       		"value" : "sqlite",
+		"default" : "sqlite",
+		"description" : "The main storage plugin to load",
+		"type" : "string",
+		"displayName" : "Storage Plugin",
+		"order" : "1"
+		},
+	"readingPlugin" : {
+		"value" : "",
+		"default" : "",
+		"description" : "The storage plugin to load for readings data. If blank the main storage plugin is used.",
+		"type" : "string",
+		"displayName" : "Readings Plugin",
+		"order" : "2"
+		},
+	"threads" : {
+	       	"value" : "1", 
+		"default" : "1",
+		"description" : "The number of threads to run",
+		"type" : "integer",
+		"displayName" : "Database threads",
+		"order" : "3"
+	       	},
+	"managedStatus" : {
+		"value" : "false",
+		"default" : "false",
+		"description" : "Control if Fledge should manage the storage provider",
+		"type" : "boolean",
+		"displayName" : "Manage Storage",
+		"order" : "4"
+		},
+	"port" : { 
+		"value" : "0",
+		"default" : "0",
+		"description" : "The port to listen on",
+		"type" : "integer",
+		"displayName" : "Service Port",
+		"order" : "5"
+	},
+	"managementPort" : {
+		"value" : "0", 
+		"default" : "0",
+		"description" : "The management port to listen on.",
+		"type" : "integer",
+		"displayName" : "Management Port",
+		"order" : "6"
+       	}
+});
 
 using namespace std;
 using namespace rapidjson;
@@ -33,7 +78,9 @@ using namespace rapidjson;
 StorageConfiguration::StorageConfiguration()
 {
 	logger = Logger::getLogger();
+	document = new Document();
 	readCache();
+	checkCache();
 }
 
 /**
@@ -41,12 +88,14 @@ StorageConfiguration::StorageConfiguration()
  */
 bool StorageConfiguration::hasValue(const string& key)
 {
-	if (document.HasParseError())
+	if (document->HasParseError())
 	{
-		logger->error("Configuration cache failed to parse.");
+		logger->error("Default configuration failed to parse. %s at %d",
+				GetParseError_En(document->GetParseError()),
+				document->GetErrorOffset());
 		return false;
 	}
-	if (!document.HasMember(key.c_str()))
+	if (!document->HasMember(key.c_str()))
 		return false;
 	return true;
 }
@@ -56,14 +105,16 @@ bool StorageConfiguration::hasValue(const string& key)
  */
 const char *StorageConfiguration::getValue(const string& key)
 {
-	if (document.HasParseError())
+	if (document->HasParseError())
 	{
-		logger->error("Configuration cache failed to parse.");
+		logger->error("Default configuration failed to parse. %s at %d",
+				GetParseError_En(document->GetParseError()),
+				document->GetErrorOffset());
 		return 0;
 	}
-	if (!document.HasMember(key.c_str()))
+	if (!document->HasMember(key.c_str()))
 		return 0;
-	Value& item = document[key.c_str()];
+	Value& item = (*document)[key.c_str()];
 	return item["value"].GetString();
 }
 
@@ -73,9 +124,9 @@ const char *StorageConfiguration::getValue(const string& key)
 bool StorageConfiguration::setValue(const string& key, const string& value)
 {
 	try {
-		Value& item = document[key.c_str()];
+		Value& item = (*document)[key.c_str()];
 		const char *cstr = value.c_str();
-		item["value"].SetString(cstr, strlen(cstr), document.GetAllocator());
+		item["value"].SetString(cstr, strlen(cstr), document->GetAllocator());
 		return true;
 	} catch (exception e) {
 		return false;
@@ -87,8 +138,22 @@ bool StorageConfiguration::setValue(const string& key, const string& value)
  */
 void StorageConfiguration::updateCategory(const string& json)
 {
-	document.Parse(json.c_str());
-	writeCache();
+	logger->info("New storage configuration %s", json.c_str());
+	Document *newdoc = new Document();
+	newdoc->Parse(json.c_str());
+	if (newdoc->HasParseError())
+	{
+		logger->error("New configuration failed to parse. %s at %d",
+				GetParseError_En(newdoc->GetParseError()),
+				newdoc->GetErrorOffset());
+		delete newdoc;
+	}
+	else
+	{
+		delete document;
+		document = newdoc;
+		writeCache();
+	}
 }
 
 /**
@@ -103,10 +168,12 @@ string	cachefile;
 	if (access(cachefile.c_str(), F_OK ) != 0)
 	{
 		logger->info("Using default configuration: %s.", defaultConfiguration);
-		document.Parse(defaultConfiguration);
-		if (document.HasParseError())
+		document->Parse(defaultConfiguration);
+		if (document->HasParseError())
 		{
-			logger->error("Default configuration failed to parse.");
+			logger->error("Default configuration failed to parse. %s at %d",
+					GetParseError_En(document->GetParseError()),
+					document->GetErrorOffset());
 		}
 		writeCache();
 		return;
@@ -114,10 +181,12 @@ string	cachefile;
 	try {
 		ifstream ifs(cachefile);
 		IStreamWrapper isw(ifs);
-		document.ParseStream(isw);
-		if (document.HasParseError())
+		document->ParseStream(isw);
+		if (document->HasParseError())
 		{
-			logger->error("Configuration cache failed to parse.");
+			logger->error("Default configuration failed to parse. %s at %d",
+					GetParseError_En(document->GetParseError()),
+					document->GetErrorOffset());
 		}
 	} catch (exception ex) {
 		logger->error("Configuration cache failed to read %s.", ex.what());
@@ -135,7 +204,7 @@ string	cachefile;
 	ofstream ofs(cachefile);
 	OStreamWrapper osw(ofs);
 	Writer<OStreamWrapper> writer(osw);
-	document.Accept(writer);
+	document->Accept(writer);
 }
 
 /**
@@ -183,4 +252,64 @@ char buf[512], *basedir;
 
 	// No configuration cache has been found - return the default location
 	cache = buf;
+}
+
+/**
+ * Return the default category to register with the core. This allows
+ * the storage configuration to appear in the UI
+ *
+ * @return DefaultConfigCategory* The default configuration category
+ */
+DefaultConfigCategory *StorageConfiguration::getDefaultCategory()
+{
+	StringBuffer buffer;
+	Writer<StringBuffer> writer(buffer);
+	document->Accept(writer);
+
+	const char *config = buffer.GetString();
+	return new DefaultConfigCategory(STORAGE_CATEGORY, config);
+}
+
+/**
+ * One off check for upgrade to cache that has full UI information
+ *
+ * This is only really triggered when we first do an upgrade from the
+ * older cache files to the current JSON defaults that contains the
+ * full information needed for the GUI.
+ */
+void StorageConfiguration::checkCache()
+{
+
+	if (document->HasMember("plugin"))	
+	{
+		Value& item = (*document)["plugin"];
+		if (item.HasMember("type"))
+		{
+			logger->info("Storage configuration cache is up to date");
+			return;
+		}
+	}
+	logger->info("Storage configuration cache is not up to date");
+	Document *newdoc = new Document();
+	newdoc->Parse(defaultConfiguration);
+	if (newdoc->HasParseError())
+	{
+		logger->error("Default configuration failed to parse. %s at %d",
+				GetParseError_En(document->GetParseError()),
+				newdoc->GetErrorOffset());
+	}
+	for (Value::ConstMemberIterator itr = newdoc->MemberBegin();
+				itr != newdoc->MemberEnd(); ++itr)
+	{
+		const char *name = itr->name.GetString();
+		Value &newval = (*newdoc)[name];
+		if (hasValue(name))
+		{
+			const char *val = getValue(name);
+			newval["value"].SetString(strdup(val), strlen(val));
+		}
+	}
+	delete document;
+	document = newdoc;
+	writeCache();
 }

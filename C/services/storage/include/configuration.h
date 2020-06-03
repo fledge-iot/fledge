@@ -42,6 +42,7 @@ class StorageConfiguration {
     rapidjson::Document   *document;
     void                  readCache();
     void                  writeCache();
+    void                  checkCache();
     Logger                *logger;
 };
 

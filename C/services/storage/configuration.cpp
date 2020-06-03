@@ -80,6 +80,7 @@ StorageConfiguration::StorageConfiguration()
 	logger = Logger::getLogger();
 	document = new Document();
 	readCache();
+	checkCache();
 }
 
 /**
@@ -253,7 +254,12 @@ char buf[512], *basedir;
 	cache = buf;
 }
 
-
+/**
+ * Return the default category to register with the core. This allows
+ * the storage configuration to appear in the UI
+ *
+ * @return DefaultConfigCategory* The default configuration category
+ */
 DefaultConfigCategory *StorageConfiguration::getDefaultCategory()
 {
 	StringBuffer buffer;
@@ -264,3 +270,43 @@ DefaultConfigCategory *StorageConfiguration::getDefaultCategory()
 	return new DefaultConfigCategory(STORAGE_CATEGORY, config);
 }
 
+/**
+ * One off check for upgrade to cache that has full UI information
+ *
+ * This is only really triggered when we first do an upgrade from the
+ * older cache files to the current JSON defaults that contains the
+ * full information needed for the GUI.
+ */
+void StorageConfiguration::checkCache()
+{
+
+	if (document->HasMember("plugin"))	
+	{
+		Value& item = (*document)["plugin"];
+		if (item.HasMember("type"))
+		{
+			logger->info("Storage configuration cache is up to date");
+			return;
+		}
+	}
+	logger->info("Storage configuration cache is not up to date");
+	Document *newdoc = new Document();
+	newdoc->Parse(defaultConfiguration);
+	if (newdoc->HasParseError())
+	{
+		logger->error("Default configuration failed to parse. %s at %d",
+				GetParseError_En(document->GetParseError()),
+				newdoc->GetErrorOffset());
+	}
+	for (Value::ConstMemberIterator itr = newdoc->MemberBegin();
+				itr != newdoc->MemberEnd(); ++itr)
+	{
+		const char *name = itr->name.GetString();
+		Value &newval = (*newdoc)[name];
+		const char *val = getValue(name);
+		newval["value"].SetString(strdup(val), strlen(val));
+	}
+	delete document;
+	document = newdoc;
+	writeCache();
+}

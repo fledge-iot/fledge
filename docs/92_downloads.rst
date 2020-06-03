@@ -25,7 +25,7 @@
 
 .. |downloads| raw:: html
 
-   <a href="http://dianomic.com/download-packages/">Downloads Page</a>
+   <a href="http://dianomic.com/download-fledge/">Downloads Page</a>
 
 
    

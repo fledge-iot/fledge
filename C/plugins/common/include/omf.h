@@ -217,6 +217,7 @@ class OMF
 
 		// Increment per asset type-id value
 		void incrementAssetTypeId(const std::string& keyComplete);
+		void incrementAssetTypeIdOnly(const std::string& keyComplete);
 
 		// Set global type-id as the maximum value of all per asset type-ids
 		void setTypeId();

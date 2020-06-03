@@ -130,6 +130,7 @@ def setup(app):
     # Statistics - As per doc
     app.router.add_route('GET', '/fledge/statistics', api_statistics.get_statistics)
     app.router.add_route('GET', '/fledge/statistics/history', api_statistics.get_statistics_history)
+    app.router.add_route('GET', '/fledge/statistics/rate', api_statistics.get_statistics_rate)
 
     # Audit trail - As per doc
     app.router.add_route('POST', '/fledge/audit', api_audit.create_audit_entry)

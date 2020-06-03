@@ -1,11 +1,38 @@
 #!/usr/bin/env bash
 
+_postgres() {
+    sudo apt install -y postgresql
+    sudo -u postgres createuser -d "$(whoami)"
+    sudo sed -i 's/"plugin":{"value":"sqlite"/"plugin":{"value":"postgres"/g' /usr/local/fledge/data/etc/storage.json
+    sudo sed -i 's/"readingPlugin":{"value":"sqlitememory"/"readingPlugin":{"value":""/g' /usr/local/fledge/data/etc/storage.json
+}
+_sqliteinmemory () {
+    sudo sed -i 's/"plugin":{"value":"postgres"/"plugin":{"value":"sqlite"/g' /usr/local/fledge/data/etc/storage.json
+    sudo sed -i 's/"readingPlugin":{"value":""/"readingPlugin":{"value":"sqlitememory"/g' /usr/local/fledge/data/etc/storage.json
+}
+
+_sqlite () {
+    sudo sed -i 's/"plugin":{"value":"postgres"/"plugin":{"value":"sqlite"/g' /usr/local/fledge/data/etc/storage.json
+    sudo sed -i 's/"readingPlugin":{"value":"sqlitememory"/"readingPlugin":{"value":""/g' /usr/local/fledge/data/etc/storage.json
+}
+
+# check for storage plugin
+. ./test.config
+
+if [[  ${STORAGE} == "postgres" ]]
+then
+   _postgres
+elif [[  ${STORAGE} == "sqlite-in-memory" ]]
+then
+  _sqliteinmemory
+else
+  _sqlite
+fi
+
 echo "Stopping Fledge using systemctl ..."
 sudo systemctl stop fledge
 echo "YES" | /usr/local/fledge/bin/fledge reset || exit 1
 echo
-# TODO: FOGL-2349
-rm -rf /usr/local/fledge/data/scripts/* || exit 1
 echo "Starting Fledge using systemctl ..."
 sudo systemctl start fledge
 echo "Fledge Status"

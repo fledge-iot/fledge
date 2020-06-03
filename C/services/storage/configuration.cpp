@@ -303,8 +303,11 @@ void StorageConfiguration::checkCache()
 	{
 		const char *name = itr->name.GetString();
 		Value &newval = (*newdoc)[name];
-		const char *val = getValue(name);
-		newval["value"].SetString(strdup(val), strlen(val));
+		if (hasValue(name))
+		{
+			const char *val = getValue(name);
+			newval["value"].SetString(strdup(val), strlen(val));
+		}
 	}
 	delete document;
 	document = newdoc;

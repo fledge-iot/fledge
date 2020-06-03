@@ -3,7 +3,6 @@
 .. |south_services| image:: images/south_services.JPG
 .. |south_service_config| image:: images/south_service_config.JPG
 .. |north_services| image:: images/north_services.JPG
-.. |north_services| image:: images/north_services.JPG
 .. |pi_plugin_config| image:: images/pi_plugin_config.JPG
 .. |settings| image:: images/settings.JPG
 .. |backup| image:: images/backup.JPG
@@ -12,6 +11,15 @@
 .. |PI_connect| image:: images/PI_connect.jpg
 .. |PI_connectors| image:: images/PI_connectors.jpg
 .. |PI_token| image:: images/PI_token.jpg
+.. |omf_plugin_pi_web_config| image:: images/omf-plugin-pi-web.jpg
+.. |omf_plugin_connector_relay_config| image:: images/omf-plugin-connector-relay.jpg
+.. |omf_plugin_eds_config| image:: images/omf-plugin-eds.jpg
+.. |omf_plugin_ocs_config| image:: images/omf-plugin-ocs.jpg
+.. |view_graph| image:: images/view_graph.jpg
+.. |view_hide| image:: images/view_hide.jpg
+.. |view_summary| image:: images/view_summary.jpg
+.. |view_times| image:: images/view_times.jpg
+.. |view_spreadsheet| image:: images/view_spreadsheet.jpg
 
 
 *****************
@@ -44,10 +52,11 @@ If your system does not have Raspbian pre-installed, you can find instructions o
   sudo apt-get upgrade
   sudo apt-get update
 
-You can obtain Fledge in two ways:
+You can obtain Fledge in three ways:
 
-- Dianomic Systems offers pre-built, certified binaries of Fledge for Debian using either Intel or ARM architectures. This is the recommended method, especially for new users. You can download these from https://Fledge.readthedocs.io/en/master/92_downloads.html.
-- As source code from https://github.com/fledge/.  Instructions for downloading and building Fledge source code can be found in the Fledge Developer’s Guide
+- Dianomic Systems hosts a package repository that allows the Fledge packages to be loaded using the system package manage. This is the recommended method for long term use of Fledge as it gives access to all the Fledge plugins and provides a route for easy upgrade of the Fledge packages. This also has the advantages that once the repository is configured you are able to install new plugins directly from the Fledge user interface without the need to resort to the Linux command line.
+- Dianomic Systems offers pre-built, certified binaries of Fledge for Debian using either Intel or ARM architectures. This is perhaps the simplest method for users not used to Linux. You can download the complete set of packages from https://fledge-iot.readthedocs.io/en/latest/92_downloads.html.
+- As source code from https://github.com/fledge-iot/.  Instructions for downloading and building Fledge source code can be found in the Fledge Developer’s Guide
 
 In general, Fledge installation will require the following packages:
 
@@ -56,10 +65,137 @@ In general, Fledge installation will require the following packages:
 - One or more Fledge South services
 - One or more Fledge North service (OSI PI and OCS north services are included in Fledge core)
 
-Installing Fledge packages
-###########################
+Using the package repository to install Fledge
+###############################################
 
-SSH into the system that will host Fledge services. For each Fledge package that you choose to install, type the following command::
+If you choose to use the Dianomic Systems package repository to install the packages you will need to follow the steps outlined below for the particular platform you are using.
+
+Ubuntu or Debian
+~~~~~~~~~~~~~~~~
+
+On a Ubuntu or Debian system, including the Raspberry Pi, the package manager that is supported in *apt*. You will need to add the Dianomic Systems archive server into the configuration of apt on your system. The first thing that most be done is to add the key that is used to verify the package repository. To do this run the command
+
+.. code-block:: console
+
+   wget -q -O - http://archives.fledge-iot.org/KEY.gpg | sudo apt-key add -
+
+Once complete you can add the repository itself into the apt configuration file /etc/apt/sources.list. The simplest way to do this is the use the *add-apt-repository* command. The exact command will vary between systems;
+
+  - Raspberry Pi does not have an apt-add-repository command, the user must edit the apt sources file manually
+
+    .. code-block:: console
+
+       sudo vi /etc/apt/sources.list
+       
+    and add the line
+    
+    .. code-block:: console
+
+       deb  http://archives.fledge-iot.org/latest/buster/armv7l/ /
+
+    to the end of the file.
+
+  - Users with an Intel or AMD system with Ubuntu 18.04 should run
+
+    .. code-block:: console
+
+       sudo add-apt-repository ‘deb http://archives.fledge-iot.org/latest/ubuntu1804/x86_64/ / ‘
+
+
+  - Users with an Arm system with Ubuntu 18.04, such as the Odroid board, should run
+
+    .. code-block:: console
+
+       sudo add-apt-repository ‘deb http://archives.fledge-iot.org/latest/ubuntu1804/aarch64/ / ‘
+
+
+  - Users of the Mendel operating system on a Google Coral create the file /etc/apt/sources.list.d/fledge.list and insert the following content
+
+    .. code-block:: console
+
+       deb http://archives.fledge-iot.org/latest/mendel/aarch64/ /
+
+Once the repository has been added you must inform the package manager to go and fetch a list of the packages it supports. To do this run the command
+
+.. code-block:: console
+
+   sudo apt update
+
+You are now ready to install the Fledge packages. You do this by running the command
+
+.. code-block:: console
+
+   sudo apt -y install *package*
+
+You may also install multiple packages in a single command. To install the base fledge package, the fledge user interface and the sinusoid south plugin run the command
+
+.. code-block:: console
+
+   sudo apt -y install fledge fledge-gui fledge-south-sinusoid
+
+
+
+RedHat & CentOS
+~~~~~~~~~~~~~~~
+
+The RedHat and CentOS flavors of Linux use a different package management system, known as *yum*. Fledge also supports a package management system for the yum package manager.
+
+To add the fledge repository to the yum package manager run the command
+
+.. code-block:: console
+
+   sudo rpm --import http://archives.fledge-iot.org/RPM-GPG-KEY-fledge
+
+CentOS users should then create a file called fledge.repo in the directory /etc/yum.repos.d and add the following content
+
+.. code-block:: console
+
+   [fledge]
+   name=fledge Repository
+   baseurl=http://archives.fledge-iot.org/latest/centos76/x86_64/
+   enabled=1
+   gpgkey=http://archives.fledge-iot.org/RPM-GPG-KEY-fledge
+   gpgcheck=1
+
+Users of RedHat systems should do the same, however the files content is slightly different
+
+.. code-block:: console
+
+
+   [fledge]
+   name=fledge Repository
+   baseurl=http://archives.fledge-iot.org/latest/rhel76/x86_64/
+   enabled=1
+   gpgkey=http://archives.fledge-iot.org/RPM-GPG-KEY-fledge
+   gpgcheck=1
+
+There are a few pre-requisites that need to be installed on these platforms, they differ slightly between the two of them.
+
+On CentOS run the commands
+
+.. code-block:: console
+
+   sudo yum install -y centos-release-scl-rh
+   sudo yum install -y epel-release
+
+
+On RedHat run the command
+
+.. code-block:: console
+
+   sudo yum-config-manager --enable 'Red Hat Enterprise Linux Server 7 RHSCL (RPMs)'
+
+You can now install and upgrade fledge packages using the yum command. For example to install fledge and the fledge GUI you run the command
+
+.. code-block:: console
+
+   sudo yum install -y fledge fledge-gui
+
+
+Installing Fledge downloaded packages
+######################################
+
+Assuming you have downloaded the packages from the download link given above. Use SSH to login to the system that will host Fledge services. For each Fledge package that you choose to install, type the following command::
 
   sudo apt -y install PackageName
 
@@ -152,8 +288,18 @@ To add a data source, you will first need to install the plugin for that sensor 
 Once the plugin is installed return to the Fledge GUI and click on “Add+” in the upper right of the South Services screen.  Fledge will display a series of 3 screens to add the data source:
 
 1. The first screen will ask you to select the plugin for the data source from the list of installed plugins.  If you do not see the plugin you need, refer to the Installing Fledge section of this manual.  In addition, this screen allows you to specify a display name for the data source.
-2. The second screen allows you to configure the plugin and the data assets it will provide.  Note that every data asset in Fledge must have a unique name.  If you have multiple sensors using the same plugin, modify the asset names on this screen so they are unique. (Some plugins allow you to specify an asset name prefix that will apply to all the asset names for that sensor.)  Refer to the individual plugin documentation for descriptions of the fields on this screen.  If you modify any of the configuration fields, click on the “save” button to save them.
-3. The final screen loads the plugin.  You can specify whether it will be enabled immediately for data collection or to await enabling in the future.
+
+2. The second screen allows you to configure the plugin and the data assets it will provide. 
+
+   .. note::
+
+      Every data asset in Fledge must have a unique name.  If you have multiple sensors using the same plugin, modify the asset names on this screen so they are unique. 
+      
+   Some plugins allow you to specify an asset name prefix that will apply to all the asset names for that sensor. Refer to the individual plugin documentation for descriptions of the fields on this screen.
+
+3. If you modify any of the configuration fields, click on the “save” button to save them.
+
+4. The final screen allows you to specify whether the service will be enabled immediately for data collection or await enabling in the future.
 
 Configuring Data Sources
 ########################
@@ -176,7 +322,52 @@ Viewing Data
 
 You can inspect all the data buffered by the Fledge system on the Assets page.  To access this page, click on “Assets & Readings” from the left-side menu bar.
 
-This screen will display a list of every data asset in the system.  By clicking on the graph button next to each asset name, you can view a graph of individual data readings.  You can change the horizontal scale of the graph by entering the number of data readings to display in the dialog box of this screen.
+This screen will display a list of every data asset in the system.  Alongside each asset are two icons; one to display a graph of the asset and another to download the data stored for that asset as a CSV file.
+
+Display Graph
+~~~~~~~~~~~~~
+
+.. image:: images/graph_icon.jpg
+   :align: left
+
+By clicking on the graph button next to each asset name, you can view a graph of individual data readings. A graph will be displayed with a plot for each data point within the asset.
+
++--------------+
+| |view_graph| |
++--------------+
+
+It is possible to change the time period to which the graph refers by use of the plugin list in the top left of the graph.
+
++--------------+
+| |view_times| |
++--------------+
+
+Where an asset contains multiple data points each of these is displayed in a different colour. Graphs for particular data points can be toggled on and off by clicking on the key at the top of the graph. Those data points not should will be indicated by striking through the name of the data point.
+
++-------------+
+| |view_hide| |
++-------------+
+
+A summary tab is also available, this will show the minimum, maximum and average values for each of the data points. Click on *Summary* to show the summary tab.
+
++----------------+
+| |view_summary| |
++----------------+
+
+Download Data
+~~~~~~~~~~~~~
+
+.. image:: images/download_icon.jpg
+   :align: left
+
+By clicking on the download icon adjacent to each asset you can download the stored data for the asset. The format of the file is download is a CSV file that is designed to be loaded int a spreadsheet such as Excel, Numbers or OpenOffice Calc.
+
+The file contains a header row with the names of the data points within the asset, the first column is always the timestamp when the reading was taken, the header for this being *timestamp*. The data is sorted in chronological order with the newest data first.
+
++--------------------+
+| |view_spreadsheet| |
++--------------------+
+
 
 Sending Data to Other Systems
 =============================
@@ -207,10 +398,15 @@ Enabling and Disabling Data Destinations
 
 To enable or disable a data source, click on its name in the North Services screen. Under the list of data source parameters, there is a check box to enable or disable the service.  If you make any changes, click on the “save” button in the bottom panel near the check box to save the new configuration.
 
-Using the Fledge PI plugin
-###########################
+Using the OMF plugin
+####################
 
-OSISoft PI systems are one of the most common destinations for Fledge data.  To send data to a PI server, open and sign into the PI Relay Data Connection Manager.
+OSISoft data historians are one of the most common destinations for Fledge data.  Fledge supports the full range of OSISoft historians; the PI System, Edge Data Store (EDS) and OSISoft Cloud Services (OCS). To send data to a PI server you may use either the older PI Connector Relay or the newer PI Web API OMF endpoint. It is recommended that new users use the PI Web API OMF endpoint rather then the Connector Relay which is no longer supported.
+
+PI Connector Relay
+~~~~~~~~~~~~~~~~~~
+
+To use the Connector Relay, open and sign into the PI Relay Data Connection Manager.
 
 +-----------------+
 | |PI_connectors| |
@@ -230,27 +426,124 @@ Connect the new application to the OMF Connector Relay by selecting the new Fled
 
 Finally, select the new Fledge application. Click "More" at the bottom of the Configuration panel. Make note of the Producer Token and Relay Ingress URL.
 
-Now go to the Fledge user interface, create a new North instance and select the “pi_server” plugin on the first screen.
+Now go to the Fledge user interface, create a new North instance and select the “OMF” plugin on the first screen.
 The second screen will request the following information:
 
-+--------------------+
-| |pi_plugin_config| |
-+--------------------+
++-------------------------------------+
+| |omf_plugin_connector_relay_config| |
++-------------------------------------+
 
 - Basic Information
-   - **URL:** The Relay Ingress URL provided by PI
-   - **producerToken:** The Producer Token provided by PI
+   - **Endpoint:** Select what you wish to connect to, in this case the Connector Relay.
+   - **Server hostname:** The hostname or address of the Connector Relay.
+   - **Server port:** The port the Connector Relay is listening on. Leave as 0 if you are using the default port.
+   - **Producer Token:** The Producer Token provided by PI
+   - **Data Source:** Defines which data is sent to the PI Server. The readings or Fledge's internal statistics.
    - **Static Data:** Data to include in every reading sent to PI.  For example, you can use this to specify the location of the devices being monitored by the Fledge server.
-- Data Filtering
-   - **applyFilter:** Set to True if you are using a filter rule, false if not.
-   - **filterRule:** A JQ formatted filter that determines which readings to send to PI
 - Connection management (These should only be changed with guidance from support)
-   - **OMFHttpTimeout:** Number of seconds to wait before Fledge will time out an HTTP connection attempt
-   - **OMFRetrySleepTime:** Number of seconds to wait before retrying the HTTP connection (Fledge doubles this time after each failed attempt).
-   - **OMFMaxRetry:** Maximum number of times to retry connecting to the PI server
+   - **Sleep Time Retry:** Number of seconds to wait before retrying the HTTP connection (Fledge doubles this time after each failed attempt).
+   - **Maximum Retry:** Maximum number of times to retry connecting to the PI server.
+   - **HTTP Timeout:** Number of seconds to wait before Fledge will time out an HTTP connection attempt.
 - Other (Rarely changed)
-   - **formatInteger:** Used to match Fledge data types to the data type configured in PI
-   - **formatNumber:** Used to match Fledge data types to the data type configured in PI
+   - **Integer Format:** Used to match Fledge data types to the data type configured in PI. This defaults to int64 but may be set to any OMF data type compatible with integer data, e.g. int32.
+   - **Number Format:** Used to match Fledge data types to the data type configured in PI. The defaults is float64 but may be set to any OMF datatype that supports floating point values.
+   - **Compression:** Compress the readings data before sending it to the PI System.
+
+PI Web API OMF Endpoint
+~~~~~~~~~~~~~~~~~~~~~~~
+
+To use the PI Web API OMF endpoint first  ensure the OMF option was included in your PI Server when it was installed.  
+
+Now go to the Fledge user interface, create a new North instance and select the “OMF” plugin on the first screen.
+The second screen will request the following information:
+
++----------------------------+
+| |omf_plugin_pi_web_config| |
++----------------------------+
+
+Select PI Web API from the Endpoint options.
+
+- Basic Information
+   - **Endpoint:** Select what you wish to connect to, in this case PI Web API.
+   - **Server hostname:** The hostname or address of the PI Server.
+   - **Server port:** The port the PI Web API OMF endpoint is listening on. Leave as 0 if you are using the default port.
+   - **Data Source:** Defines which data is sent to the PI Server. The readings or Fledge's internal statistics.
+   - **Static Data:** Data to include in every reading sent to PI.  For example, you can use this to specify the location of the devices being monitored by the Fledge server.
+- Asset Framework
+   - **Asset Framework Hierarchies Tree:** The location in the Asset Framework into which the data will be inserted. All data will be inserted at this point in the Asset Framework unless a later rule overrides this.
+   - **Asset Framework Hierarchies Rules:** A set of rules that allow specific readings to be placed elsewhere in the Asset Framework. These rules can be based on the name of the asset itself or some metadata associated with the asset.
+- PI Web API authentication
+   - **PI Web API Authentication Method:** The authentication method to be used, anonymous equates to no authentication, basic authentication requires a user name and password and Kerberos allows integration with your single sign on environment.
+   - **PI Web API User Id:**  The user name to authenticate with the PI Web API.
+   - **PI Web API Password:** The password of the user we are using to authenticate.
+   - **PI Web API Kerberos keytab file:** The Kerberos keytab file used to authenticate.
+- Connection management (These should only be changed with guidance from support)
+   - **Sleep Time Retry:** Number of seconds to wait before retrying the HTTP connection (Fledge doubles this time after each failed attempt).
+   - **Maximum Retry:** Maximum number of times to retry connecting to the PI server.
+   - **HTTP Timeout:** Number of seconds to wait before Fledge will time out an HTTP connection attempt.
+- Other (Rarely changed)
+   - **Integer Format:** Used to match Fledge data types to the data type configured in PI. This defaults to int64 but may be set to any OMF data type compatible with integer data, e.g. int32.
+   - **Number Format:** Used to match Fledge data types to the data type configured in PI. The defaults is float64 but may be set to any OMF datatype that supports floating point values.
+   - **Compression:** Compress the readings data before sending it to the PI System.
+
+EDS OMF Endpoint
+~~~~~~~~~~~~~~~~
+
+To use the OSISoft Edge Data Store first install Edge Data Store on the same machine as your Fledge instance. It is a limitation of Edge Data Store that it must reside on the same host as any system that connects to it with OMF.
+
+Now go to the Fledge user interface, create a new North instance and select the “OMF” plugin on the first screen.
+The second screen will request the following information:
+
++-------------------------+
+| |omf_plugin_eds_config| |
++-------------------------+
+
+Select Edge Data Store from the Endpoint options.
+
+- Basic Information
+   - **Endpoint:** Select what you wish to connect to, in this case Edge Data Store.
+   - **Server hostname:** The hostname or address of the PI Server. This must be the localhost for EDS.
+   - **Server port:** The port the Edge Datastore is listening on. Leave as 0 if you are using the default port.
+   - **Data Source:** Defines which data is sent to the PI Server. The readings or Fledge's internal statistics.
+   - **Static Data:** Data to include in every reading sent to PI.  For example, you can use this to specify the location of the devices being monitored by the Fledge server.
+- Connection management (These should only be changed with guidance from support)
+   - **Sleep Time Retry:** Number of seconds to wait before retrying the HTTP connection (Fledge doubles this time after each failed attempt).
+   - **Maximum Retry:** Maximum number of times to retry connecting to the PI server.
+   - **HTTP Timeout:** Number of seconds to wait before Fledge will time out an HTTP connection attempt.
+- Other (Rarely changed)
+   - **Integer Format:** Used to match Fledge data types to the data type configured in PI. This defaults to int64 but may be set to any OMF data type compatible with integer data, e.g. int32.
+   - **Number Format:** Used to match Fledge data types to the data type configured in PI. The defaults is float64 but may be set to any OMF datatype that supports floating point values.
+   - **Compression:** Compress the readings data before sending it to the PI System.
+
+OCS OMF Endpoint
+~~~~~~~~~~~~~~~~
+
+Go to the Fledge user interface, create a new North instance and select the “OMF” plugin on the first screen.
+The second screen will request the following information:
+
++-------------------------+
+| |omf_plugin_ocs_config| |
++-------------------------+
+
+Select OSIsoft Cloud Services from the Endpoint options.
+
+- Basic Information
+   - **Endpoint:** Select what you wish to connect to, in this case OSIsoft Cloud Services.
+   - **Data Source:** Defines which data is sent to the PI Server. The readings or Fledge's internal statistics.
+   - **Static Data:** Data to include in every reading sent to PI.  For example, you can use this to specify the location of the devices being monitored by the Fledge server.
+- Authentication
+   - **OCS Namespace:** Your namespace within the OSISoft Cloud Services.
+   - **OCS Tenant ID:** Your OSISoft Cloud Services tenant ID for yor account.
+   - **OCS Client ID:** Your OSISoft Cloud Services client ID for your account.
+   - **OCS Client Secret:** Your OCS client secret.
+- Connection management (These should only be changed with guidance from support)
+   - **Sleep Time Retry:** Number of seconds to wait before retrying the HTTP connection (Fledge doubles this time after each failed attempt).
+   - **Maximum Retry:** Maximum number of times to retry connecting to the PI server.
+   - **HTTP Timeout:** Number of seconds to wait before Fledge will time out an HTTP connection attempt.
+- Other (Rarely changed)
+   - **Integer Format:** Used to match Fledge data types to the data type configured in PI. This defaults to int64 but may be set to any OMF data type compatible with integer data, e.g. int32.
+   - **Number Format:** Used to match Fledge data types to the data type configured in PI. The defaults is float64 but may be set to any OMF datatype that supports floating point values.
+   - **Compression:** Compress the readings data before sending it to the PI System.
 
 
 Backing up and Restoring Fledge
@@ -269,9 +562,11 @@ Troubleshooting and Support Information
 | |support| |
 +-----------+
 
-Fledge keep detailed logs of system events for both auditing and troubleshooting use.  To access them, click "Logs" in the left menu bar.  There are three logs in the system:
+Fledge keep detailed logs of system events for both auditing and troubleshooting use.  To access them, click "Logs" in the left menu bar.  There are five logs in the system:
 
   - **Audit:** Tracks all configuration changes and data uploads performed on the Fledge system.
+  - **Notifications:** If you are using the Fledge notification service this log will give details of notifications that have been triggered
+  - **Packages:** This log will give you information about the installation and upgrade of Fledge packages for services and plugins.
   - **System:** All events and scheduled tasks and their status.
   - **Tasks:** The most recent scheduled tasks that have run and their status
 

@@ -32,8 +32,9 @@ _NO_OF_FILES_TO_RETAIN = 10
 
 def load_python_plugin(plugin_module_path: str, plugin: str, _type: str) -> Dict:
     _plugin = None
+    module_name = "fledge.plugins.{}.{}".format(_type, plugin)
     try:
-        spec = importlib.util.spec_from_file_location("module.name", "{}/{}.py".format(plugin_module_path, plugin))
+        spec = importlib.util.spec_from_file_location(module_name, "{}/{}.py".format(plugin_module_path, plugin))
         _plugin = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(_plugin)
     except FileNotFoundError:
@@ -42,7 +43,7 @@ def load_python_plugin(plugin_module_path: str, plugin: str, _type: str) -> Dict
             for pp in plugin_paths:
                 if os.path.isdir(pp):
                     plugin_module_path = "{}/{}/{}".format(pp, _type, plugin)
-                    spec = importlib.util.spec_from_file_location("module.name", "{}/{}.py".format(
+                    spec = importlib.util.spec_from_file_location(module_name, "{}/{}.py".format(
                         plugin_module_path, plugin))
                     _plugin = importlib.util.module_from_spec(spec)
                     spec.loader.exec_module(_plugin)

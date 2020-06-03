@@ -1,8 +1,8 @@
-.. Building Fledge Developers Guide
+.. Building Developers Guide
 
-********************************
-Building Fledge Developers Guide
-********************************
+*************************
+Building Developers Guide
+*************************
 
 .. toctree::
 

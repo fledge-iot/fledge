@@ -120,22 +120,23 @@ Changes can be applied using the *PUT* method for each parameter call. For examp
 
 The following table shows the list of parameters that can be changed in the *Purge* task:
 
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| Item              | Type     | Default                                 | Description                                            |
-+===================+==========+=========================================+========================================================+
-| retainUnsent      | boolean  | False                                   | Retain data that has not been sent to "North" yet |br| |
-|                   |          |                                         | When *True*, data that has not yet been retrieved |br| |
-|                   |          |                                         | by any North service or task, will not be purged. |br| |
-|                   |          |                                         | When *False*, data is purged withouth checking    |br| |
-|                   |          |                                         | whether it has been sent to a North destination   |br| |
-|                   |          |                                         | yet or not.                                            |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| age               | integer  | 72                                      | Age in hours of the data to be retained. Data     |br| |
-|                   |          |                                         | that is older than this value, will be purged.         |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| size              | integer  | 1000000                                 | Size in KBytes of data that will be retained in   |br| | 
-|                   |          |                                         | Fledge. Older data will be removed to keep the   |br| |
-|                   |          |                                         | data stored in Fledge below this size.                |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
+.. list-table::
+    :widths: 20 20 20 80
+    :header-rows: 1
 
-
+    * - Item
+      - Type
+      - Default
+      - Description
+    * - retainUnsent
+      - boolean
+      - False
+      - Retain data that has not been sent to "North" yet When *True*, data that has not yet been retrieved by any North service or task, will not be purged. When *False*, data is purged without checking whether it has been sent to a North destination yet or not.
+    * - age
+      - integer
+      - 72
+      - Age in hours of the data to be retained. Data that is older than this value, will be purged.
+    * - size
+      - integer
+      - 1000000
+      - Size in KBytes of data that will be retained in Fledge. Older data will be removed to keep the data stored in Fledge below this size.

@@ -45,7 +45,7 @@
 
 .. |get start| raw:: html
 
-   <a href="03_getting_started.html" target="_blank">Getting Started</a>
+   <a href="building_fledge.html" target="_blank">Building Fledge</a>
 
 
 .. =============================================
@@ -105,7 +105,7 @@ The following lines provide a list of the modules running in this installation o
   - The last term is the name of the plugin executed as part of the module.
   - Extra arguments may be available: they are the arguments passed to the module by the core when it is launched.
 
-- ``=== Fledge services:`` - This block contains the list of microservices running in the Fledge plaftorm.
+- ``=== Fledge services:`` - This block contains the list of microservices running in the Fledge platform.
 
   - ``fledge.services.core`` is the Core microservice itself
   - ``fledge.services.south --port=44180 --address=127.0.0.1 --name=COAP`` - This South microservice is a listener of data pushed to Fledge via a CoAP protocol
@@ -119,7 +119,7 @@ The following lines provide a list of the modules running in this installation o
 Hello, Foggy World!
 ===================
 
-The output of the ``fledge status`` command gives you an idea of the modules runnning in your machine, but let's try to get more information from Fledge.
+The output of the ``fledge status`` command gives you an idea of the modules running in your machine, but let's try to get more information from Fledge.
 
 
 The Fledge REST API
@@ -148,7 +148,7 @@ Hello World!
 
 Let's execute the *ping* method. First, you must identify the IP address where Fledge is running. If you have installed Fledge on your local machine, you can use *localhost*. Alternatively, check the IP address of the machine where Fledge is installed.
 
-.. note:: This version of Fledge does not have any security setup by default, therefore you may be able to access the entry point for the REST API by any external aplication, but there may be security setting on your operating environment that prevent access to specific ports from external applications. If you receive an error using the ping method, and the ``fledge status`` command says that everything is running, it is likely that you are experiencing a security issue.
+.. note:: This version of Fledge does not have any security setup by default, therefore you may be able to access the entry point for the REST API by any external application, but there may be security setting on your operating environment that prevent access to specific ports from external applications. If you receive an error using the ping method, and the ``fledge status`` command says that everything is running, it is likely that you are experiencing a security issue.
 
 The default port for the REST API is 8081. Using curl, try this command:
 
@@ -180,12 +180,12 @@ fogbench: a Brief Intro
 
 Fledge comes with a little but pretty handy tool called **fogbench**. The tools is written in Python and it uses the same libraries of other modules of Fledge, therefore no extra libraries are needed. With *fogbench* you can do many things, like inserting data stored in files, running benchmarks to understand how Fledge performs in a given environment, or test an end-to-end installation.
 
-Note: This following instructions assume you have downloaded and installed the CoAP south plugin from https://github.com/fledge/fledge-south-coap.
+Note: This following instructions assume you have downloaded and installed the CoAP south plugin from https://github.com/fledge-iot/fledge-south-coap.
 
 
 .. code-block:: console
 
-  $ git clone https://github.com/fledge/fledge-south-coap
+  $ git clone https://github.com/fledge-iot/fledge-south-coap
   $ cd fledge-south-coap
   $ sudo cp -r python /usr/local/fledge/python/fledge/plugins/south/
   $ sudo pip3 install -r /usr/local/fledge/python/requirements-coap.txt
@@ -456,7 +456,7 @@ Fledge comes with a North plugin called *OMF Translator*. OMF is the OSIsoft Mes
 Preparing the PI System
 -----------------------
 
-In order to test the North task and plugin, first you need to setup the PI system. Here we assume you are already familiar with PI and you have a Windows server with PI installed, up and running. The minimum installation must include the PI System and the PI Connector Relay OMF. Once you have checked that everything is installed and works correctly, you should collect the IP addess of the Windows system.
+In order to test the North task and plugin, first you need to setup the PI system. Here we assume you are already familiar with PI and you have a Windows server with PI installed, up and running. The minimum installation must include the PI System and the PI Connector Relay OMF. Once you have checked that everything is installed and works correctly, you should collect the IP address of the Windows system.
 
 
 Setting the OMF Translator Plugin

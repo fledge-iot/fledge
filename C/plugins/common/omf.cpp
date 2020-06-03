@@ -20,13 +20,19 @@
 #include "string_utils.h"
 #include <plugin_api.h>
 #include <string_utils.h>
+#include <datapoint.h>
+#include <thread>
 
 using namespace std;
 using namespace rapidjson;
 
 static bool isTypeSupported(DatapointValue& dataPoint);
 
+// 1 enable performance tracking
+#define INSTRUMENT	0
+
 #define  AFHierarchySeparator '/'
+#define  AF_TYPES_SUFFIX       "-type"
 
 // Handling escapes for AF Hierarchies
 #define AFH_SLASH            "/"
@@ -982,15 +988,32 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			   bool compression, bool skipSentDataTypes)
 {
 	bool AFHierarchySent = false;
+	bool sendDataTypes;
+	string keyComplete;
 	string AFHierarchyPrefix;
 	string AFHierarchyLevel;
 
-	std::map<string, Reading*> superSetDataPoints;
+#if INSTRUMENT
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
+
+	struct timeval	start, t1, t2, t3, t4, t5;
+
+#endif
+
+
+#if INSTRUMENT
+	gettimeofday(&start, NULL);
+#endif
 
 	// Create a superset of all found datapoints for each assetName
 	// the superset[assetName] is then passed to routines which handle
 	// creation of OMF data types
-	OMF::setMapObjectTypes(readings, superSetDataPoints);
+	OMF::setMapObjectTypes(readings, m_SuperSetDataPoints);
+
+#if INSTRUMENT
+	gettimeofday(&t1, NULL);
+#endif
 
 	/*
 	 * Iterate over readings:
@@ -1011,15 +1034,24 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 						    elem != readings.end();
 						    ++elem)
 	{
-		bool sendDataTypes;
 
 		// Add into JSON string the OMF transformed Reading data
+		string assetName((**elem).getAssetName());
 
-		// Create the key for dataTypes sending once
-		long typeId = OMF::getAssetTypeId((**elem).getAssetName());
-		string key((**elem).getAssetName());
+		evaluateAFHierarchyRules(assetName, **elem);
 
-		evaluateAFHierarchyRules(key, **elem);
+		if (m_PIServerEndpoint == ENDPOINT_CR  ||
+			m_PIServerEndpoint == ENDPOINT_OCS ||
+			m_PIServerEndpoint == ENDPOINT_EDS
+			)
+		{
+			keyComplete = assetName;
+		}
+		else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
+		{
+			retrieveAFHierarchyPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchyLevel);
+			keyComplete = AFHierarchyPrefix + "_" + assetName;
+		}
 
 		if (! AFHierarchySent)
 		{
@@ -1028,16 +1060,21 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 
 		sendDataTypes = (m_lastError == false && skipSentDataTypes == true) ?
 				 // Send if not already sent
-				 !OMF::getCreatedTypes(key) :
+				 !OMF::getCreatedTypes(keyComplete, (**elem)) :
 				 // Always send types
 				 true;
 
 		Reading* datatypeStructure = NULL;
 		if (sendDataTypes)
 		{
+			// Increment type-id of assetName in in memory cache
+			OMF::incrementAssetTypeIdOnly(keyComplete);
+			// Remove data and keep type-id
+			OMF::clearCreatedTypes(keyComplete);
+
 			// Get the supersetDataPoints for current assetName
-			auto it = superSetDataPoints.find((**elem).getAssetName());
-			if (it != superSetDataPoints.end())
+			auto it = m_SuperSetDataPoints.find((**elem).getAssetName());
+			if (it != m_SuperSetDataPoints.end())
 			{
 				datatypeStructure = (*it).second;
 			}
@@ -1057,21 +1094,23 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		    // Handle the data types of the current reading
 		    (sendDataTypes &&
 		    // Send data type
-		    !OMF::handleDataTypes(*datatypeStructure, skipSentDataTypes) &&
-		    // Data type not sent: 
+		    !OMF::handleDataTypes(keyComplete, *datatypeStructure, skipSentDataTypes) &&
+		    // Data type not sent:
 		    (!m_changeTypeId ||
 		     // Increment type-id and re-send data types
-		     !OMF::handleTypeErrors(*datatypeStructure))))
+		     !OMF::handleTypeErrors(keyComplete, *datatypeStructure))))
 		{
 			// Remove all assets supersetDataPoints
-			OMF::unsetMapObjectTypes(superSetDataPoints);
+			OMF::unsetMapObjectTypes(m_SuperSetDataPoints);
 
 			// Failure
 			m_lastError = true;
 			return 0;
 		}
 
-		retrieveAFHierarchyPrefixAssetName(key, AFHierarchyPrefix, AFHierarchyLevel);
+		// Create the key for dataTypes sending once
+		long typeId = OMF::getAssetTypeId(assetName);
+
 		string outData = OMFData(**elem, typeId, m_PIServerEndpoint, AFHierarchyPrefix ).OMFdataVal();
 		if (!outData.empty())
 		{
@@ -1080,8 +1119,12 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		}
 	}
 
+#if INSTRUMENT
+	gettimeofday(&t2, NULL);
+#endif
+
 	// Remove all assets supersetDataPoints
-	OMF::unsetMapObjectTypes(superSetDataPoints);
+	OMF::unsetMapObjectTypes(m_SuperSetDataPoints);
 
 	jsonData << "]";
 
@@ -1092,6 +1135,10 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	{
 		json = compress_string(json);
 	}
+
+#if INSTRUMENT
+	gettimeofday(&t3, NULL);
+#endif
 
 	/**
 	 * Types messages sent, now transform each reading to OMF format.
@@ -1128,6 +1175,43 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		// Reset error indicator
 		m_lastError = false;
 
+#if INSTRUMENT
+		gettimeofday(&t4, NULL);
+#endif
+
+#if INSTRUMENT
+		struct timeval tm;
+		double timeT1, timeT2, timeT3, timeT4, timeT5;
+
+		timersub(&t1, &start, &tm);
+		timeT1 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
+
+		timersub(&t2, &t1, &tm);
+		timeT2 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
+
+		timersub(&t3, &t2, &tm);
+		timeT3 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
+
+		timersub(&t4, &t3, &tm);
+		timeT4 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
+
+		timersub(&t5, &t4, &tm);
+		timeT5 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
+
+
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("Timing seconds - thread :%s: - superSet :%6.3f: - Loop :%6.3f: - compress :%6.3f:  - send data :%6.3f:",
+								   threadId.str().c_str(),
+								   timeT1,
+								   timeT2,
+								   timeT3,
+								   timeT4
+		);
+
+		Logger::getLogger()->setMinLevel("warning");
+#endif
+
+
 		// Return number of sent readings to the caller
 		return readings.size();
 	}
@@ -1154,13 +1238,13 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			string assetName = OMF::getAssetNameFromError(e.what());
 			if (assetName.empty())
 			{
-				// Reset OMF types cache
-				OMF::clearCreatedTypes();
 				// Get maximum value among all per asset type-ids
 				// if no data, just use current global type-id
 				OMF::setTypeId();
 				// Increment the new value of global type-id
 				OMF::incrementTypeId();
+				// Reset OMF types cache
+				OMF::clearCreatedTypes();
 
 				Logger::getLogger()->warn("Sending JSON readings, "
 							  "not blocking issue: assetName not found in error message, "
@@ -1174,8 +1258,6 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			}
 			else
 			{
-				// Increment type-id of assetName in in memory cache
-				OMF::incrementAssetTypeId(assetName);
 				// Remove data and keep type-id
 				OMF::clearCreatedTypes(assetName);
 
@@ -1188,7 +1270,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 							  m_sender.getHostPort().c_str(),
 							  m_path.c_str(),
 							  json_not_compressed.c_str());
-                        }
+			}
 
 			// Reset error indicator
 			m_lastError = false;
@@ -1254,12 +1336,12 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 
 		sendDataTypes = (m_lastError == false && skipSentDataTypes == true) ?
 				 // Send if not already sent
-				 !OMF::getCreatedTypes(key) :
+				 !OMF::getCreatedTypes(key, (*elem)) :
 				 // Always send types
 				 true;
 
 		// Handle the data types of the current reading
-		if (sendDataTypes && !OMF::handleDataTypes(*elem, skipSentDataTypes))
+		if (sendDataTypes && !OMF::handleDataTypes(key, *elem, skipSentDataTypes))
 		{
 			// Failure
 			m_lastError = true;
@@ -1335,7 +1417,9 @@ uint32_t OMF::sendToServer(const Reading* reading,
 	ostringstream jsonData;
 	jsonData << "[";
 
-	if (!OMF::handleDataTypes(*reading, skipSentDataTypes))
+	string key(reading->getAssetName());
+
+	if (!OMF::handleDataTypes(key, *reading, skipSentDataTypes))
 	{
 		// Failure
 		return 0;
@@ -1581,6 +1665,8 @@ const std::string OMF::createStaticData(const Reading& reading)
 
 	assetName = reading.getAssetName();
 
+	long typeId = getAssetTypeId(assetName);
+
 	// Add type_id + '_' + asset_name + '_typename_sensor'
 	OMF::setAssetTypeTag(assetName,
 			     "typename_sensor",
@@ -1599,12 +1685,16 @@ const std::string OMF::createStaticData(const Reading& reading)
 
 	// Add asset_name
 	// Connector relay / ODS / EDS
-	if (m_PIServerEndpoint == ENDPOINT_CR  ||
-		m_PIServerEndpoint == ENDPOINT_OCS ||
-		m_PIServerEndpoint == ENDPOINT_EDS
-		)
+	if (m_PIServerEndpoint == ENDPOINT_CR)
 	{
 		sData.append(assetName);
+
+	}
+	else if (m_PIServerEndpoint == ENDPOINT_OCS ||
+	         m_PIServerEndpoint == ENDPOINT_EDS)
+	{
+		sData.append(assetName);
+
 	}
 	else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
@@ -1613,9 +1703,9 @@ const std::string OMF::createStaticData(const Reading& reading)
 
 		retrieveAFHierarchyPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchyLevel);
 
-		sData.append(assetName);
+		sData.append(assetName + AF_TYPES_SUFFIX + to_string(typeId));
 		sData.append("\", \"AssetId\": \"");
-		sData.append("A_" + AFHierarchyPrefix + "_" + assetName);
+		sData.append("A_" + AFHierarchyPrefix + "_" + assetName + AF_TYPES_SUFFIX + to_string(typeId));
 	}
 
 	sData.append("\"}]}]");
@@ -1639,6 +1729,8 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 	string measurementId;
 	string assetName = reading.getAssetName();
 	// Build the Link data (JSON Array)
+
+	long typeId = getAssetTypeId(assetName);
 
 	string lData = "[{\"typeid\": \"__Link\", \"values\": [";
 
@@ -1683,7 +1775,7 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 		StringReplace(tmpStr, "_placeholder_src_type_", AFHierarchyPrefix + "_" + AFHierarchyLevel + "_typeid");
 		StringReplace(tmpStr, "_placeholder_src_idx_",  AFHierarchyPrefix + "_" + AFHierarchyLevel );
 		StringReplace(tmpStr, "_placeholder_tgt_type_", targetTypeId);
-		StringReplace(tmpStr, "_placeholder_tgt_idx_",  "A_" + objectPrefix + "_" + assetName);
+		StringReplace(tmpStr, "_placeholder_tgt_idx_",  "A_" + objectPrefix + "_" + assetName + AF_TYPES_SUFFIX +  to_string(typeId));
 
 		lData.append(tmpStr);
 		lData.append(",");
@@ -1698,18 +1790,20 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 
 	lData.append("\", \"index\": \"");
 
-	// Connector relay / ODS / EDS
-	if (m_PIServerEndpoint == ENDPOINT_CR  ||
-		m_PIServerEndpoint == ENDPOINT_OCS ||
-		m_PIServerEndpoint == ENDPOINT_EDS
-		)
+	if (m_PIServerEndpoint == ENDPOINT_CR)
+	{
+		// Add asset_name
+		lData.append(assetName);
+	}
+	else if (m_PIServerEndpoint == ENDPOINT_OCS ||
+			 m_PIServerEndpoint == ENDPOINT_EDS)
 	{
 		// Add asset_name
 		lData.append(assetName);
 	}
 	else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
-		lData.append("A_" + objectPrefix + "_" + assetName);
+		lData.append("A_" + objectPrefix + "_" + assetName + AF_TYPES_SUFFIX + to_string(typeId));
 	}
 
 	measurementId = to_string(OMF::getAssetTypeId(assetName)) + "measurement_" + assetName;
@@ -1754,7 +1848,7 @@ void OMF::generateAFHierarchyPrefixLevel(string& path, string& prefix, string& A
  * @param out/prefix		     Calculated prefix
  * @param out/AFHierarchyLevel   hiererachy name
  */
-void OMF::retrieveAFHierarchyPrefixAssetName(string assetName, string& prefix, string& AFHierarchyLevel)
+void OMF::retrieveAFHierarchyPrefixAssetName(const string& assetName, string& prefix, string& AFHierarchyLevel)
 {
 	string path;
 	// Metadata Rules - Exist
@@ -2009,6 +2103,20 @@ void OMF::setAssetTypeTag(const string& assetName,
 			  const string& tagName,
 			  string& data)
 {
+	string AFHierarchyPrefix;
+	string AFHierarchyLevel;
+	string keyComplete;
+
+	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
+	if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
+	{
+		retrieveAFHierarchyPrefixAssetName (assetName, AFHierarchyPrefix, AFHierarchyLevel);
+		keyComplete = AFHierarchyPrefix + "_" + assetName;
+	}
+	else
+	{
+		keyComplete = assetName;
+	}
 
 	string AssetTypeTag = to_string(this->getAssetTypeId(assetName)) +
 		              "_" + assetName +
@@ -2017,11 +2125,6 @@ void OMF::setAssetTypeTag(const string& assetName,
 	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
 	if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
-		string AFHierarchyPrefix;
-		string AFHierarchyLevel;
-
-		retrieveAFHierarchyPrefixAssetName (assetName, AFHierarchyPrefix, AFHierarchyLevel);
-
 		AssetTypeTag = "A_" + AFHierarchyPrefix + "_" + AFHierarchyLevel + "_" + AssetTypeTag;
 	}
 	// Add type-id + '_' + asset_name + '_' + tagName'
@@ -2038,16 +2141,15 @@ void OMF::setAssetTypeTag(const string& assetName,
  * @return               True if data types have been sent or already sent.
  *                       False if the sending has failed.
  */ 
-bool OMF::handleDataTypes(const Reading& row,
-			  bool skipSending)
+bool OMF::handleDataTypes(const string keyComplete, const Reading& row, bool skipSending)
 {
 	// Create the key for dataTypes sending once
-	const string key(skipSending ? (row.getAssetName()) : "");
+	const string key(skipSending ? (keyComplete) : "");
 
 	// Check whether to create and send Data Types
 	bool sendTypes = (skipSending == true) ?
 			  // Send if not already sent
-			  !OMF::getCreatedTypes(key) :
+			  !OMF::getCreatedTypes(key, row) :
 			  // Always send types
 			  true;
 
@@ -2374,25 +2476,27 @@ bool OMF::isDataTypeError(const char* message)
  * @return              True if data types with new-id
  *                      have been sent, false otherwise.
  */
-bool OMF::handleTypeErrors(const Reading& reading)
+bool OMF::handleTypeErrors(const string& keyComplete, const Reading& reading)
 {
+	Logger::getLogger()->debug("handleTypeErrors keyComplete :%s:", keyComplete.c_str());
+
 	bool ret = true;
-	string key = reading.getAssetName();
+	string assetName = reading.getAssetName();
 
 	// Reset change type-id indicator
 	m_changeTypeId = false;
 
 	// Increment per asset type-id in memory cache:
 	// Note: if key is not found the global type-id is incremented
-	OMF::incrementAssetTypeId(key);
+	OMF::incrementAssetTypeId(keyComplete);
 
 	// Clear per asset data (but keep the type-id) if key found
 	// or remove all data otherwise
-	auto it = m_OMFDataTypes->find(key);
+	auto it = m_OMFDataTypes->find(keyComplete);
 	if (it != m_OMFDataTypes->end())
 	{
 		// Clear teh OMF types cache per asset, keep type-id
-		OMF::clearCreatedTypes(key);
+		OMF::clearCreatedTypes(keyComplete);
 	}
 	else
 	{
@@ -2401,13 +2505,12 @@ bool OMF::handleTypeErrors(const Reading& reading)
 	}
 
 	// Force re-send data types with a new type-id
-	if (!OMF::handleDataTypes(reading,
-				  false))
+	if (!OMF::handleDataTypes(keyComplete, reading, false))
 	{
 		Logger::getLogger()->error("Failure re-sending JSON dataType messages "
 					   "with new type-id=%d for asset %s",
-					   OMF::getAssetTypeId(key),
-					   key.c_str());
+								   OMF::getAssetTypeId(assetName),
+								   assetName.c_str());
 		// Failure
 		m_lastError = true;
 		ret = false;
@@ -2590,7 +2693,9 @@ string OMF::getAssetNameFromError(const char* message)
 				if (found != std::string::npos &&
 				    found < tmp.length())
 				{
-					assetName = assetName.substr(found + 1 );
+					// bug fixed
+					//assetName = assetName.substr(found + 1 );
+					assetName = tmp.substr(found + 1 );
 				}
 			}
 		}
@@ -2616,9 +2721,28 @@ string OMF::getAssetNameFromError(const char* message)
  * @return		The found type-id
  *			or the generic value
  */
-long OMF::getAssetTypeId(const string& assetName) const
+long OMF::getAssetTypeId(const string& assetName)
 {
 	long typeId;
+	string keyComplete;
+	string AFHierarchyPrefix;
+	string AFHierarchyLevel;
+
+	// Connector relay / ODS / EDS
+	if (m_PIServerEndpoint == ENDPOINT_CR  ||
+		m_PIServerEndpoint == ENDPOINT_OCS ||
+		m_PIServerEndpoint == ENDPOINT_EDS
+		)
+	{
+		keyComplete = assetName;
+	}
+	else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
+	{
+		retrieveAFHierarchyPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchyLevel);
+		keyComplete = AFHierarchyPrefix + "_" + assetName;
+	}
+
+
 	if (!m_OMFDataTypes)
 	{
 		// Use current value of m_typeId
@@ -2626,7 +2750,7 @@ long OMF::getAssetTypeId(const string& assetName) const
 	}
 	else
 	{
-		auto it = m_OMFDataTypes->find(assetName);
+		auto it = m_OMFDataTypes->find(keyComplete);
 		if (it != m_OMFDataTypes->end())
 		{
 			// Set the type-id of found element
@@ -2638,6 +2762,7 @@ long OMF::getAssetTypeId(const string& assetName) const
 			typeId = m_typeId;
 		}
 	}
+
 	return typeId;
 }
 
@@ -2647,21 +2772,21 @@ long OMF::getAssetTypeId(const string& assetName) const
  * If cached data pointer is NULL or asset name is not set
  * the global m_typeId is incremented.
  *
- * @param    assetName		The asset name
+ * @param    keyComplete		The asset name
  *				which type-id sequence
  *				has to be incremented.
  */
-void OMF::incrementAssetTypeId(const std::string& assetName)
+void OMF::incrementAssetTypeId(const std::string& keyComplete)
 {
 	long typeId;
 	if (!m_OMFDataTypes)
         {
-                // Increment current value of m_typeId
+		// Increment current value of m_typeId
 		OMF::incrementTypeId();
         }
 	else
 	{
-		auto it = m_OMFDataTypes->find(assetName);
+		auto it = m_OMFDataTypes->find(keyComplete);
 		if (it != m_OMFDataTypes->end())
 		{
 			// Increment value of found type-id
@@ -2669,10 +2794,97 @@ void OMF::incrementAssetTypeId(const std::string& assetName)
 		}
 		else
 		{
-                	// Increment current value of m_typeId
+			// Increment current value of m_typeId
 			OMF::incrementTypeId();
 		}
 	}
+}
+
+/**
+ * Increment the type-id for the given asset name
+ *
+ * If cached data pointer is NULL or asset name is not set
+ * the global m_typeId is incremented.
+ *
+ * @param    keyComplete		The asset name
+ *				                which type-id sequence
+ *				                has to be incremented.
+ */
+void OMF::incrementAssetTypeIdOnly(const std::string& keyComplete)
+{
+	long typeId;
+	if (m_OMFDataTypes)
+	{
+		auto it = m_OMFDataTypes->find(keyComplete);
+		if (it != m_OMFDataTypes->end())
+		{
+			// Increment value of found type-id
+			++((*it).second).typeId;
+		}
+	}
+}
+
+
+/**
+ * Generate a 64 bit number containing  a set of counts,
+ * number of datapoint in an asset and the number of datapoint of each type we support.
+ *
+ */
+unsigned long OMF::calcTypeShort(const Reading& row)
+{
+	union t_typeCount {
+		struct
+		{
+			unsigned char tTotal;
+			unsigned char tFloat;
+			unsigned char tString;
+			unsigned char spare0;
+
+			unsigned char spare1;
+			unsigned char spare2;
+			unsigned char spare3;
+			unsigned char spare4;
+		} cnt;
+		unsigned long valueLong = 0;
+
+	} typeCount;
+
+	int type;
+
+	const vector<Datapoint*> data = row.getReadingData();
+	for (vector<Datapoint*>::const_iterator it = data.begin();
+		 (it != data.end() &&
+		  isTypeSupported((*it)->getData()));
+		 ++it)
+	{
+
+		if (!isTypeSupported((*it)->getData()))
+		{
+			continue;
+		}
+
+		type = ((*it)->getData()).getType();
+
+		// Integer is handled as float in the OMF integration
+		if (type == DatapointValue::dataTagType::T_INTEGER)
+		{
+			typeCount.cnt.tFloat++;
+		}
+
+		if (type == DatapointValue::dataTagType::T_FLOAT)
+		{
+			typeCount.cnt.tFloat++;
+		}
+
+		if (type == DatapointValue::dataTagType::T_STRING)
+		{
+			typeCount.cnt.tString++;
+		}
+		typeCount.cnt.tTotal++;
+
+	}
+
+	return typeCount.valueLong;
 }
 
 /**
@@ -2690,7 +2902,7 @@ bool OMF::setCreatedTypes(const Reading& row)
 		return false;
 	}
 	string types;
-	string key;
+	string keyComplete;
 
 	// Connector relay / ODS / EDS
 	if (m_PIServerEndpoint == ENDPOINT_CR  ||
@@ -2698,7 +2910,7 @@ bool OMF::setCreatedTypes(const Reading& row)
 		m_PIServerEndpoint == ENDPOINT_EDS
 		)
 	{
-		key = row.getAssetName();
+		keyComplete = row.getAssetName();
 	}
 	else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
@@ -2709,11 +2921,11 @@ bool OMF::setCreatedTypes(const Reading& row)
 		assetName = row.getAssetName();
 		retrieveAFHierarchyPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchyLevel);
 
-		key = AFHierarchyPrefix + "_" + assetName;
+		keyComplete = AFHierarchyPrefix + "_" + assetName;
 	}
 
 
-	long typeId = OMF::getAssetTypeId(key);
+	long typeId = OMF::getAssetTypeId(keyComplete);
 	const vector<Datapoint*> data = row.getReadingData();
 	types.append("{");
 	for (vector<Datapoint*>::const_iterator it = data.begin();
@@ -2756,20 +2968,23 @@ bool OMF::setCreatedTypes(const Reading& row)
 	}
 	types.append("}");
 
-	if (m_OMFDataTypes->find(key) == m_OMFDataTypes->end())
+	if (m_OMFDataTypes->find(keyComplete) == m_OMFDataTypes->end())
 	{
 		// New entry
 		OMFDataTypes newData;
 		// Start from default as we don't have anything in the cache
 		newData.typeId = m_typeId;
+
 		newData.types = types;
-		(*m_OMFDataTypes)[key] = newData;
+		(*m_OMFDataTypes)[keyComplete] = newData;
 	}
 	else
 	{
 		// Just update dataTypes and keep the typeId
-		(*m_OMFDataTypes)[key].types = types;
+		(*m_OMFDataTypes)[keyComplete].types = types;
 	}
+
+	(*m_OMFDataTypes)[keyComplete].typesShort = calcTypeShort(row);
 
 	return true;
 }
@@ -2801,11 +3016,11 @@ void OMF::setTypeId()
  * Clear OMF types cache for given asset name
  * but keep the type-id
  */
-void OMF::clearCreatedTypes(const string& key)
+void OMF::clearCreatedTypes(const string& keyComplete)
 {
 	if (m_OMFDataTypes)
 	{
-		auto it = m_OMFDataTypes->find(key);
+		auto it = m_OMFDataTypes->find(keyComplete);
 		if (it != m_OMFDataTypes->end())
 		{
 			// Just clear data types
@@ -2818,36 +3033,18 @@ void OMF::clearCreatedTypes(const string& key)
  * Check the key (assetName) is set and not empty
  * in the per asset data types cache.
  *
- * @param key    The data type key (assetName) from the Reading row
+ * @param keyComplete    The data type key (assetName) from the Reading row
  * @return       True is the key exists and data value is not empty:
  *		 this means the dataTypes were already sent
  *		 Found key with empty value means the data types
  *		 must be sent again with the new type-id.
  *               Return false if the key is not found or found but empty.
  */
-bool OMF::getCreatedTypes(const string& key)
+bool OMF::getCreatedTypes(const string& keyComplete, const Reading& row)
 {
-	bool ret;
-	string keyComplete;
-
-	// Connector relay / ODS / EDS
-	if (m_PIServerEndpoint == ENDPOINT_CR  ||
-		m_PIServerEndpoint == ENDPOINT_OCS ||
-		m_PIServerEndpoint == ENDPOINT_EDS
-		)
-	{
-		keyComplete = key;
-	}
-	else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
-	{
-		string AFHierarchyPrefix;
-		string AFHierarchyLevel;
-
-		retrieveAFHierarchyPrefixAssetName(key, AFHierarchyPrefix, AFHierarchyLevel);
-		keyComplete = AFHierarchyPrefix + "_" + key;
-
-		Logger::getLogger()->debug("DBG getCreatedTypes :%s: :%s:", key.c_str(), keyComplete.c_str() );
-	}
+	unsigned long typesDefinition;
+	bool ret = false;
+	bool found = false;
 
 	if (!m_OMFDataTypes)
 	{
@@ -2856,7 +3053,41 @@ bool OMF::getCreatedTypes(const string& key)
 	else
 	{
 		auto it = m_OMFDataTypes->find(keyComplete);
-		ret = (it != m_OMFDataTypes->end()) && !(*m_OMFDataTypes)[keyComplete].types.empty();
+		if (it != m_OMFDataTypes->end())
+		{
+			ret = ! it->second.types.empty();
+			if (ret)
+			{
+				// Considers empty also the case "{}"
+				if (it->second.types.compare("{}") == 0)
+				{
+					ret = false;
+				}
+				else
+				{
+					// The Connector Relay recreates the type only when an error is received from the PI-Server
+					// not in advance
+					if (m_PIServerEndpoint != ENDPOINT_CR)
+					{
+						// Check if the defined type has changed respect the superset type
+						Reading* datatypeStructure = NULL;
+
+						auto itSuper = m_SuperSetDataPoints.find(row.getAssetName());
+						if (itSuper != m_SuperSetDataPoints.end())
+						{
+							datatypeStructure = (*itSuper).second;
+
+							// Check if the types are changed
+							typesDefinition = calcTypeShort(*datatypeStructure);
+							if (it->second.typesShort != typesDefinition)
+							{
+								ret = false;
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 	return ret;
 }

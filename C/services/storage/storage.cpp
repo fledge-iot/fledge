@@ -257,7 +257,10 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 		}
 		vector<string> children1;
 		children1.push_back(STORAGE_CATEGORY);
-		client->addChildCategories(ADVANCED, children1);
+		try {
+			client->addChildCategories(ADVANCED, children1);
+		} catch (...) {
+		}
 
 		// Regsiter for configuration chanegs to our category
 		ConfigHandler *configHandler = ConfigHandler::getInstance(client);

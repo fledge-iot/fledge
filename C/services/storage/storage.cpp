@@ -23,6 +23,7 @@
 #include <dlfcn.h>
 #include <cxxabi.h>
 #include <syslog.h>
+#include <config_handler.h>
 
 extern int makeDaemon(void);
 
@@ -245,11 +246,22 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 		ServiceRecord record(m_name, "Storage", "http", "localhost", listenerPort, managementListener);
 		ManagementClient *client = new ManagementClient(coreAddress, corePort);
 		client->registerService(record);
+
+		// Add the default configuration under the Advanced category
 		unsigned int retryCount = 0;
-		while (client->registerCategory(STORAGE_CATEGORY) == false && ++retryCount < 10)
+		DefaultConfigCategory *conf = config->getDefaultCategory();
+		conf->setDescription(CATEGORY_DESCRIPTION);
+		while (client->addCategory(*conf, true) == false && ++retryCount < 10)
 		{
 			sleep(2 * retryCount);
 		}
+		vector<string> children1;
+		children1.push_back(STORAGE_CATEGORY);
+		client->addChildCategories(ADVANCED, children1);
+
+		// Regsiter for configuration chanegs to our category
+		ConfigHandler *configHandler = ConfigHandler::getInstance(client);
+		configHandler->registerCategory(this, STORAGE_CATEGORY);
 
 		// Wait for all the API threads to complete
 		api->wait();
@@ -366,6 +378,7 @@ void StorageService::shutdown()
  */
 void StorageService::configChange(const string& categoryName, const string& category)
 {
+	logger->info("Configuration category change '%s'", categoryName.c_str());
 	if (!categoryName.compare(STORAGE_CATEGORY))
 	{
 		config->updateCategory(category);

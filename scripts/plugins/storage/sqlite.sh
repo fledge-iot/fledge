@@ -26,6 +26,7 @@ PLUGIN="sqlite"
 # Set default DB file
 if [ ! "${DEFAULT_SQLITE_DB_FILE}" ]; then
     export DEFAULT_SQLITE_DB_FILE="${FLEDGE_DATA}/fledge.db"
+    export DEFAULT_SQLITE_DB_FILE_READINGS="${FLEDGE_DATA}/readings.db"
 fi
 
 USAGE="Usage: `basename ${0}` {start|stop|status|init|reset|help}"
@@ -144,8 +145,11 @@ sqlite_stop() {
 
 ## SQLite3 Reset
 sqlite_reset() {
+
     if [[ $2 != "immediate" ]]; then
-        echo "This script will remove all data stored in the SQLite3 datafile '${DEFAULT_SQLITE_DB_FILE}'"
+        echo "This script will remove all data stored in the SQLite3 datafiles:"
+        echo "'${DEFAULT_SQLITE_DB_FILE}'"
+        echo "'${DEFAULT_SQLITE_DB_FILE_READINGS}'"
         echo -n "Enter YES if you want to continue: "
         read continue_reset
 
@@ -156,6 +160,11 @@ sqlite_reset() {
         fi
     fi
 
+    sqlite_reset_db_fledge   "$1" "$2"
+    sqlite_reset_db_readings "$1" "$2"
+}
+
+sqlite_reset_db_fledge() {
     if [[ "$1" == "noisy" ]]; then
         sqlite_log "info" "Building the metadata for the Fledge Plugin '${PLUGIN}' ..." "all" "pretty"
     else
@@ -189,7 +198,41 @@ EOF`
     else
         sqlite_log "info" "Build complete for Fledge Plugin '${PLUGIN} in database '${DEFAULT_SQLITE_DB_FILE}'." "logonly" "pretty"
     fi
+
 }
+
+sqlite_reset_db_readings() {
+
+    # 1- Drop all databases in DEFAULT_SQLITE_DB_FILE_READINGS
+    if [ -f "${DEFAULT_SQLITE_DB_FILE_READINGS}" ]; then
+        rm ${DEFAULT_SQLITE_DB_FILE_READINGS} ||
+        sqlite_log "err" "Cannot drop database '${DEFAULT_SQLITE_DB_FILE_READINGS}' for the Fledge Plugin '${PLUGIN}'" "all" "pretty"
+    fi
+    rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS}-journal ${DEFAULT_SQLITE_DB_FILE_READINGS}-wal ${DEFAULT_SQLITE_DB_FILE_READINGS}-shm
+    # 2- Create new datafile an apply init file
+    INIT_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE_READINGS}" 2>&1 <<EOF
+PRAGMA page_size = 4096;
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}' AS 'readings';
+.read '${INIT_READINGS_SQL}'
+.quit
+EOF`
+
+    RET_CODE=$?
+    # Exit on failure
+    if [ "${RET_CODE}" -ne 0 ]; then
+        sqlite_log "err" "Cannot initialize '${DEFAULT_SQLITE_DB_FILE_READINGS}' for the Fledge Plugin '${PLUGIN}': ${INIT_OUTPUT}. Exiting" "all" "pretty"
+        exit 2
+    fi
+
+    # Log success
+    if [[ "$1" == "noisy" ]]; then
+        sqlite_log "info" "Build complete for Fledge Plugin '${PLUGIN} in database '${DEFAULT_SQLITE_DB_FILE_READINGS}'." "all" "pretty"
+    else
+        sqlite_log "info" "Build complete for Fledge Plugin '${PLUGIN} in database '${DEFAULT_SQLITE_DB_FILE_READINGS}'." "logonly" "pretty"
+    fi
+
+}
+
 
 
 ## SQLite 3 Database Status
@@ -355,10 +398,12 @@ esac
 # Attempt 1: deployment path
 if [[ -e "$FLEDGE_ROOT/plugins/storage/sqlite/init.sql" ]]; then
     INIT_SQL="$FLEDGE_ROOT/plugins/storage/sqlite/init.sql"
+    INIT_READINGS_SQL="$FLEDGE_ROOT/plugins/storage/sqlite/init_readings.sql"
 else
     # Attempt 2: development path
     if [[ -e "$FLEDGE_ROOT/scripts/plugins/storage/sqlite/init.sql" ]]; then
         INIT_SQL="$FLEDGE_ROOT/scripts/plugins/storage/sqlite/init.sql"
+        INIT_READINGS_SQL="$FLEDGE_ROOT/scripts/plugins/storage/sqlite/init_readings.sql"
     else
         sqlite_log "err" "Missing plugin '${PLUGIN}' initialization file init.sql." "all" "pretty"
         exit 1

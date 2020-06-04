@@ -49,6 +49,7 @@ class TestConfiguration:
         jdoc = json.loads(r)
         cats = jdoc["categories"]
         assert 4 == len(cats)
+        assert {'key': 'Storage', 'displayName': 'Storage', 'description': 'Storage configuration'} == cats [0]
         assert {'key': 'General', 'displayName': 'General', 'description': 'General'} == cats[1]
         assert {'key': 'Advanced', 'displayName': 'Advanced', 'description': 'Advanced'} == cats[2]
         assert {'key': 'Utilities', 'displayName': 'Utilities', 'description': 'Utilities'} == cats[3]

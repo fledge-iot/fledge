@@ -15,11 +15,8 @@
 #include <reading_stream.h>
 #include <random>
 
-// FIXME::
-#include <tmp_log.hpp>
-
 // 1 enable performance tracking
-#define INSTRUMENT	1
+#define INSTRUMENT	0
 
 #if INSTRUMENT
 #include <sys/time.h>
@@ -822,32 +819,6 @@ int sleep_time_ms = 0;
 								   timeT3
 		);
 		Logger::getLogger()->setMinLevel("warning");
-
-		// FIXME_I:
-		char tmp_buffer[500000];
-		snprintf (tmp_buffer,500000, "Timing - thread :%s: buffer :%10lu: count - JSON - inserts - finalize - %5d \t %6.3f \t %6.3f \t %6.3f",
-				  threadId.str().c_str(),
-				  strlen(readings),
-				  row,
-				  timeT1,
-				  timeT2,
-				  timeT3);
-		tmpLogger (tmp_buffer);
-
-		// FIXME_I:
-		{
-			timeval curTime;
-			gettimeofday(&curTime, NULL);
-			int milli = curTime.tv_usec / 1000;
-
-			char buffer [80];
-			strftime(buffer, 80, "%Y-%m-%d %H:%M:%S", localtime(&curTime.tv_sec));
-
-			char currentTime[84] = "";
-			sprintf(currentTime, "%s:%03d", buffer, milli);
-
-			Logger::getLogger()->debug("Step_a2 appendReadings end thread :%s: time :%s:", threadId.str().c_str(), currentTime);
-		}
 
 #endif
 

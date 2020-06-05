@@ -1031,7 +1031,7 @@ void StorageApi::createStorageStream(shared_ptr<HttpServer::Response> response, 
 {
 string	responsePayload;
 
-	
+	(void)(request); 	// Surpress unused arguemnt warning
 	try {
 		if (!streamHandler)
 		{

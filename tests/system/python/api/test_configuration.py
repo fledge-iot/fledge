@@ -48,19 +48,21 @@ class TestConfiguration:
         r = r.read().decode()
         jdoc = json.loads(r)
         cats = jdoc["categories"]
-        assert 3 == len(cats)
-        assert {'key': 'General', 'displayName': 'General', 'description': 'General'} == cats[0]
-        assert {'key': 'Advanced', 'displayName': 'Advanced', 'description': 'Advanced'} == cats[1]
-        assert {'key': 'Utilities', 'displayName': 'Utilities', 'description': 'Utilities'} == cats[2]
+        assert 4 == len(cats)
+        assert {'key': 'Storage', 'displayName': 'Storage', 'description': 'Storage configuration'} == cats [0]
+        assert {'key': 'General', 'displayName': 'General', 'description': 'General'} == cats[1]
+        assert {'key': 'Advanced', 'displayName': 'Advanced', 'description': 'Advanced'} == cats[2]
+        assert {'key': 'Utilities', 'displayName': 'Utilities', 'description': 'Utilities'} == cats[3]
 
         conn.request("GET", '/fledge/category?root=true&children=true')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert 3 == len(jdoc["categories"])
+        assert 4 == len(jdoc["categories"])
 
         expected_with_utilities = [
+            {'children': [], 'displayName': 'Storage', 'key': 'Storage', 'description': 'Storage configuration'},
             {'children': [{'children': [], 'key': 'Installation', 'description': 'Installation', 'displayName': 'Installation'},
                           {'children': [], 'displayName': 'Admin API', 'key': 'rest_api',
                            'description': 'Fledge Admin and User REST API'},

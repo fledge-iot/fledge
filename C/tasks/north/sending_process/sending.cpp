@@ -85,13 +85,13 @@ static const string sendingAdvancedConfig =
 			"should run (in seconds) before stopping.\", " \
 			"\"type\": \"integer\", \"default\": \"60\" , " \
 			"\"order\": \"30\", \"displayName\" : \"Duration\" }, " \
-	        "\"blockSize\": {" \
+        "\"blockSize\": {" \
 			"\"description\": \"The size of a block of readings to send " \
 			"in each transmission.\", " \
-			"\"type\": \"integer\", \"default\": \"500\", \"order\": \"31\", " \
+			"\"type\": \"integer\", \"default\": \"5000\", \"order\": \"31\", " \
 			"\"displayName\" : \"Readings Block Size\" }, " \
-		        "\"sleepInterval\": {" \
-		"\"description\": \"A period of time, expressed in seconds, " \
+        "\"sleepInterval\": {" \
+		    "\"description\": \"A period of time, expressed in seconds, " \
 			"to wait between attempts to send readings when there are no " \
 			"readings to be sent.\", \"type\": \"integer\", \"default\": \"1\", " \
 			"\"order\": \"32\", \"displayName\" : \"Sleep Interval\"  }, " \

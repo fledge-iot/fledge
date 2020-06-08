@@ -62,6 +62,12 @@ async def _services_with_assets(storage_client, south_services):
                     plugin_version = p["version"]
                     break
 
+            # Service running on another machine have no scheduler entry
+            sched_enable = 'unknown'
+            try:
+                sched_enable = await _get_schedule_status(storage_client, s_record._name)
+            except:
+                pass
             sr_list.append(
                 {
                     'name': s_record._name,
@@ -72,7 +78,7 @@ async def _services_with_assets(storage_client, south_services):
                     'status': ServiceRecord.Status(int(s_record._status)).name.lower(),
                     'assets': assets,
                     'plugin': {'name': plugin, 'version': plugin_version},
-                    'schedule_enabled': await _get_schedule_status(storage_client, s_record._name)
+                    'schedule_enabled': sched_enable
                 })
         for s_name in south_services:
             south_svc = is_svc_in_service_registry(s_name)

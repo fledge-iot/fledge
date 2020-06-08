@@ -1200,12 +1200,14 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 
 
 		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("Timing seconds - thread :%s: - superSet :%6.3f: - Loop :%6.3f: - compress :%6.3f:  - send data :%6.3f:",
+		Logger::getLogger()->debug("Timing seconds - thread :%s: - superSet :%6.3f: - Loop :%6.3f: - compress :%6.3f: - send data :%6.3f: - msg size |%d| - msg size compressed |%d| ",
 								   threadId.str().c_str(),
 								   timeT1,
 								   timeT2,
 								   timeT3,
-								   timeT4
+								   timeT4,
+								   json_not_compressed.length(),
+								   json.length()
 		);
 
 		Logger::getLogger()->setMinLevel("warning");
@@ -1855,10 +1857,9 @@ void OMF::retrieveAFHierarchyPrefixAssetName(const string& assetName, string& pr
 	auto rule = m_AssetNamePrefix.find(assetName);
 	if (rule != m_AssetNamePrefix.end())
 	{
-		auto itemArray  = rule->second;
-		auto item  = itemArray[0];
-		AFHierarchyLevel = std::get<0>(item);
-		prefix =std::get<1>(item);
+		AFHierarchyLevel = std::get<0>(rule->second[0]);
+		prefix =std::get<1>(rule->second[0]);
+
 	}
 
 }

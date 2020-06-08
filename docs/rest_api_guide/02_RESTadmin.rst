@@ -1222,10 +1222,14 @@ A JSON document containing an array of statistical information, these statistics
       - Readings removed from the buffer by the purge process
     * - statistics[].READINGS
       - Readings received by Fledge
+    * - statistics[].*NORTH_TASK_NAME*
+      - The number of readings sent to the PI system via the OMF plugin with north instance name
     * - statistics[].UNSENT
       - Readings filtered out in the send process
     * - statistics[].UNSNPURGED
       - Readings that were purged from the buffer before being sent
+    * - statistics[].*ASSET-CODE*
+      - The number of readings received by Fledge since startup with name *asset-code*
 
 
 **Example**

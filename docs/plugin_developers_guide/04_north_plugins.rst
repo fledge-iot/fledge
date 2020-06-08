@@ -265,182 +265,226 @@ OMF Plugin Configuration
 
 The following table presents the list of configuration options available for the task that sends data to OMF (category *OMF to PI north*):
 
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| Item                            | Type        | Default                                 | Description                                            |
-+=================================+=============+=========================================+========================================================+
-| AFMap                           | JSON        | { }                                     | Defines a set of rules to address where                |
-|                                 |             |                                         | assets should be placed in the AF hierarchy. |br|      |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| compression                     | boolean     | true                                    | Compress readings data before sending to PI server |br||
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| DefaultAFLocation               | integer     | /fledge/data_piwebapi/default           | Defines the hierarchies tree in Asset Framework |br|   |
-|                                 |             |                                         | in which the assets will be created, |br|              |
-|                                 |             |                                         | each level is separated by /, PI Web API only.         |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| enable                          | boolean     | True                                    | A switch that can be used to enable or disable |br|    |
-|                                 |             |                                         | execution of the sending process.                      |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| formatInteger                   | string      | int64                                   | OMF format property to apply to the type Integer |br|  |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| formatNumber                    | string      | float64                                 | OMF format property to apply to the type Number |br|   |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| notBlockingErrors               | JSON        |                                         | These errors are considered not blocking in the |br|   |
-|                                 |             |                                         | communication with the PI Server, the sending  |br|    |
-|                                 |             |                                         | operation will proceed with the next block of data     |
-|                                 |             |                                         | if one of these is encountered.                        |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| OCSClientSecret                 | boolean     | ocs_client_secret                       | Client secret associated to the specific OCS  |br|     |
-|                                 |             |                                         | account, it is used to authenticate |br|               |
-|                                 |             |                                         | the source for using the OCS API.                      |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| OCSClientId                     | string      | ocs_client_id                           | Client id associated to the specific OCS account, |br| |
-|                                 |             |                                         | it is used to authenticate |br|                        |
-|                                 |             |                                         | the source for using the OCS API.                      |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| OCSTenantId                     | string      | ocs_tenant_id                           | Tenant id associated to the specific OCS account |br|  |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| OCSNamespace                    | string      | name_space                              | Specifies the OCS namespace where the information |br| |
-|                                 |             |                                         | are stored and it is used for the interaction |br|     |
-|                                 |             |                                         | with the OCS API.                                      |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| OMFHttpTimeout                  | integer     | 10                                      | Timeout in seconds for the HTTP operations |br|        |
-|                                 |             |                                         | with the OMF PI Connector Relay                        |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| OMFMaxRetry                     | integer     | 3                                       | Max number of retries for the communication |br|       |
-|                                 |             |                                         | with the OMF PI Connector Relay                        |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| OMFRetrySleepTime               | integer     | 1                                       | Seconds between each retry for the communication |br|  |
-|                                 |             |                                         | with the OMF PI Connector Relay, |br|                  |
-|                                 |             |                                         | NOTE : the time is doubled at each attempt.            |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| PIWebAPIKerberosKeytabFileName  | string      | piwebapi_kerberos_https.keytab          | Keytab file name used for Kerberos |br|                |
-|                                 |             |                                         | authentication in PI Web API.                          |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| PIWebAPIAuthenticationMethod    | enumeration | anonymous                               | Defines the authentication method to be |br|           |
-|                                 |             |                                         | used with the PI Web API.                              |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| PIWebAPIPassword                | password    | password                                | Password of the user of PI Web API |br|                |
-|                                 |             |                                         | to be used with the basic access authentication.       |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| PIWebAPIUserId                  | string      | user_id                                 | User id of PI Web API to be used |br|                  |
-|                                 |             |                                         | with the basic access authentication.                  |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| PIServerEndpoint                | enumeration | Connector Relay                         | Select the endpoint among PI Web API, |br|             |
-|                                 |             |                                         | connector Relay, OSIsoft Cloud Services or |br|        |
-|                                 |             |                                         | Edge Data Store                                        |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| plugin                          | string      | OMF                                     | PI Server North C Plugin                               |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| producerToken                   | string      | omf_north_0001                          | The producer token that represents this Fledge stream  |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| ServerHostname                  | string      | localhost                               | Hostname of the server running the endpoint |br|       |
-|                                 |             |                                         | either PI Web API or Connector Relay                   |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| ServerPort                      | integer     | 0                                       | Port on which the endpoint either PI Web API |br|      |
-|                                 |             |                                         | or Connector Relay or Edge Data Store is  |br|         |
-|                                 |             |                                         | listening, 0 will use the default one                  |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| source                          | enumeration | readings                                | Defines the source of the data to be sent |br|         |
-|                                 |             |                                         | the stream, this may be one of either |br|             |
-|                                 |             |                                         | readings, statistics or audit.                         |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| StaticData                      | JSON        | ``{ "Location" : "Palo Alto",`` |br|    | Static data to include in each sensor reading |br|     |
-|                                 |             | ``"Company"  : "Dianomic" }``           | sent to the PI Server..                                |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| stream_id                       | integer     | 0                                       | Identifies the specific stream to handle and |br|      |
-|                                 |             |                                         | the related information, among them the ID |br|        |
-|                                 |             |                                         | of the last object streamed.                           |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
+.. list-table::
+    :widths: 50 50 100 100
+    :header-rows: 1
+
+    * - Item
+      - Type
+      - Default
+      - Description
+    * - AFMap
+      - JSON
+      - { }
+      - Defines a set of rules to address where assets should be placed in the AF hierarchy.
+    * - compression
+      - boolean
+      - true
+      - Compress readings data before sending to PI server
+    * - DefaultAFLocation
+      - integer
+      - /fledge/data_piwebapi/default
+      - Defines the hierarchies tree in Asset Framework in which the assets will be created, each level is separated by /, PI Web API only.
+    * - enable
+      - boolean
+      - True
+      - A switch that can be used to enable or disable execution of the sending process.
+    * - formatInteger
+      - string
+      - int64
+      - OMF format property to apply to the type Integer.
+    * - formatNumber
+      - string
+      - float64
+      - OMF format property to apply to the type Number
+    * - notBlockingErrors
+      - JSON
+      - "{ \"errors400\" : [ \"Redefinition of the type with the same ID is not allowed\", \"Invalid value type for the property\", \"Property does not exist in the type definition\", \"Container is not defined\", \"Unable to find the property of the container of type\" ] }"
+      - These errors are considered not blocking in the communication with the PI Server, the sending operation will proceed with the next block of data if one of these is encountered.
+    * - OCSClientSecret
+      - boolean
+      - ocs_client_secret
+      - Client secret associated to the specific OCS account, it is used to authenticate the source for using the OCS API.
+    * - OCSClientId
+      - string
+      - ocs_client_id
+      - Client id associated to the specific OCS account, it is used to authenticate the source for using the OCS API.
+    * - OCSTenantId
+      - string
+      - ocs_tenant_id
+      - Tenant id associated to the specific OCS account
+    * - OCSNamespace
+      - string
+      - name_space
+      - Specifies the OCS namespace where the information are stored and it is used for the interaction with the OCS API.
+    * - OMFHttpTimeout
+      - integer
+      - 10
+      - Timeout in seconds for the HTTP operations with the OMF PI Connector Relay
+    * - OMFMaxRetry
+      - integer
+      - 1
+      - Seconds between each retry for the communication with the OMF PI Connector Relay, NOTE : the time is doubled at each attempt.
+    * - PIWebAPIKerberosKeytabFileName
+      - string
+      - piwebapi_kerberos_https.keytab
+      - Keytab file name used for Kerberos authentication in PI Web API.
+    * - PIWebAPIAuthenticationMethod
+      - enumeration
+      - anonymous
+      - Defines the authentication method to be used with the PI Web API.
+    * - PIWebAPIPassword
+      - password
+      - password
+      - Password of the user of PI Web API to be used with the basic access authentication.
+    * - PIWebAPIUserId
+      - string
+      - user_id
+      - User id of PI Web API to be used with the basic access authentication.
+    * - PIServerEndpoint
+      - enumeration
+      - Connector Relay
+      - Select the endpoint among PI Web API, connector Relay, OSIsoft Cloud Services or Edge Data Store
+    * - plugin
+      - string
+      - OMF
+      - PI Server North C Plugin
+    * - producerToken
+      - string
+      - omf_north_0001
+      - The producer token that represents this Fledge stream
+    * - ServerHostname
+      - string
+      - localhost
+      - Hostname of the server running the endpoint either PI Web API or Connector Relay
+    * - ServerPort
+      - integer
+      - 0
+      - Port on which the endpoint either PI Web API or Connector Relay or Edge Data Store is listening, 0 will use the default one
+    * - source
+      - enumeration
+      - readings
+      - Defines the source of the data to be sent the stream, this may be one of either readings, statistics or audit.
+    * - StaticData
+      - JSON
+      - { "Location" : "Palo Alto","Company"  : "Dianomic" }
+      - Static data to include in each sensor reading sent to the PI Server.
+    * - stream_id
+      - integer
+      - 0
+      - Identifies the specific stream to handle and the related information, among them the ID of the last object streamed.
 
 
 The following table presents the list of configuration options available for the task that sends statistics to OMF (category *Stats OMF to PI north*):
 
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| Item                            | Type        | Default                                 | Description                                            |
-+=================================+=============+=========================================+========================================================+
-| AFMap                           | JSON        | { }                                     | Defines a set of rules to address where                |
-|                                 |             |                                         | assets should be placed in the AF hierarchy. |br|      |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| compression                     | boolean     | true                                    | Compress readings data before sending to PI server |br||
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| DefaultAFLocation               | integer     | /fledge/data_piwebapi/default           | Defines the hierarchies tree in Asset Framework |br|   |
-|                                 |             |                                         | in which the assets will be created, |br|              |
-|                                 |             |                                         | each level is separated by /, PI Web API only.         |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| enable                          | boolean     | True                                    | A switch that can be used to enable or disable |br|    |
-|                                 |             |                                         | execution of the sending process.                      |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| formatInteger                   | string      | int64                                   | OMF format property to apply to the type Integer |br|  |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| formatNumber                    | string      | float64                                 | OMF format property to apply to the type Number |br|   |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| notBlockingErrors               | JSON        |                                         | These errors are considered not blocking in the |br|   |
-|                                 |             |                                         | communication with the PI Server, the sending  |br|    |
-|                                 |             |                                         | operation will proceed with the next block of data     |
-|                                 |             |                                         | if one of these is encountered.                        |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| OCSClientSecret                 | boolean     | ocs_client_secret                       | Client secret associated to the specific OCS  |br|     |
-|                                 |             |                                         | account, it is used to authenticate |br|               |
-|                                 |             |                                         | the source for using the OCS API.                      |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| OCSClientId                     | string      | ocs_client_id                           | Client id associated to the specific OCS account, |br| |
-|                                 |             |                                         | it is used to authenticate |br|                        |
-|                                 |             |                                         | the source for using the OCS API.                      |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| OCSTenantId                     | string      | ocs_tenant_id                           | Tenant id associated to the specific OCS account |br|  |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| OCSNamespace                    | string      | name_space                              | Specifies the OCS namespace where the information |br| |
-|                                 |             |                                         | are stored and it is used for the interaction |br|     |
-|                                 |             |                                         | with the OCS API.                                      |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| OMFHttpTimeout                  | integer     | 10                                      | Timeout in seconds for the HTTP operations |br|        |
-|                                 |             |                                         | with the OMF PI Connector Relay                        |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| OMFMaxRetry                     | integer     | 3                                       | Max number of retries for the communication |br|       |
-|                                 |             |                                         | with the OMF PI Connector Relay                        |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| OMFRetrySleepTime               | integer     | 1                                       | Seconds between each retry for the communication |br|  |
-|                                 |             |                                         | with the OMF PI Connector Relay, |br|                  |
-|                                 |             |                                         | NOTE : the time is doubled at each attempt.            |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| PIWebAPIKerberosKeytabFileName  | string      | piwebapi_kerberos_https.keytab          | Keytab file name used for Kerberos |br|                |
-|                                 |             |                                         | authentication in PI Web API.                          |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| PIWebAPIAuthenticationMethod    | enumeration | anonymous                               | Defines the authentication method to be |br|           |
-|                                 |             |                                         | used with the PI Web API.                              |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| PIWebAPIPassword                | password    | password                                | Password of the user of PI Web API |br|                |
-|                                 |             |                                         | to be used with the basic access authentication.       |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| PIWebAPIUserId                  | string      | user_id                                 | User id of PI Web API to be used |br|                  |
-|                                 |             |                                         | with the basic access authentication.                  |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| PIServerEndpoint                | enumeration | Connector Relay                         | Select the endpoint among PI Web API, |br|             |
-|                                 |             |                                         | connector Relay, OSIsoft Cloud Services or |br|        |
-|                                 |             |                                         | Edge Data Store                                        |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| plugin                          | string      | OMF                                     | PI Server North C Plugin                               |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| producerToken                   | string      | omf_north_0001                          | The producer token that represents this Fledge stream  |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| ServerHostname                  | string      | localhost                               | Hostname of the server running the endpoint |br|       |
-|                                 |             |                                         | either PI Web API or Connector Relay                   |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| ServerPort                      | integer     | 0                                       | Port on which the endpoint either PI Web API |br|      |
-|                                 |             |                                         | or Connector Relay or Edge Data Store is  |br|         |
-|                                 |             |                                         | listening, 0 will use the default one                  |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| source                          | enumeration | readings                                | Defines the source of the data to be sent |br|         |
-|                                 |             |                                         | the stream, this may be one of either |br|             |
-|                                 |             |                                         | readings, statistics or audit.                         |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| StaticData                      | JSON        | ``{ "Location" : "Palo Alto",`` |br|    | Static data to include in each sensor reading |br|     |
-|                                 |             | ``"Company"  : "Dianomic" }``           | sent to the PI Server..                                |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
-| stream_id                       | integer     | 0                                       | Identifies the specific stream to handle and |br|      |
-|                                 |             |                                         | the related information, among them the ID |br|        |
-|                                 |             |                                         | of the last object streamed.                           |
-+---------------------------------+-------------+-----------------------------------------+--------------------------------------------------------+
+.. list-table::
+    :widths: 50 50 100 100
+    :header-rows: 1
+
+    * - Item
+      - Type
+      - Default
+      - Description
+    * - AFMap
+      - JSON
+      - { }
+      - Defines a set of rules to address where assets should be placed in the AF hierarchy.
+    * - compression
+      - boolean
+      - true
+      - Compress readings data before sending to PI server
+    * - DefaultAFLocation
+      - integer
+      - /fledge/data_piwebapi/default
+      - Defines the hierarchies tree in Asset Framework in which the assets will be created, each level is separated by /, PI Web API only.
+    * - enable
+      - boolean
+      - True
+      - A switch that can be used to enable or disable execution of the sending process.
+    * - formatInteger
+      - string
+      - int64
+      - OMF format property to apply to the type Integer.
+    * - formatNumber
+      - string
+      - float64
+      - OMF format property to apply to the type Number
+    * - notBlockingErrors
+      - JSON
+      - "{ \"errors400\" : [ \"Redefinition of the type with the same ID is not allowed\", \"Invalid value type for the property\", \"Property does not exist in the type definition\", \"Container is not defined\", \"Unable to find the property of the container of type\" ] }"
+      - These errors are considered not blocking in the communication with the PI Server, the sending operation will proceed with the next block of data if one of these is encountered.
+    * - OCSClientSecret
+      - boolean
+      - ocs_client_secret
+      - Client secret associated to the specific OCS account, it is used to authenticate the source for using the OCS API.
+    * - OCSClientId
+      - string
+      - ocs_client_id
+      - Client id associated to the specific OCS account, it is used to authenticate the source for using the OCS API.
+    * - OCSTenantId
+      - string
+      - ocs_tenant_id
+      - Tenant id associated to the specific OCS account
+    * - OCSNamespace
+      - string
+      - name_space
+      - Specifies the OCS namespace where the information are stored and it is used for the interaction with the OCS API.
+    * - OMFHttpTimeout
+      - integer
+      - 10
+      - Timeout in seconds for the HTTP operations with the OMF PI Connector Relay
+    * - OMFMaxRetry
+      - integer
+      - 1
+      - Seconds between each retry for the communication with the OMF PI Connector Relay, NOTE : the time is doubled at each attempt.
+    * - PIWebAPIKerberosKeytabFileName
+      - string
+      - piwebapi_kerberos_https.keytab
+      - Keytab file name used for Kerberos authentication in PI Web API.
+    * - PIWebAPIAuthenticationMethod
+      - enumeration
+      - anonymous
+      - Defines the authentication method to be used with the PI Web API.
+    * - PIWebAPIPassword
+      - password
+      - password
+      - Password of the user of PI Web API to be used with the basic access authentication.
+    * - PIWebAPIUserId
+      - string
+      - user_id
+      - User id of PI Web API to be used with the basic access authentication.
+    * - PIServerEndpoint
+      - enumeration
+      - Connector Relay
+      - Select the endpoint among PI Web API, connector Relay, OSIsoft Cloud Services or Edge Data Store
+    * - plugin
+      - string
+      - OMF
+      - PI Server North C Plugin
+    * - producerToken
+      - string
+      - omf_north_0001
+      - The producer token that represents this Fledge stream
+    * - ServerHostname
+      - string
+      - localhost
+      - Hostname of the server running the endpoint either PI Web API or Connector Relay
+    * - ServerPort
+      - integer
+      - 0
+      - Port on which the endpoint either PI Web API or Connector Relay or Edge Data Store is listening, 0 will use the default one
+    * - source
+      - enumeration
+      - readings
+      - Defines the source of the data to be sent the stream, this may be one of either readings, statistics or audit.
+    * - StaticData
+      - JSON
+      - { "Location" : "Palo Alto","Company"  : "Dianomic" }
+      - Static data to include in each sensor reading sent to the PI Server.
+    * - stream_id
+      - integer
+      - 0
+      - Identifies the specific stream to handle and the related information, among them the ID of the last object streamed.
 
 
 The last parameter to review is the *OMF Type*. The call is the GET method ``fledge/category/OMF_TYPES``, which returns an integer value that identifies the measurement type:

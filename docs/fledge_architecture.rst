@@ -126,15 +126,17 @@ A GUI enables administration of Fledge. All GUI capability is through the REST A
 
 **Notifications**: manage event engine rules and delivery mechanisms
 
+**Configuration Management**: manage configuration of all components
+
+**Schedules**: flexible scheduler management for processes and tasks
+
 **Certificate Store**: manage certificates
 
 **Backup & Restore**: backup/restore Fledge
 
 **Logs**: see system, notification, audit, packages and tasks logging information
 
-**Configuration Management**: manage configuration of all components
-
-**Schedules**: flexible scheduler management for processes and tasks
-
 **Support**: support bundle contents with system diagnostic reports
+
+**Settings**: set/reset connection and GUI related settings
 

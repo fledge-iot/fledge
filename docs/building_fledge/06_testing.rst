@@ -200,13 +200,12 @@ Depending on your environment, you can call *fogbench* in one of those ways:
 
 - In a development environment, use the script *scripts/extras/fogbench*, inside your project repository (remember to set the *FLEDGE_ROOT* environment variable with the path to your project repository folder).
 - In an environment deployed with ``sudo make install``, use the script *bin/fogbench*.
-- In a snap installation, call the ``fledge.fogbench`` script.
 
-Regardless of the position or environment, the *fogbench* tool, responds to your call like this:
+You may call the *fogbench* tool like this:
 
 .. code-block:: console
 
-  $ fledge.fogbench
+  $ /usr/local/fledge/bin/fogbench
   >>> Make sure south CoAP plugin service is running & listening on specified host and port
   usage: fogbench [-h] [-v] [-k {y,yes,n,no}] -t TEMPLATE [-o OUTPUT]
                   [-I ITERATIONS] [-O OCCURRENCES] [-H HOST] [-P PORT]
@@ -218,7 +217,7 @@ Regardless of the position or environment, the *fogbench* tool, responds to your
 
 .. code-block:: console
 
-  $ fledge.fogbench -h
+  $ /usr/local/fledge/bin/fogbench -h
   >>> Make sure south CoAP plugin service is running & listening on specified host and port
   usage: fogbench [-h] [-v] [-k {y,yes,n,no}] -t TEMPLATE [-o OUTPUT]
                   [-I ITERATIONS] [-O OCCURRENCES] [-H HOST] [-P PORT]
@@ -463,7 +462,7 @@ In order to test the North task and plugin, first you need to setup the PI syste
 Setting the OMF Translator Plugin
 ---------------------------------
 
-Fledge uses the same *OMF Translator* plugin to send two streams of data: the data coming from the South modules and buffered in Fledge and the statistics generated and collected from Fledge. In the current installation, these two streams refer to the categories and streams *SEND_PR_1* (South data) and *SEND_PR_2* (Fledge Statistics).
+Fledge uses the same *OMF Translator* plugin to send the data coming from the South modules and buffered in Fledge.
 
 .. note:: In this version, only the South data can be sent to the PI System.
 
@@ -525,7 +524,6 @@ The configuration for the OMF Translator used to stream the South data is initia
 
 .. code-block:: console
 
-  $ curl -s http://localhost:8081/fledge/category/SEND_PR_1 ; echo
   $ curl -sX GET   http://localhost:8081/fledge/category/OMF%20to%20PI%20north
   {
     "enable": {
@@ -668,7 +666,7 @@ Let's have a look at what we have found:
 - **processName** is the name of the task to be executed.
 - **enabled** indicates whether the schedule is currently enabled or disabled.
 
-Now let's identify the plugin used to send data to the PI Connector Relay OMF. This is currently identified by the key *SEND_PR_1* (yes, we know it is not intuitive, we will make it better in future releases):
+Now let's identify the plugin used to send data to the PI Connector Relay OMF.
 
 .. code-block:: console
 

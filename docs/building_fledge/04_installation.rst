@@ -136,17 +136,6 @@ In order to operate, Fledge requires two environment variables:
 - **FLEDGE_ROOT**: the root directory for Fledge. The default is */usr/local/fledge*
 - **FLEDGE_DATA**: the data directory. The default is *$FLEDGE_ROOT/data*, hence whichever value *FLEDGE_ROOT* has plus the *data* sub-directory, or */usr/local/fledge/data* in case *FLEDGE_ROOT* is set as default value.
 
-If you have installed Fledge in a non-default directory, you must at least set the new root directory before you start the platform. For example, supposing that the destination directory is */opt* and the package has been installed in */opt/usr/local/fledge*, you should type:
-
-.. code-block:: console
-
-  $ export FLEDGE_ROOT="/opt/usr/local/fledge"
-  $ cd /opt/usr/local/fledge/
-  $ bin/fledge start
-  Starting Fledge......
-  Fledge started.
-  $
-
 
 The setenv.sh Script
 --------------------

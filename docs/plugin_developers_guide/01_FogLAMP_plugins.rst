@@ -163,3 +163,24 @@ For example, this is the command to use to install the *OpenWeather* South plugi
   foglamp.services.south --port=42066 --address=127.0.0.1 --name=openweathermap
   === FogLAMP tasks:
   $
+
+  And, as another example, this is the command to use to install a hypothetical south plugin _myplugin_ from source that a user had written:
+
+.. code-block:: console
+  $ /usr/local/foglamp/bin/foglamp stop
+  $ ls myplugin/*
+  myplugin/myplugin.py
+  myplugin/__init__.py
+  $ sudo cp -R myplugin/ /usr/local/foglamp/python/plugins/south/
+  $ echo "  myplugin/" | sudo tee --append /usr/local/foglamp/python/plugins/south/__init__.py
+  $ /usr/local/foglamp/bin/foglamp start
+
+.. note:: If you have installed FogLAMP using an alternative *DESTDIR*, remember to modify the path to the destination directory to the ``cp`` command.
+
+Add service
+
+.. code-block:: console
+
+   $ curl -sX POST http://localhost:8081/foglamp/service -d '{"name": "myplugin", "type": "south", "plugin": "myplugin", "enabled": true}'
+
+

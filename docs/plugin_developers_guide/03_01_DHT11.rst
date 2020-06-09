@@ -288,17 +288,17 @@ If you have not built FogLAMP yet, follow the steps described |Getting Started|.
 .. code-block:: console
 
   $ cd ~/FogLAMP
-  $ cp -R ~/foglamp-south-dht11/python/foglamp/plugins/south/dht11 python/foglamp/plugin/south/
+  $ cp -R ~/foglamp-south-dht11/python/foglamp/plugins/south/dht11 python/foglamp/plugins/south/
   $
 
 - If you have installed FogLAMP by executing ``sudo make install``, copy the structure of the *foglamp-south-dht11/python/* directory into the installed *python* directory:
 
 .. code-block:: console
 
-  $ sudo cp -R ~/foglamp-south-dht11/python/foglamp/plugins/south/dht11 /usr/local/foglamp/python/foglamp/plugin/south/
-  $
+  $ sudo cp -R ~/foglamp-south-dht11/python/foglamp/plugins/south/dht11 /usr/local/foglamp/python/foglamp/plugins/south/
+  $ echo "  dht11/" | sudo tee --append /usr/local/foglamp/python/plugins/south/__init__.py
 
-.. note:: If you have installed FogLAMP using an alternative *DESTDIR*, remember to add the path to the destination directory to the ``cp`` command.
+.. note:: If you have installed FogLAMP using an alternative *DESTDIR*, remember to modify the path to the destination directory to the ``cp`` command.
 
 
 - Add service

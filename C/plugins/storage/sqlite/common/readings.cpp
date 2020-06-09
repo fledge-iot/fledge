@@ -18,6 +18,13 @@
 // 1 enable performance tracking
 #define INSTRUMENT	0
 
+// FIXME_I:
+#ifndef SQLITE_SPLIT_READINGS
+#define DB_READINGS "readings"
+#else
+#define DB_READINGS "fledge"
+#endif
+
 #if INSTRUMENT
 #include <sys/time.h>
 #endif
@@ -107,6 +114,7 @@ static time_t connectErrorTime = 0;
  * @param    payload	JSON payload
  * @return		True if aggregation is 'all'
  */
+#ifndef SQLITE_SPLIT_READINGS
 bool aggregateAll(const Value& payload)
 {
 	if (payload.HasMember("aggregate") &&
@@ -121,6 +129,7 @@ bool aggregateAll(const Value& payload)
 	}
 	return false;
 }
+#endif
 
 /**
  * Build, exucute and return data of a timebucket query with min,max,avg for all datapoints
@@ -278,7 +287,8 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 	}
 
 	// Get all datapoints in 'reading' field
-	sql.append("json_each.key AS x, json_each.value AS theval FROM readings.readings, json_each(readings.reading) ");
+	// FIXME_I:
+	sql.append("json_each.key AS x, json_each.value AS theval FROM " DB_READINGS ".readings, json_each(readings.reading) ");
 
 	// Add where condition
 	sql.append("WHERE ");
@@ -838,6 +848,7 @@ int sleep_time_ms = 0;
  *
  *    2019-01-11 15:45:01.123456+01:00
  */
+#ifndef SQLITE_SPLIT_READINGS
 bool Connection::fetchReadings(unsigned long id,
 			       unsigned int blksize,
 			       std::string& resultSet)
@@ -846,6 +857,12 @@ char sqlbuffer[512];
 char *zErrMsg = NULL;
 int rc;
 int retrieve;
+
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx std fetchReadings");
+	Logger::getLogger()->setMinLevel("warning");
 
 	// SQL command to extract the data from the readings.readings
 	const char *sql_cmd = R"(
@@ -907,6 +924,7 @@ int retrieve;
 		}
 	}
 }
+#endif
 
 /**
  * Perform a query against the readings table
@@ -914,6 +932,7 @@ int retrieve;
  * retrieveReadings, used by the API, returns timestamp in localtime.
  *
  */
+#ifndef SQLITE_SPLIT_READINGS
 bool Connection::retrieveReadings(const string& condition, string& resultSet)
 {
 // Default template parameter uses UTF8 and MemoryPoolAllocator.
@@ -922,6 +941,12 @@ SQLBuffer	sql;
 // Extra constraints to add to where clause
 SQLBuffer	jsonConstraints;
 bool		isAggregate = false;
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx std retrieveReadings");
+	Logger::getLogger()->setMinLevel("warning");
+
 
 	try {
 		if (dbHandle == NULL)
@@ -1261,6 +1286,7 @@ bool		isAggregate = false;
 		raiseError("retrieve", "Internal error: %s", e.what());
 	}
 }
+#endif
 
 /**
  * Purge readings from the reading table
@@ -1276,6 +1302,12 @@ long numReadings = 0;
 unsigned long rowidLimit = 0, minrowidLimit = 0, maxrowidLimit = 0, rowidMin;
 struct timeval startTv, endTv;
 int blocks = 0;
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx purgeReadings %s%", DB_READINGS);
+	Logger::getLogger()->setMinLevel("warning");
+
 
 	Logger *logger = Logger::getLogger();
 
@@ -1296,7 +1328,7 @@ int blocks = 0;
 		char *zErrMsg = NULL;
 		int rc;
 		rc = SQLexec(dbHandle,
-		     "select max(rowid) from readings.readings;",
+		     "select max(rowid) from " DB_READINGS ".readings;",
 	  	     rowidCallback,
 		     &rowidLimit,
 		     &zErrMsg);
@@ -1314,7 +1346,7 @@ int blocks = 0;
 		char *zErrMsg = NULL;
 		int rc;
 		rc = SQLexec(dbHandle,
-		     "select min(rowid) from readings.readings;",
+		     "select min(rowid) from " DB_READINGS ".readings;",
 	  	     rowidCallback,
 		     &minrowidLimit,
 		     &zErrMsg);
@@ -1334,7 +1366,7 @@ int blocks = 0;
 		 * So set age based on the data we have and continue.
 		 */
 		SQLBuffer oldest;
-		oldest.append("SELECT (strftime('%s','now', 'utc') - strftime('%s', MIN(user_ts)))/360 FROM readings.readings where rowid <= ");
+		oldest.append("SELECT (strftime('%s','now', 'utc') - strftime('%s', MIN(user_ts)))/360 FROM " DB_READINGS ".readings where rowid <= ");
 		oldest.append(rowidLimit);
 		oldest.append(';');
 		const char *query = oldest.coalesce();
@@ -1390,7 +1422,7 @@ int blocks = 0;
 
 			// e.g. select id from readings where rowid = 219867307 AND user_ts < datetime('now' , '-24 hours', 'utc');
 			SQLBuffer sqlBuffer;
-			sqlBuffer.append("select id from readings.readings where rowid = ");
+			sqlBuffer.append("select id from " DB_READINGS ".readings where rowid = ");
 			sqlBuffer.append(m);
 			sqlBuffer.append(" AND user_ts < datetime('now' , '-");
 			sqlBuffer.append(age);
@@ -1443,7 +1475,7 @@ int blocks = 0;
 		int rc;
 		int lastPurgedId;
 		SQLBuffer idBuffer;
-		idBuffer.append("select id from readings.readings where rowid = ");
+		idBuffer.append("select id from " DB_READINGS ".readings where rowid = ");
 		idBuffer.append(rowidLimit);
 		idBuffer.append(';');
 		const char *idQuery = idBuffer.coalesce();
@@ -1491,7 +1523,7 @@ int blocks = 0;
 			rowidMin = rowidLimit;
 		}
 		SQLBuffer sql;
-		sql.append("DELETE FROM readings.readings WHERE rowid <= ");
+		sql.append("DELETE FROM " DB_READINGS ".readings WHERE rowid <= ");
 		sql.append(rowidMin);
 		sql.append(';');
 		const char *query = sql.coalesce();
@@ -1589,6 +1621,7 @@ int blocks = 0;
 	return deletedRows;
 }
 
+
 /**
  * Purge readings from the reading table
  */
@@ -1599,6 +1632,12 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 {
 unsigned long  deletedRows = 0, unsentPurged = 0, unsentRetained = 0, numReadings = 0;
 unsigned long limit = 0;
+
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx std purgeReadingsByRows");
+	Logger::getLogger()->setMinLevel("warning");
 
 	Logger *logger = Logger::getLogger();
 

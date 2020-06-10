@@ -82,14 +82,7 @@ n_failed=0
 n_passed=0
 n_unchecked=0
 
-if [[ $FLEDGE_DATA == *"sqlitememory"* ]]; then
-    echo "plugin                      :sqlitememory:"
-    ./testSetupMemory.sh > /dev/null 2>&1
-
-else
-    echo "plugin                      :sqlite:"
-    ./testSetup.sh > /dev/null 2>&1
-fi
+./testSetup.sh > /dev/null 2>&1
 
 rm -f failed
 rm -rf results

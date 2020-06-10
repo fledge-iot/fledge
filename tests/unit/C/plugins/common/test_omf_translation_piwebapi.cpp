@@ -35,7 +35,7 @@ const char *pi_web_api_two_readings = R"(
                 "id": 1, "asset_code": "luxometer",
                 "reading": { "lux": 45204.524 },
                 "user_ts": "2018-06-11 14:00:08.532958",
-                "ts": "2add_subdirectory(tests/unit/C/common)018-06-12 14:47:18.872708"
+                "ts": "2018-06-12 14:47:18.872708"
             },
             {
                 "id": 2, "asset_code": "luxometer",
@@ -80,6 +80,7 @@ TEST(PIWEBAPI_OMF_transation, TwoTranslationsCompareResult)
 
 	// Compare translation
 	ASSERT_EQ(jsonData.str(), pi_web_api_two_translated_readings);
+
 }
 
 

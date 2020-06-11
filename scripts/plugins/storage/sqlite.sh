@@ -26,8 +26,12 @@ PLUGIN="sqlite"
 # Set default DB file
 if [ ! "${DEFAULT_SQLITE_DB_FILE}" ]; then
     export DEFAULT_SQLITE_DB_FILE="${FLEDGE_DATA}/fledge.db"
+fi
+
+if [ ! "${DEFAULT_SQLITE_DB_FILE_READINGS}" ]; then
     export DEFAULT_SQLITE_DB_FILE_READINGS="${FLEDGE_DATA}/readings.db"
 fi
+
 
 USAGE="Usage: `basename ${0}` {start|stop|status|init|reset|help}"
 
@@ -114,16 +118,60 @@ sqlite_start() {
             ;;
     esac
 
+    # Check the presence of the readingds.db datafile
+    result=`sqlite_status_readings "silent"`
+    case "$result" in
+        "0")
+            # SQLilte3 DB found already running.
+            if [[ "$1" == "noisy" ]]; then
+                sqlite_log "info" "SQLite3 readings database is ready." "all" "pretty"
+            else
+                sqlite_log "info" "SQLite3 readings database is ready." "logonly" "pretty"
+            fi
+            ;;
+
+        "1")
+            #// FIXME_I:
+            echo "*** DBG ${DEFAULT_SQLITE_DB_FILE_READINGS} created  ***"
+
+            # Database not found, created datafile
+            COMMAND_OUTPUT=`${SQLITE_SQL} ${DEFAULT_SQLITE_DB_FILE_READINGS} .databases 2>&1`
+            RET_CODE=$?
+            if [ "${RET_CODE}" -ne 0 ]; then
+                sqlite_log "err" "Error creating SQLite3 database ${DEFAULT_SQLITE_DB_FILE_READINGS}: ${COMMAND_OUTPUT}" "all" "pretty"
+                exit 1
+            fi
+
+            # File created
+            if [[ "$1" == "noisy" ]]; then
+                sqlite_log "info" "SQLite3 database ${DEFAULT_SQLITE_DB_FILE_READINGS} has been created." "all" "pretty"
+            else
+                sqlite_log "info" "SQLite3 database ${DEFAULT_SQLITE_DB_FILE_READINGS} has been created." "logonly" "pretty"
+            fi
+           ;;
+
+        *)
+            sqlite_log "err" "Unknown SQLite database return status." "all"
+            exit 1
+            ;;
+    esac
+
     # Check if the fledge database has been created
     FOUND_SCHEMAS=`${SQLITE_SQL} ${DEFAULT_SQLITE_DB_FILE} "ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}' AS 'fledge'; SELECT name FROM sqlite_master WHERE type='table'"`
 
     if [ ! "${FOUND_SCHEMAS}" ]; then
+        #// FIXME_I:
+        echo "*** DBG reset***"
+
         # Create the Fledge database
          sqlite_reset "$1" "immediate" 
     fi
 
     # Fledge DB schema update: Fledge version is $2
     sqlite_schema_update $2
+
+    #// FIXME_I:
+    exit 1
 }
 
 
@@ -260,10 +308,38 @@ sqlite_status() {
     fi
 }
 
+## SQLite 3 Database Status - checks the presence of the readingds.db datafile
+#
+# NOTE: You can call this script with $1 = silent to avoid non output errors
+#
+# Returns:
+#   0 - SQLite3 readingds datafile found
+#   1 - SQLite3 readingds datafile NOT found
+sqlite_status_readings() {
+    if [ -f "${DEFAULT_SQLITE_DB_FILE_READINGS}" ]; then
+        if [[ "$1" == "noisy" ]]; then
+            sqlite_log "info" "SQLite 3 database '${DEFAULT_SQLITE_DB_FILE_READINGS}' ready." "all" "pretty"
+        else
+            sqlite_log "info" "SQLite 3 database '${DEFAULT_SQLITE_DB_FILE_READINGS}' ready." "logonly" "pretty"
+        fi
+        echo "0"
+    else
+        if [[ "$1" == "noisy" ]]; then
+            sqlite_log "info" "SQLite 3 database '${DEFAULT_SQLITE_DB_FILE_READINGS}' not found." "all" "pretty"
+        else
+            sqlite_log "info" "SQLite 3 database '${DEFAULT_SQLITE_DB_FILE_READINGS}' not found." "logonly" "pretty"
+        fi
+        echo "1"
+    fi
+}
+
 
 ## SQLite schema update entry point
 #
 sqlite_schema_update() {
+
+    #// FIXME_I:
+    echo "*** DBG sqlite_schema_update  ***"
 
     # Current starting Fledge version
     NEW_VERSION=$1

@@ -50,9 +50,6 @@ fi
 # Perform DB Upgrade
 db_upgrade()
 {
-    #// FIXME_I:
-    echo "*** DBG db_upgrade 0  ***"
-
     UPDATE_SCRIPTS_DIR="$FLEDGE_ROOT/scripts/plugins/storage/${PLUGIN_NAME}/upgrade"
     # Start from next schema revision
     CHECK_VER=`expr ${FLEDGE_DB_VERSION} + 1`
@@ -92,7 +89,6 @@ db_upgrade()
 
             # Perform Upgrade
             if [ "${START_UPGRADE}" ]; then
-                #// FIXME_I:
                 # Prepare command string for erro reporting
                 SQL_COMMAND="${SQLITE_SQL} '${DEFAULT_SQLITE_DB_FILE}' \"ATTACH DATABASE "\
 "'${DEFAULT_SQLITE_DB_FILE}' AS 'fledge'; .read '${sql_file}' .quit\""
@@ -100,10 +96,6 @@ db_upgrade()
                     schema_update_log "info" "Applying upgrade $(basename ${sql_file}) ..." "logonly" "pretty"
                     schema_update_log "info" "Calling [${SQL_COMMAND}]" "logonly" "pretty"
                 fi
-
-
-                #// FIXME_I:
-                echo "*** DBG db_upgrade script  ***"
 
                 # Call the DB script
                 COMMAND_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
@@ -197,9 +189,6 @@ db_downgrade()
                     schema_update_log "info" "Applying downgrade $(basename ${sql_file}) ..." "logonly" "pretty"
                     schema_update_log "info" "Calling [${SQL_COMMAND}]" "logonly" "pretty"
                 fi
-
-                #// FIXME_I:
-                echo "*** DBG db_downgrade script  ***"
 
                 # Call the DB script
                 COMMAND_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF

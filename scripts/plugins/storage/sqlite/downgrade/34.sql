@@ -1,7 +1,5 @@
--- Readings table
--- This tables contains the readings for assets.
--- An asset can be a south with multiple sensor, a single sensor,
--- a software or anything that generates data that is sent to Fledge
+-- Downgrade - copy all the content of the readings.readings table into fledge.readings
+
 CREATE TABLE fledge.readings (
     id         INTEGER                     PRIMARY KEY AUTOINCREMENT,
     asset_code character varying(50)       NOT NULL,                         -- The provided asset code. Not necessarily located in the
@@ -22,4 +20,4 @@ CREATE INDEX fledge.readings_ix2
 CREATE INDEX fledge.readings_ix3
     ON readings (user_ts);
 
-DROP TABLE readings.readings;
+--DROP TABLE readings.readings;

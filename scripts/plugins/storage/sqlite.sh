@@ -131,9 +131,6 @@ sqlite_start() {
             ;;
 
         "1")
-            #// FIXME_I:
-            echo "*** DBG ${DEFAULT_SQLITE_DB_FILE_READINGS} created  ***"
-
             # Database not found, created datafile
             COMMAND_OUTPUT=`${SQLITE_SQL} ${DEFAULT_SQLITE_DB_FILE_READINGS} .databases 2>&1`
             RET_CODE=$?
@@ -160,18 +157,12 @@ sqlite_start() {
     FOUND_SCHEMAS=`${SQLITE_SQL} ${DEFAULT_SQLITE_DB_FILE} "ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}' AS 'fledge'; SELECT name FROM sqlite_master WHERE type='table'"`
 
     if [ ! "${FOUND_SCHEMAS}" ]; then
-        #// FIXME_I:
-        echo "*** DBG reset***"
-
         # Create the Fledge database
          sqlite_reset "$1" "immediate" 
     fi
 
     # Fledge DB schema update: Fledge version is $2
     sqlite_schema_update $2
-
-    #// FIXME_I:
-    exit 1
 }
 
 
@@ -337,9 +328,6 @@ sqlite_status_readings() {
 ## SQLite schema update entry point
 #
 sqlite_schema_update() {
-
-    #// FIXME_I:
-    echo "*** DBG sqlite_schema_update  ***"
 
     # Current starting Fledge version
     NEW_VERSION=$1

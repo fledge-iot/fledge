@@ -1,7 +1,5 @@
 
-DROP INDEX fki_readings_fk1;
-DROP INDEX readings_ix2;
-DROP INDEX readings_ix3;
+-- Upgrade - copy all the content of the fledge.readings table into readings.readings
 
 CREATE TABLE readings.readings (
     id         INTEGER                     PRIMARY KEY AUTOINCREMENT,

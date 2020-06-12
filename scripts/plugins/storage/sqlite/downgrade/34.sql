@@ -20,4 +20,4 @@ CREATE INDEX fledge.readings_ix2
 CREATE INDEX fledge.readings_ix3
     ON readings (user_ts);
 
---DROP TABLE readings.readings;
+DROP TABLE readings.readings;

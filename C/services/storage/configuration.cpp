@@ -278,7 +278,7 @@ DefaultConfigCategory *StorageConfiguration::getDefaultCategory()
  * older cache files to the current JSON defaults that contains the
  * full information needed for the GUI.
  *
- * FOGL-4151 After changign to a new plugin, say from sqlite to postgres, the first
+ * FOGL-4151 After changing to a new plugin, say from sqlite to postgres, the first
  * time we run in the new database there is no configuraion category. In this case we will
  * get the default category, which will have a default of sqlite and no vale. This will
  * end up reporting the wrong information in the UI when we look at the category, therefore
@@ -292,7 +292,9 @@ void StorageConfiguration::checkCache()
 		Value& item = (*document)["plugin"];
 		if (item.HasMember("type"))
 		{
+			const char *val = getValue("plugin");
 			logger->info("Storage configuration cache is up to date");
+			item["default"].SetString(strdup(val), strlen(val));
 			return;
 		}
 	}
@@ -313,7 +315,6 @@ void StorageConfiguration::checkCache()
 		if (hasValue(name))
 		{
 			const char *val = getValue(name);
-			logger->warn("Set value of %s to %s", name, val);
 			newval["value"].SetString(strdup(val), strlen(val));
 			if (strcmp(name, "plugin") == 0)
 			{

@@ -254,6 +254,7 @@ In order to use *fogbench* you need a template file. The template is a set of JS
 
 - In a development environment, look in *data/extras/fogbench* in the project repository folder.
 - In an environment deployed using ``sudo make install``, look in *$FLEDGE_DATA/extras/fogbench*.
+
 The template file looks like this:
 
 

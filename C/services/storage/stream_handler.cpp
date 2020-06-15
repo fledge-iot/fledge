@@ -242,8 +242,8 @@ ssize_t n;
 			{
 				return;
 			}
-			if ((n = read(m_socket, &hdr, sizeof(hdr))) != sizeof(hdr))
-				Logger::getLogger()->warn("Token exchange: Short read of %d bytes: %s", n, sys_errlist[errno]);
+			if ((n = read(m_socket, &hdr, sizeof(hdr))) != (int)sizeof(hdr))
+				Logger::getLogger()->warn("Token exchange: Short read of %d bytes: %s", n, strerror(errno));
 			if (hdr.magic == RDS_CONNECTION_MAGIC && hdr.token == m_token)
 			{
 				m_status = Connected;
@@ -271,11 +271,11 @@ ssize_t n;
 						Logger::getLogger()->debug("Not enough bytes for block header");
 						return;
 					}
-					if ((n = read(m_socket, &blkHdr, sizeof(blkHdr))) != sizeof(blkHdr))
+					if ((n = read(m_socket, &blkHdr, sizeof(blkHdr))) != (int)sizeof(blkHdr))
 					{
 						if (errno == EAGAIN)
 							return;
-						Logger::getLogger()->warn("Block Header: Short read of %d bytes: %s", n, sys_errlist[errno]);
+						Logger::getLogger()->warn("Block Header: Short read of %d bytes: %s", n, strerror(errno));
 						return;
 					}
 					if (blkHdr.magic != RDS_BLOCK_MAGIC)
@@ -303,7 +303,7 @@ ssize_t n;
 						Logger::getLogger()->debug("Not enough bytes for reading header");
 						return;
 					}
-					if (read(m_socket, &rdhdr, sizeof(rdhdr)) < sizeof(rdhdr))
+					if (read(m_socket, &rdhdr, sizeof(rdhdr)) < (int)sizeof(rdhdr))
 					{
 						if (errno == EAGAIN)
 							return;
@@ -347,17 +347,17 @@ ssize_t n;
 					}
 					if (m_sameAsset)
 					{
-						if ((n = read(m_socket, &m_currentReading->userTs, sizeof(struct timeval))) != sizeof(struct timeval))
-							Logger::getLogger()->warn("Short read of %d bytes for timestamp: %s", n, sys_errlist[errno]);
+						if ((n = read(m_socket, &m_currentReading->userTs, sizeof(struct timeval))) != (int)sizeof(struct timeval))
+							Logger::getLogger()->warn("Short read of %d bytes for timestamp: %s", n, strerror(errno));
 						int plen = m_readingSize - sizeof(struct timeval);
 						uint32_t assetLen = m_currentReading->assetCodeLength;
-						if ((n = read(m_socket, &m_currentReading->assetCode[assetLen], plen)) != plen)
-							Logger::getLogger()->warn("Short read of %d bytes for payload: %s", n, sys_errlist[errno]);
+						if ((n = read(m_socket, &m_currentReading->assetCode[assetLen], (size_t)plen)) != plen)
+							Logger::getLogger()->warn("Short read of %d bytes for payload: %s", n, strerror(errno));
 						memcpy(&m_currentReading->assetCode[0], m_lastAsset.c_str(), assetLen);
 					}
 					else
 					{
-						if ((n = read(m_socket, &m_currentReading->userTs, m_readingSize)) != m_readingSize)
+						if ((n = read(m_socket, &m_currentReading->userTs, m_readingSize)) != (int)m_readingSize)
 							Logger::getLogger()->warn("Short read of %d bytes for reading: %s", n, sys_errlist[errno]);
 						m_lastAsset = m_currentReading->assetCode;
 					}
@@ -409,13 +409,13 @@ void StreamHandler::Stream::queueInsert(StorageApi *api, unsigned int nReadings,
  *
  * @param fd	The file descriptor to check
  */
-int  StreamHandler::Stream::available(int fd)
+unsigned int  StreamHandler::Stream::available(int fd)
 {
-int	avail;
+unsigned int	avail;
 
 	if (ioctl(fd, FIONREAD, &avail) < 0)
 	{
-		Logger::getLogger()->warn("FIONREAD failed: %s", sys_errlist[errno]);
+		Logger::getLogger()->warn("FIONREAD failed: %s", strerror(errno));
 		return 0;
 	}
 	return avail;
@@ -518,6 +518,11 @@ void StreamHandler::Stream::MemoryPool::growPool(vector<void *> *pool, size_t si
 	}
 }
 
+/**
+ * Diagnostic routine to display stream content.
+ *
+ * @param n Number of lines to display
+ */
 void StreamHandler::Stream::dump(int n)
 {
 	char buf[132];
@@ -525,8 +530,8 @@ void StreamHandler::Stream::dump(int n)
 	while (n--)
 	{
 		buf[0] = 0;
-		read(m_socket, data, 10);
-		for (int i = 0; i < 10; i++)
+		int r = read(m_socket, data, 10);
+		for (int i = 0; i < r; i++)
 		{
 			char one[8];
 			snprintf(one, sizeof(one), "0x%02x ", data[i]);

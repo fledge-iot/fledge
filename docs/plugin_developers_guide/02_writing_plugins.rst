@@ -199,7 +199,7 @@ A C/C++ plugin might use this *plugin_shutdown* call to delete the plugin class 
 
 
 Plugin Reconfigure
-------------------
+~~~~~~~~~~~~~~~~~~
 
 The plugin reconfigure method is called whenever the configuration of the plugin is changed. It allows for the dynamic reconfiguration of the plugin whilst it is running. The method is called with the handle of the plugin and the updated configuration document. The plugin should take whatever action it needs to and return a new or updated copy of the handle that will be passed to future calls.
 

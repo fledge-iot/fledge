@@ -4,11 +4,11 @@
 .. Links
 .. |these INSTALLATION| raw:: html
 
-   <a href="../04_installation.html">these</a>
+   <a href="../building_fledge/04_installation.html">these</a>
 
 .. |Getting Started| raw:: html
 
-   <a href="../03_getting_started.html#building-fledge">here</a>
+   <a href="../building_fledge/building_fledge.html">here</a>
 
 .. Links in new tabs
 

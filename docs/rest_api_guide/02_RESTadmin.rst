@@ -212,35 +212,60 @@ The response payload is a JSON object with an array of JSON objects, one per val
 | description | string | A description of the category that may be |br| | Network Settings |
 |             |        | used for display purposes.                     |                  |
 +-------------+--------+------------------------------------------------+------------------+
-
+| displayName | string | Name of the category that may be |br|          | Network Settings |
+|             |        | used for display purposes.                     |                  |
++-------------+--------+------------------------------------------------+------------------+
 
 **Example**
 
 .. code-block:: console
 
   $ curl -X GET http://localhost:8081/fledge/category
-  { "categories": [ { "key"         : "CC2650ASYN",
-                      "description" : "TI SensorTag CC2650 async South Plugin" },
-                    { "key"         : "CC2650POLL",
-                      "description" : "TI SensorTag CC2650 polling South Plugin" },
-                    { "key"         : "COAP",
-                      "description" : "COAP Device" },
-                    { "key"         : "HTTP_SOUTH",
-                      "description" : "HTTP_SOUTH Device" },
-                    { "key"         : "POLL",
-                      "description" : "South Plugin polling template" },
-                    { "key"         : "SCHEDULER",
-                      "description" : "Scheduler configuration" },
-                    { "key"         : "North_Readings_to_PI",
-                      "description" : "OMF North Plugin Configuration" },
-                    { "key"         : "SMNTR",
-                      "description" : "Service Monitor configuration" },
-                    { "key"         : "South",
-                      "description" : "South Service configuration" },
-                    { "key"         : "rest_api",
-                      "description" : "The Fledge Admin and User REST API" },
-                    { "key"         : "service",
-                      "description" : "The Fledge service configuration" } ] }
+  {
+    "categories":
+    [
+      {
+        "key": "SCHEDULER",
+         "description": "Scheduler configuration",
+         "displayName": "Scheduler"
+      },
+      {
+        "key": "SMNTR",
+        "description": "Service Monitor",
+        "displayName": "Service Monitor"
+      },
+      {
+        "key": "rest_api",
+        "description": "Fledge Admin and User REST API",
+        "displayName": "Admin API"
+      },
+      {
+        "key": "service",
+        "description": "Fledge Service",
+        "displayName": "Fledge Service"
+      },
+      {
+        "key": "Installation",
+        "description": "Installation",
+        "displayName": "Installation"
+      },
+      {
+        "key": "General",
+        "description": "General",
+        "displayName": "General"
+      },
+      {
+        "key": "Advanced",
+        "description": "Advanced",
+        "displayName": "Advanced"
+      },
+      {
+        "key": "Utilities",
+        "description": "Utilities",
+        "displayName": "Utilities"
+      }
+    ]
+  }
   $
 
 |br|
@@ -281,6 +306,14 @@ The response payload is a set of configuration items within the category, each i
       - string
       - An optional default value for the configuration item.
       - 127.0.0.1
+    * - displayName
+      - string
+      - Name of the category that may be used for display purposes.
+      - IPv4 address
+    * - order
+      - integer
+      - Order at which category name will be displayed.
+      - 1
     * - value
       - string
       - The current configured value of the configuration item. This may be empty if no value has been set.
@@ -292,47 +325,99 @@ The response payload is a set of configuration items within the category, each i
 .. code-block:: console
 
   $ curl -X GET http://localhost:8081/fledge/category/rest_api
-  { "authentication": {
-        "type": "string",
-        "default": "optional",
-        "description": "To make the authentication mandatory or optional for API calls",
-        "value": "optional" },
-    "authProviders": {
-        "type": "JSON",
-        "default": "{\"providers\": [\"username\", \"ldap\"] }",
-        "description": "A JSON object which is an array of authentication providers to use for the interface",
-        "value": "{\"providers\": [\"username\", \"ldap\"] }" },
-    "certificateName": {
-        "type": "string",
-        "default": "fledge",
-        "description": "Certificate file name",
-        "value": "fledge" },
+  {
     "enableHttp": {
-        "type": "boolean",
-        "default": "true",
-        "description": "Enable or disable the connection via HTTP",
-        "value": "true" },
+       "description": "Enable HTTP (disable to use HTTPS)",
+       "type": "boolean",
+       "default": "true",
+       "displayName": "Enable HTTP",
+       "order": "1",
+       "value": "true"
+    },
     "httpPort": {
-        "type": "integer",
-        "default": "8081",
-        "description": "The port to accept HTTP connections on",
-        "value": "8081" },
+       "description": "Port to accept HTTP connections on",
+       "type": "integer",
+       "default": "8081",
+       "displayName": "HTTP Port",
+       "order": "2",
+       "value": "8081"
+    },
     "httpsPort": {
-        "type": "integer",
-        "default": "1995",
-        "description": "The port to accept HTTPS connections on",
-        "value": "1995" },
+       "description": "Port to accept HTTPS connections on",
+       "type": "integer",
+       "default": "1995",
+       "displayName": "HTTPS Port",
+       "order": "3",
+       "validity": "enableHttp==\"false\"",
+       "value": "1995"
+    },
+    "certificateName": {
+      "description": "Certificate file name",
+      "type": "string",
+      "default": "fledge",
+      "displayName": "Certificate Name",
+      "order": "4",
+      "validity": "enableHttp==\"false\"",
+			"value": "fledge"
+    },
+    "authentication": {
+      "description": "API Call Authentication",
+      "type": "enumeration",
+      "options": [
+        "mandatory",
+        "optional"
+      ],
+      "default": "optional",
+      "displayName": "Authentication",
+       "order": "5",
+       "value": "optional"
+    },
+    "authMethod": {
+      "description": "Authentication method",
+      "type": "enumeration",
+      "options": [
+        "any",
+        "password",
+        "certificate"
+      ],
+      "default": "any",
+      "displayName": "Authentication method",
+      "order": "6",
+      "value": "any"
+    },
+    "authCertificateName": {
+      "description": "Auth Certificate name",
+      "type": "string",
+      "default": "ca",
+      "displayName": "Auth Certificate",
+      "order": "7",
+      "value": "ca"
+    },
     "allowPing": {
-        "type": "boolean",
-        "default": "true",
-        "description": "To allow access to the ping, regardless of the authentication required and authentication header",
-        "value": "true" },
+      "description": "Allow access to ping, regardless of the authentication required and authentication header",
+      "type": "boolean",
+      "default": "true",
+      "displayName": "Allow Ping",
+      "order": "8",
+      "value": "true"
+    },
     "passwordChange": {
-        "type": "integer",
-        "default": "0",
-        "description": "Number of days which a password must be changed",
-        "value": "0" }
-  }
+      "description": "Number of days after which passwords must be changed",
+      "type": "integer",
+      "default": "0",
+      "displayName": "Password Expiry Days",
+      "order": "9",
+      "value": "0"
+    },
+    "authProviders": {
+       "description": "Authentication providers to use for the interface (JSON array object)",
+       "type": "JSON",
+       "default": "{\"providers\": [\"username\", \"ldap\"] }",
+       "displayName": "Auth Providers",
+       "order": "10",
+       "value": "{\"providers\": [\"username\", \"ldap\"] }"
+    }
+	}
   $
 
 |br|
@@ -374,6 +459,14 @@ The response payload is a configuration item within the category, each item is a
       - string
       - An optional default value for the configuration item.
       - 127.0.0.1
+    * - displayName
+      - string
+      - Name of the category that may be used for display purposes.
+      - IPv4 address
+    * - order
+      - integer
+      - Order at which category name will be displayed.
+      - 1
     * - value
       - string
       - The current configured value of the configuration item. This may be empty if no value has been set.
@@ -385,11 +478,16 @@ The response payload is a configuration item within the category, each item is a
 .. code-block:: console
 
   $ curl -X GET http://localhost:8081/fledge/category/rest_api/httpsPort
-  { "type": "integer",
-    "default": "1995",
-    "description": "The port to accept HTTPS connections on",
-    "value": "1995"
+  {
+      "description": "Port to accept HTTPS connections on",
+      "type": "integer",
+      "default": "1995",
+      "displayName": "HTTPS Port",
+      "order": "3",
+      "validity": "enableHttp==\"false\"",
+      "value": "1995"
   }
+
   $
 
 |br|
@@ -442,6 +540,14 @@ The response payload is the newly updated configuration item within the category
       - string
       - An optional default value for the configuration item.
       - 127.0.0.1
+    * - displayName
+      - string
+      - Name of the category that may be used for display purposes.
+      - IPv4 address
+    * - order
+      - integer
+      - Order at which category name will be displayed.
+      - 1
     * - value
       - string
       - The current configured value of the configuration item. This may be empty if no value has been set.
@@ -454,9 +560,13 @@ The response payload is the newly updated configuration item within the category
 
   $ curl -X PUT http://localhost:8081/fledge/category/rest_api/httpsPort \
     -d '{ "value" : "1996" }'
-  { "default": "1995",
+  {
+    "description": "Port to accept HTTPS connections on",
     "type": "integer",
-    "description": "The port to accept HTTPS connections on",
+    "default": "1995",
+    "displayName": "HTTPS Port",
+    "order": "3",
+    "validity": "enableHttp==\"false\"",
     "value": "1996"
   }
   $
@@ -502,6 +612,14 @@ The response payload is the newly updated configuration item within the category
       - string
       - An optional default value for the configuration item.
       - 127.0.0.1
+    * - displayName
+      - string
+      - Name of the category that may be used for display purposes.
+      - IPv4 address
+    * - order
+      - integer
+      - Order at which category name will be displayed.
+      - 1
     * - value
       - string
       - The current configured value of the configuration item. This may be empty if no value has been set.
@@ -513,9 +631,13 @@ The response payload is the newly updated configuration item within the category
 .. code-block:: console
 
   $ curl -X DELETE http://localhost:8081/fledge/category/rest_api/httpsPort/value
-  { "default": "1995",
+  {
+    "description": "Port to accept HTTPS connections on",
     "type": "integer",
-    "description": "The port to accept HTTPS connections on",
+    "default": "1995",
+    "displayName": "HTTPS Port",
+    "order": "3",
+    "validity": "enableHttp==\"false\"",
     "value": "1995"
   }
   $
@@ -623,6 +745,8 @@ The response payload is a JSON object with an array of task objects.
 |           |           | This may not exist if the task is  |br| |                                      |
 |           |           | not completed.                          |                                      |
 +-----------+-----------+-----------------------------------------+--------------------------------------+
+| exitCode  | integer   | Exit Code of the task.             |br| | 0                                    |
++-----------+-----------+-----------------------------------------+--------------------------------------+
 | reason    | string    | An optional reason string that     |br| | No destination available |br|        |
 |           |           | describes why the task failed.          | to write backup                      |
 +-----------+-----------+-----------------------------------------+--------------------------------------+
@@ -633,55 +757,79 @@ The response payload is a JSON object with an array of task objects.
 .. code-block:: console
 
   $ curl -X GET http://localhost:8081/fledge/task
-  { "tasks": [ { "exitCode": 0,
-                 "id": "0a787bf3-4f48-4235-ae9a-2816f8ac76cc",
-                 "state": "Complete",
-                 "reason": "",
-                 "name": "stats collector",
-                 "endTime": "2018-04-17 08:32:15.071",
-                 "startTime": "2018-04-17 08:32:14.872" }.
-               { "exitCode": 0,
-                 "id": "8cd6258e-58cc-4812-a1a7-f044377f98b7",
-                 "state": "Complete",
-                 "reason": "",
-                 "name": "stats collector",
-                 "endTime": "2018-04-17 08:32:30.069",
-                 "startTime": "2018-04-17 08:32:29.851" },
-                 ... ] }
+  {
+  "tasks": [
+    {
+      "id": "a9967d61-8bec-4d0b-8aa1-8b4dfb1d9855",
+      "name": "stats collection",
+      "processName": "stats collector",
+      "state": "Complete",
+      "startTime": "2020-05-28 09:21:58.650",
+      "endTime": "2020-05-28 09:21:59.155",
+      "exitCode": 0,
+      "reason": ""
+    },
+    {
+      "id": "7706b23c-71a4-410a-a03a-9b517dcd8c93",
+      "name": "stats collection",
+      "processName": "stats collector",
+      "state": "Complete",
+      "startTime": "2020-05-28 09:22:13.654",
+      "endTime": "2020-05-28 09:22:14.160",
+      "exitCode": 0,
+      "reason": ""
+    },
+    ... ] }
   $
   $ curl -X GET http://localhost:8081/fledge/task?name=purge
-  { "tasks": [ { "exitCode": 0,
-                 "id": "bddad550-463a-485d-9247-148e952452e0",
-                 "state": "Complete",
-                 "reason": "",
-                 "name": "purge",
-                 "endTime": "2018-04-17 09:32:00.203",
-                 "startTime": "2018-04-17 09:31:59.847" },
-               { "exitCode": 0,
-                 "id": "bfe79408-9a4f-4245-bfa5-d843f171d494",
-                 "state": "Complete",
-                 "reason": "",
-                 "name": "purge",
-                 "endTime": "2018-04-17 10:32:00.188",
-                 "startTime": "2018-04-17 10:31:59.850" },
-                 ... ] }
+  {
+  "tasks": [
+    {
+      "id": "c24e006d-22f2-4c52-9f3a-391a9b17b6d6",
+      "name": "purge",
+      "processName": "purge",
+      "state": "Complete",
+      "startTime": "2020-05-28 09:44:00.175",
+      "endTime": "2020-05-28 09:44:13.915",
+      "exitCode": 0,
+      "reason": ""
+    },
+    {
+      "id": "609f35e6-4e89-4749-ac17-841ae3ee2b31",
+      "name": "purge",
+      "processName": "purge",
+      "state": "Complete",
+      "startTime": "2020-05-28 09:44:15.165",
+      "endTime": "2020-05-28 09:44:28.154",
+      "exitCode": 0,
+      "reason": ""
+    },
+  ... ] }
   $
   $ curl -X GET http://localhost:8081/fledge/task?state=complete
-  { "tasks": [ { "exitCode": 0,
-                 "id": "0a787bf3-4f48-4235-ae9a-2816f8ac76cc",
-                 "state": "Complete",
-                 "reason": "",
-                 "name": "stats collector",
-                 "endTime": "2018-04-17 08:32:15.071",
-                 "startTime": "2018-04-17 08:32:14.872" },
-               { "exitCode": 0,
-                 "id": "8cd6258e-58cc-4812-a1a7-f044377f98b7",
-                 "state": "Complete",
-                 "reason": "",
-                 "name": "stats collector",
-                 "endTime": "2018-04-17 08:32:30.069",
-                 "startTime": "2018-04-17 08:32:29.851" },
-                 ... ] }
+  {
+  "tasks": [
+    {
+      "id": "a9967d61-8bec-4d0b-8aa1-8b4dfb1d9855",
+      "name": "stats collection",
+      "processName": "stats collector",
+      "state": "Complete",
+      "startTime": "2020-05-28 09:21:58.650",
+      "endTime": "2020-05-28 09:21:59.155",
+      "exitCode": 0,
+      "reason": ""
+    },
+    {
+      "id": "7706b23c-71a4-410a-a03a-9b517dcd8c93",
+      "name": "stats collection",
+      "processName": "stats collector",
+      "state": "Complete",
+      "startTime": "2020-05-28 09:22:13.654",
+      "endTime": "2020-05-28 09:22:14.160",
+      "exitCode": 0,
+      "reason": ""
+    },
+    ... ] }
    $
 
 |br|
@@ -723,44 +871,62 @@ The response payload is a JSON object with an array of task objects.
 |           |           | This may not exist if the task is  |br| |                                      |
 |           |           | not completed.                          |                                      |
 +-----------+-----------+-----------------------------------------+--------------------------------------+
+| exitCode  | integer   | Exit Code of the task.             |br| | 0                                    |
++-----------+-----------+-----------------------------------------+--------------------------------------+
 | reason    | string    | An optional reason string that     |br| | No destination available |br|        |
 |           |           | describes why the task failed.          | to write backup                      |
 +-----------+-----------+-----------------------------------------+--------------------------------------+
-
+| pid       | integer   | Process ID of the task.            |br| | 17481                                |
++-----------+-----------+-----------------------------------------+--------------------------------------+
 
 **Example**
 
 .. code-block:: console
 
   $ curl -X GET http://localhost:8081/fledge/task/latest
-  { "tasks": [ { "exitCode": 0,
-                 "id": "a3759550-43e5-46b3-8048-e906847fc565",
-                 "state": "Complete",
-                 "pid": 16293,
-                 "reason": "",
-                 "name": "certificate checker",
-                 "endTime": "2018-04-17 09:05:00.081",
-                 "startTime": "2018-04-17 09:05:00.011" },
-               { "exitCode": 0,
-                 "id": "71bbc064-bb05-46c4-8059-5d70fc534ecf",
-                 "state": "Complete",
-                 "pid": 19806,
-                 "reason": "",
-                 "name": "purge",
-                 "endTime": "2018-04-17 14:32:00.404",
-                 "startTime": "2018-04-17 14:31:59.849" },
-                 ... ] }
+  {
+  "tasks": [
+    {
+      "id": "ea334d3b-8a33-4a29-845c-8be50efd44a4",
+      "name": "certificate checker",
+      "processName": "certificate checker",
+      "state": "Complete",
+      "startTime": "2020-05-28 09:35:00.009",
+      "endTime": "2020-05-28 09:35:00.057",
+      "exitCode": 0,
+      "reason": "",
+      "pid": 17481
+    },
+    {
+      "id": "794707da-dd32-471e-8537-5d20dc0f401a",
+      "name": "stats collection",
+      "processName": "stats collector",
+      "state": "Complete",
+      "startTime": "2020-05-28 09:37:28.650",
+      "endTime": "2020-05-28 09:37:29.138",
+      "exitCode": 0,
+      "reason": "",
+      "pid": 17926
+    }
+    ... ] }
   $
   $ curl -X GET http://localhost:8081/fledge/task/latest?name=purge
-  { "tasks": [ { "exitCode": 0,
-                 "id": "71bbc064-bb05-46c4-8059-5d70fc534ecf",
-                 "state": "Complete",
-                 "pid": 19806,
-                 "reason": "",
-                 "name": "purge",
-                 "endTime": "2018-04-17 14:32:00.404622",
-                 "startTime": "2018-04-17 14:31:59.849690" ] }
-   $
+  {
+  "tasks":  [
+    {
+      "id": "609f35e6-4e89-4749-ac17-841ae3ee2b31",
+      "name": "purge",
+      "processName": "purge",
+      "state": "Complete",
+      "startTime": "2020-05-28 09:44:15.165",
+      "endTime": "2020-05-28 09:44:28.154",
+      "exitCode": 0,
+      "reason": "",
+      "pid": 20914
+    }
+  	]
+  }
+  $
 
 |br|
 
@@ -798,6 +964,8 @@ The response payload is a JSON object containing the task details.
 |           |           | This may not exist if the task is  |br| |                                      |
 |           |           | not completed.                          |                                      |
 +-----------+-----------+-----------------------------------------+--------------------------------------+
+| exitCode  | integer   | Exit Code of the task.             |br| | 0                                    |
++-----------+-----------+-----------------------------------------+--------------------------------------+
 | reason    | string    | An optional reason string that     |br| | No destination available |br|        |
 |           |           | describes why the task failed.          | to write backup                      |
 +-----------+-----------+-----------------------------------------+--------------------------------------+
@@ -807,14 +975,16 @@ The response payload is a JSON object containing the task details.
 
 .. code-block:: console
 
-  $ curl -X GET http://localhost:8081/fledge/task/0aadfb7d-73c1-4ac0-901c-81773b5583c1
-  { "exitCode": 0,
-    "id": "0aadfb7d-73c1-4ac0-901c-81773b5583c1",
+  $ curl -X GET http://localhost:8081/fledge/task/ea334d3b-8a33-4a29-845c-8be50efd44a4
+  {
+    "id": "ea334d3b-8a33-4a29-845c-8be50efd44a4",
+    "name": "certificate checker",
+    "processName": "certificate checker",
     "state": "Complete",
-    "reason": "",
-    "name": "purge",
-    "endTime": "2018-04-17 13:32:00.243",
-    "startTime": "2018-04-17 13:31:59.848"
+    "startTime": "2020-05-28 09:35:00.009",
+    "endTime": "2020-05-28 09:35:00.057",
+    "exitCode": 0,
+    "reason": ""
   }
   $
 
@@ -863,14 +1033,8 @@ The response payload is a JSON object with the details of the cancelled task.
 
 .. code-block:: console
 
-  $ curl -X PUT http://localhost:8081/fledge/task/0aadfb7d-73c1-4ac0-901c-81773b5583c1/cancel
-  { "id": "0aadfb7d-73c1-4ac0-901c-81773b5583c1",
-    "state": "Cancelled",
-    "reason": "",
-    "name": "purge",
-    "endTime": "2018-04-17 13:32:00.243",
-    "startTime": "2018-04-17 13:31:59.848"
-  }
+  $ curl -X PUT http://localhost:8081/fledge/task/ea334d3b-8a33-4a29-845c-8be50efd44a4/cancel
+  {"id": "ea334d3b-8a33-4a29-845c-8be50efd44a4", "message": "Task cancelled successfully"}
   $
 
 |br|
@@ -906,14 +1070,10 @@ The response payload is some basic health information in a JSON object.
       - Type
       - Description
       - Example
-    * - authenticationOptional
-      - boolean
-      - When true, the REST API does not require authentication. When false, users must successfully login in order to call the rest API. Default is *true*
-      - true
-    * - dataPurged
+    * - uptime
       - numeric
-      - A count of the number of readings purged
-      - 226
+      - Time in seconds since Fledge started
+      - 2113.076449394226
     * - dataRead
       - numeric
       - A count of the number of sensor readings
@@ -922,9 +1082,33 @@ The response payload is some basic health information in a JSON object.
       - numeric
       - A count of the number of readings sent to PI
       - 347
-    * - uptime
+    * - dataPurged
       - numeric
-      - Time in seconds since Fledge started
+      - A count of the number of readings purged
+      - 226
+    * - authenticationOptional
+      - boolean
+      - When true, the REST API does not require authentication. When false, users must successfully login in order to call the rest API. Default is *true*
+      - true
+    * - serviceName
+      - string
+      - Name of service
+      - Fledge
+    * - hostName
+      - string
+      - Name of host machine
+      - fledge
+    * - ipAddresses
+      - list
+      - IPv4 and IPv6 address of host machine
+      - ["10.0.0.0","123:234:345:456:567:678:789:890"]
+    * - health
+      - string
+      - Health of Fledge services
+      - "green"
+    * - safeMode
+      - boolean
+      - True if Fledge is started in safe mode (only core and storage services will be started)
       - 2113.076449394226
 
 
@@ -933,11 +1117,21 @@ The response payload is some basic health information in a JSON object.
 .. code-block:: console
 
   $ curl -s http://localhost:8081/fledge/ping
-  { "authenticationOptional": true,
-  "dataPurged": 226,
-  "dataRead": 1452,
-  "dataSent": 347,
-  "uptime": 2113.076449394226 }
+  {
+    "uptime": 276818,
+    "dataRead": 0,
+    "dataSent": 0,
+    "dataPurged": 0,
+    "authenticationOptional": true,
+    "serviceName": "Fledge",
+    "hostName": "fledge",
+    "ipAddresses": [
+      "x.x.x.x",
+      "x:x:x:x:x:x:x:x"
+    ],
+    "health": "green",
+    "safeMode": false
+  }
   $
 
 
@@ -964,21 +1158,17 @@ The response payload is a JSON document with statistical information (all numeri
     * - Key
       - Description
     * - BUFFERED
-      - The number of readings currently in the Fledge buffer
+      - Readings currently in the Fledge buffer
     * - DISCARDED
-      - The number of readings discarded at the input side by Fledge, i.e. discarded before being  placed in the buffer. This may be due to some error in the readings themselves.
+      - Readings discarded by the South Service before being  placed in the buffer. This may be due to an error in the readings themselves.
     * - PURGED
-      - The number of readings removed from the buffer by the *Purge* task
+      - Readings removed from the buffer by the purge process
     * - READINGS
-      - The number of readings received by Fledge since startup
-    * - *NORTH_TASK_NAME*
-      - The number of readings sent to the PI system via the OMF plugin with north instance name
+      - Readings received by Fledge
     * - UNSENT
-      - The number of readings filtered out in the send process
+      - Readings filtered out in the send process
     * - UNSNPURGED
-      - The number of readings that were purged from the buffer before being sent
-    * - *ASSET-CODE*
-      - The number of readings received by Fledge since startup with name *asset-code*
+      - Readings that were purged from the buffer before being sent
 
 
 **Example**
@@ -986,13 +1176,17 @@ The response payload is a JSON document with statistical information (all numeri
 .. code-block:: console
 
   $ curl -s http://localhost:8081/fledge/statistics
-  [ { "description" : "The number of readings currently in the Fledge buffer",
-      "key"         : "BUFFERED",
-      "value"       : 0 },
+  [ {
+      "key": "BUFFERED",
+      "description": "Readings currently in the Fledge buffer",
+      "value": 0
+    },
   ...
-    { "description" : "The number of readings received by Fledge since startup for sensor FOGBENCH/ACCELEROMETER",
-      "key"         : "FOGBENCH/ACCELEROMETER",
-      "value"       : 2 },
+    {
+      "key": "UNSNPURGED",
+      "description": "Readings that were purged from the buffer before being sent",
+      "value": 0
+    },
   ... ]
   $
 
@@ -1021,19 +1215,19 @@ A JSON document containing an array of statistical information, these statistics
     * - interval
       - The interval in seconds between successive statistics values
     * - statistics[].BUFFERED
-      - The number of readings currently in the Fledge buffer
+      - Readings currently in the Fledge buffer
     * - statistics[].DISCARDED
-      - The number of readings discarded at the input side by Fledge, i.e. discarded before being  placed in the buffer. This may be due to some error in the readings themselves.
+      - Readings discarded by the South Service before being  placed in the buffer. This may be due to an error in the readings themselves.
     * - statistics[].PURGED
-      - The number of readings removed from the buffer by the *Purge* task
+      - Readings removed from the buffer by the purge process
     * - statistics[].READINGS
-      - The number of readings received by Fledge since startup
+      - Readings received by Fledge
     * - statistics[].*NORTH_TASK_NAME*
       - The number of readings sent to the PI system via the OMF plugin with north instance name
     * - statistics[].UNSENT
-      - The number of readings filtered out in the send process
+      - Readings filtered out in the send process
     * - statistics[].UNSNPURGED
-      - The number of readings that were purged from the buffer before being sent
+      - Readings that were purged from the buffer before being sent
     * - statistics[].*ASSET-CODE*
       - The number of readings received by Fledge since startup with name *asset-code*
 
@@ -1043,43 +1237,31 @@ A JSON document containing an array of statistical information, these statistics
 .. code-block:: console
 
   $ curl -s http://localhost:8081/fledge/statistics/history?limit=2
-  { "interval"   : 15,
-    "statistics" : [ { "READINGS": 0,
-                       "FOGBENCH/LUXOMETER": 0,
-                       "DISCARDED": 0,
-                       "FOGBENCH/HUMIDITY": 0,
-                       "FOGBENCH/ACCELEROMETER": 0,
-                       "UNSENT": 0,
-                       "FOGBENCH/TEMPERATURE": 0,
-                       "FOGBENCH/GYROSCOPE": 0,
-                       "UNSNPURGED": 0,
-                       "BUFFERED": 0,
-                       "FOGBENCH/MOUSE": 0,
-                       "FOGBENCH/MAGNETOMETER": 0,
-                       "PURGED": 0,
-                       "FOGBENCH/WALL CLOCK": 0,
-                       "North_Readings_to_PI": 0,
-                       "FOGBENCH/PRESSURE": 0,
-                       "FOGBENCH/SWITCH": 0,
-                       "history_ts": "2018-05-15 22:39:10.374" },
-                     { "READINGS": 0,
-                       "FOGBENCH/LUXOMETER": 0,
-                       "DISCARDED": 0,
-                       "FOGBENCH/HUMIDITY": 0,
-                       "FOGBENCH/ACCELEROMETER": 0,
-                       "UNSENT": 0,
-                       "FOGBENCH/TEMPERATURE": 0,
-                       "FOGBENCH/GYROSCOPE": 0,
-                       "UNSNPURGED": 0,
-                       "BUFFERED": 0,
-                       "FOGBENCH/MOUSE": 0,
-                       "FOGBENCH/MAGNETOMETER": 0,
-                       "PURGED": 0,
-                       "FOGBENCH/WALL CLOCK": 0,
-                       "North_Readings_to_PI": 0,
-                       "FOGBENCH/PRESSURE": 0,
-                       "FOGBENCH/SWITCH": 0,
-                       "history_ts": "2018-05-15 22:38:55.653" } ]
+  {
+    "interval": 15,
+    "statistics": [
+      {
+        "history_ts": "2020-06-01 11:21:04.357",
+        "READINGS": 0,
+        "BUFFERED": 0,
+        "UNSENT": 0,
+        "PURGED": 0,
+        "UNSNPURGED": 0,
+        "DISCARDED": 0,
+        "Readings Sent": 0
+      },
+      {
+        "history_ts": "2020-06-01 11:20:48.740",
+        "READINGS": 0,
+        "BUFFERED": 0,
+        "UNSENT": 0,
+        "PURGED": 0,
+        "UNSNPURGED": 0,
+        "DISCARDED": 0,
+        "Readings Sent": 0
+      }
+    ]
+  }
   $
 
 

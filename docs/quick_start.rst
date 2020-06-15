@@ -201,12 +201,12 @@ Assuming you have downloaded the packages from the download link given above. Us
 
 The key packages to install are the Fledge core and the Fledge User Interface::
 
-  sudo apt -y install ./fledge-1.4.1-armhf.deb
-  sudo apt -y install ./fledge-gui-1.4.0-dev.deb
+  sudo apt -y install ./fledge-1.8.0-armv7l.deb
+  sudo apt -y install ./fledge-gui-1.8.0.deb
 
 You will need to install one of more South plugins to acquire data.  You can either do this now or when you are adding the data source. For example, to install the plugin for the Sense HAT sensor board, type::
 
-  sudo apt -y install ./fledge-south-sensehat-1.0-armhf.deb
+  sudo apt -y install ./fledge-south-sensehat-1.8.0-armv7l.deb
 
 You may also need to install one or more North plugins to transmit data.  Support for OSIsoft PI and OCS are included with the Fledge core package, so you don't need to install anything more if you are sending data to only these systems.
 

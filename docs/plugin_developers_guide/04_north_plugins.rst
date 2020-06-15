@@ -36,73 +36,145 @@ The streams are managed by two different North tasks using the same plugin, but 
   $ curl -sX GET   http://locahost:8081/fledge/schedule
   {
     "schedules": [
-      { "day": null,
-        "time": 0,
+      {
+        "id": "ef8bd42b-da9f-47c4-ade8-751ce9a504be",
         "name": "OMF to PI north",
-        "exclusive": true,
-        "processName": "North Readings to PI",
-        "enabled": false,
+        "processName": "north_c",
         "type": "INTERVAL",
-        "repeat": 30,
-        "id": "2b614d26-760f-11e7-b5a5-be2e44b06b34" },
-      { "day": null,
+        "repeat": 30.0,
         "time": 0,
-        "name": "Stats OMF to PI north",
+        "day": null,
         "exclusive": true,
-        "processName": "North Statistics to PI",
-        "enabled": false,
+        "enabled": false
+      },
+      {
+        "id": "27501b35-e0cd-4340-afc2-a4465fe877d6",
+        "name": "Stats OMF to PI north",
+        "processName": "north_c",
         "type": "INTERVAL",
-        "repeat": 30,
-        "id": "1d7c327e-7dae-11e7-bb31-be2e44b06b34" },
+        "repeat": 30.0,
+        "time": 0,
+        "day": null,
+        "exclusive": true,
+        "enabled": true
+      },
     ...
     ]
   }
 
-The output of API call above shows three interesting tasks: the two tasks associated to the OMF plugin, the one to send data (*OMF to PI north*) and the one to send statistics (*North Statistics to PI*).
+The output of API call above shows three interesting tasks: the two tasks associated to the OMF plugin, the one to send data (*OMF to PI north*) and the one to send statistics (*Stats OMF to PI north*).
  
-The two scheduled tasks are associated to two configuration items that can be retrieved using the ``category`` API call. The items are named ``SEND_PR_1`` and ``SEND_PR_2``.
+The two scheduled tasks are associated to two configuration items that can be retrieved using the ``category`` API call. The items are named ``OMF to PI north`` and ``Stats OMF to PI north``.
 
 .. code-block:: console
 
-  $ curl -sX GET   http://localhost:8081/fledge/category/SEND_PR_1
-  { "plugin": { "type": "string",
-                "default": "omf",
-                "value": "omf",
-                "description": "Python module name of the plugin to load" }
-  }
-  $ curl -sX GET   http://localhost:8081/fledge/category/SEND_PR_2
-  { "plugin": { "type": "string",
-                "default": "omf",
-                "value": "omf",
-                "description": "Python module name of the plugin to load" }
-  }
+  $ curl -sX GET   http://localhost:8081/fledge/category/OMF%20to%20PI%20north
+  {
+    "enable": {
+      "description": "A switch that can be used to enable or disable execution of the sending process.",
+      "type": "boolean",
+      "readonly": "true",
+      "default": "true",
+      "value": "true"
+    },
+    "streamId": {
+      "description": "Identifies the specific stream to handle and the related information, among them the ID of the last object streamed.",
+      "type": "integer",
+      "readonly": "true",
+      "default": "0",
+      "value": "4",
+      "order": "16"
+    },
+    "plugin": {
+      "description": "PI Server North C Plugin",
+      "type": "string",
+      "default": "OMF",
+      "readonly": "true",
+      "value": "OMF"
+    },
+    "source": {
+       "description": "Defines the source of the data to be sent on the stream, this may be one of either readings, statistics or audit.",
+       "type": "enumeration",
+       "options": [
+         "readings",
+         "statistics"
+        ],
+      "default": "readings",
+      "order": "5",
+      "displayName": "Data Source",
+      "value": "readings"
+    },
+  ...}
+  $ curl -sX GET   http://localhost:8081/fledge/category/Stats%20OMF%20to%20PI%20north
+  {
+    "enable": {
+      "description": "A switch that can be used to enable or disable execution of the sending process.",
+      "type": "boolean",
+      "readonly": "true",
+      "default": "true",
+      "value": "true"
+    },
+    "streamId": {
+      "description": "Identifies the specific stream to handle and the related information, among them the ID of the last object streamed.",
+      "type": "integer",
+      "readonly": "true",
+      "default": "0",
+      "value": "5",
+      "order": "16"
+    },
+    "plugin": {
+      "description": "PI Server North C Plugin",
+      "type": "string",
+      "default": "OMF",
+      "readonly": "true",
+      "value": "OMF"
+    },
+    "source": {
+      "description": "Defines the source of the data to be sent on the stream, this may be one of either readings, statistics or audit.",
+      "type": "enumeration",
+      "options": [
+        "readings",
+        "statistics"
+       ],
+      "default": "readings",
+      "order": "5",
+      "displayName": "Data Source",
+      "value": "statistics"
+    },
+  ...}
   $
 
 In order to activate the tasks, you must change their status. First you must collect their id (from the GET method of the ``schedule`` API call), then you must use the IDs with the PUT method of the same call:
 
 .. code-block:: console
 
-  $ curl -sX PUT http://vbox-dev:8081/fledge/schedule/2b614d26-760f-11e7-b5a5-be2e44b06b34 -d '{ "enabled" : true}'
-  { "schedule": { "day": null,
-                  "time": 0,
-                  "name": "OMF to PI north",
-                  "exclusive": true,
-                  "processName": "North Readings to PI",
-                  "enabled": true,
-                  "type": "INTERVAL",
-                  "repeat": 30.0,
-                  "id": "2b614d26-760f-11e7-b5a5-be2e44b06b34" }
+  $ curl -sX PUT http://localhost:8081/fledge/schedule/ef8bd42b-da9f-47c4-ade8-751ce9a504be -d '{ "enabled" : true}'
+  {
+    "schedule": {
+      "id": "ef8bd42b-da9f-47c4-ade8-751ce9a504be",
+      "name": "OMF to PI north",
+      "processName": "north_c",
+      "type": "INTERVAL",
+      "repeat": 30,
+      "time": 0,
+      "day": null,
+      "exclusive": true,
+      "enabled": true
+    }
   }
-  $ curl -sX PUT http://vbox-dev:8081/fledge/schedule/1d7c327e-7dae-11e7-bb31-be2e44b06b34 -d '{ "enabled" : true}'
-  { "schedule": { "day": null,
-                  "time": 0,
-                  "name": "Stats OMF to PI north",
-                  "exclusive": true,
-                  "processName": "North Statistics to PI",
-                  "enabled": true,
-                  "type": "INTERVAL",
-                  "repeat": 30.0,
-                  "id": "1d7c327e-7dae-11e7-bb31-be2e44b06b34" }
+  $ curl -sX PUT http://localhost:8081/fledge/schedule/27501b35-e0cd-4340-afc2-a4465fe877d6 -d '{ "enabled" : true}'
+  {
+    "schedule": {
+      "id": "27501b35-e0cd-4340-afc2-a4465fe877d6",
+      "name": "Stats OMF to PI north",
+      "processName": "north_c",
+      "type": "INTERVAL",
+      "repeat": 30,
+      "time": 0,
+      "day": null,
+      "exclusive": true,
+      "enabled": true
+    }
   }
   $
 
@@ -111,141 +183,308 @@ At this point, the configuration has been enriched with default values of the ta
 
 .. code-block:: console
 
-  $ curl -sX GET http://vbox-dev:8081/fledge/category/SEND_PR_1
-  { "filterRule": {
+  $ curl -sX GET   http://localhost:8081/fledge/category/OMF%20to%20PI%20north
+  {
+    "enable": {
+      "description": "A switch that can be used to enable or disable execution of the sending process.",
+      "type": "boolean",
+      "readonly": "true",
+      "default": "true",
+      "value": "true"
+    },
+    "streamId": {
+      "description": "Identifies the specific stream to handle and the related information, among them the ID of the last object streamed.",
+      "type": "integer",
+      "readonly": "true",
+      "default": "0",
+      "value": "4",
+      "order": "16"
+    },
+    "plugin": {
+      "description": "PI Server North C Plugin",
       "type": "string",
-      "default": ".[]",
-      "description": "JQ formatted filter to apply (applicable if applyFilter is True)",
-      "value": ".[]" },
-    "plugin": { "type": "string",
-      "default": "omf",
-      "description": "OMF North Plugin",
-      "value": "omf" },
-    ...
-  }
-  $
-  $ curl -sX GET http://vbox-dev:8081/fledge/category/SEND_PR_2
-  { "URL": {
+      "default": "OMF",
+      "readonly": "true",
+      "value": "OMF"
+    },
+    "source": {
+       "description": "Defines the source of the data to be sent on the stream, this may be one of either readings, statistics or audit.",
+       "type": "enumeration",
+       "options": [
+         "readings",
+         "statistics"
+        ],
+      "default": "readings",
+      "order": "5",
+      "displayName": "Data Source",
+      "value": "readings"
+    },
+  ...}
+  $ curl -sX GET   http://localhost:8081/fledge/category/Stats%20OMF%20to%20PI%20north
+  {
+    "enable": {
+      "description": "A switch that can be used to enable or disable execution of the sending process.",
+      "type": "boolean",
+      "readonly": "true",
+      "default": "true",
+      "value": "true"
+    },
+    "streamId": {
+      "description": "Identifies the specific stream to handle and the related information, among them the ID of the last object streamed.",
+      "type": "integer",
+      "readonly": "true",
+      "default": "0",
+      "value": "5",
+      "order": "16"
+    },
+    "plugin": {
+      "description": "PI Server North C Plugin",
       "type": "string",
-      "default": "https://pi-server:5460/ingress/messages",
-      "value": "https://pi-server:5460/ingress/messages",
-      "description": "The URL of the PI Connector to send data to" },
-    "filterRule": {
-      "type": "string",
-      "default": ".[]",
-      "value": ".[]",
-      "description": "JQ formatted filter to apply (applicable if applyFilter is True)" },
-    ...
+      "default": "OMF",
+      "readonly": "true",
+      "value": "OMF"
+    },
+    "source": {
+      "description": "Defines the source of the data to be sent on the stream, this may be one of either readings, statistics or audit.",
+      "type": "enumeration",
+      "options": [
+        "readings",
+        "statistics"
+       ],
+      "default": "readings",
+      "order": "5",
+      "displayName": "Data Source",
+      "value": "statistics"
+    },
+  ...}
   $
 
 
 OMF Plugin Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-The following table presents the list of configuration options available for the task that sends data to OMF (category *SEND_PR_1*):
+The following table presents the list of configuration options available for the task that sends data to OMF (category *OMF to PI north*):
 
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| Item              | Type     | Default                                 | Description                                            |
-+===================+==========+=========================================+========================================================+
-| applyFilter       | boolean  | False                                   | Whether to apply filter before processing the data     |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| blockSize         | integer  | 500                                     | The size of a block of readings |br|                   |
-|                   |          |                                         | to send in each transmission.                          |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| duration          | integer  | 60                                      | How long the sending process should run |br|           | 
-|                   |          |                                         | (in seconds) before stopping                           |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| enable            | boolean  | True                                    | A switch that can be used to enable or disable |br|    |
-|                   |          |                                         | execution of the sending process.                      |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| filterRule        | string   | .[]                                     | JQ formatted filter to apply |br|                      |
-|                   |          |                                         | (applicable if applyFilter is True)                    |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| north             | string   | omf                                     | The name of the north to use to translate the |br|     |
-|                   |          |                                         | readings into the output format and send them          |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| OMFHttpTimeout    | integer  | 10                                      | Timeout in seconds for the HTTP operations |br|        |
-|                   |          |                                         | with the OMF PI Connector Relay                        |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| OMFMaxRetry       | integer  | 3                                       | Max number of retries for the communication |br|       |
-|                   |          |                                         | with the OMF PI Connector Relay                        |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| OMFRetrySleepTime | integer  | 1                                       | Seconds between each retry for the communication |br|  |
-|                   |          |                                         | with the OMF PI Connector Relay, |br|                  |
-|                   |          |                                         | NOTE : the time is doubled at each attempt.            |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| plugin            | string   | omf                                     | OMF North Plugin name                                  |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| producerToken     | string   | omf_north_0001                          | The producer token that represents this Fledge stream  |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| sleepInterval     | integer  | 5                                       | A period of time, expressed in seconds, to wait |br|   |
-|                   |          |                                         | between attempts to send readings when there are |br|  |
-|                   |          |                                         | no readings to be sent.                                |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| source            | string   | readings                                | Defines the source of the data to be sent |br|         |
-|                   |          |                                         | the stream, this may be one of either |br|             |
-|                   |          |                                         | readings, statistics or audit.                         |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| StaticData        | JSON     | ``{ "Location" : "Palo Alto",`` |br|    | Static data to include in each sensor reading |br|     |    
-|                   |          | ``"Company"  : "Dianomic" }``           | sent to OMF.                                           |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| stream_id         | integer  | 1                                       | Stream ID                                              |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| URL               | string   | https://pi-server:5460/ingress/messages | The URL of the PI Connector to send data to            |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
+.. list-table::
+    :widths: 50 50 100 100
+    :header-rows: 1
+
+    * - Item
+      - Type
+      - Default
+      - Description
+    * - AFMap
+      - JSON
+      - { }
+      - Defines a set of rules to address where assets should be placed in the AF hierarchy.
+    * - compression
+      - boolean
+      - true
+      - Compress readings data before sending to PI server
+    * - DefaultAFLocation
+      - integer
+      - /fledge/data_piwebapi/default
+      - Defines the hierarchies tree in Asset Framework in which the assets will be created, each level is separated by /, PI Web API only.
+    * - enable
+      - boolean
+      - True
+      - A switch that can be used to enable or disable execution of the sending process.
+    * - formatInteger
+      - string
+      - int64
+      - OMF format property to apply to the type Integer.
+    * - formatNumber
+      - string
+      - float64
+      - OMF format property to apply to the type Number
+    * - notBlockingErrors
+      - JSON
+      - "{ \"errors400\" : [ \"Redefinition of the type with the same ID is not allowed\", \"Invalid value type for the property\", \"Property does not exist in the type definition\", \"Container is not defined\", \"Unable to find the property of the container of type\" ] }"
+      - These errors are considered not blocking in the communication with the PI Server, the sending operation will proceed with the next block of data if one of these is encountered.
+    * - OCSClientSecret
+      - boolean
+      - ocs_client_secret
+      - Client secret associated to the specific OCS account, it is used to authenticate the source for using the OCS API.
+    * - OCSClientId
+      - string
+      - ocs_client_id
+      - Client id associated to the specific OCS account, it is used to authenticate the source for using the OCS API.
+    * - OCSTenantId
+      - string
+      - ocs_tenant_id
+      - Tenant id associated to the specific OCS account
+    * - OCSNamespace
+      - string
+      - name_space
+      - Specifies the OCS namespace where the information are stored and it is used for the interaction with the OCS API.
+    * - OMFHttpTimeout
+      - integer
+      - 10
+      - Timeout in seconds for the HTTP operations with the OMF PI Connector Relay
+    * - OMFMaxRetry
+      - integer
+      - 1
+      - Seconds between each retry for the communication with the OMF PI Connector Relay, NOTE : the time is doubled at each attempt.
+    * - PIWebAPIKerberosKeytabFileName
+      - string
+      - piwebapi_kerberos_https.keytab
+      - Keytab file name used for Kerberos authentication in PI Web API.
+    * - PIWebAPIAuthenticationMethod
+      - enumeration
+      - anonymous
+      - Defines the authentication method to be used with the PI Web API.
+    * - PIWebAPIPassword
+      - password
+      - password
+      - Password of the user of PI Web API to be used with the basic access authentication.
+    * - PIWebAPIUserId
+      - string
+      - user_id
+      - User id of PI Web API to be used with the basic access authentication.
+    * - PIServerEndpoint
+      - enumeration
+      - Connector Relay
+      - Select the endpoint among PI Web API, connector Relay, OSIsoft Cloud Services or Edge Data Store
+    * - plugin
+      - string
+      - OMF
+      - PI Server North C Plugin
+    * - producerToken
+      - string
+      - omf_north_0001
+      - The producer token that represents this Fledge stream
+    * - ServerHostname
+      - string
+      - localhost
+      - Hostname of the server running the endpoint either PI Web API or Connector Relay
+    * - ServerPort
+      - integer
+      - 0
+      - Port on which the endpoint either PI Web API or Connector Relay or Edge Data Store is listening, 0 will use the default one
+    * - source
+      - enumeration
+      - readings
+      - Defines the source of the data to be sent the stream, this may be one of either readings, statistics or audit.
+    * - StaticData
+      - JSON
+      - { "Location" : "Palo Alto","Company"  : "Dianomic" }
+      - Static data to include in each sensor reading sent to the PI Server.
+    * - stream_id
+      - integer
+      - 0
+      - Identifies the specific stream to handle and the related information, among them the ID of the last object streamed.
 
 
-The following table presents the list of configuration options available for the task that sends statistics to OMF (category *SEND_PR_2*):
+The following table presents the list of configuration options available for the task that sends statistics to OMF (category *Stats OMF to PI north*):
 
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| Item              | Type     | Default                                 | Description                                            |
-+===================+==========+=========================================+========================================================+
-| applyFilter       | boolean  | False                                   | Whether to apply filter before processing the data     |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| blockSize         | integer  | 500                                     | The size of a block of readings |br|                   |
-|                   |          |                                         | to send in each transmission.                          |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| duration          | integer  | 60                                      | How long the sending process should run |br|           | 
-|                   |          |                                         | (in seconds) before stopping                           |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| enable            | boolean  | True                                    | A switch that can be used to enable or disable |br|    |
-|                   |          |                                         | execution of the sending process.                      |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| filterRule        | string   | .[]                                     | JQ formatted filter to apply |br|                      |
-|                   |          |                                         | (applicable if applyFilter is True)                    |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| north             | string   | omf                                     | The name of the north to use to translate the |br|     |
-|                   |          |                                         | readings into the output format and send them          |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| OMFHttpTimeout    | integer  | 10                                      | Timeout in seconds for the HTTP operations |br|        |
-|                   |          |                                         | with the OMF PI Connector Relay                        |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| OMFMaxRetry       | integer  | 3                                       | Max number of retries for the communication |br|       |
-|                   |          |                                         | with the OMF PI Connector Relay                        |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| OMFRetrySleepTime | integer  | 1                                       | Seconds between each retry for the communication |br|  |
-|                   |          |                                         | with the OMF PI Connector Relay, |br|                  |
-|                   |          |                                         | NOTE : the time is doubled at each attempt.            |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| plugin            | string   | omf                                     | OMF North Plugin name                                  |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| producerToken     | string   | omf_north_0001                          | The producer token that represents this Fledge stream  |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| sleepInterval     | integer  | 5                                       | A period of time, expressed in seconds, to wait |br|   |
-|                   |          |                                         | between attempts to send readings when there are |br|  |
-|                   |          |                                         | no readings to be sent.                                |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| source            | string   | readings                                | Defines the source of the data to be sent |br|         |
-|                   |          |                                         | the stream, this may be one of either |br|             |
-|                   |          |                                         | readings, statistics or audit.                         |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| StaticData        | JSON     | ``{ "Location" : "Palo Alto",`` |br|    | Static data to include in each sensor reading |br|     |    
-|                   |          | ``"Company"  : "Dianomic" }``           | sent to OMF.                                           |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| stream_id         | integer  | 2                                       | Stream ID                                              |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| URL               | string   | https://pi-server:5460/ingress/messages | The URL of the PI Connector to send data to            |
-+-------------------+----------+-----------------------------------------+--------------------------------------------------------+
+.. list-table::
+    :widths: 50 50 100 100
+    :header-rows: 1
+
+    * - Item
+      - Type
+      - Default
+      - Description
+    * - AFMap
+      - JSON
+      - { }
+      - Defines a set of rules to address where assets should be placed in the AF hierarchy.
+    * - compression
+      - boolean
+      - true
+      - Compress readings data before sending to PI server
+    * - DefaultAFLocation
+      - integer
+      - /fledge/data_piwebapi/default
+      - Defines the hierarchies tree in Asset Framework in which the assets will be created, each level is separated by /, PI Web API only.
+    * - enable
+      - boolean
+      - True
+      - A switch that can be used to enable or disable execution of the sending process.
+    * - formatInteger
+      - string
+      - int64
+      - OMF format property to apply to the type Integer.
+    * - formatNumber
+      - string
+      - float64
+      - OMF format property to apply to the type Number
+    * - notBlockingErrors
+      - JSON
+      - "{ \"errors400\" : [ \"Redefinition of the type with the same ID is not allowed\", \"Invalid value type for the property\", \"Property does not exist in the type definition\", \"Container is not defined\", \"Unable to find the property of the container of type\" ] }"
+      - These errors are considered not blocking in the communication with the PI Server, the sending operation will proceed with the next block of data if one of these is encountered.
+    * - OCSClientSecret
+      - boolean
+      - ocs_client_secret
+      - Client secret associated to the specific OCS account, it is used to authenticate the source for using the OCS API.
+    * - OCSClientId
+      - string
+      - ocs_client_id
+      - Client id associated to the specific OCS account, it is used to authenticate the source for using the OCS API.
+    * - OCSTenantId
+      - string
+      - ocs_tenant_id
+      - Tenant id associated to the specific OCS account
+    * - OCSNamespace
+      - string
+      - name_space
+      - Specifies the OCS namespace where the information are stored and it is used for the interaction with the OCS API.
+    * - OMFHttpTimeout
+      - integer
+      - 10
+      - Timeout in seconds for the HTTP operations with the OMF PI Connector Relay
+    * - OMFMaxRetry
+      - integer
+      - 1
+      - Seconds between each retry for the communication with the OMF PI Connector Relay, NOTE : the time is doubled at each attempt.
+    * - PIWebAPIKerberosKeytabFileName
+      - string
+      - piwebapi_kerberos_https.keytab
+      - Keytab file name used for Kerberos authentication in PI Web API.
+    * - PIWebAPIAuthenticationMethod
+      - enumeration
+      - anonymous
+      - Defines the authentication method to be used with the PI Web API.
+    * - PIWebAPIPassword
+      - password
+      - password
+      - Password of the user of PI Web API to be used with the basic access authentication.
+    * - PIWebAPIUserId
+      - string
+      - user_id
+      - User id of PI Web API to be used with the basic access authentication.
+    * - PIServerEndpoint
+      - enumeration
+      - Connector Relay
+      - Select the endpoint among PI Web API, connector Relay, OSIsoft Cloud Services or Edge Data Store
+    * - plugin
+      - string
+      - OMF
+      - PI Server North C Plugin
+    * - producerToken
+      - string
+      - omf_north_0001
+      - The producer token that represents this Fledge stream
+    * - ServerHostname
+      - string
+      - localhost
+      - Hostname of the server running the endpoint either PI Web API or Connector Relay
+    * - ServerPort
+      - integer
+      - 0
+      - Port on which the endpoint either PI Web API or Connector Relay or Edge Data Store is listening, 0 will use the default one
+    * - source
+      - enumeration
+      - readings
+      - Defines the source of the data to be sent the stream, this may be one of either readings, statistics or audit.
+    * - StaticData
+      - JSON
+      - { "Location" : "Palo Alto","Company"  : "Dianomic" }
+      - Static data to include in each sensor reading sent to the PI Server.
+    * - stream_id
+      - integer
+      - 0
+      - Identifies the specific stream to handle and the related information, among them the ID of the last object streamed.
 
 
 The last parameter to review is the *OMF Type*. The call is the GET method ``fledge/category/OMF_TYPES``, which returns an integer value that identifies the measurement type:
@@ -253,7 +492,7 @@ The last parameter to review is the *OMF Type*. The call is the GET method ``fle
 
 .. code-block:: console
 
-  $ curl -sX GET http://vbox-dev:8081/fledge/category/OMF_TYPES
+  $ curl -sX GET http://localhost:8081/fledge/category/OMF_TYPES
   {
     "type-id": {
       "description": "Identify sensor and measurement types",

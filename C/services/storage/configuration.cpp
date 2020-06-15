@@ -167,7 +167,8 @@ string	cachefile;
 	getConfigCache(cachefile);
 	if (access(cachefile.c_str(), F_OK ) != 0)
 	{
-		logger->info("Using default configuration: %s.", defaultConfiguration);
+		logger->info("Storage cache %s unreadable, using default configuration: %s.",
+				cachefile.c_str(), defaultConfiguration);
 		document->Parse(defaultConfiguration);
 		if (document->HasParseError())
 		{
@@ -238,7 +239,7 @@ char buf[512], *basedir;
 	}
 	else if ((basedir = getenv("FLEDGE_ROOT")) != NULL)
 	{
-		snprintf(buf, sizeof(buf), "%s/etc/%s", basedir, CONFIGURATION_CACHE_FILE);
+		snprintf(buf, sizeof(buf), "%s/data/etc/%s", basedir, CONFIGURATION_CACHE_FILE);
 		if (access(buf, F_OK) == 0)
 		{
 			cache = buf;
@@ -286,7 +287,6 @@ DefaultConfigCategory *StorageConfiguration::getDefaultCategory()
  */
 void StorageConfiguration::checkCache()
 {
-
 	if (document->HasMember("plugin"))	
 	{
 		Value& item = (*document)["plugin"];
@@ -313,10 +313,12 @@ void StorageConfiguration::checkCache()
 		if (hasValue(name))
 		{
 			const char *val = getValue(name);
+			logger->warn("Set value of %s to %s", name, val);
 			newval["value"].SetString(strdup(val), strlen(val));
 			if (strcmp(name, "plugin") == 0)
 			{
 				newval["default"].SetString(strdup(val), strlen(val));
+			logger->warn("Set default of %s to %s", name, val);
 			}
 		}
 	}

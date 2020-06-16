@@ -599,7 +599,6 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 	return rowNumber;
 }
 
-#ifndef SQLITE_SPLIT_READINGS
 /**
  * Append a set of readings to the readings table
  */
@@ -826,7 +825,6 @@ int sleep_time_ms = 0;
 
 	return row;
 }
-#endif
 
 /**
  * Fetch a block of readings from the reading table

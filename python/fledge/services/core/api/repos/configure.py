@@ -77,6 +77,7 @@ async def add_package_repo(request: web.Request) -> web.Response:
         else:
             raise ValueError("{} is not supported".format(_platform))
 
+        # TODO: FOGL-4176 RPM support
         stdout_file_path = _FLEDGE_ROOT + "/data/configure_repo_output.txt"
         cmd = "wget -q -O - {}/KEY.gpg | sudo apt-key add - > {} 2>&1".format(url, stdout_file_path)
         _LOGGER.debug("CMD....{}".format(cmd))
@@ -96,14 +97,16 @@ async def add_package_repo(request: web.Request) -> web.Response:
         if ret_code != 0:
             raise RuntimeError("See logs in {}".format(stdout_file_path))
         # TODO: audit log entry?
-    except ValueError as ex:
-        raise web.HTTPBadRequest(body=json.dumps({"message": str(ex)}), reason=str(ex))
-    except RuntimeError as ex:
-        raise web.HTTPBadRequest(body=json.dumps({"message": "Package repository is failed", "output_log": str(ex)}),
-                                 reason=str(ex))
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(body=json.dumps({"message": msg}), reason=msg)
+    except RuntimeError as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(body=json.dumps({"message": "Failed to configure package repository",
+                                                  "output_log": msg}), reason=msg)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=str(ex))
     else:
-        return web.json_response({"message": "Package repository is configured successfully.",
+        return web.json_response({"message": "Package repository configured successfully.",
                                   "output_log": stdout_file_path})
 

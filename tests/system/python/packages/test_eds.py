@@ -5,6 +5,10 @@
 # FLEDGE_END
 
 """ Test EDS
+Note: Please make sure that the EdgeDataStore package is installed before running the test.
+      You may refer the following documentation for more details on installation
+      https://osisoft.github.io/Edge-Data-Store-Docs/V1/Installation/Install%20Edge%20Data%20Store_1-0.html
+      And for more details on EDS refer https://osisoft.github.io/Edge-Data-Store-Docs/V1/index.html
 """
 
 import os
@@ -49,6 +53,7 @@ def reset_eds():
     con = http.client.HTTPConnection("localhost", 5590)
     con.request("POST", eds_reset_url, "")
     resp = con.getresponse()
+    assert 204 == resp.status
 
 
 @pytest.fixture

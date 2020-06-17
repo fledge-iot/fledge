@@ -23,6 +23,7 @@ Statistics reported by Purge process are:
     All these statistics are inserted into the log table
 """
 import time
+from datetime import datetime, timedelta
 
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.configuration_manager import ConfigurationManager
@@ -64,10 +65,26 @@ class Purge(FledgeProcess):
             "default": "False",
             "displayName": "Retain Unsent Data",
             "order": "3"
+        },
+        "retainStatsHistory": {
+            "description": "Retain statistics history data.",
+            "type": "integer",
+            "default": "30",
+            "displayName": "Retain Stats History Data (In Days)",
+            "order": "4",
+            "minimum": "1"
+        },
+        "retainAuditLog" : {
+            "description": "Retain audit trail data.",
+            "type": "integer",
+            "default": "60",
+            "displayName": "Retain Audit Trail Data (In Days)",
+            "order": "5",
+            "minimum": "1"
         }
     }
     _CONFIG_CATEGORY_NAME = 'PURGE_READ'
-    _CONFIG_CATEGORY_DESCRIPTION = 'Purge the readings table'
+    _CONFIG_CATEGORY_DESCRIPTION = 'Purge the readings, log, statistics history table'
 
     def __init__(self):
         super().__init__()
@@ -87,7 +104,7 @@ class Purge(FledgeProcess):
         cfg_manager = ConfigurationManager(self._readings_storage_async)
         await cfg_manager.create_category(self._CONFIG_CATEGORY_NAME,
                                           self._DEFAULT_PURGE_CONFIG,
-                                          self._CONFIG_CATEGORY_DESCRIPTION, display_name="Purge")
+                                          self._CONFIG_CATEGORY_DESCRIPTION, True, display_name="Purge")
 
         # Create the child category for purge
         try:
@@ -164,6 +181,27 @@ class Purge(FledgeProcess):
 
         return total_rows_removed, unsent_rows_removed
 
+    async def purge_stats_history(self, config):
+        """" Purge statistics history table based on the Age which is defined in retainStatsHistory config item
+        """
+        ts = datetime.now() - timedelta(days=int(config['retainStatsHistory']['value']))
+        payload = PayloadBuilder().WHERE(['history_ts', '<=', str(ts.timestamp())]).payload()
+        await self._storage_async.delete_from_tbl("statistics_history", payload)
+        # TODO: Does not work with Postgres, same issue as we pointed out in FOGL-4102
+
+        # Fledge purge[6663] ERROR: storage_client: fledge.common.storage_client.storage_client: PUT url /storage/reading/purge?size=1000000&sent=0&flags=purge, Error code: 400, reason: Bad Request, details: {'error': "Purge by size is not supported by 'Postgres' storage engine."}
+        # PAYLOAD: {"where": {"column": "history_ts", "condition": "<=", "value": "1589795651.005488"}}
+        # Fledge purge[15435] ERROR:  invalid input syntax for type timestamp with time zone: "1589795651.005488"#012LINE 1: ...M fledge.statistics_history WHERE "history_ts" <= '158979565...#012                                                             ^
+        # Fledge purge[15435] ERROR: storage_client: fledge.common.storage_client.storage_client: Error code: 400, reason: Bad Request, details: {'retryable': False, 'message': 'ERROR:  invalid input syntax for type timestamp with time zone: "1589795651.005488"LINE 1: ...M fledge.statistics_history WHERE "history_ts" <= \'158979565...                                                             ^', 'entryPoint': 'retrieve'}
+
+    async def purge_audit_trail_log(self, config):
+        """" Purge log table based on the Age which is defined under in config item
+        """
+        ts = datetime.now() - timedelta(days=int(config['retainAuditLog']['value']))
+        payload = PayloadBuilder().WHERE(['code', '=', "PURGE"]).AND_WHERE(['ts', '<=', str(ts.timestamp())]).payload()
+        await self._storage_async.delete_from_tbl("log", payload)
+        # TODO: Does not work with Postgres, same issue as we pointed out in FOGL-4102
+
     async def run(self):
         """" Starts the purge task
 
@@ -176,5 +214,7 @@ class Purge(FledgeProcess):
             config = await self.set_configuration()
             total_purged, unsent_purged = await self.purge_data(config)
             await self.write_statistics(total_purged, unsent_purged)
+            await self.purge_stats_history(config)
+            await self.purge_audit_trail_log(config)
         except Exception as ex:
             self._logger.exception(str(ex))

@@ -67,7 +67,7 @@ class Purge(FledgeProcess):
             "order": "3"
         },
         "retainStatsHistory": {
-            "description": "Retain statistics history data.",
+            "description": "This is the measure of how long to retain statistics history data for and should be measured in days.",
             "type": "integer",
             "default": "30",
             "displayName": "Retain Stats History Data (In Days)",
@@ -75,7 +75,7 @@ class Purge(FledgeProcess):
             "minimum": "1"
         },
         "retainAuditLog" : {
-            "description": "Retain audit trail data.",
+            "description": "This is the measure of how long to retain audit trail information for and should be measured in days.",
             "type": "integer",
             "default": "60",
             "displayName": "Retain Audit Trail Data (In Days)",
@@ -185,22 +185,15 @@ class Purge(FledgeProcess):
         """" Purge statistics history table based on the Age which is defined in retainStatsHistory config item
         """
         ts = datetime.now() - timedelta(days=int(config['retainStatsHistory']['value']))
-        payload = PayloadBuilder().WHERE(['history_ts', '<=', str(ts.timestamp())]).payload()
+        payload = PayloadBuilder().WHERE(['history_ts', '<=', str(ts)]).payload()
         await self._storage_async.delete_from_tbl("statistics_history", payload)
-        # TODO: Does not work with Postgres, same issue as we pointed out in FOGL-4102
-
-        # Fledge purge[6663] ERROR: storage_client: fledge.common.storage_client.storage_client: PUT url /storage/reading/purge?size=1000000&sent=0&flags=purge, Error code: 400, reason: Bad Request, details: {'error': "Purge by size is not supported by 'Postgres' storage engine."}
-        # PAYLOAD: {"where": {"column": "history_ts", "condition": "<=", "value": "1589795651.005488"}}
-        # Fledge purge[15435] ERROR:  invalid input syntax for type timestamp with time zone: "1589795651.005488"#012LINE 1: ...M fledge.statistics_history WHERE "history_ts" <= '158979565...#012                                                             ^
-        # Fledge purge[15435] ERROR: storage_client: fledge.common.storage_client.storage_client: Error code: 400, reason: Bad Request, details: {'retryable': False, 'message': 'ERROR:  invalid input syntax for type timestamp with time zone: "1589795651.005488"LINE 1: ...M fledge.statistics_history WHERE "history_ts" <= \'158979565...                                                             ^', 'entryPoint': 'retrieve'}
 
     async def purge_audit_trail_log(self, config):
         """" Purge log table based on the Age which is defined under in config item
         """
         ts = datetime.now() - timedelta(days=int(config['retainAuditLog']['value']))
-        payload = PayloadBuilder().WHERE(['code', '=', "PURGE"]).AND_WHERE(['ts', '<=', str(ts.timestamp())]).payload()
+        payload = PayloadBuilder().WHERE(['ts', '<=', str(ts)]).payload()
         await self._storage_async.delete_from_tbl("log", payload)
-        # TODO: Does not work with Postgres, same issue as we pointed out in FOGL-4102
 
     async def run(self):
         """" Starts the purge task

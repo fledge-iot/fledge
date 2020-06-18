@@ -18,6 +18,7 @@ data/scripts
 data/plugins
 data/snapshots
 data/logs
+data/configure_repo_output.txt
 
 # SQLite3 default db location and after migration
 data/*.db

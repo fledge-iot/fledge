@@ -23,6 +23,7 @@ Statistics reported by Purge process are:
     All these statistics are inserted into the log table
 """
 import time
+from datetime import datetime, timedelta
 
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.configuration_manager import ConfigurationManager
@@ -64,10 +65,26 @@ class Purge(FledgeProcess):
             "default": "False",
             "displayName": "Retain Unsent Data",
             "order": "3"
+        },
+        "retainStatsHistory": {
+            "description": "This is the measure of how long to retain statistics history data for and should be measured in days.",
+            "type": "integer",
+            "default": "30",
+            "displayName": "Retain Stats History Data (In Days)",
+            "order": "4",
+            "minimum": "1"
+        },
+        "retainAuditLog" : {
+            "description": "This is the measure of how long to retain audit trail information for and should be measured in days.",
+            "type": "integer",
+            "default": "60",
+            "displayName": "Retain Audit Trail Data (In Days)",
+            "order": "5",
+            "minimum": "1"
         }
     }
     _CONFIG_CATEGORY_NAME = 'PURGE_READ'
-    _CONFIG_CATEGORY_DESCRIPTION = 'Purge the readings table'
+    _CONFIG_CATEGORY_DESCRIPTION = 'Purge the readings, log, statistics history table'
 
     def __init__(self):
         super().__init__()
@@ -87,7 +104,7 @@ class Purge(FledgeProcess):
         cfg_manager = ConfigurationManager(self._readings_storage_async)
         await cfg_manager.create_category(self._CONFIG_CATEGORY_NAME,
                                           self._DEFAULT_PURGE_CONFIG,
-                                          self._CONFIG_CATEGORY_DESCRIPTION, display_name="Purge")
+                                          self._CONFIG_CATEGORY_DESCRIPTION, True, display_name="Purge")
 
         # Create the child category for purge
         try:
@@ -164,6 +181,20 @@ class Purge(FledgeProcess):
 
         return total_rows_removed, unsent_rows_removed
 
+    async def purge_stats_history(self, config):
+        """" Purge statistics history table based on the Age which is defined in retainStatsHistory config item
+        """
+        ts = datetime.now() - timedelta(days=int(config['retainStatsHistory']['value']))
+        payload = PayloadBuilder().WHERE(['history_ts', '<=', str(ts)]).payload()
+        await self._storage_async.delete_from_tbl("statistics_history", payload)
+
+    async def purge_audit_trail_log(self, config):
+        """" Purge log table based on the Age which is defined under in config item
+        """
+        ts = datetime.now() - timedelta(days=int(config['retainAuditLog']['value']))
+        payload = PayloadBuilder().WHERE(['ts', '<=', str(ts)]).payload()
+        await self._storage_async.delete_from_tbl("log", payload)
+
     async def run(self):
         """" Starts the purge task
 
@@ -176,5 +207,7 @@ class Purge(FledgeProcess):
             config = await self.set_configuration()
             total_purged, unsent_purged = await self.purge_data(config)
             await self.write_statistics(total_purged, unsent_purged)
+            await self.purge_stats_history(config)
+            await self.purge_audit_trail_log(config)
         except Exception as ex:
             self._logger.exception(str(ex))

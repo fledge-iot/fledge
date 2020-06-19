@@ -28,6 +28,11 @@ if [ ! "${DEFAULT_SQLITE_DB_FILE}" ]; then
     export DEFAULT_SQLITE_DB_FILE="${FLEDGE_DATA}/fledge.db"
 fi
 
+if [ ! "${DEFAULT_SQLITE_DB_FILE_READINGS}" ]; then
+    export DEFAULT_SQLITE_DB_FILE_READINGS="${FLEDGE_DATA}/readings.db"
+fi
+
+
 USAGE="Usage: `basename ${0}` {start|stop|status|init|reset|help}"
 
 # Check FLEDGE_ROOT
@@ -113,6 +118,41 @@ sqlite_start() {
             ;;
     esac
 
+    # Check the presence of the readingds.db datafile
+    result=`sqlite_status_readings "silent"`
+    case "$result" in
+        "0")
+            # SQLilte3 DB found already running.
+            if [[ "$1" == "noisy" ]]; then
+                sqlite_log "info" "SQLite3 readings database is ready." "all" "pretty"
+            else
+                sqlite_log "info" "SQLite3 readings database is ready." "logonly" "pretty"
+            fi
+            ;;
+
+        "1")
+            # Database not found, created datafile
+            COMMAND_OUTPUT=`${SQLITE_SQL} ${DEFAULT_SQLITE_DB_FILE_READINGS} .databases 2>&1`
+            RET_CODE=$?
+            if [ "${RET_CODE}" -ne 0 ]; then
+                sqlite_log "err" "Error creating SQLite3 database ${DEFAULT_SQLITE_DB_FILE_READINGS}: ${COMMAND_OUTPUT}" "all" "pretty"
+                exit 1
+            fi
+
+            # File created
+            if [[ "$1" == "noisy" ]]; then
+                sqlite_log "info" "SQLite3 database ${DEFAULT_SQLITE_DB_FILE_READINGS} has been created." "all" "pretty"
+            else
+                sqlite_log "info" "SQLite3 database ${DEFAULT_SQLITE_DB_FILE_READINGS} has been created." "logonly" "pretty"
+            fi
+           ;;
+
+        *)
+            sqlite_log "err" "Unknown SQLite database return status." "all"
+            exit 1
+            ;;
+    esac
+
     # Check if the fledge database has been created
     FOUND_SCHEMAS=`${SQLITE_SQL} ${DEFAULT_SQLITE_DB_FILE} "ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}' AS 'fledge'; SELECT name FROM sqlite_master WHERE type='table'"`
 
@@ -144,8 +184,11 @@ sqlite_stop() {
 
 ## SQLite3 Reset
 sqlite_reset() {
+
     if [[ $2 != "immediate" ]]; then
-        echo "This script will remove all data stored in the SQLite3 datafile '${DEFAULT_SQLITE_DB_FILE}'"
+        echo "This script will remove all data stored in the SQLite3 datafiles:"
+        echo "'${DEFAULT_SQLITE_DB_FILE}'"
+        echo "'${DEFAULT_SQLITE_DB_FILE_READINGS}'"
         echo -n "Enter YES if you want to continue: "
         read continue_reset
 
@@ -156,6 +199,11 @@ sqlite_reset() {
         fi
     fi
 
+    sqlite_reset_db_fledge   "$1" "$2"
+    sqlite_reset_db_readings "$1" "$2"
+}
+
+sqlite_reset_db_fledge() {
     if [[ "$1" == "noisy" ]]; then
         sqlite_log "info" "Building the metadata for the Fledge Plugin '${PLUGIN}' ..." "all" "pretty"
     else
@@ -189,7 +237,41 @@ EOF`
     else
         sqlite_log "info" "Build complete for Fledge Plugin '${PLUGIN} in database '${DEFAULT_SQLITE_DB_FILE}'." "logonly" "pretty"
     fi
+
 }
+
+sqlite_reset_db_readings() {
+
+    # 1- Drop all databases in DEFAULT_SQLITE_DB_FILE_READINGS
+    if [ -f "${DEFAULT_SQLITE_DB_FILE_READINGS}" ]; then
+        rm ${DEFAULT_SQLITE_DB_FILE_READINGS} ||
+        sqlite_log "err" "Cannot drop database '${DEFAULT_SQLITE_DB_FILE_READINGS}' for the Fledge Plugin '${PLUGIN}'" "all" "pretty"
+    fi
+    rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS}-journal ${DEFAULT_SQLITE_DB_FILE_READINGS}-wal ${DEFAULT_SQLITE_DB_FILE_READINGS}-shm
+    # 2- Create new datafile an apply init file
+    INIT_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE_READINGS}" 2>&1 <<EOF
+PRAGMA page_size = 4096;
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}' AS 'readings';
+.read '${INIT_READINGS_SQL}'
+.quit
+EOF`
+
+    RET_CODE=$?
+    # Exit on failure
+    if [ "${RET_CODE}" -ne 0 ]; then
+        sqlite_log "err" "Cannot initialize '${DEFAULT_SQLITE_DB_FILE_READINGS}' for the Fledge Plugin '${PLUGIN}': ${INIT_OUTPUT}. Exiting" "all" "pretty"
+        exit 2
+    fi
+
+    # Log success
+    if [[ "$1" == "noisy" ]]; then
+        sqlite_log "info" "Build complete for Fledge Plugin '${PLUGIN} in database '${DEFAULT_SQLITE_DB_FILE_READINGS}'." "all" "pretty"
+    else
+        sqlite_log "info" "Build complete for Fledge Plugin '${PLUGIN} in database '${DEFAULT_SQLITE_DB_FILE_READINGS}'." "logonly" "pretty"
+    fi
+
+}
+
 
 
 ## SQLite 3 Database Status
@@ -212,6 +294,31 @@ sqlite_status() {
             sqlite_log "info" "SQLite 3 database '${DEFAULT_SQLITE_DB_FILE}' not found." "all" "pretty"
         else
             sqlite_log "info" "SQLite 3 database '${DEFAULT_SQLITE_DB_FILE}' not found." "logonly" "pretty"
+        fi
+        echo "1"
+    fi
+}
+
+## SQLite 3 Database Status - checks the presence of the readingds.db datafile
+#
+# NOTE: You can call this script with $1 = silent to avoid non output errors
+#
+# Returns:
+#   0 - SQLite3 readingds datafile found
+#   1 - SQLite3 readingds datafile NOT found
+sqlite_status_readings() {
+    if [ -f "${DEFAULT_SQLITE_DB_FILE_READINGS}" ]; then
+        if [[ "$1" == "noisy" ]]; then
+            sqlite_log "info" "SQLite 3 database '${DEFAULT_SQLITE_DB_FILE_READINGS}' ready." "all" "pretty"
+        else
+            sqlite_log "info" "SQLite 3 database '${DEFAULT_SQLITE_DB_FILE_READINGS}' ready." "logonly" "pretty"
+        fi
+        echo "0"
+    else
+        if [[ "$1" == "noisy" ]]; then
+            sqlite_log "info" "SQLite 3 database '${DEFAULT_SQLITE_DB_FILE_READINGS}' not found." "all" "pretty"
+        else
+            sqlite_log "info" "SQLite 3 database '${DEFAULT_SQLITE_DB_FILE_READINGS}' not found." "logonly" "pretty"
         fi
         echo "1"
     fi
@@ -355,10 +462,12 @@ esac
 # Attempt 1: deployment path
 if [[ -e "$FLEDGE_ROOT/plugins/storage/sqlite/init.sql" ]]; then
     INIT_SQL="$FLEDGE_ROOT/plugins/storage/sqlite/init.sql"
+    INIT_READINGS_SQL="$FLEDGE_ROOT/plugins/storage/sqlite/init_readings.sql"
 else
     # Attempt 2: development path
     if [[ -e "$FLEDGE_ROOT/scripts/plugins/storage/sqlite/init.sql" ]]; then
         INIT_SQL="$FLEDGE_ROOT/scripts/plugins/storage/sqlite/init.sql"
+        INIT_READINGS_SQL="$FLEDGE_ROOT/scripts/plugins/storage/sqlite/init_readings.sql"
     else
         sqlite_log "err" "Missing plugin '${PLUGIN}' initialization file init.sql." "all" "pretty"
         exit 1

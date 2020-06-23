@@ -247,7 +247,7 @@ class TestPluginInstall:
                 as patch_fetch_available_package:
             resp = await client.post('/fledge/plugins', data=json.dumps(param))
             assert 404 == resp.status
-            assert "'{} plugin is not available for the given repository'".format(plugin) == resp.reason
+            assert "'{} plugin is not available for the configured repository'".format(plugin) == resp.reason
         patch_fetch_available_package.assert_called_once_with()
 
     async def test_package_error_exception_on_install_package_from_repo(self, client):

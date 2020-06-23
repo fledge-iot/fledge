@@ -50,9 +50,11 @@ async def add_plugin(request: web.Request) -> web.Response:
     :Example:
         curl -X POST http://localhost:8081/fledge/plugins
         data:
-            URL - The URL to pull the plugin file from
             format - the format of the file. One of tar or package (deb, rpm) or repository
-            compressed - option boolean this is used to indicate the package is a compressed gzip image
+            name - the plugin package name to pull from repository
+            version - (optional) the plugin version to install from repository
+            url - The url to pull the plugin file from if format is not a repository
+            compressed - (optional) boolean this is used to indicate the package is a compressed gzip image
             checksum - the checksum of the file, used to verify correct upload
 
         curl -sX POST http://localhost:8081/fledge/plugins -d '{"format":"repository", "name": "fledge-south-sinusoid"}'
@@ -76,7 +78,7 @@ async def add_plugin(request: web.Request) -> web.Response:
             version = data.get('version', None)
             if version:
                 if str(version).count('.') != 2:
-                    raise ValueError('Invalid version; it should be empty to install as per the configured repository version or a valid semantic version X.Y.Z i.e. major.minor.patch')
+                    raise ValueError('Invalid version; it should be empty or a valid semantic version X.Y.Z i.e. major.minor.patch to install as per the configured repository')
 
             plugins, log_path = await common.fetch_available_packages()
             if name not in plugins:

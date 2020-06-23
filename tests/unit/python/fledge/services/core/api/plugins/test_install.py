@@ -61,7 +61,7 @@ class TestPluginInstall:
           "compressed": "blah"}, 'Only "true", "false", true, false are allowed for value of compressed.'),
         ({"format": "repository"}, "name param is required"),
         ({"format": "repository", "name": "fledge-south-sinusoid", "version": "1.6"},
-         "Plugin semantic version is incorrect; it should be like X.Y.Z"),
+         "Invalid version; it should be empty or a valid semantic version X.Y.Z i.e. major.minor.patch to install as per the configured repository"),
 
     ])
     async def test_bad_post_plugins_install(self, client, param, message):

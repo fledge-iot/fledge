@@ -75,13 +75,12 @@ async def add_plugin(request: web.Request) -> web.Response:
                 raise ValueError('name param is required')
             version = data.get('version', None)
             if version:
-                delimiter = '.'
-                if str(version).count(delimiter) != 2:
-                    raise ValueError('Plugin semantic version is incorrect; it should be like X.Y.Z')
+                if str(version).count('.') != 2:
+                    raise ValueError('Invalid version; it should be empty to install as per the configured repository version or a valid semantic version X.Y.Z i.e. major.minor.patch')
 
             plugins, log_path = await common.fetch_available_packages()
             if name not in plugins:
-                raise KeyError('{} plugin is not available for the given repository'.format(name))
+                raise KeyError('{} plugin is not available for the configured repository'.format(name))
 
             _platform = platform.platform()
             pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'

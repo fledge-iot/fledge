@@ -73,6 +73,7 @@ Fledge is currently based on C/C++ and Python code. The packages needed to build
 - automake
 - avahi-daemon
 - build-essential
+- ca-certificates
 - cmake
 - cpulimit
 - curl
@@ -104,7 +105,7 @@ Fledge is currently based on C/C++ and Python code. The packages needed to build
   ...
   All packages are up-to-date.
   $
-  $ sudo apt-get install avahi-daemon curl git cmake g++ make build-essential autoconf automake
+  $ sudo apt-get install avahi-daemon ca-certificates curl git cmake g++ make build-essential autoconf automake
   Reading package lists... Done
   Building dependency tree
   ...

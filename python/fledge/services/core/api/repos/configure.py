@@ -50,11 +50,11 @@ async def add_package_repo(request: web.Request) -> web.Response:
 
         _platform = platform.platform()
         pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
-        my_list = ['nightly', 'latest', 'fixes/']
-        if not any(x in version for x in my_list):
-            delimiter = '.'
-            if str(version).count(delimiter) != 2:
-                raise ValueError('Semantic version is incorrect; it should be like X.Y.Z')
+
+        v_list = ['nightly', 'latest']
+        if not (version in v_list or version.startswith('fixes/')):
+            if str(version).count('.') != 2:
+                raise ValueError('Invalid version; it should be latest, nightly or a valid semantic version X.Y.Z i.e. major.minor.patch')
 
         if 'x86_64-with-Ubuntu-18.04' in _platform:
             os_name = "ubuntu1804"

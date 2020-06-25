@@ -70,7 +70,8 @@ static int purgeBlockSize = PURGE_DELETE_BLOCK_SIZE;
 #define END_TIME std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now(); \
 				 auto usecs = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
 
-#define _DB_NAME              "/fledge.sqlite"
+#define _DB_NAME              	"/fledge.sqlite"
+#define READINGS_DB_NAME        "/readings.db"
 
 static time_t connectErrorTime = 0;
 
@@ -428,8 +429,9 @@ bool retCode;
  */
 Connection::Connection()
 {
-	string dbPath;
+	string dbPath, dbPathReadings;
 	const char *defaultConnection = getenv("DEFAULT_SQLITE_DB_FILE");
+	const char *defaultReadingsConnection = getenv("DEFAULT_SQLITE_DB_READINGS_FILE");
 
 	m_logSQL = false;
 	m_queuing = 0;
@@ -445,6 +447,18 @@ Connection::Connection()
 	else
 	{
 		dbPath = defaultConnection;
+	}
+
+	if (defaultReadingsConnection == NULL)
+	{
+		// Set DB base path
+		dbPathReadings = getDataDir();
+		// Add the filename
+		dbPathReadings += READINGS_DB_NAME;
+	}
+	else
+	{
+		dbPathReadings = defaultReadingsConnection;
 	}
 
 	// Allow usage of URI for filename
@@ -486,13 +500,16 @@ Connection::Connection()
 		int rc;
 		char *zErrMsg = NULL;
 
-		rc = sqlite3_exec(dbHandle, "PRAGMA busy_timeout = 100; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;", NULL, NULL, &zErrMsg);
+		string dbConfiguration = "PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;";
+
+		// Enable the WAL for the fledge DB
+		rc = sqlite3_exec(dbHandle, dbConfiguration.c_str(), NULL, NULL, &zErrMsg);
 		if (rc != SQLITE_OK)
 		{
-			const char* errMsg = "Failed to set 'PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;'";
+			string errMsg = "Failed to set WAL from the fledge DB - " + dbConfiguration;
 			Logger::getLogger()->error("%s : error %s",
-						   errMsg,
-						   zErrMsg);
+									   dbConfiguration.c_str(),
+									   zErrMsg);
 			connectErrorTime = time(0);
 
 			sqlite3_free(zErrMsg);
@@ -535,6 +552,55 @@ Connection::Connection()
 		}
 		//Release sqlStmt buffer
 		delete[] sqlStmt;
+
+		// Attach readings database
+		SQLBuffer attachReadingsDb;
+		attachReadingsDb.append("ATTACH DATABASE '");
+		attachReadingsDb.append(dbPathReadings + "' AS readings;");
+
+		const char *sqlReadingsStmt = attachReadingsDb.coalesce();
+
+		// Exec the statement
+		rc = SQLexec(dbHandle,
+			     sqlReadingsStmt,
+			     NULL,
+			     NULL,
+			     &zErrMsg);
+
+		// Check result
+		if (rc != SQLITE_OK)
+		{
+			const char* errMsg = "Failed to attach 'readings' database in";
+			Logger::getLogger()->error("%s '%s': error %s",
+						   errMsg,
+						   sqlReadingsStmt,
+						   zErrMsg);
+			connectErrorTime = time(0);
+
+			sqlite3_free(zErrMsg);
+			sqlite3_close_v2(dbHandle);
+		}
+		else
+		{
+			Logger::getLogger()->info("Connected to SQLite3 database: %s",
+						  dbPath.c_str());
+		}
+		//Release sqlStmt buffer
+		delete[] sqlReadingsStmt;
+
+		// Enable the WAL for the readings DB
+		rc = sqlite3_exec(dbHandle, dbConfiguration.c_str(),NULL, NULL, &zErrMsg);
+		if (rc != SQLITE_OK)
+		{
+			string errMsg = "Failed to set WAL from the readings DB - " + dbConfiguration;
+			Logger::getLogger()->error("%s : error %s",
+									   errMsg.c_str(),
+									   zErrMsg);
+			connectErrorTime = time(0);
+
+			sqlite3_free(zErrMsg);
+		}
+
 	}
 }
 #endif

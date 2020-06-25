@@ -62,16 +62,24 @@ enum OMF_ENDPOINT_PORT {
  * Plugin specific default configuration
  */
 
-#define NOT_BLOCKING_ERRORS_DEFAULT QUOTE(                                          \
-	{                                                                           \
-		"errors400" : [					                    \
+#define NOT_BLOCKING_ERRORS_DEFAULT QUOTE(                              \
+	{                                                                   \
+		"errors400" : [                                                 \
 			"Redefinition of the type with the same ID is not allowed", \
 			"Invalid value type for the property",                      \
 			"Property does not exist in the type definition",           \
 			"Container is not defined",                                 \
 			"Unable to find the property of the container of type"      \
-		]					                            \
-	}                                                                           \
+		]					                                            \
+	}                                                                   \
+)
+
+#define NOT_BLOCKING_ERRORS_DEFAULT_PI_WEB_API QUOTE(            \
+	{                                                            \
+		"EventInfo" : [                                          \
+			"The specified value is outside the allowable range" \
+		]					                                     \
+	}                                                            \
 )
 
 #define AF_HIERARCHY_RULES QUOTE(                                          \
@@ -270,6 +278,13 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"order": "24",
 			"displayName" : "OCS Client Secret",
 			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\""
+		},
+		"PIWebAPInotBlockingErrors": {
+			"description": "These errors are considered not blocking in the communication with the PI Web API, the sending operation will proceed with the next block of data if one of these is encountered",
+			"type": "JSON",
+			"default": NOT_BLOCKING_ERRORS_DEFAULT_PI_WEB_API,
+			"order": "25" ,
+			"readonly": "true"
 		}
 	}
 );
@@ -515,9 +530,18 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 
 	// Set the list of errors considered not blocking in the communication
 	// with the PI Server
-	JSONStringToVectorString(connInfo->notBlockingErrors ,
-	                         configData->getValue("notBlockingErrors"),
-	                         std::string("errors400"));
+	if (connInfo->PIServerEndpoint == ENDPOINT_PIWEB_API)
+	{
+		JSONStringToVectorString(connInfo->notBlockingErrors ,
+								 configData->getValue("PIWebAPInotBlockingErrors"),
+								 std::string("EventInfo"));
+	}
+	else
+	{
+		JSONStringToVectorString(connInfo->notBlockingErrors ,
+								 configData->getValue("notBlockingErrors"),
+								 std::string("errors400"));
+	}
 	/**
 	 * Add static data
 	 * Split the string up into each pair

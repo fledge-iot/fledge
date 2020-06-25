@@ -275,7 +275,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                              .format(category_name, entry_name, type(entry_val)))
                         else:
                             if entry_name == 'mandatory' and entry_val == 'true':
-                                if not len(item_val['default'].strip()):
+                                if type(item_val['default']) is str:
+                                    if not len(item_val['default'].strip()):
+                                        raise ValueError('For {} category, A default value must be given for {}'.format(
+                                        category_name, item_name))
+                                elif not len(item_val['default']):
                                     raise ValueError('For {} category, A default value must be given for {}'.format(
                                         category_name, item_name))
                     elif entry_name == 'minimum' or entry_name == 'maximum':

@@ -167,7 +167,8 @@ string	cachefile;
 	getConfigCache(cachefile);
 	if (access(cachefile.c_str(), F_OK ) != 0)
 	{
-		logger->info("Using default configuration: %s.", defaultConfiguration);
+		logger->info("Storage cache %s unreadable, using default configuration: %s.",
+				cachefile.c_str(), defaultConfiguration);
 		document->Parse(defaultConfiguration);
 		if (document->HasParseError())
 		{
@@ -238,7 +239,7 @@ char buf[512], *basedir;
 	}
 	else if ((basedir = getenv("FLEDGE_ROOT")) != NULL)
 	{
-		snprintf(buf, sizeof(buf), "%s/etc/%s", basedir, CONFIGURATION_CACHE_FILE);
+		snprintf(buf, sizeof(buf), "%s/data/etc/%s", basedir, CONFIGURATION_CACHE_FILE);
 		if (access(buf, F_OK) == 0)
 		{
 			cache = buf;
@@ -276,16 +277,24 @@ DefaultConfigCategory *StorageConfiguration::getDefaultCategory()
  * This is only really triggered when we first do an upgrade from the
  * older cache files to the current JSON defaults that contains the
  * full information needed for the GUI.
+ *
+ * FOGL-4151 After changing to a new plugin, say from sqlite to postgres, the first
+ * time we run in the new database there is no configuraion category. In this case we will
+ * get the default category, which will have a default of sqlite and no vale. This will
+ * end up reporting the wrong information in the UI when we look at the category, therefore
+ * we special case the plugin name and set the default to whatever the current value is
+ * for just this property.
  */
 void StorageConfiguration::checkCache()
 {
-
 	if (document->HasMember("plugin"))	
 	{
 		Value& item = (*document)["plugin"];
 		if (item.HasMember("type"))
 		{
+			const char *val = getValue("plugin");
 			logger->info("Storage configuration cache is up to date");
+			item["default"].SetString(strdup(val), strlen(val));
 			return;
 		}
 	}
@@ -307,6 +316,11 @@ void StorageConfiguration::checkCache()
 		{
 			const char *val = getValue(name);
 			newval["value"].SetString(strdup(val), strlen(val));
+			if (strcmp(name, "plugin") == 0)
+			{
+				newval["default"].SetString(strdup(val), strlen(val));
+			logger->warn("Set default of %s to %s", name, val);
+			}
 		}
 	}
 	delete document;

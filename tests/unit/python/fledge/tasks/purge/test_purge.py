@@ -89,8 +89,11 @@ class TestPurge:
                         mock_get_cat.assert_called_once_with('PURGE_READ')
                     mock_create_child_cat.assert_called_once_with('Utilities', ['PURGE_READ'])
                 args, kwargs = mock_create_cat.call_args
-                assert 3 == len(args)
+                assert 4 == len(args)
+                assert 5 == len(args[1].keys())
                 assert 'PURGE_READ' == args[0]
+                assert 'Purge the readings, log, statistics history table' == args[2]
+                assert args[3] is True
 
     @pytest.fixture()
     async def store_purge(self, **kwargs):
@@ -256,6 +259,10 @@ class TestPurge:
         def mock_purge():
             return 1, 2
 
+        @asyncio.coroutine
+        def async_mock():
+            return None
+
         mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
         mockAuditLogger = AuditLogger(mockStorageClientAsync)
 
@@ -265,9 +272,13 @@ class TestPurge:
                 p._logger.exception = MagicMock()
                 with patch.object(p, 'set_configuration', return_value=mock_config()) as mock_set_config:
                     with patch.object(p, 'purge_data', return_value=mock_purge()) as mock_purge_data:
-                        with patch.object(p, 'write_statistics') as mock_write_stats:
-                            await p.run()
-                            # Test the positive case when no error in try block
+                        with patch.object(p, 'write_statistics', return_value=async_mock()) as mock_write_stats:
+                            with patch.object(p, 'purge_stats_history', return_value=async_mock()) as mock_purge_stats_history:
+                                with patch.object(p, 'purge_audit_trail_log', return_value=async_mock()) as mock_purge_audit_log:
+                                    await p.run()
+                                    # Test the positive case when no error in try block
+                                mock_purge_audit_log.assert_called_once_with("Some config")
+                            mock_purge_stats_history.assert_called_once_with("Some config")
                         mock_write_stats.assert_called_once_with(1, 2)
                     mock_purge_data.assert_called_once_with("Some config")
                 mock_set_config.assert_called_once_with()

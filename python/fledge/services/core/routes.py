@@ -28,6 +28,7 @@ from fledge.services.core.api.plugins import remove as plugins_remove
 from fledge.services.core.api.snapshot import plugins as snapshot_plugins
 from fledge.services.core.api.snapshot import table as snapshot_table
 from fledge.services.core.api import package_log
+from fledge.services.core.api.repos import configure as configure_repo
 
 
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto, Amarendra K Sinha"
@@ -207,6 +208,9 @@ def setup(app):
     app.router.add_route('POST', '/fledge/snapshot/schedule', snapshot_table.post_snapshot)
     app.router.add_route('PUT', '/fledge/snapshot/schedule/{id}', snapshot_table.put_snapshot)
     app.router.add_route('DELETE', '/fledge/snapshot/schedule/{id}', snapshot_table.delete_snapshot)
+
+    # Repo configure
+    app.router.add_route('POST', '/fledge/repository', configure_repo.add_package_repo)
 
     # enable cors support
     enable_cors(app)

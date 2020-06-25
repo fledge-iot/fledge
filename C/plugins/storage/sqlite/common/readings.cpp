@@ -18,6 +18,8 @@
 // 1 enable performance tracking
 #define INSTRUMENT	0
 
+#define DB_READINGS "readings"
+
 #if INSTRUMENT
 #include <sys/time.h>
 #endif
@@ -29,8 +31,8 @@
 
 // Retry mechanism
 #define PREP_CMD_MAX_RETRIES		20	    // Maximum no. of retries when a lock is encountered
-#define PREP_CMD_RETRY_BASE 		50    // Base time to wait for
-#define PREP_CMD_RETRY_BACKOFF		50 	// Variable time to wait for
+#define PREP_CMD_RETRY_BASE 		5000    // Base time to wait for
+#define PREP_CMD_RETRY_BACKOFF		5000 	// Variable time to wait for
 
 /*
  * Control the way purge deletes readings. The block size sets a limit as to how many rows
@@ -97,8 +99,6 @@ static int purgeBlockSize = PURGE_DELETE_BLOCK_SIZE;
 #define START_TIME std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 #define END_TIME std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now(); \
 				 auto usecs = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
-
-#define _DB_NAME              "/fledge.sqlite"
 
 static time_t connectErrorTime = 0;
 
@@ -280,7 +280,7 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 	}
 
 	// Get all datapoints in 'reading' field
-	sql.append("json_each.key AS x, json_each.value AS theval FROM fledge.readings, json_each(readings.reading) ");
+	sql.append("json_each.key AS x, json_each.value AS theval FROM " DB_READINGS ".readings, json_each(readings.reading) ");
 
 	// Add where condition
 	sql.append("WHERE ");
@@ -404,7 +404,7 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 	struct timeval start, t1, t2, t3, t4, t5;
 #endif
 
-	const char *sql_cmd = "INSERT INTO fledge.readings ( asset_code, reading, user_ts ) VALUES  (?,?,?)";
+	const char *sql_cmd = "INSERT INTO  " DB_READINGS ".readings ( asset_code, reading, user_ts ) VALUES  (?,?,?)";
 
 	if (sqlite3_prepare_v2(dbHandle, sql_cmd, strlen(sql_cmd), &stmt, NULL) != SQLITE_OK)
 	{
@@ -487,12 +487,12 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 						// Insert the row using a lock to ensure one insert at time
 						{
 							m_writeAccessOngoing.fetch_add(1);
-							unique_lock<mutex> lck(db_mutex);
+							//unique_lock<mutex> lck(db_mutex);
 
 							sqlite3_resut = sqlite3_step(stmt);
 
 							m_writeAccessOngoing.fetch_sub(1);
-							db_cv.notify_all();
+							//db_cv.notify_all();
 						}
 
 						if (sqlite3_resut == SQLITE_LOCKED  )
@@ -599,7 +599,6 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 	return rowNumber;
 }
 
-#ifndef SQLITE_SPLIT_READINGS
 /**
  * Append a set of readings to the readings table
  */
@@ -656,13 +655,12 @@ int sleep_time_ms = 0;
 		return -1;
 	}
 
-	const char *sql_cmd="INSERT INTO fledge.readings ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
-
-	// Execute one transaction at time
-	m_writeAccessOngoing.fetch_add(1);
-	unique_lock<mutex> lck(db_mutex);
+	const char *sql_cmd="INSERT INTO  " DB_READINGS ".readings ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
 
 	sqlite3_prepare_v2(dbHandle, sql_cmd, strlen(sql_cmd), &stmt, NULL);
+	{
+	m_writeAccessOngoing.fetch_add(1);
+	//unique_lock<mutex> lck(db_mutex);
 	sqlite3_exec(dbHandle, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
 #if INSTRUMENT
@@ -675,10 +673,6 @@ int sleep_time_ms = 0;
 		{
 			raiseError("appendReadings","Each reading in the readings array must be an object");
 			sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
-
-			// Unlock
-			m_writeAccessOngoing.fetch_sub(1);
-			db_cv.notify_all();
 			return -1;
 		}
 
@@ -728,30 +722,29 @@ int sleep_time_ms = 0;
 				// Retry mechanism in case SQLlite DB is locked
 				do {
 					// Insert the row using a lock to ensure one insert at time
-					sqlite3_resut = sqlite3_step(stmt);
+					{
 
+						sqlite3_resut = sqlite3_step(stmt);
+
+					}
 					if (sqlite3_resut == SQLITE_LOCKED  )
 					{
 						sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
 						retries++;
 
-						Logger::getLogger()->info("SQLITE_LOCKED - thread :%s: - record N. :%d: - retry number :%d: sleep time ms :%d:" ,
-							threadId.str().c_str(),
-							row,
-							retries,
-							sleep_time_ms);
+						Logger::getLogger()->info("SQLITE_LOCKED - record :%d: - retry number :%d: sleep time ms :%d:" ,row ,retries ,sleep_time_ms);
+
 						std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
 					}
 					if (sqlite3_resut == SQLITE_BUSY)
 					{
+						ostringstream threadId;
+						threadId << std::this_thread::get_id();
+
 						sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
 						retries++;
 
-						Logger::getLogger()->info("SQLITE_BUSY - thread :%s: - record N. :%d: - retry number :%d: sleep time ms :%d:",
-							threadId.str().c_str(),
-							row,
-							retries,
-							sleep_time_ms);
+						Logger::getLogger()->info("SQLITE_BUSY - thread :%s: - record :%d: - retry number :%d: sleep time ms :%d:", threadId.str().c_str() ,row, retries, sleep_time_ms);
 
 						std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
 					}
@@ -772,10 +765,6 @@ int sleep_time_ms = 0;
 						reading.c_str());
 
 					sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
-
-					// Unlock
-					m_writeAccessOngoing.fetch_sub(1);
-					db_cv.notify_all();
 					return -1;
 				}
 			}
@@ -788,11 +777,9 @@ int sleep_time_ms = 0;
 		raiseError("appendReadings", "Executing the commit of the transaction :%s:", sqlite3_errmsg(dbHandle));
 		row = -1;
 	}
-
-	// Unlock
 	m_writeAccessOngoing.fetch_sub(1);
-	db_cv.notify_all();
-
+	//db_cv.notify_all();
+	}
 
 #if INSTRUMENT
 		gettimeofday(&t2, NULL);
@@ -824,22 +811,20 @@ int sleep_time_ms = 0;
 		timeT3 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
 
 		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("Appended readings buffer size :%d: row count :%d: :%s: ", strlen(readings), row, threadId.str().c_str());
-
-		Logger::getLogger()->debug("Timing - thread :%s: - JSON handling %.3f seconds - inserts execution %.3f seconds - sqlite3_finalize %.3f seconds ",
+		Logger::getLogger()->debug("appendReadings end   thread :%s: buffer :%10lu: count :%5d: JSON :%6.3f: inserts :%6.3f: finalize :%6.3f:",
 								   threadId.str().c_str(),
-		                           timeT1,
-		                           timeT2,
-		                           timeT3
-
+								   strlen(readings),
+								   row,
+								   timeT1,
+								   timeT2,
+								   timeT3
 		);
-		Logger::getLogger()->debug("appendReadings end thread :%s:", threadId.str().c_str());
 		Logger::getLogger()->setMinLevel("warning");
+
 #endif
 
 	return row;
 }
-#endif
 
 /**
  * Fetch a block of readings from the reading table
@@ -862,7 +847,7 @@ char *zErrMsg = NULL;
 int rc;
 int retrieve;
 
-	// SQL command to extract the data from the fledge.readings
+	// SQL command to extract the data from the readings.readings
 	const char *sql_cmd = R"(
 	SELECT
 		id,
@@ -871,7 +856,7 @@ int retrieve;
 		strftime('%%Y-%%m-%%d %%H:%%M:%%S', user_ts, 'utc')  ||
 		substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
 		strftime('%%Y-%%m-%%d %%H:%%M:%%f', ts, 'utc') AS ts
-	FROM fledge.readings
+	FROM  )" DB_READINGS R"(.readings
 	WHERE id >= %lu
 	ORDER BY id ASC
 	LIMIT %u;
@@ -923,6 +908,7 @@ int retrieve;
 	}
 }
 
+
 /**
  * Perform a query against the readings table
  *
@@ -955,7 +941,7 @@ bool		isAggregate = false;
 						strftime(')" F_DATEH24_SEC R"(', user_ts, 'localtime')  ||
 						substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
 						strftime(')" F_DATEH24_MS R"(', ts, 'localtime') AS ts
-					FROM fledge.readings)";
+					FROM )" DB_READINGS R"(.readings)";
 
 			sql.append(sql_cmd);
 		}
@@ -986,7 +972,7 @@ bool		isAggregate = false;
 				{
 					return false;
 				}
-				sql.append(" FROM fledge.");
+				sql.append(" FROM  " DB_READINGS ".");
 			}
 			else if (document.HasMember("return"))
 			{
@@ -1175,7 +1161,7 @@ bool		isAggregate = false;
 					}
 					col++;
 				}
-				sql.append(" FROM fledge.");
+				sql.append(" FROM  " DB_READINGS ".");
 			}
 			else
 			{
@@ -1193,7 +1179,7 @@ bool		isAggregate = false;
 						strftime(')" F_DATEH24_SEC R"(', user_ts, 'localtime')  ||
 						substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
 						strftime(')" F_DATEH24_MS R"(', ts, 'localtime') AS ts
-					FROM fledge.)";
+                    FROM  )" DB_READINGS R"(.)";
 
 				sql.append(sql_cmd);
 			}
@@ -1311,7 +1297,7 @@ int blocks = 0;
 		char *zErrMsg = NULL;
 		int rc;
 		rc = SQLexec(dbHandle,
-		     "select max(rowid) from fledge.readings;",
+		     "select max(rowid) from " DB_READINGS ".readings;",
 	  	     rowidCallback,
 		     &rowidLimit,
 		     &zErrMsg);
@@ -1329,7 +1315,7 @@ int blocks = 0;
 		char *zErrMsg = NULL;
 		int rc;
 		rc = SQLexec(dbHandle,
-		     "select min(rowid) from fledge.readings;",
+		     "select min(rowid) from " DB_READINGS ".readings;",
 	  	     rowidCallback,
 		     &minrowidLimit,
 		     &zErrMsg);
@@ -1349,7 +1335,7 @@ int blocks = 0;
 		 * So set age based on the data we have and continue.
 		 */
 		SQLBuffer oldest;
-		oldest.append("SELECT (strftime('%s','now', 'utc') - strftime('%s', MIN(user_ts)))/360 FROM fledge.readings where rowid <= ");
+		oldest.append("SELECT (strftime('%s','now', 'utc') - strftime('%s', MIN(user_ts)))/360 FROM " DB_READINGS ".readings where rowid <= ");
 		oldest.append(rowidLimit);
 		oldest.append(';');
 		const char *query = oldest.coalesce();
@@ -1405,7 +1391,7 @@ int blocks = 0;
 
 			// e.g. select id from readings where rowid = 219867307 AND user_ts < datetime('now' , '-24 hours', 'utc');
 			SQLBuffer sqlBuffer;
-			sqlBuffer.append("select id from fledge.readings where rowid = ");
+			sqlBuffer.append("select id from " DB_READINGS ".readings where rowid = ");
 			sqlBuffer.append(m);
 			sqlBuffer.append(" AND user_ts < datetime('now' , '-");
 			sqlBuffer.append(age);
@@ -1458,7 +1444,7 @@ int blocks = 0;
 		int rc;
 		int lastPurgedId;
 		SQLBuffer idBuffer;
-		idBuffer.append("select id from fledge.readings where rowid = ");
+		idBuffer.append("select id from " DB_READINGS ".readings where rowid = ");
 		idBuffer.append(rowidLimit);
 		idBuffer.append(';');
 		const char *idQuery = idBuffer.coalesce();
@@ -1506,7 +1492,7 @@ int blocks = 0;
 			rowidMin = rowidLimit;
 		}
 		SQLBuffer sql;
-		sql.append("DELETE FROM fledge.readings WHERE rowid <= ");
+		sql.append("DELETE FROM " DB_READINGS ".readings WHERE rowid <= ");
 		sql.append(rowidMin);
 		sql.append(';');
 		const char *query = sql.coalesce();
@@ -1514,8 +1500,8 @@ int blocks = 0;
 
 		int rc;
 		{
-		unique_lock<mutex> lck(db_mutex);
-		if (m_writeAccessOngoing) db_cv.wait(lck);
+		//unique_lock<mutex> lck(db_mutex);
+//		if (m_writeAccessOngoing) db_cv.wait(lck);
 
 		START_TIME;
 		// Exec DELETE query: no callback, no resultset
@@ -1604,6 +1590,7 @@ int blocks = 0;
 	return deletedRows;
 }
 
+
 /**
  * Purge readings from the reading table
  */
@@ -1687,8 +1674,8 @@ unsigned long limit = 0;
 		sql.append(deletePoint);
 		const char *query = sql.coalesce();
 		{
-			unique_lock<mutex> lck(db_mutex);
-			if (m_writeAccessOngoing) db_cv.wait(lck);
+			//unique_lock<mutex> lck(db_mutex);
+//			if (m_writeAccessOngoing) db_cv.wait(lck);
 
 			// Exec DELETE query: no callback, no resultset
 			rc = SQLexec(dbHandle, query, NULL, NULL, &zErrMsg);

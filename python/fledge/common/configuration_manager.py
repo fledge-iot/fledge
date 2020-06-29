@@ -275,13 +275,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                              .format(category_name, entry_name, type(entry_val)))
                         else:
                             if entry_name == 'mandatory' and entry_val == 'true':
-                                if type(item_val['default']) is str:
-                                    if not len(item_val['default'].strip()):
-                                        raise ValueError('For {} category, A default value must be given for {}'.format(
-                                        category_name, item_name))
-                                elif not len(item_val['default']):
-                                    raise ValueError('For {} category, A default value must be given for {}'.format(
-                                        category_name, item_name))
+                                if not len(item_val['default'].strip()):
+                                    raise ValueError('For {} category, A default value must be given for {}'.format(category_name, item_name))
                     elif entry_name == 'minimum' or entry_name == 'maximum':
                         if (self._validate_type_value('integer', entry_val) or self._validate_type_value('float', entry_val)) is False:
                             raise ValueError('For {} category, entry value must be an integer or float for item name '
@@ -523,7 +518,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     if cat_info[item_name]['mandatory'] == 'true':
                         if cat_info[item_name]['type'] == 'JSON':
                             if not len(new_val):
-                                raise ValueError("A value must be given for {}".format(item_name))
+                                raise ValueError("Dict cannot be set as empty. A value must be given for {}".format(item_name))
                         elif not len(new_val.strip()):
                             raise ValueError("A value must be given for {}".format(item_name))
                 old_value = cat_info[item_name]['value']
@@ -760,7 +755,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     if storage_value_entry['type'] != 'JSON' and not len(new_value_entry.strip()):
                         raise ValueError("A value must be given for {}".format(item_name))
                     elif storage_value_entry['type'] == 'JSON' and not len(new_value_entry):
-                        raise ValueError("A value must be given for {}".format(item_name))
+                        raise ValueError("Dict cannot be set as empty. A value must be given for {}".format(item_name))
             new_value_entry = self._clean(storage_value_entry['type'], new_value_entry)
             # Evaluate new_value_entry as per rule if defined
             if 'rule' in storage_value_entry:

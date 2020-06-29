@@ -531,17 +531,26 @@ class TestConfigurationManager:
         assert excinfo.type is exception_name
         assert exception_msg == str(excinfo.value)
 
-    @pytest.mark.parametrize("test_input", [
-        "", " "
+    @pytest.mark.parametrize("_type, value, from_default_val", [
+        ("integer", " ", False),
+        ("string", "", False),
+        ("string", " ", False),
+        ("JSON", "", False),
+        ("JSON", " ", False),
+        ("integer", " ", True),
+        ("string", "", True),
+        ("string", " ", True),
+        ("JSON", "", True),
+        ("JSON", " ", True)
     ])
-    async def test__validate_category_val_with_optional_mandatory(self, test_input):
+    async def test__validate_category_val_with_optional_mandatory(self, _type, value, from_default_val):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        test_config = {ITEM_NAME: {"description": "test description", "type": "string", "default": test_input,
+        test_config = {ITEM_NAME: {"description": "test description", "type": _type, "default": value,
                                    "mandatory": "true"}}
         with pytest.raises(Exception) as excinfo:
             await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=test_config,
-                                               set_value_val_from_default_val=False)
+                                               set_value_val_from_default_val=from_default_val)
         assert excinfo.type is ValueError
         assert "For {} category, A default value must be given for {}".format(CAT_NAME, ITEM_NAME) == str(excinfo.value)
 
@@ -1097,13 +1106,26 @@ class TestConfigurationManager:
             updatepatch.assert_called_once_with(category_name, item_name, new_value_entry)
         readpatch.assert_called_once_with(category_name, item_name)
 
-    @pytest.mark.parametrize("new_value_entry, storage_result", [
-        ('', {'value': 'test', 'description': 'Test desc', 'type': 'string', 'default': 'test', 'mandatory': 'true'}),
-        (' ', {'value': 'test1', 'description': 'Test desc1', 'type': 'string', 'default': 'test1', 'mandatory': 'true'}),
-        ('newvalueentry', {'value': 'test', 'description': 'Test desc', 'type': 'string', 'default': 'test'})
+    @pytest.mark.parametrize("new_value_entry, storage_result, exc_name, exc_msg", [
+        ('', {'value': 'test', 'description': 'Test desc', 'type': 'string', 'default': 'test',
+              'mandatory': 'true'}, ValueError, "A value must be given for itemname"),
+        ('', {'value': '{}', 'description': 'Test desc', 'type': 'JSON', 'default': '{}',
+              'mandatory': 'true'}, TypeError, "Unrecognized value name for item_name itemname"),
+        ({}, {'value': '{}', 'description': 'Test desc', 'type': 'JSON', 'default': '{}',
+              'mandatory': 'true'}, ValueError, "Dict cannot be set as empty. A value must be given for itemname"),
+        (1, {'value': '{}', 'description': 'Test desc', 'type': 'JSON', 'default': '{}',
+             'mandatory': 'true'}, TypeError, "Unrecognized value name for item_name itemname"),
+        (' ', {'value': 'test1', 'description': 'Test desc', 'type': 'string', 'default': 'test1',
+               'mandatory': 'true'}, ValueError, "A value must be given for itemname"),
+        ('5', {'rule': 'value*3==9', 'default': '3', 'description': 'Test', 'value': '3',
+               'type': 'integer'}, ValueError, "The value of itemname is not valid, please supply a valid value"),
+        ('blah', {'value': 'woo', 'default': 'woo', 'description': 'enum types', 'type': 'enumeration',
+                  'options': ['foo', 'woo']}, ValueError, "new value does not exist in options enum"),
+        ('', {'value': 'woo', 'default': 'woo', 'description': 'enum types', 'type': 'enumeration',
+              'options': ['foo', 'woo']}, ValueError, "entry_val cannot be empty"),
     ])
-    async def test_set_category_item_value_entry_bad_update(self, reset_singleton, new_value_entry, storage_result):
-
+    async def test_set_category_item_value_entry_bad_update(self, reset_singleton, new_value_entry, storage_result,
+                                                            exc_name, exc_msg):
         async def async_mock():
             return storage_result
 
@@ -1113,13 +1135,12 @@ class TestConfigurationManager:
         item_name = 'itemname'
         with patch.object(_logger, 'exception') as log_exc:
             with patch.object(ConfigurationManager, '_read_item_val', return_value=async_mock()) as readpatch:
-                with patch.object(ConfigurationManager, '_update_value_val', side_effect=Exception()) as updatepatch:
-                    with patch.object(ConfigurationManager, '_run_callbacks') as callbackpatch:
-                        with pytest.raises(Exception):
-                            await c_mgr.set_category_item_value_entry(category_name, item_name, new_value_entry)
-                    callbackpatch.assert_not_called()
-                if len(new_value_entry.strip()):
-                    updatepatch.assert_called_once_with(category_name, item_name, new_value_entry)
+                with patch.object(ConfigurationManager, '_run_callbacks') as callbackpatch:
+                    with pytest.raises(Exception) as excinfo:
+                        await c_mgr.set_category_item_value_entry(category_name, item_name, new_value_entry)
+                    assert excinfo.type is exc_name
+                    assert exc_msg == str(excinfo.value)
+                callbackpatch.assert_not_called()
             readpatch.assert_called_once_with(category_name, item_name)
         assert 1 == log_exc.call_count
         log_exc.assert_called_once_with('Unable to set item value entry based on category_name %s and item_name %s and value_item_entry %s', category_name, item_name, new_value_entry)
@@ -2499,18 +2520,31 @@ class TestConfigurationManager:
          {"blah": "12"}, KeyError, "'blah config item not found'"),
         ({'enableHttp': {'default': 'true', 'description': 'Enable HTTP', 'type': 'boolean', 'value': 'true'}},
          {"enableHttp": False}, TypeError, "new value should be of type string"),
-        ({'authentication': {'default': 'optional', 'options': ['mandatory', 'optional'], 'type': 'enumeration', 'description': 'API Call Authentication', 'value': 'optional'}},
-         {"authentication": ""}, ValueError, "entry_val cannot be empty"),
-        ({'authentication': {'default': 'optional', 'options': ['mandatory', 'optional'], 'type': 'enumeration', 'description': 'API Call Authentication', 'value': 'optional'}},
+        ({'authentication': {'default': 'optional', 'options': ['mandatory', 'optional'], 'type': 'enumeration',
+                             'description': 'API Call Authentication', 'value': 'optional'}}, {"authentication": ""},
+         ValueError, "entry_val cannot be empty"),
+        ({'authentication': {'default': 'optional', 'options': ['mandatory', 'optional'], 'type': 'enumeration',
+                             'description': 'API Call Authentication', 'value': 'optional'}},
          {"authentication": "false"}, ValueError, "new value does not exist in options enum"),
-        ({'authProviders': {'default': '{"providers": ["username", "ldap"] }', 'description': 'Authentication providers to use for the interface', 'type': 'JSON', 'value': '{"providers": ["username", "ldap"] }'}},
+        ({'authProviders': {'default': '{"providers": ["username", "ldap"] }',
+                            'description': 'Authentication providers to use for the interface', 'type': 'JSON',
+                            'value': '{"providers": ["username", "ldap"] }'}},
          {"authProviders": 3}, TypeError, "new value should be a valid dict Or a string literal, in double quotes"),
         ({'enableHttp': {'default': 'true', 'description': 'Enable HTTP', 'type': 'boolean', 'value': 'true'}},
          {"enableHttp": "blah"}, TypeError, "Unrecognized value name for item_name enableHttp"),
         ({'asset': {'default': 'sinusoid', 'description': 'Asset Name', 'type': 'string', 'value': 'sinusoid',
                     'mandatory': 'true'}}, {"asset": ''}, ValueError, "A value must be given for asset"),
         ({'datapoint': {'default': 'rw', 'description': 'Datapoint Name', 'type': 'string', 'value': 'rw',
-                        'mandatory': 'true'}}, {"datapoint": ' '}, ValueError, "A value must be given for datapoint")
+                        'mandatory': 'true'}}, {"datapoint": ' '}, ValueError, "A value must be given for datapoint"),
+        ({'testJSON': {'default': '{"foo": "bar"}', 'description': 'Test JSON', 'type': 'JSON',
+                       'value': '{"foo": "bar"}', 'mandatory': 'true'}}, {"testJSON": ' '},
+         TypeError, "Unrecognized value name for item_name testJSON"),
+        ({'testJSON': {'default': '{"foo": "bar"}', 'description': 'Test JSON', 'type': 'JSON',
+                       'value': '{"foo": "bar"}', 'mandatory': 'true'}}, {"testJSON": 'blah'},
+         TypeError, "Unrecognized value name for item_name testJSON"),
+        ({'testJSON': {'default': '{"foo": "bar"}', 'description': 'Test JSON', 'type': 'JSON',
+                       'value': '{"foo": "bar"}', 'mandatory': 'true'}}, {"testJSON": {}},
+         ValueError, "Dict cannot be set as empty. A value must be given for testJSON")
     ])
     async def test_update_configuration_item_bulk_exceptions(self, cat_info, config_item_list, exc_type, exc_msg,
                                                              category_name='testcat'):

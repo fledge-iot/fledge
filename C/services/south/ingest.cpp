@@ -13,6 +13,8 @@
 #include <thread>
 #include <logger.h>
 
+#define TIME_DBINSERT	1
+
 using namespace std;
 
 /**
@@ -391,12 +393,22 @@ void Ingest::processQueue()
 		while (m_resendQueues.size() > 0)
 		{
 			vector<Reading *> *q = *m_resendQueues.begin();
+#if TIME_DBINSERT
+			struct timeval tv_start;
+			gettimeofday(&tv_start, NULL);
+#endif
 			if (m_storage.readingAppend(*q) == false)
 			{
 				m_logger->error("Still unable to resend buffered data, leaving on resend queue.");
 			}
 			else
 			{
+#if TIME_DBINSERT
+				struct timeval tv_end, tv_dur;
+				gettimeofday(&tv_end, NULL);
+				timersub(&tv_end, &tv_start, &tv_dur);
+				m_logger->warn("Insert of %d readings took %d sec, %d usec", q->size(), tv_dur.tv_sec, tv_dur.tv_usec);
+#endif
 				std::map<std::string, int>		statsEntriesCurrQueue;
 				AssetTracker *tracker = AssetTracker::getAssetTracker();
 				for (vector<Reading *>::iterator it = q->begin();
@@ -528,6 +540,10 @@ void Ingest::processQueue()
 		 */
 		if (!m_data->empty())
 		{
+#if TIME_DBINSERT
+			struct timeval tv_start;
+			gettimeofday(&tv_start, NULL);
+#endif
 			if (m_storage.readingAppend(*m_data) == false)
 			{
 				m_logger->warn("Failed to write readings to storage layer, queue for resend");
@@ -536,6 +552,13 @@ void Ingest::processQueue()
 			}
 			else
 			{
+#if TIME_DBINSERT
+				struct timeval tv_end, tv_dur;
+				gettimeofday(&tv_end, NULL);
+				timersub(&tv_end, &tv_start, &tv_dur);
+				m_logger->warn("Insert of %d readings took %d sec, %d usec", m_data->size(), tv_dur.tv_sec, tv_dur.tv_usec);
+#endif
+
 				std::map<std::string, int>		statsEntriesCurrQueue;
 				// check if this requires addition of a new asset tracker tuple
 				// Remove the Readings in the vector

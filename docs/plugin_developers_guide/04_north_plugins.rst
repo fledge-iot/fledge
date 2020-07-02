@@ -530,44 +530,64 @@ Once the North plugins have been set properly, you should expect to see data aut
 - The **Producer Token** is used to authenticate and create the hierarchy of elements in the *PI Asset Framework*
 - The configuration object named as **Static Data** is added as a set of *attributes* in the PI Data Archive
 
-+-----------+--------------------+--------------------------------------------------------------------------+
-| System    | Object             | Value                                                                    |
-+===========+====================+==========================================================================+
-| Fledge    | Producer Token     | readings_001                                                             |
-|           +--------------------+--------------------------------------------------------------------------+
-|           | OMF Type           | 0001                                                                     |
-|           +--------------------+--------------------------------------------------------------------------+
-|           | Static Data        | { "Company" : "Dianomic", "Location" : "Palo Alto" }                     |
-|           +--------------------+--------------------------------------------------------------------------+
-|           | Asset              | fogbench/accelerometer                                                   |
-|           +--------------------+--------------------------------------------------------------------------+
-|           | Reading            | [{"reading":{"y":1,"z":1,"x":-1}, "timestamp":"2018-05-14 19:27:06.788}] |
-+-----------+--------------------+--------------------------------------------------------------------------+
-| PI System | Element Template   | [OMF.readings_001 Connector.0001_fogbench/accelerometer_typename_sensor] |
-|           +--------------------+----------+---------------------------------------------------------------+
-|           | Attribute Template | Company  | Configuration Item, Excluded, String                          |
-|           |                    +----------+---------------------------------------------------------------+
-|           |                    | Location | Configuration Item, Excluded, String                          |
-|           |                    +----------+---------------------------------------------------------------+
-|           |                    | x        | Excluded, Int64                                               |
-|           |                    +----------+---------------------------------------------------------------+
-|           |                    | y        | Excluded, Int64                                               |
-|           |                    +----------+---------------------------------------------------------------+
-|           |                    | z        | Excluded, Int64                                               |
-|           +--------------------+----------+---------------------------------------------------------------+
-|           | Element            | fledge > readings_001 > fogbench/accelerometer                           |
-|           +--------------------+----------+---------------+-----------------------------------------------+
-|           | Attributes         | **Name** | **Value**     | **Timestamp**                                 |
-|           |                    +----------+---------------+-----------------------------------------------+
-|           |                    | Company  | Dianomic      | 1970-01-01 00:00:00                           |
-+           |                    +----------+---------------+-----------------------------------------------+
-|           |                    | Location | Palo Alto     | 1970-01-01 00:00:00                           |
-+           |                    +----------+---------------+-----------------------------------------------+
-|           |                    | x        | -1            | 2018-05-14 19:27:06.788                       |
-+           |                    +----------+---------------+-----------------------------------------------+
-|           |                    | y        | 1             | 2018-05-14 19:27:06.788                       |
-+           |                    +----------+---------------+-----------------------------------------------+
-|           |                    | z        | 1             | 2018-05-14 19:27:06.788                       |
-+-----------+--------------------+----------+---------------+-----------------------------------------------+
+.. list-table::
+    :widths: 20 20 100
+    :header-rows: 1
 
-
+    * - System
+      - Object
+      - Value
+    * - Fledge
+      - Producer Token
+      - readings_001
+    * -
+      - OMF Type
+      - 001
+    * -
+      - Static Data
+      - { "Company" : "Dianomic", "Location" : "Palo Alto"}
+    * -
+      - Asset
+      - fogbench/accelerometer
+    * -
+      - Reading
+      - [{"reading":{"y":1,"z":1,"x":-1}, "timestamp":"2018-05-14 19:27:06.788}]
+    * - PI
+      - Element Template
+      - [OMF.readings_001 Connector.0001_fogbench/accelerometer_typename_sensor]
+    * -
+      - Attribute Template
+      - [OMF.readings_001 Connector.0001_fogbench/accelerometer_typename_sensor]
+    * -
+      -
+      - Company  | Configuration Item, Excluded, String
+    * -
+      -
+      - Location | Configuration Item, Excluded, String
+    * -
+      -
+      - x | Excluded, Int64
+    * -
+      -
+      - y | Excluded, Int64
+    * -
+      -
+      - z | Excluded, Int64
+    * -
+      - Element
+      - fledge > readings_001 > fogbench/accelerometer
+    * -
+      - Attributes
+      - Company  | Dianomic | 1970-01-01 00:00:00
+    * -
+      -
+      - Location  | Palo Alto | 1970-01-01 00:00:00
+    * -
+      -
+      - x  | -1 | 2018-05-14 19:27:06.788
+    * -
+      -
+      - y  | -1 | 2018-05-14 19:27:06.788
+    * -
+      -
+      - z  | -1 | 2018-05-14 19:27:06.788

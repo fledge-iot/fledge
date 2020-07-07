@@ -78,7 +78,7 @@ Release Date: 2020-07-08
     - Bug Fix:
 
        - An issue with non-integer data types in the Beckhoff ADS south plugin has been rectified.
-       - A missing dependency in 1.8.0 for the package foglamp-south-human-detector meant that it could not be installed without manual intervention. This has now been resolved.
+       - A missing dependency in v1.8.0 release for the package fledge-south-human-detector meant that it could not be installed without manual intervention. This has now been resolved.
        - Support has been added to the south-human-detector plugin for the Coral Camera module in addition to the existing support for USB connected cameras.
        - An issue with installation of the external shared libraries required by the USB4704 plugin has been resolved.
 

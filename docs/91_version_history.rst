@@ -28,7 +28,7 @@ Fledge v1
 v1.8.1
 -------
 
-Release Date: 2020-07-07
+Release Date: 2020-07-08
 
 - **Fledge Core**
 
@@ -48,16 +48,12 @@ Release Date: 2020-07-07
     - Bug Fix:
 
        - If JSON type configuration parameters were marked as mandatory there was an issue that prevented the update of the parameters. This has now been resolved.
-       - After changing storage engine from sqlite to Postgres using the configuration option in the GUI or via the API, the new storage engine woudl incorrectly report itself as sqlite in the API and user interface. This has now been resolved.
-       - External micro services that restarted without a graceful shutdown would fail to register with the service registry as nothing was able to unregister the failed service. This has now been relaxed to allow the recovered service to be correctly registered.
+       - After changing storage engine from sqlite to Postgres using the configuration option in the GUI or via the API, the new storage engine would incorrectly report itself as sqlite in the API and user interface. This has now been resolved.
+       - External micro-services that restarted without a graceful shutdown would fail to register with the service registry as nothing was able to unregister the failed service. This has now been relaxed to allow the recovered service to be correctly registered.
        - The configuration of the storage system was previously not available via the GUI. This has now been resolved and the configuration can be viewed in the Advanced category of the configuration user interface. Any changes made to the storage configuration will only take effect on the next restart of Fledge. This allows administrators to change the storage plugins used without the need to edit the storage.json configuration file.
 
 
 - **GUI**
-
-    - New Features:
-
-
 
     - Bug Fix:
 

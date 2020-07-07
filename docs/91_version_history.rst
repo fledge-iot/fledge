@@ -25,6 +25,68 @@ Version History
 Fledge v1
 ==========
 
+v1.8.1
+-------
+
+Release Date: 2020-07-07
+
+- **Fledge Core**
+
+    - New Features:
+
+       - Support has been added for the deployment on Moxa gateways running a variant of Debian 9 Stretch.
+       - The purge process has been improved to also purge the statistics history and audit trail of the system. New configuration parameters have been added to manage the amount of data to be retain for each of these.
+       - An issue with installing on the Mendel Day release on Google’s Coral boards has been resolved.
+       - The REST API has been expanded to allow an API call to be made to set the repository from which new packages will be pulled when installing plugins via the API and GUI.
+       - A problem with the service discovery failing to respond correctly after it had been running for a short while has been rectified. This allows external micro services to now correctly discover the core micro service.
+       - Details for making contributions to the Fledge project have been added to the source repository.
+       - The support bundle has been improved to include more information needed to diagnose issues with sending data to PI Servers
+       - The REST API has been extended to add a new call that will return statistics in terms of rates rather than absolute values. 
+       - The documentation has been updated to include guidance on setting up package repositories for installing the software and plugins.
+
+
+    - Bug Fix:
+
+       - If JSON type configuration parameters were marked as mandatory there was an issue that prevented the update of the parameters. This has now been resolved.
+       - After changing storage engine from sqlite to Postgres using the configuration option in the GUI or via the API, the new storage engine woudl incorrectly report itself as sqlite in the API and user interface. This has now been resolved.
+       - External micro services that restarted without a graceful shutdown would fail to register with the service registry as nothing was able to unregister the failed service. This has now been relaxed to allow the recovered service to be correctly registered.
+       - The configuration of the storage system was previously not available via the GUI. This has now been resolved and the configuration can be viewed in the Advanced category of the configuration user interface. Any changes made to the storage configuration will only take effect on the next restart of Fledge. This allows administrators to change the storage plugins used without the need to edit the storage.json configuration file.
+
+
+- **GUI**
+
+    - New Features:
+
+
+
+    - Bug Fix:
+
+       - An improvement to the user experience for editing password in the GUI has been implemented that stops the issue with passwords disappearing if the input field is clicked.
+       - Password validation was not correctly occurring in the GUI wizard that adds south plugins. This has now be rectified.
+
+
+- **Plugins**
+
+    - New Features:
+
+       - The Modbus plugin did not gracefully handle interrupted reads of data from modes TCP devices during the bulk transfer of data. This would result in assets missing certain data points and subsequent issues in the north systems that received those assets getting changes in the asset data type. This was a particular issue when dealign with the PI Web API and would result in excessive types being created. The Modbus plugin now detects the issues and takes action to ensure complete assets are read.
+       - A new plugin to support Siemens S7 PLC’s has been added. The plugin uses the S7 communications protocol to pull data from the PLC.
+       - A new image processing plugin, south human detector, that uses the Google Tensor Flow machine learning platform has been added to the Fledge-iot project.
+       - A new Python plugin has been added that can send data north to a Kafka system.
+       - A new south plugin has been added for the Dynamic Ratings B100 Electronic Temperature Monitor used for monitoring the condition of electricity transformers.
+       - A new plugin has been contributed to the project by Nexcom that implements the SAE J1708 protocol for accessing the ECU's of heavy duty vehicles. 
+       - An issue with missing dependencies on the Coral Mendel platform prevent 1.8.0 packages installing correctly without manual intervention. This has now been resolved.
+       - The image recognition plugin, south-human-detector, has been updated to work with the Google Coral board running the Mendel Day release of Linux.
+
+
+    - Bug Fix:
+
+       - An issue with non-integer data types in the Beckhoff ADS south plugin has been rectified.
+       - A missing dependency in 1.8.0 for the package foglamp-south-human-detector meant that it could not be installed without manual intervention. This has now been resolved.
+       - Support has been added to the south-human-detector plugin for the Coral Camera module in addition to the existing support for USB connected cameras.
+       - An issue with installation of the external shared libraries required by the USB4704 plugin has been resolved.
+
+
 v1.8.0
 -------
 

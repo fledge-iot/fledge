@@ -606,7 +606,7 @@ int Connection::appendReadings(const char *readings)
 {
 // Default template parameter uses UTF8 and MemoryPoolAllocator.
 Document doc;
-int      row = 0;
+int      row = 0, readingId;
 bool     add_row = false;
 
 // Variables related to the SQLite insert using prepared command
@@ -655,9 +655,12 @@ int sleep_time_ms = 0;
 		return -1;
 	}
 
+
 	const char *sql_cmd="INSERT INTO  " DB_READINGS ".readings ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
 
 	sqlite3_prepare_v2(dbHandle, sql_cmd, strlen(sql_cmd), &stmt, NULL);
+
+
 	{
 	m_writeAccessOngoing.fetch_add(1);
 	//unique_lock<mutex> lck(db_mutex);
@@ -703,6 +706,17 @@ int sleep_time_ms = 0;
 		{
 			// Handles - asset_code
 			asset_code = (*itr)["asset_code"].GetString();
+
+			//# FIXME_I:
+			auto item = m_AssetReadingCatalogue.find(asset_code);
+			if (item  != m_AssetReadingCatalogue.end() ) {
+
+				readingId = item->second;
+			}
+
+
+			//# FIXME_I:
+
 
 			// Handles - reading
 			StringBuffer buffer;
@@ -1719,4 +1733,70 @@ unsigned long limit = 0;
 	return deletedRows;
 }
 
+
+m_AssetReadingCatalogue
+
+/**
+ * # FIXME_I:
+ */
+
+bool  Connection::loadAssetReadingCatalogue()
+{
+	loadAssetReadingCatalogue.insert( std::make_pair("rand1", 1));
+	loadAssetReadingCatalogue.insert( std::make_pair("rand2", 2));
+	loadAssetReadingCatalogue.insert( std::make_pair("rand3", 3));
+	loadAssetReadingCatalogue.insert( std::make_pair("rand4", 4));
+}
+
+/**
+ * # FIXME_I:
+ */
+bool  Connection::createReadingsTables(int nTables)
+{
+	string createReadings, createReadingsIdx;
+	int rc, readingsIdx;
+	string readingsIdxStr;
+	sqlite3_stmt *stmt;
+
+	Logger *logger = Logger::getLogger();
+
+	logger->info("Creating :%d: readings table in advance", nTables);
+
+	for (readingsIdx = 1 ;  readingsIdx < nTables; ++readingsIdx)
+	{
+
+		readingsIdxStr = to_string(readingsIdx);
+
+		createReadings = R"(
+			CREATE TABLE )" DB_READINGS R"(.readings_)" + readingsIdxStr + R"( (
+				id         INTEGER                     PRIMARY KEY AUTOINCREMENT,
+				asset_code character varying(50)       NOT NULL,
+				reading    JSON                        NOT NULL DEFAULT '{}',
+				user_ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),
+				ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW'))
+			);
+		)";
+
+		createReadingsIdx = R"(
+			CREATE INDEX )" DB_READINGS R"(.readings_)" + readingsIdxStr + R"(_ix3 ON readings_)" + readingsIdxStr + R"( (user_ts);
+		)";
+
+		rc = sqlite3_exec(dbHandle, createReadings.c_str(), NULL, NULL, NULL);
+
+		if (rc != SQLITE_OK)
+		{
+			raiseError("Error creating readings tables in advance", sqlite3_errmsg(dbHandle));
+			return false;
+		}
+
+		rc = sqlite3_exec(dbHandle, createReadingsIdx.c_str(), NULL, NULL, NULL);
+
+		if (rc != SQLITE_OK)
+		{
+			raiseError("Error creating readings indexes in advance", sqlite3_errmsg(dbHandle));
+			return false;
+		}
+	}
+
+}
 

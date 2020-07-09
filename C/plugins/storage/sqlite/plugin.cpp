@@ -43,6 +43,9 @@ static PLUGIN_INFORMATION info = {
 	"1.3.0"                  // Interface version
 };
 
+//# FIXME_I: 50
+#define N_READINGS_TABLES_PREALLOCATE 4
+
 /**
  * Return the information about this plugin
  */
@@ -59,8 +62,15 @@ PLUGIN_INFORMATION *plugin_info()
 PLUGIN_HANDLE plugin_init()
 {
 ConnectionManager *manager = ConnectionManager::getInstance();
-
 	manager->growPool(5);
+
+	//# FIXME_I:
+	Connection        *connection = manager->allocate();
+	bool result = connection->createReadingsTables(N_READINGS_TABLES_PREALLOCATE);
+	bool result = connection->loadAssetReadingCatalogue();
+
+	manager->release(connection);
+
 	return manager;
 }
 

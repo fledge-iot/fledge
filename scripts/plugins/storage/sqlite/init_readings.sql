@@ -48,6 +48,12 @@
 -- SCHEMA CREATION
 ----------------------------------------------------------------------
 
+--# FIXME_I:
+CREATE TABLE asset_reading_catalogue (
+    id         INTEGER                     PRIMARY KEY AUTOINCREMENT,
+    asset_code character varying(50)       NOT NULL
+);
+
 -- Readings table
 -- This tables contains the readings for assets.
 -- An asset can be a south with multiple sensor, a single sensor,
@@ -60,12 +66,6 @@ CREATE TABLE readings.readings (
     user_ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),      -- UTC time
     ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW'))       -- UTC time
 );
-
-CREATE INDEX fki_readings_fk1
-    ON readings (asset_code, user_ts desc);
-
-CREATE INDEX readings_ix2
-    ON readings (asset_code);
 
 CREATE INDEX readings_ix3
     ON readings (user_ts);

@@ -96,6 +96,7 @@ class Connection {
 		bool		formatDate(char *formatted_date, size_t formatted_date_size, const char *date);
 		bool		aggregateQuery(const rapidjson::Value& payload, std::string& resultSet);
 		bool        getNow(std::string& Now);
+		bool        createReadingsTables(int nTables);
 
 	private:
 		bool 		m_streamOpenTransaction;
@@ -124,5 +125,12 @@ class Connection {
 						int i,
 						std::string& newDate);
 		void		logSQL(const char *, const char *);
+
+		map<std::string, int>  m_AssetReadingCatalogue={
+
+			// asset_code   - id
+			// {"",           1}
+		};
+
 };
 #endif

@@ -13,7 +13,8 @@ show_configuration () {
 	echo "timezone                    :$TZ:"
 	echo "expected dir                :$expected_dir:"
 	echo "configuration               :$FLEDGE_DATA:"
-	echo "database file               :$DEFAULT_SQLITE_DB_FILE:"
+	echo "database file fledge        :$DEFAULT_SQLITE_DB_FILE:"
+	echo "database file readings      :$DEFAULT_SQLITE_DB_READINGS_FILE:"
 }
 
 
@@ -80,7 +81,9 @@ testNum=1
 n_failed=0
 n_passed=0
 n_unchecked=0
+
 ./testSetup.sh > /dev/null 2>&1
+
 rm -f failed
 rm -rf results
 mkdir results

@@ -99,7 +99,8 @@ db_upgrade()
 
                 # Call the DB script
                 COMMAND_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
-ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}' AS 'fledge';
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}'          AS 'fledge';
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}' AS 'readings';
 .read '${sql_file}'
 .quit
 EOF`
@@ -192,6 +193,7 @@ db_downgrade()
                 # Call the DB script
                 COMMAND_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
 ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}' AS 'fledge';
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}' AS 'readings';
 .read '${sql_file}'
 .quit
 EOF`

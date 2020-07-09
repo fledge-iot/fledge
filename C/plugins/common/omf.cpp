@@ -1068,7 +1068,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		if (sendDataTypes)
 		{
 			// Increment type-id of assetName in in memory cache
-			OMF::incrementAssetTypeId(keyComplete);
+			OMF::incrementAssetTypeIdOnly(keyComplete);
 			// Remove data and keep type-id
 			OMF::clearCreatedTypes(keyComplete);
 
@@ -1200,12 +1200,14 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 
 
 		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("Timing seconds - thread :%s: - superSet :%6.3f: - Loop :%6.3f: - compress :%6.3f:  - send data :%6.3f:",
+		Logger::getLogger()->debug("Timing seconds - thread :%s: - superSet :%6.3f: - Loop :%6.3f: - compress :%6.3f: - send data :%6.3f: - msg size |%d| - msg size compressed |%d| ",
 								   threadId.str().c_str(),
 								   timeT1,
 								   timeT2,
 								   timeT3,
-								   timeT4
+								   timeT4,
+								   json_not_compressed.length(),
+								   json.length()
 		);
 
 		Logger::getLogger()->setMinLevel("warning");
@@ -1235,31 +1237,26 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 						  json_not_compressed.c_str() );
 
 			// Extract assetName from error message
-			string assetName = OMF::getAssetNameFromError(e.what());
+			string assetName;
+			if (m_PIServerEndpoint == ENDPOINT_CR)
+			{
+				assetName = OMF::getAssetNameFromError(e.what());
+			}
+			else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
+			{
+				// Currently not implemented/supported as PI WEB API does not
+				// report in the error message the asset causing the problem
+				assetName = "";
+			}
+
 			if (assetName.empty())
 			{
-				// Reset OMF types cache
-				OMF::clearCreatedTypes();
-				// Get maximum value among all per asset type-ids
-				// if no data, just use current global type-id
-				OMF::setTypeId();
-				// Increment the new value of global type-id
-				OMF::incrementTypeId();
-
 				Logger::getLogger()->warn("Sending JSON readings, "
-							  "not blocking issue: assetName not found in error message, "
-							  " global 'type-id' has been set to %d "
-							  "|%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-							  m_typeId,
-							  e.what(),
-							  m_sender.getHostPort().c_str(),
-							  m_path.c_str(),
-							  json_not_compressed.c_str());
+										  "not blocking issue: assetName not found in error message, "
+										  " no types redefinition");
 			}
 			else
 			{
-				// Increment type-id of assetName in in memory cache
-				OMF::incrementAssetTypeId(assetName);
 				// Remove data and keep type-id
 				OMF::clearCreatedTypes(assetName);
 
@@ -1857,10 +1854,9 @@ void OMF::retrieveAFHierarchyPrefixAssetName(const string& assetName, string& pr
 	auto rule = m_AssetNamePrefix.find(assetName);
 	if (rule != m_AssetNamePrefix.end())
 	{
-		auto itemArray  = rule->second;
-		auto item  = itemArray[0];
-		AFHierarchyLevel = std::get<0>(item);
-		prefix =std::get<1>(item);
+		AFHierarchyLevel = std::get<0>(rule->second[0]);
+		prefix =std::get<1>(rule->second[0]);
+
 	}
 
 }
@@ -2480,6 +2476,8 @@ bool OMF::isDataTypeError(const char* message)
  */
 bool OMF::handleTypeErrors(const string& keyComplete, const Reading& reading)
 {
+	Logger::getLogger()->debug("handleTypeErrors keyComplete :%s:", keyComplete.c_str());
+
 	bool ret = true;
 	string assetName = reading.getAssetName();
 
@@ -2693,7 +2691,9 @@ string OMF::getAssetNameFromError(const char* message)
 				if (found != std::string::npos &&
 				    found < tmp.length())
 				{
-					assetName = assetName.substr(found + 1 );
+					// bug fixed
+					//assetName = assetName.substr(found + 1 );
+					assetName = tmp.substr(found + 1 );
 				}
 			}
 		}
@@ -2757,7 +2757,7 @@ long OMF::getAssetTypeId(const string& assetName)
 		else
 		{
 			// Use current value of m_typeId
-			typeId = TYPE_ID_DEFAULT;
+			typeId = m_typeId;
 		}
 	}
 
@@ -2779,7 +2779,7 @@ void OMF::incrementAssetTypeId(const std::string& keyComplete)
 	long typeId;
 	if (!m_OMFDataTypes)
         {
-                // Increment current value of m_typeId
+		// Increment current value of m_typeId
 		OMF::incrementTypeId();
         }
 	else
@@ -2792,11 +2792,36 @@ void OMF::incrementAssetTypeId(const std::string& keyComplete)
 		}
 		else
 		{
-                	// Increment current value of m_typeId
+			// Increment current value of m_typeId
 			OMF::incrementTypeId();
 		}
 	}
 }
+
+/**
+ * Increment the type-id for the given asset name
+ *
+ * If cached data pointer is NULL or asset name is not set
+ * the global m_typeId is incremented.
+ *
+ * @param    keyComplete		The asset name
+ *				                which type-id sequence
+ *				                has to be incremented.
+ */
+void OMF::incrementAssetTypeIdOnly(const std::string& keyComplete)
+{
+	long typeId;
+	if (m_OMFDataTypes)
+	{
+		auto it = m_OMFDataTypes->find(keyComplete);
+		if (it != m_OMFDataTypes->end())
+		{
+			// Increment value of found type-id
+			++((*it).second).typeId;
+		}
+	}
+}
+
 
 /**
  * Generate a 64 bit number containing  a set of counts,
@@ -2946,7 +2971,7 @@ bool OMF::setCreatedTypes(const Reading& row)
 		// New entry
 		OMFDataTypes newData;
 		// Start from default as we don't have anything in the cache
-		newData.typeId = TYPE_ID_DEFAULT;
+		newData.typeId = m_typeId;
 
 		newData.types = types;
 		(*m_OMFDataTypes)[keyComplete] = newData;

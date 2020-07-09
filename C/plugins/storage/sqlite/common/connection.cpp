@@ -1669,6 +1669,61 @@ bool Connection::formatDate(char *formatted_date, size_t buffer_size, const char
 	struct tm tm  = {0};
 	char *valid_date = nullptr;
 
+	enum codeOptimization{CO_NONE, CO_01, CO_02, CO_03};
+	codeOptimization opt;
+	int len;
+
+	// Code optimization for the cases:
+	//
+	// 2019-03-03 10:03:03.123456+00:00
+	// 2019-02-02 10:02:02.841
+	// 2019-01-01 10:01:01
+
+	len = strlen(date);
+	if (len == 32)
+	{
+		if ( date[19] == '.' &&
+			 (date[26] == '-' || date[26] == '+')&&
+			 date[29] == ':' )
+
+		{
+			// Case - 2019-03-03 10:03:03.123456+00:00
+			strcpy(formatted_date, date);
+			opt = CO_01;
+		}
+		else
+			opt = CO_NONE;
+
+	}
+	else if (len == 23)
+	{
+		if ( date[19] == '.')
+		{
+			// Case - 2019-02-02 10:02:02.841
+			strcpy(formatted_date, date);
+			strcat(formatted_date, "000+00:00");
+			opt = CO_02;
+		}
+		else
+			opt = CO_NONE;
+	}
+	else if (len == 19)
+	{
+		// Case - 2019-01-01 10:01:01
+		strcpy(formatted_date, date);
+		strcat(formatted_date, ".000000+00:00");
+		opt = CO_03;
+	}
+	else
+	{
+		opt = CO_NONE;
+	}
+
+	if (opt != CO_NONE)
+	{
+		return (true);
+	}
+
 	// Extract up to seconds
 	memset(&tm, 0, sizeof(tm));
 	valid_date = strptime(date, F_DATEH24_SEC, &tm);

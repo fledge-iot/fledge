@@ -14,11 +14,15 @@
 #include <common.h>
 #include <reading_stream.h>
 #include <random>
+#include <map>
 
 // 1 enable performance tracking
 #define INSTRUMENT	0
 
 #define DB_READINGS "readings"
+
+//# FIXME_I: 50
+#define N_READINGS_TABLES_PREALLOCATE 4
 
 #if INSTRUMENT
 #include <sys/time.h>
@@ -617,12 +621,19 @@ sqlite3_stmt *stmt;
 int           sqlite3_resut;
 string        now;
 
+std::pair<int, sqlite3_stmt *> pairValue;
+string lastAsset;
+sqlite3_stmt *lastStmt;
+
 // Retry mechanism
 int retries = 0;
 int sleep_time_ms = 0;
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
+
+	//# FIXME_I: to be remove
+	loadAssetReadingCatalogue();
 
 #if INSTRUMENT
 	Logger::getLogger()->setMinLevel("debug");
@@ -655,10 +666,19 @@ int sleep_time_ms = 0;
 		return -1;
 	}
 
+	int tableIdx;
+	string sql_cmd;
 
-	const char *sql_cmd="INSERT INTO  " DB_READINGS ".readings ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
+	//# FIXME_I:
+	for (auto item=m_AssetReadingCatalogue.begin(); item!=m_AssetReadingCatalogue.end(); ++item)
+	{
+		tableIdx = item->second.first;
 
-	sqlite3_prepare_v2(dbHandle, sql_cmd, strlen(sql_cmd), &stmt, NULL);
+		sql_cmd="INSERT INTO  " DB_READINGS ".readings_" + to_string(tableIdx) + " ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
+		sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), strlen(sql_cmd.c_str()), &stmt, NULL);
+
+		item->second.second = stmt;
+	}
 
 
 	{
@@ -707,13 +727,21 @@ int sleep_time_ms = 0;
 			// Handles - asset_code
 			asset_code = (*itr)["asset_code"].GetString();
 
-			//# FIXME_I:
-			auto item = m_AssetReadingCatalogue.find(asset_code);
-			if (item  != m_AssetReadingCatalogue.end() ) {
-
-				readingId = item->second;
+			//# FIXME_I: to be verified
+			if (lastAsset.compare(asset_code) == 0)
+			{
+				stmt = lastStmt;
 			}
-
+			else
+			{
+				auto item = m_AssetReadingCatalogue.find(asset_code);
+				if (item != m_AssetReadingCatalogue.end())
+				{
+					stmt = item->second.second;
+					lastAsset = asset_code;
+					lastStmt = stmt;
+				}
+			}
 
 			//# FIXME_I:
 
@@ -1733,19 +1761,27 @@ unsigned long limit = 0;
 	return deletedRows;
 }
 
-
-m_AssetReadingCatalogue
-
 /**
  * # FIXME_I:
  */
 
 bool  Connection::loadAssetReadingCatalogue()
 {
-	loadAssetReadingCatalogue.insert( std::make_pair("rand1", 1));
-	loadAssetReadingCatalogue.insert( std::make_pair("rand2", 2));
-	loadAssetReadingCatalogue.insert( std::make_pair("rand3", 3));
-	loadAssetReadingCatalogue.insert( std::make_pair("rand4", 4));
+	int idx;
+	string asset_name;
+
+	//# FIXME_I:
+	for (idx = 1 ; idx < N_READINGS_TABLES_PREALLOCATE ; ++idx) {
+
+		asset_name = "rand_" + to_string(idx);
+		auto item = make_pair(idx, (sqlite3_stmt *) NULL);
+		auto newMapValue = make_pair(asset_name,item);
+
+		m_AssetReadingCatalogue.insert(newMapValue);
+	}
+
+
+	return true;
 }
 
 /**
@@ -1762,7 +1798,10 @@ bool  Connection::createReadingsTables(int nTables)
 
 	logger->info("Creating :%d: readings table in advance", nTables);
 
-	for (readingsIdx = 1 ;  readingsIdx < nTables; ++readingsIdx)
+	if ( nTables == 0)
+		nTables = N_READINGS_TABLES_PREALLOCATE;
+
+	for (readingsIdx = 1 ;  readingsIdx <= nTables; ++readingsIdx)
 	{
 
 		readingsIdxStr = to_string(readingsIdx);
@@ -1797,6 +1836,6 @@ bool  Connection::createReadingsTables(int nTables)
 			return false;
 		}
 	}
-
+	return true;
 }
 

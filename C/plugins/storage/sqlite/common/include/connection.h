@@ -16,7 +16,7 @@
 #include <sqlite3.h>
 #include <mutex>
 #include <reading_stream.h>
-
+#include <map>
 
 #define LEN_BUFFER_DATE 100
 #define F_TIMEH24_S             "%H:%M:%S"
@@ -97,6 +97,7 @@ class Connection {
 		bool		aggregateQuery(const rapidjson::Value& payload, std::string& resultSet);
 		bool        getNow(std::string& Now);
 		bool        createReadingsTables(int nTables);
+		bool        loadAssetReadingCatalogue();
 
 	private:
 		bool 		m_streamOpenTransaction;
@@ -126,10 +127,10 @@ class Connection {
 						std::string& newDate);
 		void		logSQL(const char *, const char *);
 
-		map<std::string, int>  m_AssetReadingCatalogue={
+		std::map <std::string, std::pair<int, sqlite3_stmt *>>   m_AssetReadingCatalogue={
 
-			// asset_code   - id
-			// {"",           1}
+			// asset_code  - id   - stmt
+			// {"",         {1,     *}}
 		};
 
 };

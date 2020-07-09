@@ -1237,26 +1237,23 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 						  json_not_compressed.c_str() );
 
 			// Extract assetName from error message
-			string assetName = OMF::getAssetNameFromError(e.what());
+			string assetName;
+			if (m_PIServerEndpoint == ENDPOINT_CR)
+			{
+				assetName = OMF::getAssetNameFromError(e.what());
+			}
+			else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
+			{
+				// Currently not implemented/supported as PI WEB API does not
+				// report in the error message the asset causing the problem
+				assetName = "";
+			}
+
 			if (assetName.empty())
 			{
-				// Get maximum value among all per asset type-ids
-				// if no data, just use current global type-id
-				OMF::setTypeId();
-				// Increment the new value of global type-id
-				OMF::incrementTypeId();
-				// Reset OMF types cache
-				OMF::clearCreatedTypes();
-
 				Logger::getLogger()->warn("Sending JSON readings, "
-							  "not blocking issue: assetName not found in error message, "
-							  " global 'type-id' has been set to %d "
-							  "|%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-							  m_typeId,
-							  e.what(),
-							  m_sender.getHostPort().c_str(),
-							  m_path.c_str(),
-							  json_not_compressed.c_str());
+										  "not blocking issue: assetName not found in error message, "
+										  " no types redefinition");
 			}
 			else
 			{

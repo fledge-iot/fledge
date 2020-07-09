@@ -88,7 +88,7 @@ static const string sendingAdvancedConfig =
         "\"blockSize\": {" \
 			"\"description\": \"The size of a block of readings to send " \
 			"in each transmission.\", " \
-			"\"type\": \"integer\", \"default\": \"5000\", \"order\": \"31\", " \
+			"\"type\": \"integer\", \"default\": \"500\", \"order\": \"31\", " \
 			"\"displayName\" : \"Readings Block Size\" }, " \
         "\"sleepInterval\": {" \
 		    "\"description\": \"A period of time, expressed in seconds, " \

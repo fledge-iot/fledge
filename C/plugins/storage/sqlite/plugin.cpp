@@ -68,6 +68,9 @@ ConnectionManager *manager = ConnectionManager::getInstance();
 	result = connection->createReadingsTables(0);
 	result = connection->loadAssetReadingCatalogue();
 
+	//# FIXME_I: remove
+	//connection->saveAssetReadingCatalogue();
+
 	manager->release(connection);
 
 	return manager;
@@ -139,6 +142,10 @@ ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
 	int result = connection->appendReadings(readings);
+
+	//# FIXME_I: remove
+	connection->saveAssetReadingCatalogue();
+
 	manager->release(connection);
 	return result;;
 }
@@ -235,7 +242,16 @@ ConnectionManager *manager = (ConnectionManager *)handle;
 bool plugin_shutdown(PLUGIN_HANDLE handle)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
-  
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx1 plugin_shutdown");
+	Logger::getLogger()->setMinLevel("warning");
+
+	//# FIXME_I: remove
+	Connection        *connection = manager->allocate();
+	connection->saveAssetReadingCatalogue();
+
 	manager->shutdown();
 	return true;
 }

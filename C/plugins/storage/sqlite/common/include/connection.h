@@ -17,6 +17,7 @@
 #include <mutex>
 #include <reading_stream.h>
 #include <map>
+#include <vector>
 
 #define LEN_BUFFER_DATE 100
 #define F_TIMEH24_S             "%H:%M:%S"
@@ -98,6 +99,7 @@ class Connection {
 		bool        getNow(std::string& Now);
 		bool        createReadingsTables(int nTables);
 		bool        loadAssetReadingCatalogue();
+		bool		saveAssetReadingCatalogue();
 
 	private:
 		bool 		m_streamOpenTransaction;
@@ -126,6 +128,8 @@ class Connection {
 						int i,
 						std::string& newDate);
 		void		logSQL(const char *, const char *);
+
+		std::vector <std::string> m_AssetReadingCatalogueNew;
 
 		std::map <std::string, std::pair<int, sqlite3_stmt *>>   m_AssetReadingCatalogue={
 

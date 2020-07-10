@@ -695,6 +695,7 @@ int sleep_time_ms = 0;
 		gettimeofday(&t1, NULL);
 #endif
 
+	lastAsset = "";
 	for (Value::ConstValueIterator itr = readingsValue.Begin(); itr != readingsValue.End(); ++itr)
 	{
 		if (!itr->IsObject())
@@ -732,22 +733,21 @@ int sleep_time_ms = 0;
 			// Handles - asset_code
 			asset_code = (*itr)["asset_code"].GetString();
 
-			//# FIXME_I: to be verified
-			if (lastAsset.compare(asset_code) == 0)
-			{
-				stmt = lastStmt;
-			}
-			else
+			//# A different asset is managed respect the previous one
+			if (lastAsset.compare(asset_code)!= 0)
 			{
 				auto item = m_AssetReadingCatalogue.find(asset_code);
 				if (item != m_AssetReadingCatalogue.end())
 				{
+					//# An asset alread  managed
 					stmt = item->second.second;
 					lastAsset = asset_code;
 					lastStmt = stmt;
 				}
 				else
 				{
+					//# A new asset is to be managed
+
 					//# FIXME_I: allocate a new block to table or not
 					if (1)
 					{
@@ -770,6 +770,7 @@ int sleep_time_ms = 0;
 						lastAsset = asset_code;
 						lastStmt = stmt;
 
+						m_AssetReadingCatalogueNew.emplace_back(asset_code);
 					}
 					else
 					{
@@ -1806,26 +1807,97 @@ unsigned long limit = 0;
 
 bool  Connection::loadAssetReadingCatalogue()
 {
-	int idx;
-	string asset_name;
+	int nCols;
+	int id;
+	char *asset_name;
+	sqlite3_stmt *stmt;
+	int rc;
 
-	//# FIXME_I:
-//	for (idx = 1 ; idx <= N_READINGS_TABLES_PREALLOCATE ; ++idx) {
-//
-//		//# FIXME_I:
-//		//asset_name = "sin_perf_" + to_string(idx);
-//		//asset_name = "rand_" + to_string(idx);
-//		asset_name = "";
-//
-//		auto item = make_pair(idx, (sqlite3_stmt *) NULL);
-//		auto newMapValue = make_pair(asset_name,item);
-//
-//		m_AssetReadingCatalogue.insert(newMapValue);
-//	}
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
 
+	// loads readings catalog from the db
+	const char *sql_cmd = R"(
+		SELECT
+			id,
+			asset_code
+		FROM  )" DB_READINGS R"(.asset_reading_catalogue;
+	)";
+
+	if (sqlite3_prepare_v2(dbHandle,sql_cmd,-1, &stmt,NULL) != SQLITE_OK)
+	{
+		raiseError("retrieve asset_reading_catalogue", sqlite3_errmsg(dbHandle));
+		return false;
+	}
+	else
+	{
+		// Iterate over all the rows in the resultSet
+		while ((rc = SQLstep(stmt)) == SQLITE_ROW)
+		{
+			nCols = sqlite3_column_count(stmt);
+
+			id = sqlite3_column_int(stmt, 0);
+			asset_name = (char *)sqlite3_column_text(stmt, 1);
+
+			//# FIXME_I
+			//Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxx asset :%s: read from the catalogue - thread :%s:", asset_name, threadId.str().c_str());
+			//Logger::getLogger()->setMinLevel("warning");
+
+
+			auto item = make_pair(id, (sqlite3_stmt *) NULL);
+			auto newMapValue = make_pair(asset_name,item);
+
+			m_AssetReadingCatalogue.insert(newMapValue);
+		}
+		sqlite3_finalize(stmt);
+	}
 
 	return true;
 }
+
+
+/**
+ * # FIXME_I:
+ */
+
+bool  Connection::saveAssetReadingCatalogue()
+{
+	string sql_cmd, msg;
+	int readingId;
+	sqlite3_stmt *stmt;
+	int rc;
+
+	for(string &asset_code : m_AssetReadingCatalogueNew) {
+
+		auto item = m_AssetReadingCatalogue.find(asset_code);
+		if (item != m_AssetReadingCatalogue.end())
+		{
+			//# FIXME_I
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxx allocate the asset :%s: in the reading catalogue ", asset_code.c_str());
+			Logger::getLogger()->setMinLevel("warning");
+
+			readingId = item->second.first;
+			sql_cmd = "INSERT INTO  " DB_READINGS ".asset_reading_catalogue (id, asset_code) VALUES  (" + to_string(readingId) +  ",\"" + asset_code+ "\")";
+
+			rc = sqlite3_exec(dbHandle, sql_cmd.c_str(), NULL, NULL, NULL);
+			if (rc != SQLITE_OK)
+			{
+				msg = string(sqlite3_errmsg(dbHandle)) + " asset :" + asset_code + ":";
+				raiseError("saveAssetReadingCatalogue", msg.c_str());
+			}
+		}
+		else
+		{
+			raiseError("saveAssetReadingCatalogue","in memory structures inconsistency");
+		}
+	}
+	m_AssetReadingCatalogueNew.clear();
+
+	return true;
+}
+
 
 /**
  * # FIXME_I:

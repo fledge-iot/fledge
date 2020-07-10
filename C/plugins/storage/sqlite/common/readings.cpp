@@ -613,6 +613,8 @@ Document doc;
 int      row = 0, readingId;
 bool     add_row = false;
 
+int lastReadingsId;
+
 // Variables related to the SQLite insert using prepared command
 const char   *user_ts;
 const char   *asset_code;
@@ -670,9 +672,12 @@ int sleep_time_ms = 0;
 	string sql_cmd;
 
 	//# FIXME_I:
+	lastReadingsId = 0;
 	for (auto item=m_AssetReadingCatalogue.begin(); item!=m_AssetReadingCatalogue.end(); ++item)
 	{
 		tableIdx = item->second.first;
+		if (lastReadingsId < tableIdx)
+			lastReadingsId = tableIdx;
 
 		sql_cmd="INSERT INTO  " DB_READINGS ".readings_" + to_string(tableIdx) + " ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
 		sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), strlen(sql_cmd.c_str()), &stmt, NULL);
@@ -743,10 +748,37 @@ int sleep_time_ms = 0;
 				}
 				else
 				{
-					//# FIXME_I
-					Logger::getLogger()->setMinLevel("debug");
-					Logger::getLogger()->debug("xxx allocate a new reading table for the asset :%s: ", asset_code);
-					Logger::getLogger()->setMinLevel("warning");
+					//# FIXME_I: allocate a new block to table or not
+					if (1)
+					{
+						//# FIXME_I
+						Logger::getLogger()->setMinLevel("debug");
+						Logger::getLogger()->debug("xxx allocate a new reading table for the asset :%s: ", asset_code);
+						Logger::getLogger()->setMinLevel("warning");
+
+						lastReadingsId++;
+						tableIdx = lastReadingsId;
+
+						sql_cmd="INSERT INTO  " DB_READINGS ".readings_" + to_string(tableIdx) + " ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
+						sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), strlen(sql_cmd.c_str()), &stmt, NULL);
+
+						auto newValue = make_pair(tableIdx, stmt);
+						auto newMapValue = make_pair(asset_code,newValue);
+
+						m_AssetReadingCatalogue.insert(newMapValue);
+
+						lastAsset = asset_code;
+						lastStmt = stmt;
+
+					}
+					else
+					{
+						//# FIXME_I
+						Logger::getLogger()->setMinLevel("debug");
+						Logger::getLogger()->debug("xxx allocate a block of reading tables");
+						Logger::getLogger()->setMinLevel("warning");
+
+					}
 				}
 			}
 
@@ -1778,17 +1810,18 @@ bool  Connection::loadAssetReadingCatalogue()
 	string asset_name;
 
 	//# FIXME_I:
-	for (idx = 1 ; idx <= N_READINGS_TABLES_PREALLOCATE ; ++idx) {
-
-		//# FIXME_I:
-		//asset_name = "sin_perf_" + to_string(idx);
-		asset_name = "rand_" + to_string(idx);
-
-		auto item = make_pair(idx, (sqlite3_stmt *) NULL);
-		auto newMapValue = make_pair(asset_name,item);
-
-		m_AssetReadingCatalogue.insert(newMapValue);
-	}
+//	for (idx = 1 ; idx <= N_READINGS_TABLES_PREALLOCATE ; ++idx) {
+//
+//		//# FIXME_I:
+//		//asset_name = "sin_perf_" + to_string(idx);
+//		//asset_name = "rand_" + to_string(idx);
+//		asset_name = "";
+//
+//		auto item = make_pair(idx, (sqlite3_stmt *) NULL);
+//		auto newMapValue = make_pair(asset_name,item);
+//
+//		m_AssetReadingCatalogue.insert(newMapValue);
+//	}
 
 
 	return true;

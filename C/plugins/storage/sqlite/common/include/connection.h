@@ -129,8 +129,8 @@ class Connection {
 
 		std::map <std::string, std::pair<int, sqlite3_stmt *>>   m_AssetReadingCatalogue={
 
-			// asset_code  - id   - stmt
-			// {"",         {1,     *}}
+			// asset_code  - reaading id   - * for sqlite operation
+			// {"",         {1,              *}}
 		};
 
 };

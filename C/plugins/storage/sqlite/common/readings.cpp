@@ -741,6 +741,13 @@ int sleep_time_ms = 0;
 					lastAsset = asset_code;
 					lastStmt = stmt;
 				}
+				else
+				{
+					//# FIXME_I
+					Logger::getLogger()->setMinLevel("debug");
+					Logger::getLogger()->debug("xxx allocate a new reading table for the asset :%s: ", asset_code);
+					Logger::getLogger()->setMinLevel("warning");
+				}
 			}
 
 			//# FIXME_I:
@@ -1771,9 +1778,12 @@ bool  Connection::loadAssetReadingCatalogue()
 	string asset_name;
 
 	//# FIXME_I:
-	for (idx = 1 ; idx < N_READINGS_TABLES_PREALLOCATE ; ++idx) {
+	for (idx = 1 ; idx <= N_READINGS_TABLES_PREALLOCATE ; ++idx) {
 
+		//# FIXME_I:
+		//asset_name = "sin_perf_" + to_string(idx);
 		asset_name = "rand_" + to_string(idx);
+
 		auto item = make_pair(idx, (sqlite3_stmt *) NULL);
 		auto newMapValue = make_pair(asset_name,item);
 

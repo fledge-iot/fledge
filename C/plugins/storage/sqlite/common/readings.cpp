@@ -100,6 +100,16 @@ static std::mutex	db_mutex;
 static std::condition_variable	db_cv;
 static int purgeBlockSize = PURGE_DELETE_BLOCK_SIZE;
 
+
+//# FIXME_I:
+static std::mutex	mutex_AssetReadingCatalogue;
+static std::map <std::string, std::pair<int, sqlite3_stmt *>>   m_AssetReadingCatalogue={
+
+	// asset_code  - reading id   - * for sqlite operation
+	// {"",         {1,             *}}
+};
+
+
 #define START_TIME std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 #define END_TIME std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now(); \
 				 auto usecs = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
@@ -618,14 +628,15 @@ int lastReadingsId;
 // Variables related to the SQLite insert using prepared command
 const char   *user_ts;
 const char   *asset_code;
-string        reading;
+string        reading,
+              msg;
 sqlite3_stmt *stmt;
+int rc;
 int           sqlite3_resut;
 string        now;
 
 std::pair<int, sqlite3_stmt *> pairValue;
 string lastAsset;
-sqlite3_stmt *lastStmt;
 
 // Retry mechanism
 int retries = 0;
@@ -635,7 +646,7 @@ int sleep_time_ms = 0;
 	threadId << std::this_thread::get_id();
 
 	//# FIXME_I: to be remove
-	loadAssetReadingCatalogue();
+	//loadAssetReadingCatalogue();
 
 #if INSTRUMENT
 	Logger::getLogger()->setMinLevel("debug");
@@ -672,19 +683,23 @@ int sleep_time_ms = 0;
 	string sql_cmd;
 
 	//# FIXME_I:
-	lastReadingsId = 0;
-	for (auto item=m_AssetReadingCatalogue.begin(); item!=m_AssetReadingCatalogue.end(); ++item)
 	{
-		tableIdx = item->second.first;
-		if (lastReadingsId < tableIdx)
-			lastReadingsId = tableIdx;
+		mutex_AssetReadingCatalogue.lock();
+		lastReadingsId = 0;
+		for (auto item = m_AssetReadingCatalogue.begin(); item != m_AssetReadingCatalogue.end(); ++item)
+		{
+			tableIdx = item->second.first;
+			if (lastReadingsId < tableIdx)
+				lastReadingsId = tableIdx;
 
-		sql_cmd="INSERT INTO  " DB_READINGS ".readings_" + to_string(tableIdx) + " ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
-		sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), strlen(sql_cmd.c_str()), &stmt, NULL);
+			sql_cmd = "INSERT INTO  " DB_READINGS ".readings_" + to_string(tableIdx) +
+					  " ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
+			sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), strlen(sql_cmd.c_str()), &stmt, NULL);
 
-		item->second.second = stmt;
+			item->second.second = stmt;
+		}
+		mutex_AssetReadingCatalogue.unlock();
 	}
-
 
 	{
 	m_writeAccessOngoing.fetch_add(1);
@@ -736,43 +751,19 @@ int sleep_time_ms = 0;
 			//# A different asset is managed respect the previous one
 			if (lastAsset.compare(asset_code)!= 0)
 			{
+				mutex_AssetReadingCatalogue.lock();
+
 				auto item = m_AssetReadingCatalogue.find(asset_code);
 				if (item != m_AssetReadingCatalogue.end())
 				{
-					//# An asset alread  managed
+					//# An asset already  managed
 					stmt = item->second.second;
 					lastAsset = asset_code;
-					lastStmt = stmt;
 				}
 				else
 				{
-					//# A new asset is to be managed
-
-					//# FIXME_I: allocate a new block to table or not
-					if (1)
-					{
-						//# FIXME_I
-						Logger::getLogger()->setMinLevel("debug");
-						Logger::getLogger()->debug("xxx allocate a new reading table for the asset :%s: ", asset_code);
-						Logger::getLogger()->setMinLevel("warning");
-
-						lastReadingsId++;
-						tableIdx = lastReadingsId;
-
-						sql_cmd="INSERT INTO  " DB_READINGS ".readings_" + to_string(tableIdx) + " ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
-						sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), strlen(sql_cmd.c_str()), &stmt, NULL);
-
-						auto newValue = make_pair(tableIdx, stmt);
-						auto newMapValue = make_pair(asset_code,newValue);
-
-						m_AssetReadingCatalogue.insert(newMapValue);
-
-						lastAsset = asset_code;
-						lastStmt = stmt;
-
-						m_AssetReadingCatalogueNew.emplace_back(asset_code);
-					}
-					else
+					//# Allocate a new block of readings table
+					if (0)
 					{
 						//# FIXME_I
 						Logger::getLogger()->setMinLevel("debug");
@@ -780,6 +771,44 @@ int sleep_time_ms = 0;
 						Logger::getLogger()->setMinLevel("warning");
 
 					}
+					// Associate a reading table to the asset
+					{
+						//# FIXME_I
+						Logger::getLogger()->setMinLevel("debug");
+						Logger::getLogger()->debug("xxx allocate a new reading table for the asset :%s: ", asset_code);
+						Logger::getLogger()->setMinLevel("warning");
+
+						// Prepare the sqlite structure for the asset
+						{
+							lastReadingsId++;
+							tableIdx = lastReadingsId;
+
+							sql_cmd = "INSERT INTO  " DB_READINGS ".readings_" + to_string(tableIdx) +
+									  " ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
+							sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), strlen(sql_cmd.c_str()), &stmt, NULL);
+
+							auto newValue = make_pair(tableIdx, stmt);
+							auto newMapValue = make_pair(asset_code, newValue);
+
+							m_AssetReadingCatalogue.insert(newMapValue);
+						}
+
+						// Allocate the table in the reading catalogue
+						{
+							sql_cmd =
+								"INSERT INTO  " DB_READINGS ".asset_reading_catalogue (id, asset_code) VALUES  (" +
+								to_string(tableIdx) + ",\"" + asset_code + "\")";
+
+							rc = sqlite3_exec(dbHandle, sql_cmd.c_str(), NULL, NULL, NULL);
+							if (rc != SQLITE_OK)
+							{
+								msg = string(sqlite3_errmsg(dbHandle)) + " asset :" + asset_code + ":";
+								raiseError("asset_reading_catalogue update", msg.c_str());
+							}
+						}
+						lastAsset = asset_code;
+					}
+					mutex_AssetReadingCatalogue.unlock();
 				}
 			}
 
@@ -1816,6 +1845,12 @@ bool  Connection::loadAssetReadingCatalogue()
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
 
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx loadAssetReadingCatalogue");
+	Logger::getLogger()->setMinLevel("warning");
+
+
 	// loads readings catalog from the db
 	const char *sql_cmd = R"(
 		SELECT
@@ -1858,7 +1893,7 @@ bool  Connection::loadAssetReadingCatalogue()
 
 
 /**
- * # FIXME_I:
+ * # FIXME_I: to be deleted
  */
 
 bool  Connection::saveAssetReadingCatalogue()
@@ -1867,6 +1902,11 @@ bool  Connection::saveAssetReadingCatalogue()
 	int readingId;
 	sqlite3_stmt *stmt;
 	int rc;
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx2 AVOID saveAssetReadingCatalogue");
+	Logger::getLogger()->setMinLevel("warning");
 
 	for(string &asset_code : m_AssetReadingCatalogueNew) {
 
@@ -1910,6 +1950,12 @@ bool  Connection::createReadingsTables(int nTables)
 	sqlite3_stmt *stmt;
 
 	Logger *logger = Logger::getLogger();
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("createReadingsTables");
+	Logger::getLogger()->setMinLevel("warning");
+
 
 	logger->info("Creating :%d: readings table in advance", nTables);
 

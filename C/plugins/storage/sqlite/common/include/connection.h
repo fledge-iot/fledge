@@ -129,13 +129,14 @@ class Connection {
 						std::string& newDate);
 		void		logSQL(const char *, const char *);
 
+		//# FIXME_I: to be removed
 		std::vector <std::string> m_AssetReadingCatalogueNew;
 
-		std::map <std::string, std::pair<int, sqlite3_stmt *>>   m_AssetReadingCatalogue={
-
-			// asset_code  - reaading id   - * for sqlite operation
-			// {"",         {1,              *}}
-		};
+//		std::map <std::string, std::pair<int, sqlite3_stmt *>>   m_AssetReadingCatalogue={
+//
+//			// asset_code  - reading id   - * for sqlite operation
+//			// {"",         {1,             *}}
+//		};
 
 };
 #endif

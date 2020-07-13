@@ -144,7 +144,7 @@ Connection        *connection = manager->allocate();
 	int result = connection->appendReadings(readings);
 
 	//# FIXME_I: remove
-	connection->saveAssetReadingCatalogue();
+	//connection->saveAssetReadingCatalogue();
 
 	manager->release(connection);
 	return result;;
@@ -250,7 +250,7 @@ ConnectionManager *manager = (ConnectionManager *)handle;
 
 	//# FIXME_I: remove
 	Connection        *connection = manager->allocate();
-	connection->saveAssetReadingCatalogue();
+	//connection->saveAssetReadingCatalogue();
 
 	manager->shutdown();
 	return true;

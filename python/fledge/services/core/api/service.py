@@ -213,8 +213,8 @@ async def add_service(request):
         service_type = str(service_type).lower()
         if service_type == 'north':
             raise web.HTTPNotAcceptable(reason='north type is not supported for the time being.')
-        if service_type not in ['south', 'notification']:
-            raise web.HTTPBadRequest(reason='Only south and notification type are supported.')
+        if service_type not in ['south', 'notification', 'management']:
+            raise web.HTTPBadRequest(reason='Only south, notification, management types are supported.')
         if plugin is None and service_type == 'south':
             raise web.HTTPBadRequest(reason='Missing plugin property for type south in payload.')
         if plugin and utils.check_reserved(plugin) is False:
@@ -260,6 +260,9 @@ async def add_service(request):
         elif service_type == 'notification':
             process_name = 'notification_c'
             script = '["services/notification_c"]'
+        elif service_type == 'management':
+            process_name = 'management'
+            script = '["services/management"]'
 
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
@@ -294,6 +297,13 @@ async def add_service(request):
             for ps in res['rows']:
                 if 'notification_c' in ps['process_name']:
                     raise web.HTTPBadRequest(reason='A Notification service schedule already exists.')
+        # check that management service is not already registered, right now management service LIMIT to 1
+        elif service_type == 'management':
+            # TODO: we may rename check_notification_schedule def to check_schedule_entry
+            res = await check_notification_schedule(storage)
+            for ps in res['rows']:
+                if 'management' in ps['process_name']:
+                    raise web.HTTPBadRequest(reason='A Management service schedule already exists.')
         elif service_type == 'south':
             try:
                 # Create a configuration category from the configuration defined in the plugin

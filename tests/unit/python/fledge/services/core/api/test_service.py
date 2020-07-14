@@ -146,7 +146,7 @@ class TestService:
         ('{"name": "test", "plugin": "dht11", "type": "south", "enabled": "0"}', 400,
          'Only "true", "false", true, false are allowed for value of enabled.'),
         ('{"name": "test", "plugin": "dht11"}', 400, "Missing type property in payload."),
-        ('{"name": "test", "plugin": "dht11", "type": "blah"}', 400, "Only south and notification type are supported."),
+        ('{"name": "test", "plugin": "dht11", "type": "blah"}', 400, "Only south, notification, management types are supported."),
         ('{"name": "test", "plugin": "dht11", "type": "North"}', 406, "north type is not supported for the time being."),
         ('{"name": "test", "type": "south"}', 400, "Missing plugin property for type south in payload.")
     ])

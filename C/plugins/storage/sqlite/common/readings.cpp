@@ -15,6 +15,8 @@
 #include <reading_stream.h>
 #include <random>
 #include <map>
+//# FIXME_I:
+//#include <mutex>
 
 // 1 enable performance tracking
 #define INSTRUMENT	0
@@ -99,15 +101,6 @@ static std::atomic<int> m_writeAccessOngoing(0);
 static std::mutex	db_mutex;
 static std::condition_variable	db_cv;
 static int purgeBlockSize = PURGE_DELETE_BLOCK_SIZE;
-
-
-//# FIXME_I:
-static std::mutex	mutex_AssetReadingCatalogue;
-static std::map <std::string, std::pair<int, sqlite3_stmt *>>   m_AssetReadingCatalogue={
-
-	// asset_code  - reading id   - * for sqlite operation
-	// {"",         {1,             *}}
-};
 
 
 #define START_TIME std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
@@ -633,6 +626,7 @@ string        reading,
 sqlite3_stmt *stmt;
 int rc;
 int           sqlite3_resut;
+int           readingsId;
 string        now;
 
 std::pair<int, sqlite3_stmt *> pairValue;
@@ -642,11 +636,21 @@ string lastAsset;
 int retries = 0;
 int sleep_time_ms = 0;
 
+	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
+
+//# FIXME_I:
+vector<sqlite3_stmt *> readingsStmt(readCat->getMaxNReadings(), nullptr);
+
+
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
 
 	//# FIXME_I: to be remove
 	//loadAssetReadingCatalogue();
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx appendReadings start thread :%s:", threadId.str().c_str());
+	Logger::getLogger()->setMinLevel("warning");
+
 
 #if INSTRUMENT
 	Logger::getLogger()->setMinLevel("debug");
@@ -681,25 +685,6 @@ int sleep_time_ms = 0;
 
 	int tableIdx;
 	string sql_cmd;
-
-	//# FIXME_I:
-	{
-		mutex_AssetReadingCatalogue.lock();
-		lastReadingsId = 0;
-		for (auto item = m_AssetReadingCatalogue.begin(); item != m_AssetReadingCatalogue.end(); ++item)
-		{
-			tableIdx = item->second.first;
-			if (lastReadingsId < tableIdx)
-				lastReadingsId = tableIdx;
-
-			sql_cmd = "INSERT INTO  " DB_READINGS ".readings_" + to_string(tableIdx) +
-					  " ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
-			sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), strlen(sql_cmd.c_str()), &stmt, NULL);
-
-			item->second.second = stmt;
-		}
-		mutex_AssetReadingCatalogue.unlock();
-	}
 
 	{
 	m_writeAccessOngoing.fetch_add(1);
@@ -751,65 +736,18 @@ int sleep_time_ms = 0;
 			//# A different asset is managed respect the previous one
 			if (lastAsset.compare(asset_code)!= 0)
 			{
-				mutex_AssetReadingCatalogue.lock();
+				readingsId = readCat->getReadingReference(this, asset_code);
 
-				auto item = m_AssetReadingCatalogue.find(asset_code);
-				if (item != m_AssetReadingCatalogue.end())
+				//# FIXME_I:
+				if (readingsStmt[readingsId] == nullptr)
 				{
-					//# An asset already  managed
-					stmt = item->second.second;
-					lastAsset = asset_code;
+					sql_cmd = "INSERT INTO  " DB_READINGS ".readings_" + to_string(readingsId) +
+							  " ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
+					sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), strlen(sql_cmd.c_str()), &readingsStmt[readingsId], NULL);
 				}
-				else
-				{
-					//# Allocate a new block of readings table
-					if (0)
-					{
-						//# FIXME_I
-						Logger::getLogger()->setMinLevel("debug");
-						Logger::getLogger()->debug("xxx allocate a block of reading tables");
-						Logger::getLogger()->setMinLevel("warning");
+				stmt = readingsStmt[readingsId];
 
-					}
-					// Associate a reading table to the asset
-					{
-						//# FIXME_I
-						Logger::getLogger()->setMinLevel("debug");
-						Logger::getLogger()->debug("xxx allocate a new reading table for the asset :%s: ", asset_code);
-						Logger::getLogger()->setMinLevel("warning");
-
-						// Prepare the sqlite structure for the asset
-						{
-							lastReadingsId++;
-							tableIdx = lastReadingsId;
-
-							sql_cmd = "INSERT INTO  " DB_READINGS ".readings_" + to_string(tableIdx) +
-									  " ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
-							sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), strlen(sql_cmd.c_str()), &stmt, NULL);
-
-							auto newValue = make_pair(tableIdx, stmt);
-							auto newMapValue = make_pair(asset_code, newValue);
-
-							m_AssetReadingCatalogue.insert(newMapValue);
-						}
-
-						// Allocate the table in the reading catalogue
-						{
-							sql_cmd =
-								"INSERT INTO  " DB_READINGS ".asset_reading_catalogue (id, asset_code) VALUES  (" +
-								to_string(tableIdx) + ",\"" + asset_code + "\")";
-
-							rc = sqlite3_exec(dbHandle, sql_cmd.c_str(), NULL, NULL, NULL);
-							if (rc != SQLITE_OK)
-							{
-								msg = string(sqlite3_errmsg(dbHandle)) + " asset :" + asset_code + ":";
-								raiseError("asset_reading_catalogue update", msg.c_str());
-							}
-						}
-						lastAsset = asset_code;
-					}
-					mutex_AssetReadingCatalogue.unlock();
-				}
+				lastAsset = asset_code;
 			}
 
 			//# FIXME_I:
@@ -896,13 +834,30 @@ int sleep_time_ms = 0;
 		gettimeofday(&t2, NULL);
 #endif
 
-	if(stmt != NULL)
+	//readCat->finalizeSQlite(this);
+
+	// Finalize
+	for (auto &item : readingsStmt)
 	{
-		if (sqlite3_finalize(stmt) != SQLITE_OK)
+		if(item != nullptr)
 		{
-			raiseError("appendReadings","freeing SQLite in memory structure - error :%s:", sqlite3_errmsg(dbHandle));
+
+			if (sqlite3_finalize(item) != SQLITE_OK)
+			{
+				raiseError("appendReadings","freeing SQLite in memory structure - error :%s:", sqlite3_errmsg(dbHandle));
+			}
 		}
+
 	}
+	//# FIXME_I:
+//	if(stmt != NULL)
+//	{
+//
+//		if (sqlite3_finalize(stmt) != SQLITE_OK)
+//		{
+//			raiseError("appendReadings","freeing SQLite in memory structure - error :%s:", sqlite3_errmsg(dbHandle));
+//		}
+//	}
 
 #if INSTRUMENT
 		gettimeofday(&t3, NULL);
@@ -1833,17 +1788,30 @@ unsigned long limit = 0;
 /**
  * # FIXME_I:
  */
+void ReadingsCatalogue::raiseError(const char *operation, const char *reason, ...)
+{
+	char	tmpbuf[512];
 
-bool  Connection::loadAssetReadingCatalogue()
+	va_list ap;
+	va_start(ap, reason);
+	vsnprintf(tmpbuf, sizeof(tmpbuf), reason, ap);
+	va_end(ap);
+	Logger::getLogger()->error("ReadingsCatalogues error: %s", tmpbuf);
+}
+
+bool  ReadingsCatalogue::loadAssetReadingCatalogue(Connection *connection)
 {
 	int nCols;
 	int id;
 	char *asset_name;
 	sqlite3_stmt *stmt;
 	int rc;
+	sqlite3		*dbHandle;
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
+
+	dbHandle = connection->getDbHandle();
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
@@ -1866,8 +1834,9 @@ bool  Connection::loadAssetReadingCatalogue()
 	}
 	else
 	{
+		mutex_AssetReadingCatalogue.lock();
 		// Iterate over all the rows in the resultSet
-		while ((rc = SQLstep(stmt)) == SQLITE_ROW)
+		while ((rc = SQLStep(stmt)) == SQLITE_ROW)
 		{
 			nCols = sqlite3_column_count(stmt);
 
@@ -1879,12 +1848,11 @@ bool  Connection::loadAssetReadingCatalogue()
 			Logger::getLogger()->debug("xxx asset :%s: read from the catalogue - thread :%s:", asset_name, threadId.str().c_str());
 			//Logger::getLogger()->setMinLevel("warning");
 
-
-			auto item = make_pair(id, (sqlite3_stmt *) NULL);
-			auto newMapValue = make_pair(asset_name,item);
-
+			auto newMapValue = make_pair(asset_name,id);
 			m_AssetReadingCatalogue.insert(newMapValue);
 		}
+		mutex_AssetReadingCatalogue.unlock();
+
 		sqlite3_finalize(stmt);
 	}
 
@@ -1892,68 +1860,25 @@ bool  Connection::loadAssetReadingCatalogue()
 }
 
 
-/**
- * # FIXME_I: to be deleted
- */
-
-bool  Connection::saveAssetReadingCatalogue()
-{
-	string sql_cmd, msg;
-	int readingId;
-	sqlite3_stmt *stmt;
-	int rc;
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx2 AVOID saveAssetReadingCatalogue");
-	Logger::getLogger()->setMinLevel("warning");
-
-	for(string &asset_code : m_AssetReadingCatalogueNew) {
-
-		auto item = m_AssetReadingCatalogue.find(asset_code);
-		if (item != m_AssetReadingCatalogue.end())
-		{
-			//# FIXME_I
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("xxx allocate the asset :%s: in the reading catalogue ", asset_code.c_str());
-			Logger::getLogger()->setMinLevel("warning");
-
-			readingId = item->second.first;
-			sql_cmd = "INSERT INTO  " DB_READINGS ".asset_reading_catalogue (id, asset_code) VALUES  (" + to_string(readingId) +  ",\"" + asset_code+ "\")";
-
-			rc = sqlite3_exec(dbHandle, sql_cmd.c_str(), NULL, NULL, NULL);
-			if (rc != SQLITE_OK)
-			{
-				msg = string(sqlite3_errmsg(dbHandle)) + " asset :" + asset_code + ":";
-				raiseError("saveAssetReadingCatalogue", msg.c_str());
-			}
-		}
-		else
-		{
-			raiseError("saveAssetReadingCatalogue","in memory structures inconsistency");
-		}
-	}
-	m_AssetReadingCatalogueNew.clear();
-
-	return true;
-}
-
 
 /**
  * # FIXME_I:
  */
-bool  Connection::createReadingsTables(int nTables)
+bool  ReadingsCatalogue::createReadingsTables(Connection *connection, int nTables)
 {
 	string createReadings, createReadingsIdx;
 	int rc, readingsIdx;
 	string readingsIdxStr;
 	sqlite3_stmt *stmt;
+	sqlite3		*dbHandle;
+
+	dbHandle = connection->getDbHandle();
 
 	Logger *logger = Logger::getLogger();
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("createReadingsTables");
+	Logger::getLogger()->debug("xxx createReadingsTables");
 	Logger::getLogger()->setMinLevel("warning");
 
 
@@ -2000,3 +1925,129 @@ bool  Connection::createReadingsTables(int nTables)
 	return true;
 }
 
+/**
+ * # FIXME_I:
+ */
+int ReadingsCatalogue::getReadingReference(Connection *connection, const char *asset_code)
+{
+	sqlite3_stmt *stmt;
+	string sql_cmd;
+	int rc;
+	sqlite3		*dbHandle;
+
+	int readingsId;
+	string msg;
+
+	dbHandle = connection->getDbHandle();
+	Logger *logger = Logger::getLogger();
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx getReadingReference");
+	Logger::getLogger()->setMinLevel("warning");
+
+
+	auto item = m_AssetReadingCatalogue.find(asset_code);
+	if (item != m_AssetReadingCatalogue.end())
+	{
+		//# An asset already  managed
+		readingsId = item->second;
+	}
+	else
+	{
+		mutex_AssetReadingCatalogue.lock();
+
+		auto item = m_AssetReadingCatalogue.find(asset_code);
+		if (item != m_AssetReadingCatalogue.end())
+		{
+			readingsId = item->second;
+		}
+		else
+		{
+			//# Allocate a new block of readings table
+			if (0)
+			{
+				//# FIXME_I
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("xxx allocate a block of reading tables");
+				Logger::getLogger()->setMinLevel("warning");
+
+			}
+			// Associate a reading table to the asset
+			{
+				//# FIXME_I
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("xxx allocate a new reading table for the asset :%s: ", asset_code);
+				Logger::getLogger()->setMinLevel("warning");
+
+				// Prepare the sqlite structure for the asset
+				{
+					readingsId = getMaxReadingsId() + 1;
+
+					auto newMapValue = make_pair(asset_code, readingsId);
+					m_AssetReadingCatalogue.insert(newMapValue);
+				}
+
+				// Allocate the table in the reading catalogue
+				{
+					sql_cmd =
+						"INSERT INTO  " DB_READINGS ".asset_reading_catalogue (id, asset_code) VALUES  (" +
+						to_string(readingsId) + ",\"" + asset_code + "\")";
+
+					rc = sqlite3_exec(dbHandle, sql_cmd.c_str(), NULL, NULL, NULL);
+					if (rc != SQLITE_OK)
+					{
+						msg = string(sqlite3_errmsg(dbHandle)) + " asset :" + asset_code + ":";
+						raiseError("asset_reading_catalogue update", msg.c_str());
+					}
+				}
+
+			}
+		}
+		mutex_AssetReadingCatalogue.unlock();
+	}
+	return (readingsId);
+
+}
+
+int ReadingsCatalogue::getMaxReadingsId()
+{
+	int maxId = 0, id;
+
+	for (auto &item : m_AssetReadingCatalogue) {
+
+		id = item.second;
+		if (id > maxId)
+				maxId = id;
+	}
+
+	return (maxId);
+}
+
+int ReadingsCatalogue::SQLStep(sqlite3_stmt *statement)
+{
+	int retries = 0, rc;
+
+	do {
+		rc = sqlite3_step(statement);
+		retries++;
+		if (rc == SQLITE_LOCKED || rc == SQLITE_BUSY)
+		{
+			int interval = (retries * RETRY_BACKOFF);
+			usleep(interval);	// sleep retries milliseconds
+			if (retries > 5) Logger::getLogger()->info("SQLStep: retry %d of %d, rc=%s, DB connection @ %p, slept for %d msecs",
+													   retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", this, interval);
+		}
+	} while (retries < MAX_RETRIES && (rc == SQLITE_LOCKED || rc == SQLITE_BUSY));
+
+	if (rc == SQLITE_LOCKED)
+	{
+		Logger::getLogger()->error("Database still locked after maximum retries");
+	}
+	if (rc == SQLITE_BUSY)
+	{
+		Logger::getLogger()->error("Database still busy after maximum retries");
+	}
+
+	return rc;
+}

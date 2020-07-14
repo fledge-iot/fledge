@@ -97,9 +97,9 @@ class Connection {
 		bool		formatDate(char *formatted_date, size_t formatted_date_size, const char *date);
 		bool		aggregateQuery(const rapidjson::Value& payload, std::string& resultSet);
 		bool        getNow(std::string& Now);
-		bool        createReadingsTables(int nTables);
-		bool        loadAssetReadingCatalogue();
-		bool		saveAssetReadingCatalogue();
+
+		//# FIXME_I:
+		sqlite3		*getDbHandle() {return dbHandle;};
 
 	private:
 		bool 		m_streamOpenTransaction;
@@ -129,14 +129,47 @@ class Connection {
 						std::string& newDate);
 		void		logSQL(const char *, const char *);
 
-		//# FIXME_I: to be removed
-		std::vector <std::string> m_AssetReadingCatalogueNew;
-
-//		std::map <std::string, std::pair<int, sqlite3_stmt *>>   m_AssetReadingCatalogue={
-//
-//			// asset_code  - reading id   - * for sqlite operation
-//			// {"",         {1,             *}}
-//		};
 
 };
+
+class ReadingsCatalogue {
+	private:
+		const int MaxNReadings = 300;
+	//# FIXME_I:
+		//static ReadingsCatalogue *Z1instance;
+		ReadingsCatalogue(){};
+
+		int				getMaxReadingsId();
+
+		std::mutex mutex_AssetReadingCatalogue;
+		std::map <std::string, int>   m_AssetReadingCatalogue={
+
+				// asset_code  - reading id
+				// {"",         1,         }
+			};
+
+	public:
+		static ReadingsCatalogue *getInstance()
+		{
+			static ReadingsCatalogue *instance = 0;
+
+			if (!instance)
+			{
+				instance = new ReadingsCatalogue;
+			}
+			return instance;
+		}
+
+		int           getMaxNReadings() {return MaxNReadings;}
+		int           getReadingReference(Connection *connection, const char *asset_code);
+
+		bool          createReadingsTables(Connection *, int nTables);
+		bool          loadAssetReadingCatalogue(Connection *);
+		void 		  prepareSqliteCommands(Connection *connection);
+		void		  raiseError(const char *operation, const char *reason,...);
+		int			  SQLStep(sqlite3_stmt *statement);
+		void          finalizeSQlite(Connection *connection);
+
+};
+
 #endif

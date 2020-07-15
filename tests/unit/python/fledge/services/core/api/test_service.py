@@ -704,14 +704,22 @@ class TestService:
             assert msg == json_response['message']
         patch_fetch_available_package.assert_called_once_with('service')
 
-    async def test_get_service_installed(self, client):
-        with patch('os.walk') as mockwalk:
-            mockwalk.return_value = [(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage'])]
+    @pytest.mark.parametrize("mock_value1, mock_value2, exp_result", [
+        ([(['/usr/local/fledge/services'], [], [])], [(['/usr/local/fledge/python/fledge/services/management'], [], [])], []),
+        ([(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage'])], [], ["south", "storage"]),
+        ([(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage', 'fledge.services.notification'])], [], ["south", "storage", "notification"]),
+        ([(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage'])], [(['/usr/local/fledge/python/fledge/services/management'], [], [])], ["south", "storage"]),
+        ([(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage'])], [(['/usr/local/fledge/python/fledge/services/management'], [], ['__main__.py'])], ["south", "storage", "management"]),
+        ([(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage', 'fledge.services.notification'])], [(['/usr/local/fledge/python/fledge/services/management'], [], ['__main__.py'])], ["south", "storage", "notification", "management"])
+    ])
+    async def test_get_service_installed(self, client, mock_value1, mock_value2, exp_result):
+        with patch('os.walk', side_effect=(mock_value1, mock_value2)) as mockwalk:
             resp = await client.get('/fledge/service/installed')
             assert 200 == resp.status
             result = await resp.text()
             json_response = json.loads(result)
-            assert {'services': ['south', 'storage']} == json_response
+            assert json_response == {'services': exp_result}
+        assert 2 == mockwalk.call_count
 
     p1 = '{"name": "FL Agent", "type": "management"}'
     p2 = '{"name": "FL #1", "type": "management", "enabled": false}'

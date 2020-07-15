@@ -71,12 +71,16 @@ def get_service_records():
 
 
 def get_service_installed() -> List:
+    paths = [_FLEDGE_ROOT + "/services", _FLEDGE_ROOT + "/python/fledge/services/management"]
     services = []
     svc_prefix = 'fledge.services.'
-    for root, dirs, files in os.walk(_FLEDGE_ROOT + "/" + "services"):
-        for f in files:
-            if f.startswith(svc_prefix):
-                services.append(f.split(svc_prefix)[-1])
+    for _path in paths:
+        for root, dirs, files in os.walk(_path):
+            for _file in files:
+                if _file.startswith(svc_prefix):
+                    services.append(_file.split(svc_prefix)[-1])
+                elif _file == '__main__.py':
+                    services.append('management')
     return services
 
 

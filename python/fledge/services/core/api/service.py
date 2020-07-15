@@ -214,7 +214,7 @@ async def add_service(request):
         if service_type == 'north':
             raise web.HTTPNotAcceptable(reason='north type is not supported for the time being.')
         if service_type not in ['south', 'notification', 'management']:
-            raise web.HTTPBadRequest(reason='Only south, notification, management types are supported.')
+            raise web.HTTPBadRequest(reason='Only south, notification and management types are supported.')
         if plugin is None and service_type == 'south':
             raise web.HTTPBadRequest(reason='Missing plugin property for type south in payload.')
         if plugin and utils.check_reserved(plugin) is False:
@@ -293,14 +293,13 @@ async def add_service(request):
 
         # check that notification service is not already registered, right now notification service LIMIT to 1
         if service_type == 'notification':
-            res = await check_notification_schedule(storage)
+            res = await check_schedule_entry(storage)
             for ps in res['rows']:
                 if 'notification_c' in ps['process_name']:
                     raise web.HTTPBadRequest(reason='A Notification service schedule already exists.')
         # check that management service is not already registered, right now management service LIMIT to 1
         elif service_type == 'management':
-            # TODO: we may rename check_notification_schedule def to check_schedule_entry
-            res = await check_notification_schedule(storage)
+            res = await check_schedule_entry(storage)
             for ps in res['rows']:
                 if 'management' in ps['process_name']:
                     raise web.HTTPBadRequest(reason='A Management service schedule already exists.')
@@ -394,7 +393,7 @@ async def get_schedule(storage, schedule_name):
     return result
 
 
-async def check_notification_schedule(storage):
+async def check_schedule_entry(storage):
     payload = PayloadBuilder().SELECT("process_name").payload()
     result = await storage.query_tbl_with_payload('schedules', payload)
     return result

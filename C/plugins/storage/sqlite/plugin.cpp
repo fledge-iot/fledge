@@ -66,8 +66,8 @@ ConnectionManager *manager = ConnectionManager::getInstance();
 	//# FIXME_I:
 	Connection        *connection = manager->allocate();
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-	readCat->createReadingsTables(connection, 0);
-	readCat->loadAssetReadingCatalogue(connection);
+	readCat->preallocateReadingsTables();
+	readCat->loadAssetReadingCatalogue();
 	manager->release(connection);
 
 	return manager;

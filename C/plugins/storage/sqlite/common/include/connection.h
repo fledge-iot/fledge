@@ -135,18 +135,27 @@ class Connection {
 class ReadingsCatalogue {
 	private:
 		const int MaxNReadings = 300;
-	//# FIXME_I:
-		//static ReadingsCatalogue *Z1instance;
+		const int nReadingsAllocate = 20;
+
 		ReadingsCatalogue(){};
+		int           getMaxReadingsId();
+		int           getnReadingsAllocate() const {return nReadingsAllocate;}
+		bool          createReadingsTables(int idStartFrom, int nTables);
+		void		  raiseError(const char *operation, const char *reason,...);
+		bool          isReadingAvailable() const;
+		void          allocateReadingAvailable();
+		int           evaluateLastReadingAvailable(Connection *connection);
+		int			  SQLStep(sqlite3_stmt *statement);
+		int           SQLexec(sqlite3 *dbHandle, const char *sqlCmd);
 
-		int				getMaxReadingsId();
-
-		std::mutex mutex_AssetReadingCatalogue;
+		int           m_nReadingsTotal = 0;
+		int           m_nReadingsAvailable = 0;
+		std::mutex    m_mutexAssetReadingCatalogue;
 		std::map <std::string, int>   m_AssetReadingCatalogue={
 
-				// asset_code  - reading id
-				// {"",         1,         }
-			};
+			// asset_code  - reading Table id
+			// {"",         1         }
+		};
 
 	public:
 		static ReadingsCatalogue *getInstance()
@@ -160,16 +169,11 @@ class ReadingsCatalogue {
 			return instance;
 		}
 
-		int           getMaxNReadings() {return MaxNReadings;}
+		void          preallocateReadingsTables();
+		bool          loadAssetReadingCatalogue();
+
+		int           getMaxNReadings() const      {return MaxNReadings;}
 		int           getReadingReference(Connection *connection, const char *asset_code);
-
-		bool          createReadingsTables(Connection *, int nTables);
-		bool          loadAssetReadingCatalogue(Connection *);
-		void 		  prepareSqliteCommands(Connection *connection);
-		void		  raiseError(const char *operation, const char *reason,...);
-		int			  SQLStep(sqlite3_stmt *statement);
-		void          finalizeSQlite(Connection *connection);
-
 };
 
 #endif

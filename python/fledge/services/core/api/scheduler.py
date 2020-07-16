@@ -134,7 +134,7 @@ async def post_scheduled_process(request: web.Request) -> web.Response:
             msg = str(ex)
             raise web.HTTPInternalServerError(body=json.dumps(
                 {"message": "Failed to create scheduled process. {}".format(msg)}), reason=msg)
-        finally:
+        else:
             return web.json_response({"message": "{} process name created successfully.".format(process_name)})
     else:
         msg = '{} process name already exists.'.format(process_name)

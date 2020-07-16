@@ -80,6 +80,7 @@ def setup(app):
     # Scheduler
     # Scheduled_processes - As per doc
     app.router.add_route('GET', '/fledge/schedule/process', api_scheduler.get_scheduled_processes)
+    app.router.add_route('POST', '/fledge/schedule/process', api_scheduler.post_scheduled_process)
     app.router.add_route('GET', '/fledge/schedule/process/{scheduled_process_name}', api_scheduler.get_scheduled_process)
 
     # Schedules - As per doc

@@ -4,6 +4,7 @@
 # See: http://fledge.readthedocs.io/
 # FLEDGE_END
 
+import json
 import datetime
 import uuid
 from aiohttp import web
@@ -11,6 +12,7 @@ from fledge.services.core import server
 from fledge.services.core.scheduler.entities import Schedule, StartUpSchedule, TimedSchedule, IntervalSchedule, \
     ManualSchedule, Task
 from fledge.services.core.scheduler.exceptions import *
+from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.services.core import connect
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 
@@ -23,7 +25,7 @@ __DEFAULT_LIMIT = 20
 
 _help = """
     -------------------------------------------------------------------------------
-    | GET             | /fledge/schedule/process                                 |
+    | GET  POST       | /fledge/schedule/process                                 |
     | GET             | /fledge/schedule/process/{scheduled_process_name}        |
 
     | GET POST        | /fledge/schedule                                         |
@@ -92,6 +94,51 @@ async def get_scheduled_process(request):
     else:
         retval = scheduled_process['rows']
     return web.json_response(retval)
+
+
+async def post_scheduled_process(request: web.Request) -> web.Response:
+    """
+    Create a new process name in scheduled_process table
+
+    data:
+            process_name - Name of scheduled process name
+            script - path for the script
+
+    :Example:
+             curl -d '{"process_name": "sleep30", "script": "[services/test]"}' -sX POST  http://localhost:8081/fledge/schedule/process
+    """
+    data = await request.json()
+    process_name = data.get('process_name', None)
+    script = data.get('script', None)
+    if process_name is None:
+        msg = "Missing process_name property in payload."
+        raise web.HTTPBadRequest(body=json.dumps({"message": msg}), reason=msg)
+    if script is None:
+        msg = "Missing script property in payload."
+        raise web.HTTPBadRequest(body=json.dumps({"message": msg}), reason=msg)
+
+    # Check that the process name is not already registered
+    payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', process_name]).payload()
+    storage = connect.get_storage_async()
+    result = await storage.query_tbl_with_payload('scheduled_processes', payload)
+    if result['count'] == 0:
+        # Now first create the scheduled process entry for the new service
+        payload = PayloadBuilder().INSERT(name=process_name, script=script).payload()
+        try:
+            await storage.insert_into_tbl("scheduled_processes", payload)
+        except StorageServerError as err:
+            msg = str(err)
+            raise web.HTTPInternalServerError(body=json.dumps(
+                {"message": "Storage error: {}".format(msg)}), reason=msg)
+        except Exception as ex:
+            msg = str(ex)
+            raise web.HTTPInternalServerError(body=json.dumps(
+                {"message": "Failed to create scheduled process. {}".format(msg)}), reason=msg)
+        finally:
+            return web.json_response({"message": "{} process name created successfully.".format(process_name)})
+    else:
+        msg = '{} process name already exists.'.format(process_name)
+        raise web.HTTPBadRequest(body=json.dumps({"message": msg}), reason=msg)
 
 
 #################################

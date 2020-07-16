@@ -68,6 +68,7 @@ ConnectionManager *manager = ConnectionManager::getInstance();
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 	readCat->preallocateReadingsTables();
 	readCat->loadAssetReadingCatalogue();
+	readCat->evaluateGlobalId();
 	manager->release(connection);
 
 	return manager;

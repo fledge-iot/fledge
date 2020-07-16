@@ -739,7 +739,7 @@ int sleep_time_ms = 0;
 				if (readingsStmt[readingsId] == nullptr)
 				{
 					sql_cmd = "INSERT INTO  " DB_READINGS ".readings_" + to_string(readingsId) +
-							  " ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
+							  " ( id, user_ts, asset_code, reading ) VALUES  (?,?,?,?)";
 					sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), strlen(sql_cmd.c_str()), &readingsStmt[readingsId], NULL);
 				}
 				stmt = readingsStmt[readingsId];
@@ -758,9 +758,10 @@ int sleep_time_ms = 0;
 
 			if(stmt != NULL) {
 
-				sqlite3_bind_text(stmt, 1, user_ts         ,-1, SQLITE_STATIC);
-				sqlite3_bind_text(stmt, 2, asset_code      ,-1, SQLITE_STATIC);
-				sqlite3_bind_text(stmt, 3, reading.c_str(), -1, SQLITE_STATIC);
+				sqlite3_bind_int (stmt, 1, readCatalogue->getGlobalId());
+				sqlite3_bind_text(stmt, 2, user_ts         ,-1, SQLITE_STATIC);
+				sqlite3_bind_text(stmt, 3, asset_code      ,-1, SQLITE_STATIC);
+				sqlite3_bind_text(stmt, 4, reading.c_str(), -1, SQLITE_STATIC);
 
 				retries =0;
 				sleep_time_ms = 0;
@@ -1785,6 +1786,83 @@ void ReadingsCatalogue::raiseError(const char *operation, const char *reason, ..
 	Logger::getLogger()->error("ReadingsCatalogues error: %s", tmpbuf);
 }
 
+bool ReadingsCatalogue::evaluateGlobalId ()
+{
+	string sql_cmd;
+	int rc;
+	int id;
+	int nCols;
+	sqlite3_stmt *stmt;
+	sqlite3 *dbHandle;
+
+	ConnectionManager *manager = ConnectionManager::getInstance();
+	Connection *connection = manager->allocate();
+	dbHandle = connection->getDbHandle();
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx evaluateGlobalId");
+	Logger::getLogger()->setMinLevel("warning");
+
+	// Prepare the sql command to calculate the global id from the rows in the DB
+	{
+		sql_cmd = R"(
+			SELECT
+				max(id) id
+			FROM
+			(
+		)";
+
+		bool firstRow = true;
+		if (m_AssetReadingCatalogue.empty())
+		{
+			sql_cmd += " SELECT max(id) id FROM " DB_READINGS ".readings_1 ";
+		}
+		else
+		{
+			for (auto &item : m_AssetReadingCatalogue)
+			{
+				if (!firstRow)
+					sql_cmd += " UNION ";
+
+				sql_cmd += " SELECT max(id) id FROM " DB_READINGS ".readings_" + to_string(item.second) + " ";
+				firstRow = false;
+			}
+		}
+		sql_cmd += ") AS tb";
+	}
+
+
+	if (sqlite3_prepare_v2(dbHandle,sql_cmd.c_str(),-1, &stmt,NULL) != SQLITE_OK)
+	{
+		raiseError("evaluateGlobalId", sqlite3_errmsg(dbHandle));
+		return false;
+	}
+
+	if (SQLStep(stmt) != SQLITE_ROW)
+	{
+		m_globalId = 1;
+	}
+	else
+	{
+		nCols = sqlite3_column_count(stmt);
+		m_globalId = sqlite3_column_int(stmt, 0);
+		// m_globalId stores then next value to be used
+		m_globalId++;
+	}
+
+	//# FIXME_I
+	id = m_globalId;
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx evaluateGlobalId - global id evaluated :%d:", id);
+	Logger::getLogger()->setMinLevel("warning");
+
+	sqlite3_finalize(stmt);
+	manager->release(connection);
+
+	return true;
+}
+
 bool  ReadingsCatalogue::loadAssetReadingCatalogue()
 {
 	int nCols;
@@ -1811,7 +1889,8 @@ bool  ReadingsCatalogue::loadAssetReadingCatalogue()
 		SELECT
 			id,
 			asset_code
-		FROM  )" DB_READINGS R"(.asset_reading_catalogue;
+		FROM  )" DB_READINGS R"(.asset_reading_catalogue
+		ORDER BY id;
 	)";
 
 	if (sqlite3_prepare_v2(dbHandle,sql_cmd,-1, &stmt,NULL) != SQLITE_OK)
@@ -1821,8 +1900,6 @@ bool  ReadingsCatalogue::loadAssetReadingCatalogue()
 	}
 	else
 	{
-		m_mutexAssetReadingCatalogue.lock();
-
 		usedReadings = 0;
 		// Iterate over all the rows in the resultSet
 		while ((rc = SQLStep(stmt)) == SQLITE_ROW)
@@ -1842,8 +1919,6 @@ bool  ReadingsCatalogue::loadAssetReadingCatalogue()
 
 			usedReadings++;
 		}
-		m_mutexAssetReadingCatalogue.unlock();
-
 		//# FIXME_I:
 		m_nReadingsAvailable = m_nReadingsTotal - usedReadings;
 
@@ -2079,7 +2154,7 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 				Logger::getLogger()->debug("xxx allocate a new reading table for the asset :%s: ", asset_code);
 				Logger::getLogger()->setMinLevel("warning");
 
-				// Prepare the sqlite structure for the asset
+				// Associate the asset to the reading_id
 				{
 					readingsId = getMaxReadingsId() + 1;
 

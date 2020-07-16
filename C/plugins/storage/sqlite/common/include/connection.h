@@ -18,6 +18,7 @@
 #include <reading_stream.h>
 #include <map>
 #include <vector>
+#include <atomic>
 
 #define LEN_BUFFER_DATE 100
 #define F_TIMEH24_S             "%H:%M:%S"
@@ -138,6 +139,7 @@ class ReadingsCatalogue {
 		const int nReadingsAllocate = 20;
 
 		ReadingsCatalogue(){};
+
 		int           getMaxReadingsId();
 		int           getnReadingsAllocate() const {return nReadingsAllocate;}
 		bool          createReadingsTables(int idStartFrom, int nTables);
@@ -148,9 +150,10 @@ class ReadingsCatalogue {
 		int			  SQLStep(sqlite3_stmt *statement);
 		int           SQLexec(sqlite3 *dbHandle, const char *sqlCmd);
 
-		int           m_nReadingsTotal = 0;
-		int           m_nReadingsAvailable = 0;
-		std::mutex    m_mutexAssetReadingCatalogue;
+		std::atomic<int> m_globalId;
+		int              m_nReadingsTotal = 0;
+		int              m_nReadingsAvailable = 0;
+		std::mutex       m_mutexAssetReadingCatalogue;
 		std::map <std::string, int>   m_AssetReadingCatalogue={
 
 			// asset_code  - reading Table id
@@ -168,6 +171,10 @@ class ReadingsCatalogue {
 			}
 			return instance;
 		}
+
+		// Returns the global Id and increment it
+		int           getGlobalId() {return m_globalId++;};
+		bool          evaluateGlobalId();
 
 		void          preallocateReadingsTables();
 		bool          loadAssetReadingCatalogue();

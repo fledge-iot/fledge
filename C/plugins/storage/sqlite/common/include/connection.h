@@ -135,7 +135,6 @@ class Connection {
 
 class ReadingsCatalogue {
 	private:
-		const int MaxNReadings = 300;
 		const int nReadingsAllocate = 20;
 
 		ReadingsCatalogue(){};
@@ -181,7 +180,8 @@ class ReadingsCatalogue {
 		void          preallocateReadingsTables();
 		bool          loadAssetReadingCatalogue();
 
-		int           getMaxNReadings() const      {return MaxNReadings;}
+		int           getNReadingsTotal() const      {return m_nReadingsTotal;}
+		int           getNReadingsAvailable() const      {return m_nReadingsAvailable;}
 		int           getReadingReference(Connection *connection, const char *asset_code);
 };
 

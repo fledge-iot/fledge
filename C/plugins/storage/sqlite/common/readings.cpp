@@ -633,11 +633,17 @@ string lastAsset;
 int retries = 0;
 int sleep_time_ms = 0;
 
+int localNReadingsTotal;
+
 	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
 
 	//# FIXME_I:
-	vector<sqlite3_stmt *> readingsStmt(readCatalogue->getMaxNReadings(), nullptr);
-
+	localNReadingsTotal = readCatalogue->getNReadingsTotal();
+	vector<sqlite3_stmt *> readingsStmt(localNReadingsTotal +1, nullptr);
+//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx4 readingsStmt size :%d: ",  localNReadingsTotal);
+	Logger::getLogger()->setMinLevel("warning");
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
@@ -734,6 +740,22 @@ int sleep_time_ms = 0;
 			if (lastAsset.compare(asset_code)!= 0)
 			{
 				readingsId = readCatalogue->getReadingReference(this, asset_code);
+
+				if (readingsId >= localNReadingsTotal)
+				{
+					//# FIXME_I:
+					localNReadingsTotal = readingsId + 1;
+					readingsStmt.resize(localNReadingsTotal, nullptr);
+
+					//# FIXME_I
+					Logger::getLogger()->setMinLevel("debug");
+					Logger::getLogger()->debug("xxx4 readingsStmt resize size :%d: idx :%d: ", localNReadingsTotal, readingsId);
+					Logger::getLogger()->setMinLevel("warning");
+				}
+				//# FIXME_I
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("xxx4 readingsStmt size :%d: idx :%d: ", localNReadingsTotal, readingsId);
+				Logger::getLogger()->setMinLevel("warning");
 
 				//# FIXME_I:
 				if (readingsStmt[readingsId] == nullptr)
@@ -2069,7 +2091,6 @@ bool  ReadingsCatalogue::createReadingsTables(int idStartFrom, int nTables)
 	int readingsIdx;
 
 	string readingsIdxStr;
-	sqlite3_stmt *stmt;
 	sqlite3 *dbHandle;
 
 	ConnectionManager *manager = ConnectionManager::getInstance();
@@ -2147,7 +2168,7 @@ int  ReadingsCatalogue::evaluateLastReadingAvailable(Connection *connection)
 	sqlite3		*dbHandle;
 
 	//# FIXME_I:
-	vector<int> readingsId(getMaxNReadings(), 0);
+	vector<int> readingsId(getNReadingsAvailable(), 0);
 
 	dbHandle = connection->getDbHandle();
 

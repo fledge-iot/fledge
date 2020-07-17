@@ -1786,6 +1786,8 @@ void ReadingsCatalogue::raiseError(const char *operation, const char *reason, ..
 	Logger::getLogger()->error("ReadingsCatalogues error: %s", tmpbuf);
 }
 
+//# FIXME_I:
+// Retrieves the global_id from thd DB, if it is -1 it should be calculated
 bool ReadingsCatalogue::evaluateGlobalId ()
 {
 	string sql_cmd;
@@ -1801,8 +1803,111 @@ bool ReadingsCatalogue::evaluateGlobalId ()
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx evaluateGlobalId");
+	Logger::getLogger()->debug("xxx3 evaluateGlobalId");
 	Logger::getLogger()->setMinLevel("warning");
+
+	// Retrieves the global_id from thd DB
+	{
+		sql_cmd = " SELECT global_id FROM " DB_READINGS ".configuration_readings ";
+
+		if (sqlite3_prepare_v2(dbHandle,sql_cmd.c_str(),-1, &stmt,NULL) != SQLITE_OK)
+		{
+			raiseError("evaluateGlobalId", sqlite3_errmsg(dbHandle));
+			return false;
+		}
+
+		if (SQLStep(stmt) != SQLITE_ROW)
+		{
+			m_globalId = 1;
+
+			sql_cmd = " INSERT INTO " DB_READINGS ".configuration_readings VALUES (" + to_string(m_globalId) + ")";
+
+			if (SQLexec(dbHandle,sql_cmd.c_str()) != SQLITE_OK)
+			{
+				raiseError("evaluateGlobalId", sqlite3_errmsg(dbHandle));
+				return false;
+			}
+		}
+		else
+		{
+			nCols = sqlite3_column_count(stmt);
+			m_globalId = sqlite3_column_int(stmt, 0);
+		}
+	}
+
+	if ( m_globalId == -1)
+	{
+		m_globalId = calculateGlobalId (dbHandle);
+	}
+
+	id = m_globalId;
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx3 global id from the DB :%d:", id);
+	Logger::getLogger()->setMinLevel("warning");
+
+
+	// Set the global_id in the DB to -1 to force a calculation at the restart
+	// in case the shutdown is not executed and the proper value stored
+	{
+		sql_cmd = " UPDATE " DB_READINGS ".configuration_readings SET global_id=-1;";
+
+		if (SQLexec(dbHandle,sql_cmd.c_str()) != SQLITE_OK)
+		{
+			raiseError("evaluateGlobalId", sqlite3_errmsg(dbHandle));
+			return false;
+		}
+	}
+
+	sqlite3_finalize(stmt);
+	manager->release(connection);
+
+	return true;
+}
+
+//# FIXME_I:
+// Stores the global_id into the DB
+bool ReadingsCatalogue::storeGlobalId ()
+{
+	string sql_cmd;
+	int rc;
+	int id;
+	int nCols;
+	sqlite3_stmt *stmt;
+	sqlite3 *dbHandle;
+
+	ConnectionManager *manager = ConnectionManager::getInstance();
+	Connection *connection = manager->allocate();
+	dbHandle = connection->getDbHandle();
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx3 storeGlobalId");
+	Logger::getLogger()->setMinLevel("warning");
+
+	sql_cmd = " UPDATE " DB_READINGS ".configuration_readings SET global_id=-" + to_string(m_globalId);
+
+	if (SQLexec(dbHandle,sql_cmd.c_str()) != SQLITE_OK)
+	{
+		raiseError("evaluateGlobalId", sqlite3_errmsg(dbHandle));
+		return false;
+	}
+
+	manager->release(connection);
+
+	return true;
+}
+
+
+int ReadingsCatalogue::calculateGlobalId (sqlite3 *dbHandle)
+{
+	string sql_cmd;
+	int rc;
+	int id;
+	int nCols;
+
+	sqlite3_stmt *stmt;
+	id = 1;
 
 	// Prepare the sql command to calculate the global id from the rows in the DB
 	{
@@ -1841,26 +1946,24 @@ bool ReadingsCatalogue::evaluateGlobalId ()
 
 	if (SQLStep(stmt) != SQLITE_ROW)
 	{
-		m_globalId = 1;
+		id = 1;
 	}
 	else
 	{
 		nCols = sqlite3_column_count(stmt);
-		m_globalId = sqlite3_column_int(stmt, 0);
+		id = sqlite3_column_int(stmt, 0);
 		// m_globalId stores then next value to be used
-		m_globalId++;
+		id++;
 	}
 
 	//# FIXME_I
-	id = m_globalId;
 	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug("xxx evaluateGlobalId - global id evaluated :%d:", id);
 	Logger::getLogger()->setMinLevel("warning");
 
 	sqlite3_finalize(stmt);
-	manager->release(connection);
 
-	return true;
+	return (id);
 }
 
 bool  ReadingsCatalogue::loadAssetReadingCatalogue()

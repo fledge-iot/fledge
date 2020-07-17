@@ -149,6 +149,7 @@ class ReadingsCatalogue {
 		int           evaluateLastReadingAvailable(Connection *connection);
 		int			  SQLStep(sqlite3_stmt *statement);
 		int           SQLexec(sqlite3 *dbHandle, const char *sqlCmd);
+		int           calculateGlobalId (sqlite3 *dbHandle);
 
 		std::atomic<int> m_globalId;
 		int              m_nReadingsTotal = 0;
@@ -175,6 +176,7 @@ class ReadingsCatalogue {
 		// Returns the global Id and increment it
 		int           getGlobalId() {return m_globalId++;};
 		bool          evaluateGlobalId();
+		bool          storeGlobalId ();
 
 		void          preallocateReadingsTables();
 		bool          loadAssetReadingCatalogue();

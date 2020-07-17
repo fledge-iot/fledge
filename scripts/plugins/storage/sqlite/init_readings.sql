@@ -49,10 +49,16 @@
 ----------------------------------------------------------------------
 
 --# FIXME_I:
-CREATE TABLE asset_reading_catalogue (
+CREATE TABLE readings.asset_reading_catalogue (
     id         INTEGER                     PRIMARY KEY AUTOINCREMENT,
     asset_code character varying(50)       NOT NULL
 );
+
+--# FIXME_I:
+CREATE TABLE readings.configuration_readings (
+    global_id         INTEGER
+);
+
 
 -- Readings table
 -- This tables contains the readings for assets.

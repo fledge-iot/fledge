@@ -13,7 +13,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-DEPRECATED_BIT_POSITION = 5
+DEPRECATED_BIT_POSITION = 7
 DEPRECATED_BIT_MASK_VALUE = 32
 
 

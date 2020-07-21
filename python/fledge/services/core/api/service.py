@@ -42,7 +42,8 @@ _help = """
     | GET POST            | /fledge/service                                      |
     | GET                 | /fledge/service/available                            |
     | GET                 | /fledge/service/installed                            |
-    | PUT                 | /fledge/service/{type}/{name}/update                |
+    | PUT                 | /fledge/service/{type}/{name}/update                 |
+    | DELETE              | /fledge/service/{service_name}                       |
     ------------------------------------------------------------------------------
 """
 

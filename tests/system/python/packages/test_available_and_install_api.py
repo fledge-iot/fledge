@@ -104,8 +104,8 @@ class TestPackages:
         r = r.read().decode()
         jdoc = json.loads(r)
         assert len(jdoc), "No data found"
-        assert 1 == len(jdoc['services'])
-        assert 'fledge-service-notification' == jdoc['services'][0]
+        assert len(jdoc['services']), "No services found"
+        assert 'fledge-service-notification' in jdoc['services']
         assert 'link' in jdoc
 
     def test_install_service_package(self, fledge_url):

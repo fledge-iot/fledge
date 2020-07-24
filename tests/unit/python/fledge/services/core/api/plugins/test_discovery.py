@@ -117,12 +117,16 @@ class TestPluginDiscoveryApi:
         assert message == resp.reason
 
     @pytest.mark.parametrize("param, output, result", [
-        ("", ['fledge-south-sinusoid', 'fledge-service-notification', 'fledge-gui', 'fledge-service-new',
-              'fledge-quickstart'], ['fledge-south-sinusoid']),
+        ("", ['fledge-dev', 'fledge-south-sinusoid', 'fledge-service-notification', 'fledge-gui',
+              'fledge-service-new', 'fledge-quickstart', 'fledge-north-http', 'fledge-filter-asset',
+              'fledge-notify-slack', 'fledge-rule-average'], ['fledge-south-sinusoid', 'fledge-north-http',
+                                                                'fledge-filter-asset', 'fledge-notify-slack',
+                                                                'fledge-rule-average']),
         ("?type=south", ['fledge-south-random'], ['fledge-south-random']),
         ("?type=north", ['fledge-north-http'], ['fledge-north-http']),
         ("?type=filter", ['fledge-filter-asset'], ['fledge-filter-asset']),
-        ("?type=notify", ['fledge-notify-slack'], ['fledge-notify-slack'])
+        ("?type=notify", ['fledge-notify-slack'], ['fledge-notify-slack']),
+        ("?type=rule", ['fledge-rule-average'], ['fledge-rule-average'])
     ])
     async def test_get_plugins_available(self, client, param, output, result):
         async def async_mock(return_value):

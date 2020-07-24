@@ -74,9 +74,9 @@ async def get_plugins_available(request: web.Request) -> web.Response:
         if package_type and package_type not in ['north', 'south', 'filter', 'notify', 'rule']:
             raise ValueError("Invalid package type. Must be 'north' or 'south' or 'filter' or 'notify' or 'rule'.")
         plugins, log_path = await common.fetch_available_packages(package_type)
-        # fledge-gui, fledge-quickstart and fledge-service-* packages are excluded when no type is given
         if not package_type:
-            plugins = [p for p in plugins if not str(p).startswith('fledge-service-') and p not in ('fledge-quickstart', 'fledge-gui')]
+            prefix_list = ['fledge-filter-', 'fledge-north-', 'fledge-notify-', 'fledge-rule-', 'fledge-south-']
+            plugins = [p for p in plugins if str(p).startswith(tuple(prefix_list))]
     except ValueError as e:
         raise web.HTTPBadRequest(reason=e)
     except PackageError as e:

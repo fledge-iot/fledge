@@ -280,7 +280,7 @@ DefaultConfigCategory *StorageConfiguration::getDefaultCategory()
  *
  * FOGL-4151 After changing to a new plugin, say from sqlite to postgres, the first
  * time we run in the new database there is no configuraion category. In this case we will
- * get the default category, which will have a default of sqlite and no vale. This will
+ * get the default category, which will have a default of sqlite and no value. This will
  * end up reporting the wrong information in the UI when we look at the category, therefore
  * we special case the plugin name and set the default to whatever the current value is
  * for just this property.
@@ -293,8 +293,11 @@ void StorageConfiguration::checkCache()
 		if (item.HasMember("type"))
 		{
 			const char *val = getValue("plugin");
-			logger->info("Storage configuration cache is up to date");
 			item["default"].SetString(strdup(val), strlen(val));
+			Value& rp = (*document)["readingPlugin"];
+			const char *rval = getValue("readingPlugin");
+			rp["default"].SetString(strdup(rval), strlen(rval));
+			logger->info("Storage configuration cache is up to date");
 			return;
 		}
 	}
@@ -319,7 +322,12 @@ void StorageConfiguration::checkCache()
 			if (strcmp(name, "plugin") == 0)
 			{
 				newval["default"].SetString(strdup(val), strlen(val));
-			logger->warn("Set default of %s to %s", name, val);
+				logger->warn("Set default of %s to %s", name, val);
+			}
+			if (strcmp(name, "readingPlugin") == 0)
+			{
+				newval["default"].SetString(strdup(val), strlen(val));
+				logger->warn("Set default of %s to %s", name, val);
 			}
 		}
 	}

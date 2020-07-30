@@ -62,7 +62,7 @@ Most messages include:
 +------------+------------------+-------------------------------------------------------------------------------------------------------+
 | key        | string           | unique ID                                                                                             |
 +------------+------------------+-------------------------------------------------------------------------------------------------------+
-| readings   | dict             | {"<data-1>": <value-1> [, "<data-2>": <value-2>,... ["user_ts": <device-timestamp>]]}                 |
+| readings   | dict             | {"<name-1>": <value-1> [, "<name-2>": <value-2>,... ["user_ts": <device-timestamp>]]}                 |
 +------------+------------------+-------------------------------------------------------------------------------------------------------+
 
 Fledge plugin configuration
@@ -80,20 +80,20 @@ Required configuration entries include:
 |                        |                        |                      | name: "<plugin name>" |br|                            |
 |                        |                        |                      | readonly: "true"                                      |
 +------------------------+------------------------+----------------------+-------------------------------------------------------+
-| enable                 | filter |br|            | Enable/disable       | description: "<Describe plugin being enabled>" |br|   |
-|                        | notification |br|      | plugin function      | type: "boolean"                                |br|   |
-|                        | notification delivery  |                      | default: "false"                               |br|   |
+| enable                 | Filter |br|            | Enable/disable       | description: "<Describe plugin being enabled>" |br|   |
+|                        | Notification |br|      | plugin function      | type: "boolean"                                |br|   |
+|                        | Notification delivery  |                      | default: "false"                               |br|   |
 |                        |                        |                      | displayName: "<name for UI display>"           |br|   |
 |                        |                        |                      | order: "<order of display in UI>"                     |
 +------------------------+------------------------+----------------------+-------------------------------------------------------+
-| asset                  | south |br|             | Asset where data     | description: "<name of asset being monitored>" |br|   |
-|                        | notification           | fields are deposited | type: "string"                                 |br|   |
+| asset                  | South |br|             | Asset where data     | description: "<name of asset being monitored>" |br|   |
+|                        | Notification           | fields are deposited | type: "string"                                 |br|   |
 |                        |                        |                      | default: ""                                    |br|   |
 |                        |                        |                      | displayName: "<name for UI display>"           |br|   |
 |                        |                        |                      | mandatory: "true"                              |br|   |
 |                        |                        |                      | order: "<order of display in UI>"                     |
 +------------------------+------------------------+----------------------+-------------------------------------------------------+
-| source                 | north                  | Choice of data to    | description: "<Resource being forwarded>" |br|        |
+| source                 | North                  | Choice of data to    | description: "<Resource being forwarded>" |br|        |
 |                        |                        | forward from Foglamp | type: "enumeration"                  |br|             |
 |                        |                        | (readings or         | options: ["readings", "statistics"]  |br|             |
 |                        |                        | statistics)          | default: "readings"                  |br|             |
@@ -118,22 +118,24 @@ Required APIs include:
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
 | plugin_reconfigure     | all             | Replaces existing configuration with new values; may need to call shutdown/init                       |
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
-| plugin_ingest          | filter          | Provides data which is modified, then sent on to ingest callback                                      |
+| plugin_ingest          | Filter          | Provides data which is modified, then sent on to ingest callback                                      |
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
-| plugin_eval            | notification    | Takes JSON asset document to eval; Returns True if should "notify"                                    |
+| plugin_eval            | Notification    | Takes JSON asset document to eval; Returns True if should "notify"                                    |
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
-| plugin_triggers        | notification    | Returns JSON asset document describing what notification triggers have fired                          |
+| plugin_triggers        | Notification    | Returns JSON asset document describing what notification triggers have fired                          |
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
-| plugin_reason          | notification    | Takes JSON asset document describing why notifications have fired                                     |
+| plugin_reason          | Notification    | Takes JSON asset document describing why notifications have fired                                     |
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
-| plugin_deliver         | notification    | Takes name/notification/trigger/message strings to be sent to notification target                     |
+| plugin_deliver         | Notification    | Takes name/notification/trigger/message strings to be sent to notification target                     |
 |                        | |br| delivery   |                                                                                                       |
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
-| plugin_send            | north           | Provides data,input_ref to be sent to North plugin target                                             |
+| plugin_send            | North           | Provides data,input_ref to be sent to North plugin target                                             |
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
-| plugin_start           | south           | Initiates async "pumping" of data (typically threaded)                                                |
+| plugin_poll            | South           | Initiates pull (return) of next set of data from south data source                                    |
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
-| plugin_register_ingest | south           | Registers callback and ingest "ref" which receive new data as available                               |
+| plugin_start           | South           | Initiates async "pumping" of data (typically threaded)                                                |
++------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
+| plugin_register_ingest | South           | Registers callback and ingest "ref" which receive new data as available                               |
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
 
 

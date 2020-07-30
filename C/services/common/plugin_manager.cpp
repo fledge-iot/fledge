@@ -59,6 +59,18 @@ enum PLUGIN_TYPE {
 	JSON_PLUGIN
 };
 
+
+char* check_error(int result, char* buffer, int err) {
+    if(result)
+        sprintf(buffer, "unknown error: %d", err);
+    return buffer;
+}
+
+char* check_error(char* result, char*, int) {
+    return result;
+}
+
+
 /**
  * Update plugin info by merging the JSON plugin config over base plugin config
  *
@@ -568,7 +580,8 @@ void PluginManager::getInstalledPlugins(const string& type,
 		{
 			// Can not open specified dir path
 			char msg[128];
-			char* ret = strerror_r(errno, msg, 128);
+			//char* ret = strerror_r(errno, msg, 128);
+			char* ret = check_error(strerror_r(errno, msg, sizeof msg), msg, errno);
 			logger->error("Can not access plugin directory %s: %s",
 				      path.c_str(),
 				      ret);

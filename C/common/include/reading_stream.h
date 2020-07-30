@@ -16,6 +16,8 @@
 #define RDS_ACK_MAGIC		0x4241434b
 #define RDS_NACK_MAGIC		0x4e41434b
 
+#include <sys/time.h>
+
 typedef struct {
 	uint32_t	magic;
 	uint32_t	token;

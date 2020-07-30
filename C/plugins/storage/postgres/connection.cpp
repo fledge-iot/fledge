@@ -23,7 +23,7 @@
 #include <stdlib.h>
 #include <sstream>
 #include <logger.h>
-#include <time.h>
+#include <sys/time.h>
 #include <algorithm>
 #include <math.h>
 

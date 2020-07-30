@@ -5,6 +5,7 @@ project(common-lib)
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 set(UUIDLIB -luuid)
+set(EXECINFOLIB -lexecinfo)
 
 set(BOOST_COMPONENTS system thread)
 # Late 2017 TODO: remove the following checks and always use std::regex
@@ -29,6 +30,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../lib)
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
 target_link_libraries(${PROJECT_NAME} ${UUIDLIB})
 target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${EXECINFOLIB})
 
 set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION 1)
 

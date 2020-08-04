@@ -2101,7 +2101,7 @@ bool  ReadingsCatalogue::createReadingsTables(int idStartFrom, int nTables)
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx createReadingsTables - start");
+	Logger::getLogger()->debug("xxx createReadingsTables - MULTI DB - start");
 	Logger::getLogger()->setMinLevel("warning");
 
 	logger->info("Creating :%d: readings table in advance", nTables);

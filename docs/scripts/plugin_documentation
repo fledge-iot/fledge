@@ -57,6 +57,7 @@ Fledge North Plugins
 
 .. toctree::
 
+    ../fledge-north-OMF
 EOFNORTH
 cat > plugins/filter.rst << EOFFILTER
 *********************

@@ -26,6 +26,10 @@ function table {
 			echo "      - $description" >> $output
 		fi
 	done
+	if [ "$tableType" = "north" ]; then
+		echo "    * - OMF" >> $output
+		echo "      - Send data to OSIsoft PI Server, Edge Data Store or OSIsoft Cloud Services" >> $output
+	fi
 	echo "" >> $output
 }
 

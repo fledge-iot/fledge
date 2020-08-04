@@ -42,14 +42,15 @@ In this version of Fledge you have six types of plugins:
 
 - **South Plugins** - They are responsible for communication between Fledge and the sensors and actuators they support. Each instance of a Fledge South microservice will use a plugin for the actual communication to the sensors or actuators that that instance of the South microservice supports.
 - **Storage Plugins** - They sit between the Storage microservice and the physical data storage mechanism that stores the Fledge configuration and readings data. Storage plugins differ from other plugins in that they are written exclusively in C/C++, however they share the same common attributes and entry points that the other filter must support.
-- **Filter Plugins** - Filter plugins are used to modify data as it flows through Fledge. One or more filter plugins may compose a pipeline which modifies, either, data flowing out from the South ingress tasks into the Fledge Storage system, or out from Fledge storage into the North egress tasks.
-- **Notification Rule Plugins** - Notification plugins evaluate data after it has been entered into the Fledge Storage, before it enters the northbound Filter pipeline(s). If the notification evaluates to True, a rule associated with the condition is executed. (Notification rules plugins require installation of the optional notification service.)
-- **Notification Delivery Plugins** - These plugins deliver a notification event; events, trigger "reason", and accompanying "message" are specified, and delivered to a given delivery channel (eg., email/sms/...). (Notification delivery plugins require installation of the optional notification service.)
-- **North Plugins** - These plugins take data, originated by South service(s), optionally transformed by filters, optionally triggering notifications, and export those data to the outside world.
+- **Filter Plugins** - Filter plugins are used to modify data as it flows through Fledge. One or more filter plugins may compose a pipeline which modifies, either, data flowing out from the South ingress service into the Fledge Storage system, or out from Fledge storage into the North egress tasks.
+- **Notification Rule Plugins** - Notification plugins evaluate data in parallel with their entry into the Fledge Storage, before it enters the northbound Filter pipeline(s). If the notification "fires", notification delivery is executed. Rules can fire for triggering or clearing of the rule condition.
+  Notification rule plugins are applied to the notification service, the notification service is an optional service and must be installed before the notification plugins can be used.
+- **Notification Delivery Plugins** - These plugins deliver a notification event; events, trigger "reason", and accompanying "message" are specified, and delivered to a given [notification delivery type](#notification-delivery-types). Notification delivery plugins require installation of the optional notification service.
+- **North Plugins** - These plugins take data moving through Fledge and exports the data to the outside world. Data may originate from South plugins, from the Fledge system, or be added by filters.
 
-Fledge message contents
-=======================
-Information flows through fledge in "messages". Messages have a few "tags" which have well defined values. Messages may be extended to contain additional tags appropriate to particular plugins and data flows.
+Message contents
+================
+Information flows through the system in "messages". Messages have a few "tags" which have well defined values. Messages may be extended to contain additional tags appropriate to particular plugins and data flows.
 
 Most messages include:
 
@@ -65,10 +66,10 @@ Most messages include:
 | readings   | dict             | {"<name-1>": <value-1> [, "<name-2>": <value-2>,... ["user_ts": <device-timestamp>]]}                 |
 +------------+------------------+-------------------------------------------------------------------------------------------------------+
 
-Fledge plugin configuration
-===========================
+Plugin configuration
+====================
 
-Different plugin types (eg., north/south/...) have required configuration entries
+Different plugin types have required configuration entries.
 
 Required configuration entries include:
 
@@ -126,24 +127,50 @@ Required APIs include:
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
 | plugin_reason          | Notification    | Takes JSON asset document describing why notifications have fired                                     |
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
-| plugin_deliver         | Notification    | Takes name/notification/trigger/message strings to be sent to notification target                     |
-|                        | |br| delivery   |                                                                                                       |
+| plugin_deliver         | Notification    | Takes name/notification/trigger/message strings to be sent to                                         |
+|                        | |br| delivery   | [notification delivery](#notification-delivery-types) channel.                                        |
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
 | plugin_send            | North           | Provides data,input_ref to be sent to North plugin target                                             |
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
-| plugin_poll            | South           | Initiates pull (return) of next set of data from south data source                                    |
+| plugin_poll            | South           | Initiates pull (return) of next set of data from south data source.                                   |
+|                        |                 | Only applicable for "poll" mode South plugins.                                                        |
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
-| plugin_start           | South           | Initiates async "pumping" of data (typically threaded)                                                |
+| plugin_start           | South           | Starts components needed to service async mode South operation, such as service threads.              |
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
 | plugin_register_ingest | South           | Registers callback and ingest "ref" which receive new data as available                               |
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
 
+Notification delivery types
+---------------------------
+Notifications can be delivered through a variety of media.
 
+Notification delivery types include:
+
++------------------+-------------------------------------------------------------------------------------------------------+
+| Type             | Description                                                                                           |
++==================+=======================================================================================================+
+| alexa-notifyme   | Signals to Alexa, causing a green light on the console.                                               |
+|                  | Client can ask Alexa to speak the notifications.                                                      |                                               
++------------------+-------------------------------------------------------------------------------------------------------+
+| asset            | Creates an asset with a message when notification is deliverd.                                        |
++------------------+-------------------------------------------------------------------------------------------------------+
+| blynk            | Sends a message to the Blynk IOT message crossbar.                                                    |
++------------------+-------------------------------------------------------------------------------------------------------+
+| email            | Sends an email to an SMTP service.                                                                    |
++------------------+-------------------------------------------------------------------------------------------------------+
+| google-hangouts  | Sends a message to be delivered to Google Hangouts.                                                   |
++------------------+-------------------------------------------------------------------------------------------------------+
+| iftt             | Sends a notificiation event to iftt which can be used to trigger other iftt actions.                  |
++------------------+-------------------------------------------------------------------------------------------------------+
+| slack            | Sends a message to be delivered to a Slack channel.                                                   |
++------------------+-------------------------------------------------------------------------------------------------------+
+| telegram         | Sends a message to be delivered to the telegram secure messaging platform.                            |
++------------------+-------------------------------------------------------------------------------------------------------+
 
 
 Existing plugins and plugin extensions
 ======================================
-Fledge comes pre-loaded with a number of plugins. Additional plugins may be loaded from the standard Fledge collection, from third pary collections, or from code developed by users.
+Fledge comes with a number of plugins in its main repository. Additional plugins may be loaded from the standard Fledge collection, from third pary collections, or from code developed by users.
 
 
 Plugins in this version of Fledge

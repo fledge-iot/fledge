@@ -21,7 +21,7 @@
 // 1 enable performance tracking
 #define INSTRUMENT	0
 
-#define DB_READINGS "readings"
+#define DB_READINGS "readings_1"
 
 #if INSTRUMENT
 #include <sys/time.h>
@@ -284,7 +284,7 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 	}
 
 	// Get all datapoints in 'reading' field
-	sql.append("json_each.key AS x, json_each.value AS theval FROM " DB_READINGS ".readings, json_each(readings.reading) ");
+	sql.append("json_each.key AS x, json_each.value AS theval FROM " DB_READINGS ".readings_1, json_each(readings.reading) ");
 
 	// Add where condition
 	sql.append("WHERE ");
@@ -408,7 +408,7 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 	struct timeval start, t1, t2, t3, t4, t5;
 #endif
 
-	const char *sql_cmd = "INSERT INTO  " DB_READINGS ".readings ( asset_code, reading, user_ts ) VALUES  (?,?,?)";
+	const char *sql_cmd = "INSERT INTO  " DB_READINGS ".readings_1 ( asset_code, reading, user_ts ) VALUES  (?,?,?)";
 
 	if (sqlite3_prepare_v2(dbHandle, sql_cmd, strlen(sql_cmd), &stmt, NULL) != SQLITE_OK)
 	{
@@ -761,8 +761,13 @@ int localNReadingsTotal;
 				if (readingsStmt[readingsId] == nullptr)
 				{
 					sql_cmd = "INSERT INTO  " DB_READINGS ".readings_" + to_string(readingsId) +
-							  " ( id, user_ts, asset_code, reading ) VALUES  (?,?,?,?)";
-					sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), strlen(sql_cmd.c_str()), &readingsStmt[readingsId], NULL);
+							  " ( id, user_ts, reading ) VALUES  (?,?,?)";
+					rc = sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), -1, &readingsStmt[readingsId], NULL);
+					if (rc != SQLITE_OK)
+					{
+						raiseError("appendReadings", sqlite3_errmsg(dbHandle));
+					}
+
 				}
 				stmt = readingsStmt[readingsId];
 
@@ -782,8 +787,7 @@ int localNReadingsTotal;
 
 				sqlite3_bind_int (stmt, 1, readCatalogue->getGlobalId());
 				sqlite3_bind_text(stmt, 2, user_ts         ,-1, SQLITE_STATIC);
-				sqlite3_bind_text(stmt, 3, asset_code      ,-1, SQLITE_STATIC);
-				sqlite3_bind_text(stmt, 4, reading.c_str(), -1, SQLITE_STATIC);
+				sqlite3_bind_text(stmt, 3, reading.c_str(), -1, SQLITE_STATIC);
 
 				retries =0;
 				sleep_time_ms = 0;
@@ -931,7 +935,7 @@ int retrieve;
 		strftime('%%Y-%%m-%%d %%H:%%M:%%S', user_ts, 'utc')  ||
 		substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
 		strftime('%%Y-%%m-%%d %%H:%%M:%%f', ts, 'utc') AS ts
-	FROM  )" DB_READINGS R"(.readings
+	FROM  )" DB_READINGS R"(.readings_1
 	WHERE id >= %lu
 	ORDER BY id ASC
 	LIMIT %u;
@@ -999,6 +1003,12 @@ SQLBuffer	sql;
 SQLBuffer	jsonConstraints;
 bool		isAggregate = false;
 
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx retrieveReadings ");
+	Logger::getLogger()->setMinLevel("warning");
+
 	try {
 		if (dbHandle == NULL)
 		{
@@ -1016,7 +1026,7 @@ bool		isAggregate = false;
 						strftime(')" F_DATEH24_SEC R"(', user_ts, 'localtime')  ||
 						substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
 						strftime(')" F_DATEH24_MS R"(', ts, 'localtime') AS ts
-					FROM )" DB_READINGS R"(.readings)";
+					FROM )" DB_READINGS R"(.readings_1)";
 
 			sql.append(sql_cmd);
 		}
@@ -1258,7 +1268,9 @@ bool		isAggregate = false;
 
 				sql.append(sql_cmd);
 			}
-			sql.append("readings");
+			//# FIXME_I:
+			sql.append("readings_1");
+
 			if (document.HasMember("where"))
 			{
 				sql.append(" WHERE ");
@@ -1336,6 +1348,12 @@ bool		isAggregate = false;
 	} catch (exception e) {
 		raiseError("retrieve", "Internal error: %s", e.what());
 	}
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx retrieveReadings end ");
+	Logger::getLogger()->setMinLevel("warning");
+
 }
 
 /**
@@ -1372,7 +1390,7 @@ int blocks = 0;
 		char *zErrMsg = NULL;
 		int rc;
 		rc = SQLexec(dbHandle,
-		     "select max(rowid) from " DB_READINGS ".readings;",
+		     "select max(rowid) from " DB_READINGS ".readings_1;",
 	  	     rowidCallback,
 		     &rowidLimit,
 		     &zErrMsg);
@@ -1390,7 +1408,7 @@ int blocks = 0;
 		char *zErrMsg = NULL;
 		int rc;
 		rc = SQLexec(dbHandle,
-		     "select min(rowid) from " DB_READINGS ".readings;",
+		     "select min(rowid) from " DB_READINGS ".readings_1;",
 	  	     rowidCallback,
 		     &minrowidLimit,
 		     &zErrMsg);
@@ -1410,7 +1428,7 @@ int blocks = 0;
 		 * So set age based on the data we have and continue.
 		 */
 		SQLBuffer oldest;
-		oldest.append("SELECT (strftime('%s','now', 'utc') - strftime('%s', MIN(user_ts)))/360 FROM " DB_READINGS ".readings where rowid <= ");
+		oldest.append("SELECT (strftime('%s','now', 'utc') - strftime('%s', MIN(user_ts)))/360 FROM " DB_READINGS ".readings_1 where rowid <= ");
 		oldest.append(rowidLimit);
 		oldest.append(';');
 		const char *query = oldest.coalesce();
@@ -1466,7 +1484,7 @@ int blocks = 0;
 
 			// e.g. select id from readings where rowid = 219867307 AND user_ts < datetime('now' , '-24 hours', 'utc');
 			SQLBuffer sqlBuffer;
-			sqlBuffer.append("select id from " DB_READINGS ".readings where rowid = ");
+			sqlBuffer.append("select id from " DB_READINGS ".readings_1 where rowid = ");
 			sqlBuffer.append(m);
 			sqlBuffer.append(" AND user_ts < datetime('now' , '-");
 			sqlBuffer.append(age);
@@ -1519,7 +1537,7 @@ int blocks = 0;
 		int rc;
 		int lastPurgedId;
 		SQLBuffer idBuffer;
-		idBuffer.append("select id from " DB_READINGS ".readings where rowid = ");
+		idBuffer.append("select id from " DB_READINGS ".readings_1 where rowid = ");
 		idBuffer.append(rowidLimit);
 		idBuffer.append(';');
 		const char *idQuery = idBuffer.coalesce();
@@ -1567,7 +1585,7 @@ int blocks = 0;
 			rowidMin = rowidLimit;
 		}
 		SQLBuffer sql;
-		sql.append("DELETE FROM " DB_READINGS ".readings WHERE rowid <= ");
+		sql.append("DELETE FROM " DB_READINGS ".readings_1 WHERE rowid <= ");
 		sql.append(rowidMin);
 		sql.append(';');
 		const char *query = sql.coalesce();
@@ -1952,7 +1970,7 @@ int ReadingsCatalogue::calculateGlobalId (sqlite3 *dbHandle)
 				if (!firstRow)
 					sql_cmd += " UNION ";
 
-				sql_cmd += " SELECT max(id) id FROM " DB_READINGS ".readings_" + to_string(item.second) + " ";
+				sql_cmd += " SELECT max(id) id FROM " DB_READINGS ".readings_" + to_string(item.second.first) + " ";
 				firstRow = false;
 			}
 		}
@@ -1991,7 +2009,7 @@ int ReadingsCatalogue::calculateGlobalId (sqlite3 *dbHandle)
 bool  ReadingsCatalogue::loadAssetReadingCatalogue()
 {
 	int nCols;
-	int id, usedReadings;
+	int tableId, usedReadings, dbId, maxDbID;
 	char *asset_name;
 	sqlite3_stmt *stmt;
 	int rc;
@@ -2012,12 +2030,15 @@ bool  ReadingsCatalogue::loadAssetReadingCatalogue()
 	// loads readings catalog from the db
 	const char *sql_cmd = R"(
 		SELECT
-			id,
+			table_id,
+			db_id,
 			asset_code
 		FROM  )" DB_READINGS R"(.asset_reading_catalogue
-		ORDER BY id;
+		ORDER BY table_id;
 	)";
 
+	//# FIXME_I:
+	maxDbID = 1;
 	if (sqlite3_prepare_v2(dbHandle,sql_cmd,-1, &stmt,NULL) != SQLITE_OK)
 	{
 		raiseError("retrieve asset_reading_catalogue", sqlite3_errmsg(dbHandle));
@@ -2031,15 +2052,20 @@ bool  ReadingsCatalogue::loadAssetReadingCatalogue()
 		{
 			nCols = sqlite3_column_count(stmt);
 
-			id = sqlite3_column_int(stmt, 0);
-			asset_name = (char *)sqlite3_column_text(stmt, 1);
+			tableId = sqlite3_column_int(stmt, 0);
+			dbId = sqlite3_column_int(stmt, 1);
+			asset_name = (char *)sqlite3_column_text(stmt, 2);
+
+			if (dbId > maxDbID)
+				maxDbID = dbId;
 
 			//# FIXME_I
 			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("xxx asset :%s: read from the catalogue - thread :%s:", asset_name, threadId.str().c_str());
+			Logger::getLogger()->debug("xxx read from the catalogue - thread :%s: - reading Id :%d: db Id :%d: asset name :%s: max db Id :%d:", threadId.str().c_str(), tableId, dbId,  asset_name, maxDbID);
 			Logger::getLogger()->setMinLevel("warning");
 
-			auto newMapValue = make_pair(asset_name,id);
+			auto newItem = make_pair(tableId,dbId);
+			auto newMapValue = make_pair(asset_name,newItem);
 			m_AssetReadingCatalogue.insert(newMapValue);
 
 			usedReadings++;
@@ -2050,6 +2076,8 @@ bool  ReadingsCatalogue::loadAssetReadingCatalogue()
 		sqlite3_finalize(stmt);
 	}
 	manager->release(connection);
+	//# FIXME_I:
+	m_dbId = maxDbID;
 
 	return true;
 }
@@ -2061,7 +2089,18 @@ void ReadingsCatalogue::preallocateReadingsTables()
 	int readingsToCreate;
 
 	ConnectionManager *manager = ConnectionManager::getInstance();
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx10 preallocateReadingsTables step1");
+	Logger::getLogger()->setMinLevel("warning");
+
 	Connection        *connection = manager->allocate();
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx10 preallocateReadingsTables step1");
+	Logger::getLogger()->setMinLevel("warning");
+
 
 	// Identifies last readings available
 	lastReadings = evaluateLastReadingAvailable(connection);
@@ -2120,7 +2159,6 @@ bool  ReadingsCatalogue::createReadingsTables(int idStartFrom, int nTables)
 		createReadings = R"(
 			CREATE TABLE )" DB_READINGS R"(.readings_)" + readingsIdxStr + R"( (
 				id         INTEGER                     PRIMARY KEY AUTOINCREMENT,
-				asset_code character varying(50)       NOT NULL,
 				reading    JSON                        NOT NULL DEFAULT '{}',
 				user_ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),
 				ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW'))
@@ -2248,7 +2286,7 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 	if (item != m_AssetReadingCatalogue.end())
 	{
 		//# An asset already  managed
-		readingsId = item->second;
+		readingsId = item->second.first;
 	}
 	else
 	{
@@ -2257,7 +2295,7 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 		auto item = m_AssetReadingCatalogue.find(asset_code);
 		if (item != m_AssetReadingCatalogue.end())
 		{
-			readingsId = item->second;
+			readingsId = item->second.first;
 		}
 		else
 		{
@@ -2282,15 +2320,19 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 				{
 					readingsId = getMaxReadingsId() + 1;
 
-					auto newMapValue = make_pair(asset_code, readingsId);
+					// # FIXME_I:
+					auto newItem = make_pair(readingsId,m_dbId);
+					auto newMapValue = make_pair(asset_code, newItem);
 					m_AssetReadingCatalogue.insert(newMapValue);
 				}
 
 				// Allocate the table in the reading catalogue
 				{
 					sql_cmd =
-						"INSERT INTO  " DB_READINGS ".asset_reading_catalogue (id, asset_code) VALUES  (" +
-						to_string(readingsId) + ",\"" + asset_code + "\")";
+						"INSERT INTO  " DB_READINGS ".asset_reading_catalogue (table_id, db_id, asset_code) VALUES  ("
+						+ to_string(readingsId) + ","
+						+ to_string(m_dbId)     + ","
+						+ "\"" + asset_code     + "\")";
 
 					rc = SQLexec (dbHandle, sql_cmd.c_str());
 					if (rc != SQLITE_OK)
@@ -2316,7 +2358,7 @@ int ReadingsCatalogue::getMaxReadingsId()
 
 	for (auto &item : m_AssetReadingCatalogue) {
 
-		id = item.second;
+		id = item.second.first;
 		if (id > maxId)
 				maxId = id;
 	}

@@ -135,7 +135,7 @@ class Connection {
 
 class ReadingsCatalogue {
 	private:
-		const int nReadingsAllocate = 20;
+		const int nReadingsAllocate = 5;
 
 		ReadingsCatalogue(){};
 
@@ -150,14 +150,15 @@ class ReadingsCatalogue {
 		int           SQLexec(sqlite3 *dbHandle, const char *sqlCmd);
 		int           calculateGlobalId (sqlite3 *dbHandle);
 
+		int              m_dbId;
 		std::atomic<int> m_globalId;
 		int              m_nReadingsTotal = 0;
 		int              m_nReadingsAvailable = 0;
 		std::mutex       m_mutexAssetReadingCatalogue;
-		std::map <std::string, int>   m_AssetReadingCatalogue={
+		std::map <std::string, std::pair<int, int>>   m_AssetReadingCatalogue={
 
-			// asset_code  - reading Table id
-			// {"",         1         }
+			// asset_code  - reading Table Id, Db Id
+			// {"",         ,{1               ,1 }}
 		};
 
 	public:

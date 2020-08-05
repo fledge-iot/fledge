@@ -71,7 +71,7 @@ static int purgeBlockSize = PURGE_DELETE_BLOCK_SIZE;
 				 auto usecs = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
 
 #define _DB_NAME              	"/fledge.sqlite"
-#define READINGS_DB_NAME        "/readings.db"
+#define READINGS_DB_NAME        "/readings_1.db"
 
 static time_t connectErrorTime = 0;
 
@@ -433,6 +433,11 @@ Connection::Connection()
 	const char *defaultConnection = getenv("DEFAULT_SQLITE_DB_FILE");
 	const char *defaultReadingsConnection = getenv("DEFAULT_SQLITE_DB_READINGS_FILE");
 
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx10 Step2 Connection ");
+	Logger::getLogger()->setMinLevel("warning");
+
 	m_logSQL = false;
 	m_queuing = 0;
 	m_streamOpenTransaction = true;
@@ -556,7 +561,7 @@ Connection::Connection()
 		// Attach readings database
 		SQLBuffer attachReadingsDb;
 		attachReadingsDb.append("ATTACH DATABASE '");
-		attachReadingsDb.append(dbPathReadings + "' AS readings;");
+		attachReadingsDb.append(dbPathReadings + "' AS readings_1;");
 
 		const char *sqlReadingsStmt = attachReadingsDb.coalesce();
 

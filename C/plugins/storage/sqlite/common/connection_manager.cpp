@@ -9,7 +9,7 @@
  */
 #include <connection_manager.h>
 #include <connection.h>
-
+#include <logger.h>
 
 ConnectionManager *ConnectionManager::instance = 0;
 
@@ -124,6 +124,52 @@ Connection *conn = 0;
 	}
 	return conn;
 }
+
+bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
+{
+	int rc;
+	std::string sqlCmd;
+	sqlite3 *dbHandle;
+
+
+	sqlCmd = "ATTACH DATABASE '" + path + "' AS " + alias + ";";
+
+	// attach the DB to all idle connections
+	{
+		idleLock.lock();
+		for ( auto conn : idle) {
+
+			dbHandle = conn->getDbHandle();
+			rc = sqlite3_exec(dbHandle, sqlCmd.c_str(), NULL, NULL, NULL);
+			if (rc != SQLITE_OK)
+			{
+				Logger::getLogger()->error("attachNewDb - impossible to attach the db :%s:  to an idle connection", path.c_str());
+				return false;
+			}
+		}
+		idleLock.unlock();
+	}
+
+	// attach the DB to all inUse connections
+	{
+		inUseLock.lock();
+		for ( auto conn : inUse) {
+
+			dbHandle = conn->getDbHandle();
+			rc = sqlite3_exec(dbHandle, sqlCmd.c_str(), NULL, NULL, NULL);
+			if (rc != SQLITE_OK)
+			{
+				Logger::getLogger()->error("attachNewDb - impossible to attach the db :%s:  to an inUse connection", path.c_str());
+				return false;
+			}
+		}
+		inUseLock.unlock();
+	}
+
+
+	return true;
+}
+
 
 /**
  * Release a connection back to the idle pool for

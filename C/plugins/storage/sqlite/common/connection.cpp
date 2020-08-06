@@ -70,9 +70,6 @@ static int purgeBlockSize = PURGE_DELETE_BLOCK_SIZE;
 #define END_TIME std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now(); \
 				 auto usecs = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
 
-#define _DB_NAME              	"/fledge.sqlite"
-#define READINGS_DB_NAME        "/readings_1.db"
-
 static time_t connectErrorTime = 0;
 
 /**

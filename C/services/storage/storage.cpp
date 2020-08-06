@@ -81,8 +81,7 @@ int main(int argc, char *argv[])
 unsigned short corePort = 8082;
 string	       coreAddress = "localhost";
 bool	       daemonMode = true;
-string	       myName = SERVICE_NAME;
-bool           returnPlugin = false;
+string	       myName = SERVICE_NAME;bool           returnPlugin = false;
 string	       logLevel = "warning";
 
 	for (int i = 1; i < argc; i++)

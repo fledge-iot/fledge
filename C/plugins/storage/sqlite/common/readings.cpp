@@ -15,13 +15,14 @@
 #include <reading_stream.h>
 #include <random>
 #include <map>
+#include <utils.h>
 //# FIXME_I:
+#include <libgen.h>
 //#include <mutex>
 
 // 1 enable performance tracking
 #define INSTRUMENT	0
 
-#define DB_READINGS "readings_1"
 
 #if INSTRUMENT
 #include <sys/time.h>
@@ -760,8 +761,10 @@ int localNReadingsTotal;
 				//# FIXME_I:
 				if (readingsStmt[readingsId] == nullptr)
 				{
-					sql_cmd = "INSERT INTO  " DB_READINGS ".readings_" + to_string(readingsId) +
-							  " ( id, user_ts, reading ) VALUES  (?,?,?)";
+					string dbName = readCatalogue->getDbNameFromTableId(readingsId);
+					string dbReadingsName = readCatalogue->getReadingsName(readingsId);
+
+					sql_cmd = "INSERT INTO  " + dbName  + dbReadingsName + " ( id, user_ts, reading ) VALUES  (?,?,?)";
 					rc = sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), -1, &readingsStmt[readingsId], NULL);
 					if (rc != SQLITE_OK)
 					{
@@ -2109,7 +2112,11 @@ void ReadingsCatalogue::preallocateReadingsTables()
 	if (lastReadings < getnReadingsAllocate())
 	{
 		readingsToCreate = getnReadingsAllocate() - lastReadings;
-		createReadingsTables(lastReadings + 1, readingsToCreate);
+		createReadingsTables(m_dbId, lastReadings + 1, readingsToCreate);
+
+		//# FIXME_I:
+		m_nReadingsTotal = readingsToCreate;
+		m_nReadingsAvailable = readingsToCreate;
 	}
 	else
 	{
@@ -2123,9 +2130,65 @@ void ReadingsCatalogue::preallocateReadingsTables()
 /**
  * # FIXME_I:
  */
-bool  ReadingsCatalogue::createReadingsTables(int idStartFrom, int nTables)
+bool  ReadingsCatalogue::createReadingsTablesNewDB(int idStartFrom, int nTables)
+{
+	int rc;
+	string sqlCmd;
+	string dbPathReadings;
+	string dbAlias;
+	sqlite3 *dbHandle;
+
+	m_dbId++;
+
+	// Define the db path
+	{
+		char *defaultReadingsConnection = getenv("DEFAULT_SQLITE_DB_READINGS_FILE");
+
+		if (defaultReadingsConnection == NULL)
+		{
+			dbPathReadings = getDataDir();
+		}
+		else
+		{
+			dbPathReadings  = dirname(defaultReadingsConnection);
+		}
+
+		if (dbPathReadings.back() != '/')
+			dbPathReadings += "/";
+
+		dbPathReadings += READINGS_DB_NAME_BASE "_" + to_string (m_dbId) + ".db";
+	}
+
+	dbAlias = READINGS_DB_NAME_BASE "_" + to_string(m_dbId);
+
+	//rc = sqlite3_open_v2(dbPathReadings.c_str(), &dbHandle, SQLITE_OPEN_READWRITE | SQLITE_OPEN_NOMUTEX,NULL);
+	rc = sqlite3_open(dbPathReadings.c_str(), &dbHandle);
+	if(rc != SQLITE_OK)
+	{
+		raiseError("createReadingsTablesNewDB", sqlite3_errmsg(dbHandle));
+		return false;
+	}
+	sqlite3_close(dbHandle);
+
+	//# FIXME_I:
+	m_nReadingsTotal += getnReadingsAllocate();
+	m_nReadingsAvailable = getnReadingsAllocate();
+
+	ConnectionManager *manager = ConnectionManager::getInstance();
+
+	manager->attachNewDb(dbPathReadings, dbAlias);
+
+	createReadingsTables(m_dbId ,idStartFrom, nTables);
+
+	return true;
+}
+
+bool  ReadingsCatalogue::createReadingsTables(int dbId, int idStartFrom, int nTables)
 {
 	string createReadings, createReadingsIdx;
+	string dbName;
+	string dbReadingsName;
+	int tableId;
 	int rc;
 	int readingsIdx;
 
@@ -2153,11 +2216,14 @@ bool  ReadingsCatalogue::createReadingsTables(int idStartFrom, int nTables)
 
 	for (readingsIdx = 0 ;  readingsIdx < nTables; ++readingsIdx)
 	{
+		tableId = idStartFrom + readingsIdx;
+		dbName = getDbName(dbId);
+		dbReadingsName = getReadingsName(tableId);
 
-		readingsIdxStr = to_string(idStartFrom + readingsIdx);
+		readingsIdxStr = to_string(tableId);
 
 		createReadings = R"(
-			CREATE TABLE )" DB_READINGS R"(.readings_)" + readingsIdxStr + R"( (
+			CREATE TABLE )" + dbName + dbReadingsName + R"( (
 				id         INTEGER                     PRIMARY KEY AUTOINCREMENT,
 				reading    JSON                        NOT NULL DEFAULT '{}',
 				user_ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),
@@ -2166,23 +2232,24 @@ bool  ReadingsCatalogue::createReadingsTables(int idStartFrom, int nTables)
 		)";
 
 		createReadingsIdx = R"(
-			CREATE INDEX )" DB_READINGS R"(.readings_)" + readingsIdxStr + R"(_ix3 ON readings_)" + readingsIdxStr + R"( (user_ts);
+			CREATE INDEX )" + dbName + dbReadingsName + R"(_ix3 ON readings_)" + to_string(tableId) + R"( (user_ts);
 		)";
 
 		rc = SQLexec(dbHandle, createReadings.c_str());
 		if (rc != SQLITE_OK)
 		{
-			raiseError("Error creating readings tables in advance", sqlite3_errmsg(dbHandle));
+			raiseError("createReadingsTables", sqlite3_errmsg(dbHandle));
 			return false;
 		}
 
 		rc = SQLexec(dbHandle, createReadingsIdx.c_str());
 		if (rc != SQLITE_OK)
 		{
-			raiseError("Error creating readings indexes in advance", sqlite3_errmsg(dbHandle));
+			raiseError("createReadingsTables", sqlite3_errmsg(dbHandle));
 			return false;
 		}
 	}
+	//# FIXME_I:
 	m_nReadingsTotal = idStartFrom + nTables -1;
 	m_nReadingsAvailable = nTables;
 
@@ -2306,7 +2373,7 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 				Logger::getLogger()->setMinLevel("debug");
 				Logger::getLogger()->debug("xxx allocate a block of reading tables");
 				Logger::getLogger()->setMinLevel("warning");
-				createReadingsTables(0, 0);
+				createReadingsTablesNewDB(0, 0);
 			}
 
 			// Associate a reading table to the asset
@@ -2365,6 +2432,39 @@ int ReadingsCatalogue::getMaxReadingsId()
 
 	return (maxId);
 }
+
+string ReadingsCatalogue::getDbName(int dbId)
+{
+	return (READINGS_DB_NAME_BASE "_" + to_string(dbId));
+}
+
+string ReadingsCatalogue::getReadingsName(int tableId)
+{
+	return (READINGS_TABLE_NAME_BASE "_" + to_string(tableId));
+}
+
+
+string ReadingsCatalogue::getDbNameFromTableId(int tableId)
+{
+	string dbName;
+
+	for (auto &item : m_AssetReadingCatalogue)
+	{
+
+		if (item.second.first == tableId)
+		{
+			dbName = READINGS_DB_NAME_BASE "_" + to_string(item.second.second);
+			break;
+		}
+	}
+	if (dbName == "")
+		dbName = READINGS_DB_NAME_BASE "_1";
+
+	return (dbName);
+}
+
+
+
 
 int ReadingsCatalogue::SQLexec(sqlite3 *dbHandle, const char *sqlCmd)
 {

@@ -75,10 +75,10 @@ PLUGIN_HANDLE plugin_init()
 	Logger::getLogger()->debug("xxx10 plugin_init step1");
 	Logger::getLogger()->setMinLevel("warning");
 
-	//# FIXME_I:
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-	readCat->preallocateReadingsTables();
+
 	readCat->loadAssetReadingCatalogue();
+	readCat->preallocateReadingsTables();
 	readCat->evaluateGlobalId();
 
 	//# FIXME_I

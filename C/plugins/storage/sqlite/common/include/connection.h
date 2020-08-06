@@ -20,6 +20,13 @@
 #include <vector>
 #include <atomic>
 
+//# FIXME_I: fix naming
+#define _DB_NAME                  "/fledge.sqlite"
+#define READINGS_DB_NAME_BASE     "readings"
+#define READINGS_DB_NAME          "/" READINGS_DB_NAME_BASE "_1.db"
+#define DB_READINGS                READINGS_DB_NAME_BASE "_1"
+#define READINGS_TABLE_NAME_BASE  ".readings"
+
 #define LEN_BUFFER_DATE 100
 #define F_TIMEH24_S             "%H:%M:%S"
 #define F_DATEH24_S             "%Y-%m-%d %H:%M:%S"
@@ -135,13 +142,13 @@ class Connection {
 
 class ReadingsCatalogue {
 	private:
-		const int nReadingsAllocate = 5;
+		const int nReadingsAllocate = 2;
 
 		ReadingsCatalogue(){};
 
 		int           getMaxReadingsId();
 		int           getnReadingsAllocate() const {return nReadingsAllocate;}
-		bool          createReadingsTables(int idStartFrom, int nTables);
+		bool          createReadingsTables(int dbId, int idStartFrom, int nTables);
 		void		  raiseError(const char *operation, const char *reason,...);
 		bool          isReadingAvailable() const;
 		void          allocateReadingAvailable();
@@ -162,6 +169,13 @@ class ReadingsCatalogue {
 		};
 
 	public:
+		//# FIXME_I:
+		bool          createReadingsTablesNewDB(int idStartFrom, int nTables);
+		std::string   getDbName(int tableId);
+		std::string   getDbNameFromTableId(int tableId);
+		std::string   getReadingsName(int tableId);
+
+
 		static ReadingsCatalogue *getInstance()
 		{
 			static ReadingsCatalogue *instance = 0;

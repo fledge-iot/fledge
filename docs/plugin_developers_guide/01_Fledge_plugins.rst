@@ -35,43 +35,46 @@ This chapter presents the plugins that are bundled with Fledge, how to write and
 There are also numerous plugins that are available as separate packages or in separate repositories that may be used with Fledge.
 
 
-Plugins
-=======
+Plugin Overview
+===============
 
 In this version of Fledge you have six types of plugins:
 
 - **South Plugins** - They are responsible for communication between Fledge and the sensors and actuators they support. Each instance of a Fledge South microservice will use a plugin for the actual communication to the sensors or actuators that that instance of the South microservice supports.
 - **Storage Plugins** - They sit between the Storage microservice and the physical data storage mechanism that stores the Fledge configuration and readings data. Storage plugins differ from other plugins in that they are written exclusively in C/C++, however they share the same common attributes and entry points that the other filter must support.
 - **Filter Plugins** - Filter plugins are used to modify data as it flows through Fledge. One or more filter plugins may compose a pipeline which modifies, either, data flowing out from the South ingress service into the Fledge Storage system, or out from Fledge storage into the North egress tasks.
-- **Notification Rule Plugins** - Notification plugins evaluate data in parallel with their entry into the Fledge Storage, before it enters the northbound Filter pipeline(s). If the notification "fires", notification delivery is executed. Rules can fire for triggering or clearing of the rule condition.
-  Notification rule plugins are applied to the notification service, the notification service is an optional service and must be installed before the notification plugins can be used.
-- **Notification Delivery Plugins** - These plugins deliver a notification event; events, trigger "reason", and accompanying "message" are specified, and delivered to a given [notification delivery type](#notification-delivery-types). Notification delivery plugins require installation of the optional notification service.
+- **Rule Plugins** - Rule plugins evaluate data in parallel with their entry into the Fledge Storage. If a rule "fires", it may trigger or clear the rule condition. If notification delivery is configured, the notification delivery plugin will be called to deliver an event.
+- **Notification Delivery Plugins** - Delivery plugins deliver a notification event; the name of the event, trigger "reason", and accompanying readings values are delivered to one of the `notification delivery types`_. Notification delivery plugins require installation of the optional notification service.
 - **North Plugins** - These plugins take data moving through Fledge and exports the data to the outside world. Data may originate from South plugins, from the Fledge system, or be added by filters.
 
-Message contents
-================
-Information flows through the system in "messages". Messages have a few "tags" which have well defined values. Messages may be extended to contain additional tags appropriate to particular plugins and data flows.
+Readings Format
+===============
+Information is delivered to plugins in tagged structures. These structures may be extended to contain additional tags appropriate to particular plugins and data flows.
 
-Most messages include:
+All readings containe:
 
 +------------+------------------+-------------------------------------------------------------------------------------------------------+
 | Tag        | Type             | Description                                                                                           |
 +============+==================+=======================================================================================================+
 | asset      | string           | Name under which this stream of data are placeed in Storage                                           |
 +------------+------------------+-------------------------------------------------------------------------------------------------------+
-| timestamp  | string           | Fledge timestamp when this asset was generated                                                        |
+| timestamp  | string           | Timestamp when this asset was generated                                                               |
 +------------+------------------+-------------------------------------------------------------------------------------------------------+
-| key        | string           | unique ID                                                                                             |
-+------------+------------------+-------------------------------------------------------------------------------------------------------+
-| readings   | dict             | {"<name-1>": <value-1> [, "<name-2>": <value-2>,... ["user_ts": <device-timestamp>]]}                 |
+| readings   | dict             | Set of tagged values representing the actual data values passed into the plugin for processing.       |
+|            |                  | Values may be valid JSON types including int, float, boolean, string, or timestamp (as a quoted       |
+|            |                  | string).                                                                                              |
+|            |                  | The tag "user_ts" is used to indicate a user- or device-generated timestamp.                          |
+|            |                  |                                                                                                       |
+|            |                  | |br| {"<name-1>": <value-1> [, "<name-2>": <value-2>,... ["user_ts": <device-timestamp>]]}            |
 +------------+------------------+-------------------------------------------------------------------------------------------------------+
 
 Plugin configuration
 ====================
 
-Different plugin types have required configuration entries.
+Plugin types have common, required configuration entries, as well as plugin-specific entries.
 
-Required configuration entries include:
+Required configuration entries
+------------------------------
 
 +------------------------+------------------------+----------------------+-------------------------------------------------------+
 | Entry                  | Required by            | Description          | Fields                                                |
@@ -87,26 +90,21 @@ Required configuration entries include:
 |                        |                        |                      | displayName: "<name for UI display>"           |br|   |
 |                        |                        |                      | order: "<order of display in UI>"                     |
 +------------------------+------------------------+----------------------+-------------------------------------------------------+
-| asset                  | South |br|             | Asset where data     | description: "<name of asset being monitored>" |br|   |
-|                        | Notification           | fields are deposited | type: "string"                                 |br|   |
-|                        |                        |                      | default: ""                                    |br|   |
-|                        |                        |                      | displayName: "<name for UI display>"           |br|   |
-|                        |                        |                      | mandatory: "true"                              |br|   |
-|                        |                        |                      | order: "<order of display in UI>"                     |
-+------------------------+------------------------+----------------------+-------------------------------------------------------+
 | source                 | North                  | Choice of data to    | description: "<Resource being forwarded>" |br|        |
-|                        |                        | forward from Foglamp | type: "enumeration"                  |br|             |
+|                        |                        | forward from system  | type: "enumeration"                  |br|             |
 |                        |                        | (readings or         | options: ["readings", "statistics"]  |br|             |
 |                        |                        | statistics)          | default: "readings"                  |br|             |
 |                        |                        |                      | displayName: "<name for UI display>" |br|             |
 |                        |                        |                      | order: "<order of display in UI>"                     |
 +------------------------+------------------------+----------------------+-------------------------------------------------------+
 
-Fledge plugin methods
----------------------
-Different plugin types (eg., north/south/...) have common and distinct APIs they must export.
+Plugin methods
+==============
 
-Required APIs include:
+Plugins have common APIs they must support as well as type-specific APIs.
+
+Common APIs
+-----------
 
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
 | Entry                  | Required by     | Description                                                                                           |
@@ -117,34 +115,46 @@ Required APIs include:
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
 | plugin_shutdown        | all             | Destroys plugin and related state                                                                     |
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
-| plugin_reconfigure     | all             | Replaces existing configuration with new values; may need to call shutdown/init                       |
+
+
+Filter plugin APIs
+------------------
+
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
 | plugin_ingest          | Filter          | Provides data which is modified, then sent on to ingest callback                                      |
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
-| plugin_eval            | Notification    | Takes JSON asset document to eval; Returns True if should "notify"                                    |
+| plugin_reconfigure     | all             | Replaces existing configuration with new values; may need to call shutdown/init                       |
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
-| plugin_triggers        | Notification    | Returns JSON asset document describing what notification triggers have fired                          |
+
+
+Rule plugin APIs
+------------------------
+
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
-| plugin_reason          | Notification    | Takes JSON asset document describing why notifications have fired                                     |
+| plugin_eval            | Rule            | Takes JSON asset document to eval; Returns True if should "deliver" a notification                    |
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
-| plugin_deliver         | Notification    | Takes name/notification/trigger/message strings to be sent to                                         |
-|                        | |br| delivery   | [notification delivery](#notification-delivery-types) channel.                                        |
+| plugin_triggers        | Rule            | Returns JSON asset document describing what notification triggers have fired                          |
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
-| plugin_send            | North           | Provides data,input_ref to be sent to North plugin target                                             |
+| plugin_reason          | Rule            | Takes JSON asset document describing why notifications have fired                                     |
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
-| plugin_poll            | South           | Initiates pull (return) of next set of data from south data source.                                   |
-|                        |                 | Only applicable for "poll" mode South plugins.                                                        |
+| plugin_reconfigure     | Rule            | Replaces existing configuration with new values; may need to call shutdown/init                       |
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
-| plugin_start           | South           | Starts components needed to service async mode South operation, such as service threads.              |
+
+
+Notification delivery APIs
+--------------------------
+
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
-| plugin_register_ingest | South           | Registers callback and ingest "ref" which receive new data as available                               |
+| plugin_deliver         | Notification    | Takes name/notification/trigger/message strings to be sent to the                                     |
+|                        |                 | `notification delivery types`_ target.                                                                |
++------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
+| plugin_reconfigure     | Notification    | Replaces existing configuration with new values; may need to call shutdown/init                       |
 +------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
 
 Notification delivery types
----------------------------
-Notifications can be delivered through a variety of media.
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Notification delivery types include:
+Notifications can be delivered through a variety of media.
 
 +------------------+-------------------------------------------------------------------------------------------------------+
 | Type             | Description                                                                                           |
@@ -168,13 +178,34 @@ Notification delivery types include:
 +------------------+-------------------------------------------------------------------------------------------------------+
 
 
+North plugin APIs
+-----------------
+
++------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
+| plugin_send            | North           | Provides data,input_ref to be sent to North plugin target                                             |
++------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
+
+
+South plugin APIs
+-----------------
+
++------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
+| plugin_poll            | South           | Initiates pull (return) of next set of data from south data source.                                   |
+|                        |                 | Only applicable for "poll" mode South plugins.                                                        |
++------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
+| plugin_start           | South           | Starts components needed to service async mode South operation, such as service threads.              |
++------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
+| plugin_register_ingest | South           | Registers callback and ingest "ref" which receive new data as available                               |
++------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
+| plugin_reconfigure     | South           | Replaces existing configuration with new values; may need to call shutdown/init                       |
++------------------------+-----------------+-------------------------------------------------------------------------------------------------------+
+
+
+
 Existing plugins and plugin extensions
 ======================================
 Fledge comes with a number of plugins in its main repository. Additional plugins may be loaded from the standard Fledge collection, from third pary collections, or from code developed by users.
 
-
-Plugins in this version of Fledge
-----------------------------------
 
 This version of Fledge provides the following plugins in the main repository:
 
@@ -200,7 +231,7 @@ In addition to the plugins in the main repository, there are many other plugins 
 
 
 Installing New Plugins
-----------------------
+======================
 
 As a general rule and unless the documentation states otherwise, plugins should be installed in two ways:
 

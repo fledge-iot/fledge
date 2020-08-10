@@ -147,19 +147,20 @@ class ReadingsCatalogue {
 		ReadingsCatalogue(){};
 
 		int           getMaxReadingsId();
+		int           getUsedTablesDbId(int dbId);
 		int           getnReadingsAllocate() const {return nReadingsAllocate;}
 		bool          createReadingsTables(int dbId, int idStartFrom, int nTables);
 		void		  raiseError(const char *operation, const char *reason,...);
 		bool          isReadingAvailable() const;
 		void          allocateReadingAvailable();
-		int           evaluateLastReadingAvailable(Connection *connection);
+		void          evaluateLastReadingAvailable(Connection *connection, int m_dbId, int *maxId, int *tableCount);
 		int			  SQLStep(sqlite3_stmt *statement);
 		int           SQLexec(sqlite3 *dbHandle, const char *sqlCmd);
 		int           calculateGlobalId (sqlite3 *dbHandle);
 
 		int              m_dbId;
 		std::atomic<int> m_globalId;
-		int              m_nReadingsTotal = 0;
+		int              m_nReadingsUsed = 0;
 		int              m_nReadingsAvailable = 0;
 		std::mutex       m_mutexAssetReadingCatalogue;
 		std::map <std::string, std::pair<int, int>>   m_AssetReadingCatalogue={
@@ -170,7 +171,7 @@ class ReadingsCatalogue {
 
 	public:
 		//# FIXME_I:
-		bool          createReadingsTablesNewDB(int idStartFrom, int nTables);
+		bool          createReadingsTablesNewDB();
 		std::string   getDbName(int tableId);
 		std::string   getDbNameFromTableId(int tableId);
 		std::string   getReadingsName(int tableId);
@@ -195,7 +196,7 @@ class ReadingsCatalogue {
 		void          preallocateReadingsTables();
 		bool          loadAssetReadingCatalogue();
 
-		int           getNReadingsTotal() const      {return m_nReadingsTotal;}
+		int           getNReadingsTotal() const      {return m_nReadingsUsed;}
 		int           getNReadingsAvailable() const      {return m_nReadingsAvailable;}
 		int           getReadingReference(Connection *connection, const char *asset_code);
 };

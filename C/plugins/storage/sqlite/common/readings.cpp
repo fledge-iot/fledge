@@ -17,6 +17,8 @@
 #include <map>
 #include <utils.h>
 //# FIXME_I:
+
+#include <sys/stat.h>
 #include <libgen.h>
 //#include <mutex>
 
@@ -2071,10 +2073,9 @@ bool  ReadingsCatalogue::loadAssetReadingCatalogue()
 			auto newMapValue = make_pair(asset_name,newItem);
 			m_AssetReadingCatalogue.insert(newMapValue);
 
+			//# FIXME_I:
 			usedReadings++;
 		}
-		//# FIXME_I:
-		m_nReadingsAvailable = m_nReadingsTotal - usedReadings;
 
 		sqlite3_finalize(stmt);
 	}
@@ -2089,7 +2090,13 @@ bool  ReadingsCatalogue::loadAssetReadingCatalogue()
 void ReadingsCatalogue::preallocateReadingsTables()
 {
 	int lastReadings;
+	int tableCount;
+	int readingsToAllocate;
 	int readingsToCreate;
+	int startId;
+
+
+	string dbName;
 
 	ConnectionManager *manager = ConnectionManager::getInstance();
 	//# FIXME_I
@@ -2106,23 +2113,19 @@ void ReadingsCatalogue::preallocateReadingsTables()
 
 
 	// Identifies last readings available
-	lastReadings = evaluateLastReadingAvailable(connection);
-	readingsToCreate = 0;
+	evaluateLastReadingAvailable(connection, m_dbId, &lastReadings, &tableCount);
+	readingsToAllocate = getnReadingsAllocate();
 
-	if (lastReadings < getnReadingsAllocate())
+	if (tableCount < readingsToAllocate)
 	{
-		readingsToCreate = getnReadingsAllocate() - lastReadings;
-		createReadingsTables(m_dbId, lastReadings + 1, readingsToCreate);
+		readingsToCreate = readingsToAllocate - tableCount;
+		startId = lastReadings + 1;
+		createReadingsTables(1, startId, readingsToCreate);
+	}
 
-		//# FIXME_I:
-		m_nReadingsTotal = readingsToCreate;
-		m_nReadingsAvailable = readingsToCreate;
-	}
-	else
-	{
-		m_nReadingsTotal = lastReadings;
-		m_nReadingsAvailable = 0;
-	}
+	//# FIXME_I:
+	m_nReadingsUsed = m_AssetReadingCatalogue.size();
+	m_nReadingsAvailable = readingsToAllocate - getUsedTablesDbId(m_dbId);
 
 	manager->release(connection);
 }
@@ -2130,19 +2133,32 @@ void ReadingsCatalogue::preallocateReadingsTables()
 /**
  * # FIXME_I:
  */
-bool  ReadingsCatalogue::createReadingsTablesNewDB(int idStartFrom, int nTables)
+bool  ReadingsCatalogue::createReadingsTablesNewDB()
 {
 	int rc;
+	int nTables;
+	int startId;
+
+	int readingsToAllocate;
+	int lastReadings;
+	int tableCount;
+	int readingsToCreate;
+
 	string sqlCmd;
 	string dbPathReadings;
 	string dbAlias;
 	sqlite3 *dbHandle;
+	struct stat st;
+	bool dbAlreadyPresent;
+
+	char *defaultReadingsConnection;
+	char defaultReadingsConnectionTmp[1000];
 
 	m_dbId++;
 
 	// Define the db path
 	{
-		char *defaultReadingsConnection = getenv("DEFAULT_SQLITE_DB_READINGS_FILE");
+		defaultReadingsConnection = getenv("DEFAULT_SQLITE_DB_READINGS_FILE");
 
 		if (defaultReadingsConnection == NULL)
 		{
@@ -2150,7 +2166,9 @@ bool  ReadingsCatalogue::createReadingsTablesNewDB(int idStartFrom, int nTables)
 		}
 		else
 		{
-			dbPathReadings  = dirname(defaultReadingsConnection);
+			// dirname modify the content of the parameter
+			strncpy ( defaultReadingsConnectionTmp, defaultReadingsConnection, sizeof(defaultReadingsConnectionTmp) );
+			dbPathReadings  = dirname(defaultReadingsConnectionTmp);
 		}
 
 		if (dbPathReadings.back() != '/')
@@ -2159,26 +2177,55 @@ bool  ReadingsCatalogue::createReadingsTablesNewDB(int idStartFrom, int nTables)
 		dbPathReadings += READINGS_DB_NAME_BASE "_" + to_string (m_dbId) + ".db";
 	}
 
-	dbAlias = READINGS_DB_NAME_BASE "_" + to_string(m_dbId);
-
-	//rc = sqlite3_open_v2(dbPathReadings.c_str(), &dbHandle, SQLITE_OPEN_READWRITE | SQLITE_OPEN_NOMUTEX,NULL);
-	rc = sqlite3_open(dbPathReadings.c_str(), &dbHandle);
-	if(rc != SQLITE_OK)
+	dbAlreadyPresent = false;
+	if(stat(dbPathReadings.c_str(),&st) == 0)
 	{
-		raiseError("createReadingsTablesNewDB", sqlite3_errmsg(dbHandle));
-		return false;
+		Logger::getLogger()->info("database file :%s: already present, creation skipped " , dbPathReadings.c_str() );
+		dbAlreadyPresent = true;
 	}
-	sqlite3_close(dbHandle);
+	else
+	{
+		dbAlias = READINGS_DB_NAME_BASE "_" + to_string(m_dbId);
+
+		rc = sqlite3_open(dbPathReadings.c_str(), &dbHandle);
+		if(rc != SQLITE_OK)
+		{
+			raiseError("createReadingsTablesNewDB", sqlite3_errmsg(dbHandle));
+			return false;
+		}
+		sqlite3_close(dbHandle);
+	}
 
 	//# FIXME_I:
-	m_nReadingsTotal += getnReadingsAllocate();
-	m_nReadingsAvailable = getnReadingsAllocate();
+
+	readingsToAllocate = getnReadingsAllocate();
+
+	if (dbAlreadyPresent)
+	{
+		ConnectionManager *manager = ConnectionManager::getInstance();
+		Connection        *connection = manager->allocate();
+
+		evaluateLastReadingAvailable(connection, m_dbId, &lastReadings, &tableCount);
+		manager->release(connection);
+
+		if (tableCount < readingsToAllocate)
+		{
+			readingsToCreate = readingsToAllocate - tableCount;
+			startId = lastReadings + 1;
+			createReadingsTables(1, startId, readingsToCreate);
+		}
+	}
+	else
+	{
+		startId = getMaxReadingsId() + 1;
+	}
 
 	ConnectionManager *manager = ConnectionManager::getInstance();
 
 	manager->attachNewDb(dbPathReadings, dbAlias);
 
-	createReadingsTables(m_dbId ,idStartFrom, nTables);
+	createReadingsTables(m_dbId ,startId, readingsToAllocate);
+	m_nReadingsAvailable = readingsToAllocate;
 
 	return true;
 }
@@ -2192,7 +2239,6 @@ bool  ReadingsCatalogue::createReadingsTables(int dbId, int idStartFrom, int nTa
 	int rc;
 	int readingsIdx;
 
-	string readingsIdxStr;
 	sqlite3 *dbHandle;
 
 	ConnectionManager *manager = ConnectionManager::getInstance();
@@ -2208,19 +2254,12 @@ bool  ReadingsCatalogue::createReadingsTables(int dbId, int idStartFrom, int nTa
 
 	logger->info("Creating :%d: readings table in advance", nTables);
 
-	if (idStartFrom == 0)
-		idStartFrom = evaluateLastReadingAvailable(connection) + 1;
-
-	if ( nTables == 0)
-		nTables = getnReadingsAllocate();
+	dbName = getDbName(dbId);
 
 	for (readingsIdx = 0 ;  readingsIdx < nTables; ++readingsIdx)
 	{
 		tableId = idStartFrom + readingsIdx;
-		dbName = getDbName(dbId);
 		dbReadingsName = getReadingsName(tableId);
-
-		readingsIdxStr = to_string(tableId);
 
 		createReadings = R"(
 			CREATE TABLE )" + dbName + dbReadingsName + R"( (
@@ -2249,9 +2288,6 @@ bool  ReadingsCatalogue::createReadingsTables(int dbId, int idStartFrom, int nTa
 			return false;
 		}
 	}
-	//# FIXME_I:
-	m_nReadingsTotal = idStartFrom + nTables -1;
-	m_nReadingsAvailable = nTables;
 
 	manager->release(connection);
 
@@ -2262,10 +2298,11 @@ bool  ReadingsCatalogue::createReadingsTables(int dbId, int idStartFrom, int nTa
 	return true;
 }
 
-int  ReadingsCatalogue::evaluateLastReadingAvailable(Connection *connection)
+void  ReadingsCatalogue::evaluateLastReadingAvailable(Connection *connection, int m_dbId, int *maxId, int *tableCount)
 {
+	string dbName;
 	int nCols;
-	int id, maxId;
+	int id;
 	char *asset_name;
 	sqlite3_stmt *stmt;
 	int rc;
@@ -2276,24 +2313,24 @@ int  ReadingsCatalogue::evaluateLastReadingAvailable(Connection *connection)
 	vector<int> readingsId(getNReadingsAvailable(), 0);
 
 	dbHandle = connection->getDbHandle();
+	dbName = getDbName(m_dbId);
 
-	maxId = 0;
-
-	const char *sql_cmd = R"(
+	string sql_cmd = R"(
 		SELECT name
-		FROM  )" DB_READINGS R"(.sqlite_master
+		FROM  )" + dbName +  R"(.sqlite_master
 		WHERE type='table' and name like 'readings_%';
 	)";
 
-	if (sqlite3_prepare_v2(dbHandle,sql_cmd,-1, &stmt,NULL) != SQLITE_OK)
+	if (sqlite3_prepare_v2(dbHandle,sql_cmd.c_str(),-1, &stmt,NULL) != SQLITE_OK)
 	{
 		raiseError("evaluateLastReadingAvailable", sqlite3_errmsg(dbHandle));
-		maxId = -1;
+		*maxId = -1;
 	}
 	else
 	{
 		// Iterate over all the rows in the resultSet
-
+		*maxId = 0;
+		*tableCount = 0;
 		while ((rc = SQLStep(stmt)) == SQLITE_ROW)
 		{
 			nCols = sqlite3_column_count(stmt);
@@ -2301,14 +2338,15 @@ int  ReadingsCatalogue::evaluateLastReadingAvailable(Connection *connection)
 			tableName = (char *)sqlite3_column_text(stmt, 0);
 			id = stoi(tableName.substr (tableName.find('_') + 1));
 
-			if (id > maxId)
-				maxId = id;
+			if (id > *maxId)
+				*maxId = id;
+
+			(*tableCount)++;
 		}
 
 		sqlite3_finalize(stmt);
 	}
 
-	return maxId;
 }
 
 bool  ReadingsCatalogue::isReadingAvailable() const
@@ -2323,6 +2361,7 @@ bool  ReadingsCatalogue::isReadingAvailable() const
 void  ReadingsCatalogue::allocateReadingAvailable()
 {
 	m_nReadingsAvailable--;
+	m_nReadingsUsed++;
 }
 
 
@@ -2373,7 +2412,7 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 				Logger::getLogger()->setMinLevel("debug");
 				Logger::getLogger()->debug("xxx allocate a block of reading tables");
 				Logger::getLogger()->setMinLevel("warning");
-				createReadingsTablesNewDB(0, 0);
+				createReadingsTablesNewDB();
 			}
 
 			// Associate a reading table to the asset
@@ -2432,6 +2471,20 @@ int ReadingsCatalogue::getMaxReadingsId()
 
 	return (maxId);
 }
+
+int ReadingsCatalogue::getUsedTablesDbId(int dbId)
+{
+	int count = 0;
+
+	for (auto &item : m_AssetReadingCatalogue) {
+
+		if (item.second.second = dbId)
+			count++;
+	}
+
+	return (count);
+}
+
 
 string ReadingsCatalogue::getDbName(int dbId)
 {

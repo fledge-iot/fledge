@@ -59,32 +59,15 @@ PLUGIN_INFORMATION *plugin_info()
  */
 PLUGIN_HANDLE plugin_init()
 {
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx20 plugin_init step0");
-	Logger::getLogger()->setMinLevel("warning");
-
 	bool result;
 	ConnectionManager *manager = ConnectionManager::getInstance();
 	manager->growPool(5);
-
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx10 plugin_init step1");
-	Logger::getLogger()->setMinLevel("warning");
 
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 
 	readCat->loadAssetReadingCatalogue();
 	readCat->preallocateReadingsTables();
 	readCat->evaluateGlobalId();
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx10 Step1 plugin_init end");
-	Logger::getLogger()->setMinLevel("warning");
 
 	return manager;
 }
@@ -232,12 +215,6 @@ unsigned long	  age, size;
  */
 void plugin_release(PLUGIN_HANDLE handle, char *results)
 {
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx20 plugin_release");
-	Logger::getLogger()->setMinLevel("warning");
-
-
 	(void)handle;
 	free(results);
 }
@@ -261,10 +238,9 @@ ConnectionManager *manager = (ConnectionManager *)handle;
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx20 plugin_shutdown");
+	Logger::getLogger()->debug("xxx plugin_shutdown");
 	Logger::getLogger()->setMinLevel("warning");
 
-	//# FIXME_I:
 	Connection        *connection = manager->allocate();
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 	readCat->storeGlobalId();

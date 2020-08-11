@@ -432,7 +432,7 @@ Connection::Connection()
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx10 Step2 Connection ");
+	Logger::getLogger()->debug("xxx Step2 Connection ");
 	Logger::getLogger()->setMinLevel("warning");
 
 	m_logSQL = false;
@@ -456,7 +456,7 @@ Connection::Connection()
 		// Set DB base path
 		dbPathReadings = getDataDir();
 		// Add the filename
-		dbPathReadings += READINGS_DB_NAME;
+		dbPathReadings += READINGS_DB_FILE_NAME;
 	}
 	else
 	{

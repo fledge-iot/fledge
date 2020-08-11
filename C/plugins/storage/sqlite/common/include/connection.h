@@ -20,12 +20,11 @@
 #include <vector>
 #include <atomic>
 
-//# FIXME_I: fix naming
 #define _DB_NAME                  "/fledge.sqlite"
 #define READINGS_DB_NAME_BASE     "readings"
-#define READINGS_DB_NAME          "/" READINGS_DB_NAME_BASE "_1.db"
-#define DB_READINGS                READINGS_DB_NAME_BASE "_1"
-#define READINGS_TABLE_NAME_BASE  ".readings"
+#define READINGS_DB_FILE_NAME     "/" READINGS_DB_NAME_BASE "_1.db"
+#define READINGS_DB               READINGS_DB_NAME_BASE "_1"
+#define READINGS_TABLE            ".readings"
 
 #define LEN_BUFFER_DATE 100
 #define F_TIMEH24_S             "%H:%M:%S"
@@ -108,7 +107,6 @@ class Connection {
 		bool		aggregateQuery(const rapidjson::Value& payload, std::string& resultSet);
 		bool        getNow(std::string& Now);
 
-		//# FIXME_I:
 		sqlite3		*getDbHandle() {return dbHandle;};
 
 	private:
@@ -155,15 +153,15 @@ class ReadingsCatalogue {
 		bool          isReadingAvailable() const;
 		void          allocateReadingAvailable();
 		void          evaluateLastReadingAvailable(Connection *connection, int m_dbId, int *maxId, int *tableCount);
-		int			  SQLStep(sqlite3_stmt *statement);
-		int           SQLexec(sqlite3 *dbHandle, const char *sqlCmd);
 		int           calculateGlobalId (sqlite3 *dbHandle);
 
-		int              m_dbId;
-		std::atomic<int> m_globalId;
-		int              m_nReadingsUsed = 0;
-		int              m_nReadingsAvailable = 0;
-		std::mutex       m_mutexAssetReadingCatalogue;
+		int			  SQLStep(sqlite3_stmt *statement);
+		int           SQLexec(sqlite3 *dbHandle, const char *sqlCmd);
+
+		int                                           m_dbId;
+		std::atomic<int>                              m_globalId;
+		int                                           m_nReadingsAvailable = 0;
+		std::mutex                                    m_mutexAssetReadingCatalogue;
 		std::map <std::string, std::pair<int, int>>   m_AssetReadingCatalogue={
 
 			// asset_code  - reading Table Id, Db Id
@@ -171,13 +169,6 @@ class ReadingsCatalogue {
 		};
 
 	public:
-		//# FIXME_I:
-		bool          createNewDB();
-		std::string   getDbName(int tableId);
-		std::string   getDbNameFromTableId(int tableId);
-		std::string   getReadingsName(int tableId);
-
-
 		static ReadingsCatalogue *getInstance()
 		{
 			static ReadingsCatalogue *instance = 0;
@@ -189,18 +180,18 @@ class ReadingsCatalogue {
 			return instance;
 		}
 
+		std::string   getDbName(int tableId);
+		std::string   getDbNameFromTableId(int tableId);
+		std::string   getReadingsName(int tableId);
 		int           getMaxReadingsId();
-
-		// Returns the global Id and increment it
+		int           getNReadingsAvailable() const      {return m_nReadingsAvailable;}
 		int           getGlobalId() {return m_globalId++;};
 		bool          evaluateGlobalId();
 		bool          storeGlobalId ();
 
 		void          preallocateReadingsTables();
 		bool          loadAssetReadingCatalogue();
-
-		int           getNReadingsTotal() const      {return m_nReadingsUsed;}
-		int           getNReadingsAvailable() const      {return m_nReadingsAvailable;}
+		bool          createNewDB();
 		int           getReadingReference(Connection *connection, const char *asset_code);
 };
 

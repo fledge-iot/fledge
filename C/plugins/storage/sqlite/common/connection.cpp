@@ -502,15 +502,13 @@ Connection::Connection()
 		int rc;
 		char *zErrMsg = NULL;
 
-		string dbConfiguration = "PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;";
-
 		// Enable the WAL for the fledge DB
-		rc = sqlite3_exec(dbHandle, dbConfiguration.c_str(), NULL, NULL, &zErrMsg);
+		rc = sqlite3_exec(dbHandle, DB_CONFIGURATION, NULL, NULL, &zErrMsg);
 		if (rc != SQLITE_OK)
 		{
-			string errMsg = "Failed to set WAL from the fledge DB - " + dbConfiguration;
+			string errMsg = "Failed to set WAL from the fledge DB - " DB_CONFIGURATION;
 			Logger::getLogger()->error("%s : error %s",
-									   dbConfiguration.c_str(),
+			                           DB_CONFIGURATION,
 									   zErrMsg);
 			connectErrorTime = time(0);
 
@@ -591,10 +589,10 @@ Connection::Connection()
 		delete[] sqlReadingsStmt;
 
 		// Enable the WAL for the readings DB
-		rc = sqlite3_exec(dbHandle, dbConfiguration.c_str(),NULL, NULL, &zErrMsg);
+		rc = sqlite3_exec(dbHandle, DB_CONFIGURATION,NULL, NULL, &zErrMsg);
 		if (rc != SQLITE_OK)
 		{
-			string errMsg = "Failed to set WAL from the readings DB - " + dbConfiguration;
+			string errMsg = "Failed to set WAL from the readings DB - " DB_CONFIGURATION;
 			Logger::getLogger()->error("%s : error %s",
 									   errMsg.c_str(),
 									   zErrMsg);

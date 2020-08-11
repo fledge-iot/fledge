@@ -641,7 +641,7 @@ int localNReadingsTotal;
 	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
 
 	//# FIXME_I:
-	localNReadingsTotal = readCatalogue->getNReadingsTotal();
+	localNReadingsTotal = readCatalogue->getMaxReadingsId();
 	vector<sqlite3_stmt *> readingsStmt(localNReadingsTotal +1, nullptr);
 //# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
@@ -2108,7 +2108,7 @@ void ReadingsCatalogue::preallocateReadingsTables()
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx10 preallocateReadingsTables step1");
+	Logger::getLogger()->debug("xxx10 preallocateReadingsTables step2");
 	Logger::getLogger()->setMinLevel("warning");
 
 
@@ -2123,9 +2123,23 @@ void ReadingsCatalogue::preallocateReadingsTables()
 		createReadingsTables(1, startId, readingsToCreate);
 	}
 
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx10 preallocateReadingsTables step4");
+	Logger::getLogger()->setMinLevel("warning");
+
 	//# FIXME_I:
-	m_nReadingsUsed = m_AssetReadingCatalogue.size();
 	m_nReadingsAvailable = readingsToAllocate - getUsedTablesDbId(m_dbId);
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx9 nReadingsAvailable :%d:", m_nReadingsAvailable);
+	Logger::getLogger()->setMinLevel("warning");
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx10 preallocateReadingsTables step5");
+	Logger::getLogger()->setMinLevel("warning");
+
 
 	manager->release(connection);
 }
@@ -2133,7 +2147,7 @@ void ReadingsCatalogue::preallocateReadingsTables()
 /**
  * # FIXME_I:
  */
-bool  ReadingsCatalogue::createReadingsTablesNewDB()
+bool  ReadingsCatalogue::createNewDB()
 {
 	int rc;
 	int nTables;
@@ -2156,7 +2170,7 @@ bool  ReadingsCatalogue::createReadingsTablesNewDB()
 
 	m_dbId++;
 
-	// Define the db path
+	// Creates the DB data file
 	{
 		defaultReadingsConnection = getenv("DEFAULT_SQLITE_DB_READINGS_FILE");
 
@@ -2175,29 +2189,38 @@ bool  ReadingsCatalogue::createReadingsTablesNewDB()
 			dbPathReadings += "/";
 
 		dbPathReadings += READINGS_DB_NAME_BASE "_" + to_string (m_dbId) + ".db";
-	}
 
-	dbAlreadyPresent = false;
-	if(stat(dbPathReadings.c_str(),&st) == 0)
-	{
-		Logger::getLogger()->info("database file :%s: already present, creation skipped " , dbPathReadings.c_str() );
-		dbAlreadyPresent = true;
-	}
-	else
-	{
-		dbAlias = READINGS_DB_NAME_BASE "_" + to_string(m_dbId);
-
-		rc = sqlite3_open(dbPathReadings.c_str(), &dbHandle);
-		if(rc != SQLITE_OK)
+		dbAlreadyPresent = false;
+		if(stat(dbPathReadings.c_str(),&st) == 0)
 		{
-			raiseError("createReadingsTablesNewDB", sqlite3_errmsg(dbHandle));
-			return false;
+			Logger::getLogger()->info("database file :%s: already present, creation skipped " , dbPathReadings.c_str() );
+			dbAlreadyPresent = true;
 		}
-		sqlite3_close(dbHandle);
+		else
+		{
+			dbAlias = READINGS_DB_NAME_BASE "_" + to_string(m_dbId);
+
+			rc = sqlite3_open(dbPathReadings.c_str(), &dbHandle);
+			if(rc != SQLITE_OK)
+			{
+				raiseError("createNewDB", sqlite3_errmsg(dbHandle));
+				return false;
+			}
+			else
+			{
+				// Enables the WAL feature
+				rc = sqlite3_exec(dbHandle, DB_CONFIGURATION, NULL, NULL, NULL);
+				if (rc != SQLITE_OK)
+				{
+					raiseError("createNewDB", sqlite3_errmsg(dbHandle));
+					return false;
+				}
+			}
+			sqlite3_close(dbHandle);
+		}
 	}
 
 	//# FIXME_I:
-
 	readingsToAllocate = getnReadingsAllocate();
 
 	if (dbAlreadyPresent)
@@ -2361,7 +2384,6 @@ bool  ReadingsCatalogue::isReadingAvailable() const
 void  ReadingsCatalogue::allocateReadingAvailable()
 {
 	m_nReadingsAvailable--;
-	m_nReadingsUsed++;
 }
 
 
@@ -2412,7 +2434,7 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 				Logger::getLogger()->setMinLevel("debug");
 				Logger::getLogger()->debug("xxx allocate a block of reading tables");
 				Logger::getLogger()->setMinLevel("warning");
-				createReadingsTablesNewDB();
+				createNewDB();
 			}
 
 			// Associate a reading table to the asset
@@ -2460,13 +2482,12 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 
 int ReadingsCatalogue::getMaxReadingsId()
 {
-	int maxId = 0, id;
+	int maxId = 0;
 
 	for (auto &item : m_AssetReadingCatalogue) {
 
-		id = item.second.first;
-		if (id > maxId)
-				maxId = id;
+		if (item.second.first > maxId)
+				maxId = item.second.first;
 	}
 
 	return (maxId);

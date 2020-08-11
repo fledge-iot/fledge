@@ -41,6 +41,8 @@
 #define SQLITE3_NOW_READING     "strftime('%Y-%m-%d %H:%M:%f000+00:00', 'now')"
 #define SQLITE3_FLEDGE_DATETIME_TYPE "DATETIME"
 
+#define  DB_CONFIGURATION "PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;"
+
 // Set plugin name for log messages
 #ifndef PLUGIN_LOG_NAME
 #define PLUGIN_LOG_NAME "SQLite3"
@@ -146,7 +148,6 @@ class ReadingsCatalogue {
 
 		ReadingsCatalogue(){};
 
-		int           getMaxReadingsId();
 		int           getUsedTablesDbId(int dbId);
 		int           getnReadingsAllocate() const {return nReadingsAllocate;}
 		bool          createReadingsTables(int dbId, int idStartFrom, int nTables);
@@ -171,7 +172,7 @@ class ReadingsCatalogue {
 
 	public:
 		//# FIXME_I:
-		bool          createReadingsTablesNewDB();
+		bool          createNewDB();
 		std::string   getDbName(int tableId);
 		std::string   getDbNameFromTableId(int tableId);
 		std::string   getReadingsName(int tableId);
@@ -187,6 +188,8 @@ class ReadingsCatalogue {
 			}
 			return instance;
 		}
+
+		int           getMaxReadingsId();
 
 		// Returns the global Id and increment it
 		int           getGlobalId() {return m_globalId++;};

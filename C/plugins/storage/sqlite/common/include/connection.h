@@ -198,7 +198,7 @@ class ReadingsCatalogue {
 		bool          createNewDB();
 		int           getReadingReference(Connection *connection, const char *asset_code);
 		void          attachAllDbs();
-		std::string   sqlConstructMultiDb(std::string sqlCmdBase);
+		std::string   sqlConstructMultiDb(std::string &sqlCmdBase);
 };
 
 #endif

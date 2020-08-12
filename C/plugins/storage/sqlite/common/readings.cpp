@@ -747,7 +747,7 @@ int localNReadingsTotal;
 
 					//# FIXME_I
 					Logger::getLogger()->setMinLevel("debug");
-					Logger::getLogger()->debug("xxx readingsStmt resize size :%d: idx :%d: ", localNReadingsTotal, readingsId);
+					Logger::getLogger()->debug("xxx2 readingsStmt 2 resize size :%d: idx :%d: ", localNReadingsTotal, readingsId);
 					Logger::getLogger()->setMinLevel("warning");
 				}
 
@@ -925,21 +925,44 @@ int retrieve;
 	Logger::getLogger()->debug("xxx fetchReadings ");
 	Logger::getLogger()->setMinLevel("warning");
 
+//# FIXME_I:
+#define OLD_ALG
+
+#ifdef OLD_ALG
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx fetchReadings OLD_ALG");
+	Logger::getLogger()->setMinLevel("warning");
+
 	//# FIXME_I:
 	// SQL command to extract the data from the readings.readings
-//	const char *sql_cmd = R"(
-//	SELECT
-//		id,
-//		asset_code,
-//		reading,
-//		strftime('%%Y-%%m-%%d %%H:%%M:%%S', user_ts, 'utc')  ||
-//		substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
-//		strftime('%%Y-%%m-%%d %%H:%%M:%%f', ts, 'utc') AS ts
-//	FROM  )" READINGS_DB R"(.readings_1
-//	WHERE id >= %lu
-//	ORDER BY id ASC
-//	LIMIT %u;
-//	)";
+	const char *sql_cmd = R"(
+	SELECT
+		id,
+		"dummy_asset_code" asset_code,
+		reading,
+		strftime('%%Y-%%m-%%d %%H:%%M:%%S', user_ts, 'utc')  ||
+		substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
+		strftime('%%Y-%%m-%%d %%H:%%M:%%f', ts, 'utc') AS ts
+	FROM  )" READINGS_DB R"(.readings_1
+	WHERE id >= %lu
+	ORDER BY id ASC
+	LIMIT %u;
+	)";
+
+	/*
+	 * This query assumes datetime values are in 'localtime'
+	 */
+	snprintf(sqlbuffer,
+			 sizeof(sqlbuffer),
+			 sql_cmd,
+			 id,
+			 blksize);
+#else
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx fetchReadings NEW_ALG");
+	Logger::getLogger()->setMinLevel("warning");
 
 	string sql_cmd;
 	{
@@ -958,31 +981,40 @@ int retrieve;
 			(
 		)";
 
+		string sql_cmd_base;
 		string sql_cmd_tmp;
-		sql_cmd_tmp = readCat->sqlConstructMultiDb(" SELECT  id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ ");
+		//sql_cmd_tmp = readCat->sqlConstructMultiDb(" SELECT  id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ ");
+		sql_cmd_base = " SELECT  id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ WHERE id >= _id_ and id <=  _id_ + _blksize_ ";
+		sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
 		sql_cmd += sql_cmd_tmp;
 
 		sql_cmd += R"(
 			) as tb
-			WHERE id >= %lu
-			ORDER BY id ASC
-			LIMIT %u;
+			ORDER BY id ASC;
 		)";
 
-	}
+		StringReplaceAll (sql_cmd, "_id_", to_string(id));
+		StringReplaceAll (sql_cmd, "_blksize_", to_string(blksize));
 
+
+	}
 	/*
 	 * This query assumes datetime values are in 'localtime'
 	 */
+	//# FIXME_I:
 	snprintf(sqlbuffer,
 		 sizeof(sqlbuffer),
-		 sql_cmd.c_str(),
-		 id,
-		 blksize);
+		 sql_cmd.c_str());
+#endif
+
+
 
 	//# FIXME_I:
 	char tmp_buffer[500000];
-	snprintf (tmp_buffer,500000, "xxx1 fetchReadings sqlbuffer size :%u: sqlbuffer :%s:", (unsigned) strlen(sqlbuffer), sqlbuffer);
+	snprintf (tmp_buffer,500000, "xxx1 fetchReadings \n sqlbuffer size :%u: "
+							                                         "\n id :%lu: "
+												                     "\n blksize  :%u: "
+								                                     "\n sqlbuffer :%s:", (unsigned) strlen(sqlbuffer), id, blksize, sqlbuffer);
 	tmpLogger (tmp_buffer);
 
 
@@ -1043,7 +1075,7 @@ bool		isAggregate = false;
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx retrieveReadings ");
+	Logger::getLogger()->debug("xxx retrieveReadings V2 ");
 	Logger::getLogger()->setMinLevel("warning");
 
 	try {
@@ -2128,7 +2160,7 @@ void ReadingsCatalogue::getAllDbs(vector<int> &dbIdList) {
 				dbIdList.push_back(dbId);
 				//# FIXME_I
 				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxx2 getAllDbs dbId :%d: ", dbId);
+				Logger::getLogger()->debug("xxx getAllDbs dbId :%d: ", dbId);
 				Logger::getLogger()->setMinLevel("warning");
 			}
 
@@ -2159,7 +2191,7 @@ void ReadingsCatalogue::attachAllDbs()
 
 		//# FIXME_I
 		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx2 attachAllDbs dbId :%d: path :%s: alias :%s:", item, dbPathReadings.c_str(), dbAlias.c_str());
+		Logger::getLogger()->debug("xxx attachAllDbs dbId :%d: path :%s: alias :%s:", item, dbPathReadings.c_str(), dbAlias.c_str());
 		Logger::getLogger()->setMinLevel("warning");
 	}
 
@@ -2566,7 +2598,7 @@ int ReadingsCatalogue::getUsedTablesDbId(int dbId)
 }
 
 
-string  ReadingsCatalogue::sqlConstructMultiDb(string sqlCmdBase)
+string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase)
 {
 	string dbReadingsName;
 	string dbName;
@@ -2575,10 +2607,24 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string sqlCmdBase)
 
 	if (m_AssetReadingCatalogue.empty())
 	{
-		sqlCmd = " SELECT  id, \"dummy\" asset_code, reading, user_ts, ts  FROM " READINGS_DB ".readings_1 ";
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx sqlConstructMultiDb no tables defined");
+		Logger::getLogger()->setMinLevel("warning");
+
+		sqlCmd = sqlCmdBase;
+
+		StringReplaceAll (sqlCmd, "_assetcode_", "dummy_asset_code");
+		StringReplaceAll (sqlCmd, "_dbname_", READINGS_DB);
+		StringReplaceAll (sqlCmd, "_tablename_", "readings_1");
 	}
 	else
 	{
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx sqlConstructMultiDb tables defined");
+		Logger::getLogger()->setMinLevel("warning");
+
 		bool firstRow = true;
 
 		for (auto &item : m_AssetReadingCatalogue)

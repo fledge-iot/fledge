@@ -66,7 +66,14 @@ PLUGIN_HANDLE plugin_init()
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 
 	readCat->loadAssetReadingCatalogue();
+	readCat->attachAllDbs();
 	readCat->preallocateReadingsTables();
+
+	//# FIXME_I:
+	//std::string	  resultSet;
+	//Connection        *connection = manager->allocate();
+	//connection->fetchReadings(1, 1, resultSet);
+
 	readCat->evaluateGlobalId();
 
 	return manager;

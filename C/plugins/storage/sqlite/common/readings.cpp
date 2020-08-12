@@ -19,6 +19,12 @@
 #include <sys/stat.h>
 #include <libgen.h>
 
+//# FIXME_I:
+#include <string_utils.h>
+#include <tmp_log.hpp>
+#include <algorithm>
+#include <vector>
+
 // 1 enable performance tracking
 #define INSTRUMENT	0
 
@@ -747,10 +753,10 @@ int localNReadingsTotal;
 
 				if (readingsStmt[readingsId] == nullptr)
 				{
-					string dbName = readCatalogue->getDbNameFromTableId(readingsId);
-					string dbReadingsName = readCatalogue->getReadingsName(readingsId);
+					string dbName = readCatalogue->generateDbNameFromTableId(readingsId);
+					string dbReadingsName = readCatalogue->generateReadingsName(readingsId);
 
-					sql_cmd = "INSERT INTO  " + dbName  + dbReadingsName + " ( id, user_ts, reading ) VALUES  (?,?,?)";
+					sql_cmd = "INSERT INTO  " + dbName + "." + dbReadingsName + " ( id, user_ts, reading ) VALUES  (?,?,?)";
 					rc = sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), -1, &readingsStmt[readingsId], NULL);
 					if (rc != SQLITE_OK)
 					{
@@ -907,34 +913,79 @@ bool Connection::fetchReadings(unsigned long id,
 			       unsigned int blksize,
 			       std::string& resultSet)
 {
-char sqlbuffer[512];
+//# FIXME_I:
+char sqlbuffer[5120];
 char *zErrMsg = NULL;
 int rc;
 int retrieve;
 
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx fetchReadings ");
+	Logger::getLogger()->setMinLevel("warning");
+
+	//# FIXME_I:
 	// SQL command to extract the data from the readings.readings
-	const char *sql_cmd = R"(
-	SELECT
-		id,
-		asset_code,
-		reading,
-		strftime('%%Y-%%m-%%d %%H:%%M:%%S', user_ts, 'utc')  ||
-		substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
-		strftime('%%Y-%%m-%%d %%H:%%M:%%f', ts, 'utc') AS ts
-	FROM  )" READINGS_DB R"(.readings_1
-	WHERE id >= %lu
-	ORDER BY id ASC
-	LIMIT %u;
-	)";
+//	const char *sql_cmd = R"(
+//	SELECT
+//		id,
+//		asset_code,
+//		reading,
+//		strftime('%%Y-%%m-%%d %%H:%%M:%%S', user_ts, 'utc')  ||
+//		substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
+//		strftime('%%Y-%%m-%%d %%H:%%M:%%f', ts, 'utc') AS ts
+//	FROM  )" READINGS_DB R"(.readings_1
+//	WHERE id >= %lu
+//	ORDER BY id ASC
+//	LIMIT %u;
+//	)";
+
+	string sql_cmd;
+	{
+		ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
+
+		//# FIXME_I:
+		sql_cmd = R"(
+			SELECT
+				id,
+				asset_code,
+				reading,
+				strftime('%%Y-%%m-%%d %%H:%%M:%%S', user_ts, 'utc')  ||
+				substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
+				strftime('%%Y-%%m-%%d %%H:%%M:%%f', ts, 'utc') AS ts
+			FROM
+			(
+		)";
+
+		string sql_cmd_tmp;
+		sql_cmd_tmp = readCat->sqlConstructMultiDb(" SELECT  id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ ");
+		sql_cmd += sql_cmd_tmp;
+
+		sql_cmd += R"(
+			) as tb
+			WHERE id >= %lu
+			ORDER BY id ASC
+			LIMIT %u;
+		)";
+
+	}
 
 	/*
 	 * This query assumes datetime values are in 'localtime'
 	 */
 	snprintf(sqlbuffer,
 		 sizeof(sqlbuffer),
-		 sql_cmd,
+		 sql_cmd.c_str(),
 		 id,
 		 blksize);
+
+	//# FIXME_I:
+	char tmp_buffer[500000];
+	snprintf (tmp_buffer,500000, "xxx1 fetchReadings sqlbuffer size :%u: sqlbuffer :%s:", (unsigned) strlen(sqlbuffer), sqlbuffer);
+	tmpLogger (tmp_buffer);
+
+
 	logSQL("ReadingsFetch", sqlbuffer);
 	sqlite3_stmt *stmt;
 	// Prepare the SQL statement and get the result set
@@ -1004,6 +1055,7 @@ bool		isAggregate = false;
 
 		if (condition.empty())
 		{
+			//# FIXME_I:
 			const char *sql_cmd = R"(
 					SELECT
 						id,
@@ -1839,7 +1891,7 @@ bool ReadingsCatalogue::evaluateGlobalId ()
 
 			sql_cmd = " INSERT INTO " READINGS_DB ".configuration_readings VALUES (" + to_string(m_globalId) + ")";
 
-			if (SQLexec(dbHandle,sql_cmd.c_str()) != SQLITE_OK)
+			if (SQLExec(dbHandle, sql_cmd.c_str()) != SQLITE_OK)
 			{
 				raiseError("evaluateGlobalId", sqlite3_errmsg(dbHandle));
 				return false;
@@ -1869,7 +1921,7 @@ bool ReadingsCatalogue::evaluateGlobalId ()
 	{
 		sql_cmd = " UPDATE " READINGS_DB ".configuration_readings SET global_id=-1;";
 
-		if (SQLexec(dbHandle,sql_cmd.c_str()) != SQLITE_OK)
+		if (SQLExec(dbHandle, sql_cmd.c_str()) != SQLITE_OK)
 		{
 			raiseError("evaluateGlobalId", sqlite3_errmsg(dbHandle));
 			return false;
@@ -1899,7 +1951,7 @@ bool ReadingsCatalogue::storeGlobalId ()
 
 	sql_cmd = " UPDATE " READINGS_DB ".configuration_readings SET global_id=-" + to_string(m_globalId);
 
-	if (SQLexec(dbHandle,sql_cmd.c_str()) != SQLITE_OK)
+	if (SQLExec(dbHandle, sql_cmd.c_str()) != SQLITE_OK)
 	{
 		raiseError("storeGlobalId", sqlite3_errmsg(dbHandle));
 		return false;
@@ -1914,12 +1966,20 @@ bool ReadingsCatalogue::storeGlobalId ()
 int ReadingsCatalogue::calculateGlobalId (sqlite3 *dbHandle)
 {
 	string sql_cmd;
+	string dbReadingsName;
+	string dbName;
+
 	int rc;
 	int id;
 	int nCols;
 
 	sqlite3_stmt *stmt;
 	id = 1;
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx calculateGlobalId - start");
+	Logger::getLogger()->setMinLevel("warning");
 
 	// Prepare the sql command to calculate the global id from the rows in the DB
 	{
@@ -1940,9 +2000,14 @@ int ReadingsCatalogue::calculateGlobalId (sqlite3 *dbHandle)
 			for (auto &item : m_AssetReadingCatalogue)
 			{
 				if (!firstRow)
+				{
 					sql_cmd += " UNION ";
+				}
 
-				sql_cmd += " SELECT max(id) id FROM " READINGS_DB ".readings_" + to_string(item.second.first) + " ";
+				dbReadingsName = generateReadingsName(item.second.first);
+				dbName = generateDbName(item.second.second);
+
+				sql_cmd += " SELECT max(id) id FROM " + dbName + "." + dbReadingsName + " ";
 				firstRow = false;
 			}
 		}
@@ -2027,7 +2092,7 @@ bool  ReadingsCatalogue::loadAssetReadingCatalogue()
 
 			//# FIXME_I
 			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("xxx read from the catalogue - thread :%s: - reading Id :%d: db Id :%d: asset name :%s: max db Id :%d:", threadId.str().c_str(), tableId, dbId,  asset_name, maxDbID);
+			Logger::getLogger()->debug("xxx read from the catalogue - thread :%s: - reading Id :%d: dbId :%d: asset name :%s: max db Id :%d:", threadId.str().c_str(), tableId, dbId,  asset_name, maxDbID);
 			Logger::getLogger()->setMinLevel("warning");
 
 			auto newItem = make_pair(tableId,dbId);
@@ -2049,6 +2114,58 @@ bool  ReadingsCatalogue::loadAssetReadingCatalogue()
 	return true;
 }
 
+void ReadingsCatalogue::getAllDbs(vector<int> &dbIdList) {
+
+	int dbId;
+
+	for (auto &item : m_AssetReadingCatalogue) {
+
+		dbId = item.second.second;
+		if (dbId > 1)
+		{
+			if (std::find(dbIdList.begin(), dbIdList.end(), dbId) ==  dbIdList.end() )
+			{
+				dbIdList.push_back(dbId);
+				//# FIXME_I
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("xxx2 getAllDbs dbId :%d: ", dbId);
+				Logger::getLogger()->setMinLevel("warning");
+			}
+
+		}
+	}
+
+}
+
+void ReadingsCatalogue::attachAllDbs()
+{
+	int dbId;
+	string dbPathReadings;
+	string dbAlias;
+	vector<int> dbIdList;
+
+	ConnectionManager *manager = ConnectionManager::getInstance();
+	Connection        *connection = manager->allocate();
+
+	getAllDbs(dbIdList);
+
+	for(int item : dbIdList)
+	{
+		dbPathReadings = generateDbFilePah(item);
+		dbAlias = generateDbAlias(item);
+
+		// Attached the new db to the connections
+		manager->attachNewDb(dbPathReadings, dbAlias);
+
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx2 attachAllDbs dbId :%d: path :%s: alias :%s:", item, dbPathReadings.c_str(), dbAlias.c_str());
+		Logger::getLogger()->setMinLevel("warning");
+	}
+
+	manager->release(connection);
+}
+
 
 void ReadingsCatalogue::preallocateReadingsTables()
 {
@@ -2064,9 +2181,12 @@ void ReadingsCatalogue::preallocateReadingsTables()
 	ConnectionManager *manager = ConnectionManager::getInstance();
 	Connection        *connection = manager->allocate();
 
+	lastReadings = 0;
+	tableCount = 0;
+
 	// Identifies last readings available
 	evaluateLastReadingAvailable(connection, m_dbId, &lastReadings, &tableCount);
-	readingsToAllocate = getnReadingsAllocate();
+	readingsToAllocate = getNReadingsAllocate();
 
 	if (tableCount < readingsToAllocate)
 	{
@@ -2082,6 +2202,35 @@ void ReadingsCatalogue::preallocateReadingsTables()
 	Logger::getLogger()->setMinLevel("warning");
 
 	manager->release(connection);
+}
+
+
+string ReadingsCatalogue::generateDbFilePah(int dbId)
+{
+	string dbPathReadings;
+
+	char *defaultReadingsConnection;
+	char defaultReadingsConnectionTmp[1000];
+
+	defaultReadingsConnection = getenv("DEFAULT_SQLITE_DB_READINGS_FILE");
+
+	if (defaultReadingsConnection == NULL)
+	{
+		dbPathReadings = getDataDir();
+	}
+	else
+	{
+		// dirname modify the content of the parameter
+		strncpy ( defaultReadingsConnectionTmp, defaultReadingsConnection, sizeof(defaultReadingsConnectionTmp) );
+		dbPathReadings  = dirname(defaultReadingsConnectionTmp);
+	}
+
+	if (dbPathReadings.back() != '/')
+		dbPathReadings += "/";
+
+	dbPathReadings += generateDbFileName(dbId);
+
+	return  (dbPathReadings);
 }
 
 /**
@@ -2105,30 +2254,12 @@ bool  ReadingsCatalogue::createNewDB()
 	struct stat st;
 	bool dbAlreadyPresent;
 
-	char *defaultReadingsConnection;
-	char defaultReadingsConnectionTmp[1000];
 
 	m_dbId++;
 
 	// Creates the DB data file
 	{
-		defaultReadingsConnection = getenv("DEFAULT_SQLITE_DB_READINGS_FILE");
-
-		if (defaultReadingsConnection == NULL)
-		{
-			dbPathReadings = getDataDir();
-		}
-		else
-		{
-			// dirname modify the content of the parameter
-			strncpy ( defaultReadingsConnectionTmp, defaultReadingsConnection, sizeof(defaultReadingsConnectionTmp) );
-			dbPathReadings  = dirname(defaultReadingsConnectionTmp);
-		}
-
-		if (dbPathReadings.back() != '/')
-			dbPathReadings += "/";
-
-		dbPathReadings += READINGS_DB_NAME_BASE "_" + to_string (m_dbId) + ".db";
+		dbPathReadings = generateDbFilePah(m_dbId);
 
 		dbAlreadyPresent = false;
 		if(stat(dbPathReadings.c_str(),&st) == 0)
@@ -2138,7 +2269,7 @@ bool  ReadingsCatalogue::createNewDB()
 		}
 		else
 		{
-			dbAlias = READINGS_DB_NAME_BASE "_" + to_string(m_dbId);
+			dbAlias = generateDbAlias(m_dbId);
 
 			rc = sqlite3_open(dbPathReadings.c_str(), &dbHandle);
 			if(rc != SQLITE_OK)
@@ -2160,7 +2291,7 @@ bool  ReadingsCatalogue::createNewDB()
 		}
 	}
 
-	readingsToAllocate = getnReadingsAllocate();
+	readingsToAllocate = getNReadingsAllocate();
 
 	if (dbAlreadyPresent)
 	{
@@ -2206,6 +2337,11 @@ bool  ReadingsCatalogue::createReadingsTables(int dbId, int idStartFrom, int nTa
 	int rc;
 	int readingsIdx;
 
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx createReadingsTables dbid :%d:", dbId);
+	Logger::getLogger()->setMinLevel("warning");
+
 	sqlite3 *dbHandle;
 
 	ConnectionManager *manager = ConnectionManager::getInstance();
@@ -2216,15 +2352,15 @@ bool  ReadingsCatalogue::createReadingsTables(int dbId, int idStartFrom, int nTa
 
 	logger->info("Creating :%d: readings table in advance", nTables);
 
-	dbName = getDbName(dbId);
+	dbName = generateDbName(dbId);
 
 	for (readingsIdx = 0 ;  readingsIdx < nTables; ++readingsIdx)
 	{
 		tableId = idStartFrom + readingsIdx;
-		dbReadingsName = getReadingsName(tableId);
+		dbReadingsName = generateReadingsName(tableId);
 
 		createReadings = R"(
-			CREATE TABLE )" + dbName + dbReadingsName + R"( (
+			CREATE TABLE )" + dbName + "." + dbReadingsName + R"( (
 				id         INTEGER                     PRIMARY KEY AUTOINCREMENT,
 				reading    JSON                        NOT NULL DEFAULT '{}',
 				user_ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),
@@ -2233,17 +2369,17 @@ bool  ReadingsCatalogue::createReadingsTables(int dbId, int idStartFrom, int nTa
 		)";
 
 		createReadingsIdx = R"(
-			CREATE INDEX )" + dbName + dbReadingsName + R"(_ix3 ON readings_)" + to_string(tableId) + R"( (user_ts);
+			CREATE INDEX )" + dbName + "." + dbReadingsName + R"(_ix3 ON readings_)" + to_string(tableId) + R"( (user_ts);
 		)";
 
-		rc = SQLexec(dbHandle, createReadings.c_str());
+		rc = SQLExec(dbHandle, createReadings.c_str());
 		if (rc != SQLITE_OK)
 		{
 			raiseError("createReadingsTables", sqlite3_errmsg(dbHandle));
 			return false;
 		}
 
-		rc = SQLexec(dbHandle, createReadingsIdx.c_str());
+		rc = SQLExec(dbHandle, createReadingsIdx.c_str());
 		if (rc != SQLITE_OK)
 		{
 			raiseError("createReadingsTables", sqlite3_errmsg(dbHandle));
@@ -2256,7 +2392,7 @@ bool  ReadingsCatalogue::createReadingsTables(int dbId, int idStartFrom, int nTa
 	return true;
 }
 
-void  ReadingsCatalogue::evaluateLastReadingAvailable(Connection *connection, int m_dbId, int *maxId, int *tableCount)
+void  ReadingsCatalogue::evaluateLastReadingAvailable(Connection *connection, int dbId, int *maxId, int *tableCount)
 {
 	string dbName;
 	int nCols;
@@ -2270,7 +2406,7 @@ void  ReadingsCatalogue::evaluateLastReadingAvailable(Connection *connection, in
 	vector<int> readingsId(getNReadingsAvailable(), 0);
 
 	dbHandle = connection->getDbHandle();
-	dbName = getDbName(m_dbId);
+	dbName = generateDbName(dbId);
 
 	string sql_cmd = R"(
 		SELECT name
@@ -2385,7 +2521,7 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 						+ to_string(m_dbId)     + ","
 						+ "\"" + asset_code     + "\")";
 
-					rc = SQLexec (dbHandle, sql_cmd.c_str());
+					rc = SQLExec(dbHandle, sql_cmd.c_str());
 					if (rc != SQLITE_OK)
 					{
 						msg = string(sqlite3_errmsg(dbHandle)) + " asset :" + asset_code + ":";
@@ -2422,7 +2558,7 @@ int ReadingsCatalogue::getUsedTablesDbId(int dbId)
 
 	for (auto &item : m_AssetReadingCatalogue) {
 
-		if (item.second.second = dbId)
+		if (item.second.second == dbId)
 			count++;
 	}
 
@@ -2430,18 +2566,71 @@ int ReadingsCatalogue::getUsedTablesDbId(int dbId)
 }
 
 
-string ReadingsCatalogue::getDbName(int dbId)
+string  ReadingsCatalogue::sqlConstructMultiDb(string sqlCmdBase)
+{
+	string dbReadingsName;
+	string dbName;
+	string sqlCmdTmp;
+	string sqlCmd;
+
+	if (m_AssetReadingCatalogue.empty())
+	{
+		sqlCmd = " SELECT  id, \"dummy\" asset_code, reading, user_ts, ts  FROM " READINGS_DB ".readings_1 ";
+	}
+	else
+	{
+		bool firstRow = true;
+
+		for (auto &item : m_AssetReadingCatalogue)
+		{
+			sqlCmdTmp = sqlCmdBase;
+
+			if (!firstRow)
+			{
+				sqlCmd += " UNION ";
+			}
+
+			dbReadingsName = generateReadingsName(item.second.first);
+			dbName = generateDbName(item.second.second);
+
+			StringReplaceAll (sqlCmdTmp, "_assetcode_", item.first);
+			StringReplaceAll (sqlCmdTmp, "_dbname_", dbName);
+			StringReplaceAll (sqlCmdTmp, "_tablename_", dbReadingsName);
+			sqlCmd += sqlCmdTmp;
+			firstRow = false;
+		}
+	}
+
+	return(sqlCmd);
+
+}
+
+
+
+string ReadingsCatalogue::generateDbAlias(int dbId)
+{
+
+	return (READINGS_DB_NAME_BASE "_" + to_string(dbId));
+}
+
+string ReadingsCatalogue::generateDbName(int dbId)
 {
 	return (READINGS_DB_NAME_BASE "_" + to_string(dbId));
 }
 
-string ReadingsCatalogue::getReadingsName(int tableId)
+string ReadingsCatalogue::generateDbFileName(int dbId)
+{
+	return (READINGS_DB_NAME_BASE "_" + to_string (dbId) + ".db");
+}
+
+
+string ReadingsCatalogue::generateReadingsName(int tableId)
 {
 	return (READINGS_TABLE "_" + to_string(tableId));
 }
 
 
-string ReadingsCatalogue::getDbNameFromTableId(int tableId)
+string ReadingsCatalogue::generateDbNameFromTableId(int tableId)
 {
 	string dbName;
 
@@ -2463,13 +2652,13 @@ string ReadingsCatalogue::getDbNameFromTableId(int tableId)
 
 
 
-int ReadingsCatalogue::SQLexec(sqlite3 *dbHandle, const char *sqlCmd)
+int ReadingsCatalogue::SQLExec(sqlite3 *dbHandle, const char *sqlCmd)
 {
 	int retries = 0, rc;
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx SQLexec cmd :%s: ", sqlCmd);
+	Logger::getLogger()->debug("xxx SQLExec cmd :%s: ", sqlCmd);
 	Logger::getLogger()->setMinLevel("warning");
 
 	do {
@@ -2479,18 +2668,18 @@ int ReadingsCatalogue::SQLexec(sqlite3 *dbHandle, const char *sqlCmd)
 		{
 			int interval = (retries * RETRY_BACKOFF);
 			usleep(interval);	// sleep retries milliseconds
-			if (retries > 5) Logger::getLogger()->info("SQLexec - retry %d of %d, rc=%s, DB connection @ %p, slept for %d msecs",
+			if (retries > 5) Logger::getLogger()->info("SQLExec - retry %d of %d, rc=%s, DB connection @ %p, slept for %d msecs",
 													   retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", this, interval);
 		}
 	} while (retries < MAX_RETRIES && (rc == SQLITE_LOCKED || rc == SQLITE_BUSY));
 
 	if (rc == SQLITE_LOCKED)
 	{
-		Logger::getLogger()->error("SQLexec - Database still locked after maximum retries");
+		Logger::getLogger()->error("SQLExec - Database still locked after maximum retries");
 	}
 	if (rc == SQLITE_BUSY)
 	{
-		Logger::getLogger()->error("SQLexec - Database still busy after maximum retries");
+		Logger::getLogger()->error("SQLExec - Database still busy after maximum retries");
 	}
 
 	return rc;

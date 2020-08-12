@@ -24,7 +24,7 @@
 #define READINGS_DB_NAME_BASE     "readings"
 #define READINGS_DB_FILE_NAME     "/" READINGS_DB_NAME_BASE "_1.db"
 #define READINGS_DB               READINGS_DB_NAME_BASE "_1"
-#define READINGS_TABLE            ".readings"
+#define READINGS_TABLE            "readings"
 
 #define LEN_BUFFER_DATE 100
 #define F_TIMEH24_S             "%H:%M:%S"
@@ -147,16 +147,17 @@ class ReadingsCatalogue {
 		ReadingsCatalogue(){};
 
 		int           getUsedTablesDbId(int dbId);
-		int           getnReadingsAllocate() const {return nReadingsAllocate;}
+		int           getNReadingsAllocate() const {return nReadingsAllocate;}
 		bool          createReadingsTables(int dbId, int idStartFrom, int nTables);
 		void		  raiseError(const char *operation, const char *reason,...);
 		bool          isReadingAvailable() const;
 		void          allocateReadingAvailable();
-		void          evaluateLastReadingAvailable(Connection *connection, int m_dbId, int *maxId, int *tableCount);
+		void          evaluateLastReadingAvailable(Connection *connection, int dbId, int *maxId, int *tableCount);
 		int           calculateGlobalId (sqlite3 *dbHandle);
 
 		int			  SQLStep(sqlite3_stmt *statement);
-		int           SQLexec(sqlite3 *dbHandle, const char *sqlCmd);
+		int           SQLExec(sqlite3 *dbHandle, const char *sqlCmd);
+		std::string   generateDbFilePah(int dbId);
 
 		int                                           m_dbId;
 		std::atomic<int>                              m_globalId;
@@ -180,9 +181,12 @@ class ReadingsCatalogue {
 			return instance;
 		}
 
-		std::string   getDbName(int tableId);
-		std::string   getDbNameFromTableId(int tableId);
-		std::string   getReadingsName(int tableId);
+		std::string   generateDbAlias(int dbId);
+		std::string   generateDbName(int tableId);
+		std::string   generateDbFileName(int dbId);
+		std::string   generateDbNameFromTableId(int tableId);
+		std::string   generateReadingsName(int tableId);
+		void          getAllDbs(std::vector<int> &dbIdList);
 		int           getMaxReadingsId();
 		int           getNReadingsAvailable() const      {return m_nReadingsAvailable;}
 		int           getGlobalId() {return m_globalId++;};
@@ -193,6 +197,8 @@ class ReadingsCatalogue {
 		bool          loadAssetReadingCatalogue();
 		bool          createNewDB();
 		int           getReadingReference(Connection *connection, const char *asset_code);
+		void          attachAllDbs();
+		std::string   sqlConstructMultiDb(std::string sqlCmdBase);
 };
 
 #endif

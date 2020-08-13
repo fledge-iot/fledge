@@ -141,33 +141,6 @@ class Connection {
 };
 
 class ReadingsCatalogue {
-	private:
-		const int nReadingsAllocate = 2;
-
-		ReadingsCatalogue(){};
-
-		int           getUsedTablesDbId(int dbId);
-		int           getNReadingsAllocate() const {return nReadingsAllocate;}
-		bool          createReadingsTables(int dbId, int idStartFrom, int nTables);
-		void		  raiseError(const char *operation, const char *reason,...);
-		bool          isReadingAvailable() const;
-		void          allocateReadingAvailable();
-		void          evaluateLastReadingAvailable(Connection *connection, int dbId, int *maxId, int *tableCount);
-		int           calculateGlobalId (sqlite3 *dbHandle);
-
-		int			  SQLStep(sqlite3_stmt *statement);
-		int           SQLExec(sqlite3 *dbHandle, const char *sqlCmd);
-		std::string   generateDbFilePah(int dbId);
-
-		int                                           m_dbId;
-		std::atomic<int>                              m_globalId;
-		int                                           m_nReadingsAvailable = 0;
-		std::mutex                                    m_mutexAssetReadingCatalogue;
-		std::map <std::string, std::pair<int, int>>   m_AssetReadingCatalogue={
-
-			// asset_code  - reading Table Id, Db Id
-			// {"",         ,{1               ,1 }}
-		};
 
 	public:
 		static ReadingsCatalogue *getInstance()
@@ -199,6 +172,41 @@ class ReadingsCatalogue {
 		int           getReadingReference(Connection *connection, const char *asset_code);
 		void          attachAllDbs();
 		std::string   sqlConstructMultiDb(std::string &sqlCmdBase);
+
+	private:
+		const int nReadingsAllocate = 2;
+
+		typedef struct ReadingAvailable {
+			int lastReadings;
+			int tableCount;
+
+		} tyReadingsAvailable;
+
+		ReadingsCatalogue(){};
+
+		int           getUsedTablesDbId(int dbId);
+		int           getNReadingsAllocate() const {return nReadingsAllocate;}
+		bool          createReadingsTables(int dbId, int idStartFrom, int nTables);
+		bool          isReadingAvailable() const;
+		void          allocateReadingAvailable();
+		tyReadingsAvailable   evaluateLastReadingAvailable(Connection *connection, int dbId);
+		int           calculateGlobalId (sqlite3 *dbHandle);
+		std::string   generateDbFilePah(int dbId);
+
+		void		  raiseError(const char *operation, const char *reason,...);
+		int			  SQLStep(sqlite3_stmt *statement);
+		int           SQLExec(sqlite3 *dbHandle, const char *sqlCmd);
+
+		int                                           m_dbId;
+		std::atomic<int>                              m_globalId;
+		int                                           m_nReadingsAvailable = 0;
+		std::mutex                                    m_mutexAssetReadingCatalogue;
+		std::map <std::string, std::pair<int, int>>   m_AssetReadingCatalogue={
+
+			// asset_code  - reading Table Id, Db Id
+			// {"",         ,{1               ,1 }}
+		};
+
 };
 
 #endif

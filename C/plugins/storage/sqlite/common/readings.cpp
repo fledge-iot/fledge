@@ -2239,36 +2239,35 @@ void ReadingsCatalogue::attachAllDbs()
 
 void ReadingsCatalogue::preallocateReadingsTables()
 {
-	int lastReadings;
-	int tableCount;
 	int readingsToAllocate;
 	int readingsToCreate;
 	int startId;
 
+	tyReadingsAvailable readingsAvailable;
 
 	string dbName;
 
 	ConnectionManager *manager = ConnectionManager::getInstance();
 	Connection        *connection = manager->allocate();
 
-	lastReadings = 0;
-	tableCount = 0;
+	readingsAvailable.lastReadings = 0;
+	readingsAvailable.tableCount = 0;
 
 	// Identifies last readings available
-	evaluateLastReadingAvailable(connection, m_dbId, &lastReadings, &tableCount);
+	readingsAvailable = evaluateLastReadingAvailable(connection, m_dbId);
 	readingsToAllocate = getNReadingsAllocate();
 
-	if (tableCount < readingsToAllocate)
+	if (readingsAvailable.tableCount < readingsToAllocate)
 	{
-		readingsToCreate = readingsToAllocate - tableCount;
-		startId = lastReadings + 1;
+		readingsToCreate = readingsToAllocate - readingsAvailable.tableCount;
+		startId = readingsAvailable.lastReadings + 1;
 		createReadingsTables(1, startId, readingsToCreate);
 	}
 
 	m_nReadingsAvailable = readingsToAllocate - getUsedTablesDbId(m_dbId);
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx preallocateReadingsTables nReadingsAvailable :%d:", m_nReadingsAvailable);
+	Logger::getLogger()->debug("xxx preallocateReadingsTables nReadingsAvailable :%d: lastReadings :%d: tableCount :%d:", m_nReadingsAvailable, readingsAvailable.lastReadings, readingsAvailable.tableCount);
 	Logger::getLogger()->setMinLevel("warning");
 
 	manager->release(connection);
@@ -2313,8 +2312,6 @@ bool  ReadingsCatalogue::createNewDB()
 	int startId;
 
 	int readingsToAllocate;
-	int lastReadings;
-	int tableCount;
 	int readingsToCreate;
 
 	string sqlCmd;
@@ -2365,16 +2362,18 @@ bool  ReadingsCatalogue::createNewDB()
 
 	if (dbAlreadyPresent)
 	{
+		tyReadingsAvailable readingsAvailable;
+
 		ConnectionManager *manager = ConnectionManager::getInstance();
 		Connection        *connection = manager->allocate();
 
-		evaluateLastReadingAvailable(connection, m_dbId, &lastReadings, &tableCount);
+		readingsAvailable = evaluateLastReadingAvailable(connection, m_dbId);
 		manager->release(connection);
 
-		if (tableCount < readingsToAllocate)
+		if (readingsAvailable.tableCount < readingsToAllocate)
 		{
-			readingsToCreate = readingsToAllocate - tableCount;
-			startId = lastReadings + 1;
+			readingsToCreate = readingsToAllocate - readingsAvailable.tableCount;
+			startId = readingsAvailable.lastReadings + 1;
 			createReadingsTables(1, startId, readingsToCreate);
 		}
 	}
@@ -2462,7 +2461,7 @@ bool  ReadingsCatalogue::createReadingsTables(int dbId, int idStartFrom, int nTa
 	return true;
 }
 
-void  ReadingsCatalogue::evaluateLastReadingAvailable(Connection *connection, int dbId, int *maxId, int *tableCount)
+ReadingsCatalogue::tyReadingsAvailable  ReadingsCatalogue::evaluateLastReadingAvailable(Connection *connection, int dbId)
 {
 	string dbName;
 	int nCols;
@@ -2472,6 +2471,7 @@ void  ReadingsCatalogue::evaluateLastReadingAvailable(Connection *connection, in
 	int rc;
 	string tableName;
 	sqlite3		*dbHandle;
+	tyReadingsAvailable readingsAvailable;
 
 	vector<int> readingsId(getNReadingsAvailable(), 0);
 
@@ -2487,13 +2487,13 @@ void  ReadingsCatalogue::evaluateLastReadingAvailable(Connection *connection, in
 	if (sqlite3_prepare_v2(dbHandle,sql_cmd.c_str(),-1, &stmt,NULL) != SQLITE_OK)
 	{
 		raiseError("evaluateLastReadingAvailable", sqlite3_errmsg(dbHandle));
-		*maxId = -1;
+		readingsAvailable.lastReadings = -1;
 	}
 	else
 	{
 		// Iterate over all the rows in the resultSet
-		*maxId = 0;
-		*tableCount = 0;
+		readingsAvailable.lastReadings = 0;
+		readingsAvailable.tableCount = 0;
 		while ((rc = SQLStep(stmt)) == SQLITE_ROW)
 		{
 			nCols = sqlite3_column_count(stmt);
@@ -2501,15 +2501,16 @@ void  ReadingsCatalogue::evaluateLastReadingAvailable(Connection *connection, in
 			tableName = (char *)sqlite3_column_text(stmt, 0);
 			id = stoi(tableName.substr (tableName.find('_') + 1));
 
-			if (id > *maxId)
-				*maxId = id;
+			if (id > readingsAvailable.lastReadings)
+				readingsAvailable.lastReadings = id;
 
-			(*tableCount)++;
+			(readingsAvailable.tableCount)++;
 		}
 
 		sqlite3_finalize(stmt);
 	}
 
+	return (readingsAvailable);
 }
 
 bool  ReadingsCatalogue::isReadingAvailable() const

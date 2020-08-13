@@ -651,7 +651,7 @@ int localNReadingsTotal;
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx appendReadings start thread :%s:  readingsStmt size :%d:", threadId.str().c_str(), localNReadingsTotal);
+	Logger::getLogger()->debug("xxx appendReadings start v2 thread :%s:  readingsStmt size :%d:", threadId.str().c_str(), localNReadingsTotal);
 	Logger::getLogger()->setMinLevel("warning");
 
 #if INSTRUMENT
@@ -747,7 +747,7 @@ int localNReadingsTotal;
 
 					//# FIXME_I
 					Logger::getLogger()->setMinLevel("debug");
-					Logger::getLogger()->debug("xxx2 readingsStmt 2 resize size :%d: idx :%d: ", localNReadingsTotal, readingsId);
+					Logger::getLogger()->debug("xxx2 readingsStmt thread :%s: - resize size :%d: idx :%d: ", threadId.str().c_str(), localNReadingsTotal, readingsId);
 					Logger::getLogger()->setMinLevel("warning");
 				}
 
@@ -893,6 +893,11 @@ int localNReadingsTotal;
 		Logger::getLogger()->setMinLevel("warning");
 
 #endif
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx appendReadings END thread :%s:  readingsStmt size :%d:", threadId.str().c_str(), localNReadingsTotal);
+	Logger::getLogger()->setMinLevel("warning");
 
 	return row;
 }
@@ -1982,7 +1987,7 @@ bool ReadingsCatalogue::evaluateGlobalId ()
 	id = m_globalId;
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx evaluateGlobalId global id from the DB :%d:", id);
+	Logger::getLogger()->debug("xxx evaluateGlobalId - global id from the DB :%d:", id);
 	Logger::getLogger()->setMinLevel("warning");
 
 
@@ -2045,11 +2050,6 @@ int ReadingsCatalogue::calculateGlobalId (sqlite3 *dbHandle)
 
 	sqlite3_stmt *stmt;
 	id = 1;
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx calculateGlobalId - start");
-	Logger::getLogger()->setMinLevel("warning");
 
 	// Prepare the sql command to calculate the global id from the rows in the DB
 	{
@@ -2162,7 +2162,7 @@ bool  ReadingsCatalogue::loadAssetReadingCatalogue()
 
 			//# FIXME_I
 			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("xxx read from the catalogue - thread :%s: - reading Id :%d: dbId :%d: asset name :%s: max db Id :%d:", threadId.str().c_str(), tableId, dbId,  asset_name, maxDbID);
+			Logger::getLogger()->debug("xxx loadAssetReadingCatalogue - thread :%s: reading Id :%d: dbId :%d: asset name :%s: max db Id :%d:", threadId.str().c_str(), tableId, dbId,  asset_name, maxDbID);
 			Logger::getLogger()->setMinLevel("warning");
 
 			auto newItem = make_pair(tableId,dbId);
@@ -2264,7 +2264,7 @@ void ReadingsCatalogue::preallocateReadingsTables()
 	m_nReadingsAvailable = readingsToAllocate - getUsedTablesDbId(m_dbId);
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx preallocateReadingsTables nReadingsAvailable :%d: lastReadings :%d: tableCount :%d:", m_nReadingsAvailable, readingsAvailable.lastReadings, readingsAvailable.tableCount);
+	Logger::getLogger()->debug("xxx preallocateReadingsTables - dbId :%d: nReadingsAvailable :%d: lastReadingsCreated :%d: tableCount :%d:", m_dbId, m_nReadingsAvailable, readingsAvailable.lastReadings, readingsAvailable.tableCount);
 	Logger::getLogger()->setMinLevel("warning");
 
 }
@@ -2499,7 +2499,7 @@ ReadingsCatalogue::tyReadingsAvailable  ReadingsCatalogue::evaluateLastReadingAv
 			if (id > readingsAvailable.lastReadings)
 				readingsAvailable.lastReadings = id;
 
-			(readingsAvailable.tableCount)++;
+			readingsAvailable.tableCount++;
 		}
 
 		sqlite3_finalize(stmt);

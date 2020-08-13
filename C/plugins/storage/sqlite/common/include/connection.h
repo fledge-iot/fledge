@@ -189,7 +189,7 @@ class ReadingsCatalogue {
 		bool          createReadingsTables(int dbId, int idStartFrom, int nTables);
 		bool          isReadingAvailable() const;
 		void          allocateReadingAvailable();
-		tyReadingsAvailable   evaluateLastReadingAvailable(Connection *connection, int dbId);
+		tyReadingsAvailable   evaluateLastReadingAvailable(int dbId);
 		int           calculateGlobalId (sqlite3 *dbHandle);
 		std::string   generateDbFilePah(int dbId);
 

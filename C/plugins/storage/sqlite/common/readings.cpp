@@ -2247,14 +2247,11 @@ void ReadingsCatalogue::preallocateReadingsTables()
 
 	string dbName;
 
-	ConnectionManager *manager = ConnectionManager::getInstance();
-	Connection        *connection = manager->allocate();
-
 	readingsAvailable.lastReadings = 0;
 	readingsAvailable.tableCount = 0;
 
 	// Identifies last readings available
-	readingsAvailable = evaluateLastReadingAvailable(connection, m_dbId);
+	readingsAvailable = evaluateLastReadingAvailable(m_dbId);
 	readingsToAllocate = getNReadingsAllocate();
 
 	if (readingsAvailable.tableCount < readingsToAllocate)
@@ -2270,7 +2267,6 @@ void ReadingsCatalogue::preallocateReadingsTables()
 	Logger::getLogger()->debug("xxx preallocateReadingsTables nReadingsAvailable :%d: lastReadings :%d: tableCount :%d:", m_nReadingsAvailable, readingsAvailable.lastReadings, readingsAvailable.tableCount);
 	Logger::getLogger()->setMinLevel("warning");
 
-	manager->release(connection);
 }
 
 
@@ -2364,11 +2360,7 @@ bool  ReadingsCatalogue::createNewDB()
 	{
 		tyReadingsAvailable readingsAvailable;
 
-		ConnectionManager *manager = ConnectionManager::getInstance();
-		Connection        *connection = manager->allocate();
-
-		readingsAvailable = evaluateLastReadingAvailable(connection, m_dbId);
-		manager->release(connection);
+		readingsAvailable = evaluateLastReadingAvailable(m_dbId);
 
 		if (readingsAvailable.tableCount < readingsToAllocate)
 		{
@@ -2461,7 +2453,7 @@ bool  ReadingsCatalogue::createReadingsTables(int dbId, int idStartFrom, int nTa
 	return true;
 }
 
-ReadingsCatalogue::tyReadingsAvailable  ReadingsCatalogue::evaluateLastReadingAvailable(Connection *connection, int dbId)
+ReadingsCatalogue::tyReadingsAvailable  ReadingsCatalogue::evaluateLastReadingAvailable(int dbId)
 {
 	string dbName;
 	int nCols;
@@ -2474,6 +2466,9 @@ ReadingsCatalogue::tyReadingsAvailable  ReadingsCatalogue::evaluateLastReadingAv
 	tyReadingsAvailable readingsAvailable;
 
 	vector<int> readingsId(getNReadingsAvailable(), 0);
+
+	ConnectionManager *manager = ConnectionManager::getInstance();
+	Connection        *connection = manager->allocate();
 
 	dbHandle = connection->getDbHandle();
 	dbName = generateDbName(dbId);
@@ -2509,6 +2504,8 @@ ReadingsCatalogue::tyReadingsAvailable  ReadingsCatalogue::evaluateLastReadingAv
 
 		sqlite3_finalize(stmt);
 	}
+
+	manager->release(connection);
 
 	return (readingsAvailable);
 }

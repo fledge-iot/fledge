@@ -2196,15 +2196,12 @@ void ReadingsCatalogue::getAllDbs(vector<int> &dbIdList) {
 			if (std::find(dbIdList.begin(), dbIdList.end(), dbId) ==  dbIdList.end() )
 			{
 				dbIdList.push_back(dbId);
-				//# FIXME_I
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxx getAllDbs dbId :%d: ", dbId);
-				Logger::getLogger()->setMinLevel("warning");
 			}
 
 		}
 	}
 
+	sort(dbIdList.begin(), dbIdList.end());
 }
 
 void ReadingsCatalogue::attachAllDbs()

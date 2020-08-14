@@ -927,7 +927,7 @@ int retrieve;
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx fetchReadings ");
+	Logger::getLogger()->debug("xxx fetchReadings V3 ");
 	Logger::getLogger()->setMinLevel("warning");
 
 //# FIXME_I:
@@ -936,7 +936,7 @@ int retrieve;
 #ifdef OLD_ALG
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx fetchReadings OLD_ALG");
+	Logger::getLogger()->debug("xxx fetchReadings OLD_ALG V2");
 	Logger::getLogger()->setMinLevel("warning");
 
 	//# FIXME_I:
@@ -966,7 +966,7 @@ int retrieve;
 
 		//# FIXME_I:
 	char tmp_buffer[500000];
-	snprintf (tmp_buffer,500000, "xxx1 fetchReadings \n sqlbuffer size :%u: "
+	snprintf (tmp_buffer,500000, "xxx1 fetchReadings OLD \n sqlbuffer size :%u: "
 							                                         "\n id :%lu: "
 												                     "\n blksize  :%u: "
 								                                     "\n sqlbuffer :%s:", (unsigned) strlen(sqlbuffer), id, blksize, sqlbuffer);
@@ -1012,44 +1012,45 @@ int retrieve;
 #else
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx fetchReadings NEW_ALG");
+	Logger::getLogger()->debug("xxx fetchReadings NEW_ALG V2");
 	Logger::getLogger()->setMinLevel("warning");
 
 	string sql_cmd;
+	// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
 	{
 		ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 
 		//# FIXME_I:
+		// SQL - start
 		sql_cmd = R"(
 			SELECT
 				id,
 				asset_code,
 				reading,
-				strftime('%%Y-%%m-%%d %%H:%%M:%%S', user_ts, 'utc')  ||
+				strftime('%Y-%m-%d %H:%M:%S', user_ts, 'utc')  ||
 				substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
-				strftime('%%Y-%%m-%%d %%H:%%M:%%f', ts, 'utc') AS ts
+				strftime('%Y-%m-%d %H:%M:%f', ts, 'utc') AS ts
 			FROM
 			(
 		)";
 
+		// SQL - union of all the readings tables
 		string sql_cmd_base;
 		string sql_cmd_tmp;
 		sql_cmd_base = " SELECT  id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ WHERE id >= " + to_string(id) + " and id <=  " + to_string(id) + " + " + to_string(blksize) + " ";
 		sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
 		sql_cmd += sql_cmd_tmp;
 
+		// SQL - end
 		sql_cmd += R"(
 			) as tb
 			ORDER BY id ASC;
 		)";
 
 	}
-	/*
-	 * This query assumes datetime values are in 'localtime'
-	 */
 	//# FIXME_I:
 	char tmp_buffer[500000];
-	snprintf (tmp_buffer,500000, "xxx1 fetchReadings \n sql_cmd.c_str() size :%u: "
+	snprintf (tmp_buffer,500000, "xxx1 fetchReadings NEW2 \n sql_cmd.c_str() size :%u: "
 								 "\n id :%lu: "
 								 "\n blksize  :%u: "
 								 "\n sql_cmd.c_str() :%s:", (unsigned) strlen(sql_cmd.c_str()), id, blksize, sql_cmd.c_str());
@@ -1074,6 +1075,11 @@ int retrieve;
 	{
 		// Call result set mapping
 		rc = mapResultSet(stmt, resultSet);
+
+		//# FIXME_I:
+		char tmp_buffer[500000];
+		snprintf (tmp_buffer,500000, "xxx1 resultSet :%s: " , resultSet.c_str());
+		tmpLogger (tmp_buffer);
 
 		// Delete result set
 		sqlite3_finalize(stmt);

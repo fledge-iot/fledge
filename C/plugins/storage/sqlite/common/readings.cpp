@@ -1018,8 +1018,6 @@ int retrieve;
 	string sql_cmd;
 	// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
 	{
-		ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-
 		//# FIXME_I:
 		// SQL - start
 		sql_cmd = R"(
@@ -1038,14 +1036,16 @@ int retrieve;
 		string sql_cmd_base;
 		string sql_cmd_tmp;
 		sql_cmd_base = " SELECT  id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ WHERE id >= " + to_string(id) + " and id <=  " + to_string(id) + " + " + to_string(blksize) + " ";
+		ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 		sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
 		sql_cmd += sql_cmd_tmp;
 
 		// SQL - end
 		sql_cmd += R"(
 			) as tb
-			ORDER BY id ASC;
-		)";
+			ORDER BY id ASC
+			LIMIT
+		)" + to_string(blksize);
 
 	}
 	//# FIXME_I:
@@ -1136,21 +1136,70 @@ bool		isAggregate = false;
 
 		if (condition.empty())
 		{
-			//# FIXME_I:
-			const char *sql_cmd = R"(
-					SELECT
-						id,
-						asset_code,
-						reading,
-						strftime(')" F_DATEH24_SEC R"(', user_ts, 'localtime')  ||
-						substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
-						strftime(')" F_DATEH24_MS R"(', ts, 'localtime') AS ts
-					FROM )" READINGS_DB R"(.readings_1)";
+			//# FIXME_I
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxx retrieveReadings - CASE 001 ");
+			Logger::getLogger()->setMinLevel("warning");
 
-			sql.append(sql_cmd);
+			//# FIXME_I:
+			// old version
+//			const char *sql_cmd = R"(
+//					SELECT
+//						id,
+//						asset_code,
+//						reading,
+//						strftime(')" F_DATEH24_SEC R"(', user_ts, 'localtime')  ||
+//						substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
+//						strftime(')" F_DATEH24_MS R"(', ts, 'localtime') AS ts
+//					FROM )" READINGS_DB R"(.readings_1)";
+//
+//			sql.append(sql_cmd);
+
+			string sql_cmd;
+			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
+
+			//# FIXME_I:
+			// SQL - start
+			sql_cmd = R"(
+				SELECT
+					id,
+					asset_code,
+					reading,
+					strftime(')" F_DATEH24_SEC R"(', user_ts, 'localtime')  ||
+					substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
+					strftime(')" F_DATEH24_MS R"(', ts, 'localtime') AS ts
+				FROM (
+			)";
+
+			// SQL - union of all the readings tables
+			string sql_cmd_base;
+			string sql_cmd_tmp;
+			sql_cmd_base = " SELECT  id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ ";
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
+			sql_cmd += sql_cmd_tmp;
+
+			// SQL - end
+			sql_cmd += R"(
+				) as tb;
+			)";
+			sql.append(sql_cmd.c_str());
+
+			//# FIXME_I:
+			char tmp_buffer[500000];
+			snprintf (tmp_buffer,500000, "xxx1 retrieveReadings"
+								         "\n sql_cmd.c_str() size :%u: "
+										 "\n sql_cmd.c_str() :%s:", (unsigned) strlen(sql_cmd.c_str()), sql_cmd.c_str());
+			tmpLogger (tmp_buffer);
+
 		}
 		else
 		{
+			//# FIXME_I
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxx retrieveReadings - CASE 002 ");
+			Logger::getLogger()->setMinLevel("warning");
+
+
 			if (document.Parse(condition.c_str()).HasParseError())
 			{
 				raiseError("retrieve", "Failed to parse JSON payload");
@@ -1159,12 +1208,22 @@ bool		isAggregate = false;
 
 			// timebucket aggregate all datapoints
 			if (aggregateAll(document))
-			{       
+			{
+				//# FIXME_I
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("xxx retrieveReadings - CASE 002.12 ");
+				Logger::getLogger()->setMinLevel("warning");
+
 				return aggregateQuery(document, resultSet);
 			}
 
 			if (document.HasMember("aggregate"))
 			{
+				//# FIXME_I
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("xxx retrieveReadings - CASE 002.13 ");
+				Logger::getLogger()->setMinLevel("warning");
+
 				isAggregate = true;
 				sql.append("SELECT ");
 				if (document.HasMember("modifier"))
@@ -1176,10 +1235,18 @@ bool		isAggregate = false;
 				{
 					return false;
 				}
-				sql.append(" FROM  " READINGS_DB ".");
+				//# FIXME_I:
+				//sql.append(" FROM  " READINGS_DB ".");
+				sql.append(" FROM  ");
 			}
 			else if (document.HasMember("return"))
 			{
+				//# FIXME_I
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("xxx retrieveReadings - CASE 002.1 ");
+				Logger::getLogger()->setMinLevel("warning");
+
+
 				int col = 0;
 				Value& columns = document["return"];
 				if (! columns.IsArray())
@@ -1365,16 +1432,33 @@ bool		isAggregate = false;
 					}
 					col++;
 				}
-				sql.append(" FROM  " READINGS_DB ".");
+				//# FIXME_I:
+				//sql.append(" FROM  " READINGS_DB ".");
+				sql.append(" FROM ");
 			}
 			else
 			{
+				//# FIXME_I
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("xxx retrieveReadings - CASE 003 ");
+				Logger::getLogger()->setMinLevel("warning");
+
 				sql.append("SELECT ");
 				if (document.HasMember("modifier"))
 				{
 					sql.append(document["modifier"].GetString());
 					sql.append(' ');
 				}
+
+				//# FIXME_I:
+//				const char *sql_cmd = R"(
+//						id,
+//						asset_code,
+//						reading,
+//						strftime(')" F_DATEH24_SEC R"(', user_ts, 'localtime')  ||
+//						substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
+//						strftime(')" F_DATEH24_MS R"(', ts, 'localtime') AS ts
+//                    FROM  )" READINGS_DB R"(.)";
 
 				const char *sql_cmd = R"(
 						id,
@@ -1383,12 +1467,45 @@ bool		isAggregate = false;
 						strftime(')" F_DATEH24_SEC R"(', user_ts, 'localtime')  ||
 						substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
 						strftime(')" F_DATEH24_MS R"(', ts, 'localtime') AS ts
-                    FROM  )" READINGS_DB R"(.)";
+                    FROM  )";
 
 				sql.append(sql_cmd);
 			}
 			//# FIXME_I:
-			sql.append("readings_1");
+			//sql.append("readings_1");
+			{
+
+				string sql_cmd;
+				ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
+
+				//# FIXME_I:
+				// SQL - start
+				sql_cmd = R"(
+					(
+				)";
+
+				// SQL - union of all the readings tables
+				string sql_cmd_base;
+				string sql_cmd_tmp;
+				sql_cmd_base = " SELECT ROWID, id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ ";
+				sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
+				sql_cmd += sql_cmd_tmp;
+
+				// SQL - end
+				sql_cmd += R"(
+					) as readings_1
+				)";
+				sql.append(sql_cmd.c_str());
+
+				//# FIXME_I:
+				char tmp_buffer[500000];
+				snprintf (tmp_buffer,500000, "xxx1 retrieveReadings  - CASE 002"
+											 "\n sql_cmd.c_str() size :%u: "
+											 "\n sql_cmd.c_str() :%s:", (unsigned) strlen(sql_cmd.c_str()), sql_cmd.c_str());
+				tmpLogger (tmp_buffer);
+			}
+
+
 
 			if (document.HasMember("where"))
 			{
@@ -1434,6 +1551,14 @@ bool		isAggregate = false;
 		char *zErrMsg = NULL;
 		int rc;
 		sqlite3_stmt *stmt;
+
+		//# FIXME_I:
+		char tmp_buffer[500000];
+		snprintf (tmp_buffer,500000, "xxx1 retrieveReadings  - query"
+									 "\n sql_cmd.c_str() size :%u: "
+									 "\n sql_cmd.c_str() :%s:", (unsigned) strlen(query), query);
+		tmpLogger (tmp_buffer);
+		///
 
 		logSQL("ReadingsRetrieve", query);
 

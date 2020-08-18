@@ -2484,11 +2484,19 @@ bool ReadingsCatalogue::storeGlobalId ()
 	sqlite3_stmt *stmt;
 	sqlite3 *dbHandle;
 
+	//# FIXME_I
+	int i;
+	i = m_globalId;
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx storeGlobalId m_globalId :%d: ", i);
+	Logger::getLogger()->setMinLevel("warning");
+
+
 	ConnectionManager *manager = ConnectionManager::getInstance();
 	Connection *connection = manager->allocate();
 	dbHandle = connection->getDbHandle();
 
-	sql_cmd = " UPDATE " READINGS_DB ".configuration_readings SET global_id=-" + to_string(m_globalId);
+	sql_cmd = " UPDATE " READINGS_DB ".configuration_readings SET global_id=" + to_string(m_globalId);
 
 	if (SQLExec(dbHandle, sql_cmd.c_str()) != SQLITE_OK)
 	{

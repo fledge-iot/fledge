@@ -52,6 +52,7 @@ public:
 	PLUGIN_ERROR	*lastError();
 	bool		hasStreamSupport() { return readingStreamPtr != NULL; };
 	int		readingStream(ReadingStream **stream, bool commit);
+	bool		pluginShutdown();
 
 private:
 	PLUGIN_HANDLE	instance;
@@ -70,6 +71,7 @@ private:
 	char		*(*getTableSnapshotsPtr)(PLUGIN_HANDLE, const char *);
 	int		(*readingStreamPtr)(PLUGIN_HANDLE, ReadingStream **, bool);
 	PLUGIN_ERROR	*(*lastErrorPtr)(PLUGIN_HANDLE);
+	bool		(*pluginShutdownPtr)(PLUGIN_HANDLE);
 };
 
 #endif

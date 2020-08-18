@@ -173,7 +173,8 @@ pid_t pid;
 /**
  * Constructor for the storage service
  */
-StorageService::StorageService(const string& myName) : m_name(myName), m_shutdown(false)
+StorageService::StorageService(const string& myName) : m_name(myName),
+						readingPlugin(NULL), m_shutdown(false) 
 {
 unsigned short servicePort;
 
@@ -268,6 +269,14 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 
 		// Wait for all the API threads to complete
 		api->wait();
+
+		if (readingPlugin)
+			readingPlugin->pluginShutdown();
+		readingPlugin = NULL;
+
+		if (storagePlugin)
+			storagePlugin->pluginShutdown();
+		storagePlugin = NULL;
 
 		// Clean shutdown, unregister the storage service
 		client->unregisterService();
@@ -374,6 +383,7 @@ void StorageService::shutdown()
 	m_shutdown = true;
 	logger->info("Storage service shutdown in progress.");
 	api->stopServer();
+
 }
 
 /**

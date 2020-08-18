@@ -66,7 +66,16 @@ static const char *defaultConfiguration = QUOTE({
 		"type" : "integer",
 		"displayName" : "Management Port",
 		"order" : "6"
-       	}
+       	},
+	"logLevel" : {
+		"value" : "warning",
+		"default" : "warning",
+		"description" : "Minimum level of messages to log",
+		"type" : "enumeration",
+		"displayName" : "Log Level",
+		"options" : [ "error", "warning", "info", "debug" ],
+		"order" : "7"
+	}
 });
 
 using namespace std;

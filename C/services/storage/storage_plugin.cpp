@@ -63,6 +63,7 @@ StoragePlugin::StoragePlugin(PLUGIN_HANDLE handle) : Plugin(handle)
 	readingStreamPtr =
 			(int (*)(PLUGIN_HANDLE, ReadingStream **, bool))
 			      manager->resolveSymbol(handle, "plugin_readingStream");
+	pluginShutdownPtr = (bool (*)(PLUGIN_HANDLE))manager->resolveSymbol(handle, "plugin_shutdown");
 }
 
 /**
@@ -183,4 +184,14 @@ char *StoragePlugin::getTableSnapshots(const string& table)
 int StoragePlugin::readingStream(ReadingStream **stream, bool commit)
 {
         return this->readingStreamPtr(instance, stream, commit);
+}
+
+/**
+ * Call the shutdown entry point of the plugin
+ */
+bool StoragePlugin::pluginShutdown()
+{
+	if (this->pluginShutdownPtr)
+		return this->pluginShutdownPtr(instance);
+	return true;
 }

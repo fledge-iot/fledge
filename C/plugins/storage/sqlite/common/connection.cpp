@@ -783,6 +783,12 @@ int selectCallback(void *data,
 		  char **colValues,
 		  char **colNames)
 {
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx3 purgeReadings selectCallback %d nCols :%d: colValues :%s:",  (int *)data, nCols, *colValues);
+	Logger::getLogger()->setMinLevel("warning");
+
 int *nRows = (int *)data;
 	// Increment the number of rows seen
 	*nRows++;

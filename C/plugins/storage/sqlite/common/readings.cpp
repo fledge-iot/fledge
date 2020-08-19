@@ -1677,7 +1677,6 @@ int blocks = 0;
 		string sql_cmd;
 		// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
 		{
-			//# FIXME_I:
 			// SQL - start
 			sql_cmd = R"(
 				SELECT MAX(rowid)
@@ -1698,13 +1697,6 @@ int blocks = 0;
 				) as readings_1
 			)";
 
-			//# FIXME_I:
-			char tmp_buffer[500000];
-			snprintf (tmp_buffer,500000, "xxx1 purgeReadings stage 001 "
-								         "\n sql_cmd.c_str() size :%u: "
-										 "\n sql_cmd.c_str() :%s:", (unsigned) strlen(sql_cmd.c_str()) ,sql_cmd.c_str());
-			tmpLogger (tmp_buffer);
-
 		}
 
 		rc = SQLexec(dbHandle,
@@ -1712,13 +1704,6 @@ int blocks = 0;
 	  	     rowidCallback,
 		     &rowidLimit,
 		     &zErrMsg);
-
-
-//		rc = SQLexec(dbHandle,
-//					 "select max(rowid) from " READINGS_DB ".readings_1;",
-//	  	     rowidCallback,
-//		     &rowidLimit,
-//		     &zErrMsg);
 
 		if (rc != SQLITE_OK)
 		{
@@ -1729,13 +1714,6 @@ int blocks = 0;
 		maxrowidLimit = rowidLimit;
 	}
 
-	///# FIXME_I:
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx1 purgeReadings rowidLimit %lu", rowidLimit);
-	Logger::getLogger()->setMinLevel("warning");
-
-
 	{
 		char *zErrMsg = NULL;
 		int rc;
@@ -1743,7 +1721,6 @@ int blocks = 0;
 		string sql_cmd;
 		// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
 		{
-			//# FIXME_I:
 			// SQL - start
 			sql_cmd = R"(
 				SELECT MIN(rowid)
@@ -1764,27 +1741,13 @@ int blocks = 0;
 				) as readings_1
 			)";
 
-			//# FIXME_I:
-			char tmp_buffer[500000];
-			snprintf (tmp_buffer,500000, "xxx1 purgeReadings stage 001 "
-										 "\n sql_cmd.c_str() size :%u: "
-										 "\n sql_cmd.c_str() :%s:", (unsigned) strlen(sql_cmd.c_str()) ,sql_cmd.c_str());
-			tmpLogger (tmp_buffer);
-
 		}
-
 
 		rc = SQLexec(dbHandle,
 					 sql_cmd.c_str(),
 	  	     rowidCallback,
 		     &minrowidLimit,
 		     &zErrMsg);
-
-//		rc = SQLexec(dbHandle,
-//					 "select min(rowid) from " READINGS_DB ".readings_1;",
-//	  	     rowidCallback,
-//		     &minrowidLimit,
-//		     &zErrMsg);
 
 		if (rc != SQLITE_OK)
 		{
@@ -1794,14 +1757,6 @@ int blocks = 0;
 		}
 	}
 
-	///# FIXME_I:
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx purgeReadings minrowidLimit %lu", minrowidLimit);
-	Logger::getLogger()->setMinLevel("warning");
-
-
-	//# FIXME_I:
 	if (age == 0)
 	{
 		/*
@@ -1811,7 +1766,6 @@ int blocks = 0;
 		string sql_cmd;
 		// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
 		{
-			//# FIXME_I:
 			// SQL - start
 			sql_cmd = R"(
 				SELECT (strftime('%s','now', 'utc') - strftime('%s', MIN(user_ts)))/360
@@ -1836,32 +1790,8 @@ int blocks = 0;
 
 		SQLBuffer oldest;
 		oldest.append(sql_cmd);
-		//oldest.append("SELECT (strftime('%s','now', 'utc') - strftime('%s', MIN(user_ts)))/360 FROM " READINGS_DB ".readings_1 where rowid <= ");
-		//oldest.append(rowidLimit);
 		oldest.append(';');
 		const char *query = oldest.coalesce();
-
-		//# FIXME_I:
-		char tmp_buffer[500000];
-		snprintf (tmp_buffer,500000, "xxx3 purgeReadings stage oldest - NEW "
-									 "\n sql_cmd.c_str() size :%u: "
-									 "\n sql_cmd.c_str() :%s:", (unsigned) strlen(query) ,query);
-		tmpLogger (tmp_buffer);
-
-		//# FIXME_I:
-//		SQLBuffer oldest;
-//		oldest.append("SELECT (strftime('%s','now', 'utc') - strftime('%s', MIN(user_ts)))/360 FROM " READINGS_DB ".readings_1 where rowid <= ");
-//		oldest.append(rowidLimit);
-//		oldest.append(';');
-//		const char *query = oldest.coalesce();
-//
-//		//# FIXME_I:
-//		char tmp_buffer[500000];
-//		snprintf (tmp_buffer,500000, "xxx3 purgeReadings stage oldest - OLD "
-//									 "\n sql_cmd.c_str() size :%u: "
-//									 "\n sql_cmd.c_str() :%s:", (unsigned) strlen(query) ,query);
-//		tmpLogger (tmp_buffer);
-
 
 		char *zErrMsg = NULL;
 		int rc;
@@ -1886,22 +1816,7 @@ int blocks = 0;
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
-
-		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx3 purgeReadings purge_readings %d", purge_readings);
-		Logger::getLogger()->setMinLevel("warning");
-
 	}
-
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx3 purgeReadings purge_readings %d", age);
-	Logger::getLogger()->setMinLevel("warning");
-
-
-
 
 	{
 		/*
@@ -1933,7 +1848,6 @@ int blocks = 0;
 			string sql_cmd;
 			// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
 			{
-				//# FIXME_I:
 				// SQL - start
 				// MIN is used to ensure just 1 row is returned
 				sql_cmd = R"(
@@ -1961,24 +1875,6 @@ int blocks = 0;
 			sqlBuffer.append(sql_cmd);
 			sqlBuffer.append(';');
 			const char *query = sqlBuffer.coalesce();
-
-			//# FIXME_I:
-			char tmp_buffer[500000];
-			snprintf (tmp_buffer,500000, "xxx3 purgeReadings stage rowidMin"
-										 "\n sql_cmd.c_str() size :%u: "
-										 "\n sql_cmd.c_str() :%s:", (unsigned) strlen(query) ,query);
-			tmpLogger (tmp_buffer);
-
-
-			//# FIXME_I:
-//			SQLBuffer sqlBuffer;
-//			sqlBuffer.append("select id from " READINGS_DB ".readings_1 where rowid = ");
-//			sqlBuffer.append(m);
-//			sqlBuffer.append(" AND user_ts < datetime('now' , '-");
-//			sqlBuffer.append(age);
-//			sqlBuffer.append(" hours');");
-//			const char *query = sqlBuffer.coalesce();
-
 
 			rc = SQLexec(dbHandle,
 			query,
@@ -2017,20 +1913,7 @@ int blocks = 0;
 		}
 
 		rowidMin = minrowidLimit;
-
-		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx3 purgeReadings m :%lu: rowidMin :%lu: ",m,  rowidMin);
-		Logger::getLogger()->setMinLevel("warning");
-
 	}
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx3 purgeReadings m :%lu: "  ,rowidMin);
-	Logger::getLogger()->setMinLevel("warning");
-
-
 
 	//logger->info("Purge collecting unsent row count");
 	if ((flags & 0x01) == 0)
@@ -2042,7 +1925,6 @@ int blocks = 0;
 		string sql_cmd;
 		// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
 		{
-			//# FIXME_I:
 			// SQL - start
 			// MIN is used to ensure just 1 row is returned
 			sql_cmd = R"(
@@ -2071,22 +1953,6 @@ int blocks = 0;
 		idBuffer.append(';');
 		const char *idQuery = idBuffer.coalesce();
 
-		//# FIXME_I:
-		char tmp_buffer[500000];
-		snprintf (tmp_buffer,500000, "xxx3 purgeReadings stage rowidMin"
-									 "\n sql_cmd.c_str() size :%u: "
-									 "\n sql_cmd.c_str() :%s:", (unsigned) strlen(idQuery) ,idQuery);
-		tmpLogger (tmp_buffer);
-
-
-		//# FIXME_I: old version
-//		SQLBuffer idBuffer;
-//		idBuffer.append("select id from " READINGS_DB ".readings_1 where rowid = ");
-//		idBuffer.append(rowidLimit);
-//		idBuffer.append(';');
-//		const char *idQuery = idBuffer.coalesce();
-
-
 		rc = SQLexec(dbHandle,
 		     idQuery,
 	  	     rowidCallback,
@@ -2109,15 +1975,6 @@ int blocks = 0;
 			int unsent = rowidLimit - sent;
 			unsentPurged = unsent;
 		}
-
-
-		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx3 purgeReadings lastPurgedId :%d: unsentPurged :%ld:"  ,lastPurgedId, unsentPurged);
-		Logger::getLogger()->setMinLevel("warning");
-
-
-
 	}
 	if (m_writeAccessOngoing)
 	{
@@ -2127,16 +1984,13 @@ int blocks = 0;
 		}
 	}
 
-
-	//# FIXME_I:
-	return (unsigned int ) 9;
-
-
-
 	unsigned int deletedRows = 0;
 	char *zErrMsg = NULL;
 	unsigned int rowsAffected, totTime=0, prevBlocks=0, prevTotTime=0;
 	logger->info("Purge about to delete readings # %ld to %ld", rowidMin, rowidLimit);
+
+	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
+
 	while (rowidMin < rowidLimit)
 	{
 		blocks++;
@@ -2146,10 +2000,11 @@ int blocks = 0;
 			rowidMin = rowidLimit;
 		}
 		SQLBuffer sql;
-		sql.append("DELETE FROM " READINGS_DB ".readings_1 WHERE rowid <= ");
+		sql.append("DELETE FROM  _dbname_._tablename_ WHERE rowid <= ");
 		sql.append(rowidMin);
 		sql.append(';');
 		const char *query = sql.coalesce();
+
 		logSQL("ReadingsPurge", query);
 
 		int rc;
@@ -2159,11 +2014,7 @@ int blocks = 0;
 
 		START_TIME;
 		// Exec DELETE query: no callback, no resultset
-		rc = SQLexec(dbHandle,
-			     query,
-			     NULL,
-			     NULL,
-			     &zErrMsg);
+		rc = readCat->purgeAllReadings(dbHandle, query ,&zErrMsg);
 		END_TIME;
 
 		// Release memory for 'query' var
@@ -2255,17 +2106,12 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 {
 unsigned long  deletedRows = 0, unsentPurged = 0, unsentRetained = 0, numReadings = 0;
 unsigned long limit = 0;
+string sql_cmd;
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx purgeReadingsByRows");
-	Logger::getLogger()->setMinLevel("warning");
 	result = "{ \"removed\" : 0, ";
 	result += " \"unsentPurged\" : 0, ";
 	result += " \"unsentRetained\" : 0, ";
 	result += " \"readings\" : 0 }";
-
-	return (unsigned int ) 9;
 
 	Logger *logger = Logger::getLogger();
 
@@ -2281,11 +2127,36 @@ unsigned long limit = 0;
 	do {
 		char *zErrMsg = NULL;
 		int rc;
+
+		// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
+		{
+			// SQL - start
+			// MIN is used to ensure just 1 row is returned
+			sql_cmd = R"(
+				SELECT  SUM(rowid)
+					FROM
+					(
+				)";
+
+			// SQL - union of all the readings tables
+			string sql_cmd_base;
+			string sql_cmd_tmp;
+			sql_cmd_base = " select count(rowid) rowid FROM _dbname_._tablename_ ";
+			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
+			sql_cmd += sql_cmd_tmp;
+
+			// SQL - end
+			sql_cmd += R"(
+					) as readings_1
+				)";
+		}
+
 		rc = SQLexec(dbHandle,
-		     "select count(rowid) from readings;",
-		     rowidCallback,
-		     &rowcount,
-		     &zErrMsg);
+			sql_cmd.c_str(),
+			rowidCallback,
+			&rowcount,
+			&zErrMsg);
 
 		if (rc != SQLITE_OK)
 		{
@@ -2299,8 +2170,33 @@ unsigned long limit = 0;
 			break;
 		}
 		int minId;
+
+		// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
+		{
+			// SQL - start
+			// MIN is used to ensure just 1 row is returned
+			sql_cmd = R"(
+				SELECT  MIN(rowid)
+					FROM
+					(
+				)";
+
+			// SQL - union of all the readings tables
+			string sql_cmd_base;
+			string sql_cmd_tmp;
+			sql_cmd_base = " SELECT MIN(rowid) rowid FROM _dbname_._tablename_ ";
+			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
+			sql_cmd += sql_cmd_tmp;
+
+			// SQL - end
+			sql_cmd += R"(
+					) as readings_1
+				)";
+		}
+
 		rc = SQLexec(dbHandle,
-		     "select min(id) from readings;",
+					 sql_cmd.c_str(),
 		     rowidCallback,
 		     &minId,
 		     &zErrMsg);
@@ -2312,8 +2208,33 @@ unsigned long limit = 0;
 			return 0;
 		}
 		int maxId;
+		// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
+		{
+			// SQL - start
+			// MIN is used to ensure just 1 row is returned
+			sql_cmd = R"(
+				SELECT  MAX(id)
+					FROM
+					(
+				)";
+
+			// SQL - union of all the readings tables
+			string sql_cmd_base;
+			string sql_cmd_tmp;
+			sql_cmd_base = " SELECT MAX(id) id FROM _dbname_._tablename_ ";
+			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
+			sql_cmd += sql_cmd_tmp;
+
+			// SQL - end
+			sql_cmd += R"(
+					) as readings_1
+				)";
+
+		}
+
 		rc = SQLexec(dbHandle,
-		     "select max(id) from readings;",
+					 sql_cmd.c_str(),
 		     rowidCallback,
 		     &maxId,
 		     &zErrMsg);
@@ -2335,15 +2256,20 @@ unsigned long limit = 0;
 
 		logger->info("RowCount %d, Max Id %d, min Id %d, delete point %d", rowcount, maxId, minId, deletePoint);
 
-		sql.append("delete from readings where id <= ");
+		sql.append("DELETE FROM  _dbname_._tablename_ WHERE id <= ");
 		sql.append(deletePoint);
 		const char *query = sql.coalesce();
+
 		{
+			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
+
+
 			//unique_lock<mutex> lck(db_mutex);
 //			if (m_writeAccessOngoing) db_cv.wait(lck);
 
 			// Exec DELETE query: no callback, no resultset
-			rc = SQLexec(dbHandle, query, NULL, NULL, &zErrMsg);
+			rc = readCat->purgeAllReadings(dbHandle, query ,&zErrMsg);
+
 			int rowsAffected = sqlite3_changes(dbHandle);
 			deletedRows += rowsAffected;
 			numReadings = rowcount - rowsAffected;
@@ -3103,6 +3029,64 @@ int ReadingsCatalogue::getUsedTablesDbId(int dbId)
 }
 
 
+int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBase, char **zErrMsg)
+{
+	string dbReadingsName;
+	string dbName;
+	string sqlCmdTmp;
+	string sqlCmd;
+
+	int rc;
+
+	if (m_AssetReadingCatalogue.empty())
+	{
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx purgeAllReadings no tables defined");
+		Logger::getLogger()->setMinLevel("warning");
+		rc = SQLITE_OK;
+	}
+	else
+	{
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx purgeAllReadings tables defined");
+		Logger::getLogger()->setMinLevel("warning");
+
+		bool firstRow = true;
+
+		for (auto &item : m_AssetReadingCatalogue)
+		{
+			sqlCmdTmp = sqlCmdBase;
+
+			dbReadingsName = generateReadingsName(item.second.first);
+			dbName = generateDbName(item.second.second);
+
+			StringReplaceAll (sqlCmdTmp, "_assetcode_", item.first);
+			StringReplaceAll (sqlCmdTmp, "_dbname_", dbName);
+			StringReplaceAll (sqlCmdTmp, "_tablename_", dbReadingsName);
+			sqlCmd += sqlCmdTmp;
+			firstRow = false;
+
+			rc = SQLExec(dbHandle, sqlCmdTmp.c_str(), zErrMsg);
+
+			//# FIXME_I
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxx3 purgeAllReadings  rc :%d: cmd :%s:", rc ,sqlCmdTmp.c_str() );
+			Logger::getLogger()->setMinLevel("warning");
+
+			if (rc != SQLITE_OK)
+			{
+				break;
+			}
+		}
+	}
+
+	return(rc);
+
+}
+
+
 string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase)
 {
 	string dbReadingsName;
@@ -3138,7 +3122,7 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase)
 
 			if (!firstRow)
 			{
-				sqlCmd += " UNION ";
+				sqlCmd += " UNION ALL ";
 			}
 
 			dbReadingsName = generateReadingsName(item.second.first);
@@ -3203,7 +3187,7 @@ string ReadingsCatalogue::generateDbNameFromTableId(int tableId)
 
 
 
-int ReadingsCatalogue::SQLExec(sqlite3 *dbHandle, const char *sqlCmd)
+int ReadingsCatalogue::SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **errMsg)
 {
 	int retries = 0, rc;
 
@@ -3213,7 +3197,20 @@ int ReadingsCatalogue::SQLExec(sqlite3 *dbHandle, const char *sqlCmd)
 	Logger::getLogger()->setMinLevel("warning");
 
 	do {
-		rc = sqlite3_exec(dbHandle, sqlCmd, NULL, NULL, NULL);
+		if (errMsg == NULL)
+		{
+			rc = sqlite3_exec(dbHandle, sqlCmd, NULL, NULL, NULL);
+		}
+		else
+		{
+			rc = sqlite3_exec(dbHandle, sqlCmd, NULL, NULL, errMsg);
+
+			//# FIXME_I
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxx SQLExec ERR MSG rc :%d: ", rc);
+			Logger::getLogger()->setMinLevel("warning");
+		}
+
 		retries++;
 		if (rc == SQLITE_LOCKED || rc == SQLITE_BUSY)
 		{

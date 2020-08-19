@@ -16,7 +16,7 @@ import time
 import pytest
 from pathlib import Path
 import utils
-from datetime import datetime
+from datetime import timezone, datetime
 
 __author__ = "Yash Tatkondawar"
 __copyright__ = "Copyright (c) 2020 Dianomic Systems Inc."
@@ -70,6 +70,11 @@ def remove_and_add_pkgs(package_build_version):
         assert False, "pip installation of google-cloud-pubsub failed"
 
     try:
+        subprocess.run(["python3 -m pip install google-cloud-logging==1.15.1"], shell=True, check=True)
+    except subprocess.CalledProcessError:
+        assert False, "pip installation of google-cloud-logging failed"
+
+    try:
         subprocess.run(["if [ ! -f \"{}/roots.pem\" ]; then wget https://pki.goog/roots.pem -P {}; fi"
                        .format(CERTS_DIR, CERTS_DIR)], shell=True, check=True)
     except subprocess.CalledProcessError:
@@ -109,50 +114,39 @@ def verify_and_set_prerequisites(gcp_cert_path, google_app_credentials):
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = google_app_credentials
 
 
-def verify_received_messages(project_id, subscription_name, timeout=None):
-    """Receives messages from a pull subscription."""
-    # [START pubsub_subscriber_async_pull]
-    # [START pubsub_quickstart_subscriber]
-    from google.cloud import pubsub_v1
+def verify_received_messages(logger_name, retries, wait_time):
 
-    # TODO project_id = "Your Google Cloud Project ID"
-    # TODO subscription_name = "Your Pub/Sub subscription name"
-    # TODO timeout = 5.0  # "How long the subscriber should listen for
-    # messages in seconds"
+    # Current timestamp
+    ts = datetime.now().astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M")
 
-    subscriber = pubsub_v1.SubscriberClient()
-    # The `subscription_path` method creates a fully qualified identifier
-    # in the form `projects/{project_id}/subscriptions/{subscription_name}`
-    subscription_path = subscriber.subscription_path(
-        project_id, subscription_name
-    )
+    from google.cloud import logging
+    from google.cloud.logging import DESCENDING
 
-    def callback(message):
-        msg_json = json.loads(message.data.decode('utf8'))
-        ts = msg_json["sinusoid"][0]["ts"]
-        # received messages may not be in order (and latest). verify date part only
-        # until we found a way to fetch latest sent and stats count from GCP
-        assert ts[:10] == datetime.now().strftime("%Y-%m-%d")
-        message.ack()
+    # Lists the most recent entries for a given logger."""
+    logging_client = logging.Client()
+    logger = logging_client.logger(logger_name)
 
-    streaming_pull_future = subscriber.subscribe(
-        subscription_path, callback=callback
-    )
-
-    # result() in a future will block indefinitely if `timeout` is not set,
-    # unless an exception is encountered first.
-    try:
-        streaming_pull_future.result(timeout=timeout)
-    except:  # noqa
-        streaming_pull_future.cancel()
-    # [END pubsub_subscriber_async_pull]
-    # [END pubsub_quickstart_subscriber]
-
+    # Fetches the latest logs from GCP and comaperes it with current timestamp
+    while retries:
+        iterator = logger.list_entries(order_by=DESCENDING, page_size=1, filter_="severity=INFO")
+        pages = iterator.pages
+        page = next(pages)  # API call
+        for entry in page:            
+            log=entry.payload        
+        if len(log) and "sinusoid" in log and ts in log:            
+            assert ts in log
+            break
+        else:
+            retries -= 1            
+            time.sleep(wait_time)
+            
+    if retries == 0:
+        assert False, "TIMEOUT! sinusoid data sent not seen in GCP. "   
 
 class TestGCPGateway:
     def test_gcp_gateway(self, verify_and_set_prerequisites, remove_and_add_pkgs, reset_fledge, fledge_url,
                          wait_time, remove_data_file, gcp_project_id, gcp_device_gateway_id, gcp_registry_id,
-                         gcp_subscription_name, gcp_cert_path):
+                         gcp_cert_path, gcp_logger_name, retries):
         payload = {"name": "Sine", "type": "south", "plugin": "sinusoid", "enabled": True, "config": {}}
         post_url = "/fledge/service"
         conn = http.client.HTTPConnection(fledge_url)
@@ -194,7 +188,7 @@ class TestGCPGateway:
         assert 0 < actual_stats_map['Readings Sent']
         assert 0 < actual_stats_map[task_name]
 
-        verify_received_messages(gcp_project_id, gcp_subscription_name, timeout=3)
+        verify_received_messages(gcp_logger_name, retries, wait_time)
 
         remove_data_file("{}/rsa_private.pem".format(FLEDGE_CERTS_DIR))
         remove_data_file("{}/roots.pem".format(FLEDGE_CERTS_DIR))

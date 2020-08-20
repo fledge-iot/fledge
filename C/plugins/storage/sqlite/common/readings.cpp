@@ -2085,7 +2085,8 @@ string sql_cmd;
 }
 
 /**
- * # FIXME_I:
+ * Logs an error
+ *
  */
 void ReadingsCatalogue::raiseError(const char *operation, const char *reason, ...)
 {
@@ -2098,8 +2099,15 @@ void ReadingsCatalogue::raiseError(const char *operation, const char *reason, ..
 	Logger::getLogger()->error("ReadingsCatalogues error: %s", tmpbuf);
 }
 
-//# FIXME_I:
-// Retrieves the global_id from thd DB, if it is -1 it should be calculated
+/**
+ * Retrieves the global id stored in SQLite and if it is not possible
+ * it calculates the value from the readings tables executing a max(id) on each table.
+ *
+ * Once retrieved or calculated,
+ * It updates the value into SQlite to -1 to force a calculation at the next plugin init (Fledge starts)
+ * in the case the proper value was not stored as the plugin shutdown (when Fledge is stopped) was not called.
+ *
+ */
 bool ReadingsCatalogue::evaluateGlobalId ()
 {
 	string sql_cmd;
@@ -2169,8 +2177,10 @@ bool ReadingsCatalogue::evaluateGlobalId ()
 	return true;
 }
 
-//# FIXME_I:
-// Stores the global_id into the DB
+/**
+ * Stores the global id into SQlite
+ *
+ */
 bool ReadingsCatalogue::storeGlobalId ()
 {
 	string sql_cmd;
@@ -2204,7 +2214,10 @@ bool ReadingsCatalogue::storeGlobalId ()
 	return true;
 }
 
-
+/**
+ * Calculates the value from the readings tables executing a max(id) on each table.
+ *
+ */
 int ReadingsCatalogue::calculateGlobalId (sqlite3 *dbHandle)
 {
 	string sql_cmd;
@@ -2276,6 +2289,10 @@ int ReadingsCatalogue::calculateGlobalId (sqlite3 *dbHandle)
 	return (id);
 }
 
+/**
+ * Loads the reading catalogue stored in SQLite into an in memory structure
+ *
+ */
 bool  ReadingsCatalogue::loadAssetReadingCatalogue()
 {
 	int nCols;
@@ -2341,6 +2358,10 @@ bool  ReadingsCatalogue::loadAssetReadingCatalogue()
 	return true;
 }
 
+/**
+ * Generates a list of all the used databases
+ *
+ */
 void ReadingsCatalogue::getAllDbs(vector<int> &dbIdList) {
 
 	int dbId;
@@ -2361,6 +2382,10 @@ void ReadingsCatalogue::getAllDbs(vector<int> &dbIdList) {
 	sort(dbIdList.begin(), dbIdList.end());
 }
 
+/**
+ * Attaches all the defined SQlite database to all the connections
+ *
+ */
 void ReadingsCatalogue::attachAllDbs()
 {
 	int dbId;
@@ -2387,7 +2412,11 @@ void ReadingsCatalogue::attachAllDbs()
 	manager->release(connection);
 }
 
-
+/**
+ * Creates all the needed readings tables considering the tables already defined in the database
+ * and the number of tables to have on each database.
+ *
+ */
 void ReadingsCatalogue::preallocateReadingsTables()
 {
 	int readingsToAllocate;
@@ -2417,7 +2446,10 @@ void ReadingsCatalogue::preallocateReadingsTables()
 	Logger::getLogger()->debug("preallocateReadingsTables: dbId :%d: nReadingsAvailable :%d: lastReadingsCreated :%d: tableCount :%d:", m_dbId, m_nReadingsAvailable, readingsAvailable.lastReadings, readingsAvailable.tableCount);
 }
 
-
+/**
+ * Generates the full path of the SQLite database from the given the id
+ *
+ */
 string ReadingsCatalogue::generateDbFilePah(int dbId)
 {
 	string dbPathReadings;
@@ -2447,7 +2479,8 @@ string ReadingsCatalogue::generateDbFilePah(int dbId)
 }
 
 /**
- * # FIXME_I:
+ * Creates a new database using m_dbId as datbase id
+ *
  */
 bool  ReadingsCatalogue::createNewDB()
 {
@@ -2533,6 +2566,13 @@ bool  ReadingsCatalogue::createNewDB()
 	return true;
 }
 
+/**
+ * Creates a set of reading tables in the given database id
+ *
+ * @param dbId        - Database id on which the tables should be created
+ * @param idStartFrom - Id from with to start to create the tables
+ * @param nTables     - Number of table to create
+ */
 bool  ReadingsCatalogue::createReadingsTables(int dbId, int idStartFrom, int nTables)
 {
 	string createReadings, createReadingsIdx;
@@ -2592,6 +2632,13 @@ bool  ReadingsCatalogue::createReadingsTables(int dbId, int idStartFrom, int nTa
 	return true;
 }
 
+/**
+ * Evaluates the latest reading table defined in the provided database id looking at sqlite_master, the SQLite repository
+ *
+ * @return - a struct containing
+ *             lastReadings = the id of the latest reading table defined in the  given database id
+ *             tableCount   = Number of tables  given database id in the given database id
+ */
 ReadingsCatalogue::tyReadingsAvailable  ReadingsCatalogue::evaluateLastReadingAvailable(int dbId)
 {
 	string dbName;
@@ -2649,6 +2696,9 @@ ReadingsCatalogue::tyReadingsAvailable  ReadingsCatalogue::evaluateLastReadingAv
 	return (readingsAvailable);
 }
 
+/**
+ * Checks if there is a reading table still available to be used
+ */
 bool  ReadingsCatalogue::isReadingAvailable() const
 {
 	if (m_nReadingsAvailable <= 0)
@@ -2658,14 +2708,19 @@ bool  ReadingsCatalogue::isReadingAvailable() const
 
 }
 
+/**
+ * Tracks the allocation of a reading table
+ *
+ */
 void  ReadingsCatalogue::allocateReadingAvailable()
 {
 	m_nReadingsAvailable--;
 }
 
-
 /**
- * # FIXME_I:
+ * Allocates a reading table to the given asset_code
+ *
+ * @return - the reading id associated to the provided asset_code
  */
 int ReadingsCatalogue::getReadingReference(Connection *connection, const char *asset_code)
 {
@@ -2743,6 +2798,10 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 
 }
 
+/**
+ * Retrieve the maximum database id used
+ *
+ */
 int ReadingsCatalogue::getMaxReadingsId()
 {
 	int maxId = 0;
@@ -2756,6 +2815,10 @@ int ReadingsCatalogue::getMaxReadingsId()
 	return (maxId);
 }
 
+/**
+ * Calculate the number of reading tables associated to the given database id
+ *
+ */
 int ReadingsCatalogue::getUsedTablesDbId(int dbId)
 {
 	int count = 0;
@@ -2769,7 +2832,11 @@ int ReadingsCatalogue::getUsedTablesDbId(int dbId)
 	return (count);
 }
 
-
+/**
+ * Delete the content of all the active readings tables using the provided sql command sqlCmdBase
+ *
+ * @return - returns SQLITE_OK if all the sql commands are properly executed
+ */
 int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBase, char **zErrMsg, unsigned int *rowsAffected)
 {
 	string dbReadingsName;
@@ -2822,7 +2889,11 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
 
 }
 
-
+/**
+ * Constructs a sql command from the given one consisting of a set of UNION ALL commands
+ * considering all the readings tables in use
+ *
+ */
 string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase)
 {
 	string dbReadingsName;
@@ -2870,30 +2941,47 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase)
 }
 
 
-
+/**
+ * Generates a SQLIte db alis from the database id
+ *
+ */
 string ReadingsCatalogue::generateDbAlias(int dbId)
 {
 
 	return (READINGS_DB_NAME_BASE "_" + to_string(dbId));
 }
 
+/**
+ * Generates a SQLIte database name from the database id
+ *
+ */
 string ReadingsCatalogue::generateDbName(int dbId)
 {
 	return (READINGS_DB_NAME_BASE "_" + to_string(dbId));
 }
 
+/**
+ * Generates a SQLITE database file name from the database id
+ *
+ */
 string ReadingsCatalogue::generateDbFileName(int dbId)
 {
 	return (READINGS_DB_NAME_BASE "_" + to_string (dbId) + ".db");
 }
 
-
+/**
+ * Generates the name of the readin table from the given table id
+ *
+ */
 string ReadingsCatalogue::generateReadingsName(int tableId)
 {
 	return (READINGS_TABLE "_" + to_string(tableId));
 }
 
-
+/**
+ * Identifies SQLIte database name from the given table id
+ *
+ */
 string ReadingsCatalogue::generateDbNameFromTableId(int tableId)
 {
 	string dbName;
@@ -2913,9 +3001,13 @@ string ReadingsCatalogue::generateDbNameFromTableId(int tableId)
 	return (dbName);
 }
 
-
-
-
+/**
+ * SQLIte wrapper to retry statements when the database is locked
+ *
+ * @param	db	     The open SQLite database
+ * @param	sql	     The SQL to execute
+ * @param	errmsg	 Error message
+ */
 int ReadingsCatalogue::SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **errMsg)
 {
 	int retries = 0, rc;

@@ -34,6 +34,11 @@ FLEDGE_CERTS_DIR = "{}/data/etc/certs/".format(FLEDGE_ROOT)
 
 
 @pytest.fixture
+def check_fledge_root():    
+    assert FLEDGE_ROOT, "Please set FLEDGE_ROOT!"
+
+
+@pytest.fixture
 def reset_fledge(wait_time):
     try:
         subprocess.run(["cd {}/tests/system/python/scripts/package && ./reset"
@@ -101,6 +106,22 @@ def get_statistics_map(fledge_url):
     return utils.serialize_stats_map(jdoc)
 
 
+# Get the latest 5 timestamps of data sent from south to
+# compare it with the timestamps of data in GCP.
+def get_asset_ts(fledge_url):
+    _connection = http.client.HTTPConnection(fledge_url)
+    _connection.request("GET", '/fledge/asset/sinusoid')
+    r = _connection.getresponse()
+    assert 200 == r.status
+    r = r.read().decode()
+    jdoc = json.loads(r)
+    local_timestamps = [ts['timestamp'] for ts in jdoc[0:5]]    
+    utc_timestamps = []
+    for ts in range(0, len(local_timestamps)):        
+        utc_timestamps.append(datetime.strptime(local_timestamps[ts], "%Y-%m-%d %H:%M:%S.%f").astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M"))
+    return(utc_timestamps)
+
+
 def copy_certs(gcp_cert_path):
     copy_file = "cp {} {}/roots.pem {}".format(gcp_cert_path, CERTS_DIR, FLEDGE_CERTS_DIR)
     exit_code = os.system(copy_file)
@@ -114,15 +135,12 @@ def verify_and_set_prerequisites(gcp_cert_path, google_app_credentials):
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = google_app_credentials
 
 
-def verify_received_messages(logger_name, retries, wait_time):
-
-    # Current timestamp
-    ts = datetime.now().astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M")
+def verify_received_messages(logger_name, asset_ts, retries, wait_time):
 
     from google.cloud import logging
     from google.cloud.logging import DESCENDING
 
-    # Lists the most recent entries for a given logger."""
+    # Lists the most recent entries for a given logger.
     logging_client = logging.Client()
     logger = logging_client.logger(logger_name)
 
@@ -132,9 +150,11 @@ def verify_received_messages(logger_name, retries, wait_time):
         pages = iterator.pages
         page = next(pages)  # API call
         for entry in page:            
-            log=entry.payload        
-        if len(log) and "sinusoid" in log and ts in log:            
-            assert ts in log
+            log=entry.payload
+        if len(log) and "sinusoid" in log:
+            for ts in asset_ts:
+                if ts in log:
+                    assert ts in log
             break
         else:
             retries -= 1            
@@ -144,7 +164,7 @@ def verify_received_messages(logger_name, retries, wait_time):
         assert False, "TIMEOUT! sinusoid data sent not seen in GCP. "   
 
 class TestGCPGateway:
-    def test_gcp_gateway(self, verify_and_set_prerequisites, remove_and_add_pkgs, reset_fledge, fledge_url,
+    def test_gcp_gateway(self, check_fledge_root, verify_and_set_prerequisites, remove_and_add_pkgs, reset_fledge, fledge_url,
                          wait_time, remove_data_file, gcp_project_id, gcp_device_gateway_id, gcp_registry_id,
                          gcp_cert_path, gcp_logger_name, retries):
         payload = {"name": "Sine", "type": "south", "plugin": "sinusoid", "enabled": True, "config": {}}
@@ -188,7 +208,9 @@ class TestGCPGateway:
         assert 0 < actual_stats_map['Readings Sent']
         assert 0 < actual_stats_map[task_name]
 
-        verify_received_messages(gcp_logger_name, retries, wait_time)
+        asset_ts = get_asset_ts(fledge_url)
+
+        verify_received_messages(gcp_logger_name, asset_ts, retries, wait_time)
 
         remove_data_file("{}/rsa_private.pem".format(FLEDGE_CERTS_DIR))
         remove_data_file("{}/roots.pem".format(FLEDGE_CERTS_DIR))

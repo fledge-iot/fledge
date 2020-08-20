@@ -172,7 +172,7 @@ class ReadingsCatalogue {
 		int           getReadingReference(Connection *connection, const char *asset_code);
 		void          attachAllDbs();
 		std::string   sqlConstructMultiDb(std::string &sqlCmdBase);
-		int           purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBase, char **errMsg = NULL);
+		int           purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBase, char **errMsg = NULL, unsigned int *rowsAffected = NULL);
 
 	private:
 		const int nReadingsAllocate = 2;

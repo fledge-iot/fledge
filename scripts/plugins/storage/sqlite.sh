@@ -249,7 +249,6 @@ sqlite_reset_db_readings() {
         sqlite_log "err" "Cannot drop database '${DEFAULT_SQLITE_DB_FILE_READINGS}' for the Fledge Plugin '${PLUGIN}'" "all" "pretty"
     fi
     rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS}-journal ${DEFAULT_SQLITE_DB_FILE_READINGS}-wal ${DEFAULT_SQLITE_DB_FILE_READINGS}-shm
-    # FIXME_I:
     # Delete all the readings databases if any
     rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}*.db
     rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}*.db-journal

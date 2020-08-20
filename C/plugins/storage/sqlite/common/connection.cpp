@@ -430,11 +430,6 @@ Connection::Connection()
 	const char *defaultConnection = getenv("DEFAULT_SQLITE_DB_FILE");
 	const char *defaultReadingsConnection = getenv("DEFAULT_SQLITE_DB_READINGS_FILE");
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx Step2 Connection ");
-	Logger::getLogger()->setMinLevel("warning");
-
 	m_logSQL = false;
 	m_queuing = 0;
 	m_streamOpenTransaction = true;
@@ -783,11 +778,6 @@ int selectCallback(void *data,
 		  char **colValues,
 		  char **colNames)
 {
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx3 purgeReadings selectCallback %d nCols :%d: colValues :%s:",  (int *)data, nCols, *colValues);
-	Logger::getLogger()->setMinLevel("warning");
 
 int *nRows = (int *)data;
 	// Increment the number of rows seen

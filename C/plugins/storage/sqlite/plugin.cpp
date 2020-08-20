@@ -64,16 +64,9 @@ PLUGIN_HANDLE plugin_init()
 	manager->growPool(5);
 
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-
 	readCat->loadAssetReadingCatalogue();
 	readCat->attachAllDbs();
 	readCat->preallocateReadingsTables();
-
-	//# FIXME_I:
-	//std::string	  resultSet;
-	//Connection        *connection = manager->allocate();
-	//connection->fetchReadings(1, 1, resultSet);
-
 	readCat->evaluateGlobalId();
 
 	return manager;
@@ -242,11 +235,6 @@ ConnectionManager *manager = (ConnectionManager *)handle;
 bool plugin_shutdown(PLUGIN_HANDLE handle)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx plugin_shutdown");
-	Logger::getLogger()->setMinLevel("warning");
 
 	Connection        *connection = manager->allocate();
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();

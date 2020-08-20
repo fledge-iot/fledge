@@ -19,9 +19,7 @@
 #include <sys/stat.h>
 #include <libgen.h>
 
-//# FIXME_I:
 #include <string_utils.h>
-#include <tmp_log.hpp>
 #include <algorithm>
 #include <vector>
 
@@ -290,15 +288,12 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 	}
 
 	// Get all datapoints in 'reading' field
-	//# FIXME_I:
-	//sql.append("json_each.key AS x, json_each.value AS theval FROM " READINGS_DB ".readings_1, json_each(readings.reading) ");
 	sql.append("json_each.key AS x, json_each.value AS theval FROM ");
 
 	{
 		string sql_cmd;
 		ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 
-		//# FIXME_I:
 		// SQL - start
 		sql_cmd = R"(
 			(
@@ -312,7 +307,6 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 		sql_cmd += sql_cmd_tmp;
 
 		// SQL - end
-		//# FIXME_I:
 		sql_cmd += R"(
 				) as reading_table
 			)";
@@ -379,16 +373,6 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 	const char *query = sql.coalesce();
 	int rc;
 	sqlite3_stmt *stmt;
-
-
-	//# FIXME_I:
-	char tmp_buffer[500000];
-	snprintf (tmp_buffer,500000, "xxx1 aggregateQuery"
-								 "\n sql_cmd.c_str() size :%u: "
-								 "\n sql_cmd.c_str() :%s:", (unsigned) strlen(query), query);
-	tmpLogger (tmp_buffer);
-	///
-
 
 	logSQL("CommonRetrieve", query);
 
@@ -693,11 +677,6 @@ int localNReadingsTotal;
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx appendReadings start v2 thread :%s:  readingsStmt size :%d:", threadId.str().c_str(), localNReadingsTotal);
-	Logger::getLogger()->setMinLevel("warning");
-
 #if INSTRUMENT
 	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug("appendReadings start thread :%s:", threadId.str().c_str());
@@ -789,10 +768,7 @@ int localNReadingsTotal;
 					localNReadingsTotal = readingsId + 1;
 					readingsStmt.resize(localNReadingsTotal, nullptr);
 
-					//# FIXME_I
-					Logger::getLogger()->setMinLevel("debug");
-					Logger::getLogger()->debug("xxx2 readingsStmt thread :%s: - resize size :%d: idx :%d: ", threadId.str().c_str(), localNReadingsTotal, readingsId);
-					Logger::getLogger()->setMinLevel("warning");
+					Logger::getLogger()->debug("appendReadings: thread :%s: resize size :%d: idx :%d: ", threadId.str().c_str(), localNReadingsTotal, readingsId);
 				}
 
 				if (readingsStmt[readingsId] == nullptr)
@@ -938,11 +914,6 @@ int localNReadingsTotal;
 
 #endif
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx appendReadings END thread :%s:  readingsStmt size :%d:", threadId.str().c_str(), localNReadingsTotal);
-	Logger::getLogger()->setMinLevel("warning");
-
 	return row;
 }
 
@@ -962,107 +933,14 @@ bool Connection::fetchReadings(unsigned long id,
 			       unsigned int blksize,
 			       std::string& resultSet)
 {
-//# FIXME_I:
 char sqlbuffer[5120];
 char *zErrMsg = NULL;
 int rc;
 int retrieve;
 
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx fetchReadings V3 ");
-	Logger::getLogger()->setMinLevel("warning");
-
-//# FIXME_I:
-//#define OLD_ALG
-
-#ifdef OLD_ALG
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx fetchReadings OLD_ALG V2");
-	Logger::getLogger()->setMinLevel("warning");
-
-	//# FIXME_I:
-	// SQL command to extract the data from the readings.readings
-	const char *sql_cmd = R"(
-	SELECT
-		id,
-		"dummy_asset_code" asset_code,
-		reading,
-		strftime('%%Y-%%m-%%d %%H:%%M:%%S', user_ts, 'utc')  ||
-		substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
-		strftime('%%Y-%%m-%%d %%H:%%M:%%f', ts, 'utc') AS ts
-	FROM  )" READINGS_DB R"(.readings_1
-	WHERE id >= %lu
-	ORDER BY id ASC
-	LIMIT %u;
-	)";
-
-	/*
-	 * This query assumes datetime values are in 'localtime'
-	 */
-	snprintf(sqlbuffer,
-			 sizeof(sqlbuffer),
-			 sql_cmd,
-			 id,
-			 blksize);
-
-		//# FIXME_I:
-	char tmp_buffer[500000];
-	snprintf (tmp_buffer,500000, "xxx1 fetchReadings OLD \n sqlbuffer size :%u: "
-							                                         "\n id :%lu: "
-												                     "\n blksize  :%u: "
-								                                     "\n sqlbuffer :%s:", (unsigned) strlen(sqlbuffer), id, blksize, sqlbuffer);
-	tmpLogger (tmp_buffer);
-
-
-	logSQL("ReadingsFetch", sqlbuffer);
-	sqlite3_stmt *stmt;
-	// Prepare the SQL statement and get the result set
-	if (sqlite3_prepare_v2(dbHandle,
-			       sqlbuffer,
-			       -1,
-			       &stmt,
-			       NULL) != SQLITE_OK)
-	{
-		raiseError("retrieve", sqlite3_errmsg(dbHandle));
-
-		// Failure
-		return false;
-	}
-	else
-	{
-		// Call result set mapping
-		rc = mapResultSet(stmt, resultSet);
-
-		// Delete result set
-		sqlite3_finalize(stmt);
-
-		// Check result set errors
-		if (rc != SQLITE_DONE)
-		{
-			raiseError("retrieve", sqlite3_errmsg(dbHandle));
-
-			// Failure
-			return false;
-               	}
-		else
-		{
-			// Success
-			return true;
-		}
-	}
-#else
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx fetchReadings NEW_ALG V2");
-	Logger::getLogger()->setMinLevel("warning");
-
 	string sql_cmd;
 	// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
 	{
-		//# FIXME_I:
 		// SQL - start
 		sql_cmd = R"(
 			SELECT
@@ -1092,14 +970,6 @@ int retrieve;
 		)" + to_string(blksize);
 
 	}
-	//# FIXME_I:
-	char tmp_buffer[500000];
-	snprintf (tmp_buffer,500000, "xxx1 fetchReadings NEW2 \n sql_cmd.c_str() size :%u: "
-								 "\n id :%lu: "
-								 "\n blksize  :%u: "
-								 "\n sql_cmd.c_str() :%s:", (unsigned) strlen(sql_cmd.c_str()), id, blksize, sql_cmd.c_str());
-	tmpLogger (tmp_buffer);
-
 
 	logSQL("ReadingsFetch", sql_cmd.c_str());
 	sqlite3_stmt *stmt;
@@ -1120,11 +990,6 @@ int retrieve;
 		// Call result set mapping
 		rc = mapResultSet(stmt, resultSet);
 
-		//# FIXME_I:
-		char tmp_buffer[500000];
-		snprintf (tmp_buffer,500000, "xxx1 resultSet :%s: " , resultSet.c_str());
-		tmpLogger (tmp_buffer);
-
 		// Delete result set
 		sqlite3_finalize(stmt);
 
@@ -1142,11 +1007,6 @@ int retrieve;
 			return true;
 		}
 	}
-#endif
-
-
-
-
 }
 
 
@@ -1166,11 +1026,6 @@ SQLBuffer	jsonConstraints;
 bool		isAggregate = false;
 
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx retrieveReadings V2 ");
-	Logger::getLogger()->setMinLevel("warning");
-
 	try {
 		if (dbHandle == NULL)
 		{
@@ -1180,29 +1035,9 @@ bool		isAggregate = false;
 
 		if (condition.empty())
 		{
-			//# FIXME_I
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("xxx retrieveReadings - CASE 001 ");
-			Logger::getLogger()->setMinLevel("warning");
-
-			//# FIXME_I:
-			// old version
-//			const char *sql_cmd = R"(
-//					SELECT
-//						id,
-//						asset_code,
-//						reading,
-//						strftime(')" F_DATEH24_SEC R"(', user_ts, 'localtime')  ||
-//						substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
-//						strftime(')" F_DATEH24_MS R"(', ts, 'localtime') AS ts
-//					FROM )" READINGS_DB R"(.readings_1)";
-//
-//			sql.append(sql_cmd);
-
 			string sql_cmd;
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 
-			//# FIXME_I:
 			// SQL - start
 			sql_cmd = R"(
 				SELECT
@@ -1227,23 +1062,9 @@ bool		isAggregate = false;
 				) as tb;
 			)";
 			sql.append(sql_cmd.c_str());
-
-			//# FIXME_I:
-			char tmp_buffer[500000];
-			snprintf (tmp_buffer,500000, "xxx1 retrieveReadings"
-								         "\n sql_cmd.c_str() size :%u: "
-										 "\n sql_cmd.c_str() :%s:", (unsigned) strlen(sql_cmd.c_str()), sql_cmd.c_str());
-			tmpLogger (tmp_buffer);
-
 		}
 		else
 		{
-			//# FIXME_I
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("xxx retrieveReadings - CASE 002 ");
-			Logger::getLogger()->setMinLevel("warning");
-
-
 			if (document.Parse(condition.c_str()).HasParseError())
 			{
 				raiseError("retrieve", "Failed to parse JSON payload");
@@ -1253,21 +1074,11 @@ bool		isAggregate = false;
 			// timebucket aggregate all datapoints
 			if (aggregateAll(document))
 			{
-				//# FIXME_I
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxx retrieveReadings - CASE 002.12 ");
-				Logger::getLogger()->setMinLevel("warning");
-
 				return aggregateQuery(document, resultSet);
 			}
 
 			if (document.HasMember("aggregate"))
 			{
-				//# FIXME_I
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxx retrieveReadings - CASE 002.13 ");
-				Logger::getLogger()->setMinLevel("warning");
-
 				isAggregate = true;
 				sql.append("SELECT ");
 				if (document.HasMember("modifier"))
@@ -1279,18 +1090,10 @@ bool		isAggregate = false;
 				{
 					return false;
 				}
-				//# FIXME_I:
-				//sql.append(" FROM  " READINGS_DB ".");
 				sql.append(" FROM  ");
 			}
 			else if (document.HasMember("return"))
 			{
-				//# FIXME_I
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxx retrieveReadings - CASE 002.1 ");
-				Logger::getLogger()->setMinLevel("warning");
-
-
 				int col = 0;
 				Value& columns = document["return"];
 				if (! columns.IsArray())
@@ -1476,33 +1279,16 @@ bool		isAggregate = false;
 					}
 					col++;
 				}
-				//# FIXME_I:
-				//sql.append(" FROM  " READINGS_DB ".");
 				sql.append(" FROM ");
 			}
 			else
 			{
-				//# FIXME_I
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxx retrieveReadings - CASE 003 ");
-				Logger::getLogger()->setMinLevel("warning");
-
 				sql.append("SELECT ");
 				if (document.HasMember("modifier"))
 				{
 					sql.append(document["modifier"].GetString());
 					sql.append(' ');
 				}
-
-				//# FIXME_I:
-//				const char *sql_cmd = R"(
-//						id,
-//						asset_code,
-//						reading,
-//						strftime(')" F_DATEH24_SEC R"(', user_ts, 'localtime')  ||
-//						substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
-//						strftime(')" F_DATEH24_MS R"(', ts, 'localtime') AS ts
-//                    FROM  )" READINGS_DB R"(.)";
 
 				const char *sql_cmd = R"(
 						id,
@@ -1515,14 +1301,11 @@ bool		isAggregate = false;
 
 				sql.append(sql_cmd);
 			}
-			//# FIXME_I:
-			//sql.append("readings_1");
 			{
 
 				string sql_cmd;
 				ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 
-				//# FIXME_I:
 				// SQL - start
 				sql_cmd = R"(
 					(
@@ -1590,14 +1373,6 @@ bool		isAggregate = false;
 		int rc;
 		sqlite3_stmt *stmt;
 
-		//# FIXME_I:
-		char tmp_buffer[500000];
-		snprintf (tmp_buffer,500000, "xxx1 retrieveReadings  - query"
-									 "\n sql_cmd.c_str() size :%u: "
-									 "\n sql_cmd.c_str() :%s:", (unsigned) strlen(query), query);
-		tmpLogger (tmp_buffer);
-		///
-
 		logSQL("ReadingsRetrieve", query);
 
 		// Prepare the SQL statement and get the result set
@@ -1648,13 +1423,6 @@ unsigned long rowidLimit = 0, minrowidLimit = 0, maxrowidLimit = 0, rowidMin;
 struct timeval startTv, endTv;
 int blocks = 0;
 
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx9 purgeReadings v3  age :%lu: ", age);
-	Logger::getLogger()->setMinLevel("warning");
-
-
 	Logger *logger = Logger::getLogger();
 
 	result = "{ \"removed\" : 0, ";
@@ -1677,7 +1445,6 @@ int blocks = 0;
 		string sql_cmd;
 		// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
 		{
-			//# FIXME_I:
 			// SQL - start
 			sql_cmd = R"(
 				SELECT MAX(rowid)
@@ -1697,14 +1464,6 @@ int blocks = 0;
 			sql_cmd += R"(
 				) as readings_1
 			)";
-
-			//# FIXME_I:
-			char tmp_buffer[500000];
-			snprintf (tmp_buffer,500000, "xxx9 purgeReadings stage 001 "
-								         "\n sql_cmd.c_str() size :%u: "
-										 "\n sql_cmd.c_str() :%s:", (unsigned) strlen(sql_cmd.c_str()) ,sql_cmd.c_str());
-			tmpLogger (tmp_buffer);
-
 		}
 
 		rc = SQLexec(dbHandle,
@@ -1722,12 +1481,7 @@ int blocks = 0;
 		maxrowidLimit = rowidLimit;
 	}
 
-	///# FIXME_I:
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx9 purgeReadings rowidLimit %lu", rowidLimit);
-	Logger::getLogger()->setMinLevel("warning");
-
+	Logger::getLogger()->debug("purgeReadings rowidLimit %lu", rowidLimit);
 
 	{
 		char *zErrMsg = NULL;
@@ -1755,14 +1509,6 @@ int blocks = 0;
 			sql_cmd += R"(
 				) as readings_1
 			)";
-
-			//# FIXME_I:
-			char tmp_buffer[500000];
-			snprintf (tmp_buffer,500000, "xxx9 purgeReadings stage 001 "
-										 "\n sql_cmd.c_str() size :%u: "
-										 "\n sql_cmd.c_str() :%s:", (unsigned) strlen(sql_cmd.c_str()) ,sql_cmd.c_str());
-			tmpLogger (tmp_buffer);
-
 		}
 
 		rc = SQLexec(dbHandle,
@@ -1779,14 +1525,8 @@ int blocks = 0;
 		}
 	}
 
-	///# FIXME_I:
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx9 purgeReadings minrowidLimit %lu", minrowidLimit);
-	Logger::getLogger()->setMinLevel("warning");
+	Logger::getLogger()->debug("purgeReadings minrowidLimit %lu", minrowidLimit);
 
-
-	//# FIXME_I:
 	if (age == 0)
 	{
 		/*
@@ -1823,28 +1563,6 @@ int blocks = 0;
 		oldest.append(';');
 		const char *query = oldest.coalesce();
 
-		//# FIXME_I:
-		char tmp_buffer[500000];
-		snprintf (tmp_buffer,500000, "xxx9 purgeReadings stage oldest - NEW "
-									 "\n sql_cmd.c_str() size :%u: "
-									 "\n sql_cmd.c_str() :%s:", (unsigned) strlen(query) ,query);
-		tmpLogger (tmp_buffer);
-
-		//# FIXME_I:
-//		SQLBuffer oldest;
-//		oldest.append("SELECT (strftime('%s','now', 'utc') - strftime('%s', MIN(user_ts)))/360 FROM " READINGS_DB ".readings_1 where rowid <= ");
-//		oldest.append(rowidLimit);
-//		oldest.append(';');
-//		const char *query = oldest.coalesce();
-//
-//		//# FIXME_I:
-//		char tmp_buffer[500000];
-//		snprintf (tmp_buffer,500000, "xxx3 purgeReadings stage oldest - OLD "
-//									 "\n sql_cmd.c_str() size :%u: "
-//									 "\n sql_cmd.c_str() :%s:", (unsigned) strlen(query) ,query);
-//		tmpLogger (tmp_buffer);
-
-
 		char *zErrMsg = NULL;
 		int rc;
 		int purge_readings = 0;
@@ -1869,16 +1587,8 @@ int blocks = 0;
 			return 0;
 		}
 
-		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx9 purgeReadings purge_readings %d", purge_readings);
-		Logger::getLogger()->setMinLevel("warning");
-
+		Logger::getLogger()->debug("purgeReadings purge_readings :%d: age :%d:", purge_readings, age);
 	}
-
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug("xxx9 purgeReadings purge_readings %d", age);
 	Logger::getLogger()->setMinLevel("warning");
 
@@ -1915,7 +1625,6 @@ int blocks = 0;
 			string sql_cmd;
 			// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
 			{
-				//# FIXME_I: now
 				// SQL - start
 				// MIN is used to ensure just 1 row is returned
 				sql_cmd = R"(
@@ -1943,24 +1652,6 @@ int blocks = 0;
 			sqlBuffer.append(sql_cmd);
 			sqlBuffer.append(';');
 			const char *query = sqlBuffer.coalesce();
-
-			//# FIXME_I:
-			char tmp_buffer[500000];
-			snprintf (tmp_buffer,500000, "xxx9 purgeReadings stage rowidMin"
-										 "\n sql_cmd.c_str() size :%u: "
-										 "\n sql_cmd.c_str() :%s:", (unsigned) strlen(query) ,query);
-			tmpLogger (tmp_buffer);
-
-
-			//# FIXME_I:
-//			SQLBuffer sqlBuffer;
-//			sqlBuffer.append("select id from " READINGS_DB ".readings_1 where rowid = ");
-//			sqlBuffer.append(m);
-//			sqlBuffer.append(" AND user_ts < datetime('now' , '-");
-//			sqlBuffer.append(age);
-//			sqlBuffer.append(" hours');");
-//			const char *query = sqlBuffer.coalesce();
-
 
 			rc = SQLexec(dbHandle,
 			query,
@@ -2000,19 +1691,8 @@ int blocks = 0;
 
 		rowidMin = minrowidLimit;
 
-		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx9 purgeReadings m :%lu: rowidMin :%lu: ",m,  rowidMin);
-		Logger::getLogger()->setMinLevel("warning");
-
+		Logger::getLogger()->debug("purgeReadings m :%lu: rowidMin :%lu: ",m,  rowidMin);
 	}
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx9 purgeReadings m :%lu: "  ,rowidMin);
-	Logger::getLogger()->setMinLevel("warning");
-
-
 
 	//logger->info("Purge collecting unsent row count");
 	if ((flags & 0x01) == 0)
@@ -2052,22 +1732,6 @@ int blocks = 0;
 		idBuffer.append(';');
 		const char *idQuery = idBuffer.coalesce();
 
-		//# FIXME_I:
-		char tmp_buffer[500000];
-		snprintf (tmp_buffer,500000, "xxx9 purgeReadings stage rowidMin"
-									 "\n sql_cmd.c_str() size :%u: "
-									 "\n sql_cmd.c_str() :%s:", (unsigned) strlen(idQuery) ,idQuery);
-		tmpLogger (tmp_buffer);
-
-
-		//# FIXME_I: old version
-//		SQLBuffer idBuffer;
-//		idBuffer.append("select id from " READINGS_DB ".readings_1 where rowid = ");
-//		idBuffer.append(rowidLimit);
-//		idBuffer.append(';');
-//		const char *idQuery = idBuffer.coalesce();
-
-
 		rc = SQLexec(dbHandle,
 		     idQuery,
 	  	     rowidCallback,
@@ -2091,14 +1755,7 @@ int blocks = 0;
 			unsentPurged = unsent;
 		}
 
-
-		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx9 purgeReadings lastPurgedId :%d: unsentPurged :%ld:"  ,lastPurgedId, unsentPurged);
-		Logger::getLogger()->setMinLevel("warning");
-
-
-
+		Logger::getLogger()->debug("purgeReadings lastPurgedId :%d: unsentPurged :%ld:"  ,lastPurgedId, unsentPurged);
 	}
 	if (m_writeAccessOngoing)
 	{
@@ -2112,14 +1769,6 @@ int blocks = 0;
 	char *zErrMsg = NULL;
 	unsigned int rowsAffected, totTime=0, prevBlocks=0, prevTotTime=0;
 	logger->info("Purge about to delete readings # %ld to %ld", rowidMin, rowidLimit);
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx9 Purge about to delete readings # %ld to %ld", rowidMin, rowidLimit);
-	Logger::getLogger()->setMinLevel("warning");
-
-	//# FIXME_I:
-	//return (unsigned int ) 9;
 
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 
@@ -2137,12 +1786,6 @@ int blocks = 0;
 		sql.append(';');
 		const char *query = sql.coalesce();
 
-		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx9 DELETE rowidMin :%d:"  ,rowidMin);
-		Logger::getLogger()->setMinLevel("warning");
-
-
 		logSQL("ReadingsPurge", query);
 
 		int rc;
@@ -2151,7 +1794,6 @@ int blocks = 0;
 //		if (m_writeAccessOngoing) db_cv.wait(lck);
 
 		START_TIME;
-		// Exec DELETE query: no callback, no resultset
 		rc = readCat->purgeAllReadings(dbHandle, query ,&zErrMsg, &rowsAffected);
 		END_TIME;
 
@@ -2174,8 +1816,6 @@ int blocks = 0;
 		}
 
 		// Get db changes
-		//# FIXME_I:
-		//rowsAffected = sqlite3_changes(dbHandle);
 		deletedRows += rowsAffected;
 		logger->debug("Purge delete block #%d with %d readings", blocks, rowsAffected);
 
@@ -2225,12 +1865,6 @@ int blocks = 0;
 
 	result = convert.str();
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx9 DELETE result :%s:"  ,result.c_str());
-	Logger::getLogger()->setMinLevel("warning");
-
-
 	//logger->debug("Purge result=%s", result.c_str());
 
 	gettimeofday(&endTv, NULL);
@@ -2252,11 +1886,6 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 unsigned long  deletedRows = 0, unsentPurged = 0, unsentRetained = 0, numReadings = 0;
 unsigned long limit = 0;
 string sql_cmd;
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx2 purgeReadingsByRows");
-	Logger::getLogger()->setMinLevel("warning");
 
 	Logger *logger = Logger::getLogger();
 
@@ -2520,11 +2149,7 @@ bool ReadingsCatalogue::evaluateGlobalId ()
 	}
 
 	id = m_globalId;
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx evaluateGlobalId - global id from the DB :%d:", id);
-	Logger::getLogger()->setMinLevel("warning");
-
+	Logger::getLogger()->debug("evaluateGlobalId - global id from the DB :%d:", id);
 
 	// Set the global_id in the DB to -1 to force a calculation at the restart
 	// in case the shutdown is not executed and the proper value stored
@@ -2555,7 +2180,6 @@ bool ReadingsCatalogue::storeGlobalId ()
 	sqlite3_stmt *stmt;
 	sqlite3 *dbHandle;
 
-	//# FIXME_I
 	int i;
 	i = m_globalId;
 	Logger::getLogger()->setMinLevel("debug");
@@ -2646,11 +2270,7 @@ int ReadingsCatalogue::calculateGlobalId (sqlite3 *dbHandle)
 		id++;
 	}
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx calculateGlobalId - global id evaluated :%d:", id);
-	Logger::getLogger()->setMinLevel("warning");
-
+	Logger::getLogger()->debug("calculateGlobalId - global id evaluated :%d:", id);
 	sqlite3_finalize(stmt);
 
 	return (id);
@@ -2703,10 +2323,7 @@ bool  ReadingsCatalogue::loadAssetReadingCatalogue()
 			if (dbId > maxDbID)
 				maxDbID = dbId;
 
-			//# FIXME_I
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("xxx loadAssetReadingCatalogue - thread :%s: reading Id :%d: dbId :%d: asset name :%s: max db Id :%d:", threadId.str().c_str(), tableId, dbId,  asset_name, maxDbID);
-			Logger::getLogger()->setMinLevel("warning");
+			Logger::getLogger()->debug("loadAssetReadingCatalogue - thread :%s: reading Id :%d: dbId :%d: asset name :%s: max db Id :%d:", threadId.str().c_str(), tableId, dbId,  asset_name, maxDbID);
 
 			auto newItem = make_pair(tableId,dbId);
 			auto newMapValue = make_pair(asset_name,newItem);
@@ -2719,10 +2336,7 @@ bool  ReadingsCatalogue::loadAssetReadingCatalogue()
 	manager->release(connection);
 	m_dbId = maxDbID;
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx loadAssetReadingCatalogue maxdb :%d:", m_dbId);
-	Logger::getLogger()->setMinLevel("warning");
+	Logger::getLogger()->debug("loadAssetReadingCatalogue maxdb :%d:", m_dbId);
 
 	return true;
 }
@@ -2767,10 +2381,7 @@ void ReadingsCatalogue::attachAllDbs()
 		// Attached the new db to the connections
 		manager->attachNewDb(dbPathReadings, dbAlias);
 
-		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx attachAllDbs dbId :%d: path :%s: alias :%s:", item, dbPathReadings.c_str(), dbAlias.c_str());
-		Logger::getLogger()->setMinLevel("warning");
+		Logger::getLogger()->debug("attachAllDbs: dbId :%d: path :%s: alias :%s:", item, dbPathReadings.c_str(), dbAlias.c_str());
 	}
 
 	manager->release(connection);
@@ -2802,11 +2413,8 @@ void ReadingsCatalogue::preallocateReadingsTables()
 	}
 
 	m_nReadingsAvailable = readingsToAllocate - getUsedTablesDbId(m_dbId);
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx preallocateReadingsTables - dbId :%d: nReadingsAvailable :%d: lastReadingsCreated :%d: tableCount :%d:", m_dbId, m_nReadingsAvailable, readingsAvailable.lastReadings, readingsAvailable.tableCount);
-	Logger::getLogger()->setMinLevel("warning");
 
+	Logger::getLogger()->debug("preallocateReadingsTables: dbId :%d: nReadingsAvailable :%d: lastReadingsCreated :%d: tableCount :%d:", m_dbId, m_nReadingsAvailable, readingsAvailable.lastReadings, readingsAvailable.tableCount);
 }
 
 
@@ -2913,11 +2521,7 @@ bool  ReadingsCatalogue::createNewDB()
 	{
 		startId = getMaxReadingsId() + 1;
 	}
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx new database created :%s:", dbPathReadings.c_str());
-	Logger::getLogger()->setMinLevel("warning");
+	Logger::getLogger()->debug("createNewDB: new database created :%s:", dbPathReadings.c_str());
 
 	ConnectionManager *manager = ConnectionManager::getInstance();
 	// Attached the new db to the connections
@@ -2937,11 +2541,6 @@ bool  ReadingsCatalogue::createReadingsTables(int dbId, int idStartFrom, int nTa
 	int tableId;
 	int rc;
 	int readingsIdx;
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx createReadingsTables dbid :%d:", dbId);
-	Logger::getLogger()->setMinLevel("warning");
 
 	sqlite3 *dbHandle;
 
@@ -3107,10 +2706,7 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 
 			// Associate a reading table to the asset
 			{
-				//# FIXME_I
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxx allocate a new reading table for the asset :%s: ", asset_code);
-				Logger::getLogger()->setMinLevel("warning");
+				Logger::getLogger()->debug("getReadingReference: allocate a new reading table for the asset :%s: ", asset_code);
 
 				// Associate the asset to the reading_id
 				{
@@ -3185,18 +2781,12 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
 
 	if (m_AssetReadingCatalogue.empty())
 	{
-		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx purgeAllReadings no tables defined");
-		Logger::getLogger()->setMinLevel("warning");
+		Logger::getLogger()->debug("purgeAllReadings: no tables defined");
 		rc = SQLITE_OK;
 	}
 	else
 	{
-		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx purgeAllReadings tables defined");
-		Logger::getLogger()->setMinLevel("warning");
+		Logger::getLogger()->debug("purgeAllReadings tables defined");
 
 		firstRow = true;
 		if  (rowsAffected != nullptr)
@@ -3217,10 +2807,7 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
 
 			rc = SQLExec(dbHandle, sqlCmdTmp.c_str(), zErrMsg);
 
-			//# FIXME_I
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("xxx3 purgeAllReadings  rc :%d: cmd :%s:", rc ,sqlCmdTmp.c_str() );
-			Logger::getLogger()->setMinLevel("warning");
+			Logger::getLogger()->debug("purgeAllReadings:  rc :%d: cmd :%s:", rc ,sqlCmdTmp.c_str() );
 
 			if (rc != SQLITE_OK)
 			{
@@ -3245,11 +2832,7 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase)
 
 	if (m_AssetReadingCatalogue.empty())
 	{
-		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx sqlConstructMultiDb no tables defined");
-		Logger::getLogger()->setMinLevel("warning");
-
+		Logger::getLogger()->debug("sqlConstructMultiDb: no tables defined");
 		sqlCmd = sqlCmdBase;
 
 		StringReplaceAll (sqlCmd, "_assetcode_", "dummy_asset_code");
@@ -3258,10 +2841,7 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase)
 	}
 	else
 	{
-		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx sqlConstructMultiDb tables defined");
-		Logger::getLogger()->setMinLevel("warning");
+		Logger::getLogger()->debug("sqlConstructMultiDb: tables defined");
 
 		bool firstRow = true;
 
@@ -3340,10 +2920,7 @@ int ReadingsCatalogue::SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **err
 {
 	int retries = 0, rc;
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx SQLExec cmd :%s: ", sqlCmd);
-	Logger::getLogger()->setMinLevel("warning");
+	Logger::getLogger()->debug("SQLExec: cmd :%s: ", sqlCmd);
 
 	do {
 		if (errMsg == NULL)
@@ -3353,11 +2930,7 @@ int ReadingsCatalogue::SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **err
 		else
 		{
 			rc = sqlite3_exec(dbHandle, sqlCmd, NULL, NULL, errMsg);
-
-			//# FIXME_I
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("xxx SQLExec ERR MSG rc :%d: ", rc);
-			Logger::getLogger()->setMinLevel("warning");
+			Logger::getLogger()->debug("SQLExec: rc :%d: ", rc);
 		}
 
 		retries++;

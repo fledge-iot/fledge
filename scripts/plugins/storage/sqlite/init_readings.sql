@@ -48,18 +48,21 @@
 -- SCHEMA CREATION
 ----------------------------------------------------------------------
 
---# FIXME_I:
+--
+-- Stores in which database/readings table the specific asset_code is stored
+--
 CREATE TABLE readings_1.asset_reading_catalogue (
     table_id     INTEGER               PRIMARY KEY AUTOINCREMENT,
     db_id        INTEGER               NOT NULL,
     asset_code   character varying(50) NOT NULL
 );
 
---# FIXME_I:
+-- Stores the last global Id used +1
+-- Updated at -1 when Fledge starts
+-- Updated at the the proper value when Fledge stops
 CREATE TABLE readings_1.configuration_readings (
     global_id         INTEGER
 );
-
 
 -- Readings table
 -- This tables contains the readings for assets.

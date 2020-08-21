@@ -65,7 +65,7 @@ PLUGIN_HANDLE plugin_init()
 
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 	readCat->loadAssetReadingCatalogue();
-	readCat->attachAllDbs();
+	result = readCat->attachAllDbs();
 	readCat->preallocateReadingsTables();
 	readCat->evaluateGlobalId();
 

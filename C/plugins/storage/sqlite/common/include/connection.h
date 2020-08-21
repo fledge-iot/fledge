@@ -170,12 +170,12 @@ class ReadingsCatalogue {
 		bool          loadAssetReadingCatalogue();
 		bool          createNewDB();
 		int           getReadingReference(Connection *connection, const char *asset_code);
-		void          attachAllDbs();
+		bool          attachAllDbs();
 		std::string   sqlConstructMultiDb(std::string &sqlCmdBase);
 		int           purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBase, char **errMsg = NULL, unsigned int *rowsAffected = NULL);
 
 	private:
-		const int nReadingsAllocate = 2;
+		const int nReadingsAllocate = 1;
 
 		typedef struct ReadingAvailable {
 			int lastReadings;

@@ -130,7 +130,10 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 	int rc;
 	std::string sqlCmd;
 	sqlite3 *dbHandle;
+	bool result;
+	char *zErrMsg = NULL;
 
+	result = true;
 
 	sqlCmd = "ATTACH DATABASE '" + path + "' AS " + alias + ";";
 
@@ -140,34 +143,38 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 		for ( auto conn : idle) {
 
 			dbHandle = conn->getDbHandle();
-			rc = sqlite3_exec(dbHandle, sqlCmd.c_str(), NULL, NULL, NULL);
+			rc = sqlite3_exec(dbHandle, sqlCmd.c_str(), NULL, NULL, &zErrMsg);
 			if (rc != SQLITE_OK)
 			{
-				Logger::getLogger()->error("attachNewDb - impossible to attach the db :%s:  to an idle connection, error :%s:", path.c_str()), sqlite3_errmsg(dbHandle);
-				return false;
+				Logger::getLogger()->error("attachNewDb - impossible to attach the db :%s: to an idle connection, error :%s:", path.c_str(), zErrMsg);
+				result = false;
+				break;
 			}
 		}
 		idleLock.unlock();
 	}
 
-	// attach the DB to all inUse connections
+	if (result)
 	{
-		inUseLock.lock();
-		for ( auto conn : inUse) {
+		// attach the DB to all inUse connections
+		{
+			inUseLock.lock();
+			for ( auto conn : inUse) {
 
-			dbHandle = conn->getDbHandle();
-			rc = sqlite3_exec(dbHandle, sqlCmd.c_str(), NULL, NULL, NULL);
-			if (rc != SQLITE_OK)
-			{
-				Logger::getLogger()->error("attachNewDb - impossible to attach the db :%s:  to an inUse connection, error :%s:", path.c_str() , sqlite3_errmsg(dbHandle));
-				return false;
+				dbHandle = conn->getDbHandle();
+				rc = sqlite3_exec(dbHandle, sqlCmd.c_str(), NULL, NULL, &zErrMsg);
+				if (rc != SQLITE_OK)
+				{
+					Logger::getLogger()->error("attachNewDb - impossible to attach the db :%s:  to an inUse connection, error :%s:", path.c_str() ,zErrMsg);
+					result = false;
+					break;
+				}
 			}
+			inUseLock.unlock();
 		}
-		inUseLock.unlock();
 	}
 
-
-	return true;
+	return (result);
 }
 
 

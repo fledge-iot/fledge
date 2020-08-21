@@ -678,9 +678,7 @@ int localNReadingsTotal;
 	threadId << std::this_thread::get_id();
 
 #if INSTRUMENT
-	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug("appendReadings start thread :%s:", threadId.str().c_str());
-	Logger::getLogger()->setMinLevel("warning");
 
 	struct timeval	start, t1, t2, t3, t4, t5;
 #endif
@@ -763,30 +761,38 @@ int localNReadingsTotal;
 			{
 				readingsId = readCatalogue->getReadingReference(this, asset_code);
 
-				if (readingsId >= localNReadingsTotal)
+				if (readingsId == -1)
 				{
-					localNReadingsTotal = readingsId + 1;
-					readingsStmt.resize(localNReadingsTotal, nullptr);
-
-					Logger::getLogger()->debug("appendReadings: thread :%s: resize size :%d: idx :%d: ", threadId.str().c_str(), localNReadingsTotal, readingsId);
+					Logger::getLogger()->warn("Impossible to insert the row for the asset_code :%s: into the readings, row ignored.", asset_code);
+					stmt = NULL;
 				}
-
-				if (readingsStmt[readingsId] == nullptr)
+				else
 				{
-					string dbName = readCatalogue->generateDbNameFromTableId(readingsId);
-					string dbReadingsName = readCatalogue->generateReadingsName(readingsId);
-
-					sql_cmd = "INSERT INTO  " + dbName + "." + dbReadingsName + " ( id, user_ts, reading ) VALUES  (?,?,?)";
-					rc = sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), -1, &readingsStmt[readingsId], NULL);
-					if (rc != SQLITE_OK)
+					if (readingsId >= localNReadingsTotal)
 					{
-						raiseError("appendReadings", sqlite3_errmsg(dbHandle));
+						localNReadingsTotal = readingsId + 1;
+						readingsStmt.resize(localNReadingsTotal, nullptr);
+
+						Logger::getLogger()->debug("appendReadings: thread :%s: resize size :%d: idx :%d: ", threadId.str().c_str(), localNReadingsTotal, readingsId);
 					}
 
-				}
-				stmt = readingsStmt[readingsId];
+					if (readingsStmt[readingsId] == nullptr)
+					{
+						string dbName = readCatalogue->generateDbNameFromTableId(readingsId);
+						string dbReadingsName = readCatalogue->generateReadingsName(readingsId);
 
-				lastAsset = asset_code;
+						sql_cmd = "INSERT INTO  " + dbName + "." + dbReadingsName + " ( id, user_ts, reading ) VALUES  (?,?,?)";
+						rc = sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), -1, &readingsStmt[readingsId], NULL);
+						if (rc != SQLITE_OK)
+						{
+							raiseError("appendReadings", sqlite3_errmsg(dbHandle));
+						}
+
+					}
+					stmt = readingsStmt[readingsId];
+
+					lastAsset = asset_code;
+				}
 			}
 
 			// Handles - reading
@@ -901,7 +907,6 @@ int localNReadingsTotal;
 		timersub(&t3, &t2, &tm);
 		timeT3 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
 
-		Logger::getLogger()->setMinLevel("debug");
 		Logger::getLogger()->debug("appendReadings end   thread :%s: buffer :%10lu: count :%5d: JSON :%6.3f: inserts :%6.3f: finalize :%6.3f:",
 								   threadId.str().c_str(),
 								   strlen(readings),
@@ -910,7 +915,6 @@ int localNReadingsTotal;
 								   timeT2,
 								   timeT3
 		);
-		Logger::getLogger()->setMinLevel("warning");
 
 #endif
 
@@ -1589,10 +1593,7 @@ int blocks = 0;
 
 		Logger::getLogger()->debug("purgeReadings purge_readings :%d: age :%d:", purge_readings, age);
 	}
-	Logger::getLogger()->debug("xxx9 purgeReadings purge_readings %d", age);
-	Logger::getLogger()->setMinLevel("warning");
-
-
+	Logger::getLogger()->debug("purgeReadings: purge_readings %d", age);
 
 
 	{
@@ -2121,7 +2122,6 @@ bool ReadingsCatalogue::evaluateGlobalId ()
 	Connection *connection = manager->allocate();
 	dbHandle = connection->getDbHandle();
 
-
 	// Retrieves the global_id from thd DB
 	{
 		sql_cmd = " SELECT global_id FROM " READINGS_DB ".configuration_readings ";
@@ -2150,6 +2150,9 @@ bool ReadingsCatalogue::evaluateGlobalId ()
 			m_globalId = sqlite3_column_int(stmt, 0);
 		}
 	}
+
+	id = m_globalId;
+	Logger::getLogger()->debug("evaluateGlobalId - global id from the DB :%d:", id);
 
 	if ( m_globalId == -1)
 	{
@@ -2192,9 +2195,7 @@ bool ReadingsCatalogue::storeGlobalId ()
 
 	int i;
 	i = m_globalId;
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx storeGlobalId m_globalId :%d: ", i);
-	Logger::getLogger()->setMinLevel("warning");
+	Logger::getLogger()->debug("storeGlobalId m_globalId :%d: ", i);
 
 
 	ConnectionManager *manager = ConnectionManager::getInstance();
@@ -2386,12 +2387,15 @@ void ReadingsCatalogue::getAllDbs(vector<int> &dbIdList) {
  * Attaches all the defined SQlite database to all the connections
  *
  */
-void ReadingsCatalogue::attachAllDbs()
+bool ReadingsCatalogue::attachAllDbs()
 {
 	int dbId;
 	string dbPathReadings;
 	string dbAlias;
 	vector<int> dbIdList;
+	bool result;
+
+	result = true;
 
 	ConnectionManager *manager = ConnectionManager::getInstance();
 	Connection        *connection = manager->allocate();
@@ -2404,12 +2408,16 @@ void ReadingsCatalogue::attachAllDbs()
 		dbAlias = generateDbAlias(item);
 
 		// Attached the new db to the connections
-		manager->attachNewDb(dbPathReadings, dbAlias);
+		result = manager->attachNewDb(dbPathReadings, dbAlias);
+		if (! result)
+			break;
 
 		Logger::getLogger()->debug("attachAllDbs: dbId :%d: path :%s: alias :%s:", item, dbPathReadings.c_str(), dbAlias.c_str());
 	}
 
 	manager->release(connection);
+
+	return (result);
 }
 
 /**
@@ -2497,7 +2505,9 @@ bool  ReadingsCatalogue::createNewDB()
 	sqlite3 *dbHandle;
 	struct stat st;
 	bool dbAlreadyPresent;
+	bool result;
 
+	result = true;
 
 	m_dbId++;
 
@@ -2558,12 +2568,15 @@ bool  ReadingsCatalogue::createNewDB()
 
 	ConnectionManager *manager = ConnectionManager::getInstance();
 	// Attached the new db to the connections
-	manager->attachNewDb(dbPathReadings, dbAlias);
+	result = manager->attachNewDb(dbPathReadings, dbAlias);
 
-	createReadingsTables(m_dbId ,startId, readingsToAllocate);
-	m_nReadingsAvailable = readingsToAllocate;
+	if (result)
+	{
+		createReadingsTables(m_dbId ,startId, readingsToAllocate);
+		m_nReadingsAvailable = readingsToAllocate;
+	}
 
-	return true;
+	return (result);
 }
 
 /**
@@ -2731,6 +2744,9 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 
 	int readingsId;
 	string msg;
+	bool result;
+
+	result = true;
 
 	dbHandle = connection->getDbHandle();
 
@@ -2756,37 +2772,42 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 			//# Allocate a new block of readings table
 			if (! isReadingAvailable () )
 			{
-				createNewDB();
+				result = createNewDB();
+				readingsId = -1;
 			}
 
-			// Associate a reading table to the asset
+			if (result)
 			{
-				Logger::getLogger()->debug("getReadingReference: allocate a new reading table for the asset :%s: ", asset_code);
-
-				// Associate the asset to the reading_id
+				// Associate a reading table to the asset
 				{
-					readingsId = getMaxReadingsId() + 1;
+					Logger::getLogger()->debug("getReadingReference: allocate a new reading table for the asset :%s: ", asset_code);
 
-					auto newItem = make_pair(readingsId,m_dbId);
-					auto newMapValue = make_pair(asset_code, newItem);
-					m_AssetReadingCatalogue.insert(newMapValue);
-				}
-
-				// Allocate the table in the reading catalogue
-				{
-					sql_cmd =
-						"INSERT INTO  " READINGS_DB ".asset_reading_catalogue (table_id, db_id, asset_code) VALUES  ("
-						+ to_string(readingsId) + ","
-						+ to_string(m_dbId)     + ","
-						+ "\"" + asset_code     + "\")";
-
-					rc = SQLExec(dbHandle, sql_cmd.c_str());
-					if (rc != SQLITE_OK)
+					// Associate the asset to the reading_id
 					{
-						msg = string(sqlite3_errmsg(dbHandle)) + " asset :" + asset_code + ":";
-						raiseError("asset_reading_catalogue update", msg.c_str());
+						readingsId = getMaxReadingsId() + 1;
+
+						auto newItem = make_pair(readingsId,m_dbId);
+						auto newMapValue = make_pair(asset_code, newItem);
+						m_AssetReadingCatalogue.insert(newMapValue);
 					}
-					allocateReadingAvailable();
+
+					// Allocate the table in the reading catalogue
+					{
+						sql_cmd =
+							"INSERT INTO  " READINGS_DB ".asset_reading_catalogue (table_id, db_id, asset_code) VALUES  ("
+							+ to_string(readingsId) + ","
+							+ to_string(m_dbId)     + ","
+							+ "\"" + asset_code     + "\")";
+
+						rc = SQLExec(dbHandle, sql_cmd.c_str());
+						if (rc != SQLITE_OK)
+						{
+							msg = string(sqlite3_errmsg(dbHandle)) + " asset :" + asset_code + ":";
+							raiseError("asset_reading_catalogue update", msg.c_str());
+						}
+						allocateReadingAvailable();
+					}
+
 				}
 
 			}

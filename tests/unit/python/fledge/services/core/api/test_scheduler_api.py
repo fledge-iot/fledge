@@ -107,6 +107,7 @@ class TestScheduledProcesses:
                     result = await resp.text()
                     json_response = json.loads(result)
                     assert {'message': 'manage process name created successfully.'} == json_response
+                    assert {'manage': '["tasks/manage"]'} == server.Server.scheduler._process_scripts
                 assert insert_tbl_patch.called
                 args, kwargs = insert_tbl_patch.call_args_list[0]
                 assert 'scheduled_processes' == args[0]
@@ -122,10 +123,10 @@ class TestScheduledProcesses:
         ({"process_name": ""}, 400, "Missing script property in payload."),
         ({"script": ""}, 400, "Missing process_name property in payload."),
         ({"processName": "", "script": ""}, 400, "Missing process_name property in payload."),
-        ({"process_name": "", "script": '["tasks/statistics"]'}, 400, "Process name cannot be an empty."),
-        ({"process_name": "new", "script": ""}, 400, "Script cannot be an empty."),
-        ({"process_name": " ", "script": '["tasks/statistics"]'}, 400, "Process name cannot be an empty."),
-        ({"process_name": " new", "script": " "}, 400, "Script cannot be an empty."),
+        ({"process_name": "", "script": '["tasks/statistics"]'}, 400, "Process name cannot be empty."),
+        ({"process_name": "new", "script": ""}, 400, "Script cannot be empty."),
+        ({"process_name": " ", "script": '["tasks/statistics"]'}, 400, "Process name cannot be empty."),
+        ({"process_name": " new", "script": " "}, 400, "Script cannot be empty."),
         ({"process_name": "purge", "script": '["tasks/purge"]'}, 400, "purge process name already exists.")
     ])
     async def test_post_scheduled_process_bad_data(self, client, request_data, response_code, error_message):

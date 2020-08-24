@@ -161,18 +161,18 @@ def verify_received_messages(logger_name, asset_info, retries, wait_time):
         for r in gcp_log_dict:           
             for d in range(0, len(r["sinusoid"])):
                 gcp_info.append(r["sinusoid"][d])
-        if len(gcp_info):
-            found = 0
-            for i in range(0, (len(gcp_info))):                
-                for  d in range(0, (len(asset_info))):                    
-                    if asset_info[d]['ts'] == gcp_info[i]['ts']:                        
-                        assert asset_info[d]['reading'] == gcp_info[i]['sinusoid']
-                        found += 1
-            if found == len(asset_info):
-                break
-            else:
-                retries -= 1
-                time.sleep(wait_time)
+        assert len(gcp_info), "No Sinusoid readings GCP logs found"
+        found = 0
+        for i in range(0, (len(gcp_info))):
+            for  d in range(0, (len(asset_info))):
+                if asset_info[d]['ts'] == gcp_info[i]['ts']:
+                    assert asset_info[d]['reading'] == gcp_info[i]['sinusoid']
+                    found += 1
+        if found == len(asset_info):
+            break
+        else:
+            retries -= 1
+            time.sleep(wait_time)
             
     if retries == 0:
         assert False, "TIMEOUT! sinusoid data sent not seen in GCP. "   

@@ -115,14 +115,9 @@ def get_asset_info(fledge_url):
     assert 200 == r.status
     r = r.read().decode()
     jdoc = json.loads(r)
-    readings = [r['reading'] for r in jdoc]
-    values = [v['sinusoid'] for v in readings]
-    local_timestamps = [ts['timestamp'] for ts in jdoc]    
-    utc_timestamps = []
-    for ts in range(0, len(local_timestamps)):        
-        utc_timestamps.append(datetime.strptime(local_timestamps[ts], "%Y-%m-%d %H:%M:%S.%f").astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f"))     
-    asset_info = [{'ts':t, 'reading':v} for t,v in zip(utc_timestamps, values)]
-    return(asset_info)
+    for j in jdoc:
+        j['timestamp'] = datetime.strptime(j['timestamp'], "%Y-%m-%d %H:%M:%S.%f").astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")
+    return jdoc
 
 
 def copy_certs(gcp_cert_path):
@@ -163,10 +158,10 @@ def verify_received_messages(logger_name, asset_info, retries, wait_time):
                 gcp_info.append(r["sinusoid"][d])
         assert len(gcp_info), "No Sinusoid readings GCP logs found"
         found = 0
-        for i in range(0, (len(gcp_info))):
-            for  d in range(0, (len(asset_info))):
-                if asset_info[d]['ts'] == gcp_info[i]['ts']:
-                    assert asset_info[d]['reading'] == gcp_info[i]['sinusoid']
+        for i in gcp_info:
+            for  d in asset_info:
+                if d['timestamp'] == i['ts']:
+                    assert d['reading']['sinusoid'] == i['sinusoid']
                     found += 1
         if found == len(asset_info):
             break

@@ -116,6 +116,12 @@ async def post_scheduled_process(request: web.Request) -> web.Response:
     if script is None:
         msg = "Missing script property in payload."
         raise web.HTTPBadRequest(body=json.dumps({"message": msg}), reason=msg)
+    if len(process_name.strip()) == 0:
+        msg = "Process name cannot be empty."
+        raise web.HTTPBadRequest(body=json.dumps({"message": msg}), reason=msg)
+    if len(script.strip()) == 0:
+        msg = "Script cannot be empty."
+        raise web.HTTPBadRequest(body=json.dumps({"message": msg}), reason=msg)
 
     # Check that the process name is not already registered
     payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', process_name]).payload()
@@ -126,6 +132,8 @@ async def post_scheduled_process(request: web.Request) -> web.Response:
         payload = PayloadBuilder().INSERT(name=process_name, script=script).payload()
         try:
             await storage.insert_into_tbl("scheduled_processes", payload)
+            # Update _process_scripts dict of scheduler
+            server.Server.scheduler._process_scripts.update({process_name: script})
         except StorageServerError as err:
             msg = str(err)
             raise web.HTTPInternalServerError(body=json.dumps(

@@ -117,10 +117,10 @@ async def post_scheduled_process(request: web.Request) -> web.Response:
         msg = "Missing script property in payload."
         raise web.HTTPBadRequest(body=json.dumps({"message": msg}), reason=msg)
     if len(process_name.strip()) == 0:
-        msg = "Process name cannot be an empty."
+        msg = "Process name cannot be empty."
         raise web.HTTPBadRequest(body=json.dumps({"message": msg}), reason=msg)
     if len(script.strip()) == 0:
-        msg = "Script cannot be an empty."
+        msg = "Script cannot be empty."
         raise web.HTTPBadRequest(body=json.dumps({"message": msg}), reason=msg)
 
     # Check that the process name is not already registered

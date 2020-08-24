@@ -17,6 +17,7 @@ import pytest
 from pathlib import Path
 import utils
 from datetime import timezone, datetime
+import itertools
 
 __author__ = "Yash Tatkondawar"
 __copyright__ = "Copyright (c) 2020 Dianomic Systems Inc."
@@ -106,20 +107,22 @@ def get_statistics_map(fledge_url):
     return utils.serialize_stats_map(jdoc)
 
 
-# Get the latest 5 timestamps of data sent from south to
-# compare it with the timestamps of data in GCP.
-def get_asset_ts(fledge_url):
+# Get the latest 5 timestamps, readings of data sent from south to compare it with the timestamps, readings of data in GCP.
+def get_asset_info(fledge_url):
     _connection = http.client.HTTPConnection(fledge_url)
-    _connection.request("GET", '/fledge/asset/sinusoid')
+    _connection.request("GET", '/fledge/asset/sinusoid?limit=5')
     r = _connection.getresponse()
     assert 200 == r.status
     r = r.read().decode()
     jdoc = json.loads(r)
-    local_timestamps = [ts['timestamp'] for ts in jdoc[0:5]]    
+    readings = [r['reading'] for r in jdoc]
+    values = [v['sinusoid'] for v in readings]
+    local_timestamps = [ts['timestamp'] for ts in jdoc]    
     utc_timestamps = []
     for ts in range(0, len(local_timestamps)):        
-        utc_timestamps.append(datetime.strptime(local_timestamps[ts], "%Y-%m-%d %H:%M:%S.%f").astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M"))
-    return(utc_timestamps)
+        utc_timestamps.append(datetime.strptime(local_timestamps[ts], "%Y-%m-%d %H:%M:%S.%f").astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f"))     
+    asset_info = [{'ts':t, 'reading':v} for t,v in zip(utc_timestamps, values)]
+    return(asset_info)
 
 
 def copy_certs(gcp_cert_path):
@@ -135,7 +138,7 @@ def verify_and_set_prerequisites(gcp_cert_path, google_app_credentials):
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = google_app_credentials
 
 
-def verify_received_messages(logger_name, asset_ts, retries, wait_time):
+def verify_received_messages(logger_name, asset_info, retries, wait_time):
 
     from google.cloud import logging
     from google.cloud.logging import DESCENDING
@@ -146,19 +149,30 @@ def verify_received_messages(logger_name, asset_ts, retries, wait_time):
 
     # Fetches the latest logs from GCP and comaperes it with current timestamp
     while retries:
-        iterator = logger.list_entries(order_by=DESCENDING, page_size=1, filter_="severity=INFO")
+        iterator = logger.list_entries(order_by=DESCENDING, page_size=10, filter_="severity=INFO")
         pages = iterator.pages
         page = next(pages)  # API call
+        gcp_log_string = ""
+        gcp_info = []
         for entry in page:            
-            log=entry.payload
-        if len(log) and "sinusoid" in log:
-            for ts in asset_ts:
-                if ts in log:
-                    assert ts in log
-            break
-        else:
-            retries -= 1            
-            time.sleep(wait_time)
+            gcp_log_string += entry.payload
+        assert len(gcp_log_string), "No data seen in GCP. "
+        gcp_log_dict = json.loads("[" + gcp_log_string.replace("}{", "},{") + "]")
+        for r in gcp_log_dict:           
+            for d in range(0, len(r["sinusoid"])):
+                gcp_info.append(r["sinusoid"][d])
+        if len(gcp_info):
+            found = 0
+            for i in range(0, (len(gcp_info))):                
+                for  d in range(0, (len(asset_info))):                    
+                    if asset_info[d]['ts'] == gcp_info[i]['ts']:                        
+                        assert asset_info[d]['reading'] == gcp_info[i]['sinusoid']
+                        found += 1
+            if found == len(asset_info):
+                break
+            else:
+                retries -= 1
+                time.sleep(wait_time)
             
     if retries == 0:
         assert False, "TIMEOUT! sinusoid data sent not seen in GCP. "   
@@ -208,9 +222,9 @@ class TestGCPGateway:
         assert 0 < actual_stats_map['Readings Sent']
         assert 0 < actual_stats_map[task_name]
 
-        asset_ts = get_asset_ts(fledge_url)
+        asset_info = get_asset_info(fledge_url)
 
-        verify_received_messages(gcp_logger_name, asset_ts, retries, wait_time)
+        verify_received_messages(gcp_logger_name, asset_info, retries, wait_time)
 
         remove_data_file("{}/rsa_private.pem".format(FLEDGE_CERTS_DIR))
         remove_data_file("{}/roots.pem".format(FLEDGE_CERTS_DIR))

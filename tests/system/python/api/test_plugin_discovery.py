@@ -78,8 +78,8 @@ class TestPluginDiscovery:
     @pytest.mark.parametrize("method, count, config", [
         ("/fledge/plugins/installed?type=south", 0, None),
         ("/fledge/plugins/installed?type=filter", 0, None),
-        ("/fledge/plugins/installed?type=notificationDelivery", 0, None),
-        ("/fledge/plugins/installed?type=notificationRule", 0, None),
+        ("/fledge/plugins/installed?type=notify", 0, None),
+        ("/fledge/plugins/installed?type=rule", 0, None),
         ("/fledge/plugins/installed?type=north&config=false", 3, False),
         ("/fledge/plugins/installed?type=north&config=true", 3, True)
     ])
@@ -170,7 +170,7 @@ class TestPluginDiscovery:
         assert 1 == len(plugins)
         assert 'rms' == plugins[0]['name']
 
-    def test_delivery_plugins_installed(self, fledge_url, _type='notificationDelivery'):
+    def test_delivery_plugins_installed(self, fledge_url, _type='notify'):
         # install slack delivery plugin
         install_plugin(_type, plugin='slack', plugin_lang='C')
         conn = http.client.HTTPConnection(fledge_url)
@@ -184,7 +184,7 @@ class TestPluginDiscovery:
         assert 1 == len(plugins)
         assert 'slack' == plugins[0]['name']
 
-    def test_rule_plugins_installed(self, fledge_url, _type='notificationRule'):
+    def test_rule_plugins_installed(self, fledge_url, _type='rule'):
         # install OutOfBound rule plugin
         install_plugin(_type, plugin='outofbound', plugin_lang='C')
         conn = http.client.HTTPConnection(fledge_url)

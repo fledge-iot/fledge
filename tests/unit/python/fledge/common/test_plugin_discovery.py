@@ -345,7 +345,7 @@ class TestPluginDiscovery:
                                                         return_value=next(mock_c_folders()))
         mock_get_c_plugin_config = mocker.patch.object(utils, "get_plugin_info",
                                                               side_effect=TestPluginDiscovery.mock_c_notify_config)
-        plugins = PluginDiscovery.get_plugins_installed("notificationDelivery")
+        plugins = PluginDiscovery.get_plugins_installed("notify")
         # expected_plugin = TestPluginDiscovery.mock_c_plugins_config[3]
         # FIXME: ordering issue
         # assert expected_plugin == plugins
@@ -371,7 +371,7 @@ class TestPluginDiscovery:
         mock_get_c_plugin_config = mocker.patch.object(utils, "get_plugin_info",
                                                             side_effect=TestPluginDiscovery.mock_c_rule_config)
 
-        plugins = PluginDiscovery.get_plugins_installed("notificationRule")
+        plugins = PluginDiscovery.get_plugins_installed("rule")
         # expected_plugin = TestPluginDiscovery.mock_c_plugins_config[4]
         # FIXME: ordering issue
         # assert expected_plugin == plugins
@@ -467,8 +467,8 @@ class TestPluginDiscovery:
         (mock_c_plugins_config[0], "south"),
         (mock_c_plugins_config[1], "north"),
         (mock_c_plugins_config[2], "filter"),
-        (mock_c_plugins_config[3], "notificationDelivery"),
-        (mock_c_plugins_config[4], "notificationRule")
+        (mock_c_plugins_config[3], "notify"),
+        (mock_c_plugins_config[4], "rule")
     ])
     def test_fetch_c_plugins_installed(self, info, dir_name):
         with patch.object(utils, "find_c_plugin_libs", return_value=[(info['name'], "binary")]) as patch_plugin_lib:
@@ -481,8 +481,8 @@ class TestPluginDiscovery:
         (mock_c_plugins_config[0], "south"),
         (mock_c_plugins_config[1], "north"),
         (mock_c_plugins_config[2], "filter"),
-        (mock_c_plugins_config[3], "notificationDelivery"),
-        (mock_c_plugins_config[4], "notificationRule")
+        (mock_c_plugins_config[3], "notify"),
+        (mock_c_plugins_config[4], "rule")
     ])
     def test_deprecated_c_plugins_installed(self, info, dir_name):
         info['flag'] = api_utils.DEPRECATED_BIT_MASK_VALUE

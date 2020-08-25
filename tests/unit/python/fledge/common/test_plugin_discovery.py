@@ -413,10 +413,12 @@ class TestPluginDiscovery:
     @pytest.mark.parametrize("info, expected, is_config", [
         ({'name': "furnace4", 'version': "1.1", 'type': "south", 'interface': "1.0",
           'config': {'plugin': {'description': "Modbus RTU plugin", 'type': 'string', 'default': 'modbus'}}},
-         {'name': 'modbus', 'type': 'south', 'description': 'Modbus RTU plugin', 'version': '1.1'}, False),
+         {'name': 'modbus', 'type': 'south', 'description': 'Modbus RTU plugin', 'version': '1.1',
+          'installedDirectory': 'south'}, False),
         ({'name': "furnace4", 'version': "1.1", 'type': "south", 'interface': "1.0",
           'config': {'plugin': {'description': "Modbus RTU plugin", 'type': 'string', 'default': 'modbus'}}},
          {'name': 'modbus', 'type': 'south', 'description': 'Modbus RTU plugin', 'version': '1.1',
+          'installedDirectory': 'south',
           'config': {'plugin': {'description': 'Modbus RTU plugin', 'type': 'string', 'default': 'modbus'}}}, True)
     ])
     def test_get_plugin_config(self, info, expected, is_config):
@@ -471,7 +473,7 @@ class TestPluginDiscovery:
     def test_fetch_c_plugins_installed(self, info, dir_name):
         with patch.object(utils, "find_c_plugin_libs", return_value=[(info['name'], "binary")]) as patch_plugin_lib:
             with patch.object(utils, "get_plugin_info", return_value=info) as patch_plugin_info:
-                PluginDiscovery.fetch_c_plugins_installed(dir_name, True)
+                PluginDiscovery.fetch_c_plugins_installed(dir_name, True, dir_name)
             patch_plugin_info.assert_called_once_with(info['name'], dir=dir_name)
         patch_plugin_lib.assert_called_once_with(dir_name)
 
@@ -487,7 +489,7 @@ class TestPluginDiscovery:
         with patch.object(_logger, "warning") as patch_log_warn:
             with patch.object(utils, "find_c_plugin_libs", return_value=[(info['name'], "binary")]) as patch_plugin_lib:
                 with patch.object(utils, "get_plugin_info", return_value=info) as patch_plugin_info:
-                    PluginDiscovery.fetch_c_plugins_installed(dir_name, True)
+                    PluginDiscovery.fetch_c_plugins_installed(dir_name, True, dir_name)
                 patch_plugin_info.assert_called_once_with(info['name'], dir=dir_name)
             patch_plugin_lib.assert_called_once_with(dir_name)
         assert 1 == patch_log_warn.call_count
@@ -498,7 +500,7 @@ class TestPluginDiscovery:
         info = {"version": "1.6.0", "name": "FlirAX8", "config": {"asset": {"description": "Default asset name", "default": "flir", "displayName": "Asset Name", "type": "string"}, "plugin": {"description": "A Modbus connected Flir AX8 infrared camera", "default": "FlirAX8", "readonly": "true", "type": "string"}}}
         with patch.object(utils, "find_c_plugin_libs", return_value=[("FlirAX8", "json")]) as patch_plugin_lib:
             with patch.object(common, "load_and_fetch_c_hybrid_plugin_info", return_value=info) as patch_hybrid_plugin_info:
-                PluginDiscovery.fetch_c_plugins_installed('south', True)
+                PluginDiscovery.fetch_c_plugins_installed('south', True, 'south')
             patch_hybrid_plugin_info.assert_called_once_with(info['name'], True)
         patch_plugin_lib.assert_called_once_with('south')
 
@@ -511,7 +513,7 @@ class TestPluginDiscovery:
         with patch.object(_logger, "exception") as patch_log_exc:
             with patch.object(utils, "find_c_plugin_libs", return_value=[("Random", "binary")]) as patch_plugin_lib:
                 with patch.object(utils, "get_plugin_info",  return_value=info) as patch_plugin_info:
-                    PluginDiscovery.fetch_c_plugins_installed("south", False)
+                    PluginDiscovery.fetch_c_plugins_installed("south", False, 'south')
                 patch_plugin_info.assert_called_once_with('Random', dir='south')
             patch_plugin_lib.assert_called_once_with('south')
             assert exc_count == patch_log_exc.call_count
@@ -525,7 +527,7 @@ class TestPluginDiscovery:
         with patch.object(_logger, "exception") as patch_log_exc:
             with patch.object(utils, "find_c_plugin_libs", return_value=[("PI_Server", "binary")]) as patch_plugin_lib:
                 with patch.object(utils, "get_plugin_info", return_value=info) as patch_plugin_info:
-                    PluginDiscovery.fetch_c_plugins_installed("north", False)
+                    PluginDiscovery.fetch_c_plugins_installed("north", False, 'north')
                 patch_plugin_info.assert_called_once_with('PI_Server', dir='north')
             patch_plugin_lib.assert_called_once_with('north')
             assert exc_count == patch_log_exc.call_count

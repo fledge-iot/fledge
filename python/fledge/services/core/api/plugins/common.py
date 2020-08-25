@@ -69,7 +69,8 @@ def load_and_fetch_c_hybrid_plugin_info(plugin_name: str, is_config: bool, plugi
     plugin_info = None
     if plugin_type == 'south':
         config_items = ['default', 'type', 'description']
-        optional_items = ['readonly', 'order', 'length', 'maximum', 'minimum', 'rule', 'deprecated', 'displayName', 'options']
+        optional_items = ['readonly', 'order', 'length', 'maximum', 'minimum', 'rule', 'deprecated', 'displayName',
+                          'options']
         config_items.extend(optional_items)
         plugin_dir = _FLEDGE_ROOT + '/' + 'plugins' + '/' + plugin_type
         if _FLEDGE_PLUGIN_PATH:
@@ -89,13 +90,17 @@ def load_and_fetch_c_hybrid_plugin_info(plugin_name: str, is_config: bool, plugi
                 if _FLEDGE_ROOT + '/' + 'plugins' + '/' + plugin_type or os.path.isdir(plugin_dir + '/' + connection_name):
                     jdoc = utils.get_plugin_info(connection_name, dir=plugin_type)
                     if jdoc:
-                        plugin_info = {'name': plugin_name, 'type': plugin_type,
+                        plugin_info = {'name': plugin_name,
+                                       'type': plugin_type,
                                        'description': data['description'],
-                                       'version': jdoc['version']}
+                                       'version': jdoc['version'],
+                                       'installedDirectory': plugin_type
+                                       }
                         keys_a = set(jdoc['config'].keys())
                         keys_b = set(data['defaults'].keys())
                         intersection = keys_a & keys_b
-                        # Merge default and other configuration fields of both connection plugin and hybrid plugin with intersection of 'config' keys
+                        # Merge default and other configuration fields of both connection plugin
+                        # and hybrid plugin with intersection of 'config' keys
                         # Use Hybrid Plugin name and description defined in json file
                         temp = jdoc['config']
                         temp['plugin']['default'] = plugin_name

@@ -25,6 +25,7 @@
 #define READINGS_DB_FILE_NAME     "/" READINGS_DB_NAME_BASE "_1.db"
 #define READINGS_DB               READINGS_DB_NAME_BASE "_1"
 #define READINGS_TABLE            "readings"
+#define READINGS_TABLE_MEM       READINGS_TABLE "_1"
 
 #define LEN_BUFFER_DATE 100
 #define F_TIMEH24_S             "%H:%M:%S"
@@ -175,7 +176,8 @@ class ReadingsCatalogue {
 		int           purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBase, char **errMsg = NULL, unsigned int *rowsAffected = NULL);
 
 	private:
-		const int nReadingsAllocate = 1;
+		// FIXME_I:
+		const int nReadingsAllocate = 2;
 
 		typedef struct ReadingAvailable {
 			int lastReadings;

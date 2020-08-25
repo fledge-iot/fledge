@@ -111,6 +111,8 @@ static int purgeBlockSize = PURGE_DELETE_BLOCK_SIZE;
 static time_t connectErrorTime = 0;
 
 
+
+#ifndef SQLITE_SPLIT_READINGS
 /**
  * Check whether to compute timebucket query with min,max,avg for all datapoints
  *
@@ -131,6 +133,8 @@ bool aggregateAll(const Value& payload)
 	}
 	return false;
 }
+#endif
+
 
 /**
  * Build, exucute and return data of a timebucket query with min,max,avg for all datapoints
@@ -637,6 +641,7 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 	return rowNumber;
 }
 
+#ifndef SQLITE_SPLIT_READINGS
 /**
  * Append a set of readings to the readings table
  */
@@ -920,7 +925,9 @@ int localNReadingsTotal;
 
 	return row;
 }
+#endif
 
+#ifndef SQLITE_SPLIT_READINGS
 /**
  * Fetch a block of readings from the reading table
  * It might not work with SQLite 3
@@ -941,6 +948,11 @@ char sqlbuffer[5120];
 char *zErrMsg = NULL;
 int rc;
 int retrieve;
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx fetchReadings storage");
+	Logger::getLogger()->setMinLevel("warning");
 
 	string sql_cmd;
 	// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
@@ -1012,8 +1024,9 @@ int retrieve;
 		}
 	}
 }
+#endif
 
-
+#ifndef SQLITE_SPLIT_READINGS
 /**
  * Perform a query against the readings table
  *
@@ -1029,6 +1042,11 @@ SQLBuffer	sql;
 SQLBuffer	jsonConstraints;
 bool		isAggregate = false;
 
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx retrieveReadings storage");
+	Logger::getLogger()->setMinLevel("warning");
 
 	try {
 		if (dbHandle == NULL)
@@ -1411,6 +1429,8 @@ bool		isAggregate = false;
 	}
 
 }
+#endif
+
 
 /**
  * Purge readings from the reading table

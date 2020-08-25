@@ -426,6 +426,13 @@ bool retCode;
  */
 Connection::Connection()
 {
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx Connection in storage");
+	Logger::getLogger()->setMinLevel("warning");
+
+
 	string dbPath, dbPathReadings;
 	const char *defaultConnection = getenv("DEFAULT_SQLITE_DB_FILE");
 	const char *defaultReadingsConnection = getenv("DEFAULT_SQLITE_DB_READINGS_FILE");

@@ -763,7 +763,7 @@ int localNReadingsTotal;
 
 				if (readingsId == -1)
 				{
-					Logger::getLogger()->warn("Impossible to insert the row for the asset_code :%s: into the readings, row ignored.", asset_code);
+					Logger::getLogger()->warn("appendReadings - It was not possible to insert the row for the asset_code :%s: into the readings, row ignored.", asset_code);
 					stmt = NULL;
 				}
 				else

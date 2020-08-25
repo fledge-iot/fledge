@@ -152,7 +152,7 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 			rc = sqlite3_exec(dbHandle, sqlCmd.c_str(), NULL, NULL, &zErrMsg);
 			if (rc != SQLITE_OK)
 			{
-				Logger::getLogger()->error("attachNewDb - impossible to attach the db :%s: to an idle connection, error :%s:", path.c_str(), zErrMsg);
+				Logger::getLogger()->error("attachNewDb - It was not possible to attach the db :%s: to an idle connection, error :%s:", path.c_str(), zErrMsg);
 				result = false;
 				break;
 			}
@@ -171,7 +171,7 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 				rc = sqlite3_exec(dbHandle, sqlCmd.c_str(), NULL, NULL, &zErrMsg);
 				if (rc != SQLITE_OK)
 				{
-					Logger::getLogger()->error("attachNewDb - impossible to attach the db :%s:  to an inUse connection, error :%s:", path.c_str() ,zErrMsg);
+					Logger::getLogger()->error("attachNewDb - It was not possible to attach the db :%s: to an inUse connection, error :%s:", path.c_str() ,zErrMsg);
 					result = false;
 					break;
 				}

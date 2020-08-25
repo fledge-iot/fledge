@@ -30,16 +30,26 @@ class PluginDiscovery(object):
     def get_plugins_installed(cls, plugin_type=None, is_config=False):
         if plugin_type is None:
             plugins_list = []
-            plugins_list_north = cls.fetch_plugins_installed("north", is_config)
-            plugins_list_south = cls.fetch_plugins_installed("south", is_config)
-            plugins_list_filter = cls.fetch_plugins_installed("filter", is_config)
-            plugins_list_notify = cls.fetch_plugins_installed("notificationDelivery", is_config)
-            plugins_list_rule = cls.fetch_plugins_installed("notificationRule", is_config)
-            plugins_list_c_north = cls.fetch_c_plugins_installed("north", is_config)
-            plugins_list_c_south = cls.fetch_c_plugins_installed("south", is_config)
-            plugins_list_c_filter = cls.fetch_c_plugins_installed("filter", is_config)
-            plugins_list_c_notify = cls.fetch_c_plugins_installed("notificationDelivery", is_config)
-            plugins_list_c_rule = cls.fetch_c_plugins_installed("notificationRule", is_config)
+            plugins_list_north = cls.fetch_plugins_installed(plugin_type="north", is_config=is_config,
+                                                             installed_dir_name="north")
+            plugins_list_south = cls.fetch_plugins_installed(plugin_type="south", is_config=is_config,
+                                                             installed_dir_name="south")
+            plugins_list_filter = cls.fetch_plugins_installed(plugin_type="filter", is_config=is_config,
+                                                              installed_dir_name="filter")
+            plugins_list_notify = cls.fetch_plugins_installed(plugin_type="notify", is_config=is_config,
+                                                              installed_dir_name="notificationDelivery")
+            plugins_list_rule = cls.fetch_plugins_installed(plugin_type="rule", is_config=is_config,
+                                                            installed_dir_name="notificationRule")
+            plugins_list_c_north = cls.fetch_c_plugins_installed(plugin_type="north", is_config=is_config,
+                                                                 installed_dir_name="north")
+            plugins_list_c_south = cls.fetch_c_plugins_installed(plugin_type="south", is_config=is_config,
+                                                                 installed_dir_name="south")
+            plugins_list_c_filter = cls.fetch_c_plugins_installed(plugin_type="filter", is_config=is_config,
+                                                                  installed_dir_name="filter")
+            plugins_list_c_notify = cls.fetch_c_plugins_installed(plugin_type="notify", is_config=is_config,
+                                                                  installed_dir_name="notificationDelivery")
+            plugins_list_c_rule = cls.fetch_c_plugins_installed(plugin_type="rule", is_config=is_config,
+                                                                installed_dir_name="notificationRule")
             plugins_list.extend(plugins_list_north)
             plugins_list.extend(plugins_list_c_north)
             plugins_list.extend(plugins_list_south)
@@ -51,20 +61,27 @@ class PluginDiscovery(object):
             plugins_list.extend(plugins_list_rule)
             plugins_list.extend(plugins_list_c_rule)
         else:
-            plugins_list = cls.fetch_plugins_installed(plugin_type, is_config)
-            plugins_list.extend(cls.fetch_c_plugins_installed(plugin_type, is_config))
+            if plugin_type == 'notify':
+                installed_dir_name = 'notificationDelivery'
+            elif plugin_type == 'rule':
+                installed_dir_name = 'notificationRule'
+            else:
+                installed_dir_name = plugin_type
+            plugins_list = cls.fetch_plugins_installed(plugin_type, is_config, installed_dir_name=installed_dir_name)
+            plugins_list.extend(cls.fetch_c_plugins_installed(plugin_type, is_config,
+                                                              installed_dir_name=installed_dir_name))
         return plugins_list
 
     @classmethod
-    def fetch_plugins_installed(cls, plugin_type, is_config):
-        directories = cls.get_plugin_folders(plugin_type)
+    def fetch_plugins_installed(cls, plugin_type, is_config, installed_dir_name):
+        directories = cls.get_plugin_folders(installed_dir_name)
         # Check is required only for notificationDelivery & notificationRule python plugins as NS is an external service
         # Hence we are not creating empty directories, as we had for south & filters
         if directories is None:
             directories = []
         configs = []
         for d in directories:
-            plugin_config = cls.get_plugin_config(d, plugin_type, is_config)
+            plugin_config = cls.get_plugin_config(d, is_config, installed_dir_name)
             if plugin_config is not None:
                 configs.append(plugin_config)
         return configs
@@ -108,21 +125,23 @@ class PluginDiscovery(object):
             return directories
 
     @classmethod
-    def fetch_c_plugins_installed(cls, plugin_type, is_config):
-        libs = utils.find_c_plugin_libs(plugin_type)
+    def fetch_c_plugins_installed(cls, plugin_type, is_config, installed_dir_name):
+        libs = utils.find_c_plugin_libs(installed_dir_name)
         configs = []
         for name, _type in libs:
             try:
                 if _type == 'binary':
-                    jdoc = utils.get_plugin_info(name, dir=plugin_type)
+                    jdoc = utils.get_plugin_info(name, dir=installed_dir_name)
                     if jdoc:
                         if 'flag' in jdoc:
-                            if common_utils.bit_at_given_position_set_or_unset(jdoc['flag'], common_utils.DEPRECATED_BIT_POSITION):
+                            if common_utils.bit_at_given_position_set_or_unset(jdoc['flag'],
+                                                                               common_utils.DEPRECATED_BIT_POSITION):
                                 raise DeprecationWarning
                         plugin_config = {'name': name,
                                          'type': plugin_type,
                                          'description': jdoc['config']['plugin']['description'],
-                                         'version': jdoc['version']
+                                         'version': jdoc['version'],
+                                         'installedDirectory': installed_dir_name
                                          }
                         if is_config:
                             plugin_config.update({'config': jdoc['config']})
@@ -140,23 +159,25 @@ class PluginDiscovery(object):
         return configs
 
     @classmethod
-    def get_plugin_config(cls, plugin_dir, plugin_type, is_config):
+    def get_plugin_config(cls, plugin_dir, is_config, installed_dir_name):
         plugin_module_path = plugin_dir
         plugin_config = None
-
         # Now load the plugin to fetch its configuration
         try:
-            plugin_info = common.load_and_fetch_python_plugin_info(plugin_module_path,  plugin_module_path.split('/')[-1], plugin_type)
+            plugin_info = common.load_and_fetch_python_plugin_info(
+                plugin_module_path, plugin_module_path.split('/')[-1], installed_dir_name)
             # Fetch configuration from the configuration defined in the plugin
-            if plugin_info['type'] == plugin_type:
+            if plugin_info['type'] == installed_dir_name:
                 if 'flag' in plugin_info:
-                    if common_utils.bit_at_given_position_set_or_unset(plugin_info['flag'], common_utils.DEPRECATED_BIT_POSITION):
+                    if common_utils.bit_at_given_position_set_or_unset(plugin_info['flag'],
+                                                                       common_utils.DEPRECATED_BIT_POSITION):
                         raise DeprecationWarning
                 plugin_config = {
                     'name': plugin_info['config']['plugin']['default'],
                     'type': plugin_info['type'],
                     'description': plugin_info['config']['plugin']['description'],
-                    'version': plugin_info['version']
+                    'version': plugin_info['version'],
+                    'installedDirectory': installed_dir_name
                 }
             else:
                 _logger.warning("Plugin {} is discarded due to invalid type".format(plugin_dir))

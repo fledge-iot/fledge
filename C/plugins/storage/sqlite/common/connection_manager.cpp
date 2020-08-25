@@ -125,6 +125,12 @@ Connection *conn = 0;
 	return conn;
 }
 
+/**
+ * Attach a database to all the connections, idle and  inuse
+ *
+ * @param path  - path of the database to attach
+ * @param alias - alias to be assigned to the attached database
+ */
 bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 {
 	int rc;

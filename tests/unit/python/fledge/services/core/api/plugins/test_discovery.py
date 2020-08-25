@@ -32,11 +32,14 @@ class TestPluginDiscoveryApi:
         return loop.run_until_complete(test_client(app))
 
     @pytest.mark.parametrize("method, result, is_config", [
-        ("/fledge/plugins/installed", {"name": "sinusoid", "version": "1.0", "type": "south", "description": "sinusoid plugin"}, False),
+        ("/fledge/plugins/installed", {"name": "sinusoid", "version": "1.0", "type": "south",
+                                       "description": "sinusoid plugin"}, False),
         ("/fledge/plugins/installed?config=true",
          {"name": "sinusoid", "version": "1.0", "type": "south", "description": "sinusoid plugin", "config": {
-             "plugin": {"description": "sinusoid plugin", "type": "string", "default": "sinusoid", "readonly": "true"}}}, True),
-        ("/fledge/plugins/installed?config=false", {"name": "sinusoid", "version": "1.0", "type": "south", "description": "sinusoid plugin"}, False)
+             "plugin": {"description": "sinusoid plugin", "type": "string", "default": "sinusoid",
+                        "readonly": "true"}}}, True),
+        ("/fledge/plugins/installed?config=false", {"name": "sinusoid", "version": "1.0", "type": "south",
+                                                    "description": "sinusoid plugin"}, False)
     ])
     async def test_get_plugins_installed(self, client, method, result, is_config):
         with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=result) as patch_get_plugin_installed:
@@ -48,7 +51,8 @@ class TestPluginDiscoveryApi:
         patch_get_plugin_installed.assert_called_once_with(None, is_config)
 
     @pytest.mark.parametrize("param", [
-        "north", "south", "North", "South", "NORTH", "SOUTH", "filter", "Filter", "FILTER", "notify", "Notify", "rule", "RULE"
+        "north", "North", "NORTH", "nOrTH", "south", "South", "SOUTH", "filter", "Filter", "FILTER", "notify", "Notify",
+        "rule", "RULE", "RuLe"
     ])
     async def test_get_plugins_installed_by_params(self, client, param):
         with patch.object(PluginDiscovery, 'get_plugins_installed', return_value={}) as patch_get_plugin_installed:
@@ -60,21 +64,39 @@ class TestPluginDiscoveryApi:
         patch_get_plugin_installed.assert_called_once_with(param.lower(), False)
 
     @pytest.mark.parametrize("param, _type, result, is_config", [
-        ("?type=north&config=false", "north", {"name": "http", "version": "1.0.0", "type": "north", "description": "HTTP North-C plugin"}, False),
-        ("?type=south&config=false", "south", {"name": "sinusoid", "version": "1.0", "type": "south", "description": "sinusoid plugin"}, False),
-        ("?type=filter&config=false", "filter", {"name": "scale", "version": "1.0.0", "type": "filter", "description": "Filter Scale plugin"}, False),
-        ("?type=notify&config=false", "notify", {"name": "email", "version": "1.0.0", "type": "notify", "description": "Email notification plugin"}, False),
-        ("?type=rule&config=false", "rule", {"name": "OverMaxRule", "version": "1.0.0", "type": "rule", "description": "The OverMaxRule notification rule plugin"}, False),
-        ("?type=north&config=true", "north", {"name": "http", "version": "1.0.0", "type": "north", "description": "HTTP North-C plugin",
-                                              "config": {"plugin": {"description": "HTTP North-C plugin", "type": "string", "default": "http-north"}}}, True),
-        ("?type=south&config=true", "south", {"name": "sinusoid", "version": "1.0", "type": "south", "description": "sinusoid plugin",
-                                              "config": {"plugin": {"description": "sinusoid plugin", "type": "string", "default": "sinusoid", "readonly": "true"}}}, True),
-        ("?type=filter&config=true", "filter", {"name": "scale", "version": "1.0.0", "type": "filter", "description": "Filter Scale plugin",
-                                                "config": {"offset": {"default": "0.0", "type": "float", "description": "A constant offset"}, "factor": {"default": "100.0", "type": "float", "description": "Scale factor for a reading."}, "plugin": {"default": "scale", "type": "string", "description": "Scale filter plugin"}, "enable": {"default": "false", "type": "boolean", "description": "A switch that can be used to enable or disable."}}}, True),
-        ("?type=notify&config=true", "notify", {"name": "email", "version": "1.0.0", "type": "notify", "description": "Email notification plugin",
-                                                                            "config": {"plugin": {"type": "string", "description": "Email notification plugin", "default": "email"}}}, True),
-        ("?type=rule&config=true", "rule", {"name": "OverMaxRule", "version": "1.0.0", "type": "rule", "description": "The OverMaxRule notification rule plugin",
-                                                                    "config": {"plugin": {"type": "string", "description": "The OverMaxRule notification rule plugin", "default": "OverMaxRule"}}}, True)
+        ("?type=north&config=false", "north",
+         {"name": "http", "version": "1.0.0", "type": "north", "description": "HTTP North-C plugin"}, False),
+        ("?type=south&config=false", "south",
+         {"name": "sinusoid", "version": "1.0", "type": "south", "description": "sinusoid plugin"}, False),
+        ("?type=filter&config=false", "filter",
+         {"name": "scale", "version": "1.0.0", "type": "filter", "description": "Filter Scale plugin"}, False),
+        ("?type=notify&config=false", "notify",
+         {"name": "email", "version": "1.0.0", "type": "notify", "description": "Email notification plugin"}, False),
+        ("?type=rule&config=false", "rule",
+         {"name": "OverMaxRule", "version": "1.0.0", "type": "rule", "description": "The OverMaxRule plugin"}, False),
+        ("?type=north&config=true", "north",
+         {"name": "http", "version": "1.0.0", "type": "north", "description": "HTTP North-C plugin",
+          "config": {"plugin": {"description": "HTTP North-C plugin", "type": "string", "default": "http-north"}}},
+         True),
+        ("?type=south&config=true", "south",
+         {"name": "sinusoid", "version": "1.0", "type": "south", "description": "sinusoid plugin",
+          "config": {"plugin": {"description": "sinusoid plugin", "type": "string", "default": "sinusoid",
+                                "readonly": "true"}}}, True),
+        ("?type=filter&config=true", "filter",
+         {"name": "scale", "version": "1.0.0", "type": "filter", "description": "Filter Scale plugin",
+          "config": {"offset": {"default": "0.0", "type": "float", "description": "A constant offset"},
+                     "factor": {"default": "100.0", "type": "float", "description": "Scale factor for a reading."},
+                     "plugin": {"default": "scale", "type": "string", "description": "Scale filter plugin"},
+                     "enable": {"default": "false", "type": "boolean",
+                                "description": "A switch that can be used to enable or disable."}}}, True),
+        ("?type=notify&config=true", "notify",
+         {"name": "email", "version": "1.0.0", "type": "notify", "description": "Email notification plugin",
+          "config": {"plugin": {"type": "string", "description": "Email notification plugin", "default": "email"}}},
+         True),
+        ("?type=rule&config=true", "rule",
+         {"name": "OverMaxRule", "version": "1.0.0", "type": "rule", "description": "The OverMaxRule plugin",
+          "config": {"plugin": {"type": "string", "description": "The OverMaxRule notification rule plugin",
+                                "default": "OverMaxRule"}}}, True)
     ])
     async def test_get_plugins_installed_by_type_and_config(self, client, param, _type, result, is_config):
         with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=result) as patch_get_plugin_installed:

@@ -38,11 +38,6 @@ static int purgeBlockSize = PURGE_DELETE_BLOCK_SIZE;
  */
 Connection::Connection()
 {
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx Connection in mmeory");
-	Logger::getLogger()->setMinLevel("warning");
-
 	if (getenv("FLEDGE_TRACE_SQL"))
 	{
 		m_logSQL = true;
@@ -175,11 +170,6 @@ bool Connection::fetchReadings(unsigned long id,
 							   unsigned int blksize,
 							   std::string& resultSet)
 {
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx fetchReadings in mmeory");
-	Logger::getLogger()->setMinLevel("warning");
-
 	char sqlbuffer[512];
 	char *zErrMsg = NULL;
 	int rc;
@@ -253,11 +243,6 @@ bool Connection::fetchReadings(unsigned long id,
  */
 int Connection::appendReadings(const char *readings)
 {
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx appendReadings in mmeory");
-	Logger::getLogger()->setMinLevel("warning");
 
 // Default template parameter uses UTF8 and MemoryPoolAllocator.
 	Document doc;
@@ -510,11 +495,6 @@ bool aggregateAll(const Value& payload)
  */
 bool Connection::retrieveReadings(const string& condition, string& resultSet)
 {
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx retrieveReadings in mmeory");
-	Logger::getLogger()->setMinLevel("warning");
-
 // Default template parameter uses UTF8 and MemoryPoolAllocator.
 	Document	document;
 	SQLBuffer	sql;
@@ -781,7 +761,6 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 
 				sql.append(sql_cmd);
 			}
-			// FIXME_I:
 			sql.append(READINGS_TABLE_MEM);
 			if (document.HasMember("where"))
 			{

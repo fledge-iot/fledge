@@ -924,11 +924,6 @@ char *zErrMsg = NULL;
 int rc;
 int retrieve;
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx fetchReadings storage");
-	Logger::getLogger()->setMinLevel("warning");
-
 	string sql_cmd;
 	// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
 	{
@@ -1016,12 +1011,6 @@ SQLBuffer	sql;
 // Extra constraints to add to where clause
 SQLBuffer	jsonConstraints;
 bool		isAggregate = false;
-
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx retrieveReadings storage");
-	Logger::getLogger()->setMinLevel("warning");
 
 	try {
 		if (dbHandle == NULL)

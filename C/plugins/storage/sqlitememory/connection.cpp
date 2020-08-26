@@ -10,6 +10,7 @@
 #include <connection.h>
 #include <connection_manager.h>
 #include <common.h>
+#include <math.h>
 
 /**
  * SQLite3 storage plugin for Fledge
@@ -30,6 +31,7 @@ using namespace rapidjson;
 static std::atomic<int> m_writeAccessOngoing(0);
 
 static time_t connectErrorTime = 0;
+static int purgeBlockSize = PURGE_DELETE_BLOCK_SIZE;
 
 /**
  * Create a SQLite3 database connection
@@ -861,3 +863,706 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 }
 
 
+
+/**
+ * Build, exucute and return data of a timebucket query with min,max,avg for all datapoints
+ *
+ * @param    payload	JSON object for timebucket query
+ * @param    resultSet	JSON Output buffer
+ * @return		True of success, false on any error
+ */
+bool Connection::aggregateQuery(const Value& payload, string& resultSet)
+{
+	if (!payload.HasMember("where") ||
+		!payload.HasMember("timebucket"))
+	{
+		raiseError("retrieve", "aggregateQuery is missing "
+							   "'where' and/or 'timebucket' properties");
+		return false;
+	}
+
+	SQLBuffer sql;
+
+	sql.append("SELECT asset_code, ");
+
+	double size = 1;
+	string timeColumn;
+
+	// Check timebucket object
+	if (payload.HasMember("timebucket"))
+	{
+		const Value& bucket = payload["timebucket"];
+		if (!bucket.HasMember("timestamp"))
+		{
+			raiseError("retrieve", "aggregateQuery is missing "
+								   "'timestamp' property for 'timebucket'");
+			return false;
+		}
+
+		// Time column
+		timeColumn = bucket["timestamp"].GetString();
+
+		// Bucket size
+		if (bucket.HasMember("size"))
+		{
+			size = atof(bucket["size"].GetString());
+			if (!size)
+			{
+				size = 1;
+			}
+		}
+
+		// Time format for output
+		string newFormat;
+		if (bucket.HasMember("format") && size >= 1)
+		{
+			applyColumnDateFormatLocaltime(bucket["format"].GetString(),
+										   "timestamp",
+										   newFormat,
+										   true);
+			sql.append(newFormat);
+		}
+		else
+		{
+			if (size < 1)
+			{
+				// sub-second granularity to time bucket size:
+				// force output formatting with microseconds
+				newFormat = "strftime('%Y-%m-%d %H:%M:%S', " + timeColumn +
+							", 'localtime') || substr(" + timeColumn	  +
+							", instr(" + timeColumn + ", '.'), 7)";
+				sql.append(newFormat);
+			}
+			else
+			{
+				sql.append("timestamp");
+			}
+		}
+
+		// Time output alias
+		if (bucket.HasMember("alias"))
+		{
+			sql.append(" AS ");
+			sql.append(bucket["alias"].GetString());
+		}
+	}
+
+	// JSON format aggregated data
+	sql.append(", '{' || group_concat('\"' || x || '\" : ' || resd, ', ') || '}' AS reading ");
+
+	// subquery
+	sql.append("FROM ( SELECT  x, asset_code, max(timestamp) AS timestamp, ");
+	// Add min
+	sql.append("'{\"min\" : ' || min(theval) || ', ");
+	// Add max
+	sql.append("\"max\" : ' || max(theval) || ', ");
+	// Add avg
+	sql.append("\"average\" : ' || avg(theval) || ', ");
+	// Add count
+	sql.append("\"count\" : ' || count(theval) || ', ");
+	// Add sum
+	sql.append("\"sum\" : ' || sum(theval) || '}' AS resd ");
+
+	if (size < 1)
+	{
+		// Add max(user_ts)
+		sql.append(", max(" + timeColumn + ") AS " + timeColumn + " ");
+	}
+
+	// subquery
+	sql.append("FROM ( SELECT asset_code, ");
+	sql.append(timeColumn);
+
+	if (size >= 1)
+	{
+		sql.append(", datetime(");
+	}
+	else
+	{
+		sql.append(", (");
+	}
+
+	// Size formatted string
+	string size_format;
+	if (fmod(size, 1.0) == 0.0)
+	{
+		size_format = to_string(int(size));
+	}
+	else
+	{
+		size_format = to_string(size);
+	}
+
+	// Add timebucket size
+	// Unix Time is (Julian Day - JulianDay(1/1/1970 0:00 UTC) * Seconds_per_day
+	if (size != 1)
+	{
+		sql.append(size_format);
+		sql.append(" * round((julianday(");
+		sql.append(timeColumn);
+		sql.append(") - " + string(JULIAN_DAY_START_UNIXTIME) + ") * " + string(SECONDS_PER_DAY) + " / ");
+		sql.append(size_format);
+		sql.append(")");
+	}
+	else
+	{
+		sql.append("round((julianday(");
+		sql.append(timeColumn);
+		sql.append(") - " + string(JULIAN_DAY_START_UNIXTIME) + ") * " + string(SECONDS_PER_DAY) + " / 1)");
+	}
+	if (size >= 1)
+	{
+		sql.append(", 'unixepoch') AS \"timestamp\", reading, ");
+	}
+	else
+	{
+		sql.append(") AS \"timestamp\", reading, ");
+	}
+
+	// Get all datapoints in 'reading' field
+	sql.append("json_each.key AS x, json_each.value AS theval FROM " READINGS_DB "." READINGS_TABLE_MEM ", json_each(" READINGS_TABLE_MEM ".reading) ");
+
+	// Add where condition
+	sql.append("WHERE ");
+	if (!jsonWhereClause(payload["where"], sql))
+	{
+		raiseError("retrieve", "aggregateQuery: failure while building WHERE clause");
+		return false;
+	}
+
+	// close subquery
+	sql.append(") tmp ");
+
+	// Add group by
+	// Unix Time is (Julian Day - JulianDay(1/1/1970 0:00 UTC) * Seconds_per_day
+	sql.append(" GROUP BY x, asset_code, ");
+	sql.append("round((julianday(");
+	sql.append(timeColumn);
+	sql.append(") - " + string(JULIAN_DAY_START_UNIXTIME) + ") * " + string(SECONDS_PER_DAY) + " / ");
+
+	if (size != 1)
+	{
+		sql.append(size_format);
+	}
+	else
+	{
+		sql.append('1');
+	}
+	sql.append(") ");
+
+	// close subquery
+	sql.append(") tbl ");
+
+	// Add final group and sort
+	sql.append("GROUP BY timestamp, asset_code ORDER BY timestamp DESC");
+
+	// Add limit
+	if (payload.HasMember("limit"))
+	{
+		if (!payload["limit"].IsInt())
+		{
+			raiseError("retrieve", "aggregateQuery: limit must be specfied as an integer");
+			return false;
+		}
+		sql.append(" LIMIT ");
+		try {
+			sql.append(payload["limit"].GetInt());
+		} catch (exception e) {
+			raiseError("retrieve", "aggregateQuery: bad value for limit parameter: %s", e.what());
+			return false;
+		}
+	}
+	sql.append(';');
+
+	// Execute query
+	const char *query = sql.coalesce();
+	int rc;
+	sqlite3_stmt *stmt;
+
+	logSQL("CommonRetrieve", query);
+
+	// Prepare the SQL statement and get the result set
+	rc = sqlite3_prepare_v2(dbHandle, query, -1, &stmt, NULL);
+
+	// Release memory for 'query' var
+	delete[] query;
+
+	if (rc != SQLITE_OK)
+	{
+		raiseError("retrieve", sqlite3_errmsg(dbHandle));
+		return false;
+	}
+
+	// Call result set mapping
+	rc = mapResultSet(stmt, resultSet);
+
+	// Delete result set
+	sqlite3_finalize(stmt);
+
+	// Check result set mapping errors
+	if (rc != SQLITE_DONE)
+	{
+		raiseError("retrieve", sqlite3_errmsg(dbHandle));
+		// Failure
+		return false;
+	}
+
+	return true;
+}
+
+
+/**
+ * Purge readings from the reading table
+ */
+unsigned int  Connection::purgeReadings(unsigned long age,
+										unsigned int flags,
+										unsigned long sent,
+										std::string& result)
+{
+	long unsentPurged = 0;
+	long unsentRetained = 0;
+	long numReadings = 0;
+	unsigned long rowidLimit = 0, minrowidLimit = 0, maxrowidLimit = 0, rowidMin;
+	struct timeval startTv, endTv;
+	int blocks = 0;
+
+	Logger *logger = Logger::getLogger();
+
+	result = "{ \"removed\" : 0, ";
+	result += " \"unsentPurged\" : 0, ";
+	result += " \"unsentRetained\" : 0, ";
+	result += " \"readings\" : 0 }";
+
+	logger->info("Purge starting...");
+	gettimeofday(&startTv, NULL);
+	/*
+	 * We fetch the current rowid and limit the purge process to work on just
+	 * those rows present in the database when the purge process started.
+	 * This provents us looping in the purge process if new readings become
+	 * eligible for purging at a rate that is faster than we can purge them.
+	 */
+	{
+		char *zErrMsg = NULL;
+		int rc;
+		rc = SQLexec(dbHandle,
+					 "select max(rowid) from " READINGS_DB "."  READINGS_TABLE_MEM ";",
+			rowidCallback,
+			&rowidLimit,
+			&zErrMsg);
+
+		if (rc != SQLITE_OK)
+		{
+			raiseError("purge - phase 0, fetching rowid limit ", zErrMsg);
+			sqlite3_free(zErrMsg);
+			return 0;
+		}
+		maxrowidLimit = rowidLimit;
+	}
+
+	{
+		char *zErrMsg = NULL;
+		int rc;
+		rc = SQLexec(dbHandle,
+					 "select min(rowid) from " READINGS_DB "." READINGS_TABLE_MEM ";",
+			rowidCallback,
+			&minrowidLimit,
+			&zErrMsg);
+
+		if (rc != SQLITE_OK)
+		{
+			raiseError("purge - phaase 0, fetching minrowid limit ", zErrMsg);
+			sqlite3_free(zErrMsg);
+			return 0;
+		}
+	}
+
+	if (age == 0)
+	{
+		/*
+		 * An age of 0 means remove the oldest hours data.
+		 * So set age based on the data we have and continue.
+		 */
+		SQLBuffer oldest;
+		oldest.append("SELECT (strftime('%s','now', 'utc') - strftime('%s', MIN(user_ts)))/360 FROM " READINGS_DB "." READINGS_TABLE_MEM " where rowid <= ");
+		oldest.append(rowidLimit);
+		oldest.append(';');
+		const char *query = oldest.coalesce();
+		char *zErrMsg = NULL;
+		int rc;
+		int purge_readings = 0;
+
+		// Exec query and get result in 'purge_readings' via 'selectCallback'
+		rc = SQLexec(dbHandle,
+					 query,
+					 selectCallback,
+					 &purge_readings,
+					 &zErrMsg);
+		// Release memory for 'query' var
+		delete[] query;
+
+		if (rc == SQLITE_OK)
+		{
+			age = purge_readings;
+		}
+		else
+		{
+			raiseError("purge - phase 1", zErrMsg);
+			sqlite3_free(zErrMsg);
+			return 0;
+		}
+	}
+
+	{
+		/*
+		 * Refine rowid limit to just those rows older than age hours.
+		 */
+		char *zErrMsg = NULL;
+		int rc;
+		unsigned long l = minrowidLimit;
+		unsigned long r = ((flags & 0x01) && sent) ? min(sent, rowidLimit) : rowidLimit;
+		r = max(r, l);
+		//logger->info("%s:%d: l=%u, r=%u, sent=%u, rowidLimit=%u, minrowidLimit=%u, flags=%u", __FUNCTION__, __LINE__, l, r, sent, rowidLimit, minrowidLimit, flags);
+		if (l == r)
+		{
+			logger->info("No data to purge: min_id == max_id == %u", minrowidLimit);
+			return 0;
+		}
+
+		unsigned long m=l;
+
+		while (l <= r)
+		{
+			unsigned long midRowId = 0;
+			unsigned long prev_m = m;
+			m = l + (r - l) / 2;
+			if (prev_m == m) break;
+
+			// e.g. select id from readings where rowid = 219867307 AND user_ts < datetime('now' , '-24 hours', 'utc');
+			SQLBuffer sqlBuffer;
+			sqlBuffer.append("select id from " READINGS_DB "." READINGS_TABLE_MEM " where rowid = ");
+			sqlBuffer.append(m);
+			sqlBuffer.append(" AND user_ts < datetime('now' , '-");
+			sqlBuffer.append(age);
+			sqlBuffer.append(" hours');");
+			const char *query = sqlBuffer.coalesce();
+
+
+			rc = SQLexec(dbHandle,
+						 query,
+						 rowidCallback,
+						 &midRowId,
+						 &zErrMsg);
+
+			if (rc != SQLITE_OK)
+			{
+				raiseError("purge - phase 1, fetching midRowId ", zErrMsg);
+				sqlite3_free(zErrMsg);
+				return 0;
+			}
+
+			if (midRowId == 0) // mid row doesn't satisfy given condition for user_ts, so discard right/later half and look in left/earlier half
+			{
+				// search in earlier/left half
+				r = m - 1;
+
+				// The m position should be skipped as midRowId is 0
+				m = r;
+			}
+			else //if (l != m)
+			{
+				// search in later/right half
+				l = m + 1;
+			}
+		}
+
+		rowidLimit = m;
+
+		if (minrowidLimit == rowidLimit)
+		{
+			logger->info("No data to purge");
+			return 0;
+		}
+
+		rowidMin = minrowidLimit;
+	}
+	//logger->info("Purge collecting unsent row count");
+	if ((flags & 0x01) == 0)
+	{
+		char *zErrMsg = NULL;
+		int rc;
+		int lastPurgedId;
+		SQLBuffer idBuffer;
+		idBuffer.append("select id from " READINGS_DB "." READINGS_TABLE_MEM " where rowid = ");
+		idBuffer.append(rowidLimit);
+		idBuffer.append(';');
+		const char *idQuery = idBuffer.coalesce();
+		rc = SQLexec(dbHandle,
+					 idQuery,
+					 rowidCallback,
+					 &lastPurgedId,
+					 &zErrMsg);
+
+		// Release memory for 'idQuery' var
+		delete[] idQuery;
+
+		if (rc != SQLITE_OK)
+		{
+			raiseError("purge - phase 0, fetching rowid limit ", zErrMsg);
+			sqlite3_free(zErrMsg);
+			return 0;
+		}
+
+		if (sent != 0 && lastPurgedId > sent)	// Unsent readings will be purged
+		{
+			// Get number of unsent rows we are about to remove
+			int unsent = rowidLimit - sent;
+			unsentPurged = unsent;
+		}
+	}
+	if (m_writeAccessOngoing)
+	{
+		while (m_writeAccessOngoing)
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		}
+	}
+
+	unsigned int deletedRows = 0;
+	char *zErrMsg = NULL;
+	unsigned int rowsAffected, totTime=0, prevBlocks=0, prevTotTime=0;
+	logger->info("Purge about to delete readings # %ld to %ld", rowidMin, rowidLimit);
+	while (rowidMin < rowidLimit)
+	{
+		blocks++;
+		rowidMin += purgeBlockSize;
+		if (rowidMin > rowidLimit)
+		{
+			rowidMin = rowidLimit;
+		}
+		SQLBuffer sql;
+		sql.append("DELETE FROM " READINGS_DB "." READINGS_TABLE_MEM " WHERE rowid <= ");
+		sql.append(rowidMin);
+		sql.append(';');
+		const char *query = sql.coalesce();
+		logSQL("ReadingsPurge", query);
+
+		int rc;
+		{
+			//unique_lock<mutex> lck(db_mutex);
+//		if (m_writeAccessOngoing) db_cv.wait(lck);
+
+			START_TIME;
+			// Exec DELETE query: no callback, no resultset
+			rc = SQLexec(dbHandle,
+						 query,
+						 NULL,
+						 NULL,
+						 &zErrMsg);
+			END_TIME;
+
+			// Release memory for 'query' var
+			delete[] query;
+
+			totTime += usecs;
+
+			if(usecs>150000)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(100+usecs/10000));
+			}
+		}
+
+		if (rc != SQLITE_OK)
+		{
+			raiseError("purge - phase 3", zErrMsg);
+			sqlite3_free(zErrMsg);
+			return 0;
+		}
+
+		// Get db changes
+		rowsAffected = sqlite3_changes(dbHandle);
+		deletedRows += rowsAffected;
+		logger->debug("Purge delete block #%d with %d readings", blocks, rowsAffected);
+
+		if(blocks % RECALC_PURGE_BLOCK_SIZE_NUM_BLOCKS == 0)
+		{
+			int prevAvg = prevTotTime/(prevBlocks?prevBlocks:1);
+			int currAvg = (totTime-prevTotTime)/(blocks-prevBlocks);
+			int avg = ((prevAvg?prevAvg:currAvg)*5 + currAvg*5) / 10; // 50% weightage for long term avg and 50% weightage for current avg
+			prevBlocks = blocks;
+			prevTotTime = totTime;
+			int deviation = abs(avg - TARGET_PURGE_BLOCK_DEL_TIME);
+			logger->debug("blocks=%d, totTime=%d usecs, prevAvg=%d usecs, currAvg=%d usecs, avg=%d usecs, TARGET_PURGE_BLOCK_DEL_TIME=%d usecs, deviation=%d usecs",
+						  blocks, totTime, prevAvg, currAvg, avg, TARGET_PURGE_BLOCK_DEL_TIME, deviation);
+			if (deviation > TARGET_PURGE_BLOCK_DEL_TIME/10)
+			{
+				float ratio = (float)TARGET_PURGE_BLOCK_DEL_TIME / (float)avg;
+				if (ratio > 2.0) ratio = 2.0;
+				if (ratio < 0.5) ratio = 0.5;
+				purgeBlockSize = (float)purgeBlockSize * ratio;
+				purgeBlockSize = purgeBlockSize / PURGE_BLOCK_SZ_GRANULARITY * PURGE_BLOCK_SZ_GRANULARITY;
+				if (purgeBlockSize < MIN_PURGE_DELETE_BLOCK_SIZE)
+					purgeBlockSize = MIN_PURGE_DELETE_BLOCK_SIZE;
+				if (purgeBlockSize > MAX_PURGE_DELETE_BLOCK_SIZE)
+					purgeBlockSize = MAX_PURGE_DELETE_BLOCK_SIZE;
+				logger->debug("Changed purgeBlockSize to %d", purgeBlockSize);
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		}
+		//Logger::getLogger()->debug("Purge delete block #%d with %d readings", blocks, rowsAffected);
+	} while (rowidMin  < rowidLimit);
+
+	unsentRetained = maxrowidLimit - rowidLimit;
+
+	numReadings = maxrowidLimit +1 - minrowidLimit - deletedRows;
+
+	if (sent == 0)	// Special case when not north process is used
+	{
+		unsentPurged = deletedRows;
+	}
+
+	ostringstream convert;
+
+	convert << "{ \"removed\" : " << deletedRows << ", ";
+	convert << " \"unsentPurged\" : " << unsentPurged << ", ";
+	convert << " \"unsentRetained\" : " << unsentRetained << ", ";
+	convert << " \"readings\" : " << numReadings << " }";
+
+	result = convert.str();
+
+	//logger->debug("Purge result=%s", result.c_str());
+
+	gettimeofday(&endTv, NULL);
+	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
+	logger->info("Purge process complete in %d blocks in %lduS", blocks, duration);
+
+	return deletedRows;
+}
+
+
+/**
+ * Purge readings from the reading table
+ */
+unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
+											  unsigned int flags,
+											  unsigned long sent,
+											  std::string& result)
+{
+	unsigned long  deletedRows = 0, unsentPurged = 0, unsentRetained = 0, numReadings = 0;
+	unsigned long limit = 0;
+
+	Logger *logger = Logger::getLogger();
+
+	logger->info("Purge by Rows called");
+	if ((flags & 0x01) == 0x01)
+	{
+		limit = sent;
+		logger->info("Sent is %d", sent);
+	}
+	logger->info("Purge by Rows called with flags %x, rows %d, limit %d", flags, rows, limit);
+	// Don't save unsent rows
+	int rowcount;
+	do {
+		char *zErrMsg = NULL;
+		int rc;
+		rc = SQLexec(dbHandle,
+					 "select count(rowid) from " READINGS_DB "." READINGS_TABLE_MEM ";",
+					 rowidCallback,
+					 &rowcount,
+					 &zErrMsg);
+
+		if (rc != SQLITE_OK)
+		{
+			raiseError("purge - phaase 0, fetching row count", zErrMsg);
+			sqlite3_free(zErrMsg);
+			return 0;
+		}
+		if (rowcount <= rows)
+		{
+			logger->info("Row count %d is less than required rows %d", rowcount, rows);
+			break;
+		}
+		int minId;
+		rc = SQLexec(dbHandle,
+					 "select min(id) from " READINGS_DB "." READINGS_TABLE_MEM ";",
+					 rowidCallback,
+					 &minId,
+					 &zErrMsg);
+
+		if (rc != SQLITE_OK)
+		{
+			raiseError("purge - phaase 0, fetching minimum id", zErrMsg);
+			sqlite3_free(zErrMsg);
+			return 0;
+		}
+		int maxId;
+		rc = SQLexec(dbHandle,
+					 "select max(id) from " READINGS_DB "." READINGS_TABLE_MEM ";",
+					 rowidCallback,
+					 &maxId,
+					 &zErrMsg);
+
+		if (rc != SQLITE_OK)
+		{
+			raiseError("purge - phaase 0, fetching maximum id", zErrMsg);
+			sqlite3_free(zErrMsg);
+			return 0;
+		}
+		int deletePoint = minId + 10000;
+		if (maxId - deletePoint < rows || deletePoint > maxId)
+			deletePoint = maxId - rows;
+		if (limit && limit > deletePoint)
+		{
+			deletePoint = limit;
+		}
+		SQLBuffer sql;
+
+		logger->info("RowCount %d, Max Id %d, min Id %d, delete point %d", rowcount, maxId, minId, deletePoint);
+
+		sql.append("delete from " READINGS_DB "." READINGS_TABLE_MEM "  where id <= ");
+		sql.append(deletePoint);
+		const char *query = sql.coalesce();
+		{
+			//unique_lock<mutex> lck(db_mutex);
+//			if (m_writeAccessOngoing) db_cv.wait(lck);
+
+			// Exec DELETE query: no callback, no resultset
+			rc = SQLexec(dbHandle, query, NULL, NULL, &zErrMsg);
+			int rowsAffected = sqlite3_changes(dbHandle);
+			deletedRows += rowsAffected;
+			numReadings = rowcount - rowsAffected;
+			// Release memory for 'query' var
+			delete[] query;
+			logger->debug("Deleted %d rows", rowsAffected);
+			if (rowsAffected == 0)
+			{
+				break;
+			}
+			if (limit != 0 && sent != 0)
+			{
+				unsentPurged = deletePoint - sent;
+			}
+			else if (!limit)
+			{
+				unsentPurged += rowsAffected;
+			}
+		}
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+	} while (rowcount > rows);
+
+	if (limit)
+	{
+		unsentRetained = numReadings - rows;
+	}
+
+
+	ostringstream convert;
+
+	convert << "{ \"removed\" : " << deletedRows << ", ";
+	convert << " \"unsentPurged\" : " << unsentPurged << ", ";
+	convert << " \"unsentRetained\" : " << unsentRetained << ", ";
+	convert << " \"readings\" : " << numReadings << " }";
+
+	result = convert.str();
+	logger->info("Purge by Rows complete: %s", result.c_str());
+	return deletedRows;
+}

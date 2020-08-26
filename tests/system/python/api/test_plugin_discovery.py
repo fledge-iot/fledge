@@ -4,7 +4,7 @@
 # See: http://fledge.readthedocs.io/
 # FLEDGE_END
 
-""" Test plugin discovery (north, south, filter, notificationDelivery, notificationRule) REST API """
+""" Test plugin discovery (north, south, filter, notify, rule) REST API """
 
 import subprocess
 import http.client
@@ -32,10 +32,7 @@ def install_plugin(_type, plugin, branch="develop", plugin_lang="python", use_pi
         assert False, "{} plugin installation failed".format(plugin)
 
     # Cleanup /tmp repos
-    if _type == "notificationDelivery":
-        _type = "notify"
-    if _type == "notificationRule":
-        _type = "rule"
+    if _type == "rule":
         subprocess.run(["rm -rf /tmp/fledge-service-notification"], shell=True, check=True)
     subprocess.run(["rm -rf /tmp/fledge-{}-{}".format(_type, plugin)], shell=True, check=True)
 
@@ -71,7 +68,7 @@ class TestPluginDiscovery:
         assert 3 == len(jdoc['plugins'])
         for plugin in jdoc['plugins']:
             assert 'north' == plugin['type']
-            assert plugin['type'] not in ['south', 'filter', 'notificationDelivery', 'notificationRule']
+            assert plugin['type'] not in ['south', 'filter', 'notify', 'rule']
             # config is not expected by default
             assert 'config' in plugin if config else 'config' not in plugin
 

@@ -91,7 +91,12 @@ async def _services_with_assets(storage_client, south_services):
                     if p["name"] == plugin:
                         plugin_version = p["version"]
                         break
-
+                # Handle schedule status when there is no schedule entry matching a South child category name
+                sch_status = 'unknown'
+                try:
+                    sch_status = await _get_schedule_status(storage_client, s_name)
+                except:
+                    pass
                 sr_list.append(
                     {
                         'name': s_name,
@@ -102,7 +107,7 @@ async def _services_with_assets(storage_client, south_services):
                         'status': '',
                         'assets': assets,
                         'plugin': {'name': plugin, 'version': plugin_version},
-                        'schedule_enabled': await _get_schedule_status(storage_client, s_name)
+                        'schedule_enabled': sch_status
                     })
     except:
         raise

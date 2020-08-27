@@ -558,6 +558,7 @@ def pytest_addoption(parser):
     parser.addoption("--gcp-subscription-name", action="store", default="my-subscription", help="GCP Subscription name")
     parser.addoption("--google-app-credentials", action="store", help="GCP JSON credentials file path")
     parser.addoption("--gcp-cert-path", action="store", default="./data/gcp/rsa_private.pem", help="GCP certificate path")
+    parser.addoption("--gcp-logger-name", action="store", default="cloudfunctions.googleapis.com%2Fcloud-functions", help="GCP Logger name")
 
 @pytest.fixture
 def storage_plugin(request):
@@ -787,6 +788,11 @@ def google_app_credentials(request):
 @pytest.fixture
 def gcp_cert_path(request):
     return request.config.getoption("--gcp-cert-path")
+
+
+@pytest.fixture
+def gcp_logger_name(request):
+    return request.config.getoption("--gcp-logger-name")
 
 
 def pytest_itemcollected(item):

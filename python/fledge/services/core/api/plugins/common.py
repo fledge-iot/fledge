@@ -94,7 +94,9 @@ def load_and_fetch_c_hybrid_plugin_info(plugin_name: str, is_config: bool, plugi
                                        'type': plugin_type,
                                        'description': data['description'],
                                        'version': jdoc['version'],
-                                       'installedDirectory': plugin_type
+                                       'installedDirectory': '{}/{}'.format(plugin_type, plugin_name),
+                                       'packageName': 'fledge-{}-{}'.format(plugin_type,
+                                                                            plugin_name.lower().replace("_", "-"))
                                        }
                         keys_a = set(jdoc['config'].keys())
                         keys_b = set(data['defaults'].keys())

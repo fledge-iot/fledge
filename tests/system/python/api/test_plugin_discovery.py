@@ -109,6 +109,9 @@ class TestPluginDiscovery:
         plugins = jdoc['plugins']
         assert 1 == len(plugins)
         assert 'sinusoid' == plugins[0]['name']
+        assert 'south' == plugins[0]['type']
+        assert 'south/sinusoid' == plugins[0]['installedDirectory']
+        assert 'fledge-south-sinusoid' == plugins[0]['packageName']
 
         # install one more south plugin (C version)
         install_plugin(_type, plugin='random', plugin_lang='C')
@@ -121,7 +124,13 @@ class TestPluginDiscovery:
         plugins = jdoc['plugins']
         assert 2 == len(plugins)
         assert 'sinusoid' == plugins[0]['name']
+        assert 'south' == plugins[0]['type']
+        assert 'south/sinusoid' == plugins[0]['installedDirectory']
+        assert 'fledge-south-sinusoid' == plugins[0]['packageName']
         assert 'Random' == plugins[1]['name']
+        assert 'south' == plugins[1]['type']
+        assert 'south/Random' == plugins[1]['installedDirectory']
+        assert 'fledge-south-random' == plugins[1]['packageName']
 
     def test_north_plugins_installed(self, fledge_url, _type='north'):
         # install north plugin (Python version)
@@ -180,6 +189,9 @@ class TestPluginDiscovery:
         plugins = jdoc['plugins']
         assert 1 == len(plugins)
         assert 'slack' == plugins[0]['name']
+        assert 'notify' == plugins[0]['type']
+        assert 'notificationDelivery/slack' == plugins[0]['installedDirectory']
+        assert 'fledge-notify-slack' == plugins[0]['packageName']
 
     def test_rule_plugins_installed(self, fledge_url, _type='rule'):
         # install OutOfBound rule plugin
@@ -194,3 +206,6 @@ class TestPluginDiscovery:
         plugins = jdoc['plugins']
         assert 1 == len(plugins)
         assert 'OutOfBound' == plugins[0]['name']
+        assert 'rule' == plugins[0]['type']
+        assert 'notificationRule/OutOfBound' == plugins[0]['installedDirectory']
+        assert 'fledge-rule-outofbound' == plugins[0]['packageName']

@@ -622,22 +622,28 @@ class TestSchedules:
                     assert {'message': error_message} == json_response
                 patch_get_schedule.assert_called_once_with(uuid.UUID(str(self._random_uuid)))
 
-    async def test_duplicate_name_update_schedule(self, client):
+    @pytest.mark.parametrize("payload", [
+        {'name': 'purge'},
+        {'name': "purge", 'type': 3, 'repeat': 15, 'exclusive': 'true', 'enabled': 'true'},
+        {'name': "purge", 'enabled': 'false'},
+        {'name': "purge", 'enabled': 'true', 'repeat': 15},
+    ])
+    async def test_duplicate_name_update_schedule(self, client, payload):
         async def mock_schedules():
             schedule1 = ManualSchedule()
-            schedule1.schedule_id = self._random_uuid
+            schedule1.schedule_id = "2176eb68-7303-11e7-8cf7-a6006ad3dba0"
             schedule1.exclusive = True
             schedule1.enabled = True
             schedule1.name = "purge"
             schedule1.process_name = "purge"
 
-            schedule2 = IntervalSchedule()
+            schedule2 = StartUpSchedule()
             schedule2.schedule_id = self._random_uuid
             schedule2.repeat = timedelta(seconds=15)
             schedule2.exclusive = True
             schedule2.enabled = True
-            schedule2.name = "stats collection"
-            schedule2.process_name = "stats collector"
+            schedule2.name = "foo"
+            schedule2.process_name = "bar"
             return [schedule1, schedule2]
 
         async def mock_schedule(*args):
@@ -654,7 +660,6 @@ class TestSchedules:
 
         storage_client_mock = MagicMock(StorageClientAsync)
         response = {'rows': [{'name': 'purge'}], 'count': 1}
-        payload = {'name': 'purge'}
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=mock_coro_response(response)):
                 with patch.object(server.Server.scheduler, 'get_schedule',

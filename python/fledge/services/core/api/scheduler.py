@@ -660,6 +660,11 @@ async def update_schedule(request):
         if len(go_no_go) != 0:
             raise ValueError("Errors in request: {}".format(','.join(go_no_go)))
 
+        schedule_name = data.get('name', None)
+        if schedule_name:
+            sch_list = await server.Server.scheduler.get_schedules()
+            if any(schedule_name == schedule.name for schedule in sch_list):
+                raise DuplicateRequestError("Duplicate schedule name entry found")
         updated_schedule_id = await _execute_add_update_schedule(data, curr_value)
 
         sch = await server.Server.scheduler.get_schedule(updated_schedule_id)
@@ -677,6 +682,8 @@ async def update_schedule(request):
         }
     except (ScheduleNotFoundError, ScheduleProcessNameNotFoundError) as ex:
         raise web.HTTPNotFound(reason=str(ex), body=json.dumps({"message": str(ex)}))
+    except DuplicateRequestError as err_msg:
+        raise web.HTTPConflict(reason=str(err_msg), body=json.dumps({"message": str(err_msg)}))
     except ValueError as ex:
         raise web.HTTPBadRequest(reason=str(ex), body=json.dumps({"message": str(ex)}))
     except Exception as ex:

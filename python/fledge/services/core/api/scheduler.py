@@ -155,65 +155,61 @@ async def post_scheduled_process(request: web.Request) -> web.Response:
 
 
 def _extract_args(data, curr_value):
-    try:
-        if 'type' in data and (not isinstance(data['type'], int) and not data['type'].isdigit()):
-            raise ValueError('Error in type: {}'.format(data['type']))
+    if 'type' in data and (not isinstance(data['type'], int) and not data['type'].isdigit()):
+        raise ValueError('Error in type: {}'.format(data['type']))
 
-        if 'day' in data:
-            if isinstance(data['day'], float) or (isinstance(data['day'], str) and (data['day'].strip() != "" and not data['day'].isdigit())):
-                raise ValueError('Error in day: {}'.format(data['day']))
+    if 'day' in data:
+        if isinstance(data['day'], float) or (isinstance(data['day'], str) and (data['day'].strip() != "" and not data['day'].isdigit())):
+            raise ValueError('Error in day: {}'.format(data['day']))
 
-        if 'time' in data and (not isinstance(data['time'], int) and not data['time'].isdigit()):
-            raise ValueError('Error in time: {}'.format(data['time']))
+    if 'time' in data and (not isinstance(data['time'], int) and not data['time'].isdigit()):
+        raise ValueError('Error in time: {}'.format(data['time']))
 
-        if 'repeat' in data and (not isinstance(data['repeat'], int) and not data['repeat'].isdigit()):
-            raise ValueError('Error in repeat: {}'.format(data['repeat']))
+    if 'repeat' in data and (not isinstance(data['repeat'], int) and not data['repeat'].isdigit()):
+        raise ValueError('Error in repeat: {}'.format(data['repeat']))
 
-        _schedule = dict()
+    _schedule = dict()
 
-        _schedule['schedule_id'] = curr_value['schedule_id'] if curr_value else None
+    _schedule['schedule_id'] = curr_value['schedule_id'] if curr_value else None
 
-        s_type = data.get('type') if 'type' in data else curr_value['schedule_type'] if curr_value else 0
-        _schedule['schedule_type'] = int(s_type)
+    s_type = data.get('type') if 'type' in data else curr_value['schedule_type'] if curr_value else 0
+    _schedule['schedule_type'] = int(s_type)
 
-        s_day = data.get('day') if 'day' in data else curr_value['schedule_day'] if curr_value and curr_value[
-            'schedule_day'] else None
-        _schedule['schedule_day'] = int(s_day) if s_day is not None and (
-            isinstance(s_day, int) or (not isinstance(s_day, int) and s_day.isdigit())) else None
+    s_day = data.get('day') if 'day' in data else curr_value['schedule_day'] if curr_value and curr_value[
+        'schedule_day'] else None
+    _schedule['schedule_day'] = int(s_day) if s_day is not None and (
+        isinstance(s_day, int) or (not isinstance(s_day, int) and s_day.isdigit())) else None
 
-        s_time = data.get('time') if 'time' in data else curr_value['schedule_time'] if curr_value and curr_value[
-            'schedule_time'] else 0
-        _schedule['schedule_time'] = int(s_time)
+    s_time = data.get('time') if 'time' in data else curr_value['schedule_time'] if curr_value and curr_value[
+        'schedule_time'] else 0
+    _schedule['schedule_time'] = int(s_time)
 
-        s_repeat = data.get('repeat') if 'repeat' in data else curr_value['schedule_repeat'] if curr_value and \
-                                                                                                curr_value[
-                                                                                                    'schedule_repeat'] else 0
-        _schedule['schedule_repeat'] = int(s_repeat)
+    s_repeat = data.get('repeat') if 'repeat' in data else curr_value['schedule_repeat'] if curr_value and \
+                                                                                            curr_value[
+                                                                                                'schedule_repeat'] else 0
+    _schedule['schedule_repeat'] = int(s_repeat)
 
-        _schedule['schedule_name'] = data.get('name') if 'name' in data else curr_value[
-            'schedule_name'] if curr_value else None
+    _schedule['schedule_name'] = data.get('name') if 'name' in data else curr_value[
+        'schedule_name'] if curr_value else None
 
-        _schedule['schedule_process_name'] = data.get('process_name') if 'process_name' in data else curr_value[
-            'schedule_process_name'] if curr_value else None
+    _schedule['schedule_process_name'] = data.get('process_name') if 'process_name' in data else curr_value[
+        'schedule_process_name'] if curr_value else None
 
-        _schedule['schedule_exclusive'] = data.get('exclusive') if 'exclusive' in data else curr_value[
-            'schedule_exclusive'] if curr_value else 'True'
-        _schedule['schedule_exclusive'] = 'True' if (
-            (type(_schedule['schedule_exclusive']) is str and _schedule['schedule_exclusive'].lower() in ['t', 'true']) or (
-            (type(_schedule['schedule_exclusive']) is bool and _schedule['schedule_exclusive'] is True))) else 'False'
+    _schedule['schedule_exclusive'] = data.get('exclusive') if 'exclusive' in data else curr_value[
+        'schedule_exclusive'] if curr_value else 'True'
+    _schedule['schedule_exclusive'] = 'True' if (
+        (type(_schedule['schedule_exclusive']) is str and _schedule['schedule_exclusive'].lower() in ['t', 'true']) or (
+        (type(_schedule['schedule_exclusive']) is bool and _schedule['schedule_exclusive'] is True))) else 'False'
 
-        _schedule['schedule_enabled'] = data.get('enabled') if 'enabled' in data else curr_value[
-            'schedule_enabled'] if curr_value else 'True'
-        _schedule['schedule_enabled'] = 'True' if (
-            (type(_schedule['schedule_enabled']) is str and _schedule['schedule_enabled'].lower() in ['t', 'true']) or (
-            (type(_schedule['schedule_enabled']) is bool and _schedule['schedule_enabled'] is True))) else 'False'
+    _schedule['schedule_enabled'] = data.get('enabled') if 'enabled' in data else curr_value[
+        'schedule_enabled'] if curr_value else 'True'
+    _schedule['schedule_enabled'] = 'True' if (
+        (type(_schedule['schedule_enabled']) is str and _schedule['schedule_enabled'].lower() in ['t', 'true']) or (
+        (type(_schedule['schedule_enabled']) is bool and _schedule['schedule_enabled'] is True))) else 'False'
 
-        _schedule['is_enabled_modified'] = None
-        if 'enabled' in data:
-            _schedule['is_enabled_modified'] = True if _schedule['schedule_enabled'] == 'True' else False
-
-    except ValueError as ex:
-        raise web.HTTPBadRequest(reason=str(ex))
+    _schedule['is_enabled_modified'] = None
+    if 'enabled' in data:
+        _schedule['is_enabled_modified'] = True if _schedule['schedule_enabled'] == 'True' else False
 
     return _schedule
 
@@ -600,9 +596,8 @@ async def post_schedule(request):
 
         schedule_name = data.get('name', None)
         sch_list = await server.Server.scheduler.get_schedules()
-        for schedule in sch_list:
-            if schedule_name == schedule.name:
-                raise DuplicateRequestError("Duplicate schedule name entry found")
+        if any(schedule_name == schedule.name for schedule in sch_list):
+            raise DuplicateRequestError("Duplicate schedule name entry found")
 
         updated_schedule_id = await _execute_add_update_schedule(data)
         sch = await server.Server.scheduler.get_schedule(updated_schedule_id)
@@ -618,11 +613,13 @@ async def post_schedule(request):
             'enabled': sch.enabled
         }
     except (ScheduleNotFoundError, ScheduleProcessNameNotFoundError) as ex:
-        raise web.HTTPNotFound(reason=str(ex), body=json.dumps({"schedule": str(ex)}))
+        raise web.HTTPNotFound(reason=str(ex), body=json.dumps({"message": str(ex)}))
     except DuplicateRequestError as err_msg:
-        raise web.HTTPConflict(reason=str(err_msg), body=json.dumps({"schedule": str(err_msg)}))
+        raise web.HTTPConflict(reason=str(err_msg), body=json.dumps({"message": str(err_msg)}))
     except ValueError as ex:
-        raise web.HTTPBadRequest(reason=str(ex), body=json.dumps({"schedule": str(ex)}))
+        raise web.HTTPBadRequest(reason=str(ex), body=json.dumps({"message": str(ex)}))
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason=str(ex), body=json.dumps({"message": str(ex)}))
     else:
         return web.json_response({'schedule': schedule})
 
@@ -641,8 +638,8 @@ async def update_schedule(request):
 
         try:
             assert uuid.UUID(schedule_id)
-        except ValueError as ex:
-            raise web.HTTPNotFound(reason="Invalid Schedule ID {}".format(schedule_id))
+        except Exception:
+            raise ValueError("Invalid Schedule ID {}".format(schedule_id))
 
         sch = await server.Server.scheduler.get_schedule(uuid.UUID(schedule_id))
         if not sch:
@@ -678,12 +675,14 @@ async def update_schedule(request):
             'exclusive': sch.exclusive,
             'enabled': sch.enabled
         }
-
-        return web.json_response({'schedule': schedule})
     except (ScheduleNotFoundError, ScheduleProcessNameNotFoundError) as ex:
-        raise web.HTTPNotFound(reason=str(ex))
+        raise web.HTTPNotFound(reason=str(ex), body=json.dumps({"message": str(ex)}))
     except ValueError as ex:
-        raise web.HTTPBadRequest(reason=str(ex))
+        raise web.HTTPBadRequest(reason=str(ex), body=json.dumps({"message": str(ex)}))
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason=str(ex), body=json.dumps({"message": str(ex)}))
+    else:
+        return web.json_response({'schedule': schedule})
 
 
 async def delete_schedule(request):

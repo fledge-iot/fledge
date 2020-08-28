@@ -400,6 +400,9 @@ class TestSchedules:
         resp = await client.post('/fledge/schedule', data=json.dumps({'schedule_id': 'bla'}))
         assert 400 == resp.status
         assert 'Schedule ID not needed for new Schedule.' == resp.reason
+        result = await resp.text()
+        json_response = json.loads(result)
+        assert {'message': 'Schedule ID not needed for new Schedule.'} == json_response
 
     @pytest.mark.parametrize("request_data, response_code, error_message, storage_return", [
         ({"type": 'bla'}, 400, "Error in type: bla", {'rows': [{'name': 'bla'}], 'count': 1}),
@@ -430,6 +433,9 @@ class TestSchedules:
                 resp = await client.post('/fledge/schedule', data=json.dumps(request_data))
                 assert response_code == resp.status
                 assert error_message == resp.reason
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert {'message': error_message} == json_response
 
     @pytest.mark.parametrize("request_data", [
         {"type": 4, "name": "purge", "process_name": "purge", "repeat": "45"},
@@ -462,7 +468,7 @@ class TestSchedules:
             return [schedule1, schedule2, schedule3]
 
         storage_client_mock = MagicMock(StorageClientAsync)
-        response = {'rows': [{'name': 'purge'}, {'name': 'south_c'}], 'count': 2}
+        response = {'rows': [{'name': 'purge'}, {'name': 'south_c'}, {'name': 'stats collector'}], 'count': 3}
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=mock_coro_response(response)):
                 with patch.object(server.Server.scheduler, 'get_schedules',
@@ -470,6 +476,9 @@ class TestSchedules:
                     resp = await client.post('/fledge/schedule', data=json.dumps(request_data))
                     assert 409 == resp.status
                     assert "Duplicate schedule name entry found" == resp.reason
+                    result = await resp.text()
+                    json_response = json.loads(result)
+                    assert {'message': 'Duplicate schedule name entry found'} == json_response
                 patch_get_schedules.assert_called_once_with()
 
     @pytest.mark.parametrize("request_data, expected_response", [
@@ -516,9 +525,13 @@ class TestSchedules:
                 assert isinstance(arguments[0], StartUpSchedule)
 
     async def test_update_schedule_bad_param(self, client):
+        error_msg = 'Invalid Schedule ID bla'
         resp = await client.put('/fledge/schedule/{}'.format("bla"), data=json.dumps({"a": 1}))
-        assert 404 == resp.status
-        assert 'Invalid Schedule ID bla' == resp.reason
+        assert 400 == resp.status
+        assert error_msg == resp.reason
+        result = await resp.text()
+        json_response = json.loads(result)
+        assert {'message': error_msg} == json_response
 
     async def test_update_schedule_data_not_exist(self, client):
         async def mock_coro():
@@ -526,9 +539,13 @@ class TestSchedules:
 
         with patch.object(server.Server.scheduler, 'get_schedule',
                           return_value=mock_coro()) as patch_get_schedule:
+            error_message = 'Schedule not found: {}'.format(self._random_uuid)
             resp = await client.put('/fledge/schedule/{}'.format(self._random_uuid), data=json.dumps({"a": 1}))
             assert 404 == resp.status
-            assert 'Schedule not found: {}'.format(self._random_uuid) == resp.reason
+            assert error_message == resp.reason
+            result = await resp.text()
+            json_response = json.loads(result)
+            assert {'message': error_message} == json_response
         patch_get_schedule.assert_called_once_with(uuid.UUID('{}'.format(self._random_uuid)))
 
     @pytest.mark.parametrize("request_data, response_code, error_message, storage_return", [
@@ -575,7 +592,10 @@ class TestSchedules:
                                             data=json.dumps(request_data))
                     assert response_code == resp.status
                     assert error_message == resp.reason
-                    patch_get_schedule.assert_called_once_with(uuid.UUID(str(self._random_uuid)))
+                    result = await resp.text()
+                    json_response = json.loads(result)
+                    assert {'message': error_message} == json_response
+                patch_get_schedule.assert_called_once_with(uuid.UUID(str(self._random_uuid)))
 
     async def test_delete_schedule(self, client):
         async def mock_coro():

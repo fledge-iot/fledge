@@ -635,7 +635,6 @@ async def update_schedule(request):
     try:
         data = await request.json()
         schedule_id = request.match_info.get('schedule_id', None)
-
         try:
             assert uuid.UUID(schedule_id)
         except Exception:
@@ -655,16 +654,16 @@ async def update_schedule(request):
         curr_value['schedule_day'] = sch.day
         curr_value['schedule_exclusive'] = sch.exclusive
         curr_value['schedule_enabled'] = sch.enabled
-
+        schedule_name = data.get('name', None)
         go_no_go = await _check_schedule_post_parameters(data, curr_value)
         if len(go_no_go) != 0:
             raise ValueError("Errors in request: {}".format(','.join(go_no_go)))
 
-        schedule_name = data.get('name', None)
-        if schedule_name:
-            sch_list = await server.Server.scheduler.get_schedules()
-            if any(schedule_name == schedule.name for schedule in sch_list):
+        sch_list = await server.Server.scheduler.get_schedules()
+        for s in sch_list:
+            if schedule_id != str(s.schedule_id) and schedule_name == s.name:
                 raise DuplicateRequestError("Duplicate schedule name entry found")
+
         updated_schedule_id = await _execute_add_update_schedule(data, curr_value)
 
         sch = await server.Server.scheduler.get_schedule(updated_schedule_id)

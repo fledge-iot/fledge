@@ -9,7 +9,7 @@
  */
 #include <connection_manager.h>
 #include <connection.h>
-
+#include <logger.h>
 
 ConnectionManager *ConnectionManager::instance = 0;
 
@@ -124,6 +124,65 @@ Connection *conn = 0;
 	}
 	return conn;
 }
+
+/**
+ * Attach a database to all the connections, idle and  inuse
+ *
+ * @param path  - path of the database to attach
+ * @param alias - alias to be assigned to the attached database
+ */
+bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
+{
+	int rc;
+	std::string sqlCmd;
+	sqlite3 *dbHandle;
+	bool result;
+	char *zErrMsg = NULL;
+
+	result = true;
+
+	sqlCmd = "ATTACH DATABASE '" + path + "' AS " + alias + ";";
+
+	// attach the DB to all idle connections
+	{
+		idleLock.lock();
+		for ( auto conn : idle) {
+
+			dbHandle = conn->getDbHandle();
+			rc = sqlite3_exec(dbHandle, sqlCmd.c_str(), NULL, NULL, &zErrMsg);
+			if (rc != SQLITE_OK)
+			{
+				Logger::getLogger()->error("attachNewDb - It was not possible to attach the db :%s: to an idle connection, error :%s:", path.c_str(), zErrMsg);
+				result = false;
+				break;
+			}
+		}
+		idleLock.unlock();
+	}
+
+	if (result)
+	{
+		// attach the DB to all inUse connections
+		{
+			inUseLock.lock();
+			for ( auto conn : inUse) {
+
+				dbHandle = conn->getDbHandle();
+				rc = sqlite3_exec(dbHandle, sqlCmd.c_str(), NULL, NULL, &zErrMsg);
+				if (rc != SQLITE_OK)
+				{
+					Logger::getLogger()->error("attachNewDb - It was not possible to attach the db :%s: to an inUse connection, error :%s:", path.c_str() ,zErrMsg);
+					result = false;
+					break;
+				}
+			}
+			inUseLock.unlock();
+		}
+	}
+
+	return (result);
+}
+
 
 /**
  * Release a connection back to the idle pool for

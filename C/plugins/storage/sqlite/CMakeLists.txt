@@ -50,5 +50,3 @@ install(TARGETS ${PROJECT_NAME} DESTINATION fledge/plugins/storage/${PROJECT_NAM
 install(FILES ${CMAKE_SOURCE_DIR}/scripts/plugins/storage/${PROJECT_NAME}/init.sql DESTINATION fledge/plugins/storage/${PROJECT_NAME})
 install(FILES ${CMAKE_SOURCE_DIR}/scripts/plugins/storage/${PROJECT_NAME}/init_readings.sql DESTINATION fledge/plugins/storage/${PROJECT_NAME})
 
-#// FIXME:
-set(CMAKE_BUILD_TYPE Debug)

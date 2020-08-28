@@ -20,6 +20,13 @@
 #include <vector>
 #include <atomic>
 
+#define _DB_NAME                  "/fledge.sqlite"
+#define READINGS_DB_NAME_BASE     "readings"
+#define READINGS_DB_FILE_NAME     "/" READINGS_DB_NAME_BASE "_1.db"
+#define READINGS_DB               READINGS_DB_NAME_BASE "_1"
+#define READINGS_TABLE            "readings"
+#define READINGS_TABLE_MEM       READINGS_TABLE "_1"
+
 #define LEN_BUFFER_DATE 100
 #define F_TIMEH24_S             "%H:%M:%S"
 #define F_DATEH24_S             "%Y-%m-%d %H:%M:%S"
@@ -34,10 +41,38 @@
 #define SQLITE3_NOW_READING     "strftime('%Y-%m-%d %H:%M:%f000+00:00', 'now')"
 #define SQLITE3_FLEDGE_DATETIME_TYPE "DATETIME"
 
+#define  DB_CONFIGURATION "PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;"
+
 // Set plugin name for log messages
 #ifndef PLUGIN_LOG_NAME
 #define PLUGIN_LOG_NAME "SQLite3"
 #endif
+
+/*
+ * Control the way purge deletes readings. The block size sets a limit as to how many rows
+ * get deleted in each call, whilst the sleep interval controls how long the thread sleeps
+ * between deletes. The idea is to not keep the database locked too long and allow other threads
+ * to have access to the database between blocks.
+ */
+#define PURGE_SLEEP_MS 500
+#define PURGE_DELETE_BLOCK_SIZE	20
+#define TARGET_PURGE_BLOCK_DEL_TIME	(70*1000) 	// 70 msec
+#define PURGE_BLOCK_SZ_GRANULARITY	5 	// 5 rows
+#define MIN_PURGE_DELETE_BLOCK_SIZE	20
+#define MAX_PURGE_DELETE_BLOCK_SIZE	1500
+#define RECALC_PURGE_BLOCK_SIZE_NUM_BLOCKS	30	// recalculate purge block size after every 30 blocks
+
+#define PURGE_SLOWDOWN_AFTER_BLOCKS 5
+#define PURGE_SLOWDOWN_SLEEP_MS 500
+
+#define SECONDS_PER_DAY "86400.0"
+// 2440587.5 is the julian day at 1/1/1970 0:00 UTC.
+#define JULIAN_DAY_START_UNIXTIME "2440587.5"
+
+
+#define START_TIME std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+#define END_TIME std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now(); \
+				 auto usecs = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
 
 int dateCallback(void *data, int nCols, char **colValues, char **colNames);
 bool applyColumnDateFormat(const std::string& inFormat,
@@ -99,7 +134,6 @@ class Connection {
 		bool		aggregateQuery(const rapidjson::Value& payload, std::string& resultSet);
 		bool        getNow(std::string& Now);
 
-		//# FIXME_I:
 		sqlite3		*getDbHandle() {return dbHandle;};
 
 	private:
@@ -134,31 +168,6 @@ class Connection {
 };
 
 class ReadingsCatalogue {
-	private:
-		const int nReadingsAllocate = 20;
-
-		ReadingsCatalogue(){};
-
-		int           getMaxReadingsId();
-		int           getnReadingsAllocate() const {return nReadingsAllocate;}
-		bool          createReadingsTables(int idStartFrom, int nTables);
-		void		  raiseError(const char *operation, const char *reason,...);
-		bool          isReadingAvailable() const;
-		void          allocateReadingAvailable();
-		int           evaluateLastReadingAvailable(Connection *connection);
-		int			  SQLStep(sqlite3_stmt *statement);
-		int           SQLexec(sqlite3 *dbHandle, const char *sqlCmd);
-		int           calculateGlobalId (sqlite3 *dbHandle);
-
-		std::atomic<int> m_globalId;
-		int              m_nReadingsTotal = 0;
-		int              m_nReadingsAvailable = 0;
-		std::mutex       m_mutexAssetReadingCatalogue;
-		std::map <std::string, int>   m_AssetReadingCatalogue={
-
-			// asset_code  - reading Table id
-			// {"",         1         }
-		};
 
 	public:
 		static ReadingsCatalogue *getInstance()
@@ -172,17 +181,60 @@ class ReadingsCatalogue {
 			return instance;
 		}
 
-		// Returns the global Id and increment it
+		std::string   generateDbAlias(int dbId);
+		std::string   generateDbName(int tableId);
+		std::string   generateDbFileName(int dbId);
+		std::string   generateDbNameFromTableId(int tableId);
+		std::string   generateReadingsName(int tableId);
+		void          getAllDbs(std::vector<int> &dbIdList);
+		int           getMaxReadingsId();
+		int           getNReadingsAvailable() const      {return m_nReadingsAvailable;}
 		int           getGlobalId() {return m_globalId++;};
 		bool          evaluateGlobalId();
 		bool          storeGlobalId ();
 
 		void          preallocateReadingsTables();
 		bool          loadAssetReadingCatalogue();
-
-		int           getNReadingsTotal() const      {return m_nReadingsTotal;}
-		int           getNReadingsAvailable() const      {return m_nReadingsAvailable;}
+		bool          createNewDB();
 		int           getReadingReference(Connection *connection, const char *asset_code);
+		bool          attachAllDbs();
+		std::string   sqlConstructMultiDb(std::string &sqlCmdBase);
+		int           purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBase, char **errMsg = NULL, unsigned int *rowsAffected = NULL);
+
+	private:
+		const int nReadingsAllocate = 15;
+
+		typedef struct ReadingAvailable {
+			int lastReadings;
+			int tableCount;
+
+		} tyReadingsAvailable;
+
+		ReadingsCatalogue(){};
+
+		int           getUsedTablesDbId(int dbId);
+		int           getNReadingsAllocate() const {return nReadingsAllocate;}
+		bool          createReadingsTables(int dbId, int idStartFrom, int nTables);
+		bool          isReadingAvailable() const;
+		void          allocateReadingAvailable();
+		tyReadingsAvailable   evaluateLastReadingAvailable(int dbId);
+		int           calculateGlobalId (sqlite3 *dbHandle);
+		std::string   generateDbFilePah(int dbId);
+
+		void		  raiseError(const char *operation, const char *reason,...);
+		int			  SQLStep(sqlite3_stmt *statement);
+		int           SQLExec(sqlite3 *dbHandle, const char *sqlCmd,  char **errMsg = NULL);
+
+		int                                           m_dbId;
+		std::atomic<int>                              m_globalId;
+		int                                           m_nReadingsAvailable = 0;
+		std::mutex                                    m_mutexAssetReadingCatalogue;
+		std::map <std::string, std::pair<int, int>>   m_AssetReadingCatalogue={
+
+			// asset_code  - reading Table Id, Db Id
+			// {"",         ,{1               ,1 }}
+		};
+
 };
 
 #endif

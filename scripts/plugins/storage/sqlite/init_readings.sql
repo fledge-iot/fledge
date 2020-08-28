@@ -26,7 +26,7 @@
 --
 -- This script must be launched with sqlite3 command line tool:
 --  sqlite3 /path/readings.db
---   > ATTACH DATABASE '/path/readings.db' AS 'readings'
+--   > ATTACH DATABASE '/path/readings_1.db' AS 'readings_1'
 --   > .read init_readings.sql
 --   > .quit
 
@@ -48,29 +48,33 @@
 -- SCHEMA CREATION
 ----------------------------------------------------------------------
 
---# FIXME_I:
-CREATE TABLE readings.asset_reading_catalogue (
-    id         INTEGER                     PRIMARY KEY AUTOINCREMENT,
-    asset_code character varying(50)       NOT NULL
+--
+-- Stores in which database/readings table the specific asset_code is stored
+--
+CREATE TABLE readings_1.asset_reading_catalogue (
+    table_id     INTEGER               PRIMARY KEY AUTOINCREMENT,
+    db_id        INTEGER               NOT NULL,
+    asset_code   character varying(50) NOT NULL
 );
 
---# FIXME_I:
-CREATE TABLE readings.configuration_readings (
+-- Stores the last global Id used +1
+-- Updated at -1 when Fledge starts
+-- Updated at the the proper value when Fledge stops
+CREATE TABLE readings_1.configuration_readings (
     global_id         INTEGER
 );
-
 
 -- Readings table
 -- This tables contains the readings for assets.
 -- An asset can be a south with multiple sensor, a single sensor,
 -- a software or anything that generates data that is sent to Fledge
-CREATE TABLE readings.readings (
+CREATE TABLE readings_1.readings_1 (
     id         INTEGER                     PRIMARY KEY AUTOINCREMENT,
     reading    JSON                        NOT NULL DEFAULT '{}',            -- The json object received
     user_ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),      -- UTC time
     ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW'))       -- UTC time
 );
 
-CREATE INDEX readings_ix3
-    ON readings (user_ts);
+CREATE INDEX readings_1_ix3
+    ON readings_1 (user_ts);
 

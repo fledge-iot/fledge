@@ -70,9 +70,6 @@ static int purgeBlockSize = PURGE_DELETE_BLOCK_SIZE;
 #define END_TIME std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now(); \
 				 auto usecs = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
 
-#define _DB_NAME              	"/fledge.sqlite"
-#define READINGS_DB_NAME        "/readings.db"
-
 static time_t connectErrorTime = 0;
 
 /**
@@ -454,7 +451,7 @@ Connection::Connection()
 		// Set DB base path
 		dbPathReadings = getDataDir();
 		// Add the filename
-		dbPathReadings += READINGS_DB_NAME;
+		dbPathReadings += READINGS_DB_FILE_NAME;
 	}
 	else
 	{
@@ -500,15 +497,13 @@ Connection::Connection()
 		int rc;
 		char *zErrMsg = NULL;
 
-		string dbConfiguration = "PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;";
-
 		// Enable the WAL for the fledge DB
-		rc = sqlite3_exec(dbHandle, dbConfiguration.c_str(), NULL, NULL, &zErrMsg);
+		rc = sqlite3_exec(dbHandle, DB_CONFIGURATION, NULL, NULL, &zErrMsg);
 		if (rc != SQLITE_OK)
 		{
-			string errMsg = "Failed to set WAL from the fledge DB - " + dbConfiguration;
+			string errMsg = "Failed to set WAL from the fledge DB - " DB_CONFIGURATION;
 			Logger::getLogger()->error("%s : error %s",
-									   dbConfiguration.c_str(),
+			                           DB_CONFIGURATION,
 									   zErrMsg);
 			connectErrorTime = time(0);
 
@@ -553,52 +548,54 @@ Connection::Connection()
 		//Release sqlStmt buffer
 		delete[] sqlStmt;
 
-		// Attach readings database
-		SQLBuffer attachReadingsDb;
-		attachReadingsDb.append("ATTACH DATABASE '");
-		attachReadingsDb.append(dbPathReadings + "' AS readings;");
-
-		const char *sqlReadingsStmt = attachReadingsDb.coalesce();
-
-		// Exec the statement
-		rc = SQLexec(dbHandle,
-			     sqlReadingsStmt,
-			     NULL,
-			     NULL,
-			     &zErrMsg);
-
-		// Check result
-		if (rc != SQLITE_OK)
+		// Attach readings database - readings_1
 		{
-			const char* errMsg = "Failed to attach 'readings' database in";
-			Logger::getLogger()->error("%s '%s': error %s",
-						   errMsg,
-						   sqlReadingsStmt,
-						   zErrMsg);
-			connectErrorTime = time(0);
+			SQLBuffer attachReadingsDb;
+			attachReadingsDb.append("ATTACH DATABASE '");
+			attachReadingsDb.append(dbPathReadings + "' AS readings_1;");
 
-			sqlite3_free(zErrMsg);
-			sqlite3_close_v2(dbHandle);
-		}
-		else
-		{
-			Logger::getLogger()->info("Connected to SQLite3 database: %s",
-						  dbPath.c_str());
-		}
-		//Release sqlStmt buffer
-		delete[] sqlReadingsStmt;
+			const char *sqlReadingsStmt = attachReadingsDb.coalesce();
 
-		// Enable the WAL for the readings DB
-		rc = sqlite3_exec(dbHandle, dbConfiguration.c_str(),NULL, NULL, &zErrMsg);
-		if (rc != SQLITE_OK)
-		{
-			string errMsg = "Failed to set WAL from the readings DB - " + dbConfiguration;
-			Logger::getLogger()->error("%s : error %s",
-									   errMsg.c_str(),
-									   zErrMsg);
-			connectErrorTime = time(0);
+			// Exec the statement
+			rc = SQLexec(dbHandle,
+						 sqlReadingsStmt,
+						 NULL,
+						 NULL,
+						 &zErrMsg);
 
-			sqlite3_free(zErrMsg);
+			// Check result
+			if (rc != SQLITE_OK)
+			{
+				const char* errMsg = "Failed to attach 'readings' database in";
+				Logger::getLogger()->error("%s '%s': error %s",
+										   errMsg,
+										   sqlReadingsStmt,
+										   zErrMsg);
+				connectErrorTime = time(0);
+
+				sqlite3_free(zErrMsg);
+				sqlite3_close_v2(dbHandle);
+			}
+			else
+			{
+				Logger::getLogger()->info("Connected to SQLite3 database: %s",
+										  dbPath.c_str());
+			}
+			//Release sqlStmt buffer
+			delete[] sqlReadingsStmt;
+
+			// Enable the WAL for the readings DB
+			rc = sqlite3_exec(dbHandle, DB_CONFIGURATION,NULL, NULL, &zErrMsg);
+			if (rc != SQLITE_OK)
+			{
+				string errMsg = "Failed to set WAL from the readings DB - " DB_CONFIGURATION;
+				Logger::getLogger()->error("%s : error %s",
+										   errMsg.c_str(),
+										   zErrMsg);
+				connectErrorTime = time(0);
+
+				sqlite3_free(zErrMsg);
+			}
 		}
 
 	}
@@ -781,6 +778,7 @@ int selectCallback(void *data,
 		  char **colValues,
 		  char **colNames)
 {
+
 int *nRows = (int *)data;
 	// Increment the number of rows seen
 	*nRows++;
@@ -1634,7 +1632,7 @@ SQLBuffer	sql;
 		//
 		// 1) update == 0, no update,                                    returns -1
 		// 2) single command SQL that could affects multiple rows,       returns 'update'
-		// 3) multiple SQL commands packed and executed in one SQLexec,  returns 'row'
+		// 3) multiple SQL commands packed and executed in one SQLExec,  returns 'row'
 		return (return_value);
 	}
 
@@ -2841,7 +2839,7 @@ int retries = 0, rc;
 #endif
 			int interval = (1 * RETRY_BACKOFF);
 			std::this_thread::sleep_for(std::chrono::milliseconds(interval));
-			if (retries > 9) Logger::getLogger()->info("SQLexec: retry %d of %d, rc=%s, errmsg=%s, DB connection @ %p, slept for %d msecs",
+			if (retries > 9) Logger::getLogger()->info("SQLExec: retry %d of %d, rc=%s, errmsg=%s, DB connection @ %p, slept for %d msecs",
 						retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", sqlite3_errmsg(db), this, interval);
 #if DO_PROFILE_RETRIES
 			m_qMutex.lock();

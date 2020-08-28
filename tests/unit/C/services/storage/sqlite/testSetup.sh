@@ -1,17 +1,15 @@
 
 sqlite3 ${DEFAULT_SQLITE_DB_READINGS_FILE} << EOF
-ATTACH DATABASE '${DEFAULT_SQLITE_DB_READINGS_FILE}' AS 'readings';
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_READINGS_FILE}' AS 'readings_1';
 
---drop table if exists readings.readings;
+--drop table if exists readings_1.readings;
 
 -- Readings table
 -- This tables contains the readings for assets.
 -- An asset can be a south with multiple sensor, a single sensor,
 -- a software or anything that generates data that is sent to Fledge
-CREATE TABLE IF NOT EXISTS readings.readings (
+CREATE TABLE IF NOT EXISTS readings_1.readings_1 (
     id         INTEGER                PRIMARY KEY AUTOINCREMENT,
-    asset_code character varying(50)       NOT NULL,               -- The provided asset code. Not necessarily located in the
-                                                                   -- assets table.
     reading    JSON                        NOT NULL DEFAULT '{}',  -- The json object received
     user_ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')), -- UTC time
     ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW'))  -- UTC time
@@ -20,7 +18,20 @@ CREATE TABLE IF NOT EXISTS readings.readings (
 -- CREATE INDEX fki_readings_fk1
 --    ON readings (asset_code);
 
-delete from readings.readings;
+delete from readings_1.readings;
+
+CREATE TABLE readings_1.asset_reading_catalogue (
+    table_id     INTEGER               PRIMARY KEY AUTOINCREMENT,
+    db_id        INTEGER               NOT NULL,
+    asset_code   character varying(50) NOT NULL
+);
+
+CREATE TABLE readings_1.configuration_readings (
+    global_id         INTEGER
+);
+
+
+
 
 EOF
 

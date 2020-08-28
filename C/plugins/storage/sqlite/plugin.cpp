@@ -60,13 +60,13 @@ PLUGIN_INFORMATION *plugin_info()
 PLUGIN_HANDLE plugin_init()
 {
 	bool result;
-ConnectionManager *manager = ConnectionManager::getInstance();
+	ConnectionManager *manager = ConnectionManager::getInstance();
 	manager->growPool(5);
 
-	//# FIXME_I:
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-	readCat->preallocateReadingsTables();
 	readCat->loadAssetReadingCatalogue();
+	result = readCat->attachAllDbs();
+	readCat->preallocateReadingsTables();
 	readCat->evaluateGlobalId();
 
 	return manager;
@@ -236,16 +236,10 @@ bool plugin_shutdown(PLUGIN_HANDLE handle)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx3 plugin_shutdown");
-	Logger::getLogger()->setMinLevel("warning");
-
-	//# FIXME_I:
-//	Connection        *connection = manager->allocate();
-//	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-//	readCat->storeGlobalId();
-//	manager->release(connection);
+	Connection        *connection = manager->allocate();
+	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
+	readCat->storeGlobalId();
+	manager->release(connection);
 
 
 	manager->shutdown();

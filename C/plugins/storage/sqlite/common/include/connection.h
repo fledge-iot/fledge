@@ -25,6 +25,7 @@
 #define READINGS_DB_FILE_NAME     "/" READINGS_DB_NAME_BASE "_1.db"
 #define READINGS_DB               READINGS_DB_NAME_BASE "_1"
 #define READINGS_TABLE            "readings"
+#define READINGS_TABLE_MEM       READINGS_TABLE "_1"
 
 #define LEN_BUFFER_DATE 100
 #define F_TIMEH24_S             "%H:%M:%S"
@@ -46,6 +47,32 @@
 #ifndef PLUGIN_LOG_NAME
 #define PLUGIN_LOG_NAME "SQLite3"
 #endif
+
+/*
+ * Control the way purge deletes readings. The block size sets a limit as to how many rows
+ * get deleted in each call, whilst the sleep interval controls how long the thread sleeps
+ * between deletes. The idea is to not keep the database locked too long and allow other threads
+ * to have access to the database between blocks.
+ */
+#define PURGE_SLEEP_MS 500
+#define PURGE_DELETE_BLOCK_SIZE	20
+#define TARGET_PURGE_BLOCK_DEL_TIME	(70*1000) 	// 70 msec
+#define PURGE_BLOCK_SZ_GRANULARITY	5 	// 5 rows
+#define MIN_PURGE_DELETE_BLOCK_SIZE	20
+#define MAX_PURGE_DELETE_BLOCK_SIZE	1500
+#define RECALC_PURGE_BLOCK_SIZE_NUM_BLOCKS	30	// recalculate purge block size after every 30 blocks
+
+#define PURGE_SLOWDOWN_AFTER_BLOCKS 5
+#define PURGE_SLOWDOWN_SLEEP_MS 500
+
+#define SECONDS_PER_DAY "86400.0"
+// 2440587.5 is the julian day at 1/1/1970 0:00 UTC.
+#define JULIAN_DAY_START_UNIXTIME "2440587.5"
+
+
+#define START_TIME std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+#define END_TIME std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now(); \
+				 auto usecs = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
 
 int dateCallback(void *data, int nCols, char **colValues, char **colNames);
 bool applyColumnDateFormat(const std::string& inFormat,
@@ -175,7 +202,7 @@ class ReadingsCatalogue {
 		int           purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBase, char **errMsg = NULL, unsigned int *rowsAffected = NULL);
 
 	private:
-		const int nReadingsAllocate = 20;
+		const int nReadingsAllocate = 15;
 
 		typedef struct ReadingAvailable {
 			int lastReadings;

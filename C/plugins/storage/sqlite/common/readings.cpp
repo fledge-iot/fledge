@@ -41,27 +41,6 @@
 #define PREP_CMD_RETRY_BASE 		5000    // Base time to wait for
 #define PREP_CMD_RETRY_BACKOFF		5000 	// Variable time to wait for
 
-/*
- * Control the way purge deletes readings. The block size sets a limit as to how many rows
- * get deleted in each call, whilst the sleep interval controls how long the thread sleeps
- * between deletes. The idea is to not keep the database locked too long and allow other threads
- * to have access to the database between blocks.
- */
-#define PURGE_SLEEP_MS 500
-#define PURGE_DELETE_BLOCK_SIZE	20
-#define TARGET_PURGE_BLOCK_DEL_TIME	(70*1000) 	// 70 msec
-#define PURGE_BLOCK_SZ_GRANULARITY	5 	// 5 rows
-#define MIN_PURGE_DELETE_BLOCK_SIZE	20
-#define MAX_PURGE_DELETE_BLOCK_SIZE	1500
-#define RECALC_PURGE_BLOCK_SIZE_NUM_BLOCKS	30	// recalculate purge block size after every 30 blocks
-
-#define PURGE_SLOWDOWN_AFTER_BLOCKS 5
-#define PURGE_SLOWDOWN_SLEEP_MS 500
-
-#define SECONDS_PER_DAY "86400.0"
-// 2440587.5 is the julian day at 1/1/1970 0:00 UTC.
-#define JULIAN_DAY_START_UNIXTIME "2440587.5"
-
 //#ifndef PLUGIN_LOG_NAME
 //#define PLUGIN_LOG_NAME "SQLite 3"
 //#endif
@@ -103,14 +82,11 @@ static std::mutex	db_mutex;
 static std::condition_variable	db_cv;
 static int purgeBlockSize = PURGE_DELETE_BLOCK_SIZE;
 
-
-#define START_TIME std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
-#define END_TIME std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now(); \
-				 auto usecs = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
-
 static time_t connectErrorTime = 0;
 
 
+
+#ifndef SQLITE_SPLIT_READINGS
 /**
  * Check whether to compute timebucket query with min,max,avg for all datapoints
  *
@@ -131,7 +107,9 @@ bool aggregateAll(const Value& payload)
 	}
 	return false;
 }
+#endif
 
+#ifndef SQLITE_SPLIT_READINGS
 /**
  * Build, exucute and return data of a timebucket query with min,max,avg for all datapoints
  *
@@ -404,6 +382,7 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 
 	return true;
 }
+#endif
 
 /**
  * Append a stream of readings to SQLite db
@@ -637,6 +616,7 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 	return rowNumber;
 }
 
+#ifndef SQLITE_SPLIT_READINGS
 /**
  * Append a set of readings to the readings table
  */
@@ -920,7 +900,9 @@ int localNReadingsTotal;
 
 	return row;
 }
+#endif
 
+#ifndef SQLITE_SPLIT_READINGS
 /**
  * Fetch a block of readings from the reading table
  * It might not work with SQLite 3
@@ -1012,8 +994,9 @@ int retrieve;
 		}
 	}
 }
+#endif
 
-
+#ifndef SQLITE_SPLIT_READINGS
 /**
  * Perform a query against the readings table
  *
@@ -1028,7 +1011,6 @@ SQLBuffer	sql;
 // Extra constraints to add to where clause
 SQLBuffer	jsonConstraints;
 bool		isAggregate = false;
-
 
 	try {
 		if (dbHandle == NULL)
@@ -1411,7 +1393,9 @@ bool		isAggregate = false;
 	}
 
 }
+#endif
 
+#ifndef SQLITE_SPLIT_READINGS
 /**
  * Purge readings from the reading table
  */
@@ -1875,7 +1859,9 @@ int blocks = 0;
 	return deletedRows;
 }
 
+#endif
 
+#ifndef SQLITE_SPLIT_READINGS
 /**
  * Purge readings from the reading table
  */
@@ -2084,6 +2070,7 @@ string sql_cmd;
 	logger->info("Purge by Rows complete: %s", result.c_str());
 	return deletedRows;
 }
+#endif
 
 /**
  * Logs an error

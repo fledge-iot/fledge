@@ -332,6 +332,23 @@ class TestSchedules:
         async def mock_coro():
             return ""
 
+        async def mock_schedules():
+            schedule1 = ManualSchedule()
+            schedule1.schedule_id = self._random_uuid
+            schedule1.exclusive = True
+            schedule1.enabled = True
+            schedule1.name = "bar"
+            schedule1.process_name = "foo"
+
+            schedule2 = IntervalSchedule()
+            schedule2.schedule_id = self._random_uuid
+            schedule2.repeat = timedelta(seconds=15)
+            schedule2.exclusive = True
+            schedule2.enabled = True
+            schedule2.name = "stats collection"
+            schedule2.process_name = "stats collector"
+            return [schedule1, schedule2]
+
         async def mock_schedule(_type):
             if _type == 1:
                 schedule = StartUpSchedule()
@@ -364,17 +381,20 @@ class TestSchedules:
         response = {'rows': [{'name': 'p1'}], 'count': 1}
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=mock_coro_response(response)):
-                with patch.object(server.Server.scheduler, 'save_schedule', return_value=mock_coro()) \
-                        as patch_save_schedule:
+                with patch.object(server.Server.scheduler, 'get_schedules',
+                                  return_value=mock_schedules()) as patch_get_schedules:
                     with patch.object(server.Server.scheduler, 'get_schedule',
                                       return_value=mock_schedule(request_data["type"])) as patch_get_schedule:
-                        resp = await client.post('/fledge/schedule', data=json.dumps(request_data))
-                        assert 200 == resp.status
-                        result = await resp.text()
-                        json_response = json.loads(result)
-                        assert expected_response == json_response
-                        patch_get_schedule.called_once_with()
-                    patch_save_schedule.called_once_with()
+                        with patch.object(server.Server.scheduler, 'save_schedule',
+                                          return_value=mock_coro()) as patch_save_schedule:
+                            resp = await client.post('/fledge/schedule', data=json.dumps(request_data))
+                            assert 200 == resp.status
+                            result = await resp.text()
+                            json_response = json.loads(result)
+                            assert expected_response == json_response
+                        assert 1 == patch_save_schedule.call_count
+                    patch_get_schedule.assert_called_once_with(None)
+                patch_get_schedules.assert_called_once_with()
 
     async def test_post_schedule_bad_param(self, client):
         resp = await client.post('/fledge/schedule', data=json.dumps({'schedule_id': 'bla'}))
@@ -410,6 +430,47 @@ class TestSchedules:
                 resp = await client.post('/fledge/schedule', data=json.dumps(request_data))
                 assert response_code == resp.status
                 assert error_message == resp.reason
+
+    @pytest.mark.parametrize("request_data", [
+        {"type": 4, "name": "purge", "process_name": "purge", "repeat": "45"},
+        {"type": 1, "name": "Sine", "process_name": "south_c",  "repeat": 0}
+    ])
+    async def test_duplicate_post_schedule(self, client, request_data):
+        async def mock_schedules():
+            schedule1 = ManualSchedule()
+            schedule1.schedule_id = self._random_uuid
+            schedule1.exclusive = True
+            schedule1.enabled = True
+            schedule1.name = "purge"
+            schedule1.process_name = "purge"
+
+            schedule2 = StartUpSchedule()
+            schedule2.schedule_id = self._random_uuid
+            schedule2.exclusive = True
+            schedule2.enabled = True
+            schedule2.name = "Sine"
+            schedule2.process_name = "south_c"
+
+            schedule3 = IntervalSchedule()
+            schedule3.schedule_id = self._random_uuid
+            schedule3.repeat = timedelta(seconds=15)
+            schedule3.exclusive = True
+            schedule3.enabled = True
+            schedule3.name = "stats collection"
+            schedule3.process_name = "stats collector"
+
+            return [schedule1, schedule2, schedule3]
+
+        storage_client_mock = MagicMock(StorageClientAsync)
+        response = {'rows': [{'name': 'purge'}, {'name': 'south_c'}], 'count': 2}
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=mock_coro_response(response)):
+                with patch.object(server.Server.scheduler, 'get_schedules',
+                                  return_value=mock_schedules()) as patch_get_schedules:
+                    resp = await client.post('/fledge/schedule', data=json.dumps(request_data))
+                    assert 409 == resp.status
+                    assert "Duplicate schedule name entry found" == resp.reason
+                patch_get_schedules.assert_called_once_with()
 
     @pytest.mark.parametrize("request_data, expected_response", [
         ({"name": "new"},

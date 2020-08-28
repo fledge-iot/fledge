@@ -590,19 +590,22 @@ async def post_schedule(request):
 
     try:
         data = await request.json()
-
         schedule_id = data.get('schedule_id', None)
         if schedule_id:
-            raise web.HTTPBadRequest(reason='Schedule ID not needed for new Schedule.')
+            raise ValueError("Schedule ID not needed for new Schedule.")
 
         go_no_go = await _check_schedule_post_parameters(data)
         if len(go_no_go) != 0:
             raise ValueError("Errors in request: {} {}".format(','.join(go_no_go), len(go_no_go)))
 
+        schedule_name = data.get('name', None)
+        sch_list = await server.Server.scheduler.get_schedules()
+        for schedule in sch_list:
+            if schedule_name == schedule.name:
+                raise DuplicateRequestError("Duplicate schedule name entry found")
+
         updated_schedule_id = await _execute_add_update_schedule(data)
-
         sch = await server.Server.scheduler.get_schedule(updated_schedule_id)
-
         schedule = {
             'id': str(sch.schedule_id),
             'name': sch.name,
@@ -614,12 +617,14 @@ async def post_schedule(request):
             'exclusive': sch.exclusive,
             'enabled': sch.enabled
         }
-
-        return web.json_response({'schedule': schedule})
     except (ScheduleNotFoundError, ScheduleProcessNameNotFoundError) as ex:
-        raise web.HTTPNotFound(reason=str(ex))
+        raise web.HTTPNotFound(reason=str(ex), body=json.dumps({"schedule": str(ex)}))
+    except DuplicateRequestError as err_msg:
+        raise web.HTTPConflict(reason=str(err_msg), body=json.dumps({"schedule": str(err_msg)}))
     except ValueError as ex:
-        raise web.HTTPBadRequest(reason=str(ex))
+        raise web.HTTPBadRequest(reason=str(ex), body=json.dumps({"schedule": str(ex)}))
+    else:
+        return web.json_response({'schedule': schedule})
 
 
 async def update_schedule(request):

@@ -169,13 +169,13 @@ class OMF
 		const std::string createTypeData(const Reading& reading, OMFHints *hints);
 
 		// Create data for Container message for current row
-		const std::string createContainerData(const Reading& reading);
+		const std::string createContainerData(const Reading& reading, OMFHints *hints);
 
 		// Create data for additional type message, with 'Data' for current row
 		const std::string createStaticData(const Reading& reading);
 
 		// Create data Link message, with 'Data', for current row
-		std::string createLinkData(const Reading& reading, std::string& AFHierarchyLevel, std::string&  prefix, std::string&  objectPrefix);
+		std::string createLinkData(const Reading& reading, std::string& AFHierarchyLevel, std::string&  prefix, std::string&  objectPrefix, OMFHints *hints);
 
 		/**
 		 * Creata data for readings data content, with 'Data', for one row
@@ -353,7 +353,8 @@ class OMFData
 		OMFData(const Reading& reading,
 			const long typeId,
 			const OMF_ENDPOINT PIServerEndpoint = ENDPOINT_CR,
-			const std::string& DefaultAFLocation = std::string());
+			const std::string& DefaultAFLocation = std::string(),
+			OMFHints *hints = NULL);
 
 		const std::string& OMFdataVal() const;
 	private:

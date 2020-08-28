@@ -117,7 +117,7 @@ const char *AF_HIERARCHY_1LEVEL_LINK = QUOTE(
 /**
  * OMFData constructor
  */
-OMFData::OMFData(const Reading& reading, const long typeId, const OMF_ENDPOINT PIServerEndpoint,const string&  AFHierarchyPrefix)
+OMFData::OMFData(const Reading& reading, const long typeId, const OMF_ENDPOINT PIServerEndpoint,const string&  AFHierarchyPrefix, OMFHints *hints)
 {
 	string outData;
 	string measurementId;
@@ -128,6 +128,21 @@ OMFData::OMFData(const Reading& reading, const long typeId, const OMF_ENDPOINT P
 	if (PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
 		measurementId = AFHierarchyPrefix + "_" + measurementId;
+	}
+
+	// Apply any TagName hints to modify the containerid
+	if (hints)
+	{
+		const std::vector<OMFHint *> omfHints = hints->getHints();
+		for (auto it = omfHints.cbegin(); it != omfHints.cend(); it++)
+		{
+			if (typeid(**it) == typeid(OMFTagNameHint))
+			{
+				measurementId = (*it)->getHint();
+				Logger::getLogger()->info("Using OMF TagName hint: %s", measurementId.c_str());
+				break;
+			}
+		}
 	}
 
 	// Convert reading data into the OMF JSON string
@@ -362,7 +377,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 	// Create header for Container
 	vector<pair<string, string>> resContainer = OMF::createMessageHeader("Container");
 	// Create data for Container message	
-	string typeContainer = OMF::createContainerData(row);
+	string typeContainer = OMF::createContainerData(row, hints);
 
 	// Build an HTTPS POST with 'resContainer' headers
 	// and 'typeContainer' JSON payload
@@ -490,7 +505,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 			}
 
 			// Create data for Static Data message
-			string typeLinkData = OMF::createLinkData(row, AFHierarchyLevel, prefix, objectPrefix);
+			string typeLinkData = OMF::createLinkData(row, AFHierarchyLevel, prefix, objectPrefix, hints);
 
 			// Build an HTTPS POST with 'resLinkData' headers
 			// and 'typeLinkData' JSON payload
@@ -1041,6 +1056,8 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 						    ++elem)
 	{
 		Reading *reading = *elem;
+
+		// Fetch and parse any OMFHint for this reading
 		Datapoint *hintsdp = reading->getDatapoint("OMFHint");
 		OMFHints *hints = NULL;
 		if (hintsdp)
@@ -1067,6 +1084,28 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			keyComplete = AFHierarchyPrefix + "_" + assetName;
 		}
 
+		/*
+		 * Check the OMFHints, if there are any, to see if we have a 
+		 * type name that should be used for this asset.
+		 * We will still create the tyope, but the name will be fixed 
+		 * as the value of this hint.
+		 */
+		bool usingTypeNameHint = false;
+		if (hints)
+		{
+			const vector<OMFHint *> omfHints = hints->getHints();
+			for (auto it = omfHints.cbegin(); it != omfHints.cend(); it++)
+			{
+				if (typeid(**it) == typeid(OMFTypeNameHint))
+				{
+					Logger::getLogger()->info("Using OMF TypeName hint: %s", (*it)->getHint().c_str());
+					keyComplete.append("_" + (*it)->getHint());
+					usingTypeNameHint = true;
+					break;
+				}
+			}
+		}
+
 		if (! AFHierarchySent)
 		{
 			setAFHierarchy();
@@ -1079,7 +1118,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 				 true;
 
 		Reading* datatypeStructure = NULL;
-		if (sendDataTypes)
+		if (sendDataTypes && !usingTypeNameHint)
 		{
 			// Increment type-id of assetName in in memory cache
 			OMF::incrementAssetTypeIdOnly(keyComplete);
@@ -1103,29 +1142,42 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			AFHierarchySent = true;
 		}
 
-		// Check first we have supersetDataPoints for the current reading
-		if ((sendDataTypes && datatypeStructure == NULL) ||
-		    // Handle the data types of the current reading
-		    (sendDataTypes &&
-		    // Send data type
-		    !OMF::handleDataTypes(keyComplete, *datatypeStructure, skipSentDataTypes, hints) &&
-		    // Data type not sent:
-		    (!m_changeTypeId ||
-		     // Increment type-id and re-send data types
-		     !OMF::handleTypeErrors(keyComplete, *datatypeStructure, hints))))
+		if (usingTypeNameHint)
 		{
-			// Remove all assets supersetDataPoints
-			OMF::unsetMapObjectTypes(m_SuperSetDataPoints);
+			if (sendDataTypes && !OMF::handleDataTypes(keyComplete,
+							*reading, skipSentDataTypes, hints))
+			{
+				// Failure
+				m_lastError = true;
+				return 0;
+			}
+		}
+		else
+		{
+			// Check first we have supersetDataPoints for the current reading
+			if ((sendDataTypes && datatypeStructure == NULL) ||
+			    // Handle the data types of the current reading
+			    (sendDataTypes &&
+			    // Send data type
+			    !OMF::handleDataTypes(keyComplete, *datatypeStructure, skipSentDataTypes, hints) &&
+			    // Data type not sent:
+			    (!m_changeTypeId ||
+			     // Increment type-id and re-send data types
+			     !OMF::handleTypeErrors(keyComplete, *datatypeStructure, hints))))
+			{
+				// Remove all assets supersetDataPoints
+				OMF::unsetMapObjectTypes(m_SuperSetDataPoints);
 
-			// Failure
-			m_lastError = true;
-			return 0;
+				// Failure
+				m_lastError = true;
+				return 0;
+			}
 		}
 
 		// Create the key for dataTypes sending once
 		long typeId = OMF::getAssetTypeId(assetName);
 
-		string outData = OMFData(*reading, typeId, m_PIServerEndpoint, AFHierarchyPrefix ).OMFdataVal();
+		string outData = OMFData(*reading, typeId, m_PIServerEndpoint, AFHierarchyPrefix, hints ).OMFdataVal();
 		if (!outData.empty())
 		{
 			jsonData << (pendingSeparator ? ", " : "") << outData;
@@ -1374,7 +1426,7 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 		}
 
 		// Add into JSON string the OMF transformed Reading data
-		jsonData << OMFData(*elem, typeId, m_PIServerEndpoint, m_AFHierarchyLevel).OMFdataVal() << (elem < (readings.end() -1 ) ? ", " : "");
+		jsonData << OMFData(*elem, typeId, m_PIServerEndpoint, m_AFHierarchyLevel, hints).OMFdataVal() << (elem < (readings.end() -1 ) ? ", " : "");
 	}
 
 	jsonData << "]";
@@ -1458,7 +1510,7 @@ uint32_t OMF::sendToServer(const Reading* reading,
 
 	long typeId = OMF::getAssetTypeId((*reading).getAssetName());
 	// Add into JSON string the OMF transformed Reading data
-	jsonData << OMFData(*reading, typeId, m_PIServerEndpoint, m_AFHierarchyLevel).OMFdataVal();
+	jsonData << OMFData(*reading, typeId, m_PIServerEndpoint, m_AFHierarchyLevel, hints).OMFdataVal();
 	jsonData << "]";
 
 	// Build headers for Readings data
@@ -1566,7 +1618,7 @@ const std::string OMF::createTypeData(const Reading& reading, OMFHints *hints)
 
 	// Add the Dynamic data part
 
-	/* We add for ech reading
+	/* We add for each reading
 	 * the DataPoint name & type
 	 * type is 'integer' for INT
 	 * 'number' for FLOAT
@@ -1637,10 +1689,29 @@ const std::string OMF::createTypeData(const Reading& reading, OMFHints *hints)
 	tData.append("\"Time\": {\"type\": \"string\", \"isindex\": true, \"format\": \"date-time\"}}, "
 "\"classification\": \"dynamic\", \"id\": \"");
 
-	// Add type_id + '_' + asset_name + '__typename_measurement'
-	OMF::setAssetTypeTag(reading.getAssetName(),
-			     "typename_measurement",
-			     tData);
+	bool typeNameSet = false;
+	if (hints)
+	{
+		const vector<OMFHint *> omfHints = hints->getHints();
+		for (auto it = omfHints.cbegin(); it != omfHints.cend(); it++)
+		{
+			if (typeid(**it) == typeid(OMFTypeNameHint))
+			{
+					Logger::getLogger()->info("Using OMF TypeName hint: %s", (*it)->getHint().c_str());
+				tData.append((*it)->getHint());
+				typeNameSet = true;
+				break;
+			}
+		}
+	}
+
+	if (!typeNameSet)
+	{
+		// Add type_id + '_' + asset_name + '__typename_measurement'
+		OMF::setAssetTypeTag(reading.getAssetName(),
+				     "typename_measurement",
+				     tData);
+	}
 
 	tData.append("\" }]");
 
@@ -1663,7 +1734,7 @@ const std::string OMF::createTypeData(const Reading& reading, OMFHints *hints)
  * @param reading    A reading data
  * @return           Type JSON message as string
  */
-const std::string OMF::createContainerData(const Reading& reading)
+const std::string OMF::createContainerData(const Reading& reading, OMFHints *hints)
 {
 	string AFHierarchyPrefix;
 	string AFHierarchyLevel;
@@ -1675,10 +1746,30 @@ const std::string OMF::createContainerData(const Reading& reading)
 	// Build the Container data (JSON Array)
 	string cData = "[{\"typeid\": \"";
 
-	// Add type_id + '_' + asset_name + '__typename_measurement'
-	OMF::setAssetTypeTag(assetName,
-			     "typename_measurement",
-			     cData);
+	string typeName = "";
+	if (hints)
+	{
+		const std::vector<OMFHint *> omfHints = hints->getHints();
+		for (auto it = omfHints.cbegin(); it != omfHints.cend(); it++)
+		{
+			if (typeid(**it) == typeid(OMFTypeNameHint))
+			{
+				typeName = (*it)->getHint();
+				Logger::getLogger()->info("Using OMF TypeName hint: %s", typeName.c_str());
+			}
+		}
+	}
+	if (typeName.length())
+	{
+		cData.append(typeName);
+	}
+	else
+	{
+		// Add type_id + '_' + asset_name + '__typename_measurement'
+		OMF::setAssetTypeTag(assetName,
+				     "typename_measurement",
+				     cData);
+	}
 
 	measurementId = to_string(OMF::getAssetTypeId(assetName)) + "measurement_" + assetName;
 
@@ -1688,6 +1779,21 @@ const std::string OMF::createContainerData(const Reading& reading)
 		retrieveAFHierarchyPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchyLevel);
 
 		measurementId = AFHierarchyPrefix + "_" + measurementId;
+	}
+
+	// Apply any TagName hints to modify the containerid
+	if (hints)
+	{
+		const std::vector<OMFHint *> omfHints = hints->getHints();
+		for (auto it = omfHints.cbegin(); it != omfHints.cend(); it++)
+		{
+			if (typeid(**it) == typeid(OMFTagNameHint))
+			{
+				measurementId = (*it)->getHint();
+				Logger::getLogger()->info("Using OMF TagName hint: %s", measurementId.c_str());
+				break;
+			}
+		}
 	}
 
 	cData.append("\", \"id\": \"" + measurementId);
@@ -1772,7 +1878,7 @@ const std::string OMF::createStaticData(const Reading& reading)
  * @param reading    A reading data
  * @return           Type JSON message as string
  */
-std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarchyLevel, std::string&  AFHierarchyPrefix, std::string&  objectPrefix)
+std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarchyLevel, std::string&  AFHierarchyPrefix, std::string&  objectPrefix, OMFHints *hints)
 {
 	string targetTypeId;
 
@@ -1862,6 +1968,21 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 	if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
 		measurementId = objectPrefix + "_" + measurementId;
+	}
+
+	// Apply any TagName hints to modify the containerid
+	if (hints)
+	{
+		const std::vector<OMFHint *> omfHints = hints->getHints();
+		for (auto it = omfHints.cbegin(); it != omfHints.cend(); it++)
+		{
+			if (typeid(**it) == typeid(OMFTagNameHint))
+			{
+				measurementId = (*it)->getHint();
+				Logger::getLogger()->info("Using OMF TagName hint: %s", measurementId.c_str());
+				break;
+			}
+		}
 	}
 
 	lData.append("\"}, \"target\": {\"containerid\": \"" + measurementId);
@@ -2632,7 +2753,7 @@ void OMF::setMapObjectTypes(const vector<Reading*>& readings,
 					if ((*dpItr).second.compare(omfType) != 0)
 					{
 						// Datapoint already set has changed type
-						Logger::getLogger()->warn("Datapoint '" + datapointName + \
+						Logger::getLogger()->info("Datapoint '" + datapointName + \
 									  "' in asset '" + assetName + \
 									  "' has changed type from '" + (*dpItr).second + \
 									  " to " + omfType);
@@ -2971,6 +3092,21 @@ bool OMF::setCreatedTypes(const Reading& row, OMFHints *hints)
 		retrieveAFHierarchyPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchyLevel);
 
 		keyComplete = AFHierarchyPrefix + "_" + assetName;
+	}
+
+	// We may need to add the hint to the key if we have a TypeName key
+	if (hints)
+	{
+		const vector<OMFHint *> omfHints = hints->getHints();
+		for (auto it = omfHints.cbegin(); it != omfHints.cend(); it++)
+		{
+			if (typeid(**it) == typeid(OMFTypeNameHint))
+			{
+					Logger::getLogger()->info("Using OMF TypeName hint: %s", (*it)->getHint().c_str());
+				keyComplete.append("_" + (*it)->getHint());
+				break;
+			}
+		}
 	}
 
 

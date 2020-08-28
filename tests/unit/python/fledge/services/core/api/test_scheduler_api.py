@@ -34,6 +34,7 @@ def mock_coro_response(*args, **kwargs):
     else:
         return ""
 
+
 @pytest.allure.feature("unit")
 @pytest.allure.story("core", "api", "schedule")
 class TestScheduledProcesses:
@@ -90,6 +91,55 @@ class TestScheduledProcesses:
                     resp = await client.get('/fledge/schedule/process/bla')
                     assert 404 == resp.status
                     assert "No such Scheduled Process: ['bla']." == resp.reason
+
+    async def test_post_scheduled_process(self, client):
+        payload = {'process_name': 'manage', "script": '["tasks/manage"]'}
+        storage_client_mock = MagicMock(StorageClientAsync)
+        response = {'rows': [], 'count': 0}
+        ret_val = {"response": "inserted", "rows_affected": 1}
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=mock_coro_response(response)
+                              ) as query_tbl_patch:
+                with patch.object(storage_client_mock, 'insert_into_tbl', return_value=mock_coro_response(ret_val)
+                                  ) as insert_tbl_patch:
+                    resp = await client.post('/fledge/schedule/process', data=json.dumps(payload))
+                    assert 200 == resp.status
+                    result = await resp.text()
+                    json_response = json.loads(result)
+                    assert {'message': 'manage process name created successfully.'} == json_response
+                    assert {'manage': '["tasks/manage"]'} == server.Server.scheduler._process_scripts
+                assert insert_tbl_patch.called
+                args, kwargs = insert_tbl_patch.call_args_list[0]
+                assert 'scheduled_processes' == args[0]
+                assert {'name': 'manage', 'script': '["tasks/manage"]'} == json.loads(args[1])
+            assert query_tbl_patch.called
+            args, kwargs = query_tbl_patch.call_args_list[0]
+            assert 'scheduled_processes' == args[0]
+            assert {"return": ["name"], "where": {"column": "name", "condition": "=", "value": "manage"}
+                    } == json.loads(args[1])
+
+    @pytest.mark.parametrize("request_data, response_code, error_message", [
+        ({}, 400, "Missing process_name property in payload."),
+        ({"process_name": ""}, 400, "Missing script property in payload."),
+        ({"script": ""}, 400, "Missing process_name property in payload."),
+        ({"processName": "", "script": ""}, 400, "Missing process_name property in payload."),
+        ({"process_name": "", "script": '["tasks/statistics"]'}, 400, "Process name cannot be empty."),
+        ({"process_name": "new", "script": ""}, 400, "Script cannot be empty."),
+        ({"process_name": " ", "script": '["tasks/statistics"]'}, 400, "Process name cannot be empty."),
+        ({"process_name": " new", "script": " "}, 400, "Script cannot be empty."),
+        ({"process_name": "purge", "script": '["tasks/purge"]'}, 400, "purge process name already exists.")
+    ])
+    async def test_post_scheduled_process_bad_data(self, client, request_data, response_code, error_message):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        response = {'rows': [{"name": "purge"}], 'count': 1}
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=mock_coro_response(response)):
+                resp = await client.post('/fledge/schedule/process', data=json.dumps(request_data))
+                assert response_code == resp.status
+                assert error_message == resp.reason
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert {'message': error_message} == json_response
 
 
 class TestSchedules:

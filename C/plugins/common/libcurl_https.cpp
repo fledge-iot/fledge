@@ -19,6 +19,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <curl/curl.h>
+#include <unistd.h>
 
 #include "libcurl_https.h"
 #include "string_utils.h"
@@ -50,6 +51,20 @@ LibcurlHttps::LibcurlHttps(const string& host_port,
 	{
 		Logger::getLogger()->error("libcurl_https - curl_global_init failed, the libcurl library cannot be initialized.");
 	}
+	char fname[180];
+	if (getenv("FLEDGE_DATA"))
+		snprintf(fname, sizeof(fname), "%s/omf.log", getenv("FLEDGE_DATA"));
+	else if (getenv("FLEDGE_ROOT"))
+		snprintf(fname, sizeof(fname), "%s/data/omf.log", getenv("FLEDGE_ROOT"));
+	if (access(fname, W_OK) == 0)
+	{
+		m_log = true;
+		m_ofs.open(fname, ofstream::app);
+	}
+	else
+	{
+		m_log = false;
+	}
 }
 
 /**
@@ -57,6 +72,10 @@ LibcurlHttps::LibcurlHttps(const string& host_port,
  */
 LibcurlHttps::~LibcurlHttps()
 {
+	if (m_log)
+	{
+		m_ofs.close();
+	}
 	curl_global_cleanup();
 }
 
@@ -291,6 +310,17 @@ int LibcurlHttps::sendRequest(
 			// curl.haxx.se/mail/lib-2013-10/0114.html
 			curl_easy_setopt(m_sender, CURLOPT_HEADERDATA,     httpHeaderBuffer);
 			curl_easy_setopt(m_sender, CURLOPT_HEADERFUNCTION, cb_header);
+			if (m_log)
+			{
+				m_ofs << endl << method << " " << path << endl;
+				m_ofs << "Headers" << endl;
+				for (auto it = headers.begin(); it != headers.end(); it++)
+				{
+					m_ofs << "    " << it->first << ": " << it->second << endl;
+				}
+				m_ofs << "Payload:" << endl;
+				m_ofs << payload << endl;
+			}
 
 			// Execute the HTTP method
 			res = curl_easy_perform(m_sender);
@@ -300,6 +330,12 @@ int LibcurlHttps::sendRequest(
 			// fix the text message
 			// NOTE : the text should be considered only if the HTTP code is not an ACK
 			httpResponseText = httpHeaderBuffer;
+			if (m_log)
+			{
+				m_ofs << "Response:" << endl;
+				m_ofs << "   Code: " << httpCode << endl;
+				m_ofs << "   Content: " << httpResponseText << endl << endl;
+			}
 			StringStripCRLF(httpResponseText);
 
 			m_HTTPResponse = httpResponseText;

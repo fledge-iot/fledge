@@ -14,6 +14,7 @@
 #include <vector>
 #include <http_sender.h>
 #include <curl/curl.h>
+#include <fstream>
 
 using namespace std;
 
@@ -81,6 +82,8 @@ private:
 	std::string	m_OCSClientId;
 	std::string	m_OCSClientSecret;
 	std::string	m_OCSToken;
+	std::ofstream	m_ofs;
+	bool		m_log;
 };
 
 #endif

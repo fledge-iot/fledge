@@ -54,7 +54,7 @@ class TestPluginInstall:
         ({"url": "http://blah.co.in", "format": "tar", "checksum": "4015c2dea1cc71dbf70a23f6a203eeb6"},
          "Plugin type param is required"),
         ({"url": "http://blah.co.in", "format": "tar", "type": "blah", "checksum": "4015c2dea1cc71dbf70a23f6a203eeb6"},
-         "Invalid plugin type. Must be 'north' or 'south' or 'filter' or 'notificationDelivery' or 'notificationRule'"),
+         "Invalid plugin type. Must be 'north' or 'south' or 'filter' or 'notify' or 'rule'"),
         ({"url": "http://blah.co.in", "format": "blah", "type": "filter", "checksum": "4015c2dea1cc71dbf70a23f6a203ee"},
          "Invalid format. Must be 'tar' or 'deb' or 'rpm' or 'repository'"),
         ({"url": "http://blah.co.in", "format": "tar", "type": "south", "checksum": "4015c2dea1cc71dbf70a23f6a203eeb6",

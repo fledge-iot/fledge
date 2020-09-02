@@ -41,26 +41,31 @@ async def update_plugin(request: web.Request) -> web.Response:
         curl -sX PUT http://localhost:8081/fledge/plugins/south/sinusoid/update
         curl -sX PUT http://localhost:8081/fledge/plugins/north/http_north/update
         curl -sX PUT http://localhost:8081/fledge/plugins/filter/metadata/update
-        curl -sX PUT http://localhost:8081/fledge/plugins/notificationDelivery/asset/update
-        curl -sX PUT http://localhost:8081/fledge/plugins/notificationRule/OutOfBound/update
+        curl -sX PUT http://localhost:8081/fledge/plugins/notify/asset/update
+        curl -sX PUT http://localhost:8081/fledge/plugins/rule/OutOfBound/update
     """
     _type = request.match_info.get('type', None)
     name = request.match_info.get('name', None)
     try:
-        _type = _type.lower() if not str(_type).startswith('notification') else _type
-        if _type not in ['north', 'south', 'filter', 'notificationDelivery', 'notificationRule']:
-            raise ValueError("Invalid plugin type. Must be 'north', 'south', 'filter', 'notificationDelivery' "
-                             "or 'notificationRule'")
+        _type = _type.lower()
+        if _type not in ['north', 'south', 'filter', 'notify', 'rule']:
+            raise ValueError("Invalid plugin type. Must be 'north' or 'south' or 'filter' or 'notify' or 'rule'")
+        if _type == 'notify':
+            installed_dir_name = 'notificationDelivery'
+        elif _type == 'rule':
+            installed_dir_name = 'notificationRule'
+        else:
+            installed_dir_name = _type
 
         # Check requested plugin name is installed or not
-        installed_plugins = PluginDiscovery.get_plugins_installed(_type, False)
+        installed_plugins = PluginDiscovery.get_plugins_installed(installed_dir_name, False)
         installed_plugin_name = [p_name["name"] for p_name in installed_plugins]
         if name not in installed_plugin_name:
             raise KeyError("{} plugin is not yet installed. So update is not possible.".format(name))
 
         sch_list = []
         notification_list = []
-        if _type in ['notificationDelivery', 'notificationRule']:
+        if _type in ['notify', 'rule']:
             # Check Notification service is enabled or not
             payload = PayloadBuilder().SELECT("id", "enabled", "schedule_name").WHERE(['process_name', '=',
                                                                                        'notification_c']).payload()
@@ -83,7 +88,6 @@ async def update_plugin(request: web.Request) -> web.Response:
                             notification_name, name, _type))
                         await config_mgr.set_category_item_value_entry(notification_name, "enable", "false")
                         notification_list.append(notification_name)
-            _type = "notify" if _type == 'notificationDelivery' else "rule"
         else:
             # Tracked plugins from asset tracker
             tracked_plugins = await _get_plugin_and_sch_name_from_asset_tracker(_type)

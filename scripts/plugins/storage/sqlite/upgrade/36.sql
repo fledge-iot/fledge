@@ -29,12 +29,14 @@ CREATE INDEX readings_1.readings_1_ix3
     ON readings_1 (user_ts);
 
 
--- Upgrade - copy all the content of the readings.readings  table into readings_1.readings_1
+--
+-- Force a calculation of the global id at the fledge starts
+--
 INSERT INTO readings_1.configuration_readings VALUES (-1);
 
---// FIXME_I:
 --
 -- NULL is used to force the auto generation of the value starting from 1
+-- db_is will be properly valued by the shell script
 --
 INSERT INTO readings_1.asset_reading_catalogue
     SELECT
@@ -42,28 +44,6 @@ INSERT INTO readings_1.asset_reading_catalogue
         1,
         asset_code
     FROM readings.readings
-    WHERE asset_code in ('rand_1','rand_2')
-    GROUP BY asset_code;
-
-INSERT INTO readings_1.asset_reading_catalogue
-    SELECT
-        NULL,
-        2,
-        asset_code
-    FROM readings.readings
-    WHERE asset_code in ('rand_3')
-    GROUP BY asset_code;
-
-
--- INSERT INTO readings_1.readings_1
---     SELECT
---         id,
---         reading,
---         user_ts,
---         ts
---     FROM readings.readings;
-
-
---// FIXME_I:
---DROP TABLE readings.readings;
+    GROUP BY asset_code
+    ORDER BY asset_code;
 

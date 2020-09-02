@@ -110,14 +110,15 @@ db_upgrade()
 
                 #// FIXME_I:
                 # Evaluates if a shell script is available, in case it is executed instead of the .sql file
-                schema_update_log "err" ">> STage 1"
+                schema_update_log "err" ">> STage 1"  "all" "pretty"
                 file_name=$(basename ${sql_file})
                 file_name_shell=${file_name%.*}.sh
                 file_name_path="${UPDATE_SCRIPTS_DIR}/${file_name_shell}"
 
                 if [ -f "${file_name_path}" ]; then
 
-                    schema_update_log "err" ">> STage 1.1"
+                    #// FIXME_I:
+                    schema_update_log "err" ">> STage 1.1"  "all" "pretty"
                     ${file_name_path}
 
                     RET_CODE=$?
@@ -128,14 +129,12 @@ db_upgrade()
                     fi
 
                 else
-                    schema_update_log "err" ">> STage 1.2"
-
                     #// FIXME_I:
+                    schema_update_log "err" ">> STage 1.2"  "all" "pretty"
+
                     # Call the DB script
                     COMMAND_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
 ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}'              AS 'fledge';
-ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}'     AS 'readings_1';
-ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS_SINGLE}' AS 'readings';
 .read '${sql_file}'
 .quit
 EOF`

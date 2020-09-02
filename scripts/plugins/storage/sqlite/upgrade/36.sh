@@ -8,6 +8,50 @@ schema_update_log() {
     write_log "Upgrade" "scripts.plugins.storage.${PLUGIN_NAME}.schema_update" "$1" "$2" "$3" "$4"
 }
 
+
+
+#
+#
+#
+calculate_dbid() {
+
+    _n_readings_allocate=$1
+
+    schema_update_log "debug" "upgrade: calculate_dbid: SQLITE_SQL :$SQLITE_SQL: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "all" "pretty"
+
+    #// FIXME_I:
+    # Call the DB script
+    #// FIXME_I:
+    SQL_COMMAND="${SQLITE_SQL} \"${DEFAULT_SQLITE_DB_FILE}\" 2>&1 <<EOF
+
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}'              AS 'fledge';
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}'     AS 'readings_1';
+
+UPDATE readings_1.asset_reading_catalogue SET db_id=(((table_id - 1) / '${_n_readings_allocate}') +1);
+.quit
+EOF"
+
+
+    COMMAND_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
+
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}'              AS 'fledge';
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}'     AS 'readings_1';
+
+UPDATE readings_1.asset_reading_catalogue SET db_id=(((table_id - 1) / '${_n_readings_allocate}') +1);
+
+.quit
+EOF`
+
+    ret_code=$?
+
+    if [ "${ret_code}" -ne 0 ]; then
+        schema_update_log "err" "Failure in upgrade command [${SQL_COMMAND}]: ${COMMAND_OUTPUT}. Exiting" "all" "pretty"
+        exit 1
+    fi
+}
+
+#
+
 #
 #
 #
@@ -29,9 +73,9 @@ ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS_SINGLE}' AS 'readings';
 .quit
 EOF`
 
-    RET_CODE=$?
+    ret_code=$?
 
-    if [ "${RET_CODE}" -ne 0 ]; then
+    if [ "${ret_code}" -ne 0 ]; then
         schema_update_log "err" "Failure in upgrade command [${SQL_COMMAND}]: ${COMMAND_OUTPUT}. Exiting" "all" "pretty"
         exit 1
     fi
@@ -50,8 +94,8 @@ create_database_file() {
     # Created datafile
     COMMAND_OUTPUT=`${SQLITE_SQL} ${file_name_path} .databases 2>&1`
 
-    RET_CODE=$?
-    if [ "${RET_CODE}" -ne 0 ]; then
+    ret_code=$?
+    if [ "${ret_code}" -ne 0 ]; then
         sqlite_log "err" "Error creating SQLite3 database ${readings_file}: ${COMMAND_OUTPUT}" "all" "pretty"
         exit 1
     fi
@@ -103,9 +147,9 @@ create_readings() {
     .quit
 EOF`
 
-    RET_CODE=$?
+    ret_code=$?
 
-    if [ "${RET_CODE}" -ne 0 ]; then
+    if [ "${ret_code}" -ne 0 ]; then
 
         schema_update_log "err" "xxx Failure in upgrade command [${SQL_COMMAND}]: ${COMMAND_OUTPUT}. Exiting" "all" "pretty"
         exit 1
@@ -118,7 +162,7 @@ create_all_readings() {
 
     cat "$tmp_file"  | while read table_id db_id asset_code; do
 
-        schema_update_log "debug" "upgrade: create_all_readings - :$table_id: :$db_id: :$asset_code: " "all" "pretty"
+        schema_update_log "debug" "upgrade: create_all_readings - dbid :$db_id: table id :$table_id: " "all" "pretty"
 
         # The first readings iss created by the sql script
         if [ "$table_id" != "1" ]; then
@@ -167,9 +211,9 @@ populate_readings() {
     .quit
 EOF`
 
-    RET_CODE=$?
+    ret_code=$?
 
-    if [ "${RET_CODE}" -ne 0 ]; then
+    if [ "${ret_code}" -ne 0 ]; then
 
         schema_update_log "err" "xxx Failure in upgrade command [${SQL_COMMAND}]: ${COMMAND_OUTPUT}. Exiting" "all" "pretty"
         exit 1
@@ -181,7 +225,7 @@ populate_all_readings() {
 
     cat "$tmp_file"  | while read table_id db_id asset_code; do
 
-        schema_update_log "debug" "upgrade: populate_all_readings - :$table_id: :$db_id: :$asset_code: " "all" "pretty"
+        schema_update_log "debug" "upgrade: populate_all_readings - db id :$db_id: table id :$table_id: asset code :$asset_code: " "all" "pretty"
 
         populate_readings "readings_$db_id" "readings_$table_id" "$asset_code"
     done
@@ -207,9 +251,9 @@ FROM readings_1.asset_reading_catalogue;
 EOF`
 
 
-    RET_CODE=$?
+    ret_code=$?
 
-    if [ "${RET_CODE}" -ne 0 ]; then
+    if [ "${ret_code}" -ne 0 ]; then
 
         schema_update_log "err" "xxx export_readings_list - Failure in upgrade command [${SQL_COMMAND}]: ${COMMAND_OUTPUT}. Exiting" "all" "pretty"
         exit 1
@@ -217,15 +261,84 @@ EOF`
 
 }
 
+
+
+
+#
+cleanup_db() {
+
+    schema_update_log "debug" "upgrade: cleanup - SQLITE_SQL :$SQLITE_SQL: sql_file :$sql_file: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "all" "pretty"
+
+    #
+    # Clean up database
+    #
+    SQL_COMMAND="${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
+
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}'                 AS 'fledge';
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}'        AS 'readings_1';
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS_SINGLE}' AS 'readings';
+
+DROP TABLE readings.readings;
+
+.quit
+EOF"
+
+    COMMAND_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
+
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}'                 AS 'fledge';
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}'        AS 'readings_1';
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS_SINGLE}' AS 'readings';
+
+DROP TABLE readings.readings;
+
+.quit
+EOF`
+
+    ret_code=$?
+
+    if [ "${ret_code}" -ne 0 ]; then
+        schema_update_log "err" "Failure in upgrade command [${SQL_COMMAND}]: result [${COMMAND_OUTPUT}]. Exiting" "all" "pretty"
+        exit 1
+    fi
+
+    #
+    # Clean up file system
+    #
+    file_path=$(dirname ${DEFAULT_SQLITE_DB_FILE_READINGS_SINGLE})
+    file_name_path="${file_path}/readings.db*"
+
+    schema_update_log "debug" "upgrade: cleanup - deleting ${file_name_path}" "all" "pretty"
+
+    rm ${file_name_path}
+    ret_code=$?
+
+    if [ "${ret_code}" -ne 0 ]; then
+        schema_update_log "err" "Failure in upgrade, files [${file_name_path}] can't be deleted. Proceeding" "all" "pretty"
+    fi
+
+
+    #// FIXME_I:
+#    echo "--- s0 -----------------------------------------------------------------------------------------:"
+#    lsof  /home/foglamp/Development/fledge/data/readings.db
+#    echo "--- s1 -----------------------------------------------------------------------------------------:"
+#    ls -l ${FLEDGE_ROOT}/data
+#    echo "--- s2 -----------------------------------------------------------------------------------------:"
+#    ls -l /home/foglamp/Development/fledge/data
+#}
+
+
 #
 # Main
 #
+export n_readings_allocate=15
 export tmp_file=/tmp/$$
 export IFS="|"
 
 schema_update_log "debug" "upgrade: SQLITE_SQL :$SQLITE_SQL: sql_file :$sql_file: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "all" "pretty"
 
 execute_sql_file
+
+calculate_dbid ${n_readings_allocate}
 
 export_readings_list
 
@@ -235,6 +348,11 @@ create_all_readings
 
 populate_all_readings
 
+cleanup_db
+
 unset IFS
+
+#// FIXME_I:
+exit 1
 
 exit 0

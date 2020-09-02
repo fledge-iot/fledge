@@ -202,6 +202,7 @@ class ReadingsCatalogue {
 		int           purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBase, char **errMsg = NULL, unsigned int *rowsAffected = NULL);
 
 	private:
+
 		const int nReadingsAllocate = 15;
 
 		typedef struct ReadingAvailable {
@@ -224,6 +225,7 @@ class ReadingsCatalogue {
 		void		  raiseError(const char *operation, const char *reason,...);
 		int			  SQLStep(sqlite3_stmt *statement);
 		int           SQLExec(sqlite3 *dbHandle, const char *sqlCmd,  char **errMsg = NULL);
+		bool          enableWAL(std::string &dbPathReadings);
 
 		int                                           m_dbId;
 		std::atomic<int>                              m_globalId;

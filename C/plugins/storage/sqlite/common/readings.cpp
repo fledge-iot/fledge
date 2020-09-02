@@ -2371,7 +2371,38 @@ void ReadingsCatalogue::getAllDbs(vector<int> &dbIdList) {
 }
 
 /**
- * Attaches all the defined SQlite database to all the connections
+ * Enable WAL on the provided database file
+ *
+ */
+bool ReadingsCatalogue::enableWAL(string &dbPathReadings) {
+
+	int rc;
+	sqlite3 *dbHandle;
+
+	Logger::getLogger()->debug("enableWAL on :%s:", dbPathReadings.c_str());
+
+	rc = sqlite3_open(dbPathReadings.c_str(), &dbHandle);
+	if(rc != SQLITE_OK)
+	{
+		raiseError("enableWAL", sqlite3_errmsg(dbHandle));
+		return false;
+	}
+	else
+	{
+	// Enables the WAL feature
+		rc = sqlite3_exec(dbHandle, DB_CONFIGURATION, NULL, NULL, NULL);
+		if (rc != SQLITE_OK)
+		{
+			raiseError("enableWAL", sqlite3_errmsg(dbHandle));
+			return false;
+		}
+	}
+	sqlite3_close(dbHandle);
+	return true;
+}
+
+/**
+ * Attaches all the defined SQlite database to all the connections and enable the WAL
  *
  */
 bool ReadingsCatalogue::attachAllDbs()
@@ -2394,6 +2425,7 @@ bool ReadingsCatalogue::attachAllDbs()
 		dbPathReadings = generateDbFilePah(item);
 		dbAlias = generateDbAlias(item);
 
+		enableWAL(dbPathReadings);
 		// Attached the new db to the connections
 		result = manager->attachNewDb(dbPathReadings, dbAlias);
 		if (! result)
@@ -2512,23 +2544,7 @@ bool  ReadingsCatalogue::createNewDB()
 		{
 			dbAlias = generateDbAlias(m_dbId);
 
-			rc = sqlite3_open(dbPathReadings.c_str(), &dbHandle);
-			if(rc != SQLITE_OK)
-			{
-				raiseError("createNewDB", sqlite3_errmsg(dbHandle));
-				return false;
-			}
-			else
-			{
-				// Enables the WAL feature
-				rc = sqlite3_exec(dbHandle, DB_CONFIGURATION, NULL, NULL, NULL);
-				if (rc != SQLITE_OK)
-				{
-					raiseError("createNewDB", sqlite3_errmsg(dbHandle));
-					return false;
-				}
-			}
-			sqlite3_close(dbHandle);
+			enableWAL(dbPathReadings);
 		}
 	}
 

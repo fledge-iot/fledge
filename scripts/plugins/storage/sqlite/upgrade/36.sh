@@ -270,7 +270,7 @@ cleanup_db() {
     schema_update_log "debug" "upgrade: cleanup - SQLITE_SQL :$SQLITE_SQL: sql_file :$sql_file: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "all" "pretty"
 
     #
-    # Clean up database
+    # Clean up - database
     #
     SQL_COMMAND="${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
 
@@ -302,7 +302,7 @@ EOF`
     fi
 
     #
-    # Clean up file system
+    # Clean up - file system
     #
     file_path=$(dirname ${DEFAULT_SQLITE_DB_FILE_READINGS_SINGLE})
     file_name_path="${file_path}/readings.db*"
@@ -313,7 +313,7 @@ EOF`
     ret_code=$?
 
     if [ "${ret_code}" -ne 0 ]; then
-        schema_update_log "err" "Failure in upgrade, files [${file_name_path}] can't be deleted. Proceeding" "all" "pretty"
+        schema_update_log "notice" "Failure in upgrade, files [${file_name_path}] can't be deleted. Proceeding" "all" "pretty"
     fi
 
 
@@ -324,7 +324,7 @@ EOF`
 #    ls -l ${FLEDGE_ROOT}/data
 #    echo "--- s2 -----------------------------------------------------------------------------------------:"
 #    ls -l /home/foglamp/Development/fledge/data
-#}
+}
 
 
 #
@@ -353,6 +353,6 @@ cleanup_db
 unset IFS
 
 #// FIXME_I:
-exit 1
+#3exit 1
 
 exit 0

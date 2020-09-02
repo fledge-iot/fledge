@@ -90,47 +90,29 @@ db_upgrade()
 
             # Perform Upgrade
             if [ "${START_UPGRADE}" ]; then
-                # Prepare command string for erro reporting
-                export SQL_COMMAND="${SQLITE_SQL} '${DEFAULT_SQLITE_DB_FILE}' \"ATTACH DATABASE "\
-"'${DEFAULT_SQLITE_DB_FILE}' AS 'fledge'; .read '${sql_file}' .quit\""
-                if [ "${VERBOSE}" ]; then
-                    schema_update_log "info" "Applying upgrade $(basename ${sql_file}) ..." "logonly" "pretty"
-                    schema_update_log "info" "Calling [${SQL_COMMAND}]" "logonly" "pretty"
-                fi
 
-                #// FIXME_I:
-                schema_update_log "info" "xxx sql_file ${sql_file}]" "logonly" "pretty"
-                # Call the DB script
-#                COMMAND_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
-#ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}'                 AS 'fledge';
-#ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}'        AS 'readings';
-#.read '${sql_file}'
-#.quit
-#EOF`
-
-                #// FIXME_I:
                 # Evaluates if a shell script is available, in case it is executed instead of the .sql file
-                schema_update_log "err" ">> STage 1"  "all" "pretty"
                 file_name=$(basename ${sql_file})
                 file_name_shell=${file_name%.*}.sh
                 file_name_path="${UPDATE_SCRIPTS_DIR}/${file_name_shell}"
 
                 if [ -f "${file_name_path}" ]; then
 
-                    #// FIXME_I:
-                    schema_update_log "err" ">> STage 1.1"  "all" "pretty"
                     ${file_name_path}
 
                     RET_CODE=$?
-
                     if [ "${RET_CODE}" -ne 0 ]; then
-                        schema_update_log "err" "Failure in upgrade. Exiting" "all" "pretty"
+                        schema_update_log "err" "Failure in upgrade, executing ${file_name_path}. Exiting" "all" "pretty"
                         return 1
                     fi
-
                 else
-                    #// FIXME_I:
-                    schema_update_log "err" ">> STage 1.2"  "all" "pretty"
+                    # Prepare command string for error reporting
+                    export SQL_COMMAND="${SQLITE_SQL} '${DEFAULT_SQLITE_DB_FILE}' \"ATTACH DATABASE "\
+    "'${DEFAULT_SQLITE_DB_FILE}' AS 'fledge'; .read '${sql_file}' .quit\""
+                    if [ "${VERBOSE}" ]; then
+                        schema_update_log "info" "Applying upgrade $(basename ${sql_file}) ..." "logonly" "pretty"
+                        schema_update_log "info" "Calling [${SQL_COMMAND}]" "logonly" "pretty"
+                    fi
 
                     # Call the DB script
                     COMMAND_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
@@ -146,9 +128,6 @@ EOF`
                     fi
 
                 fi
-
-                #// FIXME_I:
-                schema_update_log "err" ">> STage 2"
 
                 # Update the DB version
                 UPDATE_VER=`basename -s .sql ${sql_file}`

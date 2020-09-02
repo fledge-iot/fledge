@@ -2389,7 +2389,7 @@ bool ReadingsCatalogue::enableWAL(string &dbPathReadings) {
 	}
 	else
 	{
-	// Enables the WAL feature
+		// Enables the WAL feature
 		rc = sqlite3_exec(dbHandle, DB_CONFIGURATION, NULL, NULL, NULL);
 		if (rc != SQLITE_OK)
 		{
@@ -2465,7 +2465,7 @@ void ReadingsCatalogue::preallocateReadingsTables()
 	{
 		readingsToCreate = readingsToAllocate - readingsAvailable.tableCount;
 		startId = readingsAvailable.lastReadings + 1;
-		createReadingsTables(1, startId, readingsToCreate);
+		createReadingsTables(m_dbId, startId, readingsToCreate);
 	}
 
 	m_nReadingsAvailable = readingsToAllocate - getUsedTablesDbId(m_dbId);

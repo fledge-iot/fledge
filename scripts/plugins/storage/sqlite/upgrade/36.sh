@@ -336,7 +336,7 @@ EOF`
 # Main
 #
 #// FIXME_I:
-export n_readings_allocate=3
+export n_readings_allocate=15
 export tmp_file=/tmp/$$
 export IFS="|"
 
@@ -359,6 +359,6 @@ cleanup_db
 unset IFS
 
 #// FIXME_I:
-#3exit 1
+#exit 1
 
 exit 0

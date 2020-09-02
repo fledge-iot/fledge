@@ -5,7 +5,7 @@
 
 # Logger wrapper
 schema_update_log() {
-    write_log "Upgrade" "scripts.plugins.storage.${PLUGIN_NAME}.schema_update" "$1" "$2" "$3" "$4"
+    write_log "Upgrade" "scripts.plugins.storage.${PLUGIN_NAME}schema_update" "$1" "$2" "$3" "$4"
 }
 
 
@@ -17,7 +17,7 @@ calculate_dbid() {
 
     _n_readings_allocate=$1
 
-    schema_update_log "debug" "upgrade: calculate_dbid: SQLITE_SQL :$SQLITE_SQL: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "all" "pretty"
+    schema_update_log "debug" "calculate_dbid: SQLITE_SQL :$SQLITE_SQL: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "all" "pretty"
 
     #// FIXME_I:
     # Call the DB script
@@ -57,7 +57,7 @@ EOF`
 #
 execute_sql_file() {
 
-    schema_update_log "debug" "upgrade: execute_sql_file: SQLITE_SQL :$SQLITE_SQL: sql_file :$sql_file: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "all" "pretty"
+    schema_update_log "debug" "execute_sql_file: SQLITE_SQL :$SQLITE_SQL: sql_file :$sql_file: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "all" "pretty"
 
     #// FIXME_I:
     # Call the DB script
@@ -86,34 +86,39 @@ create_database_file() {
 
     readings_file=$1
 
-    file_path=$(dirname ${DEFAULT_SQLITE_DB_FILE_READINGS})
+    file_path=$(dirname "${DEFAULT_SQLITE_DB_FILE_READINGS}")
     file_name_path="${file_path}/${readings_file}.db"
 
-    schema_update_log "debug" "upgrade: create_database_file - file path :$file_name_path:" "all" "pretty"
+    # Creates the file if it was not already created
+    if [ ! -f "${file_name_path}" ]; then
 
-    # Created datafile
-    COMMAND_OUTPUT=`${SQLITE_SQL} ${file_name_path} .databases 2>&1`
+        schema_update_log "debug" "create_database_file - file path :$file_name_path:" "all" "pretty"
 
-    ret_code=$?
-    if [ "${ret_code}" -ne 0 ]; then
-        sqlite_log "err" "Error creating SQLite3 database ${readings_file}: ${COMMAND_OUTPUT}" "all" "pretty"
-        exit 1
+        # Created datafile
+        COMMAND_OUTPUT=$(${SQLITE_SQL} ${file_name_path} .databases 2>&1)
+
+        ret_code=$?
+        if [ "${ret_code}" -ne 0 ]; then
+            sqlite_log "err" "Error creating SQLite3 database ${readings_file}: ${COMMAND_OUTPUT}" "all" "pretty"
+            exit 1
+        fi
     fi
-
 }
 
 create_all_database_files() {
 
-    cat "$tmp_file"  | while read table_id db_id asset_code; do
+    declare db_name
 
-        schema_update_log "debug" "upgrade: create_all_database_file - :$table_id: :$db_id: :$asset_code: " "all" "pretty"
+    cat "$tmp_file"  | while read -r table_id db_id asset_code; do
 
         # The first database is created by the upgrade process
         if [ "$db_id" != "1" ]; then
 
-            create_database_file "readings_$db_id"
-        fi
+            db_name="readings_$db_id"
 
+            schema_update_log "debug" "create_all_database_file - db name :$db_name: db id :$db_id: table id :$table_id: asset code :$asset_code: " "all" "pretty"
+            create_database_file "$db_name"
+        fi
     done
 }
 
@@ -127,7 +132,7 @@ create_readings() {
     file_path=$(dirname ${DEFAULT_SQLITE_DB_FILE_READINGS})
     readings_file="${file_path}/${READINGS_DB}.db"
 
-    schema_update_log "debug" "upgrade: create_readings - db :$READINGS_DB: table :$READINGS_TABLE: asset code :$ASSET_CODE:" "all" "pretty"
+    schema_update_log "debug" "create_readings - db :$READINGS_DB: table :$READINGS_TABLE: asset code :$ASSET_CODE:" "all" "pretty"
 
     COMMAND_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
     ATTACH DATABASE '${readings_file}'                          AS '${READINGS_DB}';
@@ -162,7 +167,7 @@ create_all_readings() {
 
     cat "$tmp_file"  | while read table_id db_id asset_code; do
 
-        schema_update_log "debug" "upgrade: create_all_readings - dbid :$db_id: table id :$table_id: " "all" "pretty"
+        schema_update_log "debug" "create_all_readings - dbid :$db_id: table id :$table_id: " "all" "pretty"
 
         # The first readings iss created by the sql script
         if [ "$table_id" != "1" ]; then
@@ -192,7 +197,7 @@ populate_readings() {
     file_path=$(dirname ${DEFAULT_SQLITE_DB_FILE_READINGS})
     readings_file="${file_path}/${READINGS_DB}.db"
 
-    schema_update_log "debug" "upgrade: populate_readings - file :$readings_file: db :$READINGS_DB: table :$READINGS_TABLE: asset code :$ASSET_CODE:" "all" "pretty"
+    schema_update_log "debug" "populate_readings - file :$readings_file: db :$READINGS_DB: table :$READINGS_TABLE: asset code :$ASSET_CODE:" "all" "pretty"
 
     COMMAND_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
     ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}'                 AS 'fledge';
@@ -225,7 +230,7 @@ populate_all_readings() {
 
     cat "$tmp_file"  | while read table_id db_id asset_code; do
 
-        schema_update_log "debug" "upgrade: populate_all_readings - db id :$db_id: table id :$table_id: asset code :$asset_code: " "all" "pretty"
+        schema_update_log "debug" "populate_all_readings - db id :$db_id: table id :$table_id: asset code :$asset_code: " "all" "pretty"
 
         populate_readings "readings_$db_id" "readings_$table_id" "$asset_code"
     done
@@ -235,7 +240,7 @@ export_readings_list() {
 
     SQL_COMMAND="TODO"
 
-    schema_update_log "debug" "upgrade: export_readings_list - tmp_file :$tmp_file: SQLITE_SQL :$SQLITE_SQL: sql_file :$sql_file: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "all" "pretty"
+    schema_update_log "debug" "export_readings_list - tmp_file :$tmp_file: SQLITE_SQL :$SQLITE_SQL: sql_file :$sql_file: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "all" "pretty"
 
     COMMAND_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" > $tmp_file <<EOF
 
@@ -267,7 +272,7 @@ EOF`
 #
 cleanup_db() {
 
-    schema_update_log "debug" "upgrade: cleanup - SQLITE_SQL :$SQLITE_SQL: sql_file :$sql_file: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "all" "pretty"
+    schema_update_log "debug" "cleanup - SQLITE_SQL :$SQLITE_SQL: sql_file :$sql_file: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "all" "pretty"
 
     #
     # Clean up - database
@@ -307,7 +312,7 @@ EOF`
     file_path=$(dirname ${DEFAULT_SQLITE_DB_FILE_READINGS_SINGLE})
     file_name_path="${file_path}/readings.db*"
 
-    schema_update_log "debug" "upgrade: cleanup - deleting ${file_name_path}" "all" "pretty"
+    schema_update_log "debug" "cleanup - deleting ${file_name_path}" "all" "pretty"
 
     rm ${file_name_path}
     ret_code=$?
@@ -330,11 +335,12 @@ EOF`
 #
 # Main
 #
-export n_readings_allocate=15
+#// FIXME_I:
+export n_readings_allocate=3
 export tmp_file=/tmp/$$
 export IFS="|"
 
-schema_update_log "debug" "upgrade: SQLITE_SQL :$SQLITE_SQL: sql_file :$sql_file: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "all" "pretty"
+schema_update_log "debug" "SQLITE_SQL :$SQLITE_SQL: sql_file :$sql_file: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "all" "pretty"
 
 execute_sql_file
 

@@ -8,5 +8,5 @@ schema_update_log() {
     write_log "Downgrade" "scripts.plugins.storage.${PLUGIN_NAME}.schema_update" "$1" "$2" "$3" "$4"
 }
 
-schema_update_log "debug" "Downgrade not supported. Exiting" "all" "pretty"
+schema_update_log "err" "Downgrade not supported. Exiting" "all" "pretty"
 exit 1

@@ -201,7 +201,7 @@ def purge_plugin(plugin_type: str, name: str) -> tuple:
             link = "log/" + stdout_file_path.split("/")[-1]
             cmd = "sudo yum -y remove {} > {} 2>&1".format(plugin_name, stdout_file_path)
         else:
-            dpkg_list = os.popen('dpkg --list fledge* 2>/dev/null')
+            dpkg_list = os.popen('dpkg --list "fledge*" 2>/dev/null')
             ls_output = dpkg_list.read()
             _logger.debug("dpkg list output: {}".format(ls_output))
             if len(ls_output):

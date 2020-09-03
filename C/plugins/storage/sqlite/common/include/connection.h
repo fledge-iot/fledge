@@ -202,7 +202,6 @@ class ReadingsCatalogue {
 		int           purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBase, char **errMsg = NULL, unsigned int *rowsAffected = NULL);
 
 	private:
-
 		const int nReadingsAllocate = 15;
 
 		typedef struct ReadingAvailable {

@@ -62,9 +62,9 @@ OMFHints::OMFHints(const string& hints)
 			{
 				m_hints.push_back(new OMFTagNameHint(itr->value.GetString()));
 			}
-			else if (strcmp(name, "type") == 0)
+			else if (strcmp(name, "tag") == 0)
 			{
-				m_hints.push_back(new OMFTypeHint(itr->value.GetString()));
+				m_hints.push_back(new OMFTagHint(itr->value.GetString()));
 			}
 			// TODO Handle datapoint hint
 			else if (strcmp(name, "datatype") == 0)
@@ -90,9 +90,9 @@ OMFHints::OMFHints(const string& hints)
 						{
 							hints.push_back(new OMFTagNameHint(dpitr->value.GetString()));
 						}
-						else if (strcmp(name, "type") == 0)
+						else if (strcmp(name, "tag") == 0)
 						{
-							hints.push_back(new OMFTypeHint(dpitr->value.GetString()));
+							hints.push_back(new OMFTagHint(dpitr->value.GetString()));
 						}
 					}
 					m_datapointHints.insert(std::pair<string,vector<OMFHint *>>(dpname, hints));

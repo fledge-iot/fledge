@@ -140,7 +140,11 @@ OMFData::OMFData(const Reading& reading, const long typeId, const OMF_ENDPOINT P
 			{
 				measurementId = (*it)->getHint();
 				Logger::getLogger()->info("Using OMF TagName hint: %s", measurementId.c_str());
-				break;
+			}
+			if (typeid(**it) == typeid(OMFTagHint))
+			{
+				measurementId = (*it)->getHint();
+				Logger::getLogger()->info("Using OMF TagName hint: %s", measurementId.c_str());
 			}
 		}
 	}
@@ -1060,9 +1064,22 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		// Fetch and parse any OMFHint for this reading
 		Datapoint *hintsdp = reading->getDatapoint("OMFHint");
 		OMFHints *hints = NULL;
+		bool usingTagHint = false;
+		long typeId = 0;
 		if (hintsdp)
 		{
 			hints = new OMFHints(hintsdp->getData().toString());
+			const vector<OMFHint *> omfHints = hints->getHints();
+			for (auto it = omfHints.cbegin(); it != omfHints.cend(); it++)
+			{
+				if (typeid(**it) == typeid(OMFTagHint))
+				{
+					Logger::getLogger()->info("Using OMF Tag hint: %s", (*it)->getHint().c_str());
+					keyComplete.append("_" + (*it)->getHint());
+					usingTagHint = true;
+					break;
+				}
+			}
 		}
 
 		// Add into JSON string the OMF transformed Reading data
@@ -1084,98 +1101,101 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			keyComplete = AFHierarchyPrefix + "_" + assetName;
 		}
 
-		/*
-		 * Check the OMFHints, if there are any, to see if we have a 
-		 * type name that should be used for this asset.
-		 * We will still create the tyope, but the name will be fixed 
-		 * as the value of this hint.
-		 */
-		bool usingTypeNameHint = false;
-		if (hints)
+		if (! usingTagHint)
 		{
-			const vector<OMFHint *> omfHints = hints->getHints();
-			for (auto it = omfHints.cbegin(); it != omfHints.cend(); it++)
+			/*
+			 * Check the OMFHints, if there are any, to see if we have a 
+			 * type name that should be used for this asset.
+			 * We will still create the tyope, but the name will be fixed 
+			 * as the value of this hint.
+			 */
+			bool usingTypeNameHint = false;
+			if (hints)
 			{
-				if (typeid(**it) == typeid(OMFTypeNameHint))
+				const vector<OMFHint *> omfHints = hints->getHints();
+				for (auto it = omfHints.cbegin(); it != omfHints.cend(); it++)
 				{
-					Logger::getLogger()->info("Using OMF TypeName hint: %s", (*it)->getHint().c_str());
-					keyComplete.append("_" + (*it)->getHint());
-					usingTypeNameHint = true;
-					break;
+					if (typeid(**it) == typeid(OMFTypeNameHint))
+					{
+						Logger::getLogger()->info("Using OMF TypeName hint: %s", (*it)->getHint().c_str());
+						keyComplete.append("_" + (*it)->getHint());
+						usingTypeNameHint = true;
+						break;
+					}
 				}
 			}
-		}
 
-		if (! AFHierarchySent)
-		{
-			setAFHierarchy();
-		}
-
-		sendDataTypes = (m_lastError == false && skipSentDataTypes == true) ?
-				 // Send if not already sent
-				 !OMF::getCreatedTypes(keyComplete, *reading, hints) :
-				 // Always send types
-				 true;
-
-		Reading* datatypeStructure = NULL;
-		if (sendDataTypes && !usingTypeNameHint)
-		{
-			// Increment type-id of assetName in in memory cache
-			OMF::incrementAssetTypeIdOnly(keyComplete);
-			// Remove data and keep type-id
-			OMF::clearCreatedTypes(keyComplete);
-
-			// Get the supersetDataPoints for current assetName
-			auto it = m_SuperSetDataPoints.find(assetName);
-			if (it != m_SuperSetDataPoints.end())
+			if (! AFHierarchySent)
 			{
-				datatypeStructure = (*it).second;
+				setAFHierarchy();
 			}
-		}
 
-		// The AF hierarchy is created/recreated if an OMF type message is sent
-		// it sends the hierarchy once
-		if (sendDataTypes and ! AFHierarchySent)
-		{
-			handleAFHierarchy();
+			sendDataTypes = (m_lastError == false && skipSentDataTypes == true) ?
+					 // Send if not already sent
+					 !OMF::getCreatedTypes(keyComplete, *reading, hints) :
+					 // Always send types
+					 true;
 
-			AFHierarchySent = true;
-		}
-
-		if (usingTypeNameHint)
-		{
-			if (sendDataTypes && !OMF::handleDataTypes(keyComplete,
-							*reading, skipSentDataTypes, hints))
+			Reading* datatypeStructure = NULL;
+			if (sendDataTypes && !usingTypeNameHint)
 			{
-				// Failure
-				m_lastError = true;
-				return 0;
+				// Increment type-id of assetName in in memory cache
+				OMF::incrementAssetTypeIdOnly(keyComplete);
+				// Remove data and keep type-id
+				OMF::clearCreatedTypes(keyComplete);
+
+				// Get the supersetDataPoints for current assetName
+				auto it = m_SuperSetDataPoints.find(assetName);
+				if (it != m_SuperSetDataPoints.end())
+				{
+					datatypeStructure = (*it).second;
+				}
 			}
-		}
-		else
-		{
-			// Check first we have supersetDataPoints for the current reading
-			if ((sendDataTypes && datatypeStructure == NULL) ||
-			    // Handle the data types of the current reading
-			    (sendDataTypes &&
-			    // Send data type
-			    !OMF::handleDataTypes(keyComplete, *datatypeStructure, skipSentDataTypes, hints) &&
-			    // Data type not sent:
-			    (!m_changeTypeId ||
-			     // Increment type-id and re-send data types
-			     !OMF::handleTypeErrors(keyComplete, *datatypeStructure, hints))))
+
+			// The AF hierarchy is created/recreated if an OMF type message is sent
+			// it sends the hierarchy once
+			if (sendDataTypes and ! AFHierarchySent)
 			{
-				// Remove all assets supersetDataPoints
-				OMF::unsetMapObjectTypes(m_SuperSetDataPoints);
+				handleAFHierarchy();
 
-				// Failure
-				m_lastError = true;
-				return 0;
+				AFHierarchySent = true;
 			}
-		}
 
-		// Create the key for dataTypes sending once
-		long typeId = OMF::getAssetTypeId(assetName);
+			if (usingTypeNameHint)
+			{
+				if (sendDataTypes && !OMF::handleDataTypes(keyComplete,
+								*reading, skipSentDataTypes, hints))
+				{
+					// Failure
+					m_lastError = true;
+					return 0;
+				}
+			}
+			else
+			{
+				// Check first we have supersetDataPoints for the current reading
+				if ((sendDataTypes && datatypeStructure == NULL) ||
+				    // Handle the data types of the current reading
+				    (sendDataTypes &&
+				    // Send data type
+				    !OMF::handleDataTypes(keyComplete, *datatypeStructure, skipSentDataTypes, hints) &&
+				    // Data type not sent:
+				    (!m_changeTypeId ||
+				     // Increment type-id and re-send data types
+				     !OMF::handleTypeErrors(keyComplete, *datatypeStructure, hints))))
+				{
+					// Remove all assets supersetDataPoints
+					OMF::unsetMapObjectTypes(m_SuperSetDataPoints);
+
+					// Failure
+					m_lastError = true;
+					return 0;
+				}
+			}
+
+			// Create the key for dataTypes sending once
+			typeId = OMF::getAssetTypeId(assetName);
+		}
 
 		string outData = OMFData(*reading, typeId, m_PIServerEndpoint, AFHierarchyPrefix, hints ).OMFdataVal();
 		if (!outData.empty())

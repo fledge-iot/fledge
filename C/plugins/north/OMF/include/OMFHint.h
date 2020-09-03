@@ -26,13 +26,13 @@ class OMFNumberHint : public OMFHint
 };
 
 /**
- * A type hint, usewd to define an existing OMF type to use
+ * A tag hint, used to define an existing OMF container or tag to use
  */
-class OMFTypeHint : public OMFHint
+class OMFTagHint : public OMFHint
 {
 	public:
-		OMFTypeHint(const std::string& type) { m_hint = type; };
-		~OMFTypeHint() {};
+		OMFTagHint(const std::string& tag) { m_hint = tag; };
+		~OMFTagHint() {};
 };
 
 /**

@@ -19,17 +19,8 @@ PLUGIN_NAME=$3
 [[ -z "${PLUGIN_TYPE}" ]] && echo "Plugin type not found." && exit 1
 [[ -z "${PLUGIN_NAME}" ]] && echo "Plugin name not found." && exit 1
 
-###############################################################################################################
-# FIXME: As some of the C-plugins are having different project name & repo name convention
-# So when we are using this script we need to check carefully about the convention
-# Plugin name converted to lowercase for repo name
-# For PLUGIN_TYPE 'notificationDelivery' & 'notificationRule', In REPO_NAME type converted to 'notify' & 'rule'
-###############################################################################################################
-
 REPO_NAME=fledge-${PLUGIN_TYPE}-${PLUGIN_NAME,,}
-
-if [[ "${PLUGIN_TYPE}" = "notificationDelivery" ]]; then REPO_NAME=fledge-notify-${PLUGIN_NAME,,}; fi
-if [[ "${PLUGIN_TYPE}" = "notificationRule" ]]; then rm -rf /tmp/fledge-service-notification; REPO_NAME=fledge-rule-${PLUGIN_NAME,,}; fi
+if [[ "${PLUGIN_TYPE}" = "rule" ]]; then rm -rf /tmp/fledge-service-notification; fi
 
 
 clean () {
@@ -47,7 +38,7 @@ install_requirement (){
 }
 
 install_binary_file () {
-   if [[ "${PLUGIN_TYPE}" = "notificationRule" ]]
+   if [[ "${PLUGIN_TYPE}" = "rule" ]]
    then
         # fledge-service-notification repo is required to build notificationRule Plugins
         service_repo_name='fledge-service-notification'

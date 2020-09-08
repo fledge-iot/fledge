@@ -26,10 +26,6 @@
 // 1 enable performance tracking
 #define INSTRUMENT	0
 
-//# FIXME_I:
-#include <tmp_log.hpp>
-
-
 
 #if INSTRUMENT
 #include <sys/time.h>
@@ -1012,26 +1008,9 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 // Default template parameter uses UTF8 and MemoryPoolAllocator.
 Document	document;
 SQLBuffer	sql;
-// FIXME_I:
-SQLBuffer	sqlExt;
-SQLBuffer	jsonConstraintsExt;
 // Extra constraints to add to where clause
 SQLBuffer	jsonConstraints;
 bool		isAggregate = false;
-
-string modifierExt;
-string modifierInt;
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx 3596 retrieveReadings condition :%s:", condition.c_str());
-	Logger::getLogger()->setMinLevel("warning");
-
-
-	//# FIXME_I:
-	char tmp_buffer[500000];
-	snprintf (tmp_buffer,500000, "DBG : condition |%s| ", condition.c_str());
-	tmpLogger (tmp_buffer);
 
 	try {
 		if (dbHandle == NULL)
@@ -1093,17 +1072,10 @@ string modifierInt;
 					sql.append(document["modifier"].GetString());
 					sql.append(' ');
 				}
-				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints, true, true))
+				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints, true))
 				{
 					return false;
 				}
-				// FIXME_I:
-				//sqlExt = sql;
-				if (!jsonAggregates(document, document["aggregate"], sqlExt, jsonConstraintsExt, true, false))
-				{
-					return false;
-				}
-
 				sql.append(" FROM  ");
 			}
 			else if (document.HasMember("return"))
@@ -1328,24 +1300,7 @@ string modifierInt;
 				// SQL - union of all the readings tables
 				string sql_cmd_base;
 				string sql_cmd_tmp;
-				if (isAggregate)
-				{
-					const char *queryExt = sqlExt.coalesce();
-
-					//# FIXME_I:
-					char tmp_buffer[500000];
-					snprintf (tmp_buffer,500000, "DBG : queryExt |%s| ", queryExt);
-					tmpLogger (tmp_buffer);
-
-					sql_cmd_base = " SELECT ";
-					sql_cmd_base += queryExt;
-					StringReplace (sql_cmd_base, "asset_code", " \"_assetcode_\" asset_code ");
-					sql_cmd_base += " FROM _dbname_._tablename_ ";
-				} else
-				{
-					sql_cmd_base = " SELECT ROWID, id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ ";
-
-				}
+				sql_cmd_base = " SELECT ROWID, id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ ";
 				sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
 				sql_cmd += sql_cmd_tmp;
 
@@ -1356,6 +1311,7 @@ string modifierInt;
 				sql.append(sql_cmd.c_str());
 
 			}
+
 
 
 			if (document.HasMember("where"))
@@ -1407,11 +1363,6 @@ string modifierInt;
 
 		// Prepare the SQL statement and get the result set
 		rc = sqlite3_prepare_v2(dbHandle, query, -1, &stmt, NULL);
-
-		//# FIXME_I:
-		char tmp_buffer[500000];
-		snprintf (tmp_buffer,500000, "DBG : query |%s| ", query);
-		tmpLogger (tmp_buffer);
 
 		// Release memory for 'query' var
 		delete[] query;

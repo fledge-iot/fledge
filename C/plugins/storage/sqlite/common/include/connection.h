@@ -154,7 +154,8 @@ class Connection {
 					       const rapidjson::Value&,
 					       SQLBuffer&,
 					       SQLBuffer&,
-					       bool isTableReading = false);
+					       bool isTableReading = false,
+							bool isExtQuery = false);
 		bool		returnJson(const rapidjson::Value&, SQLBuffer&, SQLBuffer&);
 		char		*trim(char *str);
 		const std::string

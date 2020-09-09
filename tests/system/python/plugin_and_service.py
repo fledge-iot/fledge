@@ -24,10 +24,7 @@ def install(_type, plugin, branch="develop", plugin_lang="python", use_pip_cache
         assert False, "{} plugin installation failed".format(plugin)
 
     # Cleanup /tmp repos
-    if _type == "notificationDelivery":
-        _type = "notify"
-    if _type == "notificationRule":
-        _type = "rule"
+    if _type == "rule":
         subprocess.run(["rm -rf /tmp/fledge-service-notification"], shell=True, check=True)
     subprocess.run(["rm -rf /tmp/fledge-{}-{}".format(_type, plugin)], shell=True, check=True)
 

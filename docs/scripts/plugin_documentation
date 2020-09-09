@@ -1,4 +1,10 @@
 #!/bin/bash
+
+if [[ "${DOCBRANCH}" == "" ]]; then
+	export DOCBRANCH=develop
+	echo "Default ${DOCBRANCH} used for plugin documentation"
+fi
+
 function plugin_doc {
 	plugin=$1
 	dest=$2
@@ -13,11 +19,7 @@ function plugin_doc {
 	mkdir -p /tmp/doc.$$
 	(
 		cd /tmp/doc.$$
-		git clone https://github.com/${org}/${plugin}.git
-		if [ "$DOCBRANCH" != "" ]; then
-			cd $plugin
-			git checkout $DOCBRANCH
-		fi
+		git clone -b ${DOCBRANCH} --single-branch https://github.com/${org}/${plugin}.git
 	)
 	if [ -d /tmp/doc.$$/${plugin}/docs ]; then
 		rm -rf plugins/${plugin}

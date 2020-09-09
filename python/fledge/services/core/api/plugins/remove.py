@@ -33,7 +33,7 @@ _help = """
 
 _logger = logger.setup(__name__, level=logging.INFO)
 
-valid_plugin_types = ['north', 'south', 'filter', 'notificationDelivery', 'notificationRule']
+valid_plugin_types = ['north', 'south', 'filter', 'notify', 'rule']
 PYTHON_PLUGIN_PATH = _FLEDGE_ROOT+'/python/fledge/plugins/'
 C_PLUGINS_PATH = _FLEDGE_ROOT+'/plugins/'
 
@@ -48,24 +48,29 @@ async def remove_plugin(request):
         curl -X DELETE http://localhost:8081/fledge/plugins/south/sinusoid
         curl -X DELETE http://localhost:8081/fledge/plugins/north/http_north
         curl -X DELETE http://localhost:8081/fledge/plugins/filter/expression
-        curl -X DELETE http://localhost:8081/fledge/plugins/notificationDelivery/alexa
-        curl -X DELETE http://localhost:8081/fledge/plugins/notificationRule/Average
+        curl -X DELETE http://localhost:8081/fledge/plugins/notify/alexa
+        curl -X DELETE http://localhost:8081/fledge/plugins/rule/Average
     """
     plugin_type = request.match_info.get('type', None)
     name = request.match_info.get('name', None)
     try:
-        plugin_type = str(plugin_type).lower() if not str(plugin_type).startswith('notification') else plugin_type
+        plugin_type = str(plugin_type).lower()
         if plugin_type not in valid_plugin_types:
             raise ValueError("Invalid plugin type. Please provide valid type: {}".format(valid_plugin_types))
-        installed_plugin = PluginDiscovery.get_plugins_installed(plugin_type, False)
+        if plugin_type == 'notify':
+            installed_dir_name = 'notificationDelivery'
+        elif plugin_type == 'rule':
+            installed_dir_name = 'notificationRule'
+        else:
+            installed_dir_name = plugin_type
+        installed_plugin = PluginDiscovery.get_plugins_installed(installed_dir_name, False)
         if name not in [plugin['name'] for plugin in installed_plugin]:
             raise KeyError("Invalid plugin name {} or plugin is not installed".format(name))
-        if plugin_type in ['notificationDelivery', 'notificationRule']:
+        if plugin_type in ['notify', 'rule']:
             notification_instances_plugin_used_in = await check_plugin_usage_in_notification_instances(name)
             if notification_instances_plugin_used_in:
                 raise RuntimeError("{} cannot be removed. This is being used by {} instances".
                                    format(name, notification_instances_plugin_used_in))
-            plugin_type = 'notify' if plugin_type == 'notificationDelivery' else 'rule'
         else:
             get_tracked_plugins = await check_plugin_usage(plugin_type, name)
             if get_tracked_plugins:
@@ -196,7 +201,7 @@ def purge_plugin(plugin_type: str, name: str) -> tuple:
             link = "log/" + stdout_file_path.split("/")[-1]
             cmd = "sudo yum -y remove {} > {} 2>&1".format(plugin_name, stdout_file_path)
         else:
-            dpkg_list = os.popen('dpkg --list fledge* 2>/dev/null')
+            dpkg_list = os.popen('dpkg --list "fledge*" 2>/dev/null')
             ls_output = dpkg_list.read()
             _logger.debug("dpkg list output: {}".format(ls_output))
             if len(ls_output):

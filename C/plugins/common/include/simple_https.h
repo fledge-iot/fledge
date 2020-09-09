@@ -14,6 +14,7 @@
 #include <vector>
 #include <http_sender.h>
 #include <client_https.hpp>
+#include <fstream>
 
 using HttpsClient = SimpleWeb::Client<SimpleWeb::HTTPS>;
 
@@ -76,6 +77,8 @@ class SimpleHttps: public HttpSender
 		std::string	m_OCSClientId;
 		std::string	m_OCSClientSecret;
 		std::string	m_OCSToken;
+		bool		m_log;
+		std::ofstream	m_ofs;
 
 };
 

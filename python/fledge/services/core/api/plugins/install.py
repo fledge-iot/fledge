@@ -100,10 +100,8 @@ async def add_plugin(request: web.Request) -> web.Response:
                 raise TypeError('URL, checksum params are required')
             if file_format == "tar" and not plugin_type:
                 raise ValueError("Plugin type param is required")
-            if file_format == "tar" and plugin_type not in ['south', 'north', 'filter', 'notificationDelivery',
-                                                            'notificationRule']:
-                raise ValueError("Invalid plugin type. Must be 'north' or 'south' or 'filter' "
-                                 "or 'notificationDelivery' or 'notificationRule'")
+            if file_format == "tar" and plugin_type not in ['south', 'north', 'filter', 'notify', 'rule']:
+                raise ValueError("Invalid plugin type. Must be 'north' or 'south' or 'filter' or 'notify' or 'rule'")
             if compressed:
                 if compressed not in ['true', 'false', True, False]:
                     raise ValueError('Only "true", "false", true, false are allowed for value of compressed.')

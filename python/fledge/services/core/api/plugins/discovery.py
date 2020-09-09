@@ -34,23 +34,23 @@ async def get_plugins_installed(request):
     :Example:
         curl -X GET http://localhost:8081/fledge/plugins/installed
         curl -X GET http://localhost:8081/fledge/plugins/installed?config=true
-        curl -X GET http://localhost:8081/fledge/plugins/installed?type=north|south|filter|notificationDelivery|notificationRule
+        curl -X GET http://localhost:8081/fledge/plugins/installed?type=north|south|filter|notify|rule
         curl -X 'GET http://localhost:8081/fledge/plugins/installed?type=north&config=true'
     """
 
     plugin_type = None
     is_config = False
     if 'type' in request.query and request.query['type'] != '':
-        plugin_type = request.query['type'].lower() if request.query['type'] not in ['notificationDelivery', 'notificationRule'] else request.query['type']
+        plugin_type = request.query['type'].lower()
 
-    if plugin_type is not None and plugin_type not in ['north', 'south', 'filter', 'notificationDelivery', 'notificationRule']:
-        raise web.HTTPBadRequest(reason="Invalid plugin type. Must be 'north' or 'south' or 'filter' or 'notificationDelivery' or 'notificationRule'.")
+    if plugin_type is not None and plugin_type not in ['north', 'south', 'filter', 'notify', 'rule']:
+        raise web.HTTPBadRequest(reason="Invalid plugin type. Must be 'north' or 'south' or 'filter' or 'notify' "
+                                        "or 'rule'.")
 
     if 'config' in request.query:
         config = request.query['config']
         if config not in ['true', 'false', True, False]:
-            raise web.HTTPBadRequest(reason='Only "true", "false", true, false'
-                                                ' are allowed for value of config.')
+            raise web.HTTPBadRequest(reason='Only "true", "false", true, false are allowed for value of config.')
         is_config = True if ((type(config) is str and config.lower() in ['true']) or (
             (type(config) is bool and config is True))) else False
 

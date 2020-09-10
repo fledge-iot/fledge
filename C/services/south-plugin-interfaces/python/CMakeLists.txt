@@ -13,6 +13,7 @@ file(GLOB SOURCES python_plugin_interface.cpp ../../common-plugin-interfaces/pyt
 
 # Find Python.h 3.x dev/lib package
 pkg_check_modules(PYTHON REQUIRED python3)
+find_package (Python3 COMPONENTS Interpreter Development)
 
 # Include header files
 include_directories(include ../../../common/include ../../../services/common/include ../../../services/south/include ../../../thirdparty/rapidjson/include)
@@ -30,6 +31,8 @@ add_library(${PROJECT_NAME} SHARED ${SOURCES})
 target_link_libraries(${PROJECT_NAME} ${DLLIB})
 target_link_libraries(${PROJECT_NAME} ${COMMON_LIB})
 target_link_libraries(${PROJECT_NAME} ${SERVICE_COMMON_LIB})
+target_link_libraries(${PROJECT_NAME} ${Python3_LIBRARIES})
+
 
 # Add Python 3.x library
 target_link_libraries(${PROJECT_NAME} ${PYTHON_LIBRARIES})

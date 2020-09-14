@@ -198,7 +198,7 @@ class ReadingsCatalogue {
 		bool          createNewDB();
 		int           getReadingReference(Connection *connection, const char *asset_code);
 		bool          attachAllDbs();
-		std::string   sqlConstructMultiDb(std::string &sqlCmdBase);
+		std::string   sqlConstructMultiDb(std::string &sqlCmdBase, std::vector<std::string>  &assetCodes);
 		int           purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBase, char **errMsg = NULL, unsigned int *rowsAffected = NULL);
 
 	private:

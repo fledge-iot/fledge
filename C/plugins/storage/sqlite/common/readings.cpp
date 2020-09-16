@@ -121,6 +121,9 @@ bool aggregateAll(const Value& payload)
  */
 bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 {
+	vector<string>  asset_codes;
+
+
 	if (!payload.HasMember("where") ||
 	    !payload.HasMember("timebucket"))
 	{
@@ -280,7 +283,6 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 			)";
 
 		// SQL - union of all the readings tables
-		vector<string>  asset_codes;
 		string sql_cmd_base;
 		string sql_cmd_tmp;
 		sql_cmd_base = " SELECT  ROWID, id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ ";
@@ -300,7 +302,7 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 
 	// Add where condition
 	sql.append("WHERE ");
-	if (!jsonWhereClause(payload["where"], sql))
+	if (!jsonWhereClause(payload["where"], sql, asset_codes))
 	{
 		raiseError("retrieve", "aggregateQuery: failure while building WHERE clause");
 		return false;
@@ -354,6 +356,13 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 	const char *query = sql.coalesce();
 	int rc;
 	sqlite3_stmt *stmt;
+
+
+	//# FIXME_I:
+	char tmp_buffer[500000];
+	snprintf (tmp_buffer,500000, "aggregateQuery 3596 : query |%s|", query);
+	tmpLogger (tmp_buffer);
+
 
 	logSQL("CommonRetrieve", query);
 
@@ -926,8 +935,9 @@ char sqlbuffer[5120];
 char *zErrMsg = NULL;
 int rc;
 int retrieve;
+vector<string>  asset_codes;
+string sql_cmd;
 
-	string sql_cmd;
 	// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
 	{
 		// SQL - start
@@ -944,7 +954,6 @@ int retrieve;
 		)";
 
 		// SQL - union of all the readings tables
-		vector<string>  asset_codes;
 		string sql_cmd_base;
 		string sql_cmd_tmp;
 		sql_cmd_base = " SELECT  id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ WHERE id >= " + to_string(id) + " and id <=  " + to_string(id) + " + " + to_string(blksize) + " ";
@@ -1012,10 +1021,32 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 // Default template parameter uses UTF8 and MemoryPoolAllocator.
 Document	document;
 SQLBuffer	sql;
-SQLBuffer	sqlTmp;
+// FIXME_I:
+SQLBuffer	sqlExtDummy;
+SQLBuffer	sqlExt;
+SQLBuffer	jsonConstraintsExt;
 // Extra constraints to add to where clause
 SQLBuffer	jsonConstraints;
 bool		isAggregate = false;
+bool		isOptAggregate = false;
+
+string modifierExt;
+string modifierInt;
+
+// FIXME_I:
+vector<string>  asset_codes;
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx 3596 retrieveReadings condition :%s:", condition.c_str());
+	Logger::getLogger()->setMinLevel("warning");
+
+
+	//# FIXME_I:
+	char tmp_buffer[500000];
+	snprintf (tmp_buffer,500000, "DBG : condition |%s| ", condition.c_str());
+	tmpLogger (tmp_buffer);
+
 
 	try {
 		if (dbHandle == NULL)
@@ -1042,7 +1073,6 @@ bool		isAggregate = false;
 			)";
 
 			// SQL - union of all the readings tables
-			vector<string>  asset_codes;
 			string sql_cmd_base;
 			string sql_cmd_tmp;
 			sql_cmd_base = " SELECT  id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ ";
@@ -1078,12 +1108,16 @@ bool		isAggregate = false;
 					sql.append(document["modifier"].GetString());
 					sql.append(' ');
 				}
-				// FIXME_I:
-				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints, true))
+				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints, isOptAggregate, true, true))
 				{
 					return false;
 				}
-				jsonAggregates(document, document["aggregate"], sqlTmp, jsonConstraints, true);
+				// FIXME_I:
+				if (!jsonAggregates(document, document["aggregate"], sqlExt, jsonConstraintsExt, isOptAggregate, true, false))
+				{
+					return false;
+				}
+
 				sql.append(" FROM  ");
 			}
 			else if (document.HasMember("return"))
@@ -1296,19 +1330,12 @@ bool		isAggregate = false;
 				sql.append(sql_cmd);
 			}
 			{
-				vector<string>  asset_codes;
 
 				// FIXME_I: extract just 1 asset
 				if (document.HasMember("where"))
 				{
-					const Value& whereClause = document["where"];
-					string column = whereClause["column"].GetString();
-
-					if (column.compare("asset_code") == 0)
-						if (whereClause["value"].IsString())
-							asset_codes.push_back(whereClause["value"].GetString());
+					jsonWhereClause(document["where"], sqlExtDummy, asset_codes);
 				}
-
 
 				string sql_cmd;
 				ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
@@ -1324,28 +1351,30 @@ bool		isAggregate = false;
 
 				// Adds only the required fields
 				// FIXME_I:
-				const char *queryTmp = sqlTmp.coalesce();
-				if (strstr(queryTmp, "count"))
+				// Specific optimization for the count operation
+				if (isOptAggregate)
 				{
 					//# FIXME_I
 					Logger::getLogger()->setMinLevel("debug");
 					Logger::getLogger()->debug("xxx CASE 1");
 					Logger::getLogger()->setMinLevel("warning");
 
+					const char *queryTmp = sqlExt.coalesce();
 
+					sql_cmd_base = " SELECT ";
+					sql_cmd_base += queryTmp;
 
-					sql_cmd_base = " SELECT  ROWID, id, \"_assetcode_\" asset_code ";
+					if (! strstr(queryTmp, "ROWID"))
+						sql_cmd_base += ",  ROWID";
 
-					if (strstr(queryTmp, "reading"))
-						sql_cmd_base += ",  reading";
+					if (! strstr(queryTmp, "asset_code"))
+						sql_cmd_base += ",  asset_code";
 
-					if (strstr(queryTmp, "user_ts"))
-						sql_cmd_base += ",  user_ts";
-
-					if (strstr(queryTmp, "ts"))
-						sql_cmd_base += ",  ts";
-
+					sql_cmd_base += ", id, reading, user_ts, ts ";
+					StringReplaceAll (sql_cmd_base, "asset_code", " \"_assetcode_\" .assetcode. ");
 					sql_cmd_base += " FROM _dbname_._tablename_ ";
+
+					delete[] queryTmp;
 				}
 				else
 				{
@@ -1359,8 +1388,6 @@ bool		isAggregate = false;
 				}
 				sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, asset_codes);
 				sql_cmd += sql_cmd_tmp;
-
-				delete[] queryTmp;
 
 				// SQL - end
 				sql_cmd += R"(
@@ -1378,7 +1405,7 @@ bool		isAggregate = false;
 			 
 				if (document.HasMember("where"))
 				{
-					if (!jsonWhereClause(document["where"], sql))
+					if (!jsonWhereClause(document["where"], sql, asset_codes))
 					{
 						return false;
 					}
@@ -1398,14 +1425,15 @@ bool		isAggregate = false;
 				}
 			}
 			// FIXME_I:
-//			else if (isAggregate)
-//			{
-//				/*
-//				 * Performance improvement: force sqlite to use an index
-//				 * if we are doing an aggregate and have no where clause.
-//				 */
-//				sql.append(" WHERE asset_code = asset_code");
-//			}
+			else if (isAggregate)
+			{
+				/*
+				 * Performance improvement: force sqlite to use an index
+				 * if we are doing an aggregate and have no where clause.
+				 */
+				//sql.append(" WHERE asset_code = asset_code");
+				sql.append(" WHERE id = id");
+			}
 			if (!jsonModifiers(document, sql, true))
 			{
 				return false;
@@ -2996,6 +3024,7 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string
 
 	string assetCode;
 	bool addTable;
+	bool addedOne;
 
 	if (m_AssetReadingCatalogue.empty())
 	{
@@ -3011,13 +3040,14 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string
 		Logger::getLogger()->debug("sqlConstructMultiDb: tables defined");
 
 		bool firstRow = true;
+		addedOne = false;
 
 		for (auto &item : m_AssetReadingCatalogue)
 		{
 			assetCode=item.first;
 			addTable = false;
 
-			// FIXME_I: evaluates which tables should be referenceed
+			// FIXME_I: evaluates which tables should be referenced
 			if (assetCodes.empty())
 				addTable = true;
 			else
@@ -3028,6 +3058,7 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string
 
 			if (addTable)
 			{
+				addedOne = true;
 
 				sqlCmdTmp = sqlCmdBase;
 
@@ -3040,11 +3071,20 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string
 				dbName = generateDbName(item.second.second);
 
 				StringReplaceAll(sqlCmdTmp, "_assetcode_", assetCode);
+				StringReplaceAll (sqlCmdTmp, ".assetcode.", "asset_code");
 				StringReplaceAll(sqlCmdTmp, "_dbname_", dbName);
 				StringReplaceAll(sqlCmdTmp, "_tablename_", dbReadingsName);
 				sqlCmd += sqlCmdTmp;
 				firstRow = false;
 			}
+		}
+		// Add at least one table eventually a dummy one
+		if (! addedOne)
+		{
+			sqlCmd = sqlCmdBase;
+			StringReplaceAll (sqlCmd, "_assetcode_", "dummy_asset_code");
+			StringReplaceAll (sqlCmd, "_dbname_", READINGS_DB);
+			StringReplaceAll (sqlCmd, "_tablename_", "readings_1");
 		}
 	}
 

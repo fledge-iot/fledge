@@ -1850,7 +1850,6 @@ bool Connection::jsonAggregates(const Value& payload,
 		}
 		string operation;
 
-		// FIXME_I:
 		// Handles the case of the count, the virtual tables should use count and the external the sun operation
 		operation =aggregates["operation"].GetString();
 		if (isTableReading)
@@ -1983,7 +1982,6 @@ bool Connection::jsonAggregates(const Value& payload,
 		sql.append(") AS \"");
 		if (aggregates.HasMember("alias"))
 		{
-			// FIXME_I:
 			// Handles the case of the count: the external query should use the alias and the internal the name of the field
 			if (isTableReading)
 			{
@@ -2031,7 +2029,6 @@ bool Connection::jsonAggregates(const Value& payload,
 			sql.append('(');
 			if (itr->HasMember("column"))
 			{
-				// FIXME_I:
 				column_name= (*itr)["column"].GetString();
 				if (isTableReading && (column_name.compare("user_ts") == 0) )
 				{

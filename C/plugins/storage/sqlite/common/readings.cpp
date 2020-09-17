@@ -26,9 +26,6 @@
 // 1 enable performance tracking
 #define INSTRUMENT	0
 
-//# FIXME_I:
-#include <tmp_log.hpp>
-
 #if INSTRUMENT
 #include <sys/time.h>
 #endif
@@ -356,13 +353,6 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 	const char *query = sql.coalesce();
 	int rc;
 	sqlite3_stmt *stmt;
-
-
-	//# FIXME_I:
-	char tmp_buffer[500000];
-	snprintf (tmp_buffer,500000, "aggregateQuery 3596 : query |%s|", query);
-	tmpLogger (tmp_buffer);
-
 
 	logSQL("CommonRetrieve", query);
 
@@ -1021,7 +1011,7 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 // Default template parameter uses UTF8 and MemoryPoolAllocator.
 Document	document;
 SQLBuffer	sql;
-// FIXME_I:
+
 SQLBuffer	sqlExtDummy;
 SQLBuffer	sqlExt;
 SQLBuffer	jsonConstraintsExt;
@@ -1033,20 +1023,7 @@ bool		isOptAggregate = false;
 string modifierExt;
 string modifierInt;
 
-// FIXME_I:
 vector<string>  asset_codes;
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx 3596 retrieveReadings condition :%s:", condition.c_str());
-	Logger::getLogger()->setMinLevel("warning");
-
-
-	//# FIXME_I:
-	char tmp_buffer[500000];
-	snprintf (tmp_buffer,500000, "DBG : condition |%s| ", condition.c_str());
-	tmpLogger (tmp_buffer);
-
 
 	try {
 		if (dbHandle == NULL)
@@ -1108,14 +1085,18 @@ vector<string>  asset_codes;
 					sql.append(document["modifier"].GetString());
 					sql.append(' ');
 				}
+				// Generates the SQL for the external query
 				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints, isOptAggregate, true, true))
 				{
 					return false;
 				}
-				// FIXME_I:
-				if (!jsonAggregates(document, document["aggregate"], sqlExt, jsonConstraintsExt, isOptAggregate, true, false))
+				// Generates the SQL for the internal query
+				if (isOptAggregate)
 				{
-					return false;
+					if (!jsonAggregates(document, document["aggregate"], sqlExt, jsonConstraintsExt, isOptAggregate, true, false))
+					{
+						return false;
+					}
 				}
 
 				sql.append(" FROM  ");
@@ -1331,7 +1312,7 @@ vector<string>  asset_codes;
 			}
 			{
 
-				// FIXME_I: extract just 1 asset
+				// Identifies the asset_codes used in the query
 				if (document.HasMember("where"))
 				{
 					jsonWhereClause(document["where"], sqlExtDummy, asset_codes);
@@ -1349,16 +1330,9 @@ vector<string>  asset_codes;
 				string sql_cmd_base;
 				string sql_cmd_tmp;
 
-				// Adds only the required fields
-				// FIXME_I:
 				// Specific optimization for the count operation
 				if (isOptAggregate)
 				{
-					//# FIXME_I
-					Logger::getLogger()->setMinLevel("debug");
-					Logger::getLogger()->debug("xxx CASE 1");
-					Logger::getLogger()->setMinLevel("warning");
-
 					const char *queryTmp = sqlExt.coalesce();
 
 					sql_cmd_base = " SELECT ";
@@ -1378,13 +1352,7 @@ vector<string>  asset_codes;
 				}
 				else
 				{
-					//# FIXME_I
-					Logger::getLogger()->setMinLevel("debug");
-					Logger::getLogger()->debug("xxx CASE 2");
-					Logger::getLogger()->setMinLevel("warning");
-
 					sql_cmd_base = " SELECT ROWID, id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ ";
-
 				}
 				sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, asset_codes);
 				sql_cmd += sql_cmd_tmp;
@@ -1424,14 +1392,12 @@ vector<string>  asset_codes;
                                         delete[] jsonBuf;
 				}
 			}
-			// FIXME_I:
 			else if (isAggregate)
 			{
 				/*
 				 * Performance improvement: force sqlite to use an index
 				 * if we are doing an aggregate and have no where clause.
 				 */
-				//sql.append(" WHERE asset_code = asset_code");
 				sql.append(" WHERE id = id");
 			}
 			if (!jsonModifiers(document, sql, true))
@@ -1447,13 +1413,6 @@ vector<string>  asset_codes;
 		sqlite3_stmt *stmt;
 
 		logSQL("ReadingsRetrieve", query);
-
-
-		//# FIXME_I:
-		char tmp_buffer[500000];
-		snprintf (tmp_buffer,500000, "DBG 3596 : query |%s|", query);
-		tmpLogger (tmp_buffer);
-
 
 		// Prepare the SQL statement and get the result set
 		rc = sqlite3_prepare_v2(dbHandle, query, -1, &stmt, NULL);
@@ -3047,7 +3006,7 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string
 			assetCode=item.first;
 			addTable = false;
 
-			// FIXME_I: evaluates which tables should be referenced
+			// Evaluates which tables should be referenced
 			if (assetCodes.empty())
 				addTable = true;
 			else

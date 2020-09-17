@@ -129,14 +129,17 @@ async def asset(request):
     return a readings with timestamps for the asset. The number of readings
     return is defaulted to a small number (20), this may be changed by supplying
     the query parameter ?limit=xx&skip=xx and it will not respect when datetime units is supplied
-
+    Can also output the readings in ascending or descending order. For that give query parameter
+    ?order=asc or ?order=desc . If nothing given in order then default is descending.
     Returns:
           json result on basis of SELECT user_ts as "timestamp", (reading)::jsonFROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0;
 
     :Example:
             curl -sX GET http://localhost:8081/fledge/asset/fogbench_humidity
             curl -sX GET http://localhost:8081/fledge/asset/fogbench_humidity?limit=1
-            curl -sX GET "http://localhost:8081/fledge/asset/fogbench_humidity?limit=1&skip=1"
+            curl -sX GET "http://localhost:8081/fledge/asset/fogbench_humidity?limit=1&skip=1
+            curl -sX GET "http://localhost:8081/fledge/asset/fogbench_humidity?limit=1&skip=1&order=asc
+            curl -sX GET "http://localhost:8081/fledge/asset/fogbench_humidity?limit=1&skip=1&order=desc
             curl -sX GET http://localhost:8081/fledge/asset/fogbench_humidity?seconds=60
     """
     asset_code = request.match_info.get('asset_code', '')
@@ -149,7 +152,14 @@ async def asset(request):
         # Add the order by and limit, offset clause
         _and_where = prepare_limit_skip_payload(request, _where)
 
-    payload = PayloadBuilder(_and_where).ORDER_BY(["user_ts", "desc"]).payload()
+    # check the order. keep the default order desc
+    _order = 'desc'
+    if 'order' in request.query:
+        _order = request.query['order']
+        if _order not in ('asc', 'desc'):
+            raise web.HTTPBadRequest(reason="order must be asc or desc")
+
+    payload = PayloadBuilder(_and_where).ORDER_BY(["user_ts", _order]).payload()
     results = {}
     try:
         _readings = connect.get_readings_async()

@@ -251,8 +251,6 @@ class TestBrowserAssets:
         ('?limit=5', '{"return": [{"alias": "timestamp", "column": "user_ts"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 5, "sort": {"column": "user_ts", "direction": "desc"}}'),
         ('?skip=1', '{"return": [{"alias": "timestamp", "column": "user_ts"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 20, "skip": 1, "sort": {"column": "user_ts", "direction": "desc"}}'),
         ('?limit=5&skip=1', '{"return": [{"alias": "timestamp", "column": "user_ts"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 5, "skip": 1, "sort": {"column": "user_ts", "direction": "desc"}}'),
-        ('?limit=5&skip=1&order=asc', '{"return": [{"alias": "timestamp", "column": "user_ts"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 5, "skip": 1, "sort": {"column": "user_ts", "direction": "asc"}}'),
-        ('?limit=5&skip=1&order=desc', '{"return": [{"alias": "timestamp", "column": "user_ts"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 5, "skip": 1, "sort": {"column": "user_ts", "direction": "desc"}}'),
         ('?seconds=3600', '{"return": [{"alias": "timestamp", "column": "user_ts"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 3600}}, "sort": {"column": "user_ts", "direction": "desc"}}'),
         ('?minutes=20', '{"return": [{"alias": "timestamp", "column": "user_ts"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 1200}}, "sort": {"column": "user_ts", "direction": "desc"}}'),
         ('?hours=3', '{"return": [{"alias": "timestamp", "column": "user_ts"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 10800}}, "sort": {"column": "user_ts", "direction": "desc"}}'),
@@ -436,3 +434,26 @@ class TestBrowserAssets:
         assert 1 == query_patch.call_count
         args, kwargs = query_patch.call_args
         query_patch.assert_called_once_with(payload)
+
+    @pytest.mark.parametrize("request_params, payload", [
+        ('?limit=5&skip=1&order=asc',
+         '{"return": ["reading", {"column": "user_ts", "alias": "timestamp"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "skip": 1, "limit": 5, "sort": {"column": "user_ts", "direction": "asc"}}',
+         ),
+        ('?limit=5&skip=1&order=desc',
+         '{"return": ["reading", {"column": "user_ts", "alias": "timestamp"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "skip": 1,"limit": 5, "sort": {"column": "user_ts", "direction": "desc"}}',
+         ),
+
+    ])
+    async def test_order_payload(self, client, request_params, payload):
+        readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
+        with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
+            with patch.object(readings_storage_client_mock, 'query', return_value=mock_coro({'count': 0, 'rows': []})) \
+                    as query_patch:
+                resp = await client.get('fledge/asset/fogbench%2Fhumidity{}'.format(request_params))
+                assert 200 == resp.status
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert [] == json_response
+            args, kwargs = query_patch.call_args
+            assert json.loads(payload) == json.loads(args[0])
+            query_patch.assert_called_once_with(args[0])

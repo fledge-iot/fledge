@@ -440,19 +440,19 @@ class TestBrowserAssets:
          '{"return": ["reading", {"column": "user_ts", "alias": "timestamp"}],'
          ' "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"},'
          ' "skip": 1, "limit": 5, '
-         '"sort": {"column": "user_ts", "direction": "asc"}}',
+         '"sort": {"column": "user_ts", "direction": "asc"}}'
          ),
         ('?limit=5&skip=1&order=desc',
          '{"return": ["reading", {"column": "user_ts", "alias": "timestamp"}],'
          ' "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"},'
          ' "skip": 1,"limit": 5, '
-         '"sort": {"column": "user_ts", "direction": "desc"}}',
+         '"sort": {"column": "user_ts", "direction": "desc"}}'
          ),
         ('?limit=5&skip=1',
          '{"return": ["reading", {"column": "user_ts", "alias": "timestamp"}],'
          ' "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"},'
          ' "skip": 1,"limit": 5, '
-         '"sort": {"column": "user_ts", "direction": "desc"}}',
+         '"sort": {"column": "user_ts", "direction": "desc"}}'
          )
     ])
     async def test_order_payload_good(self, client, request_params, payload):
@@ -470,9 +470,7 @@ class TestBrowserAssets:
             query_patch.assert_called_once_with(args[0])
 
     @pytest.mark.parametrize("request_params, response_message", [
-        ('?limit=5&skip=1&order=blah',
-         'order must be asc or desc',
-         ),
+        ('?limit=5&skip=1&order=blah', 'order must be asc or desc')
     ])
     async def test_order_payload_bad(self, client, request_params, response_message):
         resp = await client.get('fledge/asset/fogbench%2Fhumidity{}'.format(request_params))

@@ -168,7 +168,7 @@ async def asset(request):
         results = await _readings.query(payload)
         response = results['rows']
     except KeyError:
-        raise web.HTTPBadRequest(reason=results['message'])
+        raise web.HTTPBadRequest(reason=results['message'], body=json.dumps({"message": results['message']}))
     else:
         return web.json_response(response)
 

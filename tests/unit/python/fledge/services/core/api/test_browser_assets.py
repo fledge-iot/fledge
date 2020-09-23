@@ -454,7 +454,6 @@ class TestBrowserAssets:
          ' "skip": 1,"limit": 5, '
          '"sort": {"column": "user_ts", "direction": "desc"}}',
          )
-
     ])
     async def test_order_payload_good(self, client, request_params, payload):
         readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)

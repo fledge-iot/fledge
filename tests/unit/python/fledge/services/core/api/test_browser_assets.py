@@ -477,8 +477,7 @@ class TestBrowserAssets:
     async def test_order_payload_bad(self, client, request_params, response_message):
         readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
         with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
-            with patch.object(readings_storage_client_mock, 'query', return_value=mock_coro({'count': 0, 'rows': []})) \
-                    as query_patch:
-                resp = await client.get('fledge/asset/fogbench%2Fhumidity{}'.format(request_params))
-                assert 400 == resp.status
-                assert response_message == resp.reason
+
+            resp = await client.get('fledge/asset/fogbench%2Fhumidity{}'.format(request_params))
+            assert 400 == resp.status
+            assert response_message == resp.reason

@@ -76,5 +76,5 @@ CREATE TABLE readings_1.readings_1 (
 );
 
 CREATE INDEX readings_1.readings_1_ix3
-    ON readings_1 (user_ts);
+    ON readings_1 (user_ts desc);
 

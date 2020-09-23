@@ -842,6 +842,605 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 }
 
 
+/**
+ * Process the aggregate options and return the columns to be selected
+ */
+bool Connection::jsonAggregates(const Value& payload,
+								const Value& aggregates,
+								SQLBuffer& sql,
+								SQLBuffer& jsonConstraint,
+								bool isTableReading)
+{
+	if (aggregates.IsObject())
+	{
+		if (! aggregates.HasMember("operation"))
+		{
+			raiseError("Select aggregation",
+					   "Missing property \"operation\"");
+			return false;
+		}
+		if ((! aggregates.HasMember("column")) && (! aggregates.HasMember("json")))
+		{
+			raiseError("Select aggregation",
+					   "Missing property \"column\" or \"json\"");
+			return false;
+		}
+		sql.append(aggregates["operation"].GetString());
+		sql.append('(');
+		if (aggregates.HasMember("column"))
+		{
+			string col = aggregates["column"].GetString();
+			if (col.compare("*") == 0)	// Faster to count ROWID rather than *
+			{
+				sql.append("ROWID");
+			}
+			else
+			{
+				// an operation different from the 'count' is requested
+				if (isTableReading && (col.compare("user_ts") == 0) )
+				{
+					sql.append("strftime('" F_DATEH24_SEC "', user_ts, 'localtime') ");
+					sql.append(" || substr(user_ts, instr(user_ts, '.'), 7) ");
+				}
+				else
+				{
+					sql.append("\"");
+					sql.append(col);
+					sql.append("\"");
+				}
+			}
+		}
+		else if (aggregates.HasMember("json"))
+		{
+			const Value& json = aggregates["json"];
+			if (! json.IsObject())
+			{
+				raiseError("Select aggregation",
+						   "The json property must be an object");
+				return false;
+			}
+
+			if (!json.HasMember("column"))
+			{
+				raiseError("retrieve",
+						   "The json property is missing a column property");
+				return false;
+			}
+			// Use json_extract(field, '$.key1.key2') AS value
+			sql.append("json_extract(");
+			sql.append(json["column"].GetString());
+			sql.append(", '$.");
+
+			if (!json.HasMember("properties"))
+			{
+				raiseError("retrieve",
+						   "The json property is missing a properties property");
+				return false;
+			}
+			const Value& jsonFields = json["properties"];
+
+			if (jsonFields.IsArray())
+			{
+				if (! jsonConstraint.isEmpty())
+				{
+					jsonConstraint.append(" AND ");
+				}
+				// JSON1 SQLite3 extension 'json_type' object check:
+				// json_type(field, '$.key1.key2') IS NOT NULL
+				// Build the Json keys NULL check
+				jsonConstraint.append("json_type(");
+				jsonConstraint.append(json["column"].GetString());
+				jsonConstraint.append(", '$.");
+
+				int field = 0;
+				string prev;
+				for (Value::ConstValueIterator itr = jsonFields.Begin(); itr != jsonFields.End(); ++itr)
+				{
+					if (field)
+					{
+						sql.append(".");
+					}
+					if (prev.length() > 0)
+					{
+						// Append Json field for NULL check
+						jsonConstraint.append(prev);
+						jsonConstraint.append(".");
+					}
+					prev = itr->GetString();
+					field++;
+					// Append Json field for query
+					sql.append(itr->GetString());
+				}
+				// Add last Json key
+				jsonConstraint.append(prev);
+
+				// Add condition for all json keys not null
+				jsonConstraint.append("') IS NOT NULL");
+			}
+			else
+			{
+				// Append Json field for query
+				sql.append(jsonFields.GetString());
+
+				if (! jsonConstraint.isEmpty())
+				{
+					jsonConstraint.append(" AND ");
+				}
+				// JSON1 SQLite3 extension 'json_type' object check:
+				// json_type(field, '$.key1.key2') IS NOT NULL
+				// Build the Json key NULL check
+				jsonConstraint.append("json_type(");
+				jsonConstraint.append(json["column"].GetString());
+				jsonConstraint.append(", '$.");
+				jsonConstraint.append(jsonFields.GetString());
+
+				// Add condition for json key not null
+				jsonConstraint.append("') IS NOT NULL");
+			}
+			sql.append("')");
+		}
+		sql.append(") AS \"");
+		if (aggregates.HasMember("alias"))
+		{
+			sql.append(aggregates["alias"].GetString());
+		}
+		else
+		{
+			sql.append(aggregates["operation"].GetString());
+			sql.append('_');
+			sql.append(aggregates["column"].GetString());
+		}
+		sql.append("\"");
+	}
+	else if (aggregates.IsArray())
+	{
+		int index = 0;
+		for (Value::ConstValueIterator itr = aggregates.Begin(); itr != aggregates.End(); ++itr)
+		{
+			if (!itr->IsObject())
+			{
+				raiseError("select aggregation",
+						   "Each element in the aggregate array must be an object");
+				return false;
+			}
+			if ((! itr->HasMember("column")) && (! itr->HasMember("json")))
+			{
+				raiseError("Select aggregation", "Missing property \"column\"");
+				return false;
+			}
+			if (! itr->HasMember("operation"))
+			{
+				raiseError("Select aggregation", "Missing property \"operation\"");
+				return false;
+			}
+			if (index)
+				sql.append(", ");
+			index++;
+			sql.append((*itr)["operation"].GetString());
+			sql.append('(');
+			if (itr->HasMember("column"))
+			{
+				string column_name= (*itr)["column"].GetString();
+				if (isTableReading && (column_name.compare("user_ts") == 0) )
+				{
+					sql.append("strftime('" F_DATEH24_SEC "', user_ts, 'localtime') ");
+					sql.append(" || substr(user_ts, instr(user_ts, '.'), 7) ");
+				}
+				else
+				{
+					sql.append("\"");
+					sql.append(column_name);
+					sql.append("\"");
+				}
+
+			}
+			else if (itr->HasMember("json"))
+			{
+				const Value& json = (*itr)["json"];
+				if (! json.IsObject())
+				{
+					raiseError("Select aggregation", "The json property must be an object");
+					return false;
+				}
+				if (!json.HasMember("column"))
+				{
+					raiseError("retrieve", "The json property is missing a column property");
+					return false;
+				}
+				if (!json.HasMember("properties"))
+				{
+					raiseError("retrieve", "The json property is missing a properties property");
+					return false;
+				}
+				const Value& jsonFields = json["properties"];
+				if (! jsonConstraint.isEmpty())
+				{
+					jsonConstraint.append(" AND ");
+				}
+				// Use json_extract(field, '$.key1.key2') AS value
+				sql.append("json_extract(");
+				sql.append(json["column"].GetString());
+				sql.append(", '$.");
+
+				// JSON1 SQLite3 extension 'json_type' object check:
+				// json_type(field, '$.key1.key2') IS NOT NULL
+				// Build the Json keys NULL check
+				jsonConstraint.append("json_type(");
+				jsonConstraint.append(json["column"].GetString());
+				jsonConstraint.append(", '$.");
+
+				if (jsonFields.IsArray())
+				{
+					string prev;
+					for (Value::ConstValueIterator itr = jsonFields.Begin(); itr != jsonFields.End(); ++itr)
+					{
+						if (prev.length() > 0)
+						{
+							jsonConstraint.append(prev);
+							jsonConstraint.append('.');
+							sql.append('.');
+						}
+						// Append Json field for query
+						sql.append(itr->GetString());
+						prev = itr->GetString();
+					}
+					// Add last Json key
+					jsonConstraint.append(prev);
+
+					// Add condition for json key not null
+					jsonConstraint.append("') IS NOT NULL");
+				}
+				else
+				{
+					// Append Json field for query
+					sql.append(jsonFields.GetString());
+
+					// JSON1 SQLite3 extension 'json_type' object check:
+					// json_type(field, '$.key1.key2') IS NOT NULL
+					// Build the Json key NULL check
+					jsonConstraint.append(jsonFields.GetString());
+
+					// Add condition for json key not null
+					jsonConstraint.append("') IS NOT NULL");
+				}
+				sql.append("')");
+			}
+			sql.append(") AS \"");
+			if (itr->HasMember("alias"))
+			{
+				sql.append((*itr)["alias"].GetString());
+			}
+			else
+			{
+				sql.append((*itr)["operation"].GetString());
+				sql.append('_');
+				sql.append((*itr)["column"].GetString());
+			}
+			sql.append("\"");
+		}
+	}
+	if (payload.HasMember("group"))
+	{
+		sql.append(", ");
+		if (payload["group"].IsObject())
+		{
+			const Value& grp = payload["group"];
+
+			if (grp.HasMember("format"))
+			{
+				// SQLite 3 date format.
+				string new_format;
+				if (isTableReading)
+				{
+					applyColumnDateFormatLocaltime(grp["format"].GetString(),
+												   grp["column"].GetString(),
+												   new_format);
+				}
+				else
+				{
+					applyColumnDateFormat(grp["format"].GetString(),
+										  grp["column"].GetString(),
+										  new_format);
+				}
+				// Add the formatted column or use it as is
+				sql.append(new_format);
+			}
+			else
+			{
+				sql.append(grp["column"].GetString());
+			}
+
+			if (grp.HasMember("alias"))
+			{
+				sql.append(" AS \"");
+				sql.append(grp["alias"].GetString());
+				sql.append("\"");
+			}
+			else
+			{
+				sql.append(" AS \"");
+				sql.append(grp["column"].GetString());
+				sql.append("\"");
+			}
+		}
+		else
+		{
+			sql.append(payload["group"].GetString());
+		}
+	}
+	if (payload.HasMember("timebucket"))
+	{
+		const Value& tb = payload["timebucket"];
+		if (! tb.IsObject())
+		{
+			raiseError("Select data",
+					   "The \"timebucket\" property must be an object");
+			return false;
+		}
+		if (! tb.HasMember("timestamp"))
+		{
+			raiseError("Select data",
+					   "The \"timebucket\" object must have a timestamp property");
+			return false;
+		}
+
+		if (tb.HasMember("format"))
+		{
+			// SQLite 3 date format is limited.
+			string new_format;
+			if (applyDateFormat(tb["format"].GetString(),
+								new_format))
+			{
+				sql.append(", ");
+				// Add the formatted column
+				sql.append(new_format);
+
+				if (tb.HasMember("size"))
+				{
+					// Use Unix epoch, without microseconds
+					sql.append(tb["size"].GetString());
+					sql.append(" * round(");
+					sql.append("strftime('%s', ");
+					sql.append(tb["timestamp"].GetString());
+					sql.append(") / ");
+					sql.append(tb["size"].GetString());
+					sql.append(", 6)");
+				}
+				else
+				{
+					sql.append(tb["timestamp"].GetString());
+				}
+				sql.append(", 'unixepoch')");
+			}
+			else
+			{
+				/**
+				 * No date format found: we should return an error.
+				 * Note: currently if input Json payload has no 'result' member
+				 * raiseError() results in no data being sent to the client
+				 * We use Unix epoch without microseconds
+				 */
+				sql.append(", datetime(");
+				if (tb.HasMember("size"))
+				{
+					sql.append(tb["size"].GetString());
+					sql.append(" * round(");
+				}
+				// Use Unix epoch, without microseconds
+				sql.append("strftime('%s', ");
+				sql.append(tb["timestamp"].GetString());
+				if (tb.HasMember("size"))
+				{
+					sql.append(") / ");
+					sql.append(tb["size"].GetString());
+					sql.append(", 6)");
+				}
+				else
+				{
+					sql.append(")");
+				}
+				sql.append(", 'unixepoch')");
+			}
+		}
+		else
+		{
+			sql.append(", datetime(");
+			if (tb.HasMember("size"))
+			{
+				sql.append(tb["size"].GetString());
+				sql.append(" * round(");
+			}
+
+			/*
+			 * Default format when no format is specified:
+			 * - we use Unix time without milliseconds.
+			 */
+			sql.append("strftime('%s', ");
+			sql.append(tb["timestamp"].GetString());
+			if (tb.HasMember("size"))
+			{
+				sql.append(") / ");
+				sql.append(tb["size"].GetString());
+				sql.append(", 6)");
+			}
+			else
+			{
+				sql.append(")");
+			}
+			sql.append(", 'unixepoch')");
+		}
+
+		sql.append(" AS \"");
+		if (tb.HasMember("alias"))
+		{
+			sql.append(tb["alias"].GetString());
+		}
+		else
+		{
+			sql.append("timestamp");
+		}
+		sql.append('"');
+	}
+	return true;
+}
+
+/**
+ * Convert a JSON where clause into a SQLite3 where clause
+ *
+ */
+bool Connection::jsonWhereClause(const Value& whereClause,
+								 SQLBuffer& sql, bool convertLocaltime)
+{
+	if (!whereClause.IsObject())
+	{
+		raiseError("where clause", "The \"where\" property must be a JSON object");
+		return false;
+	}
+	if (!whereClause.HasMember("column"))
+	{
+		raiseError("where clause", "The \"where\" object is missing a \"column\" property");
+		return false;
+	}
+	if (!whereClause.HasMember("condition"))
+	{
+		raiseError("where clause", "The \"where\" object is missing a \"condition\" property");
+		return false;
+	}
+	if (!whereClause.HasMember("value"))
+	{
+		raiseError("where clause",
+				   "The \"where\" object is missing a \"value\" property");
+		return false;
+	}
+
+	sql.append(whereClause["column"].GetString());
+	sql.append(' ');
+	string cond = whereClause["condition"].GetString();
+	if (!cond.compare("older"))
+	{
+		if (!whereClause["value"].IsInt())
+		{
+			raiseError("where clause",
+					   "The \"value\" of an \"older\" condition must be an integer");
+			return false;
+		}
+		sql.append("< datetime('now', '-");
+		sql.append(whereClause["value"].GetInt());
+		if (convertLocaltime)
+			sql.append(" seconds', 'localtime')"); // Get value in localtime
+		else
+			sql.append(" seconds')"); // Get value in UTC by asking for no timezone
+	}
+	else if (!cond.compare("newer"))
+	{
+		if (!whereClause["value"].IsInt())
+		{
+			raiseError("where clause",
+					   "The \"value\" of an \"newer\" condition must be an integer");
+			return false;
+		}
+		sql.append("> datetime('now', '-");
+		sql.append(whereClause["value"].GetInt());
+		if (convertLocaltime)
+			sql.append(" seconds', 'localtime')"); // Get value in localtime
+		else
+			sql.append(" seconds')"); // Get value in UTC by asking for no timezone
+	}
+	else if (!cond.compare("in") || !cond.compare("not in"))
+	{
+		// Check we have a non empty array
+		if (whereClause["value"].IsArray() &&
+			whereClause["value"].Size())
+		{
+			sql.append(cond);
+			sql.append(" ( ");
+			int field = 0;
+			for (Value::ConstValueIterator itr = whereClause["value"].Begin();
+				 itr != whereClause["value"].End();
+				 ++itr)
+			{
+				if (field)
+				{
+					sql.append(", ");
+				}
+				field++;
+				if (itr->IsNumber())
+				{
+					if (itr->IsInt())
+					{
+						sql.append(itr->GetInt());
+					}
+					else if (itr->IsInt64())
+					{
+						sql.append((long)itr->GetInt64());
+					}
+					else
+					{
+						sql.append(itr->GetDouble());
+					}
+				}
+				else if (itr->IsString())
+				{
+					sql.append('\'');
+					sql.append(escape(itr->GetString()));
+					sql.append('\'');
+				}
+				else
+				{
+					string message("The \"value\" of a \"" + \
+							cond + \
+							"\" condition array element must be " \
+							"a string, integer or double.");
+					raiseError("where clause", message.c_str());
+					return false;
+				}
+			}
+			sql.append(" )");
+		}
+		else
+		{
+			string message("The \"value\" of a \"" + \
+					cond + "\" condition must be an array " \
+					"and must not be empty.");
+			raiseError("where clause", message.c_str());
+			return false;
+		}
+	}
+	else
+	{
+		sql.append(cond);
+		sql.append(' ');
+		if (whereClause["value"].IsInt())
+		{
+			sql.append(whereClause["value"].GetInt());
+		} else if (whereClause["value"].IsString())
+		{
+			sql.append('\'');
+			sql.append(escape(whereClause["value"].GetString()));
+			sql.append('\'');
+		}
+	}
+
+	if (whereClause.HasMember("and"))
+	{
+		sql.append(" AND ");
+		if (!jsonWhereClause(whereClause["and"], sql, convertLocaltime))
+		{
+			return false;
+		}
+	}
+	if (whereClause.HasMember("or"))
+	{
+		sql.append(" OR ");
+		if (!jsonWhereClause(whereClause["or"], sql, convertLocaltime))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
 
 /**
  * Build, exucute and return data of a timebucket query with min,max,avg for all datapoints

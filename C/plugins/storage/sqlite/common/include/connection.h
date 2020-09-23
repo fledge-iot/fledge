@@ -148,13 +148,28 @@ class Connection {
 		void		raiseError(const char *operation, const char *reason,...);
 		sqlite3		*dbHandle;
 		int		mapResultSet(void *res, std::string& resultSet);
+#ifndef SQLITE_SPLIT_READINGS
+		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&, std::vector<std::string>  &asset_codes, bool convertLocaltime = false);
+#else
 		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&, bool convertLocaltime = false);
+#endif
 		bool		jsonModifiers(const rapidjson::Value&, SQLBuffer&, bool isTableReading = false);
+#ifndef SQLITE_SPLIT_READINGS
 		bool		jsonAggregates(const rapidjson::Value&,
 					       const rapidjson::Value&,
 					       SQLBuffer&,
 					       SQLBuffer&,
-					       bool isTableReading = false);
+					       bool &isOptAggregate,
+					       bool isTableReading = false,
+					       bool isExtQuery = false
+					       );
+#else
+	bool		jsonAggregates(const rapidjson::Value&,
+		                               const rapidjson::Value&,
+		                               SQLBuffer&,
+		                               SQLBuffer&,
+		                               bool isTableReading = false);
+#endif
 		bool		returnJson(const rapidjson::Value&, SQLBuffer&, SQLBuffer&);
 		char		*trim(char *str);
 		const std::string
@@ -198,7 +213,7 @@ class ReadingsCatalogue {
 		bool          createNewDB();
 		int           getReadingReference(Connection *connection, const char *asset_code);
 		bool          attachAllDbs();
-		std::string   sqlConstructMultiDb(std::string &sqlCmdBase);
+		std::string   sqlConstructMultiDb(std::string &sqlCmdBase, std::vector<std::string>  &assetCodes);
 		int           purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBase, char **errMsg = NULL, unsigned int *rowsAffected = NULL);
 
 	private:

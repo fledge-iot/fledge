@@ -26,7 +26,6 @@
 // 1 enable performance tracking
 #define INSTRUMENT	0
 
-
 #if INSTRUMENT
 #include <sys/time.h>
 #endif
@@ -119,6 +118,9 @@ bool aggregateAll(const Value& payload)
  */
 bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 {
+	vector<string>  asset_codes;
+
+
 	if (!payload.HasMember("where") ||
 	    !payload.HasMember("timebucket"))
 	{
@@ -281,7 +283,7 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 		string sql_cmd_base;
 		string sql_cmd_tmp;
 		sql_cmd_base = " SELECT  ROWID, id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ ";
-		sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
+		sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, asset_codes);
 		sql_cmd += sql_cmd_tmp;
 
 		// SQL - end
@@ -297,7 +299,7 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 
 	// Add where condition
 	sql.append("WHERE ");
-	if (!jsonWhereClause(payload["where"], sql))
+	if (!jsonWhereClause(payload["where"], sql, asset_codes))
 	{
 		raiseError("retrieve", "aggregateQuery: failure while building WHERE clause");
 		return false;
@@ -923,8 +925,9 @@ char sqlbuffer[5120];
 char *zErrMsg = NULL;
 int rc;
 int retrieve;
+vector<string>  asset_codes;
+string sql_cmd;
 
-	string sql_cmd;
 	// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
 	{
 		// SQL - start
@@ -945,7 +948,7 @@ int retrieve;
 		string sql_cmd_tmp;
 		sql_cmd_base = " SELECT  id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ WHERE id >= " + to_string(id) + " and id <=  " + to_string(id) + " + " + to_string(blksize) + " ";
 		ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-		sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
+		sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, asset_codes);
 		sql_cmd += sql_cmd_tmp;
 
 		// SQL - end
@@ -1008,9 +1011,19 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 // Default template parameter uses UTF8 and MemoryPoolAllocator.
 Document	document;
 SQLBuffer	sql;
+
+SQLBuffer	sqlExtDummy;
+SQLBuffer	sqlExt;
+SQLBuffer	jsonConstraintsExt;
 // Extra constraints to add to where clause
 SQLBuffer	jsonConstraints;
 bool		isAggregate = false;
+bool		isOptAggregate = false;
+
+string modifierExt;
+string modifierInt;
+
+vector<string>  asset_codes;
 
 	try {
 		if (dbHandle == NULL)
@@ -1040,7 +1053,7 @@ bool		isAggregate = false;
 			string sql_cmd_base;
 			string sql_cmd_tmp;
 			sql_cmd_base = " SELECT  id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ ";
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, asset_codes);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -1072,10 +1085,20 @@ bool		isAggregate = false;
 					sql.append(document["modifier"].GetString());
 					sql.append(' ');
 				}
-				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints, true))
+				// Generates the SQL for the external query
+				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints, isOptAggregate, true, true))
 				{
 					return false;
 				}
+				// Generates the SQL for the internal query
+				if (isOptAggregate)
+				{
+					if (!jsonAggregates(document, document["aggregate"], sqlExt, jsonConstraintsExt, isOptAggregate, true, false))
+					{
+						return false;
+					}
+				}
+
 				sql.append(" FROM  ");
 			}
 			else if (document.HasMember("return"))
@@ -1289,6 +1312,12 @@ bool		isAggregate = false;
 			}
 			{
 
+				// Identifies the asset_codes used in the query
+				if (document.HasMember("where"))
+				{
+					jsonWhereClause(document["where"], sqlExtDummy, asset_codes);
+				}
+
 				string sql_cmd;
 				ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 
@@ -1300,8 +1329,32 @@ bool		isAggregate = false;
 				// SQL - union of all the readings tables
 				string sql_cmd_base;
 				string sql_cmd_tmp;
-				sql_cmd_base = " SELECT ROWID, id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ ";
-				sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
+
+				// Specific optimization for the count operation
+				if (isOptAggregate)
+				{
+					const char *queryTmp = sqlExt.coalesce();
+
+					sql_cmd_base = " SELECT ";
+					sql_cmd_base += queryTmp;
+
+					if (! strstr(queryTmp, "ROWID"))
+						sql_cmd_base += ",  ROWID";
+
+					if (! strstr(queryTmp, "asset_code"))
+						sql_cmd_base += ",  asset_code";
+
+					sql_cmd_base += ", id, reading, user_ts, ts ";
+					StringReplaceAll (sql_cmd_base, "asset_code", " \"_assetcode_\" .assetcode. ");
+					sql_cmd_base += " FROM _dbname_._tablename_ ";
+
+					delete[] queryTmp;
+				}
+				else
+				{
+					sql_cmd_base = " SELECT ROWID, id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ ";
+				}
+				sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, asset_codes);
 				sql_cmd += sql_cmd_tmp;
 
 				// SQL - end
@@ -1320,7 +1373,7 @@ bool		isAggregate = false;
 			 
 				if (document.HasMember("where"))
 				{
-					if (!jsonWhereClause(document["where"], sql))
+					if (!jsonWhereClause(document["where"], sql, asset_codes))
 					{
 						return false;
 					}
@@ -1345,7 +1398,7 @@ bool		isAggregate = false;
 				 * Performance improvement: force sqlite to use an index
 				 * if we are doing an aggregate and have no where clause.
 				 */
-				sql.append(" WHERE asset_code = asset_code");
+				sql.append(" WHERE id = id");
 			}
 			if (!jsonModifiers(document, sql, true))
 			{
@@ -1411,6 +1464,8 @@ unsigned long rowidLimit = 0, minrowidLimit = 0, maxrowidLimit = 0, rowidMin;
 struct timeval startTv, endTv;
 int blocks = 0;
 
+vector<string>  assetCodes;
+
 	Logger *logger = Logger::getLogger();
 
 	result = "{ \"removed\" : 0, ";
@@ -1445,7 +1500,7 @@ int blocks = 0;
 			string sql_cmd_tmp;
 			sql_cmd_base = " SELECT  MAX(rowid) rowid FROM _dbname_._tablename_ ";
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -1490,7 +1545,7 @@ int blocks = 0;
 			string sql_cmd_tmp;
 			sql_cmd_base = " SELECT  MIN(rowid) rowid FROM _dbname_._tablename_ ";
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -1536,7 +1591,7 @@ int blocks = 0;
 			string sql_cmd_tmp;
 			sql_cmd_base = " SELECT MIN(user_ts) user_ts FROM _dbname_._tablename_  WHERE rowid <= " + to_string(rowidLimit);
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -1623,7 +1678,7 @@ int blocks = 0;
 				string sql_cmd_tmp;
 				sql_cmd_base = " SELECT id FROM _dbname_._tablename_  WHERE rowid = " + to_string(m) + " AND user_ts < datetime('now' , '-" +to_string(age) + " hours')";
 				ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-				sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
+				sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
 				sql_cmd += sql_cmd_tmp;
 
 				// SQL - end
@@ -1702,7 +1757,7 @@ int blocks = 0;
 			string sql_cmd_tmp;
 			sql_cmd_base = " SELECT id FROM _dbname_._tablename_  WHERE rowid = " + to_string(rowidLimit) + " ";
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -1873,6 +1928,7 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 unsigned long  deletedRows = 0, unsentPurged = 0, unsentRetained = 0, numReadings = 0;
 unsigned long limit = 0;
 string sql_cmd;
+vector<string>  assetCodes;
 
 	Logger *logger = Logger::getLogger();
 
@@ -1904,7 +1960,7 @@ string sql_cmd;
 			string sql_cmd_tmp;
 			sql_cmd_base = " select count(rowid) rowid FROM _dbname_._tablename_ ";
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -1947,7 +2003,7 @@ string sql_cmd;
 			string sql_cmd_tmp;
 			sql_cmd_base = " SELECT MIN(rowid) rowid FROM _dbname_._tablename_ ";
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base ,assetCodes);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -1984,7 +2040,7 @@ string sql_cmd;
 			string sql_cmd_tmp;
 			sql_cmd_base = " SELECT MAX(id) id FROM _dbname_._tablename_ ";
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base ,assetCodes);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -2918,12 +2974,16 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
  * considering all the readings tables in use
  *
  */
-string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase)
+string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string>  &assetCodes)
 {
 	string dbReadingsName;
 	string dbName;
 	string sqlCmdTmp;
 	string sqlCmd;
+
+	string assetCode;
+	bool addTable;
+	bool addedOne;
 
 	if (m_AssetReadingCatalogue.empty())
 	{
@@ -2939,24 +2999,51 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase)
 		Logger::getLogger()->debug("sqlConstructMultiDb: tables defined");
 
 		bool firstRow = true;
+		addedOne = false;
 
 		for (auto &item : m_AssetReadingCatalogue)
 		{
-			sqlCmdTmp = sqlCmdBase;
+			assetCode=item.first;
+			addTable = false;
 
-			if (!firstRow)
+			// Evaluates which tables should be referenced
+			if (assetCodes.empty())
+				addTable = true;
+			else
 			{
-				sqlCmd += " UNION ALL ";
+				if (std::find(assetCodes.begin(), assetCodes.end(), assetCode) != assetCodes.end())
+					addTable = true;
 			}
 
-			dbReadingsName = generateReadingsName(item.second.first);
-			dbName = generateDbName(item.second.second);
+			if (addTable)
+			{
+				addedOne = true;
 
-			StringReplaceAll (sqlCmdTmp, "_assetcode_", item.first);
-			StringReplaceAll (sqlCmdTmp, "_dbname_", dbName);
-			StringReplaceAll (sqlCmdTmp, "_tablename_", dbReadingsName);
-			sqlCmd += sqlCmdTmp;
-			firstRow = false;
+				sqlCmdTmp = sqlCmdBase;
+
+				if (!firstRow)
+				{
+					sqlCmd += " UNION ALL ";
+				}
+
+				dbReadingsName = generateReadingsName(item.second.first);
+				dbName = generateDbName(item.second.second);
+
+				StringReplaceAll(sqlCmdTmp, "_assetcode_", assetCode);
+				StringReplaceAll (sqlCmdTmp, ".assetcode.", "asset_code");
+				StringReplaceAll(sqlCmdTmp, "_dbname_", dbName);
+				StringReplaceAll(sqlCmdTmp, "_tablename_", dbReadingsName);
+				sqlCmd += sqlCmdTmp;
+				firstRow = false;
+			}
+		}
+		// Add at least one table eventually a dummy one
+		if (! addedOne)
+		{
+			sqlCmd = sqlCmdBase;
+			StringReplaceAll (sqlCmd, "_assetcode_", "dummy_asset_code");
+			StringReplaceAll (sqlCmd, "_dbname_", READINGS_DB);
+			StringReplaceAll (sqlCmd, "_tablename_", "readings_1");
 		}
 	}
 

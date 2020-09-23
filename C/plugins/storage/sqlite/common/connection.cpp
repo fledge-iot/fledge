@@ -853,6 +853,8 @@ Document	document;
 SQLBuffer	sql;
 // Extra constraints to add to where clause
 SQLBuffer	jsonConstraints;
+bool		isOptAggregate = false;
+vector<string>  asset_codes;
 
 	try {
 		if (dbHandle == NULL)
@@ -881,7 +883,7 @@ SQLBuffer	jsonConstraints;
 					sql.append(document["modifier"].GetString());
 					sql.append(' ');
 				}
-				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints, false))
+				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints, isOptAggregate, false))
 				{
 					return false;
 				}
@@ -1007,7 +1009,7 @@ SQLBuffer	jsonConstraints;
 			 
 				if (document.HasMember("where"))
 				{
-					if (!jsonWhereClause(document["where"], sql, true))
+					if (!jsonWhereClause(document["where"], sql, asset_codes, true))
 					{
 						return false;
 					}
@@ -1269,6 +1271,7 @@ int Connection::update(const string& table, const string& payload)
 // Default template parameter uses UTF8 and MemoryPoolAllocator.
 Document	document;
 SQLBuffer	sql;
+vector<string>  asset_codes;
 
 	int 	row = 0;
 	ostringstream convert;
@@ -1551,7 +1554,7 @@ SQLBuffer	sql;
 			if ((*iter).HasMember("condition"))
 			{
 				sql.append(" WHERE ");
-				if (!jsonWhereClause((*iter)["condition"], sql))
+				if (!jsonWhereClause((*iter)["condition"], sql, asset_codes))
 				{
 					return false;
 				}
@@ -1559,7 +1562,7 @@ SQLBuffer	sql;
 			else if ((*iter).HasMember("where"))
 			{
 				sql.append(" WHERE ");
-				if (!jsonWhereClause((*iter)["where"], sql))
+				if (!jsonWhereClause((*iter)["where"], sql, asset_codes))
 				{
 					return false;
 				}
@@ -1813,6 +1816,7 @@ bool Connection::formatDate(char *formatted_date, size_t buffer_size, const char
 
 }
 
+#ifndef SQLITE_SPLIT_READINGS
 /**
  * Process the aggregate options and return the columns to be selected
  */
@@ -1820,8 +1824,16 @@ bool Connection::jsonAggregates(const Value& payload,
 				const Value& aggregates,
 				SQLBuffer& sql,
 				SQLBuffer& jsonConstraint,
-				bool isTableReading)
+				bool &isOptAggregate,
+				bool isTableReading,
+				bool isExtQuery
+				)
 {
+	string col;
+	string column_name;
+
+	isOptAggregate = false;
+
 	if (aggregates.IsObject())
 	{
 		if (! aggregates.HasMember("operation"))
@@ -1836,14 +1848,31 @@ bool Connection::jsonAggregates(const Value& payload,
 				   "Missing property \"column\" or \"json\"");
 			return false;
 		}
-		sql.append(aggregates["operation"].GetString());
+		string operation;
+
+		// Handles the case of the count, the virtual tables should use count and the external the sun operation
+		operation =aggregates["operation"].GetString();
+		if (isTableReading)
+		{
+			if (operation.compare("count") ==0)
+			{
+				isOptAggregate = true;
+				if (isExtQuery)
+				{
+					operation = "sum";
+				}
+			}
+		}
+		sql.append(operation);
+
 		sql.append('(');
 		if (aggregates.HasMember("column"))
 		{
-			string col = aggregates["column"].GetString();
+			col = aggregates["column"].GetString();
 			if (col.compare("*") == 0)	// Faster to count ROWID rather than *
 			{
-				sql.append("ROWID");
+				col = "ROWID";
+				sql.append(col);
 			}
 			else
 			{
@@ -1953,7 +1982,16 @@ bool Connection::jsonAggregates(const Value& payload,
 		sql.append(") AS \"");
 		if (aggregates.HasMember("alias"))
 		{
-			sql.append(aggregates["alias"].GetString());
+			// Handles the case of the count: the external query should use the alias and the internal the name of the field
+			if (isTableReading)
+			{
+				if (isExtQuery)
+					sql.append(aggregates["alias"].GetString());
+				else
+					sql.append(col);
+			}
+			else
+				sql.append(aggregates["alias"].GetString());
 		}
 		else
 		{
@@ -1991,7 +2029,7 @@ bool Connection::jsonAggregates(const Value& payload,
 			sql.append('(');
 			if (itr->HasMember("column"))
 			{
-				string column_name= (*itr)["column"].GetString();
+				column_name= (*itr)["column"].GetString();
 				if (isTableReading && (column_name.compare("user_ts") == 0) )
 				{
 					sql.append("strftime('" F_DATEH24_SEC "', user_ts, 'localtime') ");
@@ -2030,7 +2068,8 @@ bool Connection::jsonAggregates(const Value& payload,
 				}
 				// Use json_extract(field, '$.key1.key2') AS value
 				sql.append("json_extract(");
-				sql.append(json["column"].GetString());
+				column_name=json["column"].GetString();
+				sql.append(column_name);
 				sql.append(", '$.");
 
 				// JSON1 SQLite3 extension 'json_type' object check:
@@ -2079,7 +2118,15 @@ bool Connection::jsonAggregates(const Value& payload,
 			sql.append(") AS \"");
 			if (itr->HasMember("alias"))
 			{
-				sql.append((*itr)["alias"].GetString());
+				if (isTableReading)
+				{
+					if (isExtQuery)
+						sql.append((*itr)["alias"].GetString());
+					else
+						sql.append(column_name);
+				}
+				else
+					sql.append((*itr)["alias"].GetString());
 			}
 			else
 			{
@@ -2254,6 +2301,7 @@ bool Connection::jsonAggregates(const Value& payload,
 	}
 	return true;
 }
+#endif
 
 /**
  * Process the modifiers for limit, skip, sort and group
@@ -2455,13 +2503,21 @@ bool Connection::jsonModifiers(const Value& payload,
 	return true;
 }
 
+#ifndef SQLITE_SPLIT_READINGS
 /**
  * Convert a JSON where clause into a SQLite3 where clause
  *
  */
-bool Connection::jsonWhereClause(const Value& whereClause,
-				 SQLBuffer& sql, bool convertLocaltime)
+bool Connection::jsonWhereClause(
+	const Value& whereClause,
+	SQLBuffer& sql,
+	std::vector<std::string>  &asset_codes,
+	bool convertLocaltime)
 {
+
+	string column;
+	string cond;
+
 	if (!whereClause.IsObject())
 	{
 		raiseError("where clause", "The \"where\" property must be a JSON object");
@@ -2484,9 +2540,10 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 		return false;
 	}
 
-	sql.append(whereClause["column"].GetString());
+	column = whereClause["column"].GetString();
+	sql.append(column);
 	sql.append(' ');
-	string cond = whereClause["condition"].GetString();
+	cond = whereClause["condition"].GetString();
 	if (!cond.compare("older"))
 	{
 		if (!whereClause["value"].IsInt())
@@ -2586,16 +2643,22 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 			sql.append(whereClause["value"].GetInt());
 		} else if (whereClause["value"].IsString())
 		{
+			string value = whereClause["value"].GetString();
 			sql.append('\'');
-			sql.append(escape(whereClause["value"].GetString()));
+			sql.append(escape(value ));
 			sql.append('\'');
+
+			// Identify a specific operation to restrinct the tables involved
+			if (column.compare("asset_code") == 0)
+				if ( cond.compare("=") == 0)
+						asset_codes.push_back(value);
 		}
 	}
  
 	if (whereClause.HasMember("and"))
 	{
 		sql.append(" AND ");
-		if (!jsonWhereClause(whereClause["and"], sql, convertLocaltime))
+		if (!jsonWhereClause(whereClause["and"], sql, asset_codes, convertLocaltime))
 		{
 			return false;
 		}
@@ -2603,7 +2666,7 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 	if (whereClause.HasMember("or"))
 	{
 		sql.append(" OR ");
-		if (!jsonWhereClause(whereClause["or"], sql, convertLocaltime))
+		if (!jsonWhereClause(whereClause["or"], sql, asset_codes, convertLocaltime))
 		{
 			return false;
 		}
@@ -2611,6 +2674,10 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 
 	return true;
 }
+
+#endif
+
+
 
 /**
  * This routine uses SQLit3 JSON1 extension functions
@@ -2956,7 +3023,8 @@ int Connection::deleteRows(const string& table, const string& condition)
 // Default template parameter uses UTF8 and MemoryPoolAllocator.
 Document document;
 SQLBuffer	sql;
- 
+vector<string>  asset_codes;
+
 	sql.append("DELETE FROM fledge.");
 	sql.append(table);
 	if (! condition.empty())
@@ -2971,7 +3039,7 @@ SQLBuffer	sql;
 		{
 			if (document.HasMember("where"))
 			{
-				if (!jsonWhereClause(document["where"], sql))
+				if (!jsonWhereClause(document["where"], sql, asset_codes))
 				{
 					return -1;
 				}

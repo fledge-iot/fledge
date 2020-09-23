@@ -475,9 +475,9 @@ class TestBrowserAssets:
          ),
     ])
     async def test_order_payload_bad(self, client, request_params, response_message):
-        readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
-        with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
-
-            resp = await client.get('fledge/asset/fogbench%2Fhumidity{}'.format(request_params))
-            assert 400 == resp.status
-            assert response_message == resp.reason
+        resp = await client.get('fledge/asset/fogbench%2Fhumidity{}'.format(request_params))
+        assert 400 == resp.status
+        assert response_message == resp.reason
+        r = await resp.text()
+        json_response = json.loads(r)
+        assert {"message": response_message} == json_response

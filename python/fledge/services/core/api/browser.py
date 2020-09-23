@@ -37,6 +37,7 @@ Supports a number of REST API:
 """
 import time
 import datetime
+import json
 
 from aiohttp import web
 
@@ -157,7 +158,8 @@ async def asset(request):
     if 'order' in request.query:
         _order = request.query['order']
         if _order not in ('asc', 'desc'):
-            raise web.HTTPBadRequest(reason="order must be asc or desc")
+            msg = "order must be asc or desc"
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
     payload = PayloadBuilder(_and_where).ORDER_BY(["user_ts", _order]).payload()
     results = {}

@@ -775,13 +775,13 @@ int localNReadingsTotal;
 				}
 			}
 
-			// Handles - reading
-			StringBuffer buffer;
-			Writer<StringBuffer> writer(buffer);
-			(*itr)["reading"].Accept(writer);
-			reading = escape(buffer.GetString());
-
 			if(stmt != NULL) {
+
+				// Handles - reading
+				StringBuffer buffer;
+				Writer<StringBuffer> writer(buffer);
+				(*itr)["reading"].Accept(writer);
+				reading = escape(buffer.GetString());
 
 				sqlite3_bind_int (stmt, 1, readCatalogue->getGlobalId());
 				sqlite3_bind_text(stmt, 2, user_ts         ,-1, SQLITE_STATIC);
@@ -2514,6 +2514,7 @@ bool  ReadingsCatalogue::createNewDB()
 	int rc;
 	int nTables;
 	int startId;
+	int newDbId;
 
 	int readingsToAllocate;
 	int readingsToCreate;
@@ -2522,61 +2523,69 @@ bool  ReadingsCatalogue::createNewDB()
 	string dbPathReadings;
 	string dbAlias;
 	sqlite3 *dbHandle;
+
 	struct stat st;
-	bool dbAlreadyPresent;
+	bool dbAlreadyPresent=false;
 	bool result;
 
 	result = true;
 
-	m_dbId++;
+	newDbId = m_dbId +1;
 
 	// Creates the DB data file
 	{
-		dbPathReadings = generateDbFilePah(m_dbId);
+		dbPathReadings = generateDbFilePah(newDbId);
 
 		dbAlreadyPresent = false;
 		if(stat(dbPathReadings.c_str(),&st) == 0)
 		{
-			Logger::getLogger()->info("database file :%s: already present, creation skipped " , dbPathReadings.c_str() );
+			Logger::getLogger()->info("createNewDB: database file :%s: already present, creation skipped " , dbPathReadings.c_str() );
 			dbAlreadyPresent = true;
 		}
 		else
 		{
-			dbAlias = generateDbAlias(m_dbId);
-
-			enableWAL(dbPathReadings);
+			Logger::getLogger()->debug("createNewDB: new database created :%s:", dbPathReadings.c_str());
 		}
-	}
+		enableWAL(dbPathReadings);
 
+	}
 	readingsToAllocate = getNReadingsAllocate();
-
-	if (dbAlreadyPresent)
-	{
-		tyReadingsAvailable readingsAvailable;
-
-		readingsAvailable = evaluateLastReadingAvailable(m_dbId);
-
-		if (readingsAvailable.tableCount < readingsToAllocate)
-		{
-			readingsToCreate = readingsToAllocate - readingsAvailable.tableCount;
-			startId = readingsAvailable.lastReadings + 1;
-			createReadingsTables(1, startId, readingsToCreate);
-		}
-	}
-	else
-	{
-		startId = getMaxReadingsId() + 1;
-	}
-	Logger::getLogger()->debug("createNewDB: new database created :%s:", dbPathReadings.c_str());
+	readingsToCreate = readingsToAllocate;
+	startId = getMaxReadingsId() + 1;
 
 	ConnectionManager *manager = ConnectionManager::getInstance();
 	// Attached the new db to the connections
+	dbAlias = generateDbAlias(newDbId);
 	result = manager->attachNewDb(dbPathReadings, dbAlias);
 
 	if (result)
 	{
-		createReadingsTables(m_dbId ,startId, readingsToAllocate);
+		if (dbAlreadyPresent)
+		{
+			tyReadingsAvailable readingsAvailable = evaluateLastReadingAvailable(newDbId);
+
+			if (readingsAvailable.lastReadings == -1)
+			{
+				Logger::getLogger()->error("createNewDB: database file :%s: is already present but it is not possible to evaluate the readings table already present" , dbPathReadings.c_str() );
+				result = false;
+			}
+			else
+			{
+				readingsToCreate = readingsToAllocate - readingsAvailable.tableCount;
+				startId = readingsAvailable.lastReadings +1;
+				Logger::getLogger()->info("createNewDB: database file :%s: is already present, creating readings tables - from id :%d: n :%d: " , dbPathReadings.c_str(), startId, readingsToCreate);
+			}
+		}
+
+		if (readingsToCreate > 0)
+		{
+			createReadingsTables(newDbId ,startId, readingsToCreate);
+
+			Logger::getLogger()->info("createNewDB: database file :%s: created readings table - from id :%d: n :%d: " , dbPathReadings.c_str(), startId, readingsToCreate);
+		}
+
 		m_nReadingsAvailable = readingsToAllocate;
+		m_dbId++;
 	}
 
 	return (result);
@@ -2685,6 +2694,7 @@ ReadingsCatalogue::tyReadingsAvailable  ReadingsCatalogue::evaluateLastReadingAv
 	{
 		raiseError("evaluateLastReadingAvailable", sqlite3_errmsg(dbHandle));
 		readingsAvailable.lastReadings = -1;
+		readingsAvailable.tableCount = 0;
 	}
 	else
 	{

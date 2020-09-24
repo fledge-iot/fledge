@@ -775,13 +775,13 @@ int localNReadingsTotal;
 				}
 			}
 
-			if(stmt != NULL) {
+			// Handles - reading
+			StringBuffer buffer;
+			Writer<StringBuffer> writer(buffer);
+			(*itr)["reading"].Accept(writer);
+			reading = escape(buffer.GetString());
 
-				// Handles - reading
-				StringBuffer buffer;
-				Writer<StringBuffer> writer(buffer);
-				(*itr)["reading"].Accept(writer);
-				reading = escape(buffer.GetString());
+			if(stmt != NULL) {
 
 				sqlite3_bind_int (stmt, 1, readCatalogue->getGlobalId());
 				sqlite3_bind_text(stmt, 2, user_ts         ,-1, SQLITE_STATIC);

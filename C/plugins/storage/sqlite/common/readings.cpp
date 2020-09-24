@@ -2529,7 +2529,6 @@ bool  ReadingsCatalogue::createNewDB()
 	bool result;
 
 	result = true;
-
 	newDbId = m_dbId +1;
 
 	// Creates the DB data file
@@ -2583,7 +2582,6 @@ bool  ReadingsCatalogue::createNewDB()
 
 			Logger::getLogger()->info("createNewDB: database file :%s: created readings table - from id :%d: n :%d: " , dbPathReadings.c_str(), startId, readingsToCreate);
 		}
-
 		m_nReadingsAvailable = readingsToAllocate;
 		m_dbId++;
 	}

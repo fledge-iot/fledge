@@ -16,7 +16,8 @@ class OMFHint
 };
 
 /**
- * A number hint, defines how number tyoe should be defined
+ * A number hint, defines how number type should be defined, float64 or float32
+
  */
 class OMFNumberHint : public OMFHint
 {
@@ -24,6 +25,18 @@ class OMFNumberHint : public OMFHint
 		OMFNumberHint(const std::string& type) { m_hint = type; };
 		~OMFNumberHint() {};
 };
+
+/**
+ * A integer hint, defines how ineteger type should be defined, int64, int32 o int16
+
+ */
+class OMFIntegerHint : public OMFHint
+{
+public:
+	OMFIntegerHint(const std::string& type) { m_hint = type; };
+	~OMFIntegerHint() {};
+};
+
 
 /**
  * A tag hint, used to define an existing OMF container or tag to use

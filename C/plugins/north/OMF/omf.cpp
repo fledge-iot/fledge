@@ -1680,6 +1680,15 @@ const std::string OMF::createTypeData(const Reading& reading, OMFHints *hints)
 					format = (*it)->getHint();
 					break;
 				}
+
+				// FIXME_I:
+				if (typeid(**it) == typeid(OMFIntegerHint))
+				{
+					omfType = OMF_TYPE_INTEGER;
+					format = (*it)->getHint();
+					break;
+				}
+
 			}
 		}
 
@@ -2751,6 +2760,32 @@ void OMF::setMapObjectTypes(const vector<Reading*>& readings,
 			}
 			string datapointName = (*it)->getName();
 
+			// if a OMF hint is applied the type may change
+			{
+				Reading *reading = *elem;
+
+				// Fetch and parse any OMFHint for this reading
+				Datapoint *hintsdp = reading->getDatapoint("OMFHint");
+				OMFHints *hints = NULL;
+
+				// FIXME_I:
+				if (hintsdp && (omfType == OMF_TYPE_FLOAT || omfType == OMF_TYPE_INTEGER))
+				{
+					hints = new OMFHints(hintsdp->getData().toString());
+					const vector<OMFHint *> omfHints = hints->getHints();
+
+					for (auto it = omfHints.cbegin(); it != omfHints.cend(); it++)
+					{
+						// FIXME_I:
+						if (typeid(**it) == typeid(OMFIntegerHint))
+						{
+							omfType = OMF_TYPE_INTEGER;
+							break;
+						}
+					}
+				}
+			}
+
 			auto itr = readingAllDataPoints.find(assetName);
 			// Asset not found in the map
 			if (itr == readingAllDataPoints.end())
@@ -3173,6 +3208,13 @@ bool OMF::setCreatedTypes(const Reading& row, OMFHints *hints)
 			{
 				if (typeid(**it) == typeid(OMFNumberHint))
 				{
+					format = (*it)->getHint();
+					break;
+				}
+				// FIXME_I:
+				if (typeid(**it) == typeid(OMFIntegerHint))
+				{
+					omfType = OMF_TYPE_INTEGER;
 					format = (*it)->getHint();
 					break;
 				}

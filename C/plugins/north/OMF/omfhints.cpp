@@ -54,6 +54,10 @@ OMFHints::OMFHints(const string& hints)
 			{
 				m_hints.push_back(new OMFNumberHint(itr->value.GetString()));
 			}
+			else if (strcmp(name, "integer") == 0)
+			{
+				m_hints.push_back(new OMFIntegerHint(itr->value.GetString()));
+			}
 			else if (strcmp(name, "typeName") == 0)
 			{
 				m_hints.push_back(new OMFTypeNameHint(itr->value.GetString()));
@@ -81,6 +85,10 @@ OMFHints::OMFHints(const string& hints)
 						if (strcmp(name, "number") == 0)
 						{
 							hints.push_back(new OMFNumberHint(dpitr->value.GetString()));
+						}
+						else if (strcmp(name, "integer") == 0)
+						{
+							m_hints.push_back(new OMFIntegerHint(itr->value.GetString()));
 						}
 						else if (strcmp(name, "typeName") == 0)
 						{

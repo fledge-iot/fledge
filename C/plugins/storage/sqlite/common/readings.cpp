@@ -26,6 +26,7 @@
 // 1 enable performance tracking
 #define INSTRUMENT	0
 
+
 #if INSTRUMENT
 #include <sys/time.h>
 #endif
@@ -95,11 +96,11 @@ static time_t connectErrorTime = 0;
 bool aggregateAll(const Value& payload)
 {
 	if (payload.HasMember("aggregate") &&
-	    payload["aggregate"].IsObject())
+		payload["aggregate"].IsObject())
 	{
 		const Value& agg = payload["aggregate"];
 		if (agg.HasMember("operation") &&
-		    (strcmp(agg["operation"].GetString(), "all") == 0))
+			(strcmp(agg["operation"].GetString(), "all") == 0))
 		{
 			return true;
 		}
@@ -118,14 +119,11 @@ bool aggregateAll(const Value& payload)
  */
 bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 {
-	vector<string>  asset_codes;
-
-
 	if (!payload.HasMember("where") ||
-	    !payload.HasMember("timebucket"))
+		!payload.HasMember("timebucket"))
 	{
 		raiseError("retrieve", "aggregateQuery is missing "
-			   "'where' and/or 'timebucket' properties");
+							   "'where' and/or 'timebucket' properties");
 		return false;
 	}
 
@@ -143,7 +141,7 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 		if (!bucket.HasMember("timestamp"))
 		{
 			raiseError("retrieve", "aggregateQuery is missing "
-				   "'timestamp' property for 'timebucket'");
+								   "'timestamp' property for 'timebucket'");
 			return false;
 		}
 
@@ -165,20 +163,20 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 		if (bucket.HasMember("format") && size >= 1)
 		{
 			applyColumnDateFormatLocaltime(bucket["format"].GetString(),
-							"timestamp",
-							newFormat,
-							true);
+										   "timestamp",
+										   newFormat,
+										   true);
 			sql.append(newFormat);
 		}
 		else
 		{
-			if (size < 1) 
+			if (size < 1)
 			{
 				// sub-second granularity to time bucket size:
-				// force output formatting with microseconds	
-				newFormat = "strftime('%Y-%m-%d %H:%M:%S', " + timeColumn + 
-					    ", 'localtime') || substr(" + timeColumn	  +
-					    ", instr(" + timeColumn + ", '.'), 7)";
+				// force output formatting with microseconds
+				newFormat = "strftime('%Y-%m-%d %H:%M:%S', " + timeColumn +
+							", 'localtime') || substr(" + timeColumn	  +
+							", instr(" + timeColumn + ", '.'), 7)";
 				sql.append(newFormat);
 			}
 			else
@@ -283,7 +281,7 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 		string sql_cmd_base;
 		string sql_cmd_tmp;
 		sql_cmd_base = " SELECT  ROWID, id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ ";
-		sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, asset_codes);
+		sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
 		sql_cmd += sql_cmd_tmp;
 
 		// SQL - end
@@ -299,7 +297,7 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 
 	// Add where condition
 	sql.append("WHERE ");
-	if (!jsonWhereClause(payload["where"], sql, asset_codes))
+	if (!jsonWhereClause(payload["where"], sql))
 	{
 		raiseError("retrieve", "aggregateQuery: failure while building WHERE clause");
 		return false;
@@ -625,31 +623,31 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 int Connection::appendReadings(const char *readings)
 {
 // Default template parameter uses UTF8 and MemoryPoolAllocator.
-Document doc;
-int      row = 0, readingId;
-bool     add_row = false;
+	Document doc;
+	int      row = 0, readingId;
+	bool     add_row = false;
 
-int lastReadingsId;
+	int lastReadingsId;
 
 // Variables related to the SQLite insert using prepared command
-const char   *user_ts;
-const char   *asset_code;
-string        reading,
-              msg;
-sqlite3_stmt *stmt;
-int rc;
-int           sqlite3_resut;
-int           readingsId;
-string        now;
+	const char   *user_ts;
+	const char   *asset_code;
+	string        reading,
+		msg;
+	sqlite3_stmt *stmt;
+	int rc;
+	int           sqlite3_resut;
+	int           readingsId;
+	string        now;
 
-std::pair<int, sqlite3_stmt *> pairValue;
-string lastAsset;
+	std::pair<int, sqlite3_stmt *> pairValue;
+	string lastAsset;
 
 // Retry mechanism
-int retries = 0;
-int sleep_time_ms = 0;
+	int retries = 0;
+	int sleep_time_ms = 0;
 
-int localNReadingsTotal;
+	int localNReadingsTotal;
 
 	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
 
@@ -672,13 +670,13 @@ int localNReadingsTotal;
 	ParseResult ok = doc.Parse(readings);
 	if (!ok)
 	{
- 		raiseError("appendReadings", GetParseError_En(doc.GetParseError()));
+		raiseError("appendReadings", GetParseError_En(doc.GetParseError()));
 		return -1;
 	}
 
 	if (!doc.HasMember("readings"))
 	{
- 		raiseError("appendReadings", "Payload is missing a readings array");
+		raiseError("appendReadings", "Payload is missing a readings array");
 		return -1;
 	}
 	Value &readingsValue = doc["readings"];
@@ -692,170 +690,170 @@ int localNReadingsTotal;
 	string sql_cmd;
 
 	{
-	m_writeAccessOngoing.fetch_add(1);
-	//unique_lock<mutex> lck(db_mutex);
-	sqlite3_exec(dbHandle, "BEGIN TRANSACTION", NULL, NULL, NULL);
+		m_writeAccessOngoing.fetch_add(1);
+		//unique_lock<mutex> lck(db_mutex);
+		sqlite3_exec(dbHandle, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
 #if INSTRUMENT
 		gettimeofday(&t1, NULL);
 #endif
 
-	lastAsset = "";
-	for (Value::ConstValueIterator itr = readingsValue.Begin(); itr != readingsValue.End(); ++itr)
-	{
-		if (!itr->IsObject())
+		lastAsset = "";
+		for (Value::ConstValueIterator itr = readingsValue.Begin(); itr != readingsValue.End(); ++itr)
 		{
-			raiseError("appendReadings","Each reading in the readings array must be an object");
-			sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
-			return -1;
-		}
-
-		add_row = true;
-
-		// Handles - user_ts
-		char formatted_date[LEN_BUFFER_DATE] = {0};
-		user_ts = (*itr)["user_ts"].GetString();
-		if (strcmp(user_ts, "now()") == 0)
-		{
-			getNow(now);
-			user_ts = now.c_str();
-		}
-		else
-		{
-			if (! formatDate(formatted_date, sizeof(formatted_date), user_ts) )
+			if (!itr->IsObject())
 			{
-				raiseError("appendReadings", "Invalid date |%s|", user_ts);
-				add_row = false;
+				raiseError("appendReadings","Each reading in the readings array must be an object");
+				sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+				return -1;
+			}
+
+			add_row = true;
+
+			// Handles - user_ts
+			char formatted_date[LEN_BUFFER_DATE] = {0};
+			user_ts = (*itr)["user_ts"].GetString();
+			if (strcmp(user_ts, "now()") == 0)
+			{
+				getNow(now);
+				user_ts = now.c_str();
 			}
 			else
 			{
-				user_ts = formatted_date;
-			}
-		}
-
-		if (add_row)
-		{
-			// Handles - asset_code
-			asset_code = (*itr)["asset_code"].GetString();
-
-			//# A different asset is managed respect the previous one
-			if (lastAsset.compare(asset_code)!= 0)
-			{
-				readingsId = readCatalogue->getReadingReference(this, asset_code);
-
-				if (readingsId == -1)
+				if (! formatDate(formatted_date, sizeof(formatted_date), user_ts) )
 				{
-					Logger::getLogger()->warn("appendReadings - It was not possible to insert the row for the asset_code :%s: into the readings, row ignored.", asset_code);
-					stmt = NULL;
+					raiseError("appendReadings", "Invalid date |%s|", user_ts);
+					add_row = false;
 				}
 				else
 				{
-					if (readingsId >= localNReadingsTotal)
-					{
-						localNReadingsTotal = readingsId + 1;
-						readingsStmt.resize(localNReadingsTotal, nullptr);
+					user_ts = formatted_date;
+				}
+			}
 
-						Logger::getLogger()->debug("appendReadings: thread :%s: resize size :%d: idx :%d: ", threadId.str().c_str(), localNReadingsTotal, readingsId);
+			if (add_row)
+			{
+				// Handles - asset_code
+				asset_code = (*itr)["asset_code"].GetString();
+
+				//# A different asset is managed respect the previous one
+				if (lastAsset.compare(asset_code)!= 0)
+				{
+					readingsId = readCatalogue->getReadingReference(this, asset_code);
+
+					if (readingsId == -1)
+					{
+						Logger::getLogger()->warn("appendReadings - It was not possible to insert the row for the asset_code :%s: into the readings, row ignored.", asset_code);
+						stmt = NULL;
 					}
-
-					if (readingsStmt[readingsId] == nullptr)
+					else
 					{
-						string dbName = readCatalogue->generateDbNameFromTableId(readingsId);
-						string dbReadingsName = readCatalogue->generateReadingsName(readingsId);
-
-						sql_cmd = "INSERT INTO  " + dbName + "." + dbReadingsName + " ( id, user_ts, reading ) VALUES  (?,?,?)";
-						rc = sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), -1, &readingsStmt[readingsId], NULL);
-						if (rc != SQLITE_OK)
+						if (readingsId >= localNReadingsTotal)
 						{
-							raiseError("appendReadings", sqlite3_errmsg(dbHandle));
+							localNReadingsTotal = readingsId + 1;
+							readingsStmt.resize(localNReadingsTotal, nullptr);
+
+							Logger::getLogger()->debug("appendReadings: thread :%s: resize size :%d: idx :%d: ", threadId.str().c_str(), localNReadingsTotal, readingsId);
 						}
 
-					}
-					stmt = readingsStmt[readingsId];
+						if (readingsStmt[readingsId] == nullptr)
+						{
+							string dbName = readCatalogue->generateDbNameFromTableId(readingsId);
+							string dbReadingsName = readCatalogue->generateReadingsName(readingsId);
 
-					lastAsset = asset_code;
+							sql_cmd = "INSERT INTO  " + dbName + "." + dbReadingsName + " ( id, user_ts, reading ) VALUES  (?,?,?)";
+							rc = sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), -1, &readingsStmt[readingsId], NULL);
+							if (rc != SQLITE_OK)
+							{
+								raiseError("appendReadings", sqlite3_errmsg(dbHandle));
+							}
+
+						}
+						stmt = readingsStmt[readingsId];
+
+						lastAsset = asset_code;
+					}
 				}
-			}
 
-			// Handles - reading
-			StringBuffer buffer;
-			Writer<StringBuffer> writer(buffer);
-			(*itr)["reading"].Accept(writer);
-			reading = escape(buffer.GetString());
+				// Handles - reading
+				StringBuffer buffer;
+				Writer<StringBuffer> writer(buffer);
+				(*itr)["reading"].Accept(writer);
+				reading = escape(buffer.GetString());
 
-			if(stmt != NULL) {
+				if(stmt != NULL) {
 
-				sqlite3_bind_int (stmt, 1, readCatalogue->getGlobalId());
-				sqlite3_bind_text(stmt, 2, user_ts         ,-1, SQLITE_STATIC);
-				sqlite3_bind_text(stmt, 3, reading.c_str(), -1, SQLITE_STATIC);
+					sqlite3_bind_int (stmt, 1, readCatalogue->getGlobalId());
+					sqlite3_bind_text(stmt, 2, user_ts         ,-1, SQLITE_STATIC);
+					sqlite3_bind_text(stmt, 3, reading.c_str(), -1, SQLITE_STATIC);
 
-				retries =0;
-				sleep_time_ms = 0;
+					retries =0;
+					sleep_time_ms = 0;
 
-				// Retry mechanism in case SQLlite DB is locked
-				do {
-					// Insert the row using a lock to ensure one insert at time
+					// Retry mechanism in case SQLlite DB is locked
+					do {
+						// Insert the row using a lock to ensure one insert at time
+						{
+
+							sqlite3_resut = sqlite3_step(stmt);
+
+						}
+						if (sqlite3_resut == SQLITE_LOCKED  )
+						{
+							sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
+							retries++;
+
+							Logger::getLogger()->info("SQLITE_LOCKED - record :%d: - retry number :%d: sleep time ms :%d:" ,row ,retries ,sleep_time_ms);
+
+							std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
+						}
+						if (sqlite3_resut == SQLITE_BUSY)
+						{
+							ostringstream threadId;
+							threadId << std::this_thread::get_id();
+
+							sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
+							retries++;
+
+							Logger::getLogger()->info("SQLITE_BUSY - thread :%s: - record :%d: - retry number :%d: sleep time ms :%d:", threadId.str().c_str() ,row, retries, sleep_time_ms);
+
+							std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
+						}
+					} while (retries < PREP_CMD_MAX_RETRIES && (sqlite3_resut == SQLITE_LOCKED || sqlite3_resut == SQLITE_BUSY));
+
+					if (sqlite3_resut == SQLITE_DONE)
 					{
+						row++;
 
-						sqlite3_resut = sqlite3_step(stmt);
-
+						sqlite3_clear_bindings(stmt);
+						sqlite3_reset(stmt);
 					}
-					if (sqlite3_resut == SQLITE_LOCKED  )
+					else
 					{
-						sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
-						retries++;
+						raiseError("appendReadings","Inserting a row into SQLIte using a prepared command - asset_code :%s: error :%s: reading :%s: ",
+								   asset_code,
+								   sqlite3_errmsg(dbHandle),
+								   reading.c_str());
 
-						Logger::getLogger()->info("SQLITE_LOCKED - record :%d: - retry number :%d: sleep time ms :%d:" ,row ,retries ,sleep_time_ms);
-
-						std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
+						sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+						return -1;
 					}
-					if (sqlite3_resut == SQLITE_BUSY)
-					{
-						ostringstream threadId;
-						threadId << std::this_thread::get_id();
-
-						sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
-						retries++;
-
-						Logger::getLogger()->info("SQLITE_BUSY - thread :%s: - record :%d: - retry number :%d: sleep time ms :%d:", threadId.str().c_str() ,row, retries, sleep_time_ms);
-
-						std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
-					}
-				} while (retries < PREP_CMD_MAX_RETRIES && (sqlite3_resut == SQLITE_LOCKED || sqlite3_resut == SQLITE_BUSY));
-
-				if (sqlite3_resut == SQLITE_DONE)
-				{
-					row++;
-
-					sqlite3_clear_bindings(stmt);
-					sqlite3_reset(stmt);
-				}
-				else
-				{
-					raiseError("appendReadings","Inserting a row into SQLIte using a prepared command - asset_code :%s: error :%s: reading :%s: ",
-						asset_code,
-						sqlite3_errmsg(dbHandle),
-						reading.c_str());
-
-					sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
-					return -1;
 				}
 			}
 		}
-	}
 
-	sqlite3_resut = sqlite3_exec(dbHandle, "END TRANSACTION", NULL, NULL, NULL);
-	if (sqlite3_resut != SQLITE_OK)
-	{
-		raiseError("appendReadings", "Executing the commit of the transaction :%s:", sqlite3_errmsg(dbHandle));
-		row = -1;
-	}
-	m_writeAccessOngoing.fetch_sub(1);
-	//db_cv.notify_all();
+		sqlite3_resut = sqlite3_exec(dbHandle, "END TRANSACTION", NULL, NULL, NULL);
+		if (sqlite3_resut != SQLITE_OK)
+		{
+			raiseError("appendReadings", "Executing the commit of the transaction :%s:", sqlite3_errmsg(dbHandle));
+			row = -1;
+		}
+		m_writeAccessOngoing.fetch_sub(1);
+		//db_cv.notify_all();
 	}
 
 #if INSTRUMENT
-		gettimeofday(&t2, NULL);
+	gettimeofday(&t2, NULL);
 #endif
 
 	// Finalize sqlite structures
@@ -873,11 +871,11 @@ int localNReadingsTotal;
 	}
 
 #if INSTRUMENT
-		gettimeofday(&t3, NULL);
+	gettimeofday(&t3, NULL);
 #endif
 
 #if INSTRUMENT
-		struct timeval tm;
+	struct timeval tm;
 		double timeT1, timeT2, timeT3;
 
 		timersub(&t1, &start, &tm);
@@ -918,16 +916,15 @@ int localNReadingsTotal;
  *    2019-01-11 15:45:01.123456+01:00
  */
 bool Connection::fetchReadings(unsigned long id,
-			       unsigned int blksize,
-			       std::string& resultSet)
+							   unsigned int blksize,
+							   std::string& resultSet)
 {
-char sqlbuffer[5120];
-char *zErrMsg = NULL;
-int rc;
-int retrieve;
-vector<string>  asset_codes;
-string sql_cmd;
+	char sqlbuffer[5120];
+	char *zErrMsg = NULL;
+	int rc;
+	int retrieve;
 
+	string sql_cmd;
 	// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
 	{
 		// SQL - start
@@ -948,7 +945,7 @@ string sql_cmd;
 		string sql_cmd_tmp;
 		sql_cmd_base = " SELECT  id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ WHERE id >= " + to_string(id) + " and id <=  " + to_string(id) + " + " + to_string(blksize) + " ";
 		ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-		sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, asset_codes);
+		sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
 		sql_cmd += sql_cmd_tmp;
 
 		// SQL - end
@@ -1009,21 +1006,11 @@ string sql_cmd;
 bool Connection::retrieveReadings(const string& condition, string& resultSet)
 {
 // Default template parameter uses UTF8 and MemoryPoolAllocator.
-Document	document;
-SQLBuffer	sql;
-
-SQLBuffer	sqlExtDummy;
-SQLBuffer	sqlExt;
-SQLBuffer	jsonConstraintsExt;
+	Document	document;
+	SQLBuffer	sql;
 // Extra constraints to add to where clause
-SQLBuffer	jsonConstraints;
-bool		isAggregate = false;
-bool		isOptAggregate = false;
-
-string modifierExt;
-string modifierInt;
-
-vector<string>  asset_codes;
+	SQLBuffer	jsonConstraints;
+	bool		isAggregate = false;
 
 	try {
 		if (dbHandle == NULL)
@@ -1053,7 +1040,7 @@ vector<string>  asset_codes;
 			string sql_cmd_base;
 			string sql_cmd_tmp;
 			sql_cmd_base = " SELECT  id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ ";
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, asset_codes);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -1085,20 +1072,10 @@ vector<string>  asset_codes;
 					sql.append(document["modifier"].GetString());
 					sql.append(' ');
 				}
-				// Generates the SQL for the external query
-				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints, isOptAggregate, true, true))
+				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints, true))
 				{
 					return false;
 				}
-				// Generates the SQL for the internal query
-				if (isOptAggregate)
-				{
-					if (!jsonAggregates(document, document["aggregate"], sqlExt, jsonConstraintsExt, isOptAggregate, true, false))
-					{
-						return false;
-					}
-				}
-
 				sql.append(" FROM  ");
 			}
 			else if (document.HasMember("return"))
@@ -1147,7 +1124,7 @@ vector<string>  asset_codes;
 							if (! (*itr)["column"].IsString())
 							{
 								raiseError("retrieve",
-									   "column must be a string");
+										   "column must be a string");
 								return false;
 							}
 							if (itr->HasMember("format"))
@@ -1155,15 +1132,15 @@ vector<string>  asset_codes;
 								if (! (*itr)["format"].IsString())
 								{
 									raiseError("retrieve",
-										   "format must be a string");
+											   "format must be a string");
 									return false;
 								}
 
 								// SQLite 3 date format.
 								string new_format;
 								applyColumnDateFormatLocaltime((*itr)["format"].GetString(),
-										      (*itr)["column"].GetString(),
-										      new_format, true);
+															   (*itr)["column"].GetString(),
+															   new_format, true);
 								// Add the formatted column or use it as is
 								sql.append(new_format);
 							}
@@ -1172,7 +1149,7 @@ vector<string>  asset_codes;
 								if (! (*itr)["timezone"].IsString())
 								{
 									raiseError("retrieve",
-										   "timezone must be a string");
+											   "timezone must be a string");
 									return false;
 								}
 								// SQLite3 doesnt support time zone formatting
@@ -1233,7 +1210,7 @@ vector<string>  asset_codes;
 								else
 								{
 									raiseError("retrieve",
-										   "SQLite3 plugin does not support timezones in queries");
+											   "SQLite3 plugin does not support timezones in queries");
 									return false;
 								}
 							}
@@ -1275,7 +1252,7 @@ vector<string>  asset_codes;
 						else
 						{
 							raiseError("retrieve",
-								   "return object must have either a column or json property");
+									   "return object must have either a column or json property");
 							return false;
 						}
 
@@ -1312,12 +1289,6 @@ vector<string>  asset_codes;
 			}
 			{
 
-				// Identifies the asset_codes used in the query
-				if (document.HasMember("where"))
-				{
-					jsonWhereClause(document["where"], sqlExtDummy, asset_codes);
-				}
-
 				string sql_cmd;
 				ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 
@@ -1329,32 +1300,8 @@ vector<string>  asset_codes;
 				// SQL - union of all the readings tables
 				string sql_cmd_base;
 				string sql_cmd_tmp;
-
-				// Specific optimization for the count operation
-				if (isOptAggregate)
-				{
-					const char *queryTmp = sqlExt.coalesce();
-
-					sql_cmd_base = " SELECT ";
-					sql_cmd_base += queryTmp;
-
-					if (! strstr(queryTmp, "ROWID"))
-						sql_cmd_base += ",  ROWID";
-
-					if (! strstr(queryTmp, "asset_code"))
-						sql_cmd_base += ",  asset_code";
-
-					sql_cmd_base += ", id, reading, user_ts, ts ";
-					StringReplaceAll (sql_cmd_base, "asset_code", " \"_assetcode_\" .assetcode. ");
-					sql_cmd_base += " FROM _dbname_._tablename_ ";
-
-					delete[] queryTmp;
-				}
-				else
-				{
-					sql_cmd_base = " SELECT ROWID, id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ ";
-				}
-				sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, asset_codes);
+				sql_cmd_base = " SELECT ROWID, id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ ";
+				sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
 				sql_cmd += sql_cmd_tmp;
 
 				// SQL - end
@@ -1370,10 +1317,10 @@ vector<string>  asset_codes;
 			if (document.HasMember("where"))
 			{
 				sql.append(" WHERE ");
-			 
+
 				if (document.HasMember("where"))
 				{
-					if (!jsonWhereClause(document["where"], sql, asset_codes))
+					if (!jsonWhereClause(document["where"], sql))
 					{
 						return false;
 					}
@@ -1381,15 +1328,15 @@ vector<string>  asset_codes;
 				else
 				{
 					raiseError("retrieve",
-						   "JSON does not contain where clause");
+							   "JSON does not contain where clause");
 					return false;
 				}
 				if (! jsonConstraints.isEmpty())
 				{
 					sql.append(" AND ");
-                                        const char *jsonBuf =  jsonConstraints.coalesce();
-                                        sql.append(jsonBuf);
-                                        delete[] jsonBuf;
+					const char *jsonBuf =  jsonConstraints.coalesce();
+					sql.append(jsonBuf);
+					delete[] jsonBuf;
 				}
 			}
 			else if (isAggregate)
@@ -1398,7 +1345,7 @@ vector<string>  asset_codes;
 				 * Performance improvement: force sqlite to use an index
 				 * if we are doing an aggregate and have no where clause.
 				 */
-				sql.append(" WHERE id = id");
+				sql.append(" WHERE asset_code = asset_code");
 			}
 			if (!jsonModifiers(document, sql, true))
 			{
@@ -1453,18 +1400,16 @@ vector<string>  asset_codes;
  * Purge readings from the reading table
  */
 unsigned int  Connection::purgeReadings(unsigned long age,
-					unsigned int flags,
-					unsigned long sent,
-					std::string& result)
+										unsigned int flags,
+										unsigned long sent,
+										std::string& result)
 {
-long unsentPurged = 0;
-long unsentRetained = 0;
-long numReadings = 0;
-unsigned long rowidLimit = 0, minrowidLimit = 0, maxrowidLimit = 0, rowidMin;
-struct timeval startTv, endTv;
-int blocks = 0;
-
-vector<string>  assetCodes;
+	long unsentPurged = 0;
+	long unsentRetained = 0;
+	long numReadings = 0;
+	unsigned long rowidLimit = 0, minrowidLimit = 0, maxrowidLimit = 0, rowidMin;
+	struct timeval startTv, endTv;
+	int blocks = 0;
 
 	Logger *logger = Logger::getLogger();
 
@@ -1500,7 +1445,7 @@ vector<string>  assetCodes;
 			string sql_cmd_tmp;
 			sql_cmd_base = " SELECT  MAX(rowid) rowid FROM _dbname_._tablename_ ";
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -1511,13 +1456,13 @@ vector<string>  assetCodes;
 
 		rc = SQLexec(dbHandle,
 					 sql_cmd.c_str(),
-	  	     rowidCallback,
-		     &rowidLimit,
-		     &zErrMsg);
+					 rowidCallback,
+					 &rowidLimit,
+					 &zErrMsg);
 
 		if (rc != SQLITE_OK)
 		{
- 			raiseError("purge - phase 0, fetching rowid limit ", zErrMsg);
+			raiseError("purge - phase 0, fetching rowid limit ", zErrMsg);
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
@@ -1545,7 +1490,7 @@ vector<string>  assetCodes;
 			string sql_cmd_tmp;
 			sql_cmd_base = " SELECT  MIN(rowid) rowid FROM _dbname_._tablename_ ";
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -1556,13 +1501,13 @@ vector<string>  assetCodes;
 
 		rc = SQLexec(dbHandle,
 					 sql_cmd.c_str(),
-	  	     rowidCallback,
-		     &minrowidLimit,
-		     &zErrMsg);
+					 rowidCallback,
+					 &minrowidLimit,
+					 &zErrMsg);
 
 		if (rc != SQLITE_OK)
 		{
- 			raiseError("purge - phaase 0, fetching minrowid limit ", zErrMsg);
+			raiseError("purge - phaase 0, fetching minrowid limit ", zErrMsg);
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
@@ -1591,7 +1536,7 @@ vector<string>  assetCodes;
 			string sql_cmd_tmp;
 			sql_cmd_base = " SELECT MIN(user_ts) user_ts FROM _dbname_._tablename_  WHERE rowid <= " + to_string(rowidLimit);
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -1612,10 +1557,10 @@ vector<string>  assetCodes;
 
 		// Exec query and get result in 'purge_readings' via 'selectCallback'
 		rc = SQLexec(dbHandle,
-			     query,
-			     selectCallback,
-			     &purge_readings,
-			     &zErrMsg);
+					 query,
+					 selectCallback,
+					 &purge_readings,
+					 &zErrMsg);
 		// Release memory for 'query' var
 		delete[] query;
 
@@ -1625,7 +1570,7 @@ vector<string>  assetCodes;
 		}
 		else
 		{
- 			raiseError("purge - phase 1", zErrMsg);
+			raiseError("purge - phase 1", zErrMsg);
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
@@ -1647,7 +1592,7 @@ vector<string>  assetCodes;
 		//logger->info("%s:%d: l=%u, r=%u, sent=%u, rowidLimit=%u, minrowidLimit=%u, flags=%u", __FUNCTION__, __LINE__, l, r, sent, rowidLimit, minrowidLimit, flags);
 		if (l == r)
 		{
- 			logger->info("No data to purge: min_id == max_id == %u", minrowidLimit);
+			logger->info("No data to purge: min_id == max_id == %u", minrowidLimit);
 			return 0;
 		}
 
@@ -1657,7 +1602,7 @@ vector<string>  assetCodes;
 		{
 			unsigned long midRowId = 0;
 			unsigned long prev_m = m;
-		    	m = l + (r - l) / 2;
+			m = l + (r - l) / 2;
 			if (prev_m == m) break;
 
 			// e.g. select id from readings where rowid = 219867307 AND user_ts < datetime('now' , '-24 hours', 'utc');
@@ -1678,7 +1623,7 @@ vector<string>  assetCodes;
 				string sql_cmd_tmp;
 				sql_cmd_base = " SELECT id FROM _dbname_._tablename_  WHERE rowid = " + to_string(m) + " AND user_ts < datetime('now' , '-" +to_string(age) + " hours')";
 				ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-				sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
+				sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
 				sql_cmd += sql_cmd_tmp;
 
 				// SQL - end
@@ -1694,14 +1639,14 @@ vector<string>  assetCodes;
 			const char *query = sqlBuffer.coalesce();
 
 			rc = SQLexec(dbHandle,
-			query,
-			rowidCallback,
-			&midRowId,
-			&zErrMsg);
+						 query,
+						 rowidCallback,
+						 &midRowId,
+						 &zErrMsg);
 
 			if (rc != SQLITE_OK)
 			{
-	 			raiseError("purge - phase 1, fetching midRowId ", zErrMsg);
+				raiseError("purge - phase 1, fetching midRowId ", zErrMsg);
 				sqlite3_free(zErrMsg);
 				return 0;
 			}
@@ -1717,7 +1662,7 @@ vector<string>  assetCodes;
 			else //if (l != m)
 			{
 				// search in later/right half
-		        	l = m + 1;
+				l = m + 1;
 			}
 		}
 
@@ -1725,7 +1670,7 @@ vector<string>  assetCodes;
 
 		if (minrowidLimit == rowidLimit)
 		{
- 			logger->info("No data to purge");
+			logger->info("No data to purge");
 			return 0;
 		}
 
@@ -1757,7 +1702,7 @@ vector<string>  assetCodes;
 			string sql_cmd_tmp;
 			sql_cmd_base = " SELECT id FROM _dbname_._tablename_  WHERE rowid = " + to_string(rowidLimit) + " ";
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -1773,17 +1718,17 @@ vector<string>  assetCodes;
 		const char *idQuery = idBuffer.coalesce();
 
 		rc = SQLexec(dbHandle,
-		     idQuery,
-	  	     rowidCallback,
-		     &lastPurgedId,
-		     &zErrMsg);
+					 idQuery,
+					 rowidCallback,
+					 &lastPurgedId,
+					 &zErrMsg);
 
 		// Release memory for 'idQuery' var
 		delete[] idQuery;
 
 		if (rc != SQLITE_OK)
 		{
- 			raiseError("purge - phase 0, fetching rowid limit ", zErrMsg);
+			raiseError("purge - phase 0, fetching rowid limit ", zErrMsg);
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
@@ -1830,22 +1775,22 @@ vector<string>  assetCodes;
 
 		int rc;
 		{
-		//unique_lock<mutex> lck(db_mutex);
+			//unique_lock<mutex> lck(db_mutex);
 //		if (m_writeAccessOngoing) db_cv.wait(lck);
 
-		START_TIME;
-		rc = readCat->purgeAllReadings(dbHandle, query ,&zErrMsg, &rowsAffected);
-		END_TIME;
+			START_TIME;
+			rc = readCat->purgeAllReadings(dbHandle, query ,&zErrMsg, &rowsAffected);
+			END_TIME;
 
-		// Release memory for 'query' var
-		delete[] query;
+			// Release memory for 'query' var
+			delete[] query;
 
-		totTime += usecs;
+			totTime += usecs;
 
-		if(usecs>150000)
-		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(100+usecs/10000));
-		}
+			if(usecs>150000)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(100+usecs/10000));
+			}
 		}
 
 		if (rc != SQLITE_OK)
@@ -1867,8 +1812,8 @@ vector<string>  assetCodes;
 			prevBlocks = blocks;
 			prevTotTime = totTime;
 			int deviation = abs(avg - TARGET_PURGE_BLOCK_DEL_TIME);
-			logger->debug("blocks=%d, totTime=%d usecs, prevAvg=%d usecs, currAvg=%d usecs, avg=%d usecs, TARGET_PURGE_BLOCK_DEL_TIME=%d usecs, deviation=%d usecs", 
-							blocks, totTime, prevAvg, currAvg, avg, TARGET_PURGE_BLOCK_DEL_TIME, deviation);
+			logger->debug("blocks=%d, totTime=%d usecs, prevAvg=%d usecs, currAvg=%d usecs, avg=%d usecs, TARGET_PURGE_BLOCK_DEL_TIME=%d usecs, deviation=%d usecs",
+						  blocks, totTime, prevAvg, currAvg, avg, TARGET_PURGE_BLOCK_DEL_TIME, deviation);
 			if (deviation > TARGET_PURGE_BLOCK_DEL_TIME/10)
 			{
 				float ratio = (float)TARGET_PURGE_BLOCK_DEL_TIME / (float)avg;
@@ -1901,7 +1846,7 @@ vector<string>  assetCodes;
 	convert << "{ \"removed\" : " << deletedRows << ", ";
 	convert << " \"unsentPurged\" : " << unsentPurged << ", ";
 	convert << " \"unsentRetained\" : " << unsentRetained << ", ";
-    	convert << " \"readings\" : " << numReadings << " }";
+	convert << " \"readings\" : " << numReadings << " }";
 
 	result = convert.str();
 
@@ -1921,14 +1866,13 @@ vector<string>  assetCodes;
  * Purge readings from the reading table
  */
 unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
-					unsigned int flags,
-					unsigned long sent,
-					std::string& result)
+											  unsigned int flags,
+											  unsigned long sent,
+											  std::string& result)
 {
-unsigned long  deletedRows = 0, unsentPurged = 0, unsentRetained = 0, numReadings = 0;
-unsigned long limit = 0;
-string sql_cmd;
-vector<string>  assetCodes;
+	unsigned long  deletedRows = 0, unsentPurged = 0, unsentRetained = 0, numReadings = 0;
+	unsigned long limit = 0;
+	string sql_cmd;
 
 	Logger *logger = Logger::getLogger();
 
@@ -1960,7 +1904,7 @@ vector<string>  assetCodes;
 			string sql_cmd_tmp;
 			sql_cmd_base = " select count(rowid) rowid FROM _dbname_._tablename_ ";
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -1970,10 +1914,10 @@ vector<string>  assetCodes;
 		}
 
 		rc = SQLexec(dbHandle,
-			sql_cmd.c_str(),
-			rowidCallback,
-			&rowcount,
-			&zErrMsg);
+					 sql_cmd.c_str(),
+					 rowidCallback,
+					 &rowcount,
+					 &zErrMsg);
 
 		if (rc != SQLITE_OK)
 		{
@@ -2003,7 +1947,7 @@ vector<string>  assetCodes;
 			string sql_cmd_tmp;
 			sql_cmd_base = " SELECT MIN(rowid) rowid FROM _dbname_._tablename_ ";
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base ,assetCodes);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -2014,9 +1958,9 @@ vector<string>  assetCodes;
 
 		rc = SQLexec(dbHandle,
 					 sql_cmd.c_str(),
-		     rowidCallback,
-		     &minId,
-		     &zErrMsg);
+					 rowidCallback,
+					 &minId,
+					 &zErrMsg);
 
 		if (rc != SQLITE_OK)
 		{
@@ -2040,7 +1984,7 @@ vector<string>  assetCodes;
 			string sql_cmd_tmp;
 			sql_cmd_base = " SELECT MAX(id) id FROM _dbname_._tablename_ ";
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base ,assetCodes);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -2052,9 +1996,9 @@ vector<string>  assetCodes;
 
 		rc = SQLexec(dbHandle,
 					 sql_cmd.c_str(),
-		     rowidCallback,
-		     &maxId,
-		     &zErrMsg);
+					 rowidCallback,
+					 &maxId,
+					 &zErrMsg);
 
 		if (rc != SQLITE_OK)
 		{
@@ -2120,7 +2064,7 @@ vector<string>  assetCodes;
 	convert << "{ \"removed\" : " << deletedRows << ", ";
 	convert << " \"unsentPurged\" : " << unsentPurged << ", ";
 	convert << " \"unsentRetained\" : " << unsentRetained << ", ";
-    	convert << " \"readings\" : " << numReadings << " }";
+	convert << " \"readings\" : " << numReadings << " }";
 
 	result = convert.str();
 	logger->info("Purge by Rows complete: %s", result.c_str());
@@ -2570,6 +2514,7 @@ bool  ReadingsCatalogue::createNewDB()
 	int rc;
 	int nTables;
 	int startId;
+	int newDbId;
 
 	int readingsToAllocate;
 	int readingsToCreate;
@@ -2578,61 +2523,67 @@ bool  ReadingsCatalogue::createNewDB()
 	string dbPathReadings;
 	string dbAlias;
 	sqlite3 *dbHandle;
+
 	struct stat st;
-	bool dbAlreadyPresent;
+	bool dbAlreadyPresent=false;
 	bool result;
 
 	result = true;
-
-	m_dbId++;
+	newDbId = m_dbId +1;
 
 	// Creates the DB data file
 	{
-		dbPathReadings = generateDbFilePah(m_dbId);
+		dbPathReadings = generateDbFilePah(newDbId);
 
 		dbAlreadyPresent = false;
 		if(stat(dbPathReadings.c_str(),&st) == 0)
 		{
-			Logger::getLogger()->info("database file :%s: already present, creation skipped " , dbPathReadings.c_str() );
+			Logger::getLogger()->info("createNewDB: database file :%s: already present, creation skipped " , dbPathReadings.c_str() );
 			dbAlreadyPresent = true;
 		}
 		else
 		{
-			dbAlias = generateDbAlias(m_dbId);
-
-			enableWAL(dbPathReadings);
+			Logger::getLogger()->debug("createNewDB: new database created :%s:", dbPathReadings.c_str());
 		}
-	}
+		enableWAL(dbPathReadings);
 
+	}
 	readingsToAllocate = getNReadingsAllocate();
-
-	if (dbAlreadyPresent)
-	{
-		tyReadingsAvailable readingsAvailable;
-
-		readingsAvailable = evaluateLastReadingAvailable(m_dbId);
-
-		if (readingsAvailable.tableCount < readingsToAllocate)
-		{
-			readingsToCreate = readingsToAllocate - readingsAvailable.tableCount;
-			startId = readingsAvailable.lastReadings + 1;
-			createReadingsTables(1, startId, readingsToCreate);
-		}
-	}
-	else
-	{
-		startId = getMaxReadingsId() + 1;
-	}
-	Logger::getLogger()->debug("createNewDB: new database created :%s:", dbPathReadings.c_str());
+	readingsToCreate = readingsToAllocate;
+	startId = getMaxReadingsId() + 1;
 
 	ConnectionManager *manager = ConnectionManager::getInstance();
 	// Attached the new db to the connections
+	dbAlias = generateDbAlias(newDbId);
 	result = manager->attachNewDb(dbPathReadings, dbAlias);
 
 	if (result)
 	{
-		createReadingsTables(m_dbId ,startId, readingsToAllocate);
+		if (dbAlreadyPresent)
+		{
+			tyReadingsAvailable readingsAvailable = evaluateLastReadingAvailable(newDbId);
+
+			if (readingsAvailable.lastReadings == -1)
+			{
+				Logger::getLogger()->error("createNewDB: database file :%s: is already present but it is not possible to evaluate the readings table already present" , dbPathReadings.c_str() );
+				result = false;
+			}
+			else
+			{
+				readingsToCreate = readingsToAllocate - readingsAvailable.tableCount;
+				startId = readingsAvailable.lastReadings +1;
+				Logger::getLogger()->info("createNewDB: database file :%s: is already present, creating readings tables - from id :%d: n :%d: " , dbPathReadings.c_str(), startId, readingsToCreate);
+			}
+		}
+
+		if (readingsToCreate > 0)
+		{
+			createReadingsTables(newDbId ,startId, readingsToCreate);
+
+			Logger::getLogger()->info("createNewDB: database file :%s: created readings table - from id :%d: n :%d: " , dbPathReadings.c_str(), startId, readingsToCreate);
+		}
 		m_nReadingsAvailable = readingsToAllocate;
+		m_dbId++;
 	}
 
 	return (result);
@@ -2741,6 +2692,7 @@ ReadingsCatalogue::tyReadingsAvailable  ReadingsCatalogue::evaluateLastReadingAv
 	{
 		raiseError("evaluateLastReadingAvailable", sqlite3_errmsg(dbHandle));
 		readingsAvailable.lastReadings = -1;
+		readingsAvailable.tableCount = 0;
 	}
 	else
 	{
@@ -2889,7 +2841,7 @@ int ReadingsCatalogue::getMaxReadingsId()
 	for (auto &item : m_AssetReadingCatalogue) {
 
 		if (item.second.first > maxId)
-				maxId = item.second.first;
+			maxId = item.second.first;
 	}
 
 	return (maxId);
@@ -2974,16 +2926,12 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
  * considering all the readings tables in use
  *
  */
-string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string>  &assetCodes)
+string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase)
 {
 	string dbReadingsName;
 	string dbName;
 	string sqlCmdTmp;
 	string sqlCmd;
-
-	string assetCode;
-	bool addTable;
-	bool addedOne;
 
 	if (m_AssetReadingCatalogue.empty())
 	{
@@ -2999,51 +2947,24 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string
 		Logger::getLogger()->debug("sqlConstructMultiDb: tables defined");
 
 		bool firstRow = true;
-		addedOne = false;
 
 		for (auto &item : m_AssetReadingCatalogue)
 		{
-			assetCode=item.first;
-			addTable = false;
+			sqlCmdTmp = sqlCmdBase;
 
-			// Evaluates which tables should be referenced
-			if (assetCodes.empty())
-				addTable = true;
-			else
+			if (!firstRow)
 			{
-				if (std::find(assetCodes.begin(), assetCodes.end(), assetCode) != assetCodes.end())
-					addTable = true;
+				sqlCmd += " UNION ALL ";
 			}
 
-			if (addTable)
-			{
-				addedOne = true;
+			dbReadingsName = generateReadingsName(item.second.first);
+			dbName = generateDbName(item.second.second);
 
-				sqlCmdTmp = sqlCmdBase;
-
-				if (!firstRow)
-				{
-					sqlCmd += " UNION ALL ";
-				}
-
-				dbReadingsName = generateReadingsName(item.second.first);
-				dbName = generateDbName(item.second.second);
-
-				StringReplaceAll(sqlCmdTmp, "_assetcode_", assetCode);
-				StringReplaceAll (sqlCmdTmp, ".assetcode.", "asset_code");
-				StringReplaceAll(sqlCmdTmp, "_dbname_", dbName);
-				StringReplaceAll(sqlCmdTmp, "_tablename_", dbReadingsName);
-				sqlCmd += sqlCmdTmp;
-				firstRow = false;
-			}
-		}
-		// Add at least one table eventually a dummy one
-		if (! addedOne)
-		{
-			sqlCmd = sqlCmdBase;
-			StringReplaceAll (sqlCmd, "_assetcode_", "dummy_asset_code");
-			StringReplaceAll (sqlCmd, "_dbname_", READINGS_DB);
-			StringReplaceAll (sqlCmd, "_tablename_", "readings_1");
+			StringReplaceAll (sqlCmdTmp, "_assetcode_", item.first);
+			StringReplaceAll (sqlCmdTmp, "_dbname_", dbName);
+			StringReplaceAll (sqlCmdTmp, "_tablename_", dbReadingsName);
+			sqlCmd += sqlCmdTmp;
+			firstRow = false;
 		}
 	}
 

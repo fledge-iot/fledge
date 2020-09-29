@@ -258,8 +258,17 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 		}
 		vector<string> children1;
 		children1.push_back(STORAGE_CATEGORY);
+		ConfigCategories categories = client->getCategories();
 		try {
-			client->addChildCategories(ADVANCED, children1);
+			bool found = false;
+			for (int idx = 0; idx < categories.length(); idx++)
+			{
+				if (categories[idx]->getName().compare(ADVANCED) == 0)
+				{
+					client->addChildCategories(ADVANCED, children1);
+					found = true;
+				}
+			}
 		} catch (...) {
 		}
 

@@ -338,8 +338,8 @@ def install_package_from_repo(name: str, pkg_mgt: str, version: str, pkg_mgr_map
             _LOGGER.exception("After tmp=========%s", tmp)
             pkg_mgr_map.append(tmp)
             #
-            # with open(_FLEDGE_ROOT  + '/data/plugins/' + pn +'.json', 'w') as outfile:
-            #     json.dump(tmp, outfile)
+            with open(_FLEDGE_ROOT  + '/data/plugins/' + pn +'.json', 'w') as outfile:
+                json.dump(tmp, outfile)
             break
     _LOGGER.exception("map_dict After UPDATE=========%s", pkg_mgr_map)
     #server.Server._package_manager._packages_map_list = pkg_mgr_map

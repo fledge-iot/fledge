@@ -1680,8 +1680,6 @@ const std::string OMF::createTypeData(const Reading& reading, OMFHints *hints)
 					format = (*it)->getHint();
 					break;
 				}
-
-				// FIXME_I:
 				if (typeid(**it) == typeid(OMFIntegerHint))
 				{
 					omfType = OMF_TYPE_INTEGER;
@@ -2768,7 +2766,6 @@ void OMF::setMapObjectTypes(const vector<Reading*>& readings,
 				Datapoint *hintsdp = reading->getDatapoint("OMFHint");
 				OMFHints *hints = NULL;
 
-				// FIXME_I:
 				if (hintsdp && (omfType == OMF_TYPE_FLOAT || omfType == OMF_TYPE_INTEGER))
 				{
 					hints = new OMFHints(hintsdp->getData().toString());
@@ -2776,7 +2773,6 @@ void OMF::setMapObjectTypes(const vector<Reading*>& readings,
 
 					for (auto it = omfHints.cbegin(); it != omfHints.cend(); it++)
 					{
-						// FIXME_I:
 						if (typeid(**it) == typeid(OMFIntegerHint))
 						{
 							omfType = OMF_TYPE_INTEGER;
@@ -3211,7 +3207,6 @@ bool OMF::setCreatedTypes(const Reading& row, OMFHints *hints)
 					format = (*it)->getHint();
 					break;
 				}
-				// FIXME_I:
 				if (typeid(**it) == typeid(OMFIntegerHint))
 				{
 					omfType = OMF_TYPE_INTEGER;

@@ -110,17 +110,15 @@ async def get_package_status(request: web.Request) -> web.Response:
         curl -sX GET http://localhost:8081/fledge/package/update/status?name=foglamp-south-sinusoid
     """
     try:
+        
         response = server.Server._package_manager._packages_map_list
         if 'name' in request.query and request.query['name'] != '':
             name = request.query['name']
-            if response:
-                result = [obj for obj in response if obj['name'] == name]
-                if not result:
-                    msg = "No status found for requested package {}".format(name)
-                    raise ValueError(msg)
-                else:
-                    response = result
-            else:
+            with open(_FLEDGE_ROOT  + '/data/plugins/install-' + name +'.json', 'r') as outfile:
+                response = json.load(outfile)
+                _LOGGER.exception("READ JSON: {}".format(response))
+
+            if response is None:
                 msg = "No status found for requested package {}".format(name)
                 raise ValueError(msg)
     except ValueError as err_msg:

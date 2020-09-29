@@ -202,7 +202,6 @@ install : $(INSTALL_DIR) \
 	fledge_version_file_install \
 	c_install \
 	python_install \
-	python_requirements \
 	scripts_install \
 	bin_install \
 	extras_install \

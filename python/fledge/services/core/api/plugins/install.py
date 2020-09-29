@@ -88,21 +88,37 @@ async def add_plugin(request: web.Request) -> web.Response:
 
             _platform = platform.platform()
             pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
+
             pkg_mgr_map = server.Server._package_manager._packages_map_list
             _LOGGER.exception("INSTALL before process: {}".format(pkg_mgr_map))
             d = {"id": str(uuid.uuid4()), "action": "install", "name": name, "exit_code": -1, "link": ""}
             pkg_mgr_map.append(d)
+            pn = "{}-{}".format(d['action'], d['name'])
             _LOGGER.exception("INSTALL after process: {}".format(pkg_mgr_map))
-            p = multiprocessing.Process(name="{}-{}".format(d['action'], d['name']), target=install_package_from_repo,
-                                        args=(name, pkg_mgt, version, pkg_mgr_map))
+            pn = "{}-{}".format(d['action'], d['name'])
+            p = multiprocessing.Process(name=pn, target=install_package_from_repo,
+                                        args=(name, pkg_mgt, version, pkg_mgr_map, pn))
             p.daemon = True
             p.start()
+            # keep datewise
+            # remove dir which are not modified for last 24 hours
+            fp = _FLEDGE_ROOT  + '/data/plugins/' + pn +'.json'
+            # if a file fp already exists, we can read and check 
+            #   if 0 already installed?  
+            #   if -1 then return already in progress 
+            #   else remove and allow to proceed as last request was failed
+            # 
+            # on reset remove these files 
+            
+            with open(fp, 'w') as outfile:
+                json.dump(d, outfile)
             _LOGGER.exception("PROCESS INFO: {} {}".format(p.pid, p.name))
-            pkg_mgr_map.append({"id": str(uuid.uuid4()), "action": "PURGE", "name": "TEST", "exit_code": -1, "link": ""})
-            _LOGGER.exception("INSTALL AFTER start process: {}".format(pkg_mgr_map))
+            # pkg_mgr_map.append({"id": str(uuid.uuid4()), "action": "PURGE", "name": "TEST", "exit_code": -1, "link": ""})
+            # _LOGGER.exception("INSTALL AFTER start process: {}".format(pkg_mgr_map))
 
-            msg = "Track its status from another API hit fledge/package/install/status?name={}".format(name)
-            result_payload = {"message": "{} installation is scheduled. {}".format(name, msg)}
+            msg = "Plugin installation started."
+            status_link = "fledge/package/install/status?name={}".format(name)
+            result_payload = {"message": msg, "statusLink": status_link}.format(msg, status_link)}
             #msg = 'installed'
             #link = ''
             # code, link, msg = await install_package_from_repo(name, pkg_mgt, version)
@@ -277,7 +293,7 @@ def copy_file_install_requirement(dir_files: list, plugin_type: str, file_name: 
     return code, msg
 
 
-def install_package_from_repo(name: str, pkg_mgt: str, version: str, pkg_mgr_map: list): #-> tuple:
+def install_package_from_repo(name: str, pkg_mgt: str, version: str, pkg_mgr_map: list, pn): #-> tuple:
     _LOGGER.exception("called install_package_from_repo...")
     stdout_file_path = common.create_log_file(action="install", plugin_name=name)
     link = "log/" + stdout_file_path.split("/")[-1]
@@ -321,11 +337,16 @@ def install_package_from_repo(name: str, pkg_mgt: str, version: str, pkg_mgr_map
             _LOGGER.exception("map_dict Remove=========%s", pkg_mgr_map)
             _LOGGER.exception("After tmp=========%s", tmp)
             pkg_mgr_map.append(tmp)
+            #
+            # with open(_FLEDGE_ROOT  + '/data/plugins/' + pn +'.json', 'w') as outfile:
+            #     json.dump(tmp, outfile)
             break
     _LOGGER.exception("map_dict After UPDATE=========%s", pkg_mgr_map)
     #server.Server._package_manager._packages_map_list = pkg_mgr_map
     _LOGGER.exception("Server map list After UPDATE {}".format(server.Server._package_manager._packages_map_list))
 
+    
+    
     storage = connect.get_storage_async()
     audit = AuditLogger(storage)
     audit_detail = {'packageName': name}

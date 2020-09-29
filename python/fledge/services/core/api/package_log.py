@@ -5,12 +5,16 @@
 # FLEDGE_END
 
 import os
+import logging
+import json
 from datetime import datetime
 
 from pathlib import Path
 from aiohttp import web
 
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
+from fledge.common import logger
+from fledge.services.core import server
 
 
 __author__ = "Ashish Jabble"
@@ -19,12 +23,14 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 _help = """
-    -----------------------------------------------------------
+    ----------------------------------------------------------
     | GET            | /fledge/package/log                   |
     | GET            | /fledge/package/log/{name}            |
-    -----------------------------------------------------------
+    | GET            | /fledge/package/{action}/status       |
+    ----------------------------------------------------------
 """
 valid_extension = '.log'
+_LOGGER = logger.setup(__name__, level=logging.INFO)
 
 
 async def get_logs(request: web.Request) -> web.Response:
@@ -89,3 +95,37 @@ def _get_logs_dir(_path: str = '/logs/') -> str:
         os.makedirs(dir_path)
     logs_dir = os.path.expanduser(dir_path)
     return logs_dir
+
+
+async def get_package_status(request: web.Request) -> web.Response:
+    """ GET list of package status
+
+    :Example:
+        curl -sX GET http://localhost:8081/fledge/package/list/status
+        curl -sX GET http://localhost:8081/fledge/package/install/status
+        curl -sX GET http://localhost:8081/fledge/package/purge/status
+        curl -sX GET http://localhost:8081/fledge/package/update/status
+        curl -sX GET http://localhost:8081/fledge/package/install/status?name=foglamp-south-sinusoid
+        curl -sX GET http://localhost:8081/fledge/package/purge/status?name=foglamp-south-sinusoid
+        curl -sX GET http://localhost:8081/fledge/package/update/status?name=foglamp-south-sinusoid
+    """
+    try:
+        response = server.Server._package_manager._packages_map_list
+        if 'name' in request.query and request.query['name'] != '':
+            name = request.query['name']
+            if response:
+                result = [obj for obj in response if obj['name'] == name]
+                if not result:
+                    msg = "No status found for requested package {}".format(name)
+                    raise ValueError(msg)
+                else:
+                    response = result
+            else:
+                msg = "No status found for requested package {}".format(name)
+                raise ValueError(msg)
+    except ValueError as err_msg:
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": str(err_msg)}))
+    except Exception as exc:
+        raise web.HTTPInternalServerError(reason=str(exc))
+    else:
+        return web.json_response({"packageStatus": response})

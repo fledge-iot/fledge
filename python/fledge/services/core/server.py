@@ -23,7 +23,7 @@ from datetime import datetime
 from fledge.common import logger
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.configuration_manager import ConfigurationManager
-
+from fledge.common.package_manager import PackageManager
 from fledge.common.web import middleware
 from fledge.common.storage_client.exceptions import *
 from fledge.common.storage_client.storage_client import StorageClientAsync
@@ -291,6 +291,9 @@ class Server:
 
     running_in_safe_mode = False
     """ Fledge running in Safe mode """
+
+    _package_manager = None
+    """ Instance of Package manager (singleton) """
 
     _package_cache_manager = None
     """ Package Cache Manager """
@@ -790,6 +793,9 @@ class Server:
             cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
             cls._interest_registry = InterestRegistry(cls._configuration_manager)
 
+            # package manager
+            cls._package_manager = PackageManager()
+            _logger.exception("Start up: PackageManager: {}".format(cls._package_manager._packages_map_list))
             # start scheduler
             # see scheduler.py start def FIXME
             # scheduler on start will wait for storage service registration

@@ -4,6 +4,7 @@
 # See: http://fledge.readthedocs.io/
 # FLEDGE_END
 
+import multiprocessing
 import os
 import platform
 import subprocess
@@ -12,6 +13,7 @@ import asyncio
 import tarfile
 import hashlib
 import json
+import uuid
 
 from aiohttp import web
 import aiohttp
@@ -86,15 +88,32 @@ async def add_plugin(request: web.Request) -> web.Response:
 
             _platform = platform.platform()
             pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
-            code, link, msg = await install_package_from_repo(name, pkg_mgt, version)
-            if code != 0:
-                raise PackageError(link)
-            storage = connect.get_storage_async()
-            audit = AuditLogger(storage)
-            audit_detail = {'packageName': name}
-            log_code = 'PKGUP' if msg == 'updated' else 'PKGIN'
-            await audit.information(log_code, audit_detail)
-            result_payload = {"message": "{} is successfully {}".format(name, msg), "link": link}
+            pkg_mgr_map = server.Server._package_manager._packages_map_list
+            _LOGGER.exception("INSTALL before process: {}".format(pkg_mgr_map))
+            d = {"id": str(uuid.uuid4()), "action": "install", "name": name, "exit_code": -1, "link": ""}
+            pkg_mgr_map.append(d)
+            _LOGGER.exception("INSTALL after process: {}".format(pkg_mgr_map))
+            p = multiprocessing.Process(name="{}-{}".format(d['action'], d['name']), target=install_package_from_repo,
+                                        args=(name, pkg_mgt, version, pkg_mgr_map))
+            p.daemon = True
+            p.start()
+            _LOGGER.exception("PROCESS INFO: {} {}".format(p.pid, p.name))
+            pkg_mgr_map.append({"id": str(uuid.uuid4()), "action": "PURGE", "name": "TEST", "exit_code": -1, "link": ""})
+            _LOGGER.exception("INSTALL AFTER start process: {}".format(pkg_mgr_map))
+
+            msg = "Track its status from another API hit fledge/package/install/status?name={}".format(name)
+            result_payload = {"message": "{} installation is scheduled. {}".format(name, msg)}
+            #msg = 'installed'
+            #link = ''
+            # code, link, msg = await install_package_from_repo(name, pkg_mgt, version)
+            # if code != 0:
+            #     raise PackageError(link)
+            # storage = connect.get_storage_async()
+            # audit = AuditLogger(storage)
+            # audit_detail = {'packageName': name}
+            # log_code = 'PKGUP' if msg == 'updated' else 'PKGIN'
+            # await audit.information(log_code, audit_detail)
+            # result_payload = {"message": "{} is successfully {}".format(name, msg), "link": link}
         else:
             if not url or not checksum:
                 raise TypeError('URL, checksum params are required')
@@ -258,38 +277,62 @@ def copy_file_install_requirement(dir_files: list, plugin_type: str, file_name: 
     return code, msg
 
 
-async def install_package_from_repo(name: str, pkg_mgt: str, version: str) -> tuple:
+def install_package_from_repo(name: str, pkg_mgt: str, version: str, pkg_mgr_map: list): #-> tuple:
+    _LOGGER.exception("called install_package_from_repo...")
     stdout_file_path = common.create_log_file(action="install", plugin_name=name)
     link = "log/" + stdout_file_path.split("/")[-1]
     msg = "installed"
-    cat = await check_upgrade_on_install()
-    upgrade_install_cat_item = cat["upgradeOnInstall"]
-    max_upgrade_cat_item = cat['maxUpdate']
-    if 'value' in upgrade_install_cat_item:
-        if upgrade_install_cat_item['value'] == "true":
-            pkg_cache_mgr = server.Server._package_cache_manager
-            last_accessed_time = pkg_cache_mgr['upgrade']['last_accessed_time']
-            now = datetime.now()
-            then = last_accessed_time if last_accessed_time else now
-            duration_in_sec = (now - then).total_seconds()
-            # If max upgrade per day is set to 1, then an upgrade can not occurs until 24 hours after the last accessed upgrade.
-            # If set to 2 then this drops to 12 hours between upgrades, 3 would result in 8 hours between calls and so on.
-            if duration_in_sec > (24 / int(max_upgrade_cat_item['value'])) * 60 * 60 or not last_accessed_time:
-                _LOGGER.info("Attempting upgrade on {}".format(now))
-                cmd = "sudo {} -y upgrade".format(pkg_mgt) if pkg_mgt == 'apt' else "sudo {} -y update".format(pkg_mgt)
-                ret_code = os.system(cmd + " > {} 2>&1".format(stdout_file_path))
-                if ret_code != 0:
-                    raise PackageError(link)
-                pkg_cache_mgr['upgrade']['last_accessed_time'] = now
-            else:
-                _LOGGER.warning("Maximum upgrade exceeds the limit for the day")
-            msg = "updated"
+    # cat = await check_upgrade_on_install()
+    # upgrade_install_cat_item = cat["upgradeOnInstall"]
+    # max_upgrade_cat_item = cat['maxUpdate']
+    # if 'value' in upgrade_install_cat_item:
+    #     if upgrade_install_cat_item['value'] == "true":
+    #         pkg_cache_mgr = server.Server._package_cache_manager
+    #         last_accessed_time = pkg_cache_mgr['upgrade']['last_accessed_time']
+    #         now = datetime.now()
+    #         then = last_accessed_time if last_accessed_time else now
+    #         duration_in_sec = (now - then).total_seconds()
+    #         # If max upgrade per day is set to 1, then an upgrade can not occurs until 24 hours after the last accessed upgrade.
+    #         # If set to 2 then this drops to 12 hours between upgrades, 3 would result in 8 hours between calls and so on.
+    #         if duration_in_sec > (24 / int(max_upgrade_cat_item['value'])) * 60 * 60 or not last_accessed_time:
+    #             _LOGGER.info("Attempting upgrade on {}".format(now))
+    #             cmd = "sudo {} -y upgrade".format(pkg_mgt) if pkg_mgt == 'apt' else "sudo {} -y update".format(pkg_mgt)
+    #             ret_code = os.system(cmd + " > {} 2>&1".format(stdout_file_path))
+    #             if ret_code != 0:
+    #                 raise PackageError(link)
+    #             pkg_cache_mgr['upgrade']['last_accessed_time'] = now
+    #         else:
+    #             _LOGGER.warning("Maximum upgrade exceeds the limit for the day")
+    #         msg = "updated"
     cmd = "sudo {} -y install {}".format(pkg_mgt, name)
     if version:
         cmd = "sudo {} -y install {}={}".format(pkg_mgt, name, version)
-
     ret_code = os.system(cmd + " >> {} 2>&1".format(stdout_file_path))
-    return ret_code, link, msg
+    _LOGGER.exception("=========%s. %s %s %s", msg, ret_code, link, cmd)
+    _LOGGER.exception("Name: {}".format(name))
+    for i in pkg_mgr_map:
+        _LOGGER.exception("I....%s", i)
+        if i['name'] == name:
+            tmp = i
+            _LOGGER.exception("Before tmp=========%s", tmp)
+            tmp.update({"exit_code": 0})
+            tmp.update({"link": link})
+            pkg_mgr_map.remove(i)
+            _LOGGER.exception("map_dict Remove=========%s", pkg_mgr_map)
+            _LOGGER.exception("After tmp=========%s", tmp)
+            pkg_mgr_map.append(tmp)
+            break
+    _LOGGER.exception("map_dict After UPDATE=========%s", pkg_mgr_map)
+    #server.Server._package_manager._packages_map_list = pkg_mgr_map
+    _LOGGER.exception("Server map list After UPDATE {}".format(server.Server._package_manager._packages_map_list))
+
+    storage = connect.get_storage_async()
+    audit = AuditLogger(storage)
+    audit_detail = {'packageName': name}
+    log_code = 'PKGUP' if msg == 'updated' else 'PKGIN'
+    _LOGGER.exception("audit_detail====%s, log_code=========%s", audit_detail, log_code)
+    #await audit.information(log_code, audit_detail)
+    #return ret_code, link, msg
 
 
 async def check_upgrade_on_install() -> Dict:

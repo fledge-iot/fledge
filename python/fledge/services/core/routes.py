@@ -168,6 +168,7 @@ def setup(app):
     # Package logs
     app.router.add_route('GET', '/fledge/package/log', package_log.get_logs)
     app.router.add_route('GET', '/fledge/package/log/{name}', package_log.get_log_by_name)
+    app.router.add_route('GET', '/fledge/package/{action}/status', package_log.get_package_status)
 
     # Plugins (install, discovery, update, delete)
     app.router.add_route('GET', '/fledge/plugins/installed', plugins_discovery.get_plugins_installed)

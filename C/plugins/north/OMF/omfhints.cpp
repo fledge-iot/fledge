@@ -105,6 +105,10 @@ OMFHints::OMFHints(const string& hints)
 					m_datapointHints.insert(std::pair<string,vector<OMFHint *>>(dpname, hints));
 				}
 			}
+			else
+			{
+				Logger::getLogger()->error("Unrecognised hint '%s' in OMFHint", name);
+			}
 		}
 	}
 

@@ -124,6 +124,16 @@ async def get_package_status(request: web.Request) -> web.Response:
         response = result['rows']
         if not response:
             raise KeyError("No record found")
+        result = []
+        for r in response:
+            tmp = r
+            if r['status'] == 0:
+                tmp['status'] = 'success'
+            elif r['status'] == -1:
+                tmp['status'] = 'in-progress'
+            else:
+                tmp['status'] = 'failed'
+            result.append(tmp)
     except ValueError as err_msg:
         raise web.HTTPBadRequest(reason=err_msg, body=json.dumps({"message": str(err_msg)}))
     except KeyError as err_msg:
@@ -131,4 +141,4 @@ async def get_package_status(request: web.Request) -> web.Response:
     except Exception as exc:
         raise web.HTTPInternalServerError(reason=str(exc))
     else:
-        return web.json_response({"packageStatus": response})
+        return web.json_response({"packageStatus": result})

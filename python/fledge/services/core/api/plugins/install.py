@@ -12,6 +12,8 @@ import asyncio
 import tarfile
 import hashlib
 import json
+import uuid
+import multiprocessing
 
 from aiohttp import web
 import aiohttp
@@ -27,6 +29,8 @@ from fledge.services.core import connect
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.audit_logger import AuditLogger
 from fledge.services.core import server
+from fledge.common.storage_client.payload_builder import PayloadBuilder
+from fledge.common.storage_client.exceptions import StorageServerError
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems Inc."
@@ -86,15 +90,48 @@ async def add_plugin(request: web.Request) -> web.Response:
 
             _platform = platform.platform()
             pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
-            code, link, msg = await install_package_from_repo(name, pkg_mgt, version)
-            if code != 0:
-                raise PackageError(link)
+            # code, link, msg = await install_package_from_repo(name, pkg_mgt, version)
+            # if code != 0:
+            #     raise PackageError(link)
+            # storage = connect.get_storage_async()
+            # audit = AuditLogger(storage)
+            # audit_detail = {'packageName': name}
+            # log_code = 'PKGUP' if msg == 'updated' else 'PKGIN'
+            # await audit.information(log_code, audit_detail)
+            # result_payload = {"message": "{} is successfully {}".format(name, msg), "link": link}
+
+
+            # Before we need to check if requested plugin
+            # if status is -1 i.e Already in progress - then it is a rejected request
+            # if status is non-zero then delete the existing record
+            # if status is 0 - No required action in it... Already installed
+            action = "install"
+            # Insert record into Packages table
+            insert_payload = PayloadBuilder().INSERT(id=str(uuid.uuid4()), name=name, action=action, status=-1,
+                                                     log_file_uri="").payload()
+            _LOGGER.exception("insert payload: {}".format(insert_payload))
             storage = connect.get_storage_async()
-            audit = AuditLogger(storage)
-            audit_detail = {'packageName': name}
-            log_code = 'PKGUP' if msg == 'updated' else 'PKGIN'
-            await audit.information(log_code, audit_detail)
-            result_payload = {"message": "{} is successfully {}".format(name, msg), "link": link}
+            result = await storage.insert_into_tbl("packages", insert_payload)
+            response = result['response']
+            _LOGGER.exception(" INSERT RESPONSE: {}".format(response))
+            if response:
+                select_payload = PayloadBuilder().SELECT("id").WHERE(['action', '=', action]).AND_WHERE(
+                    ['name', '=', name]).payload()
+                _LOGGER.exception("select_payload payload: {}".format(select_payload))
+                result = await storage.query_tbl_with_payload('packages', select_payload)
+                response = result['rows']
+                _LOGGER.exception("SELECT RESPONSE: {}".format(response))
+                if response:
+                    pn = "{}-{}".format(action, name)
+                    uid = response[0]['id']
+                    p = multiprocessing.Process(name=pn, target=install_package_from_repo,
+                                                args=(name, pkg_mgt, version, uid, storage))
+                    p.daemon = True
+                    p.start()
+
+                    msg = "Plugin installation started."
+                    status_link = "fledge/package/install/status?id={}".format(uid)
+                    result_payload = {"message": msg, "id": uid, "statusLink": status_link}
         else:
             if not url or not checksum:
                 raise TypeError('URL, checksum params are required')
@@ -133,13 +170,16 @@ async def add_plugin(request: web.Request) -> web.Response:
                     raise ValueError(msg)
 
             result_payload = {"message": "{} is successfully downloaded and installed".format(file_name)}
+    except StorageServerError as err:
+        msg = str(err)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": "Storage error: {}".format(msg)}))
     except (FileNotFoundError, KeyError) as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except (TypeError, ValueError) as ex:
         raise web.HTTPBadRequest(reason=str(ex))
-    except PackageError as e:
-        msg = "Plugin installation request failed"
-        raise web.HTTPBadRequest(body=json.dumps({"message": msg, "link": str(e)}), reason=msg)
+    # except PackageError as e:
+    #     msg = "Plugin installation request failed"
+    #     raise web.HTTPBadRequest(body=json.dumps({"message": msg, "link": str(e)}), reason=msg)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=str(ex))
     else:
@@ -258,38 +298,54 @@ def copy_file_install_requirement(dir_files: list, plugin_type: str, file_name: 
     return code, msg
 
 
-async def install_package_from_repo(name: str, pkg_mgt: str, version: str) -> tuple:
+def install_package_from_repo(name: str, pkg_mgt: str, version: str, uid: uuid, storage: connect) -> tuple:
+    _LOGGER.exception("called install_package_from_repo...")
     stdout_file_path = common.create_log_file(action="install", plugin_name=name)
     link = "log/" + stdout_file_path.split("/")[-1]
     msg = "installed"
-    cat = await check_upgrade_on_install()
-    upgrade_install_cat_item = cat["upgradeOnInstall"]
-    max_upgrade_cat_item = cat['maxUpdate']
-    if 'value' in upgrade_install_cat_item:
-        if upgrade_install_cat_item['value'] == "true":
-            pkg_cache_mgr = server.Server._package_cache_manager
-            last_accessed_time = pkg_cache_mgr['upgrade']['last_accessed_time']
-            now = datetime.now()
-            then = last_accessed_time if last_accessed_time else now
-            duration_in_sec = (now - then).total_seconds()
-            # If max upgrade per day is set to 1, then an upgrade can not occurs until 24 hours after the last accessed upgrade.
-            # If set to 2 then this drops to 12 hours between upgrades, 3 would result in 8 hours between calls and so on.
-            if duration_in_sec > (24 / int(max_upgrade_cat_item['value'])) * 60 * 60 or not last_accessed_time:
-                _LOGGER.info("Attempting upgrade on {}".format(now))
-                cmd = "sudo {} -y upgrade".format(pkg_mgt) if pkg_mgt == 'apt' else "sudo {} -y update".format(pkg_mgt)
-                ret_code = os.system(cmd + " > {} 2>&1".format(stdout_file_path))
-                if ret_code != 0:
-                    raise PackageError(link)
-                pkg_cache_mgr['upgrade']['last_accessed_time'] = now
-            else:
-                _LOGGER.warning("Maximum upgrade exceeds the limit for the day")
-            msg = "updated"
+    # FIXME: below commented code for upgrade on install case
+    # cat = await check_upgrade_on_install()
+    # upgrade_install_cat_item = cat["upgradeOnInstall"]
+    # max_upgrade_cat_item = cat['maxUpdate']
+    # if 'value' in upgrade_install_cat_item:
+    #     if upgrade_install_cat_item['value'] == "true":
+    #         pkg_cache_mgr = server.Server._package_cache_manager
+    #         last_accessed_time = pkg_cache_mgr['upgrade']['last_accessed_time']
+    #         now = datetime.now()
+    #         then = last_accessed_time if last_accessed_time else now
+    #         duration_in_sec = (now - then).total_seconds()
+    #         # If max upgrade per day is set to 1, then an upgrade can not occurs until 24 hours after the last accessed upgrade.
+    #         # If set to 2 then this drops to 12 hours between upgrades, 3 would result in 8 hours between calls and so on.
+    #         if duration_in_sec > (24 / int(max_upgrade_cat_item['value'])) * 60 * 60 or not last_accessed_time:
+    #             _LOGGER.info("Attempting upgrade on {}".format(now))
+    #             cmd = "sudo {} -y upgrade".format(pkg_mgt) if pkg_mgt == 'apt' else "sudo {} -y update".format(pkg_mgt)
+    #             ret_code = os.system(cmd + " > {} 2>&1".format(stdout_file_path))
+    #             if ret_code != 0:
+    #                 raise PackageError(link)
+    #             pkg_cache_mgr['upgrade']['last_accessed_time'] = now
+    #         else:
+    #             _LOGGER.warning("Maximum upgrade exceeds the limit for the day")
+    #         msg = "updated"
     cmd = "sudo {} -y install {}".format(pkg_mgt, name)
     if version:
         cmd = "sudo {} -y install {}={}".format(pkg_mgt, name, version)
 
     ret_code = os.system(cmd + " >> {} 2>&1".format(stdout_file_path))
-    return ret_code, link, msg
+    _LOGGER.exception("==========%s--%s", link, ret_code)
+
+    # Update record:
+    payload = PayloadBuilder().SET(status=ret_code, log_file_uri=link).WHERE(['id', '=', uid]).payload()
+    _LOGGER.exception("UPDATE PAYLOAD==========%s", payload)
+    loop = asyncio.new_event_loop()
+    loop.run_until_complete(storage.update_tbl("packages", payload))
+    # Audit info
+    audit = AuditLogger(storage)
+    audit_detail = {'packageName': name}
+    log_code = 'PKGUP' if msg == 'updated' else 'PKGIN'
+    _LOGGER.exception("Audit details========%s", audit_detail)
+    loop.run_until_complete(audit.information(log_code, audit_detail))
+    _LOGGER.exception("UPDATE========END")
+    # TODO: Not sure how to deal exception handling for these tasks (update package record & Audit entry)
 
 
 async def check_upgrade_on_install() -> Dict:

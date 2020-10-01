@@ -54,6 +54,10 @@ OMFHints::OMFHints(const string& hints)
 			{
 				m_hints.push_back(new OMFNumberHint(itr->value.GetString()));
 			}
+			else if (strcmp(name, "integer") == 0)
+			{
+				m_hints.push_back(new OMFIntegerHint(itr->value.GetString()));
+			}
 			else if (strcmp(name, "typeName") == 0)
 			{
 				m_hints.push_back(new OMFTypeNameHint(itr->value.GetString()));
@@ -66,8 +70,7 @@ OMFHints::OMFHints(const string& hints)
 			{
 				m_hints.push_back(new OMFTagHint(itr->value.GetString()));
 			}
-			// TODO Handle datapoint hint
-			else if (strcmp(name, "datatype") == 0)
+			else if (strcmp(name, "datapoint") == 0)
 			{
 				const Value &child = itr->value;
 				if (child.HasMember("name"))
@@ -81,6 +84,10 @@ OMFHints::OMFHints(const string& hints)
 						if (strcmp(name, "number") == 0)
 						{
 							hints.push_back(new OMFNumberHint(dpitr->value.GetString()));
+						}
+						else if (strcmp(name, "integer") == 0)
+						{
+							hints.push_back(new OMFIntegerHint(dpitr->value.GetString()));
 						}
 						else if (strcmp(name, "typeName") == 0)
 						{
@@ -100,6 +107,7 @@ OMFHints::OMFHints(const string& hints)
 			}
 		}
 	}
+
 }
 
 /**

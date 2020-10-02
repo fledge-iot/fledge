@@ -43,6 +43,9 @@ from aiohttp import web
 
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.services.core import connect
+from fledge.common import logger
+
+_logger = logger.setup(__name__)
 
 __author__ = "Mark Riddoch, Ashish Jabble, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -64,6 +67,7 @@ def setup(app):
     app.router.add_route('GET', '/fledge/asset/{asset_code}/{reading}/series', asset_averages)
     app.router.add_route('GET', '/fledge/asset/{asset_code}/bucket/{bucket_size}', asset_datapoints_with_bucket_size)
     app.router.add_route('GET', '/fledge/asset/{asset_code}/{reading}/bucket/{bucket_size}', asset_readings_with_bucket_size)
+    app.router.add_route('GET', '/fledge/structure/asset', asset_structure)
 
 
 def prepare_limit_skip_payload(request, _dict):
@@ -608,3 +612,52 @@ async def asset_readings_with_bucket_size(request: web.Request) -> web.Response:
         raise web.HTTPInternalServerError(reason=str(e))
     else:
         return web.json_response(response)
+
+
+async def asset_structure(request):
+    """ Browse all the assets for which we have recorded readings and
+    return a readings count.
+
+    Returns:
+           json result on basis of SELECT asset_code, count(*) FROM readings GROUP BY asset_code;
+
+    :Example:
+            curl -sX GET http://localhost:8081/fledge/asset
+    """
+    _logger.error("Strcuture called")
+    payload = PayloadBuilder().GROUP_BY("asset_code").payload()
+
+    results = {}
+    try:
+        _readings = connect.get_readings_async()
+        results = await _readings.query(payload)
+        _logger.error("Strcuture query run")
+        assets = results['rows']
+        asset_json = {}
+        for asset in assets:
+            _logger.error("Processing asset %s", asset['asset_code'])
+            code = asset['asset_code']
+            datapoint = {}
+            metadata = {}
+            _logger.error("Start readings")
+            for name, value in asset['reading'].items():
+                if type(value) == str:
+                    if value == "True" or value == "False":
+                        datapoint[name] = "boolean"
+                    else:
+                        metadata[name] = value
+                elif type(value) == int:
+                    datapoint[name] = "integer"
+                elif type(value) == float:
+                    datapoint[name] = "float"
+            if len(metadata) > 0:
+                asset_json[code] = { 'datapoint' : datapoint, 'metadata' : metadata }
+            else:
+                asset_json[code] = { 'datapoint' : datapoint }
+            _logger.error("%s : %s", code, asset_json[code])
+    except KeyError:
+        raise web.HTTPBadRequest(reason=results['message'])
+    else:
+        return web.json_response(asset_json)
+
+

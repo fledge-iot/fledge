@@ -1,9 +1,9 @@
 .. Images
 .. |south_advanced| image:: images/south_advanced.jpg
 
-**************
+***************
 Tuning Fledge
-**************
+***************
 
 Many factors will impact the performance of a Fledge system
 

@@ -616,30 +616,26 @@ async def asset_readings_with_bucket_size(request: web.Request) -> web.Response:
 
 async def asset_structure(request):
     """ Browse all the assets for which we have recorded readings and
-    return a readings count.
+    return the asset structure
 
     Returns:
-           json result on basis of SELECT asset_code, count(*) FROM readings GROUP BY asset_code;
+           json result showing the asset structure
 
     :Example:
-            curl -sX GET http://localhost:8081/fledge/asset
+            curl -sX GET http://localhost:8081/fledge/structure/asset
     """
-    _logger.error("Strcuture called")
     payload = PayloadBuilder().GROUP_BY("asset_code").payload()
 
     results = {}
     try:
         _readings = connect.get_readings_async()
         results = await _readings.query(payload)
-        _logger.error("Strcuture query run")
         assets = results['rows']
         asset_json = {}
         for asset in assets:
-            _logger.error("Processing asset %s", asset['asset_code'])
             code = asset['asset_code']
             datapoint = {}
             metadata = {}
-            _logger.error("Start readings")
             for name, value in asset['reading'].items():
                 if type(value) == str:
                     if value == "True" or value == "False":
@@ -654,9 +650,11 @@ async def asset_structure(request):
                 asset_json[code] = { 'datapoint' : datapoint, 'metadata' : metadata }
             else:
                 asset_json[code] = { 'datapoint' : datapoint }
-            _logger.error("%s : %s", code, asset_json[code])
     except KeyError:
-        raise web.HTTPBadRequest(reason=results['message'])
+        msg = results['message']
+        raise web.HTTPBadRequest(reason=results['message'], body=json.dumps({"message": msg}))
+    except Exception as e:
+        raise web.HTTPInternalServerError(reason=str(e))
     else:
         return web.json_response(asset_json)
 

@@ -31,6 +31,7 @@ from fledge.common.audit_logger import AuditLogger
 from fledge.services.core import server
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.exceptions import StorageServerError
+from fledge.common.plugin_discovery import PluginDiscovery
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems Inc."
@@ -84,43 +85,55 @@ async def add_plugin(request: web.Request) -> web.Response:
                 if str(version).count('.') != 2:
                     raise ValueError('Invalid version; it should be empty or a valid semantic version X.Y.Z i.e. major.minor.patch to install as per the configured repository')
 
+            # Check Pre-conditions from Packages table
+            # if status is -1 (Already in progress) then it is a rejected request
+            # if status is non-zero (Failure) then delete the existing record And try to install again
+            # if status is 0 (Success) And already installed then No action is required
+            action = "install"
+            storage = connect.get_storage_async()
+            select_payload = PayloadBuilder().SELECT("status").WHERE(['action', '=', action]).AND_WHERE(
+                ['name', '=', name]).payload()
+            result = await storage.query_tbl_with_payload('packages', select_payload)
+            response = result['rows']
+            if response:
+                exit_code = response[0]['status']
+                if exit_code == 0:
+                    plugin_type = name.split('fledge-')[1].split('-')[0]
+                    plugins_list = PluginDiscovery.get_plugins_installed(plugin_type, False)
+                    for p in plugins_list:
+                        if p['packageName'] == name:
+                            msg = "{} package is already installed".format(name)
+                            return web.HTTPNotModified(reason=msg, body=json.dumps({"message": msg}))
+                    delete_payload = PayloadBuilder().WHERE(['action', '=', action]).AND_WHERE(
+                        ['name', '=', name]).payload()
+                    await storage.delete_from_tbl("packages", delete_payload)
+                elif exit_code == -1:
+                    msg = "{} package installation already in progress".format(name)
+                    return web.HTTPTooManyRequests(reason=msg, body=json.dumps({"message": msg}))
+                else:
+                    # Remove old entry from table
+                    delete_payload = PayloadBuilder().WHERE(['action', '=', action]).AND_WHERE(
+                        ['name', '=', name]).payload()
+                    await storage.delete_from_tbl("packages", delete_payload)
+
+            # FIXME: We may remove below check later
             plugins, log_path = await common.fetch_available_packages()
             if name not in plugins:
                 raise KeyError('{} plugin is not available for the configured repository'.format(name))
 
             _platform = platform.platform()
             pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
-            # code, link, msg = await install_package_from_repo(name, pkg_mgt, version)
-            # if code != 0:
-            #     raise PackageError(link)
-            # storage = connect.get_storage_async()
-            # audit = AuditLogger(storage)
-            # audit_detail = {'packageName': name}
-            # log_code = 'PKGUP' if msg == 'updated' else 'PKGIN'
-            # await audit.information(log_code, audit_detail)
-            # result_payload = {"message": "{} is successfully {}".format(name, msg), "link": link}
-
-
-            # Before we need to check if requested plugin
-            # if status is -1 i.e Already in progress - then it is a rejected request
-            # if status is non-zero then delete the existing record
-            # if status is 0 - No required action in it... Already installed
-            action = "install"
             # Insert record into Packages table
             insert_payload = PayloadBuilder().INSERT(id=str(uuid.uuid4()), name=name, action=action, status=-1,
                                                      log_file_uri="").payload()
-            _LOGGER.exception("insert payload: {}".format(insert_payload))
             storage = connect.get_storage_async()
             result = await storage.insert_into_tbl("packages", insert_payload)
             response = result['response']
-            _LOGGER.exception(" INSERT RESPONSE: {}".format(response))
             if response:
                 select_payload = PayloadBuilder().SELECT("id").WHERE(['action', '=', action]).AND_WHERE(
                     ['name', '=', name]).payload()
-                _LOGGER.exception("select_payload payload: {}".format(select_payload))
                 result = await storage.query_tbl_with_payload('packages', select_payload)
                 response = result['rows']
-                _LOGGER.exception("SELECT RESPONSE: {}".format(response))
                 if response:
                     pn = "{}-{}".format(action, name)
                     uid = response[0]['id']
@@ -298,8 +311,7 @@ def copy_file_install_requirement(dir_files: list, plugin_type: str, file_name: 
     return code, msg
 
 
-def install_package_from_repo(name: str, pkg_mgt: str, version: str, uid: uuid, storage: connect) -> tuple:
-    _LOGGER.exception("called install_package_from_repo...")
+def install_package_from_repo(name: str, pkg_mgt: str, version: str, uid: uuid, storage: connect) -> None:
     stdout_file_path = common.create_log_file(action="install", plugin_name=name)
     link = "log/" + stdout_file_path.split("/")[-1]
     msg = "installed"
@@ -331,20 +343,15 @@ def install_package_from_repo(name: str, pkg_mgt: str, version: str, uid: uuid, 
         cmd = "sudo {} -y install {}={}".format(pkg_mgt, name, version)
 
     ret_code = os.system(cmd + " >> {} 2>&1".format(stdout_file_path))
-    _LOGGER.exception("==========%s--%s", link, ret_code)
-
     # Update record:
     payload = PayloadBuilder().SET(status=ret_code, log_file_uri=link).WHERE(['id', '=', uid]).payload()
-    _LOGGER.exception("UPDATE PAYLOAD==========%s", payload)
     loop = asyncio.new_event_loop()
     loop.run_until_complete(storage.update_tbl("packages", payload))
     # Audit info
     audit = AuditLogger(storage)
     audit_detail = {'packageName': name}
     log_code = 'PKGUP' if msg == 'updated' else 'PKGIN'
-    _LOGGER.exception("Audit details========%s", audit_detail)
     loop.run_until_complete(audit.information(log_code, audit_detail))
-    _LOGGER.exception("UPDATE========END")
     # TODO: Not sure how to deal exception handling for these tasks (update package record & Audit entry)
 
 

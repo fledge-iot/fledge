@@ -80,15 +80,16 @@ async def add_plugin(request: web.Request) -> web.Response:
             name = data.get('name', None)
             if name is None:
                 raise ValueError('name param is required')
+            if not name.startswith("fledge-"):
+                raise ValueError('name should start with "fledge-" prefix')
             version = data.get('version', None)
             if version:
                 if str(version).count('.') != 2:
-                    raise ValueError('Invalid version; it should be empty or a valid semantic version X.Y.Z i.e. major.minor.patch to install as per the configured repository')
+                    raise ValueError('Invalid version; it should be empty or a valid semantic version X.Y.Z '
+                                     'i.e. major.minor.patch to install as per the configured repository')
 
             # Check Pre-conditions from Packages table
-            # if status is -1 (Already in progress) then it is a rejected request
-            # if status is non-zero (Failure) then delete the existing record And try to install again
-            # if status is 0 (Success) And already installed then No action is required
+            # if status is -1 (Already in progress) then return as rejected request
             action = "install"
             storage = connect.get_storage_async()
             select_payload = PayloadBuilder().SELECT("status").WHERE(['action', '=', action]).AND_WHERE(
@@ -97,26 +98,22 @@ async def add_plugin(request: web.Request) -> web.Response:
             response = result['rows']
             if response:
                 exit_code = response[0]['status']
-                if exit_code == 0:
-                    plugin_type = name.split('fledge-')[1].split('-')[0]
-                    plugins_list = PluginDiscovery.get_plugins_installed(plugin_type, False)
-                    for p in plugins_list:
-                        if p['packageName'] == name:
-                            msg = "{} package is already installed".format(name)
-                            return web.HTTPNotModified(reason=msg, body=json.dumps({"message": msg}))
-                    delete_payload = PayloadBuilder().WHERE(['action', '=', action]).AND_WHERE(
-                        ['name', '=', name]).payload()
-                    await storage.delete_from_tbl("packages", delete_payload)
-                elif exit_code == -1:
+                if exit_code == -1:
                     msg = "{} package installation already in progress".format(name)
                     return web.HTTPTooManyRequests(reason=msg, body=json.dumps({"message": msg}))
-                else:
-                    # Remove old entry from table
-                    delete_payload = PayloadBuilder().WHERE(['action', '=', action]).AND_WHERE(
-                        ['name', '=', name]).payload()
-                    await storage.delete_from_tbl("packages", delete_payload)
+                # Remove old entry from table for other cases
+                delete_payload = PayloadBuilder().WHERE(['action', '=', action]).AND_WHERE(
+                    ['name', '=', name]).payload()
+                await storage.delete_from_tbl("packages", delete_payload)
 
-            # FIXME: We may remove below check later
+            # Check If requested plugin is already installed and then return immediately
+            plugin_type = name.split('fledge-')[1].split('-')[0]
+            plugins_list = PluginDiscovery.get_plugins_installed(plugin_type, False)
+            for p in plugins_list:
+                if p['packageName'] == name:
+                    msg = "{} package is already installed".format(name)
+                    return web.HTTPNotModified(reason=msg, body=json.dumps({"message": msg}))
+            # Check If requested plugin is available for configured APT repository
             plugins, log_path = await common.fetch_available_packages()
             if name not in plugins:
                 raise KeyError('{} plugin is not available for the configured repository'.format(name))
@@ -126,10 +123,10 @@ async def add_plugin(request: web.Request) -> web.Response:
             # Insert record into Packages table
             insert_payload = PayloadBuilder().INSERT(id=str(uuid.uuid4()), name=name, action=action, status=-1,
                                                      log_file_uri="").payload()
-            storage = connect.get_storage_async()
             result = await storage.insert_into_tbl("packages", insert_payload)
             response = result['response']
             if response:
+                # GET id from Packages table to track the installation response
                 select_payload = PayloadBuilder().SELECT("id").WHERE(['action', '=', action]).AND_WHERE(
                     ['name', '=', name]).payload()
                 result = await storage.query_tbl_with_payload('packages', select_payload)
@@ -137,11 +134,11 @@ async def add_plugin(request: web.Request) -> web.Response:
                 if response:
                     pn = "{}-{}".format(action, name)
                     uid = response[0]['id']
+                    # process based parallelism
                     p = multiprocessing.Process(name=pn, target=install_package_from_repo,
                                                 args=(name, pkg_mgt, version, uid, storage))
                     p.daemon = True
                     p.start()
-
                     msg = "Plugin installation started."
                     status_link = "fledge/package/install/status?id={}".format(uid)
                     result_payload = {"message": msg, "id": uid, "statusLink": status_link}
@@ -190,9 +187,6 @@ async def add_plugin(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=str(ex))
     except (TypeError, ValueError) as ex:
         raise web.HTTPBadRequest(reason=str(ex))
-    # except PackageError as e:
-    #     msg = "Plugin installation request failed"
-    #     raise web.HTTPBadRequest(body=json.dumps({"message": msg, "link": str(e)}), reason=msg)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=str(ex))
     else:
@@ -343,16 +337,16 @@ def install_package_from_repo(name: str, pkg_mgt: str, version: str, uid: uuid, 
         cmd = "sudo {} -y install {}={}".format(pkg_mgt, name, version)
 
     ret_code = os.system(cmd + " >> {} 2>&1".format(stdout_file_path))
-    # Update record:
+    # Update record in Packages table for given uid
     payload = PayloadBuilder().SET(status=ret_code, log_file_uri=link).WHERE(['id', '=', uid]).payload()
     loop = asyncio.new_event_loop()
     loop.run_until_complete(storage.update_tbl("packages", payload))
-    # Audit info
-    audit = AuditLogger(storage)
-    audit_detail = {'packageName': name}
-    log_code = 'PKGUP' if msg == 'updated' else 'PKGIN'
-    loop.run_until_complete(audit.information(log_code, audit_detail))
-    # TODO: Not sure how to deal exception handling for these tasks (update package record & Audit entry)
+    if ret_code == 0:
+        # Audit info
+        audit = AuditLogger(storage)
+        audit_detail = {'packageName': name}
+        log_code = 'PKGUP' if msg == 'updated' else 'PKGIN'
+        loop.run_until_complete(audit.information(log_code, audit_detail))
 
 
 async def check_upgrade_on_install() -> Dict:

@@ -623,6 +623,28 @@ async def asset_structure(request):
 
     :Example:
             curl -sX GET http://localhost:8081/fledge/structure/asset
+            {
+              "AX8": {
+                "datapoint": {
+                  "internal": "float",
+                  "spot1": "float",
+                  "minRPi": "float",
+                  "maxRPi": "float",
+                  "averageRPi": "float",
+                  "minBackupdisk": "float",
+                  "maxBackupdisk": "float",
+                  "averageBackupdisk": "float",
+                  "minCoral": "float",
+                  "maxCoral": "float",
+                  "averageCoral": "float"
+                },
+                "metadata": {
+                  "factory": "London",
+                  "line": "Line 4",
+                  "units": "Kelvin"
+                }
+              }
+            }
     """
     payload = PayloadBuilder().GROUP_BY("asset_code").payload()
 
@@ -630,13 +652,13 @@ async def asset_structure(request):
     try:
         _readings = connect.get_readings_async()
         results = await _readings.query(payload)
-        assets = results['rows']
+        rows = results['rows']
         asset_json = {}
-        for asset in assets:
-            code = asset['asset_code']
+        for row in rows:
+            code = row['asset_code']
             datapoint = {}
             metadata = {}
-            for name, value in asset['reading'].items():
+            for name, value in row['reading'].items():
                 if type(value) == str:
                     if value == "True" or value == "False":
                         datapoint[name] = "boolean"
@@ -647,14 +669,14 @@ async def asset_structure(request):
                 elif type(value) == float:
                     datapoint[name] = "float"
             if len(metadata) > 0:
-                asset_json[code] = { 'datapoint' : datapoint, 'metadata' : metadata }
+                asset_json[code] = {'datapoint':datapoint,'metadata':metadata}
             else:
-                asset_json[code] = { 'datapoint' : datapoint }
+                asset_json[code] = {'datapoint':datapoint}
     except KeyError:
         msg = results['message']
         raise web.HTTPBadRequest(reason=results['message'], body=json.dumps({"message": msg}))
     except Exception as e:
-        raise web.HTTPInternalServerError(reason=str(e))
+        raise web.HTTPInternalServerError(reason=str(e), body=json.dumps({"message":str(e)}))
     else:
         return web.json_response(asset_json)
 

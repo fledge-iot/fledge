@@ -328,8 +328,12 @@ def install_package_from_repo(name: str, pkg_mgt: str, version: str, uid: uuid, 
                 cmd = "sudo {} -y upgrade".format(pkg_mgt) if pkg_mgt == 'apt' else "sudo {} -y update".format(pkg_mgt)
                 ret_code = os.system(cmd + " > {} 2>&1".format(stdout_file_path))
                 if ret_code != 0:
-                    raise PackageError(link)
-                pkg_cache_mgr['upgrade']['last_accessed_time'] = now
+                    # Update record in Packages table for given uid only in case of APT upgrade fails
+                    payload = PayloadBuilder().SET(status=ret_code, log_file_uri=link).WHERE(['id', '=', uid]).payload()
+                    loop.run_until_complete(storage.update_tbl("packages", payload))
+                    return
+                else:
+                    pkg_cache_mgr['upgrade']['last_accessed_time'] = now
             else:
                 _LOGGER.warning("Maximum upgrade exceeds the limit for the day")
             msg = "updated"

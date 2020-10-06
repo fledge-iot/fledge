@@ -84,50 +84,48 @@ async def remove_plugin(request):
             else:
                 _logger.info("No entry found for {name} plugin in asset tracker; or "
                              "{name} plugin may have been added in disabled state & never used".format(name=name))
-        # res, log_path, is_package = purge_plugin(plugin_type, name)
-        # if res != 0:
-        #     e_msg = "Something went wrong. Please check log {}".format(log_path)
-        #     _logger.error(e_msg)
-        #     raise RuntimeError(e_msg)
-        # else:
-        #     if is_package:
-        #         storage_client = connect.get_storage_async()
-        #         audit_log = AuditLogger(storage_client)
-        #         audit_detail = {'package_name': "fledge-{}-{}".format(plugin_type, name)}
-        #         await audit_log.information('PKGRM', audit_detail)
+        # Check Pre-conditions from Packages table
+        # if status is -1 (Already in progress) then return as rejected request
         action = 'purge'
-        # Insert record into Packages table
-        insert_payload = PayloadBuilder().INSERT(id=str(uuid.uuid4()), name="fledge-{}-{}".format(
-            plugin_type, name.lower()), action=action, status=-1, log_file_uri="").payload()
-        _logger.exception("insert payload: {}".format(insert_payload))
+        package_name = "fledge-{}-{}".format(plugin_type, name.lower())
         storage = connect.get_storage_async()
+        select_payload = PayloadBuilder().SELECT("status").WHERE(['action', '=', action]).AND_WHERE(
+            ['name', '=', package_name]).payload()
+        result = await storage.query_tbl_with_payload('packages', select_payload)
+        response = result['rows']
+        if response:
+            exit_code = response[0]['status']
+            if exit_code == -1:
+                msg = "{} package purge already in progress".format(package_name)
+                return web.HTTPTooManyRequests(reason=msg, body=json.dumps({"message": msg}))
+            # Remove old entry from table for other cases
+            delete_payload = PayloadBuilder().WHERE(['action', '=', action]).AND_WHERE(
+                ['name', '=', package_name]).payload()
+            await storage.delete_from_tbl("packages", delete_payload)
+
+        # Insert record into Packages table
+        insert_payload = PayloadBuilder().INSERT(id=str(uuid.uuid4()), name=package_name, action=action, status=-1,
+                                                 log_file_uri="").payload()
         result = await storage.insert_into_tbl("packages", insert_payload)
         response = result['response']
-        _logger.exception(" INSERT RESPONSE: {}".format(response))
         if response:
             select_payload = PayloadBuilder().SELECT("id").WHERE(['action', '=', action]).AND_WHERE(
-                ['name', '=', name]).payload()
-            _logger.exception("select_payload payload: {}".format(select_payload))
+                ['name', '=', package_name]).payload()
             result = await storage.query_tbl_with_payload('packages', select_payload)
             response = result['rows']
-            _logger.exception("SELECT RESPONSE: {}".format(response))
             if response:
                 pn = "{}-{}".format(action, name)
                 uid = response[0]['id']
                 p = multiprocessing.Process(name=pn, target=purge_plugin, args=(plugin_type, name, uid, storage))
                 p.daemon = True
                 p.start()
-
                 msg = "Plugin purge started."
-                status_link = "fledge/package/purge/status?id={}".format(uid)
+                status_link = "fledge/package/{}/status?id={}".format(action, uid)
                 result_payload = {"message": msg, "id": uid, "statusLink": status_link}
     except (ValueError, RuntimeError) as ex:
-        raise web.HTTPBadRequest(reason=str(ex))
+        raise web.HTTPBadRequest(reason=str(ex), body=json.dumps(str(ex)))
     except KeyError as ex:
-        raise web.HTTPNotFound(reason=str(ex))
-    except PackageError as e:
-        msg = "Failed to remove package for plugin {}".format(name)
-        raise web.HTTPBadRequest(body=json.dumps({"message": msg, "link": str(e)}), reason=msg)
+        raise web.HTTPNotFound(reason=str(ex), body=json.dumps(str(ex)))
     else:
         return web.json_response({'message': result_payload})
 
@@ -201,9 +199,9 @@ async def check_plugin_usage_in_notification_instances(plugin_name: str):
 
 
 def purge_plugin(plugin_type: str, name: str, uid: uuid, storage: connect) -> tuple:
-
     from fledge.services.core.server import Server
 
+    # FIXME: non-package removal
     _logger.info("{} plugin purge started...".format(name))
     is_package = True
     stdout_file_path = ''
@@ -243,17 +241,15 @@ def purge_plugin(plugin_type: str, name: str, uid: uuid, storage: connect) -> tu
             cmd = "sudo apt -y purge {} > {} 2>&1".format(plugin_name, stdout_file_path)
 
         code = os.system(cmd)
-        if code:
-            raise PackageError(link)
-        else:
+        # Update record in Packages table
+        payload = PayloadBuilder().SET(status=code, log_file_uri=link).WHERE(['id', '=', uid]).payload()
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(storage.update_tbl("packages", payload))
+
+        if code == 0:
             # Clear internal cache
             common._get_available_packages.cache_clear()
             pkg_cache_mgr['list']['last_accessed_time'] = ""
-
-            # Update Package record
-            payload = PayloadBuilder().SET(status=code, log_file_uri=link).WHERE(['id', '=', uid]).payload()
-            loop = asyncio.new_event_loop()
-            loop.run_until_complete(storage.update_tbl("packages", payload))
             # Audit info
             audit = AuditLogger(storage)
             audit_detail = {'package_name': "fledge-{}-{}".format(plugin_type, name)}

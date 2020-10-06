@@ -139,8 +139,9 @@ async def add_plugin(request: web.Request) -> web.Response:
                                                 args=(name, pkg_mgt, version, uid, storage))
                     p.daemon = True
                     p.start()
+                    _LOGGER.info("{} plugin started...".format(name))
                     msg = "Plugin installation started."
-                    status_link = "fledge/package/install/status?id={}".format(uid)
+                    status_link = "fledge/package/{}/status?id={}".format(action, uid)
                     result_payload = {"message": msg, "id": uid, "statusLink": status_link}
         else:
             if not url or not checksum:
@@ -347,6 +348,7 @@ def install_package_from_repo(name: str, pkg_mgt: str, version: str, uid: uuid, 
         audit_detail = {'packageName': name}
         log_code = 'PKGUP' if msg == 'updated' else 'PKGIN'
         loop.run_until_complete(audit.information(log_code, audit_detail))
+        _LOGGER.info('{} plugin {} successfully'.format(name, msg))
 
 
 async def check_upgrade_on_install() -> Dict:

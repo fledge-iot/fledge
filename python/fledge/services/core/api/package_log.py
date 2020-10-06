@@ -133,6 +133,8 @@ async def get_package_status(request: web.Request) -> web.Response:
                 tmp['status'] = 'in-progress'
             else:
                 tmp['status'] = 'failed'
+            tmp['logFileURI'] = r['log_file_uri']
+            del tmp['log_file_uri']
             result.append(tmp)
     except ValueError as err_msg:
         raise web.HTTPBadRequest(reason=err_msg, body=json.dumps({"message": str(err_msg)}))

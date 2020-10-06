@@ -139,7 +139,7 @@ async def add_plugin(request: web.Request) -> web.Response:
                                                 args=(name, pkg_mgt, version, uid, storage))
                     p.daemon = True
                     p.start()
-                    _LOGGER.info("{} plugin started...".format(name))
+                    _LOGGER.info("{} plugin {} started...".format(name, action))
                     msg = "Plugin installation started."
                     status_link = "fledge/package/{}/status?id={}".format(action, uid)
                     result_payload = {"message": msg, "id": uid, "statusLink": status_link}
@@ -310,29 +310,29 @@ def install_package_from_repo(name: str, pkg_mgt: str, version: str, uid: uuid, 
     stdout_file_path = common.create_log_file(action="install", plugin_name=name)
     link = "log/" + stdout_file_path.split("/")[-1]
     msg = "installed"
-    # FIXME: below commented code for upgrade on install case
-    # cat = await check_upgrade_on_install()
-    # upgrade_install_cat_item = cat["upgradeOnInstall"]
-    # max_upgrade_cat_item = cat['maxUpdate']
-    # if 'value' in upgrade_install_cat_item:
-    #     if upgrade_install_cat_item['value'] == "true":
-    #         pkg_cache_mgr = server.Server._package_cache_manager
-    #         last_accessed_time = pkg_cache_mgr['upgrade']['last_accessed_time']
-    #         now = datetime.now()
-    #         then = last_accessed_time if last_accessed_time else now
-    #         duration_in_sec = (now - then).total_seconds()
-    #         # If max upgrade per day is set to 1, then an upgrade can not occurs until 24 hours after the last accessed upgrade.
-    #         # If set to 2 then this drops to 12 hours between upgrades, 3 would result in 8 hours between calls and so on.
-    #         if duration_in_sec > (24 / int(max_upgrade_cat_item['value'])) * 60 * 60 or not last_accessed_time:
-    #             _LOGGER.info("Attempting upgrade on {}".format(now))
-    #             cmd = "sudo {} -y upgrade".format(pkg_mgt) if pkg_mgt == 'apt' else "sudo {} -y update".format(pkg_mgt)
-    #             ret_code = os.system(cmd + " > {} 2>&1".format(stdout_file_path))
-    #             if ret_code != 0:
-    #                 raise PackageError(link)
-    #             pkg_cache_mgr['upgrade']['last_accessed_time'] = now
-    #         else:
-    #             _LOGGER.warning("Maximum upgrade exceeds the limit for the day")
-    #         msg = "updated"
+    loop = asyncio.new_event_loop()
+    cat = loop.run_until_complete(check_upgrade_on_install())
+    upgrade_install_cat_item = cat["upgradeOnInstall"]
+    max_upgrade_cat_item = cat['maxUpdate']
+    if 'value' in upgrade_install_cat_item:
+        if upgrade_install_cat_item['value'] == "true":
+            pkg_cache_mgr = server.Server._package_cache_manager
+            last_accessed_time = pkg_cache_mgr['upgrade']['last_accessed_time']
+            now = datetime.now()
+            then = last_accessed_time if last_accessed_time else now
+            duration_in_sec = (now - then).total_seconds()
+            # If max upgrade per day is set to 1, then an upgrade can not occurs until 24 hours after the last accessed upgrade.
+            # If set to 2 then this drops to 12 hours between upgrades, 3 would result in 8 hours between calls and so on.
+            if duration_in_sec > (24 / int(max_upgrade_cat_item['value'])) * 60 * 60 or not last_accessed_time:
+                _LOGGER.info("Attempting upgrade on {}".format(now))
+                cmd = "sudo {} -y upgrade".format(pkg_mgt) if pkg_mgt == 'apt' else "sudo {} -y update".format(pkg_mgt)
+                ret_code = os.system(cmd + " > {} 2>&1".format(stdout_file_path))
+                if ret_code != 0:
+                    raise PackageError(link)
+                pkg_cache_mgr['upgrade']['last_accessed_time'] = now
+            else:
+                _LOGGER.warning("Maximum upgrade exceeds the limit for the day")
+            msg = "updated"
     cmd = "sudo {} -y install {}".format(pkg_mgt, name)
     if version:
         cmd = "sudo {} -y install {}={}".format(pkg_mgt, name, version)
@@ -340,7 +340,6 @@ def install_package_from_repo(name: str, pkg_mgt: str, version: str, uid: uuid, 
     ret_code = os.system(cmd + " >> {} 2>&1".format(stdout_file_path))
     # Update record in Packages table for given uid
     payload = PayloadBuilder().SET(status=ret_code, log_file_uri=link).WHERE(['id', '=', uid]).payload()
-    loop = asyncio.new_event_loop()
     loop.run_until_complete(storage.update_tbl("packages", payload))
     if ret_code == 0:
         # Audit info

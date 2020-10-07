@@ -111,11 +111,11 @@ async def get_package_status(request: web.Request) -> web.Response:
         curl -sX GET http://localhost:8081/fledge/package/update/status?id=f156e5de-3e43-4451-a63b-a933c65754ef
     """
     try:
-        action = request.match_info.get('action', '')
+        action = request.match_info.get('action', '').lower()
         if action not in valid_actions:
             raise ValueError("Accepted package actions are {}".format(valid_actions))
         select = PayloadBuilder().SELECT(("id", "name", "action", "status", "log_file_uri")).WHERE(
-            ['action', '=', action.lower()]).chain_payload()
+            ['action', '=', action]).chain_payload()
         if 'id' in request.query and request.query['id'] != '':
             select = PayloadBuilder(select).AND_WHERE(['id', '=', request.query['id']]).chain_payload()
         final_payload = PayloadBuilder(select).payload()

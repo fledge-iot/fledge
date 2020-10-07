@@ -38,7 +38,7 @@ class TestUtils:
                 with patch.object(utils.subprocess, "Popen", side_effect=Exception):
                     with patch.object(utils._logger, 'exception') as patch_logger:
                         assert {} == utils.get_plugin_info(plugin_name, dir='south')
-                    assert 1 == patch_logger.call_count
+                    assert 0 == patch_logger.call_count
             patch_lib.assert_called_once_with(plugin_name, 'south')
         patch_util.assert_called_once_with('get_plugin_info')
 

@@ -143,6 +143,8 @@ async def add_plugin(request: web.Request) -> web.Response:
                     msg = "Plugin installation started."
                     status_link = "fledge/package/{}/status?id={}".format(action, uid)
                     result_payload = {"message": msg, "id": uid, "statusLink": status_link}
+            else:
+                raise StorageServerError
         else:
             if not url or not checksum:
                 raise TypeError('URL, checksum params are required')

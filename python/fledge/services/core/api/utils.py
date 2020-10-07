@@ -20,13 +20,22 @@ def get_plugin_info(name, dir):
     try:
         arg1 = _find_c_util('get_plugin_info')
         arg2 = _find_c_lib(name, dir)
+        if arg2 is None:
+            _logger.error("The plugin %s does not exist", name)
+            return {}
         cmd_with_args = [arg1, arg2, "plugin_info"]
         p = subprocess.Popen(cmd_with_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = p.communicate()
         res = out.decode("utf-8")
         jdoc = json.loads(res)
-    except (OSError, subprocess.CalledProcessError, Exception) as ex:
+    except (OSError, Exception) as ex:
         _logger.exception("%s C plugin get info failed due to %s", name, ex)
+        return {}
+    except (subprocess.CalledProcessError) as ex:
+        if ex.output is not None:
+            _logger.exception("%s C plugin get info failed '%s' due to %s", name, ex.output, ex)
+        else:
+            _logger.exception("%s C plugin get info failed due to %s", name, ex)
         return {}
     else:
         return jdoc

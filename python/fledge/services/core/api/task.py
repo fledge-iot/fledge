@@ -5,6 +5,7 @@
 # FLEDGE_END
 
 import datetime
+import json
 import uuid
 from aiohttp import web
 
@@ -159,6 +160,10 @@ async def add_task(request):
             # Checking for C-type plugins
             script = '["tasks/north_c"]'
             plugin_info = apiutils.get_plugin_info(plugin, dir=task_type)
+            if not 'type' in plugin_info:
+                msg = "Plugin {} does not appear to be a valid plugin".format(plugin)
+                _logger.exception(msg)
+                return web.HTTPBadRequest(reason=msg, body=json.dumps({"message":msg}))
             if plugin_info['type'] != task_type:
                 msg = "Plugin of {} type is not supported".format(plugin_info['type'])
                 _logger.exception(msg)

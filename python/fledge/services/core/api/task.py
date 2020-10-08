@@ -160,13 +160,20 @@ async def add_task(request):
             # Checking for C-type plugins
             script = '["tasks/north_c"]'
             plugin_info = apiutils.get_plugin_info(plugin, dir=task_type)
-            if not 'type' in plugin_info:
+            if not plugin_info:
                 msg = "Plugin {} does not appear to be a valid plugin".format(plugin)
-                _logger.exception(msg)
-                return web.HTTPBadRequest(reason=msg, body=json.dumps({"message":msg}))
+                _logger.error(msg)
+                return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+            valid_c_plugin_info_keys = ['name', 'version', 'type', 'interface', 'flag', 'config']
+            for k in valid_c_plugin_info_keys:
+                if k not in list(plugin_info.keys()):
+                    msg = "Plugin info does not appear to be a valid for {} plugin. '{}' item not found".format(
+                        plugin, k)
+                    _logger.error(msg)
+                    return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
             if plugin_info['type'] != task_type:
                 msg = "Plugin of {} type is not supported".format(plugin_info['type'])
-                _logger.exception(msg)
+                _logger.error(msg)
                 return web.HTTPBadRequest(reason=msg)
             plugin_config = plugin_info['config']
             process_name = 'north_c'

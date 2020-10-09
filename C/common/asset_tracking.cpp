@@ -116,7 +116,10 @@ void AssetTracker::addAssetTrackingTuple(string plugin, string asset, string eve
 	// in case of "Filter" event, 'plugin' input argument is category name, so remove service name (prefix) & '_' from it
 	if (event == string("Filter"))
 	{
-		plugin.erase(plugin.begin(), plugin.begin() + m_service.length() + 1);
+		string pattern  = m_service + "_";
+		if (plugin.find(pattern) != string::npos)
+			plugin.erase(plugin.begin(), plugin.begin() + m_service.length() + 1);
+
 	}
 	
 	AssetTrackingTuple tuple(m_service, plugin, asset, event);

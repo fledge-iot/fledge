@@ -23,6 +23,10 @@
 #include <algorithm>
 #include <vector>
 
+//# FIXME_I:
+#include <tmp_log.hpp>
+
+
 // 1 enable performance tracking
 #define INSTRUMENT	0
 
@@ -767,7 +771,17 @@ int localNReadingsTotal;
 						rc = sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), -1, &readingsStmt[readingsId], NULL);
 						if (rc != SQLITE_OK)
 						{
+							//# FIXME_I
+							Logger::getLogger()->setMinLevel("debug");
+							Logger::getLogger()->debug("xxx appendReadings S2.1 :%X: ", dbHandle);
+							Logger::getLogger()->setMinLevel("warning");
+
 							raiseError("appendReadings", sqlite3_errmsg(dbHandle));
+
+							//# FIXME_I
+							Logger::getLogger()->setMinLevel("debug");
+							Logger::getLogger()->debug("xxx appendReadings S2.2 :%X: ", dbHandle);
+							Logger::getLogger()->setMinLevel("warning");
 						}
 
 					}
@@ -1024,6 +1038,12 @@ string modifierExt;
 string modifierInt;
 
 vector<string>  asset_codes;
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx retrieveReadings");
+	Logger::getLogger()->setMinLevel("warning");
+
 
 	try {
 		if (dbHandle == NULL)
@@ -1412,6 +1432,13 @@ vector<string>  asset_codes;
 		int rc;
 		sqlite3_stmt *stmt;
 
+
+
+		//# FIXME_I:
+		char tmp_buffer[500000];
+		snprintf (tmp_buffer,500000, "DBG : query   |%s| ", query);
+		tmpLogger (tmp_buffer);
+
 		logSQL("ReadingsRetrieve", query);
 
 		// Prepare the SQL statement and get the result set
@@ -1422,6 +1449,9 @@ vector<string>  asset_codes;
 
 		if (rc != SQLITE_OK)
 		{
+			snprintf (tmp_buffer,500000, "xxx ERROR");
+			tmpLogger (tmp_buffer);
+
 			raiseError("retrieve", sqlite3_errmsg(dbHandle));
 			return false;
 		}
@@ -2458,6 +2488,96 @@ bool ReadingsCatalogue::enableWAL(string &dbPathReadings) {
 }
 
 /**
+ * Attach a database to all the connections, idle and  inuse
+ *
+ * @param path  - path of the database to attach
+ * @param alias - alias to be assigned to the attached database
+ */
+bool ReadingsCatalogue::attachDb(sqlite3 *dbHandle, std::string &path, std::string &alias)
+{
+	int rc;
+	std::string sqlCmd;
+	bool result;
+	char *zErrMsg = NULL;
+
+	result = true;
+
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx4 attachDb start");
+	Logger::getLogger()->setMinLevel("warning");
+
+	sqlCmd = "ATTACH DATABASE '" + path + "' AS " + alias + ";";
+
+	// FIXME_I:
+	//rc = SQLITE_OK;
+	rc = SQLExec (dbHandle, sqlCmd.c_str(), &zErrMsg);
+	if (rc != SQLITE_OK)
+	{
+		Logger::getLogger()->error("attachDb - It was not possible to attach the db :%s: to the connection :%X:, error :%s:", path.c_str(), dbHandle, zErrMsg);
+		result = false;
+	}
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx4 attachDb end");
+	Logger::getLogger()->setMinLevel("warning");
+
+	return (result);
+}
+
+/**
+ * Attaches all the defined SQlite database to all the connections and enable the WAL
+ *
+ */
+bool ReadingsCatalogue::connectionAttachAllDbs(sqlite3 *dbHandle)
+{
+	int dbId;
+	string dbPathReadings;
+	string dbAlias;
+	vector<int> dbIdList;
+	bool result;
+
+	result = true;
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx4 connectionAttachAllDbs  start Connection :%X:" ,dbHandle);
+	Logger::getLogger()->setMinLevel("warning");
+
+
+	getAllDbs(dbIdList);
+
+	for(int item : dbIdList)
+	{
+		dbPathReadings = generateDbFilePah(item);
+		dbAlias = generateDbAlias(item);
+
+		result = attachDb(dbHandle, dbPathReadings, dbAlias);
+		if (! result)
+			break;
+
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+
+		Logger::getLogger()->debug("xxx4 connectionAttachAllDbs: dbId :%d: path :%s: alias :%s:", item, dbPathReadings.c_str(), dbAlias.c_str());
+
+		// FIXME_I:
+		Logger::getLogger()->setMinLevel("warning");
+	}
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx4 connectionAttachAllDbs  end Connection :%X:" ,dbHandle);
+	Logger::getLogger()->setMinLevel("warning");
+
+
+	return (result);
+}
+
+
+/**
  * Attaches all the defined SQlite database to all the connections and enable the WAL
  *
  */
@@ -2474,6 +2594,12 @@ bool ReadingsCatalogue::attachAllDbs()
 	ConnectionManager *manager = ConnectionManager::getInstance();
 	Connection        *connection = manager->allocate();
 
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx2 attachAllDbs");
+	Logger::getLogger()->setMinLevel("warning");
+
+
 	getAllDbs(dbIdList);
 
 	for(int item : dbIdList)
@@ -2487,7 +2613,13 @@ bool ReadingsCatalogue::attachAllDbs()
 		if (! result)
 			break;
 
-		Logger::getLogger()->debug("attachAllDbs: dbId :%d: path :%s: alias :%s:", item, dbPathReadings.c_str(), dbAlias.c_str());
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+
+		Logger::getLogger()->debug("xxx2 attachAllDbs: dbId :%d: path :%s: alias :%s:", item, dbPathReadings.c_str(), dbAlias.c_str());
+
+		// FIXME_I:
+		Logger::getLogger()->setMinLevel("warning");
 	}
 
 	manager->release(connection);
@@ -2698,6 +2830,14 @@ bool  ReadingsCatalogue::createReadingsTables(int dbId, int idStartFrom, int nTa
 			raiseError("createReadingsTables", sqlite3_errmsg(dbHandle));
 			return false;
 		}
+
+
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx createReadingsTables createReadings :%s: ", createReadings.c_str());
+		Logger::getLogger()->setMinLevel("warning");
+
+
 
 		rc = SQLExec(dbHandle, createReadingsIdx.c_str());
 		if (rc != SQLITE_OK)
@@ -2985,6 +3125,10 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
  */
 string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string>  &assetCodes)
 {
+
+	//# FIXME_I:
+	char tmp_buffer[500000];
+
 	string dbReadingsName;
 	string dbName;
 	string sqlCmdTmp;
@@ -3000,8 +3144,14 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string
 		sqlCmd = sqlCmdBase;
 
 		StringReplaceAll (sqlCmd, "_assetcode_", "dummy_asset_code");
+		StringReplaceAll (sqlCmd, ".assetcode.", "asset_code");
 		StringReplaceAll (sqlCmd, "_dbname_", READINGS_DB);
 		StringReplaceAll (sqlCmd, "_tablename_", "readings_1");
+
+		//# FIXME_I:
+		snprintf (tmp_buffer,500000, "xxx DBG : sqlConstructMultiDb  empty  |%s| ", sqlCmd.c_str());
+		tmpLogger (tmp_buffer);
+
 	}
 	else
 	{
@@ -3054,6 +3204,11 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string
 			StringReplaceAll (sqlCmd, "_dbname_", READINGS_DB);
 			StringReplaceAll (sqlCmd, "_tablename_", "readings_1");
 		}
+
+		//# FIXME_I:
+		snprintf (tmp_buffer,500000, "xxx DBG : sqlConstructMultiDb  full  |%s| ", sqlCmd.c_str());
+		tmpLogger (tmp_buffer);
+
 	}
 
 	return(sqlCmd);

@@ -216,8 +216,11 @@ class ReadingsCatalogue {
 		std::string   sqlConstructMultiDb(std::string &sqlCmdBase, std::vector<std::string>  &assetCodes);
 		int           purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBase, char **errMsg = NULL, unsigned int *rowsAffected = NULL);
 
+		bool          connectionAttachAllDbs(sqlite3 *dbHandle);
+		bool          attachDb(sqlite3 *dbHandle, std::string &path, std::string &alias);
+
 	private:
-		const int nReadingsAllocate = 15;
+		const int nReadingsAllocate = 3;
 
 		typedef struct ReadingAvailable {
 			int lastReadings;

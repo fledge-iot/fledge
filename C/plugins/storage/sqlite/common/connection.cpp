@@ -599,6 +599,45 @@ Connection::Connection()
 		}
 
 	}
+
+	// FIXME_I:
+	try {
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx4 Connection start");
+		Logger::getLogger()->setMinLevel("warning");
+
+		ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
+		if ( !readCat->connectionAttachAllDbs(dbHandle) )
+		{
+			const char* errMsg = "Failed to attach all the dbs to the connection :%X:'readings' database in";
+			Logger::getLogger()->error("%s '%s': error %s", errMsg, dbHandle);
+
+			connectErrorTime = time(0);
+			sqlite3_close_v2(dbHandle);
+		}
+
+
+	} catch (exception e) {
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx4 Connection exception :%s:" ,e.what());
+		Logger::getLogger()->setMinLevel("warning");
+	} catch (...) {
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx4 Connection  crash");
+		Logger::getLogger()->setMinLevel("warning");
+	}
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx4 Connection end :%X:" ,dbHandle);
+	Logger::getLogger()->setMinLevel("warning");
+
+
+
+
 }
 #endif
 
@@ -608,6 +647,12 @@ Connection::Connection()
  */
 Connection::~Connection()
 {
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx3 Close Connection :%X:" ,dbHandle);
+	Logger::getLogger()->setMinLevel("warning");
+
+
 	sqlite3_close_v2(dbHandle);
 }
 
@@ -1273,6 +1318,17 @@ Document	document;
 SQLBuffer	sql;
 vector<string>  asset_codes;
 
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx Ingest update start table :%s: ", table.c_str());
+	if (table.compare("statistics") == 0)
+	{
+		Logger::getLogger()->debug("xxx Ingest STAT skipper");
+		return (1);
+	}
+	Logger::getLogger()->setMinLevel("warning");
+
+
 	int 	row = 0;
 	ostringstream convert;
 
@@ -1588,6 +1644,11 @@ vector<string>  asset_codes;
 	m_writeAccessOngoing.fetch_sub(1);
 	if (m_writeAccessOngoing == 0)
 		db_cv.notify_all();
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx Ingest update end :%s: rc :%d: dbHandle :%H:", table.c_str(), rc, dbHandle);
+	Logger::getLogger()->setMinLevel("warning");
 
 	// Check result code
 	if (rc != SQLITE_OK)

@@ -10,6 +10,9 @@
  * Author: Mark Riddoch
  */
 
+// FIXME_I:
+#include <sqlite3.h>
+
 #include <plugin_api.h>
 #include <list>
 #include <mutex>
@@ -39,6 +42,8 @@ class ConnectionManager {
 
 	private:
 		static ConnectionManager     *instance;
+		int SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **errMsg);
+
 	protected:
 		std::list<Connection *>      idle;
 		std::list<Connection *>      inUse;

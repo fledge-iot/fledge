@@ -10,6 +10,8 @@ the [fledge-iot Organization](https://github.com/fledge-iot) on GitHub.
 
 To give us feedback or make suggestions use the [Fledge Slack Channel](https://lfedge.slack.com/archives/CLJ7CNCAX).
 
+If you find a security vulnerability within Fledge or any of it's plugins then we request that you inform us via email rather than by opening an issue in GitHub. This allows us to act on it without giving information that others might exploit. Any security vulnerability will be discussed at the project TCS and user will be informed of the need to upgrade via the Fledge slack channel. The email address to which vulnerabilities should be reported is security@dianomic.com.
+
 ## Pull requests
 
 **Please ask first** before embarking on any significant work (e.g. implementing new features,

@@ -4,11 +4,14 @@
 # See: http://fledge.readthedocs.io/
 # FLEDGE_END
 
+import aiohttp
 import asyncio
 import os
 import logging
 import uuid
 import platform
+import multiprocessing
+import json
 
 from aiohttp import web
 from fledge.common import logger
@@ -19,6 +22,7 @@ from fledge.common.plugin_discovery import PluginDiscovery
 from fledge.services.core.api.plugins import common
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.audit_logger import AuditLogger
+from fledge.common.storage_client.exceptions import StorageServerError
 
 
 __author__ = "Ashish Jabble"
@@ -57,6 +61,26 @@ async def update_plugin(request: web.Request) -> web.Response:
         else:
             installed_dir_name = _type
 
+        # Check Pre-conditions from Packages table
+        # if status is -1 (Already in progress) then return as rejected request
+
+        action = 'update'
+        package_name = "fledge-{}-{}".format(_type, name.lower())
+        storage_client = connect.get_storage_async()
+        select_payload = PayloadBuilder().SELECT("status").WHERE(['action', '=', action]).AND_WHERE(
+            ['name', '=', package_name]).payload()
+        result = await storage_client.query_tbl_with_payload('packages', select_payload)
+        response = result['rows']
+        if response:
+            exit_code = response[0]['status']
+            if exit_code == -1:
+                msg = "{} package {} already in progress".format(package_name, action)
+                return web.HTTPTooManyRequests(reason=msg, body=json.dumps({"message": msg}))
+            # Remove old entry from table for other cases
+            delete_payload = PayloadBuilder().WHERE(['action', '=', action]).AND_WHERE(
+                ['name', '=', package_name]).payload()
+            await storage_client.delete_from_tbl("packages", delete_payload)
+
         # Check requested plugin name is installed or not
         installed_plugins = PluginDiscovery.get_plugins_installed(installed_dir_name, False)
         installed_plugin_name = [p_name["name"] for p_name in installed_plugins]
@@ -69,7 +93,6 @@ async def update_plugin(request: web.Request) -> web.Response:
             # Check Notification service is enabled or not
             payload = PayloadBuilder().SELECT("id", "enabled", "schedule_name").WHERE(['process_name', '=',
                                                                                        'notification_c']).payload()
-            storage_client = connect.get_storage_async()
             result = await storage_client.query_tbl_with_payload('schedules', payload)
             sch_info = result['rows']
             if sch_info and sch_info[0]['enabled'] == 't':
@@ -110,21 +133,42 @@ async def update_plugin(request: web.Request) -> web.Response:
                                 p['service'], _type, name))
                             sch_list.append(sch_info[0]['id'])
 
-        # Plugin update is running as a background task
-        loop = request.loop
-        request._type = _type
-        request._name = name
-        request._sch_list = sch_list
-        request._notification_list = notification_list
-        loop.call_later(1, do_update, request)
+        # Insert record into Packages table
+        insert_payload = PayloadBuilder().INSERT(id=str(uuid.uuid4()), name=package_name, action=action, status=-1,
+                                                 log_file_uri="").payload()
+        result = await storage_client.insert_into_tbl("packages", insert_payload)
+        response = result['response']
+        if response:
+            select_payload = PayloadBuilder().SELECT("id").WHERE(['action', '=', action]).AND_WHERE(
+                ['name', '=', package_name]).payload()
+            result = await storage_client.query_tbl_with_payload('packages', select_payload)
+            response = result['rows']
+            if response:
+                pn = "{}-{}".format(action, name)
+                uid = response[0]['id']
+                p = multiprocessing.Process(name=pn, target=do_update, args=(server.Server.is_rest_server_http_enabled,
+                                                                             server.Server._host,
+                                                                             server.Server.core_management_port,
+                                                                             storage_client, _type, name, uid, sch_list,
+                                                                             notification_list))
+                p.daemon = True
+                p.start()
+                msg = "Plugin {} started.".format(action)
+                status_link = "fledge/package/{}/status?id={}".format(action, uid)
+                result_payload = {"message": msg, "id": uid, "statusLink": status_link}
+        else:
+            raise StorageServerError
     except KeyError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except ValueError as ex:
         raise web.HTTPBadRequest(reason=str(ex))
+    except StorageServerError as err:
+        msg = str(err)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": "Storage error: {}".format(msg)}))
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=str(ex))
-
-    return web.json_response({"message": "{} plugin update in process. Wait for few minutes to complete.".format(name)})
+    else:
+        return web.json_response({'message': result_payload})
 
 
 async def _get_plugin_and_sch_name_from_asset_tracker(_type: str) -> list:
@@ -145,6 +189,23 @@ async def _get_sch_id_and_enabled_by_name(name) -> list:
     payload = PayloadBuilder().SELECT("id", "enabled").WHERE(['schedule_name', '=', name]).payload()
     result = await storage_client.query_tbl_with_payload('schedules', payload)
     return result['rows']
+
+
+async def _put_schedule(protocol, host, port, sch_id, is_enabled):
+    management_api_url = '{}://{}:{}/fledge/schedule/{}/enable'.format(protocol, host, port, sch_id)
+    headers = {'content-type': 'application/json'}
+    verify_ssl = False if protocol else True
+    connector = aiohttp.TCPConnector(verify_ssl=verify_ssl)
+    async with aiohttp.ClientSession(connector=connector) as session:
+        async with session.put(management_api_url, data=json.dumps({"value": is_enabled}), headers=headers) as resp:
+            result = await resp.text()
+            status_code = resp.status
+            if status_code in range(400, 500):
+                _logger.error("Bad request error code: %d, reason: %s when PUT schedule", status_code, resp.reason)
+            if status_code in range(500, 600):
+                _logger.error("Server error code: %d, reason: %s when PUT schedule", status_code, resp.reason)
+            response = json.loads(result)
+            _logger.debug("PUT Schedule response: %s", response)
 
 
 def update_repo_sources_and_plugin(_type: str, name: str) -> tuple:
@@ -174,27 +235,29 @@ def update_repo_sources_and_plugin(_type: str, name: str) -> tuple:
     return ret_code, link
 
 
-def do_update(request):
-    _logger.info("{} plugin update started...".format(request._name))
-    code, link = update_repo_sources_and_plugin(request._type, request._name)
-    if code != 0:
-        _logger.error("{} plugin update failed. Logs available at {}".format(request._name, link))
-    else:
-        _logger.info("{} plugin update completed. Logs available at {}".format(request._name, link))
-        # PKGUP audit log entry
-        storage_client = connect.get_storage_async()
-        audit = AuditLogger(storage_client)
-        audit_detail = {'packageName': "fledge-{}-{}".format(request._type, request._name.replace("_", "-"))}
-        asyncio.ensure_future(audit.information('PKGUP', audit_detail))
+def do_update(protocol, host, port, storage, _type, name, uid, sch_list, notification_list):
+    _logger.info("{} plugin update started...".format(name))
+    code, link = update_repo_sources_and_plugin(_type, name)
+
+    # Update record in Packages table
+    payload = PayloadBuilder().SET(status=code, log_file_uri=link).WHERE(['id', '=', uid]).payload()
+    loop = asyncio.new_event_loop()
+    loop.run_until_complete(storage.update_tbl("packages", payload))
+
+    if code == 0:
+        # Audit info
+        audit = AuditLogger(storage)
+        audit_detail = {'packageName': "fledge-{}-{}".format(_type, name.replace("_", "-"))}
+        loop.run_until_complete(audit.information('PKGUP', audit_detail))
+        _logger.info('{} plugin updated successfully'.format(name))
 
     # Restart the services which were disabled before plugin update
-    for s in request._sch_list:
-        asyncio.ensure_future(server.Server.scheduler.enable_schedule(uuid.UUID(s)))
+    for s in sch_list:
+        loop.run_until_complete(_put_schedule(protocol, host, port, uuid.UUID(s), True))
 
     # Below case is applicable for the notification plugins ONLY
     # Enabled back configuration categories which were disabled during update process
-    if request._type in ['notify', 'rule']:
-        storage_client = connect.get_storage_async()
-        config_mgr = ConfigurationManager(storage_client)
-        for n in request._notification_list:
-            asyncio.ensure_future(config_mgr.set_category_item_value_entry(n, "enable", "true"))
+    if _type in ['notify', 'rule']:
+        config_mgr = ConfigurationManager(storage)
+        for n in notification_list:
+            loop.run_until_complete(config_mgr.set_category_item_value_entry(n, "enable", "true"))

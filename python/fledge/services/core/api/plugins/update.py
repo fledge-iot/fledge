@@ -63,7 +63,7 @@ async def update_plugin(request: web.Request) -> web.Response:
 
         # Check Pre-conditions from Packages table
         # if status is -1 (Already in progress) then return as rejected request
-
+        result_payload = {}
         action = 'update'
         package_name = "fledge-{}-{}".format(_type, name.lower())
         storage_client = connect.get_storage_async()
@@ -124,7 +124,8 @@ async def update_plugin(request: web.Request) -> web.Response:
                 result = await storage_client.query_tbl_with_payload('filters', payload)
                 filters_used_by = [r['name'] for r in result['rows']]
             for p in tracked_plugins:
-                if (name == p['plugin'] and not _type == 'filter') or (p['plugin'] in filters_used_by and _type == 'filter'):
+                if (name == p['plugin'] and not _type == 'filter') or (
+                        p['plugin'] in filters_used_by and _type == 'filter'):
                     sch_info = await _get_sch_id_and_enabled_by_name(p['service'])
                     if sch_info[0]['enabled'] == 't':
                         status, reason = await server.Server.scheduler.disable_schedule(uuid.UUID(sch_info[0]['id']))
@@ -184,17 +185,17 @@ async def _get_plugin_and_sch_name_from_asset_tracker(_type: str) -> list:
     return result['rows']
 
 
-async def _get_sch_id_and_enabled_by_name(name) -> list:
+async def _get_sch_id_and_enabled_by_name(name: str) -> list:
     storage_client = connect.get_storage_async()
     payload = PayloadBuilder().SELECT("id", "enabled").WHERE(['schedule_name', '=', name]).payload()
     result = await storage_client.query_tbl_with_payload('schedules', payload)
     return result['rows']
 
 
-async def _put_schedule(protocol, host, port, sch_id, is_enabled):
+async def _put_schedule(protocol: str, host: str, port: int, sch_id: uuid, is_enabled: bool) -> None:
     management_api_url = '{}://{}:{}/fledge/schedule/{}/enable'.format(protocol, host, port, sch_id)
     headers = {'content-type': 'application/json'}
-    verify_ssl = False if protocol else True
+    verify_ssl = False if protocol == 'HTTP' else True
     connector = aiohttp.TCPConnector(verify_ssl=verify_ssl)
     async with aiohttp.ClientSession(connector=connector) as session:
         async with session.put(management_api_url, data=json.dumps({"value": is_enabled}), headers=headers) as resp:
@@ -235,8 +236,10 @@ def update_repo_sources_and_plugin(_type: str, name: str) -> tuple:
     return ret_code, link
 
 
-def do_update(protocol, host, port, storage, _type, name, uid, sch_list, notification_list):
+def do_update(http_enabled: bool, host: str, port: int, storage: connect, _type: str, name: str, uid: str,
+              schedules: list, notifications: list) -> None:
     _logger.info("{} plugin update started...".format(name))
+    protocol = "HTTP" if http_enabled else "HTTPS"
     code, link = update_repo_sources_and_plugin(_type, name)
 
     # Update record in Packages table
@@ -252,12 +255,12 @@ def do_update(protocol, host, port, storage, _type, name, uid, sch_list, notific
         _logger.info('{} plugin updated successfully'.format(name))
 
     # Restart the services which were disabled before plugin update
-    for s in sch_list:
-        loop.run_until_complete(_put_schedule(protocol, host, port, uuid.UUID(s), True))
+    for sch in schedules:
+        loop.run_until_complete(_put_schedule(protocol, host, port, uuid.UUID(sch), True))
 
     # Below case is applicable for the notification plugins ONLY
     # Enabled back configuration categories which were disabled during update process
     if _type in ['notify', 'rule']:
         config_mgr = ConfigurationManager(storage)
-        for n in notification_list:
-            loop.run_until_complete(config_mgr.set_category_item_value_entry(n, "enable", "true"))
+        for notify in notifications:
+            loop.run_until_complete(config_mgr.set_category_item_value_entry(notify, "enable", "true"))

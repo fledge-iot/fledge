@@ -1412,7 +1412,7 @@ class Server:
         return web.json_response(result)
 
     @classmethod
-    async def enable_disable_schedule(cls, request):
+    async def enable_disable_schedule(cls, request: web.Request) -> web.Response:
         data = await request.json()
         try:
             schedule_id = request.match_info.get('schedule_id', None)

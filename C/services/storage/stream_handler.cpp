@@ -139,7 +139,7 @@ struct sockaddr_in	address;
 
 	if ((m_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 	{
-		Logger::getLogger()->error("Failed to create socket: %s", sys_errlist[errno]);
+		Logger::getLogger()->error("Failed to create socket: %s", strerror(errno));
 		return 0;
 	}
 	address.sin_family = AF_INET;
@@ -148,19 +148,19 @@ struct sockaddr_in	address;
 
 	if (bind(m_socket, (struct sockaddr *)&address, sizeof(address)) < 0)
 	{
-		Logger::getLogger()->error("Failed to bind socket: %s", sys_errlist[errno]);
+		Logger::getLogger()->error("Failed to bind socket: %s", strerror(errno));
 		return 0;
 	}
 	socklen_t len = sizeof(address);
 	if (getsockname(m_socket, (struct sockaddr *)&address, &len) == -1)
-		Logger::getLogger()->error("Failed to get socket name, %s", sys_errlist[errno]);
+		Logger::getLogger()->error("Failed to get socket name, %s", strerror(errno));
 	m_port = ntohs(address.sin_port);
 	Logger::getLogger()->info("Stream port bound to %d", m_port);
 	setNonBlocking(m_socket);
 
 	if (listen(m_socket, 3) < 0)
 	{
-		Logger::getLogger()->error("Failed to listen: %s", sys_errlist[errno]);
+		Logger::getLogger()->error("Failed to listen: %s", strerror(errno));
 		return 0;
     	}
 	m_status = Listen;
@@ -174,7 +174,7 @@ struct sockaddr_in	address;
 	m_event.events = EPOLLIN | EPOLLRDHUP;
 	if (epoll_ctl(epollfd, EPOLL_CTL_ADD, m_socket, &m_event) < 0)
 	{
-		Logger::getLogger()->error("Failed to add listening port %d to epoll fileset, %s", m_port, sys_errlist[errno]);
+		Logger::getLogger()->error("Failed to add listening port %d to epoll fileset, %s", m_port, strerror(errno));
 	}
 
 	return m_port;
@@ -222,7 +222,7 @@ ssize_t n;
 			if ((conn_sock = accept(m_socket,
 						  (struct sockaddr *)&addr, &addrlen)) == -1)
 			{
-				Logger::getLogger()->info("Accept failed for streaming socket: %s", sys_errlist[errno]);
+				Logger::getLogger()->info("Accept failed for streaming socket: %s", strerror(errno));
 				return;
 			}
 			epoll_ctl(epollfd, EPOLL_CTL_DEL, m_socket, &m_event);
@@ -358,7 +358,7 @@ ssize_t n;
 					else
 					{
 						if ((n = read(m_socket, &m_currentReading->userTs, m_readingSize)) != (int)m_readingSize)
-							Logger::getLogger()->warn("Short read of %d bytes for reading: %s", n, sys_errlist[errno]);
+							Logger::getLogger()->warn("Short read of %d bytes for reading: %s", n, strerror(errno));
 						m_lastAsset = m_currentReading->assetCode;
 					}
 					m_readingNo++;

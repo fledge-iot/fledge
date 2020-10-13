@@ -4,6 +4,7 @@
 # See: http://fledge.readthedocs.io/
 # FLEDGE_END
 
+import aiohttp
 import platform
 import os
 import logging
@@ -41,7 +42,7 @@ PYTHON_PLUGIN_PATH = _FLEDGE_ROOT+'/python/fledge/plugins/'
 C_PLUGINS_PATH = _FLEDGE_ROOT+'/plugins/'
 
 
-async def remove_plugin(request):
+async def remove_plugin(request: web.Request) -> web.Response:
     """ Remove installed plugin from fledge
 
     type: installed plugin type
@@ -122,15 +123,15 @@ async def remove_plugin(request):
                 msg = "Plugin purge started."
                 status_link = "fledge/package/{}/status?id={}".format(action, uid)
                 result_payload = {"message": msg, "id": uid, "statusLink": status_link}
-    except (ValueError, RuntimeError) as ex:
-        raise web.HTTPBadRequest(reason=str(ex), body=json.dumps(str(ex)))
-    except KeyError as ex:
-        raise web.HTTPNotFound(reason=str(ex), body=json.dumps(str(ex)))
+    except (ValueError, RuntimeError) as err:
+        raise web.HTTPBadRequest(reason=str(err), body=json.dumps({'message': str(err)}))
+    except KeyError as err:
+        raise web.HTTPNotFound(reason=str(err), body=json.dumps({'message': str(err)}))
     else:
         return web.json_response({'message': result_payload})
 
 
-async def check_plugin_usage(plugin_type: str, plugin_name: str):
+async def check_plugin_usage(plugin_type: str, plugin_name: str) -> list:
     """ Check usage of plugin and return a list of services / tasks or other instances with reference
     """
     plugin_users = []
@@ -171,7 +172,7 @@ async def check_plugin_usage(plugin_type: str, plugin_name: str):
     return plugin_users
 
 
-async def check_service_in_schedules(service_name: str):
+async def check_service_in_schedules(service_name: str) -> bool:
     storage_client = connect.get_storage_async()
     payload_data = PayloadBuilder().SELECT('id', 'enabled').WHERE(['schedule_name', '=', service_name]).payload()
     enabled_service_list = await storage_client.query_tbl_with_payload('schedules', payload_data)
@@ -179,7 +180,7 @@ async def check_service_in_schedules(service_name: str):
     return is_service_list
 
 
-async def check_plugin_usage_in_notification_instances(plugin_name: str):
+async def check_plugin_usage_in_notification_instances(plugin_name: str) -> list:
     """ Check notification instance state using the given rule or delivery plugin
     """
     notification_instances = []
@@ -196,6 +197,23 @@ async def check_plugin_usage_in_notification_instances(plugin_name: str):
             if (channel == plugin_name and enabled) or (rule == plugin_name and enabled):
                 notification_instances.append(name)
     return notification_instances
+
+
+async def _put_refresh_cache(protocol: str, host: int, port: int) -> None:
+    management_api_url = '{}://{}:{}/fledge/cache/refresh'.format(protocol, host, port)
+    headers = {'content-type': 'application/json'}
+    verify_ssl = False if protocol == 'HTTP' else True
+    connector = aiohttp.TCPConnector(verify_ssl=verify_ssl)
+    async with aiohttp.ClientSession(connector=connector) as session:
+        async with session.put(management_api_url, data=json.dumps({}), headers=headers) as resp:
+            result = await resp.text()
+            status_code = resp.status
+            if status_code in range(400, 500):
+                _logger.error("Bad request error code: %d, reason: %s when refresh cache", status_code, resp.reason)
+            if status_code in range(500, 600):
+                _logger.error("Server error code: %d, reason: %s when refresh cache", status_code, resp.reason)
+            response = json.loads(result)
+            _logger.debug("PUT Refresh Cache response: %s", response)
 
 
 def purge_plugin(plugin_type: str, name: str, uid: uuid, storage: connect) -> tuple:
@@ -248,8 +266,8 @@ def purge_plugin(plugin_type: str, name: str, uid: uuid, storage: connect) -> tu
 
         if code == 0:
             # Clear internal cache
-            common._get_available_packages.cache_clear()
-            pkg_cache_mgr['list']['last_accessed_time'] = ""
+            loop.run_until_complete(_put_refresh_cache(Server.is_rest_server_http_enabled,
+                                                       Server._host, Server.core_management_port))
             # Audit info
             audit = AuditLogger(storage)
             audit_detail = {'package_name': "fledge-{}-{}".format(plugin_type, name)}

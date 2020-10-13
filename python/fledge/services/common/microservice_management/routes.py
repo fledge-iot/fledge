@@ -51,8 +51,11 @@ def setup(app, obj, is_core=False):
         # Audit Log
         app.router.add_route('POST', '/fledge/audit', obj.add_audit)
 
-        # schedule
+        # enable/disable schedule
         app.router.add_route('PUT', '/fledge/schedule/{schedule_id}/enable', obj.enable_disable_schedule)
+
+        # Internal refresh cache
+        app.router.add_route('PUT', '/fledge/cache/refresh', obj.refresh_cache)
 
     # enable cors support
     enable_cors(app)

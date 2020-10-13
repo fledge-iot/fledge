@@ -1423,9 +1423,9 @@ class Server:
             else:
                 status, reason = await cls.scheduler.disable_schedule(uuid.UUID(schedule_id))
         except (TypeError, ValueError, KeyError) as err:
-            raise web.HTTPBadRequest(reason=str(err), body=json.dumps(str(err)))
+            raise web.HTTPBadRequest(reason=str(err), body=json.dumps({'message': str(err)}))
         except Exception as ex:
-            raise web.HTTPInternalServerError(reason=str(ex), body=json.dumps(str(ex)))
+            raise web.HTTPInternalServerError(reason=str(ex), body=json.dumps({'message': str(ex)}))
         else:
             schedule = {
                 'scheduleId': schedule_id,
@@ -1433,6 +1433,23 @@ class Server:
                 'message': reason
             }
             return web.json_response(schedule)
+
+    @classmethod
+    async def refresh_cache(cls, request: web.Request) -> web.Response:
+        from fledge.services.core.api.plugins import common
+
+        data = await request.json()
+        try:
+            # At the moment only case to clear cache for available plugins
+            # We may add with action & key combination basis later on
+            common._get_available_packages.cache_clear()
+            cls._package_cache_manager['list']['last_accessed_time'] = ""
+        except (TypeError, ValueError, KeyError) as err:
+            raise web.HTTPBadRequest(reason=str(err), body=json.dumps({'message': str(err)}))
+        except Exception as ex:
+            raise web.HTTPInternalServerError(reason=str(ex), body=json.dumps({'message': str(ex)}))
+        else:
+            return web.json_response({"message": "Refresh cache is completed"})
 
     @classmethod
     async def get_configuration_categories(cls, request):

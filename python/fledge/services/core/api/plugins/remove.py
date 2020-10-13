@@ -200,7 +200,7 @@ async def check_plugin_usage_in_notification_instances(plugin_name: str) -> list
 
 
 async def _put_refresh_cache(protocol: str, host: int, port: int) -> None:
-    management_api_url = '{}://{}:{}/fledge/cache/refresh'.format(protocol, host, port)
+    management_api_url = '{}://{}:{}/fledge/cache'.format(protocol, host, port)
     headers = {'content-type': 'application/json'}
     verify_ssl = False if protocol == 'HTTP' else True
     connector = aiohttp.TCPConnector(verify_ssl=verify_ssl)

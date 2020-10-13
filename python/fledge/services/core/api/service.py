@@ -374,9 +374,14 @@ def load_c_plugin(plugin: str, service_type: str) -> Dict:
         plugin_config = plugin_info['config']
     except Exception:
         # Now looking for hybrid plugins if exists
-        plugin_info = common.load_and_fetch_c_hybrid_plugin_info(plugin, True)
-        if plugin_info:
-            plugin_config = plugin_info['config']
+        try:
+            plugin_info = common.load_and_fetch_c_hybrid_plugin_info(plugin, True)
+            if plugin_info:
+                plugin_config = plugin_info['config']
+        except Exception:
+            # This case if C-plugin is not found either in hybrid path. Hence treated as bad plugin
+            _logger.error("No {} plugin found".format(plugin))
+            plugin_config = {}
     return plugin_config
 
 

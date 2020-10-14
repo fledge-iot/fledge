@@ -213,6 +213,7 @@ class TestPluginUpdate:
                                         with patch('multiprocessing.Process'):
                                             resp = await client.put('/fledge/plugins/{}/{}/update'.format(
                                                 plugin_type, plugin_installed_dirname), data=None)
+                                            server.Server.scheduler = None
                                             assert 200 == resp.status
                                             result = await resp.text()
                                             response = json.loads(result)

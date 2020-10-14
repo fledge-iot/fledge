@@ -2720,6 +2720,10 @@ bool  ReadingsCatalogue::createNewDB()
 	result = true;
 	newDbId = m_dbId +1;
 
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+
+
 	// Creates the DB data file
 	{
 		dbPathReadings = generateDbFilePah(newDbId);
@@ -2775,6 +2779,10 @@ bool  ReadingsCatalogue::createNewDB()
 		m_dbId++;
 	}
 
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("warning");
+
+
 	return (result);
 }
 
@@ -2802,7 +2810,13 @@ bool  ReadingsCatalogue::createReadingsTables(int dbId, int idStartFrom, int nTa
 
 	Logger *logger = Logger::getLogger();
 
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
 	logger->info("Creating :%d: readings table in advance", nTables);
+
+	//# FIXME_I
+	Logger::getLogger()->debug("xxx Ingest createReadingsTables dbHandle :%X: ", dbHandle);
+
 
 	dbName = generateDbName(dbId);
 
@@ -2833,9 +2847,7 @@ bool  ReadingsCatalogue::createReadingsTables(int dbId, int idStartFrom, int nTa
 
 
 		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
 		Logger::getLogger()->debug("xxx createReadingsTables createReadings :%s: ", createReadings.c_str());
-		Logger::getLogger()->setMinLevel("warning");
 
 
 
@@ -2846,6 +2858,9 @@ bool  ReadingsCatalogue::createReadingsTables(int dbId, int idStartFrom, int nTa
 			return false;
 		}
 	}
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("warning");
 
 	manager->release(connection);
 

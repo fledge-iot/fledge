@@ -1320,11 +1320,11 @@ vector<string>  asset_codes;
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx Ingest update start table :%s: ", table.c_str());
+	Logger::getLogger()->debug("xxx Ingest V4 update start table :%s: ", table.c_str());
 	if (table.compare("statistics") == 0)
 	{
-		Logger::getLogger()->debug("xxx Ingest STAT skipper");
-		return (1);
+		Logger::getLogger()->debug("xxx Ingest STAT NOT skipp");
+		//return (1);
 	}
 	Logger::getLogger()->setMinLevel("warning");
 
@@ -1647,7 +1647,7 @@ vector<string>  asset_codes;
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx Ingest update end :%s: rc :%d: dbHandle :%H:", table.c_str(), rc, dbHandle);
+	Logger::getLogger()->debug("xxx Ingest update end :%s: rc :%d: dbHandle :%X:", table.c_str(), rc, dbHandle);
 	Logger::getLogger()->setMinLevel("warning");
 
 	// Check result code
@@ -2946,6 +2946,10 @@ int Connection::SQLexec(sqlite3 *db, const char *sql, int (*callback)(void*,int,
 {
 int retries = 0, rc;
 
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx8 SQLexec");
+
 	do {
 #if DO_PROFILE
 		ProfileItem *prof = new ProfileItem(sql);
@@ -2956,8 +2960,11 @@ int retries = 0, rc;
 		profiler.insert(prof);
 #endif
 		retries++;
-		if (rc == SQLITE_LOCKED || rc == SQLITE_BUSY)
+		if (rc != SQLITE_OK)
 		{
+			//# FIXME_I
+			Logger::getLogger()->debug("xxx8 SQLexec retry :%d:", retries);
+
 #if DO_PROFILE_RETRIES
 			m_qMutex.lock();
 			m_waiting.fetch_add(1);
@@ -2990,7 +2997,7 @@ int retries = 0, rc;
 				}
 			}
 		}
-	} while (retries < MAX_RETRIES && (rc == SQLITE_LOCKED || rc == SQLITE_BUSY));
+	} while (retries < MAX_RETRIES && (rc != SQLITE_OK));
 #if DO_PROFILE_RETRIES
 	retryStats[retries-1]++;
 	if (++numStatements > RETRY_REPORT_THRESHOLD - 1)
@@ -3018,6 +3025,15 @@ int retries = 0, rc;
 	{
 		Logger::getLogger()->error("Database still busy after maximum retries");
 	}
+
+	if (rc != SQLITE_OK)
+	{
+		Logger::getLogger()->error("Database error after maximum retries");
+	}
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("warning");
+
 
 	return rc;
 }

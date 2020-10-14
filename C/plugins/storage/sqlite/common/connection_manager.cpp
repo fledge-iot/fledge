@@ -92,6 +92,12 @@ Connection   *conn;
 		idleLock.unlock();
 		if (conn)
 		{
+			//# FIXME_I
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxx5 shrinkPool :%X:", conn->getDbHandle());
+			Logger::getLogger()->setMinLevel("warning");
+
+
 			delete conn;
 			removed++;
 		}

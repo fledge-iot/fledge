@@ -47,7 +47,7 @@ class TestPluginUpdate:
     async def test_bad_type_plugin(self, client, param):
         resp = await client.put('/fledge/plugins/{}/name/update'.format(param), data=None)
         assert 400 == resp.status
-        assert "Invalid plugin type. Must be 'north' or 'south' or 'filter' or 'notify' or 'rule'" == resp.reason
+        assert "Invalid plugin type. Must be one of 'south' , north', 'filter', 'notify' or 'rule'" == resp.reason
 
     async def test_package_already_in_progress(self, client):
         async def async_mock(return_value):
@@ -152,7 +152,7 @@ class TestPluginUpdate:
                                     result = await resp.text()
                                     response = json.loads(result)
                                     assert 'id' in response
-                                    assert 'Plugin update started.' == response['message']
+                                    assert '{} update started.'.format(pkg_name) == response['message']
                                     assert response['statusLink'].startswith('fledge/package/update/status?id=')
                             args, kwargs = insert_tbl_patch.call_args_list[0]
                             assert 'packages' == args[0]
@@ -218,7 +218,7 @@ class TestPluginUpdate:
                                             result = await resp.text()
                                             response = json.loads(result)
                                             assert 'id' in response
-                                            assert 'Plugin update started.' == response['message']
+                                            assert '{} update started.'.format(pkg_name) == response['message']
                                             assert response['statusLink'].startswith('fledge/package/update/status?id=')
                                     args, kwargs = insert_tbl_patch.call_args_list[0]
                                     assert 'packages' == args[0]
@@ -230,7 +230,7 @@ class TestPluginUpdate:
                                     assert '' == actual['log_file_uri']
                                 assert 1 == log_warn_patch.call_count
                                 log_warn_patch.assert_called_once_with(
-                                    'Disabling {} {} instance, as {} plugin is updating...'.format(
+                                    'Disabling {} {} instance, as {} plugin is being updated...'.format(
                                         svc_name, plugin_type, plugin_installed_dirname))
                             disable_sch_patch.assert_called_once_with(uuid.UUID(sch_info[0]['id']))
                         schedule_patch.assert_called_once_with(svc_name)
@@ -279,7 +279,7 @@ class TestPluginUpdate:
                             result = await resp.text()
                             response = json.loads(result)
                             assert 'id' in response
-                            assert 'Plugin update started.' == response['message']
+                            assert '{} update started.'.format(pkg_name) == response['message']
                             assert response['statusLink'].startswith('fledge/package/update/status?id=')
                     args, kwargs = insert_tbl_patch.call_args_list[0]
                     assert 'packages' == args[0]
@@ -358,7 +358,7 @@ class TestPluginUpdate:
                                             result = await resp.text()
                                             response = json.loads(result)
                                             assert 'id' in response
-                                            assert 'Plugin update started.' == response['message']
+                                            assert '{} update started.'.format(pkg_name) == response['message']
                                             assert response['statusLink'].startswith('fledge/package/update/status?id=')
                                     args, kwargs = insert_tbl_patch.call_args_list[0]
                                     assert 'packages' == args[0]
@@ -371,7 +371,7 @@ class TestPluginUpdate:
                                 set_cat_value_patch.assert_called_once_with(notification_name, 'enable', 'false')
                             assert 1 == log_warn_patch.call_count
                             log_warn_patch.assert_called_once_with(
-                                'Disabling {} notification instance, as {} rule plugin is updating...'.format(
+                                'Disabling {} notification instance, as {} rule plugin is being updated...'.format(
                                     notification_name, plugin_installed_dirname))
                         cat_value_patch.assert_called_once_with(notification_name)
                     child_cat_patch.assert_called_once_with(parent_name)

@@ -53,7 +53,7 @@ async def update_plugin(request: web.Request) -> web.Response:
     try:
         _type = _type.lower()
         if _type not in ['north', 'south', 'filter', 'notify', 'rule']:
-            raise ValueError("Invalid plugin type. Must be 'north' or 'south' or 'filter' or 'notify' or 'rule'")
+            raise ValueError("Invalid plugin type. Must be one of 'south' , north', 'filter', 'notify' or 'rule'")
         if _type == 'notify':
             installed_dir_name = 'notificationDelivery'
         elif _type == 'rule':
@@ -107,7 +107,7 @@ async def update_plugin(request: web.Request) -> web.Response:
                     rule = notification_config['rule']['value']
                     is_enabled = True if notification_config['enable']['value'] == 'true' else False
                     if (channel == name and is_enabled) or (rule == name and is_enabled):
-                        _logger.warning("Disabling {} notification instance, as {} {} plugin is updating...".format(
+                        _logger.warning("Disabling {} notification instance, as {} {} plugin is being updated...".format(
                             notification_name, name, _type))
                         await config_mgr.set_category_item_value_entry(notification_name, "enable", "false")
                         notification_list.append(notification_name)
@@ -130,7 +130,7 @@ async def update_plugin(request: web.Request) -> web.Response:
                     if sch_info[0]['enabled'] == 't':
                         status, reason = await server.Server.scheduler.disable_schedule(uuid.UUID(sch_info[0]['id']))
                         if status:
-                            _logger.warning("Disabling {} {} instance, as {} plugin is updating...".format(
+                            _logger.warning("Disabling {} {} instance, as {} plugin is being updated...".format(
                                 p['service'], _type, name))
                             sch_list.append(sch_info[0]['id'])
         # Insert record into Packages table
@@ -153,7 +153,7 @@ async def update_plugin(request: web.Request) -> web.Response:
                                                                              notification_list))
                 p.daemon = True
                 p.start()
-                msg = "Plugin {} started.".format(action)
+                msg = "{} {} started.".format(package_name, action)
                 status_link = "fledge/package/{}/status?id={}".format(action, uid)
                 result_payload = {"message": msg, "id": uid, "statusLink": status_link}
         else:

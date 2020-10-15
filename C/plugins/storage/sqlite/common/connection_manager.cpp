@@ -161,6 +161,12 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 
 	sqlCmd = "ATTACH DATABASE '" + path + "' AS " + alias + ";";
 
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx attachNewDb Start");
+	Logger::getLogger()->setMinLevel("warning");
+
+
 	idleLock.lock();
 	inUseLock.lock();
 
@@ -223,6 +229,116 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 	Logger::getLogger()->setMinLevel("warning");
 
 	return (result);
+}
+
+//// FIXME_I:xxx
+/**
+ * Attach a database to all the connections, idle and  inuse
+ *
+ * @param path  - path of the database to attach
+ * @param alias - alias to be assigned to the attached database
+ */
+void ConnectionManager::listConnections()
+{
+	int rc;
+	std::string sqlCmd;
+	sqlite3 *dbHandle;
+	bool result;
+	char *zErrMsg = NULL;
+
+	result = true;
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx listConnections");
+
+
+	idleLock.lock();
+	inUseLock.lock();
+
+	// attach the DB to all idle connections
+	for ( auto conn : idle) {
+
+		dbHandle = conn->getDbHandle();
+		Logger::getLogger()->debug("listConnections - idle :%X:", dbHandle);
+		listReadingAvailable(dbHandle);
+	}
+
+
+	for ( auto conn : inUse) {
+
+		dbHandle = conn->getDbHandle();
+		Logger::getLogger()->debug("listConnections - inUse :%X:", dbHandle);
+		listReadingAvailable(dbHandle);
+	}
+
+	idleLock.unlock();
+	inUseLock.unlock();
+
+	//# FIXME_I
+	Logger::getLogger()->debug("xxx listConnections end");
+
+}
+
+// FIXME_I:
+void ConnectionManager::listReadingAvailable(sqlite3 *dbHandle)
+{
+	using namespace std;
+
+	string dbName;
+	int nCols;
+	int id;
+	char *asset_name;
+	sqlite3_stmt *stmt;
+	int rc;
+	string tableName;
+	int dbId;
+	vector<int> dbIdList;
+
+	//# FIXME_I
+	Logger::getLogger()->debug("xxx listReadingAvailable start");
+
+
+	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
+	readCat->getAllDbs(dbIdList);
+
+	for(int dbId : dbIdList)
+	{
+
+		dbName = READINGS_DB_NAME_BASE "_" + to_string(dbId);
+
+		string sql_cmd = R"(
+			SELECT name
+			FROM  )" + dbName + R"(.sqlite_master
+			WHERE type='table' and name like 'readings_%';
+		)";
+
+		Logger::getLogger()->debug("xxx listReadingAvailable sql_cmd :%s:" ,sql_cmd.c_str());
+
+		if (sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), -1, &stmt, NULL) != SQLITE_OK)
+		{
+			Logger::getLogger()->error("xxx listReadingAvailable s1");
+		}
+		else
+		{
+			while ((rc = sqlite3_step(stmt)) == SQLITE_ROW)
+			{
+				nCols = sqlite3_column_count(stmt);
+
+				tableName = (char *) sqlite3_column_text(stmt, 0);
+				id = stoi(tableName.substr(tableName.find('_') + 1));
+
+				Logger::getLogger()->error("xxx listReadingAvailable :%X: db :%s: table :%s:", dbHandle, dbName.c_str(), tableName.c_str());
+			}
+			sqlite3_finalize(stmt);
+		}
+	}
+
+	Logger::getLogger()->debug("xxx listReadingAvailable end");
+
+
+
+
 }
 
 

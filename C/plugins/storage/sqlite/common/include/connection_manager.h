@@ -37,6 +37,10 @@ class ConnectionManager {
 						return &lastError;
 					  }
 
+		// FIXME_I:
+		void listConnections();
+		void listReadingAvailable(sqlite3 *dbHandle);
+
 	protected:
 		ConnectionManager();
 

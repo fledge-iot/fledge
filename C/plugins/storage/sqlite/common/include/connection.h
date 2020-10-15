@@ -135,6 +135,8 @@ class Connection {
 		bool        getNow(std::string& Now);
 
 		sqlite3		*getDbHandle() {return dbHandle;};
+		// FIXME_I:
+		int         SQLPrepare(sqlite3 *dbHandle, const char *sqlCmd, sqlite3_stmt **readingsStmt);
 
 	private:
 		bool 		m_streamOpenTransaction;
@@ -219,6 +221,8 @@ class ReadingsCatalogue {
 		bool          connectionAttachAllDbs(sqlite3 *dbHandle);
 		bool          attachDb(sqlite3 *dbHandle, std::string &path, std::string &alias);
 
+		void          setUsedDbId(int dbId);
+
 	private:
 		const int nReadingsAllocate = 3;
 
@@ -253,7 +257,34 @@ class ReadingsCatalogue {
 			// asset_code  - reading Table Id, Db Id
 			// {"",         ,{1               ,1 }}
 		};
-
+		std::vector<int>                              m_dbIdList;
 };
+
+class DbSync {
+
+public:
+	static DbSync *getInstance()
+	{
+		static DbSync *instance = 0;
+
+		if (!instance)
+		{
+			instance = new DbSync;
+		}
+		return instance;
+	}
+
+	void   lock()  {m_dbLock.lock();}
+	void   unlock()  {m_dbLock.unlock();}
+
+private:
+	DbSync(){};
+
+
+	std::mutex                                    m_dbLock;
+};
+
+
+
 
 #endif

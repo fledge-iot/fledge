@@ -764,24 +764,32 @@ int localNReadingsTotal;
 
 					if (readingsStmt[readingsId] == nullptr)
 					{
+						//# FIXME_I
+						Logger::getLogger()->setMinLevel("debug");
+
 						string dbName = readCatalogue->generateDbNameFromTableId(readingsId);
 						string dbReadingsName = readCatalogue->generateReadingsName(readingsId);
 
 						sql_cmd = "INSERT INTO  " + dbName + "." + dbReadingsName + " ( id, user_ts, reading ) VALUES  (?,?,?)";
-						rc = sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), -1, &readingsStmt[readingsId], NULL);
+
+						// FIXME_I:
+						//rc = sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), -1, &readingsStmt[readingsId], NULL);
+						rc = SQLPrepare(dbHandle, sql_cmd.c_str(), &readingsStmt[readingsId]);
+
 						if (rc != SQLITE_OK)
 						{
-							//# FIXME_I
-							Logger::getLogger()->setMinLevel("debug");
+
 							Logger::getLogger()->debug("xxx appendReadings S2.1 :%X: ", dbHandle);
 							Logger::getLogger()->setMinLevel("warning");
 
 							raiseError("appendReadings", sqlite3_errmsg(dbHandle));
 
+							// FIXME_I: xxx
+							ConnectionManager *manager = ConnectionManager::getInstance();
+							manager->listConnections();
+
 							//# FIXME_I
-							Logger::getLogger()->setMinLevel("debug");
 							Logger::getLogger()->debug("xxx appendReadings S2.2 :%X: ", dbHandle);
-							Logger::getLogger()->setMinLevel("warning");
 						}
 
 					}
@@ -867,6 +875,12 @@ int localNReadingsTotal;
 	m_writeAccessOngoing.fetch_sub(1);
 	//db_cv.notify_all();
 	}
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("warning");
+
+
+
 
 #if INSTRUMENT
 		gettimeofday(&t2, NULL);
@@ -2432,6 +2446,12 @@ bool  ReadingsCatalogue::loadAssetReadingCatalogue()
 	return true;
 }
 
+// FIXME_I:
+void ReadingsCatalogue::setUsedDbId(int dbId) {
+
+	m_dbIdList.push_back(dbId);
+}
+
 /**
  * Generates a list of all the used databases
  *
@@ -2439,6 +2459,11 @@ bool  ReadingsCatalogue::loadAssetReadingCatalogue()
 void ReadingsCatalogue::getAllDbs(vector<int> &dbIdList) {
 
 	int dbId;
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+
+	Logger::getLogger()->debug("xxx4 getAllDbs - Used");
 
 	for (auto &item : m_AssetReadingCatalogue) {
 
@@ -2448,12 +2473,28 @@ void ReadingsCatalogue::getAllDbs(vector<int> &dbIdList) {
 			if (std::find(dbIdList.begin(), dbIdList.end(), dbId) ==  dbIdList.end() )
 			{
 				dbIdList.push_back(dbId);
+				Logger::getLogger()->debug("xxx4 getAllDbs  DB :%d:", dbId);
 			}
 
 		}
 	}
 
+	Logger::getLogger()->debug("xxx4 getAllDbs - created");
+
+	for (auto &dbId : m_dbIdList) {
+
+		if (std::find(dbIdList.begin(), dbIdList.end(), dbId) ==  dbIdList.end() )
+		{
+			dbIdList.push_back(dbId);
+			Logger::getLogger()->debug("xxx4 getAllDbs DB created :%d:", dbId);
+		}
+	}
+
 	sort(dbIdList.begin(), dbIdList.end());
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("warning");
+
 }
 
 /**
@@ -2750,6 +2791,9 @@ bool  ReadingsCatalogue::createNewDB()
 	dbAlias = generateDbAlias(newDbId);
 	result = manager->attachNewDb(dbPathReadings, dbAlias);
 
+	// FIXME_I:
+	setUsedDbId(newDbId);
+
 	if (result)
 	{
 		if (dbAlreadyPresent)
@@ -2778,9 +2822,6 @@ bool  ReadingsCatalogue::createNewDB()
 		m_nReadingsAvailable = readingsToAllocate;
 		m_dbId++;
 	}
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("warning");
 
 
 	return (result);
@@ -2815,7 +2856,7 @@ bool  ReadingsCatalogue::createReadingsTables(int dbId, int idStartFrom, int nTa
 	logger->info("Creating :%d: readings table in advance", nTables);
 
 	//# FIXME_I
-	Logger::getLogger()->debug("xxx Ingest createReadingsTables dbHandle :%X: ", dbHandle);
+	Logger::getLogger()->debug("xxx createReadingsTables start dbHandle :%X: ", dbHandle);
 
 
 	dbName = generateDbName(dbId);
@@ -2860,7 +2901,7 @@ bool  ReadingsCatalogue::createReadingsTables(int dbId, int idStartFrom, int nTa
 	}
 
 	//# FIXME_I
-	Logger::getLogger()->setMinLevel("warning");
+	Logger::getLogger()->debug("xxx createReadingsTables end dbHandle :%X: ", dbHandle);
 
 	manager->release(connection);
 
@@ -2985,6 +3026,14 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 	{
 		m_mutexAssetReadingCatalogue.lock();
 
+		// FIXME_I:
+		Logger::getLogger()->setMinLevel("debug");
+		DbSync *sync = DbSync::getInstance();
+
+		Logger::getLogger()->debug("xxx0 getReadingReference lock before");
+		sync->lock();
+		Logger::getLogger()->debug("xxx0 getReadingReference lock after ");
+
 		auto item = m_AssetReadingCatalogue.find(asset_code);
 		if (item != m_AssetReadingCatalogue.end())
 		{
@@ -2997,6 +3046,10 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 			{
 				result = createNewDB();
 				readingsId = -1;
+
+				Logger::getLogger()->debug("xxxA getReadingReference sleep before ");
+				usleep(1000);
+				Logger::getLogger()->debug("xxxA getReadingReference sleep after ");
 			}
 
 			if (result)
@@ -3035,6 +3088,13 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 
 			}
 		}
+
+		// FIXME_I:
+		sync->unlock();
+		Logger::getLogger()->debug("xxx0 getReadingReference unlock after");
+		Logger::getLogger()->setMinLevel("warning");
+
+
 		m_mutexAssetReadingCatalogue.unlock();
 	}
 
@@ -3361,6 +3421,38 @@ int ReadingsCatalogue::SQLStep(sqlite3_stmt *statement)
 	if (rc == SQLITE_BUSY)
 	{
 		Logger::getLogger()->error("Database still busy after maximum retries");
+	}
+
+	return rc;
+}
+
+int Connection::SQLPrepare(sqlite3 *dbHandle, const char *sqlCmd, sqlite3_stmt **readingsStmt)
+{
+	int retries = 0, rc;
+
+	Logger::getLogger()->debug("SQLPrepare: cmd :%s: ", sqlCmd);
+
+	do {
+		rc = sqlite3_prepare_v2(dbHandle, sqlCmd, -1, readingsStmt, NULL);
+		Logger::getLogger()->debug("SQLPrepare: rc :%d: ", rc);
+
+		if (rc != SQLITE_OK)
+		{
+			retries++;
+
+			int interval = (retries * RETRY_BACKOFF);
+			if (retries > 5){
+				Logger::getLogger()->info("SQLPrepare: retry %d of %d, rc=%d, DB connection @ %p, slept for %d msecs",
+										  retries, MAX_RETRIES, rc, this, interval);
+
+			}
+			usleep(interval);	// sleep retries milliseconds
+		}
+	} while (retries < MAX_RETRIES && (rc != SQLITE_OK));
+
+	if (rc != SQLITE_OK)
+	{
+		Logger::getLogger()->error("SQLPrepare - Database error after maximum retries");
 	}
 
 	return rc;

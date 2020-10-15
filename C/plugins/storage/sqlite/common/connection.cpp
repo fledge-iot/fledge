@@ -1135,6 +1135,14 @@ Document	document;
 ostringstream convert;
 std::size_t arr = data.find("inserts");
 
+	//# FIXME_I
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
+
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx0 insert start table :%s: thread %s: ", table.c_str(), threadId.str().c_str());
+
+
 	// Check first the 'inserts' property in JSON data
 	bool stdInsert = (arr == std::string::npos || arr > 8);
 
@@ -1247,6 +1255,13 @@ std::size_t arr = data.find("inserts");
 	char *zErrMsg = NULL;
 	int rc;
 
+	// FIXME_I:
+	DbSync *sync = DbSync::getInstance();
+	Logger::getLogger()->debug("xxx0 insert lock before lock :%s: ", threadId.str().c_str());
+	sync->lock();
+	Logger::getLogger()->debug("xxx0 insert lock after lock :%s: ", threadId.str().c_str());
+
+
 	// Exec INSERT statement: no callback, no result set
 	m_writeAccessOngoing.fetch_add(1);
 	rc = SQLexec(dbHandle,
@@ -1257,6 +1272,12 @@ std::size_t arr = data.find("inserts");
 	m_writeAccessOngoing.fetch_sub(1);
 	if (m_writeAccessOngoing == 0)
 		db_cv.notify_all();
+
+	// FIXME_I:
+	sync->unlock();
+	Logger::getLogger()->debug("xxx0 insert lock unlock  :%s: ", threadId.str().c_str());
+	Logger::getLogger()->debug("xxx insert end :%s: rc :%d: dbHandle :%X:", table.c_str(), rc, dbHandle);
+	Logger::getLogger()->setMinLevel("warning");
 
 	// Check exec result
 	if (rc != SQLITE_OK )
@@ -1318,15 +1339,18 @@ Document	document;
 SQLBuffer	sql;
 vector<string>  asset_codes;
 
+
 	//# FIXME_I
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
+
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx Ingest V4 update start table :%s: ", table.c_str());
+	Logger::getLogger()->debug("xxx0 update start table :%s: thread %s: ", table.c_str(), threadId.str().c_str());
 	if (table.compare("statistics") == 0)
 	{
-		Logger::getLogger()->debug("xxx Ingest STAT NOT skipp");
+		Logger::getLogger()->debug("xxx update start  STAT NOT skipp");
 		//return (1);
 	}
-	Logger::getLogger()->setMinLevel("warning");
 
 
 	int 	row = 0;
@@ -1634,6 +1658,14 @@ vector<string>  asset_codes;
 	char *zErrMsg = NULL;
 	int rc;
 
+
+	// FIXME_I:
+	DbSync *sync = DbSync::getInstance();
+	Logger::getLogger()->debug("xxx0 update lock before :%s: ", threadId.str().c_str());
+	sync->lock();
+	Logger::getLogger()->debug("xxx0 update lock after :%s: ", threadId.str().c_str());
+
+
 	// Exec the UPDATE statement: no callback, no result set
 	m_writeAccessOngoing.fetch_add(1);
 	rc = SQLexec(dbHandle,
@@ -1645,9 +1677,11 @@ vector<string>  asset_codes;
 	if (m_writeAccessOngoing == 0)
 		db_cv.notify_all();
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx Ingest update end :%s: rc :%d: dbHandle :%X:", table.c_str(), rc, dbHandle);
+	// FIXME_I:
+	Logger::getLogger()->debug("xxx0 update lock unlock S1 :%s: ", threadId.str().c_str());
+	sync->unlock();
+	Logger::getLogger()->debug("xxx0 update lock unlock S2");
+	Logger::getLogger()->debug("xxx update end :%s: rc :%d: dbHandle :%X:", table.c_str(), rc, dbHandle);
 	Logger::getLogger()->setMinLevel("warning");
 
 	// Check result code
@@ -2948,7 +2982,7 @@ int retries = 0, rc;
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx8 SQLexec");
+	Logger::getLogger()->debug("xxx8 SQLexec start :%s:", sql);
 
 	do {
 #if DO_PROFILE
@@ -3031,9 +3065,7 @@ int retries = 0, rc;
 		Logger::getLogger()->error("Database error after maximum retries");
 	}
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("warning");
-
+	Logger::getLogger()->debug("xxx8 SQLexec end :%s:", sql);
 
 	return rc;
 }

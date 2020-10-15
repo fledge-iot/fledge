@@ -53,7 +53,7 @@ async def update_plugin(request: web.Request) -> web.Response:
     try:
         _type = _type.lower()
         if _type not in ['north', 'south', 'filter', 'notify', 'rule']:
-            raise ValueError("Invalid plugin type. Must be 'north' or 'south' or 'filter' or 'notify' or 'rule'")
+            raise ValueError("Invalid plugin type. Must be one of 'south' , north', 'filter', 'notify' or 'rule'")
         if _type == 'notify':
             installed_dir_name = 'notificationDelivery'
         elif _type == 'rule':
@@ -65,7 +65,7 @@ async def update_plugin(request: web.Request) -> web.Response:
         # if status is -1 (Already in progress) then return as rejected request
         result_payload = {}
         action = 'update'
-        package_name = "fledge-{}-{}".format(_type, name.lower())
+        package_name = "fledge-{}-{}".format(_type, name.lower().replace('_', '-'))
         storage_client = connect.get_storage_async()
         select_payload = PayloadBuilder().SELECT("status").WHERE(['action', '=', action]).AND_WHERE(
             ['name', '=', package_name]).payload()
@@ -107,7 +107,7 @@ async def update_plugin(request: web.Request) -> web.Response:
                     rule = notification_config['rule']['value']
                     is_enabled = True if notification_config['enable']['value'] == 'true' else False
                     if (channel == name and is_enabled) or (rule == name and is_enabled):
-                        _logger.warning("Disabling {} notification instance, as {} {} plugin is updating...".format(
+                        _logger.warning("Disabling {} notification instance, as {} {} plugin is being updated...".format(
                             notification_name, name, _type))
                         await config_mgr.set_category_item_value_entry(notification_name, "enable", "false")
                         notification_list.append(notification_name)
@@ -130,10 +130,9 @@ async def update_plugin(request: web.Request) -> web.Response:
                     if sch_info[0]['enabled'] == 't':
                         status, reason = await server.Server.scheduler.disable_schedule(uuid.UUID(sch_info[0]['id']))
                         if status:
-                            _logger.warning("Disabling {} {} instance, as {} plugin is updating...".format(
+                            _logger.warning("Disabling {} {} instance, as {} plugin is being updated...".format(
                                 p['service'], _type, name))
                             sch_list.append(sch_info[0]['id'])
-
         # Insert record into Packages table
         insert_payload = PayloadBuilder().INSERT(id=str(uuid.uuid4()), name=package_name, action=action, status=-1,
                                                  log_file_uri="").payload()
@@ -154,7 +153,7 @@ async def update_plugin(request: web.Request) -> web.Response:
                                                                              notification_list))
                 p.daemon = True
                 p.start()
-                msg = "Plugin {} started.".format(action)
+                msg = "{} {} started.".format(package_name, action)
                 status_link = "fledge/package/{}/status?id={}".format(action, uid)
                 result_payload = {"message": msg, "id": uid, "statusLink": status_link}
         else:
@@ -169,7 +168,7 @@ async def update_plugin(request: web.Request) -> web.Response:
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=str(ex))
     else:
-        return web.json_response({'message': result_payload})
+        return web.json_response(result_payload)
 
 
 async def _get_plugin_and_sch_name_from_asset_tracker(_type: str) -> list:
@@ -209,7 +208,7 @@ async def _put_schedule(protocol: str, host: str, port: int, sch_id: uuid, is_en
             _logger.debug("PUT Schedule response: %s", response)
 
 
-def update_repo_sources_and_plugin(_type: str, name: str) -> tuple:
+def _update_repo_sources_and_plugin(_type: str, name: str) -> tuple:
     # Below check is needed for python plugins
     # For Example: installed_plugin_dir=wind_turbine; package_name=wind-turbine
     name = name.replace("_", "-")
@@ -240,7 +239,7 @@ def do_update(http_enabled: bool, host: str, port: int, storage: connect, _type:
               schedules: list, notifications: list) -> None:
     _logger.info("{} plugin update started...".format(name))
     protocol = "HTTP" if http_enabled else "HTTPS"
-    code, link = update_repo_sources_and_plugin(_type, name)
+    code, link = _update_repo_sources_and_plugin(_type, name)
 
     # Update record in Packages table
     payload = PayloadBuilder().SET(status=code, log_file_uri=link).WHERE(['id', '=', uid]).payload()

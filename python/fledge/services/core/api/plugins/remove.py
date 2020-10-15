@@ -23,6 +23,7 @@ from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.common import _FLEDGE_ROOT
 from fledge.common.audit_logger import AuditLogger
+from fledge.common.storage_client.exceptions import StorageServerError
 
 __author__ = "Rajesh Kumar"
 __copyright__ = "Copyright (c) 2020, Dianomic Systems Inc."
@@ -67,16 +68,19 @@ async def remove_plugin(request: web.Request) -> web.Response:
             installed_dir_name = 'notificationRule'
         else:
             installed_dir_name = plugin_type
+        result_payload = {}
         installed_plugin = PluginDiscovery.get_plugins_installed(installed_dir_name, False)
         if name not in [plugin['name'] for plugin in installed_plugin]:
             raise KeyError("Invalid plugin name {} or plugin is not installed".format(name))
         if plugin_type in ['notify', 'rule']:
-            notification_instances_plugin_used_in = await check_plugin_usage_in_notification_instances(name)
+            notification_instances_plugin_used_in = await _check_plugin_usage_in_notification_instances(name)
             if notification_instances_plugin_used_in:
-                raise RuntimeError("{} cannot be removed. This is being used by {} instances".
-                                   format(name, notification_instances_plugin_used_in))
+                err_msg = "{} cannot be removed. This is being used by {} instances".format(
+                    name, notification_instances_plugin_used_in)
+                _logger.error(err_msg)
+                raise RuntimeError(err_msg)
         else:
-            get_tracked_plugins = await check_plugin_usage(plugin_type, name)
+            get_tracked_plugins = await _check_plugin_usage(plugin_type, name)
             if get_tracked_plugins:
                 e = "{} cannot be removed. This is being used by {} instances".\
                     format(name, get_tracked_plugins[0]['service_list'])
@@ -88,7 +92,7 @@ async def remove_plugin(request: web.Request) -> web.Response:
         # Check Pre-conditions from Packages table
         # if status is -1 (Already in progress) then return as rejected request
         action = 'purge'
-        package_name = "fledge-{}-{}".format(plugin_type, name.lower())
+        package_name = "fledge-{}-{}".format(plugin_type, name.lower().replace("_", "-"))
         storage = connect.get_storage_async()
         select_payload = PayloadBuilder().SELECT("status").WHERE(['action', '=', action]).AND_WHERE(
             ['name', '=', package_name]).payload()
@@ -120,18 +124,25 @@ async def remove_plugin(request: web.Request) -> web.Response:
                 p = multiprocessing.Process(name=pn, target=purge_plugin, args=(plugin_type, name, uid, storage))
                 p.daemon = True
                 p.start()
-                msg = "Plugin purge started."
+                msg = "{} plugin purge started.".format(name)
                 status_link = "fledge/package/{}/status?id={}".format(action, uid)
                 result_payload = {"message": msg, "id": uid, "statusLink": status_link}
+        else:
+            raise StorageServerError
     except (ValueError, RuntimeError) as err:
         raise web.HTTPBadRequest(reason=str(err), body=json.dumps({'message': str(err)}))
     except KeyError as err:
         raise web.HTTPNotFound(reason=str(err), body=json.dumps({'message': str(err)}))
+    except StorageServerError as err:
+        msg = str(err)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": "Storage error: {}".format(msg)}))
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason=str(ex), body=json.dumps({'message': str(ex)}))
     else:
-        return web.json_response({'message': result_payload})
+        return web.json_response(result_payload)
 
 
-async def check_plugin_usage(plugin_type: str, plugin_name: str) -> list:
+async def _check_plugin_usage(plugin_type: str, plugin_name: str) -> list:
     """ Check usage of plugin and return a list of services / tasks or other instances with reference
     """
     plugin_users = []
@@ -152,7 +163,7 @@ async def check_plugin_usage(plugin_type: str, plugin_name: str) -> list:
         filter_res = await storage_client.query_tbl_with_payload("filters", filter_payload)
         filter_used = [f['name'] for f in filter_res['rows']]
         for r in range(0, len(list_of_tracked_plugin['rows'])):
-            service_in_schedules_list = await check_service_in_schedules(list_of_tracked_plugin['rows'][r]['service'])
+            service_in_schedules_list = await _check_service_in_schedules(list_of_tracked_plugin['rows'][r]['service'])
             for p in filter_used:
                 if p in list_of_tracked_plugin['rows'][r]['plugin'] and service_in_schedules_list:
                     service_list.append(list_of_tracked_plugin['rows'][r]['service'])
@@ -161,7 +172,7 @@ async def check_plugin_usage(plugin_type: str, plugin_name: str) -> list:
         for e in list_of_tracked_plugin['rows']:
             if (plugin_name == e['plugin'] and plugin_type != 'filter') or (e['plugin'] in filter_used and
                                                                             plugin_type == 'filter'):
-                service_in_list = await check_service_in_schedules(e['service'])
+                service_in_list = await _check_service_in_schedules(e['service'])
                 if (plugin_name in [x['plugin'] for x in list_of_tracked_plugin['rows']] and service_in_list) \
                         or (e['plugin'] in filter_used and service_in_list):
                     if service_list:
@@ -172,7 +183,7 @@ async def check_plugin_usage(plugin_type: str, plugin_name: str) -> list:
     return plugin_users
 
 
-async def check_service_in_schedules(service_name: str) -> bool:
+async def _check_service_in_schedules(service_name: str) -> bool:
     storage_client = connect.get_storage_async()
     payload_data = PayloadBuilder().SELECT('id', 'enabled').WHERE(['schedule_name', '=', service_name]).payload()
     enabled_service_list = await storage_client.query_tbl_with_payload('schedules', payload_data)
@@ -180,7 +191,7 @@ async def check_service_in_schedules(service_name: str) -> bool:
     return is_service_list
 
 
-async def check_plugin_usage_in_notification_instances(plugin_name: str) -> list:
+async def _check_plugin_usage_in_notification_instances(plugin_name: str) -> list:
     """ Check notification instance state using the given rule or delivery plugin
     """
     notification_instances = []
@@ -230,7 +241,6 @@ def purge_plugin(plugin_type: str, name: str, uid: uuid, storage: connect) -> tu
     plugin_name = 'fledge-{}-{}'.format(plugin_type, name)
 
     get_platform = platform.platform()
-    pkg_cache_mgr = Server._package_cache_manager
     try:
         if 'centos' in get_platform or 'redhat' in get_platform:
             rpm_list = os.popen('rpm -qa | grep fledge*').read()

@@ -1140,7 +1140,7 @@ std::size_t arr = data.find("inserts");
 	threadId << std::this_thread::get_id();
 
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx0 insert start table :%s: thread %s: ", table.c_str(), threadId.str().c_str());
+	Logger::getLogger()->debug("xxx0 N1 insert start table :%s: thread %s: ", table.c_str(), threadId.str().c_str());
 
 
 	// Check first the 'inserts' property in JSON data
@@ -1274,8 +1274,9 @@ std::size_t arr = data.find("inserts");
 		db_cv.notify_all();
 
 	// FIXME_I:
+	Logger::getLogger()->debug("xxx0 insert unlock before  :%s: ", threadId.str().c_str());
 	sync->unlock();
-	Logger::getLogger()->debug("xxx0 insert lock unlock  :%s: ", threadId.str().c_str());
+	Logger::getLogger()->debug("xxx0 insert unlock after  :%s: ", threadId.str().c_str());
 	Logger::getLogger()->debug("xxx insert end :%s: rc :%d: dbHandle :%X:", table.c_str(), rc, dbHandle);
 	Logger::getLogger()->setMinLevel("warning");
 
@@ -1345,10 +1346,10 @@ vector<string>  asset_codes;
 	threadId << std::this_thread::get_id();
 
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx0 update start table :%s: thread %s: ", table.c_str(), threadId.str().c_str());
+	Logger::getLogger()->debug("xxx0 N1 update start table :%s: thread %s: ", table.c_str(), threadId.str().c_str());
 	if (table.compare("statistics") == 0)
 	{
-		Logger::getLogger()->debug("xxx update start  STAT NOT skipp");
+		Logger::getLogger()->debug("xxx update start STAT NOT skipp");
 		//return (1);
 	}
 
@@ -1661,6 +1662,7 @@ vector<string>  asset_codes;
 
 	// FIXME_I:
 	DbSync *sync = DbSync::getInstance();
+	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug("xxx0 update lock before :%s: ", threadId.str().c_str());
 	sync->lock();
 	Logger::getLogger()->debug("xxx0 update lock after :%s: ", threadId.str().c_str());
@@ -1678,9 +1680,9 @@ vector<string>  asset_codes;
 		db_cv.notify_all();
 
 	// FIXME_I:
-	Logger::getLogger()->debug("xxx0 update lock unlock S1 :%s: ", threadId.str().c_str());
+	Logger::getLogger()->debug("xxx0 update unlock before S1 :%s: ", threadId.str().c_str());
 	sync->unlock();
-	Logger::getLogger()->debug("xxx0 update lock unlock S2");
+	Logger::getLogger()->debug("xxx0 update unlock after S2");
 	Logger::getLogger()->debug("xxx update end :%s: rc :%d: dbHandle :%X:", table.c_str(), rc, dbHandle);
 	Logger::getLogger()->setMinLevel("warning");
 
@@ -2982,7 +2984,7 @@ int retries = 0, rc;
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx8 SQLexec start :%s:", sql);
+	Logger::getLogger()->debug("xxx9 SQLexec start :%s:", sql);
 
 	do {
 #if DO_PROFILE
@@ -2997,7 +2999,7 @@ int retries = 0, rc;
 		if (rc != SQLITE_OK)
 		{
 			//# FIXME_I
-			Logger::getLogger()->debug("xxx8 SQLexec retry :%d:", retries);
+			Logger::getLogger()->debug("xxx9 SQLexec retry :%d:", retries);
 
 #if DO_PROFILE_RETRIES
 			m_qMutex.lock();
@@ -3065,7 +3067,7 @@ int retries = 0, rc;
 		Logger::getLogger()->error("Database error after maximum retries");
 	}
 
-	Logger::getLogger()->debug("xxx8 SQLexec end :%s:", sql);
+	Logger::getLogger()->debug("xxx9 SQLexec end :%s:", sql);
 
 	return rc;
 }

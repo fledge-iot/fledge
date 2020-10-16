@@ -3090,6 +3090,7 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 		}
 
 		// FIXME_I:
+		Logger::getLogger()->debug("xxx0 getReadingReference unlock before");
 		sync->unlock();
 		Logger::getLogger()->debug("xxx0 getReadingReference unlock after");
 		Logger::getLogger()->setMinLevel("warning");

@@ -212,7 +212,7 @@ class ReadingsCatalogue {
 
 		void          preallocateReadingsTables();
 		bool          loadAssetReadingCatalogue();
-		bool          createNewDB();
+		bool          createNewDB(sqlite3 *dbHandle);
 		int           getReadingReference(Connection *connection, const char *asset_code);
 		bool          attachAllDbs();
 		std::string   sqlConstructMultiDb(std::string &sqlCmdBase, std::vector<std::string>  &assetCodes);
@@ -236,7 +236,7 @@ class ReadingsCatalogue {
 
 		int           getUsedTablesDbId(int dbId);
 		int           getNReadingsAllocate() const {return nReadingsAllocate;}
-		bool          createReadingsTables(int dbId, int idStartFrom, int nTables);
+		bool          createReadingsTables(sqlite3 *dbHandle, int dbId, int idStartFrom, int nTables);
 		bool          isReadingAvailable() const;
 		void          allocateReadingAvailable();
 		tyReadingsAvailable   evaluateLastReadingAvailable(int dbId);

@@ -774,6 +774,14 @@ int localNReadingsTotal;
 
 						// FIXME_I:
 						//rc = sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), -1, &readingsStmt[readingsId], NULL);
+
+						// FIXME_I:
+						DbSync *sync = DbSync::getInstance();
+						Logger::getLogger()->debug("xxx0 appendreadings lock before :%s: ", threadId.str().c_str());
+						sync->lock();
+						Logger::getLogger()->debug("xxx0 appendreadings  lock after  :%s: ", threadId.str().c_str());
+
+
 						rc = SQLPrepare(dbHandle, sql_cmd.c_str(), &readingsStmt[readingsId]);
 
 						if (rc != SQLITE_OK)
@@ -791,6 +799,13 @@ int localNReadingsTotal;
 							//# FIXME_I
 							Logger::getLogger()->debug("xxx appendReadings S2.2 :%X: ", dbHandle);
 						}
+
+						// FIXME_I:
+						Logger::getLogger()->debug("xxx0 appendreadings unlock before :%s: ", threadId.str().c_str());
+						sync->unlock();
+						Logger::getLogger()->debug("xxx0 appendreadings  unlock after  :%s: ", threadId.str().c_str());
+
+
 
 					}
 					stmt = readingsStmt[readingsId];
@@ -2694,7 +2709,7 @@ void ReadingsCatalogue::preallocateReadingsTables()
 	{
 		readingsToCreate = readingsToAllocate - readingsAvailable.tableCount;
 		startId = readingsAvailable.lastReadings + 1;
-		createReadingsTables(m_dbId, startId, readingsToCreate);
+		createReadingsTables(NULL, m_dbId, startId, readingsToCreate);
 	}
 
 	m_nReadingsAvailable = readingsToAllocate - getUsedTablesDbId(m_dbId);
@@ -2739,7 +2754,7 @@ string ReadingsCatalogue::generateDbFilePah(int dbId)
  * Creates a new database using m_dbId as datbase id
  *
  */
-bool  ReadingsCatalogue::createNewDB()
+bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle)
 {
 	int rc;
 	int nTables;
@@ -2752,7 +2767,6 @@ bool  ReadingsCatalogue::createNewDB()
 	string sqlCmd;
 	string dbPathReadings;
 	string dbAlias;
-	sqlite3 *dbHandle;
 
 	struct stat st;
 	bool dbAlreadyPresent=false;
@@ -2763,7 +2777,7 @@ bool  ReadingsCatalogue::createNewDB()
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-
+	Logger::getLogger()->info("createNewDB: :%X:" ,dbHandle);
 
 	// Creates the DB data file
 	{
@@ -2815,7 +2829,8 @@ bool  ReadingsCatalogue::createNewDB()
 
 		if (readingsToCreate > 0)
 		{
-			createReadingsTables(newDbId ,startId, readingsToCreate);
+			// FIXME_I:
+			createReadingsTables(dbHandle, newDbId ,startId, readingsToCreate);
 
 			Logger::getLogger()->info("createNewDB: database file :%s: created readings table - from id :%d: n :%d: " , dbPathReadings.c_str(), startId, readingsToCreate);
 		}
@@ -2834,7 +2849,7 @@ bool  ReadingsCatalogue::createNewDB()
  * @param idStartFrom - Id from with to start to create the tables
  * @param nTables     - Number of table to create
  */
-bool  ReadingsCatalogue::createReadingsTables(int dbId, int idStartFrom, int nTables)
+bool  ReadingsCatalogue::createReadingsTables(sqlite3 *dbHandle, int dbId, int idStartFrom, int nTables)
 {
 	string createReadings, createReadingsIdx;
 	string dbName;
@@ -2842,14 +2857,23 @@ bool  ReadingsCatalogue::createReadingsTables(int dbId, int idStartFrom, int nTa
 	int tableId;
 	int rc;
 	int readingsIdx;
-
-	sqlite3 *dbHandle;
-
-	ConnectionManager *manager = ConnectionManager::getInstance();
-	Connection        *connection = manager->allocate();
-	dbHandle = connection->getDbHandle();
+	bool newConnection;
+	Connection        *connection;
 
 	Logger *logger = Logger::getLogger();
+	newConnection = false;
+
+	ConnectionManager *manager = ConnectionManager::getInstance();
+
+	if (dbHandle == NULL)
+	{
+		connection = manager->allocate();
+		dbHandle = connection->getDbHandle();
+		newConnection = true;
+	}
+
+	// FIXME_I:
+	logger->debug("createReadingsTables dbHandle :%X: ", dbHandle);
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
@@ -2903,7 +2927,10 @@ bool  ReadingsCatalogue::createReadingsTables(int dbId, int idStartFrom, int nTa
 	//# FIXME_I
 	Logger::getLogger()->debug("xxx createReadingsTables end dbHandle :%X: ", dbHandle);
 
-	manager->release(connection);
+	if (newConnection)
+	{
+		manager->release(connection);
+	}
 
 	return true;
 }
@@ -3044,7 +3071,7 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 			//# Allocate a new block of readings table
 			if (! isReadingAvailable () )
 			{
-				result = createNewDB();
+				result = createNewDB(dbHandle);
 				readingsId = -1;
 
 				Logger::getLogger()->debug("xxxA getReadingReference sleep before ");
@@ -3431,7 +3458,7 @@ int Connection::SQLPrepare(sqlite3 *dbHandle, const char *sqlCmd, sqlite3_stmt *
 {
 	int retries = 0, rc;
 
-	Logger::getLogger()->debug("SQLPrepare: cmd :%s: ", sqlCmd);
+	Logger::getLogger()->debug("SQLPrepare start: cmd :%s: ", sqlCmd);
 
 	do {
 		rc = sqlite3_prepare_v2(dbHandle, sqlCmd, -1, readingsStmt, NULL);
@@ -3455,6 +3482,8 @@ int Connection::SQLPrepare(sqlite3 *dbHandle, const char *sqlCmd, sqlite3_stmt *
 	{
 		Logger::getLogger()->error("SQLPrepare - Database error after maximum retries");
 	}
+	// FIXME_I:
+	Logger::getLogger()->debug("SQLPrepare end: cmd :%s: ", sqlCmd);
 
 	return rc;
 }

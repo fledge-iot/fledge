@@ -2777,7 +2777,7 @@ bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle)
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->info("createNewDB: :%X:" ,dbHandle);
+	Logger::getLogger()->info("createNewDB V2: :%X:" ,dbHandle);
 
 	// Creates the DB data file
 	{
@@ -3039,6 +3039,12 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 
 	result = true;
 
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx00 getReadingReference");
+
+
+
 	dbHandle = connection->getDbHandle();
 
 	Logger *logger = Logger::getLogger();
@@ -3051,6 +3057,10 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 	}
 	else
 	{
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx00 getReadingReference s2");
+
 		m_mutexAssetReadingCatalogue.lock();
 
 		auto item = m_AssetReadingCatalogue.find(asset_code);
@@ -3060,9 +3070,17 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 		}
 		else
 		{
+			//# FIXME_I
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxx00 getReadingReference s3");
+
 			//# Allocate a new block of readings table
 			if (! isReadingAvailable () )
 			{
+				//# FIXME_I
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("xxx00 getReadingReference s4");
+
 
 				// FIXME_I:
 				Logger::getLogger()->setMinLevel("debug");

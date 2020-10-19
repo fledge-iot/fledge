@@ -3053,14 +3053,6 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 	{
 		m_mutexAssetReadingCatalogue.lock();
 
-		// FIXME_I:
-		Logger::getLogger()->setMinLevel("debug");
-		DbSync *sync = DbSync::getInstance();
-
-		Logger::getLogger()->debug("xxx0 getReadingReference lock before");
-		sync->lock();
-		Logger::getLogger()->debug("xxx0 getReadingReference lock after ");
-
 		auto item = m_AssetReadingCatalogue.find(asset_code);
 		if (item != m_AssetReadingCatalogue.end())
 		{
@@ -3071,12 +3063,25 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 			//# Allocate a new block of readings table
 			if (! isReadingAvailable () )
 			{
+
+				// FIXME_I:
+				Logger::getLogger()->setMinLevel("debug");
+				DbSync *sync = DbSync::getInstance();
+
+				Logger::getLogger()->debug("xxx0 getReadingReference lock before");
+				sync->lock();
+				Logger::getLogger()->debug("xxx0 getReadingReference lock after ");
+
+
 				result = createNewDB(dbHandle);
 				readingsId = -1;
 
-				Logger::getLogger()->debug("xxxA getReadingReference sleep before ");
-				usleep(1000);
-				Logger::getLogger()->debug("xxxA getReadingReference sleep after ");
+				// FIXME_I:
+				Logger::getLogger()->debug("xxx0 getReadingReference unlock before");
+				sync->unlock();
+				Logger::getLogger()->debug("xxx0 getReadingReference unlock after");
+				Logger::getLogger()->setMinLevel("warning");
+
 			}
 
 			if (result)
@@ -3115,12 +3120,6 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 
 			}
 		}
-
-		// FIXME_I:
-		Logger::getLogger()->debug("xxx0 getReadingReference unlock before");
-		sync->unlock();
-		Logger::getLogger()->debug("xxx0 getReadingReference unlock after");
-		Logger::getLogger()->setMinLevel("warning");
 
 
 		m_mutexAssetReadingCatalogue.unlock();

@@ -606,13 +606,6 @@ Connection::Connection()
 		Logger::getLogger()->setMinLevel("debug");
 		Logger::getLogger()->debug("xxx4 Connection start :%X:" ,dbHandle);
 
-		// FIXME_I:
-		DbSync *sync = DbSync::getInstance();
-		Logger::getLogger()->debug("xxx0 Connection lock before :%X: ", this);
-		sync->lock();
-		Logger::getLogger()->debug("xxx0 Connection lock after  :%X: ", this);
-
-
 		ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 		if ( !readCat->connectionAttachAllDbs(dbHandle) )
 		{
@@ -622,12 +615,6 @@ Connection::Connection()
 			connectErrorTime = time(0);
 			sqlite3_close_v2(dbHandle);
 		}
-
-		// FIXME_I:
-		Logger::getLogger()->debug("xxx0 Connection unlock before :%X: ", this);
-		sync->unlock();
-		Logger::getLogger()->debug("xxx0 Connection unlock after  :%X: ", this);
-
 
 	} catch (exception e) {
 		//# FIXME_I

@@ -224,7 +224,7 @@ class ReadingsCatalogue {
 		void          setUsedDbId(int dbId);
 
 	private:
-		const int nReadingsAllocate = 3;
+		const int nReadingsAllocate = 15;
 
 		typedef struct ReadingAvailable {
 			int lastReadings;

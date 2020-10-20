@@ -3039,12 +3039,6 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 
 	result = true;
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx00 getReadingReference");
-
-
-
 	dbHandle = connection->getDbHandle();
 
 	Logger *logger = Logger::getLogger();
@@ -3057,10 +3051,6 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 	}
 	else
 	{
-		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx00 getReadingReference s2");
-
 		m_mutexAssetReadingCatalogue.lock();
 
 		auto item = m_AssetReadingCatalogue.find(asset_code);
@@ -3070,34 +3060,25 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 		}
 		else
 		{
-			//# FIXME_I
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("xxx00 getReadingReference s3");
-
 			//# Allocate a new block of readings table
 			if (! isReadingAvailable () )
 			{
-				//# FIXME_I
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxx00 getReadingReference s4");
-
-
 				// FIXME_I:
 				Logger::getLogger()->setMinLevel("debug");
 				DbSync *sync = DbSync::getInstance();
 
-				Logger::getLogger()->debug("xxx0 getReadingReference lock before");
+				//Logger::getLogger()->debug("xxx0 getReadingReference lock before");
 				sync->lock();
-				Logger::getLogger()->debug("xxx0 getReadingReference lock after ");
+				//Logger::getLogger()->debug("xxx0 getReadingReference lock after ");
 
 
 				result = createNewDB(dbHandle);
 				readingsId = -1;
 
 				// FIXME_I:
-				Logger::getLogger()->debug("xxx0 getReadingReference unlock before");
+				//Logger::getLogger()->debug("xxx0 getReadingReference unlock before");
 				sync->unlock();
-				Logger::getLogger()->debug("xxx0 getReadingReference unlock after");
+				//Logger::getLogger()->debug("xxx0 getReadingReference unlock after");
 				Logger::getLogger()->setMinLevel("warning");
 
 			}
@@ -3475,11 +3456,12 @@ int Connection::SQLPrepare(sqlite3 *dbHandle, const char *sqlCmd, sqlite3_stmt *
 {
 	int retries = 0, rc;
 
-	Logger::getLogger()->debug("SQLPrepare start: cmd :%s: ", sqlCmd);
+	// FIXME_I:
+	//Logger::getLogger()->debug("SQLPrepare start: cmd :%s: ", sqlCmd);
 
 	do {
 		rc = sqlite3_prepare_v2(dbHandle, sqlCmd, -1, readingsStmt, NULL);
-		Logger::getLogger()->debug("SQLPrepare: rc :%d: ", rc);
+		//Logger::getLogger()->debug("SQLPrepare: rc :%d: ", rc);
 
 		if (rc != SQLITE_OK)
 		{
@@ -3500,7 +3482,7 @@ int Connection::SQLPrepare(sqlite3 *dbHandle, const char *sqlCmd, sqlite3_stmt *
 		Logger::getLogger()->error("SQLPrepare - Database error after maximum retries");
 	}
 	// FIXME_I:
-	Logger::getLogger()->debug("SQLPrepare end: cmd :%s: ", sqlCmd);
+	//Logger::getLogger()->debug("SQLPrepare end: cmd :%s: ", sqlCmd);
 
 	return rc;
 }

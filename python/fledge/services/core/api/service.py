@@ -10,6 +10,7 @@ import datetime
 import uuid
 import platform
 import json
+import multiprocessing
 from aiohttp import web
 
 from typing import Dict, List
@@ -183,29 +184,72 @@ async def add_service(request):
                     raise ValueError("format param is required")
                 if file_format not in ["repository"]:
                     raise ValueError("Invalid format. Must be 'repository'")
+                if not name.startswith("fledge-service-"):
+                    raise ValueError('name should start with "fledge-service-" prefix')
                 version = data.get('version', None)
                 if version:
                     delimiter = '.'
                     if str(version).count(delimiter) != 2:
                         raise ValueError('Service semantic version is incorrect; it should be like X.Y.Z')
 
-                services, log_path = await common.fetch_available_packages("service")
-                if name not in services:
-                    raise KeyError('{} service is not available for the given repository or already installed'.format(name))
-
                 _platform = platform.platform()
                 pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
-                code, link, msg = await install.install_package_from_repo(name, pkg_mgt, version)
-                if code != 0:
-                    raise PackageError(link)
-
-                message = "{} is successfully {}".format(name, msg)
+                # Check Pre-conditions from Packages table
+                # if status is -1 (Already in progress) then return as rejected request
                 storage = connect.get_storage_async()
-                audit = AuditLogger(storage)
-                audit_detail = {'packageName': name}
-                log_code = 'PKGUP' if msg == 'updated' else 'PKGIN'
-                await audit.information(log_code, audit_detail)
-                return web.json_response({'message': message, "link": link})
+                action = "install"
+                select_payload = PayloadBuilder().SELECT("status").WHERE(['action', '=', action]).AND_WHERE(
+                    ['name', '=', name]).payload()
+                result = await storage.query_tbl_with_payload('packages', select_payload)
+                response = result['rows']
+                if response:
+                    exit_code = response[0]['status']
+                    if exit_code == -1:
+                        msg = "{} package installation already in progress".format(name)
+                        return web.HTTPTooManyRequests(reason=msg, body=json.dumps({"message": msg}))
+                    # Remove old entry from table for other cases
+                    delete_payload = PayloadBuilder().WHERE(['action', '=', action]).AND_WHERE(
+                        ['name', '=', name]).payload()
+                    await storage.delete_from_tbl("packages", delete_payload)
+
+                # Check If requested service is already installed and then return immediately
+                services = get_service_installed()
+                svc_name = name.split('fledge-')[1].split('-')[1]
+                for s in services:
+                    if s == svc_name:
+                        msg = "{} package is already installed".format(name)
+                        return web.HTTPNotModified(reason=msg, body=json.dumps({"message": msg}))
+
+                # Check If requested service is available for configured repository
+                services, log_path = await common.fetch_available_packages("service")
+                if name not in services:
+                    raise KeyError('{} service is not available for the given repository'.format(name))
+                # Insert record into Packages table
+                insert_payload = PayloadBuilder().INSERT(id=str(uuid.uuid4()), name=name, action=action, status=-1,
+                                                         log_file_uri="").payload()
+                result = await storage.insert_into_tbl("packages", insert_payload)
+                response = result['response']
+                if response:
+                    # GET id from Packages table to track the installation response
+                    select_payload = PayloadBuilder().SELECT("id").WHERE(['action', '=', action]).AND_WHERE(
+                        ['name', '=', name]).payload()
+                    result = await storage.query_tbl_with_payload('packages', select_payload)
+                    response = result['rows']
+                    if response:
+                        pn = "{}-{}".format(action, name)
+                        uid = response[0]['id']
+                        p = multiprocessing.Process(name=pn, target=install.install_package_from_repo,
+                                                    args=(name, pkg_mgt, version, uid, storage))
+                        p.daemon = True
+                        p.start()
+                        _logger.info("{} service started...".format(name))
+                        msg = "{} service installation started.".format(name)
+                        status_link = "fledge/package/install/status?id={}".format(uid)
+                        return web.json_response({"message": msg, "id": uid, "statusLink": status_link})
+                    else:
+                        raise StorageServerError
+                else:
+                    raise StorageServerError
             else:
                 raise web.HTTPBadRequest(reason='{} is not a valid action'.format(request.query['action']))
         if utils.check_reserved(name) is False:
@@ -353,14 +397,13 @@ async def add_service(request):
             await config_mgr.delete_category_and_children_recursively(name)
             _logger.exception("Failed to create service. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to create service.')
-
-    except PackageError as e:
-        msg = "Service installation request failed"
-        raise web.HTTPBadRequest(body=json.dumps({"message": msg, "link": str(e)}), reason=msg)
     except ValueError as e:
         raise web.HTTPBadRequest(reason=str(e))
     except KeyError as ex:
         raise web.HTTPNotFound(reason=str(ex))
+    except StorageServerError as err:
+        msg = str(err)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": "Storage error: {}".format(msg)}))
     else:
         return web.json_response({'name': name, 'id': str(schedule.schedule_id)})
 

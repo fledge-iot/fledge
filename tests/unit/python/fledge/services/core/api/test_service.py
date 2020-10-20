@@ -4,7 +4,6 @@
 # See: http://fledge.readthedocs.io/
 # FLEDGE_END
 
-import platform
 import asyncio
 import json
 from uuid import UUID
@@ -25,9 +24,7 @@ from fledge.common.configuration_manager import ConfigurationManager
 from fledge.services.core.api import service
 from fledge.services.core.api.plugins import common
 from fledge.services.core.api.service import _logger
-from fledge.services.core.api.plugins import install
 from fledge.services.core.api.plugins.exceptions import *
-from fledge.common.audit_logger import AuditLogger
 
 
 __author__ = "Ashwin Gopalakrishnan, Ashish Jabble"
@@ -608,35 +605,111 @@ class TestService:
         assert 404 == resp.status
         assert '{} service does not exist.'.format(name) == resp.reason
 
+    async def test_post_install_package_from_repo_already_in_progress(self, client):
+        async def async_mock(return_value):
+            return return_value
+
+        pkg_name = 'fledge-service-notification'
+        param = {"format": "repository", "name": pkg_name}
+        payload = {"return": ["status"], "where": {"column": "action", "condition": "=", "value": "install",
+                                                   "and": {"column": "name", "condition": "=", "value": pkg_name}}}
+        select_row_resp = {'count': 1, 'rows': [{
+            "id": "c5648940-31ec-4f78-a7a5-b1707e8fe578",
+            "name": pkg_name,
+            "action": "install",
+            "status": -1,
+            "log_file_uri": ""
+        }]}
+        msg = '{} package installation already in progress'.format(pkg_name)
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload',
+                              return_value=async_mock(select_row_resp)) as query_tbl_patch:
+                resp = await client.post('/fledge/service?action=install', data=json.dumps(param))
+                assert 429 == resp.status
+                assert msg == resp.reason
+                r = await resp.text()
+                actual = json.loads(r)
+                assert {'message': msg} == actual
+            args, kwargs = query_tbl_patch.call_args_list[0]
+            assert 'packages' == args[0]
+            assert payload == json.loads(args[1])
+
+    async def test_post_install_package_from_repo_already_installed(self, client):
+        async def async_mock(return_value):
+            return return_value
+
+        pkg_name = 'fledge-service-notification'
+        param = {"format": "repository", "name": pkg_name}
+        payload = {"return": ["status"], "where": {"column": "action", "condition": "=", "value": "install",
+                                                   "and": {"column": "name", "condition": "=", "value": pkg_name}}}
+        svc_list = ["storage", "south", "notification"]
+        msg = '{} package is already installed'.format(pkg_name)
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload',
+                              return_value=async_mock({'count': 0, 'rows': []})) as query_tbl_patch:
+                with patch.object(service, 'get_service_installed', return_value=svc_list
+                                  ) as svc_list_patch:
+                    resp = await client.post('/fledge/service?action=install', data=json.dumps(param))
+                    assert 304 == resp.status
+                    assert msg == resp.reason
+                svc_list_patch.assert_called_once_with()
+            args, kwargs = query_tbl_patch.call_args_list[0]
+            assert 'packages' == args[0]
+            assert payload == json.loads(args[1])
+
     async def test_post_service_package_from_repo(self, client, loop):
         async def async_mock(return_value):
             return return_value
 
-        svc_name = 'fledge-service-notification'
-        log = 'log/190801-12-19-24'
-        link = "{}-{}.log".format(log, svc_name)
-        msg = "installed"
-        param = {"format": "repository", "name": svc_name}
-        _platform = platform.platform()
-        pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
+        pkg_name = 'fledge-service-notification'
+        param = {"format": "repository", "name": pkg_name}
         storage_client_mock = MagicMock(StorageClientAsync)
-        with patch.object(common, 'fetch_available_packages', return_value=async_mock(([svc_name], log))) as patch_fetch_available_package:
-            with patch.object(install, 'install_package_from_repo',
-                              return_value=async_mock((0, link, msg))) as install_package_patch:
-                with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                    with patch.object(AuditLogger, '__init__', return_value=None):
-                        with patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(
-                                async_mock(None), loop=loop)) as audit_info_patch:
-                            resp = await client.post('/fledge/service?action=install', data=json.dumps(param))
-                            assert 200 == resp.status
-                            result = await resp.text()
-                            response = json.loads(result)
-                            assert {"link": link, "message": "{} is successfully {}".format(svc_name, msg)} == response
-                    args, kwargs = audit_info_patch.call_args
-                    assert 'PKGIN' == args[0]
-                    assert {'packageName': svc_name} == args[1]
-            install_package_patch.assert_called_once_with(svc_name, pkg_mgt, None)
-        patch_fetch_available_package.assert_called_once_with('service')
+        insert_row_resp = {'count': 1, 'rows': [{
+            "id": "c5648940-31ec-4f78-a7a5-b1707e8fe578",
+            "name": pkg_name,
+            "action": "install",
+            "status": 0,
+            "log_file_uri": ""
+        }]}
+        query_tbl_payload = {"return": ["status"], "where": {"column": "action", "condition": "=", "value": "install",
+                                                             "and": {"column": "name", "condition": "=",
+                                                                     "value": pkg_name}}}
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload',
+                              side_effect=[async_mock({'count': 0, 'rows': []}), async_mock(insert_row_resp)
+                                           ]) as query_tbl_patch:
+                with patch.object(common, 'fetch_available_packages', return_value=(
+                        async_mock(([pkg_name, "fledge-north-http", "fledge-south-sinusoid"],
+                                    'log/190801-12-41-13.log')))) as patch_fetch_available_package:
+                    with patch.object(storage_client_mock, 'insert_into_tbl',
+                                      return_value=async_mock({"response": "inserted", "rows_affected": 1}
+                                                              )) as insert_tbl_patch:
+                        with patch.object(service._logger, "info") as log_info:
+                            with patch('multiprocessing.Process'):
+                                resp = await client.post('/fledge/service?action=install', data=json.dumps(param))
+                                assert 200 == resp.status
+                                result = await resp.text()
+                                response = json.loads(result)
+                                assert 'id' in response
+                                assert '{} service installation started.'.format(pkg_name) == response['message']
+                                assert response['statusLink'].startswith('fledge/package/install/status?id=')
+                        assert 1 == log_info.call_count
+                        log_info.assert_called_once_with('{} service started...'.format(pkg_name))
+                    args, kwargs = insert_tbl_patch.call_args_list[0]
+                    assert 'packages' == args[0]
+                    actual = json.loads(args[1])
+                    assert 'id' in actual
+                    assert pkg_name == actual['name']
+                    assert 'install' == actual['action']
+                    assert -1 == actual['status']
+                    assert '' == actual['log_file_uri']
+                patch_fetch_available_package.assert_called_once_with('service')
+            args, kwargs = query_tbl_patch.call_args_list[0]
+            assert 'packages' == args[0]
+            actual = json.loads(args[1])
+            assert query_tbl_payload == actual
 
     @pytest.mark.parametrize("req_param, post_param, message", [
         ("?action=install", {"name": "blah"}, "format param is required"),
@@ -644,7 +717,9 @@ class TestService:
         ("?action=install", {"format": "blah", "name": "blah"}, "Invalid format. Must be 'repository'"),
         ("?action=blah", {"format": "blah", "name": "blah"}, "blah is not a valid action"),
         ("?action=install", {"format": "repository", "name": "fledge-service-notification", "version": "1.6"},
-         "Service semantic version is incorrect; it should be like X.Y.Z")
+         "Service semantic version is incorrect; it should be like X.Y.Z"),
+        ("?action=install", {"format": "repository", "name": "blah"},
+         "name should start with \"fledge-service-\" prefix")
     ])
     async def test_bad_post_service_package_from_repo(self, client, req_param, post_param, message):
         resp = await client.post('/fledge/service{}'.format(req_param), data=json.dumps(post_param))
@@ -655,29 +730,23 @@ class TestService:
         async def async_mock(return_value):
             return return_value
 
-        svc = "fledge-service-notification"
-        param = {"format": "repository", "name": svc}
-        with patch.object(common, 'fetch_available_packages', return_value=async_mock(([], 'log/190801-12-19-24'))) as patch_fetch_available_package:
-            resp = await client.post('/fledge/service?action=install', data=json.dumps(param))
-            assert 404 == resp.status
-            assert "'{} service is not available for the given repository or already installed'".format(svc) == resp.reason
-        patch_fetch_available_package.assert_called_once_with('service')
-
-    async def test_package_error_exception_on_install_package_from_repo(self, client):
-        svc = "fledge-service-notification"
-        param = {"format": "repository", "name": svc}
-        msg = "Service installation request failed"
-        link = "log/190930-16-52-23-{}.log".format(svc)
-        with patch.object(common, 'fetch_available_packages',
-                          side_effect=PackageError(link)) as patch_fetch_available_package:
-            resp = await client.post('/fledge/service?action=install', data=json.dumps(param))
-            assert 400 == resp.status
-            assert msg == resp.reason
-            result = await resp.text()
-            json_response = json.loads(result)
-            assert link == json_response['link']
-            assert msg == json_response['message']
-        patch_fetch_available_package.assert_called_once_with('service')
+        pkg_name = "fledge-service-notification"
+        param = {"format": "repository", "name": pkg_name}
+        payload = {"return": ["status"], "where": {"column": "action", "condition": "=", "value": "install",
+                                                   "and": {"column": "name", "condition": "=", "value": pkg_name}}}
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload',
+                              return_value=async_mock({'count': 0, 'rows': []})) as query_tbl_patch:
+                with patch.object(common, 'fetch_available_packages', return_value=async_mock((
+                        [], 'log/190801-12-19-24'))) as patch_fetch_available_package:
+                    resp = await client.post('/fledge/service?action=install', data=json.dumps(param))
+                    assert 404 == resp.status
+                    assert "'{} service is not available for the given repository'".format(pkg_name) == resp.reason
+            patch_fetch_available_package.assert_called_once_with('service')
+        args, kwargs = query_tbl_patch.call_args_list[0]
+        assert 'packages' == args[0]
+        assert payload == json.loads(args[1])
 
     async def test_get_service_available(self, client):
         async def async_mock(return_value):
@@ -724,6 +793,7 @@ class TestService:
     p1 = '{"name": "FL Agent", "type": "management"}'
     p2 = '{"name": "FL #1", "type": "management", "enabled": false}'
     p3 = '{"name": "FL_MGT", "type": "management", "enabled": true}'
+
     @pytest.mark.parametrize("payload", [p1, p2, p3])
     async def test_add_management_service(self, client, payload):
         data = json.loads(payload)

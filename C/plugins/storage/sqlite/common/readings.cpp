@@ -23,10 +23,6 @@
 #include <algorithm>
 #include <vector>
 
-//# FIXME_I:
-#include <tmp_log.hpp>
-
-
 // 1 enable performance tracking
 #define INSTRUMENT	0
 
@@ -1461,13 +1457,6 @@ vector<string>  asset_codes;
 		int rc;
 		sqlite3_stmt *stmt;
 
-
-
-		//# FIXME_I:
-		char tmp_buffer[500000];
-		snprintf (tmp_buffer,500000, "DBG : query   |%s| ", query);
-		tmpLogger (tmp_buffer);
-
 		logSQL("ReadingsRetrieve", query);
 
 		// Prepare the SQL statement and get the result set
@@ -1478,9 +1467,6 @@ vector<string>  asset_codes;
 
 		if (rc != SQLITE_OK)
 		{
-			snprintf (tmp_buffer,500000, "xxx ERROR");
-			tmpLogger (tmp_buffer);
-
 			raiseError("retrieve", sqlite3_errmsg(dbHandle));
 			return false;
 		}
@@ -3248,11 +3234,6 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string
 		StringReplaceAll (sqlCmd, ".assetcode.", "asset_code");
 		StringReplaceAll (sqlCmd, "_dbname_", READINGS_DB);
 		StringReplaceAll (sqlCmd, "_tablename_", "readings_1");
-
-		//# FIXME_I:
-		snprintf (tmp_buffer,500000, "xxx DBG : sqlConstructMultiDb  empty  |%s| ", sqlCmd.c_str());
-		tmpLogger (tmp_buffer);
-
 	}
 	else
 	{
@@ -3305,11 +3286,6 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string
 			StringReplaceAll (sqlCmd, "_dbname_", READINGS_DB);
 			StringReplaceAll (sqlCmd, "_tablename_", "readings_1");
 		}
-
-		//# FIXME_I:
-		snprintf (tmp_buffer,500000, "xxx DBG : sqlConstructMultiDb  full  |%s| ", sqlCmd.c_str());
-		tmpLogger (tmp_buffer);
-
 	}
 
 	return(sqlCmd);

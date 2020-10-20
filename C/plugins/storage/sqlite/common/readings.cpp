@@ -773,9 +773,9 @@ int localNReadingsTotal;
 
 						// FIXME_I:
 						DbSync *sync = DbSync::getInstance();
-						Logger::getLogger()->debug("xxx0 appendreadings lock before :%s: ", threadId.str().c_str());
+						//Logger::getLogger()->debug("xxx0 appendreadings lock before :%s: ", threadId.str().c_str());
 						sync->lock();
-						Logger::getLogger()->debug("xxx0 appendreadings  lock after  :%s: ", threadId.str().c_str());
+						//Logger::getLogger()->debug("xxx0 appendreadings  lock after  :%s: ", threadId.str().c_str());
 
 
 						rc = SQLPrepare(dbHandle, sql_cmd.c_str(), &readingsStmt[readingsId]);
@@ -783,23 +783,23 @@ int localNReadingsTotal;
 						if (rc != SQLITE_OK)
 						{
 
-							Logger::getLogger()->debug("xxx appendReadings S2.1 :%X: ", dbHandle);
-							Logger::getLogger()->setMinLevel("warning");
+							//Logger::getLogger()->debug("xxx appendReadings S2.1 :%X: ", dbHandle);
+							//Logger::getLogger()->setMinLevel("warning");
 
 							raiseError("appendReadings", sqlite3_errmsg(dbHandle));
 
 							// FIXME_I: xxx
-							ConnectionManager *manager = ConnectionManager::getInstance();
-							manager->listConnections();
+							//ConnectionManager *manager = ConnectionManager::getInstance();
+							//manager->listConnections();
 
 							//# FIXME_I
-							Logger::getLogger()->debug("xxx appendReadings S2.2 :%X: ", dbHandle);
+							//Logger::getLogger()->debug("xxx appendReadings S2.2 :%X: ", dbHandle);
 						}
 
 						// FIXME_I:
-						Logger::getLogger()->debug("xxx0 appendreadings unlock before :%s: ", threadId.str().c_str());
+						//Logger::getLogger()->debug("xxx0 appendreadings unlock before :%s: ", threadId.str().c_str());
 						sync->unlock();
-						Logger::getLogger()->debug("xxx0 appendreadings  unlock after  :%s: ", threadId.str().c_str());
+						//Logger::getLogger()->debug("xxx0 appendreadings  unlock after  :%s: ", threadId.str().c_str());
 
 
 

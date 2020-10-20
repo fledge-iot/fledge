@@ -1333,20 +1333,6 @@ Document	document;
 SQLBuffer	sql;
 vector<string>  asset_codes;
 
-
-	//# FIXME_I
-	ostringstream threadId;
-	threadId << std::this_thread::get_id();
-
-	Logger::getLogger()->setMinLevel("debug");
-	//Logger::getLogger()->debug("xxx0 U2 update start table :%s: thread %s:  dbHandle :%X:", table.c_str(), threadId.str().c_str(), this);
-	if (table.compare("statistics") == 0)
-	{
-		Logger::getLogger()->debug("xxx update start STAT NOT skipp");
-		//return (1);
-	}
-
-
 	int 	row = 0;
 	ostringstream convert;
 

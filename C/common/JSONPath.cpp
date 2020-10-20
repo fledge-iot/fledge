@@ -1,5 +1,5 @@
 /*
- * Fledge storage service client
+ * Fledge RapaidJSON JSONPath search helper
  *
  * Copyright (c) 2020 Dianomic Systems
  *

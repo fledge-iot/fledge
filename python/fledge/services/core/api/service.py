@@ -4,12 +4,14 @@
 # See: http://fledge.readthedocs.io/
 # FLEDGE_END
 
+import aiohttp
 import asyncio
 import os
 import datetime
 import uuid
 import platform
 import json
+import multiprocessing
 from aiohttp import web
 
 from typing import Dict, List
@@ -183,29 +185,64 @@ async def add_service(request):
                     raise ValueError("format param is required")
                 if file_format not in ["repository"]:
                     raise ValueError("Invalid format. Must be 'repository'")
+                if not name.startswith("fledge-service-"):
+                    raise ValueError('name should start with "fledge-service-" prefix')
                 version = data.get('version', None)
                 if version:
                     delimiter = '.'
                     if str(version).count(delimiter) != 2:
                         raise ValueError('Service semantic version is incorrect; it should be like X.Y.Z')
 
-                services, log_path = await common.fetch_available_packages("service")
-                if name not in services:
-                    raise KeyError('{} service is not available for the given repository or already installed'.format(name))
-
                 _platform = platform.platform()
                 pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
-                code, link, msg = await install.install_package_from_repo(name, pkg_mgt, version)
-                if code != 0:
-                    raise PackageError(link)
-
-                message = "{} is successfully {}".format(name, msg)
+                # Check Pre-conditions from Packages table
+                # if status is -1 (Already in progress) then return as rejected request
                 storage = connect.get_storage_async()
-                audit = AuditLogger(storage)
-                audit_detail = {'packageName': name}
-                log_code = 'PKGUP' if msg == 'updated' else 'PKGIN'
-                await audit.information(log_code, audit_detail)
-                return web.json_response({'message': message, "link": link})
+                action = "install"
+                select_payload = PayloadBuilder().SELECT("status").WHERE(['action', '=', action]).AND_WHERE(
+                    ['name', '=', name]).payload()
+                result = await storage.query_tbl_with_payload('packages', select_payload)
+                response = result['rows']
+                if response:
+                    exit_code = response[0]['status']
+                    if exit_code == -1:
+                        msg = "{} package installation already in progress".format(name)
+                        return web.HTTPTooManyRequests(reason=msg, body=json.dumps({"message": msg}))
+                    # Remove old entry from table for other cases
+                    delete_payload = PayloadBuilder().WHERE(['action', '=', action]).AND_WHERE(
+                        ['name', '=', name]).payload()
+                    await storage.delete_from_tbl("packages", delete_payload)
+
+                # Check If requested service is already installed and then return immediately
+                services = get_service_installed()
+                svc_name = name.split('fledge-')[1].split('-')[1]
+                for s in services:
+                    if s == svc_name:
+                        msg = "{} package is already installed".format(name)
+                        return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+
+                # Check If requested service is available for configured repository
+                services, log_path = await common.fetch_available_packages("service")
+                if name not in services:
+                    raise KeyError('{} service is not available for the given repository'.format(name))
+                
+                # Insert record into Packages table
+                uid = str(uuid.uuid4())
+                insert_payload = PayloadBuilder().INSERT(id=uid, name=name, action=action, status=-1,
+                                                         log_file_uri="").payload()
+                result = await storage.insert_into_tbl("packages", insert_payload)
+                if result['response'] == "inserted" and result['rows_affected'] == 1:
+                    pn = "{}-{}".format(action, name)
+                    p = multiprocessing.Process(name=pn, target=install.install_package_from_repo,
+                                                args=(name, pkg_mgt, version, uid, storage))
+                    p.daemon = True
+                    p.start()
+                    msg = "{} service installation started".format(name)
+                    _logger.info("{}...".format(msg))
+                    status_link = "fledge/package/install/status?id={}".format(uid)
+                    return web.json_response({"message": msg, "id": uid, "statusLink": status_link})
+                else:
+                    raise StorageServerError
             else:
                 raise web.HTTPBadRequest(reason='{} is not a valid action'.format(request.query['action']))
         if utils.check_reserved(name) is False:
@@ -353,14 +390,13 @@ async def add_service(request):
             await config_mgr.delete_category_and_children_recursively(name)
             _logger.exception("Failed to create service. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to create service.')
-
-    except PackageError as e:
-        msg = "Service installation request failed"
-        raise web.HTTPBadRequest(body=json.dumps({"message": msg, "link": str(e)}), reason=msg)
     except ValueError as e:
         raise web.HTTPBadRequest(reason=str(e))
     except KeyError as ex:
         raise web.HTTPNotFound(reason=str(ex))
+    except StorageServerError as err:
+        msg = str(err)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": "Storage error: {}".format(msg)}))
     else:
         return web.json_response({'name': name, 'id': str(schedule.schedule_id)})
 
@@ -454,8 +490,26 @@ async def update_service(request: web.Request) -> web.Response:
         if name not in installed_services:
             raise KeyError("{} service is not installed yet. Hence update is not possible.".format(name))
 
+        # Check Pre-conditions from Packages table
+        # if status is -1 (Already in progress) then return as rejected request
+        action = 'update'
+        package_name = "fledge-service-{}".format(name)
         storage_client = connect.get_storage_async()
-        # TODO: process_name ends with "_c" suffix
+        select_payload = PayloadBuilder().SELECT("status").WHERE(['action', '=', action]).AND_WHERE(
+            ['name', '=', package_name]).payload()
+        result = await storage_client.query_tbl_with_payload('packages', select_payload)
+        response = result['rows']
+        if response:
+            exit_code = response[0]['status']
+            if exit_code == -1:
+                msg = "{} package {} already in progress".format(package_name, action)
+                return web.HTTPTooManyRequests(reason=msg, body=json.dumps({"message": msg}))
+            # Remove old entry from table for other cases
+            delete_payload = PayloadBuilder().WHERE(['action', '=', action]).AND_WHERE(
+                ['name', '=', package_name]).payload()
+            await storage_client.delete_from_tbl("packages", delete_payload)
+
+        # process_name always ends with "_c" suffix
         payload = PayloadBuilder().SELECT("id", "enabled", "schedule_name").WHERE(['process_name', '=', '{}_c'.format(
             _type)]).payload()
         result = await storage_client.query_tbl_with_payload('schedules', payload)
@@ -466,54 +520,87 @@ async def update_service(request: web.Request) -> web.Response:
             if status:
                 _logger.warning("Schedule is disabled for {}, as {} service of type {} is being updated...".format(
                     sch_info[0]['schedule_name'], name, _type))
-                # TODO: SCHCH Audit log entry
                 sch_list.append(sch_info[0]['id'])
 
-        # service update is running as a background task
-        loop = request.loop
-        request._type = _type
-        request._name = name
-        request._sch_list = sch_list
-        loop.call_later(1, do_update, request)
+        # Insert record into Packages table
+        uid = str(uuid.uuid4())
+        insert_payload = PayloadBuilder().INSERT(id=uid, name=package_name, action=action, status=-1,
+                                                 log_file_uri="").payload()
+        result = await storage_client.insert_into_tbl("packages", insert_payload)
+        if result['response'] == "inserted" and result['rows_affected'] == 1:
+            pn = "{}-{}".format(action, name)
+            p = multiprocessing.Process(name=pn, target=do_update, args=(server.Server.is_rest_server_http_enabled,
+                                                                         server.Server._host,
+                                                                         server.Server.core_management_port,
+                                                                         storage_client, package_name, uid, sch_list))
+            p.daemon = True
+            p.start()
+            msg = "{} {} started".format(package_name, action)
+            status_link = "fledge/package/{}/status?id={}".format(action, uid)
+            result_payload = {"message": msg, "id": uid, "statusLink": status_link}
+        else:
+            raise StorageServerError
     except KeyError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except ValueError as ex:
         raise web.HTTPBadRequest(reason=str(ex))
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=str(ex))
+    else:
+        return web.json_response(result_payload)
 
-    return web.json_response({"message": "{} service update in process. Wait for few minutes to complete.".format(
-        name)})
+
+async def _put_schedule(protocol: str, host: str, port: int, sch_id: uuid, is_enabled: bool) -> None:
+    management_api_url = '{}://{}:{}/fledge/schedule/{}/enable'.format(protocol, host, port, sch_id)
+    headers = {'content-type': 'application/json'}
+    verify_ssl = False if protocol == 'HTTP' else True
+    connector = aiohttp.TCPConnector(verify_ssl=verify_ssl)
+    async with aiohttp.ClientSession(connector=connector) as session:
+        async with session.put(management_api_url, data=json.dumps({"value": is_enabled}), headers=headers) as resp:
+            result = await resp.text()
+            status_code = resp.status
+            if status_code in range(400, 500):
+                _logger.error("Bad request error code: %d, reason: %s when PUT schedule", status_code, resp.reason)
+            if status_code in range(500, 600):
+                _logger.error("Server error code: %d, reason: %s when PUT schedule", status_code, resp.reason)
+            response = json.loads(result)
+            _logger.debug("PUT Schedule response: %s", response)
 
 
-def do_update(request):
-    _logger.info("{} service update started...".format(request._name))
-    name = "fledge-service-{}".format(request._name.lower())
+def do_update(http_enabled: bool, host: str, port: int, storage: connect, pkg_name: str, uid: str,
+              schedules: list) -> None:
+    _logger.info("{} service update started...".format(pkg_name))
     _platform = platform.platform()
-    stdout_file_path = common.create_log_file("update", name)
+    stdout_file_path = common.create_log_file("update", pkg_name)
     pkg_mgt = 'apt'
     cmd = "sudo {} -y update > {} 2>&1".format(pkg_mgt, stdout_file_path)
+    protocol = "HTTP" if http_enabled else "HTTPS"
     if 'centos' in _platform or 'redhat' in _platform:
         pkg_mgt = 'yum'
         cmd = "sudo {} check-update > {} 2>&1".format(pkg_mgt, stdout_file_path)
     ret_code = os.system(cmd)
     # sudo apt/yum -y install only happens when update is without any error
     if ret_code == 0:
-        cmd = "sudo {} -y install {} >> {} 2>&1".format(pkg_mgt, name, stdout_file_path)
+        cmd = "sudo {} -y install {} >> {} 2>&1".format(pkg_mgt, pkg_name, stdout_file_path)
         ret_code = os.system(cmd)
 
     # relative log file link
     link = "log/" + stdout_file_path.split("/")[-1]
-    if ret_code != 0:
-        _logger.error("{} service update failed. Logs available at {}".format(request._name, link))
-    else:
-        _logger.info("{} service update completed. Logs available at {}".format(request._name, link))
-        # PKGUP audit log entry
-        storage_client = connect.get_storage_async()
-        audit = AuditLogger(storage_client)
-        audit_detail = {'packageName': name}
-        asyncio.ensure_future(audit.information('PKGUP', audit_detail))
 
-    # Restart the service which was disabled before update
-    for s in request._sch_list:
-        asyncio.ensure_future(server.Server.scheduler.enable_schedule(uuid.UUID(s)))
+    # Update record in Packages table
+    payload = PayloadBuilder().SET(status=ret_code, log_file_uri=link).WHERE(['id', '=', uid]).payload()
+    loop = asyncio.new_event_loop()
+    loop.run_until_complete(storage.update_tbl("packages", payload))
+
+    if ret_code != 0:
+        _logger.error("{} service update failed. Logs available at {}".format(pkg_name, link))
+    else:
+        # Audit info
+        audit = AuditLogger(storage)
+        audit_detail = {'packageName': pkg_name}
+        loop.run_until_complete(audit.information('PKGUP', audit_detail))
+        _logger.info('{} service updated successfully. Logs available at {}'.format(pkg_name, link))
+
+    # Restart the service which was disabled before service update
+    for sch in schedules:
+        loop.run_until_complete(_put_schedule(protocol, host, port, uuid.UUID(sch), True))

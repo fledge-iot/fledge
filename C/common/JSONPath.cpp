@@ -10,6 +10,7 @@
 #include <JSONPath.h>
 #include <logger.h>
 #include <cstring>
+#include <stdexcept>
 
 using namespace std;
 using namespace rapidjson;

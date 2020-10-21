@@ -34,12 +34,14 @@ JSONPath::~JSONPath()
  * param node	The node to search from
  * @return the matching node. Throws an exception if there was no match
  */
-Value& JSONPath::findNode(Value& node)
+Value *JSONPath::findNode(Value& root)
 {
 	if (m_parsed.size() == 0)
 	{
 		parse();
 	}
+
+	Value *node = &root;
 	for (int i = 0; i < m_parsed.size(); i++)
 	{
 		node = m_parsed[i]->match(node);
@@ -135,11 +137,11 @@ JSONPath::LiteralPathComponent::LiteralPathComponent(string& name) : m_name(name
 /**
  * Return the child object of node that matchs the literal name given
  */
-rapidjson::Value& JSONPath::LiteralPathComponent::match(rapidjson::Value& node)
+rapidjson::Value *JSONPath::LiteralPathComponent::match(rapidjson::Value *node)
 {
-	if (node.IsObject() && node.HasMember(m_name.c_str()))
+	if (node->IsObject() && node->HasMember(m_name.c_str()))
 	{
-		return node[m_name.c_str()];
+		return &((*node)[m_name.c_str()]);
 	}
 	throw runtime_error("Document has no member " + m_name);
 }
@@ -154,14 +156,14 @@ JSONPath::IndexPathComponent::IndexPathComponent(string& name, int index) : m_na
 /**
  * Return the object at the index position of the specified array
  */
-rapidjson::Value& JSONPath::IndexPathComponent::match(rapidjson::Value& node)
+rapidjson::Value *JSONPath::IndexPathComponent::match(rapidjson::Value *node)
 {
-	if (node.IsObject() && node.HasMember(m_name.c_str()))
+	if (node->IsObject() && node->HasMember(m_name.c_str()))
 	{
-		Value& n  = node[m_name.c_str()];
+		Value& n  = (*node)[m_name.c_str()];
 		if (n.IsArray())
 		{
-			return n[m_index];
+			return &n[m_index];
 		}
 	}
 	throw runtime_error("Document has no member ");
@@ -174,11 +176,11 @@ JSONPath::MatchPathComponent::MatchPathComponent(string& name, string& property,
 {
 }
 
-rapidjson::Value& JSONPath::MatchPathComponent::match(rapidjson::Value& node)
+rapidjson::Value *JSONPath::MatchPathComponent::match(rapidjson::Value *node)
 {
-	if (node.IsObject() && node.HasMember(m_name.c_str()))
+	if (node->IsObject() && node->HasMember(m_name.c_str()))
 	{
-		Value& n  = node[m_name.c_str()];
+		Value& n  = (*node)[m_name.c_str()];
 		if (n.IsArray())
 		{
 			for (auto& v : n.GetArray())
@@ -189,7 +191,7 @@ rapidjson::Value& JSONPath::MatchPathComponent::match(rapidjson::Value& node)
 					{
 						if (v[m_property.c_str()].IsString() 
 								&& m_value.compare(v[m_property.c_str()].GetString()) == 0)
-							return v;
+							return &v;
 					}
 				}
 			}

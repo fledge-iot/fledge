@@ -1132,7 +1132,7 @@ std::size_t arr = data.find("inserts");
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
 
-	Logger::getLogger()->setMinLevel("debug");
+	//Logger::getLogger()->setMinLevel("debug");
 	//Logger::getLogger()->debug("xxx0 I2 insert start table :%s: thread %s:  dbHandle :%X: ", table.c_str(), threadId.str().c_str(), this);
 
 
@@ -1251,7 +1251,7 @@ std::size_t arr = data.find("inserts");
 	// FIXME_I:
 	DbSync *sync = DbSync::getInstance();
 	//Logger::getLogger()->debug("xxx0 insert lock before lock :%s: ", threadId.str().c_str());
-	sync->lock();
+	//sync->lock();
 	//Logger::getLogger()->debug("xxx0 insert lock after lock :%s: ", threadId.str().c_str());
 
 
@@ -1268,9 +1268,8 @@ std::size_t arr = data.find("inserts");
 
 	// FIXME_I:
 	//Logger::getLogger()->debug("xxx0 insert unlock before  :%s: ", threadId.str().c_str());
-	sync->unlock();
-	//Logger::getLogger()->debug("xxx0 insert unlock after  :%s: ", threadId.str().c_str());
-	//Logger::getLogger()->debug("xxx insert end :%s: rc :%d: dbHandle :%X:", table.c_str(), rc, dbHandle);
+	//sync->unlock();
+	//Logger::getLogger()->debug("xxx0 insert unlock after  :%s: rc :%d: dbHandle :%X:", table.c_str(), rc, dbHandle);
 	Logger::getLogger()->setMinLevel("warning");
 
 	// Check exec result
@@ -1335,6 +1334,10 @@ vector<string>  asset_codes;
 
 	int 	row = 0;
 	ostringstream convert;
+
+	//# FIXME_I
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
 
 	std::size_t arr = payload.find("updates");
 	bool changeReqd = (arr == std::string::npos || arr > 8);
@@ -1643,7 +1646,7 @@ vector<string>  asset_codes;
 	DbSync *sync = DbSync::getInstance();
 	Logger::getLogger()->setMinLevel("debug");
 	//Logger::getLogger()->debug("xxx0 update lock before :%s: dbHandle :%X:", threadId.str().c_str(), dbHandle);
-	sync->lock();
+	//sync->lock();
 	//Logger::getLogger()->debug("xxx0 update lock after :%s: dbHandle :%X:", threadId.str().c_str(), dbHandle);
 
 
@@ -1660,9 +1663,8 @@ vector<string>  asset_codes;
 
 	// FIXME_I:
 	//Logger::getLogger()->debug("xxx0 update unlock before :%s: ", threadId.str().c_str());
-	sync->unlock();
-	//Logger::getLogger()->debug("xxx0 update unlock after ");
-	//Logger::getLogger()->debug("xxx update end :%s: rc :%d: dbHandle :%X:", table.c_str(), rc, dbHandle);
+	//sync->unlock();
+	//Logger::getLogger()->debug("xxx0 update unlock after :%s: rc :%d: dbHandle :%X:", table.c_str(), rc, dbHandle);
 	Logger::getLogger()->setMinLevel("warning");
 
 	// Check result code
@@ -2962,7 +2964,7 @@ int Connection::SQLexec(sqlite3 *db, const char *sql, int (*callback)(void*,int,
 int retries = 0, rc;
 
 	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
+	//Logger::getLogger()->setMinLevel("debug");
 	//Logger::getLogger()->debug("xxx10 SQLexec start :%s:", sql);
 
 	do {

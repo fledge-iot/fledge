@@ -651,6 +651,15 @@ int sleep_time_ms = 0;
 
 int localNReadingsTotal;
 
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	DbSync *sync = DbSync::getInstance();
+	Logger::getLogger()->debug("xxx0 appendReadings lock before :%X:", dbHandle);
+	sync->lock();
+	Logger::getLogger()->debug("xxx0 appendReadings lock after :%X:", dbHandle);
+	Logger::getLogger()->setMinLevel("warning");
+
+
 	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
 
 	localNReadingsTotal = readCatalogue->getMaxReadingsId();
@@ -658,6 +667,12 @@ int localNReadingsTotal;
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("appendReadings start thread :%s: :%X:", threadId.str().c_str(), this);
+	Logger::getLogger()->setMinLevel("warning");
+
 
 #if INSTRUMENT
 	Logger::getLogger()->debug("appendReadings start thread :%s:", threadId.str().c_str());
@@ -738,6 +753,10 @@ int localNReadingsTotal;
 			// Handles - asset_code
 			asset_code = (*itr)["asset_code"].GetString();
 
+			// FIXME_I:
+			//Logger::getLogger()->setMinLevel("debug");
+			//Logger::getLogger()->debug("xxx1 append readings start dbHandle :%X:  thread :%s:", dbHandle , threadId.str().c_str());
+
 			//# A different asset is managed respect the previous one
 			if (lastAsset.compare(asset_code)!= 0)
 			{
@@ -761,7 +780,7 @@ int localNReadingsTotal;
 					if (readingsStmt[readingsId] == nullptr)
 					{
 						//# FIXME_I
-						Logger::getLogger()->setMinLevel("debug");
+						//Logger::getLogger()->setMinLevel("debug");
 
 						string dbName = readCatalogue->generateDbNameFromTableId(readingsId);
 						string dbReadingsName = readCatalogue->generateReadingsName(readingsId);
@@ -772,9 +791,9 @@ int localNReadingsTotal;
 						//rc = sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), -1, &readingsStmt[readingsId], NULL);
 
 						// FIXME_I:
-						DbSync *sync = DbSync::getInstance();
+						//DbSync *sync = DbSync::getInstance();
 						//Logger::getLogger()->debug("xxx0 appendreadings lock before :%s: ", threadId.str().c_str());
-						sync->lock();
+						//sync->lock();
 						//Logger::getLogger()->debug("xxx0 appendreadings  lock after  :%s: ", threadId.str().c_str());
 
 
@@ -798,7 +817,7 @@ int localNReadingsTotal;
 
 						// FIXME_I:
 						//Logger::getLogger()->debug("xxx0 appendreadings unlock before :%s: ", threadId.str().c_str());
-						sync->unlock();
+						//sync->unlock();
 						//Logger::getLogger()->debug("xxx0 appendreadings  unlock after  :%s: ", threadId.str().c_str());
 
 
@@ -808,6 +827,13 @@ int localNReadingsTotal;
 
 					lastAsset = asset_code;
 				}
+			}
+			else
+			{
+				// FIXME_I:
+				int i;
+				//Logger::getLogger()->setMinLevel("debug");
+				//Logger::getLogger()->debug("xxx1 append readings same asset dbHandle :%X:  thread :%s:", dbHandle , threadId.str().c_str());
 			}
 
 			// Handles - reading
@@ -829,16 +855,21 @@ int localNReadingsTotal;
 				do {
 					// Insert the row using a lock to ensure one insert at time
 					{
+						DbSync *sync = DbSync::getInstance();
+						//Logger::getLogger()->setMinLevel("debug");
+						//Logger::getLogger()->debug("xxx0 update lock before :%s: dbHandle :%X:", threadId.str().c_str(), dbHandle);
+						//sync->lock();
 
 						sqlite3_resut = sqlite3_step(stmt);
 
+						//sync->unlock();
 					}
 					if (sqlite3_resut == SQLITE_LOCKED  )
 					{
 						sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
 						retries++;
 
-						Logger::getLogger()->info("SQLITE_LOCKED - record :%d: - retry number :%d: sleep time ms :%d:" ,row ,retries ,sleep_time_ms);
+						Logger::getLogger()->info("appendReadings - SQLITE_LOCKED - record :%d: - retry number :%d: sleep time ms :%d:" ,row ,retries ,sleep_time_ms);
 
 						std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
 					}
@@ -850,7 +881,7 @@ int localNReadingsTotal;
 						sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
 						retries++;
 
-						Logger::getLogger()->info("SQLITE_BUSY - thread :%s: - record :%d: - retry number :%d: sleep time ms :%d:", threadId.str().c_str() ,row, retries, sleep_time_ms);
+						Logger::getLogger()->info("appendReadings - SQLITE_BUSY - thread :%s: - record :%d: - retry number :%d: sleep time ms :%d:", threadId.str().c_str() ,row, retries, sleep_time_ms);
 
 						std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
 					}
@@ -874,6 +905,11 @@ int localNReadingsTotal;
 					return -1;
 				}
 			}
+
+			// FIXME_I:
+//			Logger::getLogger()->debug("xxx1 append readings end dbHandle :%X:  thread :%s:", dbHandle , threadId.str().c_str());
+//			Logger::getLogger()->setMinLevel("warning");
+
 		}
 	}
 
@@ -887,10 +923,13 @@ int localNReadingsTotal;
 	//db_cv.notify_all();
 	}
 
-	//# FIXME_I
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx0 appendReadings unlock before");
+	sync->unlock();
+	Logger::getLogger()->debug("xxx0 appendReadings unlock after :%X:", dbHandle);
 	Logger::getLogger()->setMinLevel("warning");
-
-
 
 
 #if INSTRUMENT
@@ -938,6 +977,12 @@ int localNReadingsTotal;
 		);
 
 #endif
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("appendReadings end thread :%s: :%X:", threadId.str().c_str(), this);
+	Logger::getLogger()->setMinLevel("warning");
+
 
 	return row;
 }
@@ -3053,8 +3098,8 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 				Logger::getLogger()->setMinLevel("debug");
 				DbSync *sync = DbSync::getInstance();
 
-				//Logger::getLogger()->debug("xxx0 getReadingReference lock before");
-				sync->lock();
+				Logger::getLogger()->debug("xxx0 getReadingReference lock before :%X:", dbHandle);
+				//sync->lock();
 				//Logger::getLogger()->debug("xxx0 getReadingReference lock after ");
 
 
@@ -3063,8 +3108,8 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 
 				// FIXME_I:
 				//Logger::getLogger()->debug("xxx0 getReadingReference unlock before");
-				sync->unlock();
-				//Logger::getLogger()->debug("xxx0 getReadingReference unlock after");
+				//sync->unlock();
+				Logger::getLogger()->debug("xxx0 getReadingReference unlock after :%X:", dbHandle);
 				Logger::getLogger()->setMinLevel("warning");
 
 			}

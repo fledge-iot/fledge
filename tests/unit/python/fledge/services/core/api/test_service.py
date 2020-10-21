@@ -23,7 +23,6 @@ from fledge.services.core.scheduler.entities import StartUpSchedule
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.services.core.api import service
 from fledge.services.core.api.plugins import common
-from fledge.services.core.api.service import _logger
 from fledge.services.core.api.plugins.exceptions import *
 
 
@@ -176,7 +175,7 @@ class TestService:
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[mock_plugin_info]):
-            with patch.object(_logger, 'exception') as ex_logger:
+            with patch.object(service._logger, 'exception') as ex_logger:
                 with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                     with patch.object(c_mgr, 'get_category_all_items',
                                       return_value=self.async_mock(None)) as patch_get_cat_info:
@@ -652,8 +651,11 @@ class TestService:
                 with patch.object(service, 'get_service_installed', return_value=svc_list
                                   ) as svc_list_patch:
                     resp = await client.post('/fledge/service?action=install', data=json.dumps(param))
-                    assert 304 == resp.status
+                    assert 400 == resp.status
                     assert msg == resp.reason
+                    r = await resp.text()
+                    actual = json.loads(r)
+                    assert {'message': msg} == actual
                 svc_list_patch.assert_called_once_with()
             args, kwargs = query_tbl_patch.call_args_list[0]
             assert 'packages' == args[0]
@@ -677,9 +679,7 @@ class TestService:
                                                              "and": {"column": "name", "condition": "=",
                                                                      "value": pkg_name}}}
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload',
-                              side_effect=[async_mock({'count': 0, 'rows': []}), async_mock(insert_row_resp)
-                                           ]) as query_tbl_patch:
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=async_mock({'count': 0, 'rows': []})) as query_tbl_patch:
                 with patch.object(common, 'fetch_available_packages', return_value=(
                         async_mock(([pkg_name, "fledge-north-http", "fledge-south-sinusoid"],
                                     'log/190801-12-41-13.log')))) as patch_fetch_available_package:
@@ -693,10 +693,10 @@ class TestService:
                                 result = await resp.text()
                                 response = json.loads(result)
                                 assert 'id' in response
-                                assert '{} service installation started.'.format(pkg_name) == response['message']
+                                assert '{} service installation started'.format(pkg_name) == response['message']
                                 assert response['statusLink'].startswith('fledge/package/install/status?id=')
                         assert 1 == log_info.call_count
-                        log_info.assert_called_once_with('{} service started...'.format(pkg_name))
+                        log_info.assert_called_once_with('{} service installation started...'.format(pkg_name))
                     args, kwargs = insert_tbl_patch.call_args_list[0]
                     assert 'packages' == args[0]
                     actual = json.loads(args[1])
@@ -967,9 +967,6 @@ class TestService:
         sch_info = {'count': 1, 'rows': [
             {'id': '6637c9ff-7090-4774-abca-07dee59a0610', 'schedule_name': svc_name, 'enabled': 't'}]}
         insert = {"response": "inserted", "rows_affected": 1}
-        insert_row = {'count': 1, 'rows': [
-            {"id": "c5648940-31ec-4f78-a7a5-b1707e8fe578", "name": pkg_name, "action": "update",
-             "status": -1, "log_file_uri": ""}]}
         server.Server.scheduler = Scheduler(None, None)
         storage_client_mock = MagicMock(StorageClientAsync)
         svc_list = ["south", "storage", name]
@@ -977,8 +974,7 @@ class TestService:
                           ) as svc_list_patch:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(storage_client_mock, 'query_tbl_with_payload',
-                                  side_effect=[async_mock(select_row_resp), async_mock(sch_info), async_mock(insert_row)
-                                               ]) as query_tbl_patch:
+                                  side_effect=[async_mock(select_row_resp), async_mock(sch_info)]) as query_tbl_patch:
                     with patch.object(storage_client_mock, 'delete_from_tbl',
                                       return_value=async_mock(delete)) as delete_tbl_patch:
                         with patch.object(server.Server.scheduler, 'disable_schedule', return_value=async_mock(
@@ -994,9 +990,8 @@ class TestService:
                                         result = await resp.text()
                                         response = json.loads(result)
                                         assert 'id' in response
-                                        assert '{} update started.'.format(pkg_name) == response['message']
-                                        assert response['statusLink'].startswith(
-                                            'fledge/package/update/status?id=')
+                                        assert '{} update started'.format(pkg_name) == response['message']
+                                        assert response['statusLink'].startswith('fledge/package/update/status?id=')
                                 args, kwargs = insert_tbl_patch.call_args_list[0]
                                 assert 'packages' == args[0]
                                 actual = json.loads(args[1])
@@ -1040,9 +1035,6 @@ class TestService:
         sch_info = {'count': 1, 'rows': [
             {'id': '6637c9ff-7090-4774-abca-07dee59a0610', 'schedule_name': svc_name, 'enabled': 'f'}]}
         insert = {"response": "inserted", "rows_affected": 1}
-        insert_row = {'count': 1, 'rows': [
-            {"id": "c5648940-31ec-4f78-a7a5-b1707e8fe578", "name": pkg_name, "action": "update",
-             "status": -1, "log_file_uri": ""}]}
         server.Server.scheduler = Scheduler(None, None)
         storage_client_mock = MagicMock(StorageClientAsync)
         svc_list = ["south", "storage", name]
@@ -1050,8 +1042,7 @@ class TestService:
                           ) as svc_list_patch:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(storage_client_mock, 'query_tbl_with_payload',
-                                  side_effect=[async_mock(select_row_resp), async_mock(sch_info), async_mock(insert_row)
-                                               ]) as query_tbl_patch:
+                                  side_effect=[async_mock(select_row_resp), async_mock(sch_info)]) as query_tbl_patch:
                     with patch.object(storage_client_mock, 'delete_from_tbl',
                                       return_value=async_mock(delete)) as delete_tbl_patch:
                         with patch.object(storage_client_mock, 'insert_into_tbl',
@@ -1063,7 +1054,7 @@ class TestService:
                                 result = await resp.text()
                                 response = json.loads(result)
                                 assert 'id' in response
-                                assert '{} update started.'.format(pkg_name) == response['message']
+                                assert '{} update started'.format(pkg_name) == response['message']
                                 assert response['statusLink'].startswith('fledge/package/update/status?id=')
                         args, kwargs = insert_tbl_patch.call_args_list[0]
                         assert 'packages' == args[0]

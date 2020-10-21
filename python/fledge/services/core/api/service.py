@@ -219,36 +219,28 @@ async def add_service(request):
                 for s in services:
                     if s == svc_name:
                         msg = "{} package is already installed".format(name)
-                        return web.HTTPNotModified(reason=msg, body=json.dumps({"message": msg}))
+                        return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
                 # Check If requested service is available for configured repository
                 services, log_path = await common.fetch_available_packages("service")
                 if name not in services:
                     raise KeyError('{} service is not available for the given repository'.format(name))
+                
                 # Insert record into Packages table
-                insert_payload = PayloadBuilder().INSERT(id=str(uuid.uuid4()), name=name, action=action, status=-1,
+                uid = str(uuid.uuid4())
+                insert_payload = PayloadBuilder().INSERT(id=uid, name=name, action=action, status=-1,
                                                          log_file_uri="").payload()
                 result = await storage.insert_into_tbl("packages", insert_payload)
-                response = result['response']
-                if response:
-                    # GET id from Packages table to track the installation response
-                    select_payload = PayloadBuilder().SELECT("id").WHERE(['action', '=', action]).AND_WHERE(
-                        ['name', '=', name]).payload()
-                    result = await storage.query_tbl_with_payload('packages', select_payload)
-                    response = result['rows']
-                    if response:
-                        pn = "{}-{}".format(action, name)
-                        uid = response[0]['id']
-                        p = multiprocessing.Process(name=pn, target=install.install_package_from_repo,
-                                                    args=(name, pkg_mgt, version, uid, storage))
-                        p.daemon = True
-                        p.start()
-                        _logger.info("{} service started...".format(name))
-                        msg = "{} service installation started.".format(name)
-                        status_link = "fledge/package/install/status?id={}".format(uid)
-                        return web.json_response({"message": msg, "id": uid, "statusLink": status_link})
-                    else:
-                        raise StorageServerError
+                if result['response'] == "inserted" and result['rows_affected'] == 1:
+                    pn = "{}-{}".format(action, name)
+                    p = multiprocessing.Process(name=pn, target=install.install_package_from_repo,
+                                                args=(name, pkg_mgt, version, uid, storage))
+                    p.daemon = True
+                    p.start()
+                    msg = "{} service installation started".format(name)
+                    _logger.info("{}...".format(msg))
+                    status_link = "fledge/package/install/status?id={}".format(uid)
+                    return web.json_response({"message": msg, "id": uid, "statusLink": status_link})
                 else:
                     raise StorageServerError
             else:
@@ -488,7 +480,6 @@ async def update_service(request: web.Request) -> web.Response:
     """
     _type = request.match_info.get('type', None)
     name = request.match_info.get('name', None)
-    result_payload = {}
     try:
         _type = _type.lower()
         if _type != 'notification':
@@ -532,27 +523,21 @@ async def update_service(request: web.Request) -> web.Response:
                 sch_list.append(sch_info[0]['id'])
 
         # Insert record into Packages table
-        insert_payload = PayloadBuilder().INSERT(id=str(uuid.uuid4()), name=package_name, action=action, status=-1,
+        uid = str(uuid.uuid4())
+        insert_payload = PayloadBuilder().INSERT(id=uid, name=package_name, action=action, status=-1,
                                                  log_file_uri="").payload()
         result = await storage_client.insert_into_tbl("packages", insert_payload)
-        response = result['response']
-        if response:
-            select_payload = PayloadBuilder().SELECT("id").WHERE(['action', '=', action]).AND_WHERE(
-                ['name', '=', package_name]).payload()
-            result = await storage_client.query_tbl_with_payload('packages', select_payload)
-            response = result['rows']
-            if response:
-                pn = "{}-{}".format(action, name)
-                uid = response[0]['id']
-                p = multiprocessing.Process(name=pn, target=do_update,
-                                            args=(server.Server.is_rest_server_http_enabled, server.Server._host,
-                                                  server.Server.core_management_port, storage_client, package_name, uid,
-                                                  sch_list))
-                p.daemon = True
-                p.start()
-                msg = "{} {} started.".format(package_name, action)
-                status_link = "fledge/package/{}/status?id={}".format(action, uid)
-                result_payload = {"message": msg, "id": uid, "statusLink": status_link}
+        if result['response'] == "inserted" and result['rows_affected'] == 1:
+            pn = "{}-{}".format(action, name)
+            p = multiprocessing.Process(name=pn, target=do_update, args=(server.Server.is_rest_server_http_enabled,
+                                                                         server.Server._host,
+                                                                         server.Server.core_management_port,
+                                                                         storage_client, package_name, uid, sch_list))
+            p.daemon = True
+            p.start()
+            msg = "{} {} started".format(package_name, action)
+            status_link = "fledge/package/{}/status?id={}".format(action, uid)
+            result_payload = {"message": msg, "id": uid, "statusLink": status_link}
         else:
             raise StorageServerError
     except KeyError as ex:
@@ -614,7 +599,7 @@ def do_update(http_enabled: bool, host: str, port: int, storage: connect, pkg_na
         audit = AuditLogger(storage)
         audit_detail = {'packageName': pkg_name}
         loop.run_until_complete(audit.information('PKGUP', audit_detail))
-        _logger.info('{} plugin updated successfully. Logs available at {}'.format(pkg_name, link))
+        _logger.info('{} service updated successfully. Logs available at {}'.format(pkg_name, link))
 
     # Restart the service which was disabled before service update
     for sch in schedules:

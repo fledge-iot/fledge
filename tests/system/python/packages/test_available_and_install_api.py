@@ -13,6 +13,8 @@ import http.client
 import json
 import pytest
 import py
+import uuid
+import time
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems Inc."
@@ -24,7 +26,6 @@ counter = 3
 errors = []
 """  By default 3 plugins are pre-installed i.e. all north
 """
-
 
 @pytest.fixture
 def reset_packages():
@@ -109,16 +110,48 @@ class TestPackages:
         assert 'link' in jdoc
 
     def test_install_service_package(self, fledge_url):
+        pkg_name = "fledge-service-notification"
         conn = http.client.HTTPConnection(fledge_url)
-        data = {"format": "repository", "name": "fledge-service-notification"}
+        data = {"format": "repository", "name": pkg_name}
         conn.request("POST", '/fledge/service?action=install', json.dumps(data))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert 'message' in jdoc
-        assert 'link' in jdoc
-        assert '{} is successfully installed'.format(data['name']) == jdoc['message']
+        assert 'id' in jdoc
+        assert '{} service installation started'.format(pkg_name) == jdoc['message']
+        assert jdoc['statusLink'].startswith('fledge/package/install/status?id=')
+
+        # Max retry count for to GET service package installed
+        max_retry_count = 5
+        while True:
+            if max_retry_count:
+                # GET Service Package Status
+                conn.request("GET", "/{}".format(jdoc['statusLink']))
+                r = conn.getresponse()
+                if r.status != 200:
+                    msg = "GET Service package status failed due to {} while attempting {}".format(
+                        r.reason, jdoc['statusLink'])
+                    print(msg)
+                    errors.append(msg)
+                    return
+                r = r.read().decode()
+                get_package_status_jdoc = json.loads(r)
+                if get_package_status_jdoc['packageStatus'][0]['status'] == "success":
+                    # Exit if SUCCESS
+                    break
+                elif get_package_status_jdoc['packageStatus'][0]['status'] == "failed":
+                    msg = "GET Service package status response failed while attempting {}".format(jdoc['statusLink'])
+                    print(msg)
+                    errors.append(msg)
+                    break
+                # sleep time added b/w retries
+                time.sleep(5)
+                max_retry_count -= 1
+            else:
+                msg = "{} installation failed. Timeout error!".format(pkg_name)
+                print(msg)
+                errors.append(msg)
 
         # verify service installed
         conn.request("GET", '/fledge/service/installed')
@@ -133,7 +166,6 @@ class TestPackages:
     def test_install_plugin_package(self, fledge_url, package_build_source_list, package_build_list):
         # FIXME: FOGL-3276 Remove once we have dedicated RPi with sensehat device attached
         #  otherwise its discovery fails
-
         if 'fledge-south-sensehat' in available_pkg:
             available_pkg.remove('fledge-south-sensehat')
 
@@ -164,38 +196,75 @@ class TestPackages:
         print("Installing %s package" % pkg_name)
         global counter
         global errors
+        global max_retry_count
         conn = http.client.HTTPConnection(fledge_url)
         data = {"format": "repository", "name": pkg_name}
+        # POST Plugin
         conn.request("POST", '/fledge/plugins', json.dumps(data))
         r = conn.getresponse()
-        # assert 200 == r.status
         if r.status != 200:
-            print("POST Install plugin failed due to %s while attempting %s" % (r.reason, pkg_name))
-            errors.append("POST Install plugin failed due to {} while attempting {}".format(r.reason, pkg_name))
+            msg = "POST Install plugin failed due to {} while attempting {}".format(r.reason, pkg_name)
+            print(msg)
+            errors.append(msg)
             return
         r = r.read().decode()
-        jdoc = json.loads(r)
-        assert '{} is successfully installed'.format(pkg_name) == jdoc['message']
-        assert 'link' in jdoc
-        # Special case: On flirax8 package installation this installs modbus package too as it depends upon
-        # available package list always in alphabetically sorted order
-        if pkg_name == 'fledge-south-flirax8':
-            available_pkg.remove('fledge-south-modbus')
-            counter += 1
-        counter += 1
+        post_install_jdoc = json.loads(r)
+        assert "Plugin installation started." == post_install_jdoc['message']
+        assert post_install_jdoc['statusLink'].startswith('fledge/package/install/status?id=')
+        assert uuid.UUID(post_install_jdoc['id'])
+
+        # Max try count for to GET package installed
+        max_retry_count = 10
+        while True:
+            if max_retry_count:
+                # GET Package Status
+                conn.request("GET", "/{}".format(post_install_jdoc['statusLink']))
+                r = conn.getresponse()
+                if r.status != 200:
+                    msg = "GET Package status failed due to {} while attempting {}".format(r.reason, pkg_name)
+                    print(msg)
+                    errors.append(msg)
+                    counter -= 1
+                    return
+                r = r.read().decode()
+                get_package_status_jdoc = json.loads(r)
+                if get_package_status_jdoc['packageStatus'][0]['status'] == "success":
+                    # Special case: On flirax8 package installation this installs modbus package too as it depends upon
+                    # available package list always in alphabetically sorted order
+                    if pkg_name == 'fledge-south-flirax8':
+                        available_pkg.remove('fledge-south-modbus')
+                        counter += 1
+                    counter += 1
+                    break
+                elif get_package_status_jdoc['packageStatus'][0]['status'] == "failed":
+                    msg = "GET Package status response failed while attempting {}".format(pkg_name)
+                    print(msg)
+                    errors.append(msg)
+                    counter -= 1
+                    break
+                # sleep time added b/w retries
+                time.sleep(15)
+                max_retry_count -= 1
+            else:
+                msg = "{} installation failed. Timeout error!".format(pkg_name)
+                print(msg)
+                errors.append(msg)
+                counter -= 1
+                max_retry_count = -1
+
+        # GET Plugins Installed
         conn.request("GET", '/fledge/plugins/installed')
         r = conn.getresponse()
-        # assert 200 == r.status
         if r.status != 200:
-            print("GET Plugins installed failed due to %s while attempting %s" % (r.reason, pkg_name))
-            errors.append("GET Plugins installed failed due to {} while attempting {}".format(r.reason, pkg_name))
+            msg = "GET Plugins installed request failed due to {} while attempting {}".format(r.reason, pkg_name)
+            print(msg)
+            errors.append(msg)
             counter -= 1
             return
         r = r.read().decode()
-        jdoc = json.loads(r)
-        assert len(jdoc), "No data found"
-        # assert counter == len(jdoc['plugins'])
-        if counter != len(jdoc['plugins']):
+        get_plugins_installed_jdoc = json.loads(r)
+        assert len(get_plugins_installed_jdoc), "No data found"
+        if counter != len(get_plugins_installed_jdoc['plugins']):
             print("Error in discovery of %s package" % pkg_name)
             errors.append("{} package discovery failed".format(pkg_name))
             counter -= 1

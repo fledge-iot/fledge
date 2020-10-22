@@ -273,6 +273,7 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 			if (!found)
 			{
 				DefaultConfigCategory advanced(ADVANCED, "{}");
+				advanced.setDescription(ADVANCED);
 				if (client->addCategory(advanced, true))
 				{
 					client->addChildCategories(ADVANCED, children1);

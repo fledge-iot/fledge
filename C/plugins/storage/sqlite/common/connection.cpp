@@ -2964,7 +2964,7 @@ int Connection::SQLexec(sqlite3 *db, const char *sql, int (*callback)(void*,int,
 int retries = 0, rc;
 
 	//# FIXME_I
-	//Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->setMinLevel("debug");
 	//Logger::getLogger()->debug("xxx10 SQLexec start :%s:", sql);
 
 	do {
@@ -2980,7 +2980,7 @@ int retries = 0, rc;
 		if (rc != SQLITE_OK)
 		{
 			//# FIXME_I
-			//Logger::getLogger()->debug("xxx10 SQLexec retry :%d:", retries);
+			Logger::getLogger()->debug("xxx10 SQLexec retry :%d:", retries);
 
 #if DO_PROFILE_RETRIES
 			m_qMutex.lock();
@@ -3049,6 +3049,8 @@ int retries = 0, rc;
 	}
 
 	//Logger::getLogger()->debug("xxx10 SQLexec end :%s:", sql);
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("warning");
 
 	return rc;
 }

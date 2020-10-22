@@ -19,6 +19,9 @@
 #include <sys/stat.h>
 #include <libgen.h>
 
+//# FIXME_I:
+#include <tmp_log.hpp>
+
 #include <string_utils.h>
 #include <algorithm>
 #include <vector>
@@ -651,12 +654,19 @@ int sleep_time_ms = 0;
 
 int localNReadingsTotal;
 
+
+	//# FIXME_I:
+//	char tmp_buffer[500000];
+//	snprintf (tmp_buffer,500000, "DBG : appendReadings  : readings |%s| ", readings);
+//	tmpLogger (tmp_buffer);
+
 	// FIXME_I:
 	Logger::getLogger()->setMinLevel("debug");
-	DbSync *sync = DbSync::getInstance();
-	Logger::getLogger()->debug("xxx0 appendReadings lock before :%X:", dbHandle);
-	sync->lock();
-	Logger::getLogger()->debug("xxx0 appendReadings lock after :%X:", dbHandle);
+	Logger::getLogger()->debug("xxx3 appendReadings V4");
+	//DbSync *sync = DbSync::getInstance();
+	//Logger::getLogger()->debug("xxx0 appendReadings lock before :%X:", dbHandle);
+	//sync->lock();
+	//Logger::getLogger()->debug("xxx0 appendReadings lock after :%X:", dbHandle);
 	Logger::getLogger()->setMinLevel("warning");
 
 
@@ -925,11 +935,11 @@ int localNReadingsTotal;
 
 
 	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx0 appendReadings unlock before");
-	sync->unlock();
-	Logger::getLogger()->debug("xxx0 appendReadings unlock after :%X:", dbHandle);
-	Logger::getLogger()->setMinLevel("warning");
+//	Logger::getLogger()->setMinLevel("debug");
+//	Logger::getLogger()->debug("xxx0 appendReadings unlock before");
+//	sync->unlock();
+//	Logger::getLogger()->debug("xxx0 appendReadings unlock after :%X:", dbHandle);
+//	Logger::getLogger()->setMinLevel("warning");
 
 
 #if INSTRUMENT
@@ -3477,15 +3487,19 @@ int Connection::SQLPrepare(sqlite3 *dbHandle, const char *sqlCmd, sqlite3_stmt *
 {
 	int retries = 0, rc;
 
-	// FIXME_I:
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
 	//Logger::getLogger()->debug("SQLPrepare start: cmd :%s: ", sqlCmd);
 
 	do {
 		rc = sqlite3_prepare_v2(dbHandle, sqlCmd, -1, readingsStmt, NULL);
-		//Logger::getLogger()->debug("SQLPrepare: rc :%d: ", rc);
+
 
 		if (rc != SQLITE_OK)
 		{
+			// FIXME_I:
+			Logger::getLogger()->debug("SQLPrepare: rc :%d: ", rc);
+
 			retries++;
 
 			int interval = (retries * RETRY_BACKOFF);
@@ -3502,7 +3516,9 @@ int Connection::SQLPrepare(sqlite3 *dbHandle, const char *sqlCmd, sqlite3_stmt *
 	{
 		Logger::getLogger()->error("SQLPrepare - Database error after maximum retries");
 	}
-	// FIXME_I:
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("warning");
 	//Logger::getLogger()->debug("SQLPrepare end: cmd :%s: ", sqlCmd);
 
 	return rc;

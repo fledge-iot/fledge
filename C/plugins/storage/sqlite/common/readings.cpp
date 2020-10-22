@@ -2517,23 +2517,38 @@ void ReadingsCatalogue::setUsedDbId(int dbId) {
 // FIXME_I:
 void ReadingsCatalogue::preallocateNewDbs() {
 
+	int dbIdStart, dbIdEnd;
 	Logger::getLogger()->debug("preallocateNewDbs");
 
-	preallocateNewDbsRange(2,3);
+	dbIdStart = 2;
+	dbIdEnd = dbIdStart + nSpareDbAllocate -1;
+
+	preallocateNewDbsRange(dbIdStart, dbIdEnd);
 }
 
 
 // FIXME_I:
-void ReadingsCatalogue::preallocateNewDbsRange(int dbIdstart, int dbIdEnd) {
+void ReadingsCatalogue::preallocateNewDbsRange(int dbIdStart, int dbIdEnd) {
 
 	int dbId;
+	int startReadingsId;
+	tyReadingsAvailable readingsAvailable;
 
-	Logger::getLogger()->debug("preallocateNewDbsRange: start :%d: end :%d: ", dbIdstart, dbIdEnd);
+	Logger::getLogger()->debug("xxx2 preallocateNewDbsRange: START - start :%d: end :%d: ", dbIdStart, dbIdEnd);
 
-	dbId = dbIdstart;
-	Logger::getLogger()->debug("preallocateNewDbsRange: dbId :%d:", dbId);
+	for (dbId = dbIdStart; dbId <= dbIdEnd; dbId++)
+	{
+		Logger::getLogger()->debug("xxx2 preallocateNewDbsRange: dbId :%d:", dbId);
 
-	//createNewDB(NULL,  dbId);
+		readingsAvailable = evaluateLastReadingAvailable(dbId - 1);
+		startReadingsId = readingsAvailable.lastReadings +1;
+		createNewDB(NULL,  dbId, startReadingsId);
+	}
+
+	m_lastDbId = dbIdEnd;
+
+	Logger::getLogger()->debug("xxx2 preallocateNewDbsRange: END - start :%d: end :%d: m_lastDbId :%d:", dbIdStart, dbIdEnd, m_lastDbId);
+
 }
 
 
@@ -2825,11 +2840,10 @@ string ReadingsCatalogue::generateDbFilePah(int dbId)
  * Creates a new database using m_dbId as datbase id
  *
  */
-bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle, int newDbId)
+bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle, int newDbId, int startId)
 {
 	int rc;
 	int nTables;
-	int startId;
 
 	int readingsToAllocate;
 	int readingsToCreate;
@@ -2879,7 +2893,6 @@ bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle, int newDbId)
 	}
 	readingsToAllocate = getNReadingsAllocate();
 	readingsToCreate = readingsToAllocate;
-	startId = getMaxReadingsId() + 1;
 
 	// Attached the new db to the connections
 	dbAlias = generateDbAlias(newDbId);
@@ -3120,6 +3133,9 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 	string msg;
 	bool success;
 
+	int startReadingsId;
+	tyReadingsAvailable readingsAvailable;
+
 	success = true;
 
 	dbHandle = connection->getDbHandle();
@@ -3150,13 +3166,23 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 				Logger::getLogger()->setMinLevel("debug");
 				DbSync *sync = DbSync::getInstance();
 
+				Logger::getLogger()->debug("xxx3 S1  :%X:", dbHandle);
 				Logger::getLogger()->debug("getReadingReference lock before :%X:", dbHandle);
 				//sync->lock();
 				//Logger::getLogger()->debug("getReadingReference lock after ");
+				Logger::getLogger()->debug("xxx3 S2  :%X:", dbHandle);
 
-				success = createNewDB(dbHandle, m_dbId +1);
+				readingsAvailable = evaluateLastReadingAvailable(m_lastDbId);
+				startReadingsId = readingsAvailable.lastReadings + 1;
+
+				Logger::getLogger()->debug("xxx3 S3  :%X:", dbHandle);
+
+				Logger::getLogger()->debug("xxx3 getReadingReference - m_dbId :%d: m_lastDbId ::%d readingsAvailable :%d: startReadingsId :%d:", m_dbId, m_lastDbId, readingsAvailable, startReadingsId);
+
+				success = createNewDB(dbHandle, m_lastDbId +1, startReadingsId);
 				if (success){
 					m_dbId++;
+					m_lastDbId++;
 				}
 				readingsId = -1;
 

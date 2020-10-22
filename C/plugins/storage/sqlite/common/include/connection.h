@@ -212,9 +212,9 @@ class ReadingsCatalogue {
 
 		void          preallocateReadingsTables();
 		bool          loadAssetReadingCatalogue();
-		bool          createNewDB(sqlite3 *dbHandle, int newDbId);
+		bool          createNewDB(sqlite3 *dbHandle, int newDbId,  int startId);
 		void          preallocateNewDbs();
-		void          preallocateNewDbsRange(int dbIdstart, int dbIdEnd);
+		void          preallocateNewDbsRange(int dbIdStart, int dbIdEnd);
 		int           getReadingReference(Connection *connection, const char *asset_code);
 		bool          attachAllDbs();
 		std::string   sqlConstructMultiDb(std::string &sqlCmdBase, std::vector<std::string>  &assetCodes);
@@ -227,6 +227,7 @@ class ReadingsCatalogue {
 
 	private:
 		const int nReadingsAllocate = 2;
+		const int nSpareDbAllocate = 2;
 
 		typedef struct ReadingAvailable {
 			int lastReadings;
@@ -251,6 +252,7 @@ class ReadingsCatalogue {
 		bool          enableWAL(std::string &dbPathReadings);
 
 		int                                           m_dbId;
+		int                                           m_lastDbId;
 		std::atomic<int>                              m_globalId;
 		int                                           m_nReadingsAvailable = 0;
 		std::mutex                                    m_mutexAssetReadingCatalogue;

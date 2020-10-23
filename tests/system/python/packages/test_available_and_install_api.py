@@ -109,7 +109,7 @@ class TestPackages:
         assert 'fledge-service-notification' in jdoc['services']
         assert 'link' in jdoc
 
-    def test_install_service_package(self, fledge_url):
+    def test_install_service_package(self, fledge_url, wait_time, retries):
         pkg_name = "fledge-service-notification"
         conn = http.client.HTTPConnection(fledge_url)
         data = {"format": "repository", "name": pkg_name}
@@ -123,35 +123,30 @@ class TestPackages:
         assert jdoc['statusLink'].startswith('fledge/package/install/status?id=')
 
         # Max retry count for to GET service package installed
-        max_retry_count = 5
-        while True:
-            if max_retry_count:
-                # GET Service Package Status
-                conn.request("GET", "/{}".format(jdoc['statusLink']))
-                r = conn.getresponse()
-                if r.status != 200:
-                    msg = "GET Service package status failed due to {} while attempting {}".format(
-                        r.reason, jdoc['statusLink'])
-                    print(msg)
-                    errors.append(msg)
-                    return
-                r = r.read().decode()
-                get_package_status_jdoc = json.loads(r)
-                if get_package_status_jdoc['packageStatus'][0]['status'] == "success":
-                    # Exit if SUCCESS
-                    break
-                elif get_package_status_jdoc['packageStatus'][0]['status'] == "failed":
-                    msg = "GET Service package status response failed while attempting {}".format(jdoc['statusLink'])
-                    print(msg)
-                    errors.append(msg)
-                    break
-                # sleep time added b/w retries
-                time.sleep(5)
-                max_retry_count -= 1
-            else:
-                msg = "{} installation failed. Timeout error!".format(pkg_name)
+        max_retry_count = retries * 3
+        while max_retry_count:
+            # GET Service Package Status
+            conn.request("GET", "/{}".format(jdoc['statusLink']))
+            r = conn.getresponse()
+            if r.status != 200:
+                msg = "GET Service package status failed due to {} while attempting {}".format(
+                    r.reason, jdoc['statusLink'])
                 print(msg)
                 errors.append(msg)
+                return
+            r = r.read().decode()
+            get_package_status_jdoc = json.loads(r)
+            if get_package_status_jdoc['packageStatus'][0]['status'] == "success":
+                # Exit if SUCCESS
+                break
+            elif get_package_status_jdoc['packageStatus'][0]['status'] == "failed":
+                msg = "GET Service package status response failed while attempting {}".format(jdoc['statusLink'])
+                print(msg)
+                errors.append(msg)
+                break
+            # sleep time added b/w retries
+            time.sleep(wait_time * 3)
+            max_retry_count -= 1
 
         # verify service installed
         conn.request("GET", '/fledge/service/installed')
@@ -163,7 +158,8 @@ class TestPackages:
         assert 3 == len(jdoc['services'])
         assert 'notification' in jdoc['services']
 
-    def test_install_plugin_package(self, fledge_url, package_build_source_list, package_build_list):
+    def test_install_plugin_package(self, fledge_url, package_build_source_list, package_build_list,
+                                    wait_time, retries):
         # FIXME: FOGL-3276 Remove once we have dedicated RPi with sensehat device attached
         #  otherwise its discovery fails
         if 'fledge-south-sensehat' in available_pkg:
@@ -173,7 +169,7 @@ class TestPackages:
         # Otherwise install from list as we defined in JSON file
         if package_build_source_list.lower() == 'true':
             for pkg_name in available_pkg:
-                self._verify_and_install_package(fledge_url, pkg_name)
+                self._verify_and_install_package(fledge_url, pkg_name, wait_time, retries)
             assert not errors, "Package errors have occurred: \n {}".format("\n".join(errors))
         else:
             json_data = load_data_from_json()
@@ -187,16 +183,15 @@ class TestPackages:
                     for pkg_name in pkg_list_name:
                         full_pkg_name = 'fledge-{}-{}'.format(k, pkg_name)
                         if full_pkg_name in available_pkg:
-                            self._verify_and_install_package(fledge_url, full_pkg_name)
+                            self._verify_and_install_package(fledge_url, full_pkg_name, wait_time, retries)
                         else:
                             print("{} not found in available package list".format(full_pkg_name))
             assert not errors, "Package errors have occurred: \n {}".format("\n".join(errors))
 
-    def _verify_and_install_package(self, fledge_url, pkg_name):
+    def _verify_and_install_package(self, fledge_url, pkg_name, wait_time, retries):
         print("Installing %s package" % pkg_name)
         global counter
         global errors
-        global max_retry_count
         conn = http.client.HTTPConnection(fledge_url)
         data = {"format": "repository", "name": pkg_name}
         # POST Plugin
@@ -214,43 +209,36 @@ class TestPackages:
         assert uuid.UUID(post_install_jdoc['id'])
 
         # Max try count for to GET package installed
-        max_retry_count = 10
-        while True:
-            if max_retry_count:
-                # GET Package Status
-                conn.request("GET", "/{}".format(post_install_jdoc['statusLink']))
-                r = conn.getresponse()
-                if r.status != 200:
-                    msg = "GET Package status failed due to {} while attempting {}".format(r.reason, pkg_name)
-                    print(msg)
-                    errors.append(msg)
-                    counter -= 1
-                    return
-                r = r.read().decode()
-                get_package_status_jdoc = json.loads(r)
-                if get_package_status_jdoc['packageStatus'][0]['status'] == "success":
-                    # Special case: On flirax8 package installation this installs modbus package too as it depends upon
-                    # available package list always in alphabetically sorted order
-                    if pkg_name == 'fledge-south-flirax8':
-                        available_pkg.remove('fledge-south-modbus')
-                        counter += 1
-                    counter += 1
-                    break
-                elif get_package_status_jdoc['packageStatus'][0]['status'] == "failed":
-                    msg = "GET Package status response failed while attempting {}".format(pkg_name)
-                    print(msg)
-                    errors.append(msg)
-                    counter -= 1
-                    break
-                # sleep time added b/w retries
-                time.sleep(15)
-                max_retry_count -= 1
-            else:
-                msg = "{} installation failed. Timeout error!".format(pkg_name)
+        max_retry_count = retries * 3
+        while max_retry_count:
+            # GET Package Status
+            conn.request("GET", "/{}".format(post_install_jdoc['statusLink']))
+            r = conn.getresponse()
+            if r.status != 200:
+                msg = "GET Package status failed due to {} while attempting {}".format(r.reason, pkg_name)
                 print(msg)
                 errors.append(msg)
                 counter -= 1
-                max_retry_count = -1
+                return
+            r = r.read().decode()
+            get_package_status_jdoc = json.loads(r)
+            if get_package_status_jdoc['packageStatus'][0]['status'] == "success":
+                # Special case: On flirax8 package installation this installs modbus package too as it depends upon
+                # available package list always in alphabetically sorted order
+                if pkg_name == 'fledge-south-flirax8':
+                    available_pkg.remove('fledge-south-modbus')
+                    counter += 1
+                counter += 1
+                break
+            elif get_package_status_jdoc['packageStatus'][0]['status'] == "failed":
+                msg = "GET Package status response failed while attempting {}".format(pkg_name)
+                print(msg)
+                errors.append(msg)
+                counter -= 1
+                break
+            # sleep time added b/w retries
+            time.sleep(wait_time * 3)
+            max_retry_count -= 1
 
         # GET Plugins Installed
         conn.request("GET", '/fledge/plugins/installed')

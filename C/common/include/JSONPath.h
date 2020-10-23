@@ -23,23 +23,23 @@ class JSONPath {
 	public:
 		JSONPath(const std::string& path);
 		~JSONPath();
-		rapidjson::Value& findNode(rapidjson::Value& root);
+		rapidjson::Value *findNode(rapidjson::Value& root);
 	private:
 		class PathComponent {
 			public:
-				virtual rapidjson::Value& match(rapidjson::Value& node) = 0;
+				virtual rapidjson::Value *match(rapidjson::Value *node) = 0;
 		};
 		class LiteralPathComponent : public PathComponent {
 			public:
 				LiteralPathComponent(std::string& name);
-				rapidjson::Value& match(rapidjson::Value& node);
+				rapidjson::Value *match(rapidjson::Value *node);
 			private:
 				std::string	m_name;
 		};
 		class IndexPathComponent : public PathComponent {
 			public:
 				IndexPathComponent(std::string& name, int index);
-				rapidjson::Value& match(rapidjson::Value& node);
+				rapidjson::Value *match(rapidjson::Value *node);
 			private:
 				std::string	m_name;
 				int		m_index;
@@ -47,7 +47,7 @@ class JSONPath {
 		class MatchPathComponent : public PathComponent {
 			public:
 				MatchPathComponent(std::string& name, std::string& property, std::string& value);
-				rapidjson::Value& match(rapidjson::Value& node);
+				rapidjson::Value *match(rapidjson::Value *node);
 			private:
 				std::string	m_name;
 				std::string	m_property;

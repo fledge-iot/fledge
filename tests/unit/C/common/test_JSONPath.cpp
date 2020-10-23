@@ -24,8 +24,13 @@ TEST(LiterialJSONPathTest, JSON)
 	JSONPath jpath(path);
 	Document doc;
 	doc.Parse(testdoc);
-	Value& v = jpath.findNode(doc);
-	ASSERT_TRUE(v.IsString());
+	Value *v = jpath.findNode(doc);
+	ASSERT_TRUE(v->IsString());
+	ASSERT_TRUE(doc.IsObject());
+	ASSERT_TRUE(doc.HasMember("a"));
+	ASSERT_TRUE(doc.HasMember("c"));
+	ASSERT_TRUE(doc.HasMember("f"));
+	ASSERT_TRUE(doc.HasMember("data"));
 }
 
 /**
@@ -37,9 +42,9 @@ TEST(IndexJSONPath, JSON)
 	JSONPath jpath(path);
 	Document doc;
 	doc.Parse(testdoc);
-	Value& v = jpath.findNode(doc);
-	ASSERT_TRUE(v.IsString());
-	ASSERT_EQ(0, strcmp(v.GetString(), "d"));
+	Value *v = jpath.findNode(doc);
+	ASSERT_TRUE(v->IsString());
+	ASSERT_EQ(0, strcmp(v->GetString(), "d"));
 }
 
 /**
@@ -51,9 +56,9 @@ TEST(IndexIntJSONPath, JSON)
 	JSONPath jpath(path);
 	Document doc;
 	doc.Parse(testdoc);
-	Value& v = jpath.findNode(doc);
-	ASSERT_TRUE(v.IsInt());
-	ASSERT_EQ(1, v.GetInt());
+	Value *v = jpath.findNode(doc);
+	ASSERT_TRUE(v->IsInt());
+	ASSERT_EQ(1, v->GetInt());
 }
 
 
@@ -66,9 +71,9 @@ TEST(MatchJSONPath, JSON)
 	JSONPath jpath(path);
 	Document doc;
 	doc.Parse(testdoc);
-	Value& v = jpath.findNode(doc);
-	ASSERT_TRUE(v.IsObject());
-	ASSERT_TRUE(v.HasMember("k"));
-	ASSERT_TRUE(v.HasMember("m"));
+	Value *v = jpath.findNode(doc);
+	ASSERT_TRUE(v->IsObject());
+	ASSERT_TRUE(v->HasMember("k"));
+	ASSERT_TRUE(v->HasMember("m"));
 }
 

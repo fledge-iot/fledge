@@ -10,6 +10,7 @@
 #include <JSONPath.h>
 #include <logger.h>
 #include <cstring>
+#include <stdexcept>
 
 using namespace std;
 using namespace rapidjson;
@@ -34,6 +35,7 @@ JSONPath::~JSONPath()
  * param node	The node to search from
  * @return the matching node. Throws an exception if there was no match
  */
+
 Value *JSONPath::findNode(Value& root)
 {
 	if (m_parsed.size() == 0)
@@ -42,6 +44,7 @@ Value *JSONPath::findNode(Value& root)
 	}
 
 	Value *node = &root;
+
 	for (int i = 0; i < m_parsed.size(); i++)
 	{
 		node = m_parsed[i]->match(node);
@@ -137,6 +140,7 @@ JSONPath::LiteralPathComponent::LiteralPathComponent(string& name) : m_name(name
 /**
  * Return the child object of node that matchs the literal name given
  */
+
 rapidjson::Value *JSONPath::LiteralPathComponent::match(rapidjson::Value *node)
 {
 	if (node->IsObject() && node->HasMember(m_name.c_str()))

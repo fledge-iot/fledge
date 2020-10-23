@@ -139,8 +139,10 @@ JSONPath::LiteralPathComponent::LiteralPathComponent(string& name) : m_name(name
 
 /**
  * Return the child object of node that matchs the literal name given
+ *
+ * @param node	The node to match
+ * @return pointer to the matching node
  */
-
 rapidjson::Value *JSONPath::LiteralPathComponent::match(rapidjson::Value *node)
 {
 	if (node->IsObject() && node->HasMember(m_name.c_str()))
@@ -159,6 +161,9 @@ JSONPath::IndexPathComponent::IndexPathComponent(string& name, int index) : m_na
 
 /**
  * Return the object at the index position of the specified array
+ *
+ * @param node	The node to match
+ * @return pointer to the matching node
  */
 rapidjson::Value *JSONPath::IndexPathComponent::match(rapidjson::Value *node)
 {
@@ -180,6 +185,12 @@ JSONPath::MatchPathComponent::MatchPathComponent(string& name, string& property,
 {
 }
 
+/**
+ * Match a node within an array or object
+ *
+ * @param node	The node to match
+ * @return pointer to the matching node
+ */
 rapidjson::Value *JSONPath::MatchPathComponent::match(rapidjson::Value *node)
 {
 	if (node->IsObject() && node->HasMember(m_name.c_str()))

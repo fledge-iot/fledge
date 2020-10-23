@@ -667,18 +667,18 @@ int localNReadingsTotal;
 
 	// FIXME_I:
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("appendReadings start thread :%s: :%X:", threadId.str().c_str(), this);
+	Logger::getLogger()->debug("appendReadings thread start :%s: conn :%X: dbHandle :%X:", threadId.str().c_str(), this, this->getDbHandle());
 	Logger::getLogger()->setMinLevel("warning");
 
 
 	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("appendReadings V6");
-	DbSync *sync = DbSync::getInstance();
-	Logger::getLogger()->debug("appendReadings lock before thread %s:  dbHandle :%X: ", threadId.str().c_str(), this);
-	sync->lock();
-	Logger::getLogger()->debug("appendReadings lock after  thread %s:  dbHandle :%X: ", threadId.str().c_str(), this);
-	Logger::getLogger()->setMinLevel("warning");
+//	Logger::getLogger()->setMinLevel("debug");
+//	Logger::getLogger()->debug("appendReadings V6");
+//	DbSync *sync = DbSync::getInstance();
+//	Logger::getLogger()->debug("appendReadings lock before thread %s: conn :%X: dbHandle :%X: ", threadId.str().c_str(), this, this->getDbHandle());
+//	sync->lock();
+//	Logger::getLogger()->debug("appendReadings lock after  thread %s: conn :%X: dbHandle :%X: ", threadId.str().c_str(), this, this->getDbHandle());
+//	Logger::getLogger()->setMinLevel("warning");
 
 
 	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
@@ -941,11 +941,11 @@ int localNReadingsTotal;
 
 
 	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("appendReadings unlock before thread %s:  dbHandle :%X: ", threadId.str().c_str(), this);
-	sync->unlock();
-	Logger::getLogger()->debug("appendReadings unlock after thread %s:  dbHandle :%X: ", threadId.str().c_str(), this);
-	Logger::getLogger()->setMinLevel("warning");
+//	Logger::getLogger()->setMinLevel("debug");
+//	Logger::getLogger()->debug("appendReadings unlock before thread %s:  dbHandle :%X: ", threadId.str().c_str(), this);
+//	sync->unlock();
+//	Logger::getLogger()->debug("appendReadings unlock after thread %s:  dbHandle :%X: ", threadId.str().c_str(), this);
+//	Logger::getLogger()->setMinLevel("warning");
 
 
 #if INSTRUMENT
@@ -996,7 +996,7 @@ int localNReadingsTotal;
 
 	// FIXME_I:
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("appendReadings end thread :%s: :%X:", threadId.str().c_str(), this);
+	Logger::getLogger()->debug("appendReadings thread end  :%s: :%X:", threadId.str().c_str(), this);
 	Logger::getLogger()->setMinLevel("warning");
 
 
@@ -3172,15 +3172,20 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 				//Logger::getLogger()->debug("getReadingReference lock after ");
 				Logger::getLogger()->debug("xxx3 S2  :%X:", dbHandle);
 
-				readingsAvailable = evaluateLastReadingAvailable(m_lastDbId);
-				startReadingsId = readingsAvailable.lastReadings + 1;
+				// FIXME_I:
+				//readingsAvailable = evaluateLastReadingAvailable(m_lastDbId);
+				//startReadingsId = readingsAvailable.lastReadings + 1;
 
+				Logger::getLogger()->setMinLevel("debug");
 				Logger::getLogger()->debug("xxx3 S3  :%X:", dbHandle);
 
 				Logger::getLogger()->debug("xxx3 getReadingReference - m_dbId :%d: m_lastDbId ::%d readingsAvailable :%d: startReadingsId :%d:", m_dbId, m_lastDbId, readingsAvailable, startReadingsId);
 
-				success = createNewDB(dbHandle, m_lastDbId +1, startReadingsId);
+				//success = createNewDB(dbHandle, m_lastDbId +1, startReadingsId);
+				success = true;
+
 				if (success){
+					m_nReadingsAvailable = getNReadingsAllocate();
 					m_dbId++;
 					m_lastDbId++;
 				}
@@ -3198,8 +3203,6 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 			{
 				// Associate a reading table to the asset
 				{
-					Logger::getLogger()->debug("getReadingReference: allocate a new reading table for the asset :%s: ", asset_code);
-
 					// Associate the asset to the reading_id
 					{
 						readingsId = getMaxReadingsId() + 1;
@@ -3208,6 +3211,11 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 						auto newMapValue = make_pair(asset_code, newItem);
 						m_AssetReadingCatalogue.insert(newMapValue);
 					}
+
+					// FIXME_I:
+					Logger::getLogger()->setMinLevel("debug");
+					Logger::getLogger()->debug("getReadingReference: allocate a new reading table for the asset :%s: db Id :%d: readings Id :%d: ", asset_code, m_dbId, readingsId);
+					Logger::getLogger()->setMinLevel("warning");
 
 					// Allocate the table in the reading catalogue
 					{
@@ -3568,14 +3576,14 @@ int Connection::SQLPrepare(sqlite3 *dbHandle, const char *sqlCmd, sqlite3_stmt *
 		if (rc != SQLITE_OK)
 		{
 			// FIXME_I:
-			Logger::getLogger()->debug("SQLPrepare: rc :%d: ", rc);
+			Logger::getLogger()->debug("SQLPrepare: rc :%d: dbHandle :%X: ", rc, dbHandle);
 
 			retries++;
 
 			int interval = (retries * RETRY_BACKOFF);
 			if (retries > 5){
-				Logger::getLogger()->info("SQLPrepare: retry %d of %d, rc=%d, DB connection @ %p, slept for %d msecs",
-										  retries, MAX_RETRIES, rc, this, interval);
+				Logger::getLogger()->info("SQLPrepare: error :%s: retry %d of %d, rc=%d, DB connection @ %p, slept for %d msecs",
+										  sqlite3_errmsg(dbHandle), retries, MAX_RETRIES, rc, this, interval);
 
 			}
 			usleep(interval);	// sleep retries milliseconds

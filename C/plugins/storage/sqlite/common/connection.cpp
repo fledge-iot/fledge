@@ -609,7 +609,7 @@ Connection::Connection()
 		ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 		if ( !readCat->connectionAttachAllDbs(dbHandle) )
 		{
-			const char* errMsg = "Failed to attach all the dbs to the connection :%X:'readings' database in";
+			const char* errMsg = "xxx4 Failed to attach all the dbs to the connection :%X:'readings' database in";
 			Logger::getLogger()->error("%s '%s': error %s", errMsg, dbHandle);
 
 			connectErrorTime = time(0);
@@ -618,13 +618,14 @@ Connection::Connection()
 
 	} catch (exception e) {
 		//# FIXME_I
-		Logger::getLogger()->debug("xxx4 Connection exception :%s:" ,e.what());
+		Logger::getLogger()->error("xxx4 Connection exception :%s:" ,e.what());
 	} catch (...) {
 		//# FIXME_I
-		Logger::getLogger()->debug("xxx4 Connection  crash");
+		Logger::getLogger()->error("xxx4 Connection  crash");
 	}
 
 	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug("xxx4 Connection end :%X:" ,dbHandle);
 	Logger::getLogger()->setMinLevel("warning");
 
@@ -1339,6 +1340,13 @@ vector<string>  asset_codes;
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
 
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx5 update cmd - thread :%s:  dbHandle :%X: table :%s:", threadId.str().c_str(), dbHandle , table.c_str());
+	Logger::getLogger()->setMinLevel("warning");
+
+
 	std::size_t arr = payload.find("updates");
 	bool changeReqd = (arr == std::string::npos || arr > 8);
 	if (changeReqd)
@@ -1650,6 +1658,7 @@ vector<string>  asset_codes;
 	//Logger::getLogger()->debug("xxx0 update lock after :%s: dbHandle :%X:", threadId.str().c_str(), dbHandle);
 
 
+	Logger::getLogger()->debug("xxx5 update before cmd :%s: dbHandle :%X:", threadId.str().c_str(), dbHandle);
 	// Exec the UPDATE statement: no callback, no result set
 	m_writeAccessOngoing.fetch_add(1);
 	rc = SQLexec(dbHandle,
@@ -1660,6 +1669,9 @@ vector<string>  asset_codes;
 	m_writeAccessOngoing.fetch_sub(1);
 	if (m_writeAccessOngoing == 0)
 		db_cv.notify_all();
+
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx5 update after cmd :%s: dbHandle :%X:", threadId.str().c_str(), dbHandle);
 
 	// FIXME_I:
 	//Logger::getLogger()->debug("xxx0 update unlock before :%s: ", threadId.str().c_str());

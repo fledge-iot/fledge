@@ -1251,9 +1251,9 @@ std::size_t arr = data.find("inserts");
 
 	// FIXME_I:
 	DbSync *sync = DbSync::getInstance();
-	//Logger::getLogger()->debug("xxx0 insert lock before lock :%s: ", threadId.str().c_str());
-	//sync->lock();
-	//Logger::getLogger()->debug("xxx0 insert lock after lock :%s: ", threadId.str().c_str());
+	Logger::getLogger()->debug("xxx0 insert lock before lock :%s: ", threadId.str().c_str());
+	sync->lock();
+	Logger::getLogger()->debug("xxx0 insert lock after lock :%s: ", threadId.str().c_str());
 
 
 	// Exec INSERT statement: no callback, no result set
@@ -1268,9 +1268,9 @@ std::size_t arr = data.find("inserts");
 		db_cv.notify_all();
 
 	// FIXME_I:
-	//Logger::getLogger()->debug("xxx0 insert unlock before  :%s: ", threadId.str().c_str());
-	//sync->unlock();
-	//Logger::getLogger()->debug("xxx0 insert unlock after  :%s: rc :%d: dbHandle :%X:", table.c_str(), rc, dbHandle);
+	Logger::getLogger()->debug("xxx0 insert unlock before  :%s: ", threadId.str().c_str());
+	sync->unlock();
+	Logger::getLogger()->debug("xxx0 insert unlock after  :%s: rc :%d: dbHandle :%X:", table.c_str(), rc, dbHandle);
 	Logger::getLogger()->setMinLevel("warning");
 
 	// Check exec result
@@ -1653,9 +1653,9 @@ vector<string>  asset_codes;
 	// FIXME_I:
 	DbSync *sync = DbSync::getInstance();
 	Logger::getLogger()->setMinLevel("debug");
-	//Logger::getLogger()->debug("xxx0 update lock before :%s: dbHandle :%X:", threadId.str().c_str(), dbHandle);
-	//sync->lock();
-	//Logger::getLogger()->debug("xxx0 update lock after :%s: dbHandle :%X:", threadId.str().c_str(), dbHandle);
+	Logger::getLogger()->debug("xxx0 update lock before :%s: dbHandle :%X:", threadId.str().c_str(), dbHandle);
+	sync->lock();
+	Logger::getLogger()->debug("xxx0 update lock after :%s: dbHandle :%X:", threadId.str().c_str(), dbHandle);
 
 
 	Logger::getLogger()->debug("xxx5 update before cmd :%s: dbHandle :%X:", threadId.str().c_str(), dbHandle);
@@ -1674,9 +1674,9 @@ vector<string>  asset_codes;
 	Logger::getLogger()->debug("xxx5 update after cmd :%s: dbHandle :%X:", threadId.str().c_str(), dbHandle);
 
 	// FIXME_I:
-	//Logger::getLogger()->debug("xxx0 update unlock before :%s: ", threadId.str().c_str());
-	//sync->unlock();
-	//Logger::getLogger()->debug("xxx0 update unlock after :%s: rc :%d: dbHandle :%X:", table.c_str(), rc, dbHandle);
+	Logger::getLogger()->debug("xxx0 update unlock before :%s: ", threadId.str().c_str());
+	sync->unlock();
+	Logger::getLogger()->debug("xxx0 update unlock after :%s: rc :%d: dbHandle :%X:", table.c_str(), rc, dbHandle);
 	Logger::getLogger()->setMinLevel("warning");
 
 	// Check result code
@@ -2992,7 +2992,8 @@ int retries = 0, rc;
 		if (rc != SQLITE_OK)
 		{
 			//# FIXME_I
-			Logger::getLogger()->debug("xxx10 SQLexec retry :%d:", retries);
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxx10 V2 SQLexec retry :%d: dbHandle :%X: cmd :%s:  error :%s:", retries, this->getDbHandle(), sql, sqlite3_errmsg(dbHandle));
 
 #if DO_PROFILE_RETRIES
 			m_qMutex.lock();
@@ -3003,8 +3004,8 @@ int retries = 0, rc;
 #endif
 			int interval = (1 * RETRY_BACKOFF);
 			std::this_thread::sleep_for(std::chrono::milliseconds(interval));
-			if (retries > 9) Logger::getLogger()->info("SQLExec: retry %d of %d, rc=%s, errmsg=%s, DB connection @ %p, slept for %d msecs",
-						retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", sqlite3_errmsg(db), this, interval);
+			if (retries > 9) Logger::getLogger()->info("SQLExec: error :%s: retry %d of %d, rc=%s, errmsg=%s, DB connection @ %p, slept for %d msecs",
+													   sqlite3_errmsg(dbHandle), retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", sqlite3_errmsg(db), this, interval);
 #if DO_PROFILE_RETRIES
 			m_qMutex.lock();
 			m_waiting.fetch_sub(1);
@@ -3057,7 +3058,7 @@ int retries = 0, rc;
 
 	if (rc != SQLITE_OK)
 	{
-		Logger::getLogger()->error("Database error after maximum retries");
+		Logger::getLogger()->error("Database error after maximum retries - dbHandle :%X:", this->getDbHandle());
 	}
 
 	//Logger::getLogger()->debug("xxx10 SQLexec end :%s:", sql);

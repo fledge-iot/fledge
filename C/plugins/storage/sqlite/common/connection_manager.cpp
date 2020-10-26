@@ -231,6 +231,69 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 	return (result);
 }
 
+// FIXME_I:
+bool ConnectionManager::attachRequestNewDb(int newDbId)
+{
+	int rc;
+	std::string sqlCmd;
+	sqlite3 *dbHandle;
+	bool result;
+	char *zErrMsg = NULL;
+
+	result = true;
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx attachRequestNewDb Start");
+	Logger::getLogger()->setMinLevel("warning");
+
+
+	idleLock.lock();
+	inUseLock.lock();
+
+	// attach the DB to all idle connections
+	{
+
+		for ( auto conn : idle) {
+
+			conn->setUsedDbId(newDbId);
+
+			//# FIXME_I
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxx attachRequestNewDb idle :%s: :%X: ", sqlCmd.c_str(), dbHandle);
+			Logger::getLogger()->setMinLevel("warning");
+
+		}
+	}
+
+	if (result)
+	{
+		// attach the DB to all inUse connections
+		{
+
+			for ( auto conn : inUse) {
+
+				conn->setUsedDbId(newDbId);
+				//# FIXME_I
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("xxx attachRequestNewDb inUse :%s: :%X:  ", sqlCmd.c_str(), dbHandle);
+				Logger::getLogger()->setMinLevel("warning");
+
+			}
+		}
+	}
+	idleLock.unlock();
+	inUseLock.unlock();
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx attachRequestNewDb Exit");
+	Logger::getLogger()->setMinLevel("warning");
+
+	return (result);
+}
+
+
 //// FIXME_I:xxx
 /**
  * Attach a database to all the connections, idle and  inuse
@@ -414,8 +477,8 @@ int ConnectionManager::SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **err
 			int interval = (retries * RETRY_BACKOFF);
 			usleep(interval);	// sleep retries milliseconds
 			if (retries > 5)
-					Logger::getLogger()->info("xxx SQLExec - retry %d of %d, rc=%s, DB connection @ %p, slept for %d msecs",
-													   retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", this, interval);
+					Logger::getLogger()->info("xxx SQLExec - error :%s: retry %d of %d, rc=%s, DB connection @ %p, slept for %d msecs",
+											  sqlite3_errmsg(dbHandle), retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", this, interval);
 		}
 	} while (retries < MAX_RETRIES && (rc  != SQLITE_OK));
 

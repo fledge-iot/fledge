@@ -29,6 +29,7 @@ class ConnectionManager {
 		unsigned int              shrinkPool(unsigned int);
 		Connection                *allocate();
 		bool                      attachNewDb(std::string &path, std::string &alias);
+		bool                      attachRequestNewDb(int newDbId);
 		void                      release(Connection *);
 		void			  shutdown();
 		void			  setError(const char *, const char *, bool);

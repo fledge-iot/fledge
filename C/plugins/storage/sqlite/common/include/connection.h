@@ -138,7 +138,12 @@ class Connection {
 		// FIXME_I:
 		int         SQLPrepare(sqlite3 *dbHandle, const char *sqlCmd, sqlite3_stmt **readingsStmt);
 
+		void        setUsedDbId(int dbId);
+
 	private:
+		// FIXME_I:
+		std::vector<int>                              m_NewDbIdList;
+
 		bool 		m_streamOpenTransaction;
 		int		m_queuing;
 		std::mutex	m_qMutex;
@@ -206,7 +211,7 @@ class ReadingsCatalogue {
 		void          getAllDbs(std::vector<int> &dbIdList);
 		int           getMaxReadingsId();
 		int           getNReadingsAvailable() const      {return m_nReadingsAvailable;}
-		int           getGlobalId() {return m_globalId++;};
+		int           getGlobalId() {return m_ReadingsGlobalId++;};
 		bool          evaluateGlobalId();
 		bool          storeGlobalId ();
 
@@ -221,13 +226,19 @@ class ReadingsCatalogue {
 		int           purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBase, char **errMsg = NULL, unsigned int *rowsAffected = NULL);
 
 		bool          connectionAttachAllDbs(sqlite3 *dbHandle);
+		bool          connectionAttachDbList(sqlite3 *dbHandle, std::vector<int> &dbIdList);
 		bool          attachDb(sqlite3 *dbHandle, std::string &path, std::string &alias);
 
 		void          setUsedDbId(int dbId);
 
 	private:
-		const int nReadingsAllocate = 5;
-		const int nSpareDbAllocate = 8;
+		// Readings tables allocation parameters
+		const int nReadingsAllocate = 2;
+
+		// Readings databases allocation parameters
+		const int nDbPreallocate = 2;
+		const int nDbLeftFreeBeforeAllocate = 1;
+		const int nDbToAllocate = 2;
 
 		typedef struct ReadingAvailable {
 			int lastReadings;
@@ -242,7 +253,7 @@ class ReadingsCatalogue {
 		bool          createReadingsTables(sqlite3 *dbHandle, int dbId, int idStartFrom, int nTables);
 		bool          isReadingAvailable() const;
 		void          allocateReadingAvailable();
-		tyReadingsAvailable   evaluateLastReadingAvailable(int dbId);
+		tyReadingsAvailable   evaluateLastReadingAvailable(sqlite3 *dbHandle, int dbId);
 		int           calculateGlobalId (sqlite3 *dbHandle);
 		std::string   generateDbFilePah(int dbId);
 
@@ -251,9 +262,10 @@ class ReadingsCatalogue {
 		int           SQLExec(sqlite3 *dbHandle, const char *sqlCmd,  char **errMsg = NULL);
 		bool          enableWAL(std::string &dbPathReadings);
 
-		int                                           m_dbId;
-		int                                           m_lastDbId;
-		std::atomic<int>                              m_globalId;
+		int                                           m_dbIdCurrent;
+		int                                           m_dbNAvailable;
+		int                                           m_dbIdLast;
+		std::atomic<int>                              m_ReadingsGlobalId;
 		int                                           m_nReadingsAvailable = 0;
 		std::mutex                                    m_mutexAssetReadingCatalogue;
 		std::map <std::string, std::pair<int, int>>   m_AssetReadingCatalogue={

@@ -621,6 +621,16 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 	return rowNumber;
 }
 
+
+
+
+// FIXME_I:
+void Connection::setUsedDbId(int dbId) {
+
+	m_NewDbIdList.push_back(dbId);
+}
+
+
 #ifndef SQLITE_SPLIT_READINGS
 /**
  * Append a set of readings to the readings table
@@ -670,6 +680,19 @@ int localNReadingsTotal;
 	Logger::getLogger()->debug("appendReadings thread start :%s: conn :%X: dbHandle :%X:", threadId.str().c_str(), this, this->getDbHandle());
 	Logger::getLogger()->setMinLevel("warning");
 
+	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
+
+	if ( ! m_NewDbIdList.empty())
+	{
+		// FIXME_I:
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxxA0 appendReadings attach new DB :%s: conn :%X: dbHandle :%X:", threadId.str().c_str(), this, this->getDbHandle());
+		Logger::getLogger()->setMinLevel("warning");
+
+		readCatalogue->connectionAttachDbList(this->getDbHandle(), m_NewDbIdList);
+
+	}
+
 
 	// FIXME_I:
 //	Logger::getLogger()->setMinLevel("debug");
@@ -681,7 +704,7 @@ int localNReadingsTotal;
 //	Logger::getLogger()->setMinLevel("warning");
 
 
-	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
+
 
 	localNReadingsTotal = readCatalogue->getMaxReadingsId();
 	vector<sqlite3_stmt *> readingsStmt(localNReadingsTotal +1, nullptr);
@@ -867,29 +890,32 @@ int localNReadingsTotal;
 				retries =0;
 				sleep_time_ms = 0;
 
+				string msgError;
+
 				// Retry mechanism in case SQLlite DB is locked
 				do {
 					// Insert the row using a lock to ensure one insert at time
 					{
-						DbSync *sync = DbSync::getInstance();
-						//Logger::getLogger()->setMinLevel("debug");
-						//Logger::getLogger()->debug("update lock before :%s: dbHandle :%X:", threadId.str().c_str(), dbHandle);
-						//sync->lock();
-
 						sqlite3_resut = sqlite3_step(stmt);
-
-						//sync->unlock();
 					}
+
+					msgError = "";
+
 					if (sqlite3_resut == SQLITE_LOCKED  )
 					{
-						sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
-						retries++;
+						msgError = "SQLITE_LOCKED";
 
-						Logger::getLogger()->info("appendReadings - SQLITE_LOCKED - record :%d: - retry number :%d: sleep time ms :%d:" ,row ,retries ,sleep_time_ms);
+					} else if (sqlite3_resut == SQLITE_BUSY)
+					{
+						msgError = "SQLITE_BUSY";
 
-						std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
+					} else if (sqlite3_resut  != SQLITE_DONE)
+					{
+						msgError = "SQLITE_ERROR";
 					}
-					if (sqlite3_resut == SQLITE_BUSY)
+
+
+					if(sqlite3_resut != SQLITE_DONE)
 					{
 						ostringstream threadId;
 						threadId << std::this_thread::get_id();
@@ -897,11 +923,27 @@ int localNReadingsTotal;
 						sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
 						retries++;
 
-						Logger::getLogger()->info("appendReadings - SQLITE_BUSY - thread :%s: - record :%d: - retry number :%d: sleep time ms :%d:", threadId.str().c_str() ,row, retries, sleep_time_ms);
+						// FIXME_I:
+						//Logger::getLogger()->info("appendReadings - %s - thread :%s: - con :%X: - dbHandle :%X: - record :%d: - retry number :%d: sleep time ms :%d:error :%s:",
+						Logger::getLogger()->warn("appendReadings - %s - thread :%s: - con :%X: - dbHandle :%X: - record :%d: - retry number :%d: sleep time ms :%d:error :%s:",
+								msgError.c_str(),
+								threadId.str().c_str() ,
+								this,
+								dbHandle,
+								row,
+								retries,
+								sleep_time_ms,
+								sqlite3_errmsg(dbHandle));
+
+						// FIXME_I:
+						Logger::getLogger()->error("appendReadings - asset_code :%s: readingsId :%d:",
+												  asset_code,
+												  readingsId);
 
 						std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
 					}
-				} while (retries < PREP_CMD_MAX_RETRIES && (sqlite3_resut == SQLITE_LOCKED || sqlite3_resut == SQLITE_BUSY));
+				// FIXME_I:
+				} while (retries < PREP_CMD_MAX_RETRIES && (sqlite3_resut != SQLITE_DONE));
 
 				if (sqlite3_resut == SQLITE_DONE)
 				{
@@ -912,10 +954,11 @@ int localNReadingsTotal;
 				}
 				else
 				{
-					raiseError("appendReadings","Inserting a row into SQLIte using a prepared command - asset_code :%s: error :%s: reading :%s: ",
+					raiseError("appendReadings","Inserting a row into SQLIte using a prepared command - asset_code :%s: error :%s: reading :%s: dbHandle :%X:",
 						asset_code,
 						sqlite3_errmsg(dbHandle),
-						reading.c_str());
+						reading.c_str(),
+						dbHandle);
 
 					sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
 					return -1;
@@ -940,7 +983,7 @@ int localNReadingsTotal;
 	}
 
 
-	// FIXME_I:
+//	// FIXME_I:
 //	Logger::getLogger()->setMinLevel("debug");
 //	Logger::getLogger()->debug("appendReadings unlock before thread %s:  dbHandle :%X: ", threadId.str().c_str(), this);
 //	sync->unlock();
@@ -2283,9 +2326,9 @@ bool ReadingsCatalogue::evaluateGlobalId ()
 
 		if (SQLStep(stmt) != SQLITE_ROW)
 		{
-			m_globalId = 1;
+			m_ReadingsGlobalId = 1;
 
-			sql_cmd = " INSERT INTO " READINGS_DB ".configuration_readings VALUES (" + to_string(m_globalId) + ")";
+			sql_cmd = " INSERT INTO " READINGS_DB ".configuration_readings VALUES (" + to_string(m_ReadingsGlobalId) + ")";
 
 			if (SQLExec(dbHandle, sql_cmd.c_str()) != SQLITE_OK)
 			{
@@ -2296,19 +2339,19 @@ bool ReadingsCatalogue::evaluateGlobalId ()
 		else
 		{
 			nCols = sqlite3_column_count(stmt);
-			m_globalId = sqlite3_column_int(stmt, 0);
+			m_ReadingsGlobalId = sqlite3_column_int(stmt, 0);
 		}
 	}
 
-	id = m_globalId;
+	id = m_ReadingsGlobalId;
 	Logger::getLogger()->debug("evaluateGlobalId - global id from the DB :%d:", id);
 
-	if ( m_globalId == -1)
+	if (m_ReadingsGlobalId == -1)
 	{
-		m_globalId = calculateGlobalId (dbHandle);
+		m_ReadingsGlobalId = calculateGlobalId (dbHandle);
 	}
 
-	id = m_globalId;
+	id = m_ReadingsGlobalId;
 	Logger::getLogger()->debug("evaluateGlobalId - global id from the DB :%d:", id);
 
 	// Set the global_id in the DB to -1 to force a calculation at the restart
@@ -2343,7 +2386,7 @@ bool ReadingsCatalogue::storeGlobalId ()
 	sqlite3 *dbHandle;
 
 	int i;
-	i = m_globalId;
+	i = m_ReadingsGlobalId;
 	Logger::getLogger()->debug("storeGlobalId m_globalId :%d: ", i);
 
 
@@ -2351,7 +2394,7 @@ bool ReadingsCatalogue::storeGlobalId ()
 	Connection *connection = manager->allocate();
 	dbHandle = connection->getDbHandle();
 
-	sql_cmd = " UPDATE " READINGS_DB ".configuration_readings SET global_id=" + to_string(m_globalId);
+	sql_cmd = " UPDATE " READINGS_DB ".configuration_readings SET global_id=" + to_string(m_ReadingsGlobalId);
 
 	if (SQLExec(dbHandle, sql_cmd.c_str()) != SQLITE_OK)
 	{
@@ -2501,9 +2544,9 @@ bool  ReadingsCatalogue::loadAssetReadingCatalogue()
 		sqlite3_finalize(stmt);
 	}
 	manager->release(connection);
-	m_dbId = maxDbID;
+	m_dbIdCurrent = maxDbID;
 
-	Logger::getLogger()->debug("loadAssetReadingCatalogue maxdb :%d:", m_dbId);
+	Logger::getLogger()->debug("loadAssetReadingCatalogue maxdb :%d:", m_dbIdCurrent);
 
 	return true;
 }
@@ -2521,9 +2564,12 @@ void ReadingsCatalogue::preallocateNewDbs() {
 	Logger::getLogger()->debug("preallocateNewDbs");
 
 	dbIdStart = 2;
-	dbIdEnd = dbIdStart + nSpareDbAllocate -1;
+	dbIdEnd = dbIdStart + nDbPreallocate - 1;
 
 	preallocateNewDbsRange(dbIdStart, dbIdEnd);
+
+	m_dbIdLast = dbIdEnd;
+	m_dbNAvailable = (m_dbIdLast - m_dbIdCurrent) - nDbLeftFreeBeforeAllocate;
 }
 
 
@@ -2538,16 +2584,17 @@ void ReadingsCatalogue::preallocateNewDbsRange(int dbIdStart, int dbIdEnd) {
 
 	for (dbId = dbIdStart; dbId <= dbIdEnd; dbId++)
 	{
-		Logger::getLogger()->debug("xxx2 preallocateNewDbsRange: dbId :%d:", dbId);
-
-		readingsAvailable = evaluateLastReadingAvailable(dbId - 1);
+		readingsAvailable = evaluateLastReadingAvailable(NULL, dbId - 1);
 		startReadingsId = readingsAvailable.lastReadings +1;
 		createNewDB(NULL,  dbId, startReadingsId);
+
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx10 preallocateNewDbsRange - create new dbs - dbId :%d: startReadingsIdOnDB :%d:", dbId, startReadingsId);
+
 	}
 
-	m_lastDbId = dbIdEnd;
-
-	Logger::getLogger()->debug("xxx2 preallocateNewDbsRange: END - start :%d: end :%d: m_lastDbId :%d:", dbIdStart, dbIdEnd, m_lastDbId);
+	attachAllDbs();
+	Logger::getLogger()->debug("xxx2 preallocateNewDbsRange: END - start :%d: end :%d:", dbIdStart, dbIdEnd);
 
 }
 
@@ -2597,6 +2644,37 @@ void ReadingsCatalogue::getAllDbs(vector<int> &dbIdList) {
 	Logger::getLogger()->setMinLevel("warning");
 
 }
+
+
+
+
+// FIXME_I:
+void ReadingsCatalogue::getNewDbs(vector<int> &dbIdList) {
+
+	int dbId;
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+
+	Logger::getLogger()->debug("getAllDbs - Newly created");
+
+	for (auto &dbId : m_dbIdList) {
+
+		if (std::find(dbIdList.begin(), dbIdList.end(), dbId) ==  dbIdList.end() )
+		{
+			dbIdList.push_back(dbId);
+			Logger::getLogger()->debug("getAllDbs DB created :%d:", dbId);
+		}
+	}
+
+	sort(dbIdList.begin(), dbIdList.end());
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("warning");
+
+}
+
+
 
 /**
  * Enable WAL on the provided database file
@@ -2668,6 +2746,55 @@ bool ReadingsCatalogue::attachDb(sqlite3 *dbHandle, std::string &path, std::stri
 
 	return (result);
 }
+
+}
+
+/**
+ * Attaches all the defined SQlite database to all the connections and enable the WAL
+ *
+ */
+bool ReadingsCatalogue::connectionAttachDbList(sqlite3 *dbHandle, vector<int> &dbIdList)
+{
+	int dbId;
+	string dbPathReadings;
+	string dbAlias;
+
+	bool result;
+
+	result = true;
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxxA0 connectionAttachDbList  start Connection :%X:" ,dbHandle);
+	Logger::getLogger()->setMinLevel("warning");
+
+	for(int item : dbIdList)
+	{
+		dbPathReadings = generateDbFilePah(item);
+		dbAlias = generateDbAlias(item);
+
+		result = attachDb(dbHandle, dbPathReadings, dbAlias);
+		if (! result)
+			break;
+
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+
+		Logger::getLogger()->debug("xxxA0 connectionAttachDbList: dbId :%d: path :%s: alias :%s:", item, dbPathReadings.c_str(), dbAlias.c_str());
+
+		// FIXME_I:
+		Logger::getLogger()->setMinLevel("warning");
+	}
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxxA0 connectionAttachDbList  end Connection :%X:" ,dbHandle);
+	Logger::getLogger()->setMinLevel("warning");
+
+
+	return (result);
+}
+
 
 /**
  * Attaches all the defined SQlite database to all the connections and enable the WAL
@@ -2788,19 +2915,19 @@ void ReadingsCatalogue::preallocateReadingsTables()
 	readingsAvailable.tableCount = 0;
 
 	// Identifies last readings available
-	readingsAvailable = evaluateLastReadingAvailable(m_dbId);
+	readingsAvailable = evaluateLastReadingAvailable(NULL, m_dbIdCurrent);
 	readingsToAllocate = getNReadingsAllocate();
 
 	if (readingsAvailable.tableCount < readingsToAllocate)
 	{
 		readingsToCreate = readingsToAllocate - readingsAvailable.tableCount;
 		startId = readingsAvailable.lastReadings + 1;
-		createReadingsTables(NULL, m_dbId, startId, readingsToCreate);
+		createReadingsTables(NULL, m_dbIdCurrent, startId, readingsToCreate);
 	}
 
-	m_nReadingsAvailable = readingsToAllocate - getUsedTablesDbId(m_dbId);
+	m_nReadingsAvailable = readingsToAllocate - getUsedTablesDbId(m_dbIdCurrent);
 
-	Logger::getLogger()->debug("preallocateReadingsTables: dbId :%d: nReadingsAvailable :%d: lastReadingsCreated :%d: tableCount :%d:", m_dbId, m_nReadingsAvailable, readingsAvailable.lastReadings, readingsAvailable.tableCount);
+	Logger::getLogger()->debug("preallocateReadingsTables: dbId :%d: nReadingsAvailable :%d: lastReadingsCreated :%d: tableCount :%d:", m_dbIdCurrent, m_nReadingsAvailable, readingsAvailable.lastReadings, readingsAvailable.tableCount);
 }
 
 /**
@@ -2872,7 +2999,7 @@ bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle, int newDbId, int startId
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->info("createNewDB V2: :%X:" ,dbHandle);
+	Logger::getLogger()->info("createNewDB V2: connection :%X: dbHandle :%X:" ,connection, dbHandle);
 
 	// Creates the DB data file
 	{
@@ -2896,16 +3023,17 @@ bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle, int newDbId, int startId
 
 	// Attached the new db to the connections
 	dbAlias = generateDbAlias(newDbId);
-	result = manager->attachNewDb(dbPathReadings, dbAlias);
-
-	// FIXME_I:
-	setUsedDbId(newDbId);
+	//result = manager->attachNewDb(dbPathReadings, dbAlias);
+	result = manager->attachRequestNewDb(newDbId);
 
 	if (result)
 	{
+		// FIXME_I:
+		setUsedDbId(newDbId);
+
 		if (dbAlreadyPresent)
 		{
-			tyReadingsAvailable readingsAvailable = evaluateLastReadingAvailable(newDbId);
+			tyReadingsAvailable readingsAvailable = evaluateLastReadingAvailable(dbHandle, newDbId);
 
 			if (readingsAvailable.lastReadings == -1)
 			{
@@ -2969,15 +3097,9 @@ bool  ReadingsCatalogue::createReadingsTables(sqlite3 *dbHandle, int dbId, int i
 	}
 
 	// FIXME_I:
-	logger->debug("createReadingsTables dbHandle :%X: ", dbHandle);
-
-	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	logger->info("Creating :%d: readings table in advance", nTables);
-
-	//# FIXME_I
-	Logger::getLogger()->debug("xxx createReadingsTables start dbHandle :%X: ", dbHandle);
-
+	logger->info("Creating :%d: readings table in advance starting id :%d:", nTables, idStartFrom);
+	logger->debug("createReadingsTables start dbHandle :%X: ", dbHandle);
 
 	dbName = generateDbName(dbId);
 
@@ -2999,6 +3121,10 @@ bool  ReadingsCatalogue::createReadingsTables(sqlite3 *dbHandle, int dbId, int i
 			CREATE INDEX )" + dbName + "." + dbReadingsName + R"(_ix3 ON readings_)" + to_string(tableId) + R"( (user_ts);
 		)";
 
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx createReadingsTables table :%s: ", createReadings.c_str());
+
 		rc = SQLExec(dbHandle, createReadings.c_str());
 		if (rc != SQLITE_OK)
 		{
@@ -3006,10 +3132,9 @@ bool  ReadingsCatalogue::createReadingsTables(sqlite3 *dbHandle, int dbId, int i
 			return false;
 		}
 
-
 		//# FIXME_I
-		Logger::getLogger()->debug("xxx createReadingsTables createReadings :%s: ", createReadings.c_str());
-
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx createReadingsTables idx :%s: ", createReadingsIdx.c_str());
 
 
 		rc = SQLExec(dbHandle, createReadingsIdx.c_str());
@@ -3021,6 +3146,7 @@ bool  ReadingsCatalogue::createReadingsTables(sqlite3 *dbHandle, int dbId, int i
 	}
 
 	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug("xxx createReadingsTables end dbHandle :%X: ", dbHandle);
 
 	if (newConnection)
@@ -3038,7 +3164,7 @@ bool  ReadingsCatalogue::createReadingsTables(sqlite3 *dbHandle, int dbId, int i
  *             lastReadings = the id of the latest reading table defined in the  given database id
  *             tableCount   = Number of tables  given database id in the given database id
  */
-ReadingsCatalogue::tyReadingsAvailable  ReadingsCatalogue::evaluateLastReadingAvailable(int dbId)
+ReadingsCatalogue::tyReadingsAvailable  ReadingsCatalogue::evaluateLastReadingAvailable(sqlite3 *dbHandle, int dbId)
 {
 	string dbName;
 	int nCols;
@@ -3047,16 +3173,31 @@ ReadingsCatalogue::tyReadingsAvailable  ReadingsCatalogue::evaluateLastReadingAv
 	sqlite3_stmt *stmt;
 	int rc;
 	string tableName;
-	sqlite3		*dbHandle;
 	tyReadingsAvailable readingsAvailable;
+
+	Connection        *connection;
+	bool connAllocated;
+
+	connAllocated = false;
 
 	vector<int> readingsId(getNReadingsAvailable(), 0);
 
 	ConnectionManager *manager = ConnectionManager::getInstance();
-	Connection        *connection = manager->allocate();
 
-	dbHandle = connection->getDbHandle();
+
+	if (dbHandle == NULL)
+	{
+		connection = manager->allocate();
+		dbHandle = connection->getDbHandle();
+		connAllocated = true;
+	}
+
 	dbName = generateDbName(dbId);
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx10 Ingest evaluateLastReadingAvailable S1");
+
 
 	string sql_cmd = R"(
 		SELECT name
@@ -3066,12 +3207,20 @@ ReadingsCatalogue::tyReadingsAvailable  ReadingsCatalogue::evaluateLastReadingAv
 
 	if (sqlite3_prepare_v2(dbHandle,sql_cmd.c_str(),-1, &stmt,NULL) != SQLITE_OK)
 	{
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->error("xxx10 evaluateLastReadingAvailable :cmd: error :%s:", sql_cmd.c_str(), sqlite3_errmsg(dbHandle));
+
 		raiseError("evaluateLastReadingAvailable", sqlite3_errmsg(dbHandle));
 		readingsAvailable.lastReadings = -1;
 		readingsAvailable.tableCount = 0;
 	}
 	else
 	{
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx10 Ingest evaluateLastReadingAvailable S2");
+
 		// Iterate over all the rows in the resultSet
 		readingsAvailable.lastReadings = 0;
 		readingsAvailable.tableCount = 0;
@@ -3087,11 +3236,22 @@ ReadingsCatalogue::tyReadingsAvailable  ReadingsCatalogue::evaluateLastReadingAv
 
 			readingsAvailable.tableCount++;
 		}
+		//# FIXME_I
+
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx10 Ingest evaluateLastReadingAvailable S3  - tableName :%s: lastReadings :%d:", tableName.c_str(), readingsAvailable.lastReadings);
 
 		sqlite3_finalize(stmt);
 	}
 
-	manager->release(connection);
+	if (connAllocated)
+	{
+		manager->release(connection);
+	}
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("warning");
+
 
 	return (readingsAvailable);
 }
@@ -3136,6 +3296,11 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 	int startReadingsId;
 	tyReadingsAvailable readingsAvailable;
 
+	//# FIXME_I
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
+
+
 	success = true;
 
 	dbHandle = connection->getDbHandle();
@@ -3150,7 +3315,21 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 	}
 	else
 	{
+		// FIXME_I:
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx0 getReadingReference lock before m_mutexAssetReadingCatalogue dbHandle :%X: threadId :%s:", dbHandle, threadId.str().c_str() );
+
 		m_mutexAssetReadingCatalogue.lock();
+
+		Logger::getLogger()->debug("xxx0 getReadingReference lock after m_mutexAssetReadingCatalogue dbHandle :%X: threadId :%s:", dbHandle, threadId.str().c_str() );
+
+		// FIXME_I:
+		DbSync *sync = DbSync::getInstance();
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx0 getReadingReference lock before dbHandle :%X:", dbHandle);
+		sync->lock();
+		Logger::getLogger()->debug("xxx0 getReadingReference lock after  dbHandle :%X:",  dbHandle);
+
 
 		auto item = m_AssetReadingCatalogue.find(asset_code);
 		if (item != m_AssetReadingCatalogue.end())
@@ -3164,39 +3343,56 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 			{
 				// FIXME_I:
 				Logger::getLogger()->setMinLevel("debug");
-				DbSync *sync = DbSync::getInstance();
+				Logger::getLogger()->debug("xxx9 Allocate a new db dbNAvailable :%d:", m_dbNAvailable);
 
-				Logger::getLogger()->debug("xxx3 S1  :%X:", dbHandle);
-				Logger::getLogger()->debug("getReadingReference lock before :%X:", dbHandle);
-				//sync->lock();
-				//Logger::getLogger()->debug("getReadingReference lock after ");
-				Logger::getLogger()->debug("xxx3 S2  :%X:", dbHandle);
-
-				// FIXME_I:
-				//readingsAvailable = evaluateLastReadingAvailable(m_lastDbId);
-				//startReadingsId = readingsAvailable.lastReadings + 1;
-
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxx3 S3  :%X:", dbHandle);
-
-				Logger::getLogger()->debug("xxx3 getReadingReference - m_dbId :%d: m_lastDbId ::%d readingsAvailable :%d: startReadingsId :%d:", m_dbId, m_lastDbId, readingsAvailable, startReadingsId);
-
-				//success = createNewDB(dbHandle, m_lastDbId +1, startReadingsId);
-				success = true;
-
-				if (success){
+				if (m_dbNAvailable > 0)
+				{
+					// DBs already created are available
+					m_dbIdCurrent++;
+					m_dbNAvailable--;
 					m_nReadingsAvailable = getNReadingsAllocate();
-					m_dbId++;
-					m_lastDbId++;
+
+					Logger::getLogger()->debug("xxx9 Allocate a new db - db already available - dbIdCurrent :%d: m_dbIdLast :%d: dbNAvailable  :%d: nReadingsAvailable :%d:  ", m_dbIdCurrent, m_dbIdLast, m_dbNAvailable, m_nReadingsAvailable);
 				}
+				else
+				{
+					// Allocates new DBs
+					int dbId, dbIdStart, dbIdEnd;
+
+					dbIdStart = m_dbIdLast +1;
+					dbIdEnd = m_dbIdLast + nDbToAllocate;
+
+					Logger::getLogger()->debug("xxx10 Allocate a new db - create new dbs - dbIdCurrent :%d:  dbIdStart :%d: dbIdEnd :%d:", m_dbIdCurrent, dbIdStart, dbIdEnd);
+
+					for (dbId = dbIdStart; dbId <= dbIdEnd; dbId++)
+					{
+						readingsAvailable = evaluateLastReadingAvailable(dbHandle, dbId - 1);
+						startReadingsId = readingsAvailable.lastReadings +1;
+						//
+						Logger::getLogger()->setMinLevel("debug");
+						Logger::getLogger()->debug("xxx10 Allocate a new db - create new dbs - dbId :%d: startReadingsIdOnDB :%d:", dbId, startReadingsId);
+
+						success = createNewDB(dbHandle,  dbId, startReadingsId);
+						if (success)
+						{
+							Logger::getLogger()->debug("xxx10 Allocate a new db - create new dbs - created :%d:", dbId);
+						}
+					}
+					m_dbIdLast = dbIdEnd;
+					m_dbIdCurrent++;
+					m_dbNAvailable = (m_dbIdLast - m_dbIdCurrent) - nDbLeftFreeBeforeAllocate;
+				}
+
 				readingsId = -1;
 
-				// FIXME_I:
-				//Logger::getLogger()->debug("getReadingReference unlock before");
-				//sync->unlock();
-				Logger::getLogger()->debug("getReadingReference unlock after :%X:", dbHandle);
-				Logger::getLogger()->setMinLevel("warning");
+				if (success)
+				{
+					Logger::getLogger()->debug("xxx9 Allocate a new db - dbIdCurrent :%d:  dbIdLast :%d: dbNAvailable :%d:", m_dbIdCurrent, m_dbIdLast, m_dbNAvailable);
+				}
 
+
+				// FIXME_I:
+				Logger::getLogger()->setMinLevel("warning");
 			}
 
 			if (success)
@@ -3207,14 +3403,14 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 					{
 						readingsId = getMaxReadingsId() + 1;
 
-						auto newItem = make_pair(readingsId,m_dbId);
+						auto newItem = make_pair(readingsId, m_dbIdCurrent);
 						auto newMapValue = make_pair(asset_code, newItem);
 						m_AssetReadingCatalogue.insert(newMapValue);
 					}
 
 					// FIXME_I:
 					Logger::getLogger()->setMinLevel("debug");
-					Logger::getLogger()->debug("getReadingReference: allocate a new reading table for the asset :%s: db Id :%d: readings Id :%d: ", asset_code, m_dbId, readingsId);
+					Logger::getLogger()->debug("getReadingReference: allocate a new reading table for the asset :%s: db Id :%d: readings Id :%d: ", asset_code, m_dbIdCurrent, readingsId);
 					Logger::getLogger()->setMinLevel("warning");
 
 					// Allocate the table in the reading catalogue
@@ -3222,8 +3418,8 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 						sql_cmd =
 							"INSERT INTO  " READINGS_DB ".asset_reading_catalogue (table_id, db_id, asset_code) VALUES  ("
 							+ to_string(readingsId) + ","
-							+ to_string(m_dbId)     + ","
-							+ "\"" + asset_code     + "\")";
+							+ to_string(m_dbIdCurrent) + ","
+							+ "\"" + asset_code + "\")";
 
 						rc = SQLExec(dbHandle, sql_cmd.c_str());
 						if (rc != SQLITE_OK)
@@ -3238,6 +3434,14 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 
 			}
 		}
+
+
+		// FIXME_I:
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx0 getReadingReference unlock before dbHandle :%X:", dbHandle);
+		sync->unlock();
+		Logger::getLogger()->debug("xxx0 getReadingReference unlock after  dbHandle :%X:", dbHandle);
+		Logger::getLogger()->setMinLevel("warning");
 
 
 		m_mutexAssetReadingCatalogue.unlock();
@@ -3515,8 +3719,8 @@ int ReadingsCatalogue::SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **err
 		{
 			int interval = (retries * RETRY_BACKOFF);
 			usleep(interval);	// sleep retries milliseconds
-			if (retries > 5) Logger::getLogger()->info("SQLExec - retry %d of %d, rc=%s, DB connection @ %p, slept for %d msecs",
-													   retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", this, interval);
+			if (retries > 5) Logger::getLogger()->info("SQLExec - error :%s: retry %d of %d, rc=%s, DB connection @ %p, slept for %d msecs",
+													   sqlite3_errmsg(dbHandle), retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", this, interval);
 		}
 	} while (retries < MAX_RETRIES && (rc == SQLITE_LOCKED || rc == SQLITE_BUSY));
 

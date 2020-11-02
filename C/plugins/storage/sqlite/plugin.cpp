@@ -61,7 +61,7 @@ PLUGIN_HANDLE plugin_init()
 {
 	bool result;
 	ConnectionManager *manager = ConnectionManager::getInstance();
-	manager->growPool(10);
+	manager->growPool(2);
 
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 	readCat->loadAssetReadingCatalogue();

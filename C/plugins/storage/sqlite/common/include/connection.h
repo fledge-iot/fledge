@@ -209,6 +209,7 @@ class ReadingsCatalogue {
 		std::string   generateDbNameFromTableId(int tableId);
 		std::string   generateReadingsName(int tableId);
 		void          getAllDbs(std::vector<int> &dbIdList);
+		void          getNewDbs(std::vector<int> &dbIdList);
 		int           getMaxReadingsId();
 		int           getNReadingsAvailable() const      {return m_nReadingsAvailable;}
 		int           getGlobalId() {return m_ReadingsGlobalId++;};
@@ -217,7 +218,7 @@ class ReadingsCatalogue {
 
 		void          preallocateReadingsTables();
 		bool          loadAssetReadingCatalogue();
-		bool          createNewDB(sqlite3 *dbHandle, int newDbId,  int startId);
+		bool          createNewDB(sqlite3 *dbHandle, int newDbId,  int startId, bool attachAllDb);
 		void          preallocateNewDbs();
 		void          preallocateNewDbsRange(int dbIdStart, int dbIdEnd);
 		int           getReadingReference(Connection *connection, const char *asset_code);

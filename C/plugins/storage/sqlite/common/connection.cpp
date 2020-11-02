@@ -1250,10 +1250,10 @@ std::size_t arr = data.find("inserts");
 	int rc;
 
 	// FIXME_I:
-	DbSync *sync = DbSync::getInstance();
-	Logger::getLogger()->debug("xxx0 insert lock before lock :%s: ", threadId.str().c_str());
-	sync->lock();
-	Logger::getLogger()->debug("xxx0 insert lock after lock :%s: ", threadId.str().c_str());
+//	DbSync *sync = DbSync::getInstance();
+//	Logger::getLogger()->debug("xxx0 insert lock before lock :%s: ", threadId.str().c_str());
+//	sync->lock();
+//	Logger::getLogger()->debug("xxx0 insert lock after lock :%s: ", threadId.str().c_str());
 
 
 	// Exec INSERT statement: no callback, no result set
@@ -1268,10 +1268,10 @@ std::size_t arr = data.find("inserts");
 		db_cv.notify_all();
 
 	// FIXME_I:
-	Logger::getLogger()->debug("xxx0 insert unlock before  :%s: ", threadId.str().c_str());
-	sync->unlock();
-	Logger::getLogger()->debug("xxx0 insert unlock after  :%s: rc :%d: dbHandle :%X:", table.c_str(), rc, dbHandle);
-	Logger::getLogger()->setMinLevel("warning");
+//	Logger::getLogger()->debug("xxx0 insert unlock before  :%s: ", threadId.str().c_str());
+//	sync->unlock();
+//	Logger::getLogger()->debug("xxx0 insert unlock after  :%s: rc :%d: dbHandle :%X:", table.c_str(), rc, dbHandle);
+//	Logger::getLogger()->setMinLevel("warning");
 
 	// Check exec result
 	if (rc != SQLITE_OK )
@@ -1651,11 +1651,11 @@ vector<string>  asset_codes;
 
 
 	// FIXME_I:
-	DbSync *sync = DbSync::getInstance();
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx0 update lock before :%s: dbHandle :%X:", threadId.str().c_str(), dbHandle);
-	sync->lock();
-	Logger::getLogger()->debug("xxx0 update lock after :%s: dbHandle :%X:", threadId.str().c_str(), dbHandle);
+//	DbSync *sync = DbSync::getInstance();
+//	Logger::getLogger()->setMinLevel("debug");
+//	Logger::getLogger()->debug("xxx0 update lock before :%s: dbHandle :%X:", threadId.str().c_str(), dbHandle);
+//	sync->lock();
+//	Logger::getLogger()->debug("xxx0 update lock after :%s: dbHandle :%X:", threadId.str().c_str(), dbHandle);
 
 
 	Logger::getLogger()->debug("xxx5 update before cmd :%s: dbHandle :%X:", threadId.str().c_str(), dbHandle);
@@ -1674,10 +1674,10 @@ vector<string>  asset_codes;
 	Logger::getLogger()->debug("xxx5 update after cmd :%s: dbHandle :%X:", threadId.str().c_str(), dbHandle);
 
 	// FIXME_I:
-	Logger::getLogger()->debug("xxx0 update unlock before :%s: ", threadId.str().c_str());
-	sync->unlock();
-	Logger::getLogger()->debug("xxx0 update unlock after :%s: rc :%d: dbHandle :%X:", table.c_str(), rc, dbHandle);
-	Logger::getLogger()->setMinLevel("warning");
+//	Logger::getLogger()->debug("xxx0 update unlock before :%s: ", threadId.str().c_str());
+//	sync->unlock();
+//	Logger::getLogger()->debug("xxx0 update unlock after :%s: rc :%d: dbHandle :%X:", table.c_str(), rc, dbHandle);
+//	Logger::getLogger()->setMinLevel("warning");
 
 	// Check result code
 	if (rc != SQLITE_OK)

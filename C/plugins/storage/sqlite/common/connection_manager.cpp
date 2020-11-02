@@ -232,11 +232,10 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 }
 
 // FIXME_I:
-bool ConnectionManager::attachRequestNewDb(int newDbId)
+bool ConnectionManager::attachRequestNewDb(int newDbId, sqlite3 *dbHandle)
 {
 	int rc;
 	std::string sqlCmd;
-	sqlite3 *dbHandle;
 	bool result;
 	char *zErrMsg = NULL;
 
@@ -244,7 +243,7 @@ bool ConnectionManager::attachRequestNewDb(int newDbId)
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx attachRequestNewDb Start");
+	Logger::getLogger()->debug("xxxA0 attachRequestNewDb Start");
 	Logger::getLogger()->setMinLevel("warning");
 
 
@@ -256,12 +255,22 @@ bool ConnectionManager::attachRequestNewDb(int newDbId)
 
 		for ( auto conn : idle) {
 
-			conn->setUsedDbId(newDbId);
+			if (dbHandle == conn->getDbHandle())
+			{
+				//# FIXME_I
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("xxxA0 attachRequestNewDb idle SKIPP :%s: :%X: ", sqlCmd.c_str(), conn->getDbHandle());
+				Logger::getLogger()->setMinLevel("warning");
 
-			//# FIXME_I
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("xxx attachRequestNewDb idle :%s: :%X: ", sqlCmd.c_str(), dbHandle);
-			Logger::getLogger()->setMinLevel("warning");
+			} else
+			{
+				conn->setUsedDbId(newDbId);
+
+				//# FIXME_I
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("xxxA0 attachRequestNewDb idle :%s: :%X: ", sqlCmd.c_str(), conn->getDbHandle());
+				Logger::getLogger()->setMinLevel("warning");
+			}
 
 		}
 	}
@@ -273,12 +282,23 @@ bool ConnectionManager::attachRequestNewDb(int newDbId)
 
 			for ( auto conn : inUse) {
 
-				conn->setUsedDbId(newDbId);
-				//# FIXME_I
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxx attachRequestNewDb inUse :%s: :%X:  ", sqlCmd.c_str(), dbHandle);
-				Logger::getLogger()->setMinLevel("warning");
+				if (dbHandle == conn->getDbHandle())
+				{
+					//# FIXME_I
+					Logger::getLogger()->setMinLevel("debug");
+					Logger::getLogger()->debug("xxxA0 attachRequestNewDb inUse SKIP :%s: :%X:  ", sqlCmd.c_str(), conn->getDbHandle());
+					Logger::getLogger()->setMinLevel("warning");
 
+
+				} else
+				{
+					conn->setUsedDbId(newDbId);
+
+					//# FIXME_I
+					Logger::getLogger()->setMinLevel("debug");
+					Logger::getLogger()->debug("xxxA0 attachRequestNewDb inUse :%s: :%X:  ", sqlCmd.c_str(), conn->getDbHandle());
+					Logger::getLogger()->setMinLevel("warning");
+				}
 			}
 		}
 	}
@@ -287,7 +307,7 @@ bool ConnectionManager::attachRequestNewDb(int newDbId)
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx attachRequestNewDb Exit");
+	Logger::getLogger()->debug("xxxA0 attachRequestNewDb Exit");
 	Logger::getLogger()->setMinLevel("warning");
 
 	return (result);

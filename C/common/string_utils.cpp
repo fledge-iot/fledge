@@ -11,6 +11,7 @@
 #include <iostream>
 #include <string>
 #include "string_utils.h"
+#include <logger.h>
 
 using namespace std;
 
@@ -273,4 +274,22 @@ string urlDecode(const std::string& name)
 	}
 
 	return string(dec);
+}
+
+/**
+ * Escape all double quotes characters in the string
+ *
+ * @param str	The string to escape
+ */
+void StringEscapeQuotes(std::string& str)
+{
+	for (size_t i = 0; i < str.length(); i++)
+	{
+		Logger::getLogger()->fatal("becomes '%s'", str.c_str());
+		if (str[i] == '\"' && (i == 0 || str[i-1] != '\\'))
+		{
+			str.replace(i, 1, "\\\"");
+		}
+
+	}
 }

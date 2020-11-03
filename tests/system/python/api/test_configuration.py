@@ -48,34 +48,35 @@ class TestConfiguration:
         r = r.read().decode()
         jdoc = json.loads(r)
         cats = jdoc["categories"]
-        assert 4 == len(cats)
-        assert {'key': 'Storage', 'displayName': 'Storage', 'description': 'Storage configuration'} == cats [0]
+        assert 3 == len(cats)
+        assert {'key': 'Advanced', 'displayName': 'Advanced', 'description': 'Advanced'} == cats[0]
         assert {'key': 'General', 'displayName': 'General', 'description': 'General'} == cats[1]
-        assert {'key': 'Advanced', 'displayName': 'Advanced', 'description': 'Advanced'} == cats[2]
-        assert {'key': 'Utilities', 'displayName': 'Utilities', 'description': 'Utilities'} == cats[3]
+        assert {'key': 'Utilities', 'displayName': 'Utilities', 'description': 'Utilities'} == cats[2]
 
         conn.request("GET", '/fledge/category?root=true&children=true')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert 4 == len(jdoc["categories"])
+        assert 3 == len(jdoc["categories"])
 
         expected_with_utilities = [
-            {'children': [], 'displayName': 'Storage', 'key': 'Storage', 'description': 'Storage configuration'},
-            {'children': [{'children': [], 'key': 'Installation', 'description': 'Installation', 'displayName': 'Installation'},
+            {'children': [{'children': [], 'displayName': 'Scheduler', 'key': 'SCHEDULER',
+                           'description': 'Scheduler configuration'},
+                          {'children': [], 'displayName': 'Service Monitor', 'key': 'SMNTR',
+                           'description': 'Service Monitor'},
+                          {'children': [{'children': [], 'displayName': 'sqlite', 'key': 'sqlite',
+                           'description': 'Storage Plugin'}], 'displayName': 'Storage', 'key': 'Storage',
+                           'description': 'Storage configuration'}],
+             'displayName': 'Advanced', 'key': 'Advanced', 'description': 'Advanced'
+             },
+                        {'children': [{'children': [], 'key': 'Installation', 'description': 'Installation', 'displayName': 'Installation'},
                           {'children': [], 'displayName': 'Admin API', 'key': 'rest_api',
                            'description': 'Fledge Admin and User REST API'},
                           {'children': [], 'displayName': 'Fledge Service', 'key': 'service',
                            'description': 'Fledge Service'}
                           ],
              'displayName': 'General', 'key': 'General', 'description': 'General'
-             },
-            {'children': [{'children': [], 'displayName': 'Scheduler', 'key': 'SCHEDULER',
-                           'description': 'Scheduler configuration'},
-                          {'children': [], 'displayName': 'Service Monitor', 'key': 'SMNTR',
-                           'description': 'Service Monitor'}],
-             'displayName': 'Advanced', 'key': 'Advanced', 'description': 'Advanced'
              },
             {'children': [],
              'displayName': 'Utilities', 'key': 'Utilities', 'description': 'Utilities'

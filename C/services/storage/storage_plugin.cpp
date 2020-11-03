@@ -7,6 +7,7 @@
  *
  * Author: Mark Riddoch
  */
+#include <config_category.h>
 #include <storage_plugin.h>
 
 using namespace std;
@@ -16,15 +17,33 @@ using namespace std;
  *
  * Create a set of function points that resolve to the loaded plugin and
  * enclose in the class.
- *
- * TODO Add support for multiple plugins
  */
-StoragePlugin::StoragePlugin(PLUGIN_HANDLE handle) : Plugin(handle)
+StoragePlugin::StoragePlugin(const string& name, PLUGIN_HANDLE handle) : Plugin(handle), m_name(name), m_config(NULL)
 {
 	// Call the init method of the plugin
-	PLUGIN_HANDLE (*pluginInit)() = (PLUGIN_HANDLE (*)())
+	string version = this->getInfo()->interface;
+	int major = strtol(version.c_str(), NULL, 10);
+	size_t offset = version.find(".");
+	int minor = 0;
+	if (offset != string::npos)
+	{
+		minor = strtol(version.substr(offset + 1).c_str(), NULL, 10);
+	}
+	if (major > 1 || minor > 3)	// Configuration starts at 1.4.0 of the interface
+	{
+		m_config = new StoragePluginConfiguration(name, this);
+		PLUGIN_HANDLE (*pluginInit)(ConfigCategory *) = (PLUGIN_HANDLE (*)(ConfigCategory *))
 					manager->resolveSymbol(handle, "plugin_init");
-	instance = (*pluginInit)();
+		ConfigCategory *config = m_config->getConfiguration();
+		instance = (*pluginInit)(config);
+		delete config;
+	}
+	else
+	{
+		PLUGIN_HANDLE (*pluginInit)() = (PLUGIN_HANDLE (*)())
+					manager->resolveSymbol(handle, "plugin_init");
+		instance = (*pluginInit)();
+	}
 
 
 	// Setup the function pointers to the plugin

@@ -73,36 +73,75 @@ OMFHints::OMFHints(const string& hints)
 			else if (strcmp(name, "datapoint") == 0)
 			{
 				const Value &child = itr->value;
-				if (child.HasMember("name"))
+				if (child.IsArray())
 				{
-					const string dpname = child["name"].GetString();
-					vector<OMFHint *> hints;
-					for (Value::ConstMemberIterator dpitr = child.MemberBegin();
-						dpitr != child.MemberEnd(); ++dpitr)
+					for (Value::ConstValueIterator dpitr2 = child.Begin(); dpitr2 != child.End(); ++dpitr2)
 					{
-						const char *name = dpitr->name.GetString();
-						if (strcmp(name, "number") == 0)
+						if (dpitr2->HasMember("name"))
 						{
-							hints.push_back(new OMFNumberHint(dpitr->value.GetString()));
-						}
-						else if (strcmp(name, "integer") == 0)
-						{
-							hints.push_back(new OMFIntegerHint(dpitr->value.GetString()));
-						}
-						else if (strcmp(name, "typeName") == 0)
-						{
-							hints.push_back(new OMFTypeNameHint(dpitr->value.GetString()));
-						}
-						else if (strcmp(name, "tagName") == 0)
-						{
-							hints.push_back(new OMFTagNameHint(dpitr->value.GetString()));
-						}
-						else if (strcmp(name, "tag") == 0)
-						{
-							hints.push_back(new OMFTagHint(dpitr->value.GetString()));
+							const string dpname = (*dpitr2)["name"].GetString();
+							vector<OMFHint *> hints;
+							for (Value::ConstMemberIterator dpitr = dpitr2->MemberBegin(); dpitr != dpitr2->MemberEnd(); ++dpitr)
+							{
+								const char *name = dpitr->name.GetString();
+								if (strcmp(name, "number") == 0)
+								{
+									hints.push_back(new OMFNumberHint(dpitr->value.GetString()));
+								}
+								else if (strcmp(name, "integer") == 0)
+								{
+									hints.push_back(new OMFIntegerHint(dpitr->value.GetString()));
+								}
+								else if (strcmp(name, "typeName") == 0)
+								{
+									hints.push_back(new OMFTypeNameHint(dpitr->value.GetString()));
+								}
+								else if (strcmp(name, "tagName") == 0)
+								{
+									hints.push_back(new OMFTagNameHint(dpitr->value.GetString()));
+								}
+								else if (strcmp(name, "tag") == 0)
+								{
+									hints.push_back(new OMFTagHint(dpitr->value.GetString()));
+								}
+							}
+							m_datapointHints.insert(std::pair<string,vector<OMFHint *>>(dpname, hints));
 						}
 					}
-					m_datapointHints.insert(std::pair<string,vector<OMFHint *>>(dpname, hints));
+
+				}
+				else
+				{
+					if (child.HasMember("name"))
+					{
+						const string dpname = child["name"].GetString();
+						vector<OMFHint *> hints;
+						for (Value::ConstMemberIterator dpitr = child.MemberBegin(); dpitr != child.MemberEnd(); ++dpitr)
+						{
+							const char *name = dpitr->name.GetString();
+							if (strcmp(name, "number") == 0)
+							{
+								hints.push_back(new OMFNumberHint(dpitr->value.GetString()));
+							}
+							else if (strcmp(name, "integer") == 0)
+							{
+								hints.push_back(new OMFIntegerHint(dpitr->value.GetString()));
+							}
+							else if (strcmp(name, "typeName") == 0)
+							{
+								hints.push_back(new OMFTypeNameHint(dpitr->value.GetString()));
+							}
+							else if (strcmp(name, "tagName") == 0)
+							{
+								hints.push_back(new OMFTagNameHint(dpitr->value.GetString()));
+							}
+							else if (strcmp(name, "tag") == 0)
+							{
+								hints.push_back(new OMFTagHint(dpitr->value.GetString()));
+							}
+						}
+						m_datapointHints.insert(std::pair<string,vector<OMFHint *>>(dpname, hints));
+					}
 				}
 			}
 			else

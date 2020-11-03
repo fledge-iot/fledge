@@ -31,6 +31,7 @@ pkg_check_modules(PYTHON REQUIRED python3)
 
 include_directories(../../../C/common/include)
 include_directories(../../../C/plugins/common/include)
+include_directories(../../../C/plugins/north/OMF/include)
 include_directories(../../../C/services/common/include)
 include_directories(../../../C/thirdparty/rapidjson/include)
 include_directories(../../../C/thirdparty/Simple-Web-Server)
@@ -71,6 +72,23 @@ target_link_libraries(plugins-common-lib ${Boost_LIBRARIES} common-lib services-
 target_link_libraries(plugins-common-lib ${LIBCURL_LIB})
 
 set_target_properties(plugins-common-lib PROPERTIES SOVERSION 1)
+
+#
+# OMF library
+#
+set(LIB_NAME OMF)
+file(GLOB OMF_LIB_SOURCES
+        ../../../C/plugins/north/OMF/omf.cpp
+        ../../../C/plugins/north/OMF/omfhints.cpp)
+
+add_library(${LIB_NAME}  SHARED ${OMF_LIB_SOURCES})
+target_link_libraries(${LIB_NAME}
+                        common-lib
+                        plugins-common-lib
+                        ssl
+                        crypto)
+
+set_target_properties(${LIB_NAME}  PROPERTIES SOVERSION 1)
 
 #
 # storage-common-lib

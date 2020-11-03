@@ -203,6 +203,7 @@ class ReadingsCatalogue {
 			return instance;
 		}
 
+		void          multipleReadingsInit();
 		std::string   generateDbAlias(int dbId);
 		std::string   generateDbName(int tableId);
 		std::string   generateDbFileName(int dbId);
@@ -236,7 +237,7 @@ class ReadingsCatalogue {
 
 	private:
 		// Readings tables allocation parameters
-		const int nReadingsToAllocate = 2;
+		const int nReadingsToAllocate = 4;
 
 		// Readings databases allocation parameters
 		const int nDbPreallocate = 2;

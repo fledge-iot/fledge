@@ -61,19 +61,10 @@ PLUGIN_HANDLE plugin_init()
 {
 	bool result;
 	ConnectionManager *manager = ConnectionManager::getInstance();
-	manager->growPool(2);
+	manager->growPool(5);
 
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-	readCat->loadAssetReadingCatalogue();
-
-	// FIXME_I:
-	readCat->preallocateReadingsTables(1);   // on the first database
-	readCat->preallocateNewDbs();
-	readCat->preallocateReadingsTables(0);   // on the last used db
-
-
-
-	readCat->evaluateGlobalId();
+	readCat->multipleReadingsInit();
 
 	return manager;
 }

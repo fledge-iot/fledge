@@ -19,9 +19,6 @@
 #include <sys/stat.h>
 #include <libgen.h>
 
-//# FIXME_I:
-#include <tmp_log.hpp>
-
 #include <string_utils.h>
 #include <algorithm>
 #include <vector>
@@ -669,11 +666,6 @@ int localNReadingsTotal;
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
 
-
-	//# FIXME_I:
-//	char tmp_buffer[500000];
-//	snprintf (tmp_buffer,500000, "DBG : appendReadings  : readings |%s| ", readings);
-//	tmpLogger (tmp_buffer);
 
 	// FIXME_I:
 	Logger::getLogger()->setMinLevel("debug");
@@ -3066,6 +3058,24 @@ bool ReadingsCatalogue::attachAllDbs()
 	manager->release(connection);
 
 	return (result);
+}
+
+// FIXME_I:
+void ReadingsCatalogue::multipleReadingsInit()
+{
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx99 multipleReadingsInit XX2");
+	Logger::getLogger()->setMinLevel("warning");
+
+	loadAssetReadingCatalogue();
+
+	preallocateReadingsTables(1);   // on the first database
+	preallocateNewDbs();
+	preallocateReadingsTables(0);   // on the last used db
+
+	evaluateGlobalId();
 }
 
 /**

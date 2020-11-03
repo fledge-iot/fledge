@@ -216,9 +216,11 @@ class ReadingsCatalogue {
 		bool          evaluateGlobalId();
 		bool          storeGlobalId ();
 
-		void          preallocateReadingsTables();
+		void          preallocateReadingsTables(int dbId);
 		bool          loadAssetReadingCatalogue();
 		bool          createNewDB(sqlite3 *dbHandle, int newDbId,  int startId, bool attachAllDb);
+		bool          latestDbUpdate(sqlite3 *dbHandle, int newDbId);
+		bool          configurationRetrieve();
 		void          preallocateNewDbs();
 		void          preallocateNewDbsRange(int dbIdStart, int dbIdEnd);
 		int           getReadingReference(Connection *connection, const char *asset_code);
@@ -234,7 +236,7 @@ class ReadingsCatalogue {
 
 	private:
 		// Readings tables allocation parameters
-		const int nReadingsAllocate = 2;
+		const int nReadingsToAllocate = 2;
 
 		// Readings databases allocation parameters
 		const int nDbPreallocate = 2;
@@ -250,7 +252,7 @@ class ReadingsCatalogue {
 		ReadingsCatalogue(){};
 
 		int           getUsedTablesDbId(int dbId);
-		int           getNReadingsAllocate() const {return nReadingsAllocate;}
+		int           getNReadingsAllocate() const {return nReadingsToAllocate;}
 		bool          createReadingsTables(sqlite3 *dbHandle, int dbId, int idStartFrom, int nTables);
 		bool          isReadingAvailable() const;
 		void          allocateReadingAvailable();

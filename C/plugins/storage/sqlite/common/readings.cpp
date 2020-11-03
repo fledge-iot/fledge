@@ -2353,6 +2353,69 @@ void ReadingsCatalogue::raiseError(const char *operation, const char *reason, ..
 	Logger::getLogger()->error("ReadingsCatalogues error: %s", tmpbuf);
 }
 
+// FIXME_I:
+bool ReadingsCatalogue::configurationRetrieve()
+{
+	string sql_cmd;
+	int rc;
+	int id;
+	int nCols;
+	sqlite3_stmt *stmt;
+	sqlite3 *dbHandle;
+
+	ConnectionManager *manager = ConnectionManager::getInstance();
+	Connection *connection = manager->allocate();
+	dbHandle = connection->getDbHandle();
+
+	// Retrieves the global_id from thd DB
+	{
+		sql_cmd = " SELECT global_id, db_id_Last FROM " READINGS_DB ".configuration_readings ";
+
+		if (sqlite3_prepare_v2(dbHandle,sql_cmd.c_str(),-1, &stmt,NULL) != SQLITE_OK)
+		{
+			raiseError("configurationRetrieve", sqlite3_errmsg(dbHandle));
+			return false;
+		}
+
+		if (SQLStep(stmt) != SQLITE_ROW)
+		{
+			m_ReadingsGlobalId = 1;
+			m_dbIdLast = 0;
+
+			sql_cmd = " INSERT INTO " READINGS_DB ".configuration_readings VALUES (" + to_string(m_ReadingsGlobalId) + "," + to_string(m_dbIdLast) + ")";
+
+			//# FIXME_I
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxx99 configurationRetrieve insert :%s: ", sql_cmd.c_str());
+			Logger::getLogger()->setMinLevel("warning");
+
+			if (SQLExec(dbHandle, sql_cmd.c_str()) != SQLITE_OK)
+			{
+				raiseError("configurationRetrieve", sqlite3_errmsg(dbHandle));
+				return false;
+			}
+		}
+		else
+		{
+			nCols = sqlite3_column_count(stmt);
+			m_ReadingsGlobalId = sqlite3_column_int(stmt, 0);
+			m_dbIdLast = sqlite3_column_int(stmt, 1);
+		}
+	}
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx99 XXX configurationRetrieve m_ReadingsGlobalId :%d: m_dbIdLast :%d: ", (int) m_ReadingsGlobalId, m_dbIdLast);
+	Logger::getLogger()->setMinLevel("warning");
+
+	sqlite3_finalize(stmt);
+	manager->release(connection);
+
+	return true;
+}
+
+
+
 /**
  * Retrieves the global id stored in SQLite and if it is not possible
  * it calculates the value from the readings tables executing a max(id) on each table.
@@ -2389,7 +2452,12 @@ bool ReadingsCatalogue::evaluateGlobalId ()
 		{
 			m_ReadingsGlobalId = 1;
 
-			sql_cmd = " INSERT INTO " READINGS_DB ".configuration_readings VALUES (" + to_string(m_ReadingsGlobalId) + ")";
+			sql_cmd = " INSERT INTO " READINGS_DB ".configuration_readings VALUES (" + to_string(m_ReadingsGlobalId) + ", 0)";
+
+			//# FIXME_I
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxx99 evaluateGlobalId insert :%s: ", sql_cmd.c_str());
+			Logger::getLogger()->setMinLevel("warning");
 
 			if (SQLExec(dbHandle, sql_cmd.c_str()) != SQLITE_OK)
 			{
@@ -2621,16 +2689,50 @@ void ReadingsCatalogue::setUsedDbId(int dbId) {
 // FIXME_I:
 void ReadingsCatalogue::preallocateNewDbs() {
 
-	int dbIdStart, dbIdEnd;
-	Logger::getLogger()->debug("preallocateNewDbs");
+	int dbId, dbIdStart, dbIdEnd;
 
-	dbIdStart = 2;
-	dbIdEnd = dbIdStart + nDbPreallocate - 1;
+	configurationRetrieve();
 
-	preallocateNewDbsRange(dbIdStart, dbIdEnd);
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx99 XXX preallocateNewDbs dbIdCurrent :%d: dbIdLast :%d:", m_dbIdCurrent, m_dbIdLast);
 
-	m_dbIdLast = dbIdEnd;
+	if (m_dbIdLast == 0)
+	{
+		//# FIXME_I
+		Logger::getLogger()->debug("xxx99 preallocateNewDbs initial stage XXX");
+
+		// Initial stage - create the databases requested by the preallocation
+		dbIdStart = 2;
+		dbIdEnd = dbIdStart + nDbPreallocate - 1;
+
+		preallocateNewDbsRange(dbIdStart, dbIdEnd);
+
+		m_dbIdLast = dbIdEnd;
+	}
+	else
+	{
+		//# FIXME_I
+		Logger::getLogger()->debug("xxx99 preallocateNewDbs next stage XXX");
+
+		// Following runs - attach all the databases
+		for (dbId = 2; dbId <= m_dbIdLast ; dbId++ )
+		{
+			m_dbIdList.push_back(dbId);
+		}
+
+		ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
+		readCat->attachAllDbs();
+	}
+
 	m_dbNAvailable = (m_dbIdLast - m_dbIdCurrent) - nDbLeftFreeBeforeAllocate;
+
+	Logger::getLogger()->debug("xxx99 XXX preallocateNewDbs m_dbNAvailable :%d:", m_dbNAvailable);
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("warning");
+
+
 }
 
 
@@ -2641,7 +2743,9 @@ void ReadingsCatalogue::preallocateNewDbsRange(int dbIdStart, int dbIdEnd) {
 	int startReadingsId;
 	tyReadingsAvailable readingsAvailable;
 
-	Logger::getLogger()->debug("xxx2 preallocateNewDbsRange: START - start :%d: end :%d: ", dbIdStart, dbIdEnd);
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx99 preallocateNewDbsRange: START - start :%d: end :%d: ", dbIdStart, dbIdEnd);
 
 	for (dbId = dbIdStart; dbId <= dbIdEnd; dbId++)
 	{
@@ -2649,15 +2753,20 @@ void ReadingsCatalogue::preallocateNewDbsRange(int dbIdStart, int dbIdEnd) {
 		startReadingsId = readingsAvailable.lastReadings +1;
 		createNewDB(NULL,  dbId, startReadingsId, true);
 
+		//# FIXME_I
 		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx10 preallocateNewDbsRange - create new dbs - dbId :%d: startReadingsIdOnDB :%d:", dbId, startReadingsId);
+		Logger::getLogger()->debug("xxx99 preallocateNewDbsRange - create new dbs - dbId :%d: startReadingsIdOnDB :%d:", dbId, startReadingsId);
 
 	}
 
 	// FIXME_I:
 	//attachAllDbs();
-	Logger::getLogger()->debug("xxx2 preallocateNewDbsRange: END - start :%d: end :%d:", dbIdStart, dbIdEnd);
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx99 preallocateNewDbsRange: END - start :%d: end :%d:", dbIdStart, dbIdEnd);
 
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("warning");
 }
 
 
@@ -2673,7 +2782,7 @@ void ReadingsCatalogue::getAllDbs(vector<int> &dbIdList) {
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
 
-	Logger::getLogger()->debug("getAllDbs - Used");
+	Logger::getLogger()->debug("xxx99 getAllDbs - Used");
 
 	for (auto &item : m_AssetReadingCatalogue) {
 
@@ -2683,20 +2792,20 @@ void ReadingsCatalogue::getAllDbs(vector<int> &dbIdList) {
 			if (std::find(dbIdList.begin(), dbIdList.end(), dbId) ==  dbIdList.end() )
 			{
 				dbIdList.push_back(dbId);
-				Logger::getLogger()->debug("getAllDbs  DB :%d:", dbId);
+				Logger::getLogger()->debug("xxx99 getAllDbs  DB :%d:", dbId);
 			}
 
 		}
 	}
 
-	Logger::getLogger()->debug("getAllDbs - created");
+	Logger::getLogger()->debug("xxx99 getAllDbs - created");
 
 	for (auto &dbId : m_dbIdList) {
 
 		if (std::find(dbIdList.begin(), dbIdList.end(), dbId) ==  dbIdList.end() )
 		{
 			dbIdList.push_back(dbId);
-			Logger::getLogger()->debug("getAllDbs DB created :%d:", dbId);
+			Logger::getLogger()->debug("xxx99 getAllDbs DB created :%d:", dbId);
 		}
 	}
 
@@ -2843,9 +2952,6 @@ bool ReadingsCatalogue::connectionAttachDbList(sqlite3 *dbHandle, vector<int> &d
 		Logger::getLogger()->debug("xxxA1 connectionAttachDbList:  dbHandle :%X: dbId :%d: path :%s: alias :%s:",dbHandle, item, dbPathReadings.c_str(), dbAlias.c_str());
 
 		result = attachDb(dbHandle, dbPathReadings, dbAlias);
-		if (! result)
-			break;
-
 		dbIdList.pop_back();
 
 		// FIXME_I:
@@ -2967,11 +3073,14 @@ bool ReadingsCatalogue::attachAllDbs()
  * and the number of tables to have on each database.
  *
  */
-void ReadingsCatalogue::preallocateReadingsTables()
+void ReadingsCatalogue::preallocateReadingsTables(int dbId)
 {
 	int readingsToAllocate;
 	int readingsToCreate;
 	int startId;
+
+	if (dbId == 0 )
+		dbId = m_dbIdCurrent;
 
 	tyReadingsAvailable readingsAvailable;
 
@@ -2981,19 +3090,24 @@ void ReadingsCatalogue::preallocateReadingsTables()
 	readingsAvailable.tableCount = 0;
 
 	// Identifies last readings available
-	readingsAvailable = evaluateLastReadingAvailable(NULL, m_dbIdCurrent);
+	readingsAvailable = evaluateLastReadingAvailable(NULL, dbId);
 	readingsToAllocate = getNReadingsAllocate();
 
 	if (readingsAvailable.tableCount < readingsToAllocate)
 	{
 		readingsToCreate = readingsToAllocate - readingsAvailable.tableCount;
 		startId = readingsAvailable.lastReadings + 1;
-		createReadingsTables(NULL, m_dbIdCurrent, startId, readingsToCreate);
+		createReadingsTables(NULL, dbId, startId, readingsToCreate);
 	}
 
-	m_nReadingsAvailable = readingsToAllocate - getUsedTablesDbId(m_dbIdCurrent);
+	m_nReadingsAvailable = readingsToAllocate - getUsedTablesDbId(dbId);
 
-	Logger::getLogger()->debug("preallocateReadingsTables: dbId :%d: nReadingsAvailable :%d: lastReadingsCreated :%d: tableCount :%d:", m_dbIdCurrent, m_nReadingsAvailable, readingsAvailable.lastReadings, readingsAvailable.tableCount);
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx99 preallocateReadingsTables: dbId :%d: nReadingsAvailable :%d: lastReadingsCreated :%d: tableCount :%d:", m_dbIdCurrent, m_nReadingsAvailable, readingsAvailable.lastReadings, readingsAvailable.tableCount);
+	Logger::getLogger()->setMinLevel("warning");
+
 }
 
 /**
@@ -3026,6 +3140,32 @@ string ReadingsCatalogue::generateDbFilePah(int dbId)
 	dbPathReadings += generateDbFileName(dbId);
 
 	return  (dbPathReadings);
+}
+
+// FIXME_I:
+bool ReadingsCatalogue::latestDbUpdate(sqlite3 *dbHandle, int newDbId)
+{
+	string sql_cmd;
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+
+	Logger::getLogger()->debug("xxx99 latestDbUpdate - dbHandle :%X: newDbId :%d:", dbHandle, newDbId);
+
+	{
+		sql_cmd = " UPDATE " READINGS_DB ".configuration_readings SET db_id_Last=" + to_string(newDbId) + ";";
+
+		if (SQLExec(dbHandle, sql_cmd.c_str()) != SQLITE_OK)
+		{
+			raiseError("latestDbUpdate", sqlite3_errmsg(dbHandle));
+			return false;
+		}
+	}
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("warning");
+
+	return true;
 }
 
 
@@ -3083,6 +3223,12 @@ bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle, int newDbId, int startId
 			Logger::getLogger()->debug("createNewDB: new database created :%s:", dbPathReadings.c_str());
 		}
 		enableWAL(dbPathReadings);
+
+		// FIXME_I:
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx99 createNewDB latestDbUpdate");
+		Logger::getLogger()->setMinLevel("warning");
+		latestDbUpdate(dbHandle, newDbId);
 
 	}
 	readingsToAllocate = getNReadingsAllocate();

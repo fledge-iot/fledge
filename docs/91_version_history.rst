@@ -25,6 +25,41 @@ Version History
 Fledge v1
 ==========
 
+v1.8.2
+-------
+
+Release Date: 2020-11-03
+
+- **Fledge Core**
+
+    - New Features:
+
+
+
+    - Bug Fix:
+
+
+
+- **GUI**
+
+    - New Features:
+
+
+
+    - Bug Fix:
+
+
+
+- **Plugins**
+
+    - New Features:
+
+
+
+    - Bug Fix:
+
+
+
 v1.8.1
 -------
 

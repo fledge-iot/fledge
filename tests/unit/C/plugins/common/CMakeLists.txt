@@ -29,6 +29,7 @@ include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 
 include_directories(../../../../../C/common/include)
 include_directories(../../../../../C/plugins/common/include)
+include_directories(../../../../../C/plugins/north/OMF/include)
 include_directories(../../../../../C/services/common/include)
 include_directories(../../../../../C/thirdparty/rapidjson/include)
 include_directories(../../../../../C/thirdparty/Simple-Web-Server)
@@ -36,6 +37,7 @@ include_directories(../../../../../C/thirdparty/Simple-Web-Server)
 set(COMMON_LIB common-lib)
 set(SERVICE_COMMON_LIB services-common-lib)
 set(PLUGINS_COMMON_LIB plugins-common-lib)
+set(OMF_LIB OMF)
 
 file(GLOB unittests "*.cpp")
  
@@ -60,6 +62,7 @@ target_link_libraries(RunTests -lssl -lcrypto -lz)
 target_link_libraries(RunTests ${COMMON_LIB})
 target_link_libraries(RunTests ${SERVICE_COMMON_LIB})
 target_link_libraries(RunTests ${PLUGINS_COMMON_LIB})
+target_link_libraries(RunTests ${OMF_LIB})
 target_link_libraries(RunTests ${LIBCURL_LIB})
 
 # Add Python 3.x library

@@ -418,6 +418,28 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 	int sqlite3_resut;
 	int rowNumber = -1;
 
+
+	//# FIXME_I
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
+	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
+
+	{
+		// Attaches the needed databases if the queue is not empty
+		DbSync *sync = DbSync::getInstance();
+		sync->lock();
+
+		if ( ! m_NewDbIdList.empty())
+		{
+			// FIXME_I:
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxxA1 readingStream - attach new DB thread :%s: dbHandle :%X:", threadId.str().c_str(), this->getDbHandle());
+
+			readCatalogue->connectionAttachDbList(this->getDbHandle(), m_NewDbIdList);
+		}
+		sync->unlock();
+	}
+
 #if INSTRUMENT
 	struct timeval start, t1, t2, t3, t4, t5;
 #endif
@@ -661,56 +683,33 @@ int sleep_time_ms = 0;
 
 int localNReadingsTotal;
 
-
 	//# FIXME_I
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
-
-
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("appendReadings thread start :%s: conn :%X: dbHandle :%X:", threadId.str().c_str(), this, this->getDbHandle());
-	Logger::getLogger()->setMinLevel("warning");
-
 	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
 
 	// FIXME_I:
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("appendReadings V6");
-	DbSync *sync = DbSync::getInstance();
-	Logger::getLogger()->debug("appendReadings lock before thread %s: conn :%X: dbHandle :%X: ", threadId.str().c_str(), this, this->getDbHandle());
-	sync->lock();
-	Logger::getLogger()->debug("appendReadings lock after  thread %s: conn :%X: dbHandle :%X: ", threadId.str().c_str(), this, this->getDbHandle());
-	Logger::getLogger()->setMinLevel("warning");
+	Logger::getLogger()->debug("appendReadings thread start :%s: conn :%X: dbHandle :%X:", threadId.str().c_str(), this, this->getDbHandle());
 
-	if ( ! m_NewDbIdList.empty())
 	{
-		// FIXME_I:
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxxA1 appendReadings attach new DB :%s: conn :%X: dbHandle :%X:", threadId.str().c_str(), this, this->getDbHandle());
-		Logger::getLogger()->setMinLevel("warning");
+		// Attaches the needed databases if the queue is not empty
+		DbSync *sync = DbSync::getInstance();
+		sync->lock();
 
-		readCatalogue->connectionAttachDbList(this->getDbHandle(), m_NewDbIdList);
+		if ( ! m_NewDbIdList.empty())
+		{
+			// FIXME_I:
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxxA1 appendReadings - attach new DB thread :%s: dbHandle :%X:", threadId.str().c_str(), this->getDbHandle());
 
+			readCatalogue->connectionAttachDbList(this->getDbHandle(), m_NewDbIdList);
+		}
+		sync->unlock();
 	}
-
-//	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("appendReadings unlock before thread %s:  dbHandle :%X: ", threadId.str().c_str(), this);
-	sync->unlock();
-	Logger::getLogger()->debug("appendReadings unlock after thread %s:  dbHandle :%X: ", threadId.str().c_str(), this);
-	Logger::getLogger()->setMinLevel("warning");
-
-
-
-
 
 	localNReadingsTotal = readCatalogue->getMaxReadingsId();
 	vector<sqlite3_stmt *> readingsStmt(localNReadingsTotal +1, nullptr);
-
-
-
-
 
 #if INSTRUMENT
 	Logger::getLogger()->debug("appendReadings start thread :%s:", threadId.str().c_str());
@@ -791,10 +790,6 @@ int localNReadingsTotal;
 			// Handles - asset_code
 			asset_code = (*itr)["asset_code"].GetString();
 
-			// FIXME_I:
-			//Logger::getLogger()->setMinLevel("debug");
-			//Logger::getLogger()->debug("append readings start dbHandle :%X:  thread :%s:", dbHandle , threadId.str().c_str());
-
 			//# A different asset is managed respect the previous one
 			if (lastAsset.compare(asset_code)!= 0)
 			{
@@ -804,7 +799,6 @@ int localNReadingsTotal;
 				Logger::getLogger()->setMinLevel("debug");
 				Logger::getLogger()->debug("xxx0 getReadingReference after :%X: threadId :%s:", dbHandle, threadId.str().c_str() );
 				Logger::getLogger()->setMinLevel("debug");
-
 
 				if (readingsId == -1)
 				{
@@ -823,61 +817,22 @@ int localNReadingsTotal;
 
 					if (readingsStmt[readingsId] == nullptr)
 					{
-						//# FIXME_I
-						//Logger::getLogger()->setMinLevel("debug");
-
 						string dbName = readCatalogue->generateDbNameFromTableId(readingsId);
 						string dbReadingsName = readCatalogue->generateReadingsName(readingsId);
 
 						sql_cmd = "INSERT INTO  " + dbName + "." + dbReadingsName + " ( id, user_ts, reading ) VALUES  (?,?,?)";
-
-						// FIXME_I:
-						//rc = sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), -1, &readingsStmt[readingsId], NULL);
-
-						// FIXME_I:
-						//DbSync *sync = DbSync::getInstance();
-						//Logger::getLogger()->debug("appendreadings lock before :%s: ", threadId.str().c_str());
-						//sync->lock();
-						//Logger::getLogger()->debug("appendreadings  lock after  :%s: ", threadId.str().c_str());
-
-
 						rc = SQLPrepare(dbHandle, sql_cmd.c_str(), &readingsStmt[readingsId]);
 
 						if (rc != SQLITE_OK)
 						{
-
-							//Logger::getLogger()->debug("xxx appendReadings S2.1 :%X: ", dbHandle);
-							//Logger::getLogger()->setMinLevel("warning");
-
 							raiseError("appendReadings", sqlite3_errmsg(dbHandle));
-
-							// FIXME_I: xxx
-							//ConnectionManager *manager = ConnectionManager::getInstance();
-							//manager->listConnections();
-
-							//# FIXME_I
-							//Logger::getLogger()->debug("xxx appendReadings S2.2 :%X: ", dbHandle);
 						}
-
-						// FIXME_I:
-						//Logger::getLogger()->debug("appendreadings unlock before :%s: ", threadId.str().c_str());
-						//sync->unlock();
-						//Logger::getLogger()->debug("appendreadings  unlock after  :%s: ", threadId.str().c_str());
-
-
 
 					}
 					stmt = readingsStmt[readingsId];
 
 					lastAsset = asset_code;
 				}
-			}
-			else
-			{
-				// FIXME_I:
-				int i;
-				//Logger::getLogger()->setMinLevel("debug");
-				//Logger::getLogger()->debug("append readings same asset dbHandle :%X:  thread :%s:", dbHandle , threadId.str().c_str());
 			}
 
 			// Handles - reading
@@ -969,11 +924,6 @@ int localNReadingsTotal;
 					return -1;
 				}
 			}
-
-			// FIXME_I:
-//			Logger::getLogger()->debug("append readings end dbHandle :%X:  thread :%s:", dbHandle , threadId.str().c_str());
-//			Logger::getLogger()->setMinLevel("warning");
-
 		}
 	}
 
@@ -986,16 +936,6 @@ int localNReadingsTotal;
 	m_writeAccessOngoing.fetch_sub(1);
 	//db_cv.notify_all();
 	}
-
-
-//	// FIXME_I:
-//	Logger::getLogger()->setMinLevel("debug");
-//	Logger::getLogger()->debug("appendReadings unlock before thread %s:  dbHandle :%X: ", threadId.str().c_str(), this);
-//	sync->unlock();
-//	Logger::getLogger()->debug("appendReadings unlock after thread %s:  dbHandle :%X: ", threadId.str().c_str(), this);
-//	Logger::getLogger()->setMinLevel("warning");
-
-
 #if INSTRUMENT
 		gettimeofday(&t2, NULL);
 #endif
@@ -1042,12 +982,6 @@ int localNReadingsTotal;
 
 #endif
 
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("appendReadings thread end  :%s: :%X:", threadId.str().c_str(), this);
-	Logger::getLogger()->setMinLevel("warning");
-
-
 	return row;
 }
 #endif
@@ -1075,6 +1009,27 @@ int rc;
 int retrieve;
 vector<string>  asset_codes;
 string sql_cmd;
+
+	//# FIXME_I
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
+	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
+
+	{
+		// Attaches the needed databases if the queue is not empty
+		DbSync *sync = DbSync::getInstance();
+		sync->lock();
+
+		if ( ! m_NewDbIdList.empty())
+		{
+			// FIXME_I:
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxxA1 fetchReadings - attach new DB thread :%s: dbHandle :%X:", threadId.str().c_str(), this->getDbHandle());
+
+			readCatalogue->connectionAttachDbList(this->getDbHandle(), m_NewDbIdList);
+		}
+		sync->unlock();
+	}
 
 	// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
 	{
@@ -1182,37 +1137,23 @@ vector<string>  asset_codes;
 	//# FIXME_I
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
-
 	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
 
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxxRR retrieveReadings V6");
-	DbSync *sync = DbSync::getInstance();
-	Logger::getLogger()->debug("xxxRR retrieveReadings lock before thread %s: conn :%X: dbHandle :%X: ", threadId.str().c_str(), this, this->getDbHandle());
-	sync->lock();
-	Logger::getLogger()->debug("xxxRR retrieveReadings lock after  thread %s: conn :%X: dbHandle :%X: ", threadId.str().c_str(), this, this->getDbHandle());
-	Logger::getLogger()->setMinLevel("warning");
-
-	if ( ! m_NewDbIdList.empty())
 	{
-		// FIXME_I:
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxxRR retrieveReadings attach new DB :%s: conn :%X: dbHandle :%X:", threadId.str().c_str(), this, this->getDbHandle());
-		Logger::getLogger()->setMinLevel("warning");
+		// Attaches the needed databases if the queue is not empty
+		DbSync *sync = DbSync::getInstance();
+		sync->lock();
 
-		readCatalogue->connectionAttachDbList(this->getDbHandle(), m_NewDbIdList);
+		if ( ! m_NewDbIdList.empty())
+		{
+			// FIXME_I:
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxxA1 retrieveReadings - attach new DB thread :%s: dbHandle :%X:", threadId.str().c_str(), this->getDbHandle());
 
+			readCatalogue->connectionAttachDbList(this->getDbHandle(), m_NewDbIdList);
+		}
+		sync->unlock();
 	}
-
-//	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxxRR retrieveReadings unlock before thread %s:  dbHandle :%X: ", threadId.str().c_str(), this);
-	sync->unlock();
-	Logger::getLogger()->debug("xxxRR retrieveReadings unlock after thread %s:  dbHandle :%X: ", threadId.str().c_str(), this);
-	Logger::getLogger()->setMinLevel("warning");
-
-
 
 	try {
 		if (dbHandle == NULL)
@@ -1669,6 +1610,29 @@ int blocks = 0;
 vector<string>  assetCodes;
 
 	Logger *logger = Logger::getLogger();
+
+
+	//# FIXME_I
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
+	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
+
+	{
+		// Attaches the needed databases if the queue is not empty
+		DbSync *sync = DbSync::getInstance();
+		sync->lock();
+
+		if ( ! m_NewDbIdList.empty())
+		{
+			// FIXME_I:
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxxA1 purgeReadings - attach new DB thread :%s: dbHandle :%X:", threadId.str().c_str(), this->getDbHandle());
+
+			readCatalogue->connectionAttachDbList(this->getDbHandle(), m_NewDbIdList);
+		}
+		sync->unlock();
+	}
+
 
 	result = "{ \"removed\" : 0, ";
 	result += " \"unsentPurged\" : 0, ";
@@ -2133,6 +2097,27 @@ string sql_cmd;
 vector<string>  assetCodes;
 
 	Logger *logger = Logger::getLogger();
+
+	//# FIXME_I
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
+	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
+
+	{
+		// Attaches the needed databases if the queue is not empty
+		DbSync *sync = DbSync::getInstance();
+		sync->lock();
+
+		if ( ! m_NewDbIdList.empty())
+		{
+			// FIXME_I:
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxxA1 purgeReadingsByRows - attach new DB thread :%s: dbHandle :%X:", threadId.str().c_str(), this->getDbHandle());
+
+			readCatalogue->connectionAttachDbList(this->getDbHandle(), m_NewDbIdList);
+		}
+		sync->unlock();
+	}
 
 	logger->info("Purge by Rows called");
 	if ((flags & 0x01) == 0x01)
@@ -3568,21 +3553,11 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 	}
 	else
 	{
-		// FIXME_I:
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx0 getReadingReference lock before m_mutexAssetReadingCatalogue dbHandle :%X: threadId :%s:", dbHandle, threadId.str().c_str() );
-
 		m_mutexAssetReadingCatalogue.lock();
 
-		Logger::getLogger()->debug("xxx0 getReadingReference lock after m_mutexAssetReadingCatalogue dbHandle :%X: threadId :%s:", dbHandle, threadId.str().c_str() );
-
 		// FIXME_I:
-		DbSync *sync = DbSync::getInstance();
 		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx0 getReadingReference lock before dbHandle :%X:", dbHandle);
-		sync->lock();
-		Logger::getLogger()->debug("xxx0 getReadingReference lock after  dbHandle :%X:",  dbHandle);
-
+		Logger::getLogger()->debug("xxx0 getReadingReference lock after m_mutexAssetReadingCatalogue dbHandle :%X: threadId :%s:", dbHandle, threadId.str().c_str() );
 
 		auto item = m_AssetReadingCatalogue.find(asset_code);
 		if (item != m_AssetReadingCatalogue.end())
@@ -3594,6 +3569,11 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 			//# Allocate a new block of readings table
 			if (! isReadingAvailable () )
 			{
+
+				// FIXME_I:
+				DbSync *sync = DbSync::getInstance();
+				sync->lock();
+
 				// FIXME_I:
 				Logger::getLogger()->setMinLevel("debug");
 				Logger::getLogger()->debug("xxx9 Allocate a new db dbNAvailable :%d:", m_dbNAvailable);
@@ -3644,6 +3624,8 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 				}
 
 
+				sync->unlock();
+
 				// FIXME_I:
 				Logger::getLogger()->setMinLevel("warning");
 			}
@@ -3687,14 +3669,6 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 
 			}
 		}
-
-
-		// FIXME_I:
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx0 getReadingReference unlock before dbHandle :%X:", dbHandle);
-		sync->unlock();
-		Logger::getLogger()->debug("xxx0 getReadingReference unlock after  dbHandle :%X:", dbHandle);
-		Logger::getLogger()->setMinLevel("warning");
 
 
 		// FIXME_I:

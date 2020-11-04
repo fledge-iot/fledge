@@ -237,7 +237,7 @@ class ReadingsCatalogue {
 
 	private:
 		// Readings tables allocation parameters
-		const int nReadingsToAllocate = 2;
+		const int nReadingsToAllocate = 4;
 
 		// Readings databases allocation parameters
 		const int nDbPreallocate = 3;
@@ -282,26 +282,25 @@ class ReadingsCatalogue {
 
 class DbSync {
 
-public:
-	static DbSync *getInstance()
-	{
-		static DbSync *instance = 0;
-
-		if (!instance)
+	public:
+		static DbSync *getInstance()
 		{
-			instance = new DbSync;
+			static DbSync *instance = 0;
+
+			if (!instance)
+			{
+				instance = new DbSync;
+			}
+			return instance;
 		}
-		return instance;
-	}
 
-	void   lock()  {m_dbLock.lock();}
-	void   unlock()  {m_dbLock.unlock();}
+		void   lock()    {m_dbLock.lock();}
+		void   unlock()  {m_dbLock.unlock();}
 
-private:
-	DbSync(){};
+	private:
+		DbSync(){};
 
-
-	std::mutex                                    m_dbLock;
+		std::mutex m_dbLock;
 };
 
 

@@ -1129,13 +1129,6 @@ Document	document;
 ostringstream convert;
 std::size_t arr = data.find("inserts");
 
-	//# FIXME_I
-	ostringstream threadId;
-	threadId << std::this_thread::get_id();
-
-	//Logger::getLogger()->setMinLevel("debug");
-	//Logger::getLogger()->debug("xxx0 I2 insert start table :%s: thread %s:  dbHandle :%X: ", table.c_str(), threadId.str().c_str(), this);
-
 
 	// Check first the 'inserts' property in JSON data
 	bool stdInsert = (arr == std::string::npos || arr > 8);
@@ -1249,13 +1242,6 @@ std::size_t arr = data.find("inserts");
 	char *zErrMsg = NULL;
 	int rc;
 
-	// FIXME_I:
-//	DbSync *sync = DbSync::getInstance();
-//	Logger::getLogger()->debug("xxx0 insert lock before lock :%s: ", threadId.str().c_str());
-//	sync->lock();
-//	Logger::getLogger()->debug("xxx0 insert lock after lock :%s: ", threadId.str().c_str());
-
-
 	// Exec INSERT statement: no callback, no result set
 	m_writeAccessOngoing.fetch_add(1);
 	rc = SQLexec(dbHandle,
@@ -1266,12 +1252,6 @@ std::size_t arr = data.find("inserts");
 	m_writeAccessOngoing.fetch_sub(1);
 	if (m_writeAccessOngoing == 0)
 		db_cv.notify_all();
-
-	// FIXME_I:
-//	Logger::getLogger()->debug("xxx0 insert unlock before  :%s: ", threadId.str().c_str());
-//	sync->unlock();
-//	Logger::getLogger()->debug("xxx0 insert unlock after  :%s: rc :%d: dbHandle :%X:", table.c_str(), rc, dbHandle);
-//	Logger::getLogger()->setMinLevel("warning");
 
 	// Check exec result
 	if (rc != SQLITE_OK )
@@ -1649,16 +1629,6 @@ vector<string>  asset_codes;
 	char *zErrMsg = NULL;
 	int rc;
 
-
-	// FIXME_I:
-//	DbSync *sync = DbSync::getInstance();
-//	Logger::getLogger()->setMinLevel("debug");
-//	Logger::getLogger()->debug("xxx0 update lock before :%s: dbHandle :%X:", threadId.str().c_str(), dbHandle);
-//	sync->lock();
-//	Logger::getLogger()->debug("xxx0 update lock after :%s: dbHandle :%X:", threadId.str().c_str(), dbHandle);
-
-
-	Logger::getLogger()->debug("xxx5 update before cmd :%s: dbHandle :%X:", threadId.str().c_str(), dbHandle);
 	// Exec the UPDATE statement: no callback, no result set
 	m_writeAccessOngoing.fetch_add(1);
 	rc = SQLexec(dbHandle,
@@ -1669,15 +1639,6 @@ vector<string>  asset_codes;
 	m_writeAccessOngoing.fetch_sub(1);
 	if (m_writeAccessOngoing == 0)
 		db_cv.notify_all();
-
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx5 update after cmd :%s: dbHandle :%X:", threadId.str().c_str(), dbHandle);
-
-	// FIXME_I:
-//	Logger::getLogger()->debug("xxx0 update unlock before :%s: ", threadId.str().c_str());
-//	sync->unlock();
-//	Logger::getLogger()->debug("xxx0 update unlock after :%s: rc :%d: dbHandle :%X:", table.c_str(), rc, dbHandle);
-//	Logger::getLogger()->setMinLevel("warning");
 
 	// Check result code
 	if (rc != SQLITE_OK)

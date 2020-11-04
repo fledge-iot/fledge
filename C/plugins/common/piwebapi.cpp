@@ -103,9 +103,9 @@ std::string PIWebAPI::GetVersion(const string& host)
 	// HTTP payload
 	payload =  "";
 
-	// Anonymous auth
-	string authMethod = "a";
-	endPoint->setAuthMethod (authMethod);
+	// Set requested authentication
+	endPoint->setAuthMethod          (m_authMethod);
+	endPoint->setAuthBasicCredentials(m_authBasicCredentials);
 
 	try
 	{

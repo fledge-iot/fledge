@@ -625,9 +625,7 @@ int sleep_time_ms = 0;
 	threadId << std::this_thread::get_id();
 
 #if INSTRUMENT
-	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug("appendReadings start thread :%s:", threadId.str().c_str());
-	Logger::getLogger()->setMinLevel("warning");
 
 	struct timeval	start, t1, t2, t3, t4, t5;
 #endif
@@ -810,7 +808,6 @@ int sleep_time_ms = 0;
 		timersub(&t3, &t2, &tm);
 		timeT3 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
 
-		Logger::getLogger()->setMinLevel("debug");
 		Logger::getLogger()->debug("appendReadings end   thread :%s: buffer :%10lu: count :%5d: JSON :%6.3f: inserts :%6.3f: finalize :%6.3f:",
 								   threadId.str().c_str(),
 								   strlen(readings),
@@ -819,7 +816,6 @@ int sleep_time_ms = 0;
 								   timeT2,
 								   timeT3
 		);
-		Logger::getLogger()->setMinLevel("warning");
 
 #endif
 

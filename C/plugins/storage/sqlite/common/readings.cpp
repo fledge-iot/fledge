@@ -2694,7 +2694,7 @@ void ReadingsCatalogue::preallocateNewDbs() {
 		//# FIXME_I
 		Logger::getLogger()->debug("xxx99 preallocateNewDbs initial stage XXX");
 
-		// Initial stage - create the databases requested by the preallocation
+		// Initial stage - creates the databases requested by the preallocation
 		dbIdStart = 2;
 		dbIdEnd = dbIdStart + nDbPreallocate - 1;
 
@@ -2707,7 +2707,7 @@ void ReadingsCatalogue::preallocateNewDbs() {
 		//# FIXME_I
 		Logger::getLogger()->debug("xxx99 preallocateNewDbs next stage XXX");
 
-		// Following runs - attach all the databases
+		// Following runs - attachs all the databases
 		for (dbId = 2; dbId <= m_dbIdLast ; dbId++ )
 		{
 			m_dbIdList.push_back(dbId);

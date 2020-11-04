@@ -14,3 +14,4 @@ pyserial==3.4
 
 # keep this in sync with requirement.txt, as otherwise pytest-aiohttp always pulls the latest
 aiohttp==3.6.2
+yarl==1.5.1

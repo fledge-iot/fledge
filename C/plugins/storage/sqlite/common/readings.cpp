@@ -2696,7 +2696,7 @@ void ReadingsCatalogue::preallocateNewDbs() {
 
 		// Initial stage - creates the databases requested by the preallocation
 		dbIdStart = 2;
-		dbIdEnd = dbIdStart + nDbPreallocate - 1;
+		dbIdEnd = dbIdStart + nDbPreallocate - 2;
 
 		preallocateNewDbsRange(dbIdStart, dbIdEnd);
 

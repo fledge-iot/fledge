@@ -20,9 +20,6 @@
 #include <vector>
 #include <atomic>
 
-// FIXME_I:
-#include <logger.h>
-
 #define _DB_NAME                  "/fledge.sqlite"
 #define READINGS_DB_NAME_BASE     "readings"
 #define READINGS_DB_FILE_NAME     "/" READINGS_DB_NAME_BASE "_1.db"
@@ -138,18 +135,15 @@ class Connection {
 		bool        getNow(std::string& Now);
 
 		sqlite3		*getDbHandle() {return dbHandle;};
-		// FIXME_I:
-		int         SQLPrepare(sqlite3 *dbHandle, const char *sqlCmd, sqlite3_stmt **readingsStmt);
-
 		void        setUsedDbId(int dbId);
 
 	private:
-		// FIXME_I:
-		std::vector<int>                              m_NewDbIdList;
+		std::vector<int>  m_NewDbIdList;            // Newly created databases that should be attached
 
 		bool 		m_streamOpenTransaction;
 		int		    m_queuing;
 		std::mutex	m_qMutex;
+		int         SQLPrepare(sqlite3 *dbHandle, const char *sqlCmd, sqlite3_stmt **readingsStmt);
 		int 		SQLexec(sqlite3 *db, const char *sql,
 					int (*callback)(void*,int,char**,char**),
 					void *cbArg, char **errmsg);

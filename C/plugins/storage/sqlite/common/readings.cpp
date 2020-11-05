@@ -418,8 +418,6 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 	int sqlite3_resut;
 	int rowNumber = -1;
 
-
-	//# FIXME_I
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
 	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
@@ -431,10 +429,6 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 
 		if ( ! m_NewDbIdList.empty())
 		{
-			// FIXME_I:
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("readingStream - attach new DB thread :%s: dbHandle :%X:", threadId.str().c_str(), this->getDbHandle());
-
 			readCatalogue->connectionAttachDbList(this->getDbHandle(), m_NewDbIdList);
 		}
 		attachSync->unlock();
@@ -641,9 +635,9 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 }
 
 
-
-
-// FIXME_I:
+/**
+ * Append a set of readings to the readings table
+ */
 void Connection::setUsedDbId(int dbId) {
 
 	m_NewDbIdList.push_back(dbId);
@@ -683,14 +677,9 @@ int sleep_time_ms = 0;
 
 int localNReadingsTotal;
 
-	//# FIXME_I
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
 	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
-
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("appendReadings thread start :%s: conn :%X: dbHandle :%X:", threadId.str().c_str(), this, this->getDbHandle());
 
 	{
 		// Attaches the needed databases if the queue is not empty
@@ -699,10 +688,6 @@ int localNReadingsTotal;
 
 		if ( ! m_NewDbIdList.empty())
 		{
-			// FIXME_I:
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("XXX appendReadings - attach new DB thread :%s: dbHandle :%X:", threadId.str().c_str(), this->getDbHandle());
-
 			readCatalogue->connectionAttachDbList(this->getDbHandle(), m_NewDbIdList);
 		}
 		attachSync->unlock();
@@ -795,11 +780,6 @@ int localNReadingsTotal;
 			{
 				readingsId = readCatalogue->getReadingReference(this, asset_code);
 
-				// FIXME_I:
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("getReadingReference after :%X: threadId :%s:", dbHandle, threadId.str().c_str() );
-				Logger::getLogger()->setMinLevel("debug");
-
 				if (readingsId == -1)
 				{
 					Logger::getLogger()->warn("appendReadings - It was not possible to insert the row for the asset_code :%s: into the readings, row ignored.", asset_code);
@@ -859,50 +839,40 @@ int localNReadingsTotal;
 						sqlite3_resut = sqlite3_step(stmt);
 					}
 
-					msgError = "";
-
-					if (sqlite3_resut == SQLITE_LOCKED  )
-					{
-						msgError = "SQLITE_LOCKED";
-
-					} else if (sqlite3_resut == SQLITE_BUSY)
-					{
-						msgError = "SQLITE_BUSY";
-
-					} else if (sqlite3_resut  != SQLITE_DONE)
-					{
-						msgError = "SQLITE_ERROR";
-					}
-
-
 					if(sqlite3_resut != SQLITE_DONE)
 					{
-						ostringstream threadId;
-						threadId << std::this_thread::get_id();
+						msgError = "";
+						if (sqlite3_resut == SQLITE_LOCKED  )
+						{
+							msgError = "SQLITE_LOCKED";
+
+						} else if (sqlite3_resut == SQLITE_BUSY)
+						{
+							msgError = "SQLITE_BUSY";
+
+						} else if (sqlite3_resut  != SQLITE_DONE)
+						{
+							msgError = "SQLITE_ERROR";
+						}
 
 						sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
 						retries++;
 
 						// FIXME_I:
 						//Logger::getLogger()->info("appendReadings - %s - thread :%s: - con :%X: - dbHandle :%X: - record :%d: - retry number :%d: sleep time ms :%d:error :%s:",
-						Logger::getLogger()->warn("appendReadings - %s - thread :%s: - con :%X: - dbHandle :%X: - record :%d: - retry number :%d: sleep time ms :%d:error :%s:",
-								msgError.c_str(),
-								threadId.str().c_str() ,
-								this,
-								dbHandle,
-								row,
-								retries,
-								sleep_time_ms,
-								sqlite3_errmsg(dbHandle));
-
-						// FIXME_I:
-						Logger::getLogger()->warn("appendReadings - asset_code :%s: readingsId :%d:",
-												  asset_code,
-												  readingsId);
+						Logger::getLogger()->warn("appendReadings - %s - asset_code :%s: readingsId :%d: thread :%s: dbHandle :%X: record :%d: retry number :%d: sleep time ms :%d:error :%s:",
+							msgError.c_str(),
+							asset_code,
+							readingsId,
+							threadId.str().c_str() ,
+							dbHandle,
+							row,
+							retries,
+							sleep_time_ms,
+							sqlite3_errmsg(dbHandle));
 
 						std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
 					}
-				// FIXME_I:
 				} while (retries < PREP_CMD_MAX_RETRIES && (sqlite3_resut != SQLITE_DONE));
 
 				if (sqlite3_resut == SQLITE_DONE)
@@ -1022,10 +992,6 @@ string sql_cmd;
 
 		if ( ! m_NewDbIdList.empty())
 		{
-			// FIXME_I:
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("fetchReadings - attach new DB thread :%s: dbHandle :%X:", threadId.str().c_str(), this->getDbHandle());
-
 			readCatalogue->connectionAttachDbList(this->getDbHandle(), m_NewDbIdList);
 		}
 		attachSync->unlock();
@@ -2382,7 +2348,7 @@ bool ReadingsCatalogue::configurationRetrieve()
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("configurationRetrieve m_ReadingsGlobalId :%d: m_dbIdLast :%d: ", (int) m_ReadingsGlobalId, m_dbIdLast);
+	Logger::getLogger()->debug("XXX configurationRetrieve m_ReadingsGlobalId :%d: m_dbIdLast :%d: ", (int) m_ReadingsGlobalId, m_dbIdLast);
 	Logger::getLogger()->setMinLevel("warning");
 
 	sqlite3_finalize(stmt);
@@ -3994,6 +3960,7 @@ int ReadingsCatalogue::SQLStep(sqlite3_stmt *statement)
 	return rc;
 }
 
+// FIXME_I:
 int Connection::SQLPrepare(sqlite3 *dbHandle, const char *sqlCmd, sqlite3_stmt **readingsStmt)
 {
 	int retries = 0, rc;

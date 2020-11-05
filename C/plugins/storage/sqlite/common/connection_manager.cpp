@@ -164,7 +164,6 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug("attachNewDb Start");
-	Logger::getLogger()->setMinLevel("warning");
 
 
 	idleLock.lock();
@@ -188,8 +187,7 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 
 			//# FIXME_I
 			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("attachNewDb idle :%s: :%X: ", sqlCmd.c_str(), dbHandle);
-			Logger::getLogger()->setMinLevel("warning");
+			Logger::getLogger()->debug("XXX attachNewDb idle :%s: :%X: ", sqlCmd.c_str(), dbHandle);
 
 		}
 	}
@@ -214,8 +212,7 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 
 				//# FIXME_I
 				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("attachNewDb inUse :%s: :%X:  ", sqlCmd.c_str(), dbHandle);
-				Logger::getLogger()->setMinLevel("warning");
+				Logger::getLogger()->debug("XXX attachNewDb inUse :%s: :%X:  ", sqlCmd.c_str(), dbHandle);
 
 			}
 		}
@@ -224,7 +221,6 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 	inUseLock.unlock();
 
 	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug("attachNewDb Exit");
 	Logger::getLogger()->setMinLevel("warning");
 

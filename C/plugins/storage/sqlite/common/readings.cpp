@@ -2628,7 +2628,6 @@ void ReadingsCatalogue::prepareAllDbs() {
 		m_dbIdLast = dbIdEnd;
 	} else
 	{
-		//# FIXME_I
 		Logger::getLogger()->debug("prepareAllDbs - following runs");
 
 		// Following runs - attaches all the databases
@@ -2644,16 +2643,17 @@ void ReadingsCatalogue::prepareAllDbs() {
 	Logger::getLogger()->debug("prepareAllDbs - dbNAvailable :%d:", m_dbNAvailable);
 }
 
-// FIXME_I:
+/**
+ * Create a set od databases
+ * *
+ */
 void ReadingsCatalogue::preallocateNewDbsRange(int dbIdStart, int dbIdEnd) {
 
 	int dbId;
 	int startReadingsId;
 	tyReadingsAvailable readingsAvailable;
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("preallocateNewDbsRange: START - start :%d: end :%d: ", dbIdStart, dbIdEnd);
+	Logger::getLogger()->debug("preallocateNewDbsRange - Id start :%d: Id end :%d: ", dbIdStart, dbIdEnd);
 
 	for (dbId = dbIdStart; dbId <= dbIdEnd; dbId++)
 	{
@@ -2661,23 +2661,9 @@ void ReadingsCatalogue::preallocateNewDbsRange(int dbIdStart, int dbIdEnd) {
 		startReadingsId = readingsAvailable.lastReadings +1;
 		createNewDB(NULL,  dbId, startReadingsId, true);
 
-		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("preallocateNewDbsRange - create new dbs - dbId :%d: startReadingsIdOnDB :%d:", dbId, startReadingsId);
-
+		Logger::getLogger()->debug("preallocateNewDbsRange - db created :%d: startReadingsIdOnDB :%d:", dbId, startReadingsId);
 	}
-
-	// FIXME_I:
-	//attachDbsToAllConnections();
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("preallocateNewDbsRange: END - start :%d: end :%d:", dbIdStart, dbIdEnd);
-
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("warning");
 }
-
-
 
 /**
  * Generates a list of all the used databases
@@ -2726,34 +2712,25 @@ void ReadingsCatalogue::getAllDbs(vector<int> &dbIdList) {
 
 
 
-
-// FIXME_I:
+/**
+ * Retrieve the list of newly created db
+ *
+ */
 void ReadingsCatalogue::getNewDbs(vector<int> &dbIdList) {
 
 	int dbId;
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-
-	Logger::getLogger()->debug("getAllDbs - Newly created");
 
 	for (auto &dbId : m_dbIdList) {
 
 		if (std::find(dbIdList.begin(), dbIdList.end(), dbId) ==  dbIdList.end() )
 		{
 			dbIdList.push_back(dbId);
-			Logger::getLogger()->debug("getAllDbs DB created :%d:", dbId);
+			Logger::getLogger()->debug("getNewDbs - dbId :%d:", dbId);
 		}
 	}
 
 	sort(dbIdList.begin(), dbIdList.end());
-
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("warning");
-
 }
-
-
 
 /**
  * Enable WAL on the provided database file
@@ -2786,7 +2763,6 @@ bool ReadingsCatalogue::enableWAL(string &dbPathReadings) {
 	return true;
 }
 
-// FIXME_I:
 /**
  * Attach a database to all the connections, idle and  inuse
  *
@@ -2802,27 +2778,15 @@ bool ReadingsCatalogue::attachDb(sqlite3 *dbHandle, std::string &path, std::stri
 
 	result = true;
 
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("- attachDb start");
-
 	sqlCmd = "ATTACH DATABASE '" + path + "' AS " + alias + ";";
 
-
-	Logger::getLogger()->debug("-  attachDb end - path :%s: alais :%s: cmd :%s:" , path.c_str(), alias.c_str() , sqlCmd.c_str() );
-	// FIXME_I:
-	//rc = SQLITE_OK;
+	Logger::getLogger()->debug("attachDb  - path :%s: alias :%s: cmd :%s:" , path.c_str(), alias.c_str() , sqlCmd.c_str() );
 	rc = SQLExec (dbHandle, sqlCmd.c_str(), &zErrMsg);
 	if (rc != SQLITE_OK)
 	{
-		Logger::getLogger()->error("- attachDb - It was not possible to attach the db :%s: to the connection :%X:, error :%s:", path.c_str(), dbHandle, zErrMsg);
+		Logger::getLogger()->error("attachDb - It was not possible to attach the db :%s: to the connection :%X:, error :%s:", path.c_str(), dbHandle, zErrMsg);
 		result = false;
 	}
-
-	//# FIXME_I
-	Logger::getLogger()->debug("-  attachDb end - path :%s: alais :%s:" , path.c_str(), alias.c_str() );
-	Logger::getLogger()->setMinLevel("warning");
 
 	return (result);
 }
@@ -2843,10 +2807,7 @@ bool ReadingsCatalogue::connectionAttachDbList(sqlite3 *dbHandle, vector<int> &d
 
 	result = true;
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("connectionAttachDbList  start dbHandle :%X:" ,dbHandle);
-	Logger::getLogger()->setMinLevel("warning");
+	Logger::getLogger()->debug("connectionAttachDbList - start dbHandle :%X:" ,dbHandle);
 
 	while (!dbIdList.empty())
 	{
@@ -2855,22 +2816,14 @@ bool ReadingsCatalogue::connectionAttachDbList(sqlite3 *dbHandle, vector<int> &d
 		dbPathReadings = generateDbFilePah(item);
 		dbAlias = generateDbAlias(item);
 
-		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("XXX connectionAttachDbList:  dbHandle :%X: dbId :%d: path :%s: alias :%s:",dbHandle, item, dbPathReadings.c_str(), dbAlias.c_str());
+		Logger::getLogger()->debug("connectionAttachDbList - dbHandle :%X: dbId :%d: path :%s: alias :%s:",dbHandle, item, dbPathReadings.c_str(), dbAlias.c_str());
 
 		result = attachDb(dbHandle, dbPathReadings, dbAlias);
 		dbIdList.pop_back();
 
-		// FIXME_I:
-		Logger::getLogger()->setMinLevel("warning");
 	}
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("connectionAttachDbList  end Connection :%X:" ,dbHandle);
-	Logger::getLogger()->setMinLevel("warning");
-
+	Logger::getLogger()->debug("connectionAttachDbList - end dbHandle :%X:" ,dbHandle);
 
 	return (result);
 }
@@ -2890,12 +2843,6 @@ bool ReadingsCatalogue::connectionAttachAllDbs(sqlite3 *dbHandle)
 
 	result = true;
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("connectionAttachAllDbs  start Connection :%X:" ,dbHandle);
-	Logger::getLogger()->setMinLevel("warning");
-
-
 	getAllDbs(dbIdList);
 
 	for(int item : dbIdList)
@@ -2907,21 +2854,8 @@ bool ReadingsCatalogue::connectionAttachAllDbs(sqlite3 *dbHandle)
 		if (! result)
 			break;
 
-		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
-
-		Logger::getLogger()->debug("connectionAttachAllDbs: dbId :%d: path :%s: alias :%s:", item, dbPathReadings.c_str(), dbAlias.c_str());
-
-		// FIXME_I:
-		Logger::getLogger()->setMinLevel("warning");
+		Logger::getLogger()->debug("connectionAttachAllDbs - dbId :%d: path :%s: alias :%s:", item, dbPathReadings.c_str(), dbAlias.c_str());
 	}
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("connectionAttachAllDbs  end Connection :%X:" ,dbHandle);
-	Logger::getLogger()->setMinLevel("warning");
-
-
 	return (result);
 }
 
@@ -2943,12 +2877,6 @@ bool ReadingsCatalogue::attachDbsToAllConnections()
 	ConnectionManager *manager = ConnectionManager::getInstance();
 	Connection        *connection = manager->allocate();
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("attachDbsToAllConnections DBG");
-	Logger::getLogger()->setMinLevel("warning");
-
-
 	getAllDbs(dbIdList);
 
 	for(int item : dbIdList)
@@ -2962,13 +2890,7 @@ bool ReadingsCatalogue::attachDbsToAllConnections()
 		if (! result)
 			break;
 
-		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
-
-		Logger::getLogger()->debug("attachDbsToAllConnections: dbId :%d: path :%s: alias :%s:", item, dbPathReadings.c_str(), dbAlias.c_str());
-
-		// FIXME_I:
-		Logger::getLogger()->setMinLevel("warning");
+		Logger::getLogger()->debug("attachDbsToAllConnections - dbId :%d: path :%s: alias :%s:", item, dbPathReadings.c_str(), dbAlias.c_str());
 	}
 
 	manager->release(connection);
@@ -2976,15 +2898,12 @@ bool ReadingsCatalogue::attachDbsToAllConnections()
 	return (result);
 }
 
-// FIXME_I:
+/**
+ * Setup the multiple readings databases/tables feature
+ *
+ */
 void ReadingsCatalogue::multipleReadingsInit()
 {
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("multipleReadingsInit XX2");
-	Logger::getLogger()->setMinLevel("warning");
-
 	loadAssetReadingCatalogue();
 
 	preallocateReadingsTables(1);   // on the first database
@@ -3069,13 +2988,13 @@ string ReadingsCatalogue::generateDbFilePah(int dbId)
 	return  (dbPathReadings);
 }
 
-// FIXME_I:
+/**
+ * Stores on the persistent storage the id of the last created database
+ *
+ */
 bool ReadingsCatalogue::latestDbUpdate(sqlite3 *dbHandle, int newDbId)
 {
 	string sql_cmd;
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
 
 	Logger::getLogger()->debug("latestDbUpdate - dbHandle :%X: newDbId :%d:", dbHandle, newDbId);
 
@@ -3088,10 +3007,6 @@ bool ReadingsCatalogue::latestDbUpdate(sqlite3 *dbHandle, int newDbId)
 			return false;
 		}
 	}
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("warning");
-
 	return true;
 }
 
@@ -3131,10 +3046,6 @@ bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle, int newDbId, int startId
 		connAllocated = true;
 	}
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->info("createNewDB V3: connection :%X: dbHandle :%X:" ,connection, dbHandle);
-
 	// Creates the DB data file
 	{
 		dbPathReadings = generateDbFilePah(newDbId);
@@ -3142,63 +3053,38 @@ bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle, int newDbId, int startId
 		dbAlreadyPresent = false;
 		if(stat(dbPathReadings.c_str(),&st) == 0)
 		{
-			Logger::getLogger()->info("createNewDB: database file :%s: already present, creation skipped " , dbPathReadings.c_str() );
+			Logger::getLogger()->info("createNewDB - database file :%s: already present, creation skipped " , dbPathReadings.c_str() );
 			dbAlreadyPresent = true;
 		}
 		else
 		{
-			Logger::getLogger()->debug("createNewDB: new database created :%s:", dbPathReadings.c_str());
+			Logger::getLogger()->debug("createNewDB - new database created :%s:", dbPathReadings.c_str());
 		}
 		enableWAL(dbPathReadings);
 
-		// FIXME_I:
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("createNewDB latestDbUpdate");
-		Logger::getLogger()->setMinLevel("warning");
 		latestDbUpdate(dbHandle, newDbId);
 
 	}
 	readingsToAllocate = getNReadingsAllocate();
 	readingsToCreate = readingsToAllocate;
 
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("- -createNewDB: generateDbAlias");
-
 	// Attached the new db to the connections
 	dbAlias = generateDbAlias(newDbId);
 
 	if (attachAllDb)
 	{
-
-		// FIXME_I:
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("- -createNewDB: attachNewDb ALL");
+		Logger::getLogger()->debug("createNewDB - attach all the databases");
 
 		result = manager->attachNewDb(dbPathReadings, dbAlias);
 	} else {
+		Logger::getLogger()->debug("createNewDB - attach single");
 
-		// FIXME_I:
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("- -createNewDB: attachDb SINGLE");
-
-		// FIXME_I:
 		result = readCat->attachDb(dbHandle, dbPathReadings, dbAlias);
-
-		// FIXME_I:
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("- -createNewDB: attachRequestNewDb");
-
-		// FIXME_I:
 		result = manager->attachRequestNewDb(newDbId, dbHandle);
-
 	}
-
-
 
 	if (result)
 	{
-		// FIXME_I:
 		setUsedDbId(newDbId);
 
 		if (dbAlreadyPresent)
@@ -3207,23 +3093,22 @@ bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle, int newDbId, int startId
 
 			if (readingsAvailable.lastReadings == -1)
 			{
-				Logger::getLogger()->error("createNewDB: database file :%s: is already present but it is not possible to evaluate the readings table already present" , dbPathReadings.c_str() );
+				Logger::getLogger()->error("createNewDB - database file :%s: is already present but it is not possible to evaluate the readings table already present" , dbPathReadings.c_str() );
 				result = false;
 			}
 			else
 			{
 				readingsToCreate = readingsToAllocate - readingsAvailable.tableCount;
 				startId = readingsAvailable.lastReadings +1;
-				Logger::getLogger()->info("createNewDB: database file :%s: is already present, creating readings tables - from id :%d: n :%d: " , dbPathReadings.c_str(), startId, readingsToCreate);
+				Logger::getLogger()->info("createNewDB - database file :%s: is already present, creating readings tables - from id :%d: n :%d: " , dbPathReadings.c_str(), startId, readingsToCreate);
 			}
 		}
 
 		if (readingsToCreate > 0)
 		{
-			// FIXME_I:
 			createReadingsTables(dbHandle, newDbId ,startId, readingsToCreate);
 
-			Logger::getLogger()->info("createNewDB: database file :%s: created readings table - from id :%d: n :%d: " , dbPathReadings.c_str(), startId, readingsToCreate);
+			Logger::getLogger()->info("createNewDB - database file :%s: created readings table - from id :%d: n :%d: " , dbPathReadings.c_str(), startId, readingsToCreate);
 		}
 		m_nReadingsAvailable = readingsToAllocate;
 	}
@@ -3266,10 +3151,7 @@ bool  ReadingsCatalogue::createReadingsTables(sqlite3 *dbHandle, int dbId, int i
 		newConnection = true;
 	}
 
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
 	logger->info("Creating :%d: readings table in advance starting id :%d:", nTables, idStartFrom);
-	logger->debug("createReadingsTables start dbHandle :%X: ", dbHandle);
 
 	dbName = generateDbName(dbId);
 
@@ -3291,21 +3173,12 @@ bool  ReadingsCatalogue::createReadingsTables(sqlite3 *dbHandle, int dbId, int i
 			CREATE INDEX )" + dbName + "." + dbReadingsName + R"(_ix3 ON readings_)" + to_string(tableId) + R"( (user_ts);
 		)";
 
-		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("createReadingsTables table :%s: ", createReadings.c_str());
-
 		rc = SQLExec(dbHandle, createReadings.c_str());
 		if (rc != SQLITE_OK)
 		{
 			raiseError("createReadingsTables", sqlite3_errmsg(dbHandle));
 			return false;
 		}
-
-		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("createReadingsTables idx :%s: ", createReadingsIdx.c_str());
-
 
 		rc = SQLExec(dbHandle, createReadingsIdx.c_str());
 		if (rc != SQLITE_OK)
@@ -3314,11 +3187,6 @@ bool  ReadingsCatalogue::createReadingsTables(sqlite3 *dbHandle, int dbId, int i
 			return false;
 		}
 	}
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("createReadingsTables end dbHandle :%X: ", dbHandle);
-
 	if (newConnection)
 	{
 		manager->release(connection);
@@ -3485,15 +3353,10 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 	}
 	else
 	{
-		// FIXME_I:
+		Logger::getLogger()->debug("getReadingReference - before lock dbHandle :%X: threadId :%s:", dbHandle, threadId.str().c_str() );
+
 		AttachDbSync *attachSync = AttachDbSync::getInstance();
 		attachSync->lock();
-
-		//m_mutexAssetReadingCatalogue.lock();
-
-		// FIXME_I:
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("getReadingReference lock after m_mutexAssetReadingCatalogue dbHandle :%X: threadId :%s:", dbHandle, threadId.str().c_str() );
 
 		auto item = m_AssetReadingCatalogue.find(asset_code);
 		if (item != m_AssetReadingCatalogue.end())
@@ -3505,11 +3368,7 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 			//# Allocate a new block of readings table
 			if (! isReadingAvailable () )
 			{
-
-
-				// FIXME_I:
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("XXX  Allocate a new db dbNAvailable :%d:", m_dbNAvailable);
+				Logger::getLogger()->debug("getReadingReference - allocate a new db, dbNAvailable :%d:", m_dbNAvailable);
 
 				if (m_dbNAvailable > 0)
 				{
@@ -3518,7 +3377,7 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 					m_dbNAvailable--;
 					m_nReadingsAvailable = getNReadingsAllocate();
 
-					Logger::getLogger()->debug("Allocate a new db - db already available - dbIdCurrent :%d: m_dbIdLast :%d: dbNAvailable  :%d: nReadingsAvailable :%d:  ", m_dbIdCurrent, m_dbIdLast, m_dbNAvailable, m_nReadingsAvailable);
+					Logger::getLogger()->debug("getReadingReference - allocate a new db, db already available - dbIdCurrent :%d: dbIdLast :%d: dbNAvailable  :%d: nReadingsAvailable :%d:  ", m_dbIdCurrent, m_dbIdLast, m_dbNAvailable, m_nReadingsAvailable);
 				}
 				else
 				{
@@ -3528,20 +3387,17 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 					dbIdStart = m_dbIdLast +1;
 					dbIdEnd = m_dbIdLast + nDbToAllocate;
 
-					Logger::getLogger()->debug("Allocate a new db - create new dbs - dbIdCurrent :%d:  dbIdStart :%d: dbIdEnd :%d:", m_dbIdCurrent, dbIdStart, dbIdEnd);
+					Logger::getLogger()->debug("getReadingReference - allocate a new db - create new db - dbIdCurrent :%d: dbIdStart :%d: dbIdEnd :%d:", m_dbIdCurrent, dbIdStart, dbIdEnd);
 
 					for (dbId = dbIdStart; dbId <= dbIdEnd; dbId++)
 					{
 						readingsAvailable = evaluateLastReadingAvailable(dbHandle, dbId - 1);
 						startReadingsId = readingsAvailable.lastReadings +1;
-						//
-						Logger::getLogger()->setMinLevel("debug");
-						Logger::getLogger()->debug("Allocate a new db - create new dbs - dbId :%d: startReadingsIdOnDB :%d:", dbId, startReadingsId);
 
 						success = createNewDB(dbHandle,  dbId, startReadingsId, false);
 						if (success)
 						{
-							Logger::getLogger()->debug("Allocate a new db - create new dbs - created :%d:", dbId);
+							Logger::getLogger()->debug("getReadingReference - allocate a new db - create new dbs - dbId :%d: startReadingsIdOnDB :%d:", dbId, startReadingsId);
 						}
 					}
 					m_dbIdLast = dbIdEnd;
@@ -3550,15 +3406,6 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 				}
 
 				readingsId = -1;
-
-				if (success)
-				{
-					Logger::getLogger()->debug("Allocate a new db - dbIdCurrent :%d:  dbIdLast :%d: dbNAvailable :%d:", m_dbIdCurrent, m_dbIdLast, m_dbNAvailable);
-				}
-
-
-				// FIXME_I:
-				Logger::getLogger()->setMinLevel("warning");
 			}
 
 			if (success)
@@ -3574,10 +3421,7 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 						m_AssetReadingCatalogue.insert(newMapValue);
 					}
 
-					// FIXME_I:
-					Logger::getLogger()->setMinLevel("debug");
-					Logger::getLogger()->debug("getReadingReference: allocate a new reading table for the asset :%s: db Id :%d: readings Id :%d: ", asset_code, m_dbIdCurrent, readingsId);
-					Logger::getLogger()->setMinLevel("warning");
+					Logger::getLogger()->debug("getReadingReference - allocate a new reading table for the asset :%s: db Id :%d: readings Id :%d: ", asset_code, m_dbIdCurrent, readingsId);
 
 					// Allocate the table in the reading catalogue
 					{
@@ -3600,16 +3444,7 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 
 			}
 		}
-
-
-		// FIXME_I:
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("getReadingReference end dbHandle :%X: threadId :%s:", dbHandle, threadId.str().c_str() );
-
-
 		attachSync->unlock();
-
-		//m_mutexAssetReadingCatalogue.unlock();
 	}
 
 	return (readingsId);

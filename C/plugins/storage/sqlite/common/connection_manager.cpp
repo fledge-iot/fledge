@@ -94,7 +94,7 @@ Connection   *conn;
 		{
 			//# FIXME_I
 			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("xxx5 shrinkPool :%X:", conn->getDbHandle());
+			Logger::getLogger()->debug("shrinkPool :%X:", conn->getDbHandle());
 			Logger::getLogger()->setMinLevel("warning");
 
 
@@ -122,7 +122,7 @@ Connection *conn = 0;
 	{
 		//# FIXME_I
 		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx5 ConnectionManager::allocate");
+		Logger::getLogger()->debug("ConnectionManager::allocate");
 		Logger::getLogger()->setMinLevel("warning");
 
 
@@ -163,7 +163,7 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx attachNewDb Start");
+	Logger::getLogger()->debug("attachNewDb Start");
 	Logger::getLogger()->setMinLevel("warning");
 
 
@@ -188,7 +188,7 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 
 			//# FIXME_I
 			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("xxx attachNewDb idle :%s: :%X: ", sqlCmd.c_str(), dbHandle);
+			Logger::getLogger()->debug("attachNewDb idle :%s: :%X: ", sqlCmd.c_str(), dbHandle);
 			Logger::getLogger()->setMinLevel("warning");
 
 		}
@@ -214,7 +214,7 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 
 				//# FIXME_I
 				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxx attachNewDb inUse :%s: :%X:  ", sqlCmd.c_str(), dbHandle);
+				Logger::getLogger()->debug("attachNewDb inUse :%s: :%X:  ", sqlCmd.c_str(), dbHandle);
 				Logger::getLogger()->setMinLevel("warning");
 
 			}
@@ -225,7 +225,7 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx attachNewDb Exit");
+	Logger::getLogger()->debug("attachNewDb Exit");
 	Logger::getLogger()->setMinLevel("warning");
 
 	return (result);
@@ -243,7 +243,7 @@ bool ConnectionManager::attachRequestNewDb(int newDbId, sqlite3 *dbHandle)
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxxA0 attachRequestNewDb Start");
+	Logger::getLogger()->debug("attachRequestNewDb Start");
 	Logger::getLogger()->setMinLevel("warning");
 
 
@@ -259,7 +259,7 @@ bool ConnectionManager::attachRequestNewDb(int newDbId, sqlite3 *dbHandle)
 			{
 				//# FIXME_I
 				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxxA0 attachRequestNewDb idle SKIPP :%s: :%X: ", sqlCmd.c_str(), conn->getDbHandle());
+				Logger::getLogger()->debug("attachRequestNewDb idle SKIPP :%s: :%X: ", sqlCmd.c_str(), conn->getDbHandle());
 				Logger::getLogger()->setMinLevel("warning");
 
 			} else
@@ -268,7 +268,7 @@ bool ConnectionManager::attachRequestNewDb(int newDbId, sqlite3 *dbHandle)
 
 				//# FIXME_I
 				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxxA0 attachRequestNewDb idle :%s: :%X: ", sqlCmd.c_str(), conn->getDbHandle());
+				Logger::getLogger()->debug("attachRequestNewDb idle :%s: :%X: ", sqlCmd.c_str(), conn->getDbHandle());
 				Logger::getLogger()->setMinLevel("warning");
 			}
 
@@ -286,7 +286,7 @@ bool ConnectionManager::attachRequestNewDb(int newDbId, sqlite3 *dbHandle)
 				{
 					//# FIXME_I
 					Logger::getLogger()->setMinLevel("debug");
-					Logger::getLogger()->debug("xxxA0 attachRequestNewDb inUse SKIP :%s: :%X:  ", sqlCmd.c_str(), conn->getDbHandle());
+					Logger::getLogger()->debug("attachRequestNewDb inUse SKIP :%s: :%X:  ", sqlCmd.c_str(), conn->getDbHandle());
 					Logger::getLogger()->setMinLevel("warning");
 
 
@@ -296,7 +296,7 @@ bool ConnectionManager::attachRequestNewDb(int newDbId, sqlite3 *dbHandle)
 
 					//# FIXME_I
 					Logger::getLogger()->setMinLevel("debug");
-					Logger::getLogger()->debug("xxxA0 attachRequestNewDb inUse :%s: :%X:  ", sqlCmd.c_str(), conn->getDbHandle());
+					Logger::getLogger()->debug("attachRequestNewDb inUse :%s: :%X:  ", sqlCmd.c_str(), conn->getDbHandle());
 					Logger::getLogger()->setMinLevel("warning");
 				}
 			}
@@ -307,7 +307,7 @@ bool ConnectionManager::attachRequestNewDb(int newDbId, sqlite3 *dbHandle)
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxxA0 attachRequestNewDb Exit");
+	Logger::getLogger()->debug("attachRequestNewDb Exit");
 	Logger::getLogger()->setMinLevel("warning");
 
 	return (result);
@@ -333,7 +333,7 @@ void ConnectionManager::listConnections()
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx listConnections");
+	Logger::getLogger()->debug("listConnections");
 
 
 	idleLock.lock();
@@ -359,7 +359,7 @@ void ConnectionManager::listConnections()
 	inUseLock.unlock();
 
 	//# FIXME_I
-	Logger::getLogger()->debug("xxx listConnections end");
+	Logger::getLogger()->debug("listConnections end");
 
 }
 
@@ -379,7 +379,7 @@ void ConnectionManager::listReadingAvailable(sqlite3 *dbHandle)
 	vector<int> dbIdList;
 
 	//# FIXME_I
-	Logger::getLogger()->debug("xxx listReadingAvailable start");
+	Logger::getLogger()->debug("listReadingAvailable start");
 
 
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
@@ -396,11 +396,11 @@ void ConnectionManager::listReadingAvailable(sqlite3 *dbHandle)
 			WHERE type='table' and name like 'readings_%';
 		)";
 
-		Logger::getLogger()->debug("xxx listReadingAvailable sql_cmd :%s:" ,sql_cmd.c_str());
+		Logger::getLogger()->debug("listReadingAvailable sql_cmd :%s:" ,sql_cmd.c_str());
 
 		if (sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), -1, &stmt, NULL) != SQLITE_OK)
 		{
-			Logger::getLogger()->error("xxx listReadingAvailable s1");
+			Logger::getLogger()->error("listReadingAvailable s1");
 		}
 		else
 		{
@@ -411,13 +411,13 @@ void ConnectionManager::listReadingAvailable(sqlite3 *dbHandle)
 				tableName = (char *) sqlite3_column_text(stmt, 0);
 				id = stoi(tableName.substr(tableName.find('_') + 1));
 
-				Logger::getLogger()->error("xxx listReadingAvailable :%X: db :%s: table :%s:", dbHandle, dbName.c_str(), tableName.c_str());
+				Logger::getLogger()->error("listReadingAvailable :%X: db :%s: table :%s:", dbHandle, dbName.c_str(), tableName.c_str());
 			}
 			sqlite3_finalize(stmt);
 		}
 	}
 
-	Logger::getLogger()->debug("xxx listReadingAvailable end");
+	Logger::getLogger()->debug("listReadingAvailable end");
 
 
 
@@ -478,7 +478,7 @@ int ConnectionManager::SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **err
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
 
-	Logger::getLogger()->debug("xxx SQLExec start: cmd :%s: ", sqlCmd);
+	Logger::getLogger()->debug("SQLExec start: cmd :%s: ", sqlCmd);
 
 	do {
 		if (errMsg == NULL)
@@ -497,22 +497,22 @@ int ConnectionManager::SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **err
 			int interval = (retries * RETRY_BACKOFF);
 			usleep(interval);	// sleep retries milliseconds
 			if (retries > 5)
-					Logger::getLogger()->info("xxx SQLExec - error :%s: retry %d of %d, rc=%s, DB connection @ %p, slept for %d msecs",
+					Logger::getLogger()->info("SQLExec - error :%s: retry %d of %d, rc=%s, DB connection @ %p, slept for %d msecs",
 											  sqlite3_errmsg(dbHandle), retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", this, interval);
 		}
 	} while (retries < MAX_RETRIES && (rc  != SQLITE_OK));
 
 	if (rc == SQLITE_LOCKED)
 	{
-		Logger::getLogger()->error("xxx SQLExec - Database still locked after maximum retries");
+		Logger::getLogger()->error("SQLExec - Database still locked after maximum retries");
 	}
 	if (rc == SQLITE_BUSY)
 	{
-		Logger::getLogger()->error("xxx SQLExec - Database still busy after maximum retries");
+		Logger::getLogger()->error("SQLExec - Database still busy after maximum retries");
 	}
 
 	// FIXME_I:
-	Logger::getLogger()->debug("xxx SQLExec start: end :%s: ", sqlCmd);
+	Logger::getLogger()->debug("SQLExec start: end :%s: ", sqlCmd);
 	Logger::getLogger()->setMinLevel("warning");
 
 	return rc;

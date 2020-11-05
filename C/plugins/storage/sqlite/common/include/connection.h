@@ -20,6 +20,9 @@
 #include <vector>
 #include <atomic>
 
+// FIXME_I:
+#include <logger.h>
+
 #define _DB_NAME                  "/fledge.sqlite"
 #define READINGS_DB_NAME_BASE     "readings"
 #define READINGS_DB_FILE_NAME     "/" READINGS_DB_NAME_BASE "_1.db"
@@ -145,7 +148,7 @@ class Connection {
 		std::vector<int>                              m_NewDbIdList;
 
 		bool 		m_streamOpenTransaction;
-		int		m_queuing;
+		int		    m_queuing;
 		std::mutex	m_qMutex;
 		int 		SQLexec(sqlite3 *db, const char *sql,
 					int (*callback)(void*,int,char**,char**),
@@ -221,11 +224,9 @@ class ReadingsCatalogue {
 		bool          loadAssetReadingCatalogue();
 		bool          createNewDB(sqlite3 *dbHandle, int newDbId,  int startId, bool attachAllDb);
 		bool          latestDbUpdate(sqlite3 *dbHandle, int newDbId);
-		bool          configurationRetrieve();
-		void          preallocateNewDbs();
 		void          preallocateNewDbsRange(int dbIdStart, int dbIdEnd);
 		int           getReadingReference(Connection *connection, const char *asset_code);
-		bool          attachAllDbs();
+		bool          attachDbsToAllConnections();
 		std::string   sqlConstructMultiDb(std::string &sqlCmdBase, std::vector<std::string>  &assetCodes);
 		int           purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBase, char **errMsg = NULL, unsigned int *rowsAffected = NULL);
 
@@ -266,21 +267,27 @@ class ReadingsCatalogue {
 		int           SQLExec(sqlite3 *dbHandle, const char *sqlCmd,  char **errMsg = NULL);
 		bool          enableWAL(std::string &dbPathReadings);
 
-		int                                           m_dbIdCurrent;
-		int                                           m_dbNAvailable;
-		int                                           m_dbIdLast;
-		std::atomic<int>                              m_ReadingsGlobalId;
-		int                                           m_nReadingsAvailable = 0;
-		std::mutex                                    m_mutexAssetReadingCatalogue;
-		std::map <std::string, std::pair<int, int>>   m_AssetReadingCatalogue={
+		bool          configurationRetrieve();
+		void          prepareAllDbs();
+		void          attachAllDbs();
+
+		int                                           m_dbIdCurrent;            // Current database in use
+		int                                           m_dbIdLast;               // Last database available not already in use
+		int                                           m_dbNAvailable;           // Number of databases available
+		std::vector<int>                              m_dbIdList;               // Databases already created but not in use
+
+		std::atomic<int>                              m_ReadingsGlobalId;       // Global row id shared among all the readings table
+		int                                           m_nReadingsAvailable = 0; // Number of readings tables available
+		std::map <std::string, std::pair<int, int>>   m_AssetReadingCatalogue={ // In memory structure to identify in which database/table an asset is stored
 
 			// asset_code  - reading Table Id, Db Id
 			// {"",         ,{1               ,1 }}
 		};
-		std::vector<int>                              m_dbIdList;
+
 };
 
 class DbSync {
+	// Used to synchronize the attach database operation
 
 	public:
 		static DbSync *getInstance()
@@ -290,6 +297,12 @@ class DbSync {
 			if (!instance)
 			{
 				instance = new DbSync;
+
+				//# FIXME_I
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("XX1 DbSync getInstance NEW");
+				Logger::getLogger()->setMinLevel("warning");
+
 			}
 			return instance;
 		}

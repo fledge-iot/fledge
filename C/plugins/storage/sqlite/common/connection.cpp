@@ -604,12 +604,12 @@ Connection::Connection()
 	try {
 		//# FIXME_I
 		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx4 Connection start :%X:" ,dbHandle);
+		Logger::getLogger()->debug("XXX Connection start :%X:" ,dbHandle);
 
 		ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 		if ( !readCat->connectionAttachAllDbs(dbHandle) )
 		{
-			const char* errMsg = "xxx4 Failed to attach all the dbs to the connection :%X:'readings' database in";
+			const char* errMsg = "Failed to attach all the dbs to the connection :%X:'readings' database in";
 			Logger::getLogger()->error("%s '%s': error %s", errMsg, dbHandle);
 
 			connectErrorTime = time(0);
@@ -618,15 +618,15 @@ Connection::Connection()
 
 	} catch (exception e) {
 		//# FIXME_I
-		Logger::getLogger()->error("xxx4 Connection exception :%s:" ,e.what());
+		Logger::getLogger()->error("XXX Connection exception :%s:" ,e.what());
 	} catch (...) {
 		//# FIXME_I
-		Logger::getLogger()->error("xxx4 Connection  crash");
+		Logger::getLogger()->error("XXX Connection  crash");
 	}
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx4 Connection end :%X:" ,dbHandle);
+	Logger::getLogger()->debug("XXX Connection end :%X:" ,dbHandle);
 	Logger::getLogger()->setMinLevel("warning");
 
 
@@ -643,7 +643,7 @@ Connection::~Connection()
 {
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx3 Close Connection :%X:" ,dbHandle);
+	Logger::getLogger()->debug("Close Connection :%X:" ,dbHandle);
 	Logger::getLogger()->setMinLevel("warning");
 
 
@@ -1323,7 +1323,7 @@ vector<string>  asset_codes;
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx5 update cmd - thread :%s:  dbHandle :%X: table :%s:", threadId.str().c_str(), dbHandle , table.c_str());
+	Logger::getLogger()->debug("update cmd - thread :%s:  dbHandle :%X: table :%s:", threadId.str().c_str(), dbHandle , table.c_str());
 	Logger::getLogger()->setMinLevel("warning");
 
 
@@ -2938,7 +2938,7 @@ int retries = 0, rc;
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	//Logger::getLogger()->debug("xxx10 SQLexec start :%s:", sql);
+	//Logger::getLogger()->debug("SQLexec start :%s:", sql);
 
 	do {
 #if DO_PROFILE
@@ -2954,7 +2954,7 @@ int retries = 0, rc;
 		{
 			//# FIXME_I
 			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("xxx10 V2 SQLexec retry :%d: dbHandle :%X: cmd :%s:  error :%s:", retries, this->getDbHandle(), sql, sqlite3_errmsg(dbHandle));
+			Logger::getLogger()->debug("V2 SQLexec retry :%d: dbHandle :%X: cmd :%s:  error :%s:", retries, this->getDbHandle(), sql, sqlite3_errmsg(dbHandle));
 
 #if DO_PROFILE_RETRIES
 			m_qMutex.lock();
@@ -3022,7 +3022,7 @@ int retries = 0, rc;
 		Logger::getLogger()->error("Database error after maximum retries - dbHandle :%X:", this->getDbHandle());
 	}
 
-	//Logger::getLogger()->debug("xxx10 SQLexec end :%s:", sql);
+	//Logger::getLogger()->debug("SQLexec end :%s:", sql);
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("warning");
 

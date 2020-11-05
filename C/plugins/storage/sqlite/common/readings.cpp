@@ -426,8 +426,8 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 
 	{
 		// Attaches the needed databases if the queue is not empty
-		DbSync *sync = DbSync::getInstance();
-		sync->lock();
+		AttachDbSync *attachSync = AttachDbSync::getInstance();
+		attachSync->lock();
 
 		if ( ! m_NewDbIdList.empty())
 		{
@@ -437,7 +437,7 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 
 			readCatalogue->connectionAttachDbList(this->getDbHandle(), m_NewDbIdList);
 		}
-		sync->unlock();
+		attachSync->unlock();
 	}
 
 #if INSTRUMENT
@@ -694,8 +694,8 @@ int localNReadingsTotal;
 
 	{
 		// Attaches the needed databases if the queue is not empty
-		DbSync *sync = DbSync::getInstance();
-		sync->lock();
+		AttachDbSync *attachSync = AttachDbSync::getInstance();
+		attachSync->lock();
 
 		if ( ! m_NewDbIdList.empty())
 		{
@@ -705,7 +705,7 @@ int localNReadingsTotal;
 
 			readCatalogue->connectionAttachDbList(this->getDbHandle(), m_NewDbIdList);
 		}
-		sync->unlock();
+		attachSync->unlock();
 	}
 
 	localNReadingsTotal = readCatalogue->getMaxReadingsId();
@@ -1017,8 +1017,8 @@ string sql_cmd;
 
 	{
 		// Attaches the needed databases if the queue is not empty
-		DbSync *sync = DbSync::getInstance();
-		sync->lock();
+		AttachDbSync *attachSync = AttachDbSync::getInstance();
+		attachSync->lock();
 
 		if ( ! m_NewDbIdList.empty())
 		{
@@ -1028,7 +1028,7 @@ string sql_cmd;
 
 			readCatalogue->connectionAttachDbList(this->getDbHandle(), m_NewDbIdList);
 		}
-		sync->unlock();
+		attachSync->unlock();
 	}
 
 	// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
@@ -1141,8 +1141,8 @@ vector<string>  asset_codes;
 
 	{
 		// Attaches the needed databases if the queue is not empty
-		DbSync *sync = DbSync::getInstance();
-		sync->lock();
+		AttachDbSync *attachSync = AttachDbSync::getInstance();
+		attachSync->lock();
 
 		if ( ! m_NewDbIdList.empty())
 		{
@@ -1152,7 +1152,7 @@ vector<string>  asset_codes;
 
 			readCatalogue->connectionAttachDbList(this->getDbHandle(), m_NewDbIdList);
 		}
-		sync->unlock();
+		attachSync->unlock();
 	}
 
 	try {
@@ -1619,8 +1619,8 @@ vector<string>  assetCodes;
 
 	{
 		// Attaches the needed databases if the queue is not empty
-		DbSync *sync = DbSync::getInstance();
-		sync->lock();
+		AttachDbSync *attachSync = AttachDbSync::getInstance();
+		attachSync->lock();
 
 		if ( ! m_NewDbIdList.empty())
 		{
@@ -1630,7 +1630,7 @@ vector<string>  assetCodes;
 
 			readCatalogue->connectionAttachDbList(this->getDbHandle(), m_NewDbIdList);
 		}
-		sync->unlock();
+		attachSync->unlock();
 	}
 
 
@@ -2105,8 +2105,8 @@ vector<string>  assetCodes;
 
 	{
 		// Attaches the needed databases if the queue is not empty
-		DbSync *sync = DbSync::getInstance();
-		sync->lock();
+		AttachDbSync *attachSync = AttachDbSync::getInstance();
+		attachSync->lock();
 
 		if ( ! m_NewDbIdList.empty())
 		{
@@ -2116,7 +2116,7 @@ vector<string>  assetCodes;
 
 			readCatalogue->connectionAttachDbList(this->getDbHandle(), m_NewDbIdList);
 		}
-		sync->unlock();
+		attachSync->unlock();
 	}
 
 	logger->info("Purge by Rows called");
@@ -3550,8 +3550,8 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 	else
 	{
 		// FIXME_I:
-		DbSync *sync = DbSync::getInstance();
-		sync->lock();
+		AttachDbSync *attachSync = AttachDbSync::getInstance();
+		attachSync->lock();
 
 		//m_mutexAssetReadingCatalogue.lock();
 
@@ -3671,7 +3671,7 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 		Logger::getLogger()->debug("getReadingReference end dbHandle :%X: threadId :%s:", dbHandle, threadId.str().c_str() );
 
 
-		sync->unlock();
+		attachSync->unlock();
 
 		//m_mutexAssetReadingCatalogue.unlock();
 	}

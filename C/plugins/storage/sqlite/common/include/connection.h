@@ -286,37 +286,24 @@ class ReadingsCatalogue {
 
 };
 
-class DbSync {
-	// Used to synchronize the attach database operation
-
+// Used to synchronize the attach database operation
+class AttachDbSync {
+	
 	public:
-		static DbSync *getInstance()
+		static AttachDbSync *getInstance()
 		{
-			static DbSync *instance = 0;
-
-			if (!instance)
-			{
-				instance = new DbSync;
-
-				//# FIXME_I
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("XX1 DbSync getInstance NEW");
-				Logger::getLogger()->setMinLevel("warning");
-
-			}
-			return instance;
+			static AttachDbSync instance;
+			return &instance;
 		}
 
 		void   lock()    {m_dbLock.lock();}
 		void   unlock()  {m_dbLock.unlock();}
 
 	private:
-		DbSync(){};
+		AttachDbSync(){};
 
 		std::mutex m_dbLock;
 };
-
-
 
 
 #endif

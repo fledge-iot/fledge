@@ -1094,13 +1094,6 @@ string modifierInt;
 
 vector<string>  asset_codes;
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("retrieveReadings");
-	Logger::getLogger()->setMinLevel("warning");
-
-
-	//# FIXME_I
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
 	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
@@ -1112,10 +1105,6 @@ vector<string>  asset_codes;
 
 		if ( ! m_NewDbIdList.empty())
 		{
-			// FIXME_I:
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("XX1 retrieveReadings - attach new DB thread :%s: dbHandle :%X:", threadId.str().c_str(), this->getDbHandle());
-
 			readCatalogue->connectionAttachDbList(this->getDbHandle(), m_NewDbIdList);
 		}
 		attachSync->unlock();
@@ -1577,8 +1566,6 @@ vector<string>  assetCodes;
 
 	Logger *logger = Logger::getLogger();
 
-
-	//# FIXME_I
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
 	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
@@ -1590,15 +1577,10 @@ vector<string>  assetCodes;
 
 		if ( ! m_NewDbIdList.empty())
 		{
-			// FIXME_I:
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("purgeReadings - attach new DB thread :%s: dbHandle :%X:", threadId.str().c_str(), this->getDbHandle());
-
 			readCatalogue->connectionAttachDbList(this->getDbHandle(), m_NewDbIdList);
 		}
 		attachSync->unlock();
 	}
-
 
 	result = "{ \"removed\" : 0, ";
 	result += " \"unsentPurged\" : 0, ";
@@ -2064,7 +2046,6 @@ vector<string>  assetCodes;
 
 	Logger *logger = Logger::getLogger();
 
-	//# FIXME_I
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
 	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
@@ -2076,10 +2057,6 @@ vector<string>  assetCodes;
 
 		if ( ! m_NewDbIdList.empty())
 		{
-			// FIXME_I:
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("purgeReadingsByRows - attach new DB thread :%s: dbHandle :%X:", threadId.str().c_str(), this->getDbHandle());
-
 			readCatalogue->connectionAttachDbList(this->getDbHandle(), m_NewDbIdList);
 		}
 		attachSync->unlock();
@@ -2296,7 +2273,12 @@ void ReadingsCatalogue::raiseError(const char *operation, const char *reason, ..
 	Logger::getLogger()->error("ReadingsCatalogues error: %s", tmpbuf);
 }
 
-// FIXME_I:
+/**
+ * Retrieve the information from the persistent storage:
+ *     global id
+ *     last created database
+ *
+ */
 bool ReadingsCatalogue::configurationRetrieve()
 {
 	string sql_cmd;
@@ -2326,12 +2308,6 @@ bool ReadingsCatalogue::configurationRetrieve()
 			m_dbIdLast = 0;
 
 			sql_cmd = " INSERT INTO " READINGS_DB ".configuration_readings VALUES (" + to_string(m_ReadingsGlobalId) + "," + to_string(m_dbIdLast) + ")";
-
-			//# FIXME_I
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("configurationRetrieve insert :%s: ", sql_cmd.c_str());
-			Logger::getLogger()->setMinLevel("warning");
-
 			if (SQLExec(dbHandle, sql_cmd.c_str()) != SQLITE_OK)
 			{
 				raiseError("configurationRetrieve", sqlite3_errmsg(dbHandle));
@@ -2345,19 +2321,13 @@ bool ReadingsCatalogue::configurationRetrieve()
 			m_dbIdLast = sqlite3_column_int(stmt, 1);
 		}
 	}
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("XXX configurationRetrieve m_ReadingsGlobalId :%d: m_dbIdLast :%d: ", (int) m_ReadingsGlobalId, m_dbIdLast);
-	Logger::getLogger()->setMinLevel("warning");
+	Logger::getLogger()->debug("configurationRetrieve: ReadingsGlobalId :%d: dbIdLast :%d: ", (int) m_ReadingsGlobalId, m_dbIdLast);
 
 	sqlite3_finalize(stmt);
 	manager->release(connection);
 
 	return true;
 }
-
-
 
 /**
  * Retrieves the global id stored in SQLite and if it is not possible
@@ -2623,26 +2593,31 @@ bool  ReadingsCatalogue::loadAssetReadingCatalogue()
 	return true;
 }
 
-// FIXME_I:
+/**
+ * Add the newly create db to the list
+ *
+ */
 void ReadingsCatalogue::setUsedDbId(int dbId) {
 
 	m_dbIdList.push_back(dbId);
 }
 
-// FIXME_I:
+/**
+ * Preallocate all the needed database:
+ *
+ *  - Initial stage  - creates the databases requested by the preallocation
+ *  - Following runs - attaches all the databases already created
+ *
+ */
 void ReadingsCatalogue::prepareAllDbs() {
 
 	int dbId, dbIdStart, dbIdEnd;
 
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("prepareAllDbs dbIdCurrent :%d: dbIdLast :%d:", m_dbIdCurrent, m_dbIdLast);
+	Logger::getLogger()->debug("prepareAllDbs - dbIdCurrent :%d: dbIdLast :%d:", m_dbIdCurrent, m_dbIdLast);
 
 	if (m_dbIdLast == 0)
 	{
-		//# FIXME_I
-		Logger::getLogger()->debug("prepareAllDbs initial stage XXX");
+		Logger::getLogger()->debug("prepareAllDbs - initial stage ");
 
 		// Initial stage - creates the databases requested by the preallocation
 		dbIdStart = 2;
@@ -2654,7 +2629,7 @@ void ReadingsCatalogue::prepareAllDbs() {
 	} else
 	{
 		//# FIXME_I
-		Logger::getLogger()->debug("prepareAllDbs next stage XXX");
+		Logger::getLogger()->debug("prepareAllDbs - following runs");
 
 		// Following runs - attaches all the databases
 		for (dbId = 2; dbId <= m_dbIdLast ; dbId++ )
@@ -2666,12 +2641,7 @@ void ReadingsCatalogue::prepareAllDbs() {
 
 	m_dbNAvailable = (m_dbIdLast - m_dbIdCurrent) - nDbLeftFreeBeforeAllocate;
 
-	Logger::getLogger()->debug("prepareAllDbs m_dbNAvailable :%d:", m_dbNAvailable);
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("warning");
-
-
+	Logger::getLogger()->debug("prepareAllDbs - dbNAvailable :%d:", m_dbNAvailable);
 }
 
 // FIXME_I:

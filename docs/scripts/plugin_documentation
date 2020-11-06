@@ -4,7 +4,7 @@ if [[ "${DOCBRANCH}" == "" ]]; then
 	# Use the current branch if not set and if that fail use master
 	export DOCBRANCH=`git status | grep "On branch" | awk '{print $3 }'`
 	if [[ "${DOCBRANCH}" == "" ]]; then
-		export DOCBRANCH=master
+		export DOCBRANCH=develop
 	fi
 	echo "Default ${DOCBRANCH} used for plugin documentation"
 fi

@@ -25,6 +25,18 @@ Version History
 Fledge v1
 ==========
 
+v1.8.2
+-------
+
+Release Date: 2020-11-03
+
+- **Fledge Core**
+
+    - Bug Fix:
+
+      - Following the release of a new version of a Python package the 1.8.1 release was no longer installable. This issue is resolved by the 1.8.2 patch release of the core package. All plugins from the 1.8.1 release will continue to work with the 1.8.2 release.
+
+
 v1.8.1
 -------
 

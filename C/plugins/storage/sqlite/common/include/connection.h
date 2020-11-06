@@ -232,7 +232,7 @@ class ReadingsCatalogue {
 
 	private:
 		// Readings tables allocation parameters
-		const int nReadingsToAllocate = 4;
+		const int nReadingsToAllocate = 15;
 
 		// Readings databases allocation parameters
 		const int nDbPreallocate = 3;

@@ -26,6 +26,8 @@
 // 1 enable performance tracking
 #define INSTRUMENT	0
 
+#define LOG_ALL_ERRORS	1
+
 #if INSTRUMENT
 #include <sys/time.h>
 #endif
@@ -858,8 +860,6 @@ int localNReadingsTotal;
 						sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
 						retries++;
 
-						// FIXME_I:
-						//Logger::getLogger()->info("appendReadings - %s - thread :%s: - con :%X: - dbHandle :%X: - record :%d: - retry number :%d: sleep time ms :%d:error :%s:",
 						Logger::getLogger()->warn("appendReadings - %s - asset_code :%s: readingsId :%d: thread :%s: dbHandle :%X: record :%d: retry number :%d: sleep time ms :%d:error :%s:",
 							msgError.c_str(),
 							asset_code,
@@ -980,7 +980,6 @@ int retrieve;
 vector<string>  asset_codes;
 string sql_cmd;
 
-	//# FIXME_I
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
 	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
@@ -1507,20 +1506,7 @@ vector<string>  asset_codes;
 
 		if (rc != SQLITE_OK)
 		{
-
-			//# FIXME_I
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("retrieve error :%s: ", sqlite3_errmsg(dbHandle));
-			Logger::getLogger()->setMinLevel("warning");
-
-
 			raiseError("retrieve", sqlite3_errmsg(dbHandle));
-
-			//# FIXME_I
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("retrieve error :%s: ", sqlite3_errmsg(dbHandle));
-			Logger::getLogger()->setMinLevel("warning");
-
 			return false;
 		}
 
@@ -2367,11 +2353,6 @@ bool ReadingsCatalogue::evaluateGlobalId ()
 
 			sql_cmd = " INSERT INTO " READINGS_DB ".configuration_readings VALUES (" + to_string(m_ReadingsGlobalId) + ", 0)";
 
-			//# FIXME_I
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("evaluateGlobalId insert :%s: ", sql_cmd.c_str());
-			Logger::getLogger()->setMinLevel("warning");
-
 			if (SQLExec(dbHandle, sql_cmd.c_str()) != SQLITE_OK)
 			{
 				raiseError("evaluateGlobalId", sqlite3_errmsg(dbHandle));
@@ -2673,10 +2654,7 @@ void ReadingsCatalogue::getAllDbs(vector<int> &dbIdList) {
 
 	int dbId;
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-
-	Logger::getLogger()->debug("getAllDbs - Used");
+	Logger::getLogger()->debug("getAllDbs - used db");
 
 	for (auto &item : m_AssetReadingCatalogue) {
 
@@ -2692,7 +2670,7 @@ void ReadingsCatalogue::getAllDbs(vector<int> &dbIdList) {
 		}
 	}
 
-	Logger::getLogger()->debug("getAllDbs - created");
+	Logger::getLogger()->debug("getAllDbs - created db");
 
 	for (auto &dbId : m_dbIdList) {
 
@@ -2704,10 +2682,6 @@ void ReadingsCatalogue::getAllDbs(vector<int> &dbIdList) {
 	}
 
 	sort(dbIdList.begin(), dbIdList.end());
-
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("warning");
-
 }
 
 
@@ -2948,12 +2922,7 @@ void ReadingsCatalogue::preallocateReadingsTables(int dbId)
 
 	m_nReadingsAvailable = readingsToAllocate - getUsedTablesDbId(dbId);
 
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("preallocateReadingsTables: dbId :%d: nReadingsAvailable :%d: lastReadingsCreated :%d: tableCount :%d:", m_dbIdCurrent, m_nReadingsAvailable, readingsAvailable.lastReadings, readingsAvailable.tableCount);
-	Logger::getLogger()->setMinLevel("warning");
-
+	Logger::getLogger()->debug("preallocateReadingsTables - dbId :%d: nReadingsAvailable :%d: lastReadingsCreated :%d: tableCount :%d:", m_dbIdCurrent, m_nReadingsAvailable, readingsAvailable.lastReadings, readingsAvailable.tableCount);
 }
 
 /**
@@ -3232,11 +3201,6 @@ ReadingsCatalogue::tyReadingsAvailable  ReadingsCatalogue::evaluateLastReadingAv
 
 	dbName = generateDbName(dbId);
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("Ingest evaluateLastReadingAvailable S1");
-
-
 	string sql_cmd = R"(
 		SELECT name
 		FROM  )" + dbName +  R"(.sqlite_master
@@ -3245,20 +3209,12 @@ ReadingsCatalogue::tyReadingsAvailable  ReadingsCatalogue::evaluateLastReadingAv
 
 	if (sqlite3_prepare_v2(dbHandle,sql_cmd.c_str(),-1, &stmt,NULL) != SQLITE_OK)
 	{
-		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->error("evaluateLastReadingAvailable :cmd: error :%s:", sql_cmd.c_str(), sqlite3_errmsg(dbHandle));
-
 		raiseError("evaluateLastReadingAvailable", sqlite3_errmsg(dbHandle));
 		readingsAvailable.lastReadings = -1;
 		readingsAvailable.tableCount = 0;
 	}
 	else
 	{
-		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("Ingest evaluateLastReadingAvailable S2");
-
 		// Iterate over all the rows in the resultSet
 		readingsAvailable.lastReadings = 0;
 		readingsAvailable.tableCount = 0;
@@ -3274,10 +3230,7 @@ ReadingsCatalogue::tyReadingsAvailable  ReadingsCatalogue::evaluateLastReadingAv
 
 			readingsAvailable.tableCount++;
 		}
-		//# FIXME_I
-
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("Ingest evaluateLastReadingAvailable S3  - tableName :%s: lastReadings :%d:", tableName.c_str(), readingsAvailable.lastReadings);
+		Logger::getLogger()->debug("evaluateLastReadingAvailable - tableName :%s: lastReadings :%d:", tableName.c_str(), readingsAvailable.lastReadings);
 
 		sqlite3_finalize(stmt);
 	}
@@ -3286,10 +3239,6 @@ ReadingsCatalogue::tyReadingsAvailable  ReadingsCatalogue::evaluateLastReadingAv
 	{
 		manager->release(connection);
 	}
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("warning");
-
 
 	return (readingsAvailable);
 }
@@ -3334,10 +3283,8 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 	int startReadingsId;
 	tyReadingsAvailable readingsAvailable;
 
-	//# FIXME_I
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
-
 
 	success = true;
 
@@ -3549,10 +3496,6 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
  */
 string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string>  &assetCodes)
 {
-
-	//# FIXME_I:
-	char tmp_buffer[500000];
-
 	string dbReadingsName;
 	string dbName;
 	string sqlCmdTmp;
@@ -3736,7 +3679,10 @@ int ReadingsCatalogue::SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **err
 	return rc;
 }
 
-
+/**
+ * SQLIte wrapper to retry statements when the database error occuers
+ *
+ */
 int ReadingsCatalogue::SQLStep(sqlite3_stmt *statement)
 {
 	int retries = 0, rc;
@@ -3765,14 +3711,13 @@ int ReadingsCatalogue::SQLStep(sqlite3_stmt *statement)
 	return rc;
 }
 
-// FIXME_I:
+/**
+ * SQLIte wrapper to retry statements when the database error occurs
+ *
+ */
 int Connection::SQLPrepare(sqlite3 *dbHandle, const char *sqlCmd, sqlite3_stmt **readingsStmt)
 {
 	int retries = 0, rc;
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	//Logger::getLogger()->debug("SQLPrepare start: cmd :%s: ", sqlCmd);
 
 	do {
 		rc = sqlite3_prepare_v2(dbHandle, sqlCmd, -1, readingsStmt, NULL);
@@ -3780,19 +3725,28 @@ int Connection::SQLPrepare(sqlite3 *dbHandle, const char *sqlCmd, sqlite3_stmt *
 
 		if (rc != SQLITE_OK)
 		{
-			// FIXME_I:
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->error("SQLPrepare: rc :%d: dbHandle :%X: sqlCmd :%s: error :%s: ", rc, dbHandle, sqlCmd,  sqlite3_errmsg(dbHandle));
-			Logger::getLogger()->setMinLevel("warning");
 
-			retries++;
-
-			int interval = (retries * RETRY_BACKOFF);
+#ifdef LOG_ALL_ERRORS
+			Logger::getLogger()->warn("SQLPrepare - error :%s: dbHandle :%X: sqlCmd :%s: retry :%d: of :%d:",
+								sqlite3_errmsg(dbHandle),
+							  	dbHandle,
+							  	sqlCmd,
+							  	rc,
+							  	MAX_RETRIES);
+#else
 			if (retries > 5){
-				Logger::getLogger()->info("SQLPrepare: error :%s: retry %d of %d, rc=%d, DB connection @ %p, slept for %d msecs",
-										  sqlite3_errmsg(dbHandle), retries, MAX_RETRIES, rc, this, interval);
+				Logger::getLogger()->warn("SQLPrepare - error :%s: dbHandle :%X: sqlCmd :%s: retry :%d: of :%d:",
+										  sqlite3_errmsg(dbHandle),
+										  dbHandle,
+										  sqlCmd,
+										  rc,
+										  MAX_RETRIES);
 
 			}
+#endif
+
+			retries++;
+			int interval = (retries * RETRY_BACKOFF);
 			usleep(interval);	// sleep retries milliseconds
 		}
 	} while (retries < MAX_RETRIES && (rc != SQLITE_OK));
@@ -3801,10 +3755,6 @@ int Connection::SQLPrepare(sqlite3 *dbHandle, const char *sqlCmd, sqlite3_stmt *
 	{
 		Logger::getLogger()->error("SQLPrepare - Database error after maximum retries");
 	}
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("warning");
-	//Logger::getLogger()->debug("SQLPrepare end: cmd :%s: ", sqlCmd);
 
 	return rc;
 }

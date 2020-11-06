@@ -600,12 +600,8 @@ Connection::Connection()
 
 	}
 
-	// FIXME_I:
-	try {
-		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("XXX Connection start :%X:" ,dbHandle);
-
+	{
+		// Attach all the defined/used databases
 		ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 		if ( !readCat->connectionAttachAllDbs(dbHandle) )
 		{
@@ -615,23 +611,7 @@ Connection::Connection()
 			connectErrorTime = time(0);
 			sqlite3_close_v2(dbHandle);
 		}
-
-	} catch (exception e) {
-		//# FIXME_I
-		Logger::getLogger()->error("XXX Connection exception :%s:" ,e.what());
-	} catch (...) {
-		//# FIXME_I
-		Logger::getLogger()->error("XXX Connection  crash");
 	}
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("XXX Connection end :%X:" ,dbHandle);
-	Logger::getLogger()->setMinLevel("warning");
-
-
-
-
 }
 #endif
 
@@ -641,12 +621,6 @@ Connection::Connection()
  */
 Connection::~Connection()
 {
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("Close Connection :%X:" ,dbHandle);
-	Logger::getLogger()->setMinLevel("warning");
-
-
 	sqlite3_close_v2(dbHandle);
 }
 
@@ -1316,16 +1290,8 @@ vector<string>  asset_codes;
 	int 	row = 0;
 	ostringstream convert;
 
-	//# FIXME_I
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
-
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("update cmd - thread :%s:  dbHandle :%X: table :%s:", threadId.str().c_str(), dbHandle , table.c_str());
-	Logger::getLogger()->setMinLevel("warning");
-
 
 	std::size_t arr = payload.find("updates");
 	bool changeReqd = (arr == std::string::npos || arr > 8);
@@ -2936,10 +2902,6 @@ int Connection::SQLexec(sqlite3 *db, const char *sql, int (*callback)(void*,int,
 {
 int retries = 0, rc;
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	//Logger::getLogger()->debug("SQLexec start :%s:", sql);
-
 	do {
 #if DO_PROFILE
 		ProfileItem *prof = new ProfileItem(sql);
@@ -2952,9 +2914,9 @@ int retries = 0, rc;
 		retries++;
 		if (rc != SQLITE_OK)
 		{
-			//# FIXME_I
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("V2 SQLexec retry :%d: dbHandle :%X: cmd :%s:  error :%s:", retries, this->getDbHandle(), sql, sqlite3_errmsg(dbHandle));
+#ifdef LOG_ALL_ERRORS
+			Logger::getLogger()->warn("Connection::SQLexec - retry :%d: dbHandle :%X: cmd :%s: error :%s:", retries, this->getDbHandle(), sql, sqlite3_errmsg(dbHandle));
+#endif
 
 #if DO_PROFILE_RETRIES
 			m_qMutex.lock();
@@ -3021,10 +2983,6 @@ int retries = 0, rc;
 	{
 		Logger::getLogger()->error("Database error after maximum retries - dbHandle :%X:", this->getDbHandle());
 	}
-
-	//Logger::getLogger()->debug("SQLexec end :%s:", sql);
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("warning");
 
 	return rc;
 }

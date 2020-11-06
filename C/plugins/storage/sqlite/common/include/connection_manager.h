@@ -10,7 +10,6 @@
  * Author: Mark Riddoch
  */
 
-// FIXME_I:
 #include <sqlite3.h>
 
 #include <plugin_api.h>
@@ -37,10 +36,6 @@ class ConnectionManager {
 					  {
 						return &lastError;
 					  }
-
-		// FIXME_I:
-		void listConnections();
-		void listReadingAvailable(sqlite3 *dbHandle);
 
 	protected:
 		ConnectionManager();

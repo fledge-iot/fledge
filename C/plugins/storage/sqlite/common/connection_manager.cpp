@@ -7,7 +7,6 @@
  *
  * Author: Mark Riddoch
  */
-// FIXME_I:
 #include <sqlite3.h>
 #include <unistd.h>
 
@@ -15,7 +14,7 @@
 #include <connection.h>
 #include <logger.h>
 
-
+#define LOG_ALL_ERRORS	1
 
 ConnectionManager *ConnectionManager::instance = 0;
 
@@ -92,12 +91,6 @@ Connection   *conn;
 		idleLock.unlock();
 		if (conn)
 		{
-			//# FIXME_I
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("shrinkPool :%X:", conn->getDbHandle());
-			Logger::getLogger()->setMinLevel("warning");
-
-
 			delete conn;
 			removed++;
 		}
@@ -120,12 +113,6 @@ Connection *conn = 0;
 	idleLock.lock();
 	if (idle.empty())
 	{
-		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("ConnectionManager::allocate");
-		Logger::getLogger()->setMinLevel("warning");
-
-
 		conn = new Connection();
 	}
 	else
@@ -161,11 +148,6 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 
 	sqlCmd = "ATTACH DATABASE '" + path + "' AS " + alias + ";";
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("attachNewDb Start");
-
-
 	idleLock.lock();
 	inUseLock.lock();
 
@@ -175,8 +157,6 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 		for ( auto conn : idle) {
 
 			dbHandle = conn->getDbHandle();
-			// FIXME_I:
-			//rc = sqlite3_exec(dbHandle, sqlCmd.c_str(), NULL, NULL, &zErrMsg);
 			rc = SQLExec (dbHandle, sqlCmd.c_str(), &zErrMsg);
 			if (rc != SQLITE_OK)
 			{
@@ -185,9 +165,7 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 				break;
 			}
 
-			//# FIXME_I
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("XXX attachNewDb idle :%s: :%X: ", sqlCmd.c_str(), dbHandle);
+			Logger::getLogger()->debug("attachNewDb idle dbHandle :%X: sqlCmd :%s: ", sqlCmd.c_str(), dbHandle);
 
 		}
 	}
@@ -200,8 +178,6 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 			for ( auto conn : inUse) {
 
 				dbHandle = conn->getDbHandle();
-				// FIXME_I:
-				//rc = sqlite3_exec(dbHandle, sqlCmd.c_str(), NULL, NULL, &zErrMsg);
 				rc = SQLExec (dbHandle, sqlCmd.c_str(), &zErrMsg);
 				if (rc != SQLITE_OK)
 				{
@@ -210,24 +186,24 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 					break;
 				}
 
-				//# FIXME_I
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("XXX attachNewDb inUse :%s: :%X:  ", sqlCmd.c_str(), dbHandle);
-
+				Logger::getLogger()->debug("attachNewDb inUse dbHandle :%X: sqlCmd :%s: ", sqlCmd.c_str(), dbHandle);
 			}
 		}
 	}
 	idleLock.unlock();
 	inUseLock.unlock();
 
-	//# FIXME_I
-	Logger::getLogger()->debug("attachNewDb Exit");
-	Logger::getLogger()->setMinLevel("warning");
-
 	return (result);
 }
 
-// FIXME_I:
+/**
+ * Adds to all the connections a request to attach a database
+ *
+ *  *
+ * @param newDbId  - database id to attach
+ * @param dbHandle - dbhandle for which the attach request should NOT be added
+ *
+ */
 bool ConnectionManager::attachRequestNewDb(int newDbId, sqlite3 *dbHandle)
 {
 	int rc;
@@ -236,12 +212,6 @@ bool ConnectionManager::attachRequestNewDb(int newDbId, sqlite3 *dbHandle)
 	char *zErrMsg = NULL;
 
 	result = true;
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("attachRequestNewDb Start");
-	Logger::getLogger()->setMinLevel("warning");
-
 
 	idleLock.lock();
 	inUseLock.lock();
@@ -253,19 +223,13 @@ bool ConnectionManager::attachRequestNewDb(int newDbId, sqlite3 *dbHandle)
 
 			if (dbHandle == conn->getDbHandle())
 			{
-				//# FIXME_I
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("attachRequestNewDb idle SKIPP :%s: :%X: ", sqlCmd.c_str(), conn->getDbHandle());
-				Logger::getLogger()->setMinLevel("warning");
+				Logger::getLogger()->debug("attachRequestNewDb - idle skipped dbHandle :%X: sqlCmd :%s: ", conn->getDbHandle(), sqlCmd.c_str());
 
 			} else
 			{
 				conn->setUsedDbId(newDbId);
 
-				//# FIXME_I
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("attachRequestNewDb idle :%s: :%X: ", sqlCmd.c_str(), conn->getDbHandle());
-				Logger::getLogger()->setMinLevel("warning");
+				Logger::getLogger()->debug("attachRequestNewDb - idle, dbHandle :%X: sqlCmd :%s: ", conn->getDbHandle(), sqlCmd.c_str());
 			}
 
 		}
@@ -280,20 +244,12 @@ bool ConnectionManager::attachRequestNewDb(int newDbId, sqlite3 *dbHandle)
 
 				if (dbHandle == conn->getDbHandle())
 				{
-					//# FIXME_I
-					Logger::getLogger()->setMinLevel("debug");
-					Logger::getLogger()->debug("attachRequestNewDb inUse SKIP :%s: :%X:  ", sqlCmd.c_str(), conn->getDbHandle());
-					Logger::getLogger()->setMinLevel("warning");
-
-
+					Logger::getLogger()->debug("attachRequestNewDb - inUse skipped dbHandle :%X: sqlCmd :%s: ", conn->getDbHandle(), sqlCmd.c_str());
 				} else
 				{
 					conn->setUsedDbId(newDbId);
 
-					//# FIXME_I
-					Logger::getLogger()->setMinLevel("debug");
-					Logger::getLogger()->debug("attachRequestNewDb inUse :%s: :%X:  ", sqlCmd.c_str(), conn->getDbHandle());
-					Logger::getLogger()->setMinLevel("warning");
+					Logger::getLogger()->debug("attachRequestNewDb - inUse, dbHandle :%X: sqlCmd :%s: ", conn->getDbHandle(), sqlCmd.c_str());
 				}
 			}
 		}
@@ -301,123 +257,7 @@ bool ConnectionManager::attachRequestNewDb(int newDbId, sqlite3 *dbHandle)
 	idleLock.unlock();
 	inUseLock.unlock();
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("attachRequestNewDb Exit");
-	Logger::getLogger()->setMinLevel("warning");
-
 	return (result);
-}
-
-
-//// FIXME_I:xxx
-/**
- * Attach a database to all the connections, idle and  inuse
- *
- * @param path  - path of the database to attach
- * @param alias - alias to be assigned to the attached database
- */
-void ConnectionManager::listConnections()
-{
-	int rc;
-	std::string sqlCmd;
-	sqlite3 *dbHandle;
-	bool result;
-	char *zErrMsg = NULL;
-
-	result = true;
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("listConnections");
-
-
-	idleLock.lock();
-	inUseLock.lock();
-
-	// attach the DB to all idle connections
-	for ( auto conn : idle) {
-
-		dbHandle = conn->getDbHandle();
-		Logger::getLogger()->debug("listConnections - idle :%X:", dbHandle);
-		listReadingAvailable(dbHandle);
-	}
-
-
-	for ( auto conn : inUse) {
-
-		dbHandle = conn->getDbHandle();
-		Logger::getLogger()->debug("listConnections - inUse :%X:", dbHandle);
-		listReadingAvailable(dbHandle);
-	}
-
-	idleLock.unlock();
-	inUseLock.unlock();
-
-	//# FIXME_I
-	Logger::getLogger()->debug("listConnections end");
-
-}
-
-// FIXME_I:
-void ConnectionManager::listReadingAvailable(sqlite3 *dbHandle)
-{
-	using namespace std;
-
-	string dbName;
-	int nCols;
-	int id;
-	char *asset_name;
-	sqlite3_stmt *stmt;
-	int rc;
-	string tableName;
-	int dbId;
-	vector<int> dbIdList;
-
-	//# FIXME_I
-	Logger::getLogger()->debug("listReadingAvailable start");
-
-
-	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-	readCat->getAllDbs(dbIdList);
-
-	for(int dbId : dbIdList)
-	{
-
-		dbName = READINGS_DB_NAME_BASE "_" + to_string(dbId);
-
-		string sql_cmd = R"(
-			SELECT name
-			FROM  )" + dbName + R"(.sqlite_master
-			WHERE type='table' and name like 'readings_%';
-		)";
-
-		Logger::getLogger()->debug("listReadingAvailable sql_cmd :%s:" ,sql_cmd.c_str());
-
-		if (sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), -1, &stmt, NULL) != SQLITE_OK)
-		{
-			Logger::getLogger()->error("listReadingAvailable s1");
-		}
-		else
-		{
-			while ((rc = sqlite3_step(stmt)) == SQLITE_ROW)
-			{
-				nCols = sqlite3_column_count(stmt);
-
-				tableName = (char *) sqlite3_column_text(stmt, 0);
-				id = stoi(tableName.substr(tableName.find('_') + 1));
-
-				Logger::getLogger()->error("listReadingAvailable :%X: db :%s: table :%s:", dbHandle, dbName.c_str(), tableName.c_str());
-			}
-			sqlite3_finalize(stmt);
-		}
-	}
-
-	Logger::getLogger()->debug("listReadingAvailable end");
-
-
-
-
 }
 
 
@@ -463,18 +303,11 @@ void ConnectionManager::setError(const char *source, const char *description, bo
 /**
  * SQLIte wrapper to retry statements when the database is locked
  *
- * @param	db	     The open SQLite database
- * @param	sql	     The SQL to execute
- * @param	errmsg	 Error message
  */
 int ConnectionManager::SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **errMsg)
 {
 	int retries = 0, rc;
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-
-	Logger::getLogger()->debug("SQLExec start: cmd :%s: ", sqlCmd);
 
 	do {
 		if (errMsg == NULL)
@@ -487,29 +320,31 @@ int ConnectionManager::SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **err
 			Logger::getLogger()->debug("SQLExec: rc :%d: ", rc);
 		}
 
-		retries++;
 		if (rc != SQLITE_OK)
 		{
 			int interval = (retries * RETRY_BACKOFF);
 			usleep(interval);	// sleep retries milliseconds
 			if (retries > 5)
-					Logger::getLogger()->info("SQLExec - error :%s: retry %d of %d, rc=%s, DB connection @ %p, slept for %d msecs",
-											  sqlite3_errmsg(dbHandle), retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", this, interval);
+			{
+				Logger::getLogger()->warn("ConnectionManager::SQLExec - error :%s: dbHandle :%X: sqlCmd :%s: retry :%d: of :%d:",
+										  sqlite3_errmsg(dbHandle),
+										  dbHandle,
+										  sqlCmd,
+										  rc,
+										  MAX_RETRIES);
+			}
+			retries++;
 		}
 	} while (retries < MAX_RETRIES && (rc  != SQLITE_OK));
 
 	if (rc == SQLITE_LOCKED)
 	{
-		Logger::getLogger()->error("SQLExec - Database still locked after maximum retries");
+		Logger::getLogger()->error("ConnectionManager::SQLExec - Database still locked after maximum retries");
 	}
 	if (rc == SQLITE_BUSY)
 	{
-		Logger::getLogger()->error("SQLExec - Database still busy after maximum retries");
+		Logger::getLogger()->error("ConnectionManager::SQLExec - Database still busy after maximum retries");
 	}
-
-	// FIXME_I:
-	Logger::getLogger()->debug("SQLExec start: end :%s: ", sqlCmd);
-	Logger::getLogger()->setMinLevel("warning");
 
 	return rc;
 }

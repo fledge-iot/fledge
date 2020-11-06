@@ -1289,8 +1289,6 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		timersub(&t5, &t4, &tm);
 		timeT5 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
 
-
-		Logger::getLogger()->setMinLevel("debug");
 		Logger::getLogger()->debug("Timing seconds - thread :%s: - superSet :%6.3f: - Loop :%6.3f: - compress :%6.3f: - send data :%6.3f: - msg size |%d| - msg size compressed |%d| ",
 								   threadId.str().c_str(),
 								   timeT1,
@@ -1301,7 +1299,6 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 								   json.length()
 		);
 
-		Logger::getLogger()->setMinLevel("warning");
 #endif
 
 

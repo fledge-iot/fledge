@@ -1135,6 +1135,10 @@ string PIWebAPIGetVersion(CONNECTOR_INFO* connInfo)
 
 	_PIWebAPI = new PIWebAPI();
 
+	// Set requested authentication
+	_PIWebAPI->setAuthMethod          (connInfo->PIWebAPIAuthMethod);
+	_PIWebAPI->setAuthBasicCredentials(connInfo->PIWebAPICredentials);
+
 	version = _PIWebAPI->GetVersion(connInfo->hostAndPort);
 
 	delete _PIWebAPI;

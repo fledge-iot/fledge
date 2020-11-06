@@ -860,16 +860,31 @@ int localNReadingsTotal;
 						sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
 						retries++;
 
+#ifdef LOG_ALL_ERRORS
 						Logger::getLogger()->warn("appendReadings - %s - asset_code :%s: readingsId :%d: thread :%s: dbHandle :%X: record :%d: retry number :%d: sleep time ms :%d:error :%s:",
-							msgError.c_str(),
-							asset_code,
-							readingsId,
-							threadId.str().c_str() ,
-							dbHandle,
-							row,
-							retries,
-							sleep_time_ms,
-							sqlite3_errmsg(dbHandle));
+												  msgError.c_str(),
+												  asset_code,
+												  readingsId,
+												  threadId.str().c_str() ,
+												  dbHandle,
+												  row,
+												  retries,
+												  sleep_time_ms,
+												  sqlite3_errmsg(dbHandle));
+
+#else
+						Logger::getLogger()->info("appendReadings - %s - asset_code :%s: readingsId :%d: thread :%s: dbHandle :%X: record :%d: retry number :%d: sleep time ms :%d:error :%s:",
+												  msgError.c_str(),
+												  asset_code,
+												  readingsId,
+												  threadId.str().c_str() ,
+												  dbHandle,
+												  row,
+												  retries,
+												  sleep_time_ms,
+												  sqlite3_errmsg(dbHandle));
+#endif
+
 
 						std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
 					}

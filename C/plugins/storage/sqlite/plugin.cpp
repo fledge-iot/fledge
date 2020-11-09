@@ -23,6 +23,7 @@
 #include <logger.h>
 #include <plugin_exception.h>
 #include <reading_stream.h>
+#include <config_category.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -32,6 +33,16 @@ using namespace rapidjson;
  */
 extern "C" {
 
+const char *default_config = QUOTE({
+		"poolSize" : {
+			"description" : "Connection pool size",
+			"type" : "integer",
+			"default" : "5",
+			"displayName" : "Pool Size",
+			"order" : "1"
+			}
+		});
+
 /**
  * The plugin information structure
  */
@@ -40,9 +51,9 @@ static PLUGIN_INFORMATION info = {
 	"1.1.1",                  // Version
 	SP_COMMON|SP_READINGS,    // Flags
 	PLUGIN_TYPE_STORAGE,               // Type
-	"1.3.0"                  // Interface version
+	"1.4.0",                  // Interface version
+	default_config
 };
-
 
 /**
  * Return the information about this plugin
@@ -57,11 +68,18 @@ PLUGIN_INFORMATION *plugin_info()
  * In the case of SQLLite we also get a pool of connections
  * to use.
  */
-PLUGIN_HANDLE plugin_init()
+PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 {
 	bool result;
 	ConnectionManager *manager = ConnectionManager::getInstance();
-	manager->growPool(5);
+	int poolSize = 5;
+
+	if (category->itemExists("poolSize"))
+	{
+		poolSize = strtol(category->getValue("poolSize").c_str(), NULL, 10);
+	}
+	manager->growPool(poolSize);
+
 
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 	readCat->loadAssetReadingCatalogue();
@@ -138,7 +156,6 @@ ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
 	int result = connection->appendReadings(readings);
-
 	manager->release(connection);
 	return result;;
 }

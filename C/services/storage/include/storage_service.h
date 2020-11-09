@@ -14,6 +14,7 @@
 #include <logger.h>
 #include <configuration.h>
 #include <storage_plugin.h>
+#include <plugin_configuration.h>
 #include <service_handler.h>
 
 #define SERVICE_NAME  "Fledge Storage"

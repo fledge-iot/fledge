@@ -39,6 +39,7 @@ class Reading {
 		~Reading();
 		void				addDatapoint(Datapoint *value);
 		Datapoint			*removeDatapoint(const std::string& name);
+		Datapoint			*getDatapoint(const std::string& name) const;
 		std::string			toJSON(bool minimal = false) const;
 		std::string			getDatapointsJSON() const;
 		// Return AssetName

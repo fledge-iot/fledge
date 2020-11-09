@@ -24,6 +24,7 @@
 #include <cxxabi.h>
 #include <syslog.h>
 #include <config_handler.h>
+#include <plugin_configuration.h>
 
 extern int makeDaemon(void);
 
@@ -174,7 +175,7 @@ pid_t pid;
  * Constructor for the storage service
  */
 StorageService::StorageService(const string& myName) : m_name(myName),
-						readingPlugin(NULL), m_shutdown(false) 
+						readingPlugin(NULL), m_shutdown(false)
 {
 unsigned short servicePort;
 
@@ -261,12 +262,21 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 		ConfigCategories categories = client->getCategories();
 		try {
 			bool found = false;
-			for (int idx = 0; idx < categories.length(); idx++)
+			for (unsigned int idx = 0; idx < categories.length(); idx++)
 			{
 				if (categories[idx]->getName().compare(ADVANCED) == 0)
 				{
 					client->addChildCategories(ADVANCED, children1);
 					found = true;
+				}
+			}
+			if (!found)
+			{
+				DefaultConfigCategory advanced(ADVANCED, "{}");
+				advanced.setDescription(ADVANCED);
+				if (client->addCategory(advanced, true))
+				{
+					client->addChildCategories(ADVANCED, children1);
 				}
 			}
 		} catch (...) {
@@ -275,6 +285,48 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 		// Regsiter for configuration chanegs to our category
 		ConfigHandler *configHandler = ConfigHandler::getInstance(client);
 		configHandler->registerCategory(this, STORAGE_CATEGORY);
+
+		StoragePluginConfiguration *storagePluginConfig = storagePlugin->getConfig();
+		if (storagePluginConfig != NULL)
+		{
+			DefaultConfigCategory *conf = storagePluginConfig->getDefaultCategory();
+			conf->setDescription("Storage Plugin");
+			while (client->addCategory(*conf, true) == false && ++retryCount < 10)
+			{
+				sleep(2 * retryCount);
+			}
+			vector<string> children1;
+			children1.push_back(conf->getName());
+			client->addChildCategories(STORAGE_CATEGORY, children1);
+
+			// Regsiter for configuration chanegs to our category
+			ConfigHandler *configHandler = ConfigHandler::getInstance(client);
+			configHandler->registerCategory(this, conf->getName());
+		}
+		if (readingPlugin)
+		{
+			StoragePluginConfiguration *storagePluginConfig = readingPlugin->getConfig();
+			if (storagePluginConfig != NULL)
+			{
+				StoragePluginConfiguration *storagePluginConfig = readingPlugin->getConfig();
+				if (storagePluginConfig != NULL)
+				{
+					DefaultConfigCategory *conf = storagePluginConfig->getDefaultCategory();
+					conf->setDescription("Reading Plugin");
+					while (client->addCategory(*conf, true) == false && ++retryCount < 10)
+					{
+						sleep(2 * retryCount);
+					}
+					vector<string> children1;
+					children1.push_back(conf->getName());
+					client->addChildCategories(STORAGE_CATEGORY, children1);
+
+					// Regsiter for configuration chanegs to our category
+					ConfigHandler *configHandler = ConfigHandler::getInstance(client);
+					configHandler->registerCategory(this, conf->getName());
+				}
+			}
+		}
 
 		// Wait for all the API threads to complete
 		api->wait();
@@ -323,9 +375,10 @@ bool StorageService::loadPlugin()
 	}
 	logger->info("Load storage plugin %s.", plugin);
 	PLUGIN_HANDLE handle;
-	if ((handle = manager->loadPlugin(string(plugin), PLUGIN_TYPE_STORAGE)) != NULL)
+	string	pname = plugin;
+	if ((handle = manager->loadPlugin(pname, PLUGIN_TYPE_STORAGE)) != NULL)
 	{
-		storagePlugin = new StoragePlugin(handle);
+		storagePlugin = new StoragePlugin(pname, handle);
 		if ((storagePlugin->getInfo()->options & SP_COMMON) == 0)
 		{
 			logger->error("Defined storage plugin %s does not support common table operations.\n",
@@ -362,9 +415,10 @@ bool StorageService::loadPlugin()
 		return false;
 	}
 	logger->info("Load reading plugin %s.", readingPluginName);
-	if ((handle = manager->loadPlugin(string(readingPluginName), PLUGIN_TYPE_STORAGE)) != NULL)
+	string rpname = readingPluginName;
+	if ((handle = manager->loadPlugin(rpname, PLUGIN_TYPE_STORAGE)) != NULL)
 	{
-		readingPlugin = new StoragePlugin(handle);
+		readingPlugin = new StoragePlugin(rpname, handle);
 		if ((storagePlugin->getInfo()->options & SP_READINGS) == 0)
 		{
 			logger->error("Defined readings storage plugin %s does not support readings operations.\n",
@@ -404,6 +458,20 @@ void StorageService::configChange(const string& categoryName, const string& cate
 	if (!categoryName.compare(STORAGE_CATEGORY))
 	{
 		config->updateCategory(category);
+		return;
+	}
+	if (!categoryName.compare(getPluginName()))
+	{
+		storagePlugin->getConfig()->updateCategory(category);
+		return;
+	}
+	if (config->hasValue("readingPlugin"))
+	{
+		const char *readingPluginName = config->getValue("readingPlugin");
+		if (!categoryName.compare(readingPluginName))
+		{
+			readingPlugin->getConfig()->updateCategory(category);
+		}
 	}
 }
 

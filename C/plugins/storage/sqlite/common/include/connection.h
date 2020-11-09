@@ -282,7 +282,7 @@ class ReadingsCatalogue {
 
 // Used to synchronize the attach database operation
 class AttachDbSync {
-	
+
 	public:
 		static AttachDbSync *getInstance()
 		{

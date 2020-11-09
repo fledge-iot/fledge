@@ -14,8 +14,6 @@
 #include <connection.h>
 #include <logger.h>
 
-#define LOG_ALL_ERRORS	1
-
 ConnectionManager *ConnectionManager::instance = 0;
 
 /**

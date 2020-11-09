@@ -26,7 +26,7 @@
 // 1 enable performance tracking
 #define INSTRUMENT	0
 
-#define LOG_ALL_ERRORS	1
+#define LOG_AFTER_NERRORS 5
 
 #if INSTRUMENT
 #include <sys/time.h>
@@ -860,30 +860,18 @@ int localNReadingsTotal;
 						sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
 						retries++;
 
-#ifdef LOG_ALL_ERRORS
-						Logger::getLogger()->warn("appendReadings - %s - asset_code :%s: readingsId :%d: thread :%s: dbHandle :%X: record :%d: retry number :%d: sleep time ms :%d:error :%s:",
-												  msgError.c_str(),
-												  asset_code,
-												  readingsId,
-												  threadId.str().c_str() ,
-												  dbHandle,
-												  row,
-												  retries,
-												  sleep_time_ms,
-												  sqlite3_errmsg(dbHandle));
-
-#else
-						Logger::getLogger()->info("appendReadings - %s - asset_code :%s: readingsId :%d: thread :%s: dbHandle :%X: record :%d: retry number :%d: sleep time ms :%d:error :%s:",
-												  msgError.c_str(),
-												  asset_code,
-												  readingsId,
-												  threadId.str().c_str() ,
-												  dbHandle,
-												  row,
-												  retries,
-												  sleep_time_ms,
-												  sqlite3_errmsg(dbHandle));
-#endif
+						if (retries >= LOG_AFTER_NERRORS){
+							Logger::getLogger()->warn("appendReadings - %s - asset_code :%s: readingsId :%d: thread :%s: dbHandle :%X: record :%d: retry number :%d: sleep time ms :%d:error :%s:",
+													  msgError.c_str(),
+													  asset_code,
+													  readingsId,
+													  threadId.str().c_str() ,
+													  dbHandle,
+													  row,
+													  retries,
+													  sleep_time_ms,
+													  sqlite3_errmsg(dbHandle));
+						}
 
 
 						std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
@@ -3741,15 +3729,7 @@ int Connection::SQLPrepare(sqlite3 *dbHandle, const char *sqlCmd, sqlite3_stmt *
 		if (rc != SQLITE_OK)
 		{
 
-#ifdef LOG_ALL_ERRORS
-			Logger::getLogger()->warn("SQLPrepare - error :%s: dbHandle :%X: sqlCmd :%s: retry :%d: of :%d:",
-								sqlite3_errmsg(dbHandle),
-							  	dbHandle,
-							  	sqlCmd,
-							  	rc,
-							  	MAX_RETRIES);
-#else
-			if (retries > 5){
+			if (retries >= LOG_AFTER_NERRORS){
 				Logger::getLogger()->warn("SQLPrepare - error :%s: dbHandle :%X: sqlCmd :%s: retry :%d: of :%d:",
 										  sqlite3_errmsg(dbHandle),
 										  dbHandle,
@@ -3758,7 +3738,6 @@ int Connection::SQLPrepare(sqlite3 *dbHandle, const char *sqlCmd, sqlite3_stmt *
 										  MAX_RETRIES);
 
 			}
-#endif
 
 			retries++;
 			int interval = (retries * RETRY_BACKOFF);

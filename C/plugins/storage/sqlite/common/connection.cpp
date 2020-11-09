@@ -29,6 +29,8 @@
 #define PURGE_SLOWDOWN_AFTER_BLOCKS 5
 #define PURGE_SLOWDOWN_SLEEP_MS 500
 
+#define LOG_AFTER_NERRORS 5
+
 /**
  * SQLite3 storage plugin for Fledge
  */
@@ -2914,9 +2916,10 @@ int retries = 0, rc;
 		retries++;
 		if (rc != SQLITE_OK)
 		{
-#ifdef LOG_ALL_ERRORS
-			Logger::getLogger()->warn("Connection::SQLexec - retry :%d: dbHandle :%X: cmd :%s: error :%s:", retries, this->getDbHandle(), sql, sqlite3_errmsg(dbHandle));
-#endif
+
+			if (retries > LOG_AFTER_NERRORS)
+				Logger::getLogger()->warn("Connection::SQLexec - retry :%d: dbHandle :%X: cmd :%s: error :%s:", retries, this->getDbHandle(), sql, sqlite3_errmsg(dbHandle));
+
 
 #if DO_PROFILE_RETRIES
 			m_qMutex.lock();

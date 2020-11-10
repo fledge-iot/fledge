@@ -45,6 +45,7 @@ using namespace SimpleWeb;
 #define SENT_TYPES_KEY "sentDataTypes"
 #define DATA_KEY "dataTypes"
 #define DATA_KEY_SHORT "dataTypesShort"
+#define DATA_KEY_HINT "hintChecksum"
 
 #define PROPERTY_TYPE   "type"
 #define PROPERTY_NUMBER "number"
@@ -857,6 +858,10 @@ string saveSentDataTypes(CONNECTOR_INFO* connInfo)
 				std::string typesShort = tmpStream.str();
 
 				newData << ", \"" << DATA_KEY_SHORT << "\": \"0x" << typesShort << "\"";
+				std::stringstream hintStream;
+				hintStream << std::hex << ((*it).second).hintChkSum;
+				std::string hintChecksum = hintStream.str();
+				newData << ", \"" << DATA_KEY_HINT << "\": \"0x" << hintChecksum << "\"";
 
 				newData << ", \"" << DATA_KEY << "\": " <<
 					   (((*it).second).types.empty() ? "{}" : ((*it).second).types) <<
@@ -1066,10 +1071,19 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 												  dataTypesShort);
 					}
 				}
+				unsigned short hintChecksum = 0;
+				if (cachedValue.HasMember(DATA_KEY_HINT) &&
+					cachedValue[DATA_KEY_HINT].IsString())
+				{
+					string strHint = cachedValue[DATA_KEY_HINT].GetString();
+					// The information are stored as string in hexadecimal format
+					hintChecksum = stoi (strHint,nullptr,16);
+				}
 				OMFDataTypes dataType;
 				dataType.typeId = typeId;
 				dataType.types = dataTypes;
 				dataType.typesShort = dataTypesShort;
+				dataType.hintChkSum = hintChecksum;
 
 				// Add data into the map
 				connInfo->assetsDataTypes[key] = dataType;
@@ -1120,6 +1134,10 @@ string PIWebAPIGetVersion(CONNECTOR_INFO* connInfo)
 	PIWebAPI *_PIWebAPI;
 
 	_PIWebAPI = new PIWebAPI();
+
+	// Set requested authentication
+	_PIWebAPI->setAuthMethod          (connInfo->PIWebAPIAuthMethod);
+	_PIWebAPI->setAuthBasicCredentials(connInfo->PIWebAPICredentials);
 
 	version = _PIWebAPI->GetVersion(connInfo->hostAndPort);
 

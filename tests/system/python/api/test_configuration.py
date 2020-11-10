@@ -49,7 +49,7 @@ class TestConfiguration:
         jdoc = json.loads(r)
         cats = jdoc["categories"]
         assert 3 == len(cats)
-        assert {'key': 'Advanced', 'displayName': 'Advanced', 'description': ''} == cats[0]
+        assert {'key': 'Advanced', 'displayName': 'Advanced', 'description': 'Advanced'} == cats[0]
         assert {'key': 'General', 'displayName': 'General', 'description': 'General'} == cats[1]
         assert {'key': 'Utilities', 'displayName': 'Utilities', 'description': 'Utilities'} == cats[2]
 
@@ -68,7 +68,7 @@ class TestConfiguration:
                           {'children': [{'children': [], 'displayName': 'sqlite', 'key': 'sqlite',
                            'description': 'Storage Plugin'}], 'displayName': 'Storage', 'key': 'Storage',
                            'description': 'Storage configuration'}],
-             'displayName': 'Advanced', 'key': 'Advanced', 'description': ''
+             'displayName': 'Advanced', 'key': 'Advanced', 'description': 'Advanced'
              },
                         {'children': [{'children': [], 'key': 'Installation', 'description': 'Installation', 'displayName': 'Installation'},
                           {'children': [], 'displayName': 'Admin API', 'key': 'rest_api',

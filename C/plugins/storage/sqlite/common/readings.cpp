@@ -2605,7 +2605,7 @@ void ReadingsCatalogue::prepareAllDbs() {
 
 		// Initial stage - creates the databases requested by the preallocation
 		dbIdStart = 2;
-		dbIdEnd = dbIdStart + nDbPreallocate - 2;
+		dbIdEnd = dbIdStart + m_storageConfig.nDbPreallocate - 2;
 
 		preallocateNewDbsRange(dbIdStart, dbIdEnd);
 
@@ -2622,7 +2622,7 @@ void ReadingsCatalogue::prepareAllDbs() {
 		attachDbsToAllConnections();
 	}
 
-	m_dbNAvailable = (m_dbIdLast - m_dbIdCurrent) - nDbLeftFreeBeforeAllocate;
+	m_dbNAvailable = (m_dbIdLast - m_dbIdCurrent) - m_storageConfig.nDbLeftFreeBeforeAllocate;
 
 	Logger::getLogger()->debug("prepareAllDbs - dbNAvailable :%d:", m_dbNAvailable);
 }
@@ -2879,8 +2879,13 @@ bool ReadingsCatalogue::attachDbsToAllConnections()
  * Setup the multiple readings databases/tables feature
  *
  */
-void ReadingsCatalogue::multipleReadingsInit()
+void ReadingsCatalogue::multipleReadingsInit(STORAGE_CONFIGURATION &storageConfig)
 {
+	m_storageConfig.nReadingsPerDb = storageConfig.nReadingsPerDb;
+	m_storageConfig.nDbPreallocate = storageConfig.nDbPreallocate;
+	m_storageConfig.nDbLeftFreeBeforeAllocate = storageConfig.nDbLeftFreeBeforeAllocate;
+	m_storageConfig.nDbToAllocate = storageConfig.nDbToAllocate;
+
 	loadAssetReadingCatalogue();
 
 	preallocateReadingsTables(1);   // on the first database
@@ -3335,7 +3340,7 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 					int dbId, dbIdStart, dbIdEnd;
 
 					dbIdStart = m_dbIdLast +1;
-					dbIdEnd = m_dbIdLast + nDbToAllocate;
+					dbIdEnd = m_dbIdLast + m_storageConfig.nDbToAllocate;
 
 					Logger::getLogger()->debug("getReadingReference - allocate a new db - create new db - dbIdCurrent :%d: dbIdStart :%d: dbIdEnd :%d:", m_dbIdCurrent, dbIdStart, dbIdEnd);
 
@@ -3352,7 +3357,7 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 					}
 					m_dbIdLast = dbIdEnd;
 					m_dbIdCurrent++;
-					m_dbNAvailable = (m_dbIdLast - m_dbIdCurrent) - nDbLeftFreeBeforeAllocate;
+					m_dbNAvailable = (m_dbIdLast - m_dbIdCurrent) - m_storageConfig.nDbLeftFreeBeforeAllocate;
 				}
 
 				readingsId = -1;

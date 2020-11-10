@@ -74,6 +74,17 @@
 #define END_TIME std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now(); \
 				 auto usecs = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
 
+
+typedef struct
+{
+	int poolSize = 5;
+	int nReadingsPerDb = 5;
+	int nDbPreallocate = 3;
+	int nDbLeftFreeBeforeAllocate = 1;
+	int nDbToAllocate = 2;
+
+} STORAGE_CONFIGURATION;
+
 int dateCallback(void *data, int nCols, char **colValues, char **colNames);
 bool applyColumnDateFormat(const std::string& inFormat,
 			   const std::string& colName,
@@ -200,7 +211,7 @@ class ReadingsCatalogue {
 			return instance;
 		}
 
-		void          multipleReadingsInit();
+		void          multipleReadingsInit(STORAGE_CONFIGURATION &storageConfig);
 		std::string   generateDbAlias(int dbId);
 		std::string   generateDbName(int tableId);
 		std::string   generateDbFileName(int dbId);
@@ -231,13 +242,7 @@ class ReadingsCatalogue {
 		void          setUsedDbId(int dbId);
 
 	private:
-		// Readings tables allocation parameters
-		const int nReadingsToAllocate = 15;
-
-		// Readings databases allocation parameters
-		const int nDbPreallocate = 3;
-		const int nDbLeftFreeBeforeAllocate = 1;
-		const int nDbToAllocate = 2;
+		STORAGE_CONFIGURATION m_storageConfig;
 
 		typedef struct ReadingAvailable {
 			int lastReadings;
@@ -248,7 +253,7 @@ class ReadingsCatalogue {
 		ReadingsCatalogue(){};
 
 		int           getUsedTablesDbId(int dbId);
-		int           getNReadingsAllocate() const {return nReadingsToAllocate;}
+		int           getNReadingsAllocate() const {return m_storageConfig.nReadingsPerDb;}
 		bool          createReadingsTables(sqlite3 *dbHandle, int dbId, int idStartFrom, int nTables);
 		bool          isReadingAvailable() const;
 		void          allocateReadingAvailable();

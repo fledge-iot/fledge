@@ -45,7 +45,7 @@ const char *default_config = QUOTE({
 			"description" : "Number of readings tables per  database",
 			"type" : "integer",
 			"default" : "15",
-			"displayName" : "N Readings per Db",
+			"displayName" : "N Readings per database",
 			"order" : "2"
 		},
 		"nDbPreallocate" : {
@@ -56,7 +56,7 @@ const char *default_config = QUOTE({
 			"order" : "3"
 		},
 		"nDbLeftFreeBeforeAllocate" : {
-			"description" : "Number of databases left free before a new allocation in executed",
+			"description" : "Number of databases left free before a new allocation is executed",
 			"type" : "integer",
 			"default" : "1",
 			"displayName" : "N free databases before allocation",
@@ -71,17 +71,6 @@ const char *default_config = QUOTE({
 		}
 
 });
-
-
-
-// Readings tables allocation parameters
-const int nReadingsToAllocate = 15;
-
-// Readings databases allocation parameters
-const int nDbPreallocate = 3;
-const int nDbLeftFreeBeforeAllocate = 1;
-const int nDbToAllocate = 2;
-
 
 /**
  * The plugin information structure
@@ -114,52 +103,48 @@ PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 	ConnectionManager *manager = ConnectionManager::getInstance();
 	int poolSize = 5;
 
-	int nReadingsPerDb = 5;
-	int nDbPreallocate = 3;
-	int nDbLeftFreeBeforeAllocate = 1;
-	int nDbToAllocate = 2;
+	STORAGE_CONFIGURATION storageConfig;
 
 
 	if (category->itemExists("poolSize"))
 	{
-		poolSize = strtol(category->getValue("poolSize").c_str(), NULL, 10);
+		storageConfig.poolSize = strtol(category->getValue("poolSize").c_str(), NULL, 10);
 	}
-	manager->growPool(poolSize);
+	manager->growPool(storageConfig.poolSize);
 
 
 	if (category->itemExists("nReadingsPerDb"))
 	{
-		nReadingsPerDb = strtol(category->getValue("nReadingsPerDb").c_str(), NULL, 10);
+		storageConfig.nReadingsPerDb = strtol(category->getValue("nReadingsPerDb").c_str(), NULL, 10);
 	}
 
 	if (category->itemExists("nDbPreallocate"))
 	{
-		nDbPreallocate = strtol(category->getValue("nDbPreallocate").c_str(), NULL, 10);
+		storageConfig.nDbPreallocate = strtol(category->getValue("nDbPreallocate").c_str(), NULL, 10);
 	}
 
 	if (category->itemExists("nDbLeftFreeBeforeAllocate"))
 	{
-		nDbLeftFreeBeforeAllocate = strtol(category->getValue("nDbLeftFreeBeforeAllocate").c_str(), NULL, 10);
+		storageConfig.nDbLeftFreeBeforeAllocate = strtol(category->getValue("nDbLeftFreeBeforeAllocate").c_str(), NULL, 10);
 	}
 
 	if (category->itemExists("nDbToAllocate"))
 	{
-		nDbToAllocate = strtol(category->getValue("nDbToAllocate").c_str(), NULL, 10);
+		storageConfig.nDbToAllocate = strtol(category->getValue("nDbToAllocate").c_str(), NULL, 10);
 	}
-
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx nReadingsPerDb :%d:", nReadingsPerDb);
-	Logger::getLogger()->debug("xxx nDbPreallocate :%d:", nDbPreallocate);
-	Logger::getLogger()->debug("xxx nDbLeftFreeBeforeAllocate :%d:", nDbLeftFreeBeforeAllocate);
-	Logger::getLogger()->debug("xxx nDbToAllocate :%d:", nDbToAllocate);
-
+	Logger::getLogger()->debug("xxx Storage engine SQLite configuration:", storageConfig.nReadingsPerDb);
+	Logger::getLogger()->debug("xxx poolSize :%d:", storageConfig.poolSize);
+	Logger::getLogger()->debug("xxx nReadingsPerDb :%d:", storageConfig.nReadingsPerDb);
+	Logger::getLogger()->debug("xxx nDbPreallocate :%d:", storageConfig.nDbPreallocate);
+	Logger::getLogger()->debug("xxx nDbLeftFreeBeforeAllocate :%d:", storageConfig.nDbLeftFreeBeforeAllocate);
+	Logger::getLogger()->debug("xxx nDbToAllocate :%d:", storageConfig.nDbToAllocate);
 	Logger::getLogger()->setMinLevel("warning");
 
-
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-	readCat->multipleReadingsInit();
+	readCat->multipleReadingsInit(storageConfig);
 
 	return manager;
 }

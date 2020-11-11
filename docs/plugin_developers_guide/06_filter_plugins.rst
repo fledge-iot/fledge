@@ -213,7 +213,7 @@ Plugin Interface
 
 Most plugins written in C++ have a source file that encapsulates the C API to the plugin, this is traditionally called plugin.cpp. The example plugin follows this model with the content of plugin.cpp shown below.
 
-The first secion includes the fitler class that is the actual implementation of the fitler logic and defines the JSON configuration category. This uses the *QUOTE* macro in order to make the JSON definition more readable.
+The first section includes the fitler class that is the actual implementation of the filter logic and defines the JSON configuration category. This uses the *QUOTE* macro in order to make the JSON definition more readable.
 
 .. code-block:: C
 
@@ -357,7 +357,7 @@ Although it is not mandatory it is good practice to encapsulate the filter login
    #ifndef _LOG_FILTER_H
    #define _LOG_FILTER_H
    /*
-    * FogLAMP "Log" filter plugin.
+    * Fledge "Log" filter plugin.
     *
     * Copyright (c) 2020 Dianomic Systems
     *
@@ -376,7 +376,7 @@ Although it is not mandatory it is good practice to encapsulate the filter login
 
 
    /**
-    * Convert the incoming data to use a logirtimic scale
+    * Convert the incoming data to use a logarithmic scale
     */
    class LogFilter : public FledgeFilter {
            public:
@@ -405,7 +405,7 @@ The following is the code that implements the filter logic
 .. code-block:: C
 
    /*
-    * FogLAMP "Log" filter plugin.
+    * Fledge "Log" filter plugin.
     *
     * Copyright (c) 2020 Dianomic Systems
     *
@@ -420,13 +420,13 @@ The following is the code that implements the filter logic
    /**
     * Constructor for the LogFilter.
     *
-    * We call the constructor of the base class and handle the intiial 
+    * We call the constructor of the base class and handle the initial
     * configuration of the filter.
     *
-    * @param	filterName	The name of the filter
-    * @param	filterConfig	The configuration category for this filter
-    * @param	outHandle	The handle ofthe next filter in the chain
-    * @param	output		A function pointer to call to output data to the next filter
+    * @param	filterName      The name of the filter
+    * @param	filterConfig    The configuration category for this filter
+    * @param	outHandle       The handle of the next filter in the chain
+    * @param	output          A function pointer to call to output data to the next filter
     */
    LogFilter::LogFilter(const std::string& filterName,
                            ConfigCategory& filterConfig,
@@ -472,7 +472,7 @@ The following is the code that implements the filter logic
                                    }
                            }
 
-                           // We are modifiying this asset so put an entry in the asset tracker
+                           // We are modifying this asset so put an entry in the asset tracker
                            AssetTracker::getAssetTracker()->addAssetTrackingTuple(getName(), (*elem)->getAssetName(), string("Filter"));
 
                            // Get a reading DataPoints
@@ -487,7 +487,7 @@ The following is the code that implements the filter logic
                                    /*
                                     * Deal with the T_INTEGER and T_FLOAT types.
                                     * Try to preserve the type if possible but
-                                    * if a flaoting point log function is applied
+                                    * if a floating point log function is applied
                                     * then T_INTEGER values will turn into T_FLOAT.
                                     * If the value is zero we do not apply the log function
                                     */
@@ -542,7 +542,7 @@ The following is the code that implements the filter logic
    }
 
    /**
-    * Handle the filter specific configuraiton. In this case
+    * Handle the filter specific configuration. In this case
     * it is just the single item "match" that is a regex
     * expression
     *
@@ -685,7 +685,7 @@ The following is an example of a Python filter that calculates an exponential mo
    import filter_ingest
 
    __author__ = "Massimiliano Pinto"
-   __copyright__ = "Copyright (c) 2019 Dianomic Systems"
+   __copyright__ = "Copyright (c) 2020 Dianomic Systems"
    __license__ = "Apache 2.0"
    __version__ = "${VERSION}"
 
@@ -758,7 +758,7 @@ The following is an example of a Python filter that calculates an exponential mo
        """
        return {
            'name': 'ema',
-           'version': '1.8.1',
+           'version': '1.8.2',
            'mode': "none",
            'type': 'filter',
            'interface': '1.0',
@@ -852,4 +852,3 @@ The following is an example of a Python filter that calculates an exponential mo
        filter_ingest.filter_ingest_callback(the_callback, the_ingest_ref, data)
 
        _LOGGER.debug("ema filter_ingest done")
-

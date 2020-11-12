@@ -242,7 +242,8 @@ class ReadingsCatalogue {
 		void          setUsedDbId(int dbId);
 
 	private:
-		STORAGE_CONFIGURATION m_storageConfig;
+		STORAGE_CONFIGURATION m_storageConfigCurrent;                           // The current configuration of the multiple readings
+		STORAGE_CONFIGURATION m_storageConfigApi;                               // The parameters stored/retrieved by the API
 
 		typedef struct ReadingAvailable {
 			int lastReadings;
@@ -253,7 +254,7 @@ class ReadingsCatalogue {
 		ReadingsCatalogue(){};
 
 		int           getUsedTablesDbId(int dbId);
-		int           getNReadingsAllocate() const {return m_storageConfig.nReadingsPerDb;}
+		int           getNReadingsAllocate() const {return m_storageConfigCurrent.nReadingsPerDb;}
 		bool          createReadingsTables(sqlite3 *dbHandle, int dbId, int idStartFrom, int nTables);
 		bool          isReadingAvailable() const;
 		void          allocateReadingAvailable();
@@ -266,9 +267,16 @@ class ReadingsCatalogue {
 		int           SQLExec(sqlite3 *dbHandle, const char *sqlCmd,  char **errMsg = NULL);
 		bool          enableWAL(std::string &dbPathReadings);
 
-		bool          configurationRetrieve();
+		bool          configurationRetrieve(sqlite3 *dbHandle);
 		void          prepareAllDbs();
 		void          attachAllDbs();
+		bool          applyStorageConfigChanged();
+		// FIXME_I:
+		//void          configChangeNDbPreallocate();
+		void          configChangeNDbPreallocateAddDb();
+		void          configChangeNDbPreallocateRemoveDb();
+
+		void          storeReadingsConfiguration (sqlite3 *dbHandle);
 
 		int                                           m_dbIdCurrent;            // Current database in use
 		int                                           m_dbIdLast;               // Last database available not already in use

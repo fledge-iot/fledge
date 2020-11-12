@@ -64,7 +64,10 @@ CREATE TABLE readings_1.configuration_readings (
     global_id         INTEGER,                                                  -- Stores the last global Id used +1
                                                                                 -- Updated at -1 when Fledge starts
                                                                                 -- Updated at the the proper value when Fledge stops
-    db_id_Last        INTEGER                                                   -- Latest database available
+    db_id_Last        INTEGER,                                                  -- Latest database available
+
+	n_readings_per_db INTEGER,                                                  -- Number of readings table per database
+	n_db_preallocate  INTEGER                                                   -- Number of databases to allocate in advance
 );
 
 -- Readings table

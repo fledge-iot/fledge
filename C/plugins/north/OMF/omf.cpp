@@ -1068,7 +1068,13 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		long typeId = 0;
 		if (hintsdp)
 		{
-			hints = new OMFHints(hintsdp->getData().toString());
+			// FIXME_I:
+			string tmpstr;
+			tmpstr =  hintsdp->getData().toString();
+			StringReplaceAll(tmpstr,"\\","");
+			//hints = new OMFHints(hintsdp->getData().toString());
+			hints = new OMFHints(tmpstr);
+
 			const vector<OMFHint *> omfHints = hints->getHints();
 			for (auto it = omfHints.cbegin(); it != omfHints.cend(); it++)
 			{
@@ -2765,7 +2771,13 @@ void OMF::setMapObjectTypes(const vector<Reading*>& readings,
 
 				if (hintsdp && (omfType == OMF_TYPE_FLOAT || omfType == OMF_TYPE_INTEGER))
 				{
-					hints = new OMFHints(hintsdp->getData().toString());
+					// FIXME_I:
+					string tmpstr;
+					tmpstr = hintsdp->getData().toString();
+					StringReplaceAll(tmpstr,"\\","");
+					//hints = new OMFHints(hintsdp->getData().toString());
+					hints = new OMFHints(tmpstr);
+
 					const vector<OMFHint *> omfHints = hints->getHints();
 
 					for (auto it = omfHints.cbegin(); it != omfHints.cend(); it++)

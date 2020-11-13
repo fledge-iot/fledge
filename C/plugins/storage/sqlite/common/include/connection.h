@@ -282,8 +282,9 @@ class ReadingsCatalogue {
 		bool          applyStorageConfigChanges(sqlite3 *dbHandle);
 		// FIXME_I:
 		//void          configChangeNDbPreallocate();
-		void          configChangeNDbPreallocateAddDb(sqlite3 *dbHandle);
-		void          configChangeNDbPreallocateRemoveDb(sqlite3 *dbHandle);
+		void          configChangeAddDb(sqlite3 *dbHandle);
+		void          configChangeRemoveDb(sqlite3 *dbHandle);
+		bool          dbRemove(std::string dbPath);
 
 		void          storeReadingsConfiguration (sqlite3 *dbHandle);
 

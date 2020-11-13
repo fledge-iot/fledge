@@ -2791,9 +2791,11 @@ void ReadingsCatalogue::detachDb(sqlite3 *dbHandle, std::string &alias)
 	std::string sqlCmd;
 	char *zErrMsg = nullptr;
 
-	sqlCmd = "DETACH  DATABASE '" + alias + ";";
+	sqlCmd = "DETACH  DATABASE " + alias + ";";
 
-	Logger::getLogger()->debug("detachDb - db :%s: cmd :%s:" ,  alias.c_str() , sqlCmd.c_str() );
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx2 V2 detachDb - db :%s: cmd :%s:" ,  alias.c_str() , sqlCmd.c_str() );
 	rc = SQLExec (dbHandle, sqlCmd.c_str(), &zErrMsg);
 	if (rc != SQLITE_OK)
 	{
@@ -2957,7 +2959,7 @@ void ReadingsCatalogue::multipleReadingsInit(STORAGE_CONFIGURATION &storageConfi
 
 		// FIXME_I:
 		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx2 multipleReadingsInit - dbIdCurrent :%d: dbIdLast :%d: current nDbPreallocate :%d: requeste  nDbPreallocate :%d:",
+		Logger::getLogger()->debug("multipleReadingsInit - dbIdCurrent :%d: dbIdLast :%d: current nDbPreallocate :%d: requeste  nDbPreallocate :%d:",
 								   m_dbIdCurrent,
 								   m_dbIdLast,
 								   m_storageConfigCurrent.nDbPreallocate,
@@ -2985,8 +2987,9 @@ void ReadingsCatalogue::storeReadingsConfiguration (sqlite3 *dbHandle)
 
 	Logger::getLogger()->debug("storeReadingsConfiguration - nReadingsPerDb :%d: nDbPreallocate :%d:", m_storageConfigCurrent.nReadingsPerDb , m_storageConfigCurrent.nDbPreallocate);
 
-	sql_cmd = " UPDATE " READINGS_DB ".configuration_readings SET n_readings_per_db=" + to_string(m_storageConfigCurrent.nReadingsPerDb ) + "," +
-																 "n_db_preallocate=" + to_string(m_storageConfigCurrent.nDbPreallocate )  + ";";
+	sql_cmd = " UPDATE " READINGS_DB ".configuration_readings SET n_readings_per_db=" + to_string(m_storageConfigCurrent.nReadingsPerDb) + "," +
+																 "n_db_preallocate="  + to_string(m_storageConfigCurrent.nDbPreallocate)  + "," +
+																 "db_id_Last="        + to_string(m_dbIdLast)  + ";";
 
 	Logger::getLogger()->debug("sql_cmd :%s:", sql_cmd.c_str());
 
@@ -3004,7 +3007,7 @@ void ReadingsCatalogue::storeReadingsConfiguration (sqlite3 *dbHandle)
  * // FIXME_I:
  *
  */
-void ReadingsCatalogue::configChangeNDbPreallocateAddDb(sqlite3 *dbHandle)
+void ReadingsCatalogue::configChangeAddDb(sqlite3 *dbHandle)
 {
 	int dbId;
 	int startReadingsId;
@@ -3012,13 +3015,13 @@ void ReadingsCatalogue::configChangeNDbPreallocateAddDb(sqlite3 *dbHandle)
 
 	// FIXME_I:
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx2  configChangeNDbPreallocateAddDb - dbIdCurrent :%d: dbIdLast :%d: current nDbPreallocate :%d: requeste  nDbPreallocate :%d:",
+	Logger::getLogger()->debug(" configChangeAddDb - dbIdCurrent :%d: dbIdLast :%d: current nDbPreallocate :%d: requeste  nDbPreallocate :%d:",
 							m_dbIdCurrent,
 							m_dbIdLast,
 							m_storageConfigCurrent.nDbPreallocate,
 							m_storageConfigApi.nDbPreallocate);
 
-	Logger::getLogger()->debug("xxx configChangeNDbPreallocateAddDb - Id start :%d: Id end :%d: ", m_dbIdLast, m_storageConfigApi.nDbPreallocate);
+	Logger::getLogger()->debug("xxx configChangeAddDb - Id start :%d: Id end :%d: ", m_dbIdLast, m_storageConfigApi.nDbPreallocate);
 
 	for (dbId = m_dbIdLast +1; dbId <= m_storageConfigApi.nDbPreallocate; dbId++)
 	{
@@ -3026,7 +3029,7 @@ void ReadingsCatalogue::configChangeNDbPreallocateAddDb(sqlite3 *dbHandle)
 		startReadingsId = readingsAvailable.lastReadings +1;
 		createNewDB(dbHandle,  dbId, startReadingsId, NEW_DB_ATTACH_ALL);
 
-		Logger::getLogger()->debug("configChangeNDbPreallocateAddDb - db created :%d: startReadingsIdOnDB :%d:", dbId, startReadingsId);
+		Logger::getLogger()->debug("configChangeAddDb - db created :%d: startReadingsIdOnDB :%d:", dbId, startReadingsId);
 	}
 
 	// FIXME_I:
@@ -3043,21 +3046,68 @@ void ReadingsCatalogue::configChangeNDbPreallocateAddDb(sqlite3 *dbHandle)
  * // FIXME_I:
  *
  */
-void ReadingsCatalogue::configChangeNDbPreallocateRemoveDb(sqlite3 *dbHandle)
+void ReadingsCatalogue::configChangeRemoveDb(sqlite3 *dbHandle)
 {
-	string errMsg;
+	int dbId;
+	int startReadingsId;
+	tyReadingsAvailable readingsAvailable;
+	string dbAlias;
+	string dbPath;
+
+	ConnectionManager *manager = ConnectionManager::getInstance();
 
 	// FIXME_I:
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("configChangeNDbPreallocateRemoveDb - dbIdCurrent :%d: dbIdLast :%d: current nDbPreallocate :%d: requeste  nDbPreallocate :%d:",
+	Logger::getLogger()->debug("xxx2 configChangeRemoveDb - dbIdCurrent :%d: dbIdLast :%d: current nDbPreallocate :%d: requeste  nDbPreallocate :%d:",
 							   m_dbIdCurrent,
 							   m_dbIdLast,
 							   m_storageConfigCurrent.nDbPreallocate,
 							   m_storageConfigApi.nDbPreallocate);
 
+
+	Logger::getLogger()->debug("xxx2 configChangeRemoveDb - Id start :%d: Id end :%d: ", m_dbIdCurrent, m_storageConfigApi.nDbPreallocate);
+
+	for (dbId = m_storageConfigApi.nDbPreallocate +1; dbId <= m_dbIdLast; dbId++)
+	{
+		dbAlias = generateDbAlias(dbId);
+		dbPath  = generateDbFilePah(dbId);
+
+		Logger::getLogger()->debug("xxx2 configChangeRemoveDb - db alias :%s: db path :%s:", dbAlias.c_str(), dbPath.c_str());
+
+		manager->detachNewDb(dbAlias);
+		if (dbRemove (dbPath))
+			Logger::getLogger()->debug("xxx2 configChangeRemoveDb - db successfully removed :%s:",dbPath.c_str());
+
+
+
+	}
+
+
+	// FIXME_I:
+	m_dbIdLast = m_storageConfigApi.nDbPreallocate;
+	m_storageConfigCurrent.nDbPreallocate = m_storageConfigApi.nDbPreallocate;
+	m_dbNAvailable = (m_dbIdLast - m_dbIdCurrent) - m_storageConfigCurrent.nDbLeftFreeBeforeAllocate;
 	//# FIXME_I
 	//	errMsg = "INITIAL STAGE";
 	// throw runtime_error(errMsg.c_str());
+}
+
+/**
+ * // FIXME_I:
+ *
+ */
+bool ReadingsCatalogue::dbRemove(string dbPath)
+{
+	bool success;
+
+	Logger::getLogger()->debug("xxx2 dbRemove - db path :%s:", dbPath.c_str());
+
+	if (remove (dbPath.c_str()) ==0)
+		success = true;
+	else
+		success = false;
+
+	return(success);
 }
 
 /**
@@ -3077,25 +3127,25 @@ bool ReadingsCatalogue::applyStorageConfigChanges(sqlite3 *dbHandle)
 	{
 		if (m_storageConfigApi.nDbPreallocate > m_dbIdLast)
 		{
-			Logger::getLogger()->debug("xxx2 applyStorageConfigChanges - parameters nDbPreallocate changed, add more databases from :%d: to :%d:", m_dbIdLast, m_storageConfigApi.nDbPreallocate);
+			Logger::getLogger()->debug("applyStorageConfigChanges - parameters nDbPreallocate changed, add more databases from :%d: to :%d:", m_dbIdLast, m_storageConfigApi.nDbPreallocate);
 			configChanged = true;
-			configChangeNDbPreallocateAddDb(dbHandle);
+			configChangeAddDb(dbHandle);
 
 		} else if (m_storageConfigApi.nDbPreallocate < m_dbIdCurrent)
 		{
-			Logger::getLogger()->warn("xxx2 applyStorageConfigChanges: the parameter nDbPreallocate of the storage engine has changed, but it is not possible to apply the change as there are already data stored in the database id :%d:", m_dbIdCurrent);
+			Logger::getLogger()->warn("applyStorageConfigChanges: the parameter nDbPreallocate of the storage engine has changed, but it is not possible to apply the change as there are already data stored in the database id :%d:", m_dbIdCurrent);
 
 		} else if ( (m_storageConfigApi.nDbPreallocate > m_dbIdCurrent) && (m_storageConfigApi.nDbPreallocate < m_dbIdLast))
 		{
 			Logger::getLogger()->debug("xxx2 applyStorageConfigChanges - parameters nDbPreallocate changed, removing databases from :%d: to :%d:", m_storageConfigApi.nDbPreallocate, m_dbIdLast);
 			configChanged = true;
-			configChangeNDbPreallocateRemoveDb(dbHandle);
+			configChangeRemoveDb(dbHandle);
 		}
 
 	}
 
 	if ( !configChanged)
-		Logger::getLogger()->debug("applyStorageConfigChanges - storage aparameters not changed");
+		Logger::getLogger()->debug("xxx2 applyStorageConfigChanges - storage aparameters not changed");
 
 	// FIXME_I:
 	return true;
@@ -3878,7 +3928,8 @@ int ReadingsCatalogue::SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **err
 {
 	int retries = 0, rc;
 
-	Logger::getLogger()->debug("SQLExec: cmd :%s: ", sqlCmd);
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx2 SQLExec: cmd :%s: ", sqlCmd);
 
 	do {
 		if (errMsg == NULL)

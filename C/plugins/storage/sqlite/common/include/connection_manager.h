@@ -29,6 +29,7 @@ class ConnectionManager {
 		Connection                *allocate();
 		bool                      attachNewDb(std::string &path, std::string &alias);
 		bool                      attachRequestNewDb(int newDbId, sqlite3 *dbHandle);
+		bool 					  detachNewDb(std::string &alias);
 		void                      release(Connection *);
 		void			  shutdown();
 		void			  setError(const char *, const char *, bool);

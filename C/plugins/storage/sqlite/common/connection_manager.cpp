@@ -194,6 +194,71 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 	return (result);
 }
 
+// FIXME_I:
+/**
+ */
+bool ConnectionManager::detachNewDb(std::string &alias)
+{
+	int rc;
+	std::string sqlCmd;
+	sqlite3 *dbHandle;
+	bool result;
+	char *zErrMsg = NULL;
+
+	result = true;
+
+	sqlCmd = "DETACH  DATABASE " + alias + ";";
+	Logger::getLogger()->debug("detachDb - db alias :%s: cmd :%s:" ,  alias.c_str() , sqlCmd.c_str() );
+
+	idleLock.lock();
+	inUseLock.lock();
+
+	// attach the DB to all idle connections
+	{
+
+		for ( auto conn : idle) {
+
+			dbHandle = conn->getDbHandle();
+			rc = SQLExec (dbHandle, sqlCmd.c_str(), &zErrMsg);
+			if (rc != SQLITE_OK)
+			{
+				Logger::getLogger()->error("detachNewDb - It was not possible to detach the db :%s: from an idle connection, error :%s:", alias.c_str(), zErrMsg);
+				result = false;
+				break;
+			}
+
+			Logger::getLogger()->debug("detachNewDb - idle dbHandle :%X: sqlCmd :%s: ", dbHandle, sqlCmd.c_str());
+
+		}
+	}
+
+	if (result)
+	{
+		// attach the DB to all inUse connections
+		{
+
+			for ( auto conn : inUse) {
+
+				dbHandle = conn->getDbHandle();
+				rc = SQLExec (dbHandle, sqlCmd.c_str(), &zErrMsg);
+				if (rc != SQLITE_OK)
+				{
+					Logger::getLogger()->error("detachNewDb - It was not possible to detach the db :%s: from an inUse connection, error :%s:", alias.c_str() ,zErrMsg);
+					result = false;
+					break;
+				}
+
+				Logger::getLogger()->debug("detachNewDb - inUse dbHandle :%X: sqlCmd :%s: ", dbHandle, sqlCmd.c_str());
+			}
+		}
+	}
+	idleLock.unlock();
+	inUseLock.unlock();
+
+	return (result);
+}
+
+
 /**
  * Adds to all the connections a request to attach a database
  *
@@ -324,7 +389,7 @@ int ConnectionManager::SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **err
 			usleep(interval);	// sleep retries milliseconds
 			if (retries > 5)
 			{
-				Logger::getLogger()->warn("ConnectionManager::SQLExec - error :%s: dbHandle :%X: sqlCmd :%s: retry :%d: of :%d:",
+				Logger::getLogger()->warn("xxx2 v2 ConnectionManager::SQLExec - error :%s: dbHandle :%X: sqlCmd :%s: retry :%d: of :%d:",
 										  sqlite3_errmsg(dbHandle),
 										  dbHandle,
 										  sqlCmd,

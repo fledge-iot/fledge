@@ -163,7 +163,7 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 				break;
 			}
 
-			Logger::getLogger()->debug("attachNewDb idle dbHandle :%X: sqlCmd :%s: ", sqlCmd.c_str(), dbHandle);
+			Logger::getLogger()->debug("attachNewDb idle dbHandle :%X: sqlCmd :%s: ", dbHandle, sqlCmd.c_str());
 
 		}
 	}
@@ -184,7 +184,7 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 					break;
 				}
 
-				Logger::getLogger()->debug("attachNewDb inUse dbHandle :%X: sqlCmd :%s: ", sqlCmd.c_str(), dbHandle);
+				Logger::getLogger()->debug("attachNewDb inUse dbHandle :%X: sqlCmd :%s: ", dbHandle, sqlCmd.c_str());
 			}
 		}
 	}

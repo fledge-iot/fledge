@@ -227,7 +227,7 @@ class ReadingsCatalogue {
 
 		void          preallocateReadingsTables(int dbId);
 		bool          loadAssetReadingCatalogue();
-		bool          createNewDB(sqlite3 *dbHandle, int newDbId,  int startId, bool attachAllDb);
+
 		bool          latestDbUpdate(sqlite3 *dbHandle, int newDbId);
 		void          preallocateNewDbsRange(int dbIdStart, int dbIdEnd);
 		int           getReadingReference(Connection *connection, const char *asset_code);
@@ -238,12 +238,20 @@ class ReadingsCatalogue {
 		bool          connectionAttachAllDbs(sqlite3 *dbHandle);
 		bool          connectionAttachDbList(sqlite3 *dbHandle, std::vector<int> &dbIdList);
 		bool          attachDb(sqlite3 *dbHandle, std::string &path, std::string &alias);
+		void          detachDb(sqlite3 *dbHandle, std::string &alias);
 
 		void          setUsedDbId(int dbId);
 
 	private:
 		STORAGE_CONFIGURATION m_storageConfigCurrent;                           // The current configuration of the multiple readings
 		STORAGE_CONFIGURATION m_storageConfigApi;                               // The parameters stored/retrieved by the API
+
+
+		enum NEW_DB_OPERATION {
+			NEW_DB_ATTACH_ALL,
+			NEW_DB_ATTACH_REQUEST,
+			NEW_DB_DEATTACH
+		};
 
 		typedef struct ReadingAvailable {
 			int lastReadings;
@@ -253,6 +261,7 @@ class ReadingsCatalogue {
 
 		ReadingsCatalogue(){};
 
+		bool          createNewDB(sqlite3 *dbHandle, int newDbId,  int startId, NEW_DB_OPERATION attachAllDb);
 		int           getUsedTablesDbId(int dbId);
 		int           getNReadingsAllocate() const {return m_storageConfigCurrent.nReadingsPerDb;}
 		bool          createReadingsTables(sqlite3 *dbHandle, int dbId, int idStartFrom, int nTables);
@@ -270,11 +279,11 @@ class ReadingsCatalogue {
 		bool          configurationRetrieve(sqlite3 *dbHandle);
 		void          prepareAllDbs();
 		void          attachAllDbs();
-		bool          applyStorageConfigChanged();
+		bool          applyStorageConfigChanges(sqlite3 *dbHandle);
 		// FIXME_I:
 		//void          configChangeNDbPreallocate();
-		void          configChangeNDbPreallocateAddDb();
-		void          configChangeNDbPreallocateRemoveDb();
+		void          configChangeNDbPreallocateAddDb(sqlite3 *dbHandle);
+		void          configChangeNDbPreallocateRemoveDb(sqlite3 *dbHandle);
 
 		void          storeReadingsConfiguration (sqlite3 *dbHandle);
 

@@ -3164,6 +3164,7 @@ void  ReadingsCatalogue::dbFileDelete(string dbPath)
 bool ReadingsCatalogue::applyStorageConfigChanges(sqlite3 *dbHandle)
 {
 	bool configChanged;
+	ACTION operation;
 
 	configChanged = false;
 
@@ -3178,42 +3179,44 @@ bool ReadingsCatalogue::applyStorageConfigChanges(sqlite3 *dbHandle)
 
 	try{
 
-		if ( m_storageConfigCurrent.nDbPreallocate != m_storageConfigApi.nDbPreallocate)
+		operation = applyStorageConfigChangesLogic(m_dbIdCurrent ,
+												   m_dbIdLast,
+												   m_storageConfigCurrent.nDbPreallocate,
+												   m_storageConfigApi.nDbPreallocate,
+												   m_storageConfigCurrent.nDbLeftFreeBeforeAllocate);
+
+		// FIXME_I:
+		Logger::getLogger()->debug("S2");
+
+		if (operation == ACTION_ADD)
 		{
 			// FIXME_I:
-			Logger::getLogger()->debug("S2");
+			Logger::getLogger()->debug("S2.1");
 
-			if (m_storageConfigApi.nDbPreallocate > m_dbIdLast)
-			{
-				// FIXME_I:
-				Logger::getLogger()->debug("S2.1");
+			Logger::getLogger()->debug("applyStorageConfigChanges - parameters nDbPreallocate changed, adding more databases from :%d: to :%d:", m_dbIdLast, m_storageConfigApi.nDbPreallocate);
+			configChanged = true;
+			configChangeAddDb(dbHandle);
 
-				Logger::getLogger()->debug("applyStorageConfigChanges - parameters nDbPreallocate changed, adding more databases from :%d: to :%d:", m_dbIdLast, m_storageConfigApi.nDbPreallocate);
-				configChanged = true;
-				configChangeAddDb(dbHandle);
+		} else if (operation == ACTION_NONE)
+		{
+			// FIXME_I:
+			Logger::getLogger()->debug("S2.2");
+			Logger::getLogger()->warn("applyStorageConfigChanges: parameter nDbPreallocate changed, but it is not possible to apply the change as there are already data stored in the database id :%d:, use a larger value", m_dbIdCurrent);
 
-			} else if (m_storageConfigApi.nDbPreallocate < (m_dbIdCurrent + m_storageConfigCurrent.nDbLeftFreeBeforeAllocate) )
-			{
-				// FIXME_I:
-				Logger::getLogger()->debug("S2.2");
+		} else if (operation == ACTION_REMOVE)
+		{
+			// FIXME_I:
+			Logger::getLogger()->debug("S3");
 
-				Logger::getLogger()->warn("applyStorageConfigChanges: parameter nDbPreallocate changed, but it is not possible to apply the change as there are already data stored in the database id :%d:, use a larger value", m_dbIdCurrent);
-
-			} else if ( (m_storageConfigApi.nDbPreallocate >= (m_dbIdCurrent + m_storageConfigCurrent.nDbLeftFreeBeforeAllocate)) && (m_storageConfigApi.nDbPreallocate < m_dbIdLast))
-			{
-				// FIXME_I:
-				Logger::getLogger()->debug("S3");
-
-				Logger::getLogger()->debug("applyStorageConfigChanges - parameters nDbPreallocate changed, removing databases from :%d: to :%d:", m_storageConfigApi.nDbPreallocate, m_dbIdLast);
-				configChanged = true;
-				configChangeRemoveDb(dbHandle);
-			} else
-			{
-				// FIXME_I:
-				Logger::getLogger()->debug("S4 applyStorageConfigChanges - not changes");
-			}
-
+			Logger::getLogger()->debug("applyStorageConfigChanges - parameters nDbPreallocate changed, removing databases from :%d: to :%d:", m_storageConfigApi.nDbPreallocate, m_dbIdLast);
+			configChanged = true;
+			configChangeRemoveDb(dbHandle);
+		} else
+		{
+			// FIXME_I:
+			Logger::getLogger()->debug("S4 applyStorageConfigChanges - not changes");
 		}
+
 
 		if ( !configChanged)
 			Logger::getLogger()->debug("applyStorageConfigChanges - storage parameters not changed");
@@ -3228,6 +3231,36 @@ bool ReadingsCatalogue::applyStorageConfigChanges(sqlite3 *dbHandle)
 
 
 	return configChanged;
+}
+
+
+/**
+ * // FIXME_I:
+ *
+ */
+ReadingsCatalogue::ACTION ReadingsCatalogue::applyStorageConfigChangesLogic(int dbIdCurrent , int dbIdLast, int nDbPreallocateCurrent, int nDbPreallocateRequest, int nDbLeftFreeBeforeAllocate)
+{
+	ACTION operation;
+	
+	if ( nDbPreallocateCurrent != nDbPreallocateRequest)
+	{
+		if (nDbPreallocateRequest > dbIdLast)
+		{
+			operation = ACTION_ADD;
+
+		} else if (nDbPreallocateRequest < (dbIdCurrent + nDbLeftFreeBeforeAllocate) )
+		{
+
+			operation = ACTION_NONE;
+
+		} else if ( (nDbPreallocateRequest >= (dbIdCurrent + nDbLeftFreeBeforeAllocate)) && (nDbPreallocateRequest < dbIdLast))
+		{
+			operation = ACTION_REMOVE;
+		}
+
+	}
+
+	return operation;
 }
 
 

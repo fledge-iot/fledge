@@ -77,11 +77,11 @@
 
 typedef struct
 {
-	int poolSize = 5;
-	int nReadingsPerDb = 14;
-	int nDbPreallocate = 3;
-	int nDbLeftFreeBeforeAllocate = 1;
-	int nDbToAllocate = 2;
+	int poolSize = 5;                           // Number of connections to allocate
+	int nReadingsPerDb = 14;                    // Number of readings tables per database
+	int nDbPreallocate = 3;                     // Number of databases to allocate in advance
+	int nDbLeftFreeBeforeAllocate = 1;          // Number of free databases before a new allocation is executed
+	int nDbToAllocate = 2;                      // Number of database to allocate each time
 
 } STORAGE_CONFIGURATION;
 
@@ -252,6 +252,12 @@ class ReadingsCatalogue {
 			NEW_DB_DETACH
 		};
 
+		enum ACTION  {
+			ACTION_ADD,
+			ACTION_REMOVE,
+			ACTION_NONE
+		};
+
 		typedef struct ReadingAvailable {
 			int lastReadings;
 			int tableCount;
@@ -287,6 +293,7 @@ class ReadingsCatalogue {
 		void          dbsRemove(int startId, int endId);
 
 		void          storeReadingsConfiguration (sqlite3 *dbHandle);
+		ACTION  applyStorageConfigChangesLogic(int dbIdCurrent , int dbIdLast, int nDbPreallocateCurrent, int nDbPreallocateRequest, int nDbLeftFreeBeforeAllocate);
 
 		int                                           m_dbIdCurrent;            // Current database in use
 		int                                           m_dbIdLast;               // Last database available not already in use

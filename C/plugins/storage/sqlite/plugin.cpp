@@ -136,12 +136,12 @@ PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx Storage engine SQLite configuration:", storageConfig.nReadingsPerDb);
-	Logger::getLogger()->debug("xxx poolSize :%d:", storageConfig.poolSize);
-	Logger::getLogger()->debug("xxx nReadingsPerDb :%d:", storageConfig.nReadingsPerDb);
-	Logger::getLogger()->debug("xxx nDbPreallocate :%d:", storageConfig.nDbPreallocate);
-	Logger::getLogger()->debug("xxx nDbLeftFreeBeforeAllocate :%d:", storageConfig.nDbLeftFreeBeforeAllocate);
-	Logger::getLogger()->debug("xxx nDbToAllocate :%d:", storageConfig.nDbToAllocate);
+	Logger::getLogger()->debug("Storage engine SQLite configuration:", storageConfig.nReadingsPerDb);
+	Logger::getLogger()->debug("poolSize :%d:", storageConfig.poolSize);
+	Logger::getLogger()->debug("nReadingsPerDb :%d:", storageConfig.nReadingsPerDb);
+	Logger::getLogger()->debug("nDbPreallocate :%d:", storageConfig.nDbPreallocate);
+	Logger::getLogger()->debug("nDbLeftFreeBeforeAllocate :%d:", storageConfig.nDbLeftFreeBeforeAllocate);
+	Logger::getLogger()->debug("nDbToAllocate :%d:", storageConfig.nDbToAllocate);
 	Logger::getLogger()->setMinLevel("warning");
 
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();

@@ -389,7 +389,7 @@ int ConnectionManager::SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **err
 			usleep(interval);	// sleep retries milliseconds
 			if (retries > 5)
 			{
-				Logger::getLogger()->warn("xxx2 v2 ConnectionManager::SQLExec - error :%s: dbHandle :%X: sqlCmd :%s: retry :%d: of :%d:",
+				Logger::getLogger()->warn("ConnectionManager::SQLExec - error :%s: dbHandle :%X: sqlCmd :%s: retry :%d: of :%d:",
 										  sqlite3_errmsg(dbHandle),
 										  dbHandle,
 										  sqlCmd,

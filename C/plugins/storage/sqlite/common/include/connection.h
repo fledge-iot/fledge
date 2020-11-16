@@ -78,7 +78,7 @@
 typedef struct
 {
 	int poolSize = 5;
-	int nReadingsPerDb = 5;
+	int nReadingsPerDb = 14;
 	int nDbPreallocate = 3;
 	int nDbLeftFreeBeforeAllocate = 1;
 	int nDbToAllocate = 2;
@@ -283,7 +283,8 @@ class ReadingsCatalogue {
 		//void          configChangeNDbPreallocate();
 		void          configChangeAddDb(sqlite3 *dbHandle);
 		void          configChangeRemoveDb(sqlite3 *dbHandle);
-		bool          dbRemove(std::string dbPath);
+		void          dbFileDelete(std::string dbPath);
+		void          dbsRemove(int startId, int endId);
 
 		void          storeReadingsConfiguration (sqlite3 *dbHandle);
 

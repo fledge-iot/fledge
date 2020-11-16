@@ -182,3 +182,64 @@ The easiest approach to run under a debugger is
         (gdb) run --port=39821 --address=127.0.0.1 --name=DebugPlugin -d
 
    - You can now use the debugger in the way you normally would to find any issues.
+
+Using strace
+------------
+
+You can also use a similar approach to that of running gdb to use the *strace* command to trace system calls and signals
+
+  - Create the service that uses your plugin, say a south service and name that service as you normally would.
+   
+  - Disable that service from being started by Fledge
+
+  - Use the fledge status script to find the arguments to pass the service
+
+    .. code-block:: console
+
+       $ scripts/fledge status
+       Fledge v1.8.2 running.
+       Fledge Uptime:  1451 seconds.
+       Fledge records: 200889 read, 200740 sent, 120962 purged.
+       Fledge does not require authentication.
+       === Fledge services:
+       fledge.services.core
+       fledge.services.storage --address=0.0.0.0 --port=39821
+       fledge.services.south --port=39821 --address=127.0.0.1 --name=AX8
+       fledge.services.south --port=39821 --address=127.0.0.1 --name=Sine
+       === Fledge tasks:
+
+   - Note the *--port=* and *--address=* arguments
+
+   - Run *strace* with the service adding the same set of arguments you used in gdb when running the service
+
+     .. code-block:: console
+
+        $ strace services/fledge.services.south --port=39821 --address=127.0.0.1 --name=DebugPlugin -d
+
+Python Plugin Info
+------------------
+
+It is also possible to test the loading and validity of the *plugin_info* call in a Python plugin.
+
+  - From the */usr/include/fledge* or *${FLEDGE_ROOT}* directory run the command
+
+    .. code-block:: console
+
+       python3 -c 'from fledge.plugins.south.<name>.<name> import plugin_info; print(plugin_info())'
+
+    Where *<name>* is the name of your plugin.
+
+    .. code-block:: console
+
+       python3 -c 'from fledge.plugins.south.sinusoid.sinusoid import plugin_info; print(plugin_info())'
+       {'name': 'Sinusoid Poll plugin', 'version': '1.8.1', 'mode': 'poll', 'type': 'south', 'interface': '1.0', 'config': {'plugin': {'description': 'Sinusoid Poll Plugin which implements sine wave with data points', 'type': 'string', 'default': 'sinusoid', 'readonly': 'true'}, 'assetName': {'description': 'Name of Asset', 'type': 'string', 'default': 'sinusoid', 'displayName': 'Asset name', 'mandatory': 'true'}}}
+
+This allows you to confirm the plugin can be loaded and the *plugin_info* entry point can be called.
+
+You can also check your default configuration. Although in Python this is usually harder to get wrong.
+
+.. code-block:: console
+
+   $ python3 -c 'from fledge.plugins.south.sinusoid.sinusoid import plugin_info; print(plugin_info()["config"])'
+{'plugin': {'description': 'Sinusoid Poll Plugin which implements sine wave with data points', 'type': 'string', 'default': 'sinusoid', 'readonly': 'true'}, 'assetName': {'description': 'Name of Asset', 'type': 'string', 'default': 'sinusoid', 'displayName': 'Asset name', 'mandatory': 'true'}}
+

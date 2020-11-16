@@ -16,7 +16,7 @@
 Testing Your Plugin
 ===================
 
-The fisrt step in testing your new plugin is to put the plugin in the
+The first step in testing your new plugin is to put the plugin in the
 location in which your Fledge system will be loading it from. The exact
 location depends on the way your installed you Fledge system and the
 type of plugin.
@@ -28,7 +28,7 @@ location or your have built it from the source code, then the plugin
 should be stored under the directory *$FLEDGE_ROOT*.
 
 A C/C++ plugin or a hybrid plugin should be placed in the directory
-*plugins/<type>/<plugin name>* under the installed directorty
+*plugins/<type>/<plugin name>* under the installed directory
 described above. Where *<type>* is one of *south*, *filter*, *north*,
 *notificationRule* or *notificationDelivery*. And *<plugin name>* is
 the name you gave your plugin.
@@ -45,14 +45,14 @@ what the system will read to create the plugin.
 
 A Python plugin should be installed in the directory
 *python/fledge/plugins/<plugin type>/<plugin name>* under the installed
-directorty described above. Where *<type>* is one of *south*, *filter*,
+directory described above. Where *<type>* is one of *south*, *filter*,
 *north*, *notificationRule* or *notificationDelivery*. And *<plugin name>*
 is the name you gave your plugin.
 
 A Python filter plugin call normalise, on a system installed from
 a package in the default location should be copied into a directory
 */usr/local/fledge/python/fledge/plugins/filter/normalise*. Within
-this directory should be a file called *normalise/py* and an empty file
+this directory should be a file called *normalise.py* and an empty file
 called *__init__.py*.
 
 Initial Testing
@@ -104,7 +104,7 @@ and their versions.
    }
 
 Note, in the above example the *jq* program has been used to format the
-returned JSON and the output has been truncated for breivity.
+returned JSON and the output has been truncated for brevity.
 
 If your plugin does not appear it may be because there was a problem
 loading it or because the *plugin_info* call returned a bad value. Examine
@@ -120,10 +120,10 @@ is malformed.
 
 There is a utility called *get_plugin_info* that is used by Python code
 to call the C *plugin_info* call, this can be used to ascertain the
-cuase of some problems. It should return the default configuration of
+cause of some problems. It should return the default configuration of
 your plugin and will verify that your plugin has no undefined symbols.
 
-The utility is passed the library file of your plugin as its frst arguemnt
+The utility is passed the library file of your plugin as its first argument
 and the function to call, usually *plugin_info*.
 
 .. code-block:: console
@@ -167,7 +167,7 @@ The easiest approach to run under a debugger is
        fledge.services.south --port=39821 --address=127.0.0.1 --name=Sine
        === Fledge tasks:
 
-   - Note the *--port=* and *--address-* arguments
+   - Note the *--port=* and *--address=* arguments
 
    - Load the service you wish to use to run your plugin, e..g a south service, under the debugger
 

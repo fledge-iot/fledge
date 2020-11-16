@@ -179,9 +179,18 @@ The easiest approach to run under a debugger is
 
      .. code-block:: console
 
-        (gdb) run --port=39821 --address=127.0.0.1 --name=DebugPlugin -d
+        (gdb) run --port=39821 --address=127.0.0.1 --name=ServiceName -d
+
+     Where *ServiceName* is the name you gave your service
 
    - You can now use the debugger in the way you normally would to find any issues.
+
+If you are using a plugin with a task, such as the north sending process task, then the command to use to start the debugger is 
+
+.. code-block:: console
+
+   $ gdb tasks/sending_process
+
 
 Using strace
 ------------
@@ -214,7 +223,45 @@ You can also use a similar approach to that of running gdb to use the *strace* c
 
      .. code-block:: console
 
-        $ strace services/fledge.services.south --port=39821 --address=127.0.0.1 --name=DebugPlugin -d
+        $ strace services/fledge.services.south --port=39821 --address=127.0.0.1 --name=ServiceName -d
+
+     Where *ServiceName* is the name you gave your service
+
+Memory Leaks and Corruptions
+----------------------------
+
+The same approach can be used to make use of the *valgrind* command to find memory corruption and leak issues in your plugin
+
+  - Create the service that uses your plugin, say a south service and name that service as you normally would.
+   
+  - Disable that service from being started by Fledge
+
+  - Use the fledge status script to find the arguments to pass the service
+
+    .. code-block:: console
+
+       $ scripts/fledge status
+       Fledge v1.8.2 running.
+       Fledge Uptime:  1451 seconds.
+       Fledge records: 200889 read, 200740 sent, 120962 purged.
+       Fledge does not require authentication.
+       === Fledge services:
+       fledge.services.core
+       fledge.services.storage --address=0.0.0.0 --port=39821
+       fledge.services.south --port=39821 --address=127.0.0.1 --name=AX8
+       fledge.services.south --port=39821 --address=127.0.0.1 --name=Sine
+       === Fledge tasks:
+
+   - Note the *--port=* and *--address=* arguments
+
+   - Run *strace* with the service adding the same set of arguments you used in gdb when running the service
+
+     .. code-block:: console
+
+        $ valgrind --leak-check=full  services/fledge.services.south --port=39821 --address=127.0.0.1 --name=ServiceName -d
+
+     Where *ServiceName* is the name you gave your service
+
 
 Python Plugin Info
 ------------------

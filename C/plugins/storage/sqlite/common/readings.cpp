@@ -2795,7 +2795,7 @@ void ReadingsCatalogue::detachDb(sqlite3 *dbHandle, std::string &alias)
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx2 V2 detachDb - db :%s: cmd :%s:" ,  alias.c_str() , sqlCmd.c_str() );
+	Logger::getLogger()->debug("V2 detachDb - db :%s: cmd :%s:" ,  alias.c_str() , sqlCmd.c_str() );
 	rc = SQLExec (dbHandle, sqlCmd.c_str(), &zErrMsg);
 	if (rc != SQLITE_OK)
 	{
@@ -2951,7 +2951,6 @@ void ReadingsCatalogue::multipleReadingsInit(STORAGE_CONFIGURATION &storageConfi
 		// FIXME_I:
 		storeReadingsConfiguration(dbHandle);
 
-
 		preallocateReadingsTables(0);   // on the last database
 
 		evaluateGlobalId();
@@ -2959,7 +2958,7 @@ void ReadingsCatalogue::multipleReadingsInit(STORAGE_CONFIGURATION &storageConfi
 
 		// FIXME_I:
 		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("multipleReadingsInit - dbIdCurrent :%d: dbIdLast :%d: current nDbPreallocate :%d: requeste  nDbPreallocate :%d:",
+		Logger::getLogger()->debug("multipleReadingsInit - dbIdCurrent :%d: dbIdLast :%d: nDbPreallocate current :%d: requested :%d:",
 								   m_dbIdCurrent,
 								   m_dbIdLast,
 								   m_storageConfigCurrent.nDbPreallocate,
@@ -3015,13 +3014,13 @@ void ReadingsCatalogue::configChangeAddDb(sqlite3 *dbHandle)
 
 	// FIXME_I:
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug(" configChangeAddDb - dbIdCurrent :%d: dbIdLast :%d: current nDbPreallocate :%d: requeste  nDbPreallocate :%d:",
+	Logger::getLogger()->debug("xxx2 configChangeAddDb - dbIdCurrent :%d: dbIdLast :%d: nDbPreallocate current :%d: requested :%d:",
 							m_dbIdCurrent,
 							m_dbIdLast,
 							m_storageConfigCurrent.nDbPreallocate,
 							m_storageConfigApi.nDbPreallocate);
 
-	Logger::getLogger()->debug("xxx configChangeAddDb - Id start :%d: Id end :%d: ", m_dbIdLast, m_storageConfigApi.nDbPreallocate);
+	Logger::getLogger()->debug("xxx2 configChangeAddDb - Id start :%d: Id end :%d: ", m_dbIdLast, m_storageConfigApi.nDbPreallocate);
 
 	for (dbId = m_dbIdLast +1; dbId <= m_storageConfigApi.nDbPreallocate; dbId++)
 	{
@@ -3029,7 +3028,7 @@ void ReadingsCatalogue::configChangeAddDb(sqlite3 *dbHandle)
 		startReadingsId = readingsAvailable.lastReadings +1;
 		createNewDB(dbHandle,  dbId, startReadingsId, NEW_DB_ATTACH_ALL);
 
-		Logger::getLogger()->debug("configChangeAddDb - db created :%d: startReadingsIdOnDB :%d:", dbId, startReadingsId);
+		Logger::getLogger()->debug("xxx2 configChangeAddDb - db created :%d: startReadingsIdOnDB :%d:", dbId, startReadingsId);
 	}
 
 	// FIXME_I:
@@ -3058,7 +3057,7 @@ void ReadingsCatalogue::configChangeRemoveDb(sqlite3 *dbHandle)
 
 	// FIXME_I:
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx2 configChangeRemoveDb - dbIdCurrent :%d: dbIdLast :%d: current nDbPreallocate :%d: requeste  nDbPreallocate :%d:",
+	Logger::getLogger()->debug("xxx2 configChangeRemoveDb - dbIdCurrent :%d: dbIdLast :%d: nDbPreallocate current :%d: requested :%d:",
 							   m_dbIdCurrent,
 							   m_dbIdLast,
 							   m_storageConfigCurrent.nDbPreallocate,
@@ -3100,7 +3099,7 @@ bool ReadingsCatalogue::dbRemove(string dbPath)
 {
 	bool success;
 
-	Logger::getLogger()->debug("xxx2 dbRemove - db path :%s:", dbPath.c_str());
+	Logger::getLogger()->debug("dbRemove - db path :%s:", dbPath.c_str());
 
 	if (remove (dbPath.c_str()) ==0)
 		success = true;
@@ -3127,15 +3126,15 @@ bool ReadingsCatalogue::applyStorageConfigChanges(sqlite3 *dbHandle)
 	{
 		if (m_storageConfigApi.nDbPreallocate > m_dbIdLast)
 		{
-			Logger::getLogger()->debug("applyStorageConfigChanges - parameters nDbPreallocate changed, add more databases from :%d: to :%d:", m_dbIdLast, m_storageConfigApi.nDbPreallocate);
+			Logger::getLogger()->debug("xxx2 applyStorageConfigChanges - parameters nDbPreallocate changed, adding more databases from :%d: to :%d:", m_dbIdLast, m_storageConfigApi.nDbPreallocate);
 			configChanged = true;
 			configChangeAddDb(dbHandle);
 
-		} else if (m_storageConfigApi.nDbPreallocate < m_dbIdCurrent)
+		} else if (m_storageConfigApi.nDbPreallocate < (m_dbIdCurrent + m_storageConfigCurrent.nDbLeftFreeBeforeAllocate) )
 		{
-			Logger::getLogger()->warn("applyStorageConfigChanges: the parameter nDbPreallocate of the storage engine has changed, but it is not possible to apply the change as there are already data stored in the database id :%d:", m_dbIdCurrent);
+			Logger::getLogger()->warn("xxx2 applyStorageConfigChanges: parameter nDbPreallocate changed, but it is not possible to apply the change as there are already data stored in the database id :%d:, use a larger value", m_dbIdCurrent);
 
-		} else if ( (m_storageConfigApi.nDbPreallocate > m_dbIdCurrent) && (m_storageConfigApi.nDbPreallocate < m_dbIdLast))
+		} else if ( (m_storageConfigApi.nDbPreallocate > m_dbIdCurrent) && (m_storageConfigApi.nDbPreallocate <= (m_dbIdCurrent + m_storageConfigCurrent.nDbLeftFreeBeforeAllocate)))
 		{
 			Logger::getLogger()->debug("xxx2 applyStorageConfigChanges - parameters nDbPreallocate changed, removing databases from :%d: to :%d:", m_storageConfigApi.nDbPreallocate, m_dbIdLast);
 			configChanged = true;
@@ -3145,7 +3144,7 @@ bool ReadingsCatalogue::applyStorageConfigChanges(sqlite3 *dbHandle)
 	}
 
 	if ( !configChanged)
-		Logger::getLogger()->debug("xxx2 applyStorageConfigChanges - storage aparameters not changed");
+		Logger::getLogger()->debug("applyStorageConfigChanges - storage parameters not changed");
 
 	// FIXME_I:
 	return true;
@@ -3321,7 +3320,7 @@ bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle, int newDbId, int startId
 		result = attachDb(dbHandle, dbPathReadings, dbAlias);
 		result = manager->attachRequestNewDb(newDbId, dbHandle);
 
-	} else  if (attachAllDb == NEW_DB_DEATTACH)
+	} else  if (attachAllDb == NEW_DB_DETACH)
 	{
 		Logger::getLogger()->debug("xxx createNewDB - attach");
 		// FIXME_I:
@@ -3358,7 +3357,7 @@ bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle, int newDbId, int startId
 		m_nReadingsAvailable = readingsToAllocate;
 	}
 
-	if (attachAllDb == NEW_DB_DEATTACH)
+	if (attachAllDb == NEW_DB_DETACH)
 	{
 		Logger::getLogger()->debug("xxx createNewDB - deattach");
 
@@ -3929,7 +3928,7 @@ int ReadingsCatalogue::SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **err
 	int retries = 0, rc;
 
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx2 SQLExec: cmd :%s: ", sqlCmd);
+	Logger::getLogger()->debug("SQLExec: cmd :%s: ", sqlCmd);
 
 	do {
 		if (errMsg == NULL)

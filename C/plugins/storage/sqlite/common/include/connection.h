@@ -244,13 +244,12 @@ class ReadingsCatalogue {
 
 	private:
 		STORAGE_CONFIGURATION m_storageConfigCurrent;                           // The current configuration of the multiple readings
-		STORAGE_CONFIGURATION m_storageConfigApi;                               // The parameters stored/retrieved by the API
-
+		STORAGE_CONFIGURATION m_storageConfigApi;                               // The parameters retrieved from the API
 
 		enum NEW_DB_OPERATION {
 			NEW_DB_ATTACH_ALL,
 			NEW_DB_ATTACH_REQUEST,
-			NEW_DB_DEATTACH
+			NEW_DB_DETACH
 		};
 
 		typedef struct ReadingAvailable {

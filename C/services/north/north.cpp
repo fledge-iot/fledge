@@ -255,7 +255,7 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		// Now do the work of the north service
 
 
-		// do plugin shutdown before destroying Ingest object on stack
+		// Shutdown the north plugin
 		if (northPlugin)
 			northPlugin->shutdown();
 		
@@ -318,8 +318,6 @@ void NorthService::createConfigCategories(DefaultConfigCategory configCategory, 
 
 /**
  * Load the configured north plugin
- *
- * TODO Should search for the plugin in specified locations
  */
 bool NorthService::loadPlugin()
 {
@@ -406,8 +404,7 @@ void NorthService::configChange(const string& categoryName, const string& catego
 			logger->fatal("Unrecoverable failure during North plugin reconfigure, north service exiting...");
 			shutdown();
 		}
-		// Let ingest class check for changes to filter pipeline
-		// FIXME m_ingest->configChange(categoryName, category);
+		// FIXME Action the configuration change
 	}
 	if (categoryName.compare(m_name+"Advanced") == 0)
 	{
@@ -435,16 +432,6 @@ void NorthService::configChange(const string& categoryName, const string& catego
 		} catch (ConfigItemNotFound e) {
 			logger->error("Failed to update poll interval following configuration change");
 		}
-		unsigned long threshold = 5000;	// This should never be used
-		if (m_configAdvanced.itemExists("bufferThreshold"))
-		{
-			threshold = (unsigned int)strtol(m_configAdvanced.getValue("bufferThreshold").c_str(), NULL, 10);
-			// m_ingest->setThreshold(threshold);
-		}
-		if (m_configAdvanced.itemExists("maxSendLatency"))
-		{
-			// m_ingest->setTimeout(strtol(m_configAdvanced.getValue("maxSendLatency").c_str(), NULL, 10));
-		}
 		if (m_configAdvanced.itemExists("logLevel"))
 		{
 			logger->setMinLevel(m_configAdvanced.getValue("logLevel"));
@@ -466,12 +453,6 @@ void NorthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 			defaults[i].type, defaults[i].value, defaults[i].value);
 		defaultConfig.setItemDisplayName(defaults[i].name, defaults[i].displayName);
 	}
-
-	/* Add the reading rate units */
-	vector<string>	rateUnits = { "second", "minute", "hour" };
-	defaultConfig.addItem("units", "Reading Rate Per",
-			"second", "second", rateUnits);
-	defaultConfig.setItemDisplayName("units", "Reading Rate Per");
 
 	/* Add the set of logging levels to the service */
 	vector<string>	logLevels = { "error", "warning", "info", "debug" };

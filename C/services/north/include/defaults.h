@@ -1,9 +1,9 @@
 #ifndef _DEFAULTS_H
 #define _DEFAULTS_H
 /*
- * Fledge reading ingest.
+ * Fledge north service configuration defaults for the advanced category.
  *
- * Copyright (c) 2018 OSisoft, LLC
+ * Copyright (c) 2020 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
@@ -17,14 +17,6 @@ static struct {
 	const char	*type;
 	const char	*value;
 } defaults[] = {
-	{ "maxSendLatency",	"Maximum Reading Latency (mS)",
-			"Maximum time to spend filling buffer before sending", "integer", "5000" },
-	{ "bufferThreshold",	"Maximum buffered Readings",
-			"Number of readings to buffer before sending", "integer", "100" },
-	{ "readingsPerSec",	"Reading Rate",
-			"Number of readings to generate per interval", "integer", "1" },
-	{ "throttle",	"Throttle",
-			"Enable flow control by reducing the poll rate", "boolean", "false" },
 	{ NULL, NULL, NULL, NULL, NULL }
 };
 #endif

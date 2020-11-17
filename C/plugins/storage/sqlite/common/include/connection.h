@@ -216,7 +216,7 @@ class ReadingsCatalogue {
 		std::string   generateDbName(int tableId);
 		std::string   generateDbFileName(int dbId);
 		std::string   generateDbNameFromTableId(int tableId);
-		std::string   generateReadingsName(int tableId);
+		std::string   generateReadingsName(int  dbId, int tableId);
 		void          getAllDbs(std::vector<int> &dbIdList);
 		void          getNewDbs(std::vector<int> &dbIdList);
 		int           getMaxReadingsId();
@@ -241,6 +241,8 @@ class ReadingsCatalogue {
 		void          detachDb(sqlite3 *dbHandle, std::string &alias);
 
 		void          setUsedDbId(int dbId);
+		int           extractReadingsIdFromName(std::string tableName);
+		int           extractDbIdFromName(std::string tableName);
 
 	private:
 		STORAGE_CONFIGURATION m_storageConfigCurrent;                           // The current configuration of the multiple readings
@@ -283,17 +285,15 @@ class ReadingsCatalogue {
 
 		bool          configurationRetrieve(sqlite3 *dbHandle);
 		void          prepareAllDbs();
-		void          attachAllDbs();
 		bool          applyStorageConfigChanges(sqlite3 *dbHandle);
-		// FIXME_I:
-		//void          configChangeNDbPreallocate();
 		void          configChangeAddDb(sqlite3 *dbHandle);
 		void          configChangeRemoveDb(sqlite3 *dbHandle);
 		void          dbFileDelete(std::string dbPath);
 		void          dbsRemove(int startId, int endId);
-
 		void          storeReadingsConfiguration (sqlite3 *dbHandle);
-		ACTION  applyStorageConfigChangesLogic(int dbIdCurrent , int dbIdLast, int nDbPreallocateCurrent, int nDbPreallocateRequest, int nDbLeftFreeBeforeAllocate);
+		ACTION        applyStorageConfigChangesLogic(int dbIdCurrent , int dbIdLast, int nDbPreallocateCurrent, int nDbPreallocateRequest, int nDbLeftFreeBeforeAllocate);
+		int           retrieveDbIdFromTableId(int tableId);
+
 
 		int                                           m_dbIdCurrent;            // Current database in use
 		int                                           m_dbIdLast;               // Last database available not already in use

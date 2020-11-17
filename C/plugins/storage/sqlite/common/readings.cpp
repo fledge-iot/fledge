@@ -801,7 +801,8 @@ int localNReadingsTotal;
 					if (readingsStmt[readingsId] == nullptr)
 					{
 						string dbName = readCatalogue->generateDbNameFromTableId(readingsId);
-						string dbReadingsName = readCatalogue->generateReadingsName(readingsId);
+						// FIXME_I:
+						string dbReadingsName = readCatalogue->generateReadingsName(-1, readingsId);
 
 						sql_cmd = "INSERT INTO  " + dbName + "." + dbReadingsName + " ( id, user_ts, reading ) VALUES  (?,?,?)";
 						rc = SQLPrepare(dbHandle, sql_cmd.c_str(), &readingsStmt[readingsId]);
@@ -2482,8 +2483,9 @@ int ReadingsCatalogue::calculateGlobalId (sqlite3 *dbHandle)
 					sql_cmd += " UNION ";
 				}
 
-				dbReadingsName = generateReadingsName(item.second.first);
+				// FIXME_I:
 				dbName = generateDbName(item.second.second);
+				dbReadingsName = generateReadingsName(item.second.second, item.second.first);
 
 				sql_cmd += " SELECT max(id) id FROM " + dbName + "." + dbReadingsName + " ";
 				firstRow = false;
@@ -2948,17 +2950,17 @@ void ReadingsCatalogue::multipleReadingsInit(STORAGE_CONFIGURATION &storageConfi
 
 		// FIXME_I:
 		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx2 S1");
+		Logger::getLogger()->debug("S1");
 
 		applyStorageConfigChanges(dbHandle);
 
 		// FIXME_I:
 		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx2 S2");
+		Logger::getLogger()->debug("S2");
 
 		// FIXME_I:
 		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx2 multipleReadingsInit - dbIdCurrent :%d: dbIdLast :%d: nDbPreallocate current :%d: requested :%d:",
+		Logger::getLogger()->debug("multipleReadingsInit - dbIdCurrent :%d: dbIdLast :%d: nDbPreallocate current :%d: requested :%d:",
 								   m_dbIdCurrent,
 								   m_dbIdLast,
 								   m_storageConfigCurrent.nDbPreallocate,
@@ -2974,9 +2976,9 @@ void ReadingsCatalogue::multipleReadingsInit(STORAGE_CONFIGURATION &storageConfi
 	catch (exception& e)
 	{
 		// FIXME_I:
-		Logger::getLogger()->debug("xxx2 S5");
+		Logger::getLogger()->debug("S5");
 
-		Logger::getLogger()->error("xxx2 It is not possible to initialize the multiple readings handling, error :%s: ", e.what());
+		Logger::getLogger()->error("It is not possible to initialize the multiple readings handling, error :%s: ", e.what());
 	}
 
 	manager->release(connection);
@@ -3059,8 +3061,8 @@ void ReadingsCatalogue::configChangeAddDb(sqlite3 *dbHandle)
 	catch (exception& e)
 	{
 		// FIXME_I:
-		Logger::getLogger()->debug("xxx2 S3");
-		Logger::getLogger()->error("xxx2 It is not possible to add the requested databases, error :%s: - removing created databases", e.what());
+		Logger::getLogger()->debug("S3");
+		Logger::getLogger()->error("It is not possible to add the requested databases, error :%s: - removing created databases", e.what());
 		dbsRemove(startId , endId);
 	}
 
@@ -3170,7 +3172,7 @@ bool ReadingsCatalogue::applyStorageConfigChanges(sqlite3 *dbHandle)
 
 	// FIXME_I:
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx2 applyStorageConfigChanges - dbIdCurrent :%d: dbIdLast :%d: nDbPreallocate current :%d: requested :%d: nDbLeftFreeBeforeAllocate :%d:",
+	Logger::getLogger()->debug("applyStorageConfigChanges - dbIdCurrent :%d: dbIdLast :%d: nDbPreallocate current :%d: requested :%d: nDbLeftFreeBeforeAllocate :%d:",
 							   m_dbIdCurrent,
 							   m_dbIdLast,
 							   m_storageConfigCurrent.nDbPreallocate,
@@ -3225,8 +3227,8 @@ bool ReadingsCatalogue::applyStorageConfigChanges(sqlite3 *dbHandle)
 	catch (exception& e)
 	{
 		// FIXME_I:
-		Logger::getLogger()->debug("xxx2 S4");
-		Logger::getLogger()->error("xxx2 It is not possible to apply the chnages to the multi readings handling, error :%s: ", e.what());
+		Logger::getLogger()->debug("S4");
+		Logger::getLogger()->error("It is not possible to apply the chnages to the multi readings handling, error :%s: ", e.what());
 	}
 
 
@@ -3523,7 +3525,8 @@ bool  ReadingsCatalogue::createReadingsTables(sqlite3 *dbHandle, int dbId, int i
 	for (readingsIdx = 0 ;  readingsIdx < nTables; ++readingsIdx)
 	{
 		tableId = idStartFrom + readingsIdx;
-		dbReadingsName = generateReadingsName(tableId);
+		// FIXME_I:
+		dbReadingsName = generateReadingsName(dbId, tableId);
 
 		createReadings = R"(
 			CREATE TABLE )" + dbName + "." + dbReadingsName + R"( (
@@ -3535,7 +3538,7 @@ bool  ReadingsCatalogue::createReadingsTables(sqlite3 *dbHandle, int dbId, int i
 		)";
 
 		createReadingsIdx = R"(
-			CREATE INDEX )" + dbName + "." + dbReadingsName + R"(_ix3 ON readings_)" + to_string(tableId) + R"( (user_ts);
+			CREATE INDEX )" + dbName + "." + dbReadingsName + R"(_ix3 ON )" + dbReadingsName + R"( (user_ts);
 		)";
 
 		rc = SQLExec(dbHandle, createReadings.c_str());
@@ -3619,7 +3622,8 @@ ReadingsCatalogue::tyReadingsAvailable  ReadingsCatalogue::evaluateLastReadingAv
 			nCols = sqlite3_column_count(stmt);
 
 			tableName = (char *)sqlite3_column_text(stmt, 0);
-			id = stoi(tableName.substr (tableName.find('_') + 1));
+			// FIXME_I:
+			id = extractReadingsIdFromName(tableName);
 
 			if (id > readingsAvailable.lastReadings)
 				readingsAvailable.lastReadings = id;
@@ -3859,8 +3863,9 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
 		{
 			sqlCmdTmp = sqlCmdBase;
 
-			dbReadingsName = generateReadingsName(item.second.first);
+			// FIXME_I:
 			dbName = generateDbName(item.second.second);
+			dbReadingsName = generateReadingsName(item.second.second, item.second.first);
 
 			StringReplaceAll (sqlCmdTmp, "_assetcode_", item.first);
 			StringReplaceAll (sqlCmdTmp, "_dbname_", dbName);
@@ -3943,8 +3948,10 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string
 					sqlCmd += " UNION ALL ";
 				}
 
-				dbReadingsName = generateReadingsName(item.second.first);
+				// FIXME_I:
 				dbName = generateDbName(item.second.second);
+				dbReadingsName = generateReadingsName(item.second.second, item.second.first);
+
 
 				StringReplaceAll(sqlCmdTmp, "_assetcode_", assetCode);
 				StringReplaceAll (sqlCmdTmp, ".assetcode.", "asset_code");
@@ -3997,13 +4004,82 @@ string ReadingsCatalogue::generateDbFileName(int dbId)
 	return (READINGS_DB_NAME_BASE "_" + to_string (dbId) + ".db");
 }
 
+
+// FIXME_I:
+int ReadingsCatalogue::extractReadingsIdFromName(string tableName)
+{
+	int dbId;
+	int tableId;
+	string dbIdTableId;
+
+	dbIdTableId = tableName.substr (tableName.find('_') + 1);
+
+	tableId = stoi(dbIdTableId.substr (dbIdTableId.find('_') + 1));
+
+	dbId = stoi(dbIdTableId.substr (0, dbIdTableId.find('_') ));
+
+
+	return(tableId);
+}
+
+// FIXME_I:
+int ReadingsCatalogue::extractDbIdFromName(string tableName)
+{
+	int dbId;
+	int tableId;
+	string dbIdTableId;
+
+	dbIdTableId = tableName.substr (tableName.find('_') + 1);
+
+	tableId = stoi(dbIdTableId.substr (dbIdTableId.find('_') + 1));
+
+	dbId = stoi(dbIdTableId.substr (0, dbIdTableId.find('_') ));
+
+	return(dbId);
+}
 /**
- * Generates the name of the readin table from the given table id
+ * Generates the name of the reading table from the given table id as:
+ * 
+ * Prefix + db Id + reading Id
  *
  */
-string ReadingsCatalogue::generateReadingsName(int tableId)
+string ReadingsCatalogue::generateReadingsName(int  dbId, int tableId)
 {
-	return (READINGS_TABLE "_" + to_string(tableId));
+	string tableName;
+
+	if (dbId == -1)
+		dbId = retrieveDbIdFromTableId (tableId);
+
+	tableName = READINGS_TABLE "_" + to_string(dbId) + "_" + to_string(tableId);
+	// FIXME_I:
+	//tableName = READINGS_TABLE "_" + to_string(tableId);
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx %s -  dbId :%d: tableId :%d: table name :%s: ", __FUNCTION__, dbId, tableId, tableName.c_str());
+	Logger::getLogger()->setMinLevel("warning");
+
+	return (tableName);
+}
+/**
+ * // FIXME_I:
+ *
+ */
+int ReadingsCatalogue::retrieveDbIdFromTableId(int tableId)
+{
+	int dbId;
+
+	dbId = -1;
+	for (auto &item : m_AssetReadingCatalogue)
+	{
+
+		if (item.second.first == tableId)
+		{
+			dbId = item.second.second;
+			break;
+		}
+	}
+	return (dbId);
 }
 
 /**

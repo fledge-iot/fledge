@@ -123,6 +123,12 @@ to call the C *plugin_info* call, this can be used to ascertain the
 cause of some problems. It should return the default configuration of
 your plugin and will verify that your plugin has no undefined symbols.
 
+The location of *get_plugin_info* will depend on the type of
+installation you have. If you have built from source then it can
+be found in *./cmake_build/C/plugins/utils/get_plugin_info*. If you
+have installed a package, or run *make install*, you can find it in
+*/usr/local/fledge/extras/C/get_plugin_info*.
+
 The utility is passed the library file of your plugin as its first argument
 and the function to call, usually *plugin_info*.
 

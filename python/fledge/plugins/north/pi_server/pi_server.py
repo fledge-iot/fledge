@@ -141,7 +141,8 @@ _CONFIG_DEFAULT_OMF = {
         "type": "string",
         "default": ".[]",
         "order": "6",
-        "displayName": "Filter Rule"
+        "displayName": "Filter Rule",
+        "validity": "applyFilter == \"true\""
     },
     "OMFRetrySleepTime": {
         "description": "Seconds between each retry for communication with the OMF PI Connector Relay. "

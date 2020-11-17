@@ -140,6 +140,9 @@ Running Under a Debugger
 
 If you have a C/C++ plugin that crashes you may want to run the plugin under a debugger. To build with debug symbols use the CMake option *-DBUILD_TYPE=Debug* when you create the *Makefile*.
 
+Running a Service Under the Debugger
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 .. code-block:: console
 
    $ cmake -DBUILD_TYPE=Debug ..
@@ -169,6 +172,18 @@ The easiest approach to run under a debugger is
 
    - Note the *--port=* and *--address=* arguments
 
+   - Set your LD_LIBRARY_PATH. This is normally done in the script that launches Fledge but will need to be run as a manual step when running under the debugger.
+
+     .. code-block:: console
+
+        export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/local/fledge/lib
+
+     If you built from source rather than installing a package you will need to include the libraries you built
+
+     .. code-block:: console
+
+        export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${FLEDGE_ROOT}/cmake_build/C/lib
+
    - Load the service you wish to use to run your plugin, e..g a south service, under the debugger
 
      .. code-block:: console
@@ -185,12 +200,74 @@ The easiest approach to run under a debugger is
 
    - You can now use the debugger in the way you normally would to find any issues.
 
-If you are using a plugin with a task, such as the north sending process task, then the command to use to start the debugger is 
+Running a Task Under the Debugger
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Running a task under the debugger is much the same as running a service,
+you will first need to find the management port and address of the core
+management service. Create the task, e.g. a north sending process in
+the same way as you normally would and disable it. You will also need
+to set your LD_LIBRARY_PATH as with running a service under the debugger.
+
+If you are using a plugin with a task, such as the north sending process
+task, then the command to use to start the debugger is
 
 .. code-block:: console
 
    $ gdb tasks/sending_process
 
+Running the Storage Service Under the Debugger
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Running the storage service under the debugger is more difficult as you can not start the storage service after Fledge has started, the startup of the storage service is coordinated by the core due to the nature of how configuration is stored. It is possible however to attach a debugger to a running storage service.
+
+  - Run a command to find the process ID of the storage service
+
+    .. code-block:: console
+
+       $ ps aux | grep fledge.services.storage
+       fledge  23318  0.0  0.3 270848 12388 ?        Ssl  10:00   0:01 /usr/local/fledge/services/fledge.services.storage --address=0.0.0.0 --port=33761
+       fledge  31033  0.0  0.0  13136  1084 pts/1    S+   10:37   0:00 grep --color=auto fledge.services.storage
+
+    - Use the process ID of the fledge service as an argument to gdb. Note you will need to run gdb as root on some systems
+
+      .. code-block:: console
+      $ sudo gdb /usr/local/fledge/services/fledge.services.storage 23318
+      GNU gdb (Ubuntu 8.1-0ubuntu3) 8.1.0.20180409-git
+      Copyright (C) 2018 Free Software Foundation, Inc.
+      License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+      This is free software: you are free to change and redistribute it.
+      There is NO WARRANTY, to the extent permitted by law.  Type "show copying"
+      and "show warranty" for details.
+      This GDB was configured as "x86_64-linux-gnu".
+      Type "show configuration" for configuration details.
+      For bug reporting instructions, please see:
+      <http://www.gnu.org/software/gdb/bugs/>.
+      Find the GDB manual and other documentation resources online at:
+      <http://www.gnu.org/software/gdb/documentation/>.
+      For help, type "help".
+      Type "apropos word" to search for commands related to "word"...
+      Reading symbols from services/fledge.services.storage...done.
+      Attaching to program: /usr/local/fledge/services/fledge.services.storage, process 23318
+      [New LWP 23320]
+      [New LWP 23321]
+      [New LWP 23322]
+      [New LWP 23330]
+      [Thread debugging using libthread_db enabled]
+      Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+      0x00007f47a3e05d2d in __GI___pthread_timedjoin_ex (threadid=139945627997952, thread_return=0x0, abstime=0x0,
+          block=<optimized out>) at pthread_join_common.c:89
+      89	pthread_join_common.c: No such file or directory.
+      (gdb)
+
+   - You can now use gdb to set break points etc and debug the storage service and plugins.
+
+If you are debugger a plugin that crashes the system when readings are
+processed you should disable the south services until you have connected
+the debugger to the storage system. If you have a system that is setup
+and crashes, use the --safe-mode flag to the startup of Fledge in order
+to disable all processes and services. This will allow you to disable
+servies or to run a paricular service manually.
 
 Using strace
 ------------

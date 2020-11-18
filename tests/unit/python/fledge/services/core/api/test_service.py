@@ -146,8 +146,7 @@ class TestService:
         ('{"name": "test", "plugin": "dht11", "type": "south", "enabled": "0"}', 400,
          'Only "true", "false", true, false are allowed for value of enabled.'),
         ('{"name": "test", "plugin": "dht11"}', 400, "Missing type property in payload."),
-        ('{"name": "test", "plugin": "dht11", "type": "blah"}', 400, "Only south, notification and management types are supported."),
-        ('{"name": "test", "plugin": "dht11", "type": "North"}', 406, "north type is not supported for the time being."),
+        ('{"name": "test", "plugin": "dht11", "type": "blah"}', 400, "Only south, north, notification and management types are supported."),
         ('{"name": "test", "type": "south"}', 400, "Missing plugin property for type south in payload.")
     ])
     async def test_add_service_with_bad_params(self, client, code, payload, message):
@@ -192,7 +191,10 @@ class TestService:
                         args1, kwargs1 = query_table_patch.call_args
                         assert 'scheduled_processes' == args1[0]
                         p2 = json.loads(args1[1])
-                        assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=', 'value': 'south_c'}} == p2
+                        assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=', 'value': 'south_c',
+                                                              'and': {'column': 'script', 'condition': '=',
+                                                                      'value': '[\"services/south_c\"]'}}
+                                } == p2
                     patch_get_cat_info.assert_called_once_with(category_name=data['name'])
             assert 1 == ex_logger.call_count
 
@@ -278,10 +280,11 @@ class TestService:
         def q_result(*arg):
             table = arg[0]
             _payload = arg[1]
-
             if table == 'scheduled_processes':
-                assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=',
-                                                      'value': 'south_c'}} == json.loads(_payload)
+                assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=', 'value': 'south_c',
+                                                      'and': {'column': 'script', 'condition': '=',
+                                                              'value': '[\"services/south_c\"]'}}
+                        } == json.loads(_payload)
                 return {'count': 0, 'rows': []}
             if table == 'schedules':
                 assert {'return': ['schedule_name'], 'where': {'column': 'schedule_name', 'condition': '=',
@@ -365,8 +368,10 @@ class TestService:
 
                     return {'count': 0, 'rows': []}
             if table == 'scheduled_processes':
-                assert {"return": ["name"], "where": {"column": "name", "condition": "=",
-                                                      "value": "notification_c"}} == _payload
+                assert {"return": ["name"], "where": {"column": "name", "condition": "=", "value": "notification_c",
+                                                      "and": {"column": "script", "condition": "=",
+                                                              "value": "[\"services/notification_c\"]"}}
+                        } == _payload
                 return {'count': 0, 'rows': []}
 
         expected_insert_resp = {'rows_affected': 1, "response": "inserted"}
@@ -413,8 +418,10 @@ class TestService:
 
                     return {'count': 0, 'rows': []}
             if table == 'scheduled_processes':
-                assert {"return": ["name"], "where": {"column": "name", "condition": "=",
-                                                      "value": "notification_c"}} == _payload
+                assert {"return": ["name"], "where": {"column": "name", "condition": "=", "value": "notification_c",
+                                                      "and": {"column": "script", "condition": "=",
+                                                              "value": "[\"services/notification_c\"]"}}
+                        } == _payload
                 return {'count': 0, 'rows': []}
 
         expected_insert_resp = {'rows_affected': 1, "response": "inserted"}
@@ -452,8 +459,10 @@ class TestService:
             _payload = arg[1]
 
             if table == 'scheduled_processes':
-                assert {'return': ['name'],
-                        'where': {'column': 'name', 'condition': '=', 'value': 'south_c'}} == json.loads(_payload)
+                assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=', 'value': 'south_c',
+                                                      'and': {'column': 'script', 'condition': '=',
+                                                              'value': '[\"services/south_c\"]'}}
+                        } == json.loads(_payload)
                 return {'count': 0, 'rows': []}
             if table == 'schedules':
                 assert {'return': ['schedule_name'],
@@ -724,6 +733,7 @@ class TestService:
     p1 = '{"name": "FL Agent", "type": "management"}'
     p2 = '{"name": "FL #1", "type": "management", "enabled": false}'
     p3 = '{"name": "FL_MGT", "type": "management", "enabled": true}'
+
     @pytest.mark.parametrize("payload", [p1, p2, p3])
     async def test_add_management_service(self, client, payload):
         data = json.loads(payload)
@@ -748,8 +758,10 @@ class TestService:
 
                     return {'count': 0, 'rows': []}
             if table == 'scheduled_processes':
-                assert {"return": ["name"], "where": {"column": "name", "condition": "=",
-                                                      "value": "management"}} == _payload
+                assert {"return": ["name"], "where": {"column": "name", "condition": "=", "value": "management",
+                                                      "and": {"column": "script", "condition": "=",
+                                                              "value": "[\"services/management\"]"}}
+                        } == _payload
                 return {'count': 0, 'rows': []}
 
         expected_insert_resp = {'rows_affected': 1, "response": "inserted"}
@@ -790,15 +802,16 @@ class TestService:
                     assert {"return": ["process_name"]} == _payload
                     return {'rows': [{'process_name': 'stats collector'}, {'process_name': 'management'}],
                             'count': 2}
-
                 else:
                     assert {"return": ["schedule_name"], "where": {"column": "schedule_name", "condition": "=",
                                                                    "value": data['name']}} == _payload
 
                     return {'count': 0, 'rows': []}
             if table == 'scheduled_processes':
-                assert {"return": ["name"], "where": {"column": "name", "condition": "=",
-                                                      "value": "management"}} == _payload
+                assert {"return": ["name"], "where": {"column": "name", "condition": "=", "value": "management",
+                                                      "and": {"column": "script", "condition": "=",
+                                                              "value": "[\"services/management\"]"}}
+                        } == _payload
                 return {'count': 0, 'rows': []}
 
         expected_insert_resp = {'rows_affected': 1, "response": "inserted"}

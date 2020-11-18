@@ -14,11 +14,13 @@
 #include <north_plugin.h>
 #include <service_handler.h>
 #include <management_client.h>
+#include <storage_client.h>
 #include <config_category.h>
 #include <filter_plugin.h>
 
 #define SERVICE_NAME  "Fledge North"
 
+#define NEW_STREAM_LAST_OBJECT 0
 
 /**
  * The NorthService class. This class is the core
@@ -28,6 +30,7 @@
 class NorthService : public ServiceHandler {
 	public:
 		NorthService(const std::string& name);
+		~NorthService();
 		void 				start(std::string& coreAddress,
 						      unsigned short corePort);
 		void 				stop();
@@ -40,6 +43,9 @@ class NorthService : public ServiceHandler {
 		bool 				loadPlugin();
 		void 				createConfigCategories(DefaultConfigCategory configCategory, std::string parent_name,std::string current_name);
 	private:
+		bool				getLastSentReadingId();
+		int				createNewStream();
+		void				updateLastSentId();
 		NorthPlugin			*northPlugin;
 		const std::string&		m_name;
 		Logger        			*logger;
@@ -48,16 +54,8 @@ class NorthService : public ServiceHandler {
 		ConfigCategory			m_config;
 		ConfigCategory			m_configAdvanced;
 		static ManagementClient		*m_mgtClient;
-		unsigned long			m_readingsPerSec;	// May not be per second, new rate defines time units
-		unsigned int			m_threshold;
-		unsigned long			m_timeout;
-		bool				m_throttle;
-		bool				m_throttled;
-		unsigned int			m_highWater;
-		unsigned int			m_lowWater;
-		struct timeval			m_lastThrottle;
-		struct timeval			m_desiredRate;
-		struct timeval			m_currentRate;
-		int				m_timerfd;
+		StorageClient			*m_storage;
+		int				m_streamId;
+		unsigned long			m_lastSent;
 };
 #endif

@@ -35,6 +35,21 @@
 extern int makeDaemon(void);
 extern void handler(int sig);
 
+static const char *defaultServiceConfig = QUOTE({
+	"enable": {
+		"description": "A switch that can be used to enable or disable execution of the sending process.",
+		"type": "boolean",
+		"default": "true" ,
+		"readonly": "true"
+		},
+	"streamId": {
+		"description": "Identifies the specific stream to handle and the related information, among them the ID of the last object streamed.",
+		"type": "integer",
+		"default": "0",
+		"readonly": "true"
+		 }
+		});
+
 using namespace std;
 
 /**
@@ -173,11 +188,19 @@ int	size;
 /**
  * Constructor for the north service
  */
-NorthService::NorthService(const string& myName) : m_name(myName), m_shutdown(false), m_readingsPerSec(1),
-						m_throttle(false), m_throttled(false)
+NorthService::NorthService(const string& myName) : m_name(myName), m_shutdown(false), m_storage(NULL), m_streamId(0)
 {
 	logger = new Logger(myName);
 	logger->setMinLevel("warning");
+}
+
+/**
+ * Destructor for the north service
+ */
+NorthService::~NorthService()
+{
+	if (m_storage)
+		delete m_storage;
 }
 
 ManagementClient *NorthService::m_mgtClient = NULL;
@@ -242,17 +265,23 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 				storageRecord.getPort());
 
 		
-		StorageClient storage(storageRecord.getAddress(),
+		m_storage = new StorageClient(storageRecord.getAddress(),
 						storageRecord.getPort());
-		unsigned int threshold = 100;
-		long timeout = 5000;
-		std::string pluginName;
 
-		// Fetch any advanced confguration
+		// Fetch Confguration
 
 		m_assetTracker = new AssetTracker(m_mgtClient, m_name);
 
 		// Now do the work of the north service
+		if (m_config.itemExists("streamId"))
+		{
+			m_streamId = strtol(m_config.getValue("streamId").c_str(), NULL, 10);
+		}
+		if (!getLastSentReadingId())
+		{
+			m_streamId = createNewStream();
+			getLastSentReadingId();
+		}
 
 
 		// Shutdown the north plugin
@@ -287,6 +316,10 @@ void NorthService::createConfigCategories(DefaultConfigCategory configCategory, 
 	DefaultConfigCategory defConfigCategoryOnly(defConfig);
 	defConfigCategoryOnly.keepItemsType(ConfigCategory::ItemType::CategoryType);
 	defConfig.removeItemsType(ConfigCategory::ItemType::CategoryType);
+
+	DefaultConfigCategory serviceConfig(current_name,
+                                               defaultServiceConfig);
+	defConfig += serviceConfig;
 
 	// Create/Update category name (we pass keep_original_items=true)
 	m_mgtClient->addCategory(defConfig, true);
@@ -332,7 +365,7 @@ bool NorthService::loadPlugin()
 		string plugin = m_config.getValue("plugin");
 		logger->info("Loading north plugin %s.", plugin.c_str());
 		PLUGIN_HANDLE handle;
-		if ((handle = manager->loadPlugin(plugin, PLUGIN_TYPE_SOUTH)) != NULL)
+		if ((handle = manager->loadPlugin(plugin, PLUGIN_TYPE_NORTH)) != NULL)
 		{
 			// Adds categories and sub categories to the configuration
 			DefaultConfigCategory defConfig(m_name, manager->getInfo(handle)->config);
@@ -409,29 +442,6 @@ void NorthService::configChange(const string& categoryName, const string& catego
 	if (categoryName.compare(m_name+"Advanced") == 0)
 	{
 		m_configAdvanced = ConfigCategory(m_name+"Advanced", category);
-		try {
-			unsigned long newval = (unsigned long)strtol(m_configAdvanced.getValue("readingsPerSec").c_str(), NULL, 10);
-			string units = m_configAdvanced.getValue("units");
-			unsigned long dividend = 1000000;
-			if (units.compare("second") == 0)
-				dividend = 1000000;
-			else if (units.compare("minute") == 0)
-				dividend = 60000000;
-			else if (units.compare("hour") == 0)
-				dividend = 3600000000;
-			if (newval != m_readingsPerSec)
-			{
-				m_readingsPerSec = newval;
-				close(m_timerfd);
-				unsigned long usecs = dividend / m_readingsPerSec;
-				m_desiredRate.tv_sec  = (int)(usecs / 1000000);
-				m_desiredRate.tv_usec = (int)(usecs % 1000000);
-				m_currentRate = m_desiredRate;
-				// m_timerfd = createTimerFd(m_desiredRate); // interval to be passed is in usecs
-			}
-		} catch (ConfigItemNotFound e) {
-			logger->error("Failed to update poll interval following configuration change");
-		}
 		if (m_configAdvanced.itemExists("logLevel"))
 		{
 			logger->setMinLevel(m_configAdvanced.getValue("logLevel"));
@@ -460,3 +470,104 @@ void NorthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 			"warning", "warning", logLevels);
 	defaultConfig.setItemDisplayName("logLevel", "Minimum Log Level");
 }
+
+/**
+ * Get the ID of the last reading that was sent with this service
+ */
+bool NorthService::getLastSentReadingId()
+{
+	// Fetch last_object sent from fledge.streams
+
+	bool foundId = false;
+	const Condition conditionId(Equals);
+	string streamId = to_string(m_streamId);
+	Where* wStreamId = new Where("id",
+				     conditionId,
+				     streamId);
+
+	// SELECT * FROM fledge.streams WHERE id = x
+	Query qLastId(wStreamId);
+
+	ResultSet* lastObjectId = m_storage->queryTable("streams", qLastId);
+
+	if (lastObjectId != NULL && lastObjectId->rowCount())
+	{
+		// Get the first row only
+		ResultSet::RowIterator it = lastObjectId->firstRow();
+		// Access the element
+		ResultSet::Row* row = *it;
+		if (row)
+		{
+			// Get column value
+			ResultSet::ColumnValue* theVal = row->getColumn("last_object");
+			// Set found id
+			m_lastSent = ((unsigned long)theVal->getInteger());
+
+			foundId = true;
+		}
+	}
+	// Free result set
+	delete lastObjectId;
+
+	return foundId;
+}
+
+
+
+/**
+ * Creates a new stream, it adds a new row into the streams table allocating a new stream id
+ *
+ * @return newly created stream, 0 otherwise
+ */
+int NorthService::createNewStream()
+{
+int streamId = 0;
+InsertValues streamValues;
+
+	streamValues.push_back(InsertValue("description",    m_name));
+	streamValues.push_back(InsertValue("last_object",    NEW_STREAM_LAST_OBJECT));
+
+	if (m_storage->insertTable("streams", streamValues) != 1)
+	{
+		Logger::getLogger()->error("Failed to insert a row into the streams table");
+        }
+	else
+	{
+		// Select the row just created, having description='process name'
+		const Condition conditionId(Equals);
+		Where* wName = new Where("description", conditionId, m_name);
+		Query qName(wName);
+
+		ResultSet *rows = m_storage->queryTable("streams", qName);
+
+		if (rows != NULL && rows->rowCount())
+		{
+			// Get the first row only
+			ResultSet::RowIterator it = rows->firstRow();
+			// Access the element
+			ResultSet::Row* row = *it;
+			if (row)
+			{
+				// Get column value
+				ResultSet::ColumnValue* theVal = row->getColumn("id");
+				streamId = (int)theVal->getInteger();
+			}
+		}
+		delete rows;
+	}
+	return streamId;
+}
+
+/**
+ * Update the last sent ID for our stream
+ */
+void NorthService::updateLastSentId()
+{
+	const Condition condition(Equals);
+	Where where("id", condition, to_string(m_streamId));
+	InsertValues lastId;
+
+	lastId.push_back(InsertValue("last_object", (long)m_lastSent));
+	m_storage->updateTable("streams", lastId, where);
+}
+

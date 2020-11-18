@@ -696,7 +696,10 @@ int localNReadingsTotal;
 		attachSync->unlock();
 	}
 
-	localNReadingsTotal = readCatalogue->getMaxReadingsId();
+	// FIXME_I:
+	//localNReadingsTotal = readCatalogue->getMaxReadingsId();
+	localNReadingsTotal = readCatalogue->getReadingsCount();
+
 	vector<sqlite3_stmt *> readingsStmt(localNReadingsTotal +1, nullptr);
 
 #if INSTRUMENT
@@ -2655,7 +2658,9 @@ void ReadingsCatalogue::preallocateNewDbsRange(int dbIdStart, int dbIdEnd) {
 	for (dbId = dbIdStart; dbId <= dbIdEnd; dbId++)
 	{
 		readingsAvailable = evaluateLastReadingAvailable(NULL, dbId - 1);
-		startReadingsId = readingsAvailable.lastReadings +1;
+		// FIXME_I:x
+		//startReadingsId = readingsAvailable.lastReadings +1;
+		startReadingsId = 1;
 		createNewDB(NULL,  dbId, startReadingsId, NEW_DB_ATTACH_ALL);
 
 		Logger::getLogger()->debug("preallocateNewDbsRange - db created :%d: startReadingsIdOnDB :%d:", dbId, startReadingsId);
@@ -3293,8 +3298,14 @@ void ReadingsCatalogue::preallocateReadingsTables(int dbId)
 
 	if (readingsAvailable.tableCount < readingsToAllocate)
 	{
+		// FIXME_I:
 		readingsToCreate = readingsToAllocate - readingsAvailable.tableCount;
-		startId = readingsAvailable.lastReadings + 1;
+		//startId = readingsAvailable.lastReadings + 1;
+		if (dbId == 1)
+			startId = 2;
+		else
+			startId = 1;
+
 		createReadingsTables(NULL, dbId, startId, readingsToCreate);
 	}
 
@@ -3465,6 +3476,8 @@ bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle, int newDbId, int startId
 
 		if (readingsToCreate > 0)
 		{
+			// FIXME_I:
+			startId = 1;
 			createReadingsTables(dbHandle, newDbId ,startId, readingsToCreate);
 
 			Logger::getLogger()->info("createNewDB - database file :%s: created readings table - from id :%d: n :%d: " , dbPathReadings.c_str(), startId, readingsToCreate);
@@ -3739,7 +3752,10 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 					for (dbId = dbIdStart; dbId <= dbIdEnd; dbId++)
 					{
 						readingsAvailable = evaluateLastReadingAvailable(dbHandle, dbId - 1);
-						startReadingsId = readingsAvailable.lastReadings +1;
+
+						// FIXME_I:
+						//startReadingsId = readingsAvailable.lastReadings +1;
+						startReadingsId = 1;
 
 						success = createNewDB(dbHandle,  dbId, startReadingsId, NEW_DB_ATTACH_REQUEST);
 						if (success)
@@ -3761,7 +3777,10 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 				{
 					// Associate the asset to the reading_id
 					{
-						readingsId = getMaxReadingsId() + 1;
+						// FIXME_I:
+						// readingsId = getMaxReadingsId() + 1;
+						readingsId = getMaxReadingsId(m_dbIdCurrent) + 1;
+
 
 						auto newItem = make_pair(readingsId, m_dbIdCurrent);
 						auto newMapValue = make_pair(asset_code, newItem);
@@ -3802,18 +3821,31 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
  * Retrieve the maximum database id used
  *
  */
-int ReadingsCatalogue::getMaxReadingsId()
+int ReadingsCatalogue::getMaxReadingsId(int dbId)
 {
 	int maxId = 0;
 
 	for (auto &item : m_AssetReadingCatalogue) {
 
-		if (item.second.first > maxId)
-				maxId = item.second.first;
+		// FIXME_I:
+		if (item.second.second == dbId )
+			if (item.second.first > maxId)
+					maxId = item.second.first;
 	}
 
 	return (maxId);
 }
+
+
+/**
+ * // FIXME_I:
+ *
+ */
+int ReadingsCatalogue::getReadingsCount()
+{
+	return (m_AssetReadingCatalogue.size());
+}
+
 
 /**
  * Calculate the number of reading tables associated to the given database id
@@ -3911,10 +3943,12 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string
 		Logger::getLogger()->debug("sqlConstructMultiDb: no tables defined");
 		sqlCmd = sqlCmdBase;
 
+		dbReadingsName = generateReadingsName(1, 1);
+
 		StringReplaceAll (sqlCmd, "_assetcode_", "dummy_asset_code");
 		StringReplaceAll (sqlCmd, ".assetcode.", "asset_code");
 		StringReplaceAll (sqlCmd, "_dbname_", READINGS_DB);
-		StringReplaceAll (sqlCmd, "_tablename_", "readings_1");
+		StringReplaceAll (sqlCmd, "_tablename_", dbReadingsName);
 	}
 	else
 	{

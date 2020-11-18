@@ -52,7 +52,7 @@
 -- Stores in which database/readings table the specific asset_code is stored
 --
 CREATE TABLE readings_1.asset_reading_catalogue (
-    table_id     INTEGER               PRIMARY KEY AUTOINCREMENT,
+    table_id     INTEGER               NOT NULL,
     db_id        INTEGER               NOT NULL,
     asset_code   character varying(50) NOT NULL
 );

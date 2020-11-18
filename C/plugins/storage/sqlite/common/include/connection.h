@@ -219,7 +219,8 @@ class ReadingsCatalogue {
 		std::string   generateReadingsName(int  dbId, int tableId);
 		void          getAllDbs(std::vector<int> &dbIdList);
 		void          getNewDbs(std::vector<int> &dbIdList);
-		int           getMaxReadingsId();
+		int           getMaxReadingsId(int dbId);
+		int           getReadingsCount();
 		int           getNReadingsAvailable() const      {return m_nReadingsAvailable;}
 		int           getGlobalId() {return m_ReadingsGlobalId++;};
 		bool          evaluateGlobalId();

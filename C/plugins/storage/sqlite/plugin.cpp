@@ -38,21 +38,21 @@ const char *default_config = QUOTE({
 		"poolSize" : {
 			"description" : "Connection pool size",
 			"type" : "integer",
-			"default" : "5",
+			"default" : "7",
 			"displayName" : "Pool Size",
 			"order" : "1"
 		},
 		"nReadingsPerDb" : {
 			"description" : "Number of readings tables per  database",
 			"type" : "integer",
-			"default" : "3",
+			"default" : "6",
 			"displayName" : "N Readings per database",
 			"order" : "2"
 		},
 		"nDbPreallocate" : {
 			"description" : "Number of databases to allocate in advance, NOTE: SQLite has a maximum number of attachable databases by default at 10",
 			"type" : "integer",
-			"default" : "3",
+			"default" : "5",
 			"displayName" : "N databases to allocate in advance",
 			"order" : "3"
 		},
@@ -100,11 +100,14 @@ PLUGIN_INFORMATION *plugin_info()
  */
 PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 {
-	bool result;
 	ConnectionManager *manager = ConnectionManager::getInstance();
-	int poolSize = 5;
 
 	STORAGE_CONFIGURATION storageConfig;
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("V2 nDbPreallocate :%d:", storageConfig.nDbPreallocate);
+	Logger::getLogger()->debug("V3 nDbPreallocate :%s:", category->getValue("nDbPreallocate").c_str());
 
 
 	if (category->itemExists("poolSize"))
@@ -119,10 +122,15 @@ PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 		storageConfig.nReadingsPerDb = strtol(category->getValue("nReadingsPerDb").c_str(), NULL, 10);
 	}
 
+
 	if (category->itemExists("nDbPreallocate"))
 	{
 		storageConfig.nDbPreallocate = strtol(category->getValue("nDbPreallocate").c_str(), NULL, 10);
 	}
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("V2 nDbPreallocate :%d:", storageConfig.nDbPreallocate);
 
 	if (category->itemExists("nDbLeftFreeBeforeAllocate"))
 	{

@@ -784,7 +784,15 @@ int localNReadingsTotal;
 			//# A different asset is managed respect the previous one
 			if (lastAsset.compare(asset_code)!= 0)
 			{
-				readingsId = readCatalogue->getReadingReference(this, asset_code);
+				ReadingsCatalogue::tyReadingReference ref;
+
+				ref = readCatalogue->getReadingReference(this, asset_code);
+				readingsId = ref.tableId;
+
+				//# FIXME_I
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("xxx   tyReadingReference :%s: :%d: :%d: ", asset_code, ref.dbId, ref.tableId);
+				Logger::getLogger()->setMinLevel("warning");
 
 				if (readingsId == -1)
 				{
@@ -793,22 +801,42 @@ int localNReadingsTotal;
 				}
 				else
 				{
-					if (readingsId >= localNReadingsTotal)
+					int nReadings, idxReadings;
+
+					nReadings = readCatalogue->getReadingsCount();
+					idxReadings = readCatalogue->getReadingPosizion(ref.dbId, ref.tableId);
+
+					// FIXME_I:
+					Logger::getLogger()->setMinLevel("debug");
+					Logger::getLogger()->debug("xxx   tyReadingReference :%s: :%d: :%d: idxReadings :%d:", asset_code, ref.dbId, ref.tableId, idxReadings);
+					Logger::getLogger()->setMinLevel("warning");
+
+
+					if (nReadings >= localNReadingsTotal)
 					{
-						localNReadingsTotal = readingsId + 1;
+						localNReadingsTotal = readCatalogue->getReadingsCount() + 1;
 						readingsStmt.resize(localNReadingsTotal, nullptr);
 
 						Logger::getLogger()->debug("appendReadings: thread :%s: resize size :%d: idx :%d: ", threadId.str().c_str(), localNReadingsTotal, readingsId);
 					}
 
-					if (readingsStmt[readingsId] == nullptr)
+					if (readingsStmt[idxReadings] == nullptr)
 					{
-						string dbName = readCatalogue->generateDbNameFromTableId(readingsId);
 						// FIXME_I:
-						string dbReadingsName = readCatalogue->generateReadingsName(-1, readingsId);
+						//string dbName = readCatalogue->generateDbNameFromTableId(readingsId);
+						string dbName = readCatalogue->generateDbName(ref.dbId);
+
+						// FIXME_I:
+						string dbReadingsName = readCatalogue->generateReadingsName(ref.dbId, readingsId);
 
 						sql_cmd = "INSERT INTO  " + dbName + "." + dbReadingsName + " ( id, user_ts, reading ) VALUES  (?,?,?)";
-						rc = SQLPrepare(dbHandle, sql_cmd.c_str(), &readingsStmt[readingsId]);
+						rc = SQLPrepare(dbHandle, sql_cmd.c_str(), &readingsStmt[idxReadings]);
+
+
+						//# FIXME_I
+						Logger::getLogger()->setMinLevel("debug");
+						Logger::getLogger()->debug("xxx   tyReadingReference sql_cmd  :%s: :%s: :%d: :%d: ", sql_cmd.c_str(), asset_code, ref.dbId, ref.tableId);
+						Logger::getLogger()->setMinLevel("warning");
 
 						if (rc != SQLITE_OK)
 						{
@@ -816,7 +844,7 @@ int localNReadingsTotal;
 						}
 
 					}
-					stmt = readingsStmt[readingsId];
+					stmt = readingsStmt[idxReadings];
 
 					lastAsset = asset_code;
 				}
@@ -3682,14 +3710,15 @@ void  ReadingsCatalogue::allocateReadingAvailable()
  *
  * @return - the reading id associated to the provided asset_code
  */
-int ReadingsCatalogue::getReadingReference(Connection *connection, const char *asset_code)
+ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Connection *connection, const char *asset_code)
 {
+	tyReadingReference ref;
+
 	sqlite3_stmt *stmt;
 	string sql_cmd;
 	int rc;
 	sqlite3		*dbHandle;
 
-	int readingsId;
 	string msg;
 	bool success;
 
@@ -3709,7 +3738,10 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 	if (item != m_AssetReadingCatalogue.end())
 	{
 		//# An asset already  managed
-		readingsId = item->second.first;
+		// FIXME_I:
+		//readingsId = item->second.first;
+		ref.tableId = item->second.first;
+		ref.dbId = item->second.second;
 	}
 	else
 	{
@@ -3721,7 +3753,8 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 		auto item = m_AssetReadingCatalogue.find(asset_code);
 		if (item != m_AssetReadingCatalogue.end())
 		{
-			readingsId = item->second.first;
+			ref.tableId = item->second.first;
+			ref.dbId = item->second.second;
 		}
 		else
 		{
@@ -3768,7 +3801,10 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 					m_dbNAvailable = (m_dbIdLast - m_dbIdCurrent) - m_storageConfigCurrent.nDbLeftFreeBeforeAllocate;
 				}
 
-				readingsId = -1;
+				// FIXME_I:
+				//readingsId = -1;
+				ref.tableId = -1;
+				ref.dbId = -1;
 			}
 
 			if (success)
@@ -3779,22 +3815,22 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 					{
 						// FIXME_I:
 						// readingsId = getMaxReadingsId() + 1;
-						readingsId = getMaxReadingsId(m_dbIdCurrent) + 1;
+						ref.tableId = getMaxReadingsId(m_dbIdCurrent) + 1;
+						ref.dbId = m_dbIdCurrent;
 
-
-						auto newItem = make_pair(readingsId, m_dbIdCurrent);
+						auto newItem = make_pair(ref.tableId, ref.dbId);
 						auto newMapValue = make_pair(asset_code, newItem);
 						m_AssetReadingCatalogue.insert(newMapValue);
 					}
 
-					Logger::getLogger()->debug("getReadingReference - allocate a new reading table for the asset :%s: db Id :%d: readings Id :%d: ", asset_code, m_dbIdCurrent, readingsId);
+					Logger::getLogger()->debug("getReadingReference - allocate a new reading table for the asset :%s: db Id :%d: readings Id :%d: ", asset_code, ref.dbId, ref.tableId);
 
 					// Allocate the table in the reading catalogue
 					{
 						sql_cmd =
 							"INSERT INTO  " READINGS_DB ".asset_reading_catalogue (table_id, db_id, asset_code) VALUES  ("
-							+ to_string(readingsId) + ","
-							+ to_string(m_dbIdCurrent) + ","
+							+ to_string(ref.tableId) + ","
+							+ to_string(ref.dbId) + ","
 							+ "\"" + asset_code + "\")";
 
 						rc = SQLExec(dbHandle, sql_cmd.c_str());
@@ -3813,7 +3849,7 @@ int ReadingsCatalogue::getReadingReference(Connection *connection, const char *a
 		attachSync->unlock();
 	}
 
-	return (readingsId);
+	return (ref);
 
 }
 
@@ -3845,6 +3881,17 @@ int ReadingsCatalogue::getReadingsCount()
 {
 	return (m_AssetReadingCatalogue.size());
 }
+
+// FIXME_I:
+int ReadingsCatalogue::getReadingPosizion(int dbId, int tableId)
+{
+	int position;
+
+	position = ((dbId -1) * m_storageConfigCurrent.nReadingsPerDb) + tableId;
+
+	return (position);
+}
+
 
 
 /**
@@ -4090,7 +4137,7 @@ string ReadingsCatalogue::generateReadingsName(int  dbId, int tableId)
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx %s -  dbId :%d: tableId :%d: table name :%s: ", __FUNCTION__, dbId, tableId, tableName.c_str());
+	Logger::getLogger()->debug("%s -  dbId :%d: tableId :%d: table name :%s: ", __FUNCTION__, dbId, tableId, tableName.c_str());
 	Logger::getLogger()->setMinLevel("warning");
 
 	return (tableName);

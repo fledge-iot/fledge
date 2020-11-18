@@ -1,6 +1,4 @@
 #include <gtest/gtest.h>
-// FIXME_I:
-#include "gtest/gtest.h"
 #include <connection.h>
 #include <logger.h>
 #include <string.h>
@@ -11,8 +9,7 @@ using namespace std;
 int main(int argc, char **argv) {
     testing::InitGoogleTest(&argc, argv);
 
-    // FIXME_I:
-    testing::GTEST_FLAG(repeat) = 1;
+    testing::GTEST_FLAG(repeat) = 50;
     testing::GTEST_FLAG(shuffle) = true;
     testing::GTEST_FLAG(death_test_style) = "threadsafe";
 

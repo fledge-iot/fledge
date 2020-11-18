@@ -200,6 +200,12 @@ class Connection {
 class ReadingsCatalogue {
 
 	public:
+		typedef struct ReadingReference {
+			int dbId;
+			int tableId;
+
+		} tyReadingReference;
+
 		static ReadingsCatalogue *getInstance()
 		{
 			static ReadingsCatalogue *instance = 0;
@@ -221,6 +227,7 @@ class ReadingsCatalogue {
 		void          getNewDbs(std::vector<int> &dbIdList);
 		int           getMaxReadingsId(int dbId);
 		int           getReadingsCount();
+		int           getReadingPosizion(int dbId, int tableId);
 		int           getNReadingsAvailable() const      {return m_nReadingsAvailable;}
 		int           getGlobalId() {return m_ReadingsGlobalId++;};
 		bool          evaluateGlobalId();
@@ -231,7 +238,7 @@ class ReadingsCatalogue {
 
 		bool          latestDbUpdate(sqlite3 *dbHandle, int newDbId);
 		void          preallocateNewDbsRange(int dbIdStart, int dbIdEnd);
-		int           getReadingReference(Connection *connection, const char *asset_code);
+		tyReadingReference getReadingReference(Connection *connection, const char *asset_code);
 		bool          attachDbsToAllConnections();
 		std::string   sqlConstructMultiDb(std::string &sqlCmdBase, std::vector<std::string>  &assetCodes);
 		int           purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBase, char **errMsg = NULL, unsigned int *rowsAffected = NULL);
@@ -244,6 +251,8 @@ class ReadingsCatalogue {
 		void          setUsedDbId(int dbId);
 		int           extractReadingsIdFromName(std::string tableName);
 		int           extractDbIdFromName(std::string tableName);
+
+
 
 	private:
 		STORAGE_CONFIGURATION m_storageConfigCurrent;                           // The current configuration of the multiple readings

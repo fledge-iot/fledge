@@ -81,6 +81,6 @@ CREATE TABLE readings_1.readings_1_1 (
     ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW'))       -- UTC time
 );
 
-CREATE INDEX readings_1_1.readings_1_1_ix3
+CREATE INDEX readings_1.readings_1_1_ix3
     ON readings_1_1 (user_ts desc);
 

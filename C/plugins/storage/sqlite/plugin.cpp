@@ -38,21 +38,21 @@ const char *default_config = QUOTE({
 		"poolSize" : {
 			"description" : "Connection pool size",
 			"type" : "integer",
-			"default" : "7",
+			"default" : "5",
 			"displayName" : "Pool Size",
 			"order" : "1"
 		},
 		"nReadingsPerDb" : {
 			"description" : "Number of readings tables per  database",
 			"type" : "integer",
-			"default" : "6",
+			"default" : "2",
 			"displayName" : "N Readings per database",
 			"order" : "2"
 		},
 		"nDbPreallocate" : {
 			"description" : "Number of databases to allocate in advance, NOTE: SQLite has a maximum number of attachable databases by default at 10",
 			"type" : "integer",
-			"default" : "5",
+			"default" : "3",
 			"displayName" : "N databases to allocate in advance",
 			"order" : "3"
 		},
@@ -104,12 +104,6 @@ PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 
 	STORAGE_CONFIGURATION storageConfig;
 
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("V2 nDbPreallocate :%d:", storageConfig.nDbPreallocate);
-	Logger::getLogger()->debug("V3 nDbPreallocate :%s:", category->getValue("nDbPreallocate").c_str());
-
-
 	if (category->itemExists("poolSize"))
 	{
 		storageConfig.poolSize = strtol(category->getValue("poolSize").c_str(), NULL, 10);
@@ -128,10 +122,6 @@ PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 		storageConfig.nDbPreallocate = strtol(category->getValue("nDbPreallocate").c_str(), NULL, 10);
 	}
 
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("V2 nDbPreallocate :%d:", storageConfig.nDbPreallocate);
-
 	if (category->itemExists("nDbLeftFreeBeforeAllocate"))
 	{
 		storageConfig.nDbLeftFreeBeforeAllocate = strtol(category->getValue("nDbLeftFreeBeforeAllocate").c_str(), NULL, 10);
@@ -144,12 +134,12 @@ PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("Storage engine SQLite configuration:", storageConfig.nReadingsPerDb);
-	Logger::getLogger()->debug("poolSize :%d:", storageConfig.poolSize);
-	Logger::getLogger()->debug("nReadingsPerDb :%d:", storageConfig.nReadingsPerDb);
-	Logger::getLogger()->debug("nDbPreallocate :%d:", storageConfig.nDbPreallocate);
-	Logger::getLogger()->debug("nDbLeftFreeBeforeAllocate :%d:", storageConfig.nDbLeftFreeBeforeAllocate);
-	Logger::getLogger()->debug("nDbToAllocate :%d:", storageConfig.nDbToAllocate);
+	Logger::getLogger()->debug("%s - Storage engine SQLite configuration:", __FUNCTION__, storageConfig.nReadingsPerDb);
+	Logger::getLogger()->debug("%s - poolSize :%d:", __FUNCTION__, storageConfig.poolSize);
+	Logger::getLogger()->debug("%s - nReadingsPerDb :%d:", __FUNCTION__, storageConfig.nReadingsPerDb);
+	Logger::getLogger()->debug("%s - nDbPreallocate :%d:", __FUNCTION__,storageConfig.nDbPreallocate);
+	Logger::getLogger()->debug("%s - nDbLeftFreeBeforeAllocate :%d:", __FUNCTION__,storageConfig.nDbLeftFreeBeforeAllocate);
+	Logger::getLogger()->debug("%s - nDbToAllocate :%d:", __FUNCTION__,storageConfig.nDbToAllocate);
 	Logger::getLogger()->setMinLevel("warning");
 
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();

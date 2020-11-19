@@ -662,9 +662,9 @@ INSERT INTO fledge.statistics ( key, description, value, previous_value )
 
 -- Core Tasks
 --
-INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'purge',               '["tasks/purge"]'      );
-INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'stats collector',     '["tasks/statistics"]' );
-INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'FledgeUpdater',      '["tasks/update"]'     );
+INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'purge',               '["tasks/purge"]'       );
+INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'stats collector',     '["tasks/statistics"]'  );
+INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'FledgeUpdater',       '["tasks/update"]'      );
 INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'certificate checker', '["tasks/check_certs"]' );
 
 -- Storage Tasks
@@ -672,6 +672,13 @@ INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'certificate ch
 INSERT INTO fledge.scheduled_processes (name, script) VALUES ('backup',  '["tasks/backup"]'  );
 INSERT INTO fledge.scheduled_processes (name, script) VALUES ('restore', '["tasks/restore"]' );
 
+-- South, Notification, North Tasks
+--
+INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'south_c',        '["services/south_c"]'        );
+INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'notification_c', '["services/notification_c"]' );
+INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north_c',        '["tasks/north_c"]'           );
+INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north',          '["tasks/north"]'             );
+INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north_C',        '["services/north_C"]'        );
 --
 -- Schedules
 --

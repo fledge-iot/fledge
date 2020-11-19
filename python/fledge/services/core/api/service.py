@@ -160,6 +160,8 @@ async def add_service(request):
              curl -X POST http://localhost:8081/fledge/service -d '{"name": "DHT 11", "plugin": "dht11", "type": "south", "enabled": true}'
              curl -sX POST http://localhost:8081/fledge/service -d '{"name": "Sine", "plugin": "sinusoid", "type": "south", "enabled": true, "config": {"dataPointsPerSec": {"value": "10"}}}' | jq
              curl -X POST http://localhost:8081/fledge/service -d '{"name": "NotificationServer", "type": "notification", "enabled": true}' | jq
+             curl -X POST http://localhost:8081/fledge/service -d '{"name": "HTC", "plugin": "httpc", "type": "north", "enabled": true}' | jq
+             curl -sX POST http://localhost:8081/fledge/service -d '{"name": "HT", "plugin": "http_north", "type": "north", "enabled": true, "config": {"verifySSL": {"value": "false"}}}' | jq
 
              curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-notification"}'
              curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-notification", "version":"1.6.0"}'
@@ -253,12 +255,12 @@ async def add_service(request):
             raise web.HTTPBadRequest(reason='Missing type property in payload.')
 
         service_type = str(service_type).lower()
-        if service_type == 'north':
-            raise web.HTTPNotAcceptable(reason='north type is not supported for the time being.')
-        if service_type not in ['south', 'notification', 'management']:
-            raise web.HTTPBadRequest(reason='Only south, notification and management types are supported.')
+        if service_type not in ['south', 'north', 'notification', 'management']:
+            raise web.HTTPBadRequest(reason='Only south, north, notification and management types are supported.')
         if plugin is None and service_type == 'south':
             raise web.HTTPBadRequest(reason='Missing plugin property for type south in payload.')
+        if plugin is None and service_type == 'north':
+            raise web.HTTPBadRequest(reason='Missing plugin property for type north in payload.')
         if plugin and utils.check_reserved(plugin) is False:
             raise web.HTTPBadRequest(reason='Invalid plugin property in payload.')
 
@@ -271,28 +273,27 @@ async def add_service(request):
 
         # Check if a valid plugin has been provided
         plugin_module_path, plugin_config, process_name, script = "", {}, "", ""
-        if service_type == 'south':
+        if service_type == 'south' or service_type == 'north':
             # "plugin_module_path" is fixed by design. It is MANDATORY to keep the plugin in the exactly similar named
             # folder, within the plugin_module_path.
             # if multiple plugin with same name are found, then python plugin import will be tried first
             plugin_module_path = "{}/python/fledge/plugins/{}/{}".format(_FLEDGE_ROOT, service_type, plugin)
+            process_name = 'south_c' if service_type == 'south' else 'north_C'
+            script = '["services/south_c"]' if service_type == 'south' else '["services/north_C"]'
             try:
                 plugin_info = common.load_and_fetch_python_plugin_info(plugin_module_path, plugin, service_type)
                 plugin_config = plugin_info['config']
                 if not plugin_config:
                     _logger.exception("Plugin %s import problem from path %s", plugin, plugin_module_path)
-                    raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}".'.format(plugin, plugin_module_path))
-                process_name = 'south_c'
-                script = '["services/south_c"]'
+                    raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}".'.format(
+                        plugin, plugin_module_path))
             except FileNotFoundError as ex:
                 # Checking for C-type plugins
                 plugin_config = load_c_plugin(plugin, service_type)
                 if not plugin_config:
                     _logger.exception("Plugin %s import problem from path %s. %s", plugin, plugin_module_path, str(ex))
-                    raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}".'.format(plugin, plugin_module_path))
-
-                process_name = 'south_c'
-                script = '["services/south_c"]'
+                    raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}".'.format(
+                        plugin, plugin_module_path))
             except TypeError as ex:
                 _logger.exception(str(ex))
                 raise web.HTTPBadRequest(reason=str(ex))
@@ -305,7 +306,6 @@ async def add_service(request):
         elif service_type == 'management':
             process_name = 'management'
             script = '["services/management"]'
-
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
 
@@ -320,7 +320,7 @@ async def add_service(request):
             raise web.HTTPBadRequest(reason='A service with this name already exists.')
 
         # Check that the process name is not already registered
-        count = await check_scheduled_processes(storage, process_name)
+        count = await check_scheduled_processes(storage, process_name, script)
         if count == 0:
             # Now first create the scheduled process entry for the new service
             payload = PayloadBuilder().INSERT(name=process_name, script=script).payload()
@@ -345,7 +345,7 @@ async def add_service(request):
             for ps in res['rows']:
                 if 'management' in ps['process_name']:
                     raise web.HTTPBadRequest(reason='A Management service schedule already exists.')
-        elif service_type == 'south':
+        elif service_type == 'south' or service_type == 'north':
             try:
                 # Create a configuration category from the configuration defined in the plugin
                 category_desc = plugin_config['plugin']['description']
@@ -354,8 +354,9 @@ async def add_service(request):
                                                  category_value=plugin_config,
                                                  keep_original_items=True)
                 # Create the parent category for all South services
-                await config_mgr.create_category("South", {}, "South microservices", True)
-                await config_mgr.create_child_category("South", [name])
+                parent_cat_name = service_type.capitalize()
+                await config_mgr.create_category(parent_cat_name, {}, "{} microservices".format(parent_cat_name), True)
+                await config_mgr.create_child_category(parent_cat_name, [name])
 
                 # If config is in POST data, then update the value for each config item
                 if config is not None:
@@ -421,8 +422,8 @@ def load_c_plugin(plugin: str, service_type: str) -> Dict:
     return plugin_config
 
 
-async def check_scheduled_processes(storage, process_name):
-    payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', process_name]).payload()
+async def check_scheduled_processes(storage, process_name, script):
+    payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', process_name]).AND_WHERE(['script', '=', script]).payload()
     result = await storage.query_tbl_with_payload('scheduled_processes', payload)
     return result['count']
 

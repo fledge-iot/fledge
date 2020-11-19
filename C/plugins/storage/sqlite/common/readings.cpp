@@ -2957,6 +2957,7 @@ void ReadingsCatalogue::multipleReadingsInit(STORAGE_CONFIGURATION &storageConfi
 	Connection *connection = manager->allocate();
 	dbHandle = connection->getDbHandle();
 
+
 	// FIXME_I:
 	m_storageConfigApi.nReadingsPerDb = storageConfig.nReadingsPerDb;
 	m_storageConfigApi.nDbPreallocate = storageConfig.nDbPreallocate;
@@ -3156,13 +3157,83 @@ void ReadingsCatalogue::configChangeAddTables(sqlite3 *dbHandle, int startId, in
 // FIXME_I:
 void ReadingsCatalogue::configChangeRemoveTables(sqlite3 *dbHandle, int startId, int endId)
 {
+	tyReadingsAvailable readingsAvailable;
+	int dbId;
+	int maxReadingUsed;
+
 	// FIXME_I:
 	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug("xxx %s - startId :%d: endId :%d:",
 							   __FUNCTION__,
 							   startId,
 							   endId);
+
+	for (dbId = 1; dbId <= m_dbIdLast ; dbId++ )
+	{
+		dropReadingsTables(dbHandle, dbId, startId, endId);
+	}
+
+	// FIXME_I:
+	m_storageConfigCurrent.nReadingsPerDb = m_storageConfigApi.nReadingsPerDb;
+	maxReadingUsed = calcMaxReadingUsed();
+	m_nReadingsAvailable = m_storageConfigCurrent.nReadingsPerDb - maxReadingUsed;
+
+
+	Logger::getLogger()->debug("xxx %s - maxReadingUsed :%d: nReadingsPerDb :%d: m_nReadingsAvailable :%d:",
+							   __FUNCTION__,
+							   maxReadingUsed,
+							   m_storageConfigCurrent.nReadingsPerDb,
+							   m_nReadingsAvailable);
+
 }
+
+/**
+ * // FIXME_I:
+ */
+void  ReadingsCatalogue::dropReadingsTables(sqlite3 *dbHandle, int dbId, int idStart, int idEnd)
+{
+	string errMsg;
+	string dropReadings, dropIdx;
+	string dbName;
+	string tableName;
+	int tableId;
+	int rc;
+	int idx;
+	bool newConnection;
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx %s - dropping tales on database id :%d:form id :%d: to :%d:", __FUNCTION__, dbId, idStart, idEnd);
+
+	dbName = generateDbName(dbId);
+
+	for (idx = idStart ; idx <= idEnd; ++idx)
+	{
+		tableName = generateReadingsName(dbId, idx);
+
+		dropReadings = "DROP TABLE " + dbName + "." + tableName + ";";
+		dropIdx      = "DROP INDEX " + tableName + "_ix3;";
+
+
+		rc = SQLExec(dbHandle, dropIdx.c_str());
+		if (rc != SQLITE_OK)
+		{
+			errMsg = sqlite3_errmsg(dbHandle);
+			raiseError(__FUNCTION__, sqlite3_errmsg(dbHandle));
+			throw runtime_error(errMsg.c_str());
+		}
+
+		rc = SQLExec(dbHandle, dropReadings.c_str());
+		if (rc != SQLITE_OK)
+		{
+			errMsg = sqlite3_errmsg(dbHandle);
+			raiseError(__FUNCTION__, sqlite3_errmsg(dbHandle));
+			throw runtime_error(errMsg.c_str());
+		}
+
+	}
+}
+
 
 /**
  * // FIXME_I:
@@ -3228,6 +3299,7 @@ bool ReadingsCatalogue::applyStorageConfigChanges(sqlite3 *dbHandle)
 	int maxReadingUsed;
 
 	configChanged = false;
+
 
 	// FIXME_I:
 	Logger::getLogger()->setMinLevel("debug");
@@ -3358,7 +3430,13 @@ bool ReadingsCatalogue::applyStorageConfigChanges(sqlite3 *dbHandle)
 int  ReadingsCatalogue::calcMaxReadingUsed()
 {
 	int maxReading;
-	maxReading = 4;
+	maxReading = -1;
+
+	for (auto &item : m_AssetReadingCatalogue) {
+
+		if (item.second.first > maxReading)
+			maxReading = item.second.first;
+	}
 
 	return (maxReading);
 }
@@ -3389,7 +3467,7 @@ ReadingsCatalogue::ACTION  ReadingsCatalogue::changesLogicTables(int maxUsed ,in
 			operation = ACTION_TB_ADD;
 
 		}
-		else if ((Request < Current) && (maxUsed > Request))
+		else if ((Request < Current) && (maxUsed >= Request))
 		{
 			operation = ACTION_INVALID;
 

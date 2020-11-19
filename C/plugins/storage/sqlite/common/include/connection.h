@@ -313,6 +313,7 @@ class ReadingsCatalogue {
 		void          configChangeRemoveTables(sqlite3 *dbHandle , int startId, int endId);
 
 		int           calcMaxReadingUsed();
+		void          dropReadingsTables(sqlite3 *dbHandle, int dbId, int idStart, int idEnd);
 
 
 		int                                           m_dbIdCurrent;            // Current database in use

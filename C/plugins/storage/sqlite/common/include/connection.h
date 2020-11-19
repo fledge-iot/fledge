@@ -265,9 +265,13 @@ class ReadingsCatalogue {
 		};
 
 		enum ACTION  {
-			ACTION_ADD,
-			ACTION_REMOVE,
-			ACTION_NONE
+			ACTION_DB_ADD,
+			ACTION_DB_REMOVE,
+			ACTION_DB_NONE,
+			ACTION_TB_ADD,
+			ACTION_TB_REMOVE,
+			ACTION_TB_NONE,
+			ACTION_INVALID
 		};
 
 		typedef struct ReadingAvailable {
@@ -296,13 +300,19 @@ class ReadingsCatalogue {
 		bool          configurationRetrieve(sqlite3 *dbHandle);
 		void          prepareAllDbs();
 		bool          applyStorageConfigChanges(sqlite3 *dbHandle);
-		void          configChangeAddDb(sqlite3 *dbHandle);
-		void          configChangeRemoveDb(sqlite3 *dbHandle);
 		void          dbFileDelete(std::string dbPath);
 		void          dbsRemove(int startId, int endId);
 		void          storeReadingsConfiguration (sqlite3 *dbHandle);
-		ACTION        applyStorageConfigChangesLogic(int dbIdCurrent , int dbIdLast, int nDbPreallocateCurrent, int nDbPreallocateRequest, int nDbLeftFreeBeforeAllocate);
+		ACTION        changesLogicDBs(int dbIdCurrent , int dbIdLast, int nDbPreallocateCurrent, int nDbPreallocateRequest, int nDbLeftFreeBeforeAllocate);
+		ACTION           changesLogicTables(int maxUsed ,int Current, int Request);
 		int           retrieveDbIdFromTableId(int tableId);
+
+		void          configChangeAddDb(sqlite3 *dbHandle);
+		void          configChangeRemoveDb(sqlite3 *dbHandle);
+		void          configChangeAddTables(sqlite3 *dbHandle , int startId, int endId);
+		void          configChangeRemoveTables(sqlite3 *dbHandle , int startId, int endId);
+
+		int           calcMaxReadingUsed();
 
 
 		int                                           m_dbIdCurrent;            // Current database in use

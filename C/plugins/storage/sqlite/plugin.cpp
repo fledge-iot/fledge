@@ -45,7 +45,7 @@ const char *default_config = QUOTE({
 		"nReadingsPerDb" : {
 			"description" : "Number of readings tables per  database",
 			"type" : "integer",
-			"default" : "2",
+			"default" : "10",
 			"displayName" : "N Readings per database",
 			"order" : "2"
 		},
@@ -136,8 +136,8 @@ PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug("%s - Storage engine SQLite configuration:", __FUNCTION__, storageConfig.nReadingsPerDb);
 	Logger::getLogger()->debug("%s - poolSize :%d:", __FUNCTION__, storageConfig.poolSize);
-	Logger::getLogger()->debug("%s - nReadingsPerDb :%d:", __FUNCTION__, storageConfig.nReadingsPerDb);
-	Logger::getLogger()->debug("%s - nDbPreallocate :%d:", __FUNCTION__,storageConfig.nDbPreallocate);
+	Logger::getLogger()->debug("xxx %s - nReadingsPerDb :%d:", __FUNCTION__, storageConfig.nReadingsPerDb);
+	Logger::getLogger()->debug("xxx %s - nDbPreallocate :%d:", __FUNCTION__,storageConfig.nDbPreallocate);
 	Logger::getLogger()->debug("%s - nDbLeftFreeBeforeAllocate :%d:", __FUNCTION__,storageConfig.nDbLeftFreeBeforeAllocate);
 	Logger::getLogger()->debug("%s - nDbToAllocate :%d:", __FUNCTION__,storageConfig.nDbToAllocate);
 	Logger::getLogger()->setMinLevel("warning");

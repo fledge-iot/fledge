@@ -7,11 +7,11 @@ CREATE TABLE readings_1.asset_reading_catalogue (
     asset_code   character varying(50) NOT NULL
 );
 
--- Stores the last global Id used +1
--- Updated at -1 when Fledge starts
--- Updated at the the proper value when Fledge stops
 CREATE TABLE readings_1.configuration_readings (
-    global_id         INTEGER
+    global_id         INTEGER,                                                  -- Stores the last global Id used +1
+                                                                                -- Updated at -1 when Fledge starts
+                                                                                -- Updated at the the proper value when Fledge stops
+    db_id_Last        INTEGER                                                   -- Latest database available
 );
 
 -- Readings table
@@ -32,7 +32,7 @@ CREATE INDEX readings_1.readings_1_ix3
 --
 -- Force a calculation of the global id at the fledge starts
 --
-INSERT INTO readings_1.configuration_readings VALUES (-1);
+INSERT INTO readings_1.configuration_readings VALUES (-1, 0);
 
 --
 -- NULL is used to force the auto generation of the value starting from 1

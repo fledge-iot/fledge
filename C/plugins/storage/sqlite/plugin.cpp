@@ -82,10 +82,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 
 
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-	readCat->loadAssetReadingCatalogue();
-	result = readCat->attachAllDbs();
-	readCat->preallocateReadingsTables();
-	readCat->evaluateGlobalId();
+	readCat->multipleReadingsInit();
 
 	return manager;
 }

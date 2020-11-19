@@ -29,6 +29,8 @@
 #define PURGE_SLOWDOWN_AFTER_BLOCKS 5
 #define PURGE_SLOWDOWN_SLEEP_MS 500
 
+#define LOG_AFTER_NERRORS 5
+
 /**
  * SQLite3 storage plugin for Fledge
  */
@@ -599,6 +601,19 @@ Connection::Connection()
 		}
 
 	}
+
+	{
+		// Attach all the defined/used databases
+		ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
+		if ( !readCat->connectionAttachAllDbs(dbHandle) )
+		{
+			const char* errMsg = "Failed to attach all the dbs to the connection :%X:'readings' database in";
+			Logger::getLogger()->error("%s '%s': error %s", errMsg, dbHandle);
+
+			connectErrorTime = time(0);
+			sqlite3_close_v2(dbHandle);
+		}
+	}
 }
 #endif
 
@@ -1090,6 +1105,7 @@ Document	document;
 ostringstream convert;
 std::size_t arr = data.find("inserts");
 
+
 	// Check first the 'inserts' property in JSON data
 	bool stdInsert = (arr == std::string::npos || arr > 8);
 
@@ -1275,6 +1291,9 @@ vector<string>  asset_codes;
 
 	int 	row = 0;
 	ostringstream convert;
+
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
 
 	std::size_t arr = payload.find("updates");
 	bool changeReqd = (arr == std::string::npos || arr > 8);
@@ -2895,8 +2914,13 @@ int retries = 0, rc;
 		profiler.insert(prof);
 #endif
 		retries++;
-		if (rc == SQLITE_LOCKED || rc == SQLITE_BUSY)
+		if (rc != SQLITE_OK)
 		{
+
+			if (retries > LOG_AFTER_NERRORS)
+				Logger::getLogger()->warn("Connection::SQLexec - retry :%d: dbHandle :%X: cmd :%s: error :%s:", retries, this->getDbHandle(), sql, sqlite3_errmsg(dbHandle));
+
+
 #if DO_PROFILE_RETRIES
 			m_qMutex.lock();
 			m_waiting.fetch_add(1);
@@ -2906,8 +2930,8 @@ int retries = 0, rc;
 #endif
 			int interval = (1 * RETRY_BACKOFF);
 			std::this_thread::sleep_for(std::chrono::milliseconds(interval));
-			if (retries > 9) Logger::getLogger()->info("SQLExec: retry %d of %d, rc=%s, errmsg=%s, DB connection @ %p, slept for %d msecs",
-						retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", sqlite3_errmsg(db), this, interval);
+			if (retries > 9) Logger::getLogger()->info("SQLExec: error :%s: retry %d of %d, rc=%s, errmsg=%s, DB connection @ %p, slept for %d msecs",
+													   sqlite3_errmsg(dbHandle), retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", sqlite3_errmsg(db), this, interval);
 #if DO_PROFILE_RETRIES
 			m_qMutex.lock();
 			m_waiting.fetch_sub(1);
@@ -2929,7 +2953,7 @@ int retries = 0, rc;
 				}
 			}
 		}
-	} while (retries < MAX_RETRIES && (rc == SQLITE_LOCKED || rc == SQLITE_BUSY));
+	} while (retries < MAX_RETRIES && (rc != SQLITE_OK));
 #if DO_PROFILE_RETRIES
 	retryStats[retries-1]++;
 	if (++numStatements > RETRY_REPORT_THRESHOLD - 1)
@@ -2956,6 +2980,11 @@ int retries = 0, rc;
 	if (rc == SQLITE_BUSY)
 	{
 		Logger::getLogger()->error("Database still busy after maximum retries");
+	}
+
+	if (rc != SQLITE_OK)
+	{
+		Logger::getLogger()->error("Database error after maximum retries - dbHandle :%X:", this->getDbHandle());
 	}
 
 	return rc;

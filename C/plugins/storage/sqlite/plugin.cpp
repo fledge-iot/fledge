@@ -24,6 +24,7 @@
 #include <plugin_exception.h>
 #include <reading_stream.h>
 #include <config_category.h>
+#include <readings_catalogue.h>
 
 using namespace std;
 using namespace rapidjson;

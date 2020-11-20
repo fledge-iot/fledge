@@ -12,6 +12,8 @@
 #include <common.h>
 #include <utils.h>
 
+#include <readings_catalogue.h>
+
 /*
  * Control the way purge deletes readings. The block size sets a limit as to how many rows
  * get deleted in each call, whilst the sleep interval controls how long the thread sleeps

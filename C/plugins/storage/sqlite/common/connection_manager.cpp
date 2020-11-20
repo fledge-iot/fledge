@@ -360,9 +360,6 @@ void ConnectionManager::setError(const char *source, const char *description, bo
 	errorLock.unlock();
 }
 
-#define MAX_RETRIES			40	// Maximum no. of retries when a lock is encountered
-#define RETRY_BACKOFF			100	// Multipler to backoff DB retry on lock
-
 /**
  * SQLIte wrapper to retry statements when the database is locked
  *

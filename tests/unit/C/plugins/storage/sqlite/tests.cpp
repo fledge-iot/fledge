@@ -3,6 +3,7 @@
 #include <logger.h>
 #include <string.h>
 #include <string>
+#include <readings_catalogue.h>
 
 using namespace std;
 

@@ -8,17 +8,19 @@
  * Author: Stefano Simonelli
  */
 
-#include <connection.h>
-#include <connection_manager.h>
-#include <common.h>
 #include <vector>
-#include <string_utils.h>
 #include <algorithm>
 #include <utils.h>
 #include <sys/stat.h>
 #include <libgen.h>
 
+#include <string_utils.h>
+#include <connection.h>
+#include <connection_manager.h>
+#include <common.h>
 #include "readings_catalogue.h"
+
+
 
 using namespace std;
 using namespace rapidjson;
@@ -1174,7 +1176,7 @@ bool ReadingsCatalogue::applyStorageConfigChanges(sqlite3 *dbHandle)
 int  ReadingsCatalogue::calcMaxReadingUsed()
 {
 	int maxReading;
-	maxReading = -1;
+	maxReading = 0;
 
 	for (auto &item : m_AssetReadingCatalogue) {
 

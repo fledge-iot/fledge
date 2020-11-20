@@ -19,9 +19,6 @@
 using namespace std;
 using namespace rapidjson;
 
-// Maximum no. of retries for a DB lock
-#define RETRY_BACKOFF 100
-#define MAX_RETRIES 10
 
 // Retry mechanism
 #define PREP_CMD_MAX_RETRIES		20	    // Maximum no. of retries when a lock is encountered

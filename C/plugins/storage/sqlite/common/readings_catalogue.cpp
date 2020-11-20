@@ -891,19 +891,42 @@ void ReadingsCatalogue::configChangeRemoveDb(sqlite3 *dbHandle)
 // FIXME_I:
 void ReadingsCatalogue::configChangeAddTables(sqlite3 *dbHandle, int startId, int endId)
 {
+	int dbId;
+	int maxReadingUsed;
+	int nTables;
+
+	nTables = endId - startId +1;
+
 	// FIXME_I:
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx %s - startId :%d: endId :%d:",
+	Logger::getLogger()->debug("xxx %s - startId :%d: endId :%d: nTables :%d:",
 							   __FUNCTION__,
 							   startId,
-							   endId);
+							   endId,
+							   nTables);
+
+	for (dbId = 1; dbId <= m_dbIdLast ; dbId++ )
+	{
+		createReadingsTables(dbHandle, dbId, startId, nTables);
+	}
+
+	// FIXME_I:
+	m_storageConfigCurrent.nReadingsPerDb = m_storageConfigApi.nReadingsPerDb;
+	maxReadingUsed = calcMaxReadingUsed();
+	m_nReadingsAvailable = m_storageConfigCurrent.nReadingsPerDb - maxReadingUsed;
+
+
+	Logger::getLogger()->debug("xxx %s - maxReadingUsed :%d: nReadingsPerDb :%d: m_nReadingsAvailable :%d:",
+							   __FUNCTION__,
+							   maxReadingUsed,
+							   m_storageConfigCurrent.nReadingsPerDb,
+							   m_nReadingsAvailable);
 
 }
 
 // FIXME_I:
 void ReadingsCatalogue::configChangeRemoveTables(sqlite3 *dbHandle, int startId, int endId)
 {
-	tyReadingsAvailable readingsAvailable;
 	int dbId;
 	int maxReadingUsed;
 
@@ -1517,7 +1540,10 @@ bool  ReadingsCatalogue::createReadingsTables(sqlite3 *dbHandle, int dbId, int i
 		newConnection = true;
 	}
 
-	logger->info("Creating :%d: readings table in advance starting id :%d:", nTables, idStartFrom);
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+
+	logger->info("xxx Creating :%d: readings table in advance starting id :%d:", nTables, idStartFrom);
 
 	dbName = generateDbName(dbId);
 
@@ -1539,6 +1565,10 @@ bool  ReadingsCatalogue::createReadingsTables(sqlite3 *dbHandle, int dbId, int i
 		createReadingsIdx = R"(
 			CREATE INDEX )" + dbName + "." + dbReadingsName + R"(_ix3 ON )" + dbReadingsName + R"( (user_ts);
 		)";
+
+		// FIXME_I:
+		Logger::getLogger()->setMinLevel("debug");
+		logger->info("xxx  Creating table :%s: sql cmd :%s:", dbReadingsName.c_str(), createReadings.c_str());
 
 		rc = SQLExec(dbHandle, createReadings.c_str());
 		if (rc != SQLITE_OK)

@@ -46,7 +46,7 @@ const char *default_config = QUOTE({
 		"nReadingsPerDb" : {
 			"description" : "Number of readings tables per  database",
 			"type" : "integer",
-			"default" : "10",
+			"default" : "3",
 			"displayName" : "N Readings per database",
 			"order" : "2"
 		},
@@ -133,7 +133,10 @@ PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 		storageConfig.nDbToAllocate = strtol(category->getValue("nDbToAllocate").c_str(), NULL, 10);
 	}
 
-	//# FIXME_I
+	// FIXME_I:
+	storageConfig.nReadingsPerDb = 5;
+
+		//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug("%s - Storage engine SQLite configuration:", __FUNCTION__, storageConfig.nReadingsPerDb);
 	Logger::getLogger()->debug("%s - poolSize :%d:", __FUNCTION__, storageConfig.poolSize);

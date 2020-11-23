@@ -57,7 +57,7 @@ public:
 	void          getNewDbs(std::vector<int> &dbIdList);
 	int           getMaxReadingsId(int dbId);
 	int           getReadingsCount();
-	int           getReadingPosizion(int dbId, int tableId);
+	int           getReadingPosition(int dbId, int tableId);
 	int           getNReadingsAvailable() const      {return m_nReadingsAvailable;}
 	int           getGlobalId() {return m_ReadingsGlobalId++;};
 	bool          evaluateGlobalId();

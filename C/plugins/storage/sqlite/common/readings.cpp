@@ -673,7 +673,7 @@ string lastAsset;
 int retries = 0;
 int sleep_time_ms = 0;
 
-int localNReadingsTotal;
+int stmtArraySize;
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
@@ -693,9 +693,10 @@ int localNReadingsTotal;
 
 	// FIXME_I:
 	//localNReadingsTotal = readCatalogue->getMaxReadingsId();
-	localNReadingsTotal = readCatalogue->getReadingsCount();
+	//stmtArraySize = readCatalogue->getReadingsCount();
+	stmtArraySize = readCatalogue->getReadingPosition(0, 0);
 
-	vector<sqlite3_stmt *> readingsStmt(localNReadingsTotal +1, nullptr);
+	vector<sqlite3_stmt *> readingsStmt(stmtArraySize + 1, nullptr);
 
 #if INSTRUMENT
 	Logger::getLogger()->debug("appendReadings start thread :%s:", threadId.str().c_str());
@@ -799,7 +800,7 @@ int localNReadingsTotal;
 					int nReadings, idxReadings;
 
 					nReadings = readCatalogue->getReadingsCount();
-					idxReadings = readCatalogue->getReadingPosizion(ref.dbId, ref.tableId);
+					idxReadings = readCatalogue->getReadingPosition(ref.dbId, ref.tableId);
 
 					// FIXME_I:
 					Logger::getLogger()->setMinLevel("debug");
@@ -807,12 +808,12 @@ int localNReadingsTotal;
 					Logger::getLogger()->setMinLevel("warning");
 
 
-					if (nReadings >= localNReadingsTotal)
+					if (idxReadings >= stmtArraySize)
 					{
-						localNReadingsTotal = readCatalogue->getReadingsCount() + 1;
-						readingsStmt.resize(localNReadingsTotal, nullptr);
+						stmtArraySize = idxReadings + 1;
+						readingsStmt.resize(stmtArraySize, nullptr);
 
-						Logger::getLogger()->debug("appendReadings: thread :%s: resize size :%d: idx :%d: ", threadId.str().c_str(), localNReadingsTotal, readingsId);
+						Logger::getLogger()->debug("appendReadings: thread :%s: resize size :%d: idx :%d: ", threadId.str().c_str(), stmtArraySize, readingsId);
 					}
 
 					if (readingsStmt[idxReadings] == nullptr)

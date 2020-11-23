@@ -46,7 +46,7 @@ const char *default_config = QUOTE({
 		"nReadingsPerDb" : {
 			"description" : "Number of readings tables per  database",
 			"type" : "integer",
-			"default" : "3",
+			"default" : "15",
 			"displayName" : "N Readings per database",
 			"order" : "2"
 		},
@@ -134,7 +134,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 	}
 
 	// FIXME_I:
-	storageConfig.nReadingsPerDb = 5;
+	//storageConfig.nReadingsPerDb = 5;
 
 		//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");

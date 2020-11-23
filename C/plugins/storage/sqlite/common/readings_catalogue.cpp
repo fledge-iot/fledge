@@ -1871,11 +1871,18 @@ int ReadingsCatalogue::getReadingsCount()
 }
 
 // FIXME_I:
-int ReadingsCatalogue::getReadingPosizion(int dbId, int tableId)
+int ReadingsCatalogue::getReadingPosition(int dbId, int tableId)
 {
 	int position;
 
-	position = ((dbId -1) * m_storageConfigCurrent.nReadingsPerDb) + tableId;
+	if ((dbId == 0) && (tableId == 0))
+	{
+		dbId = m_dbIdCurrent;
+		getMaxReadingsId(dbId);
+	}
+
+	position = ((dbId - 1) * m_storageConfigCurrent.nReadingsPerDb) + tableId;
+
 
 	return (position);
 }

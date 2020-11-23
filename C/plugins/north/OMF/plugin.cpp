@@ -29,6 +29,7 @@
 #include "libcurl_https.h"
 #include "utils.h"
 #include "string_utils.h"
+#include <version.h>
 
 
 #include "crypto.hpp"
@@ -372,7 +373,7 @@ extern "C" {
  */
 static PLUGIN_INFORMATION info = {
 	PLUGIN_NAME,		   // Name
-	"1.0.0",		   // Version
+	VERSION,		   // Version
 	SP_PERSIST_DATA,	   // Flags
 	PLUGIN_TYPE_NORTH,	   // Type
 	"1.0.0",		   // Interface version

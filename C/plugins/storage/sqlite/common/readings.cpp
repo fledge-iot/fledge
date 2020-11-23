@@ -787,7 +787,7 @@ int stmtArraySize;
 
 				//# FIXME_I
 				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxx   tyReadingReference :%s: :%d: :%d: ", asset_code, ref.dbId, ref.tableId);
+				Logger::getLogger()->debug("tyReadingReference :%s: :%d: :%d: ", asset_code, ref.dbId, ref.tableId);
 				Logger::getLogger()->setMinLevel("warning");
 
 				if (readingsId == -1)
@@ -804,7 +804,7 @@ int stmtArraySize;
 
 					// FIXME_I:
 					Logger::getLogger()->setMinLevel("debug");
-					Logger::getLogger()->debug("xxx   tyReadingReference :%s: :%d: :%d: idxReadings :%d:", asset_code, ref.dbId, ref.tableId, idxReadings);
+					Logger::getLogger()->debug("tyReadingReference :%s: :%d: :%d: idxReadings :%d:", asset_code, ref.dbId, ref.tableId, idxReadings);
 					Logger::getLogger()->setMinLevel("warning");
 
 
@@ -831,7 +831,7 @@ int stmtArraySize;
 
 						//# FIXME_I
 						Logger::getLogger()->setMinLevel("debug");
-						Logger::getLogger()->debug("xxx   tyReadingReference sql_cmd  :%s: :%s: :%d: :%d: ", sql_cmd.c_str(), asset_code, ref.dbId, ref.tableId);
+						Logger::getLogger()->debug("tyReadingReference sql_cmd  :%s: :%s: :%d: :%d: ", sql_cmd.c_str(), asset_code, ref.dbId, ref.tableId);
 						Logger::getLogger()->setMinLevel("warning");
 
 						if (rc != SQLITE_OK)

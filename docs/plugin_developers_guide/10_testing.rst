@@ -238,33 +238,34 @@ Running the storage service under the debugger is more difficult as you can not 
     - Use the process ID of the fledge service as an argument to gdb. Note you will need to run gdb as root on some systems
 
       .. code-block:: console
-      $ sudo gdb /usr/local/fledge/services/fledge.services.storage 23318
-      GNU gdb (Ubuntu 8.1-0ubuntu3) 8.1.0.20180409-git
-      Copyright (C) 2018 Free Software Foundation, Inc.
-      License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
-      This is free software: you are free to change and redistribute it.
-      There is NO WARRANTY, to the extent permitted by law.  Type "show copying"
-      and "show warranty" for details.
-      This GDB was configured as "x86_64-linux-gnu".
-      Type "show configuration" for configuration details.
-      For bug reporting instructions, please see:
-      <http://www.gnu.org/software/gdb/bugs/>.
-      Find the GDB manual and other documentation resources online at:
-      <http://www.gnu.org/software/gdb/documentation/>.
-      For help, type "help".
-      Type "apropos word" to search for commands related to "word"...
-      Reading symbols from services/fledge.services.storage...done.
-      Attaching to program: /usr/local/fledge/services/fledge.services.storage, process 23318
-      [New LWP 23320]
-      [New LWP 23321]
-      [New LWP 23322]
-      [New LWP 23330]
-      [Thread debugging using libthread_db enabled]
-      Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
-      0x00007f47a3e05d2d in __GI___pthread_timedjoin_ex (threadid=139945627997952, thread_return=0x0, abstime=0x0,
-          block=<optimized out>) at pthread_join_common.c:89
-      89	pthread_join_common.c: No such file or directory.
-      (gdb)
+
+          $ sudo gdb /usr/local/fledge/services/fledge.services.storage 23318
+          GNU gdb (Ubuntu 8.1-0ubuntu3) 8.1.0.20180409-git
+          Copyright (C) 2018 Free Software Foundation, Inc.
+          License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+          This is free software: you are free to change and redistribute it.
+          There is NO WARRANTY, to the extent permitted by law.  Type "show copying"
+          and "show warranty" for details.
+          This GDB was configured as "x86_64-linux-gnu".
+          Type "show configuration" for configuration details.
+          For bug reporting instructions, please see:
+          <http://www.gnu.org/software/gdb/bugs/>.
+          Find the GDB manual and other documentation resources online at:
+          <http://www.gnu.org/software/gdb/documentation/>.
+          For help, type "help".
+          Type "apropos word" to search for commands related to "word"...
+          Reading symbols from services/fledge.services.storage...done.
+          Attaching to program: /usr/local/fledge/services/fledge.services.storage, process 23318
+          [New LWP 23320]
+          [New LWP 23321]
+          [New LWP 23322]
+          [New LWP 23330]
+          [Thread debugging using libthread_db enabled]
+          Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+          0x00007f47a3e05d2d in __GI___pthread_timedjoin_ex (threadid=139945627997952, thread_return=0x0, abstime=0x0,
+              block=<optimized out>) at pthread_join_common.c:89
+          89	pthread_join_common.c: No such file or directory.
+          (gdb)
 
    - You can now use gdb to set break points etc and debug the storage service and plugins.
 
@@ -371,5 +372,5 @@ You can also check your default configuration. Although in Python this is usuall
 .. code-block:: console
 
    $ python3 -c 'from fledge.plugins.south.sinusoid.sinusoid import plugin_info; print(plugin_info()["config"])'
-{'plugin': {'description': 'Sinusoid Poll Plugin which implements sine wave with data points', 'type': 'string', 'default': 'sinusoid', 'readonly': 'true'}, 'assetName': {'description': 'Name of Asset', 'type': 'string', 'default': 'sinusoid', 'displayName': 'Asset name', 'mandatory': 'true'}}
+   {'plugin': {'description': 'Sinusoid Poll Plugin which implements sine wave with data points', 'type': 'string', 'default': 'sinusoid', 'readonly': 'true'}, 'assetName': {'description': 'Name of Asset', 'type': 'string', 'default': 'sinusoid', 'displayName': 'Asset name', 'mandatory': 'true'}}
 

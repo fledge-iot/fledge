@@ -142,7 +142,7 @@ in the notification rule that triggered this delivery event.
    }
 
 The return from the *plugin_deliver* entry point is a boolean that
-indicates if the delivery suceeded or not.
+indicates if the delivery succeeded or not.
 
 In the case of our MQTT example we call the notify method of the class,
 this then interacts with the MQTT broker.

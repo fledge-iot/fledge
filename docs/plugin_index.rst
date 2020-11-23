@@ -11,4 +11,3 @@ The following external plugins are currently available to extend the functionali
     plugins/filter
     plugins/rule
     plugins/notify
-    fledge-north-OMF

@@ -26,6 +26,8 @@
 #include <plugin.h>
 #include <logger.h>
 #include <reading.h>
+#include <data_load.h>
+#include <data_sender.h>
 #include <iostream>
 #include <defaults.h>
 #include <filter_plugin.h>
@@ -188,7 +190,7 @@ int	size;
 /**
  * Constructor for the north service
  */
-NorthService::NorthService(const string& myName) : m_name(myName), m_shutdown(false), m_storage(NULL), m_streamId(0)
+NorthService::NorthService(const string& myName) : m_name(myName), m_shutdown(false), m_storage(NULL)
 {
 	logger = new Logger(myName);
 	logger->setMinLevel("warning");
@@ -269,19 +271,22 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 						storageRecord.getPort());
 
 		// Fetch Confguration
-
 		m_assetTracker = new AssetTracker(m_mgtClient, m_name);
 
-		// Now do the work of the north service
+		// Setup the data loading
+		long streamId = 0;
 		if (m_config.itemExists("streamId"))
 		{
-			m_streamId = strtol(m_config.getValue("streamId").c_str(), NULL, 10);
+			streamId = strtol(m_config.getValue("streamId").c_str(), NULL, 10);
 		}
-		if (!getLastSentReadingId())
+		m_dataLoad = new DataLoad(m_name, streamId, m_storage);
+		if (m_config.itemExists("source"))
 		{
-			m_streamId = createNewStream();
-			getLastSentReadingId();
+			m_dataLoad->setDataSource(m_config.getValue("source"));
 		}
+
+		
+		// ADD HERE
 
 
 		// Shutdown the north plugin
@@ -469,105 +474,5 @@ void NorthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 	defaultConfig.addItem("logLevel", "Minimum logging level reported",
 			"warning", "warning", logLevels);
 	defaultConfig.setItemDisplayName("logLevel", "Minimum Log Level");
-}
-
-/**
- * Get the ID of the last reading that was sent with this service
- */
-bool NorthService::getLastSentReadingId()
-{
-	// Fetch last_object sent from fledge.streams
-
-	bool foundId = false;
-	const Condition conditionId(Equals);
-	string streamId = to_string(m_streamId);
-	Where* wStreamId = new Where("id",
-				     conditionId,
-				     streamId);
-
-	// SELECT * FROM fledge.streams WHERE id = x
-	Query qLastId(wStreamId);
-
-	ResultSet* lastObjectId = m_storage->queryTable("streams", qLastId);
-
-	if (lastObjectId != NULL && lastObjectId->rowCount())
-	{
-		// Get the first row only
-		ResultSet::RowIterator it = lastObjectId->firstRow();
-		// Access the element
-		ResultSet::Row* row = *it;
-		if (row)
-		{
-			// Get column value
-			ResultSet::ColumnValue* theVal = row->getColumn("last_object");
-			// Set found id
-			m_lastSent = ((unsigned long)theVal->getInteger());
-
-			foundId = true;
-		}
-	}
-	// Free result set
-	delete lastObjectId;
-
-	return foundId;
-}
-
-
-
-/**
- * Creates a new stream, it adds a new row into the streams table allocating a new stream id
- *
- * @return newly created stream, 0 otherwise
- */
-int NorthService::createNewStream()
-{
-int streamId = 0;
-InsertValues streamValues;
-
-	streamValues.push_back(InsertValue("description",    m_name));
-	streamValues.push_back(InsertValue("last_object",    NEW_STREAM_LAST_OBJECT));
-
-	if (m_storage->insertTable("streams", streamValues) != 1)
-	{
-		Logger::getLogger()->error("Failed to insert a row into the streams table");
-        }
-	else
-	{
-		// Select the row just created, having description='process name'
-		const Condition conditionId(Equals);
-		Where* wName = new Where("description", conditionId, m_name);
-		Query qName(wName);
-
-		ResultSet *rows = m_storage->queryTable("streams", qName);
-
-		if (rows != NULL && rows->rowCount())
-		{
-			// Get the first row only
-			ResultSet::RowIterator it = rows->firstRow();
-			// Access the element
-			ResultSet::Row* row = *it;
-			if (row)
-			{
-				// Get column value
-				ResultSet::ColumnValue* theVal = row->getColumn("id");
-				streamId = (int)theVal->getInteger();
-			}
-		}
-		delete rows;
-	}
-	return streamId;
-}
-
-/**
- * Update the last sent ID for our stream
- */
-void NorthService::updateLastSentId()
-{
-	const Condition condition(Equals);
-	Where where("id", condition, to_string(m_streamId));
-	InsertValues lastId;
-
-	lastId.push_back(InsertValue("last_object", (long)m_lastSent));
-	m_storage->updateTable("streams", lastId, where);
 }
 

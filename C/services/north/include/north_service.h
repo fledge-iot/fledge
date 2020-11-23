@@ -20,7 +20,8 @@
 
 #define SERVICE_NAME  "Fledge North"
 
-#define NEW_STREAM_LAST_OBJECT 0
+class DataLoad;
+class DataSender;
 
 /**
  * The NorthService class. This class is the core
@@ -43,9 +44,7 @@ class NorthService : public ServiceHandler {
 		bool 				loadPlugin();
 		void 				createConfigCategories(DefaultConfigCategory configCategory, std::string parent_name,std::string current_name);
 	private:
-		bool				getLastSentReadingId();
-		int				createNewStream();
-		void				updateLastSentId();
+		DataLoad			*m_dataLoad;
 		NorthPlugin			*northPlugin;
 		const std::string&		m_name;
 		Logger        			*logger;
@@ -55,7 +54,5 @@ class NorthService : public ServiceHandler {
 		ConfigCategory			m_configAdvanced;
 		static ManagementClient		*m_mgtClient;
 		StorageClient			*m_storage;
-		int				m_streamId;
-		unsigned long			m_lastSent;
 };
 #endif

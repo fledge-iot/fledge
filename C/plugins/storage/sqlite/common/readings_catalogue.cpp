@@ -704,6 +704,19 @@ void ReadingsCatalogue::multipleReadingsInit(STORAGE_CONFIGURATION &storageConfi
 	dbHandle = connection->getDbHandle();
 
 
+
+	if (storageConfig.nDbLeftFreeBeforeAllocate < 1)
+	{
+		Logger::getLogger()->warn("xxx %s: parameter nDbLeftFreeBeforeAllocate not valid, use a value >= 1, 1 used ", __FUNCTION__);
+		storageConfig.nDbLeftFreeBeforeAllocate = 1;
+	}
+	if (storageConfig.nDbToAllocate < 1)
+	{
+		Logger::getLogger()->warn("xxx %s: parameter nDbToAllocate not valid, use a value >= 1, 1 used ", __FUNCTION__);
+		storageConfig.nDbToAllocate = 1;
+	}
+
+
 	// FIXME_I:
 	m_storageConfigApi.nReadingsPerDb = storageConfig.nReadingsPerDb;
 	m_storageConfigApi.nDbPreallocate = storageConfig.nDbPreallocate;

@@ -1,11 +1,9 @@
 #!/bin/bash
 
+# The best default branch to use develop rather than master. As new repository do not have a branch called master any more and having main branch only.
 if [[ "${DOCBRANCH}" == "" ]]; then
-	# Use the current branch if not set and if that fail use master
-	export DOCBRANCH=`git status | grep "On branch" | awk '{print $3 }'`
-	if [[ "${DOCBRANCH}" == "" ]]; then
-		export DOCBRANCH=master
-	fi
+    # NOTE: During release time we need to replace develop with actual released version
+	export DOCBRANCH=develop
 	echo "Default ${DOCBRANCH} used for plugin documentation"
 fi
 

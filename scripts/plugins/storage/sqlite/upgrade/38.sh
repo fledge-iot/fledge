@@ -158,6 +158,44 @@ create_database_file() {
 }
 
 #
+# Updates the db with the max used database id
+#
+update_max_db_id() {
+
+    declare _db_id_max=$1
+
+    schema_update_log "debug" "calculate_db_id: SQLITE_SQL :$SQLITE_SQL: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "logonly" "pretty"
+
+    SQL_COMMAND="${SQLITE_SQL} \"${DEFAULT_SQLITE_DB_FILE}\" 2>&1 <<EOF
+
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}'              AS 'fledge';
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}'     AS 'readings_1';
+
+UPDATE readings_1.configuration_readings SET db_id_Last=${_db_id_max};
+
+.quit
+EOF"
+
+
+    COMMAND_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
+
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}'              AS 'fledge';
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}'     AS 'readings_1';
+
+UPDATE readings_1.configuration_readings SET db_id_Last=${_db_id_max};
+
+.quit
+EOF`
+
+    ret_code=$?
+
+    if [ "${ret_code}" -ne 0 ]; then
+        schema_update_log "err" "calculate_db_id - Failure in upgrade command [${SQL_COMMAND}] result [${COMMAND_OUTPUT}]. Exiting" "all" "pretty"
+        exit 1
+    fi
+}
+
+#
 # Creates all the required database file in relation to the asset_reading_catalogue content
 #
 create_all_database_files() {
@@ -458,6 +496,26 @@ EOF`
     fi
 }
 
+#// FIXME_I: ro remove
+e_syscls
+
+export FLEDGE_DEV=/home/foglamp/Development/fledge;export FLEDGE_DEP=/usr/local/fledge;export FLEDGE_ROOT=${FLEDGE_DEV};export FLEDGE_SCRIPT=${FLEDGE_ROOT}/scripts/fledge;export FLEDGE_DATA=${FLEDGE_ROOT}/data;export PYTHONPATH=${FLEDGE_ROOT}/python;export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:$FLEDGE_ROOT/cmake_build/C/lib;export PATH=${PATH}:/home/foglamp/wrk/scripts
+export sql_file="/home/foglamp/Development/fledge/scripts/plugins/storage/sqlite/upgrade/38.sql"
+export SQLITE_SQL="$(command -v sqlite3)"
+export DEFAULT_SQLITE_DB_FILE="${FLEDGE_DATA}/fledge.db"
+export DEFAULT_SQLITE_DB_FILE_READINGS_BASE="${FLEDGE_DATA}/readings"
+export DEFAULT_SQLITE_DB_FILE_READINGS="${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}_1.db"
+export DEFAULT_SQLITE_DB_FILE_READINGS_SINGLE="${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}.db"
+
+echo "DBG `id`"
+ls -l  ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}_*.*
+rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}_*.*
+COMMAND_OUTPUT=`${SQLITE_SQL} ${DEFAULT_SQLITE_DB_FILE_READINGS} .databases 2>&1`
+RET_CODE=$?
+
+
+# END
+
 
 #
 # Main
@@ -479,6 +537,7 @@ export_readings_list
 
 db_id_max=0
 create_all_database_files ${n_db_allocate}   # updates db_id_max
+update_max_db_id          ${db_id_max}   # updates db_id_max
 create_all_readings       ${db_id_max} ${n_readings_allocate}
 
 populate_all_readings

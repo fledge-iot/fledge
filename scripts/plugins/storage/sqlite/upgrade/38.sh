@@ -8,6 +8,56 @@ schema_update_log() {
     write_log "Upgrade" "scripts.plugins.storage.${PLUGIN_NAME}schema_update" "$1" "$2" "$3" "$4"
 }
 
+#// FIXME_I:
+calculate_table_id() {
+
+    declare _n_readings_allocate=$1
+
+    schema_update_log "debug" "calculate_db_id: SQLITE_SQL :$SQLITE_SQL: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "logonly" "pretty"
+
+    SQL_COMMAND="${SQLITE_SQL} \"${DEFAULT_SQLITE_DB_FILE}\" 2>&1 <<EOF
+
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}'              AS 'fledge';
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}'     AS 'readings_1';
+
+INSERT INTO readings_1.asset_reading_catalogue
+SELECT
+    (tb.table_id - ((db_id - 1) * 15))
+
+    table_id,
+    db_id,
+    asset_code
+FROM readings_1.asset_reading_catalogue_tmp tb;
+
+.quit
+EOF"
+
+
+    COMMAND_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
+
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}'              AS 'fledge';
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}'     AS 'readings_1';
+
+INSERT INTO readings_1.asset_reading_catalogue
+SELECT
+    (tb.table_id - ((db_id - 1) * 15))
+
+    table_id,
+    db_id,
+    asset_code
+FROM readings_1.asset_reading_catalogue_tmp tb;
+
+.quit
+EOF`
+
+    ret_code=$?
+
+    if [ "${ret_code}" -ne 0 ]; then
+        schema_update_log "err" "calculate_db_id - Failure in upgrade command [${SQL_COMMAND}] result [${COMMAND_OUTPUT}]. Exiting" "all" "pretty"
+        exit 1
+    fi
+}
+
 #
 # Updates asset_reading_catalogue setting the proper db id in relation to how many tables per db
 # should be managed
@@ -33,7 +83,7 @@ EOF"
 ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}'              AS 'fledge';
 ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}'     AS 'readings_1';
 
-UPDATE readings_1.asset_reading_catalogue SET db_id=(((table_id - 1) / '${_n_readings_allocate}') +1);
+UPDATE readings_1.asset_reading_catalogue_tmp SET db_id=(((table_id - 1) / '${_n_readings_allocate}') +1);
 
 .quit
 EOF`
@@ -113,18 +163,17 @@ create_database_file() {
 #
 create_all_database_files() {
 
+    declare _n_db_allocate=$1
+
     declare db_name
 
-    cat "$tmp_file"  | while read -r table_id db_id asset_code; do
+    # The first database is created by the upgrade process
+    for ((db_id=2; db_id<=${_n_db_allocate}; db_id++)); do
 
-        # The first database is created by the upgrade process
-        if [ "$db_id" != "1" ]; then
+        db_name="readings_$db_id"
 
-            db_name="readings_$db_id"
-
-            schema_update_log "debug" "create_all_database_file - db name :$db_name: db id :$db_id: table id :$table_id: asset code :$asset_code: " "logonly" "pretty"
-            create_database_file "$db_name"
-        fi
+        schema_update_log "debug" "create_all_database_file - db name :$db_name: db id :$db_id: " "logonly" "pretty"
+        create_database_file "$db_name"
     done
 }
 
@@ -185,15 +234,22 @@ EOF`
 #
 create_all_readings() {
 
-    cat "$tmp_file"  | while read table_id db_id asset_code; do
+    declare _n_db_allocate=$1
+    declare _n_readings_allocate=$2
 
-        schema_update_log "debug" "create_all_readings - dbid :$db_id: table id :$table_id: " "logonly" "pretty"
+    for ((db_id=1; db_id<=${_n_db_allocate}; db_id++)); do
 
-        # The first readings iss created by the sql script
-        if [ "$table_id" != "1" ]; then
+        for ((table_id=1; table_id<=${_n_readings_allocate}; table_id++)); do
 
-            create_readings "readings_$db_id" "readings_$table_id"
-        fi
+            schema_update_log "debug" "create_all_readings - dbid :$db_id: table id :${db_id}_${table_id}: " "logonly" "pretty"
+
+            # The first reading table is created by the sql script
+            if [[  "$db_id" != "1" || "$table_id" != "1" ]]
+            then
+
+                create_readings "readings_$db_id" "readings_${db_id}_${table_id}"
+            fi
+        done
     done
 }
 
@@ -271,7 +327,7 @@ populate_all_readings() {
 
         schema_update_log "debug" "populate_all_readings - db id :$db_id: table id :$table_id: asset code :$asset_code: " "logonly" "pretty"
 
-        populate_readings "readings_$db_id" "readings_$table_id" "$asset_code"
+        populate_readings "readings_$db_id" "readings_${db_id}_${table_id}" "$asset_code"
     done
 }
 
@@ -339,13 +395,14 @@ DROP TABLE readings.readings;
 .quit
 EOF"
 
+#// FIXME_I:
     COMMAND_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
 
 ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}'                 AS 'fledge';
 ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}'        AS 'readings_1';
 ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS_SINGLE}' AS 'readings';
 
-DROP TABLE readings.readings;
+--DROP TABLE readings.readings;
 
 .quit
 EOF`
@@ -364,7 +421,8 @@ EOF`
 
     schema_update_log "debug" "cleanup - deleting ${file_name_path}" "logonly" "pretty"
 
-    rm ${file_name_path}
+#// FIXME_I:
+    #rm ${file_name_path}
     ret_code=$?
 
     if [ "${ret_code}" -ne 0 ]; then
@@ -376,9 +434,30 @@ EOF`
 #
 # Main
 #
+export n_db_allocate=3
 export n_readings_allocate=15
 export tmp_file=/tmp/$$
 export IFS="|"
+
+#// FIXME_I: ro remove
+e_syscls
+
+export FLEDGE_DEV=/home/foglamp/Development/fledge;export FLEDGE_DEP=/usr/local/fledge;export FLEDGE_ROOT=${FLEDGE_DEV};export FLEDGE_SCRIPT=${FLEDGE_ROOT}/scripts/fledge;export FLEDGE_DATA=${FLEDGE_ROOT}/data;export PYTHONPATH=${FLEDGE_ROOT}/python;export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:$FLEDGE_ROOT/cmake_build/C/lib;export PATH=${PATH}:/home/foglamp/wrk/scripts
+export sql_file="/home/foglamp/Development/fledge/scripts/plugins/storage/sqlite/upgrade/38.sql"
+export SQLITE_SQL="$(command -v sqlite3)"
+export DEFAULT_SQLITE_DB_FILE="${FLEDGE_DATA}/fledge.db"
+export DEFAULT_SQLITE_DB_FILE_READINGS_BASE="${FLEDGE_DATA}/readings"
+export DEFAULT_SQLITE_DB_FILE_READINGS="${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}_1.db"
+export DEFAULT_SQLITE_DB_FILE_READINGS_SINGLE="${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}.db"
+
+echo "DBG `id`"
+ls -l  ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}_*.*
+rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}_*.*
+COMMAND_OUTPUT=`${SQLITE_SQL} ${DEFAULT_SQLITE_DB_FILE_READINGS} .databases 2>&1`
+RET_CODE=$?
+
+
+# END
 
 schema_update_log "debug" "$0 - SQLITE_SQL :$SQLITE_SQL: sql_file :$sql_file: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "logonly" "pretty"
 
@@ -386,11 +465,13 @@ execute_sql_file
 
 calculate_db_id ${n_readings_allocate}
 
+calculate_table_id ${n_readings_allocate}
+
 export_readings_list
 
-create_all_database_files
+create_all_database_files ${n_db_allocate}
 
-create_all_readings
+create_all_readings  ${n_db_allocate} ${n_readings_allocate}
 
 populate_all_readings
 

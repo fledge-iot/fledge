@@ -496,27 +496,6 @@ EOF`
     fi
 }
 
-#// FIXME_I: ro remove
-e_syscls
-
-export FLEDGE_DEV=/home/foglamp/Development/fledge;export FLEDGE_DEP=/usr/local/fledge;export FLEDGE_ROOT=${FLEDGE_DEV};export FLEDGE_SCRIPT=${FLEDGE_ROOT}/scripts/fledge;export FLEDGE_DATA=${FLEDGE_ROOT}/data;export PYTHONPATH=${FLEDGE_ROOT}/python;export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:$FLEDGE_ROOT/cmake_build/C/lib;export PATH=${PATH}:/home/foglamp/wrk/scripts
-export sql_file="/home/foglamp/Development/fledge/scripts/plugins/storage/sqlite/upgrade/38.sql"
-export SQLITE_SQL="$(command -v sqlite3)"
-export DEFAULT_SQLITE_DB_FILE="${FLEDGE_DATA}/fledge.db"
-export DEFAULT_SQLITE_DB_FILE_READINGS_BASE="${FLEDGE_DATA}/readings"
-export DEFAULT_SQLITE_DB_FILE_READINGS="${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}_1.db"
-export DEFAULT_SQLITE_DB_FILE_READINGS_SINGLE="${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}.db"
-
-echo "DBG `id`"
-ls -l  ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}_*.*
-rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}_*.*
-COMMAND_OUTPUT=`${SQLITE_SQL} ${DEFAULT_SQLITE_DB_FILE_READINGS} .databases 2>&1`
-RET_CODE=$?
-
-
-# END
-
-
 #
 # Main
 #

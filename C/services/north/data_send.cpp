@@ -65,7 +65,8 @@ void DataSender::sendThread()
 			return;
 		}
 		long lastSent = send(readings);
-		m_loader->updateLastSentId(lastSent);
+		m_loader->updateLastSentId(readings->getLastId());
+		delete readings;
 	}
 	m_logger->info("Sending thread shutdown");
 }

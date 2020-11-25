@@ -9,6 +9,7 @@
  */
 
 #include <data_load.h>
+#include <north_service.h>
 
 using namespace std;
 
@@ -27,6 +28,11 @@ DataLoad::DataLoad(const string& name, long streamId, StorageClient *storage) :
 	m_name(name), m_streamId(streamId), m_storage(storage), m_shutdown(false),
 	m_readRequest(0), m_dataSource(SourceReadings)
 {
+	if (m_streamId == 0)
+	{
+		m_streamId = createNewStream();
+	}
+	m_lastFetched = getLastSentId();
 	m_thread = new thread(threadMain, this);
 }
 
@@ -91,7 +97,9 @@ unsigned int DataLoad::waitForReadRequest()
 	{
 		m_cv.wait(lck);
 	}
-	return m_readRequest;
+	int rval =  m_readRequest;
+	m_readRequest = 0;
+	return rval;
 }
 
 /**
@@ -128,6 +136,9 @@ ReadingSet *readings = NULL;
 				case SourceAudit:
 					readings = fetchAudit(blockSize);
 					break;
+				default:
+					Logger::getLogger()->fatal("Bad source for data to send");
+					break;
 
 			}
 		}
@@ -141,6 +152,7 @@ ReadingSet *readings = NULL;
 		}
 		if (readings && readings->getCount())
 		{
+			m_lastFetched = readings->getLastId();
 			bufferReadings(readings);
 			return;
 		}
@@ -263,8 +275,9 @@ long DataLoad::getLastSentId()
  */
 void DataLoad::bufferReadings(ReadingSet *readings)
 {
-	unique_lock<mutex> lck(m_mutex);
+	unique_lock<mutex> lck(m_qMutex);
 	m_queue.push_back(readings);
+	m_fetchCV.notify_all();
 }
 
 /**
@@ -278,6 +291,7 @@ ReadingSet *DataLoad::fetchReadings(bool wait)
 	unique_lock<mutex> lck(m_qMutex);
 	while (m_queue.empty())
 	{
+		triggerRead(100);	// TODO Improve this
 		if (wait && !m_shutdown)
 		{
 			m_fetchCV.wait(lck);
@@ -289,6 +303,8 @@ ReadingSet *DataLoad::fetchReadings(bool wait)
 	}
 	ReadingSet *rval = m_queue.front();
 	m_queue.pop_front();
+	triggerRead(100);	// TODO Improve this
+	Logger::getLogger()->fatal("fetchReadings return a block");
 	return rval;
 }
 
@@ -333,6 +349,8 @@ InsertValues streamValues;
 		}
 		delete rows;
 	}
+
+	NorthService::getMgmtClient()->setCategoryItemValue(m_name, "streamId", to_string(streamId));
 	return streamId;
 }
 

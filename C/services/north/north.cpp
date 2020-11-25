@@ -207,7 +207,7 @@ NorthService::~NorthService()
 
 ManagementClient *NorthService::m_mgtClient = NULL;
 
-ManagementClient * NorthService::getMgmtClient()
+ManagementClient *NorthService::getMgmtClient()
 {
 	return m_mgtClient;
 }
@@ -279,14 +279,24 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		{
 			streamId = strtol(m_config.getValue("streamId").c_str(), NULL, 10);
 		}
+		logger->fatal("Stream ID is %d", streamId);
 		m_dataLoad = new DataLoad(m_name, streamId, m_storage);
 		if (m_config.itemExists("source"))
 		{
 			m_dataLoad->setDataSource(m_config.getValue("source"));
 		}
+		m_dataSender = new DataSender(northPlugin, m_dataLoad);
 
 		
-		// ADD HERE
+		// wait for shutdown
+		unique_lock<mutex> lck(m_mutex);
+		while (!m_shutdown)
+		{
+			m_cv.wait(lck);
+		}
+
+		delete m_dataLoad;
+		delete m_dataSender;
 
 
 		// Shutdown the north plugin
@@ -423,6 +433,9 @@ void NorthService::shutdown()
 	 */
 	m_shutdown = true;
 	logger->info("North service shutdown in progress.");
+	// Signal main thread to shutdown
+	unique_lock<mutex> lck(m_mutex);
+	m_cv.notify_all();
 }
 
 /**

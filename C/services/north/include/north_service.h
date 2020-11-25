@@ -17,6 +17,8 @@
 #include <storage_client.h>
 #include <config_category.h>
 #include <filter_plugin.h>
+#include <mutex>
+#include <condition_variable>
 
 #define SERVICE_NAME  "Fledge North"
 
@@ -45,6 +47,7 @@ class NorthService : public ServiceHandler {
 		void 				createConfigCategories(DefaultConfigCategory configCategory, std::string parent_name,std::string current_name);
 	private:
 		DataLoad			*m_dataLoad;
+		DataSender			*m_dataSender;
 		NorthPlugin			*northPlugin;
 		const std::string&		m_name;
 		Logger        			*logger;
@@ -54,5 +57,7 @@ class NorthService : public ServiceHandler {
 		ConfigCategory			m_configAdvanced;
 		static ManagementClient		*m_mgtClient;
 		StorageClient			*m_storage;
+		std::mutex			m_mutex;
+                std::condition_variable		m_cv;
 };
 #endif

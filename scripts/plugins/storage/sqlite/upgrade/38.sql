@@ -41,11 +41,10 @@ CREATE INDEX readings_1.readings_1_1_ix3
 
 
 --
--- Force a calculation of the global id at the fledge starts
+-- global_id = -1 forces a calculation of the global id at the fledge starts
 --
 INSERT INTO readings_1.configuration_readings VALUES (-1, 0, 15, 3);
 
---// FIXME_I:
 --
 -- NULL is used to force the auto generation of the value starting from 1
 -- db_is will be properly valued by the shell script

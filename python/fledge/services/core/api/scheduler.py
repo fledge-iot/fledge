@@ -105,7 +105,7 @@ async def post_scheduled_process(request: web.Request) -> web.Response:
             script - path for the script
 
     :Example:
-             curl -d '{"process_name": "sleep30", "script": "[services/test]"}' -sX POST  http://localhost:8081/fledge/schedule/process
+             curl -d '{"process_name": "sleep30", "script": "[\"services/test\"]"}' -sX POST  http://localhost:8081/fledge/schedule/process
     """
     data = await request.json()
     process_name = data.get('process_name', None)
@@ -133,7 +133,7 @@ async def post_scheduled_process(request: web.Request) -> web.Response:
         try:
             await storage.insert_into_tbl("scheduled_processes", payload)
             # Update _process_scripts dict of scheduler
-            server.Server.scheduler._process_scripts.update({process_name: script})
+            await server.Server.scheduler._get_process_scripts()
         except StorageServerError as err:
             msg = str(err)
             raise web.HTTPInternalServerError(body=json.dumps(

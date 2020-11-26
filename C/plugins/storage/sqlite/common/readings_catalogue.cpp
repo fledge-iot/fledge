@@ -249,7 +249,9 @@ int ReadingsCatalogue::calculateGlobalId (sqlite3 *dbHandle)
 		bool firstRow = true;
 		if (m_AssetReadingCatalogue.empty())
 		{
-			sql_cmd += " SELECT max(id) id FROM " READINGS_DB ".readings_1 ";
+			string dbReadingsName = generateReadingsName(1, 1);
+
+			sql_cmd += " SELECT max(id) id FROM " READINGS_DB "." + dbReadingsName + " ";
 		}
 		else
 		{
@@ -2075,10 +2077,12 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string
 		// Add at least one table eventually a dummy one
 		if (! addedOne)
 		{
+			dbReadingsName = generateReadingsName(1, 1);
+
 			sqlCmd = sqlCmdBase;
 			StringReplaceAll (sqlCmd, "_assetcode_", "dummy_asset_code");
 			StringReplaceAll (sqlCmd, "_dbname_", READINGS_DB);
-			StringReplaceAll (sqlCmd, "_tablename_", "readings_1");
+			StringReplaceAll (sqlCmd, "_tablename_", dbReadingsName);
 		}
 	}
 

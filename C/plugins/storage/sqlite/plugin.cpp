@@ -34,7 +34,6 @@ using namespace rapidjson;
  */
 extern "C" {
 
-// FIXME_I:
 const char *default_config = QUOTE({
 		"poolSize" : {
 			"description" : "Connection pool size",
@@ -132,19 +131,6 @@ PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 	{
 		storageConfig.nDbToAllocate = strtol(category->getValue("nDbToAllocate").c_str(), NULL, 10);
 	}
-
-	// FIXME_I:
-	//storageConfig.nReadingsPerDb = 5;
-
-		//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("%s - Storage engine SQLite configuration:", __FUNCTION__, storageConfig.nReadingsPerDb);
-	Logger::getLogger()->debug("%s - poolSize :%d:", __FUNCTION__, storageConfig.poolSize);
-	Logger::getLogger()->debug("xxx %s - nReadingsPerDb :%d:", __FUNCTION__, storageConfig.nReadingsPerDb);
-	Logger::getLogger()->debug("xxx %s - nDbPreallocate :%d:", __FUNCTION__,storageConfig.nDbPreallocate);
-	Logger::getLogger()->debug("%s - nDbLeftFreeBeforeAllocate :%d:", __FUNCTION__,storageConfig.nDbLeftFreeBeforeAllocate);
-	Logger::getLogger()->debug("%s - nDbToAllocate :%d:", __FUNCTION__,storageConfig.nDbToAllocate);
-	Logger::getLogger()->setMinLevel("warning");
 
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 	readCat->multipleReadingsInit(storageConfig);

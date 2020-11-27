@@ -18,7 +18,6 @@
 
 #include <sys/stat.h>
 
-
 #include <string_utils.h>
 #include <algorithm>
 #include <vector>
@@ -28,7 +27,6 @@
 // 1 enable performance tracking
 #define INSTRUMENT	0
 
-// FIXME_I:
 #define LOG_AFTER_NERRORS 0
 
 #if INSTRUMENT
@@ -691,11 +689,7 @@ int stmtArraySize;
 		attachSync->unlock();
 	}
 
-	// FIXME_I:
-	//localNReadingsTotal = readCatalogue->getMaxReadingsId();
-	//stmtArraySize = readCatalogue->getReadingsCount();
 	stmtArraySize = readCatalogue->getReadingPosition(0, 0);
-
 	vector<sqlite3_stmt *> readingsStmt(stmtArraySize + 1, nullptr);
 
 #if INSTRUMENT
@@ -785,10 +779,7 @@ int stmtArraySize;
 				ref = readCatalogue->getReadingReference(this, asset_code);
 				readingsId = ref.tableId;
 
-				//# FIXME_I
-				Logger::getLogger()->setMinLevel("debug");
 				Logger::getLogger()->debug("tyReadingReference :%s: :%d: :%d: ", asset_code, ref.dbId, ref.tableId);
-				Logger::getLogger()->setMinLevel("warning");
 
 				if (readingsId == -1)
 				{
@@ -802,11 +793,7 @@ int stmtArraySize;
 					nReadings = readCatalogue->getReadingsCount();
 					idxReadings = readCatalogue->getReadingPosition(ref.dbId, ref.tableId);
 
-					// FIXME_I:
-					Logger::getLogger()->setMinLevel("debug");
 					Logger::getLogger()->debug("tyReadingReference :%s: :%d: :%d: idxReadings :%d:", asset_code, ref.dbId, ref.tableId, idxReadings);
-					Logger::getLogger()->setMinLevel("warning");
-
 
 					if (idxReadings >= stmtArraySize)
 					{
@@ -818,27 +805,18 @@ int stmtArraySize;
 
 					if (readingsStmt[idxReadings] == nullptr)
 					{
-						// FIXME_I:
-						//string dbName = readCatalogue->generateDbNameFromTableId(readingsId);
 						string dbName = readCatalogue->generateDbName(ref.dbId);
-
-						// FIXME_I:
 						string dbReadingsName = readCatalogue->generateReadingsName(ref.dbId, readingsId);
 
 						sql_cmd = "INSERT INTO  " + dbName + "." + dbReadingsName + " ( id, user_ts, reading ) VALUES  (?,?,?)";
 						rc = SQLPrepare(dbHandle, sql_cmd.c_str(), &readingsStmt[idxReadings]);
 
-
-						//# FIXME_I
-						Logger::getLogger()->setMinLevel("debug");
 						Logger::getLogger()->debug("tyReadingReference sql_cmd  :%s: :%s: :%d: :%d: ", sql_cmd.c_str(), asset_code, ref.dbId, ref.tableId);
-						Logger::getLogger()->setMinLevel("warning");
 
 						if (rc != SQLITE_OK)
 						{
 							raiseError("appendReadings", sqlite3_errmsg(dbHandle));
 						}
-
 					}
 					stmt = readingsStmt[idxReadings];
 
@@ -1559,8 +1537,8 @@ vector<string>  asset_codes;
 		return true;
 	} catch (exception e) {
 		raiseError("retrieve", "Internal error: %s", e.what());
+		return false;
 	}
-
 }
 #endif
 

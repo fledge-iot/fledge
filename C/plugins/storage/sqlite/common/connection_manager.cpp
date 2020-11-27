@@ -194,8 +194,9 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 	return (result);
 }
 
-// FIXME_I:
 /**
+ * Detach a database from all the connections
+ *
  */
 bool ConnectionManager::detachNewDb(std::string &alias)
 {
@@ -215,7 +216,6 @@ bool ConnectionManager::detachNewDb(std::string &alias)
 
 	// attach the DB to all idle connections
 	{
-
 		for ( auto conn : idle) {
 
 			dbHandle = conn->getDbHandle();
@@ -226,9 +226,7 @@ bool ConnectionManager::detachNewDb(std::string &alias)
 				result = false;
 				break;
 			}
-
 			Logger::getLogger()->debug("detachNewDb - idle dbHandle :%X: sqlCmd :%s: ", dbHandle, sqlCmd.c_str());
-
 		}
 	}
 
@@ -247,7 +245,6 @@ bool ConnectionManager::detachNewDb(std::string &alias)
 					result = false;
 					break;
 				}
-
 				Logger::getLogger()->debug("detachNewDb - inUse dbHandle :%X: sqlCmd :%s: ", dbHandle, sqlCmd.c_str());
 			}
 		}

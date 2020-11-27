@@ -244,16 +244,23 @@ class TestPluginInstall:
         param = {"format": "repository", "name": plugin}
         payload = {"return": ["status"], "where": {"column": "action", "condition": "=", "value": "install",
                                                    "and": {"column": "name", "condition": "=", "value": plugin}}}
+        plugin_list = [{'name': 'randomwalk', 'type': 'south', 'description': 'Generate random walk data points',
+                        'version': '1.8.2', 'installedDirectory': 'south/randomwalk',
+                        'packageName': 'fledge-south-randomwalk'}]
+
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload',
                               return_value=async_mock({'count': 0, 'rows': []})) as query_tbl_patch:
-                with patch.object(common, 'fetch_available_packages', return_value=(
-                        async_mock(([], 'log/190801-12-41-13.log')))) as patch_fetch_available_package:
-                    resp = await client.post('/fledge/plugins', data=json.dumps(param))
-                    assert 404 == resp.status
-                    assert "'{} plugin is not available for the configured repository'".format(plugin) == resp.reason
-                patch_fetch_available_package.assert_called_once_with()
+                with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_list
+                                  ) as plugin_installed_patch:
+                    with patch.object(common, 'fetch_available_packages', return_value=(
+                            async_mock(([], 'log/190801-12-41-13.log')))) as patch_fetch_available_package:
+                        resp = await client.post('/fledge/plugins', data=json.dumps(param))
+                        assert 404 == resp.status
+                        assert "'{} plugin is not available for the configured repository'".format(plugin) == resp.reason
+                    patch_fetch_available_package.assert_called_once_with()
+                plugin_installed_patch.assert_called_once_with('south', False)
             args, kwargs = query_tbl_patch.call_args_list[0]
             assert 'packages' == args[0]
             assert payload == json.loads(args[1])

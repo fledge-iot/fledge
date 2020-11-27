@@ -778,7 +778,7 @@ void ReadingsCatalogue::storeReadingsConfiguration (sqlite3 *dbHandle)
 }
 
 /**
- * Add all the required DBd
+ * Add all the required DBs in relation to the storage plugin configuration
  *
  */
 void ReadingsCatalogue::configChangeAddDb(sqlite3 *dbHandle)
@@ -832,7 +832,7 @@ void ReadingsCatalogue::configChangeAddDb(sqlite3 *dbHandle)
 }
 
 /**
- * // FIXME_I:
+ * Removes all the required DBs in relation to the storage plugin configuration
  *
  */
 void ReadingsCatalogue::configChangeRemoveDb(sqlite3 *dbHandle)
@@ -846,8 +846,6 @@ void ReadingsCatalogue::configChangeRemoveDb(sqlite3 *dbHandle)
 
 	ConnectionManager *manager = ConnectionManager::getInstance();
 
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug("configChangeRemoveDb - dbIdCurrent :%d: dbIdLast :%d: nDbPreallocate current :%d: requested :%d:",
 							   m_dbIdCurrent,
 							   m_dbIdLast,
@@ -859,15 +857,21 @@ void ReadingsCatalogue::configChangeRemoveDb(sqlite3 *dbHandle)
 
 	dbsRemove(m_storageConfigApi.nDbPreallocate + 1, m_dbIdLast);
 
-	// FIXME_I:
+
 	m_dbIdLast = m_storageConfigApi.nDbPreallocate;
 	m_storageConfigCurrent.nDbPreallocate = m_storageConfigApi.nDbPreallocate;
 	m_dbNAvailable = (m_dbIdLast - m_dbIdCurrent) - m_storageConfigCurrent.nDbLeftFreeBeforeAllocate;
 }
 
 
-
-// FIXME_I:
+/**
+ * Adds all the required readings tables in relation to the storage plugin configuration
+ *
+ * @param dbHandle - handle of the connection to use for the database operation
+ * @param startId  - range of the readings table to create
+ * @param endId    - range of the readings table to create
+ *
+ */
 void ReadingsCatalogue::configChangeAddTables(sqlite3 *dbHandle, int startId, int endId)
 {
 	int dbId;
@@ -876,8 +880,6 @@ void ReadingsCatalogue::configChangeAddTables(sqlite3 *dbHandle, int startId, in
 
 	nTables = endId - startId +1;
 
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug("%s - startId :%d: endId :%d: nTables :%d:",
 							   __FUNCTION__,
 							   startId,
@@ -894,28 +896,30 @@ void ReadingsCatalogue::configChangeAddTables(sqlite3 *dbHandle, int startId, in
 		createReadingsTables(dbHandle, dbId, startId, nTables);
 	}
 
-	// FIXME_I:
 	m_storageConfigCurrent.nReadingsPerDb = m_storageConfigApi.nReadingsPerDb;
 	maxReadingUsed = calcMaxReadingUsed();
 	m_nReadingsAvailable = m_storageConfigCurrent.nReadingsPerDb - maxReadingUsed;
-
 
 	Logger::getLogger()->debug("%s - maxReadingUsed :%d: nReadingsPerDb :%d: m_nReadingsAvailable :%d:",
 							   __FUNCTION__,
 							   maxReadingUsed,
 							   m_storageConfigCurrent.nReadingsPerDb,
 							   m_nReadingsAvailable);
-
 }
 
-// FIXME_I:
+/**
+ * Deletes all the required readings tables in relation to the storage plugin configuration
+ *
+ * @param dbHandle - handle of the connection to use for the database operation
+ * @param startId  - range of the readings table to delete
+ * @param endId    - range of the readings table to delete
+ *
+ */
 void ReadingsCatalogue::configChangeRemoveTables(sqlite3 *dbHandle, int startId, int endId)
 {
 	int dbId;
 	int maxReadingUsed;
 
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug("%s - startId :%d: endId :%d:",
 							   __FUNCTION__,
 							   startId,
@@ -931,22 +935,25 @@ void ReadingsCatalogue::configChangeRemoveTables(sqlite3 *dbHandle, int startId,
 		dropReadingsTables(dbHandle, dbId, startId, endId);
 	}
 
-	// FIXME_I:
 	m_storageConfigCurrent.nReadingsPerDb = m_storageConfigApi.nReadingsPerDb;
 	maxReadingUsed = calcMaxReadingUsed();
 	m_nReadingsAvailable = m_storageConfigCurrent.nReadingsPerDb - maxReadingUsed;
-
 
 	Logger::getLogger()->debug("%s - maxReadingUsed :%d: nReadingsPerDb :%d: m_nReadingsAvailable :%d:",
 							   __FUNCTION__,
 							   maxReadingUsed,
 							   m_storageConfigCurrent.nReadingsPerDb,
 							   m_nReadingsAvailable);
-
 }
 
 /**
- * // FIXME_I:
+ * Drops a set of readings
+ *
+ * @param dbHandle - handle of the connection to use for the database operation
+ * @param dbId     - database id on which the tables should be dropped
+ * @param startId  - range of the readings table to delete
+ * @param endId    - range of the readings table to delete
+ *
  */
 void  ReadingsCatalogue::dropReadingsTables(sqlite3 *dbHandle, int dbId, int idStart, int idEnd)
 {
@@ -959,8 +966,6 @@ void  ReadingsCatalogue::dropReadingsTables(sqlite3 *dbHandle, int dbId, int idS
 	int idx;
 	bool newConnection;
 
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug("%s - dropping tales on database id :%d:form id :%d: to :%d:", __FUNCTION__, dbId, idStart, idEnd);
 
 	dbName = generateDbName(dbId);
@@ -992,9 +997,11 @@ void  ReadingsCatalogue::dropReadingsTables(sqlite3 *dbHandle, int dbId, int idS
 	}
 }
 
-
 /**
- * // FIXME_I:
+ * Deletes a range of database, detach and delete the file
+ *
+ * @param startId  - range of the databases to delete
+ * @param endId    - range of the databases to delete
  *
  */
 void ReadingsCatalogue::dbsRemove(int startId, int endId)
@@ -1008,10 +1015,7 @@ void ReadingsCatalogue::dbsRemove(int startId, int endId)
 
 	ConnectionManager *manager = ConnectionManager::getInstance();
 
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug("dbsRemove - startId :%d: endId :%d:", startId, endId);
-
 
 	for (dbId = startId; dbId <= endId; dbId++)
 	{
@@ -1023,13 +1027,13 @@ void ReadingsCatalogue::dbsRemove(int startId, int endId)
 		manager->detachNewDb(dbAlias);
 		dbFileDelete(dbPath);
 	}
-
-
 }
 
 
 /**
- * // FIXME_I:
+ * Delete a file
+ *
+ * @param dbPath  - Full path of the file to delete
  *
  */
 void  ReadingsCatalogue::dbFileDelete(string dbPath)

@@ -216,10 +216,15 @@ create_all_database_files() {
             db_name="readings_$db_id"
 
             schema_update_log "debug" "create_all_database_file - db name :$db_name: db id :$db_id: " "logonly" "pretty"
-            schema_update_log "debug" "create_all_database_file - db name :$db_name: db id :$db_id: table id :$table_id: asset code :$asset_code: " "logonly" "pretty"
             create_database_file "$db_name"
         fi
     done < "$tmp_file"
+
+    # Create 1 extra db
+    db_id_max=$((${db_id_max} +1))
+    db_name="readings_$db_id_max"
+    schema_update_log "debug" "create_all_database_file - db name :$db_name: db id :$db_id_max: " "logonly" "pretty"
+    create_database_file "$db_name"
 
     # Creates all the required databases if not already created
     if [[ $db_id_max < $_n_db_allocate ]]

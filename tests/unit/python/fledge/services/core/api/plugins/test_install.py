@@ -364,7 +364,7 @@ class TestPluginInstall:
                 with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_list
                                   ) as plugin_list_patch:
                     resp = await client.post('/fledge/plugins', data=json.dumps(param))
-                    assert 304 == resp.status
+                    assert 400 == resp.status
                     assert msg == resp.reason
                 plugin_list_patch.assert_called_once_with('south', False)
             args, kwargs = query_tbl_patch.call_args_list[0]

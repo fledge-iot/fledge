@@ -112,7 +112,7 @@ async def add_plugin(request: web.Request) -> web.Response:
             for p in plugins_list:
                 if p['packageName'] == name:
                     msg = "{} package is already installed".format(name)
-                    return web.HTTPNotModified(reason=msg, body=json.dumps({"message": msg}))
+                    return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
             # Check If requested plugin is available for configured APT repository
             plugins, log_path = await common.fetch_available_packages()
             if name not in plugins:

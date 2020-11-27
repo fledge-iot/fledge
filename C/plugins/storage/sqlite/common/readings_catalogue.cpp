@@ -1029,7 +1029,6 @@ void ReadingsCatalogue::dbsRemove(int startId, int endId)
 	}
 }
 
-
 /**
  * Delete a file
  *
@@ -1051,7 +1050,9 @@ void  ReadingsCatalogue::dbFileDelete(string dbPath)
 }
 
 /**
- * // FIXME_I:
+ * Evaluates and applis the storage plugin configuration
+ *
+ * @param dbHandle - handle of the connection to use for the database operations
  *
  */
 bool ReadingsCatalogue::applyStorageConfigChanges(sqlite3 *dbHandle)
@@ -1062,16 +1063,12 @@ bool ReadingsCatalogue::applyStorageConfigChanges(sqlite3 *dbHandle)
 
 	configChanged = false;
 
-
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug("applyStorageConfigChanges - dbIdCurrent :%d: dbIdLast :%d: nDbPreallocate current :%d: requested :%d: nDbLeftFreeBeforeAllocate :%d:",
 							   m_dbIdCurrent,
 							   m_dbIdLast,
 							   m_storageConfigCurrent.nDbPreallocate,
 							   m_storageConfigApi.nDbPreallocate,
 							   m_storageConfigCurrent.nDbLeftFreeBeforeAllocate);
-
 	try{
 
 		if (m_storageConfigApi.nDbPreallocate <= 2)
@@ -1085,37 +1082,26 @@ bool ReadingsCatalogue::applyStorageConfigChanges(sqlite3 *dbHandle)
 										m_storageConfigApi.nDbPreallocate,
 										m_storageConfigCurrent.nDbLeftFreeBeforeAllocate);
 
-			// FIXME_I:
-			Logger::getLogger()->debug("S2");
 			// Database operation
 			{
 				if (operation == ACTION_DB_ADD)
 				{
-					// FIXME_I:
-					Logger::getLogger()->debug("S10.1");
-
 					Logger::getLogger()->debug("applyStorageConfigChanges - parameters nDbPreallocate changed, adding more databases from :%d: to :%d:", m_dbIdLast, m_storageConfigApi.nDbPreallocate);
 					configChanged = true;
 					configChangeAddDb(dbHandle);
 
 				} else if (operation == ACTION_INVALID)
 				{
-					// FIXME_I:
-					Logger::getLogger()->debug("S10.2");
 					Logger::getLogger()->warn("applyStorageConfigChanges: parameter nDbPreallocate changed, but it is not possible to apply the change as there are already data stored in the database id :%d:, use a larger value", m_dbIdCurrent);
 
 				} else if (operation == ACTION_DB_REMOVE)
 				{
-					// FIXME_I:
-					Logger::getLogger()->debug("S10");
-
 					Logger::getLogger()->debug("applyStorageConfigChanges - parameters nDbPreallocate changed, removing databases from :%d: to :%d:", m_storageConfigApi.nDbPreallocate, m_dbIdLast);
 					configChanged = true;
 					configChangeRemoveDb(dbHandle);
 				} else
 				{
-					// FIXME_I:
-					Logger::getLogger()->debug("S10 applyStorageConfigChanges - not changes");
+					Logger::getLogger()->debug("applyStorageConfigChanges - not changes");
 				}
 			}
 		}
@@ -1130,8 +1116,6 @@ bool ReadingsCatalogue::applyStorageConfigChanges(sqlite3 *dbHandle)
 										   m_storageConfigCurrent.nReadingsPerDb,
 										   m_storageConfigApi.nReadingsPerDb);
 
-			// FIXME_I:
-			Logger::getLogger()->setMinLevel("debug");
 			Logger::getLogger()->debug("%s - maxReadingUsed :%d: Current :%d: Requested :%d:",
 									   __FUNCTION__,
 									   maxReadingUsed,
@@ -1146,8 +1130,6 @@ bool ReadingsCatalogue::applyStorageConfigChanges(sqlite3 *dbHandle)
 
 					startId = m_storageConfigCurrent.nReadingsPerDb +1;
 					endId =  m_storageConfigApi.nReadingsPerDb;
-					// FIXME_I:
-					Logger::getLogger()->debug("S20.1");
 
 					Logger::getLogger()->debug("applyStorageConfigChanges - parameters nReadingsPerDb changed, adding more tables from :%d: to :%d:", startId, endId);
 					configChanged = true;
@@ -1155,8 +1137,6 @@ bool ReadingsCatalogue::applyStorageConfigChanges(sqlite3 *dbHandle)
 
 				} else if (operation == ACTION_INVALID)
 				{
-					// FIXME_I:
-					Logger::getLogger()->debug("S20.2");
 					Logger::getLogger()->warn("applyStorageConfigChanges: parameter nReadingsPerDb changed, but it is not possible to apply the change as there are already data stored in the table id :%d:, use a larger value", maxReadingUsed);
 
 				} else if (operation == ACTION_TB_REMOVE)
@@ -1166,16 +1146,12 @@ bool ReadingsCatalogue::applyStorageConfigChanges(sqlite3 *dbHandle)
 					startId =  m_storageConfigApi.nReadingsPerDb +1;
 					endId =  m_storageConfigCurrent.nReadingsPerDb;
 
-					// FIXME_I:
-					Logger::getLogger()->debug("S20.3");
-
 					Logger::getLogger()->debug("applyStorageConfigChanges - parameters nReadingsPerDb changed, removing tables from :%d: to :%d:", m_storageConfigApi.nReadingsPerDb +1, m_storageConfigCurrent.nReadingsPerDb);
 					configChanged = true;
 					configChangeRemoveTables(dbHandle, startId, endId);
 				} else
 				{
-					// FIXME_I:
-					Logger::getLogger()->debug("S20.4 applyStorageConfigChanges - not changes");
+					Logger::getLogger()->debug("applyStorageConfigChanges - not changes");
 				}
 			}
 		}
@@ -1187,20 +1163,18 @@ bool ReadingsCatalogue::applyStorageConfigChanges(sqlite3 *dbHandle)
 	}
 	catch (exception& e)
 	{
-		// FIXME_I:
-		Logger::getLogger()->debug("S3");
 		Logger::getLogger()->error("It is not possible to apply the chnages to the multi readings handling, error :%s: ", e.what());
 	}
-
 
 	return configChanged;
 }
 
 /**
- * // FIXME_I:
+ * Calculates the maxixum readings id used
+ *
+ * @return - maxixum readings id used
  *
  */
-
 int  ReadingsCatalogue::calcMaxReadingUsed()
 {
 	int maxReading;
@@ -1216,15 +1190,19 @@ int  ReadingsCatalogue::calcMaxReadingUsed()
 }
 
 /**
- * // FIXME_I:
+ * Evaluates the operations to be executed in relation to the input parameters on the readings tables
+ *
+ * @param maxUsed - Maximum table id used
+ * @param Current - Current table id configured
+ * @param Request - Requested configuration id
+
+ * @return - Operation to execute : ACTION_TB_NONE / ACTION_TB_ADD /ACTION_TB_REMOVE / ACTION_INVALID
  *
  */
 ReadingsCatalogue::ACTION  ReadingsCatalogue::changesLogicTables(int maxUsed ,int Current, int Request)
 {
 	ACTION operation;
 
-
-	// FIXME_I:
 	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug("%s - maxUsed :%d: Request :%d: Request current :%d:",
 							   __FUNCTION__,
@@ -1249,13 +1227,20 @@ ReadingsCatalogue::ACTION  ReadingsCatalogue::changesLogicTables(int maxUsed ,in
 		{
 			operation = ACTION_TB_REMOVE;
 		}
-
 	}
-
 	return operation;
 }
+
 /**
- * // FIXME_I:
+ * Evaluates the operations to be executed in relation to the input parameters on the databases
+ *
+ * @param dbIdCurrent               - Current database id in use
+ * @param dbIdLast                  - Latest database id created, but necessary in use
+ * @param nDbPreallocateCurrent     - Current table id configured
+ * @param nDbPreallocateRequest     - Requested configuration id
+ * @param nDbLeftFreeBeforeAllocate - Number of database to maintain free
+
+ * @return - Operation to execute : ACTION_DB_NONE / ACTION_DB_ADD / ACTION_DB_REMOVE / ACTION_INVALID
  *
  */
 ReadingsCatalogue::ACTION ReadingsCatalogue::changesLogicDBs(int dbIdCurrent , int dbIdLast, int nDbPreallocateCurrent, int nDbPreallocateRequest, int nDbLeftFreeBeforeAllocate)
@@ -1278,9 +1263,7 @@ ReadingsCatalogue::ACTION ReadingsCatalogue::changesLogicDBs(int dbIdCurrent , i
 		{
 			operation = ACTION_DB_REMOVE;
 		}
-
 	}
-
 	return operation;
 }
 

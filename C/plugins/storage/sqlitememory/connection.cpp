@@ -262,9 +262,7 @@ int Connection::appendReadings(const char *readings)
 	threadId << std::this_thread::get_id();
 
 #if INSTRUMENT
-	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug("appendReadings start thread :%s:", threadId.str().c_str());
-	Logger::getLogger()->setMinLevel("warning");
 
 	struct timeval	start, t1, t2, t3, t4, t5;
 #endif
@@ -447,7 +445,6 @@ int Connection::appendReadings(const char *readings)
 		timersub(&t3, &t2, &tm);
 		timeT3 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
 
-		Logger::getLogger()->setMinLevel("debug");
 		Logger::getLogger()->debug("appendReadings end   thread :%s: buffer :%10lu: count :%5d: JSON :%6.3f: inserts :%6.3f: finalize :%6.3f:",
 								   threadId.str().c_str(),
 								   strlen(readings),
@@ -456,7 +453,6 @@ int Connection::appendReadings(const char *readings)
 								   timeT2,
 								   timeT3
 		);
-		Logger::getLogger()->setMinLevel("warning");
 
 #endif
 
@@ -835,6 +831,7 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 		return true;
 	} catch (exception e) {
 		raiseError("retrieve", "Internal error: %s", e.what());
+		return false;
 	}
 }
 

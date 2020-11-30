@@ -1200,7 +1200,6 @@ ReadingsCatalogue::ACTION  ReadingsCatalogue::changesLogicTables(int maxUsed ,in
 {
 	ACTION operation;
 
-	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug("%s - maxUsed :%d: Request :%d: Request current :%d:",
 							   __FUNCTION__,
 							   maxUsed,
@@ -2149,7 +2148,6 @@ int ReadingsCatalogue::SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **err
 {
 	int retries = 0, rc;
 
-	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug("SQLExec: cmd :%s: ", sqlCmd);
 
 	do {

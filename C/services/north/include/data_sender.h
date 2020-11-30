@@ -14,7 +14,7 @@ class DataSender {
 		~DataSender();
 		void			sendThread();
 	private:
-		long			send(ReadingSet *readings);
+		unsigned long		send(ReadingSet *readings);
 	private:
 		NorthPlugin		*m_plugin;
 		DataLoad		*m_loader;

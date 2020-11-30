@@ -82,7 +82,6 @@ void DataLoad::loadThread()
 		unsigned int block = waitForReadRequest();
 		readBlock(block);
 	}
-	delete m_thread;
 }
 
 /**
@@ -97,7 +96,7 @@ unsigned int DataLoad::waitForReadRequest()
 	{
 		m_cv.wait(lck);
 	}
-	int rval =  m_readRequest;
+	unsigned int rval =  m_readRequest;
 	m_readRequest = 0;
 	return rval;
 }
@@ -235,7 +234,7 @@ ReadingSet *DataLoad::fetchAudit(unsigned int blockSize)
 /**
  * Get the ID of the last reading that was sent with this service
  */
-long DataLoad::getLastSentId()
+unsigned long DataLoad::getLastSentId()
 {
 	const Condition conditionId(Equals);
 	string streamId = to_string(m_streamId);
@@ -259,7 +258,7 @@ long DataLoad::getLastSentId()
 			// Get column value
 			ResultSet::ColumnValue* theVal = row->getColumn("last_object");
 			// Set found id
-			return theVal->getInteger();
+			return (unsigned long)theVal->getInteger();
 		}
 	}
 	// Free result set
@@ -304,7 +303,6 @@ ReadingSet *DataLoad::fetchReadings(bool wait)
 	ReadingSet *rval = m_queue.front();
 	m_queue.pop_front();
 	triggerRead(100);	// TODO Improve this
-	Logger::getLogger()->fatal("fetchReadings return a block");
 	return rval;
 }
 
@@ -357,7 +355,7 @@ InsertValues streamValues;
 /**
  * Update the last sent ID for our stream
  */
-void DataLoad::updateLastSentId(long id)
+void DataLoad::updateLastSentId(unsigned long id)
 {
 	const Condition condition(Equals);
 	Where where("id", condition, to_string(m_streamId));

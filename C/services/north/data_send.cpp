@@ -64,8 +64,11 @@ void DataSender::sendThread()
 				"Sending thread closing down after failing to fetch readings");
 			return;
 		}
-		long lastSent = send(readings);
-		m_loader->updateLastSentId(readings->getLastId());
+		unsigned long sentCount = send(readings);
+		if (sentCount)
+		{
+			m_loader->updateLastSentId((*readings)[sentCount-1]->getId());
+		}
 		delete readings;
 	}
 	m_logger->info("Sending thread shutdown");
@@ -77,7 +80,7 @@ void DataSender::sendThread()
  * @param readings	The readings to send
  * @return long		The ID of the last reading sent
  */
-long DataSender::send(ReadingSet *readings)
+unsigned long DataSender::send(ReadingSet *readings)
 {
 	m_plugin->send(readings->getAllReadings());
 	return readings->getLastId();

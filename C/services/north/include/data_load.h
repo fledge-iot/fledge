@@ -25,12 +25,12 @@ class DataLoad {
 		void			loadThread();
 		bool			setDataSource(const std::string& source);
 		void			triggerRead(unsigned int blockSize);
-		void			updateLastSentId(long id);
+		void			updateLastSentId(unsigned long id);
 		ReadingSet		*fetchReadings(bool wait);
 	private:
 		void			readBlock(unsigned int blockSize);
 		unsigned int		waitForReadRequest();
-		long			getLastSentId();
+		unsigned long		getLastSentId();
 		int			createNewStream();
 		ReadingSet		*fetchStatistics(unsigned int blockSize);
 		ReadingSet		*fetchAudit(unsigned int blockSize);

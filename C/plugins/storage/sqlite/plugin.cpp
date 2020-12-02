@@ -43,31 +43,31 @@ const char *default_config = QUOTE({
 			"order" : "1"
 		},
 		"nReadingsPerDb" : {
-			"description" : "Number of readings tables per  database",
+			"description" : "The number of readings tables in each database that is created",
 			"type" : "integer",
 			"default" : "15",
-			"displayName" : "N Readings per database",
+			"displayName" : "No. Readings per database",
 			"order" : "2"
 		},
 		"nDbPreallocate" : {
-			"description" : "Number of databases to allocate in advance, NOTE: SQLite has a maximum number of attachable databases by default at 10",
+			"description" : "Number of databases to allocate in advance. NOTE: SQLite has a default maximum of 10 attachable databases",
 			"type" : "integer",
 			"default" : "3",
-			"displayName" : "N databases to allocate in advance",
+			"displayName" : "No. databases to allocate in advance",
 			"order" : "3"
 		},
 		"nDbLeftFreeBeforeAllocate" : {
-			"description" : "Number of databases left free before a new allocation is executed",
+			"description" : "Allocate new databases when the number of free databases drops below this value",
 			"type" : "integer",
 			"default" : "1",
-			"displayName" : "N free databases before allocation",
+			"displayName" : "Database allocation threshold",
 			"order" : "4"
 		},
 		"nDbToAllocate" : {
-			"description" : "Number of databases to allocate each time",
+			"description" : "The number of databases to create whenever the number of available databases drops below the allocation threshold",
 			"type" : "integer",
 			"default" : "2",
-			"displayName" : "N databases to allocate",
+			"displayName" : "Database allocation size",
 			"order" : "5"
 		}
 

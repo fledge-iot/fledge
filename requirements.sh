@@ -97,6 +97,25 @@ curl_upgrade_evaluates(){
 
 }
 
+# Builds sqlite3 from sources
+sqlite3_build_prepare(){
+
+	# SQLite3 build - start
+	SQLITE_PKG_REPO_NAME="sqlite3-pkg"
+	if [ -d /tmp/${SQLITE_PKG_REPO_NAME} ]; then
+		rm -rf /tmp/${SQLITE_PKG_REPO_NAME}
+	fi
+	echo "Pulling SQLite3 from Dianomic ${SQLITE_PKG_REPO_NAME} repository ..."
+	cd /tmp/
+	git clone https://github.com/dianomic/${SQLITE_PKG_REPO_NAME}.git ${SQLITE_PKG_REPO_NAME}
+	cd ${SQLITE_PKG_REPO_NAME}
+	cd src
+	echo "Compiling SQLite3 static library for Fledge ..."
+	./configure --enable-shared=false --enable-static=true --enable-static-shell CFLAGS="-DSQLITE_MAX_ATTACHED=60 -DSQLITE_ENABLE_JSON1 -DSQLITE_ENABLE_LOAD_EXTENSION -DSQLITE_ENABLE_COLUMN_METADATA -fno-common -fPIC"
+	autoreconf -f -i
+}
+
+
 # Variables for curl upgrade, if needed
 curl_filename="curl-7.65.3"
 curl_url="https://github.com/curl/curl/releases/download/curl-7_65_3/${curl_filename}.zip"
@@ -136,19 +155,7 @@ if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *
 	echo "source scl_source enable rh-python36" >> /home/${SUDO_USER}/.bashrc
 	service rsyslog start
 
-	# SQLite3 needs to be compiled on CentOS|RHEL
-	SQLITE_PKG_REPO_NAME="sqlite3-pkg"
-	if [ -d /tmp/${SQLITE_PKG_REPO_NAME} ]; then
-		rm -rf /tmp/${SQLITE_PKG_REPO_NAME}
-	fi
-	echo "Pulling SQLite3 from Dianomic ${SQLITE_PKG_REPO_NAME} repository ..."
-	cd /tmp/
-	git clone https://github.com/dianomic/${SQLITE_PKG_REPO_NAME}.git ${SQLITE_PKG_REPO_NAME}
-	cd ${SQLITE_PKG_REPO_NAME}
-	cd src
-	echo "Compiling SQLite3 static library for Fledge ..."
-	./configure --enable-shared=false --enable-static=true --enable-static-shell CFLAGS="-DSQLITE_ENABLE_JSON1 -DSQLITE_ENABLE_LOAD_EXTENSION -DSQLITE_ENABLE_COLUMN_METADATA -fno-common -fPIC"
-	autoreconf -f -i
+    sqlite3_build_prepare
 
 	# Attempts a second execution of make if the first fails
 	set +e
@@ -196,23 +203,9 @@ elif apt --version 2>/dev/null; then
 	apt install -y libtool libboost-dev libboost-system-dev libboost-thread-dev libpq-dev libz-dev
 	apt install -y python-dev python3-dev python3-pip
 
-	# SQLite3
-	SQLITE_PKG_REPO_NAME="sqlite3-pkg"
-	if [ -d /tmp/${SQLITE_PKG_REPO_NAME} ]; then
-		rm -rf /tmp/${SQLITE_PKG_REPO_NAME}
-	fi
-	echo "Pulling SQLite3 from Dianomic ${SQLITE_PKG_REPO_NAME} repository ..."
-	cd /tmp/
-	git clone https://github.com/dianomic/${SQLITE_PKG_REPO_NAME}.git ${SQLITE_PKG_REPO_NAME}
-	cd ${SQLITE_PKG_REPO_NAME}
-	cd src
-	echo "Compiling SQLite3 static library for Fledge ..."
-	./configure --enable-shared=false --enable-static=true --enable-static-shell CFLAGS="-DSQLITE_ENABLE_JSON1 -DSQLITE_ENABLE_LOAD_EXTENSION -DSQLITE_ENABLE_COLUMN_METADATA -fno-common -fPIC"
-	autoreconf -f -i
+    sqlite3_build_prepare
+    make
 
-
-	#// FIXME_I:
-	#apt install -y sqlite3 libsqlite3-dev
 	apt install -y pkg-config
 
 	# for Kerberos authentication, avoid interactive questions

@@ -10,6 +10,8 @@
  * Author: Mark Riddoch
  */
 
+#include <sqlite3.h>
+
 #include <plugin_api.h>
 #include <list>
 #include <mutex>
@@ -25,6 +27,9 @@ class ConnectionManager {
 		void                      growPool(unsigned int);
 		unsigned int              shrinkPool(unsigned int);
 		Connection                *allocate();
+		bool                      attachNewDb(std::string &path, std::string &alias);
+		bool                      attachRequestNewDb(int newDbId, sqlite3 *dbHandle);
+		bool 					  detachNewDb(std::string &alias);
 		void                      release(Connection *);
 		void			  shutdown();
 		void			  setError(const char *, const char *, bool);
@@ -38,6 +43,8 @@ class ConnectionManager {
 
 	private:
 		static ConnectionManager     *instance;
+		int SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **errMsg);
+
 	protected:
 		std::list<Connection *>      idle;
 		std::list<Connection *>      inUse;

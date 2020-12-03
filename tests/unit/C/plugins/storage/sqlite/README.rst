@@ -1,5 +1,5 @@
 *****************************************************
-Unit Test for SQLite in memory Storage Plugin
+Unit Test for SQLite Storage Plugin
 *****************************************************
 
 Require Google Unit Test framework

@@ -26,7 +26,7 @@
 --
 -- This script must be launched with sqlite3 command line tool:
 --  sqlite3 /path/readings.db
---   > ATTACH DATABASE '/path/readings.db' AS 'readings'
+--   > ATTACH DATABASE '/path/readings_1.db' AS 'readings_1'
 --   > .read init_readings.sql
 --   > .quit
 
@@ -48,25 +48,39 @@
 -- SCHEMA CREATION
 ----------------------------------------------------------------------
 
+--
+-- Stores in which database/readings table the specific asset_code is stored
+--
+CREATE TABLE readings_1.asset_reading_catalogue (
+    table_id     INTEGER               NOT NULL,
+    db_id        INTEGER               NOT NULL,
+    asset_code   character varying(50) NOT NULL
+);
+
+--
+-- Store information about the multi database/readings handling
+--
+CREATE TABLE readings_1.configuration_readings (
+    global_id         INTEGER,                                                  -- Stores the last global Id used +1
+                                                                                -- Updated at -1 when Fledge starts
+                                                                                -- Updated at the the proper value when Fledge stops
+    db_id_Last        INTEGER,                                                  -- Latest database available
+
+	n_readings_per_db INTEGER,                                                  -- Number of readings table per database
+	n_db_preallocate  INTEGER                                                   -- Number of databases to allocate in advance
+);
+
 -- Readings table
 -- This tables contains the readings for assets.
 -- An asset can be a south with multiple sensor, a single sensor,
 -- a software or anything that generates data that is sent to Fledge
-CREATE TABLE readings.readings (
+CREATE TABLE readings_1.readings_1_1 (
     id         INTEGER                     PRIMARY KEY AUTOINCREMENT,
-    asset_code character varying(50)       NOT NULL,                         -- The provided asset code. Not necessarily located in the
-                                                                             -- assets table.
     reading    JSON                        NOT NULL DEFAULT '{}',            -- The json object received
     user_ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),      -- UTC time
     ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW'))       -- UTC time
 );
 
-CREATE INDEX fki_readings_fk1
-    ON readings (asset_code, user_ts desc);
-
-CREATE INDEX readings_ix2
-    ON readings (asset_code);
-
-CREATE INDEX readings_ix3
-    ON readings (user_ts);
+CREATE INDEX readings_1.readings_1_1_ix3
+    ON readings_1_1 (user_ts desc);
 

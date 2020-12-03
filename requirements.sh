@@ -195,7 +195,24 @@ elif apt --version 2>/dev/null; then
 	apt install -y cmake g++ make build-essential autoconf automake uuid-dev
 	apt install -y libtool libboost-dev libboost-system-dev libboost-thread-dev libpq-dev libz-dev
 	apt install -y python-dev python3-dev python3-pip
-	apt install -y sqlite3 libsqlite3-dev
+
+	# SQLite3
+	SQLITE_PKG_REPO_NAME="sqlite3-pkg"
+	if [ -d /tmp/${SQLITE_PKG_REPO_NAME} ]; then
+		rm -rf /tmp/${SQLITE_PKG_REPO_NAME}
+	fi
+	echo "Pulling SQLite3 from Dianomic ${SQLITE_PKG_REPO_NAME} repository ..."
+	cd /tmp/
+	git clone https://github.com/dianomic/${SQLITE_PKG_REPO_NAME}.git ${SQLITE_PKG_REPO_NAME}
+	cd ${SQLITE_PKG_REPO_NAME}
+	cd src
+	echo "Compiling SQLite3 static library for Fledge ..."
+	./configure --enable-shared=false --enable-static=true --enable-static-shell CFLAGS="-DSQLITE_ENABLE_JSON1 -DSQLITE_ENABLE_LOAD_EXTENSION -DSQLITE_ENABLE_COLUMN_METADATA -fno-common -fPIC"
+	autoreconf -f -i
+
+
+	#// FIXME_I:
+	#apt install -y sqlite3 libsqlite3-dev
 	apt install -y pkg-config
 
 	# for Kerberos authentication, avoid interactive questions

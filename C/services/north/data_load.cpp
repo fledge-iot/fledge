@@ -26,7 +26,7 @@ static void threadMain(void *arg)
  */
 DataLoad::DataLoad(const string& name, long streamId, StorageClient *storage) : 
 	m_name(name), m_streamId(streamId), m_storage(storage), m_shutdown(false),
-	m_readRequest(0), m_dataSource(SourceReadings)
+	m_readRequest(0), m_dataSource(SourceReadings), m_pipeline(NULL)
 {
 	if (m_streamId == 0)
 	{
@@ -34,6 +34,7 @@ DataLoad::DataLoad(const string& name, long streamId, StorageClient *storage) :
 	}
 	m_lastFetched = getLastSentId();
 	m_thread = new thread(threadMain, this);
+	loadFilters(name);
 }
 
 /**
@@ -48,6 +49,11 @@ DataLoad::~DataLoad()
 	m_cv.notify_all();
 	m_fetchCV.notify_all();
 	m_thread->join();
+	if (m_pipeline)
+	{
+		m_pipeline->cleanupFilters(m_name);
+		delete m_pipeline;
+	}
 }
 
 /**
@@ -274,6 +280,24 @@ unsigned long DataLoad::getLastSentId()
  */
 void DataLoad::bufferReadings(ReadingSet *readings)
 {
+	if (m_pipeline)
+	{
+		FilterPlugin *firstFilter = m_pipeline->getFirstFilterPlugin();
+		if (firstFilter)
+		{
+
+			// Check whether filters are set before calling ingest
+			while (!m_pipeline->isReady())
+			{
+				Logger::getLogger()->warn("Ingest called before "
+									  "filter pipeline is ready");
+				std::this_thread::sleep_for(std::chrono::milliseconds(150));
+			}
+			// Pass readingSet to filter chain
+			firstFilter->ingest(readings);
+			return;
+		}
+	}
 	unique_lock<mutex> lck(m_qMutex);
 	m_queue.push_back(readings);
 	m_fetchCV.notify_all();
@@ -365,3 +389,158 @@ void DataLoad::updateLastSentId(unsigned long id)
 	m_storage->updateTable("streams", lastId, where);
 }
 
+
+/**
+ * Load filter plugins
+ *
+ * Filters found in configuration are loaded
+ * and add to the data load class instance
+ *
+ * @param categoryName	Configuration category name
+ * @return		True if filters were loaded and initialised
+ *			or there are no filters
+ *			False with load/init errors
+ */
+bool DataLoad::loadFilters(const string& categoryName)
+{
+	Logger::getLogger()->info("loadFilters: categoryName=%s", categoryName.c_str());
+	/*
+	 * We do everything to setup the pipeline using a local FilterPipeline and then assign it
+	 * to the service m_filterPipeline once it is setup to guard against access to the pipeline
+	 * during setup.
+	 * This should not be an issue if the mutex is held, however this approach lessens the risk
+	 * in the case of this routine being called when the mutex is not held and ensure m_filterPipeline
+	 * only ever points to a fully configured filter pipeline.
+	 */
+	ManagementClient *management = NorthService::getMgmtClient();
+	lock_guard<mutex> guard(m_pipelineMutex);
+	FilterPipeline *filterPipeline = new FilterPipeline(management, *m_storage, m_name);
+	
+	// Try to load filters:
+	if (!filterPipeline->loadFilters(categoryName))
+	{
+		// Return false on any error
+		return false;
+	}
+
+	// Set up the filter pipeline
+	bool rval = filterPipeline->setupFiltersPipeline((void *)passToOnwardFilter, (void *)pipelineEnd, this);
+	if (rval)
+	{
+		m_pipeline = filterPipeline;
+	}
+	else
+	{
+		Logger::getLogger()->error("Failed to setup the filter pipeline, the filters are not attached to the service");
+		filterPipeline->cleanupFilters(categoryName);
+	}
+	return rval;
+}
+
+/**
+ * Pass the current readings set to the next filter in the pipeline
+ *
+ * Note:
+ * This routine must be passed to all filters "plugin_init" except the last one
+ *
+ * Static method
+ *
+ * @param outHandle     Pointer to next filter
+ * @param readings      Current readings set
+ */
+void DataLoad::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
+				READINGSET *readingSet)
+{
+	// Get next filter in the pipeline
+	FilterPlugin *next = (FilterPlugin *)outHandle;
+	// Pass readings to next filter
+	next->ingest(readingSet);
+}
+
+/**
+ * Use the current readings (they have been filtered
+ * by all filters)
+ *
+ * The assumption is that one of two things has happened.
+ *
+ *	1. The filtering has all been done in place. In which case
+ *	the m_data vector is in the ReadingSet passed in here.
+ *
+ *	2. The filtering has created new ReadingSet in which case
+ *	the reading vector must be copied into m_data from the
+ *	ReadingSet.
+ *
+ * Note:
+ * This routine must be passed to last filter "plugin_init" only
+ *
+ * Static method
+ *
+ * @param outHandle     Pointer to DataLoad class
+ * @param readingSet    Filtered reading set being added to Ingest::m_data
+ */
+void DataLoad::pipelineEnd(OUTPUT_HANDLE *outHandle,
+			     READINGSET *readingSet)
+{
+	DataLoad *load = (DataLoad *)outHandle;
+
+	unique_lock<mutex> lck(load->m_qMutex);
+	load->m_queue.push_back(readingSet);
+	load->m_fetchCV.notify_all();
+}
+
+/**
+ * Update the sent statistics
+ *
+ * @param increment	Increment of the number of readings sent
+ */
+void DataLoad::updateStatistics(uint32_t increment)
+{
+	updateStatistic(m_name, m_name + " Readings Sent", increment);
+	updateStatistic("Readings Sent", "Readings Sent North", increment);
+}
+
+/**
+ * Update a particular statstatistic
+ *
+ * @param key		The statistic key
+ * @param description	The statistic description
+ * @param increment	Increment of the number of readings sent
+ */
+void DataLoad::updateStatistic(const string& key, const string& description, uint32_t increment)
+{
+	const Condition conditionStat(Equals);
+	Where wLastStat("key", conditionStat, key);
+
+	// Prepare value = value + inc
+	ExpressionValues updateValue;
+	updateValue.push_back(Expression("value", "+", (int)increment));
+
+	// Perform UPDATE fledge.statistics SET value = value + x WHERE key = 'name'
+	int row_affected = m_storage->updateTable("statistics", updateValue, wLastStat);
+
+	if (row_affected == -1)
+	{
+		// The required row is not in the statistics table yet
+		// this situation happens only at the initial setup
+		// adding the required row.
+
+		Logger::getLogger()->info("Adding a new row into the statistics as it is not present yet, key -%s- description -%s-",
+				key.c_str(), description.c_str()); 
+		InsertValues values;
+		values.push_back(InsertValue("key",         key));
+		values.push_back(InsertValue("description", description));
+		values.push_back(InsertValue("value",       (int)increment));
+		string table = "statistics";
+
+		if (m_storage->insertTable(table, values) != 1)
+		{
+			Logger::getLogger()->error("Failed to insert a new row into the %s", table.c_str());
+		}
+		else
+		{
+			Logger::getLogger()->info("New row added into the %s, key -%s- description -%s-",
+				table.c_str(), key.c_str(), description.c_str());
+
+                }
+	}
+}

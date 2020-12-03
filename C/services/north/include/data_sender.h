@@ -7,10 +7,11 @@
 #include <thread>
 
 class DataLoad;
+class NorthService;
 
 class DataSender {
 	public:
-		DataSender(NorthPlugin *plugin, DataLoad *loader);
+		DataSender(NorthPlugin *plugin, DataLoad *loader, NorthService *north);
 		~DataSender();
 		void			sendThread();
 	private:
@@ -18,6 +19,7 @@ class DataSender {
 	private:
 		NorthPlugin		*m_plugin;
 		DataLoad		*m_loader;
+		NorthService		*m_service;
 		bool			m_shutdown;
 		std::thread		*m_thread;
 		Logger			*m_logger;

@@ -41,6 +41,8 @@ class NorthService : public ServiceHandler {
 		void				configChange(const std::string&,
 						const std::string&);
 		static ManagementClient *	getMgmtClient();
+		const std::string&		getName() { return m_name; };
+		const std::string&		getPluginName() { return m_pluginName; };
 	private:
 		void				addConfigDefaults(DefaultConfigCategory& defaults);
 		bool 				loadPlugin();
@@ -49,7 +51,8 @@ class NorthService : public ServiceHandler {
 		DataLoad			*m_dataLoad;
 		DataSender			*m_dataSender;
 		NorthPlugin			*northPlugin;
-		const std::string&		m_name;
+		const std::string		m_name;
+		std::string			m_pluginName;
 		Logger        			*logger;
 		AssetTracker			*m_assetTracker;
 		bool				m_shutdown;

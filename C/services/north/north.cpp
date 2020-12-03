@@ -272,6 +272,7 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 
 		// Fetch Confguration
 		m_assetTracker = new AssetTracker(m_mgtClient, m_name);
+		AssetTracker::getAssetTracker()->populateAssetTrackingCache(m_name, "Egress");
 
 		// Setup the data loading
 		long streamId = 0;
@@ -279,13 +280,12 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		{
 			streamId = strtol(m_config.getValue("streamId").c_str(), NULL, 10);
 		}
-		logger->fatal("Stream ID is %d", streamId);
 		m_dataLoad = new DataLoad(m_name, streamId, m_storage);
 		if (m_config.itemExists("source"))
 		{
 			m_dataLoad->setDataSource(m_config.getValue("source"));
 		}
-		m_dataSender = new DataSender(northPlugin, m_dataLoad);
+		m_dataSender = new DataSender(northPlugin, m_dataLoad, this);
 
 		
 		// wait for shutdown
@@ -377,10 +377,10 @@ bool NorthService::loadPlugin()
 			logger->error("Unable to fetch plugin name from configuration.\n");
 			return false;
 		}
-		string plugin = m_config.getValue("plugin");
-		logger->info("Loading north plugin %s.", plugin.c_str());
+		m_pluginName = m_config.getValue("plugin");
+		logger->info("Loading north plugin %s.", m_pluginName.c_str());
 		PLUGIN_HANDLE handle;
-		if ((handle = manager->loadPlugin(plugin, PLUGIN_TYPE_NORTH)) != NULL)
+		if ((handle = manager->loadPlugin(m_pluginName, PLUGIN_TYPE_NORTH)) != NULL)
 		{
 			// Adds categories and sub categories to the configuration
 			DefaultConfigCategory defConfig(m_name, manager->getInfo(handle)->config);
@@ -455,7 +455,6 @@ void NorthService::configChange(const string& categoryName, const string& catego
 			logger->fatal("Unrecoverable failure during North plugin reconfigure, north service exiting...");
 			shutdown();
 		}
-		// FIXME Action the configuration change
 	}
 	if (categoryName.compare(m_name+"Advanced") == 0)
 	{

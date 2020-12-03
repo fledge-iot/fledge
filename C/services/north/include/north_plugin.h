@@ -33,7 +33,7 @@ public:
 	NorthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category);
 	~NorthPlugin();
 
-	void		send(const std::vector<Reading *>& readings);
+	uint32_t	send(const std::vector<Reading *>& readings);
 	void		reconfigure(const std::string&);
 	void		shutdown();
 	bool		persistData() { return info->options & SP_PERSIST_DATA; };
@@ -42,7 +42,7 @@ public:
 
 private:
 	PLUGIN_HANDLE	instance;
-	void		(*pluginSendPtr)(PLUGIN_HANDLE, const std::vector<Reading *>& readings);
+	uint32_t	(*pluginSendPtr)(PLUGIN_HANDLE, const std::vector<Reading *>& readings);
 	void		(*pluginReconfigurePtr)(PLUGIN_HANDLE*,
 					        const std::string& newConfig);
 	void		(*pluginShutdownPtr)(PLUGIN_HANDLE);

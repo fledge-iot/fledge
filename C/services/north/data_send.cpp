@@ -28,8 +28,8 @@ static void startSenderThread(void *data)
 /**
  * Constructor for the data sending class
  */
-DataSender::DataSender(NorthPlugin *plugin, DataLoad *loader) :
-	m_plugin(plugin), m_loader(loader), m_shutdown(false)
+DataSender::DataSender(NorthPlugin *plugin, DataLoad *loader, NorthService *service) :
+	m_plugin(plugin), m_loader(loader), m_service(service), m_shutdown(false)
 {
 	m_logger = Logger::getLogger();
 
@@ -64,10 +64,25 @@ void DataSender::sendThread()
 				"Sending thread closing down after failing to fetch readings");
 			return;
 		}
-		unsigned long sentCount = send(readings);
-		if (sentCount)
+		unsigned long lastSent = send(readings);
+		if (lastSent)
 		{
-			m_loader->updateLastSentId((*readings)[sentCount-1]->getId());
+			m_loader->updateLastSentId(lastSent);
+
+			// Update asset tracker table/cache, if required
+			vector<Reading *> *vec = readings->getAllReadingsPtr();
+
+			for (vector<Reading *>::iterator it = vec->begin(); it != vec->end(); ++it)
+			{
+				Reading *reading = *it;
+
+				AssetTrackingTuple tuple(m_service->getName(), m_service->getPluginName(), reading->getAssetName(), "Egress");
+				if (!AssetTracker::getAssetTracker()->checkAssetTrackingCache(tuple))
+				{
+					AssetTracker::getAssetTracker()->addAssetTrackingTuple(tuple);
+					Logger::getLogger()->info("sendDataThread:  Adding new asset tracking tuple - egress: %s", tuple.assetToString().c_str());
+				}
+			}
 		}
 		delete readings;
 	}
@@ -82,6 +97,7 @@ void DataSender::sendThread()
  */
 unsigned long DataSender::send(ReadingSet *readings)
 {
-	m_plugin->send(readings->getAllReadings());
+	uint32_t sent = m_plugin->send(readings->getAllReadings());
+	m_loader->updateStatistics(sent);
 	return readings->getLastId();
 }

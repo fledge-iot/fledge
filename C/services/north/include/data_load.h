@@ -8,6 +8,7 @@
 #include <deque>
 #include <storage_client.h>
 #include <reading.h>
+#include <filter_pipeline.h>
 
 /**
  * A class used in the North service to load data from the buffer
@@ -27,6 +28,11 @@ class DataLoad {
 		void			triggerRead(unsigned int blockSize);
 		void			updateLastSentId(unsigned long id);
 		ReadingSet		*fetchReadings(bool wait);
+		void			updateStatistics(uint32_t increment);
+		static void		passToOnwardFilter(OUTPUT_HANDLE *outHandle,
+						READINGSET* readings);
+		static void		pipelineEnd(OUTPUT_HANDLE *outHandle,
+						READINGSET* readings);
 	private:
 		void			readBlock(unsigned int blockSize);
 		unsigned int		waitForReadRequest();
@@ -35,6 +41,8 @@ class DataLoad {
 		ReadingSet		*fetchStatistics(unsigned int blockSize);
 		ReadingSet		*fetchAudit(unsigned int blockSize);
 		void			bufferReadings(ReadingSet *readings);
+		bool			loadFilters(const std::string& category);
+		void			updateStatistic(const std::string& key, const std::string& description, uint32_t increment);
 	private:
 		const std::string&	m_name;
 		long			m_streamId;
@@ -51,5 +59,7 @@ class DataLoad {
 		std::deque<ReadingSet *>
 					m_queue;
 		std::mutex		m_qMutex;
+		FilterPipeline		*m_pipeline;
+		std::mutex		m_pipelineMutex;
 };
 #endif

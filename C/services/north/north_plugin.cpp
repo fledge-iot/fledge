@@ -42,10 +42,8 @@ NorthPlugin::NorthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category) :
 	}
 
 	// Setup the function pointers to the plugin
-  	pluginSendPtr = (void (*)(PLUGIN_HANDLE, const std::vector<Reading *>& readings))
+  	pluginSendPtr = (uint32_t (*)(PLUGIN_HANDLE, const std::vector<Reading *>& readings))
 				manager->resolveSymbol(handle, "plugin_send");
-	
-	const char *pluginInterfaceVer = manager->getInfo(handle)->interface;
 	
   	pluginReconfigurePtr = (void (*)(PLUGIN_HANDLE*, const std::string&))
 				manager->resolveSymbol(handle, "plugin_reconfigure");
@@ -59,7 +57,7 @@ NorthPlugin::NorthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category) :
 /**
  * Call the send method in the plugin
  */
-void NorthPlugin::send(const vector<Reading *>& readings)
+uint32_t NorthPlugin::send(const vector<Reading *>& readings)
 {
 	lock_guard<mutex> guard(mtx2);
 	try {
@@ -83,6 +81,16 @@ void NorthPlugin::reconfigure(const string& newConfig)
 {
 	if (!pluginReconfigurePtr)
 	{
+		/*
+		 * The plugin does not support reconfiguration, shutdown
+		 * and restart the plugin.
+		 */
+		lock_guard<mutex> guard(mtx2);
+		(*pluginShutdownPtr)(instance);
+		PLUGIN_HANDLE (*pluginInit)(const void *) = (PLUGIN_HANDLE (*)(const void *))
+					manager->resolveSymbol(handle, "plugin_init");
+		ConfigCategory category("new", newConfig);
+		instance = (*pluginInit)(&category);
 		return;
 	}
 	lock_guard<mutex> guard(mtx2);

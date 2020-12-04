@@ -372,12 +372,12 @@ extern "C" {
  * The C API plugin information structure
  */
 static PLUGIN_INFORMATION info = {
-	PLUGIN_NAME,		   // Name
-	VERSION,		   // Version
-	SP_PERSIST_DATA,	   // Flags
-	PLUGIN_TYPE_NORTH,	   // Type
-	"1.0.0",		   // Interface version
-	PLUGIN_DEFAULT_CONFIG_INFO // Configuration
+	PLUGIN_NAME,			   // Name
+	VERSION,			   // Version
+	SP_PERSIST_DATA | SP_BUILTIN,	   // Flags
+	PLUGIN_TYPE_NORTH,		   // Type
+	"1.0.0",			   // Interface version
+	PLUGIN_DEFAULT_CONFIG_INFO	   // Configuration
 };
 
 /**

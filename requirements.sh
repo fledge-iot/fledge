@@ -155,7 +155,7 @@ if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *
 	echo "source scl_source enable rh-python36" >> /home/${SUDO_USER}/.bashrc
 	service rsyslog start
 
-    sqlite3_build_prepare
+	sqlite3_build_prepare
 
 	# Attempts a second execution of make if the first fails
 	set +e
@@ -203,8 +203,8 @@ elif apt --version 2>/dev/null; then
 	apt install -y libtool libboost-dev libboost-system-dev libboost-thread-dev libpq-dev libz-dev
 	apt install -y python-dev python3-dev python3-pip
 
-    sqlite3_build_prepare
-    make
+	sqlite3_build_prepare
+	make
 
 	apt install -y pkg-config
 
@@ -213,7 +213,6 @@ elif apt --version 2>/dev/null; then
 	DEBIAN_FRONTEND=noninteractive apt install -yq libcurl4-openssl-dev
 
 	apt install -y cpulimit
-	# apt install -y postgresql
 else
 	echo "Requirements cannot be automatically installed, please refer README.rst to install requirements manually"
 fi

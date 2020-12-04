@@ -196,8 +196,9 @@ if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *
 
 elif apt --version 2>/dev/null; then
 	# avoid interactive questions
-	DEBIAN_FRONTEND=noninteractive apt install -yq libssl-dev
+	DEBIAN_FRONTEND=noninteractive
 
+	apt install -yq libssl-dev
 	apt install -y avahi-daemon ca-certificates curl
 	apt install -y cmake g++ make build-essential autoconf automake uuid-dev
 	apt install -y libtool libboost-dev libboost-system-dev libboost-thread-dev libpq-dev libz-dev

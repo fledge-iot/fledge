@@ -169,7 +169,7 @@ class TestNotificationServiceAPI:
         jdoc = json.loads(r)
         assert 2 == len(jdoc)
         assert NOTIFY_PLUGIN == jdoc['delivery'][0]['name']
-        assert "notificationDelivery" == jdoc['delivery'][0]['type']
+        assert "notify" == jdoc['delivery'][0]['type']
         assert 1 == len(jdoc['rules'])
 
     @pytest.mark.parametrize("test_input, expected_error", [

@@ -160,7 +160,7 @@ The asset framework rules allow the location of specific assets within the PI As
 
 - Meta data placement, metadata within the reading determines where the asset is placed in the Asset Framework
 
-The rules are encoded within a JSON docuemnt, this document contains two properties in the root of the document; one for name based rules and the other for metadata based rules
+The rules are encoded within a JSON document, this document contains two properties in the root of the document; one for name based rules and the other for metadata based rules
 
 .. code-block:: console
 
@@ -203,7 +203,7 @@ The name type rules are simply a set of asset name and AF location pairs. The as
 
 The metadata rules are more complex, four different tests can be applied;
 
-  - **exists**: This test looks for the existance of the named datapoint within the asset.
+  - **exists**: This test looks for the existence of the named datapoint within the asset.
 
   - **nonexist**: This test looks for the lack of a named datapoint within the asset.
 

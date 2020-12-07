@@ -168,7 +168,7 @@ Troubleshooting the Kerberos authentication
     64 bytes from pi-server.dianomic.com (192.168.1.51): icmp_seq=1 ttl=128 time=5.07 ms
     64 bytes from pi-server.dianomic.com (192.168.1.51): icmp_seq=2 ttl=128 time=1.92 ms
 
-Kerberos reachability and keys retrival
+Kerberos reachability and keys retrieval
 
 .. code-block:: console
 

@@ -213,7 +213,7 @@ Plugin Interface
 
 Most plugins written in C++ have a source file that encapsulates the C API to the plugin, this is traditionally called plugin.cpp. The example plugin follows this model with the content of plugin.cpp shown below.
 
-The first section includes the fitler class that is the actual implementation of the filter logic and defines the JSON configuration category. This uses the *QUOTE* macro in order to make the JSON definition more readable.
+The first section includes the filter class that is the actual implementation of the filter logic and defines the JSON configuration category. This uses the *QUOTE* macro in order to make the JSON definition more readable.
 
 .. code-block:: C
 

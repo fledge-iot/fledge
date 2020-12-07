@@ -1187,7 +1187,9 @@ std::size_t arr = data.find("inserts");
 			}
 			else if (itr->value.IsDouble())
 				values.append(itr->value.GetDouble());
-			else if (itr->value.IsNumber())
+			else if (itr->value.IsInt64())
+				values.append((long)itr->value.GetInt64());
+			else if (itr->value.IsInt())
 				values.append(itr->value.GetInt());
 			else if (itr->value.IsObject())
 			{
@@ -1361,6 +1363,8 @@ vector<string>  asset_codes;
 					}
 					else if (itr->value.IsDouble())
 						sql.append(itr->value.GetDouble());
+					else if (itr->value.IsInt64())
+						sql.append((long)itr->value.GetInt64());
 					else if (itr->value.IsNumber())
 						sql.append(itr->value.GetInt());
 					else if (itr->value.IsObject())
@@ -1437,6 +1441,8 @@ vector<string>  asset_codes;
 					}
 					else if (value.IsDouble())
 						sql.append(value.GetDouble());
+					else if (value.IsInt64())
+						sql.append((long)value.GetInt64());
 					else if (value.IsNumber())
 						sql.append(value.GetInt());
 					else if (value.IsObject())
@@ -1545,6 +1551,10 @@ vector<string>  asset_codes;
 					else if (value.IsDouble())
 					{
 						sql.append(value.GetDouble());
+					}
+					else if (value.IsInt64())
+					{
+						sql.append((long)value.GetInt64());
 					}
 					else if (value.IsNumber())
 					{

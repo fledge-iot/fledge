@@ -12,6 +12,8 @@
 #include <common.h>
 #include <utils.h>
 
+#include "readings_catalogue.h"
+
 /*
  * Control the way purge deletes readings. The block size sets a limit as to how many rows
  * get deleted in each call, whilst the sleep interval controls how long the thread sleeps
@@ -39,9 +41,6 @@ using namespace std;
 using namespace rapidjson;
 
 #define CONNECT_ERROR_THRESHOLD		5*60	// 5 minutes
-
-#define MAX_RETRIES			40	// Maximum no. of retries when a lock is encountered
-#define RETRY_BACKOFF			100	// Multipler to backoff DB retry on lock
 
 /*
  * The following allows for conditional inclusion of code that tracks the top queries

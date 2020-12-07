@@ -24,6 +24,7 @@
 #include <plugin_exception.h>
 #include <reading_stream.h>
 #include <config_category.h>
+#include <readings_catalogue.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -40,8 +41,37 @@ const char *default_config = QUOTE({
 			"default" : "5",
 			"displayName" : "Pool Size",
 			"order" : "1"
-			}
-		});
+		},
+		"nReadingsPerDb" : {
+			"description" : "The number of readings tables in each database that is created",
+			"type" : "integer",
+			"default" : "15",
+			"displayName" : "No. Readings per database",
+			"order" : "2"
+		},
+		"nDbPreallocate" : {
+			"description" : "Number of databases to allocate in advance. NOTE: SQLite has a default maximum of 10 attachable databases",
+			"type" : "integer",
+			"default" : "3",
+			"displayName" : "No. databases to allocate in advance",
+			"order" : "3"
+		},
+		"nDbLeftFreeBeforeAllocate" : {
+			"description" : "Allocate new databases when the number of free databases drops below this value",
+			"type" : "integer",
+			"default" : "1",
+			"displayName" : "Database allocation threshold",
+			"order" : "4"
+		},
+		"nDbToAllocate" : {
+			"description" : "The number of databases to create whenever the number of available databases drops below the allocation threshold",
+			"type" : "integer",
+			"default" : "2",
+			"displayName" : "Database allocation size",
+			"order" : "5"
+		}
+
+});
 
 /**
  * The plugin information structure
@@ -70,19 +100,40 @@ PLUGIN_INFORMATION *plugin_info()
  */
 PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 {
-	bool result;
 	ConnectionManager *manager = ConnectionManager::getInstance();
-	int poolSize = 5;
+
+	STORAGE_CONFIGURATION storageConfig;
 
 	if (category->itemExists("poolSize"))
 	{
-		poolSize = strtol(category->getValue("poolSize").c_str(), NULL, 10);
+		storageConfig.poolSize = strtol(category->getValue("poolSize").c_str(), NULL, 10);
 	}
-	manager->growPool(poolSize);
+	manager->growPool(storageConfig.poolSize);
 
+
+	if (category->itemExists("nReadingsPerDb"))
+	{
+		storageConfig.nReadingsPerDb = strtol(category->getValue("nReadingsPerDb").c_str(), NULL, 10);
+	}
+
+
+	if (category->itemExists("nDbPreallocate"))
+	{
+		storageConfig.nDbPreallocate = strtol(category->getValue("nDbPreallocate").c_str(), NULL, 10);
+	}
+
+	if (category->itemExists("nDbLeftFreeBeforeAllocate"))
+	{
+		storageConfig.nDbLeftFreeBeforeAllocate = strtol(category->getValue("nDbLeftFreeBeforeAllocate").c_str(), NULL, 10);
+	}
+
+	if (category->itemExists("nDbToAllocate"))
+	{
+		storageConfig.nDbToAllocate = strtol(category->getValue("nDbToAllocate").c_str(), NULL, 10);
+	}
 
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-	readCat->multipleReadingsInit();
+	readCat->multipleReadingsInit(storageConfig);
 
 	return manager;
 }

@@ -8,6 +8,55 @@ schema_update_log() {
     write_log "Upgrade" "scripts.plugins.storage.${PLUGIN_NAME}schema_update" "$1" "$2" "$3" "$4"
 }
 
+calculate_table_id() {
+
+    declare _n_readings_allocate=$1
+
+    schema_update_log "debug" "calculate_db_id: SQLITE_SQL :$SQLITE_SQL: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "logonly" "pretty"
+
+    SQL_COMMAND="${SQLITE_SQL} \"${DEFAULT_SQLITE_DB_FILE}\" 2>&1 <<EOF
+
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}'              AS 'fledge';
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}'     AS 'readings_1';
+
+INSERT INTO readings_1.asset_reading_catalogue
+SELECT
+    (tb.table_id - ((db_id - 1) * 15))
+
+    table_id,
+    db_id,
+    asset_code
+FROM readings_1.asset_reading_catalogue_tmp tb;
+
+.quit
+EOF"
+
+
+    COMMAND_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
+
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}'              AS 'fledge';
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}'     AS 'readings_1';
+
+INSERT INTO readings_1.asset_reading_catalogue
+SELECT
+    (tb.table_id - ((db_id - 1) * 15))
+
+    table_id,
+    db_id,
+    asset_code
+FROM readings_1.asset_reading_catalogue_tmp tb;
+
+.quit
+EOF`
+
+    ret_code=$?
+
+    if [ "${ret_code}" -ne 0 ]; then
+        schema_update_log "err" "calculate_db_id - Failure in upgrade command [${SQL_COMMAND}] result [${COMMAND_OUTPUT}]. Exiting" "all" "pretty"
+        exit 1
+    fi
+}
+
 #
 # Updates asset_reading_catalogue setting the proper db id in relation to how many tables per db
 # should be managed
@@ -33,7 +82,7 @@ EOF"
 ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}'              AS 'fledge';
 ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}'     AS 'readings_1';
 
-UPDATE readings_1.asset_reading_catalogue SET db_id=(((table_id - 1) / '${_n_readings_allocate}') +1);
+UPDATE readings_1.asset_reading_catalogue_tmp SET db_id=(((table_id - 1) / '${_n_readings_allocate}') +1);
 
 .quit
 EOF`
@@ -109,23 +158,89 @@ create_database_file() {
 }
 
 #
+# Updates the db with the max used database id
+#
+update_max_db_id() {
+
+    declare _db_id_max=$1
+
+    schema_update_log "debug" "calculate_db_id: SQLITE_SQL :$SQLITE_SQL: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "logonly" "pretty"
+
+    SQL_COMMAND="${SQLITE_SQL} \"${DEFAULT_SQLITE_DB_FILE}\" 2>&1 <<EOF
+
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}'              AS 'fledge';
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}'     AS 'readings_1';
+
+UPDATE readings_1.configuration_readings SET db_id_Last=${_db_id_max};
+
+.quit
+EOF"
+
+
+    COMMAND_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
+
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}'              AS 'fledge';
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}'     AS 'readings_1';
+
+UPDATE readings_1.configuration_readings SET db_id_Last=${_db_id_max};
+
+.quit
+EOF`
+
+    ret_code=$?
+
+    if [ "${ret_code}" -ne 0 ]; then
+        schema_update_log "err" "calculate_db_id - Failure in upgrade command [${SQL_COMMAND}] result [${COMMAND_OUTPUT}]. Exiting" "all" "pretty"
+        exit 1
+    fi
+}
+
+#
 # Creates all the required database file in relation to the asset_reading_catalogue content
 #
 create_all_database_files() {
 
+    declare _n_db_allocate=$1
     declare db_name
+    declare db_id_start
 
-    cat "$tmp_file"  | while read -r table_id db_id asset_code; do
+    while read -r table_id db_id asset_code; do
 
         # The first database is created by the upgrade process
         if [ "$db_id" != "1" ]; then
 
+            if [[ $db_id > $db_id_max ]]
+            then
+                db_id_max=${db_id}
+            fi
             db_name="readings_$db_id"
 
-            schema_update_log "debug" "create_all_database_file - db name :$db_name: db id :$db_id: table id :$table_id: asset code :$asset_code: " "logonly" "pretty"
+            schema_update_log "debug" "create_all_database_file - db name :$db_name: db id :$db_id: " "logonly" "pretty"
             create_database_file "$db_name"
         fi
-    done
+    done < "$tmp_file"
+
+    # Create 1 extra db
+    db_id_max=$((${db_id_max} +1))
+    db_name="readings_$db_id_max"
+    schema_update_log "debug" "create_all_database_file - db name :$db_name: db id :$db_id_max: " "logonly" "pretty"
+    create_database_file "$db_name"
+
+    # Creates all the required databases if not already created
+    if [[ $db_id_max < $_n_db_allocate ]]
+    then
+        db_id_start=$((${db_id_max} +1))
+
+        # The first database is created by the upgrade process
+        for ((db_id=${db_id_start}; db_id<=${_n_db_allocate}; db_id++)); do
+
+            db_name="readings_$db_id"
+
+            schema_update_log "debug" "create_all_database_file - db name :$db_name: db id :$db_id: " "logonly" "pretty"
+            create_database_file "$db_name"
+        done
+        db_id_max=$_n_db_allocate
+    fi
 }
 
 #
@@ -152,6 +267,8 @@ create_readings() {
         ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW'))       -- UTC time
     );
 
+    CREATE INDEX  '${READINGS_DB}'.'${READINGS_TABLE}_ix3' ON '${READINGS_TABLE}' (user_ts desc);
+
 .quit
 EOF"
 
@@ -166,7 +283,9 @@ EOF"
         ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW'))       -- UTC time
     );
 
-    .quit
+    CREATE INDEX  '${READINGS_DB}'.'${READINGS_TABLE}_ix3' ON '${READINGS_TABLE}' (user_ts desc);
+
+.quit
 EOF`
 
     ret_code=$?
@@ -185,15 +304,22 @@ EOF`
 #
 create_all_readings() {
 
-    cat "$tmp_file"  | while read table_id db_id asset_code; do
+    declare _n_db_allocate=$1
+    declare _n_readings_allocate=$2
 
-        schema_update_log "debug" "create_all_readings - dbid :$db_id: table id :$table_id: " "logonly" "pretty"
+    for ((db_id=1; db_id<=${_n_db_allocate}; db_id++)); do
 
-        # The first readings iss created by the sql script
-        if [ "$table_id" != "1" ]; then
+        for ((table_id=1; table_id<=${_n_readings_allocate}; table_id++)); do
 
-            create_readings "readings_$db_id" "readings_$table_id"
-        fi
+            schema_update_log "debug" "create_all_readings - dbid :$db_id: table id :${db_id}_${table_id}: " "logonly" "pretty"
+
+            # The first reading table is created by the sql script
+            if [[  "$db_id" != "1" || "$table_id" != "1" ]]
+            then
+
+                create_readings "readings_$db_id" "readings_${db_id}_${table_id}"
+            fi
+        done
     done
 }
 
@@ -271,7 +397,7 @@ populate_all_readings() {
 
         schema_update_log "debug" "populate_all_readings - db id :$db_id: table id :$table_id: asset code :$asset_code: " "logonly" "pretty"
 
-        populate_readings "readings_$db_id" "readings_$table_id" "$asset_code"
+        populate_readings "readings_$db_id" "readings_${db_id}_${table_id}" "$asset_code"
     done
 }
 
@@ -302,7 +428,8 @@ EOF"
             table_id,
             db_id,
             asset_code
-        FROM readings_1.asset_reading_catalogue;
+        FROM readings_1.asset_reading_catalogue
+        ORDER BY db_id, table_id;
 
 .quit
 EOF`
@@ -335,6 +462,7 @@ ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}'        AS 'readings_1';
 ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS_SINGLE}' AS 'readings';
 
 DROP TABLE readings.readings;
+DROP TABLE readings_1.asset_reading_catalogue_tmp;
 
 .quit
 EOF"
@@ -346,6 +474,7 @@ ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}'        AS 'readings_1';
 ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS_SINGLE}' AS 'readings';
 
 DROP TABLE readings.readings;
+DROP TABLE readings_1.asset_reading_catalogue_tmp;
 
 .quit
 EOF`
@@ -372,10 +501,10 @@ EOF`
     fi
 }
 
-
 #
 # Main
 #
+export n_db_allocate=3
 export n_readings_allocate=15
 export tmp_file=/tmp/$$
 export IFS="|"
@@ -386,11 +515,14 @@ execute_sql_file
 
 calculate_db_id ${n_readings_allocate}
 
+calculate_table_id ${n_readings_allocate}
+
 export_readings_list
 
-create_all_database_files
-
-create_all_readings
+db_id_max=0
+create_all_database_files ${n_db_allocate}   # updates db_id_max
+update_max_db_id          ${db_id_max}   # updates db_id_max
+create_all_readings       ${db_id_max} ${n_readings_allocate}
 
 populate_all_readings
 

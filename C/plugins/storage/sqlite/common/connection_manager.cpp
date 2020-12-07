@@ -163,7 +163,7 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 				break;
 			}
 
-			Logger::getLogger()->debug("attachNewDb idle dbHandle :%X: sqlCmd :%s: ", sqlCmd.c_str(), dbHandle);
+			Logger::getLogger()->debug("attachNewDb idle dbHandle :%X: sqlCmd :%s: ", dbHandle, sqlCmd.c_str());
 
 		}
 	}
@@ -184,7 +184,7 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 					break;
 				}
 
-				Logger::getLogger()->debug("attachNewDb inUse dbHandle :%X: sqlCmd :%s: ", sqlCmd.c_str(), dbHandle);
+				Logger::getLogger()->debug("attachNewDb inUse dbHandle :%X: sqlCmd :%s: ", dbHandle, sqlCmd.c_str());
 			}
 		}
 	}
@@ -193,6 +193,68 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 
 	return (result);
 }
+
+/**
+ * Detach a database from all the connections
+ *
+ */
+bool ConnectionManager::detachNewDb(std::string &alias)
+{
+	int rc;
+	std::string sqlCmd;
+	sqlite3 *dbHandle;
+	bool result;
+	char *zErrMsg = NULL;
+
+	result = true;
+
+	sqlCmd = "DETACH  DATABASE " + alias + ";";
+	Logger::getLogger()->debug("detachDb - db alias :%s: cmd :%s:" ,  alias.c_str() , sqlCmd.c_str() );
+
+	idleLock.lock();
+	inUseLock.lock();
+
+	// attach the DB to all idle connections
+	{
+		for ( auto conn : idle) {
+
+			dbHandle = conn->getDbHandle();
+			rc = SQLExec (dbHandle, sqlCmd.c_str(), &zErrMsg);
+			if (rc != SQLITE_OK)
+			{
+				Logger::getLogger()->error("detachNewDb - It was not possible to detach the db :%s: from an idle connection, error :%s:", alias.c_str(), zErrMsg);
+				result = false;
+				break;
+			}
+			Logger::getLogger()->debug("detachNewDb - idle dbHandle :%X: sqlCmd :%s: ", dbHandle, sqlCmd.c_str());
+		}
+	}
+
+	if (result)
+	{
+		// attach the DB to all inUse connections
+		{
+
+			for ( auto conn : inUse) {
+
+				dbHandle = conn->getDbHandle();
+				rc = SQLExec (dbHandle, sqlCmd.c_str(), &zErrMsg);
+				if (rc != SQLITE_OK)
+				{
+					Logger::getLogger()->error("detachNewDb - It was not possible to detach the db :%s: from an inUse connection, error :%s:", alias.c_str() ,zErrMsg);
+					result = false;
+					break;
+				}
+				Logger::getLogger()->debug("detachNewDb - inUse dbHandle :%X: sqlCmd :%s: ", dbHandle, sqlCmd.c_str());
+			}
+		}
+	}
+	idleLock.unlock();
+	inUseLock.unlock();
+
+	return (result);
+}
+
 
 /**
  * Adds to all the connections a request to attach a database
@@ -294,9 +356,6 @@ void ConnectionManager::setError(const char *source, const char *description, bo
 	lastError.message = strdup(description);
 	errorLock.unlock();
 }
-
-#define MAX_RETRIES			40	// Maximum no. of retries when a lock is encountered
-#define RETRY_BACKOFF			100	// Multipler to backoff DB retry on lock
 
 /**
  * SQLIte wrapper to retry statements when the database is locked

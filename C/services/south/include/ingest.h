@@ -103,6 +103,7 @@ private:
 	std::unordered_set<std::string> statsDbEntriesCache;  // confirmed stats table entries
 	std::map<std::string, int>	statsPendingEntries;  // pending stats table entries
 	bool				m_highLatency;	      // Flag to indicate we are exceeding latency request
+	int				m_failCnt;
 };
 
 #endif

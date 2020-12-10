@@ -5,7 +5,11 @@
 
 # Logger wrapper
 schema_update_log() {
-    write_log "Upgrade" "scripts.plugins.storage.${PLUGIN_NAME}schema_update" "$1" "$2" "$3" "$4"
+
+    if [ "$1" != "debug" ]; then
+        write_log "Upgrade" "scripts.plugins.storage.${PLUGIN_NAME}schema_update" "$1" "$2" "$3" "$4"
+    fi
+
 }
 
 calculate_table_id() {

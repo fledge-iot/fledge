@@ -16,7 +16,7 @@ calculate_table_id() {
 
     declare _n_readings_allocate=$1
 
-    schema_update_log "debug" "calculate_db_id: SQLITE_SQL :$SQLITE_SQL: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "logonly" "pretty"
+    schema_update_log "info" "calculate_db_id: SQLITE_SQL :$SQLITE_SQL: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "logonly" "pretty"
 
     SQL_COMMAND="${SQLITE_SQL} \"${DEFAULT_SQLITE_DB_FILE}\" 2>&1 <<EOF
 
@@ -69,7 +69,7 @@ calculate_db_id() {
 
     declare _n_readings_allocate=$1
 
-    schema_update_log "debug" "calculate_db_id: SQLITE_SQL :$SQLITE_SQL: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "logonly" "pretty"
+    schema_update_log "info" "calculate_db_id: SQLITE_SQL :$SQLITE_SQL: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "logonly" "pretty"
 
     SQL_COMMAND="${SQLITE_SQL} \"${DEFAULT_SQLITE_DB_FILE}\" 2>&1 <<EOF
 
@@ -104,7 +104,7 @@ EOF`
 #
 execute_sql_file() {
 
-    schema_update_log "debug" "execute_sql_file: SQLITE_SQL :$SQLITE_SQL: sql_file :$sql_file: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "logonly" "pretty"
+    schema_update_log "info" "execute_sql_file: SQLITE_SQL :$SQLITE_SQL: sql_file :$sql_file: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "logonly" "pretty"
 
     SQL_COMMAND="${SQLITE_SQL} \"${DEFAULT_SQLITE_DB_FILE}\" 2>&1 <<EOF
 
@@ -148,7 +148,7 @@ create_database_file() {
     # Creates the file if it was not already created
     if [ ! -f "${file_name_path}" ]; then
 
-        schema_update_log "debug" "create_database_file - file path :$file_name_path:" "logonly" "pretty"
+        schema_update_log "info" "create_database_file - file path :$file_name_path:" "logonly" "pretty"
 
         # Created datafile
         COMMAND_OUTPUT=$(${SQLITE_SQL} ${file_name_path} .databases 2>&1)
@@ -168,7 +168,7 @@ update_max_db_id() {
 
     declare _db_id_max=$1
 
-    schema_update_log "debug" "calculate_db_id: SQLITE_SQL :$SQLITE_SQL: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "logonly" "pretty"
+    schema_update_log "info" "calculate_db_id: SQLITE_SQL :$SQLITE_SQL: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "logonly" "pretty"
 
     SQL_COMMAND="${SQLITE_SQL} \"${DEFAULT_SQLITE_DB_FILE}\" 2>&1 <<EOF
 
@@ -219,7 +219,7 @@ create_all_database_files() {
             fi
             db_name="readings_$db_id"
 
-            schema_update_log "debug" "create_all_database_file - db name :$db_name: db id :$db_id: " "logonly" "pretty"
+            schema_update_log "info" "create_all_database_file - db name :$db_name: db id :$db_id: " "logonly" "pretty"
             create_database_file "$db_name"
         fi
     done < "$tmp_file"
@@ -227,7 +227,7 @@ create_all_database_files() {
     # Create 1 extra db
     db_id_max=$((${db_id_max} +1))
     db_name="readings_$db_id_max"
-    schema_update_log "debug" "create_all_database_file - db name :$db_name: db id :$db_id_max: " "logonly" "pretty"
+    schema_update_log "info" "create_all_database_file - db name :$db_name: db id :$db_id_max: " "logonly" "pretty"
     create_database_file "$db_name"
 
     # Creates all the required databases if not already created
@@ -240,7 +240,7 @@ create_all_database_files() {
 
             db_name="readings_$db_id"
 
-            schema_update_log "debug" "create_all_database_file - db name :$db_name: db id :$db_id: " "logonly" "pretty"
+            schema_update_log "info" "create_all_database_file - db name :$db_name: db id :$db_id: " "logonly" "pretty"
             create_database_file "$db_name"
         done
         db_id_max=$_n_db_allocate
@@ -258,7 +258,7 @@ create_readings() {
     file_path=$(dirname ${DEFAULT_SQLITE_DB_FILE_READINGS})
     readings_file="${file_path}/${READINGS_DB}.db"
 
-    schema_update_log "debug" "create_readings - db :$READINGS_DB: table :$READINGS_TABLE: asset code :$ASSET_CODE:" "logonly" "pretty"
+    schema_update_log "info" "create_readings - db :$READINGS_DB: table :$READINGS_TABLE: asset code :$ASSET_CODE:" "logonly" "pretty"
 
     SQL_COMMAND="${SQLITE_SQL} \"${DEFAULT_SQLITE_DB_FILE}\" 2>&1 <<EOF
 
@@ -315,7 +315,7 @@ create_all_readings() {
 
         for ((table_id=1; table_id<=${_n_readings_allocate}; table_id++)); do
 
-            schema_update_log "debug" "create_all_readings - dbid :$db_id: table id :${db_id}_${table_id}: " "logonly" "pretty"
+            schema_update_log "info" "create_all_readings - dbid :$db_id: table id :${db_id}_${table_id}: " "logonly" "pretty"
 
             # The first reading table is created by the sql script
             if [[  "$db_id" != "1" || "$table_id" != "1" ]]
@@ -344,7 +344,7 @@ populate_readings() {
     file_path=$(dirname ${DEFAULT_SQLITE_DB_FILE_READINGS})
     readings_file="${file_path}/${READINGS_DB}.db"
 
-    schema_update_log "debug" "populate_readings - file :$readings_file: db :$READINGS_DB: table :$READINGS_TABLE: asset code :$ASSET_CODE:" "logonly" "pretty"
+    schema_update_log "info" "populate_readings - file :$readings_file: db :$READINGS_DB: table :$READINGS_TABLE: asset code :$ASSET_CODE:" "logonly" "pretty"
 
     SQL_COMMAND="${SQLITE_SQL} \"${DEFAULT_SQLITE_DB_FILE}\" 2>&1 <<EOF
 
@@ -399,7 +399,7 @@ populate_all_readings() {
 
     cat "$tmp_file"  | while read table_id db_id asset_code; do
 
-        schema_update_log "debug" "populate_all_readings - db id :$db_id: table id :$table_id: asset code :$asset_code: " "logonly" "pretty"
+        schema_update_log "info" "populate_all_readings - db id :$db_id: table id :$table_id: asset code :$asset_code: " "logonly" "pretty"
 
         populate_readings "readings_$db_id" "readings_${db_id}_${table_id}" "$asset_code"
     done
@@ -410,7 +410,7 @@ populate_all_readings() {
 #
 export_readings_list() {
 
-    schema_update_log "debug" "export_readings_list - tmp_file :$tmp_file: SQLITE_SQL :$SQLITE_SQL: sql_file :$sql_file: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "logonly" "pretty"
+    schema_update_log "info" "export_readings_list - tmp_file :$tmp_file: SQLITE_SQL :$SQLITE_SQL: sql_file :$sql_file: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "logonly" "pretty"
 
     SQL_COMMAND="${SQLITE_SQL} \"${DEFAULT_SQLITE_DB_FILE}\" 2>&1 <<EOF
 
@@ -454,7 +454,7 @@ EOF`
 #
 cleanup_db() {
 
-    schema_update_log "debug" "cleanup - SQLITE_SQL :$SQLITE_SQL: sql_file :$sql_file: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "logonly" "pretty"
+    schema_update_log "info" "cleanup - SQLITE_SQL :$SQLITE_SQL: sql_file :$sql_file: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "logonly" "pretty"
 
     #
     # Clean up - database
@@ -495,7 +495,7 @@ EOF`
     file_path=$(dirname ${DEFAULT_SQLITE_DB_FILE_READINGS_SINGLE})
     file_name_path="${file_path}/readings.db*"
 
-    schema_update_log "debug" "cleanup - deleting ${file_name_path}" "logonly" "pretty"
+    schema_update_log "info" "cleanup - deleting ${file_name_path}" "logonly" "pretty"
 
     rm ${file_name_path}
     ret_code=$?
@@ -513,7 +513,7 @@ export n_readings_allocate=15
 export tmp_file=/tmp/$$
 export IFS="|"
 
-schema_update_log "debug" "$0 - SQLITE_SQL :$SQLITE_SQL: sql_file :$sql_file: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "logonly" "pretty"
+schema_update_log "info" "$0 - SQLITE_SQL :$SQLITE_SQL: sql_file :$sql_file: DEFAULT_SQLITE_DB_FILE :$DEFAULT_SQLITE_DB_FILE: DEFAULT_SQLITE_DB_FILE_READINGS :$DEFAULT_SQLITE_DB_FILE_READINGS:" "logonly" "pretty"
 
 execute_sql_file
 

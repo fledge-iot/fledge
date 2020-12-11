@@ -12,6 +12,8 @@
 #include <common.h>
 #include <utils.h>
 
+#include "readings_catalogue.h"
+
 /*
  * Control the way purge deletes readings. The block size sets a limit as to how many rows
  * get deleted in each call, whilst the sleep interval controls how long the thread sleeps
@@ -29,6 +31,8 @@
 #define PURGE_SLOWDOWN_AFTER_BLOCKS 5
 #define PURGE_SLOWDOWN_SLEEP_MS 500
 
+#define LOG_AFTER_NERRORS 5
+
 /**
  * SQLite3 storage plugin for Fledge
  */
@@ -37,9 +41,6 @@ using namespace std;
 using namespace rapidjson;
 
 #define CONNECT_ERROR_THRESHOLD		5*60	// 5 minutes
-
-#define MAX_RETRIES			40	// Maximum no. of retries when a lock is encountered
-#define RETRY_BACKOFF			100	// Multipler to backoff DB retry on lock
 
 /*
  * The following allows for conditional inclusion of code that tracks the top queries
@@ -69,9 +70,6 @@ static int purgeBlockSize = PURGE_DELETE_BLOCK_SIZE;
 #define START_TIME std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 #define END_TIME std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now(); \
 				 auto usecs = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
-
-#define _DB_NAME              	"/fledge.sqlite"
-#define READINGS_DB_NAME        "/readings.db"
 
 static time_t connectErrorTime = 0;
 
@@ -454,7 +452,7 @@ Connection::Connection()
 		// Set DB base path
 		dbPathReadings = getDataDir();
 		// Add the filename
-		dbPathReadings += READINGS_DB_NAME;
+		dbPathReadings += READINGS_DB_FILE_NAME;
 	}
 	else
 	{
@@ -500,15 +498,13 @@ Connection::Connection()
 		int rc;
 		char *zErrMsg = NULL;
 
-		string dbConfiguration = "PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;";
-
 		// Enable the WAL for the fledge DB
-		rc = sqlite3_exec(dbHandle, dbConfiguration.c_str(), NULL, NULL, &zErrMsg);
+		rc = sqlite3_exec(dbHandle, DB_CONFIGURATION, NULL, NULL, &zErrMsg);
 		if (rc != SQLITE_OK)
 		{
-			string errMsg = "Failed to set WAL from the fledge DB - " + dbConfiguration;
+			string errMsg = "Failed to set WAL from the fledge DB - " DB_CONFIGURATION;
 			Logger::getLogger()->error("%s : error %s",
-									   dbConfiguration.c_str(),
+			                           DB_CONFIGURATION,
 									   zErrMsg);
 			connectErrorTime = time(0);
 
@@ -553,54 +549,69 @@ Connection::Connection()
 		//Release sqlStmt buffer
 		delete[] sqlStmt;
 
-		// Attach readings database
-		SQLBuffer attachReadingsDb;
-		attachReadingsDb.append("ATTACH DATABASE '");
-		attachReadingsDb.append(dbPathReadings + "' AS readings;");
-
-		const char *sqlReadingsStmt = attachReadingsDb.coalesce();
-
-		// Exec the statement
-		rc = SQLexec(dbHandle,
-			     sqlReadingsStmt,
-			     NULL,
-			     NULL,
-			     &zErrMsg);
-
-		// Check result
-		if (rc != SQLITE_OK)
+		// Attach readings database - readings_1
 		{
-			const char* errMsg = "Failed to attach 'readings' database in";
-			Logger::getLogger()->error("%s '%s': error %s",
-						   errMsg,
-						   sqlReadingsStmt,
-						   zErrMsg);
-			connectErrorTime = time(0);
+			SQLBuffer attachReadingsDb;
+			attachReadingsDb.append("ATTACH DATABASE '");
+			attachReadingsDb.append(dbPathReadings + "' AS readings_1;");
 
-			sqlite3_free(zErrMsg);
+			const char *sqlReadingsStmt = attachReadingsDb.coalesce();
+
+			// Exec the statement
+			rc = SQLexec(dbHandle,
+						 sqlReadingsStmt,
+						 NULL,
+						 NULL,
+						 &zErrMsg);
+
+			// Check result
+			if (rc != SQLITE_OK)
+			{
+				const char* errMsg = "Failed to attach 'readings' database in";
+				Logger::getLogger()->error("%s '%s': error %s",
+										   errMsg,
+										   sqlReadingsStmt,
+										   zErrMsg);
+				connectErrorTime = time(0);
+
+				sqlite3_free(zErrMsg);
+				sqlite3_close_v2(dbHandle);
+			}
+			else
+			{
+				Logger::getLogger()->info("Connected to SQLite3 database: %s",
+										  dbPath.c_str());
+			}
+			//Release sqlStmt buffer
+			delete[] sqlReadingsStmt;
+
+			// Enable the WAL for the readings DB
+			rc = sqlite3_exec(dbHandle, DB_CONFIGURATION,NULL, NULL, &zErrMsg);
+			if (rc != SQLITE_OK)
+			{
+				string errMsg = "Failed to set WAL from the readings DB - " DB_CONFIGURATION;
+				Logger::getLogger()->error("%s : error %s",
+										   errMsg.c_str(),
+										   zErrMsg);
+				connectErrorTime = time(0);
+
+				sqlite3_free(zErrMsg);
+			}
+		}
+
+	}
+
+	{
+		// Attach all the defined/used databases
+		ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
+		if ( !readCat->connectionAttachAllDbs(dbHandle) )
+		{
+			const char* errMsg = "Failed to attach all the dbs to the connection :%X:'readings' database in";
+			Logger::getLogger()->error("%s '%s': error %s", errMsg, dbHandle);
+
+			connectErrorTime = time(0);
 			sqlite3_close_v2(dbHandle);
 		}
-		else
-		{
-			Logger::getLogger()->info("Connected to SQLite3 database: %s",
-						  dbPath.c_str());
-		}
-		//Release sqlStmt buffer
-		delete[] sqlReadingsStmt;
-
-		// Enable the WAL for the readings DB
-		rc = sqlite3_exec(dbHandle, dbConfiguration.c_str(),NULL, NULL, &zErrMsg);
-		if (rc != SQLITE_OK)
-		{
-			string errMsg = "Failed to set WAL from the readings DB - " + dbConfiguration;
-			Logger::getLogger()->error("%s : error %s",
-									   errMsg.c_str(),
-									   zErrMsg);
-			connectErrorTime = time(0);
-
-			sqlite3_free(zErrMsg);
-		}
-
 	}
 }
 #endif
@@ -781,6 +792,7 @@ int selectCallback(void *data,
 		  char **colValues,
 		  char **colNames)
 {
+
 int *nRows = (int *)data;
 	// Increment the number of rows seen
 	*nRows++;
@@ -855,6 +867,8 @@ Document	document;
 SQLBuffer	sql;
 // Extra constraints to add to where clause
 SQLBuffer	jsonConstraints;
+bool		isOptAggregate = false;
+vector<string>  asset_codes;
 
 	try {
 		if (dbHandle == NULL)
@@ -883,7 +897,7 @@ SQLBuffer	jsonConstraints;
 					sql.append(document["modifier"].GetString());
 					sql.append(' ');
 				}
-				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints, false))
+				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints, isOptAggregate, false))
 				{
 					return false;
 				}
@@ -1009,7 +1023,7 @@ SQLBuffer	jsonConstraints;
 			 
 				if (document.HasMember("where"))
 				{
-					if (!jsonWhereClause(document["where"], sql, true))
+					if (!jsonWhereClause(document["where"], sql, asset_codes, true))
 					{
 						return false;
 					}
@@ -1089,6 +1103,7 @@ SQLBuffer	sql;
 Document	document;
 ostringstream convert;
 std::size_t arr = data.find("inserts");
+
 
 	// Check first the 'inserts' property in JSON data
 	bool stdInsert = (arr == std::string::npos || arr > 8);
@@ -1273,9 +1288,13 @@ int Connection::update(const string& table, const string& payload)
 // Default template parameter uses UTF8 and MemoryPoolAllocator.
 Document	document;
 SQLBuffer	sql;
+vector<string>  asset_codes;
 
 	int 	row = 0;
 	ostringstream convert;
+
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
 
 	std::size_t arr = payload.find("updates");
 	bool changeReqd = (arr == std::string::npos || arr > 8);
@@ -1563,7 +1582,7 @@ SQLBuffer	sql;
 			if ((*iter).HasMember("condition"))
 			{
 				sql.append(" WHERE ");
-				if (!jsonWhereClause((*iter)["condition"], sql))
+				if (!jsonWhereClause((*iter)["condition"], sql, asset_codes))
 				{
 					return false;
 				}
@@ -1571,7 +1590,7 @@ SQLBuffer	sql;
 			else if ((*iter).HasMember("where"))
 			{
 				sql.append(" WHERE ");
-				if (!jsonWhereClause((*iter)["where"], sql))
+				if (!jsonWhereClause((*iter)["where"], sql, asset_codes))
 				{
 					return false;
 				}
@@ -1644,7 +1663,7 @@ SQLBuffer	sql;
 		//
 		// 1) update == 0, no update,                                    returns -1
 		// 2) single command SQL that could affects multiple rows,       returns 'update'
-		// 3) multiple SQL commands packed and executed in one SQLexec,  returns 'row'
+		// 3) multiple SQL commands packed and executed in one SQLExec,  returns 'row'
 		return (return_value);
 	}
 
@@ -1825,6 +1844,7 @@ bool Connection::formatDate(char *formatted_date, size_t buffer_size, const char
 
 }
 
+#ifndef SQLITE_SPLIT_READINGS
 /**
  * Process the aggregate options and return the columns to be selected
  */
@@ -1832,8 +1852,16 @@ bool Connection::jsonAggregates(const Value& payload,
 				const Value& aggregates,
 				SQLBuffer& sql,
 				SQLBuffer& jsonConstraint,
-				bool isTableReading)
+				bool &isOptAggregate,
+				bool isTableReading,
+				bool isExtQuery
+				)
 {
+	string col;
+	string column_name;
+
+	isOptAggregate = false;
+
 	if (aggregates.IsObject())
 	{
 		if (! aggregates.HasMember("operation"))
@@ -1848,14 +1876,31 @@ bool Connection::jsonAggregates(const Value& payload,
 				   "Missing property \"column\" or \"json\"");
 			return false;
 		}
-		sql.append(aggregates["operation"].GetString());
+		string operation;
+
+		// Handles the case of the count, the virtual tables should use count and the external the sun operation
+		operation =aggregates["operation"].GetString();
+		if (isTableReading)
+		{
+			if (operation.compare("count") ==0)
+			{
+				isOptAggregate = true;
+				if (isExtQuery)
+				{
+					operation = "sum";
+				}
+			}
+		}
+		sql.append(operation);
+
 		sql.append('(');
 		if (aggregates.HasMember("column"))
 		{
-			string col = aggregates["column"].GetString();
+			col = aggregates["column"].GetString();
 			if (col.compare("*") == 0)	// Faster to count ROWID rather than *
 			{
-				sql.append("ROWID");
+				col = "ROWID";
+				sql.append(col);
 			}
 			else
 			{
@@ -1965,7 +2010,16 @@ bool Connection::jsonAggregates(const Value& payload,
 		sql.append(") AS \"");
 		if (aggregates.HasMember("alias"))
 		{
-			sql.append(aggregates["alias"].GetString());
+			// Handles the case of the count: the external query should use the alias and the internal the name of the field
+			if (isTableReading)
+			{
+				if (isExtQuery)
+					sql.append(aggregates["alias"].GetString());
+				else
+					sql.append(col);
+			}
+			else
+				sql.append(aggregates["alias"].GetString());
 		}
 		else
 		{
@@ -2003,7 +2057,7 @@ bool Connection::jsonAggregates(const Value& payload,
 			sql.append('(');
 			if (itr->HasMember("column"))
 			{
-				string column_name= (*itr)["column"].GetString();
+				column_name= (*itr)["column"].GetString();
 				if (isTableReading && (column_name.compare("user_ts") == 0) )
 				{
 					sql.append("strftime('" F_DATEH24_SEC "', user_ts, 'localtime') ");
@@ -2042,7 +2096,8 @@ bool Connection::jsonAggregates(const Value& payload,
 				}
 				// Use json_extract(field, '$.key1.key2') AS value
 				sql.append("json_extract(");
-				sql.append(json["column"].GetString());
+				column_name=json["column"].GetString();
+				sql.append(column_name);
 				sql.append(", '$.");
 
 				// JSON1 SQLite3 extension 'json_type' object check:
@@ -2091,7 +2146,15 @@ bool Connection::jsonAggregates(const Value& payload,
 			sql.append(") AS \"");
 			if (itr->HasMember("alias"))
 			{
-				sql.append((*itr)["alias"].GetString());
+				if (isTableReading)
+				{
+					if (isExtQuery)
+						sql.append((*itr)["alias"].GetString());
+					else
+						sql.append(column_name);
+				}
+				else
+					sql.append((*itr)["alias"].GetString());
 			}
 			else
 			{
@@ -2266,6 +2329,7 @@ bool Connection::jsonAggregates(const Value& payload,
 	}
 	return true;
 }
+#endif
 
 /**
  * Process the modifiers for limit, skip, sort and group
@@ -2467,13 +2531,21 @@ bool Connection::jsonModifiers(const Value& payload,
 	return true;
 }
 
+#ifndef SQLITE_SPLIT_READINGS
 /**
  * Convert a JSON where clause into a SQLite3 where clause
  *
  */
-bool Connection::jsonWhereClause(const Value& whereClause,
-				 SQLBuffer& sql, bool convertLocaltime)
+bool Connection::jsonWhereClause(
+	const Value& whereClause,
+	SQLBuffer& sql,
+	std::vector<std::string>  &asset_codes,
+	bool convertLocaltime)
 {
+
+	string column;
+	string cond;
+
 	if (!whereClause.IsObject())
 	{
 		raiseError("where clause", "The \"where\" property must be a JSON object");
@@ -2496,9 +2568,10 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 		return false;
 	}
 
-	sql.append(whereClause["column"].GetString());
+	column = whereClause["column"].GetString();
+	sql.append(column);
 	sql.append(' ');
-	string cond = whereClause["condition"].GetString();
+	cond = whereClause["condition"].GetString();
 	if (!cond.compare("older"))
 	{
 		if (!whereClause["value"].IsInt())
@@ -2598,16 +2671,22 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 			sql.append(whereClause["value"].GetInt());
 		} else if (whereClause["value"].IsString())
 		{
+			string value = whereClause["value"].GetString();
 			sql.append('\'');
-			sql.append(escape(whereClause["value"].GetString()));
+			sql.append(escape(value ));
 			sql.append('\'');
+
+			// Identify a specific operation to restrinct the tables involved
+			if (column.compare("asset_code") == 0)
+				if ( cond.compare("=") == 0)
+						asset_codes.push_back(value);
 		}
 	}
  
 	if (whereClause.HasMember("and"))
 	{
 		sql.append(" AND ");
-		if (!jsonWhereClause(whereClause["and"], sql, convertLocaltime))
+		if (!jsonWhereClause(whereClause["and"], sql, asset_codes, convertLocaltime))
 		{
 			return false;
 		}
@@ -2615,7 +2694,7 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 	if (whereClause.HasMember("or"))
 	{
 		sql.append(" OR ");
-		if (!jsonWhereClause(whereClause["or"], sql, convertLocaltime))
+		if (!jsonWhereClause(whereClause["or"], sql, asset_codes, convertLocaltime))
 		{
 			return false;
 		}
@@ -2623,6 +2702,10 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 
 	return true;
 }
+
+#endif
+
+
 
 /**
  * This routine uses SQLit3 JSON1 extension functions
@@ -2840,8 +2923,13 @@ int retries = 0, rc;
 		profiler.insert(prof);
 #endif
 		retries++;
-		if (rc == SQLITE_LOCKED || rc == SQLITE_BUSY)
+		if (rc != SQLITE_OK)
 		{
+
+			if (retries > LOG_AFTER_NERRORS)
+				Logger::getLogger()->warn("Connection::SQLexec - retry :%d: dbHandle :%X: cmd :%s: error :%s:", retries, this->getDbHandle(), sql, sqlite3_errmsg(dbHandle));
+
+
 #if DO_PROFILE_RETRIES
 			m_qMutex.lock();
 			m_waiting.fetch_add(1);
@@ -2851,8 +2939,8 @@ int retries = 0, rc;
 #endif
 			int interval = (1 * RETRY_BACKOFF);
 			std::this_thread::sleep_for(std::chrono::milliseconds(interval));
-			if (retries > 9) Logger::getLogger()->info("SQLexec: retry %d of %d, rc=%s, errmsg=%s, DB connection @ %p, slept for %d msecs",
-						retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", sqlite3_errmsg(db), this, interval);
+			if (retries > 9) Logger::getLogger()->info("SQLExec: error :%s: retry %d of %d, rc=%s, errmsg=%s, DB connection @ %p, slept for %d msecs",
+													   sqlite3_errmsg(dbHandle), retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", sqlite3_errmsg(db), this, interval);
 #if DO_PROFILE_RETRIES
 			m_qMutex.lock();
 			m_waiting.fetch_sub(1);
@@ -2874,7 +2962,7 @@ int retries = 0, rc;
 				}
 			}
 		}
-	} while (retries < MAX_RETRIES && (rc == SQLITE_LOCKED || rc == SQLITE_BUSY));
+	} while (retries < MAX_RETRIES && (rc != SQLITE_OK));
 #if DO_PROFILE_RETRIES
 	retryStats[retries-1]++;
 	if (++numStatements > RETRY_REPORT_THRESHOLD - 1)
@@ -2903,6 +2991,11 @@ int retries = 0, rc;
 		Logger::getLogger()->error("Database still busy after maximum retries");
 	}
 
+	if (rc != SQLITE_OK)
+	{
+		Logger::getLogger()->error("Database error after maximum retries - dbHandle :%X:", this->getDbHandle());
+	}
+
 	return rc;
 }
 #endif
@@ -2925,7 +3018,7 @@ int retries = 0, rc;
 		{
 			int interval = (retries * RETRY_BACKOFF);
 			usleep(interval);	// sleep retries milliseconds
-			if (retries > 5) Logger::getLogger()->info("SQLstep: retry %d of %d, rc=%s, DB connection @ %p, slept for %d msecs",
+			if (retries > 5) Logger::getLogger()->info("SQLStep: retry %d of %d, rc=%s, DB connection @ %p, slept for %d msecs",
 						retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", this, interval);
 		}
 	} while (retries < MAX_RETRIES && (rc == SQLITE_LOCKED || rc == SQLITE_BUSY));
@@ -2968,7 +3061,8 @@ int Connection::deleteRows(const string& table, const string& condition)
 // Default template parameter uses UTF8 and MemoryPoolAllocator.
 Document document;
 SQLBuffer	sql;
- 
+vector<string>  asset_codes;
+
 	sql.append("DELETE FROM fledge.");
 	sql.append(table);
 	if (! condition.empty())
@@ -2983,7 +3077,7 @@ SQLBuffer	sql;
 		{
 			if (document.HasMember("where"))
 			{
-				if (!jsonWhereClause(document["where"], sql))
+				if (!jsonWhereClause(document["where"], sql, asset_codes))
 				{
 					return -1;
 				}

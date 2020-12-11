@@ -155,7 +155,7 @@ class TestPackages:
         r = r.read().decode()
         jdoc = json.loads(r)
         assert len(jdoc), "No data found"
-        assert 3 == len(jdoc['services'])
+        assert 4 == len(jdoc['services'])
         assert 'notification' in jdoc['services']
 
     def test_install_plugin_package(self, fledge_url, package_build_source_list, package_build_list,

@@ -57,4 +57,3 @@ INSERT INTO readings_1.asset_reading_catalogue_tmp
     FROM readings.readings
     GROUP BY asset_code
     ORDER BY asset_code;
-

@@ -11,6 +11,7 @@
 
 # Data / cache files
 data/etc/storage.json
+data/etc/sqlite.json
 data/etc/certs/*
 data/var
 data/support

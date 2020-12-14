@@ -189,9 +189,9 @@ class TestPackages:
             assert not errors, "Package errors have occurred: \n {}".format("\n".join(errors))
 
     def _verify_and_install_package(self, fledge_url, pkg_name, wait_time, retries):
-        print("Installing %s package" % pkg_name)
         global counter
         global errors
+        print("Installing %s package and having counter value %s" % (pkg_name, counter))
         conn = http.client.HTTPConnection(fledge_url)
         data = {"format": "repository", "name": pkg_name}
         # POST Plugin
@@ -234,8 +234,7 @@ class TestPackages:
                 msg = "GET Package status response failed while attempting {}".format(pkg_name)
                 print(msg)
                 errors.append(msg)
-                counter -= 1
-                break
+                return
             # sleep time added b/w retries
             time.sleep(wait_time * 3)
             max_retry_count -= 1

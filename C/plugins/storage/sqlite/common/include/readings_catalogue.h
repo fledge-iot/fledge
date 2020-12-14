@@ -23,7 +23,7 @@ typedef struct
 	int nDbPreallocate = 3;                     // Number of databases to allocate in advance
 	int nDbLeftFreeBeforeAllocate = 1;          // Number of free databases before a new allocation is executed
 	int nDbToAllocate = 2;                      // Number of database to allocate each time
-
+	bool logSQL;				    // Log the SQL stateemnts
 } STORAGE_CONFIGURATION;
 
 

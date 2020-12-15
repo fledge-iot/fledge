@@ -45,7 +45,7 @@ Filters can be applied in two locations in the Fledge system;
 
 More than one filter can be added to a single south or north within a Fledge instance. Filters are placed in an ordered pipeline of filters that are applied to the data in the order of the pipeline. The output of the first filter becomes the input to the second. Filters can thus be combined to perform complex sets of operations on a particular data stream into Fledge or out of Fledge.
 
-The same filter plugin can appear in mutliple places within a filter pipeline, a different instance is created for each and each one has its own configuration.
+The same filter plugin can appear in multiple places within a filter pipeline, a different instance is created for each and each one has its own configuration.
 
 Adding a South Filter
 ---------------------

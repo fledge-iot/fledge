@@ -5,13 +5,17 @@
 # FLEDGE_END
 
 import os
+import logging
+import json
 from datetime import datetime
 
 from pathlib import Path
 from aiohttp import web
 
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
-
+from fledge.common import logger
+from fledge.common.storage_client.payload_builder import PayloadBuilder
+from fledge.services.core import connect
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2019, Dianomic Systems Inc."
@@ -19,12 +23,15 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 _help = """
-    -----------------------------------------------------------
+    ----------------------------------------------------------
     | GET            | /fledge/package/log                   |
     | GET            | /fledge/package/log/{name}            |
-    -----------------------------------------------------------
+    | GET            | /fledge/package/{action}/status       |
+    ----------------------------------------------------------
 """
 valid_extension = '.log'
+valid_actions = ('list', 'install', 'purge', 'update')
+_LOGGER = logger.setup(__name__, level=logging.INFO)
 
 
 async def get_logs(request: web.Request) -> web.Response:
@@ -89,3 +96,51 @@ def _get_logs_dir(_path: str = '/logs/') -> str:
         os.makedirs(dir_path)
     logs_dir = os.path.expanduser(dir_path)
     return logs_dir
+
+
+async def get_package_status(request: web.Request) -> web.Response:
+    """ GET list of package status
+    :Example:
+        curl -sX GET http://localhost:8081/fledge/package/list/status
+        curl -sX GET http://localhost:8081/fledge/package/install/status
+        curl -sX GET http://localhost:8081/fledge/package/purge/status
+        curl -sX GET http://localhost:8081/fledge/package/update/status
+        curl -sX GET http://localhost:8081/fledge/package/list/status?id=6560fc22-1e69-416c-9b61-06cd4f3fd8af
+        curl -sX GET http://localhost:8081/fledge/package/install/status?id=9f2f11c6-cbc4-483f-b49d-5eb57cf8001a
+        curl -sX GET http://localhost:8081/fledge/package/purge/status?id=a7ca51b0-35bf-476a-84fe-60e98006875e
+        curl -sX GET http://localhost:8081/fledge/package/update/status?id=f156e5de-3e43-4451-a63b-a933c65754ef
+    """
+    try:
+        action = request.match_info.get('action', '').lower()
+        if action not in valid_actions:
+            raise ValueError("Accepted package actions are {}".format(valid_actions))
+        select = PayloadBuilder().SELECT(("id", "name", "action", "status", "log_file_uri")).WHERE(
+            ['action', '=', action]).chain_payload()
+        if 'id' in request.query and request.query['id'] != '':
+            select = PayloadBuilder(select).AND_WHERE(['id', '=', request.query['id']]).chain_payload()
+        final_payload = PayloadBuilder(select).payload()
+        storage_client = connect.get_storage_async()
+        result = await storage_client.query_tbl_with_payload('packages', final_payload)
+        response = result['rows']
+        if not response:
+            raise KeyError("No record found")
+        result = []
+        for r in response:
+            tmp = r
+            if r['status'] == 0:
+                tmp['status'] = 'success'
+            elif r['status'] == -1:
+                tmp['status'] = 'in-progress'
+            else:
+                tmp['status'] = 'failed'
+            tmp['logFileURI'] = r['log_file_uri']
+            del tmp['log_file_uri']
+            result.append(tmp)
+    except ValueError as err_msg:
+        raise web.HTTPBadRequest(reason=err_msg, body=json.dumps({"message": str(err_msg)}))
+    except KeyError as err_msg:
+        raise web.HTTPNotFound(reason=err_msg, body=json.dumps({"message": str(err_msg)}))
+    except Exception as exc:
+        raise web.HTTPInternalServerError(reason=str(exc))
+    else:
+        return web.json_response({"packageStatus": result})

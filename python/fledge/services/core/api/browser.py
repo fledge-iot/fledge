@@ -37,11 +37,15 @@ Supports a number of REST API:
 """
 import time
 import datetime
+import json
 
 from aiohttp import web
 
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.services.core import connect
+from fledge.common import logger
+
+_logger = logger.setup(__name__)
 
 __author__ = "Mark Riddoch, Ashish Jabble, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -63,6 +67,7 @@ def setup(app):
     app.router.add_route('GET', '/fledge/asset/{asset_code}/{reading}/series', asset_averages)
     app.router.add_route('GET', '/fledge/asset/{asset_code}/bucket/{bucket_size}', asset_datapoints_with_bucket_size)
     app.router.add_route('GET', '/fledge/asset/{asset_code}/{reading}/bucket/{bucket_size}', asset_readings_with_bucket_size)
+    app.router.add_route('GET', '/fledge/structure/asset', asset_structure)
 
 
 def prepare_limit_skip_payload(request, _dict):
@@ -129,14 +134,17 @@ async def asset(request):
     return a readings with timestamps for the asset. The number of readings
     return is defaulted to a small number (20), this may be changed by supplying
     the query parameter ?limit=xx&skip=xx and it will not respect when datetime units is supplied
-
+    Can also output the readings in ascending or descending order. For that give query parameter
+    ?order=asc or ?order=desc . If nothing given in order then default is descending.
     Returns:
           json result on basis of SELECT user_ts as "timestamp", (reading)::jsonFROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0;
 
     :Example:
             curl -sX GET http://localhost:8081/fledge/asset/fogbench_humidity
             curl -sX GET http://localhost:8081/fledge/asset/fogbench_humidity?limit=1
-            curl -sX GET "http://localhost:8081/fledge/asset/fogbench_humidity?limit=1&skip=1"
+            curl -sX GET "http://localhost:8081/fledge/asset/fogbench_humidity?limit=1&skip=1
+            curl -sX GET "http://localhost:8081/fledge/asset/fogbench_humidity?limit=1&skip=1&order=asc
+            curl -sX GET "http://localhost:8081/fledge/asset/fogbench_humidity?limit=1&skip=1&order=desc
             curl -sX GET http://localhost:8081/fledge/asset/fogbench_humidity?seconds=60
     """
     asset_code = request.match_info.get('asset_code', '')
@@ -149,14 +157,23 @@ async def asset(request):
         # Add the order by and limit, offset clause
         _and_where = prepare_limit_skip_payload(request, _where)
 
-    payload = PayloadBuilder(_and_where).ORDER_BY(["user_ts", "desc"]).payload()
+    # check the order. keep the default order desc
+    _order = 'desc'
+    if 'order' in request.query:
+        _order = request.query['order']
+        if _order not in ('asc', 'desc'):
+            msg = "order must be asc or desc"
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+
+    payload = PayloadBuilder(_and_where).ORDER_BY(["user_ts", _order]).payload()
     results = {}
     try:
         _readings = connect.get_readings_async()
         results = await _readings.query(payload)
         response = results['rows']
     except KeyError:
-        raise web.HTTPBadRequest(reason=results['message'])
+        msg = results['message']
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
 
@@ -595,3 +612,72 @@ async def asset_readings_with_bucket_size(request: web.Request) -> web.Response:
         raise web.HTTPInternalServerError(reason=str(e))
     else:
         return web.json_response(response)
+
+
+async def asset_structure(request):
+    """ Browse all the assets for which we have recorded readings and
+    return the asset structure
+
+    Returns:
+           json result showing the asset structure
+
+    :Example:
+            curl -sX GET http://localhost:8081/fledge/structure/asset
+            {
+              "AX8": {
+                "datapoint": {
+                  "internal": "float",
+                  "spot1": "float",
+                  "minRPi": "float",
+                  "maxRPi": "float",
+                  "averageRPi": "float",
+                  "minBackupdisk": "float",
+                  "maxBackupdisk": "float",
+                  "averageBackupdisk": "float",
+                  "minCoral": "float",
+                  "maxCoral": "float",
+                  "averageCoral": "float"
+                },
+                "metadata": {
+                  "factory": "London",
+                  "line": "Line 4",
+                  "units": "Kelvin"
+                }
+              }
+            }
+    """
+    payload = PayloadBuilder().GROUP_BY("asset_code").payload()
+
+    results = {}
+    try:
+        _readings = connect.get_readings_async()
+        results = await _readings.query(payload)
+        rows = results['rows']
+        asset_json = {}
+        for row in rows:
+            code = row['asset_code']
+            datapoint = {}
+            metadata = {}
+            for name, value in row['reading'].items():
+                if type(value) == str:
+                    if value == "True" or value == "False":
+                        datapoint[name] = "boolean"
+                    else:
+                        metadata[name] = value
+                elif type(value) == int:
+                    datapoint[name] = "integer"
+                elif type(value) == float:
+                    datapoint[name] = "float"
+            if len(metadata) > 0:
+                asset_json[code] = {'datapoint':datapoint,'metadata':metadata}
+            else:
+                asset_json[code] = {'datapoint':datapoint}
+    except KeyError:
+        msg = results['message']
+        raise web.HTTPBadRequest(reason=results['message'], body=json.dumps({"message": msg}))
+    except Exception as e:
+        raise web.HTTPInternalServerError(reason=str(e), body=json.dumps({"message":str(e)}))
+    else:
+        return web.json_response(asset_json)
+
+

@@ -16,7 +16,16 @@
 #include <sqlite3.h>
 #include <mutex>
 #include <reading_stream.h>
+#include <map>
+#include <vector>
+#include <atomic>
 
+#define _DB_NAME                  "/fledge.sqlite"
+#define READINGS_DB_NAME_BASE     "readings"
+#define READINGS_DB_FILE_NAME     "/" READINGS_DB_NAME_BASE "_1.db"
+#define READINGS_DB               READINGS_DB_NAME_BASE "_1"
+#define READINGS_TABLE            "readings"
+#define READINGS_TABLE_MEM       READINGS_TABLE "_1"
 
 #define LEN_BUFFER_DATE 100
 #define F_TIMEH24_S             "%H:%M:%S"
@@ -32,10 +41,47 @@
 #define SQLITE3_NOW_READING     "strftime('%Y-%m-%d %H:%M:%f000+00:00', 'now')"
 #define SQLITE3_FLEDGE_DATETIME_TYPE "DATETIME"
 
+#define  DB_CONFIGURATION "PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;"
+
 // Set plugin name for log messages
 #ifndef PLUGIN_LOG_NAME
 #define PLUGIN_LOG_NAME "SQLite3"
 #endif
+
+// Retry mechanism
+#define PREP_CMD_MAX_RETRIES		20	    // Maximum no. of retries when a lock is encountered
+#define PREP_CMD_RETRY_BASE 		5000    // Base time to wait for
+#define PREP_CMD_RETRY_BACKOFF		5000 	// Variable time to wait for
+
+#define MAX_RETRIES			40	// Maximum no. of retries when a lock is encountered
+#define RETRY_BACKOFF			100	// Multipler to backoff DB retry on lock
+
+/*
+ * Control the way purge deletes readings. The block size sets a limit as to how many rows
+ * get deleted in each call, whilst the sleep interval controls how long the thread sleeps
+ * between deletes. The idea is to not keep the database locked too long and allow other threads
+ * to have access to the database between blocks.
+ */
+#define PURGE_SLEEP_MS 500
+#define PURGE_DELETE_BLOCK_SIZE	20
+#define TARGET_PURGE_BLOCK_DEL_TIME	(70*1000) 	// 70 msec
+#define PURGE_BLOCK_SZ_GRANULARITY	5 	// 5 rows
+#define MIN_PURGE_DELETE_BLOCK_SIZE	20
+#define MAX_PURGE_DELETE_BLOCK_SIZE	1500
+#define RECALC_PURGE_BLOCK_SIZE_NUM_BLOCKS	30	// recalculate purge block size after every 30 blocks
+
+#define PURGE_SLOWDOWN_AFTER_BLOCKS 5
+#define PURGE_SLOWDOWN_SLEEP_MS 500
+
+#define SECONDS_PER_DAY "86400.0"
+// 2440587.5 is the julian day at 1/1/1970 0:00 UTC.
+#define JULIAN_DAY_START_UNIXTIME "2440587.5"
+
+
+#define START_TIME std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+#define END_TIME std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now(); \
+				 auto usecs = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
+
 
 int dateCallback(void *data, int nCols, char **colValues, char **colNames);
 bool applyColumnDateFormat(const std::string& inFormat,
@@ -97,10 +143,16 @@ class Connection {
 		bool		aggregateQuery(const rapidjson::Value& payload, std::string& resultSet);
 		bool        getNow(std::string& Now);
 
+		sqlite3		*getDbHandle() {return dbHandle;};
+		void        setUsedDbId(int dbId);
+
 	private:
+		std::vector<int>  m_NewDbIdList;            // Newly created databases that should be attached
+
 		bool 		m_streamOpenTransaction;
-		int		m_queuing;
+		int		    m_queuing;
 		std::mutex	m_qMutex;
+		int         SQLPrepare(sqlite3 *dbHandle, const char *sqlCmd, sqlite3_stmt **readingsStmt);
 		int 		SQLexec(sqlite3 *db, const char *sql,
 					int (*callback)(void*,int,char**,char**),
 					void *cbArg, char **errmsg);
@@ -108,14 +160,29 @@ class Connection {
 		bool		m_logSQL;
 		void		raiseError(const char *operation, const char *reason,...);
 		sqlite3		*dbHandle;
-		int		mapResultSet(void *res, std::string& resultSet);
+		int		mapResultSet(void *res, std::string& resultSet, unsigned long *rowsCount = nullptr);
+#ifndef SQLITE_SPLIT_READINGS
+		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&, std::vector<std::string>  &asset_codes, bool convertLocaltime = false);
+#else
 		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&, bool convertLocaltime = false);
+#endif
 		bool		jsonModifiers(const rapidjson::Value&, SQLBuffer&, bool isTableReading = false);
+#ifndef SQLITE_SPLIT_READINGS
 		bool		jsonAggregates(const rapidjson::Value&,
 					       const rapidjson::Value&,
 					       SQLBuffer&,
 					       SQLBuffer&,
-					       bool isTableReading = false);
+					       bool &isOptAggregate,
+					       bool isTableReading = false,
+					       bool isExtQuery = false
+					       );
+#else
+	bool		jsonAggregates(const rapidjson::Value&,
+		                               const rapidjson::Value&,
+		                               SQLBuffer&,
+		                               SQLBuffer&,
+		                               bool isTableReading = false);
+#endif
 		bool		returnJson(const rapidjson::Value&, SQLBuffer&, SQLBuffer&);
 		char		*trim(char *str);
 		const std::string
@@ -124,5 +191,8 @@ class Connection {
 						int i,
 						std::string& newDate);
 		void		logSQL(const char *, const char *);
+
+
 };
+
 #endif

@@ -48,6 +48,7 @@ CMAKE_SERVICES_DIR       := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/services
 CMAKE_TASKS_DIR          := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/tasks
 CMAKE_STORAGE_BINARY     := $(CMAKE_SERVICES_DIR)/storage/fledge.services.storage
 CMAKE_SOUTH_BINARY       := $(CMAKE_SERVICES_DIR)/south/fledge.services.south
+CMAKE_NORTH_SERVICE_BINARY       := $(CMAKE_SERVICES_DIR)/north/fledge.services.north
 CMAKE_NORTH_BINARY       := $(CMAKE_TASKS_DIR)/north/sending_process/sending_process
 CMAKE_PLUGINS_DIR        := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/plugins
 DEV_SERVICES_DIR         := $(CURRENT_DIR)/services
@@ -55,6 +56,7 @@ DEV_TASKS_DIR            := $(CURRENT_DIR)/tasks
 SYMLINK_PLUGINS_DIR      := $(CURRENT_DIR)/plugins
 SYMLINK_STORAGE_BINARY   := $(DEV_SERVICES_DIR)/fledge.services.storage
 SYMLINK_SOUTH_BINARY     := $(DEV_SERVICES_DIR)/fledge.services.south
+SYMLINK_NORTH_SERVICE_BINARY     := $(DEV_SERVICES_DIR)/fledge.services.north
 SYMLINK_NORTH_BINARY     := $(DEV_TASKS_DIR)/sending_process
 ASYNC_INGEST_PYMODULE    := $(CURRENT_DIR)/python/async_ingest.so*
 FILTER_INGEST_PYMODULE    := $(CURRENT_DIR)/python/filter_ingest.so*
@@ -142,7 +144,7 @@ PACKAGE_NAME=Fledge
 # generally prepare the development tree to allow for core to be run
 default : apply_version \
 	generate_selfcertificate \
-	c_build $(SYMLINK_STORAGE_BINARY) $(SYMLINK_SOUTH_BINARY) $(SYMLINK_NORTH_BINARY) $(SYMLINK_PLUGINS_DIR) \
+	c_build $(SYMLINK_STORAGE_BINARY) $(SYMLINK_SOUTH_BINARY) $(SYMLINK_NORTH_SERVICE_BINARY) $(SYMLINK_NORTH_BINARY) $(SYMLINK_PLUGINS_DIR) \
 	python_build python_requirements_user
 
 apply_version :
@@ -248,6 +250,10 @@ $(SYMLINK_STORAGE_BINARY) : $(DEV_SERVICES_DIR)
 # create symlink to south binary
 $(SYMLINK_SOUTH_BINARY) : $(DEV_SERVICES_DIR)
 	$(LN) $(CMAKE_SOUTH_BINARY) $(SYMLINK_SOUTH_BINARY)
+
+# create symlink to north service binary
+$(SYMLINK_NORTH_SERVICE_BINARY) : $(DEV_SERVICES_DIR)
+	$(LN) $(CMAKE_NORTH_SERVICE_BINARY) $(SYMLINK_NORTH_SERVICE_BINARY)
 
 # create services dir
 $(DEV_SERVICES_DIR) :

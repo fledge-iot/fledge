@@ -69,13 +69,6 @@ const char *default_config = QUOTE({
 			"default" : "2",
 			"displayName" : "Database allocation size",
 			"order" : "5"
-		},
-		"logSQL" : {
-			"description" : "Log the SQL statements that are executed",
-			"type" : "boolean",
-			"default" : "false",
-			"displayName" : "Log SQL",
-			"order" : "6"
 		}
 
 });
@@ -138,12 +131,6 @@ PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 	{
 		storageConfig.nDbToAllocate = strtol(category->getValue("nDbToAllocate").c_str(), NULL, 10);
 	}
-
-	if (category->itemExists("logSQL"))
-	{
-		storageConfig.logSQL = category->getValue("nDbToAllocate").compare("false") ? true : false;
-	}
-	manager->setLogSQL(storageConfig.logSQL);
 
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 	readCat->multipleReadingsInit(storageConfig);

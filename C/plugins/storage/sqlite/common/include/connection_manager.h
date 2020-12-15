@@ -32,7 +32,6 @@ class ConnectionManager {
 		bool 					  detachNewDb(std::string &alias);
 		void                      release(Connection *);
 		void			  shutdown();
-		void			  setLogSQL(bool log) { m_trace = log; };
 		void			  setError(const char *, const char *, bool);
 		PLUGIN_ERROR		  *getError()
 					  {

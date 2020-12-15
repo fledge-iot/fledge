@@ -643,7 +643,7 @@ void Connection::setTrace(bool flag)
  * @return             SQLite3 result code of sqlite3_step(res)
  *
  */
-int Connection::mapResultSet(void* res, string& resultSet)
+int Connection::mapResultSet(void* res, string& resultSet,  unsigned long *rowsCount)
 {
 // Cast to SQLite3 result set
 sqlite3_stmt* pStmt = (sqlite3_stmt *)res;
@@ -756,6 +756,11 @@ unsigned long nRows = 0, nCols = 0;
 
 		// Add the current row to the all rows object
 		rows.PushBack(row, allocator);
+	}
+
+	if (rowsCount != nullptr)
+	{
+		*rowsCount = nRows;
 	}
 
 	// All rows added: update rows count

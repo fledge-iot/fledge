@@ -59,7 +59,9 @@ public:
 	int           getReadingsCount();
 	int           getReadingPosition(int dbId, int tableId);
 	int           getNReadingsAvailable() const      {return m_nReadingsAvailable;}
-	int           getGlobalId() {return m_ReadingsGlobalId++;};
+	int           getIncGlobalId() {return m_ReadingsGlobalId++;};
+	int           getMinGlobalId (sqlite3 *dbHandle);
+	int           getGlobalId() {return m_ReadingsGlobalId;};
 	bool          evaluateGlobalId();
 	bool          storeGlobalId ();
 

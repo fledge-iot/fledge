@@ -372,7 +372,8 @@ def read_data_from_pi_web_api():
                 for el in _items:
                     _recoded_value_list = []
                     for _head in sensor:
-                        if el["Name"] == _head:
+                        # This checks if the recorded datapoint is present in the items that we retrieve from the PI server.
+                        if _head in el["Name"]:
                             elx = el["Items"]
                             for _el in elx:
                                 _recoded_value_list.append(_el["Value"])

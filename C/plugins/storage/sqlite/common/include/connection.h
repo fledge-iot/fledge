@@ -160,7 +160,7 @@ class Connection {
 		bool		m_logSQL;
 		void		raiseError(const char *operation, const char *reason,...);
 		sqlite3		*dbHandle;
-		int		mapResultSet(void *res, std::string& resultSet);
+		int		mapResultSet(void *res, std::string& resultSet, unsigned long *rowsCount = nullptr);
 #ifndef SQLITE_SPLIT_READINGS
 		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&, std::vector<std::string>  &asset_codes, bool convertLocaltime = false);
 #else

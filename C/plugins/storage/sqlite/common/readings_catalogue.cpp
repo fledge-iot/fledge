@@ -292,6 +292,82 @@ int ReadingsCatalogue::calculateGlobalId (sqlite3 *dbHandle)
 }
 
 /**
+ *  Calculates the minimum id from the readings tables executing a min(id) on each table
+ *
+ */
+int ReadingsCatalogue::getMinGlobalId (sqlite3 *dbHandle)
+{
+	string sql_cmd;
+	string dbReadingsName;
+	string dbName;
+
+	int rc;
+	int id;
+	int nCols;
+
+	sqlite3_stmt *stmt;
+	id = 1;
+
+	// Prepare the sql command to calculate the global id from the rows in the DB
+	{
+		sql_cmd = R"(
+			SELECT
+				min(id) id
+			FROM
+			(
+		)";
+
+		bool firstRow = true;
+		if (m_AssetReadingCatalogue.empty())
+		{
+			string dbReadingsName = generateReadingsName(1, 1);
+
+			sql_cmd += " SELECT min(id) id FROM " READINGS_DB "." + dbReadingsName + " ";
+		}
+		else
+		{
+			for (auto &item : m_AssetReadingCatalogue)
+			{
+				if (!firstRow)
+				{
+					sql_cmd += " UNION ";
+				}
+
+				dbName = generateDbName(item.second.second);
+				dbReadingsName = generateReadingsName(item.second.second, item.second.first);
+
+				sql_cmd += " SELECT min(id) id FROM " + dbName + "." + dbReadingsName + " ";
+				firstRow = false;
+			}
+		}
+		sql_cmd += ") AS tb";
+	}
+
+
+	if (sqlite3_prepare_v2(dbHandle,sql_cmd.c_str(),-1, &stmt,NULL) != SQLITE_OK)
+	{
+		raiseError(__FUNCTION__, sqlite3_errmsg(dbHandle));
+		return false;
+	}
+
+	if (SQLStep(stmt) != SQLITE_ROW)
+	{
+		id = 0;
+	}
+	else
+	{
+		nCols = sqlite3_column_count(stmt);
+		id = sqlite3_column_int(stmt, 0);
+	}
+
+	Logger::getLogger()->debug("%s - global id evaluated :%d:", __FUNCTION__, id);
+
+	sqlite3_finalize(stmt);
+
+	return (id);
+}
+
+/**
  * Loads the reading catalogue stored in SQLite into an in memory structure
  *
  */

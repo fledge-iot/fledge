@@ -1025,18 +1025,32 @@ unsigned long rowsCount;
 	// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
 	{
 		// SQL - start
-		sql_cmd = R"(SELECT id, asset_code, reading, strftime('%Y-%m-%d %H:%M:%S', user_ts, 'utc')  || substr(user_ts, instr(user_ts, '.'), 7) AS user_ts, strftime('%Y-%m-%d %H:%M:%f', ts, 'utc') AS ts FROM ()";
+		sql_cmd = R"(
+			SELECT
+				id,
+				asset_code,
+				reading,
+				strftime('%Y-%m-%d %H:%M:%S', user_ts, 'utc')  ||
+				substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
+				strftime('%Y-%m-%d %H:%M:%f', ts, 'utc') AS ts
+			FROM
+			(
+		)";
 
 		// SQL - union of all the readings tables
 		string sql_cmd_base;
 		string sql_cmd_tmp;
-		sql_cmd_base = " SELECT  id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ WHERE id >= " + to_string(id) + " ";
+		sql_cmd_base = " SELECT  id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ WHERE id >= " + to_string(id) + " and id <=  " + to_string(id) + " + " + to_string(blksize) + " ";
 		ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 		sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, asset_codes);
 		sql_cmd += sql_cmd_tmp;
 
 		// SQL - end
-		sql_cmd += R"() as tb ORDER BY id ASC LIMIT)" + to_string(blksize);
+		sql_cmd += R"(
+			) as tb
+			ORDER BY id ASC
+			LIMIT
+		)" + to_string(blksize);
 
 	}
 

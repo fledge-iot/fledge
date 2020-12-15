@@ -832,7 +832,7 @@ int stmtArraySize;
 
 			if(stmt != NULL) {
 
-				sqlite3_bind_int (stmt, 1, readCatalogue->getGlobalId());
+				sqlite3_bind_int (stmt, 1, readCatalogue->getIncGlobalId());
 				sqlite3_bind_text(stmt, 2, user_ts         ,-1, SQLITE_STATIC);
 				sqlite3_bind_text(stmt, 3, reading.c_str(), -1, SQLITE_STATIC);
 
@@ -989,6 +989,9 @@ int rc;
 int retrieve;
 vector<string>  asset_codes;
 string sql_cmd;
+unsigned int minGlobalId;
+unsigned int idWindow;
+unsigned long rowsCount;
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
@@ -1004,6 +1007,19 @@ string sql_cmd;
 			readCatalogue->connectionAttachDbList(this->getDbHandle(), m_NewDbIdList);
 		}
 		attachSync->unlock();
+	}
+
+	if (id == 1)
+	{
+		// at the first extract, Verifies if there are data having id above the current searched window
+		minGlobalId = readCatalogue->getMinGlobalId(this->getDbHandle());
+		idWindow = id + blksize;
+
+		if (idWindow < minGlobalId)
+		{
+			id = minGlobalId;
+			Logger::getLogger()->debug("%s - first extraction, data extracted from the id :%lu:", __FUNCTION__, id);
+		}
 	}
 
 	// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
@@ -1027,11 +1043,8 @@ string sql_cmd;
 	logSQL("ReadingsFetch", sql_cmd.c_str());
 	sqlite3_stmt *stmt;
 	// Prepare the SQL statement and get the result set
-	if (sqlite3_prepare_v2(dbHandle,
-						   sql_cmd.c_str(),
-						   -1,
-						   &stmt,
-						   NULL) != SQLITE_OK)
+	rc = sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(),-1,&stmt,NULL);
+	if (rc != SQLITE_OK)
 	{
 		raiseError("retrieve", sqlite3_errmsg(dbHandle));
 
@@ -1041,7 +1054,72 @@ string sql_cmd;
 	else
 	{
 		// Call result set mapping
-		rc = mapResultSet(stmt, resultSet);
+		rc = mapResultSet(stmt, resultSet, &rowsCount);
+
+		if (rowsCount == 0)
+		{
+			// If no data were processed, it verifies if there are data having id above the current searched window
+			minGlobalId = readCatalogue->getMinGlobalId(this->getDbHandle());
+			idWindow = id + blksize;
+
+			if (idWindow < minGlobalId)
+			{
+				id = minGlobalId;
+
+				// Delete result set
+				sqlite3_finalize(stmt);
+
+				// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
+				{
+					// SQL - start
+					sql_cmd = R"(
+						SELECT
+							id,
+							asset_code,
+							reading,
+							strftime('%Y-%m-%d %H:%M:%S', user_ts, 'utc')  ||
+							substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
+							strftime('%Y-%m-%d %H:%M:%f', ts, 'utc') AS ts
+						FROM
+						(
+					)";
+
+					// SQL - union of all the readings tables
+					string sql_cmd_base;
+					string sql_cmd_tmp;
+					sql_cmd_base = " SELECT  id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ WHERE id >= " + to_string(id) + " and id <=  " + to_string(id) + " + " + to_string(blksize) + " ";
+					ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
+					sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, asset_codes);
+					sql_cmd += sql_cmd_tmp;
+
+					// SQL - end
+					sql_cmd += R"(
+					) as tb
+					ORDER BY id ASC
+					LIMIT
+				)" + to_string(blksize);
+
+				}
+
+				logSQL("ReadingsFetch", sql_cmd.c_str());
+				// Prepare the SQL statement and get the result set
+				rc = sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(),-1,&stmt,NULL);
+				if (rc != SQLITE_OK)
+				{
+					raiseError("retrieve", sqlite3_errmsg(dbHandle));
+
+					// Failure
+					return false;
+				}
+				// Call result set mapping
+				rc = mapResultSet(stmt, resultSet ,&rowsCount);
+
+				if (rowsCount != 0)
+				{
+					Logger::getLogger()->debug("%s - following extractions, data extracted from the id :%lu:", __FUNCTION__, id);
+				}
+			}
+		}
 
 		// Delete result set
 		sqlite3_finalize(stmt);

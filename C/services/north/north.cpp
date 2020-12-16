@@ -315,8 +315,8 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 			m_cv.wait(lck);
 		}
 
-		delete m_dataLoad;
 		delete m_dataSender;
+		delete m_dataLoad;
 
 
 		// Shutdown the north plugin

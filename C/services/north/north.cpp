@@ -190,7 +190,8 @@ int	size;
 /**
  * Constructor for the north service
  */
-NorthService::NorthService(const string& myName) : m_name(myName), m_shutdown(false), m_storage(NULL)
+NorthService::NorthService(const string& myName) : m_name(myName), m_shutdown(false),
+	m_storage(NULL), m_pluginData(NULL)
 {
 	logger = new Logger(myName);
 	logger->setMinLevel("warning");
@@ -271,8 +272,25 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 						storageRecord.getPort());
 
 		// Fetch Confguration
+		logger->debug("Initialise the asset tracker");
 		m_assetTracker = new AssetTracker(m_mgtClient, m_name);
 		AssetTracker::getAssetTracker()->populateAssetTrackingCache(m_name, "Egress");
+
+		// Deal with persisted data and start the plugin
+		if (northPlugin->persistData())
+		{
+			logger->debug("Plugin %s requires persisted data", m_pluginName.c_str());
+			m_pluginData = new PluginData(m_storage);
+			string key = m_name + m_pluginName;
+			string storedData = m_pluginData->loadStoredData(key);
+			logger->debug("Starting plugin with storedData: %s", storedData.c_str());
+			northPlugin->startData(storedData);
+		}
+		else
+		{
+			logger->debug("Start %s plugin", m_pluginName.c_str());
+			northPlugin->start();
+		}
 
 		// Setup the data loading
 		long streamId = 0;
@@ -280,12 +298,14 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		{
 			streamId = strtol(m_config.getValue("streamId").c_str(), NULL, 10);
 		}
+		logger->debug("Create threads for stream %d", streamId);
 		m_dataLoad = new DataLoad(m_name, streamId, m_storage);
 		if (m_config.itemExists("source"))
 		{
 			m_dataLoad->setDataSource(m_config.getValue("source"));
 		}
 		m_dataSender = new DataSender(northPlugin, m_dataLoad, this);
+		logger->debug("North service is running");
 
 		
 		// wait for shutdown
@@ -295,13 +315,29 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 			m_cv.wait(lck);
 		}
 
-		delete m_dataLoad;
 		delete m_dataSender;
+		delete m_dataLoad;
 
 
 		// Shutdown the north plugin
 		if (northPlugin)
-			northPlugin->shutdown();
+		{
+			if (m_pluginData)
+			{
+				string saveData = northPlugin->shutdownSaveData();
+				string key = m_name + m_pluginName;
+				logger->debug("Persist plugin data key %s is %s", key.c_str(), saveData.c_str());
+				if (!m_pluginData->persistPluginData(key, saveData))
+				{
+					Logger::getLogger()->error("Plugin %s has failed to save data [%s] for key %s",
+						m_pluginName.c_str(), saveData.c_str(), key.c_str());
+				}
+			}
+			else
+			{
+				northPlugin->shutdown();
+			}
+		}
 		
 		// Clean shutdown, unregister the storage service
 		m_mgtClient->unregisterService();
@@ -408,6 +444,10 @@ bool NorthService::loadPlugin()
 
 			// Must now reload the merged configuration
 			m_configAdvanced = m_mgtClient->getCategory(advancedCatName);
+			if (m_configAdvanced.itemExists("logLevel"))
+			{
+				logger->setMinLevel(m_configAdvanced.getValue("logLevel"));
+			}
 
 			try {
 				northPlugin = new NorthPlugin(handle, m_config);
@@ -447,14 +487,26 @@ void NorthService::configChange(const string& categoryName, const string& catego
 			category.c_str());
 	if (categoryName.compare(m_name) == 0)
 	{
+		if (m_pluginData)
+		{
+			string saveData = northPlugin->shutdownSaveData();
+			string key = m_name + m_pluginName;
+			logger->debug("Persist plugin data key %s is %s", key.c_str(), saveData.c_str());
+			if (!m_pluginData->persistPluginData(key, saveData))
+			{
+				Logger::getLogger()->error("Plugin %s has failed to save data [%s] for key %s",
+					m_pluginName.c_str(), saveData.c_str(), key.c_str());
+			}
+		}
+		else
+		{
+			northPlugin->shutdown();
+		}
+		delete northPlugin;
+
 		m_config = ConfigCategory(m_name, category);
-		try {
-			northPlugin->reconfigure(category);
-		}
-		catch (...) {
-			logger->fatal("Unrecoverable failure during North plugin reconfigure, north service exiting...");
-			shutdown();
-		}
+
+		loadPlugin();
 	}
 	if (categoryName.compare(m_name+"Advanced") == 0)
 	{

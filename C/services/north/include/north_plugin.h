@@ -37,16 +37,18 @@ public:
 	void		reconfigure(const std::string&);
 	void		shutdown();
 	bool		persistData() { return info->options & SP_PERSIST_DATA; };
+	void		start();
 	void		startData(const std::string& pluginData);
 	std::string	shutdownSaveData();
 
 private:
-	PLUGIN_HANDLE	instance;
+	PLUGIN_HANDLE	m_instance;
 	uint32_t	(*pluginSendPtr)(PLUGIN_HANDLE, const std::vector<Reading *>& readings);
 	void		(*pluginReconfigurePtr)(PLUGIN_HANDLE*,
 					        const std::string& newConfig);
 	void		(*pluginShutdownPtr)(PLUGIN_HANDLE);
 	std::string	(*pluginShutdownDataPtr)(const PLUGIN_HANDLE);
+	void		(*pluginStartPtr)(PLUGIN_HANDLE);
 	void		(*pluginStartDataPtr)(PLUGIN_HANDLE,
 					      const std::string& pluginData);
 };

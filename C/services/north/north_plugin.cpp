@@ -33,9 +33,9 @@ NorthPlugin::NorthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category) :
 	// Call the init method of the plugin
 	PLUGIN_HANDLE (*pluginInit)(const void *) = (PLUGIN_HANDLE (*)(const void *))
 					manager->resolveSymbol(handle, "plugin_init");
-	instance = (*pluginInit)(&category);
+	m_instance = (*pluginInit)(&category);
 
-	if (!instance)
+	if (!m_instance)
 	{
 		Logger::getLogger()->error("plugin_init returned NULL, cannot proceed");
 		throw new exception();
@@ -49,9 +49,46 @@ NorthPlugin::NorthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category) :
 				manager->resolveSymbol(handle, "plugin_reconfigure");
   	pluginShutdownPtr = (void (*)(PLUGIN_HANDLE))
 				manager->resolveSymbol(handle, "plugin_shutdown");
+	pluginShutdownDataPtr = (string (*)(const PLUGIN_HANDLE))
+				manager->resolveSymbol(handle, "plugin_shutdown");
 
 	pluginShutdownDataPtr = (string (*)(const PLUGIN_HANDLE))
 				 manager->resolveSymbol(handle, "plugin_shutdown");
+
+	pluginStartPtr = (void (*)(const PLUGIN_HANDLE))
+				manager->resolveSymbol(handle, "plugin_start");
+	pluginStartDataPtr = (void (*)(const PLUGIN_HANDLE, const string& storedData))
+				manager->resolveSymbol(handle, "plugin_start");
+}
+
+NorthPlugin::~NorthPlugin()
+{
+}
+
+/**
+ * Call the start method in the plugin
+ * with no persisted data
+ */
+void NorthPlugin::start()
+{
+	// Ccheck pluginStart function pointer exists
+	if (this->pluginStartPtr)
+	{
+		this->pluginStartPtr(m_instance);
+	}
+}
+
+/**
+ * Call the start method in the plugin
+ * passing persisted data
+ */
+void NorthPlugin::startData(const string& storedData)
+{
+	// Ccheck pluginStartData function pointer exists
+	if (this->pluginStartDataPtr)
+	{
+		this->pluginStartDataPtr(m_instance, storedData);
+	}
 }
 
 /**
@@ -61,7 +98,7 @@ uint32_t NorthPlugin::send(const vector<Reading *>& readings)
 {
 	lock_guard<mutex> guard(mtx2);
 	try {
-		return this->pluginSendPtr(instance, readings);
+		return this->pluginSendPtr(m_instance, readings);
 	} catch (exception& e) {
 		Logger::getLogger()->fatal("Unhandled exception raised in north plugin send(), %s",
 			e.what());
@@ -86,17 +123,23 @@ void NorthPlugin::reconfigure(const string& newConfig)
 		 * and restart the plugin.
 		 */
 		lock_guard<mutex> guard(mtx2);
-		(*pluginShutdownPtr)(instance);
-		PLUGIN_HANDLE (*pluginInit)(const void *) = (PLUGIN_HANDLE (*)(const void *))
+		if (persistData())
+		{
+		}
+		else
+		{
+			(*pluginShutdownPtr)(m_instance);
+			PLUGIN_HANDLE (*pluginInit)(const void *) = (PLUGIN_HANDLE (*)(const void *))
 					manager->resolveSymbol(handle, "plugin_init");
-		ConfigCategory category("new", newConfig);
-		instance = (*pluginInit)(&category);
+			ConfigCategory category("new", newConfig);
+			m_instance = (*pluginInit)(&category);
+		}
 		return;
 	}
 	lock_guard<mutex> guard(mtx2);
 	try {
-		this->pluginReconfigurePtr(&instance, newConfig);
-		if (!instance)
+		this->pluginReconfigurePtr(&m_instance, newConfig);
+		if (!m_instance)
 		{
 			Logger::getLogger()->error("plugin_reconfigure returned NULL, cannot proceed");
 			throw new exception();
@@ -121,7 +164,7 @@ void NorthPlugin::shutdown()
 {
 	lock_guard<mutex> guard(mtx2);
 	try {
-		return this->pluginShutdownPtr(instance);
+		return this->pluginShutdownPtr(m_instance);
 	} catch (exception& e) {
 		Logger::getLogger()->fatal("Unhandled exception raised in north plugin shutdown(), %s",
 			e.what());
@@ -132,4 +175,19 @@ void NorthPlugin::shutdown()
 			p ? p.__cxa_exception_type()->name() : "unknown exception");
 		throw;
 	}
+}
+
+/**
+ * Call the shutdown method in the plugin
+ * and return plugin data to parsist as JSON string
+ */
+string NorthPlugin::shutdownSaveData()
+{
+	string ret("");
+	// Check pluginShutdownData function pointer exists
+	if (this->pluginShutdownDataPtr)
+	{
+		ret = this->pluginShutdownDataPtr(m_instance);
+	}
+	return ret;
 }

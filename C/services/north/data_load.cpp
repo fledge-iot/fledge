@@ -104,6 +104,7 @@ unsigned int DataLoad::waitForReadRequest()
 	}
 	unsigned int rval =  m_readRequest;
 	m_readRequest = 0;
+	Logger::getLogger()->debug("DataLoad received read request for %d readings", rval);
 	return rval;
 }
 
@@ -133,6 +134,7 @@ ReadingSet *readings = NULL;
 			switch (m_dataSource)
 			{
 				case SourceReadings:
+					Logger::getLogger()->debug("Fetch %d readings from %d", blockSize, m_lastFetched + 1);
 					readings = m_storage->readingFetch(m_lastFetched + 1, blockSize);
 					break;
 				case SourceStatistics:
@@ -160,6 +162,10 @@ ReadingSet *readings = NULL;
 			m_lastFetched = readings->getLastId();
 			bufferReadings(readings);
 			return;
+		}
+		else
+		{
+			Logger::getLogger()->debug("No readings available");
 		}
 		if (!m_shutdown)
 		{	
@@ -300,6 +306,7 @@ void DataLoad::bufferReadings(ReadingSet *readings)
 	}
 	unique_lock<mutex> lck(m_qMutex);
 	m_queue.push_back(readings);
+	Logger::getLogger()->debug("Buffered %d readings for north processing", readings->getCount());
 	m_fetchCV.notify_all();
 }
 

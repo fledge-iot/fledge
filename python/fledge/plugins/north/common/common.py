@@ -78,8 +78,10 @@ def evaluate_type(value):
      Raises:
      """
 
-    if type(value) is list:
+    if isinstance(value, list):
         evaluated_type = "array"
+    elif isinstance(value, dict):
+        evaluated_type = "string"
     else:
         try:
             float(value)

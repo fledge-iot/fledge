@@ -62,5 +62,6 @@ class NorthService : public ServiceHandler {
 		StorageClient			*m_storage;
 		std::mutex			m_mutex;
                 std::condition_variable		m_cv;
+		PluginData			*m_pluginData;
 };
 #endif

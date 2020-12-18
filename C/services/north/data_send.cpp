@@ -76,11 +76,19 @@ void DataSender::sendThread()
 			{
 				Reading *reading = *it;
 
-				AssetTrackingTuple tuple(m_service->getName(), m_service->getPluginName(), reading->getAssetName(), "Egress");
-				if (!AssetTracker::getAssetTracker()->checkAssetTrackingCache(tuple))
+				if (reading->getId() <= lastSent)
 				{
-					AssetTracker::getAssetTracker()->addAssetTrackingTuple(tuple);
-					Logger::getLogger()->info("sendDataThread:  Adding new asset tracking tuple - egress: %s", tuple.assetToString().c_str());
+
+					AssetTrackingTuple tuple(m_service->getName(), m_service->getPluginName(), reading->getAssetName(), "Egress");
+					if (!AssetTracker::getAssetTracker()->checkAssetTrackingCache(tuple))
+					{
+						AssetTracker::getAssetTracker()->addAssetTrackingTuple(tuple);
+						Logger::getLogger()->info("sendDataThread:  Adding new asset tracking tuple - egress: %s", tuple.assetToString().c_str());
+					}
+				}
+				else
+				{
+					break;
 				}
 			}
 		}

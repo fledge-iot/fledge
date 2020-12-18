@@ -47,6 +47,7 @@ class NorthService : public ServiceHandler {
 		void				addConfigDefaults(DefaultConfigCategory& defaults);
 		bool 				loadPlugin();
 		void 				createConfigCategories(DefaultConfigCategory configCategory, std::string parent_name,std::string current_name);
+		void				restartPlugin();
 	private:
 		DataLoad			*m_dataLoad;
 		DataSender			*m_dataSender;
@@ -63,5 +64,6 @@ class NorthService : public ServiceHandler {
 		std::mutex			m_mutex;
                 std::condition_variable		m_cv;
 		PluginData			*m_pluginData;
+		bool				m_restartPlugin;
 };
 #endif

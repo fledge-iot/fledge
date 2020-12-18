@@ -488,6 +488,17 @@ class SendingProcess(FledgeProcess):
             so these rows will generate an exception and will be skipped.
         """
 
+        def recurse(reading_payload):
+            for k, v in reading_payload.items():
+                if isinstance(v, dict):
+                    for k1, v1 in v.items():
+                        if isinstance(v1, dict):
+                            reading_payload[k][k1] = plugin_common.convert_to_type(v1)
+                            recurse(v1)
+                else:
+                    reading_payload[k] = plugin_common.convert_to_type(v)
+            return reading_payload
+
         converted_data = []
         for row in raw_data:
 
@@ -498,11 +509,7 @@ class SendingProcess(FledgeProcess):
                 # Skips row having undefined asset_code
                 if asset_code != "":
                     # Converts values to the proper types, for example "180.2" to float 180.2
-                    payload = row['reading']
-
-                    for key in list(payload.keys()):
-                        value = payload[key]
-                        payload[key] = plugin_common.convert_to_type(value)
+                    payload = recurse(row['reading'])
                     timestamp = apply_date_format(row['user_ts'])  # Adds timezone UTC
                     new_row = {
                         'id': row['id'],

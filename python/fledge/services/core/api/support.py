@@ -35,13 +35,11 @@ __GET_SYSLOG_CMD_TEMPLATE = "grep -a -E '({})\[' {} | head -n {} | tail -n {}"
 __GET_SYSLOG_CMD_WITH_INFO_TEMPLATE = "grep -a -E '({})\[' {} | grep -a -E -i '(info|warning|error|fatal)' | head -n {} | tail -n {}"
 __GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE = "grep -a -E '({})\[' {} | grep -a -E -i '(error|fatal)' | head -n {} | tail -n {}"
 __GET_SYSLOG_CMD_WITH_WARNING_TEMPLATE = "grep -a -E '({})\[' {} | grep -a -E -i '(warning|error|fatal)' | head -n {} | tail -n {}"
-__GET_SYSLOG_CMD_WITH_DEBUG_TEMPLATE = "grep -a -E '({})\[' {} | grep -a -E -i 'debug' | head -n {} | tail -n {}"
 
 __GET_SYSLOG_TOTAL_MATCHED_LINES = "grep -a -E '({})\[' {} | wc -l"
 __GET_SYSLOG_INFO_MATCHED_LINES = "grep -a -E '({})\[' {} | grep -a -E -i '(info|warning|error|fatal)' | wc -l"
 __GET_SYSLOG_ERROR_MATCHED_LINES = "grep -a -E '({})\[' {} | grep -a -E -i '(error|fatal)' | wc -l"
 __GET_SYSLOG_WARNING_MATCHED_LINES = "grep -a -E '({})\[' {} | grep -a -E -i '(warning|error|fatal)' | wc -l"
-__GET_SYSLOG_DEBUG_MATCHED_LINES = "grep -a -E '({})\[' {} | grep -a -E -i 'debug' | wc -l"
 
 _help = """
     ------------------------------------------------------------------------------
@@ -162,9 +160,6 @@ async def get_syslog_entries(request):
             elif level == 'error':
                 template = __GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE
                 lines = __GET_SYSLOG_ERROR_MATCHED_LINES
-            else:
-                template = __GET_SYSLOG_CMD_WITH_DEBUG_TEMPLATE
-                lines = __GET_SYSLOG_DEBUG_MATCHED_LINES
 
         # Get total lines
         cmd = lines.format(valid_source[source], _SYSLOG_FILE)

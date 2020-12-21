@@ -191,7 +191,7 @@ int	size;
  * Constructor for the north service
  */
 NorthService::NorthService(const string& myName) : m_name(myName), m_shutdown(false),
-	m_storage(NULL), m_pluginData(NULL)
+	m_storage(NULL), m_pluginData(NULL), m_restartPlugin(false)
 {
 	logger = new Logger(myName);
 	logger->setMinLevel("warning");
@@ -313,6 +313,10 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		while (!m_shutdown)
 		{
 			m_cv.wait(lck);
+			if (m_restartPlugin)
+			{
+				restartPlugin();
+			}
 		}
 
 		delete m_dataSender;
@@ -487,26 +491,11 @@ void NorthService::configChange(const string& categoryName, const string& catego
 			category.c_str());
 	if (categoryName.compare(m_name) == 0)
 	{
-		if (m_pluginData)
-		{
-			string saveData = northPlugin->shutdownSaveData();
-			string key = m_name + m_pluginName;
-			logger->debug("Persist plugin data key %s is %s", key.c_str(), saveData.c_str());
-			if (!m_pluginData->persistPluginData(key, saveData))
-			{
-				Logger::getLogger()->error("Plugin %s has failed to save data [%s] for key %s",
-					m_pluginName.c_str(), saveData.c_str(), key.c_str());
-			}
-		}
-		else
-		{
-			northPlugin->shutdown();
-		}
-		delete northPlugin;
 
 		m_config = ConfigCategory(m_name, category);
 
-		loadPlugin();
+		m_restartPlugin = true;
+		m_cv.notify_all();
 	}
 	if (categoryName.compare(m_name+"Advanced") == 0)
 	{
@@ -516,6 +505,28 @@ void NorthService::configChange(const string& categoryName, const string& catego
 			logger->setMinLevel(m_configAdvanced.getValue("logLevel"));
 		}
 	}
+}
+
+void NorthService::restartPlugin()
+{
+	m_restartPlugin = false;
+	if (m_pluginData)
+	{
+		string saveData = northPlugin->shutdownSaveData();
+		string key = m_name + m_pluginName;
+		logger->debug("Persist plugin data key %s is %s", key.c_str(), saveData.c_str());
+		if (!m_pluginData->persistPluginData(key, saveData))
+		{
+			Logger::getLogger()->error("Plugin %s has failed to save data [%s] for key %s",
+				m_pluginName.c_str(), saveData.c_str(), key.c_str());
+		}
+	}
+	else
+	{
+		northPlugin->shutdown();
+	}
+	delete northPlugin;
+	loadPlugin();
 }
 
 /**

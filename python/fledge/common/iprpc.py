@@ -18,28 +18,20 @@ import sys
 import io
 import subprocess
 import threading
-
-import time
-
 import traceback
-
-import json
 import pickle
-import re
 import tempfile
-
 import time
 import logging
-
 import fcntl
-from utils import eprint
+
+from fledge.common.utils import eprint
 
 import mmap
 
 try:
     from fledge.common import logger
-
-except:
+except ImportError:
     # if invoked outside of fledge, fake up a logger environment
     class Logger():
         def __init__(self):
@@ -52,6 +44,7 @@ except:
             logger.setLevel(level)
             return logger
     logger = Logger()
+
 
 def is_server_process():
     # temp backward compatibility: if we have a default
@@ -96,7 +89,7 @@ _LOGGER = logger.setup(__name__, level=logging.INFO)  # yyy
 # The IPCModuleClient derives from InterProcessRPCClient and  specifically
 # invokes a named python module as a server.
 
-ARGFILE_SIZE=1024*1024*20
+ARGFILE_SIZE = 1024*1024*20
 
 class InterProcessRPC():
     def __init__(self,
@@ -111,9 +104,7 @@ class InterProcessRPC():
         self.errfd = errfd
         self.name = name
 
-
         if argfile_fd == None:
-            # server
             
             # close 0/1/2 in case client is trying to do i/o on them. use stderr for output
             os.close(0)
@@ -140,11 +131,9 @@ class InterProcessRPC():
 
         _method = getattr(self, rpcobj['method'])
         _args = rpcobj['args']
-        # eprint("about to call {} with {}".format(rpcobj['method'], _args))
-        
+
         return _method(*_args)
-    
-    
+
     def rpc_read(self):
         """ rpc_read - read len/buf from the remote host
         protocol:
@@ -167,14 +156,10 @@ class InterProcessRPC():
         if _len == b'':
             # closed fd on one side or the other of the pipe
             raise EOFError
-        
-        
-        # _len = int(_len.decode('ascii'))
+
         _len = int(_len)
         if _len > 0:
             # len > 0 -> json object
-
-            # eprint("read >0")
             obj = pickle.loads(self.mfile)
             return obj
 
@@ -194,9 +179,7 @@ class InterProcessRPC():
 
         # else _len == 0:
         # len == 0 -> None
-        # eprint("read: none")
         return None
-
 
     def rpc_write(self, obj, is_exception=False):
         """ rpc_write -- write an rpc return value to the receiver 
@@ -228,13 +211,10 @@ class InterProcessRPC():
             self.outfd.write(_lenstr.encode('utf-8', 'ignore'))
         else:
             # no payload for None return
-            # eprint("rpc write none")
             _lenstr = '0\n'
             self.outfd.write(_lenstr.encode('utf-8', 'ignore'))
             
         self.outfd.flush()
-
-    
 
     def rpc_exception(self, ex):
         """ exception -- write an exception object to client to represent internal error """
@@ -242,7 +222,6 @@ class InterProcessRPC():
         # exception sent so that it will be raised in client
         self.rpc_write(ex, is_exception=True)
 
-        
     def serve(self):
         """ receive "methods" to invoke on infd, return results on outfd
 
@@ -256,14 +235,10 @@ class InterProcessRPC():
         . A length which is null string indicates closed channel
         """
 
-
         while True:
 
             _obj = self.rpc_read()
-            
-            # eprint("RECEIVE: {}".format(str(_obj)[:200]))
             try:
-
                 _ret = self.call(_obj)  # local "call" - returns json-able value; may raise
 
             except Exception as ex:
@@ -276,8 +251,8 @@ class InterProcessRPC():
                 # return the result of the call
                 self.rpc_write(_ret)
 
-
         os._exit(0)
+
 
 class InterProcessRPCClient(InterProcessRPC):
     """
@@ -324,11 +299,9 @@ class InterProcessRPCClient(InterProcessRPC):
             # Process hasn't exited yet, let's wait some
             time.sleep(0.5)
 
-
         # special prtocol, now tell the server the name of the mapped arg file
         self.outfd.write('{}\n'.format(_argfile_path).encode('utf-8'))
 
-        
     def call(self, rpcobj):
         """ call - rpc client writes rpc request, reads and returns the result 
         Args:
@@ -340,8 +313,7 @@ class InterProcessRPCClient(InterProcessRPC):
         Raises:
             Exception with appropriate message raised in remote execution (xxx -- reinstantiate exception class)
         """
-        # eprint("calling: ", str(rpcobj)[:200])
-        
+
         self.rpc_write(rpcobj)
         return self.rpc_read()
 
@@ -357,7 +329,6 @@ class IPCModuleClient(InterProcessRPCClient):
 
         _LOGGER.info("STARTING module {} path={}".format(module_name, env['PYTHONPATH']))
         super().__init__(['python3', '-m', module_name], env=env)
-
 
     def __getattr__(self, method_name):
         """ __getattr__  - override getattr so that we can proxy function calls by name """

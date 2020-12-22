@@ -164,16 +164,18 @@ class TestBundleSupport:
     async def test_get_syslog_entries_all_with_level_error(self, client):
         def mock_syslog():
             return """
-            echo "Sep 12 13:31:41 nerd-034 Fledge PI[9241] ERROR: sending_process: sending_process_PI: cannot complete the sending operation"
+            echo "Sep 12 13:31:41 nerd-034 Fledge PI[9241] ERROR: sending_process: sending_process_PI: cannot complete the sending operation
+            Dec 18 15:15:10 aj-ub1804 Fledge OMF[12145]: FATAL: Signal 11 (Segmentation fault) trapped:
+            Dec 18 15:15:10 aj-ub1804 Fledge OMF[12145]: INFO: Signal 11 (Segmentation fault) trapped:"
             """
 
         with patch.object(support, "__GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE", mock_syslog()):
-            with patch.object(support, "__GET_SYSLOG_ERROR_MATCHED_LINES", """echo "1" """):
+            with patch.object(support, "__GET_SYSLOG_ERROR_MATCHED_LINES", """echo "2" """):
                 resp = await client.get('/fledge/syslog?level=error')
                 res = await resp.text()
                 jdict = json.loads(res)
                 assert 200 == resp.status
-                assert 1 == jdict['count']
+                assert 2 == jdict['count']
                 assert 'ERROR' in jdict['logs'][0]
 
     async def test_get_syslog_entries_all_with_level_warning(self, client):
@@ -246,37 +248,98 @@ class TestBundleSupport:
 
     async def test_get_syslog_entries_from_name(self, client):
         def mock_syslog():
-            return """
-            echo "Apr 23 18:30:21 aj Fledge Sine 1[21288] ERROR: sinusoid: module.name: Sinusoid plugin_init: module.name#012NoneType
-            "
+            return """echo "Apr 23 18:30:21 aj Fledge Sine 1[21288] ERROR: sinusoid: module.name: Sinusoid plugin_init" 
             """
         with patch.object(support, "__GET_SYSLOG_CMD_TEMPLATE", mock_syslog()):
             with patch.object(support, "__GET_SYSLOG_TOTAL_MATCHED_LINES", """echo "1" """):
                 resp = await client.get('/fledge/syslog?source=Sine 1')
+                assert 200 == resp.status
                 res = await resp.text()
                 jdict = json.loads(res)
-                assert 200 == resp.status
                 assert 1 == jdict['count']
                 assert 'Fledge Sine 1' in jdict['logs'][0]
 
-    @pytest.mark.parametrize("level, actual_count", [
-        ('error', 0),
-        ('info', 3)
+    @pytest.mark.parametrize("template_name, matched_lines, level, actual_count", [
+        ('__GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE', '__GET_SYSLOG_ERROR_MATCHED_LINES', 'error', 0),
+        ('__GET_SYSLOG_CMD_WITH_INFO_TEMPLATE', '__GET_SYSLOG_INFO_MATCHED_LINES', 'info', 3)
     ])
-    async def test_get_syslog_entries_from_name_with_level(self, client, level, actual_count):
-        def mock_syslog():
-            return """
-            echo "Apr 23 18:30:21 aj Fledge HT[31901] INFO: sending_process: sending_process_HT: Started
-            Apr 23 18:48:52 aj Fledge HT[31901] INFO: sending_process: sending_process_HT: Stopped
-            Apr 23 18:48:52 aj Fledge HT[31901] INFO: sending_process: sending_process_HT: Execution completed."
-            """
-        with patch.object(support, "__GET_SYSLOG_CMD_TEMPLATE", mock_syslog()):
-            with patch.object(support, "__GET_SYSLOG_TOTAL_MATCHED_LINES", """echo "3" """):
+    async def test_get_syslog_entries_from_name_with_level(self, client, template_name, matched_lines, level,
+                                                           actual_count):
+        def mock_syslog(_level):
+            if _level == 'info':
+                return """echo "Apr 23 18:30:21 aj Fledge HT[31901] INFO: sending_process: sending_process_HT: Started
+                 Apr 23 18:48:52 aj Fledge HT[31901] INFO: sending_process: sending_process_HT: Stopped
+                 Apr 23 18:48:52 aj Fledge HT[31901] INFO: sending_process: sending_process_HT: Execution completed" """
+            else:
+                return """echo "" """
+        with patch.object(support, template_name, mock_syslog(level)):
+            with patch.object(support, matched_lines, """echo "{}" """.format(actual_count)):
                 resp = await client.get('/fledge/syslog?source=HT&level={}'.format(level))
+                assert 200 == resp.status
                 res = await resp.text()
                 jdict = json.loads(res)
-                assert 200 == resp.status
                 assert actual_count == jdict['count']
-                if level == 'info':
-                    assert 3 == jdict['count']
-                    assert 'HT' in jdict['logs'][0]
+
+    @pytest.mark.parametrize("level", [
+        1,
+        "blah",
+        "panic",
+        "emerg",
+        "alert",
+        "crit",
+        "notice"
+    ])
+    async def test_bad_level_in_syslog_entry(self, client, level):
+        resp = await client.get('/fledge/syslog?level={}'.format(level))
+        msg = "{} is invalid level. Supported levels are ['info', 'warning', 'error', 'debug']".format(level)
+        assert 400 == resp.status
+        assert msg == resp.reason
+        res = await resp.text()
+        jdict = json.loads(res)
+        assert msg == jdict['message']
+
+    @pytest.mark.parametrize("template_name, matched_lines, level, actual_count", [
+        ('__GET_SYSLOG_CMD_WITH_INFO_TEMPLATE', '__GET_SYSLOG_INFO_MATCHED_LINES', 'info', 7),
+        ('__GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE', '__GET_SYSLOG_ERROR_MATCHED_LINES', 'error', 4),
+        ('__GET_SYSLOG_CMD_WITH_WARNING_TEMPLATE', '__GET_SYSLOG_WARNING_MATCHED_LINES', 'warning', 5),
+        ('__GET_SYSLOG_CMD_TEMPLATE', '__GET_SYSLOG_TOTAL_MATCHED_LINES', 'debug', 8)
+    ])
+    async def test_get_syslog_entries_with_level(self, client, template_name, matched_lines, level, actual_count):
+        def mock_syslog(_level):
+            if _level == 'info':
+                return """echo "Dec 21 10:20:03 aj-ub1804 Fledge[14623] WARNING: server: fledge.services.core.server: A Fledge PID file has been found.
+                Dec 21 12:20:03 aj-ub1804 Fledge[14623] ERROR: change_callback: fledge.services.core.interest_registry.change_callback: Unable to notify microservice with uuid dc2b2f3a-0310-426f-8d1c-8bd3853fcf2f due to exception
+                Dec 12 13:31:41 aj-ub1804 Fledge PI[9241] ERROR: sending_process: sending_process_PI: cannot complete the sending operation
+                Dec 21 15:15:10 aj-ub1804 Fledge OMF[12145]: FATAL: Signal 11 (Segmentation fault) trapped:
+                Dec 21 16:52:48 aj-ub1804 Fledge[24953] INFO: scheduler: fledge.services.core.scheduler.scheduler: Service HTC records successfully removed
+                Dec 21 16:52:54 aj-ub1804 Fledge[24953] INFO: service_registry: fledge.services.core.service_registry.service_registry
+                Dec 21 25:15:10 aj-ub1804 Fledge OMF[12145]: FATAL: (0) 00x55ac77b9d1b9 handler(int) + 73---------"
+                """
+            elif _level == 'warning':
+                return """echo "Dec 21 10:20:03 aj-ub1804 Fledge[14623] WARNING: server: fledge.services.core.server: A Fledge PID file has been found.
+                Dec 21 12:20:03 aj-ub1804 Fledge[14623] ERROR: change_callback: fledge.services.core.interest_registry.change_callback: Unable to notify microservice with uuid dc2b2f3a-0310-426f-8d1c-8bd3853fcf2f due to exception
+                Dec 12 13:31:41 aj-ub1804 Fledge PI[9241] ERROR: sending_process: sending_process_PI: cannot complete the sending operation
+                Dec 21 15:15:10 aj-ub1804 Fledge OMF[12145]: FATAL: Signal 11 (Segmentation fault) trapped:
+                Dec 21 25:15:10 aj-ub1804 Fledge OMF[12145]: FATAL: (0) 00x55ac77b9d1b9 handler(int) + 73---------" """
+            elif _level == 'error':
+                return """echo "Dec 21 12:20:03 aj-ub1804 Fledge[14623] ERROR: change_callback: fledge.services.core.interest_registry.change_callback: Unable to notify microservice with uuid dc2b2f3a-0310-426f-8d1c-8bd3853fcf2f due to exception
+                Dec 12 13:31:41 aj-ub1804 Fledge PI[9241] ERROR: sending_process: sending_process_PI: cannot complete the sending operation
+                Dec 21 15:15:10 aj-ub1804 Fledge OMF[12145]: FATAL: Signal 11 (Segmentation fault) trapped:
+                Dec 21 25:15:10 aj-ub1804 Fledge OMF[12145]: FATAL: (0) 00x55ac77b9d1b9 handler(int) + 73---------" """
+            else:
+                return """echo "Dec 21 10:20:03 aj-ub1804 Fledge[14623] WARNING: server: fledge.services.core.server: A Fledge PID file has been found.
+                Dec 21 12:20:03 aj-ub1804 Fledge[14623] ERROR: change_callback: fledge.services.core.interest_registry.change_callback: Unable to notify microservice with uuid dc2b2f3a-0310-426f-8d1c-8bd3853fcf2f due to exception
+                Dec 12 13:31:41 aj-ub1804 Fledge PI[9241] ERROR: sending_process: sending_process_PI: cannot complete the sending operation
+                Dec 21 15:15:10 aj-ub1804 Fledge OMF[12145]: FATAL: Signal 11 (Segmentation fault) trapped:
+                Dec 21 16:52:48 aj-ub1804 Fledge[24953] INFO: scheduler: fledge.services.core.scheduler.scheduler: Service HTC records successfully removed
+                Dec 21 16:52:54 aj-ub1804 Fledge[24953] INFO: service_registry: fledge.services.core.service_registry.service_registry
+                Dec 21 25:15:10 aj-ub1804 Fledge OMF[12145]: FATAL: (0) 00x55ac77b9d1b9 handler(int) + 73---------
+                Dec 21 25:15:10 aj-ub1804 Fledge sin[11011]: DEBUG: 'sinusoid' plugin reconfigure called" """
+
+        with patch.object(support, template_name, mock_syslog(level)):
+            with patch.object(support, matched_lines, """echo "{}" """.format(actual_count)):
+                resp = await client.get('/fledge/syslog?level={}'.format(level))
+                assert 200 == resp.status
+                res = await resp.text()
+                jdict = json.loads(res)
+                assert actual_count == jdict['count']

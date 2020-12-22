@@ -7,6 +7,7 @@
 import os
 import platform
 import subprocess
+import json
 from pathlib import Path
 from aiohttp import web
 import urllib.parse
@@ -31,18 +32,20 @@ __DEFAULT_LIMIT = 20
 __DEFAULT_OFFSET = 0
 __DEFAULT_LOG_SOURCE = 'Fledge'
 __GET_SYSLOG_CMD_TEMPLATE = "grep -a -E '({})\[' {} | head -n {} | tail -n {}"
-__GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE = "grep -a -E '({})\[' {} | grep -a -E -i 'error' | head -n {} | tail -n {}"
-__GET_SYSLOG_CMD_WITH_WARNING_TEMPLATE = "grep -a -E '({})\[' {} | grep -a -E -i '(error|warning)' | head -n {} | tail -n {}"
+__GET_SYSLOG_CMD_WITH_INFO_TEMPLATE = "grep -a -E '({})\[' {} | grep -a -E -i '(info|warning|error|fatal)' | head -n {} | tail -n {}"
+__GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE = "grep -a -E '({})\[' {} | grep -a -E -i '(error|fatal)' | head -n {} | tail -n {}"
+__GET_SYSLOG_CMD_WITH_WARNING_TEMPLATE = "grep -a -E '({})\[' {} | grep -a -E -i '(warning|error|fatal)' | head -n {} | tail -n {}"
 
 __GET_SYSLOG_TOTAL_MATCHED_LINES = "grep -a -E '({})\[' {} | wc -l"
-__GET_SYSLOG_ERROR_MATCHED_LINES = "grep -a -E '({})\[' {} | grep -a -E -i 'error' | wc -l"
-__GET_SYSLOG_WARNING_MATCHED_LINES = "grep -a -E '({})\[' {} | grep -a -E -i '(error|warning)' | wc -l"
+__GET_SYSLOG_INFO_MATCHED_LINES = "grep -a -E '({})\[' {} | grep -a -E -i '(info|warning|error|fatal)' | wc -l"
+__GET_SYSLOG_ERROR_MATCHED_LINES = "grep -a -E '({})\[' {} | grep -a -E -i '(error|fatal)' | wc -l"
+__GET_SYSLOG_WARNING_MATCHED_LINES = "grep -a -E '({})\[' {} | grep -a -E -i '(warning|error|fatal)' | wc -l"
 
 _help = """
-    -------------------------------------------------------------------------------
+    ------------------------------------------------------------------------------
     | GET POST        | /fledge/support                                          |
     | GET             | /fledge/support/{bundle}                                 |
-    -------------------------------------------------------------------------------
+    ------------------------------------------------------------------------------
 """
 
 
@@ -145,12 +148,18 @@ async def get_syslog_entries(request):
         lines = __GET_SYSLOG_TOTAL_MATCHED_LINES
         if 'level' in request.query and request.query['level'] != '':
             level = request.query['level'].lower()
-            if level == 'error':
-                template = __GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE
-                lines = __GET_SYSLOG_ERROR_MATCHED_LINES
+            supported_level = ['info', 'warning', 'error', 'debug']
+            if level not in supported_level:
+                raise ValueError('{} is invalid level. Supported levels are {}'.format(level, supported_level))
+            if level == 'info':
+                template = __GET_SYSLOG_CMD_WITH_INFO_TEMPLATE
+                lines = __GET_SYSLOG_INFO_MATCHED_LINES
             elif level == 'warning':
                 template = __GET_SYSLOG_CMD_WITH_WARNING_TEMPLATE
                 lines = __GET_SYSLOG_WARNING_MATCHED_LINES
+            elif level == 'error':
+                template = __GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE
+                lines = __GET_SYSLOG_ERROR_MATCHED_LINES
 
         # Get total lines
         cmd = lines.format(valid_source[source], _SYSLOG_FILE)
@@ -159,6 +168,8 @@ async def get_syslog_entries(request):
         cmd = template.format(valid_source[source], _SYSLOG_FILE, total_lines - offset, limit)
         a = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
         c = [b.decode() for b in a]  # Since "a" contains return value in bytes, convert it to string
+    except ValueError as err:
+        raise web.HTTPBadRequest(body=json.dumps({"message": str(err)}), reason=str(err))
     except (OSError, Exception) as ex:
         raise web.HTTPInternalServerError(reason=str(ex))
 

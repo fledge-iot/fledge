@@ -82,6 +82,29 @@ def get_service_status(fledge_url):
     return jdoc
 
 
+def change_category(fledge_url, cat_name, config_item, value):
+    """
+    Changes the value of configuration item in the given category.
+    Args:
+        fledge_url: The url of the fledge api.
+        cat_name: The category name.
+        config_item: The configuration item to be changed.
+        value: The new value of configuration item.
+    Returns: returns the value of changed category or raises error.
+    """
+    conn = http.client.HTTPConnection(fledge_url)
+    body = {"value": str(value)}
+    json_data = json.dumps(body)
+    conn.request("PUT", '/fledge/category/{}/{}'.format(cat_name, config_item), json_data)
+    r = conn.getresponse()
+    # assert 200 == r.status, 'Could not change config item'
+    print(r.status)
+    r = r.read().decode()
+    conn.close()
+    retval = json.loads(r)
+    print(retval)
+
+
 def enable_schedule(fledge_url, sch_name):
     """
     Enables schedule.
@@ -143,16 +166,25 @@ def test_reinitialization_of_numpy_without_iprpc(reset_and_start_fledge, fledge_
     install_python_plugin(source_directory_for_filter_plugin, "filter")
 
     # Start the south service
-    config = {"assetName": {"value": "np_random"}}
+    config = {"assetName": {"value": "np_random"},
+              "totalValuesArray": {"value": "100"}}
     start_south_service_for_filter(config, service_name="numpy_ingest", plugin_name='numpy_south',
-                                   enabled='false')
+                                   enabled='true')
 
     # start the filter
-    filter_cfg_numpy_filter = {"enabled": "true"}
+    filter_cfg_numpy_filter = {"enable": "true", "assetName": "np_random",
+                               "dataPointName": "random", "numSamples": "100"}
+
     add_filter(fledge_url, "numpy_filter", "numpy_filter_ingest", filter_cfg_numpy_filter, "numpy_ingest")
 
     # enable schedule
     enable_schedule(fledge_url, "numpy_ingest")
+
+    time.sleep(5)
+    cat_name = "numpy_ingest" + "Advanced"
+    config_item = "readingsPerSec"
+    change_category(fledge_url, cat_name, config_item, "100")
+
     time.sleep(5)
 
     # the service will become unresponsive

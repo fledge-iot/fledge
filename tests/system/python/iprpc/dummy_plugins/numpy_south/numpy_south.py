@@ -33,83 +33,33 @@ _DEFAULT_CONFIG = {
         'default': 'np_random',
         'displayName': 'Asset name',
         'mandatory': 'true'
+    },
+    'totalValuesArray': {
+        'description': 'The total number values in input array',
+        'type': 'string',
+        'default': '100',
+        'displayName': 'Total Array Values',
+        'mandatory': 'true'
     }
 }
 
 _LOGGER = logger.setup(__name__, level=logging.INFO)
-index = -1
-sine = [
-        0.0,
-        0.104528463,
-        0.207911691,
-        0.309016994,
-        0.406736643,
-        0.5,
-        0.587785252,
-        0.669130606,
-        0.743144825,
-        0.809016994,
-        0.866025404,
-        0.913545458,
-        0.951056516,
-        0.978147601,
-        0.994521895,
-        1.0,
-        0.994521895,
-        0.978147601,
-        0.951056516,
-        0.913545458,
-        0.866025404,
-        0.809016994,
-        0.743144825,
-        0.669130606,
-        0.587785252,
-        0.5,
-        0.406736643,
-        0.309016994,
-        0.207911691,
-        0.104528463,
-        1.22515E-16,
-        -0.104528463,
-        -0.207911691,
-        -0.309016994,
-        -0.406736643,
-        -0.5,
-        -0.587785252,
-        -0.669130606,
-        -0.743144825,
-        -0.809016994,
-        -0.866025404,
-        -0.913545458,
-        -0.951056516,
-        -0.978147601,
-        -0.994521895,
-        -1.0,
-        -0.994521895,
-        -0.978147601,
-        -0.951056516,
-        -0.913545458,
-        -0.866025404,
-        -0.809016994,
-        -0.743144825,
-        -0.669130606,
-        -0.587785252,
-        -0.5,
-        -0.406736643,
-        -0.309016994,
-        -0.207911691,
-        -0.104528463
-    ]
+index = 0
+TOTAL_VALUES_IN_ARRAY = 0
 
 
 def generate_data():
-    global index
-    while index >= -1:
+    global index, TOTAL_VALUES_IN_ARRAY
+
+    while index <= TOTAL_VALUES_IN_ARRAY:
         # index exceeds, reset to default
-        if index >= 59:
-            index = -1
+        if index >= TOTAL_VALUES_IN_ARRAY:
+            index = 0
+        if index == 0:
+            np_array = np.random.rand(TOTAL_VALUES_IN_ARRAY, 1)
+
+        yield np_array[index, 0]
         index += 1
-        yield sine[index]
 
 
 def plugin_info():
@@ -138,6 +88,8 @@ def plugin_init(config):
     Raises:
     """
     data = copy.deepcopy(config)
+    global TOTAL_VALUES_IN_ARRAY
+    TOTAL_VALUES_IN_ARRAY = int(data['totalValuesArray']['value'])
     return data
 
 

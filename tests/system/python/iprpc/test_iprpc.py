@@ -214,19 +214,28 @@ def test_reinitialization_of_numpy_with_iprpc(reset_and_start_fledge, fledge_url
     install_python_plugin(source_directory_for_filter_plugin, "filter")
 
     # Start the south service
-    config = {"assetName": {"value": "np_random"}}
+    config = {"assetName": {"value": "np_random"},
+              "totalValuesArray": {"value": "100"}}
     start_south_service_for_filter(config, service_name="numpy_ingest", plugin_name='numpy_iprpc_south',
-                                   enabled='false')
+                                   enabled='true')
 
     # start the filter
-    config_filter = {"enabled": "true"}
-    add_filter(fledge_url, "numpy_iprpc_filter", "numpy_filter_ingest", config_filter, "numpy_ingest")
+    filter_cfg_numpy_filter = {"enable": "true", "assetName": "np_random",
+                               "dataPointName": "random", "numSamples": "100"}
+
+    add_filter(fledge_url, "numpy_iprpc_filter", "numpy_filter_ingest", filter_cfg_numpy_filter, "numpy_ingest")
 
     # enable schedule
     enable_schedule(fledge_url, "numpy_ingest")
+
+    time.sleep(5)
+    cat_name = "numpy_ingest" + "Advanced"
+    config_item = "readingsPerSec"
+    change_category(fledge_url, cat_name, config_item, "100")
+
     time.sleep(5)
 
-    # the service will unresponsive
+    # the service will become unresponsive
     status = get_service_status(fledge_url)
     for index, service in enumerate(status['services']):
         if status['services'][index]['name'] == "numpy_ingest":

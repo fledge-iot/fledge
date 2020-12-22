@@ -158,7 +158,9 @@ def plugin_ingest(handle, data):
 
     buffer_np = buffer
 
-    # The following line of code does not work in filter. iprpc is inevitable
+    # The following line of code does not work in this filter. Even if south service is a sinusoid.
+    # iprpc is inevitable
+
     # buffer_np = np.array(buffer, dtype=np.dtype('float64'))
 
     # we will get the following error when try to print the numpy array.

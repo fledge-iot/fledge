@@ -62,6 +62,6 @@ class NPServer(iprpc.InterProcessRPC):
 
 
 if __name__ == "__main__":
-    _LOGGER.error("SERVING...np functions")
+    _LOGGER.info("SERVING...np functions")
     rpc = NPServer('np service')
     rpc.serve()

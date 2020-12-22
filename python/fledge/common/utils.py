@@ -15,6 +15,7 @@ __version__ = "${VERSION}"
 
 import sys
 
+
 def check_reserved(string):
     """
     RFC 2396 Uniform Resource Identifiers (URI): Generic Syntax lists
@@ -79,6 +80,7 @@ def add_functions_as_methods(functions):
             setattr(Class, function.__name__, function)
         return Class
     return decorator
+
 
 def eprint(*args, **kwargs):
     """ eprintf -- convenience print function that prints to stderr """

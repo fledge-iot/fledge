@@ -182,7 +182,7 @@ def plugin_shutdown(handle):
     _LOGGER.info("Plugin shutdown ")
     global shutdown_in_progress, the_rpc
     shutdown_in_progress = True
-    if the_rpc != None:
+    if the_rpc is not None:
         try:
             the_rpc.plugin_shutdown()
         except EOFError:

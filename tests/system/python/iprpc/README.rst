@@ -18,7 +18,6 @@
 
 .. _iprpc: ..\\..\\..\\..\\python\\fledge\\common\\iprpc.py
 .. _numpy_south: ..\\plugins\\dummy\\iprpc\\south\\numpy_south\\numpy_south.py
-.. _numpy_iprpc_south: ..\\plugins\\dummy\\iprpc\\south\\numpy_iprpc_south\\numpy_iprpc_south.py
 .. _numpy_filter: ..\\plugins\\dummy\\iprpc\\filter\\numpy_filter\\numpy_filter.py
 .. _numpy_iprpc_filter: ..\\plugins\\dummy\\iprpc\\filter\\numpy_iprpc_filter\\numpy_iprpc_filter.py
 
@@ -36,17 +35,14 @@ Fledge system tests involving the `iprpc`_ module are given below:
 There are four dummy plugins used in the tests.
 
 
-1. `numpy_south`_ - A plugin that ingests random values in Fledge similar to sinusoid plugin but uses numpy random function.
-2. `numpy_iprpc_south`_ - A plugin similar to numpy_south and does not use iprpc facility to perform numpy operations.
-3. `numpy_filter`_ - A plugin which calculates root mean square on the values it gets from south service and creates an extra asset for rms_values. However it does not uses iprpc facility.
-4. `numpy_iprpc_filter`_ - Similar to numpy_filter but uses iprpc facility.
+1. `numpy_south`_ - A plugin that ingests random values in Fledge using numpy 's random function.
+2. `numpy_filter`_ - A plugin which calculates root mean square on the values it gets from south service and creates an extra asset for rms_values. However it does not uses iprpc facility.
+3. `numpy_iprpc_filter`_ - Similar to numpy_filter but uses iprpc facility.
 
 **NOTE**
 
-The south service may or may not use iprpc facility. However it is mandatory to iprpc facility when :
-
-1. Both south and filter plugins use modules like numpy.
-2. The filter plugin uses modules like numpy and south plugin is just any other plugin like sinusoid.
+The south service may or may not use iprpc facility. However it is mandatory to iprpc facility when
+both south and filter plugins use modules like numpy.
 
 
 Running Fledge System tests involving iprpc

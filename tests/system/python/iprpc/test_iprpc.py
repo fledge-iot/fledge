@@ -226,7 +226,7 @@ def test_reinitialization_of_numpy_with_iprpc(reset_and_start_fledge, fledge_url
     # installing required plugins
     # These are dummy plugins written for reproducing the issue.
     source_directory_for_south_plugin = os.path.join(get_fledge_root(), "tests", "system", "python", "plugins",
-                                                     "dummy", "iprpc", "south", "numpy_iprpc_south")
+                                                     "dummy", "iprpc", "south", "numpy_south")
     source_directory_for_filter_plugin = os.path.join(get_fledge_root(), "tests", "system", "python", "plugins",
                                                       "dummy", "iprpc", "filter", "numpy_iprpc_filter")
     install_python_plugin(source_directory_for_south_plugin, "south")
@@ -235,7 +235,7 @@ def test_reinitialization_of_numpy_with_iprpc(reset_and_start_fledge, fledge_url
     # Start the south service
     config = {"assetName": {"value": "np_random"},
               "totalValuesArray": {"value": "100"}}
-    start_south_service_for_filter(config, service_name="numpy_ingest", plugin_name='numpy_iprpc_south',
+    start_south_service_for_filter(config, service_name="numpy_ingest", plugin_name='numpy_south',
                                    enabled='true')
 
     # start the filter

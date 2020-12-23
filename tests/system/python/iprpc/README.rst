@@ -55,15 +55,18 @@ Running Fledge System tests involving iprpc
 Test Prerequisites
 ------------------
 
-To install the dependencies required to run python tests, run the following command from FLEDGE_ROOT
+To install the dependencies required to run python tests, run the following two commands from FLEDGE_ROOT
+::
 
-**pip3 install -r python/requirements-iprpc-test.txt --user**
+    cd $FLEDGE_ROOT/tests/system/python/iprpc
+    pip3 install -r requirements-iprpc-test.txt --user
 
-**NOTE**
-
-Make sure you are inside iprpc directory after that.
 
 Test Execution
 --------------
 
-**python3 -m pytest -s -v test_iprpc.py --fledge-url localhost:8081**
+
+After installing the Prerequisites
+::
+
+    python3 -m pytest -s -v test_iprpc.py --fledge-url localhost:8081

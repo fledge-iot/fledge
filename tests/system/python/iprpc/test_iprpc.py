@@ -1,3 +1,18 @@
+# -*- coding: utf-8 -*-
+
+# FLEDGE_BEGIN
+# See: http://fledge-iot.readthedocs.io/
+# FLEDGE_END
+
+""" Tests for iprpc facility """
+
+
+__author__ = "Deepanshu Yadav"
+__copyright__ = "Copyright (c) 2020 Dianomic Systems"
+__license__ = "Apache 2.0"
+__version__ = "${VERSION}"
+
+
 import os
 import json
 import http.client
@@ -160,8 +175,10 @@ def test_reinitialization_of_numpy_without_iprpc(reset_and_start_fledge, fledge_
 
     # installing required plugins
     # These are dummy plugins written for reproducing the issue.
-    source_directory_for_south_plugin = os.path.join(os.getcwd(), "dummy_plugins", "numpy_south")
-    source_directory_for_filter_plugin = os.path.join(os.getcwd(), "dummy_plugins", "numpy_filter")
+    source_directory_for_south_plugin = os.path.join(get_fledge_root(), "tests", "system", "python", "plugins",
+                                                     "dummy", "iprpc", "south", "numpy_south")
+    source_directory_for_filter_plugin = os.path.join(get_fledge_root(), "tests", "system", "python", "plugins",
+                                                      "dummy", "iprpc", "filter", "numpy_filter")
     install_python_plugin(source_directory_for_south_plugin, "south")
     install_python_plugin(source_directory_for_filter_plugin, "filter")
 
@@ -208,15 +225,17 @@ def test_reinitialization_of_numpy_with_iprpc(reset_and_start_fledge, fledge_url
 
     # installing required plugins
     # These are dummy plugins written for reproducing the issue.
-    source_directory_for_south_plugin = os.path.join(os.getcwd(), "dummy_plugins", "numpy_iprpc_south")
-    source_directory_for_filter_plugin = os.path.join(os.getcwd(), "dummy_plugins", "numpy_iprpc_filter")
+    source_directory_for_south_plugin = os.path.join(get_fledge_root(), "tests", "system", "python", "plugins",
+                                                     "dummy", "iprpc", "south", "numpy_south")
+    source_directory_for_filter_plugin = os.path.join(get_fledge_root(), "tests", "system", "python", "plugins",
+                                                      "dummy", "iprpc", "filter", "numpy_iprpc_filter")
     install_python_plugin(source_directory_for_south_plugin, "south")
     install_python_plugin(source_directory_for_filter_plugin, "filter")
 
     # Start the south service
     config = {"assetName": {"value": "np_random"},
               "totalValuesArray": {"value": "100"}}
-    start_south_service_for_filter(config, service_name="numpy_ingest", plugin_name='numpy_iprpc_south',
+    start_south_service_for_filter(config, service_name="numpy_ingest", plugin_name='numpy_south',
                                    enabled='true')
 
     # start the filter
@@ -235,7 +254,7 @@ def test_reinitialization_of_numpy_with_iprpc(reset_and_start_fledge, fledge_url
 
     time.sleep(5)
 
-    # the service will become unresponsive
+    # the service will be running
     status = get_service_status(fledge_url)
     for index, service in enumerate(status['services']):
         if status['services'][index]['name'] == "numpy_ingest":

@@ -17,10 +17,10 @@
    <a href="https://docs.pytest.org/en/latest/mark.html" target="_blank">pytest</a>
 
 .. _iprpc: ..\\..\\..\\..\\python\\fledge\\common\\iprpc.py
-.. _numpy_south: \\dummy_plugins\\numpy_south\\numpy_south.py
-.. _numpy_iprpc_south: \\dummy_plugins\\numpy_iprpc_south\\numpy_iprpc_south.py
-.. _numpy_filter: \\dummy_plugins\\numpy_filter\\numpy_filter.py
-.. _numpy_iprpc_filter: \\dummy_plugins\\numpy_iprpc_filter\\numpy_iprpc_filter.py
+.. _numpy_south: ..\\plugins\\dummy\\iprpc\\south\\numpy_south\\numpy_south.py
+.. _numpy_iprpc_south: ..\\plugins\\dummy\\iprpc\\south\\numpy_iprpc_south\\numpy_iprpc_south.py
+.. _numpy_filter: ..\\plugins\\dummy\\iprpc\\filter\\numpy_filter\\numpy_filter.py
+.. _numpy_iprpc_filter: ..\\plugins\\dummy\\iprpc\\filter\\numpy_iprpc_filter\\numpy_iprpc_filter.py
 
 .. =============================================
 

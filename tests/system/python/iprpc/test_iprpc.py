@@ -1,3 +1,18 @@
+# -*- coding: utf-8 -*-
+
+# FLEDGE_BEGIN
+# See: http://fledge-iot.readthedocs.io/
+# FLEDGE_END
+
+""" Tests for iprpc facility """
+
+
+__author__ = "Deepanshu Yadav"
+__copyright__ = "Copyright (c) 2020 Dianomic Systems"
+__license__ = "Apache 2.0"
+__version__ = "${VERSION}"
+
+
 import os
 import json
 import http.client
@@ -239,7 +254,7 @@ def test_reinitialization_of_numpy_with_iprpc(reset_and_start_fledge, fledge_url
 
     time.sleep(5)
 
-    # the service will become unresponsive
+    # the service will be running
     status = get_service_status(fledge_url)
     for index, service in enumerate(status['services']):
         if status['services'][index]['name'] == "numpy_ingest":

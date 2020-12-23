@@ -23,11 +23,9 @@ import pickle
 import tempfile
 import time
 import logging
-import fcntl
+import mmap
 
 from fledge.common.utils import eprint
-
-import mmap
 
 try:
     from fledge.common import logger

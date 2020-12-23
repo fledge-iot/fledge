@@ -160,8 +160,10 @@ def test_reinitialization_of_numpy_without_iprpc(reset_and_start_fledge, fledge_
 
     # installing required plugins
     # These are dummy plugins written for reproducing the issue.
-    source_directory_for_south_plugin = os.path.join(os.getcwd(), "dummy_plugins", "numpy_south")
-    source_directory_for_filter_plugin = os.path.join(os.getcwd(), "dummy_plugins", "numpy_filter")
+    source_directory_for_south_plugin = os.path.join(get_fledge_root(), "tests", "system", "python", "plugins",
+                                                     "dummy", "iprpc", "south", "numpy_south")
+    source_directory_for_filter_plugin = os.path.join(get_fledge_root(), "tests", "system", "python", "plugins",
+                                                      "dummy", "iprpc", "filter", "numpy_filter")
     install_python_plugin(source_directory_for_south_plugin, "south")
     install_python_plugin(source_directory_for_filter_plugin, "filter")
 
@@ -208,8 +210,10 @@ def test_reinitialization_of_numpy_with_iprpc(reset_and_start_fledge, fledge_url
 
     # installing required plugins
     # These are dummy plugins written for reproducing the issue.
-    source_directory_for_south_plugin = os.path.join(os.getcwd(), "dummy_plugins", "numpy_iprpc_south")
-    source_directory_for_filter_plugin = os.path.join(os.getcwd(), "dummy_plugins", "numpy_iprpc_filter")
+    source_directory_for_south_plugin = os.path.join(get_fledge_root(), "tests", "system", "python", "plugins",
+                                                     "dummy", "iprpc", "south", "numpy_iprpc_south")
+    source_directory_for_filter_plugin = os.path.join(get_fledge_root(), "tests", "system", "python", "plugins",
+                                                      "dummy", "iprpc", "filter", "numpy_iprpc_filter")
     install_python_plugin(source_directory_for_south_plugin, "south")
     install_python_plugin(source_directory_for_filter_plugin, "filter")
 

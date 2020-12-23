@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
 """ interprocess rpc """
@@ -33,7 +33,7 @@ try:
     from fledge.common import logger
 except ImportError:
     # if invoked outside of fledge, fake up a logger environment
-    class Logger():
+    class Logger:
         def __init__(self):
             self.CONSOLE = 0
             self.SYSLOG = 1
@@ -91,7 +91,8 @@ _LOGGER = logger.setup(__name__, level=logging.INFO)  # yyy
 
 ARGFILE_SIZE = 1024*1024*20
 
-class InterProcessRPC():
+
+class InterProcessRPC:
     def __init__(self,
                  infd=io.BufferedReader(io.FileIO(os.dup(sys.stdin.fileno()))),
                  outfd=io.BufferedWriter(io.FileIO(os.dup(sys.stdout.fileno()), mode='w')),
@@ -104,7 +105,7 @@ class InterProcessRPC():
         self.errfd = errfd
         self.name = name
 
-        if argfile_fd == None:
+        if argfile_fd is None:
             
             # close 0/1/2 in case client is trying to do i/o on them. use stderr for output
             os.close(0)
@@ -199,7 +200,7 @@ class InterProcessRPC():
             obj = { 'class': str(_class), 'message': str(obj) }
             _lenmult = -1
 
-        if obj != None:
+        if obj is not None:
 
             # put the dict into shared memory
             self.mfile.seek(0)
@@ -251,7 +252,7 @@ class InterProcessRPC():
                 # return the result of the call
                 self.rpc_write(_ret)
 
-        os._exit(0)
+        sys.exit(0)
 
 
 class InterProcessRPCClient(InterProcessRPC):
@@ -299,7 +300,7 @@ class InterProcessRPCClient(InterProcessRPC):
             # Process hasn't exited yet, let's wait some
             time.sleep(0.5)
 
-        # special prtocol, now tell the server the name of the mapped arg file
+        # special protocol, now tell the server the name of the mapped arg file
         self.outfd.write('{}\n'.format(_argfile_path).encode('utf-8'))
 
     def call(self, rpcobj):

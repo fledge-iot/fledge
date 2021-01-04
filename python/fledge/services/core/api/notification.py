@@ -242,7 +242,7 @@ async def post_notification(request):
             "rule": rule,
             "channel": channel,
             "notification_type": notification_type,
-            "enable": is_enabled 
+            "enable": is_enabled,
         }
         if retrigger_time != {}:
             notification_config["retrigger_time"] = retrigger_time

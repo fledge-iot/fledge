@@ -160,6 +160,7 @@ async def post_notification(request):
         enabled = data.get('enabled', None)
         rule_config = data.get('rule_config', {})
         delivery_config = data.get('delivery_config', {})
+        retrigger_time = data.get('retrigger_time', {})
 
         if name is None or name.strip() == "":
             raise ValueError('Missing name property in payload.')
@@ -241,8 +242,11 @@ async def post_notification(request):
             "rule": rule,
             "channel": channel,
             "notification_type": notification_type,
-            "enable": is_enabled,
+            "enable": is_enabled 
         }
+        if retrigger_time != {}:
+            notification_config["retrigger_time"] = retrigger_time
+
         await _update_configurations(config_mgr, name, notification_config, rule_config, delivery_config)
 
         audit = AuditLogger(storage)

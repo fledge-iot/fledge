@@ -69,28 +69,6 @@ void DataSender::sendThread()
 		{
 			m_loader->updateLastSentId(lastSent);
 
-			// Update asset tracker table/cache, if required
-			vector<Reading *> *vec = readings->getAllReadingsPtr();
-
-			for (vector<Reading *>::iterator it = vec->begin(); it != vec->end(); ++it)
-			{
-				Reading *reading = *it;
-
-				if (reading->getId() <= lastSent)
-				{
-
-					AssetTrackingTuple tuple(m_service->getName(), m_service->getPluginName(), reading->getAssetName(), "Egress");
-					if (!AssetTracker::getAssetTracker()->checkAssetTrackingCache(tuple))
-					{
-						AssetTracker::getAssetTracker()->addAssetTrackingTuple(tuple);
-						Logger::getLogger()->info("sendDataThread:  Adding new asset tracking tuple - egress: %s", tuple.assetToString().c_str());
-					}
-				}
-				else
-				{
-					break;
-				}
-			}
 		}
 		delete readings;
 	}
@@ -106,6 +84,33 @@ void DataSender::sendThread()
 unsigned long DataSender::send(ReadingSet *readings)
 {
 	uint32_t sent = m_plugin->send(readings->getAllReadings());
-	m_loader->updateStatistics(sent);
-	return readings->getLastId();
+	unsigned long lastSent = readings->getLastId();
+	if (sent > 0)
+	{
+		// Update asset tracker table/cache, if required
+		vector<Reading *> *vec = readings->getAllReadingsPtr();
+
+		for (vector<Reading *>::iterator it = vec->begin(); it != vec->end(); ++it)
+		{
+			Reading *reading = *it;
+
+			if (reading->getId() <= lastSent)
+			{
+
+				AssetTrackingTuple tuple(m_service->getName(), m_service->getPluginName(), reading->getAssetName(), "Egress");
+				if (!AssetTracker::getAssetTracker()->checkAssetTrackingCache(tuple))
+				{
+					AssetTracker::getAssetTracker()->addAssetTrackingTuple(tuple);
+					Logger::getLogger()->info("sendDataThread:  Adding new asset tracking tuple - egress: %s", tuple.assetToString().c_str());
+				}
+			}
+			else
+			{
+				break;
+			}
+		}
+
+		m_loader->updateStatistics(sent);
+	}
+	return lastSent;
 }

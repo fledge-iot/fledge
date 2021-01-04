@@ -163,11 +163,11 @@ async def post_notification(request):
         retrigger_time = data.get('retrigger_time', None)
 
         try:
-            # add integer check if it cannot be a float
-            if retrigger_time and float(retrigger_time) > 0 and float(retrigger_time).is_integer():
-                pass
-            else:
-                raise ValueError
+            if retrigger_time:
+                if float(retrigger_time) > 0 and float(retrigger_time).is_integer():
+                    pass
+                else:
+                    raise ValueError
         except ValueError:
             raise ValueError('Invalid retrigger_time property in payload.')
 

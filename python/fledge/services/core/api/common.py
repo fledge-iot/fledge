@@ -20,6 +20,7 @@ from fledge.services.core import connect
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.services.core.service_registry.service_registry import ServiceRegistry
 from fledge.common.service_record import ServiceRecord
+from fledge.common.common import _FLEDGE_ROOT
 
 __author__ = "Amarendra K. Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -85,6 +86,12 @@ async def ping(request):
 
     status_color = services_health_litmus_test()
     safe_mode = True if server.Server.running_in_safe_mode else False
+    version = ""
+    with open(_FLEDGE_ROOT + '/VERSION') as f:
+        for line in f:
+            if 'fledge_version=' in line:
+                key, value = line.strip().split('=')
+                version = value
 
     return web.json_response({'uptime': int(since_started),
                               'dataRead': data_read,
@@ -95,7 +102,8 @@ async def ping(request):
                               'hostName': host_name,
                               'ipAddresses': ip_addresses,
                               'health': status_color,
-                              'safeMode': safe_mode
+                              'safeMode': safe_mode,
+                              'version': version
                               })
 
 

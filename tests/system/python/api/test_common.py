@@ -61,6 +61,7 @@ class TestCommon:
         assert 'green' == jdoc['health']
         assert jdoc['authenticationOptional'] is True
         assert jdoc['safeMode'] is False
+        assert 'version' in jdoc
 
     def test_ping_when_auth_mandatory_allow_ping_true(self, fledge_url, wait_time):
         conn = http.client.HTTPConnection(fledge_url)

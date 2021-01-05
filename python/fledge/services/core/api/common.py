@@ -12,6 +12,7 @@ import socket
 import subprocess
 
 from aiohttp import web
+from functools import lru_cache
 
 from fledge.common import logger
 from fledge.services.core import server
@@ -38,6 +39,13 @@ _help = """
     | PUT             | /fledge/restart                                          |
     -------------------------------------------------------------------------------
 """
+
+
+@lru_cache(maxsize=1, typed=True)
+def get_version() -> str:
+    with open(_FLEDGE_ROOT + '/VERSION') as f:
+        # Read only the first line of a VERSION file and grab the release version number
+        return f.readline().split('=')[1].strip()
 
 
 async def ping(request):
@@ -86,10 +94,7 @@ async def ping(request):
 
     status_color = services_health_litmus_test()
     safe_mode = True if server.Server.running_in_safe_mode else False
-    with open(_FLEDGE_ROOT + '/VERSION') as f:
-        # Read only the first line of a VERSION file and grab the release version number
-        version = f.readline().split('=')[1].strip()
-
+    version = get_version()
     return web.json_response({'uptime': int(since_started),
                               'dataRead': data_read,
                               'dataSent': data_sent,

@@ -86,12 +86,9 @@ async def ping(request):
 
     status_color = services_health_litmus_test()
     safe_mode = True if server.Server.running_in_safe_mode else False
-    version = ""
     with open(_FLEDGE_ROOT + '/VERSION') as f:
-        for line in f:
-            if 'fledge_version=' in line:
-                key, value = line.strip().split('=')
-                version = value
+        # Read only the first line of a VERSION file and grab the release version number
+        version = f.readline().split('=')[1].strip()
 
     return web.json_response({'uptime': int(since_started),
                               'dataRead': data_read,

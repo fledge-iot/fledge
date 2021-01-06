@@ -569,7 +569,7 @@ void PluginManager::getInstalledPlugins(const string& type,
 			// Can not open specified dir path
 			char msg[128];
 			char* ret = strerror_r(errno, msg, 128);
-			logger->error("Can not access plugin directory %s: %s",
+			logger->warn("Can not access plugin directory %s: %s",
 				      path.c_str(),
 				      ret);
 			continue;

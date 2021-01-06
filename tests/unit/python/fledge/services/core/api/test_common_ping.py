@@ -33,7 +33,7 @@ from fledge.common.web import middleware
 from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.configuration_manager import ConfigurationManager
 
-SEMANTIC_VERSIONING_REGEX = "[0-9]+.[0-9+].[0-9]"
+SEMANTIC_VERSIONING_REGEX = "^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)$"
 
 
 @pytest.fixture
@@ -108,7 +108,7 @@ async def test_ping_http_allow_ping_true(aiohttp_server, aiohttp_client, loop, g
                     assert content_dict['ipAddresses'] == ip_addresses
                     assert content_dict['health'] == "green"
                     assert content_dict['safeMode'] is False
-                    assert re.search(SEMANTIC_VERSIONING_REGEX, content_dict['version']) is not None
+                    assert re.match(SEMANTIC_VERSIONING_REGEX, content_dict['version']) is not None
             query_patch.assert_called_once_with('statistics', payload)
         log_params = 'Received %s request for %s', 'GET', '/fledge/ping'
         logger_info.assert_called_once_with(*log_params)
@@ -216,7 +216,7 @@ async def test_ping_http_auth_required_allow_ping_true(aiohttp_server, aiohttp_c
                     assert content_dict['ipAddresses'] == ip_addresses
                     assert content_dict['health'] == "green"
                     assert content_dict['safeMode'] is False
-                    assert re.search(SEMANTIC_VERSIONING_REGEX, content_dict['version']) is not None
+                    assert re.match(SEMANTIC_VERSIONING_REGEX, content_dict['version']) is not None
                 mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
             query_patch.assert_called_once_with('statistics', payload)
         log_params = 'Received %s request for %s', 'GET', '/fledge/ping'
@@ -327,7 +327,7 @@ async def test_ping_https_allow_ping_true(aiohttp_server, ssl_ctx, aiohttp_clien
                     assert content_dict['ipAddresses'] == ip_addresses
                     assert content_dict['health'] == "green"
                     assert content_dict['safeMode'] is False
-                    assert re.search(SEMANTIC_VERSIONING_REGEX, content_dict['version']) is not None
+                    assert re.match(SEMANTIC_VERSIONING_REGEX, content_dict['version']) is not None
             query_patch.assert_called_once_with('statistics', payload)
         logger_info.assert_called_once_with('Received %s request for %s', 'GET', '/fledge/ping')
 
@@ -386,7 +386,7 @@ async def test_ping_https_allow_ping_false(aiohttp_server, ssl_ctx, aiohttp_clie
                     assert content_dict['hostName'] == host_name
                     assert content_dict['ipAddresses'] == ip_addresses
                     assert content_dict['health'] == "green"
-                    assert re.search(SEMANTIC_VERSIONING_REGEX, content_dict['version']) is not None
+                    assert re.match(SEMANTIC_VERSIONING_REGEX, content_dict['version']) is not None
             query_patch.assert_called_once_with('statistics', payload)
         logger_info.assert_called_once_with('Received %s request for %s', 'GET', '/fledge/ping')
 
@@ -455,7 +455,7 @@ async def test_ping_https_auth_required_allow_ping_true(aiohttp_server, ssl_ctx,
                     assert content_dict['ipAddresses'] == ip_addresses
                     assert content_dict['health'] == "green"
                     assert content_dict['safeMode'] is False
-                    assert re.search(SEMANTIC_VERSIONING_REGEX, content_dict['version']) is not None
+                    assert re.match(SEMANTIC_VERSIONING_REGEX, content_dict['version']) is not None
                     mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
                 query_patch.assert_called_once_with('statistics', payload)
             logger_info.assert_called_once_with('Received %s request for %s', 'GET', '/fledge/ping')

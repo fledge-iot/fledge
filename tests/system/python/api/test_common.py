@@ -20,7 +20,7 @@ __copyright__ = "Copyright (c) 2019 Dianomic Systems"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-SEMANTIC_VERSIONING_REGEX = "[0-9]+.[0-9+].[0-9]"
+SEMANTIC_VERSIONING_REGEX = "^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)$"
 
 
 @pytest.fixture
@@ -64,7 +64,7 @@ class TestCommon:
         assert 'green' == jdoc['health']
         assert jdoc['authenticationOptional'] is True
         assert jdoc['safeMode'] is False
-        assert re.search(SEMANTIC_VERSIONING_REGEX, jdoc['version']) is not None
+        assert re.match(SEMANTIC_VERSIONING_REGEX, jdoc['version']) is not None
 
     def test_ping_when_auth_mandatory_allow_ping_true(self, fledge_url, wait_time):
         conn = http.client.HTTPConnection(fledge_url)

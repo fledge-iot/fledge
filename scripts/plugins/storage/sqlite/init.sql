@@ -366,6 +366,7 @@ CREATE TABLE fledge.users (
        enabled           boolean                NOT NULL DEFAULT 't',
        pwd_last_changed  DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')),
        access_method     smallint               NOT NULL DEFAULT 0,
+       certificate       character varying(255) ,
           CONSTRAINT users_fk1 FOREIGN KEY (role_id)
           REFERENCES roles (id) MATCH SIMPLE
                   ON UPDATE NO ACTION

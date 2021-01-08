@@ -6,6 +6,7 @@
 
 """ auth routes """
 
+import os
 import re
 import json
 from collections import OrderedDict
@@ -243,8 +244,10 @@ async def create_user(request):
     """ create user
 
     :Example:
-        curl -H "authorization: <token>" -X POST -d '{"username": "any1", "password": "User@123"}' http://localhost:8081/fledge/admin/user
+        curl -H "authorization: <token>" -X POST -d '{"username": "any12", "password": "User@123"}' http://localhost:8081/fledge/admin/user
         curl -H "authorization: <token>" -X POST -d '{"username": "admin1", "password": "F0gl@mp!", "role_id": 1}' http://localhost:8081/fledge/admin/user
+        curl -H "authorization: <token>" -X POST -d '{"username": "Aj!23", "certificate": "user.cert"}' http://localhost:8081/fledge/admin/user
+        curl -H "authorization: <token>" -X POST -d '{"username": "AJ123", "certificate": "user.cert", "password": "AJ@123"}' http://localhost:8081/fledge/admin/user
     """
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
@@ -253,30 +256,51 @@ async def create_user(request):
     data = await request.json()
     username = data.get('username')
     password = data.get('password')
+    certificate = data.get('certificate')
     role_id = data.get('role_id', DEFAULT_ROLE_ID)
 
-    if not username or not password:
-        _logger.warning("Username and password are required to create user")
-        raise web.HTTPBadRequest(reason="Username or password is missing")
+    if not username:
+        msg = "Username is required to create user"
+        _logger.warning(msg)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
-    if not isinstance(password, str):
-        _logger.warning(PASSWORD_ERROR_MSG)
-        raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
+    if not (password or certificate):
+        msg = "Either password or certificate is required to create user"
+        _logger.warning(msg)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
-    if not re.match(PASSWORD_REGEX_PATTERN, password):
-        _logger.warning(PASSWORD_ERROR_MSG)
-        raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
+    if password:
+        if not isinstance(password, str):
+            _logger.warning(PASSWORD_ERROR_MSG)
+            raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG, body=json.dumps({"message": PASSWORD_ERROR_MSG}))
+
+        if not re.match(PASSWORD_REGEX_PATTERN, password):
+            _logger.warning(PASSWORD_ERROR_MSG)
+            raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG, body=json.dumps({"message": PASSWORD_ERROR_MSG}))
+
+    if certificate:
+        valid_extensions = ('.cert', '.cer', '.crt', '.pem')
+        if not certificate.endswith(valid_extensions):
+            msg = "Accepted cert extensions are {}".format(valid_extensions)
+            _logger.warning(msg)
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+        is_cert_found = await User.Objects.find_cert(certificate)
+        if not is_cert_found:
+            msg = "{} is not found in certificate store".format(certificate)
+            _logger.warning(msg)
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
     if not (await is_valid_role(role_id)):
         _logger.warning("Create user requested with bad role id")
-        return web.HTTPBadRequest(reason="Invalid or bad role id")
+        msg = "Invalid or bad role id"
+        return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
     # TODO: username regex? is email allowed?
     username = username.lower().replace(" ", "")
     if len(username) < MIN_USERNAME_LENGTH:
         msg = "Username should be of minimum 4 characters"
         _logger.warning(msg)
-        raise web.HTTPBadRequest(reason=msg)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
     try:
         await User.Objects.get(username=username)
@@ -284,11 +308,12 @@ async def create_user(request):
         pass
     else:
         _logger.warning("Can not create a user, username already exists")
-        raise web.HTTPConflict(reason="User with the requested username already exists")
+        msg = "User with the requested username already exists"
+        raise web.HTTPConflict(reason=msg, body=json.dumps({"message": msg}))
 
     u = dict()
     try:
-        result = await User.Objects.create(username, password, role_id)
+        result = await User.Objects.create(username, password, role_id, certificate)
         if result['rows_affected']:
             # FIXME: we should not do get again!
             # we just need inserted user id; insert call should return that
@@ -297,11 +322,13 @@ async def create_user(request):
             u['userName'] = user.pop('uname')
             u['roleId'] = user.pop('role_id')
     except ValueError as ex:
-        _logger.warning(str(ex))
-        raise web.HTTPBadRequest(reason=str(ex))
+        msg = str(ex)
+        _logger.warning(msg)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
-        _logger.exception(str(exc))
-        raise web.HTTPInternalServerError(reason=str(exc))
+        msg = str(exc)
+        _logger.exception(msg)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
     _logger.info("User has been created successfully")
 

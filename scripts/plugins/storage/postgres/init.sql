@@ -559,6 +559,7 @@ CREATE TABLE fledge.users (
        enabled           boolean                     NOT NULL DEFAULT TRUE,
        pwd_last_changed  timestamp(6) with time zone NOT NULL DEFAULT now(),
        access_method smallint                        NOT NULL DEFAULT 0,
+       certificate       character varying(255) ,
           CONSTRAINT users_pkey PRIMARY KEY (id),
           CONSTRAINT users_fk1 FOREIGN KEY (role_id)
           REFERENCES fledge.roles (id) MATCH SIMPLE

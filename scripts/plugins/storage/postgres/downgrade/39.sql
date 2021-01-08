@@ -1,0 +1,1 @@
+ALTER TABLE fledge.users DROP COLUMN certificate;

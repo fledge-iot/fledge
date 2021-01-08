@@ -54,45 +54,34 @@ class TestAuthMandatory:
 
         return patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get
 
-    @pytest.mark.parametrize("request_data", [
-        {},
-        {"username": 12},
-        {"password": 12},
-        {"username": "blah"},
-        {"password": "blah"},
-        {"invalid": "blah"},
-        {"username": "blah", "pwd": "blah"},
-        {"uname": "blah", "password": "blah"},
+    @pytest.mark.parametrize("request_data, msg", [
+        ({}, 'Username is required to create user'),
+        ({"username": 12}, 'Either password or certificate is required to create user'),
+        ({"password": 12}, 'Username is required to create user'),
+        ({"username": "blah"}, 'Either password or certificate is required to create user'),
+        ({"password": "blah"}, 'Username is required to create user'),
+        ({"invalid": "blah"}, 'Username is required to create user'),
+        ({"username": "blah", "pwd": "blah"}, 'Either password or certificate is required to create user'),
+        ({"uname": "blah", "password": "blah"}, 'Username is required to create user'),
+        ({"username": "Aj@123", "password": "blah"},
+         "Password must contain at least one digit, one lowercase, one uppercase & one special character "
+         "and length of minimum 6 characters"),
+        ({"username": "Aj@123", "certificate": "blah"},
+         "Accepted cert extensions are ('.cert', '.cer', '.crt', '.pem')"),
+        ({"username": "Aj@123", "certificate": "blah.cert"}, "blah.cert is not found in certificate store")
     ])
-    async def test_create_bad_user(self, client, mocker, request_data):
+    async def test_create_bad_user(self, client, mocker, request_data, msg):
         patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = self.auth_token_fixture(mocker)
 
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=mock_coro([{'id': '1'}])) as patch_role_id:
             with patch.object(auth._logger, 'warning') as patch_logger_warn:
                 resp = await client.post('/fledge/admin/user', data=json.dumps(request_data), headers=ADMIN_USER_HEADER)
                 assert 400 == resp.status
-                assert 'Username or password is missing' == resp.reason
-                patch_logger_warn.assert_called_once_with('Username and password are required to create user')
-        patch_role_id.assert_called_once_with('admin')
-        patch_user_get.assert_called_once_with(uid=1)
-        patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
-        patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/admin/user')
-
-    @pytest.mark.parametrize("request_data", [
-        {"username": "blah", "password": 1},
-        {"username": "blah", "password": "blah"}
-    ])
-    async def test_create_user_bad_password(self, client, mocker, request_data):
-        msg = 'Password must contain at least one digit, one lowercase, one uppercase & one special character and length of minimum 6 characters'
-        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = self.auth_token_fixture(mocker)
-
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=mock_coro([{'id': '1'}])) as patch_role_id:
-            with patch.object(auth._logger, 'warning') as patch_logger_warning:
-                resp = await client.post('/fledge/admin/user', data=json.dumps(request_data), headers=ADMIN_USER_HEADER)
-                assert 400 == resp.status
                 assert msg == resp.reason
-            patch_logger_warning.assert_called_once_with(msg)
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert {"message": msg} == json_response
+                patch_logger_warn.assert_called_once_with(msg)
         patch_role_id.assert_called_once_with('admin')
         patch_user_get.assert_called_once_with(uid=1)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
@@ -105,13 +94,16 @@ class TestAuthMandatory:
     ])
     async def test_create_user_with_bad_role(self, client, mocker, request_data):
         patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = self.auth_token_fixture(mocker)
-
+        msg = 'Invalid or bad role id'
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=mock_coro([{'id': '1'}])) as patch_role_id:
             with patch.object(auth, 'is_valid_role', return_value=mock_coro(False)) as patch_role:
                 with patch.object(auth._logger, 'warning') as patch_logger_warning:
                     resp = await client.post('/fledge/admin/user', data=json.dumps(request_data), headers=ADMIN_USER_HEADER)
                     assert 400 == resp.status
-                    assert 'Invalid or bad role id' == resp.reason
+                    assert msg == resp.reason
+                    r = await resp.text()
+                    json_response = json.loads(r)
+                    assert {"message": msg} == json_response
                 patch_logger_warning.assert_called_once_with('Create user requested with bad role id')
             patch_role.assert_called_once_with(request_data['role_id'])
         patch_role_id.assert_called_once_with('admin')
@@ -139,6 +131,9 @@ class TestAuthMandatory:
                     resp = await client.post('/fledge/admin/user', data=json.dumps(request_data), headers=ADMIN_USER_HEADER)
                     assert 400 == resp.status
                     assert msg == resp.reason
+                    r = await resp.text()
+                    json_response = json.loads(r)
+                    assert {"message": msg} == json_response
                 patch_logger_warning.assert_called_once_with(msg)
             patch_role.assert_called_once_with(2)
         patch_role_id.assert_called_once_with('admin')
@@ -150,6 +145,7 @@ class TestAuthMandatory:
     async def test_create_dupe_user_name(self, client):
         request_data = {"username": "ajtest", "password": "F0gl@mp"}
         valid_user = {'id': 1, 'uname': 'admin', 'role_id': '1'}
+        msg = 'User with the requested username already exists'
         with patch.object(middleware._logger, 'info') as patch_logger_info:
             with patch.object(User.Objects, 'validate_token', return_value=mock_coro(valid_user['id'])) as patch_validate_token:
                 with patch.object(User.Objects, 'refresh_token_expiry', return_value=mock_coro(None)) as patch_refresh_token:
@@ -159,7 +155,10 @@ class TestAuthMandatory:
                                 with patch.object(auth._logger, 'warning') as patch_logger_warning:
                                     resp = await client.post('/fledge/admin/user', data=json.dumps(request_data), headers=ADMIN_USER_HEADER)
                                     assert 409 == resp.status
-                                    assert 'User with the requested username already exists' == resp.reason
+                                    assert msg == resp.reason
+                                    r = await resp.text()
+                                    json_response = json.loads(r)
+                                    assert {"message": msg} == json_response
                                 patch_logger_warning.assert_called_once_with('Can not create a user, username already exists')
                             patch_role.assert_called_once_with(2)
                         patch_role_id.assert_called_once_with('admin')
@@ -172,11 +171,17 @@ class TestAuthMandatory:
             patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/admin/user')
 
-    async def test_create_user(self, client):
+    @pytest.mark.parametrize("request_data", [
+        {"username": "ajtest", "password": "Aj@123"},
+        {"username": "ajtest", "password": "aJ@123", "role_id": 2},
+        {"username": "ajtest", "certificate": "user.cert"},
+        {"username": "ajtest", "certificate": "user.cert", "password": "Aj123#"},
+        {"username": "ajtest", "certificate": "user.cert", "password": "AJ!23a", "role_id": 2},
+    ])
+    async def test_create_user(self, client, request_data):
         data = {'id': '3', 'uname': 'ajtest', 'role_id': '2'}
         expected = {}
         expected.update(data)
-        request_data = {"username": "ajtest", "password": "F0gl@mp"}
         ret_val = {"response": "inserted", "rows_affected": 1}
         msg = 'User has been created successfully'
 
@@ -198,7 +203,12 @@ class TestAuthMandatory:
                                         assert expected['uname'] == actual['user']['userName']
                                         assert expected['role_id'] == actual['user']['roleId']
                                     patch_auth_logger_info.assert_called_once_with(msg)
-                                patch_create_user.assert_called_once_with(request_data['username'], request_data['password'], int(expected['role_id']))
+                                patch_create_user.assert_called_once_with(request_data['username'],
+                                                                          request_data['password']
+                                                                          if 'password' in request_data else None,
+                                                                          int(expected['role_id']),
+                                                                          request_data['certificate']
+                                                                          if 'certificate' in request_data else None)
                             patch_role.assert_called_once_with(int(expected['role_id']))
                         patch_role_id.assert_called_once_with('admin')
                     assert 3 == patch_user_get.call_count
@@ -228,8 +238,11 @@ class TestAuthMandatory:
                                         resp = await client.post('/fledge/admin/user', data=json.dumps(request_data), headers=ADMIN_USER_HEADER)
                                         assert 500 == resp.status
                                         assert exc_msg == resp.reason
+                                        r = await resp.text()
+                                        json_response = json.loads(r)
+                                        assert {"message": exc_msg} == json_response
                                     patch_audit_logger_exc.assert_called_once_with(exc_msg)
-                                patch_create_user.assert_called_once_with(request_data['username'], request_data['password'], 2)
+                                patch_create_user.assert_called_once_with(request_data['username'], request_data['password'], 2, None)
                             patch_role.assert_called_once_with(2)
                         patch_role_id.assert_called_once_with('admin')
                 assert 2 == patch_user_get.call_count
@@ -256,8 +269,11 @@ class TestAuthMandatory:
                                         resp = await client.post('/fledge/admin/user', data=json.dumps(request_data), headers=ADMIN_USER_HEADER)
                                         assert 400 == resp.status
                                         assert exc_msg == resp.reason
+                                        r = await resp.text()
+                                        json_response = json.loads(r)
+                                        assert {"message": exc_msg} == json_response
                                     patch_audit_logger_warn.assert_called_once_with(exc_msg)
-                                patch_create_user.assert_called_once_with(request_data['username'], request_data['password'], 2)
+                                patch_create_user.assert_called_once_with(request_data['username'], request_data['password'], 2, None)
                             patch_role.assert_called_once_with(2)
                         patch_role_id.assert_called_once_with('admin')
                     assert 2 == patch_user_get.call_count

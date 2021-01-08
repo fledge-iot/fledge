@@ -7,6 +7,7 @@
 """ Fledge user entity class with CRUD operations to Storage layer
 
 """
+import os
 import uuid
 import hashlib
 from datetime import datetime, timedelta
@@ -89,21 +90,25 @@ class User:
             return result["rows"]
 
         @classmethod
-        async def create(cls, username, password, role_id):
+        async def create(cls, username: str, password: str, role_id: int, certificate: str = None) -> dict:
             """
             Args:
                 username: user name
                 password: Password must contain at least one digit, one lowercase, one uppercase &
-                          one special character and length of minimum 6 characters
+                          one special character and length of minimum 6 characters (optional if certificate is given)
                 role_id: Role (by default normal 'user' role whose id is 2)
-
+                certificate: cert name (Optional if password is given)
             Returns:
-                   user json info
+                   user dict
             """
-
             storage_client = connect.get_storage_async()
-            payload = PayloadBuilder().INSERT(uname=username, pwd=cls.hash_password(password),
-                                              role_id=role_id).payload()
+            payload = PayloadBuilder().INSERT(uname=username, certificate=certificate, role_id=role_id).payload()
+            if password:
+                payload = PayloadBuilder().INSERT(uname=username, pwd=cls.hash_password(password),
+                                                  role_id=role_id).payload()
+            if certificate and password:
+                payload = PayloadBuilder().INSERT(uname=username, pwd=cls.hash_password(password),
+                                                  role_id=role_id, certificate=certificate).payload()
             try:
                 result = await storage_client.insert_into_tbl("users", payload)
             except StorageServerError as ex:
@@ -458,3 +463,14 @@ class User:
             SSLVerifier.set_ca_cert(ca_cert_file)
             SSLVerifier.set_user_cert(cert)
             SSLVerifier.verify()  # raises OSError, SSLVerifier.VerificationError
+
+        @classmethod
+        async def find_cert(cls, cert_name: str) -> bool:
+            is_cert_found = False
+            certs_dir = _FLEDGE_DATA + '/etc/certs' if _FLEDGE_DATA else _FLEDGE_ROOT + "/data/etc/certs"
+            for root, dirs, files in os.walk(certs_dir):
+                for f in files:
+                    if f == cert_name:
+                        is_cert_found = True
+                        break
+            return is_cert_found

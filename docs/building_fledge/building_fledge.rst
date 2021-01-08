@@ -197,7 +197,7 @@ Selecting the Correct Version
 
 The git repository created on your local machine, creates several branches. More specifically:
 
-- The **master** branch is the latest, stable version. You should use this branch if you are interested in using Fledge with the last release features and fixes.
+- The **main** branch is the latest, stable version. You should use this branch if you are interested in using Fledge with the last release features and fixes.
 - The **develop** branch is the current working branch used by our developers. The branch contains the latest version and features, but it may be unstable and there may be issues in the code. You may consider to use this branch if you are curious to see one of the latest features we are working on, but you should not use this branch in production.
 - The branches with versions **majorID.minorID**, such as *1.0* or *1.4*, contain the code of that specific version. You may use one of these branches if you need to check the code used in those versions.
 - The branches with name **FOGL-XXXX**, where 'XXXX' is a sequence number, are working branches used by developers and contributors to add features, fix issues, modify and release code and documentation of Fledge. Those branches are free for you to see and learn from the work of the contributors.
@@ -220,16 +220,16 @@ Once you have cloned the Fledge project, in order to check the branches availabl
   remotes/origin/HEAD -> origin/develop
   ...
   remotes/origin/develop
-  remotes/origin/master
+  remotes/origin/main
   $
 
 Assuming you want to use the latest released, stable version, use the ``git checkout`` command to select the *master* branch:
 
 .. code-block:: console
 
-  $ git checkout master
-  Branch master set up to track remote branch master from origin.
-  Switched to a new branch 'master'
+  $ git checkout main
+  Branch main set up to track remote branch main from origin.
+  Switched to a new branch 'main'
   $
 
 You can always use the ``git status`` command to check the branch you have checked out.

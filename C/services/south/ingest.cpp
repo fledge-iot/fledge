@@ -400,10 +400,11 @@ void Ingest::processQueue()
 					for (int cnt = 5; cnt > 0 && q->size() > 0; cnt--)
 					{
 						Reading *reading = q->front();
-						m_logger->warn("Remove reading: %s",
+						m_logger->info("Remove reading: %s",
 								reading->toJSON().c_str());
 						delete reading;
 						q->erase(q->begin());
+						logDiscardedStat();
 					}
 					if (q->size() == 0)
 					{

@@ -47,8 +47,8 @@ Adhering to the following process is the best way to get your work included in t
 2. If you cloned a while ago, get the latest changes from upstream:
 
    ```bash
-   git checkout master
-   git pull --rebase upstream master
+   git checkout main
+   git pull --rebase upstream main
    ```
 
 3. Create a new topic branch from `develop`, if you are working a particular issue from the Project Jira then the convention for branch names is to use the Jira name, otherwise choose a descriptive branch name that contains your GitHub username in order to help us track the changes.
@@ -70,7 +70,7 @@ Adhering to the following process is the best way to get your work included in t
 5. Locally merge (or rebase) the upstream development branch into your topic branch:
 
    ```bash
-   git pull --rebase upstream master
+   git pull --rebase upstream main
    ```
 
 6. Push your topic branch up to your fork:

@@ -175,7 +175,7 @@ rapidjson::Value *JSONPath::IndexPathComponent::match(rapidjson::Value *node)
 			return &n[m_index];
 		}
 	}
-	throw runtime_error("Document has no member ");
+	throw runtime_error("Document has no member " + m_name + " or it is not an array");
 }
 
 /**
@@ -207,10 +207,32 @@ rapidjson::Value *JSONPath::MatchPathComponent::match(rapidjson::Value *node)
 						if (v[m_property.c_str()].IsString() 
 								&& m_value.compare(v[m_property.c_str()].GetString()) == 0)
 							return &v;
+						if (v[m_property.c_str()].IsInt())
+						{
+							long val = v[m_property.c_str()].GetInt();
+							long tval = strtol(m_value.c_str(), NULL, 10);
+							if (val == tval)
+								return &v;
+						}
+						else if (v[m_property.c_str()].IsDouble())
+						{
+							double val = v[m_property.c_str()].GetDouble();
+							double tval = strtod(m_value.c_str(), NULL);
+							if (val == tval)
+								return &v;
+						}
+						else if (v[m_property.c_str()].IsBool())
+						{
+							bool val = v[m_property.c_str()].GetBool();
+							if (val && (m_value.compare("true") == 0 || m_value.compare("TRUE") == 0))
+								return &v;
+							if (val == false && (m_value.compare("false") == 0 || m_value.compare("FALSE") == 0))
+								return &v;
+						}
 					}
 				}
 			}
 		}
 	}
-	throw runtime_error("Document has no member ");
+	throw runtime_error(string("Document has no member ") + m_name + string(" or it does not have a ") + m_property + " property");
 }

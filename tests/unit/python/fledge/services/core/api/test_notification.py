@@ -208,6 +208,12 @@ notification_config = {
         "type": "boolean",
         "default": "true",
         "value": "true",
+    },
+    "retrigger_time": {
+        "description": "Retrigger time in seconds for sending a new notification.",
+        "type": "integer",
+        "default": "60",
+        "value": "60",
     }
 }
 

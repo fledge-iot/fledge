@@ -74,9 +74,7 @@ namespace SimpleWeb {
 
       void send_from_queue() REQUIRES(send_queue_mutex) {
         auto self = this->shared_from_this();
-        session->connection->set_timeout(timeout_content);
         asio::async_write(*self->session->connection->socket, *send_queue.begin()->first, [self](const error_code &ec, std::size_t /*bytes_transferred*/) {
-          self->session->connection->set_timeout(self->timeout_content); // Set timeout for next send
           auto lock = self->session->connection->handler_runner->continue_lock();
           if(!lock)
             return;
@@ -111,10 +109,8 @@ namespace SimpleWeb {
       }
 
       void send_on_delete(const std::function<void(const error_code &)> &callback = nullptr) noexcept {
-        session->connection->set_timeout(timeout_content);
         auto self = this->shared_from_this(); // Keep Response instance alive through the following async_write
         asio::async_write(*session->connection->socket, *streambuf, [self, callback](const error_code &ec, std::size_t /*bytes_transferred*/) {
-          self->session->connection->cancel_timeout();
           auto lock = self->session->connection->handler_runner->continue_lock();
           if(!lock)
             return;
@@ -245,6 +241,16 @@ namespace SimpleWeb {
         return asio::ip::tcp::endpoint();
       }
 
+      asio::ip::tcp::endpoint local_endpoint() const noexcept {
+        try {
+          if(auto connection = this->connection.lock())
+            return connection->socket->lowest_layer().local_endpoint();
+        }
+        catch(...) {
+        }
+        return asio::ip::tcp::endpoint();
+      }
+
       /// Deprecated, please use remote_endpoint().address().to_string() instead.
       DEPRECATED std::string remote_endpoint_address() const noexcept {
         try {
@@ -297,7 +303,7 @@ namespace SimpleWeb {
           return;
         }
 
-        timer = std::unique_ptr<asio::steady_timer>(new asio::steady_timer(get_socket_executor(*socket), std::chrono::seconds(seconds)));
+        timer = make_steady_timer(*socket, std::chrono::seconds(seconds));
         std::weak_ptr<Connection> self_weak(this->shared_from_this()); // To avoid keeping Connection instance alive longer than needed
         timer->async_wait([self_weak](const error_code &ec) {
           if(!ec) {
@@ -338,13 +344,13 @@ namespace SimpleWeb {
       /// If io_service is not set, number of threads that the server will use when start() is called.
       /// Defaults to 1 thread.
       std::size_t thread_pool_size = 1;
-      /// Timeout on request handling. Defaults to 5 seconds.
+      /// Timeout on request completion. Defaults to 5 seconds.
       long timeout_request = 5;
-      /// Timeout on content handling. Defaults to 300 seconds.
+      /// Timeout on request/response content completion. Defaults to 300 seconds.
       long timeout_content = 300;
       /// Maximum size of request stream buffer. Defaults to architecture maximum.
       /// Reaching this limit will result in a message_size error code.
-      std::size_t max_request_streambuf_size = std::numeric_limits<std::size_t>::max();
+      std::size_t max_request_streambuf_size = (std::numeric_limits<std::size_t>::max)();
       /// IPv4 address in dotted decimal form or IPv6 address in hexadecimal notation.
       /// If empty, the address will be any address.
       std::string address;
@@ -393,7 +399,7 @@ namespace SimpleWeb {
       std::unique_lock<std::mutex> lock(start_stop_mutex);
 
       asio::ip::tcp::endpoint endpoint;
-      if(config.address.size() > 0)
+      if(!config.address.empty())
         endpoint = asio::ip::tcp::endpoint(make_address(config.address), config.port);
       else
         endpoint = asio::ip::tcp::endpoint(asio::ip::tcp::v6(), config.port);
@@ -405,7 +411,17 @@ namespace SimpleWeb {
 
       if(!acceptor)
         acceptor = std::unique_ptr<asio::ip::tcp::acceptor>(new asio::ip::tcp::acceptor(*io_service));
-      acceptor->open(endpoint.protocol());
+      try {
+        acceptor->open(endpoint.protocol());
+      }
+      catch(const system_error &error) {
+        if(error.code() == asio::error::address_family_not_supported && config.address.empty()) {
+          endpoint = asio::ip::tcp::endpoint(asio::ip::tcp::v4(), config.port);
+          acceptor->open(endpoint.protocol());
+        }
+        else
+          throw;
+      }
       acceptor->set_option(asio::socket_base::reuse_address(config.reuse_address));
       if(config.fast_open) {
 #if defined(__linux__) && defined(TCP_FASTOPEN)
@@ -535,18 +551,11 @@ namespace SimpleWeb {
     void read(const std::shared_ptr<Session> &session) {
       session->connection->set_timeout(config.timeout_request);
       asio::async_read_until(*session->connection->socket, session->request->streambuf, "\r\n\r\n", [this, session](const error_code &ec, std::size_t bytes_transferred) {
-        session->connection->cancel_timeout();
+        session->connection->set_timeout(config.timeout_content);
         auto lock = session->connection->handler_runner->continue_lock();
         if(!lock)
           return;
         session->request->header_read_time = std::chrono::system_clock::now();
-        if(session->request->streambuf.size() == session->request->streambuf.max_size()) {
-          auto response = std::shared_ptr<Response>(new Response(session, this->config.timeout_content));
-          response->write(StatusCode::client_error_payload_too_large);
-          if(this->on_error)
-            this->on_error(session->request, make_error_code::make_error_code(errc::message_size));
-          return;
-        }
 
         if(!ec) {
           // request->streambuf.size() is not necessarily the same as bytes_transferred, from Boost-docs:
@@ -567,27 +576,25 @@ namespace SimpleWeb {
           if(header_it != session->request->header.end()) {
             unsigned long long content_length = 0;
             try {
-              content_length = stoull(header_it->second);
+              content_length = std::stoull(header_it->second);
             }
             catch(const std::exception &) {
               if(this->on_error)
                 this->on_error(session->request, make_error_code::make_error_code(errc::protocol_error));
               return;
             }
+            if(content_length > session->request->streambuf.max_size()) {
+              auto response = std::shared_ptr<Response>(new Response(session, this->config.timeout_content));
+              response->write(StatusCode::client_error_payload_too_large);
+              if(this->on_error)
+                this->on_error(session->request, make_error_code::make_error_code(errc::message_size));
+              return;
+            }
             if(content_length > num_additional_bytes) {
-              session->connection->set_timeout(config.timeout_content);
               asio::async_read(*session->connection->socket, session->request->streambuf, asio::transfer_exactly(content_length - num_additional_bytes), [this, session](const error_code &ec, std::size_t /*bytes_transferred*/) {
-                session->connection->cancel_timeout();
                 auto lock = session->connection->handler_runner->continue_lock();
                 if(!lock)
                   return;
-                if(session->request->streambuf.size() == session->request->streambuf.max_size()) {
-                  auto response = std::shared_ptr<Response>(new Response(session, this->config.timeout_content));
-                  response->write(StatusCode::client_error_payload_too_large);
-                  if(this->on_error)
-                    this->on_error(session->request, make_error_code::make_error_code(errc::message_size));
-                  return;
-                }
 
                 if(!ec)
                   this->find_resource(session);
@@ -619,9 +626,7 @@ namespace SimpleWeb {
     }
 
     void read_chunked_transfer_encoded(const std::shared_ptr<Session> &session, const std::shared_ptr<asio::streambuf> &chunk_size_streambuf) {
-      session->connection->set_timeout(config.timeout_content);
       asio::async_read_until(*session->connection->socket, *chunk_size_streambuf, "\r\n", [this, session, chunk_size_streambuf](const error_code &ec, size_t bytes_transferred) {
-        session->connection->cancel_timeout();
         auto lock = session->connection->handler_runner->continue_lock();
         if(!lock)
           return;
@@ -629,15 +634,28 @@ namespace SimpleWeb {
         if(!ec) {
           std::istream istream(chunk_size_streambuf.get());
           std::string line;
-          getline(istream, line);
+          std::getline(istream, line);
           bytes_transferred -= line.size() + 1;
           unsigned long chunk_size = 0;
           try {
-            chunk_size = stoul(line, 0, 16);
+            chunk_size = std::stoul(line, 0, 16);
           }
           catch(...) {
             if(this->on_error)
               this->on_error(session->request, make_error_code::make_error_code(errc::protocol_error));
+            return;
+          }
+
+          if(chunk_size == 0) {
+            this->find_resource(session);
+            return;
+          }
+
+          if(chunk_size + session->request->streambuf.size() > session->request->streambuf.max_size()) {
+            auto response = std::shared_ptr<Response>(new Response(session, this->config.timeout_content));
+            response->write(StatusCode::client_error_payload_too_large);
+            if(this->on_error)
+              this->on_error(session->request, make_error_code::make_error_code(errc::message_size));
             return;
           }
 
@@ -650,44 +668,43 @@ namespace SimpleWeb {
             auto &target = session->request->streambuf;
             target.commit(asio::buffer_copy(target.prepare(bytes_to_move), source.data(), bytes_to_move));
             source.consume(bytes_to_move);
-
-            if(session->request->streambuf.size() == session->request->streambuf.max_size()) {
-              auto response = std::shared_ptr<Response>(new Response(session, this->config.timeout_content));
-              response->write(StatusCode::client_error_payload_too_large);
-              if(this->on_error)
-                this->on_error(session->request, make_error_code::make_error_code(errc::message_size));
-              return;
-            }
           }
 
-          if((2 + chunk_size) > num_additional_bytes) {
-            session->connection->set_timeout(config.timeout_content);
-            asio::async_read(*session->connection->socket, session->request->streambuf, asio::transfer_exactly(2 + chunk_size - num_additional_bytes), [this, session, chunk_size_streambuf, chunk_size](const error_code &ec, size_t /*bytes_transferred*/) {
-              session->connection->cancel_timeout();
+          if(chunk_size > num_additional_bytes) {
+            asio::async_read(*session->connection->socket, session->request->streambuf, asio::transfer_exactly(chunk_size - num_additional_bytes), [this, session, chunk_size_streambuf](const error_code &ec, size_t /*bytes_transferred*/) {
               auto lock = session->connection->handler_runner->continue_lock();
               if(!lock)
                 return;
-              if(chunk_size_streambuf->size() == chunk_size_streambuf->max_size()) {
-                auto response = std::shared_ptr<Response>(new Response(session, this->config.timeout_content));
-                response->write(StatusCode::client_error_payload_too_large);
-                if(this->on_error)
-                  this->on_error(session->request, make_error_code::make_error_code(errc::message_size));
-                return;
-              }
 
               if(!ec) {
-                std::istream istream(&session->request->streambuf);
-
                 // Remove "\r\n"
-                istream.get();
-                istream.get();
-
-                if(chunk_size > 0)
-                  read_chunked_transfer_encoded(session, chunk_size_streambuf);
-                else
-                  this->find_resource(session);
+                auto null_buffer = std::make_shared<asio::streambuf>(2);
+                asio::async_read(*session->connection->socket, *null_buffer, asio::transfer_exactly(2), [this, session, chunk_size_streambuf, null_buffer](const error_code &ec, size_t /*bytes_transferred*/) {
+                  auto lock = session->connection->handler_runner->continue_lock();
+                  if(!lock)
+                    return;
+                  if(!ec)
+                    read_chunked_transfer_encoded(session, chunk_size_streambuf);
+                  else
+                    this->on_error(session->request, ec);
+                });
               }
               else if(this->on_error)
+                this->on_error(session->request, ec);
+            });
+          }
+          else if(2 + chunk_size > num_additional_bytes) { // If only end of chunk remains unread (\n or \r\n)
+            // Remove "\r\n"
+            if(2 + chunk_size - num_additional_bytes == 1)
+              istream.get();
+            auto null_buffer = std::make_shared<asio::streambuf>(2);
+            asio::async_read(*session->connection->socket, *null_buffer, asio::transfer_exactly(2 + chunk_size - num_additional_bytes), [this, session, chunk_size_streambuf, null_buffer](const error_code &ec, size_t /*bytes_transferred*/) {
+              auto lock = session->connection->handler_runner->continue_lock();
+              if(!lock)
+                return;
+              if(!ec)
+                read_chunked_transfer_encoded(session, chunk_size_streambuf);
+              else
                 this->on_error(session->request, ec);
             });
           }
@@ -696,10 +713,7 @@ namespace SimpleWeb {
             istream.get();
             istream.get();
 
-            if(chunk_size > 0)
-              read_chunked_transfer_encoded(session, chunk_size_streambuf);
-            else
-              this->find_resource(session);
+            read_chunked_transfer_encoded(session, chunk_size_streambuf);
           }
         }
         else if(this->on_error)
@@ -743,10 +757,10 @@ namespace SimpleWeb {
 
     void write(const std::shared_ptr<Session> &session,
                std::function<void(std::shared_ptr<typename ServerBase<socket_type>::Response>, std::shared_ptr<typename ServerBase<socket_type>::Request>)> &resource_function) {
-      session->connection->set_timeout(config.timeout_content); // Set timeout for first send
       auto response = std::shared_ptr<Response>(new Response(session, config.timeout_content), [this](Response *response_ptr) {
         auto response = std::shared_ptr<Response>(response_ptr);
         response->send_on_delete([this, response](const error_code &ec) {
+          response->session->connection->cancel_timeout();
           if(!ec) {
             if(response->close_connection_after_response)
               return;

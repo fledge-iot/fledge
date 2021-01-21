@@ -110,11 +110,19 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"order": "1",
 			"displayName": "Endpoint"
 		},
+		"SendFullStructure": {
+			"description": "It sends the minimum OMF structural messages to load data into Data Archive if disabled",
+			"type": "boolean",
+			"default": "True",
+			"order": "2",
+			"displayName": "Send full structure",
+			"validity" : "PIServerEndpoint == \"PI Web API\""
+		},
 		"ServerHostname": {
 			"description": "Hostname of the server running the endpoint either PI Web API or Connector Relay",
 			"type": "string",
 			"default": "localhost",
-			"order": "2",
+			"order": "3",
 			"displayName": "Server hostname",
 			"validity" : "PIServerEndpoint != \"Edge Data Store\" && PIServerEndpoint != \"OSIsoft Cloud Services\""
 		},
@@ -122,7 +130,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "Port on which the endpoint either PI Web API or Connector Relay or Edge Data Store is listening, 0 will use the default one",
 			"type": "integer",
 			"default": "0",
-			"order": "3",
+			"order": "4",
 			"displayName": "Server port, 0=use the default",
 			"validity" : "PIServerEndpoint != \"OSIsoft Cloud Services\""
 		},
@@ -130,7 +138,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "The producer token that represents this Fledge stream",
 			"type": "string",
 			"default": "omf_north_0001",
-			"order": "4",
+			"order": "5",
 			"displayName": "Producer Token",
 			"validity" : "PIServerEndpoint == \"Connector Relay\""
 		},
@@ -139,63 +147,63 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type": "enumeration",
 			"options":["readings", "statistics"],
 			"default": "readings",
-			"order": "5",
+			"order": "6",
 			"displayName": "Data Source"
 		},
 		"StaticData": {
 			"description": "Static data to include in each sensor reading sent to the PI Server.",
 			"type": "string",
 			"default": "Location: Palo Alto, Company: Dianomic",
-			"order": "6",
+			"order": "7",
 			"displayName": "Static Data"
 		},
 		"OMFRetrySleepTime": {
 			"description": "Seconds between each retry for the communication with the OMF PI Connector Relay, NOTE : the time is doubled at each attempt.",
 			"type": "integer",
 			"default": "1",
-			"order": "7",
+			"order": "8",
 			"displayName": "Sleep Time Retry"
 		},
 		"OMFMaxRetry": {
 			"description": "Max number of retries for the communication with the OMF PI Connector Relay",
 			"type": "integer",
 			"default": "3",
-			"order": "8",
+			"order": "9",
 			"displayName": "Maximum Retry"
 		},
 		"OMFHttpTimeout": {
 			"description": "Timeout in seconds for the HTTP operations with the OMF PI Connector Relay",
 			"type": "integer",
 			"default": "10",
-			"order": "9",
+			"order": "10",
 			"displayName": "HTTP Timeout"
 		},
 		"formatInteger": {
 			"description": "OMF format property to apply to the type Integer",
 			"type": "string",
 			"default": "int64",
-			"order": "10",
+			"order": "11",
 			"displayName": "Integer Format"
 		},
 		"formatNumber": {
 			"description": "OMF format property to apply to the type Number",
 			"type": "string",
 			"default": "float64",
-			"order": "11",
+			"order": "12",
 			"displayName": "Number Format"
 		},
 		"compression": {
 			"description": "Compress readings data before sending to PI server",
 			"type": "boolean",
 			"default": "True",
-			"order": "12",
+			"order": "13",
 			"displayName": "Compression"
 		},
 		"DefaultAFLocation": {
 			"description": "Defines the hierarchies tree in Asset Framework in which the assets will be created, each level is separated by /, PI Web API only.",
 			"type": "string",
 			"default": "/fledge/data_piwebapi/default",
-			"order": "13",
+			"order": "14",
 			"displayName": "Asset Framework hierarchies tree",
 			"validity" : "PIServerEndpoint == \"PI Web API\""
 		},
@@ -203,7 +211,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "Defines a set of rules to address where assets should be placed in the AF hierarchy.",
 			"type": "JSON",
 			"default": AF_HIERARCHY_RULES,
-			"order": "14",
+			"order": "15",
 			"displayName": "Asset Framework hierarchies rules",
 			"validity" : "PIServerEndpoint == \"PI Web API\""
 		},
@@ -211,14 +219,14 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "These errors are considered not blocking in the communication with the PI Server, the sending operation will proceed with the next block of data if one of these is encountered",
 			"type": "JSON",
 			"default": NOT_BLOCKING_ERRORS_DEFAULT,
-			"order": "15" ,
+			"order": "16" ,
 			"readonly": "true"
 		},
 		"streamId": {
 			"description": "Identifies the specific stream to handle and the related information, among them the ID of the last object streamed.",
 			"type": "integer",
 			"default": "0",
-			"order": "16" ,
+			"order": "17" ,
 			"readonly": "true"
 		},
 		"PIWebAPIAuthenticationMethod": {
@@ -226,7 +234,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type": "enumeration",
 			"options":["anonymous", "basic", "kerberos"],
 			"default": "anonymous",
-			"order": "17",
+			"order": "18",
 			"displayName": "PI Web API Authentication Method",
 			"validity" : "PIServerEndpoint == \"PI Web API\""
 		},
@@ -234,7 +242,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "User id of PI Web API to be used with the basic access authentication.",
 			"type": "string",
 			"default": "user_id",
-			"order": "18",
+			"order": "19",
 			"displayName": "PI Web API User Id",
 			"validity" : "PIServerEndpoint == \"PI Web API\" && PIWebAPIAuthenticationMethod == \"basic\""
 		},
@@ -242,7 +250,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "Password of the user of PI Web API to be used with the basic access authentication.",
 			"type": "password",
 			"default": "password",
-			"order": "19" ,
+			"order": "20" ,
 			"displayName": "PI Web API Password",
 			"validity" : "PIServerEndpoint == \"PI Web API\" && PIWebAPIAuthenticationMethod == \"basic\""
 		},
@@ -250,7 +258,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "Keytab file name used for Kerberos authentication in PI Web API.",
 			"type": "string",
 			"default": "piwebapi_kerberos_https.keytab",
-			"order": "20" ,
+			"order": "21" ,
 			"displayName": "PI Web API Kerberos keytab file",
 			"validity" : "PIServerEndpoint == \"PI Web API\" && PIWebAPIAuthenticationMethod == \"kerberos\""
 		},
@@ -258,7 +266,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description" : "Specifies the OCS namespace where the information are stored and it is used for the interaction with the OCS API",
 			"type" : "string",
 			"default": "name_space",
-			"order": "21",
+			"order": "22",
 			"displayName" : "OCS Namespace",
 			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\""
 		},
@@ -266,7 +274,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description" : "Tenant id associated to the specific OCS account",
 			"type" : "string",
 			"default": "ocs_tenant_id",
-			"order": "22",
+			"order": "23",
 			"displayName" : "OCS Tenant ID",
 			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\""
 		},
@@ -274,7 +282,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description" : "Client id associated to the specific OCS account, it is used to authenticate the source for using the OCS API",
 			"type" : "string",
 			"default": "ocs_client_id",
-			"order": "23",
+			"order": "24",
 			"displayName" : "OCS Client ID",
 			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\""
 		},
@@ -282,7 +290,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description" : "Client secret associated to the specific OCS account, it is used to authenticate the source for using the OCS API",
 			"type" : "password",
 			"default": "ocs_client_secret",
-			"order": "24",
+			"order": "25",
 			"displayName" : "OCS Client Secret",
 			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\""
 		},
@@ -290,7 +298,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "These errors are considered not blocking in the communication with the PI Web API, the sending operation will proceed with the next block of data if one of these is encountered",
 			"type": "JSON",
 			"default": NOT_BLOCKING_ERRORS_DEFAULT_PI_WEB_API,
-			"order": "25" ,
+			"order": "26" ,
 			"readonly": "true"
 		}
 	}
@@ -305,6 +313,7 @@ typedef struct
 {
 	HttpSender	*sender;                // HTTPS connection
 	OMF 		*omf;                   // OMF data protocol
+	bool        sendFullStructure;      // It sends the minimum OMF structural messages to load data into Data Archive if disabled
 	bool		compression;            // whether to compress readings' data
 	string		protocol;               // http / https
 	string		hostAndPort;            // hostname:port for SimpleHttps
@@ -395,6 +404,8 @@ PLUGIN_INFORMATION *plugin_info()
  */
 PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 {
+	int endpointPort = 0;
+
 	/**
 	 * Handle the PI Server parameters here
 	 */
@@ -407,8 +418,6 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	string ServerPort = configData->getValue("ServerPort");
 	string url;
 	{
-		int endpointPort = 0;
-
 		// Translate the PIServerEndpoint configuration
 		if(PIServerEndpoint.compare("PI Web API") == 0)
 		{
@@ -439,6 +448,19 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 			endpointPort               = ENDPOINT_PORT_POINT_EDS;
 		}
 		ServerPort = (ServerPort.compare("0") == 0) ? to_string(endpointPort) : ServerPort;
+	}
+
+	if (endpointPort == ENDPOINT_PORT_PIWEB_API) {
+
+		// Use SendFullStructure ?
+		string fullStr = configData->getValue("SendFullStructure");
+
+		if (fullStr == "True" || fullStr == "true" || fullStr == "TRUE")
+			connInfo->sendFullStructure = true;
+		else
+			connInfo->sendFullStructure = false;
+	} else {
+		connInfo->sendFullStructure = true;
 	}
 
 	unsigned int retrySleepTime = atoi(configData->getValue("OMFRetrySleepTime").c_str());
@@ -718,6 +740,8 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 				connInfo->path,
 				connInfo->assetsDataTypes,
 				connInfo->producerToken);
+
+	connInfo->omf->setSendFullStructure(connInfo->sendFullStructure);
 
 	// Set PIServerEndpoint configuration
 	connInfo->omf->setPIServerEndpoint(connInfo->PIServerEndpoint);

@@ -431,138 +431,146 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 		return false;
 	}
 
-	// Create header for Static data
-	vector<pair<string, string>> resStaticData = OMF::createMessageHeader("Data");
-	// Create data for Static Data message	
-	string typeStaticData = OMF::createStaticData(row);
+	if (m_sendFullStructure) {
 
-	// Build an HTTPS POST with 'resStaticData' headers
-	// and 'typeStaticData' JSON payload
-	// Then get HTTPS POST ret code and return 0 to client on error
-	try
-	{
-		res = m_sender.sendRequest("POST",
-					   m_path,
-					   resStaticData,
-					   typeStaticData);
-		if  ( ! (res >= 200 && res <= 299) )
+
+		// Create header for Static data
+		vector<pair<string, string>> resStaticData = OMF::createMessageHeader("Data");
+		// Create data for Static Data message
+		string typeStaticData = OMF::createStaticData(row);
+
+		// Build an HTTPS POST with 'resStaticData' headers
+		// and 'typeStaticData' JSON payload
+		// Then get HTTPS POST ret code and return 0 to client on error
+		try
 		{
-			Logger::getLogger()->error("Sending JSON dataType message 'StaticData' "
-						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
-						   res,
+			res = m_sender.sendRequest("POST",
+						   m_path,
+						   resStaticData,
+						   typeStaticData);
+			if  ( ! (res >= 200 && res <= 299) )
+			{
+				Logger::getLogger()->error("Sending JSON dataType message 'StaticData' "
+							   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+							   res,
+							   m_sender.getHostPort().c_str(),
+							   m_path.c_str(),
+							   typeStaticData.c_str() );
+				return false;
+			}
+		}
+		// Exception raised fof HTTP 400 Bad Request
+		catch (const BadRequest& e)
+		{
+			if (OMF::isDataTypeError(e.what()))
+			{
+				// Data type error: force type-id change
+				m_changeTypeId = true;
+			}
+			Logger::getLogger()->warn("Sending JSON dataType message 'StaticData'"
+						   "not blocking issue: |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+						   (m_changeTypeId ? "Data Type " : "" ),
+						   e.what(),
+						   m_sender.getHostPort().c_str(),
+						   m_path.c_str(),
+						   typeStaticData.c_str() );
+			return false;
+		}
+		catch (const std::exception& e)
+		{
+			Logger::getLogger()->error("Sending JSON dataType message 'StaticData'"
+						   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+						   e.what(),
 						   m_sender.getHostPort().c_str(),
 						   m_path.c_str(),
 						   typeStaticData.c_str() );
 			return false;
 		}
 	}
-	// Exception raised fof HTTP 400 Bad Request
-	catch (const BadRequest& e)
+
+
+	if (m_sendFullStructure)
 	{
-		if (OMF::isDataTypeError(e.what()))
+		// Create header for Link data
+		vector<pair<string, string>> resLinkData = OMF::createMessageHeader("Data");
+
+		string assetName = row.getAssetName();
+		string AFHierarchyLevel;
+		string prefix;
+		string objectPrefix;
+
+		auto rule = m_AssetNamePrefix.find(assetName);
+		if (rule != m_AssetNamePrefix.end())
 		{
-			// Data type error: force type-id change
-			m_changeTypeId = true;
-		}
-		Logger::getLogger()->warn("Sending JSON dataType message 'StaticData'"
-					   "not blocking issue: |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-					   (m_changeTypeId ? "Data Type " : "" ),
-					   e.what(),
-					   m_sender.getHostPort().c_str(),
-					   m_path.c_str(),
-					   typeStaticData.c_str() );
-		return false;
-	}
-	catch (const std::exception& e)
-	{
-		Logger::getLogger()->error("Sending JSON dataType message 'StaticData'"
-					   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-					   e.what(),
-					   m_sender.getHostPort().c_str(),
-					   m_path.c_str(),
-					   typeStaticData.c_str() );
-		return false;
-	}
+			auto itemArray = rule->second;
+			objectPrefix = "";
 
-	// Create header for Link data
-	vector<pair<string, string>> resLinkData = OMF::createMessageHeader("Data");
-
-	string assetName = row.getAssetName();
-	string AFHierarchyLevel;
-	string prefix;
-	string objectPrefix;
-
-	auto rule = m_AssetNamePrefix.find(assetName);
-	if (rule != m_AssetNamePrefix.end())
-	{
-		auto itemArray  = rule->second;
-		objectPrefix = "";
-
-		for(auto &item : itemArray)
-		{
-			AFHierarchyLevel = std::get<0>(item);
-			prefix =std::get<1>(item);
-
-			if (objectPrefix.empty())
+			for (auto &item : itemArray)
 			{
-				objectPrefix = prefix;
-			}
+				AFHierarchyLevel = std::get<0>(item);
+				prefix = std::get<1>(item);
 
-			// Create data for Static Data message
-			string typeLinkData = OMF::createLinkData(row, AFHierarchyLevel, prefix, objectPrefix, hints);
+				if (objectPrefix.empty())
+				{
+					objectPrefix = prefix;
+				}
 
-			// Build an HTTPS POST with 'resLinkData' headers
-			// and 'typeLinkData' JSON payload
-			// Then get HTTPS POST ret code and return 0 to client on error
-			try
-			{
-				res = m_sender.sendRequest("POST",
-										   m_path,
-										   resLinkData,
-										   typeLinkData);
-				if  ( ! (res >= 200 && res <= 299) )
+				// Create data for Static Data message
+				string typeLinkData = OMF::createLinkData(row, AFHierarchyLevel, prefix, objectPrefix, hints);
+
+				// Build an HTTPS POST with 'resLinkData' headers
+				// and 'typeLinkData' JSON payload
+				// Then get HTTPS POST ret code and return 0 to client on error
+				try
+				{
+					res = m_sender.sendRequest("POST",
+											   m_path,
+											   resLinkData,
+											   typeLinkData);
+					if (!(res >= 200 && res <= 299))
+					{
+						Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) "
+												   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+												   res,
+												   m_sender.getHostPort().c_str(),
+												   m_path.c_str(),
+												   typeLinkData.c_str());
+						return false;
+					}
+				}
+					// Exception raised fof HTTP 400 Bad Request
+				catch (const BadRequest &e)
+				{
+					if (OMF::isDataTypeError(e.what()))
+					{
+						// Data type error: force type-id change
+						m_changeTypeId = true;
+					}
+					Logger::getLogger()->warn("Sending JSON dataType message 'Data' (lynk) "
+											  "not blocking issue: |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+											  (m_changeTypeId ? "Data Type " : ""),
+											  e.what(),
+											  m_sender.getHostPort().c_str(),
+											  m_path.c_str(),
+											  typeLinkData.c_str());
+					return false;
+				}
+				catch (const std::exception &e)
 				{
 					Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) "
-											   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
-											   res,
+											   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+											   e.what(),
 											   m_sender.getHostPort().c_str(),
 											   m_path.c_str(),
-											   typeLinkData.c_str() );
+											   typeLinkData.c_str());
 					return false;
 				}
 			}
-				// Exception raised fof HTTP 400 Bad Request
-			catch (const BadRequest& e)
-			{
-				if (OMF::isDataTypeError(e.what()))
-				{
-					// Data type error: force type-id change
-					m_changeTypeId = true;
-				}
-				Logger::getLogger()->warn("Sending JSON dataType message 'Data' (lynk) "
-										  "not blocking issue: |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-										  (m_changeTypeId ? "Data Type " : "" ),
-										  e.what(),
-										  m_sender.getHostPort().c_str(),
-										  m_path.c_str(),
-										  typeLinkData.c_str() );
-				return false;
-			}
-			catch (const std::exception& e)
-			{
-				Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) "
-										   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-										   e.what(),
-										   m_sender.getHostPort().c_str(),
-										   m_path.c_str(),
-										   typeLinkData.c_str() );
-				return false;
-			}
 		}
-	}
-	else
-	{
-		Logger::getLogger()->error("AF hiererachy is not defined for the asset Name |%s|",assetName.c_str());
+		else
+		{
+			Logger::getLogger()->error("AF hiererachy is not defined for the asset Name |%s|", assetName.c_str());
+		}
 	}
 	// All data types sent: success
 	return true;
@@ -1152,13 +1160,16 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 				}
 			}
 
-			// The AF hierarchy is created/recreated if an OMF type message is sent
-			// it sends the hierarchy once
-			if (sendDataTypes and ! AFHierarchySent)
-			{
-				handleAFHierarchy();
+			if (m_sendFullStructure) {
 
-				AFHierarchySent = true;
+				// The AF hierarchy is created/recreated if an OMF type message is sent
+				// it sends the hierarchy once
+				if (sendDataTypes and ! AFHierarchySent)
+				{
+					handleAFHierarchy();
+
+					AFHierarchySent = true;
+				}
 			}
 
 			if (usingTypeNameHint)
@@ -1597,43 +1608,45 @@ const std::string OMF::createTypeData(const Reading& reading, OMFHints *hints)
 {
 	// Build the Type data message (JSON Array)
 
-	// Add the Static data part
-
 	string tData="[";
 
-	tData.append("{ \"type\": \"object\", \"properties\": { ");
-	for (auto it = m_staticData->cbegin(); it != m_staticData->cend(); ++it)
-	{
-		tData.append("\"");
-		tData.append(it->first.c_str());
-		tData.append("\": {\"type\": \"string\"},");
+	if (m_sendFullStructure) {
+
+		// Add the Static data part
+		tData.append("{ \"type\": \"object\", \"properties\": { ");
+		for (auto it = m_staticData->cbegin(); it != m_staticData->cend(); ++it)
+		{
+			tData.append("\"");
+			tData.append(it->first.c_str());
+			tData.append("\": {\"type\": \"string\"},");
+		}
+
+		// Connector relay / ODS / EDS
+		if (m_PIServerEndpoint == ENDPOINT_CR  ||
+			m_PIServerEndpoint == ENDPOINT_OCS ||
+			m_PIServerEndpoint == ENDPOINT_EDS
+		   )
+		{
+			tData.append("\"Name\": { \"type\": \"string\", \"isindex\": true } }, "
+						 "\"classification\": \"static\", \"id\": \"");
+		}
+		else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
+		{
+			tData.append("\"Name\": { \"type\": \"string\", \"isname\": true }, ");
+			tData.append("\"AssetId\": { \"type\": \"string\", \"isindex\": true } ");
+			tData.append(" }, \"classification\": \"static\", \"id\": \"");
+		}
+
+		// Add type_id + '_' + asset_name + '_typename_sensor'
+		OMF::setAssetTypeTag(reading.getAssetName(),
+					 "typename_sensor",
+					 tData);
+
+		tData.append("\" }, ");
 	}
-
-	// Connector relay / ODS / EDS
-	if (m_PIServerEndpoint == ENDPOINT_CR  ||
-	    m_PIServerEndpoint == ENDPOINT_OCS ||
-		m_PIServerEndpoint == ENDPOINT_EDS
-	   )
-	{
-		tData.append("\"Name\": { \"type\": \"string\", \"isindex\": true } }, "
-					 "\"classification\": \"static\", \"id\": \"");
-	}
-	else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
-	{
-		tData.append("\"Name\": { \"type\": \"string\", \"isname\": true }, ");
-		tData.append("\"AssetId\": { \"type\": \"string\", \"isindex\": true } ");
-		tData.append(" }, \"classification\": \"static\", \"id\": \"");
-	}
-
-	// Add type_id + '_' + asset_name + '_typename_sensor'
-	OMF::setAssetTypeTag(reading.getAssetName(),
-			     "typename_sensor",
-			     tData);
-
-	tData.append("\" }, { \"type\": \"object\", \"properties\": {");
-
 
 	// Add the Dynamic data part
+	tData.append(" { \"type\": \"object\", \"properties\": {");
 
 	/* We add for each reading
 	 * the DataPoint name & type

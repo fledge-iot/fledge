@@ -68,8 +68,8 @@ async def ping(request):
             category_item = await cfg_mgr.get_category_item('rest_api', 'allowPing')
             allow_ping = True if category_item['value'].lower() == 'true' else False
             if allow_ping is False:
-                _logger.warning("Permission denied for Ping when Auth is mandatory.")
-                raise web.HTTPForbidden
+                _logger.warning("A valid token required to ping; as auth is mandatory & allow ping is set to false.")
+                raise web.HTTPUnauthorized(reason='Auth token is missing.')
 
     since_started = time.time() - __start_time
 

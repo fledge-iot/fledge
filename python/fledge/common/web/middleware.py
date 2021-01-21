@@ -86,7 +86,7 @@ async def auth_middleware(app, handler):
             elif str(handler).startswith("<function update_password"):  # when pwd expiration
                 pass
             else:
-                raise web.HTTPForbidden()
+                raise web.HTTPUnauthorized()
 
         return await handler(request)
     return middleware

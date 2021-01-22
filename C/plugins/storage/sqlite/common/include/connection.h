@@ -20,7 +20,7 @@
 #include <vector>
 #include <atomic>
 
-#define _DB_NAME                  "/fledge.db"
+#define _DB_NAME                 "/fledge.db"
 #define READINGS_DB_NAME_BASE     "readings"
 #define READINGS_DB_FILE_NAME     "/" READINGS_DB_NAME_BASE "_1.db"
 #define READINGS_DB               READINGS_DB_NAME_BASE "_1"

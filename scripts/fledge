@@ -310,7 +310,7 @@ fledge_stop() {
 
   result=`curl -k -s -X PUT ${REST_API_URL}/fledge/shutdown`
 
-  if [[ "${result}" =~ "Forbidden" ]]; then
+  if [[ "${result}" == "401"* ]]; then
     token=`fledge_authenticate`
     if [[ "${token}" =~ "failed" ]]; then
         fledge_log "info" "Failed authentication when attempting to stop fledge." "all" "pretty"
@@ -468,7 +468,7 @@ fledge_status() {
     get_rest_api_url
     result=`curl -k -s ${REST_API_URL}/fledge/ping || true`
 
-    if [[ "${result}" =~ "Forbidden" ]]; then
+    if [[ "${result}" == "401"* ]]; then
       token=`fledge_authenticate`
       if [[ "${token}" =~ "failed" ]]; then
           fledge_log "info" "Failed authentication when attempting to get fledge status." "all" "pretty"

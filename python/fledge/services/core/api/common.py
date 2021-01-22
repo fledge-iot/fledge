@@ -69,7 +69,7 @@ async def ping(request):
             allow_ping = True if category_item['value'].lower() == 'true' else False
             if allow_ping is False:
                 _logger.warning("A valid token required to ping; as auth is mandatory & allow ping is set to false.")
-                raise web.HTTPUnauthorized(reason='Auth token is missing.')
+                raise web.HTTPUnauthorized()
 
     since_started = time.time() - __start_time
 

@@ -673,10 +673,10 @@ if [ -f ~/.fledge ] ; then
 	perm=`stat -c %A ~/.fledge`
 	if [ "$perm" == "-rw-------" ]; then
 		if [ -z ${USERNAME+x} ]; then
-			USERNAME=`awk -F: '{ print $1 }' < ~/.fledge`
+			USERNAME=`awk -F: 'NR==1{ print $1 }' < ~/.fledge | cut -d"=" -f2`
 		fi
 		if [ -z ${PASSWORD+x} ]; then
-			PASSWORD=`awk -F: '{ print $2 }' < ~/.fledge`
+			PASSWORD=`awk -F: 'NR==2{ print $1 }' < ~/.fledge | cut -d"=" -f2`
 		fi
 	fi
 fi

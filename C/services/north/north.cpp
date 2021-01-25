@@ -261,6 +261,7 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		if (!m_mgtClient->getService(storageRecord))
 		{
 			logger->fatal("Unable to find storage service");
+			m_mgtClient->unregisterService();
 			return;
 		}
 		logger->info("Connect to storage on %s:%d",
@@ -344,6 +345,7 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		}
 		
 		// Clean shutdown, unregister the storage service
+		logger->info("Unregistering service");
 		m_mgtClient->unregisterService();
 	}
 	management.stop();

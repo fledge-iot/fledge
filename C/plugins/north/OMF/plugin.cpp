@@ -106,14 +106,14 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "Select the endpoint among PI Web API, Connector Relay, OSIsoft Cloud Services or Edge Data Store",
 			"type": "enumeration",
 			"options":["PI Web API", "Connector Relay", "OSIsoft Cloud Services", "Edge Data Store"],
-			"default": "Connector Relay",
+			"default": "PI Web API",
 			"order": "1",
 			"displayName": "Endpoint"
 		},
 		"SendFullStructure": {
 			"description": "It sends the minimum OMF structural messages to load data into Data Archive if disabled",
 			"type": "boolean",
-			"default": "True",
+			"default": "true",
 			"order": "2",
 			"displayName": "Send full structure",
 			"validity" : "PIServerEndpoint == \"PI Web API\""
@@ -195,7 +195,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 		"compression": {
 			"description": "Compress readings data before sending to PI server",
 			"type": "boolean",
-			"default": "True",
+			"default": "true",
 			"order": "13",
 			"displayName": "Compression"
 		},

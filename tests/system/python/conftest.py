@@ -158,7 +158,8 @@ def start_north_pi_v2():
                 "schedule_time": 0,
                 "schedule_repeat": 30,
                 "schedule_enabled": _enabled,
-                "config": {"producerToken": {"value": pi_token},
+                "config": {"PIServerEndpoint": {"value": "Connector Relay"},
+                           "producerToken": {"value": pi_token},
                            "ServerHostname": {"value": pi_host},
                            "ServerPort": {"value": str(pi_port)}
                            }

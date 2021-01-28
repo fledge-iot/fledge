@@ -302,8 +302,7 @@ void StorageConfiguration::checkCache()
 		if (item.HasMember("type"))
 		{
 			const char *val = getValue("plugin");
-			item["default"].SetString(val, strlen(val));
-
+			item["default"].SetString(strdup(val), strlen(val));
 			Value& rp = (*document)["readingPlugin"];
 			const char *rval = getValue("readingPlugin");
 			rp["default"].SetString(rval, strlen(rval));
@@ -328,15 +327,15 @@ void StorageConfiguration::checkCache()
 		if (hasValue(name))
 		{
 			const char *val = getValue(name);
-			newval["value"].SetString(val, strlen(val));
+			newval["value"].SetString(strdup(val), strlen(val));
 			if (strcmp(name, "plugin") == 0)
 			{
-				newval["default"].SetString(val, strlen(val));
+				newval["default"].SetString(strdup(val), strlen(val));
 				logger->warn("Set default of %s to %s", name, val);
 			}
 			if (strcmp(name, "readingPlugin") == 0)
 			{
-				newval["default"].SetString(val, strlen(val));
+				newval["default"].SetString(strdup(val), strlen(val));
 				logger->warn("Set default of %s to %s", name, val);
 			}
 		}

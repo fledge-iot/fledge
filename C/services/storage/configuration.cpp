@@ -302,7 +302,7 @@ void StorageConfiguration::checkCache()
 		if (item.HasMember("type"))
 		{
 			const char *val = getValue("plugin");
-			item["default"].SetString(strdup(val), strlen(val));
+			item["default"].SetString(val, strlen(val));
 			Value& rp = (*document)["readingPlugin"];
 			const char *rval = getValue("readingPlugin");
 			rp["default"].SetString(rval, strlen(rval));

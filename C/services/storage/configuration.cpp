@@ -296,12 +296,6 @@ DefaultConfigCategory *StorageConfiguration::getDefaultCategory()
  */
 void StorageConfiguration::checkCache()
 {
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx2 %s ", __FUNCTION__);
-	Logger::getLogger()->setMinLevel("warning");
-
-
 	if (document->HasMember("plugin"))
 	{
 		Value& item = (*document)["plugin"];

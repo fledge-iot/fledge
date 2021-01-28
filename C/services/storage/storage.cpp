@@ -265,6 +265,9 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 		{
 			sleep(2 * retryCount);
 		}
+
+		delete conf;
+
 		vector<string> children1;
 		children1.push_back(STORAGE_CATEGORY);
 		ConfigCategories categories = client->getCategories();
@@ -310,6 +313,8 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 			// Regsiter for configuration chanegs to our category
 			ConfigHandler *configHandler = ConfigHandler::getInstance(client);
 			configHandler->registerCategory(this, conf->getName());
+
+			delete conf;
 		}
 		if (readingPlugin)
 		{

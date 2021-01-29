@@ -285,7 +285,6 @@ void StringEscapeQuotes(std::string& str)
 {
 	for (size_t i = 0; i < str.length(); i++)
 	{
-		Logger::getLogger()->fatal("becomes '%s'", str.c_str());
 		if (str[i] == '\"' && (i == 0 || str[i-1] != '\\'))
 		{
 			str.replace(i, 1, "\\\"");

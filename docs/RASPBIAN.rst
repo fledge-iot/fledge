@@ -73,7 +73,7 @@ in /usr/bin. If this is the case then remove the /usr/bin versions
 
 |br|
 
-You may also link tothe new version if you wish
+You may also link to the new version if you wish
 
 .. code-block:: console 
 

@@ -102,12 +102,15 @@ class TestScheduledProcesses:
                               ) as query_tbl_patch:
                 with patch.object(storage_client_mock, 'insert_into_tbl', return_value=mock_coro_response(ret_val)
                                   ) as insert_tbl_patch:
-                    resp = await client.post('/fledge/schedule/process', data=json.dumps(payload))
-                    assert 200 == resp.status
-                    result = await resp.text()
-                    json_response = json.loads(result)
-                    assert {'message': 'manage process name created successfully.'} == json_response
-                    assert {'manage': '["tasks/manage"]'} == server.Server.scheduler._process_scripts
+                    with patch.object(server.Server.scheduler, '_get_process_scripts',
+                                      return_value=mock_coro_response(None)) as get_process_script_patch:
+                        resp = await client.post('/fledge/schedule/process', data=json.dumps(payload))
+                        assert 200 == resp.status
+                        result = await resp.text()
+                        json_response = json.loads(result)
+                        assert {'message': '{} process name created successfully.'.format(
+                            payload['process_name'])} == json_response
+                    get_process_script_patch.assert_called_once_with()
                 assert insert_tbl_patch.called
                 args, kwargs = insert_tbl_patch.call_args_list[0]
                 assert 'scheduled_processes' == args[0]

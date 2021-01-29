@@ -145,13 +145,13 @@ namespace SimpleWeb {
           name_end_pos = std::string::npos;
           value_pos = std::string::npos;
         }
-        else if(query_string[c] == '=') {
+        else if(query_string[c] == '=' && name_end_pos == std::string::npos) {
           name_end_pos = c;
           value_pos = c + 1;
         }
       }
       if(name_pos < query_string.size()) {
-        auto name = query_string.substr(name_pos, name_end_pos - name_pos);
+        auto name = query_string.substr(name_pos, (name_end_pos == std::string::npos ? std::string::npos : name_end_pos - name_pos));
         if(!name.empty()) {
           auto value = value_pos >= query_string.size() ? std::string() : query_string.substr(value_pos);
           result.emplace(std::move(name), Percent::decode(value));
@@ -260,7 +260,7 @@ namespace SimpleWeb {
         std::size_t query_start = std::string::npos;
         std::size_t path_and_query_string_end = std::string::npos;
         for(std::size_t i = method_end + 1; i < line.size(); ++i) {
-          if(line[i] == '?' && (i + 1) < line.size())
+          if(line[i] == '?' && (i + 1) < line.size() && query_start == std::string::npos)
             query_start = i + 1;
           else if(line[i] == ' ') {
             path_and_query_string_end = i;

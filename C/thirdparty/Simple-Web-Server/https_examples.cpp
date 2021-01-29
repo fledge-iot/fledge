@@ -212,34 +212,41 @@ int main() {
       server_port.set_value(port);
     });
   });
-  cout << "Server listening on port " << server_port.get_future().get() << endl << endl;
+  cout << "Server listening on port " << server_port.get_future().get() << endl
+       << endl;
 
   // Client examples
-  HttpsClient client("localhost:8080", false); // Second create() parameter set to false: no certificate verification
-
   string json_string = "{\"firstName\": \"John\",\"lastName\": \"Smith\",\"age\": 25}";
 
   // Synchronous request examples
-  try {
-    cout << "Example GET request to https://localhost:8080/match/123" << endl;
-    auto r1 = client.request("GET", "/match/123");
-    cout << "Response content: " << r1->content.rdbuf() << endl << endl; // Alternatively, use the convenience function r1->content.string()
+  {
+    HttpsClient client("localhost:8080", false);
+    try {
+      cout << "Example GET request to http://localhost:8080/match/123" << endl;
+      auto r1 = client.request("GET", "/match/123");
+      cout << "Response content: " << r1->content.rdbuf() << endl // Alternatively, use the convenience function r1->content.string()
+           << endl;
 
-    cout << "Example POST request to https://localhost:8080/string" << endl;
-    auto r2 = client.request("POST", "/string", json_string);
-    cout << "Response content: " << r2->content.rdbuf() << endl << endl;
-  }
-  catch(const SimpleWeb::system_error &e) {
-    cerr << "Client request error: " << e.what() << endl;
+      cout << "Example POST request to http://localhost:8080/string" << endl;
+      auto r2 = client.request("POST", "/string", json_string);
+      cout << "Response content: " << r2->content.rdbuf() << endl
+           << endl;
+    }
+    catch(const SimpleWeb::system_error &e) {
+      cerr << "Client request error: " << e.what() << endl;
+    }
   }
 
   // Asynchronous request example
-  cout << "Example POST request to https://localhost:8080/json" << endl;
-  client.request("POST", "/json", json_string, [](shared_ptr<HttpsClient::Response> response, const SimpleWeb::error_code &ec) {
-    if(!ec)
-      cout << "Response content: " << response->content.rdbuf() << endl;
-  });
-  client.io_service->run();
+  {
+    HttpsClient client("localhost:8080", false);
+    cout << "Example POST request to http://localhost:8080/json" << endl;
+    client.request("POST", "/json", json_string, [](shared_ptr<HttpsClient::Response> response, const SimpleWeb::error_code &ec) {
+      if(!ec)
+        cout << "Response content: " << response->content.rdbuf() << endl;
+    });
+    client.io_service->run();
+  }
 
   server_thread.join();
 }

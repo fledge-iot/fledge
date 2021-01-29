@@ -203,7 +203,8 @@ Ingest::Ingest(StorageClient& storage,
 			m_queueSizeThreshold(threshold),
 			m_serviceName(serviceName),
 			m_pluginName(pluginName),
-			m_mgtClient(mgmtClient)
+			m_mgtClient(mgmtClient),
+			m_failCnt(0)
 {
 	m_shutdown = false;
 	m_running = true;
@@ -392,9 +393,30 @@ void Ingest::processQueue()
 			if (m_storage.readingAppend(*q) == false)
 			{
 				m_logger->error("Still unable to resend buffered data, leaving on resend queue.");
+				m_failCnt++;
+				if (m_failCnt > 5)
+				{
+					m_logger->error("Too many faliures with block of readings. Removing readings from block");
+					for (int cnt = 5; cnt > 0 && q->size() > 0; cnt--)
+					{
+						Reading *reading = q->front();
+						m_logger->info("Remove reading: %s",
+								reading->toJSON().c_str());
+						delete reading;
+						q->erase(q->begin());
+						logDiscardedStat();
+					}
+					if (q->size() == 0)
+					{
+						delete q;
+						m_resendQueues.erase(m_resendQueues.begin());
+					}
+					m_failCnt = 0;
+				}
 			}
 			else
 			{
+				m_failCnt = 0;
 				std::map<std::string, int>		statsEntriesCurrQueue;
 				AssetTracker *tracker = AssetTracker::getAssetTracker();
 				string lastAsset = "";
@@ -539,9 +561,11 @@ void Ingest::processQueue()
 				m_logger->warn("Failed to write readings to storage layer, queue for resend");
 				m_resendQueues.push_back(m_data);
 				m_data = NULL;
+				m_failCnt = 1;
 			}
 			else
 			{
+				m_failCnt = 0;
 				std::map<std::string, int>		statsEntriesCurrQueue;
 				// check if this requires addition of a new asset tracker tuple
 				// Remove the Readings in the vector

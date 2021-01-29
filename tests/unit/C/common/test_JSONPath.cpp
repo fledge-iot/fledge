@@ -12,7 +12,9 @@ const char *testdoc = "{ \"a\" : { \"b\" : \"x\" }, " \
 			"\"f\" : [ { \"g\" : \"h\", \"i\" : \"j\" }, " \
 			"          { \"k\" : \"l\", \"m\" : \"n\" }, " \
 			"          { \"o\" : \"p\", \"q\" : \"r\" } ], " \
-			"\"data\" : { \"child\" : [ { \"item\" : 1 } ] } " \
+			"\"data\" : { \"child\" : [ { \"item\" : 1 } ] }, " \
+			"\"numeric\" : [ { \"id\" : 1, \"child\" : { \"item\" : 1 } }, " \
+			             " { \"id\" : 2, \"child\" : { \"item\" : 2 } } ] " \
 			"}";
 
 /**
@@ -77,3 +79,19 @@ TEST(MatchJSONPath, JSON)
 	ASSERT_TRUE(v->HasMember("m"));
 }
 
+
+/**
+ * Simple index path test
+ */
+TEST(MatchNumericJSONPath, JSON)
+{
+	string path("/numeric[id==1]/child");
+	JSONPath jpath(path);
+	Document doc;
+	doc.Parse(testdoc);
+	Value *v = jpath.findNode(doc);
+	ASSERT_TRUE(v->IsObject());
+	ASSERT_TRUE(v->HasMember("item"));
+	ASSERT_TRUE((*v)["item"].IsInt());
+	ASSERT_EQ(1, (*v)["item"].GetInt());
+}

@@ -1,5 +1,5 @@
 *****************************************************
-Unit Test for Postgres Storage Plugin
+Unit Test for SQLite in memory Storage Plugin
 *****************************************************
 
 Require Google Unit Test framework
@@ -18,4 +18,4 @@ To build the unit test:
     cd build
     cmake ..
     make
-    ./runTests
+    ./RunTests

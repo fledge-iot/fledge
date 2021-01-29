@@ -25,6 +25,7 @@ add_subdirectory(C/plugins/storage/postgres)
 add_subdirectory(C/plugins/storage/sqlite)
 add_subdirectory(C/plugins/storage/sqlitememory)
 add_subdirectory(C/services/south)
+add_subdirectory(C/services/north)
 add_subdirectory(C/services/south-plugin-interfaces/python)
 add_subdirectory(C/services/south-plugin-interfaces/python/async_ingest_pymodule)
 add_subdirectory(C/services/notification-plugin-interfaces/python)
@@ -33,4 +34,3 @@ add_subdirectory(C/services/filter-plugin-interfaces/python/filter_ingest_pymodu
 add_subdirectory(C/tasks/north)
 add_subdirectory(C/plugins/utils)
 add_subdirectory(C/plugins/north/OMF)
-

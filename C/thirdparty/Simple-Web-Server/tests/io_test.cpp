@@ -143,6 +143,14 @@ int main() {
     response->write("6\r\nSimple\r\n3\r\nWeb\r\nE\r\n in\r\n\r\nchunks.\r\n0\r\n\r\n", {{"Transfer-Encoding", "chunked"}});
   };
 
+  server.resource["^/chunked2$"]["POST"] = [](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
+    ASSERT(request->path == "/chunked2");
+
+    ASSERT(request->content.string() == "HelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorld");
+
+    response->write("258\r\nHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorld\r\n0\r\n\r\n", {{"Transfer-Encoding", "chunked"}});
+  };
+
   server.resource["^/event-stream1$"]["GET"] = [](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> /*request*/) {
     thread work_thread([response] {
       response->close_connection_after_response = true; // Unspecified content length
@@ -314,6 +322,10 @@ int main() {
       auto r = client.request("POST", "/chunked", "6\r\nSimple\r\n3\r\nWeb\r\nE\r\n in\r\n\r\nchunks.\r\n0\r\n\r\n", {{"Transfer-Encoding", "chunked"}});
       ASSERT(r->content.string() == "SimpleWeb in\r\n\r\nchunks.");
     }
+    {
+      auto r = client.request("POST", "/chunked2", "258\r\nHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorld\r\n0\r\n\r\n", {{"Transfer-Encoding", "chunked"}});
+      ASSERT(r->content.string() == "HelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorldHelloWorld");
+    }
 
     // Test reconnecting
     for(int c = 0; c < 20; ++c) {
@@ -389,9 +401,9 @@ int main() {
 
   // Test large responses
   {
-    HttpClient client("localhost:8080");
-    client.config.max_response_streambuf_size = 400;
     {
+      HttpClient client("localhost:8080");
+      client.config.max_response_streambuf_size = 400;
       bool thrown = false;
       try {
         auto r = client.request("GET", "/long-response");
@@ -401,6 +413,8 @@ int main() {
       }
       ASSERT(thrown);
     }
+    HttpClient client("localhost:8080");
+    client.config.max_response_streambuf_size = 400;
     {
       size_t calls = 0;
       bool end = false;
@@ -413,7 +427,6 @@ int main() {
           ASSERT(response->content.end == false);
         end = response->content.end;
       });
-      SimpleWeb::restart(*client.io_service);
       client.io_service->run();
       ASSERT(content == long_response);
       ASSERT(calls > 2);
@@ -440,26 +453,26 @@ int main() {
   {
     HttpClient client("localhost:8080");
     client.config.timeout = 2;
-    {
-      bool thrown = false;
-      try {
-        auto r = client.request("GET", "/work");
-      }
-      catch(...) {
-        thrown = true;
-      }
-      ASSERT(thrown);
+    bool thrown = false;
+    try {
+      auto r = client.request("GET", "/work");
     }
-    {
-      bool call = false;
-      client.request("GET", "/work", [&call](shared_ptr<HttpClient::Response> /*response*/, const SimpleWeb::error_code &ec) {
-        ASSERT(ec);
-        call = true;
-      });
-      SimpleWeb::restart(*client.io_service);
-      client.io_service->run();
-      ASSERT(call);
+    catch(...) {
+      thrown = true;
     }
+    ASSERT(thrown);
+  }
+  {
+    HttpClient client("localhost:8080");
+    client.config.timeout = 2;
+    bool call = false;
+    client.request("GET", "/work", [&call](shared_ptr<HttpClient::Response> /*response*/, const SimpleWeb::error_code &ec) {
+      ASSERT(ec);
+      call = true;
+    });
+    SimpleWeb::restart(*client.io_service);
+    client.io_service->run();
+    ASSERT(call);
   }
 
   // Test asynchronous requests

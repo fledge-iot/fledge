@@ -15,7 +15,7 @@ ifneq ("$(PLATFORM_RH)","")
 else
 	PIP_INSTALL_REQUIREMENTS := pip3 install -Ir
 	PYTHON_BUILD_PACKAGE = python3 setup.py build -b ../$(PYTHON_BUILD_DIR)
-	CMAKE := cmake -DCMAKE_BUILD_TYPE=Debug
+	CMAKE := cmake
 endif
 
 MKDIR_PATH := mkdir -p
@@ -48,6 +48,7 @@ CMAKE_SERVICES_DIR       := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/services
 CMAKE_TASKS_DIR          := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/tasks
 CMAKE_STORAGE_BINARY     := $(CMAKE_SERVICES_DIR)/storage/fledge.services.storage
 CMAKE_SOUTH_BINARY       := $(CMAKE_SERVICES_DIR)/south/fledge.services.south
+CMAKE_NORTH_SERVICE_BINARY       := $(CMAKE_SERVICES_DIR)/north/fledge.services.north
 CMAKE_NORTH_BINARY       := $(CMAKE_TASKS_DIR)/north/sending_process/sending_process
 CMAKE_PLUGINS_DIR        := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/plugins
 DEV_SERVICES_DIR         := $(CURRENT_DIR)/services
@@ -55,6 +56,7 @@ DEV_TASKS_DIR            := $(CURRENT_DIR)/tasks
 SYMLINK_PLUGINS_DIR      := $(CURRENT_DIR)/plugins
 SYMLINK_STORAGE_BINARY   := $(DEV_SERVICES_DIR)/fledge.services.storage
 SYMLINK_SOUTH_BINARY     := $(DEV_SERVICES_DIR)/fledge.services.south
+SYMLINK_NORTH_SERVICE_BINARY     := $(DEV_SERVICES_DIR)/fledge.services.north
 SYMLINK_NORTH_BINARY     := $(DEV_TASKS_DIR)/sending_process
 ASYNC_INGEST_PYMODULE    := $(CURRENT_DIR)/python/async_ingest.so*
 FILTER_INGEST_PYMODULE    := $(CURRENT_DIR)/python/filter_ingest.so*
@@ -106,6 +108,7 @@ STORAGE_SERVICE_SCRIPT_SRC  := scripts/services/storage
 STORAGE_SCRIPT_SRC          := scripts/storage
 NORTH_SCRIPT_SRC            := scripts/tasks/north
 NORTH_C_SCRIPT_SRC          := scripts/tasks/north_c
+NORTH_SERVICE_C_SCRIPT_SRC  := scripts/services/north_C
 NOTIFICATION_C_SCRIPT_SRC   := scripts/services/notification_c
 PURGE_SCRIPT_SRC            := scripts/tasks/purge
 STATISTICS_SCRIPT_SRC       := scripts/tasks/statistics
@@ -142,7 +145,7 @@ PACKAGE_NAME=Fledge
 # generally prepare the development tree to allow for core to be run
 default : apply_version \
 	generate_selfcertificate \
-	c_build $(SYMLINK_STORAGE_BINARY) $(SYMLINK_SOUTH_BINARY) $(SYMLINK_NORTH_BINARY) $(SYMLINK_PLUGINS_DIR) \
+	c_build $(SYMLINK_STORAGE_BINARY) $(SYMLINK_SOUTH_BINARY) $(SYMLINK_NORTH_SERVICE_BINARY) $(SYMLINK_NORTH_BINARY) $(SYMLINK_PLUGINS_DIR) \
 	python_build python_requirements_user
 
 apply_version :
@@ -249,6 +252,10 @@ $(SYMLINK_STORAGE_BINARY) : $(DEV_SERVICES_DIR)
 $(SYMLINK_SOUTH_BINARY) : $(DEV_SERVICES_DIR)
 	$(LN) $(CMAKE_SOUTH_BINARY) $(SYMLINK_SOUTH_BINARY)
 
+# create symlink to north service binary
+$(SYMLINK_NORTH_SERVICE_BINARY) : $(DEV_SERVICES_DIR)
+	$(LN) $(CMAKE_NORTH_SERVICE_BINARY) $(SYMLINK_NORTH_SERVICE_BINARY)
+
 # create services dir
 $(DEV_SERVICES_DIR) :
 	$(MKDIR_PATH) $(DEV_SERVICES_DIR)
@@ -309,6 +316,7 @@ scripts_install : $(SCRIPTS_INSTALL_DIR) \
 	install_storage_service_script \
 	install_north_script \
 	install_north_c_script \
+	install_north_service_c_script \
 	install_notification_c_script \
 	install_purge_script \
 	install_statistics_script \
@@ -356,6 +364,9 @@ install_north_script : $(SCRIPT_TASKS_INSTALL_DIR) $(NORTH_SCRIPT_SRC)
 
 install_north_c_script : $(SCRIPT_TASKS_INSTALL_DIR) $(NORTH_C_SCRIPT_SRC)
 	$(CP) $(NORTH_C_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
+
+install_north_service_c_script : $(SCRIPT_SERVICES_INSTALL_DIR) $(NORTH_SERVICE_C_SCRIPT_SRC)
+	$(CP) $(NORTH_SERVICE_C_SCRIPT_SRC) $(SCRIPT_SERVICES_INSTALL_DIR)
 
 install_notification_c_script: $(SCRIPT_SERVICES_INSTALL_DIR) $(NOTIFICATION_C_SCRIPT_SRC)
 	$(CP) $(NOTIFICATION_C_SCRIPT_SRC) $(SCRIPT_SERVICES_INSTALL_DIR)

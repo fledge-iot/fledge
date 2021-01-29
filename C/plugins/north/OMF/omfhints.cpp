@@ -26,23 +26,28 @@ using namespace rapidjson;
 
 OMFHints::OMFHints(const string& hints)
 {
+	string hintsTmp;
+
+	hintsTmp = hints;
+	StringReplaceAll(hintsTmp,"\\","");
+
 	m_chksum = 0;
-	if (hints[0] == '\"')
+	if (hintsTmp[0] == '\"')
 	{
 		// Skip any enclosing "'s
-		m_doc.Parse(hints.substr(1, hints.length() - 2).c_str());
-		for (int i = 1; i < hints.length() - 1; i++)
-			m_chksum += hints[i];
+		m_doc.Parse(hintsTmp.substr(1, hintsTmp.length() - 2).c_str());
+		for (int i = 1; i < hintsTmp.length() - 1; i++)
+			m_chksum += hintsTmp[i];
 	}
 	else
 	{
-		m_doc.Parse(hints.c_str());
-		for (int i = 0; i < hints.length(); i++)
-			m_chksum += hints[i];
+		m_doc.Parse(hintsTmp.c_str());
+		for (int i = 0; i < hintsTmp.length(); i++)
+			m_chksum += hintsTmp[i];
 	}
 	if (m_doc.HasParseError())
 	{
-		Logger::getLogger()->error("Ignoring OMFHint '%s' parse error in JSON", hints.c_str());
+		Logger::getLogger()->error("Ignoring OMFHint '%s' parse error in JSON", hintsTmp.c_str());
 	}
 	else
 	{

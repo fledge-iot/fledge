@@ -26,6 +26,8 @@
 #include <config_handler.h>
 #include <plugin_configuration.h>
 
+#define NO_EXIT_STACKTRACE		0		// Set to 1 to make storage loop after stacktrace
+
 extern int makeDaemon(void);
 
 using namespace std;
@@ -70,6 +72,12 @@ int	size;
 		logger->fatal("(%d) %s", i, buf);
 	}
 	free(messages);
+#if NO_EXIT_STACKTRACE
+	while (1)
+	{
+		sleep(100);
+	}
+#endif
 	exit(1);
 }
 
@@ -257,6 +265,9 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 		{
 			sleep(2 * retryCount);
 		}
+
+		delete conf;
+
 		vector<string> children1;
 		children1.push_back(STORAGE_CATEGORY);
 		ConfigCategories categories = client->getCategories();
@@ -302,6 +313,8 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 			// Regsiter for configuration chanegs to our category
 			ConfigHandler *configHandler = ConfigHandler::getInstance(client);
 			configHandler->registerCategory(this, conf->getName());
+
+			delete conf;
 		}
 		if (readingPlugin)
 		{

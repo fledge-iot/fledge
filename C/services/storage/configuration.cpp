@@ -296,16 +296,16 @@ DefaultConfigCategory *StorageConfiguration::getDefaultCategory()
  */
 void StorageConfiguration::checkCache()
 {
-	if (document->HasMember("plugin"))	
+	if (document->HasMember("plugin"))
 	{
 		Value& item = (*document)["plugin"];
 		if (item.HasMember("type"))
 		{
 			const char *val = getValue("plugin");
-			item["default"].SetString(strdup(val), strlen(val));
+			item["default"].SetString(val, strlen(val));
 			Value& rp = (*document)["readingPlugin"];
 			const char *rval = getValue("readingPlugin");
-			rp["default"].SetString(strdup(rval), strlen(rval));
+			rp["default"].SetString(rval, strlen(rval));
 			logger->info("Storage configuration cache is up to date");
 			return;
 		}

@@ -159,6 +159,7 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 			if (rc != SQLITE_OK)
 			{
 				Logger::getLogger()->error("attachNewDb - It was not possible to attach the db :%s: to an idle connection, error :%s:", path.c_str(), zErrMsg);
+				sqlite3_free(zErrMsg);
 				result = false;
 				break;
 			}
@@ -180,6 +181,7 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 				if (rc != SQLITE_OK)
 				{
 					Logger::getLogger()->error("attachNewDb - It was not possible to attach the db :%s: to an inUse connection, error :%s:", path.c_str() ,zErrMsg);
+					sqlite3_free(zErrMsg);
 					result = false;
 					break;
 				}
@@ -223,6 +225,7 @@ bool ConnectionManager::detachNewDb(std::string &alias)
 			if (rc != SQLITE_OK)
 			{
 				Logger::getLogger()->error("detachNewDb - It was not possible to detach the db :%s: from an idle connection, error :%s:", alias.c_str(), zErrMsg);
+				sqlite3_free(zErrMsg);
 				result = false;
 				break;
 			}
@@ -242,6 +245,7 @@ bool ConnectionManager::detachNewDb(std::string &alias)
 				if (rc != SQLITE_OK)
 				{
 					Logger::getLogger()->error("detachNewDb - It was not possible to detach the db :%s: from an inUse connection, error :%s:", alias.c_str() ,zErrMsg);
+					sqlite3_free(zErrMsg);
 					result = false;
 					break;
 				}

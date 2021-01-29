@@ -94,6 +94,7 @@ async def get_notification(request):
                 "channel": notification_config['channel']['value'],
                 "deliveryConfig": delivery_config,
                 "notificationType": notification_config['notification_type']['value'],
+                "retriggerTime": notification_config['retrigger_time']['value'],
                 "enable": notification_config['enable']['value'],
             }
         else:
@@ -124,6 +125,7 @@ async def get_notifications(request):
                 "rule": notification_config['rule']['value'],
                 "channel": notification_config['channel']['value'],
                 "notificationType": notification_config['notification_type']['value'],
+                "retriggerTime": notification_config['retrigger_time']['value'],
                 "enable": notification_config['enable']['value'],
             }
             notifications.append(notification)
@@ -281,6 +283,7 @@ async def put_notification(request):
              curl -X PUT http://localhost:8081/fledge/notification/<notification_name> -d '{"rule": "threshold", "channel": "email"}'
              curl -X PUT http://localhost:8081/fledge/notification/<notification_name> -d '{"notification_type": "one shot", "enabled": false}'
              curl -X PUT http://localhost:8081/fledge/notification/<notification_name> -d '{"enabled": false}'
+             curl -X PUT http://localhost:8081/fledge/notification/<notification_name> -d '{"retrigger_time":"30"}'
              curl -X PUT http://localhost:8081/fledge/notification/<notification_name> -d '{"description":"Test Notification", "rule": "threshold", "channel": "email", "notification_type": "one shot", "enabled": false, "rule_config": {}, "delivery_config": {}}'
     """
     try:
@@ -307,6 +310,16 @@ async def put_notification(request):
         enabled = data.get('enabled', None)
         rule_config = data.get('rule_config', {})
         delivery_config = data.get('delivery_config', {})
+        retrigger_time = data.get('retrigger_time', None)
+
+        try:
+            if retrigger_time:
+                if float(retrigger_time) > 0 and float(retrigger_time).is_integer():
+                    pass
+                else:
+                    raise ValueError
+        except ValueError:
+            raise ValueError('Invalid retrigger_time property in payload.')
 
         if utils.check_reserved(notif) is False:
             raise ValueError('Invalid notification instance name.')
@@ -398,6 +411,8 @@ async def put_notification(request):
             notification_config.update({"notification_type": notification_type})
         if enabled is not None:
             notification_config.update({"enable": is_enabled})
+        if retrigger_time:
+            notification_config["retrigger_time"] = retrigger_time
         await _update_configurations(config_mgr, notif, notification_config, rule_config, delivery_config)
     except ValueError as e:
         raise web.HTTPBadRequest(reason=str(e))

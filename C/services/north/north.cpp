@@ -370,7 +370,6 @@ void NorthService::createConfigCategories(DefaultConfigCategory configCategory, 
 
 	// Deal with registering and fetching the configuration
 	DefaultConfigCategory defConfig(configCategory);
-	defConfig.setDescription(current_name);	// TODO We do not have access to the description
 
 	DefaultConfigCategory defConfigCategoryOnly(defConfig);
 	defConfigCategoryOnly.keepItemsType(ConfigCategory::ItemType::CategoryType);
@@ -380,6 +379,7 @@ void NorthService::createConfigCategories(DefaultConfigCategory configCategory, 
                                                defaultServiceConfig);
 	defConfig += serviceConfig;
 
+	defConfig.setDescription(current_name);	// TODO We do not have access to the description
 	// Create/Update category name (we pass keep_original_items=true)
 	m_mgtClient->addCategory(defConfig, true);
 

@@ -26,13 +26,13 @@ namespace SimpleWeb {
      */
     Client(const std::string &server_port_path, bool verify_certificate = true, const std::string &certification_file = std::string(),
            const std::string &private_key_file = std::string(), const std::string &verify_file = std::string())
-        : ClientBase<HTTPS>::ClientBase(server_port_path, 443), 
+        : ClientBase<HTTPS>::ClientBase(server_port_path, 443),
 #ifdef RHEL_CENTOS_7
-	  context(asio::ssl::context::tlsv1) 
+          context(asio::ssl::context::tlsv1)
 #else
-	  context(asio::ssl::context::tlsv12) 
+          context(asio::ssl::context::tlsv12)
 #endif
-    {
+    {    
       if(certification_file.size() > 0 && private_key_file.size() > 0) {
         context.use_certificate_chain_file(certification_file);
         context.use_private_key_file(private_key_file, asio::ssl::context::pem);
@@ -56,7 +56,7 @@ namespace SimpleWeb {
     asio::ssl::context context;
 
     std::shared_ptr<Connection> create_connection() noexcept override {
-      return std::make_shared<Connection>(handler_runner, config.timeout, *io_service, context);
+      return std::make_shared<Connection>(handler_runner, *io_service, context);
     }
 
     void connect(const std::shared_ptr<Session> &session) override {

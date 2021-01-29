@@ -314,11 +314,13 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		while (!m_shutdown)
 		{
 			m_cv.wait(lck);
-			if (m_restartPlugin)
+			logger->debug("North main thread woken up, shutdown %s", m_shutdown ? "true" : "false");
+			if (m_shutdown == false && m_restartPlugin)
 			{
 				restartPlugin();
 			}
 		}
+		logger->debug("North service is shutting down");
 
 		delete m_dataSender;
 		delete m_dataLoad;

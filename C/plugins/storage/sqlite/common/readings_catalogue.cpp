@@ -621,6 +621,7 @@ bool ReadingsCatalogue::attachDb(sqlite3 *dbHandle, std::string &path, std::stri
 	if (rc != SQLITE_OK)
 	{
 		Logger::getLogger()->error("attachDb - It was not possible to attach the db :%s: to the connection :%X:, error :%s:", path.c_str(), dbHandle, zErrMsg);
+		sqlite3_free(zErrMsg);
 		result = false;
 	}
 
@@ -646,6 +647,7 @@ void ReadingsCatalogue::detachDb(sqlite3 *dbHandle, std::string &alias)
 	if (rc != SQLITE_OK)
 	{
 		Logger::getLogger()->error("%s - It was not possible to detach the db :%s: from the connection :%X:, error :%s:", __FUNCTION__, alias.c_str(), dbHandle, zErrMsg);
+		sqlite3_free(zErrMsg);
 	}
 }
 
@@ -1985,6 +1987,7 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
 
 			if (rc != SQLITE_OK)
 			{
+				sqlite3_free(zErrMsg);
 				break;
 			}
 			if  (rowsAffected != nullptr)

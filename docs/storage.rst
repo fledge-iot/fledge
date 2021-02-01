@@ -31,17 +31,11 @@ configuration.
 
 As standard Fledge comes with 3 storage plugins
 
-  - **SQLite**: A plugin that can store both configuration data and the
-  readings data using SQLite files as the backing store.
+  - **SQLite**: A plugin that can store both configuration data and the readings data using SQLite files as the backing store.
 
-  - **PostgreSQL**: A plugin that can store both configuration and
-  readings data which uses the PostgreSQL SQL server as a storage medium.
+  - **PostgreSQL**: A plugin that can store both configuration and readings data which uses the PostgreSQL SQL server as a storage medium.
 
-  - **SQLiteMemory**: A plugin that can only be used to store reading
-  data. It uses SQLite's in memory storage engine to store the reading
-  data. This provides a high performance reading store however capacity
-  is limited by available memory and if Fledge is stopped or there is
-  a power failure the buffered data will be lost.
+  - **SQLiteMemory**: A plugin that can only be used to store reading data. It uses SQLite's in memory storage engine to store the reading data. This provides a high performance reading store however capacity is limited by available memory and if Fledge is stopped or there is a power failure the buffered data will be lost.
 
 
 The default configuration uses the SQLite disk based storage engine for
@@ -54,8 +48,7 @@ Once installed the storage plugin can be reconfigured in much the same
 way as any Fledge configuration, either using the API or the graphical
 user interface to set the storage engine and its options.
 
-  - Using the user interface to configuration the storage, select the
-  *Configuration* item in the left hand menu bar.
+  - Using the user interface to configuration the storage, select the *Configuration* item in the left hand menu bar.
 
     +--------------+
     | |storage_01| |
@@ -67,37 +60,19 @@ user interface to set the storage engine and its options.
     | |storage_02| |
     +--------------+
   
- - To change the storage plugin to use for both configuration and readings
- enter the name of the new plugin in the *Storage Plugin* entry field. If
- *Readings Plugin* is left empty then the storage plugin will also be
- used to store reading data. The default set of plugins installed with
- Fledge that can be used as *Storage Plugin* values are:
+ - To change the storage plugin to use for both configuration and readings enter the name of the new plugin in the *Storage Plugin* entry field. If *Readings Plugin* is left empty then the storage plugin will also be used to store reading data. The default set of plugins installed with Fledge that can be used as *Storage Plugin* values are:
 
      - *sqlite* - the SQLite file based storage engine.
 
-     - *postgress* - the PostgreSQL server. Note the Postgres server
-     is not installed by default when Fledge is installed and must be
-     installed before it can be used.
+     - *postgres* - the PostgreSQL server. Note the Postgres server is not installed by default when Fledge is installed and must be installed before it can be used.
 
-  - The *Readings Plugin* may be set to any of the above and may
-  also be set to use the SQLite In Memory plugin by entering the value
-  *sqlitememory* into the configuration field.
+  - The *Readings Plugin* may be set to any of the above and may also be set to use the SQLite In Memory plugin by entering the value *sqlitememory* into the configuration field.
 
-  - The *Database threads* field allows for the number of threads used
-  for database housekeeping to be controlled. In normal circumstances
-  1 is sufficient. If performance issues are seen this can be increased
-  however it is rarely required to be greater than 1 and can have counter
-  productive effects on heavily loaded systems.
+  - The *Database threads* field allows for the number of threads used for database housekeeping to be controlled. In normal circumstances 1 is sufficient. If performance issues are seen this can be increased however it is rarely required to be greater than 1 and can have counter productive effects on heavily loaded systems.
 
-  - The *Manage Storage* option is only used when the database storage
-  uses an external database server, such as PostgreSQL. Toggling this
-  option on causes Fledge to start as stop the database server when Fledge
-  is started and stopped. If it s left off then Fledge will assume the
-  database server is running when it starts.
+  - The *Manage Storage* option is only used when the database storage uses an external database server, such as PostgreSQL. Toggling this option on causes Fledge to start as stop the database server when Fledge is started and stopped. If it s left off then Fledge will assume the database server is running when it starts.
 
-  - The *Management Port* and *Service Port* options allow fixed ports
-  to be assigned to the storage service. These settings are for debugging
-  purposes only and the values should be set to 0 in normal operation.
+  - The *Management Port* and *Service Port* options allow fixed ports to be assigned to the storage service. These settings are for debugging purposes only and the values should be set to 0 in normal operation.
 
 Note: Additional storage engines may be installed to extend the set
 that is delivered with the standard Fledge installation. These will be
@@ -166,21 +141,15 @@ order to improve concurrency multiple databases are used within the
 storage plugin. A set of parameters are used to define how these tables
 and databases are used.
 
-  - **Pool Size**: The number of connections to maintain to the database
-  server.
+  - **Pool Size**: The number of connections to maintain to the database server.
 
-  - **No. Readings per database**: This controls the number of different
-  assets that will be stored in each database file within SQLite.
+  - **No. Readings per database**: This controls the number of different assets that will be stored in each database file within SQLite.
 
-  - **No. databases to allocate in advance**: The number of SQLite
-  databases that will be created at startup.
+  - **No. databases to allocate in advance**: The number of SQLite databases that will be created at startup.
 
-  - **Database allocation threshold**: The point at which new databases
-  are created. If the number of empty databases falls below this value
-  then an other set of databases will be created.
+  - **Database allocation threshold**: The point at which new databases are created. If the number of empty databases falls below this value then an other set of databases will be created.
 
-  - **Database allocation size**: The number of database to allocate
-  each time a new set of databases is required.
+  - **Database allocation size**: The number of database to allocate each time a new set of databases is required.
 
 The setting of these parameters also imposes an upper limit on the number
 of assets that can be stored within a Fledge instance as SQLite has a

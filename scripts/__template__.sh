@@ -4,7 +4,7 @@
 # Run with --help for description.
 #
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 ############################################################
 

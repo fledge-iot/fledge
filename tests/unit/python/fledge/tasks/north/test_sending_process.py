@@ -2,7 +2,7 @@
 """ Unit tests for the North Sending Process """
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
 import asyncio

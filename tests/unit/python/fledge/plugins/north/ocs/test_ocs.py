@@ -2,7 +2,7 @@
 """ Unit tests for the OCS plugin """
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
 __author__ = "Stefano Simonelli"

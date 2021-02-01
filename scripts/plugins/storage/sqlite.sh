@@ -434,18 +434,9 @@ engine_management=`get_engine_management $PLUGIN`
 case "$engine_management" in
     "true")
 
-        MANAGED=true
-
-        # Check if sqlitei3 is present in the expected path
-        # We don't need to manage SQLite3 db
-        # This will be removed in next commits
-        SQLITE_SQL="$FLEDGE_ROOT/plugins/storage/sqlite/bin/psql"
-        if ! [[ -x "${SQLITE_SQL}" ]]; then
-            sqlite_log "err" "SQLite program not found: the database server cannot be managed." "all" "pretty"
-            exit 1
-        fi
-
-        print_output="noisy"
+	# SQLite does not support managed storage. Ignore this option
+        print_output="silent"
+        MANAGED=false
         ;;
     
     "false")

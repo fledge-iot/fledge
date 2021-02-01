@@ -14,6 +14,7 @@ Welcome to Fledge's documentation!
     fledge_architecture
     fledge_plugins
     securing_fledge
+    storage
     tuning_fledge
     notifications
     plugin_developers_guide/index

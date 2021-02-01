@@ -33,6 +33,7 @@ class DataLoad {
 						READINGSET* readings);
 		static void		pipelineEnd(OUTPUT_HANDLE *outHandle,
 						READINGSET* readings);
+		void			shutdown();
 	private:
 		void			readBlock(unsigned int blockSize);
 		unsigned int		waitForReadRequest();

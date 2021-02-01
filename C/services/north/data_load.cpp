@@ -59,6 +59,16 @@ DataLoad::~DataLoad()
 }
 
 /**
+ * External call to shutdown
+ */
+void DataLoad::shutdown()
+{
+	m_shutdown = true;
+	m_cv.notify_all();
+	m_fetchCV.notify_all();
+}
+
+/**
  * Set the source of data for the service
  *
  * @param source	The data source

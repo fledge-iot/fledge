@@ -322,8 +322,11 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		}
 		logger->debug("North service is shutting down");
 
+		m_dataLoad->shutdown();		// Forces the data load to return from any blocking fetch call
 		delete m_dataSender;
+		logger->debug("North service data sender has shut down");
 		delete m_dataLoad;
+		logger->debug("North service shutting down plugin");
 
 
 		// Shutdown the north plugin
@@ -331,6 +334,7 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		{
 			if (m_pluginData)
 			{
+				logger->debug("North service persist plugin data");
 				string saveData = northPlugin->shutdownSaveData();
 				string key = m_name + m_pluginName;
 				logger->debug("Persist plugin data key %s is %s", key.c_str(), saveData.c_str());

@@ -45,9 +45,11 @@ DataSender::DataSender(NorthPlugin *plugin, DataLoad *loader, NorthService *serv
  */
 DataSender::~DataSender()
 {
+	m_logger->info("DataSender shutdown in progress");
 	m_shutdown = true;
 	m_thread->join();
 	delete m_thread;
+	m_logger->info("DataSender shutdown complete");
 }
 
 /**

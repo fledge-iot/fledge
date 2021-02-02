@@ -20,7 +20,7 @@ class DataSender {
 		NorthPlugin		*m_plugin;
 		DataLoad		*m_loader;
 		NorthService		*m_service;
-		bool			m_shutdown;
+		volatile bool		m_shutdown;
 		std::thread		*m_thread;
 		Logger			*m_logger;
 };

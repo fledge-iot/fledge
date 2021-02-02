@@ -261,6 +261,7 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		if (!m_mgtClient->getService(storageRecord))
 		{
 			logger->fatal("Unable to find storage service");
+			m_mgtClient->unregisterService();
 			return;
 		}
 		logger->info("Connect to storage on %s:%d",
@@ -313,14 +314,19 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		while (!m_shutdown)
 		{
 			m_cv.wait(lck);
-			if (m_restartPlugin)
+			logger->debug("North main thread woken up, shutdown %s", m_shutdown ? "true" : "false");
+			if (m_shutdown == false && m_restartPlugin)
 			{
 				restartPlugin();
 			}
 		}
+		logger->debug("North service is shutting down");
 
+		m_dataLoad->shutdown();		// Forces the data load to return from any blocking fetch call
 		delete m_dataSender;
+		logger->debug("North service data sender has shut down");
 		delete m_dataLoad;
+		logger->debug("North service shutting down plugin");
 
 
 		// Shutdown the north plugin
@@ -328,6 +334,7 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		{
 			if (m_pluginData)
 			{
+				logger->debug("North service persist plugin data");
 				string saveData = northPlugin->shutdownSaveData();
 				string key = m_name + m_pluginName;
 				logger->debug("Persist plugin data key %s is %s", key.c_str(), saveData.c_str());
@@ -344,6 +351,7 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		}
 		
 		// Clean shutdown, unregister the storage service
+		logger->info("Unregistering service");
 		m_mgtClient->unregisterService();
 	}
 	management.stop();

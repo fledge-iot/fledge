@@ -45,6 +45,7 @@ DataLoad::DataLoad(const string& name, long streamId, StorageClient *storage) :
 DataLoad::~DataLoad()
 {
 	// Request the loading thread to shutdown and wait for it
+	Logger::getLogger()->info("Data load shutdown in progress");
 	m_shutdown = true;
 	m_cv.notify_all();
 	m_fetchCV.notify_all();
@@ -54,6 +55,17 @@ DataLoad::~DataLoad()
 		m_pipeline->cleanupFilters(m_name);
 		delete m_pipeline;
 	}
+	Logger::getLogger()->info("Data load shutdown complete");
+}
+
+/**
+ * External call to shutdown
+ */
+void DataLoad::shutdown()
+{
+	m_shutdown = true;
+	m_cv.notify_all();
+	m_fetchCV.notify_all();
 }
 
 /**

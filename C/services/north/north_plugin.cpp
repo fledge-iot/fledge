@@ -52,9 +52,6 @@ NorthPlugin::NorthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category) :
 	pluginShutdownDataPtr = (string (*)(const PLUGIN_HANDLE))
 				manager->resolveSymbol(handle, "plugin_shutdown");
 
-	pluginShutdownDataPtr = (string (*)(const PLUGIN_HANDLE))
-				 manager->resolveSymbol(handle, "plugin_shutdown");
-
 	pluginStartPtr = (void (*)(const PLUGIN_HANDLE))
 				manager->resolveSymbol(handle, "plugin_start");
 	pluginStartDataPtr = (void (*)(const PLUGIN_HANDLE, const string& storedData))
@@ -162,18 +159,20 @@ void NorthPlugin::reconfigure(const string& newConfig)
  */
 void NorthPlugin::shutdown()
 {
-	lock_guard<mutex> guard(mtx2);
-	try {
-		return this->pluginShutdownPtr(m_instance);
-	} catch (exception& e) {
-		Logger::getLogger()->fatal("Unhandled exception raised in north plugin shutdown(), %s",
-			e.what());
-		throw;
-	} catch (...) {
-		std::exception_ptr p = std::current_exception();
-		Logger::getLogger()->fatal("Unhandled exception raised in north plugin shutdown(), %s",
-			p ? p.__cxa_exception_type()->name() : "unknown exception");
-		throw;
+	if (this->pluginShutdownPtr)
+	{
+		try {
+			return this->pluginShutdownPtr(m_instance);
+		} catch (exception& e) {
+			Logger::getLogger()->fatal("Unhandled exception raised in north plugin shutdown(), %s",
+				e.what());
+			throw;
+		} catch (...) {
+			std::exception_ptr p = std::current_exception();
+			Logger::getLogger()->fatal("Unhandled exception raised in north plugin shutdown(), %s",
+				p ? p.__cxa_exception_type()->name() : "unknown exception");
+			throw;
+		}
 	}
 }
 

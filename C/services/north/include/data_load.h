@@ -33,6 +33,7 @@ class DataLoad {
 						READINGSET* readings);
 		static void		pipelineEnd(OUTPUT_HANDLE *outHandle,
 						READINGSET* readings);
+		void			shutdown();
 	private:
 		void			readBlock(unsigned int blockSize);
 		unsigned int		waitForReadRequest();
@@ -47,7 +48,7 @@ class DataLoad {
 		const std::string&	m_name;
 		long			m_streamId;
 		StorageClient		*m_storage;
-		bool			m_shutdown;
+		volatile bool		m_shutdown;
 		std::thread		*m_thread;
 		std::mutex		m_mutex;
 		std::condition_variable m_cv;

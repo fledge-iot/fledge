@@ -56,7 +56,7 @@ class NorthService : public ServiceHandler {
 		std::string			m_pluginName;
 		Logger        			*logger;
 		AssetTracker			*m_assetTracker;
-		bool				m_shutdown;
+		volatile bool			m_shutdown;
 		ConfigCategory			m_config;
 		ConfigCategory			m_configAdvanced;
 		static ManagementClient		*m_mgtClient;

@@ -117,7 +117,7 @@ class OMF
 
 		bool setAFMap(const std::string &AFMap);
 
-		bool setSendFullStructure(const bool sendFullStructure) {m_sendFullStructure = sendFullStructure;};
+		void setSendFullStructure(const bool sendFullStructure) {m_sendFullStructure = sendFullStructure;};
 
 		void setPrefixAFAsset(const std::string &prefixAFAsset);
 

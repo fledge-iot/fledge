@@ -158,7 +158,7 @@ async def fetch_available_packages(package_type: str = "") -> tuple:
     tmp_log_output_fp = stdout_file_path.split('logs/')[:1][0] + "logs/output.txt"
     _platform = platform.platform()
     pkg_type = "" if package_type is None else package_type
-    pkg_mgt = 'apt'
+    pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
     ret_code = 0
     category = await server.Server._configuration_manager.get_category_all_items("Installation")
     max_update_cat_item = category['maxUpdate']
@@ -212,7 +212,7 @@ async def fetch_available_packages(package_type: str = "") -> tuple:
         os.remove(tmp_log_output_fp)
 
     # relative log file link
-    link = "log/" + stdout_file_path.split("/")[-1]
+    link = "logs/" + stdout_file_path.split("/")[-1]
     if ret_code != 0:
         raise PackageError(link)
     return available_packages, link

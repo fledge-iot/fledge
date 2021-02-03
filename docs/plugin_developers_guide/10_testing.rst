@@ -74,7 +74,7 @@ and their versions.
          "description": "PI Server North Plugin",
          "version": "1.0.0",
          "installedDirectory": "north/pi_server",
-         "packageName": "fledge-north-pi-server"
+         "packageName": ""
        },
        {
          "name": "ocs",
@@ -82,7 +82,7 @@ and their versions.
          "description": "OCS (OSIsoft Cloud Services) North Plugin",
          "version": "1.0.0",
          "installedDirectory": "north/ocs",
-         "packageName": "fledge-north-ocs"
+         "packageName": ""
        },
        {
          "name": "http_north",

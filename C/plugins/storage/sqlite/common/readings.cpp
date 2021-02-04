@@ -2057,7 +2057,7 @@ vector<string>  assetCodes;
 			prevBlocks = blocks;
 			prevTotTime = totTime;
 			int deviation = abs(avg - TARGET_PURGE_BLOCK_DEL_TIME);
-			logger->debug("blocks=%d, totTime=%d usecs, prevAvg=%d usecs, currAvg=%d usecs, avg=%d usecs, TARGET_PURGE_BLOCK_DEL_TIME=%d usecs, deviation=%d usecs", 
+			logger->debug("blocks=%d, totTime=%d usecs, prevAvg=%d usecs, currAvg=%d usecs, avg=%d usecs, TARGET_PURGE_BLOCK_DEL_TIME=%d usecs, deviation=%d usecs",
 							blocks, totTime, prevAvg, currAvg, avg, TARGET_PURGE_BLOCK_DEL_TIME, deviation);
 			if (deviation > TARGET_PURGE_BLOCK_DEL_TIME/10)
 			{
@@ -2121,6 +2121,11 @@ string sql_cmd;
 vector<string>  assetCodes;
 
 	Logger *logger = Logger::getLogger();
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx %s - 1 rows :%lu: flag :%d: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str());
+	// FIXME_I:
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
@@ -2330,6 +2335,12 @@ vector<string>  assetCodes;
 
 	result = convert.str();
 	logger->info("Purge by Rows complete: %s", result.c_str());
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx %s - 2 rows :%lu: flag :%d: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str());
+	// FIXME_I:
+
 	return deletedRows;
 }
 #endif

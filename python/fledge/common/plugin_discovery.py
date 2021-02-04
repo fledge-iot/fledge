@@ -138,14 +138,19 @@ class PluginDiscovery(object):
                             if common_utils.bit_at_given_position_set_or_unset(jdoc['flag'],
                                                                                common_utils.DEPRECATED_BIT_POSITION):
                                 raise DeprecationWarning
+
+                        pkg_name = ''
+                        # inbuilt plugins ['ocs', 'pi_server', 'OMF']
+                        if name.lower() not in ['ocs', 'pi_server', 'omf']:
+                            pkg_name = 'fledge-{}-{}'.format(plugin_type, name.lower().replace("_", "-"))
+
                         plugin_config = {'name': name,
                                          'type': plugin_type,
                                          'description': jdoc['config']['plugin']['description'],
                                          'version': jdoc['version'],
                                          'installedDirectory': '{}/{}'.format(installed_dir_name, name),
-                                         'packageName': 'fledge-{}-{}'.format(plugin_type,
-                                                                              name.lower().replace("_", "-"))
-                                         }
+                                         'packageName': pkg_name
+                                        }
                         if is_config:
                             plugin_config.update({'config': jdoc['config']})
                         configs.append(plugin_config)
@@ -175,15 +180,19 @@ class PluginDiscovery(object):
                     if common_utils.bit_at_given_position_set_or_unset(plugin_info['flag'],
                                                                        common_utils.DEPRECATED_BIT_POSITION):
                         raise DeprecationWarning
+                pkg_name = ''
+                name = plugin_info['config']['plugin']['default']
+                # inbuilt plugins ['ocs', 'pi_server', 'OMF']
+                if name.lower() not in ['ocs', 'pi_server', 'omf']:
+                    pkg_name = 'fledge-{}-{}'.format(plugin_type, name.lower().replace("_", "-"))
+
                 plugin_config = {
                     'name': plugin_info['config']['plugin']['default'],
                     'type': plugin_type,
                     'description': plugin_info['config']['plugin']['description'],
                     'version': plugin_info['version'],
-                    'installedDirectory': '{}/{}'.format(installed_dir_name,
-                                                         plugin_info['config']['plugin']['default']),
-                    'packageName': 'fledge-{}-{}'.format(
-                        plugin_type, plugin_info['config']['plugin']['default'].lower().replace("_", "-"))
+                    'installedDirectory': '{}/{}'.format(installed_dir_name, name),
+                    'packageName': pkg_name
                 }
             else:
                 _logger.warning("Plugin {} is discarded due to invalid type".format(plugin_dir))

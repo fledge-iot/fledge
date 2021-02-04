@@ -1624,7 +1624,8 @@ vector<string>  asset_codes;
 /**
  * Purge readings from the reading table
  */
-unsigned int  Connection::purgeReadings(unsigned long age,
+unsigned int  Connection::
+purgeReadings(unsigned long age,
 					unsigned int flags,
 					unsigned long sent,
 					std::string& result)
@@ -1639,6 +1640,12 @@ int blocks = 0;
 vector<string>  assetCodes;
 
 	Logger *logger = Logger::getLogger();
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx  %s 1 - age :%lu: flag :%d: sent :%ld: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
+	Logger::getLogger()->setMinLevel("warning");
+
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
@@ -2120,11 +2127,19 @@ unsigned long limit = 0;
 string sql_cmd;
 vector<string>  assetCodes;
 
+// FIXME_I: rowidCallback
+// rowidCallback expects unsigned long
+unsigned long rowcount, minId, maxId;
+
+char *zErrMsg = NULL;
+int rc;
+
 	Logger *logger = Logger::getLogger();
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx %s - 1 rows :%lu: flag :%d: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str());
+	Logger::getLogger()->debug("xxx2 %s - 1 rows :%lu: flag :%d: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str());
+	Logger::getLogger()->setMinLevel("warning");
 	// FIXME_I:
 
 	ostringstream threadId;
@@ -2151,11 +2166,9 @@ vector<string>  assetCodes;
 	}
 	logger->info("Purge by Rows called with flags %x, rows %d, limit %d", flags, rows, limit);
 	// Don't save unsent rows
-	int rowcount;
-	do {
-		char *zErrMsg = NULL;
-		int rc;
 
+
+	{ // Calc rowcount
 		// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
 		{
 			// SQL - start
@@ -2181,10 +2194,10 @@ vector<string>  assetCodes;
 		}
 
 		rc = SQLexec(dbHandle,
-			sql_cmd.c_str(),
-			rowidCallback,
-			&rowcount,
-			&zErrMsg);
+					 sql_cmd.c_str(),
+					 rowidCallback,
+					 &rowcount,
+					 &zErrMsg);
 
 		if (rc != SQLITE_OK)
 		{
@@ -2192,50 +2205,9 @@ vector<string>  assetCodes;
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
-		if (rowcount <= rows)
-		{
-			logger->info("Row count %d is less than required rows %d", rowcount, rows);
-			break;
-		}
-		int minId;
+	}
 
-		// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
-		{
-			// SQL - start
-			// MIN is used to ensure just 1 row is returned
-			sql_cmd = R"(
-				SELECT  MIN(rowid)
-					FROM
-					(
-				)";
-
-			// SQL - union of all the readings tables
-			string sql_cmd_base;
-			string sql_cmd_tmp;
-			sql_cmd_base = " SELECT MIN(rowid) rowid FROM _dbname_._tablename_ ";
-			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base ,assetCodes);
-			sql_cmd += sql_cmd_tmp;
-
-			// SQL - end
-			sql_cmd += R"(
-					) as readings_1
-				)";
-		}
-
-		rc = SQLexec(dbHandle,
-					 sql_cmd.c_str(),
-		     rowidCallback,
-		     &minId,
-		     &zErrMsg);
-
-		if (rc != SQLITE_OK)
-		{
-			raiseError("purge - phaase 0, fetching minimum id", zErrMsg);
-			sqlite3_free(zErrMsg);
-			return 0;
-		}
-		int maxId;
+	{ // Calc maxId
 		// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
 		{
 			// SQL - start
@@ -2263,9 +2235,9 @@ vector<string>  assetCodes;
 
 		rc = SQLexec(dbHandle,
 					 sql_cmd.c_str(),
-		     rowidCallback,
-		     &maxId,
-		     &zErrMsg);
+					 rowidCallback,
+					 &maxId,
+					 &zErrMsg);
 
 		if (rc != SQLITE_OK)
 		{
@@ -2273,36 +2245,92 @@ vector<string>  assetCodes;
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
-		int deletePoint = minId + 10000;
+	}
+
+	//###   #########################################################################################:
+	unsigned int rowsAffected;
+	int deletePoint;
+	numReadings = rowcount;
+	do
+	{
+		if (rowcount <= rows)
+		{
+			logger->info("Row count %d is less than required rows %d", rowcount, rows);
+			break;
+		}
+
+		{ // Calc minId
+			// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
+			{
+				// SQL - start
+				// MIN is used to ensure just 1 row is returned
+				sql_cmd = R"(
+					SELECT  MIN(rowid)
+						FROM
+						(
+					)";
+
+				// SQL - union of all the readings tables
+				string sql_cmd_base;
+				string sql_cmd_tmp;
+				sql_cmd_base = " SELECT MIN(rowid) rowid FROM _dbname_._tablename_ ";
+				ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
+				sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
+				sql_cmd += sql_cmd_tmp;
+
+				// SQL - end
+				sql_cmd += R"(
+						) as readings_1
+					)";
+			}
+
+			rc = SQLexec(dbHandle,
+						 sql_cmd.c_str(),
+						 rowidCallback,
+						 &minId,
+						 &zErrMsg);
+
+			if (rc != SQLITE_OK)
+			{
+				raiseError("purge - phaase 0, fetching minimum id", zErrMsg);
+				sqlite3_free(zErrMsg);
+				return 0;
+			}
+		}
+
+		deletePoint = minId + 10000;
 		if (maxId - deletePoint < rows || deletePoint > maxId)
 			deletePoint = maxId - rows;
 		if (limit && limit > deletePoint)
 		{
 			deletePoint = limit;
 		}
-		SQLBuffer sql;
-
-		logger->info("RowCount %d, Max Id %d, min Id %d, delete point %d", rowcount, maxId, minId, deletePoint);
-
-		sql.append("DELETE FROM  _dbname_._tablename_ WHERE id <= ");
-		sql.append(deletePoint);
-		const char *query = sql.coalesce();
 
 		{
-			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
+			SQLBuffer sql;
 
+			logger->info("RowCount %d, Max Id %d, min Id %d, delete point %d", rowcount, maxId, minId, deletePoint);
+
+			sql.append("DELETE FROM  _dbname_._tablename_ WHERE id <= ");
+			sql.append(deletePoint);
+			const char *query = sql.coalesce();
+
+			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 
 			//unique_lock<mutex> lck(db_mutex);
 //			if (m_writeAccessOngoing) db_cv.wait(lck);
 
 			// Exec DELETE query: no callback, no resultset
-			rc = readCat->purgeAllReadings(dbHandle, query ,&zErrMsg);
-
-			int rowsAffected = sqlite3_changes(dbHandle);
+			rc = readCat->purgeAllReadings(dbHandle, query ,&zErrMsg, &rowsAffected);
+			// FIXME_I:
+			//int rowsAffected = sqlite3_changes(dbHandle);
 			deletedRows += rowsAffected;
-			numReadings = rowcount - rowsAffected;
+			// FIXME_I:
+			//numReadings = rowcount - rowsAffected;
+			numReadings -= rowsAffected;
 			// Release memory for 'query' var
 			delete[] query;
+
 			logger->debug("Deleted %d rows", rowsAffected);
 			if (rowsAffected == 0)
 			{
@@ -2319,6 +2347,7 @@ vector<string>  assetCodes;
 		}
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	} while (rowcount > rows);
+	//###   #########################################################################################:
 
 	if (limit)
 	{
@@ -2338,7 +2367,7 @@ vector<string>  assetCodes;
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx %s - 2 rows :%lu: flag :%d: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str());
+	Logger::getLogger()->debug("xxx2 %s - 2 rows :%lu: flag :%d: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str());
 	// FIXME_I:
 
 	return deletedRows;

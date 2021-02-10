@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
 """Common Definitions"""
@@ -90,14 +90,18 @@ def load_and_fetch_c_hybrid_plugin_info(plugin_name: str, is_config: bool, plugi
                 if _FLEDGE_ROOT + '/' + 'plugins' + '/' + plugin_type or os.path.isdir(plugin_dir + '/' + connection_name):
                     jdoc = utils.get_plugin_info(connection_name, dir=plugin_type)
                     if jdoc:
+                        pkg_name = ''
+                        # inbuilt plugins ['ocs', 'pi_server', 'OMF']
+                        if plugin_name.lower() not in ['ocs', 'pi_server', 'omf']:
+                            pkg_name = 'fledge-{}-{}'.format(plugin_type, plugin_name.lower().replace("_", "-"))
+
                         plugin_info = {'name': plugin_name,
                                        'type': plugin_type,
                                        'description': data['description'],
                                        'version': jdoc['version'],
                                        'installedDirectory': '{}/{}'.format(plugin_type, plugin_name),
-                                       'packageName': 'fledge-{}-{}'.format(plugin_type,
-                                                                            plugin_name.lower().replace("_", "-"))
-                                       }
+                                       'packageName': pkg_name
+                                    }
                         keys_a = set(jdoc['config'].keys())
                         keys_b = set(data['defaults'].keys())
                         intersection = keys_a & keys_b
@@ -158,7 +162,7 @@ async def fetch_available_packages(package_type: str = "") -> tuple:
     tmp_log_output_fp = stdout_file_path.split('logs/')[:1][0] + "logs/output.txt"
     _platform = platform.platform()
     pkg_type = "" if package_type is None else package_type
-    pkg_mgt = 'apt'
+    pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
     ret_code = 0
     category = await server.Server._configuration_manager.get_category_all_items("Installation")
     max_update_cat_item = category['maxUpdate']
@@ -212,7 +216,7 @@ async def fetch_available_packages(package_type: str = "") -> tuple:
         os.remove(tmp_log_output_fp)
 
     # relative log file link
-    link = "log/" + stdout_file_path.split("/")[-1]
+    link = "logs/" + stdout_file_path.split("/")[-1]
     if ret_code != 0:
         raise PackageError(link)
     return available_packages, link

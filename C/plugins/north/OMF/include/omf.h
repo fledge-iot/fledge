@@ -117,6 +117,8 @@ class OMF
 
 		bool setAFMap(const std::string &AFMap);
 
+		void setSendFullStructure(const bool sendFullStructure) {m_sendFullStructure = sendFullStructure;};
+
 		void setPrefixAFAsset(const std::string &prefixAFAsset);
 
 		// Get saved OMF formats
@@ -261,6 +263,7 @@ class OMF
 		OMF_ENDPOINT		m_PIServerEndpoint;
 		std::string		    m_DefaultAFLocation;
 
+		bool            m_sendFullStructure;
 		// AF hierarchies handling - Metadata MAP
 		std::string		m_AFMap;
 		bool            m_AFMapEmptyNames;  // true if there are norules to manage

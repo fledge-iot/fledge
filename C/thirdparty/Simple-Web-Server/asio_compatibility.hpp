@@ -42,13 +42,16 @@ namespace SimpleWeb {
   inline asio::ip::address make_address(const std::string &str) noexcept {
     return asio::ip::make_address(str);
   }
-  template <typename socket_type>
-  asio::executor get_socket_executor(socket_type &socket) {
-    return socket.get_executor();
+  template <typename socket_type, typename duration_type>
+  std::unique_ptr<asio::steady_timer> make_steady_timer(socket_type &socket, std::chrono::duration<duration_type> duration) {
+    return std::unique_ptr<asio::steady_timer>(new asio::steady_timer(socket.get_executor(), duration));
   }
   template <typename handler_type>
   void async_resolve(asio::ip::tcp::resolver &resolver, const std::pair<std::string, std::string> &host_port, handler_type &&handler) {
     resolver.async_resolve(host_port.first, host_port.second, std::forward<handler_type>(handler));
+  }
+  inline asio::executor_work_guard<io_context::executor_type> make_work_guard(io_context &context) {
+    return asio::make_work_guard(context);
   }
 #else
   using io_context = asio::io_service;
@@ -65,13 +68,16 @@ namespace SimpleWeb {
   inline asio::ip::address make_address(const std::string &str) noexcept {
     return asio::ip::address::from_string(str);
   }
-  template <typename socket_type>
-  io_context &get_socket_executor(socket_type &socket) {
-    return socket.get_io_service();
+  template <typename socket_type, typename duration_type>
+  std::unique_ptr<asio::steady_timer> make_steady_timer(socket_type &socket, std::chrono::duration<duration_type> duration) {
+    return std::unique_ptr<asio::steady_timer>(new asio::steady_timer(socket.get_io_service(), duration));
   }
   template <typename handler_type>
   void async_resolve(asio::ip::tcp::resolver &resolver, const std::pair<std::string, std::string> &host_port, handler_type &&handler) {
     resolver.async_resolve(asio::ip::tcp::resolver::query(host_port.first, host_port.second), std::forward<handler_type>(handler));
+  }
+  inline io_context::work make_work_guard(io_context &context) {
+    return io_context::work(context);
   }
 #endif
 } // namespace SimpleWeb

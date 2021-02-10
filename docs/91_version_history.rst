@@ -25,36 +25,53 @@ Version History
 Fledge v1
 ==========
 
+
 v1.9.0
 -------
 
-Release Date: 2021-02-01
+Release Date: 2021-02-10
 
 - **Fledge Core**
 
     - New Features:
 
+       - The REST API for the notification service was missing the re-trigger time information for configured notification in the retrieval and update calls. This has now been added.
+       - Support has been added in the Python north sending process for nested JSON reading payloads.
        - A new section has been added to the documentation to document the process of writing a notification delivery plugin. As part of this documentation a new delivery plugin has also been written which delivers notifications via an MQTT broker.
        - The plugin developers guide has been updated with information regarding installation and debugging of new plugins.
        - The developer documentation has been updated to include details for writing both C++ and Python filter plugins.
-       - An always on north service has been added. The compliments the current north task and allows a choice of using scheduled windows to send data north or sending data as soon as it is available.
+       - An always on north service has been added. This compliments the current north task and allows a choice of using scheduled windows to send data north or sending data as soon as it is available.
+       - The Python north sending process required the JQ filter information to be mandatory in north plugins. JQ filtering has been deprecated and will be removed in the next major release.
+       - Storage plugins may now have configuration options that are controllable via the API and the graphical interface.
+       - The ping API call has been enhanced to return the version of the core component of the system.
+       - The SQLite storage plugin has been enhanced to distribution readings for multiple assets across multiple databases. This improves the ingest performance and also improve the responsiveness of the system when very large numbers of readings are buffered within the instance.
+       - The notification service previously logged errors if not delivery no notification plugins had been installed. This is no longer the case.
 
 
     - Bug Fix:
 
        - If the SQLite storage plugin is configured to use managed storage Fledge fails to restart. This has been resolved, the SQLite storage service no longer uses the managed option and will ignore it if set.
-       - If a south plugin generates bad data that can not be inserted into the storage layer, that plugin will buffer the bad data forever and continually attempt to insert it. This causes the queue to build on the south plugin and eventually will exhaust system memory. To prevent this if dat can not be inserted for a number of attempts it will be discarded in the south service. This allows the bad data to be dropped and newer, good data to be handled correctly.
+       - An upgraded version of the HTTPS library has been applied, this solves an issue with large payloads in HTTPS exchanges.
+       - A number of Python source files contained incorrect references to the readthedocs page. This has now been resolved.
+       - The retrieval of log information was incorrectly including debug log output if the requested level was information and higher. This is now correctly filtered out.
+       - If a south plugin generates bad data that can not be inserted into the storage layer, that plugin will buffer the bad data forever and continually attempt to insert it. This causes the queue to build on the south plugin and eventually will exhaust system memory. To prevent this if data can not be inserted for a number of attempts it will be discarded in the south service. This allows the bad data to be dropped and newer, good data to be handled correctly.
        - When a statistics value becomes greater than 2,147,483,648 the storage layer would fail, this has now been fixed.
+       - During installation of plugins the user interface would occasionally flag the system as down due to congestion in the API layer. This has now been resolved and the correct status of the system should be reflected.
+       - Documentation has been added for configuration of the storage service.
 
 
 - **GUI**
 
     - New Features:
 
+       - The user interface now shows the retirgger time for a notification.
+       - The user interface now support adding a north service as well as a north task.
+       - A new help menu item has been added to the user interface which will cause the readthedocs documentation to be displayed. Also the wizard to add the south and north services has been enhanced to give an option to display the help for the plugins.
 
 
     - Bug Fix:
 
+       - The user interface now supports the ability to filter on all severity levels when viewing the system log.
 
 
 - **Plugins**
@@ -63,9 +80,13 @@ Release Date: 2021-02-01
 
        - A memory issue with the python 35 filter integration has been resolved.
        - The OPC/UA south plugin has been updated to allow the definition of the minimum reporting time between updates. It has also been updated to support subscription to arrays and DATE_TIME type with the OPC/UA server.
-       - AWS SiteWise requires the SourceTimestamp to be non-null when reading from an OPC/UA server. This was not always the case with the OPC/UA north plugin and caused issues when ingesting data into SiteWise. This has now been correct such that SourceTimestamp is correctly set in addition to server timestamp.
+       - The MQTT north plugin did not match the documented behaviour. This has now been fixed and the plugin performs as documented.
+       - Packaging conflicts between plugins that used the same additional libraries have been resolved allow both plugins to be install on the same machine. This issue impacted the plugins that used MQTT as a transport layer.
+       - AWS SiteWise requires the SourceTimestamp to be non-null when reading from an OPC/UA server. This was not always the case with the OPC/UA north plugin and caused issues when ingesting data into SiteWise. This has now been corrected such that SourceTimestamp is correctly set in addition to server timestamp.
        - The OPC/UA north plugin did not correctly handle the types for integer data, this has now been resolved.
        - A new plugin that sends data to the Graphite Carbon storage engine has been added.
+       - A new south plugin has been added that can be used to extract data from a PI System using the PI Web API. This data can then be used internally within FogLAMP or it may be sent to another system north.
+       - A new vibration filter has been added that can calculate velocity, RMS and amplitude envelopes.
        - The Digiducer has a sampling rate dependant sensitivity adjustment that should be applied. This was not applied in previous versions of the plugin but has now been added.
        - The OPCUA south plugin did not allow subscriptions to integer node ids. This has now been added.
        - The HTTP-C north plugin has been updated to support primary and secondary destinations. It will automatically failover to the secondary if the primary becomes unavailable. Fail back will occur either when the secondary becomes unavailable or the plugin is restarted.
@@ -77,6 +98,7 @@ Release Date: 2021-02-01
 
        - An issue with different versions of the libmodbus library prevented the modbus-c plugin building on Moxa gateways, this has now been resolved.
        - An issue with building the MQTT notification plugin on CentOS/RedHat platforms has been resolved. This plugin now builds correctly on those platforms.
+       - A new filter plugin, foglamp-filter-velocity has been added that is designed to be used with accelerometers to calculate velocity. The prime use of this is for vibration analysis applications.
        - A new notification delivery plugin has been added which can be used to modify the JSON configuration element of a configuration category within FogLAMP.
        - The modbus plugin has been enhanced to support Modbus over IPv6, also request timeout has been added as a configuration option. There have been improvements to the error handling also.
        - The DNP3 south plugin incorrectly treated all data as strings, this meant it was not easy to process it the data with generic plugins. This has now been resolved and data is treated as floating point or integer values.

@@ -185,7 +185,7 @@ Kerberos reachability and keys retrieval
 
 Kerberos authentication on RedHat/CentOS
 ========================================
-RedHat and CentOS version 7.6 provide by default an old version of curl and the related libcurl
+RedHat and CentOS version 7 provide by default an old version of curl and the related libcurl
 and it does not support Kerberos, output of the curl provided by CentOS:
 
 .. code-block:: console

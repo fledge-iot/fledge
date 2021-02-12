@@ -505,7 +505,7 @@ CREATE INDEX tasks_ix1
 CREATE TABLE fledge.omf_created_objects (
     configuration_key character varying(255)    NOT NULL,            -- FK to fledge.configuration
     type_id           integer                   NOT NULL,            -- Identifies the specific PI Server type
-    asset_code        character varying(50)     NOT NULL,
+    asset_code        character varying(255)    NOT NULL,
     CONSTRAINT omf_created_objects_pkey PRIMARY KEY (configuration_key,type_id, asset_code),
     CONSTRAINT omf_created_objects_fk1 FOREIGN KEY (configuration_key)
     REFERENCES configuration (key) MATCH SIMPLE

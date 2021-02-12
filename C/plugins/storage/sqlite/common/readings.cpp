@@ -1638,6 +1638,15 @@ int blocks = 0;
 
 vector<string>  assetCodes;
 
+
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx dev v2 %s 1 - age :%lu: flag :%d: sent :%lu: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
+
+
+
+
 	Logger *logger = Logger::getLogger();
 
 	ostringstream threadId;
@@ -1712,7 +1721,8 @@ vector<string>  assetCodes;
 		maxrowidLimit = rowidLimit;
 	}
 
-	Logger::getLogger()->debug("purgeReadings rowidLimit %lu", rowidLimit);
+	// FIXME_I:
+	Logger::getLogger()->debug("xxx purgeReadings rowidLimit %lu", rowidLimit);
 
 	{
 		char *zErrMsg = NULL;
@@ -1756,7 +1766,8 @@ vector<string>  assetCodes;
 		}
 	}
 
-	Logger::getLogger()->debug("purgeReadings minrowidLimit %lu", minrowidLimit);
+	// FIXME_I:
+	Logger::getLogger()->debug("xxx purgeReadings minrowidLimit %lu", minrowidLimit);
 
 	if (age == 0)
 	{
@@ -1835,7 +1846,7 @@ vector<string>  assetCodes;
 		//logger->info("%s:%d: l=%u, r=%u, sent=%u, rowidLimit=%u, minrowidLimit=%u, flags=%u", __FUNCTION__, __LINE__, l, r, sent, rowidLimit, minrowidLimit, flags);
 		if (l == r)
 		{
- 			logger->info("No data to purge: min_id == max_id == %u", minrowidLimit);
+ 			logger->info("xxx No data to purge: min_id == max_id == %u", minrowidLimit);
 			return 0;
 		}
 
@@ -1887,6 +1898,12 @@ vector<string>  assetCodes;
 			&midRowId,
 			&zErrMsg);
 
+
+			//# FIXME_I
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxx %s - query :%s: ", __FUNCTION__, query);
+			Logger::getLogger()->setMinLevel("warning");
+
 			delete[] query;
 
 			if (rc != SQLITE_OK)
@@ -1909,13 +1926,23 @@ vector<string>  assetCodes;
 				// search in later/right half
 		        	l = m + 1;
 			}
+
+
+			//# FIXME_I
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxx %s - rowidLimit :%lu: minrowidLimit :%lu: midRowId :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, midRowId);
 		}
 
 		rowidLimit = m;
 
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx %s - rowidLimit :%lu: minrowidLimit :%lu: maxrowidLimit :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, maxrowidLimit);
+
+
 		if (minrowidLimit == rowidLimit)
 		{
- 			logger->info("No data to purge");
+ 			logger->info("xxx No data to purge");
 			return 0;
 		}
 
@@ -2101,6 +2128,14 @@ vector<string>  assetCodes;
 	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
 	logger->info("Purge process complete in %d blocks in %lduS", blocks, duration);
 
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx  %s 2 - age :%lu: flag :%d: sent :%lu: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
+	Logger::getLogger()->setMinLevel("warning");
+
+
+
 	return deletedRows;
 }
 
@@ -2120,7 +2155,19 @@ unsigned long limit = 0;
 string sql_cmd;
 vector<string>  assetCodes;
 
+	// FIXME_I: rowidCallback
+	// rowidCallback expects unsigned long
+	unsigned long rowcount, minId, maxId;
+	unsigned int rowsAffected;
+
 	Logger *logger = Logger::getLogger();
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx  %s 1 - rows :%lu: flag :%d: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str() );
+	Logger::getLogger()->setMinLevel("warning");
+
+
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
@@ -2142,12 +2189,14 @@ vector<string>  assetCodes;
 	if ((flags & 0x01) == 0x01)
 	{
 		limit = sent;
-		logger->info("Sent is %d", sent);
+		logger->info("Sent is %lu", sent);
 	}
-	logger->info("Purge by Rows called with flags %x, rows %d, limit %d", flags, rows, limit);
+	logger->info("Purge by Rows called with flags %x, rows %lu, limit %lu", flags, rows, limit);
 	// Don't save unsent rows
-	int rowcount;
-	do {
+	// FIXME_I:
+	//int rowcount;
+	do
+	{
 		char *zErrMsg = NULL;
 		int rc;
 
@@ -2176,10 +2225,10 @@ vector<string>  assetCodes;
 		}
 
 		rc = SQLexec(dbHandle,
-			sql_cmd.c_str(),
-			rowidCallback,
-			&rowcount,
-			&zErrMsg);
+					 sql_cmd.c_str(),
+					 rowidCallback,
+					 &rowcount,
+					 &zErrMsg);
 
 		if (rc != SQLITE_OK)
 		{
@@ -2189,10 +2238,11 @@ vector<string>  assetCodes;
 		}
 		if (rowcount <= rows)
 		{
-			logger->info("Row count %d is less than required rows %d", rowcount, rows);
+			logger->info("xxx Row count %lu is less than required rows %lu", rowcount, rows);
 			break;
 		}
-		int minId;
+		// FIXME_I:
+		//int minId;
 
 		// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
 		{
@@ -2209,7 +2259,7 @@ vector<string>  assetCodes;
 			string sql_cmd_tmp;
 			sql_cmd_base = " SELECT MIN(rowid) rowid FROM _dbname_._tablename_ ";
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base ,assetCodes);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -2220,9 +2270,9 @@ vector<string>  assetCodes;
 
 		rc = SQLexec(dbHandle,
 					 sql_cmd.c_str(),
-		     rowidCallback,
-		     &minId,
-		     &zErrMsg);
+					 rowidCallback,
+					 &minId,
+					 &zErrMsg);
 
 		if (rc != SQLITE_OK)
 		{
@@ -2230,7 +2280,7 @@ vector<string>  assetCodes;
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
-		int maxId;
+		// int maxId;
 		// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
 		{
 			// SQL - start
@@ -2246,7 +2296,7 @@ vector<string>  assetCodes;
 			string sql_cmd_tmp;
 			sql_cmd_base = " SELECT MAX(id) id FROM _dbname_._tablename_ ";
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base ,assetCodes);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -2258,9 +2308,9 @@ vector<string>  assetCodes;
 
 		rc = SQLexec(dbHandle,
 					 sql_cmd.c_str(),
-		     rowidCallback,
-		     &maxId,
-		     &zErrMsg);
+					 rowidCallback,
+					 &maxId,
+					 &zErrMsg);
 
 		if (rc != SQLITE_OK)
 		{
@@ -2268,16 +2318,30 @@ vector<string>  assetCodes;
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
-		int deletePoint = minId + 10000;
+		// FIXME_I:
+		//int deletePoint = minId + 10000;
+		unsigned long deletePoint = minId + 10000;
 		if (maxId - deletePoint < rows || deletePoint > maxId)
 			deletePoint = maxId - rows;
-		if (limit && limit > deletePoint)
-		{
-			deletePoint = limit;
+
+		// FIXME_I:
+		if ((flags & 0x01) == 0x01) {
+
+			if (limit < deletePoint)
+			{
+				deletePoint = limit;
+			}
 		}
 		SQLBuffer sql;
 
-		logger->info("RowCount %d, Max Id %d, min Id %d, delete point %d", rowcount, maxId, minId, deletePoint);
+		// FIXME_I:
+//		if (minId >= limit) {
+//
+//			logger->info("Limit reached - RowCount %lu, Max Id %lu, min Id %lu, delete point %lu, limit %lu", rowcount, maxId, minId, deletePoint, limit);
+//		}
+
+
+		logger->info("RowCount %lu, Max Id %lu, min Id %lu, delete point %lu", rowcount, maxId, minId, deletePoint);
 
 		sql.append("DELETE FROM  _dbname_._tablename_ WHERE id <= ");
 		sql.append(deletePoint);
@@ -2291,9 +2355,10 @@ vector<string>  assetCodes;
 //			if (m_writeAccessOngoing) db_cv.wait(lck);
 
 			// Exec DELETE query: no callback, no resultset
-			rc = readCat->purgeAllReadings(dbHandle, query ,&zErrMsg);
+			rc = readCat->purgeAllReadings(dbHandle, query ,&zErrMsg, &rowsAffected);
 
-			int rowsAffected = sqlite3_changes(dbHandle);
+			// FIXME_I:
+			//int rowsAffected = sqlite3_changes(dbHandle);
 			deletedRows += rowsAffected;
 			numReadings = rowcount - rowsAffected;
 			// Release memory for 'query' var
@@ -2330,6 +2395,14 @@ vector<string>  assetCodes;
 
 	result = convert.str();
 	logger->info("Purge by Rows complete: %s", result.c_str());
+
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx  %s 2 - rows :%lu: flag :%d: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str() );
+	Logger::getLogger()->setMinLevel("warning");
+
+
 	return deletedRows;
 }
 #endif

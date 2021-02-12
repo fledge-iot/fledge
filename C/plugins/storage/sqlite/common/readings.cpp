@@ -2329,7 +2329,7 @@ vector<string>  assetCodes;
 
 			if (limit < deletePoint)
 			{
-				deletePoint = limit;
+				deletePoint = limit - 2000;
 			}
 		}
 		SQLBuffer sql;

@@ -488,7 +488,7 @@ Release Date: 2019-05-22
 
     - New Features:
        - A new threshold filter has been added that can be used to block onward transmission of data until a configured expression evaluates too true.
-       - The Modbus RTU/TCP south plugin is now available on CentOS 7.6 and RHEL 7.6.
+       - The Modbus RTU/TCP south plugin is now available on CentOS 7 and RHEL 7.
        - A new north plugin has been added to allow data to be sent the Google Cloud Platform IoT Core interface.
        - The FFT filter now has an option to output raw frequency spectra. Note this can not be accepted into all north bound systems.
        - Changed the release status of the FFT filter plugin.

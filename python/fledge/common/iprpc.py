@@ -343,4 +343,4 @@ class IPCModuleClient(InterProcessRPCClient):
         # so it's probalby also not the weakest link
         
         _super = super() # bind super outside of the lambda
-        return lambda x: _super.call({'method': method_name, 'args': [x]})
+        return lambda *x: _super.call({'method': method_name, 'args': [*x]})

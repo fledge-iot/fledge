@@ -236,7 +236,13 @@ class InterProcessRPC:
 
         while True:
 
-            _obj = self.rpc_read()
+            try:
+                _obj = self.rpc_read()
+
+            except EOFError as ex:
+                break
+            except Exception as ex:
+                self.rpc_exception(ex)
             try:
                 _ret = self.call(_obj)  # local "call" - returns json-able value; may raise
 
@@ -252,7 +258,7 @@ class InterProcessRPC:
                 # return the result of the call
                 self.rpc_write(_ret)
 
-        sys.exit(0)
+        sys.exit()
 
 
 class InterProcessRPCClient(InterProcessRPC):

@@ -43,6 +43,9 @@ except ImportError:
             return logger
     logger = Logger()
 
+sys.path.append(os.path.dirname(__file__))
+DEBUG_RPC = os.environ.get('DEBUG_RPC', "false").lower() == "true"
+
 
 def is_server_process():
     # temp backward compatibility: if we have a default
@@ -241,7 +244,9 @@ class InterProcessRPC:
                 _ret = self.call(_obj)  # local "call" - returns json-able value; may raise
 
             except Exception as ex:
-                _LOGGER.error("exception in rpc backend: {}".format(traceback.format_exc()))
+                if DEBUG_RPC and type(ex) not in [EOFError, SystemExit]:
+                    # give a traceback
+                    _LOGGER.exception("exception in rpc backend")
 
                 # return the exception
                 self.rpc_exception(ex)

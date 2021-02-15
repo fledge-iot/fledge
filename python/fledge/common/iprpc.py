@@ -115,12 +115,10 @@ class InterProcessRPC:
             
             # special protocol for server process: first line read is the name of our mapped arg file
             _argfile_name = self.infd.readline()[:-1].decode('utf-8')
-            eprint("SERVER: argfile name={}".format(_argfile_name))
             self.argfile_fd = os.open(_argfile_name, os.O_RDWR)
             os.unlink(_argfile_name)  # delete on close
         else:
             # client process opens the file then passes it up to superclass
-            eprint("CLIENT: argfile fd={}".format(argfile_fd))
             self.argfile_fd = argfile_fd
             
         self.mfile = mmap.mmap(self.argfile_fd, ARGFILE_SIZE)  # assume input > output
@@ -179,8 +177,7 @@ class InterProcessRPC:
             _LOGGER.warning("unknown local exception {}".format(_ex_class))
             raise Exception("{}: {}".format(_ex_class, _ex_msg))
 
-        # else _len == 0:
-        # len == 0 -> None
+        # we fall through here when len == 0 -> None
         return None
 
     def rpc_write(self, obj, is_exception=False):
@@ -272,7 +269,6 @@ class InterProcessRPCClient(InterProcessRPC):
         # set up a big shared memory file for argument transfer
         (_argfile_fd, _argfile_path) = tempfile.mkstemp()
         os.pwrite(_argfile_fd, b' ', ARGFILE_SIZE-1)
-        eprint("client, created file {} {}".format(_argfile_fd, _argfile_path))
 
         p = subprocess.Popen(server_args,
                              stdin=subprocess.PIPE, stdout=subprocess.PIPE,

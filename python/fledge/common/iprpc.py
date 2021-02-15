@@ -294,7 +294,7 @@ class InterProcessRPCClient(InterProcessRPC):
         for _ in range(2):
             # Wait until process terminates (without using p.wait())
             if p.poll() is not None:
-                _LOGGER.error("{} module load exited with return code {}".format(name, p.returncode))
+                _LOGGER.error("{} module load exited with return code {}".format(server_args, p.returncode))
                 raise RuntimeError(p.returncode)
             # Process hasn't exited yet, let's wait some
             time.sleep(0.5)
@@ -324,10 +324,9 @@ class IPCModuleClient(InterProcessRPCClient):
 
         env = os.environ.copy()
         # make sure the new environment can find modules in cwd
-        _LOGGER.info("NOW STARTING {} for {}".format(__name__, __file__))
         env['PYTHONPATH'] = env.get('PYTHONPATH', '') + ":"+module_dir
 
-        _LOGGER.info("STARTING module {} path={}".format(module_name, env['PYTHONPATH']))
+        _LOGGER.debug("STARTING module {} path={}".format(module_name, env['PYTHONPATH']))
         super().__init__(['python3', '-m', module_name], env=env)
 
     def __getattr__(self, method_name):

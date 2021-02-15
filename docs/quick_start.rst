@@ -145,7 +145,7 @@ CentOS users should then create a file called fledge.repo in the directory /etc/
 
    [fledge]
    name=fledge Repository
-   baseurl=http://archives.fledge-iot.org/latest/centos76/x86_64/
+   baseurl=http://archives.fledge-iot.org/latest/centos7/x86_64/
    enabled=1
    gpgkey=http://archives.fledge-iot.org/RPM-GPG-KEY-fledge
    gpgcheck=1
@@ -157,14 +157,14 @@ Users of RedHat systems should do the same, however the files content is slightl
 
    [fledge]
    name=fledge Repository
-   baseurl=http://archives.fledge-iot.org/latest/rhel76/x86_64/
+   baseurl=http://archives.fledge-iot.org/latest/rhel7/x86_64/
    enabled=1
    gpgkey=http://archives.fledge-iot.org/RPM-GPG-KEY-fledge
    gpgcheck=1
 
 There are a few pre-requisites that need to be installed on these platforms, they differ slightly between the two of them.
 
-On CentOS run the commands
+On CentOS 7 run the commands
 
 .. code-block:: console
 
@@ -172,7 +172,7 @@ On CentOS run the commands
    sudo yum install -y epel-release
 
 
-On RedHat run the command
+On RedHat 7 run the command
 
 .. code-block:: console
 

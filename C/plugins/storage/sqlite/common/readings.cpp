@@ -1640,7 +1640,7 @@ vector<string>  assetCodes;
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx %s - age :%lu: flag :%d: sent :%lu: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
+	Logger::getLogger()->debug("xxx %s - age :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
 
 
 	Logger *logger = Logger::getLogger();
@@ -2120,7 +2120,7 @@ vector<string>  assetCodes;
 	logger->info("Purge process complete in %d blocks in %lduS", blocks, duration);
 
 	//# FIXME_I
-	Logger::getLogger()->debug("xxx %s - age :%lu: flag :%d: sent :%lu: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
+	Logger::getLogger()->debug("xxx %s - age :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
 	Logger::getLogger()->setMinLevel("warning");
 
 	return deletedRows;
@@ -2151,7 +2151,7 @@ vector<string>  assetCodes;
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx %s - rows :%lu: flag :%d: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str() );
+	Logger::getLogger()->debug("xxx %s - rows :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str() );
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
@@ -2365,7 +2365,7 @@ vector<string>  assetCodes;
 	logger->info("Purge by Rows complete: %s", result.c_str());
 
 	//# FIXME_I
-	Logger::getLogger()->debug("xxx %s - rows :%lu: flag :%d: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str() );
+	Logger::getLogger()->debug("xxx %s - rows :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str() );
 	Logger::getLogger()->setMinLevel("warning");
 
 	return deletedRows;

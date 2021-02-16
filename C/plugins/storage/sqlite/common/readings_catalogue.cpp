@@ -1952,7 +1952,6 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
 	string dbName;
 	string sqlCmdTmp;
 	string sqlCmd;
-	int tmp;
 	bool firstRow;
 	int rc;
 
@@ -1993,13 +1992,7 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
 			}
 			if  (rowsAffected != nullptr) {
 
-				// FIXME_I:
-				tmp = sqlite3_changes(dbHandle);
-				*rowsAffected += (unsigned long ) tmp;
-
-				//# FIXME_I
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxx2 %s - tmp :%d: rowsAffected :%lu: ", __FUNCTION__, tmp, *rowsAffected);
+				*rowsAffected += (unsigned long ) sqlite3_changes(dbHandle);
 			}
 
 		}

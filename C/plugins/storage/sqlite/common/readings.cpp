@@ -1638,12 +1638,9 @@ int blocks = 0;
 
 vector<string>  assetCodes;
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx %s - age :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
-
-
 	Logger *logger = Logger::getLogger();
+
+	Logger::getLogger()->debug("xxx %s - age :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
@@ -2149,10 +2146,7 @@ vector<string>  assetCodes;
 
 	Logger *logger = Logger::getLogger();
 
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx2 %s - rows :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str() );
+	Logger::getLogger()->debug("xxx %s - rows :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str() );
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();

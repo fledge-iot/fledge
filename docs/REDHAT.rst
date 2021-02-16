@@ -12,8 +12,8 @@ Building and using Fledge on RedHat/CentOS
 
 Fledge can be built or installed on Red Hat or CentOS, it is currently tested against:
 
-- Red Hat 7.6
-- CentOS  7.6
+- Red Hat 7
+- CentOS  7
 
 You may follow the instructions in the README file to build,
 install and run Fledge on Red Hat or CentOS.

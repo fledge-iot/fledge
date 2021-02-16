@@ -374,7 +374,7 @@ CREATE SEQUENCE fledge.readings_id_seq
 
 CREATE TABLE fledge.readings (
     id         bigint                      NOT NULL DEFAULT nextval('fledge.readings_id_seq'::regclass),
-    asset_code character varying(50)       NOT NULL,                      -- The provided asset code. Not necessarily located in the
+    asset_code character varying(255)      NOT NULL,                      -- The provided asset code. Not necessarily located in the
                                                                           -- assets table.
     reading    jsonb                       NOT NULL DEFAULT '{}'::jsonb,  -- The json object received
     user_ts    timestamp(6) with time zone NOT NULL DEFAULT now(),        -- The user timestamp extracted by the received message
@@ -435,7 +435,7 @@ CREATE TABLE fledge.configuration_changes (
 -- Statistics table
 -- The table is used to keep track of the statistics for Fledge
 CREATE TABLE fledge.statistics (
-       key         character varying(56)       NOT NULL COLLATE pg_catalog."default", -- Primary key, all uppercase
+       key         character varying(255)      NOT NULL COLLATE pg_catalog."default", -- Primary key, all uppercase
        description character varying(255)      NOT NULL,                              -- Description, in plan text
        value       bigint                      NOT NULL DEFAULT 0,                    -- Integer value, the statistics
        previous_value       bigint             NOT NULL DEFAULT 0,                    -- Integer value, the prev stat to be updated by metrics collector
@@ -455,7 +455,7 @@ CREATE SEQUENCE fledge.statistics_history_id_seq
 
 CREATE TABLE fledge.statistics_history (
        id          bigint                      NOT NULL DEFAULT nextval('fledge.statistics_history_id_seq'::regclass),
-       key         character varying(56)       NOT NULL COLLATE pg_catalog."default",                         -- Coumpund primary key, all uppercase
+       key         character varying(255)      NOT NULL COLLATE pg_catalog."default",                         -- Coumpund primary key, all uppercase
        history_ts  timestamp(6) with time zone NOT NULL,                                                      -- Compound primary key, the highest value of statistics.ts when statistics are copied here.
        value       bigint                      NOT NULL DEFAULT 0,                                            -- Integer value, the statistics
        ts          timestamp(6) with time zone NOT NULL DEFAULT now(),                                        -- Timestamp, updated at every change
@@ -705,7 +705,7 @@ CREATE INDEX tasks_ix1
 CREATE TABLE fledge.omf_created_objects (
     configuration_key character varying(255)	NOT NULL,            -- FK to fledge.configuration
     type_id           integer           	    NOT NULL,            -- Identifies the specific PI Server type
-    asset_code        character varying(50)   NOT NULL,
+    asset_code        character varying(255)   NOT NULL,
     CONSTRAINT omf_created_objects_pkey PRIMARY KEY (configuration_key,type_id, asset_code),
     CONSTRAINT omf_created_objects_fk1 FOREIGN KEY (configuration_key)
     REFERENCES fledge.configuration (key) MATCH SIMPLE
@@ -742,7 +742,7 @@ CREATE TABLE fledge.category_children (
 -- Create the asset_tracker table
 CREATE TABLE fledge.asset_tracker (
        id            integer                NOT NULL DEFAULT nextval('fledge.asset_tracker_id_seq'::regclass),
-       asset         character(50)          NOT NULL,
+       asset         character(255)         NOT NULL,
        event         character varying(50)  NOT NULL,
        service       character varying(255) NOT NULL,
        fledge       character varying(50)  NOT NULL,

@@ -1640,7 +1640,7 @@ vector<string>  assetCodes;
 
 	Logger *logger = Logger::getLogger();
 
-	Logger::getLogger()->debug("xxx %s - age :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
+	Logger::getLogger()->debug("%s - age :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
@@ -2117,9 +2117,7 @@ vector<string>  assetCodes;
 	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
 	logger->info("Purge process complete in %d blocks in %lduS", blocks, duration);
 
-	//# FIXME_I
-	Logger::getLogger()->debug("xxx %s - age :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
-	Logger::getLogger()->setMinLevel("warning");
+	Logger::getLogger()->debug("%s - age :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
 
 	return deletedRows;
 }
@@ -2146,7 +2144,7 @@ vector<string>  assetCodes;
 
 	Logger *logger = Logger::getLogger();
 
-	Logger::getLogger()->debug("xxx %s - rows :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str() );
+	Logger::getLogger()->debug("%s - rows :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str() );
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
@@ -2308,7 +2306,7 @@ vector<string>  assetCodes;
 		}
 		SQLBuffer sql;
 
-		logger->info("xxx RowCount %lu, Max Id %lu, min Id %lu, delete point %lu", rowcount, maxId, minId, deletePoint);
+		logger->info("RowCount %lu, Max Id %lu, min Id %lu, delete point %lu", rowcount, maxId, minId, deletePoint);
 
 		sql.append("DELETE FROM  _dbname_._tablename_ WHERE id <= ");
 		sql.append(deletePoint);
@@ -2324,13 +2322,11 @@ vector<string>  assetCodes;
 			// Exec DELETE query: no callback, no resultset
 			rc = readCat->purgeAllReadings(dbHandle, query ,&zErrMsg, &rowsAffected);
 
-			logger->debug("xxx Deleted 1 :%lu: rows - query :%s:", rowsAffected, query);
-
 			deletedRows += rowsAffected;
 			numReadings = rowcount - rowsAffected;
 			// Release memory for 'query' var
 			delete[] query;
-			logger->debug("xxx Deleted 2 :%lu: rows", rowsAffected);
+			logger->debug("Deleted :%lu: rows", rowsAffected);
 			if (rowsAffected == 0)
 			{
 				break;

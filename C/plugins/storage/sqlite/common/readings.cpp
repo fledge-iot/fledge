@@ -2359,9 +2359,7 @@ vector<string>  assetCodes;
 	result = convert.str();
 	logger->info("Purge by Rows complete: %s", result.c_str());
 
-	//# FIXME_I
-	Logger::getLogger()->debug("xxx2 %s - rows :%lu: flag :%x: sent :%lu:  numReadings :%lu:  rowsAffected :%u:  result :%s:", __FUNCTION__, rows, flags, sent, numReadings, rowsAffected, result.c_str() );
-	Logger::getLogger()->setMinLevel("warning");
+	Logger::getLogger()->debug("%s - rows :%lu: flag :%x: sent :%lu:  numReadings :%lu:  rowsAffected :%u:  result :%s:", __FUNCTION__, rows, flags, sent, numReadings, rowsAffected, result.c_str() );
 
 	return deletedRows;
 }

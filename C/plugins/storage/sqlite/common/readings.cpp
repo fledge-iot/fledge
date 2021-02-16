@@ -2015,7 +2015,8 @@ vector<string>  assetCodes;
 
 	unsigned int deletedRows = 0;
 	char *zErrMsg = NULL;
-	unsigned int rowsAffected, totTime=0, prevBlocks=0, prevTotTime=0;
+	unsigned long rowsAffected;
+	unsigned int totTime=0, prevBlocks=0, prevTotTime=0;
 	logger->info("Purge about to delete readings # %ld to %ld", rowidMin, rowidLimit);
 
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
@@ -2144,14 +2145,14 @@ vector<string>  assetCodes;
 
 	// rowidCallback expects unsigned long
 	unsigned long rowcount, minId, maxId;
-	unsigned int rowsAffected;
+	unsigned long rowsAffected;
 
 	Logger *logger = Logger::getLogger();
 
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx %s - rows :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str() );
+	Logger::getLogger()->debug("xxx2 %s - rows :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str() );
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
@@ -2176,6 +2177,8 @@ vector<string>  assetCodes;
 		logger->info("Sent is %lu", sent);
 	}
 	logger->info("Purge by Rows called with flags %x, rows %lu, limit %lu", flags, rows, limit);
+
+	rowsAffected = 0;
 	// Don't save unsent rows
 	do
 	{
@@ -2311,7 +2314,7 @@ vector<string>  assetCodes;
 		}
 		SQLBuffer sql;
 
-		logger->info("RowCount %lu, Max Id %lu, min Id %lu, delete point %lu", rowcount, maxId, minId, deletePoint);
+		logger->info("xxx RowCount %lu, Max Id %lu, min Id %lu, delete point %lu", rowcount, maxId, minId, deletePoint);
 
 		sql.append("DELETE FROM  _dbname_._tablename_ WHERE id <= ");
 		sql.append(deletePoint);
@@ -2327,11 +2330,13 @@ vector<string>  assetCodes;
 			// Exec DELETE query: no callback, no resultset
 			rc = readCat->purgeAllReadings(dbHandle, query ,&zErrMsg, &rowsAffected);
 
+			logger->debug("xxx Deleted 1 :%lu: rows - query :%s:", rowsAffected, query);
+
 			deletedRows += rowsAffected;
 			numReadings = rowcount - rowsAffected;
 			// Release memory for 'query' var
 			delete[] query;
-			logger->debug("Deleted %d rows", rowsAffected);
+			logger->debug("xxx Deleted 2 :%lu: rows", rowsAffected);
 			if (rowsAffected == 0)
 			{
 				break;
@@ -2365,7 +2370,7 @@ vector<string>  assetCodes;
 	logger->info("Purge by Rows complete: %s", result.c_str());
 
 	//# FIXME_I
-	Logger::getLogger()->debug("xxx %s - rows :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str() );
+	Logger::getLogger()->debug("xxx2 %s - rows :%lu: flag :%x: sent :%lu:  numReadings :%lu:  rowsAffected :%u:  result :%s:", __FUNCTION__, rows, flags, sent, numReadings, rowsAffected, result.c_str() );
 	Logger::getLogger()->setMinLevel("warning");
 
 	return deletedRows;

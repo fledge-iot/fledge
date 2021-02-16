@@ -1638,13 +1638,9 @@ int blocks = 0;
 
 vector<string>  assetCodes;
 
-
-
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx dev v2 %s 1 - age :%lu: flag :%d: sent :%lu: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
-
-
+	Logger::getLogger()->debug("xxx %s - age :%lu: flag :%d: sent :%lu: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
 
 
 	Logger *logger = Logger::getLogger();
@@ -1721,8 +1717,7 @@ vector<string>  assetCodes;
 		maxrowidLimit = rowidLimit;
 	}
 
-	// FIXME_I:
-	Logger::getLogger()->debug("xxx purgeReadings rowidLimit %lu", rowidLimit);
+	Logger::getLogger()->debug("purgeReadings rowidLimit %lu", rowidLimit);
 
 	{
 		char *zErrMsg = NULL;
@@ -1766,8 +1761,7 @@ vector<string>  assetCodes;
 		}
 	}
 
-	// FIXME_I:
-	Logger::getLogger()->debug("xxx purgeReadings minrowidLimit %lu", minrowidLimit);
+	Logger::getLogger()->debug("purgeReadings minrowidLimit %lu", minrowidLimit);
 
 	if (age == 0)
 	{
@@ -1841,12 +1835,19 @@ vector<string>  assetCodes;
 		char *zErrMsg = NULL;
 		int rc;
 		unsigned long l = minrowidLimit;
-		unsigned long r = ((flags & 0x01) && sent) ? min(sent, rowidLimit) : rowidLimit;
+		unsigned long r;
+		if (flags & 0x01) {
+
+			r = min(sent, rowidLimit);
+		} else {
+			r = rowidLimit;
+		}
+
 		r = max(r, l);
-		//logger->info("%s:%d: l=%u, r=%u, sent=%u, rowidLimit=%u, minrowidLimit=%u, flags=%u", __FUNCTION__, __LINE__, l, r, sent, rowidLimit, minrowidLimit, flags);
+		logger->debug ("s:%d: l=%u, r=%u, sent=%u, rowidLimit=%u, minrowidLimit=%u, flags=%u", __FUNCTION__, __LINE__, l, r, sent, rowidLimit, minrowidLimit, flags);
 		if (l == r)
 		{
- 			logger->info("xxx No data to purge: min_id == max_id == %u", minrowidLimit);
+ 			logger->info("No data to purge: min_id == max_id == %u", minrowidLimit);
 			return 0;
 		}
 
@@ -1899,11 +1900,6 @@ vector<string>  assetCodes;
 			&zErrMsg);
 
 
-			//# FIXME_I
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("xxx %s - query :%s: ", __FUNCTION__, query);
-			Logger::getLogger()->setMinLevel("warning");
-
 			delete[] query;
 
 			if (rc != SQLITE_OK)
@@ -1927,22 +1923,17 @@ vector<string>  assetCodes;
 		        	l = m + 1;
 			}
 
-
-			//# FIXME_I
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("xxx %s - rowidLimit :%lu: minrowidLimit :%lu: midRowId :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, midRowId);
+			Logger::getLogger()->debug("%s - rowidLimit :%lu: minrowidLimit :%lu: midRowId :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, midRowId);
 		}
 
 		rowidLimit = m;
 
-		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx %s - rowidLimit :%lu: minrowidLimit :%lu: maxrowidLimit :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, maxrowidLimit);
+		Logger::getLogger()->debug("%s - rowidLimit :%lu: minrowidLimit :%lu: maxrowidLimit :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, maxrowidLimit);
 
 
 		if (minrowidLimit == rowidLimit)
 		{
- 			logger->info("xxx No data to purge");
+ 			logger->info("No data to purge");
 			return 0;
 		}
 
@@ -2128,13 +2119,9 @@ vector<string>  assetCodes;
 	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
 	logger->info("Purge process complete in %d blocks in %lduS", blocks, duration);
 
-
 	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx  %s 2 - age :%lu: flag :%d: sent :%lu: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
+	Logger::getLogger()->debug("xxx %s - age :%lu: flag :%d: sent :%lu: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
 	Logger::getLogger()->setMinLevel("warning");
-
-
 
 	return deletedRows;
 }
@@ -2155,19 +2142,16 @@ unsigned long limit = 0;
 string sql_cmd;
 vector<string>  assetCodes;
 
-	// FIXME_I: rowidCallback
 	// rowidCallback expects unsigned long
 	unsigned long rowcount, minId, maxId;
 	unsigned int rowsAffected;
 
 	Logger *logger = Logger::getLogger();
 
+
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx  %s 1 - rows :%lu: flag :%d: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str() );
-	Logger::getLogger()->setMinLevel("warning");
-
-
+	Logger::getLogger()->debug("xxx %s - rows :%lu: flag :%d: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str() );
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
@@ -2193,8 +2177,6 @@ vector<string>  assetCodes;
 	}
 	logger->info("Purge by Rows called with flags %x, rows %lu, limit %lu", flags, rows, limit);
 	// Don't save unsent rows
-	// FIXME_I:
-	//int rowcount;
 	do
 	{
 		char *zErrMsg = NULL;
@@ -2238,12 +2220,9 @@ vector<string>  assetCodes;
 		}
 		if (rowcount <= rows)
 		{
-			logger->info("xxx Row count %lu is less than required rows %lu", rowcount, rows);
+			logger->info("Row count %lu is less than required rows %lu", rowcount, rows);
 			break;
 		}
-		// FIXME_I:
-		//int minId;
-
 		// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
 		{
 			// SQL - start
@@ -2318,28 +2297,19 @@ vector<string>  assetCodes;
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
-		// FIXME_I:
-		//int deletePoint = minId + 10000;
 		unsigned long deletePoint = minId + 10000;
 		if (maxId - deletePoint < rows || deletePoint > maxId)
 			deletePoint = maxId - rows;
 
-		// FIXME_I:
+		// Do not delete
 		if ((flags & 0x01) == 0x01) {
 
 			if (limit < deletePoint)
 			{
-				deletePoint = limit - 2000;
+				deletePoint = limit;
 			}
 		}
 		SQLBuffer sql;
-
-		// FIXME_I:
-//		if (minId >= limit) {
-//
-//			logger->info("Limit reached - RowCount %lu, Max Id %lu, min Id %lu, delete point %lu, limit %lu", rowcount, maxId, minId, deletePoint, limit);
-//		}
-
 
 		logger->info("RowCount %lu, Max Id %lu, min Id %lu, delete point %lu", rowcount, maxId, minId, deletePoint);
 
@@ -2357,8 +2327,6 @@ vector<string>  assetCodes;
 			// Exec DELETE query: no callback, no resultset
 			rc = readCat->purgeAllReadings(dbHandle, query ,&zErrMsg, &rowsAffected);
 
-			// FIXME_I:
-			//int rowsAffected = sqlite3_changes(dbHandle);
 			deletedRows += rowsAffected;
 			numReadings = rowcount - rowsAffected;
 			// Release memory for 'query' var
@@ -2396,12 +2364,9 @@ vector<string>  assetCodes;
 	result = convert.str();
 	logger->info("Purge by Rows complete: %s", result.c_str());
 
-
 	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx  %s 2 - rows :%lu: flag :%d: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str() );
+	Logger::getLogger()->debug("xxx %s - rows :%lu: flag :%d: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str() );
 	Logger::getLogger()->setMinLevel("warning");
-
 
 	return deletedRows;
 }

@@ -18,20 +18,15 @@ import sys
 import io
 import subprocess
 import threading
-
-import traceback
-
 import pickle
 import tempfile
-
 import time
 import logging
-
 import mmap
 
-sys.path.append(os.path.dirname(__file__))
 
-DEBUG_RPC=False
+sys.path.append(os.path.dirname(__file__))
+DEBUG_RPC = os.environ.get('DEBUG_RPC', "false").lower() == "true"
 
 try:
     from fledge.common import logger
@@ -50,7 +45,8 @@ except ImportError:
     logger = Logger()
 
 _LOGGER = logger.setup(__name__, level=logging.INFO)
-        
+
+
 def eprint(*args, **kwargs):
     print(*args, *kwargs, file=sys.stderr)
     
@@ -95,7 +91,9 @@ def is_server_process():
 # The IPCModuleClient derives from InterProcessRPCClient and  specifically
 # invokes a named python module as a server.
 
+
 ARGFILE_SIZE = 1024*1024*20
+
 
 class InterProcessRPC:
     def __init__(self,
@@ -135,7 +133,6 @@ class InterProcessRPC:
 
         _method = getattr(self, rpcobj['method'])
         _args = rpcobj['args']
-        # eprint("about to call {} with {}".format(rpcobj['method'], _args))
         return _method(*_args)
 
     def rpc_read(self):
@@ -241,10 +238,8 @@ class InterProcessRPC:
         """
 
         while True:
-            # eprint("RECEIVE: {}".format(str(_obj)[:200]))
             try:
                 _obj = self.rpc_read()
-
             except EOFError as ex:
                 break
             except Exception as ex:
@@ -271,6 +266,7 @@ class InterProcessRPC:
 
         sys.exit()
 
+
 class InterProcessRPCClient(InterProcessRPC):
     """
     InterProcessRPCClient: companion to InterProcessRPC, client code that calls into a server in a separate process
@@ -285,7 +281,6 @@ class InterProcessRPCClient(InterProcessRPC):
         # set up a big shared memory file for argument transfer
         (_argfile_fd, _argfile_path) = tempfile.mkstemp()
         os.pwrite(_argfile_fd, b' ', ARGFILE_SIZE-1)
-        #eprint("{}, created file {} {}".format(server_args, _argfile_fd, _argfile_path))
 
         p = subprocess.Popen(server_args,
                              stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -294,10 +289,8 @@ class InterProcessRPCClient(InterProcessRPC):
         super().__init__(infd=p.stdout, outfd=p.stdin, errfd=p.stderr, argfile_fd=_argfile_fd)
 
         if _is_server:
-            #eprint("IS_SERVER...")
             def log_errors(fd):
                 """ log_errors - vacuum up error output that would otherwise be lost """
-                #eprint("IS_SERVER: log_errors")
                 while True:
                     err_str = fd.read().decode('utf-8')  # blocking read for error output
                     if err_str == '':
@@ -320,8 +313,6 @@ class InterProcessRPCClient(InterProcessRPC):
 
         # special prtocol, now tell the server the name of the mapped arg file
         self.outfd.write('{}\n'.format(_argfile_path).encode('utf-8'))
-        # eprint("IS_SERVER: started")
-
 
     def call(self, rpcobj):
         """ call - rpc client writes rpc request, reads and returns the result 
@@ -334,8 +325,6 @@ class InterProcessRPCClient(InterProcessRPC):
         Raises:
             Exception with appropriate message raised in remote execution (xxx -- reinstantiate exception class)
         """
-        # eprint("calling: ", str(rpcobj)[:200])
-
         self.rpc_write(rpcobj)
         return self.rpc_read()
 

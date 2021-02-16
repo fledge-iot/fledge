@@ -108,10 +108,18 @@ std::string JSONunescape(const std::string& subject)
         {
                 json.erase(0, 1);
         }
-        // Remove trainling '"'
+        // Remove trailing '"'
         if (json[json.length() - 1] == '\"')
         {
                 json.erase(json.length() - 1, 1);
+        }
+
+	// Where we had escaped " characters we now have \\"
+	// replace this with \"
+	pos = 0;
+        while ((pos = json.find("\\\\\"", pos)) != std::string::npos)
+        {
+                json.replace(pos, 3, "\\\"");
         }
         return json;
 }

@@ -1624,8 +1624,7 @@ vector<string>  asset_codes;
 /**
  * Purge readings from the reading table
  */
-unsigned int  Connection::
-purgeReadings(unsigned long age,
+unsigned int  Connection::purgeReadings(unsigned long age,
 					unsigned int flags,
 					unsigned long sent,
 					std::string& result)
@@ -1643,9 +1642,7 @@ vector<string>  assetCodes;
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx  %s 1 - age :%lu: flag :%d: sent :%ld: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
-	Logger::getLogger()->setMinLevel("warning");
-
+	Logger::getLogger()->debug("%s - age :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
@@ -1837,9 +1834,16 @@ vector<string>  assetCodes;
 		char *zErrMsg = NULL;
 		int rc;
 		unsigned long l = minrowidLimit;
-		unsigned long r = ((flags & 0x01) && sent) ? min(sent, rowidLimit) : rowidLimit;
+		unsigned long r;
+		if (flags & 0x01) {
+
+			r = min(sent, rowidLimit);
+		} else {
+			r = rowidLimit;
+		}
+
 		r = max(r, l);
-		//logger->info("%s:%d: l=%u, r=%u, sent=%u, rowidLimit=%u, minrowidLimit=%u, flags=%u", __FUNCTION__, __LINE__, l, r, sent, rowidLimit, minrowidLimit, flags);
+		logger->debug ("s:%d: l=%u, r=%u, sent=%u, rowidLimit=%u, minrowidLimit=%u, flags=%u", __FUNCTION__, __LINE__, l, r, sent, rowidLimit, minrowidLimit, flags);
 		if (l == r)
 		{
  			logger->info("No data to purge: min_id == max_id == %u", minrowidLimit);
@@ -1894,6 +1898,7 @@ vector<string>  assetCodes;
 			&midRowId,
 			&zErrMsg);
 
+
 			delete[] query;
 
 			if (rc != SQLITE_OK)
@@ -1916,9 +1921,14 @@ vector<string>  assetCodes;
 				// search in later/right half
 		        	l = m + 1;
 			}
+
+			Logger::getLogger()->debug("%s - rowidLimit :%lu: minrowidLimit :%lu: midRowId :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, midRowId);
 		}
 
 		rowidLimit = m;
+
+		Logger::getLogger()->debug("%s - rowidLimit :%lu: minrowidLimit :%lu: maxrowidLimit :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, maxrowidLimit);
+
 
 		if (minrowidLimit == rowidLimit)
 		{
@@ -2004,7 +2014,8 @@ vector<string>  assetCodes;
 
 	unsigned int deletedRows = 0;
 	char *zErrMsg = NULL;
-	unsigned int rowsAffected, totTime=0, prevBlocks=0, prevTotTime=0;
+	unsigned long rowsAffected;
+	unsigned int totTime=0, prevBlocks=0, prevTotTime=0;
 	logger->info("Purge about to delete readings # %ld to %ld", rowidMin, rowidLimit);
 
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
@@ -2108,6 +2119,8 @@ vector<string>  assetCodes;
 	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
 	logger->info("Purge process complete in %d blocks in %lduS", blocks, duration);
 
+	Logger::getLogger()->debug("%s - age :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
+
 	return deletedRows;
 }
 
@@ -2127,20 +2140,18 @@ unsigned long limit = 0;
 string sql_cmd;
 vector<string>  assetCodes;
 
-// FIXME_I: rowidCallback
-// rowidCallback expects unsigned long
-unsigned long rowcount, minId, maxId;
-
-char *zErrMsg = NULL;
-int rc;
+	// rowidCallback expects unsigned long
+	unsigned long rowcount, minId, maxId;
+	unsigned long rowsAffected;
+	unsigned long  deletePoint;
+	char *zErrMsg = NULL;
+	int rc;
 
 	Logger *logger = Logger::getLogger();
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx2 %s - 1 rows :%lu: flag :%d: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str());
-	Logger::getLogger()->setMinLevel("warning");
-	// FIXME_I:
+	Logger::getLogger()->debug("%s - rows :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str() );
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
@@ -2162,9 +2173,11 @@ int rc;
 	if ((flags & 0x01) == 0x01)
 	{
 		limit = sent;
-		logger->info("Sent is %d", sent);
+		logger->info("Sent is %lu", sent);
 	}
-	logger->info("Purge by Rows called with flags %x, rows %d, limit %d", flags, rows, limit);
+	logger->info("Purge by Rows called with flags %x, rows %lu, limit %lu", flags, rows, limit);
+
+	rowsAffected = 0;
 	// Don't save unsent rows
 
 
@@ -2223,7 +2236,7 @@ int rc;
 			string sql_cmd_tmp;
 			sql_cmd_base = " SELECT MAX(id) id FROM _dbname_._tablename_ ";
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base ,assetCodes);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -2248,9 +2261,9 @@ int rc;
 	}
 
 	//###   #########################################################################################:
-	unsigned int rowsAffected;
-	int deletePoint;
+
 	numReadings = rowcount;
+	rowsAffected = 0;
 	do
 	{
 		if (rowcount <= rows)
@@ -2297,24 +2310,29 @@ int rc;
 				return 0;
 			}
 		}
+		unsigned long deletePoint = minId + 10000;
 
 		deletePoint = minId + 10000;
 		if (maxId - deletePoint < rows || deletePoint > maxId)
 			deletePoint = maxId - rows;
-		if (limit && limit > deletePoint)
-		{
-			deletePoint = limit;
+
+		// Do not delete
+		if ((flags & 0x01) == 0x01) {
+
+			if (limit < deletePoint)
+			{
+				deletePoint = limit;
+			}
 		}
+		SQLBuffer sql;
+
+		logger->info("RowCount %lu, Max Id %lu, min Id %lu, delete point %lu", rowcount, maxId, minId, deletePoint);
+
+		sql.append("DELETE FROM  _dbname_._tablename_ WHERE id <= ");
+		sql.append(deletePoint);
+		const char *query = sql.coalesce();
 
 		{
-			SQLBuffer sql;
-
-			logger->info("RowCount %d, Max Id %d, min Id %d, delete point %d", rowcount, maxId, minId, deletePoint);
-
-			sql.append("DELETE FROM  _dbname_._tablename_ WHERE id <= ");
-			sql.append(deletePoint);
-			const char *query = sql.coalesce();
-
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 
 			//unique_lock<mutex> lck(db_mutex);
@@ -2330,8 +2348,7 @@ int rc;
 			numReadings -= rowsAffected;
 			// Release memory for 'query' var
 			delete[] query;
-
-			logger->debug("Deleted %d rows", rowsAffected);
+			logger->debug("xxx Deleted :%lu: rows", rowsAffected);
 			if (rowsAffected == 0)
 			{
 				break;
@@ -2347,7 +2364,6 @@ int rc;
 		}
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	} while (rowcount > rows);
-	//###   #########################################################################################:
 
 	if (limit)
 	{
@@ -2365,10 +2381,8 @@ int rc;
 	result = convert.str();
 	logger->info("Purge by Rows complete: %s", result.c_str());
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx2 %s - 2 rows :%lu: flag :%d: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str());
 	// FIXME_I:
+	Logger::getLogger()->debug("%s - rows :%lu: flag :%x: sent :%lu:  numReadings :%lu:  rowsAffected :%u:  result :%s:", __FUNCTION__, rows, flags, sent, numReadings, rowsAffected, result.c_str() );
 
 	return deletedRows;
 }

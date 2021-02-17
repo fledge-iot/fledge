@@ -1642,7 +1642,7 @@ vector<string>  assetCodes;
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("%s - age :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
+	Logger::getLogger()->debug("xxx3 %s - age :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
@@ -2119,7 +2119,8 @@ vector<string>  assetCodes;
 	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
 	logger->info("Purge process complete in %d blocks in %lduS", blocks, duration);
 
-	Logger::getLogger()->debug("%s - age :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
+	Logger::getLogger()->debug("xxx3 %s - age :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
+	Logger::getLogger()->setMinLevel("warning");
 
 	return deletedRows;
 }
@@ -2151,7 +2152,7 @@ vector<string>  assetCodes;
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("%s - rows :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str() );
+	Logger::getLogger()->debug("xxx2 %s - rows :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str() );
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
@@ -2348,7 +2349,7 @@ vector<string>  assetCodes;
 			numReadings -= rowsAffected;
 			// Release memory for 'query' var
 			delete[] query;
-			logger->debug("xxx Deleted :%lu: rows", rowsAffected);
+			logger->debug("Deleted :%lu: rows", rowsAffected);
 			if (rowsAffected == 0)
 			{
 				break;
@@ -2379,10 +2380,11 @@ vector<string>  assetCodes;
     	convert << " \"readings\" : " << numReadings << " }";
 
 	result = convert.str();
-	logger->info("Purge by Rows complete: %s", result.c_str());
+	logger->info("xxx Purge by Rows complete: %s", result.c_str());
 
 	// FIXME_I:
-	Logger::getLogger()->debug("%s - rows :%lu: flag :%x: sent :%lu:  numReadings :%lu:  rowsAffected :%u:  result :%s:", __FUNCTION__, rows, flags, sent, numReadings, rowsAffected, result.c_str() );
+	Logger::getLogger()->debug("xxx2 %s - rows :%lu: flag :%x: sent :%lu:  numReadings :%lu:  rowsAffected :%u:  result :%s:", __FUNCTION__, rows, flags, sent, numReadings, rowsAffected, result.c_str() );
+	Logger::getLogger()->setMinLevel("warning");
 
 	return deletedRows;
 }

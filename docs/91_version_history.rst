@@ -35,7 +35,6 @@ Release Date: 2021-02-10
 
     - New Features:
 
-       - The REST API for the notification service was missing the re-trigger time information for configured notification in the retrieval and update calls. This has now been added.
        - Support has been added in the Python north sending process for nested JSON reading payloads.
        - A new section has been added to the documentation to document the process of writing a notification delivery plugin. As part of this documentation a new delivery plugin has also been written which delivers notifications via an MQTT broker.
        - The plugin developers guide has been updated with information regarding installation and debugging of new plugins.
@@ -45,11 +44,12 @@ Release Date: 2021-02-10
        - Storage plugins may now have configuration options that are controllable via the API and the graphical interface.
        - The ping API call has been enhanced to return the version of the core component of the system.
        - The SQLite storage plugin has been enhanced to distribution readings for multiple assets across multiple databases. This improves the ingest performance and also improve the responsiveness of the system when very large numbers of readings are buffered within the instance.
-       - The notification service previously logged errors if not delivery no notification plugins had been installed. This is no longer the case.
+       - Documentation has been added for configuration of the storage service.
 
 
     - Bug Fix:
 
+       - The REST API for the notification service was missing the re-trigger time information for configured notification in the retrieval and update calls. This has now been added.
        - If the SQLite storage plugin is configured to use managed storage Fledge fails to restart. This has been resolved, the SQLite storage service no longer uses the managed option and will ignore it if set.
        - An upgraded version of the HTTPS library has been applied, this solves an issue with large payloads in HTTPS exchanges.
        - A number of Python source files contained incorrect references to the readthedocs page. This has now been resolved.
@@ -57,14 +57,15 @@ Release Date: 2021-02-10
        - If a south plugin generates bad data that can not be inserted into the storage layer, that plugin will buffer the bad data forever and continually attempt to insert it. This causes the queue to build on the south plugin and eventually will exhaust system memory. To prevent this if data can not be inserted for a number of attempts it will be discarded in the south service. This allows the bad data to be dropped and newer, good data to be handled correctly.
        - When a statistics value becomes greater than 2,147,483,648 the storage layer would fail, this has now been fixed.
        - During installation of plugins the user interface would occasionally flag the system as down due to congestion in the API layer. This has now been resolved and the correct status of the system should be reflected.
-       - Documentation has been added for configuration of the storage service.
+       - The notification service previously logged errors if not delivery no notification plugins had been installed. This is no longer the case.
+       - An issue with JSON configuration options that contained escaped strings within the JSON caused the service with the associated configuration to fail to run. This has now been resolved.
 
 
 - **GUI**
 
     - New Features:
 
-       - The user interface now shows the retirgger time for a notification.
+       - The user interface now shows the retrigger time for a notification.
        - The user interface now support adding a north service as well as a north task.
        - A new help menu item has been added to the user interface which will cause the readthedocs documentation to be displayed. Also the wizard to add the south and north services has been enhanced to give an option to display the help for the plugins.
 
@@ -78,14 +79,9 @@ Release Date: 2021-02-10
 
     - New Features:
 
-       - A memory issue with the python 35 filter integration has been resolved.
        - The OPC/UA south plugin has been updated to allow the definition of the minimum reporting time between updates. It has also been updated to support subscription to arrays and DATE_TIME type with the OPC/UA server.
-       - Packaging conflicts between plugins that used the same additional libraries have been resolved allow both plugins to be install on the same machine. This issue impacted the plugins that used MQTT as a transport layer.
        - AWS SiteWise requires the SourceTimestamp to be non-null when reading from an OPC/UA server. This was not always the case with the OPC/UA north plugin and caused issues when ingesting data into SiteWise. This has now been corrected such that SourceTimestamp is correctly set in addition to server timestamp.
-       - The OPC/UA north plugin did not correctly handle the types for integer data, this has now been resolved.
-       - The OPCUA south plugin did not allow subscriptions to integer node ids. This has now been added.
        - The HTTP-C north plugin has been updated to support primary and secondary destinations. It will automatically failover to the secondary if the primary becomes unavailable. Fail back will occur either when the secondary becomes unavailable or the plugin is restarted.
-       - A problem with reading multiple modbus input registers into a single value has been resolved in the ModbusC plugin
 
 
     - Bug Fix:
@@ -94,7 +90,12 @@ Release Date: 2021-02-10
        - An issue with building the MQTT notification plugin on CentOS/RedHat platforms has been resolved. This plugin now builds correctly on those platforms.
        - The modbus plugin has been enhanced to support Modbus over IPv6, also request timeout has been added as a configuration option. There have been improvements to the error handling also.
        - The DNP3 south plugin incorrectly treated all data as strings, this meant it was not easy to process it the data with generic plugins. This has now been resolved and data is treated as floating point or integer values.
-       - The OMF north plugin perviously reported the incorrect version information. This has now been resolved.
+       - The OMF north plugin previously reported the incorrect version information. This has now been resolved.
+       - A memory issue with the python 35 filter integration has been resolved.
+       - Packaging conflicts between plugins that used the same additional libraries have been resolved allow both plugins to be install on the same machine. This issue impacted the plugins that used MQTT as a transport layer.
+       - The OPC/UA north plugin did not correctly handle the types for integer data, this has now been resolved.
+       - The OPCUA south plugin did not allow subscriptions to integer node ids. This has now been added.
+       - A problem with reading multiple modbus input registers into a single value has been resolved in the ModbusC plugin.
 
 
 v1.8.2

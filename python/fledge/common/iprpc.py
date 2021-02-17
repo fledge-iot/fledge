@@ -18,14 +18,15 @@ import sys
 import io
 import subprocess
 import threading
-import traceback
 import pickle
 import tempfile
 import time
 import logging
 import mmap
 
-from fledge.common.utils import eprint
+
+sys.path.append(os.path.dirname(__file__))
+DEBUG_RPC = os.environ.get('DEBUG_RPC', "false").lower() == "true"
 
 try:
     from fledge.common import logger
@@ -38,22 +39,25 @@ except ImportError:
             self.default_destination = self.CONSOLE
             
         def setup(self, name, level):
-            logger = logging.getLogger(name)
-            logger.setLevel(level)
-            return logger
+            _logger = logging.getLogger(name)
+            _logger.setLevel(level)
+            return _logger
     logger = Logger()
 
+_LOGGER = logger.setup(__name__, level=logging.INFO)
+
+
+def eprint(*args, **kwargs):
+    print(*args, *kwargs, file=sys.stderr)
+    
 
 def is_server_process():
     # temp backward compatibility: if we have a default
     # destination of SYSLOG, we are a server process
     return not hasattr(logger, 'default_destination') or \
         (logger.default_destination == logger.SYSLOG)
-
-
-_LOGGER = logger.setup(__name__, level=logging.INFO)  # yyy
-
-
+#
+#
 # IPC overview:
 #   The basic structure we have is a client which spawns a server in another process, then
 # do simple ipc to send procedure calls from client to server, then results back to client
@@ -87,6 +91,7 @@ _LOGGER = logger.setup(__name__, level=logging.INFO)  # yyy
 # The IPCModuleClient derives from InterProcessRPCClient and  specifically
 # invokes a named python module as a server.
 
+
 ARGFILE_SIZE = 1024*1024*20
 
 
@@ -104,24 +109,22 @@ class InterProcessRPC:
         self.name = name
 
         if argfile_fd is None:
-            
+            # server
             # close 0/1/2 in case client is trying to do i/o on them. use stderr for output
             os.close(0)
             os.close(1)
             os.dup2(2, 1)
-            
+
             # special protocol for server process: first line read is the name of our mapped arg file
             _argfile_name = self.infd.readline()[:-1].decode('utf-8')
-            eprint("SERVER: argfile name={}".format(_argfile_name))
             self.argfile_fd = os.open(_argfile_name, os.O_RDWR)
             os.unlink(_argfile_name)  # delete on close
         else:
             # client process opens the file then passes it up to superclass
-            eprint("CLIENT: argfile fd={}".format(argfile_fd))
             self.argfile_fd = argfile_fd
-            
+
         self.mfile = mmap.mmap(self.argfile_fd, ARGFILE_SIZE)  # assume input > output
-        
+
     def call(self, rpcobj):
         """ call - local instance of rpc call """
         if not ('method' in rpcobj and 'args' in rpcobj):
@@ -130,7 +133,6 @@ class InterProcessRPC:
 
         _method = getattr(self, rpcobj['method'])
         _args = rpcobj['args']
-
         return _method(*_args)
 
     def rpc_read(self):
@@ -151,7 +153,7 @@ class InterProcessRPC:
         # protocol: pipe produces a length of next object
         _len = self.infd.readline()  # assume small enough to not deadlock
         self.mfile.seek(0)
-        
+
         if _len == b'':
             # closed fd on one side or the other of the pipe
             raise EOFError
@@ -159,6 +161,8 @@ class InterProcessRPC:
         _len = int(_len)
         if _len > 0:
             # len > 0 -> json object
+
+            # eprint("read >0")
             obj = pickle.loads(self.mfile)
             return obj
 
@@ -176,8 +180,7 @@ class InterProcessRPC:
             _LOGGER.warning("unknown local exception {}".format(_ex_class))
             raise Exception("{}: {}".format(_ex_class, _ex_msg))
 
-        # else _len == 0:
-        # len == 0 -> None
+        # we fall through here when len == 0 -> None
         return None
 
     def rpc_write(self, obj, is_exception=False):
@@ -199,7 +202,6 @@ class InterProcessRPC:
             _lenmult = -1
 
         if obj is not None:
-
             # put the dict into shared memory
             self.mfile.seek(0)
             pickle.dump(obj, self.mfile)
@@ -210,9 +212,10 @@ class InterProcessRPC:
             self.outfd.write(_lenstr.encode('utf-8', 'ignore'))
         else:
             # no payload for None return
+            # eprint("rpc write none")
             _lenstr = '0\n'
             self.outfd.write(_lenstr.encode('utf-8', 'ignore'))
-            
+
         self.outfd.flush()
 
     def rpc_exception(self, ex):
@@ -235,22 +238,33 @@ class InterProcessRPC:
         """
 
         while True:
+            try:
+                _obj = self.rpc_read()
+            except EOFError as ex:
+                break
+            except Exception as ex:
+                self.rpc_exception(ex)
 
-            _obj = self.rpc_read()
             try:
                 _ret = self.call(_obj)  # local "call" - returns json-able value; may raise
 
             except Exception as ex:
-                _LOGGER.error("exception in rpc backend: {}".format(traceback.format_exc()))
+                if DEBUG_RPC and type(ex) not in [EOFError, SystemExit]:
+                    # give a traceback
+                    _LOGGER.exception("exception in rpc backend")
 
                 # return the exception
                 self.rpc_exception(ex)
-                
+
+                if type(ex) is SystemExit:
+                    _LOGGER.info("EXITING")
+                    break
+
             else:
                 # return the result of the call
                 self.rpc_write(_ret)
 
-        sys.exit(0)
+        sys.exit()
 
 
 class InterProcessRPCClient(InterProcessRPC):
@@ -267,14 +281,13 @@ class InterProcessRPCClient(InterProcessRPC):
         # set up a big shared memory file for argument transfer
         (_argfile_fd, _argfile_path) = tempfile.mkstemp()
         os.pwrite(_argfile_fd, b' ', ARGFILE_SIZE-1)
-        eprint("client, created file {} {}".format(_argfile_fd, _argfile_path))
 
         p = subprocess.Popen(server_args,
                              stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                              stderr=_stderr,
                              env=env)
         super().__init__(infd=p.stdout, outfd=p.stdin, errfd=p.stderr, argfile_fd=_argfile_fd)
-        
+
         if _is_server:
             def log_errors(fd):
                 """ log_errors - vacuum up error output that would otherwise be lost """
@@ -288,17 +301,17 @@ class InterProcessRPCClient(InterProcessRPC):
             # pull off and log errors that would disappear on stderr
             self.log_err_thread = threading.Thread(target=log_errors, args=(self.errfd,))
             self.log_err_thread.start()
-        
+
         # check for module immediate exit -- shouldn't happen
         for _ in range(2):
             # Wait until process terminates (without using p.wait())
             if p.poll() is not None:
-                _LOGGER.error("{} module load exited with return code {}".format(name, p.returncode))
+                _LOGGER.error("{} module load exited with return code {}".format(server_args, p.returncode))
                 raise RuntimeError(p.returncode)
             # Process hasn't exited yet, let's wait some
             time.sleep(0.5)
 
-        # special protocol, now tell the server the name of the mapped arg file
+        # special prtocol, now tell the server the name of the mapped arg file
         self.outfd.write('{}\n'.format(_argfile_path).encode('utf-8'))
 
     def call(self, rpcobj):
@@ -312,21 +325,19 @@ class InterProcessRPCClient(InterProcessRPC):
         Raises:
             Exception with appropriate message raised in remote execution (xxx -- reinstantiate exception class)
         """
-
         self.rpc_write(rpcobj)
         return self.rpc_read()
 
-    
+
 class IPCModuleClient(InterProcessRPCClient):
     """ IPCModuleClient - specifically invoke python to create a server from a python module """
     def __init__(self, module_name, module_dir):
 
         env = os.environ.copy()
         # make sure the new environment can find modules in cwd
-        _LOGGER.info("NOW STARTING {} for {}".format(__name__, __file__))
         env['PYTHONPATH'] = env.get('PYTHONPATH', '') + ":"+module_dir
 
-        _LOGGER.info("STARTING module {} path={}".format(module_name, env['PYTHONPATH']))
+        _LOGGER.debug("STARTING module {} path={}".format(module_name, env['PYTHONPATH']))
         super().__init__(['python3', '-m', module_name], env=env)
 
     def __getattr__(self, method_name):
@@ -335,6 +346,6 @@ class IPCModuleClient(InterProcessRPCClient):
         # NOTE: this is a dangerous game since we are comandeering all function/slot accesses
         # it's also not the most efficient thing in the world... but we're about to do a pipe rpc
         # so it's probalby also not the weakest link
-        
+
         _super = super() # bind super outside of the lambda
-        return lambda x: _super.call({'method': method_name, 'args': [x]})
+        return lambda *x: _super.call({'method': method_name, 'args': [*x]})

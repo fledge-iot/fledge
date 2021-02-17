@@ -80,17 +80,11 @@ Release Date: 2021-02-10
 
        - A memory issue with the python 35 filter integration has been resolved.
        - The OPC/UA south plugin has been updated to allow the definition of the minimum reporting time between updates. It has also been updated to support subscription to arrays and DATE_TIME type with the OPC/UA server.
-       - The MQTT north plugin did not match the documented behaviour. This has now been fixed and the plugin performs as documented.
        - Packaging conflicts between plugins that used the same additional libraries have been resolved allow both plugins to be install on the same machine. This issue impacted the plugins that used MQTT as a transport layer.
        - AWS SiteWise requires the SourceTimestamp to be non-null when reading from an OPC/UA server. This was not always the case with the OPC/UA north plugin and caused issues when ingesting data into SiteWise. This has now been corrected such that SourceTimestamp is correctly set in addition to server timestamp.
        - The OPC/UA north plugin did not correctly handle the types for integer data, this has now been resolved.
-       - A new plugin that sends data to the Graphite Carbon storage engine has been added.
-       - A new south plugin has been added that can be used to extract data from a PI System using the PI Web API. This data can then be used internally within FogLAMP or it may be sent to another system north.
-       - A new vibration filter has been added that can calculate velocity, RMS and amplitude envelopes.
-       - The Digiducer has a sampling rate dependant sensitivity adjustment that should be applied. This was not applied in previous versions of the plugin but has now been added.
        - The OPCUA south plugin did not allow subscriptions to integer node ids. This has now been added.
        - The HTTP-C north plugin has been updated to support primary and secondary destinations. It will automatically failover to the secondary if the primary becomes unavailable. Fail back will occur either when the secondary becomes unavailable or the plugin is restarted.
-       - A new plugin has been added for there Flir Camera that allows for automatic discovery of the cameras connected to the local network.
        - A problem with reading multiple modbus input registers into a single value has been resolved in the ModbusC plugin
 
 
@@ -98,8 +92,6 @@ Release Date: 2021-02-10
 
        - An issue with different versions of the libmodbus library prevented the modbus-c plugin building on Moxa gateways, this has now been resolved.
        - An issue with building the MQTT notification plugin on CentOS/RedHat platforms has been resolved. This plugin now builds correctly on those platforms.
-       - A new filter plugin, foglamp-filter-velocity has been added that is designed to be used with accelerometers to calculate velocity. The prime use of this is for vibration analysis applications.
-       - A new notification delivery plugin has been added which can be used to modify the JSON configuration element of a configuration category within FogLAMP.
        - The modbus plugin has been enhanced to support Modbus over IPv6, also request timeout has been added as a configuration option. There have been improvements to the error handling also.
        - The DNP3 south plugin incorrectly treated all data as strings, this meant it was not easy to process it the data with generic plugins. This has now been resolved and data is treated as floating point or integer values.
        - The OMF north plugin perviously reported the incorrect version information. This has now been resolved.
@@ -158,7 +150,6 @@ Release Date: 2020-07-08
     - New Features:
 
        - The Modbus plugin did not gracefully handle interrupted reads of data from modes TCP devices during the bulk transfer of data. This would result in assets missing certain data points and subsequent issues in the north systems that received those assets getting changes in the asset data type. This was a particular issue when dealign with the PI Web API and would result in excessive types being created. The Modbus plugin now detects the issues and takes action to ensure complete assets are read.
-       - A new plugin to support Siemens S7 PLC’s has been added. The plugin uses the S7 communications protocol to pull data from the PLC.
        - A new image processing plugin, south human detector, that uses the Google Tensor Flow machine learning platform has been added to the Fledge-iot project.
        - A new Python plugin has been added that can send data north to a Kafka system.
        - A new south plugin has been added for the Dynamic Ratings B100 Electronic Temperature Monitor used for monitoring the condition of electricity transformers.
@@ -169,7 +160,6 @@ Release Date: 2020-07-08
 
     - Bug Fix:
 
-       - An issue with non-integer data types in the Beckhoff ADS south plugin has been rectified.
        - A missing dependency in v1.8.0 release for the package fledge-south-human-detector meant that it could not be installed without manual intervention. This has now been resolved.
        - Support has been added to the south-human-detector plugin for the Coral Camera module in addition to the existing support for USB connected cameras.
        - An issue with installation of the external shared libraries required by the USB4704 plugin has been resolved.
@@ -275,15 +265,12 @@ Release Date: 2020-05-08
     - New Features:
 
        - The existing set of OMF north plugins have been rationalised and replaced by a single OMF north plugin that is able to support the connector rely, PI Web API, EDS and OCS.
-       - A new notification rule plugin has been added that will trigger periodically if data is observed for a given asset. The trigger interval is defined in seconds. The plugin is primarily designed to be used with conditional forwarding as a means to sample data, although other uses might include a watchdog implementation for particular data streams.
        - When a Modbus TCP connection is closed by the remote end we fail to read a value, we then reconnect and move on to read the next value. On device with short timeout values, smaller than the poll interval, we fail the same reading every time and never get a value for that reading. The behaviour has been modified to allow us to retry reading the original value after re-establishing the connection.
        - The OMF north plugin has been updated to support the released version of the OSIsoft EDS product as a destination for data.
        - New functionality has been added to the north data to PI plugin when using PI Web API that allows the location in the PI Server AF hierarchy to be defined. A default location can be set and an override based on the asset name or metadata within the reading. The data may also be placed in multiple locations within the AF hierarchy.
        - A new notification delivery plugin has been added that allows a north task to be triggered to send data for a period of time either side of the notification trigger event. This allows conditional forwarding of large amounts of data when a trigger event occurs.
        - The asset notification delivery plugin has been updated to allow creation of new assets both for notifications that are triggered and/or cleared.
        - The rate filter now allows the termination of sending full rate data either by use of an expression or by specifying a time in milliseconds.
-       - A new downsampling filter has been written that allows the rate of data to be reduced using one of a number of different algorithms.
-       - A new plugin that support the Digiducer 333D01 vibration sensor has been added.
        - A new simple Python filter has been added that calculates an exponential moving average,
        - Some typos in the OPCUA south and north plugin configuration have been fixed.
        - The OPCUA north plugin has been updated to support nested reading objects correctly and also to allow a name to be set for the OPCUA server. These have also been some stability fixes in the underlying OPCUA layer used by this and the south OPCUA plugin.

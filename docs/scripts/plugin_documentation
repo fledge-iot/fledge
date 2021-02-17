@@ -106,8 +106,8 @@ do
 done
 
 # Deal with bultin plugin documentation 
-mkdir plugins/fledge-north-OMF
-sed -e 's|OMF.rst|../../OMF.rst|' < fledge-north-OMF.rst > plugins/fledge-north-OMF/index.rst
+mkdir plugins/fledge-north-omf
+sed -e 's|OMF.rst|../../OMF.rst|' < fledge-north-omf.rst > plugins/fledge-north-omf/index.rst
 mkdir plugins/fledge-rule-Threshold
 cp -r ../fledge-rule-Threshold/* plugins/fledge-rule-Threshold/.
 

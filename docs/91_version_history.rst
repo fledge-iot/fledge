@@ -29,7 +29,7 @@ Fledge v1
 v1.9.0
 -------
 
-Release Date: 2021-02-10
+Release Date: 2021-02-17
 
 - **Fledge Core**
 

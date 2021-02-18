@@ -1640,8 +1640,6 @@ vector<string>  assetCodes;
 
 	Logger *logger = Logger::getLogger();
 
-	Logger::getLogger()->setMinLevel("debug");
-
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
 	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
@@ -2118,7 +2116,6 @@ vector<string>  assetCodes;
 	logger->info("Purge process complete in %d blocks in %lduS", blocks, duration);
 
 	Logger::getLogger()->debug("%s - age :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
-	Logger::getLogger()->setMinLevel("warning");
 
 	return deletedRows;
 }
@@ -2147,8 +2144,6 @@ vector<string>  assetCodes;
 	int rc;
 
 	Logger *logger = Logger::getLogger();
-
-	Logger::getLogger()->setMinLevel("debug");
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();

@@ -68,7 +68,7 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
     af_hierarchy_level = "fledge/room1/machine1"
     af_hierarchy_level_list = af_hierarchy_level.split("/")
     type_id = 1
-    recorded_datapoint = "{}measurement_{}.{}".format(type_id, asset_name, DATAPOINT)
+    recorded_datapoint = "{}measurement_{}".format(type_id, asset_name)
     # Name of asset in the PI server
     PI_ASSET_NAME = "{}-type{}".format(asset_name, type_id)
 

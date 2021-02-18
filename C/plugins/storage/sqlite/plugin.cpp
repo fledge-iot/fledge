@@ -302,6 +302,9 @@ bool plugin_shutdown(PLUGIN_HANDLE handle)
 ConnectionManager *manager = (ConnectionManager *)handle;
 
 	Connection        *connection = manager->allocate();
+	// FIXME_I:
+	connection->shutdownAppendReadings();
+
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 	readCat->storeGlobalId();
 	manager->release(connection);

@@ -2252,8 +2252,6 @@ vector<string>  assetCodes;
 		}
 	}
 
-	//###   #########################################################################################:
-
 	numReadings = rowcount;
 	rowsAffected = 0;
 	do

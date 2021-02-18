@@ -275,6 +275,15 @@ static void loadDataThread(SendingProcess *loadData)
 					FilterPlugin *firstFilter = loadData->filterPipeline->getFirstFilterPlugin();
 					if (firstFilter)
 					{
+
+						// Check whether filters are set before calling ingest
+						while (!loadData->filterPipeline->isReady())
+						{
+							Logger::getLogger()->warn("Load data thread called before "
+										  "filter pipeline is ready");
+							std::this_thread::sleep_for(std::chrono::milliseconds(150));
+						}
+
 						// Make the load readIdx available to filters
 						loadData->setLoadBufferIndex(readIdx);
 						// Apply filters

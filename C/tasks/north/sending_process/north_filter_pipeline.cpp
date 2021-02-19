@@ -125,6 +125,9 @@ bool NorthFilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *u
 		return false;
 	}
 
+	// Set filter pipeline is ready for data ingest
+	m_ready = true;
+
 	//Success
 	return true;
 }

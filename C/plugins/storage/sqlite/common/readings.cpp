@@ -79,11 +79,9 @@ static int purgeBlockSize = PURGE_DELETE_BLOCK_SIZE;
 
 static time_t connectErrorTime = 0;
 
-// FIXME_I:
+// Used to synchronize the shut down of the threads executing appendReadings
 static std::atomic<int> m_appendCount(0);
 static bool				m_shutdown=false;
-
-
 
 #ifndef SQLITE_SPLIT_READINGS
 /**
@@ -643,30 +641,24 @@ void Connection::setUsedDbId(int dbId) {
 	m_NewDbIdList.push_back(dbId);
 }
 
-
+/**
+ * Wait until all the threads executing the appendReadings are shutted down
+ */
 void  Connection::shutdownAppendReadings() {
 
-	// FIXME_I:
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx %s - thread Id :%s: ", __FUNCTION__,  threadId.str().c_str());
-	Logger::getLogger()->setMinLevel("warning");
+	Logger::getLogger()->debug("%s - thread Id :%s: appendReadings shutting down started", __FUNCTION__, threadId.str().c_str());
 
 	m_shutdown=true;
 
 	while (m_appendCount > 0) {
 
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx %s - shutting down thread Id :%s:", __FUNCTION__, threadId.str().c_str());
-		Logger::getLogger()->setMinLevel("warning");
-
+		Logger::getLogger()->debug("%s - thread Id :%s: waiting threads to shut down, count :%d: ", __FUNCTION__, threadId.str().c_str(), int(m_appendCount));
 		std::this_thread::sleep_for(std::chrono::milliseconds(150));
 	}
+	Logger::getLogger()->debug("%s - thread Id :%s: appendReadings shutting down ended", __FUNCTION__, threadId.str().c_str());
 
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx %s - shutting down terminated thread Id :%s:", __FUNCTION__, threadId.str().c_str());
-	Logger::getLogger()->setMinLevel("warning");
 }
 
 #ifndef SQLITE_SPLIT_READINGS
@@ -705,24 +697,17 @@ int stmtArraySize;
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
 
-	if (m_shutdown)
 	{
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx %s - shutting down thread Id :%s:", __FUNCTION__, threadId.str().c_str());
-		Logger::getLogger()->setMinLevel("warning");
-		return -1;
+		if (m_shutdown)
+		{
+			Logger::getLogger()->debug("%s - thread Id :%s: plugin is shutting down, operation cancelled", __FUNCTION__, threadId.str().c_str());
+			return -1;
+		}
+
+		m_appendCount++;
+
+		Logger::getLogger()->debug("%s - thread Id :%s: operation started , threads count :%d: ", __FUNCTION__,  threadId.str().c_str(), int(m_appendCount) );
 	}
-
-	// FIXME_I:
-	m_appendCount++;
-
-	//# FIXME_I
-	int tmp;
-	tmp = m_appendCount;
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx %s - m_appendCount %d thread Id :%s:", __FUNCTION__, tmp,  threadId.str().c_str());
-	Logger::getLogger()->setMinLevel("warning");
-
 
 	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
 

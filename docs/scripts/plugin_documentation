@@ -92,7 +92,7 @@ Fledge Notification Delivery Plugins
 
 EOFNOTIFY
 
-fledgeRepos=`curl -s  https://api.github.com/orgs/fledge-iot/repos\?per_page=100`
+fledgeRepos=`curl -s  https://api.github.com/orgs/fledge-iot/repos\?page=[1-4]`
 REPOSITORIES=`echo $fledgeRepos | python3 -c 'import json,sys;repos=json.load(sys.stdin);fRepos = [r["name"] for r in repos];print("\n".join(fRepos))' | sort -f`
 echo ${REPOSITORIES}
 for repo in ${REPOSITORIES}

@@ -54,7 +54,6 @@ public:
 
 private:
 	PLUGIN_HANDLE	loadFilterPlugin(const std::string& filterName);
-	bool		m_ready;
 
 protected:
 	ManagementClient*	mgtClient;
@@ -65,6 +64,7 @@ protected:
 	std::map<std::string, FilterPlugin *>
 				m_filterCategories;
 	std::string		m_pipeline;
+	bool		m_ready;
 };
 
 #endif

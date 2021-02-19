@@ -259,8 +259,8 @@ async def test_ping_http_auth_required_allow_ping_false(aiohttp_server, aiohttp_
                         # note: If the parameter is app aiohttp.web.Application
                         # the tool creates TestServer implicitly for serving the application.
                         resp = await client.get('/fledge/ping')
-                        assert 403 == resp.status
-                    logger_warn.assert_called_once_with('Permission denied for Ping when Auth is mandatory.')
+                        assert 401 == resp.status
+                    logger_warn.assert_called_once_with('A valid token required to ping; as auth is mandatory & allow ping is set to false.')
                 mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
             assert 0 == query_patch.call_count
     log_params = 'Received %s request for %s', 'GET', '/fledge/ping'
@@ -510,8 +510,8 @@ async def test_ping_https_auth_required_allow_ping_false(aiohttp_server, ssl_ctx
                         resp = await client.get('/fledge/ping')
                         s = resp.request_info.url.human_repr()
                         assert "https" == s[:5]
-                        assert 403 == resp.status
-                    logger_warn.assert_called_once_with('Permission denied for Ping when Auth is mandatory.')
+                        assert 401 == resp.status
+                    logger_warn.assert_called_once_with('A valid token required to ping; as auth is mandatory & allow ping is set to false.')
                 mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
             assert 0 == query_patch.call_count
         logger_info.assert_called_once_with('Received %s request for %s', 'GET', '/fledge/ping')

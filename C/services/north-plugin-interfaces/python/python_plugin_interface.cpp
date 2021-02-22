@@ -30,9 +30,8 @@ extern void logErrorMessage();
 extern PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject *);
 
 // North plugin entry points
-vector<Reading *> * plugin_poll_fn(PLUGIN_HANDLE);
 void plugin_start_fn(PLUGIN_HANDLE handle);
-void plugin_register_ingest_fn(PLUGIN_HANDLE handle,INGEST_CB2 cb,void * data);
+uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& readings);
 
 Reading* Py2C_parseReadingObject(PyObject *);
 vector<Reading *>* Py2C_getReadings(PyObject *);
@@ -178,16 +177,14 @@ void* PluginInterfaceResolveSymbol(const char *_sym, const string& name)
 		return (void *) plugin_info_fn;
 	else if (!sym.compare("plugin_init"))
 		return (void *) plugin_init_fn;
-	else if (!sym.compare("plugin_poll"))
-		return (void *) plugin_poll_fn;
 	else if (!sym.compare("plugin_shutdown"))
 		return (void *) plugin_shutdown_fn;
 	else if (!sym.compare("plugin_reconfigure"))
 		return (void *) plugin_reconfigure_fn;
 	else if (!sym.compare("plugin_start"))
 		return (void *) plugin_start_fn;
-	else if (!sym.compare("plugin_register_ingest"))
-		return (void *) plugin_register_ingest_fn;
+	else if (!sym.compare("plugin_send"))
+		return (void *) plugin_send_fn;
 	else
 	{
 		Logger::getLogger()->fatal("PluginInterfaceResolveSymbol can not find symbol '%s' "
@@ -198,104 +195,6 @@ void* PluginInterfaceResolveSymbol(const char *_sym, const string& name)
 	}
 }
 
-/**
- * Function to invoke 'plugin_poll' function in python plugin
- *
- * @param    handle	Plugin handle from plugin_init_fn
- * @return		Vector of Reading data
- */
-vector<Reading *> * plugin_poll_fn(PLUGIN_HANDLE handle)
-{
-	if (!handle)
-	{
-		Logger::getLogger()->fatal("plugin_handle: plugin_poll_fn: "
-					   "handle is NULL");
-		return NULL;
-	}
-
-	if (!pythonHandles)
-	{
-		Logger::getLogger()->error("pythonModules map is NULL "
-					   "in plugin_poll_fn, handle '%p'",
-					   handle);
-		 return NULL;
-	}
-
-        // Look for Python module for handle key
-        auto it = pythonHandles->find(handle);
-        if (it == pythonHandles->end() ||
-            !it->second ||
-            !it->second->m_module)
-        {
-                Logger::getLogger()->fatal("plugin_handle: plugin_poll(): "
-                                           "pModule is NULL, plugin handle '%p'",
-                                           handle);
-                return NULL;
-        }
-
-	std::mutex mtx;
-	PyObject* pFunc;
-	lock_guard<mutex> guard(mtx);
-	PyGILState_STATE state = PyGILState_Ensure();
-	
-	// Fetch required method in loaded object
-	pFunc = PyObject_GetAttrString(it->second->m_module, "plugin_poll");
-	if (!pFunc)
-	{
-		Logger::getLogger()->fatal("Cannot find 'plugin_poll' method "
-					   "in loaded python module '%s'",
-					   it->second->m_name.c_str());
-	}
-
-	if (!pFunc || !PyCallable_Check(pFunc))
-	{
-		// Failure
-		if (PyErr_Occurred())
-		{
-			logErrorMessage();
-		}
-
-		Logger::getLogger()->fatal("Cannot call method 'plugin_poll' "
-					   "in loaded python module '%s'",
-					    it->second->m_name.c_str());
-		Py_CLEAR(pFunc);
-
-		PyGILState_Release(state);
-		return NULL;
-	}
-
-	// Call Python method passing an object
-	PyObject* pReturn = PyObject_CallFunction(pFunc,
-						  "O",
-						  handle);
-
-	Py_CLEAR(pFunc);
-
-	// Handle returned data
-	if (!pReturn)
-	{
-		// Errors while getting result object
-		Logger::getLogger()->error("Called python script method 'plugin_poll' : "
-					   "error while getting result object, plugin '%s'",
-					    it->second->m_name.c_str());
-		logErrorMessage();
-
-		PyGILState_Release(state);
-		return NULL;
-	}
-	else
-	{
-		// Get reading data
-		vector<Reading *> *vec = Py2C_getReadings(pReturn);
-		
-		// Remove pReturn object
-		Py_CLEAR(pReturn);
-
-		PyGILState_Release(state);
-		return vec;
-	}
-}
-	
 /**
  * Function to invoke 'plugin_start' function in python plugin
  *
@@ -377,99 +276,32 @@ void plugin_start_fn(PLUGIN_HANDLE handle)
 	PyGILState_Release(state);
 }
 
-
 /**
- * Function to invoke 'plugin_register_ingest' function in python plugin
+ * Function to invoke 'plugin_send' function in python plugin
  *
  * @param    handle     Plugin handle from plugin_init_fn
- * @param    cb		Ingest routine to call
- * @param    data	Data to pass to Ingest routine
+ * @param    readings	Vector of readings data to send
  */
-void plugin_register_ingest_fn(PLUGIN_HANDLE handle,
-				INGEST_CB2 cb,
-				void *data)
+uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& readings)
 {
+	uint32_t data = 1234UL;
 	if (!handle)
 	{
-		Logger::getLogger()->fatal("plugin_handle: plugin_register_ingest_fn: "
+		Logger::getLogger()->fatal("plugin_handle: plugin_send_fn: "
 					   "handle is NULL");
-		return;
+		return 0;
 	}
 
 	if (!pythonHandles)
 	{
 		Logger::getLogger()->error("pythonModules map is NULL "
-					   "in plugin_register_ingest_fn, handle '%p'",
+					   "in plugin_send_fn, handle '%p'",
 					   handle);
-		 return;
+		 return 0;
 	}
 
-        // Look for Python module for handle key
-        auto it = pythonHandles->find(handle);
-        if (it == pythonHandles->end() ||
-            !it->second ||
-            !it->second->m_module)
-        {
-                Logger::getLogger()->fatal("plugin_handle: plugin_register_ingest(): "
-                                           "pModule is NULL, plugin handle '%p'",
-                                           handle);
-                return;
-        }
-
-	PyObject* pFunc;
-	PyGILState_STATE state = PyGILState_Ensure();
-	
-	// Fetch required method in loaded object
-	pFunc = PyObject_GetAttrString(it->second->m_module, "plugin_register_ingest");
-	if (!pFunc)
-	{
-		Logger::getLogger()->fatal("Cannot find 'plugin_register_ingest' "
-					   "method in loaded python module '%s'",
-					   it->second->m_name.c_str());
-	}
-
-	if (!pFunc || !PyCallable_Check(pFunc))
-	{
-		// Failure
-		if (PyErr_Occurred())
-		{
-			logErrorMessage();
-		}
-
-		Logger::getLogger()->fatal("Cannot call method plugin_register_ingest "
-					   "in loaded python module '%s'",
-					   it->second->m_name.c_str());
-		Py_CLEAR(pFunc);
-
-		PyGILState_Release(state);
-		return;
-	}
-	
-	// Call Python method passing an object
-	PyObject* ingest_fn = PyCapsule_New((void *)cb, NULL, NULL);
-	PyObject* ingest_ref = PyCapsule_New((void *)data, NULL, NULL);
-	PyObject* pReturn = PyObject_CallFunction(pFunc, "OOO", handle, ingest_fn, ingest_ref);
-
-	Py_CLEAR(pFunc);
-	Py_CLEAR(ingest_fn);
-
-	// Handle returned data
-	if (!pReturn)
-	{
-		Logger::getLogger()->error("Called python script method plugin_register_ingest "
-					   ": error while getting result object, plugin '%s'",
-					   it->second->m_name.c_str());
-		logErrorMessage();
-	}
-	else
-	{
-		Logger::getLogger()->info("plugin_handle: plugin_register_ingest(): "
-					  "got result object '%p', plugin '%s'",
-					  pReturn,
-					  it->second->m_name.c_str());
-	}
-	PyGILState_Release(state);
+	// TODO: handle the input data sending
+	return data;
 }
-
 };
 

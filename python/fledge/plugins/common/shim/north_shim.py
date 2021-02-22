@@ -48,11 +48,6 @@ def plugin_init(config):
     return revised_handle
 
 
-def plugin_poll(handle):
-    reading = _plugin.plugin_poll(handle)
-    return reading
-
-
 def plugin_reconfigure(handle, new_config):
     _LOGGER.info("plugin_reconfigure")
     new_handle = _plugin.plugin_reconfigure(handle, json.loads(new_config))
@@ -71,9 +66,9 @@ def plugin_start(handle):
     return _plugin.plugin_start(handle)
 
 
-def plugin_register_ingest(handle, callback, ingest_ref):
-    _LOGGER.info("plugin_register_ingest")
-    return _plugin.plugin_register_ingest(handle, callback, ingest_ref)
+def plugin_send(handle, readings):
+    _LOGGER.info("plugin_start")
+    return _plugin.plugin_send(handle, readings)
 
 
 def _revised_config_for_json_item(config):

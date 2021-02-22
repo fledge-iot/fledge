@@ -146,7 +146,10 @@ class Connection {
 		sqlite3		*getDbHandle() {return dbHandle;};
 		void        setUsedDbId(int dbId);
 
+		void        shutdownAppendReadings();
+
 	private:
+
 		std::vector<int>  m_NewDbIdList;            // Newly created databases that should be attached
 
 		bool 		m_streamOpenTransaction;

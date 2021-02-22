@@ -997,6 +997,8 @@ bool StorageClient::registerAssetNotification(const string& assetName,
 		handleUnexpectedResponse("Register asset",
 					 res->status_code,
 					 resultPayload.str());
+		m_logger->error("/storage/reading/interest/%s: %s",
+				urlEncode(assetName).c_str(), res->status_code.c_str());
 
 		return false;
 	} catch (exception& ex)

@@ -24,7 +24,7 @@ _LOGGER.info("Loading shim layer for python plugin '{}' ".format(sys.argv[1]))
 
 def _plugin_obj():
     plugin = sys.argv[1]
-    plugin_type = "south"
+    plugin_type = "North"
     plugin_module_path = "{}/python/fledge/plugins/{}/{}".format(_FLEDGE_ROOT, plugin_type, plugin)
     _plugin=common.load_python_plugin(plugin_module_path, plugin, plugin_type)
     return _plugin

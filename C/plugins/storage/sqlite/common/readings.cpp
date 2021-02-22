@@ -79,7 +79,9 @@ static int purgeBlockSize = PURGE_DELETE_BLOCK_SIZE;
 
 static time_t connectErrorTime = 0;
 
-
+// Used to synchronize the shut down of the threads executing appendReadings
+static std::atomic<int> m_appendCount(0);
+static bool				m_shutdown=false;
 
 #ifndef SQLITE_SPLIT_READINGS
 /**
@@ -639,6 +641,25 @@ void Connection::setUsedDbId(int dbId) {
 	m_NewDbIdList.push_back(dbId);
 }
 
+/**
+ * Wait until all the threads executing the appendReadings are shutted down
+ */
+void  Connection::shutdownAppendReadings() {
+
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
+	Logger::getLogger()->debug("%s - thread Id :%s: appendReadings shutting down started", __FUNCTION__, threadId.str().c_str());
+
+	m_shutdown=true;
+
+	while (m_appendCount > 0) {
+
+		Logger::getLogger()->debug("%s - thread Id :%s: waiting threads to shut down, count :%d: ", __FUNCTION__, threadId.str().c_str(), int(m_appendCount));
+		std::this_thread::sleep_for(std::chrono::milliseconds(150));
+	}
+	Logger::getLogger()->debug("%s - thread Id :%s: appendReadings shutting down ended", __FUNCTION__, threadId.str().c_str());
+
+}
 
 #ifndef SQLITE_SPLIT_READINGS
 /**
@@ -675,6 +696,19 @@ int stmtArraySize;
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
+
+	{
+		if (m_shutdown)
+		{
+			Logger::getLogger()->debug("%s - thread Id :%s: plugin is shutting down, operation cancelled", __FUNCTION__, threadId.str().c_str());
+			return -1;
+		}
+
+		m_appendCount++;
+
+		Logger::getLogger()->debug("%s - thread Id :%s: operation started , threads count :%d: ", __FUNCTION__,  threadId.str().c_str(), int(m_appendCount) );
+	}
+
 	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
 
 	{
@@ -706,18 +740,21 @@ int stmtArraySize;
 	if (!ok)
 	{
  		raiseError("appendReadings", GetParseError_En(doc.GetParseError()));
+		m_appendCount--;
 		return -1;
 	}
 
 	if (!doc.HasMember("readings"))
 	{
  		raiseError("appendReadings", "Payload is missing a readings array");
+		m_appendCount--;
 		return -1;
 	}
 	Value &readingsValue = doc["readings"];
 	if (!readingsValue.IsArray())
 	{
 		raiseError("appendReadings", "Payload is missing the readings array");
+		m_appendCount--;
 		return -1;
 	}
 
@@ -740,6 +777,7 @@ int stmtArraySize;
 		{
 			raiseError("appendReadings","Each reading in the readings array must be an object");
 			sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+			m_appendCount--;
 			return -1;
 		}
 
@@ -901,6 +939,7 @@ int stmtArraySize;
 						dbHandle);
 
 					sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+					m_appendCount--;
 					return -1;
 				}
 			}
@@ -961,6 +1000,8 @@ int stmtArraySize;
 		);
 
 #endif
+
+	m_appendCount--;
 
 	return row;
 }

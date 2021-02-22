@@ -29,7 +29,7 @@ Fledge v1
 v1.9.0
 -------
 
-Release Date: 2021-02-17
+Release Date: 2021-02-19
 
 - **Fledge Core**
 
@@ -43,7 +43,7 @@ Release Date: 2021-02-17
        - The Python north sending process required the JQ filter information to be mandatory in north plugins. JQ filtering has been deprecated and will be removed in the next major release.
        - Storage plugins may now have configuration options that are controllable via the API and the graphical interface.
        - The ping API call has been enhanced to return the version of the core component of the system.
-       - The SQLite storage plugin has been enhanced to distribution readings for multiple assets across multiple databases. This improves the ingest performance and also improve the responsiveness of the system when very large numbers of readings are buffered within the instance.
+       - The SQLite storage plugin has been enhanced to distribute readings for multiple assets across multiple databases. This improves the ingest performance and also improves the responsiveness of the system when very large numbers of readings are buffered within the instance.
        - Documentation has been added for configuration of the storage service.
 
 
@@ -57,7 +57,7 @@ Release Date: 2021-02-17
        - If a south plugin generates bad data that can not be inserted into the storage layer, that plugin will buffer the bad data forever and continually attempt to insert it. This causes the queue to build on the south plugin and eventually will exhaust system memory. To prevent this if data can not be inserted for a number of attempts it will be discarded in the south service. This allows the bad data to be dropped and newer, good data to be handled correctly.
        - When a statistics value becomes greater than 2,147,483,648 the storage layer would fail, this has now been fixed.
        - During installation of plugins the user interface would occasionally flag the system as down due to congestion in the API layer. This has now been resolved and the correct status of the system should be reflected.
-       - The notification service previously logged errors if not delivery no notification plugins had been installed. This is no longer the case.
+       - The notification service previously logged errors if no rule/delivery notification plugins had been installed. This is no longer the case.
        - An issue with JSON configuration options that contained escaped strings within the JSON caused the service with the associated configuration to fail to run. This has now been resolved.
        - The Postgres storage engine limited the length of asset codes to 50 characters, this has now been increased to 255 characters.
        - Notifications based on asset names that contain the character '.' in the name would not receive any data. This has now been resolved.
@@ -68,7 +68,7 @@ Release Date: 2021-02-17
     - New Features:
 
        - The user interface now shows the retrigger time for a notification.
-       - The user interface now support adding a north service as well as a north task.
+       - The user interface now supports adding a north service as well as a north task.
        - A new help menu item has been added to the user interface which will cause the readthedocs documentation to be displayed. Also the wizard to add the south and north services has been enhanced to give an option to display the help for the plugins.
 
 
@@ -91,10 +91,10 @@ Release Date: 2021-02-17
        - An issue with different versions of the libmodbus library prevented the modbus-c plugin building on Moxa gateways, this has now been resolved.
        - An issue with building the MQTT notification plugin on CentOS/RedHat platforms has been resolved. This plugin now builds correctly on those platforms.
        - The modbus plugin has been enhanced to support Modbus over IPv6, also request timeout has been added as a configuration option. There have been improvements to the error handling also.
-       - The DNP3 south plugin incorrectly treated all data as strings, this meant it was not easy to process it the data with generic plugins. This has now been resolved and data is treated as floating point or integer values.
+       - The DNP3 south plugin incorrectly treated all data as strings, this meant it was not easy to process the data with generic plugins. This has now been resolved and data is treated as floating point or integer values.
        - The OMF north plugin previously reported the incorrect version information. This has now been resolved.
-       - A memory issue with the python 35 filter integration has been resolved.
-       - Packaging conflicts between plugins that used the same additional libraries have been resolved allow both plugins to be install on the same machine. This issue impacted the plugins that used MQTT as a transport layer.
+       - A memory issue with the python35 filter integration has been resolved.
+       - Packaging conflicts between plugins that used the same additional libraries have been resolved to allow both plugins to be installed on the same machine. This issue impacted the plugins that used MQTT as a transport layer.
        - The OPC/UA north plugin did not correctly handle the types for integer data, this has now been resolved.
        - The OPCUA south plugin did not allow subscriptions to integer node ids. This has now been added.
        - A problem with reading multiple modbus input registers into a single value has been resolved in the ModbusC plugin.

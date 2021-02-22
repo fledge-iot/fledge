@@ -55,7 +55,7 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 	string fledgeRootDir(getenv("FLEDGE_ROOT"));
 
 	string path = fledgeRootDir + SHIM_SCRIPT_REL_PATH;
-	string name(string(PLUGIN_TYPE_SOUTH) + string(SHIM_SCRIPT_POSTFIX));
+	string name(string(PLUGIN_TYPE_NORTH) + string(SHIM_SCRIPT_POSTFIX));
 	
 	// Python 3.5  script name
 	std::size_t found = path.find_last_of("/");
@@ -134,7 +134,7 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 				(string(pluginName), new PythonModule(pModule,
 								      initialisePython,
 								      string(pluginName),
-								      PLUGIN_TYPE_SOUTH,
+								      PLUGIN_TYPE_NORTH,
 								      // New Python interpteter not set
 								      NULL)));
 		}

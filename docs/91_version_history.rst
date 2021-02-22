@@ -59,6 +59,9 @@ Release Date: 2021-02-17
        - During installation of plugins the user interface would occasionally flag the system as down due to congestion in the API layer. This has now been resolved and the correct status of the system should be reflected.
        - The notification service previously logged errors if not delivery no notification plugins had been installed. This is no longer the case.
        - An issue with JSON configuration options that contained escaped strings within the JSON caused the service with the associated configuration to fail to run. This has now been resolved.
+       - An issue with north services failing to be correctly shutdown has been resolved. Perviously services would display as failed rather than shutdown.
+       - The Postgres storage engine limited the length of asset codes to 50 characters, this has now been increased to 255 characters.
+       - Notifications based on asset names that contain the character '.' in the name would not receive any data. This has now been resolved.
 
 
 - **GUI**
@@ -96,6 +99,7 @@ Release Date: 2021-02-17
        - The OPC/UA north plugin did not correctly handle the types for integer data, this has now been resolved.
        - The OPCUA south plugin did not allow subscriptions to integer node ids. This has now been added.
        - A problem with reading multiple modbus input registers into a single value has been resolved in the ModbusC plugin.
+       - OPC/UA north nested objects did not always generate unique node IDs in the OPC/UA server. This has now been resolved.
 
 
 v1.8.2

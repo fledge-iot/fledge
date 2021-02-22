@@ -433,3 +433,34 @@ TEST(OMF_AfHierarchy, HandleAFMapNamesBad)
 	// Test 02
 	ASSERT_NE(MetadataRulesExist, af_hierarchy_check03);
 }
+
+// Test PI Server naming rules for invalid chars - Control characters plus: * ? ; { } [ ] | \ ` ' "
+TEST(PiServer_NamingRules, NamingRulesCheck)
+{
+	// Dummy initializations
+	SimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
+	OMF omf(sender, "/", 1, "ABC");
+
+	ASSERT_EQ(omf.ApplyPIServerNamingRules("asset_1"), "asset_1");
+
+	ASSERT_EQ(omf.ApplyPIServerNamingRules("asset_*1"), "asset__1");
+	ASSERT_EQ(omf.ApplyPIServerNamingRules("asset_?1"), "asset__1");
+	ASSERT_EQ(omf.ApplyPIServerNamingRules("asset_;1"), "asset__1");
+	ASSERT_EQ(omf.ApplyPIServerNamingRules("asset_{1"), "asset__1");
+	ASSERT_EQ(omf.ApplyPIServerNamingRules("asset_}1"), "asset__1");
+	ASSERT_EQ(omf.ApplyPIServerNamingRules("asset_[1"), "asset__1");
+	ASSERT_EQ(omf.ApplyPIServerNamingRules("asset_]1"), "asset__1");
+	ASSERT_EQ(omf.ApplyPIServerNamingRules("asset_|1"), "asset__1");
+	ASSERT_EQ(omf.ApplyPIServerNamingRules("asset_\\1"), "asset__1");
+	ASSERT_EQ(omf.ApplyPIServerNamingRules("asset_`1"), "asset__1");
+	ASSERT_EQ(omf.ApplyPIServerNamingRules("asset_'1"), "asset__1");
+	ASSERT_EQ(omf.ApplyPIServerNamingRules("asset_\"1"), "asset__1");
+
+	ASSERT_EQ(omf.ApplyPIServerNamingRules("_asset_1"), "_asset_1");
+
+	ASSERT_EQ(omf.ApplyPIServerNamingRules("asset_\t1"), "asset__1");
+	ASSERT_EQ(omf.ApplyPIServerNamingRules("asset_\n1"), "asset__1");
+	ASSERT_EQ(omf.ApplyPIServerNamingRules("asset_\b1"), "asset__1");
+	ASSERT_EQ(omf.ApplyPIServerNamingRules("asset_\r1"), "asset__1");
+	ASSERT_EQ(omf.ApplyPIServerNamingRules("asset_\\1"), "asset__1");
+}

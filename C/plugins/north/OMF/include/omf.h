@@ -158,7 +158,9 @@ class OMF
 		bool getAFMapEmptyNames() const { return m_AFMapEmptyNames; };
 		bool getAFMapEmptyMetadata() const { return m_AFMapEmptyMetadata; };
 
-	private:
+		std::string ApplyPIServerNamingRules(const std::string &objName);
+
+private:
 		/**
 		 * Builds the HTTP header to send
 		 * messagetype header takes the passed type value:

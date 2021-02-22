@@ -3397,3 +3397,44 @@ static bool isTypeSupported(DatapointValue& dataPoint)
 	}
 }
 
+
+
+/**
+ * Check a PI Server object name and returns the proper name to use following the naming rules
+ *
+ * Invalid chars: Control characters plus: * ? ; { } [ ] | \ ` ' "
+ *
+ * @param    objName  The object name to verify
+ * @return			  Object name following the PI Server naming rules
+ */
+std::string OMF::ApplyPIServerNamingRules(const std::string &objName)
+{
+	std::string nameFixed;
+
+	nameFixed = objName;
+
+	for (size_t i = 0; i < nameFixed.length(); i++)
+	{
+		if (
+			nameFixed[i] == '*'  ||
+			nameFixed[i] == '?'  ||
+			nameFixed[i] == ';'  ||
+			nameFixed[i] == '{'  ||
+			nameFixed[i] == '}'  ||
+			nameFixed[i] == '['  ||
+			nameFixed[i] == ']'  ||
+			nameFixed[i] == '|'  ||
+			nameFixed[i] == '\\' ||
+			nameFixed[i] == '`'  ||
+			nameFixed[i] == '\'' ||
+			nameFixed[i] == '\"' ||
+			iscntrl(nameFixed[i])
+			)
+		{
+			nameFixed.replace(i, 1, "_");
+		}
+
+	}
+
+	return (nameFixed);
+}

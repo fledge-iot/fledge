@@ -717,7 +717,6 @@ bool OMF::handleAFHierarchySystemWide() {
 	std::string level;
 	std::string previousLevel;
 	string parentPath;
-
 	parentPath = evaluateParentPath(m_DefaultAFLocation, AFHierarchySeparator);
 	success = sendAFHierarchyLevels(parentPath, m_DefaultAFLocation, m_AFHierarchyLevel);
 
@@ -1052,6 +1051,29 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	gettimeofday(&t1, NULL);
 #endif
 
+	// Applies the PI-Server naming rules to the AF hierarchy
+	{
+		bool changed = false;
+		string  origDefaultAFLocation;
+
+		// FIXME_I:
+		origDefaultAFLocation = m_DefaultAFLocation;
+		m_DefaultAFLocation = ApplyPIServerNamingRules (m_DefaultAFLocation, &changed);
+
+		if (changed) {
+
+			// FIXME_I:
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->info("xxx %s - AF hierarchy changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, origDefaultAFLocation.c_str(), m_DefaultAFLocation.c_str() );
+			Logger::getLogger()->setMinLevel("warning");
+		}
+
+		// FIXME_I:
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->info("xxx %s - 1 m_AFHierarchyLevel :%s:", __FUNCTION__,   m_AFHierarchyLevel.c_str() );
+		Logger::getLogger()->setMinLevel("warning");
+	}
+
 	/*
 	 * Iterate over readings:
 	 * - Send/cache Types
@@ -1093,18 +1115,21 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			}
 		}
 
-		// Add into JSON string the OMF transformed Reading data
-		bool changed;
-		string assetNameFledge;
+		// Applies the PI-Server naming rules to the AssetName
+		{
 
-		assetNameFledge = reading->getAssetName();
-		m_assetName = ApplyPIServerNamingRules (assetNameFledge, &changed);
-		if (changed) {
+			bool changed;
+			string assetNameFledge;
 
-			// FIXME_I:
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->info("xxx %s -  3 Asset name changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, assetNameFledge.c_str(), m_assetName.c_str() );
-			Logger::getLogger()->setMinLevel("warning");
+			assetNameFledge = reading->getAssetName();
+			m_assetName = ApplyPIServerNamingRules (assetNameFledge, &changed);
+			if (changed) {
+
+				// FIXME_I:
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->info("xxx %s -  3 Asset name changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, assetNameFledge.c_str(), m_assetName.c_str() );
+				Logger::getLogger()->setMinLevel("warning");
+			}
 		}
 
 		evaluateAFHierarchyRules(m_assetName, *reading);
@@ -1150,6 +1175,12 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			{
 				setAFHierarchy();
 			}
+
+			// FIXME_I:
+			// FIXME_I:
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->info("xxx %s - 1 m_AFHierarchyLevel :%s:", __FUNCTION__,   m_AFHierarchyLevel.c_str() );
+			Logger::getLogger()->setMinLevel("warning");
 
 			sendDataTypes = (m_lastError == false && skipSentDataTypes == true) ?
 					 // Send if not already sent
@@ -3460,6 +3491,7 @@ std::string OMF::ApplyPIServerNamingRules(const std::string &objName, bool *chan
 			)
 		{
 			nameFixed.replace(i, 1, "_");
+
 			if (changed)
 				*changed = true;
 		}

@@ -179,7 +179,7 @@ OMFData::OMFData(const Reading& reading, const long typeId, const OMF_ENDPOINT P
 		else
 		{
 			// Add datapoint Name
-			outData.append("\"" + dpName + "\": " + (*it)->getData().toString());
+			outData.append("\"" + OMF::ApplyPIServerNamingRules(dpName, nullptr) + "\": " + (*it)->getData().toString());
 			outData.append(", ");
 		}
 	}
@@ -1664,7 +1664,8 @@ const std::string OMF::createTypeData(const Reading& reading, OMFHints *hints)
 		for (auto it = m_staticData->cbegin(); it != m_staticData->cend(); ++it)
 		{
 			tData.append("\"");
-			tData.append(it->first.c_str());
+			// FIXME_I:
+			tData.append( ApplyPIServerNamingRules(it->first.c_str(), nullptr) );
 			tData.append("\": {\"type\": \"string\"},");
 		}
 
@@ -1754,7 +1755,7 @@ const std::string OMF::createTypeData(const Reading& reading, OMFHints *hints)
 			continue;
 		}
 		// Add datapoint Name
-		tData.append("\"" + dpName + "\"");
+		tData.append("\"" + ApplyPIServerNamingRules(dpName, nullptr) + "\"");
 		tData.append(": {\"type\": \"");
 		// Add datapoint Type
 		tData.append(omfType);
@@ -1916,7 +1917,7 @@ const std::string OMF::createStaticData(const Reading& reading)
 	for (auto it = m_staticData->cbegin(); it != m_staticData->cend(); ++it)
 	{
 		sData.append("\"");
-		sData.append(it->first.c_str());
+		sData.append(ApplyPIServerNamingRules (it->first.c_str(), nullptr) );
 		sData.append("\": \"");
 		sData.append(it->second.c_str());
 		sData.append("\", ");

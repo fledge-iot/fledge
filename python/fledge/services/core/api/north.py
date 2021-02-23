@@ -119,8 +119,8 @@ async def _get_north_schedules(storage_client):
                             'protocol': s_record._protocol,
                             'status': ServiceRecord.Status(int(s_record._status)).name.lower()
                         }
-                # north-C service case If not in service registry
-                if sch.enabled is False:
+                # north-C service case, If not in service registry
+                if sch.enabled is False and sch.name not in [s_record._name for s_record in services_from_registry]:
                     north_sch_dict = {
                         'id': str(sch.schedule_id),
                         'name': sch.name,

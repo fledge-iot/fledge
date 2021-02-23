@@ -62,6 +62,10 @@ Release Date: 2021-02-19
        - The Postgres storage engine limited the length of asset codes to 50 characters, this has now been increased to 255 characters.
        - Notifications based on asset names that contain the character '.' in the name would not receive any data. This has now been resolved.
 
+    - Known Issues:
+
+       - Known issues with Postgres storage plugins. During the final testing of the 1.9.0 release a problem has been found with switching to the PostgreSQL storage plugin via the user interface. Until this is resolved switching to PostgreSQL is only supported by manual editing the storage.json as per version 1.8.0. A patch to resolve this is likely to be released in the near future.
+
 
 - **GUI**
 

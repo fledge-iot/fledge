@@ -121,8 +121,9 @@ OMFData::OMFData(const Reading& reading, const long typeId, const OMF_ENDPOINT P
 {
 	string outData;
 	string measurementId;
+	bool changed;
 
-	measurementId = to_string(typeId) + "measurement_" + reading.getAssetName();
+	measurementId = to_string(typeId) + "measurement_" + OMF::ApplyPIServerNamingRules(reading.getAssetName(), nullptr);
 
 	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
 	if (PIServerEndpoint == ENDPOINT_PIWEB_API)
@@ -494,7 +495,9 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 		// Create header for Link data
 		vector<pair<string, string>> resLinkData = OMF::createMessageHeader("Data");
 
-		string assetName = row.getAssetName();
+		// FIXME_I
+		//string assetName = row.getAssetName();
+		string assetName = m_assetName;
 		string AFHierarchyLevel;
 		string prefix;
 		string objectPrefix;
@@ -1091,22 +1094,32 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		}
 
 		// Add into JSON string the OMF transformed Reading data
-		string assetName(reading->getAssetName());
+		bool changed;
+		string assetNameFledge;
 
+		assetNameFledge = reading->getAssetName();
+		m_assetName = ApplyPIServerNamingRules (assetNameFledge, &changed);
+		if (changed) {
 
-		evaluateAFHierarchyRules(assetName, *reading);
+			// FIXME_I:
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->info("xxx %s -  3 Asset name changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, assetNameFledge.c_str(), m_assetName.c_str() );
+			Logger::getLogger()->setMinLevel("warning");
+		}
+
+		evaluateAFHierarchyRules(m_assetName, *reading);
 
 		if (m_PIServerEndpoint == ENDPOINT_CR  ||
 			m_PIServerEndpoint == ENDPOINT_OCS ||
 			m_PIServerEndpoint == ENDPOINT_EDS
 			)
 		{
-			keyComplete = assetName;
+			keyComplete = m_assetName;
 		}
 		else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 		{
-			retrieveAFHierarchyPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchyLevel);
-			keyComplete = AFHierarchyPrefix + "_" + assetName;
+			retrieveAFHierarchyPrefixAssetName(m_assetName, AFHierarchyPrefix, AFHierarchyLevel);
+			keyComplete = AFHierarchyPrefix + "_" + m_assetName;
 		}
 
 		if (! usingTagHint)
@@ -1153,7 +1166,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 				OMF::clearCreatedTypes(keyComplete);
 
 				// Get the supersetDataPoints for current assetName
-				auto it = m_SuperSetDataPoints.find(assetName);
+				auto it = m_SuperSetDataPoints.find(m_assetName);
 				if (it != m_SuperSetDataPoints.end())
 				{
 					datatypeStructure = (*it).second;
@@ -1205,7 +1218,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			}
 
 			// Create the key for dataTypes sending once
-			typeId = OMF::getAssetTypeId(assetName);
+			typeId = OMF::getAssetTypeId(m_assetName);
 		}
 
 		string outData = OMFData(*reading, typeId, m_PIServerEndpoint, AFHierarchyPrefix, hints ).OMFdataVal();
@@ -1436,8 +1449,9 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 		}
 
 		// Create the key for dataTypes sending once
-		long typeId = OMF::getAssetTypeId((*elem).getAssetName());
-		string key((*elem).getAssetName());
+		m_assetName = ApplyPIServerNamingRules ((*elem).getAssetName(), nullptr);
+		long typeId = OMF::getAssetTypeId(m_assetName);
+		string key(m_assetName);
 
 		sendDataTypes = (m_lastError == false && skipSentDataTypes == true) ?
 				 // Send if not already sent
@@ -1522,7 +1536,9 @@ uint32_t OMF::sendToServer(const Reading* reading,
 	ostringstream jsonData;
 	jsonData << "[";
 
-	string key(reading->getAssetName());
+	m_assetName = ApplyPIServerNamingRules (reading->getAssetName(), nullptr);
+
+	string key(m_assetName);
 
 	Datapoint *hintsdp = reading->getDatapoint("OMFHint");
 	OMFHints *hints = NULL;
@@ -1536,7 +1552,7 @@ uint32_t OMF::sendToServer(const Reading* reading,
 		return 0;
 	}
 
-	long typeId = OMF::getAssetTypeId((*reading).getAssetName());
+	long typeId = OMF::getAssetTypeId(m_assetName);
 	// Add into JSON string the OMF transformed Reading data
 	jsonData << OMFData(*reading, typeId, m_PIServerEndpoint, m_AFHierarchyLevel, hints).OMFdataVal();
 	jsonData << "]";
@@ -1638,7 +1654,7 @@ const std::string OMF::createTypeData(const Reading& reading, OMFHints *hints)
 		}
 
 		// Add type_id + '_' + asset_name + '_typename_sensor'
-		OMF::setAssetTypeTag(reading.getAssetName(),
+		OMF::setAssetTypeTag(m_assetName,
 					 "typename_sensor",
 					 tData);
 
@@ -1745,7 +1761,7 @@ const std::string OMF::createTypeData(const Reading& reading, OMFHints *hints)
 	if (!typeNameSet)
 	{
 		// Add type_id + '_' + asset_name + '__typename_measurement'
-		OMF::setAssetTypeTag(reading.getAssetName(),
+		OMF::setAssetTypeTag(m_assetName,
 				     "typename_measurement",
 				     tData);
 	}
@@ -1776,7 +1792,7 @@ const std::string OMF::createContainerData(const Reading& reading, OMFHints *hin
 	string AFHierarchyPrefix;
 	string AFHierarchyLevel;
 
-	string assetName = reading.getAssetName();
+	string assetName = m_assetName;
 
 	string measurementId;
 
@@ -1856,7 +1872,7 @@ const std::string OMF::createStaticData(const Reading& reading)
 
 	sData.append("{\"typeid\": \"");
 
-	assetName = reading.getAssetName();
+	assetName = m_assetName;
 
 	long typeId = getAssetTypeId(assetName);
 
@@ -1920,7 +1936,9 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 	string targetTypeId;
 
 	string measurementId;
-	string assetName = reading.getAssetName();
+
+	string assetName = m_assetName;
+
 	// Build the Link data (JSON Array)
 
 	long typeId = getAssetTypeId(assetName);
@@ -2688,7 +2706,8 @@ bool OMF::handleTypeErrors(const string& keyComplete, const Reading& reading, OM
 	Logger::getLogger()->debug("handleTypeErrors keyComplete :%s:", keyComplete.c_str());
 
 	bool ret = true;
-	string assetName = reading.getAssetName();
+
+	string assetName = m_assetName;
 
 	// Reset change type-id indicator
 	m_changeTypeId = false;
@@ -2737,7 +2756,7 @@ bool OMF::handleTypeErrors(const string& keyComplete, const Reading& reading, OM
  * @param    dataSuperSet	Map to store all datapoints for an assetname
  */
 void OMF::setMapObjectTypes(const vector<Reading*>& readings,
-			    std::map<std::string, Reading*>& dataSuperSet) const
+			    std::map<std::string, Reading*>& dataSuperSet)
 {
 	// Temporary map for [asset][datapoint] = type
 	std::map<string, map<string, string>> readingAllDataPoints;
@@ -2749,7 +2768,10 @@ void OMF::setMapObjectTypes(const vector<Reading*>& readings,
 						++elem)
 	{
 		// Get asset name
-		string assetName = (**elem).getAssetName();
+		string assetName = ApplyPIServerNamingRules ((**elem).getAssetName(), nullptr);
+
+		//string assetName = (**elem).getAssetName();
+
 		// Get all datapoints
 		const vector<Datapoint*> data = (**elem).getReadingData();
 		// Iterate through datapoints
@@ -3141,7 +3163,7 @@ bool OMF::setCreatedTypes(const Reading& row, OMFHints *hints)
 		m_PIServerEndpoint == ENDPOINT_EDS
 		)
 	{
-		keyComplete = row.getAssetName();
+		keyComplete = m_assetName;
 	}
 	else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
@@ -3149,7 +3171,8 @@ bool OMF::setCreatedTypes(const Reading& row, OMFHints *hints)
 		string AFHierarchyPrefix;
 		string AFHierarchyLevel;
 
-		assetName = row.getAssetName();
+		assetName = m_assetName;
+
 		retrieveAFHierarchyPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchyLevel);
 
 		keyComplete = AFHierarchyPrefix + "_" + assetName;
@@ -3355,7 +3378,8 @@ bool OMF::getCreatedTypes(const string& keyComplete, const Reading& row, OMFHint
 							// Check if the defined type has changed respect the superset type
 							Reading* datatypeStructure = NULL;
 
-							auto itSuper = m_SuperSetDataPoints.find(row.getAssetName());
+							auto itSuper = m_SuperSetDataPoints.find(m_assetName);
+
 							if (itSuper != m_SuperSetDataPoints.end())
 							{
 								datatypeStructure = (*itSuper).second;
@@ -3405,11 +3429,15 @@ static bool isTypeSupported(DatapointValue& dataPoint)
  * Invalid chars: Control characters plus: * ? ; { } [ ] | \ ` ' "
  *
  * @param    objName  The object name to verify
+ * @param    changed  if not null, it is set to true if a change occur
  * @return			  Object name following the PI Server naming rules
  */
-std::string OMF::ApplyPIServerNamingRules(const std::string &objName)
+std::string OMF::ApplyPIServerNamingRules(const std::string &objName, bool *changed)
 {
 	std::string nameFixed;
+
+	if (changed)
+		*changed = false;
 
 	nameFixed = objName;
 
@@ -3432,6 +3460,8 @@ std::string OMF::ApplyPIServerNamingRules(const std::string &objName)
 			)
 		{
 			nameFixed.replace(i, 1, "_");
+			if (changed)
+				*changed = true;
 		}
 
 	}

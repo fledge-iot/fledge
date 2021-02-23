@@ -28,6 +28,7 @@ extern void plugin_reconfigure_fn(PLUGIN_HANDLE*, const std::string&);
 extern void plugin_shutdown_fn(PLUGIN_HANDLE);
 extern void logErrorMessage();
 extern PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject *);
+extern PyObject* createReadingsList(const vector<Reading *>& readings);
 
 // North plugin entry points
 void plugin_start_fn(PLUGIN_HANDLE handle);
@@ -81,6 +82,7 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 					   pluginName);
 	}
 
+	// Take GIL
 	PyGILState_STATE state = PyGILState_Ensure();
 
 	// Note: for North service plugin we don't set a new Python interpreter
@@ -161,6 +163,7 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 		}
 	}
 
+	// Release GIL
 	PyGILState_Release(state);
 
 	return pModule;
@@ -230,6 +233,8 @@ void plugin_start_fn(PLUGIN_HANDLE handle)
         }
 
 	PyObject* pFunc;
+
+	// Take GIL
 	PyGILState_STATE state = PyGILState_Ensure();
 	
 	// Fetch required method in loaded object
@@ -254,6 +259,7 @@ void plugin_start_fn(PLUGIN_HANDLE handle)
 					   it->second->m_name.c_str());
 		Py_CLEAR(pFunc);
 
+		// Release GIL
 		PyGILState_Release(state);
 		return;
 	}
@@ -273,6 +279,11 @@ void plugin_start_fn(PLUGIN_HANDLE handle)
 					   it->second->m_name.c_str());
 		logErrorMessage();
 	}
+
+	// Remore result object
+	Py_CLEAR(pReturn);
+
+	// Release GIL
 	PyGILState_Release(state);
 }
 
@@ -281,27 +292,121 @@ void plugin_start_fn(PLUGIN_HANDLE handle)
  *
  * @param    handle     Plugin handle from plugin_init_fn
  * @param    readings	Vector of readings data to send
+ *
+ * NOTE: currently doesn't work with async plugin_send
  */
 uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& readings)
 {
-	uint32_t data = 1234UL;
+
+	uint32_t data = 0UL;
 	if (!handle)
 	{
 		Logger::getLogger()->fatal("plugin_handle: plugin_send_fn: "
 					   "handle is NULL");
-		return 0;
+		return data;
 	}
 
 	if (!pythonHandles)
 	{
+		// Plugin name can not be logged here
 		Logger::getLogger()->error("pythonModules map is NULL "
 					   "in plugin_send_fn, handle '%p'",
 					   handle);
-		 return 0;
+		 return data;
 	}
 
-	// TODO: handle the input data sending
+	// Look for Python module for handle key
+	auto it = pythonHandles->find(handle);
+	if (it == pythonHandles->end() ||
+	    !it->second ||
+	    !it->second->m_module)
+	{
+		Logger::getLogger()->fatal("plugin_handle: plugin_start(): "
+					   "pModule is NULL, plugin handle '%p'",
+					   handle);
+		return data;
+	}
+
+	// We have plugin name
+	string pName = it->second->m_name;
+
+	PyObject* pFunc;
+
+	// Take GIL
+	PyGILState_STATE state = PyGILState_Ensure();
+
+	// Fetch required method in loaded object
+	pFunc = PyObject_GetAttrString(it->second->m_module, "plugin_send");
+	if (!pFunc)
+	{
+		Logger::getLogger()->fatal("Cannot find 'plugin_send' "
+					   "method in loaded python module '%s'",
+					   pName.c_str());
+	}
+
+	if (!pFunc || !PyCallable_Check(pFunc))
+	{
+	        // Failure
+		if (PyErr_Occurred())
+		{
+			logErrorMessage();
+		}
+
+		Logger::getLogger()->fatal("Cannot call method plugin_ingest"
+					   "in loaded python module '%s'",
+					   pName.c_str());
+		Py_CLEAR(pFunc);
+
+		// Release GIL
+		PyGILState_Release(state);
+		return data;
+	}
+
+	// Create the object with readings content
+	PyObject *readingsList = createReadingsList(readings);
+
+	// Fetch result
+	PyObject* pReturn = PyObject_CallFunction(pFunc,
+						  "OO",
+						  handle,
+						  readingsList);
+	Py_CLEAR(pFunc);
+
+	// Handle returned data
+	if (!pReturn)
+	{
+		Logger::getLogger()->error("Called python script method plugin_send "
+					   ": error while getting result object, plugin '%s'",
+					   pName.c_str());
+		logErrorMessage();
+
+		// Remove readings to dict
+		Py_CLEAR(readingsList);
+
+		// Release GIL
+		PyGILState_Release(state);
+
+		return data;
+	}
+
+	// Check return type
+	if PyLong_Check(pReturn)
+	{
+		data = (long)PyLong_AsUnsignedLongMask(pReturn);	
+	}
+
+	// Remove readings to dict
+	Py_CLEAR(readingsList);
+
+	// Remnove result object
+	Py_CLEAR(pReturn);
+
+	// Release GIL
+	PyGILState_Release(state);
+
+	// Return the number of readings sent
 	return data;
 }
+
 };
 

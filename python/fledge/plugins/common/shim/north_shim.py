@@ -72,7 +72,8 @@ def plugin_start(handle):
 
 def plugin_send(handle, readings):
     _LOGGER.info("plugin_send")
-    return _plugin.plugin_send(handle, readings)
+    # Just pass a fake id as thrird parameter
+    return _plugin.plugin_send(handle, readings, "000001")
 
 
 def _revised_config_for_json_item(config):

@@ -560,7 +560,7 @@ CREATE TABLE fledge.plugin_data (
 	CONSTRAINT plugin_data_pkey PRIMARY KEY (key) );
 
 -- Create packages table
-CREATE TABLE packages (
+CREATE TABLE fledge.packages (
              id                uuid                   NOT NULL, -- PK
              name              character varying(255) NOT NULL, -- Package name
              action            character varying(10) NOT NULL, -- APT actions:

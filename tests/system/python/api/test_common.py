@@ -106,8 +106,8 @@ class TestCommon:
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", '/fledge/ping')
         r = conn.getresponse()
-        assert 403 == r.status
-        assert 'Forbidden' == r.reason
+        assert 401 == r.status
+        assert 'Unauthorized' == r.reason
 
     def test_restart(self):
         assert 1, "Already verified in test_ping_when_auth_mandatory_allow_ping_true"

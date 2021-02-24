@@ -79,7 +79,9 @@ static int purgeBlockSize = PURGE_DELETE_BLOCK_SIZE;
 
 static time_t connectErrorTime = 0;
 
-
+// Used to synchronize the shut down of the threads executing appendReadings
+static std::atomic<int> m_appendCount(0);
+static bool				m_shutdown=false;
 
 #ifndef SQLITE_SPLIT_READINGS
 /**
@@ -639,6 +641,25 @@ void Connection::setUsedDbId(int dbId) {
 	m_NewDbIdList.push_back(dbId);
 }
 
+/**
+ * Wait until all the threads executing the appendReadings are shutted down
+ */
+void  Connection::shutdownAppendReadings() {
+
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
+	Logger::getLogger()->debug("%s - thread Id :%s: appendReadings shutting down started", __FUNCTION__, threadId.str().c_str());
+
+	m_shutdown=true;
+
+	while (m_appendCount > 0) {
+
+		Logger::getLogger()->debug("%s - thread Id :%s: waiting threads to shut down, count :%d: ", __FUNCTION__, threadId.str().c_str(), int(m_appendCount));
+		std::this_thread::sleep_for(std::chrono::milliseconds(150));
+	}
+	Logger::getLogger()->debug("%s - thread Id :%s: appendReadings shutting down ended", __FUNCTION__, threadId.str().c_str());
+
+}
 
 #ifndef SQLITE_SPLIT_READINGS
 /**
@@ -675,6 +696,19 @@ int stmtArraySize;
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
+
+	{
+		if (m_shutdown)
+		{
+			Logger::getLogger()->debug("%s - thread Id :%s: plugin is shutting down, operation cancelled", __FUNCTION__, threadId.str().c_str());
+			return -1;
+		}
+
+		m_appendCount++;
+
+		Logger::getLogger()->debug("%s - thread Id :%s: operation started , threads count :%d: ", __FUNCTION__,  threadId.str().c_str(), int(m_appendCount) );
+	}
+
 	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
 
 	{
@@ -706,18 +740,21 @@ int stmtArraySize;
 	if (!ok)
 	{
  		raiseError("appendReadings", GetParseError_En(doc.GetParseError()));
+		m_appendCount--;
 		return -1;
 	}
 
 	if (!doc.HasMember("readings"))
 	{
  		raiseError("appendReadings", "Payload is missing a readings array");
+		m_appendCount--;
 		return -1;
 	}
 	Value &readingsValue = doc["readings"];
 	if (!readingsValue.IsArray())
 	{
 		raiseError("appendReadings", "Payload is missing the readings array");
+		m_appendCount--;
 		return -1;
 	}
 
@@ -740,6 +777,7 @@ int stmtArraySize;
 		{
 			raiseError("appendReadings","Each reading in the readings array must be an object");
 			sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+			m_appendCount--;
 			return -1;
 		}
 
@@ -901,6 +939,7 @@ int stmtArraySize;
 						dbHandle);
 
 					sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+					m_appendCount--;
 					return -1;
 				}
 			}
@@ -961,6 +1000,8 @@ int stmtArraySize;
 		);
 
 #endif
+
+	m_appendCount--;
 
 	return row;
 }
@@ -1640,6 +1681,8 @@ vector<string>  assetCodes;
 
 	Logger *logger = Logger::getLogger();
 
+	Logger::getLogger()->debug("%s - age :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
+
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
 	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
@@ -1830,9 +1873,16 @@ vector<string>  assetCodes;
 		char *zErrMsg = NULL;
 		int rc;
 		unsigned long l = minrowidLimit;
-		unsigned long r = ((flags & 0x01) && sent) ? min(sent, rowidLimit) : rowidLimit;
+		unsigned long r;
+		if (flags & 0x01) {
+
+			r = min(sent, rowidLimit);
+		} else {
+			r = rowidLimit;
+		}
+
 		r = max(r, l);
-		//logger->info("%s:%d: l=%u, r=%u, sent=%u, rowidLimit=%u, minrowidLimit=%u, flags=%u", __FUNCTION__, __LINE__, l, r, sent, rowidLimit, minrowidLimit, flags);
+		logger->debug ("s:%d: l=%u, r=%u, sent=%u, rowidLimit=%u, minrowidLimit=%u, flags=%u", __FUNCTION__, __LINE__, l, r, sent, rowidLimit, minrowidLimit, flags);
 		if (l == r)
 		{
  			logger->info("No data to purge: min_id == max_id == %u", minrowidLimit);
@@ -1887,6 +1937,7 @@ vector<string>  assetCodes;
 			&midRowId,
 			&zErrMsg);
 
+
 			delete[] query;
 
 			if (rc != SQLITE_OK)
@@ -1909,9 +1960,14 @@ vector<string>  assetCodes;
 				// search in later/right half
 		        	l = m + 1;
 			}
+
+			Logger::getLogger()->debug("%s - rowidLimit :%lu: minrowidLimit :%lu: midRowId :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, midRowId);
 		}
 
 		rowidLimit = m;
+
+		Logger::getLogger()->debug("%s - rowidLimit :%lu: minrowidLimit :%lu: maxrowidLimit :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, maxrowidLimit);
+
 
 		if (minrowidLimit == rowidLimit)
 		{
@@ -1997,7 +2053,8 @@ vector<string>  assetCodes;
 
 	unsigned int deletedRows = 0;
 	char *zErrMsg = NULL;
-	unsigned int rowsAffected, totTime=0, prevBlocks=0, prevTotTime=0;
+	unsigned long rowsAffected;
+	unsigned int totTime=0, prevBlocks=0, prevTotTime=0;
 	logger->info("Purge about to delete readings # %ld to %ld", rowidMin, rowidLimit);
 
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
@@ -2101,6 +2158,8 @@ vector<string>  assetCodes;
 	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
 	logger->info("Purge process complete in %d blocks in %lduS", blocks, duration);
 
+	Logger::getLogger()->debug("%s - age :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
+
 	return deletedRows;
 }
 
@@ -2120,7 +2179,13 @@ unsigned long limit = 0;
 string sql_cmd;
 vector<string>  assetCodes;
 
+	// rowidCallback expects unsigned long
+	unsigned long rowcount, minId, maxId;
+	unsigned long rowsAffected;
+
 	Logger *logger = Logger::getLogger();
+
+	Logger::getLogger()->debug("%s - rows :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str() );
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
@@ -2142,12 +2207,14 @@ vector<string>  assetCodes;
 	if ((flags & 0x01) == 0x01)
 	{
 		limit = sent;
-		logger->info("Sent is %d", sent);
+		logger->info("Sent is %lu", sent);
 	}
-	logger->info("Purge by Rows called with flags %x, rows %d, limit %d", flags, rows, limit);
+	logger->info("Purge by Rows called with flags %x, rows %lu, limit %lu", flags, rows, limit);
+
+	rowsAffected = 0;
 	// Don't save unsent rows
-	int rowcount;
-	do {
+	do
+	{
 		char *zErrMsg = NULL;
 		int rc;
 
@@ -2176,10 +2243,10 @@ vector<string>  assetCodes;
 		}
 
 		rc = SQLexec(dbHandle,
-			sql_cmd.c_str(),
-			rowidCallback,
-			&rowcount,
-			&zErrMsg);
+					 sql_cmd.c_str(),
+					 rowidCallback,
+					 &rowcount,
+					 &zErrMsg);
 
 		if (rc != SQLITE_OK)
 		{
@@ -2189,11 +2256,9 @@ vector<string>  assetCodes;
 		}
 		if (rowcount <= rows)
 		{
-			logger->info("Row count %d is less than required rows %d", rowcount, rows);
+			logger->info("Row count %lu is less than required rows %lu", rowcount, rows);
 			break;
 		}
-		int minId;
-
 		// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
 		{
 			// SQL - start
@@ -2209,7 +2274,7 @@ vector<string>  assetCodes;
 			string sql_cmd_tmp;
 			sql_cmd_base = " SELECT MIN(rowid) rowid FROM _dbname_._tablename_ ";
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base ,assetCodes);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -2220,9 +2285,9 @@ vector<string>  assetCodes;
 
 		rc = SQLexec(dbHandle,
 					 sql_cmd.c_str(),
-		     rowidCallback,
-		     &minId,
-		     &zErrMsg);
+					 rowidCallback,
+					 &minId,
+					 &zErrMsg);
 
 		if (rc != SQLITE_OK)
 		{
@@ -2230,7 +2295,7 @@ vector<string>  assetCodes;
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
-		int maxId;
+		// int maxId;
 		// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
 		{
 			// SQL - start
@@ -2246,7 +2311,7 @@ vector<string>  assetCodes;
 			string sql_cmd_tmp;
 			sql_cmd_base = " SELECT MAX(id) id FROM _dbname_._tablename_ ";
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base ,assetCodes);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -2258,9 +2323,9 @@ vector<string>  assetCodes;
 
 		rc = SQLexec(dbHandle,
 					 sql_cmd.c_str(),
-		     rowidCallback,
-		     &maxId,
-		     &zErrMsg);
+					 rowidCallback,
+					 &maxId,
+					 &zErrMsg);
 
 		if (rc != SQLITE_OK)
 		{
@@ -2268,16 +2333,21 @@ vector<string>  assetCodes;
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
-		int deletePoint = minId + 10000;
+		unsigned long deletePoint = minId + 10000;
 		if (maxId - deletePoint < rows || deletePoint > maxId)
 			deletePoint = maxId - rows;
-		if (limit && limit > deletePoint)
-		{
-			deletePoint = limit;
+
+		// Do not delete
+		if ((flags & 0x01) == 0x01) {
+
+			if (limit < deletePoint)
+			{
+				deletePoint = limit;
+			}
 		}
 		SQLBuffer sql;
 
-		logger->info("RowCount %d, Max Id %d, min Id %d, delete point %d", rowcount, maxId, minId, deletePoint);
+		logger->info("RowCount %lu, Max Id %lu, min Id %lu, delete point %lu", rowcount, maxId, minId, deletePoint);
 
 		sql.append("DELETE FROM  _dbname_._tablename_ WHERE id <= ");
 		sql.append(deletePoint);
@@ -2291,14 +2361,13 @@ vector<string>  assetCodes;
 //			if (m_writeAccessOngoing) db_cv.wait(lck);
 
 			// Exec DELETE query: no callback, no resultset
-			rc = readCat->purgeAllReadings(dbHandle, query ,&zErrMsg);
+			rc = readCat->purgeAllReadings(dbHandle, query ,&zErrMsg, &rowsAffected);
 
-			int rowsAffected = sqlite3_changes(dbHandle);
 			deletedRows += rowsAffected;
 			numReadings = rowcount - rowsAffected;
 			// Release memory for 'query' var
 			delete[] query;
-			logger->debug("Deleted %d rows", rowsAffected);
+			logger->debug("Deleted :%lu: rows", rowsAffected);
 			if (rowsAffected == 0)
 			{
 				break;
@@ -2330,6 +2399,9 @@ vector<string>  assetCodes;
 
 	result = convert.str();
 	logger->info("Purge by Rows complete: %s", result.c_str());
+
+	Logger::getLogger()->debug("%s - rows :%lu: flag :%x: sent :%lu:  numReadings :%lu:  rowsAffected :%u:  result :%s:", __FUNCTION__, rows, flags, sent, numReadings, rowsAffected, result.c_str() );
+
 	return deletedRows;
 }
 #endif

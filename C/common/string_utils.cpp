@@ -12,6 +12,8 @@
 #include <string>
 #include "string_utils.h"
 #include <logger.h>
+#include <stdio.h>
+#include <string.h>
 
 using namespace std;
 
@@ -291,4 +293,57 @@ void StringEscapeQuotes(std::string& str)
 		}
 
 	}
+}
+
+/**
+ * Remove space at both ends of a string
+ */
+char *trim(char *str)
+{
+	char *ptr;
+
+	while (*str && *str == ' ')
+		str++;
+
+	ptr = str + strlen(str) - 1;
+	while (ptr > str && *ptr == ' ')
+	{
+		*ptr = 0;
+		ptr--;
+	}
+	return str;
+}
+
+/**
+ * Remove space at both ends of a string
+ */
+std::string StringLTrim(const std::string& str)
+{
+	string output;
+	size_t pos = str.find_first_not_of(" ");
+
+	if (pos == std::string::npos)
+		output = "";
+	else
+		output = str.substr(pos);
+
+	return (output);
+}
+
+std::string StringRTtrim(const std::string& str)
+{
+	string output;
+	size_t pos = str.find_last_not_of(" ");
+
+	if (pos == std::string::npos)
+		output =  "";
+	else
+		output = str.substr(0, pos + 1);
+
+	return (output);
+}
+
+std::string StringTrim(const std::string& str)
+{
+	return StringRTtrim(StringLTrim(str));
 }

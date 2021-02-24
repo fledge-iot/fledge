@@ -123,7 +123,8 @@ OMFData::OMFData(const Reading& reading, const long typeId, const OMF_ENDPOINT P
 	string measurementId;
 	bool changed;
 
-	measurementId = to_string(typeId) + "measurement_" + OMF::ApplyPIServerNamingRules(reading.getAssetName(), nullptr);
+	measurementId = to_string(typeId) + "measurement_" +
+		OMF::ApplyPIServerNamingRulesObj(reading.getAssetName(), nullptr);
 
 	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
 	if (PIServerEndpoint == ENDPOINT_PIWEB_API)
@@ -179,7 +180,7 @@ OMFData::OMFData(const Reading& reading, const long typeId, const OMF_ENDPOINT P
 		else
 		{
 			// Add datapoint Name
-			outData.append("\"" + OMF::ApplyPIServerNamingRules(dpName, nullptr) + "\": " + (*it)->getData().toString());
+			outData.append("\"" + OMF::ApplyPIServerNamingRulesObj(dpName, nullptr) + "\": " + (*it)->getData().toString());
 			outData.append(", ");
 		}
 	}
@@ -1058,7 +1059,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 
 		// FIXME_I:
 		origDefaultAFLocation = m_DefaultAFLocation;
-		m_DefaultAFLocation = ApplyPIServerNamingRules (m_DefaultAFLocation, &changed);
+		m_DefaultAFLocation = ApplyPIServerNamingRulesPath(m_DefaultAFLocation, &changed);
 
 		if (changed) {
 
@@ -1122,7 +1123,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			string assetNameFledge;
 
 			assetNameFledge = reading->getAssetName();
-			m_assetName = ApplyPIServerNamingRules (assetNameFledge, &changed);
+			m_assetName = ApplyPIServerNamingRulesObj(assetNameFledge, &changed);
 			if (changed) {
 
 				// FIXME_I:
@@ -1480,7 +1481,7 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 		}
 
 		// Create the key for dataTypes sending once
-		m_assetName = ApplyPIServerNamingRules ((*elem).getAssetName(), nullptr);
+		m_assetName = ApplyPIServerNamingRulesObj((*elem).getAssetName(), nullptr);
 		long typeId = OMF::getAssetTypeId(m_assetName);
 		string key(m_assetName);
 
@@ -1567,7 +1568,7 @@ uint32_t OMF::sendToServer(const Reading* reading,
 	ostringstream jsonData;
 	jsonData << "[";
 
-	m_assetName = ApplyPIServerNamingRules (reading->getAssetName(), nullptr);
+	m_assetName = ApplyPIServerNamingRulesObj(reading->getAssetName(), nullptr);
 
 	string key(m_assetName);
 
@@ -1665,7 +1666,7 @@ const std::string OMF::createTypeData(const Reading& reading, OMFHints *hints)
 		{
 			tData.append("\"");
 			// FIXME_I:
-			tData.append( ApplyPIServerNamingRules(it->first.c_str(), nullptr) );
+			tData.append(ApplyPIServerNamingRulesObj(it->first.c_str(), nullptr) );
 			tData.append("\": {\"type\": \"string\"},");
 		}
 
@@ -1755,7 +1756,7 @@ const std::string OMF::createTypeData(const Reading& reading, OMFHints *hints)
 			continue;
 		}
 		// Add datapoint Name
-		tData.append("\"" + ApplyPIServerNamingRules(dpName, nullptr) + "\"");
+		tData.append("\"" + ApplyPIServerNamingRulesObj(dpName, nullptr) + "\"");
 		tData.append(": {\"type\": \"");
 		// Add datapoint Type
 		tData.append(omfType);
@@ -1917,7 +1918,7 @@ const std::string OMF::createStaticData(const Reading& reading)
 	for (auto it = m_staticData->cbegin(); it != m_staticData->cend(); ++it)
 	{
 		sData.append("\"");
-		sData.append(ApplyPIServerNamingRules (it->first.c_str(), nullptr) );
+		sData.append(ApplyPIServerNamingRulesObj(it->first.c_str(), nullptr) );
 		sData.append("\": \"");
 		sData.append(it->second.c_str());
 		sData.append("\", ");
@@ -2800,7 +2801,7 @@ void OMF::setMapObjectTypes(const vector<Reading*>& readings,
 						++elem)
 	{
 		// Get asset name
-		string assetName = ApplyPIServerNamingRules ((**elem).getAssetName(), nullptr);
+		string assetName = ApplyPIServerNamingRulesObj((**elem).getAssetName(), nullptr);
 
 		//string assetName = (**elem).getAssetName();
 
@@ -3464,7 +3465,7 @@ static bool isTypeSupported(DatapointValue& dataPoint)
  * @param    changed  if not null, it is set to true if a change occur
  * @return			  Object name following the PI Server naming rules
  */
-std::string OMF::ApplyPIServerNamingRules(const std::string &objName, bool *changed)
+std::string OMF::ApplyPIServerNamingRulesInvalidChars(const std::string &objName, bool *changed)
 {
 	std::string nameFixed;
 
@@ -3501,3 +3502,107 @@ std::string OMF::ApplyPIServerNamingRules(const std::string &objName, bool *chan
 
 	return (nameFixed);
 }
+
+/**
+ * Check a PI Server object name and returns the proper name to use following the naming rules:
+ *
+ * - Blank names are not permitted.
+ * - Maximum name length is 259 characters.
+ * - Valid chars
+ * - The initial letter of any name should be checked for compliance.
+ *
+ *
+ * @param    objName  The object name to verify
+ * @param    changed  if not null, it is set to true if a change occur
+ * @return			  Object name following the PI Server naming rules
+ */
+std::string OMF::ApplyPIServerNamingRulesObj(const std::string &objName, bool *changed)
+{
+	std::string nameFixed;
+
+	if (changed)
+		*changed = false;
+
+	nameFixed = StringTrim(objName);
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx %s - objName :%s: nameFixed :%s:", __FUNCTION__, objName.c_str(), nameFixed.c_str());
+	Logger::getLogger()->setMinLevel("warning");
+
+	if (nameFixed.empty ()) {
+
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx %s - empty", __FUNCTION__);
+		Logger::getLogger()->setMinLevel("warning");
+
+		// FIXME_I:
+		nameFixed = "x";
+		if (changed)
+			*changed = true;
+
+	} else {
+		if (nameFixed.length() > 201) {
+
+			nameFixed = nameFixed.substr(0, 200);
+			if (changed)
+				*changed = true;
+
+			Logger::getLogger()->warn("xxx %s - PI-Server object too long struncated to :%s: ", __FUNCTION__, nameFixed.c_str() );
+		}
+	}
+
+	nameFixed = ApplyPIServerNamingRulesInvalidChars(nameFixed, changed);
+
+	// FIXME_I:
+	if (
+		nameFixed[0] == 'x'
+		)
+	{
+		nameFixed.replace(0, 1, "_");
+
+		if (changed)
+			*changed = true;
+	}
+
+	return (nameFixed);
+}
+
+
+/**
+ * Check a PI Server object name and returns the proper name to use following the naming rules:
+ *
+ * - Blank names are not permitted.
+ * - Maximum name length is 259 characters.
+ * - Valid chars
+ * - The initial letter of any name should be checked for compliance.
+ *
+ *
+ * @param    objName  The object name to verify
+ * @param    changed  if not null, it is set to true if a change occur
+ * @return			  Object name following the PI Server naming rules
+ */
+std::string OMF::ApplyPIServerNamingRulesPath(const std::string &objName, bool *changed)
+{
+	std::string nameFixed;
+
+	nameFixed = objName;
+
+	if (changed)
+		*changed = false;
+
+	nameFixed = StringTrim(objName);
+
+	if (nameFixed.empty ()) {
+
+		nameFixed = "_";
+		if (changed)
+			*changed = true;
+
+	} else
+
+	nameFixed = ApplyPIServerNamingRulesInvalidChars(nameFixed, changed);
+
+	return (nameFixed);
+}
+

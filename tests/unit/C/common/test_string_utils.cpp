@@ -84,8 +84,6 @@ TEST(StringReplaceAllTestClass, goodCases)
 	}
 }
 
-
-
 // Test Code
 TEST_P(StringUtilsTestClass, StringUtilsTestCase)
 {
@@ -115,3 +113,22 @@ INSTANTIATE_TEST_CASE_P(
 		Row("XX a a XX",	"a",		"b",		"XX b a XX")
 	)
 );
+
+
+// Test String trim
+TEST(StringTrim, StringTrimCases)
+{
+	ASSERT_EQ(StringRTtrim("xxx") , "xxx");
+	ASSERT_EQ(StringRTtrim("xxx "), "xxx");
+	ASSERT_EQ(StringRTtrim("xxx   "), "xxx");
+
+	ASSERT_EQ(StringLTrim("xxx"), "xxx");
+	ASSERT_EQ(StringLTrim(" xxx"), "xxx");
+	ASSERT_EQ(StringLTrim("  xxx"), "xxx");
+
+	ASSERT_EQ(StringTrim("xxx"), "xxx");
+	ASSERT_EQ(StringTrim("  xxx"), "xxx");
+	ASSERT_EQ(StringTrim("xxx  "), "xxx");
+	ASSERT_EQ(StringTrim("  xxx  "), "xxx");
+}
+

@@ -160,7 +160,9 @@ class OMF
 		bool getAFMapEmptyNames() const { return m_AFMapEmptyNames; };
 		bool getAFMapEmptyMetadata() const { return m_AFMapEmptyMetadata; };
 
-		static std::string ApplyPIServerNamingRules(const std::string &objName, bool *changed);
+		static std::string ApplyPIServerNamingRulesObj(const std::string &objName, bool *changed);
+		static std::string ApplyPIServerNamingRulesPath(const std::string &objName, bool *changed);
+		static std::string ApplyPIServerNamingRulesInvalidChars(const std::string &objName, bool *changed);
 
 private:
 		/**

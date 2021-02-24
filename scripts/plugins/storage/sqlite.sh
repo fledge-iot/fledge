@@ -29,7 +29,9 @@ if [ ! "${DEFAULT_SQLITE_DB_FILE}" ]; then
 fi
 
 if [ ! "${DEFAULT_SQLITE_DB_FILE_READINGS}" ]; then
-    export DEFAULT_SQLITE_DB_FILE_READINGS="${FLEDGE_DATA}/readings.db"
+    export DEFAULT_SQLITE_DB_FILE_READINGS_BASE="${FLEDGE_DATA}/readings"
+    export DEFAULT_SQLITE_DB_FILE_READINGS="${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}_1.db"
+    export DEFAULT_SQLITE_DB_FILE_READINGS_SINGLE="${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}.db"
 fi
 
 
@@ -248,10 +250,16 @@ sqlite_reset_db_readings() {
         sqlite_log "err" "Cannot drop database '${DEFAULT_SQLITE_DB_FILE_READINGS}' for the Fledge Plugin '${PLUGIN}'" "all" "pretty"
     fi
     rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS}-journal ${DEFAULT_SQLITE_DB_FILE_READINGS}-wal ${DEFAULT_SQLITE_DB_FILE_READINGS}-shm
+    # Delete all the readings databases if any
+    rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}*.db
+    rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}*.db-journal
+    rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}*.db-wal
+    rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}*.db-shm
+
     # 2- Create new datafile an apply init file
     INIT_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE_READINGS}" 2>&1 <<EOF
 PRAGMA page_size = 4096;
-ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}' AS 'readings';
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}' AS 'readings_1';
 .read '${INIT_READINGS_SQL}'
 .quit
 EOF`
@@ -426,18 +434,9 @@ engine_management=`get_engine_management $PLUGIN`
 case "$engine_management" in
     "true")
 
-        MANAGED=true
-
-        # Check if sqlitei3 is present in the expected path
-        # We don't need to manage SQLite3 db
-        # This will be removed in next commits
-        SQLITE_SQL="$FLEDGE_ROOT/plugins/storage/sqlite/bin/psql"
-        if ! [[ -x "${SQLITE_SQL}" ]]; then
-            sqlite_log "err" "SQLite program not found: the database server cannot be managed." "all" "pretty"
-            exit 1
-        fi
-
-        print_output="noisy"
+	# SQLite does not support managed storage. Ignore this option
+        print_output="silent"
+        MANAGED=false
         ;;
     
     "false")

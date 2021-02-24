@@ -29,13 +29,20 @@ class PIWebAPI
 	public:
 		PIWebAPI();
 
+
 		// Destructor
 		~PIWebAPI();
+
+		void    setAuthMethod          (std::string& authMethod)           {m_authMethod = authMethod; }
+		void    setAuthBasicCredentials(std::string& authBasicCredentials) {m_authBasicCredentials = authBasicCredentials; }
 
 		string  GetVersion(const string& host);
 
 	private:
 		string  ExtractVersion(const string& response);
+
+		string  m_authMethod;             // Authentication method to be used
+		string  m_authBasicCredentials;   // Credentials is the base64 encoding of id and password joined by a single colon (:)
 
 };
 #endif

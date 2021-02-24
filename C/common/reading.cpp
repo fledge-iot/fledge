@@ -145,6 +145,27 @@ Datapoint *rval;
 }
 
 /**
+ * Return a specific data point by name
+ *
+ * @param name		The name of the datapoint to return
+ * @return		Pointer a the named datapoint or NULL if it does not exist
+ */
+Datapoint *Reading::getDatapoint(const string& name) const
+{
+Datapoint *rval;
+
+	for (auto it = m_values.cbegin(); it != m_values.cend(); it++)
+	{
+		if ((*it)->getName().compare(name) == 0)
+		{
+			rval = *it;
+			return rval;
+		}
+	}
+	return NULL;
+}
+
+/**
  * Return the asset reading as a JSON structure encoded in a
  * C++ string.
  */

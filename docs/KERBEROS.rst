@@ -168,7 +168,7 @@ Troubleshooting the Kerberos authentication
     64 bytes from pi-server.dianomic.com (192.168.1.51): icmp_seq=1 ttl=128 time=5.07 ms
     64 bytes from pi-server.dianomic.com (192.168.1.51): icmp_seq=2 ttl=128 time=1.92 ms
 
-Kerberos reachability and keys retrival
+Kerberos reachability and keys retrieval
 
 .. code-block:: console
 
@@ -185,7 +185,7 @@ Kerberos reachability and keys retrival
 
 Kerberos authentication on RedHat/CentOS
 ========================================
-RedHat and CentOS version 7.6 provide by default an old version of curl and the related libcurl
+RedHat and CentOS version 7 provide by default an old version of curl and the related libcurl
 and it does not support Kerberos, output of the curl provided by CentOS:
 
 .. code-block:: console

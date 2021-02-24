@@ -31,5 +31,6 @@ std::string extractLastLevel(const std::string& path, char separator);
 void StringStripCRLF(std::string& StringToManage);
 string urlEncode(const string& s);
 string urlDecode(const string& s);
+void StringEscapeQuotes(string& s);
 
 #endif

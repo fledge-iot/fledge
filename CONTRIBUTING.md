@@ -10,6 +10,8 @@ the [fledge-iot Organization](https://github.com/fledge-iot) on GitHub.
 
 To give us feedback or make suggestions use the [Fledge Slack Channel](https://lfedge.slack.com/archives/CLJ7CNCAX).
 
+If you find a security vulnerability within Fledge or any of it's plugins then we request that you inform us via email rather than by opening an issue in GitHub. This allows us to act on it without giving information that others might exploit. Any security vulnerability will be discussed at the project TCS and user will be informed of the need to upgrade via the Fledge slack channel. The email address to which vulnerabilities should be reported is security@dianomic.com.
+
 ## Pull requests
 
 **Please ask first** before embarking on any significant work (e.g. implementing new features,
@@ -45,8 +47,8 @@ Adhering to the following process is the best way to get your work included in t
 2. If you cloned a while ago, get the latest changes from upstream:
 
    ```bash
-   git checkout master
-   git pull --rebase upstream master
+   git checkout main
+   git pull --rebase upstream main
    ```
 
 3. Create a new topic branch from `develop`, if you are working a particular issue from the Project Jira then the convention for branch names is to use the Jira name, otherwise choose a descriptive branch name that contains your GitHub username in order to help us track the changes.
@@ -68,7 +70,7 @@ Adhering to the following process is the best way to get your work included in t
 5. Locally merge (or rebase) the upstream development branch into your topic branch:
 
    ```bash
-   git pull --rebase upstream master
+   git pull --rebase upstream main
    ```
 
 6. Push your topic branch up to your fork:

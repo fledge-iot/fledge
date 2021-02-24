@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
 from functools import lru_cache
@@ -13,6 +13,9 @@ from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.plugin_discovery import PluginDiscovery
 from fledge.services.core import connect
 from fledge.services.core.scheduler.entities import Task
+from fledge.common.service_record import ServiceRecord
+from fledge.services.core.service_registry.service_registry import ServiceRegistry
+from fledge.services.core.service_registry.exceptions import DoesNotExist
 
 __author__ = "Praveen Garg"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -21,7 +24,7 @@ __version__ = "${VERSION}"
 
 _help = """
     -------------------------------------------------------------------------------
-    | GET                 | /fledge/north                                        |
+    | GET                 | /fledge/north                                         |
     -------------------------------------------------------------------------------
 """
 
@@ -41,6 +44,8 @@ async def _get_sent_stats(storage_client):
 
 async def _get_tasks_status():
     payload = PayloadBuilder().SELECT("id", "schedule_name", "process_name", "state", "start_time", "end_time", "reason", "pid", "exit_code")\
+        .WHERE(["process_name", "=", "north"])\
+        .OR_WHERE(["process_name", "=", "north_c"])\
         .ALIAS("return", ("start_time", 'start_time'), ("end_time", 'end_time'))\
         .FORMAT("return", ("start_time", "YYYY-MM-DD HH24:MI:SS.MS"), ("end_time", "YYYY-MM-DD HH24:MI:SS.MS"))\
         .ORDER_BY(["schedule_name", "asc"], ["start_time", "desc"])
@@ -71,27 +76,65 @@ async def _get_north_schedules(storage_client):
         return []
 
     schedules = []
+    north_sch_dict = {}
     schedule_list = await server.Server.scheduler.get_schedules()
     latest_tasks = await _get_tasks_status()
+    try:
+        services_from_registry = ServiceRegistry.get(s_type="Northbound")
+    except DoesNotExist:
+        services_from_registry = []
     for sch in schedule_list:
         if sch.name in north_schedules:
-            task = latest_tasks.get(sch.name, None)
-            schedules.append({
-                'id': str(sch.schedule_id),
-                'name': sch.name,
-                'processName': sch.process_name,
-                'repeat': sch.repeat.total_seconds() if sch.repeat else 0,
-                'day': sch.day,
-                'enabled': sch.enabled,
-                'exclusive': sch.exclusive,
-                'taskStatus': None if task is None else {
-                    'state': [t.name.capitalize() for t in list(Task.State)][int(task['state']) - 1],
-                    'startTime': str(task['start_time']),
-                    'endTime': str(task['end_time']),
-                    'exitCode': task['exit_code'],
-                    'reason': task['reason'],
+            if sch.process_name != "north_C" and sch.schedule_type != 1:
+                task = latest_tasks.get(sch.name, None)
+                north_sch_dict = {
+                    'id': str(sch.schedule_id),
+                    'name': sch.name,
+                    'processName': sch.process_name,
+                    'repeat': sch.repeat.total_seconds() if sch.repeat else 0,
+                    'day': sch.day,
+                    'enabled': sch.enabled,
+                    'exclusive': sch.exclusive,
+                    'execution': 'task',
+                    'taskStatus': None if task is None else {
+                        'state': [t.name.capitalize() for t in list(Task.State)][int(task['state']) - 1],
+                        'startTime': str(task['start_time']),
+                        'endTime': str(task['end_time']),
+                        'exitCode': task['exit_code'],
+                        'reason': task['reason']
+                    }
                 }
-            })
+            else:
+                for s_record in services_from_registry:
+                    if s_record._name == sch.name:
+                        north_sch_dict = {
+                            'id': str(sch.schedule_id),
+                            'name': sch.name,
+                            'processName': sch.process_name,
+                            'enabled': sch.enabled,
+                            'execution': 'service',
+                            'address': s_record._address,
+                            'managementPort': s_record._management_port,
+                            'servicePort': s_record._port,
+                            'protocol': s_record._protocol,
+                            'status': ServiceRecord.Status(int(s_record._status)).name.lower()
+                        }
+                # north-C service case If not in service registry
+                if sch.enabled is False:
+                    north_sch_dict = {
+                        'id': str(sch.schedule_id),
+                        'name': sch.name,
+                        'processName': sch.process_name,
+                        'enabled': sch.enabled,
+                        'execution': 'service',
+                        'address': '',
+                        'managementPort': '',
+                        'servicePort': '',
+                        'protocol': '',
+                        'status': ''
+                    }
+            if north_sch_dict:
+                schedules.append(north_sch_dict)
 
     return schedules
 

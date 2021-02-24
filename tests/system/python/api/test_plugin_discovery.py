@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
-""" Test plugin discovery (north, south, filter, notificationDelivery, notificationRule) REST API """
+""" Test plugin discovery (north, south, filter, notify, rule) REST API """
 
 import subprocess
 import http.client
@@ -32,10 +32,7 @@ def install_plugin(_type, plugin, branch="develop", plugin_lang="python", use_pi
         assert False, "{} plugin installation failed".format(plugin)
 
     # Cleanup /tmp repos
-    if _type == "notificationDelivery":
-        _type = "notify"
-    if _type == "notificationRule":
-        _type = "rule"
+    if _type == "rule":
         subprocess.run(["rm -rf /tmp/fledge-service-notification"], shell=True, check=True)
     subprocess.run(["rm -rf /tmp/fledge-{}-{}".format(_type, plugin)], shell=True, check=True)
 
@@ -71,15 +68,15 @@ class TestPluginDiscovery:
         assert 3 == len(jdoc['plugins'])
         for plugin in jdoc['plugins']:
             assert 'north' == plugin['type']
-            assert plugin['type'] not in ['south', 'filter', 'notificationDelivery', 'notificationRule']
+            assert plugin['type'] not in ['south', 'filter', 'notify', 'rule']
             # config is not expected by default
             assert 'config' in plugin if config else 'config' not in plugin
 
     @pytest.mark.parametrize("method, count, config", [
         ("/fledge/plugins/installed?type=south", 0, None),
         ("/fledge/plugins/installed?type=filter", 0, None),
-        ("/fledge/plugins/installed?type=notificationDelivery", 0, None),
-        ("/fledge/plugins/installed?type=notificationRule", 0, None),
+        ("/fledge/plugins/installed?type=notify", 0, None),
+        ("/fledge/plugins/installed?type=rule", 0, None),
         ("/fledge/plugins/installed?type=north&config=false", 3, False),
         ("/fledge/plugins/installed?type=north&config=true", 3, True)
     ])
@@ -112,6 +109,9 @@ class TestPluginDiscovery:
         plugins = jdoc['plugins']
         assert 1 == len(plugins)
         assert 'sinusoid' == plugins[0]['name']
+        assert 'south' == plugins[0]['type']
+        assert 'south/sinusoid' == plugins[0]['installedDirectory']
+        assert 'fledge-south-sinusoid' == plugins[0]['packageName']
 
         # install one more south plugin (C version)
         install_plugin(_type, plugin='random', plugin_lang='C')
@@ -124,7 +124,13 @@ class TestPluginDiscovery:
         plugins = jdoc['plugins']
         assert 2 == len(plugins)
         assert 'sinusoid' == plugins[0]['name']
+        assert 'south' == plugins[0]['type']
+        assert 'south/sinusoid' == plugins[0]['installedDirectory']
+        assert 'fledge-south-sinusoid' == plugins[0]['packageName']
         assert 'Random' == plugins[1]['name']
+        assert 'south' == plugins[1]['type']
+        assert 'south/Random' == plugins[1]['installedDirectory']
+        assert 'fledge-south-random' == plugins[1]['packageName']
 
     def test_north_plugins_installed(self, fledge_url, _type='north'):
         # install north plugin (Python version)
@@ -170,7 +176,7 @@ class TestPluginDiscovery:
         assert 1 == len(plugins)
         assert 'rms' == plugins[0]['name']
 
-    def test_delivery_plugins_installed(self, fledge_url, _type='notificationDelivery'):
+    def test_delivery_plugins_installed(self, fledge_url, _type='notify'):
         # install slack delivery plugin
         install_plugin(_type, plugin='slack', plugin_lang='C')
         conn = http.client.HTTPConnection(fledge_url)
@@ -183,8 +189,11 @@ class TestPluginDiscovery:
         plugins = jdoc['plugins']
         assert 1 == len(plugins)
         assert 'slack' == plugins[0]['name']
+        assert 'notify' == plugins[0]['type']
+        assert 'notificationDelivery/slack' == plugins[0]['installedDirectory']
+        assert 'fledge-notify-slack' == plugins[0]['packageName']
 
-    def test_rule_plugins_installed(self, fledge_url, _type='notificationRule'):
+    def test_rule_plugins_installed(self, fledge_url, _type='rule'):
         # install OutOfBound rule plugin
         install_plugin(_type, plugin='outofbound', plugin_lang='C')
         conn = http.client.HTTPConnection(fledge_url)
@@ -197,3 +206,6 @@ class TestPluginDiscovery:
         plugins = jdoc['plugins']
         assert 1 == len(plugins)
         assert 'OutOfBound' == plugins[0]['name']
+        assert 'rule' == plugins[0]['type']
+        assert 'notificationRule/OutOfBound' == plugins[0]['installedDirectory']
+        assert 'fledge-rule-outofbound' == plugins[0]['packageName']

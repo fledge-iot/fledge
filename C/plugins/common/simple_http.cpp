@@ -11,6 +11,7 @@
 #include <simple_http.h>
 #include <thread>
 #include <logger.h>
+#include <unistd.h>
 
 #define VERBOSE_LOG	0
 
@@ -34,6 +35,20 @@ SimpleHttp::SimpleHttp(const string& host_port,
 	m_sender = new HttpClient(host_port);
 	m_sender->config.timeout = (time_t)request_timeout;
 	m_sender->config.timeout_connect = (time_t)connect_timeout;
+	char fname[180];
+	if (getenv("FLEDGE_DATA"))
+		snprintf(fname, sizeof(fname), "%s/omf.log", getenv("FLEDGE_DATA"));
+	else if (getenv("FLEDGE_ROOT"))
+		snprintf(fname, sizeof(fname), "%s/data/omf.log", getenv("FLEDGE_ROOT"));
+	if (access(fname, W_OK) == 0)
+	{
+		m_log = true;
+		m_ofs.open(fname, ofstream::app);
+	}
+	else
+	{
+		m_log = false;
+	}
 }
 
 /**
@@ -41,6 +56,10 @@ SimpleHttp::SimpleHttp(const string& host_port,
  */
 SimpleHttp::~SimpleHttp()
 {
+	if (m_log)
+	{
+		m_ofs.close();
+	}
 	delete m_sender;
 }
 
@@ -99,11 +118,30 @@ int SimpleHttp::sendRequest(
 			exception_raised = none;
 			http_code = 0;
 
+			if (m_log)
+			{
+				m_ofs << endl << method << " " << path << endl;
+				m_ofs << "Headers:" << endl;
+				for (auto it = header.begin(); it != header.end(); it++)
+				{
+					m_ofs << "    " << it->first << ": " << it->second << endl;
+				}
+				m_ofs << "Payload:" << endl;
+				m_ofs << payload << endl;
+			}
+
 			// Call HTTPS method
 			auto res = m_sender->request(method, path, payload, header);
 
 			retCode = res->status_code;
 			response = res->content.string();
+
+			if (m_log)
+			{
+				m_ofs << "Response:" << endl;
+				m_ofs << "   Code: " << res->status_code << endl;
+				m_ofs << "   Content: " << res->content.string() << endl << endl;
+			}
 
 			m_HTTPResponse = response;
 

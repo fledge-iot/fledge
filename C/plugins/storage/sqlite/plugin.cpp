@@ -23,6 +23,8 @@
 #include <logger.h>
 #include <plugin_exception.h>
 #include <reading_stream.h>
+#include <config_category.h>
+#include <readings_catalogue.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -32,6 +34,45 @@ using namespace rapidjson;
  */
 extern "C" {
 
+const char *default_config = QUOTE({
+		"poolSize" : {
+			"description" : "Connection pool size",
+			"type" : "integer",
+			"default" : "5",
+			"displayName" : "Pool Size",
+			"order" : "1"
+		},
+		"nReadingsPerDb" : {
+			"description" : "The number of readings tables in each database that is created",
+			"type" : "integer",
+			"default" : "15",
+			"displayName" : "No. Readings per database",
+			"order" : "2"
+		},
+		"nDbPreallocate" : {
+			"description" : "Number of databases to allocate in advance. NOTE: SQLite has a default maximum of 10 attachable databases",
+			"type" : "integer",
+			"default" : "3",
+			"displayName" : "No. databases to allocate in advance",
+			"order" : "3"
+		},
+		"nDbLeftFreeBeforeAllocate" : {
+			"description" : "Allocate new databases when the number of free databases drops below this value",
+			"type" : "integer",
+			"default" : "1",
+			"displayName" : "Database allocation threshold",
+			"order" : "4"
+		},
+		"nDbToAllocate" : {
+			"description" : "The number of databases to create whenever the number of available databases drops below the allocation threshold",
+			"type" : "integer",
+			"default" : "2",
+			"displayName" : "Database allocation size",
+			"order" : "5"
+		}
+
+});
+
 /**
  * The plugin information structure
  */
@@ -40,7 +81,8 @@ static PLUGIN_INFORMATION info = {
 	"1.1.1",                  // Version
 	SP_COMMON|SP_READINGS,    // Flags
 	PLUGIN_TYPE_STORAGE,               // Type
-	"1.3.0"                  // Interface version
+	"1.4.0",                  // Interface version
+	default_config
 };
 
 /**
@@ -56,11 +98,43 @@ PLUGIN_INFORMATION *plugin_info()
  * In the case of SQLLite we also get a pool of connections
  * to use.
  */
-PLUGIN_HANDLE plugin_init()
+PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 {
-ConnectionManager *manager = ConnectionManager::getInstance();
+	ConnectionManager *manager = ConnectionManager::getInstance();
 
-	manager->growPool(5);
+	STORAGE_CONFIGURATION storageConfig;
+
+	if (category->itemExists("poolSize"))
+	{
+		storageConfig.poolSize = strtol(category->getValue("poolSize").c_str(), NULL, 10);
+	}
+	manager->growPool(storageConfig.poolSize);
+
+
+	if (category->itemExists("nReadingsPerDb"))
+	{
+		storageConfig.nReadingsPerDb = strtol(category->getValue("nReadingsPerDb").c_str(), NULL, 10);
+	}
+
+
+	if (category->itemExists("nDbPreallocate"))
+	{
+		storageConfig.nDbPreallocate = strtol(category->getValue("nDbPreallocate").c_str(), NULL, 10);
+	}
+
+	if (category->itemExists("nDbLeftFreeBeforeAllocate"))
+	{
+		storageConfig.nDbLeftFreeBeforeAllocate = strtol(category->getValue("nDbLeftFreeBeforeAllocate").c_str(), NULL, 10);
+	}
+
+	if (category->itemExists("nDbToAllocate"))
+	{
+		storageConfig.nDbToAllocate = strtol(category->getValue("nDbToAllocate").c_str(), NULL, 10);
+	}
+
+	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
+	readCat->multipleReadingsInit(storageConfig);
+
 	return manager;
 }
 
@@ -226,7 +300,13 @@ ConnectionManager *manager = (ConnectionManager *)handle;
 bool plugin_shutdown(PLUGIN_HANDLE handle)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
-  
+
+	Connection        *connection = manager->allocate();
+	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
+	readCat->storeGlobalId();
+	manager->release(connection);
+
+
 	manager->shutdown();
 	return true;
 }

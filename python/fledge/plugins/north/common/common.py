@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
 """ Common code to the north facing plugins
@@ -78,8 +78,10 @@ def evaluate_type(value):
      Raises:
      """
 
-    if type(value) is list:
+    if isinstance(value, list):
         evaluated_type = "array"
+    elif isinstance(value, dict):
+        evaluated_type = "string"
     else:
         try:
             float(value)

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.6)
 
-project(sqlitememory)
+project(sqlite)
 
 set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 
@@ -9,7 +9,7 @@ set(STORAGE_COMMON_LIB storage-common-lib)
 # Path of compiled libsqlite3.a and .h files: /tmp/sqlite3-pkg/src
 set(FLEDGE_SQLITE3_LIBS "/tmp/sqlite3-pkg/src" CACHE INTERNAL "")
 
-## sqlitememory plugin
+## sqlite plugin
 include_directories(../../../../C/thirdparty/rapidjson/include)
 include_directories(../../../../C/common/include)
 include_directories(../../../../C/services/common/include)
@@ -23,7 +23,7 @@ find_package(sqlite3)
 
 # Find source files
 file(GLOB COMMON_SOURCES ../../../../C/plugins/storage/sqlite/common/*.cpp)
-file(GLOB SOURCES ../../../../C/plugins/storage/sqlitememory/*.cpp)
+file(GLOB SOURCES ../../../../C/plugins/storage/sqlite/*.cpp)
 
 # Create shared library
 
@@ -31,8 +31,7 @@ link_directories(${PROJECT_BINARY_DIR}/../../lib)
 
 add_library(${PROJECT_NAME} SHARED ${SOURCES} ${COMMON_SOURCES})
 
-add_definitions(-DSQLITE_SPLIT_READINGS=1)
-add_definitions(-DPLUGIN_LOG_NAME="SQLite 3 in_memory")
+add_definitions(-DPLUGIN_LOG_NAME="SQLite 3")
 
 if(EXISTS ${FLEDGE_SQLITE3_LIBS})
 	include_directories(${FLEDGE_SQLITE3_LIBS})

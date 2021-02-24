@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
 
@@ -20,13 +20,27 @@ def get_plugin_info(name, dir):
     try:
         arg1 = _find_c_util('get_plugin_info')
         arg2 = _find_c_lib(name, dir)
+        if arg2 is None:
+            raise ValueError('The plugin {} does not exist'.format(name))
         cmd_with_args = [arg1, arg2, "plugin_info"]
         p = subprocess.Popen(cmd_with_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = p.communicate()
         res = out.decode("utf-8")
         jdoc = json.loads(res)
-    except (OSError, subprocess.CalledProcessError, Exception) as ex:
-        _logger.exception("%s C plugin get info failed due to %s", name, ex)
+    except OSError as err:
+        _logger.error("%s C plugin get info failed due to %s", name, str(err))
+        return {}
+    except subprocess.CalledProcessError as err:
+        if err.output is not None:
+            _logger.error("%s C plugin get info failed '%s' due to %s", name, err.output, str(err))
+        else:
+            _logger.error("%s C plugin get info failed due to %s", name, str(err))
+        return {}
+    except ValueError as err:
+        _logger.error(str(err))
+        return {}
+    except Exception as ex:
+        _logger.exception("%s C plugin get info failed due to %s", name, str(ex))
         return {}
     else:
         return jdoc

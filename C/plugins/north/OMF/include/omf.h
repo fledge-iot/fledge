@@ -17,6 +17,8 @@
 #include <zlib.h>
 #include <rapidjson/document.h>
 
+#define	OMF_HINT	"OMFHint"
+
 #define TYPE_ID_DEFAULT     1
 #define FAKE_ASSET_KEY      "_default_start_id_"
 #define OMF_TYPE_STRING		"string"
@@ -44,10 +46,13 @@ using namespace rapidjson;
 class OMFDataTypes
 {
         public:
-                long          typeId;
-                std::string   types;
-                unsigned long typesShort;
+                long           typeId;
+                std::string    types;
+                unsigned long  typesShort;
+		unsigned short hintChkSum;
 };
+
+class OMFHints;
 
 /**
  * The OMF class.
@@ -112,6 +117,8 @@ class OMF
 
 		bool setAFMap(const std::string &AFMap);
 
+		void setSendFullStructure(const bool sendFullStructure) {m_sendFullStructure = sendFullStructure;};
+
 		void setPrefixAFAsset(const std::string &prefixAFAsset);
 
 		// Get saved OMF formats
@@ -161,16 +168,16 @@ class OMF
 			createMessageHeader(const std::string& type) const;
 
 		// Create data for Type message for current row
-		const std::string createTypeData(const Reading& reading);
+		const std::string createTypeData(const Reading& reading, OMFHints *hints);
 
 		// Create data for Container message for current row
-		const std::string createContainerData(const Reading& reading);
+		const std::string createContainerData(const Reading& reading, OMFHints *hints);
 
 		// Create data for additional type message, with 'Data' for current row
 		const std::string createStaticData(const Reading& reading);
 
 		// Create data Link message, with 'Data', for current row
-		std::string createLinkData(const Reading& reading, std::string& AFHierarchyLevel, std::string&  prefix, std::string&  objectPrefix);
+		std::string createLinkData(const Reading& reading, std::string& AFHierarchyLevel, std::string&  prefix, std::string&  objectPrefix, OMFHints *hints);
 
 		/**
 		 * Creata data for readings data content, with 'Data', for one row
@@ -187,16 +194,15 @@ class OMF
 		// Create the OMF data types if needed
 		bool handleDataTypes(const string keyComplete,
 			                 const Reading& row,
-				             bool skipSendingTypes);
+				             bool skipSendingTypes, OMFHints *hints);
 
 		// Send OMF data types
-		bool sendDataTypes(const Reading& row);
+		bool sendDataTypes(const Reading& row, OMFHints *hints);
 
 		// Get saved dataType
-		bool getCreatedTypes(const std::string& keyComplete, const Reading& row);
+		bool getCreatedTypes(const std::string& keyComplete, const Reading& row, OMFHints *hints);
 
 		// Set saved dataType
-		bool setCreatedTypes(const std::string& key);
 		unsigned long calcTypeShort(const Reading& row);
 
 
@@ -207,7 +213,7 @@ class OMF
 		void incrementTypeId();
 
                 // Handle data type errors
-		bool handleTypeErrors(const string& keyComplete, const Reading& reading);
+		bool handleTypeErrors(const string& keyComplete, const Reading& reading, OMFHints*hints);
 
 		// Extract assetName from erro message
 		std::string getAssetNameFromError(const char* message);
@@ -223,7 +229,7 @@ class OMF
 		void setTypeId();
 
 		// Set saved dataType
-		bool setCreatedTypes(const Reading& row);
+		bool setCreatedTypes(const Reading& row, OMFHints *hints);
 
 		// Remove cached data types enttry for given asset name
 		void clearCreatedTypes(const std::string& keyComplete);
@@ -257,6 +263,7 @@ class OMF
 		OMF_ENDPOINT		m_PIServerEndpoint;
 		std::string		    m_DefaultAFLocation;
 
+		bool            m_sendFullStructure;
 		// AF hierarchies handling - Metadata MAP
 		std::string		m_AFMap;
 		bool            m_AFMapEmptyNames;  // true if there are norules to manage
@@ -349,7 +356,8 @@ class OMFData
 		OMFData(const Reading& reading,
 			const long typeId,
 			const OMF_ENDPOINT PIServerEndpoint = ENDPOINT_CR,
-			const std::string& DefaultAFLocation = std::string());
+			const std::string& DefaultAFLocation = std::string(),
+			OMFHints *hints = NULL);
 
 		const std::string& OMFdataVal() const;
 	private:

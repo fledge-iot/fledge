@@ -102,6 +102,9 @@ setup_north_pi_egress () {
        "schedule_type": "3",
        "schedule_enabled": true,
        "config": {
+          "PIServerEndpoint": {
+             "value": "Connector Relay"
+          },
           "ServerHostname": {
              "value": "'${PI_IP}'"
           },

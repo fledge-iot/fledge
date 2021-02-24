@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
 __author__ = "Ashish Jabble, Praveen Garg, Ashwin Gopalakrishnan"
@@ -50,6 +50,12 @@ def setup(app, obj, is_core=False):
 
         # Audit Log
         app.router.add_route('POST', '/fledge/audit', obj.add_audit)
+
+        # enable/disable schedule
+        app.router.add_route('PUT', '/fledge/schedule/{schedule_id}/enable', obj.enable_disable_schedule)
+
+        # Internal refresh cache
+        app.router.add_route('PUT', '/fledge/cache', obj.refresh_cache)
 
     # enable cors support
     enable_cors(app)

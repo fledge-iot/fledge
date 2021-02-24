@@ -37,10 +37,12 @@ remove_filter () {
 
 remove_notification_delivery () {
     rm -rf $FLEDGE_ROOT/plugins/notificationDelivery
+    rm -rf $FLEDGE_ROOT/python/fledge/plugins/notificationDelivery
 }
 
 remove_notification_rule () {
     rm -rf $FLEDGE_ROOT/plugins/notificationRule
+    rm -rf $FLEDGE_ROOT/python/fledge/plugins/notificationRule
 }
 
 remove_all () {

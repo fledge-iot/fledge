@@ -549,6 +549,26 @@ bool ConfigCategory::setDefault(const string& name, const string& value)
 	return false;
 }
 
+/**
+ * Update the value of the configuration category item
+ *
+ * @param name	The name of the configuration item to update
+ * @param value	New value of the configuration item
+ * @return bool	Whether update succeeded
+ */
+bool ConfigCategory::setValue(const string& name, const string& value)
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			m_items[i]->m_value = value;
+			return true;
+		}
+	}
+	return false;
+}
+
 
 /**
  * Return the display name of the configuration category item

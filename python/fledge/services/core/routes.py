@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
 from fledge.services.core.api import auth
@@ -80,6 +80,7 @@ def setup(app):
     # Scheduler
     # Scheduled_processes - As per doc
     app.router.add_route('GET', '/fledge/schedule/process', api_scheduler.get_scheduled_processes)
+    app.router.add_route('POST', '/fledge/schedule/process', api_scheduler.post_scheduled_process)
     app.router.add_route('GET', '/fledge/schedule/process/{scheduled_process_name}', api_scheduler.get_scheduled_process)
 
     # Schedules - As per doc
@@ -167,6 +168,7 @@ def setup(app):
     # Package logs
     app.router.add_route('GET', '/fledge/package/log', package_log.get_logs)
     app.router.add_route('GET', '/fledge/package/log/{name}', package_log.get_log_by_name)
+    app.router.add_route('GET', '/fledge/package/{action}/status', package_log.get_package_status)
 
     # Plugins (install, discovery, update, delete)
     app.router.add_route('GET', '/fledge/plugins/installed', plugins_discovery.get_plugins_installed)

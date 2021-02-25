@@ -243,7 +243,7 @@ private:
 		// Add the 1st level of AF hierarchy if the end point is PI Web API
 		void setAFHierarchy();
 
-		bool handleAFHierarchy();
+		bool handleAFHirerarchy();
 		bool handleAFHierarchySystemWide();
 		bool handleAFHierarchiesNamesMap();
 		bool handleAFHierarchiesMetadataMap();

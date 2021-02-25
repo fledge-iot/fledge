@@ -522,9 +522,9 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 
 				// FIXME_I:
 				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxx3 %s - AFHierarchyLevel :%s: ", __FUNCTION__,  AFHierarchyLevel.c_str());
-				Logger::getLogger()->debug("xxx3 %s - prefix :%s: ", __FUNCTION__,  prefix.c_str());
-				Logger::getLogger()->debug("xxx3 %s - objectPrefix :%s: ", __FUNCTION__,  objectPrefix.c_str());
+				Logger::getLogger()->debug("%s - AFHierarchyLevel :%s: ", __FUNCTION__,  AFHierarchyLevel.c_str());
+				Logger::getLogger()->debug("%s - prefix :%s: ", __FUNCTION__,  prefix.c_str());
+				Logger::getLogger()->debug("%s - objectPrefix :%s: ", __FUNCTION__,  objectPrefix.c_str());
 				Logger::getLogger()->setMinLevel("warning");
 
 				// Create data for Static Data message
@@ -965,7 +965,7 @@ bool OMF::handleAFHierarchiesMetadataMap() {
  *
  * @param out		true if succeded
  */
-bool OMF::handleAFHierarchy()
+bool OMF::handleAFHirerarchy()
 {
 	bool success = true;
 
@@ -1073,7 +1073,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 
 			// FIXME_I:
 			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->info("xxx %s - AF hierarchy changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, origDefaultAFLocation.c_str(), m_DefaultAFLocation.c_str() );
+			Logger::getLogger()->info("xxx2 %s - AF hierarchy changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, origDefaultAFLocation.c_str(), m_DefaultAFLocation.c_str() );
 			Logger::getLogger()->setMinLevel("warning");
 		}
 	}
@@ -1131,7 +1131,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 
 				// FIXME_I:
 				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->info("xxx %s -  3 Asset name changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, assetNameFledge.c_str(), m_assetName.c_str() );
+				Logger::getLogger()->info("%s -  3 Asset name changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, assetNameFledge.c_str(), m_assetName.c_str() );
 				Logger::getLogger()->setMinLevel("warning");
 			}
 		}
@@ -1183,7 +1183,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			// FIXME_I:
 			// FIXME_I:
 			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->info("xxx %s - 1a m_AFHierarchyLevel :%s:", __FUNCTION__,   m_AFHierarchyLevel.c_str() );
+			Logger::getLogger()->info("%s - 1a m_AFHierarchyLevel :%s:", __FUNCTION__,   m_AFHierarchyLevel.c_str() );
 			Logger::getLogger()->setMinLevel("warning");
 
 			sendDataTypes = (m_lastError == false && skipSentDataTypes == true) ?
@@ -1214,7 +1214,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 				// it sends the hierarchy once
 				if (sendDataTypes and ! AFHierarchySent)
 				{
-					handleAFHierarchy();
+					handleAFHirerarchy();
 
 					AFHierarchySent = true;
 				}
@@ -1223,7 +1223,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			// FIXME_I:
 			// FIXME_I:
 			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->info("xxx %s - 2a m_AFHierarchyLevel :%s:", __FUNCTION__,   m_AFHierarchyLevel.c_str() );
+			Logger::getLogger()->info("%s - 2a m_AFHierarchyLevel :%s:", __FUNCTION__,   m_AFHierarchyLevel.c_str() );
 			Logger::getLogger()->setMinLevel("warning");
 
 			if (usingTypeNameHint)
@@ -2154,6 +2154,7 @@ void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 			auto it = m_NamesRules.find(assetName);
 			if (it != m_NamesRules.end())
 			{
+
 				path = it->second;
 
 				if (path.at(0) != '/')
@@ -2507,7 +2508,27 @@ bool OMF::HandleAFMapNames(Document& JSon)
 	for (Value::ConstMemberIterator itr = JsonNames.MemberBegin(); itr != JsonNames.MemberEnd(); ++itr)
 	{
 		name = itr->name.GetString();
-		value = itr->value.GetString();
+
+		// FIXME_I:
+		//value = itr->value.GetString();
+
+		{
+			// FIXME_I:
+			bool changed = false;
+			string  origDefaultAFLocation;
+
+			value = ApplyPIServerNamingRulesPath(itr->value.GetString(), &changed);
+
+			if (changed) {
+
+				// FIXME_I:
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->info("xxx %s - AF hierarchy changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itr->value.GetString(), value.c_str() );
+				Logger::getLogger()->setMinLevel("warning");
+			}
+		}
+
+
 		Logger::getLogger()->debug("HandleAFMapNames - Exist name :%s: value :%s:", name.c_str(), value.c_str());
 
 		auto newMapValue = make_pair(name,value);
@@ -3535,11 +3556,11 @@ std::string OMF::ApplyPIServerNamingRulesObj(const std::string &objName, bool *c
 
 	nameFixed = StringTrim(objName);
 
-	Logger::getLogger()->debug("xxx %s - original :%s: trimmed :%s:", __FUNCTION__, objName.c_str(), nameFixed.c_str());
+	Logger::getLogger()->debug("%s - original :%s: trimmed :%s:", __FUNCTION__, objName.c_str(), nameFixed.c_str());
 
 	if (nameFixed.empty ()) {
 
-		Logger::getLogger()->debug("xxx %s - name empty", __FUNCTION__);
+		Logger::getLogger()->debug("%s - name empty", __FUNCTION__);
 
 		nameFixed = "_";
 		if (changed)
@@ -3552,7 +3573,7 @@ std::string OMF::ApplyPIServerNamingRulesObj(const std::string &objName, bool *c
 			if (changed)
 				*changed = true;
 
-			Logger::getLogger()->warn("xxx %s - object name too long, truncated to :%s: ", __FUNCTION__, nameFixed.c_str() );
+			Logger::getLogger()->warn("%s - object name too long, truncated to :%s: ", __FUNCTION__, nameFixed.c_str() );
 		}
 	}
 
@@ -3569,7 +3590,7 @@ std::string OMF::ApplyPIServerNamingRulesObj(const std::string &objName, bool *c
 			*changed = true;
 	}
 
-	Logger::getLogger()->debug("xxx %s - final :%s: ", __FUNCTION__, nameFixed.c_str());
+	Logger::getLogger()->debug("%s - final :%s: ", __FUNCTION__, nameFixed.c_str());
 
 	return (nameFixed);
 }
@@ -3601,11 +3622,11 @@ std::string OMF::ApplyPIServerNamingRulesPath(const std::string &objName, bool *
 
 	nameFixed = StringTrim(objName);
 
-	Logger::getLogger()->debug("xxx2 %s - original :%s: trimmed :%s:", __FUNCTION__, objName.c_str(), nameFixed.c_str());
+	Logger::getLogger()->debug("xxx %s - original :%s: trimmed :%s:", __FUNCTION__, objName.c_str(), nameFixed.c_str());
 
 	if (nameFixed.empty ()) {
 
-		Logger::getLogger()->debug("xxx2 %s - name empty", __FUNCTION__);
+		Logger::getLogger()->debug("%s - name empty", __FUNCTION__);
 
 		// FIXME_I:
 		nameFixed = "_";
@@ -3619,7 +3640,7 @@ std::string OMF::ApplyPIServerNamingRulesPath(const std::string &objName, bool *
 			if (changed)
 				*changed = true;
 
-			Logger::getLogger()->warn("xxx4 %s - object name too long, truncated to :%s: ", __FUNCTION__, nameFixed.c_str() );
+			Logger::getLogger()->warn("%s - object name too long, truncated to :%s: ", __FUNCTION__, nameFixed.c_str() );
 		}
 	}
 

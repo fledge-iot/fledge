@@ -95,7 +95,7 @@ std::string extractLastLevel(const std::string& path, char separator)
 
 	tmpPath = path;
 
-	if (tmpPath.length() > 1)
+	if (tmpPath.length() > 0)
 	{
 		if (tmpPath.find(separator) != string::npos)
 		{

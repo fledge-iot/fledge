@@ -519,6 +519,14 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 					objectPrefix = prefix;
 				}
 
+
+				// FIXME_I:
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("xxx3 %s - AFHierarchyLevel :%s: ", __FUNCTION__,  AFHierarchyLevel.c_str());
+				Logger::getLogger()->debug("xxx3 %s - prefix :%s: ", __FUNCTION__,  prefix.c_str());
+				Logger::getLogger()->debug("xxx3 %s - objectPrefix :%s: ", __FUNCTION__,  objectPrefix.c_str());
+				Logger::getLogger()->setMinLevel("warning");
+
 				// Create data for Static Data message
 				string typeLinkData = OMF::createLinkData(row, AFHierarchyLevel, prefix, objectPrefix, hints);
 
@@ -1068,11 +1076,6 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			Logger::getLogger()->info("xxx %s - AF hierarchy changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, origDefaultAFLocation.c_str(), m_DefaultAFLocation.c_str() );
 			Logger::getLogger()->setMinLevel("warning");
 		}
-
-		// FIXME_I:
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->info("xxx %s - 1 m_AFHierarchyLevel :%s:", __FUNCTION__,   m_AFHierarchyLevel.c_str() );
-		Logger::getLogger()->setMinLevel("warning");
 	}
 
 	/*
@@ -1180,7 +1183,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			// FIXME_I:
 			// FIXME_I:
 			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->info("xxx %s - 1 m_AFHierarchyLevel :%s:", __FUNCTION__,   m_AFHierarchyLevel.c_str() );
+			Logger::getLogger()->info("xxx %s - 1a m_AFHierarchyLevel :%s:", __FUNCTION__,   m_AFHierarchyLevel.c_str() );
 			Logger::getLogger()->setMinLevel("warning");
 
 			sendDataTypes = (m_lastError == false && skipSentDataTypes == true) ?
@@ -1216,6 +1219,12 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 					AFHierarchySent = true;
 				}
 			}
+
+			// FIXME_I:
+			// FIXME_I:
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->info("xxx %s - 2a m_AFHierarchyLevel :%s:", __FUNCTION__,   m_AFHierarchyLevel.c_str() );
+			Logger::getLogger()->setMinLevel("warning");
 
 			if (usingTypeNameHint)
 			{
@@ -3506,11 +3515,12 @@ std::string OMF::ApplyPIServerNamingRulesInvalidChars(const std::string &objName
 /**
  * Check a PI Server object name and returns the proper name to use following the naming rules:
  *
- * - Blank names are not permitted.
- * - Maximum name length is 259 characters.
+ * - Blank names are not permitted, substituted with '_'
+ * - Trailing spaces are removed
+ * - Maximum name length is 200 characters.
  * - Valid chars
- * - The initial letter of any name should be checked for compliance.
  *
+ * Names on PI-Server side are not case sensitive
  *
  * @param    objName  The object name to verify
  * @param    changed  if not null, it is set to true if a change occur
@@ -3525,19 +3535,13 @@ std::string OMF::ApplyPIServerNamingRulesObj(const std::string &objName, bool *c
 
 	nameFixed = StringTrim(objName);
 
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx %s - objName :%s: nameFixed :%s:", __FUNCTION__, objName.c_str(), nameFixed.c_str());
-	Logger::getLogger()->setMinLevel("warning");
+	Logger::getLogger()->debug("xxx %s - original :%s: trimmed :%s:", __FUNCTION__, objName.c_str(), nameFixed.c_str());
 
 	if (nameFixed.empty ()) {
 
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx %s - empty", __FUNCTION__);
-		Logger::getLogger()->setMinLevel("warning");
+		Logger::getLogger()->debug("xxx %s - name empty", __FUNCTION__);
 
-		// FIXME_I:
-		nameFixed = "x";
+		nameFixed = "_";
 		if (changed)
 			*changed = true;
 
@@ -3548,22 +3552,13 @@ std::string OMF::ApplyPIServerNamingRulesObj(const std::string &objName, bool *c
 			if (changed)
 				*changed = true;
 
-			Logger::getLogger()->warn("xxx %s - PI-Server object too long struncated to :%s: ", __FUNCTION__, nameFixed.c_str() );
+			Logger::getLogger()->warn("xxx %s - object name too long, truncated to :%s: ", __FUNCTION__, nameFixed.c_str() );
 		}
 	}
 
 	nameFixed = ApplyPIServerNamingRulesInvalidChars(nameFixed, changed);
 
-	// FIXME_I:
-	if (
-		nameFixed[0] == 'x'
-		)
-	{
-		nameFixed.replace(0, 1, "_");
-
-		if (changed)
-			*changed = true;
-	}
+	Logger::getLogger()->debug("xxx %s - final :%s: ", __FUNCTION__, nameFixed.c_str());
 
 	return (nameFixed);
 }
@@ -3572,11 +3567,12 @@ std::string OMF::ApplyPIServerNamingRulesObj(const std::string &objName, bool *c
 /**
  * Check a PI Server object name and returns the proper name to use following the naming rules:
  *
- * - Blank names are not permitted.
- * - Maximum name length is 259 characters.
+ * - Blank names are not permitted, substituted with '_'
+ * - Trailing spaces are removed
+ * - Maximum name length is 200 characters.
  * - Valid chars
- * - The initial letter of any name should be checked for compliance.
  *
+ * Names on PI-Server side are not case sensitive
  *
  * @param    objName  The object name to verify
  * @param    changed  if not null, it is set to true if a change occur
@@ -3586,22 +3582,43 @@ std::string OMF::ApplyPIServerNamingRulesPath(const std::string &objName, bool *
 {
 	std::string nameFixed;
 
-	nameFixed = objName;
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
 
 	if (changed)
 		*changed = false;
 
 	nameFixed = StringTrim(objName);
 
+	Logger::getLogger()->debug("xxx2 %s - original :%s: trimmed :%s:", __FUNCTION__, objName.c_str(), nameFixed.c_str());
+
 	if (nameFixed.empty ()) {
 
+		Logger::getLogger()->debug("xxx2 %s - name empty", __FUNCTION__);
+
+		// FIXME_I:
 		nameFixed = "_";
 		if (changed)
 			*changed = true;
 
-	} else
+	} else {
+		if (nameFixed.length() > 201) {
+
+			nameFixed = nameFixed.substr(0, 200);
+			if (changed)
+				*changed = true;
+
+			Logger::getLogger()->warn("xxx4 %s - object name too long, truncated to :%s: ", __FUNCTION__, nameFixed.c_str() );
+		}
+	}
 
 	nameFixed = ApplyPIServerNamingRulesInvalidChars(nameFixed, changed);
+
+
+	// FIXME_I:
+	Logger::getLogger()->debug("xxx %s - final :%s: ", __FUNCTION__, nameFixed.c_str());
+	Logger::getLogger()->setMinLevel("warning");
+
 
 	return (nameFixed);
 }

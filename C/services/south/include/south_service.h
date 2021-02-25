@@ -49,6 +49,9 @@ class SouthService : public ServiceHandler {
 		void				configChange(const std::string&,
 						const std::string&);
 		static ManagementClient *	getMgmtClient();
+		bool				setPoint(const std::string& name, const std::string& value);
+		void				operation(const std::string& name);
+		void				operation();
 	private:
 		void				addConfigDefaults(DefaultConfigCategory& defaults);
 		bool 				loadPlugin();

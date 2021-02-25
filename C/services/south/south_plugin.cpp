@@ -91,6 +91,22 @@ SouthPlugin::SouthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category) :
 				 manager->resolveSymbol(handle, "plugin_shutdown");
 	pluginStartDataPtr = (void (*)(const PLUGIN_HANDLE, const string& storedData))
 			      manager->resolveSymbol(handle, "plugin_start");
+
+	pluginWritePtr = NULL;
+	pluginOperationPtr = NULL;
+
+	if (hasControl())
+	{
+		pluginWritePtr = (bool (*)(const PLUGIN_HANDLE,
+					const std::string&,
+					const std::string&))
+			manager->resolveSymbol(handle, "plugin_write");
+		pluginOperationPtr = (bool (*)(const PLUGIN_HANDLE,
+					const std::string&,
+					int,
+					void **))
+			manager->resolveSymbol(handle, "plugin_operation");
+	}
 }
 
 /**
@@ -233,3 +249,21 @@ void SouthPlugin::registerIngestV2(INGEST_CB2 cb, void *data)
 	}
 }
 
+/**
+ * Call the write entry point of the plugin
+ *
+ * @param name	The name of the parameter to change
+ * @param value	The value to set the parameter
+ */
+bool SouthPlugin::write(const string& name, const string& value)
+{
+	try {
+		if (pluginWritePtr)
+		{
+			return this->pluginWritePtr(instance, name, value);
+		}
+	} catch (exception &e) {
+		Logger::getLogger()->fatal("Unhanfled exception in plugin write operation: %s", e.what());
+	}
+	return false;
+}

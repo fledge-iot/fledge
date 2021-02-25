@@ -44,6 +44,7 @@ typedef void * PLUGIN_HANDLE;
 #define SP_GET_STORAGE		0x0040
 #define SP_DEPRECATED		0x0080
 #define SP_BUILTIN		0x0100
+#define SP_CONTROL		0x1000
 
 /**
  * Plugin types

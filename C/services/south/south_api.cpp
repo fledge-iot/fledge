@@ -1,0 +1,226 @@
+/**
+ * Fledge south service API
+ *
+ * Copyright (c) 2021 Dianomic Systems
+ *
+ * Author: Mark Riddoch
+ */
+#include <south_api.h>
+#include <south_service.h>
+#include <rapidjson/document.h>
+
+using namespace std;
+using namespace rapidjson;
+using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
+
+static SouthApi *api = NULL;
+
+/**
+ * Wrapper for the PUT setPoint API call
+ *
+ * @param response	The HTTP Response to send
+ * @param request	The HTTP Request
+ */
+static void setPointWrapper(shared_ptr<HttpServer::Response> response,
+		shared_ptr<HttpServer::Request> request)
+{
+	if (api)
+		api->setPoint(response, request);
+}
+
+/**
+ * Wrapper for the PUT operation API call
+ *
+ * @param response	The HTTP Response to send
+ * @param request	The HTTP Request
+ */
+static void operationWrapper(shared_ptr<HttpServer::Response> response,
+		shared_ptr<HttpServer::Request> request)
+{
+	if (api)
+		api->operation(response, request);
+}
+
+/**
+ * Wrapper for thread creation that is used to start the API
+ */
+static void startService()
+{
+	api->startServer();
+}
+
+/**
+ * South API class constructor
+ *
+ * @param service	The SouthService class this is the API for
+ */
+SouthApi::SouthApi(SouthService *service) : m_service(service), m_thread(NULL)
+{
+	m_logger = Logger::getLogger();
+	m_server = new HttpServer();
+	m_server->resource[SETPOINT]["PUT"] = setPointWrapper;
+	m_server->resource[OPERATION]["PUT"] = operationWrapper;
+	api = this;
+	m_thread = new thread(startService);
+}
+
+/**
+ * Destroy the API.
+ *
+ * Stop the service and wait fo rthe thread to terminate.
+ */
+SouthApi::~SouthApi()
+{
+	if (m_thread)
+	{
+		m_server->stop();
+		m_thread->join();
+		delete m_thread;
+	}
+	if (m_server)
+		delete m_server;
+}
+
+/**
+ * Called on the API service thread. Start the listener for HTTP requests
+ */
+void SouthApi::startServer()
+{
+	m_server->start();
+}
+
+/**
+ * Return the port the service is listening on
+ */
+unsigned short SouthApi::getListenerPort()
+{
+	return m_server->getLocalPort();
+}
+
+/**
+ * Implement the setPoint PUT request. Caues the write operation on
+ * the south plugin to be called with eahc of the set point parameters
+ *
+ * @param response	The HTTP response
+ * @param request	The HTTP request
+ */
+void SouthApi::setPoint(shared_ptr<HttpServer::Response> response,
+							shared_ptr<HttpServer::Request> request)
+{
+	string payload = request->content.string();
+	try {
+		Document doc;
+		ParseResult result = doc.Parse(payload.c_str());
+		if (result)
+		{
+			if (doc.HasMember("values") && doc["values"].IsArray())
+			{
+				bool status = true;
+				Value& values = doc["values"];
+				for (Value::ConstMemberIterator itr = values.MemberBegin();
+						itr != values.MemberEnd(); ++itr)
+				{
+					string name = itr->name.GetString();
+					if (itr->value.IsString())
+					{
+						string value = itr->value.GetString();
+						if (!m_service->setPoint(name, value))
+						{
+							status = false;
+						}
+					}
+				}
+				if (status)
+				{
+					string responsePayload = QUOTE({ "status" : "ok" });
+					respond(response, responsePayload);
+				}
+				else
+				{
+					string responsePayload = QUOTE({ "status" : "failed" });
+					respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
+				}
+				return;
+			}
+			else
+			{
+				string responsePayload = QUOTE({ "message" : "Missing 'values' array in payload" });
+				respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
+				return;
+			}
+		}
+		else
+		{
+			string responsePayload = QUOTE({ "message" : "Failed to parse request payload" });
+			respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
+		}
+		
+	} catch (exception &e) {
+		char buffer[80];
+		snprintf(buffer, sizeof(buffer), "\"Exception: %s\"", e.what());
+		string responsePayload = QUOTE({ "message" : buffer });
+		respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
+	}
+}
+
+/**
+ * Invoke an operation on the south plugin
+ *
+ * @param response	The HTTP response
+ * @param request	The HTTP request
+ */
+void SouthApi::operation(shared_ptr<HttpServer::Response> response,
+							shared_ptr<HttpServer::Request> request)
+{
+	string payload = request->content.string();
+	try {
+		Document doc;
+		ParseResult result = doc.Parse(payload.c_str());
+		if (result)
+		{
+			string operation;
+			if (doc.HasMember("operation") && doc["operation"].IsString())
+			{
+				operation = doc["operation"].GetString();
+			}
+			else
+			{
+				string responsePayload = QUOTE({ "message" : "Missing 'operation' in payload" });
+				respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
+				return;
+			}
+		}
+	} catch (exception &e) {
+	}
+	string responsePayload = QUOTE({ "status" : "failed" });
+	respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
+}
+
+/**
+ * Send a good HTTP response to the caller
+ *
+ * @param response	The HTTP response
+ * @param paylaod	The response payload
+ */
+void SouthApi::respond(shared_ptr<HttpServer::Response> response, const string& payload)
+{
+	*response << "HTTP/1.1 200 OK\r\n" 
+	       	<< "Content-Length: " << payload.length() << "\r\n"
+	       	<<  "Content-type: application/json\r\n\r\n"
+	       	<< payload;
+}
+
+/**
+ * Send an error response to the caller
+ *
+ * @param response	The HTTP response
+ * @param code		The HTTP error code
+ * @param payload	The resposne payload
+ */
+void SouthApi::respond(shared_ptr<HttpServer::Response> response, SimpleWeb::StatusCode code, const string& payload)
+{
+	*response << "HTTP/1.1 " << status_code(code) << "\r\n" 
+	       	<< "Content-Length: " << payload.length() << "\r\n"
+	       	<<  "Content-type: application/json\r\n\r\n"
+	       	<< payload;
+}

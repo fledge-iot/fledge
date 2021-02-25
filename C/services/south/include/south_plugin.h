@@ -18,6 +18,10 @@
 
 typedef void (*INGEST_CB)(void *, Reading);
 typedef void (*INGEST_CB2)(void *, std::vector<Reading *>*);
+typedef struct PLUGIN_PAREMETER {
+	std::string	name;
+	std::string	value;
+} PluginParameter;
 
 /**
  * Class that represents a south plugin.
@@ -44,10 +48,12 @@ public:
 	void		registerIngest(INGEST_CB, void *);
 	void		registerIngestV2(INGEST_CB2, void *);
 	bool		isAsync() { return info->options & SP_ASYNC; };
+	bool		hasControl() { return info->options & SP_CONTROL; };
 	bool		persistData() { return info->options & SP_PERSIST_DATA; };
 	void		startData(const std::string& pluginData);
 	std::string	shutdownSaveData();
-
+	bool		write(const std::string& name, const std::string& value);
+	bool		operation(const std::string& name, std::vector<PluginParameter>);
 private:
 	PLUGIN_HANDLE	instance;
 	void		(*pluginStartPtr)(PLUGIN_HANDLE);
@@ -61,6 +67,9 @@ private:
 	std::string	(*pluginShutdownDataPtr)(const PLUGIN_HANDLE);
 	void		(*pluginStartDataPtr)(PLUGIN_HANDLE,
 					      const std::string& pluginData);
+	bool		(*pluginWritePtr)(PLUGIN_HANDLE, const std::string& name, const std::string& value);
+	bool		(*pluginOperationPtr)(const PLUGIN_HANDLE, const std::string& name, int count,
+						void **parameters);
 };
 
 #endif

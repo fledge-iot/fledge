@@ -72,9 +72,24 @@ def plugin_start(handle):
 
 def plugin_send(handle, readings):
     _LOGGER.info("plugin_send")
-    # Just pass a fake id as thrird parameter
-    return _plugin.plugin_send(handle, readings, "000001")
 
+    # Create loop object
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    # Just pass a fake id as thrird parameter
+    coroObj = _plugin.plugin_send(handle, readings, "000001")
+
+    # Set coroutine to wait for
+    futures = [coroObj]
+    done, result = loop.run_until_complete(asyncio.wait(futures))
+
+    numSent = 0
+    for t in done:
+        # Fetch done task result
+        retCode, lastId, numSent = t.result()
+
+    return numSent
 
 def _revised_config_for_json_item(config):
     # North C server sends "config" argument as string in which all JSON type items' components,

@@ -3558,6 +3558,17 @@ std::string OMF::ApplyPIServerNamingRulesObj(const std::string &objName, bool *c
 
 	nameFixed = ApplyPIServerNamingRulesInvalidChars(nameFixed, changed);
 
+	/// Names cannot begin with '__'. These are reserved for system use.
+	if (
+		nameFixed[0] == '_'  ||
+		nameFixed[1] == '_'
+		)
+	{
+		nameFixed.erase(0, 1);
+		if (changed)
+			*changed = true;
+	}
+
 	Logger::getLogger()->debug("xxx %s - final :%s: ", __FUNCTION__, nameFixed.c_str());
 
 	return (nameFixed);
@@ -3614,6 +3625,24 @@ std::string OMF::ApplyPIServerNamingRulesPath(const std::string &objName, bool *
 
 	nameFixed = ApplyPIServerNamingRulesInvalidChars(nameFixed, changed);
 
+	/// Names cannot begin with '__'. These are reserved for system use.
+	if (
+		nameFixed[0] == '_'  ||
+		nameFixed[1] == '_'
+		)
+	{
+		nameFixed.erase(0, 1);
+		if (changed)
+			*changed = true;
+	}
+
+	if (nameFixed.find("/__") != string::npos)
+	{
+		StringReplaceAll(nameFixed,"/__","/_");
+		if (changed)
+			*changed = true;
+
+	}
 
 	// FIXME_I:
 	Logger::getLogger()->debug("xxx %s - final :%s: ", __FUNCTION__, nameFixed.c_str());

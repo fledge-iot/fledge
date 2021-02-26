@@ -547,7 +547,7 @@ static void logErrorMessage()
  * @param    readings	The input readings vector
  * @return		PyList object on success or NULL on errors
  */
-PyObject* createReadingsList(const std::vector<Reading *>& readings)
+PyObject* createReadingsList(const std::vector<Reading *>& readings, bool changeDictKeys)
 {
 	// TODO add checks to all PyList_XYZ methods
 	PyObject* readingsList = PyList_New(0);
@@ -595,11 +595,18 @@ PyObject* createReadingsList(const std::vector<Reading *>& readings)
 		}
 
 		// Add reading datapoints
-		PyDict_SetItemString(readingObject, "readings", newDataPoints);
+		if (changeDictKeys)
+			PyDict_SetItemString(readingObject, "reading", newDataPoints);
+		else
+			PyDict_SetItemString(readingObject, "readings", newDataPoints);
 
 		// Add reading asset name
 		PyObject* assetVal = PyUnicode_FromString((*elem)->getAssetName().c_str());
-		PyDict_SetItemString(readingObject, "asset", assetVal);
+
+		if (changeDictKeys)
+			PyDict_SetItemString(readingObject, "asset_code", assetVal);
+		else
+			PyDict_SetItemString(readingObject, "asset", assetVal);
 
 		/**
 		 * Set id, uuid, timestamp and user_timestamp

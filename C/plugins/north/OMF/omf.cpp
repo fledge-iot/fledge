@@ -496,8 +496,6 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 		// Create header for Link data
 		vector<pair<string, string>> resLinkData = OMF::createMessageHeader("Data");
 
-		// FIXME_I
-		//string assetName = row.getAssetName();
 		string assetName = m_assetName;
 		string AFHierarchyLevel;
 		string prefix;
@@ -518,14 +516,6 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 				{
 					objectPrefix = prefix;
 				}
-
-
-				// FIXME_I:
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("%s - AFHierarchyLevel :%s: ", __FUNCTION__,  AFHierarchyLevel.c_str());
-				Logger::getLogger()->debug("%s - prefix :%s: ", __FUNCTION__,  prefix.c_str());
-				Logger::getLogger()->debug("%s - objectPrefix :%s: ", __FUNCTION__,  objectPrefix.c_str());
-				Logger::getLogger()->setMinLevel("warning");
 
 				// Create data for Static Data message
 				string typeLinkData = OMF::createLinkData(row, AFHierarchyLevel, prefix, objectPrefix, hints);
@@ -899,7 +889,16 @@ bool OMF::handleAFHierarchiesMetadataMap() {
 		for (Value::ConstMemberIterator itr = JSonExist.MemberBegin(); itr != JSonExist.MemberEnd(); ++itr)
 		{
 			name = itr->name.GetString();
-			value = itr->value.GetString();
+
+			{
+				bool changed = false;
+				value = ApplyPIServerNamingRulesPath(itr->value.GetString(), &changed);
+
+				if (changed) {
+
+					Logger::getLogger()->info("%s - AF hierarchy metadata exists rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itr->value.GetString(), value.c_str() );
+				}
+			}
 			Logger::getLogger()->debug("AFHierarchiesMetadataMap - exist name :%s: value :%s:", name.c_str(), value.c_str());
 
 			sendAFHierarchy(value.c_str());
@@ -913,7 +912,16 @@ bool OMF::handleAFHierarchiesMetadataMap() {
 		for (Value::ConstMemberIterator itr = JSonNonExist.MemberBegin(); itr != JSonNonExist.MemberEnd(); ++itr)
 		{
 			name = itr->name.GetString();
-			value = itr->value.GetString();
+			{
+				bool changed = false;
+				value = ApplyPIServerNamingRulesPath(itr->value.GetString(), &changed);
+
+				if (changed) {
+
+					Logger::getLogger()->info("%s - AF hierarchy metadata nonexist rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itr->value.GetString(), value.c_str() );
+				}
+			}
+
 			Logger::getLogger()->debug("AFHierarchiesMetadataMap - nonexist name :%s: value :%s:", name.c_str(), value.c_str());
 			sendAFHierarchy(value.c_str());
 		}
@@ -931,7 +939,15 @@ bool OMF::handleAFHierarchiesMetadataMap() {
 			for (Value::ConstMemberIterator itrL2 = itr->value.MemberBegin(); itrL2 != itr->value.MemberEnd(); ++itrL2)
 			{
 				name = itrL2->name.GetString();
-				value = itrL2->value.GetString();
+				{
+					bool changed = false;
+					value = ApplyPIServerNamingRulesPath(itr->value.GetString(), &changed);
+
+					if (changed) {
+
+						Logger::getLogger()->info("%s - AF hierarchy metadata equal rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itr->value.GetString(), value.c_str() );
+					}
+				}
 				Logger::getLogger()->debug("AFHierarchiesMetadataMap - equal name :%s: value :%s:", name.c_str(), value.c_str());
 				sendAFHierarchy(value.c_str());
 			}
@@ -950,7 +966,15 @@ bool OMF::handleAFHierarchiesMetadataMap() {
 			for (Value::ConstMemberIterator itrL2 = itr->value.MemberBegin(); itrL2 != itr->value.MemberEnd(); ++itrL2)
 			{
 				name = itrL2->name.GetString();
-				value = itrL2->value.GetString();
+				{
+					bool changed = false;
+					value = ApplyPIServerNamingRulesPath(itr->value.GetString(), &changed);
+
+					if (changed) {
+
+						Logger::getLogger()->info("%s - AF hierarchy metadata notequal rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itr->value.GetString(), value.c_str() );
+					}
+				}
 				Logger::getLogger()->debug("AFHierarchiesMetadataMap - notequal name :%s: value :%s:", name.c_str(), value.c_str());
 				sendAFHierarchy(value.c_str());
 			}
@@ -1065,16 +1089,12 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		bool changed = false;
 		string  origDefaultAFLocation;
 
-		// FIXME_I:
 		origDefaultAFLocation = m_DefaultAFLocation;
 		m_DefaultAFLocation = ApplyPIServerNamingRulesPath(m_DefaultAFLocation, &changed);
 
 		if (changed) {
 
-			// FIXME_I:
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->info("xxx2 %s - AF hierarchy changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, origDefaultAFLocation.c_str(), m_DefaultAFLocation.c_str() );
-			Logger::getLogger()->setMinLevel("warning");
+			Logger::getLogger()->info("%s - AF hierarchy changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, origDefaultAFLocation.c_str(), m_DefaultAFLocation.c_str() );
 		}
 	}
 
@@ -1129,10 +1149,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			m_assetName = ApplyPIServerNamingRulesObj(assetNameFledge, &changed);
 			if (changed) {
 
-				// FIXME_I:
-				Logger::getLogger()->setMinLevel("debug");
 				Logger::getLogger()->info("%s -  3 Asset name changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, assetNameFledge.c_str(), m_assetName.c_str() );
-				Logger::getLogger()->setMinLevel("warning");
 			}
 		}
 
@@ -1180,12 +1197,6 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 				setAFHierarchy();
 			}
 
-			// FIXME_I:
-			// FIXME_I:
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->info("%s - 1a m_AFHierarchyLevel :%s:", __FUNCTION__,   m_AFHierarchyLevel.c_str() );
-			Logger::getLogger()->setMinLevel("warning");
-
 			sendDataTypes = (m_lastError == false && skipSentDataTypes == true) ?
 					 // Send if not already sent
 					 !OMF::getCreatedTypes(keyComplete, *reading, hints) :
@@ -1219,12 +1230,6 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 					AFHierarchySent = true;
 				}
 			}
-
-			// FIXME_I:
-			// FIXME_I:
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->info("%s - 2a m_AFHierarchyLevel :%s:", __FUNCTION__,   m_AFHierarchyLevel.c_str() );
-			Logger::getLogger()->setMinLevel("warning");
 
 			if (usingTypeNameHint)
 			{
@@ -1674,7 +1679,6 @@ const std::string OMF::createTypeData(const Reading& reading, OMFHints *hints)
 		for (auto it = m_staticData->cbegin(); it != m_staticData->cend(); ++it)
 		{
 			tData.append("\"");
-			// FIXME_I:
 			tData.append(ApplyPIServerNamingRulesObj(it->first.c_str(), nullptr) );
 			tData.append("\": {\"type\": \"string\"},");
 		}
@@ -2509,26 +2513,15 @@ bool OMF::HandleAFMapNames(Document& JSon)
 	{
 		name = itr->name.GetString();
 
-		// FIXME_I:
-		//value = itr->value.GetString();
-
 		{
-			// FIXME_I:
 			bool changed = false;
-			string  origDefaultAFLocation;
-
 			value = ApplyPIServerNamingRulesPath(itr->value.GetString(), &changed);
 
 			if (changed) {
 
-				// FIXME_I:
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->info("xxx %s - AF hierarchy changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itr->value.GetString(), value.c_str() );
-				Logger::getLogger()->setMinLevel("warning");
+				Logger::getLogger()->info("%s - AF hierarchy name rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itr->value.GetString(), value.c_str() );
 			}
 		}
-
-
 		Logger::getLogger()->debug("HandleAFMapNames - Exist name :%s: value :%s:", name.c_str(), value.c_str());
 
 		auto newMapValue = make_pair(name,value);
@@ -2562,7 +2555,15 @@ bool OMF::HandleAFMapMetedata(Document& JSon)
 		for (Value::ConstMemberIterator itr = JSonExist.MemberBegin(); itr != JSonExist.MemberEnd(); ++itr)
 		{
 			name = itr->name.GetString();
-			value = itr->value.GetString();
+			{
+				bool changed = false;
+				value = ApplyPIServerNamingRulesPath(itr->value.GetString(), &changed);
+
+				if (changed) {
+
+					Logger::getLogger()->info("%s - AF hierarchy metadata exists rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itr->value.GetString(), value.c_str() );
+				}
+			}
 			Logger::getLogger()->debug("HandleAFMapMetedata - Exist name :%s: value :%s:", name.c_str(), value.c_str());
 
 			auto newMapValue = make_pair(name,value);
@@ -2581,7 +2582,15 @@ bool OMF::HandleAFMapMetedata(Document& JSon)
 		for (Value::ConstMemberIterator itr = JSonNonExist.MemberBegin(); itr != JSonNonExist.MemberEnd(); ++itr)
 		{
 			name = itr->name.GetString();
-			value = itr->value.GetString();
+			{
+				bool changed = false;
+				value = ApplyPIServerNamingRulesPath(itr->value.GetString(), &changed);
+
+				if (changed) {
+
+					Logger::getLogger()->info("%s - AF hierarchy metadata nonexist rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itr->value.GetString(), value.c_str() );
+				}
+			}
 			Logger::getLogger()->debug("HandleAFMapMetedata - Non Exist name :%s: value :%s:", name.c_str(), value.c_str());
 
 			auto newMapValue = make_pair(name,value);
@@ -2609,7 +2618,15 @@ bool OMF::HandleAFMapMetedata(Document& JSon)
 			for (Value::ConstMemberIterator itrL2 = itr->value.MemberBegin(); itrL2 != itr->value.MemberEnd(); ++itrL2)
 			{
 				value = itrL2->name.GetString();
-				path  = itrL2->value.GetString();
+				{
+					bool changed = false;
+					path = ApplyPIServerNamingRulesPath(itrL2->value.GetString(), &changed);
+
+					if (changed) {
+
+						Logger::getLogger()->info("%s - AF hierarchy metadata equal rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itrL2->value.GetString(), path.c_str() );
+					}
+				}
 				Logger::getLogger()->debug("HandleAFMapMetedata - equal property :%s: name :%s: value :%s:", property.c_str() , value.c_str(), path.c_str());
 
 				auto item = make_pair(value,path);
@@ -2635,7 +2652,16 @@ bool OMF::HandleAFMapMetedata(Document& JSon)
 			for (Value::ConstMemberIterator itrL2 = itr->value.MemberBegin(); itrL2 != itr->value.MemberEnd(); ++itrL2)
 			{
 				value = itrL2->name.GetString();
-				path  = itrL2->value.GetString();
+				{
+					bool changed = false;
+					path = ApplyPIServerNamingRulesPath(itrL2->value.GetString(), &changed);
+
+					if (changed) {
+
+						Logger::getLogger()->info("%s - AF hierarchy metadata notequal rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itrL2->value.GetString(), path.c_str() );
+					}
+				}
+
 				Logger::getLogger()->debug("HandleAFMapMetedata - Not equal property :%s: name :%s: value :%s:", property.c_str() , value.c_str(), path.c_str());
 
 				auto item = make_pair(value,path);
@@ -3484,10 +3510,8 @@ static bool isTypeSupported(DatapointValue& dataPoint)
 	}
 }
 
-
-
 /**
- * Check a PI Server object name and returns the proper name to use following the naming rules
+ * Check a PI Server name and returns the proper name to use following the naming rules
  *
  * Invalid chars: Control characters plus: * ? ; { } [ ] | \ ` ' "
  *
@@ -3540,8 +3564,9 @@ std::string OMF::ApplyPIServerNamingRulesInvalidChars(const std::string &objName
  * - Trailing spaces are removed
  * - Maximum name length is 200 characters.
  * - Valid chars
+ * - Names cannot begin with '__', These are reserved for system use, substituted with single '_'
  *
- * Names on PI-Server side are not case sensitive
+ * Note: Names on PI-Server side are not case sensitive
  *
  * @param    objName  The object name to verify
  * @param    changed  if not null, it is set to true if a change occur
@@ -3560,7 +3585,7 @@ std::string OMF::ApplyPIServerNamingRulesObj(const std::string &objName, bool *c
 
 	if (nameFixed.empty ()) {
 
-		Logger::getLogger()->debug("%s - name empty", __FUNCTION__);
+		Logger::getLogger()->debug("%s - object name empty", __FUNCTION__);
 
 		nameFixed = "_";
 		if (changed)
@@ -3597,12 +3622,13 @@ std::string OMF::ApplyPIServerNamingRulesObj(const std::string &objName, bool *c
 
 
 /**
- * Check a PI Server object name and returns the proper name to use following the naming rules:
+ * Check a PI Server path name and returns the proper name to use following the naming rules:
  *
  * - Blank names are not permitted, substituted with '_'
  * - Trailing spaces are removed
  * - Maximum name length is 200 characters.
  * - Valid chars
+ * - Names cannot begin with '__', These are reserved for system use, substituted with single '_'
  *
  * Names on PI-Server side are not case sensitive
  *
@@ -3614,21 +3640,16 @@ std::string OMF::ApplyPIServerNamingRulesPath(const std::string &objName, bool *
 {
 	std::string nameFixed;
 
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-
 	if (changed)
 		*changed = false;
 
 	nameFixed = StringTrim(objName);
 
-	Logger::getLogger()->debug("xxx %s - original :%s: trimmed :%s:", __FUNCTION__, objName.c_str(), nameFixed.c_str());
+	Logger::getLogger()->debug("%s - original :%s: trimmed :%s:", __FUNCTION__, objName.c_str(), nameFixed.c_str());
 
 	if (nameFixed.empty ()) {
 
-		Logger::getLogger()->debug("%s - name empty", __FUNCTION__);
-
-		// FIXME_I:
+		Logger::getLogger()->debug("%s - path empty", __FUNCTION__);
 		nameFixed = "_";
 		if (changed)
 			*changed = true;
@@ -3640,7 +3661,7 @@ std::string OMF::ApplyPIServerNamingRulesPath(const std::string &objName, bool *
 			if (changed)
 				*changed = true;
 
-			Logger::getLogger()->warn("%s - object name too long, truncated to :%s: ", __FUNCTION__, nameFixed.c_str() );
+			Logger::getLogger()->warn("%s - path too long, truncated to :%s: ", __FUNCTION__, nameFixed.c_str() );
 		}
 	}
 
@@ -3665,10 +3686,7 @@ std::string OMF::ApplyPIServerNamingRulesPath(const std::string &objName, bool *
 
 	}
 
-	// FIXME_I:
-	Logger::getLogger()->debug("xxx %s - final :%s: ", __FUNCTION__, nameFixed.c_str());
-	Logger::getLogger()->setMinLevel("warning");
-
+	Logger::getLogger()->debug("%s - final :%s: ", __FUNCTION__, nameFixed.c_str());
 
 	return (nameFixed);
 }

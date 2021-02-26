@@ -11,6 +11,7 @@ import importlib.util
 import sys
 import json
 import logging
+import asyncio
 
 from fledge.common import logger
 from fledge.common.common import _FLEDGE_ROOT

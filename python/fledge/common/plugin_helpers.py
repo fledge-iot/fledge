@@ -14,6 +14,9 @@ __version__ = "${VERSION}"
 import re
 import copy
 
+import logging
+from fledge.common import logger, iprpc
+
 class HandleMap():
     # keep a map of json-able handles to internal objects that have the working instance state
     def __init__(self, name):
@@ -49,7 +52,14 @@ class PluginHandle(object):
         'str': str,
         'enumeration': str,
     }
-        
+
+    def __init__(self, service_name, cbinfo=(None, None)):
+        # for filter plugins save the info that will be sent to the filter_ingest callback
+        self.ingest_ref, self.callback = cbinfo
+
+        # give us a logger with our service name
+        self.logger = logger.setup(service_name)
+
     def config_update(self, udict):
         """ config_update - store config values in the (derived) handle """
         
@@ -66,4 +76,42 @@ class PluginHandle(object):
             _v = get_typed_value(k)
             setattr(self, snake_case(k), _v)
 
+    def rpc_setup(self, config, module_dir='', restart_rpc=False):
+        """ rpc_setup -- create a new IPC server configuration, optionally (re)starting the IPC server """
+        _server_module = getattr(self, 'RPC_SERVER_NAME', None)
         
+        if _server_module is None:
+            raise ValueError("RPC_SERVER_NAME class variable must be set to the name of the RPC server module")
+        
+        # create the server that does the signal processing on frame data
+        if self.rpc is None or restart_rpc:
+            self.rpc = iprpc.IPCModuleClient(_server_module, module_dir)
+        self.rpc.plugin_init(self._rpc_config())
+    
+    def _rpc_config(self):
+        """ _rpc_config -- return the dict of k,v to be updated in the server when rpc configuration changes """
+
+        # BY CONVENTION, RPC_PARAMS is the slot which has the names of config members to be sent to
+        # the rpc server as config values
+
+        _params = getattr(self, 'RPC_CONFIG_MEMBERS', [])
+        return {k: getattr(self, k) for k in _params}
+
+    def shutdown(self):
+        if self.rpc is not None:
+            self.rpc.plugin_shutdown()
+
+class PluginRPCServer(iprpc.InterProcessRPC):
+    """ PluginRPCServer - helper class that simplifies writing iprpc server-based plugins """
+
+    def __init__(self, service_name):
+        super().__init__()
+
+        self.logger = logger.setup(service_name)
+
+    def config_update(self, config):
+        # servers receive unpickled dict's with typed values
+        for k, v in config.items():
+            setattr(self, k, v)
+        
+

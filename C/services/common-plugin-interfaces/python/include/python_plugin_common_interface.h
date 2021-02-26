@@ -88,6 +88,8 @@ static void logErrorMessage();
 static bool numpyImportError = false;
 void setImportParameters(string& shimLayerPath, string& fledgePythonDir);
 
+PyObject* createReadingsList(const vector<Reading *>& readings, bool changeDictKeys = false);
+
 /**
  * Destructor for PythonPluginHandle
  *    - Free up owned references

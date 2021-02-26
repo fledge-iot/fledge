@@ -28,7 +28,6 @@ extern void plugin_reconfigure_fn(PLUGIN_HANDLE*, const std::string&);
 extern void plugin_shutdown_fn(PLUGIN_HANDLE);
 extern void logErrorMessage();
 extern PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject *);
-extern PyObject* createReadingsList(const vector<Reading *>& readings);
 
 // North plugin entry points
 void plugin_start_fn(PLUGIN_HANDLE handle);
@@ -362,8 +361,8 @@ uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& read
 		return data;
 	}
 
-	// Create the object with readings content
-	PyObject *readingsList = createReadingsList(readings);
+	// Create the object with readings content (with "asset_code" and "reading" keys)
+	PyObject *readingsList = createReadingsList(readings, true);
 
 	// Fetch result
 	PyObject* pReturn = PyObject_CallFunction(pFunc,

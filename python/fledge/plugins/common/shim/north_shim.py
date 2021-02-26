@@ -64,10 +64,7 @@ def plugin_shutdown(handle):
 
 def plugin_start(handle):
     _LOGGER.info("plugin_start")
-    #if _plugin.plugin_start:
-    #    return _plugin.plugin_start(handle)
-    #else:
-    #    return None
+    #  plugin_start interface is currenlty not available
     return None
 
 

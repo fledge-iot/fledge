@@ -18,10 +18,6 @@
 
 typedef void (*INGEST_CB)(void *, Reading);
 typedef void (*INGEST_CB2)(void *, std::vector<Reading *>*);
-typedef struct PLUGIN_PAREMETER {
-	std::string	name;
-	std::string	value;
-} PluginParameter;
 
 /**
  * Class that represents a south plugin.
@@ -53,7 +49,7 @@ public:
 	void		startData(const std::string& pluginData);
 	std::string	shutdownSaveData();
 	bool		write(const std::string& name, const std::string& value);
-	bool		operation(const std::string& name, std::vector<PluginParameter>& );
+	bool		operation(const std::string& name, std::vector<PLUGIN_PARAMETER *>& );
 private:
 	PLUGIN_HANDLE	instance;
 	void		(*pluginStartPtr)(PLUGIN_HANDLE);
@@ -69,7 +65,7 @@ private:
 					      const std::string& pluginData);
 	bool		(*pluginWritePtr)(PLUGIN_HANDLE, const std::string& name, const std::string& value);
 	bool		(*pluginOperationPtr)(const PLUGIN_HANDLE, const std::string& name, int count,
-						PluginParameter  **parameters);
+						PLUGIN_PARAMETER  **parameters);
 };
 
 #endif

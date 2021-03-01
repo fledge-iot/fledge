@@ -9,6 +9,7 @@
  *
  * Author: Mark Riddoch, Massimiliano Pinto
  */
+#include <string>
 
 #define TO_STRING(...) DEFER(TO_STRING_)(__VA_ARGS__)
 #define DEFER(x) x
@@ -30,6 +31,11 @@ typedef struct {
         bool         retryable;
 } PLUGIN_ERROR;
  
+typedef struct plugin_paremeter {
+	std::string	name;
+	std::string	value;
+} PLUGIN_PARAMETER;
+
 typedef void * PLUGIN_HANDLE;
  
 /**

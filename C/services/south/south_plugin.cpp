@@ -104,7 +104,7 @@ SouthPlugin::SouthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category) :
 		pluginOperationPtr = (bool (*)(const PLUGIN_HANDLE,
 					const std::string&,
 					int,
-					PluginParameter **))
+					PLUGIN_PARAMETER **))
 			manager->resolveSymbol(handle, "plugin_operation");
 	}
 }
@@ -275,28 +275,28 @@ bool SouthPlugin::write(const string& name, const string& value)
  * @param parameters	The paramters for the operation.
  * @return bool	Status of the operation
  */
-bool SouthPlugin::operation(const string& name, vector<PluginParameter>& parameters)
+bool SouthPlugin::operation(const string& name, vector<PLUGIN_PARAMETER *>& parameters)
 {
 	bool status = false;
 
-	if (!this->pluginOperationPtr)
+	if (! this->pluginOperationPtr)
 	{
 		Logger::getLogger()->error(
-				"Attempt to invoke an operation '%s' on a plugin that does not support operations",
+				"Attempt to invoke an operation '%s' on a plugin that does not provide operation entry point",
 				name.c_str());
 		return status;
 	}
 	unsigned int count = parameters.size();
-	PluginParameter **params = (PluginParameter **)malloc(sizeof(PluginParameter *) * (count + 1));
+	PLUGIN_PARAMETER **params = (PLUGIN_PARAMETER **)malloc(sizeof(PLUGIN_PARAMETER *) * (count + 1));
 	if (params == NULL)
 	{
-		Logger::getLogger()->fatal("Unable to allocatte parametersm, out of memory");
+		Logger::getLogger()->fatal("Unable to allocate parameters, out of memory");
 		return status;
 	}
 
 	for (unsigned int i = 0; i < parameters.size(); i++)
 	{
-		params[i] = &parameters[i];
+		params[i] = parameters[i];
 	}
 	params[count] = NULL;
 	try {

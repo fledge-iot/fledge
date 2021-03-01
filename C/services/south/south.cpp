@@ -810,7 +810,7 @@ struct timeval now, res;
 }
 
 /**
- * Perform a setPoint operaiton on the south plugin
+ * Perform a setPoint operation on the south plugin
  *
  * @param name	Name of the point to set
  * @param value	The value to set
@@ -820,12 +820,31 @@ bool SouthService::setPoint(const string& name, const string& value)
 {
 	if (southPlugin->hasControl())
 	{
-		// TODO Do the writes to the plugin
-		return false;
+		return southPlugin->write(name, value);
 	}
 	else
 	{
 		logger->warn("SetPoint operation %s = %s attempted on plugin that does not support control", name.c_str(), value.c_str());
+		return false;
+	}
+}
+
+/**
+ * Perform an operation on the south plugin
+ *
+ * @param name	Name of the operation
+ * @param params The parameters for the operaiton, if any
+ * @return	Success or failure of the operation
+ */
+bool SouthService::operation(const string& operation, vector<PLUGIN_PARAMETER *>& params)
+{
+	if (southPlugin->hasControl())
+	{
+		return southPlugin->operation(operation, params);
+	}
+	else
+	{
+		logger->warn("Operation %s attempted on plugin that does not support control", operation.c_str());
 		return false;
 	}
 }

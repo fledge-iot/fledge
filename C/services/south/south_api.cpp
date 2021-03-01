@@ -15,6 +15,8 @@ using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 
 static SouthApi *api = NULL;
 
+/* TODO Add security */
+
 /**
  * Wrapper for the PUT setPoint API call
  *
@@ -58,6 +60,8 @@ SouthApi::SouthApi(SouthService *service) : m_service(service), m_thread(NULL)
 {
 	m_logger = Logger::getLogger();
 	m_server = new HttpServer();
+	m_server->config.port = 0;
+	m_server->config.thread_pool_size = 1;
 	m_server->resource[SETPOINT]["PUT"] = setPointWrapper;
 	m_server->resource[OPERATION]["PUT"] = operationWrapper;
 	api = this;
@@ -94,6 +98,10 @@ void SouthApi::startServer()
  */
 unsigned short SouthApi::getListenerPort()
 {
+	int max_wait = 10;
+	// Need to make sure the server thread has started
+	while (m_server->getLocalPort() == 0 && max_wait-- > 0)
+		usleep(100);
 	return m_server->getLocalPort();
 }
 
@@ -113,7 +121,7 @@ void SouthApi::setPoint(shared_ptr<HttpServer::Response> response,
 		ParseResult result = doc.Parse(payload.c_str());
 		if (result)
 		{
-			if (doc.HasMember("values") && doc["values"].IsArray())
+			if (doc.HasMember("values") && doc["values"].IsObject())
 			{
 				bool status = true;
 				Value& values = doc["values"];
@@ -144,7 +152,7 @@ void SouthApi::setPoint(shared_ptr<HttpServer::Response> response,
 			}
 			else
 			{
-				string responsePayload = QUOTE({ "message" : "Missing 'values' array in payload" });
+				string responsePayload = QUOTE({ "message" : "Missing 'values' object in payload" });
 				respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 				return;
 			}
@@ -182,6 +190,48 @@ void SouthApi::operation(shared_ptr<HttpServer::Response> response,
 			if (doc.HasMember("operation") && doc["operation"].IsString())
 			{
 				operation = doc["operation"].GetString();
+				vector<PLUGIN_PARAMETER *> parameters;
+
+				if (doc.HasMember("parameters") && doc["parameters"].IsObject())
+				{
+					Value& values = doc["parameters"];
+					for (Value::ConstMemberIterator itr = values.MemberBegin();
+							itr != values.MemberEnd(); ++itr)
+					{
+						string name = itr->name.GetString();
+						if (itr->value.IsString())
+						{
+							string value = itr->value.GetString();
+							PLUGIN_PARAMETER *param = new PLUGIN_PARAMETER;
+							param->name = name;
+							param->value = value;
+							parameters.push_back(param);
+						}
+					}
+				}
+				else if (doc.HasMember("parameters"))
+				{
+					string responsePayload = QUOTE({ "message" : "If present, parameters must be a JSON object" });
+					respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
+					return;
+				}
+
+				bool status = m_service->operation(operation, parameters);
+
+				for (auto param : parameters)
+					delete param;
+				if (status)
+				{
+					string responsePayload = QUOTE({ "status" : "ok" });
+					respond(response, responsePayload);
+				}
+				else
+				{
+					string responsePayload = QUOTE({ "status" : "failed" });
+					respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
+				}
+				return;
+				
 			}
 			else
 			{

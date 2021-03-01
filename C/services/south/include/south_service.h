@@ -50,8 +50,7 @@ class SouthService : public ServiceHandler {
 						const std::string&);
 		static ManagementClient *	getMgmtClient();
 		bool				setPoint(const std::string& name, const std::string& value);
-		void				operation(const std::string& name);
-		void				operation();
+		bool				operation(const std::string& name, std::vector<PLUGIN_PARAMETER *>& );
 	private:
 		void				addConfigDefaults(DefaultConfigCategory& defaults);
 		bool 				loadPlugin();

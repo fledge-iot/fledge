@@ -31,7 +31,7 @@ typedef struct {
         bool         retryable;
 } PLUGIN_ERROR;
  
-typedef struct plugin_paremeter {
+typedef struct plugin_parameter {
 	std::string	name;
 	std::string	value;
 } PLUGIN_PARAMETER;

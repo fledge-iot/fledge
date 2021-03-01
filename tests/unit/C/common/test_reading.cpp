@@ -45,8 +45,6 @@ TEST(ReadingTest, FloatArray)
 	ASSERT_NE(json.find(string("\"asset_code\":\"test55\"")), std::string::npos);
 	ASSERT_NE(json.find(string("\"reading\":{\"a\":[3.1415, -128, 0, -0.0021, 0.2345]}")), std::string::npos);
 	ASSERT_NE(json.find(string("\"user_ts\":")), std::string::npos);
-
-	std::cerr << "Result of FloatArray: '" << json << "'" << std::endl;
 }
 
 TEST(ReadingTest, GMT)

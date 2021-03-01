@@ -315,7 +315,7 @@ char *trim(char *str)
 }
 
 /**
- * Remove space at both ends of a string
+ * Remove spaces at the left side of a string
  */
 std::string StringLTrim(const std::string& str)
 {
@@ -330,6 +330,9 @@ std::string StringLTrim(const std::string& str)
 	return (output);
 }
 
+/**
+ * Remove spaces at the right side of a string
+ */
 std::string StringRTrim(const std::string& str)
 {
 	string output;
@@ -343,6 +346,9 @@ std::string StringRTrim(const std::string& str)
 	return (output);
 }
 
+/**
+ * Remove spaces at both ends of a string
+ */
 std::string StringTrim(const std::string& str)
 {
 	return StringRTrim(StringLTrim(str));

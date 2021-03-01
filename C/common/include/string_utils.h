@@ -35,7 +35,7 @@ void StringEscapeQuotes(string& s);
 
 char *trim(char *str);
 std::string StringLTrim(const std::string& str);
-std::string StringRTtrim(const std::string& str);
+std::string StringRTrim(const std::string& str);
 std::string StringTrim(const std::string& str);
 
 #endif

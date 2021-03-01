@@ -118,9 +118,9 @@ INSTANTIATE_TEST_CASE_P(
 // Test String trim
 TEST(StringTrim, StringTrimCases)
 {
-	ASSERT_EQ(StringRTtrim("xxx") , "xxx");
-	ASSERT_EQ(StringRTtrim("xxx "), "xxx");
-	ASSERT_EQ(StringRTtrim("xxx   "), "xxx");
+	ASSERT_EQ(StringRTrim("xxx") , "xxx");
+	ASSERT_EQ(StringRTrim("xxx "), "xxx");
+	ASSERT_EQ(StringRTrim("xxx   "), "xxx");
 
 	ASSERT_EQ(StringLTrim("xxx"), "xxx");
 	ASSERT_EQ(StringLTrim(" xxx"), "xxx");

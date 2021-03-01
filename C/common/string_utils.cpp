@@ -330,7 +330,7 @@ std::string StringLTrim(const std::string& str)
 	return (output);
 }
 
-std::string StringRTtrim(const std::string& str)
+std::string StringRTrim(const std::string& str)
 {
 	string output;
 	size_t pos = str.find_last_not_of(" ");
@@ -345,5 +345,5 @@ std::string StringRTtrim(const std::string& str)
 
 std::string StringTrim(const std::string& str)
 {
-	return StringRTtrim(StringLTrim(str));
+	return StringRTrim(StringLTrim(str));
 }

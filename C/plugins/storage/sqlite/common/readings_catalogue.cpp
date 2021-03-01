@@ -1946,7 +1946,7 @@ int ReadingsCatalogue::getUsedTablesDbId(int dbId)
  *
  * @return - returns SQLITE_OK if all the sql commands are properly executed
  */
-int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBase, char **zErrMsg, unsigned int *rowsAffected)
+int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBase, char **zErrMsg, unsigned long *rowsAffected)
 {
 	string dbReadingsName;
 	string dbName;
@@ -1990,8 +1990,11 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
 				sqlite3_free(zErrMsg);
 				break;
 			}
-			if  (rowsAffected != nullptr)
-				*rowsAffected += sqlite3_changes(dbHandle);
+			if  (rowsAffected != nullptr) {
+
+				*rowsAffected += (unsigned long ) sqlite3_changes(dbHandle);
+			}
+
 		}
 	}
 

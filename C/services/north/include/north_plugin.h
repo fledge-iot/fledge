@@ -16,6 +16,9 @@
 #include <string>
 #include <reading.h>
 
+typedef void (*INGEST_CB)(void *, Reading);
+typedef void (*INGEST_CB2)(void *, std::vector<Reading *>*);
+
 /**
  * Class that represents a north plugin.
  *

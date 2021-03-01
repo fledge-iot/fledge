@@ -53,7 +53,7 @@ public:
 	void		startData(const std::string& pluginData);
 	std::string	shutdownSaveData();
 	bool		write(const std::string& name, const std::string& value);
-	bool		operation(const std::string& name, std::vector<PluginParameter>);
+	bool		operation(const std::string& name, std::vector<PluginParameter>& );
 private:
 	PLUGIN_HANDLE	instance;
 	void		(*pluginStartPtr)(PLUGIN_HANDLE);
@@ -69,7 +69,7 @@ private:
 					      const std::string& pluginData);
 	bool		(*pluginWritePtr)(PLUGIN_HANDLE, const std::string& name, const std::string& value);
 	bool		(*pluginOperationPtr)(const PLUGIN_HANDLE, const std::string& name, int count,
-						void **parameters);
+						PluginParameter  **parameters);
 };
 
 #endif

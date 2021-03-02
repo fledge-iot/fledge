@@ -314,8 +314,12 @@ async def _execute_add_update_schedule(data, curr_value=None):
         m, s = divmod(_schedule.get('schedule_time'), 60)
         h, m = divmod(m, 60)
         schedule.time = datetime.time().replace(hour=h, minute=m, second=s)
+        if 'schedule_repeat' in _schedule:
+            schedule.repeat = datetime.timedelta(seconds=_schedule['schedule_repeat'])
     elif _schedule.get('schedule_type') == Schedule.Type.INTERVAL:
         schedule = IntervalSchedule()
+        if 'schedule_repeat' in _schedule:
+            schedule.repeat = datetime.timedelta(seconds=_schedule['schedule_repeat'])
     elif _schedule.get('schedule_type') == Schedule.Type.MANUAL:
         schedule = ManualSchedule()
 
@@ -323,7 +327,6 @@ async def _execute_add_update_schedule(data, curr_value=None):
     schedule.schedule_id = _schedule.get('schedule_id')
     schedule.name = _schedule.get('schedule_name')
     schedule.process_name = _schedule.get('schedule_process_name')
-    schedule.repeat = datetime.timedelta(seconds=_schedule['schedule_repeat'])
 
     schedule.exclusive = True if _schedule.get('schedule_exclusive') == 'True' else False
     schedule.enabled = True if _schedule.get('schedule_enabled') == 'True' else False
@@ -651,8 +654,8 @@ async def update_schedule(request):
         curr_value['schedule_process_name'] = sch.process_name
         curr_value['schedule_name'] = sch.name
         curr_value['schedule_type'] = sch.schedule_type
-        curr_value['schedule_repeat'] = sch.repeat.total_seconds() if sch.repeat else 0
-        curr_value['schedule_time'] = (sch.time.hour * 60 * 60 + sch.time.minute * 60 + sch.time.second) if sch.time else 0
+        curr_value['schedule_repeat'] = sch.repeat.total_seconds() if sch.repeat else None
+        curr_value['schedule_time'] = (sch.time.hour * 60 * 60 + sch.time.minute * 60 + sch.time.second) if sch.time else None
         curr_value['schedule_day'] = sch.day
         curr_value['schedule_exclusive'] = sch.exclusive
         curr_value['schedule_enabled'] = sch.enabled

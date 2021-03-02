@@ -161,8 +161,7 @@ DatapointValue::DatapointValue(const DatapointValue& obj)
 /**
  * Assignment Operator
  */
-
-DatapointValue::DatapointValue& operator=(const DatapointValue& rhs)
+DatapointValue& DatapointValue::operator=(const DatapointValue& rhs)
 {
 	if (m_type == T_STRING)
 	{

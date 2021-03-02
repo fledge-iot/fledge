@@ -262,11 +262,11 @@ async def _check_schedule_post_parameters(data, curr_value=None):
         _errors.append('Day must either be None or must be an integer.')
 
     # Raise error if time is non integer
-    if _schedule.get('schedule_time') is not None and if not isinstance(_schedule.get('schedule_time'), int):
+    if _schedule.get('schedule_time') is not None and not isinstance(_schedule.get('schedule_time'), int):
         _errors.append('Time must be an integer.')
 
     # Raise error if repeat is non integer
-    if _schedule.get('schedule_repeat') is not None and if not isinstance(_schedule.get('schedule_repeat'), int):
+    if _schedule.get('schedule_repeat') is not None and not isinstance(_schedule.get('schedule_repeat'), int):
         _errors.append('Repeat must be an integer.')
 
     # Raise error if name and process_name are missing for a new schedule

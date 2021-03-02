@@ -239,7 +239,7 @@ async def _check_schedule_post_parameters(data, curr_value=None):
 
     # Raise error if day and time are missing for schedule_type = TIMED
     if _schedule.get('schedule_type') == Schedule.Type.TIMED:
-        if not _schedule.get('schedule_time'):
+        if _schedule.get('schedule_time') is None:
             _errors.append('Schedule time cannot be empty for TIMED schedule.')
         if _schedule.get('schedule_day') is not None and (not isinstance(_schedule.get('schedule_day'), int) or (
                 _schedule.get('schedule_day') < 1 or _schedule.get('schedule_day') > 7)):

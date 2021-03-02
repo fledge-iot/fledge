@@ -187,8 +187,9 @@ def _extract_args(data, curr_value):
 
     s_repeat = data.get('repeat') if 'repeat' in data else curr_value['schedule_repeat'] if curr_value and \
                                                                                             curr_value[
-                                                                                                'schedule_repeat'] else 0
-    _schedule['schedule_repeat'] = int(s_repeat)
+                                                                                                'schedule_repeat'] else None
+    if s_repeat is not None:
+        _schedule['schedule_repeat'] = int(s_repeat)
 
     _schedule['schedule_name'] = data.get('name') if 'name' in data else curr_value[
         'schedule_name'] if curr_value else None
@@ -261,11 +262,11 @@ async def _check_schedule_post_parameters(data, curr_value=None):
         _errors.append('Day must either be None or must be an integer.')
 
     # Raise error if time is non integer
-    if not isinstance(_schedule.get('schedule_time'), int):
+    if _schedule.get('schedule_time') is not None and if not isinstance(_schedule.get('schedule_time'), int):
         _errors.append('Time must be an integer.')
 
     # Raise error if repeat is non integer
-    if not isinstance(_schedule.get('schedule_repeat'), int):
+    if _schedule.get('schedule_repeat') is not None and if not isinstance(_schedule.get('schedule_repeat'), int):
         _errors.append('Repeat must be an integer.')
 
     # Raise error if name and process_name are missing for a new schedule

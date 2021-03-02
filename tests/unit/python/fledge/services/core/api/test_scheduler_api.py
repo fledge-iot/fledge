@@ -413,7 +413,7 @@ class TestSchedules:
         ({"time": 'bla'}, 400, "Error in time: bla", {'rows': [{'name': 'bla'}], 'count': 1}),
         ({"repeat": 'bla'}, 400, "Error in repeat: bla", {'rows': [{'name': 'bla'}], 'count': 1}),
         ({"type": 2, "name": "sch1", "process_name": "p1"}, 400,
-         "Errors in request: Schedule time cannot be empty for TIMED schedule. 1,Time must be an integer and in range 0-86399. 2",
+         "Errors in request: Schedule time cannot be empty for TIMED schedule.,Time must be an integer and in range 0-86399. 2",
          {'rows': [{'name': 'bla'}], 'count': 1}),
         ({"type": 2, "day": 9, "time": 1, "name": "sch1", "process_name": "p1"}, 400,
          "Errors in request: Day must either be None or must be an integer and in range 1-7. 1",

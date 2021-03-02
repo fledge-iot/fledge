@@ -181,8 +181,9 @@ def _extract_args(data, curr_value):
         isinstance(s_day, int) or (not isinstance(s_day, int) and s_day.isdigit())) else None
 
     s_time = data.get('time') if 'time' in data else curr_value['schedule_time'] if curr_value and curr_value[
-        'schedule_time'] else 0
-    _schedule['schedule_time'] = int(s_time)
+        'schedule_time'] else None
+    if s_time is not None:
+        _schedule['schedule_time'] = int(s_time)
 
     s_repeat = data.get('repeat') if 'repeat' in data else curr_value['schedule_repeat'] if curr_value and \
                                                                                             curr_value[

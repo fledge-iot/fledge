@@ -137,7 +137,7 @@ DatapointValue::~DatapointValue()
 /**
  * Copy constructor
  */
-DatapointValue(const DatapointValue& obj)
+DatapointValue::DatapointValue(const DatapointValue& obj)
 {
 	m_type = obj.m_type;
 	switch (m_type)
@@ -162,7 +162,7 @@ DatapointValue(const DatapointValue& obj)
  * Assignment Operator
  */
 
-DatapointValue& operator=(const DatapointValue& rhs)
+DatapointValue::DatapointValue& operator=(const DatapointValue& rhs)
 {
 	if (m_type == T_STRING)
 	{
@@ -201,4 +201,3 @@ DatapointValue& operator=(const DatapointValue& rhs)
 
 	return *this;
 }
-		

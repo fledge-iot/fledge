@@ -110,7 +110,7 @@ class TestService:
 
         southbound_svc = jdoc['services'][svc_count - 1]
         assert isinstance(southbound_svc['management_port'], int)
-        assert southbound_svc['service_port'] is None
+        assert isinstance(southbound_svc['service_port'], int)
         assert display_svc_name == southbound_svc['name']
         assert 'running' == southbound_svc['status']
         assert 'Southbound' == southbound_svc['type']

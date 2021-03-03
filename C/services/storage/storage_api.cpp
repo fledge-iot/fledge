@@ -128,8 +128,7 @@ void readingAppendWrapper(shared_ptr<HttpServer::Response> response,
 	if (tVal >= MAX_WORKER_THREADS)
 	{
 		Logger::getLogger()->warn("Storage API: readingAppend() is being run by a new thread. "
-					  "Current worker threads count %d exceeds the warning limit of %d"
-					  "%d allowed threads hit.",
+					  "Current worker threads count %d exceeds the warning limit of %d allowed threads hit.",
 					  tVal,
 					  MAX_WORKER_THREADS);
 	}
@@ -166,8 +165,7 @@ void readingFetchWrapper(shared_ptr<HttpServer::Response> response,
 	if (tVal >= MAX_WORKER_THREADS)
 	{
 		Logger::getLogger()->warn("Storage API: readingFetch() is being run by a new thread. "
-					  "Current worker threads count %d exceeds the warning limit of %d"
-					  "%d allowed threads hit.",
+					  "Current worker threads count %d exceeds the warning limit of %d allowed threads hit.",
 					  tVal,
 					  MAX_WORKER_THREADS);
 	}
@@ -214,8 +212,7 @@ void readingPurgeWrapper(shared_ptr<HttpServer::Response> response,
 	if (tVal >= MAX_WORKER_THREADS)
 	{
 		Logger::getLogger()->warn("Storage API: readingPurge() is being run by a new thread. "
-					  "Current worker threads count %d exceeds the warning limit of %d"
-					  "%d allowed threads hit.",
+					  "Current worker threads count %d exceeds the warning limit of %d allowed threads hit.",
 					  tVal,
 					  MAX_WORKER_THREADS);
 	}
@@ -1031,7 +1028,7 @@ void StorageApi::createStorageStream(shared_ptr<HttpServer::Response> response, 
 {
 string	responsePayload;
 
-	
+	(void)(request); 	// Surpress unused arguemnt warning
 	try {
 		if (!streamHandler)
 		{

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
 """Common utilities"""
@@ -12,6 +12,8 @@ __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
+
+import sys
 
 
 def check_reserved(string):
@@ -64,3 +66,22 @@ def local_timestamp():
     :example '2018-05-08 14:06:40.517313+05:30'
     """
     return str(datetime.datetime.now(datetime.timezone.utc).astimezone())
+
+
+def add_functions_as_methods(functions):
+    """ add_functions_as_methods - add the given functions to a class (to allow multi-file definition) 
+        Type: class decorator
+        Arguments:
+            functions: list of functions (which expect a "self" argument) to be added to class namespace
+    """
+    
+    def decorator(Class):
+        for function in functions:
+            setattr(Class, function.__name__, function)
+        return Class
+    return decorator
+
+
+def eprint(*args, **kwargs):
+    """ eprintf -- convenience print function that prints to stderr """
+    print(*args, *kwargs, file=sys.stderr)

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
 from functools import lru_cache
@@ -62,6 +62,12 @@ async def _services_with_assets(storage_client, south_services):
                     plugin_version = p["version"]
                     break
 
+            # Service running on another machine have no scheduler entry
+            sched_enable = 'unknown'
+            try:
+                sched_enable = await _get_schedule_status(storage_client, s_record._name)
+            except:
+                pass
             sr_list.append(
                 {
                     'name': s_record._name,
@@ -72,7 +78,7 @@ async def _services_with_assets(storage_client, south_services):
                     'status': ServiceRecord.Status(int(s_record._status)).name.lower(),
                     'assets': assets,
                     'plugin': {'name': plugin, 'version': plugin_version},
-                    'schedule_enabled': await _get_schedule_status(storage_client, s_record._name)
+                    'schedule_enabled': sched_enable
                 })
         for s_name in south_services:
             south_svc = is_svc_in_service_registry(s_name)
@@ -85,7 +91,12 @@ async def _services_with_assets(storage_client, south_services):
                     if p["name"] == plugin:
                         plugin_version = p["version"]
                         break
-
+                # Handle schedule status when there is no schedule entry matching a South child category name
+                sch_status = 'unknown'
+                try:
+                    sch_status = await _get_schedule_status(storage_client, s_name)
+                except:
+                    pass
                 sr_list.append(
                     {
                         'name': s_name,
@@ -96,7 +107,7 @@ async def _services_with_assets(storage_client, south_services):
                         'status': '',
                         'assets': assets,
                         'plugin': {'name': plugin, 'version': plugin_version},
-                        'schedule_enabled': await _get_schedule_status(storage_client, s_name)
+                        'schedule_enabled': sch_status
                     })
     except:
         raise

@@ -209,28 +209,6 @@ CREATE INDEX fki_asset_messages_fk1
 CREATE INDEX fki_asset_messages_fk2
     ON asset_messages (status_id);
 
--- Readings table
--- This tables contains the readings for assets.
--- An asset can be a south with multiple sensor, a single sensor,
--- a software or anything that generates data that is sent to Fledge
-CREATE TABLE fledge.readings (
-    id         INTEGER                     PRIMARY KEY AUTOINCREMENT,
-    asset_code character varying(50)       NOT NULL,                         -- The provided asset code. Not necessarily located in the
-                                                                             -- assets table.
-    reading    JSON                        NOT NULL DEFAULT '{}',            -- The json object received
-    user_ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),      -- UTC time
-    ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW'))       -- UTC time
-);
-
-CREATE INDEX fki_readings_fk1
-    ON readings (asset_code, user_ts desc);
-
-CREATE INDEX readings_ix2
-    ON readings (asset_code);
-
-CREATE INDEX readings_ix3
-    ON readings (user_ts);
-
 -- Streams table
 -- List of the streams to the Cloud.
 CREATE TABLE fledge.streams (
@@ -527,7 +505,7 @@ CREATE INDEX tasks_ix1
 CREATE TABLE fledge.omf_created_objects (
     configuration_key character varying(255)    NOT NULL,            -- FK to fledge.configuration
     type_id           integer                   NOT NULL,            -- Identifies the specific PI Server type
-    asset_code        character varying(50)     NOT NULL,
+    asset_code        character varying(255)    NOT NULL,
     CONSTRAINT omf_created_objects_pkey PRIMARY KEY (configuration_key,type_id, asset_code),
     CONSTRAINT omf_created_objects_fk1 FOREIGN KEY (configuration_key)
     REFERENCES configuration (key) MATCH SIMPLE
@@ -580,6 +558,22 @@ CREATE TABLE fledge.plugin_data (
 	key     character varying(255)    NOT NULL,
 	data    JSON                      NOT NULL DEFAULT '{}',
 	CONSTRAINT plugin_data_pkey PRIMARY KEY (key) );
+
+-- Create packages table
+CREATE TABLE fledge.packages (
+             id                uuid                   NOT NULL, -- PK
+             name              character varying(255) NOT NULL, -- Package name
+             action            character varying(10) NOT NULL, -- APT actions:
+                                                                -- list
+                                                                -- install
+                                                                -- purge
+                                                                -- update
+             status            INTEGER                NOT NULL, -- exit code
+                                                                -- -1       - in-progress
+                                                                --  0       - success
+                                                                -- Non-Zero - failed
+             log_file_uri      character varying(255) NOT NULL, -- Package Log file relative path
+  CONSTRAINT packages_pkey PRIMARY KEY  ( id ) );
 
 -- Create filters table
 CREATE TABLE fledge.filters (
@@ -668,9 +662,9 @@ INSERT INTO fledge.statistics ( key, description, value, previous_value )
 
 -- Core Tasks
 --
-INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'purge',               '["tasks/purge"]'      );
-INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'stats collector',     '["tasks/statistics"]' );
-INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'FledgeUpdater',      '["tasks/update"]'     );
+INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'purge',               '["tasks/purge"]'       );
+INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'stats collector',     '["tasks/statistics"]'  );
+INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'FledgeUpdater',       '["tasks/update"]'      );
 INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'certificate checker', '["tasks/check_certs"]' );
 
 -- Storage Tasks
@@ -678,6 +672,13 @@ INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'certificate ch
 INSERT INTO fledge.scheduled_processes (name, script) VALUES ('backup',  '["tasks/backup"]'  );
 INSERT INTO fledge.scheduled_processes (name, script) VALUES ('restore', '["tasks/restore"]' );
 
+-- South, Notification, North Tasks
+--
+INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'south_c',        '["services/south_c"]'        );
+INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'notification_c', '["services/notification_c"]' );
+INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north_c',        '["tasks/north_c"]'           );
+INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north',          '["tasks/north"]'             );
+INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north_C',        '["services/north_C"]'        );
 --
 -- Schedules
 --

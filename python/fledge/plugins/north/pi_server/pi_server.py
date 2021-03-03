@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
 """ The OMF North is a plugin output formatter for the Fledge appliance.
@@ -141,7 +141,8 @@ _CONFIG_DEFAULT_OMF = {
         "type": "string",
         "default": ".[]",
         "order": "6",
-        "displayName": "Filter Rule"
+        "displayName": "Filter Rule",
+        "validity": "applyFilter == \"true\""
     },
     "OMFRetrySleepTime": {
         "description": "Seconds between each retry for communication with the OMF PI Connector Relay. "

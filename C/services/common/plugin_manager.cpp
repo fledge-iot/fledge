@@ -16,6 +16,7 @@
 #include <plugin_manager.h>
 #include <binary_plugin_handle.h>
 #include <south_python_plugin_handle.h>
+#include <north_python_plugin_handle.h>
 #include <notification_python_plugin_handle.h>
 #include <filter_python_plugin_handle.h>
 #include <dirent.h>
@@ -405,7 +406,10 @@ char		buf[MAXPATHLEN];
 	{
 		pluginHandle = new FilterPythonPluginHandle(name.c_str(), buf);
 	}
-	else
+	else if (type.compare(PLUGIN_TYPE_NORTH) == 0)
+	{
+		pluginHandle = new NorthPythonPluginHandle(name.c_str(), buf);
+	} else
 	{
 		pluginHandle = new SouthPythonPluginHandle(name.c_str(), buf);
 	}
@@ -569,7 +573,7 @@ void PluginManager::getInstalledPlugins(const string& type,
 			// Can not open specified dir path
 			char msg[128];
 			char* ret = strerror_r(errno, msg, 128);
-			logger->error("Can not access plugin directory %s: %s",
+			logger->warn("Can not access plugin directory %s: %s",
 				      path.c_str(),
 				      ret);
 			continue;

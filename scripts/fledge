@@ -118,7 +118,7 @@ libPathSet=0
 libdir=${FLEDGE_ROOT}/lib; [ -d ${libdir} ] && LD_LIBRARY_PATH=$(echo $LD_LIBRARY_PATH | sed "s|${libdir}||g") && export LD_LIBRARY_PATH=${libdir}:${LD_LIBRARY_PATH} && libPathSet=1
 libdir=${FLEDGE_ROOT}/cmake_build/C/lib; [ -d ${libdir} ] && LD_LIBRARY_PATH=$(echo $LD_LIBRARY_PATH | sed "s|${libdir}||g") && export LD_LIBRARY_PATH=${libdir}:${LD_LIBRARY_PATH} && libPathSet=1
 [ "$libPathSet" -eq "0" ] && echo "Unable to set/update LD_LIBRARY_PATH to include path of Fledge shared libraries: check whether ${FLEDGE_ROOT}/lib or ${FLEDGE_ROOT}/cmake_build/C/lib exists" && exit 1
-
+export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/local/lib
 
 ##########
 ## INCLUDE SECTION
@@ -313,7 +313,7 @@ fledge_stop() {
 
   result=`curl -k -s -X PUT ${REST_API_URL}/fledge/shutdown`
 
-  if [[ "${result}" =~ "Forbidden" ]]; then
+  if [[ "${result}" == "401"* ]]; then
     token=`fledge_authenticate`
     if [[ "${token}" =~ "failed" ]]; then
         fledge_log "info" "Failed authentication when attempting to stop fledge." "all" "pretty"
@@ -471,7 +471,7 @@ fledge_status() {
     get_rest_api_url
     result=`curl -k -s ${REST_API_URL}/fledge/ping || true`
 
-    if [[ "${result}" =~ "Forbidden" ]]; then
+    if [[ "${result}" == "401"* ]]; then
       token=`fledge_authenticate`
       if [[ "${token}" =~ "failed" ]]; then
           fledge_log "info" "Failed authentication when attempting to get fledge status." "all" "pretty"
@@ -517,7 +517,10 @@ fledge_status() {
                 fledge_log "info" "fledge.services.core" "outonly" "pretty"
                 ps -ef | grep "fledge.services.storage" | grep -v 'grep' | grep -v awk | awk '{print "fledge.services.storage " $9 " " $10}' || true
                 ps -ef | grep "fledge.services.south " |grep -v python3| grep -v 'grep' | grep -v awk | awk '{printf "fledge.services.south "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' || true
+                ps -ef | grep "fledge.services.north " |grep -v python3| grep -v 'grep' | grep -v awk | awk '{printf "fledge.services.north "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' || true
                 ps -ef | grep "fledge.services.notification" |grep -v python3| grep -v 'grep' | grep -v awk | awk '{printf "fledge.services.notification "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' || true
+                # Show Python services (except core)
+                ps -ef | grep -o 'python3 -m fledge.services.*' | grep -o 'fledge.services.*' | grep -v 'fledge.services.core' | grep -v 'fledge.services\.\*' || true
 
                 # Show Tasks
                 fledge_log "info" "=== Fledge tasks:" "outonly" "pretty"
@@ -673,10 +676,10 @@ if [ -f ~/.fledge ] ; then
 	perm=`stat -c %A ~/.fledge`
 	if [ "$perm" == "-rw-------" ]; then
 		if [ -z ${USERNAME+x} ]; then
-			USERNAME=`awk -F: '{ print $1 }' < ~/.fledge`
+			USERNAME=`awk -F: 'NR==1{ print $1 }' < ~/.fledge | cut -d"=" -f2`
 		fi
 		if [ -z ${PASSWORD+x} ]; then
-			PASSWORD=`awk -F: '{ print $2 }' < ~/.fledge`
+			PASSWORD=`awk -F: 'NR==2{ print $1 }' < ~/.fledge | cut -d"=" -f2`
 		fi
 	fi
 fi

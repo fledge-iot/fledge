@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
 """ Test notification REST API """
@@ -169,7 +169,7 @@ class TestNotificationServiceAPI:
         jdoc = json.loads(r)
         assert 2 == len(jdoc)
         assert NOTIFY_PLUGIN == jdoc['delivery'][0]['name']
-        assert "notificationDelivery" == jdoc['delivery'][0]['type']
+        assert "notify" == jdoc['delivery'][0]['type']
         assert 1 == len(jdoc['rules'])
 
     @pytest.mark.parametrize("test_input, expected_error", [

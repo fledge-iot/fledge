@@ -11,6 +11,7 @@
 
 # Data / cache files
 data/etc/storage.json
+data/etc/sqlite.json
 data/etc/certs/*
 data/var
 data/support
@@ -18,6 +19,7 @@ data/scripts
 data/plugins
 data/snapshots
 data/logs
+data/configure_repo_output.txt
 
 # SQLite3 default db location and after migration
 data/*.db
@@ -34,6 +36,8 @@ storage.json
 docs/_build
 docs/__pycache__/
 docs/.cache/
+docs/plugins
+docs/fledge_plugins.rst
 
 # Compiled Object files
 *.pyc

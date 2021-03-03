@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
 """Services Registry class"""
@@ -162,7 +162,7 @@ class ServiceRegistry:
     def check_address_and_port(cls, address, port):
         # AND based check
         # ugly hack! <Make filter to support AND | OR>
-        services = [s for s in cls._registry if getattr(s, "_address") == address and getattr(s, "_port") == port]
+        services = [s for s in cls._registry if getattr(s, "_address") == address and getattr(s, "_port") == port and getattr(s, "_status") != ServiceRecord.Status.Failed]
         if len(services) == 0:
             return False
         return True
@@ -172,7 +172,7 @@ class ServiceRegistry:
         # AND based check
         # ugly hack! <Make filter to support AND | OR>
         services = [s for s in cls._registry if getattr(s, "_address") == address
-                    and getattr(s, "_management_port") == m_port]
+                    and getattr(s, "_management_port") == m_port and getattr(s, "_status") != ServiceRecord.Status.Failed]
         if len(services) == 0:
             return False
         return True

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
 import asyncio
@@ -12,6 +12,7 @@ import socket
 import subprocess
 
 from aiohttp import web
+from functools import lru_cache
 
 from fledge.common import logger
 from fledge.services.core import server
@@ -20,6 +21,7 @@ from fledge.services.core import connect
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.services.core.service_registry.service_registry import ServiceRegistry
 from fledge.common.service_record import ServiceRecord
+from fledge.common.common import _FLEDGE_ROOT
 
 __author__ = "Amarendra K. Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -37,6 +39,13 @@ _help = """
     | PUT             | /fledge/restart                                          |
     -------------------------------------------------------------------------------
 """
+
+
+@lru_cache(maxsize=1, typed=True)
+def get_version() -> str:
+    with open(_FLEDGE_ROOT + '/VERSION') as f:
+        # Read only the first line of a VERSION file and grab the release version number
+        return f.readline().split('=')[1].strip()
 
 
 async def ping(request):
@@ -59,8 +68,8 @@ async def ping(request):
             category_item = await cfg_mgr.get_category_item('rest_api', 'allowPing')
             allow_ping = True if category_item['value'].lower() == 'true' else False
             if allow_ping is False:
-                _logger.warning("Permission denied for Ping when Auth is mandatory.")
-                raise web.HTTPForbidden
+                _logger.warning("A valid token required to ping; as auth is mandatory & allow ping is set to false.")
+                raise web.HTTPUnauthorized()
 
     since_started = time.time() - __start_time
 
@@ -85,7 +94,7 @@ async def ping(request):
 
     status_color = services_health_litmus_test()
     safe_mode = True if server.Server.running_in_safe_mode else False
-
+    version = get_version()
     return web.json_response({'uptime': int(since_started),
                               'dataRead': data_read,
                               'dataSent': data_sent,
@@ -95,7 +104,8 @@ async def ping(request):
                               'hostName': host_name,
                               'ipAddresses': ip_addresses,
                               'health': status_color,
-                              'safeMode': safe_mode
+                              'safeMode': safe_mode,
+                              'version': version
                               })
 
 

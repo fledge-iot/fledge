@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
 """ Test rest server api for python/fledge/services/core/api/common.py
@@ -12,6 +12,7 @@ These 2 def shall be tested via python/fledge/services/core/server.py
 This test file assumes those 2 units are tested
 """
 
+import re
 import asyncio
 import json
 import ssl
@@ -31,6 +32,8 @@ from fledge.services.core.api.common import _logger
 from fledge.common.web import middleware
 from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.configuration_manager import ConfigurationManager
+
+SEMANTIC_VERSIONING_REGEX = "^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)$"
 
 
 @pytest.fixture
@@ -105,6 +108,7 @@ async def test_ping_http_allow_ping_true(aiohttp_server, aiohttp_client, loop, g
                     assert content_dict['ipAddresses'] == ip_addresses
                     assert content_dict['health'] == "green"
                     assert content_dict['safeMode'] is False
+                    assert re.match(SEMANTIC_VERSIONING_REGEX, content_dict['version']) is not None
             query_patch.assert_called_once_with('statistics', payload)
         log_params = 'Received %s request for %s', 'GET', '/fledge/ping'
         logger_info.assert_called_once_with(*log_params)
@@ -156,6 +160,7 @@ async def test_ping_http_allow_ping_false(aiohttp_server, aiohttp_client, loop, 
                     assert content_dict['ipAddresses'] == ip_addresses
                     assert content_dict['health'] == "green"
                     assert content_dict['safeMode'] is False
+                    assert re.search(SEMANTIC_VERSIONING_REGEX, content_dict['version']) is not None
             query_patch.assert_called_once_with('statistics', payload)
         log_params = 'Received %s request for %s', 'GET', '/fledge/ping'
         logger_info.assert_called_once_with(*log_params)
@@ -211,6 +216,7 @@ async def test_ping_http_auth_required_allow_ping_true(aiohttp_server, aiohttp_c
                     assert content_dict['ipAddresses'] == ip_addresses
                     assert content_dict['health'] == "green"
                     assert content_dict['safeMode'] is False
+                    assert re.match(SEMANTIC_VERSIONING_REGEX, content_dict['version']) is not None
                 mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
             query_patch.assert_called_once_with('statistics', payload)
         log_params = 'Received %s request for %s', 'GET', '/fledge/ping'
@@ -253,8 +259,8 @@ async def test_ping_http_auth_required_allow_ping_false(aiohttp_server, aiohttp_
                         # note: If the parameter is app aiohttp.web.Application
                         # the tool creates TestServer implicitly for serving the application.
                         resp = await client.get('/fledge/ping')
-                        assert 403 == resp.status
-                    logger_warn.assert_called_once_with('Permission denied for Ping when Auth is mandatory.')
+                        assert 401 == resp.status
+                    logger_warn.assert_called_once_with('A valid token required to ping; as auth is mandatory & allow ping is set to false.')
                 mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
             assert 0 == query_patch.call_count
     log_params = 'Received %s request for %s', 'GET', '/fledge/ping'
@@ -321,6 +327,7 @@ async def test_ping_https_allow_ping_true(aiohttp_server, ssl_ctx, aiohttp_clien
                     assert content_dict['ipAddresses'] == ip_addresses
                     assert content_dict['health'] == "green"
                     assert content_dict['safeMode'] is False
+                    assert re.match(SEMANTIC_VERSIONING_REGEX, content_dict['version']) is not None
             query_patch.assert_called_once_with('statistics', payload)
         logger_info.assert_called_once_with('Received %s request for %s', 'GET', '/fledge/ping')
 
@@ -379,7 +386,7 @@ async def test_ping_https_allow_ping_false(aiohttp_server, ssl_ctx, aiohttp_clie
                     assert content_dict['hostName'] == host_name
                     assert content_dict['ipAddresses'] == ip_addresses
                     assert content_dict['health'] == "green"
-
+                    assert re.match(SEMANTIC_VERSIONING_REGEX, content_dict['version']) is not None
             query_patch.assert_called_once_with('statistics', payload)
         logger_info.assert_called_once_with('Received %s request for %s', 'GET', '/fledge/ping')
 
@@ -448,6 +455,7 @@ async def test_ping_https_auth_required_allow_ping_true(aiohttp_server, ssl_ctx,
                     assert content_dict['ipAddresses'] == ip_addresses
                     assert content_dict['health'] == "green"
                     assert content_dict['safeMode'] is False
+                    assert re.match(SEMANTIC_VERSIONING_REGEX, content_dict['version']) is not None
                     mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
                 query_patch.assert_called_once_with('statistics', payload)
             logger_info.assert_called_once_with('Received %s request for %s', 'GET', '/fledge/ping')
@@ -502,8 +510,8 @@ async def test_ping_https_auth_required_allow_ping_false(aiohttp_server, ssl_ctx
                         resp = await client.get('/fledge/ping')
                         s = resp.request_info.url.human_repr()
                         assert "https" == s[:5]
-                        assert 403 == resp.status
-                    logger_warn.assert_called_once_with('Permission denied for Ping when Auth is mandatory.')
+                        assert 401 == resp.status
+                    logger_warn.assert_called_once_with('A valid token required to ping; as auth is mandatory & allow ping is set to false.')
                 mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
             assert 0 == query_patch.call_count
         logger_info.assert_called_once_with('Received %s request for %s', 'GET', '/fledge/ping')

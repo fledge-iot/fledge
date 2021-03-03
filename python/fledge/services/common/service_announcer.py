@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
 """Common FledgeMicroservice Class"""
@@ -36,9 +36,9 @@ class ServiceAnnouncer:
         """ Create a service description.
                 type_: fully qualified service type name
                 name: fully qualified service name
-                address: IP address as unsigned short, network byte order
                 port: port that the service runs on
                 weight: weight of the service
+                addresses: list of IP addresses as unsigned short, network byte order
                 priority: priority of the service
                 properties: dictionary of properties (or a string holding the
                             bytes for the text field)
@@ -48,14 +48,14 @@ class ServiceAnnouncer:
         info = ServiceInfo(
             stype,
             service_name,
-            socket.inet_aton(host),
             port,
+            addresses=[socket.inet_aton(host)],
             properties=desc,
             server="{}.local.".format(host_name)
         )
         zeroconf = Zeroconf()
         # Refresh zeroconf cache
-        browser = ServiceBrowser(zeroconf, stype, handlers=[self.on_service_state_change])
+        # browser = ServiceBrowser(zeroconf, stype, handlers=[self.on_service_state_change])
         zeroconf.register_service(info, allow_name_change=True)
 
     def get_ip(self):

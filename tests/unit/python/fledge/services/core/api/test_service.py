@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
-import platform
 import asyncio
 import json
 from uuid import UUID
@@ -24,10 +23,7 @@ from fledge.services.core.scheduler.entities import StartUpSchedule
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.services.core.api import service
 from fledge.services.core.api.plugins import common
-from fledge.services.core.api.service import _logger
-from fledge.services.core.api.plugins import install
 from fledge.services.core.api.plugins.exceptions import *
-from fledge.common.audit_logger import AuditLogger
 
 
 __author__ = "Ashwin Gopalakrishnan, Ashish Jabble"
@@ -146,8 +142,7 @@ class TestService:
         ('{"name": "test", "plugin": "dht11", "type": "south", "enabled": "0"}', 400,
          'Only "true", "false", true, false are allowed for value of enabled.'),
         ('{"name": "test", "plugin": "dht11"}', 400, "Missing type property in payload."),
-        ('{"name": "test", "plugin": "dht11", "type": "blah"}', 400, "Only south and notification type are supported."),
-        ('{"name": "test", "plugin": "dht11", "type": "North"}', 406, "north type is not supported for the time being."),
+        ('{"name": "test", "plugin": "dht11", "type": "blah"}', 400, "Only south, north, notification and management types are supported."),
         ('{"name": "test", "type": "south"}', 400, "Missing plugin property for type south in payload.")
     ])
     async def test_add_service_with_bad_params(self, client, code, payload, message):
@@ -179,7 +174,7 @@ class TestService:
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[mock_plugin_info]):
-            with patch.object(_logger, 'exception') as ex_logger:
+            with patch.object(service._logger, 'exception') as ex_logger:
                 with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                     with patch.object(c_mgr, 'get_category_all_items',
                                       return_value=self.async_mock(None)) as patch_get_cat_info:
@@ -192,7 +187,10 @@ class TestService:
                         args1, kwargs1 = query_table_patch.call_args
                         assert 'scheduled_processes' == args1[0]
                         p2 = json.loads(args1[1])
-                        assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=', 'value': 'south_c'}} == p2
+                        assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=', 'value': 'south_c',
+                                                              'and': {'column': 'script', 'condition': '=',
+                                                                      'value': '[\"services/south_c\"]'}}
+                                } == p2
                     patch_get_cat_info.assert_called_once_with(category_name=data['name'])
             assert 1 == ex_logger.call_count
 
@@ -278,10 +276,11 @@ class TestService:
         def q_result(*arg):
             table = arg[0]
             _payload = arg[1]
-
             if table == 'scheduled_processes':
-                assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=',
-                                                      'value': 'south_c'}} == json.loads(_payload)
+                assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=', 'value': 'south_c',
+                                                      'and': {'column': 'script', 'condition': '=',
+                                                              'value': '[\"services/south_c\"]'}}
+                        } == json.loads(_payload)
                 return {'count': 0, 'rows': []}
             if table == 'schedules':
                 assert {'return': ['schedule_name'], 'where': {'column': 'schedule_name', 'condition': '=',
@@ -365,8 +364,10 @@ class TestService:
 
                     return {'count': 0, 'rows': []}
             if table == 'scheduled_processes':
-                assert {"return": ["name"], "where": {"column": "name", "condition": "=",
-                                                      "value": "notification_c"}} == _payload
+                assert {"return": ["name"], "where": {"column": "name", "condition": "=", "value": "notification_c",
+                                                      "and": {"column": "script", "condition": "=",
+                                                              "value": "[\"services/notification_c\"]"}}
+                        } == _payload
                 return {'count': 0, 'rows': []}
 
         expected_insert_resp = {'rows_affected': 1, "response": "inserted"}
@@ -413,8 +414,10 @@ class TestService:
 
                     return {'count': 0, 'rows': []}
             if table == 'scheduled_processes':
-                assert {"return": ["name"], "where": {"column": "name", "condition": "=",
-                                                      "value": "notification_c"}} == _payload
+                assert {"return": ["name"], "where": {"column": "name", "condition": "=", "value": "notification_c",
+                                                      "and": {"column": "script", "condition": "=",
+                                                              "value": "[\"services/notification_c\"]"}}
+                        } == _payload
                 return {'count': 0, 'rows': []}
 
         expected_insert_resp = {'rows_affected': 1, "response": "inserted"}
@@ -452,8 +455,10 @@ class TestService:
             _payload = arg[1]
 
             if table == 'scheduled_processes':
-                assert {'return': ['name'],
-                        'where': {'column': 'name', 'condition': '=', 'value': 'south_c'}} == json.loads(_payload)
+                assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=', 'value': 'south_c',
+                                                      'and': {'column': 'script', 'condition': '=',
+                                                              'value': '[\"services/south_c\"]'}}
+                        } == json.loads(_payload)
                 return {'count': 0, 'rows': []}
             if table == 'schedules':
                 assert {'return': ['schedule_name'],
@@ -608,35 +613,112 @@ class TestService:
         assert 404 == resp.status
         assert '{} service does not exist.'.format(name) == resp.reason
 
+    async def test_post_install_package_from_repo_already_in_progress(self, client):
+        async def async_mock(return_value):
+            return return_value
+
+        pkg_name = 'fledge-service-notification'
+        param = {"format": "repository", "name": pkg_name}
+        payload = {"return": ["status"], "where": {"column": "action", "condition": "=", "value": "install",
+                                                   "and": {"column": "name", "condition": "=", "value": pkg_name}}}
+        select_row_resp = {'count': 1, 'rows': [{
+            "id": "c5648940-31ec-4f78-a7a5-b1707e8fe578",
+            "name": pkg_name,
+            "action": "install",
+            "status": -1,
+            "log_file_uri": ""
+        }]}
+        msg = '{} package installation already in progress'.format(pkg_name)
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload',
+                              return_value=async_mock(select_row_resp)) as query_tbl_patch:
+                resp = await client.post('/fledge/service?action=install', data=json.dumps(param))
+                assert 429 == resp.status
+                assert msg == resp.reason
+                r = await resp.text()
+                actual = json.loads(r)
+                assert {'message': msg} == actual
+            args, kwargs = query_tbl_patch.call_args_list[0]
+            assert 'packages' == args[0]
+            assert payload == json.loads(args[1])
+
+    async def test_post_install_package_from_repo_already_installed(self, client):
+        async def async_mock(return_value):
+            return return_value
+
+        pkg_name = 'fledge-service-notification'
+        param = {"format": "repository", "name": pkg_name}
+        payload = {"return": ["status"], "where": {"column": "action", "condition": "=", "value": "install",
+                                                   "and": {"column": "name", "condition": "=", "value": pkg_name}}}
+        svc_list = ["storage", "south", "notification"]
+        msg = '{} package is already installed'.format(pkg_name)
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload',
+                              return_value=async_mock({'count': 0, 'rows': []})) as query_tbl_patch:
+                with patch.object(service, 'get_service_installed', return_value=svc_list
+                                  ) as svc_list_patch:
+                    resp = await client.post('/fledge/service?action=install', data=json.dumps(param))
+                    assert 400 == resp.status
+                    assert msg == resp.reason
+                    r = await resp.text()
+                    actual = json.loads(r)
+                    assert {'message': msg} == actual
+                svc_list_patch.assert_called_once_with()
+            args, kwargs = query_tbl_patch.call_args_list[0]
+            assert 'packages' == args[0]
+            assert payload == json.loads(args[1])
+
     async def test_post_service_package_from_repo(self, client, loop):
         async def async_mock(return_value):
             return return_value
 
-        svc_name = 'fledge-service-notification'
-        log = 'log/190801-12-19-24'
-        link = "{}-{}.log".format(log, svc_name)
-        msg = "installed"
-        param = {"format": "repository", "name": svc_name}
-        _platform = platform.platform()
-        pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
+        pkg_name = 'fledge-service-notification'
+        param = {"format": "repository", "name": pkg_name}
         storage_client_mock = MagicMock(StorageClientAsync)
-        with patch.object(common, 'fetch_available_packages', return_value=async_mock(([svc_name], log))) as patch_fetch_available_package:
-            with patch.object(install, 'install_package_from_repo',
-                              return_value=async_mock((0, link, msg))) as install_package_patch:
-                with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                    with patch.object(AuditLogger, '__init__', return_value=None):
-                        with patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(
-                                async_mock(None), loop=loop)) as audit_info_patch:
-                            resp = await client.post('/fledge/service?action=install', data=json.dumps(param))
-                            assert 200 == resp.status
-                            result = await resp.text()
-                            response = json.loads(result)
-                            assert {"link": link, "message": "{} is successfully {}".format(svc_name, msg)} == response
-                    args, kwargs = audit_info_patch.call_args
-                    assert 'PKGIN' == args[0]
-                    assert {'packageName': svc_name} == args[1]
-            install_package_patch.assert_called_once_with(svc_name, pkg_mgt, None)
-        patch_fetch_available_package.assert_called_once_with('service')
+        insert_row_resp = {'count': 1, 'rows': [{
+            "id": "c5648940-31ec-4f78-a7a5-b1707e8fe578",
+            "name": pkg_name,
+            "action": "install",
+            "status": 0,
+            "log_file_uri": ""
+        }]}
+        query_tbl_payload = {"return": ["status"], "where": {"column": "action", "condition": "=", "value": "install",
+                                                             "and": {"column": "name", "condition": "=",
+                                                                     "value": pkg_name}}}
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=async_mock({'count': 0, 'rows': []})) as query_tbl_patch:
+                with patch.object(common, 'fetch_available_packages', return_value=(
+                        async_mock(([pkg_name, "fledge-north-http", "fledge-south-sinusoid"],
+                                    'log/190801-12-41-13.log')))) as patch_fetch_available_package:
+                    with patch.object(storage_client_mock, 'insert_into_tbl',
+                                      return_value=async_mock({"response": "inserted", "rows_affected": 1}
+                                                              )) as insert_tbl_patch:
+                        with patch.object(service._logger, "info") as log_info:
+                            with patch('multiprocessing.Process'):
+                                resp = await client.post('/fledge/service?action=install', data=json.dumps(param))
+                                assert 200 == resp.status
+                                result = await resp.text()
+                                response = json.loads(result)
+                                assert 'id' in response
+                                assert '{} service installation started'.format(pkg_name) == response['message']
+                                assert response['statusLink'].startswith('fledge/package/install/status?id=')
+                        assert 1 == log_info.call_count
+                        log_info.assert_called_once_with('{} service installation started...'.format(pkg_name))
+                    args, kwargs = insert_tbl_patch.call_args_list[0]
+                    assert 'packages' == args[0]
+                    actual = json.loads(args[1])
+                    assert 'id' in actual
+                    assert pkg_name == actual['name']
+                    assert 'install' == actual['action']
+                    assert -1 == actual['status']
+                    assert '' == actual['log_file_uri']
+                patch_fetch_available_package.assert_called_once_with('service')
+            args, kwargs = query_tbl_patch.call_args_list[0]
+            assert 'packages' == args[0]
+            actual = json.loads(args[1])
+            assert query_tbl_payload == actual
 
     @pytest.mark.parametrize("req_param, post_param, message", [
         ("?action=install", {"name": "blah"}, "format param is required"),
@@ -644,7 +726,9 @@ class TestService:
         ("?action=install", {"format": "blah", "name": "blah"}, "Invalid format. Must be 'repository'"),
         ("?action=blah", {"format": "blah", "name": "blah"}, "blah is not a valid action"),
         ("?action=install", {"format": "repository", "name": "fledge-service-notification", "version": "1.6"},
-         "Service semantic version is incorrect; it should be like X.Y.Z")
+         "Service semantic version is incorrect; it should be like X.Y.Z"),
+        ("?action=install", {"format": "repository", "name": "blah"},
+         "name should start with \"fledge-service-\" prefix")
     ])
     async def test_bad_post_service_package_from_repo(self, client, req_param, post_param, message):
         resp = await client.post('/fledge/service{}'.format(req_param), data=json.dumps(post_param))
@@ -655,29 +739,23 @@ class TestService:
         async def async_mock(return_value):
             return return_value
 
-        svc = "fledge-service-notification"
-        param = {"format": "repository", "name": svc}
-        with patch.object(common, 'fetch_available_packages', return_value=async_mock(([], 'log/190801-12-19-24'))) as patch_fetch_available_package:
-            resp = await client.post('/fledge/service?action=install', data=json.dumps(param))
-            assert 404 == resp.status
-            assert "'{} service is not available for the given repository or already installed'".format(svc) == resp.reason
-        patch_fetch_available_package.assert_called_once_with('service')
-
-    async def test_package_error_exception_on_install_package_from_repo(self, client):
-        svc = "fledge-service-notification"
-        param = {"format": "repository", "name": svc}
-        msg = "Service installation request failed"
-        link = "log/190930-16-52-23-{}.log".format(svc)
-        with patch.object(common, 'fetch_available_packages',
-                          side_effect=PackageError(link)) as patch_fetch_available_package:
-            resp = await client.post('/fledge/service?action=install', data=json.dumps(param))
-            assert 400 == resp.status
-            assert msg == resp.reason
-            result = await resp.text()
-            json_response = json.loads(result)
-            assert link == json_response['link']
-            assert msg == json_response['message']
-        patch_fetch_available_package.assert_called_once_with('service')
+        pkg_name = "fledge-service-notification"
+        param = {"format": "repository", "name": pkg_name}
+        payload = {"return": ["status"], "where": {"column": "action", "condition": "=", "value": "install",
+                                                   "and": {"column": "name", "condition": "=", "value": pkg_name}}}
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload',
+                              return_value=async_mock({'count': 0, 'rows': []})) as query_tbl_patch:
+                with patch.object(common, 'fetch_available_packages', return_value=async_mock((
+                        [], 'log/190801-12-19-24'))) as patch_fetch_available_package:
+                    resp = await client.post('/fledge/service?action=install', data=json.dumps(param))
+                    assert 404 == resp.status
+                    assert "'{} service is not available for the given repository'".format(pkg_name) == resp.reason
+                patch_fetch_available_package.assert_called_once_with('service')
+            args, kwargs = query_tbl_patch.call_args_list[0]
+            assert 'packages' == args[0]
+            assert payload == json.loads(args[1])
 
     async def test_get_service_available(self, client):
         async def async_mock(return_value):
@@ -704,13 +782,306 @@ class TestService:
             assert msg == json_response['message']
         patch_fetch_available_package.assert_called_once_with('service')
 
-    async def test_get_service_installed(self, client):
-        with patch('os.walk') as mockwalk:
-            mockwalk.return_value = [(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage'])]
+    @pytest.mark.parametrize("mock_value1, mock_value2, exp_result", [
+        ([(['/usr/local/fledge/services'], [], [])], [(['/usr/local/fledge/python/fledge/services/management'], [], [])], []),
+        ([(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage'])], [], ["south", "storage"]),
+        ([(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage', 'fledge.services.notification'])], [], ["south", "storage", "notification"]),
+        ([(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage'])], [(['/usr/local/fledge/python/fledge/services/management'], [], [])], ["south", "storage"]),
+        ([(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage'])], [(['/usr/local/fledge/python/fledge/services/management'], [], ['__main__.py'])], ["south", "storage", "management"]),
+        ([(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage', 'fledge.services.notification'])], [(['/usr/local/fledge/python/fledge/services/management'], [], ['__main__.py'])], ["south", "storage", "notification", "management"])
+    ])
+    async def test_get_service_installed(self, client, mock_value1, mock_value2, exp_result):
+        with patch('os.walk', side_effect=(mock_value1, mock_value2)) as mockwalk:
             resp = await client.get('/fledge/service/installed')
             assert 200 == resp.status
             result = await resp.text()
             json_response = json.loads(result)
-            assert {'services': ['south', 'storage']} == json_response
+            assert json_response == {'services': exp_result}
+        assert 2 == mockwalk.call_count
 
-# TODO:  add negative tests and C type plugin add service tests
+    p1 = '{"name": "FL Agent", "type": "management"}'
+    p2 = '{"name": "FL #1", "type": "management", "enabled": false}'
+    p3 = '{"name": "FL_MGT", "type": "management", "enabled": true}'
+
+    @pytest.mark.parametrize("payload", [p1, p2, p3])
+    async def test_add_management_service(self, client, payload):
+        data = json.loads(payload)
+        sch_id = '4624d3e4-c295-4bfd-848b-8a843cc90c3f'
+
+        async def async_mock_get_schedule():
+            schedule = StartUpSchedule()
+            schedule.schedule_id = sch_id
+            return schedule
+
+        @asyncio.coroutine
+        def q_result(*arg):
+            table = arg[0]
+            _payload = json.loads(arg[1])
+            if table == 'schedules':
+                if _payload['return'][0] == 'process_name':
+                    assert {"return": ["process_name"]} == _payload
+                    return {'rows': [{'process_name': 'purge'}, {'process_name': 'stats collector'}], 'count': 2}
+                else:
+                    assert {"return": ["schedule_name"], "where": {"column": "schedule_name", "condition": "=",
+                                                                   "value": data['name']}} == _payload
+
+                    return {'count': 0, 'rows': []}
+            if table == 'scheduled_processes':
+                assert {"return": ["name"], "where": {"column": "name", "condition": "=", "value": "management",
+                                                      "and": {"column": "script", "condition": "=",
+                                                              "value": "[\"services/management\"]"}}
+                        } == _payload
+                return {'count': 0, 'rows': []}
+
+        expected_insert_resp = {'rows_affected': 1, "response": "inserted"}
+
+        server.Server.scheduler = Scheduler(None, None)
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(c_mgr, 'get_category_all_items', return_value=self.async_mock(None)) as patch_get_cat_info:
+                with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
+                    with patch.object(storage_client_mock, 'insert_into_tbl', return_value=self.async_mock(expected_insert_resp)) as insert_table_patch:
+                        with patch.object(server.Server.scheduler, 'save_schedule', return_value=self.async_mock("")) as patch_save_schedule:
+                            with patch.object(server.Server.scheduler, 'get_schedule_by_name', return_value=async_mock_get_schedule()) as patch_get_schedule:
+                                resp = await client.post('/fledge/service', data=payload)
+                                server.Server.scheduler = None
+                                assert 200 == resp.status
+                                result = await resp.text()
+                                json_response = json.loads(result)
+                                assert {'id': sch_id, 'name': data['name']} == json_response
+                            patch_get_schedule.assert_called_once_with(data['name'])
+                        patch_save_schedule.called_once_with()
+                    args, kwargs = insert_table_patch.call_args
+                    assert 'scheduled_processes' == args[0]
+                    p = json.loads(args[1])
+                    assert {'name': 'management', 'script': '["services/management"]'} == p
+            patch_get_cat_info.assert_called_once_with(category_name=data['name'])
+
+    async def test_dupe_management_service_schedule(self, client):
+        payload = '{"name": "FL Agent", "type": "management"}'
+        data = json.loads(payload)
+
+        @asyncio.coroutine
+        def q_result(*arg):
+            table = arg[0]
+            _payload = json.loads(arg[1])
+            if table == 'schedules':
+                if _payload['return'][0] == 'process_name':
+                    assert {"return": ["process_name"]} == _payload
+                    return {'rows': [{'process_name': 'stats collector'}, {'process_name': 'management'}],
+                            'count': 2}
+                else:
+                    assert {"return": ["schedule_name"], "where": {"column": "schedule_name", "condition": "=",
+                                                                   "value": data['name']}} == _payload
+
+                    return {'count': 0, 'rows': []}
+            if table == 'scheduled_processes':
+                assert {"return": ["name"], "where": {"column": "name", "condition": "=", "value": "management",
+                                                      "and": {"column": "script", "condition": "=",
+                                                              "value": "[\"services/management\"]"}}
+                        } == _payload
+                return {'count': 0, 'rows': []}
+
+        expected_insert_resp = {'rows_affected': 1, "response": "inserted"}
+
+        server.Server.scheduler = Scheduler(None, None)
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(c_mgr, 'get_category_all_items',
+                              return_value=self.async_mock(None)) as patch_get_cat_info:
+                with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
+                    with patch.object(storage_client_mock, 'insert_into_tbl',
+                                      return_value=self.async_mock(expected_insert_resp)) as insert_table_patch:
+                        resp = await client.post('/fledge/service', data=payload)
+                        server.Server.scheduler = None
+                        assert 400 == resp.status
+                        assert 'A Management service schedule already exists.' == resp.reason
+                    args, kwargs = insert_table_patch.call_args
+                    assert 'scheduled_processes' == args[0]
+                    p = json.loads(args[1])
+                    assert {'name': 'management', 'script': '["services/management"]'} == p
+            patch_get_cat_info.assert_called_once_with(category_name=data['name'])
+
+    @pytest.mark.parametrize("param", [
+        "blah",
+        1,
+        "storage"
+        "south"
+    ])
+    async def test_bad_type_update_package(self, client, param):
+        resp = await client.put('/fledge/service/{}/name/update'.format(param), data=None)
+        assert 400 == resp.status
+        assert "Invalid service type. Must be 'notification'" == resp.reason
+
+    async def test_bad_update_package(self, client, _type="notification", name="notification"):
+        svc_list = ["storage", "south"]
+        with patch.object(service, 'get_service_installed', return_value=svc_list) as svc_list_patch:
+            resp = await client.put('/fledge/service/{}/{}/update'.format(_type, name), data=None)
+            assert 404 == resp.status
+            assert "'{} service is not installed yet. Hence update is not possible.'".format(name) == resp.reason
+        svc_list_patch.assert_called_once_with()
+
+    async def test_package_update_already_in_progress(self, client, _type="notification", name="notification"):
+        async def async_mock(return_value):
+            return return_value
+
+        pkg_name = "fledge-service-{}".format(name)
+        payload = {"return": ["status"], "where": {"column": "action", "condition": "=", "value": "update",
+                                                   "and": {"column": "name", "condition": "=", "value": pkg_name}}}
+
+        select_row_resp = {'count': 1, 'rows': [{
+            "id": "c5648940-31ec-4f78-a7a5-b1707e8fe578",
+            "name": pkg_name,
+            "action": "update",
+            "status": -1,
+            "log_file_uri": ""
+        }]}
+        msg = '{} package update already in progress'.format(pkg_name)
+        svc_list = ["south", "storage", name]
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(service, 'get_service_installed', return_value=svc_list) as svc_list_patch:
+            with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                with patch.object(storage_client_mock, 'query_tbl_with_payload',
+                                  return_value=async_mock(select_row_resp)) as query_tbl_patch:
+                    resp = await client.put('/fledge/service/{}/{}/update'.format(_type, name),
+                                            data=None)
+                    assert 429 == resp.status
+                    assert msg == resp.reason
+                    r = await resp.text()
+                    actual = json.loads(r)
+                    assert {'message': msg} == actual
+                args, kwargs = query_tbl_patch.call_args_list[0]
+                assert 'packages' == args[0]
+                assert payload == json.loads(args[1])
+        svc_list_patch.assert_called_once_with()
+
+    async def test_package_update_when_in_use(self, client, _type="notification", name="notification"):
+        async def async_mock(return_value):
+            return return_value
+
+        pkg_name = "fledge-service-{}".format(name)
+        svc_name = "NF #1"
+        payload = {"return": ["status"], "where": {"column": "action", "condition": "=", "value": "update",
+                                                   "and": {"column": "name", "condition": "=", "value": pkg_name}}}
+        select_row_resp = {'count': 1, 'rows': [{
+            "id": "c5648940-31ec-4f78-a7a5-b1707e8fe578",
+            "name": pkg_name,
+            "action": "update",
+            "status": 0,
+            "log_file_uri": ""
+        }]}
+        delete = {"response": "deleted", "rows_affected": 1}
+        delete_payload = {"where": {"column": "action", "condition": "=", "value": "update",
+                                    "and": {"column": "name", "condition": "=", "value": pkg_name}}}
+
+        sch_info = {'count': 1, 'rows': [
+            {'id': '6637c9ff-7090-4774-abca-07dee59a0610', 'schedule_name': svc_name, 'enabled': 't'}]}
+        insert = {"response": "inserted", "rows_affected": 1}
+        server.Server.scheduler = Scheduler(None, None)
+        storage_client_mock = MagicMock(StorageClientAsync)
+        svc_list = ["south", "storage", name]
+        with patch.object(service, 'get_service_installed', return_value=svc_list
+                          ) as svc_list_patch:
+            with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                with patch.object(storage_client_mock, 'query_tbl_with_payload',
+                                  side_effect=[async_mock(select_row_resp), async_mock(sch_info)]) as query_tbl_patch:
+                    with patch.object(storage_client_mock, 'delete_from_tbl',
+                                      return_value=async_mock(delete)) as delete_tbl_patch:
+                        with patch.object(server.Server.scheduler, 'disable_schedule', return_value=async_mock(
+                                (True, "Schedule successfully disabled"))) as disable_sch_patch:
+                            with patch.object(service._logger, "warning") as log_warn_patch:
+                                with patch.object(storage_client_mock, 'insert_into_tbl',
+                                                  return_value=async_mock(insert)) as insert_tbl_patch:
+                                    with patch('multiprocessing.Process'):
+                                        resp = await client.put('/fledge/service/{}/{}/update'.format(_type, name),
+                                                                data=None)
+                                        server.Server.scheduler = None
+                                        assert 200 == resp.status
+                                        result = await resp.text()
+                                        response = json.loads(result)
+                                        assert 'id' in response
+                                        assert '{} update started'.format(pkg_name) == response['message']
+                                        assert response['statusLink'].startswith('fledge/package/update/status?id=')
+                                args, kwargs = insert_tbl_patch.call_args_list[0]
+                                assert 'packages' == args[0]
+                                actual = json.loads(args[1])
+                                assert 'id' in actual
+                                assert pkg_name == actual['name']
+                                assert 'update' == actual['action']
+                                assert -1 == actual['status']
+                                assert '' == actual['log_file_uri']
+                            assert 1 == log_warn_patch.call_count
+                            log_warn_patch.assert_called_once_with(
+                                'Schedule is disabled for {}, as {} service of type {} is being updated...'.format(
+                                    sch_info['rows'][0]['schedule_name'], name, _type))
+                        disable_sch_patch.assert_called_once_with(UUID(sch_info['rows'][0]['id']))
+                    args, kwargs = delete_tbl_patch.call_args_list[0]
+                    assert 'packages' == args[0]
+                    assert delete_payload == json.loads(args[1])
+                args, kwargs = query_tbl_patch.call_args_list[0]
+                assert 'packages' == args[0]
+                assert payload == json.loads(args[1])
+        svc_list_patch.assert_called_once_with()
+
+    async def test_package_update_when_not_in_use(self, client, _type="notification", name="notification"):
+        async def async_mock(return_value):
+            return return_value
+
+        pkg_name = "fledge-service-{}".format(name)
+        svc_name = "NF #1"
+        payload = {"return": ["status"], "where": {"column": "action", "condition": "=", "value": "update",
+                                                   "and": {"column": "name", "condition": "=", "value": pkg_name}}}
+        select_row_resp = {'count': 1, 'rows': [{
+            "id": "c5648940-31ec-4f78-a7a5-b1707e8fe578",
+            "name": pkg_name,
+            "action": "update",
+            "status": 0,
+            "log_file_uri": ""
+        }]}
+        delete = {"response": "deleted", "rows_affected": 1}
+        delete_payload = {"where": {"column": "action", "condition": "=", "value": "update",
+                                    "and": {"column": "name", "condition": "=", "value": pkg_name}}}
+
+        sch_info = {'count': 1, 'rows': [
+            {'id': '6637c9ff-7090-4774-abca-07dee59a0610', 'schedule_name': svc_name, 'enabled': 'f'}]}
+        insert = {"response": "inserted", "rows_affected": 1}
+        server.Server.scheduler = Scheduler(None, None)
+        storage_client_mock = MagicMock(StorageClientAsync)
+        svc_list = ["south", "storage", name]
+        with patch.object(service, 'get_service_installed', return_value=svc_list
+                          ) as svc_list_patch:
+            with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                with patch.object(storage_client_mock, 'query_tbl_with_payload',
+                                  side_effect=[async_mock(select_row_resp), async_mock(sch_info)]) as query_tbl_patch:
+                    with patch.object(storage_client_mock, 'delete_from_tbl',
+                                      return_value=async_mock(delete)) as delete_tbl_patch:
+                        with patch.object(storage_client_mock, 'insert_into_tbl',
+                                          return_value=async_mock(insert)) as insert_tbl_patch:
+                            with patch('multiprocessing.Process'):
+                                resp = await client.put('/fledge/service/{}/{}/update'.format(_type, name), data=None)
+                                server.Server.scheduler = None
+                                assert 200 == resp.status
+                                result = await resp.text()
+                                response = json.loads(result)
+                                assert 'id' in response
+                                assert '{} update started'.format(pkg_name) == response['message']
+                                assert response['statusLink'].startswith('fledge/package/update/status?id=')
+                        args, kwargs = insert_tbl_patch.call_args_list[0]
+                        assert 'packages' == args[0]
+                        actual = json.loads(args[1])
+                        assert 'id' in actual
+                        assert pkg_name == actual['name']
+                        assert 'update' == actual['action']
+                        assert -1 == actual['status']
+                        assert '' == actual['log_file_uri']
+                    args, kwargs = delete_tbl_patch.call_args_list[0]
+                    assert 'packages' == args[0]
+                    assert delete_payload == json.loads(args[1])
+                args, kwargs = query_tbl_patch.call_args_list[0]
+                assert 'packages' == args[0]
+                assert payload == json.loads(args[1])
+        svc_list_patch.assert_called_once_with()
+
+    # TODO:  add negative tests and C type plugin add service tests

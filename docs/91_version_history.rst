@@ -25,6 +25,154 @@ Version History
 Fledge v1
 ==========
 
+
+v1.9.0
+-------
+
+Release Date: 2021-02-19
+
+- **Fledge Core**
+
+    - New Features:
+
+       - Support has been added in the Python north sending process for nested JSON reading payloads.
+       - A new section has been added to the documentation to document the process of writing a notification delivery plugin. As part of this documentation a new delivery plugin has also been written which delivers notifications via an MQTT broker.
+       - The plugin developers guide has been updated with information regarding installation and debugging of new plugins.
+       - The developer documentation has been updated to include details for writing both C++ and Python filter plugins.
+       - An always on north service has been added. This compliments the current north task and allows a choice of using scheduled windows to send data north or sending data as soon as it is available.
+       - The Python north sending process required the JQ filter information to be mandatory in north plugins. JQ filtering has been deprecated and will be removed in the next major release.
+       - Storage plugins may now have configuration options that are controllable via the API and the graphical interface.
+       - The ping API call has been enhanced to return the version of the core component of the system.
+       - The SQLite storage plugin has been enhanced to distribute readings for multiple assets across multiple databases. This improves the ingest performance and also improves the responsiveness of the system when very large numbers of readings are buffered within the instance.
+       - Documentation has been added for configuration of the storage service.
+
+
+    - Bug Fix:
+
+       - The REST API for the notification service was missing the re-trigger time information for configured notification in the retrieval and update calls. This has now been added.
+       - If the SQLite storage plugin is configured to use managed storage Fledge fails to restart. This has been resolved, the SQLite storage service no longer uses the managed option and will ignore it if set.
+       - An upgraded version of the HTTPS library has been applied, this solves an issue with large payloads in HTTPS exchanges.
+       - A number of Python source files contained incorrect references to the readthedocs page. This has now been resolved.
+       - The retrieval of log information was incorrectly including debug log output if the requested level was information and higher. This is now correctly filtered out.
+       - If a south plugin generates bad data that can not be inserted into the storage layer, that plugin will buffer the bad data forever and continually attempt to insert it. This causes the queue to build on the south plugin and eventually will exhaust system memory. To prevent this if data can not be inserted for a number of attempts it will be discarded in the south service. This allows the bad data to be dropped and newer, good data to be handled correctly.
+       - When a statistics value becomes greater than 2,147,483,648 the storage layer would fail, this has now been fixed.
+       - During installation of plugins the user interface would occasionally flag the system as down due to congestion in the API layer. This has now been resolved and the correct status of the system should be reflected.
+       - The notification service previously logged errors if no rule/delivery notification plugins had been installed. This is no longer the case.
+       - An issue with JSON configuration options that contained escaped strings within the JSON caused the service with the associated configuration to fail to run. This has now been resolved.
+       - The Postgres storage engine limited the length of asset codes to 50 characters, this has now been increased to 255 characters.
+       - Notifications based on asset names that contain the character '.' in the name would not receive any data. This has now been resolved.
+
+    - Known Issues:
+
+       - Known issues with Postgres storage plugins. During the final testing of the 1.9.0 release a problem has been found with switching to the PostgreSQL storage plugin via the user interface. Until this is resolved switching to PostgreSQL is only supported by manual editing the storage.json as per version 1.8.0. A patch to resolve this is likely to be released in the near future.
+
+
+- **GUI**
+
+    - New Features:
+
+       - The user interface now shows the retrigger time for a notification.
+       - The user interface now supports adding a north service as well as a north task.
+       - A new help menu item has been added to the user interface which will cause the readthedocs documentation to be displayed. Also the wizard to add the south and north services has been enhanced to give an option to display the help for the plugins.
+
+
+    - Bug Fix:
+
+       - The user interface now supports the ability to filter on all severity levels when viewing the system log.
+
+
+- **Plugins**
+
+    - New Features:
+
+       - The OPC/UA south plugin has been updated to allow the definition of the minimum reporting time between updates. It has also been updated to support subscription to arrays and DATE_TIME type with the OPC/UA server.
+       - AWS SiteWise requires the SourceTimestamp to be non-null when reading from an OPC/UA server. This was not always the case with the OPC/UA north plugin and caused issues when ingesting data into SiteWise. This has now been corrected such that SourceTimestamp is correctly set in addition to server timestamp.
+       - The HTTP-C north plugin has been updated to support primary and secondary destinations. It will automatically failover to the secondary if the primary becomes unavailable. Fail back will occur either when the secondary becomes unavailable or the plugin is restarted.
+
+
+    - Bug Fix:
+
+       - An issue with different versions of the libmodbus library prevented the modbus-c plugin building on Moxa gateways, this has now been resolved.
+       - An issue with building the MQTT notification plugin on CentOS/RedHat platforms has been resolved. This plugin now builds correctly on those platforms.
+       - The modbus plugin has been enhanced to support Modbus over IPv6, also request timeout has been added as a configuration option. There have been improvements to the error handling also.
+       - The DNP3 south plugin incorrectly treated all data as strings, this meant it was not easy to process the data with generic plugins. This has now been resolved and data is treated as floating point or integer values.
+       - The OMF north plugin previously reported the incorrect version information. This has now been resolved.
+       - A memory issue with the python35 filter integration has been resolved.
+       - Packaging conflicts between plugins that used the same additional libraries have been resolved to allow both plugins to be installed on the same machine. This issue impacted the plugins that used MQTT as a transport layer.
+       - The OPC/UA north plugin did not correctly handle the types for integer data, this has now been resolved.
+       - The OPCUA south plugin did not allow subscriptions to integer node ids. This has now been added.
+       - A problem with reading multiple modbus input registers into a single value has been resolved in the ModbusC plugin.
+       - OPC/UA north nested objects did not always generate unique node IDs in the OPC/UA server. This has now been resolved.
+
+
+v1.8.2
+-------
+
+Release Date: 2020-11-03
+
+- **Fledge Core**
+
+    - Bug Fix:
+
+      - Following the release of a new version of a Python package the 1.8.1 release was no longer installable. This issue is resolved by the 1.8.2 patch release of the core package. All plugins from the 1.8.1 release will continue to work with the 1.8.2 release.
+
+
+v1.8.1
+-------
+
+Release Date: 2020-07-08
+
+- **Fledge Core**
+
+    - New Features:
+
+       - Support has been added for the deployment on Moxa gateways running a variant of Debian 9 Stretch.
+       - The purge process has been improved to also purge the statistics history and audit trail of the system. New configuration parameters have been added to manage the amount of data to be retain for each of these.
+       - An issue with installing on the Mendel Day release on Google’s Coral boards has been resolved.
+       - The REST API has been expanded to allow an API call to be made to set the repository from which new packages will be pulled when installing plugins via the API and GUI.
+       - A problem with the service discovery failing to respond correctly after it had been running for a short while has been rectified. This allows external micro services to now correctly discover the core micro service.
+       - Details for making contributions to the Fledge project have been added to the source repository.
+       - The support bundle has been improved to include more information needed to diagnose issues with sending data to PI Servers
+       - The REST API has been extended to add a new call that will return statistics in terms of rates rather than absolute values. 
+       - The documentation has been updated to include guidance on setting up package repositories for installing the software and plugins.
+
+
+    - Bug Fix:
+
+       - If JSON type configuration parameters were marked as mandatory there was an issue that prevented the update of the parameters. This has now been resolved.
+       - After changing storage engine from sqlite to Postgres using the configuration option in the GUI or via the API, the new storage engine would incorrectly report itself as sqlite in the API and user interface. This has now been resolved.
+       - External micro-services that restarted without a graceful shutdown would fail to register with the service registry as nothing was able to unregister the failed service. This has now been relaxed to allow the recovered service to be correctly registered.
+       - The configuration of the storage system was previously not available via the GUI. This has now been resolved and the configuration can be viewed in the Advanced category of the configuration user interface. Any changes made to the storage configuration will only take effect on the next restart of Fledge. This allows administrators to change the storage plugins used without the need to edit the storage.json configuration file.
+
+
+- **GUI**
+
+    - Bug Fix:
+
+       - An improvement to the user experience for editing password in the GUI has been implemented that stops the issue with passwords disappearing if the input field is clicked.
+       - Password validation was not correctly occurring in the GUI wizard that adds south plugins. This has now be rectified.
+
+
+- **Plugins**
+
+    - New Features:
+
+       - The Modbus plugin did not gracefully handle interrupted reads of data from modes TCP devices during the bulk transfer of data. This would result in assets missing certain data points and subsequent issues in the north systems that received those assets getting changes in the asset data type. This was a particular issue when dealign with the PI Web API and would result in excessive types being created. The Modbus plugin now detects the issues and takes action to ensure complete assets are read.
+       - A new image processing plugin, south human detector, that uses the Google Tensor Flow machine learning platform has been added to the Fledge-iot project.
+       - A new Python plugin has been added that can send data north to a Kafka system.
+       - A new south plugin has been added for the Dynamic Ratings B100 Electronic Temperature Monitor used for monitoring the condition of electricity transformers.
+       - A new plugin has been contributed to the project by Nexcom that implements the SAE J1708 protocol for accessing the ECU's of heavy duty vehicles. 
+       - An issue with missing dependencies on the Coral Mendel platform prevent 1.8.0 packages installing correctly without manual intervention. This has now been resolved.
+       - The image recognition plugin, south-human-detector, has been updated to work with the Google Coral board running the Mendel Day release of Linux.
+
+
+    - Bug Fix:
+
+       - A missing dependency in v1.8.0 release for the package fledge-south-human-detector meant that it could not be installed without manual intervention. This has now been resolved.
+       - Support has been added to the south-human-detector plugin for the Coral Camera module in addition to the existing support for USB connected cameras.
+       - An issue with installation of the external shared libraries required by the USB4704 plugin has been resolved.
+
+
 v1.8.0
 -------
 
@@ -125,15 +273,12 @@ Release Date: 2020-05-08
     - New Features:
 
        - The existing set of OMF north plugins have been rationalised and replaced by a single OMF north plugin that is able to support the connector rely, PI Web API, EDS and OCS.
-       - A new notification rule plugin has been added that will trigger periodically if data is observed for a given asset. The trigger interval is defined in seconds. The plugin is primarily designed to be used with conditional forwarding as a means to sample data, although other uses might include a watchdog implementation for particular data streams.
        - When a Modbus TCP connection is closed by the remote end we fail to read a value, we then reconnect and move on to read the next value. On device with short timeout values, smaller than the poll interval, we fail the same reading every time and never get a value for that reading. The behaviour has been modified to allow us to retry reading the original value after re-establishing the connection.
        - The OMF north plugin has been updated to support the released version of the OSIsoft EDS product as a destination for data.
        - New functionality has been added to the north data to PI plugin when using PI Web API that allows the location in the PI Server AF hierarchy to be defined. A default location can be set and an override based on the asset name or metadata within the reading. The data may also be placed in multiple locations within the AF hierarchy.
        - A new notification delivery plugin has been added that allows a north task to be triggered to send data for a period of time either side of the notification trigger event. This allows conditional forwarding of large amounts of data when a trigger event occurs.
        - The asset notification delivery plugin has been updated to allow creation of new assets both for notifications that are triggered and/or cleared.
        - The rate filter now allows the termination of sending full rate data either by use of an expression or by specifying a time in milliseconds.
-       - A new downsampling filter has been written that allows the rate of data to be reduced using one of a number of different algorithms.
-       - A new plugin that support the Digiducer 333D01 vibration sensor has been added.
        - A new simple Python filter has been added that calculates an exponential moving average,
        - Some typos in the OPCUA south and north plugin configuration have been fixed.
        - The OPCUA north plugin has been updated to support nested reading objects correctly and also to allow a name to be set for the OPCUA server. These have also been some stability fixes in the underlying OPCUA layer used by this and the south OPCUA plugin.
@@ -338,7 +483,7 @@ Release Date: 2019-05-22
 
     - New Features:
        - A new threshold filter has been added that can be used to block onward transmission of data until a configured expression evaluates too true.
-       - The Modbus RTU/TCP south plugin is now available on CentOS 7.6 and RHEL 7.6.
+       - The Modbus RTU/TCP south plugin is now available on CentOS 7 and RHEL 7.
        - A new north plugin has been added to allow data to be sent the Google Cloud Platform IoT Core interface.
        - The FFT filter now has an option to output raw frequency spectra. Note this can not be accepted into all north bound systems.
        - Changed the release status of the FFT filter plugin.

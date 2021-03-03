@@ -14,6 +14,7 @@
 #include <plugin_manager.h>
 #include <string>
 #include <reading_stream.h>
+#include <plugin_configuration.h>
 
 #define	STORAGE_PURGE_RETAIN	0x0001U
 #define STORAGE_PURGE_SIZE	0x0002U
@@ -32,7 +33,7 @@
 class StoragePlugin : public Plugin {
 
 public:
-	StoragePlugin(PLUGIN_HANDLE handle);
+	StoragePlugin(const std::string& name, PLUGIN_HANDLE handle);
 	~StoragePlugin();
 
 	int		commonInsert(const std::string& table, const std::string& payload);
@@ -52,6 +53,9 @@ public:
 	PLUGIN_ERROR	*lastError();
 	bool		hasStreamSupport() { return readingStreamPtr != NULL; };
 	int		readingStream(ReadingStream **stream, bool commit);
+	bool		pluginShutdown();
+	StoragePluginConfiguration
+			*getConfig() { return m_config; };
 
 private:
 	PLUGIN_HANDLE	instance;
@@ -70,6 +74,10 @@ private:
 	char		*(*getTableSnapshotsPtr)(PLUGIN_HANDLE, const char *);
 	int		(*readingStreamPtr)(PLUGIN_HANDLE, ReadingStream **, bool);
 	PLUGIN_ERROR	*(*lastErrorPtr)(PLUGIN_HANDLE);
+	bool		(*pluginShutdownPtr)(PLUGIN_HANDLE);
+	std::string	m_name;
+	StoragePluginConfiguration
+			*m_config;
 };
 
 #endif

@@ -48,3 +48,5 @@ install(TARGETS ${PROJECT_NAME} DESTINATION fledge/plugins/storage/${PROJECT_NAM
 
 # Install init.sql
 install(FILES ${CMAKE_SOURCE_DIR}/scripts/plugins/storage/${PROJECT_NAME}/init.sql DESTINATION fledge/plugins/storage/${PROJECT_NAME})
+install(FILES ${CMAKE_SOURCE_DIR}/scripts/plugins/storage/${PROJECT_NAME}/init_readings.sql DESTINATION fledge/plugins/storage/${PROJECT_NAME})
+

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
 
@@ -208,6 +208,12 @@ notification_config = {
         "type": "boolean",
         "default": "true",
         "value": "true",
+    },
+    "retrigger_time": {
+        "description": "Retrigger time in seconds for sending a new notification.",
+        "type": "integer",
+        "default": "60",
+        "value": "60",
     }
 }
 
@@ -237,6 +243,7 @@ def mock_get_url(get_url):
             "channel": notification_config['channel']['value'],
             "deliveryConfig": delivery_plugin_config,
             "notificationType": notification_config['notification_type']['value'],
+            "retriggerTime": notification_config['retrigger_time']['value'],
             "enable": notification_config['enable']['value'],
         }
         return json.dumps(notif)
@@ -343,6 +350,7 @@ class TestNotification:
             "channel": notification_config['channel']['value'],
             "deliveryConfig": delivery_plugin_config,
             "notificationType": notification_config['notification_type']['value'],
+            "retriggerTime": notification_config['retrigger_time']['value'],
             "enable": notification_config['enable']['value'],
         }
 
@@ -365,6 +373,7 @@ class TestNotification:
             "rule": notification_config['rule']['value'],
             "channel": notification_config['channel']['value'],
             "notificationType": notification_config['notification_type']['value'],
+            "retriggerTime": notification_config['retrigger_time']['value'],
             "enable": notification_config['enable']['value'],
         }]
 

@@ -24,7 +24,7 @@ using namespace std;
  *
  * @return	Return Fledge root dir
  */
-const string getRootDir()
+static const string getRootDir()
 {
 	const char* rootDir = getenv("FLEDGE_ROOT");
 	return (rootDir ? string(rootDir) : string(_FLEDGE_ROOT_PATH));
@@ -38,7 +38,7 @@ const string getRootDir()
  *
  * @return	Return Fledge data dir
  */
-const string getDataDir()
+static const string getDataDir()
 {
 	const char* dataDir = getenv("FLEDGE_DATA");
 	return (dataDir ? string(dataDir) : string(getRootDir() + "/data"));

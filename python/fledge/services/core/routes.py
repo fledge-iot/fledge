@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
 from fledge.services.core.api import auth
@@ -28,6 +28,7 @@ from fledge.services.core.api.plugins import remove as plugins_remove
 from fledge.services.core.api.snapshot import plugins as snapshot_plugins
 from fledge.services.core.api.snapshot import table as snapshot_table
 from fledge.services.core.api import package_log
+from fledge.services.core.api.repos import configure as configure_repo
 
 
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto, Amarendra K Sinha"
@@ -79,6 +80,7 @@ def setup(app):
     # Scheduler
     # Scheduled_processes - As per doc
     app.router.add_route('GET', '/fledge/schedule/process', api_scheduler.get_scheduled_processes)
+    app.router.add_route('POST', '/fledge/schedule/process', api_scheduler.post_scheduled_process)
     app.router.add_route('GET', '/fledge/schedule/process/{scheduled_process_name}', api_scheduler.get_scheduled_process)
 
     # Schedules - As per doc
@@ -130,6 +132,7 @@ def setup(app):
     # Statistics - As per doc
     app.router.add_route('GET', '/fledge/statistics', api_statistics.get_statistics)
     app.router.add_route('GET', '/fledge/statistics/history', api_statistics.get_statistics_history)
+    app.router.add_route('GET', '/fledge/statistics/rate', api_statistics.get_statistics_rate)
 
     # Audit trail - As per doc
     app.router.add_route('POST', '/fledge/audit', api_audit.create_audit_entry)
@@ -165,6 +168,7 @@ def setup(app):
     # Package logs
     app.router.add_route('GET', '/fledge/package/log', package_log.get_logs)
     app.router.add_route('GET', '/fledge/package/log/{name}', package_log.get_log_by_name)
+    app.router.add_route('GET', '/fledge/package/{action}/status', package_log.get_package_status)
 
     # Plugins (install, discovery, update, delete)
     app.router.add_route('GET', '/fledge/plugins/installed', plugins_discovery.get_plugins_installed)
@@ -206,6 +210,9 @@ def setup(app):
     app.router.add_route('POST', '/fledge/snapshot/schedule', snapshot_table.post_snapshot)
     app.router.add_route('PUT', '/fledge/snapshot/schedule/{id}', snapshot_table.put_snapshot)
     app.router.add_route('DELETE', '/fledge/snapshot/schedule/{id}', snapshot_table.delete_snapshot)
+
+    # Repo configure
+    app.router.add_route('POST', '/fledge/repository', configure_repo.add_package_repo)
 
     # enable cors support
     enable_cors(app)

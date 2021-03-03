@@ -92,6 +92,7 @@ class ConfigCategory {
 		std::string			getDescription(const std::string& name) const;
 		std::string			getDefault(const std::string& name) const;
 		bool				setDefault(const std::string& name, const std::string& value);
+		bool				setValue(const std::string& name, const std::string& value);
 		std::string			getDisplayName(const std::string& name) const;
 		std::vector<std::string>	getOptions(const std::string& name) const;
 		std::string			getLength(const std::string& name) const;

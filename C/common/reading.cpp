@@ -145,6 +145,27 @@ Datapoint *rval;
 }
 
 /**
+ * Return a specific data point by name
+ *
+ * @param name		The name of the datapoint to return
+ * @return		Pointer a the named datapoint or NULL if it does not exist
+ */
+Datapoint *Reading::getDatapoint(const string& name) const
+{
+Datapoint *rval;
+
+	for (auto it = m_values.cbegin(); it != m_values.cend(); it++)
+	{
+		if ((*it)->getName().compare(name) == 0)
+		{
+			rval = *it;
+			return rval;
+		}
+	}
+	return NULL;
+}
+
+/**
  * Return the asset reading as a JSON structure encoded in a
  * C++ string.
  */
@@ -256,43 +277,40 @@ ostringstream assetTime;
  */
 const string Reading::getAssetDateUserTime(readingTimeFormat dateFormat, bool addMS) const
 {
-char date_time[DATE_TIME_BUFFER_LEN];
-char micro_s[10];
-ostringstream assetTime;
+	char date_time[DATE_TIME_BUFFER_LEN+10];
+	char micro_s[10];
 
-        // Populate tm structure with UTC time
-        struct tm timeinfo;
+	// Populate tm structure with UTC time
+	struct tm timeinfo;
 	gmtime_r(&m_userTimestamp.tv_sec, &timeinfo);
 
-        /**
-         * Build date_time with format YYYY-MM-DD HH24:MM:SS.MS+00:00
-         * this is same as Python3:
-         * datetime.datetime.now(tz=datetime.timezone.utc)
-         */
+	/**
+	 * Build date_time with format YYYY-MM-DD HH24:MM:SS.MS+00:00
+	 * this is same as Python3:
+	 * datetime.datetime.now(tz=datetime.timezone.utc)
+	 */
 
-        // Create datetime with seconds
-        std::strftime(date_time, sizeof(date_time),
-		      m_dateTypes[dateFormat].c_str(),
-                      &timeinfo);
+	// Create datetime with seconds
+	std::strftime(date_time, sizeof(date_time),
+				  m_dateTypes[dateFormat].c_str(),
+				  &timeinfo);
 
 	if (dateFormat != FMT_ISO8601 && addMS)
 	{
 		// Add microseconds
 		snprintf(micro_s,
-			 sizeof(micro_s),
-			 ".%06lu",
-			 m_userTimestamp.tv_usec);
+				 sizeof(micro_s),
+				 ".%06lu",
+				 m_userTimestamp.tv_usec);
 
-		// Add date_time + microseconds
-		assetTime << date_time << micro_s;
+		strcat(date_time,micro_s);
 
-		return assetTime.str();
+		return string(date_time);
 	}
 	else
 	{
 		return string(date_time);
 	}
-
 }
 
 /**
@@ -332,16 +350,20 @@ void Reading::setUserTimestamp(const string& timestamp)
  */
 void Reading::stringToTimestamp(const string& timestamp, struct timeval *ts)
 {
+	char date_time [DATE_TIME_BUFFER_LEN];
+
+	strcpy (date_time, timestamp.c_str());
+
 	struct tm tm;
 	memset(&tm, 0, sizeof(struct tm));
-	strptime(timestamp.c_str(), "%Y-%m-%d %H:%M:%S", &tm);
+	strptime(date_time, "%Y-%m-%d %H:%M:%S", &tm);
 	// Convert time to epoch - mktime assumes localtime so most adjust for that
 	ts->tv_sec = mktime(&tm);
 	extern long timezone;
 	ts->tv_sec -= timezone;
 
 	// Now process the fractional seconds
-	const char *ptr = timestamp.c_str();
+	const char *ptr = date_time;
 	while (*ptr && *ptr != '.')
 		ptr++;
 	if (*ptr)
@@ -361,9 +383,9 @@ void Reading::stringToTimestamp(const string& timestamp, struct timeval *ts)
 	}
 
 	// Get the timezone from the string and convert to UTC
-	ptr = timestamp.c_str() + 10; // Skip date as it contains '-' characters
+	ptr = date_time + 10; // Skip date as it contains '-' characters
 	while (*ptr && *ptr != '-' && *ptr != '+')
-                ptr++;
+		ptr++;
 	if (*ptr)
 	{
 		int h, m;

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
 """ Provides utility functions to build a Fledge Support bundle.
@@ -90,6 +90,8 @@ class SupportBuilder:
                 await self.add_table_schedules(pyz, file_spec)
                 await self.add_table_scheduled_processes(pyz, file_spec)
                 await self.add_table_statistics_history(pyz, file_spec)
+                await self.add_table_plugin_data(pyz, file_spec)
+                await self.add_table_streams(pyz, file_spec)
                 self.add_service_registry(pyz, file_spec)
                 self.add_machine_resources(pyz, file_spec)
                 self.add_psinfo(pyz, file_spec)
@@ -184,6 +186,26 @@ class SupportBuilder:
             .ORDER_BY(['history_ts', 'DESC']) \
             .payload()
         data = await self._storage.query_tbl_with_payload("statistics_history", payload)
+        self.write_to_tar(pyz, temp_file, data)
+
+    async def add_table_plugin_data(self, pyz, file_spec):
+        # The contents of the plugin_data from the storage layer
+        temp_file = self._interim_file_path + "/" + "plugin-data-{}".format(file_spec)
+        payload = payload_builder.PayloadBuilder() \
+            .LIMIT(1000) \
+            .ORDER_BY(['key', 'ASC']) \
+            .payload()
+        data = await self._storage.query_tbl_with_payload("plugin_data", payload)
+        self.write_to_tar(pyz, temp_file, data)
+
+    async def add_table_streams(self, pyz, file_spec):
+        # The contents of the streams from the storage layer
+        temp_file = self._interim_file_path + "/" + "streams-{}".format(file_spec)
+        payload = payload_builder.PayloadBuilder() \
+            .LIMIT(1000) \
+            .ORDER_BY(['id', 'ASC']) \
+            .payload()
+        data = await self._storage.query_tbl_with_payload("streams", payload)
         self.write_to_tar(pyz, temp_file, data)
 
     def add_service_registry(self, pyz, file_spec):

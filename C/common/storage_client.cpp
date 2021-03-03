@@ -997,6 +997,8 @@ bool StorageClient::registerAssetNotification(const string& assetName,
 		handleUnexpectedResponse("Register asset",
 					 res->status_code,
 					 resultPayload.str());
+		m_logger->error("/storage/reading/interest/%s: %s",
+				urlEncode(assetName).c_str(), res->status_code.c_str());
 
 		return false;
 	} catch (exception& ex)
@@ -1168,7 +1170,7 @@ string				lastAsset;
 		}
 		else
 		{
-			Logger::getLogger()->error("Failed to write block header: %s", sys_errlist[errno]);
+			Logger::getLogger()->error("Failed to write block header: %s", strerror(errno));
 		}
 		return false;
 	}
@@ -1244,7 +1246,7 @@ string				lastAsset;
 				else
 				{
 					Logger::getLogger()->error("Write of block short, %d < %d: %s",
-							n, length, sys_errlist[errno]);
+							n, length, strerror(errno));
 				}
 				return false;
 			}
@@ -1272,7 +1274,7 @@ string				lastAsset;
 			else
 			{
 				Logger::getLogger()->error("Write of block short, %d < %d: %s",
-						n, length, sys_errlist[errno]);
+						n, length, strerror(errno));
 			}
 			return false;
 		}

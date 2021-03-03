@@ -65,42 +65,61 @@ const string LOG_SERVICE_NAME = "SendingProcess/sending";
 static map<string, string> globalConfiguration = {};
 
 // Sending process default configuration
-static const string sendingDefaultConfig =
-	"{"
-	"\"enable\": {"
-		"\"description\": \"A switch that can be used to enable or disable execution of "
-		"the sending process.\", \"type\": \"boolean\", \"default\": \"true\" , \"readonly\": \"true\"  },"
-	"\"streamId\": {"
-		"\"description\": \"Identifies the specific stream to handle and the related information,"
-		" among them the ID of the last object streamed.\", "
-		"\"type\": \"integer\", \"default\": \"0\", "
-		"\"readonly\": \"true\" } "
-	"}";
+static const string sendingDefaultConfig = QUOTE({
+	"enable": {
+		"description": "A switch that can be used to enable or disable execution of the sending process.",
+		"type": "boolean",
+		"default": "true" ,
+		"readonly": "true"
+		},
+	"streamId": {
+		"description": "Identifies the specific stream to handle and the related information, among them the ID of the last object streamed.",
+		"type": "integer",
+		"default": "0",
+		"readonly": "true"
+		 }
+	});
 
 // Sending process advanced configuration
-static const string sendingAdvancedConfig =
-	"{" \
-		"\"duration\": {" \
-			"\"description\": \"How long the sending process " \
-			"should run (in seconds) before stopping.\", " \
-			"\"type\": \"integer\", \"default\": \"60\" , " \
-			"\"order\": \"30\", \"displayName\" : \"Duration\" }, " \
-	        "\"blockSize\": {" \
-			"\"description\": \"The size of a block of readings to send " \
-			"in each transmission.\", " \
-			"\"type\": \"integer\", \"default\": \"500\", \"order\": \"31\", " \
-			"\"displayName\" : \"Readings Block Size\" }, " \
-		        "\"sleepInterval\": {" \
-		"\"description\": \"A period of time, expressed in seconds, " \
-			"to wait between attempts to send readings when there are no " \
-			"readings to be sent.\", \"type\": \"integer\", \"default\": \"1\", " \
-			"\"order\": \"32\", \"displayName\" : \"Sleep Interval\"  }, " \
-		"\"memoryBufferSize\": {" \
-			"\"description\": \"Number of elements of blockSize size to be buffered in memory\", " \
-			"\"type\": \"integer\", \"default\": \"10\", " \
-			"\"order\": \"33\", \"displayName\" : \"Memory Buffer Size\" ," \
-			"\"readonly\": \"false\" } " \
-	"}";
+static const string sendingAdvancedConfig = QUOTE({
+	"duration": {
+		"description": "How long the sending process should run (in seconds) before stopping.",
+		"type": "integer",
+		"default": "60",
+		"order": "30",
+		"displayName" : "Duration"
+		},
+        "blockSize":  {
+		"description": "The size of a block of readings to send in each transmission.",
+		"type": "integer",
+		"default": "500",
+		"order": "31",
+		"displayName" : "Readings Block Size"
+		},
+        "sleepInterval": {
+		"description": "A period of time, expressed in seconds, to wait between attempts to send readings when there are no readings to be sent.",
+		"type": "integer",
+		 "default": "1",
+		"order": "32",
+		"displayName" : "Sleep Interval"
+		},
+	"memoryBufferSize": {
+		"description": "Number of elements of blockSize size to be buffered in memory",
+		"type": "integer",
+		"default": "10",
+		"order": "33",
+		"displayName" : "Memory Buffer Size" ,
+		"readonly": "false"
+		 },
+	"logLevel" : {
+		"description" : "Minimum level of message logged",
+		"type" : "enumeration",
+		"options" : [ "error", "warning", "info", "debug" ],
+		"displayName" : "Log Level",
+		"default" : "warning",
+		"order" : "40"
+		}
+	});
 
 volatile std::sig_atomic_t signalReceived = 0;
 
@@ -833,6 +852,9 @@ ConfigCategory SendingProcess::fetchConfiguration(const std::string& defaultConf
 		string duration = advancedConfiguration.getValue("duration");
 		string sleepInterval = advancedConfiguration.getValue("sleepInterval");
 		string memoryBufferSize = advancedConfiguration.getValue("memoryBufferSize");
+		string minLevel = advancedConfiguration.getValue("logLevel");
+
+		Logger::getLogger()->setMinLevel(minLevel);
 
                 // Handles the case in which the stream_id is not defined
 		// in the configuration and sets it to not defined (0)

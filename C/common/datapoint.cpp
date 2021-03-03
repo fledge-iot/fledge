@@ -32,11 +32,23 @@ std::string DatapointValue::toString() const
 		return ss.str();
 	case T_FLOAT:
 		{
-		ss << std::fixed << std::setprecision(10) << m_value.f;
-		std::string s = ss.str();
-		s.erase(s.find_last_not_of('0') + 1, std::string::npos); // remove trailing 0's
-		s = (s[s.size()-1] == '.') ? s+'0' : s; // add '0' if string ends with decimal
-		return s;
+			char tmpBuffer[100];
+			std::string s;
+
+			snprintf(tmpBuffer, sizeof(tmpBuffer), "%.10f", m_value.f);
+			s= tmpBuffer;
+
+			// remove trailing 0's
+			if (s[s.size()-1]== '0') {
+				s.erase(s.find_last_not_of('0') + 1, std::string::npos);
+
+				// add '0' i
+				if (s[s.size()-1]== '.')
+					s.append("0");
+
+			}
+
+			return s;
 		}
 	case T_FLOAT_ARRAY:
 		ss << "[";
@@ -121,3 +133,70 @@ DatapointValue::~DatapointValue()
 	// For nested DPV, d'tor is always called from holding Datapoint object's destructor
 }
 
+
+/**
+ * Copy constructor
+ */
+DatapointValue::DatapointValue(const DatapointValue& obj)
+{
+	m_type = obj.m_type;
+	switch (m_type)
+	{
+		case T_STRING:
+			m_value.str = new std::string(*(obj.m_value.str));
+			break;
+		case T_FLOAT_ARRAY:
+			m_value.a = new std::vector<double>(*(obj.m_value.a));
+			break;
+		case T_DP_DICT:
+		case T_DP_LIST:
+			m_value.dpa = obj.m_value.dpa; // TODO: need to fix this, need to do nested copying in newly allocated memory
+			break;
+		default:
+			m_value = obj.m_value;
+			break;
+	}
+}
+
+/**
+ * Assignment Operator
+ */
+DatapointValue& DatapointValue::operator=(const DatapointValue& rhs)
+{
+	if (m_type == T_STRING)
+	{
+		// Remove previous value
+		delete m_value.str;
+	}
+	if (m_type == T_FLOAT_ARRAY)
+	{
+		// Remove previous value
+		delete m_value.a;
+	}
+	if (m_type == T_DP_DICT || m_type == T_DP_LIST)
+	{
+		// Remove previous value
+		delete m_value.dpa;
+	}
+
+	m_type = rhs.m_type;
+
+	switch (m_type)
+	{
+	case T_STRING:
+		m_value.str = new std::string(*(rhs.m_value.str));
+		break;
+	case T_FLOAT_ARRAY:
+		m_value.a = new std::vector<double>(*(rhs.m_value.a));
+		break;
+	case T_DP_DICT:
+	case T_DP_LIST:
+		m_value.dpa = new std::vector<Datapoint*>(*(rhs.m_value.dpa));
+		break;
+	default:
+		m_value = rhs.m_value;
+		break;
+	}
+
+	return *this;
+}

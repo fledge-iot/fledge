@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
 """Core server module"""
@@ -1410,6 +1410,46 @@ class Server:
             raise web.HTTPInternalServerError(reason=ex)
 
         return web.json_response(result)
+
+    @classmethod
+    async def enable_disable_schedule(cls, request: web.Request) -> web.Response:
+        data = await request.json()
+        try:
+            schedule_id = request.match_info.get('schedule_id', None)
+            is_enabled = data.get('value', False)
+            _logger.exception("{} is_enabled: {}".format(cls.core_management_port, is_enabled))
+            if is_enabled:
+                status, reason = await cls.scheduler.enable_schedule(uuid.UUID(schedule_id))
+            else:
+                status, reason = await cls.scheduler.disable_schedule(uuid.UUID(schedule_id))
+        except (TypeError, ValueError, KeyError) as err:
+            raise web.HTTPBadRequest(reason=str(err), body=json.dumps({'message': str(err)}))
+        except Exception as ex:
+            raise web.HTTPInternalServerError(reason=str(ex), body=json.dumps({'message': str(ex)}))
+        else:
+            schedule = {
+                'scheduleId': schedule_id,
+                'status': status,
+                'message': reason
+            }
+            return web.json_response(schedule)
+
+    @classmethod
+    async def refresh_cache(cls, request: web.Request) -> web.Response:
+        from fledge.services.core.api.plugins import common
+
+        data = await request.json()
+        try:
+            # At the moment only case to clear cache for available plugins
+            # We may add with action & key combination basis later on
+            common._get_available_packages.cache_clear()
+            cls._package_cache_manager['list']['last_accessed_time'] = ""
+        except (TypeError, ValueError, KeyError) as err:
+            raise web.HTTPBadRequest(reason=str(err), body=json.dumps({'message': str(err)}))
+        except Exception as ex:
+            raise web.HTTPInternalServerError(reason=str(ex), body=json.dumps({'message': str(ex)}))
+        else:
+            return web.json_response({"message": "Refresh cache is completed"})
 
     @classmethod
     async def get_configuration_categories(cls, request):

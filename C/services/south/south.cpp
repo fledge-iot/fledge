@@ -18,6 +18,7 @@
 #include <cxxabi.h>   // for __cxa_demangle
 #include <unistd.h>
 #include <south_service.h>
+#include <south_api.h>
 #include <management_api.h>
 #include <storage_client.h>
 #include <service_record.h>
@@ -221,10 +222,14 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 	sleep(1);
 	if (! m_shutdown)
 	{
+		// Create the south API
+		SouthApi *api = new SouthApi(this);
+		unsigned short sport = api->getListenerPort();
+
 		// Now register our service
 		// TODO proper hostname lookup
 		unsigned short managementListener = management.getListenerPort();
-		ServiceRecord record(m_name, "Southbound", "http", "localhost", 0, managementListener);
+		ServiceRecord record(m_name, "Southbound", "http", "localhost", sport, managementListener);
 		m_mgtClient = new ManagementClient(coreAddress, corePort);
 
 		// Create an empty South category if one doesn't exist
@@ -239,6 +244,12 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			management.stop();
 			return;
 		}
+
+		if (southPlugin->hasControl())
+		{
+			logger->info("South plugin has a control facility, adding south service API");
+		}
+
 		if (!m_mgtClient->registerService(record))
 		{
 			logger->error("Failed to register service %s", m_name.c_str());
@@ -425,6 +436,10 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 			}
 		}
+
+		// Shutdown the API
+		delete api;
+
 		// do plugin shutdown before destroying Ingest object on stack
 		if (southPlugin)
 			southPlugin->shutdown();
@@ -517,6 +532,12 @@ bool SouthService::loadPlugin()
 			m_config.removeItems();
 			m_config = m_mgtClient->getCategory(m_name);
 
+			try {
+				southPlugin = new SouthPlugin(handle, m_config);
+			} catch (...) {
+				return false;
+			}
+
 			// Deal with registering and fetching the advanced configuration
 			string advancedCatName = m_name+string("Advanced");
 			DefaultConfigCategory defConfigAdvanced(advancedCatName, string("{}"));
@@ -533,12 +554,6 @@ bool SouthService::loadPlugin()
 
 			// Must now reload the merged configuration
 			m_configAdvanced = m_mgtClient->getCategory(advancedCatName);
-
-			try {
-				southPlugin = new SouthPlugin(handle, m_config);
-			} catch (...) {
-				return false;
-			}
 
 			return true;
 		}
@@ -583,28 +598,31 @@ void SouthService::configChange(const string& categoryName, const string& catego
 	if (categoryName.compare(m_name+"Advanced") == 0)
 	{
 		m_configAdvanced = ConfigCategory(m_name+"Advanced", category);
-		try {
-			unsigned long newval = (unsigned long)strtol(m_configAdvanced.getValue("readingsPerSec").c_str(), NULL, 10);
-			string units = m_configAdvanced.getValue("units");
-			unsigned long dividend = 1000000;
-			if (units.compare("second") == 0)
-				dividend = 1000000;
-			else if (units.compare("minute") == 0)
-				dividend = 60000000;
-			else if (units.compare("hour") == 0)
-				dividend = 3600000000;
-			if (newval != m_readingsPerSec)
-			{
-				m_readingsPerSec = newval;
-				close(m_timerfd);
-				unsigned long usecs = dividend / m_readingsPerSec;
-				m_desiredRate.tv_sec  = (int)(usecs / 1000000);
-				m_desiredRate.tv_usec = (int)(usecs % 1000000);
-				m_currentRate = m_desiredRate;
-				m_timerfd = createTimerFd(m_desiredRate); // interval to be passed is in usecs
+		if (! southPlugin->isAsync())
+		{
+			try {
+				unsigned long newval = (unsigned long)strtol(m_configAdvanced.getValue("readingsPerSec").c_str(), NULL, 10);
+				string units = m_configAdvanced.getValue("units");
+				unsigned long dividend = 1000000;
+				if (units.compare("second") == 0)
+					dividend = 1000000;
+				else if (units.compare("minute") == 0)
+					dividend = 60000000;
+				else if (units.compare("hour") == 0)
+					dividend = 3600000000;
+				if (newval != m_readingsPerSec)
+				{
+					m_readingsPerSec = newval;
+					close(m_timerfd);
+					unsigned long usecs = dividend / m_readingsPerSec;
+					m_desiredRate.tv_sec  = (int)(usecs / 1000000);
+					m_desiredRate.tv_usec = (int)(usecs % 1000000);
+					m_currentRate = m_desiredRate;
+					m_timerfd = createTimerFd(m_desiredRate); // interval to be passed is in usecs
+				}
+			} catch (ConfigItemNotFound e) {
+				logger->error("Failed to update poll interval following configuration change");
 			}
-		} catch (ConfigItemNotFound e) {
-			logger->error("Failed to update poll interval following configuration change");
 		}
 		unsigned long threshold = 5000;	// This should never be used
 		if (m_configAdvanced.itemExists("bufferThreshold"))
@@ -648,18 +666,33 @@ void SouthService::configChange(const string& categoryName, const string& catego
  */
 void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 {
+	bool isAsync = southPlugin->isAsync();
 	for (int i = 0; defaults[i].name; i++)
 	{
+		if (strcmp(defaults[i].name, "readingsPerSec") == 0 && isAsync)
+		{
+			continue;
+		}
 		defaultConfig.addItem(defaults[i].name, defaults[i].description,
 			defaults[i].type, defaults[i].value, defaults[i].value);
 		defaultConfig.setItemDisplayName(defaults[i].name, defaults[i].displayName);
 	}
 
-	/* Add the reading rate units */
-	vector<string>	rateUnits = { "second", "minute", "hour" };
-	defaultConfig.addItem("units", "Reading Rate Per",
-			"second", "second", rateUnits);
-	defaultConfig.setItemDisplayName("units", "Reading Rate Per");
+	if (!isAsync)
+	{
+		/* Add the reading rate units */
+		vector<string>	rateUnits = { "second", "minute", "hour" };
+		defaultConfig.addItem("units", "Reading Rate Per",
+				"second", "second", rateUnits);
+		defaultConfig.setItemDisplayName("units", "Reading Rate Per");
+	}
+
+	if (southPlugin->hasControl())
+	{
+		defaultConfig.addItem("control", "Allow write and control operations on the device",
+			       "boolean", "true", "true");
+		defaultConfig.setItemDisplayName("control", "Allow Control");
+	}
 
 	/* Add the set of logging levels to the service */
 	vector<string>	logLevels = { "error", "warning", "info", "debug" };
@@ -773,5 +806,45 @@ struct timeval now, res;
 			m_timerfd = createTimerFd(m_currentRate); // interval to be passed is in usecs
 			m_lastThrottle = now;
 		}
+	}
+}
+
+/**
+ * Perform a setPoint operation on the south plugin
+ *
+ * @param name	Name of the point to set
+ * @param value	The value to set
+ * @return	Success or failure of the SetPoint operation
+ */
+bool SouthService::setPoint(const string& name, const string& value)
+{
+	if (southPlugin->hasControl())
+	{
+		return southPlugin->write(name, value);
+	}
+	else
+	{
+		logger->warn("SetPoint operation %s = %s attempted on plugin that does not support control", name.c_str(), value.c_str());
+		return false;
+	}
+}
+
+/**
+ * Perform an operation on the south plugin
+ *
+ * @param name	Name of the operation
+ * @param params The parameters for the operaiton, if any
+ * @return	Success or failure of the operation
+ */
+bool SouthService::operation(const string& operation, vector<PLUGIN_PARAMETER *>& params)
+{
+	if (southPlugin->hasControl())
+	{
+		return southPlugin->operation(operation, params);
+	}
+	else
+	{
+		logger->warn("Operation %s attempted on plugin that does not support control", operation.c_str());
+		return false;
 	}
 }

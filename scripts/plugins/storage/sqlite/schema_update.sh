@@ -21,7 +21,8 @@ __version__="1.0"
 
 FLEDGE_DB_VERSION=$1
 NEW_VERSION=$2
-SQLITE_SQL=$3
+export SQLITE_SQL=$3
+export sql_file=""
 
 PLUGIN_NAME="sqlite"
 
@@ -68,7 +69,7 @@ db_upgrade()
     CHECK_VER=`expr ${FLEDGE_DB_VERSION} + 1`
     # sort in ascending order
     for sql_file in `ls -1 ${UPDATE_SCRIPTS_DIR}/*.sql | sort -V`
-        do 
+        do
             # Get start_ver from filename START_VER-to-END_VER.sql
             START_VER=`echo $(basename -s '.sql' $sql_file)`
 
@@ -89,24 +90,47 @@ db_upgrade()
 
             # Perform Upgrade
             if [ "${START_UPGRADE}" ]; then
-                # Prepare command string for erro reporting
-                SQL_COMMAND="${SQLITE_SQL} '${DEFAULT_SQLITE_DB_FILE}' \"ATTACH DATABASE "\
-"'${DEFAULT_SQLITE_DB_FILE}' AS 'fledge'; .read '${sql_file}' .quit\""
-                if [ "${VERBOSE}" ]; then
-                    schema_update_log "info" "Applying upgrade $(basename ${sql_file}) ..." "logonly" "pretty"
-                    schema_update_log "info" "Calling [${SQL_COMMAND}]" "logonly" "pretty"
-                fi
 
-                # Call the DB script
-                COMMAND_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
-ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}' AS 'fledge';
+                # Evaluates if a shell script is available, in case it is executed instead of the .sql file
+                file_name=$(basename ${sql_file})
+                file_name_shell=${file_name%.*}.sh
+                file_name_path="${UPDATE_SCRIPTS_DIR}/${file_name_shell}"
+
+                if [ -f "${file_name_path}" ]; then
+
+                    schema_update_log "debug" "upgrade shell calling [${file_name_path}]" "logonly" "pretty"
+                    ${file_name_path}
+
+                    RET_CODE=$?
+                    if [ "${RET_CODE}" -ne 0 ]; then
+                        schema_update_log "err" "Failure in upgrade, executing ${file_name_path}. Exiting" "all" "pretty"
+                        return 1
+                    fi
+                else
+                    schema_update_log "debug" "upgrade sql calling [${sql_file}]" "logonly" "pretty"
+
+                    # Prepare command string for error reporting
+                    SQL_COMMAND="${SQLITE_SQL} '${DEFAULT_SQLITE_DB_FILE}' \"ATTACH DATABASE "\
+"'${DEFAULT_SQLITE_DB_FILE}' AS 'fledge'; .read '${sql_file}' .quit\""
+
+                    if [ "${VERBOSE}" ]; then
+                        schema_update_log "info" "Applying upgrade $(basename ${sql_file}) ..." "logonly" "pretty"
+                        schema_update_log "info" "Calling [${SQL_COMMAND}]" "logonly" "pretty"
+                    fi
+
+                    # Call the DB script
+                    COMMAND_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}'              AS 'fledge';
 .read '${sql_file}'
 .quit
 EOF`
-                RET_CODE=$?
-                if [ "${RET_CODE}" -ne 0 ]; then
-                    schema_update_log "err" "Failure in upgrade command [${SQL_COMMAND}]: ${COMMAND_OUTPUT}. Exiting" "all" "pretty"
-                    return 1
+                    RET_CODE=$?
+
+                    if [ "${RET_CODE}" -ne 0 ]; then
+                        schema_update_log "err" "Failure in upgrade command [${SQL_COMMAND}]: ${COMMAND_OUTPUT}. Exiting" "all" "pretty"
+                        return 1
+                    fi
+
                 fi
 
                 # Update the DB version
@@ -160,7 +184,7 @@ db_downgrade()
     CHECK_VER=`expr ${FLEDGE_DB_VERSION} - 1`
     # sort in descending order
     for sql_file in `ls -1 ${DOWNGRADE_SCRIPTS_DIR}/*.sql | sort -rV`
-        do 
+        do
             # Get start_ver from filename START_VER-to-END_VER.sql
             START_VER=`echo $(basename -s '.sql' $sql_file)`
 
@@ -181,24 +205,55 @@ db_downgrade()
 
             # Perform Downgrade
             if [ "${START_DOWNGRADE}" ]; then
-                # Prepare command string for message reporting
-                SQL_COMMAND="${SQLITE_SQL} '${DEFAULT_SQLITE_DB_FILE}' \"ATTACH DATABASE "\
-"'${DEFAULT_SQLITE_DB_FILE}' AS 'fledge'; .read '${sql_file}' .quit\""
-                if [ "${VERBOSE}" ]; then
-                    schema_update_log "info" "Applying downgrade $(basename ${sql_file}) ..." "logonly" "pretty"
-                    schema_update_log "info" "Calling [${SQL_COMMAND}]" "logonly" "pretty"
-                fi
 
-                # Call the DB script
-                COMMAND_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
-ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}' AS 'fledge';
-.read '${sql_file}'
-.quit
-EOF`
-                RET_CODE=$?
-                if [ "${RET_CODE}" -ne 0 ]; then
-                    schema_update_log "err" "Failure in downgrade command [${SQL_COMMAND}]: ${COMMAND_OUTPUT}. Exiting" "all" "pretty"
-                    return 1
+                # Evaluates if a shell script is available, in case it is executed instead of the .sql file
+                file_name=$(basename ${sql_file})
+                file_name_shell=${file_name%.*}.sh
+                file_name_path="${DOWNGRADE_SCRIPTS_DIR}/${file_name_shell}"
+
+                if [ -f "${file_name_path}" ]; then
+
+                    schema_update_log "debug" "downgrade shell calling [${file_name_path}]" "logonly" "pretty"
+
+                    ${file_name_path}
+
+                    RET_CODE=$?
+                    if [ "${RET_CODE}" -ne 0 ]; then
+                        schema_update_log "err" "Failure in downgrade, executing ${file_name_path}. Exiting" "all" "pretty"
+                        return 1
+                    fi
+                else
+                    schema_update_log "debug" "downgrade sql calling [${sql_file}]" "logonly" "pretty"
+
+                    # Prepare command string for message reporting
+                    SQL_COMMAND="${SQLITE_SQL} '${DEFAULT_SQLITE_DB_FILE}' \"ATTACH DATABASE "\
+    "'${DEFAULT_SQLITE_DB_FILE}' AS 'fledge'; .read '${sql_file}' .quit\""
+                    if [ "${VERBOSE}" ]; then
+                        schema_update_log "info" "Applying downgrade $(basename ${sql_file}) ..." "logonly" "pretty"
+                        schema_update_log "info" "Calling [${SQL_COMMAND}]" "logonly" "pretty"
+                    fi
+
+                    # Call the DB script
+                    COMMAND_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
+    ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}' AS 'fledge';
+    .read '${sql_file}'
+    .quit
+    EOF`
+                    RET_CODE=$?
+                    if [ "${RET_CODE}" -ne 0 ]; then
+                        schema_update_log "err" "Failure in downgrade command [${SQL_COMMAND}]: ${COMMAND_OUTPUT}. Exiting" "all" "pretty"
+                        return 1
+                    fi
+
+                    # Update DB version
+                    UPDATE_COMMAND="${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" \"ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}' AS 'fledge'; UPDATE fledge.version SET id = '${START_VER}';\" 2>&1"
+                    UPDATE_OUTPUT=`eval "${UPDATE_COMMAND}"`
+                    RET_CODE=$?
+                    if [ "${RET_CODE}" -ne 0 ]; then
+                        schema_update_log "err" "Failure in downgrade command [${UPDATE_COMMAND}]: ${UPDATE_OUTPUT}. Exiting" "all" "pretty"
+                        return 1
+                    fi
+
                 fi
 
                 # Update DB version

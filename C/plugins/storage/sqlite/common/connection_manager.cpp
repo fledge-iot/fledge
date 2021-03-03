@@ -7,9 +7,12 @@
  *
  * Author: Mark Riddoch
  */
+#include <sqlite3.h>
+#include <unistd.h>
+
 #include <connection_manager.h>
 #include <connection.h>
-
+#include <logger.h>
 
 ConnectionManager *ConnectionManager::instance = 0;
 
@@ -126,6 +129,203 @@ Connection *conn = 0;
 }
 
 /**
+ * Attach a database to all the connections, idle and  inuse
+ *
+ * @param path  - path of the database to attach
+ * @param alias - alias to be assigned to the attached database
+ */
+bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
+{
+	int rc;
+	std::string sqlCmd;
+	sqlite3 *dbHandle;
+	bool result;
+	char *zErrMsg = NULL;
+
+	result = true;
+
+	sqlCmd = "ATTACH DATABASE '" + path + "' AS " + alias + ";";
+
+	idleLock.lock();
+	inUseLock.lock();
+
+	// attach the DB to all idle connections
+	{
+
+		for ( auto conn : idle) {
+
+			dbHandle = conn->getDbHandle();
+			rc = SQLExec (dbHandle, sqlCmd.c_str(), &zErrMsg);
+			if (rc != SQLITE_OK)
+			{
+				Logger::getLogger()->error("attachNewDb - It was not possible to attach the db :%s: to an idle connection, error :%s:", path.c_str(), zErrMsg);
+				sqlite3_free(zErrMsg);
+				result = false;
+				break;
+			}
+
+			Logger::getLogger()->debug("attachNewDb idle dbHandle :%X: sqlCmd :%s: ", dbHandle, sqlCmd.c_str());
+
+		}
+	}
+
+	if (result)
+	{
+		// attach the DB to all inUse connections
+		{
+
+			for ( auto conn : inUse) {
+
+				dbHandle = conn->getDbHandle();
+				rc = SQLExec (dbHandle, sqlCmd.c_str(), &zErrMsg);
+				if (rc != SQLITE_OK)
+				{
+					Logger::getLogger()->error("attachNewDb - It was not possible to attach the db :%s: to an inUse connection, error :%s:", path.c_str() ,zErrMsg);
+					sqlite3_free(zErrMsg);
+					result = false;
+					break;
+				}
+
+				Logger::getLogger()->debug("attachNewDb inUse dbHandle :%X: sqlCmd :%s: ", dbHandle, sqlCmd.c_str());
+			}
+		}
+	}
+	idleLock.unlock();
+	inUseLock.unlock();
+
+	return (result);
+}
+
+/**
+ * Detach a database from all the connections
+ *
+ */
+bool ConnectionManager::detachNewDb(std::string &alias)
+{
+	int rc;
+	std::string sqlCmd;
+	sqlite3 *dbHandle;
+	bool result;
+	char *zErrMsg = NULL;
+
+	result = true;
+
+	sqlCmd = "DETACH  DATABASE " + alias + ";";
+	Logger::getLogger()->debug("detachDb - db alias :%s: cmd :%s:" ,  alias.c_str() , sqlCmd.c_str() );
+
+	idleLock.lock();
+	inUseLock.lock();
+
+	// attach the DB to all idle connections
+	{
+		for ( auto conn : idle) {
+
+			dbHandle = conn->getDbHandle();
+			rc = SQLExec (dbHandle, sqlCmd.c_str(), &zErrMsg);
+			if (rc != SQLITE_OK)
+			{
+				Logger::getLogger()->error("detachNewDb - It was not possible to detach the db :%s: from an idle connection, error :%s:", alias.c_str(), zErrMsg);
+				sqlite3_free(zErrMsg);
+				result = false;
+				break;
+			}
+			Logger::getLogger()->debug("detachNewDb - idle dbHandle :%X: sqlCmd :%s: ", dbHandle, sqlCmd.c_str());
+		}
+	}
+
+	if (result)
+	{
+		// attach the DB to all inUse connections
+		{
+
+			for ( auto conn : inUse) {
+
+				dbHandle = conn->getDbHandle();
+				rc = SQLExec (dbHandle, sqlCmd.c_str(), &zErrMsg);
+				if (rc != SQLITE_OK)
+				{
+					Logger::getLogger()->error("detachNewDb - It was not possible to detach the db :%s: from an inUse connection, error :%s:", alias.c_str() ,zErrMsg);
+					sqlite3_free(zErrMsg);
+					result = false;
+					break;
+				}
+				Logger::getLogger()->debug("detachNewDb - inUse dbHandle :%X: sqlCmd :%s: ", dbHandle, sqlCmd.c_str());
+			}
+		}
+	}
+	idleLock.unlock();
+	inUseLock.unlock();
+
+	return (result);
+}
+
+
+/**
+ * Adds to all the connections a request to attach a database
+ *
+ *  *
+ * @param newDbId  - database id to attach
+ * @param dbHandle - dbhandle for which the attach request should NOT be added
+ *
+ */
+bool ConnectionManager::attachRequestNewDb(int newDbId, sqlite3 *dbHandle)
+{
+	int rc;
+	std::string sqlCmd;
+	bool result;
+	char *zErrMsg = NULL;
+
+	result = true;
+
+	idleLock.lock();
+	inUseLock.lock();
+
+	// attach the DB to all idle connections
+	{
+
+		for ( auto conn : idle) {
+
+			if (dbHandle == conn->getDbHandle())
+			{
+				Logger::getLogger()->debug("attachRequestNewDb - idle skipped dbHandle :%X: sqlCmd :%s: ", conn->getDbHandle(), sqlCmd.c_str());
+
+			} else
+			{
+				conn->setUsedDbId(newDbId);
+
+				Logger::getLogger()->debug("attachRequestNewDb - idle, dbHandle :%X: sqlCmd :%s: ", conn->getDbHandle(), sqlCmd.c_str());
+			}
+
+		}
+	}
+
+	if (result)
+	{
+		// attach the DB to all inUse connections
+		{
+
+			for ( auto conn : inUse) {
+
+				if (dbHandle == conn->getDbHandle())
+				{
+					Logger::getLogger()->debug("attachRequestNewDb - inUse skipped dbHandle :%X: sqlCmd :%s: ", conn->getDbHandle(), sqlCmd.c_str());
+				} else
+				{
+					conn->setUsedDbId(newDbId);
+
+					Logger::getLogger()->debug("attachRequestNewDb - inUse, dbHandle :%X: sqlCmd :%s: ", conn->getDbHandle(), sqlCmd.c_str());
+				}
+			}
+		}
+	}
+	idleLock.unlock();
+	inUseLock.unlock();
+
+	return (result);
+}
+
+
+/**
  * Release a connection back to the idle pool for
  * reallocation.
  *
@@ -159,4 +359,53 @@ void ConnectionManager::setError(const char *source, const char *description, bo
 	lastError.entryPoint = strdup(source);
 	lastError.message = strdup(description);
 	errorLock.unlock();
+}
+
+/**
+ * SQLIte wrapper to retry statements when the database is locked
+ *
+ */
+int ConnectionManager::SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **errMsg)
+{
+	int retries = 0, rc;
+
+
+	do {
+		if (errMsg == NULL)
+		{
+			rc = sqlite3_exec(dbHandle, sqlCmd, NULL, NULL, NULL);
+		}
+		else
+		{
+			rc = sqlite3_exec(dbHandle, sqlCmd, NULL, NULL, errMsg);
+			Logger::getLogger()->debug("SQLExec: rc :%d: ", rc);
+		}
+
+		if (rc != SQLITE_OK)
+		{
+			int interval = (retries * RETRY_BACKOFF);
+			usleep(interval);	// sleep retries milliseconds
+			if (retries > 5)
+			{
+				Logger::getLogger()->warn("ConnectionManager::SQLExec - error :%s: dbHandle :%X: sqlCmd :%s: retry :%d: of :%d:",
+										  sqlite3_errmsg(dbHandle),
+										  dbHandle,
+										  sqlCmd,
+										  rc,
+										  MAX_RETRIES);
+			}
+			retries++;
+		}
+	} while (retries < MAX_RETRIES && (rc  != SQLITE_OK));
+
+	if (rc == SQLITE_LOCKED)
+	{
+		Logger::getLogger()->error("ConnectionManager::SQLExec - Database still locked after maximum retries");
+	}
+	if (rc == SQLITE_BUSY)
+	{
+		Logger::getLogger()->error("ConnectionManager::SQLExec - Database still busy after maximum retries");
+	}
+
+	return rc;
 }

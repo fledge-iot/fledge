@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
-import asyncio
-import platform
 import json
 from unittest.mock import patch, MagicMock
 import pytest
@@ -16,10 +14,9 @@ from fledge.services.core import routes
 from fledge.services.core.api.plugins import install as plugins_install
 from fledge.services.core.api.plugins import common
 from fledge.services.core.api.plugins.exceptions import *
-from fledge.common.audit_logger import AuditLogger
 from fledge.services.core import connect
 from fledge.common.storage_client.storage_client import StorageClientAsync
-
+from fledge.common.plugin_discovery import PluginDiscovery
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems Inc."
@@ -54,15 +51,17 @@ class TestPluginInstall:
         ({"url": "http://blah.co.in", "format": "tar", "checksum": "4015c2dea1cc71dbf70a23f6a203eeb6"},
          "Plugin type param is required"),
         ({"url": "http://blah.co.in", "format": "tar", "type": "blah", "checksum": "4015c2dea1cc71dbf70a23f6a203eeb6"},
-         "Invalid plugin type. Must be 'north' or 'south' or 'filter' or 'notificationDelivery' or 'notificationRule'"),
+         "Invalid plugin type. Must be 'north' or 'south' or 'filter' or 'notify' or 'rule'"),
         ({"url": "http://blah.co.in", "format": "blah", "type": "filter", "checksum": "4015c2dea1cc71dbf70a23f6a203ee"},
          "Invalid format. Must be 'tar' or 'deb' or 'rpm' or 'repository'"),
         ({"url": "http://blah.co.in", "format": "tar", "type": "south", "checksum": "4015c2dea1cc71dbf70a23f6a203eeb6",
           "compressed": "blah"}, 'Only "true", "false", true, false are allowed for value of compressed.'),
         ({"format": "repository"}, "name param is required"),
+        ({"format": "repository", "version": "1.6"}, "name param is required"),
+        ({"format": "repository", "name": "sinusoid"}, 'name should start with "fledge-" prefix'),
         ({"format": "repository", "name": "fledge-south-sinusoid", "version": "1.6"},
-         "Plugin semantic version is incorrect; it should be like X.Y.Z"),
-
+         "Invalid version; it should be empty or a valid semantic version X.Y.Z i.e. major.minor.patch to install "
+         "as per the configured repository"),
     ])
     async def test_bad_post_plugins_install(self, client, param, message):
         resp = await client.post('/fledge/plugins', data=json.dumps(param))
@@ -243,28 +242,28 @@ class TestPluginInstall:
 
         plugin = "fledge-south-sinusoid"
         param = {"format": "repository", "name": plugin}
-        with patch.object(common, 'fetch_available_packages', return_value=(async_mock(([], 'log/190801-12-41-13.log')))) \
-                as patch_fetch_available_package:
-            resp = await client.post('/fledge/plugins', data=json.dumps(param))
-            assert 404 == resp.status
-            assert "'{} plugin is not available for the given repository'".format(plugin) == resp.reason
-        patch_fetch_available_package.assert_called_once_with()
+        payload = {"return": ["status"], "where": {"column": "action", "condition": "=", "value": "install",
+                                                   "and": {"column": "name", "condition": "=", "value": plugin}}}
+        plugin_list = [{'name': 'randomwalk', 'type': 'south', 'description': 'Generate random walk data points',
+                        'version': '1.8.2', 'installedDirectory': 'south/randomwalk',
+                        'packageName': 'fledge-south-randomwalk'}]
 
-    async def test_package_error_exception_on_install_package_from_repo(self, client):
-        plugin = "fledge-south-sinusoid"
-        param = {"format": "repository", "name": plugin}
-        msg = "Plugin installation request failed"
-        log_path = "log/190801-13-01-13-{}.log".format(plugin)
-        with patch.object(common, 'fetch_available_packages', side_effect=PackageError(log_path)) \
-                as patch_fetch_available_package:
-            resp = await client.post('/fledge/plugins', data=json.dumps(param))
-            assert 400 == resp.status
-            assert msg == resp.reason
-            result = await resp.text()
-            json_response = json.loads(result)
-            assert log_path == json_response['link']
-            assert msg == json_response['message']
-        patch_fetch_available_package.assert_called_once_with()
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload',
+                              return_value=async_mock({'count': 0, 'rows': []})) as query_tbl_patch:
+                with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_list
+                                  ) as plugin_installed_patch:
+                    with patch.object(common, 'fetch_available_packages', return_value=(
+                            async_mock(([], 'log/190801-12-41-13.log')))) as patch_fetch_available_package:
+                        resp = await client.post('/fledge/plugins', data=json.dumps(param))
+                        assert 404 == resp.status
+                        assert "'{} plugin is not available for the configured repository'".format(plugin) == resp.reason
+                    patch_fetch_available_package.assert_called_once_with()
+                plugin_installed_patch.assert_called_once_with('south', False)
+            args, kwargs = query_tbl_patch.call_args_list[0]
+            assert 'packages' == args[0]
+            assert payload == json.loads(args[1])
 
     @pytest.mark.parametrize("plugin_name", [
         'fledge-south-modbusc',
@@ -279,27 +278,102 @@ class TestPluginInstall:
 
         storage_client_mock = MagicMock(StorageClientAsync)
         param = {"format": "repository", "name": plugin_name}
-        _platform = platform.platform()
-        pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
-        msg = "installed"
-        with patch.object(common, 'fetch_available_packages',
-                          return_value=(async_mock(([plugin_name, "fledge-north-http",
-                                        "fledge-service-notification"], 'log/190801-12-41-13.log')))) \
-                as patch_fetch_available_package:
-            with patch.object(plugins_install, 'install_package_from_repo',
-                              return_value=async_mock((0, 'Success', msg))) as install_package_patch:
-                with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                    with patch.object(AuditLogger, '__init__', return_value=None):
-                        with patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(
-                                async_mock(None), loop=loop)) as audit_info_patch:
-                            resp = await client.post('/fledge/plugins', data=json.dumps(param))
-                            assert 200 == resp.status
-                            result = await resp.text()
-                            response = json.loads(result)
-                            assert {"link": "Success", "message": "{} is successfully {}".format(
-                                plugin_name, msg)} == response
-                        args, kwargs = audit_info_patch.call_args
-                        assert 'PKGIN' == args[0]
-                        assert {'packageName': plugin_name} == args[1]
-            install_package_patch.assert_called_once_with(plugin_name, pkg_mgt, None)
-        patch_fetch_available_package.assert_called_once_with()
+        insert_row_resp = {'count': 1, 'rows': [{
+                "id": "c5648940-31ec-4f78-a7a5-b1707e8fe578",
+                "name": plugin_name,
+                "action": "install",
+                "status": -1,
+                "log_file_uri": ""
+            }]}
+        query_tbl_payload = {"return": ["status"], "where": {"column": "action", "condition": "=", "value": "install",
+                                                             "and": {"column": "name", "condition": "=",
+                                                                     "value": plugin_name}}}
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload',
+                              side_effect=[async_mock({'count': 0, 'rows': []}), async_mock(insert_row_resp)
+                                           ]) as query_tbl_patch:
+                with patch.object(common, 'fetch_available_packages', return_value=(
+                        async_mock(([plugin_name, "fledge-north-http", "fledge-service-notification"],
+                                    'log/190801-12-41-13.log')))) as patch_fetch_available_package:
+                    with patch.object(storage_client_mock, 'insert_into_tbl',
+                                      return_value=async_mock({"response": "inserted", "rows_affected": 1}
+                                                              )) as insert_tbl_patch:
+                        with patch.object(plugins_install._LOGGER, "info") as log_info:
+                            with patch('multiprocessing.Process'):
+                                resp = await client.post('/fledge/plugins', data=json.dumps(param))
+                                assert 200 == resp.status
+                                result = await resp.text()
+                                response = json.loads(result)
+                                assert 'id' in response
+                                assert 'Plugin installation started.' == response['message']
+                                assert response['statusLink'].startswith('fledge/package/install/status?id=')
+                        assert 1 == log_info.call_count
+                        log_info.assert_called_once_with('{} plugin install started...'.format(plugin_name))
+                    args, kwargs = insert_tbl_patch.call_args_list[0]
+                    assert 'packages' == args[0]
+                    actual = json.loads(args[1])
+                    assert 'id' in actual
+                    assert plugin_name == actual['name']
+                    assert 'install' == actual['action']
+                    assert -1 == actual['status']
+                    assert '' == actual['log_file_uri']
+                patch_fetch_available_package.assert_called_once_with()
+            args, kwargs = query_tbl_patch.call_args_list[0]
+            assert 'packages' == args[0]
+            actual = json.loads(args[1])
+            assert query_tbl_payload == actual
+
+    async def test_plugin_install_package_from_repo_already_in_progress(self, client):
+        async def async_mock(return_value):
+            return return_value
+
+        plugin_name = "fledge-north-http-north"
+        param = {"format": "repository", "name": plugin_name}
+        payload = {"return": ["status"], "where": {"column": "action", "condition": "=", "value": "install",
+                                                   "and": {"column": "name", "condition": "=", "value": plugin_name}}}
+        select_row_resp = {'count': 1, 'rows': [{
+            "id": "c5648940-31ec-4f78-a7a5-b1707e8fe578",
+            "name": plugin_name,
+            "action": "install",
+            "status": -1,
+            "log_file_uri": ""
+        }]}
+        msg = '{} package installation already in progress'.format(plugin_name)
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload',
+                              return_value=async_mock(select_row_resp)) as query_tbl_patch:
+                resp = await client.post('/fledge/plugins', data=json.dumps(param))
+                assert 429 == resp.status
+                assert msg == resp.reason
+                r = await resp.text()
+                actual = json.loads(r)
+                assert {'message': msg} == actual
+            args, kwargs = query_tbl_patch.call_args_list[0]
+            assert 'packages' == args[0]
+            assert payload == json.loads(args[1])
+
+    async def test_plugin_install_package_from_repo_already_installed(self, client):
+        async def async_mock(return_value):
+            return return_value
+
+        plugin_name = "fledge-south-modbusc"
+        param = {"format": "repository", "name": plugin_name}
+        payload = {"return": ["status"], "where": {"column": "action", "condition": "=", "value": "install",
+                                                   "and": {"column": "name", "condition": "=", "value": plugin_name}}}
+        plugin_list = [{"name": "ModbusC", "type": "south", "description": "Modbus TCP and RTU C south plugin",
+                        "version": "1.8.1", "installedDirectory": "south/ModbusC", "packageName": plugin_name}]
+        msg = '{} package is already installed'.format(plugin_name)
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload',
+                              return_value=async_mock({'count': 0, 'rows': []})) as query_tbl_patch:
+                with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_list
+                                  ) as plugin_list_patch:
+                    resp = await client.post('/fledge/plugins', data=json.dumps(param))
+                    assert 400 == resp.status
+                    assert msg == resp.reason
+                plugin_list_patch.assert_called_once_with('south', False)
+            args, kwargs = query_tbl_patch.call_args_list[0]
+            assert 'packages' == args[0]
+            assert payload == json.loads(args[1])

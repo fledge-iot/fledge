@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
 """ Test GCP Gateway plugin
@@ -16,7 +16,8 @@ import time
 import pytest
 from pathlib import Path
 import utils
-from datetime import datetime
+from datetime import timezone, datetime
+import itertools
 
 __author__ = "Yash Tatkondawar"
 __copyright__ = "Copyright (c) 2020 Dianomic Systems Inc."
@@ -31,6 +32,11 @@ SCRIPTS_DIR_ROOT = "{}/tests/system/python/packages/data/".format(PROJECT_ROOT)
 FLEDGE_ROOT = os.environ.get('FLEDGE_ROOT')
 CERTS_DIR = "{}/gcp".format(SCRIPTS_DIR_ROOT)
 FLEDGE_CERTS_DIR = "{}/data/etc/certs/".format(FLEDGE_ROOT)
+
+
+@pytest.fixture
+def check_fledge_root():    
+    assert FLEDGE_ROOT, "Please set FLEDGE_ROOT!"
 
 
 @pytest.fixture
@@ -70,6 +76,11 @@ def remove_and_add_pkgs(package_build_version):
         assert False, "pip installation of google-cloud-pubsub failed"
 
     try:
+        subprocess.run(["python3 -m pip install google-cloud-logging==1.15.1"], shell=True, check=True)
+    except subprocess.CalledProcessError:
+        assert False, "pip installation of google-cloud-logging failed"
+
+    try:
         subprocess.run(["if [ ! -f \"{}/roots.pem\" ]; then wget https://pki.goog/roots.pem -P {}; fi"
                        .format(CERTS_DIR, CERTS_DIR)], shell=True, check=True)
     except subprocess.CalledProcessError:
@@ -96,6 +107,19 @@ def get_statistics_map(fledge_url):
     return utils.serialize_stats_map(jdoc)
 
 
+# Get the latest 5 timestamps, readings of data sent from south to compare it with the timestamps, readings of data in GCP.
+def get_asset_info(fledge_url):
+    _connection = http.client.HTTPConnection(fledge_url)
+    _connection.request("GET", '/fledge/asset/sinusoid?limit=5')
+    r = _connection.getresponse()
+    assert 200 == r.status
+    r = r.read().decode()
+    jdoc = json.loads(r)
+    for j in jdoc:
+        j['timestamp'] = datetime.strptime(j['timestamp'], "%Y-%m-%d %H:%M:%S.%f").astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")
+    return jdoc
+
+
 def copy_certs(gcp_cert_path):
     copy_file = "cp {} {}/roots.pem {}".format(gcp_cert_path, CERTS_DIR, FLEDGE_CERTS_DIR)
     exit_code = os.system(copy_file)
@@ -109,50 +133,49 @@ def verify_and_set_prerequisites(gcp_cert_path, google_app_credentials):
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = google_app_credentials
 
 
-def verify_received_messages(project_id, subscription_name, timeout=None):
-    """Receives messages from a pull subscription."""
-    # [START pubsub_subscriber_async_pull]
-    # [START pubsub_quickstart_subscriber]
-    from google.cloud import pubsub_v1
+def verify_received_messages(logger_name, asset_info, retries, wait_time):
 
-    # TODO project_id = "Your Google Cloud Project ID"
-    # TODO subscription_name = "Your Pub/Sub subscription name"
-    # TODO timeout = 5.0  # "How long the subscriber should listen for
-    # messages in seconds"
+    from google.cloud import logging
+    from google.cloud.logging import DESCENDING
 
-    subscriber = pubsub_v1.SubscriberClient()
-    # The `subscription_path` method creates a fully qualified identifier
-    # in the form `projects/{project_id}/subscriptions/{subscription_name}`
-    subscription_path = subscriber.subscription_path(
-        project_id, subscription_name
-    )
+    # Lists the most recent entries for a given logger.
+    logging_client = logging.Client()
+    logger = logging_client.logger(logger_name)
 
-    def callback(message):
-        msg_json = json.loads(message.data.decode('utf8'))
-        ts = msg_json["sinusoid"][0]["ts"]
-        # received messages may not be in order (and latest). verify date part only
-        # until we found a way to fetch latest sent and stats count from GCP
-        assert ts[:10] == datetime.now().strftime("%Y-%m-%d")
-        message.ack()
-
-    streaming_pull_future = subscriber.subscribe(
-        subscription_path, callback=callback
-    )
-
-    # result() in a future will block indefinitely if `timeout` is not set,
-    # unless an exception is encountered first.
-    try:
-        streaming_pull_future.result(timeout=timeout)
-    except:  # noqa
-        streaming_pull_future.cancel()
-    # [END pubsub_subscriber_async_pull]
-    # [END pubsub_quickstart_subscriber]
-
+    # Fetches the latest logs from GCP and comaperes it with current timestamp
+    while retries:
+        iterator = logger.list_entries(order_by=DESCENDING, page_size=10, filter_="severity=INFO")
+        pages = iterator.pages
+        page = next(pages)  # API call
+        gcp_log_string = ""
+        gcp_info = []
+        for entry in page:            
+            gcp_log_string += entry.payload
+        assert len(gcp_log_string), "No data seen in GCP. "
+        gcp_log_dict = json.loads("[" + gcp_log_string.replace("}{", "},{") + "]")
+        for r in gcp_log_dict:           
+            for d in range(0, len(r["sinusoid"])):
+                gcp_info.append(r["sinusoid"][d])
+        assert len(gcp_info), "No Sinusoid readings GCP logs found"
+        found = 0
+        for i in gcp_info:
+            for  d in asset_info:
+                if d['timestamp'] == i['ts']:
+                    assert d['reading']['sinusoid'] == i['sinusoid']
+                    found += 1
+        if found == len(asset_info):
+            break
+        else:
+            retries -= 1
+            time.sleep(wait_time)
+            
+    if retries == 0:
+        assert False, "TIMEOUT! sinusoid data sent not seen in GCP. "   
 
 class TestGCPGateway:
-    def test_gcp_gateway(self, verify_and_set_prerequisites, remove_and_add_pkgs, reset_fledge, fledge_url,
+    def test_gcp_gateway(self, check_fledge_root, verify_and_set_prerequisites, remove_and_add_pkgs, reset_fledge, fledge_url,
                          wait_time, remove_data_file, gcp_project_id, gcp_device_gateway_id, gcp_registry_id,
-                         gcp_subscription_name, gcp_cert_path):
+                         gcp_cert_path, gcp_logger_name, retries):
         payload = {"name": "Sine", "type": "south", "plugin": "sinusoid", "enabled": True, "config": {}}
         post_url = "/fledge/service"
         conn = http.client.HTTPConnection(fledge_url)
@@ -194,7 +217,9 @@ class TestGCPGateway:
         assert 0 < actual_stats_map['Readings Sent']
         assert 0 < actual_stats_map[task_name]
 
-        verify_received_messages(gcp_project_id, gcp_subscription_name, timeout=3)
+        asset_info = get_asset_info(fledge_url)
+
+        verify_received_messages(gcp_logger_name, asset_info, retries, wait_time)
 
         remove_data_file("{}/rsa_private.pem".format(FLEDGE_CERTS_DIR))
         remove_data_file("{}/roots.pem".format(FLEDGE_CERTS_DIR))

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
 """Service Record Class"""
@@ -25,6 +25,8 @@ class ServiceRecord(object):
         Core = 2
         Southbound = 3
         Notification = 4
+        Management = 5
+        Northbound = 6
 
     class Status(IntEnum):
         """Enumeration for Service Status"""

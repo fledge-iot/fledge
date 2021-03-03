@@ -11,6 +11,9 @@
 #include <iostream>
 #include <string>
 #include "string_utils.h"
+#include <logger.h>
+#include <stdio.h>
+#include <string.h>
 
 using namespace std;
 
@@ -92,7 +95,7 @@ std::string extractLastLevel(const std::string& path, char separator)
 
 	tmpPath = path;
 
-	if (tmpPath.length() > 1)
+	if (tmpPath.length() > 0)
 	{
 		if (tmpPath.find(separator) != string::npos)
 		{
@@ -273,4 +276,80 @@ string urlDecode(const std::string& name)
 	}
 
 	return string(dec);
+}
+
+/**
+ * Escape all double quotes characters in the string
+ *
+ * @param str	The string to escape
+ */
+void StringEscapeQuotes(std::string& str)
+{
+	for (size_t i = 0; i < str.length(); i++)
+	{
+		if (str[i] == '\"' && (i == 0 || str[i-1] != '\\'))
+		{
+			str.replace(i, 1, "\\\"");
+		}
+
+	}
+}
+
+/**
+ * Remove space at both ends of a string
+ */
+char *trim(char *str)
+{
+	char *ptr;
+
+	while (*str && *str == ' ')
+		str++;
+
+	ptr = str + strlen(str) - 1;
+	while (ptr > str && *ptr == ' ')
+	{
+		*ptr = 0;
+		ptr--;
+	}
+	return str;
+}
+
+/**
+ * Remove spaces at the left side of a string
+ */
+std::string StringLTrim(const std::string& str)
+{
+	string output;
+	size_t pos = str.find_first_not_of(" ");
+
+	if (pos == std::string::npos)
+		output = "";
+	else
+		output = str.substr(pos);
+
+	return (output);
+}
+
+/**
+ * Remove spaces at the right side of a string
+ */
+std::string StringRTrim(const std::string& str)
+{
+	string output;
+	size_t pos = str.find_last_not_of(" ");
+
+	if (pos == std::string::npos)
+		output =  "";
+	else
+		output = str.substr(0, pos + 1);
+
+	return (output);
+}
+
+/**
+ * Remove spaces at both ends of a string
+ */
+std::string StringTrim(const std::string& str)
+{
+	return StringRTrim(StringLTrim(str));
 }

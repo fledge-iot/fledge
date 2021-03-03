@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
 import os
@@ -12,6 +12,8 @@ import asyncio
 import tarfile
 import hashlib
 import json
+import uuid
+import multiprocessing
 
 from aiohttp import web
 import aiohttp
@@ -27,6 +29,9 @@ from fledge.services.core import connect
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.audit_logger import AuditLogger
 from fledge.services.core import server
+from fledge.common.storage_client.payload_builder import PayloadBuilder
+from fledge.common.storage_client.exceptions import StorageServerError
+from fledge.common.plugin_discovery import PluginDiscovery
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems Inc."
@@ -50,9 +55,11 @@ async def add_plugin(request: web.Request) -> web.Response:
     :Example:
         curl -X POST http://localhost:8081/fledge/plugins
         data:
-            URL - The URL to pull the plugin file from
             format - the format of the file. One of tar or package (deb, rpm) or repository
-            compressed - option boolean this is used to indicate the package is a compressed gzip image
+            name - the plugin package name to pull from repository
+            version - (optional) the plugin version to install from repository
+            url - The url to pull the plugin file from if format is not a repository
+            compressed - (optional) boolean this is used to indicate the package is a compressed gzip image
             checksum - the checksum of the file, used to verify correct upload
 
         curl -sX POST http://localhost:8081/fledge/plugins -d '{"format":"repository", "name": "fledge-south-sinusoid"}'
@@ -73,36 +80,78 @@ async def add_plugin(request: web.Request) -> web.Response:
             name = data.get('name', None)
             if name is None:
                 raise ValueError('name param is required')
+            if not name.startswith("fledge-"):
+                raise ValueError('name should start with "fledge-" prefix')
             version = data.get('version', None)
             if version:
-                delimiter = '.'
-                if str(version).count(delimiter) != 2:
-                    raise ValueError('Plugin semantic version is incorrect; it should be like X.Y.Z')
+                if str(version).count('.') != 2:
+                    raise ValueError('Invalid version; it should be empty or a valid semantic version X.Y.Z '
+                                     'i.e. major.minor.patch to install as per the configured repository')
 
+            # Check Pre-conditions from Packages table
+            # if status is -1 (Already in progress) then return as rejected request
+            action = "install"
+            storage = connect.get_storage_async()
+            select_payload = PayloadBuilder().SELECT("status").WHERE(['action', '=', action]).AND_WHERE(
+                ['name', '=', name]).payload()
+            result = await storage.query_tbl_with_payload('packages', select_payload)
+            response = result['rows']
+            if response:
+                exit_code = response[0]['status']
+                if exit_code == -1:
+                    msg = "{} package installation already in progress".format(name)
+                    return web.HTTPTooManyRequests(reason=msg, body=json.dumps({"message": msg}))
+                # Remove old entry from table for other cases
+                delete_payload = PayloadBuilder().WHERE(['action', '=', action]).AND_WHERE(
+                    ['name', '=', name]).payload()
+                await storage.delete_from_tbl("packages", delete_payload)
+
+            # Check If requested plugin is already installed and then return immediately
+            plugin_type = name.split('fledge-')[1].split('-')[0]
+            plugins_list = PluginDiscovery.get_plugins_installed(plugin_type, False)
+            for p in plugins_list:
+                if p['packageName'] == name:
+                    msg = "{} package is already installed".format(name)
+                    return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+            # Check If requested plugin is available for configured APT repository
             plugins, log_path = await common.fetch_available_packages()
             if name not in plugins:
-                raise KeyError('{} plugin is not available for the given repository'.format(name))
+                raise KeyError('{} plugin is not available for the configured repository'.format(name))
 
             _platform = platform.platform()
             pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
-            code, link, msg = await install_package_from_repo(name, pkg_mgt, version)
-            if code != 0:
-                raise PackageError(link)
-            storage = connect.get_storage_async()
-            audit = AuditLogger(storage)
-            audit_detail = {'packageName': name}
-            log_code = 'PKGUP' if msg == 'updated' else 'PKGIN'
-            await audit.information(log_code, audit_detail)
-            result_payload = {"message": "{} is successfully {}".format(name, msg), "link": link}
+            # Insert record into Packages table
+            insert_payload = PayloadBuilder().INSERT(id=str(uuid.uuid4()), name=name, action=action, status=-1,
+                                                     log_file_uri="").payload()
+            result = await storage.insert_into_tbl("packages", insert_payload)
+            response = result['response']
+            if response:
+                # GET id from Packages table to track the installation response
+                select_payload = PayloadBuilder().SELECT("id").WHERE(['action', '=', action]).AND_WHERE(
+                    ['name', '=', name]).payload()
+                result = await storage.query_tbl_with_payload('packages', select_payload)
+                response = result['rows']
+                if response:
+                    pn = "{}-{}".format(action, name)
+                    uid = response[0]['id']
+                    # process based parallelism
+                    p = multiprocessing.Process(name=pn, target=install_package_from_repo,
+                                                args=(name, pkg_mgt, version, uid, storage))
+                    p.daemon = True
+                    p.start()
+                    _LOGGER.info("{} plugin {} started...".format(name, action))
+                    msg = "Plugin installation started."
+                    status_link = "fledge/package/{}/status?id={}".format(action, uid)
+                    result_payload = {"message": msg, "id": uid, "statusLink": status_link}
+            else:
+                raise StorageServerError
         else:
             if not url or not checksum:
                 raise TypeError('URL, checksum params are required')
             if file_format == "tar" and not plugin_type:
                 raise ValueError("Plugin type param is required")
-            if file_format == "tar" and plugin_type not in ['south', 'north', 'filter', 'notificationDelivery',
-                                                            'notificationRule']:
-                raise ValueError("Invalid plugin type. Must be 'north' or 'south' or 'filter' "
-                                 "or 'notificationDelivery' or 'notificationRule'")
+            if file_format == "tar" and plugin_type not in ['south', 'north', 'filter', 'notify', 'rule']:
+                raise ValueError("Invalid plugin type. Must be 'north' or 'south' or 'filter' or 'notify' or 'rule'")
             if compressed:
                 if compressed not in ['true', 'false', True, False]:
                     raise ValueError('Only "true", "false", true, false are allowed for value of compressed.')
@@ -134,13 +183,13 @@ async def add_plugin(request: web.Request) -> web.Response:
                     raise ValueError(msg)
 
             result_payload = {"message": "{} is successfully downloaded and installed".format(file_name)}
+    except StorageServerError as err:
+        msg = str(err)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": "Storage error: {}".format(msg)}))
     except (FileNotFoundError, KeyError) as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except (TypeError, ValueError) as ex:
         raise web.HTTPBadRequest(reason=str(ex))
-    except PackageError as e:
-        msg = "Plugin installation request failed"
-        raise web.HTTPBadRequest(body=json.dumps({"message": msg, "link": str(e)}), reason=msg)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=str(ex))
     else:
@@ -259,11 +308,12 @@ def copy_file_install_requirement(dir_files: list, plugin_type: str, file_name: 
     return code, msg
 
 
-async def install_package_from_repo(name: str, pkg_mgt: str, version: str) -> tuple:
+def install_package_from_repo(name: str, pkg_mgt: str, version: str, uid: uuid, storage: connect) -> None:
     stdout_file_path = common.create_log_file(action="install", plugin_name=name)
     link = "log/" + stdout_file_path.split("/")[-1]
     msg = "installed"
-    cat = await check_upgrade_on_install()
+    loop = asyncio.new_event_loop()
+    cat = loop.run_until_complete(check_upgrade_on_install())
     upgrade_install_cat_item = cat["upgradeOnInstall"]
     max_upgrade_cat_item = cat['maxUpdate']
     if 'value' in upgrade_install_cat_item:
@@ -280,8 +330,12 @@ async def install_package_from_repo(name: str, pkg_mgt: str, version: str) -> tu
                 cmd = "sudo {} -y upgrade".format(pkg_mgt) if pkg_mgt == 'apt' else "sudo {} -y update".format(pkg_mgt)
                 ret_code = os.system(cmd + " > {} 2>&1".format(stdout_file_path))
                 if ret_code != 0:
-                    raise PackageError(link)
-                pkg_cache_mgr['upgrade']['last_accessed_time'] = now
+                    # Update record in Packages table for given uid only in case of APT upgrade fails
+                    payload = PayloadBuilder().SET(status=ret_code, log_file_uri=link).WHERE(['id', '=', uid]).payload()
+                    loop.run_until_complete(storage.update_tbl("packages", payload))
+                    return
+                else:
+                    pkg_cache_mgr['upgrade']['last_accessed_time'] = now
             else:
                 _LOGGER.warning("Maximum upgrade exceeds the limit for the day")
             msg = "updated"
@@ -290,7 +344,16 @@ async def install_package_from_repo(name: str, pkg_mgt: str, version: str) -> tu
         cmd = "sudo {} -y install {}={}".format(pkg_mgt, name, version)
 
     ret_code = os.system(cmd + " >> {} 2>&1".format(stdout_file_path))
-    return ret_code, link, msg
+    # Update record in Packages table for given uid
+    payload = PayloadBuilder().SET(status=ret_code, log_file_uri=link).WHERE(['id', '=', uid]).payload()
+    loop.run_until_complete(storage.update_tbl("packages", payload))
+    if ret_code == 0:
+        # Audit info
+        audit = AuditLogger(storage)
+        audit_detail = {'packageName': name}
+        log_code = 'PKGUP' if msg == 'updated' else 'PKGIN'
+        loop.run_until_complete(audit.information(log_code, audit_detail))
+        _LOGGER.info('{} plugin {} successfully'.format(name, msg))
 
 
 async def check_upgrade_on_install() -> Dict:

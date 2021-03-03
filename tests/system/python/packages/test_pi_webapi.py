@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
 """ Test sending data to PI using Web API
@@ -68,10 +68,12 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
     af_hierarchy_level = "fledge/room1/machine1"
     af_hierarchy_level_list = af_hierarchy_level.split("/")
     type_id = 1
-    recorded_datapoint = "{}_{}measurement_{}.{}".format(af_hierarchy_level_list[-1], type_id, asset_name, DATAPOINT)
+    recorded_datapoint = "{}measurement_{}".format(type_id, asset_name)
+    # Name of asset in the PI server
+    PI_ASSET_NAME = "{}-type{}".format(asset_name, type_id)
 
     while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
-        data_from_pi = read_data_from_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db, af_hierarchy_level_list, asset_name, {recorded_datapoint})
+        data_from_pi = read_data_from_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db, af_hierarchy_level_list, PI_ASSET_NAME, {recorded_datapoint})
         retry_count += 1
         time.sleep(wait_time*2)
 

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # FLEDGE_BEGIN
-# See: http://fledge.readthedocs.io/
+# See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
 import logging
@@ -34,23 +34,23 @@ async def get_plugins_installed(request):
     :Example:
         curl -X GET http://localhost:8081/fledge/plugins/installed
         curl -X GET http://localhost:8081/fledge/plugins/installed?config=true
-        curl -X GET http://localhost:8081/fledge/plugins/installed?type=north|south|filter|notificationDelivery|notificationRule
+        curl -X GET http://localhost:8081/fledge/plugins/installed?type=north|south|filter|notify|rule
         curl -X 'GET http://localhost:8081/fledge/plugins/installed?type=north&config=true'
     """
 
     plugin_type = None
     is_config = False
     if 'type' in request.query and request.query['type'] != '':
-        plugin_type = request.query['type'].lower() if request.query['type'] not in ['notificationDelivery', 'notificationRule'] else request.query['type']
+        plugin_type = request.query['type'].lower()
 
-    if plugin_type is not None and plugin_type not in ['north', 'south', 'filter', 'notificationDelivery', 'notificationRule']:
-        raise web.HTTPBadRequest(reason="Invalid plugin type. Must be 'north' or 'south' or 'filter' or 'notificationDelivery' or 'notificationRule'.")
+    if plugin_type is not None and plugin_type not in ['north', 'south', 'filter', 'notify', 'rule']:
+        raise web.HTTPBadRequest(reason="Invalid plugin type. Must be 'north' or 'south' or 'filter' or 'notify' "
+                                        "or 'rule'.")
 
     if 'config' in request.query:
         config = request.query['config']
         if config not in ['true', 'false', True, False]:
-            raise web.HTTPBadRequest(reason='Only "true", "false", true, false'
-                                                ' are allowed for value of config.')
+            raise web.HTTPBadRequest(reason='Only "true", "false", true, false are allowed for value of config.')
         is_config = True if ((type(config) is str and config.lower() in ['true']) or (
             (type(config) is bool and config is True))) else False
 
@@ -74,9 +74,9 @@ async def get_plugins_available(request: web.Request) -> web.Response:
         if package_type and package_type not in ['north', 'south', 'filter', 'notify', 'rule']:
             raise ValueError("Invalid package type. Must be 'north' or 'south' or 'filter' or 'notify' or 'rule'.")
         plugins, log_path = await common.fetch_available_packages(package_type)
-        # fledge-gui, fledge-quickstart and fledge-service-* packages are excluded when no type is given
         if not package_type:
-            plugins = [p for p in plugins if not str(p).startswith('fledge-service-') and p not in ('fledge-quickstart', 'fledge-gui')]
+            prefix_list = ['fledge-filter-', 'fledge-north-', 'fledge-notify-', 'fledge-rule-', 'fledge-south-']
+            plugins = [p for p in plugins if str(p).startswith(tuple(prefix_list))]
     except ValueError as e:
         raise web.HTTPBadRequest(reason=e)
     except PackageError as e:

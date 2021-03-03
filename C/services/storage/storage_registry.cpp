@@ -141,7 +141,9 @@ StorageRegistry::run()
 	while (m_running)
 	{
 		char *data = NULL;
+#if CHECK_QTIMES
 		time_t qTime;
+#endif
 		{
 			unique_lock<mutex> mlock(m_cvMutex);
 			while (m_queue.size() == 0)
@@ -155,7 +157,9 @@ StorageRegistry::run()
 			Item item = m_queue.front();
 			m_queue.pop();
 			data = item.second;
+#if CHECK_QTIMES
 			qTime = item.first;
+#endif
 		}
 		if (data)
 		{

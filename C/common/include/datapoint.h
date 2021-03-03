@@ -70,70 +70,13 @@ class DatapointValue {
 		/**
 		 * Copy constructor
 		 */
-		DatapointValue(const DatapointValue& obj)
-		{
-			m_type = obj.m_type;
-			switch (m_type)
-			{
-			case T_STRING:
-				m_value.str = new std::string(*(obj.m_value.str));
-				break;
-			case T_FLOAT_ARRAY:
-				m_value.a = new std::vector<double>(*(obj.m_value.a));
-				break;
-			case T_DP_DICT:
-			case T_DP_LIST:
-				m_value.dpa = obj.m_value.dpa; // TODO: need to fix this, need to do nested copying in newly allocated memory
-				break;
-			default:
-				m_value = obj.m_value;
-				break;
-			}
-		}
+		DatapointValue(const DatapointValue& obj);
 
 		/**
 		 * Assignment Operator
 		 */
-		DatapointValue& operator=(const DatapointValue& rhs)
-		{
-			if (m_type == T_STRING)
-			{
-				// Remove previous value
-				delete m_value.str;
-			}
-			if (m_type == T_FLOAT_ARRAY)
-			{
-				// Remove previous value
-				delete m_value.a;
-			}
-			if (m_type == T_DP_DICT || m_type == T_DP_LIST)
-			{
-				// Remove previous value
-				delete m_value.dpa;
-			}
+		DatapointValue& operator=(const DatapointValue& rhs);
 
-			m_type = rhs.m_type;
-
-			switch (m_type)
-			{
-			case T_STRING:
-				m_value.str = new std::string(*(rhs.m_value.str));
-				break;
-			case T_FLOAT_ARRAY:
-				m_value.a = new std::vector<double>(*(rhs.m_value.a));
-				break;
-			case T_DP_DICT:
-			case T_DP_LIST:
-				m_value.dpa = new std::vector<Datapoint*>(*(rhs.m_value.dpa));
-				break;
-			default:
-				m_value = rhs.m_value;
-				break;
-			}
-
-			return *this;
-		}
-		
 		/**
 		 * Destructor
 		 */

@@ -132,3 +132,28 @@ TEST(StringTrim, StringTrimCases)
 	ASSERT_EQ(StringTrim("  xxx  "), "xxx");
 }
 
+// Test StringStripWhiteSpaces
+TEST(StringStripWhiteSpaces, AllCases)
+{
+	ASSERT_EQ(StringStripWhiteSpaces("xxx") , "xxx");
+
+	ASSERT_EQ(StringStripWhiteSpaces(" xxx") , "xxx");
+	ASSERT_EQ(StringStripWhiteSpaces(" xxx ") , "xxx");
+
+	ASSERT_EQ(StringStripWhiteSpaces(" x x x ") , "xxx");
+
+	ASSERT_EQ(StringStripWhiteSpaces("Messages:[  {   MessageIndex:0") , "Messages:[{MessageIndex:0");
+
+	ASSERT_EQ(StringStripWhiteSpaces(" x x x ") , "xxx");
+
+	ASSERT_EQ(StringStripWhiteSpaces(" x x\tx ") , "xxx");
+	ASSERT_EQ(StringStripWhiteSpaces(" x x\nx ") , "xxx");
+	ASSERT_EQ(StringStripWhiteSpaces(" x x\vx ") , "xxx");
+	ASSERT_EQ(StringStripWhiteSpaces(" x x\fx ") , "xxx");
+	ASSERT_EQ(StringStripWhiteSpaces(" x x\rx ") , "xxx");
+
+}
+
+
+
+

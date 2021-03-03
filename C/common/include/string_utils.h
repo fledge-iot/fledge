@@ -28,7 +28,9 @@ string StringSlashFix(const string& stringToFix);
 std::string evaluateParentPath(const std::string& path, char separator);
 std::string extractLastLevel(const std::string& path, char separator);
 
-void StringStripCRLF(std::string& StringToManage);
+void   StringStripCRLF(std::string& StringToManage);
+string StringStripWhiteSpaces(const std::string& output);
+
 string urlEncode(const string& s);
 string urlDecode(const string& s);
 void StringEscapeQuotes(string& s);
@@ -37,5 +39,7 @@ char *trim(char *str);
 std::string StringLTrim(const std::string& str);
 std::string StringRTrim(const std::string& str);
 std::string StringTrim(const std::string& str);
+
+
 
 #endif

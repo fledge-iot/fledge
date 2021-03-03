@@ -20,7 +20,6 @@
 ## Author: Ashish Jabble, Massimiliano Pinto, Vaibhav Singhal
 ##
 
-
 set -e
 
 # Upgrades curl to the version related to Fledge
@@ -109,21 +108,41 @@ os_name=`(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
 os_version=`(grep -o '^VERSION_ID=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
 echo "Platform is ${os_name}, Version: ${os_version}"
 
-if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *"7"* ]]; then
+USE_SCL=false
+YUM_PLATFORM=false
+
+if [[ $os_name == *"Red Hat"* || $os_name == *"CentOS"* ]]; then
+	YUM_PLATFORM=true
+	if [[ $os_version == *"7"* ]]; then
+		USE_SCL=true
+	fi
+fi
+
+if [[ $YUM_PLATFORM = true ]]; then
+	echo YUM Platform
 	if [[ $os_name == *"Red Hat"* ]]; then
 		yum-config-manager --enable 'Red Hat Software Collections RPMs for Red Hat Enterprise Linux 7 Server from RHUI'
 		yum install -y @development
 	else
 		yum groupinstall "Development tools" -y
-		yum install -y centos-release-scl
+		if [[ $USE_SCL  = true ]]; then
+			echo Use SCL $USE_SCL
+			yum install -y centos-release-scl
+		fi
 	fi
 	yum install -y boost-devel
 	yum install -y glib2-devel
 	yum install -y rsyslog
 	yum install -y openssl-devel
-	yum install -y rh-python36
-	yum install -y rh-postgresql96
-	yum install -y rh-postgresql96-postgresql-devel
+	if [[ $os_version == *"7"* ]]; then
+		yum install -y rh-python36
+		yum install -y rh-postgresql96
+		yum install -y rh-postgresql96-postgresql-devel
+	else
+		yum install -y python36
+		yum install -y postgresql
+		yum install -y postgresql-devel
+	fi
 	yum install -y wget
 	yum install -y zlib-devel
 	yum install -y git
@@ -133,7 +152,9 @@ if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *
 	yum install -y krb5-workstation
 	yum install -y curl-devel
 
-	echo "source scl_source enable rh-python36" >> /home/${SUDO_USER}/.bashrc
+	if [[ $USE_SCL = true ]]; then
+		echo "source scl_source enable rh-python36" >> /home/${SUDO_USER}/.bashrc
+	fi
 	service rsyslog start
 
 	# SQLite3 needs to be compiled on CentOS|RHEL
@@ -167,10 +188,12 @@ if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *
 
 	cd $fledge_location
 
-	# To avoid to stop the execution for any internal error of scl_source
-	set +e
-	source scl_source enable rh-python36
-	set -e
+	if [[ $USE_SCL = true ]]; then
+		# To avoid to stop the execution for any internal error of scl_source
+		set +e
+		source scl_source enable rh-python36
+		set -e
+	fi
 
 	#
 	# A gcc version newer than 4.9.0 is needed to properly use <regex>
@@ -179,14 +202,15 @@ if [[ ( $os_name == *"Red Hat"* || $os_name == *"CentOS"* ) &&  $os_version == *
 	# the previous gcc will be enabled again after a log-off/log-in.
 	#
 	yum install -y yum-utils
-	yum-config-manager --enable rhel-server-rhscl-7-rpms
-	yum install -y devtoolset-7
+	if [[ $USE_SCL = true ]]; then
+		yum-config-manager --enable rhel-server-rhscl-7-rpms
+		yum install -y devtoolset-7
 
-	# To avoid to stop the execution for any internal error of scl_source
-	set +e
-	source scl_source enable devtoolset-7
-	set -e
-
+		# To avoid to stop the execution for any internal error of scl_source
+		set +e
+		source scl_source enable devtoolset-7
+		set -e
+	fi
 elif apt --version 2>/dev/null; then
 	# avoid interactive questions
 	DEBIAN_FRONTEND=noninteractive apt install -yq libssl-dev
@@ -206,4 +230,5 @@ elif apt --version 2>/dev/null; then
 	# apt install -y postgresql
 else
 	echo "Requirements cannot be automatically installed, please refer README.rst to install requirements manually"
+yum install -y rh-python36
 fi

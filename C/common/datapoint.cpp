@@ -150,7 +150,32 @@ DatapointValue::DatapointValue(const DatapointValue& obj)
 			break;
 		case T_DP_DICT:
 		case T_DP_LIST:
-			m_value.dpa = obj.m_value.dpa; // TODO: need to fix this, need to do nested copying in newly allocated memory
+			m_value.dpa = new std::vector<Datapoint*>();
+			for (auto it = obj.m_value.dpa->begin();
+				it != obj.m_value.dpa->end();
+				++it)
+			{
+				Datapoint *d = *it;
+				if (d->getData().getType() == T_STRING)
+				{
+					std::string s = d->getData().toStringValue();
+					DatapointValue v(s);
+					Datapoint *a = new Datapoint(d->getName(), v);
+					m_value.dpa->push_back(a);
+				}
+				else if (d->getData().getType() == T_FLOAT_ARRAY)
+				{
+					std::vector<double> *currA = d->getData().getDpArr();
+					DatapointValue v(*currA);
+					m_value.dpa->push_back(new Datapoint(d->getName(), v));
+				}
+				else
+				{
+					DatapointValue v(d->getData());
+					m_value.dpa->push_back(new Datapoint(d->getName(), v));
+				}
+			}
+
 			break;
 		default:
 			m_value = obj.m_value;

@@ -112,6 +112,11 @@ class DatapointValue {
 		std::string	toString() const;
 
 		/**
+		 * Return string value without trailing/leading quotes
+		 */
+		std::string	toStringValue() const { return *m_value.str; };
+
+		/**
 		 * Return long value
 		 */
 		long toInt() const { return m_value.i; };
@@ -153,9 +158,20 @@ class DatapointValue {
 			}
 		}
 
+		/**
+		 * Return array of datapoints
+		 */
 		std::vector<Datapoint*>*& getDpVec()
 		{
 			return m_value.dpa;
+		}
+
+		/**
+		 * Return array of float
+		 */
+		std::vector<double>*& getDpArr()
+		{
+			return m_value.a;
 		}
 		
 	private:

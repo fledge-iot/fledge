@@ -111,10 +111,8 @@ void DatapointValue::deleteNestedDPV()
 				 it != m_value.dpa->end();
 				 ++it)
 			{
-				if (*it) {
-					// Call DatapointValue destructor
-					delete(*it);
-				}
+				// Call DatapointValue destructor
+				delete(*it);
 			}
 
 			// Remove vector pointer

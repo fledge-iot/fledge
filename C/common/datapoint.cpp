@@ -95,17 +95,13 @@ void DatapointValue::deleteNestedDPV()
 {
 	if (m_type == T_STRING)
 	{
-		if (m_value.str) {
-			delete m_value.str;
-			m_value.str = NULL;
-		}
+		delete m_value.str;
+		m_value.str = NULL;
 	}
 	else if (m_type == T_FLOAT_ARRAY)
 	{
-		if (m_value.a) {
-			delete m_value.a;
-			m_value.a = NULL;
-		}
+		delete m_value.a;
+		m_value.a = NULL;
 	}
 	else if (m_type == T_DP_DICT ||
 		 m_type == T_DP_LIST)
@@ -135,17 +131,13 @@ DatapointValue::~DatapointValue()
 {
 	if (m_type == T_STRING)
 	{
-		if (m_value.str) {
-			delete m_value.str;
-			m_value.str = NULL;
-		}
+		delete m_value.str;
+		m_value.str = NULL;
 	}
 	if (m_type == T_FLOAT_ARRAY)
 	{
-		if (m_value.a) {
-			delete m_value.a;
-			m_value.a = NULL;
-		}
+		delete m_value.a;
+		m_value.a = NULL;
 	}
 	// Check for T_DP_DICT or T_DP_LIST
 	if (m_type == T_DP_DICT ||

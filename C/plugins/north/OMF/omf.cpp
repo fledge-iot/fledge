@@ -24,6 +24,9 @@
 #include <datapoint.h>
 #include <thread>
 
+// FIXME_I:
+#include <piwebapi.h>
+
 //# FIXME_I:
 #include <tmp_log.hpp>
 
@@ -346,12 +349,10 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 					   typeData);
 		if  ( ! (res >= 200 && res <= 299) )
 		{
-			Logger::getLogger()->error("Sending JSON dataType message 'Type' "
-						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+			Logger::getLogger()->error("Sending JSON dataType message 'Type', HTTP code %d - %s %s",
 						   res,
 						   m_sender.getHostPort().c_str(),
-						   m_path.c_str(),
-						   typeData.c_str() );
+						   m_path.c_str());
 			return false;
 		}
 	}
@@ -363,23 +364,44 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 			// Data type error: force type-id change
 			m_changeTypeId = true;
 		}
-                Logger::getLogger()->warn("Sending JSON dataType message 'Type', "
-					  "not blocking issue:  |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-					   (m_changeTypeId ? "Data Type " : "" ),
-                                           e.what(),
-                                           m_sender.getHostPort().c_str(),
-                                           m_path.c_str(),
-                                           typeData.c_str() );
+			// FIXME_I:
+			string errorMsg;
+
+			if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
+			{
+				PIWebAPI piWeb;
+				errorMsg = piWeb.errorMessageHandler(e.what());
+
+			} else {
+				errorMsg = e.what();
+			}
+
+			Logger::getLogger()->warn("Sending dataType message 'Type', not blocking issue: %s  %s - %s %s",
+				(m_changeTypeId ? "Data Type " : "" ),
+				errorMsg.c_str(),
+				m_sender.getHostPort().c_str(),
+				m_path.c_str());
+
 		return false;
 	}
 	catch (const std::exception& e)
 	{
-                Logger::getLogger()->error("Sending JSON dataType message 'Type' "
-					   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-                                           e.what(),
-                                           m_sender.getHostPort().c_str(),
-                                           m_path.c_str(),
-                                           typeData.c_str() );
+		// FIXME_I:
+		string errorMsg;
+
+		if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
+		{
+			PIWebAPI piWeb;
+			errorMsg = piWeb.errorMessageHandler(e.what());
+
+		} else {
+			errorMsg = e.what();
+		}
+
+		Logger::getLogger()->error("Sending dataType message 'Type', %s - %s %s",
+									errorMsg.c_str(),
+									m_sender.getHostPort().c_str(),
+									m_path.c_str());
 
 		return false;
 	}
@@ -618,23 +640,29 @@ bool OMF::AFHierarchySendMessage(const string& msgType, string& jsonData)
 
 	if (! success)
 	{
+		// FIXME_I:
+		string errorMsg;
+
+		if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
+		{
+			PIWebAPI piWeb;
+			errorMsg = piWeb.errorMessageHandler(errorMessage);
+
+		} else {
+			errorMsg = errorMessage;
+		}
+
 		if (res != 0)
-			Logger::getLogger()->error("Sending JSON  Asset Framework hierarchy, "
-						   "- HTTP code |%d| - error message |%s| - HostPort |%s| - path |%s| message type |%s| - OMF message |%s|",
+			Logger::getLogger()->error("Sending Asset Framework hierarchy, %d %s - %s %s",
 						   res,
-						   errorMessage.c_str(),
+							errorMsg.c_str(),
 						   m_sender.getHostPort().c_str(),
-						   m_path.c_str(),
-						   msgType.c_str(),
-						   jsonData.c_str() );
+						   m_path.c_str());
 		else
-			Logger::getLogger()->error("Sending JSON  Asset Framework hierarchy, "
-						   "- error message |%s| - HostPort |%s| - path |%s| message type |%s| - OMF message |%s|",
-						   errorMessage.c_str(),
+			Logger::getLogger()->error("Sending Asset Framework hierarchy, %s - %s %s",
+							errorMsg.c_str(),
 						   m_sender.getHostPort().c_str(),
-						   m_path.c_str(),
-						   msgType.c_str(),
-						   jsonData.c_str() );
+						   m_path.c_str());
 
 	}
 
@@ -1457,7 +1485,9 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	catch (const std::exception& e)
 	{
 		string errorMsg;
-		errorMsg = PIWebErrorMessageHandle(e.what());
+		PIWebAPI piWeb;
+
+		errorMsg = piWeb.errorMessageHandler(e.what());
 
 		// FIXME_I:
 		Logger::getLogger()->error("Sending JSON data error 2 V2: HostPort |%s| path |%s| error |%s|",
@@ -1471,32 +1501,6 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	}
 }
 
-// FIXME_I:
-string OMF::PIWebErrorMessageHandle(const string& msg)
-{
-	string trimmed, finalMsg;
-
-	//# FIXME_I:
-	char tmp_buffer[500000];
-	snprintf (tmp_buffer,500000, "DBG : errorMsg  |%s| " ,msg.c_str());
-	tmpLogger (tmp_buffer);
-
-	// FIXME_I:
-	//finalMsg = msg;
-	//finalMsg = StringStripWhiteSpacesAll(msg);
-	finalMsg = StringStripWhiteSpacesExtra(msg);
-
-	for(auto &errorMsg : PIWEB_ERRORS) {
-
-		if (errorMsg.first.find(finalMsg) != std::string::npos)
-		{
-			finalMsg = errorMsg.second;
-		}
-	}
-
-
-	return(finalMsg);
-}
 
 /**
  * Send all the readings to the PI Server

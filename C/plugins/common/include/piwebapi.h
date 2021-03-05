@@ -37,12 +37,22 @@ class PIWebAPI
 		void    setAuthBasicCredentials(std::string& authBasicCredentials) {m_authBasicCredentials = authBasicCredentials; }
 
 		string  GetVersion(const string& host);
+		string  errorMessageHandler(const string& msg);
 
 	private:
 		string  ExtractVersion(const string& response);
 
 		string  m_authMethod;             // Authentication method to be used
 		string  m_authBasicCredentials;   // Credentials is the base64 encoding of id and password joined by a single colon (:)
+
+
+		// FIXME_I:
+		const vector<pair<string, string>> PIWEB_ERRORS = {
+			// FIXME_I:
+			{"Noroutetohost",    "The PI Web API server is not reachable, verify the network reachability"},
+			{"No route to host", "The PI Web API server is not reachable, verify the network reachability"},
+		};
+
 
 };
 #endif

@@ -164,8 +164,6 @@ class OMF
 		static std::string ApplyPIServerNamingRulesPath(const std::string &objName, bool *changed);
 		static std::string ApplyPIServerNamingRulesInvalidChars(const std::string &objName, bool *changed);
 
-		string PIWebErrorMessageHandle(const string& msg);
-
 private:
 		/**
 		 * Builds the HTTP header to send
@@ -352,13 +350,6 @@ private:
 		 */
 		std::vector<std::pair<std::string, std::string>>
 			*m_staticData;
-
-
-		// FIXME_I:
-		const vector<pair<string, string>> PIWEB_ERRORS = {
-			{"Noroutetohost", "The Server is not reachable, verify the network reachability"},
-			{"", ""}
-		};
 
 
 

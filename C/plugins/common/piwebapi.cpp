@@ -21,6 +21,9 @@
 #include <rapidjson/document.h>
 #include "rapidjson/error/en.h"
 
+//# FIXME_I:
+#include <tmp_log.hpp>
+
 using namespace std;
 using namespace rapidjson;
 
@@ -122,15 +125,57 @@ std::string PIWebAPI::GetVersion(const string& host)
 		}
 		else
 		{
-			Logger::getLogger()->warn("Error in retrieving the PIWebAPI version - http :%d: :%s: ", httpCode, response.c_str());
+			string errorMsg;
+			errorMsg = errorMessageHandler(response);
+
+			Logger::getLogger()->warn("Error in retrieving the PIWebAPI version, :%d: %s ", httpCode, errorMsg.c_str());
 		}
 	}
 	catch (exception &ex)
 	{
-		Logger::getLogger()->warn("Error in retrieving the PIWebAPI version - error :%s: ", ex.what());
+		string errorMsg;
+		errorMsg = errorMessageHandler(ex.what());
+
+		Logger::getLogger()->warn("Error in retrieving the PIWebAPI version, %s ", errorMsg.c_str());
 	}
 
 	delete endPoint;
 
 	return version;
+}
+
+// FIXME_I:
+string PIWebAPI::errorMessageHandler(const string& msg)
+{
+	string trimmed, finalMsg;
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx %s - msg :%s:", __FUNCTION__, msg.c_str());
+
+
+	//# FIXME_I:
+	char tmp_buffer[500000];
+	snprintf (tmp_buffer,500000, "DBG : errorMsg  |%s| " ,msg.c_str());
+	tmpLogger (tmp_buffer);
+
+	// FIXME_I:
+	//finalMsg = msg;
+	//finalMsg = StringStripWhiteSpacesAll(msg);
+	finalMsg = StringStripWhiteSpacesExtra(msg);
+
+	for(auto &errorMsg : PIWEB_ERRORS) {
+
+		if (finalMsg.find(errorMsg.first) != std::string::npos)
+		{
+			finalMsg = errorMsg.second;
+		}
+	}
+
+	//# FIXME_I
+	Logger::getLogger()->debug("xxx %s - finalMsg :%s:", __FUNCTION__, finalMsg.c_str());
+	Logger::getLogger()->setMinLevel("warning");
+
+
+	return(finalMsg);
 }

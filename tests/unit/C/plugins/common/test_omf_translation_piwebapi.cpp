@@ -15,6 +15,10 @@
 #include <rapidjson/document.h>
 #include <simple_https.h>
 
+// FIXME_I:
+#include <piwebapi.h>
+
+
 using namespace std;
 using namespace rapidjson;
 
@@ -82,5 +86,21 @@ TEST(PIWEBAPI_OMF_transation, TwoTranslationsCompareResult)
 	ASSERT_EQ(jsonData.str(), pi_web_api_two_translated_readings);
 
 }
+
+// // FIXME_I:
+TEST(PIWEBAPI_OMF_ErrorMessages, Cases)
+{
+	PIWebAPI piWeb;
+
+	// FIXME_I:
+	ASSERT_EQ(piWeb.errorMessageHandler("x x x"),"x x x");
+
+	ASSERT_EQ(piWeb.errorMessageHandler("Noroutetohost"),"The PI Web API server is not reachable, verify the network reachability");
+	ASSERT_EQ(piWeb.errorMessageHandler("Failedtosenddata:Noroutetohost"),"The PI Web API server is not reachable, verify the network reachability");
+
+}
+
+
+
 
 

@@ -206,12 +206,8 @@ DatapointValue::DatapointValue(const DatapointValue& obj)
 					m_value.dpa->push_back(new Datapoint(d->getName(), v));
 				}
 				else if (d->getData().getType() == T_DP_DICT ||
-					 d->getData().getType() == T_DP_LIST)
-				{
-					DatapointValue v(d->getData());
-					m_value.dpa->push_back(new Datapoint(d->getName(), v));
-				}
-				else if (d->getData().getType() == T_FLOAT ||
+					 d->getData().getType() == T_DP_LIST ||
+					 d->getData().getType() == T_FLOAT ||
 					 d->getData().getType() == T_INTEGER)
 				{
 					DatapointValue v(d->getData());

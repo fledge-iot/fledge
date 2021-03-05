@@ -154,31 +154,9 @@ DatapointValue::DatapointValue(const DatapointValue& obj)
 				++it)
 			{
 				Datapoint *d = *it;
-				if (d->getData().getType() == T_STRING)
-				{
-					std::string s = d->getData().toStringValue();
-					DatapointValue v(s);
-					Datapoint *a = new Datapoint(d->getName(), v);
-					m_value.dpa->push_back(a);
-				}
-				else if (d->getData().getType() == T_FLOAT_ARRAY)
-				{
-					std::vector<double> *currA = d->getData().getDpArr();
-					DatapointValue v(*currA);
-					m_value.dpa->push_back(new Datapoint(d->getName(), v));
-				}
-				else if (d->getData().getType() == T_DP_DICT ||
-					 d->getData().getType() == T_DP_LIST ||
-					 d->getData().getType() == T_FLOAT ||
-					 d->getData().getType() == T_INTEGER)
-				{
-					DatapointValue v(d->getData());
-					m_value.dpa->push_back(new Datapoint(d->getName(), v));
-				}
-				else
-				{
-					// Not reached
-				}
+				// Add new allocated datapoint to the vector
+				// using copy constructor
+				m_value.dpa->push_back(new Datapoint(*d));
 			}
 
 			break;

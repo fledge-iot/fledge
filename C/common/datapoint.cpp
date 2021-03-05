@@ -89,29 +89,42 @@ std::string DatapointValue::toString() const
 }
 
 /**
- * Delete the DatapointValue alongwith possibly nested Datapoint objects
+ * Delete the DatapointValue along with possibly nested Datapoint objects
  */
 void DatapointValue::deleteNestedDPV()
 {
 	if (m_type == T_STRING)
 	{
-		delete m_value.str;
-		m_value.str = NULL;
+		if (m_value.str) {
+			delete m_value.str;
+			m_value.str = NULL;
+		}
 	}
 	else if (m_type == T_FLOAT_ARRAY)
 	{
-		delete m_value.a;
-		m_value.a = NULL;
-	}
-	else if (m_type == T_DP_DICT || m_type == T_DP_LIST)
-	{
-		for (auto it = m_value.dpa->begin(); // std::vector<Datapoint *>*	dpa;
-			 it != m_value.dpa->end();
-			 ++it)
-		{
-			delete (*it);
+		if (m_value.a) {
+			delete m_value.a;
+			m_value.a = NULL;
 		}
-		delete m_value.dpa;
+	}
+	else if (m_type == T_DP_DICT ||
+		 m_type == T_DP_LIST)
+	{
+		if (m_value.dpa) {
+			for (auto it = m_value.dpa->begin();
+				 it != m_value.dpa->end();
+				 ++it)
+			{
+				if (*it) {
+					// Call DatapointValue destructor
+					delete(*it);
+				}
+			}
+
+			// Remove vector pointer
+			delete m_value.dpa;
+			m_value.dpa = NULL;
+		}
 	}
 }
 
@@ -122,17 +135,40 @@ DatapointValue::~DatapointValue()
 {
 	if (m_type == T_STRING)
 	{
-		delete m_value.str;
-		m_value.str = NULL;
+		if (m_value.str) {
+			delete m_value.str;
+			m_value.str = NULL;
+		}
 	}
 	if (m_type == T_FLOAT_ARRAY)
 	{
-		delete m_value.a;
-		m_value.a = NULL;
+		if (m_value.a) {
+			delete m_value.a;
+			m_value.a = NULL;
+		}
 	}
-	// For nested DPV, d'tor is always called from holding Datapoint object's destructor
-}
+	// Check for T_DP_DICT or T_DP_LIST
+	if (m_type == T_DP_DICT ||
+	    m_type == T_DP_LIST)
+	{
+		if (m_value.dpa)
+		{
+			for (auto it = m_value.dpa->begin();
+				 it != m_value.dpa->end();
+				 ++it)
+			{
+				if (*it) {
+					// Call DatapointValue destructor
+					delete(*it);
+				}
+			}
 
+			// Remove vector pointer
+			delete m_value.dpa;
+			m_value.dpa = NULL;
+		}
+	}
+}
 
 /**
  * Copy constructor
@@ -169,10 +205,21 @@ DatapointValue::DatapointValue(const DatapointValue& obj)
 					DatapointValue v(*currA);
 					m_value.dpa->push_back(new Datapoint(d->getName(), v));
 				}
-				else
+				else if (d->getData().getType() == T_DP_DICT ||
+					 d->getData().getType() == T_DP_LIST)
 				{
 					DatapointValue v(d->getData());
 					m_value.dpa->push_back(new Datapoint(d->getName(), v));
+				}
+				else if (d->getData().getType() == T_FLOAT ||
+					 d->getData().getType() == T_INTEGER)
+				{
+					DatapointValue v(d->getData());
+					m_value.dpa->push_back(new Datapoint(d->getName(), v));
+				}
+				else
+				{
+					// Not reached
 				}
 			}
 

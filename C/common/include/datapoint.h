@@ -173,7 +173,7 @@ class DatapointValue {
 		{
 			return m_value.a;
 		}
-		
+
 	private:
 		union data_t {
 			std::string*		str;

@@ -129,37 +129,9 @@ void DatapointValue::deleteNestedDPV()
  */
 DatapointValue::~DatapointValue()
 {
-	if (m_type == T_STRING)
-	{
-		delete m_value.str;
-		m_value.str = NULL;
-	}
-	if (m_type == T_FLOAT_ARRAY)
-	{
-		delete m_value.a;
-		m_value.a = NULL;
-	}
-	// Check for T_DP_DICT or T_DP_LIST
-	if (m_type == T_DP_DICT ||
-	    m_type == T_DP_LIST)
-	{
-		if (m_value.dpa)
-		{
-			for (auto it = m_value.dpa->begin();
-				 it != m_value.dpa->end();
-				 ++it)
-			{
-				if (*it) {
-					// Call DatapointValue destructor
-					delete(*it);
-				}
-			}
-
-			// Remove vector pointer
-			delete m_value.dpa;
-			m_value.dpa = NULL;
-		}
-	}
+	// Remove memory allocated by datapoints
+	// along with possibly nested Datapoint objects
+	deleteNestedDPV();
 }
 
 /**

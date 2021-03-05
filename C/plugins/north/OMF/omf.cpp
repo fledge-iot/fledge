@@ -24,6 +24,10 @@
 #include <datapoint.h>
 #include <thread>
 
+//# FIXME_I:
+#include <tmp_log.hpp>
+
+
 using namespace std;
 using namespace rapidjson;
 
@@ -1324,7 +1328,8 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 					       json);
 		if  ( ! (res >= 200 && res <= 299) )
 		{
-			Logger::getLogger()->error("Sending JSON readings, "
+			// FIXME_I:
+			Logger::getLogger()->error("Sending JSON readings 0, "
 						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
 						   res,
 						   m_sender.getHostPort().c_str(),
@@ -1438,7 +1443,8 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		}
 		else
 		{
-			Logger::getLogger()->error("Sending JSON data error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+			// FIXME_I:
+			Logger::getLogger()->error("Sending JSON data error 1 : |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
 			                           e.what(),
 			                           m_sender.getHostPort().c_str(),
 			                           m_path.c_str(),
@@ -1450,15 +1456,46 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	}
 	catch (const std::exception& e)
 	{
-		Logger::getLogger()->error("Sending JSON data error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-					   e.what(),
-					   m_sender.getHostPort().c_str(),
-					   m_path.c_str(),
-					   json_not_compressed.c_str() );
+		string errorMsg;
+		errorMsg = PIWebErrorMessageHandle(e.what());
+
+		// FIXME_I:
+		Logger::getLogger()->error("Sending JSON data error 2 V2: HostPort |%s| path |%s| error |%s|",
+								   m_sender.getHostPort().c_str(),
+								   m_path.c_str(),
+								   errorMsg.c_str());
+
 		// Failure
 		m_lastError = true;
 		return 0;
 	}
+}
+
+// FIXME_I:
+string OMF::PIWebErrorMessageHandle(const string& msg)
+{
+	string trimmed, finalMsg;
+
+	//# FIXME_I:
+	char tmp_buffer[500000];
+	snprintf (tmp_buffer,500000, "DBG : errorMsg  |%s| " ,msg.c_str());
+	tmpLogger (tmp_buffer);
+
+	// FIXME_I:
+	//finalMsg = msg;
+	//finalMsg = StringStripWhiteSpacesAll(msg);
+	finalMsg = StringStripWhiteSpacesExtra(msg);
+
+	for(auto &errorMsg : PIWEB_ERRORS) {
+
+		if (errorMsg.first.find(finalMsg) != std::string::npos)
+		{
+			finalMsg = errorMsg.second;
+		}
+	}
+
+
+	return(finalMsg);
 }
 
 /**

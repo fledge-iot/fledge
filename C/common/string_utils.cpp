@@ -180,10 +180,10 @@ void StringStripCRLF(std::string& StringToManage)
 }
 
 /**
- * Strips white spaces from a string
+ * Removes all the white spaces from a string
  *
  */
-string StringStripWhiteSpaces(const  std::string& original)
+string StringStripWhiteSpacesAll(const  std::string& original)
 {
 	string output;
 
@@ -204,6 +204,49 @@ string StringStripWhiteSpaces(const  std::string& original)
 
 	return (output);
 }
+
+/**
+ * Removes all the spaces at both ends of a string and
+ * removes all the white spaces except 1 space
+ *
+ */
+string StringStripWhiteSpacesExtra(const  std::string& original)
+{
+	int cSpace;
+	string output;
+
+	output = StringRTrim(StringLTrim(original));
+	cSpace = 0;
+
+	for (size_t i = 0; i < output.length(); )
+	{
+		if (output[i] == ' ')
+		{
+			cSpace++;
+
+			if (cSpace > 1)
+			{
+				output.erase(i, 1);
+			} else {
+				i++;
+			}
+		} else
+		{
+			if (isspace(output[i]))
+			{
+				output.erase(i, 1);
+			}
+			else
+			{
+				i++;
+				cSpace = 0;
+			}
+		}
+	}
+
+	return (output);
+}
+
 
 /**
  * URL-encode a given string

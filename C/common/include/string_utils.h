@@ -29,7 +29,8 @@ std::string evaluateParentPath(const std::string& path, char separator);
 std::string extractLastLevel(const std::string& path, char separator);
 
 void   StringStripCRLF(std::string& StringToManage);
-string StringStripWhiteSpaces(const std::string& output);
+string StringStripWhiteSpacesAll(const std::string& original);
+string StringStripWhiteSpacesExtra(const  std::string& original);
 
 string urlEncode(const string& s);
 string urlDecode(const string& s);

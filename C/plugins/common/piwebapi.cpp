@@ -22,6 +22,9 @@
 #include "rapidjson/error/en.h"
 
 //# FIXME_I:
+#include <stdlib.h>
+#include <string.h>
+#include <status_code.hpp>
 #include <tmp_log.hpp>
 
 using namespace std;
@@ -144,10 +147,104 @@ std::string PIWebAPI::GetVersion(const string& host)
 	return version;
 }
 
+string PIWebAPI::extractSection(const string& msg, const string& toSearch) {
+
+	string::size_type pos, pos1, pos2;
+	string section;
+
+	pos = msg.find (toSearch);
+	if (pos != string::npos )
+	{
+		pos1 = msg.find ("|",pos);
+		pos2 = msg.find ("|",pos1+1);
+		if (pos2 != string::npos ) {
+
+			section = msg.substr(pos1 +1, pos2 - pos1 -1);
+		}
+	}
+	return (section);
+}
+
+string PIWebAPI::extractMessageFromJSon(const string& json)
+{
+	Document JSon;
+	ParseResult ok;
+	string::size_type pos;
+
+	string  msg, msgFixed;
+	string jsonMessage;
+
+	msgFixed = extractSection(json, "HTTP error |");
+	ok = JSon.Parse(msgFixed.c_str());
+	if (!ok)
+	{
+		// Fix the case of bad characters present in the error message
+		char badChars[4];
+		badChars[0]='\357';
+		badChars[1]='\273';
+		badChars[2]='\277';
+		badChars[3]=0;
+
+		pos = msgFixed.find (badChars);
+		if (pos != string::npos )
+		{
+			msgFixed.erase ( pos, strlen(badChars) );
+		}
+	}
+
+	ok = JSon.Parse(msgFixed.c_str());
+	if (ok)
+	{
+		if (JSon.HasMember("Messages"))
+		{
+			Value &messages = JSon["Messages"];
+			if (messages.IsArray())
+			{
+				long messageId;
+				for (Value::ConstValueIterator itr = messages.Begin(); itr != messages.End(); ++itr)
+				{
+					messageId = (*itr)["MessageIndex"].GetInt64();
+					if (messageId == 0)
+					{
+						Value &messageEvents = JSon["Events"];
+						if (messageEvents.IsArray())
+						{
+							Value::ConstValueIterator itrEvents = messages.Begin();
+
+							const Value &messageInfo = (*itrEvents)["EventInfo"];
+							jsonMessage = messageInfo["Message"].GetString();
+						} else {
+							// FIXME_I: to be implemented
+							Logger::getLogger()->setMinLevel("debug");
+							Logger::getLogger()->debug("xxx %s - to be implemented", __FUNCTION__);
+
+						}
+						break;
+					}
+				}
+
+			} else {
+				// FIXME_I: to be implemented
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("xxx %s - to be implemented", __FUNCTION__);
+
+			}
+		}
+	}
+
+	return (msg);
+}
 // FIXME_I:
 string PIWebAPI::errorMessageHandler(const string& msg)
 {
-	string trimmed, finalMsg;
+	Document JSon;
+	ParseResult ok;
+
+
+
+	string msgTrimmed, msgSub, msgHttp, msgJson, finalMsg, msgFixed, messages, tmpMsg;
+	string httpCode;
+	int  httpCodeN;
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
@@ -159,18 +256,44 @@ string PIWebAPI::errorMessageHandler(const string& msg)
 	snprintf (tmp_buffer,500000, "DBG : errorMsg  |%s| " ,msg.c_str());
 	tmpLogger (tmp_buffer);
 
-	// FIXME_I:
-	//finalMsg = msg;
-	//finalMsg = StringStripWhiteSpacesAll(msg);
-	finalMsg = StringStripWhiteSpacesExtra(msg);
+	msgTrimmed = StringStripWhiteSpacesExtra(msg);
 
+	// Handles error message substitution
 	for(auto &errorMsg : PIWEB_ERRORS) {
 
-		if (finalMsg.find(errorMsg.first) != std::string::npos)
+		if (msgTrimmed.find(errorMsg.first) != std::string::npos)
 		{
-			finalMsg = errorMsg.second;
+			msgSub = errorMsg.second;
 		}
 	}
+
+	// Handles HTTP error code recognition
+	httpCode = extractSection(msgTrimmed, "HTTP code |");
+	if (! httpCode.empty()) {
+
+			SimpleWeb::StatusCode code;
+
+			httpCodeN = atoi(httpCode.c_str());
+			code = (SimpleWeb::StatusCode) httpCodeN;
+
+			msgHttp = SimpleWeb::status_code(code);
+
+	}
+
+	// Handles error in JSON format returned by the PI Web API
+	msgJson = extractMessageFromJSon (msgTrimmed)
+
+
+	// Define the final message
+	if (!msgSub.empty())
+		finalMsg = msgSub;
+
+	if (!msgHttp.empty())
+		finalMsg = msgHttp;
+
+	if (!msgJson.empty())
+		finalMsg = msgJson;
+
 
 	//# FIXME_I
 	Logger::getLogger()->debug("xxx %s - finalMsg :%s:", __FUNCTION__, finalMsg.c_str());

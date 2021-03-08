@@ -93,10 +93,19 @@ TEST(PIWEBAPI_OMF_ErrorMessages, Cases)
 	PIWebAPI piWeb;
 
 	// FIXME_I:
-	ASSERT_EQ(piWeb.errorMessageHandler("x x x"),"x x x");
+	// Base case
+	//ASSERT_EQ(piWeb.errorMessageHandler("x x x"),"x x x");
 
-	ASSERT_EQ(piWeb.errorMessageHandler("Noroutetohost"),"The PI Web API server is not reachable, verify the network reachability");
-	ASSERT_EQ(piWeb.errorMessageHandler("Failedtosenddata:Noroutetohost"),"The PI Web API server is not reachable, verify the network reachability");
+	// Handles error message substitution
+	//ASSERT_EQ(piWeb.errorMessageHandler("Noroutetohost"),"The PI Web API server is not reachable, verify the network reachability");
+	//ASSERT_EQ(piWeb.errorMessageHandler("Failedtosenddata:Noroutetohost"),"The PI Web API server is not reachable, verify the network reachability");
+
+	// Handles HTTP error code recognition
+	//ASSERT_EQ(piWeb.errorMessageHandler("n, HTTP code |503| HTTP error |<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML"),"503 Service Unavailable");
+
+	// Handles error in JSON format returned by the PI Web API
+	ASSERT_EQ(piWeb.errorMessageHandler(": errorMsg  |HTTP code |404| HTTP error |\uFEFF{\"OperationId\": \"bcaa5120-ca94-4eda-934e-ffc7d368c6f6\",\"Messages\": [{\"MessageIndex\": 0,\"Events\": []}]}|"),"xxx");
+	//ASSERT_EQ(piWeb.errorMessageHandler(": errorMsg  |HTTP code |404| HTTP error |{\"OperationId\": \"bcaa5120-ca94-4eda-934e-ffc7d368c6f6\",\"Messages\": [{\"MessageIndex\": 0,\"Events\": []}]}|"),"xxx");
 
 }
 

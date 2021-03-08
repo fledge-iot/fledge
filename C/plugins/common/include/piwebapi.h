@@ -41,6 +41,8 @@ class PIWebAPI
 
 	private:
 		string  ExtractVersion(const string& response);
+		string  extractSection(const string& msg, const string& toSearch);
+		string  extractMessageFromJSon(const string& json);
 
 		string  m_authMethod;             // Authentication method to be used
 		string  m_authBasicCredentials;   // Credentials is the base64 encoding of id and password joined by a single colon (:)

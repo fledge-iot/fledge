@@ -3,15 +3,22 @@
 ###############################################################################
 # Check RedHat || CentOS
 $(eval PLATFORM_RH=$(shell (lsb_release -ds 2>/dev/null || cat /etc/*release 2>/dev/null | head -n1 || uname -om) | egrep '(Red Hat|CentOS)'))
+$(eval OS_VERSION=$(shell grep -o '^VERSION_ID=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g'))
 
 # Log Platform RedHat || CentOS
-$(if $(PLATFORM_RH), $(info Platform is $(PLATFORM_RH)))
+$(if $(PLATFORM_RH), $(info Platform is $(PLATFORM_RH) $(OS_VERSION)))
 
 # For RedHat || CentOS we need rh-python36
 ifneq ("$(PLATFORM_RH)","")
+   ifeq ("$(OS_VERSION)", "*7*")
 	PIP_INSTALL_REQUIREMENTS := source scl_source enable rh-python36 && pip3 install -Ir
 	PYTHON_BUILD_PACKAGE = source scl_source enable rh-python36 && python3 setup.py build -b ../$(PYTHON_BUILD_DIR)
 	CMAKE := source scl_source enable rh-python36 && cmake
+    else
+	PIP_INSTALL_REQUIREMENTS := pip3 install -Ir
+	PYTHON_BUILD_PACKAGE = python3 setup.py build -b ../$(PYTHON_BUILD_DIR)
+	CMAKE := cmake
+    endif
 else
 	PIP_INSTALL_REQUIREMENTS := pip3 install -Ir
 	PYTHON_BUILD_PACKAGE = python3 setup.py build -b ../$(PYTHON_BUILD_DIR)

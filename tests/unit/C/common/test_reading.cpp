@@ -97,3 +97,49 @@ TEST(ReadingTest, rmDatapoint)
 	removed = reading.removeDatapoint("x");
 	ASSERT_EQ(removed,  (Datapoint *)0);
 }
+
+TEST(ReadingTest, DictDatapoint)
+{
+	DatapointValue dpv1(1.0);
+	DatapointValue dpv2(1.1);
+	vector<Datapoint *> *values = new vector<Datapoint *>;
+	values->push_back(new Datapoint("first", dpv1));
+	values->push_back(new Datapoint("second", dpv2));
+	// Create a dict
+	DatapointValue dpv(values, true);
+
+	Reading reading(string("test55"), new Datapoint("a", dpv));
+	string json = reading.toJSON();
+
+	// Expected output: {"a":{"first":1.0, "second":1.1}}
+	ASSERT_NE(json.find(string("\"reading\":{\"a\":{\"first\":1.0, \"second\":1.1}}")), std::string::npos);
+}
+
+TEST(ReadingTest, ArrayOfDicts)
+{
+	DatapointValue dpv1(1.0);
+	DatapointValue dpv2(1.1);
+
+	vector<Datapoint *> *val1 = new vector<Datapoint *>;
+	val1->push_back(new Datapoint("first", dpv1));
+	// Create an array of dicts, one entry
+	DatapointValue dpv_1(val1, true); // put this into a dict of its own
+
+	vector<Datapoint *> *val2 = new vector<Datapoint *>;
+	val2->push_back(new Datapoint("second", dpv2));
+	// Create an array of dicts, one entry
+	DatapointValue dpv_2(val2, true); // put this into a dict of its own
+
+	std::vector<Datapoint*>* dpVec = new std::vector<Datapoint *>();
+
+	// Create a datapoints with unamed elements
+	dpVec->emplace_back(new Datapoint(std::string("unnamed_list_elem#1"), dpv_1));
+	dpVec->emplace_back(new Datapoint(std::string("unnamed_list_elem#2"), dpv_2));
+	DatapointValue dpv(dpVec, false); // put dicts into list
+
+	// Expected output: {"a":[{"first":1.0}, {"second":1.1}]}
+	Reading reading(string("test55"), new Datapoint("a", dpv));
+	string json = reading.toJSON();
+
+	ASSERT_NE(json.find(string("\"reading\":{\"a\":[{\"first\":1.0}, {\"second\":1.1}]}")), std::string::npos);
+}

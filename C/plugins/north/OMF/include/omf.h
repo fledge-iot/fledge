@@ -36,6 +36,8 @@ enum OMF_ENDPOINT {
 using namespace std;
 using namespace rapidjson;
 
+std::string ApplyPIServerNamingRules(const std::string &objName, bool *changed);
+
 /**
  * Per asset dataTypes
  *
@@ -140,7 +142,7 @@ class OMF
 
 		// Map object types found in input data
 		void setMapObjectTypes(const std::vector<Reading *>& data,
-					std::map<std::string, Reading*>& dataSuperSet) const;
+					std::map<std::string, Reading*>& dataSuperSet);
 		// Removed mapped object types found in input data
 		void unsetMapObjectTypes(std::map<std::string, Reading*>& dataSuperSet) const;
 
@@ -158,7 +160,11 @@ class OMF
 		bool getAFMapEmptyNames() const { return m_AFMapEmptyNames; };
 		bool getAFMapEmptyMetadata() const { return m_AFMapEmptyMetadata; };
 
-	private:
+		static std::string ApplyPIServerNamingRulesObj(const std::string &objName, bool *changed);
+		static std::string ApplyPIServerNamingRulesPath(const std::string &objName, bool *changed);
+		static std::string ApplyPIServerNamingRulesInvalidChars(const std::string &objName, bool *changed);
+
+private:
 		/**
 		 * Builds the HTTP header to send
 		 * messagetype header takes the passed type value:
@@ -237,7 +243,7 @@ class OMF
 		// Add the 1st level of AF hierarchy if the end point is PI Web API
 		void setAFHierarchy();
 
-		bool handleAFHierarchy();
+		bool handleAFHirerarchy();
 		bool handleAFHierarchySystemWide();
 		bool handleAFHierarchiesNamesMap();
 		bool handleAFHierarchiesMetadataMap();
@@ -257,6 +263,7 @@ class OMF
 		bool HandleAFMapMetedata(Document& JSon);
 
 	private:
+		std::string	        m_assetName;
 		const std::string	m_path;
 		long			    m_typeId;
 		const std::string	m_producerToken;

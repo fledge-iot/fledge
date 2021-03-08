@@ -35,7 +35,6 @@ extern PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject *);
 extern void logErrorMessage();
 extern PLUGIN_INFORMATION *plugin_info_fn();
 extern void plugin_shutdown_fn(PLUGIN_HANDLE);
-extern PyObject* createReadingsList(const vector<Reading *>& readings);
 extern void setImportParameters(string& shimLayerPath, string& fledgePythonDir);
 
 /**

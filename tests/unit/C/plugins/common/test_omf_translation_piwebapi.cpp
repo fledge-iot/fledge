@@ -88,24 +88,210 @@ TEST(PIWEBAPI_OMF_transation, TwoTranslationsCompareResult)
 }
 
 // // FIXME_I:
-TEST(PIWEBAPI_OMF_ErrorMessages, Cases)
+TEST(PIWEBAPI_OMF_ErrorMessages, DebugCases)
 {
 	PIWebAPI piWeb;
+	string json;
 
 	// FIXME_I:
 	// Base case
-	//ASSERT_EQ(piWeb.errorMessageHandler("x x x"),"x x x");
+	ASSERT_EQ(piWeb.errorMessageHandler("x x x"),"x x x");
+}
+
+// // FIXME_I:
+TEST(PIWEBAPI_OMF_ErrorMessages, AllCases)
+{
+	PIWebAPI piWeb;
+	string json;
+
+	// Base case
+	ASSERT_EQ(piWeb.errorMessageHandler("x x x"),"x x x");
 
 	// Handles error message substitution
-	//ASSERT_EQ(piWeb.errorMessageHandler("Noroutetohost"),"The PI Web API server is not reachable, verify the network reachability");
-	//ASSERT_EQ(piWeb.errorMessageHandler("Failedtosenddata:Noroutetohost"),"The PI Web API server is not reachable, verify the network reachability");
+	ASSERT_EQ(piWeb.errorMessageHandler("Noroutetohost"),"The PI Web API server is not reachable, verify the network reachability");
+	ASSERT_EQ(piWeb.errorMessageHandler("Failedtosenddata:Noroutetohost"),"The PI Web API server is not reachable, verify the network reachability");
 
 	// Handles HTTP error code recognition
-	//ASSERT_EQ(piWeb.errorMessageHandler("n, HTTP code |503| HTTP error |<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML"),"503 Service Unavailable");
+	ASSERT_EQ(piWeb.errorMessageHandler("n, HTTP code |503| HTTP error |<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML"),"503 Service Unavailable");
 
 	// Handles error in JSON format returned by the PI Web API
-	ASSERT_EQ(piWeb.errorMessageHandler(": errorMsg  |HTTP code |404| HTTP error |\uFEFF{\"OperationId\": \"bcaa5120-ca94-4eda-934e-ffc7d368c6f6\",\"Messages\": [{\"MessageIndex\": 0,\"Events\": []}]}|"),"xxx");
-	//ASSERT_EQ(piWeb.errorMessageHandler(": errorMsg  |HTTP code |404| HTTP error |{\"OperationId\": \"bcaa5120-ca94-4eda-934e-ffc7d368c6f6\",\"Messages\": [{\"MessageIndex\": 0,\"Events\": []}]}|"),"xxx");
+	json = QUOTE(
+		{
+			"OperationId": "939b4d00-9041-48ee-9d50-d1365711706c",
+			"Messages": [
+				{
+					"MessageIndex": 1,
+					"Events": [
+					{
+						"EventInfo": {
+							"Message": "Type does not have a property with the specified index.",
+							"Reason": null,
+							"Suggestions": [
+							"Check that the correct type is being used.",
+							"Check that no unexpected data loss has occurred."
+							],
+							"EventCode": 6021,
+							"Parameters": [
+							{
+								"Name": "TypeId",
+								"Value": "A_4273005507977094880_fledge_ihsdev_1_sin_4816_asset_1_typename_measurement"
+							},
+							{
+								"Name": "TypeVersion",
+								"Value": "1.0.0.0"
+							},
+							{
+								"Name": "Property",
+								"Value": "sinusoidB"
+							}
+							]
+						},
+						"ExceptionInfo": null,
+						"Severity": "Info",
+						"InnerEvents": []
+					}
+					],
+					"Status": {
+						"Code": 202,
+						"HighestSeverity": "Info"
+					}
+				}
+			]
+		}
+	);
+
+	ASSERT_EQ(piWeb.errorMessageHandler(json),"Type does not have a property with the specified index. A_4273005507977094880_fledge_ihsdev_1_sin_4816_asset_1_typename_measurement 1.0.0.0 sinusoidB");
+
+
+	json = QUOTE(
+	{
+		"OperationId": "4760dad2-c08b-4606-901a-4288f1ffd7da",
+			"Messages": [
+		{
+			"MessageIndex": 0,
+				"Events": [
+			{
+				"EventInfo": {
+					"Message": "Type does not have a property with the specified index.",
+						"Reason": null,
+						"Suggestions": [
+					"Check that the correct type is being used.",
+						"Check that no unexpected data loss has occurred."
+					],
+					"EventCode": 6021,
+						"Parameters": [
+					{
+						"Name": "TypeId",
+							"Value": "A_4273005507977094880_fledge_ihsdev_1_sin_4816_asset_1_typename_measurement"
+					},
+					{
+						"Name": "TypeVersion",
+							"Value": "1.0.0.0"
+					},
+					{
+						"Name": "Property",
+							"Value": "sinusoidB"
+					}
+					]
+				},
+				"ExceptionInfo": null,
+					"Severity": "Info",
+					"InnerEvents": []
+			}
+			],
+			"Status": {
+				"Code": 202,
+					"HighestSeverity": "Info"
+			}
+		}
+		]
+	}
+	);
+
+	ASSERT_EQ(piWeb.errorMessageHandler(json),"Type does not have a property with the specified index. A_4273005507977094880_fledge_ihsdev_1_sin_4816_asset_1_typename_measurement 1.0.0.0 sinusoidB");
+
+	json = QUOTE(
+		{
+			"OperationId": "xcaa5120-ca94-4eda-934e-ffc7d368c6f6",
+			"Messages": [
+				{
+				  "MessageIndex": 0,
+				  "Events": [
+					{
+					  "EventInfo": {
+						"Message": "Container not found.",
+						"Reason": null,
+						"Suggestions": [],
+						"EventCode": 5002,
+						"Parameters": [
+						  {
+							"Name": "ContainerId",
+							"Value": "4273005507977094880_1measurement_sin_4816_asset_1"
+						  }
+						]
+					  },
+					  "ExceptionInfo": {
+						"Type": "OSIsoft.OMF.Loggers.OmfLoggableException",
+						"Message": "Container not found."
+					  },
+					  "Severity": "Error",
+					  "InnerEvents": []
+					}
+				  ],
+				  "Status": {
+					"Code": 404,
+					"HighestSeverity": "Error"
+				  }
+				}
+			]
+		}
+	);
+
+	// within bad characters
+	ASSERT_EQ(piWeb.errorMessageHandler(": errorMsg  |HTTP code |404| HTTP error |\uFEFF" + json + "|"),"Container not found. 4273005507977094880_1measurement_sin_4816_asset_1");
+
+	ASSERT_EQ(piWeb.errorMessageHandler(": errorMsg  |HTTP code |404| HTTP error |" + json + "|"),"Container not found. 4273005507977094880_1measurement_sin_4816_asset_1");
+
+	json = QUOTE(
+		{
+			"OperationId": "xcaa5120-ca94-4eda-934e-ffc7d368c6f6",
+			"Messages": [
+			{
+				"MessageIndex": 1
+			},
+			{
+				"MessageIndex": 0,
+				"Events": [
+				{
+					"EventInfo": {
+						"Message": "Container not found.",
+						"Reason": null,
+						"Suggestions": [],
+						"EventCode": 5002,
+						"Parameters": [
+						{
+							"Name": "ContainerId",
+							"Value": "4273005507977094880_1measurement_sin_4816_asset_1"
+						}
+						]
+					},
+					"ExceptionInfo": {
+						"Type": "OSIsoft.OMF.Loggers.OmfLoggableException",
+						"Message": "Container not found."
+					},
+					"Severity": "Error",
+					"InnerEvents": []
+				}
+				],
+				"Status": {
+					"Code": 404,
+					"HighestSeverity": "Error"
+				}
+			}
+			]
+		}
+	);
+	ASSERT_EQ(piWeb.errorMessageHandler(json),"Container not found. 4273005507977094880_1measurement_sin_4816_asset_1");
 
 }
 

@@ -653,13 +653,14 @@ bool OMF::AFHierarchySendMessage(const string& msgType, string& jsonData)
 		}
 
 		if (res != 0)
-			Logger::getLogger()->error("Sending Asset Framework hierarchy, %d %s - %s %s",
+			// FIXME_I:
+			Logger::getLogger()->error("v1 Sending Asset Framework hierarchy, %d %s - %s %s",
 						   res,
 							errorMsg.c_str(),
 						   m_sender.getHostPort().c_str(),
 						   m_path.c_str());
 		else
-			Logger::getLogger()->error("Sending Asset Framework hierarchy, %s - %s %s",
+			Logger::getLogger()->error("v2 Sending Asset Framework hierarchy, %s - %s %s",
 							errorMsg.c_str(),
 						   m_sender.getHostPort().c_str(),
 						   m_path.c_str());
@@ -1420,12 +1421,11 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			// 2- Type-id is not incremented
 			// 3- Data Types cache is cleared: next sendData call
 			//    will send data types again.
-			Logger::getLogger()->warn("Sending JSON readings, "
-						  "not blocking issue: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+			Logger::getLogger()->warn("DBG0- Sending JSON readings, "
+						  "not blocking issue: %s - %s %s",
 						  e.what(),
 						  m_sender.getHostPort().c_str(),
-						  m_path.c_str(),
-						  json_not_compressed.c_str() );
+						  m_path.c_str());
 
 			// Extract assetName from error message
 			string assetName;
@@ -1472,11 +1472,11 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		else
 		{
 			// FIXME_I:
-			Logger::getLogger()->error("Sending JSON data error 1 : |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-			                           e.what(),
+			Logger::getLogger()->error("DBG1: Sending JSON data error 1 : %s - %s %s",
+									   e.what(),
 			                           m_sender.getHostPort().c_str(),
-			                           m_path.c_str(),
-			                           json_not_compressed.c_str());
+			                           m_path.c_str()
+									   );
 		}
 		// Failure
 		m_lastError = true;
@@ -1490,10 +1490,11 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		errorMsg = piWeb.errorMessageHandler(e.what());
 
 		// FIXME_I:
-		Logger::getLogger()->error("Sending JSON data error 2 V2: HostPort |%s| path |%s| error |%s|",
-								   m_sender.getHostPort().c_str(),
-								   m_path.c_str(),
-								   errorMsg.c_str());
+		Logger::getLogger()->error("DBG2 - Sending JSON data error : %s - %s %s",
+						errorMsg.c_str(),
+						m_sender.getHostPort().c_str(),
+						m_path.c_str()
+						);
 
 		// Failure
 		m_lastError = true;

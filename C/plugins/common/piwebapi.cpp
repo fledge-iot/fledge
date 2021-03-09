@@ -171,14 +171,17 @@ string PIWebAPI::extractMessageFromJSon(const string& json)
 	ParseResult ok;
 	string::size_type pos;
 
-	string  msg, msgFixed;
-	string jsonMessage;
+	string  msgFinal, msgFixed;
+	string msgMessage, msgName, msgValue;
 
 	msgFixed = extractSection(json, "HTTP error |");
+	if (msgFixed.empty())
+		msgFixed = json;
+
 	ok = JSon.Parse(msgFixed.c_str());
 	if (!ok)
 	{
-		// Fix the case of bad characters present in the error message
+		// removes bad characters if present in the error message
 		char badChars[4];
 		badChars[0]='\357';
 		badChars[1]='\273';
@@ -204,35 +207,50 @@ string PIWebAPI::extractMessageFromJSon(const string& json)
 				for (Value::ConstValueIterator itr = messages.Begin(); itr != messages.End(); ++itr)
 				{
 					messageId = (*itr)["MessageIndex"].GetInt64();
-					if (messageId == 0)
+
+					if ((*itr).HasMember("Events"))
 					{
-						Value &messageEvents = JSon["Events"];
+						const Value &messageEvents = (*itr)["Events"];
 						if (messageEvents.IsArray())
 						{
-							Value::ConstValueIterator itrEvents = messages.Begin();
+							Value::ConstValueIterator itrEvents = messageEvents.Begin();
 
 							const Value &messageInfo = (*itrEvents)["EventInfo"];
-							jsonMessage = messageInfo["Message"].GetString();
-						} else {
-							// FIXME_I: to be implemented
-							Logger::getLogger()->setMinLevel("debug");
-							Logger::getLogger()->debug("xxx %s - to be implemented", __FUNCTION__);
+							msgMessage = messageInfo["Message"].GetString();
 
+							const Value &parameters = messageInfo["Parameters"];
+							if (parameters.IsArray())
+							{
+
+								for (Value::ConstValueIterator itrParameters = parameters.Begin(); itrParameters != parameters.End(); ++itrParameters)
+								{
+									if (! msgValue.empty())
+										msgValue += " ";
+
+									msgName = (*itrParameters)["Name"].GetString();
+									msgValue += (*itrParameters)["Value"].GetString();
+								}
+
+								msgFinal = msgMessage + " " + msgValue;
+								break;
+
+							} else {
+								Logger::getLogger()->warn("xxx %s - PI Web API errors handling expects to received Parameters as an JSON array", __FUNCTION__);
+							}
 						}
-						break;
+					} else {
+						Logger::getLogger()->warn("xxx %s - PI Web API errors handling expects to received Events as an JSON array", __FUNCTION__);
 					}
+
 				}
 
 			} else {
-				// FIXME_I: to be implemented
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxx %s - to be implemented", __FUNCTION__);
-
+				Logger::getLogger()->warn("xxx %s - PI Web API errors handling expects to received Messages as an JSON array", __FUNCTION__);
 			}
 		}
 	}
 
-	return (msg);
+	return (msgFinal);
 }
 // FIXME_I:
 string PIWebAPI::errorMessageHandler(const string& msg)
@@ -281,10 +299,11 @@ string PIWebAPI::errorMessageHandler(const string& msg)
 	}
 
 	// Handles error in JSON format returned by the PI Web API
-	msgJson = extractMessageFromJSon (msgTrimmed)
+	msgJson = extractMessageFromJSon (msgTrimmed);
 
 
 	// Define the final message
+	finalMsg = msg;
 	if (!msgSub.empty())
 		finalMsg = msgSub;
 

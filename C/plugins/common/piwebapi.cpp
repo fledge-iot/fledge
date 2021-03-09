@@ -172,7 +172,7 @@ string PIWebAPI::extractMessageFromJSon(const string& json)
 	string::size_type pos;
 
 	string  msgFinal, msgFixed;
-	string msgMessage, msgName, msgValue;
+	string msgMessage, msgReason,msgName, msgValue;
 
 	msgFixed = extractSection(json, "HTTP error |");
 	if (msgFixed.empty())
@@ -206,7 +206,8 @@ string PIWebAPI::extractMessageFromJSon(const string& json)
 				long messageId;
 				for (Value::ConstValueIterator itr = messages.Begin(); itr != messages.End(); ++itr)
 				{
-					messageId = (*itr)["MessageIndex"].GetInt64();
+					if ((*itr)["MessageIndex"].IsInt64())
+						messageId = (*itr)["MessageIndex"].GetInt64();
 
 					if ((*itr).HasMember("Events"))
 					{
@@ -217,6 +218,9 @@ string PIWebAPI::extractMessageFromJSon(const string& json)
 
 							const Value &messageInfo = (*itrEvents)["EventInfo"];
 							msgMessage = messageInfo["Message"].GetString();
+
+							if (messageInfo.HasMember("Reason") && messageInfo["Reason"].IsString())
+								msgReason = messageInfo["Reason"].GetString();
 
 							const Value &parameters = messageInfo["Parameters"];
 							if (parameters.IsArray())
@@ -231,7 +235,12 @@ string PIWebAPI::extractMessageFromJSon(const string& json)
 									msgValue += (*itrParameters)["Value"].GetString();
 								}
 
-								msgFinal = msgMessage + " " + msgValue;
+								msgFinal = msgMessage;
+								if (!msgReason.empty())
+									msgFinal += " " + msgReason;
+
+								if (!msgValue.empty())
+									msgFinal += " " +  msgValue;
 								break;
 
 							} else {

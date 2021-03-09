@@ -93,9 +93,64 @@ TEST(PIWEBAPI_OMF_ErrorMessages, DebugCases)
 	PIWebAPI piWeb;
 	string json;
 
-	// FIXME_I:
-	// Base case
-	ASSERT_EQ(piWeb.errorMessageHandler("x x x"),"x x x");
+	json = QUOTE(
+	{
+		"OperationId": "f48a2233-86ba-45d2-9787-48e3e48be78a",
+			"Messages": [
+		{
+			"MessageIndex": null,
+				"Events": [
+			{
+				"EventInfo": {
+					"Message": "An error parsing the OMF message(s) occurred.",
+						"Reason": "The OMF request body was unable to be parsed.",
+						"Suggestions": [
+					"Check that the OMF request body is syntactically valid.",
+						"Check that the request only uses features available in the OMF version specified by the 'omfversion' header."
+					],
+					"EventCode": 3002,
+						"Parameters": []
+				},
+				"ExceptionInfo": {
+					"Type": "OSIsoft.OMF.Loggers.OmfLoggableException",
+						"Message": "An error parsing the OMF message(s) occurred."
+				},
+				"Severity": "Error",
+					"InnerEvents": [
+				{
+					"EventInfo": null,
+						"ExceptionInfo": {
+						"Type": "Newtonsoft.Json.JsonSerializationException",
+							"Message": "Error converting value \"containerid\" to type 'OSIsoft.OMF.Specification.Models.V1_1.DataMessageDTO'. Path '[1]', line 1, position 247."
+					},
+					"Severity": null,
+						"InnerEvents": [
+					{
+						"EventInfo": null,
+							"ExceptionInfo": {
+							"Type": "System.ArgumentException",
+								"Message": "Could not cast or convert from System.String to OSIsoft.OMF.Specification.Models.V1_1.DataMessageDTO."
+						},
+						"Severity": null,
+							"InnerEvents": []
+					}
+					]
+				}
+				]
+			}
+			],
+			"Status": {
+				"Code": 400,
+					"HighestSeverity": "Error"
+			}
+		}
+		]
+	}
+	);
+
+	ASSERT_EQ(piWeb.errorMessageHandler(json),"An error parsing the OMF message(s) occurred. The OMF request body was unable to be parsed.");
+
+
 }
 
 // // FIXME_I:
@@ -292,6 +347,64 @@ TEST(PIWEBAPI_OMF_ErrorMessages, AllCases)
 		}
 	);
 	ASSERT_EQ(piWeb.errorMessageHandler(json),"Container not found. 4273005507977094880_1measurement_sin_4816_asset_1");
+
+	// Handling reason
+	json = QUOTE(
+		{
+			"OperationId": "f48a2233-86ba-45d2-9787-48e3e48be78a",
+			"Messages": [
+			{
+				"MessageIndex": null,
+				"Events": [
+				{
+					"EventInfo": {
+						"Message": "An error parsing the OMF message(s) occurred.",
+						"Reason": "The OMF request body was unable to be parsed.",
+						"Suggestions": [
+						"Check that the OMF request body is syntactically valid.",
+						"Check that the request only uses features available in the OMF version specified by the 'omfversion' header."
+						],
+						"EventCode": 3002,
+						"Parameters": []
+					},
+					"ExceptionInfo": {
+						"Type": "OSIsoft.OMF.Loggers.OmfLoggableException",
+						"Message": "An error parsing the OMF message(s) occurred."
+					},
+					"Severity": "Error",
+					"InnerEvents": [
+					{
+						"EventInfo": null,
+						"ExceptionInfo": {
+							"Type": "Newtonsoft.Json.JsonSerializationException",
+							"Message": "Error converting value \"containerid\" to type 'OSIsoft.OMF.Specification.Models.V1_1.DataMessageDTO'. Path '[1]', line 1, position 247."
+						},
+						"Severity": null,
+						"InnerEvents": [
+						{
+							"EventInfo": null,
+							"ExceptionInfo": {
+								"Type": "System.ArgumentException",
+								"Message": "Could not cast or convert from System.String to OSIsoft.OMF.Specification.Models.V1_1.DataMessageDTO."
+							},
+							"Severity": null,
+							"InnerEvents": []
+						}
+						]
+					}
+					]
+				}
+				],
+				"Status": {
+					"Code": 400,
+					"HighestSeverity": "Error"
+				}
+			}
+			]
+		}
+	);
+
+	ASSERT_EQ(piWeb.errorMessageHandler(json),"An error parsing the OMF message(s) occurred. The OMF request body was unable to be parsed.");
 
 }
 

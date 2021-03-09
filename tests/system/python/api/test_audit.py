@@ -70,7 +70,7 @@ class TestAudit:
         ('?source=START&severity=information&limit=1', 1, 1, ''),
         ('?source=START&severity=information&limit=1&skip=1', 1, 0, '')
     ])
-    def test_default_get_audit(self, fledge_url, wait_time, request_params, total_count, audit_count, cat_name):
+    def test_default_get_audit(self, fledge_url, wait_time, request_params, total_count, audit_count, cat_name, storage_plugin):
         if request_params == '':
             time.sleep(wait_time)
         conn = http.client.HTTPConnection(fledge_url)
@@ -79,20 +79,40 @@ class TestAudit:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
+
+        elems = jdoc['audit']
+        if storage_plugin == 'postgres':
+            for i, o in enumerate(elems):
+                if o['details'] and o['details']['name'] and o['details']['name'] == 'sqlite':
+                    #print("Skipping item " + str(i) + " = " + str(o))
+                    elems.remove(o)
+
+        if storage_plugin == 'postgres':
+            # sqlite has an additional entry: CONAD, INFORMATION, '{{"name":"sqlite", ...}'
+            # so total_count is being decresed in case of 'postgres' storage engine
+            # same for audit_count
+            if total_count > 1:
+                total_count = total_count -1
+
+            if audit_count > 1:
+                audit_count = audit_count -1
+
         assert len(jdoc), "No data found"
         assert total_count == jdoc['totalCount']
-        assert audit_count == len(jdoc['audit'])
+        assert audit_count == len(elems)
+
+        foundCategory = True
         if audit_count:
             if jdoc['audit'][0]['details']:
                 assert cat_name == jdoc['audit'][0]['details']['name']
 
     @pytest.mark.parametrize("payload, total_count", [
-        ({"source": "LMTR", "severity": "warning", "details": {"message": "Engine oil pressure low"}}, 12),
-        ({"source": "LMTR", "severity": "success", "details": {}}, 13),
+        ({"source": "SRVFL", "severity": "warning", "details": {"message": "Engine oil pressure low"}}, 12),
+        ({"source": "NHCOM", "severity": "success", "details": {}}, 13),
         ({"source": "START", "severity": "information", "details": {"message": "fledge started"}}, 14),
         ({"source": "CONCH", "severity": "failure", "details": {"message": "Scheduler configuration failed"}}, 15)
     ])
-    def test_create_audit_entry(self, fledge_url, payload, total_count):
+    def test_create_audit_entry(self, fledge_url, payload, total_count, storage_plugin):
         conn = http.client.HTTPConnection(fledge_url)
         conn.request('POST', '/fledge/audit', body=json.dumps(payload))
         r = conn.getresponse()
@@ -110,5 +130,11 @@ class TestAudit:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
+
+        # sqlite has an additional entry: CONAD, INFORMATION, '{{"name":"sqlite", ...}'
+        # so total_count is being decresed in case of 'postgres' storage engine
+        if storage_plugin == 'postgres':
+           total_count = total_count -1
+
         assert len(jdoc), "No data found"
         assert total_count == jdoc['totalCount']

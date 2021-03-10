@@ -349,7 +349,8 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 					   typeData);
 		if  ( ! (res >= 200 && res <= 299) )
 		{
-			Logger::getLogger()->error("Sending JSON dataType message 'Type', HTTP code %d - %s %s",
+			// FIXME_I:
+			Logger::getLogger()->error("xxx dbg1: Sending JSON dataType message 'Type', HTTP code %d - %s %s",
 						   res,
 						   m_sender.getHostPort().c_str(),
 						   m_path.c_str());
@@ -376,7 +377,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 				errorMsg = e.what();
 			}
 
-			Logger::getLogger()->warn("Sending dataType message 'Type', not blocking issue: %s  %s - %s %s",
+			Logger::getLogger()->warn("xxx dbg2: Sending dataType message 'Type', not blocking issue: %s  %s - %s %s",
 				(m_changeTypeId ? "Data Type " : "" ),
 				errorMsg.c_str(),
 				m_sender.getHostPort().c_str(),
@@ -398,7 +399,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 			errorMsg = e.what();
 		}
 
-		Logger::getLogger()->error("Sending dataType message 'Type', %s - %s %s",
+		Logger::getLogger()->error("xxx dbg3: Sending dataType message 'Type', %s - %s %s",
 									errorMsg.c_str(),
 									m_sender.getHostPort().c_str(),
 									m_path.c_str());

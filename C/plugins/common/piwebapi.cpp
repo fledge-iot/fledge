@@ -21,11 +21,9 @@
 #include <rapidjson/document.h>
 #include "rapidjson/error/en.h"
 
-//# FIXME_I:
 #include <stdlib.h>
 #include <string.h>
 #include <status_code.hpp>
-#include <tmp_log.hpp>
 
 using namespace std;
 using namespace rapidjson;
@@ -147,6 +145,9 @@ std::string PIWebAPI::GetVersion(const string& host)
 	return version;
 }
 
+/**
+ * Extracts a section from a string between a string and a '|'character
+ */
 string PIWebAPI::extractSection(const string& msg, const string& toSearch) {
 
 	string::size_type pos, pos1, pos2;
@@ -165,6 +166,9 @@ string PIWebAPI::extractSection(const string& msg, const string& toSearch) {
 	return (section);
 }
 
+/**
+ * Handles PI Web API json error message extracting significant parts to produce a meaningful and concise message
+ */
 string PIWebAPI::extractMessageFromJSon(const string& json)
 {
 	Document JSon;
@@ -244,44 +248,42 @@ string PIWebAPI::extractMessageFromJSon(const string& json)
 								break;
 
 							} else {
-								Logger::getLogger()->warn("xxx %s - PI Web API errors handling expects to received Parameters as an JSON array", __FUNCTION__);
+								Logger::getLogger()->warn("PI Web API errors handling expects to received Parameters as an JSON array");
 							}
 						}
 					} else {
-						Logger::getLogger()->warn("xxx %s - PI Web API errors handling expects to received Events as an JSON array", __FUNCTION__);
+						Logger::getLogger()->warn("PI Web API errors handling expects to received Events as an JSON array");
 					}
 
 				}
 
 			} else {
-				Logger::getLogger()->warn("xxx %s - PI Web API errors handling expects to received Messages as an JSON array", __FUNCTION__);
+				Logger::getLogger()->warn("PI Web API errors handling expects to received Messages as an JSON array");
 			}
 		}
 	}
 
 	return (msgFinal);
 }
-// FIXME_I:
+
+/**
+ * Handles PI Web API  error message considering the possible cases:
+ *
+ * - removes all the LF CR and extracts spaces
+ * - substitutes a message with a different one using an hardcoded vector
+ * - in the case of the presence of an HTTP code adds the corresponding text using the Simple-Web-Server functionalities
+ * - Handles PI Web API json error message extracting significant parts to produce a meaningful and concise message
+ *
+ */
 string PIWebAPI::errorMessageHandler(const string& msg)
 {
 	Document JSon;
 	ParseResult ok;
 
-
-
 	string msgTrimmed, msgSub, msgHttp, msgJson, finalMsg, msgFixed, messages, tmpMsg;
 	string httpCode;
 	int  httpCodeN;
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx %s - msg :%s:", __FUNCTION__, msg.c_str());
-
-
-	//# FIXME_I:
-	char tmp_buffer[500000];
-	snprintf (tmp_buffer,500000, "DBG : errorMsg  |%s| " ,msg.c_str());
-	tmpLogger (tmp_buffer);
 
 	msgTrimmed = StringStripWhiteSpacesExtra(msg);
 
@@ -310,7 +312,6 @@ string PIWebAPI::errorMessageHandler(const string& msg)
 	// Handles error in JSON format returned by the PI Web API
 	msgJson = extractMessageFromJSon (msgTrimmed);
 
-
 	// Define the final message
 	finalMsg = msg;
 	if (!msgSub.empty())
@@ -321,11 +322,6 @@ string PIWebAPI::errorMessageHandler(const string& msg)
 
 	if (!msgJson.empty())
 		finalMsg = msgJson;
-
-
-	//# FIXME_I
-	Logger::getLogger()->debug("xxx %s - finalMsg :%s:", __FUNCTION__, finalMsg.c_str());
-	Logger::getLogger()->setMinLevel("warning");
 
 
 	return(finalMsg);

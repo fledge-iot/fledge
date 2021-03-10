@@ -221,6 +221,8 @@ private:
                 // Handle data type errors
 		bool handleTypeErrors(const string& keyComplete, const Reading& reading, OMFHints*hints);
 
+		string errorMessageHandler(const string &msg);
+
 		// Extract assetName from erro message
 		std::string getAssetNameFromError(const char* message);
 

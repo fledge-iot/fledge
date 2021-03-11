@@ -16,6 +16,12 @@
 ## limitations under the License.
 ##--------------------------------------------------------------------
 
+# Script input parameters
+# $1 is action (start|stop|status|init|reset|help)
+# $2 is db schema (i.e 35)
+# $3 (optional) is the engine management flag (true or false)
+# if $3 is empty a call to get_engine_management will be done
+
 set -e
 #set -x
 
@@ -111,6 +117,7 @@ pg_start() {
     # Check if the fledge database has been created
     if [[ `$PG_SQL -l | grep -c '^ fledge'` -ne 1 ]]; then
         # Create the Fledge database
+	postgres_log "err" "PostgresSQL: need to create the Fledge database" "all"
         pg_reset "$1" "immediate" 
     fi
 
@@ -391,8 +398,13 @@ if [[ ! -d ${FLEDGE_DATA} ]]; then
     exit 1
 fi
 
-# Extract plugin
-engine_management=`get_engine_management $PLUGIN`
+# Extract plugin engine management status id $3 paramter is not set
+if [ ! "${3}" ]; then
+	engine_management=`get_engine_management $PLUGIN`
+else
+	engine_management=$3
+fi
+
 # Settings if the database is managed by Fledge
 case "$engine_management" in
     "true")

@@ -16,6 +16,10 @@
 ## limitations under the License.
 ##--------------------------------------------------------------------
 
+# Script input parameters
+# $1 is action (start|stop|status|init|reset|help)
+# $2 is db schema (i.e 35)
+
 __author__="Massimiliano Pinto"
 __version__="1.0"
 
@@ -428,8 +432,8 @@ if [[ ! -d ${FLEDGE_DATA} ]]; then
     exit 1
 fi
 
-# Extract plugin
-engine_management=`get_engine_management $PLUGIN`
+engine_management="false"
+
 # Settings if the database is managed by Fledge
 case "$engine_management" in
     "true")

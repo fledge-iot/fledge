@@ -21,6 +21,17 @@ else
         write_log "" "scripts.services.storage" "err" "Unable to find Fledge storage microservice in ${FLEDGE_ROOT}/services/storage" "logonly" ""
         exit 1
     else
+	(
+		# Get db schema
+        	FLEDGE_VERSION_FILE="${FLEDGE_ROOT}/VERSION"
+		FLEDGE_SCHEMA=`cat ${FLEDGE_VERSION_FILE} | tr -d ' ' | grep -i "FLEDGE_SCHEMA=" | sed -e 's/\(.*\)=\(.*\)/\2/g'`
+		# Get storage engine
+		res=(`${FLEDGE_ROOT}/services/fledge.services.storage --plugin`)
+		storagePlugin=${res[0]}
+		managedEngine=${res[1]}
+		# Call plugin start: this will create database if not set yet
+		${FLEDGE_ROOT}/scripts/plugins/storage/${storagePlugin}.sh start ${FLEDGE_SCHEMA} ${managedEngine}
+	)
         if [[ -x ${FLEDGE_ROOT}/services/fledge.services.storage ]]; then
             export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${FLEDGE_ROOT}/lib:/usr/local/fledge/lib
             ${FLEDGE_ROOT}/services/fledge.services.storage "$@"

@@ -81,11 +81,6 @@ class TestAudit:
         jdoc = json.loads(r)
 
         elems = jdoc['audit']
-        if storage_plugin == 'postgres':
-            for i, o in enumerate(elems):
-                if o['details'] and o['details']['name'] and o['details']['name'] == 'sqlite':
-                    #print("Skipping item " + str(i) + " = " + str(o))
-                    elems.remove(o)
 
         if storage_plugin == 'postgres':
             # sqlite has an additional entry: CONAD, INFORMATION, '{{"name":"sqlite", ...}'
@@ -101,13 +96,12 @@ class TestAudit:
         assert total_count == jdoc['totalCount']
         assert audit_count == len(elems)
 
-        foundCategory = True
         if audit_count:
             if jdoc['audit'][0]['details']:
                 assert cat_name == jdoc['audit'][0]['details']['name']
 
     @pytest.mark.parametrize("payload, total_count", [
-        ({"source": "SRVFL", "severity": "warning", "details": {"message": "Engine oil pressure low"}}, 12),
+        ({"source": "LOGGN", "severity": "warning", "details": {"message": "Engine oil pressure low"}}, 12),
         ({"source": "NHCOM", "severity": "success", "details": {}}, 13),
         ({"source": "START", "severity": "information", "details": {"message": "fledge started"}}, 14),
         ({"source": "CONCH", "severity": "failure", "details": {"message": "Scheduler configuration failed"}}, 15)

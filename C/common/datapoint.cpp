@@ -89,7 +89,7 @@ std::string DatapointValue::toString() const
 }
 
 /**
- * Delete the DatapointValue alongwith possibly nested Datapoint objects
+ * Delete the DatapointValue along with possibly nested Datapoint objects
  */
 void DatapointValue::deleteNestedDPV()
 {
@@ -103,15 +103,22 @@ void DatapointValue::deleteNestedDPV()
 		delete m_value.a;
 		m_value.a = NULL;
 	}
-	else if (m_type == T_DP_DICT || m_type == T_DP_LIST)
+	else if (m_type == T_DP_DICT ||
+		 m_type == T_DP_LIST)
 	{
-		for (auto it = m_value.dpa->begin(); // std::vector<Datapoint *>*	dpa;
-			 it != m_value.dpa->end();
-			 ++it)
-		{
-			delete (*it);
+		if (m_value.dpa) {
+			for (auto it = m_value.dpa->begin();
+				 it != m_value.dpa->end();
+				 ++it)
+			{
+				// Call DatapointValue destructor
+				delete(*it);
+			}
+
+			// Remove vector pointer
+			delete m_value.dpa;
+			m_value.dpa = NULL;
 		}
-		delete m_value.dpa;
 	}
 }
 
@@ -120,19 +127,10 @@ void DatapointValue::deleteNestedDPV()
  */
 DatapointValue::~DatapointValue()
 {
-	if (m_type == T_STRING)
-	{
-		delete m_value.str;
-		m_value.str = NULL;
-	}
-	if (m_type == T_FLOAT_ARRAY)
-	{
-		delete m_value.a;
-		m_value.a = NULL;
-	}
-	// For nested DPV, d'tor is always called from holding Datapoint object's destructor
+	// Remove memory allocated by datapoints
+	// along with possibly nested Datapoint objects
+	deleteNestedDPV();
 }
-
 
 /**
  * Copy constructor
@@ -150,7 +148,17 @@ DatapointValue::DatapointValue(const DatapointValue& obj)
 			break;
 		case T_DP_DICT:
 		case T_DP_LIST:
-			m_value.dpa = obj.m_value.dpa; // TODO: need to fix this, need to do nested copying in newly allocated memory
+			m_value.dpa = new std::vector<Datapoint*>();
+			for (auto it = obj.m_value.dpa->begin();
+				it != obj.m_value.dpa->end();
+				++it)
+			{
+				Datapoint *d = *it;
+				// Add new allocated datapoint to the vector
+				// using copy constructor
+				m_value.dpa->push_back(new Datapoint(*d));
+			}
+
 			break;
 		default:
 			m_value = obj.m_value;

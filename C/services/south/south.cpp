@@ -218,12 +218,17 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 	// Listen for incomming managment requests
 	management.start();
 
+	// Create the south API
+	SouthApi *api = new SouthApi(this);
+	if (!api)
+	{
+		logger->fatal("Unable to create API object");
+		return;
+	}
 	// Allow time for the listeners to start before we register
 	sleep(1);
 	if (! m_shutdown)
 	{
-		// Create the south API
-		SouthApi *api = new SouthApi(this);
 		unsigned short sport = api->getListenerPort();
 
 		// Now register our service

@@ -180,8 +180,8 @@ sqlite_start() {
          sqlite_reset "$1" "immediate" 
     fi
 
-    # Fledge DB schema update: Fledge version is $2
-    sqlite_schema_update $2
+    # Fledge DB schema update: Fledge version is $2, $1 is log verbosity
+    sqlite_schema_update $2 $1
 }
 
 
@@ -383,7 +383,7 @@ sqlite_schema_update() {
         ret_code=$?
 
         SET_VERSION_MSG="Fledge DB version not found in fledge.'${VERSION_TABLE}', setting version [${NEW_VERSION}]"
-        if [[ "$1" == "noisy" ]]; then
+        if [[ "$2" == "noisy" ]]; then
             sqlite_log "info" "${SET_VERSION_MSG}" "all" "pretty"
         else 
             sqlite_log "info" "${SET_VERSION_MSG}" "logonly" "pretty"
@@ -405,7 +405,9 @@ sqlite_schema_update() {
             fi
         else
             # Just log up-to-date
-            sqlite_log "info" "Fledge DB schema is up to date to version [${CURR_VER}]" "logonly" "pretty"
+            if [[ "$2" != "skip" ]]; then
+                sqlite_log "info" "Fledge DB schema is up to date to version [${CURR_VER}]" "logonly" "pretty"
+            fi
             return 0
         fi
     fi

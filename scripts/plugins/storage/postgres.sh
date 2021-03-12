@@ -122,8 +122,8 @@ pg_start() {
         pg_reset "$1" "immediate" 
     fi
 
-    # Fledge DB schema update: Fledge version is $2
-    pg_schema_update $2
+    # Fledge DB schema update: Fledge version is $2, $1 is log verbosity
+    pg_schema_update $2 $1
 }
 
 
@@ -340,7 +340,7 @@ pg_schema_update() {
         # No version found set DB version now
         CURR_VERR=`${PG_SQL} -d fledge -q -A -t -c "INSERT INTO ${VERSION_TABLE} (id) VALUES('${NEW_VERSION}')"`
         SET_VERSION_MSG="Fledge DB version not found in '${VERSION_TABLE}', setting version [${NEW_VERSION}]"
-        if [[ "$1" == "noisy" ]]; then
+        if [[ "$2" == "noisy" ]]; then
             postgres_log "info" "${SET_VERSION_MSG}" "all" "pretty"
         else 
             postgres_log "info" "${SET_VERSION_MSG}" "logonly" "pretty"
@@ -356,7 +356,9 @@ pg_schema_update() {
             return ${update_code}
         else
             # Just log up-to-date
-            postgres_log "info" "Fledge DB schema is up to date to version [${CURR_VERR}]" "logonly" "pretty"
+	    if [[ "$2" != "skip" ]]; then
+                postgres_log "info" "Fledge DB schema is up to date to version [${CURR_VERR}]" "logonly" "pretty"
+            fi
             return 0
         fi
     fi

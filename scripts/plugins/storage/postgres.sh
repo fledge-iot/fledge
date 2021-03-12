@@ -117,7 +117,6 @@ pg_start() {
     # Check if the fledge database has been created
     if [[ `$PG_SQL -l | grep -c '^ fledge'` -ne 1 ]]; then
         # Create the Fledge database
-	postgres_log "err" "PostgresSQL: need to create the Fledge database" "all"
         pg_reset "$1" "immediate" 
     fi
 

@@ -18,6 +18,7 @@ What to look for in log files
 Same sample messages from the syslog:
 
 .. code-block:: console
+
     North_Readings_to_PI[20884]: WARNING: Error in retrieving the PIWebAPI version, The PI Web API server is not reachable, verify the network reachability
 
     North_Readings_to_PI[5838]: WARNING: Error in retrieving the PIWebAPI version, 503 Service Unavailable

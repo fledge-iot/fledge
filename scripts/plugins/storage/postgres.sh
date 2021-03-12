@@ -73,7 +73,9 @@ pg_start() {
             if [[ "$1" == "noisy" ]]; then
                 postgres_log "info" "PostgreSQL is already running." "all" "pretty"
             else
-                postgres_log "info" "PostgreSQL is already running." "logonly" "pretty"
+		if [[ "$1" != "skip" ]]; then
+                    postgres_log "info" "PostgreSQL is already running." "logonly" "pretty"
+		fi
             fi
             ;;
 
@@ -484,6 +486,9 @@ fi
 case "$1" in
     start)
         pg_start "$print_output" "$2"
+        ;;
+    init)
+        pg_start "skip" "$2"
         ;;
     stop)
         pg_stop "$print_output"

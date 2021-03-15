@@ -69,7 +69,19 @@ Select the section *System* to verify the installed version:
 Commands to check the PI WEB API
 --------------------------------
 
-Open the PI Web API URL and drill drown into Asset Framework and into Data Archive to verify the proper configuration on the PI-Server side, also in terms of granted permissions.
+Open the PI Web API URL and drill drown into Data Archive and into Asset Framework to verify the proper configuration on the PI-Server side, also in terms of granted permissions.
+
+**Data Archive drill down**
+
+following the path *DataServers* -> *Points*:
+
+|img_004|
+
+|img_005|
+
+you should be able to browse the *PI Points* page and see your *PI Points* if some data was already sent:
+
+|img_006|
 
 **Asset Framework drill down**
 
@@ -85,17 +97,7 @@ following the path *AssetServers* -> Select the *Instance* -> Select the proper 
 
 |img_009|
 
-**Data Archive drill down**
-
-following the path *DataServers* -> *Points*:
-
-|img_004|
-
-|img_005|
-
-you should be able to browse the *PI Points* page and see your *PI Points* if some data was already sent:
-
-|img_006|
+proceed with the drill down operation up to the desired level.
 
 Error messages an the related cause
 -----------------------------------

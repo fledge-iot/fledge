@@ -16,7 +16,7 @@ using Fledge version >= 1.9.1 and PI Web API 2019 SP1 1.13.0.6518
 - How to check the PI Web API is installed and running
 - Commands to check the PI Web API
 - Error messages an the related causes
-- Some possible solution to common situations
+- Some possible solutions to common situations
 
 Log files
 ---------
@@ -89,8 +89,8 @@ Same messages and the related causes:
     * - North_Readings_to_PI[24485]: ERROR: Sending JSON data error : Container not found. 4273005507977094880_1measurement_sin_4816_asset_1 - WIN-4M7ODKB0RH2:443 /piwebapi/omf
       - Fledge is able to interact with PI Web API but there is an attempt to store data in a PI Point that is not existing.
 
-Some possible solution to common situations
--------------------------------------------
+Some possible solutions to common situations
+--------------------------------------------
 
 - **Recreate all the objets and send again all the data to the PI Server on a different Asset Framework hierarchy level**
     procedure:

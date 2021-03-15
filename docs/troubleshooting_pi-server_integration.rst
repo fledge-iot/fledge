@@ -26,12 +26,13 @@ The name of the north instance should be used to extract just the logs about the
 
 screen short from the Fledge GUI
 
-    |img_003|
+|img_003|
 
 .. code-block:: console
 
     $ sudo cat /var/log/syslog | grep North_Readings_to_PI
 
+sample message:
 
     user.info, 6,1,Mar 15 08:29:57,localhost,Fledge, North_Readings_to_PI[15506]: INFO: SendingProcess is starting
 
@@ -46,9 +47,7 @@ Open the URL *https://piserver_1/piwebapi* in the browser, substituting *piserve
 verify the reachability and proper installation of PI Web API, if PI Web API is configured for *Basic* authentication
 a prompt asking user name/password like the following one will appear:
 
-  +-----------+
-  | |img_002| |
-  +-----------+
+|img_002|
 
 **NOTE:**
 

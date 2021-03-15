@@ -21,7 +21,8 @@ Log files
 ---------
 
 Fledge logs into the system syslog, mainly warnings and errors and in some circumstances rows of severity information.
-The name of the north instance should be used to extract just the logs about the PI-Server integration, as in this example:
+The name of the north instance should be used to extract just the logs about the PI-Server integration, as in this example
+showed by the Fledge GUI:
 
   +-----------+
   | |img_003| |

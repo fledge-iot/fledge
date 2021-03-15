@@ -67,8 +67,9 @@ proper installation of the plugin:
 Commands to check the PI WEB API
 --------------------------------
 
-Drill drown in PI Web API to verify the proper configuration on the PI-Server side, also in terms of granted permission,
-going down to the path *DataServers* - *Points*
+Drill drown in PI Web API to verify the proper configuration on the PI-Server side, also in terms of granted permissions.
+
+Follow the path *DataServers* - *Points*:
 
   +-----------+
   | |img_004| |
@@ -78,7 +79,7 @@ going down to the path *DataServers* - *Points*
   | |img_005| |
   +-----------+
 
-you should be able to browse the *PI Point* page and see your pi points if some data was already sent:
+you should be able to browse the *PI Points* page and see your *PI Points* if some data was already sent:
 
   +-----------+
   | |img_006| |

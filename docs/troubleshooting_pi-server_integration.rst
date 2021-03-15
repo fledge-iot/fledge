@@ -19,8 +19,8 @@ using Fledge version >= 1.9.x and PI Web API 2019 SP1 1.13.0.6518
 - Log files
 - How to check the PI Web API is installed and running
 - Commands to check the PI Web API
-- Error messages and the related cause
-- Some possible solutions to common situations
+- Error messages and the related causes
+- Possible solutions to common situations
 
 Log files
 ---------
@@ -62,7 +62,7 @@ proper installation of the plugin:
 
 |img_001|
 
-Select the section *System* to verify the installed version:
+Select the item *System* to verify the installed version:
 
 |img_010|
 
@@ -99,10 +99,10 @@ following the path *AssetServers* -> Select the *Instance* -> Select the proper 
 
 proceed with the drill down operation up to the desired level.
 
-Error messages an the related cause
------------------------------------
+Error messages an the related causes
+------------------------------------
 
-Some messages and the related cause:
+Some error messages and the related causes:
 
 .. list-table::
     :widths: 50 50
@@ -115,10 +115,10 @@ Some messages and the related cause:
     * - North_Readings_to_PI[5838]: WARNING: Error in retrieving the PIWebAPI version, **503 Service Unavailable**
       - Fledge is capable to reach the machine in which PI-Server is executed but the PI Web API is not running.
     * - North_Readings_to_PI[24485]: ERROR: Sending JSON data error : **Container not found**. 4273005507977094880_1measurement_sin_4816_asset_1 - WIN-4M7ODKB0RH2:443 /piwebapi/omf
-      - Fledge is able to interact with PI Web API but there is an attempt to store data in a PI Point that does not existing.
+      - Fledge is able to interact with PI Web API but there is an attempt to store data in a PI Point that does not exist.
 
-Some possible solutions to common situations
---------------------------------------------
+Possible solutions to common situations
+---------------------------------------
 
 - **Recreate all the PI-Server objets and send again all the data to the PI Server on a different Asset Framework hierarchy level**
     procedure:
@@ -126,24 +126,24 @@ Some possible solutions to common situations
         - create a new north instance using a new/unique name and having a new AF hierarchy (North option 'Asset Framework hierarchies tree')
 
     consideration:
-        - this solution will create a new set of objects unrelated to the previous ones
+        - this solution will create a set of new objects unrelated to the previous ones
         - all the data stored in Fledge will be sent
 
-- **Recreate all the PI-Server objets and send again all the data to the PI Server on a same Asset Framework hierarchy level of the 1st North instance WITH data duplication***
+- **Recreate all the PI-Server objets and send again all the data to the PI Server on the same Asset Framework hierarchy level of the 1st North instance WITH data duplication**
     procedure:
         - disable the 1st north instance
-        - delete properly the objects on the PI Server, AF + Data archive, *that were eventually partially deleted*
+        - delete properly the objects on the PI Server, AF + Data archive, that were eventually partially deleted
         - stop / start PI Web API
         - create a new north instance 2nd using the same AF hierarchy (North option 'Asset Framework hierarchies tree)
 
     consideration:
-        - all the types will be recreated on the PI-Server, if the structure of each asset (number and types of the properties) is always the same and never changes everything should work properly as PI Web API 2019 SP1 1.13.0.6518 is not going to complain with it
-        - PI Web API 2019 SP1 1.13.0.6518 sets the PI-Server compression disabled by default, so the data for all the objects already present in the Data Archive will be duplicated
+        - all the types will be recreated on the PI-Server and if the structure of each asset, number and types of the properties, is always the same and never changes everything should work properly as PI Web API 2019 SP1 1.13.0.6518 is not going to complain with it
+        - PI Web API 2019 SP1 1.13.0.6518 creates PI-Server objects having the compression disabled, so all the objects already present in the Data Archive will have duplicated data
 
-- **Recreate all the PI-Server objets and send again all the data to the PI Server on a same Asset Framework hierarchy level of the 1st North instance WITHOUT data duplication**
+- **Recreate all the PI-Server objets and send again all the data to the PI Server on the same Asset Framework hierarchy level of the 1st North instance WITHOUT data duplication**
     procedure:
         - disable the 1st north instance
-        - properly delete all the objects related to the 1st north instance on the PI Server side, both in the AF and in the Data Archive
+        - properly delete all the objects related to the 1st north instance on the PI Server side both in the AF and in the Data Archive
         - stop / start PI Web API
         - create a new north instance using the same AF hierarchy (North option 'Asset Framework hierarchies' tree)
 

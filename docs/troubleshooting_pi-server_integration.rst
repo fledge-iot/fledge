@@ -26,21 +26,16 @@ The name of the north instance should be used to extract just the logs about the
 
 screen short from the Fledge GUI
 
-  +-----------+
-  | |img_003| |
-  +-----------+
+    |img_003|
 
 .. code-block:: console
 
     $ sudo cat /var/log/syslog | grep North_Readings_to_PI
 
-.. code-block:: console
 
     user.info, 6,1,Mar 15 08:29:57,localhost,Fledge, North_Readings_to_PI[15506]: INFO: SendingProcess is starting
 
 another sample message:
-
-.. code-block:: console
 
     North_Readings_to_PI[20884]: WARNING: Error in retrieving the PIWebAPI version, The PI Web API server is not reachable, verify the network reachability
 

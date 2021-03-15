@@ -19,7 +19,7 @@ using Fledge version >= 1.9.x and PI Web API 2019 SP1 1.13.0.6518
 - Log files
 - How to check the PI Web API is installed and running
 - Commands to check the PI Web API
-- Error messages and the related causes
+- Error messages and the related cause
 - Some possible solutions to common situations
 
 Log files
@@ -97,10 +97,10 @@ you should be able to browse the *PI Points* page and see your *PI Points* if so
 
 |img_006|
 
-Error messages an the related causes
-------------------------------------
+Error messages an the related cause
+-----------------------------------
 
-Same messages and the related causes:
+Some messages and the related cause:
 
 .. list-table::
     :widths: 50 50

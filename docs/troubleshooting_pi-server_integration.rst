@@ -5,17 +5,21 @@
 .. |img_004| image:: images/tshooting_pi_004.jpg
 .. |img_005| image:: images/tshooting_pi_005.jpg
 .. |img_006| image:: images/tshooting_pi_006.jpg
+.. |img_007| image:: images/tshooting_pi_007.jpg
+.. |img_008| image:: images/tshooting_pi_008.jpg
+.. |img_009| image:: images/tshooting_pi_009.jpg
+.. |img_010| image:: images/tshooting_pi_010.jpg
 
 Troubleshooting the PI-Server integration
 =========================================
 
 This section describes how to trouble shoot issues with the PI-Server integration
-using Fledge version >= 1.9.1 and PI Web API 2019 SP1 1.13.0.6518
+using Fledge version >= 1.9.x and PI Web API 2019 SP1 1.13.0.6518
 
 - Log files
 - How to check the PI Web API is installed and running
 - Commands to check the PI Web API
-- Error messages an the related causes
+- Error messages and the related causes
 - Some possible solutions to common situations
 
 Log files
@@ -24,7 +28,7 @@ Log files
 Fledge logs into the system syslog, mainly warnings and errors and in some circumstances rows of severity information.
 The name of the north instance should be used to extract just the logs about the PI-Server integration, as in this example:
 
-screen short from the Fledge GUI
+screenshot from the Fledge GUI
 
 |img_003|
 
@@ -44,24 +48,46 @@ How to check the PI Web API is installed and running
 ----------------------------------------------------
 
 Open the URL *https://piserver_1/piwebapi* in the browser, substituting *piserver_1* with the name/address of your PI Server, to
-verify the reachability and proper installation of PI Web API, if PI Web API is configured for *Basic* authentication
-a prompt asking user name/password like the following one will appear:
+verify the reachability and proper installation of PI Web API.
+If PI Web API is configured for *Basic* authentication a prompt asking user name/password like the following one will appear:
 
 |img_002|
 
 **NOTE:**
 
-- *The same user name/password configured in Fledge should be used.*
+- *The same user name/password configured in Fledge in the north instance should be used.*
 
-The *PI Web API OMF* plugin must be installed to allow the integration with Fledge, in this screen shot the 4th row shows the
+The *PI Web API* *OMF* plugin must be installed to allow the integration with Fledge, in this screen shot the 4th row shows the
 proper installation of the plugin:
 
 |img_001|
 
+Select the section *System* to verify the installed version:
+
+|img_010|
+
 Commands to check the PI WEB API
 --------------------------------
 
-To verify the proper configuration on the PI-Server side, also in terms of granted permissions, drill drown in PI Web API following the path *DataServers* - *Points*:
+Open the PI Web API URL and drill drown into Asset Framework and into Data Archive to verify the proper configuration on the PI-Server side, also in terms of granted permissions.
+
+**Asset Framework drill down**
+
+following the path *AssetServers* -> Select the *Instance* -> Select the proper *Databases* -> drill down into the AF hierarchy up to the required level -> *Elements*:
+
+|img_007|
+
+*selecting the instance*
+
+|img_008|
+
+*selecting the database*
+
+|img_009|
+
+**Data Archive drill down**
+
+following the path *DataServers* -> *Points*:
 
 |img_004|
 

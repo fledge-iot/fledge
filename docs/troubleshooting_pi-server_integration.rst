@@ -15,7 +15,7 @@ using Fledge version >= 1.9.1 and PI Web API 2019 SP1 1.13.0.6518
 - Log files
 - How to check the PI Web API is installed and running
 - Commands to check the PI Web API
-- Error messages an the related cause
+- Error messages an the related causes
 - Some possible solution to common situations
 
 Log files
@@ -85,10 +85,10 @@ you should be able to browse the *PI Points* page and see your *PI Points* if so
   | |img_006| |
   +-----------+
 
-Error messages an the related cause
------------------------------------
+Error messages an the related causes
+------------------------------------
 
-Same sample messages and the related cause:
+Same messages and the related causes:
 
 .. code-block:: console
 
@@ -112,4 +112,62 @@ Fledge is able to interact with PI Web API but there is an attempt to store data
 Some possible solution to common situations
 -------------------------------------------
 
-tbd:
+**Recreate all the objets and send again all the data to the PI Server on a different Asset Framework hierarchy level**
+
+    - disable the 1st north instance
+    - create a new north instance, using a new/unique name, having a new AF hierarchy (North option 'Asset Framework hierarchies tree')
+
+consideration:
+
+    - this solution will create a new set of objects unrelated to the previous ones
+    - all the data stored in Fledge will be sent
+
+**Recreate all the objets and send again all the data to the PI Server on a same Asset Framework hierarchy level of the 1st North instance WITH data duplication***
+
+    - disable the 1st north instance
+    - delete properly the objects on the PI Server, AF + Data archive, *that were eventually partially deleted*
+    - stop / start PI Web API
+    - create a new north instance 2nd using the same AF hierarchy (North option 'Asset Framework hierarchies tree)
+
+consideration:
+    - all the types will be recreated on the PI-Server, if the structure of each asset (number and types of the properties) is always the same and never changes everything should work properly as PI Web API 2019 SP1 1.13.0.6518 is not going to complain with it
+    - PI Web API 2019 SP1 1.13.0.6518 sets the PI-Server compression disabled by default, so the data for all the objects already present in the Data Archive will be duplicated
+
+
+**Recreate all the objets and send again all the data to the PI Server on a same Asset Framework hierarchy level of the 1st North instance WITHOUT data duplication**
+
+    - disable the 1st north instance
+    - properly delete all the objects related to the 1st north instance on the PI Server side, both in the AF and in the Data Archive
+    - stop / start PI Web API
+    - create a new north instance using the same AF hierarchy (North option 'Asset Framework hierarchies' tree)
+
+consideration:
+    - all the data stored in Fledge will be sent
+
+---  -----------------------------------------------------------------------------------------:
+
+North_Readings_to_PI[24485]: ERROR: Sending JSON data error : Container not found. 4273005507977094880_1measurement_sin_4816_asset_1 - WIN-4M7ODKB0RH2:443 /piwebapi/omf
+
+consideration:
+
+---  -----------------------------------------------------------------------------------------:
+
+TBD:
+
+**Recreated and restored an unintentionally deleted data point in Data Archive**
+
+consideration:
+---  -----------------------------------------------------------------------------------------:
+
+How should we proceed when setting up the new Fledge Server,
+without losing the data stored on the OSI Server?
+
+---  -----------------------------------------------------------------------------------------:
+
+
+NOTE:
+The current implementation of PI Web API has a limited set of functionalities implemented,
+they will extend them in a future version, and we are bound to this capability.
+
+This means that if you partially delete some objects in the PI Server, for example just in the Data archive,
+you could end up in a non consistent situation

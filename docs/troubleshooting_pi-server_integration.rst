@@ -97,7 +97,7 @@ following the path *AssetServers* -> Select the *Instance* -> Select the proper 
 
 |img_009|
 
-proceed with the drill down operation up to the desired level.
+proceed with the drill down operation up to the desired level/asset.
 
 Error messages an the related causes
 ------------------------------------
@@ -143,7 +143,7 @@ Possible solutions to common situations
 - **Recreate all the PI-Server objets and send again all the data to the PI Server on the same Asset Framework hierarchy level of the 1st North instance WITHOUT data duplication**
     procedure:
         - disable the 1st north instance
-        - properly delete all the objects related to the 1st north instance on the PI Server side both in the AF and in the Data Archive
+        - properly delete all the objects on the PI Server side, both in the AF and in the Data Archive, sent by the 1st north instance
         - stop / start PI Web API
         - create a new north instance using the same AF hierarchy (North option 'Asset Framework hierarchies' tree)
 

@@ -14,8 +14,8 @@ using Fledge version >= 1.9.1 and PI Web API 2019 SP1 1.13.0.6518
 
 - Log files
 - How to check the PI Web API is installed and running
-- Commands to check the PI WEB API
-- Error messages an possible solutions
+- Commands to check the PI Web API
+- Error messages and possible solutions
 
 Log files
 ---------
@@ -44,7 +44,7 @@ another sample message:
 How to check the PI Web API is installed and running
 ----------------------------------------------------
 
-Open the URL *https://piserver_1/piwebapi* in the browser, substituting *piserver_1* with the name/address of your PI Server to
+Open the URL *https://piserver_1/piwebapi* in the browser, substituting *piserver_1* with the name/address of your PI Server, to
 verify the reachability and proper installation of PI Web API, if PI Web API is configured for *Basic* authentication
 a prompt asking user name/password like the following one will appear:
 
@@ -54,7 +54,7 @@ a prompt asking user name/password like the following one will appear:
 
 **NOTE:**
 
-*The same user name/password Fledge is going to used should be used.*
+- *The same user name/password configured in Fledge should be used.*
 
 The *PI Web API OMF* plugin must be installed to allow the integration with Fledge, in this screen shot the 4th row shows the
 proper installation of the plugin:

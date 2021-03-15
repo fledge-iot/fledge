@@ -56,51 +56,39 @@ a prompt asking user name/password like the following one will appear:
 The *PI Web API OMF* plugin must be installed to allow the integration with Fledge, in this screen shot the 4th row shows the
 proper installation of the plugin:
 
-  +-----------+
-  | |img_001| |
-  +-----------+
+|img_001|
 
 Commands to check the PI WEB API
 --------------------------------
 
 To verify the proper configuration on the PI-Server side, also in terms of granted permissions, drill drown in PI Web API following the path *DataServers* - *Points*:
 
-  +-----------+
-  | |img_004| |
-  +-----------+
+|img_004|
 
-  +-----------+
-  | |img_005| |
-  +-----------+
+|img_005|
 
 you should be able to browse the *PI Points* page and see your *PI Points* if some data was already sent:
 
-  +-----------+
-  | |img_006| |
-  +-----------+
+|img_006|
 
 Error messages an the related causes
 ------------------------------------
 
 Same messages and the related causes:
 
-.. code-block:: console
+- North_Readings_to_PI[20884]: WARNING: Error in retrieving the PIWebAPI version, The PI Web API server is not reachable, verify the network reachability
 
-    North_Readings_to_PI[20884]: WARNING: Error in retrieving the PIWebAPI version, The PI Web API server is not reachable, verify the network reachability
+    Fledge is not able to reach the machine in which PI-Server is running due to a network problem of a firewall restriction.
 
-Fledge is not able to reach the machine in which PI-Server is running due to a network problem of a firewall restriction.
 
-.. code-block:: console
+- North_Readings_to_PI[5838]: WARNING: Error in retrieving the PIWebAPI version, 503 Service Unavailable
 
-    North_Readings_to_PI[5838]: WARNING: Error in retrieving the PIWebAPI version, 503 Service Unavailable
+    Fledge is capable to reach the machine in which PI-Server is executed but the PI Web API is not running.
 
-Fledge is capable to reach the machine in which PI-Server is executed but the PI Web API is not running.
 
-.. code-block:: console
+- North_Readings_to_PI[24485]: ERROR: Sending JSON data error : Container not found. 4273005507977094880_1measurement_sin_4816_asset_1 - WIN-4M7ODKB0RH2:443 /piwebapi/omf
 
-    North_Readings_to_PI[24485]: ERROR: Sending JSON data error : Container not found. 4273005507977094880_1measurement_sin_4816_asset_1 - WIN-4M7ODKB0RH2:443 /piwebapi/omf
-
-Fledge is able to interact with PI Web API but there is an attempt to store data in a PI Point that is not existing.
+    Fledge is able to interact with PI Web API but there is an attempt to store data in a PI Point that is not existing.
 
 
 Some possible solution to common situations

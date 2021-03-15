@@ -15,14 +15,16 @@ using Fledge version >= 1.9.1 and PI Web API 2019 SP1 1.13.0.6518
 - Log files
 - How to check the PI Web API is installed and running
 - Commands to check the PI Web API
-- Error messages and possible solutions
+- Error messages an the related cause
+- Some possible solution to common situations
 
 Log files
 ---------
 
 Fledge logs into the system syslog, mainly warnings and errors and in some circumstances rows of severity information.
-The name of the north instance should be used to extract just the logs about the PI-Server integration, as in this example
-showed by the Fledge GUI:
+The name of the north instance should be used to extract just the logs about the PI-Server integration, as in this example:
+
+screen short from the Fledge GUI
 
   +-----------+
   | |img_003| |
@@ -67,9 +69,7 @@ proper installation of the plugin:
 Commands to check the PI WEB API
 --------------------------------
 
-Drill drown in PI Web API to verify the proper configuration on the PI-Server side, also in terms of granted permissions.
-
-Follow the path *DataServers* - *Points*:
+To verify the proper configuration on the PI-Server side, also in terms of granted permissions, drill drown in PI Web API following the path *DataServers* - *Points*:
 
   +-----------+
   | |img_004| |
@@ -85,8 +85,8 @@ you should be able to browse the *PI Points* page and see your *PI Points* if so
   | |img_006| |
   +-----------+
 
-Error messages an possible solutions
-------------------------------------
+Error messages an the related cause
+-----------------------------------
 
 Same sample messages and the related cause:
 
@@ -100,7 +100,7 @@ Fledge is not able to reach the machine in which PI-Server is running due to a n
 
     North_Readings_to_PI[5838]: WARNING: Error in retrieving the PIWebAPI version, 503 Service Unavailable
 
-Fledge is capable to reach the machine in which PI-Server is running but the PI Web API is not running.
+Fledge is capable to reach the machine in which PI-Server is executed but the PI Web API is not running.
 
 .. code-block:: console
 
@@ -109,3 +109,7 @@ Fledge is capable to reach the machine in which PI-Server is running but the PI 
 Fledge is able to interact with PI Web API but there is an attempt to store data in a PI Point that is not existing.
 
 
+Some possible solution to common situations
+-------------------------------------------
+
+tbd:

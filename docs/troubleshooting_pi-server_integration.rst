@@ -76,8 +76,6 @@ Error messages an the related causes
 
 Same messages and the related causes:
 
-The response payload is a set of configuration items within the category, each item is a JSON object with the following set of properties.
-
 .. list-table::
     :widths: 50 50
     :header-rows: 1
@@ -124,30 +122,3 @@ Some possible solution to common situations
     consideration:
         - all the data stored in Fledge will be sent
 
----  -----------------------------------------------------------------------------------------:
-
-North_Readings_to_PI[24485]: ERROR: Sending JSON data error : Container not found. 4273005507977094880_1measurement_sin_4816_asset_1 - WIN-4M7ODKB0RH2:443 /piwebapi/omf
-
-consideration:
-
----  -----------------------------------------------------------------------------------------:
-
-TBD:
-
-**Recreated and restored an unintentionally deleted data point in Data Archive**
-
-consideration:
----  -----------------------------------------------------------------------------------------:
-
-How should we proceed when setting up the new Fledge Server,
-without losing the data stored on the OSI Server?
-
----  -----------------------------------------------------------------------------------------:
-
-
-NOTE:
-The current implementation of PI Web API has a limited set of functionalities implemented,
-they will extend them in a future version, and we are bound to this capability.
-
-This means that if you partially delete some objects in the PI Server, for example just in the Data archive,
-you could end up in a non consistent situation

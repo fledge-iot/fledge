@@ -24,6 +24,8 @@
 #include <datapoint.h>
 #include <thread>
 
+#include <piwebapi.h>
+
 using namespace std;
 using namespace rapidjson;
 
@@ -342,12 +344,10 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 					   typeData);
 		if  ( ! (res >= 200 && res <= 299) )
 		{
-			Logger::getLogger()->error("Sending JSON dataType message 'Type' "
-						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+			Logger::getLogger()->error("Sending JSON dataType message 'Type', HTTP code %d - %s %s",
 						   res,
 						   m_sender.getHostPort().c_str(),
-						   m_path.c_str(),
-						   typeData.c_str() );
+						   m_path.c_str());
 			return false;
 		}
 	}
@@ -359,23 +359,24 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 			// Data type error: force type-id change
 			m_changeTypeId = true;
 		}
-                Logger::getLogger()->warn("Sending JSON dataType message 'Type', "
-					  "not blocking issue:  |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-					   (m_changeTypeId ? "Data Type " : "" ),
-                                           e.what(),
-                                           m_sender.getHostPort().c_str(),
-                                           m_path.c_str(),
-                                           typeData.c_str() );
+			string errorMsg = errorMessageHandler(e.what());
+
+			Logger::getLogger()->warn("Sending dataType message 'Type', not blocking issue: %s %s - %s %s",
+				(m_changeTypeId ? "Data Type " : "" ),
+				errorMsg.c_str(),
+				m_sender.getHostPort().c_str(),
+				m_path.c_str());
+
 		return false;
 	}
 	catch (const std::exception& e)
 	{
-                Logger::getLogger()->error("Sending JSON dataType message 'Type' "
-					   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-                                           e.what(),
-                                           m_sender.getHostPort().c_str(),
-                                           m_path.c_str(),
-                                           typeData.c_str() );
+		string errorMsg = errorMessageHandler(e.what());
+
+		Logger::getLogger()->error("Sending dataType message 'Type', %s - %s %s",
+									errorMsg.c_str(),
+									m_sender.getHostPort().c_str(),
+									m_path.c_str());
 
 		return false;
 	}
@@ -397,11 +398,10 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 		if  ( ! (res >= 200 && res <= 299) )
 		{
 			Logger::getLogger()->error("Sending JSON dataType message 'Container' "
-						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+						   "- error: HTTP code |%d| - %s %s",
 						   res,
 						   m_sender.getHostPort().c_str(),
-						   m_path.c_str(),
-						   typeContainer.c_str() );
+						   m_path.c_str() );
 			return false;
 		}
 	}
@@ -413,23 +413,24 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 			// Data type error: force type-id change
 			m_changeTypeId = true;
 		}
+		string errorMsg = errorMessageHandler(e.what());
+
 		Logger::getLogger()->warn("Sending JSON dataType message 'Container' "
-					   "not blocking issue: |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+					   "not blocking issue: |%s| - %s - %s %s",
 					   (m_changeTypeId ? "Data Type " : "" ),
-					   e.what(),
+					   errorMsg.c_str(),
 					   m_sender.getHostPort().c_str(),
-					   m_path.c_str(),
-					   typeContainer.c_str() );
+					   m_path.c_str() );
 		return false;
 	}
 	catch (const std::exception& e)
 	{
-		Logger::getLogger()->error("Sending JSON dataType message 'Container' "
-					   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-					   e.what(),
+		string errorMsg = errorMessageHandler(e.what());
+
+		Logger::getLogger()->error("Sending JSON dataType message 'Container' - %s - %s %s",
+					   errorMsg.c_str(),
 					   m_sender.getHostPort().c_str(),
-					   m_path.c_str(),
-					   typeContainer.c_str() );
+					   m_path.c_str());
 		return false;
 	}
 
@@ -453,11 +454,10 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 			if  ( ! (res >= 200 && res <= 299) )
 			{
 				Logger::getLogger()->error("Sending JSON dataType message 'StaticData' "
-							   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+							   "- error: HTTP code |%d| - %s %s",
 							   res,
 							   m_sender.getHostPort().c_str(),
-							   m_path.c_str(),
-							   typeStaticData.c_str() );
+							   m_path.c_str() );
 				return false;
 			}
 		}
@@ -469,23 +469,25 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 				// Data type error: force type-id change
 				m_changeTypeId = true;
 			}
+			string errorMsg = errorMessageHandler(e.what());
+
 			Logger::getLogger()->warn("Sending JSON dataType message 'StaticData'"
-						   "not blocking issue: |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+						   "not blocking issue: |%s| - %s - %s %s",
 						   (m_changeTypeId ? "Data Type " : "" ),
-						   e.what(),
+						   errorMsg.c_str(),
 						   m_sender.getHostPort().c_str(),
-						   m_path.c_str(),
-						   typeStaticData.c_str() );
+						   m_path.c_str() );
 			return false;
 		}
 		catch (const std::exception& e)
 		{
+			string errorMsg = errorMessageHandler(e.what());
+
 			Logger::getLogger()->error("Sending JSON dataType message 'StaticData'"
-						   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-						   e.what(),
+						   "- generic error: %s -  %s %s",
+						   errorMsg.c_str(),
 						   m_sender.getHostPort().c_str(),
-						   m_path.c_str(),
-						   typeStaticData.c_str() );
+						   m_path.c_str() );
 			return false;
 		}
 	}
@@ -531,12 +533,10 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 											   typeLinkData);
 					if (!(res >= 200 && res <= 299))
 					{
-						Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) "
-												   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+						Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) - error: HTTP code |%d| - %s %s",
 												   res,
 												   m_sender.getHostPort().c_str(),
-												   m_path.c_str(),
-												   typeLinkData.c_str());
+												   m_path.c_str());
 						return false;
 					}
 				}
@@ -548,23 +548,25 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 						// Data type error: force type-id change
 						m_changeTypeId = true;
 					}
+					string errorMsg = errorMessageHandler(e.what());
+
 					Logger::getLogger()->warn("Sending JSON dataType message 'Data' (lynk) "
-											  "not blocking issue: |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+											  "not blocking issue: |%s| - %s - %s %s",
 											  (m_changeTypeId ? "Data Type " : ""),
-											  e.what(),
+											  errorMsg.c_str(),
 											  m_sender.getHostPort().c_str(),
-											  m_path.c_str(),
-											  typeLinkData.c_str());
+											  m_path.c_str() );
 					return false;
 				}
 				catch (const std::exception &e)
 				{
+					string errorMsg = errorMessageHandler(e.what());
+
 					Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) "
-											   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-											   e.what(),
+											   "- generic error: %s - %s %s",
+											   errorMsg.c_str(),
 											   m_sender.getHostPort().c_str(),
-											   m_path.c_str(),
-											   typeLinkData.c_str());
+											   m_path.c_str() );
 					return false;
 				}
 			}
@@ -614,23 +616,19 @@ bool OMF::AFHierarchySendMessage(const string& msgType, string& jsonData)
 
 	if (! success)
 	{
+		string errorMsg = errorMessageHandler(errorMessage);
+
 		if (res != 0)
-			Logger::getLogger()->error("Sending JSON  Asset Framework hierarchy, "
-						   "- HTTP code |%d| - error message |%s| - HostPort |%s| - path |%s| message type |%s| - OMF message |%s|",
+			Logger::getLogger()->error("Sending Asset Framework hierarchy, %d %s - %s %s",
 						   res,
-						   errorMessage.c_str(),
+						   errorMsg.c_str(),
 						   m_sender.getHostPort().c_str(),
-						   m_path.c_str(),
-						   msgType.c_str(),
-						   jsonData.c_str() );
+						   m_path.c_str());
 		else
-			Logger::getLogger()->error("Sending JSON  Asset Framework hierarchy, "
-						   "- error message |%s| - HostPort |%s| - path |%s| message type |%s| - OMF message |%s|",
-						   errorMessage.c_str(),
+			Logger::getLogger()->error("Sending Asset Framework hierarchy, %s - %s %s",
+							errorMsg.c_str(),
 						   m_sender.getHostPort().c_str(),
-						   m_path.c_str(),
-						   msgType.c_str(),
-						   jsonData.c_str() );
+						   m_path.c_str());
 
 	}
 
@@ -1324,12 +1322,12 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 					       json);
 		if  ( ! (res >= 200 && res <= 299) )
 		{
-			Logger::getLogger()->error("Sending JSON readings, "
-						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+			Logger::getLogger()->error("Sending JSON readings , "
+						   "- error: HTTP code |%d| - %s %s",
 						   res,
 						   m_sender.getHostPort().c_str(),
-						   m_path.c_str(),
-						   json_not_compressed.c_str() );
+						   m_path.c_str()
+						   );
 			m_lastError = true;
 			return 0;
 		}
@@ -1387,12 +1385,14 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			// 2- Type-id is not incremented
 			// 3- Data Types cache is cleared: next sendData call
 			//    will send data types again.
+
+			string errorMsg = errorMessageHandler(e.what());
+
 			Logger::getLogger()->warn("Sending JSON readings, "
-						  "not blocking issue: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-						  e.what(),
+						  "not blocking issue: %s - %s %s",
+						  errorMsg.c_str(),
 						  m_sender.getHostPort().c_str(),
-						  m_path.c_str(),
-						  json_not_compressed.c_str() );
+						  m_path.c_str());
 
 			// Extract assetName from error message
 			string assetName;
@@ -1421,12 +1421,12 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 				Logger::getLogger()->warn("Sending JSON readings, "
 							  "not blocking issue: 'type-id' of assetName '%s' "
 							  "has been set to %d "
-							  "- HostPort |%s| - path |%s| - OMF message |%s|",
+							  "- %s %s",
 							  assetName.c_str(),
 							  OMF::getAssetTypeId(assetName),
 							  m_sender.getHostPort().c_str(),
-							  m_path.c_str(),
-							  json_not_compressed.c_str());
+							  m_path.c_str()
+							  );
 			}
 
 			// Reset error indicator
@@ -1438,11 +1438,13 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		}
 		else
 		{
-			Logger::getLogger()->error("Sending JSON data error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-			                           e.what(),
+			string errorMsg = errorMessageHandler(e.what());
+
+			Logger::getLogger()->error("Sending JSON data error : %s - %s %s",
+									   errorMsg.c_str(),
 			                           m_sender.getHostPort().c_str(),
-			                           m_path.c_str(),
-			                           json_not_compressed.c_str());
+			                           m_path.c_str()
+									   );
 		}
 		// Failure
 		m_lastError = true;
@@ -1450,16 +1452,40 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	}
 	catch (const std::exception& e)
 	{
-		Logger::getLogger()->error("Sending JSON data error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-					   e.what(),
-					   m_sender.getHostPort().c_str(),
-					   m_path.c_str(),
-					   json_not_compressed.c_str() );
+		string errorMsg = errorMessageHandler(e.what());
+
+		Logger::getLogger()->error("Sending JSON data error : %s - %s %s",
+						errorMsg.c_str(),
+						m_sender.getHostPort().c_str(),
+						m_path.c_str()
+						);
+
 		// Failure
 		m_lastError = true;
 		return 0;
 	}
 }
+
+/**
+ * Apply an handling on the error message in relation to the End Point
+ *
+ */
+string OMF::errorMessageHandler(const string &msg)
+{
+	string errorMsg;
+
+	if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
+	{
+		PIWebAPI piWeb;
+		errorMsg = piWeb.errorMessageHandler(msg);
+
+	} else {
+		errorMsg = msg;
+	}
+
+	return(errorMsg);
+}
+
 
 /**
  * Send all the readings to the PI Server
@@ -1627,12 +1653,13 @@ uint32_t OMF::sendToServer(const Reading* reading,
 	}
 	catch (const std::exception& e)
 	{
+		string errorMsg = errorMessageHandler(e.what());
+
 		Logger::getLogger()->error("Sending JSON readings data "
-					   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-					   e.what(),
+					   "- generic error: %s - %s %s",
+					   errorMsg.c_str(),
 					   m_sender.getHostPort().c_str(),
-					   m_path.c_str(),
-					   jsonData.str().c_str() );
+					   m_path.c_str() );
 
 		return false;
 	}
@@ -3606,7 +3633,7 @@ std::string OMF::ApplyPIServerNamingRulesObj(const std::string &objName, bool *c
 
 	/// Names cannot begin with '__'. These are reserved for system use.
 	if (
-		nameFixed[0] == '_'  ||
+		nameFixed[0] == '_'  &&
 		nameFixed[1] == '_'
 		)
 	{
@@ -3669,7 +3696,7 @@ std::string OMF::ApplyPIServerNamingRulesPath(const std::string &objName, bool *
 
 	/// Names cannot begin with '__'. These are reserved for system use.
 	if (
-		nameFixed[0] == '_'  ||
+		nameFixed[0] == '_' &&
 		nameFixed[1] == '_'
 		)
 	{

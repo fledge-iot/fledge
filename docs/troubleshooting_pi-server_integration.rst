@@ -120,6 +120,32 @@ Some error messages and the related causes:
 Possible solutions to common situations
 ---------------------------------------
 
+- **Recreate a single or a sets of PI-Server objets and send again all the data for them to the PI Server on the Asset Framework hierarchy level**
+    procedure:
+        - disable the 1st north instance
+        - delete properly the objects on the PI Server, AF + Data archive, that we intend to recreate or were eventually partially deleted
+        - create a new **DISABLED** north instance using a new/unique name and having the same AF hierarchy of the 1st north instance
+        - install *fledge-filter-asset* on the new north instance, available at https://github.com/fledge-iot/fledge-filter-asset
+        - configure *fledge-filter-asset* with a rule like this one:
+
+.. code-block:: console
+
+      "rules": [
+        {
+          "asset_name": "asset_4",
+          "action": "include"
+        }
+      ],
+      "defaultAction": "exclude"
+
+        - enable the 2nd north instance
+        - disable the 2nd north instance
+        - enable the 1st north instance
+
+    consideration:
+        - the 2nd north instance will be used only to recreate the objects and resend the data
+        - the 2nd north instance will send again all the data available for the specified *included* assets
+
 - **Recreate all the PI-Server objets and send again all the data to the PI Server on a different Asset Framework hierarchy level**
     procedure:
         - disable the 1st north instance

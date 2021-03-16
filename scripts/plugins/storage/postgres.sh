@@ -17,7 +17,7 @@
 ##--------------------------------------------------------------------
 
 # Script input parameters
-# $1 is action (start|stop|status|init|reset|help)
+# $1 is action (start|stop|status|init|reset|purge|help)
 # $2 is db schema (i.e 35)
 # $3 (optional) is the engine management flag (true or false)
 # if $3 is empty a call to get_engine_management will be done
@@ -26,7 +26,7 @@ set -e
 #set -x
 
 PLUGIN="postgres"
-USAGE="Usage: `basename ${0}` {start|stop|status|init|reset|help}"
+USAGE="Usage: `basename ${0}` {start|stop|status|init|reset|purge|help}"
 
 # Check FLEDGE_ROOT
 if [ -z ${FLEDGE_ROOT+x} ]; then
@@ -209,9 +209,9 @@ pg_reset() {
     fi
 
     if [[ "$1" == "noisy" ]]; then
-        postgres_log "info" "Building the metadata for the Fledge Plugin..." "all" "pretty"
+        postgres_log "info" "Purging data for the Fledge Plugin 'postgres'" "all" "pretty"
     else
-        postgres_log "info" "Building the metadata for the Fledge Plugin..." "logonly" "pretty"
+        postgres_log "info" "Building the metadata for the Fledge Plugin 'postgres'" "logonly" "pretty"
     fi
        
     eval $PG_SQL -d postgres -q -f $INIT_SQL > /dev/null 2>&1
@@ -366,7 +366,6 @@ pg_schema_update() {
 
 ## PostgreSQL Help
 pg_help() {
-
     echo "${USAGE}
 PostgreSQL Storage Layer plugin init script. 
 The script is used to control the PostgreSQL plugin as database for Fledge
@@ -378,6 +377,10 @@ Arguments:
  reset   - Bring the database server to the original installation.
            This is a synonym of init.
            WARNING: all the data stored in the server will be lost!
+ init    - Database initialisation check: if Fledge database is not set it
+           will be created
+ purge   - Purge all readings data and non-configuration data stored in the database.
+           WARNING: all the data stored in the affected tables will be lost!
  help    - This text
 
  managed   - The database server is embedded in Fledge
@@ -385,6 +388,42 @@ Arguments:
 
 }
 
+## PostgreSQL purge all readings and non-configuration data
+#
+pg_purge() {
+    echo "This script will remove all readings data and non-configuration stored in the server."
+    echo -n "Enter YES if you want to continue: "
+    read continue_purge
+
+    if [ "$continue_purge" != 'YES' ]; then
+        echo "Goodbye."
+        # This is ok because it means that the script is called from command line
+        exit 0
+    fi
+
+   SQL_COMMAND=`${PG_SQL} -d fledge -q <<EOF
+UPDATE fledge.statistics SET value = 0, previous_value = 0, ts = now();
+DELETE FROM fledge.asset_tracker;
+DELETE FROM fledge.tasks;
+DELETE FROM fledge.statistics_history;
+DELETE FROM fledge.log;
+DELETE FROM fledge.readings;
+UPDATE fledge.streams SET last_object = 0, ts = now();
+EOF`
+
+    RET_CODE=$?
+    if [ "${RET_CODE}" -ne 0 ]; then
+        postgres_log "err" "Failure in purge command [${SQL_COMMAND}]: ${COMMAND_OUTPUT}. Exiting" "all" "pretty"
+        return 1
+    fi
+
+    # Log success
+    if [[ "$1" == "noisy" ]]; then
+        postgres_log "info" "Purge complete for Fledge Plugin '${PLUGIN}" "all" "pretty"
+    else
+        postgres_log "info" "Purge complete for Fledge Plugin '${PLUGIN}" "logonly" "pretty"
+    fi
+}
 
 ##################
 ### Main Logic ###
@@ -500,6 +539,9 @@ case "$1" in
         ;;
     status)
         pg_status "$print_output"
+        ;;
+    purge)
+	pg_purge
         ;;
     help)
         pg_help

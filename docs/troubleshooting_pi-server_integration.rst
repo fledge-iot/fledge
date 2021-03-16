@@ -129,6 +129,9 @@ Possible solutions to common situations
         - configure *fledge-filter-asset* with a rule like this one:
 
 .. code:: json
+
+    ::
+
       "rules": [
         {
           "asset_name": "asset_4",
@@ -136,6 +139,8 @@ Possible solutions to common situations
         }
       ],
       "defaultAction": "exclude"
+    -
+
 
         - enable the 2nd north instance
         - disable the 2nd north instance

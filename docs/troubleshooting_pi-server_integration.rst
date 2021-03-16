@@ -127,10 +127,11 @@ Possible solutions to common situations
         - create a new **DISABLED** north instance using a new/unique name and having the same AF hierarchy of the 1st north instance
         - install *fledge-filter-asset* on the new north instance, available at https://github.com/fledge-iot/fledge-filter-asset
         - configure *fledge-filter-asset* with a rule like this one:
+        - enable the 2nd north instance
+        - disable the 2nd north instance
+        - enable the 1st north instance
 
 .. code:: json
-
-    ::
 
       "rules": [
         {
@@ -139,12 +140,8 @@ Possible solutions to common situations
         }
       ],
       "defaultAction": "exclude"
--
 
 
-        - enable the 2nd north instance
-        - disable the 2nd north instance
-        - enable the 1st north instance
 
     consideration:
         - the 2nd north instance will be used only to recreate the objects and resend the data

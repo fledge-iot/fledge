@@ -126,7 +126,7 @@ Possible solutions to common situations
         - delete properly the objects on the PI Server, AF + Data archive, that we intend to recreate or were eventually partially deleted
         - create a new **DISABLED** north instance using a new/unique name and having the same AF hierarchy of the 1st north instance
         - install *fledge-filter-asset* on the new north instance, available at https://github.com/fledge-iot/fledge-filter-asset
-        - configure *fledge-filter-asset* with a rule like this one:
+        - configure *fledge-filter-asset* with a rule like this one (A)
         - enable the 2nd north instance
         - disable the 2nd north instance
         - enable the 1st north instance
@@ -135,6 +135,7 @@ Possible solutions to common situations
         - the 2nd north instance will be used only to recreate the objects and resend the data
         - the 2nd north instance will send again all the data available for the specified *included* assets
 
+(A)
 .. code:: json
 
       "rules": [

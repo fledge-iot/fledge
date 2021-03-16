@@ -16,6 +16,10 @@
 ## limitations under the License.
 ##--------------------------------------------------------------------
 
+# Script input parameters
+# $1 is action (start|stop|status|init|reset|help)
+# $2 is db schema (i.e 35)
+
 __author__="Massimiliano Pinto"
 __version__="1.0"
 
@@ -86,14 +90,20 @@ fi
 sqlite_start() {
 
     # Check the status of the server
-    result=`sqlite_status "silent"`
+    if [[ "$1" != "skip" ]]; then
+        result=`sqlite_status "silent"`
+    else
+        result=`sqlite_status "skip"`
+    fi
     case "$result" in
         "0")
             # SQLilte3 DB found already running.
             if [[ "$1" == "noisy" ]]; then
                 sqlite_log "info" "SQLite3 database is ready." "all" "pretty"
             else
-                sqlite_log "info" "SQLite3 database is ready." "logonly" "pretty"
+		if [[ "$1" != "skip" ]]; then
+                    sqlite_log "info" "SQLite3 database is ready." "logonly" "pretty"
+		fi
             fi
             ;;
 
@@ -121,14 +131,21 @@ sqlite_start() {
     esac
 
     # Check the presence of the readingds.db datafile
-    result=`sqlite_status_readings "silent"`
+    if [[ "$1" != "skip" ]]; then
+        result=`sqlite_status_readings "silent"`
+    else
+        result=`sqlite_status_readings "skip"`
+    fi
+
     case "$result" in
         "0")
             # SQLilte3 DB found already running.
             if [[ "$1" == "noisy" ]]; then
                 sqlite_log "info" "SQLite3 readings database is ready." "all" "pretty"
             else
-                sqlite_log "info" "SQLite3 readings database is ready." "logonly" "pretty"
+		if [[ "$1" != "skip" ]]; then
+                    sqlite_log "info" "SQLite3 readings database is ready." "logonly" "pretty"
+		fi
             fi
             ;;
 
@@ -163,8 +180,8 @@ sqlite_start() {
          sqlite_reset "$1" "immediate" 
     fi
 
-    # Fledge DB schema update: Fledge version is $2
-    sqlite_schema_update $2
+    # Fledge DB schema update: Fledge version is $2, $1 is log verbosity
+    sqlite_schema_update $2 $1
 }
 
 
@@ -294,7 +311,9 @@ sqlite_status() {
         if [[ "$1" == "noisy" ]]; then
             sqlite_log "info" "SQLite 3 database '${DEFAULT_SQLITE_DB_FILE}' ready." "all" "pretty"
         else
-            sqlite_log "info" "SQLite 3 database '${DEFAULT_SQLITE_DB_FILE}' ready." "logonly" "pretty"
+            if [[ "$1" != "skip" ]]; then
+                sqlite_log "info" "SQLite 3 database '${DEFAULT_SQLITE_DB_FILE}' ready." "logonly" "pretty"
+            fi
         fi
         echo "0"
     else
@@ -319,7 +338,9 @@ sqlite_status_readings() {
         if [[ "$1" == "noisy" ]]; then
             sqlite_log "info" "SQLite 3 database '${DEFAULT_SQLITE_DB_FILE_READINGS}' ready." "all" "pretty"
         else
-            sqlite_log "info" "SQLite 3 database '${DEFAULT_SQLITE_DB_FILE_READINGS}' ready." "logonly" "pretty"
+            if [[ "$1" != "skip" ]]; then
+                sqlite_log "info" "SQLite 3 database '${DEFAULT_SQLITE_DB_FILE_READINGS}' ready." "logonly" "pretty"
+            fi
         fi
         echo "0"
     else
@@ -362,7 +383,7 @@ sqlite_schema_update() {
         ret_code=$?
 
         SET_VERSION_MSG="Fledge DB version not found in fledge.'${VERSION_TABLE}', setting version [${NEW_VERSION}]"
-        if [[ "$1" == "noisy" ]]; then
+        if [[ "$2" == "noisy" ]]; then
             sqlite_log "info" "${SET_VERSION_MSG}" "all" "pretty"
         else 
             sqlite_log "info" "${SET_VERSION_MSG}" "logonly" "pretty"
@@ -384,7 +405,9 @@ sqlite_schema_update() {
             fi
         else
             # Just log up-to-date
-            sqlite_log "info" "Fledge DB schema is up to date to version [${CURR_VER}]" "logonly" "pretty"
+            if [[ "$2" != "skip" ]]; then
+                sqlite_log "info" "Fledge DB schema is up to date to version [${CURR_VER}]" "logonly" "pretty"
+            fi
             return 0
         fi
     fi
@@ -428,8 +451,8 @@ if [[ ! -d ${FLEDGE_DATA} ]]; then
     exit 1
 fi
 
-# Extract plugin
-engine_management=`get_engine_management $PLUGIN`
+engine_management="false"
+
 # Settings if the database is managed by Fledge
 case "$engine_management" in
     "true")
@@ -477,6 +500,9 @@ fi
 case "$1" in
     start)
         sqlite_start "$print_output" "$2"
+        ;;
+    init)
+        sqlite_start "skip" "$2"
         ;;
     stop)
         sqlite_stop "$print_output"

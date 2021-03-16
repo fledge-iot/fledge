@@ -16,6 +16,12 @@
 ## limitations under the License.
 ##--------------------------------------------------------------------
 
+# Script input parameters
+# $1 is action (start|stop|status|init|reset|help)
+# $2 is db schema (i.e 35)
+# $3 (optional) is the engine management flag (true or false)
+# if $3 is empty a call to get_engine_management will be done
+
 set -e
 #set -x
 
@@ -67,7 +73,9 @@ pg_start() {
             if [[ "$1" == "noisy" ]]; then
                 postgres_log "info" "PostgreSQL is already running." "all" "pretty"
             else
-                postgres_log "info" "PostgreSQL is already running." "logonly" "pretty"
+		if [[ "$1" != "skip" ]]; then
+                    postgres_log "info" "PostgreSQL is already running." "logonly" "pretty"
+		fi
             fi
             ;;
 
@@ -114,8 +122,8 @@ pg_start() {
         pg_reset "$1" "immediate" 
     fi
 
-    # Fledge DB schema update: Fledge version is $2
-    pg_schema_update $2
+    # Fledge DB schema update: Fledge version is $2, $1 is log verbosity
+    pg_schema_update $2 $1
 }
 
 
@@ -332,7 +340,7 @@ pg_schema_update() {
         # No version found set DB version now
         CURR_VERR=`${PG_SQL} -d fledge -q -A -t -c "INSERT INTO ${VERSION_TABLE} (id) VALUES('${NEW_VERSION}')"`
         SET_VERSION_MSG="Fledge DB version not found in '${VERSION_TABLE}', setting version [${NEW_VERSION}]"
-        if [[ "$1" == "noisy" ]]; then
+        if [[ "$2" == "noisy" ]]; then
             postgres_log "info" "${SET_VERSION_MSG}" "all" "pretty"
         else 
             postgres_log "info" "${SET_VERSION_MSG}" "logonly" "pretty"
@@ -348,7 +356,9 @@ pg_schema_update() {
             return ${update_code}
         else
             # Just log up-to-date
-            postgres_log "info" "Fledge DB schema is up to date to version [${CURR_VERR}]" "logonly" "pretty"
+	    if [[ "$2" != "skip" ]]; then
+                postgres_log "info" "Fledge DB schema is up to date to version [${CURR_VERR}]" "logonly" "pretty"
+            fi
             return 0
         fi
     fi
@@ -391,8 +401,13 @@ if [[ ! -d ${FLEDGE_DATA} ]]; then
     exit 1
 fi
 
-# Extract plugin
-engine_management=`get_engine_management $PLUGIN`
+# Extract plugin engine management status id $3 paramter is not set
+if [ ! "${3}" ]; then
+	engine_management=`get_engine_management $PLUGIN`
+else
+	engine_management=$3
+fi
+
 # Settings if the database is managed by Fledge
 case "$engine_management" in
     "true")
@@ -473,6 +488,9 @@ fi
 case "$1" in
     start)
         pg_start "$print_output" "$2"
+        ;;
+    init)
+        pg_start "skip" "$2"
         ;;
     stop)
         pg_stop "$print_output"

@@ -3606,7 +3606,7 @@ std::string OMF::ApplyPIServerNamingRulesObj(const std::string &objName, bool *c
 
 	/// Names cannot begin with '__'. These are reserved for system use.
 	if (
-		nameFixed[0] == '_'  ||
+		nameFixed[0] == '_'  &&
 		nameFixed[1] == '_'
 		)
 	{
@@ -3669,7 +3669,7 @@ std::string OMF::ApplyPIServerNamingRulesPath(const std::string &objName, bool *
 
 	/// Names cannot begin with '__'. These are reserved for system use.
 	if (
-		nameFixed[0] == '_'  ||
+		nameFixed[0] == '_' &&
 		nameFixed[1] == '_'
 		)
 	{

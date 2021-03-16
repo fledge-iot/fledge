@@ -17,7 +17,7 @@
 ##--------------------------------------------------------------------
 
 # Script input parameters
-# $1 is action (start|stop|status|init|reset|help)
+# $1 is action (start|stop|status|init|reset|purge|help)
 # $2 is db schema (i.e 35)
 
 __author__="Massimiliano Pinto"
@@ -39,7 +39,7 @@ if [ ! "${DEFAULT_SQLITE_DB_FILE_READINGS}" ]; then
 fi
 
 
-USAGE="Usage: `basename ${0}` {start|stop|status|init|reset|help}"
+USAGE="Usage: `basename ${0}` {start|stop|status|init|reset|purge|help}"
 
 # Check FLEDGE_ROOT
 if [ -z ${FLEDGE_ROOT+x} ]; then
@@ -426,8 +426,11 @@ Arguments:
  stop    - Stop the database server (when managed)
  status  - Check the status of the database server
  reset   - Bring the database server to the original installation.
-           This is a synonym of init.
            WARNING: all the data stored in the server will be lost!
+ init    - Database initialisation check: if Fledge database is not set it
+           will be created
+ purge   - Purge all readings data and non-configuration data stored in the database.
+           WARNING: all the data stored in the affected tables will be lost!
  help    - This text
 
  managed   - The database server is embedded in Fledge
@@ -435,6 +438,58 @@ Arguments:
 
 }
 
+## SQLite3 purge all readings and non-configuration data
+sqlite_purge() {
+    echo "This script will remove all readings data and non-configuration data stored in the SQLite3 datafiles:"
+    echo "'${DEFAULT_SQLITE_DB_FILE}'"
+    echo "'${DEFAULT_SQLITE_DB_FILE_READINGS}'"
+    echo -n "Enter YES if you want to continue: "
+    read continue_purge
+
+    if [ "$continue_purge" != 'YES' ]; then
+        echo "Goodbye."
+        # This is ok because it means that the script is called from command line
+        exit 0
+    fi
+
+    if [[ "$1" == "noisy" ]]; then
+        sqlite_log "info" "Purging data for the Fledge Plugin '${PLUGIN}' ..." "all" "pretty"
+    else
+        sqlite_log "info" "Purging data for the Fledge Plugin '${PLUGIN}' ..." "logonly" "pretty"
+    fi
+
+    # Purge database content
+    COMMAND_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}' AS 'fledge';
+UPDATE statistics SET value = 0, previous_value = 0, ts = STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime');
+DELETE FROM fledge.asset_tracker; 
+DELETE FROM fledge.sqlite_sequence where name='asset_tracker';
+DELETE FROM tasks;
+DELETE FROM statistics_history;
+DELETE FROM sqlite_sequence where name='statistics_history';
+DELETE FROM log;
+DELETE FROM sqlite_sequence where name='log';
+UPDATE streams SET last_object = 0, ts = STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime');
+VACUUM;"
+.quit
+EOF`
+
+    RET_CODE=$?
+    if [ "${RET_CODE}" -ne 0 ]; then
+        sqlite_log "err" "Failure in purge command [${SQL_COMMAND}]: ${COMMAND_OUTPUT}. Exiting" "all" "pretty"
+        return 1
+    fi
+
+    # Log success
+    if [[ "$1" == "noisy" ]]; then
+        sqlite_log "info" "Purge complete for Fledge Plugin '${PLUGIN} in database '${DEFAULT_SQLITE_DB_FILE}'." "all" "pretty"
+    else
+        sqlite_log "info" "Purge complete for Fledge Plugin '${PLUGIN} in database '${DEFAULT_SQLITE_DB_FILE}'." "logonly" "pretty"
+    fi
+
+    # Remove all readings
+    sqlite_reset_db_readings
+}
 
 ##################
 ### Main Logic ###
@@ -512,6 +567,9 @@ case "$1" in
         ;;
     status)
         sqlite_status "$print_output"
+        ;;
+    purge)
+        sqlite_purge "$print_output"
         ;;
     help)
         sqlite_help

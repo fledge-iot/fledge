@@ -22,7 +22,7 @@ set -e
 #
 # This is the startup script for fledge
 #
-USAGE="Usage: `basename ${0}` {start|start --safe-mode|stop|status|reset|kill|help|version}"
+USAGE="Usage: `basename ${0}` {start|start --safe-mode|stop|status|reset|kill|help|version|purge}"
 
 # Remove any token cache left over from a previous execution
 rm -f ~/.fledge_token
@@ -611,10 +611,24 @@ Arguments:
  status            - Show the status for the Fledge services
  reset             - Restore Fledge factory settings
                      WARNING! This command will destroy all your data!
+ purge             - Purge all readings data and non-configuration data.
+                     WARNING! This command will destroy all data in affected tables!
+ version           - Print Fledge version
  version           - Print Fledge version
  help              - This text"
 }
 
+# Purge readings data and non configuration data
+fledge_purge() {
+    result=`fledge_status "silent"`
+    if [[ $result != "2" ]]; then
+        fledge_log "info" "Fledge appears to be running and purge data cannot be done. Stop Fledge first." "all" "pretty"
+        exit 0
+    fi
+
+    # Purge data
+    source "$FLEDGE_ROOT/scripts/storage" purge
+}
 
 ### Main Logic ###
 
@@ -712,6 +726,9 @@ case "$1" in
         ;;
     version)
         fledge_print_version
+        ;;
+    purge)
+        fledge_purge
         ;;
     help)
         fledge_help

@@ -128,7 +128,7 @@ Possible solutions to common situations
         - install *fledge-filter-asset* on the new north instance, available at https://github.com/fledge-iot/fledge-filter-asset
         - configure *fledge-filter-asset* with a rule like this one:
 
-.. code-block:: console
+.. code:: json
 
       "rules": [
         {
@@ -137,6 +137,8 @@ Possible solutions to common situations
         }
       ],
       "defaultAction": "exclude"
+
+::
 
         - enable the 2nd north instance
         - disable the 2nd north instance

@@ -136,6 +136,7 @@ Possible solutions to common situations
         - the 2nd north instance will send again all the data available for the specified *included* assets
 
 .. code:: json
+
     {
       "rules": [
         {

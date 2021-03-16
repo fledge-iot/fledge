@@ -77,8 +77,8 @@ class TestCommon:
         assert len(jdoc), "No data found"
 
         self.do_restart(fledge_url)
+        time.sleep(wait_time * 4)
 
-        time.sleep(wait_time * 2)
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", '/fledge/ping')
         r = conn.getresponse()
@@ -101,8 +101,8 @@ class TestCommon:
         assert len(jdoc), "No data found"
 
         self.do_restart(fledge_url)
+        time.sleep(wait_time * 4)
 
-        time.sleep(wait_time * 2)
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", '/fledge/ping')
         r = conn.getresponse()

@@ -235,6 +235,8 @@ class TestE2eCsvMultiFltrPi:
 
     def _verify_egress(self, read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries):
 
+        # Wait until full data is recieved in PI server
+        time.sleep(wait_time * 2)
         retry_count = 0
         data_from_pi = None
         while (data_from_pi is None or data_from_pi == []) and retry_count < retries:

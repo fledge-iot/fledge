@@ -131,6 +131,10 @@ Possible solutions to common situations
         - disable the 2nd north instance
         - enable the 1st north instance
 
+    consideration:
+        - the 2nd north instance will be used only to recreate the objects and resend the data
+        - the 2nd north instance will send again all the data available for the specified *included* assets
+
 .. code:: json
 
       "rules": [
@@ -140,12 +144,6 @@ Possible solutions to common situations
         }
       ],
       "defaultAction": "exclude"
-
-
-
-    consideration:
-        - the 2nd north instance will be used only to recreate the objects and resend the data
-        - the 2nd north instance will send again all the data available for the specified *included* assets
 
 - **Recreate all the PI-Server objets and send again all the data to the PI Server on a different Asset Framework hierarchy level**
     procedure:

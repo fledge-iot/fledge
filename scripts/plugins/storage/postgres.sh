@@ -401,19 +401,31 @@ pg_purge() {
         exit 0
     fi
 
-   SQL_COMMAND=`${PG_SQL} -d fledge -q <<EOF
+   SQL_COMMAND=`${PG_SQL} -d fledge -b -q <<EOF
 UPDATE fledge.statistics SET value = 0, previous_value = 0, ts = now();
-DELETE FROM fledge.asset_tracker;
-DELETE FROM fledge.tasks;
-DELETE FROM fledge.statistics_history;
-DELETE FROM fledge.log;
-DELETE FROM fledge.readings;
+TRUNCATE TABLE fledge.asset_tracker;
+TRUNCATE TABLE fledge.tasks;
+TRUNCATE TABLE fledge.statistics_history;
+TRUNCATE TABLE fledge.log;
+TRUNCATE TABLE fledge.readings;
 UPDATE fledge.streams SET last_object = 0, ts = now();
+DO \\$alter_seq\\$
+DECLARE i TEXT;
+BEGIN
+ FOR i IN (SELECT UNNEST(REGEXP_MATCHES(column_default, 'nextval\(''(.*)''::regclass\)')) AS seq_name
+           FROM information_schema.columns
+           WHERE column_default LIKE 'nextval%'
+           AND table_schema = 'fledge'
+           AND table_name IN ('asset_tracker', 'log'))
+  LOOP
+      EXECUTE 'ALTER SEQUENCE' || ' ' || i || ' '||' RESTART 1;';
+  END LOOP;
+END\\$alter_seq\\$;
 EOF`
 
     RET_CODE=$?
     if [ "${RET_CODE}" -ne 0 ]; then
-        postgres_log "err" "Failure in purge command [${SQL_COMMAND}]: ${COMMAND_OUTPUT}. Exiting" "all" "pretty"
+        postgres_log "err" "Failure in purge command. Exiting" "all" "pretty"
         return 1
     fi
 

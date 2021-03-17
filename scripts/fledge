@@ -22,7 +22,7 @@ set -e
 #
 # This is the startup script for fledge
 #
-USAGE="Usage: `basename ${0}` {start|start --safe-mode|stop|status|reset|kill|help|version|purge}"
+USAGE="Usage: `basename ${0}` {start|start --safe-mode|stop|status|reset|purge|kill|help|version}"
 
 # Remove any token cache left over from a previous execution
 rm -f ~/.fledge_token
@@ -613,7 +613,6 @@ Arguments:
                      WARNING! This command will destroy all your data!
  purge             - Purge all readings data and non-configuration data.
                      WARNING! This command will destroy all data in affected tables!
- version           - Print Fledge version
  version           - Print Fledge version
  help              - This text"
 }

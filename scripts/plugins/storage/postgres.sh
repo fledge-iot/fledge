@@ -209,7 +209,7 @@ pg_reset() {
     fi
 
     if [[ "$1" == "noisy" ]]; then
-        postgres_log "info" "Purging data for the Fledge Plugin 'postgres'" "all" "pretty"
+        postgres_log "info" "Building the metadata for the Fledge Plugin 'postgres'" "all" "pretty"
     else
         postgres_log "info" "Building the metadata for the Fledge Plugin 'postgres'" "logonly" "pretty"
     fi

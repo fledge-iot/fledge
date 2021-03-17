@@ -128,12 +128,13 @@ Possible solutions to common situations
         - install *fledge-filter-asset* on the new north instance, available at https://github.com/fledge-iot/fledge-filter-asset
         - configure *fledge-filter-asset* with a rule like the following one
         - enable the 2nd north instance
-        - disable the 2nd north instance
+        - let the  2nd north instance send the desired amount of data and then disable it
         - enable the 1st north instance
 
     consideration:
         - the 2nd north instance will be used only to recreate the objects and resend the data
         - the 2nd north instance will send again all the data available for the specified *included* assets
+        - there will some data duplicated for the recreated assets because parte of the information will be managed by both the north instances.
 
 .. code:: json
 

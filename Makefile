@@ -13,9 +13,10 @@ $(if $(PLATFORM_RH), $(info Platform is $(PLATFORM_RH) $(OS_VERSION)))
 # For RedHat || CentOS we need rh-python36
 ifneq ("$(PLATFORM_RH)","")
    ifeq ("$(OS_VERSION_PREFIX)", "7")
+	# CentOS we need rh-python36 and devtoolset-7
 	PIP_INSTALL_REQUIREMENTS := source scl_source enable rh-python36 && pip3 install -Ir
 	PYTHON_BUILD_PACKAGE = source scl_source enable rh-python36 && python3 setup.py build -b ../$(PYTHON_BUILD_DIR)
-	CMAKE := source scl_source enable rh-python36 && cmake
+	CMAKE := source scl_source enable rh-python36 && source scl_source enable devtoolset-7 && cmake
     else
 	PIP_INSTALL_REQUIREMENTS := pip3 install -Ir
 	PYTHON_BUILD_PACKAGE = python3 setup.py build -b ../$(PYTHON_BUILD_DIR)

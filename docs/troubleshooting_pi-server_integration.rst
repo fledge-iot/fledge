@@ -24,7 +24,7 @@ using Fledge version >= 1.9.x and PI Web API 2019 SP1 1.13.0.6518
 - `Possible solutions to common situations`_
 
 Log files
---------_
+---------
 
 Fledge logs messages at error and warning levels by default, it is possible to increase the verbosity of messages logged to include information and debug messages also. This is done by altering the minimum log level setting for the north service or task. To change the minimal log level within the graphical user interface select the north service or task, click on the advanced settings link and then select a new minimal log level from the option list presented.
 The name of the north instance should be used to extract just the logs about the PI-Server integration, as in this example:

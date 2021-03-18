@@ -19,13 +19,13 @@ using Fledge version >= 1.9.x and PI Web API 2019 SP1 1.13.0.6518
 - Log files
 - How to check the PI Web API is installed and running
 - Commands to check the PI Web API
-- Error messages and the related causes
+- Error messages and causes
 - Possible solutions to common situations
 
 Log files
 ---------
 
-Fledge logs into the system syslog, mainly warnings and errors and in some circumstances rows of severity information.
+Fledge logs messages at error and warning levels by default, it is possible to increase the verbosity of messages logged to include information and debug messages also. This is done by altering the minimum log level setting for the north service or task. To change the minimal log level within the graphical user interface select the north service or task, click on the advanced settings link and then select a new minimal log level from the option list presented.
 The name of the north instance should be used to extract just the logs about the PI-Server integration, as in this example:
 
 screenshot from the Fledge GUI
@@ -49,13 +49,13 @@ How to check the PI Web API is installed and running
 
 Open the URL *https://piserver_1/piwebapi* in the browser, substituting *piserver_1* with the name/address of your PI Server, to
 verify the reachability and proper installation of PI Web API.
-If PI Web API is configured for *Basic* authentication a prompt asking user name/password like the following one will appear:
+If PI Web API is configured for Basic authentication a prompt, similar to the one shown below, requesting entry of the user name and password will be displayed
 
 |img_002|
 
 **NOTE:**
 
-- *The same user name/password configured in Fledge in the north instance should be used.*
+- *Enter the user name and password which you set in your Fledge configuration.*
 
 The *PI Web API* *OMF* plugin must be installed to allow the integration with Fledge, in this screen shot the 4th row shows the
 proper installation of the plugin:
@@ -69,7 +69,7 @@ Select the item *System* to verify the installed version:
 Commands to check the PI WEB API
 --------------------------------
 
-Open the PI Web API URL and drill drown into Data Archive and into Asset Framework to verify the proper configuration on the PI-Server side, also in terms of granted permissions.
+Open the PI Web API URL and drill drown into the Data Archive and the Asset Framework hierarchies to verify the proper configuration on the PI-Server side. Also confirm that the correct permissions have be granted to access these hierarchies.
 
 **Data Archive drill down**
 
@@ -99,10 +99,10 @@ following the path *AssetServers* -> Select the *Instance* -> Select the proper 
 
 proceed with the drill down operation up to the desired level/asset.
 
-Error messages an the related causes
-------------------------------------
+Error messages and causes
+-------------------------
 
-Some error messages and the related causes:
+Some error messages and causes:
 
 .. list-table::
     :widths: 50 50
@@ -120,7 +120,7 @@ Some error messages and the related causes:
 Possible solutions to common situations
 ---------------------------------------
 
-- **Recreate a single or a sets of PI-Server objets and send again all the data for them to the PI Server on the Asset Framework hierarchy level**
+- **Recreate a single or a sets of PI-Server objets and resend all the data for them to the PI Server on the Asset Framework hierarchy level**
     procedure:
         - disable the 1st north instance
         - delete properly the objects on the PI Server, AF + Data archive, that we intend to recreate or were eventually partially deleted
@@ -133,8 +133,9 @@ Possible solutions to common situations
 
     consideration:
         - the 2nd north instance will be used only to recreate the objects and resend the data
-        - the 2nd north instance will send again all the data available for the specified *included* assets
+        - the 2nd north instance will resend all the data available for the specified *included* assets
         - there will some data duplicated for the recreated assets because parte of the information will be managed by both the north instances.
+
 
 .. code:: json
 
@@ -148,7 +149,7 @@ Possible solutions to common situations
       "defaultAction": "exclude"
     }
 
-- **Recreate all the PI-Server objets and send again all the data to the PI Server on a different Asset Framework hierarchy level**
+- **Recreate all the PI-Server objets and resend all the data to the PI Server on a different Asset Framework hierarchy level**
     procedure:
         - disable the 1st north instance
         - create a new north instance using a new/unique name and having a new AF hierarchy (North option 'Asset Framework hierarchies tree')
@@ -157,7 +158,7 @@ Possible solutions to common situations
         - this solution will create a set of new objects unrelated to the previous ones
         - all the data stored in Fledge will be sent
 
-- **Recreate all the PI-Server objets and send again all the data to the PI Server on the same Asset Framework hierarchy level of the 1st North instance WITH data duplication**
+- **Recreate all the PI-Server objets and resend all the data to the PI Server on the same Asset Framework hierarchy level of the 1st North instance WITH data duplication**
     procedure:
         - disable the 1st north instance
         - delete properly the objects on the PI Server, AF + Data archive, that were eventually partially deleted
@@ -165,13 +166,14 @@ Possible solutions to common situations
         - create a new north instance 2nd using the same AF hierarchy (North option 'Asset Framework hierarchies tree)
 
     consideration:
-        - all the types will be recreated on the PI-Server and if the structure of each asset, number and types of the properties, is always the same and never changes everything should work properly as PI Web API 2019 SP1 1.13.0.6518 is not going to complain with it
-        - PI Web API 2019 SP1 1.13.0.6518 creates PI-Server objects having the compression disabled, so all the objects already present in the Data Archive will have duplicated data
+        - all the types will be recreated on the PI-Server. If the structure of each asset, number and types of the properties, does not change the data will be accepted and laced into the PI Server without any error. PI Web API 2019 SP1 1.13.0.6518 will accept the data.
+        - Using PI Web API 2019 SP1 1.13.0.6518 the PI-Server creates objects with the compression feature disabled. This will cause any data that was previously loaded and is still present in the Data Archive, to be duplicated.
 
-- **Recreate all the PI-Server objets and send again all the data to the PI Server on the same Asset Framework hierarchy level of the 1st North instance WITHOUT data duplication**
+
+- **Recreate all the PI-Server objets and resend all the data to the PI Server on the same Asset Framework hierarchy level of the 1st North instance WITHOUT data duplication**
     procedure:
         - disable the 1st north instance
-        - properly delete all the objects on the PI Server side, both in the AF and in the Data Archive, sent by the 1st north instance
+        - delete all the objects on the PI Server side, both in the AF and in the Data Archive, sent by the 1st north instance
         - stop / start PI Web API
         - create a new north instance using the same AF hierarchy (North option 'Asset Framework hierarchies' tree)
 

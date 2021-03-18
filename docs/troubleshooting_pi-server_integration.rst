@@ -3,6 +3,7 @@
 .. |img_002| image:: images/tshooting_pi_002.jpg
     :scale: 50 %
     :align: center
+
 .. |img_003| image:: images/tshooting_pi_003.jpg
 .. |img_004| image:: images/tshooting_pi_004.jpg
 .. |img_005| image:: images/tshooting_pi_005.jpg
@@ -55,6 +56,7 @@ verify the reachability and proper installation of PI Web API.
 If PI Web API is configured for Basic authentication a prompt, similar to the one shown below, requesting entry of the user name and password will be displayed
 
 |img_002|
+    :align: center
 
 **NOTE:**
 
@@ -141,7 +143,7 @@ Possible solutions to common situations
 
 
 .. code:: json
-
+    :emphasize-lines: 5,8
     {
       "rules": [
         {

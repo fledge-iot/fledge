@@ -1,7 +1,8 @@
 .. Images
 .. |img_001| image:: images/tshooting_pi_001.jpg
 .. |img_002| image:: images/tshooting_pi_002.jpg
-   :scale: 80
+    :scale: 50 %
+    :align: center
 .. |img_003| image:: images/tshooting_pi_003.jpg
 .. |img_004| image:: images/tshooting_pi_004.jpg
 .. |img_005| image:: images/tshooting_pi_005.jpg
